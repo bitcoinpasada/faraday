@@ -82,7 +82,7 @@ fn three_here() -> Faraday {
     for n in 0..3 {
         key_in(&mut app, n);
     }
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CKind(multi_index()));
     for slot in 0..3u8 {
         let fp = app.session.keys[usize::from(slot)].fingerprint().0;
@@ -280,7 +280,7 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     // A 2-of-3 with one vault set up before its keys.
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CKind(multi_index()));
     app.press(Action::CVaults(true));
     app.press(Action::CNext(cstep::WHERE));
@@ -377,7 +377,7 @@ fn a_seed_kept_nowhere_holds_the_plan() {
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::KeyGen(Some(0)));
     app.press(Action::KWords(12));
     app.press(Action::KWay(faraday_core::keygen::Way::Coins.index()));
@@ -574,7 +574,7 @@ fn an_old_plan_text_loads_with_its_sticks_and_makes_the_same_checklist() {
 fn three_with_a_vault(shell: &mut Shell) -> (Faraday, Vec<[u8; 4]>) {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CKind(multi_index()));
     app.press(Action::CVaults(true));
     app.press(Action::CNext(cstep::WHERE));
@@ -668,7 +668,7 @@ fn two_sticks_of_files_at_one_place_are_written_as_two_sticks_each_recognised() 
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CKind(multi_index()));
     for (i, fp) in fps.iter().enumerate() {
         app.press(Action::CSlotHere(i as u8, *fp));
@@ -776,7 +776,7 @@ fn three_on_an_empty_board() -> Faraday {
     for n in 0..3 {
         key_in(&mut app, n);
     }
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CKind(multi_index()));
     for slot in 0..3u8 {
         let fp = app.session.keys[usize::from(slot)].fingerprint().0;
@@ -1041,7 +1041,7 @@ fn a_vault_on_two_places_holds_seed_a_once_and_a_second_vault_takes_a_second_sti
 fn passphrase_key_on_the_board() -> Faraday {
     use faraday_core::keygen::Way;
     let mut app = testkit::started();
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::KeyGen(Some(0)));
     app.press(Action::KWords(12));
@@ -1398,7 +1398,7 @@ fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
     shell.disk_mut("S1").files = vec![("main.ofv".into(), main)];
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CKind(multi_index()));
     app.press(Action::CVaults(true));
     app.press(Action::CNext(cstep::WHERE));

@@ -2697,6 +2697,83 @@ where drawing changes.
   Access layers card in Create, Suggest a wallet and the Wallet card, I
   know what I want, The standard way in Create and Back up.
 
+  **L6 built** (2026-10-19): `faraday-core/src/create_plan.rs`
+  (`CreateWay`, `WalletShape`, `CreatePlan`, `suggest`, `candidate`,
+  `standard_items`, Create's presses), `cstep::START`, `LAYERS`,
+  `WALLET`; the Access layers card's view and presses serve Create
+  (`layers.rs`), its cards drawn in `screens.rs`; Back up's
+  `BackupState::standard`; `work_out::work_out_counted`; strings in
+  `faraday-strings`; tests `tests/create_wallet.rs` and
+  `tests/access_layers.rs`; the snapshot tour `l6`. Its choices:
+  - **Start** is a card of a Create opened by Make a new wallet
+    (`CreateState::start`); New wallet from this one and a wallet flow
+    open Create without it, as before, and a Tools tile opens it with
+    Start done and I know what I want. Start's way can be changed until
+    the wallet is made; the Access layers card and the Wallet card are in
+    the list only for Plan the backup first.
+  - **The card in Create** edits a plan of its own for a nominal shape
+    (`create_plan::planning`: five seeds a place may hold, any 2 of a
+    route's places at first). Its places are "Place n". A route's
+    passphrase row is **Remembers a passphrase**: for a single key with a
+    passphrase it is that key's, for every other shape it counts for
+    nothing. A vault's password rows are those the plan names, at least
+    one; a vault added for a route is the next number. No Work it out:
+    the foot button is **Suggest a wallet**. Conflicts show only after a
+    Suggest that found no shape: those of the shape with fewest (by
+    `layers::conflicts`), or "No wallet tried meets every layer".
+  - **Suggest a wallet** tries single key, single key with a passphrase,
+    2 of 3, 3 of 5, in that order. Each is first checked by
+    `layers::conflicts` (the §20.4 conflicts and the kinds conflicts, a
+    lookup); one with a conflict is dimmed with its first line and takes
+    no steps. The others are searched, each given an equal share of what
+    the ones before it left of the one `BUDGET`. A shape fits when it has
+    no conflict and the search places it; one whose share ran out before
+    any placement says so. **Ranking**: those that fit, the largest
+    stranger margin first, then the fewest things kept, then the order
+    tried; those that do not, in the order tried. The line of one that
+    fits: "2 of 3: a stranger needs 2 places; 3 keys to make" (margin 0:
+    "needs 1 place"; a margin of every place: "a stranger who finds
+    every place cannot spend"), "; best found" when its share ran out.
+    **Timings**: the fresh plan, 113 steps in all, under 0.1 ms; the worst
+    preset case said in Create (three layers, five places, two vaults),
+    the whole 400,000 steps (single key 45, 2 of 3 and 3 of 5 about
+    200,000 each, both best found), 168 to 181 ms on the build machine's
+    release build, unset kinds or each paper route's kinds a seed's words
+    and a part.
+  - **Before a shape is chosen** Kind, Quorum and Keys read "After
+    Wallet", muted, with no Change, and do not open. A dimmed shape says
+    its cause: for a single key with a passphrase, "no route remembers
+    the passphrase", or the route that does not (the card's conflict for
+    it, with "… remembers the passphrase" as its resolution).
+  - **Choosing** fills Kind (native SegWit, single key or multisig) and
+    Quorum and closes them and the Wallet card as done, with every slot
+    empty: no key is made or chosen. Where no route keeps anything in a
+    vault, the question of vaults before the keys is answered no and
+    closed; otherwise it is asked. Choosing the same shape again keeps
+    the keys chosen. A press on Kind, Quorum or the Access layers card
+    afterwards checks the shape on Kind and Quorum against the layers
+    (the conflicts, then the search with a quarter of the budget) and
+    keeps its first conflict, or that no placement meets every route, as
+    a warning line on Kind, Quorum and the Wallet card. A single key with
+    a passphrase says under Key 1 "Key 1 has no passphrase" while its key
+    has none (the Key card and Add a passphrase ask it, §3.3, §3.6).
+  - **Create's Back up** for Plan the backup first offers **Work it out**:
+    Back up a wallet on the wallet made, its plan the places and layers
+    said in Create (a route that remembers a passphrase remembering every
+    passphrase of the wallet's seeds), and Work it out run; with nothing
+    in conflict the board opens filled, the Access layers card before it.
+    For The standard way it offers **The standard way**; for I know what
+    I want, the presets as before.
+  - **The standard way** (Create's, and Back up's Start from, not the
+    wallet flow's plan card): Back up's checklist becomes each seed's
+    copy (words and SeedQR, checked as F29 checks a copy), Show the
+    descriptor, and the wallet's sheet made for the stick to keep or
+    print; no forms are asked. The side panel's map is not drawn. A key
+    made here is released once every seed's copy is checked (F31); the
+    descriptor and the sheet are not waited for. The plan is not saved
+    to a vault nor kept as the wallet's backup record. Change the plan
+    leaves it.
+
 DESIGN rows (§4.17 and a row for the Access layers card and the view
 pills) come with L2 and L3.
 

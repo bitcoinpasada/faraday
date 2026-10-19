@@ -1061,3 +1061,49 @@ fn a_routes_kinds_read_back_with_the_plan() {
     assert_ne!(bad, text);
     assert!(Answers::from_text(&s, &bad).is_none());
 }
+
+// ---- Create's Suggest a wallet (§20.12 item 2, §20.14 item 3) ----
+
+/// The worst preset case said on Create's Access layers card, before any
+/// wallet: five places, Access layer 1 through Vault 1 at Place 1 or any 3
+/// of the five on paper, Access layer 2 through Vault 2 at Place 2 or 3 or
+/// any 3 of Places 2 to 5 on paper, Access layer 3 any 3 of the five.
+fn worst_in_create() -> faraday_core::create_plan::CreatePlan {
+    let mut p = faraday_core::create_plan::CreatePlan::fresh();
+    let s = faraday_core::create_plan::planning();
+    p.answers.add_place(&s);
+    p.answers.add_place(&s);
+    p.answers.layers = worst();
+    p
+}
+
+/// Every shape tried shares one budget (§20.8's one second): the four
+/// together take no more than [`BUDGET`] steps. Its paper routes are any 3
+/// of their places, so no shape's stranger margin passes 2 (§20.12 item
+/// 5); a 3 of 5 with a seed and a share at each place reaches it, as Back
+/// up's worst case found, and comes first. A single key's seed at any
+/// one place spends: margin 0, last of those that fit. Nothing remembers
+/// a passphrase, so a single key with one cannot sign. The same on every
+/// run.
+#[test]
+fn suggest_a_wallet_shares_one_budget_among_the_shapes_and_ranks_by_margin() {
+    use faraday_core::create_plan::{WalletShape, suggest};
+    let p = worst_in_create();
+    let (fits, steps) = suggest(&p.answers);
+    assert!(steps <= BUDGET, "{steps} steps");
+    assert_eq!(fits[0].shape, WalletShape::ThreeOfFive);
+    assert!(fits[0].fits);
+    assert_eq!(fits[0].margin, 2);
+    let single = fits
+        .iter()
+        .find(|f| f.shape == WalletShape::Single)
+        .unwrap();
+    assert!(single.fits && single.margin == 0, "{single:?}");
+    assert!(fits.iter().all(|f| f.margin <= 2));
+    let pass = fits
+        .iter()
+        .find(|f| f.shape == WalletShape::SinglePassphrase)
+        .unwrap();
+    assert!(!pass.fits);
+    assert_eq!(suggest(&p.answers), (fits, steps), "the same on every run");
+}

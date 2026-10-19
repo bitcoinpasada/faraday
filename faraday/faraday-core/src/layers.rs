@@ -483,10 +483,28 @@ impl Faraday {
     }
 
     fn layers_view_uncached(&self) -> Option<LayersView> {
-        let (shape, a) = self.board_plan()?;
+        // In Create the card edits the plan said before the wallet
+        // (`docs/BACKUP-FLOW.md` §20.14): its places are "Place n", and a
+        // route remembers a passphrase, whichever seed comes to have one.
+        let create = self.create_planning();
+        let (shape, a) = if create {
+            self.create_layers_plan()?
+        } else {
+            self.board_plan()?
+        };
         let layers = a.layers_shown(&shape);
-        let vaults = a.vault_count(&shape);
-        let place = |p: usize| self.board_place_name(p);
+        let vaults = if create {
+            Faraday::create_layers_vaults(&a, &shape)
+        } else {
+            a.vault_count(&shape)
+        };
+        let place = |p: usize| {
+            if create {
+                crate::backup_flow::BackupFlow::place_name(p)
+            } else {
+                self.board_place_name(p)
+            }
+        };
         let views = layers
             .iter()
             .enumerate()
@@ -528,18 +546,26 @@ impl Faraday {
                                 )
                             })
                             .collect(),
-                        passphrases: shape
-                            .here()
-                            .into_iter()
-                            .filter(|&i| shape.seeds[i].passphrase)
-                            .map(|i| {
-                                (
-                                    fill(EN.layers_remembers, &[&shape.seeds[i].name]),
-                                    route.passphrases.contains(&i),
-                                    i,
-                                )
-                            })
-                            .collect(),
+                        passphrases: if create {
+                            vec![(
+                                EN.layers_remembers_passphrase.to_string(),
+                                !route.passphrases.is_empty(),
+                                0,
+                            )]
+                        } else {
+                            shape
+                                .here()
+                                .into_iter()
+                                .filter(|&i| shape.seeds[i].passphrase)
+                                .map(|i| {
+                                    (
+                                        fill(EN.layers_remembers, &[&shape.seeds[i].name]),
+                                        route.passphrases.contains(&i),
+                                        i,
+                                    )
+                                })
+                                .collect()
+                        },
                         kinds: route.kinds.map(|k| KindsView {
                             seeds: k.seeds,
                             form: (!route.paper).then_some(k.form),
@@ -550,6 +576,13 @@ impl Faraday {
                     .collect(),
             })
             .collect();
+        if create {
+            return Some(LayersView {
+                layers: views,
+                conflicts: self.create_conflicts(&a, &place),
+                work: false,
+            });
+        }
         let mut found = conflicts(&shape, &a, &layers, &place);
         // What Work it out found that the layers alone do not say, while
         // the plan is as it left it.
@@ -571,6 +604,31 @@ impl Faraday {
         })
     }
 
+    /// The conflicts Create's Access layers card shows (§20.14 item 3):
+    /// none until Suggest a wallet found no shape that fits, then those of
+    /// the shape with fewest, or that no shape tried meets every layer.
+    /// A lookup per route.
+    fn create_conflicts(&self, a: &Answers, place: &dyn Fn(usize) -> String) -> Vec<Conflict> {
+        let Some(ws) = self
+            .create
+            .as_ref()
+            .and_then(|c| c.plan.as_ref())
+            .and_then(|p| p.none)
+        else {
+            return Vec::new();
+        };
+        let (shape, b, layers) = crate::create_plan::candidate(ws, a);
+        let mut found =
+            crate::create_plan::plain(ws, &layers, conflicts(&shape, &b, &layers, place));
+        if found.is_empty() {
+            found.push(Conflict {
+                line: EN.create_none_fits.to_string(),
+                fixes: Vec::new(),
+            });
+        }
+        found
+    }
+
     /// The summary line of the Access layers card while it is closed.
     /// Costs a lookup.
     pub(crate) fn layers_summary(shape: &Shape, a: &Answers) -> String {
@@ -586,6 +644,9 @@ impl Faraday {
     /// edits (Back up's, or a wallet flow's), from the state as it is.
     pub(crate) fn layers_act(&mut self, press: LayersPress) {
         use LayersPress as P;
+        if self.create_planning() {
+            return self.create_layers_act(press);
+        }
         if press == P::WorkItOut {
             return self.layers_work_out();
         }
@@ -695,7 +756,7 @@ impl Faraday {
 /// layer or route added or taken off, a route's places, threshold, paper,
 /// passwords and passphrases, and the resolutions of §20.4. A new place
 /// or vault a resolution needs is added to `a`. A lookup per route.
-fn edit(layers: &mut Vec<Layer>, a: &mut Answers, shape: &Shape, press: LayersPress) {
+pub(crate) fn edit(layers: &mut Vec<Layer>, a: &mut Answers, shape: &Shape, press: LayersPress) {
     use LayersPress as P;
     let n = |x: u8| usize::from(x);
     match press {

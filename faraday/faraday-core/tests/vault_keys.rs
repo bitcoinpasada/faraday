@@ -269,7 +269,7 @@ fn vault_holding_a_made_key() -> (Vec<(String, Vec<u8>)>, osk_bip::bip39::Mnemon
     use faraday_core::{StorageCommand, cstep};
 
     let mut app = device(vec![kit_file("vault.ofv")]);
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     let at = NewKind::ALL
         .iter()
         .position(|k| *k == NewKind::NativeSegwit)
@@ -389,7 +389,7 @@ fn create_on_keys(app: &mut Faraday, kind: faraday_core::create::NewKind) {
         .iter()
         .position(|k| *k == kind)
         .unwrap() as u8;
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(app);
     app.press(Action::CKind(i));
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CVaults(false));

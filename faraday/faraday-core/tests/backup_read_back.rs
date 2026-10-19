@@ -82,7 +82,7 @@ fn made(seeds: &[usize], pass: &str) -> (Faraday, String, Vec<[u8; 4]>) {
         .enumerate()
         .map(|(k, &n)| key_in(&mut app, n, if k == 0 { pass } else { "" }))
         .collect();
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     let kind = if seeds.len() == 1 {
         NewKind::NativeSegwit
     } else {

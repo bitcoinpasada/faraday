@@ -364,7 +364,7 @@ fn create_offers_a_coldcard_export_for_a_cosigners_slot_and_takes_its_multisig_k
         .iter()
         .position(|k| *k == NewKind::Multi)
         .unwrap() as u8;
-    app.press(faraday_core::Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(faraday_core::Action::CKind(multi));
     app.press(faraday_core::Action::CNext(faraday_core::cstep::KIND));
     app.press(faraday_core::Action::CVaults(false));

@@ -8268,6 +8268,59 @@ pub struct Strings {
     pub layers_part_each: &'static str,
     /// A resolution: a route's vault password remembered. The route.
     pub layers_vault_remembered: &'static str,
+    /// The Access layers card in Create (BACKUP-FLOW §20.14): a route remembers a passphrase.
+    pub layers_remembers_passphrase: &'static str,
+    // ----- Create plans the backup first (docs/BACKUP-FLOW.md §20.14), faraday-core -----
+    /// Create's first card's title.
+    pub create_card_start: &'static str,
+    /// The card after the Access layers card in Create: the wallets suggested.
+    pub create_card_wallet: &'static str,
+    /// A way on Create's Start: the Access layers card, then a wallet suggested.
+    pub create_plan_first: &'static str,
+    /// A way on Create's Start: Kind, as Create has always opened.
+    pub create_know: &'static str,
+    /// A way on Create's Start and on Back up's Start from: each seed and the description, no places.
+    pub create_standard: &'static str,
+    /// The Access layers card's foot button in Create.
+    pub create_suggest: &'static str,
+    /// A wallet's shape tried (§20.12 item 2).
+    pub create_shape_single: &'static str,
+    /// A wallet's shape tried (§20.12 item 2).
+    pub create_shape_single_pass: &'static str,
+    /// A wallet's shape tried: `{}` of `{}`.
+    pub create_shape_m_of_n: &'static str,
+    /// A shape on the Wallet card: its name, what a stranger needs, the keys to make.
+    pub create_shape_line: &'static str,
+    /// A shape on the Wallet card, or the shape on Kind or Quorum: its name, then a line.
+    pub create_shape_with: &'static str,
+    /// What a shape gives: `{}` places for a stranger.
+    pub create_stranger_places: &'static str,
+    /// What a shape gives: one place for a stranger.
+    pub create_stranger_place: &'static str,
+    /// What a shape gives: no set of places spends for a stranger.
+    pub create_stranger_none: &'static str,
+    /// The keys a shape needs: `{}` of them.
+    pub create_keys_to_make: &'static str,
+    /// The keys a shape needs: one.
+    pub create_key_to_make: &'static str,
+    /// A shape's line when its search ran out of steps: the line.
+    pub create_best_found: &'static str,
+    /// Kind, Quorum and Keys on Plan the backup first before a shape is chosen.
+    pub create_after_wallet: &'static str,
+    /// A shape dimmed: no route of the layers remembers its passphrase.
+    pub create_no_route_remembers: &'static str,
+    /// A shape dimmed, or a conflict in Create: a route that does not remember the passphrase. `{}`: the route.
+    pub create_route_forgets: &'static str,
+    /// A resolution in Create: the route remembers the passphrase. `{}`: the route.
+    pub create_route_remember: &'static str,
+    /// A shape dimmed: no placement meets every route.
+    pub create_unmet: &'static str,
+    /// A shape dimmed: its share of the steps ran out before a placement was found.
+    pub create_none_found: &'static str,
+    /// The Access layers card in Create when no shape fits and no route says why.
+    pub create_none_fits: &'static str,
+    /// The Keys card, a single key with a passphrase: the slot's key has none. `{}`: the slot.
+    pub create_no_passphrase: &'static str,
     /// A line under the board: a layer met, each route with its paper route. The layer, its places.
     pub board_layer_can: &'static str,
     /// A warning under the board: a layer not met. The layer, its places.
@@ -12277,6 +12330,32 @@ pub static EN: Strings = Strings {
     layers_whole_each: "The whole wallet description at each place of {}",
     layers_part_each: "A part of the wallet description at each place of {}",
     layers_vault_remembered: "{} remembers its vault's password",
+    layers_remembers_passphrase: "Remembers a passphrase",
+    create_card_start: "Start",
+    create_card_wallet: "Wallet",
+    create_plan_first: "Plan the backup first",
+    create_know: "I know what I want",
+    create_standard: "The standard way",
+    create_suggest: "Suggest a wallet",
+    create_shape_single: "Single key",
+    create_shape_single_pass: "Single key with a passphrase",
+    create_shape_m_of_n: "{} of {}",
+    create_shape_line: "{}: {}; {}",
+    create_shape_with: "{}: {}",
+    create_stranger_places: "a stranger needs {} places",
+    create_stranger_place: "a stranger needs 1 place",
+    create_stranger_none: "a stranger who finds every place cannot spend",
+    create_keys_to_make: "{} keys to make",
+    create_key_to_make: "1 key to make",
+    create_best_found: "{}; best found",
+    create_after_wallet: "After Wallet",
+    create_no_route_remembers: "no route remembers the passphrase",
+    create_route_forgets: "{} does not remember the passphrase",
+    create_route_remember: "{} remembers the passphrase",
+    create_unmet: "no placement meets every route",
+    create_none_found: "no placement found; not every placement was tried",
+    create_none_fits: "No wallet tried meets every layer",
+    create_no_passphrase: "Key {} has no passphrase",
     board_layer_can: "{}: {} · can spend",
     board_layer_cannot: "{}: {} · cannot spend",
     board_layer_not_on_paper: "{} cannot spend from paper",

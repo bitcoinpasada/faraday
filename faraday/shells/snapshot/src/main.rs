@@ -298,6 +298,14 @@ impl Tour {
         self.pump();
     }
 
+    /// Make a new wallet opened past Start by I know what I want
+    /// (`docs/BACKUP-FLOW.md` §20.14 item 1), as the tours made before
+    /// Start open it.
+    fn create_knowing(&mut self) {
+        faraday_core::testkit::create_knowing(&mut self.app);
+        self.pump();
+    }
+
     fn press(&mut self, a: Action) {
         self.app.press(a);
         self.pump();
@@ -588,7 +596,7 @@ fn pills_tour(t: &mut Tour) -> Result<(), String> {
         .iter()
         .position(|k| *k == faraday_core::create::NewKind::Multi)
         .unwrap_or(0) as u8;
-    t.press(Action::CreateWallet);
+    t.create_knowing();
     t.press(Action::CKind(multi));
     t.press(Action::CVaults(true));
     t.press(Action::CNext(faraday_core::cstep::WHERE));
@@ -715,6 +723,7 @@ fn run(
         Some("addkey") => return add_key_tour(&mut t),
         Some("createfrom") => return create_from_tour(&mut t),
         Some("inprogress") => return in_progress_tour(&mut t),
+        Some("l6") => return plan_first_tour(&mut t),
         _ => {}
     }
     if medium == Medium::Stick {
@@ -1342,7 +1351,7 @@ fn run(
     }
     t.sticks(false);
     t.load_kit()?;
-    t.press(Action::CreateWallet);
+    t.create_knowing();
     // Create opens on Kind (`docs/NEW-WALLET.md` §2.1): single key is
     // the default, ticked to Multisig instead.
     t.press(Action::CKind(4));
@@ -1372,7 +1381,7 @@ fn run(
     }
     t.press(Action::Nav(Screen::Start));
     t.shot("start-create-waiting")?;
-    t.press(Action::CreateWallet);
+    t.create_knowing();
     if t.app.create_waiting() != 1 {
         return Err("Create did not come back to the wallet being made".into());
     }
@@ -1403,7 +1412,7 @@ fn run(
     t.press(Action::Cancel);
     // A FROST wallet dealt here: test key 1 and a new key are shares 1
     // and 2, and the deal computes share 3.
-    t.press(Action::CreateWallet);
+    t.create_knowing();
     t.press(Action::CKind(8)); // Threshold · FROST
     t.press(Action::CNext(0));
     t.press(Action::CNext(1));
@@ -2098,7 +2107,7 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("boot-loaded")?;
     // A 2-of-3 made here over test key 1 and two new keys, saved into
     // the open vault with the new keys.
-    t.press(Action::CreateWallet);
+    t.create_knowing();
     t.press(Action::CKind(4));
     t.press(Action::CNext(0));
     t.press(Action::CNext(1));
@@ -2512,7 +2521,7 @@ fn compact_tour(t: &mut Tour) -> Result<(), String> {
     });
     t.shot("entry-foot")?;
     t.press(Action::Nav(Screen::Home));
-    t.press(Action::CreateWallet);
+    t.create_knowing();
     // Create opens on Kind, single key the default
     // (`docs/NEW-WALLET.md` §2.1).
     t.shot("create-kind")?;
@@ -3191,7 +3200,7 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("public-silent-sheet")?;
     t.press(Action::QrPng);
     t.press(Action::Cancel);
-    t.press(Action::CreateWallet);
+    t.create_knowing();
     t.press(Action::CKind(4));
     t.press(Action::CNext(0));
     t.press(Action::CNext(1));
@@ -3858,6 +3867,41 @@ fn layers_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// Create plans the backup first (`docs/BACKUP-FLOW.md` §20.14): Start,
+/// the Access layers card in Create with the fresh plan, the Wallet card
+/// with the shapes that do not fit dimmed, and after the three test keys
+/// are put in the slots by hand, Create's Back up opened placed.
+fn plan_first_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::create_plan::WalletShape;
+    use faraday_core::cstep;
+    for (word, label) in testkit::TEST_SEEDS {
+        t.app
+            .session
+            .add_words(&testkit::test_words(word), label, None)
+            .map_err(|e| e.text())?;
+    }
+    t.press(Action::CreateWallet);
+    t.shot("l6-start")?;
+    t.press(Action::CNext(cstep::START));
+    t.shot("l6-layers")?;
+    scroll_to(t, Action::CSuggest);
+    t.shot("l6-layers-suggest")?;
+    t.press(Action::CSuggest);
+    t.shot("l6-wallet")?;
+    t.press(Action::CShape(WalletShape::TwoOfThree.index()));
+    t.shot("l6-keys")?;
+    for slot in 0..3u8 {
+        let fp = t.app.session.keys[usize::from(slot)].fingerprint().0;
+        t.press(Action::CSlotHere(slot, fp));
+    }
+    t.press(Action::CNext(cstep::KEYS));
+    t.press(Action::CNext(cstep::CHECK));
+    t.shot("l6-create-backup")?;
+    t.press(Action::CBackupPlanned);
+    t.shot("l6-backup-placed")?;
+    Ok(())
+}
+
 /// A vault made with `phrase` and unlocked, as a person makes one from
 /// Vaults.
 fn open_a_vault(t: &mut Tour, phrase: &str) -> Result<(), String> {
@@ -4346,7 +4390,7 @@ fn first_tour(t: &mut Tour) -> Result<(), String> {
         .iter()
         .position(|k| *k == NewKind::NativeSegwit)
         .ok_or("no native SegWit")? as u8;
-    t.press(Action::CreateWallet);
+    t.create_knowing();
     t.press(Action::CKind(kind));
     t.press(Action::CNext(faraday_core::cstep::KIND));
     device_key(t, 0);
@@ -5140,7 +5184,7 @@ fn create_from_tour(t: &mut Tour) -> Result<(), String> {
         .iter()
         .position(|k| *k == NewKind::Multi)
         .ok_or("no multisig")? as u8;
-    t.press(Action::CreateWallet);
+    t.create_knowing();
     t.press(Action::CKind(multi));
     t.press(Action::CNext(cstep::KIND));
     t.press(Action::CVaults(false));
@@ -5354,7 +5398,7 @@ fn in_progress_tour(t: &mut Tour) -> Result<(), String> {
         .iter()
         .position(|k| *k == faraday_core::create::NewKind::Multi)
         .ok_or("no multisig")? as u8;
-    t.press(Action::CreateWallet);
+    t.create_knowing();
     t.press(Action::CKind(multi));
     for slot in 0..3u8 {
         let fp = t.app.session.keys[usize::from(slot)].fingerprint().0;
@@ -5524,7 +5568,7 @@ fn wallet_flow_tour(t: &mut Tour) -> Result<(), String> {
         boot: false,
         files: Vec::new(),
     };
-    t.press(Action::CreateWallet);
+    t.create_knowing();
     t.press(Action::CNext(cstep::KIND));
     t.shot("wallet-flow-1-create-yes-no")?;
     t.press(Action::CVaults(true));
@@ -5736,11 +5780,12 @@ fn main() -> ExitCode {
             "addkey",
             "createfrom",
             "inprogress",
+            "l6",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, layers, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey, createfrom or inprogress"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, layers, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey, createfrom, inprogress or l6"
         );
         return ExitCode::from(2);
     }

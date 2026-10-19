@@ -205,7 +205,7 @@ fn multi_index() -> u8 {
 /// Make a new wallet, with `count` vaults to set up before the keys;
 /// `multi` for the 2-of-3.
 fn create_with_vaults(app: &mut Faraday, multi: bool, count: usize) {
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(app);
     if multi {
         app.press(Action::CKind(multi_index()));
     }
@@ -1429,7 +1429,7 @@ fn a_wallet_left_with_its_vaults_open_does_not_take_the_next_wallets_keys() {
     app.press(Action::Nav(Screen::Home));
     // Wallet B, kept as it is made, not in a vault: its key goes to no
     // vault of A's, and neither does its description.
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     let fp = key_in(&mut app, 1);
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
@@ -1445,7 +1445,7 @@ fn a_seed_kept_only_as_a_file_is_held_until_its_stick_is_written() {
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     let fp = new_key_here(&mut app);
     app.press(Action::CBackup(1));
     // No vault, no words, no sheet: the seed as a file at Place 1 alone.
@@ -1931,7 +1931,7 @@ fn a_vault_preset_chosen_after_the_keys_goes_through_to_the_writes() {
     let main = vault("Main", &[PHRASE], 0x41);
     let mut app = process(vec![("main.ofv".into(), main)], Vec::new(), Vec::new());
     keep_time(&mut app);
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     // Not in a vault: the default.
     let fp = key_in(&mut app, 1);
     app.press(Action::Nav(Screen::Create));
@@ -2573,7 +2573,7 @@ fn two_wallets_in_vaults_keep_each_its_own_vaults_and_a_flow_with_no_owner_match
     create_vault(&mut shell, &mut app, 0, PHRASE);
     app.press(Action::Nav(Screen::Home));
     // Wallet B in vaults: its flow, and a vault of its own.
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CVaults(true));
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CNext(cstep::HOW_MANY));
@@ -2651,7 +2651,7 @@ fn add_a_passphrase_acts_on_the_wallet_shown_not_the_one_a_backup_was_left_on() 
     keep_time(&mut app);
     let mut fps = Vec::new();
     for n in [1usize, 2] {
-        app.press(Action::CreateWallet);
+        faraday_core::testkit::create_knowing(&mut app);
         let fp = key_in(&mut app, n);
         app.press(Action::Nav(Screen::Create));
         app.press(Action::CSlotHere(0, fp));
@@ -2727,7 +2727,7 @@ fn flow_names(app: &Faraday) -> Vec<String> {
 fn answering_no_goes_to_the_keys_with_no_stick_or_vault_step_and_back_up_asks_the_rest() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
@@ -2874,7 +2874,7 @@ fn back_ups_plan_offers_the_open_vaults_and_a_vault_at_two_places_writes_both_co
 fn the_question_of_vaults_is_not_done_before_it_is_answered_and_continued() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     assert!(!app.create_card_done(cstep::WHERE));
     // Kind's Continue opens the question, and it is not done.
     app.press(Action::CNext(cstep::KIND));
@@ -2910,7 +2910,7 @@ fn the_question_of_vaults_is_not_done_before_it_is_answered_and_continued() {
 fn the_count_of_vaults_is_one_to_1024_and_nothing_starts_before_its_continue() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CVaults(true));
     app.press(Action::CNext(cstep::WHERE));
@@ -3084,7 +3084,7 @@ fn a_setup_survives_the_lock_that_makes_the_process_clean() {
     sticks(&mut shell, 2);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     // A key put in a slot before the question was answered.
     key_in(&mut app, 0);
     app.press(Action::Nav(Screen::Create));
@@ -3164,7 +3164,7 @@ fn the_question_and_the_count_are_fixed_once_a_vault_of_the_setup_is_open() {
 fn a_wallet_made_without_the_question_continued_does_not_read_it_as_done() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     let fp = key_in(&mut app, 0);
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
@@ -3221,7 +3221,7 @@ fn a_seed_kept_as_a_file_at_a_place_is_released_once_that_stick_is_written() {
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     let fp = new_key_here(&mut app);
     app.press(Action::CBackup(1));
     vault_off(&mut app, 0);
@@ -3253,7 +3253,7 @@ fn each_places_stick_of_files_takes_only_that_places_seed_file() {
     sticks(&mut shell, 3);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CKind(multi_index()));
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
@@ -4001,7 +4001,7 @@ fn the_flows_plan_card_has_one_continue_at_both_sizes() {
 fn a_wallet_rebuilt_from_its_share_files_has_the_checksum_it_was_made_with() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CKind(multi_index()));
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
@@ -4424,7 +4424,7 @@ fn two_of_three_paper(shell: &mut Shell, n: usize) -> Faraday {
     sticks(shell, n);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CKind(multi_index()));
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));

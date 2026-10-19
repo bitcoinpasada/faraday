@@ -26,6 +26,7 @@ pub mod chart_edit;
 pub mod codes;
 pub mod create;
 mod create_from;
+pub mod create_plan;
 pub mod decode;
 pub mod demo;
 pub mod devices;
@@ -1110,6 +1111,21 @@ pub enum Action {
     CheckMessage(usize),
     /// Start creating a wallet.
     CreateWallet,
+    /// The way on Create's Start, by [`create_plan::CreateWay::ALL`].
+    CWay(u8),
+    /// Suggest a wallet: the shapes tried against the layers.
+    CSuggest,
+    /// A shape chosen on the Wallet card, by
+    /// [`create_plan::WalletShape::ALL`].
+    CShape(u8),
+    /// Create's Back up, planned: Back up a wallet with the layers set and
+    /// Work it out run.
+    CBackupPlanned,
+    /// Create's Back up the standard way.
+    CBackupStandard,
+    /// Back up's The standard way: each seed and the description, as a
+    /// checklist, with no places.
+    BStandard,
     /// Open or close a create card.
     CStep(u8),
     /// Close a create card as done and open the next.
@@ -2395,6 +2411,10 @@ pub struct BackupState {
     /// **Lock and write** makes a seed's file only once it is here
     /// (`docs/BACKUP-FLOW.md` §19.12 item 6). Never a secret.
     pub files_warned: Vec<String>,
+    /// The standard way (`docs/BACKUP-FLOW.md` §20.11): the checklist is
+    /// each seed's copy and the description, with no places, layers or
+    /// board.
+    pub standard: bool,
 }
 
 /// Signing a message: the cards' state.
@@ -2511,6 +2531,15 @@ pub struct CreateState {
     /// The wallet the creation was started from, by **New wallet from
     /// this one**.
     pub from: Option<create::FromWallet>,
+    /// The creation began on Start (`docs/BACKUP-FLOW.md` §20.14): one
+    /// opened any other way (a wallet's New wallet from this one, a Tools
+    /// tile, a wallet flow) is past it.
+    pub start: bool,
+    /// The way chosen on Start.
+    pub way: create_plan::CreateWay,
+    /// Plan the backup first: the places and the layers, and what Suggest
+    /// a wallet found.
+    pub plan: Option<create_plan::CreatePlan>,
 }
 
 impl CreateState {
@@ -2553,8 +2582,15 @@ pub mod cstep {
     pub const VAULTS: u8 = 7;
     /// How many vaults, before the sticks.
     pub const HOW_MANY: u8 = 8;
+    /// Start: Plan the backup first, I know what I want, or The standard
+    /// way (`docs/BACKUP-FLOW.md` §20.14 item 1).
+    pub const START: u8 = 9;
+    /// The Access layers card, Plan the backup first's (§20.14 item 2).
+    pub const LAYERS: u8 = 10;
+    /// The wallets Suggest a wallet found (§20.14 item 3).
+    pub const WALLET: u8 = 11;
     /// How many cards there are.
-    pub const COUNT: usize = 9;
+    pub const COUNT: usize = 12;
 }
 
 /// Restoring a wallet: the cards' state (`docs/NEW-WALLET.md` §12).
@@ -5806,6 +5842,7 @@ impl Faraday {
                     b.stage = BStage::Plan;
                     b.q = None;
                     b.checking = false;
+                    b.standard = false;
                     b.scroll = flow::Scroll::default();
                 }
             }
@@ -6202,12 +6239,17 @@ impl Faraday {
                 // Where the keys will be kept is done only once the person
                 // has pressed its own Continue, whatever is ticked to begin
                 // with.
+                // Create opens on Start, Plan the backup first ticked
+                // (`docs/BACKUP-FLOW.md` §20.14 item 1).
                 let done = [false; cstep::COUNT];
                 let owner = self.fresh_owner();
                 self.create = Some(CreateState {
                     owner,
                     done,
-                    open: Some(cstep::KIND),
+                    open: Some(cstep::START),
+                    start: true,
+                    way: create_plan::CreateWay::Plan,
+                    plan: Some(create_plan::CreatePlan::fresh()),
                     // Start over keeps it.
                     from_home: self.screen == Screen::Home
                         || (self.screen == Screen::Create
@@ -6225,12 +6267,22 @@ impl Faraday {
                     && self.create.as_ref().is_some_and(|c| {
                         self.setup_pending(c.owner, c.into_vaults(), c.built.is_some())
                     }) => {}
+            // Kind, Quorum and Keys wait for a shape on Plan the backup
+            // first (`docs/BACKUP-FLOW.md` §20.14 item 4).
+            Action::CStep(k) if self.create_waits_for_wallet(k) => {}
             Action::CStep(k) => {
                 if let Some(c) = self.create.as_mut() {
                     c.open = if c.open == Some(k) { None } else { Some(k) };
                     c.scroll.follow = true;
                 }
             }
+            Action::CWay(k) => self.create_way(k),
+            Action::CNext(k) if k == cstep::START => self.create_start_next(),
+            Action::CSuggest => self.create_suggest(),
+            Action::CShape(k) => self.create_choose(k),
+            Action::CBackupPlanned => self.create_backup_planned(),
+            Action::CBackupStandard => self.create_backup_standard(),
+            Action::BStandard => self.backup_standard(),
             // Keys' Continue makes the wallet, which opens Check; until
             // it is made, a refusal keeps Keys open with the reason.
             Action::CNext(k)
@@ -6298,6 +6350,7 @@ impl Faraday {
                     c.slots.truncate(n);
                 }
                 self.create_from_refresh();
+                self.create_plan_recheck();
             }
             Action::CBackup(k) => {
                 if let Some(i) = self.create.as_ref().and_then(|c| c.built) {
@@ -6355,6 +6408,7 @@ impl Faraday {
                         c.slots.resize(c.m, create::Source::Empty);
                     }
                 }
+                self.create_plan_recheck();
             }
             Action::CN(d) => {
                 if let Some(c) = self.create.as_mut()
@@ -6366,6 +6420,7 @@ impl Faraday {
                     c.slots.resize(slots, create::Source::Empty);
                 }
                 self.create_from_refresh();
+                self.create_plan_recheck();
             }
             // NEW-WALLET §16 (F45): keys from a vault in Create; a new
             // wallet from one held.
@@ -7261,6 +7316,12 @@ impl Faraday {
             return Vec::new();
         };
         let shape = self.plan_shape(b.wallet);
+        if b.standard {
+            return create_plan::standard_items(&shape)
+                .into_iter()
+                .map(bstep::of)
+                .collect();
+        }
         plan::checklist(&shape, &b.answers)
             .into_iter()
             .map(bstep::of)

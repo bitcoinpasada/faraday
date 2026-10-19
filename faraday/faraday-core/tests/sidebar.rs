@@ -287,7 +287,7 @@ fn create_at_places() -> Faraday {
     for n in 0..3 {
         key_in(&mut app, n);
     }
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CKind(multi_index()));
     for slot in 0..3u8 {
         let fp = app.session.keys[usize::from(slot)].fingerprint().0;
@@ -397,7 +397,7 @@ fn no_row_before_a_step_is_done() {
 #[test]
 fn the_row_goes_when_the_flow_is_started_over() {
     let mut app = testkit::started();
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::Nav(Screen::Settings));
     assert!(offered(&mut app, Action::Resume(Going::Create)));
@@ -487,7 +487,7 @@ fn a_lock_wipes_what_it_wipes_and_a_kept_flow_keeps_its_row() {
     let mut app = common::process(Vec::new(), Vec::new(), Vec::new());
     common::start(&mut app, Kind::Gpg);
     app.press(Action::Flow(F::Continue));
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CNext(cstep::KIND));
     assert!(offered(&mut app, Action::Resume(Going::Create)));
     let mut app = shell.lock(&mut app);

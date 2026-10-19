@@ -6988,11 +6988,16 @@ fn seed_grid(ui: &mut Ui, m: &osk_codec::qr::QrMatrix, x: f32, y: f32, w: f32, p
 /// in the checklist each line marked by its item's state; the check at
 /// its foot.
 fn backup_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32) {
-    if app.backup.is_none() {
+    let Some(b) = app.backup.as_ref() else {
         return;
-    }
+    };
     ui.fill(px, 0.0, pw, h, 0.0, SURFACE);
     ui.fill(px, 0.0, 1.0, h, 0.0, LINE);
+    // The standard way has no places to map (`docs/BACKUP-FLOW.md`
+    // §20.11).
+    if b.standard {
+        return;
+    }
     let x = px + 22.0;
     let w = pw - 44.0;
     // The check is measured first, so the map stops above it.
@@ -7539,6 +7544,9 @@ pub(crate) const CSTEPS: [&str; crate::cstep::COUNT] = [
     "",
     EN.backup_flow_card_vaults,
     EN.backup_flow_card_vault_count,
+    EN.create_card_start,
+    EN.layers_title,
+    EN.create_card_wallet,
 ];
 
 fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -7561,6 +7569,9 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 CSTEPS[k as usize].to_string()
             },
             summary: match k {
+                // Before a shape is chosen (`docs/BACKUP-FLOW.md` §20.14
+                // item 4).
+                _ if app.create_waits_for_wallet(k) => EN.create_after_wallet.to_string(),
                 cstep::WHERE | cstep::HOW_MANY | cstep::STICKS | cstep::VAULTS => {
                     create_flow_summary(app, k)
                 }
@@ -7572,6 +7583,15 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 ),
                 cstep::KIND => c.kind.name().to_string(),
                 cstep::QUORUM => fill(EN.create_of, &[&c.m.to_string(), &c.n.to_string()]),
+                cstep::START => c.way.name().to_string(),
+                cstep::LAYERS => c.plan.as_ref().map_or_else(String::new, |p| {
+                    Faraday::layers_summary(&crate::create_plan::planning(), &p.answers)
+                }),
+                cstep::WALLET => c
+                    .plan
+                    .as_ref()
+                    .and_then(|p| p.chosen)
+                    .map_or_else(|| EN.create_not_chosen.to_string(), |w| w.name()),
                 cstep::KEYS if c.kind.threshold() => fill(
                     EN.create_of_chosen_computed,
                     &[
@@ -7598,12 +7618,23 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     Some(w) => fill(EN.create_first_addresses, &[&w.name.to_string()]),
                     None => EN.create_not_made_yet.to_string(),
                 },
+                // Back up as the way chosen on Start has it.
+                _ if c.start && c.way == crate::create_plan::CreateWay::Plan => {
+                    EN.layers_title.to_string()
+                }
+                _ if c.start && c.way == crate::create_plan::CreateWay::Standard => {
+                    EN.create_standard.to_string()
+                }
                 _ => EN.create_paper_vault.to_string(),
             },
             mono: false,
             done: app.create_card_done(k),
             open: c.open == Some(k),
-            default: k == cstep::KIND || k == cstep::QUORUM || k == cstep::WHERE,
+            default: (matches!(
+                k,
+                cstep::KIND | cstep::QUORUM | cstep::WHERE | cstep::START | cstep::LAYERS
+            ) && !app.create_waits_for_wallet(k))
+                || (k == cstep::WALLET && c.plan.as_ref().is_some_and(|p| p.chosen.is_some())),
             toggle: Action::CStep(k),
             guide: Some(guide::create(k, c.kind, c.m, c.n, app.medium)).filter(|g| !g.is_empty()),
         })
@@ -7642,6 +7673,48 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         app.dirty = true;
         app.commands.push_back(osk_shell_api::Command::Draw);
     }
+}
+
+/// A choice drawn as the Kind card's rows: a box the width of the card,
+/// `text` wrapped in it, the chosen one on the accent tint, one that may
+/// not be chosen dimmed and inert. Returns its height and the gap after it.
+#[allow(clippy::too_many_arguments)]
+fn pick_box(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    text: &str,
+    on: bool,
+    enabled: bool,
+    action: Action,
+) -> f32 {
+    let lines = ui.wrap_lines(14.0, W::S, text, w - 28.0).max(1) as f32;
+    let h = (lines * ui.line(14.0, W::S) + 28.0).max(48.0);
+    ui.fill(x, y, w, h, 8.0, if on { ACCENT.with_alpha(26) } else { BG });
+    ui.stroke(
+        x,
+        y,
+        w,
+        h,
+        8.0,
+        if on { ACCENT.with_alpha(110) } else { INNER },
+    );
+    let color = if enabled || on { TEXT } else { DIM };
+    let th = lines * ui.line(14.0, W::S);
+    ui.wrap(
+        x + 14.0,
+        y + (h - th) / 2.0,
+        w - 28.0,
+        14.0,
+        W::S,
+        color,
+        text,
+    );
+    if enabled {
+        ui.hit(x, y, w, h, action);
+    }
+    h + 6.0
 }
 
 /// The closed line of a card that asks about vaults: the answer, as the
@@ -7876,6 +7949,17 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
     let c = app.create.as_ref().expect("create");
     let locked = c.built.is_some();
     let mut cy = y;
+    // The shape on Kind and Quorum checked against the layers again: a
+    // warning, never a refusal (`docs/BACKUP-FLOW.md` §20.14 item 4).
+    if matches!(n, cstep::KIND | cstep::QUORUM)
+        && let Some(line) = c
+            .plan
+            .as_ref()
+            .filter(|_| c.start && c.way == crate::create_plan::CreateWay::Plan)
+            .and_then(|p| p.warning.as_ref())
+    {
+        cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, line) + 12.0;
+    }
     match n {
         cstep::KIND => {
             cy += kind_rows(
@@ -8032,6 +8116,11 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     70.0
                 };
                 cy += 28.0;
+                // A single key with a passphrase whose key has none
+                // (`docs/BACKUP-FLOW.md` §20.14 item 4).
+                if let Some(line) = app.create_slot_passphrase_line(slot) {
+                    cy += ui.wrap(x + indent, cy, w - indent, 13.0, W::S, WARN, &line) + 8.0;
+                }
                 if !locked {
                     // A key chosen for one slot is offered in no other
                     // (`docs/NEW-WALLET.md` §2.2): clearing the slot
@@ -8255,6 +8344,63 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             );
             cy += 48.0;
         }
+        cstep::START => {
+            // The three ways (`docs/BACKUP-FLOW.md` §20.14 item 1).
+            use crate::create_plan::CreateWay;
+            for way in CreateWay::ALL {
+                cy += pick_box(
+                    ui,
+                    x,
+                    cy,
+                    w,
+                    way.name(),
+                    c.way == way,
+                    !locked,
+                    Action::CWay(way.index()),
+                );
+            }
+            cy += 6.0;
+            if !locked && next_button(ui, x, cy, w, EN.create_continue, Action::CNext(n)) {
+                cy += 48.0;
+            }
+        }
+        cstep::LAYERS => {
+            // The Access layers card, as Back up's (§20.14 item 2), and
+            // its foot button.
+            cy += crate::layers_screen::card(app, ui, x, cy, w, !locked);
+            cy += 8.0;
+            if !locked && next_button(ui, x, cy, w, EN.create_suggest, Action::CSuggest) {
+                cy += 48.0;
+            }
+        }
+        cstep::WALLET => {
+            // The shapes that fit, best first, then those that do not,
+            // dimmed with what stops them (§20.14 item 3).
+            let Some(p) = c.plan.as_ref() else {
+                return cy - y;
+            };
+            for f in &p.fits {
+                cy += pick_box(
+                    ui,
+                    x,
+                    cy,
+                    w,
+                    &f.line,
+                    p.chosen == Some(f.shape),
+                    f.fits && !locked,
+                    Action::CShape(f.shape.index()),
+                );
+            }
+            if let Some(line) = &p.warning {
+                cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, line) + 12.0;
+            }
+            if p.fits.is_empty()
+                && !locked
+                && next_button(ui, x, cy, w, EN.create_suggest, Action::CSuggest)
+            {
+                cy += 48.0;
+            }
+        }
         cstep::WHERE => {
             if let Some(h) = crate::backup_flow_wallet_screen::create_where(app, ui, x, cy, w) {
                 cy += h;
@@ -8300,8 +8446,26 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
         _ => {
             // The backup plan's presets: each opens Back up a wallet on
             // the wallet just made, with that preset applied.
+            // Planned first, Work it out on the keys made; the standard
+            // way, its checklist (`docs/BACKUP-FLOW.md` §20.14 items 5, 6).
+            use crate::create_plan::CreateWay;
+            let way = if c.start { c.way } else { CreateWay::Know };
+            if c.built.is_some() && way != CreateWay::Know {
+                let (label, action) = if way == CreateWay::Plan {
+                    (EN.layers_work_out, Action::CBackupPlanned)
+                } else {
+                    (EN.create_standard, Action::CBackupStandard)
+                };
+                ui.button(x, cy, Some(w), 40.0, label, Style::Primary, action);
+                cy += 48.0;
+            }
             if c.built.is_some() {
-                for (k, p) in crate::plan::Preset::ALL.iter().enumerate() {
+                let presets: &[crate::plan::Preset] = if way == CreateWay::Know {
+                    &crate::plan::Preset::ALL
+                } else {
+                    &[]
+                };
+                for (k, p) in presets.iter().enumerate() {
                     ui.button(
                         x,
                         cy,

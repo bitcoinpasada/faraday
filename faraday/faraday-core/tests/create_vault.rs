@@ -44,7 +44,7 @@ fn create_to_vault_step() -> Faraday {
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x20 + i; 32])));
     }
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CNext(faraday_core::cstep::KIND));
     app.press(Action::KeyGen(Some(0)));
     app.press(Action::KWords(12));

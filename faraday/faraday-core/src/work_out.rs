@@ -933,6 +933,19 @@ impl Search<'_> {
 /// route left, nothing is placed: `None`. The search of this module:
 /// costs up to `budget` steps of a few hundred mask operations each.
 pub fn work_out(shape: &Shape, a: &Answers, layers: &[Layer], budget: u64) -> Option<Outcome> {
+    work_out_counted(shape, a, layers, budget).0
+}
+
+/// [`work_out`], with the steps it took whether or not it placed
+/// anything: what Create's Suggest a wallet shares the budget by
+/// (`docs/BACKUP-FLOW.md` §20.14 item 3). The search: costs up to
+/// `budget` steps of a few hundred mask operations each.
+pub fn work_out_counted(
+    shape: &Shape,
+    a: &Answers,
+    layers: &[Layer],
+    budget: u64,
+) -> (Option<Outcome>, u64) {
     let n = a.places.clamp(1, MOST_PLACES);
     let routes: Vec<&Route> = layers
         .iter()
@@ -952,7 +965,7 @@ pub fn work_out(shape: &Shape, a: &Answers, layers: &[Layer], budget: u64) -> Op
         .filter(|r| r.any >= 1)
         .collect();
     if routes.is_empty() {
-        return None;
+        return (None, 0);
     }
     let mask = |v: &[usize]| v.iter().fold(0u32, |acc, &p| acc | (1 << p));
     let vmask = |v: &[usize]| {
@@ -1227,8 +1240,10 @@ pub fn work_out(shape: &Shape, a: &Answers, layers: &[Layer], budget: u64) -> Op
             break;
         }
     }
-    let (score, choice, things) = search.best.clone()?;
-    Some(Outcome {
+    let Some((score, choice, things)) = search.best.clone() else {
+        return (None, search.steps);
+    };
+    let out = Outcome {
         map: map_of(&search, &stored, &choice, &things),
         margin: score.margin,
         balance: score.balance,
@@ -1236,7 +1251,8 @@ pub fn work_out(shape: &Shape, a: &Answers, layers: &[Layer], budget: u64) -> Op
         unsealed: score.unsealed,
         stopped: search.stopped,
         steps: search.steps,
-    })
+    };
+    (Some(out), search.steps)
 }
 
 /// The map of a placement: each place's paper and the sticks it keeps,

@@ -1,11 +1,16 @@
-//! Make a new wallet opens on Kind, whatever opened it
-//! (`docs/NEW-WALLET.md` §2.1, reversing `SIMPLIFY.md` §2.1 for this
-//! flow): Kind defaults to single key, Multisig is the other everyday
-//! choice, and the other eight kinds are behind More kinds. It ends in
-//! the backup plan (`SIMPLIFY.md` §2.3): Keys' Continue makes the
-//! wallet, Check follows, and Back up offers the plan's presets.
+//! Make a new wallet opens on Start (`docs/BACKUP-FLOW.md` §20.14 item 1):
+//! Plan the backup first ticked, I know what I want, The standard way. I
+//! know what I want opens Kind as Create always has (`docs/NEW-WALLET.md`
+//! §2.1, reversing `SIMPLIFY.md` §2.1 for this flow): Kind defaults to
+//! single key, Multisig is the other everyday choice, and the other eight
+//! kinds are behind More kinds. It ends in the backup plan (`SIMPLIFY.md`
+//! §2.3): Keys' Continue makes the wallet, Check follows, and Back up
+//! offers the plan's presets. Plan the backup first says the layers on the
+//! Access layers card, suggests the wallet's shape and leaves every key
+//! to the person.
 
 use faraday_core::create::NewKind;
+use faraday_core::create_plan::{CreateWay, WalletShape};
 use faraday_core::plan::{Answers, Preset};
 use faraday_core::{Action, Faraday, Screen, cstep, testkit};
 use osk_shell_api::{App, Event, Key};
@@ -35,22 +40,44 @@ fn add_key(app: &mut Faraday, seed: &str) {
 
 fn opened() -> Faraday {
     let mut app = testkit::started();
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     assert_eq!(app.screen, Screen::Create);
     app
 }
 
 #[test]
-fn a_fresh_create_opens_on_kind_with_the_single_key_kind() {
+fn a_fresh_create_opens_on_start_with_plan_the_backup_first_ticked() {
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    assert_eq!(app.screen, Screen::Create);
+    let c = app.create.as_ref().expect("create");
+    assert_eq!(c.open, Some(cstep::START), "Create opens on Start");
+    assert_eq!(c.way, CreateWay::Plan, "Plan the backup first is ticked");
+    let texts = app.drawn_texts();
+    for way in [
+        "Plan the backup first",
+        "I know what I want",
+        "The standard way",
+    ] {
+        assert!(
+            texts.iter().any(|t| t == way),
+            "{way} is offered: {texts:?}"
+        );
+    }
+}
+
+#[test]
+fn i_know_what_i_want_opens_kind_with_the_single_key_kind_and_no_layers() {
     let app = opened();
     let c = app.create.as_ref().expect("create");
     assert_eq!(c.kind, NewKind::NativeSegwit);
-    assert_eq!(
-        c.open,
-        Some(cstep::KIND),
-        "Create opens on Kind, whatever opened it"
-    );
+    assert_eq!(c.open, Some(cstep::KIND), "I know what I want opens Kind");
     assert!(!c.done[cstep::KIND as usize], "not answered yet");
+    let cards = app.create_cards();
+    assert!(
+        !cards.contains(&cstep::LAYERS) && !cards.contains(&cstep::WALLET),
+        "nothing about layers is asked: {cards:?}"
+    );
 }
 
 #[test]
@@ -149,7 +176,7 @@ fn made_on(mut app: Faraday) -> (Faraday, usize) {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CNext(cstep::KIND)); // single key, the default: opens Keys
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
@@ -225,9 +252,11 @@ fn checks_address_rows_are_named_the_wallets_first_addresses() {
 /// A 2-of-3 multisig, Create opened on Kind and advanced to Keys.
 fn multisig_on_keys() -> Faraday {
     let mut app = testkit::started();
+    // Start stands above Kind now: the foot button needs the height.
+    tall(&mut app);
     add_key(&mut app, "bacon");
     add_key(&mut app, "zebra");
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CKind(multi_index()));
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CVaults(false));
@@ -302,7 +331,7 @@ fn a_key_made_on_its_own_takes_a_passphrase_in_a_single_key_slot() {
     let mut app = testkit::started();
     let first = key_made_on_its_own(&mut app);
     let words = app.session.keys[0].words.clone().expect("words");
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
@@ -353,7 +382,7 @@ fn a_slot_whose_key_has_a_passphrase_offers_no_add_a_passphrase() {
         .add_words_with(&words, "Ride the 7 bus", "with", None)
         .unwrap()
         .0;
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
@@ -370,7 +399,7 @@ fn unequal_passphrases_in_a_slot_lock_nothing_in() {
     let mut app = testkit::started();
     add_key(&mut app, "bacon");
     let plain = app.session.keys[0].fingerprint().0;
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
@@ -495,7 +524,7 @@ fn new_wallet_from_a_two_of_three_held_here_takes_every_key_at_account_1() {
     for seed in ["bacon", "zebra", "summer"] {
         add_key(&mut app, seed);
     }
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     app.press(Action::CKind(multi_index()));
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CVaults(false));
@@ -591,4 +620,344 @@ fn changing_kind_to_taproot_keeps_the_keys_and_makes_a_taproot_wallet() {
     assert_eq!(keys[0].fingerprint().map(|f| f.0), Some(fp_of("bacon")));
     assert_eq!(account_of_key(&keys[0]), 1);
     assert_eq!(w.name, format!("{} · account 1", NewKind::Taproot.name()));
+}
+
+// ---- Plan the backup first (`docs/BACKUP-FLOW.md` §20.14) ----
+
+/// A display tall enough for a card and its foot button together.
+fn tall(app: &mut Faraday) {
+    use osk_shell_api::{BootState, DisplayInfo, SecureHardware};
+    app.event(Event::Display(DisplayInfo {
+        width: 1280,
+        height: 2400,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+}
+
+/// Create opened on Start, with the test seeds `words` loaded first by
+/// Add a key, and Continue pressed with Plan the backup first ticked: the
+/// Access layers card, with the fresh plan.
+fn planning_with(words: &[&str]) -> Faraday {
+    let mut app = testkit::started();
+    tall(&mut app);
+    for w in words {
+        add_key(&mut app, w);
+    }
+    app.press(Action::CreateWallet);
+    app.press(Action::CNext(cstep::START));
+    app
+}
+
+fn planning() -> Faraday {
+    planning_with(&[])
+}
+
+#[test]
+fn plan_the_backup_first_opens_the_access_layers_card_with_the_fresh_plan() {
+    let mut app = planning();
+    let c = app.create.as_ref().expect("create");
+    assert_eq!(c.open, Some(cstep::LAYERS));
+    let a = &c.plan.as_ref().expect("a plan").answers;
+    // §20.14 item 2: three places, one layer, its paper route any 2 of
+    // them, one seed in words and a part of the description at each.
+    assert_eq!(a.places, 3);
+    assert_eq!(a.layers.len(), 1);
+    let r = &a.layers[0].routes[0];
+    assert!(r.paper);
+    assert_eq!((r.places.clone(), r.any), (vec![0, 1, 2], 2));
+    let k = r.kinds.expect("kinds set");
+    assert_eq!(k.seeds, 1);
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Suggest a wallet"),
+        "the card's foot button: {texts:?}"
+    );
+}
+
+#[test]
+fn kind_and_keys_read_after_wallet_and_stay_closed_until_a_shape_is_chosen() {
+    let mut app = planning();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().filter(|t| *t == "After Wallet").count() >= 2,
+        "Kind and Keys wait for the Wallet card: {texts:?}"
+    );
+    assert!(
+        !texts.iter().any(|t| t == "Single key · native SegWit"),
+        "no kind shows as chosen: {texts:?}"
+    );
+    app.press(Action::CStep(cstep::KIND));
+    assert_eq!(
+        app.create.as_ref().and_then(|c| c.open),
+        Some(cstep::LAYERS),
+        "Kind does not open"
+    );
+    app.press(Action::CSuggest);
+    app.press(Action::CShape(WalletShape::TwoOfThree.index()));
+    let texts = app.drawn_texts();
+    assert!(!texts.iter().any(|t| t == "After Wallet"), "{texts:?}");
+    assert!(
+        texts.iter().any(|t| t == "Multisig · native SegWit"),
+        "{texts:?}"
+    );
+}
+
+#[test]
+fn the_fresh_plan_suggests_a_two_of_three_first_and_dims_single_key_with_its_conflict() {
+    let mut app = planning();
+    app.press(Action::CSuggest);
+    let c = app.create.as_ref().expect("create");
+    assert_eq!(c.open, Some(cstep::WALLET), "the Wallet card opens");
+    let fits = &c.plan.as_ref().expect("plan").fits;
+    // Any 2 of 3 places, one seed and one part each. A 2 of 3: two places
+    // give two seeds and two of the three parts (each leaving one key
+    // off), so the route is met; one place gives one seed, short of 2,
+    // so a stranger needs 2 places. Single key: one place's seed alone
+    // spends while the route asks for two places, a conflict. Single key
+    // with a passphrase: nothing remembers it, no route can sign. 3 of 5:
+    // 2 places × 1 seed is fewer than 3.
+    assert_eq!(fits[0].shape, WalletShape::TwoOfThree);
+    assert!(fits[0].fits);
+    assert_eq!(
+        fits[0].line,
+        "2 of 3: a stranger needs 2 places; 3 keys to make"
+    );
+    assert_eq!(fits.iter().filter(|f| f.fits).count(), 1, "{fits:?}");
+    let single = fits
+        .iter()
+        .find(|f| f.shape == WalletShape::Single)
+        .expect("single key tried");
+    assert!(!single.fits);
+    assert_eq!(
+        single.line,
+        "Single key: Access layer 1, route 1: a stranger who finds one of its places can spend"
+    );
+    // Nothing remembers a passphrase on the fresh plan: that is the cause.
+    let pass = fits
+        .iter()
+        .find(|f| f.shape == WalletShape::SinglePassphrase)
+        .expect("single key with a passphrase tried");
+    assert!(!pass.fits);
+    assert_eq!(
+        pass.line,
+        "Single key with a passphrase: no route remembers the passphrase"
+    );
+    let _ = app.frame();
+    assert!(app.offers(Action::CShape(WalletShape::TwoOfThree.index())));
+    assert!(
+        !app.offers(Action::CShape(WalletShape::Single.index())),
+        "a shape that does not fit is dimmed"
+    );
+    let texts = app.drawn_texts();
+    assert!(
+        texts
+            .iter()
+            .any(|t| t.starts_with("Single key: Access layer 1")),
+        "{texts:?}"
+    );
+}
+
+#[test]
+fn choosing_two_of_three_fills_kind_and_quorum_and_opens_keys_for_three_keys_none_made() {
+    let mut app = planning_with(&["bacon"]);
+    let keys = app.session.keys.len();
+    app.press(Action::CSuggest);
+    app.press(Action::CShape(WalletShape::TwoOfThree.index()));
+    let c = app.create.as_ref().expect("create");
+    assert_eq!((c.kind, c.m, c.n), (NewKind::Multi, 2, 3));
+    assert!(c.done[cstep::KIND as usize] && c.done[cstep::QUORUM as usize]);
+    // The layers keep nothing in a vault: no vault is set up before the
+    // keys, and the next card is Keys.
+    assert_eq!(c.open, Some(cstep::KEYS));
+    assert_eq!(c.slots, vec![faraday_core::create::Source::Empty; 3]);
+    assert_eq!(app.session.keys.len(), keys, "Faraday made no key");
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "New key for Key 1"), "{texts:?}");
+    // Change still opens Kind and Quorum.
+    app.press(Action::CStep(cstep::QUORUM));
+    assert_eq!(
+        app.create.as_ref().and_then(|c| c.open),
+        Some(cstep::QUORUM)
+    );
+}
+
+#[test]
+fn a_quorum_the_layers_cannot_give_is_a_warning_and_keys_still_open() {
+    let mut app = planning();
+    app.press(Action::CSuggest);
+    app.press(Action::CShape(WalletShape::TwoOfThree.index()));
+    app.press(Action::CStep(cstep::QUORUM));
+    // 3 of 3: any 2 places of 1 seed each give 2 seeds, short of 3.
+    app.press(Action::CM(1));
+    let c = app.create.as_ref().expect("create");
+    assert_eq!(c.m, 3);
+    let warning = c
+        .plan
+        .as_ref()
+        .and_then(|p| p.warning.clone())
+        .expect("a warning");
+    assert!(warning.starts_with("3 of 3: "), "{warning}");
+    let texts = app.drawn_texts();
+    assert!(texts.contains(&warning), "{texts:?}");
+    app.press(Action::CNext(cstep::QUORUM));
+    assert_eq!(
+        app.create.as_ref().and_then(|c| c.open),
+        Some(cstep::KEYS),
+        "a warning, never a refusal"
+    );
+}
+
+#[test]
+fn after_the_keys_are_made_back_up_opens_with_the_board_placed_for_the_layers() {
+    let mut app = planning_with(&["bacon", "zebra", "summer"]);
+    app.press(Action::CSuggest);
+    app.press(Action::CShape(WalletShape::TwoOfThree.index()));
+    // The person fills each slot with a key loaded here.
+    let fps: Vec<[u8; 4]> = app.session.keys.iter().map(|k| k.fingerprint().0).collect();
+    for (slot, fp) in fps.iter().enumerate() {
+        app.press(Action::CSlotHere(slot as u8, *fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    let built = app.create.as_ref().and_then(|c| c.built).expect("made");
+    app.press(Action::CNext(cstep::CHECK));
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::CBackupPlanned),
+        "Create's Back up: Work it out"
+    );
+    app.press(Action::CBackupPlanned);
+    assert_eq!(app.screen, Screen::Backup);
+    let b = app.backup.as_ref().expect("backup");
+    assert_eq!(b.wallet, built);
+    assert_eq!(
+        b.q,
+        Some(faraday_core::qstep::BOARD),
+        "the board opens filled"
+    );
+    let shape = app.plan_shape(built);
+    let layers = b.answers.access_layers(&shape);
+    assert_eq!(layers.len(), 1, "the layers set in Create");
+    assert!(faraday_core::access::layer_met(
+        &shape, &b.answers, &layers[0]
+    ));
+    // One seed and one part at each of the three places: any two spend,
+    // none alone does.
+    assert_eq!(faraday_core::access::stranger_margin(&shape, &b.answers), 1);
+    assert!(app.board_shown());
+}
+
+#[test]
+fn one_place_one_seed_and_a_passphrase_remembered_suggests_single_key_with_a_passphrase() {
+    use faraday_core::layers::LayersPress as P;
+    let mut app = planning();
+    // The route holds Place 1 alone and remembers a passphrase.
+    app.press(Action::Layers(P::Place(0, 0, 1)));
+    app.press(Action::Layers(P::Place(0, 0, 2)));
+    app.press(Action::Layers(P::Passphrase(0, 0, 0)));
+    let r = app
+        .create
+        .as_ref()
+        .unwrap()
+        .plan
+        .as_ref()
+        .unwrap()
+        .answers
+        .layers[0]
+        .routes[0]
+        .clone();
+    assert_eq!((r.places.clone(), r.any), (vec![0], 1));
+    app.press(Action::CSuggest);
+    let fits = &app.create.as_ref().unwrap().plan.as_ref().unwrap().fits;
+    // With the passphrase the stranger at Place 1 has the seed and not
+    // the passphrase: no place spends. Without one Place 1 alone spends,
+    // a conflict; 2 of 3 and 3 of 5 need more seeds than one place holds.
+    assert_eq!(fits[0].shape, WalletShape::SinglePassphrase);
+    assert!(fits[0].fits);
+    assert_eq!(fits.iter().filter(|f| f.fits).count(), 1, "{fits:?}");
+    assert!(
+        fits[0].line.starts_with(
+            "Single key with a passphrase: a stranger who finds every place cannot spend"
+        ),
+        "{}",
+        fits[0].line
+    );
+}
+
+#[test]
+fn no_shape_that_fits_leaves_the_conflicts_on_the_access_layers_card() {
+    use faraday_core::layers::LayersPress as P;
+    let mut app = planning();
+    // The paper route off paper: no layer can spend from paper (§20.12
+    // item 3), whatever the wallet.
+    app.press(Action::Layers(P::Paper(0, 0)));
+    app.press(Action::CSuggest);
+    let c = app.create.as_ref().unwrap();
+    assert_eq!(c.open, Some(cstep::LAYERS), "the card stays");
+    assert!(c.plan.as_ref().unwrap().fits.iter().all(|f| !f.fits));
+    let texts = app.drawn_texts();
+    assert!(
+        texts
+            .iter()
+            .any(|t| t == "Access layer 1 has no paper route"),
+        "{texts:?}"
+    );
+    let _ = app.frame();
+    assert!(app.offers(Action::Layers(P::AddPaperRoute(0))), "its fix");
+}
+
+#[test]
+fn the_standard_way_shows_the_checklist_and_no_board() {
+    let mut app = testkit::started();
+    add_key(&mut app, "bacon");
+    app.press(Action::CreateWallet);
+    app.press(Action::CWay(CreateWay::Standard.index()));
+    app.press(Action::CNext(cstep::START));
+    assert_eq!(app.create.as_ref().and_then(|c| c.open), Some(cstep::KIND));
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CVaults(false));
+    app.press(Action::CNext(cstep::WHERE));
+    let fp = app.session.keys[0].fingerprint().0;
+    app.press(Action::CSlotHere(0, fp));
+    app.press(Action::CNext(cstep::KEYS));
+    app.press(Action::CNext(cstep::CHECK));
+    let _ = app.frame();
+    assert!(app.offers(Action::CBackupStandard));
+    app.press(Action::CBackupStandard);
+    assert_eq!(app.screen, Screen::Backup);
+    let b = app.backup.as_ref().expect("backup");
+    assert!(b.standard);
+    assert_eq!(b.stage, faraday_core::BStage::Checklist);
+    use faraday_core::{bstep, plan::Item};
+    assert_eq!(
+        app.backup_items(),
+        vec![
+            bstep::of(Item::Copy(0)),
+            bstep::of(Item::ShowDescriptor),
+            bstep::of(Item::Sheets)
+        ],
+        "the seed's words and SeedQR, the description shown and for the stick"
+    );
+    assert!(!app.board_shown(), "no board");
+    let texts = app.drawn_texts();
+    assert!(
+        !texts.iter().any(|t| t == "Access layers"),
+        "no layers: {texts:?}"
+    );
+}
+
+#[test]
+fn back_ups_start_from_offers_the_standard_way() {
+    let (mut app, built) = made();
+    app.press(Action::Backup(built));
+    let _ = app.frame();
+    assert!(app.offers(Action::BStandard));
+    app.press(Action::BStandard);
+    assert!(app.backup.as_ref().is_some_and(|b| b.standard));
 }

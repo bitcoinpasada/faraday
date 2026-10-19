@@ -217,6 +217,20 @@ pub(crate) fn body(
                     );
                     cy += 48.0;
                 }
+                // Back up's The standard way: no places, no board
+                // (`docs/BACKUP-FLOW.md` §20.11, §20.14 item 6).
+                if ctx.flow.is_none() {
+                    ui.button(
+                        x,
+                        cy,
+                        Some(w),
+                        40.0,
+                        EN.create_standard,
+                        Style::Secondary,
+                        Action::BStandard,
+                    );
+                    cy += 48.0;
+                }
                 return cy - y;
             }
             qstep::SOFTWARE => {

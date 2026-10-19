@@ -89,7 +89,7 @@ fn unlock_vault(app: &mut Faraday) {
 /// stick.
 fn locked_after_backup() -> (Boxes, Boxes) {
     let mut app = device();
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(&mut app);
     let at = NewKind::ALL
         .iter()
         .position(|k| *k == NewKind::NativeSegwit)

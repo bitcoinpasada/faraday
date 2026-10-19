@@ -80,7 +80,7 @@ fn preset(p: Preset) -> u8 {
 /// same flips make the same key. Returns the wallet and the key's
 /// fingerprint.
 fn made_here(app: &mut Faraday) -> (usize, Fingerprint) {
-    app.press(Action::CreateWallet);
+    faraday_core::testkit::create_knowing(app);
     let at = NewKind::ALL
         .iter()
         .position(|k| *k == NewKind::NativeSegwit)
