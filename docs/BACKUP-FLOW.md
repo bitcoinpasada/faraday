@@ -2622,6 +2622,68 @@ where drawing changes.
   - Removing a place takes it out of every route and moves the places
     after it down (`access::without_place`), on the board and the
     wallet chart.
+- **L2b built** (2026-10-19; §20.13 items 1, 2, 3, 5, 6, 7 and item
+  8's Back-up half): `access::Kinds` on `Route::kinds` (`None`, unset:
+  Work it out chooses, as in L2; a route saved before reads as unset):
+  `seeds` per place, `SeedForm` (Paper, Stick), `Described` (None,
+  Part, Whole), `KindVault` (None, Remembered, Written). In the plan's
+  text ` kinds <seeds> <words|file> <none|part|whole>
+  <none|remembered|written>` after a route (the vault's plan record
+  carries it in the answers); a paper route whose kinds say a file or
+  a vault is not a plan. Its choices:
+  - **What the kinds mean.** Each is "at least" at every place of the
+    route: Work it out keeps that much there and may keep more where
+    another route needs it. A vault at each place is a stick of one of
+    the route's vaults whose password it remembers (`passwords`) or has
+    written down (`written`); choosing one on the card takes a vault the
+    route has, else Vault 1, else a new one. With a vault, what the
+    places lack the vault holds (as L2: a vault whose password is
+    written nowhere holds every seed placed and the description, so
+    §20.13 item 4's Layer 1 vault holds three seeds, not two). The
+    description at a place is kept on paper whatever the seeds' form;
+    a part is one of the board's shares (`omit` kept), at least one per
+    place. For a single key the description is not asked.
+  - **The search** works out per place what the routes holding it need
+    (the most any asks: words, files, shares, the sheet, a stick of one
+    of a set of vaults), prunes a branch that can no longer give a place
+    its needs, and checks them at each placement. Places alike by their
+    routes are alike by their needs, and needs count seeds without
+    naming them, so the double lex stands; seeds as files are things of
+    their own (`SeedFile` at a place, on a stick of files there) and
+    while there are any the seeds' order is not kept. The description's
+    ways: parts and the whole both needed, both at once; one of them
+    needed, that way first, then both (the sheet then kept somewhere).
+    No route's kinds set: the same things in the same order, L2's steps
+    and placements exactly (tested for every preset).
+  - **Conflicts** (`work_out::problems`, per route): its seeds from any
+    `k` places fewer than the quorum (resolved by enough seeds at each
+    place, then any enough places, a place added where it has too few);
+    more seeds at each place than the wallet has (as many as it has);
+    no description and no vault (the whole, then a part); a part where
+    `k` is 1 or the description does not split (the whole); a vault
+    and no password of that kind (a vault added); one place whose kinds
+    give a stranger a quorum and the whole description, or a written
+    vault password with `k` 1, while some route asks for more than one
+    place (fewer seeds at each place, a part instead of the whole, a
+    passphrase remembered; or the password remembered). A route with a
+    conflict of the first five is left out of the search. Work it out
+    with seeds too few or too many names the first shape of §20.12
+    item 2 that has no kinds conflict and keeps every place from
+    spending alone ("These routes need a 2 of 3; this wallet is a 3 of
+    5"), or names none.
+  - **For L6:** `work_out::fit(shape, answers, layers, budget)` gives
+    `Fit::Placed(outcome)` or `Fit::Conflicts(problems)` (`Why::Unmet`
+    when no placement meets every route), for any shape tried;
+    `layers::shape_needed` is Back up's use of it.
+  - **The card**: under a route's rows a tick, "Set what each place
+    holds"; ticked, a − n + stepper "Seeds at each place" (one at
+    first), and choices "Seeds as" (off paper), "Wallet description"
+    (more than one seed; a part at first) and "Vault" (off paper).
+  - **The bound**: the worst preset case with each paper route's kinds
+    a seed's words and a part at each place ends, every placement
+    tried, in 310,904 steps, 178 to 183 ms on the build machine's
+    release build (unset 320,119 steps, 170 to 209 ms in the same run);
+    with the vault routes' kinds set too, the same. The budget stays.
 - **L3, the layer view** (§20.7, §19.18 item 3): the pills, the
   board drawn per view through the drawing memo, each view's checks,
   the Stranger stepper, the layers' marks in All; a layer's name typed

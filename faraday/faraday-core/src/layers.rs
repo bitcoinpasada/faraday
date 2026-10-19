@@ -11,10 +11,10 @@ use std::rc::Rc;
 use opensigner_core::strings::fill;
 
 use crate::Faraday;
-use crate::access::{Layer, Route, layer_name};
+use crate::access::{Described, KindVault, Kinds, Layer, Route, SeedForm, layer_name};
 use crate::plan::{self, Answers, Shape, Spot};
 use crate::strings::EN;
-use crate::work_out::{self, BUDGET, Outcome};
+use crate::work_out::{self, BUDGET, Fit, Outcome, Why};
 
 /// A press on the Access layers card. Layers, routes, places, vaults and
 /// seeds by number from 0.
@@ -50,6 +50,23 @@ pub enum LayersPress {
     AddVaultFor(u8, u8),
     /// A resolution: a paper route for the layer.
     AddPaperRoute(u8),
+    /// The route's kinds set by hand (§20.13), or left to Work it out.
+    KindsSet(u8, u8),
+    /// The kinds' stepper: one seed fewer at each place.
+    KindsFewerSeeds(u8, u8),
+    /// The kinds' stepper: one seed more at each place.
+    KindsMoreSeeds(u8, u8),
+    /// A resolution: so many seeds at each place.
+    KindsSeeds(u8, u8, u8),
+    /// The seeds' form at each place.
+    KindsForm(u8, u8, SeedForm),
+    /// How much of the description each place holds.
+    KindsDescription(u8, u8, Described),
+    /// A vault at each place, and how its password is had.
+    KindsVault(u8, u8, KindVault),
+    /// A resolution: any so many of the route's places, a new place
+    /// added to it where it has too few.
+    KindsAny(u8, u8, u8),
 }
 
 /// What Work it out found, kept on the board's state while the plan is as
@@ -180,7 +197,158 @@ pub fn conflicts(
             out.push(Conflict { line, fixes });
         }
     }
+    out.extend(kinds_conflicts(shape, layers));
     out
+}
+
+/// The conflicts of the routes' kinds with the wallet's shape (§20.13
+/// item 6, [`work_out::problems`]), each naming its route, with what
+/// would resolve it: more seeds at each place, more places, the
+/// description whole, a passphrase remembered, and for a stranger who
+/// could spend from one place, fewer seeds there or a part of the
+/// description. A lookup per route.
+fn kinds_conflicts(shape: &Shape, layers: &[Layer]) -> Vec<Conflict> {
+    let mut out = Vec::new();
+    let has = shape.here().len();
+    let m = shape.m.max(1);
+    for p in work_out::problems(shape, layers) {
+        let Some((l, r)) = p.at else {
+            continue;
+        };
+        let Some(route) = layers.get(l).and_then(|x| x.routes.get(r)) else {
+            continue;
+        };
+        let Some(k) = route.kinds else {
+            continue;
+        };
+        let name = fill(
+            EN.layers_route_of,
+            &[&layer_name(&[], l), &(r + 1).to_string()],
+        );
+        let (l8, r8) = (u(l), u(r));
+        let seeds_to = |n: usize| {
+            let label = if n == 1 {
+                fill(EN.layers_seed_at_each, &[&name])
+            } else {
+                fill(EN.layers_seeds_at_each, &[&n.to_string(), &name])
+            };
+            (label, LayersPress::KindsSeeds(l8, r8, u(n)))
+        };
+        let whole = (
+            fill(EN.layers_whole_each, &[&name]),
+            LayersPress::KindsDescription(l8, r8, Described::Whole),
+        );
+        let mut fixes = Vec::new();
+        let line = match p.why {
+            Why::Impossible | Why::Unmet => continue,
+            Why::Short { any, per, needs } => {
+                let more = needs.div_ceil(any.max(1));
+                if more <= has {
+                    fixes.push(seeds_to(more));
+                }
+                if per > 0 {
+                    let k = needs.div_ceil(per);
+                    fixes.push((
+                        fill(EN.layers_any_of, &[&k.to_string(), &name]),
+                        LayersPress::KindsAny(l8, r8, u(k)),
+                    ));
+                }
+                fill(
+                    EN.layers_kinds_short,
+                    &[
+                        &name,
+                        &any.to_string(),
+                        &per.to_string(),
+                        &(any * per).to_string(),
+                        &needs.to_string(),
+                    ],
+                )
+            }
+            Why::TooMany { per, has } => {
+                if has > 0 {
+                    fixes.push(seeds_to(has));
+                }
+                fill(
+                    EN.layers_kinds_too_many,
+                    &[&name, &per.to_string(), &has.to_string()],
+                )
+            }
+            Why::NoDescription => {
+                fixes.push(whole);
+                if shape.splits && route.any > 1 {
+                    fixes.push((
+                        fill(EN.layers_part_each, &[&name]),
+                        LayersPress::KindsDescription(l8, r8, Described::Part),
+                    ));
+                }
+                fill(EN.layers_kinds_no_description, &[&name])
+            }
+            Why::PartAlone => {
+                fixes.push(whole);
+                fill(EN.layers_kinds_part_alone, &[&name, &route.any.to_string()])
+            }
+            Why::NoPassword => {
+                fixes.push((
+                    fill(EN.layers_add_vault, &[&name]),
+                    LayersPress::AddVaultFor(l8, r8),
+                ));
+                fill(EN.layers_kinds_no_password, &[&name])
+            }
+            Why::StrangerAlone => {
+                if !route.paper && k.vault == KindVault::Written && route.any <= 1 {
+                    fixes.push((
+                        fill(EN.layers_vault_remembered, &[&name]),
+                        LayersPress::KindsVault(l8, r8, KindVault::Remembered),
+                    ));
+                } else {
+                    // Fewer seeds than a quorum at each place, past those
+                    // that need a passphrase.
+                    let guarded = shape
+                        .here()
+                        .into_iter()
+                        .filter(|&i| shape.seeds[i].passphrase)
+                        .count();
+                    let fewer = (m - 1 + guarded).min(k.seeds.saturating_sub(1));
+                    if fewer >= 1 && fewer < k.seeds {
+                        fixes.push(seeds_to(fewer));
+                    }
+                    if shape.multi()
+                        && shape.splits
+                        && route.any > 1
+                        && k.description == Described::Whole
+                    {
+                        fixes.push((
+                            fill(EN.layers_part_each, &[&name]),
+                            LayersPress::KindsDescription(l8, r8, Described::Part),
+                        ));
+                    }
+                    for i in shape.here() {
+                        if shape.seeds[i].passphrase && !route.passphrases.contains(&i) {
+                            fixes.push((
+                                fill(
+                                    EN.layers_remember,
+                                    &[&layer_name(&[], l), &shape.seeds[i].name],
+                                ),
+                                LayersPress::Passphrase(l8, r8, u(i)),
+                            ));
+                        }
+                    }
+                }
+                fill(EN.layers_kinds_stranger, &[&name])
+            }
+        };
+        out.push(Conflict { line, fixes });
+    }
+    out
+}
+
+/// Whether `layers` have a kinds conflict that another shape of wallet
+/// might not: too few seeds from a route's places, or more at each than
+/// the wallet has (§20.13 item 5). A lookup per route.
+fn shape_bound(shape: &Shape, layers: &[Layer]) -> bool {
+    work_out::problems(shape, layers)
+        .iter()
+        .any(|p| matches!(p.why, Why::Short { .. } | Why::TooMany { .. }))
 }
 
 /// A shape's name: "single key", "2 of 3". A lookup.
@@ -195,9 +363,12 @@ fn shape_name(m: usize, n: usize) -> String {
 /// Where every placement in `shape` lets one place spend: the first of
 /// the shapes §20.12 item 2 tries (single key, 2 of 3, 3 of 5) other than
 /// this one whose best placement keeps every place from spending alone,
-/// named, or the line that none does. Runs [`work_out::work_out`] once
-/// per shape tried, each with an eighth of the budget.
-fn shape_needed(shape: &Shape, a: &Answers, layers: &[Layer]) -> String {
+/// named, or the line that none does; for routes whose kinds the shape
+/// cannot give (`kinds`), the first shape whose kinds conflicts are none
+/// and that keeps every place from spending alone, or nothing. Runs
+/// [`work_out::fit`] once per shape tried, each with an eighth of the
+/// budget.
+pub fn shape_needed(shape: &Shape, a: &Answers, layers: &[Layer], kinds: bool) -> Option<String> {
     let here = shape.seeds.len();
     for (m, n) in [(1, 1), (2, 3), (3, 5)] {
         if (shape.m, here) == (m, n) {
@@ -232,14 +403,15 @@ fn shape_needed(shape: &Shape, a: &Answers, layers: &[Layer]) -> String {
                     .collect(),
             })
             .collect();
-        if work_out::work_out(&other, &b, &fitted, BUDGET / 8).is_some_and(|o| o.margin >= 1) {
-            return fill(
+        if matches!(work_out::fit(&other, &b, &fitted, BUDGET / 8), Fit::Placed(o) if o.margin >= 1)
+        {
+            return Some(fill(
                 EN.layers_shape,
                 &[&shape_name(m, n), &shape_name(shape.m, here)],
-            );
+            ));
         }
     }
-    EN.layers_one_place.to_string()
+    (!kinds).then(|| EN.layers_one_place.to_string())
 }
 
 /// One route of a layer, as the card draws it.
@@ -258,6 +430,21 @@ pub(crate) struct RouteView {
     /// Each passphrase of a seed loaded here: its row and whether it is
     /// remembered.
     pub passphrases: Vec<(String, bool, usize)>,
+    /// What each of its places holds, when set by hand (§20.13).
+    pub kinds: Option<KindsView>,
+}
+
+/// A route's kinds, as the card draws them.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct KindsView {
+    /// Seeds at each place.
+    pub seeds: usize,
+    /// Their form; none on a paper route, where it is words on paper.
+    pub form: Option<SeedForm>,
+    /// The description at each place; none for a wallet of one seed.
+    pub description: Option<Described>,
+    /// The vault at each place; none on a paper route.
+    pub vault: Option<KindVault>,
 }
 
 /// One layer, as the card draws it.
@@ -353,6 +540,12 @@ impl Faraday {
                                 )
                             })
                             .collect(),
+                        kinds: route.kinds.map(|k| KindsView {
+                            seeds: k.seeds,
+                            form: (!route.paper).then_some(k.form),
+                            description: shape.multi().then_some(k.description),
+                            vault: (!route.paper).then_some(k.vault),
+                        }),
                     })
                     .collect(),
             })
@@ -416,17 +609,38 @@ impl Faraday {
             return;
         };
         let layers = a.layers_shown(&shape);
+        // Kinds the wallet's shape cannot give name the shape they need
+        // (§20.13 item 5).
+        let kinds_line = shape_bound(&shape, &layers)
+            .then(|| shape_needed(&shape, &a, &layers, true))
+            .flatten();
         let Some(out) = work_out::work_out(&shape, &a, &layers, BUDGET) else {
             // No route can be met at all: the conflicts say why; the
             // board stays as it is.
             self.board_change(&|a, shape| a.layers = a.layers_shown(shape));
+            if let Some((shape, a)) = self.board_plan() {
+                let worked = Worked {
+                    map: plan::stored_map(&shape, &a),
+                    layers: layers.clone(),
+                    margin: 0,
+                    stopped: false,
+                    shape_line: kinds_line,
+                };
+                if let Some(st) = self.board_state_mut() {
+                    st.worked = Some(worked);
+                }
+            }
             return;
         };
         // A margin of 0 that no conflict of the layers explains is the
         // wallet's shape's (§20.12 item 6).
         let place = |p: usize| self.board_place_name(p);
         let explained = !conflicts(&shape, &a, &layers, &place).is_empty();
-        let shape_line = (out.margin == 0 && !explained).then(|| shape_needed(&shape, &a, &layers));
+        let shape_line = kinds_line.or_else(|| {
+            (out.margin == 0 && !explained)
+                .then(|| shape_needed(&shape, &a, &layers, false))
+                .flatten()
+        });
         let put = |a: &mut Answers, shape: &Shape, out: &Outcome| {
             a.layers = layers.clone();
             crate::board::map_edit(a, shape, |_| out.map.clone());
@@ -558,7 +772,87 @@ fn edit(layers: &mut Vec<Layer>, a: &mut Answers, shape: &Shape, press: LayersPr
             }
             let v = a.add_vault(shape);
             if let Some(route) = layers.get_mut(n(l)).and_then(|x| x.routes.get_mut(n(r))) {
-                route.passwords.push(v);
+                // A route whose places hold a vault with its password
+                // written down has the new one written down too.
+                if route.kinds.is_some_and(|k| k.vault == KindVault::Written) {
+                    route.written.push(v);
+                } else {
+                    route.passwords.push(v);
+                }
+            }
+        }
+        P::KindsAny(l, r, k) => {
+            let k = n(k);
+            loop {
+                let Some(route) = layers.get(n(l)).and_then(|x| x.routes.get(n(r))) else {
+                    return;
+                };
+                if route.places.len() >= k {
+                    break;
+                }
+                let free = (0..a.places).find(|p| !route.places.contains(p));
+                let p = match free {
+                    Some(p) => p,
+                    None => {
+                        if a.places >= crate::qstep::MAX_PLACES {
+                            return;
+                        }
+                        a.add_place(shape);
+                        a.places - 1
+                    }
+                };
+                if let Some(route) = layers.get_mut(n(l)).and_then(|x| x.routes.get_mut(n(r))) {
+                    route.places.push(p);
+                    route.places.sort_unstable();
+                }
+            }
+            if let Some(route) = layers.get_mut(n(l)).and_then(|x| x.routes.get_mut(n(r))) {
+                route.any = k.max(1).min(route.places.len());
+            }
+        }
+        P::KindsVault(l, r, want) => {
+            let vaults = a.vault_count(shape);
+            let Some(route) = layers.get(n(l)).and_then(|x| x.routes.get(n(r))) else {
+                return;
+            };
+            if route.paper || route.kinds.is_none() {
+                return;
+            }
+            // The route's vault, had the way said: one it has, moved
+            // across; else the plan's first; else a new one.
+            let has = |r: &Route| match want {
+                KindVault::Remembered => !r.passwords.is_empty(),
+                KindVault::Written => !r.written.is_empty(),
+                KindVault::None => true,
+            };
+            let new = if has(route) {
+                None
+            } else {
+                let other = match want {
+                    KindVault::Remembered => route.written.first(),
+                    _ => route.passwords.first(),
+                };
+                Some(match (other, vaults) {
+                    (Some(&v), _) => v,
+                    (None, 0) => a.add_vault(shape),
+                    (None, _) => 0,
+                })
+            };
+            let Some(route) = layers.get_mut(n(l)).and_then(|x| x.routes.get_mut(n(r))) else {
+                return;
+            };
+            if let Some(v) = new {
+                route.passwords.retain(|&x| x != v);
+                route.written.retain(|&x| x != v);
+                match want {
+                    KindVault::Remembered => route.passwords.push(v),
+                    _ => route.written.push(v),
+                }
+                route.passwords.sort_unstable();
+                route.written.sort_unstable();
+            }
+            if let Some(k) = route.kinds.as_mut() {
+                k.vault = want;
             }
         }
         P::Fewer(l, r)
@@ -566,7 +860,13 @@ fn edit(layers: &mut Vec<Layer>, a: &mut Answers, shape: &Shape, press: LayersPr
         | P::Place(l, r, _)
         | P::Paper(l, r)
         | P::Password(l, r, _)
-        | P::Passphrase(l, r, _) => {
+        | P::Passphrase(l, r, _)
+        | P::KindsSet(l, r)
+        | P::KindsFewerSeeds(l, r)
+        | P::KindsMoreSeeds(l, r)
+        | P::KindsSeeds(l, r, _)
+        | P::KindsForm(l, r, _)
+        | P::KindsDescription(l, r, _) => {
             let Some(route) = layers.get_mut(n(l)).and_then(|x| x.routes.get_mut(n(r))) else {
                 return;
             };
@@ -586,7 +886,42 @@ fn edit(layers: &mut Vec<Layer>, a: &mut Answers, shape: &Shape, press: LayersPr
                     }
                     route.any = route.any.min(route.places.len()).max(1);
                 }
-                P::Paper(..) => route.paper = !route.paper,
+                P::Paper(..) => {
+                    route.paper = !route.paper;
+                    // A paper route's kinds are on paper, with no vault.
+                    if route.paper {
+                        route.kinds = route.kinds.map(Kinds::on_paper);
+                    }
+                }
+                P::KindsSet(..) => {
+                    route.kinds = match route.kinds {
+                        Some(_) => None,
+                        None => Some(Kinds::start(route)),
+                    };
+                }
+                P::KindsFewerSeeds(..) | P::KindsMoreSeeds(..) | P::KindsSeeds(..) => {
+                    let most = shape.here().len();
+                    if let Some(k) = route.kinds.as_mut() {
+                        k.seeds = match press {
+                            P::KindsFewerSeeds(..) => k.seeds.saturating_sub(1),
+                            P::KindsMoreSeeds(..) => (k.seeds + 1).min(most.max(k.seeds)),
+                            P::KindsSeeds(_, _, s) => n(s),
+                            _ => k.seeds,
+                        };
+                    }
+                }
+                P::KindsForm(_, _, f) => {
+                    if let Some(k) = route.kinds.as_mut()
+                        && !route.paper
+                    {
+                        k.form = f;
+                    }
+                }
+                P::KindsDescription(_, _, d) => {
+                    if let Some(k) = route.kinds.as_mut() {
+                        k.description = d;
+                    }
+                }
                 P::Password(_, _, v) => {
                     let v = n(v);
                     if route.passwords.contains(&v) {

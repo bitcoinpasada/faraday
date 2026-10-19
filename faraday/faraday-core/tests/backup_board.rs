@@ -2234,3 +2234,47 @@ fn a_shape_that_lets_one_place_spend_names_the_shape_the_routes_need() {
         "These routes need a 2 of 3; this wallet is a single key"
     ));
 }
+
+/// A route's kinds set on the card (§20.13): ticked, the route says a
+/// seed's words and a part of the description at each place, drawn with
+/// their controls. No seed at each place is a conflict naming the route
+/// (any 2 places with none give no seeds, the wallet needs 2), and its
+/// first resolution, pressed, removes it. Work it out then keeps, by
+/// hand, one different seed's words and one share at each of the three
+/// places: what any two must give, and no less than the kinds say.
+#[test]
+fn a_routes_kinds_are_set_on_the_card_and_constrain_work_it_out() {
+    let mut app = three_here();
+    app.press(Action::BQ(qstep::LAYERS));
+    layers(&mut app, LP::KindsSet(0, 0));
+    let r = app.backup.as_ref().unwrap().answers.layers[0].routes[0].clone();
+    assert!(r.kinds.is_some_and(|k| k.seeds == 1));
+    assert!(drawn_anywhere(&mut app, "Seeds at each place"));
+    assert!(drawn_anywhere(&mut app, "Wallet description"));
+    layers(&mut app, LP::KindsFewerSeeds(0, 0));
+    let line = "Access layer 1, route 1: any 2 places with 0 each give 0 seeds;";
+    assert!(starts_anywhere(&mut app, line));
+    let fix = Action::Layers(LP::KindsSeeds(0, 0, 1));
+    assert!(find(&mut app, fix).is_some(), "the resolution is offered");
+    app.press(fix);
+    assert!(!starts_anywhere(&mut app, "Access layer 1, route 1:"));
+    layers(&mut app, LP::WorkItOut);
+    assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::BOARD));
+    let m = the_map(&app);
+    let mut seeds = Vec::new();
+    for p in 0..3 {
+        let here = held(&m, At::Place(p));
+        let words: Vec<usize> = here
+            .iter()
+            .filter_map(|w| match w {
+                What::Words(i) => Some(*i),
+                _ => None,
+            })
+            .collect();
+        let shares = here.iter().filter(|w| matches!(w, What::Share(_))).count();
+        assert_eq!((words.len(), shares), (1, 1), "Place {}: {here:?}", p + 1);
+        seeds.extend(words);
+    }
+    seeds.sort_unstable();
+    assert_eq!(seeds, vec![0, 1, 2]);
+}

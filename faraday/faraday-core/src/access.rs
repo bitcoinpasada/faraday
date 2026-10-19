@@ -43,6 +43,141 @@ pub struct Route {
     /// remembered (§20.9): Work it out keeps "Vault n's password" on paper
     /// at one of the route's places. Not in [`Route::passwords`].
     pub written: Vec<usize>,
+    /// What each of its places holds (§20.13 item 1); `None`, Work it out
+    /// chooses, as for a route saved before the kinds.
+    pub kinds: Option<Kinds>,
+}
+
+/// What every place of a route holds (§20.13 item 1), each at least:
+/// Work it out keeps that much there and may keep more where another
+/// route needs it. The seeds are counted, never named: which key's seed
+/// goes where is Work it out's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Kinds {
+    /// How many of the wallet's seeds each place holds, each a different
+    /// seed.
+    pub seeds: usize,
+    /// The form they are kept in.
+    pub form: SeedForm,
+    /// How much of the wallet's description each place holds.
+    pub description: Described,
+    /// Whether each place holds a vault's stick, and how the route opens it.
+    pub vault: KindVault,
+}
+
+/// The form a route's seeds take at each of its places.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SeedForm {
+    /// Words on paper.
+    Paper,
+    /// A file on a stick.
+    Stick,
+}
+
+/// How much of the description a route's place holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Described {
+    /// None of it.
+    None,
+    /// A part: one of the board's description shares; any `k` of the
+    /// route's places together hold every key.
+    Part,
+    /// The whole description.
+    Whole,
+}
+
+/// A vault at each of a route's places (never on a paper route).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KindVault {
+    /// No vault.
+    None,
+    /// A stick of a vault whose password the route remembers
+    /// ([`Route::passwords`]).
+    Remembered,
+    /// A stick of a vault whose password the route has written down
+    /// ([`Route::written`]), the password on paper at one of its places.
+    Written,
+}
+
+impl Kinds {
+    /// The kinds a route starts with when they are first set: one seed in
+    /// words on paper and a part of the description at each place, no
+    /// vault. A lookup.
+    pub fn start(route: &Route) -> Kinds {
+        let vault = if route.paper {
+            KindVault::None
+        } else if !route.passwords.is_empty() {
+            KindVault::Remembered
+        } else if !route.written.is_empty() {
+            KindVault::Written
+        } else {
+            KindVault::None
+        };
+        Kinds {
+            seeds: 1,
+            form: SeedForm::Paper,
+            description: Described::Part,
+            vault,
+        }
+    }
+
+    /// The kinds as a paper route may have them: words on paper and no
+    /// vault (§20.13 item 1). A lookup.
+    pub fn on_paper(self) -> Kinds {
+        Kinds {
+            form: SeedForm::Paper,
+            vault: KindVault::None,
+            ..self
+        }
+    }
+
+    /// The kinds in the plan's text: `kinds <seeds> <form> <description>
+    /// <vault>`.
+    fn code(&self) -> String {
+        let form = match self.form {
+            SeedForm::Paper => "words",
+            SeedForm::Stick => "file",
+        };
+        let description = match self.description {
+            Described::None => "none",
+            Described::Part => "part",
+            Described::Whole => "whole",
+        };
+        let vault = match self.vault {
+            KindVault::None => "none",
+            KindVault::Remembered => "remembered",
+            KindVault::Written => "written",
+        };
+        format!("kinds {} {form} {description} {vault}", self.seeds)
+    }
+
+    /// [`Kinds::code`]'s four values read back.
+    fn read(seeds: &str, form: &str, description: &str, vault: &str) -> Option<Kinds> {
+        let seeds: usize = seeds.parse().ok()?;
+        if seeds > 64 {
+            return None;
+        }
+        Some(Kinds {
+            seeds,
+            form: match form {
+                "words" => SeedForm::Paper,
+                "file" => SeedForm::Stick,
+                _ => return None,
+            },
+            description: match description {
+                "none" => Described::None,
+                "part" => Described::Part,
+                "whole" => Described::Whole,
+                _ => return None,
+            },
+            vault: match vault {
+                "none" => KindVault::None,
+                "remembered" => KindVault::Remembered,
+                "written" => KindVault::Written,
+                _ => return None,
+            },
+        })
+    }
 }
 
 /// An access layer (§20.1): its routes, each checked on its own. Its name
@@ -80,6 +215,7 @@ pub fn everything(shape: &Shape, a: &Answers) -> Layer {
                 .collect(),
             paper: false,
             written: Vec::new(),
+            kinds: None,
         }],
     }
 }
@@ -99,6 +235,7 @@ pub fn fresh(shape: &Shape, places: usize) -> Layer {
                 .collect(),
             paper: true,
             written: Vec::new(),
+            kinds: None,
         }],
     }
 }
@@ -175,8 +312,9 @@ pub fn fit(layers: &mut [Layer], places: usize) {
 /// Writes the layers into a plan's text (§20.6): a `layers n` line, then
 /// a `route` line per route, `route <layer> <any> <places> <passwords>
 /// <passphrases>`, each list numbers by commas, `-` when empty, ` paper`
-/// after a paper route and ` written <vaults>` after a route with
-/// passwords written down. Nothing for a plan with no layers of its own.
+/// after a paper route, ` written <vaults>` after a route with
+/// passwords written down and ` kinds <seeds> <form> <description>
+/// <vault>` after a route whose kinds are set (§20.13 item 7). Nothing for a plan with no layers of its own.
 /// Never a name.
 pub fn write(layers: &[Layer], out: &mut String) {
     if layers.is_empty() {
@@ -212,6 +350,10 @@ pub fn write(layers: &[Layer], out: &mut String) {
                 out.push(' ');
                 out.push_str(&list(&r.written));
             }
+            if let Some(k) = &r.kinds {
+                out.push(' ');
+                out.push_str(&k.code());
+            }
             out.push('\n');
         }
     }
@@ -246,6 +388,10 @@ pub fn read(
             [l, any, ps, pws, pps, rest @ ..] => (l, any, ps, pws, pps, rest),
             _ => return None,
         };
+        let (kinds, rest) = match rest {
+            [rest @ .., "kinds", n, f, d, v] => (Some(Kinds::read(n, f, d, v)?), rest),
+            _ => (None, rest),
+        };
         let (paper, written) = match rest {
             [] => (false, Vec::new()),
             ["paper"] => (true, Vec::new()),
@@ -253,6 +399,10 @@ pub fn read(
             ["paper", "written", w] => (true, list(w)?),
             _ => return None,
         };
+        // A paper route's kinds are on paper, with no vault.
+        if paper && kinds.is_some_and(|k| k != k.on_paper()) {
+            return None;
+        }
         let route = Route {
             places: list(ps)?,
             any: any.parse().ok()?,
@@ -260,6 +410,7 @@ pub fn read(
             passphrases: list(pps)?,
             paper,
             written,
+            kinds,
         };
         let fits = route.places.iter().all(|&p| p < places)
             && route.any <= route.places.len()

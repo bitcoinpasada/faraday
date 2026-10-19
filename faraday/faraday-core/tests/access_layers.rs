@@ -40,6 +40,7 @@ fn route(places: &[usize], any: usize, passwords: &[usize]) -> Route {
         passphrases: Vec::new(),
         paper: false,
         written: Vec::new(),
+        kinds: None,
     }
 }
 
@@ -287,6 +288,7 @@ fn two_layers() -> Vec<Layer> {
                 passphrases: vec![1],
                 paper: true,
                 written: Vec::new(),
+                kinds: None,
             }],
         },
     ]
@@ -715,4 +717,347 @@ fn a_routes_written_passwords_read_back_with_the_plan() {
     ])];
     let back = Answers::from_text(&s, &a.to_text()).expect("the plan reads back");
     assert_eq!(back.layers, a.layers);
+}
+
+// ----- What each place of a route holds (§20.13, L2b) -----
+
+use faraday_core::access::{Described, KindVault, Kinds, SeedForm};
+use faraday_core::work_out::{Fit, Why, fit, problems};
+
+/// Kinds: `seeds` per place in `form`, the description `d`, vault `v`.
+fn kinds(seeds: usize, form: SeedForm, d: Described, v: KindVault) -> Option<Kinds> {
+    Some(Kinds {
+        seeds,
+        form,
+        description: d,
+        vault: v,
+    })
+}
+
+/// What place `p` of plan `b` keeps, on paper and on its sticks.
+fn at_place(s: &Shape, b: &Answers, p: usize) -> Vec<What> {
+    map(s, b)
+        .iter()
+        .filter(|x| matches!(x.at, At::Place(q) | At::Stick(q, _) if q == p))
+        .flat_map(|x| x.holds.iter().map(|(w, _)| *w))
+        .collect()
+}
+
+/// L2's results, recorded from L2's search before the kinds came: for
+/// each wallet, preset and set of layers (the one a fresh plan starts
+/// with; the worst preset case; two layers sharing Place 2), the steps
+/// taken and the score found. Every route's kinds unset, the search
+/// walks the same placements in the same order and finds the same.
+#[test]
+fn unset_kinds_give_l2s_results_unchanged() {
+    let share = vec![
+        layer(vec![paper(&[0, 1], 2)]),
+        layer(vec![paper(&[1, 2], 2)]),
+    ];
+    // (m, n), layers: steps, margin, balance, kept, unsealed.
+    let l2 = [
+        ((1, 1), "fresh", (3, 0, 0, 2, 2)),
+        ((2, 3), "fresh", (114, 1, 1, 6, 3)),
+        ((2, 3), "share", (413, 1, 1, 5, 2)),
+        ((3, 5), "fresh", (15_070, 2, 1, 10, 5)),
+        ((3, 5), "worst", (320_119, 2, 1, 15, 5)),
+        ((3, 5), "share", (1_783, 1, 1, 6, 3)),
+    ];
+    for ((m, n), which, want) in l2 {
+        let s = shape(m, n);
+        for preset in Preset::ALL {
+            let a = Answers::preset(&s, preset);
+            let layers = match which {
+                "fresh" => a.layers_shown(&s),
+                "worst" => worst(),
+                _ => share.clone(),
+            };
+            assert!(
+                layers
+                    .iter()
+                    .flat_map(|l| &l.routes)
+                    .all(|r| r.kinds.is_none())
+            );
+            let o = work_out(&s, &a, &layers, BUDGET).unwrap();
+            assert_eq!(
+                (o.steps, o.margin, o.balance, o.kept, o.unsealed, o.stopped),
+                (want.0, want.1, want.2, want.3, want.4, false),
+                "{m} of {n}, {preset:?}, {which}"
+            );
+        }
+    }
+}
+
+/// §20.13 item 4's example in Back up, its 2 of 3 made: Access layer 1
+/// at Place 1 with a vault there whose password it remembers, nothing
+/// else said for that place; Access layer 2 on paper, any 2 of Places 1
+/// to 3, a seed's words and a part of the description at each. By hand:
+/// each place keeps at least one seed's words and one share. Any two
+/// places must give two seeds and the whole description: the three
+/// seeds at three places, one each, give any pair two different seeds,
+/// and three different shares (each share two of the three keys) give
+/// any pair all three keys; so one of each per place does it, six
+/// copies, and the kinds allow no fewer. Place 1 keeps Vault 1's stick;
+/// the vault, its password written nowhere, holds the seeds and the
+/// description, so Access layer 1 spends from Place 1 alone. A stranger
+/// at one place has one seed and a part (and at Place 1 a vault it cannot
+/// open): no spend, no balance; at two places of the paper route a
+/// stranger spends, so both margins are 1.
+#[test]
+fn the_vault_and_paper_example_places_a_seed_and_a_part_at_each_place() {
+    let s = shape(2, 3);
+    let a = Answers::preset(&s, Preset::Paper);
+    let layers = vec![
+        layer(vec![Route {
+            kinds: kinds(0, SeedForm::Paper, Described::None, KindVault::Remembered),
+            ..route(&[0], 1, &[0])
+        }]),
+        layer(vec![Route {
+            kinds: kinds(1, SeedForm::Paper, Described::Part, KindVault::None),
+            ..paper(&[0, 1, 2], 2)
+        }]),
+    ];
+    assert!(problems(&s, &layers).is_empty());
+    let Fit::Placed(out) = fit(&s, &a, &layers, BUDGET) else {
+        panic!("the example is placed");
+    };
+    let mut b = a.clone();
+    b.layers = layers.clone();
+    b.set_map(out.map.clone());
+    let reach = Reach::of(&s, &b);
+    assert!(b.layers.iter().all(|l| reach.layer_met(l)));
+    assert_eq!(stranger_margin(&s, &b), 1);
+    assert_eq!(balance_margin(&s, &b), 1);
+    assert_eq!(keeps(&s, &b), (6, 1, 1));
+    let mut seeds = Vec::new();
+    for p in 0..3 {
+        let here = at_place(&s, &b, p);
+        let words: Vec<usize> = here
+            .iter()
+            .filter_map(|w| match w {
+                What::Words(i) => Some(*i),
+                _ => None,
+            })
+            .collect();
+        let shares = here.iter().filter(|w| matches!(w, What::Share(_))).count();
+        assert_eq!((words.len(), shares), (1, 1), "Place {}: {here:?}", p + 1);
+        seeds.extend(words);
+        assert_eq!(here.contains(&What::VaultStick(0)), p == 0);
+    }
+    seeds.sort_unstable();
+    assert_eq!(seeds, vec![0, 1, 2], "a different seed at each place");
+    let vault: Vec<What> = map(&s, &b)
+        .iter()
+        .filter(|x| x.at == At::Vault(0))
+        .flat_map(|x| x.holds.iter().map(|(w, _)| *w))
+        .collect();
+    assert!(vault.contains(&What::Wallet));
+    assert!(vault.iter().filter(|w| matches!(w, What::Seed(_))).count() >= 2);
+}
+
+/// A route of one place, a seed's words and the whole description there,
+/// remembering the seed's passphrase: in a single key with a passphrase,
+/// one copy of the words at that place, and a stranger who finds it lacks
+/// the passphrase (margin 1, all the places there are). In a single key
+/// with no passphrase the same words alone spend there: margin 0. So of
+/// the two shapes, the one with a passphrase keeps the stranger out.
+#[test]
+fn one_place_with_a_remembered_passphrase_is_placed_out_of_a_strangers_reach() {
+    let mut with = shape(1, 1);
+    with.seeds[0].passphrase = true;
+    let layers = vec![layer(vec![Route {
+        passphrases: vec![0],
+        kinds: kinds(1, SeedForm::Paper, Described::Whole, KindVault::None),
+        ..paper(&[0], 1)
+    }])];
+    let mut a = Answers::preset(&with, Preset::Paper);
+    a.set_map(vec![Spot {
+        at: At::Place(0),
+        holds: Vec::new(),
+    }]);
+    let Fit::Placed(out) = fit(&with, &a, &layers, BUDGET) else {
+        panic!("placed with a passphrase");
+    };
+    assert_eq!((out.margin, out.kept), (1, 1));
+    let mut b = a.clone();
+    b.set_map(out.map.clone());
+    assert_eq!(at_place(&with, &b, 0), vec![What::Words(0)]);
+
+    let plain = shape(1, 1);
+    let a = Answers::preset(&plain, Preset::Paper);
+    let Fit::Placed(out) = fit(&plain, &a, &layers, BUDGET) else {
+        panic!("placed without a passphrase");
+    };
+    assert_eq!(out.margin, 0);
+}
+
+/// Two places of one seed each against a 3 of 5 in Back up: any two give
+/// two seeds, and the wallet needs three. The conflict names the route
+/// and why; its resolutions are two seeds at each place (2 × 2 ≥ 3) and
+/// any three places (3 × 1 = 3, a place added). Work it out leaves the
+/// route out: nothing is placed for it. In a 2 of 3 the same route is no
+/// conflict (2 × 1 = 2, any two of two shares cover the three keys).
+#[test]
+fn two_places_of_one_seed_each_against_a_three_of_five_is_a_conflict_naming_the_route() {
+    let s = shape(3, 5);
+    let a = Answers::preset(&s, Preset::Paper);
+    let layers = vec![layer(vec![Route {
+        kinds: kinds(1, SeedForm::Paper, Described::Part, KindVault::None),
+        ..paper(&[0, 1], 2)
+    }])];
+    let found = problems(&s, &layers);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].at, Some((0, 0)));
+    assert_eq!(
+        found[0].why,
+        Why::Short {
+            any: 2,
+            per: 1,
+            needs: 3
+        }
+    );
+    let name = |p: usize| format!("Place {}", p + 1);
+    let lines = conflicts(&s, &a, &layers, &name);
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert_eq!(
+        lines[0].line,
+        "Access layer 1, route 1: any 2 places with 1 each give 2 seeds; the wallet needs 3"
+    );
+    assert_eq!(lines[0].fixes[0].1, LayersPress::KindsSeeds(0, 0, 2));
+    assert_eq!(lines[0].fixes[1].1, LayersPress::KindsAny(0, 0, 3));
+    assert!(matches!(fit(&s, &a, &layers, BUDGET), Fit::Conflicts(_)));
+    assert!(work_out(&s, &a, &layers, BUDGET).is_none());
+    // The shape these kinds need, and in that shape no conflict.
+    assert_eq!(
+        faraday_core::layers::shape_needed(&s, &a, &layers, true).as_deref(),
+        Some("These routes need a 2 of 3; this wallet is a 3 of 5")
+    );
+    let two = shape(2, 3);
+    let b = Answers::preset(&two, Preset::Paper);
+    assert!(problems(&two, &layers).is_empty());
+    assert!(matches!(fit(&two, &b, &layers, BUDGET), Fit::Placed(o) if o.margin == 1));
+}
+
+/// Two seeds and the whole description at each place of a 2 of 3's
+/// paper route, any 2 of 3: one place alone holds a quorum and the
+/// description, so a stranger who finds it spends while the route asks
+/// for two. A conflict naming the route, resolved by one seed at each
+/// place or a part of the description there; with one seed each, none.
+#[test]
+fn a_place_whose_kinds_let_a_stranger_spend_alone_is_a_conflict() {
+    let s = shape(2, 3);
+    let a = Answers::preset(&s, Preset::Paper);
+    let mut layers = vec![layer(vec![Route {
+        kinds: kinds(2, SeedForm::Paper, Described::Whole, KindVault::None),
+        ..paper(&[0, 1, 2], 2)
+    }])];
+    let name = |p: usize| format!("Place {}", p + 1);
+    let lines = conflicts(&s, &a, &layers, &name);
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert_eq!(
+        lines[0].line,
+        "Access layer 1, route 1: a stranger who finds one of its places can spend"
+    );
+    let fixes: Vec<LayersPress> = lines[0].fixes.iter().map(|f| f.1).collect();
+    assert_eq!(
+        fixes,
+        vec![
+            LayersPress::KindsSeeds(0, 0, 1),
+            LayersPress::KindsDescription(0, 0, Described::Part)
+        ]
+    );
+    layers[0].routes[0].kinds = kinds(1, SeedForm::Paper, Described::Whole, KindVault::None);
+    assert!(conflicts(&s, &a, &layers, &name).is_empty());
+}
+
+/// A 2 of 3, Access layer 1 off paper, any 2 of Places 1 to 3, a seed as
+/// a file on a stick and a part at each place; and its paper route, any
+/// 2 of the three, its kinds unset. By hand: the kinds force a seed's
+/// file and a share at each place (three files on three sticks, three
+/// shares, all different shares so any two cover the keys). The paper
+/// route counts no file: any two places need two seeds' words, so three
+/// words at least (two at one place leave the other two places with at
+/// most one), one per place. A stranger at one place has its words and
+/// its file, at most two seeds, and one share: not the description, so
+/// no spend and no balance; two places spend (the paper route is any
+/// 2). Margins 1 and 1; nine copies, three sticks.
+#[test]
+fn seeds_as_files_go_on_a_stick_at_each_place() {
+    let s = shape(2, 3);
+    let a = Answers::preset(&s, Preset::Paper);
+    let layers = vec![layer(vec![
+        Route {
+            kinds: kinds(1, SeedForm::Stick, Described::Part, KindVault::None),
+            ..route(&[0, 1, 2], 2, &[])
+        },
+        paper(&[0, 1, 2], 2),
+    ])];
+    let (out, b) = worked(&s, &a, &layers);
+    assert!(all_met(&s, &b));
+    assert_eq!((out.margin, out.balance), (1, 1));
+    assert_eq!(keeps(&s, &b), (9, 3, 0));
+    for p in 0..3 {
+        let stick: Vec<What> = map(&s, &b)
+            .iter()
+            .filter(|x| matches!(x.at, At::Stick(q, _) if q == p))
+            .flat_map(|x| x.holds.iter().map(|(w, _)| *w))
+            .collect();
+        assert_eq!(stick.len(), 1, "Place {}: {stick:?}", p + 1);
+        assert!(matches!(stick[0], What::SeedFile(_)));
+    }
+}
+
+/// The worst preset case with kinds (§20.8): its three paper routes say
+/// a seed's words and a part of the description at each place. By hand
+/// this is what L2 found for it unset (a seed and a share at each place,
+/// the vaults' sticks at Places 1, 2 and 3): the same margins and what is
+/// kept, in no more steps, every placement tried.
+#[test]
+fn the_worst_preset_case_with_kinds_is_worked_out_within_the_budget() {
+    let s = shape(3, 5);
+    let a = Answers::preset(&s, Preset::PaperVault);
+    let mut layers = worst();
+    for r in layers.iter_mut().flat_map(|l| l.routes.iter_mut()) {
+        if r.paper {
+            r.kinds = kinds(1, SeedForm::Paper, Described::Part, KindVault::None);
+        }
+    }
+    let (out, b) = worked(&s, &a, &layers);
+    assert!(all_met(&s, &b));
+    assert_eq!(stranger_margin(&s, &b), 2);
+    assert_eq!(balance_margin(&s, &b), 1);
+    assert_eq!(keeps(&s, &b), (10, 3, 2));
+    assert!(!out.stopped);
+    assert!(out.steps <= 320_119, "{} steps", out.steps);
+}
+
+/// A route's kinds read back with the plan's text, on and off paper; a
+/// route written before the kinds reads as unset; a paper route whose
+/// kinds say a stick or a vault is not a plan.
+#[test]
+fn a_routes_kinds_read_back_with_the_plan() {
+    let s = shape(2, 3);
+    let mut a = Answers::preset(&s, Preset::PaperVault);
+    a.layers = vec![layer(vec![
+        Route {
+            kinds: kinds(0, SeedForm::Stick, Described::Whole, KindVault::Written),
+            written: vec![1],
+            ..route(&[0], 1, &[])
+        },
+        Route {
+            kinds: kinds(1, SeedForm::Paper, Described::Part, KindVault::None),
+            ..paper(&[0, 1, 2], 2)
+        },
+        paper(&[1, 2], 2),
+    ])];
+    let text = a.to_text();
+    let back = Answers::from_text(&s, &text).expect("the plan reads back");
+    assert_eq!(back.layers, a.layers);
+    assert_eq!(back.layers[0].routes[2].kinds, None);
+    let bad = text.replace(
+        "paper kinds 1 words part none",
+        "paper kinds 1 file part none",
+    );
+    assert_ne!(bad, text);
+    assert!(Answers::from_text(&s, &bad).is_none());
 }

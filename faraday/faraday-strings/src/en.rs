@@ -8206,6 +8206,52 @@ pub struct Strings {
     pub layers_give_paper: &'static str,
     /// A resolution: a layer remembers a seed's passphrase. The layer, the seed.
     pub layers_remember: &'static str,
+    /// The route's kinds set by hand (§20.13), a tick row; unticked, Work it out chooses.
+    pub layers_kinds_set: &'static str,
+    /// The stepper: how many seeds each place of a route holds.
+    pub layers_seeds_each: &'static str,
+    /// The choice of the seeds' form at a route's places.
+    pub layers_seeds_as: &'static str,
+    /// A seeds' form: words on paper.
+    pub layers_words_on_paper: &'static str,
+    /// A seeds' form: a file on a stick.
+    pub layers_file_on_stick: &'static str,
+    /// The choice of how much of the wallet description a route's place holds.
+    pub layers_description: &'static str,
+    /// A choice: none.
+    pub layers_none: &'static str,
+    /// A choice: a part of the wallet description.
+    pub layers_part: &'static str,
+    /// A choice: the whole wallet description.
+    pub layers_whole: &'static str,
+    /// The choice of a vault at each of a route's places.
+    pub layers_vault: &'static str,
+    /// A route named in a conflict. The layer, the route's number.
+    pub layers_route_of: &'static str,
+    /// A conflict: a route's places give too few seeds. The route, its k, seeds each, k times that, the quorum.
+    pub layers_kinds_short: &'static str,
+    /// A conflict: more seeds at each place than the wallet has. The route, seeds each, the wallet's seeds.
+    pub layers_kinds_too_many: &'static str,
+    /// A conflict: a route's places hold no wallet description. The route.
+    pub layers_kinds_no_description: &'static str,
+    /// A conflict: parts at a route's places cannot be the whole description. The route, its k.
+    pub layers_kinds_part_alone: &'static str,
+    /// A conflict: a vault at each place and no vault's password for the route. The route.
+    pub layers_kinds_no_password: &'static str,
+    /// A conflict: a stranger at one of a route's places could spend. The route.
+    pub layers_kinds_stranger: &'static str,
+    /// A resolution: so many seeds at each place of a route. The count, the route.
+    pub layers_seeds_at_each: &'static str,
+    /// A resolution: one seed at each place of a route. The route.
+    pub layers_seed_at_each: &'static str,
+    /// A resolution: a route needs any k of its places. k, the route.
+    pub layers_any_of: &'static str,
+    /// A resolution: the whole wallet description at each place of a route. The route.
+    pub layers_whole_each: &'static str,
+    /// A resolution: a part of the wallet description at each place of a route. The route.
+    pub layers_part_each: &'static str,
+    /// A resolution: a route's vault password remembered. The route.
+    pub layers_vault_remembered: &'static str,
     /// A line under the board: a layer met, each route with its paper route. The layer, its places.
     pub board_layer_can: &'static str,
     /// A warning under the board: a layer not met. The layer, its places.
@@ -12185,6 +12231,29 @@ pub static EN: Strings = Strings {
     layers_add_vault: "Add a vault for {}",
     layers_give_paper: "Give {} a paper route",
     layers_remember: "{} remembers {}'s passphrase",
+    layers_kinds_set: "Set what each place holds",
+    layers_seeds_each: "Seeds at each place",
+    layers_seeds_as: "Seeds as",
+    layers_words_on_paper: "Words on paper",
+    layers_file_on_stick: "File on a stick",
+    layers_description: "Wallet description",
+    layers_none: "None",
+    layers_part: "Part",
+    layers_whole: "Whole",
+    layers_vault: "Vault",
+    layers_route_of: "{}, route {}",
+    layers_kinds_short: "{}: any {} places with {} each give {} seeds; the wallet needs {}",
+    layers_kinds_too_many: "{}: {} seeds at each place; the wallet has {}",
+    layers_kinds_no_description: "{}: its places hold no wallet description",
+    layers_kinds_part_alone: "{}: parts of the wallet description at any {} of its places are not all of it",
+    layers_kinds_no_password: "{}: a vault at each place, and no vault's password for it",
+    layers_kinds_stranger: "{}: a stranger who finds one of its places can spend",
+    layers_seeds_at_each: "{} seeds at each place of {}",
+    layers_seed_at_each: "1 seed at each place of {}",
+    layers_any_of: "Any {} places for {}",
+    layers_whole_each: "The whole wallet description at each place of {}",
+    layers_part_each: "A part of the wallet description at each place of {}",
+    layers_vault_remembered: "{} remembers its vault's password",
     board_layer_can: "{}: {} · can spend",
     board_layer_cannot: "{}: {} · cannot spend",
     board_layer_not_on_paper: "{} cannot spend from paper",

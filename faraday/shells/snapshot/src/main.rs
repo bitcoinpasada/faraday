@@ -3804,9 +3804,11 @@ fn board_tour(t: &mut Tour) -> Result<(), String> {
 /// The plan's Access layers card (`docs/BACKUP-FLOW.md` §20.3) for
 /// Savings, its three keys typed in, on Paper only: the card with its one
 /// layer, the board Work it out filled, its top and the lines under it,
-/// and a conflict (the route any one of its places) with what would
-/// resolve it.
+/// a conflict (the route any one of its places) with what would resolve
+/// it, the route's kinds set by hand, a kinds conflict, and a second
+/// route off paper with a vault at each place.
 fn layers_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::access::KindVault;
     use faraday_core::board::BoardPress as B;
     use faraday_core::layers::LayersPress as L;
     t.load_kit()?;
@@ -3836,6 +3838,22 @@ fn layers_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Layers(L::Fewer(0, 0)));
     scroll_to(t, Action::Layers(L::AddPlaceTo(0, 0)));
     t.shot("layers-conflict")?;
+    // What each place of the route holds, set by hand (§20.13), and a
+    // kinds conflict: no seed at each place.
+    t.press(Action::Layers(L::More(0, 0)));
+    t.press(Action::Layers(L::KindsSet(0, 0)));
+    scroll_to(t, Action::Layers(L::KindsFewerSeeds(0, 0)));
+    t.shot("layers-kinds")?;
+    t.press(Action::Layers(L::KindsFewerSeeds(0, 0)));
+    scroll_to(t, Action::Layers(L::KindsSeeds(0, 0, 1)));
+    t.shot("layers-kinds-conflict")?;
+    // A route off paper with its kinds: the seeds' form and a vault too.
+    t.press(Action::Layers(L::KindsSeeds(0, 0, 1)));
+    t.press(Action::Layers(L::AddRoute(0)));
+    t.press(Action::Layers(L::KindsSet(0, 1)));
+    t.press(Action::Layers(L::KindsVault(0, 1, KindVault::Remembered)));
+    scroll_to(t, Action::Layers(L::KindsVault(0, 1, KindVault::None)));
+    t.shot("layers-kinds-vault")?;
     Ok(())
 }
 

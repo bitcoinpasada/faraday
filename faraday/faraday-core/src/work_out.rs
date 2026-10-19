@@ -24,12 +24,23 @@
 //! route and costs a stick, so it is never better. Passphrases are not
 //! placed: a route counts the ones its layer remembers.
 //!
+//! A route whose kinds are set (§20.13) constrains the search: each of
+//! its places keeps at least so many seeds in words or as files, a part
+//! of the description (a share) or all of it, and a stick of one of its
+//! vaults. These needs are worked out per place from the routes that hold
+//! it, so places alike by their routes stay alike by their needs, and the
+//! needs count seeds, never name them: the symmetry above stands. Seeds
+//! kept as files are things of their own, and while there are any the
+//! seeds' order is not kept. A route whose kinds cannot give full access
+//! with the wallet's shape is a conflict ([`kinds_problem`]) and is left
+//! out, as one that cannot be met at all.
+//!
 //! The search counts its steps and stops at [`BUDGET`], never at a clock,
 //! so it gives the same answer on every machine and in every run
 //! (§20.8). It runs on the press of Work it out only, never while
 //! drawing.
 
-use crate::access::{Layer, Route};
+use crate::access::{Described, KindVault, Kinds, Layer, Route, SeedForm};
 use crate::backup::split_plan;
 use crate::plan::{Answers, At, Shape, Spot, What, stored_map, tag_of};
 
@@ -64,6 +75,182 @@ pub struct Outcome {
     pub stopped: bool,
     /// The steps taken.
     pub steps: u64,
+}
+
+/// Why a route's kinds (§20.13 item 6), or the routes together, cannot
+/// be had with a wallet's shape.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Why {
+    /// The route cannot be met at all ([`possible`]): no place asked for,
+    /// more than it has, or fewer seeds it can sign with than the quorum.
+    Impossible,
+    /// Any `any` of its places, `per` seeds each, give fewer seeds than
+    /// the quorum `needs`.
+    Short {
+        /// The route's `k`.
+        any: usize,
+        /// Seeds at each place.
+        per: usize,
+        /// The quorum.
+        needs: usize,
+    },
+    /// More seeds at each place than the wallet has here, `has`.
+    TooMany {
+        /// Seeds at each place.
+        per: usize,
+        /// The seeds loaded here.
+        has: usize,
+    },
+    /// A wallet of more than one seed, no description at its places and
+    /// no vault to hold it.
+    NoDescription,
+    /// A part of the description at each place, and the route's `any`
+    /// places cannot be all of it: one place is enough, or the
+    /// description does not split.
+    PartAlone,
+    /// A vault at each place, and the route has no vault's password of
+    /// the kind said.
+    NoPassword,
+    /// What each place holds lets a stranger who finds one of them spend,
+    /// while some route asks for more than one place.
+    StrangerAlone,
+    /// No placement meets every route (the routes together).
+    Unmet,
+}
+
+/// A conflict of a set of routes with a wallet's shape: the route, by
+/// layer and route number, where it is one route's, and why.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Problem {
+    /// The layer and the route, from 0; none for [`Why::Unmet`].
+    pub at: Option<(usize, usize)>,
+    /// Why.
+    pub why: Why,
+}
+
+/// What `layers` give with a wallet of `shape` (§20.13 item 4): the best
+/// placement, or why there is none.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Fit {
+    /// The best placement found.
+    Placed(Outcome),
+    /// The routes' conflicts with the shape.
+    Conflicts(Vec<Problem>),
+}
+
+/// Why `route`'s kinds cannot give full access in a wallet of `shape`
+/// (§20.13 items 3 and 6), if they cannot: too few seeds from any `k` of
+/// its places, more at each than there are, no description or a part
+/// where one place must be enough, a vault with no password to open it.
+/// Nothing for a route whose kinds are unset. A lookup.
+pub fn kinds_problem(shape: &Shape, route: &Route) -> Option<Why> {
+    let k = route.kinds?;
+    let multi = shape.multi();
+    let has = shape.here().len();
+    if k.seeds > has {
+        return Some(Why::TooMany { per: k.seeds, has });
+    }
+    let vault = !route.paper && k.vault != KindVault::None;
+    if vault {
+        let named = match k.vault {
+            KindVault::Remembered => &route.passwords,
+            _ => &route.written,
+        };
+        return named.is_empty().then_some(Why::NoPassword);
+    }
+    let needs = shape.m.max(1);
+    if route.any * k.seeds < needs {
+        return Some(Why::Short {
+            any: route.any,
+            per: k.seeds,
+            needs,
+        });
+    }
+    if multi {
+        match k.description {
+            Described::None => return Some(Why::NoDescription),
+            Described::Part if route.any <= 1 || !shape.splits => return Some(Why::PartAlone),
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Whether one place of `route`, by its kinds, lets a stranger spend
+/// whatever else is kept there: its seeds, past any that need a
+/// passphrase, are a quorum, and for more than one seed it holds the
+/// whole description; or its vault's password is written at one of its
+/// places and one place is enough. A lookup per seed.
+fn stranger_alone(shape: &Shape, route: &Route) -> bool {
+    let Some(k) = route.kinds else {
+        return false;
+    };
+    if !route.paper && k.vault == KindVault::Written && route.any <= 1 {
+        return true;
+    }
+    let guarded = shape
+        .here()
+        .into_iter()
+        .filter(|&i| shape.seeds[i].passphrase)
+        .count();
+    let free = k.seeds.saturating_sub(guarded);
+    free >= shape.m.max(1) && (!shape.multi() || k.description == Described::Whole)
+}
+
+/// The conflicts of `layers`' kinds with a wallet of `shape` (§20.13 item
+/// 6), and the routes that cannot be met at all: per route, the first of
+/// [`kinds_problem`], then [`Why::StrangerAlone`] where one of its places
+/// would let a stranger spend while some route asks for more than one
+/// (a route of any one place with nothing remembered is §20.4's conflict
+/// already). A lookup per route.
+pub fn problems(shape: &Shape, layers: &[Layer]) -> Vec<Problem> {
+    let wide = layers
+        .iter()
+        .flat_map(|l| l.routes.iter())
+        .any(|r| r.any > 1);
+    let mut out = Vec::new();
+    for (l, layer) in layers.iter().enumerate() {
+        for (r, route) in layer.routes.iter().enumerate() {
+            let at = Some((l, r));
+            if let Some(why) = kinds_problem(shape, route) {
+                out.push(Problem { at, why });
+            } else if !possible(shape, route) {
+                out.push(Problem {
+                    at,
+                    why: Why::Impossible,
+                });
+            } else if wide
+                && stranger_alone(shape, route)
+                && !(route.any <= 1 && open(shape, route))
+            {
+                out.push(Problem {
+                    at,
+                    why: Why::StrangerAlone,
+                });
+            }
+        }
+    }
+    out
+}
+
+/// The shape check (§20.13 items 4 and 5): `layers` worked out for plan
+/// `a` in a wallet of `shape`, in at most `budget` steps, or their
+/// conflicts with it ([`problems`], or [`Why::Unmet`] when no placement
+/// meets every route). Create (L6) calls it once per shape it tries;
+/// Back up with the wallet's own. Costs [`problems`], then
+/// [`work_out`] when there are none.
+pub fn fit(shape: &Shape, a: &Answers, layers: &[Layer], budget: u64) -> Fit {
+    let found = problems(shape, layers);
+    if !found.is_empty() {
+        return Fit::Conflicts(found);
+    }
+    match work_out(shape, a, layers, budget) {
+        Some(out) => Fit::Placed(out),
+        None => Fit::Conflicts(vec![Problem {
+            at: None,
+            why: Why::Unmet,
+        }]),
+    }
 }
 
 /// Whether `route` can be met at all in a wallet of `shape`: it asks for
@@ -153,6 +340,8 @@ enum Th {
     Sheet,
     Share(usize),
     Seed(usize),
+    /// Seed `i` as a file on a stick at a place.
+    File(usize),
     Stick(usize),
     Written(usize),
     /// Vault `v` holds seed `i`, or the description for `WALLET`.
@@ -170,6 +359,28 @@ struct Thing {
     /// seed before it in the list of the same class, whose set its own
     /// may not pass.
     after: Option<usize>,
+    /// The places it must be kept at (a route's kinds).
+    must: u32,
+    /// It must be kept at some place.
+    some: bool,
+}
+
+/// What a place must keep by the kinds of the routes that hold it
+/// (§20.13), each at least.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct Need {
+    words: usize,
+    files: usize,
+    shares: usize,
+    sheet: bool,
+    /// For each: a stick of one of these vaults.
+    sticks: Vec<u32>,
+}
+
+impl Need {
+    fn any(&self) -> bool {
+        *self != Need::default()
+    }
 }
 
 /// The score §20.3 item 2 orders by: larger margins, then fewer things.
@@ -210,6 +421,9 @@ struct Search<'a> {
     written_need: Vec<(usize, u32)>,
     /// What each vault holds when its password is written nowhere.
     full: Vec<G>,
+    /// What each place must keep by the routes' kinds; empty when no
+    /// route's kinds are set.
+    needs: Vec<Need>,
     things: Vec<Thing>,
     choice: Vec<u32>,
     steps: u64,
@@ -389,6 +603,13 @@ impl Search<'_> {
                             ..G::default()
                         },
                     ),
+                    Th::File(i) => (
+                        false,
+                        G {
+                            seeds: bit(i),
+                            ..G::default()
+                        },
+                    ),
                     Th::Written(v) => (
                         true,
                         G {
@@ -419,10 +640,16 @@ impl Search<'_> {
         let mut kept = 0;
         let mut unsealed = 0;
         let mut vaults = 0u32;
+        let mut files = 0u32;
         for (k, t) in self.things.iter().enumerate().take(upto) {
             let c = self.choice[k].count_ones() as usize;
             match t.th {
                 Th::Item(..) => {}
+                Th::File(_) => {
+                    kept += c;
+                    unsealed += c;
+                    files |= self.choice[k];
+                }
                 Th::Stick(v) => {
                     kept += c;
                     if c > 0 {
@@ -436,12 +663,19 @@ impl Search<'_> {
                 Th::Sheet | Th::Share(_) => kept += c,
             }
         }
-        (kept + vaults.count_ones() as usize, unsealed)
+        // A place's files are on one stick of files there.
+        (
+            kept + vaults.count_ones() as usize + files.count_ones() as usize,
+            unsealed,
+        )
     }
 
     /// Whether things `0..upto`, as chosen, can still lead to a placement
     /// that meets every route and beats the best found.
     fn hopeful(&self, upto: usize) -> bool {
+        if !self.needs_met(upto, true) {
+            return false;
+        }
         let mut b = Bufs::new();
         if let Some((best, _, _)) = &self.best {
             self.build(upto, false, &mut b);
@@ -471,6 +705,48 @@ impl Search<'_> {
         }
         self.build(upto, true, &mut b);
         self.met(&b.at, &b.paper, &b.vaults)
+    }
+
+    /// Whether every place can still keep what the routes' kinds need of
+    /// it: things `0..upto` as chosen, and, `hopeful`, every later thing
+    /// at every place it may go. A pass over the things per place that
+    /// needs any.
+    fn needs_met(&self, upto: usize, hopeful: bool) -> bool {
+        self.needs.iter().enumerate().all(|(p, need)| {
+            if !need.any() {
+                return true;
+            }
+            let at = |k: usize| {
+                let set = if k < upto {
+                    self.choice[k]
+                } else if hopeful {
+                    self.things[k].allowed
+                } else {
+                    0
+                };
+                set & (1 << p) != 0
+            };
+            let (mut words, mut files, mut shares, mut sheet) = (0, 0, 0, false);
+            let mut sticks = 0u32;
+            for (k, t) in self.things.iter().enumerate() {
+                if !at(k) {
+                    continue;
+                }
+                match t.th {
+                    Th::Seed(_) => words += 1,
+                    Th::File(_) => files += 1,
+                    Th::Share(_) => shares += 1,
+                    Th::Sheet => sheet = true,
+                    Th::Stick(v) => sticks |= 1 << v,
+                    _ => {}
+                }
+            }
+            words >= need.words
+                && files >= need.files
+                && shares >= need.shares
+                && (sheet || !need.sheet)
+                && need.sticks.iter().all(|&m| m & sticks != 0)
+        })
     }
 
     /// The fewest sticks and vaults still to be kept for a margin of
@@ -586,6 +862,9 @@ impl Search<'_> {
                     .all(|(_, need)| s & need != 0)
             });
         }
+        if thing.must != 0 || thing.some {
+            out.retain(|&s| s & thing.must == thing.must && (s != 0 || !thing.some));
+        }
         if let Some(prev) = thing.after {
             let most = lex(self.n, self.choice[prev]);
             out.retain(|&s| lex(self.n, s) <= most);
@@ -603,6 +882,9 @@ impl Search<'_> {
 
     fn leaf(&mut self) {
         let k = self.things.len();
+        if !self.needs_met(k, false) {
+            return;
+        }
         let mut b = Bufs::new();
         self.build(k, false, &mut b);
         if !self.met(&b.at, &b.paper, &b.vaults) {
@@ -655,7 +937,7 @@ pub fn work_out(shape: &Shape, a: &Answers, layers: &[Layer], budget: u64) -> Op
     let routes: Vec<&Route> = layers
         .iter()
         .flat_map(|l| l.routes.iter())
-        .filter(|r| possible(shape, r))
+        .filter(|r| possible(shape, r) && kinds_problem(shape, r).is_none())
         .collect();
     let routes: Vec<Route> = routes
         .into_iter()
@@ -746,6 +1028,55 @@ pub fn work_out(shape: &Shape, a: &Answers, layers: &[Layer], budget: u64) -> Op
         }
     }
     let multi = shape.multi();
+
+    // What each place must keep by the routes' kinds (§20.13): the most
+    // any route holding it asks for; none when no route's kinds are set.
+    let mut needs = vec![Need::default(); n];
+    let mut files_at = 0u32;
+    for r in &routes {
+        let Some(k) = r.kinds else {
+            continue;
+        };
+        let k: Kinds = if r.paper { k.on_paper() } else { k };
+        let vault = match k.vault {
+            KindVault::Remembered => vmask(&r.passwords),
+            KindVault::Written => vmask(&r.written),
+            KindVault::None => 0,
+        };
+        for &p in &r.places {
+            let need = &mut needs[p];
+            match k.form {
+                SeedForm::Paper => need.words = need.words.max(k.seeds),
+                SeedForm::Stick => {
+                    need.files = need.files.max(k.seeds);
+                    if k.seeds > 0 {
+                        files_at |= 1 << p;
+                    }
+                }
+            }
+            if multi {
+                match k.description {
+                    Described::Part => need.shares = need.shares.max(1),
+                    Described::Whole => need.sheet = true,
+                    Described::None => {}
+                }
+            }
+            if vault != 0 && !need.sticks.contains(&vault) {
+                need.sticks.push(vault);
+            }
+        }
+    }
+    if !needs.iter().any(Need::any) {
+        needs.clear();
+    }
+    let sheet_at = needs
+        .iter()
+        .enumerate()
+        .filter(|(_, x)| x.sheet)
+        .fold(0u32, |acc, (p, _)| acc | (1 << p));
+    let need_part = needs.iter().any(|x| x.shares > 0);
+    let need_whole = sheet_at != 0;
+
     let mut full = vec![G::default(); vaults];
     for (v, f) in full.iter_mut().enumerate() {
         if sticks[v] != 0 {
@@ -774,15 +1105,29 @@ pub fn work_out(shape: &Shape, a: &Answers, layers: &[Layer], budget: u64) -> Op
         .unwrap_or(n);
 
     // The things, the description first, so that a stranger's reach is
-    // known as soon as the seeds are placed.
-    let modes: Vec<Vec<Th>> = if !multi {
-        vec![Vec::new()]
-    } else if shape.splits {
-        vec![(0..shape.keys).map(Th::Share).collect(), vec![Th::Sheet]]
+    // known as soon as the seeds are placed. Each way of keeping the
+    // description is tried in turn: its shares, or the sheet; where the
+    // kinds need parts and the whole, both; where they need one of them,
+    // that way first, then both (the sheet then kept somewhere, or both
+    // would try the shares' way again).
+    let shares: Vec<Th> = (0..shape.keys).map(Th::Share).collect();
+    let both: Vec<Th> = std::iter::once(Th::Sheet).chain(shares.clone()).collect();
+    let modes: Vec<(Vec<Th>, bool)> = if !multi {
+        vec![(Vec::new(), false)]
+    } else if !shape.splits {
+        vec![(vec![Th::Sheet], false)]
     } else {
-        vec![vec![Th::Sheet]]
+        match (need_part, need_whole) {
+            (false, false) => vec![(shares, false), (vec![Th::Sheet], false)],
+            (true, false) => vec![(shares, false), (both, true)],
+            (false, true) => vec![(vec![Th::Sheet], false), (both, false)],
+            (true, true) => vec![(both, false)],
+        }
     };
     let items = written.iter().any(|&w| w != 0);
+    // Seeds as files are things beside their words: their order is not
+    // kept then.
+    let files = files_at != 0;
     let seed_class = |i: usize| {
         (
             need_pass & bit(i) != 0,
@@ -823,6 +1168,7 @@ pub fn work_out(shape: &Shape, a: &Answers, layers: &[Layer], budget: u64) -> Op
         existing: shape.vaults,
         written_need,
         full,
+        needs,
         things: Vec::new(),
         choice: Vec::new(),
         steps: 0,
@@ -830,46 +1176,45 @@ pub fn work_out(shape: &Shape, a: &Answers, layers: &[Layer], budget: u64) -> Op
         stopped: false,
         best: None,
     };
-    for mode in modes {
+    let thing = |th: Th, allowed: u32| Thing {
+        th,
+        allowed,
+        after: None,
+        must: 0,
+        some: false,
+    };
+    for (mode, sheet_some) in modes {
         let mut things: Vec<Thing> = mode
             .into_iter()
             .map(|th| Thing {
-                th,
-                allowed: reach,
-                after: None,
+                must: if th == Th::Sheet { sheet_at } else { 0 },
+                some: th == Th::Sheet && sheet_some,
+                ..thing(th, reach)
             })
             .collect();
         for (k, &i) in ordered.iter().enumerate() {
-            let after = (k > 0 && !items && seed_class(ordered[k - 1]) == seed_class(i))
+            let after = (k > 0 && !items && !files && seed_class(ordered[k - 1]) == seed_class(i))
                 .then(|| things.len() - 1);
             things.push(Thing {
-                th: Th::Seed(i),
-                allowed: reach,
                 after,
+                ..thing(Th::Seed(i), reach)
             });
+        }
+        if files {
+            for &i in &ordered {
+                things.push(thing(Th::File(i), files_at));
+            }
         }
         for (v, &s) in sticks.iter().enumerate() {
             if s != 0 {
-                things.push(Thing {
-                    th: Th::Stick(v),
-                    allowed: s,
-                    after: None,
-                });
+                things.push(thing(Th::Stick(v), s));
             }
         }
         for (v, &w) in written.iter().enumerate() {
             if w != 0 {
-                things.push(Thing {
-                    th: Th::Written(v),
-                    allowed: w,
-                    after: None,
-                });
+                things.push(thing(Th::Written(v), w));
                 for &i in seeds.iter().chain(multi.then_some(&WALLET)) {
-                    things.push(Thing {
-                        th: Th::Item(v, i),
-                        allowed: 1,
-                        after: None,
-                    });
+                    things.push(thing(Th::Item(v, i), 1));
                 }
             }
         }
@@ -939,6 +1284,7 @@ fn map_of(s: &Search, stored: &[Spot], choice: &[u32], things: &[Thing]) -> Vec<
             Th::Sheet => What::Sheet,
             Th::Share(j) => What::Share(j),
             Th::Seed(i) => What::Words(i),
+            Th::File(i) => What::SeedFile(i),
             Th::Written(v) => What::VaultPassword(v),
             Th::Stick(v) => What::VaultStick(v),
             Th::Item(..) => continue,
