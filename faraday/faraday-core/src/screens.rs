@@ -14201,7 +14201,7 @@ fn kept_sheet(
     w: f32,
     h: f32,
     head: (Glyph, osk_ui::Color, &str),
-    (line, line_tone, code): (&str, osk_ui::Color, &str),
+    (line, line_tone, row, code): (&str, osk_ui::Color, Option<(&str, &str)>, &str),
     sections: &[(&str, Vec<(String, osk_ui::Color)>)],
     actions: &[(&str, Style, Action)],
 ) {
@@ -14224,6 +14224,9 @@ fn kept_sheet(
         if !line.is_empty() {
             let size = if line_tone == WARN { 14.0 } else { 13.0 };
             cy += ui.wrap(x, cy, iw, size, W::R, line_tone, line) + 12.0;
+        }
+        if let Some((label, value)) = row {
+            cy += crate::compact::kv(ui, x, cy, iw, label, value, TEXT);
         }
         if !code.is_empty() {
             // The same size the Starter's restart sheet draws its code.
@@ -14287,7 +14290,7 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         w,
         h,
         (app.medium.icon(), WARN, &attached),
-        (&line, MUTED, ""),
+        (&line, MUTED, None, ""),
         &kept_sections(app, false, then),
         &[
             (EN.lock_not_now, Style::Secondary, Action::NotNow),
@@ -14306,7 +14309,7 @@ fn write_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         w,
         h,
         (app.medium.icon(), ACCENT, &title),
-        ("", MUTED, ""),
+        ("", MUTED, None, ""),
         &kept_sections(app, false, then),
         &[
             (EN.write_out_not_now, Style::Secondary, Action::Cancel),
@@ -15252,25 +15255,41 @@ fn not_airgapped_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 }
 
 fn power_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+    let restart = app.offers_restart();
+    let line = if app.secure_boot_reminder() {
+        EN.power_secure_boot_off
+    } else {
+        ""
+    };
+    let row = app.bios_key().map(|key| (EN.power_bios_key, key));
+    let title = if restart {
+        EN.power_title
+    } else {
+        EN.power_power_off
+    };
+    let then = if restart {
+        EN.power_the_computer_restarts
+    } else {
+        EN.power_the_computer
+    };
+    let mut buttons = vec![(EN.power_cancel, Style::Secondary, Action::Cancel)];
+    if restart {
+        buttons.push((EN.power_restart, Style::Secondary, Action::Restart));
+    }
+    buttons.push((EN.power_power_off, Style::Primary, Action::PowerOff));
     kept_sheet(
         ui,
         w,
         h,
-        (Icon::Power.into(), TEXT, EN.power_power_off),
+        (Icon::Power.into(), TEXT, title),
         (
-            if app.secure_boot_reminder() {
-                crate::strings::EN.power_secure_boot_off
-            } else {
-                ""
-            },
+            line,
             WARN,
+            row,
             &app.secure_boot_guide().unwrap_or_default(),
         ),
-        &kept_sections(app, true, EN.power_the_computer.to_string()),
-        &[
-            (EN.power_cancel, Style::Secondary, Action::Cancel),
-            (EN.power_power_off, Style::Primary, Action::PowerOff),
-        ],
+        &kept_sections(app, true, then.to_string()),
+        &buttons,
     );
 }
 

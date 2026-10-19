@@ -8,7 +8,8 @@
 //! there. Every screen therefore works with a mouse for the same reason
 //! it works with a finger, and nothing in the core knows the difference.
 //!
-//! No acceleration: one device unit is one pixel, times `--pointer-speed`.
+//! No acceleration: one device count moves the cursor by the arrow's scale
+//! (`cursor::scale`), times `--pointer-speed` (`docs/MOTION.md` §3.2).
 //! A signing device is not a desktop and there is no muscle memory to
 //! honour; predictable is what a person aiming at a 48 dp row wants.
 //!

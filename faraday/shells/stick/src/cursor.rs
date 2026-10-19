@@ -42,7 +42,8 @@ const WHEEL_NOTCH_UNITS: f32 = 120.0;
 /// pad is not tapping it.
 const TAP_MS: u64 = 200;
 
-/// The furthest the cursor may travel during a tap, in frame pixels,
+/// The furthest the cursor may travel during a tap, in device counts
+/// (frame pixels at scale 1, times the arrow's scale on a denser panel),
 /// measured on the longer axis. A finger never lands and lifts on
 /// exactly one point, and a stroke that carries the cursor further than
 /// this was aimed somewhere else.
@@ -146,7 +147,11 @@ pub struct Cursor {
     y: f32,
     width: u16,
     height: u16,
+    /// Frame pixels one device count moves the cursor: `--pointer-speed`
+    /// times the arrow's scale (`docs/MOTION.md` §3.2).
     speed: f32,
+    /// The arrow's scale: what one step of the tap limit is in pixels.
+    scale: f32,
     visible: bool,
     down: bool,
     /// The touch that could still turn out to be a tap: where the cursor
@@ -162,12 +167,14 @@ impl Cursor {
     /// A cursor in the middle of a `width × height` panel, hidden until
     /// something moves it, at `--pointer-speed` device pixels per unit.
     pub fn new(width: u16, height: u16, speed: f32) -> Cursor {
+        let scale_f = f32::from(scale(width.min(height)));
         Cursor {
             x: f32::from(width) / 2.0,
             y: f32::from(height) / 2.0,
             width,
             height,
-            speed,
+            speed: speed * scale_f,
+            scale: scale_f,
             visible: false,
             down: false,
             tap: None,
@@ -281,7 +288,8 @@ impl Cursor {
                 let travel = (i32::from(x) - i32::from(from_x))
                     .abs()
                     .max((i32::from(y) - i32::from(from_y)).abs());
-                (ms.saturating_sub(landed) <= TAP_MS && travel <= TAP_TRAVEL_PX)
+                (ms.saturating_sub(landed) <= TAP_MS
+                    && travel as f32 <= TAP_TRAVEL_PX as f32 * self.scale)
                     .then_some(Pointed::Click { x, y })
             }
         }
@@ -545,6 +553,66 @@ mod tests {
             "the last row keeps everything left of the arrow"
         );
     }
+    #[test]
+    fn a_mouse_count_moves_the_cursor_by_the_screens_scale() {
+        for (w, h, pixels) in [(1920, 1080, 100), (3200, 1800, 200), (3840, 3000, 300)] {
+            let mut cursor = Cursor::new(w, h, 1.0);
+            cursor.apply(Motion::Move { dx: -10_000, dy: 0 });
+            assert_eq!(cursor.at().0, 0);
+            cursor.apply(Motion::Move { dx: 100, dy: 0 });
+            assert_eq!(cursor.at().0, pixels, "100 counts at {w}x{h}");
+        }
+        let mut cursor = Cursor::new(3200, 1800, 0.5);
+        cursor.apply(Motion::Move { dx: -10_000, dy: 0 });
+        cursor.apply(Motion::Move { dx: 100, dy: 0 });
+        assert_eq!(cursor.at().0, 100, "--pointer-speed still applies");
+    }
+
+    #[test]
+    fn the_cursor_stops_at_the_edge_at_either_density() {
+        for (w, h) in [(1920, 1080), (3200, 1800)] {
+            let mut cursor = Cursor::new(w, h, 1.0);
+            cursor.apply(Motion::Move {
+                dx: 30_000,
+                dy: 30_000,
+            });
+            assert_eq!(cursor.at(), (w - 1, h - 1));
+            cursor.apply(Motion::Move {
+                dx: -30_000,
+                dy: -30_000,
+            });
+            assert_eq!(cursor.at(), (0, 0));
+        }
+    }
+
+    #[test]
+    fn a_five_count_tap_on_a_dense_screen_is_still_a_tap() {
+        let mut cursor = Cursor::new(3200, 1800, 1.0);
+        cursor.apply(Motion::Move { dx: 40, dy: -30 });
+        cursor.apply(Motion::Finger(Finger::Down { ms: 1000 }));
+        cursor.apply(Motion::Move { dx: 5, dy: 0 });
+        let (x, y) = cursor.at();
+        assert_eq!(
+            cursor.apply(Motion::Finger(Finger::Up { ms: 1050 })),
+            Some(Pointed::Click { x, y })
+        );
+        // Seven counts is aimed somewhere else, at any density.
+        cursor.apply(Motion::Finger(Finger::Down { ms: 2000 }));
+        cursor.apply(Motion::Move { dx: 7, dy: 0 });
+        assert_eq!(cursor.apply(Motion::Finger(Finger::Up { ms: 2050 })), None);
+    }
+
+    #[test]
+    fn a_two_finger_pan_moves_the_content_by_the_scale() {
+        let mut cursor = Cursor::new(3200, 1800, 1.0);
+        cursor.apply(Motion::Move { dx: 0, dy: 0 });
+        let (x, y) = cursor.at();
+        assert_eq!(
+            cursor.apply(Motion::Pan { dy: 30 }),
+            Some(Pointed::Scroll { x, y, dy: -60 })
+        );
+    }
+
     #[test]
     fn a_tap_on_the_pad_is_a_click_where_the_pointer_is() {
         let mut cursor = Cursor::new(1920, 1080, 1.0);

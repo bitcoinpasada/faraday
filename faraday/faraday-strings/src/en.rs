@@ -6033,6 +6033,32 @@ pub struct Strings {
     pub power_cancel: &'static str,
     /// Text in `power_sheet`.
     pub power_power_off: &'static str,
+    /// Title of `power_sheet` where it offers Restart.
+    pub power_title: &'static str,
+    /// Button in `power_sheet`.
+    pub power_restart: &'static str,
+    /// Text in `power_sheet` where it offers Restart.
+    pub power_the_computer_restarts: &'static str,
+    /// Label of the row in `power_sheet` that gives this computer's BIOS key.
+    pub power_bios_key: &'static str,
+    /// Dell's BIOS key (`docs/learn/faraday/boot/maker-dell.md`).
+    pub bios_key_dell: &'static str,
+    /// HP's BIOS key.
+    pub bios_key_hp: &'static str,
+    /// Lenovo ThinkPad's BIOS key.
+    pub bios_key_lenovo_thinkpad: &'static str,
+    /// Lenovo IdeaPad, Yoga and Legion's BIOS key.
+    pub bios_key_lenovo_ideapad: &'static str,
+    /// ASUS's BIOS key.
+    pub bios_key_asus: &'static str,
+    /// Acer's BIOS key.
+    pub bios_key_acer: &'static str,
+    /// MSI's BIOS key.
+    pub bios_key_msi: &'static str,
+    /// Framework's BIOS key.
+    pub bios_key_framework: &'static str,
+    /// Surface's BIOS key.
+    pub bios_key_surface: &'static str,
     // ----- learn (faraday-core/src/screens.rs) -----
     /// Button in `learn_sheet`.
     pub learn_done: &'static str,
@@ -11101,6 +11127,19 @@ pub static EN: Strings = Strings {
     power_the_computer: "The computer powers off",
     power_cancel: "Cancel",
     power_power_off: "Power off",
+    power_title: "Power",
+    power_restart: "Restart",
+    power_the_computer_restarts: "The computer powers off, or restarts",
+    power_bios_key: "Usual BIOS key",
+    bios_key_dell: "F2",
+    bios_key_hp: "Esc, then F10",
+    bios_key_lenovo_thinkpad: "F1",
+    bios_key_lenovo_ideapad: "F2 (or Fn+F2)",
+    bios_key_asus: "F2, held",
+    bios_key_acer: "F2",
+    bios_key_msi: "Delete",
+    bios_key_framework: "F2",
+    bios_key_surface: "Volume Up, held",
     learn_done: "Done",
     learn_spending_step: "Spending, step by step",
     secret_out_this_may: "This may be a secret",

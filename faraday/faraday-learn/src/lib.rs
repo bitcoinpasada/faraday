@@ -12,6 +12,7 @@
 
 use std::sync::OnceLock;
 
+use faraday_strings::EN;
 use osk_learn::{Page as LearnPage, Section};
 
 pub mod sketch;
@@ -68,6 +69,9 @@ pub struct Maker {
     /// (`product_name`, `SystemProductName`) begins with one of these,
     /// ignoring case; empty for every computer of the maker.
     pub families: &'static [&'static str],
+    /// The key that opens this computer's BIOS, as the page says it
+    /// (`docs/FLOWS.md`, Restart; F42): its text is `faraday-strings`'.
+    pub bios_key: &'static str,
 }
 
 /// The maker pages, each checked against the maker's own documentation
@@ -78,46 +82,55 @@ pub const MAKERS: [Maker; 9] = [
         id: "maker-dell",
         vendors: &["Dell"],
         families: &[],
+        bios_key: EN.bios_key_dell,
     },
     Maker {
         id: "maker-hp",
         vendors: &["HP", "Hewlett-Packard"],
         families: &[],
+        bios_key: EN.bios_key_hp,
     },
     Maker {
         id: "maker-lenovo-thinkpad",
         vendors: &["LENOVO"],
         families: &["ThinkPad"],
+        bios_key: EN.bios_key_lenovo_thinkpad,
     },
     Maker {
         id: "maker-lenovo-ideapad",
         vendors: &["LENOVO"],
         families: &["IdeaPad", "Yoga", "Legion"],
+        bios_key: EN.bios_key_lenovo_ideapad,
     },
     Maker {
         id: "maker-asus",
         vendors: &["ASUSTeK", "ASUS"],
         families: &[],
+        bios_key: EN.bios_key_asus,
     },
     Maker {
         id: "maker-acer",
         vendors: &["Acer"],
         families: &[],
+        bios_key: EN.bios_key_acer,
     },
     Maker {
         id: "maker-msi",
         vendors: &["Micro-Star", "MSI"],
         families: &[],
+        bios_key: EN.bios_key_msi,
     },
     Maker {
         id: "maker-framework",
         vendors: &["Framework"],
         families: &[],
+        bios_key: EN.bios_key_framework,
     },
     Maker {
         id: "maker-surface",
         vendors: &["Microsoft"],
         families: &["Surface"],
+        bios_key: EN.bios_key_surface,
     },
 ];
 

@@ -819,6 +819,7 @@ dependencies = [
 name = "faraday-learn"
 version = "0.1.4"
 dependencies = [
+ "faraday-strings",
  "osk-learn",
 ]
 

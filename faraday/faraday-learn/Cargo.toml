@@ -9,6 +9,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+faraday-strings = { path = "../faraday-strings" }
 osk-learn = { path = "../../core/osk-learn" }
 
 [lints]

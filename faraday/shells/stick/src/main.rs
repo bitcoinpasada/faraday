@@ -1352,7 +1352,7 @@ impl Shell {
     }
 }
 
-fn run(args: Args) -> Result<bool, String> {
+fn run(args: Args) -> Result<Exit, String> {
     let geometry = geometry(&args, probe(&args))?;
     let mut dpi = dpi(&args, &std::fs::read_to_string(CMDLINE).unwrap_or_default());
     // The kernel command line gives one density for every laptop; a panel
@@ -1582,7 +1582,7 @@ fn run(args: Args) -> Result<bool, String> {
         shell.blank();
         shell.camera.off();
         shell.app = None;
-        return Ok(false);
+        return Ok(Exit::PowerOff);
     }
     // The last screen the core asked for, if the loop ended on an event.
     shell.flush();
@@ -1594,6 +1594,10 @@ fn run(args: Args) -> Result<bool, String> {
     // Drop the app before the process ends so its zeroizing types run.
     let exiting = shell.done;
     let restart = shell.restart;
+    let restart_computer = shell
+        .app
+        .as_ref()
+        .is_some_and(Faraday::computer_restart_requested);
     shell.app = None;
     if exiting && !restart {
         // The last screen stays up long enough to be read, and then the
@@ -1602,7 +1606,36 @@ fn run(args: Args) -> Result<bool, String> {
         // root, could not do it anyway.
         std::thread::sleep(GOODBYE);
     }
-    Ok(restart)
+    Ok(if restart {
+        Exit::Lock
+    } else if restart_computer {
+        Exit::Restart
+    } else {
+        Exit::PowerOff
+    })
+}
+
+/// How the app ended, which init reads from the exit status
+/// (`faraday/image/overlay/common/rootfs-overlay/etc/inittab`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Exit {
+    /// Power off: status 0, or any other not named here.
+    PowerOff,
+    /// The app locked: a fresh process starts.
+    Lock,
+    /// Restart the computer.
+    Restart,
+}
+
+impl Exit {
+    /// The process's exit status for this ending.
+    fn status(self) -> u8 {
+        match self {
+            Exit::PowerOff => 0,
+            Exit::Lock => faraday_core::RESTART_CODE,
+            Exit::Restart => faraday_core::RESTART_COMPUTER_CODE,
+        }
+    }
 }
 
 /// Drops every move but the last of a run of them.
@@ -1978,8 +2011,7 @@ fn main() -> ExitCode {
     };
     let verbose = args.verbose;
     match run(args) {
-        Ok(true) => ExitCode::from(faraday_core::RESTART_CODE),
-        Ok(false) => ExitCode::SUCCESS,
+        Ok(exit) => ExitCode::from(exit.status()),
         Err(e) => {
             if verbose {
                 eprintln!("opensigner-pi: {e}");
@@ -2003,6 +2035,13 @@ fn total_memory_mib() -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_app_ends_with_a_status_for_each_way_it_ends() {
+        assert_eq!(Exit::PowerOff.status(), 0);
+        assert_eq!(Exit::Lock.status(), 75);
+        assert_eq!(Exit::Restart.status(), 76);
+    }
 
     #[test]
     fn a_framebuffer_that_cannot_be_described_is_not_guessed_at() {

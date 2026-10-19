@@ -2849,16 +2849,20 @@ as possible before the next build.
     `tests/create_wallet.rs` and `tests/vault_keys.rs`; snapshot tour
     `createfrom`.
 
-84. [ ] 2026-10-16, owner: **Restart on the power sheet**
+84. [x] 2026-10-16, owner: **Restart on the power sheet**
     (`docs/FLOWS.md`, Restart; F42). Restart beside Power off on the
     PC stick and the Pi, ending in `reboot -f` through the inittab;
     where the Secure Boot reminder shows, a BIOS key row from the
-    maker page. Specified, not built.
+    maker page. Built 2026-10-19: `Action::Restart`,
+    `Faraday::computer_restart_requested` and exit status 76
+    (`RESTART_COMPUTER_CODE`), `power_sheet`, `Maker::bios_key`; tests
+    `faraday-core/tests/restart.rs`, `faraday-guides/tests/pages.rs`,
+    `shells/stick/tests/inittab.rs`.
 
-85. [ ] 2026-10-16, owner: **the cursor moves by the screen's scale**
+85. [x] 2026-10-16, owner: **the cursor moves by the screen's scale**
     (`docs/MOTION.md` §3.2; F43). Slow on a 3200×1800 screen: one mouse
-    count moves the cursor by the arrow's scale, not one pixel.
-    Specified, not built.
+    count moves the cursor by the arrow's scale, not one pixel. Built
+    2026-10-19 (`shells/stick/src/cursor.rs`, tests there).
 
 ## Next steps
 

@@ -12,6 +12,7 @@
 # The app's error output goes to the kernel log, which a laptop shows on
 # its screen: a laptop has no serial port to read ttyS0 on. When the app
 # ends with anything but a lock, the code is said there too, and the
-# machine waits a minute before it powers off, so it can be read.
-::once:/bin/sh -c 'while :; do /bin/setpriv --nnp /usr/bin/setuidgid opensigner /usr/bin/opensigner-pi $(cat /etc/opensigner/args) 2>/dev/kmsg; code=$?; [ $code -eq 75 ] || break; done; echo "faraday: the app ended with code $code; power-off in 60 s" > /dev/kmsg; sleep 60; /sbin/poweroff -f'
+# machine waits a minute before it powers off, so it can be read. Status
+# 76 is Restart on the power sheet: the computer restarts at once.
+::once:/bin/sh -c 'while :; do /bin/setpriv --nnp /usr/bin/setuidgid opensigner /usr/bin/opensigner-pi $(cat /etc/opensigner/args) 2>/dev/kmsg; code=$?; [ $code -eq 75 ] || break; done; if [ $code -eq 76 ]; then /sbin/reboot -f; else echo "faraday: the app ended with code $code; power-off in 60 s" > /dev/kmsg; sleep 60; /sbin/poweroff -f; fi'
 @TTY@::respawn:/sbin/getty -L @TTY@ 115200 vt100

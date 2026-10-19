@@ -33,13 +33,6 @@ impl SecureBootAtStart {
     }
 }
 
-/// The maker's key for the firmware settings, from its `sys_vendor`
-/// string. No maker page exists yet (`docs/STARTER.md` D6), so none has a key;
-/// the sheet shows one beside the reminder once a page does.
-pub fn maker_key(_maker: &str) -> Option<&'static str> {
-    None
-}
-
 impl Faraday {
     /// Whether the power-off sheet carries the Secure Boot reminder: on the
     /// PC stick only (not the Pi, not Faraday Desktop, which never reads the
@@ -50,6 +43,16 @@ impl Faraday {
             && !self.shell_sticks
             && !self.maker.starts_with("Apple")
             && self.secure_boot != SecureBootAtStart::On
+    }
+
+    /// This computer's BIOS key from its maker's page, where the sheet
+    /// shows the Secure Boot reminder and a maker page matches it
+    /// (`docs/FLOWS.md`, Restart).
+    pub fn bios_key(&self) -> Option<&'static str> {
+        if !self.secure_boot_reminder() {
+            return None;
+        }
+        faraday_learn::maker(&self.maker, &self.maker_family, &self.maker_model).map(|m| m.bios_key)
     }
 
     /// The address of the guide for this computer, when the power-off

@@ -184,7 +184,7 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
   3200×1800 panel crosses like a 1600×900 one. A touchpad's moves are
   scaled the same; the tap's travel limit (`TAP_TRAVEL_PX`) and a
   two-finger pan are measured in the same scaled steps, so a tap is as
-  easy at any density. Still no acceleration. Not built. Tests
+  easy at any density. Still no acceleration. Built 2026-10-19. Tests
   (`cursor.rs`): 100 counts right move the cursor 100 pixels on a
   1920×1080 panel and 200 on a 3200×1800 one; the cursor stops at the
   panel's edge at either; a tap at 3200×1800 that travels 5 counts is

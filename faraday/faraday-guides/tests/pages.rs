@@ -185,3 +185,43 @@ fn the_windows_guide_and_each_maker_page_say_where_windows_keeps_the_recovery_ke
         );
     }
 }
+
+// The BIOS key the power sheet shows for a computer (docs/FLOWS.md,
+// Restart; F42) is the one its maker page gives.
+
+/// The keys a table value names: "Esc, then F10" is Esc and F10;
+/// "F2 (or Fn+F2)" is F2 and Fn+F2; ", held" asks for "Hold <key>".
+fn keys_of(value: &str) -> (Vec<String>, bool) {
+    let held = value.ends_with(", held");
+    let value = value.trim_end_matches(", held");
+    let keys = value
+        .replace(" (or ", ", then ")
+        .replace(')', "")
+        .split(", then ")
+        .map(str::to_string)
+        .collect();
+    (keys, held)
+}
+
+#[test]
+fn the_bios_key_table_agrees_with_the_maker_pages() {
+    for maker in faraday_learn::MAKERS {
+        let (keys, held) = keys_of(maker.bios_key);
+        let page = guide(maker.id);
+        let steps: Vec<&str> = page
+            .sections
+            .iter()
+            .flat_map(|s| s.paragraphs.iter().copied())
+            .filter(|p| faraday_learn::step(p).is_some())
+            .collect();
+        assert!(
+            steps.iter().any(|p| {
+                keys.iter().all(|k| p.contains(k.as_str()))
+                    && (!held || p.contains(&format!("Hold {}", keys[0])))
+            }),
+            "{}: no step gives {:?}",
+            maker.id,
+            maker.bios_key
+        );
+    }
+}

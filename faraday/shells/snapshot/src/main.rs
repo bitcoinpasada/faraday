@@ -551,8 +551,13 @@ fn display((width, height): (u16, u16), dpi: u16) -> Event {
 /// The wide layout's on-screen keyboard: a receiver's line on Home, the
 /// keyboard brought up from its button on a passphrase entry, and on
 /// Tools.
-/// The power-off sheet on a PC stick that started with Secure Boot off.
+/// The power sheet on a PC stick that started with Secure Boot on, and
+/// with it off (the reminder and this computer's BIOS key).
 fn power_tour(t: &mut Tour) -> Result<(), String> {
+    t.app.secure_boot = faraday_core::SecureBootAtStart::On;
+    t.press(Action::PowerAsk);
+    t.shot("power-sheet")?;
+    t.app.event(Event::Key(Key::Escape));
     t.app.secure_boot = faraday_core::SecureBootAtStart::Off;
     t.app.maker = "LENOVO".into();
     t.app.maker_family = "ThinkPad X1 Carbon".into();

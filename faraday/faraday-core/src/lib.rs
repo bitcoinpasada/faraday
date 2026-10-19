@@ -224,6 +224,10 @@ pub const IDLE_WARN_MS: u64 = 5 * 60_000;
 /// (`PLAN.md` §5.3).
 pub const RESTART_CODE: u8 = 75;
 
+/// The exit code that asks init to restart the computer instead of
+/// powering it off (`docs/FLOWS.md`, Restart; F42). 75 stays the lock's.
+pub const RESTART_COMPUTER_CODE: u8 = 76;
+
 /// A stick or card the shell sees, with the files on it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StickInfo {
@@ -892,6 +896,8 @@ pub enum Action {
     DevicesUnderstood,
     /// Power off.
     PowerOff,
+    /// Restart the computer: Power off in everything but its end.
+    Restart,
     /// Minutes without input before locking; 0 for never.
     IdleLock(u16),
     /// Minutes without input before powering off; 0 for never.
@@ -3079,6 +3085,8 @@ pub struct Faraday {
     /// on draws again.
     clock_drawn: Option<u64>,
     restart: bool,
+    /// The exit asked for a restart of the computer, not a power-off.
+    restart_computer: bool,
     last_display: Option<DisplayInfo>,
     /// The person's display scale, in percent of the automatic one.
     pub scale_pct: u16,
@@ -3501,6 +3509,7 @@ impl Faraday {
             dirty: true,
             clock_drawn: None,
             restart: false,
+            restart_computer: false,
             last_display: None,
             scale_pct: 100,
             theme: ui::Theme::default(),
@@ -3678,6 +3687,19 @@ impl Faraday {
     /// Whether the last exit asked for a fresh process.
     pub fn restart_requested(&self) -> bool {
         self.restart
+    }
+
+    /// Whether the exit asks for the computer to restart rather than
+    /// power off (`docs/FLOWS.md`, Restart): the shell ends the app with
+    /// [`RESTART_COMPUTER_CODE`].
+    pub fn computer_restart_requested(&self) -> bool {
+        self.restart_computer
+    }
+
+    /// Whether the power sheet offers Restart: the PC stick and the Pi,
+    /// not Faraday Desktop, an app on someone's own system.
+    pub fn offers_restart(&self) -> bool {
+        !self.shell_sticks
     }
 
     /// Whether a storage request is waiting for the shell (a lookup).
@@ -5438,7 +5460,11 @@ impl Faraday {
                 // An open vault's changes are never sealed at power-off:
                 // the sheet says they are lost.
                 let changed = self.vaults.open.iter().any(|v| v.changes > 0);
-                if self.outbox.is_empty() && !self.secure_boot_reminder() && !changed {
+                if self.outbox.is_empty()
+                    && !self.secure_boot_reminder()
+                    && !changed
+                    && !self.offers_restart()
+                {
                     self.commands.push_back(Command::Exit);
                 } else {
                     self.sheet = Some(Sheet::Power);
@@ -5446,6 +5472,11 @@ impl Faraday {
             }
             Action::PowerOff => {
                 self.sheet = None;
+                self.commands.push_back(Command::Exit);
+            }
+            Action::Restart => {
+                self.sheet = None;
+                self.restart_computer = self.offers_restart();
                 self.commands.push_back(Command::Exit);
             }
             Action::InputUse(id) => self.input_believe(id),

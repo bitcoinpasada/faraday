@@ -1617,7 +1617,7 @@ screen); Settings as a sheet over the screen (mends this case only).
 **Why.** The power sheet offers only Power off. Turning Secure Boot back
 on means opening the BIOS at the next start, and a restart is the moment
 for it: the maker guides already say to use Restart rather than Shut
-down (Dell's: "Shut down can skip the key"). Not built.
+down (Dell's: "Shut down can skip the key"). Built 2026-10-19.
 
 1. **The power sheet offers Restart beside Power off**: **Cancel**,
    **Restart**, **Power off**, Power off still the primary. Restart is
@@ -1633,8 +1633,10 @@ down (Dell's: "Shut down can skip the key"). Not built.
 3. **The BIOS key.** Where the sheet shows the Secure Boot reminder
    today (a PC stick started with Secure Boot off or unread, not a Mac:
    `secure_boot_reminder`, STARTER §7.5), it shows under the reminder
-   line a row **BIOS key** with this computer's key, from its maker
-   page, and the guide's QR code as today. The row is a label and its
+   line a row **Usual BIOS key** with this computer's key, from its
+   maker page (owner, 2026-10-19: "usual", since a maker's models can
+   differ and fast startup can skip the key; the guide's code covers
+   both), and the guide's QR code as today. The row is a label and its
    value; no other line is added. A computer no maker page matches has
    no row: the reminder and the guide's code, as today.
 4. **The keys**, each as the maker's own guide says it
@@ -1654,7 +1656,12 @@ down (Dell's: "Shut down can skip the key"). Not built.
    | Surface | Volume Up, held |
 
    A maker page that changes its key changes this table in the same
-   commit; a test reads both and fails when they differ.
+   commit; a test reads both and fails when they differ. The maker is
+   matched on the firmware's maker, family and model (SMBIOS); a desktop
+   chassis changes no key here (2026-10-19: ASUS's page opens the BIOS
+   with F2 on desktops too, and MSI's key is Delete on both), so the
+   chassis is not read for it. A maker whose desktops take another key
+   adds a desktop key to its row then.
 5. **How the machine restarts.** The app ends with an exit status of
    its own for Restart (75 stays the lock's), passed through the shell
    API as a command beside Exit. The image's inittab loop (and the dev
@@ -1667,13 +1674,13 @@ down (Dell's: "Shut down can skip the key"). Not built.
    kernel zeroes every page freed (`init_on_free=1`), the same path as
    Power off's. Nothing is written to the computer.
 6. **Strings** (`faraday/faraday-strings/src/en.rs`): "Restart",
-   "Power", "The computer powers off, or restarts", "BIOS key", and one
+   "Power", "The computer powers off, or restarts", "Usual BIOS key", and one
    per key in item 4.
 7. **Tests**, user-facing: the stick's power sheet offers Restart and
    Power off, the Pi's too, Faraday Desktop's Power off only; Restart
    with files waiting asks first, as Power off does; Restart ends the
    app with Restart's status and Power off with its own; on a Dell
-   started with Secure Boot off the sheet shows BIOS key F2, on a
+   started with Secure Boot off the sheet shows Usual BIOS key F2, on a
    computer started with it on no row, on an unknown maker no row and
    the guide's code; the image's inittab restarts on Restart's status
    and powers off otherwise (a test of the line with a stub `reboot`
