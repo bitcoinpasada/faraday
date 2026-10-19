@@ -3852,7 +3852,7 @@ pub(crate) fn stick_save_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     if ui.compact {
         crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Drive, ACCENT, title);
+            cy += crate::compact::sheet_head(ui, x, cy, iw, app.medium.icon(), ACCENT, title);
             cy += body(ui, x, cy, iw) + 8.0;
             cy += crate::compact::buttons(ui, x, cy, iw, &items);
             cy - y
@@ -3869,7 +3869,7 @@ pub(crate) fn stick_save_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let sh = 30.0 + 30.0 + 22.0 + body_h + 12.0 + buttons_h + 24.0;
     let (x, y) = crate::screens::sheet_box(ui, w, h, sw, sh);
     let x = x + ix;
-    ui.icon(x, y + 30.0, 30.0, Icon::Drive, 18.0, ACCENT);
+    ui.icon(x, y + 30.0, 30.0, app.medium.icon(), 18.0, ACCENT);
     ui.text_mid(x + 42.0, y + 30.0, 30.0, 20.0, W::S, TEXT, title);
     let mut cy = y + 82.0;
     cy += body(ui, x, cy, iw) + 12.0;

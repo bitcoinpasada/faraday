@@ -2111,7 +2111,11 @@ plans on the board, keeping what each checked; none is deleted.
 - **F2d, + stick and a vault at no place** (§19.16), from the owner's
   test of F2c. Before F3.
 
-F1 built 2026-10-16.
+F1 built 2026-10-16. F2d and F3 built 2026-10-19. F3's choices where
+the spec says nothing: the SeedQR row is shown for English words only;
+the save popup's warning is a line, and Save is the consent; a wallet
+record's popup lists every software file (the record says no software),
+the descriptor alone ticked.
 
 **F2a built** (2026-10-16): the board in Back up on `wide` (§19.1–§19.3,
 §19.5, §19.6, §19.12 items 2, 7, 8), DESIGN §4.17. Left for F2b: the

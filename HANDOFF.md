@@ -2769,8 +2769,9 @@ as possible before the next build.
     Measured (SPEED §6): a late checklist frame went from about 180 ms
     to about 10 ms after batches A and B, a pointer move from 13 ms to
     nothing. Batches A and B built; the owner checked them on the slow
-    laptop's stick (quick throughout). C next, after item 78's F
-    batches; D measured at high-density full-screen sizes first; E in
+    laptop's stick (quick throughout). C built 2026-10-19 (the desktop
+    shell has no test harness: a toggled stick and a written file are
+    the owner's check). D measured at high-density full-screen sizes first; E in
     faraday-website.
 
 78. [ ] 2026-10-15, owner: **the backup board** (`docs/BACKUP-FLOW.md`
@@ -2789,8 +2790,9 @@ as possible before the next build.
     owner's test of F2c, F2d (§19.16, F40): a press on + stick adds an
     empty stick, and a vault kept at no place is not in the plan; with
     it §19.17 (a files box in every stick, the USB stick and lock
-    glyphs) and §19.18 (a pressed name selected). Built 2026-10-19;
-    then F3.
+    glyphs) and §19.18 (a pressed name selected). Built 2026-10-19.
+    F3, the vault's show and save (§19.7), built 2026-10-19. Next:
+    item 79, access layers, when the owner moves it on.
 
 79. [ ] 2026-10-16, owner: **access layers** (`docs/BACKUP-FLOW.md` §20,
     F38). Access layers 1, 2, 3 …, each a list of what it is able to
