@@ -1727,6 +1727,9 @@ start; the power sheet offered only Power off.
   **Power off**, with the same holds and the same wiping.
 - Where the Secure Boot reminder shows, the sheet also shows this
   computer's **BIOS key**, from its maker page.
+- Not **Restart into the BIOS**: that writes a firmware variable, and
+  the stick writes nothing to the computer. Restart wipes as Power off
+  does, since a restart keeps the memory powered.
 
 ### F44 Add a key is the New key flow (2026-10-19)
 
