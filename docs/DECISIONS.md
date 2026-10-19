@@ -1731,3 +1731,19 @@ job had drifted apart.
   on its own still has none (decision 4).
 - The Entry screen stays for a key asked for by its fingerprint or a
   wallet's missing key.
+
+### F45 Keys from a vault in Create; a new wallet from one you have (2026-10-19)
+
+**Why.** A key in a vault had to be loaded on the vault's page before
+Create would offer it, and no wallet could be made from the keys of one
+already held.
+
+**Decision** (owner, 2026-10-19; `docs/NEW-WALLET.md` §16; tracker
+#149, #131 folded in).
+
+- The Keys card lists each open vault's keys under its name; a press
+  loads the key and fills the slot. A locked vault is one Unlock row,
+  returning to the card.
+- A wallet's card offers **New wallet from this one**: Create filled
+  from it, its account, script type, quorum and keys all changeable,
+  starting at the next unused account.

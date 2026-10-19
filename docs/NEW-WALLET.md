@@ -1491,3 +1491,105 @@ the words form; `scan_a_key.rs` `add_a_key_leads_with_scan_a_seedqr`;
 
 **Docs.** FLOWS decision 18 and its Add a key screen, DESIGN's Add a key menu
 (§4, which no longer matched the code), SIMPLIFY §2.4 marked replaced.
+
+## 16. Keys from a vault, and a new wallet from one you have (owner, 2026-10-19; tracker #149, #131; F45)
+
+**Why.** Create a wallet offered only keys already loaded into the
+session: a key kept in a vault had to be loaded from the vault's own
+page first. And there was no way to make a second wallet from the keys
+of one already held, such as the same seeds at another account.
+
+**Survey (2026-10-19).** Create's Keys card (`screens.rs` `create_body`,
+`cstep::KEYS`) lists `session.keys`, New key, From a file, Scan its
+xpub, Someone else (`create::Source`: Empty, Here, Cosigner, Later); no
+vault. A vault's key loads by **Load into session** on its page
+(`vault_load_selected`, `vault_load_set`), by Unlock from the Vaults list
+(everything), or for a wallet's missing key from its card. Nothing makes
+a wallet from another; `NewKind::path_at` already writes a kind's path
+at another account (the Vanity grinder uses it). §12.3 item 2 waits for
+this section ("Another wallet from these seeds").
+
+### 16.1 An open vault's keys on the Keys card
+
+- Under each slot's session keys, each **open** vault's keys that are
+  not loaded, under the vault's name as a caption label: a button per
+  key, its fingerprint and label as the session keys' buttons read. A
+  threshold kind lists only the vault's shares; a key already in
+  another slot is not offered (§2.2).
+- A press loads that one key into the session, with the passphrase the
+  record stores, as **Load into session** does (`vault_load_set` for
+  that record), and fills the slot with it (`Source::Here`). The vault
+  stays open; nothing in it changes.
+- A **locked** vault Faraday knows of (its file on a stick in) is one
+  row, **Unlock Vault n**: it opens the unlock with `back_to` the Keys
+  card, and returns there with the vault open and nothing loaded, so
+  its keys are then offered as above.
+- The vault's keys are listed from the open vault's records each frame
+  through the drawing memo (`docs/SPEED.md` §3.3); a key's fingerprint
+  is the one its record keeps or the vault worked out at unlock, never
+  derived while drawing.
+
+### 16.2 New wallet from this one
+
+A loaded wallet's card (Wallets) gains **New wallet from this one**. It
+opens Create a wallet filled from that wallet, every card closed with
+its value and **Change**, on the first card that needs something:
+
+- **Kind**: the wallet's kind (single key, multisig, the other kinds),
+  its script type changeable as Kind's own choices are.
+- **Quorum**: the wallet's threshold and number of keys, changeable.
+  Keys added take empty slots; keys removed drop the last slots.
+- **Account**: a new row on Kind, **Account** n, a − n + stepper from
+  0. It starts at the lowest account that no loaded wallet of the same
+  keys and kind uses, so a press of Continue throughout makes a new,
+  separate wallet. Every key made or loaded here is used at that
+  account (`path_at`); the descriptor carries the account's paths.
+- **Keys**: each slot filled with the wallet's key in that place. A key
+  loaded here (or in an open vault, §16.1) gives its account key at the
+  account chosen. A cosigner's key held only as an xpub cannot give
+  another account: at account 0 and the same script type it stays; at
+  any other its slot is **Someone else**, reading "Needs Key n's xpub at
+  account n", to be filled by Scan its xpub or a file as today.
+- **Check** and **Back up** as for any new wallet; the name proposed is
+  the wallet's with " · account n" (or the kind's name, when the kind
+  changed).
+- The original wallet is not touched.
+
+### 16.3 After Restore
+
+§12.3 item 2's **Another wallet from these seeds** is **New wallet from
+this one** on the restored wallet, drawn as §12.3 says.
+
+### 16.4 Where
+
+`create.rs` (Create's state gains `account: u32` and a way to start it
+from a wallet; `NewKind::path_at` used for each key), `screens.rs`
+(`create_body`'s slot rows, Kind's Account stepper, the wallet card's
+button), `lib.rs` (the slot press for a vault key, the new action),
+`vaults.rs` (loading one record, `back_to` the Keys card), the small
+panel's Create pages. Strings in `faraday-strings`.
+
+### 16.5 Tests
+
+`tests/create_wallet.rs`, `tests/vault_keys.rs`:
+
+- with a vault open holding a key not loaded, a 2-of-3's Key 1 offers
+  it under the vault's name; pressing it loads the key and fills Key 1,
+  and the vault is still open;
+- a threshold kind offers only a vault's shares;
+- a locked vault reads Unlock Vault n; unlocking returns to the Keys
+  card, the vault's keys then offered;
+- New wallet from this one on a single-key wallet at account 0, with
+  Continue throughout, makes a wallet at account 1 whose first address
+  is the one the same words give at `m/84'/1'/1'/0/0` (testnet) and
+  differs from the original's;
+- the same on a 2-of-3 whose keys are all here: every key's path in the
+  descriptor carries account 1;
+- a 2-of-3 with a cosigner's xpub, at account 1: that slot reads Someone
+  else and needs the cosigner's xpub;
+- changing Kind to Taproot keeps the keys and makes a Taproot wallet of
+  them;
+- the original wallet is unchanged after.
+
+**Docs.** FLOWS (Create, the wallet card), WALLETS (the card's
+buttons), §12.3 item 2 here.

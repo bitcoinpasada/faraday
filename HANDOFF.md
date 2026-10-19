@@ -2827,6 +2827,11 @@ as possible before the next build.
     forms; Add a key on the Wallets page and its Tools tile open it.
     Specified, not built.
 
+83. [ ] 2026-10-19, owner: **keys from a vault in Create; a new wallet
+    from one you have** (`docs/NEW-WALLET.md` §16, F45; tracker #149,
+    #131 folded in). Specified, not built: ask the owner before
+    building (tracker #149).
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:
