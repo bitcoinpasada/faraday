@@ -1,0 +1,47 @@
+name: Bug report
+description: Something in Faraday or the Starter that does not work as it should.
+title: "Bug: "
+labels: ["user report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never put a seed's words, a passphrase, a vault password, a private key or a wallet's description in an issue: anyone can read it. A security problem goes in a [private report](https://github.com/bitcoinpasada/faraday/security/advisories/new), not here.
+  - type: dropdown
+    id: app
+    attributes:
+      label: Where
+      options:
+        - The stick (PC or Mac)
+        - The Pi
+        - Faraday Desktop
+        - Faraday Starter
+        - The website
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: As the app's About page shows it, for example 0.1.4.
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to make it happen again
+      placeholder: "1. …\n2. …"
+    validations:
+      required: false

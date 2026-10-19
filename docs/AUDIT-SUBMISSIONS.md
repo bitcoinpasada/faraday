@@ -251,8 +251,11 @@ several.
 - [x] The Audits page and the bar's **Audits** link (the website
       repository's HANDOFF); published 2026-10-13.
 
-## 9. Open
+## 9. Bug reports (owner, 2026-10-19)
 
-1. Whether the page says that ordinary bug reports go to the
-   repository's issues, so nobody takes "experts" to mean only experts
-   may report.
+Ordinary bug reports go to the repository's issues, through the
+**Bug report** form (`.github/ISSUE_TEMPLATE/bug.yml`), so nobody takes
+"experts" to mean only experts may report. Every report the form opens
+carries the label **user report**. The Audits page says so in one line
+beside the Audit form's link. A security problem still goes in a private
+report (§4).
