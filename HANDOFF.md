@@ -2845,6 +2845,11 @@ as possible before the next build.
     where the Secure Boot reminder shows, a BIOS key row from the
     maker page. Specified, not built.
 
+85. [ ] 2026-10-16, owner: **the cursor moves by the screen's scale**
+    (`docs/MOTION.md` §3.2; F43). Slow on a 3200×1800 screen: one mouse
+    count moves the cursor by the arrow's scale, not one pixel.
+    Specified, not built.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:

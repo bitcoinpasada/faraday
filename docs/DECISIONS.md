@@ -1731,6 +1731,19 @@ start; the power sheet offered only Power off.
   the stick writes nothing to the computer. Restart wipes as Power off
   does, since a restart keeps the memory powered.
 
+### F43 The cursor moves by the screen's scale (2026-10-16)
+
+**Why.** On the stick one mouse count moved the cursor one panel pixel,
+so the mouse was slow on a 3200×1800 screen and fine on 1920×1080 and
+below.
+
+**Decision** (owner, 2026-10-16; `docs/MOTION.md` §3.2).
+
+- One count moves the cursor by the whole-number scale the arrow is
+  already drawn at, times `--pointer-speed`: a dense screen crosses like
+  the desktop it is scaled to. A touchpad the same.
+- Still no acceleration. This replaces upstream's "one device unit is
+  one pixel" (PLANNING §16.94) on the stick.
 ### F44 Add a key is the New key flow (2026-10-19)
 
 **Why.** Add a key offered only boxes for words held; New key in Create
