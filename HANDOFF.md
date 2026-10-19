@@ -2829,8 +2829,7 @@ as possible before the next build.
     `keygen_screen.rs`; `screens.rs` `entry_words` and
     `compact_screens.rs` `entry_words`/`entry_form` shared with the
     Add a key screen; `lib.rs` `entry_mnemonic`, `typed_load`;
-    `forms.rs` `form_key`; the snapshot tool's `addkey` tour). Not
-    committed.
+    `forms.rs` `form_key`; the snapshot tool's `addkey` tour), 5d4b097.
 
 83. [x] 2026-10-19, owner: **keys from a vault in Create; a new wallet
     from one you have** (`docs/NEW-WALLET.md` §16, F45; tracker #149,
@@ -2839,6 +2838,12 @@ as possible before the next build.
     wallet card's **New wallet from this one**; tests in
     `tests/create_wallet.rs` and `tests/vault_keys.rs`; snapshot tour
     `createfrom`.
+
+84. [ ] 2026-10-16, owner: **Restart on the power sheet**
+    (`docs/FLOWS.md`, Restart; F42). Restart beside Power off on the
+    PC stick and the Pi, ending in `reboot -f` through the inittab;
+    where the Secure Boot reminder shows, a BIOS key row from the
+    maker page. Specified, not built.
 
 ## Next steps
 

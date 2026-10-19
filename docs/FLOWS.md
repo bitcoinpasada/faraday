@@ -1603,3 +1603,72 @@ Not built.
 Considered and not chosen: a "back to the flow" line at the top of
 every page (it remembers one flow only, and is a line on every working
 screen); Settings as a sheet over the screen (mends this case only).
+
+## Restart (owner, 2026-10-16; F42)
+
+**Why.** The power sheet offers only Power off. Turning Secure Boot back
+on means opening the BIOS at the next start, and a restart is the moment
+for it: the maker guides already say to use Restart rather than Shut
+down (Dell's: "Shut down can skip the key"). Not built.
+
+1. **The power sheet offers Restart beside Power off**: **Cancel**,
+   **Restart**, **Power off**, Power off still the primary. Restart is
+   Power off in everything but its end: the same sheet of what is kept
+   and wiped, the same holds (files waiting asks first, decision 5; a
+   backup not written holds it, decision 59), the vaults sealed and
+   memory wiped as the app ends; then the computer restarts instead of
+   powering off. The sheet's title is "Power"; its line on the computer
+   reads "The computer powers off, or restarts".
+2. **Where.** The PC stick and the Pi. Not Faraday Desktop, an app on
+   someone's own system, whose sheet stays as it is. The idle power-off
+   is unchanged: it never restarts.
+3. **The BIOS key.** Where the sheet shows the Secure Boot reminder
+   today (a PC stick started with Secure Boot off or unread, not a Mac:
+   `secure_boot_reminder`, STARTER §7.5), it shows under the reminder
+   line a row **BIOS key** with this computer's key, from its maker
+   page, and the guide's QR code as today. The row is a label and its
+   value; no other line is added. A computer no maker page matches has
+   no row: the reminder and the guide's code, as today.
+4. **The keys**, each as the maker's own guide says it
+   (`docs/learn/faraday/boot/maker-*.md`), a field of `Maker` in
+   `faraday-learn`, its text in `faraday-strings`:
+
+   | Maker page | BIOS key |
+   |---|---|
+   | Dell | F2 |
+   | HP | Esc, then F10 |
+   | Lenovo ThinkPad | F1 |
+   | Lenovo IdeaPad, Yoga, Legion | F2 (or Fn+F2) |
+   | ASUS | F2, held |
+   | Acer | F2 |
+   | MSI | Delete |
+   | Framework | F2 |
+   | Surface | Volume Up, held |
+
+   A maker page that changes its key changes this table in the same
+   commit; a test reads both and fails when they differ.
+5. **How the machine restarts.** The app ends with an exit status of
+   its own for Restart (75 stays the lock's), passed through the shell
+   API as a command beside Exit. The image's inittab loop (and the dev
+   variant's) keeps the status it ends on and runs `reboot -f` for
+   Restart's, `poweroff -f` for any other. The app, not root, still
+   does neither itself. The last screen stays up as long as Power off's.
+6. **Strings** (`faraday/faraday-strings/src/en.rs`): "Restart",
+   "Power", "The computer powers off, or restarts", "BIOS key", and one
+   per key in item 4.
+7. **Tests**, user-facing: the stick's power sheet offers Restart and
+   Power off, the Pi's too, Faraday Desktop's Power off only; Restart
+   with files waiting asks first, as Power off does; Restart ends the
+   app with Restart's status and Power off with its own; on a Dell
+   started with Secure Boot off the sheet shows BIOS key F2, on a
+   computer started with it on no row, on an unknown maker no row and
+   the guide's code; the image's inittab restarts on Restart's status
+   and powers off otherwise (a test of the line with a stub `reboot`
+   and `poweroff`); item 4's table agrees with the maker pages.
+
+Considered and not chosen: **Restart into the BIOS**, the computer
+restarting straight into its firmware screen (the UEFI variable
+`OsIndications`, as Faraday Starter does on Windows), which needs no
+key. On the stick it needs the EFI variables writable from the running
+system, a door into the firmware that the image keeps shut. Kept as a
+question for the owner.
