@@ -1665,10 +1665,13 @@ fn collapse_moves(batch: &mut Vec<Wake>) {
                 batch.remove(i);
             }
             (
-                Wake::Pointer(pointer::Motion::Pan { dy }),
-                Wake::Pointer(pointer::Motion::Pan { dy: by }),
+                Wake::Pointer(pointer::Motion::Pan { dx, dy }),
+                Wake::Pointer(pointer::Motion::Pan { dx: bx, dy: by }),
             ) => {
-                batch[i + 1] = Wake::Pointer(pointer::Motion::Pan { dy: dy + by });
+                batch[i + 1] = Wake::Pointer(pointer::Motion::Pan {
+                    dx: dx + bx,
+                    dy: dy + by,
+                });
                 batch.remove(i);
             }
             // Moves already applied to the arrow: the core wants where
@@ -1691,32 +1694,14 @@ fn collapse_moves(batch: &mut Vec<Wake>) {
 
 /// Delivers what the cursor made of a motion to the core.
 fn deliver(shell: &mut Shell, pointed: Option<Pointed>, contact: &mut bool) {
-    match pointed {
-        Some(Pointed::Touch(t)) => {
-            *contact = t.phase != TouchPhase::Up;
-            shell.touch(t);
-        }
-        // A tap is a contact that arrives whole: down and up at one
-        // place, with nothing between.
-        Some(Pointed::Click { x, y }) => {
-            *contact = false;
-            for phase in [TouchPhase::Down, TouchPhase::Up] {
+    for event in pointed.into_iter().flat_map(Pointed::events) {
+        match event {
+            Event::Touch { x, y, phase } => {
+                *contact = phase != TouchPhase::Up;
                 shell.touch(touch::Touch { x, y, phase });
             }
+            other => shell.send_timed(Bucket::Touch, other),
         }
-        Some(Pointed::Scroll { x, y, dy }) => {
-            shell.send_timed(Bucket::Touch, Event::Scroll { x, y, dy });
-        }
-        Some(Pointed::ScrollEnd { x, y }) => {
-            shell.send_timed(Bucket::Touch, Event::ScrollEnd { x, y });
-        }
-        Some(Pointed::Wheel { x, y, dy }) => {
-            shell.send_timed(Bucket::Touch, Event::Wheel { x, y, dy });
-        }
-        Some(Pointed::Hover { x, y }) => {
-            shell.send_timed(Bucket::Touch, Event::Hover { x, y });
-        }
-        None => {}
     }
 }
 
@@ -1875,6 +1860,13 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
             if shell.done {
                 break;
             }
+        }
+        // A tap's click whose wait for a drag is over comes up now
+        // (`docs/MOTION.md` §3.9). While it is held the loop is on the
+        // frame grid, so this is at most a frame late.
+        if let Some(c) = shell.cursor.clone() {
+            let released = lock(&c).due(Instant::now());
+            deliver(shell, released, &mut contact);
         }
         // The panic chord held long enough: nothing more is drawn, asked
         // or saved.

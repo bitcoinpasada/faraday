@@ -397,6 +397,112 @@ theme: warm cream page, espresso text, a terracotta accent (#A34E26,
   The stick visit's file list keeps its own bar, which is held and
   dragged by itself (`Action::VisitBar`).
 
+### 3.9 The stick's touchpad: click-and-drag and tap-and-drag (2026-10-19)
+
+Owner-asked 2026-10-19, tracker #154: dragging a scrollbar with a
+laptop's touchpad did not work on the stick. The pad should do what a
+person's laptop does under Linux (libinput) and Windows (Precision
+Touchpad), so the core sees what a mouse sends: Down, Moves, Up.
+
+**What was wrong.** Two gestures failed, for two reasons
+(`faraday/shells/stick/src/pointer.rs`, `cursor.rs`):
+
+- *A held click and a second finger.* On a clickpad the finger that
+  presses rests on the pad; the drag is made with a second finger. The
+  pad was followed by `ABS_X`/`ABS_Y`, the kernel's single-touch
+  emulation, which tracks the oldest contact, so the pointer followed
+  the resting finger and the moving one moved nothing. And any two
+  fingers on the pad (`BTN_TOOL_DOUBLETAP`) were a two-finger scroll,
+  held button or not, so the core got scrolls between the Down and the
+  Up instead of Moves.
+- *Tap-and-drag.* A tap was sent whole on the lift, Down and Up
+  together, so there was nothing held for a second touch to drag.
+
+**The standard behaviour.** From libinput's documentation (Tapping,
+Clickpad software buttons), its API header (`libinput.h`, drag lock)
+and its source (`evdev-mt-touchpad-tap.c`, `-gestures.c`),
+and Windows' Settings > Touchpad defaults:
+
+- Tap-to-click: a touch that lifts within the tap timeout (libinput
+  180 ms) having moved less than the tap motion threshold (libinput
+  1.3 mm) is a tap. libinput presses the button when the finger lifts
+  and releases it when the tap timeout runs out with no new touch.
+  Windows has tap-to-click on by default and publishes no timings.
+- Tap-and-drag: a touch that lands within the tap timeout of a tap's
+  lift keeps the button held; the finger then drags, and lifting it
+  releases the button. A touch that lifts again at once is a double
+  tap: release, press, and the wait again. On in libinput where tapping
+  is on, and on in Windows ("Tap twice and drag to multi-select").
+- Drag lock: libinput's default is off (lifting ends the drag at once;
+  it has an optional timeout or sticky mode, and a short automatic lock
+  only when the finger lifts at the pad's very edge). Windows ends the
+  drag on lift. Chosen: **no drag lock**.
+- A held click and a second finger: the pressing finger is ignored and
+  the pointer follows the finger that moves; no finger scrolls while
+  the button is held (libinput, `evdev-mt-touchpad-gestures.c`: while
+  a clickpad is clicked, or a tap-and-drag holds the button, it forces
+  one-finger mode, so the fingers move the pointer and do not scroll;
+  a finger in the button area does not move the pointer. Windows: click
+  with one finger, drag with another).
+- Software button areas (libinput, about 10 mm at the bottom of a
+  clickpad, the default on PC clickpads; clickfinger on Apple's) decide
+  which button a click is. The core has one button, so every click is
+  the left one and the areas are not needed for that. libinput also
+  stops a thumb resting in that strip from moving the pointer or
+  counting as a scroll's second finger.
+
+**Chosen rules, with numbers.**
+
+- **Contacts by slot.** A pad that reports multitouch axes
+  (`ABS_MT_SLOT`, `ABS_MT_TRACKING_ID`, `ABS_MT_POSITION_*`) is followed
+  contact by contact. In each packet the contact that travelled
+  furthest (|dx| + |dy|) is the one that moves the pointer; a contact's
+  first position after it lands moves nothing, so landing or lifting a
+  finger never makes the cursor jump. A pad with no multitouch axes is
+  followed by `ABS_X`/`ABS_Y` as before.
+- **Held click.** While `BTN_LEFT` is held, every finger's travel is a
+  move and none is a scroll; two fingers that were scrolling when the
+  button went down end their scroll first. So a press is Down at the
+  cursor, the moving finger's travel is Moves, the release is Up.
+- **Two fingers, no click:** a scroll, as before (natural direction,
+  the pan's carry kept).
+- **Tap:** a touch that lifts within **180 ms** (`TAP_MS`, libinput's
+  tap timeout; 200 ms before) and carried the cursor no further than
+  `TAP_TRAVEL_PX` steps (§3.2) presses at the cursor on the lift (Down)
+  and holds it for 180 ms. If no finger lands in that time it comes up
+  (Up): a click. The main loop asks the cursor for the release on every
+  pass (`Cursor::due`); while it is held the loop is on the frame grid,
+  so it is at most a frame late.
+- **Tap-and-drag:** a finger that lands within 180 ms of the tap's lift
+  (measured on the kernel's timestamps) keeps the press held; its
+  travel is Moves, and lifting it is Up, whenever that is. Lifted again
+  within 180 ms without travel, it is a second tap: Up, Down, and the
+  180 ms wait again. A second finger joining the drag moves the pointer
+  with it rather than scrolling. A finger that lands later than 180 ms
+  after the lift ends the click (Up) first and is a plain touch: it
+  moves the pointer, and may be a tap of its own.
+- **No drag lock**, as libinput's and Windows' defaults. libinput's
+  automatic lock at the pad's edge is not copied: it needs the pad's
+  size, which the shell does not read (it uses no ioctls).
+- **No acceleration** (F43 stands): one count moves the cursor by the
+  arrow's scale times `--pointer-speed`.
+- **Not done:** the software button areas and the bottom-strip thumb
+  rule, which need the pad's size and resolution in millimetres
+  (`EVIOCGABS`). Until then a thumb resting on the pad while another
+  finger moves counts as a second finger, and so scrolls unless the
+  button is held.
+
+Tests (`faraday/shells/stick/src/pointer.rs`, `pointer::tests::pad`,
+synthetic multitouch packets through the pointer and the cursor to the
+core's events): a held click and a second finger moving give Down,
+Moves following the moving finger, Up; tap, quick touch and move give
+Down, Moves, Up on the lift; a single tap is Down then Up after the
+wait; two fingers with no click still scroll; a touch 300 ms after a
+tap is a plain move; and a held click and a second finger dragging the
+scrollbar of Settings at 1280×800 scroll the page to the top and press
+nothing. `cursor.rs` tests the tap states directly: the wait, the
+drag, the double tap, the slow touch, two fingers during a drag.
+
 ## 4. Tests
 
 User-facing behaviour only (`CLAUDE.md`):
