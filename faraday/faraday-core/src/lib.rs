@@ -13,6 +13,7 @@
 //! PSBTs and wallets move by stick or QR. Test wallets come in on a test
 //! stick (`testkit`, built only with the `testkit` feature).
 
+pub mod access;
 pub mod backup;
 pub mod backup_flow;
 pub mod backup_flow_steps;
@@ -7982,6 +7983,16 @@ impl Faraday {
         for n in &kept {
             record.push(field::PLAN_NOTE, n.as_bytes());
         }
+        // The access layers' names (`docs/BACKUP-FLOW.md` §20.1), as the
+        // record kept them: a name is kept here alone, never in the text.
+        let layer_names: Vec<String> = open
+            .contents
+            .records
+            .iter()
+            .find(|r| same(r))
+            .map(crate::access::layer_names)
+            .unwrap_or_default();
+        crate::access::push_layer_names(&mut record, &layer_names, answers.layers.len().max(1));
         // Kept as it was: nothing to write back.
         let unchanged = open.contents.records.iter().any(|r| {
             same(r)

@@ -769,6 +769,9 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                 What::Seed(s) | What::SeedPassphrase(s) => secret(s, &mut rows, &|_, _| {}),
                 // A passphrase record in a vault: nothing to do from here.
                 What::PassphraseSealed(_) => {}
+                // A vault's password written on paper: nothing to do from
+                // here yet (`docs/BACKUP-FLOW.md` §20.4).
+                What::VaultPassword(_) => {}
                 // A file at a place is made and written with its stick
                 // (`docs/BACKUP-FLOW.md` §19.12 item 6); a seed's file on
                 // the stick of files of a plan saved before, by the seed

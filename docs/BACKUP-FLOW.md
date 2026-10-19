@@ -2525,6 +2525,22 @@ where drawing changes.
   functions of the plan. Tests on those functions against hand-worked
   cases (a 2-of-3 with the Paper and vault preset; a 3-of-5 with one
   place a stranger can spend from), and the round trip.
+
+  **L1 built** (2026-10-19): `faraday-core/src/access.rs` (`Route`,
+  `Layer`, `Reach` with `route_met`, `layer_met`, `stranger_margin`,
+  `balance_margin`, and for §20.12 a route's `paper`, `paper_met`,
+  `every_layer_on_paper` and `kept`, which counts a copy at a place
+  once whatever the layers; `Answers::access_layers`, `everything`),
+  `Answers`
+  `layers` written as `layers n` and `route` lines in the plan's text,
+  `What::VaultPassword(v)` (`vpw0`, paper, Secret), a layer's name in
+  the plan record's field 6 (`docs/VAULT.md` §7) and kept when the plan
+  is saved again; tests `faraday-core/tests/access_layers.rs`. A route
+  counts only its places and what it knows: seeds on their own devices
+  and the watch-only software count for no layer and no stranger. A
+  paper route counts only paper at its places (a written password
+  among it) and what the layer remembers; with no stick on paper, no
+  vault opens on it.
 - **L2, Work it out** (§20.3, §20.4, this section's bound): the
   Access layers card (layers, routes, any k of n, passwords
   remembered or written, + layer and ×), the search, the conflicts and

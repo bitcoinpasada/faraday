@@ -3908,6 +3908,12 @@ pub struct Strings {
     pub plan_without_the_rest: &'static str,
     /// Text in `name_at`. `{}`: `v + 1`.
     pub plan_vault: &'static str,
+    /// A vault's password written on paper at a place
+    /// (docs/BACKUP-FLOW.md §20.4). `{}`: `v + 1`.
+    pub plan_vault_password: &'static str,
+    /// An access layer with no name, or none known while no vault is open
+    /// (docs/BACKUP-FLOW.md §20.1). `{}`: `l + 1`.
+    pub plan_access_layer: &'static str,
     /// Text in `name_at`. `{}`: `noun`.
     pub plan_the_of_files: &'static str,
     /// Text in `name_at`.
@@ -10016,6 +10022,8 @@ pub static EN: Strings = Strings {
     plan_the_passphrase_of: "The passphrase of {} is kept only with {}",
     plan_without_the_rest: "Without {}, the rest do not rebuild the wallet",
     plan_vault: "Vault {}",
+    plan_vault_password: "Vault {}'s password",
+    plan_access_layer: "Access layer {}",
     plan_the_of_files: "the {} of files",
     plan_the_software: "the software",
     plan_the_devices: "the devices",

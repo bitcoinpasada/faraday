@@ -182,6 +182,11 @@ pub struct Answers {
     /// gives a passphrase when every other place keeps a copy of its seed
     /// (`docs/BACKUP-FLOW.md` §10.3).
     pub bare: Vec<usize>,
+    /// The access layers (`docs/BACKUP-FLOW.md` §20.1), each with its
+    /// routes; their names are kept only in a vault's plan record. Empty
+    /// for a plan saved before them, which reads as one layer able to
+    /// spend with everything ([`Answers::access_layers`]).
+    pub layers: Vec<crate::access::Layer>,
 }
 
 impl Default for Answers {
@@ -200,6 +205,7 @@ impl Default for Answers {
             omit: 0,
             map: None,
             bare: Vec::new(),
+            layers: Vec::new(),
         }
     }
 }
@@ -230,6 +236,7 @@ impl Answers {
             omit: shape.m.saturating_sub(1),
             map: None,
             bare: Vec::new(),
+            layers: Vec::new(),
         };
         a.pass = shape
             .seeds
@@ -519,6 +526,7 @@ impl Answers {
         let places = places.max(1);
         self.places = places;
         self.bare.retain(|&p| p < places);
+        crate::access::fit(&mut self.layers, places);
         // A vault whose only stick was at a place that goes is given
         // another.
         let lost: Vec<usize> = self
@@ -964,6 +972,8 @@ impl Answers {
             }
             out.push('\n');
         }
+        // The access layers' routes; never a layer's name.
+        crate::access::write(&self.layers, &mut out);
         out
     }
 
@@ -980,6 +990,7 @@ impl Answers {
             .count()
             .max(1);
         self.places = places;
+        crate::access::fit(&mut self.layers, places);
         for row in &mut self.sticks {
             row.resize(places, false);
         }
@@ -1030,7 +1041,8 @@ pub fn at_read(s: &str) -> Option<At> {
 /// stick, `seed0`, `seedp0` with its passphrase, `wallet`, `file0` its
 /// words file, `qrfile0` its SeedQR picture, `passfile0` its passphrase
 /// file, `wallettxt` and `walletqr` the description's text and picture,
-/// `sharetxt1` and `shareqr1` share 1's, `softwarefile` the software's.
+/// `sharetxt1` and `shareqr1` share 1's, `softwarefile` the software's,
+/// `vpw0` vault 0's password written on paper.
 pub fn what_code(w: What) -> String {
     let form = |f: usize| if f == form::TEXT { "txt" } else { "qr" };
     match w {
@@ -1043,6 +1055,7 @@ pub fn what_code(w: What) -> String {
         What::Seed(i) => format!("seed{i}"),
         What::SeedPassphrase(i) => format!("seedp{i}"),
         What::PassphraseSealed(i) => format!("vpass{i}"),
+        What::VaultPassword(v) => format!("vpw{v}"),
         What::Wallet => "wallet".to_string(),
         What::SeedFile(i) => format!("file{i}"),
         What::SeedQrFile(i) => format!("qrfile{i}"),
@@ -1071,6 +1084,7 @@ pub fn what_read(s: &str) -> Option<What> {
         _ if s.starts_with("shareqr") => What::ShareFile(n("shareqr")?, form::QR),
         _ if s.starts_with("seedp") => What::SeedPassphrase(n("seedp")?),
         _ if s.starts_with("vpass") => What::PassphraseSealed(n("vpass")?),
+        _ if s.starts_with("vpw") => What::VaultPassword(n("vpw")?),
         _ if s.starts_with("seed") => What::Seed(n("seed")?),
         _ if s.starts_with("share") => What::Share(n("share")?),
         _ if s.starts_with("stick") => What::VaultStick(n("stick")?),
@@ -1140,6 +1154,10 @@ impl Answers {
         // Each `spot` line's place and things, read once every answer is:
         // a thing written before the forms takes the `form` answers'.
         let mut lines: Vec<(At, Vec<&str>)> = Vec::new();
+        // The access layers (`docs/BACKUP-FLOW.md` §20.6): their count and
+        // each route's line, read once the places are known.
+        let mut layers: Option<usize> = None;
+        let mut routes: Vec<&str> = Vec::new();
         let numbered = |value: &str| -> Option<(usize, Vec<bool>)> {
             let (v, row) = value.split_once(' ')?;
             Some((v.parse().ok()?, flags(row)?))
@@ -1171,6 +1189,14 @@ impl Answers {
                 // A key made here whose backup is pending: read by the
                 // caller (`docs/NEW-WALLET.md` §14.3), not an answer.
                 "held" => continue,
+                "layers" => {
+                    layers = Some(value.parse().ok()?);
+                    continue;
+                }
+                "route" => {
+                    routes.push(value);
+                    continue;
+                }
                 // The map edited on the chart (§9.7).
                 "spot" => {
                     let mut parts = value.split(' ');
@@ -1265,7 +1291,7 @@ impl Answers {
                 What::Share(j) => j < shape.keys.max(1),
                 What::ShareFile(j, f) => j < shape.keys.max(1) && f <= form::TEXT,
                 What::WalletFile(f) => f <= form::TEXT,
-                What::VaultStick(v) => v < 1024,
+                What::VaultStick(v) | What::VaultPassword(v) => v < 1024,
                 _ => true,
             };
             let sticks_ok = edited.iter().all(|s| match s.at {
@@ -1294,6 +1320,7 @@ impl Answers {
             }
             a.set_map(edited);
         }
+        a.layers = crate::access::read(shape, a.places, layers, &routes)?;
         let fits = seen >= 8
             && a.places >= 1
             && a.sticks.iter().all(|r| r.len() == a.places)
@@ -1395,6 +1422,10 @@ pub enum What {
     /// a passphrase record (`docs/VAULT.md` §7 type 14,
     /// `docs/BACKUP-FLOW.md` §19.12 item 4).
     PassphraseSealed(usize),
+    /// Vault `v`'s password, written on paper at a place
+    /// (`docs/BACKUP-FLOW.md` §20.4, §20.9): whoever has that place opens
+    /// the vault with it.
+    VaultPassword(usize),
     /// The wallet description.
     Wallet,
     /// Seed `i`'s words as a text file: on the stick of files, or on a
@@ -1476,6 +1507,7 @@ impl What {
             What::Seed(i) => fill(EN.plan_seed, &[&seed(i).to_string()]),
             What::SeedPassphrase(i) => fill(EN.plan_seed_with_its, &[&seed(i).to_string()]),
             What::PassphraseSealed(i) => fill(EN.plan_passphrase_of, &[&seed(i).to_string()]),
+            What::VaultPassword(v) => fill(EN.plan_vault_password, &[&(v + 1).to_string()]),
             What::Wallet => EN.plan_wallet_description.to_string(),
             What::SeedFile(i) => fill(EN.plan_seed_file, &[&seed(i).to_string()]),
             What::SeedQrFile(i) => fill(EN.plan_seedqr_file, &[&seed(i).to_string()]),
@@ -1737,7 +1769,8 @@ impl Have {
                     *s = true;
                 }
             }
-            What::VaultStick(_) => {}
+            // Read by the access layers (`crate::access`), not this check.
+            What::VaultStick(_) | What::VaultPassword(_) => {}
         }
     }
 

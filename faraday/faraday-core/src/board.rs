@@ -238,6 +238,9 @@ fn things_of(w: What) -> Vec<Thing> {
         }
         What::Share(j) | What::ShareFile(j, _) => vec![Thing::Share(j)],
         What::VaultStick(v) => vec![Thing::Vault(v)],
+        // A vault's password written on paper (`docs/BACKUP-FLOW.md`
+        // §20.4): the board offers it from batch L2.
+        What::VaultPassword(_) => Vec::new(),
     }
 }
 
