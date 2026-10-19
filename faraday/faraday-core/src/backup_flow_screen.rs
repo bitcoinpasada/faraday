@@ -112,7 +112,7 @@ fn steps_of(f: &BackupFlow) -> Vec<Step> {
         .collect()
 }
 
-fn card_title(app: &Faraday, f: &BackupFlow, s: Step) -> String {
+pub(crate) fn card_title(app: &Faraday, f: &BackupFlow, s: Step) -> String {
     let m = app.medium.nouns();
     match s {
         Step::Where if f.kind.is_wallet() => FEN.backup_flow_card_plan.to_string(),

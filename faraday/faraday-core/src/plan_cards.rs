@@ -109,6 +109,11 @@ impl PlanCtx {
 /// A plan card's title (`docs/BACKUP-FLOW.md` §17.1): a place's card is
 /// titled with the place's name.
 pub(crate) fn title(_ctx: &PlanCtx, q: u8) -> String {
+    q_title(q)
+}
+
+/// A plan card's title by its number alone.
+pub(crate) fn q_title(q: u8) -> String {
     match q {
         qstep::PRESET => EN.question_title_start,
         qstep::BOARD => EN.board_title,

@@ -403,6 +403,28 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         y += 22.0 + 10.0;
     }
 
+    // A tile per flow in progress leads the tiles: its name and its open
+    // step, opening it as it was left (`docs/FLOWS.md`, Flows in
+    // progress).
+    for r in app.flows_in_progress().iter() {
+        let icon = match r.tab {
+            Screen::Vaults => Icon::Lock,
+            Screen::Catalog => Icon::Tools,
+            _ => Icon::Wallet,
+        };
+        y += crate::compact_screens::row(
+            ui,
+            M,
+            y,
+            inner,
+            Some(icon),
+            &r.name,
+            &r.step,
+            MUTED,
+            Some(Action::Resume(r.going)),
+        );
+    }
+
     // The one thing waiting, when there is one.
     for (icon, label, action, tone) in prompts(app) {
         let pressed = action.is_some_and(|a| ui.is_pressed(a));
@@ -619,11 +641,17 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
 }
 
 /// What Home puts above the menu: the same one lead job §1.2 ranks for
-/// the wide Home (`crate::screens::home_lead`), as one prompt row.
+/// the wide Home (`crate::screens::home_lead_beside_tiles`), as one prompt row; a lead
+/// that would open or start over a flow whose tile is above it gives way
+/// to the next, or to none (`docs/FLOWS.md`, Flows in progress).
 fn prompts(app: &Faraday) -> Vec<(Glyph, String, Option<Action>, osk_ui::Color)> {
-    let (icon, label, _sub, action, enabled) = crate::screens::home_lead(app);
-    let tone = if enabled { ACCENT } else { WARN };
-    vec![(icon, label, enabled.then_some(action), tone)]
+    crate::screens::home_lead_beside_tiles(app)
+        .map(|(icon, label, _sub, action, enabled)| {
+            let tone = if enabled { ACCENT } else { WARN };
+            (icon, label, enabled.then_some(action), tone)
+        })
+        .into_iter()
+        .collect()
 }
 
 pub use faraday_ui::keyboard::OskPress;

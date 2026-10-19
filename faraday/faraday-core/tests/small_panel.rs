@@ -410,6 +410,57 @@ fn a_flow_s_page_title_carries_no_count() {
     );
 }
 
+/// The small Home leads with a tile per flow in progress, its name and
+/// open step, opening it as it was left (`docs/FLOWS.md`, Flows in
+/// progress).
+#[test]
+fn the_small_homes_first_tile_opens_the_flow_in_progress() {
+    use faraday_core::in_progress::Going;
+    let mut app = panel();
+    let row = Action::Resume(Going::Create);
+    assert!(on_panel(&mut app, row).is_none(), "nothing in progress");
+    tap(&mut app, Action::CreateWallet);
+    assert_eq!(app.screen, Screen::Create);
+    app.press(Action::CNext(faraday_core::cstep::KIND));
+    let open = app.create.as_ref().unwrap().open;
+    tap(&mut app, Action::Nav(Screen::Home));
+    assert_eq!(app.screen, Screen::Home);
+    let (_, at) = on_panel(&mut app, row).expect("at the head of Home, in view");
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Make a new wallet"),
+        "its name: {texts:?}"
+    );
+    let (_, tiles) = app.where_offered(Action::Nav(Screen::Vaults)).unwrap();
+    assert!(at < tiles, "before the other tiles");
+    tap(&mut app, row);
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.create.as_ref().unwrap().open, open, "as it was left");
+}
+
+/// A lead that would start the flow in progress over is not drawn beside
+/// its tile: Make a new wallet is on the small Home once, the tile.
+#[test]
+fn the_small_home_offers_a_flow_in_progress_once_its_tile() {
+    use faraday_core::in_progress::Going;
+    let mut app = panel();
+    tap(&mut app, Action::CreateWallet);
+    app.press(Action::CNext(faraday_core::cstep::KIND));
+    tap(&mut app, Action::Nav(Screen::Home));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert_eq!(
+        texts.iter().filter(|t| *t == "Make a new wallet").count(),
+        1,
+        "{texts:?}"
+    );
+    assert!(app.offers(Action::Resume(Going::Create)), "the tile");
+    assert!(
+        !app.offers(Action::CreateWallet),
+        "no lead that starts it over"
+    );
+}
+
 #[test]
 fn every_step_s_forward_action_is_on_a_phone_without_scrolling() {
     forward_in_view(phone(), 1206);

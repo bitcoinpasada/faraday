@@ -2825,11 +2825,18 @@ as possible before the next build.
     (`wallet_backup_unfinished`), and Back up resumes it at the plan with
     those vaults. Tests in `tests/restore.rs`; snapshot tour `restore`.
 
-81. [ ] 2026-10-16, owner: **flows in progress in the sidebar**
+81. [x] 2026-10-16, owner: **flows in progress in the sidebar**
     (`docs/FLOWS.md`, Flows in progress; F41). Each flow in progress
     has a row under its tab, its name and open step, returning to it as
-    left; the small Home leads with a tile for each. Survey first which
-    screens keep their state. Specified, not built.
+    left; the small Home leads with a tile for each. Built 2026-10-19:
+    the survey is in the section, which corrects item 1 (New key keeps
+    nothing when left: no row; Sign a message has one);
+    `in_progress.rs` (`Going`, `Row`, `flows_in_progress` through the
+    drawing memo, `flows_note` after each press, `flow_resume`),
+    `Action::Resume`, `screens.rs` `flow_row`, `compact.rs` Home's
+    tiles. Tests in `tests/sidebar.rs` and `tests/small_panel.rs`;
+    snapshot tour `inprogress`. Found: the drops on leaving New key,
+    BIP-85 and the like run in `press` only, not on a tap.
 
 82. [x] 2026-10-19, owner: **Add a key is the New key flow**
     (`docs/NEW-WALLET.md` §15, F44; tracker #132). New key opens on a

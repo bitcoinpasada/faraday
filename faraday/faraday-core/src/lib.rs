@@ -39,6 +39,7 @@ mod fresh;
 pub mod glance;
 pub mod glance_sheet;
 pub mod gpg;
+pub mod in_progress;
 pub mod inbox;
 pub mod inputs;
 pub mod keygen;
@@ -739,6 +740,10 @@ struct Disclosed {
 pub enum Action {
     /// Go to a screen.
     Nav(Screen),
+    /// Back to a flow in progress, as it was left: its row in the
+    /// sidebar, its tile on the small Home (`docs/FLOWS.md`, Flows in
+    /// progress).
+    Resume(in_progress::Going),
     /// Open Backups on loaded wallet `i`.
     BackupsOf(usize),
     /// Open Back up a wallet on loaded wallet `i` at its checklist, from
@@ -3485,6 +3490,10 @@ pub struct Faraday {
     pub(crate) flow_on: Option<usize>,
     /// The sticks the shell found unusable (not FAT32, read-only), by id.
     pub(crate) stick_problems: Vec<(String, bool)>,
+    /// The flows begun, in the order they were begun, each with the screen
+    /// of its own it was last on (`docs/FLOWS.md`, Flows in progress):
+    /// only the order and the way back, worked out after each press.
+    pub(crate) flows_begun: Vec<(in_progress::Going, Screen)>,
 }
 
 impl Default for Faraday {
@@ -3675,6 +3684,7 @@ impl Faraday {
             backup_flows: Vec::new(),
             flow_on: None,
             stick_problems: Vec::new(),
+            flows_begun: Vec::new(),
         }
     }
 
@@ -4946,6 +4956,8 @@ impl Faraday {
         self.wallet_flow_sync();
         // A board left takes its empty sticks with it.
         self.board_tidy();
+        // The order the flows were begun in, and where each was left.
+        self.flows_note();
     }
 
     fn act_inner(&mut self, action: Action) {
@@ -5121,6 +5133,7 @@ impl Faraday {
             | Action::KShare(_)
             | Action::KeyGenSlip39 => self.keygen_act(action),
             Action::Nav(Screen::Transfer) => self.transfer_open(),
+            Action::Resume(g) => self.flow_resume(g),
             Action::TransferSend(i) => self.transfer_pick(i),
             Action::TransferReceive => self.transfer_receive(),
             Action::TransferOpenFolder => self.transfer_open_folder(),

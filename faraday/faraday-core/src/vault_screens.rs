@@ -1019,7 +1019,7 @@ fn back_link(ui: &mut Ui, x: f32, y: f32, label: &str, action: Action) {
 // ---------------------------------------------------------------------
 
 /// Each step's title, by `vstep`.
-const VSTEPS: [&str; vstep::COUNT] = [
+pub(crate) const VSTEPS: [&str; vstep::COUNT] = [
     FEN.vault_where_will_you,
     FEN.vault_unlock_cost,
     FEN.vault_space_per_passphrase,

@@ -4005,6 +4005,22 @@ pub struct Strings {
     pub sidebar_attached: &'static str,
     /// Button in `sidebar`.
     pub sidebar_lock: &'static str,
+    /// A flow in progress's name, in `sidebar` and the small Home
+    /// (`in_progress`).
+    pub sidebar_flow_create: &'static str,
+    /// A flow in progress's name (`in_progress`).
+    pub sidebar_flow_restore: &'static str,
+    /// A flow in progress's name (`in_progress`).
+    pub sidebar_flow_backup: &'static str,
+    /// A flow in progress's name (`in_progress`).
+    pub sidebar_flow_spend: &'static str,
+    /// A flow in progress's name (`in_progress`).
+    pub sidebar_flow_message: &'static str,
+    /// A flow in progress's name (`in_progress`).
+    pub sidebar_flow_vault: &'static str,
+    /// A wallet's backup flow in progress (`in_progress`). `{}`: the
+    /// wallet's name.
+    pub sidebar_flow_backup_of: &'static str,
     // ----- home_lead (faraday-core/src/screens.rs) -----
     /// Text in `home_lead`.
     pub home_lead_make_a_new: &'static str,
@@ -10213,6 +10229,13 @@ pub static EN: Strings = Strings {
     sidebar_none: "none",
     sidebar_attached: "{} attached",
     sidebar_lock: "Lock",
+    sidebar_flow_create: "Make a new wallet",
+    sidebar_flow_restore: "Restore a wallet",
+    sidebar_flow_backup: "Back up a wallet",
+    sidebar_flow_spend: "Spend",
+    sidebar_flow_message: "Sign a message",
+    sidebar_flow_vault: "Create a vault",
+    sidebar_flow_backup_of: "Backup of {}",
     home_lead_make_a_new: "Make a new wallet",
     home_lead_single_key: "Single key or multisig",
     home_job_carry_on_the: "Carry on the spend",

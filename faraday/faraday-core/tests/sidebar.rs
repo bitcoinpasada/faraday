@@ -1,7 +1,8 @@
 //! The sidebar names what is loaded in two groups, keys and wallets,
 //! as far up as the last tab. A group that does not fit shows its first
 //! rows and "+ N more", which opens the whole list; each row opens what
-//! it names.
+//! it names. Under its tab, each flow in progress has a row, its name
+//! and open step, which returns to it as it was left.
 
 use faraday_core::{Action, Faraday, Screen, Sheet};
 use osk_bip::bip39::{Language, Mnemonic};
@@ -246,5 +247,256 @@ fn a_key_with_a_passphrase_says_so() {
         texts.iter().filter(|t| *t == "passphrase").count(),
         1,
         "only the passphrase key is tagged: {texts:?}"
+    );
+}
+
+// ---- flows in progress (`docs/FLOWS.md`, Flows in progress; F41) ----
+
+mod common;
+
+use faraday_core::backup_flow::{Kind, Step};
+use faraday_core::backup_flow_steps::FlowAction as F;
+use faraday_core::in_progress::Going;
+use faraday_core::{cstep, qstep, rstep, testkit};
+use osk_shell_api::Key;
+
+/// Test seed `n` typed in as a key.
+fn key_in(app: &mut Faraday, n: usize) {
+    app.press(Action::Entry(None));
+    type_in(app, &testkit::test_words(testkit::TEST_SEEDS[n].0));
+    app.press(Action::EntryAdd);
+}
+
+fn type_in(app: &mut Faraday, text: &str) {
+    for c in text.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+}
+
+fn multi_index() -> u8 {
+    faraday_core::create::NewKind::ALL
+        .iter()
+        .position(|k| *k == faraday_core::create::NewKind::Multi)
+        .unwrap() as u8
+}
+
+/// A 2-of-3 made in Make a new wallet over three keys typed here, taken
+/// on to its backup's Places.
+fn create_at_places() -> Faraday {
+    let mut app = testkit::started();
+    for n in 0..3 {
+        key_in(&mut app, n);
+    }
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(multi_index()));
+    for slot in 0..3u8 {
+        let fp = app.session.keys[usize::from(slot)].fingerprint().0;
+        app.press(Action::CSlotHere(slot, fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(0));
+    assert_eq!(app.screen, Screen::Backup);
+    assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::BOARD));
+    app
+}
+
+/// Whether the screen drawn now offers `action`.
+fn offered(app: &mut Faraday, action: Action) -> bool {
+    let _ = app.frame();
+    app.offers(action)
+}
+
+/// The texts drawn in the sidebar, top to bottom.
+fn sidebar_texts(app: &mut Faraday) -> Vec<String> {
+    let _ = app.frame();
+    // The Home row spans the sidebar but for its margins: twice its
+    // middle is the sidebar's edge.
+    let edge = i32::from(app.where_offered(Action::Nav(Screen::Home)).unwrap().0) * 2;
+    let mut v: Vec<(String, i32, i32)> = app
+        .drawn_text_boxes()
+        .into_iter()
+        .filter(|(_, (x, _, _, _))| *x < edge)
+        .map(|(t, (x, y, _, _))| (t, y, x))
+        .collect();
+    v.sort_by_key(|&(_, y, x)| (y, x));
+    v.into_iter().map(|(t, _, _)| t).collect()
+}
+
+/// The sidebar's row named `label` is drawn lit: just right of its name,
+/// the row is not the sidebar's own colour.
+fn lit(app: &mut Faraday, label: &str) -> bool {
+    while app.poll_command().is_some() {}
+    // The screen at rest, not on its way from the one before.
+    app.settle();
+    let _ = app.frame();
+    let edge = i32::from(app.where_offered(Action::Nav(Screen::Home)).unwrap().0) * 2;
+    let (x, y, w, h) = app
+        .drawn_text_boxes()
+        .into_iter()
+        .find(|(t, (x, _, _, _))| t == label && *x < edge)
+        .unwrap_or_else(|| panic!("no {label} in the sidebar"))
+        .1;
+    let frame = app.frame();
+    let fw = usize::from(frame.width);
+    let my = (y + h / 2) as usize;
+    let at = |x: usize| {
+        let i = (my * fw + x) * 4;
+        frame.rgba[i..i + 4].to_vec()
+    };
+    let bg = at(1);
+    let from = (x + w + 2) as usize;
+    (from..from + 4).all(|x| at(x) != bg)
+}
+
+#[test]
+fn make_a_new_wallet_left_on_places_for_settings_comes_back_as_it_was_left() {
+    let mut app = create_at_places();
+    let answers = app.backup.as_ref().unwrap().answers.clone();
+    app.press(Action::Nav(Screen::Settings));
+    let row = Action::Resume(Going::Create);
+    assert!(offered(&mut app, row));
+    let names = sidebar_texts(&mut app);
+    let at = names
+        .iter()
+        .position(|t| t == "Make a new wallet")
+        .unwrap_or_else(|| panic!("no row: {names:?}"));
+    assert_eq!(
+        names.get(at + 1).map(String::as_str),
+        Some("Places"),
+        "{names:?}"
+    );
+    // Under Wallets, before Tools.
+    let wallets = names.iter().position(|t| t == "Wallets").unwrap();
+    let tools = names.iter().position(|t| t == "Tools").unwrap();
+    assert!(wallets < at && at < tools, "{names:?}");
+
+    app.press(row);
+    assert_eq!(app.screen, Screen::Backup);
+    let b = app.backup.as_ref().unwrap();
+    assert_eq!(b.q, Some(qstep::BOARD), "on Places");
+    assert_eq!(b.answers, answers, "the board as it was left");
+}
+
+#[test]
+fn no_row_before_a_step_is_done() {
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    app.press(Action::Nav(Screen::Settings));
+    assert!(!offered(&mut app, Action::Resume(Going::Create)));
+    app.press(Action::RestoreWallet);
+    app.press(Action::Nav(Screen::Settings));
+    assert!(!offered(&mut app, Action::Resume(Going::Restore)));
+    // Its first step done: the row.
+    app.press(Action::RestoreWallet);
+    app.press(Action::RNext(rstep::KIND));
+    app.press(Action::Nav(Screen::Settings));
+    assert!(offered(&mut app, Action::Resume(Going::Restore)));
+}
+
+#[test]
+fn the_row_goes_when_the_flow_is_started_over() {
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::Nav(Screen::Settings));
+    assert!(offered(&mut app, Action::Resume(Going::Create)));
+    app.press(Action::Resume(Going::Create));
+    assert_eq!(app.screen, Screen::Create);
+    app.press(Action::CreateOver);
+    assert!(!offered(&mut app, Action::Resume(Going::Create)));
+}
+
+#[test]
+fn the_row_goes_when_the_flow_is_finished() {
+    let mut app = testkit::started();
+    app.press(Action::Network(testkit::NET));
+    app.press(Action::RestoreWallet);
+    app.press(Action::RNext(rstep::KIND));
+    app.press(Action::RSeeds);
+    app.press(Action::RVaults(false));
+    app.press(Action::RNext(rstep::WHERE));
+    app.press(Action::Nav(Screen::Settings));
+    assert!(offered(&mut app, Action::Resume(Going::Restore)));
+    let names = sidebar_texts(&mut app);
+    let at = names.iter().position(|t| t == "Restore a wallet").unwrap();
+    assert_eq!(
+        names.get(at + 1).map(String::as_str),
+        Some("Keys"),
+        "{names:?}"
+    );
+    app.press(Action::Resume(Going::Restore));
+    assert_eq!(app.screen, Screen::Restore);
+    app.press(Action::RSlotWords);
+    type_in(&mut app, &testkit::test_words("bacon"));
+    app.press(Action::EntryAdd);
+    assert_eq!(app.screen, Screen::Restore);
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    app.press(Action::RNext(rstep::CHECK));
+    assert_eq!(app.restore.as_ref().unwrap().open, Some(rstep::DONE));
+    assert!(
+        !offered(&mut app, Action::Resume(Going::Restore)),
+        "restored: no row"
+    );
+}
+
+#[test]
+fn a_gpg_keys_flow_has_its_row_under_tools() {
+    let mut app = common::process(Vec::new(), Vec::new(), Vec::new());
+    common::start(&mut app, Kind::Gpg);
+    assert_eq!(app.screen, Screen::BackupFlow);
+    app.press(Action::Nav(Screen::Settings));
+    assert!(
+        !offered(&mut app, Action::Resume(Going::Flow(0))),
+        "nothing done yet"
+    );
+    common::start(&mut app, Kind::Gpg);
+    app.press(Action::Flow(F::Continue));
+    assert_eq!(app.flow().unwrap().step, Step::Sticks);
+    app.press(Action::Nav(Screen::Settings));
+    let names = sidebar_texts(&mut app);
+    let tools = names.iter().position(|t| t == "Tools").unwrap();
+    let learn = names.iter().position(|t| t == "Learn").unwrap();
+    let row = names
+        .iter()
+        .position(|t| t == "GPG key")
+        .unwrap_or_else(|| panic!("no row: {names:?}"));
+    assert!(tools < row && row < learn, "under Tools: {names:?}");
+    app.press(Action::Resume(Going::Flow(0)));
+    assert_eq!(app.screen, Screen::BackupFlow);
+    assert_eq!(app.flow().unwrap().step, Step::Sticks);
+}
+
+#[test]
+fn the_row_is_lit_on_its_flows_screen_and_its_tab_is_not() {
+    let mut app = create_at_places();
+    assert!(lit(&mut app, "Make a new wallet"), "the row");
+    assert!(!lit(&mut app, "Wallets"), "not Wallets");
+    app.press(Action::Nav(Screen::Settings));
+    assert!(!lit(&mut app, "Make a new wallet"));
+    assert!(lit(&mut app, "Settings"), "Settings is");
+    // On any other screen of the tab, the tab is lit as before.
+    app.press(Action::Nav(Screen::Start));
+    assert!(lit(&mut app, "Wallets"));
+    assert!(!lit(&mut app, "Make a new wallet"));
+}
+
+#[test]
+fn a_lock_wipes_what_it_wipes_and_a_kept_flow_keeps_its_row() {
+    let mut shell = common::Shell::new();
+    let mut app = common::process(Vec::new(), Vec::new(), Vec::new());
+    common::start(&mut app, Kind::Gpg);
+    app.press(Action::Flow(F::Continue));
+    app.press(Action::CreateWallet);
+    app.press(Action::CNext(cstep::KIND));
+    assert!(offered(&mut app, Action::Resume(Going::Create)));
+    let mut app = shell.lock(&mut app);
+    assert!(
+        !offered(&mut app, Action::Resume(Going::Create)),
+        "Make a new wallet is wiped"
+    );
+    assert!(
+        offered(&mut app, Action::Resume(Going::Flow(0))),
+        "the GPG key's flow is kept"
     );
 }

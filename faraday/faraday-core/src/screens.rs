@@ -2,6 +2,7 @@
 //! the prototype's (`design/prototype/project/`): a 240-unit sidebar and
 //! the screen beside it.
 
+use crate::in_progress::Going;
 use crate::strings::EN;
 use opensigner_core::strings::fill;
 use osk_psbt::{Level, OutputKind};
@@ -483,6 +484,32 @@ fn wide_page(app: &Faraday, full_w: f32) -> (f32, f32) {
     }
 }
 
+/// A flow in progress's row's height in the sidebar.
+const FLOW_ROW: f32 = 30.0;
+
+/// A flow in progress's row, indented under its tab: its name and, at
+/// the right end in the muted tone, its open step; lit while the flow is
+/// on screen (`docs/FLOWS.md`, Flows in progress).
+fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
+    let action = Action::Resume(r.going);
+    let (x, w) = (46.0, SIDEBAR_W - 58.0);
+    if lit || ui.is_pressed(action) {
+        ui.fill(x, y, w, FLOW_ROW, 6.0, ACCENT.with_alpha(30));
+    }
+    let (tx, right) = (54.0, SIDEBAR_W - 24.0);
+    let room = right - tx;
+    // The name keeps what it needs up to a little over half the row; the
+    // step has the rest.
+    let nw = ui.measure(12.0, W::S, &r.name).min(room * 0.6);
+    let step = ui.fit(11.0, W::R, &r.step, room - nw - 8.0);
+    let sw = ui.measure(11.0, W::R, &step);
+    let name = ui.fit(12.0, W::S, &r.name, room - sw - 8.0);
+    let fg = if lit { TEXT } else { MUTED };
+    ui.text_mid(tx, y, FLOW_ROW, 12.0, W::S, fg, &name);
+    ui.text_right(right, y, FLOW_ROW, 11.0, W::R, MUTED, &step);
+    ui.hit(x, y, w, FLOW_ROW, action);
+}
+
 fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
     ui.fill(0.0, 0.0, SIDEBAR_W, h, 0.0, SIDEBAR);
     ui.fill(SIDEBAR_W - 1.0, 0.0, 1.0, h, 0.0, LINE);
@@ -520,6 +547,8 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
         Screen::Settings,
     ));
     let mut y = 76.0;
+    let flows = app.flows_in_progress();
+    let on = app.flow_on_screen();
     let v = app.vaults.open.len();
     let row = |ui: &mut Ui, y: f32, icon: Glyph, label: &str, active: bool, action: Action| {
         if active || ui.is_pressed(action) {
@@ -572,8 +601,18 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
                     app.screen,
                     Screen::CreateVault | Screen::Unlock | Screen::VaultContents
                 ));
-        row(ui, y, icon, label, active, Action::Nav(screen));
+        // A flow in progress on screen lights its own row, not its tab.
+        let mine = || flows.iter().filter(move |r| r.tab == screen);
+        let row_lit = mine().any(|r| Some(r.going) == on);
+        row(ui, y, icon, label, active && !row_lit, Action::Nav(screen));
         y += 44.0;
+        for r in mine() {
+            flow_row(ui, y, r, Some(r.going) == on);
+            y += FLOW_ROW + 2.0;
+        }
+        if mine().next().is_some() {
+            y += 4.0;
+        }
         // Learn, after Tools: opens the Learn sheet, not a screen.
         if screen == Screen::Catalog {
             row(
@@ -870,127 +909,167 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
 // Home
 // ---------------------------------------------------------------------
 
-/// Home's one lead job: the first rule of §1.2's ranking that applies,
-/// rule 7 (Make a new wallet) when none of the others does. `enabled` is
-/// false for a prompt with no target of its own (pull the stick first).
-pub(crate) fn home_lead(app: &Faraday) -> (Glyph, String, String, Action, bool) {
-    home_job(app).unwrap_or((
+/// Home's lead when nothing is under way, §1.2's rule 7: Make a new
+/// wallet.
+fn make_a_new_wallet() -> Lead {
+    (
         Glyph::Icon(Icon::Wallet),
         EN.home_lead_make_a_new.to_string(),
         EN.home_lead_single_key.to_string(),
         Action::CreateWallet,
         true,
-    ))
+    )
 }
+
+/// The small Home's lead job: the first rule of §1.2's ranking that
+/// applies, rule 7 (Make a new wallet) when none of the others does,
+/// skipping a lead that would open or start over a flow in progress,
+/// whose tile is above it (`docs/FLOWS.md`, Flows in progress); none
+/// when every one would. `enabled` is false for a prompt with no target
+/// of its own (pull the stick first).
+pub(crate) fn home_lead_beside_tiles(app: &Faraday) -> Option<Lead> {
+    let shown = app.flows_in_progress();
+    home_jobs(app)
+        .into_iter()
+        .chain(std::iter::once((Some(Going::Create), make_a_new_wallet())))
+        .find(|(g, _)| !g.is_some_and(|g| shown.iter().any(|r| r.going == g)))
+        .map(|(_, lead)| lead)
+}
+
+/// A lead: its icon, its line, the line under it, its press and whether
+/// it can be pressed now.
+pub(crate) type Lead = (Glyph, String, String, Action, bool);
 
 /// Something under way or waiting (§1.2's rules 1 to 6), which leads
 /// Home above its four ways in; none when nothing is.
-fn home_job(app: &Faraday) -> Option<(Glyph, String, String, Action, bool)> {
+fn home_job(app: &Faraday) -> Option<Lead> {
+    home_jobs(app).into_iter().next().map(|(_, lead)| lead)
+}
+
+/// Every lead §1.2's rules 1 to 6 give, in their order, each with the
+/// flow it opens or starts over, when it is one that can be in progress.
+fn home_jobs(app: &Faraday) -> Vec<(Option<Going>, Lead)> {
     use crate::vaults::VaultAction as V;
+    let mut v = Vec::new();
     // Rule 1: a spend under way; of a wallet loaded, as its card says it
     // (`docs/NEW-WALLET.md` §11.2).
     if let Some(s) = app.spend.as_ref()
         && let Some(w) = s.wallet.and_then(|w| app.session.wallets.get(w))
     {
-        return Some((
-            Glyph::Icon(Icon::Sign),
-            EN.home_job_carry_on_the.to_string(),
-            fill(
-                EN.home_job_signatures,
-                &[
-                    &w.name.to_string(),
-                    &s.signers.len().to_string(),
-                    &app.spend_needed().to_string(),
-                ],
+        v.push((
+            Some(Going::Spend),
+            (
+                Glyph::Icon(Icon::Sign),
+                EN.home_job_carry_on_the.to_string(),
+                fill(
+                    EN.home_job_signatures,
+                    &[
+                        &w.name.to_string(),
+                        &s.signers.len().to_string(),
+                        &app.spend_needed().to_string(),
+                    ],
+                ),
+                app.carry_on(),
+                true,
             ),
-            app.carry_on(),
-            true,
         ));
-    }
-    if let Some(s) = app.spend.as_ref() {
-        return Some((
-            Glyph::Icon(Icon::Sign),
-            fill(EN.home_job_continue_signing, &[&s.spend.source.to_string()]),
-            fill(
-                EN.home_job_of_signatures,
-                &[
-                    &s.signers.len().to_string(),
-                    &app.spend_needed().to_string(),
-                ],
+    } else if let Some(s) = app.spend.as_ref() {
+        v.push((
+            Some(Going::Spend),
+            (
+                Glyph::Icon(Icon::Sign),
+                fill(EN.home_job_continue_signing, &[&s.spend.source.to_string()]),
+                fill(
+                    EN.home_job_of_signatures,
+                    &[
+                        &s.signers.len().to_string(),
+                        &app.spend_needed().to_string(),
+                    ],
+                ),
+                Action::Nav(Screen::Spend),
+                true,
             ),
-            Action::Nav(Screen::Spend),
-            true,
         ));
     }
     // A backup not finished: its key is made and some place is not written
     // (`docs/BACKUP-FLOW.md` §5).
     if let Some((i, f)) = app.backup_pending() {
-        return Some((
-            Glyph::Icon(Icon::Lock),
-            fill(
-                crate::strings::EN.backup_flow_home_lead,
-                &[&f.subject
-                    .as_ref()
-                    .map_or_else(|| f.kind.name().to_string(), |s| s.name.clone())],
+        v.push((
+            Some(app.flow_going(i)),
+            (
+                Glyph::Icon(Icon::Lock),
+                fill(
+                    crate::strings::EN.backup_flow_home_lead,
+                    &[&f.subject
+                        .as_ref()
+                        .map_or_else(|| f.kind.name().to_string(), |s| s.name.clone())],
+                ),
+                String::new(),
+                Action::Flow(crate::backup_flow_steps::FlowAction::Show(i)),
+                true,
             ),
-            String::new(),
-            Action::Flow(crate::backup_flow_steps::FlowAction::Show(i)),
-            true,
         ));
     }
-    // Rule 2: a PSBT in Files.
+    // Rule 2: a PSBT in Files: its spend takes the place of one under way.
     if let Some(i) = app.lead_psbt() {
-        return Some((
-            Glyph::Icon(Icon::Sign),
-            fill(EN.home_job_sign, &[&app.inbox[i].name.to_string()]),
-            EN.home_job_from_files.to_string(),
-            Action::StartSpend(i),
-            true,
+        v.push((
+            Some(Going::Spend),
+            (
+                Glyph::Icon(Icon::Sign),
+                fill(EN.home_job_sign, &[&app.inbox[i].name.to_string()]),
+                EN.home_job_from_files.to_string(),
+                Action::StartSpend(i),
+                true,
+            ),
         ));
     }
     // Rule 3: an import waiting. Put off with the stick's vault locked,
     // it is that vault's Unlock, on the sheet (§4.4).
     if let Some(imp) = app.import.as_ref() {
-        if app.import_stick_present() {
-            return Some((
+        let lead = if app.import_stick_present() {
+            (
                 app.medium.icon(),
                 fill(EN.home_job_remove_the, &[app.medium.noun()]),
                 String::new(),
                 crate::boot_import::OPEN,
                 true,
-            ));
-        }
-        let locked = app
+            )
+        } else if let Some(lv) = app
             .import_view()
-            .and_then(|v| v.vaults.into_iter().find(|v| v.open.is_none()));
-        if let Some(v) = locked {
-            return Some((
+            .and_then(|v| v.vaults.into_iter().find(|v| v.open.is_none()))
+        {
+            (
                 Glyph::Icon(Icon::Lock),
-                fill(EN.home_job_unlock, &[&v.title.to_string()]),
+                fill(EN.home_job_unlock, &[&lv.title.to_string()]),
                 fill(EN.home_job_read_from, &[&imp.label.to_string()]),
                 crate::boot_import::OPEN,
                 true,
-            ));
-        }
-        return Some((
-            Glyph::Icon(Icon::Download),
-            fill(EN.home_job_import_from, &[&imp.label.to_string()]),
-            String::new(),
-            crate::boot_import::OPEN,
-            true,
-        ));
+            )
+        } else {
+            (
+                Glyph::Icon(Icon::Download),
+                fill(EN.home_job_import_from, &[&imp.label.to_string()]),
+                String::new(),
+                crate::boot_import::OPEN,
+                true,
+            )
+        };
+        v.push((None, lead));
     }
     // Rule 4: a receipt from this power-on's last stick visit, and
     // nothing loaded.
     let fresh = !app.holds_secret() && app.session.wallets.is_empty();
     if fresh && let Some(r) = app.receipt.as_ref() {
         let names: Vec<&str> = r.files.iter().map(|f| f.name.as_str()).collect();
-        return Some((
-            Glyph::Icon(Icon::Done),
-            fill(EN.home_job_written_to, &[&r.label.to_string()]),
-            names.join(", "),
-            Action::Nav(Screen::Files),
-            true,
+        v.push((
+            None,
+            (
+                Glyph::Icon(Icon::Done),
+                fill(EN.home_job_written_to, &[&r.label.to_string()]),
+                names.join(", "),
+                Action::Nav(Screen::Files),
+                true,
+            ),
         ));
     }
     // Rule 5: a locked vault file and nothing loaded.
@@ -1007,35 +1086,40 @@ fn home_job(app: &Faraday) -> Option<(Glyph, String, String, Action, bool)> {
                     fill(EN.home_job_in_files, &[&f.name.to_string()]),
                 ),
             };
-            if app.sticks.is_empty() {
-                return Some((
+            let lead = if app.sticks.is_empty() {
+                (
                     Glyph::Icon(Icon::Lock),
                     fill(EN.home_job_unlock, &[&name.to_string()]),
                     line,
                     Action::Vault(V::Open(i)),
                     true,
-                ));
-            }
-            return Some((
-                Glyph::Icon(Icon::Lock),
-                fill(EN.home_job_unlock, &[&name.to_string()]),
-                fill(EN.home_job_pull_the_to, &[app.medium.noun()]),
-                Action::Nav(Screen::Home),
-                false,
-            ));
+                )
+            } else {
+                (
+                    Glyph::Icon(Icon::Lock),
+                    fill(EN.home_job_unlock, &[&name.to_string()]),
+                    fill(EN.home_job_pull_the_to, &[app.medium.noun()]),
+                    Action::Nav(Screen::Home),
+                    false,
+                )
+            };
+            v.push((None, lead));
         }
     }
     // Rule 6: a vault changed since it was written.
     if let Some(name) = app.vault_changed() {
-        return Some((
-            Glyph::Icon(Icon::Export),
-            fill(EN.home_job_write_to, &[&name.to_string(), app.medium.a()]),
-            crate::vaults::Currency::Changed.line(),
-            Action::Nav(Screen::Files),
-            true,
+        v.push((
+            None,
+            (
+                Glyph::Icon(Icon::Export),
+                fill(EN.home_job_write_to, &[&name.to_string(), app.medium.a()]),
+                crate::vaults::Currency::Changed.line(),
+                Action::Nav(Screen::Files),
+                true,
+            ),
         ));
     }
-    None
+    v
 }
 
 /// The wallet card's backup line (`docs/SIMPLIFY.md` §5.2) for loaded
@@ -5211,7 +5295,7 @@ pub(crate) fn ticked(labels: &[&str], on: &[bool]) -> String {
 }
 
 /// A checklist item's title and the line shown while it is closed.
-fn item_title(app: &Faraday, n: u8) -> (String, String) {
+pub(crate) fn item_title(app: &Faraday, n: u8) -> (String, String) {
     use crate::plan::Item;
     let Some(b) = app.backup.as_ref() else {
         return (String::new(), String::new());
@@ -6967,7 +7051,7 @@ fn kept_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 // Messages
 // ---------------------------------------------------------------------
 
-const MSTEPS: [&str; 4] = [
+pub(crate) const MSTEPS: [&str; 4] = [
     EN.app_address,
     EN.app_message,
     EN.app_format,
@@ -7444,7 +7528,7 @@ fn check_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 // Make a new wallet
 // ---------------------------------------------------------------------
 
-const CSTEPS: [&str; crate::cstep::COUNT] = [
+pub(crate) const CSTEPS: [&str; crate::cstep::COUNT] = [
     EN.app_kind,
     EN.app_quorum,
     EN.app_keys,
@@ -8726,7 +8810,7 @@ fn public_rows_for(
 // Restore a wallet
 // ---------------------------------------------------------------------
 
-const RSTEPS: [&str; crate::rstep::COUNT as usize] = [
+pub(crate) const RSTEPS: [&str; crate::rstep::COUNT as usize] = [
     EN.app_kind,
     EN.app_quorum,
     EN.app_description,

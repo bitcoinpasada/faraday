@@ -45,6 +45,9 @@ pub(crate) struct Drawing {
     /// What Create's Keys card offers from the vaults
     /// ([`crate::Faraday::create_vaults`], `docs/NEW-WALLET.md` §16.1).
     pub create_vaults: OnceCell<std::rc::Rc<crate::create_from::CreateVaults>>,
+    /// The flows in progress ([`crate::Faraday::flows_in_progress`],
+    /// `docs/FLOWS.md`, Flows in progress).
+    pub flows: OnceCell<std::rc::Rc<Vec<crate::in_progress::Row>>>,
 }
 
 impl Drawing {

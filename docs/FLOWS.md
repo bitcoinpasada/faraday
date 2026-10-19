@@ -1569,19 +1569,25 @@ this time** once the clock is already known) and returns to Settings.
 **Why.** The owner was on Places in Create a wallet, opened Settings to
 change the theme, and found no way back. The flow was kept (pressing
 **Create a wallet** again resumes it), but nothing on screen said so.
-Not built.
+Built 2026-10-19 (`faraday-core/src/in_progress.rs`; the sidebar's
+`flow_row`, the small Home's tiles; `Action::Resume`).
 
 1. **A flow in progress has a row in the sidebar, under its tab.** A
    flow is in progress from its first step done until it is finished,
    started over or let go, or its state is wiped (a lock wipes what it
    wipes today). Each has one row, indented under the sidebar entry it
-   is opened from: Create a wallet, Restore, Back up, Spend, New key and
-   a wallet's guided backup under **Wallets**; Make a vault under
-   **Vaults**; the GPG, APK and Secure Boot flows under **Tools**. The
-   row reads the flow's name and, at its right end in the muted tone,
-   its open step ("Create a wallet · Places"); a press opens the flow
-   on that step, as it was left. Create a wallet and the backup it ends
-   in are one row, named Create a wallet.
+   is opened from: Make a new wallet, Restore a wallet, Back up a
+   wallet, Spend, Sign a message and a wallet's backup flow left on its
+   own ("Backup of {wallet}") under **Wallets**; Create a vault under
+   **Vaults**; the GPG, APK and Secure Boot flows under **Tools**. New
+   key (with Add a key) has none: it keeps nothing when its screen is
+   left (survey below). The row reads the flow's name and, at its right
+   end in the muted tone, its open step ("Make a new wallet · Places");
+   a press opens the flow on that step, as it was left. Make a new
+   wallet, the vaults it sets up before its keys and the Back up it
+   ends in are one row, named Make a new wallet (the name on its own
+   screen and on Home: "Create a wallet" is the old name); Restore and
+   its vault setup are one row too.
 2. **The row is lit while its flow is on screen**, and its tab is not;
    on any other screen the tab is lit as today.
 3. **What a row never shows**: a key's words, a passphrase, or any value
@@ -1612,7 +1618,48 @@ Considered and not chosen: a "back to the flow" line at the top of
 every page (it remembers one flow only, and is a line on every working
 screen); Settings as a sheet over the screen (mends this case only).
 
-## Restart (owner, 2026-10-16; F42)
+### Survey (item 6, 2026-10-19)
+
+Every screen whose state is kept when it is left, read from the code:
+
+| Flow | Tab | State | First step done | Finished | Started over, let go | A lock |
+|---|---|---|---|---|---|---|
+| Make a new wallet, its vault setup, its Back up | Wallets | `create`, the wallet flow of its `owner`, `backup` of the wallet made | a card closed as done | its Back up's checklist all done | **Start over**; **Make a new wallet** once the wallet is made (it resumes only while keys are chosen and none made, or the vaults are being set up) | wiped; the setup's flow is kept as the wallet's |
+| Restore a wallet, its vault setup | Wallets | `restore`, the wallet flow of its `owner` | a card done (from a key on Wallets, Kind to Description are done for the person) | Check done: on Done | **Restore** pressed again, unless the vaults are being set up | wiped |
+| Back up a wallet, on its own | Wallets | `backup` | a preset, a plan saved before, something placed, or the checklist made | every checklist item done | **Back up** on any wallet's card (the plan comes back from a vault) | wiped; its writes go on in the wallet's flow |
+| Spend: the Spend tab, a transaction's steps | Wallets | `spend`, `family` | a transaction read, or something in on What do you have? | signed and put out | **Start over**; another wallet's spend | the spend is wiped; the tab's own state is kept |
+| Sign a message | Wallets | `message` | a card done | the signature made | **Sign a message** pressed again | wiped |
+| Create a vault, on its own | Vaults | `vaults.create` | a card of Customise done (the size is done for the person) | the vault made | **Create a vault** pressed again; a flow's detour dropped on Back | wiped |
+| APK, GPG, Secure Boot keys | Tools | `backup_flows` | past Where it will be kept | Done | the kind's tile resumes one not made; nothing lets one go | kept |
+| A wallet's backup flow, on its own | Wallets | `backup_flows` | past The plan, or the keys made | Done | Back up's plan | kept |
+| New key, Add a key | — | `keygen` | | | dropped when its screen is left | |
+| BIP-85, Silent payments, Lightning, Explore, the calculators, Vanity, the word list, Upgrade | — | dropped when left | | | | |
+| A transaction taken apart, Check a message, a stick visit, Set the time | — | one page, or set afresh each time | | | | |
+
+What the spec did not foresee:
+
+- **New key keeps nothing when left** (`press`: "Leaving the new-key
+  screen drops what it held"), so it has no row. Those drops, and
+  BIP-85's, Explore's, the calculators', Vanity's and the others', run
+  in `Faraday::press`, the scripted way in; a tap goes through `touch`
+  and `act` and skips them, so on a device these screens keep their
+  state when left by a tap. Not changed here.
+- **Sign a message** keeps its cards when left: it has a row.
+- **Create a vault** opens with its size done for the person, and
+  making the vault finishes it: a vault made in one sitting never has a
+  row; one with a Customise card done has.
+- **Make a new wallet** is finished only when its Back up is: a wallet
+  made and not yet backed up keeps the row on Back up until a lock or
+  Start over.
+- **The Spend tab is kept across a lock**: a route it was given brings
+  its row back after a lock, on its open page.
+- A row opens the flow's own screen (Make a new wallet, its Back up or
+  its vault setup, whichever it was last on), not a detour it opened:
+  Add a key from Restore, a vault made for a flow, a key made for a
+  slot.
+- Rows are ordered by when the flow was begun, noted after each press;
+  a flow kept across a lock comes after those noted.
+- The wide layout's Home has no tiles for them: the sidebar is there.
 
 **Why.** The power sheet offers only Power off. Turning Secure Boot back
 on means opening the BIOS at the next start, and a restart is the moment
