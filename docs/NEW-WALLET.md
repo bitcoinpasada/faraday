@@ -760,7 +760,8 @@ tab's (§11 and `docs/FAMILY.md`), whose routes keep working.
    (§2.2). Above the rows, the shortcut **I have the wallet description:
    Scan it**, with **From Files** beside it when a description is in
    Files: a description read here fills Kind, Quorum and the cosigners'
-   keys, and the flow goes to Seeds.
+   keys, and the flow goes on to the question of vaults when it is not
+   answered yet (§12.3 item 4), then to Seeds.
 2. **Quorum** (a multisig kind): M of N on the two sliders the seeds
    screen has (`seeds_screen.rs`), 2 of 3 by default.
 3. **Description**: skipped when the shortcut read one. Otherwise:

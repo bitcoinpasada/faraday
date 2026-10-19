@@ -2647,6 +2647,12 @@ impl RestoreState {
         self.vaults.answer == Some(true)
     }
 
+    /// The wallet is made from the Keys card, and the card is closed: a
+    /// key loaded now is not one of its seeds.
+    pub fn keys_made(&self) -> bool {
+        self.done[rstep::SEEDS as usize] && self.open != Some(rstep::SEEDS)
+    }
+
     /// A fresh Restore, open on Kind with a single key ticked.
     pub fn new() -> RestoreState {
         let mut s = seeds::SeedsState::default();
@@ -6661,10 +6667,14 @@ impl Faraday {
                 });
                 self.screen = Screen::Restore;
             }
+            // The seeds wait for the question of vaults and for the
+            // setup it asked for (`docs/NEW-WALLET.md` §12.3 item 4).
             Action::RStep(k)
                 if k == rstep::SEEDS
                     && self.restore.as_ref().is_some_and(|r| {
-                        self.setup_pending(r.owner, r.into_vaults(), r.done[rstep::SEEDS as usize])
+                        let made = r.done[rstep::SEEDS as usize];
+                        (r.vaults.answer.is_none() && !made)
+                            || self.setup_pending(r.owner, r.into_vaults(), made)
                     }) => {}
             Action::RVaults(_) | Action::RVaultN(_)
                 if self.restore.as_ref().is_some_and(|r| {
@@ -8963,9 +8973,10 @@ impl Faraday {
 
     /// Why Restore does not take the seed whose key is `fp`, if it does
     /// not: with the description known, not one of its keys; from the
-    /// seeds alone, no slot left.
+    /// seeds alone, no slot left. Once the wallet is made and Keys is
+    /// closed, a key added is no seed of Restore's: nothing to refuse.
     pub(crate) fn restore_refusal(&self, fp: osk_bip::keys::Fingerprint) -> Option<String> {
-        let r = self.restore.as_ref()?;
+        let r = self.restore.as_ref().filter(|r| !r.keys_made())?;
         if r.described {
             let w = self.session.wallets.get(r.wallet?)?;
             // A threshold wallet's slots are shares, matched as they load.
@@ -8992,6 +9003,9 @@ impl Faraday {
             if let Some(r) = self.restore.as_mut() {
                 r.error = Some(why);
             }
+            return;
+        }
+        if self.restore.as_ref().is_some_and(RestoreState::keys_made) {
             return;
         }
         // Matched: its slot reads "Key k of the wallet" and is here.
@@ -9408,7 +9422,12 @@ impl Faraday {
                     r.error = None;
                     if let Some(s) = r.seeds.as_mut() {
                         s.fix(kind.unwrap_or(s.kind));
-                        s.keys.clear();
+                        // A description's keys are matched to the seeds
+                        // from none; a wallet made from the seeds keeps
+                        // them, its keys.
+                        if origin != wallet::Origin::TypedSeeds {
+                            s.keys.clear();
+                        }
                         s.set_n(n);
                         s.set_m(m);
                     }
@@ -9417,8 +9436,10 @@ impl Faraday {
                     }
                     r.done[rstep::SEEDS as usize] = false;
                     r.done[rstep::CHECK as usize] = false;
-                    r.open = Some(rstep::SEEDS);
-                    r.scroll.follow = true;
+                    // On to the next card not done: the question of vaults
+                    // when it is not answered yet, before the seeds
+                    // (`docs/NEW-WALLET.md` §12.3 item 4).
+                    r.next(rstep::DESCRIPTION);
                 }
             }
             Err(e) => {

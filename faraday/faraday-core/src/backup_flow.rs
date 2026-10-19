@@ -1104,6 +1104,29 @@ impl BackupFlow {
         self.wallet.as_ref().is_some_and(|w| w.setup)
     }
 
+    /// The vaults a wallet's setup made before its keys: the plan's while
+    /// the flow is the setup, its first vaults once the wallet is made
+    /// (the plan keeps them first, [`crate::plan::Shape::vaults`]).
+    pub fn setup_vaults(&self) -> Vec<usize> {
+        match self.wallet.as_ref() {
+            Some(w) if !w.setup => (0..w.shape.vaults.min(self.plan.vaults.len())).collect(),
+            _ => self.plan.used_vaults(),
+        }
+    }
+
+    /// The sticks a wallet's setup read, and how many it has: the slots
+    /// while the flow is the setup, the sticks it read, parked for the
+    /// plan, once the wallet is made.
+    pub fn setup_sticks_read(&self) -> (usize, usize) {
+        match self.wallet.as_ref() {
+            Some(w) if !w.setup => (self.parked.len(), w.shape.vaults),
+            _ => (
+                self.slots.iter().filter(|s| s.bound.is_some()).count(),
+                self.slots.len(),
+            ),
+        }
+    }
+
     /// The setup: `count` new vaults, each kept on a stick of its own.
     pub(crate) fn setup_plan(count: usize) -> Plan {
         Plan {

@@ -410,14 +410,14 @@ pub(crate) fn create_flow_card(
     let mut cy = y;
     let line = match step {
         Step::Sticks => {
-            let bound = f.slots.iter().filter(|s| s.bound.is_some()).count();
+            let (read, of) = f.setup_sticks_read();
             fill(
                 FEN.backup_flow_read_of,
-                &[&bound.to_string(), &f.slots.len().to_string()],
+                &[&read.to_string(), &of.to_string()],
             )
         }
         _ => {
-            let used = f.plan.used_vaults();
+            let used = f.setup_vaults();
             let open = used
                 .iter()
                 .filter(|&&v| app.flow_open_index(i, v).is_some())

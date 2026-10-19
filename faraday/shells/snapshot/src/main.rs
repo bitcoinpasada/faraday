@@ -1119,6 +1119,9 @@ fn run(
     t.press(Action::RStep(faraday_core::rstep::DESCRIPTION));
     t.shot("restore-shares")?;
     t.press(Action::RRebuild);
+    // The question of vaults, in its turn before the seeds.
+    t.press(Action::RVaults(false));
+    t.press(Action::RNext(faraday_core::rstep::WHERE));
     let fp = t
         .app
         .session
@@ -2615,6 +2618,9 @@ fn restore_tour(t: &mut Tour) -> Result<(), String> {
         .position(|it| it.name == "savings-wallet.txt")
         .ok_or("no savings-wallet.txt in Files")?;
     t.press(Action::RUse(i));
+    // The question of vaults, in its turn before the seeds.
+    t.press(Action::RVaults(false));
+    t.press(Action::RNext(rstep::WHERE));
     t.press(Action::RSlotWords);
     t.type_key(0);
     t.shot("restore-seeds-matched")?;
@@ -2671,6 +2677,8 @@ fn seeds_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::RNext(faraday_core::rstep::QUORUM));
     t.shot("restore-type-seeds")?;
     t.press(Action::RSeeds);
+    t.press(Action::RVaults(false));
+    t.press(Action::RNext(faraday_core::rstep::WHERE));
     for n in [0, 1] {
         t.press(Action::RSlotWords);
         t.type_key(n);

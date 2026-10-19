@@ -293,10 +293,13 @@ fn the_description_scanned_first_fills_the_quorum_and_refuses_what_is_not_its_ke
         bytes: testkit::savings().into_bytes(),
     });
     let r = app.restore.as_ref().unwrap();
-    assert_eq!(r.open, Some(SEEDS), "the flow is not at Seeds");
+    assert_eq!(r.open, Some(WHERE), "the question of vaults is next");
     assert!(r.done[KIND as usize] && r.done[QUORUM as usize] && r.done[DESCRIPTION as usize]);
     let s = r.seeds.as_ref().unwrap();
     assert_eq!((s.m, s.n), (2, 3));
+    app.press(Action::RVaults(false));
+    app.press(Action::RNext(WHERE));
+    assert_eq!(app.restore.as_ref().unwrap().open, Some(SEEDS));
     let keys = app.session.keys.len();
 
     // A seed of another wallet.
@@ -360,6 +363,151 @@ fn two_seeds_and_a_cosigners_xpub_make_the_two_of_three() {
     app.press(Action::Seeds(S::Make));
     let w = made(&app);
     assert_eq!(desc(&app, w), plain(&testkit::savings()));
+    assert!(
+        summary_is(&mut app, "Keys", "3 of 3 filled"),
+        "{}",
+        drawn(&mut app)
+    );
+}
+
+/// Whether a closed card titled `title` reads `summary` under it.
+fn summary_is(app: &mut Faraday, title: &str, summary: &str) -> bool {
+    app.drawn_texts()
+        .windows(2)
+        .any(|w| w[0] == title && w[1] == summary)
+}
+
+/// Made from three typed seeds, the wallet's Keys card reads every slot
+/// filled, at Check and at Done.
+#[test]
+fn keys_reads_every_slot_filled_once_the_wallet_is_made_from_typed_seeds() {
+    let mut app = two_of_three_from_seeds();
+    for word in ["bacon", "zebra", "summer"] {
+        type_seed(&mut app, &testkit::test_words(word));
+    }
+    app.press(Action::Seeds(S::Make));
+    made(&app);
+    assert!(
+        summary_is(&mut app, "Keys", "3 of 3 filled"),
+        "{}",
+        drawn(&mut app)
+    );
+    app.press(Action::RNext(CHECK));
+    assert_eq!(app.restore.as_ref().unwrap().open, Some(DONE));
+    assert!(
+        summary_is(&mut app, "Keys", "3 of 3 filled"),
+        "{}",
+        drawn(&mut app)
+    );
+}
+
+/// The description read before the question of vaults: the question is
+/// asked in its turn, before the seeds, and reads its answer at Done.
+#[test]
+fn a_description_read_first_asks_about_vaults_before_the_seeds() {
+    let mut app = shown();
+    app.press(Action::RestoreWallet);
+    app.press(Action::RKind(MULTI));
+    app.press(Action::RNext(KIND));
+    app.press(Action::Scan);
+    app.event(Event::Scanned {
+        bytes: testkit::savings().into_bytes(),
+    });
+    assert_eq!(app.restore.as_ref().unwrap().open, Some(WHERE));
+    // The seeds wait for the answer.
+    app.press(Action::RStep(SEEDS));
+    assert_ne!(app.restore.as_ref().unwrap().open, Some(SEEDS));
+    app.press(Action::RStep(WHERE));
+    app.press(Action::RVaults(false));
+    app.press(Action::RNext(WHERE));
+    assert_eq!(app.restore.as_ref().unwrap().open, Some(SEEDS));
+    type_seed(&mut app, &testkit::test_words("zebra"));
+    let w = app.restore.as_ref().unwrap().wallet.unwrap();
+    let held = app
+        .session
+        .slots(&app.session.wallets[w])
+        .iter()
+        .position(|s| s.held_by.is_some())
+        .unwrap();
+    for k in (0..3u8).filter(|&k| usize::from(k) != held) {
+        app.press(Action::RAbsent(k));
+    }
+    app.press(Action::Seeds(S::Make));
+    made(&app);
+    app.press(Action::RNext(CHECK));
+    let r = app.restore.as_ref().unwrap();
+    assert_eq!(r.open, Some(DONE));
+    assert!(r.done[WHERE as usize], "the question is answered");
+    assert!(
+        summary_is(&mut app, "Use vaults", "No"),
+        "{}",
+        drawn(&mut app)
+    );
+    assert!(
+        summary_is(&mut app, "Keys", "3 of 3 filled"),
+        "{}",
+        drawn(&mut app)
+    );
+}
+
+/// The description read first and one vault set up after it: Back up
+/// this wallet resumes the wallet's backup at the plan, with that vault.
+#[test]
+fn a_description_read_first_then_a_vault_resumes_the_backup_with_the_vault() {
+    let mut shell = common::Shell::new();
+    let mut d = common::Disk::empty("S1", "KEYSTICK");
+    d.serial = Some(1);
+    shell.add(d);
+    let mut app = common::process(Vec::new(), Vec::new(), Vec::new());
+    common::keep_time(&mut app);
+    app.press(Action::RestoreWallet);
+    app.press(Action::RKind(MULTI));
+    app.press(Action::RNext(KIND));
+    app.press(Action::Scan);
+    app.event(Event::Scanned {
+        bytes: testkit::savings().into_bytes(),
+    });
+    app.press(Action::RVaults(true));
+    app.press(Action::RNext(WHERE));
+    app.press(Action::RVaultN(1));
+    app.press(Action::RNext(HOW_MANY));
+    assert_eq!(app.screen, Screen::BackupFlow);
+    shell.plug(&mut app, "S1");
+    shell.flow(&mut app, FlowAction::Tap);
+    shell.pull(&mut app, "S1");
+    common::create_vault(&mut shell, &mut app, 0, "first vault phrase");
+    assert_eq!(app.screen, Screen::Restore, "back in Restore for the seeds");
+    assert_eq!(app.restore.as_ref().unwrap().open, Some(SEEDS));
+    type_seed(&mut app, &testkit::test_words("zebra"));
+    let w = app.restore.as_ref().unwrap().wallet.unwrap();
+    let held = app
+        .session
+        .slots(&app.session.wallets[w])
+        .iter()
+        .position(|s| s.held_by.is_some())
+        .unwrap();
+    for k in (0..3u8).filter(|&k| usize::from(k) != held) {
+        app.press(Action::RAbsent(k));
+    }
+    app.press(Action::Seeds(S::Make));
+    made(&app);
+    app.press(Action::RNext(CHECK));
+    shell.pump(&mut app);
+    let _ = app.frame();
+    assert_eq!(app.restore.as_ref().unwrap().open, Some(DONE));
+    assert!(
+        summary_is(&mut app, "Use vaults", "Yes"),
+        "{}",
+        drawn(&mut app)
+    );
+    app.press(Action::Backup(w));
+    assert_eq!(app.screen, Screen::Backup);
+    app.press(Action::BPreset(0));
+    assert_eq!(
+        app.backup.as_ref().unwrap().answers.vaults.len(),
+        1,
+        "the vault set up is the plan's"
+    );
 }
 
 /// Done offers the four ways on, each doing what it says

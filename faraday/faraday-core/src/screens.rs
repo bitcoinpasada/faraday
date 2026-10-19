@@ -7747,14 +7747,14 @@ fn create_flow_summary(app: &Faraday, k: u8) -> String {
     match (k, flow) {
         (cstep::HOW_MANY, _) => c.vaults.count.to_string(),
         (cstep::STICKS, Some((_, f))) => {
-            let bound = f.slots.iter().filter(|s| s.bound.is_some()).count();
+            let (read, of) = f.setup_sticks_read();
             fill(
                 EN.backup_flow_read_of,
-                &[&bound.to_string(), &f.slots.len().to_string()],
+                &[&read.to_string(), &of.to_string()],
             )
         }
         (cstep::VAULTS, Some((i, f))) => {
-            let used = f.plan.used_vaults();
+            let used = f.setup_vaults();
             let open = used
                 .iter()
                 .filter(|&&v| app.flow_open_index(i, v).is_some())

@@ -1986,6 +1986,49 @@ fn where_reads_its_answer_after_the_wallet_is_made_and_check_goes_to_back_up() {
     assert_eq!(app.create.as_ref().unwrap().open, Some(cstep::BACKUP));
 }
 
+/// Whether a closed card titled `title` reads `summary` under it.
+fn summary_is(app: &mut Faraday, title: &str, summary: &str) -> bool {
+    app.drawn_texts()
+        .windows(2)
+        .any(|w| w[0] == title && w[1] == summary)
+}
+
+/// After the keys, the setup's cards read what it did: its stick read and
+/// its vault open. The wallet's backup on paper alone then reads its
+/// places on The plan.
+#[test]
+fn the_setups_cards_and_the_plan_read_what_is_so_after_the_keys() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 1);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, false, 1);
+    bring_in_all(&mut shell, &mut app, &["S1"]);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    let fp = key_in(&mut app, 1);
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CSlotHere(0, fp));
+    app.press(Action::CNext(cstep::KEYS));
+    assert!(app.create.as_ref().unwrap().built.is_some());
+    let text = app.drawn_texts().join("\n");
+    assert!(
+        summary_is(&mut app, "Bring in the sticks", "1 of 1 read"),
+        "{text}"
+    );
+    assert!(summary_is(&mut app, "Vaults", "1 of 1 unlocked"), "{text}");
+    // Paper alone: no vault, every place on The plan.
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(0));
+    let places = backup_places(&app);
+    assert!(places > 1);
+    app.press(Action::BChecklist);
+    shell.flow(&mut app, F::Show(0));
+    assert_eq!(app.screen, Screen::BackupFlow);
+    let said = format!("Places {places} · Vaults 0");
+    let text = app.drawn_texts().join("\n");
+    assert!(summary_is(&mut app, "The plan", &said), "{text}");
+}
+
 #[test]
 fn a_key_in_a_slot_goes_into_no_vault_by_itself_and_a_passphrase_added_later_leaves_one_record() {
     let mut shell = Shell::new();

@@ -134,7 +134,7 @@ fn card(app: &Faraday, f: &BackupFlow, s: Step) -> flow::Card {
         Step::Where => fill(
             FEN.backup_flow_places_vaults,
             &[
-                &f.plan.stick_places().len().to_string(),
+                &f.plan.places.len().to_string(),
                 &f.plan.used_vaults().len().to_string(),
             ],
         ),
