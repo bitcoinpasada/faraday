@@ -1806,16 +1806,21 @@ impl crate::Faraday {
         // §14.3).
         self.mark_made_here(fp);
         self.new_keys += 1;
-        let kind = match slot {
-            Some(_) => self.create.as_ref().map(|c| c.kind).unwrap_or_default(),
-            None => crate::create::NewKind::NativeSegwit,
+        // A Create slot's key at the account Create uses (NEW-WALLET §16.2).
+        let (kind, account) = match slot {
+            Some(_) => self
+                .create
+                .as_ref()
+                .map(|c| (c.kind, c.account))
+                .unwrap_or_default(),
+            None => (crate::create::NewKind::NativeSegwit, 0),
         };
         let key_text = self
             .session
             .keys
             .iter()
             .find(|key| key.fingerprint() == fp)
-            .and_then(|key| kind.key_text(key.master()).ok());
+            .and_then(|key| kind.key_text_account(key.master(), account).ok());
         if let Some(k) = self.keygen.as_mut() {
             k.locked = true;
             k.with_passphrase = !pass.is_empty();
@@ -1923,16 +1928,21 @@ impl crate::Faraday {
                 return;
             }
         };
-        let kind = match slot {
-            Some(_) => self.create.as_ref().map(|c| c.kind).unwrap_or_default(),
-            None => crate::create::NewKind::NativeSegwit,
+        // A Create slot's key at the account Create uses (NEW-WALLET §16.2).
+        let (kind, account) = match slot {
+            Some(_) => self
+                .create
+                .as_ref()
+                .map(|c| (c.kind, c.account))
+                .unwrap_or_default(),
+            None => (crate::create::NewKind::NativeSegwit, 0),
         };
         let key_text = self
             .session
             .keys
             .iter()
             .find(|key| key.fingerprint() == fp)
-            .and_then(|key| kind.key_text(key.master()).ok());
+            .and_then(|key| kind.key_text_account(key.master(), account).ok());
         // What was typed goes; the Key card keeps the words to show.
         self.entry = crate::EntryState::default();
         if let Some(k) = self.keygen.as_mut() {

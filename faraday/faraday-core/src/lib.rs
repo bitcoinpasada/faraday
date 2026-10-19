@@ -24,6 +24,7 @@ pub mod catalog;
 pub mod chart_edit;
 pub mod codes;
 pub mod create;
+mod create_from;
 pub mod decode;
 pub mod demo;
 pub mod devices;
@@ -1117,6 +1118,16 @@ pub enum Action {
     CN(i8),
     /// Fill a slot with a key loaded here.
     CSlotHere(u8, [u8; 4]),
+    // NEW-WALLET §16 (F45): keys from a vault in Create; a new wallet
+    // from one held.
+    /// Fill slot s with key record r of open vault v, loading that key
+    /// (`docs/NEW-WALLET.md` §16.1).
+    CSlotVault(u8, usize, usize),
+    /// Kind's Account stepper, on a creation started from a wallet.
+    CAccount(i8),
+    /// A wallet card's **New wallet from this one**: Create filled from
+    /// wallet i (`docs/NEW-WALLET.md` §16.2).
+    NewWalletFrom(usize),
     /// The secret on its way out into the open vault.
     SecretVault,
     /// The person has read what the secret gives away, or unread it.
@@ -2476,6 +2487,12 @@ pub struct CreateState {
     pub vaults: VaultAsk,
     /// The number the wallet's backup flow is tied to (`Faraday::owner_seq`).
     pub owner: u64,
+    /// The account every key is used at (`docs/NEW-WALLET.md` §16.2): 0
+    /// unless the creation was started from a wallet.
+    pub account: u32,
+    /// The wallet the creation was started from, by **New wallet from
+    /// this one**.
+    pub from: Option<create::FromWallet>,
 }
 
 impl CreateState {
@@ -4400,7 +4417,8 @@ impl Faraday {
             | Action::ScanKey(_)
             | Action::ScanPart
             | Action::LoadKey(_)
-            | Action::KeyGen(None) => EN.pull_what_add_a_key,
+            | Action::KeyGen(None)
+            | Action::CSlotVault(..) => EN.pull_what_add_a_key,
             Action::KeyGen(Some(_)) | Action::KeyGenSlip39 => EN.pull_what_make_a_key,
             Action::PotentialOpen(_) => EN.pull_what_load_the,
             Action::BackupOpen(_) => EN.pull_what_open_the,
@@ -6219,6 +6237,7 @@ impl Faraday {
                     c.slots.resize(n, create::Source::Empty);
                     c.slots.truncate(n);
                 }
+                self.create_from_refresh();
             }
             Action::CBackup(k) => {
                 if let Some(i) = self.create.as_ref().and_then(|c| c.built) {
@@ -6286,7 +6305,13 @@ impl Faraday {
                     let slots = if c.kind.threshold() { c.m } else { c.n };
                     c.slots.resize(slots, create::Source::Empty);
                 }
+                self.create_from_refresh();
             }
+            // NEW-WALLET §16 (F45): keys from a vault in Create; a new
+            // wallet from one held.
+            Action::CSlotVault(k, v, r) => self.create_slot_vault(k, v, r),
+            Action::CAccount(d) => self.create_account_step(d),
+            Action::NewWalletFrom(i) => self.create_from_wallet(i),
             Action::CSlotHere(k, fp) => {
                 if let Some(c) = self.create.as_mut()
                     && let Some(s) = c.slots.get_mut(k as usize)
@@ -8428,7 +8453,7 @@ impl Faraday {
     fn wallet_key_record(&self, i: usize, slot: u8) -> Result<(String, String), String> {
         let k = self.wallet_key(i, slot)?;
         k.standard
-            .and_then(|kind| kind.bsms_record(k.master, &format!("Faraday key {}", k.fp)))
+            .and_then(|kind| kind.bsms_record(k.master, 0, &format!("Faraday key {}", k.fp)))
             .map(|r| (k.fp.clone(), r))
             .ok_or_else(|| EN.wallet_key_record_bip.to_string())
     }
@@ -8491,7 +8516,7 @@ impl Faraday {
             .ok_or(EN.create_key_text_a_chosen)?;
         Ok((
             fp_text(osk_bip::keys::Fingerprint(*fp)),
-            c.kind.key_text(key.master())?,
+            c.kind.key_text_account(key.master(), c.account)?,
         ))
     }
 
@@ -8507,7 +8532,7 @@ impl Faraday {
             .keys
             .iter()
             .find(|k| k.fingerprint().0 == *fp)?;
-        c.kind.account_ur(key.master())
+        c.kind.account_ur_at(key.master(), c.account)
     }
 
     /// A slot's key as a signed BIP 129 key record, with its
@@ -8524,7 +8549,7 @@ impl Faraday {
             .find(|x| x.fingerprint().0 == *fp)?;
         let fpt = fp_text(osk_bip::keys::Fingerprint(*fp));
         c.kind
-            .bsms_record(key.master(), &format!("Faraday key {fpt}"))
+            .bsms_record(key.master(), c.account, &format!("Faraday key {fpt}"))
             .map(|r| (fpt, r))
     }
 
@@ -8555,7 +8580,7 @@ impl Faraday {
                         .iter()
                         .find(|k| k.fingerprint().0 == *fp)
                         .ok_or(EN.create_keys_a_chosen)?;
-                    out.push(c.kind.key_text(key.master())?);
+                    out.push(c.kind.key_text_account(key.master(), c.account)?);
                 }
                 create::Source::Cosigner(text) => out.push(text.clone()),
             }
@@ -9059,10 +9084,15 @@ impl Faraday {
             return;
         };
         let descriptor = c.kind.descriptor(c.m, &keys);
-        let name = fill(
-            EN.create_make_new_wallet,
-            &[&(self.session.wallets.len() + 1).to_string()],
-        );
+        // A wallet made from another is named after it, with the account
+        // (`docs/NEW-WALLET.md` §16.2).
+        let name = match c.from.as_ref() {
+            Some(f) => f.name_at(c.kind, c.account),
+            None => fill(
+                EN.create_make_new_wallet,
+                &[&(self.session.wallets.len() + 1).to_string()],
+            ),
+        };
         match self.session.add_wallet(
             &name,
             &descriptor,

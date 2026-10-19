@@ -172,7 +172,21 @@ impl NewKind {
     }
 
     /// `[fingerprint/path]xpub` of a master key, at this kind's path.
+    /// Costs a key derivation.
     pub fn key_text(self, master: &MasterKey) -> Result<String, String> {
+        self.key_text_account(master, 0)
+    }
+
+    /// Whether the kind's path has an account to choose: every kind but
+    /// `m/45'` and the shares dealt here.
+    pub fn has_account(self) -> bool {
+        !matches!(self, NewKind::MultiLegacy | NewKind::Threshold)
+    }
+
+    /// `[fingerprint/path]xpub` of a master key, at this kind's path with
+    /// account `account` in place of 0 (`docs/NEW-WALLET.md` §16.2).
+    /// Costs a key derivation.
+    pub fn key_text_account(self, master: &MasterKey, account: u32) -> Result<String, String> {
         let (xpub, fp, path) = match self {
             NewKind::Threshold => return Err(EN.create_a_share_has.to_string()),
             NewKind::NativeSegwit
@@ -187,7 +201,7 @@ impl NewKind {
                     NewKind::NestedSegwit => ScriptType::NestedSegwit,
                     _ => ScriptType::Legacy,
                 };
-                let a = master.account_xpub(t, 0).map_err(|e| e.to_string())?;
+                let a = master.account_xpub(t, account).map_err(|e| e.to_string())?;
                 (*a.xpub(), a.master_fingerprint(), a.path().clone())
             }
             NewKind::Multi | NewKind::MultiNested => {
@@ -197,13 +211,13 @@ impl NewKind {
                     MultisigScriptType::NestedSegwit
                 };
                 let a = master
-                    .multisig_account_xpub(t, 0)
+                    .multisig_account_xpub(t, account)
                     .map_err(|e| e.to_string())?;
                 (*a.xpub(), a.master_fingerprint(), a.path().clone())
             }
             NewKind::MultiLegacy | NewKind::TapMulti => {
                 let path: osk_bip::bitcoin::bip32::DerivationPath = self
-                    .path(master.network())
+                    .path_at(master.network(), account)
                     .parse()
                     .map_err(|e| format!("{e}"))?;
                 let d = master.derive(&path);
@@ -217,13 +231,19 @@ impl NewKind {
     }
 
     /// A `wsh` multisig key as the `ur:crypto-account` SeedSigner shows
-    /// for one; `None` for any other kind.
+    /// for one; `None` for any other kind. Costs a key derivation.
     pub fn account_ur(self, master: &MasterKey) -> Option<String> {
+        self.account_ur_at(master, 0)
+    }
+
+    /// [`NewKind::account_ur`] at account `account`. Costs a key
+    /// derivation.
+    pub fn account_ur_at(self, master: &MasterKey, account: u32) -> Option<String> {
         if self != NewKind::Multi {
             return None;
         }
         let a = master
-            .multisig_account_xpub(MultisigScriptType::NativeSegwit, 0)
+            .multisig_account_xpub(MultisigScriptType::NativeSegwit, account)
             .ok()?;
         let path: Vec<_> = a.path().into_iter().copied().collect();
         let cbor =
@@ -233,15 +253,22 @@ impl NewKind {
 
     /// A key's BIP 129 key record, signed by the account key itself:
     /// what Coldcard, Sparrow, Nunchuk and Keystone take from a signer.
-    /// For the multisig kinds BIP 129 covers (`wsh` and `sh(wsh)`).
-    pub fn bsms_record(self, master: &MasterKey, description: &str) -> Option<String> {
+    /// For the multisig kinds BIP 129 covers (`wsh` and `sh(wsh)`), at
+    /// account `account` of the kind's path. Costs a key derivation and a
+    /// signature.
+    pub fn bsms_record(
+        self,
+        master: &MasterKey,
+        account: u32,
+        description: &str,
+    ) -> Option<String> {
         let script = match self {
             NewKind::Multi => MultisigScriptType::NativeSegwit,
             NewKind::MultiNested => MultisigScriptType::NestedSegwit,
             _ => return None,
         };
         let record = master
-            .with_multisig_account_secret(script, 0, |secret, view| {
+            .with_multisig_account_secret(script, account, |secret, view| {
                 osk_bip::bsms::signer_record(master.secp(), view, secret, "00", description)
             })
             .ok()?
@@ -273,6 +300,20 @@ impl NewKind {
             NewKind::MuSig => format!("tr(musig({})/<0;1>/*)", keys.join(",")),
         }
     }
+}
+
+/// The account a wallet's keys are at: the third step of its first key's
+/// path, BIP-44's and BIP-48's account; 0 for a key with no such step.
+pub fn account_of(policy: &WalletPolicy) -> u32 {
+    use osk_bip::bitcoin::bip32::ChildNumber;
+    policy
+        .keys()
+        .first()
+        .and_then(|k| k.path())
+        .and_then(|p| p.into_iter().nth(2).copied())
+        .map_or(0, |c| match c {
+            ChildNumber::Hardened { index } | ChildNumber::Normal { index } => index,
+        })
 }
 
 /// `[fingerprint/path]xpub` of a master key at `path`, written
@@ -325,6 +366,49 @@ pub enum Source {
     Cosigner(String),
     /// Left for a cosigner, whose key file comes later.
     Later,
+}
+
+/// What a creation started from a loaded wallet keeps of that wallet
+/// (`docs/NEW-WALLET.md` §16.2): its name, kind and account, and, by
+/// slot, the cosigners' keys it has only as xpubs.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FromWallet {
+    /// The wallet's name.
+    pub name: String,
+    /// Its kind.
+    pub kind: NewKind,
+    /// The account its keys are at.
+    pub account: u32,
+    /// A cosigner's `[fingerprint/path]xpub` for each slot held only as
+    /// an xpub; `None` for a key held here or in a vault.
+    pub xpubs: Vec<Option<String>>,
+}
+
+impl FromWallet {
+    /// What slot `slot` holds while the creation is a `kind` wallet at
+    /// `account`, when the wallet's key there is a cosigner's xpub: that
+    /// xpub at the wallet's own account and kind, which it gives and no
+    /// other; left for the cosigner otherwise. `None` for a slot whose
+    /// key is held.
+    pub fn xpub_slot(&self, slot: usize, kind: NewKind, account: u32) -> Option<Source> {
+        let text = self.xpubs.get(slot)?.as_ref()?;
+        Some(if kind == self.kind && account == self.account {
+            Source::Cosigner(text.clone())
+        } else {
+            Source::Later
+        })
+    }
+
+    /// The name proposed for the new wallet: the wallet's, or the kind's
+    /// once the kind is changed, with the account.
+    pub fn name_at(&self, kind: NewKind, account: u32) -> String {
+        let base = if kind == self.kind {
+            self.name.as_str()
+        } else {
+            kind.name()
+        };
+        fill(EN.create_at_account, &[base, &account.to_string()])
+    }
 }
 
 /// A new 24-word seed from 32 bytes of entropy.

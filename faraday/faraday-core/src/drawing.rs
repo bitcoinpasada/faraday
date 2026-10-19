@@ -39,6 +39,9 @@ pub(crate) struct Drawing {
     /// The backup board as the frame draws it
     /// ([`crate::Faraday::board_view`], `docs/BACKUP-FLOW.md` §19).
     pub board: OnceCell<Option<std::rc::Rc<crate::board::BoardView>>>,
+    /// What Create's Keys card offers from the vaults
+    /// ([`crate::Faraday::create_vaults`], `docs/NEW-WALLET.md` §16.1).
+    pub create_vaults: OnceCell<std::rc::Rc<crate::create_from::CreateVaults>>,
 }
 
 impl Drawing {

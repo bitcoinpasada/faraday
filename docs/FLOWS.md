@@ -1138,6 +1138,27 @@ guarantees for this file's rule:
   what was not saved.
 - **Creating a wallet ends in Backup and Save**, never on the descriptor
   alone.
+- **Create's Keys card offers the open vaults' keys** (owner,
+  2026-10-19; F45; `docs/NEW-WALLET.md` §16.1). Under each slot's
+  session keys, each open vault's keys not loaded, under the vault's
+  name (a threshold kind: only its 24-word shares; a key in another slot
+  is not offered); a press loads that one key as Load into session does
+  and fills the slot, the vault staying open. A locked vault whose file
+  is read is one **Unlock {vault}** button, coming back to the Keys card
+  with the vault open and nothing loaded.
+- **New wallet from this one** (owner, 2026-10-19; F45;
+  `docs/NEW-WALLET.md` §16.2). A wallet's card offers it beside
+  Rename (on a small panel, in its list of buttons) for every kind
+  Create makes but a threshold wallet. It
+  opens Create filled from the wallet: Kind and Quorum closed with their
+  values, Kind carrying an **Account** − n + stepper starting at the
+  lowest account no loaded wallet of the same keys and kind uses; each
+  slot its key, loaded from an open vault where it is kept there; a
+  cosigner's key held only as an xpub stays at the wallet's own account
+  and script type, and otherwise its slot is Someone else reading
+  "Needs Key n's xpub at account n". Use vaults is asked as for any new
+  wallet; the name proposed is "{wallet} · account n" ("{kind} · account
+  n" once the kind changed). The wallet it came from is not changed.
 - **The backup starts with a plan, then a checklist of only what it
   needs** (owner, 2026-10-09, proposal A; `docs/WALLETS.md` §5). Three
   presets (**Paper only**, **Paper and vault**, **Paper, vault and

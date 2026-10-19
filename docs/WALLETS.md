@@ -98,7 +98,15 @@ SeedSigner and a Coldcard. The Wallets tab's central object is therefore a
   **Sign the PSBT from the stick** with a PSBT for this wallet in Files,
   which opens its review; **Carry on the spend · Signatures 1 of 2**
   while this wallet's spend is under way, which resumes it where it
-  was.
+  was;
+- its other buttons: **Rename** and **New wallet from this one** beside
+  its name (any kind Create makes but a threshold wallet;
+  `docs/NEW-WALLET.md` §16.2, 2026-10-19; in the foot when a long name
+  leaves no room, and in the button list on a small panel), then along
+  the foot **Show wallet QR**, **Back up**, **Sign a message** where
+  the wallet can, and **Remove from session** at the end. New wallet
+  from this one opens Create filled from the wallet at the next account
+  its keys and kind do not use (§5).
 
 **Every way in leads to the same card:**
 
@@ -296,6 +304,20 @@ quizzes them: Back up shows them and checks the copy, and asks where a
 passphrase goes. A slot filled by a key loaded here from BIP-39 words
 without a passphrase has **Add a passphrase**, which locks in the key
 those words and a passphrase make in its place.
+
+Keys from a vault and a wallet from another (2026-10-19,
+`docs/NEW-WALLET.md` §16, F45). Under each slot's session keys the Keys
+card lists every open vault's keys not loaded, under the vault's name
+(only 24-word shares for a threshold kind); a press loads that key and
+fills the slot. A locked vault whose file is read is one **Unlock
+{vault}** button, returning to the Keys card. A wallet card's **New
+wallet from this one** opens Create filled from that wallet: Kind and
+Quorum closed and changeable, Kind with an **Account** stepper starting
+at the lowest account no loaded wallet of the same keys and kind uses,
+every key here (or loaded from an open vault) at that account
+(`NewKind::path_at`), a cosigner's xpub kept only at the wallet's own
+account and script type and otherwise "Needs Key n's xpub at account
+n", the name proposed "{wallet} · account n".
 
 **Backup** is a plan, then a checklist of only what the plan needs
 (2026-10-09, the owner's proposal A; it replaced five fixed cards that

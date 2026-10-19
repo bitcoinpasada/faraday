@@ -2832,10 +2832,13 @@ as possible before the next build.
     `forms.rs` `form_key`; the snapshot tool's `addkey` tour). Not
     committed.
 
-83. [ ] 2026-10-19, owner: **keys from a vault in Create; a new wallet
+83. [x] 2026-10-19, owner: **keys from a vault in Create; a new wallet
     from one you have** (`docs/NEW-WALLET.md` §16, F45; tracker #149,
-    #131 folded in). Specified, not built: ask the owner before
-    building (tracker #149).
+    #131 folded in). Built 2026-10-19 (§16.1, §16.2; §16.3 waits for
+    item 80): `create_from.rs`, Create's Keys and Kind cards, the
+    wallet card's **New wallet from this one**; tests in
+    `tests/create_wallet.rs` and `tests/vault_keys.rs`; snapshot tour
+    `createfrom`.
 
 ## Next steps
 

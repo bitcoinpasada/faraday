@@ -132,7 +132,18 @@ fn a_tools_tile_for_multisig_ticks_its_quorum_default_too() {
 /// A single-key wallet made from Create over a key typed in, stopped on
 /// Check; returns the wallet's index.
 fn made() -> (Faraday, usize) {
+    made_on(testkit::started())
+}
+
+/// [`made`] on the test network.
+fn made_on_testnet() -> (Faraday, usize) {
     let mut app = testkit::started();
+    app.press(Action::Network(osk_bip::keys::Network::Testnet));
+    assert_eq!(app.session.network(), osk_bip::keys::Network::Testnet);
+    made_on(app)
+}
+
+fn made_on(mut app: Faraday) -> (Faraday, usize) {
     app.press(Action::Entry(None));
     for c in testkit::test_words("bacon").chars() {
         app.event(Event::Key(Key::Char(c)));
@@ -379,4 +390,205 @@ fn unequal_passphrases_in_a_slot_lock_nothing_in() {
             .iter()
             .any(|t| t == "The two passphrases differ")
     );
+}
+
+// ---- New wallet from this one (NEW-WALLET §16.2) ----
+
+/// Presses the open card's Continue, answering No to vaults, until the
+/// wallet is made; returns it.
+fn continue_throughout(app: &mut Faraday) -> usize {
+    for _ in 0..12 {
+        let c = app.create.as_ref().expect("create");
+        if let Some(b) = c.built {
+            return b;
+        }
+        let k = c.open.expect("a card is open");
+        if k == cstep::WHERE {
+            app.press(Action::CVaults(false));
+        }
+        app.press(Action::CNext(k));
+    }
+    panic!(
+        "the wallet was not made: {:?}",
+        app.create.as_ref().and_then(|c| c.error.clone())
+    );
+}
+
+/// The account step of a wallet key's path: its third.
+fn account_of_key(k: &osk_bip::policy::PolicyKey) -> u32 {
+    use osk_bip::bitcoin::bip32::ChildNumber;
+    match k.path().and_then(|p| p.into_iter().nth(2).copied()) {
+        Some(ChildNumber::Hardened { index }) => index,
+        other => panic!("no hardened account step: {other:?}"),
+    }
+}
+
+/// The master fingerprint of a test seed, worked out here.
+fn fp_of(word: &str) -> [u8; 4] {
+    use osk_bip::bip39::{Language, Mnemonic};
+    let m = Mnemonic::parse(Language::English, &testkit::test_words(word)).unwrap();
+    let seed = m.to_seed(b"").unwrap();
+    osk_bip::keys::MasterKey::from_seed(&seed, testkit::NET)
+        .fingerprint()
+        .0
+}
+
+/// The P2WPKH address a test seed gives at `path`, derived here with
+/// osk-bip and rust-bitcoin, not through Faraday's wallet.
+fn p2wpkh_at(word: &str, path: &str) -> String {
+    use osk_bip::bip39::{Language, Mnemonic};
+    use osk_bip::bitcoin::bip32::DerivationPath;
+    use osk_bip::bitcoin::{Address, CompressedPublicKey, KnownHrp};
+    let m = Mnemonic::parse(Language::English, &testkit::test_words(word)).unwrap();
+    let seed = m.to_seed(b"").unwrap();
+    let master = osk_bip::keys::MasterKey::from_seed(&seed, testkit::NET);
+    let path: DerivationPath = path.parse().unwrap();
+    let public = master.derive(&path).to_xpub().public_key;
+    Address::p2wpkh(&CompressedPublicKey(public), KnownHrp::Testnets).to_string()
+}
+
+#[test]
+fn new_wallet_from_a_single_key_wallet_is_its_words_at_account_1() {
+    let (mut app, original) = made_on_testnet();
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::OpenWallet(original));
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::NewWalletFrom(original)),
+        "the wallet's card offers New wallet from this one"
+    );
+    let name = app.session.wallets[original].name.clone();
+    let sum = app.session.wallets[original].checksum().to_string();
+    let first = app
+        .session
+        .address(&app.session.wallets[original], false, 0);
+    app.press(Action::NewWalletFrom(original));
+    assert_eq!(app.screen, Screen::Create);
+    let c = app.create.as_ref().unwrap();
+    assert_eq!(c.kind, NewKind::NativeSegwit, "the wallet's kind");
+    assert_eq!(c.account, 1, "the next account its keys do not use");
+    assert!(
+        c.done[cstep::KIND as usize],
+        "Kind is closed with its value"
+    );
+    let made = continue_throughout(&mut app);
+    assert_ne!(made, original);
+    let w = &app.session.wallets[made];
+    let address = app.session.address(w, false, 0);
+    assert_eq!(
+        address,
+        p2wpkh_at("bacon", "m/84'/1'/1'/0/0"),
+        "the same words at account 1"
+    );
+    assert_ne!(address, first, "a new, separate wallet");
+    assert_eq!(w.name, format!("{name} · account 1"));
+    // The original is not touched.
+    let o = &app.session.wallets[original];
+    assert_eq!(o.name, name);
+    assert_eq!(o.checksum(), sum);
+    assert_eq!(app.session.address(o, false, 0), first);
+}
+
+#[test]
+fn new_wallet_from_a_two_of_three_held_here_takes_every_key_at_account_1() {
+    let mut app = testkit::started();
+    for seed in ["bacon", "zebra", "summer"] {
+        add_key(&mut app, seed);
+    }
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(multi_index()));
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CVaults(false));
+    app.press(Action::CNext(cstep::WHERE));
+    app.press(Action::CNext(cstep::QUORUM));
+    for k in 0..3u8 {
+        let fp = app.session.keys[usize::from(k)].fingerprint().0;
+        app.press(Action::CSlotHere(k, fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    let original = app.create.as_ref().and_then(|c| c.built).expect("made");
+    let sum = app.session.wallets[original].checksum().to_string();
+    app.press(Action::NewWalletFrom(original));
+    let made = continue_throughout(&mut app);
+    let w = &app.session.wallets[made];
+    assert_eq!(NewKind::of(w.policy()), Some(NewKind::Multi));
+    let keys = w.policy().keys();
+    assert_eq!(keys.len(), 3);
+    for k in keys {
+        assert_eq!(account_of_key(k), 1, "{} is at account 1", k.key_text());
+    }
+    let mut fps: Vec<[u8; 4]> = keys.iter().map(|k| k.fingerprint().unwrap().0).collect();
+    fps.sort();
+    let mut want: Vec<[u8; 4]> = ["bacon", "zebra", "summer"].map(fp_of).to_vec();
+    want.sort();
+    assert_eq!(fps, want, "the same three keys");
+    assert_eq!(app.session.wallets[original].checksum(), sum);
+}
+
+#[test]
+fn a_cosigners_xpub_at_another_account_leaves_its_slot_to_someone_else() {
+    use faraday_core::create::Source;
+    let mut app = testkit::started();
+    add_key(&mut app, "bacon");
+    add_key(&mut app, "zebra");
+    let keys: Vec<String> = (0..3).map(|n| testkit::key(n, "m/48'/1'/0'/2'")).collect();
+    let i = app
+        .session
+        .add_wallet(
+            "Shared",
+            &NewKind::Multi.descriptor(2, &keys),
+            "Test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    let summer = fp_of("summer");
+    let pos = app.session.wallets[i]
+        .policy()
+        .keys()
+        .iter()
+        .position(|k| k.fingerprint().map(|f| f.0) == Some(summer))
+        .unwrap();
+    let xpub = app.session.wallets[i].policy().keys()[pos].key_text();
+    app.press(Action::NewWalletFrom(i));
+    let c = app.create.as_ref().unwrap();
+    assert_eq!(c.account, 1);
+    assert_eq!(c.slots[pos], Source::Later, "Someone else");
+    app.press(Action::CVaults(false));
+    app.press(Action::CNext(cstep::WHERE));
+    assert_eq!(app.create.as_ref().and_then(|c| c.open), Some(cstep::KEYS));
+    let line = format!("Needs Key {}'s xpub at account 1", pos + 1);
+    let texts = app.drawn_texts();
+    assert!(texts.contains(&line), "{line}: {texts:?}");
+    app.press(Action::CNext(cstep::KEYS));
+    assert!(
+        app.create.as_ref().unwrap().built.is_none(),
+        "no wallet until the cosigner's xpub is in"
+    );
+    // At the wallet's own account the xpub it has is that key again.
+    app.press(Action::CAccount(-1));
+    assert_eq!(
+        app.create.as_ref().unwrap().slots[pos],
+        Source::Cosigner(xpub)
+    );
+}
+
+#[test]
+fn changing_kind_to_taproot_keeps_the_keys_and_makes_a_taproot_wallet() {
+    let (mut app, original) = made();
+    app.press(Action::NewWalletFrom(original));
+    app.press(Action::CStep(cstep::KIND));
+    let taproot = NewKind::ALL
+        .iter()
+        .position(|k| *k == NewKind::Taproot)
+        .unwrap() as u8;
+    app.press(Action::CKind(taproot));
+    app.press(Action::CNext(cstep::KIND));
+    let made = continue_throughout(&mut app);
+    let w = &app.session.wallets[made];
+    assert_eq!(NewKind::of(w.policy()), Some(NewKind::Taproot));
+    let keys = w.policy().keys();
+    assert_eq!(keys.len(), 1);
+    assert_eq!(keys[0].fingerprint().map(|f| f.0), Some(fp_of("bacon")));
+    assert_eq!(account_of_key(&keys[0]), 1);
+    assert_eq!(w.name, format!("{} · account 1", NewKind::Taproot.name()));
 }

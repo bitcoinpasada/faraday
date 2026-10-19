@@ -3204,6 +3204,9 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let ix = cx + 24.0;
     let iw = cwid - 48.0;
     let mut cy = y + 22.0;
+    // New wallet from this one, while it is still to be drawn: beside
+    // Rename, or in the foot.
+    let mut new_from = crate::create::NewKind::of(wlt.policy()).is_some_and(|k| !k.threshold());
     match app.renaming.as_ref() {
         Some(name) => {
             ui.fill(ix - 6.0, cy - 4.0, 360.0, 38.0, 8.0, BG);
@@ -3232,7 +3235,7 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         None => {
             let nw = ui.text(ix, cy, 22.0, W::S, TEXT, &wlt.name);
-            ui.button(
+            let rw = ui.button(
                 ix + nw + 14.0,
                 cy,
                 None,
@@ -3241,6 +3244,28 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Style::Ghost,
                 Action::Rename,
             );
+            // Create filled from this wallet (`docs/NEW-WALLET.md`
+            // §16.2), beside Rename where it fits before the source's
+            // pill, so the foot keeps its one row; else in the foot.
+            let bx = ix + nw + 14.0 + rw + 6.0;
+            let bw = ui.measure(14.0, W::S, EN.wallets_new_wallet_from) + 32.0;
+            let pill = ui.measure(
+                12.0,
+                W::R,
+                &crate::wallet::source_tag(&wlt.source, wlt.origin, true),
+            ) + 24.0;
+            if new_from && bx + bw + 12.0 <= ix + iw - pill {
+                ui.button(
+                    bx,
+                    cy,
+                    None,
+                    30.0,
+                    EN.wallets_new_wallet_from,
+                    Style::Ghost,
+                    Action::NewWalletFrom(app.wallet),
+                );
+                new_from = false;
+            }
         }
     }
     let src = crate::wallet::source_tag(&wlt.source, wlt.origin, true);
@@ -3275,6 +3300,13 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Style::Secondary,
         Action::Backup(app.wallet),
     ));
+    if new_from {
+        items.push((
+            EN.wallets_new_wallet_from,
+            Style::Secondary,
+            Action::NewWalletFrom(app.wallet),
+        ));
+    }
     if app.session.message_wallets().contains(&app.wallet) {
         items.push((
             EN.wallets_sign_a_message,
@@ -7445,6 +7477,12 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 cstep::WHERE | cstep::HOW_MANY | cstep::STICKS | cstep::VAULTS => {
                     create_flow_summary(app, k)
                 }
+                // A wallet made from another says its account
+                // (`docs/NEW-WALLET.md` §16.2).
+                cstep::KIND if c.from.is_some() && c.kind.has_account() => fill(
+                    EN.create_at_account,
+                    &[c.kind.name(), &c.account.to_string()],
+                ),
                 cstep::KIND => c.kind.name().to_string(),
                 cstep::QUORUM => fill(EN.create_of, &[&c.m.to_string(), &c.n.to_string()]),
                 cstep::KEYS if c.kind.threshold() => fill(
@@ -7682,6 +7720,69 @@ pub(crate) fn first_addresses(app: &Faraday, ui: &mut Ui, i: usize, x: f32, y: f
     cy - y
 }
 
+/// Under a Keys slot's session keys, each open vault's keys not loaded,
+/// under the vault's name, and an Unlock button for each locked vault
+/// (`docs/NEW-WALLET.md` §16.1). A threshold kind lists only shares; a
+/// key in another slot is not offered (§2.2). Returns the height used.
+#[allow(clippy::too_many_arguments)]
+fn create_vault_rows(
+    app: &Faraday,
+    ui: &mut Ui,
+    vaults: &crate::create_from::CreateVaults,
+    slot: usize,
+    x: f32,
+    y: f32,
+    w: f32,
+) -> f32 {
+    use crate::create::Source;
+    let Some(c) = app.create.as_ref() else {
+        return 0.0;
+    };
+    let mut cy = y;
+    for group in &vaults.open {
+        let row: Vec<(String, Style, Action)> = group
+            .keys
+            .iter()
+            .filter(|k| !c.kind.threshold() || k.share)
+            .filter(|k| {
+                !c.slots
+                    .iter()
+                    .enumerate()
+                    .any(|(i, s)| i != slot && *s == Source::Here(k.fp))
+            })
+            .map(|k| {
+                (
+                    k.line.clone(),
+                    Style::Secondary,
+                    Action::CSlotVault(slot as u8, group.vault, k.record),
+                )
+            })
+            .collect();
+        if row.is_empty() {
+            continue;
+        }
+        let name = ui.fit(12.0, W::S, &group.name, w);
+        ui.text(x, cy, 12.0, W::S, MUTED, &name);
+        cy += 20.0;
+        cy += button_rows(ui, x, cy, w, &row);
+    }
+    if !vaults.locked.is_empty() {
+        let row: Vec<(String, Style, Action)> = vaults
+            .locked
+            .iter()
+            .map(|(i, name)| {
+                (
+                    fill(EN.vaults_unlock, &[name]),
+                    Style::Secondary,
+                    Action::Vault(crate::vaults::VaultAction::OpenFrom(*i, Screen::Create)),
+                )
+            })
+            .collect();
+        cy += button_rows(ui, x, cy, w, &row);
+    }
+    cy - y
+}
+
 fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     use crate::create::Source;
     use crate::cstep;
@@ -7702,6 +7803,22 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 Action::CMoreKinds,
             );
             cy += 6.0;
+            // A wallet made from another: the account its keys are used
+            // at (`docs/NEW-WALLET.md` §16.2).
+            if c.from.is_some() && c.kind.has_account() {
+                stepper(
+                    ui,
+                    x,
+                    cy,
+                    w,
+                    EN.create_account,
+                    c.account as usize,
+                    Action::CAccount(-1),
+                    Action::CAccount(1),
+                    !locked,
+                );
+                cy += 50.0;
+            }
             let over: &[(&str, Style, Action)] = if app.create_unfinished() {
                 &[(EN.create_start_over, Style::Ghost, Action::CreateOver)]
             } else {
@@ -7776,6 +7893,9 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             // The way on leads: New key on the first slot still empty,
             // Continue once every slot is filled.
             let first_empty = c.slots.iter().position(|s| *s == Source::Empty);
+            // The open vaults' keys and the locked vaults, from the
+            // drawing memo (`docs/NEW-WALLET.md` §16.1).
+            let vaults = app.create_vaults();
             for (slot, src) in c.slots.iter().enumerate() {
                 let label = format!(
                     "{} {}",
@@ -7809,7 +7929,11 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                         fill(EN.create_a_cosigner_s, &[&t[1..9.min(t.len())]]),
                         MUTED,
                     ),
-                    Source::Later => (EN.create_a_cosigner_adds.to_string(), WARN),
+                    Source::Later => (
+                        app.create_slot_needs(slot)
+                            .unwrap_or_else(|| EN.create_a_cosigner_adds.to_string()),
+                        WARN,
+                    ),
                 };
                 let indent = if ui.compact {
                     cy += 22.0;
@@ -7913,6 +8037,7 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     }
                     cy += button_rows(ui, x + indent, cy, w - indent, &row) - 44.0;
                     cy += 44.0;
+                    cy += create_vault_rows(app, ui, &vaults, slot, x + indent, cy, w - indent);
                     // A key held here goes out to the cosigners, who need
                     // it to make the same wallet.
                     if c.kind.multi() && !c.kind.threshold() && matches!(src, Source::Here(_)) {

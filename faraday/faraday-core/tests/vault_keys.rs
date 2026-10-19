@@ -359,3 +359,167 @@ fn a_key_whose_words_are_in_the_vault_reads_as_kept_there_and_another_does_not()
     assert_eq!(app.session.keys.len(), 3, "{:?}", app.entry.error);
     assert!(app.key_held(app.session.keys[2].fingerprint()));
 }
+
+// ---- Create's Keys card offers an open vault's keys (NEW-WALLET §16.1) ----
+
+/// The master fingerprint of `words` with no passphrase, worked out here.
+fn fp_of_words(words: &str) -> [u8; 4] {
+    let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, words).unwrap();
+    let seed = m.to_seed(b"").unwrap();
+    osk_bip::keys::MasterKey::from_seed(&seed, testkit::NET)
+        .fingerprint()
+        .0
+}
+
+/// Where open vault 0 keeps the key whose label is `label`.
+fn key_record(app: &Faraday, label: &str) -> usize {
+    use faraday_vault::records::{field, kind};
+    app.vaults.open[0]
+        .contents
+        .records
+        .iter()
+        .position(|r| r.kind == kind::KEY && r.text(field::KEY_LABEL) == Some(label))
+        .expect("the vault keeps the key")
+}
+
+/// Create opened as `kind` with its default quorum, on Keys.
+fn create_on_keys(app: &mut Faraday, kind: faraday_core::create::NewKind) {
+    use faraday_core::cstep;
+    let i = faraday_core::create::NewKind::ALL
+        .iter()
+        .position(|k| *k == kind)
+        .unwrap() as u8;
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(i));
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CVaults(false));
+    app.press(Action::CNext(cstep::WHERE));
+    app.press(Action::CNext(cstep::QUORUM));
+    assert_eq!(app.create.as_ref().and_then(|c| c.open), Some(cstep::KEYS));
+}
+
+#[test]
+fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
+    use faraday_core::create::{NewKind, Source};
+    let mut app = device(vec![kit_file("vault.ofv")]);
+    app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
+    type_and_unlock(&mut app);
+    add_key(&mut app, 1);
+    add_key(&mut app, 2);
+    create_on_keys(&mut app, NewKind::Multi);
+    let r = key_record(&app, testkit::TEST_SEEDS[0].1);
+    let fp = fp_of_words(&testkit::test_words(testkit::TEST_SEEDS[0].0));
+    let press = Action::CSlotVault(0, 0, r);
+    let texts = app.drawn_texts();
+    assert!(app.offers(press), "Key 1 offers the vault's key");
+    assert!(
+        texts.iter().any(|t| t == "vault.ofv"),
+        "under the vault's name: {texts:?}"
+    );
+    let line =
+        faraday_core::wallet::key_line(osk_bip::keys::Fingerprint(fp), testkit::TEST_SEEDS[0].1);
+    assert!(texts.contains(&line), "the key reads {line}");
+    app.press(press);
+    assert_eq!(app.session.keys.len(), 3, "the key is loaded");
+    assert!(app.session.keys.iter().any(|k| k.fingerprint().0 == fp));
+    assert_eq!(
+        app.create.as_ref().map(|c| c.slots[0].clone()),
+        Some(Source::Here(fp)),
+        "and fills Key 1"
+    );
+    assert_eq!(app.vaults.open.len(), 1, "the vault is still open");
+    let _ = app.frame();
+    assert!(
+        !app.offers(Action::CSlotVault(1, 0, r)),
+        "a loaded key is offered from the session, not the vault"
+    );
+}
+
+#[test]
+fn a_threshold_kind_offers_only_a_vaults_shares() {
+    use faraday_core::create::NewKind;
+    use faraday_vault::records::{self, field, kind};
+    use faraday_vault::{Contents, Cost, Record};
+    use osk_bip::bip39::{Language, Mnemonic};
+    let twelve = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon \
+                  abandon about";
+    let mut contents = Contents {
+        records: vec![Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Mixed")],
+    };
+    for (words, label) in [
+        (twelve.to_string(), "Twelve words"),
+        (
+            testkit::test_words(testkit::TEST_SEEDS[0].0),
+            "Twenty-four words",
+        ),
+    ] {
+        let m = Mnemonic::parse(Language::English, &words).unwrap();
+        contents.records.push(
+            Record::new(kind::KEY)
+                .with(field::KEY, &records::words_payload(&m))
+                .with(field::KEY_LABEL, label.as_bytes()),
+        );
+    }
+    let cost = Cost {
+        memory_kib: 64 * 1024,
+        passes: 3,
+        lanes: 1,
+    };
+    let file = faraday_vault::create(
+        faraday_vault::SLOT_SIZES[0],
+        cost,
+        &[testkit::VAULT_PASSPHRASES[0].as_bytes()],
+        &[contents],
+        &[0x42; 32],
+    )
+    .unwrap();
+    let mut app = device(vec![("mixed.ofv".to_string(), file)]);
+    app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
+    type_and_unlock(&mut app);
+    create_on_keys(&mut app, NewKind::Threshold);
+    let share = key_record(&app, "Twenty-four words");
+    let not = key_record(&app, "Twelve words");
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::CSlotVault(0, 0, share)),
+        "a share is offered"
+    );
+    assert!(
+        !app.offers(Action::CSlotVault(0, 0, not)),
+        "twelve words are no share"
+    );
+}
+
+#[test]
+fn a_locked_vault_reads_unlock_and_unlocking_returns_to_keys_with_its_keys() {
+    use faraday_core::create::NewKind;
+    use faraday_core::cstep;
+    let mut app = device(vec![kit_file("vault.ofv")]);
+    add_key(&mut app, 1);
+    add_key(&mut app, 2);
+    create_on_keys(&mut app, NewKind::Multi);
+    let unlock = Action::Vault(V::OpenFrom(0, Screen::Create));
+    let texts = app.drawn_texts();
+    assert!(app.offers(unlock), "the locked vault is offered");
+    assert!(
+        texts.iter().any(|t| t == "Unlock vault.ofv"),
+        "as Unlock and its name: {texts:?}"
+    );
+    app.press(unlock);
+    assert_eq!(app.screen, Screen::Unlock);
+    type_and_unlock(&mut app);
+    assert_eq!(app.screen, Screen::Create, "unlocking comes back");
+    assert_eq!(
+        app.create.as_ref().and_then(|c| c.open),
+        Some(cstep::KEYS),
+        "to the Keys card"
+    );
+    assert_eq!(app.session.keys.len(), 2, "nothing is loaded");
+    let _ = app.frame();
+    let r = key_record(&app, testkit::TEST_SEEDS[0].1);
+    assert!(
+        app.offers(Action::CSlotVault(0, 0, r)),
+        "the vault's keys are offered now"
+    );
+    assert!(!app.offers(unlock), "and it is not offered for unlocking");
+}

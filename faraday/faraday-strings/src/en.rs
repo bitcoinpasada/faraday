@@ -5084,6 +5084,18 @@ pub struct Strings {
     pub create_scan_its_xpub: &'static str,
     /// Text in `create_body`.
     pub create_someone_else: &'static str,
+    // NEW-WALLET §16 (F45): keys from a vault in Create; a new wallet
+    // from one held.
+    /// Text in `create_body`: a slot left for a cosigner's xpub at
+    /// another account. `{}`: the slot's number, the account.
+    pub create_needs_xpub_at: &'static str,
+    /// Text in `create_body`: the Kind card's account stepper.
+    pub create_account: &'static str,
+    /// Kind's closed line and the proposed name of a wallet made from
+    /// another. `{}`: the kind's or the wallet's name, the account.
+    pub create_at_account: &'static str,
+    /// Button on a wallet's card.
+    pub wallets_new_wallet_from: &'static str,
     /// Text in `create_body`.
     pub create_clear: &'static str,
     /// Text in `create_body`.
@@ -10565,6 +10577,10 @@ pub static EN: Strings = Strings {
     create_from: "From {}",
     create_scan_its_xpub: "Scan its xpub",
     create_someone_else: "Someone else adds it later",
+    create_needs_xpub_at: "Needs Key {}'s xpub at account {}",
+    create_account: "Account",
+    create_at_account: "{} · account {}",
+    wallets_new_wallet_from: "New wallet from this one",
     create_clear: "Clear",
     create_show_xpub_qr: "Show xpub QR",
     create_xpub_png: "Xpub PNG {}",

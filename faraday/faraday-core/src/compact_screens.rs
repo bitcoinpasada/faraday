@@ -318,6 +318,14 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
             Action::Backup(app.wallet),
         ),
     ];
+    // Create filled from this wallet (`docs/NEW-WALLET.md` §16.2).
+    if crate::create::NewKind::of(wlt.policy()).is_some_and(|k| !k.threshold()) {
+        buttons.push((
+            EN.wallets_new_wallet_from,
+            Style::Secondary,
+            Action::NewWalletFrom(app.wallet),
+        ));
+    }
     if app.session.message_wallets().contains(&app.wallet) {
         buttons.push((
             EN.compact_sign_a_message,
