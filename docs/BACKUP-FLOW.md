@@ -2693,3 +2693,65 @@ F40. Built in F2d.
    and Make the checklist is still offered; its × takes the warning
    away and leaves its chip dim on the list, and dragged onto a place
    it is in The plan again.
+
+### 19.17 The files box, and the stick and vault glyphs (owner, 2026-10-16)
+
+Decided from the owner's look at F2c (tracker #146): a stick carrying a
+vault was nearly all vault box, its own area a thin margin, so where to
+drop a thing to keep it on the stick but not in the vault could not be
+seen. Built in F2d with §19.16.
+
+1. **A files box in every stick box.** Inside the stick box, under its
+   head and above the vault box, a box of its own for the files kept on
+   the stick outside any vault: header "Files · not sealed", in the
+   files colours (DESIGN §4.17, a pale blue, light and dark per theme).
+   Under its header the stick's files, chips laid as a zone's; empty, it
+   keeps one chip row's height. Every stick box has it, with a vault or
+   without, so the target is the same on every stick. It has no ×:
+   taking the stick off removes it with all it carries.
+2. **Drops.** A press or a drop on the files box keeps the thing on the
+   stick as a file; on the vault box, it seals it in the vault, as
+   before. The rest of the stick box (its head and margins) still takes
+   a drop as a file, as today, so nothing that worked stops working;
+   while a chip a file can be is held, the files box is the edged
+   target, not the whole stick box. After the lock (§17.8), the files
+   box takes what a stick takes then.
+3. **The software place's stick** (public files) is the same: its files
+   in a files box, no vault box.
+4. **The stick glyph.** A new USB-stick glyph (a body with its connector
+   at one end), Faraday's own drawing, replaces `Icon::Drive` everywhere
+   a stick is meant across Faraday and the Starter: the stick box's head,
+   the medium's glyph (`medium.rs`), the Starter's drive rows. Where the
+   medium is an SD card (the Pi, F4) the same places draw `Icon::SdCard`
+   and say "SD card n" where they say "Stick n" (`Medium` already words
+   it). A drive that is not a stick (the Starter's internal disk, if it
+   has one) keeps `Icon::Drive`.
+5. **The vault glyph on the board.** The vault box's header draws the
+   closed lock (`Icon::Lock`) in `VAULT_ON`, as the chips sealed in it
+   carry, in place of `Icon::Vault`; the vault's chip in the list
+   (`Thing::Vault`) takes the closed lock too.
+6. **Tests** (`tests/backup_board.rs`): a drop on the files box of a
+   stick that carries a vault keeps the thing on the stick as a file,
+   not in the vault; a stick with no vault takes a drop on its files box
+   the same; the files box is there, empty, on a new stick. Snapshots of
+   a stick with a vault, with and without files beside it, in the narrow
+   column and the wide layout.
+
+### 19.18 A place's name, pressed, is selected (owner, 2026-10-16)
+
+Tracker #147: a press on "Place 1" to rename it showed a blinking caret
+after the name, which says typing adds to it, though typing replaces it.
+
+1. **The press selects the whole name.** A press on a place's name (while
+   a vault is open, §19.12 item 2) focuses the field with the whole name
+   selected, drawn with the text field's selection highlight, and no
+   caret.
+2. **The first key replaces it**: a character replaces the name with
+   itself, Backspace or Delete empties it; from then on the field is an
+   ordinary text field, the caret at the end of what is typed. An arrow
+   key or Home or End lets the selection go and puts the caret there,
+   as any text field does.
+3. **Access layers' names** (§20.1) are pressed and typed the same way.
+4. **Tests** (`tests/backup_board.rs`): after the press, one key typed
+   gives a name of that one character; a snapshot of the name just
+   pressed, and after one key.
