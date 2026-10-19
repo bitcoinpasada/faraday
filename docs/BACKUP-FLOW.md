@@ -2492,10 +2492,62 @@ that layer alone, and All's numbered marks show which layers reach each
 place. The view is worked out once per frame through the drawing memo
 (SPEED §3.3); a change of view is a press.
 
-### 20.8 Open
+### 20.8 The search's bound and the batches (owner, 2026-10-19)
 
-- The bound on the search's time, measured before it is built.
-- Batches, tests and DESIGN rows, when it is scheduled.
+**The bound.** **Work it out** takes at most one second on the owner's
+slow laptop. The search is not exhaustive in the literal sense: a 3-of-5
+with three layers has far more placements than can be tried. It is a
+branch and bound over the things to place (seeds, the description or
+its shares, vaults, written passwords), each assigned places and forms
+in turn, a branch dropped as soon as it cannot beat the best found on
+§20.3's order (a layer it cannot meet any more, or a margin already
+below the best). Places are interchangeable until named, so a placement
+and its renumberings are tried once.
+
+- The search counts its steps and stops at a **step budget**, not a
+  clock, so it gives the same answer on every machine and in tests. The
+  budget is set in L2 so the worst preset case (3 of 5, three layers,
+  each with a paper route, two vaults) takes at most 250 ms on the
+  build machine's release build; the owner confirms one second or less
+  on the slow laptop with a test build's slow-event line (SPEED §3.11).
+- Stopped by the budget, the board shows the best placement found and
+  one line under it: "Best found; not every placement was tried".
+- The search runs on the press of Work it out (and Looks right's
+  questions, §20.10), never while drawing (SPEED §3.3).
+
+**Batches.** Each a commit, `just` green, the board timed per SPEED §7
+where drawing changes.
+
+- **L1, the model** (§20.1, §20.2, §20.6, §20.9): layers and routes in
+  the plan (`Answers`), the plan text and the vault's plan record, a
+  plan saved before reading as one layer able to spend with everything;
+  a route "met" and the stranger margin and balance margin as plain
+  functions of the plan. Tests on those functions against hand-worked
+  cases (a 2-of-3 with the Paper and vault preset; a 3-of-5 with one
+  place a stranger can spend from), and the round trip.
+- **L2, Work it out** (§20.3, §20.4, this section's bound): the
+  Access layers card (layers, routes, any k of n, passwords
+  remembered or written, + layer and ×), the search, the conflicts and
+  what would resolve each, the warning lines under the board. Tests:
+  every preset's result meets every layer with the margin hand-worked
+  for it; a conflict names its layers and its first resolution, pressed,
+  removes it; the budget's result is the same on every run.
+- **L3, the layer view** (§20.7, §19.18 item 3): the pills, the
+  board drawn per view through the drawing memo, each view's checks,
+  the Stranger stepper, the layers' marks in All; a layer's name typed
+  as a place's is. Snapshots of each view.
+- **L4, instructions by hand** (§20.5): each layer's template on screen,
+  nothing written. A test that leaving the screen leaves no file and
+  nothing in the plan text.
+- **L5, the questions in Back up** (§20.10): the cards, the result in
+  words, Looks right and Change it on the board, a wallet's shape
+  respected.
+- **L6, Create starts with the questions** (§20.11): Plan the backup
+  first, the suggestion and its alternatives, I know what I want, The
+  standard way in Create and Back up.
+
+DESIGN rows (§4.17 and a row for the Access layers card and the view
+pills) come with L2 and L3.
 
 ### 20.9 Routes, thresholds and the paper route (owner, 2026-10-16)
 

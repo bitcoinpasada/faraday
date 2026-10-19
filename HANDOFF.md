@@ -2805,7 +2805,9 @@ as possible before the next build.
     Create a wallet and Back up start with questions whose answers
     suggest the wallet (single-key or a standard multisig quorum);
     "I know what I want" and "The standard way" skip them (§20.10,
-    §20.11). Specified, not built; after item 78's F3.
+    §20.11). Specified, not built; after item 78's F3. The search's
+    bound (one second on the slow laptop, a step budget) and batches
+    L1–L6 are §20.8 (2026-10-19).
 
 80. [ ] 2026-10-16, owner: **Restore ends on a choice**
     (`docs/NEW-WALLET.md` §12.3; tracker issue 134). A restored wallet
