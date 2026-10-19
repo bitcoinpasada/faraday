@@ -1695,8 +1695,23 @@ held Make the checklist, until its chip was taken off the list; and
 
 - The plan is what the places keep. A vault no place keeps a stick of
   stays on the board's list, with what it holds, and is left out of The
-  plan, the checklist and the checks until it is put on a place again.
+  plan, the checklist and the checks until it is put on a place again,
+  its chip dim on the list. A vault that exists already, at no place,
+  is warned of but holds nothing back; its × takes it out of the plan
+  and leaves it dim on the list, to be put back.
 - A press on **+ stick** adds an empty stick at the place, the board's
   until something is dropped on it; while a chip it takes is held,
   **+ stick** is drawn with a solid edge.
 - No line of explanation on the board: the box does what its label says.
+
+### F41 A flow in progress is always one press away (2026-10-16)
+
+**Why.** Leaving a flow for Settings left no visible way back to it,
+though its state was kept.
+
+**Decision** (owner, 2026-10-16; `docs/FLOWS.md`, Flows in progress).
+
+- Every flow in progress has a row in the sidebar, under the tab it is
+  opened from, with its name and open step; a press returns to it as
+  it was left. The small Home leads with a tile for each.
+- The same for every flow: wallet, vault and tool flows alike.

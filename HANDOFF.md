@@ -2811,6 +2811,12 @@ as possible before the next build.
     the seeds wait in the wallet's flow. First a test reproduces the jump
     with the vault question answered no and yes.
 
+81. [ ] 2026-10-16, owner: **flows in progress in the sidebar**
+    (`docs/FLOWS.md`, Flows in progress; F41). Each flow in progress
+    has a row under its tab, its name and open step, returning to it as
+    left; the small Home leads with a tile for each. Survey first which
+    screens keep their state. Specified, not built.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:
