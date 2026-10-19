@@ -30,6 +30,8 @@ Desktops: Boot → Secure Boot, and set OS Type to Other OS. Press F10 and choos
 
 Leave Launch CSM as it is: the stick starts in UEFI mode, and CSM is for legacy BIOS mode.
 
+If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
+
 5. Hold Esc as the computer starts again, and let go when the boot menu appears. On Windows, do it on this restart, before Windows starts.
 
 From a computer that is shut down: hold Esc and press the power button. If the menu does not appear: open the BIOS and press F8, or choose Boot Menu.
@@ -54,7 +56,7 @@ ASUS's steps also list Reset To Setup Mode before Restore Factory Keys. Reset To
 
 ## If something is different
 
-If Windows asks for the BitLocker recovery key: for a computer set up with a Microsoft account, the key is on the account's recovery-key page, aka.ms/myrecoverykey; otherwise it is wherever it was saved when BitLocker was set up. Then turn Secure Boot back on before the next start.
+The BitLocker recovery key: with Secure Boot off, Windows cannot start without it. It is not needed here: the last step turns Secure Boot back on before Windows starts. To see it on this computer anyway: in Windows, Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: in a terminal run as administrator. On a computer signed in with a Microsoft account it is also at aka.ms/myrecoverykey. If Windows asks for it: turn the computer off and turn Secure Boot back on; Windows then starts without it.
 
 Stick not in the boot menu: open the Boot screen in Advanced Mode, set Fast Boot to Disabled, and save with F10. On desktops it is Boot → Boot Configuration → Fast Boot.
 

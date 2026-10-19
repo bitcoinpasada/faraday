@@ -333,6 +333,43 @@ pub struct Strings {
     pub starter_afterwards_windows: &'static str,
     /// Label above the guide's code.
     pub starter_on_a_phone: &'static str,
+    /// Label above the Start page's three things to write down (§3.4, F47).
+    pub starter_notes_label: &'static str,
+    /// Row: the maker's boot menu key.
+    pub starter_notes_boot_key: &'static str,
+    /// Row: the maker's BIOS key.
+    pub starter_notes_bios_key: &'static str,
+    /// Row: where the Secure Boot setting is in the maker's BIOS.
+    pub starter_notes_setting: &'static str,
+    /// Row on an Intel Mac with the T2 chip: the key for macOS Recovery.
+    pub starter_notes_mac_recovery: &'static str,
+    /// Row on an Intel Mac with the T2 chip: where Startup Security is.
+    pub starter_notes_mac_setting: &'static str,
+    /// The Mac's boot menu key.
+    pub starter_notes_mac_boot_value: &'static str,
+    /// The Mac's key for macOS Recovery.
+    pub starter_notes_mac_recovery_value: &'static str,
+    /// Where Startup Security is on a Mac.
+    pub starter_notes_mac_setting_value: &'static str,
+    /// A row's value for a maker without a page.
+    pub starter_notes_not_known: &'static str,
+    /// A row only a T2 Mac has, on a Mac the table does not know: `{}`
+    /// the row's label.
+    pub starter_notes_t2_only: &'static str,
+    /// Button: the sheet as a PDF, opened in the system's viewer.
+    pub starter_notes_print: &'static str,
+    /// Under the Secure Boot step, and on the sheet, on Windows.
+    pub starter_not_found_windows: &'static str,
+    /// The same, on Linux.
+    pub starter_not_found: &'static str,
+    /// On the sheet, under Turn Secure Boot off.
+    pub starter_sheet_off_how: &'static str,
+    /// On the sheet, under Start from the stick, on Windows.
+    pub starter_sheet_boot_how_windows: &'static str,
+    /// The same, on Linux.
+    pub starter_sheet_boot_how: &'static str,
+    /// On the sheet, under Turn Secure Boot back on.
+    pub starter_sheet_back_how: &'static str,
     /// Button.
     pub starter_install_now: &'static str,
     /// Button while installing.
@@ -6075,6 +6112,42 @@ pub struct Strings {
     pub bios_key_framework: &'static str,
     /// Surface's BIOS key.
     pub bios_key_surface: &'static str,
+    /// Dell's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    pub boot_key_dell: &'static str,
+    /// HP's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    pub boot_key_hp: &'static str,
+    /// Lenovo ThinkPad's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    pub boot_key_lenovo_thinkpad: &'static str,
+    /// Lenovo IdeaPad, Yoga and Legion's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    pub boot_key_lenovo_ideapad: &'static str,
+    /// ASUS's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    pub boot_key_asus: &'static str,
+    /// Acer's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    pub boot_key_acer: &'static str,
+    /// MSI's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    pub boot_key_msi: &'static str,
+    /// Framework's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    pub boot_key_framework: &'static str,
+    /// Surface's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    pub boot_key_surface: &'static str,
+    /// Where the Secure Boot setting is in Dell's BIOS.
+    pub secure_boot_dell: &'static str,
+    /// Where the Secure Boot setting is in HP's BIOS.
+    pub secure_boot_hp: &'static str,
+    /// Where the Secure Boot setting is in Lenovo ThinkPad's BIOS.
+    pub secure_boot_lenovo_thinkpad: &'static str,
+    /// Where the Secure Boot setting is in Lenovo IdeaPad, Yoga and Legion's BIOS.
+    pub secure_boot_lenovo_ideapad: &'static str,
+    /// Where the Secure Boot setting is in ASUS's BIOS.
+    pub secure_boot_asus: &'static str,
+    /// Where the Secure Boot setting is in Acer's BIOS.
+    pub secure_boot_acer: &'static str,
+    /// Where the Secure Boot setting is in MSI's BIOS.
+    pub secure_boot_msi: &'static str,
+    /// Where the Secure Boot setting is in Framework's BIOS.
+    pub secure_boot_framework: &'static str,
+    /// Where the Secure Boot setting is in Surface's BIOS.
+    pub secure_boot_surface: &'static str,
     // ----- learn (faraday-core/src/screens.rs) -----
     /// Button in `learn_sheet`.
     pub learn_done: &'static str,
@@ -8530,6 +8603,24 @@ pub static EN: Strings = Strings {
     starter_afterwards: "Turn Secure Boot back on",
     starter_afterwards_windows: "Turn Secure Boot back on before starting Windows",
     starter_on_a_phone: "On a phone",
+    starter_notes_label: "Write down",
+    starter_notes_boot_key: "Boot menu key",
+    starter_notes_bios_key: "BIOS key",
+    starter_notes_setting: "Secure Boot setting",
+    starter_notes_mac_recovery: "macOS Recovery key",
+    starter_notes_mac_setting: "Startup Security",
+    starter_notes_mac_boot_value: "Option, held",
+    starter_notes_mac_recovery_value: "Command-R, held",
+    starter_notes_mac_setting_value: "macOS Recovery → Utilities → Startup Security Utility",
+    starter_notes_not_known: "Not known",
+    starter_notes_t2_only: "{}, only on a Mac with the T2 chip",
+    starter_notes_print: "Print",
+    starter_not_found_windows: "If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.",
+    starter_not_found: "If the Secure Boot setting cannot be found: exit the BIOS without saving changes. The computer starts as before.",
+    starter_sheet_off_how: "In the BIOS: the Secure Boot setting to Disabled, then save and exit",
+    starter_sheet_boot_how_windows: "The boot menu key, on the restart after saving, before Windows starts",
+    starter_sheet_boot_how: "The boot menu key, on the restart after saving",
+    starter_sheet_back_how: "The BIOS key at power-on: the Secure Boot setting to Enabled, then save and exit",
     starter_install_now: "Install",
     starter_installing: "Installing",
     starter_installed_in: "Installed in {}",
@@ -11294,6 +11385,24 @@ pub static EN: Strings = Strings {
     bios_key_msi: "Delete",
     bios_key_framework: "F2",
     bios_key_surface: "Volume Up, held",
+    boot_key_dell: "F12",
+    boot_key_hp: "Esc, then F9",
+    boot_key_lenovo_thinkpad: "F12",
+    boot_key_lenovo_ideapad: "F12 (or Fn+F12)",
+    boot_key_asus: "Esc, held",
+    boot_key_acer: "F12",
+    boot_key_msi: "F11",
+    boot_key_framework: "F12",
+    boot_key_surface: "Volume Down, held",
+    secure_boot_dell: "Boot Configuration → Secure Boot",
+    secure_boot_hp: "Boot Options → Secure Boot; business: Security → Secure Boot Configuration",
+    secure_boot_lenovo_thinkpad: "Security → Secure Boot",
+    secure_boot_lenovo_ideapad: "Security → Secure Boot",
+    secure_boot_asus: "Advanced Mode → Security → Secure Boot → Secure Boot Control; desktops: Boot → Secure Boot → OS Type",
+    secure_boot_acer: "Boot → Secure Boot",
+    secure_boot_msi: "Security → Secure Boot → Secure Boot Support",
+    secure_boot_framework: "Administer Secure Boot → Enforce Secure Boot",
+    secure_boot_surface: "Security → Secure Boot",
     learn_done: "Done",
     learn_spending_step: "Spending, step by step",
     secret_out_this_may: "This may be a secret",

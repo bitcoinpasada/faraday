@@ -32,6 +32,8 @@ Older business models: Advanced → Secure Boot Configuration → Configure Lega
 
 Desktops: Security → Secure Boot Configuration, press F10 at its message, set Secure Boot to Disable, and press F10 to save.
 
+If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
+
 4. At the next start, type the four-digit code shown and press Enter. The screen does not show what is typed.
 
 Consumer notebooks and desktops show it in an Operating System Boot Mode Change message.
@@ -62,7 +64,7 @@ If Secure Boot does not stay on, on business computers: Security → Secure Boot
 
 ## If something is different
 
-If Windows asks for the BitLocker recovery key: for a computer set up with a Microsoft account, the key is on the account's recovery-key page, aka.ms/myrecoverykey; otherwise it is wherever it was saved when BitLocker was set up. Then turn Secure Boot back on before the next start.
+The BitLocker recovery key: with Secure Boot off, Windows cannot start without it. It is not needed here: the last step turns Secure Boot back on before Windows starts. To see it on this computer anyway: in Windows, Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: in a terminal run as administrator. On a computer signed in with a Microsoft account it is also at aka.ms/myrecoverykey. If Windows asks for it: turn the computer off and turn Secure Boot back on; Windows then starts without it.
 
 Stick not in the F9 list: on consumer notebooks, set USB Boot on the Boot Options tab to Enabled. On business computers, tick USB Storage Boot under Advanced → Boot Options; the Fast Boot box beside it can stay as it is. HP's documents do not describe a Fast Boot setting that hides USB disks.
 

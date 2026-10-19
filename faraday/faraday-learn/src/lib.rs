@@ -72,6 +72,14 @@ pub struct Maker {
     /// The key that opens this computer's BIOS, as the page says it
     /// (`docs/FLOWS.md`, Restart; F42): its text is `faraday-strings`'.
     pub bios_key: &'static str,
+    /// The key that opens this computer's boot menu, to start the stick
+    /// (`docs/STARTER.md` §3.4, F47), as the page says it.
+    pub boot_key: &'static str,
+    /// Where the Secure Boot setting is in this maker's BIOS, as the
+    /// page names it: a menu path, parts joined by " → "; a second path
+    /// for other models after "; ", with what they are before ": "
+    /// ("business: Security → Secure Boot Configuration").
+    pub secure_boot: &'static str,
 }
 
 /// The maker pages, each checked against the maker's own documentation
@@ -83,54 +91,72 @@ pub const MAKERS: [Maker; 9] = [
         vendors: &["Dell"],
         families: &[],
         bios_key: EN.bios_key_dell,
+        boot_key: EN.boot_key_dell,
+        secure_boot: EN.secure_boot_dell,
     },
     Maker {
         id: "maker-hp",
         vendors: &["HP", "Hewlett-Packard"],
         families: &[],
         bios_key: EN.bios_key_hp,
+        boot_key: EN.boot_key_hp,
+        secure_boot: EN.secure_boot_hp,
     },
     Maker {
         id: "maker-lenovo-thinkpad",
         vendors: &["LENOVO"],
         families: &["ThinkPad"],
         bios_key: EN.bios_key_lenovo_thinkpad,
+        boot_key: EN.boot_key_lenovo_thinkpad,
+        secure_boot: EN.secure_boot_lenovo_thinkpad,
     },
     Maker {
         id: "maker-lenovo-ideapad",
         vendors: &["LENOVO"],
         families: &["IdeaPad", "Yoga", "Legion"],
         bios_key: EN.bios_key_lenovo_ideapad,
+        boot_key: EN.boot_key_lenovo_ideapad,
+        secure_boot: EN.secure_boot_lenovo_ideapad,
     },
     Maker {
         id: "maker-asus",
         vendors: &["ASUSTeK", "ASUS"],
         families: &[],
         bios_key: EN.bios_key_asus,
+        boot_key: EN.boot_key_asus,
+        secure_boot: EN.secure_boot_asus,
     },
     Maker {
         id: "maker-acer",
         vendors: &["Acer"],
         families: &[],
         bios_key: EN.bios_key_acer,
+        boot_key: EN.boot_key_acer,
+        secure_boot: EN.secure_boot_acer,
     },
     Maker {
         id: "maker-msi",
         vendors: &["Micro-Star", "MSI"],
         families: &[],
         bios_key: EN.bios_key_msi,
+        boot_key: EN.boot_key_msi,
+        secure_boot: EN.secure_boot_msi,
     },
     Maker {
         id: "maker-framework",
         vendors: &["Framework"],
         families: &[],
         bios_key: EN.bios_key_framework,
+        boot_key: EN.boot_key_framework,
+        secure_boot: EN.secure_boot_framework,
     },
     Maker {
         id: "maker-surface",
         vendors: &["Microsoft"],
         families: &["Surface"],
         bios_key: EN.bios_key_surface,
+        boot_key: EN.boot_key_surface,
+        secure_boot: EN.secure_boot_surface,
     },
 ];
 

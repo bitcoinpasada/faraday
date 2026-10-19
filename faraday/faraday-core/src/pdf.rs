@@ -54,6 +54,8 @@ fn pdf_text(s: &str) -> Vec<u8> {
             '–' => 0x96,
             '—' => 0x97,
             '×' => 0xD7,
+            // WinAnsi has no arrow; a menu path reads as well with ›.
+            '→' => 0x9B,
             c if (c as u32) < 0x80 => c as u8,
             _ => b'?',
         };
@@ -214,6 +216,53 @@ fn document(pages: Vec<Page>) -> Vec<u8> {
         .as_bytes(),
     );
     out
+}
+
+/// A notes sheet (`docs/STARTER.md` §3.4, F47): what a person takes to
+/// a computer's BIOS, on one page. `rows` are labels and values, a value
+/// not known printed as a line to write on; `steps` are numbered, each
+/// with its lines under it. Holds nothing secret, and the document
+/// carries no information beyond its page (no title, author, producer
+/// or dates).
+pub fn notes(
+    title: &str,
+    rows: &[(String, Option<String>)],
+    steps: &[(String, Vec<String>)],
+) -> Vec<u8> {
+    let mut p = Page::default();
+    let width = PAGE_W - 2.0 * MARGIN;
+    let mut y = MARGIN;
+    y += p.wrapped(MARGIN, y, width, 20.0, Font::Bold, title) + 18.0;
+    let value_x = MARGIN + 190.0;
+    let value_w = PAGE_W - MARGIN - value_x;
+    for (label, value) in rows {
+        let lh = p.wrapped(
+            MARGIN,
+            y + 3.0,
+            value_x - MARGIN - 12.0,
+            11.0,
+            Font::Sans,
+            label,
+        );
+        let vh = match value {
+            Some(v) => p.wrapped(value_x, y, value_w, 14.0, Font::Bold, v),
+            None => {
+                p.line(value_x, y + 18.0, PAGE_W - MARGIN, y + 18.0, 0.5, 0.4);
+                20.0
+            }
+        };
+        y += lh.max(vh) + 14.0;
+    }
+    y += 12.0;
+    for (n, (head, lines)) in steps.iter().enumerate() {
+        p.text(MARGIN, y, 13.0, Font::Bold, &format!("{}.", n + 1));
+        y += p.wrapped(MARGIN + 22.0, y, width - 22.0, 13.0, Font::Bold, head) + 4.0;
+        for l in lines {
+            y += p.wrapped(MARGIN + 22.0, y, width - 22.0, 11.0, Font::Sans, l) + 2.0;
+        }
+        y += 14.0;
+    }
+    document(vec![p])
 }
 
 /// The fields of a sheet file, in order.

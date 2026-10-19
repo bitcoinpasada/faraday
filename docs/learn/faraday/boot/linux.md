@@ -20,6 +20,8 @@ If that does not work: restart and press the maker's key at power-on, often Esc,
 
 Leave the Secure Boot keys as they are. Do not delete or clear them.
 
+If the Secure Boot setting cannot be found: exit the BIOS without saving changes. The computer starts as before.
+
 4. Saving restarts the computer. Press the maker's boot menu key at power-on and choose the stick. If it is listed twice, choose the one that starts with UEFI.
 
 The stick is usually listed under its maker's name, the one printed on it (SanDisk, Kingston…), often after "UEFI:". It is not Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk.

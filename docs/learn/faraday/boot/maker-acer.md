@@ -30,6 +30,8 @@ On many Acer notebooks the F12 boot menu is off until it is turned on here, and 
 
 ::sketch acer-secure-boot
 
+If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
+
 7. The computer restarts. Press F12 as the Acer logo appears. On Windows, do it on this restart, before Windows starts.
 
 8. Choose the stick. If it is listed twice, choose the one that starts with UEFI.
@@ -48,7 +50,7 @@ If Secure Boot does not stay on: Acer's articles do not describe restoring the S
 
 ## If something is different
 
-If Windows asks for the BitLocker recovery key: for a computer set up with a Microsoft account, the key is on the account's recovery-key page, aka.ms/myrecoverykey; otherwise it is wherever it was saved when BitLocker was set up. Then turn Secure Boot back on before the next start.
+The BitLocker recovery key: with Secure Boot off, Windows cannot start without it. It is not needed here: the last step turns Secure Boot back on before Windows starts. To see it on this computer anyway: in Windows, Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: in a terminal run as administrator. On a computer signed in with a Microsoft account it is also at aka.ms/myrecoverykey. If Windows asks for it: turn the computer off and turn Secure Boot back on; Windows then starts without it.
 
 Stick not in the F12 list: Acer's articles do not describe a setting that hides USB disks from the boot menu.
 

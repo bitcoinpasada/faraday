@@ -327,6 +327,7 @@ fn run(s: &Snap) -> Result<(), String> {
     for (model, name) in [
         ("MacBookPro11,1", "mac-intel"),
         ("MacBookPro15,1", "mac-t2"),
+        ("MacBookPro99,9", "mac-unknown"),
     ] {
         let mut h = s.starter();
         h.starter_event(StarterEvent::Computer(mac(model)));
@@ -487,8 +488,23 @@ fn run(s: &Snap) -> Result<(), String> {
     h.starter_event(StarterEvent::Computer(c));
     h.press(StarterAction::Start);
     s.shot(&mut h, "start-maker")?;
+    s.shot_end(&mut h, "start-maker-end")?;
     h.press(StarterAction::Restart);
     s.shot(&mut h, "start-maker-restart-sheet")?;
+    // What to write down, as the sheet Print opens (§3.4, F47).
+    let mut dell = laptop(Os::Windows, true);
+    dell.maker = "Dell Inc.".into();
+    for (c, name) in [
+        (dell, "notes-dell"),
+        (laptop(Os::Windows, true), "notes-unknown"),
+        (mac("MacBookPro15,1"), "notes-mac-t2"),
+        (mac("MacBookPro99,9"), "notes-mac-unknown"),
+    ] {
+        let notes = faraday_starter::notes::Notes::for_computer(&c).ok_or("no notes")?;
+        let path = s.out.join(format!("{name}.pdf"));
+        std::fs::write(&path, notes.pdf()).map_err(|e| format!("{}: {e}", path.display()))?;
+        println!("{}", path.display());
+    }
 
     // Install, Installed, About.
     let mut h = s.starter();

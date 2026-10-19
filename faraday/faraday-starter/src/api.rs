@@ -539,6 +539,9 @@ pub enum StarterEvent {
     /// [`StarterCommand::PrintTemplate`] or [`StarterCommand::OpenTemplate`]
     /// ended: opened in the viewer, or why not.
     TemplateOpened(Result<(), Reason>),
+    /// [`StarterCommand::PrintNotes`] ended: opened in the viewer, or why
+    /// not.
+    NotesOpened(Result<(), Reason>),
 }
 
 /// How a stick or card is written (§3.2 step 2).
@@ -636,5 +639,16 @@ pub enum StarterCommand {
     OpenTemplate {
         /// The file's path, as [`StarterEvent::TemplateSaved`] gave it.
         path: String,
+    },
+    /// Print what to write down before the restart (§3.4, F47): write
+    /// the PDF into the system's temporary folder and open it in the
+    /// system's viewer, where the person prints or saves it, as
+    /// [`StarterCommand::PrintTemplate`] does; answered by
+    /// [`StarterEvent::NotesOpened`].
+    PrintNotes {
+        /// The file's name.
+        name: String,
+        /// The PDF.
+        pdf: Vec<u8>,
     },
 }

@@ -583,7 +583,57 @@ keep data* is offered once the Pi image can be replaced that way
 The guide for this computer (§7), opened at its maker's page where
 there is one and at the general page otherwise, with the steps in
 order and the buttons the operating system allows. The steps shown
-follow this computer's state:
+follow this computer's state.
+
+**Write down** (owner, 2026-10-15 and 2026-10-19, F47; tracker #114),
+before step 1: what the person needs once the computer restarts and
+the Starter is no longer on screen, as three value rows, then
+**Print**:
+
+- **Boot menu key**: the maker's, to start the stick (`faraday_learn::Maker::boot_key`);
+- **BIOS key**: the maker's, to get back into the BIOS afterwards and
+  turn Secure Boot on before Windows starts (`Maker::bios_key`, F42);
+- **Secure Boot setting**: where the setting is in this maker's BIOS,
+  as its guide names it, "Boot Configuration → Secure Boot" on a Dell
+  (`Maker::secure_boot`).
+
+The values come from the maker table (§7.6), each agreeing with the
+maker's guide (a `faraday-guides` test). A computer whose maker has no
+page reads **Not known** on each row; the sheet leaves a line to
+write on. On an Intel Mac the rows are the Mac's equivalents (the Mac
+steps below): **Boot menu key** "Option, held"; on a T2 Mac
+**macOS Recovery key** "Command-R, held" and **Startup Security**
+"macOS Recovery → Utilities → Startup Security Utility"; a Mac the
+table does not know has those two marked "Only on a Mac with the T2
+chip"; a Mac known to have no T2 chip has only the first.
+
+**Print** (owner, 2026-10-19) → the sheet as a PDF made by
+`faraday-core`'s PDF writer (`pdf::notes`), written into the system's
+temporary folder as `faraday-start-from-the-stick.pdf` and opened at
+once in the system's own viewer, exactly as Blank templates' Print
+(§3.8): the person prints it, or saves it, from the viewer. Offline;
+no printing code or service of the Starter's own, on Windows, Linux
+and macOS. A viewer that cannot be opened shows why under the button.
+The sheet carries the page's title, the three rows (a line to write on
+for a value not known), the steps in order, each with one line of how
+— **Turn Secure Boot off**, **Start from the stick**, **Turn Secure
+Boot back on before starting Windows** (on Linux, **Turn Secure Boot
+back on**) — and under the first, the not-found line below. Nothing
+else: no guide address, no computer name, no date, no explanation
+(CLAUDE.md: labels, values and actions). On an Intel Mac, the Mac's
+steps as the page has them, and no not-found line: the Startup
+Security Utility is always in macOS Recovery. The PDF has no
+document information dictionary (no title, author, producer or
+dates) and names no path, user or computer.
+
+**If the Secure Boot setting cannot be found** (owner, 2026-10-15):
+step 2 carries "If the Secure Boot setting cannot be found: exit the
+BIOS without saving changes. Windows starts as before." (on Linux,
+"The computer starts as before."). The sheet carries the same line,
+and every guide's firmware step says it too (§6.7), so the phone page
+does.
+
+The steps:
 
 1. **Restart into the BIOS** (§7.3). Its confirmation ("Save
    your work first: this restarts the computer") carries the QR code
@@ -591,8 +641,8 @@ follow this computer's state:
    moment the person needs the steps on a phone; the same code is at
    the end of the page.
 2. The firmware steps for this maker: turn Secure Boot off; turn Fast
-   Boot off where it hides USB. When Secure Boot is already off, this
-   step says so and has nothing to do.
+   Boot off where it hides USB; the not-found line above. When Secure
+   Boot is already off, this step says so and has nothing to do.
 3. **Start from the stick:** the maker's boot menu key, on the restart
    that saves Secure Boot off, before Windows starts; or, on Windows,
    **Restart to choose a device** (Windows' *Use a device*, §7.3),
@@ -611,6 +661,15 @@ as for a Mac with the T2 chip only.
 
 Nothing follows the steps: no BitLocker row (F33). Another encryption
 product not yet confirmed (§6.4) still closes the restart button.
+
+Tests (F47), user-facing: the page's rows and the sheet's content for
+a known maker, a maker without a page and an Intel Mac (a T2 Mac, one
+without T2, one the table does not know); Print hands the shell that
+PDF to open; the not-found line on the page, on the sheet and in every
+guide's firmware step; the maker table's boot menu key, BIOS key and
+setting agreeing with each maker's guide (`faraday-guides`). Built:
+`faraday-starter`'s `notes.rs`, `tests/notes.rs`; `faraday-core`'s
+`pdf::notes`; the shell's `pdf.rs` as for §3.8.
 
 ### 3.5 Install and uninstall
 
@@ -852,6 +911,15 @@ irresponsible).
   stick from the boot menu on the restart that saves Secure Boot off
   (§3.4 step 3).
 - The stick reminds at power-off (§7.5).
+- **No Microsoft account row** (F48; tracker #87). The BitLocker
+  page's **Also kept in** "Microsoft account: aka.ms/myrecoverykey",
+  shown on every computer including one with a local account, went
+  with the page (F33, §6.6). Nothing in the Starter names a Microsoft
+  account, so the Starter does not read the account type either. The
+  only place the key's whereabouts are said is the guides' pointer
+  (§6.7), which names the Microsoft account as a condition ("On a
+  computer signed in with a Microsoft account …") rather than as a
+  fact about every computer.
 
 ### 6.3 No Resume, for any release (owner, 2026-10-14: decided)
 
@@ -959,12 +1027,27 @@ every app, so the pages change with the code that reads them).
   BitLocker sentence goes. The Windows guide's opens: "The last step
   turns Secure Boot back on, before Windows starts. With Secure Boot
   back on, Windows starts as usual and asks for nothing."
-- **The pointer**, one line under If something is different, in the
-  Windows guide and each maker page: "If Windows asks for the BitLocker
-  recovery key: for a computer set up with a Microsoft account, the key
-  is on the account's recovery-key page, aka.ms/myrecoverykey;
-  otherwise it is wherever it was saved when BitLocker was set up. Then
-  turn Secure Boot back on before the next start."
+- **The pointer**, one paragraph under If something is different, in
+  the Windows guide and each maker page. Until F48 it read "If Windows
+  asks for the BitLocker recovery key: for a computer set up with a
+  Microsoft account, the key is on the account's recovery-key page,
+  aka.ms/myrecoverykey; otherwise …". Since F48 (owner, 2026-10-19;
+  tracker #87) it frames the key plainly, and names the Microsoft
+  account only as a condition: "The BitLocker recovery key: with
+  Secure Boot off, Windows cannot start without it. It is not needed
+  here: the last step turns Secure Boot back on before Windows starts.
+  To see it on this computer anyway: in Windows, Control Panel →
+  BitLocker Drive Encryption → Back up your recovery key; on Windows
+  Home, manage-bde -protectors -get C: in a terminal run as
+  administrator. On a computer signed in with a Microsoft account it
+  is also at aka.ms/myrecoverykey. If Windows asks for it: turn the
+  computer off and turn Secure Boot back on; Windows then starts
+  without it."
+- **The firmware step** (F47): in the Windows, Linux and maker pages
+  (not the Mac's), the step that turns Secure Boot off is followed by
+  "If the Secure Boot setting cannot be found: exit the BIOS without
+  saving changes. Windows starts as before." (Linux: "The computer
+  starts as before.").
 - **The Windows guide**, If something is different: "Other ways to
   choose the stick" stays, conditioned as the Starter is: "Other ways
   to choose the stick, only when Windows is already running with Secure
@@ -1161,6 +1244,17 @@ is written.
 A maker without a page, or not read, gets the general Windows or Linux
 page, whose firmware route (§7.3) needs no key. Which makers were
 tried is not written down anywhere published.
+
+The table the code reads is `faraday_learn::MAKERS`, one row per maker
+page: its vendors and families, and for §3.4's Write down (F47) and
+the stick's power sheet (F42) the maker's **boot menu key**
+(`boot_key`), **BIOS key** (`bios_key`) and the **Secure Boot
+setting**'s place (`secure_boot`, the menu path as the page names it;
+"business:" or "desktops:" before a second path of the same maker).
+The text is `faraday-strings`'. A test in `faraday-guides` checks each
+value against the maker's page: every key named in one numbered step
+(a held key as "Hold" it), every part of the setting's path in one
+paragraph of the Steps.
 
 ### 7.7 Keeping Secure Boot on (later)
 

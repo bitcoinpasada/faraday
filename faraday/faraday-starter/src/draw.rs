@@ -17,6 +17,7 @@ use osk_ui::widgets::Icon;
 use crate::api::{Concern, InUse, InstallItem, Kind, Mode, Os, Reason, StickFault, WriteStage};
 use crate::decide::{Item, Refusal, State, Target};
 use crate::macs::{self, StickFor};
+use crate::notes;
 use crate::template::Copy;
 use crate::{
     Card, LearnId, ModeRefusal, Page, RestartTo, Sheet, Starter, StarterAction, TemplateChoice,
@@ -1429,6 +1430,7 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             )],
         ) + 20.0;
     }
+    y += notes_block(starter, ui, x, y, w);
     // 1. Restart into firmware settings.
     n += 1;
     y += step_head(ui, x, y, w, n, S.starter_restart, false);
@@ -1456,7 +1458,8 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         S.starter_secure_boot_turn_off
     };
     y += step_head(ui, x, y, w, n, head, sb_off);
-    y += line(ui, ix, y, iw, S.starter_fast_boot, MUTED) + 6.0;
+    y += line(ui, ix, y, iw, S.starter_fast_boot, MUTED);
+    y += line(ui, ix, y, iw, notes::not_found(c.os), MUTED) + 6.0;
     // 3. Start from the stick.
     n += 1;
     y += step_head(ui, x, y, w, n, S.starter_boot_from_stick, false);
@@ -1517,6 +1520,7 @@ fn mac_start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32, mac: macs:
     let guide = LearnId::MacIntel;
     y += guide_line(ui, x, y, w, guide);
     y += 8.0;
+    y += notes_block(starter, ui, x, y, w);
     let ix = x + 38.0;
     let iw = w - 38.0;
     let mut n = 0;
@@ -1546,6 +1550,52 @@ fn mac_start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32, mac: macs:
     y += label(ui, x, y, S.starter_on_a_phone);
     let side = if ui.compact { 150.0 } else { 180.0 };
     y + phone_code(ui, x, y, w, side, &guide.address())
+}
+
+/// What to write down before the restart (§3.4, F47): the three rows,
+/// a value not known read as such, then Print. Returns its height.
+fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let Some(notes) = notes::Notes::for_computer(&starter.computer) else {
+        return 0.0;
+    };
+    let mut y = y0;
+    y += label(ui, x, y, S.starter_notes_label);
+    for row in &notes.rows {
+        let (value, tone) = match row.value {
+            Some(v) => (v, TEXT),
+            None => (S.starter_notes_not_known, DIM),
+        };
+        y += note_row(ui, x, y, w, &row.label, value, tone);
+    }
+    y += 10.0;
+    if let Some(why) = &starter.notes_open_failed {
+        y += line(ui, x, y, w, &reason_text(why), ERR);
+    }
+    y += buttons(
+        ui,
+        x,
+        y,
+        w,
+        &[(
+            S.starter_notes_print,
+            Style::Secondary,
+            StarterAction::PrintNotes,
+        )],
+    );
+    y + 24.0 - y0
+}
+
+/// A value row whose value is never cut: under its label, wrapped, when
+/// it does not fit beside it (a long menu path). Returns its height.
+fn note_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: Color) -> f32 {
+    let kw = ui.measure(13.0, W::R, key) + 24.0;
+    if ui.compact || ui.measure(14.0, W::R, value) <= w - kw {
+        return value_row(ui, x, y, w, key, value, tone);
+    }
+    ui.text(x, y + 8.0, 13.0, W::R, MUTED, key);
+    let vh = ui.wrap(x, y + 30.0, w, 14.0, W::R, tone, value);
+    ui.rule(x, y + 38.0 + vh, w, INNER);
+    vh + 40.0
 }
 
 /// The guide's address as a QR code, with the address under it. Returns

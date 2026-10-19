@@ -20,6 +20,8 @@ If it doesn't open: use Faraday Starter's Restart into the BIOS, which opens Sur
 
 ::sketch surface-secure-boot
 
+If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
+
 5. Choose Exit → Restart now.
 
 ::sketch surface-exit
@@ -42,7 +44,7 @@ While Secure Boot is off, the Surface shows a red bar with an open padlock at po
 
 ## If something is different
 
-If Windows asks for the BitLocker recovery key: for a computer set up with a Microsoft account, the key is on the account's recovery-key page, aka.ms/myrecoverykey; otherwise it is wherever it was saved when BitLocker was set up. Then turn Secure Boot back on before the next start.
+The BitLocker recovery key: with Secure Boot off, Windows cannot start without it. It is not needed here: the last step turns Secure Boot back on before Windows starts. To see it on this computer anyway: in Windows, Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: in a terminal run as administrator. On a computer signed in with a Microsoft account it is also at aka.ms/myrecoverykey. If Windows asks for it: turn the computer off and turn Secure Boot back on; Windows then starts without it.
 
 Stick not started: Microsoft's Surface UEFI pages list no Fast Boot setting. The Boot configuration page has two USB settings, and both have to be on: USB Storage in the list of boot devices, and Enable Boot from USB devices under Advanced options.
 

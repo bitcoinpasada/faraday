@@ -24,6 +24,8 @@ Made before 2021: choose Secure Boot, clear Secure Boot Enable, then Apply and E
 
 Leave Secure Boot Mode and Expert Key Management as they are.
 
+If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
+
 5. The computer restarts. Tap F12 when the Dell logo appears (Fn+F12 on some laptops). On Windows, do it on this restart, before Windows starts.
 
 6. Choose the stick. If it is listed twice, choose the one that starts with UEFI. This starts the stick once; the boot order stays as it was.
@@ -44,7 +46,7 @@ If Secure Boot does not stay on: Expert Key Management, Enable Custom Mode on, R
 
 ## If something is different
 
-If Windows asks for the BitLocker recovery key: for a computer set up with a Microsoft account, the key is on the account's recovery-key page, aka.ms/myrecoverykey; otherwise it is wherever it was saved when BitLocker was set up. Then turn Secure Boot back on before the next start.
+The BitLocker recovery key: with Secure Boot off, Windows cannot start without it. It is not needed here: the last step turns Secure Boot back on before Windows starts. To see it on this computer anyway: in Windows, Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: in a terminal run as administrator. On a computer signed in with a Microsoft account it is also at aka.ms/myrecoverykey. If Windows asks for it: turn the computer off and turn Secure Boot back on; Windows then starts without it.
 
 Stick not in the F12 list: in F2 setup, set Fastboot to Thorough (under Pre-boot Behavior, or POST Behavior on older models). Turn on Enable USB Boot Support (Integrated Devices → USB/Thunderbolt Configuration, or System Configuration → USB Configuration on older models). In a Thunderbolt port, also turn on Enable Thunderbolt Boot Support. Dell's manuals do not say which Fastboot choice skips USB disks.
 

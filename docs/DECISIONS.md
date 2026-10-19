@@ -1798,3 +1798,54 @@ every layer able to get in on paper when sticks fail.
   (New key's dice and the rest, a loaded key, a vault's key); Faraday
   only places each key's seed (owner, 2026-10-19;
   `docs/BACKUP-FLOW.md` §20.13).
+
+### F47 Three things to write down before the restart, and a sheet to print (2026-10-19)
+
+**Why.** Once the computer restarts into the BIOS the Starter is no
+longer on screen, and with the Companion dropped (F34) nothing else
+carries what the person needs there.
+
+**Decision** (owner, 2026-10-15 and 2026-10-19; `docs/STARTER.md`
+§3.4, §6.7, §7.6; tracker #114).
+
+- The Start page shows, before **Restart into the BIOS**, three rows:
+  the **boot menu key**, the **BIOS key** (to get back in afterwards
+  and turn Secure Boot on before Windows starts) and where the
+  **Secure Boot setting** is in this maker's BIOS. They come from the
+  maker table, which carries all three and is checked against the
+  maker guides; a maker without a page reads Not known, and the sheet
+  leaves a line to write on. An Intel Mac gets the Mac's equivalents:
+  Option at power-on, and on a T2 Mac Command-R and the Startup
+  Security Utility.
+- **Print** writes the sheet as a PDF with Faraday's own PDF writer and
+  opens it in the system's own viewer, where the person prints or
+  saves it: offline, with no printing code or service of the Starter's
+  own, on Windows, Linux and macOS, as Blank templates' Print (F31).
+  The sheet holds the three things, the steps in order (Secure Boot
+  off, start from the stick, Secure Boot back on before Windows
+  starts) and the one line below; nothing else. The PDF carries no
+  document information, path, user or computer name.
+- **If the setting cannot be found**, the page, the sheet and every
+  guide's firmware step say plainly: exit the BIOS without saving
+  changes, and Windows starts as before.
+
+### F48 The recovery key, framed plainly; no Microsoft account row (2026-10-19)
+
+**Why.** The BitLocker page of 0.1.2 said the key was also kept in a
+Microsoft account on every computer, including one signed in with a
+local account (tracker #87). F33 removed that page; the guides'
+pointer still opened on the Microsoft account.
+
+**Decision** (owner, 2026-10-19; `docs/STARTER.md` §6.2, §6.7).
+
+- The guides frame the key plainly: with Secure Boot off, Windows
+  cannot start without it; it is not needed, since the last step turns
+  Secure Boot back on before Windows starts; to see it anyway, where it
+  is on the computer (Control Panel's BitLocker Drive Encryption, or
+  `manage-bde` on Windows Home). The Microsoft account's page
+  (aka.ms/myrecoverykey) is named only as a condition: "on a computer
+  signed in with a Microsoft account".
+- The Starter shows no Microsoft account row, so it reads no account
+  type: there is nothing left to gate on it.
+- Supersedes F33's wording of *Where Windows keeps the key*; the
+  pointer is still a pointer, not a flow.

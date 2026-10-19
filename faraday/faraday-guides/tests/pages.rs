@@ -167,7 +167,7 @@ fn no_guide_offers_a_key_backup_a_suspension_or_a_resume() {
 }
 
 #[test]
-fn the_windows_guide_and_each_maker_page_say_where_windows_keeps_the_recovery_key() {
+fn the_windows_guide_and_each_maker_page_frame_the_recovery_key_and_say_where_it_is() {
     for id in faraday_learn::MAKERS
         .iter()
         .map(|m| m.id)
@@ -178,10 +178,60 @@ fn the_windows_guide_and_each_maker_page_say_where_windows_keeps_the_recovery_ke
             .iter()
             .find(|s| s.heading == "If something is different")
             .unwrap_or_else(|| panic!("{id}: no such section"));
+        let p = different.paragraphs[0];
         assert!(
-            different.paragraphs[0].starts_with("If Windows asks for the BitLocker recovery key:")
-                && different.paragraphs[0].contains("aka.ms/myrecoverykey"),
+            p.starts_with(
+                "The BitLocker recovery key: with Secure Boot off, Windows cannot start without \
+                 it. It is not needed here: the last step turns Secure Boot back on before \
+                 Windows starts."
+            ),
+            "{id}: {p}"
+        );
+        // Where it is on this computer, and the Microsoft account's page
+        // only as a condition (F48).
+        assert!(p.contains("Back up your recovery key"), "{id}");
+        assert!(p.contains("manage-bde -protectors -get C:"), "{id}");
+        assert!(
+            p.contains(
+                "On a computer signed in with a Microsoft account it is also at \
+                 aka.ms/myrecoverykey."
+            ),
             "{id}"
+        );
+    }
+}
+
+// What to do when the Secure Boot setting cannot be found (F47): every
+// guide followed at the computer says it right after the step that turns
+// Secure Boot off, before the next step.
+
+#[test]
+fn every_guide_says_to_exit_without_saving_when_the_setting_cannot_be_found() {
+    for id in step_pages() {
+        let line = if id == "linux" {
+            "If the Secure Boot setting cannot be found: exit the BIOS without saving changes. \
+             The computer starts as before."
+        } else {
+            "If the Secure Boot setting cannot be found: exit the BIOS without saving changes. \
+             Windows starts as before."
+        };
+        let steps = &guide(id)
+            .sections
+            .iter()
+            .find(|s| s.heading == "Steps")
+            .unwrap_or_else(|| panic!("{id}: no Steps"))
+            .paragraphs;
+        let off = steps
+            .iter()
+            .position(|p| faraday_learn::step(p).is_some() && p.contains("Secure Boot"))
+            .unwrap_or_else(|| panic!("{id}: no Secure Boot step"));
+        let next = (off + 1..steps.len())
+            .find(|&i| faraday_learn::step(steps[i]).is_some())
+            .unwrap_or(steps.len());
+        assert!(
+            steps[off + 1..next].contains(&line),
+            "{id}: not under step {}",
+            steps[off]
         );
     }
 }
@@ -203,25 +253,72 @@ fn keys_of(value: &str) -> (Vec<String>, bool) {
     (keys, held)
 }
 
+/// Whether one numbered step of `page` names every key of `value` (a
+/// held key as "Hold <key>", in any case).
+fn a_step_gives(page: &osk_learn::Page, value: &str) -> bool {
+    let (keys, held) = keys_of(value);
+    page.sections
+        .iter()
+        .flat_map(|s| s.paragraphs.iter().copied())
+        .filter(|p| faraday_learn::step(p).is_some())
+        .any(|p| {
+            keys.iter().all(|k| p.contains(k.as_str()))
+                && (!held
+                    || p.to_lowercase()
+                        .contains(&format!("hold {}", keys[0].to_lowercase())))
+        })
+}
+
 #[test]
 fn the_bios_key_table_agrees_with_the_maker_pages() {
     for maker in faraday_learn::MAKERS {
-        let (keys, held) = keys_of(maker.bios_key);
-        let page = guide(maker.id);
-        let steps: Vec<&str> = page
-            .sections
-            .iter()
-            .flat_map(|s| s.paragraphs.iter().copied())
-            .filter(|p| faraday_learn::step(p).is_some())
-            .collect();
         assert!(
-            steps.iter().any(|p| {
-                keys.iter().all(|k| p.contains(k.as_str()))
-                    && (!held || p.contains(&format!("Hold {}", keys[0])))
-            }),
+            a_step_gives(guide(maker.id), maker.bios_key),
             "{}: no step gives {:?}",
             maker.id,
             maker.bios_key
         );
+    }
+}
+
+// The boot menu key and the Secure Boot setting the Start page has a
+// person write down (docs/STARTER.md §3.4, F47) are the ones each maker
+// page gives.
+
+#[test]
+fn the_boot_menu_key_table_agrees_with_the_maker_pages() {
+    for maker in faraday_learn::MAKERS {
+        assert!(
+            a_step_gives(guide(maker.id), maker.boot_key),
+            "{}: no step gives {:?}",
+            maker.id,
+            maker.boot_key
+        );
+    }
+}
+
+#[test]
+fn the_secure_boot_setting_table_agrees_with_the_maker_pages() {
+    for maker in faraday_learn::MAKERS {
+        let steps = &guide(maker.id)
+            .sections
+            .iter()
+            .find(|s| s.heading == "Steps")
+            .unwrap_or_else(|| panic!("{}: no Steps", maker.id))
+            .paragraphs;
+        // "Boot Options → Secure Boot; business: Security → …": each
+        // path, without what it is for, named part by part in one
+        // paragraph of the Steps.
+        for path in maker.secure_boot.split("; ") {
+            let path = path.split_once(": ").map_or(path, |(_, p)| p);
+            let parts: Vec<&str> = path.split(" → ").collect();
+            assert!(
+                steps
+                    .iter()
+                    .any(|p| parts.iter().all(|part| p.contains(part))),
+                "{}: no paragraph gives {path:?}",
+                maker.id
+            );
+        }
     }
 }

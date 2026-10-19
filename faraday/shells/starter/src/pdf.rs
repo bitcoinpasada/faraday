@@ -1,5 +1,6 @@
-//! A blank template's PDF on this computer (`docs/STARTER.md` §3.8): made
-//! in the system's temporary folder for Print, and opened in the system's
+//! A sheet's PDF on this computer: a blank template (`docs/STARTER.md`
+//! §3.8) or the Start page's things to write down (§3.4, F47). Made in
+//! the system's temporary folder for Print, and opened in the system's
 //! PDF viewer, which prints to any printer or to a file. The PDF holds
 //! nothing of any wallet. The viewer is the system's own "open with the
 //! default program" (`xdg-open`, `open`, `explorer.exe`); never a print
@@ -28,7 +29,7 @@ pub fn write_temp(name: &str, pdf: &[u8]) -> Result<PathBuf, Reason> {
     let stamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_nanos());
-    let dir = base.join(format!("faraday-template-{}-{stamp}", std::process::id()));
+    let dir = base.join(format!("faraday-print-{}-{stamp}", std::process::id()));
     std::fs::create_dir(&dir).map_err(|e| file_reason(&dir, e))?;
     let path = dir.join(name);
     std::fs::write(&path, pdf).map_err(|e| file_reason(&path, e))?;

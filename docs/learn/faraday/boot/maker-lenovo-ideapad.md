@@ -22,6 +22,8 @@ If it doesn't open: with the computer off, press the Novo button and choose BIOS
 
 If Secure Boot cannot be changed: Device Guard, on the same tab, is Enabled, and Secure Boot cannot be changed until it is not.
 
+If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
+
 5. The computer restarts. Press F12, or Fn+F12, during power-on. On Windows, do it on this restart, before Windows starts.
 
 From a computer that is off: press the Novo button and choose Boot Menu.
@@ -42,7 +44,7 @@ If Secure Boot does not stay on: Lenovo's IdeaPad articles do not describe resto
 
 ## If something is different
 
-If Windows asks for the BitLocker recovery key: for a computer set up with a Microsoft account, the key is on the account's recovery-key page, aka.ms/myrecoverykey; otherwise it is wherever it was saved when BitLocker was set up. Then turn Secure Boot back on before the next start.
+The BitLocker recovery key: with Secure Boot off, Windows cannot start without it. It is not needed here: the last step turns Secure Boot back on before Windows starts. To see it on this computer anyway: in Windows, Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: in a terminal run as administrator. On a computer signed in with a Microsoft account it is also at aka.ms/myrecoverykey. If Windows asks for it: turn the computer off and turn Secure Boot back on; Windows then starts without it.
 
 Stick not in the F12 list: on the Boot tab, set USB Boot to Enabled. Lenovo's IdeaPad articles do not describe a setting that hides USB disks.
 

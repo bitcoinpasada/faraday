@@ -18,6 +18,7 @@ pub mod concern;
 pub mod decide;
 mod draw;
 pub mod macs;
+pub mod notes;
 pub mod template;
 
 /// What a [`api::Reason`] reads as on screen, from `faraday_core::strings`.
@@ -285,6 +286,9 @@ pub enum StarterAction {
     SaveTemplate,
     /// Open the saved PDF.
     OpenTemplate,
+    /// Print what to write down on the Start page (§3.4, F47): its PDF
+    /// opened in the system's viewer.
+    PrintNotes,
 }
 
 /// Which blank-template choice a row opens.
@@ -357,6 +361,7 @@ impl StarterAction {
             StarterAction::PrintTemplate => (47, 0),
             StarterAction::SaveTemplate => (48, 0),
             StarterAction::OpenTemplate => (49, 0),
+            StarterAction::PrintNotes => (50, 0),
         };
         (kind << 16) | arg
     }
@@ -418,6 +423,7 @@ impl StarterAction {
             47 => StarterAction::PrintTemplate,
             48 => StarterAction::SaveTemplate,
             49 => StarterAction::OpenTemplate,
+            50 => StarterAction::PrintNotes,
             _ => return None,
         })
     }
@@ -517,6 +523,8 @@ pub struct Starter {
     pub entry_kept: Option<Reason>,
     /// The blank template's choices (§3.8).
     pub template: template::Template,
+    /// Why the last Print on the Start page did not open (§3.4).
+    pub notes_open_failed: Option<Reason>,
     /// Another encryption product found here (§6.4), by name.
     pub other: Option<String>,
     /// The person said they have its rescue disk or password.
@@ -591,6 +599,7 @@ impl Starter {
             stick_restart_failed: None,
             entry_kept: None,
             template: template::Template::default(),
+            notes_open_failed: None,
             other: None,
             other_confirmed: false,
             concerns: Vec::new(),
@@ -971,6 +980,7 @@ impl Starter {
             StarterEvent::TemplateOpened(r) => {
                 self.template.open_failed = r.err();
             }
+            StarterEvent::NotesOpened(r) => self.notes_open_failed = r.err(),
             StarterEvent::BootEntry(e) => self.boot_entry = e,
             StarterEvent::BootEntryRemoved(r) => {
                 self.entry_removing = false;
@@ -1266,6 +1276,15 @@ impl Starter {
                         .push_back(StarterCommand::OpenTemplate { path: path.clone() });
                 }
             }
+            StarterAction::PrintNotes if self.page == Page::Start => {
+                if let Some(notes) = notes::Notes::for_computer(&self.computer) {
+                    self.notes_open_failed = None;
+                    self.out.push_back(StarterCommand::PrintNotes {
+                        name: notes::FILE_NAME.to_string(),
+                        pdf: notes.pdf(),
+                    });
+                }
+            }
             StarterAction::Rescue => {
                 if self.page == Page::Start {
                     self.other_confirmed = true;
@@ -1302,8 +1321,10 @@ impl Starter {
                     self.out.push_back(StarterCommand::RemoveBootEntry);
                 }
             }
-            // A template action pressed on another page does nothing.
-            StarterAction::TemplateChoice(_)
+            // A template action, or the Start page's Print, pressed on
+            // another page does nothing.
+            StarterAction::PrintNotes
+            | StarterAction::TemplateChoice(_)
             | StarterAction::TemplateWords(_)
             | StarterAction::TemplateCopy(_)
             | StarterAction::PlacesFewer

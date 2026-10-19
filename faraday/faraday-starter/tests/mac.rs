@@ -15,7 +15,7 @@ const GB: u64 = 1_000_000_000;
 fn display() -> Event {
     Event::Display(DisplayInfo {
         width: 1280,
-        height: 800,
+        height: 1400,
         dpi: 160,
         inset_bottom: 0,
         inset_top: 0,
