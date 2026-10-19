@@ -2809,13 +2809,21 @@ as possible before the next build.
     bound (one second on the slow laptop, a step budget) and batches
     L1–L6 are §20.8 (2026-10-19).
 
-80. [ ] 2026-10-16, owner: **Restore ends on a choice**
+80. [x] 2026-10-16, owner: **Restore ends on a choice**
     (`docs/NEW-WALLET.md` §12.3; tracker issue 134). A restored wallet
     landed in the backup flow; Restore now ends on Done every time, with
     Spend from this wallet, Back up this wallet, Wallets, and later
     another wallet from the same seeds (issue 131). Vaults set up before
     the seeds wait in the wallet's flow. First a test reproduces the jump
-    with the vault question answered no and yes.
+    with the vault question answered no and yes. Built 2026-10-19: the
+    two walks to It matches (no vaults, two vaults) end on Done at this
+    tree without a change, so no jump was found in the core; Done's four
+    choices are secondary, in §12.3's order, with **Another wallet from
+    these seeds** (`Action::NewWalletFrom`, §16.3); a wallet whose flow
+    holds vaults set up before its keys and no plan made reads
+    **Continue the backup** on its card and on Backups
+    (`wallet_backup_unfinished`), and Back up resumes it at the plan with
+    those vaults. Tests in `tests/restore.rs`; snapshot tour `restore`.
 
 81. [ ] 2026-10-16, owner: **flows in progress in the sidebar**
     (`docs/FLOWS.md`, Flows in progress; F41). Each flow in progress
@@ -2835,7 +2843,7 @@ as possible before the next build.
 
 83. [x] 2026-10-19, owner: **keys from a vault in Create; a new wallet
     from one you have** (`docs/NEW-WALLET.md` §16, F45; tracker #149,
-    #131 folded in). Built 2026-10-19 (§16.1, §16.2; §16.3 waits for
+    #131 folded in). Built 2026-10-19 (§16.1, §16.2; §16.3 with
     item 80): `create_from.rs`, Create's Keys and Kind cards, the
     wallet card's **New wallet from this one**; tests in
     `tests/create_wallet.rs` and `tests/vault_keys.rs`; snapshot tour

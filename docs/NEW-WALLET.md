@@ -852,6 +852,16 @@ seeds. Restore ends on a choice, every time.
 7. **Strings**: Done's buttons as today; "Another wallet from these
    seeds" comes with issue 131.
 
+**As built (2026-10-19).** The two walks of item 5 ended on Done at
+that tree before any change: the jump did not reproduce in the core.
+Done draws the four choices as secondary buttons in item 2's order;
+the third is New wallet from this one (§16.3), drawn for every kind it
+takes (not a threshold kind). Item 3's offer is **Continue the backup**
+in place of Back up on the wallet's card (wide and small panel) and on
+Backups, while the wallet's flow is not done and its plan not made
+(`wallet_backup_unfinished`); the press is Back up as before, which
+opens the plan with the vaults set up.
+
 ## 13. Input: mouse back and forward, selecting text, the default count
 
 ### 13.1 Back and forward buttons

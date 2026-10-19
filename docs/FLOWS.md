@@ -534,7 +534,14 @@ to get it.
     is filled; Check shows the descriptor row and the first addresses;
     Done offers **Back up this wallet**, the wallet card's spend button
     (**Spend from this wallet**) and **Wallets**. A restored key is not
-    held for its backup (decision 45).
+    held for its backup (decision 45). Since `docs/NEW-WALLET.md` §12.3
+    (2026-10-19) Restore ends on Done whatever the vault question's
+    answer, its choices all secondary: **Spend from this wallet**,
+    **Back up this wallet**, **Another wallet from these seeds** (New
+    wallet from this one, §16) and **Wallets**. Vaults set up before the
+    seeds wait in the wallet's flow: Back up resumes it at the plan with
+    them, and until a plan is made the wallet's card and Backups read
+    **Continue the backup**.
 49. **The chart changes the plan** (owner, 2026-10-10;
     `docs/NEW-WALLET.md` §9.5–§9.7, §9's second batch). A change to
     where something is kept is asked on a sheet first: its title says
@@ -1287,7 +1294,8 @@ guarantees for this file's rule:
   Description or **I do not have it** (**I have the seed** for a single
   key), Seeds (a slot per key: its seed, its passphrase asked after it
   (decision 52), a cosigner's xpub, or Not here), Check,
-  Done (**Back up this wallet**, **Spend from this wallet**, **Wallets**).
+  Done (**Spend from this wallet**, **Back up this wallet**, **Another
+  wallet from these seeds**, **Wallets**; NEW-WALLET §12.3).
 
 ## Spend tab
 

@@ -3,8 +3,12 @@
 //! seed, with a passphrase if it has one, or a cosigner's xpub; the
 //! wallet, its first addresses, and the backup or a spend after.
 
+mod common;
+
+use faraday_core::backup_flow_steps::FlowAction;
+use faraday_core::create::{NewKind, Source};
 use faraday_core::family::FamilyAction as F;
-use faraday_core::rstep::{CHECK, DESCRIPTION, DONE, KIND, QUORUM, SEEDS, WHERE};
+use faraday_core::rstep::{CHECK, DESCRIPTION, DONE, HOW_MANY, KIND, QUORUM, SEEDS, WHERE};
 use faraday_core::seed_read::Choice;
 use faraday_core::seeds::{Focus, SeedsAction as S};
 use faraday_core::{Action, Faraday, NOT_A_KEY, Screen, Sheet, testkit};
@@ -358,8 +362,10 @@ fn two_seeds_and_a_cosigners_xpub_make_the_two_of_three() {
     assert_eq!(desc(&app, w), plain(&testkit::savings()));
 }
 
+/// Done offers the four ways on, each doing what it says
+/// (`docs/NEW-WALLET.md` §12.3).
 #[test]
-fn done_offers_the_backup_and_a_spend_from_this_wallet() {
+fn done_offers_a_spend_the_backup_another_wallet_and_wallets() {
     let mut app = two_of_three_from_seeds();
     type_seed(&mut app, &testkit::test_words("bacon"));
     type_seed(&mut app, &testkit::test_words("zebra"));
@@ -369,12 +375,181 @@ fn done_offers_the_backup_and_a_spend_from_this_wallet() {
     app.press(Action::RNext(CHECK));
     assert_eq!(app.restore.as_ref().unwrap().open, Some(DONE));
     let text = drawn(&mut app);
-    assert!(text.contains("Back up this wallet"), "{text}");
-    assert!(text.contains("Spend from this wallet"), "{text}");
-    assert!(app.offers(Action::Backup(w)));
+    for said in [
+        "Spend from this wallet",
+        "Back up this wallet",
+        "Another wallet from these seeds",
+    ] {
+        assert!(text.contains(said), "no {said}: {text}");
+    }
     assert!(app.offers(Action::Family(F::SpendFrom(w))));
+    assert!(app.offers(Action::Backup(w)));
+    assert!(app.offers(Action::NewWalletFrom(w)));
     assert!(app.offers(Action::OpenWallet(w)));
     // Restored seeds are backed up already: the spend opens at once.
     app.press(Action::Family(F::SpendFrom(w)));
     assert_eq!(app.screen, Screen::Family);
+}
+
+/// Done, after It matches on a single key restored with no vaults.
+fn single_key_done() -> (Faraday, usize) {
+    let mut shell = common::Shell::new();
+    let (mut app, w) = single_key_at_check(&mut shell, 0);
+    app.press(Action::RNext(CHECK));
+    let _ = app.frame();
+    (app, w)
+}
+
+#[test]
+fn back_up_this_wallet_opens_back_up_on_it() {
+    let (mut app, w) = single_key_done();
+    app.press(Action::Backup(w));
+    assert_eq!(app.screen, Screen::Backup);
+    assert_eq!(app.backup.as_ref().unwrap().wallet, w);
+}
+
+#[test]
+fn wallets_opens_the_wallet() {
+    let (mut app, w) = single_key_done();
+    app.press(Action::OpenWallet(w));
+    assert_eq!(app.screen, Screen::Wallets);
+    assert_eq!(app.wallet, w);
+}
+
+/// Another wallet from these seeds is New wallet from this one: Create
+/// filled from the restored wallet, at the next account (§16.2).
+#[test]
+fn another_wallet_from_these_seeds_opens_create_at_the_next_account() {
+    let (mut app, w) = single_key_done();
+    let fp = app.session.keys[0].fingerprint().0;
+    app.press(Action::NewWalletFrom(w));
+    assert_eq!(app.screen, Screen::Create);
+    let c = app.create.as_ref().unwrap();
+    assert_eq!(c.kind, NewKind::NativeSegwit);
+    assert_eq!(c.account, 1, "the next account the seed does not use");
+    assert_eq!(c.slots, vec![Source::Here(fp)], "the restored seed");
+}
+
+/// Restored with two vaults, at Done.
+fn two_vaults_done() -> (common::Shell, Faraday, usize) {
+    let mut shell = common::Shell::new();
+    let (mut app, w) = single_key_at_check(&mut shell, 2);
+    app.press(Action::RNext(CHECK));
+    let _ = app.frame();
+    (shell, app, w)
+}
+
+/// With vaults set up before the seeds, Back up this wallet resumes the
+/// wallet's backup at the plan, with those vaults.
+#[test]
+fn with_vaults_back_up_this_wallet_resumes_at_the_plan_with_its_vaults() {
+    let (_shell, mut app, w) = two_vaults_done();
+    app.press(Action::Backup(w));
+    assert_eq!(app.screen, Screen::Backup);
+    assert_eq!(app.backup.as_ref().unwrap().wallet, w);
+    app.press(Action::BPreset(0));
+    assert_eq!(
+        app.backup.as_ref().unwrap().answers.vaults.len(),
+        2,
+        "the vaults set up are the plan's"
+    );
+    assert_eq!(app.vaults.open.len(), 2);
+}
+
+/// With vaults, Spend from this wallet opens the spend and the restored
+/// key signs at once (F6).
+#[test]
+fn with_vaults_spend_from_this_wallet_opens_at_once() {
+    let (_shell, mut app, w) = two_vaults_done();
+    assert!(app.held_keys().is_empty(), "a restored key signs at once");
+    let (label, action) = app.spend_button(w);
+    assert_eq!(label, "Spend from this wallet");
+    app.press(action);
+    assert_eq!(app.screen, Screen::Family);
+}
+
+/// Left for Wallets, the wallet's card and Backups offer the backup left
+/// part way; it resumes at the plan.
+#[test]
+fn the_wallets_card_and_backups_offer_the_unfinished_backup() {
+    let (_shell, mut app, w) = two_vaults_done();
+    app.press(Action::OpenWallet(w));
+    assert!(drawn(&mut app).contains("Continue the backup"));
+    assert!(app.offers(Action::Backup(w)));
+    app.press(Action::Nav(Screen::Backups));
+    assert!(drawn(&mut app).contains("Continue the backup"));
+    assert!(app.offers(Action::Backup(w)));
+    app.press(Action::Backup(w));
+    assert_eq!(app.screen, Screen::Backup);
+    app.press(Action::BPreset(0));
+    assert_eq!(app.backup.as_ref().unwrap().answers.vaults.len(), 2);
+
+    // With no vaults, nothing is left part way.
+    let (mut app, w) = single_key_done();
+    app.press(Action::OpenWallet(w));
+    assert!(!drawn(&mut app).contains("Continue the backup"));
+}
+
+/// A single key restored from its typed seed, with vaults (`count`) or
+/// none, up to Check.
+fn single_key_at_check(shell: &mut common::Shell, count: usize) -> (Faraday, usize) {
+    let mut app = common::process(Vec::new(), Vec::new(), Vec::new());
+    common::keep_time(&mut app);
+    app.press(Action::RestoreWallet);
+    app.press(Action::RNext(KIND));
+    app.press(Action::RSeeds);
+    app.press(Action::RVaults(count > 0));
+    app.press(Action::RNext(WHERE));
+    if count > 0 {
+        for k in 1..=count {
+            let mut d = common::Disk::empty(&format!("S{k}"), "KEYSTICK");
+            d.serial = Some(k as u32);
+            shell.add(d);
+        }
+        app.press(Action::RVaultN(count as u16));
+        app.press(Action::RNext(HOW_MANY));
+        assert_eq!(app.screen, Screen::BackupFlow);
+        for k in 1..=count {
+            let d = format!("S{k}");
+            shell.plug(&mut app, &d);
+            shell.flow(&mut app, FlowAction::Tap);
+            shell.pull(&mut app, &d);
+        }
+        for (v, phrase) in ["first vault phrase", "second vault phrase"]
+            .iter()
+            .enumerate()
+            .take(count)
+        {
+            common::create_vault(shell, &mut app, v, phrase);
+        }
+        assert_eq!(app.screen, Screen::Restore, "back in Restore for the seeds");
+        assert_eq!(app.vaults.open.len(), count);
+    }
+    assert_eq!(app.restore.as_ref().unwrap().open, Some(SEEDS));
+    type_seed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    app.press(Action::Seeds(S::Make));
+    let w = made(&app);
+    (app, w)
+}
+
+/// Restore ends on Done, whatever the question of vaults was answered
+/// (`docs/NEW-WALLET.md` §12.3).
+#[test]
+fn it_matches_opens_done_with_no_vaults() {
+    let mut shell = common::Shell::new();
+    let (mut app, _) = single_key_at_check(&mut shell, 0);
+    app.press(Action::RNext(CHECK));
+    assert_eq!(app.screen, Screen::Restore);
+    assert_eq!(app.restore.as_ref().unwrap().open, Some(DONE));
+}
+
+#[test]
+fn it_matches_opens_done_with_two_vaults() {
+    let mut shell = common::Shell::new();
+    let (mut app, _) = single_key_at_check(&mut shell, 2);
+    app.press(Action::RNext(CHECK));
+    shell.pump(&mut app);
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Restore);
+    assert_eq!(app.restore.as_ref().unwrap().open, Some(DONE));
 }

@@ -83,7 +83,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let iw = w - 40.0;
         let mut bw = 0.0;
         if let Some(i) = e.wallet {
-            let label = EN.backups_back_up;
+            let label = back_up_label(app, i);
             bw = ui.measure(14.0, W::S, label) + 36.0;
             ui.button(
                 ix + iw - bw,
@@ -116,6 +116,16 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.c.pop_clip();
     app.content_h.set(y - top + 40.0);
     ui.report_scroll(clip, app.content_h.get() - h);
+}
+
+/// A wallet's Back up, or Continue the backup for one left part way
+/// (`docs/NEW-WALLET.md` §12.3).
+fn back_up_label(app: &Faraday, i: usize) -> &'static str {
+    if app.wallet_backup_unfinished(i) {
+        EN.backup_flow_continue
+    } else {
+        EN.backups_back_up
+    }
 }
 
 /// One place on the wide list: where, what it holds, its tag, and what
@@ -178,7 +188,7 @@ fn compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32, entries: &[Entr
             y,
             Some(w),
             44.0,
-            EN.backups_back_up,
+            back_up_label(app, i),
             Style::Secondary,
             Action::Backup(i),
         );

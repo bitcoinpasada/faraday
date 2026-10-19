@@ -313,7 +313,11 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
             Action::QrWallet(app.wallet),
         ),
         (
-            EN.compact_back_up,
+            if app.wallet_backup_unfinished(app.wallet) {
+                EN.backup_flow_continue
+            } else {
+                EN.compact_back_up
+            },
             Style::Secondary,
             Action::Backup(app.wallet),
         ),

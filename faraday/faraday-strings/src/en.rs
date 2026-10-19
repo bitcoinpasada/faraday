@@ -5222,6 +5222,8 @@ pub struct Strings {
     pub restore_back_up_this: &'static str,
     /// Text in `restore_body`.
     pub restore_wallets: &'static str,
+    /// Text in `restore_body`: New wallet from this one, on Done.
+    pub restore_another_wallet: &'static str,
     // ----- restore_description (faraday-core/src/screens.rs) -----
     /// Text in `restore_description`. `{}`: `n`.
     pub restore_description_from: &'static str,
@@ -10639,6 +10641,7 @@ pub static EN: Strings = Strings {
     restore_make_the_wallet: "Make the wallet first",
     restore_back_up_this: "Back up this wallet",
     restore_wallets: "Wallets",
+    restore_another_wallet: "Another wallet from these seeds",
     restore_description_from: "From {}",
     restore_description_i_have: "I have the seed",
     restore_description_scan: "Scan descriptor",

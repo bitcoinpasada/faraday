@@ -100,6 +100,18 @@ impl Faraday {
         f.waiting().then(|| f.written_of())
     }
 
+    /// Whether wallet `w`'s backup was left part way: its vaults set up
+    /// before its keys, its plan not made yet. Back up resumes it at the
+    /// plan, and the wallet's card and Backups offer it until it is done
+    /// (`docs/NEW-WALLET.md` §12.3).
+    pub fn wallet_backup_unfinished(&self, w: usize) -> bool {
+        self.session
+            .wallets
+            .get(w)
+            .and_then(|wl| self.wallet_flow_active(wl.checksum()))
+            .is_some_and(|i| !self.backup_flows[i].made)
+    }
+
     // ---- Make a new wallet and Restore: the vaults, before the keys ----
 
     /// The shape a wallet to be made has before its keys exist: a seed

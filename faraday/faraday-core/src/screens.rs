@@ -3295,11 +3295,14 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Style::Secondary,
         Action::QrWallet(app.wallet),
     ));
-    items.push((
-        EN.wallets_back_up,
-        Style::Secondary,
-        Action::Backup(app.wallet),
-    ));
+    // A backup left part way is offered as such (`docs/NEW-WALLET.md`
+    // §12.3).
+    let back_up = if app.wallet_backup_unfinished(app.wallet) {
+        EN.backup_flow_continue
+    } else {
+        EN.wallets_back_up
+    };
+    items.push((back_up, Style::Secondary, Action::Backup(app.wallet)));
     if new_from {
         items.push((
             EN.wallets_new_wallet_from,
@@ -8957,13 +8960,28 @@ fn restore_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f3
             }
         }
         _ => {
+            // Restore ends on a choice, none of them the one to take
+            // (`docs/NEW-WALLET.md` §12.3).
             if let Some(i) = r.wallet.filter(|_| r.done[rstep::SEEDS as usize]) {
                 let (spend, spend_action) = app.spend_button(i);
-                let items = [
-                    (EN.restore_back_up_this, Style::Primary, Action::Backup(i)),
+                let mut items = vec![
                     (spend.as_str(), Style::Secondary, spend_action),
-                    (EN.restore_wallets, Style::Ghost, Action::OpenWallet(i)),
+                    (EN.restore_back_up_this, Style::Secondary, Action::Backup(i)),
                 ];
+                let from = app
+                    .session
+                    .wallets
+                    .get(i)
+                    .and_then(|wl| crate::create::NewKind::of(wl.policy()))
+                    .is_some_and(|k| !k.threshold());
+                if from {
+                    items.push((
+                        EN.restore_another_wallet,
+                        Style::Secondary,
+                        Action::NewWalletFrom(i),
+                    ));
+                }
+                items.push((EN.restore_wallets, Style::Secondary, Action::OpenWallet(i)));
                 cy += wrap_buttons(ui, x, cy, w, 40.0, &items) + 4.0;
             }
         }
