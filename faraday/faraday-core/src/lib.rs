@@ -3769,11 +3769,18 @@ impl Faraday {
 
     /// Delivers what the shell knows about storage.
     pub fn storage(&mut self, event: StorageEvent) {
+        let screen = self.screen;
         self.storage_event(event);
         self.backup_settle();
-        // A device still waiting comes back up once no other sheet is.
-        self.input_sheet();
-        self.device_sheet();
+        if self.screen != screen {
+            // A stick that takes the person to another screen leaves
+            // this one as a press would.
+            self.after_input();
+        } else {
+            // A device still waiting comes back up once no other sheet is.
+            self.input_sheet();
+            self.device_sheet();
+        }
     }
 
     fn storage_event(&mut self, event: StorageEvent) {
@@ -11081,8 +11088,6 @@ impl Faraday {
             return;
         }
         if self.keygen_key(key) {
-            self.keygen_camera();
-            self.keygen_device();
             return;
         }
         if self.create_pass_key(key) {
@@ -11705,8 +11710,6 @@ impl Faraday {
                     }
                     self.last_tap = Some((a, self.now_ms));
                     self.act(a);
-                    self.keygen_camera();
-                    self.keygen_device();
                     if field_action(a) {
                         self.field_press(a, x, x, false);
                     }
@@ -12063,6 +12066,17 @@ impl Faraday {
         self.note_secrets();
         self.act(action);
         self.backup_settle();
+        self.after_input();
+        self.dirty = true;
+        self.commands.push_back(Command::Draw);
+    }
+
+    /// What every press does once it has acted, however it came (a tap,
+    /// a key, the mouse's back button, a scripted press): a screen left
+    /// drops what it held, a detour not taken ends, a spent round goes
+    /// from its vault, and a sheet waiting comes up. Lookups, unless
+    /// something is dropped.
+    fn after_input(&mut self) {
         // A vault being made or unlocked for another flow: the way back
         // ends when the person leaves for anything else, and a secret
         // kept for it goes, wiped. While on the way, the flow keeps what
@@ -12128,8 +12142,6 @@ impl Faraday {
         // A device still waiting comes back up once no other sheet is.
         self.input_sheet();
         self.device_sheet();
-        self.dirty = true;
-        self.commands.push_back(Command::Draw);
     }
 
     /// Whether the last frame drawn offers `action` to a press: for
@@ -12532,6 +12544,7 @@ impl App for Faraday {
         }
         if settle {
             self.backup_settle();
+            self.after_input();
         }
         self.dirty = true;
         self.commands.push_back(Command::Draw);

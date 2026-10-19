@@ -264,3 +264,85 @@ fn a_lock_leaves_no_secret_file_from_a_stick_in_the_inbox() {
         "the words and the text are wiped with the session; the public wallet and the sealed vault stay"
     );
 }
+
+/// A press where the last frame drew `action`, as a finger makes it.
+fn tap(app: &mut Faraday, action: Action) {
+    use osk_shell_api::TouchPhase;
+    let _ = app.frame();
+    let (x, y) = app
+        .where_offered(action)
+        .unwrap_or_else(|| panic!("{action:?} is not on screen"));
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    let _ = app.frame();
+}
+
+#[test]
+fn a_round_signed_with_by_taps_leaves_the_vault_and_cannot_sign_again() {
+    let mut a = device(vec![
+        kit_file("threshold-wallet.txt"),
+        kit_file("threshold-unsigned.psbt"),
+        kit_file("vault.ofv"),
+    ]);
+    unlock(&mut a);
+    first_share(&mut a);
+    a.press(Action::SecretVault);
+    a.press(Action::Lock);
+    let out: Vec<(String, Vec<u8>)> = a
+        .outbox
+        .iter()
+        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .collect();
+
+    // Device B signs the second share with the vault's round, every step
+    // a tap.
+    let mut inbox = vec![kit_file("threshold-wallet.txt")];
+    inbox.extend(out);
+    let mut b = device(inbox);
+    // Tall enough that Sign here is in view.
+    b.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 2400,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    unlock(&mut b);
+    add_key(&mut b, 1);
+    let w = find(&b, "threshold-wallet.txt");
+    b.press(Action::LoadWallet(w));
+    let p = find(&b, "threshold-part.psbt");
+    b.press(Action::StartSpend(p));
+    assert!(
+        b.spend.as_ref().unwrap().carry.is_some(),
+        "the vault's round"
+    );
+    for n in [1u8, 2, 3, 4] {
+        b.press(Action::StepNext(n));
+    }
+    // The signing itself, a tap on Sign here.
+    tap(&mut b, Action::SignHere);
+    let s = b.spend.as_ref().unwrap();
+    assert!(s.complete, "{:?}", s.error);
+    let v = &b.vaults.open[0];
+    assert!(
+        v.contents
+            .of(faraday_vault::records::kind::ROUND)
+            .next()
+            .is_none(),
+        "the round used leaves the vault"
+    );
+    // The same transaction started again finds no round to sign with.
+    tap(&mut b, Action::Nav(Screen::Start));
+    b.press(Action::StartSpend(p));
+    assert!(
+        b.spend.as_ref().unwrap().carry.is_none(),
+        "a round signed with is never offered again"
+    );
+}

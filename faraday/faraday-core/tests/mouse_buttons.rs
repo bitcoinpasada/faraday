@@ -1,7 +1,8 @@
 //! The mouse's back and forward buttons (`docs/NEW-WALLET.md` §13.1):
 //! back does what the screen's back link does, or Escape where there is
 //! none; forward opens again the screen back left, as it was left, until
-//! something else is opened.
+//! something else is opened. A screen that keeps nothing when it is left
+//! (New key) has nothing for forward to open.
 
 use faraday_core::{Action, Faraday, Screen, Sheet, testkit};
 use osk_shell_api::{App, Event};
@@ -23,6 +24,25 @@ fn button(app: &mut Faraday, e: Event) {
 
 #[test]
 fn back_goes_where_the_back_link_goes_and_forward_comes_back_as_it_was() {
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    assert_eq!(app.screen, Screen::Create);
+    app.press(Action::CKind(1));
+    let kind = app.create.as_ref().unwrap().kind;
+    let _ = app.frame();
+    button(&mut app, Event::Back);
+    assert_ne!(app.screen, Screen::Create);
+    button(&mut app, Event::Forward);
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(
+        app.create.as_ref().unwrap().kind,
+        kind,
+        "kept as it was left"
+    );
+}
+
+#[test]
+fn new_key_left_by_back_keeps_nothing_for_forward_to_open() {
     let mut app = new_key();
     app.press(Action::KWords(24));
     let _ = app.frame();
@@ -32,13 +52,9 @@ fn back_goes_where_the_back_link_goes_and_forward_comes_back_as_it_was() {
         Screen::Entry,
         "New key's back link is Add a key"
     );
+    assert!(app.keygen.is_none(), "New key keeps nothing when left");
     button(&mut app, Event::Forward);
-    assert_eq!(app.screen, Screen::KeyGen);
-    assert_eq!(
-        app.keygen.as_ref().unwrap().words,
-        24,
-        "kept as it was left"
-    );
+    assert_eq!(app.screen, Screen::Entry);
 }
 
 #[test]
