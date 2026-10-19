@@ -72,7 +72,9 @@
 //! kept in the test vault and a new vault at three places: Where, the
 //! first stick with the vault choice, the place confirmed, two empty sticks
 //! read alike and the hold, Vaults, Make, the Lock card, each stick
-//! written and Done.
+//! written and Done; with `vaultshow`, the test vault's key with its
+//! SeedQR held (`docs/BACKUP-FLOW.md` §19.7), its Save to a stick, and a
+//! wallet's Save to a stick.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -700,6 +702,7 @@ fn run(
         Some("pills") => return pills_tour(&mut t),
         Some("walletflow") => return wallet_flow_tour(&mut t),
         Some("demo") => return demo_tour(&mut t),
+        Some("vaultshow") => return vault_show_tour(&mut t),
         _ => {}
     }
     if medium == Medium::Stick {
@@ -4938,6 +4941,71 @@ fn apk_only_tour(t: &mut Tour) -> Result<(), String> {
     apk_tour(t)
 }
 
+/// The test vault's key and wallet shown and saved (`docs/BACKUP-FLOW.md`
+/// §19.7): the key with its SeedQR held, its Save to a stick, and the
+/// Spending wallet's Save to a stick.
+fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
+    use osk_shell_api::TouchPhase;
+    let vault = testkit::files()?
+        .into_iter()
+        .find(|(n, _)| n == "vault.ofv")
+        .ok_or("no test vault")?;
+    t.app.storage(StorageEvent::Restored {
+        inbox: vec![vault],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.vaults.ms_per_unit = Some(180);
+    t.press(Action::Nav(Screen::Vaults));
+    t.press(Action::Vault(V::Open(0)));
+    type_text(t, testkit::VAULT_PASSPHRASES[0]);
+    t.press(Action::Vault(V::Unlock));
+    t.tick();
+    t.press(Action::Nav(Screen::VaultContents));
+    t.press(Action::Vault(V::Category(0)));
+    t.press(Action::Vault(V::Item(0)));
+    let show = Action::Vault(V::ShowSeedQr);
+    let _ = t.app.frame();
+    let (x, y) = t
+        .app
+        .where_offered(show)
+        .ok_or("Show SeedQR is not on screen")?;
+    t.app.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Down,
+    });
+    t.shot("vault-key-seedqr")?;
+    t.app.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Up,
+    });
+    t.press(Action::Vault(V::SaveToStick));
+    t.shot("vault-key-save")?;
+    t.press(Action::Cancel);
+    t.press(Action::Vault(V::Category(1)));
+    let k = t.app.vaults.open[0]
+        .contents
+        .records
+        .iter()
+        .filter(|r| {
+            [
+                faraday_vault::records::kind::WALLET,
+                faraday_vault::records::kind::WALLET_SHARE,
+            ]
+            .contains(&r.kind)
+        })
+        .position(|r| r.text(faraday_vault::records::field::WALLET_NAME) == Some("Spending"))
+        .ok_or("no Spending in the test vault")?;
+    t.press(Action::Vault(V::Item(k)));
+    t.press(Action::Vault(V::SaveToStick));
+    t.shot("vault-wallet-save")
+}
+
 /// A flow standing on Make over the vault open now, as a person has it after
 /// the sticks and the vaults: the tours that are not about the flow start
 /// from here.
@@ -5400,11 +5468,12 @@ fn main() -> ExitCode {
             "pills",
             "walletflow",
             "demo",
+            "vaultshow",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow or demo"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo or vaultshow"
         );
         return ExitCode::from(2);
     }

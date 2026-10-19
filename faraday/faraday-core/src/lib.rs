@@ -73,6 +73,7 @@ pub mod transfer;
 pub mod ui;
 pub mod upgrade;
 pub mod vanity;
+pub mod vault_out;
 pub mod vaults;
 pub mod visit_taken;
 pub mod wallet;
@@ -1641,6 +1642,9 @@ pub enum Sheet {
     /// named with what it can do, and before a secret the reminders
     /// (`devices`).
     Devices,
+    /// A vault record's Save to a stick: its files, to tick, and Save
+    /// (`docs/BACKUP-FLOW.md` §19.7).
+    VaultSave,
 }
 
 /// What a scan pass saw of a code ([`StorageEvent::QrSeen`]).
@@ -5425,6 +5429,7 @@ impl Faraday {
             Action::DevicesUnderstood => self.device_understood(),
             Action::Cancel => {
                 self.pull = None;
+                self.vaults.stick_save = None;
                 self.devices.after = None;
                 self.devices.over_import = false;
                 // A seed read and not loaded is wiped.
@@ -11320,6 +11325,7 @@ impl Faraday {
                 }
                 self.pressed = found;
                 self.vaults.pressed_at = self.now_ms;
+                self.vault_seedqr_press(found.map(|f| f.0));
                 // A press on a chip of the backup board may be its drag:
                 // the page does not scroll under it (§19.2).
                 if self.board_down(found.map(|f| f.0), x, y) {
@@ -11416,6 +11422,7 @@ impl Faraday {
                     return;
                 }
                 let pressed = self.pressed.take();
+                self.vaults.seedqr = None;
                 // A hold acts on the tick that completes it, never on release.
                 if let (Some((a, _)), Some((b, _))) = (pressed, found)
                     && a == b

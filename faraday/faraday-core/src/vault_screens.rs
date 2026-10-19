@@ -238,6 +238,53 @@ fn secret_with(
     bh
 }
 
+/// Show SeedQR: the selected key's SeedQR shown only while held, behind
+/// the same hold as its words. The code is the one the press made
+/// ([`Faraday::vault_seedqr_press`]); drawing makes none. Returns the
+/// height.
+fn seedqr_box(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let action = va(V::ShowSeedQr);
+    let held = ui.is_pressed(action);
+    let code = app
+        .vaults
+        .seedqr
+        .as_ref()
+        .filter(|(at, _)| held && Some(*at) == app.vault_selected_index())
+        .map(|(_, m)| m);
+    // The code's side, as a code is shown anywhere in the app, or the
+    // field's width where that is less.
+    let class = if ui.compact {
+        osk_ui::SizeClass::Small
+    } else {
+        osk_ui::SizeClass::Wide
+    };
+    let side = osk_ui::tokens::qr_side(class).min(w - 28.0);
+    let bh = if code.is_some() { side + 58.0 } else { 58.0 };
+    ui.fill(x, y, w, bh, 8.0, BG);
+    ui.stroke(
+        x,
+        y,
+        w,
+        bh,
+        8.0,
+        if held { WARN } else { WARN.with_alpha(110) },
+    );
+    match code {
+        Some(m) => crate::screens::qr_code(ui, m, x + 14.0, y + 10.0, side),
+        None => {
+            ui.text(x + 14.0, y + 10.0, 14.0, W::S, MUTED, FEN.vault_show_seedqr);
+        }
+    }
+    let hint = if held {
+        FEN.vault_release_to_hide
+    } else {
+        FEN.vault_hold_to_show
+    };
+    ui.text(x + 14.0, y + bh - 24.0, 11.0, W::R, WARN, hint);
+    ui.hit(x, y, w, bh, action);
+    bh
+}
+
 /// "Hold to delete from vault", filling while it is held.
 fn hold_delete(app: &Faraday, ui: &mut Ui, x: f32, y: f32) -> f32 {
     hold_button(
@@ -2252,16 +2299,13 @@ pub(crate) fn key_fingerprint(app: &Faraday, r: &Record) -> Option<String> {
     Some(fp)
 }
 
-fn words_text(r: &Record) -> Option<String> {
-    let m = records::words_of(r)?;
+fn words_text(m: &osk_bip::bip39::Mnemonic) -> String {
     let lang = m.language();
-    Some(
-        m.indices()
-            .iter()
-            .map(|i| lang.word(*i))
-            .collect::<Vec<_>>()
-            .join(" "),
-    )
+    m.indices()
+        .iter()
+        .map(|i| lang.word(*i))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -3325,8 +3369,15 @@ fn detail(
         kind::KEY => {
             let fp = key_fingerprint(app, r).unwrap_or_default();
             field_row(ui, &mut dy, FEN.vault_fingerprint, &fp, true);
-            if let Some(words) = words_text(r) {
-                hold_row(ui, &mut dy, FEN.vault_words, &words, true);
+            // Read from the record once for the frame.
+            let m = records::words_of(r);
+            if let Some(m) = &m {
+                hold_row(ui, &mut dy, FEN.vault_words, &words_text(m), true);
+                if m.language() == osk_bip::bip39::Language::English {
+                    ui.text(dx, dy, 12.0, W::R, MUTED, FEN.board_seedqr);
+                    dy += 20.0;
+                    dy += seedqr_box(app, ui, dx, dy, dw) + 14.0;
+                }
             }
             let loads = r
                 .field(field::KEY_FLAGS)
@@ -3367,7 +3418,7 @@ fn detail(
             );
             if !here {
                 actions.push((FEN.vault_load_into_session, va(V::Load)));
-                if records::words_of(r).is_some() && r.field(field::KEY_PASSPHRASE).is_none() {
+                if m.is_some() && r.field(field::KEY_PASSPHRASE).is_none() {
                     actions.push((FEN.vault_load_with_a_passphrase, va(V::LoadWithPassphrase)));
                 }
             }
@@ -3379,6 +3430,9 @@ fn detail(
                 },
                 va(V::ToggleLoad),
             ));
+            if m.is_some() {
+                actions.push((FEN.vault_save_to_a_stick, va(V::SaveToStick)));
+            }
         }
         kind::WALLET => {
             // The wallet's chart the other way up (`docs/NEW-WALLET.md`
@@ -3397,6 +3451,8 @@ fn detail(
             let text = r.text(field::WALLET).unwrap_or("");
             field_row(ui, &mut dy, FEN.vault_descriptor, text, true);
             actions.push((FEN.vault_open_in_wallets, va(V::Load)));
+            actions.push((FEN.vault_show_as_qr, va(V::WalletQr)));
+            actions.push((FEN.vault_save_to_a_stick, va(V::SaveToStick)));
         }
         kind::ENTRY => {
             if let Some(u) = r.text(field::USERNAME) {
@@ -3752,6 +3808,72 @@ fn backup_row(
         h += 6.0;
     }
     h
+}
+
+/// Save to a stick's popup (`docs/BACKUP-FLOW.md` §19.7): for a key,
+/// the line that says what the stick gives whoever finds it, first; then
+/// each form with its files' names, ticked or not; Save and Cancel.
+pub(crate) fn stick_save_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+    let Some(s) = app.vaults.stick_save.as_ref() else {
+        return;
+    };
+    let any = s.files.iter().any(|f| f.ticked);
+    let items: Vec<(&str, Style, Action)> = vec![
+        (
+            FEN.vault_save,
+            if any { Style::Primary } else { Style::Disabled },
+            va(V::SaveToStickGo),
+        ),
+        (FEN.vault_cancel, Style::Ghost, Action::Cancel),
+    ];
+    let body = |ui: &mut Ui, x: f32, y: f32, iw: f32| -> f32 {
+        let mut cy = y;
+        if s.seed {
+            cy += ui.wrap(x, cy, iw, 13.0, W::S, WARN, FEN.vault_anyone_who_finds) + 14.0;
+        }
+        for (k, f) in s.files.iter().enumerate() {
+            let top = cy;
+            ui.checkbox(x, cy + 11.0, f.ticked, true);
+            ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::S, TEXT, &f.label);
+            cy += 34.0;
+            for n in &f.names {
+                let n = ui.fit(12.0, W::M, n, iw - 30.0);
+                ui.text(x + 30.0, cy, 12.0, W::M, MUTED, &n);
+                cy += 18.0;
+            }
+            cy += 6.0;
+            ui.hit(x, top, iw, cy - top, va(V::SaveTick(k as u8)));
+            ui.rule(x, cy, iw, INNER);
+            cy += 6.0;
+        }
+        cy - y
+    };
+    let title = FEN.vault_save_to_a_stick;
+    if ui.compact {
+        crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
+            let mut cy = y;
+            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Drive, ACCENT, title);
+            cy += body(ui, x, cy, iw) + 8.0;
+            cy += crate::compact::buttons(ui, x, cy, iw, &items);
+            cy - y
+        });
+        return;
+    }
+    let sw = 560.0;
+    let (ix, iw) = (32.0, sw - 64.0);
+    // Measured first, out of sight, for the sheet's height.
+    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    let body_h = body(ui, 0.0, 0.0, iw);
+    let buttons_h = crate::screens::wrap_buttons(ui, 0.0, 0.0, iw, 44.0, &items);
+    ui.c.pop_clip();
+    let sh = 30.0 + 30.0 + 22.0 + body_h + 12.0 + buttons_h + 24.0;
+    let (x, y) = crate::screens::sheet_box(ui, w, h, sw, sh);
+    let x = x + ix;
+    ui.icon(x, y + 30.0, 30.0, Icon::Drive, 18.0, ACCENT);
+    ui.text_mid(x + 42.0, y + 30.0, 30.0, 20.0, W::S, TEXT, title);
+    let mut cy = y + 82.0;
+    cy += body(ui, x, cy, iw) + 12.0;
+    crate::screens::wrap_buttons(ui, x, cy, iw, 44.0, &items);
 }
 
 /// The session's keys or wallets that are not yet in this vault, each

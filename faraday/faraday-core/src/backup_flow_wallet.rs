@@ -723,16 +723,7 @@ impl Faraday {
                     return None;
                 }
                 let m = Mnemonic::parse(key.language, key.words.as_deref()?).ok()?;
-                let mx = osk_codec::seedqr::encode_seedqr(&m).ok()?;
-                let fps = fp_text(key.fingerprint());
-                let title = fill(EN.secrets_seed, &[&fps]);
-                let lines = [fill(
-                    EN.secrets_words_secret,
-                    &[&m.word_count().to_string()],
-                )];
-                Some(zeroize::Zeroizing::new(crate::picture::labelled_png(
-                    &mx, &title, &lines,
-                )))
+                seedqr_png(&m, &fp_text(key.fingerprint()))
             }
             _ => None,
         }
@@ -2339,6 +2330,28 @@ pub(crate) fn sealed_marks(wf: &crate::backup_flow::WalletFlow, v: usize) -> Vec
     marks
 }
 
+/// Makes a SeedQR and draws it as a labelled picture: seed `m`'s code,
+/// titled with its fingerprint `fp`, for its `seedqr-{fp}.png` on a stick.
+/// `None` for words of another list than English, which SeedQR does not
+/// number.
+pub(crate) fn seedqr_png(
+    m: &osk_bip::bip39::Mnemonic,
+    fp: &str,
+) -> Option<zeroize::Zeroizing<Vec<u8>>> {
+    if m.language() != osk_bip::bip39::Language::English {
+        return None;
+    }
+    let mx = osk_codec::seedqr::encode_seedqr(m).ok()?;
+    let title = fill(EN.secrets_seed, &[fp]);
+    let lines = [fill(
+        EN.secrets_words_secret,
+        &[&m.word_count().to_string()],
+    )];
+    Some(zeroize::Zeroizing::new(crate::picture::labelled_png(
+        &mx, &title, &lines,
+    )))
+}
+
 /// The name seed form `what` of the seed with fingerprint `fp` is written
 /// as on a stick (`docs/BACKUP-FLOW.md` §19.12 item 6): `seed-{fp}.txt`,
 /// `seedqr-{fp}.png`, `passphrase-{fp}.txt`, the fingerprint in lower case.
@@ -2381,7 +2394,7 @@ fn pictures_expect(names: &[String], text: &str) -> Vec<(String, crate::backup_f
 /// The software's own files of `stem`, by the numbers
 /// [`Faraday::backup_public_for`] gives them: the descriptor where the
 /// software reads no file of its own.
-fn software_files(stem: &str, what: &[u8]) -> Vec<String> {
+pub(crate) fn software_files(stem: &str, what: &[u8]) -> Vec<String> {
     what.iter()
         .map(|x| match x {
             2 => format!("{stem}-multisig-config.txt"),

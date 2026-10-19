@@ -350,6 +350,17 @@ pub enum VaultAction {
     /// On a small panel, back from an item, or what was being added or
     /// made, to the vault's list.
     ItemBack,
+    /// Held to show the selected key's SeedQR (`docs/BACKUP-FLOW.md`
+    /// §19.7); does nothing when released.
+    ShowSeedQr,
+    /// The selected wallet's descriptor as the Wallets page shows it.
+    WalletQr,
+    /// Save to a stick: the popup of the selected key's or wallet's files.
+    SaveToStick,
+    /// Tick or untick the popup's file n.
+    SaveTick(u8),
+    /// The ticked files to the Outbox, for the stick.
+    SaveToStickGo,
 }
 
 /// Whether an action acts when held long enough rather than on release.
@@ -722,6 +733,11 @@ pub struct Vaults {
     /// deriving one takes 2048 rounds. In memory only.
     pub fingerprints: std::cell::RefCell<Vec<([u8; 32], String)>>,
     draws: u64,
+    /// The selected key's SeedQR while Show SeedQR is held, by record
+    /// index: made at the press, dropped at the lift.
+    pub(crate) seedqr: Option<(usize, osk_codec::qr::QrMatrix)>,
+    /// Save to a stick's popup, while it is open.
+    pub stick_save: Option<crate::vault_out::StickSave>,
 }
 
 /// Memory in MiB as a person reads it.
@@ -1581,7 +1597,20 @@ impl Faraday {
                 self.vaults.apk.leave();
                 self.vaults.focus = None;
             }
-            V::Reveal(_) => {}
+            V::Reveal(_) | V::ShowSeedQr => {}
+            V::WalletQr => self.vault_wallet_qr(),
+            V::SaveToStick => self.vault_stick_save_open(),
+            V::SaveTick(k) => {
+                if let Some(f) = self
+                    .vaults
+                    .stick_save
+                    .as_mut()
+                    .and_then(|s| s.files.get_mut(usize::from(k)))
+                {
+                    f.ticked = !f.ticked;
+                }
+            }
+            V::SaveToStickGo => self.vault_stick_save_write(),
             V::HoldDelete => self.vault_delete(),
             V::ToggleLoad => {
                 if let Some(at) = self.vault_selected_index()

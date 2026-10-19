@@ -8,6 +8,14 @@
 pub struct Strings {
     /// Power-off sheet's first line on a PC stick that started with Secure Boot off or unread.
     pub power_secure_boot_off: &'static str,
+    // ----- A vault's key and wallet, shown and saved (docs/BACKUP-FLOW.md §19.7), faraday-core -----
+    /// A key record's SeedQR, shown only while held.
+    pub vault_show_seedqr: &'static str,
+    /// A vault record's button and the popup's title: its files to the
+    /// Outbox, for the stick.
+    pub vault_save_to_a_stick: &'static str,
+    /// The popup's line for a key record's files, before anything is made.
+    pub vault_anyone_who_finds: &'static str,
     // ----- The stick's device check (docs/STARTER.md §3.1a), faraday-core -----
     /// Title of the sheet that names what is attached.
     pub devices_title: &'static str,
@@ -8083,6 +8091,9 @@ pub struct Strings {
 /// The English wording.
 pub static EN: Strings = Strings {
     power_secure_boot_off: "Turn Secure Boot back on in the BIOS before starting Windows.",
+    vault_show_seedqr: "Show SeedQR",
+    vault_save_to_a_stick: "Save to a stick",
+    vault_anyone_who_finds: "Anyone who finds this stick has this seed",
     devices_title: "Attached to this computer",
     devices_kvm: "a KVM can show this screen and type on this computer from elsewhere",
     devices_receiver_notice: "Wireless receiver attached. A wireless keyboard's typing can be picked up nearby: use a wired keyboard or the on-screen keyboard.",

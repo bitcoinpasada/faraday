@@ -162,6 +162,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::Zeroing => crate::stick_wipe::zeroing_sheet(app, ui, w, h),
             Sheet::Taken => crate::visit_taken::taken_sheet(app, ui, w, h),
             Sheet::Devices => devices_sheet(app, ui, w, h),
+            Sheet::VaultSave => crate::vault_screens::stick_save_sheet(app, ui, w, h),
         }
         ui.oy = 0.0;
     }
