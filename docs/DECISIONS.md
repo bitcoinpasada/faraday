@@ -1715,3 +1715,19 @@ though its state was kept.
   opened from, with its name and open step; a press returns to it as
   it was left. The small Home leads with a tile for each.
 - The same for every flow: wallet, vault and tool flows alike.
+
+### F44 Add a key is the New key flow (2026-10-19)
+
+**Why.** Add a key offered only boxes for words held; New key in Create
+offered the length, the randomness and the rest. Two screens for one
+job had drifted apart.
+
+**Decision** (owner, 2026-10-19; `docs/NEW-WALLET.md` §15).
+
+- Add a key and New key are one flow, opening on **Start**: Make a new
+  key, Type the words, Scan a SeedQR, and Other forms (SLIP-39 made or
+  typed, codex32, Seed XOR).
+- A typed or scanned key takes a passphrase on its Key card; a new key
+  on its own still has none (decision 4).
+- The Entry screen stays for a key asked for by its fingerprint or a
+  wallet's missing key.

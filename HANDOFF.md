@@ -2821,6 +2821,12 @@ as possible before the next build.
     left; the small Home leads with a tile for each. Survey first which
     screens keep their state. Specified, not built.
 
+82. [ ] 2026-10-19, owner: **Add a key is the New key flow**
+    (`docs/NEW-WALLET.md` §15, F44; tracker #132). New key opens on a
+    Start card: Make a new key, Type the words, Scan a SeedQR, Other
+    forms; Add a key on the Wallets page and its Tools tile open it.
+    Specified, not built.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:

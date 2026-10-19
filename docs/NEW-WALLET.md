@@ -1372,3 +1372,122 @@ Now:
 Then the owner's walk: a single key from Wallets to Backup done, with
 dice by hand and a passphrase; a 2-of-3 with two keys made here and one
 cosigner later; the 3-of-5 slider; each wallet's card at a glance.
+
+## 15. Add a key is the New key flow (owner, 2026-10-19; tracker #132; F44)
+
+**Why.** Add a key opened straight on boxes for typing seed words, while
+New key inside Create a wallet offered the length, the source of
+randomness and the rest. The owner wants one flow with the same choices
+everywhere, typing words already held being one of them, built from one
+piece of code so the two cannot drift apart again.
+
+**Survey (2026-10-19).** Home has no Add a key (`docs/FLOWS.md`, Home; tests
+`home_does_not_offer_add_a_key_directly`, `homes_grid_offers_learn_and_not_add_a_key`):
+the owner's "from Home" is the Wallets page's **Add a key** (`screens.rs`
+`start` and `wallets`, `Action::Entry(None)`) and the Tools tile of that
+name (`catalog.rs`, `Go::AddKey(Form::Words)`). Both open the Entry
+screen (`EntryState`, `screens.rs` `entry`, `compact_screens::entry`):
+words first (decision 18), a word count, language chips, **Other forms**
+(SLIP-39, codex32, Seed XOR), a passphrase, a label, and **Make a new
+key**, which leaves for New key. New key (`Screen::KeyGen`, `keygen.rs`,
+`keygen_screen.rs`) is Length · Randomness · *entry* · Key (· Words ·
+Quiz on its own), with no way to type words held. A key typed in Entry
+is loaded by `add_mnemonic` with no `mark_made_here`; one made in New
+key by `add_words_with` and marked made here.
+
+### 15.1 The Start card
+
+New key gains a first card, **Start**, before Length:
+
+- **Make a new key** (ticked when the flow opens; Continue opens Length
+  as today);
+- **Type the words**;
+- **Scan a SeedQR**;
+- **Other forms**, a link under the three (closed by default, as
+  decision 18's is): **Make SLIP-39 shares** (`set_slip39`, the flow
+  the SLIP-39 Tools tile opens), **Type SLIP-39 shares**, **Type a
+  codex32 secret**, **Type Seed XOR parts**.
+
+Its summary when closed is the choice ("Make a new key", "Type the
+words" …), with **Change** until the key is locked in (§3.3).
+
+### 15.2 The paths
+
+| Start | Cards after Start |
+|---|---|
+| Make a new key | Length · Randomness · *entry* · Key · Words · Quiz (on its own, §3.1), or Length · Randomness · *entry* · Key (a Create slot) |
+| Make SLIP-39 shares | as §3.1's SLIP-39 row |
+| Type the words | **Words** · Key |
+| Scan a SeedQR | the scan sheet, then Key |
+| Type SLIP-39 shares / codex32 / Seed XOR | **Words** (that form) · Key |
+
+- **Words** (typed) is Entry's form drawn inside the flow by the same
+  code (`entry_form`, `compact_screens::entry`'s body): the word count,
+  the word boxes and keyboard, the language chips, the other forms'
+  fields. Its Continue opens Key once the words are complete and their
+  checksum holds; Entry's own messages for a word that is not in the
+  list or a checksum that fails stand.
+- **Scan a SeedQR** opens the scan sheet as Entry's button does; a code
+  read fills the words and opens Key; a code that is not a SeedQR is
+  refused there as today.
+- **Key**, for a typed or scanned key: the words (hidden behind **Show
+  words**), **Passphrase** and **Passphrase again** (the fields §3.3
+  draws, empty for none), the label field Entry has, and **Lock in**.
+  Lock in loads the key as Entry does today (`add_mnemonic`, the
+  `wanted` and duplicate rules, no `mark_made_here`, `seeds_took`), and
+  for a Create slot fills the slot as §3.3 does. After Lock in, the
+  card reads as §3.3's locked card, and Continue leaves the flow (no
+  Words or Quiz: the person has the words already).
+- A new key on its own still has no passphrase (decision 4); it takes
+  one when chosen for a wallet (§3.6).
+
+### 15.3 Where it opens
+
+- **Add a key** on the Wallets page and its Tools tile open New key on
+  Start. The Tools tiles for SLIP-39 shares, codex32 and Seed XOR open
+  it with that choice made and Start closed, on the next card.
+- **New key** (a Create slot, its Tools tile, the Seeds page) opens on
+  Start too, **Make a new key** ticked, so one more Continue reaches
+  Length (§2.1's two Continues become three). A threshold kind's slot
+  (shares only, `only_24`) offers **Make a new key** and **Type the
+  words** only.
+- The Entry screen stays for the paths that ask for one particular key:
+  a key wanted by its fingerprint (`Entry(Some(fp))`), a wallet's
+  missing key (`EntryWallet`), Restore's seed slots (`RSlotWords`),
+  words or a SeedQR scanned from Home, Family. Entry's **Make a new key**
+  is unchanged.
+- The page title is **Add a key** wherever it opens on Start; **New
+  key** where it opens with Make a new key from a Create slot.
+
+### 15.4 Where
+
+`keygen.rs` (`kstep` gains START before LENGTH, `KeyGen` gains the
+choice and the typed form's `EntryState`, `keygen_open`'s callers),
+`keygen_screen.rs`, `screens.rs` (`entry_form` callable from the flow,
+`start`, `wallets`), `catalog.rs` (`Go::AddKey`), `lib.rs` (`entry_add`
+split so Lock in and Entry's Add share the loading), the small panel's
+`flow::paged` list. Strings in `faraday-strings`.
+
+### 15.5 Tests
+
+`tests/keygen.rs`, `tests/home.rs`, `tests/forms.rs`, `tests/catalog.rs`:
+
+- Add a key from the Wallets page opens on Start, offering Make a new
+  key, Type the words, Scan a SeedQR and, under Other forms, the four
+  others; New key from a Create slot offers the same.
+- Make a new key from Add a key reaches Length, then each randomness
+  source Create's New key offers.
+- Type the words: twelve words typed, a passphrase, Lock in: the key
+  loaded has the fingerprint the words and passphrase give, as one
+  added on the Entry screen today, and is not marked made here.
+- Type the words for a Create slot fills the slot with that key.
+- A scanned SeedQR opens Key with its words.
+- The codex32 tile opens on the codex32 Words card.
+- A key wanted by fingerprint still opens the Entry screen.
+
+The tests that state decision 18 (`tests/forms.rs`, Add a key opens on
+the words form; `scan_a_key.rs` `add_a_key_leads_with_scan_a_seedqr`;
+`home.rs` `add_a_key_from_wallets_opens_add_a_key`) change to this rule.
+
+**Docs.** FLOWS decision 18 and its Add a key screen, DESIGN's Add a key menu
+(§4, which no longer matched the code), SIMPLIFY §2.4 marked replaced.

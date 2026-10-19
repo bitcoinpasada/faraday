@@ -183,7 +183,9 @@ to get it.
     `docs/SIMPLIFY.md` §2.2). Kind offers Single key and Multisig, both
     native SegWit; the other eight kinds are behind **More kinds**.
 18. **Add a key opens on words** (owner, 2026-10-10; `docs/SIMPLIFY.md`
-    §2.4). SLIP-39 shares, codex32 and Seed XOR are behind **Other
+    §2.4; replaced 2026-10-19 by F44, `docs/NEW-WALLET.md` §15: Add a
+    key is New key's flow, opening on Start, with Type the words one of
+    its choices). SLIP-39 shares, codex32 and Seed XOR are behind **Other
     forms**, unless a Tools tile for one of them opened the screen.
 19. **Sign a transaction reviews the transaction before Check** (owner,
     2026-10-10; `docs/SIMPLIFY.md` §2.5). The Transaction card comes
