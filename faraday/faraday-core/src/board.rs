@@ -1560,13 +1560,14 @@ impl Faraday {
                         fill(EN.board_view_no_balance, &[&k.to_string()]),
                     )
                 };
+                // Asked the plain way round: a Yes is the warning.
                 let no_spend = k <= reach.stranger_margin();
                 let no_see = k <= reach.balance_margin();
                 groups.push(CheckGroup {
                     head: None,
                     rows: vec![
-                        (spend, yes_no(no_spend), Some(no_spend)),
-                        (see, yes_no(no_see), Some(no_see)),
+                        (spend, yes_no(!no_spend), Some(no_spend)),
+                        (see, yes_no(!no_see), Some(no_see)),
                     ],
                 });
             }

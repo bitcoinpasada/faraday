@@ -2355,6 +2355,10 @@ Decided after seeing F2a's board; built in F2b. Where this differs from
 
 ## 20. Access layers (F38)
 
+(Wording, owner 2026-10-19: a vault is opened by its **passphrase**, as
+everywhere else in Faraday; "password" in earlier drafts of this
+section meant the same thing.)
+
 (owner, 2026-10-16. Specified, not built; after §19's F3.)
 
 A backup may serve more than one access layer. Each layer reaches the
@@ -2373,10 +2377,10 @@ list is one of:
 
 - a **place** of the plan ("Place 1", "Place 2" …): everything kept
   there;
-- a **vault's password** known to the layer;
+- a **vault's passphrase** known to the layer;
 - a **passphrase** known to the layer.
 
-Examples: "Access layer 1, route 1: Place 1, Vault 1's password";
+Examples: "Access layer 1, route 1: Place 1, Vault 1's passphrase";
 "Access layer 1, route 2: any 2 of Places 1, 2 and 3, on paper";
 "Access layer 2: any 3 of Places 1 to 5, on paper".
 
@@ -2397,7 +2401,7 @@ A route is "met" when, with only its list (any k of its places, and
 what the layer knows), the wallet can be rebuilt and spent: at least `m` of its seeds (each with its passphrase where it has
 one) and the description, whole or from enough shares (`check`, as the
 board counts today). A vault counts only for a layer that knows its
-password; a written vault password (§20.4) counts for any layer that
+passphrase; a written vault passphrase (§20.4) counts for any layer that
 has the place it is kept at. A layer is met when every one of its
 routes is.
 
@@ -2409,7 +2413,7 @@ places cannot spend. Faraday makes it as large as the wallet and the
 layers allow: with more seeds, a larger quorum or more places it can
 grow (a 3-of-5 leaves more room than a 2-of-3). A margin of at least 1
 (no one place alone spends) is required unless a layer's list is one
-place with no password, which makes that place alone spend; the board
+place with no passphrase, which makes that place alone spend; the board
 then warns.
 
 Second, as far as it does not lower the margin: the number of places a
@@ -2428,7 +2432,7 @@ large as it can be.
 2. Among the placements that meet every layer it keeps those with the
    largest stranger margin, then the largest margin for the balance,
    then the fewest things kept (copies, sticks, vaults, written
-   passwords), then the fewest secrets kept unsealed.
+   passphrases), then the fewest secrets kept unsealed.
 3. The board shows the result. The person may change anything on it;
    every change checks every layer again and the margin, as lines
    under the board (in the All view, §20.7): one per layer ("Access layer 3: Place 1,
@@ -2450,8 +2454,8 @@ both hold: Place 1 alone would spend"), and offers what would resolve
 it, each a press:
 
 - add a place to a layer's list, or a new place;
-- give a layer a vault's password, or write a vault's password on paper
-  at a place (a new thing on the board, **Vault n's password**, kept as
+- give a layer a vault's passphrase, or write a vault's passphrase on paper
+  at a place (a new thing on the board, **Vault n's passphrase**, kept as
   words on paper only, Secret);
 - add a vault;
 - for a wallet still being made, a larger quorum or more seeds (only
@@ -2463,7 +2467,7 @@ The map of which layer reaches what is sensitive: it is not printed and
 not written to any file. For each layer Faraday shows, on screen only, a
 template to copy out by hand: the places to go to, in order, and what
 to take from each; the secrets needed, by name only ("Vault 1's
-password"), never the secret; what to open and restore with. Leaving
+passphrase"), never the secret; what to open and restore with. Leaving
 the screen leaves nothing.
 
 ### 20.6 What it adds to the plan
@@ -2484,8 +2488,8 @@ chosen view's.
 | Chosen | The board | The checks under it |
 |---|---|---|
 | **All** | As it is, and on each place card small numbered marks for the layers whose list holds it ("1 2") | The plan's checks and warning lines, as §19.5 and §20.3 |
-| **Access layer n** | Its places drawn as they are, the other places dimmed; a vault whose password it knows drawn open, its contents readable; a vault it cannot open drawn shut, its contents hidden; the passphrases it knows marked | **Can spend**: yes or no. **Places it needs**: the fewest of its places that spend ("2 of its 3"). **Places it can lose**: how many of its places may be lost and it still spends. **Sees the balance**: yes or no |
-| **Stranger** | A stepper, how many places the stranger found (from 1); every set of that many places is tried, and the board shows the set that gives the most | **Cannot spend with any k places**: the stranger margin (§20.2). **Cannot see the balance with any k places**: its margin. Each a yes or no for the stepper's count |
+| **Access layer n** | Its places drawn as they are, the other places dimmed; a vault whose passphrase it knows drawn open, its contents readable; a vault it cannot open drawn shut, its contents hidden; the passphrases it knows marked | **Can spend**: yes or no. **Places it needs**: the fewest of its places that spend ("2 of its 3"). **Places it can lose**: how many of its places may be lost and it still spends. **Sees the balance**: yes or no |
+| **Stranger** | A stepper, how many places the stranger found (from 1); every set of that many places is tried, and the board shows the set that gives the most | **A stranger with any k places can spend**: from the stranger margin (§20.2). **A stranger with any k places sees the balance**: from its margin. Each a yes or no for the stepper's count, a yes the warning (owner, 2026-10-19) |
 
 Several layers are not shown at once: each layer's checks answer for
 that layer alone, and All's numbered marks show which layers reach each
@@ -2498,7 +2502,7 @@ place. The view is worked out once per frame through the drawing memo
 slow laptop. The search is not exhaustive in the literal sense: a 3-of-5
 with three layers has far more placements than can be tried. It is a
 branch and bound over the things to place (seeds, the description or
-its shares, vaults, written passwords), each assigned places and forms
+its shares, vaults, written passphrases), each assigned places and forms
 in turn, a branch dropped as soon as it cannot beat the best found on
 §20.3's order (a layer it cannot meet any more, or a margin already
 below the best). Places are interchangeable until named, so a placement
@@ -2533,16 +2537,16 @@ where drawing changes.
   once whatever the layers; `Answers::access_layers`, `everything`),
   `Answers`
   `layers` written as `layers n` and `route` lines in the plan's text,
-  `What::VaultPassword(v)` (`vpw0`, paper, Secret), a layer's name in
+  `What::VaultPassphrase(v)` (`vpw0`, paper, Secret), a layer's name in
   the plan record's field 6 (`docs/VAULT.md` §7) and kept when the plan
   is saved again; tests `faraday-core/tests/access_layers.rs`. A route
   counts only its places and what it knows: seeds on their own devices
   and the watch-only software count for no layer and no stranger. A
-  paper route counts only paper at its places (a written password
+  paper route counts only paper at its places (a written passphrase
   among it) and what the layer remembers; with no stick on paper, no
   vault opens on it.
 - **L2, Work it out** (§20.3, §20.4, this section's bound): the
-  Access layers card (layers, routes, any k of n, passwords
+  Access layers card (layers, routes, any k of n, passphrases
   remembered or written, + layer and ×), the search, the conflicts and
   what would resolve each, the warning lines under the board. Tests:
   every preset's result meets every layer with the margin hand-worked
@@ -2563,18 +2567,18 @@ where drawing changes.
     first edit or Work it out keeps it in the plan. L1's reading of an
     old plan as one layer able to spend with everything stays for the
     model (`Answers::access_layers`); the card and the lines show the
-    fresh layer instead. A route's vault password cycles Not known,
+    fresh layer instead. A route's vault passphrase cycles Not known,
     Remembered, Written down (`Route::written`, ` written <vaults>` in
     the plan's text); a written one is kept on paper at one of the
-    route's places, wherever the search finds best. Password rows are
+    route's places, wherever the search finds best. Passphrase rows are
     drawn off paper only.
   - **The search** places paper only at a place (a file on a stick
     spends as paper does for every route but a paper route and costs a
     stick); it does not place passphrases (a route counts those its
     layer remembers, and a seed with a passphrase no route remembers is
-    not placed). A vault whose password nobody writes down holds every
+    not placed). A vault whose passphrase nobody writes down holds every
     seed placed and the description (what a vault holds is not counted
-    as kept); one whose password is written down has what it holds
+    as kept); one whose passphrase is written down has what it holds
     searched too. A vault the plan made that no route needs goes; one
     set up before the keys stays, holding nothing. Places the routes
     treat alike, and seeds they treat alike, are interchangeable (double
@@ -2601,8 +2605,8 @@ where drawing changes.
     where that would do; otherwise no press); a route any one of whose
     places meets it with nothing the stranger lacks (resolved by a place
     added to the route, a new one when it has them all, and two of its
-    places needed; off paper by a vault's password known, or a vault
-    added for it; by a passphrase remembered). A written password never
+    places needed; off paper by a vault's passphrase known, or a vault
+    added for it; by a passphrase remembered). A written passphrase never
     resolves a route of one place: the stranger there reads it. Where
     Work it out finds a margin of 0 that none of these explains, it
     works the routes out for the other shapes of §20.12 item 2 (single
@@ -2634,10 +2638,10 @@ where drawing changes.
   - **What the kinds mean.** Each is "at least" at every place of the
     route: Work it out keeps that much there and may keep more where
     another route needs it. A vault at each place is a stick of one of
-    the route's vaults whose password it remembers (`passwords`) or has
+    the route's vaults whose passphrase it remembers (`passphrases`) or has
     written down (`written`); choosing one on the card takes a vault the
     route has, else Vault 1, else a new one. With a vault, what the
-    places lack the vault holds (as L2: a vault whose password is
+    places lack the vault holds (as L2: a vault whose passphrase is
     written nowhere holds every seed placed and the description, so
     §20.13 item 4's Layer 1 vault holds three seeds, not two). The
     description at a place is kept on paper whatever the seeds' form;
@@ -2661,11 +2665,11 @@ where drawing changes.
     more seeds at each place than the wallet has (as many as it has);
     no description and no vault (the whole, then a part); a part where
     `k` is 1 or the description does not split (the whole); a vault
-    and no password of that kind (a vault added); one place whose kinds
+    and no passphrase of that kind (a vault added); one place whose kinds
     give a stranger a quorum and the whole description, or a written
-    vault password with `k` 1, while some route asks for more than one
+    vault passphrase with `k` 1, while some route asks for more than one
     place (fewer seeds at each place, a part instead of the whole, a
-    passphrase remembered; or the password remembered). A route with a
+    passphrase remembered; or the passphrase remembered). A route with a
     conflict of the first five is left out of the search. Work it out
     with seeds too few or too many names the first shape of §20.12
     item 2 that has no kinds conflict and keeps every place from
@@ -2720,8 +2724,8 @@ where drawing changes.
     them do not; Sees the balance, every `k` of its places show it, as
     Can spend asks; Places it can lose "None" when no route spends even
     from all its places.
-  - **What a layer opens**: a vault whose password one of its routes
-    remembers, or whose password is written at one of its places, on any
+  - **What a layer opens**: a vault whose passphrase one of its routes
+    remembers, or whose passphrase is written at one of its places, on any
     of its routes (a paper route's, too: the layer knows it). Its places
     are those any of its routes holds; the passphrases known, those any
     route remembers, marked on their chips with the done glyph.
@@ -2729,7 +2733,7 @@ where drawing changes.
     gives the most: spending first, then the balance, then the seeds that
     sign, the description's keys held, the things found; ties go to the
     first set in order (Place 1 before Place 2). A vault is open to the
-    stranger only where its stick and its written password are both among
+    stranger only where its stick and its written passphrase are both among
     the places found. The checks are `k` ≤ the stranger margin and `k` ≤
     the balance margin.
   - **Names.** A press on a layer's pill chooses its view; a press on the
@@ -2790,7 +2794,7 @@ where drawing changes.
     route's places at first). Its places are "Place n". A route's
     passphrase row is **Remembers a passphrase**: for a single key with a
     passphrase it is that key's, for every other shape it counts for
-    nothing. A vault's password rows are those the plan names, at least
+    nothing. A vault's passphrase rows are those the plan names, at least
     one; a vault added for a route is the next number. No Work it out:
     the foot button is **Suggest a wallet**. Conflicts show only after a
     Suggest that found no shape: those of the shape with fewest (by
@@ -2854,7 +2858,7 @@ pills) come with L2 and L3.
 ### 20.9 Routes, thresholds and the paper route (owner, 2026-10-16)
 
 - **Routes.** A layer may reach the wallet more than one way: an
-  everyday route (a vault opened with its password, say) and a paper
+  everyday route (a vault opened with its passphrase, say) and a paper
   route for when a stick goes bad. Each route is checked on its own;
   the layer's checks (§20.7) are per route ("Access layer 1, route 2,
   paper: can spend").
@@ -2868,9 +2872,9 @@ pills) come with L2 and L3.
   bad, so Faraday offers every layer a route made of paper alone (a remembered passphrase may be part of
   it; no stick and no vault). It is optional: a layer without one is a
   warning line, "Access layer n has no paper route", never a refusal.
-- **A written vault password.** A route through a vault asks whether
-  its password is remembered or written down; written down, "Vault n's
-  password" is kept on paper at one of the route's places (§20.4).
+- **A written vault passphrase.** A route through a vault asks whether
+  its passphrase is remembered or written down; written down, "Vault n's
+  passphrase" is kept on paper at one of the route's places (§20.4).
 - **No balance-only layers.** A layer is for spending; there is no layer
   that only sees the balance.
 - **No passphrase is required.** A route of paper alone with nothing
@@ -2888,7 +2892,7 @@ not on the card (CLAUDE.md).
 1. **How many access layers?** One, two or three.
 2. For each layer:
    1. **How do they usually get in?** On paper only, or with a vault.
-   2. With a vault: **Will they remember its password, or should it be
+   2. With a vault: **Will they remember its passphrase, or should it be
       written down?**
    3. **How many places will they have, and how many must they
       reach?** "Any k of n", from the wallet's quorum by default.
@@ -2900,7 +2904,7 @@ not on the card (CLAUDE.md).
 
 Faraday then works the board out (§20.3) and shows the result in words
 first: a line per layer and route ("Access layer 1: usually Place 1
-with the password; on paper, any 2 of Places 1, 2 and 3"), the stranger
+with the passphrase; on paper, any 2 of Places 1, 2 and 3"), the stranger
 margin, and what it takes ("3 places, 2 sticks, 1 vault, 4 paper
 copies"). **Looks right** goes on to the places' names and The plan;
 **Change it on the board** opens the board. Conflicts are §20.4's lines,
@@ -2957,7 +2961,7 @@ Revises §20.9's paper route and §20.11's suggestion.
 3. **Every layer has a paper route, required.** Replaces §20.9's
    optional paper route and its warning: a placement is not offered
    unless every layer can spend from paper alone (with what it
-   remembers: a passphrase, a vault's password written on paper is
+   remembers: a passphrase, a vault's passphrase written on paper is
    paper). Where no shape allows it, that is a conflict (§20.4), with
    what would resolve it (a passphrase remembered, another place, a
    larger quorum).
@@ -3000,10 +3004,10 @@ location, and the board shows it to be changed by hand.
      - **Seeds**: how many (0, 1, 2 …), and in what form: words on
        paper, or a file on a stick;
      - **Wallet description**: none, part, or whole;
-     - **Vault**: none, or one, its password remembered or written
+     - **Vault**: none, or one, its passphrase remembered or written
        down (not on a paper route, where seeds and the description are
        on paper and a vault is none).
-   - **They remember**: a passphrase, a vault's password (as §20.1).
+   - **They remember**: a passphrase, a vault's passphrase (as §20.1).
    Left unset, a route's kinds are Faraday's to choose, as in L2.
 2. **Different kinds for one layer** are different routes: a layer that
    usually opens a vault at one location and also has a paper route over
@@ -3014,12 +3018,12 @@ location, and the board shows it to be changed by hand.
    quorum m, as distinct seeds across every k of them; the description
    whole at each location, or a part at each, any k parts enough; a
    vault holds what the route's locations need in it, and the route
-   knows or finds its password.
+   knows or finds its passphrase.
 4. **Faraday suggests the wallet** (Create, Plan the backup first): the
    shapes of §20.12 item 2 that every route's kinds allow, ranked as
    there; the person chooses one, then fills its keys as Create's Keys
    step does today (NEW-WALLET §2, §15, §16.1); Faraday adds no key of
-   its own. Example: Layer 1, 1 location, a vault, password remembered;
+   its own. Example: Layer 1, 1 location, a vault, passphrase remembered;
    Layer 2, paper, any 2 of 3 locations, 1 paper seed and part of the
    description each: a 2 of 3, the description in 3 parts any 2
    enough. The person makes or picks the three keys; then Work it out

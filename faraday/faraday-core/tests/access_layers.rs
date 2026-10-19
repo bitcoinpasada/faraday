@@ -1292,12 +1292,16 @@ fn the_stranger_view_tries_every_set_of_places_found_and_shows_the_worst() {
     let text = app.backup.as_ref().unwrap().answers.to_text();
     view(&mut app, View::Stranger);
     assert_eq!(
-        check(&mut app, "", "Cannot spend with any one place"),
-        "Yes"
+        check(&mut app, "", "A stranger with any one place can spend"),
+        "No"
     );
     assert_eq!(
-        check(&mut app, "", "Cannot see the balance with any one place"),
-        "Yes"
+        check(
+            &mut app,
+            "",
+            "A stranger with any one place sees the balance"
+        ),
+        "No"
     );
     let drawn = app.board_places_drawn();
     let lit: Vec<bool> = drawn.iter().map(|d| d.1).collect();
@@ -1307,10 +1311,17 @@ fn the_stranger_view_tries_every_set_of_places_found_and_shows_the_worst() {
     assert_eq!(drawn_with(&mut app, "Vault 1 · shut", "Whole"), Some(1));
 
     app.press(Action::Board(BP::FoundMore));
-    assert_eq!(check(&mut app, "", "Cannot spend with any 2 places"), "No");
     assert_eq!(
-        check(&mut app, "", "Cannot see the balance with any 2 places"),
-        "No"
+        check(&mut app, "", "A stranger with any 2 places can spend"),
+        "Yes"
+    );
+    assert_eq!(
+        check(
+            &mut app,
+            "",
+            "A stranger with any 2 places sees the balance"
+        ),
+        "Yes"
     );
     let lit: Vec<bool> = app.board_places_drawn().iter().map(|d| d.1).collect();
     assert_eq!(lit, vec![true, true, false]);
@@ -1318,11 +1329,17 @@ fn the_stranger_view_tries_every_set_of_places_found_and_shows_the_worst() {
     for _ in 0..3 {
         app.press(Action::Board(BP::FoundMore));
     }
-    assert!(has_drawn(&mut app, "Cannot spend with any 3 places"));
+    assert!(has_drawn(
+        &mut app,
+        "A stranger with any 3 places can spend"
+    ));
     for _ in 0..5 {
         app.press(Action::Board(BP::FoundFewer));
     }
-    assert!(has_drawn(&mut app, "Cannot spend with any one place"));
+    assert!(has_drawn(
+        &mut app,
+        "A stranger with any one place can spend"
+    ));
     assert_eq!(app.backup.as_ref().unwrap().answers.to_text(), text);
 }
 

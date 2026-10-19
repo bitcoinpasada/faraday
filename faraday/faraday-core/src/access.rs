@@ -40,7 +40,7 @@ pub struct Route {
     /// layer remembers; no stick, so no vault opens on it.
     pub paper: bool,
     /// The vaults whose passwords the layer has written down rather than
-    /// remembered (§20.9): Work it out keeps "Vault n's password" on paper
+    /// remembered (§20.9): Work it out keeps "Vault n's passphrase" on paper
     /// at one of the route's places. Not in [`Route::passwords`].
     pub written: Vec<usize>,
     /// What each of its places holds (§20.13 item 1); `None`, Work it out

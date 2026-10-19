@@ -3945,7 +3945,7 @@ pub struct Strings {
     pub plan_without_the_rest: &'static str,
     /// Text in `name_at`. `{}`: `v + 1`.
     pub plan_vault: &'static str,
-    /// A vault's password written on paper at a place
+    /// A vault's passphrase written on paper at a place
     /// (docs/BACKUP-FLOW.md §20.4). `{}`: `v + 1`.
     pub plan_vault_password: &'static str,
     /// An access layer with no name, or none known while no vault is open
@@ -8251,13 +8251,13 @@ pub struct Strings {
     pub layers_any: &'static str,
     /// A route's row: it spends from paper alone (§20.12 item 3).
     pub layers_paper: &'static str,
-    /// A route's row: a vault's password. `{}`: the vault's number.
+    /// A route's row: a vault's passphrase. `{}`: the vault's number.
     pub layers_password: &'static str,
-    /// A vault's password the route does not know.
+    /// A vault's passphrase the route does not know.
     pub layers_not_known: &'static str,
-    /// A vault's password the route remembers.
+    /// A vault's passphrase the route remembers.
     pub layers_remembered: &'static str,
-    /// A vault's password the route has written down (§20.9).
+    /// A vault's passphrase the route has written down (§20.9).
     pub layers_written: &'static str,
     /// A route's row: a seed's passphrase it remembers. `{}`: the seed.
     pub layers_remembers: &'static str,
@@ -8287,9 +8287,9 @@ pub struct Strings {
     pub layers_add_place: &'static str,
     /// A resolution: a new place, added to a layer's route. `{}`: the layer.
     pub layers_new_place: &'static str,
-    /// A resolution: a layer knows a vault's password. The layer, the vault's number.
+    /// A resolution: a layer knows a vault's passphrase. The layer, the vault's number.
     pub layers_knows: &'static str,
-    /// A resolution: a new vault whose password a layer knows. `{}`: the layer.
+    /// A resolution: a new vault whose passphrase a layer knows. `{}`: the layer.
     pub layers_add_vault: &'static str,
     /// A resolution: a paper route for a layer. `{}`: the layer.
     pub layers_give_paper: &'static str,
@@ -8325,7 +8325,7 @@ pub struct Strings {
     pub layers_kinds_no_description: &'static str,
     /// A conflict: parts at a route's places cannot be the whole description. The route, its k.
     pub layers_kinds_part_alone: &'static str,
-    /// A conflict: a vault at each place and no vault's password for the route. The route.
+    /// A conflict: a vault at each place and no vault's passphrase for the route. The route.
     pub layers_kinds_no_password: &'static str,
     /// A conflict: a stranger at one of a route's places could spend. The route.
     pub layers_kinds_stranger: &'static str,
@@ -8339,7 +8339,7 @@ pub struct Strings {
     pub layers_whole_each: &'static str,
     /// A resolution: a part of the wallet description at each place of a route. The route.
     pub layers_part_each: &'static str,
-    /// A resolution: a route's vault password remembered. The route.
+    /// A resolution: a route's vault passphrase remembered. The route.
     pub layers_vault_remembered: &'static str,
     /// The Access layers card in Create (BACKUP-FLOW §20.14): a route remembers a passphrase.
     pub layers_remembers_passphrase: &'static str,
@@ -10360,7 +10360,7 @@ pub static EN: Strings = Strings {
     plan_the_passphrase_of: "The passphrase of {} is kept only with {}",
     plan_without_the_rest: "Without {}, the rest do not rebuild the wallet",
     plan_vault: "Vault {}",
-    plan_vault_password: "Vault {}'s password",
+    plan_vault_password: "Vault {}'s passphrase",
     plan_access_layer: "Access layer {}",
     plan_the_of_files: "the {} of files",
     plan_the_software: "the software",
@@ -12426,7 +12426,7 @@ pub static EN: Strings = Strings {
     layers_route_paper: "Route {} · paper",
     layers_any: "Any of its {} places",
     layers_paper: "Paper route",
-    layers_password: "Vault {}'s password",
+    layers_password: "Vault {}'s passphrase",
     layers_not_known: "Not known",
     layers_remembered: "Remembered",
     layers_written: "Written down",
@@ -12444,7 +12444,7 @@ pub static EN: Strings = Strings {
     layers_m_of_n: "{} of {}",
     layers_add_place: "Add {} to {}",
     layers_new_place: "Add a new place to {}",
-    layers_knows: "{} knows Vault {}'s password",
+    layers_knows: "{} knows Vault {}'s passphrase",
     layers_add_vault: "Add a vault for {}",
     layers_give_paper: "Give {} a paper route",
     layers_remember: "{} remembers {}'s passphrase",
@@ -12463,14 +12463,14 @@ pub static EN: Strings = Strings {
     layers_kinds_too_many: "{}: {} seeds at each place; the wallet has {}",
     layers_kinds_no_description: "{}: its places hold no wallet description",
     layers_kinds_part_alone: "{}: parts of the wallet description at any {} of its places are not all of it",
-    layers_kinds_no_password: "{}: a vault at each place, and no vault's password for it",
+    layers_kinds_no_password: "{}: a vault at each place, and no vault's passphrase for it",
     layers_kinds_stranger: "{}: a stranger who finds one of its places can spend",
     layers_seeds_at_each: "{} seeds at each place of {}",
     layers_seed_at_each: "1 seed at each place of {}",
     layers_any_of: "Any {} places for {}",
     layers_whole_each: "The whole wallet description at each place of {}",
     layers_part_each: "A part of the wallet description at each place of {}",
-    layers_vault_remembered: "{} remembers its vault's password",
+    layers_vault_remembered: "{} remembers its vault's passphrase",
     layers_remembers_passphrase: "Remembers a passphrase",
     create_card_start: "Start",
     create_card_wallet: "Wallet",
@@ -12515,10 +12515,10 @@ pub static EN: Strings = Strings {
     board_view_sees: "Sees the balance",
     board_view_none: "None",
     board_view_route_paper: "{}, route {} · paper",
-    board_view_no_spend: "Cannot spend with any {} places",
-    board_view_no_spend_one: "Cannot spend with any one place",
-    board_view_no_balance: "Cannot see the balance with any {} places",
-    board_view_no_balance_one: "Cannot see the balance with any one place",
+    board_view_no_spend: "A stranger with any {} places can spend",
+    board_view_no_spend_one: "A stranger with any one place can spend",
+    board_view_no_balance: "A stranger with any {} places sees the balance",
+    board_view_no_balance_one: "A stranger with any one place sees the balance",
     board_vault_open: "{} · open",
     board_vault_shut: "{} · shut",
 };

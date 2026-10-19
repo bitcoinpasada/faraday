@@ -1637,7 +1637,7 @@ hand so that each layer can spend and no stranger can is hard.
 **Decision** (owner, 2026-10-16; the spec is `docs/BACKUP-FLOW.md` §20).
 
 - An access layer is a list of what it is able to spend with: places,
-  and the vault passwords and passphrases known to it.
+  and the vault passphrases and passphrases known to it.
 - The person sets the layers first; Faraday works out the board so that
   every layer can spend, making as large as it can the number of places
   a stranger who knows nothing can find and still not spend.
