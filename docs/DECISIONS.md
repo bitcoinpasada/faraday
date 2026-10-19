@@ -1849,3 +1849,32 @@ pointer still opened on the Microsoft account.
   type: there is nothing left to gate on it.
 - Supersedes F33's wording of *Where Windows keeps the key*; the
   pointer is still a pointer, not a flow.
+
+### F49 The Starter offers to suspend BitLocker and to print its recovery key (2026-10-19)
+
+**Why.** F33 took the BitLocker step out of the Starter on the ground
+that Windows started with Secure Boot back on asks for nothing. That
+holds in the common case only: BitLocker unseals its key from the TPM
+when the boot measurements (PCR 7 with Secure Boot on) match those it
+sealed to, and a firmware that resets its Secure Boot keys or databases
+when Secure Boot is turned off and on (Setup Mode, factory keys, a dbx
+update lost), BitLocker sealed to other PCRs, or Windows started while
+Secure Boot is still off, asks for the recovery key. Faraday never
+touches the internal drive; that does not prevent it.
+
+**Decision** (owner, 2026-10-19; `docs/STARTER.md` §6). Partly reverses
+F33 and F48's "it is not needed".
+
+- On Windows with BitLocker on the system drive, the Starter's Start
+  page offers, never requires: **Temporarily suspend BitLocker** (for
+  the next 3 restarts, after which Windows turns it back on by itself;
+  `manage-bde -protectors -disable C: -RebootCount 3` or WMI's
+  equivalent, elevated) and **Resume BitLocker** (turns it back on at
+  once); and **Print the recovery key**, a one-page PDF opened in the
+  system's viewer, as the write-down sheet is (F47). No QR code, no key
+  file, no key shown for a phone (F33's reason stands).
+- Neither is a step Faraday needs: the steps stay Secure Boot off,
+  start from the stick, Secure Boot back on.
+- The guides say plainly that Windows may ask for the recovery key
+  even with Secure Boot back on, and that suspending BitLocker first
+  avoids it.
