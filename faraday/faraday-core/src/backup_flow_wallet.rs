@@ -1842,15 +1842,6 @@ impl Faraday {
         }
     }
 
-    /// The vault part of the wallet's plan has a vault with no place for its
-    /// stick: the plan waits (`docs/NEW-WALLET.md` §14.2).
-    pub(crate) fn flow_wallet_stickless(&self, i: usize) -> bool {
-        self.backup_flows[i]
-            .wallet
-            .as_ref()
-            .is_some_and(|w| w.answers.stickless(&w.shape).is_some())
-    }
-
     /// A wallet's answer to a question of the plan, as Back up ticks it. A
     /// stick already written is not taken off the plan from here.
     pub(crate) fn flow_wallet_answer(&mut self, i: usize, list: u8, row: u8) {

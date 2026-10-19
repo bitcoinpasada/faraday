@@ -53,6 +53,10 @@ pub enum Zone {
     Vault(usize, usize, usize),
     /// Place `p`'s **+ stick** row: a new stick for what is dropped.
     NewStick(usize),
+    /// Empty stick `k` at place `p`, added by a press on **+ stick**: the
+    /// board's, not the plan's (`docs/BACKUP-FLOW.md` §19.16 item 1). A
+    /// drop on it is a drop on **+ stick**.
+    Empty(usize, usize),
     /// Place `p`'s card as a whole: where a vault's stick goes.
     Card(usize),
     /// The software place's **Scanned in**.
@@ -116,6 +120,9 @@ pub enum BoardPress {
     /// The × on a stick box's head: stick `s` at place `p` taken off with
     /// all it carries, its vault's stick and its files.
     RemoveStick(usize, usize),
+    /// The × on an empty stick at place `p`: one of its empty sticks
+    /// taken off (`docs/BACKUP-FLOW.md` §19.16 item 1).
+    RemoveEmpty(usize),
     /// **Add**, at the top of the narrow column: the list as a sheet
     /// (`docs/BACKUP-FLOW.md` §19.12 item 3).
     OpenList,
@@ -146,6 +153,10 @@ pub struct BoardState {
     pub drag: Option<(i32, i32)>,
     /// The vault whose × asked first, it holding something.
     pub removing: Option<usize>,
+    /// The empty sticks each place has, by place, added by a press on
+    /// **+ stick** (`docs/BACKUP-FLOW.md` §19.16 item 1): never on the
+    /// map, and gone when the board is left.
+    pub empty: Vec<usize>,
 }
 
 /// What kind of zone a zone is: what it keeps, and in what forms.
@@ -166,7 +177,7 @@ enum Kind {
 fn kind(z: Zone) -> Option<Kind> {
     match z {
         Zone::Paper(_) => Some(Kind::Paper),
-        Zone::Files(..) | Zone::NewStick(_) => Some(Kind::Files),
+        Zone::Files(..) | Zone::NewStick(_) | Zone::Empty(..) => Some(Kind::Files),
         Zone::Vault(..) => Some(Kind::Vault),
         Zone::Scanned => Some(Kind::Scanned),
         Zone::SoftStick => Some(Kind::Public),
@@ -256,7 +267,7 @@ fn at_of(m: &[Spot], z: Zone) -> Option<At> {
         Zone::Paper(p) | Zone::Card(p) => At::Place(p),
         Zone::Files(p, s) => At::Stick(p, s),
         Zone::Vault(_, _, v) => At::Vault(v),
-        Zone::NewStick(p) => At::Stick(p, plan::sticks_at(m, p)),
+        Zone::NewStick(p) | Zone::Empty(p, _) => At::Stick(p, plan::sticks_at(m, p)),
         Zone::Scanned => At::Software,
         Zone::SoftStick => At::Files,
         Zone::List => return None,
@@ -270,6 +281,7 @@ fn place_of(z: Zone) -> Option<usize> {
         | Zone::Files(p, _)
         | Zone::Vault(p, _, _)
         | Zone::NewStick(p)
+        | Zone::Empty(p, _)
         | Zone::Card(p) => Some(p),
         _ => None,
     }
@@ -277,10 +289,10 @@ fn place_of(z: Zone) -> Option<usize> {
 
 /// Where `t` dropped on `z` goes: a vault's chip anywhere on a place's
 /// card goes to the card (its first stick with no vault, or a new one),
-/// except on **+ stick**, which makes a stick for it.
+/// except on **+ stick** or an empty stick, which makes a stick for it.
 pub fn target(z: Zone, t: Thing) -> Zone {
     match (t, z) {
-        (Thing::Vault(_), Zone::NewStick(_)) => z,
+        (Thing::Vault(_), Zone::NewStick(_) | Zone::Empty(..)) => z,
         (Thing::Vault(_), z) => place_of(z).map_or(z, Zone::Card),
         _ => z,
     }
@@ -305,7 +317,7 @@ pub fn takes(shape: &Shape, z: Zone, t: Thing, locked: bool) -> bool {
     match (z, t) {
         (Zone::List, _) => false,
         (_, Thing::Software) => !locked,
-        (Zone::Card(_) | Zone::NewStick(_), Thing::Vault(_)) => true,
+        (Zone::Card(_) | Zone::NewStick(_) | Zone::Empty(..), Thing::Vault(_)) => true,
         (_, Thing::Vault(_)) | (Zone::Card(_), _) => false,
         (Zone::Vault(..), _) => true,
         _ if locked => false,
@@ -320,7 +332,7 @@ pub fn takes(shape: &Shape, z: Zone, t: Thing, locked: bool) -> bool {
 /// it is.
 fn added(m: Vec<Spot>, z: Zone, t: Thing) -> Vec<Spot> {
     match (t, z) {
-        (Thing::Vault(v), Zone::NewStick(p)) => {
+        (Thing::Vault(v), Zone::NewStick(p) | Zone::Empty(p, _)) => {
             let m = plan::with_vault(m, v);
             let at = At::Stick(p, plan::sticks_at(&m, p));
             plan::with_added(&m, at, What::VaultStick(v))
@@ -443,7 +455,7 @@ fn form_toggled(m: Vec<Spot>, z: Zone, t: Thing, k: usize) -> Vec<Spot> {
 /// with nothing to choose first).
 fn map_edit(a: &mut Answers, shape: &Shape, f: impl FnOnce(Vec<Spot>) -> Vec<Spot>) {
     a.ensure_map(shape);
-    let m = f(plan::map(shape, a));
+    let m = f(plan::stored_map(shape, a));
     a.split = shape.splits
         && m.iter().any(|s| {
             s.holds
@@ -473,6 +485,9 @@ pub(crate) struct ChipView {
     /// What an existing vault held before this backup: dimmed, read-only
     /// (§19.12 item 7).
     pub fixed: bool,
+    /// Drawn dim but still picked up: a vault kept at no place, out of
+    /// the plan (`docs/BACKUP-FLOW.md` §19.16 item 3).
+    pub faint: bool,
     /// Its × is drawn: it can be taken off here.
     pub off: bool,
 }
@@ -491,6 +506,8 @@ pub(crate) struct ZoneView {
 pub(crate) struct StickView {
     /// "Stick 1".
     pub label: String,
+    /// What its × does: the stick taken off, or an empty stick.
+    pub remove: BoardPress,
     /// The vault on it: its chip, and the vault's own zone.
     pub vault: Option<(ChipView, ZoneView)>,
     /// The vault's header band, "Vault 1 · sealed"; empty with no vault.
@@ -521,6 +538,8 @@ pub(crate) struct SoftView {
     pub title: String,
     /// What is scanned in.
     pub scanned: ZoneView,
+    /// Its stick's label, "Stick 1".
+    pub stick_label: String,
     /// Its stick of public files, when it has one.
     pub stick: Option<ZoneView>,
 }
@@ -536,6 +555,8 @@ pub(crate) struct Entry {
     pub count: String,
     /// It cannot be moved: a cosigner's seed.
     pub dim: bool,
+    /// Drawn dim but moved as any other: a vault kept at no place.
+    pub faint: bool,
     /// Under it: the keys a share carries, by fingerprint.
     pub keys: Vec<String>,
     /// For a vault: what it holds, said before it is taken off.
@@ -788,7 +809,10 @@ impl Faraday {
         let state = self.board_state()?;
         let locked = self.board_locked().is_some();
         let (shape, a) = self.board_plan()?;
-        let m = plan::map(&shape, &a);
+        // The map in full: a vault kept at no place is on the list
+        // (`docs/BACKUP-FLOW.md` §19.16 item 3).
+        let m = plan::stored_map(&shape, &a);
+        let kept = plan::kept_vaults(&m);
         let places = plan::places_of(&m).max(1);
         let software_name = software_name(&a);
         let seed_name = |i: usize| {
@@ -936,6 +960,7 @@ impl Faraday {
                 warn: p.is_some_and(|p| marked.contains(&(p, t))),
                 link: matches!(t, Thing::Vault(v) if vault_places(v) > 1),
                 fixed: false,
+                faint: false,
                 off: !(locked
                     && matches!(k, Some(Kind::Paper | Kind::Files | Kind::Public))
                     && !matches!(t, Thing::Vault(_))),
@@ -957,6 +982,20 @@ impl Faraday {
                 chips: ts.into_iter().map(|t| chip(z, t, &held, p)).collect(),
             }
         };
+        // Place names are typed while a vault is open, before the lock,
+        // where they are Back up's (§17.7).
+        let names_typed = !locked && !self.vaults.open.is_empty() && self.board_backup_names();
+        let naming = self
+            .backup
+            .as_ref()
+            .and_then(|b| b.naming)
+            .filter(|_| names_typed);
+        // "Stick n", or "SD card n" where the medium is an SD card
+        // (§19.17 item 4).
+        let stick_word = match self.medium {
+            crate::Medium::Stick => EN.board_stick,
+            crate::Medium::SdCard => EN.board_sd_card,
+        };
         let cards: Vec<CardView> = (0..places)
             .map(|p| {
                 let sticks = (0..plan::sticks_at(&m, p))
@@ -973,17 +1012,40 @@ impl Faraday {
                             fill(EN.board_sealed, &[&head.name])
                         });
                         StickView {
-                            label: fill(EN.board_stick, &[&(s + 1).to_string()]),
+                            label: fill(stick_word, &[&(s + 1).to_string()]),
+                            remove: BoardPress::RemoveStick(p, s),
                             vault,
                             sealed,
                             files: zone(Zone::Files(p, s), At::Stick(p, s), Some(p), true),
                         }
                     })
-                    .collect();
+                    .collect::<Vec<StickView>>();
+                // The board's empty sticks after the plan's, their numbers
+                // following on (§19.16 item 1).
+                let n = sticks.len();
+                let mut sticks = sticks;
+                for k in 0..state.empty.get(p).copied().unwrap_or(0) {
+                    sticks.push(StickView {
+                        label: fill(stick_word, &[&(n + k + 1).to_string()]),
+                        remove: BoardPress::RemoveEmpty(p),
+                        vault: None,
+                        sealed: String::new(),
+                        files: ZoneView {
+                            zone: Zone::Empty(p, k),
+                            chips: Vec::new(),
+                        },
+                    });
+                }
                 let alone = plan::alone(&shape, &a, At::Place(p));
+                // The name being typed is drawn as it is typed, the field's
+                // own text (§19.18).
+                let name = match self.backup.as_ref() {
+                    Some(b) if naming == Some(p) => b.names.get(p).cloned().unwrap_or_default(),
+                    _ => place_name(p),
+                };
                 CardView {
                     p,
-                    name: place_name(p),
+                    name,
                     sticks,
                     paper: zone(Zone::Paper(p), At::Place(p), Some(p), true),
                     alone: (alone.text().to_string(), alone.kind()),
@@ -995,6 +1057,7 @@ impl Faraday {
         let software = (has_software || has_files).then(|| SoftView {
             title: software_name.clone(),
             scanned: zone(Zone::Scanned, At::Software, None, false),
+            stick_label: fill(stick_word, &["1"]),
             stick: has_files.then(|| zone(Zone::SoftStick, At::Files, None, false)),
         });
         // How many places keep each thing: the numbered places, and the
@@ -1013,6 +1076,7 @@ impl Faraday {
             name: name_of(t),
             count: count_text(count(t)),
             dim: false,
+            faint: false,
             keys: Vec::new(),
             holds: None,
         };
@@ -1086,6 +1150,7 @@ impl Faraday {
                     });
                 Entry {
                     count: count_text(vault_places(v)),
+                    faint: !kept.contains(&v),
                     holds: (state.removing == Some(v) && !held.is_empty()).then(|| {
                         fill(
                             EN.board_vault_holds,
@@ -1096,14 +1161,6 @@ impl Faraday {
                 }
             })
             .collect();
-        // Place names are typed while a vault is open, before the lock,
-        // where they are Back up's (§17.7).
-        let names_typed = !locked && !self.vaults.open.is_empty() && self.board_backup_names();
-        let naming = self
-            .backup
-            .as_ref()
-            .and_then(|b| b.naming)
-            .filter(|_| names_typed);
         Some(BoardView {
             flow: match of {
                 BoardOf::Flow(i) => Some(i),
@@ -1196,7 +1253,7 @@ impl Faraday {
             .iter()
             .find(|(s, _)| *s == salt)
             .map_or_else(|| self.vault_tokens(o), |(_, t)| t.clone());
-        let held = plan::holds_at(&plan::map(shape, a), At::Vault(v));
+        let held = plan::holds_at(&plan::stored_map(shape, a), At::Vault(v));
         let seed_of = |fp: &str| {
             shape
                 .seeds
@@ -1261,6 +1318,7 @@ impl Faraday {
                 warn: false,
                 link: false,
                 fixed: true,
+                faint: false,
                 off: false,
             });
         }
@@ -1374,6 +1432,17 @@ impl Faraday {
                 set(self, Some(c), forms);
             }
             BoardPress::Zone(z) => {
+                // A press on + stick with nothing held adds an empty stick
+                // there, before and after the lock (§19.16 item 1).
+                if let (None, Zone::NewStick(p)) = (state.held, z) {
+                    if let Some(st) = self.board_state_mut() {
+                        if st.empty.len() <= p {
+                            st.empty.resize(p + 1, 0);
+                        }
+                        st.empty[p] += 1;
+                    }
+                    return;
+                }
                 let Some(c) = state.held else {
                     // After the lock a press on paper or a stick's files
                     // says why nothing there changes (§19.12 item 8).
@@ -1423,11 +1492,27 @@ impl Faraday {
                 }
                 let names = !locked && self.board_backup_names();
                 self.board_change(&|a, shape| a.remove_place(shape, p));
+                // Its empty sticks go with it; the places after move down
+                // with theirs (§19.16 item 1).
+                if self.board_plan().is_some_and(|(_, a)| a.places < places)
+                    && let Some(st) = self.board_state_mut()
+                    && p < st.empty.len()
+                {
+                    st.empty.remove(p);
+                }
                 if names
                     && self.board_plan().is_some_and(|(_, a)| a.places < places)
                     && let Some(b) = self.backup.as_mut()
                     && p < b.names.len()
                 {
+                    // A name left as its place's own ("Place 3", put in
+                    // the field by a press on it) is no name: the places
+                    // after are numbered anew.
+                    for (q, n) in b.names.iter_mut().enumerate() {
+                        if *n == fill(EN.place_name_place, &[&(q + 1).to_string()]) {
+                            n.clear();
+                        }
+                    }
                     b.names.remove(p);
                     b.naming = None;
                 }
@@ -1442,7 +1527,7 @@ impl Faraday {
                 // A vault that holds something asks first, with what it
                 // holds (§19.12 item 7).
                 let holds = self.board_plan().is_some_and(|(shape, a)| {
-                    !plan::holds_at(&plan::map(&shape, &a), At::Vault(v)).is_empty()
+                    !plan::holds_at(&plan::stored_map(&shape, &a), At::Vault(v)).is_empty()
                 });
                 if holds && state.removing != Some(v) {
                     set(self, None, false);
@@ -1463,7 +1548,7 @@ impl Faraday {
                 // After the lock files stay as made: a stick that carries
                 // any goes only once it carries a vault alone (§17.8).
                 let files = self.board_plan().is_some_and(|(shape, a)| {
-                    plan::holds_at(&plan::map(&shape, &a), At::Stick(p, s))
+                    plan::holds_at(&plan::stored_map(&shape, &a), At::Stick(p, s))
                         .iter()
                         .any(|w| !matches!(w, What::VaultStick(_)))
                 });
@@ -1475,6 +1560,12 @@ impl Faraday {
                         plan::edited(&m, plan::Edit::Clear(At::Stick(p, s)), &[])
                     })
                 });
+            }
+            BoardPress::RemoveEmpty(p) => {
+                set(self, None, false);
+                if let Some(n) = self.board_state_mut().and_then(|st| st.empty.get_mut(p)) {
+                    *n = n.saturating_sub(1);
+                }
             }
             BoardPress::RemoveSoftware => {
                 set(self, None, false);
@@ -1519,12 +1610,44 @@ impl Faraday {
             }
             return;
         }
+        let before = self
+            .board_plan()
+            .map(|(shape, a)| plan::stored_map(&shape, &a));
         match c {
             Chip::List(_) => {
                 self.board_change(&|a, shape| map_edit(a, shape, |m| added(m, to, t)));
             }
             Chip::Placed(from, _) => {
                 self.board_change(&|a, shape| map_edit(a, shape, |m| moved(m, from, t, to)));
+            }
+        }
+        // A drop on an empty stick makes it the place's next stick of the
+        // plan: one empty stick fewer there, the rest in their order
+        // (§19.16 item 1).
+        if let Zone::Empty(p, _) = to
+            && self
+                .board_plan()
+                .map(|(shape, a)| plan::stored_map(&shape, &a))
+                != before
+            && let Some(n) = self.board_state_mut().and_then(|st| st.empty.get_mut(p))
+        {
+            *n = n.saturating_sub(1);
+        }
+    }
+
+    /// The board's empty sticks go when it is left: its card closed or
+    /// another screen opened (`docs/BACKUP-FLOW.md` §19.16 item 1). They
+    /// hold nothing, so nothing is lost. Costs a lookup.
+    pub(crate) fn board_tidy(&mut self) {
+        let shown = self.board_shown().then(|| self.board_of()).flatten();
+        if shown != Some(BoardOf::Backup)
+            && let Some(b) = self.backup.as_mut()
+        {
+            b.board.empty.clear();
+        }
+        for (i, f) in self.backup_flows.iter_mut().enumerate() {
+            if shown != Some(BoardOf::Flow(i)) {
+                f.live.board.empty.clear();
             }
         }
     }

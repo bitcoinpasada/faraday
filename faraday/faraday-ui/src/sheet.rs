@@ -84,7 +84,7 @@ pub fn sheet_head<A: Copy + PartialEq>(
     x: f32,
     y: f32,
     w: f32,
-    icon: Icon,
+    icon: impl Into<crate::Glyph>,
     tone: osk_ui::Color,
     title: &str,
 ) -> f32 {

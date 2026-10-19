@@ -3696,6 +3696,10 @@ fn board_tour(t: &mut Tour) -> Result<(), String> {
     // the light.
     let p = vault_place(t, 0).ok_or("Vault 1's stick has no place")?;
     let s = vault_stick(t, p, 0).ok_or("no stick for Vault 1")?;
+    // The stick with Vault 1 and nothing beside it: its files box empty
+    // (§19.17).
+    scroll_to(t, Action::Board(B::Zone(Zone::Files(p, s))));
+    t.shot("board-vault-no-files")?;
     bput(t, Thing::Seed(1), Zone::Files(p, s));
     t.press(Action::Board(B::Chip(Chip::Placed(
         Zone::Files(p, s),
@@ -3713,6 +3717,14 @@ fn board_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("board-vault-and-files-light")?;
     // Back to the theme the tour is in.
     t.press(Action::Theme(was));
+    // + stick pressed with nothing held: an empty stick with its files
+    // box; **+ vault**: a vault at no place, dim on the list (§19.16).
+    t.press(Action::Board(B::Zone(Zone::NewStick(p))));
+    scroll_to(t, Action::Board(B::RemoveEmpty(p)));
+    t.shot("board-empty-stick")?;
+    t.press(Action::Board(B::RemoveEmpty(p)));
+    t.press(Action::Board(B::AddVault));
+    t.shot("board-vault-at-no-place")?;
     // The narrow column: Add opens the list as a sheet; a chip pressed
     // there closes it, the chip selected and the zones that take it
     // edged (§19.12 item 3).
@@ -3725,6 +3737,53 @@ fn board_tour(t: &mut Tour) -> Result<(), String> {
     }
     t.press(Action::BQ(qstep::PLAN));
     t.shot("board-the-plan")?;
+    // A place's name, typed with a vault open: just pressed, the whole of
+    // it selected; after one key, that key alone (§19.18).
+    open_a_vault(t, "board phrase")?;
+    t.press(Action::Backup(savings));
+    if t.app.backup.as_ref().and_then(|b| b.q) != Some(qstep::BOARD) {
+        t.press(Action::BQ(qstep::BOARD));
+    }
+    scroll_to(t, Action::BName(0));
+    t.press(Action::BName(0));
+    t.shot("board-name-pressed")?;
+    type_text(t, "K");
+    t.shot("board-name-one-key")?;
+    t.app.event(Event::Key(Key::Enter));
+    Ok(())
+}
+
+/// A vault made with `phrase` and unlocked, as a person makes one from
+/// Vaults.
+fn open_a_vault(t: &mut Tour, phrase: &str) -> Result<(), String> {
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.vaults.ms_per_unit = Some(180);
+    t.press(Action::Nav(Screen::Vaults));
+    t.press(Action::Vault(V::Create));
+    for second in [false, true] {
+        t.press(Action::Vault(V::CFocus(0, second)));
+        type_text(t, phrase);
+    }
+    t.press(Action::Vault(V::CGo));
+    for _ in 0..10 {
+        if t.app.screen == Screen::Unlock {
+            break;
+        }
+        t.tick();
+    }
+    type_text(t, phrase);
+    t.press(Action::Vault(V::Unlock));
+    for _ in 0..10 {
+        if !t.app.vaults.open.is_empty() {
+            break;
+        }
+        t.tick();
+    }
+    if t.app.vaults.open.is_empty() {
+        return Err("the vault made for the tour did not open".to_string());
+    }
     Ok(())
 }
 

@@ -6,6 +6,7 @@
 //! string builds "a {noun}" by hand.
 
 use crate::strings::EN;
+use crate::ui::Glyph;
 use osk_ui::widgets::Icon;
 
 /// The medium files move on.
@@ -174,11 +175,12 @@ impl Medium {
         }
     }
 
-    /// Its glyph.
-    pub const fn icon(self) -> Icon {
+    /// Its glyph: the USB stick, or the SD card (`docs/BACKUP-FLOW.md`
+    /// §19.17).
+    pub const fn icon(self) -> Glyph {
         match self {
-            Medium::Stick => Icon::Drive,
-            Medium::SdCard => Icon::SdCard,
+            Medium::Stick => Glyph::Stick,
+            Medium::SdCard => Glyph::Icon(Icon::SdCard),
         }
     }
 }

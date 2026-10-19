@@ -4836,6 +4836,8 @@ impl Faraday {
         self.act_inner(action);
         // A wallet's flow follows the plan and the keys the press left.
         self.wallet_flow_sync();
+        // A board left takes its empty sticks with it.
+        self.board_tidy();
     }
 
     fn act_inner(&mut self, action: Action) {
@@ -5587,16 +5589,35 @@ impl Faraday {
                 }
             }
             Action::Board(p) => self.board_act(p),
-            Action::BName(p) => {
+            Action::BName(p8) => {
                 let open = self.vaults.open.get(self.vaults.current).is_some();
+                let mut focused = false;
                 if let Some(b) = self.backup.as_mut()
                     && open
                 {
-                    let p = usize::from(p);
+                    let p = usize::from(p8);
                     if b.names.len() <= p {
                         b.names.resize(p + 1, String::new());
                     }
-                    b.naming = if b.naming == Some(p) { None } else { Some(p) };
+                    if b.naming == Some(p) {
+                        b.naming = None;
+                    } else {
+                        // The field holds the name shown, "Place 1" until
+                        // one is typed, so the press selects all of it
+                        // (`docs/BACKUP-FLOW.md` §19.18).
+                        if b.names[p].trim().is_empty() {
+                            b.names[p] = fill(EN.place_name_place, &[&(p + 1).to_string()]);
+                        }
+                        b.naming = Some(p);
+                        focused = true;
+                    }
+                }
+                if focused {
+                    self.edit = ui::Edit {
+                        field: Some(Action::BName(p8)),
+                        caret: None,
+                        anchor: Some(0),
+                    };
                 }
             }
             Action::BChecklist => {
@@ -5608,8 +5629,9 @@ impl Faraday {
                 if self.backup_locked_flow().is_some() {
                     return self.toast(EN.backup_flow_past_lock);
                 }
+                // A vault's stick at no place is a warning only
+                // (`docs/BACKUP-FLOW.md` §19.16 item 3).
                 if self.backup_kept_nowhere().is_some()
-                    || self.backup_stickless().is_some()
                     || self
                         .backup
                         .as_ref()

@@ -1361,13 +1361,13 @@ fn a_vault_that_holds_something_says_what_before_it_is_taken_off() {
     assert_eq!(plan::sticks_at(&m, 0), 0);
 }
 
-/// A vault that already holds something (made before this backup) shows
-/// what it held in its zone, dimmed, taking no press (§19.12 item 7).
-#[test]
-fn an_existing_vaults_contents_are_drawn_dimmed_and_take_no_press() {
+/// A 2-of-3 over three keys typed in here, made in Create with Vault 1
+/// set up before the keys: vault "Main" on S1, unlocked, holding another
+/// wallet's description (the spending kit, returned). Its backup open on
+/// the board.
+fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
     use faraday_vault::records::{field, kind};
-    let mut shell = Shell::new();
-    sticks(&mut shell, 1);
+    sticks(shell, 1);
     // Vault "Main" on S1, holding another wallet's description.
     let other = testkit::kits()
         .into_iter()
@@ -1432,6 +1432,15 @@ fn an_existing_vaults_contents_are_drawn_dimmed_and_take_no_press() {
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(0));
     open_board(&mut app);
+    (app, other)
+}
+
+/// A vault that already holds something (made before this backup) shows
+/// what it held in its zone, dimmed, taking no press (§19.12 item 7).
+#[test]
+fn an_existing_vaults_contents_are_drawn_dimmed_and_take_no_press() {
+    let mut shell = Shell::new();
+    let (mut app, other) = main_vault_board(&mut shell);
     if vault_stick(&app, 0, 0).is_none() {
         tap(&mut app, list(Thing::Vault(0)));
         // On **+ stick**: the card's middle is a chip of its paper.
@@ -1610,10 +1619,10 @@ fn a_narrow_window_places_by_tap_from_the_add_sheet_as_a_drag_does_on_wide() {
 
 /// What is sealed in a vault and what is only a file on its stick are
 /// told apart as a person reads them (`docs/BACKUP-FLOW.md` §19.14,
-/// §19.15): the stick box headed "Stick 1" holds the vault box headed
-/// "Vault 1 · sealed", with Seed A inside it, and under the vault box,
-/// outside it, Seed B's words file and SeedQR picture; Paper is outside
-/// the stick box, beside it.
+/// §19.15, §19.17): under the stick's head "Stick 1", the files box
+/// headed "Files · not sealed" with Seed B's words file and SeedQR
+/// picture in it, and under it, apart from it, the vault box headed
+/// "Vault 1 · sealed" with Seed A inside; Paper is beside them.
 #[test]
 fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes() {
     let mut app = three_on_an_empty_board();
@@ -1636,23 +1645,27 @@ fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes()
     };
     let _ = on_board(&mut app, BP::Zone(Zone::Vault(0, s, 0)));
     let boxed = |app: &Faraday, p: BP| app.hit_box(Action::Board(p)).unwrap();
-    let stick = boxed(&app, BP::Zone(Zone::Files(0, s)));
+    let files = boxed(&app, BP::Zone(Zone::Files(0, s)));
     let vault = boxed(&app, BP::Zone(Zone::Vault(0, s, 0)));
     let paper = boxed(&app, BP::Zone(Zone::Paper(0)));
     let sealed = boxed(&app, placed(Zone::Vault(0, s, 0), Thing::Seed(0)));
     let file = boxed(&app, placed(Zone::Files(0, s), Thing::Seed(1)));
-    assert!(inside(vault, stick), "the vault box is in the stick box");
+    assert!(
+        files.1 + files.3 <= vault.1,
+        "the files box is above the vault box, apart from it"
+    );
     assert!(inside(sealed, vault), "Seed A is inside the vault box");
     assert!(
-        inside(file, stick) && !inside(file, vault),
-        "Seed B's file is on the stick, outside the vault"
+        inside(file, files) && !inside(file, vault),
+        "Seed B's file is in the files box, outside the vault"
     );
     assert!(
-        paper.0 >= stick.0 + stick.2,
+        paper.0 >= files.0 + files.2 && paper.0 >= vault.0 + vault.2,
         "Paper is beside the stick box, outside it"
     );
-    // Each box has its head row: "Stick 1" above the vault box, "Vault 1"
-    // at the top of it; Seed B's chip reads its two file forms.
+    // Each box has its head row: "Stick 1" above the files box, its
+    // header at the top of it, "Vault 1" at the top of the vault box;
+    // Seed B's chip reads its two file forms.
     let texts = app.drawn_text_boxes();
     let at = |t: &str| {
         texts
@@ -1662,10 +1675,15 @@ fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes()
             .unwrap_or_else(|| panic!("{t:?} not drawn"))
     };
     let stick_head = at("Stick 1");
+    let files_head = at("Files · not sealed");
     let vault_head = at("Vault 1 · sealed");
     assert!(
-        stick_head.1 < i32::from(vault.1),
+        stick_head.1 < i32::from(files.1),
         "Stick 1 heads the stick box"
+    );
+    assert!(
+        files_head.1 >= i32::from(files.1) && files_head.1 < i32::from(file.1),
+        "Files · not sealed heads the files box"
     );
     assert!(
         vault_head.1 >= i32::from(vault.1) && vault_head.1 < i32::from(sealed.1),
@@ -1703,12 +1721,18 @@ fn on_wide_a_places_sticks_and_paper_stand_on_one_row_and_the_places_one_under_a
     let paper = boxed(&app, Zone::Paper(0));
     let paper_2 = boxed(&app, Zone::Paper(1));
     // Side by side, left to right, each starting where the one before it
-    // ends, on one row: the same top.
+    // ends, on one row: the sticks' files boxes at one height, under
+    // their heads, **+ stick** and Paper from the row's top.
     let row = [first, second, add, paper];
     for pair in row.windows(2) {
         assert!(pair[0].0 + pair[0].2 <= pair[1].0, "left to right: {row:?}");
-        assert_eq!(pair[0].1, pair[1].1, "one row: {row:?}");
     }
+    assert_eq!(first.1, second.1, "one row: {row:?}");
+    assert_eq!(add.1, paper.1, "one row: {row:?}");
+    assert!(
+        add.1 < first.1 && first.1 < add.1 + add.3,
+        "one row: {row:?}"
+    );
     let texts = app.drawn_text_boxes();
     let at = |t: &str| {
         texts
@@ -1733,4 +1757,278 @@ fn on_wide_a_places_sticks_and_paper_stand_on_one_row_and_the_places_one_under_a
     );
     assert_eq!(place_1.0, place_2.0, "one under another");
     assert!(place_2.1 + place_2.3 <= i32::from(paper_2.1));
+}
+
+// ---- F2d: + stick, a vault at no place, the files box, a name pressed ----
+
+/// How strongly a text drawn on the frame on screen stands out: the most
+/// any pixel of its ink differs from the corner of its box, the fill
+/// under it.
+fn ink_light(app: &mut Faraday, text: &str) -> u32 {
+    let boxes = app.drawn_text_boxes();
+    let (_, (x, y, w, h)) = boxes
+        .into_iter()
+        .find(|(t, _)| t == text)
+        .unwrap_or_else(|| panic!("{text:?} not drawn"));
+    let f = app.frame();
+    let width = f.width as i32;
+    let at = |px: i32, py: i32| -> i32 {
+        let i = ((py * width + px) * 4) as usize;
+        f.rgba
+            .get(i..i + 3)
+            .map_or(0, |p| i32::from(p[0]) + i32::from(p[1]) + i32::from(p[2]))
+    };
+    let under = at(x.max(0), y.max(0));
+    let mut most = 0;
+    for py in y.max(0)..(y + h) {
+        for px in x.max(0)..(x + w) {
+            most = most.max((at(px, py) - under).unsigned_abs());
+        }
+    }
+    most
+}
+
+/// A press on **+ stick** with nothing held adds an empty stick there,
+/// "Stick 1" with its files box and its ×, and a further **+ stick**;
+/// The plan and the checklist do not change. A file dropped on it is kept
+/// on a stick of the plan there; its × takes an empty stick away; a
+/// place removed takes its empty sticks with it (`docs/BACKUP-FLOW.md`
+/// §19.16 item 1, §19.17 item 1).
+#[test]
+fn a_press_on_plus_stick_adds_an_empty_stick_that_the_plan_does_not_see() {
+    let mut app = three_on_an_empty_board();
+    let shape = backup_shape(&app);
+    let before = app.backup.as_ref().unwrap().answers.clone();
+    tap(&mut app, BP::Zone(Zone::NewStick(0)));
+    expect(&mut app, "Stick 1");
+    expect(&mut app, "Files · not sealed");
+    assert!(offered_on_page(
+        &mut app,
+        Action::Board(BP::Zone(Zone::Empty(0, 0)))
+    ));
+    assert!(offered_on_page(&mut app, Action::Board(BP::RemoveEmpty(0))));
+    assert!(offered_on_page(
+        &mut app,
+        Action::Board(BP::Zone(Zone::NewStick(0)))
+    ));
+    let after = app.backup.as_ref().unwrap().answers.clone();
+    assert_eq!(
+        the_map(&app),
+        plan::map(&shape, &before),
+        "The plan unchanged"
+    );
+    assert_eq!(checklist(&shape, &after), checklist(&shape, &before));
+    // Another: two empty sticks in a row.
+    tap(&mut app, BP::Zone(Zone::NewStick(0)));
+    expect(&mut app, "Stick 2");
+    // Seed A dropped on the first is a file on Place 1's stick of the plan;
+    // one empty stick is left after it.
+    drag(&mut app, list(Thing::Seed(0)), BP::Zone(Zone::Empty(0, 0)));
+    assert_eq!(
+        held(&the_map(&app), At::Stick(0, 0)),
+        vec![What::SeedFile(0)]
+    );
+    assert!(offered_on_page(
+        &mut app,
+        Action::Board(BP::Zone(Zone::Empty(0, 0)))
+    ));
+    assert!(!offered_on_page(
+        &mut app,
+        Action::Board(BP::Zone(Zone::Empty(0, 1)))
+    ));
+    expect(&mut app, "Stick 2");
+    // Its × takes it away.
+    tap(&mut app, BP::RemoveEmpty(0));
+    assert!(!offered_on_page(
+        &mut app,
+        Action::Board(BP::Zone(Zone::Empty(0, 0)))
+    ));
+    assert_eq!(
+        held(&the_map(&app), At::Stick(0, 0)),
+        vec![What::SeedFile(0)]
+    );
+    // Place 2's empty stick goes with Place 2.
+    tap(&mut app, BP::AddPlace);
+    tap(&mut app, BP::Zone(Zone::NewStick(1)));
+    assert!(offered_on_page(
+        &mut app,
+        Action::Board(BP::Zone(Zone::Empty(1, 0)))
+    ));
+    tap(&mut app, BP::RemovePlace(1));
+    tap(&mut app, BP::AddPlace);
+    assert!(!offered_on_page(
+        &mut app,
+        Action::Board(BP::Zone(Zone::Empty(1, 0)))
+    ));
+}
+
+/// With Places 2 and 3 removed, the vaults whose sticks they kept are out
+/// of The plan and the checklist, still on the list, drawn dim, with what
+/// they hold; a seed kept only in one of them is kept nowhere; dragged
+/// back onto a place, a vault returns with what it held
+/// (`docs/BACKUP-FLOW.md` §19.16 item 3).
+#[test]
+fn a_vault_kept_at_no_place_is_out_of_the_plan_and_comes_back_with_what_it_held() {
+    let mut app = three_on_an_empty_board();
+    tap(&mut app, BP::AddPlace);
+    tap(&mut app, BP::AddPlace);
+    tap(&mut app, BP::AddVault);
+    tap(&mut app, BP::AddVault);
+    tap(&mut app, BP::AddVault);
+    put(&mut app, Thing::Vault(0), Zone::Card(0));
+    put(&mut app, Thing::Vault(1), Zone::Card(1));
+    put(&mut app, Thing::Vault(2), Zone::Card(2));
+    put(&mut app, Thing::Seed(0), Zone::Paper(0));
+    put(&mut app, Thing::Seed(2), Zone::Paper(0));
+    put(&mut app, Thing::Seed(0), Zone::Vault(0, 0, 0));
+    put(&mut app, Thing::Seed(1), Zone::Vault(1, 0, 1));
+    put(&mut app, Thing::Seed(2), Zone::Vault(2, 0, 2));
+    tap(&mut app, BP::RemovePlace(2));
+    tap(&mut app, BP::RemovePlace(1));
+    let shape = backup_shape(&app);
+    let a = app.backup.as_ref().unwrap().answers.clone();
+    let m = the_map(&app);
+    assert!(m.iter().any(|s| s.at == At::Vault(0)));
+    for v in [1, 2] {
+        assert!(
+            m.iter().all(|s| s.at != At::Vault(v)),
+            "Vault {} out of The plan",
+            v + 1
+        );
+        assert!(!checklist(&shape, &a).contains(&Item::Vault(v)));
+        assert!(offered_on_page(
+            &mut app,
+            Action::Board(list(Thing::Vault(v)))
+        ));
+    }
+    // What they hold is kept with them.
+    let stored = plan::stored_map(&shape, &a);
+    assert_eq!(held(&stored, At::Vault(1)), vec![What::Seed(1)]);
+    // Drawn dim beside Vault 1, which a place keeps.
+    let (kept, away) = (
+        ink_light(&mut app, "Vault 1"),
+        ink_light(&mut app, "Vault 2"),
+    );
+    assert!(away < kept, "Vault 2 is drawn dim: {away} against {kept}");
+    // Seed B was kept only in Vault 2.
+    let line = kept_nowhere(&shape, &a, &[1]).expect("Seed B is kept nowhere");
+    assert_eq!(
+        line,
+        format!("Seed {} is kept nowhere", shape.seeds[1].name)
+    );
+    expect_down(&mut app, &line);
+    // Vault 2 dragged onto Place 1 is back with Seed B in it.
+    drag(&mut app, list(Thing::Vault(1)), BP::Zone(Zone::Card(0)));
+    let m = the_map(&app);
+    assert_eq!(held(&m, At::Vault(1)), vec![What::Seed(1)]);
+    let a = app.backup.as_ref().unwrap().answers.clone();
+    assert!(kept_nowhere(&shape, &a, &[1]).is_none());
+}
+
+/// A vault set up before the keys whose stick no place keeps reads
+/// "Vault 1's stick needs a place" under the board, and Make the
+/// checklist is still offered; its × takes the warning away and leaves
+/// its chip on the list, and dragged onto a place it is in The plan again
+/// (`docs/BACKUP-FLOW.md` §19.16 item 3).
+#[test]
+fn a_vault_that_exists_at_no_place_is_a_warning_only() {
+    let mut shell = Shell::new();
+    let (mut app, _) = main_vault_board(&mut shell);
+    for i in 0..3 {
+        put(&mut app, Thing::Seed(i), Zone::Paper(0));
+    }
+    // Vault 1 in this plan, at Place 1; then its stick taken off.
+    if vault_stick(&app, 0, 0).is_none() {
+        put(&mut app, Thing::Vault(0), Zone::Card(0));
+    }
+    while let Some(s) = vault_stick(&app, 0, 0) {
+        tap(&mut app, BP::RemoveStick(0, s));
+    }
+    let needs = "Vault 1's stick needs a place";
+    expect_down(&mut app, needs);
+    assert!(the_map(&app).iter().all(|s| s.at != At::Vault(0)));
+    app.press(Action::BQ(qstep::PLAN));
+    assert!(
+        offered_on_page(&mut app, Action::BChecklist),
+        "Make the checklist is offered"
+    );
+    open_board(&mut app);
+    tap(&mut app, BP::RemoveVault(0));
+    if offered_on_page(&mut app, Action::Board(BP::RemoveVaultSure(0))) {
+        tap(&mut app, BP::RemoveVaultSure(0));
+    }
+    assert!(!has(&mut app, needs));
+    assert!(offered_on_page(
+        &mut app,
+        Action::Board(list(Thing::Vault(0)))
+    ));
+    drag(&mut app, list(Thing::Vault(0)), BP::Zone(Zone::Card(0)));
+    assert!(the_map(&app).iter().any(|s| s.at == At::Vault(0)));
+    assert!(vault_stick(&app, 0, 0).is_some());
+}
+
+/// A drop on the files box of a stick that carries a vault keeps the
+/// thing on the stick as a file, not in the vault; a stick with no vault
+/// takes a drop on its files box the same; a new stick has its files box,
+/// empty (`docs/BACKUP-FLOW.md` §19.17).
+#[test]
+fn a_drop_on_a_sticks_files_box_keeps_a_file_beside_its_vault() {
+    let mut app = three_on_an_empty_board();
+    tap(&mut app, BP::AddVault);
+    drag(&mut app, list(Thing::Vault(0)), BP::Zone(Zone::Card(0)));
+    let s = vault_stick(&app, 0, 0).unwrap();
+    drag(&mut app, list(Thing::Seed(0)), BP::Zone(Zone::Files(0, s)));
+    let m = the_map(&app);
+    assert_eq!(
+        held(&m, At::Stick(0, s)),
+        vec![What::VaultStick(0), What::SeedFile(0)]
+    );
+    assert!(held(&m, At::Vault(0)).is_empty(), "nothing sealed");
+    // A stick of files, no vault on it.
+    tap(&mut app, BP::AddPlace);
+    put(&mut app, Thing::Whole, Zone::NewStick(1));
+    let f = files_stick(&app, 1).unwrap();
+    drag(&mut app, list(Thing::Seed(1)), BP::Zone(Zone::Files(1, f)));
+    assert!(held(&the_map(&app), At::Stick(1, f)).contains(&What::SeedFile(1)));
+    // A new stick: its files box is there, empty.
+    tap(&mut app, BP::Zone(Zone::NewStick(1)));
+    let _ = on_board(&mut app, BP::Zone(Zone::Empty(1, 0)));
+    let headers = app
+        .drawn_texts()
+        .iter()
+        .filter(|t| *t == "Files · not sealed")
+        .count();
+    assert_eq!(headers, 3, "a files box on every stick");
+}
+
+/// A press on a place's name selects the whole of it: one key typed gives
+/// a name of that one character (`docs/BACKUP-FLOW.md` §19.18).
+#[test]
+fn a_press_on_a_places_name_selects_it_and_the_first_key_replaces_it() {
+    let mut shell = Shell::new();
+    let (mut app, _) = main_vault_board(&mut shell);
+    let name = on_screen(&mut app, Action::BName(0));
+    touch(&mut app, name, TouchPhase::Down);
+    touch(&mut app, name, TouchPhase::Up);
+    app.settle();
+    assert!(app.selected_all(), "the whole name selected");
+    app.event(Event::Key(Key::Char('K')));
+    assert_eq!(app.place_name(0), "K");
+    app.event(Event::Key(Key::Char('i')));
+    assert_eq!(app.place_name(0), "Ki");
+    // Pressed again later, the name typed is selected and replaced.
+    app.event(Event::Key(Key::Enter));
+    app.press(Action::BName(0));
+    app.event(Event::Key(Key::Backspace));
+    app.event(Event::Key(Key::Char('L')));
+    assert_eq!(app.place_name(0), "L");
+    // An arrow lets the selection go: typed at the caret.
+    app.event(Event::Key(Key::Enter));
+    app.press(Action::BName(0));
+    app.event(Event::Key(Key::End));
+    app.event(Event::Key(Key::Char('2')));
+    assert_eq!(app.place_name(0), "L2");
+    app.event(Event::Key(Key::Home));
+    app.event(Event::Key(Key::Char('>')));
+    assert_eq!(app.place_name(0), ">L2");
 }

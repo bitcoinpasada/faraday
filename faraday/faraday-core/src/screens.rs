@@ -8,7 +8,7 @@ use osk_psbt::{Level, OutputKind};
 use osk_ui::widgets::Icon;
 
 use crate::ui::pal::*;
-use crate::ui::{CoreUi, NameSuffix, Style, Theme, Ui, W, btc, grouped, short, thousands};
+use crate::ui::{CoreUi, Glyph, NameSuffix, Style, Theme, Ui, W, btc, grouped, short, thousands};
 use crate::wallet::{FileKind, Session, fp_text, key_line, network_name, step, txid_known};
 use crate::{Action, Code, Faraday, Screen, Sheet, flow, guide};
 pub use faraday_ui::parts::qr_code;
@@ -499,11 +499,11 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
     // The places that are always offered, in order; Learn (not a place,
     // a sheet) is drawn between Tools and whatever comes after it.
     let items = [
-        (Icon::House, EN.sidebar_home, Screen::Home),
-        (Icon::Lock, EN.sidebar_vaults, Screen::Vaults),
-        (Icon::File, EN.sidebar_files, Screen::Files),
-        (Icon::Wallet, EN.sidebar_wallets, Screen::Start),
-        (Icon::Tools, EN.sidebar_tools, Screen::Catalog),
+        (Glyph::Icon(Icon::House), EN.sidebar_home, Screen::Home),
+        (Glyph::Icon(Icon::Lock), EN.sidebar_vaults, Screen::Vaults),
+        (Glyph::Icon(Icon::File), EN.sidebar_files, Screen::Files),
+        (Glyph::Icon(Icon::Wallet), EN.sidebar_wallets, Screen::Start),
+        (Glyph::Icon(Icon::Tools), EN.sidebar_tools, Screen::Catalog),
     ];
     let mut tail = Vec::new();
     if !app.sticks.is_empty() && !app.holds_secret() {
@@ -511,12 +511,16 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
     }
     // The online app is the device's QR link.
     if app.online {
-        tail.push((Icon::Qr, EN.sidebar_transfer, Screen::Transfer));
+        tail.push((Glyph::Icon(Icon::Qr), EN.sidebar_transfer, Screen::Transfer));
     }
-    tail.push((Icon::Settings, EN.sidebar_settings, Screen::Settings));
+    tail.push((
+        Glyph::Icon(Icon::Settings),
+        EN.sidebar_settings,
+        Screen::Settings,
+    ));
     let mut y = 76.0;
     let v = app.vaults.open.len();
-    let row = |ui: &mut Ui, y: f32, icon: Icon, label: &str, active: bool, action: Action| {
+    let row = |ui: &mut Ui, y: f32, icon: Glyph, label: &str, active: bool, action: Action| {
         if active || ui.is_pressed(action) {
             ui.fill(12.0, y, SIDEBAR_W - 24.0, 40.0, 8.0, ACCENT.with_alpha(30));
         }
@@ -524,7 +528,7 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
         ui.icon(24.0, y + 11.0, 18.0, icon, 15.0, fg);
         ui.text_mid(54.0, y, 40.0, 14.0, W::S, fg, label);
         // Vaults carries how many are open, at the row's right end.
-        if icon == Icon::Lock && v > 0 {
+        if icon == Glyph::Icon(Icon::Lock) && v > 0 {
             ui.text_right(
                 SIDEBAR_W - 24.0,
                 y,
@@ -574,7 +578,7 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
             row(
                 ui,
                 y,
-                Icon::Learn,
+                Glyph::Icon(Icon::Learn),
                 EN.sidebar_learn,
                 app.sheet == Some(Sheet::Learn),
                 Action::Learn,
@@ -789,7 +793,7 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
             ACCENT.with_alpha(30),
         );
     }
-    ui.icon(22.0, fy, 20.0, Icon::File, 12.0, MUTED);
+    ui.icon(22.0, fy, 20.0, Glyph::Icon(Icon::File), 12.0, MUTED);
     ui.text_mid(46.0, fy, 20.0, 12.0, W::R, MUTED, EN.sidebar_files);
     ui.text_right(SIDEBAR_W - 24.0, fy, 20.0, 12.0, W::R, TEXT, &files);
     ui.hit(
@@ -857,7 +861,7 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
         ui.fill(px, fy, 36.0, 36.0, 8.0, INNER);
     }
     ui.stroke(px, fy, 36.0, 36.0, 8.0, BORDER);
-    ui.icon(px, fy, 36.0, Icon::Power, 14.0, MUTED);
+    ui.icon(px, fy, 36.0, Glyph::Icon(Icon::Power), 14.0, MUTED);
     ui.hit(px, fy, 36.0, 36.0, Action::PowerAsk);
 }
 
@@ -868,9 +872,9 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
 /// Home's one lead job: the first rule of §1.2's ranking that applies,
 /// rule 7 (Make a new wallet) when none of the others does. `enabled` is
 /// false for a prompt with no target of its own (pull the stick first).
-pub(crate) fn home_lead(app: &Faraday) -> (Icon, String, String, Action, bool) {
+pub(crate) fn home_lead(app: &Faraday) -> (Glyph, String, String, Action, bool) {
     home_job(app).unwrap_or((
-        Icon::Wallet,
+        Glyph::Icon(Icon::Wallet),
         EN.home_lead_make_a_new.to_string(),
         EN.home_lead_single_key.to_string(),
         Action::CreateWallet,
@@ -880,7 +884,7 @@ pub(crate) fn home_lead(app: &Faraday) -> (Icon, String, String, Action, bool) {
 
 /// Something under way or waiting (§1.2's rules 1 to 6), which leads
 /// Home above its four ways in; none when nothing is.
-fn home_job(app: &Faraday) -> Option<(Icon, String, String, Action, bool)> {
+fn home_job(app: &Faraday) -> Option<(Glyph, String, String, Action, bool)> {
     use crate::vaults::VaultAction as V;
     // Rule 1: a spend under way; of a wallet loaded, as its card says it
     // (`docs/NEW-WALLET.md` §11.2).
@@ -888,7 +892,7 @@ fn home_job(app: &Faraday) -> Option<(Icon, String, String, Action, bool)> {
         && let Some(w) = s.wallet.and_then(|w| app.session.wallets.get(w))
     {
         return Some((
-            Icon::Sign,
+            Glyph::Icon(Icon::Sign),
             EN.home_job_carry_on_the.to_string(),
             fill(
                 EN.home_job_signatures,
@@ -904,7 +908,7 @@ fn home_job(app: &Faraday) -> Option<(Icon, String, String, Action, bool)> {
     }
     if let Some(s) = app.spend.as_ref() {
         return Some((
-            Icon::Sign,
+            Glyph::Icon(Icon::Sign),
             fill(EN.home_job_continue_signing, &[&s.spend.source.to_string()]),
             fill(
                 EN.home_job_of_signatures,
@@ -921,7 +925,7 @@ fn home_job(app: &Faraday) -> Option<(Icon, String, String, Action, bool)> {
     // (`docs/BACKUP-FLOW.md` §5).
     if let Some((i, f)) = app.backup_pending() {
         return Some((
-            Icon::Lock,
+            Glyph::Icon(Icon::Lock),
             fill(
                 crate::strings::EN.backup_flow_home_lead,
                 &[&f.subject
@@ -936,7 +940,7 @@ fn home_job(app: &Faraday) -> Option<(Icon, String, String, Action, bool)> {
     // Rule 2: a PSBT in Files.
     if let Some(i) = app.lead_psbt() {
         return Some((
-            Icon::Sign,
+            Glyph::Icon(Icon::Sign),
             fill(EN.home_job_sign, &[&app.inbox[i].name.to_string()]),
             EN.home_job_from_files.to_string(),
             Action::StartSpend(i),
@@ -960,7 +964,7 @@ fn home_job(app: &Faraday) -> Option<(Icon, String, String, Action, bool)> {
             .and_then(|v| v.vaults.into_iter().find(|v| v.open.is_none()));
         if let Some(v) = locked {
             return Some((
-                Icon::Lock,
+                Glyph::Icon(Icon::Lock),
                 fill(EN.home_job_unlock, &[&v.title.to_string()]),
                 fill(EN.home_job_read_from, &[&imp.label.to_string()]),
                 crate::boot_import::OPEN,
@@ -968,7 +972,7 @@ fn home_job(app: &Faraday) -> Option<(Icon, String, String, Action, bool)> {
             ));
         }
         return Some((
-            Icon::Download,
+            Glyph::Icon(Icon::Download),
             fill(EN.home_job_import_from, &[&imp.label.to_string()]),
             String::new(),
             crate::boot_import::OPEN,
@@ -981,7 +985,7 @@ fn home_job(app: &Faraday) -> Option<(Icon, String, String, Action, bool)> {
     if fresh && let Some(r) = app.receipt.as_ref() {
         let names: Vec<&str> = r.files.iter().map(|f| f.name.as_str()).collect();
         return Some((
-            Icon::Done,
+            Glyph::Icon(Icon::Done),
             fill(EN.home_job_written_to, &[&r.label.to_string()]),
             names.join(", "),
             Action::Nav(Screen::Files),
@@ -1004,7 +1008,7 @@ fn home_job(app: &Faraday) -> Option<(Icon, String, String, Action, bool)> {
             };
             if app.sticks.is_empty() {
                 return Some((
-                    Icon::Lock,
+                    Glyph::Icon(Icon::Lock),
                     fill(EN.home_job_unlock, &[&name.to_string()]),
                     line,
                     Action::Vault(V::Open(i)),
@@ -1012,7 +1016,7 @@ fn home_job(app: &Faraday) -> Option<(Icon, String, String, Action, bool)> {
                 ));
             }
             return Some((
-                Icon::Lock,
+                Glyph::Icon(Icon::Lock),
                 fill(EN.home_job_unlock, &[&name.to_string()]),
                 fill(EN.home_job_pull_the_to, &[app.medium.noun()]),
                 Action::Nav(Screen::Home),
@@ -1023,7 +1027,7 @@ fn home_job(app: &Faraday) -> Option<(Icon, String, String, Action, bool)> {
     // Rule 6: a vault changed since it was written.
     if let Some(name) = app.vault_changed() {
         return Some((
-            Icon::Export,
+            Glyph::Icon(Icon::Export),
             fill(EN.home_job_write_to, &[&name.to_string(), app.medium.a()]),
             crate::vaults::Currency::Changed.line(),
             Action::Nav(Screen::Files),
@@ -1060,39 +1064,39 @@ pub(crate) fn backup_line(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, i:
 /// then, where they apply, Stick visit (a stick attached, nothing held)
 /// and Backups (a wallet known). With no vault in Files or open, Vaults
 /// is Create a vault: the list would have nothing else on it.
-pub(crate) fn home_ways(app: &Faraday) -> Vec<(Icon, &'static str, String, Action)> {
+pub(crate) fn home_ways(app: &Faraday) -> Vec<(Glyph, &'static str, String, Action)> {
     use crate::vaults::VaultAction as V;
     let vault_files = app.vault_files().len();
     let open = app.vaults.open.len();
     let mut t = vec![
         (
-            Icon::Flag,
+            Glyph::Icon(Icon::Flag),
             EN.home_ways_make_a_new,
             EN.home_ways_single_key.to_string(),
             Action::CreateWallet,
         ),
         (
-            Icon::Wallet,
+            Glyph::Icon(Icon::Wallet),
             EN.home_ways_restore_an,
             EN.home_ways_from_its.to_string(),
             Action::RestoreWallet,
         ),
         (
-            Icon::Sign,
+            Glyph::Icon(Icon::Sign),
             EN.home_ways_spend_from,
             EN.home_ways_a_stick_words.to_string(),
             Action::Nav(Screen::Family),
         ),
         if open == 0 && vault_files == 0 {
             (
-                Icon::Lock,
+                Glyph::Icon(Icon::Lock),
                 EN.home_ways_create_a,
                 EN.home_ways_none_yet.to_string(),
                 Action::Vault(V::Create),
             )
         } else {
             (
-                Icon::Lock,
+                Glyph::Icon(Icon::Lock),
                 EN.home_ways_vaults,
                 if open == 0 {
                     fill(EN.home_ways_locked, &[&vault_files.to_string()])
@@ -1115,7 +1119,7 @@ pub(crate) fn home_ways(app: &Faraday) -> Vec<(Icon, &'static str, String, Actio
     if !known.is_empty() {
         let without = known.iter().filter(|e| e.lines.is_none()).count();
         t.push((
-            Icon::Shield,
+            Glyph::Icon(Icon::Shield),
             EN.home_ways_backups,
             if without == 0 {
                 fill(EN.home_ways_with_a_plan, &[&known.len().to_string()])
@@ -5522,6 +5526,9 @@ fn plan_body(
         return cy - y;
     }
     cy += 8.0;
+    if let Some(line) = crate::plan_cards::stickless_line(app, ctx) {
+        cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 12.0;
+    }
     if let Some(line) = crate::plan_cards::held_line(app, ctx, app.backup_kept_nowhere()) {
         // On a small panel, where the way on is pinned at the foot, the
         // line takes its place there, greyed.
@@ -14009,7 +14016,7 @@ fn kept_sheet(
     ui: &mut Ui,
     w: f32,
     h: f32,
-    head: (Icon, osk_ui::Color, &str),
+    head: (Glyph, osk_ui::Color, &str),
     (line, line_tone, code): (&str, osk_ui::Color, &str),
     sections: &[(&str, Vec<(String, osk_ui::Color)>)],
     actions: &[(&str, Style, Action)],
@@ -15065,7 +15072,7 @@ fn power_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         ui,
         w,
         h,
-        (Icon::Power, TEXT, EN.power_power_off),
+        (Icon::Power.into(), TEXT, EN.power_power_off),
         (
             if app.secure_boot_reminder() {
                 crate::strings::EN.power_secure_boot_off

@@ -123,6 +123,13 @@ pub mod pal {
     pub const PAPER_EDGE: Color = Color::rgb(0xb8, 0x98, 0x50);
     /// "Paper", its glyph: 4.5:1 or more on paper's fill.
     pub const PAPER_TEXT: Color = Color::rgb(0xc8, 0xa8, 0x60);
+    /// The files box inside a stick box on the board (`docs/BACKUP-FLOW.md`
+    /// §19.17): the files kept on the stick outside any vault, a pale blue.
+    pub const FILES_FILL: Color = Color::rgb(0x2e, 0x40, 0x55);
+    /// The files box's edge: 3:1 or more against the stick round it.
+    pub const FILES_EDGE: Color = Color::rgb(0x53, 0x8c, 0xcd);
+    /// "Files · not sealed", its glyph: 4.5:1 or more on the files fill.
+    pub const FILES_TEXT: Color = Color::rgb(0x8d, 0xb0, 0xd9);
     /// A chip's edge on the board: a neutral a step stronger than `BORDER`.
     pub const CHIP_EDGE: Color = Color::rgb(0x69, 0x71, 0x79);
 
@@ -208,7 +215,7 @@ pub mod pal {
 
     /// Each colour above and what it is in the light theme
     /// (`docs/MOTION.md` §3.6).
-    pub const LIGHT: [(Color, Color); 28] = [
+    pub const LIGHT: [(Color, Color); 31] = [
         (BG, Color::rgb(0xf4, 0xf6, 0xf8)),
         (SIDEBAR, Color::rgb(0xe9, 0xed, 0xf1)),
         (SURFACE, Color::rgb(0xff, 0xff, 0xff)),
@@ -237,10 +244,13 @@ pub mod pal {
         (PAPER_EDGE, Color::rgb(0x97, 0x7a, 0x36)),
         (PAPER_TEXT, Color::rgb(0x6a, 0x50, 0x1a)),
         (CHIP_EDGE, Color::rgb(0xae, 0xb9, 0xc3)),
+        (FILES_FILL, Color::rgb(0xe3, 0xec, 0xf7)),
+        (FILES_EDGE, Color::rgb(0x4f, 0x82, 0xbc)),
+        (FILES_TEXT, Color::rgb(0x31, 0x68, 0xa8)),
     ];
 
     /// Nord (nordtheme.com): Polar Night, Snow Storm and Frost.
-    pub const NORD: [(Color, Color); 28] = [
+    pub const NORD: [(Color, Color); 31] = [
         (BG, Color::rgb(0x2e, 0x34, 0x40)),
         (SIDEBAR, Color::rgb(0x27, 0x2c, 0x36)),
         (SURFACE, Color::rgb(0x3b, 0x42, 0x52)),
@@ -269,10 +279,13 @@ pub mod pal {
         (PAPER_EDGE, Color::rgb(0xc1, 0xa4, 0x65)),
         (PAPER_TEXT, Color::rgb(0xde, 0xcb, 0xa0)),
         (CHIP_EDGE, Color::rgb(0x82, 0x87, 0x93)),
+        (FILES_FILL, Color::rgb(0x44, 0x5f, 0x7e)),
+        (FILES_EDGE, Color::rgb(0x8e, 0xb4, 0xde)),
+        (FILES_TEXT, Color::rgb(0xcd, 0xdd, 0xee)),
     ];
 
     /// Catppuccin Mocha (catppuccin.com): base, mantle, surfaces, mauve.
-    pub const CATPPUCCIN: [(Color, Color); 28] = [
+    pub const CATPPUCCIN: [(Color, Color); 31] = [
         (BG, Color::rgb(0x1e, 0x1e, 0x2e)),
         (SIDEBAR, Color::rgb(0x18, 0x18, 0x25)),
         (SURFACE, Color::rgb(0x31, 0x32, 0x44)),
@@ -301,10 +314,13 @@ pub mod pal {
         (PAPER_EDGE, Color::rgb(0xb8, 0x98, 0x50)),
         (PAPER_TEXT, Color::rgb(0xd2, 0xb8, 0x7d)),
         (CHIP_EDGE, Color::rgb(0x6f, 0x74, 0x8a)),
+        (FILES_FILL, Color::rgb(0x3d, 0x55, 0x71)),
+        (FILES_EDGE, Color::rgb(0x7b, 0xa6, 0xd9)),
+        (FILES_TEXT, Color::rgb(0xb6, 0xcd, 0xe7)),
     ];
 
     /// Tokyo Night (enkia's theme): night background, storm cards, blue.
-    pub const TOKYO_NIGHT: [(Color, Color); 28] = [
+    pub const TOKYO_NIGHT: [(Color, Color); 31] = [
         (BG, Color::rgb(0x1a, 0x1b, 0x26)),
         (SIDEBAR, Color::rgb(0x16, 0x16, 0x1e)),
         (SURFACE, Color::rgb(0x24, 0x28, 0x3b)),
@@ -333,10 +349,13 @@ pub mod pal {
         (PAPER_EDGE, Color::rgb(0xb8, 0x98, 0x50)),
         (PAPER_TEXT, Color::rgb(0xc9, 0xaa, 0x63)),
         (CHIP_EDGE, Color::rgb(0x62, 0x69, 0x85)),
+        (FILES_FILL, Color::rgb(0x36, 0x4c, 0x64)),
+        (FILES_EDGE, Color::rgb(0x68, 0x9a, 0xd3)),
+        (FILES_TEXT, Color::rgb(0xa4, 0xc1, 0xe1)),
     ];
 
     /// Gruvbox dark (morhetz): bg0 to bg2, fg, yellow, and its bright accents.
-    pub const GRUVBOX: [(Color, Color); 28] = [
+    pub const GRUVBOX: [(Color, Color); 31] = [
         (BG, Color::rgb(0x28, 0x28, 0x28)),
         (SIDEBAR, Color::rgb(0x1d, 0x20, 0x21)),
         (SURFACE, Color::rgb(0x32, 0x30, 0x2f)),
@@ -365,11 +384,14 @@ pub mod pal {
         (PAPER_EDGE, Color::rgb(0xb8, 0x98, 0x50)),
         (PAPER_TEXT, Color::rgb(0xd0, 0xb4, 0x76)),
         (CHIP_EDGE, Color::rgb(0x7c, 0x74, 0x63)),
+        (FILES_FILL, Color::rgb(0x37, 0x4d, 0x66)),
+        (FILES_EDGE, Color::rgb(0x6a, 0x9b, 0xd4)),
+        (FILES_TEXT, Color::rgb(0xa6, 0xc2, 0xe1)),
     ];
 
     /// Rosé Pine Dawn (rosepinetheme.com): base, surface, overlay, pine. Its
     /// gold, love and a green beside them are darkened to read on its paper.
-    pub const ROSE_PINE: [(Color, Color); 28] = [
+    pub const ROSE_PINE: [(Color, Color); 31] = [
         (BG, Color::rgb(0xfa, 0xf4, 0xed)),
         (SIDEBAR, Color::rgb(0xf2, 0xe9, 0xe1)),
         (SURFACE, Color::rgb(0xff, 0xfa, 0xf3)),
@@ -398,12 +420,15 @@ pub mod pal {
         (PAPER_EDGE, Color::rgb(0x97, 0x7a, 0x36)),
         (PAPER_TEXT, Color::rgb(0x7f, 0x66, 0x2d)),
         (CHIP_EDGE, Color::rgb(0xb2, 0xae, 0xb3)),
+        (FILES_FILL, Color::rgb(0xe3, 0xec, 0xf7)),
+        (FILES_EDGE, Color::rgb(0x4c, 0x80, 0xbb)),
+        (FILES_TEXT, Color::rgb(0x31, 0x68, 0xa8)),
     ];
 
     /// Bitcoin Orange: a warm near-black page, Bitcoin's orange
     /// (#F7931A) as the accent at full strength. Light text on a dark
     /// page needs no darkening to read against it.
-    pub const BITCOIN_ORANGE: [(Color, Color); 28] = [
+    pub const BITCOIN_ORANGE: [(Color, Color); 31] = [
         (BG, Color::rgb(0x1c, 0x14, 0x10)),
         (SIDEBAR, Color::rgb(0x14, 0x0e, 0x0a)),
         (SURFACE, Color::rgb(0x27, 0x1d, 0x17)),
@@ -432,12 +457,15 @@ pub mod pal {
         (PAPER_EDGE, Color::rgb(0xb8, 0x98, 0x50)),
         (PAPER_TEXT, Color::rgb(0xc8, 0xa8, 0x60)),
         (CHIP_EDGE, Color::rgb(0x78, 0x6f, 0x67)),
+        (FILES_FILL, Color::rgb(0x2c, 0x3d, 0x52)),
+        (FILES_EDGE, Color::rgb(0x4e, 0x88, 0xcb)),
+        (FILES_TEXT, Color::rgb(0x89, 0xae, 0xd8)),
     ];
 
     /// Bitcoin Orange Light: a warm paper page, Bitcoin's orange
     /// (#F7931A) as the accent at full strength (owner, 2026-10-11),
     /// with dark text on it: white on that orange is 2.1:1.
-    pub const BITCOIN_ORANGE_LIGHT: [(Color, Color); 28] = [
+    pub const BITCOIN_ORANGE_LIGHT: [(Color, Color); 31] = [
         (BG, Color::rgb(0xfd, 0xf1, 0xe7)),
         (SIDEBAR, Color::rgb(0xf5, 0xe6, 0xd7)),
         (SURFACE, Color::rgb(0xff, 0xfc, 0xf8)),
@@ -466,12 +494,15 @@ pub mod pal {
         (PAPER_EDGE, Color::rgb(0x97, 0x7a, 0x36)),
         (PAPER_TEXT, Color::rgb(0x7f, 0x66, 0x2d)),
         (CHIP_EDGE, Color::rgb(0xbb, 0xb5, 0xae)),
+        (FILES_FILL, Color::rgb(0xe3, 0xec, 0xf7)),
+        (FILES_EDGE, Color::rgb(0x4d, 0x80, 0xbb)),
+        (FILES_TEXT, Color::rgb(0x31, 0x68, 0xa8)),
     ];
 
     /// Cobalt: a cool blue-white page (its sidebar the owner's #E8EEFA)
     /// with a deep cobalt blue (#0062A3, 6.0:1 on the page) as the
     /// accent.
-    pub const COBALT: [(Color, Color); 28] = [
+    pub const COBALT: [(Color, Color); 31] = [
         (BG, Color::rgb(0xf1, 0xf4, 0xfb)),
         (SIDEBAR, Color::rgb(0xe8, 0xee, 0xfa)),
         (SURFACE, Color::rgb(0xff, 0xff, 0xff)),
@@ -500,13 +531,16 @@ pub mod pal {
         (PAPER_EDGE, Color::rgb(0x97, 0x7a, 0x36)),
         (PAPER_TEXT, Color::rgb(0x80, 0x68, 0x2e)),
         (CHIP_EDGE, Color::rgb(0xaf, 0xb2, 0xb4)),
+        (FILES_FILL, Color::rgb(0xe3, 0xec, 0xf7)),
+        (FILES_EDGE, Color::rgb(0x50, 0x83, 0xbd)),
+        (FILES_TEXT, Color::rgb(0x31, 0x68, 0xa8)),
     ];
 
     /// Lamplight: warm cream paper and espresso text, a terracotta
     /// accent darkened to read at 4.5:1 against the page for text and
     /// the focus ring (#A34E26 is 5.2:1), and a muted sage, amber and
     /// brick that read at 4.5:1 there too.
-    pub const LAMPLIGHT: [(Color, Color); 28] = [
+    pub const LAMPLIGHT: [(Color, Color); 31] = [
         (BG, Color::rgb(0xfb, 0xf3, 0xe6)),
         (SIDEBAR, Color::rgb(0xf3, 0xe6, 0xd2)),
         (SURFACE, Color::rgb(0xff, 0xfa, 0xf2)),
@@ -535,6 +569,9 @@ pub mod pal {
         (PAPER_EDGE, Color::rgb(0x97, 0x7a, 0x36)),
         (PAPER_TEXT, Color::rgb(0x7f, 0x66, 0x2d)),
         (CHIP_EDGE, Color::rgb(0xb6, 0xaf, 0xa6)),
+        (FILES_FILL, Color::rgb(0xe3, 0xec, 0xf7)),
+        (FILES_EDGE, Color::rgb(0x4d, 0x80, 0xbb)),
+        (FILES_TEXT, Color::rgb(0x31, 0x68, 0xa8)),
     ];
 }
 
@@ -800,7 +837,7 @@ impl Theme {
         )
     }
 
-    fn table(self) -> Option<&'static [(Color, Color); 28]> {
+    fn table(self) -> Option<&'static [(Color, Color); 31]> {
         match self {
             Theme::Dark => None,
             Theme::Light => Some(&pal::LIGHT),
@@ -923,6 +960,22 @@ impl<A> FieldAt<A> {
             .min_by_key(|(_, e)| (**e - x).abs())
             .map_or(0, |(j, _)| j);
         self.first + j
+    }
+}
+
+/// A glyph: one of the icon face's, or one Faraday draws itself where the
+/// face has none.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Glyph {
+    /// One of the icon face's.
+    Icon(Icon),
+    /// A USB stick (`docs/BACKUP-FLOW.md` §19.17): Faraday's own drawing.
+    Stick,
+}
+
+impl From<Icon> for Glyph {
+    fn from(icon: Icon) -> Glyph {
+        Glyph::Icon(icon)
     }
 }
 
@@ -1818,10 +1871,57 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// An icon centred in a square of side `boxw` at (x, y).
-    pub fn icon(&mut self, x: f32, y: f32, boxw: f32, icon: Icon, size: f32, color: Color) {
+    pub fn icon(
+        &mut self,
+        x: f32,
+        y: f32,
+        boxw: f32,
+        icon: impl Into<Glyph>,
+        size: f32,
+        color: Color,
+    ) {
         let color = self.col(color);
-        let rect = self.rect(x, y, boxw, boxw);
-        self.c.icon(rect, icon, size, color);
+        match icon.into() {
+            Glyph::Icon(icon) => {
+                let rect = self.rect(x, y, boxw, boxw);
+                self.c.icon(rect, icon, size, color);
+            }
+            Glyph::Stick => self.stick_glyph(x + boxw / 2.0, y + boxw / 2.0, size, color),
+        }
+    }
+
+    /// The USB stick glyph centred on (cx, cy), `size` units across: a
+    /// body with rounded corners and its connector at the right end, two
+    /// holes in the connector. Drawn as outlines, at the icon face's size.
+    fn stick_glyph(&mut self, cx: f32, cy: f32, size: f32, color: Color) {
+        let f = self.f;
+        let (ox, oy) = (self.ox, self.oy);
+        // In units of the glyph's size, from its centre.
+        let px = |u: f32, v: f32| ((cx + u * size + ox) * f, (cy + v * size + oy) * f);
+        // The body, with its corners cut round in three steps each.
+        let (l, r, t, b, k) = (-0.5, 0.18, -0.27, 0.27, 0.1);
+        let mut body = Vec::with_capacity(16);
+        let corners = [
+            (r - k, t + k, -std::f32::consts::FRAC_PI_2),
+            (r - k, b - k, 0.0),
+            (l + k, b - k, std::f32::consts::FRAC_PI_2),
+            (l + k, t + k, std::f32::consts::PI),
+        ];
+        for (ccx, ccy, a0) in corners {
+            for j in 0..4 {
+                let a = a0 + j as f32 * std::f32::consts::FRAC_PI_6;
+                body.push(px(ccx + k * a.cos(), ccy + k * a.sin()));
+            }
+        }
+        // The connector, overlapping the body's end, and its two holes
+        // wound the other way round.
+        let (cl, cr, ct, cb) = (0.12, 0.5, -0.16, 0.16);
+        let plug = [px(cl, ct), px(cr, ct), px(cr, cb), px(cl, cb)];
+        let hole = |hl: f32, hr: f32| [px(hl, -0.06), px(hl, 0.06), px(hr, 0.06), px(hr, -0.06)];
+        let (h1, h2) = (hole(0.24, 0.33), hole(0.38, 0.45));
+        // The holes are cut from the connector alone, where it is clear
+        // of the body.
+        self.c.fill_contours(&[&body, &plug, &h1, &h2], color);
     }
 
     /// Makes a region pressable: the part of it inside the clip, so what

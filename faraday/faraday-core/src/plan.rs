@@ -604,10 +604,13 @@ impl Answers {
     /// none, one for the wallet description when it goes into a vault.
     pub fn vaults_made(&self, shape: &Shape) -> Vec<usize> {
         if let Some(m) = &self.map {
+            // A vault no place keeps a stick of is out of the plan
+            // (`docs/BACKUP-FLOW.md` §19.16 item 3).
+            let kept = kept_vaults(m);
             return m
                 .iter()
                 .filter_map(|s| match s.at {
-                    At::Vault(v) => Some(v),
+                    At::Vault(v) if kept.contains(&v) => Some(v),
                     _ => None,
                 })
                 .collect();
@@ -650,9 +653,19 @@ impl Answers {
         }
     }
 
-    /// The first vault made whose stick no place keeps: the plan waits
-    /// on Places until it has one (`docs/NEW-WALLET.md` §14.2).
+    /// The first vault whose stick no place keeps that exists already
+    /// (set up before the keys): a warning, "Vault n's stick needs a
+    /// place" (`docs/BACKUP-FLOW.md` §19.16 item 3). On a map edited on
+    /// the board it is out of the plan; a vault the board made has no
+    /// warning at no place.
     pub fn stickless(&self, shape: &Shape) -> Option<usize> {
+        if let Some(m) = &self.map {
+            let kept = kept_vaults(m);
+            return m.iter().find_map(|s| match s.at {
+                At::Vault(v) if v < shape.vaults && !kept.contains(&v) => Some(v),
+                _ => None,
+            });
+        }
         self.vaults_made(shape)
             .into_iter()
             .find(|&v| !(0..self.places).any(|p| self.stick_at(v, p)))
@@ -1486,11 +1499,44 @@ pub fn form_name(f: usize) -> &'static str {
     }
 }
 
-/// The map: one box per place, each followed by its sticks (a vault's
-/// stick each, in vault order), then each vault made, a stick of files,
-/// the watch-only software and the seeds on their own devices, each where
-/// the plan uses it.
+/// The plan's map: the map as stored ([`stored_map`]) without a vault
+/// no place keeps a stick of, which stays on the board's list and out of
+/// the plan (`docs/BACKUP-FLOW.md` §19.16 item 3). The checks, the
+/// checklist and the flows read this one.
 pub fn map(shape: &Shape, a: &Answers) -> Vec<Spot> {
+    in_plan(stored_map(shape, a))
+}
+
+/// The vaults of the map `m` that a place keeps a stick of, each once,
+/// in order.
+pub fn kept_vaults(m: &[Spot]) -> Vec<usize> {
+    let mut out: Vec<usize> = m
+        .iter()
+        .filter(|s| matches!(s.at, At::Place(_) | At::Stick(..)))
+        .flat_map(|s| s.holds.iter())
+        .filter_map(|(w, _)| match w {
+            What::VaultStick(v) => Some(*v),
+            _ => None,
+        })
+        .collect();
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
+/// The map `m` without a vault no place keeps a stick of.
+fn in_plan(mut m: Vec<Spot>) -> Vec<Spot> {
+    let kept = kept_vaults(&m);
+    m.retain(|s| !matches!(s.at, At::Vault(v) if !kept.contains(&v)));
+    m
+}
+
+/// The map as stored, what the board reads and edits and the plan's text
+/// keeps: one box per place, each followed by its sticks (a vault's
+/// stick each, in vault order), then each vault, a stick of files, the
+/// watch-only software and the seeds on their own devices, each where
+/// the plan uses it. A vault no place keeps a stick of is here too.
+pub fn stored_map(shape: &Shape, a: &Answers) -> Vec<Spot> {
     if let Some(m) = &a.map {
         return m.clone();
     }
@@ -2766,7 +2812,7 @@ impl Answers {
     /// presets, the plan itself (`docs/BACKUP-FLOW.md` §17.2).
     pub fn ensure_map(&mut self, shape: &Shape) {
         if self.map.is_none() {
-            let m = map(shape, self);
+            let m = stored_map(shape, self);
             self.set_map(m);
         }
     }
@@ -2781,7 +2827,7 @@ impl Answers {
     /// The vaults a place's card offers: one per vault of the plan
     /// (`Shape::vault_rows`), and any further one the map names.
     pub fn vault_count(&self, shape: &Shape) -> usize {
-        let named = map(shape, self)
+        let named = stored_map(shape, self)
             .iter()
             .filter_map(|s| match s.at {
                 At::Vault(v) => Some(v + 1),
@@ -2983,8 +3029,11 @@ impl Answers {
     /// or goes.
     pub fn empty_vault(&self) -> Option<usize> {
         let m = self.map.as_ref()?;
+        // Only a vault kept at a place (`docs/BACKUP-FLOW.md` §19.16
+        // item 3): one just added by **+ vault** holds nothing back.
+        let kept = kept_vaults(m);
         m.iter().find_map(|s| match s.at {
-            At::Vault(v) if s.holds.is_empty() => Some(v),
+            At::Vault(v) if s.holds.is_empty() && kept.contains(&v) => Some(v),
             _ => None,
         })
     }
@@ -3023,7 +3072,7 @@ impl Answers {
     /// **+ vault** (`docs/BACKUP-FLOW.md` §19.1). Its number is the one
     /// after the plan's last vault and the vaults set up before the keys.
     pub fn add_vault(&mut self, shape: &Shape) -> usize {
-        let named = map(shape, self)
+        let named = stored_map(shape, self)
             .iter()
             .filter_map(|s| match s.at {
                 At::Vault(v) => Some(v + 1),

@@ -10,7 +10,7 @@ use osk_ui::widgets::Icon;
 use crate::boot_import::{ImportAction as I, ImportCount, ImportView};
 use crate::compact::{buttons, scroll_sheet, sheet_head};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Glyph, Style, Ui, W};
 use crate::vault_screens::{secret_box, stick_banner, stick_field};
 use crate::vaults::{Focus, VaultAction as V, Work};
 use crate::{Action, Faraday};
@@ -50,7 +50,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 }
 
 /// The sheet's title, with its icon. Returns its height.
-fn head(ui: &mut Ui, x: f32, y: f32, w: f32, icon: Icon, title: &str) -> f32 {
+fn head(ui: &mut Ui, x: f32, y: f32, w: f32, icon: Glyph, title: &str) -> f32 {
     if ui.compact {
         return sheet_head(ui, x, y, w, icon, ACCENT, title);
     }
@@ -143,7 +143,7 @@ fn body(
         x,
         cy,
         w,
-        Icon::Download,
+        Icon::Download.into(),
         &fill(EN.boot_import_read_from, &[label]),
     );
     cy += counted(ui, x, cy, w, c);

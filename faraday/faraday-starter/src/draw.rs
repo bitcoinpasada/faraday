@@ -9,7 +9,7 @@ use faraday_core::strings::{EN, Strings};
 use faraday_core::upgrade::{Fit, describe, version};
 use faraday_ui::pal::*;
 use faraday_ui::parts::qr_code;
-use faraday_ui::{NameSuffix, Style, W};
+use faraday_ui::{Glyph, NameSuffix, Style, W};
 use opensigner_core::strings::fill;
 use osk_ui::Color;
 use osk_ui::widgets::Icon;
@@ -255,7 +255,7 @@ fn nav_row(
     x: f32,
     y: f32,
     w: f32,
-    icon: Icon,
+    icon: impl Into<Glyph>,
     head: &str,
     sub: &str,
     tail: &str,
@@ -777,7 +777,7 @@ fn home(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             x,
             y,
             w,
-            Icon::Drive,
+            Glyph::Stick,
             S.starter_remove_entry,
             &sub,
             "",
@@ -997,7 +997,7 @@ fn which(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             x,
             y,
             w,
-            Icon::Drive,
+            Glyph::Stick,
             head,
             tag,
             "",
@@ -1035,9 +1035,13 @@ fn disks(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y += 4.0;
     for o in &offers {
         let d = o.disk;
-        let icon = match d.bus {
-            crate::api::Bus::SdReader => Icon::SdCard,
-            _ => Icon::Drive,
+        // A stick's glyph for a USB disk, the SD card's for the
+        // computer's reader, the drive's for anything else
+        // (`docs/BACKUP-FLOW.md` §19.17 item 4).
+        let icon: Glyph = match d.bus {
+            crate::api::Bus::Usb => Glyph::Stick,
+            crate::api::Bus::SdReader => Icon::SdCard.into(),
+            crate::api::Bus::Other => Icon::Drive.into(),
         };
         let (sub, action) = match &o.refused {
             Some(r) => (refusal_text(r), None),

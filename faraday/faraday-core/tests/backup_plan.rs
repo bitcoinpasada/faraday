@@ -748,12 +748,14 @@ fn a_plan_that_does_not_survive_a_place_lost_says_why() {
     );
 }
 
-/// A vault left with no stick place holds The plan: its Make the
-/// checklist gives way to a line that says so, and the checklist is not
-/// made.
+/// A vault the board made, left with no stick place, is out of The plan
+/// and holds nothing back (`docs/BACKUP-FLOW.md` §19.16 item 3): Make the
+/// checklist is offered with no line about it, and the checklist makes
+/// no vault; its stick kept at a place again, it is in the plan again.
 #[test]
-fn a_vault_with_no_stick_place_holds_places() {
-    use faraday_core::{Action, BStage, qstep};
+fn a_vault_with_no_stick_place_is_out_of_the_plan() {
+    use faraday_core::plan::Item;
+    use faraday_core::{Action, qstep};
     let mut app = places_of("Savings");
     let w = app.backup.as_ref().unwrap().wallet;
     let shape = app.plan_shape(w);
@@ -767,17 +769,19 @@ fn a_vault_with_no_stick_place_holds_places() {
     let a = app.backup.as_ref().unwrap().answers.clone();
     assert_eq!(a.vaults_made(&shape), vec![0]);
     board(&mut app, BoardPress::RemovePlace(2));
+    let a = app.backup.as_ref().unwrap().answers.clone();
+    assert!(a.vaults_made(&shape).is_empty(), "out of The plan");
+    assert!(!faraday_core::plan::checklist(&shape, &a).contains(&Item::Vault(0)));
     app.press(Action::BQ(qstep::PLAN));
-    assert!(!shows(&mut app, Action::BChecklist));
-    assert!(shows_text(&mut app, "Vault 1's stick needs a place"));
-    app.press(Action::BChecklist);
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Plan);
-    // Its stick kept at a place again, the way on is back.
+    assert!(shows(&mut app, Action::BChecklist));
+    assert!(!shows_text(&mut app, "Vault 1's stick needs a place"));
+    // Its stick kept at a place again, it is in the plan again.
     open_board(&mut app);
     board(&mut app, BoardPress::AddPlace);
     put(&mut app, Thing::Vault(0), Zone::Card(2));
-    app.press(Action::BQ(qstep::PLAN));
-    assert!(shows(&mut app, Action::BChecklist));
+    let a = app.backup.as_ref().unwrap().answers.clone();
+    assert_eq!(a.vaults_made(&shape), vec![0]);
+    assert!(faraday_core::plan::checklist(&shape, &a).contains(&Item::Vault(0)));
 }
 
 // ---------------------------------------------------------------------

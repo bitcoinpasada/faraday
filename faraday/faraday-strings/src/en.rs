@@ -8013,6 +8013,12 @@ pub struct Strings {
     pub board_add_stick: &'static str,
     /// A stick zone's label. `{}`: its number at the place, from 1.
     pub board_stick: &'static str,
+    /// A stick zone's label where the medium is an SD card (the Pi).
+    /// `{}`: its number at the place, from 1.
+    pub board_sd_card: &'static str,
+    /// The files box's header inside a stick box: the files kept on the
+    /// stick outside any vault (`docs/BACKUP-FLOW.md` §19.17).
+    pub board_files_not_sealed: &'static str,
     /// A place card's paper zone.
     pub board_paper: &'static str,
     /// The software place's zone: the description shown for it to scan.
@@ -11946,6 +11952,8 @@ pub static EN: Strings = Strings {
     board_one_place: "1 place",
     board_add_stick: "+ stick",
     board_stick: "Stick {}",
+    board_sd_card: "SD card {}",
+    board_files_not_sealed: "Files · not sealed",
     board_paper: "Paper",
     board_scanned_in: "Scanned in",
     board_watch_only: "Watch-only software",

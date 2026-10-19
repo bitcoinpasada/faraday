@@ -138,20 +138,26 @@ pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> String {
     }
 }
 
+/// The warning over The plan's way on, which does not hold it: a vault
+/// that exists already whose stick no place keeps
+/// (`docs/BACKUP-FLOW.md` §19.16 item 3, §19.5).
+pub(crate) fn stickless_line(app: &Faraday, ctx: &PlanCtx) -> Option<String> {
+    let v = ctx.answers.stickless(&ctx.shape)?;
+    Some(fill(
+        EN.plan_vault_s_needs,
+        &[&(v + 1).to_string(), app.medium.noun()],
+    ))
+}
+
 /// What holds The plan's way on (`docs/NEW-WALLET.md` §14.2, §14.4): a
-/// vault's stick at no place, a vault that holds nothing, a key made here
-/// kept nowhere (`kept_nowhere`, the caller's).
+/// vault that holds nothing, a key made here kept nowhere
+/// (`kept_nowhere`, the caller's). A vault's stick at no place is a
+/// warning only ([`stickless_line`], `docs/BACKUP-FLOW.md` §19.16).
 pub(crate) fn held_line(
-    app: &Faraday,
+    _app: &Faraday,
     ctx: &PlanCtx,
     kept_nowhere: Option<String>,
 ) -> Option<String> {
-    if let Some(v) = ctx.answers.stickless(&ctx.shape) {
-        return Some(fill(
-            EN.plan_vault_s_needs,
-            &[&(v + 1).to_string(), app.medium.noun()],
-        ));
-    }
     if let Some(v) = ctx.answers.empty_vault() {
         return Some(fill(
             EN.backup_flow_vault_holds_nothing,

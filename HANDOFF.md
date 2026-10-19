@@ -2787,8 +2787,10 @@ as possible before the next build.
     built 2026-10-16; F2c, the board in rows and its colours, with one
     page colour across the app (F39), built 2026-10-16. From the
     owner's test of F2c, F2d (§19.16, F40): a press on + stick adds an
-    empty stick, and a vault kept at no place is not in the plan.
-    Specified, not built; then F3.
+    empty stick, and a vault kept at no place is not in the plan; with
+    it §19.17 (a files box in every stick, the USB stick and lock
+    glyphs) and §19.18 (a pressed name selected). Built 2026-10-19;
+    then F3.
 
 79. [ ] 2026-10-16, owner: **access layers** (`docs/BACKUP-FLOW.md` §20,
     F38). Access layers 1, 2, 3 …, each a list of what it is able to

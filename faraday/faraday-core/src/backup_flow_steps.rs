@@ -789,11 +789,10 @@ impl Faraday {
     /// Continue on the first card, or after a change of plan.
     fn flow_continue(&mut self, i: usize) {
         if self.backup_flows[i].kind.is_wallet()
-            && (self.flow_wallet_stickless(i)
-                || self.backup_flows[i]
-                    .wallet
-                    .as_ref()
-                    .is_some_and(|w| w.answers.empty_vault().is_some()))
+            && self.backup_flows[i]
+                .wallet
+                .as_ref()
+                .is_some_and(|w| w.answers.empty_vault().is_some())
         {
             return;
         }

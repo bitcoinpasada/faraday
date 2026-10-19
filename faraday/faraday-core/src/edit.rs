@@ -27,6 +27,14 @@ impl Faraday {
     /// that takes a caret, a selection and an edit inside it.
     pub(crate) fn typing_target(&self) -> Option<Action> {
         use vaults::Focus as F;
+        // A place's name on Back up's plan or a flow's plan card
+        // (`docs/BACKUP-FLOW.md` §19.18).
+        if (self.screen == Screen::Backup
+            || (self.screen == Screen::BackupFlow && self.vaults.focus.is_none()))
+            && let Some(p) = self.backup.as_ref().and_then(|b| b.naming)
+        {
+            return Some(Action::BName(u8::try_from(p).unwrap_or(u8::MAX)));
+        }
         if !self.typing_field() {
             return None;
         }
@@ -106,6 +114,7 @@ impl Faraday {
             Action::EntryPassphrase => &self.entry.passphrase,
             Action::SeedRead(_) => self.seed_read.as_ref()?.field()?,
             Action::Rename => self.renaming.as_deref()?,
+            Action::BName(p) => self.backup.as_ref()?.names.get(usize::from(p))?,
             Action::MType => &self.message.as_ref()?.text,
             Action::KPassField(0) => &self.keygen.as_ref()?.passphrase,
             Action::KPassField(_) => &self.keygen.as_ref()?.passphrase2,
@@ -201,6 +210,19 @@ impl Faraday {
                 if e.anchor == Some(to) {
                     e.anchor = None;
                 }
+                self.edit = e;
+                true
+            }
+            // Home and End let a selection go and put the caret at the
+            // field's start or end.
+            KeyIn::Home | KeyIn::End if self.caret_moves(target) => {
+                let to = if key == KeyIn::Home { 0 } else { n };
+                e.anchor = if self.shift {
+                    e.anchor.or(Some(caret)).filter(|&a| a != to)
+                } else {
+                    None
+                };
+                e.caret = (to < n).then_some(to);
                 self.edit = e;
                 true
             }

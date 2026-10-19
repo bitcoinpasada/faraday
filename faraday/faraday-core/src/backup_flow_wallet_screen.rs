@@ -104,6 +104,9 @@ pub(crate) fn where_body(
         if !ctx.enabled {
             continue;
         }
+        if let Some(line) = cards::stickless_line(app, &ctx) {
+            cy += ui.wrap(x + 12.0, cy, w - 12.0, 13.0, W::S, WARN, &line) + 12.0;
+        }
         if let Some(line) = cards::held_line(app, &ctx, None) {
             if ui.pinning {
                 ui.pin = Some((line, Style::Disabled, fa(F::Continue)));

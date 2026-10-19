@@ -8,7 +8,7 @@ use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
 
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Glyph, Style, Ui, W};
 use crate::wallet::network_name;
 use crate::{Action, Faraday, Screen};
 pub(crate) use faraday_ui::sheet::{buttons, kv, kv_sheet, scroll_sheet, sheet, sheet_head};
@@ -515,7 +515,7 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 
 /// A tile: its icon, its name, a short count, where it goes, and
 /// whether it can be pressed now.
-type Tile = (Icon, &'static str, String, Action, bool);
+type Tile = (crate::ui::Glyph, &'static str, String, Action, bool);
 
 fn tiles(app: &Faraday) -> Vec<Tile> {
     let wallets = app.session.wallets.len();
@@ -527,7 +527,7 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
     // out, then what is used now and then.
     let mut t: Vec<Tile> = vec![
         (
-            Icon::Wallet,
+            Icon::Wallet.into(),
             EN.compact_wallets,
             if wallets == 0 {
                 String::new()
@@ -538,7 +538,7 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
             true,
         ),
         (
-            Icon::Lock,
+            Icon::Lock.into(),
             EN.compact_vaults,
             match (open, vault_files) {
                 (0, 0) => String::new(),
@@ -549,14 +549,14 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
             true,
         ),
         (
-            Icon::File,
+            Icon::File.into(),
             EN.compact_files,
             format!("{} · {}", app.inbox.len(), app.outbox.len()),
             Action::Nav(Screen::Files),
             true,
         ),
         (
-            Icon::Learn,
+            Icon::Learn.into(),
             EN.compact_learn,
             String::new(),
             Action::Learn,
@@ -570,7 +570,7 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
         t.insert(
             2,
             (
-                Icon::Shield,
+                Icon::Shield.into(),
                 EN.compact_backups,
                 if without == 0 {
                     String::new()
@@ -592,7 +592,7 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
         ));
     }
     t.push((
-        Icon::Tools,
+        Icon::Tools.into(),
         EN.compact_tools,
         String::new(),
         Action::Nav(Screen::Catalog),
@@ -601,7 +601,7 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
     // The online app is the device's QR link.
     if app.online {
         t.push((
-            Icon::Qr,
+            Icon::Qr.into(),
             EN.compact_transfer,
             String::new(),
             Action::Nav(Screen::Transfer),
@@ -609,7 +609,7 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
         ));
     }
     t.push((
-        Icon::Settings,
+        Icon::Settings.into(),
         EN.compact_settings,
         String::new(),
         Action::Nav(Screen::Settings),
@@ -620,7 +620,7 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
 
 /// What Home puts above the menu: the same one lead job §1.2 ranks for
 /// the wide Home (`crate::screens::home_lead`), as one prompt row.
-fn prompts(app: &Faraday) -> Vec<(Icon, String, Option<Action>, osk_ui::Color)> {
+fn prompts(app: &Faraday) -> Vec<(Glyph, String, Option<Action>, osk_ui::Color)> {
     let (icon, label, _sub, action, enabled) = crate::screens::home_lead(app);
     let tone = if enabled { ACCENT } else { WARN };
     vec![(icon, label, enabled.then_some(action), tone)]
