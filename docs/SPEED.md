@@ -300,6 +300,29 @@ It is seen when the app is started from a terminal. The stick is left
 out: its timings go to an exchange partition Faraday does not mount, so
 a line there would reach no one.
 
+### 3.12 The vault 2 card and the sticks card; the late flow again (2026-10-19)
+
+The two leftovers §6 names after B, and a measurement of the late flow
+with what was added since (the board's files box, the access layers,
+Create's Start and Wallet cards, the flows-in-progress rows).
+
+- **The vault 2 card.** Whether an open vault holds the wallet
+  (`vault_has_wallet`, through `backup_vault_fits` and
+  `backup_open_fits`) parses every wallet record's descriptor on every
+  frame. It is worked out where the vault is opened or its records
+  change and kept with the open vault (a fingerprint set of the wallets
+  it holds, public), or through the drawing memo; a decision computes
+  it from the state as it is (§2 rule 3).
+- **The sticks card.** `sticks_item` (`kept_wiped`, `key_text`) and
+  `wallet_stick_rows` work out each stick's files on every frame. They
+  are worked out once per frame through the drawing memo, or kept where
+  the stick's files are written, whichever keeps §2's rules.
+- **The late flow, measured** with §4's harness after both: the
+  checklist at every stage, a scroll, a pointer move, the board in
+  every layer view, Create's cards, at 1366×768 and 2560×1600 scale 2;
+  the results in §6. Any frame over 16 ms is named with what it spends
+  its time on, for a later batch; nothing else is changed in this one.
+
 ## 4. Measuring
 
 The numbers come from a harness outside the repository, as MOTION.md
@@ -354,6 +377,11 @@ the tree, `just` green.
 - **D, the glyph cache** (§3.8; issue 127): measured by the architect;
   built only if it clears every frame.
 - **E, the web demo** (§3.9; issue 128): in faraday-website.
+- **F, the vault 2 card, the sticks card, the late flow again**
+  (§3.12; issue 119). Tests: `tests/backup_checklist.rs` passes
+  unchanged; a vault opened mid-checklist, holding the wallet, ticks
+  the vault 2 card on the next frame; a stick's files written show on
+  the sticks card on the next frame.
 
 Order: measure, A, measure, B, measure, C; D and E after.
 
