@@ -89,6 +89,8 @@ use winit::window::{Window, WindowId};
 
 /// How often the attached folders are looked at again.
 const RESCAN: Duration = Duration::from_millis(700);
+/// A frame or an event slower than this is reported in a test build.
+const SLOW: Duration = Duration::from_millis(50);
 const TITLE: &str = EN.desktop_title;
 /// The boot stick's folder (Stick 1), and the first backup stick's,
 /// Stick 2.
@@ -167,6 +169,8 @@ struct Shell {
     /// The ticks and the frames' pace (`faraday-window`).
     pace: Pacer,
     next_scan: Instant,
+    /// When a slow frame or event was last printed.
+    last_slow: Option<Instant>,
     /// The mouse, a finger and the keyboard (`faraday-window`).
     pointer: Pointer,
     /// The webcam, when the app asks for it, and the scanner that reads
@@ -197,13 +201,48 @@ impl Shell {
     /// Delivers one event, then answers what the app asked for. A lock
     /// starts a fresh app, as the device's app loop does.
     fn send(&mut self, event_loop: &ActiveEventLoop, event: Event) {
+        let begun = Instant::now();
+        let storage = self.deliver(event_loop, event);
+        let took = begun.elapsed();
+        self.pace.event_took(took.saturating_sub(storage));
+        self.slow("event", took);
+    }
+
+    /// Prints a slow frame or event on stderr in a build that is not a
+    /// release: durations and screen names only, one line a second.
+    fn slow(&mut self, what: &str, took: Duration) {
+        if faraday_core::is_release() || took <= SLOW {
+            return;
+        }
+        let now = Instant::now();
+        if self
+            .last_slow
+            .is_some_and(|t| now - t < Duration::from_secs(1))
+        {
+            return;
+        }
+        let Some(app) = self.app.as_ref() else { return };
+        self.last_slow = Some(now);
+        eprintln!(
+            "faraday: slow {what} {} ms · {}",
+            took.as_millis(),
+            app.screen_name()
+        );
+    }
+
+    /// Delivers `event`; returns the time spent on storage.
+    fn deliver(&mut self, event_loop: &ActiveEventLoop, event: Event) -> Duration {
+        let mut served = false;
+        let mut storage = Duration::ZERO;
         let ticked = matches!(event, Event::Tick { .. });
         self.pace.before(&event);
         let mut draw = false;
         let mut toggles = Vec::new();
         let mut events = vec![event];
         while let Some(e) = events.pop() {
-            let Some(app) = self.app.as_mut() else { return };
+            let Some(app) = self.app.as_mut() else {
+                return Duration::ZERO;
+            };
             app.event(e);
             while let Some(c) = app.poll_command() {
                 match c {
@@ -217,10 +256,10 @@ impl Shell {
                                 eprintln!("{line}");
                             }
                             self.restart(event_loop);
-                            return;
+                            return Duration::ZERO;
                         }
                         event_loop.exit();
-                        return;
+                        return Duration::ZERO;
                     }
                     _ => {}
                 }
@@ -229,21 +268,32 @@ impl Shell {
             toggles.extend(app.take_stick_toggles());
             // A camera the person chose on the scan sheet.
             self.lens.chosen(app);
+            served |= app.storage_pending();
+            let at = Instant::now();
             for line in serve(app, &mut self.boxes, Some(&self.host)) {
                 eprintln!("{line}");
             }
+            storage += at.elapsed();
         }
         if ticked {
             self.pace.animating = draw;
         }
+        // A stick toggled or a storage command served changes a stick's
+        // files: look again now. Otherwise the timer looks.
+        let looks = served || !toggles.is_empty();
         for name in toggles {
             self.toggle(&name);
         }
-        // A write changes a stick's files: look again now.
-        self.rescan(event_loop, false);
+        if looks {
+            let at = Instant::now();
+            self.rescan(event_loop, false);
+            storage += at.elapsed();
+        }
+        self.pace.storage_took(storage);
         if draw && let Some(w) = self.window() {
             w.request_redraw();
         }
+        storage
     }
 
     fn restart(&mut self, event_loop: &ActiveEventLoop) {
@@ -347,7 +397,9 @@ impl Shell {
         let (Some(view), Some(app)) = (self.view.as_mut(), self.app.as_mut()) else {
             return;
         };
+        let begun = Instant::now();
         view.draw(app, &mut self.pace);
+        self.slow("frame", begun.elapsed());
     }
 
     /// Presses `action` as the person would, and answers what it asks.
@@ -787,6 +839,7 @@ fn main() -> ExitCode {
         scale: 1.0,
         pace,
         next_scan,
+        last_slow: None,
         pointer: Pointer::new(),
         lens: Lens::new(Camera::new(None, false)),
     };

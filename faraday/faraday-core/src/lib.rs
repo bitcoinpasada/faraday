@@ -3610,6 +3610,20 @@ impl Faraday {
         self.restart
     }
 
+    /// Whether a storage request is waiting for the shell (a lookup).
+    pub fn storage_pending(&self) -> bool {
+        !self.storage_out.is_empty()
+    }
+
+    /// The screen's name, and the sheet's when one is up, for a shell's
+    /// slow-frame line: `Backup` or `Backup / Qr` (a small string).
+    pub fn screen_name(&self) -> String {
+        match self.sheet {
+            Some(sheet) => format!("{:?} / {:?}", self.screen, sheet),
+            None => format!("{:?}", self.screen),
+        }
+    }
+
     /// The next storage request, or `None`.
     pub fn poll_storage(&mut self) -> Option<StorageCommand> {
         self.storage_out.pop_front()

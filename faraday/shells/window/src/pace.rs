@@ -139,6 +139,23 @@ impl Pacer {
         }
     }
 
+    /// An event with its commands took `took`, for `--timings`.
+    pub fn event_took(&mut self, took: Duration) {
+        if let Some(t) = self.timings.as_mut() {
+            t.events = (t.events.0 + took, t.events.1.max(took));
+            t.event_count += 1;
+        }
+    }
+
+    /// Serving storage requests and looking at the sticks took `took`,
+    /// for `--timings`.
+    pub fn storage_took(&mut self, took: Duration) {
+        if let Some(t) = self.timings.as_mut() {
+            t.storage = (t.storage.0 + took, t.storage.1.max(took));
+            t.storage_count += 1;
+        }
+    }
+
     /// The tick due at `now` has been sent: when the next one is.
     /// Without the compositor's pacing, a motion runs on a grid of
     /// frames from its first tick, not a frame after each pass, so the
@@ -171,6 +188,12 @@ struct FrameTimings {
     /// Between consecutive frames of a motion, and how many of them.
     gap: (Duration, Duration),
     gaps: u32,
+    /// Events with their commands, and storage passes: as a total and a
+    /// maximum, and how many.
+    events: (Duration, Duration),
+    event_count: u32,
+    storage: (Duration, Duration),
+    storage_count: u32,
 }
 
 impl FrameTimings {
@@ -183,6 +206,10 @@ impl FrameTimings {
             blit: (Duration::ZERO, Duration::ZERO),
             gap: (Duration::ZERO, Duration::ZERO),
             gaps: 0,
+            events: (Duration::ZERO, Duration::ZERO),
+            event_count: 0,
+            storage: (Duration::ZERO, Duration::ZERO),
+            storage_count: 0,
         }
     }
 
@@ -206,7 +233,7 @@ impl FrameTimings {
         let ms = |d: Duration| d.as_secs_f64() * 1000.0;
         let mean = |total: Duration, n: u32| ms(total) / f64::from(n.max(1));
         eprintln!(
-            "faraday: {} frames · render {:.1} ms (worst {:.1}) · blit {:.1} ms (worst {:.1}) · frame to frame {:.1} ms (worst {:.1}) over {}",
+            "faraday: {} frames · render {:.1} ms (worst {:.1}) · blit {:.1} ms (worst {:.1}) · frame to frame {:.1} ms (worst {:.1}) over {} · events {:.1} ms (worst {:.1}) · storage {:.1} ms (worst {:.1})",
             self.frames,
             mean(self.render.0, self.frames),
             ms(self.render.1),
@@ -215,6 +242,10 @@ impl FrameTimings {
             mean(self.gap.0, self.gaps),
             ms(self.gap.1),
             self.gaps,
+            mean(self.events.0, self.event_count),
+            ms(self.events.1),
+            mean(self.storage.0, self.storage_count),
+            ms(self.storage.1),
         );
         *self = FrameTimings {
             since: now,
