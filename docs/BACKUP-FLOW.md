@@ -2548,6 +2548,80 @@ where drawing changes.
   every preset's result meets every layer with the margin hand-worked
   for it; a conflict names its layers and its first resolution, pressed,
   removes it; the budget's result is the same on every run.
+
+  **L2 built** (2026-10-19): `faraday-core/src/work_out.rs` (the
+  search), `layers.rs` (the card's presses, Work it out, the conflicts),
+  `layers_screen.rs` (the card), the lines under the board in
+  `board.rs`; strings in `faraday-strings`; tests
+  `tests/access_layers.rs` and `tests/backup_board.rs`. Its choices:
+  - **The card** is `qstep::LAYERS`, after Start from and before the
+    board, in Back up and in the flow's plan card alike. A preset still
+    opens the board; the card is opened by a press. A plan that keeps
+    no layers shows, and Work it out works to, the one a fresh plan
+    starts with (`access::fresh`: a paper route of every place, any `m`
+    of them, remembering the passphrases of the seeds loaded here); the
+    first edit or Work it out keeps it in the plan. L1's reading of an
+    old plan as one layer able to spend with everything stays for the
+    model (`Answers::access_layers`); the card and the lines show the
+    fresh layer instead. A route's vault password cycles Not known,
+    Remembered, Written down (`Route::written`, ` written <vaults>` in
+    the plan's text); a written one is kept on paper at one of the
+    route's places, wherever the search finds best. Password rows are
+    drawn off paper only.
+  - **The search** places paper only at a place (a file on a stick
+    spends as paper does for every route but a paper route and costs a
+    stick); it does not place passphrases (a route counts those its
+    layer remembers, and a seed with a passphrase no route remembers is
+    not placed). A vault whose password nobody writes down holds every
+    seed placed and the description (what a vault holds is not counted
+    as kept); one whose password is written down has what it holds
+    searched too. A vault the plan made that no route needs goes; one
+    set up before the keys stays, holding nothing. Places the routes
+    treat alike, and seeds they treat alike, are interchangeable (double
+    lex). Bounds: both margins only fall as things are added; what is
+    kept only grows, plus the most any one set of a paper route's places
+    lacks, plus the sticks and vaults a route through a vault must have
+    at sets no larger than the margin. Things are tried at one place
+    first, then none, then more. Routes that cannot be met at all (any
+    0, more places than it has, fewer usable seeds than the quorum) are
+    left out of the search and are conflicts.
+  - **The budget** is 400,000 steps (a step: one choice of places for
+    one thing). The worst preset case (a 3 of 5; Access layer 1 through
+    Vault 1 at Place 1 or any 3 of the five on paper; Access layer 2
+    through Vault 2 at Place 2 or 3, or any 3 of Places 2 to 5 on paper;
+    Access layer 3 any 3 of the five on paper) ends, every placement
+    tried, in 320,119 steps, 163 to 168 ms on the build machine's
+    release build; a case that runs the whole 400,000 steps took 196 to
+    205 ms there. A 3 of 5 with its fresh layer takes 15,070 steps,
+    about 7 ms; a 2 of 3, 114. The other shapes tried for a margin of 0
+    add at most three eighths of the budget.
+  - **Conflicts** read from the layers alone: a layer with no paper
+    route (resolved by a paper route of its places); a route that can
+    sign with fewer seeds than the quorum (by a passphrase remembered,
+    where that would do; otherwise no press); a route any one of whose
+    places meets it with nothing the stranger lacks (resolved by a place
+    added to the route, a new one when it has them all, and two of its
+    places needed; off paper by a vault's password known, or a vault
+    added for it; by a passphrase remembered). A written password never
+    resolves a route of one place: the stranger there reads it. Where
+    Work it out finds a margin of 0 that none of these explains, it
+    works the routes out for the other shapes of §20.12 item 2 (single
+    key, 2 of 3, 3 of 5, an eighth of the budget each) and names the
+    first that keeps every place from spending alone ("These routes
+    need a 2 of 3; this wallet is a single key"), or says none does.
+    With nothing in conflict the board opens on the result; otherwise
+    the card stays, with the conflicts.
+  - **The lines under the board** (the drawing memo): per layer
+    "Access layer n: its places · can spend", or a warning "· cannot
+    spend"; a warning when it has no paper route or cannot spend from
+    it; the stranger's line, a warning at a margin of 0 or below what
+    Work it out found for the same layers; "Best found; not every
+    placement was tried" while the board is as a Work it out that ran
+    out of steps left it. Layers are named "Access layer n" (names
+    typed come with L3).
+  - Removing a place takes it out of every route and moves the places
+    after it down (`access::without_place`), on the board and the
+    wallet chart.
 - **L3, the layer view** (§20.7, §19.18 item 3): the pills, the
   board drawn per view through the drawing memo, each view's checks,
   the Stranger stepper, the layers' marks in All; a layer's name typed

@@ -7,7 +7,7 @@ use faraday_core::access::{
     Layer, Reach, Route, balance_margin, every_layer_on_paper, kept, layer_met, layer_name,
     layer_names, push_layer_names, route_met, stranger_margin,
 };
-use faraday_core::plan::{Answers, At, Preset, Seed, Shape, Spot, What, stored_map, tag_of};
+use faraday_core::plan::{Answers, At, Preset, Seed, Shape, Spot, What, map, stored_map, tag_of};
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, qstep};
@@ -39,6 +39,7 @@ fn route(places: &[usize], any: usize, passwords: &[usize]) -> Route {
         passwords: passwords.to_vec(),
         passphrases: Vec::new(),
         paper: false,
+        written: Vec::new(),
     }
 }
 
@@ -285,6 +286,7 @@ fn two_layers() -> Vec<Layer> {
                 passwords: Vec::new(),
                 passphrases: vec![1],
                 paper: true,
+                written: Vec::new(),
             }],
         },
     ]
@@ -508,4 +510,209 @@ fn saving_the_plan_again_keeps_a_layers_name_in_the_vault_alone() {
             "{name}, kept on locking, holds the layer's name"
         );
     }
+}
+
+// ----- Work it out (§20.3, §20.8) -----
+
+use faraday_core::access::kept_in;
+use faraday_core::layers::{LayersPress, conflicts};
+use faraday_core::work_out::{BUDGET, Outcome, work_out};
+
+/// Work it out on plan `a` for `layers`, the result put on the plan.
+fn worked(s: &Shape, a: &Answers, layers: &[Layer]) -> (Outcome, Answers) {
+    let out = work_out(s, a, layers, BUDGET).expect("a route can be met");
+    let mut b = a.clone();
+    b.layers = layers.to_vec();
+    b.set_map(out.map.clone());
+    (out, b)
+}
+
+/// Every layer of `b` met by every route, each with its paper route.
+fn all_met(s: &Shape, b: &Answers) -> bool {
+    let reach = Reach::of(s, b);
+    b.layers
+        .iter()
+        .all(|l| reach.layer_met(l) && reach.paper_met(l))
+}
+
+/// What plan `b` keeps: copies on paper, sticks, vaults.
+fn keeps(s: &Shape, b: &Answers) -> (usize, usize, usize) {
+    let k = kept_in(&map(s, b));
+    (k.copies, k.sticks, k.vaults)
+}
+
+/// Each preset with the layer a fresh plan starts with (one paper route,
+/// any m of the preset's places), worked out. By hand:
+///
+/// - One key, two places, any 1 of them: each place alone must spend, so
+///   the seed's words are at both and a stranger at either spends (margin
+///   0, §20.12 item 5: at most k − 1), and sees the balance (0). Two
+///   copies.
+/// - 2 of 3, any 2 of 3 places: a stranger finding a route's 2 places
+///   spends, so the margin is at most 1; one seed and one share at each
+///   place reach it (one place: one seed; any two: two seeds and two
+///   shares, each share two of the three keys, which cover all three).
+///   One place sees no balance: a share holds two keys (balance 1, no
+///   more than the margin). Fewer copies fail: a place without a seed
+///   leaves its pairs needing two seeds at the other place, four seeds in
+///   all; a place without a share leaves its pairs needing the
+///   description whole at the other, which then sees the balance alone.
+///   Six copies.
+/// - 3 of 5, any 3 of 5: margin at most 2; a seed and a share at each
+///   place reach it (two places: two seeds). A share holds three keys,
+///   shares i and i + 2 together all five, so some two places see the
+///   balance: 1, and 2 cannot be had (a place's missing keys are two
+///   neighbours, and five places cannot each meet every other's and no
+///   three share one). Seeds: with one at each place, five; a place
+///   with none makes every two of the others hold three, seven at least.
+///   Shares: a place with none leaves every two of the other four
+///   to cover the keys, which one share each cannot (shares cover in
+///   pairs only two apart, and no three shares are pairwise so); five at
+///   least. Ten copies.
+///
+/// The vaults a preset made are not needed by a paper route and go.
+#[test]
+fn every_preset_worked_out_meets_its_layer_with_the_margin_worked_by_hand() {
+    // (m, n): margin, balance, copies.
+    let hand = [
+        ((1, 1), (0, 0, 2)),
+        ((2, 3), (1, 1, 6)),
+        ((3, 5), (2, 1, 10)),
+    ];
+    for ((m, n), (margin, balance, copies)) in hand {
+        let s = shape(m, n);
+        for preset in Preset::ALL {
+            let a = Answers::preset(&s, preset);
+            let layers = a.layers_shown(&s);
+            assert_eq!(layers.len(), 1);
+            assert!(layers[0].routes[0].paper);
+            let (out, b) = worked(&s, &a, &layers);
+            let what = format!("{m} of {n}, {preset:?}");
+            assert!(all_met(&s, &b), "{what}: met");
+            assert_eq!(stranger_margin(&s, &b), margin, "{what}: margin");
+            assert_eq!(balance_margin(&s, &b), balance, "{what}: balance");
+            assert_eq!(keeps(&s, &b), (copies, 0, 0), "{what}: kept");
+            assert_eq!(out.margin, margin);
+            assert!(!out.stopped, "{what}: every placement tried");
+        }
+    }
+}
+
+/// The worst preset case (§20.8): a 3 of 5, Access layer 1 through Vault
+/// 1 at Place 1 or any 3 of the five places on paper, Access layer 2
+/// through Vault 2 at Place 2 or Place 3, or any 3 of Places 2 to 5 on
+/// paper, Access layer 3 any 3 of the five on paper.
+fn worst() -> Vec<Layer> {
+    vec![
+        layer(vec![route(&[0], 1, &[0]), paper(&[0, 1, 2, 3, 4], 3)]),
+        layer(vec![route(&[1, 2], 1, &[1]), paper(&[1, 2, 3, 4], 3)]),
+        layer(vec![paper(&[0, 1, 2, 3, 4], 3)]),
+    ]
+}
+
+/// The worst case worked out, by hand: the paper routes are any 3, so
+/// the margin is at most 2, and a seed and a share at each place give it
+/// (as the 3 of 5 above, Places 2 to 5 covering for Access layer 2's
+/// paper route too, since any three shares cover the keys). Places 1, 2
+/// and 3 alone must spend for the routes through the vaults, from what a
+/// stranger there cannot read: Vault 1's stick at Place 1, Vault 2's at
+/// Places 2 and 3, each vault holding the seeds and the description.
+/// Balance 1 as before. Ten copies, three sticks, two vaults; and the
+/// search ends within its budget, every placement tried.
+#[test]
+fn the_worst_preset_case_is_worked_out_within_the_budget() {
+    let s = shape(3, 5);
+    let a = Answers::preset(&s, Preset::PaperVault);
+    let (out, b) = worked(&s, &a, &worst());
+    assert!(all_met(&s, &b));
+    assert_eq!(stranger_margin(&s, &b), 2);
+    assert_eq!(balance_margin(&s, &b), 1);
+    assert_eq!(keeps(&s, &b), (10, 3, 2));
+    assert!(out.steps <= BUDGET, "{} steps", out.steps);
+    assert!(!out.stopped);
+}
+
+/// The same plan worked out twice gives the same map, steps and all.
+#[test]
+fn work_it_out_gives_the_same_result_on_every_run() {
+    let s = shape(3, 5);
+    let a = Answers::preset(&s, Preset::PaperVault);
+    let first = work_out(&s, &a, &worst(), BUDGET);
+    for _ in 0..3 {
+        assert_eq!(work_out(&s, &a, &worst(), BUDGET), first);
+    }
+    // Stopped short by a smaller budget, the best found is the same too.
+    let short = work_out(&s, &a, &worst(), 1000).unwrap();
+    assert!(short.stopped);
+    assert_eq!(work_out(&s, &a, &worst(), 1000).unwrap(), short);
+}
+
+/// Two layers of a 2 of 3, Access layer 1 any 2 of Places 1 and 2 on
+/// paper, Access layer 2 any 2 of Places 2 and 3: both need Place 2. By
+/// hand: margin 1 (a route's two places spend). Each place keeps a share
+/// (one alone would leave a pair needing the description whole at its
+/// other place, which then sees the balance alone): three shares, any two
+/// covering the keys, balance 1. The seeds: Place 2 keeps two of them,
+/// which with one share cannot spend alone, and serve both layers; Places
+/// 1 and 3 need none. Five copies, Place 2's three serving both layers
+/// once each (a seed at each place would be six).
+#[test]
+fn two_layers_sharing_a_places_paper_are_met_by_one_copy() {
+    let s = shape(2, 3);
+    let a = Answers::preset(&s, Preset::Paper);
+    let layers = vec![
+        layer(vec![paper(&[0, 1], 2)]),
+        layer(vec![paper(&[1, 2], 2)]),
+    ];
+    let (_, b) = worked(&s, &a, &layers);
+    assert!(all_met(&s, &b));
+    assert_eq!(stranger_margin(&s, &b), 1);
+    assert_eq!(balance_margin(&s, &b), 1);
+    assert_eq!(keeps(&s, &b), (5, 0, 0));
+    let at = |p: usize| -> Vec<What> {
+        map(&s, &b)
+            .iter()
+            .filter(|x| x.at == At::Place(p))
+            .flat_map(|x| x.holds.iter().map(|(w, _)| *w))
+            .collect()
+    };
+    let words = |p: usize| at(p).iter().filter(|w| matches!(w, What::Words(_))).count();
+    assert_eq!((words(0), words(1), words(2)), (0, 2, 0), "{:?}", at(1));
+}
+
+/// A layer with no paper route is a conflict, and its first resolution
+/// gives it one.
+#[test]
+fn a_layer_without_a_paper_route_is_a_conflict() {
+    let s = shape(2, 3);
+    let a = Answers::preset(&s, Preset::PaperVault);
+    let layers = vec![
+        layer(vec![paper(&[0, 1, 2], 2)]),
+        layer(vec![route(&[0, 1, 2], 2, &[0])]),
+    ];
+    let name = |p: usize| format!("Place {}", p + 1);
+    let found = conflicts(&s, &a, &layers, &name);
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0].line, "Access layer 2 has no paper route");
+    assert_eq!(found[0].fixes[0].1, LayersPress::AddPaperRoute(1));
+}
+
+/// A route's vault passwords written down, paper route or not, read back
+/// with the plan.
+#[test]
+fn a_routes_written_passwords_read_back_with_the_plan() {
+    let s = shape(2, 3);
+    let mut a = Answers::preset(&s, Preset::PaperVault);
+    a.layers = vec![layer(vec![
+        Route {
+            written: vec![0, 2],
+            ..route(&[0, 1], 1, &[1])
+        },
+        Route {
+            written: vec![1],
+            ..paper(&[0, 1, 2], 2)
+        },
+    ])];
+    let back = Answers::from_text(&s, &a.to_text()).expect("the plan reads back");
+    assert_eq!(back.layers, a.layers);
 }

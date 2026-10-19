@@ -39,6 +39,10 @@ pub struct Route {
     /// on paper (a vault's password written down among it), with what the
     /// layer remembers; no stick, so no vault opens on it.
     pub paper: bool,
+    /// The vaults whose passwords the layer has written down rather than
+    /// remembered (§20.9): Work it out keeps "Vault n's password" on paper
+    /// at one of the route's places. Not in [`Route::passwords`].
+    pub written: Vec<usize>,
 }
 
 /// An access layer (§20.1): its routes, each checked on its own. Its name
@@ -75,7 +79,55 @@ pub fn everything(shape: &Shape, a: &Answers) -> Layer {
                 .filter(|&i| shape.seeds[i].passphrase)
                 .collect(),
             paper: false,
+            written: Vec::new(),
         }],
+    }
+}
+
+/// The one layer a fresh plan starts with (§20.8 L2): a paper route of
+/// every place, any `m` of them (at most every place), remembering the
+/// passphrases of the seeds loaded here with one. A lookup per seed.
+pub fn fresh(shape: &Shape, places: usize) -> Layer {
+    let places = places.max(1);
+    Layer {
+        routes: vec![Route {
+            places: (0..places).collect(),
+            any: shape.m.max(1).min(places),
+            passwords: Vec::new(),
+            passphrases: (0..shape.seeds.len())
+                .filter(|&i| shape.seeds[i].here && shape.seeds[i].passphrase)
+                .collect(),
+            paper: true,
+            written: Vec::new(),
+        }],
+    }
+}
+
+impl Answers {
+    /// The layers the Access layers card shows and Work it out works to
+    /// (§20.3): those the plan keeps, or for a plan that keeps none the
+    /// one a fresh plan starts with ([`fresh`]). A lookup.
+    pub fn layers_shown(&self, shape: &Shape) -> Vec<Layer> {
+        if self.layers.is_empty() {
+            vec![fresh(shape, self.places)]
+        } else {
+            self.layers.clone()
+        }
+    }
+}
+
+/// Place `p` taken out of `layers`: it leaves each route, the places
+/// after it move down one, and a route asks for at most the places it
+/// has left. A lookup per route.
+pub fn without_place(layers: &mut [Layer], p: usize) {
+    for r in layers.iter_mut().flat_map(|l| l.routes.iter_mut()) {
+        r.places.retain(|&q| q != p);
+        for q in r.places.iter_mut() {
+            if *q > p {
+                *q -= 1;
+            }
+        }
+        r.any = r.any.min(r.places.len());
     }
 }
 
@@ -122,9 +174,10 @@ pub fn fit(layers: &mut [Layer], places: usize) {
 
 /// Writes the layers into a plan's text (§20.6): a `layers n` line, then
 /// a `route` line per route, `route <layer> <any> <places> <passwords>
-/// <passphrases>`, each list numbers by commas, `-` when empty, and
-/// ` paper` after a paper route. Nothing for a plan with no layers of its
-/// own. Never a name.
+/// <passphrases>`, each list numbers by commas, `-` when empty, ` paper`
+/// after a paper route and ` written <vaults>` after a route with
+/// passwords written down. Nothing for a plan with no layers of its own.
+/// Never a name.
 pub fn write(layers: &[Layer], out: &mut String) {
     if layers.is_empty() {
         return;
@@ -153,6 +206,12 @@ pub fn write(layers: &[Layer], out: &mut String) {
                 out.push(' ');
                 out.push_str("paper");
             }
+            if !r.written.is_empty() {
+                out.push(' ');
+                out.push_str("written");
+                out.push(' ');
+                out.push_str(&list(&r.written));
+            }
             out.push('\n');
         }
     }
@@ -177,16 +236,22 @@ pub fn read(
     let mut out = vec![Layer::default(); n];
     for value in routes {
         let parts: Vec<&str> = value.split(' ').collect();
-        let (l, any, ps, pws, pps, paper) = match parts.as_slice() {
-            [l, any, ps, pws, pps] => (l, any, ps, pws, pps, false),
-            [l, any, ps, pws, pps, "paper"] => (l, any, ps, pws, pps, true),
-            _ => return None,
-        };
         let list = |s: &str| -> Option<Vec<usize>> {
             if s == "-" {
                 return Some(Vec::new());
             }
             s.split(',').map(|n| n.parse().ok()).collect()
+        };
+        let (l, any, ps, pws, pps, rest) = match parts.as_slice() {
+            [l, any, ps, pws, pps, rest @ ..] => (l, any, ps, pws, pps, rest),
+            _ => return None,
+        };
+        let (paper, written) = match rest {
+            [] => (false, Vec::new()),
+            ["paper"] => (true, Vec::new()),
+            ["written", w] => (false, list(w)?),
+            ["paper", "written", w] => (true, list(w)?),
+            _ => return None,
         };
         let route = Route {
             places: list(ps)?,
@@ -194,10 +259,12 @@ pub fn read(
             passwords: list(pws)?,
             passphrases: list(pps)?,
             paper,
+            written,
         };
         let fits = route.places.iter().all(|&p| p < places)
             && route.any <= route.places.len()
             && route.passwords.iter().all(|&v| v < 1024)
+            && route.written.iter().all(|&v| v < 1024)
             && route.passphrases.iter().all(|&i| i < shape.seeds.len());
         if !fits {
             return None;

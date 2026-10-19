@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|bootplace|power|pills]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|layers|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|bootplace|power|pills]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -44,7 +44,10 @@
 //! (`docs/BACKUP-FLOW.md` §19) for Savings with its three keys here: on
 //! Paper and vault, a seed selected with the zones that take it edged,
 //! a placed seed's forms open, a share placed with the keys left off,
-//! and the software place; with `inbox`, Stick visit offering the Inbox's
+//! and the software place; with `layers`, the plan's Access layers card
+//! (`docs/BACKUP-FLOW.md` §20.3) for Savings with its three keys here: the
+//! card, the board Work it out filled with the lines under it, and a
+//! conflict with what would resolve it; with `inbox`, Stick visit offering the Inbox's
 //! files under "From the Inbox" (a wallet, a vault, a wallet's QR
 //! picture, seed words and text), Select all, and the secret sheet for
 //! the text and for the words; with `transfer`, the desktop app's
@@ -686,6 +689,7 @@ fn run(
         Some("again") => return again_tour(&mut t),
         Some("plan") => return plan_tour(&mut t),
         Some("board") => return board_tour(&mut t),
+        Some("layers") => return layers_tour(&mut t),
         Some("inbox") => return inbox_tour(&mut t),
         Some("transfer") => return transfer_tour(&mut t),
         Some("upgrade") => return upgrade_tour(&mut t),
@@ -3792,6 +3796,44 @@ fn board_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// The plan's Access layers card (`docs/BACKUP-FLOW.md` §20.3) for
+/// Savings, its three keys typed in, on Paper only: the card with its one
+/// layer, the board Work it out filled, its top and the lines under it,
+/// and a conflict (the route any one of its places) with what would
+/// resolve it.
+fn layers_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::board::BoardPress as B;
+    use faraday_core::layers::LayersPress as L;
+    t.load_kit()?;
+    for n in 1..3 {
+        t.press(Action::Entry(None));
+        t.type_key(n);
+    }
+    let savings = t
+        .app
+        .session
+        .wallets
+        .iter()
+        .position(|w| w.name == "Savings")
+        .ok_or("no Savings")?;
+    t.press(Action::Backup(savings));
+    t.press(Action::BPreset(0));
+    t.press(Action::BQ(qstep::LAYERS));
+    t.shot("layers-card")?;
+    scroll_to(t, Action::Layers(L::WorkItOut));
+    t.shot("layers-card-work-it-out")?;
+    t.press(Action::Layers(L::WorkItOut));
+    t.shot("layers-worked-board")?;
+    scroll_to(t, Action::Board(B::AddPlace));
+    scroll(t, 400);
+    t.shot("layers-worked-lines")?;
+    t.press(Action::BQ(qstep::LAYERS));
+    t.press(Action::Layers(L::Fewer(0, 0)));
+    scroll_to(t, Action::Layers(L::AddPlaceTo(0, 0)));
+    t.shot("layers-conflict")?;
+    Ok(())
+}
+
 /// A vault made with `phrase` and unlocked, as a person makes one from
 /// Vaults.
 fn open_a_vault(t: &mut Tour, phrase: &str) -> Result<(), String> {
@@ -5600,6 +5642,7 @@ fn main() -> ExitCode {
             "again",
             "plan",
             "board",
+            "layers",
             "inbox",
             "transfer",
             "upgrade",
@@ -5623,7 +5666,7 @@ fn main() -> ExitCode {
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey or createfrom"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, layers, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey or createfrom"
         );
         return ExitCode::from(2);
     }

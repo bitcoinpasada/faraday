@@ -3097,6 +3097,8 @@ impl Answers {
         self.ensure_map(shape);
         let n = self.map.as_deref().map_or(0, places_of);
         if n > 1 && p < n {
+            // The routes' places after it move down with it (§20.1).
+            crate::access::without_place(&mut self.layers, p);
             self.edit_map(shape, |m| edited(&m, Edit::RemovePlace(p), &[]));
         }
     }

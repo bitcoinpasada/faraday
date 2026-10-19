@@ -42,6 +42,7 @@ pub mod gpg;
 pub mod inbox;
 pub mod inputs;
 pub mod keygen;
+pub mod layers;
 pub mod learn;
 pub mod lightning;
 pub mod medium;
@@ -80,6 +81,7 @@ pub mod vaults;
 pub mod visit_taken;
 pub mod wallet;
 pub mod wordlist;
+pub mod work_out;
 
 mod backup_flow_screen;
 mod backup_flow_wallet;
@@ -103,6 +105,7 @@ mod family_screen;
 mod family_text;
 mod guide;
 mod keygen_screen;
+mod layers_screen;
 mod lightning_screen;
 mod motion;
 mod scan_key;
@@ -1034,6 +1037,9 @@ pub enum Action {
     BName(u8),
     /// A press on the backup board (`docs/BACKUP-FLOW.md` §19).
     Board(board::BoardPress),
+    /// A press on the plan's Access layers card (`docs/BACKUP-FLOW.md`
+    /// §20.3), on Back up and in a wallet flow alike.
+    Layers(layers::LayersPress),
     /// The plan made: on to the checklist, the plan saved into the open
     /// vault.
     BChecklist,
@@ -2741,6 +2747,9 @@ pub mod qstep {
     /// The board: the places, what each keeps, and the list of what the
     /// backup can keep (`docs/BACKUP-FLOW.md` §19).
     pub const BOARD: u8 = 8;
+    /// Access layers: who may spend, by which routes, and Work it out
+    /// (`docs/BACKUP-FLOW.md` §20.3).
+    pub const LAYERS: u8 = 9;
     /// The most places a plan has.
     pub const MAX_PLACES: usize = 240;
 }
@@ -2773,11 +2782,11 @@ impl PlanPress {
 }
 
 /// The cards of a plan after Start from, in order (`docs/BACKUP-FLOW.md`
-/// §17.1, §19.1): the board, the software where the description goes
-/// into software or as files, and The plan. Back up's and a wallet flow's
-/// alike (§19.12 item 1).
+/// §17.1, §19.1, §20.3): Access layers, the board, the software where the
+/// description goes into software or as files, and The plan. Back up's and
+/// a wallet flow's alike (§19.12 item 1).
 pub fn plan_cards(shape: &plan::Shape, a: &plan::Answers) -> Vec<u8> {
-    let mut v = vec![qstep::BOARD];
+    let mut v = vec![qstep::LAYERS, qstep::BOARD];
     if a.asks_software(shape) {
         v.push(qstep::SOFTWARE);
     }
@@ -5644,10 +5653,15 @@ impl Faraday {
                 }
                 if let Some(&preset) = plan::Preset::ALL.get(usize::from(k)) {
                     let answers = plan::Answers::preset(&shape, preset);
+                    // The preset fills the board, which opens on it; the
+                    // Access layers card before it is opened by a press
+                    // (`docs/BACKUP-FLOW.md` §20.3).
                     if let Some(b) = self.backup.as_mut() {
                         b.answers = answers;
+                        b.q = Some(qstep::BOARD);
+                        b.scroll.follow = true;
+                        b.naming = None;
                     }
-                    self.act(Action::BQNext(qstep::PRESET));
                 }
             }
             Action::BAnswer(list, row) => {
@@ -5669,6 +5683,7 @@ impl Faraday {
                 }
             }
             Action::Board(p) => self.board_act(p),
+            Action::Layers(p) => self.layers_act(p),
             Action::BName(p8) => {
                 let open = self.vaults.open.get(self.vaults.current).is_some();
                 let mut focused = false;

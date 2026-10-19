@@ -221,6 +221,9 @@ impl Faraday {
         };
         let places = plan::places_of(&boxes);
         let mut after = answers.clone();
+        if let Edit::RemovePlace(p) = edit {
+            crate::access::without_place(&mut after.layers, p);
+        }
         after.set_map(plan::edited(&boxes, edit, &dest));
         let mut new_names = names.clone();
         new_names.resize(places, String::new());

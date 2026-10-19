@@ -415,7 +415,13 @@ each touch move and its frame, 6.7 and 15.2; a chip's forms open 5.6 and
 14.7. The checklist's rows as after B. After F2b (the list in the right-hand
 column, the boxes): the board's rows within 1 ms of F2a's; the narrow
 column at 800×600, a frame 2.0, a scroll step and frame 2.0, the Add
-sheet 1.7.
+sheet 1.7. After BACKUP-FLOW §20's L2 (the access layers' lines under
+the board), on the build machine, a 2-of-3 with three keys here and a
+vault open, the board on Paper and vault at 1366×768, medians of 30 in
+ms over three runs each: a frame 4.07 to 4.39 before and 3.97 to 4.36
+after, a scroll step and frame 4.26 to 4.37 before and 4.24 to 4.62
+after, within the runs' spread; a pointer move under 0.001 both; the
+new Access layers card 1.84 a frame.
 
 The owner's check (2026-10-16): the stick built from batch B, on the
 slow laptop, through the same flow: quick throughout.

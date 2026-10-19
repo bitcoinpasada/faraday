@@ -136,9 +136,11 @@ fn a_step_card_grows_open_and_comes_to_rest() {
     let _ = frames(&mut app, 1_016, 2_000);
     app.press(Action::BQ(faraday_core::qstep::BOARD));
     let early = frames(&mut app, 2_016, 2_048);
-    let rest = frames(&mut app, 2_064, 2_600);
+    // The page taller than the panel, it glides to the card, and its
+    // overlay scrollbar, shown while it moved, fades after it.
+    let rest = frames(&mut app, 2_064, 3_600);
     assert!(early != rest, "part of the way open");
-    assert!(frames(&mut app, 2_616, 3_200) == rest, "and then still");
+    assert!(frames(&mut app, 3_616, 4_200) == rest, "and then still");
     assert!(
         app.where_offered(Action::BQ(faraday_core::qstep::BOARD))
             .is_some(),

@@ -2032,3 +2032,205 @@ fn a_press_on_a_places_name_selects_it_and_the_first_key_replaces_it() {
     app.event(Event::Key(Key::Char('>')));
     assert_eq!(app.place_name(0), ">L2");
 }
+
+// ---- The Access layers card and Work it out (`docs/BACKUP-FLOW.md` §20.3) ----
+
+use faraday_core::layers::LayersPress as LP;
+use faraday_core::work_out::{BUDGET, work_out};
+
+fn layers(app: &mut Faraday, p: LP) {
+    app.press(Action::Layers(p));
+}
+
+/// Whether `want` is drawn at any scroll of the page, from its top.
+fn drawn_anywhere(app: &mut Faraday, want: &str) -> bool {
+    drawn_where(app, &|t| t == want)
+}
+
+/// Whether a line starting with `start` is drawn at any scroll of the
+/// page: a long line wraps, each of its lines drawn on its own.
+fn starts_anywhere(app: &mut Faraday, start: &str) -> bool {
+    drawn_where(app, &|t| t.starts_with(start))
+}
+
+fn drawn_where(app: &mut Faraday, ok: &dyn Fn(&str) -> bool) -> bool {
+    app.event(Event::Scroll {
+        x: 600,
+        y: 400,
+        dy: -20_000,
+    });
+    for _ in 0..30 {
+        app.settle();
+        if app.drawn_texts().iter().any(|t| ok(t)) {
+            return true;
+        }
+        app.event(Event::Scroll {
+            x: 600,
+            y: 400,
+            dy: 150,
+        });
+    }
+    false
+}
+
+/// The Access layers card stands before the board with the one layer a
+/// fresh plan starts with; Work it out fills the board with the search's
+/// placement and opens it, and under the board a line per layer and the
+/// stranger's say what it found. A share taken off after leaves the
+/// layer unable to spend: a warning line, and the plan still made.
+#[test]
+fn work_it_out_fills_the_board_and_the_lines_under_it_say_who_can_spend() {
+    let mut app = three_here();
+    let shape = backup_shape(&app);
+    let cards = app.backup_questions();
+    let at = |q: u8| cards.iter().position(|&c| c == q).unwrap();
+    assert!(at(qstep::PRESET) < at(qstep::LAYERS) && at(qstep::LAYERS) < at(qstep::BOARD));
+    app.press(Action::BQ(qstep::LAYERS));
+    expect_down(&mut app, "Access layer 1");
+    expect_down(&mut app, "Route 1 · paper");
+    let before = app.backup.as_ref().unwrap().answers.clone();
+    let want = work_out(&shape, &before, &before.layers_shown(&shape), BUDGET).unwrap();
+    assert!(
+        offered(&mut app, Action::Layers(LP::WorkItOut)) || {
+            find(&mut app, Action::Layers(LP::WorkItOut)).is_some()
+        }
+    );
+    layers(&mut app, LP::WorkItOut);
+    let b = app.backup.as_ref().unwrap();
+    assert_eq!(b.q, Some(qstep::BOARD), "the board opens on the result");
+    let mut after = before.clone();
+    after.set_map(want.map.clone());
+    assert_eq!(the_map(&app), plan::map(&shape, &after));
+    // The layer is kept with the plan now.
+    assert_eq!(b.answers.layers, before.layers_shown(&shape));
+    expect_down(
+        &mut app,
+        "Access layer 1: Place 1, Place 2, Place 3 · can spend",
+    );
+    expect_down(&mut app, "A stranger who finds one place cannot spend");
+    assert!(!drawn_anywhere(
+        &mut app,
+        "Best found; not every placement was tried"
+    ));
+    // A share taken off: the layer's line warns; nothing is refused.
+    let p = (0..3)
+        .find(|&p| {
+            held(&the_map(&app), At::Place(p))
+                .iter()
+                .any(|w| matches!(w, What::Share(_)))
+        })
+        .unwrap();
+    let j = held(&the_map(&app), At::Place(p))
+        .iter()
+        .find_map(|w| match w {
+            What::Share(j) => Some(*j),
+            _ => None,
+        })
+        .unwrap();
+    board(&mut app, BP::Off(Zone::Paper(p), Thing::Share(j)));
+    expect_down(
+        &mut app,
+        "Access layer 1: Place 1, Place 2, Place 3 · cannot spend",
+    );
+    expect_down(&mut app, "Access layer 1 cannot spend from paper");
+    app.press(Action::BQ(qstep::PLAN));
+    assert!(offered(&mut app, Action::BChecklist) || find(&mut app, Action::BChecklist).is_some());
+}
+
+/// A route any one of whose places spends, with nothing remembered, is a
+/// conflict with a stranger at one of them: the card names the layer and
+/// why, and offers what resolves it, a place more for the route first.
+/// Pressed, the route needs two of four places and the line is gone.
+#[test]
+fn a_conflict_names_its_layer_and_its_first_resolution_removes_it() {
+    let mut app = three_here();
+    app.press(Action::BQ(qstep::LAYERS));
+    layers(&mut app, LP::Fewer(0, 0));
+    // "… and a stranger at one of them cannot both hold: each alone
+    // would spend", wrapped.
+    let line = "Access layer 1 with any one of Place 1, Place 2, Place 3 and a stranger";
+    assert!(starts_anywhere(&mut app, line));
+    expect_down(&mut app, "Add a new place to Access layer 1");
+    let fix = Action::Layers(LP::AddPlaceTo(0, 0));
+    assert!(find(&mut app, fix).is_some(), "the resolution is offered");
+    app.press(fix);
+    assert!(!starts_anywhere(&mut app, "Access layer 1 with"));
+    let b = app.backup.as_ref().unwrap();
+    assert_eq!(b.answers.places, 4);
+    let r = &b.answers.layers[0].routes[0];
+    assert_eq!((r.any, r.places.clone()), (2, vec![0, 1, 2, 3]));
+}
+
+/// The wallet flow's plan card has the same Access layers card, and Work
+/// it out there fills the flow's own board.
+#[test]
+fn the_flows_plan_card_works_its_layers_out_too() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 3);
+    let (mut app, _) = three_with_a_vault(&mut shell);
+    let i = app.backup_flows.len() - 1;
+    shell.flow(&mut app, F::Show(i));
+    shell.flow(&mut app, F::ChangePlan);
+    shell.flow(&mut app, F::Plan(faraday_core::PlanPress::Q(qstep::LAYERS)));
+    expect_down(&mut app, "Access layer 1");
+    let wf = app.flow().unwrap().wallet.as_ref().unwrap();
+    let (shape, before) = (wf.shape.clone(), wf.answers.clone());
+    let want = work_out(&shape, &before, &before.layers_shown(&shape), BUDGET).unwrap();
+    layers(&mut app, LP::WorkItOut);
+    let mut after = before.clone();
+    after.set_map(want.map.clone());
+    assert_eq!(flow_map(&app), plan::map(&shape, &after));
+    assert_eq!(app.flow().unwrap().live.plan_q, Some(qstep::BOARD));
+}
+
+/// A place removed takes its number out of every route, and the places
+/// after it move down with their routes.
+#[test]
+fn removing_a_place_renumbers_the_routes_places() {
+    let mut app = three_here();
+    app.press(Action::BQ(qstep::LAYERS));
+    // Route 1 any 2 of Places 1, 2, 3; a second layer of Places 2 and 3.
+    layers(&mut app, LP::AddLayer);
+    layers(&mut app, LP::Place(1, 0, 0));
+    open_board(&mut app);
+    board(&mut app, BP::RemovePlace(0));
+    let b = app.backup.as_ref().unwrap();
+    assert_eq!(b.answers.places, 2);
+    let routes: Vec<(usize, Vec<usize>)> = b
+        .answers
+        .layers
+        .iter()
+        .map(|l| (l.routes[0].any, l.routes[0].places.clone()))
+        .collect();
+    assert_eq!(routes, vec![(2, vec![0, 1]), (2, vec![0, 1])]);
+}
+
+/// A one-key wallet's layer on paper, any 2 of 3 places: every placement
+/// leaves the seed's words alone at a place, which spends there (§20.12
+/// item 5), and Back up keeps the wallet's shape (item 6): Work it out
+/// says the shape these routes need. Before that, any 1 of its places is
+/// a conflict of its own, resolved by a place more.
+#[test]
+fn a_shape_that_lets_one_place_spend_names_the_shape_the_routes_need() {
+    let mut app = testkit::started();
+    key_in(&mut app, 1);
+    let fp = app.session.keys.last().unwrap().fingerprint();
+    app.press(Action::KeyWallet(fp.0, 1));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    let w = app.session.wallets.len() - 1;
+    app.press(Action::Backup(w));
+    app.press(Action::BPreset(0));
+    app.press(Action::BQ(qstep::LAYERS));
+    assert!(starts_anywhere(
+        &mut app,
+        "Access layer 1 with any one of Place 1, Place 2 and"
+    ));
+    layers(&mut app, LP::AddPlaceTo(0, 0));
+    assert!(!starts_anywhere(&mut app, "Access layer 1 with"));
+    layers(&mut app, LP::WorkItOut);
+    assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::LAYERS));
+    assert!(starts_anywhere(
+        &mut app,
+        "These routes need a 2 of 3; this wallet is a single key"
+    ));
+}

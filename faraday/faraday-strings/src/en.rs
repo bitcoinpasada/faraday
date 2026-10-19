@@ -8121,7 +8121,81 @@ pub struct Strings {
     /// (`docs/BACKUP-FLOW.md` §19.15).
     pub board_add_place: &'static str,
     /// A vault box's header band. `{}`: the vault, "Vault 1".
-    pub board_sealed: &'static str,
+    pub board_sealed: &'static str, // ----- Access layers (docs/BACKUP-FLOW.md §20, F38), faraday-core -----
+    /// Title of the plan's Access layers card (`docs/BACKUP-FLOW.md` §20.3).
+    pub layers_title: &'static str,
+    /// The Access layers card's line while closed: one layer.
+    pub layers_one: &'static str,
+    /// The Access layers card's line while closed. `{}`: how many layers.
+    pub layers_many: &'static str,
+    /// A route of an access layer. `{}`: its number, from 1.
+    pub layers_route: &'static str,
+    /// A paper route of an access layer. `{}`: its number, from 1.
+    pub layers_route_paper: &'static str,
+    /// The label of a route's stepper of how many of its places are enough. `{}`: its places.
+    pub layers_any: &'static str,
+    /// A route's row: it spends from paper alone (§20.12 item 3).
+    pub layers_paper: &'static str,
+    /// A route's row: a vault's password. `{}`: the vault's number.
+    pub layers_password: &'static str,
+    /// A vault's password the route does not know.
+    pub layers_not_known: &'static str,
+    /// A vault's password the route remembers.
+    pub layers_remembered: &'static str,
+    /// A vault's password the route has written down (§20.9).
+    pub layers_written: &'static str,
+    /// A route's row: a seed's passphrase it remembers. `{}`: the seed.
+    pub layers_remembers: &'static str,
+    /// Adds a route to an access layer.
+    pub layers_add_route: &'static str,
+    /// Adds an access layer.
+    pub layers_add_layer: &'static str,
+    /// Runs the search and fills the board (§20.3).
+    pub layers_work_out: &'static str,
+    /// A conflict, and a warning under the board: a layer with no paper route (§20.12 item 3). `{}`: the layer.
+    pub layers_no_paper: &'static str,
+    /// A conflict (§20.4): a route of one place, and a stranger there. The layer, the place, the place, the place.
+    pub layers_alone: &'static str,
+    /// A conflict (§20.4): a route any one of whose places spends. The layer, its places.
+    pub layers_any_one: &'static str,
+    /// A conflict: a route can sign with fewer seeds than the wallet needs. The layer, the seeds it can use, the quorum.
+    pub layers_short: &'static str,
+    /// A conflict: the routes need another wallet shape (§20.12 item 6). The shape needed, this wallet's.
+    pub layers_shape: &'static str,
+    /// A conflict: every placement lets one place spend, and no shape tried does better.
+    pub layers_one_place: &'static str,
+    /// A wallet's shape: one key.
+    pub layers_single_key: &'static str,
+    /// A wallet's shape: a multisig. `{}`: the quorum, the keys.
+    pub layers_m_of_n: &'static str,
+    /// A resolution: a place added to a layer's route. The place, the layer.
+    pub layers_add_place: &'static str,
+    /// A resolution: a new place, added to a layer's route. `{}`: the layer.
+    pub layers_new_place: &'static str,
+    /// A resolution: a layer knows a vault's password. The layer, the vault's number.
+    pub layers_knows: &'static str,
+    /// A resolution: a new vault whose password a layer knows. `{}`: the layer.
+    pub layers_add_vault: &'static str,
+    /// A resolution: a paper route for a layer. `{}`: the layer.
+    pub layers_give_paper: &'static str,
+    /// A resolution: a layer remembers a seed's passphrase. The layer, the seed.
+    pub layers_remember: &'static str,
+    /// A line under the board: a layer met, each route with its paper route. The layer, its places.
+    pub board_layer_can: &'static str,
+    /// A warning under the board: a layer not met. The layer, its places.
+    pub board_layer_cannot: &'static str,
+    /// A warning under the board: a layer that cannot spend from paper. `{}`: the layer.
+    pub board_layer_not_on_paper: &'static str,
+    /// A line under the board: the stranger margin (§20.2). `{}`: how many places.
+    pub board_stranger: &'static str,
+    /// A line under the board: a stranger margin of one place.
+    pub board_stranger_one: &'static str,
+    /// A line under the board: no set of places spends for a stranger.
+    pub board_stranger_every: &'static str,
+    /// A warning under the board: a stranger margin of 0.
+    pub board_stranger_spends: &'static str,
+    /// A line under the board after Work it out ran out of steps (§20.8).
+    pub board_best_found: &'static str,
 }
 
 /// The English wording.
@@ -12043,4 +12117,41 @@ pub static EN: Strings = Strings {
     board_add: "Add",
     board_add_place: "+ place",
     board_sealed: "{} · sealed",
+    layers_title: "Access layers",
+    layers_one: "1 layer",
+    layers_many: "{} layers",
+    layers_route: "Route {}",
+    layers_route_paper: "Route {} · paper",
+    layers_any: "Any of its {} places",
+    layers_paper: "Paper route",
+    layers_password: "Vault {}'s password",
+    layers_not_known: "Not known",
+    layers_remembered: "Remembered",
+    layers_written: "Written down",
+    layers_remembers: "Remembers {}'s passphrase",
+    layers_add_route: "+ route",
+    layers_add_layer: "+ layer",
+    layers_work_out: "Work it out",
+    layers_no_paper: "{} has no paper route",
+    layers_alone: "{} with {} alone and a stranger at {} cannot both hold: {} alone would spend",
+    layers_any_one: "{} with any one of {} and a stranger at one of them cannot both hold: each alone would spend",
+    layers_short: "{} can sign with {} seeds; the wallet needs {}",
+    layers_shape: "These routes need a {}; this wallet is a {}",
+    layers_one_place: "Every placement lets one place spend",
+    layers_single_key: "single key",
+    layers_m_of_n: "{} of {}",
+    layers_add_place: "Add {} to {}",
+    layers_new_place: "Add a new place to {}",
+    layers_knows: "{} knows Vault {}'s password",
+    layers_add_vault: "Add a vault for {}",
+    layers_give_paper: "Give {} a paper route",
+    layers_remember: "{} remembers {}'s passphrase",
+    board_layer_can: "{}: {} · can spend",
+    board_layer_cannot: "{}: {} · cannot spend",
+    board_layer_not_on_paper: "{} cannot spend from paper",
+    board_stranger: "A stranger who finds any {} places cannot spend",
+    board_stranger_one: "A stranger who finds one place cannot spend",
+    board_stranger_every: "A stranger who finds every place cannot spend",
+    board_stranger_spends: "A stranger who finds one place can spend",
+    board_best_found: "Best found; not every placement was tried",
 };

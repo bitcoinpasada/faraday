@@ -157,6 +157,9 @@ pub struct BoardState {
     /// **+ stick** (`docs/BACKUP-FLOW.md` §19.16 item 1): never on the
     /// map, and gone when the board is left.
     pub empty: Vec<usize>,
+    /// What Work it out last found (`docs/BACKUP-FLOW.md` §20.8): its
+    /// lines stand while the plan is as it left it.
+    pub worked: Option<crate::layers::Worked>,
 }
 
 /// What kind of zone a zone is: what it keeps, and in what forms.
@@ -456,7 +459,7 @@ fn form_toggled(m: Vec<Spot>, z: Zone, t: Thing, k: usize) -> Vec<Spot> {
 /// description counts as split while any share of it is kept, so the
 /// checklist makes the shares (§19.1: Whole and shares are both offered,
 /// with nothing to choose first).
-fn map_edit(a: &mut Answers, shape: &Shape, f: impl FnOnce(Vec<Spot>) -> Vec<Spot>) {
+pub(crate) fn map_edit(a: &mut Answers, shape: &Shape, f: impl FnOnce(Vec<Spot>) -> Vec<Spot>) {
     a.ensure_map(shape);
     let m = f(plan::stored_map(shape, a));
     a.split = shape.splits
@@ -595,6 +598,11 @@ pub(crate) struct BoardView {
     pub software_entry: Option<Entry>,
     /// Each check that stands, a line under the board.
     pub warnings: Vec<String>,
+    /// The access layers' lines under the board (`docs/BACKUP-FLOW.md`
+    /// §20.3 item 3): one per layer, the stranger's, and after Work it
+    /// out ran out of steps, that it is the best found; each with whether
+    /// it is a warning.
+    pub layer_lines: Vec<(String, bool)>,
     /// After the lock: paper and files take nothing.
     pub locked: bool,
     /// Place names are typed by a press on a card's name.
@@ -698,7 +706,7 @@ impl Faraday {
     }
 
     /// What the board on screen holds between presses, to change.
-    fn board_state_mut(&mut self) -> Option<&mut BoardState> {
+    pub(crate) fn board_state_mut(&mut self) -> Option<&mut BoardState> {
         match self.board_of()? {
             BoardOf::Backup => self.backup.as_mut().map(|b| &mut b.board),
             BoardOf::Flow(i) => self.backup_flows.get_mut(i).map(|f| &mut f.live.board),
@@ -733,7 +741,7 @@ impl Faraday {
 
     /// The flow whose plan the board on screen edits past its lock, where
     /// it is: paper and files stay as made (§17.8, §19.12 item 8).
-    fn board_locked(&self) -> Option<usize> {
+    pub(crate) fn board_locked(&self) -> Option<usize> {
         match self.board_of()? {
             BoardOf::Backup => self.backup_locked_flow(),
             BoardOf::Flow(i) => {
@@ -764,7 +772,7 @@ impl Faraday {
     }
 
     /// Place `p`'s name on the board on screen.
-    fn board_place_name(&self, p: usize) -> String {
+    pub(crate) fn board_place_name(&self, p: usize) -> String {
         if self.board_backup_names() {
             self.place_name(p)
         } else {
@@ -1164,7 +1172,9 @@ impl Faraday {
                 }
             })
             .collect();
+        let layer_lines = self.board_layer_lines(&shape, &a, state, &place_name);
         Some(BoardView {
+            layer_lines,
             flow: match of {
                 BoardOf::Flow(i) => Some(i),
                 BoardOf::Backup => None,
@@ -1184,6 +1194,65 @@ impl Faraday {
             check: plan::check(&shape, &a),
             shape,
         })
+    }
+
+    /// The access layers' lines under the board (`docs/BACKUP-FLOW.md`
+    /// §20.3 item 3, the All view): for each layer its places and whether
+    /// it can spend by every route, each with its paper route, else a
+    /// warning; the stranger margin, a warning at 0 or below what Work it
+    /// out found for these layers; and "Best found" while the board is as
+    /// a Work it out that ran out of steps left it. Costs one walk of the
+    /// plan's map and the layers' checks ([`crate::access::Reach`]).
+    fn board_layer_lines(
+        &self,
+        shape: &Shape,
+        a: &Answers,
+        state: &BoardState,
+        place_name: &dyn Fn(usize) -> String,
+    ) -> Vec<(String, bool)> {
+        use crate::access::{Reach, layer_name};
+        let layers = a.layers_shown(shape);
+        let reach = Reach::of(shape, a);
+        let mut out = Vec::new();
+        for (l, layer) in layers.iter().enumerate() {
+            let name = layer_name(&[], l);
+            let mut places: Vec<usize> = layer
+                .routes
+                .iter()
+                .flat_map(|r| r.places.iter().copied())
+                .collect();
+            places.sort_unstable();
+            places.dedup();
+            let list = places
+                .iter()
+                .map(|&p| place_name(p))
+                .collect::<Vec<_>>()
+                .join(", ");
+            if !layer.routes.iter().any(|r| r.paper) {
+                out.push((fill(EN.layers_no_paper, &[&name]), true));
+            } else if !reach.paper_met(layer) {
+                out.push((fill(EN.board_layer_not_on_paper, &[&name]), true));
+            }
+            if reach.layer_met(layer) {
+                out.push((fill(EN.board_layer_can, &[&name, &list]), false));
+            } else {
+                out.push((fill(EN.board_layer_cannot, &[&name, &list]), true));
+            }
+        }
+        let margin = reach.stranger_margin();
+        let worked = state.worked.as_ref().filter(|w| w.layers == layers);
+        let lowered = worked.is_some_and(|w| margin < w.margin);
+        let line = match margin {
+            0 => EN.board_stranger_spends.to_string(),
+            m if m >= reach.places() => EN.board_stranger_every.to_string(),
+            1 => EN.board_stranger_one.to_string(),
+            m => fill(EN.board_stranger, &[&m.to_string()]),
+        };
+        out.push((line, margin == 0 || lowered));
+        if worked.is_some_and(|w| w.stopped && w.map == plan::stored_map(shape, a)) {
+            out.push((EN.board_best_found.to_string(), false));
+        }
+        out
     }
 
     /// Works out the board: the placed chips the plan's checks name, each
@@ -1331,7 +1400,7 @@ impl Faraday {
     /// The plan's edit `f`, made to Back up's plan; after the lock through
     /// the wallet's flow, with its refusals (§17.8). Computes from the
     /// state as it is.
-    fn board_change(&mut self, f: &dyn Fn(&mut Answers, &Shape)) {
+    pub(crate) fn board_change(&mut self, f: &dyn Fn(&mut Answers, &Shape)) {
         if let Some(BoardOf::Flow(i)) = self.board_of() {
             return self.flow_wallet_edit(i, f);
         }

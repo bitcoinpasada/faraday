@@ -66,7 +66,7 @@ fn edge(ui: &mut Ui, r: (f32, f32, f32, f32), radius: f32, color: osk_ui::Color)
 }
 
 /// The × mark, a cross centred on (cx, cy).
-fn cross(ui: &mut Ui, cx: f32, cy: f32, color: osk_ui::Color) {
+pub(crate) fn cross(ui: &mut Ui, cx: f32, cy: f32, color: osk_ui::Color) {
     let h = tokens::BOARD_MARK / 2.0;
     let (f, ox, oy) = (ui.f, ui.ox, ui.oy);
     let c = ui.col(color);
@@ -1416,6 +1416,31 @@ pub(crate) fn board(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     bottom += tokens::GAP;
     let name = |p: usize| v.places.get(p).map_or_else(String::new, |c| c.name.clone());
     bottom += crate::glance::check_lines(ui, x, bottom, w, v.check, false, &name);
+    // The access layers' lines (`docs/BACKUP-FLOW.md` §20.3 item 3): a
+    // warning drawn as the checks' warnings are.
+    for (line, warn) in &v.layer_lines {
+        bottom += tokens::GAP;
+        let side = tokens::BOARD_MARK;
+        if *warn {
+            ui.icon(
+                x,
+                bottom + tokens::GAP_SMALL,
+                side,
+                Icon::Warning,
+                side,
+                WARN,
+            );
+        }
+        bottom += ui.wrap(
+            x + side + tokens::GAP,
+            bottom,
+            w - side - tokens::GAP,
+            tokens::LABEL,
+            W::R,
+            if *warn { WARN } else { TEXT },
+            line,
+        );
+    }
     // The checks that stand, a line each (§19.5).
     for line in &v.warnings {
         bottom += tokens::GAP;

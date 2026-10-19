@@ -112,6 +112,7 @@ pub(crate) fn title(_ctx: &PlanCtx, q: u8) -> String {
     match q {
         qstep::PRESET => EN.question_title_start,
         qstep::BOARD => EN.board_title,
+        qstep::LAYERS => EN.layers_title,
         qstep::SOFTWARE => EN.question_title_software,
         _ => EN.backup_flow_the_plan,
     }
@@ -123,6 +124,7 @@ pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> String {
     let (shape, a) = (&ctx.shape, &ctx.answers);
     match q {
         qstep::PRESET => EN.question_summary_3.to_string(),
+        qstep::LAYERS => Faraday::layers_summary(shape, a),
         qstep::BOARD => {
             if a.places == 1 {
                 EN.board_one_place.to_string()
@@ -186,6 +188,10 @@ pub(crate) fn body(
     if q == qstep::BOARD {
         // The board (`docs/BACKUP-FLOW.md` §19), then Continue.
         cy += crate::board_screen::board(app, ui, x, cy, w);
+    } else if q == qstep::LAYERS {
+        // The layers, their routes, Work it out and the conflicts
+        // (`docs/BACKUP-FLOW.md` §20.3), then Continue.
+        cy += crate::layers_screen::card(app, ui, x, cy, w, on);
     } else {
         match q {
             qstep::PRESET => {
