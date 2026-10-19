@@ -1790,3 +1790,11 @@ every layer able to get in on paper when sticks fail.
   conflict, not a warning.
 - Layers share paper: one copy at a place serves every layer whose
   route holds it.
+- A route says how many locations give full access and what kinds of
+  backup each holds (seeds and their form, the description none, part
+  or whole, a vault), every location of the route alike. From that
+  Faraday suggests the wallet's shape (how many keys, how many spend);
+  the person makes or picks every key with Create's existing ways
+  (New key's dice and the rest, a loaded key, a vault's key); Faraday
+  only places each key's seed (owner, 2026-10-19;
+  `docs/BACKUP-FLOW.md` §20.13).

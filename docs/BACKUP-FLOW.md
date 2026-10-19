@@ -2769,6 +2769,73 @@ Revises §20.9's paper route and §20.11's suggestion.
 Batches: items 3 and 4 are L1's model and L2's search; items 1, 2 and
 5 are L5 and L6 (§20.8).
 
+### 20.13 A route says what kinds of backup it holds (owner, 2026-10-19)
+
+A route (§20.1, §20.9) says how many locations give full access, and
+what kinds of backup each of those locations holds. It names kinds, not
+particular seeds: in Create a wallet there are no seeds yet. Faraday
+suggests the wallet's shape from the routes (§20.12): how many keys,
+and how many of them spend. It never makes or chooses a key: the
+person fills each key on Create's Keys step as today (a key already
+loaded, a vault's key, New key with dice, coins or any other source),
+and Faraday walks them through it. Once the keys exist, Work it out
+decides which key's seed and which part of the description go to each
+location, and the board shows it to be changed by hand.
+
+1. **What a route says.** Under each route on the Access layers card:
+   - **Full access from**: any k of its n locations (k may be n, or 1).
+   - **At each location** (every location of the route alike):
+     - **Seeds**: how many (0, 1, 2 …), and in what form: words on
+       paper, or a file on a stick;
+     - **Wallet description**: none, part, or whole;
+     - **Vault**: none, or one, its password remembered or written
+       down (not on a paper route, where seeds and the description are
+       on paper and a vault is none).
+   - **They remember**: a passphrase, a vault's password (as §20.1).
+   Left unset, a route's kinds are Faraday's to choose, as in L2.
+2. **Different kinds for one layer** are different routes: a layer that
+   usually opens a vault at one location and also has a paper route over
+   three has two routes, each with its own kinds. Every location of a
+   route holds the same kinds (owner, 2026-10-19).
+3. **What the kinds mean.** Any k locations of the route together must
+   give full access: k × seeds per location at least the wallet's
+   quorum m, as distinct seeds across every k of them; the description
+   whole at each location, or a part at each, any k parts enough; a
+   vault holds what the route's locations need in it, and the route
+   knows or finds its password.
+4. **Faraday suggests the wallet** (Create, Plan the backup first): the
+   shapes of §20.12 item 2 that every route's kinds allow, ranked as
+   there; the person chooses one, then fills its keys as Create's Keys
+   step does today (NEW-WALLET §2, §15, §16.1); Faraday adds no key of
+   its own. Example: Layer 1, 1 location, a vault, password remembered;
+   Layer 2, paper, any 2 of 3 locations, 1 paper seed and part of the
+   description each: a 2 of 3, the description in 3 parts any 2
+   enough. The person makes or picks the three keys; then Work it out
+   puts 1 seed and a part at each location for Layer 2 and 2 seeds and
+   the whole description in Layer 1's vault; a stranger at one location
+   has 1 seed and a part.
+5. **In Back up** the wallet exists: its shape is fixed, the kinds
+   constrain Work it out's placement, and a route the shape cannot meet
+   names the shape it needs (§20.12 item 6).
+6. **Conflicts** (§20.4): a route whose kinds cannot give full access
+   (2 locations of 1 seed each for a 3 of 5), or that would let a
+   stranger spend from fewer locations than another route's own k,
+   names the route and why, with its resolutions as presses: more seeds
+   per location, more locations, the description whole, a passphrase
+   remembered.
+7. **Kept with the plan** as the route's other answers (plan text,
+   vault plan record), read back; a route without kinds reads as
+   unset.
+8. **Tests** (`tests/access_layers.rs`): §20.13 item 4's example gives
+   a 2 of 3 with those placements; a route of 1 location, 1 paper seed
+   and the whole description with a passphrase remembered gives single
+   key with a passphrase; 2 locations of 1 seed each against a 3 of 5
+   in Back up is a conflict naming the route; unset kinds give L2's
+   results unchanged; the kinds round-trip.
+
+Built as L2b (the kinds on the card, in the model and constraining Work
+it out in Back up) and L6 (picking the wallet in Create, §20.8).
+
 ### 19.15 The board in rows, and its colours (owner, 2026-10-16)
 
 Decided from mockups after F2, replacing §19.1's rows of place cards
