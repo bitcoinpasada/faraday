@@ -1775,3 +1775,18 @@ already held.
 - A wallet's card offers **New wallet from this one**: Create filled
   from it, its account, script type, quorum and keys all changeable,
   starting at the next unused account.
+
+### F46 Access layers: layers first, a paper route for every layer (2026-10-19)
+
+**Why.** The owner wants the backup's layers to choose the wallet, and
+every layer able to get in on paper when sticks fail.
+
+**Decision** (owner, 2026-10-19; `docs/BACKUP-FLOW.md` §20.12).
+
+- The layers and the backup's parts come first; Faraday suggests the
+  wallet's shape (single key, single key with a passphrase, 2 of 3,
+  3 of 5) that meets every layer with the largest stranger margin.
+- Every layer has a paper route; a placement without one is a
+  conflict, not a warning.
+- Layers share paper: one copy at a place serves every layer whose
+  route holds it.

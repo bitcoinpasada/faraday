@@ -2562,8 +2562,8 @@ pills) come with L2 and L3.
   default comes from the wallet: an m-of-n wallet suggests "any m of n
   places", a seed at each. **Places it can lose** (§20.7) is the most
   places the layer can lose and still spend by some route.
-- **The paper route.** Sticks go bad, so Faraday offers every layer a
-  route made of paper alone (a remembered passphrase may be part of
+- **The paper route** (required since 2026-10-19, §20.12). Sticks go
+  bad, so Faraday offers every layer a route made of paper alone (a remembered passphrase may be part of
   it; no stick and no vault). It is optional: a layer without one is a
   warning line, "Access layer n has no paper route", never a refusal.
 - **A written vault password.** A route through a vault asks whether
@@ -2635,6 +2635,49 @@ seed's copy is checked as F29 checks a copy (the words, or their
 numbers, typed back), as every checklist releases it; the standard way
 asks nothing more than that.
 
+
+### 20.12 Layers first, then the wallet; every layer has a paper route (owner, 2026-10-19)
+
+Revises §20.9's paper route and §20.11's suggestion.
+
+1. **Layers and the backup's parts first.** Plan the backup first
+   (§20.11) asks for the layers and what the backup has to work with
+   (places, vaults, what each layer reaches, knows and remembers,
+   §20.10) before any wallet is chosen. Faraday then suggests the
+   wallet's shape from them.
+2. **The shapes tried.** Single key; single key with a passphrase;
+   2 of 3; 3 of 5. For each, Faraday works out the best placement
+   (§20.3) and suggests the shape that meets every layer, each with its
+   paper route, with the largest stranger margin (§20.2), then the
+   fewest things kept; one or two others are shown with what they trade
+   ("2 of 3: fewer seeds; a stranger needs 2 places"). The person
+   chooses. One second covers all the shapes together (§20.8).
+3. **Every layer has a paper route, required.** Replaces §20.9's
+   optional paper route and its warning: a placement is not offered
+   unless every layer can spend from paper alone (with what it
+   remembers: a passphrase, a vault's password written on paper is
+   paper). Where no shape allows it, that is a conflict (§20.4), with
+   what would resolve it (a passphrase remembered, another place, a
+   larger quorum).
+4. **Layers may share paper.** The same paper copy at a place serves
+   every layer whose route holds that place: a seed written once at
+   Place 2 counts for Access layer 1's and Access layer 2's paper
+   routes alike. Layers do not each need copies of their own; the
+   search counts a copy once (§20.3 item 2, the fewest things kept).
+5. **The stranger and the paper routes.** A layer whose paper route is
+   any k of its places, with nothing remembered, lets a stranger who
+   finds those k places spend: the stranger margin is at most k − 1
+   there. A passphrase the layer remembers lifts that limit; the
+   suggestion shows it ("Single key with a passphrase: a stranger who
+   finds the paper cannot spend; Access layer 1 must remember the
+   passphrase").
+6. **Back up for a wallet already made** keeps its shape: the
+   placement is worked out within it, and a layer the shape cannot meet
+   is a conflict naming the shape it needs ("These routes need a 3 of
+   5; this wallet is a 2 of 3").
+
+Batches: items 3 and 4 are L1's model and L2's search; items 1, 2 and
+5 are L5 and L6 (§20.8).
 
 ### 19.15 The board in rows, and its colours (owner, 2026-10-16)
 
