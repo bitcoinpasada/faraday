@@ -2691,12 +2691,11 @@ where drawing changes.
 - **L4, instructions by hand** (§20.5): each layer's template on screen,
   nothing written. A test that leaving the screen leaves no file and
   nothing in the plan text.
-- **L5, the questions in Back up** (§20.10): the cards, the result in
-  words, Looks right and Change it on the board, a wallet's shape
-  respected.
-- **L6, Create starts with the questions** (§20.11): Plan the backup
-  first, the suggestion and its alternatives, I know what I want, The
-  standard way in Create and Back up.
+- **L5, the questions in Back up** (§20.10): dropped 2026-10-19; the
+  Access layers card is where the layers are said (§20.14).
+- **L6, Create plans the backup first** (§20.11, §20.14): Start, the
+  Access layers card in Create, Suggest a wallet and the Wallet card, I
+  know what I want, The standard way in Create and Back up.
 
 DESIGN rows (§4.17 and a row for the Access layers card and the view
 pills) come with L2 and L3.
@@ -2897,6 +2896,56 @@ location, and the board shows it to be changed by hand.
 
 Built as L2b (the kinds on the card, in the model and constraining Work
 it out in Back up) and L6 (picking the wallet in Create, §20.8).
+
+### 20.14 Create plans the backup first on the Access layers card (owner, 2026-10-19)
+
+Replaces §20.10's question cards (L5 is dropped): the Access layers
+card is where the layers are said, in Create as in Back up.
+
+1. **Create's first card, Start**: **Plan the backup first** (ticked
+   when Create opens), **I know what I want**, and **The standard way**
+   (§20.11). I know what I want opens Kind as Create does today
+   (NEW-WALLET §2); nothing about layers is asked.
+2. **Plan the backup first** opens the **Access layers** card (§20.13):
+   the number of places, the layers, their routes, each route's "any k
+   of" and kinds, what they remember. A fresh plan starts with one
+   layer and its paper route over three places, kinds set to one seed
+   in words and a part of the description at each place, k = 2.
+3. **Suggest a wallet**, the card's foot button, runs `work_out::fit`
+   for each shape of §20.12 item 2 (single key, single key with a
+   passphrase, 2 of 3, 3 of 5), within §20.8's one second together. The
+   card after it, **Wallet**, lists the shapes that fit, the best first,
+   each with one line of what it gives ("2 of 3: a stranger needs 2
+   places; 3 keys to make"), and the ones that do not fit, dimmed, with
+   the conflict that stops them. The person chooses one. No shape fits:
+   the conflicts and their fixes, as §20.4, on the Access layers card.
+4. **Then Create goes on as today**: Kind and Quorum filled from the
+   shape chosen and closed as done (Change still opens them; a change
+   there is checked against the layers again and a conflict is a
+   warning, never a refusal); **Keys**, where the person fills every key
+   the way Create offers (a key loaded, a vault's key, New key with
+   dice, coins or another source; NEW-WALLET §2, §15, §16.1): Faraday
+   says how many keys are needed and walks through them, and adds none
+   of its own. A single key with a passphrase asks the passphrase on
+   its Key card as §3.3 does.
+5. **Back up** at Create's end opens with the layers already set and
+   Work it out already run on the keys made, the board filled; the
+   Access layers card is there to be changed.
+6. **The standard way** (§20.11): no layers, no board; each seed's words
+   and SeedQR to write down and the description to show, save or print,
+   as a plain checklist. Offered on Create's Start and on Back up's
+   Start from.
+7. **Tests** (`tests/create_wallet.rs`, `tests/access_layers.rs`): Create
+   opens on Start with Plan the backup first ticked; I know what I want
+   opens Kind with no layers asked; the fresh plan suggests a 2 of 3
+   first and shows single key dimmed with its conflict; choosing it
+   fills Kind and Quorum and opens Keys asking for three keys, none made
+   by Faraday; after the keys are made, Back up opens with the board
+   placed for the layers; a layer of one place, one seed and a
+   passphrase remembered suggests single key with a passphrase; The
+   standard way shows the checklist and no board.
+
+Built as L6 (§20.8).
 
 ### 19.15 The board in rows, and its colours (owner, 2026-10-16)
 
