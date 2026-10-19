@@ -2821,11 +2821,16 @@ as possible before the next build.
     left; the small Home leads with a tile for each. Survey first which
     screens keep their state. Specified, not built.
 
-82. [ ] 2026-10-19, owner: **Add a key is the New key flow**
+82. [x] 2026-10-19, owner: **Add a key is the New key flow**
     (`docs/NEW-WALLET.md` §15, F44; tracker #132). New key opens on a
     Start card: Make a new key, Type the words, Scan a SeedQR, Other
     forms; Add a key on the Wallets page and its Tools tile open it.
-    Specified, not built.
+    Built 2026-10-19 (`keygen.rs` START and TYPED cards, `Start`;
+    `keygen_screen.rs`; `screens.rs` `entry_words` and
+    `compact_screens.rs` `entry_words`/`entry_form` shared with the
+    Add a key screen; `lib.rs` `entry_mnemonic`, `typed_load`;
+    `forms.rs` `form_key`; the snapshot tool's `addkey` tour). Not
+    committed.
 
 83. [ ] 2026-10-19, owner: **keys from a vault in Create; a new wallet
     from one you have** (`docs/NEW-WALLET.md` §16, F45; tracker #149,

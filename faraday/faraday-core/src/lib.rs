@@ -1232,10 +1232,17 @@ pub enum Action {
     LearnShares,
     /// The word-list sheet, or a link to it.
     WordList(wordlist::WordListAction),
-    /// Make a new key, for this Create slot or for the session.
+    /// Make a new key, for this Create slot or for the session; for the
+    /// session it is Add a key, opening on Start (`docs/NEW-WALLET.md`
+    /// §15.3).
     KeyGen(Option<u8>),
     /// Open or close a new-key card.
     KStep(u8),
+    /// A choice on New key's Start card, by its place in
+    /// `keygen::STARTS`.
+    KStart(u8),
+    /// The Start card's Other forms, shown or hidden.
+    KOthers,
     /// 12 or 24 words.
     KWords(u8),
     /// Choose an option of the Randomness card, by its place in
@@ -2146,6 +2153,12 @@ pub struct EntryState {
     pub other_forms: bool,
     /// How many words were chosen, 0 until one is: 12 boxes.
     pub word_count: u8,
+    /// The status line's key: what the words typed make with the
+    /// passphrase, the fingerprint or why there is none, public alone.
+    /// Worked out by the first frame that asks for it and kept until the
+    /// next event that can change the words, list or passphrase clears it
+    /// ([`EntryState::probed`], [`EntryState::forget_probe`]).
+    probe: std::cell::RefCell<Option<Result<osk_bip::keys::Fingerprint, String>>>,
 }
 
 impl EntryState {
@@ -2172,6 +2185,32 @@ impl EntryState {
     /// The BIP-39 list the words are typed from.
     pub fn language(&self) -> osk_bip::bip39::Language {
         forms::LANGUAGES[usize::from(self.language_at) % forms::LANGUAGES.len()]
+    }
+
+    /// The key words `m` make with the passphrase typed, or why they make
+    /// none, for the status line. Costs a PBKDF2 and an elliptic-curve
+    /// multiplication when nothing is kept, the first frame after an
+    /// event; then it is a lookup until [`EntryState::forget_probe`].
+    /// `m` must be the words typed now. Decisions (Add, Continue, Lock in)
+    /// load the words themselves and never read this.
+    pub(crate) fn probed(
+        &self,
+        m: &osk_bip::bip39::Mnemonic,
+    ) -> Result<osk_bip::keys::Fingerprint, String> {
+        if let Some(r) = self.probe.borrow().as_ref() {
+            return r.clone();
+        }
+        let r = Session::default()
+            .add_mnemonic(m, &self.passphrase, "", None)
+            .map_err(|e| e.text());
+        *self.probe.borrow_mut() = Some(r.clone());
+        r
+    }
+
+    /// Forgets the status line's key, for an event that may have changed
+    /// the words, list or passphrase.
+    pub(crate) fn forget_probe(&self) {
+        self.probe.borrow_mut().take();
     }
 }
 
@@ -4360,8 +4399,9 @@ impl Faraday {
             | Action::ScanSeed
             | Action::ScanKey(_)
             | Action::ScanPart
-            | Action::LoadKey(_) => EN.pull_what_add_a_key,
-            Action::KeyGen(_) | Action::KeyGenSlip39 => EN.pull_what_make_a_key,
+            | Action::LoadKey(_)
+            | Action::KeyGen(None) => EN.pull_what_add_a_key,
+            Action::KeyGen(Some(_)) | Action::KeyGenSlip39 => EN.pull_what_make_a_key,
             Action::PotentialOpen(_) => EN.pull_what_load_the,
             Action::BackupOpen(_) => EN.pull_what_open_the,
             // Unlocking for another flow: the Pull sheet asks first, and
@@ -4998,6 +5038,8 @@ impl Faraday {
             Action::WordList(a) => self.wordlist_act(a),
             Action::KeyGen(_)
             | Action::KStep(_)
+            | Action::KStart(_)
+            | Action::KOthers
             | Action::KWords(_)
             | Action::KWay(_)
             | Action::KGroup(_)
@@ -9399,6 +9441,14 @@ impl Faraday {
     /// A seed's words read by the camera: the camera closes and the
     /// seed waits on its sheet for how it loads (`seed_read`).
     fn seed_scanned(&mut self, words: &str) {
+        // A scan fills the words from a camera frame, which keeps the
+        // status line's probe: it is worked out again for these.
+        self.entry.forget_probe();
+        // New key's Scan a SeedQR: its Key card takes the words and asks
+        // the passphrase there (`docs/NEW-WALLET.md` §15.2).
+        if self.keygen_scanned(words) {
+            return;
+        }
         self.seed_read_open(words);
     }
 
@@ -9959,26 +10009,75 @@ impl Faraday {
         !prefix.is_empty() && self.entry_tab_word().as_deref() == Some(prefix)
     }
 
-    fn entry_add(&mut self) {
-        if !self.may_load_keys() {
-            return;
-        }
+    /// The words typed on Add a key's words form, the word being typed
+    /// on a list's own keyboard taken first, as a key's words: whole and
+    /// with a checksum that holds, or what is wrong with them.
+    pub(crate) fn entry_mnemonic(&mut self) -> Result<osk_bip::bip39::Mnemonic, String> {
         let lang = self.entry.language();
         if let Some(w) = self.entry.keys.as_mut() {
             forms::take_typed(w, lang);
         }
-        let wanted = self.entry.wanted.map(osk_bip::keys::Fingerprint);
-        let label = self.entry.label.clone();
-        let typed = match self.entry.keys.as_ref() {
+        match self.entry.keys.as_ref() {
             Some(w) => {
                 let mut idx: Vec<u16> = w.committed_indices().collect();
-                let m = osk_bip::bip39::Mnemonic::from_indices(self.entry.language(), &idx)
-                    .map_err(|e| e.to_string());
+                let m =
+                    osk_bip::bip39::Mnemonic::from_indices(lang, &idx).map_err(|e| e.to_string());
                 zeroize::Zeroize::zeroize(&mut idx);
                 m
             }
-            None => forms::typed_mnemonic(self.entry.language(), &self.entry.typed),
-        };
+            None => forms::typed_mnemonic(lang, &self.entry.typed),
+        }
+    }
+
+    /// Loads a key typed or scanned (not made here: no `mark_made_here`):
+    /// the words with `pass`, as the key `wanted` if one is (a key
+    /// already loaded refused as a duplicate); `said` says so; then what
+    /// the screen it returns to, `back`, does with it (`seeds_took`).
+    /// Add a key's Add and New key's Lock in for a key typed both load
+    /// through here (`docs/NEW-WALLET.md` §15.2).
+    pub(crate) fn typed_load(
+        &mut self,
+        m: &osk_bip::bip39::Mnemonic,
+        pass: &str,
+        label: &str,
+        wanted: Option<osk_bip::keys::Fingerprint>,
+        back: Option<Screen>,
+        said: impl FnOnce(&mut Self, osk_bip::keys::Fingerprint),
+    ) -> Result<osk_bip::keys::Fingerprint, wallet::Refusal> {
+        let fp = self.session.add_mnemonic(m, pass, label, wanted)?;
+        said(self, fp);
+        self.seeds_took(fp, back);
+        Ok(fp)
+    }
+
+    /// Whether Add a key's form takes the keys typed: on Add a key, or on
+    /// New key's Words card for a key typed (`docs/NEW-WALLET.md` §15.2).
+    pub(crate) fn entry_typing_here(&self) -> bool {
+        self.screen == Screen::Entry
+            || (self.screen == Screen::KeyGen
+                && self
+                    .keygen
+                    .as_ref()
+                    .is_some_and(|k| k.open == Some(keygen::kstep::TYPED) && !k.locked))
+    }
+
+    /// Enter on the words form: Add a key adds the key; New key's Words
+    /// card goes on to Key.
+    fn entry_enter(&mut self) {
+        if self.screen == Screen::KeyGen {
+            self.keygen_act(Action::KNext);
+        } else {
+            self.entry_add();
+        }
+    }
+
+    fn entry_add(&mut self) {
+        if !self.may_load_keys() {
+            return;
+        }
+        let wanted = self.entry.wanted.map(osk_bip::keys::Fingerprint);
+        let label = self.entry.label.clone();
+        let typed = self.entry_mnemonic();
         let m = match typed {
             Ok(m) => m,
             Err(e) => {
@@ -10042,16 +10141,13 @@ impl Faraday {
                 return;
             }
         }
-        match self
-            .session
-            .add_mnemonic(&m, &self.entry.passphrase, &label, wanted)
-        {
-            Ok(fp) => {
-                match for_wallet {
-                    Some((w, n)) => self.wallet_key_said(w, n),
-                    None => self.toast(&fill(EN.entry_add_key_added, &[&fp_text(fp).to_string()])),
-                }
-                self.seeds_took(fp, back);
+        let pass = secret_text::SecretText::of(self.entry.passphrase.as_str());
+        let said = |app: &mut Self, fp: osk_bip::keys::Fingerprint| match for_wallet {
+            Some((w, n)) => app.wallet_key_said(w, n),
+            None => app.toast(&fill(EN.entry_add_key_added, &[&fp_text(fp).to_string()])),
+        };
+        match self.typed_load(&m, &pass, &label, wanted, back, said) {
+            Ok(_) => {
                 self.entry = EntryState::default();
                 self.refresh_spend();
                 self.screen = match back {
@@ -10723,7 +10819,8 @@ impl Faraday {
             Screen::KeyGen => self.keygen.as_ref().is_some_and(|k| {
                 !k.locked
                     && ((k.focus.is_some() && k.open == Some(keygen::kstep::KEY))
-                        || (k.open == Some(keygen::kstep::ENTER) && k.typing && k.flip_or_roll()))
+                        || (k.open == Some(keygen::kstep::ENTER) && k.typing && k.flip_or_roll())
+                        || k.open == Some(keygen::kstep::TYPED))
             }),
             Screen::Create => self
                 .create
@@ -10848,7 +10945,8 @@ impl Faraday {
             self.entry.error = None;
             return;
         }
-        if self.screen == Screen::Entry && self.entry.form != forms::Form::Words {
+        let here = self.entry_typing_here();
+        if here && self.entry.form != forms::Form::Words {
             let codex32 = self.entry.form == forms::Form::Codex32;
             match key {
                 KeyIn::Char(c) if c.is_ascii_alphabetic() || (codex32 && c.is_ascii_digit()) => {
@@ -10868,7 +10966,13 @@ impl Faraday {
                     self.entry.typed.pop();
                     self.entry.error = None;
                 }
-                KeyIn::Enter if self.entry.typed.trim().is_empty() => self.form_recover(),
+                KeyIn::Enter if self.entry.typed.trim().is_empty() => {
+                    if self.screen == Screen::KeyGen {
+                        self.keygen_act(Action::KNext);
+                    } else {
+                        self.form_recover();
+                    }
+                }
                 KeyIn::Enter => self.form_add_part(),
                 KeyIn::Escape => self.screen = self.entry_leave(),
                 _ => {}
@@ -10879,9 +10983,7 @@ impl Faraday {
         // type of it: pinyin's letters and tone digits, or the list's
         // own characters from an input method.
         let lang = self.entry.language();
-        if self.screen == Screen::Entry
-            && let Some(w) = self.entry.keys.as_mut()
-        {
+        if here && let Some(w) = self.entry.keys.as_mut() {
             match key {
                 KeyIn::Char(' ') | KeyIn::Tab => forms::take_typed(w, lang),
                 KeyIn::Char(c) => {
@@ -10891,14 +10993,14 @@ impl Faraday {
                     }
                 }
                 KeyIn::Backspace => w.backspace(),
-                KeyIn::Enter => self.entry_add(),
+                KeyIn::Enter => self.entry_enter(),
                 KeyIn::Escape => self.screen = self.entry_leave(),
                 _ => {}
             }
             self.entry.error = None;
             return;
         }
-        if self.screen == Screen::Entry {
+        if here {
             match key {
                 KeyIn::Char(c) if c.is_ascii_alphabetic() => {
                     self.entry.typed.push(c.to_ascii_lowercase());
@@ -10917,7 +11019,7 @@ impl Faraday {
                     self.entry.error = None;
                 }
                 KeyIn::Tab => self.entry_complete_word(),
-                KeyIn::Enter => self.entry_add(),
+                KeyIn::Enter => self.entry_enter(),
                 KeyIn::Escape => self.screen = self.entry_leave(),
                 _ => {}
             }
@@ -11794,6 +11896,9 @@ impl Faraday {
     /// Acts as if `action` had been pressed: for drivers that script the
     /// screens, such as the snapshot tool.
     pub fn press(&mut self, action: Action) {
+        // An action may change the words typed: the status line's key is
+        // worked out again.
+        self.entry.forget_probe();
         self.note_secrets();
         self.act(action);
         self.backup_settle();
@@ -11820,7 +11925,7 @@ impl Faraday {
         );
         // Leaving the new-key screen drops what it held.
         if self.screen != Screen::KeyGen && self.keygen.is_some() {
-            self.keygen = None;
+            self.keygen_drop();
         }
         if !bip85 {
             self.bip85 = None;
@@ -11972,6 +12077,28 @@ pub(crate) fn stem(name: &str) -> String {
 
 impl App for Faraday {
     fn event(&mut self, event: Event) {
+        // Any event but a pointer's motion, a scroll, a hover, a tick, a
+        // camera frame or a modifier may change the words typed on Add a
+        // key or New key's Words card: the status line's key is worked
+        // out again on the next frame that shows it, and frames during a
+        // scroll or a hover work out nothing.
+        if !matches!(
+            event,
+            Event::Touch {
+                phase: TouchPhase::Move,
+                ..
+            } | Event::Scroll { .. }
+                | Event::Wheel { .. }
+                | Event::ScrollEnd { .. }
+                | Event::Hover { .. }
+                | Event::HoverEnd
+                | Event::Tick { .. }
+                | Event::CameraFrame { .. }
+                | Event::Shift { .. }
+                | Event::KeyUp(_)
+        ) {
+            self.entry.forget_probe();
+        }
         // Whether the event can complete a checklist item: pointer
         // moves, scrolls, hovers, camera frames and ticks cannot
         // (`docs/SPEED.md` §3.5).

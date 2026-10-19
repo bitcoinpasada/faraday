@@ -678,10 +678,15 @@ impl Faraday {
                 .vanity
                 .as_ref()
                 .is_some_and(|v| v.open == Some(crate::vanity::vstep::PREFIX) && !v.running),
-            // The Key card's passphrase; the box of rolls has buttons of
-            // its own on a small panel.
+            // The Key card's passphrase, and the Words card of a key typed
+            // as Add a key's form docks it; the box of rolls has buttons
+            // of its own on a small panel.
             Screen::KeyGen => self.keygen.as_ref().is_some_and(|k| {
-                k.focus.is_some() && k.open == Some(crate::keygen::kstep::KEY) && !k.locked
+                !k.locked
+                    && ((k.focus.is_some() && k.open == Some(crate::keygen::kstep::KEY))
+                        || (k.open == Some(crate::keygen::kstep::TYPED)
+                            && (self.entry.form != crate::forms::Form::Words
+                                || self.entry.keys.is_none())))
             }),
             _ => self.typing_field(),
         }

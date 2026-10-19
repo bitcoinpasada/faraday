@@ -1323,7 +1323,7 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 EN.start_add_a_key,
                 EN.start_keys_first_wallets,
                 MUTED,
-                Some(Action::Entry(None)),
+                Some(Action::KeyGen(None)),
             );
         } else {
             y += wrap_buttons(
@@ -1338,7 +1338,7 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                         Style::Secondary,
                         Action::Nav(Screen::Family),
                     ),
-                    (EN.start_add_a_key, Style::Secondary, Action::Entry(None)),
+                    (EN.start_add_a_key, Style::Secondary, Action::KeyGen(None)),
                 ],
             ) + 10.0;
         }
@@ -1394,7 +1394,7 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             EN.start_add_a_key,
             EN.start_keys_first_wallets,
             MUTED,
-            Some(Action::Entry(None)),
+            Some(Action::KeyGen(None)),
         );
         y += 8.0;
         let files = app.vault_files();
@@ -1443,7 +1443,7 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Icon::Keys,
                 EN.start_add_a_key,
                 EN.start_keys_first_wallets,
-                Action::Entry(None),
+                Action::KeyGen(None),
             ),
         ];
         // A label or sub-line that does not fit at its size breaks onto
@@ -3168,7 +3168,7 @@ fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             fill(EN.wallets_scan_a_key_for, &[&wl.name.to_string()]),
             Action::ScanKey(app.wallet),
         ),
-        None => (EN.wallets_add_a_key.to_string(), Action::Entry(None)),
+        None => (EN.wallets_add_a_key.to_string(), Action::KeyGen(None)),
     };
     let add_label = ui.fit(14.0, W::S, &add_label, listw - 24.0);
     ui.button(
@@ -12120,10 +12120,48 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += button_rows(ui, x, y, width, &forms) + 4.0;
     }
     if app.entry.form != crate::forms::Form::Words {
-        let bottom = entry_form(app, ui, x, y, width, h);
+        let bottom = entry_form(app, ui, x, y, width, h, None);
         entry_scrolled(app, ui, clip, h, bottom);
         return;
     }
+    // Scan leads, above the words: primary until a word is typed, when
+    // Add key is (`docs/SCAN-TO-SIGN.md` §2.5).
+    ui.button(
+        x,
+        y,
+        Some(width),
+        40.0,
+        EN.entry_scan_a_seedqr,
+        if entry_typed(app) {
+            Style::Secondary
+        } else {
+            Style::Primary
+        },
+        entry_scan(app),
+    );
+    y += 52.0;
+    y = entry_words(app, ui, x, y, width, h, true);
+    let bottom = entry_finish(app, ui, x, y, width, h);
+    entry_scrolled(app, ui, clip, h, bottom);
+}
+
+/// Add a key's words form, from the list the words are from to the
+/// status under them: the word count, the word fields or a list's own
+/// keyboard, the words the letters can still become, and the count and
+/// checksum. Add a key draws it, and so does New key's Words card for a
+/// key typed (`docs/NEW-WALLET.md` §15.2). `page`: on Add a key's own
+/// page, whose row of lists offers Other forms too. Returns where the
+/// next row starts.
+pub(crate) fn entry_words(
+    app: &Faraday,
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    width: f32,
+    h: f32,
+    page: bool,
+) -> f32 {
+    let mut y = y;
     // Which list the words are from: English, the others one press away;
     // and, unless the chips are already shown, the way to them. Under the
     // word fields, or above the keyboard of a list typed on its own keys.
@@ -12152,7 +12190,7 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             })
             .collect()
     };
-    if !app.entry.other_forms {
+    if page && !app.entry.other_forms {
         langs.insert(
             0,
             (
@@ -12162,28 +12200,9 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ),
         );
     }
-    // Scan leads, above the words: primary until a word is typed, when
-    // Add key is (`docs/SCAN-TO-SIGN.md` §2.5).
-    ui.button(
-        x,
-        y,
-        Some(width),
-        40.0,
-        EN.entry_scan_a_seedqr,
-        if entry_typed(app) {
-            Style::Secondary
-        } else {
-            Style::Primary
-        },
-        entry_scan(app),
-    );
-    y += 52.0;
     if let Some(w) = app.entry.keys.as_deref() {
         y += button_rows(ui, x, y, width, &langs);
-        y = keyed_words(app, w, ui, x, y, width, h);
-        let bottom = entry_finish(app, ui, x, y, width, h);
-        entry_scrolled(app, ui, clip, h, bottom);
-        return;
+        return keyed_words(app, w, ui, x, y, width, h);
     }
     y += guide_text(app, ui, x, y, width, EN.entry_type_the_words);
 
@@ -12260,9 +12279,7 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .iter()
             .all(|wd| crate::forms::typed_index(lang, wd).is_some());
     let m = complete.then(|| crate::forms::typed_mnemonic(lang, &app.entry.typed));
-    y = entry_status(app, ui, x, y, n, m);
-    let bottom = entry_finish(app, ui, x, y, width, h);
-    entry_scrolled(app, ui, clip, h, bottom);
+    entry_status(app, ui, x, y, n, m)
 }
 
 /// Closes the clip `entry` opened around its content and reports how far
@@ -12525,10 +12542,9 @@ pub(crate) fn keyed_status(
     if ![12, 15, 18, 21, 24].contains(&n) {
         return (fill(EN.keyed_status_words_2, &[&n.to_string()]), MUTED);
     }
-    let mut probe = crate::wallet::Session::default();
     let added = osk_bip::bip39::Mnemonic::from_indices(lang, taken)
-        .map_err(|e| crate::wallet::Refusal::Words(e.to_string()))
-        .and_then(|m| probe.add_mnemonic(&m, &app.entry.passphrase, "", None));
+        .map_err(|e| crate::wallet::Refusal::Words(e.to_string()).text())
+        .and_then(|m| app.entry.probed(&m));
     match added {
         Ok(fp) => (
             fill(
@@ -12537,7 +12553,7 @@ pub(crate) fn keyed_status(
             ),
             OK,
         ),
-        Err(e) => (e.text(), ERR),
+        Err(e) => (e, ERR),
     }
 }
 
@@ -12554,10 +12570,9 @@ fn entry_status(
     let mut y = y;
     let status = match m {
         Some(made) => {
-            let mut probe = crate::wallet::Session::default();
             let added = made
-                .map_err(crate::wallet::Refusal::Words)
-                .and_then(|m| probe.add_mnemonic(&m, &app.entry.passphrase, "", None));
+                .map_err(|e| crate::wallet::Refusal::Words(e).text())
+                .and_then(|m| app.entry.probed(&m));
             match added {
                 Ok(fp) => (
                     fill(
@@ -12566,7 +12581,7 @@ fn entry_status(
                     ),
                     OK,
                 ),
-                Err(e) => (e.text(), ERR),
+                Err(e) => (e, ERR),
             }
         }
         None => (fill(EN.entry_status_words, &[&n.to_string()]), MUTED),
@@ -12699,7 +12714,20 @@ pub(crate) fn entry_stick(app: &Faraday, ui: &mut Ui, x: f32, y: f32) {
 /// typed at a time, the ones collected listed, then put together. Returns
 /// the bottom of its footer row, so the page that scrolls to fit it
 /// (`entry`) knows how tall its content is.
-fn entry_form(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> f32 {
+///
+/// New key's Words card for a key typed in another form draws it too,
+/// with `flow` its Continue (`docs/NEW-WALLET.md` §15.2): no passphrase
+/// (Key asks it), no way in from a stick, and Continue in place of Make
+/// the key, under what is above it.
+pub(crate) fn entry_form(
+    app: &Faraday,
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    width: f32,
+    h: f32,
+    flow: Option<Action>,
+) -> f32 {
     use crate::forms::Form;
     let form = app.entry.form;
     let mut y = y;
@@ -12777,7 +12805,7 @@ fn entry_form(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) ->
     }
     y += 8.0;
     // A SLIP-39 backup's passphrase; a Seed XOR key's BIP-39 one.
-    if form != Form::Codex32 {
+    if form != Form::Codex32 && flow.is_none() {
         ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, EN.entry_form_passphrase);
         let px = x + 150.0;
         let pw = 380.0f32.min(width - 150.0);
@@ -12799,8 +12827,13 @@ fn entry_form(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) ->
     // of the screen, but move down below what is above them (the
     // passphrase field, or the list of collected shares) when that would
     // otherwise run under it.
-    let by = (h - 36.0 - 46.0).max(y + 40.0 + 24.0 + 48.0);
-    entry_stick(app, ui, x, by - 48.0);
+    let by = match flow {
+        Some(_) => y,
+        None => (h - 36.0 - 46.0).max(y + 40.0 + 24.0 + 48.0),
+    };
+    if flow.is_none() {
+        entry_stick(app, ui, x, by - 48.0);
+    }
     let ready = app.entry.parts.ready(form);
     let aw = ui.button(
         x,
@@ -12825,28 +12858,35 @@ fn entry_form(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) ->
         Action::ScanPart,
     );
     let aw = aw + sw + 8.0;
+    let (label, action) = match flow {
+        Some(next) => (EN.keygen_continue, next),
+        None => (EN.entry_form_make_the, Action::EntryRecover),
+    };
     let mw = ui.button(
         x + aw + 8.0,
         by,
         None,
         46.0,
-        EN.entry_form_make_the,
+        label,
         if ready {
             Style::Primary
         } else {
             Style::Disabled
         },
-        Action::EntryRecover,
+        action,
     );
-    ui.text_mid(
-        x + aw + mw + 28.0,
-        by,
-        46.0,
-        12.0,
-        W::R,
-        DIM,
-        EN.entry_form_enter_adds,
-    );
+    // Its Enter on an empty line makes the key; the flow's opens Key.
+    if flow.is_none() {
+        ui.text_mid(
+            x + aw + mw + 28.0,
+            by,
+            46.0,
+            12.0,
+            W::R,
+            DIM,
+            EN.entry_form_enter_adds,
+        );
+    }
     by + 46.0
 }
 

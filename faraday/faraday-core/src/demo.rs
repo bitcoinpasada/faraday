@@ -59,7 +59,14 @@ impl Faraday {
                     )
             }),
             // With every public seed loaded none is left to stand in.
-            Action::KLock => self.session.next_handout().is_none(),
+            // A key typed is loaded as Add a key loads it.
+            Action::KLock => {
+                !self
+                    .keygen
+                    .as_ref()
+                    .is_some_and(crate::keygen::KeyGen::typed)
+                    && self.session.next_handout().is_none()
+            }
             // Make the key, for a GPG key, Secure Boot keys or an APK key.
             Action::Flow(F::Make) => self
                 .flow_on

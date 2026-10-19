@@ -311,7 +311,8 @@ to get it.
     these two flows only; Sign, Back up and Create a vault keep it).
     Create opens with Kind open, whatever opened it — Wallets, Home, or
     a Tools tile with its kind already ticked; Kind's Continue closes it
-    as done and opens the next card. New key opens with Length open;
+    as done and opens the next card. New key opens with Length open
+    (since decision 60, Start first, then Length);
     Length gains a Continue that takes the count shown and opens
     Randomness (pressing a count does so already); Randomness's
     Continue opens the entry card as now. A card with a default and not
@@ -756,12 +757,39 @@ to get it.
     is printed from Faraday Starter. **Change the plan** at every step. The stick
     visit page is never shown, and after Back up's checklist nothing
     waits For the stick.
+60. **Add a key is New key, opening on Start** (owner, 2026-10-19;
+    `docs/NEW-WALLET.md` §15, `docs/DECISIONS.md` F44; replaces
+    decision 18). New key's first card is **Start**: **Make a new key**
+    (ticked), **Type the words**, **Scan a SeedQR**, and under **Other
+    forms** (closed) **Make SLIP-39 shares**, **Type SLIP-39 shares**,
+    **Type a codex32 secret**, **Type Seed XOR parts**; closed, it shows
+    the choice and **Change** until the key is locked in. Make a new key
+    goes on as decisions 34 and 38 say. A key typed is Start · **Words**
+    · Key, one scanned Start · Key: Words is Add a key's form drawn by
+    its own code (count, boxes or keyboard, lists; the other forms'
+    fields with **Add this one** and **Scan a QR code**), whose Continue
+    opens Key once the words are whole with a checksum that holds or the
+    parts are enough; Key shows the words behind **Show words**,
+    **Passphrase** and **Passphrase again** (none for codex32), and
+    **Lock in**, which loads the key as Add a key does (not marked made
+    here) and fills a Create slot; Continue then leaves the flow, with no
+    Words or Quiz. Add a key on Wallets and its Tools tile open on Start;
+    New key from a Create slot or its tile opens there too, Make a new
+    key ticked, so a third Continue reaches the entries; a threshold
+    wallet's slot offers Make a new key and Type the words only. The
+    SLIP-39, codex32 and Seed XOR tiles open with their choice made and
+    Start closed. The page is titled **Add a key**, and **New key** for a
+    Create slot and from the Add a key screen's Make a new key, which
+    opens with Start closed on it. The Add a key screen stays for a key
+    asked for by name: a slot's fingerprint, a wallet's missing key,
+    Restore's seed slots, and a seed scanned from Home or the Spend tab.
 
 ## Home
 
-**Start** is decision 50's tiles. **Add a key** (type, scan or bring
-in a seed) is on Wallets and in Tools → the Add a key screen: **Scan a
-SeedQR** first, full width over the words (primary until a word is
+**Start** is decision 50's tiles. **Add a key** (make, type or scan a
+seed) is on Wallets and in Tools → New key on its Start card (decision
+60). The Add a key screen, for a key asked for by name and a seed
+scanned from Home (decision 60): **Scan a SeedQR** first, full width over the words (primary until a word is
 typed, when **Add key** is), a form (BIP-39 words, with the count
 **12 · 15 · 18 · 21 · 24** above as many boxes, 12 first; SLIP-39
 shares, codex32, Seed XOR parts), **Make a new key**, and "From a stick ·

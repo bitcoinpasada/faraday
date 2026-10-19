@@ -294,13 +294,17 @@ fn the_wallets_column_offers_scan_a_key_for_the_wallet_while_it_is_short() {
     scan_seedqr(&mut app, &testkit::test_words("zebra"));
     let text = drawn(&mut app);
     assert!(!text.contains("Scan a key for Savings"), "{text}");
-    assert!(app.offers(Action::Entry(None)), "Add a key");
+    assert!(app.offers(Action::KeyGen(None)), "Add a key");
 }
 
 #[test]
-fn add_a_key_leads_with_scan_a_seedqr() {
+fn add_a_key_offers_scan_a_seedqr_on_start() {
+    use faraday_core::keygen::Start;
     let (mut app, _) = on_savings();
-    app.press(Action::Entry(None));
+    app.press(Action::KeyGen(None));
     let _ = app.frame();
-    assert!(app.offers(Action::ScanSeed));
+    assert!(app.offers(Action::KStart(Start::Scan.index())));
+    app.press(Action::KStart(Start::Scan.index()));
+    app.press(Action::KNext);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Scan));
 }

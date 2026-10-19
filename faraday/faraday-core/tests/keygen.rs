@@ -6,7 +6,9 @@
 //! fills it, and leaving the screen forgets everything. The randomness
 //! check is on the entry card, Lock in adds the key, with a passphrase
 //! for a Create slot, and a Create slot's flow ends there
-//! (`docs/NEW-WALLET.md` §3).
+//! (`docs/NEW-WALLET.md` §3). Add a key is the same flow opening on
+//! Start, where words already held are typed or scanned and loaded as
+//! Add a key loads them (§15).
 
 use faraday_core::keygen::{Group, Source, Way};
 use faraday_core::{Action, Faraday, Screen};
@@ -597,6 +599,8 @@ fn slot_flow(multi: bool) -> Faraday {
         app.press(Action::CNext(faraday_core::cstep::QUORUM));
     }
     app.press(Action::KeyGen(Some(0)));
+    // Start, Make a new key ticked: its Continue opens Length.
+    app.press(Action::KNext);
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);
@@ -914,4 +918,246 @@ fn an_empty_key_card_passphrase_field_says_no_passphrase_until_a_character_is_ty
     assert_eq!(count(&mut app, "No passphrase"), 2);
     type_text(&mut app, "a");
     assert_eq!(count(&mut app, "No passphrase"), 1, "the dots in its place");
+}
+
+// ---------------------------------------------------------------------
+// Add a key is New key, opening on Start (`docs/NEW-WALLET.md` §15)
+// ---------------------------------------------------------------------
+
+use faraday_core::keygen::{Start, kstep};
+
+/// Types `text` on the keyboard.
+fn typed(app: &mut Faraday, text: &str) {
+    for c in text.chars() {
+        app.event(Event::Key(osk_shell_api::Key::Char(c)));
+    }
+}
+
+/// Add a key pressed on the Wallets page.
+fn add_a_key() -> Faraday {
+    let mut app = faraday_core::testkit::started();
+    tall(&mut app);
+    app.press(Action::Nav(Screen::Start));
+    let _ = app.frame();
+    assert!(app.offers(Action::KeyGen(None)), "Wallets offers Add a key");
+    app.press(Action::KeyGen(None));
+    app
+}
+
+/// Whether Start offers each of the seven ways in, Other forms opened.
+fn offers_every_start(app: &mut Faraday) {
+    let _ = app.frame();
+    for s in [Start::Make, Start::Words, Start::Scan] {
+        assert!(app.offers(Action::KStart(s.index())), "{s:?} is offered");
+    }
+    let others = [Start::MakeShares, Start::Shares, Start::Codex32, Start::Xor];
+    for s in others {
+        assert!(!app.offers(Action::KStart(s.index())), "{s:?} waits");
+    }
+    app.press(Action::KOthers);
+    let _ = app.frame();
+    for s in others {
+        assert!(app.offers(Action::KStart(s.index())), "{s:?} is offered");
+    }
+}
+
+#[test]
+fn add_a_key_opens_on_start_offering_every_way_in_and_a_create_slot_offers_the_same() {
+    let mut app = add_a_key();
+    let k = app.keygen.as_ref().unwrap();
+    assert_eq!(k.open, Some(kstep::START));
+    assert_eq!(k.start, Start::Make, "Make a new key is ticked");
+    offers_every_start(&mut app);
+
+    use faraday_core::create::NewKind;
+    let mut app = faraday_core::testkit::started();
+    tall(&mut app);
+    app.press(Action::CreateWallet);
+    let at = NewKind::ALL
+        .iter()
+        .position(|k| *k == NewKind::Multi)
+        .unwrap() as u8;
+    app.press(Action::CKind(at));
+    app.press(Action::CNext(faraday_core::cstep::KIND));
+    app.press(Action::CNext(faraday_core::cstep::QUORUM));
+    app.press(Action::KeyGen(Some(0)));
+    assert_eq!(app.keygen.as_ref().unwrap().open, Some(kstep::START));
+    offers_every_start(&mut app);
+}
+
+/// The Randomness card's options a flow offers, every group open.
+fn ways_offered(app: &mut Faraday) -> Vec<u8> {
+    for g in 1..3 {
+        app.press(Action::KGroup(g));
+    }
+    let _ = app.frame();
+    (0..faraday_core::keygen::WAYS.len() as u8)
+        .filter(|&i| app.offers(Action::KWay(i)))
+        .collect()
+}
+
+#[test]
+fn make_a_new_key_from_add_a_key_reaches_length_then_every_source_create_offers() {
+    let mut app = add_a_key();
+    app.press(Action::KNext);
+    assert_eq!(app.keygen.as_ref().unwrap().open, Some(kstep::LENGTH));
+    app.press(Action::KWords(12));
+    assert_eq!(app.keygen.as_ref().unwrap().open, Some(kstep::SOURCE));
+    let ours = ways_offered(&mut app);
+    let mut slot = slot_flow(true);
+    slot.press(Action::KStep(kstep::SOURCE));
+    let theirs = ways_offered(&mut slot);
+    assert!(!ours.is_empty());
+    assert_eq!(ours, theirs, "the same sources as Create's New key");
+}
+
+/// From Start: Type the words, Continue, the words typed, Continue.
+fn type_the_words(app: &mut Faraday, words: &str) {
+    app.press(Action::KStart(Start::Words.index()));
+    app.press(Action::KNext);
+    assert_eq!(app.keygen.as_ref().unwrap().open, Some(kstep::TYPED));
+    let _ = app.frame();
+    typed(app, words);
+    let _ = app.frame();
+    assert!(app.offers(Action::KNext), "the Words card's Continue");
+    app.press(Action::KNext);
+    assert_eq!(app.keygen.as_ref().unwrap().open, Some(kstep::KEY));
+}
+
+/// Types `pass` into both passphrase fields of the Key card.
+fn passphrase_twice(app: &mut Faraday, pass: &str) {
+    app.press(Action::KPassField(0));
+    typed(app, pass);
+    app.press(Action::KPassField(1));
+    typed(app, pass);
+}
+
+#[test]
+fn twelve_words_typed_with_a_passphrase_load_the_key_add_a_key_loads_not_made_here() {
+    let words = faraday_core::testkit::test_words("bacon");
+    let mut app = add_a_key();
+    type_the_words(&mut app, &words);
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::KPassField(0)),
+        "a key typed takes a passphrase"
+    );
+    passphrase_twice(&mut app, "Ride the 7 bus");
+    app.press(Action::KLock);
+    let fp = app
+        .session
+        .keys
+        .last()
+        .map(|k| k.fingerprint())
+        .expect("loaded");
+    let want = faraday_core::wallet::Session::default()
+        .add_words_with(&words, "Ride the 7 bus", "", None)
+        .unwrap();
+    assert_eq!(fp, want);
+    assert!(!app.held_keys().contains(&fp), "not marked made here");
+
+    // The same words and passphrase on the Entry screen give that key.
+    let mut entry = faraday_core::testkit::started();
+    entry.press(Action::Entry(None));
+    typed(&mut entry, &words);
+    entry.press(Action::EntryPassphrase);
+    typed(&mut entry, "Ride the 7 bus");
+    entry.press(Action::EntryAdd);
+    assert_eq!(entry.session.keys.last().map(|k| k.fingerprint()), Some(fp));
+
+    // Continue leaves the flow: no Words or Quiz for words held already.
+    app.press(Action::KNext);
+    assert!(app.keygen.is_none());
+}
+
+#[test]
+fn typed_words_whose_checksum_fails_do_not_open_key() {
+    let mut app = add_a_key();
+    app.press(Action::KStart(Start::Words.index()));
+    app.press(Action::KNext);
+    typed(&mut app, &["abandon"; 12].join(" "));
+    app.press(Action::KNext);
+    assert_eq!(app.keygen.as_ref().unwrap().open, Some(kstep::TYPED));
+    assert!(app.entry.error.is_some(), "Add a key's own message stands");
+}
+
+#[test]
+fn words_typed_for_a_create_slot_fill_the_slot_with_that_key() {
+    use faraday_core::create::{NewKind, Source};
+    let words = faraday_core::testkit::test_words("bacon");
+    let mut app = faraday_core::testkit::started();
+    tall(&mut app);
+    app.press(Action::CreateWallet);
+    let at = NewKind::ALL
+        .iter()
+        .position(|k| *k == NewKind::Multi)
+        .unwrap() as u8;
+    app.press(Action::CKind(at));
+    app.press(Action::CNext(faraday_core::cstep::KIND));
+    app.press(Action::CNext(faraday_core::cstep::QUORUM));
+    app.press(Action::KeyGen(Some(0)));
+    type_the_words(&mut app, &words);
+    app.press(Action::KLock);
+    let fp = faraday_core::wallet::Session::default()
+        .add_words_with(&words, "", "", None)
+        .unwrap();
+    let c = app.create.as_ref().unwrap();
+    assert_eq!(c.slots[0], Source::Here(fp.0));
+    app.press(Action::KNext);
+    assert_eq!(app.screen, Screen::Create, "back to Create");
+}
+
+#[test]
+fn a_scanned_seedqr_opens_key_with_its_words() {
+    let mut app = add_a_key();
+    app.press(Action::KStart(Start::Scan.index()));
+    app.press(Action::KNext);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Scan));
+    // "abandon" eleven times and "about".
+    app.event(Event::Scanned {
+        bytes: b"000000000000000000000000000000000000000000000003".to_vec(),
+    });
+    assert_eq!(app.sheet, None);
+    let k = app.keygen.as_ref().unwrap();
+    assert_eq!(k.open, Some(kstep::KEY));
+    let m = k.mnemonic.as_ref().expect("the words");
+    let words: Vec<&str> = m
+        .indices()
+        .iter()
+        .map(|&i| Language::English.word(i))
+        .collect();
+    assert_eq!(
+        words.join(" "),
+        format!("{} about", ["abandon"; 11].join(" "))
+    );
+    app.press(Action::KLock);
+    assert_eq!(app.session.keys.len(), 1);
+}
+
+#[test]
+fn a_key_wanted_by_its_fingerprint_still_opens_add_a_key() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Entry(Some([0x5d, 0x38, 0x83, 0x76])));
+    assert_eq!(app.screen, Screen::Entry);
+    assert!(app.keygen.is_none());
+}
+
+#[test]
+fn a_threshold_slot_offers_only_make_a_new_key_and_type_the_words() {
+    use faraday_core::create::NewKind;
+    let Some(at) = NewKind::ALL.iter().position(|k| k.threshold()) else {
+        return;
+    };
+    let mut app = faraday_core::testkit::started();
+    tall(&mut app);
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(at as u8));
+    app.press(Action::CNext(faraday_core::cstep::KIND));
+    app.press(Action::CNext(faraday_core::cstep::QUORUM));
+    app.press(Action::KeyGen(Some(0)));
+    let _ = app.frame();
+    assert!(app.offers(Action::KStart(Start::Make.index())));
+    assert!(app.offers(Action::KStart(Start::Words.index())));
+    assert!(!app.offers(Action::KStart(Start::Scan.index())));
+    assert!(!app.offers(Action::KOthers));
 }

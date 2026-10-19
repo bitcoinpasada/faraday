@@ -287,6 +287,11 @@ in its cards" paragraph.
 
 ### 2.4 Add a key: BIP-39 words first
 
+**Replaced** (owner, 2026-10-19; F44): Add a key is New key's flow,
+opening on a Start card where Type the words is one choice and the
+other forms are behind Other forms (`docs/NEW-WALLET.md` §15). The Add
+a key screen below stays for a key asked for by name.
+
 **What.** The four form chips (BIP-39 words, SLIP-39 shares, codex32,
 Seed XOR parts) are replaced by the words form alone and two text
 buttons under the fields: **Other forms** (which shows the chips) and

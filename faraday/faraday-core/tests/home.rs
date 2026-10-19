@@ -1,5 +1,5 @@
 //! Home: Scan floats at the foot; Add a key is reached from Wallets, not
-//! from Home. Keys load only with no stick attached: Add a key pressed
+//! from Home, and opens New key on its Start card. Keys load only with no stick attached: Add a key pressed
 //! with one in asks for it to be pulled, and opens once it is. A camera
 //! frame may picture a seed, so Scan waits for the stick too, and a
 //! stick plugged in while the camera is on is held until it is off.
@@ -93,34 +93,39 @@ fn scan_on_home_starts_the_camera() {
 fn home_does_not_offer_add_a_key_directly() {
     let app = shown();
     assert!(!app.offers(Action::Entry(None)));
+    assert!(!app.offers(Action::KeyGen(None)));
 }
 
 #[test]
-fn add_a_key_from_wallets_opens_add_a_key() {
+fn add_a_key_from_wallets_opens_new_key_on_start() {
     let mut app = shown();
     app.press(Action::Nav(Screen::Start));
-    tap(&mut app, Action::Entry(None));
-    assert_eq!(app.screen, Screen::Entry);
+    tap(&mut app, Action::KeyGen(None));
+    assert_eq!(app.screen, Screen::KeyGen);
     assert_eq!(app.sheet, None);
+    assert_eq!(
+        app.keygen.as_ref().unwrap().open,
+        Some(faraday_core::keygen::kstep::START)
+    );
 }
 
 #[test]
 fn add_a_key_from_wallets_with_a_stick_in_asks_for_it_and_opens_once_it_is_pulled() {
     let mut app = home_with_stick();
     app.press(Action::Nav(Screen::Start));
-    tap(&mut app, Action::Entry(None));
+    tap(&mut app, Action::KeyGen(None));
     assert_eq!(app.sheet, Some(Sheet::Pull));
     assert_eq!(app.screen, Screen::Start);
     stick(&mut app, false);
     assert_eq!(app.sheet, None);
-    assert_eq!(app.screen, Screen::Entry);
+    assert_eq!(app.screen, Screen::KeyGen);
 }
 
 #[test]
 fn cancel_leaves_wallets_and_a_later_pull_opens_nothing() {
     let mut app = home_with_stick();
     app.press(Action::Nav(Screen::Start));
-    tap(&mut app, Action::Entry(None));
+    tap(&mut app, Action::KeyGen(None));
     tap(&mut app, Action::Cancel);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Start);
@@ -132,8 +137,8 @@ fn cancel_leaves_wallets_and_a_later_pull_opens_nothing() {
 fn the_wallets_tab_offers_add_a_key() {
     let mut app = shown();
     app.press(Action::Nav(Screen::Start));
-    tap(&mut app, Action::Entry(None));
-    assert_eq!(app.screen, Screen::Entry);
+    tap(&mut app, Action::KeyGen(None));
+    assert_eq!(app.screen, Screen::KeyGen);
 }
 
 #[test]
@@ -208,13 +213,16 @@ fn a_seedqr_scanned_while_a_stick_is_held_loads_no_key() {
 }
 
 #[test]
-fn a_seedqr_scanned_from_home_lands_where_add_a_key_scan_lands() {
-    let mut from_entry = shown();
-    from_entry.press(Action::Nav(Screen::Start));
-    tap(&mut from_entry, Action::Entry(None));
-    tap(&mut from_entry, Action::ScanSeed);
-    read(&mut from_entry, SEEDQR.as_bytes());
-    without_passphrase(&mut from_entry);
+fn a_seedqr_scanned_from_home_loads_the_key_add_a_keys_scan_loads() {
+    use faraday_core::keygen::Start;
+    let mut from_add = shown();
+    from_add.press(Action::Nav(Screen::Start));
+    tap(&mut from_add, Action::KeyGen(None));
+    tap(&mut from_add, Action::KStart(Start::Scan.index()));
+    tap(&mut from_add, Action::KNext);
+    read(&mut from_add, SEEDQR.as_bytes());
+    tap(&mut from_add, Action::KLock);
+    tap(&mut from_add, Action::KNext);
 
     let mut app = shown();
     tap(&mut app, Action::Scan);
@@ -225,9 +233,9 @@ fn a_seedqr_scanned_from_home_lands_where_add_a_key_scan_lands() {
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(
         app.session.keys[0].fingerprint(),
-        from_entry.session.keys[0].fingerprint()
+        from_add.session.keys[0].fingerprint()
     );
-    assert_eq!(app.screen, from_entry.screen);
+    assert_eq!(app.screen, Screen::Wallets);
 }
 
 #[test]

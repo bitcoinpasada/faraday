@@ -506,12 +506,10 @@ impl Faraday {
         match tile.go {
             Go::NewKey => self.act(Action::KeyGen(None)),
             Go::NewShares => self.act(Action::KeyGenSlip39),
-            Go::AddKey(form) => {
-                self.act(Action::Entry(None));
-                if let Some(k) = Form::ALL.iter().position(|f| *f == form) {
-                    self.act(Action::EntryForm(k as u8));
-                }
-            }
+            // Add a key is New key opening on Start; a tile for one form
+            // opens it with that choice made (`docs/NEW-WALLET.md` §15.3).
+            Go::AddKey(Form::Words) => self.act(Action::KeyGen(None)),
+            Go::AddKey(form) => self.keygen_open_on(crate::keygen::Start::typing(form)),
             Go::SeedQr => {
                 self.act(Action::Entry(None));
                 self.act(Action::ScanSeed);

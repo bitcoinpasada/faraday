@@ -525,9 +525,76 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += crate::screens::button_rows(ui, x, y, iw, &forms) - 4.0;
     }
     if app.entry.form != Form::Words {
-        entry_form(app, ui, x0, cw, h, x, y, iw, top);
+        let y = entry_form(app, ui, x, y, iw, None);
+        finish(app, ui, x0, cw, h, y - top + 8.0);
         return;
     }
+    // Scan leads, above the word field: primary until a word is typed
+    // (`docs/SCAN-TO-SIGN.md` §2.5).
+    let typed = crate::screens::entry_typed(app);
+    ui.button(
+        x,
+        y,
+        Some(iw),
+        40.0,
+        EN.compact_scan_a_seedqr,
+        if typed {
+            Style::Secondary
+        } else {
+            Style::Primary
+        },
+        crate::screens::entry_scan(app),
+    );
+    y += 48.0;
+    if app.entry.keys.is_none() {
+        entry_words(app, ui, x, y, iw, true);
+        return;
+    }
+    y = entry_words(app, ui, x, y, iw, true);
+    y += pass_field(
+        ui,
+        x,
+        y,
+        iw,
+        EN.compact_bip_39_passphrase,
+        &app.entry.passphrase,
+        app.entry.on_passphrase,
+        Action::EntryPassphrase,
+    );
+    // Add key is pinned at the foot.
+    let add = if typed {
+        Style::Primary
+    } else {
+        Style::Secondary
+    };
+    ui.pin = Some((EN.compact_add_key.to_string(), add, Action::EntryAdd));
+    y += stack(
+        ui,
+        x,
+        y,
+        iw,
+        &[
+            (
+                EN.compact_make_a_new_key,
+                Style::Secondary,
+                Action::KeyGen(None),
+            ),
+            (EN.compact_clear, Style::Ghost, Action::EntryClear),
+        ],
+    );
+    crate::screens::entry_stick(app, ui, x, y + 4.0);
+    y += 44.0;
+    finish(app, ui, x0, cw, h, y - top + 8.0);
+}
+
+/// Add a key's words form on a small panel: the word being typed, the
+/// words it can be, OpenSigner's word keyboard, the words taken and the
+/// lists. Add a key draws it, and so does New key's Words card for a key
+/// typed (`docs/NEW-WALLET.md` §15.2). `page`: on Add a key's own page,
+/// whose row of lists offers Other forms too. Returns where the next row
+/// starts.
+pub(crate) fn entry_words(app: &Faraday, ui: &mut Ui, x: f32, y: f32, iw: f32, page: bool) -> f32 {
+    let mut y = y;
     let lang = app.entry.language();
     let english = lang == osk_bip::bip39::Language::English;
     // One button for the list in use; the lists open from it; unless
@@ -559,7 +626,7 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             })
             .collect()
     };
-    if !app.entry.other_forms {
+    if page && !app.entry.other_forms {
         langs.insert(
             0,
             (
@@ -569,26 +636,8 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ),
         );
     }
-    // Scan leads, above the word field: primary until a word is typed
-    // (`docs/SCAN-TO-SIGN.md` §2.5).
-    let typed = crate::screens::entry_typed(app);
-    ui.button(
-        x,
-        y,
-        Some(iw),
-        40.0,
-        EN.compact_scan_a_seedqr,
-        if typed {
-            Style::Secondary
-        } else {
-            Style::Primary
-        },
-        crate::screens::entry_scan(app),
-    );
-    y += 48.0;
     let Some(w) = app.entry.keys.as_deref() else {
-        crate::screens::button_rows(ui, x, y, iw, &langs);
-        return;
+        return y + crate::screens::button_rows(ui, x, y, iw, &langs);
     };
     let taken: Vec<u16> = w.committed_indices().collect();
     let prefix: String = w.prefix().iter().collect();
@@ -679,57 +728,22 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     y += count.div_ceil(cols) as f32 * 32.0 + 10.0;
     // Under the word fields.
-    y += crate::screens::button_rows(ui, x, y, iw, &langs) - 6.0;
-    y += pass_field(
-        ui,
-        x,
-        y,
-        iw,
-        EN.compact_bip_39_passphrase,
-        &app.entry.passphrase,
-        app.entry.on_passphrase,
-        Action::EntryPassphrase,
-    );
-    // Add key is pinned at the foot.
-    let add = if typed {
-        Style::Primary
-    } else {
-        Style::Secondary
-    };
-    ui.pin = Some((EN.compact_add_key.to_string(), add, Action::EntryAdd));
-    y += stack(
-        ui,
-        x,
-        y,
-        iw,
-        &[
-            (
-                EN.compact_make_a_new_key,
-                Style::Secondary,
-                Action::KeyGen(None),
-            ),
-            (EN.compact_clear, Style::Ghost, Action::EntryClear),
-        ],
-    );
-    crate::screens::entry_stick(app, ui, x, y + 4.0);
-    y += 44.0;
-    finish(app, ui, x0, cw, h, y - top + 8.0);
+    y + crate::screens::button_rows(ui, x, y, iw, &langs) - 6.0
 }
 
 /// Add a key in another form: one share, string or part typed at a time
-/// on the docked keyboard.
-#[allow(clippy::too_many_arguments)]
-fn entry_form(
+/// on the docked keyboard. New key's Words card for a key typed in that
+/// form draws it too, with `flow` its Continue (`docs/NEW-WALLET.md`
+/// §15.2): no passphrase (Key asks it), no way in from a stick, Continue
+/// in place of Make the key. Returns where the next row starts.
+pub(crate) fn entry_form(
     app: &Faraday,
     ui: &mut Ui,
-    x0: f32,
-    cw: f32,
-    h: f32,
     x: f32,
     y: f32,
     iw: f32,
-    top: f32,
-) {
+    flow: Option<Action>,
+) -> f32 {
     use crate::forms::Form;
     let form = app.entry.form;
     let mut y = y;
@@ -785,7 +799,7 @@ fn entry_form(
         y += ui.wrap(x + 20.0, y, iw - 20.0, 12.0, W::R, TEXT, l) + 6.0;
     }
     y += 6.0;
-    if form != Form::Codex32 {
+    if form != Form::Codex32 && flow.is_none() {
         y += pass_field(
             ui,
             x,
@@ -819,17 +833,22 @@ fn entry_form(
                 Action::ScanPart,
             ),
             (
-                EN.compact_make_the_key,
+                match flow {
+                    Some(_) => EN.keygen_continue,
+                    None => EN.compact_make_the_key,
+                },
                 if ready {
                     Style::Primary
                 } else {
                     Style::Disabled
                 },
-                Action::EntryRecover,
+                flow.unwrap_or(Action::EntryRecover),
             ),
         ],
     );
-    crate::screens::entry_stick(app, ui, x, y + 4.0);
-    y += 44.0;
-    finish(app, ui, x0, cw, h, y - top + 8.0);
+    if flow.is_none() {
+        crate::screens::entry_stick(app, ui, x, y + 4.0);
+        y += 44.0;
+    }
+    y
 }

@@ -703,6 +703,7 @@ fn run(
         Some("walletflow") => return wallet_flow_tour(&mut t),
         Some("demo") => return demo_tour(&mut t),
         Some("vaultshow") => return vault_show_tour(&mut t),
+        Some("addkey") => return add_key_tour(&mut t),
         _ => {}
     }
     if medium == Medium::Stick {
@@ -2439,6 +2440,40 @@ fn scan_tour(t: &mut Tour) -> Result<(), String> {
         return Err("pulling the stick did not open the camera".into());
     }
     t.shot("scan-after-pull")
+}
+
+/// Add a key, which is New key opening on Start (`docs/NEW-WALLET.md`
+/// §15): the Start card, its Other forms, the Words card typed, the Key
+/// card for words typed, locked in; then the codex32 tile's Words card.
+fn add_key_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::keygen::Start;
+    t.press(Action::Nav(Screen::Start));
+    t.press(Action::KeyGen(None));
+    t.shot("addkey-start")?;
+    t.press(Action::KOthers);
+    t.shot("addkey-start-others")?;
+    t.press(Action::KOthers);
+    t.press(Action::KStart(Start::Words.index()));
+    t.press(Action::KNext);
+    t.shot("addkey-words")?;
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
+    let cut = words.len() / 2;
+    type_text(t, &words[..cut]);
+    t.shot("addkey-words-typing")?;
+    type_text(t, &words[cut..]);
+    t.shot("addkey-words-typed")?;
+    t.press(Action::KNext);
+    t.shot("addkey-key")?;
+    t.press(Action::KLock);
+    t.shot("addkey-key-locked")?;
+    t.press(Action::KNext);
+    t.press(Action::Nav(Screen::Catalog));
+    let codex32 = faraday_core::catalog::TILES
+        .iter()
+        .position(|tile| tile.name == "codex32")
+        .ok_or("no codex32 tile")?;
+    t.press(Action::Catalog(codex32 as u8));
+    t.shot("addkey-codex32")
 }
 
 /// The small panel's Home, and Make a new wallet with a new key from dice,
@@ -5406,7 +5441,7 @@ fn main() -> ExitCode {
     };
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|walletflow|demo]"
+            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|walletflow|demo|vaultshow|addkey]"
         );
         return ExitCode::from(2);
     }
@@ -5469,11 +5504,12 @@ fn main() -> ExitCode {
             "walletflow",
             "demo",
             "vaultshow",
+            "addkey",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo or vaultshow"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow or addkey"
         );
         return ExitCode::from(2);
     }

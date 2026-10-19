@@ -171,21 +171,22 @@ fn a_codex32_string_and_a_slip39_share_can_be_scanned_instead_of_typed() {
 }
 
 #[test]
-fn a_fresh_add_a_key_offers_the_words_form_and_no_share_form_until_other_forms() {
+fn a_fresh_add_a_key_offers_type_the_words_and_no_share_form_until_other_forms() {
+    use faraday_core::keygen::Start;
     let mut app = faraday_core::testkit::started();
-    app.press(Action::Entry(None));
+    app.press(Action::KeyGen(None));
     let _ = app.frame();
-    assert_eq!(app.entry.form, faraday_core::forms::Form::Words);
+    assert!(app.offers(Action::KStart(Start::Words.index())));
     assert!(
-        !app.offers(Action::EntryForm(1)),
+        !app.offers(Action::KStart(Start::Shares.index())),
         "SLIP-39 shares is behind Other forms"
     );
-    assert!(app.offers(Action::EntryOtherForms));
-    app.press(Action::EntryOtherForms);
+    assert!(app.offers(Action::KOthers));
+    app.press(Action::KOthers);
     let _ = app.frame();
     assert!(
-        app.offers(Action::EntryForm(1)),
-        "Other forms shows the chips"
+        app.offers(Action::KStart(Start::Shares.index())),
+        "Other forms shows them"
     );
 }
 
@@ -198,13 +199,15 @@ fn the_slip39_tile_opens_on_shares() {
         .expect("a Restore from SLIP-39 tile");
     app.press(Action::Catalog(i as u8));
     let _ = app.frame();
-    assert_eq!(app.screen, Screen::Entry);
+    assert_eq!(app.screen, Screen::KeyGen);
+    let k = app.keygen.as_ref().unwrap();
+    assert_eq!(k.start, faraday_core::keygen::Start::Shares);
+    assert_eq!(k.open, Some(faraday_core::keygen::kstep::TYPED));
     assert_eq!(app.entry.form, faraday_core::forms::Form::Slip39);
     assert_eq!(app.entry.wanted, None, "not for a missing key in a wallet");
-    assert!(app.entry.other_forms, "the chips are shown");
     assert!(
-        app.offers(Action::EntryForm(0)),
-        "the words form chip is still there to switch back"
+        app.offers(Action::KStep(faraday_core::keygen::kstep::START)),
+        "Start's Change is there to choose another way in"
     );
 }
 
@@ -300,4 +303,39 @@ fn choosing_18_then_typing_18_words_adds_an_18_word_key() {
             "xprv9s21ZrQH143K3Lv9MZLj16np5GzLe7tDKQfVusBni7toqJGcnKRtHSxUwbKUyUWiwpK55g1DUSsw76TF1T93VT4gz4wt5RM23pkaQLnvBh7"
         )
     );
+}
+
+#[test]
+fn the_status_line_follows_the_words_and_the_passphrase_as_they_change() {
+    use faraday_core::wallet::{Session, fp_text};
+    let bacon = faraday_core::testkit::test_words("bacon");
+    let zebra = faraday_core::testkit::test_words("zebra");
+    let fp = |words: &str, pass: &str| {
+        fp_text(
+            Session::default()
+                .add_words_with(words, pass, "", None)
+                .unwrap(),
+        )
+        .to_string()
+    };
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Entry(None));
+    typed(&mut app, &bacon);
+    let _ = app.frame();
+    assert!(app.drawn_texts().join(" ").contains(&fp(&bacon, "")));
+    app.press(Action::EntryPassphrase);
+    typed(&mut app, "Ride the 7 bus");
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .join(" ")
+            .contains(&fp(&bacon, "Ride the 7 bus"))
+    );
+    app.press(Action::EntryPassphrase);
+    app.press(Action::EntryClear);
+    typed(&mut app, &zebra);
+    let _ = app.frame();
+    let text = app.drawn_texts().join(" ");
+    assert!(text.contains(&fp(&zebra, "Ride the 7 bus")), "{text}");
+    assert!(!text.contains(&fp(&bacon, "Ride the 7 bus")));
 }

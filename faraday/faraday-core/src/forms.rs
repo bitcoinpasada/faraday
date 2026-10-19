@@ -195,9 +195,14 @@ impl Faraday {
             Ok(()) => {
                 self.entry.typed.clear();
                 self.entry.error = None;
-                // A codex32 secret is the key already.
+                // A codex32 secret is the key already: Add a key adds it,
+                // New key opens its Key card.
                 if form == Form::Codex32 && self.entry.parts.ready(form) {
-                    self.form_recover();
+                    if self.screen == crate::Screen::KeyGen {
+                        self.act(crate::Action::KNext);
+                    } else {
+                        self.form_recover();
+                    }
                 }
             }
             Err(e) => self.entry.error = Some(e),
@@ -206,16 +211,37 @@ impl Faraday {
 
     /// Puts the parts together and adds the key.
     pub(crate) fn form_recover(&mut self) {
-        if !self.may_load_keys() {
+        if !self.may_load_keys() || self.entry.form == Form::Words {
             return;
         }
+        match self.form_key() {
+            Ok(fp) => {
+                self.toast(&fill(EN.forms_key_added, &[&fp_text(fp).to_string()]));
+                let back = self.entry.back;
+                self.seeds_took(fp, back);
+                self.entry = crate::EntryState::default();
+                self.refresh_spend();
+                self.screen = back.unwrap_or(crate::Screen::Wallets);
+                if back == Some(crate::Screen::Family) {
+                    self.family_key_added();
+                }
+            }
+            Err(e) => self.entry.error = Some(e),
+        }
+    }
+
+    /// Puts the parts typed together and loads the key they make, with
+    /// the passphrase typed (not for codex32); what is wrong otherwise.
+    /// Add a key's Make the key and New key's Lock in for a form other
+    /// than words both load through here (`docs/NEW-WALLET.md` §15.2).
+    pub(crate) fn form_key(&mut self) -> Result<osk_bip::keys::Fingerprint, String> {
         let form = self.entry.form;
         let label = match form {
             Form::Slip39 => EN.forms_slip_39_key,
             Form::Codex32 => EN.forms_codex32_key,
             _ => EN.forms_seed_xor_key,
         };
-        let added = match form {
+        match form {
             Form::Slip39 => {
                 slip39::recover(&self.entry.parts.slip39, self.entry.passphrase.as_bytes())
                     .map_err(|e| fill(EN.forms_the_shares_do, &[&format!("{e:?}")]))
@@ -259,21 +285,8 @@ impl Faraday {
                         .add_words_with(&phrase, &self.entry.passphrase, label, None)
                         .map_err(|e| e.text())
                 }),
-            Form::Words => return,
-        };
-        match added {
-            Ok(fp) => {
-                self.toast(&fill(EN.forms_key_added, &[&fp_text(fp).to_string()]));
-                let back = self.entry.back;
-                self.seeds_took(fp, back);
-                self.entry = crate::EntryState::default();
-                self.refresh_spend();
-                self.screen = back.unwrap_or(crate::Screen::Wallets);
-                if back == Some(crate::Screen::Family) {
-                    self.family_key_added();
-                }
-            }
-            Err(e) => self.entry.error = Some(e),
+            // Words are loaded as words (`Faraday::typed_load`), never here.
+            Form::Words => Err(String::new()),
         }
     }
 }

@@ -72,10 +72,12 @@ impl Faraday {
             Screen::Message => Some(Action::MType),
             Screen::KeyGen => {
                 let k = self.keygen.as_ref()?;
-                if k.open == Some(keygen::kstep::KEY) {
-                    k.focus.map(Action::KPassField)
-                } else {
-                    Some(Action::KTyping(true))
+                match k.open {
+                    Some(keygen::kstep::KEY) => k.focus.map(Action::KPassField),
+                    // A key typed: Add a key's form, which has no caret of
+                    // its own to move.
+                    Some(keygen::kstep::TYPED) => None,
+                    _ => Some(Action::KTyping(true)),
                 }
             }
             Screen::Create => self.create.as_ref()?.pass_focus.map(Action::CPassField),

@@ -8,7 +8,7 @@ use osk_bip::bip39::Language;
 use osk_entropy::{CameraNoise, CardDraws, CoinFlips, DiceProcedure, RANKS, SUITS};
 
 use crate::keygen::{
-    Group, KeyGen, MIX_SOURCES, Source, WAYS, Way, kstep, procedure_name, source_name,
+    Group, KeyGen, MIX_SOURCES, Source, Start, WAYS, Way, kstep, procedure_name, source_name,
 };
 use crate::screens::{
     buttons_and_next, descriptor_row, locked_tag, next_button, pass_field, section_label, stepper,
@@ -21,6 +21,7 @@ use osk_ui::Color;
 use osk_ui::widgets::Icon;
 
 const TITLES: [&str; kstep::COUNT] = [
+    FEN.keygen_start,
     FEN.keygen_length,
     FEN.keygen_randomness,
     FEN.keygen_entries,
@@ -28,6 +29,7 @@ const TITLES: [&str; kstep::COUNT] = [
     FEN.keygen_check,
     FEN.keygen_words,
     FEN.keygen_quiz,
+    FEN.keygen_words,
 ];
 
 pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -38,20 +40,18 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let cards: Vec<flow::Card> = steps
         .iter()
         .map(|&s| flow::Card {
-            title: if s == kstep::ENTER {
-                entries_title(k)
-            } else {
-                TITLES[usize::from(s)].to_string()
-            },
+            title: title_of(k, s),
             summary: summary(k, s),
             mono: (s == kstep::KEY && k.locked)
                 || (s == kstep::QUIZ && k.fingerprint.is_some() && k.done[usize::from(s)]),
             done: k.done[usize::from(s)] || (s == kstep::KEY && k.locked),
             open: k.open == Some(s),
             // Once locked in, nothing before Key changes: no Change.
-            default: !k.locked && (s == kstep::LENGTH || s == kstep::SOURCE),
+            default: !k.locked && matches!(s, kstep::START | kstep::LENGTH | kstep::SOURCE),
             toggle: Action::KStep(s),
-            guide: Some(guide::keygen(s, k)),
+            // The walk-through is New key's own: a key typed has none.
+            guide: (s != kstep::START && s != kstep::TYPED && !(s == kstep::KEY && k.typed()))
+                .then(|| guide::keygen(s, k)),
         })
         .collect();
     let back_label = match k.back {
@@ -67,7 +67,14 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         w: (cw - 80.0).min(900.0),
         h,
         back: Some((back_label, Action::Nav(k.back))),
-        heading: FEN.keygen_new_key,
+        // Add a key wherever the flow opens on Start; New key for a Create
+        // slot, and from Add a key's own Make a new key
+        // (`docs/NEW-WALLET.md` §15.3).
+        heading: if k.slot.is_some() || k.back == crate::Screen::Entry {
+            FEN.keygen_new_key
+        } else {
+            FEN.keygen_add_a_key
+        },
         guided: app.guided,
         switch: true,
         note: None,
@@ -92,6 +99,103 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         app.dirty = true;
         app.commands.push_back(osk_shell_api::Command::Draw);
     }
+}
+
+/// A card's title.
+fn title_of(k: &KeyGen, s: u8) -> String {
+    match s {
+        kstep::ENTER => entries_title(k),
+        // A form other than words is named for itself.
+        kstep::TYPED => match k.start.form() {
+            Some(f) if f != crate::forms::Form::Words => f.name().to_string(),
+            _ => TITLES[usize::from(s)].to_string(),
+        },
+        _ => TITLES[usize::from(s)].to_string(),
+    }
+}
+
+/// The Start card (`docs/NEW-WALLET.md` §15.1): Make a new key, Type the
+/// words, Scan a SeedQR, and under Other forms the other four; a
+/// threshold wallet's slot offers the first two only.
+fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let mut cy = y;
+    let offered = k.starts();
+    let one = |ui: &mut Ui, cy: &mut f32, s: Start| {
+        row(
+            ui,
+            x,
+            *cy,
+            w,
+            Row {
+                on: k.start == s,
+                name: start_name(s),
+                line: "",
+                action: Action::KStart(s.index()),
+            },
+        );
+        *cy += 60.0;
+    };
+    for &s in offered.iter().filter(|s| !s.other()) {
+        one(ui, &mut cy, s);
+    }
+    if offered.iter().any(|s| s.other()) {
+        let open = k.others_open || k.start.other();
+        let lw = ui.button(
+            x,
+            cy,
+            None,
+            36.0,
+            FEN.entry_other_forms,
+            Style::Ghost,
+            Action::KOthers,
+        );
+        ui.icon(
+            x + lw + 2.0,
+            cy + 8.0,
+            20.0,
+            if open {
+                Icon::ChevronUp
+            } else {
+                Icon::ChevronRight
+            },
+            10.0,
+            DIM,
+        );
+        cy += 44.0;
+        if open {
+            for &s in offered.iter().filter(|s| s.other()) {
+                one(ui, &mut cy, s);
+            }
+        }
+    }
+    if let Some(n) = &k.note {
+        cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, n) + 6.0;
+    }
+    let drawn = next_button(ui, x, cy, w, FEN.keygen_continue, Action::KNext);
+    cy + (if drawn { 48.0 } else { 8.0 }) - y
+}
+
+/// The Words card for a key typed: Add a key's form, drawn by Add a
+/// key's own code, then Continue to Key (`docs/NEW-WALLET.md` §15.2).
+fn typed(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    // The room a list's own keyboard is sized to: the card grows to it.
+    let room = y + 2000.0;
+    let words = app.entry.form == crate::forms::Form::Words;
+    let mut cy = match (words, ui.compact) {
+        (true, false) => crate::screens::entry_words(app, ui, x, y, w, room, false),
+        (true, true) => crate::compact_screens::entry_words(app, ui, x, y, w, false),
+        (false, false) => {
+            return crate::screens::entry_form(app, ui, x, y, w, room, Some(Action::KNext)) + 8.0
+                - y;
+        }
+        (false, true) => {
+            return crate::compact_screens::entry_form(app, ui, x, y, w, Some(Action::KNext)) + 8.0
+                - y;
+        }
+    };
+    cy += 4.0;
+    let drawn = next_button(ui, x, cy, w, FEN.keygen_continue, Action::KNext);
+    cy + (if drawn { 48.0 } else { 8.0 }) - y
 }
 
 fn entries_title(k: &KeyGen) -> String {
@@ -139,8 +243,27 @@ fn asks(k: &KeyGen, s: Source) -> String {
     }
 }
 
+/// A Start choice's name, on the card and in its summary.
+fn start_name(s: Start) -> &'static str {
+    match s {
+        Start::Make => FEN.keygen_make_a_new_key,
+        Start::Words => FEN.keygen_type_the_words,
+        Start::Scan => FEN.keygen_scan_a_seedqr,
+        Start::MakeShares => FEN.keygen_make_slip_39_shares,
+        Start::Shares => FEN.keygen_type_slip_39_shares,
+        Start::Codex32 => FEN.keygen_type_a_codex32,
+        Start::Xor => FEN.keygen_type_seed_xor,
+    }
+}
+
 fn summary(k: &KeyGen, s: u8) -> String {
     match s {
+        kstep::START => start_name(k.start).to_string(),
+        kstep::TYPED => match k.mnemonic.as_ref() {
+            _ if !k.done[usize::from(kstep::TYPED)] => FEN.keygen_not_yet.to_string(),
+            Some(m) => fill(FEN.keygen_words_n, &[&m.word_count().to_string()]),
+            None => fill(FEN.entry_form_in, &[&k.parts_in.to_string()]),
+        },
         kstep::LENGTH if k.slip39 => fill(
             FEN.keygen_slip_39_of_shares,
             &[
@@ -176,10 +299,10 @@ fn summary(k: &KeyGen, s: u8) -> String {
             None => FEN.keygen_not_locked_in.to_string(),
             Some(fp) => {
                 let fp = fp_text(osk_bip::keys::Fingerprint(fp));
-                match (k.slot, k.with_passphrase) {
-                    (None, _) => fill(FEN.keygen_locked_in, &[&fp.to_string()]),
-                    (Some(_), true) => fill(FEN.keygen_passphrase_set, &[&fp.to_string()]),
-                    (Some(_), false) => fill(FEN.keygen_passphrase_not, &[&fp.to_string()]),
+                match (k.asks_passphrase(), k.with_passphrase) {
+                    (false, _) => fill(FEN.keygen_locked_in, &[&fp.to_string()]),
+                    (true, true) => fill(FEN.keygen_passphrase_set, &[&fp.to_string()]),
+                    (true, false) => fill(FEN.keygen_passphrase_not, &[&fp.to_string()]),
                 }
             }
         },
@@ -213,7 +336,11 @@ fn summary(k: &KeyGen, s: u8) -> String {
 
 fn card_body(app: &Faraday, k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
     match s {
-        kstep::LENGTH | kstep::SOURCE | kstep::ENTER if k.locked => read_only(k, ui, s, x, y, w),
+        kstep::START | kstep::LENGTH | kstep::SOURCE | kstep::ENTER | kstep::TYPED if k.locked => {
+            read_only(k, ui, s, x, y, w)
+        }
+        kstep::START => start(k, ui, x, y, w),
+        kstep::TYPED => typed(app, ui, x, y, w),
         kstep::LENGTH => length(k, ui, x, y, w),
         kstep::SOURCE => sources(k, ui, x, y, w),
         kstep::ENTER => entries(k, ui, x, y, w),
@@ -229,6 +356,12 @@ fn card_body(app: &Faraday, k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f
 fn read_only(k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     match s {
+        kstep::START => {
+            cy = stat(ui, x, cy, FEN.keygen_start, &summary(k, s), TEXT);
+        }
+        kstep::TYPED => {
+            cy = stat(ui, x, cy, &title_of(k, s), &summary(k, s), TEXT);
+        }
         kstep::LENGTH => {
             cy = stat(ui, x, cy, FEN.keygen_length, &summary(k, s), TEXT);
         }
@@ -273,7 +406,15 @@ fn long_row(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, value: &str) -> f3
 
 /// The words in their numbered grid, shown or hidden. Returns the height
 /// used.
-fn word_grid(ui: &mut Ui, words: &[u16], shown: bool, x: f32, y: f32, w: f32) -> f32 {
+fn word_grid(
+    ui: &mut Ui,
+    m: &osk_bip::bip39::Mnemonic,
+    shown: bool,
+    x: f32,
+    y: f32,
+    w: f32,
+) -> f32 {
+    let (lang, words) = (m.language(), m.indices());
     let cols = if ui.compact { 2 } else { 4 };
     let cellw = (w - (cols - 1) as f32 * 10.0) / cols as f32;
     for (i, &idx) in words.iter().enumerate() {
@@ -283,7 +424,7 @@ fn word_grid(ui: &mut Ui, words: &[u16], shown: bool, x: f32, y: f32, w: f32) ->
         ui.stroke(cx, wy, cellw, 38.0, 8.0, INNER);
         ui.text_mid(cx + 10.0, wy, 38.0, 11.0, W::R, DIM, &(i + 1).to_string());
         let word = if shown {
-            Language::English.word(idx)
+            lang.word_display(idx)
         } else {
             "••••••"
         };
@@ -297,15 +438,26 @@ fn word_grid(ui: &mut Ui, words: &[u16], shown: bool, x: f32, y: f32, w: f32) ->
 /// what the key makes, and Continue.
 fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    let Some(m) = k.mnemonic.as_ref() else {
+    // A key typed in a form other than words has no words to show: the
+    // parts typed, until it is locked in (§15.2).
+    let parts = k.typed() && k.mnemonic.is_none() && k.done[usize::from(kstep::TYPED)];
+    if k.mnemonic.is_none() && !parts {
         ui.text(x, cy, 13.0, W::R, MUTED, FEN.keygen_not_made_yet);
         return 26.0;
-    };
+    }
     if k.locked {
         locked_tag(ui, x, cy);
         cy += 38.0;
     }
-    cy += word_grid(ui, m.indices(), k.shown, x, cy, w);
+    if let Some(m) = k.mnemonic.as_ref() {
+        cy += word_grid(ui, m, k.shown, x, cy, w);
+    } else if !k.locked {
+        for l in app.entry.parts.lines(app.entry.form) {
+            ui.icon(x, cy - 2.0, 18.0, Icon::Done, 10.0, OK);
+            cy += ui.wrap(x + 24.0, cy, w - 24.0, 13.0, W::R, TEXT, &l) + 10.0;
+        }
+        cy += 4.0;
+    }
     let show = (
         if k.shown {
             FEN.keygen_hide_words
@@ -315,8 +467,13 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         Style::Secondary,
         Action::KShow,
     );
+    let shows: &[(&str, Style, Action)] = if k.mnemonic.is_some() {
+        std::slice::from_ref(&show)
+    } else {
+        &[]
+    };
     if !k.locked {
-        if k.slot.is_some() {
+        if k.asks_passphrase() {
             cy += 4.0;
             cy += pass_field(
                 ui,
@@ -339,8 +496,10 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
                 Action::KPassField(1),
             );
         }
-        // The demo adds a public seed in place of these words (F20).
-        if let Some((word, fp)) = app.session.next_handout() {
+        // The demo adds a public seed in place of words made here (F20).
+        if !k.typed()
+            && let Some((word, fp)) = app.session.next_handout()
+        {
             let line = fill(FEN.keygen_lock_in_adds, &[word, &fp_text(fp)]);
             cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 6.0;
         }
@@ -353,7 +512,7 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
             x,
             cy,
             w,
-            &[show],
+            shows,
             Some((FEN.keygen_lock_in, Action::KLock)),
         );
         if !ui.compact {
@@ -362,7 +521,7 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         }
         return cy - y;
     }
-    if k.slot.is_some() {
+    if k.asks_passphrase() {
         cy = stat_pill(
             ui,
             x,
@@ -420,7 +579,7 @@ fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         x,
         cy,
         w,
-        &[show],
+        shows,
         Some((FEN.keygen_continue, Action::KNext)),
     );
     cy - y
@@ -596,6 +755,20 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
     // takes no press.
     let dim = ui.dimmed.contains(&a);
     let name = ui.fit(14.0, W::S, name, w - 54.0);
+    // A row with no second line has its name in the middle.
+    if line.is_empty() {
+        ui.text_mid(
+            x + 42.0,
+            y,
+            52.0,
+            14.0,
+            W::S,
+            if dim { DIM } else { TEXT },
+            &name,
+        );
+        ui.hit(x, y, w, 52.0, a);
+        return;
+    }
     ui.text(
         x + 42.0,
         y + 8.0,
@@ -1847,7 +2020,7 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         TEXT,
     );
     cy += 6.0;
-    cy += word_grid(ui, m.indices(), k.shown, x, cy, w);
+    cy += word_grid(ui, m, k.shown, x, cy, w);
     if let Some(n) = &k.note {
         ui.text(x, cy, 13.0, W::R, ERR, n);
         cy += 24.0;

@@ -128,8 +128,15 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     tap(&mut app, Action::CNext(faraday_core::cstep::WHERE));
     tap(&mut app, Action::KeyGen(Some(0)));
     assert_eq!(app.screen, Screen::KeyGen);
-    // New key opens on Length too; its Continue (12 words, the default)
-    // opens Randomness.
+    // New key opens on Start, Make a new key ticked; its Continue opens
+    // Length, whose Continue (12 words, the default) opens Randomness
+    // (`docs/NEW-WALLET.md` §15.3).
+    tap(&mut app, Action::KNext);
+    assert_eq!(
+        app.keygen.as_ref().and_then(|k| k.open),
+        Some(faraday_core::keygen::kstep::LENGTH),
+        "Start's Continue opens Length"
+    );
     tap(&mut app, Action::KWords(12));
     assert_eq!(
         app.keygen.as_ref().and_then(|k| k.open),

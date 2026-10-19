@@ -41,6 +41,8 @@ fn shown() -> Faraday {
 fn coins(words: u8) -> Faraday {
     let mut app = shown();
     app.press(Action::KeyGen(None));
+    // Start's Continue, Make a new key ticked, opens Length.
+    app.press(Action::KNext);
     app.press(Action::KWords(words));
     app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);

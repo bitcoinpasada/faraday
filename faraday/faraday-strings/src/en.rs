@@ -2811,6 +2811,22 @@ pub struct Strings {
     pub keygen_make_a_new_wallet: &'static str,
     /// Text in `draw`.
     pub keygen_add_a_key: &'static str,
+    /// New key's Start card (`docs/NEW-WALLET.md` §15.1).
+    pub keygen_start: &'static str,
+    /// New key's Start card (`docs/NEW-WALLET.md` §15.1).
+    pub keygen_make_a_new_key: &'static str,
+    /// New key's Start card (`docs/NEW-WALLET.md` §15.1).
+    pub keygen_type_the_words: &'static str,
+    /// New key's Start card (`docs/NEW-WALLET.md` §15.1).
+    pub keygen_scan_a_seedqr: &'static str,
+    /// New key's Start card (`docs/NEW-WALLET.md` §15.1).
+    pub keygen_make_slip_39_shares: &'static str,
+    /// New key's Start card (`docs/NEW-WALLET.md` §15.1).
+    pub keygen_type_slip_39_shares: &'static str,
+    /// New key's Start card (`docs/NEW-WALLET.md` §15.1).
+    pub keygen_type_a_codex32: &'static str,
+    /// New key's Start card (`docs/NEW-WALLET.md` §15.1).
+    pub keygen_type_seed_xor: &'static str,
     /// Text in `draw`.
     pub keygen_tools: &'static str,
     /// Text in `draw`.
@@ -9470,6 +9486,14 @@ pub static EN: Strings = Strings {
     keygen_words: "Words",
     keygen_make_a_new_wallet: "Make a new wallet",
     keygen_add_a_key: "Add a key",
+    keygen_start: "Start",
+    keygen_make_a_new_key: "Make a new key",
+    keygen_type_the_words: "Type the words",
+    keygen_scan_a_seedqr: "Scan a SeedQR",
+    keygen_make_slip_39_shares: "Make SLIP-39 shares",
+    keygen_type_slip_39_shares: "Type SLIP-39 shares",
+    keygen_type_a_codex32: "Type a codex32 secret",
+    keygen_type_seed_xor: "Type Seed XOR parts",
     keygen_tools: "Tools",
     keygen_back: "Back",
     keygen_new_key: "New key",
