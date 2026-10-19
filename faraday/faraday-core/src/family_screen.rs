@@ -49,6 +49,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: open == Some(id),
             default: false,
             toggle: crate::family::toggle(app, id),
+            inert: false,
             guide: Some(text::lead(app, id)).filter(|s| !s.is_empty()),
         })
         .collect();

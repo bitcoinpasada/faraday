@@ -59,6 +59,40 @@ fn head(
     }
 }
 
+/// A layer's head row at (x, y), `w` wide, while names are typed: its
+/// name a field pressed with `press` (typed while `typing`, an accent rule
+/// under it), and its × when it has one.
+fn name_head(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    name: &str,
+    press: Action,
+    typing: bool,
+    off: Option<Action>,
+) {
+    let h = tokens::BOARD_HEAD;
+    let mark = tokens::BOARD_MARK;
+    let side = mark + 2.0 * tokens::BOARD_PAD;
+    let room = if off.is_some() { w - side } else { w };
+    if typing {
+        ui.typed(x, y, h, tokens::LABEL, W::S, TEXT, name, room, true, press);
+        ui.rule(x, y + h - tokens::GAP_SMALL, room, ACCENT);
+    } else {
+        let shown = ui.fit(tokens::LABEL, W::S, name, room);
+        ui.text_mid(x, y, h, tokens::LABEL, W::S, TEXT, &shown);
+    }
+    ui.hit(x, y, room, h, press);
+    if let Some(a) = off {
+        crate::board_screen::cross(
+            ui,
+            x + w - tokens::BOARD_PAD - mark / 2.0,
+            y + h / 2.0,
+            MUTED,
+        );
+        ui.hit(x + w - side, y, side, h, a);
+    }
+}
+
 /// A choice at (x, y), `w` wide: its label on a line of its own, then a
 /// button per option, the one chosen marked. Returns its height.
 fn choice(
@@ -161,17 +195,31 @@ pub(crate) fn card(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, on: bool)
     let many = v.layers.len() > 1;
     for (l, layer) in v.layers.iter().enumerate() {
         let l8 = u(l);
-        head(
-            ui,
-            x,
-            cy,
-            w,
-            tokens::BOARD_HEAD,
-            tokens::LABEL,
-            TEXT,
-            &layer.name,
-            (many && on).then_some(la(P::RemoveLayer(l8))),
-        );
+        let off = (many && on).then_some(la(P::RemoveLayer(l8)));
+        if v.names_typed && on {
+            // A press on the name types it, as a place's is (§19.18 item
+            // 3): just pressed, the whole of it selected and no caret.
+            name_head(
+                ui,
+                (x, cy, w),
+                &layer.name,
+                Action::BLayerName(l8),
+                v.naming == Some(l),
+                off,
+            );
+        } else {
+            head(
+                ui,
+                x,
+                cy,
+                w,
+                tokens::BOARD_HEAD,
+                tokens::LABEL,
+                TEXT,
+                &layer.name,
+                off,
+            );
+        }
         cy += tokens::BOARD_HEAD;
         let (rx, rw) = (x + inset, w - inset);
         let routes = layer.routes.len() > 1;

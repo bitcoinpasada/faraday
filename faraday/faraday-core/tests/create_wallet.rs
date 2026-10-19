@@ -709,6 +709,24 @@ fn kind_and_keys_read_after_wallet_and_stay_closed_until_a_shape_is_chosen() {
     );
 }
 
+/// A card that cannot be opened takes no press and draws no chevron
+/// (L3): Kind, Quorum and Keys before a shape is chosen; once one is,
+/// they open as any card.
+#[test]
+fn a_card_that_waits_for_the_wallet_card_offers_no_press() {
+    let mut app = planning();
+    let _ = app.frame();
+    for k in [cstep::KIND, cstep::QUORUM, cstep::KEYS] {
+        assert!(!app.offers(Action::CStep(k)), "card {k} offers a press");
+    }
+    app.press(Action::CSuggest);
+    app.press(Action::CShape(WalletShape::TwoOfThree.index()));
+    let _ = app.frame();
+    for k in [cstep::KIND, cstep::QUORUM, cstep::KEYS] {
+        assert!(app.offers(Action::CStep(k)), "card {k} offers no press");
+    }
+}
+
 #[test]
 fn the_fresh_plan_suggests_a_two_of_three_first_and_dims_single_key_with_its_conflict() {
     let mut app = planning();

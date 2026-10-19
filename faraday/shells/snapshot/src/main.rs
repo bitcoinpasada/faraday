@@ -724,6 +724,7 @@ fn run(
         Some("createfrom") => return create_from_tour(&mut t),
         Some("inprogress") => return in_progress_tour(&mut t),
         Some("l6") => return plan_first_tour(&mut t),
+        Some("l3") => return layer_view_tour(&mut t),
         _ => {}
     }
     if medium == Medium::Stick {
@@ -3867,6 +3868,86 @@ fn layers_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// The board's views (`docs/BACKUP-FLOW.md` §20.7, L3) for Savings, its
+/// three keys typed in and a vault open, on Paper and vault with two
+/// layers worked out (Access layer 1 any 2 of the three places on paper,
+/// or Place 1 with Vault 1's password; Access layer 2 any 2 of Places 2
+/// and 3 on paper): All with each place's layer marks, each layer's view
+/// and its checks (Vault 1 open, then shut), the Stranger at one place
+/// and at two, and Access layer 1's name pressed and typed.
+fn layer_view_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::board::{BoardPress as B, View};
+    use faraday_core::layers::LayersPress as L;
+    t.load_kit()?;
+    for n in 1..3 {
+        t.press(Action::Entry(None));
+        t.type_key(n);
+    }
+    open_a_vault(t, "layer view phrase")?;
+    let savings = t
+        .app
+        .session
+        .wallets
+        .iter()
+        .position(|w| w.name == "Savings")
+        .ok_or("no Savings")?;
+    t.press(Action::Backup(savings));
+    t.press(Action::BPreset(1));
+    t.press(Action::BQ(qstep::LAYERS));
+    for p in [
+        L::AddRoute(0),
+        L::Place(0, 1, 1),
+        L::Place(0, 1, 2),
+        L::Password(0, 1, 0),
+        L::AddLayer,
+        L::Place(1, 0, 0),
+        L::WorkItOut,
+    ] {
+        t.press(Action::Layers(p));
+    }
+    if t.app.backup.as_ref().and_then(|b| b.q) != Some(qstep::BOARD) {
+        t.press(Action::BQ(qstep::BOARD));
+    }
+    let checks = |t: &mut Tour, name: &str| -> Result<(), String> {
+        scroll_to(t, Action::Board(B::AddPlace));
+        scroll(t, 400);
+        t.shot(name)
+    };
+    let top = |t: &mut Tour| {
+        scroll(t, -20_000);
+        scroll_to(t, Action::Board(B::View(View::All)));
+    };
+    top(t);
+    t.shot("l3-all")?;
+    checks(t, "l3-all-lines")?;
+    t.press(Action::Board(B::View(View::Layer(0))));
+    top(t);
+    t.shot("l3-layer-1")?;
+    checks(t, "l3-layer-1-checks")?;
+    t.press(Action::Board(B::View(View::Layer(1))));
+    top(t);
+    t.shot("l3-layer-2")?;
+    checks(t, "l3-layer-2-checks")?;
+    t.press(Action::Board(B::View(View::Stranger)));
+    top(t);
+    t.shot("l3-stranger-1")?;
+    t.press(Action::Board(B::FoundMore));
+    t.shot("l3-stranger-2")?;
+    checks(t, "l3-stranger-2-checks")?;
+    // Access layer 1's name: just pressed, the whole of it selected; then
+    // typed (§20.1, §19.18 item 3).
+    t.press(Action::Board(B::View(View::Layer(0))));
+    top(t);
+    t.press(Action::BLayerName(0));
+    t.shot("l3-name-pressed")?;
+    type_text(t, "Kitchen drawer");
+    t.app.event(Event::Key(Key::Enter));
+    t.shot("l3-renamed")?;
+    t.press(Action::BQ(qstep::LAYERS));
+    t.shot("l3-renamed-card")?;
+    Ok(())
+}
+
 /// Create plans the backup first (`docs/BACKUP-FLOW.md` §20.14): Start,
 /// the Access layers card in Create with the fresh plan, the Wallet card
 /// with the shapes that do not fit dimmed, and after the three test keys
@@ -5781,11 +5862,12 @@ fn main() -> ExitCode {
             "createfrom",
             "inprogress",
             "l6",
+            "l3",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, layers, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey, createfrom, inprogress or l6"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, layers, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey, createfrom, inprogress, l6 or l3"
         );
         return ExitCode::from(2);
     }

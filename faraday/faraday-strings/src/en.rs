@@ -8337,6 +8337,38 @@ pub struct Strings {
     pub board_stranger_spends: &'static str,
     /// A line under the board after Work it out ran out of steps (§20.8).
     pub board_best_found: &'static str,
+    /// The board's view pill for every layer at once (§20.7).
+    pub board_view_all: &'static str,
+    /// The board's view pill for the stranger (§20.7).
+    pub board_view_stranger: &'static str,
+    /// The Stranger view's stepper: how many places the stranger found.
+    pub board_view_found: &'static str,
+    /// A layer's check under the board: whether it can spend.
+    pub board_view_can_spend: &'static str,
+    /// A layer's check under the board: the fewest of its places that spend.
+    pub board_view_needs: &'static str,
+    /// The value of Places it needs. `{}`: how many, then of how many.
+    pub board_view_needs_of: &'static str,
+    /// A layer's check under the board: how many places it may lose and still spend.
+    pub board_view_can_lose: &'static str,
+    /// A layer's check under the board: whether it sees the balance.
+    pub board_view_sees: &'static str,
+    /// The value of Places it needs or can lose when it cannot spend at all.
+    pub board_view_none: &'static str,
+    /// A paper route's checks under the board. `{}`: the layer, the route's number.
+    pub board_view_route_paper: &'static str,
+    /// The Stranger view's check. `{}`: how many places.
+    pub board_view_no_spend: &'static str,
+    /// The Stranger view's check at one place.
+    pub board_view_no_spend_one: &'static str,
+    /// The Stranger view's check of the balance. `{}`: how many places.
+    pub board_view_no_balance: &'static str,
+    /// The Stranger view's check of the balance at one place.
+    pub board_view_no_balance_one: &'static str,
+    /// A vault's band in a view that opens it. `{}`: the vault.
+    pub board_vault_open: &'static str,
+    /// A vault's band in a view that cannot open it. `{}`: the vault.
+    pub board_vault_shut: &'static str,
 }
 
 /// The English wording.
@@ -12364,4 +12396,20 @@ pub static EN: Strings = Strings {
     board_stranger_every: "A stranger who finds every place cannot spend",
     board_stranger_spends: "A stranger who finds one place can spend",
     board_best_found: "Best found; not every placement was tried",
+    board_view_all: "All",
+    board_view_stranger: "Stranger",
+    board_view_found: "Places found",
+    board_view_can_spend: "Can spend",
+    board_view_needs: "Places it needs",
+    board_view_needs_of: "{} of its {}",
+    board_view_can_lose: "Places it can lose",
+    board_view_sees: "Sees the balance",
+    board_view_none: "None",
+    board_view_route_paper: "{}, route {} · paper",
+    board_view_no_spend: "Cannot spend with any {} places",
+    board_view_no_spend_one: "Cannot spend with any one place",
+    board_view_no_balance: "Cannot see the balance with any {} places",
+    board_view_no_balance_one: "Cannot see the balance with any one place",
+    board_vault_open: "{} · open",
+    board_vault_shut: "{} · shut",
 };

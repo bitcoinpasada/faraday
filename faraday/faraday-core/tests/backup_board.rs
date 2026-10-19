@@ -1281,10 +1281,13 @@ fn the_software_place_scans_the_description_in_and_keeps_it_through_any_loss() {
     let lost = |app: &Faraday| plan::check(&shape, &app.backup.as_ref().unwrap().answers).lost;
     assert_eq!(lost(&app), plan::Lost::No, "no description kept");
     tap(&mut app, list(Thing::Software));
-    expect(&mut app, "Scanned in");
+    expect_down(&mut app, "Scanned in");
     assert_eq!(held(&the_map(&app), At::Software), vec![What::Wallet]);
     assert!(!offered(&mut app, Action::Board(list(Thing::Software))));
-    drag(&mut app, list(Thing::Whole), BP::Zone(Zone::SoftStick));
+    // Tapped and placed: the view pills above the board leave the list's
+    // Whole and the software's stick apart on a 768-high window.
+    tap(&mut app, list(Thing::Whole));
+    tap(&mut app, BP::Zone(Zone::SoftStick));
     assert_eq!(held(&the_map(&app), At::Files), vec![What::Wallet]);
     assert_eq!(lost(&app), plan::Lost::Yes);
     // The software is a card of the plan too: its × takes it off.
@@ -2277,4 +2280,95 @@ fn a_routes_kinds_are_set_on_the_card_and_constrain_work_it_out() {
     }
     seeds.sort_unstable();
     assert_eq!(seeds, vec![0, 1, 2]);
+}
+
+// ---- The layer view's names (`docs/BACKUP-FLOW.md` §20.1, §20.7, §19.18 item 3) ----
+
+use faraday_core::board::View;
+
+/// With a vault open, a press on the chosen layer's pill selects its
+/// whole name, and the first key replaces it, as a place's name is typed.
+/// The name is the pill's, the Access layers card's and the lines under
+/// the board; the plan text never holds it, the vault's plan record does,
+/// and nothing kept outside the vault or written to a stick holds it.
+#[test]
+fn a_layers_name_typed_with_a_vault_open_is_kept_in_the_vaults_record_alone() {
+    use faraday_vault::records::{field, kind};
+    const NAME: &str = "Kitchen drawer";
+    let mut shell = Shell::new();
+    let (mut app, _) = main_vault_board(&mut shell);
+    board(&mut app, BP::View(View::Layer(0)));
+    let at = on_screen(&mut app, Action::BLayerName(0));
+    touch(&mut app, at, TouchPhase::Down);
+    touch(&mut app, at, TouchPhase::Up);
+    app.settle();
+    assert!(app.selected_all(), "the whole name selected");
+    app.event(Event::Key(Key::Char('K')));
+    expect_down(&mut app, "K");
+    for c in NAME.chars().skip(1) {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.event(Event::Key(Key::Enter));
+    expect_down(&mut app, NAME);
+    board(&mut app, BP::View(View::All));
+    assert!(starts_anywhere(&mut app, &format!("{NAME}: ")));
+    app.press(Action::BQ(qstep::LAYERS));
+    expect_down(&mut app, NAME);
+    let b = app.backup.as_ref().unwrap();
+    assert!(!b.answers.to_text().contains(NAME), "not in the plan text");
+    // The plan made into a checklist is saved into the open vault.
+    app.press(Action::BQ(qstep::PLAN));
+    assert!(find(&mut app, Action::BChecklist).is_some());
+    app.press(Action::BChecklist);
+    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    let record = app.vaults.open[0]
+        .contents
+        .of(kind::PLAN)
+        .next()
+        .expect("a plan record")
+        .1
+        .clone();
+    assert_eq!(
+        faraday_core::access::layer_names(&record),
+        vec![NAME.to_string()]
+    );
+    let answers = record.field(field::PLAN_ANSWERS).unwrap();
+    assert!(!answers.windows(NAME.len()).any(|w| w == NAME.as_bytes()));
+    shell.pump(&mut app);
+    let holds = |bytes: &[u8]| bytes.windows(NAME.len()).any(|w| w == NAME.as_bytes());
+    let (inbox, outbox, kept) = &shell.boxes;
+    for (name, bytes) in inbox.iter().chain(outbox).chain(kept) {
+        assert!(
+            !holds(bytes),
+            "{name}, kept outside the vault, holds the name"
+        );
+    }
+    for d in &shell.disks {
+        for (name, bytes) in &d.files {
+            assert!(!holds(bytes), "{name} on {} holds the name", d.id);
+        }
+    }
+}
+
+/// With no vault open a layer is "Access layer n": neither its pill nor
+/// its head on the Access layers card types its name, and a press there
+/// changes nothing.
+#[test]
+fn with_no_vault_open_a_layers_name_is_not_typed() {
+    let mut app = three_here();
+    app.press(Action::BQ(qstep::LAYERS));
+    expect_down(&mut app, "Access layer 1");
+    assert!(!offered_on_page(&mut app, Action::BLayerName(0)));
+    open_board(&mut app);
+    board(&mut app, BP::View(View::Layer(0)));
+    assert!(!offered_on_page(&mut app, Action::BLayerName(0)));
+    assert!(offered_on_page(
+        &mut app,
+        Action::Board(BP::View(View::Layer(0)))
+    ));
+    app.press(Action::BLayerName(0));
+    let b = app.backup.as_ref().unwrap();
+    assert_eq!(b.naming_layer, None);
+    assert!(b.layer_names.is_none());
+    expect_down(&mut app, "Access layer 1");
 }

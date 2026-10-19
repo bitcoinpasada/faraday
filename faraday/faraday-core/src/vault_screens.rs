@@ -1053,6 +1053,7 @@ pub(crate) fn create(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             // The size has a default: closed at entry, with Change.
             default: k == vstep::PRESET,
             toggle: va(V::CStep(k)),
+            inert: false,
             guide: Some(create_guide(k)),
         })
         .collect();

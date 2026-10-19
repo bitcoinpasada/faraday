@@ -1047,6 +1047,9 @@ pub enum Action {
     BAnswer(u8, u8),
     /// Start or stop typing place n's name (only with a vault open).
     BName(u8),
+    /// Start or stop typing access layer n's name (only with a vault
+    /// open, `docs/BACKUP-FLOW.md` §20.1).
+    BLayerName(u8),
     /// A press on the backup board (`docs/BACKUP-FLOW.md` §19).
     Board(board::BoardPress),
     /// A press on the plan's Access layers card (`docs/BACKUP-FLOW.md`
@@ -2348,6 +2351,13 @@ pub struct BackupState {
     pub names: Vec<String>,
     /// The place whose name is being typed.
     pub naming: Option<usize>,
+    /// What each access layer is called (`docs/BACKUP-FLOW.md` §20.1),
+    /// kept only in a vault's plan record: read from it when Back up
+    /// opens, typed with a vault open; `None` while neither, when the
+    /// record's own names are kept as they are.
+    pub layer_names: Option<Vec<String>>,
+    /// The access layer whose name is being typed.
+    pub naming_layer: Option<usize>,
     /// The open item of the checklist, by [`bstep`].
     pub open: Option<u8>,
     /// The envelopes closed as done: the one item nothing else marks.
@@ -5696,11 +5706,13 @@ impl Faraday {
                     };
                     // A copy checked this power-on stays checked.
                     let checked = self.backups_checked(i);
+                    let layer_names = self.plan_layer_names(i);
                     self.backup = Some(BackupState {
                         wallet: i,
                         q,
                         answers,
                         names,
+                        layer_names,
                         checked,
                         key: first_key,
                         words: 24,
@@ -5714,6 +5726,7 @@ impl Faraday {
                     b.q = if b.q == Some(n) { None } else { Some(n) };
                     b.scroll.follow = true;
                     b.naming = None;
+                    b.naming_layer = None;
                 }
             }
             Action::BQNext(n) => {
@@ -5722,6 +5735,7 @@ impl Faraday {
                     b.q = qs.iter().skip_while(|&&q| q != n).nth(1).copied();
                     b.scroll.follow = true;
                     b.naming = None;
+                    b.naming_layer = None;
                 }
             }
             Action::BPreset(k) => {
@@ -5748,6 +5762,7 @@ impl Faraday {
                         b.q = Some(qstep::BOARD);
                         b.scroll.follow = true;
                         b.naming = None;
+                        b.naming_layer = None;
                     }
                 }
             }
@@ -5783,6 +5798,7 @@ impl Faraday {
                     }
                     if b.naming == Some(p) {
                         b.naming = None;
+                        b.naming_layer = None;
                     } else {
                         // The field holds the name shown, "Place 1" until
                         // one is typed, so the press selects all of it
@@ -5791,12 +5807,48 @@ impl Faraday {
                             b.names[p] = fill(EN.place_name_place, &[&(p + 1).to_string()]);
                         }
                         b.naming = Some(p);
+                        b.naming_layer = None;
                         focused = true;
                     }
                 }
                 if focused {
                     self.edit = ui::Edit {
                         field: Some(Action::BName(p8)),
+                        caret: None,
+                        anchor: Some(0),
+                    };
+                }
+            }
+            Action::BLayerName(l8) => {
+                // Typed as a place's name is (`docs/BACKUP-FLOW.md` §19.18
+                // item 3): with a vault open, the whole name selected.
+                let layers = self
+                    .board_plan()
+                    .map_or(0, |(shape, a)| a.layers_shown(&shape).len());
+                let l = usize::from(l8);
+                if !self.layer_names_typed() || l >= layers {
+                    return;
+                }
+                let mut focused = false;
+                if let Some(b) = self.backup.as_mut() {
+                    let names = b.layer_names.get_or_insert_with(Vec::new);
+                    if names.len() <= l {
+                        names.resize(l + 1, String::new());
+                    }
+                    if b.naming_layer == Some(l) {
+                        b.naming_layer = None;
+                    } else {
+                        if names[l].trim().is_empty() {
+                            names[l] = fill(EN.plan_access_layer, &[&(l + 1).to_string()]);
+                        }
+                        b.naming_layer = Some(l);
+                        b.naming = None;
+                        focused = true;
+                    }
+                }
+                if focused {
+                    self.edit = ui::Edit {
+                        field: Some(Action::BLayerName(l8)),
                         caret: None,
                         anchor: Some(0),
                     };
@@ -5833,6 +5885,7 @@ impl Faraday {
                 if let Some(b) = self.backup.as_mut() {
                     b.stage = BStage::Checklist;
                     b.naming = None;
+                    b.naming_layer = None;
                     b.scroll = flow::Scroll::default();
                 }
                 self.backup_item_open(first);
@@ -7971,6 +8024,23 @@ impl Faraday {
         })
     }
 
+    /// The access layers' names an open vault's plan for loaded wallet `w`
+    /// keeps (`docs/BACKUP-FLOW.md` §20.1), or none when it names none.
+    /// Reads each open vault's plan records, a wallet parsed each.
+    fn plan_layer_names(&self, w: usize) -> Option<Vec<String>> {
+        use faraday_vault::records::{field, kind};
+        let want = wallet::same_wallet(self.session.wallets.get(w)?.policy());
+        let names = self.vaults.open.iter().find_map(|o| {
+            o.contents.of(kind::PLAN).find_map(|(_, r)| {
+                r.text(field::PLAN_WALLET)
+                    .and_then(|t| wallet::read_wallet(t).ok())
+                    .filter(|p| wallet::same_wallet(p) == want)
+                    .map(|_| crate::access::layer_names(r))
+            })
+        })?;
+        names.iter().any(|n| !n.trim().is_empty()).then_some(names)
+    }
+
     /// Saves the backup's plan into the open vault as record type 11,
     /// over the one it kept for this wallet: the wallet, the answers, the
     /// places' names and what each holds. The names are kept nowhere
@@ -8042,6 +8112,11 @@ impl Faraday {
         let Some(open) = self.vaults.open.get(v) else {
             return;
         };
+        let typed_layers = self
+            .backup
+            .as_ref()
+            .filter(|b| b.wallet == wi)
+            .and_then(|b| b.layer_names.clone());
         let shape = self.plan_shape(wi);
         // The keys made here with their backup pending, by fingerprint
         // (`docs/NEW-WALLET.md` §14.3).
@@ -8110,15 +8185,17 @@ impl Faraday {
         for n in &kept {
             record.push(field::PLAN_NOTE, n.as_bytes());
         }
-        // The access layers' names (`docs/BACKUP-FLOW.md` §20.1), as the
-        // record kept them: a name is kept here alone, never in the text.
-        let layer_names: Vec<String> = open
-            .contents
-            .records
-            .iter()
-            .find(|r| same(r))
-            .map(crate::access::layer_names)
-            .unwrap_or_default();
+        // The access layers' names (`docs/BACKUP-FLOW.md` §20.1): those
+        // Back up on this wallet read or typed, else as the record kept
+        // them. A name is kept here alone, never in the text.
+        let layer_names: Vec<String> = typed_layers.unwrap_or_else(|| {
+            open.contents
+                .records
+                .iter()
+                .find(|r| same(r))
+                .map(crate::access::layer_names)
+                .unwrap_or_default()
+        });
         crate::access::push_layer_names(&mut record, &layer_names, answers.layers.len().max(1));
         // Kept as it was: nothing to write back.
         let unchanged = open.contents.records.iter().any(|r| {
@@ -10979,7 +11056,10 @@ impl Faraday {
             | Screen::BackupFlow => {
                 self.vaults.focus.is_some()
                     || (self.screen == Screen::BackupFlow
-                        && self.backup.as_ref().is_some_and(|b| b.naming.is_some()))
+                        && self
+                            .backup
+                            .as_ref()
+                            .is_some_and(|b| b.naming.is_some() || b.naming_layer.is_some()))
             }
             Screen::Entry => true,
             Screen::Wallets => self.renaming.is_some(),
@@ -11238,7 +11318,10 @@ impl Faraday {
         // A place's name is typed on Back up's plan, and on a wallet
         // flow's plan card before its lock (`docs/BACKUP-FLOW.md` §17.7).
         let naming_in_flow = self.screen == Screen::BackupFlow
-            && self.backup.as_ref().is_some_and(|b| b.naming.is_some());
+            && self
+                .backup
+                .as_ref()
+                .is_some_and(|b| b.naming.is_some() || b.naming_layer.is_some());
         if (self.screen == Screen::Backup || naming_in_flow)
             && let Some(b) = self.backup.as_mut()
         {
@@ -11278,6 +11361,33 @@ impl Faraday {
                 }
                 KeyIn::Enter | KeyIn::Escape if b.naming.is_some() => {
                     b.naming = None;
+                    b.naming_layer = None;
+                    return;
+                }
+                // An access layer's name, typed: kept in the vault alone
+                // (`docs/BACKUP-FLOW.md` §20.1).
+                KeyIn::Char(c) if b.naming_layer.is_some() => {
+                    if let Some(name) = b
+                        .naming_layer
+                        .and_then(|l| b.layer_names.as_mut()?.get_mut(l))
+                        && name.chars().count() < 32
+                        && !c.is_control()
+                    {
+                        name.push(c);
+                    }
+                    return;
+                }
+                KeyIn::Backspace if b.naming_layer.is_some() => {
+                    if let Some(name) = b
+                        .naming_layer
+                        .and_then(|l| b.layer_names.as_mut()?.get_mut(l))
+                    {
+                        name.pop();
+                    }
+                    return;
+                }
+                KeyIn::Enter | KeyIn::Escape if b.naming_layer.is_some() => {
+                    b.naming_layer = None;
                     return;
                 }
                 _ => {}

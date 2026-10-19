@@ -132,6 +132,7 @@ fn marks_w(cv: &ChipView) -> f32 {
         + usize::from(sealed(cv))
         + usize::from(cv.link)
         + usize::from(cv.warn)
+        + usize::from(cv.known)
         + usize::from(cv.off && matches!(cv.chip, Chip::Placed(..)) && !cv.fixed);
     n as f32 * one
 }
@@ -268,6 +269,18 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
     }
     if cv.link {
         link(ui, right - tokens::BOARD_MARK, y + line_h / 2.0, ACCENT);
+        right -= tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
+    }
+    // A passphrase the layer viewed knows (`docs/BACKUP-FLOW.md` §20.7).
+    if cv.known {
+        ui.icon(
+            right - tokens::BOARD_MARK,
+            y + (line_h - tokens::BOARD_MARK) / 2.0,
+            tokens::BOARD_MARK,
+            Icon::Done,
+            tokens::BOARD_MARK,
+            OK,
+        );
         right -= tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
     }
     if sealed(cv) {
@@ -637,7 +650,9 @@ fn row(
 
 /// A place's header band at (x, y), `w` wide (`docs/DESIGN.md` §4.17):
 /// the place glyph, its name (a field while names are typed), its line of
-/// fact as an outlined tag in its tone, and its × when it can go.
+/// fact as an outlined tag in its tone, the numbered marks of the layers
+/// whose routes hold it (`docs/BACKUP-FLOW.md` §20.7), and its × when it
+/// can go.
 #[allow(clippy::too_many_arguments)]
 fn place_head(
     ui: &mut Ui,
@@ -648,6 +663,7 @@ fn place_head(
     w: f32,
     name_press: Option<(Action, bool)>,
     off: Option<Action>,
+    layers: &[usize],
 ) {
     let pad = tokens::BOARD_PAD;
     let hh = tokens::BOARD_HEAD;
@@ -662,7 +678,28 @@ fn place_head(
         PLACE_TEXT,
     );
     let nx = x + pad + mark + tokens::BOARD_CHIP_GAP;
-    let right = x + w - pad - mark - pad;
+    // The layers' marks, each a numbered circle, before the ×.
+    let one = tokens::BOARD_TAG + tokens::GAP_SMALL;
+    let marks_w = layers.len() as f32 * one;
+    let right = x + w - pad - mark - pad - marks_w;
+    for (k, n) in layers.iter().enumerate() {
+        let d = tokens::BOARD_TAG;
+        let mx = right + tokens::GAP_SMALL + k as f32 * one;
+        let my = y + (hh - d) / 2.0;
+        ui.fill(mx, my, d, d, d / 2.0, SURFACE);
+        ui.stroke(mx, my, d, d, d / 2.0, PLACE_TEXT);
+        let t = n.to_string();
+        let tw = ui.measure(tokens::CAPTION, W::S, &t);
+        ui.text_mid(
+            mx + (d - tw) / 2.0,
+            my,
+            d,
+            tokens::CAPTION,
+            W::S,
+            PLACE_TEXT,
+            &t,
+        );
+    }
     let tag_w = fact.map_or(0.0, |(t, _)| {
         ui.measure(tokens::CAPTION, W::R, t) + 2.0 * pad + tokens::GAP
     });
@@ -787,6 +824,7 @@ fn place(ui: &mut Ui, fr: &mut Frame, v: &BoardView, cv: &CardView, x: f32, y: f
         bw,
         name_press,
         removable.then_some(Action::Board(BoardPress::RemovePlace(cv.p))),
+        &cv.layers,
     );
     for (st, r) in cv.sticks.iter().zip(&lay.sticks) {
         stick(ui, fr, st, *r);
@@ -804,6 +842,14 @@ fn place(ui: &mut Ui, fr: &mut Frame, v: &BoardView, cv: &CardView, x: f32, y: f
         PAPER,
         lay.paper,
     );
+    // The view (`docs/BACKUP-FLOW.md` §20.7): a place not the layer's, or
+    // not among those the stranger found, dimmed over; one found edged.
+    if cv.dim {
+        ui.fill(x, y, w, h, tokens::RADIUS, BG.with_alpha(tokens::BOARD_DIM));
+    }
+    if cv.lit {
+        edge(ui, (x, y, w, h), tokens::RADIUS, ACCENT);
+    }
     h
 }
 
@@ -819,7 +865,17 @@ fn outline(ui: &mut Ui, r: (f32, f32, f32, f32), radius: f32, width: f32, color:
 /// "Vault n · sealed" (`label`) on the solid band, its link and warning
 /// marks, and the × that takes its stick off this place. The band is the
 /// vault's chip: a press selects it, a drag moves its stick.
-fn vault_head(ui: &mut Ui, fr: &mut Frame, vc: &ChipView, label: &str, x: f32, y: f32, w: f32) {
+#[allow(clippy::too_many_arguments)]
+fn vault_head(
+    ui: &mut Ui,
+    fr: &mut Frame,
+    vc: &ChipView,
+    label: &str,
+    glyph: Icon,
+    x: f32,
+    y: f32,
+    w: f32,
+) {
     let hh = tokens::BOARD_VAULT_HEAD;
     let pad = tokens::BOARD_VAULT_PAD + tokens::GAP_SMALL;
     let mark = tokens::BOARD_MARK;
@@ -836,14 +892,7 @@ fn vault_head(ui: &mut Ui, fr: &mut Frame, vc: &ChipView, label: &str, x: f32, y
             VAULT_ON.with_alpha(tokens::BOARD_VAULT_HOT),
         );
     }
-    ui.icon(
-        x + pad,
-        y + (hh - mark) / 2.0,
-        mark,
-        Icon::Lock,
-        mark,
-        VAULT_ON,
-    );
+    ui.icon(x + pad, y + (hh - mark) / 2.0, mark, glyph, mark, VAULT_ON);
     let mut right = x + w - pad;
     let mut off_w = 0.0;
     if vc.off
@@ -974,8 +1023,22 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4) {
             vault_h,
             Action::Board(BoardPress::Zone(vz.zone)),
         );
-        vault_head(ui, fr, vc, &st.sealed, vx, vy, vw);
+        // Open in a view that opens it, shut with its contents hidden in
+        // one that cannot (`docs/BACKUP-FLOW.md` §20.7).
+        let glyph = if st.open { Icon::Eye } else { Icon::Lock };
+        vault_head(ui, fr, vc, &st.sealed, glyph, vx, vy, vw);
         let iy = vy + tokens::BOARD_VAULT_HEAD + vp;
+        if st.shut {
+            let mark = tokens::BOARD_MARK;
+            ui.icon(
+                vx + (vw - mark) / 2.0,
+                iy + (tokens::BOARD_CHIP - mark) / 2.0,
+                mark,
+                Icon::EyeOff,
+                mark,
+                VAULT_EDGE,
+            );
+        }
         let (places, _) = flow(ui, &vz.chips, vx + vp, iy, vw - 2.0 * vp);
         for (c, at) in vz.chips.iter().zip(places) {
             chip(ui, fr, c, at.0, at.1, at.2, true);
@@ -1020,7 +1083,7 @@ fn software(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) 
     let h = top + lay.h + pad + e - y;
     let (bx, bw) = place_box(ui, x, y, w, h);
     let off = (!v.locked).then_some(Action::Board(BoardPress::RemoveSoftware));
-    place_head(ui, &sv.title, None, bx, y + e, bw, None, off);
+    place_head(ui, &sv.title, None, bx, y + e, bw, None, off, &[]);
     // Its stick of public files: its files in a files box, no vault box
     // (§19.17 item 3).
     if let Some(&r) = lay.sticks.first() {
@@ -1103,6 +1166,7 @@ fn entry(
         fixed: e.dim,
         faint: e.faint,
         off: false,
+        known: e.known,
     };
     // The count beside the chip, or under it where the chip's name would
     // drop a size beside it.
@@ -1387,6 +1451,23 @@ pub(crate) fn board(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     let gap = tokens::BOARD_PLACE_GAP;
     let mut cy = y;
+    // The view pills (`docs/BACKUP-FLOW.md` §20.7), and in the Stranger
+    // view its stepper.
+    cy += pills(ui, &v, x, cy, w) + tokens::BOARD_PAD;
+    if let Some((k, _)) = v.found {
+        crate::screens::stepper(
+            ui,
+            x,
+            cy,
+            w,
+            EN.board_view_found,
+            k,
+            Action::Board(BoardPress::FoundFewer),
+            Action::Board(BoardPress::FoundMore),
+            true,
+        );
+        cy += tokens::BOARD_HEAD + tokens::BOARD_PAD;
+    }
     if ui.compact {
         cy += faraday_ui::parts::wrap_buttons(
             ui,
@@ -1410,9 +1491,14 @@ pub(crate) fn board(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += software(ui, &mut fr, &v, x, cy, w) + gap;
     }
     let mut bottom = cy - gap;
+    // A layer's or the stranger's view: its checks alone (§20.7).
+    if v.view != crate::board::View::All {
+        bottom += view_checks(ui, &v, x, bottom, w);
+        return board_foot(ui, &mut fr, x, y, w, bottom);
+    }
     // The plan's three checks, as the Map drew them, under the board
     // (§19.14; the owner's choice, 2026-10-16: the board's top is kept
-    // free).
+    // for the view pills).
     bottom += tokens::GAP;
     let name = |p: usize| v.places.get(p).map_or_else(String::new, |c| c.name.clone());
     bottom += crate::glance::check_lines(ui, x, bottom, w, v.check, false, &name);
@@ -1463,6 +1549,97 @@ pub(crate) fn board(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             line,
         );
     }
+    board_foot(ui, &mut fr, x, y, w, bottom)
+}
+
+/// The view pills at (x, y), `w` wide (`docs/BACKUP-FLOW.md` §20.7): All,
+/// each layer by its name, Stranger, wrapping; the chosen one on the accent
+/// tint with the accent's edge; a layer's name, while it is typed, a field.
+/// Returns their height.
+fn pills(ui: &mut Ui, v: &BoardView, x: f32, y: f32, w: f32) -> f32 {
+    let h = tokens::BOARD_CHIP;
+    let pad = tokens::BOARD_PAD;
+    let gap = tokens::BOARD_CHIP_GAP;
+    let (mut px, mut py) = (x, y);
+    for p in &v.pills {
+        let tw = ui.measure(tokens::CAPTION, W::S, &p.label);
+        let pw = (tw + 2.0 * pad).max(h).min(w);
+        if px > x && px + pw > x + w {
+            px = x;
+            py += h + gap;
+        }
+        let hot = ui.is_pressed(p.press) || ui.is_hovered(p.press);
+        let (fill, edge_c, text) = if p.chosen {
+            (ACCENT.with_alpha(tokens::BOARD_PILL_TINT), ACCENT, TEXT)
+        } else {
+            (if hot { INNER } else { SURFACE }, CHIP_EDGE, MUTED)
+        };
+        ui.fill(px, py, pw, h, h / 2.0, fill);
+        ui.stroke(px, py, pw, h, h / 2.0, edge_c);
+        let room = pw - 2.0 * pad;
+        if p.typing {
+            ui.typed(
+                px + pad,
+                py,
+                h,
+                tokens::CAPTION,
+                W::S,
+                text,
+                &p.label,
+                room,
+                true,
+                p.press,
+            );
+        } else {
+            let shown = ui.fit(tokens::CAPTION, W::S, &p.label, room + 0.5);
+            ui.text_mid(px + pad, py, h, tokens::CAPTION, W::S, text, &shown);
+        }
+        ui.hit(px, py, pw, h, p.press);
+        px += pw + gap;
+    }
+    py + h - y
+}
+
+/// The checks of a layer's or the stranger's view at (x, y), `w` wide
+/// (`docs/BACKUP-FLOW.md` §20.7): each group's head in the label type,
+/// semibold, then each check, its label at the left and its value at the
+/// right, a good value in `OK`, a bad one in `WARN`. Returns their height.
+fn view_checks(ui: &mut Ui, v: &BoardView, x: f32, y: f32, w: f32) -> f32 {
+    let mut cy = y;
+    let row = tokens::BOARD_STICK_HEAD;
+    for g in &v.view_checks {
+        cy += tokens::GAP;
+        if let Some(head) = &g.head {
+            cy += ui.wrap(x, cy, w, tokens::LABEL, W::S, TEXT, head);
+        }
+        for (label, value, good) in &g.rows {
+            let tone = match good {
+                Some(true) => OK,
+                Some(false) => WARN,
+                None => TEXT,
+            };
+            let vw = ui.measure(tokens::LABEL, W::S, value);
+            let room = (w - vw - tokens::GAP).max(0.0);
+            let lh = ui.wrap(
+                x,
+                cy + tokens::GAP_SMALL,
+                room,
+                tokens::LABEL,
+                W::R,
+                MUTED,
+                label,
+            );
+            ui.text_right(x + w, cy, row, tokens::LABEL, W::S, tone, value);
+            cy += row.max(lh + 2.0 * tokens::GAP_SMALL);
+        }
+    }
+    cy - y
+}
+
+/// The board's foot from `bottom`: the held placed chip's forms, under
+/// it. Returns the board's height from `y`.
+fn board_foot(ui: &mut Ui, fr: &mut Frame, x: f32, y: f32, w: f32, bottom: f32) -> f32 {
+    let mut bottom = bottom;
     // The held placed chip's forms, under it.
     if fr.forms
         && fr.drag.is_none()
@@ -1545,6 +1722,7 @@ fn view_of(v: &BoardView, c: Chip) -> Option<ChipView> {
             fixed: false,
             faint: e.faint,
             off: false,
+            known: e.known,
         })
     })
 }

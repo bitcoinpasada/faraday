@@ -41,6 +41,8 @@ pub struct Card {
     pub default: bool,
     /// What pressing its header does.
     pub toggle: Action,
+    /// It cannot be opened now: drawn with no chevron, taking no press.
+    pub inert: bool,
     /// The walk-through shown in Guided mode while it is open.
     pub guide: Option<String>,
 }
@@ -293,7 +295,7 @@ pub fn column_foot(
                 ACCENT,
                 EN.flow_change,
             );
-        } else {
+        } else if !card.inert {
             ui.icon(
                 x + w - 38.0,
                 card_top + 18.0,
@@ -307,7 +309,9 @@ pub fn column_foot(
                 DIM,
             );
         }
-        ui.hit(x, card_top, w, 56.0, card.toggle);
+        if !card.inert {
+            ui.hit(x, card_top, w, 56.0, card.toggle);
+        }
         y += card_h;
     }
     // The rule under the last step closes the list of them.
@@ -454,15 +458,17 @@ fn paged(
                 let face = if card.mono { W::M } else { W::R };
                 let summary = ui.fit(12.0, face, &card.summary, tw);
                 ui.text(M + 46.0, y + 29.0, 12.0, face, MUTED, &summary);
-                ui.icon(
-                    M + inner - 24.0,
-                    y + 16.0,
-                    20.0,
-                    Icon::ChevronRight,
-                    9.0,
-                    DIM,
-                );
-                ui.hit(M, y, inner, 52.0, card.toggle);
+                if !card.inert {
+                    ui.icon(
+                        M + inner - 24.0,
+                        y + 16.0,
+                        20.0,
+                        Icon::ChevronRight,
+                        9.0,
+                        DIM,
+                    );
+                    ui.hit(M, y, inner, 52.0, card.toggle);
+                }
                 y += 52.0;
             }
             if !cards.is_empty() {

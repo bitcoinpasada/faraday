@@ -35,6 +35,13 @@ impl Faraday {
         {
             return Some(Action::BName(u8::try_from(p).unwrap_or(u8::MAX)));
         }
+        // An access layer's name, typed as a place's is (§19.18 item 3).
+        if (self.screen == Screen::Backup
+            || (self.screen == Screen::BackupFlow && self.vaults.focus.is_none()))
+            && let Some(l) = self.backup.as_ref().and_then(|b| b.naming_layer)
+        {
+            return Some(Action::BLayerName(u8::try_from(l).unwrap_or(u8::MAX)));
+        }
         if !self.typing_field() {
             return None;
         }
@@ -117,6 +124,12 @@ impl Faraday {
             Action::SeedRead(_) => self.seed_read.as_ref()?.field()?,
             Action::Rename => self.renaming.as_deref()?,
             Action::BName(p) => self.backup.as_ref()?.names.get(usize::from(p))?,
+            Action::BLayerName(l) => self
+                .backup
+                .as_ref()?
+                .layer_names
+                .as_ref()?
+                .get(usize::from(l))?,
             Action::MType => &self.message.as_ref()?.text,
             Action::KPassField(0) => &self.keygen.as_ref()?.passphrase,
             Action::KPassField(_) => &self.keygen.as_ref()?.passphrase2,

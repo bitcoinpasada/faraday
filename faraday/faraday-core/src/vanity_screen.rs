@@ -36,6 +36,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: v.open == Some(s),
             default: false,
             toggle: va(V::Step(s)),
+            inert: false,
             guide: Some(guide(s).to_string()),
         })
         .collect();

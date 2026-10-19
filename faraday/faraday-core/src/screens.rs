@@ -3699,6 +3699,7 @@ fn spend(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 open: s.open == Some(n),
                 default: n == step::CHECK,
                 toggle: Action::Step(n),
+                inert: false,
                 guide: Some(guide::spend(n, kind, needed, s, app.medium)),
             })
             .collect();
@@ -5506,6 +5507,7 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     open: b.open == Some(k),
                     default: false,
                     toggle: Action::BStep(k),
+                    inert: false,
                     guide: Some(guide::backup(k, m, n, keys.len(), app.medium))
                         .filter(|g| !g.is_empty()),
                 }
@@ -5522,6 +5524,7 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     open: b.q == Some(k),
                     default: false,
                     toggle: Action::BQ(k),
+                    inert: false,
                     guide: None,
                 }
             }
@@ -7107,6 +7110,7 @@ fn message_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: m.open == Some(k),
             default: false,
             toggle: Action::MStep(k),
+            inert: false,
             guide: Some(guide::message(k)),
         })
         .collect();
@@ -7636,6 +7640,9 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ) && !app.create_waits_for_wallet(k))
                 || (k == cstep::WALLET && c.plan.as_ref().is_some_and(|p| p.chosen.is_some())),
             toggle: Action::CStep(k),
+            // Before a shape is chosen it does not open: no chevron, no
+            // press (`docs/BACKUP-FLOW.md` §20.14 item 4).
+            inert: app.create_waits_for_wallet(k),
             guide: Some(guide::create(k, c.kind, c.m, c.n, app.medium)).filter(|g| !g.is_empty()),
         })
         .collect();
@@ -9031,6 +9038,7 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             default: (!r.described && (k == rstep::KIND || k == rstep::QUORUM))
                 || k == rstep::WHERE,
             toggle: Action::RStep(k),
+            inert: false,
             guide: Some(guide::restore(k)),
         })
         .collect();

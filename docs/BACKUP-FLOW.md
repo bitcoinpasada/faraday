@@ -2688,6 +2688,80 @@ where drawing changes.
   board drawn per view through the drawing memo, each view's checks,
   the Stranger stepper, the layers' marks in All; a layer's name typed
   as a place's is. Snapshots of each view.
+
+  **L3 built** (2026-10-19): the view is the board's state
+  (`board::View` on `BoardState`, with `found`, the Stranger's count),
+  chosen by `BoardPress::View`, `FoundFewer` and `FoundMore`; the plan
+  never changes. Everything drawn is worked out once a frame in
+  `BoardView` (the drawing memo): the pills, each place's marks, dimmed
+  and highlighted places, each vault open or shut, the passphrases known
+  and the view's checks. New in `access.rs`, each with its cost:
+  `Reach::route_needs`, `route_sees`, `can_lose`, `layer_opens`,
+  `stranger_opens`, `worst`. A layer's name is `BackupState::layer_names`
+  (read from the vault's plan record when Back up opens, typed with
+  `Action::BLayerName`, written by `plan_store` in place of the record's
+  own when Back up on that wallet has any; never in the plan text or kept
+  state). Strings in `faraday-strings`; DESIGN §4.17 rows View pills,
+  Layer marks, Dimmed and highlighted places, Open and shut vaults, Known
+  passphrase, Stranger stepper, View checks; tokens `BOARD_DIM`,
+  `BOARD_PILL_TINT`; tests `tests/access_layers.rs`,
+  `tests/backup_board.rs`, and in `tests/create_wallet.rs` Create's
+  "After Wallet" cards, which now draw no chevron and take no press
+  (`flow::Card::inert`); the snapshot tour `l3`. Its choices:
+  - **A layer's checks.** One route: one group under the layer's name,
+    Can spend, Places it needs, Places it can lose, Sees the balance.
+    Several: a group per route ("Access layer 1, route 2 · paper") with
+    Can spend, Places it needs and Sees the balance, then a group under
+    the layer's name with Places it can lose, which §20.9 makes the
+    layer's: the most of its places it may lose, whichever they are, and
+    still spend by some route from what is left of that route's places.
+    Can spend is the route met (every `k` of its places); Places it needs
+    the fewest of its places that spend together, "None" when all of
+    them do not; Sees the balance, every `k` of its places show it, as
+    Can spend asks; Places it can lose "None" when no route spends even
+    from all its places.
+  - **What a layer opens**: a vault whose password one of its routes
+    remembers, or whose password is written at one of its places, on any
+    of its routes (a paper route's, too: the layer knows it). Its places
+    are those any of its routes holds; the passphrases known, those any
+    route remembers, marked on their chips with the done glyph.
+  - **The stranger's set** is, of every set of `k` places, the one that
+    gives the most: spending first, then the balance, then the seeds that
+    sign, the description's keys held, the things found; ties go to the
+    first set in order (Place 1 before Place 2). A vault is open to the
+    stranger only where its stick and its written password are both among
+    the places found. The checks are `k` ≤ the stranger margin and `k` ≤
+    the balance margin.
+  - **Names.** A press on a layer's pill chooses its view; a press on the
+    chosen layer's pill, with a vault open, types its name (so choosing a
+    view never starts typing). The Access layers card's layer head is a
+    field the same way. With no vault open neither takes the press and
+    the layer reads "Access layer n"; on a flow's board past its lock,
+    and in Create, names are not typed. A layer taken off takes its name;
+    a name left as the layer's own ("Access layer 2") is cleared so the
+    layers after are numbered anew, as places are. The conflicts on the
+    card and the lines under the board use the names.
+  - **Drawing**: the pills sit at the top of the board, over **Add** in
+    the narrow column, the Stranger's stepper under them; a dimmed place
+    is drawn whole with the page's background at `BOARD_DIM` over it and
+    still takes drops; a shut vault keeps its band and a box a chip high
+    with the struck eye; the All view keeps the checks and lines it had,
+    a layer's and the stranger's views draw only their own checks.
+  - **Timings** (SPEED §7), the harness of §4 on the build machine,
+    release build, a 2-of-3 with three keys here and a vault open, the
+    Paper and vault preset with the two layers of the tests worked out,
+    medians of 30 in ms over two runs (min to max of the medians), at a
+    quiet time: before L3, the board 3.90 to 4.01 a frame and 4.18 to
+    4.39 a scroll step and frame at 1366×768, 11.40 to 13.99 and 11.87
+    to 14.24 at 2560×1600 scale 2. After, at 1366×768, frame then scroll:
+    All 3.95 to 4.30 and 4.33 to 4.85; Access layer 1 3.77 to 4.77 and
+    3.79 to 4.82; Access layer 2 4.18 to 5.05 and 4.19 to 4.69; Stranger
+    at one place 4.25 to 4.50 and 4.39 to 4.52, at two 3.93 to 4.32 and
+    3.85 to 4.18. At 2560×1600 scale 2: All 10.41 to 12.86 and 11.24 to
+    12.82; Access layer 1 9.93 to 11.94 and 10.07 to 12.97; Access layer
+    2 12.81 to 15.17 and 12.94 to 14.14; Stranger 13.14 to 13.69 and
+    13.17 to 13.87, at two 11.93 to 15.62 and 11.97 to 16.12. Within the
+    runs' spread; the dimmed places' overlays are the most a view adds.
 - **L4, instructions by hand** (§20.5): each layer's template on screen,
   nothing written. A test that leaving the screen leaves no file and
   nothing in the plan text.

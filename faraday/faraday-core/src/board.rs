@@ -126,6 +126,27 @@ pub enum BoardPress {
     /// **Add**, at the top of the narrow column: the list as a sheet
     /// (`docs/BACKUP-FLOW.md` §19.12 item 3).
     OpenList,
+    /// A view pill at the top of the board (`docs/BACKUP-FLOW.md` §20.7):
+    /// whose view the board shows. The plan does not change.
+    View(View),
+    /// The Stranger view's stepper: one place fewer found.
+    FoundFewer,
+    /// The Stranger view's stepper: one place more found.
+    FoundMore,
+}
+
+/// Whose view the board shows (`docs/BACKUP-FLOW.md` §20.7): the board's
+/// own, never the plan's.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum View {
+    /// The board as it is, with each place's layers marked.
+    #[default]
+    All,
+    /// Access layer `l`, by number from 0: its places, the vaults it
+    /// opens, the passphrases it knows.
+    Layer(usize),
+    /// A stranger who finds places, knowing nothing.
+    Stranger,
 }
 
 /// Whose plan the board edits: Back up's (after the lock, its wallet's
@@ -160,6 +181,11 @@ pub struct BoardState {
     /// What Work it out last found (`docs/BACKUP-FLOW.md` §20.8): its
     /// lines stand while the plan is as it left it.
     pub worked: Option<crate::layers::Worked>,
+    /// Whose view the board shows (§20.7).
+    pub view: View,
+    /// How many places the stranger found, in the Stranger view; at least
+    /// one, at most every place (0 reads as 1).
+    pub found: usize,
 }
 
 /// What kind of zone a zone is: what it keeps, and in what forms.
@@ -496,6 +522,9 @@ pub(crate) struct ChipView {
     pub faint: bool,
     /// Its × is drawn: it can be taken off here.
     pub off: bool,
+    /// A passphrase the layer viewed knows (`docs/BACKUP-FLOW.md` §20.7):
+    /// marked.
+    pub known: bool,
 }
 
 /// A zone, as it is drawn: what it is and its chips.
@@ -516,8 +545,14 @@ pub(crate) struct StickView {
     pub remove: BoardPress,
     /// The vault on it: its chip, and the vault's own zone.
     pub vault: Option<(ChipView, ZoneView)>,
-    /// The vault's header band, "Vault 1 · sealed"; empty with no vault.
+    /// The vault's header band, "Vault 1 · sealed" ("· open", "· shut"
+    /// in a layer's or the stranger's view); empty with no vault.
     pub sealed: String,
+    /// The view cannot open the vault: its contents are not drawn
+    /// (`docs/BACKUP-FLOW.md` §20.7).
+    pub shut: bool,
+    /// The view opens the vault.
+    pub open: bool,
     /// Its files.
     pub files: ZoneView,
 }
@@ -535,6 +570,14 @@ pub(crate) struct CardView {
     pub paper: ZoneView,
     /// What finding it alone gives, and how that reads.
     pub alone: (String, plan::AloneKind),
+    /// In the All view, the layers whose routes hold it, by number from 1
+    /// (`docs/BACKUP-FLOW.md` §20.7).
+    pub layers: Vec<usize>,
+    /// Drawn dimmed: not the viewed layer's, or not among the places the
+    /// stranger found.
+    pub dim: bool,
+    /// Drawn highlighted: among the places the stranger found.
+    pub lit: bool,
 }
 
 /// The software place's card.
@@ -567,6 +610,36 @@ pub(crate) struct Entry {
     pub keys: Vec<String>,
     /// For a vault: what it holds, said before it is taken off.
     pub holds: Option<String>,
+    /// A passphrase the layer viewed knows: marked.
+    pub known: bool,
+}
+
+/// A view pill at the top of the board, as it is drawn.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Pill {
+    /// What it reads: "All", a layer's name, "Stranger"; while the
+    /// layer's name is typed, the field's own text.
+    pub label: String,
+    /// The view chosen.
+    pub chosen: bool,
+    /// What a press on it does: its view chosen, or, on the chosen
+    /// layer's pill while names are typed, its name typed.
+    pub press: crate::Action,
+    /// Its layer's name is being typed.
+    pub typing: bool,
+}
+
+/// One group of the checks under the board in a layer's or the
+/// stranger's view: its head, and each check with its value and whether
+/// the value is good.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct CheckGroup {
+    /// "Access layer 1", "Access layer 1, route 2 · paper"; none for the
+    /// stranger's.
+    pub head: Option<String>,
+    /// Each check: its label, its value, and whether the value is good
+    /// (none where it is neither).
+    pub rows: Vec<(String, String, Option<bool>)>,
 }
 
 /// The board as one frame draws it: worked out once per frame
@@ -609,6 +682,14 @@ pub(crate) struct BoardView {
     pub names_typed: bool,
     /// The place whose name is being typed.
     pub naming: Option<usize>,
+    /// The view pills at the top of the board (§20.7).
+    pub pills: Vec<Pill>,
+    /// The view the board shows, as drawn (a layer gone reads as All).
+    pub view: View,
+    /// The Stranger view's stepper: the places found, and the most.
+    pub found: Option<(usize, usize)>,
+    /// The checks under the board in a layer's or the stranger's view.
+    pub view_checks: Vec<CheckGroup>,
 }
 
 /// What place `p` keeps, on paper or on a stick there, read through the
@@ -844,6 +925,38 @@ impl Faraday {
         // The checks (`docs/BACKUP-FLOW.md` §19.5): each a line, and the
         // chips each names marked.
         let place_name = |p: usize| self.board_place_name(p);
+        // The view (`docs/BACKUP-FLOW.md` §20.7): its places, the vaults it
+        // opens and the passphrases it knows, worked out once here.
+        let layers = a.layers_shown(&shape);
+        let reach = crate::access::Reach::of(&shape, &a);
+        let view = match state.view {
+            View::Layer(l) if l >= layers.len() => View::All,
+            v => v,
+        };
+        let found = state.found.clamp(1, places);
+        let bit = |i: usize| 1u64.checked_shl(i as u32).unwrap_or(0);
+        let (shown, opens, known): (Option<u64>, Option<u64>, u64) = match view {
+            View::All => (None, None, 0),
+            View::Layer(l) => {
+                let layer = &layers[l];
+                let shown = layer
+                    .routes
+                    .iter()
+                    .flat_map(|r| r.places.iter())
+                    .fold(0, |acc, &p| acc | bit(p));
+                let known = layer
+                    .routes
+                    .iter()
+                    .flat_map(|r| r.passphrases.iter())
+                    .fold(0, |acc, &i| acc | bit(i));
+                (Some(shown), Some(reach.layer_opens(layer)), known)
+            }
+            View::Stranger => {
+                let set = reach.worst(found);
+                (Some(set), Some(reach.stranger_opens(set)), 0)
+            }
+        };
+        let is_known = |t: Thing| matches!(t, Thing::Pass(i) if known & bit(i) != 0);
         let mut warnings: Vec<String> = Vec::new();
         let mut marked: Vec<(usize, Thing)> = Vec::new();
         let warn = |line: String, w: &mut Vec<String>| {
@@ -975,6 +1088,7 @@ impl Faraday {
                 off: !(locked
                     && matches!(k, Some(Kind::Paper | Kind::Files | Kind::Public))
                     && !matches!(t, Thing::Vault(_))),
+                known: is_known(t),
             }
         };
         let zone = |z: Zone, at: At, p: Option<usize>, skip_vaults: bool| -> ZoneView {
@@ -1011,22 +1125,38 @@ impl Faraday {
             .map(|p| {
                 let sticks = (0..plan::sticks_at(&m, p))
                     .map(|s| {
-                        let vault = plan::stick_vault(&m, p, s).map(|v| {
+                        let vault_n = plan::stick_vault(&m, p, s);
+                        // A view that cannot open the vault draws it shut,
+                        // its contents not drawn (§20.7).
+                        let open = vault_n.and_then(|v| opens.map(|o| o & bit(v) != 0));
+                        let shut = open == Some(false);
+                        let vault = vault_n.map(|v| {
                             let held = plan::holds_at(&m, At::Stick(p, s));
                             let head = chip(Zone::Files(p, s), Thing::Vault(v), &held, Some(p));
                             let mut inside =
                                 zone(Zone::Vault(p, s, v), At::Vault(v), Some(p), false);
-                            inside.chips.extend(self.board_before(&shape, &a, v));
+                            if shut {
+                                inside.chips.clear();
+                            } else {
+                                inside.chips.extend(self.board_before(&shape, &a, v));
+                            }
                             (head, inside)
                         });
-                        let sealed = vault.as_ref().map_or_else(String::new, |(head, _)| {
-                            fill(EN.board_sealed, &[&head.name])
-                        });
+                        let band = match open {
+                            None => EN.board_sealed,
+                            Some(true) => EN.board_vault_open,
+                            Some(false) => EN.board_vault_shut,
+                        };
+                        let sealed = vault
+                            .as_ref()
+                            .map_or_else(String::new, |(head, _)| fill(band, &[&head.name]));
                         StickView {
                             label: fill(stick_word, &[&(s + 1).to_string()]),
                             remove: BoardPress::RemoveStick(p, s),
                             vault,
                             sealed,
+                            shut,
+                            open: open == Some(true),
                             files: zone(Zone::Files(p, s), At::Stick(p, s), Some(p), true),
                         }
                     })
@@ -1041,6 +1171,8 @@ impl Faraday {
                         remove: BoardPress::RemoveEmpty(p),
                         vault: None,
                         sealed: String::new(),
+                        shut: false,
+                        open: false,
                         files: ZoneView {
                             zone: Zone::Empty(p, k),
                             chips: Vec::new(),
@@ -1060,6 +1192,16 @@ impl Faraday {
                     sticks,
                     paper: zone(Zone::Paper(p), At::Place(p), Some(p), true),
                     alone: (alone.text().to_string(), alone.kind()),
+                    layers: if view == View::All {
+                        (0..layers.len())
+                            .filter(|&l| layers[l].routes.iter().any(|r| r.places.contains(&p)))
+                            .map(|l| l + 1)
+                            .collect()
+                    } else {
+                        Vec::new()
+                    },
+                    dim: shown.is_some_and(|s| s & bit(p) == 0),
+                    lit: view == View::Stranger && shown.is_some_and(|s| s & bit(p) != 0),
                 }
             })
             .collect();
@@ -1090,6 +1232,7 @@ impl Faraday {
             faint: false,
             keys: Vec::new(),
             holds: None,
+            known: is_known(t),
         };
         let seeds = (0..shape.seeds.len())
             .map(|i| {
@@ -1172,9 +1315,14 @@ impl Faraday {
                 }
             })
             .collect();
-        let layer_lines = self.board_layer_lines(&shape, &a, state, &place_name);
+        let layer_lines = self.board_layer_lines(&shape, &a, state, &reach, &place_name);
+        let (pills, view_checks) = self.board_view_parts(&layers, &reach, view, found, places);
         Some(BoardView {
             layer_lines,
+            pills,
+            view,
+            found: (view == View::Stranger).then_some((found, places)),
+            view_checks,
             flow: match of {
                 BoardOf::Flow(i) => Some(i),
                 BoardOf::Backup => None,
@@ -1201,21 +1349,20 @@ impl Faraday {
     /// it can spend by every route, each with its paper route, else a
     /// warning; the stranger margin, a warning at 0 or below what Work it
     /// out found for these layers; and "Best found" while the board is as
-    /// a Work it out that ran out of steps left it. Costs one walk of the
-    /// plan's map and the layers' checks ([`crate::access::Reach`]).
+    /// a Work it out that ran out of steps left it. Costs the layers'
+    /// checks on `reach` ([`crate::access::Reach::layer_met`]).
     fn board_layer_lines(
         &self,
         shape: &Shape,
         a: &Answers,
         state: &BoardState,
+        reach: &crate::access::Reach,
         place_name: &dyn Fn(usize) -> String,
     ) -> Vec<(String, bool)> {
-        use crate::access::{Reach, layer_name};
         let layers = a.layers_shown(shape);
-        let reach = Reach::of(shape, a);
         let mut out = Vec::new();
         for (l, layer) in layers.iter().enumerate() {
-            let name = layer_name(&[], l);
+            let name = self.board_layer_name(l);
             let mut places: Vec<usize> = layer
                 .routes
                 .iter()
@@ -1253,6 +1400,191 @@ impl Faraday {
             out.push((EN.board_best_found.to_string(), false));
         }
         out
+    }
+
+    /// Whether a layer's name is shown as typed: with a vault open, where
+    /// the place names are Back up's (§20.1). Costs a lookup.
+    fn board_layer_names_shown(&self) -> bool {
+        !self.vaults.open.is_empty() && self.board_backup_names()
+    }
+
+    /// Whether a layer's name is typed by a press on it: as
+    /// [`Faraday::board_layer_names_shown`], before the lock (§20.1, §19.18
+    /// item 3). Costs a lookup.
+    pub(crate) fn layer_names_typed(&self) -> bool {
+        !self.create_planning()
+            && self.board_of().is_some()
+            && self.board_locked().is_none()
+            && self.board_layer_names_shown()
+    }
+
+    /// What layer `l` is called on the board on screen and its Access
+    /// layers card: its name, typed with a vault open and kept in the
+    /// vault's plan record alone, else "Access layer n"; while it is
+    /// typed, the field's own text. A lookup.
+    pub(crate) fn board_layer_name(&self, l: usize) -> String {
+        let b = self.backup.as_ref();
+        let names = b
+            .and_then(|b| b.layer_names.as_deref())
+            .filter(|_| self.board_layer_names_shown())
+            .unwrap_or(&[]);
+        if b.and_then(|b| b.naming_layer) == Some(l) && self.layer_names_typed() {
+            return names.get(l).cloned().unwrap_or_default();
+        }
+        crate::access::layer_name(names, l)
+    }
+
+    /// The view pills and the view's checks under the board
+    /// (`docs/BACKUP-FLOW.md` §20.7): All, each layer, Stranger; for a
+    /// layer, per route where it has more than one, whether it can spend,
+    /// the places it needs and whether it sees the balance, and the places
+    /// it can lose; for the stranger at `found` places, whether any so
+    /// many cannot spend and cannot see the balance. Costs each route's
+    /// checks on `reach` ([`crate::access::Reach::route_needs`],
+    /// [`crate::access::Reach::can_lose`]): up to 2^n sets of n places
+    /// each.
+    fn board_view_parts(
+        &self,
+        layers: &[crate::access::Layer],
+        reach: &crate::access::Reach,
+        view: View,
+        found: usize,
+        places: usize,
+    ) -> (Vec<Pill>, Vec<CheckGroup>) {
+        let typed = self.layer_names_typed();
+        let naming = self.backup.as_ref().and_then(|b| b.naming_layer);
+        let mut pills = vec![Pill {
+            label: EN.board_view_all.to_string(),
+            chosen: view == View::All,
+            press: crate::Action::Board(BoardPress::View(View::All)),
+            typing: false,
+        }];
+        for l in 0..layers.len() {
+            let chosen = view == View::Layer(l);
+            let l8 = u8::try_from(l).unwrap_or(u8::MAX);
+            pills.push(Pill {
+                label: self.board_layer_name(l),
+                chosen,
+                press: if chosen && typed {
+                    crate::Action::BLayerName(l8)
+                } else {
+                    crate::Action::Board(BoardPress::View(View::Layer(l)))
+                },
+                typing: typed && naming == Some(l),
+            });
+        }
+        pills.push(Pill {
+            label: EN.board_view_stranger.to_string(),
+            chosen: view == View::Stranger,
+            press: crate::Action::Board(BoardPress::View(View::Stranger)),
+            typing: false,
+        });
+        let yes_no = |b: bool| {
+            if b {
+                EN.plan_yes.to_string()
+            } else {
+                EN.plan_no.to_string()
+            }
+        };
+        let mut groups = Vec::new();
+        match view {
+            View::All => {}
+            View::Layer(l) => {
+                let layer = &layers[l];
+                let name = self.board_layer_name(l);
+                let many = layer.routes.len() > 1;
+                let lose = |routes: &[crate::access::Route]| {
+                    reach
+                        .can_lose(routes)
+                        .map_or_else(|| EN.board_view_none.to_string(), |k| k.to_string())
+                };
+                for (r, route) in layer.routes.iter().enumerate() {
+                    let met = reach.route_met(route);
+                    let n = {
+                        let mut ps = route.places.clone();
+                        ps.sort_unstable();
+                        ps.dedup();
+                        ps.len()
+                    };
+                    let needs = reach.route_needs(route).map_or_else(
+                        || EN.board_view_none.to_string(),
+                        |k| fill(EN.board_view_needs_of, &[&k.to_string(), &n.to_string()]),
+                    );
+                    let sees = reach.route_sees(route);
+                    let mut rows = vec![
+                        (EN.board_view_can_spend.to_string(), yes_no(met), Some(met)),
+                        (EN.board_view_needs.to_string(), needs, None),
+                    ];
+                    if !many {
+                        rows.push((
+                            EN.board_view_can_lose.to_string(),
+                            lose(std::slice::from_ref(route)),
+                            None,
+                        ));
+                    }
+                    rows.push((EN.board_view_sees.to_string(), yes_no(sees), None));
+                    let head = if !many {
+                        name.clone()
+                    } else if route.paper {
+                        fill(EN.board_view_route_paper, &[&name, &(r + 1).to_string()])
+                    } else {
+                        fill(EN.layers_route_of, &[&name, &(r + 1).to_string()])
+                    };
+                    groups.push(CheckGroup {
+                        head: Some(head),
+                        rows,
+                    });
+                }
+                // Places it can lose is the layer's: by some route (§20.9).
+                if many {
+                    groups.push(CheckGroup {
+                        head: Some(name),
+                        rows: vec![(
+                            EN.board_view_can_lose.to_string(),
+                            lose(&layer.routes),
+                            None,
+                        )],
+                    });
+                }
+            }
+            View::Stranger => {
+                let k = found.min(places);
+                let (spend, see) = if k == 1 {
+                    (
+                        EN.board_view_no_spend_one.to_string(),
+                        EN.board_view_no_balance_one.to_string(),
+                    )
+                } else {
+                    (
+                        fill(EN.board_view_no_spend, &[&k.to_string()]),
+                        fill(EN.board_view_no_balance, &[&k.to_string()]),
+                    )
+                };
+                let no_spend = k <= reach.stranger_margin();
+                let no_see = k <= reach.balance_margin();
+                groups.push(CheckGroup {
+                    head: None,
+                    rows: vec![
+                        (spend, yes_no(no_spend), Some(no_spend)),
+                        (see, yes_no(no_see), Some(no_see)),
+                    ],
+                });
+            }
+        }
+        (pills, groups)
+    }
+
+    /// Works out the board: how each place is drawn in the view chosen
+    /// (`docs/BACKUP-FLOW.md` §20.7), in order: whether it is dimmed,
+    /// whether it is highlighted, and the numbers of the layers marked on
+    /// it.
+    pub fn board_places_drawn(&self) -> Vec<(bool, bool, Vec<usize>)> {
+        self.board_view().map_or_else(Vec::new, |v| {
+            v.places
+                .iter()
+                .map(|c| (c.dim, c.lit, c.layers.clone()))
+                .collect()
+        })
     }
 
     /// Works out the board: the placed chips the plan's checks name, each
@@ -1392,6 +1724,7 @@ impl Faraday {
                 fixed: true,
                 faint: false,
                 off: false,
+                known: false,
             });
         }
         out
@@ -1637,6 +1970,23 @@ impl Faraday {
                 set(self, None, false);
                 if let Some(n) = self.board_state_mut().and_then(|st| st.empty.get_mut(p)) {
                     *n = n.saturating_sub(1);
+                }
+            }
+            BoardPress::View(v) => {
+                set(self, None, false);
+                if let Some(st) = self.board_state_mut() {
+                    st.view = v;
+                }
+            }
+            BoardPress::FoundFewer | BoardPress::FoundMore => {
+                let places = self.board_plan().map_or(1, |(_, a)| a.places.max(1));
+                if let Some(st) = self.board_state_mut() {
+                    let k = st.found.clamp(1, places);
+                    st.found = if press == BoardPress::FoundMore {
+                        (k + 1).min(places)
+                    } else {
+                        k.saturating_sub(1).max(1)
+                    };
                 }
             }
             BoardPress::RemoveSoftware => {

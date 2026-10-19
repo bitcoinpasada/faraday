@@ -121,10 +121,22 @@ pub fn conflicts(
     layers: &[Layer],
     place: &dyn Fn(usize) -> String,
 ) -> Vec<Conflict> {
+    conflicts_named(shape, a, layers, place, &|l| layer_name(&[], l))
+}
+
+/// [`conflicts`] with each layer called `layer(l)`: its name where one is
+/// typed (§20.1). A lookup per route.
+pub(crate) fn conflicts_named(
+    shape: &Shape,
+    a: &Answers,
+    layers: &[Layer],
+    place: &dyn Fn(usize) -> String,
+    layer_of: &dyn Fn(usize) -> String,
+) -> Vec<Conflict> {
     let vaults = a.vault_count(shape);
     let mut out = Vec::new();
     for (l, layer) in layers.iter().enumerate() {
-        let name = layer_name(&[], l);
+        let name = layer_of(l);
         if !layer.routes.iter().any(|r| r.paper) {
             out.push(Conflict {
                 line: fill(EN.layers_no_paper, &[&name]),
@@ -197,7 +209,7 @@ pub fn conflicts(
             out.push(Conflict { line, fixes });
         }
     }
-    out.extend(kinds_conflicts(shape, layers));
+    out.extend(kinds_conflicts(shape, layers, layer_of));
     out
 }
 
@@ -207,7 +219,11 @@ pub fn conflicts(
 /// description whole, a passphrase remembered, and for a stranger who
 /// could spend from one place, fewer seeds there or a part of the
 /// description. A lookup per route.
-fn kinds_conflicts(shape: &Shape, layers: &[Layer]) -> Vec<Conflict> {
+fn kinds_conflicts(
+    shape: &Shape,
+    layers: &[Layer],
+    layer_of: &dyn Fn(usize) -> String,
+) -> Vec<Conflict> {
     let mut out = Vec::new();
     let has = shape.here().len();
     let m = shape.m.max(1);
@@ -221,10 +237,7 @@ fn kinds_conflicts(shape: &Shape, layers: &[Layer]) -> Vec<Conflict> {
         let Some(k) = route.kinds else {
             continue;
         };
-        let name = fill(
-            EN.layers_route_of,
-            &[&layer_name(&[], l), &(r + 1).to_string()],
-        );
+        let name = fill(EN.layers_route_of, &[&layer_of(l), &(r + 1).to_string()]);
         let (l8, r8) = (u(l), u(r));
         let seeds_to = |n: usize| {
             let label = if n == 1 {
@@ -325,10 +338,7 @@ fn kinds_conflicts(shape: &Shape, layers: &[Layer]) -> Vec<Conflict> {
                     for i in shape.here() {
                         if shape.seeds[i].passphrase && !route.passphrases.contains(&i) {
                             fixes.push((
-                                fill(
-                                    EN.layers_remember,
-                                    &[&layer_name(&[], l), &shape.seeds[i].name],
-                                ),
+                                fill(EN.layers_remember, &[&layer_of(l), &shape.seeds[i].name]),
                                 LayersPress::Passphrase(l8, r8, u(i)),
                             ));
                         }
@@ -450,7 +460,8 @@ pub(crate) struct KindsView {
 /// One layer, as the card draws it.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct LayerView {
-    /// "Access layer 1".
+    /// "Access layer 1", or its name (§20.1); while it is typed, the
+    /// field's own text.
     pub name: String,
     /// Its routes.
     pub routes: Vec<RouteView>,
@@ -465,6 +476,11 @@ pub(crate) struct LayersView {
     pub conflicts: Vec<Conflict>,
     /// Work it out is offered: before the lock.
     pub work: bool,
+    /// A layer's name is typed by a press on its head (§20.1, §19.18
+    /// item 3).
+    pub names_typed: bool,
+    /// The layer whose name is being typed.
+    pub naming: Option<usize>,
 }
 
 impl Faraday {
@@ -509,7 +525,11 @@ impl Faraday {
             .iter()
             .enumerate()
             .map(|(l, layer)| LayerView {
-                name: layer_name(&[], l),
+                name: if create {
+                    layer_name(&[], l)
+                } else {
+                    self.board_layer_name(l)
+                },
                 routes: layer
                     .routes
                     .iter()
@@ -581,9 +601,12 @@ impl Faraday {
                 layers: views,
                 conflicts: self.create_conflicts(&a, &place),
                 work: false,
+                names_typed: false,
+                naming: None,
             });
         }
-        let mut found = conflicts(&shape, &a, &layers, &place);
+        let layer_of = |l: usize| self.board_layer_name(l);
+        let mut found = conflicts_named(&shape, &a, &layers, &place, &layer_of);
         // What Work it out found that the layers alone do not say, while
         // the plan is as it left it.
         if let Some(line) = self
@@ -597,10 +620,17 @@ impl Faraday {
                 fixes: Vec::new(),
             });
         }
+        let names_typed = self.layer_names_typed();
         Some(LayersView {
             layers: views,
             conflicts: found,
             work: self.board_locked().is_none(),
+            names_typed,
+            naming: self
+                .backup
+                .as_ref()
+                .and_then(|b| b.naming_layer)
+                .filter(|_| names_typed),
         })
     }
 
@@ -649,6 +679,32 @@ impl Faraday {
         }
         if press == P::WorkItOut {
             return self.layers_work_out();
+        }
+        // A layer taken off takes its name with it; the layers after move
+        // up with theirs (§20.1).
+        if let P::RemoveLayer(l) = press {
+            let l = usize::from(l);
+            let layers = self
+                .board_plan()
+                .map_or(0, |(shape, a)| a.layers_shown(&shape).len());
+            if layers > 1
+                && l < layers
+                && let Some(b) = self.backup.as_mut()
+            {
+                b.naming_layer = None;
+                if let Some(names) = b.layer_names.as_mut() {
+                    // A name left as its layer's own ("Access layer 2")
+                    // is no name: the layers after are numbered anew.
+                    for (k, n) in names.iter_mut().enumerate() {
+                        if *n == fill(EN.plan_access_layer, &[&(k + 1).to_string()]) {
+                            n.clear();
+                        }
+                    }
+                    if l < names.len() {
+                        names.remove(l);
+                    }
+                }
+            }
         }
         self.board_change(&|a, shape| {
             let mut layers = a.layers_shown(shape);

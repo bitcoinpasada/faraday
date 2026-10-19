@@ -1074,6 +1074,13 @@ pub const BOARD_VAULT_STROKE: f32 = 2.0;
 /// Opacity (of 255) of the band's text colour laid over a vault's band
 /// while it is pressed or hovered.
 pub const BOARD_VAULT_HOT: u8 = 40;
+/// Opacity (of 255) of the page's background laid over a place the board's
+/// view does not show (`docs/BACKUP-FLOW.md` §20.7): a layer's view, the
+/// places not its; the stranger's, the places not found.
+pub const BOARD_DIM: u8 = 150;
+/// Opacity (of 255) of the accent's tint on the chosen view pill at the
+/// top of the board.
+pub const BOARD_PILL_TINT: u8 = 26;
 
 // ---------------------------------------------------------------------
 // Timings

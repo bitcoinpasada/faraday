@@ -695,6 +695,170 @@ impl Reach {
         self.margin(|g| self.sees(g))
     }
 
+    /// The knowledge `route` has, as masks of vault passwords and
+    /// passphrases, and what its places give: all they keep, or on a
+    /// paper route their paper alone. A pass over its lists.
+    fn knows(&self, route: &Route) -> (u64, u64, &[Gives]) {
+        let passwords = route.passwords.iter().fold(0, |acc, &v| acc | bit(v));
+        let passphrases = route.passphrases.iter().fold(0, |acc, &i| acc | bit(i));
+        let gives = if route.paper {
+            &self.paper
+        } else {
+            &self.places
+        };
+        (passwords, passphrases, gives)
+    }
+
+    /// The places of `route`, each once, in order; none when it names
+    /// more than 63.
+    fn route_places(route: &Route) -> Vec<usize> {
+        let mut places: Vec<usize> = route.places.clone();
+        places.sort_unstable();
+        places.dedup();
+        if places.len() > 63 {
+            places.clear();
+        }
+        places
+    }
+
+    /// Whether the places of the mask `found` spend by `route`, with what
+    /// it knows: a pass over the places and vaults.
+    fn route_spends(&self, route: &Route, found: u64) -> bool {
+        let (passwords, passphrases, gives) = self.knows(route);
+        self.spends(&self.open_in(gives, found, passwords, passphrases))
+    }
+
+    /// The fewest of `route`'s places that together spend by it (§20.7,
+    /// "Places it needs"), or none when all of them do not. Tries the sets
+    /// of its places by size up to the first that spends: at most 2^n for
+    /// n places.
+    pub fn route_needs(&self, route: &Route) -> Option<usize> {
+        let places = Reach::route_places(route);
+        for k in 1..=places.len() {
+            let some = !every_subset(places.len(), k, |pick| {
+                !self.route_spends(route, mask_of(&places, pick))
+            });
+            if some {
+                return Some(k);
+            }
+        }
+        None
+    }
+
+    /// Whether every `any` of `route`'s places, with what it knows, show
+    /// the balance (§20.7, "Sees the balance"): as [`Reach::route_met`]
+    /// asks of spending. Tries each such set: C(n, any) for n places.
+    pub fn route_sees(&self, route: &Route) -> bool {
+        let places = Reach::route_places(route);
+        if route.any > places.len() || places.is_empty() {
+            return false;
+        }
+        let (passwords, passphrases, gives) = self.knows(route);
+        every_subset(places.len(), route.any, |pick| {
+            let found = mask_of(&places, pick);
+            self.sees(&self.open_in(gives, found, passwords, passphrases))
+        })
+    }
+
+    /// The most places `routes` (a layer's, or one of them) may lose and
+    /// still spend by some route (§20.9, "Places it can lose"): the
+    /// largest `k` such that, whichever `k` of their places are lost, some
+    /// route spends from what is left of its own; none when no route
+    /// spends even from all of its places. Tries the sets of their places
+    /// by size: at most 2^n sets for n places, each tried by every route.
+    pub fn can_lose(&self, routes: &[Route]) -> Option<usize> {
+        let mut all: Vec<usize> = routes.iter().flat_map(|r| r.places.clone()).collect();
+        all.sort_unstable();
+        all.dedup();
+        if all.len() > 63 {
+            return None;
+        }
+        let masks: Vec<u64> = routes
+            .iter()
+            .map(|r| r.places.iter().fold(0, |acc, &p| acc | bit(p)))
+            .collect();
+        let survives = |lost: u64| {
+            routes
+                .iter()
+                .zip(&masks)
+                .any(|(r, &m)| m & !lost != 0 && self.route_spends(r, m & !lost))
+        };
+        if !survives(0) {
+            return None;
+        }
+        for k in 1..=all.len() {
+            if !every_subset(all.len(), k, |pick| survives(mask_of(&all, pick))) {
+                return Some(k - 1);
+            }
+        }
+        Some(all.len())
+    }
+
+    /// The vaults `layer` opens (§20.7): those whose password one of its
+    /// routes remembers, and those whose password is written at one of its
+    /// places; as a mask. A pass over its routes and places.
+    pub fn layer_opens(&self, layer: &Layer) -> u64 {
+        let mut known = 0;
+        for r in &layer.routes {
+            known |= r.passwords.iter().fold(0, |acc, &v| acc | bit(v));
+            for &p in &r.places {
+                if let Some(g) = self.places.get(p) {
+                    known |= g.written;
+                }
+            }
+        }
+        known
+    }
+
+    /// The vaults a stranger who finds the places of the mask `found`
+    /// opens: those whose stick and written password are both among them.
+    /// A pass over the places.
+    pub fn stranger_opens(&self, found: u64) -> u64 {
+        let g = self.open(found, 0, 0);
+        g.sticks & g.written
+    }
+
+    /// Of every set of `k` places, the one that gives a stranger who finds
+    /// it, knowing nothing, the most (§20.7): spending first, then the
+    /// balance, then the seeds that sign, the keys of the description it
+    /// holds and the things found; the first such set in order. As a mask
+    /// of places. Tries each set: C(n, k) for n places.
+    pub fn worst(&self, k: usize) -> u64 {
+        let n = self.places.len().min(63);
+        let k = k.min(n);
+        let mut best: Option<(Score, u64)> = None;
+        every_subset(n, k, |found| {
+            let g = self.open(found, 0, 0);
+            let keys = if g.wallet {
+                self.keys.count_ones() + 1
+            } else {
+                self.share_keys
+                    .iter()
+                    .enumerate()
+                    .filter(|(j, _)| g.shares & bit(*j) != 0)
+                    .fold(0, |acc, (_, k)| acc | k)
+                    .count_ones()
+            };
+            let things = (g.seeds | g.pass).count_ones()
+                + g.shares.count_ones()
+                + g.sticks.count_ones()
+                + g.written.count_ones()
+                + u32::from(g.wallet);
+            let score = (
+                self.spends(&g),
+                self.sees(&g),
+                self.signing(&g),
+                keys,
+                things,
+            );
+            if best.is_none_or(|(b, _)| score > b) {
+                best = Some((score, found));
+            }
+            true
+        });
+        best.map_or(0, |(_, found)| found)
+    }
+
     fn margin(&self, gets: impl Fn(&Gives) -> bool) -> usize {
         let n = self.places.len().min(63);
         for k in 1..=n {
@@ -704,6 +868,19 @@ impl Reach {
         }
         n
     }
+}
+
+/// What a set of places gives a stranger, compared in order: it spends, it
+/// sees the balance, the seeds that sign, the description's keys, the
+/// things found.
+type Score = (bool, bool, usize, u32, u32);
+
+/// The mask of the places `places[k]` for each bit `k` set in `pick`. A
+/// pass over `places`.
+fn mask_of(places: &[usize], pick: u64) -> u64 {
+    (0..places.len())
+        .filter(|&k| pick & bit(k) != 0)
+        .fold(0, |acc, k| acc | bit(places[k]))
 }
 
 /// Whether `ok` holds for every set of `k` of `n` things, each set a mask

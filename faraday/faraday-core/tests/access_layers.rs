@@ -1107,3 +1107,225 @@ fn suggest_a_wallet_shares_one_budget_among_the_shapes_and_ranks_by_margin() {
     assert!(!pass.fits);
     assert_eq!(suggest(&p.answers), (fits, steps), "the same on every run");
 }
+
+// ----- The layer view (§20.7, L3) -----
+
+use faraday_core::board::{BoardPress as BP, View};
+use faraday_core::cstep;
+
+/// Back up of a 2 of 3 made in Create over three keys typed in here, on
+/// the Paper and vault preset, with two layers said on the Access layers
+/// card and Work it out run: Access layer 1 by a paper route, any 2 of
+/// Places 1, 2 and 3, and by Place 1 alone knowing Vault 1's password;
+/// Access layer 2 by a paper route, any 2 of Places 2 and 3.
+fn two_layers_worked() -> Faraday {
+    let mut app = device();
+    for n in 0..3 {
+        app.press(Action::Entry(None));
+        type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[n].0));
+        app.press(Action::EntryAdd);
+    }
+    testkit::create_knowing(&mut app);
+    let multi = faraday_core::create::NewKind::ALL
+        .iter()
+        .position(|k| *k == faraday_core::create::NewKind::Multi)
+        .unwrap() as u8;
+    app.press(Action::CKind(multi));
+    for slot in 0..3u8 {
+        let fp = app.session.keys[usize::from(slot)].fingerprint().0;
+        app.press(Action::CSlotHere(slot, fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup(0));
+    app.press(Action::BPreset(1));
+    app.press(Action::BQ(qstep::LAYERS));
+    let lp = |app: &mut Faraday, p: LayersPress| app.press(Action::Layers(p));
+    lp(&mut app, LayersPress::AddRoute(0));
+    lp(&mut app, LayersPress::Place(0, 1, 1));
+    lp(&mut app, LayersPress::Place(0, 1, 2));
+    lp(&mut app, LayersPress::Password(0, 1, 0));
+    lp(&mut app, LayersPress::AddLayer);
+    lp(&mut app, LayersPress::Place(1, 0, 0));
+    lp(&mut app, LayersPress::WorkItOut);
+    assert_eq!(
+        app.backup.as_ref().unwrap().q,
+        Some(qstep::BOARD),
+        "the board opens on the result"
+    );
+    app
+}
+
+fn view(app: &mut Faraday, v: View) {
+    app.press(Action::Board(BP::View(v)));
+}
+
+/// Every text drawn down the page, a frame at a time from its top.
+fn frames_down(app: &mut Faraday) -> Vec<Vec<String>> {
+    app.event(Event::Scroll {
+        x: 600,
+        y: 400,
+        dy: -20_000,
+    });
+    let mut out = Vec::new();
+    for _ in 0..30 {
+        app.settle();
+        out.push(app.drawn_texts());
+        app.event(Event::Scroll {
+            x: 600,
+            y: 400,
+            dy: 150,
+        });
+    }
+    out
+}
+
+/// The value drawn after the check `label` in the group headed `head`
+/// (the last text drawn that is a layer's or a route's head before it),
+/// anywhere down the page.
+fn check(app: &mut Faraday, head: &str, label: &str) -> String {
+    for texts in frames_down(app) {
+        let mut under = String::new();
+        for (k, t) in texts.iter().enumerate() {
+            if t.starts_with("Access layer") {
+                under = t.clone();
+            }
+            if t == label && (head.is_empty() || under == head) {
+                return texts.get(k + 1).cloned().unwrap_or_default();
+            }
+        }
+    }
+    panic!("no {label:?} under {head:?}");
+}
+
+/// How many times `want` is drawn in the first frame down the page that
+/// draws `band`.
+fn drawn_with(app: &mut Faraday, band: &str, want: &str) -> Option<usize> {
+    frames_down(app)
+        .into_iter()
+        .find(|t| t.iter().any(|x| x == band))
+        .map(|t| t.iter().filter(|x| *x == want).count())
+}
+
+/// Each layer's view of the two layers above, its checks worked by hand.
+///
+/// Work it out's placement, by hand: Access layer 1's paper route needs
+/// any two of the three places to spend from paper, so a stranger finding
+/// two places spends (the margin is at most 1); one seed and one share at
+/// each place, the seeds and the shares all different, give that with
+/// the fewest copies (as the 2 of 3 preset worked out above). Route 2,
+/// Place 1 alone with Vault 1's password, must spend from what a stranger
+/// at Place 1 cannot read: Vault 1's stick at Place 1 alone, the vault
+/// holding the seeds and the description. Access layer 2's two places
+/// are two of those three.
+///
+/// Access layer 1, route 1 · paper: any two places give two seeds and two
+/// shares, which cover all three keys: can spend; one place gives one
+/// seed, so it needs 2 of its 3; any two see the balance. Route 2: Place 1
+/// opens Vault 1, which holds every seed and the description: can spend,
+/// 1 of its 1, sees the balance. Places it can lose, by some route: any
+/// one lost leaves either the other two (route 1) or Place 1 (route 2);
+/// Places 1 and 2 lost leave Place 3 alone, one seed, and no Place 1: 1.
+///
+/// Access layer 2: Places 2 and 3 give two seeds and two shares: can
+/// spend, 2 of its 2, sees the balance; either lost leaves one seed: 0.
+/// It knows no password and none is written at its places, so Vault 1 is
+/// shut to it; Access layer 1 remembers it, so it is open. Place 1 is not
+/// Access layer 2's: dimmed. In All, Place 1 is marked 1 (both of Access
+/// layer 1's routes hold it), Places 2 and 3 are marked 1 2.
+#[test]
+fn each_layers_view_shows_its_checks_its_places_and_the_vaults_it_opens() {
+    let mut app = two_layers_worked();
+    let text = app.backup.as_ref().unwrap().answers.to_text();
+    // All: the board as it was, each place marked with its layers.
+    let drawn = app.board_places_drawn();
+    let marks: Vec<Vec<usize>> = drawn.iter().map(|d| d.2.clone()).collect();
+    assert_eq!(marks, vec![vec![1], vec![1, 2], vec![1, 2]]);
+    assert!(drawn.iter().all(|d| !d.0 && !d.1), "nothing dimmed in All");
+    // All draws the vault sealed, its description inside and in the list.
+    assert_eq!(drawn_with(&mut app, "Vault 1 · sealed", "Whole"), Some(2));
+
+    view(&mut app, View::Layer(0));
+    let l1 = "Access layer 1, route 1 · paper";
+    assert_eq!(check(&mut app, l1, "Can spend"), "Yes");
+    assert_eq!(check(&mut app, l1, "Places it needs"), "2 of its 3");
+    assert_eq!(check(&mut app, l1, "Sees the balance"), "Yes");
+    let r2 = "Access layer 1, route 2";
+    assert_eq!(check(&mut app, r2, "Can spend"), "Yes");
+    assert_eq!(check(&mut app, r2, "Places it needs"), "1 of its 1");
+    assert_eq!(check(&mut app, r2, "Sees the balance"), "Yes");
+    assert_eq!(check(&mut app, "Access layer 1", "Places it can lose"), "1");
+    assert!(app.board_places_drawn().iter().all(|d| !d.0));
+    // Vault 1 open, its contents drawn.
+    assert_eq!(drawn_with(&mut app, "Vault 1 · open", "Whole"), Some(2));
+
+    view(&mut app, View::Layer(1));
+    let l2 = "Access layer 2";
+    assert_eq!(check(&mut app, l2, "Can spend"), "Yes");
+    assert_eq!(check(&mut app, l2, "Places it needs"), "2 of its 2");
+    assert_eq!(check(&mut app, l2, "Places it can lose"), "0");
+    assert_eq!(check(&mut app, l2, "Sees the balance"), "Yes");
+    let dim: Vec<bool> = app.board_places_drawn().iter().map(|d| d.0).collect();
+    assert_eq!(dim, vec![true, false, false]);
+    // Vault 1 shut: the description it holds is not drawn, only the
+    // list's.
+    assert_eq!(drawn_with(&mut app, "Vault 1 · shut", "Whole"), Some(1));
+    assert_eq!(drawn_with(&mut app, "Vault 1 · open", "Whole"), None);
+
+    // A change of view changes nothing in the plan.
+    view(&mut app, View::Stranger);
+    view(&mut app, View::All);
+    assert_eq!(app.backup.as_ref().unwrap().answers.to_text(), text);
+}
+
+/// The Stranger view on the same plan, by hand. One place found: each
+/// gives one seed and a share of two of the three keys (Place 1 its
+/// vault's stick too, shut with no password written): no spending, no
+/// balance, so both checks say yes (the margins are 1); the place that
+/// gives the most is Place 1, by its stick. Two places found: any two
+/// give two seeds and two shares covering the keys, so both say no; the
+/// two with Place 1 give five things to Places 2 and 3's four, and of
+/// those Places 1 and 2 come first.
+#[test]
+fn the_stranger_view_tries_every_set_of_places_found_and_shows_the_worst() {
+    let mut app = two_layers_worked();
+    let text = app.backup.as_ref().unwrap().answers.to_text();
+    view(&mut app, View::Stranger);
+    assert_eq!(
+        check(&mut app, "", "Cannot spend with any one place"),
+        "Yes"
+    );
+    assert_eq!(
+        check(&mut app, "", "Cannot see the balance with any one place"),
+        "Yes"
+    );
+    let drawn = app.board_places_drawn();
+    let lit: Vec<bool> = drawn.iter().map(|d| d.1).collect();
+    let dim: Vec<bool> = drawn.iter().map(|d| d.0).collect();
+    assert_eq!(lit, vec![true, false, false]);
+    assert_eq!(dim, vec![false, true, true]);
+    assert_eq!(drawn_with(&mut app, "Vault 1 · shut", "Whole"), Some(1));
+
+    app.press(Action::Board(BP::FoundMore));
+    assert_eq!(check(&mut app, "", "Cannot spend with any 2 places"), "No");
+    assert_eq!(
+        check(&mut app, "", "Cannot see the balance with any 2 places"),
+        "No"
+    );
+    let lit: Vec<bool> = app.board_places_drawn().iter().map(|d| d.1).collect();
+    assert_eq!(lit, vec![true, true, false]);
+    // No more places than the plan has; no fewer than one.
+    for _ in 0..3 {
+        app.press(Action::Board(BP::FoundMore));
+    }
+    assert!(has_drawn(&mut app, "Cannot spend with any 3 places"));
+    for _ in 0..5 {
+        app.press(Action::Board(BP::FoundFewer));
+    }
+    assert!(has_drawn(&mut app, "Cannot spend with any one place"));
+    assert_eq!(app.backup.as_ref().unwrap().answers.to_text(), text);
+}
+
+fn has_drawn(app: &mut Faraday, want: &str) -> bool {
+    frames_down(app).iter().any(|t| t.iter().any(|x| x == want))
+}
