@@ -4326,16 +4326,48 @@ fn images_panel(app: &Faraday, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f3
     dy + 56.0
 }
 
-/// Whether open vault `v` holds a wallet with the same descriptor.
+/// Parses open vault `v`'s wallet records (once a frame, `vault_wallets`):
+/// whether it holds a wallet with the same descriptor, as
+/// [`crate::wallet::same_wallet`] compares them.
 pub(crate) fn vault_has_wallet(app: &Faraday, v: usize, w: &Wallet) -> bool {
     let want = crate::wallet::same_wallet(w.policy());
-    app.vaults.open.get(v).is_some_and(|o| {
-        o.contents.of(kind::WALLET).any(|(_, r)| {
-            r.text(field::WALLET)
-                .and_then(|t| crate::wallet::read_wallet(t).ok())
-                .is_some_and(|p| crate::wallet::same_wallet(&p) == want)
-        })
-    })
+    vault_wallets(app, v)
+        .iter()
+        .any(|d| d.replace('\'', "h") == want)
+}
+
+/// Parses each wallet record open vault `v` holds: their descriptors, each
+/// as `to_descriptor` writes it; a record that does not read is left out.
+/// Kept for the frame while one is drawn (`docs/SPEED.md` §3.12); outside
+/// a frame worked out each time.
+pub(crate) fn vault_wallets(app: &Faraday, v: usize) -> std::rc::Rc<Vec<String>> {
+    let on = app.drawing.is_on();
+    if on
+        && let Some((_, kept)) = app
+            .drawing
+            .vault_wallets
+            .borrow()
+            .iter()
+            .find(|(o, _)| *o == v)
+    {
+        return kept.clone();
+    }
+    let list: Vec<String> = app.vaults.open.get(v).map_or_else(Vec::new, |o| {
+        o.contents
+            .of(kind::WALLET)
+            .filter_map(|(_, r)| r.text(field::WALLET))
+            .filter_map(|t| crate::wallet::read_wallet(t).ok())
+            .map(|p| p.to_descriptor())
+            .collect()
+    });
+    let list = std::rc::Rc::new(list);
+    if on {
+        app.drawing
+            .vault_wallets
+            .borrow_mut()
+            .push((v, list.clone()));
+    }
+    list
 }
 
 /// Whether open vault `v` holds the key with fingerprint `fp`.

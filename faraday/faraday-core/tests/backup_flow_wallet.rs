@@ -5390,3 +5390,66 @@ fn a_passphrase_alone_in_a_vault_is_saved_as_a_passphrase_record() {
     assert_eq!(r.field(field::PASSPHRASE_KEY), Some(&fp.0[..]));
     assert_eq!(r.text(field::PASSPHRASE), Some("TREZOR"));
 }
+
+/// A drawn string and its box in pixels.
+type TextBox = (String, (i32, i32, i32, i32));
+
+/// Whether the row `row` of the sticks card is ticked with the label of
+/// the stick written: the label drawn on its line.
+fn stick_row_written(boxes: &[TextBox], row: &str, label: &str) -> bool {
+    let (_, (_, y, _, _)) = boxes
+        .iter()
+        .find(|(t, _)| t == row)
+        .unwrap_or_else(|| panic!("no row {row:?} in {boxes:?}"));
+    boxes
+        .iter()
+        .any(|(t, (_, by, _, _))| t == label && (by - y).abs() < 8)
+}
+
+#[test]
+fn a_sticks_files_written_show_on_the_sticks_card_on_the_next_frame() {
+    let mut shell = Shell::new();
+    let (mut app, _, _) = single_key_ready(&mut shell);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    write_sticks(&mut shell, &mut app, &["S1", "S2", "S3"]);
+    assert_eq!(step(&app), Step::Done);
+    // Back to the checklist, its sticks card open: the first frame ticks
+    // each vault's stick with the stick it was written to.
+    shell.flow(&mut app, F::UnlockDone(0));
+    app.vaults.ms_per_unit = Some(180);
+    unlock(&mut app, PHRASE);
+    assert_eq!(app.screen, Screen::Backup);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    app.press(Action::BStep(bstep::STICKS));
+    app.settle();
+    let boxes = app.drawn_text_boxes();
+    for row in ["Vault 1 (Place 1)", "Vault 1 (Place 2)"] {
+        assert!(
+            stick_row_written(&boxes, row, "KEYSTICK"),
+            "{row}: {boxes:?}"
+        );
+    }
+    // The copy on Place 1's stick deleted on the stick: the very next
+    // frame shows that stick not written, the other still written, and
+    // the lock that writes it again.
+    let name = shell.disk("S1").files[0].0.clone();
+    shell.plug(&mut app, "S1");
+    app.storage(faraday_core::StorageEvent::Wiped {
+        stick: "S1".into(),
+        name,
+    });
+    shell.pump(&mut app);
+    app.press(Action::Cancel);
+    app.settle();
+    let boxes = app.drawn_text_boxes();
+    assert!(
+        !stick_row_written(&boxes, "Vault 1 (Place 1)", "KEYSTICK"),
+        "{boxes:?}"
+    );
+    assert!(
+        stick_row_written(&boxes, "Vault 1 (Place 2)", "KEYSTICK"),
+        "{boxes:?}"
+    );
+    assert!(app.offers(Action::Flow(F::WalletLock)), "Lock and write");
+}

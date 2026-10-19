@@ -954,8 +954,34 @@ impl Faraday {
     /// (`docs/SIMPLIFY.md` §4.5): each vault with its currency, the files
     /// For the stick, and each seed and wallet in memory with where else
     /// it is. At `power_off` a vault not written as it stands and the
-    /// files For the stick are lost, not kept.
+    /// files For the stick are lost, not kept. Reads each seed's words and
+    /// each open vault's wallets; kept for the frame while one is drawn
+    /// (`docs/SPEED.md` §3.12).
     pub fn kept_wiped(&self, power_off: bool) -> KeptWiped {
+        let on = self.drawing.is_on();
+        if on
+            && let Some((_, kept)) = self
+                .drawing
+                .kept_wiped
+                .borrow()
+                .iter()
+                .find(|(p, _)| *p == power_off)
+        {
+            return kept.clone();
+        }
+        let out = self.kept_wiped_now(power_off);
+        if on {
+            self.drawing
+                .kept_wiped
+                .borrow_mut()
+                .push((power_off, out.clone()));
+        }
+        out
+    }
+
+    /// Reads each seed's words and each open vault's wallets: what
+    /// [`Self::kept_wiped`] answers.
+    fn kept_wiped_now(&self, power_off: bool) -> KeptWiped {
         let mut out = KeptWiped::default();
         if power_off {
             for line in self.backup_power_lines() {
@@ -1013,12 +1039,10 @@ impl Faraday {
             })
         };
         let in_vault_wallet = |descriptor: &str| {
-            self.vaults.open.iter().find_map(|v| {
-                v.contents
-                    .of(kind::WALLET)
-                    .filter_map(|(_, r)| r.text(field::WALLET))
-                    .filter_map(|t| crate::wallet::read_wallet(t).ok())
-                    .any(|p| p.to_descriptor() == descriptor)
+            self.vaults.open.iter().enumerate().find_map(|(o, v)| {
+                crate::vault_screens::vault_wallets(self, o)
+                    .iter()
+                    .any(|d| d == descriptor)
                     .then(|| v.label())
             })
         };

@@ -1695,8 +1695,23 @@ impl Faraday {
 
     /// The sticks the wallet being backed up will be written to, by place,
     /// each with the files it will hold and whether it is written: from the
-    /// flow, or from the plan's own while no flow has locked yet.
+    /// flow, or from the plan's own while no flow has locked yet. Works out
+    /// each stick's files; kept for the frame while one is drawn
+    /// (`docs/SPEED.md` §3.12).
     pub fn wallet_stick_rows(&self) -> Vec<(String, Vec<String>, Option<String>)> {
+        if self.drawing.is_on() {
+            return self
+                .drawing
+                .stick_rows
+                .get_or_init(|| self.wallet_stick_rows_now())
+                .clone();
+        }
+        self.wallet_stick_rows_now()
+    }
+
+    /// Works out each stick's files: what [`Self::wallet_stick_rows`]
+    /// answers.
+    fn wallet_stick_rows_now(&self) -> Vec<crate::drawing::StickRow> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };

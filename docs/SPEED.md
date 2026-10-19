@@ -451,6 +451,77 @@ after, a scroll step and frame 4.26 to 4.37 before and 4.24 to 4.62
 after, within the runs' spread; a pointer move under 0.001 both; the
 new Access layers card 1.84 a frame.
 
+### After F (2026-10-19)
+
+Measured on the build machine, release profile, with §4's harness
+(outside the repository, removed after). The session: a 2-of-3 made in
+Create with three vaults set up before the keys and three keys made by
+New key from coin flips, all three vaults open; Back up on Paper, vault
+and software, its checklist walked from the first item to Write to
+sticks (blank templates, three copies by hand, three vaults, the wallet
+sheet, the descriptor shown, the envelopes); then the lock and the
+flow's writes. Before and after are one binary, the frame memo of §3.12
+switched off and on per run, the runs interleaved: each row is the
+median of five runs of the median of 30 frames, in ms; the stage is the
+number of items done. A run of the code before F, alone, gave the same
+before column within its spread.
+
+| What | Before F | After F |
+|---|---|---|
+| 1366×768, Create's Keys card, three keys: frame | 1.75 | 1.70 |
+| 1366×768, Create's Keys card: scroll step and frame | 1.73 | 1.70 |
+| 1366×768, Back up, the plan with the board (All view): frame | 4.40 | 4.43 |
+| 1366×768, the board: scroll step and frame | 4.55 | 4.61 |
+| 1366×768, checklist, 0 done: frame | 3.62 | 3.79 |
+| 1366×768, checklist, 0 done: scroll step and frame | 3.67 | 3.73 |
+| 1366×768, checklist, 3 done (copies checked): frame | 3.81 | 3.78 |
+| 1366×768, checklist, 4 done (vault 1 open): frame | 3.63 | 3.66 |
+| 1366×768, checklist, 5 done (vault 2 open): frame | 3.63 | 3.59 |
+| 1366×768, checklist, 5 done: scroll step and frame | 3.73 | 3.69 |
+| 1366×768, checklist, 6 done (vault 3 open): frame | 3.85 | 3.67 |
+| 1366×768, checklist, 9 done (envelopes open): frame | 4.14 | 3.93 |
+| 1366×768, checklist, 10 done (sticks open): frame | 4.42 | 3.87 |
+| 1366×768, checklist, 10 done: scroll step and frame | 4.48 | 3.90 |
+| 1366×768, Home with the flow in progress: frame | 3.39 | 3.44 |
+| 1366×768, the flow's writes after the lock: frame | 0.95 | 0.97 |
+| 2560×1600 scale 2, Create's Keys card, three keys: frame | 6.03 | 6.03 |
+| 2560×1600 scale 2, the board (All view): frame | 12.78 | 12.74 |
+| 2560×1600 scale 2, the board: scroll step and frame | 13.08 | 12.84 |
+| 2560×1600 scale 2, checklist, 0 done: frame | 10.38 | 10.08 |
+| 2560×1600 scale 2, checklist, 5 done (vault 2 open): frame | 9.42 | 9.11 |
+| 2560×1600 scale 2, checklist, 5 done: scroll step and frame | 9.46 | 9.70 |
+| 2560×1600 scale 2, checklist, 10 done (sticks open): frame | 10.23 | 9.18 |
+| 2560×1600 scale 2, checklist, 10 done: scroll step and frame | 10.36 | 9.16 |
+| 2560×1600 scale 2, Home with the flow in progress: frame | 8.47 | 7.99 |
+| 2560×1600 scale 2, the flow's writes after the lock: frame | 3.29 | 3.36 |
+
+A pointer move over the board and over the checklist, event only, was
+under 0.01 ms at every stage, before and after. The spread between runs
+was about 0.2 ms at 1366×768 and 0.5 ms at 2560×1600.
+
+What the two cards did per frame and do now, counted at the stages
+above: a frame with the sticks card open called `wallet_stick_rows` nine
+times (each about 1.0 ms outside a frame, its stick names already kept),
+`kept_wiped` four times (0.15 ms each) and parsed thirteen wallet records
+for `vault_has_wallet` and `kept_wiped`; now one, one and three, one per
+open vault. With vault 2's card open, seven `vault_has_wallet` calls
+parsed three records, now one. Every earlier stage drew
+`wallet_stick_rows` twice, now once. On this machine a record's parse is
+cheap, so the vault 2 card's frame moved within the spread; the sticks
+card's frame dropped by about 0.5 ms at 1366×768 and 1 ms at 2560×1600.
+
+The layer view of the board (BACKUP-FLOW §20) had not reached main on
+the day, so the board is timed in its All view only.
+
+Frames over 16 ms: none in this session at either size, the heaviest
+being the board at 2560×1600 scale 2, about 13 ms. One aside, from a
+harness slip that checked the first copy by hand again and again: each
+further check of the same copy added about 0.7 ms to every later
+checklist frame at 1366×768 (4 ms after the first, 24 ms after the
+thirtieth). A person does not check one copy thirty times, but something
+grows with each check; the build machine has no sampling profiler, so
+its stacks are not taken. It is left for a later batch.
+
 The owner's check (2026-10-16): the stick built from batch B, on the
 slow laptop, through the same flow: quick throughout.
 
