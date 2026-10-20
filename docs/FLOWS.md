@@ -791,6 +791,72 @@ to get it.
     opens with Start closed on it. The Add a key screen stays for a key
     asked for by name: a slot's fingerprint, a wallet's missing key,
     Restore's seed slots, and a seed scanned from Home or the Spend tab.
+61. **A ⋮ on every file; Rename** (owner, 2026-10-20; `docs/DECISIONS.md`
+    F54; tracker #162). Every file row, in Files and on the stick visit,
+    keeps the one action it is for as a visible button and puts the rest
+    behind a ⋮ at its right end, as the backup board's chips do
+    (`docs/BACKUP-FLOW.md` §19.20: a popup under the ⋮, the sheet on the
+    small panel, keyboard reachable, a press outside closes it).
+    1. **Files, both columns.** The visible button is the row's main
+       action, as today: Sign, Unlock or Contents, Load the wallet, Load
+       this key, Import into the vault (or the way to a vault), Decode,
+       Check the signature, Add to signatures, the shares' restore, the
+       APK row's button, Make PDF for a sheet From the stick, Add to
+       vault where it is the only action. The ⋮ holds, in this order and
+       only where the row has them: **Add to vault** (where it is not the
+       visible one), **Show as QR**, **Make PDF** (For the stick),
+       **Rename** (For the stick only), **Details**, **Remove**. The
+       visible **Remove** button goes. A row with no main action shows
+       only the ⋮.
+    2. **Rename, For the stick.** A popup, "Rename {name}": a field
+       holding the name before its extension, the extension shown fixed
+       after it (`.ofv` for a vault; every file keeps its own), and
+       **Rename** and **Cancel**. Refused, with a line in the popup and
+       Rename disabled: an empty name, one starting with a dot, `/`,
+       `\`, `:`, `*`, `?`, `"`, `<`, `>`, `|` or a control character, a
+       name over 255 characters with its extension, and a name another
+       file For the stick has, ignoring case. The new name is the one the
+       next visit writes it under; the visit's **Already on the stick**
+       sheet then works as today. A vault For the stick whose same vault
+       (by identity, `docs/VAULT.md` §6) is on the stick under another
+       name is written over that file and the file takes the new name;
+       where the new name is taken on the stick, as Already on the stick
+       says. Renaming a vault's file never changes the vault's own name
+       (the open vault's **Rename**), nor the reverse.
+    3. **From the stick has no Rename**: its files are Faraday's copies of
+       files on a stick, renamed on the stick itself (item 4).
+    4. **On the stick (the visit page).** Every file row Faraday lists
+       gets a ⋮ with **Rename**, **Delete from the stick** and
+       **Details**; the computer's own files (decision 54) and the
+       settings file get none. **Rename** is the same popup, renaming the
+       file on the stick in place: the disk process renames its
+       directory entry, lists the stick again, and the visit shows
+       "{old} renamed {new}", or why not. Refused, nothing written, where
+       the name is on the stick already, ignoring case: "{name} is
+       already on this {stick}"; where that file is the same vault by
+       identity, "{name} on this {stick} is this same vault" (one copy is
+       deleted first). **Delete from the stick** opens the Delete files
+       sheet (decision 54) with this file alone chosen; a vault file
+       there needs the hold of decision 4. The **Delete files** button
+       stays, for many files, the free space and the whole partition.
+    5. **Details**, a sheet: the name, what it is (the row's kind line),
+       its size in bytes, and its SHA-256 in groups of eight; nothing to
+       press but Close.
+    6. **Names elsewhere.** Backups and the backup flow name a copy by
+       the file it was written as; a copy renamed on the visit is named
+       anew from the next read of that stick, which the rename itself is.
+    7. **Tests** (user-facing): a file For the stick renamed is written
+       under its new name; a vault For the stick renamed, with the same
+       vault on the stick as `vault.ofv`, leaves one file, under the new
+       name; Rename refuses a name another file For the stick has and an
+       empty name; on the visit a file renamed is listed under its new
+       name and its bytes are unchanged; a rename to a name on the stick
+       is refused and nothing is written, a vault's same vault named as
+       such; Delete from the stick opens the sheet with that file alone
+       chosen; Details shows the SHA-256 of the bytes; the Files row of a
+       PSBT shows Sign and a ⋮ holding Details and Remove; no row shows a
+       Remove button. Existing tests that press `InboxRemove` or the
+       outbox's Remove reach it through the ⋮.
 
 ## Home
 

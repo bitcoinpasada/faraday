@@ -1977,3 +1977,19 @@ box says so until it is made. A vault already on a stick is brought in
 only at the vault question before the keys, and the question says so,
 because the lock that reading a new stick needs wipes the keys. Plans
 saved from the other presets reopen as they were, customisable.
+
+### F54 A ⋮ on every file; files renamed (2026-10-20)
+
+**Why.** Files had no way to rename, Remove sat beside every row's main
+action, and deleting one file from a stick took a sheet of ticks.
+
+**Decision** (owner, 2026-10-20; `docs/FLOWS.md` decision 61). Every
+file row, in Files and on the stick visit, keeps its main action visible
+and puts the rest behind a ⋮: Add to vault, Show as QR, Make PDF,
+Rename, Details, Remove in Files; Rename, Delete from the stick and
+Details on the visit. A file For the stick is renamed before it is
+written; a file on a stick is renamed on the stick during a visit.
+Faraday's copies From the stick are not renamed. A vault's file keeps
+`.ofv`, and a rename never takes a name already on the stick: a vault
+is known by its identity, not its name, so a renamed vault is found,
+unlocked and updated as before.
