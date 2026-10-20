@@ -1772,3 +1772,28 @@ sidebar row (a press on the row only returns to the flow).
    sheet, Cancel the flow: Wallets shown, no row, keys made still
    loaded; Keep going keeps it; a flow on its first card ends without
    the sheet; the GPG flow's Cancel removes its Tools row.
+
+Built 2026-10-19 (`faraday-core/src/in_progress.rs`: `flow_cancel`,
+`cancel_loses`, `flow_end`, `cancel_sheet`; `Action::CancelFlow`,
+`Sheet::CancelFlow`). What each Cancel ends, and what its sheet says:
+
+| Flow | Asks when | The line | Shown after |
+|---|---|---|---|
+| Make a new wallet | its Back up's plan begun; or its vaults' setup begun; or the wallet made, or a card done past the first | "The plan and its places are lost."; "Its answers and the setup of its vaults are lost."; "Its answers are lost." | Wallets, or Home when opened there |
+| Restore a wallet | its vaults' setup begun, or a card done past the first | as Make a new wallet's | Wallets, or Home |
+| Back up a wallet | always (its row is its plan begun) | "The plan and its places are lost." | the wallet, or the vault's contents it was opened from |
+| Spend | a step of the transaction done | "Its steps and any signatures made are lost." | the wallet it was opened on, Home or Wallets |
+| Sign a message | a card done past the first | "Its answers are lost." | Wallets |
+| Create a vault | a card done past the first other than the size | "Its answers are lost." | Vaults, or Home |
+| A key's or a wallet's backup flow, its key not made | past Where it will be kept | "The plan and its places are lost." | Tools, or Wallets for a wallet's |
+| A backup flow whose key is made | no Cancel, on its screen or as the flow on screen: it ends only by finishing (owner, 2026-10-19) | | |
+
+The titles: "Cancel making this wallet?", "Cancel restoring this
+wallet?", "Cancel this backup?", "Cancel this spend?", "Cancel signing
+this message?", "Cancel making this vault?", "Cancel making this key?"
+(APK, GPG), "Cancel making these keys?" (Secure Boot). The setup of a
+wallet's vaults and a Back up's own flow go with Make a new wallet,
+Restore or Back up while their key is not made; one whose key is made
+stays, its writes waiting under a row of its own: no Cancel lets go
+of F6's and F31's hold. Cancel closes no vault and seals none: an open vault
+keeps its changes, and a lock asks about them as it does today.

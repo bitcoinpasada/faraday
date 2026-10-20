@@ -322,6 +322,259 @@ impl Faraday {
         self.act_inner(crate::Action::Nav(s));
     }
 
+    /// The flow on screen when it offers **Cancel**: one that can be in
+    /// progress, unless a backup flow whose key is made is on screen or
+    /// is the flow. Such a flow ends only by finishing, so its writes'
+    /// hold (F6, F31) is never let go by a Cancel. Only lookups.
+    pub(crate) fn cancel_offered(&self) -> Option<Going> {
+        let g = self.flow_on_screen()?;
+        let made = |i: usize| self.backup_flows.get(i).is_some_and(|f| f.made);
+        let shown = self.screen == Screen::BackupFlow
+            || (self.screen == Screen::CreateVault
+                && self.vaults.back_to == Some(Screen::BackupFlow));
+        if shown && self.flow_on.is_some_and(made) {
+            return None;
+        }
+        if let Going::Flow(i) = g
+            && made(i)
+        {
+            return None;
+        }
+        Some(g)
+    }
+
+    /// **Cancel** at the top of the flow on screen (F51): asks first when
+    /// ending it loses something the person would notice, else ends it.
+    /// Decides from the state as it is.
+    pub(crate) fn flow_cancel(&mut self) {
+        let Some(g) = self.cancel_offered() else {
+            return;
+        };
+        if self.cancel_loses(g).is_some() {
+            self.sheet = Some(crate::Sheet::CancelFlow(g));
+        } else {
+            self.flow_end(g);
+        }
+    }
+
+    /// **Cancel the flow** on the sheet: the flow it names ends.
+    pub(crate) fn flow_cancel_now(&mut self) {
+        if let Some(crate::Sheet::CancelFlow(g)) = self.sheet {
+            self.sheet = None;
+            self.flow_end(g);
+        }
+    }
+
+    /// The Cancel sheet's title over flow `g`.
+    pub(crate) fn cancel_title(&self, g: Going) -> &'static str {
+        match g {
+            Going::Create => EN.flow_cancel_create,
+            Going::Restore => EN.flow_cancel_restore,
+            Going::Backup => EN.flow_cancel_backup,
+            Going::Spend => EN.flow_cancel_spend,
+            Going::Message => EN.flow_cancel_message,
+            Going::Vault => EN.flow_cancel_vault,
+            Going::Flow(i) => match self.backup_flows.get(i).map(|f| f.kind) {
+                Some(Kind::SecureBoot) => EN.flow_cancel_keys,
+                Some(Kind::Apk | Kind::Gpg) => EN.flow_cancel_key,
+                _ => EN.flow_cancel_backup,
+            },
+        }
+    }
+
+    /// What ending flow `g` loses that the person would notice, as the
+    /// line the Cancel sheet says it in: `None` when nothing past its
+    /// first card is done. Keys, vaults and the Outbox are never lost by
+    /// it.
+    pub(crate) fn cancel_loses(&self, g: Going) -> Option<&'static str> {
+        // A card done other than the first, by the cards in order.
+        let past_first =
+            |cards: &[u8], done: &dyn Fn(u8) -> bool| cards.iter().skip(1).any(|&k| done(k));
+        match g {
+            Going::Create => {
+                let c = self.create.as_ref()?;
+                if self.backup_going() == Some(Going::Create) && self.backup_begun() {
+                    return Some(EN.flow_lost_plan);
+                }
+                if self.wallet_flow_of_owner(c.owner).is_some() {
+                    return Some(EN.flow_lost_setup);
+                }
+                let cards = self.create_cards();
+                (c.built.is_some() || past_first(&cards, &|k| c.done[k as usize]))
+                    .then_some(EN.flow_lost_answers)
+            }
+            Going::Restore => {
+                let r = self.restore.as_ref()?;
+                if self.wallet_flow_of_owner(r.owner).is_some() {
+                    return Some(EN.flow_lost_setup);
+                }
+                past_first(&r.steps(), &|k| r.done[k as usize]).then_some(EN.flow_lost_answers)
+            }
+            Going::Backup => self.backup_begun().then_some(EN.flow_lost_plan),
+            Going::Spend => self
+                .spend
+                .as_ref()
+                .is_some_and(|s| s.done.iter().any(|d| *d))
+                .then_some(EN.flow_lost_spend),
+            Going::Message => {
+                let m = self.message.as_ref()?;
+                m.done[1..]
+                    .iter()
+                    .any(|d| *d)
+                    .then_some(EN.flow_lost_answers)
+            }
+            Going::Vault => {
+                let c = self.vaults.create.as_ref()?;
+                let preset = crate::vaults::vstep::PRESET;
+                c.steps()
+                    .iter()
+                    .skip(1)
+                    .any(|&k| k != preset && c.done[k as usize])
+                    .then_some(EN.flow_lost_answers)
+            }
+            Going::Flow(i) => {
+                let f = self.backup_flows.get(i)?;
+                (f.step > Step::Where).then_some(EN.flow_lost_plan)
+            }
+        }
+    }
+
+    /// Ends flow `g` for good: its own state as if never begun (its
+    /// answers, its plan, its board), and the screen it was opened from
+    /// shown. The keys made or loaded, the wallet made, the vaults and
+    /// the Outbox stay. A backup flow it holds goes with it unless that
+    /// flow's key is made: its writes still wait, under a row of its own.
+    pub(crate) fn flow_end(&mut self, g: Going) {
+        use crate::Action;
+        let to = match g {
+            Going::Create => {
+                let Some(c) = self.create.as_ref() else {
+                    return;
+                };
+                let (owner, home) = (c.owner, c.from_home);
+                // Its Back up goes with it; the wallet made stays.
+                let backup = (self.backup_going() == Some(Going::Create))
+                    .then(|| self.wallet_flow_of_backup())
+                    .flatten();
+                if self.backup_going() == Some(Going::Create) {
+                    self.backup = None;
+                }
+                self.create = None;
+                let setup = self.wallet_flow_of_owner(owner);
+                // The later index first, so the earlier stays where it is.
+                let mut drop: Vec<usize> = setup.into_iter().chain(backup).collect();
+                drop.sort_unstable();
+                drop.dedup();
+                for i in drop.into_iter().rev() {
+                    self.flow_drop_unmade(Some(i));
+                }
+                if home {
+                    Action::Nav(Screen::Home)
+                } else {
+                    Action::Nav(Screen::Start)
+                }
+            }
+            Going::Restore => {
+                let Some(r) = self.restore.take() else {
+                    return;
+                };
+                self.flow_drop_unmade(self.wallet_flow_of_owner(r.owner));
+                if r.from_home {
+                    Action::Nav(Screen::Home)
+                } else {
+                    Action::Nav(Screen::Start)
+                }
+            }
+            Going::Backup => {
+                let i = self.wallet_flow_of_backup();
+                let Some(b) = self.backup.take() else {
+                    return;
+                };
+                self.flow_drop_unmade(i);
+                if b.from_vault {
+                    Action::Nav(Screen::VaultContents)
+                } else {
+                    Action::OpenWallet(b.wallet)
+                }
+            }
+            Going::Spend => {
+                let to = match self.family_wallet().filter(|_| self.family.from_card) {
+                    Some(w) => Action::OpenWallet(w),
+                    None if self.family.from == Some(Screen::Home) => Action::Nav(Screen::Home),
+                    None => Action::Nav(Screen::Start),
+                };
+                self.spend = None;
+                self.family_act(crate::family::FamilyAction::StartOver);
+                to
+            }
+            Going::Message => {
+                self.message = None;
+                Action::Nav(Screen::Start)
+            }
+            Going::Vault => {
+                let home = self.vaults.from_home;
+                self.vaults.create = None;
+                self.vaults.focus = None;
+                if home {
+                    Action::Nav(Screen::Home)
+                } else {
+                    Action::Nav(Screen::Vaults)
+                }
+            }
+            Going::Flow(i) => {
+                let Some(f) = self.backup_flows.get(i) else {
+                    return;
+                };
+                let tab = if f.kind.is_wallet() {
+                    Screen::Start
+                } else {
+                    Screen::Catalog
+                };
+                self.flow_drop(i);
+                Action::Nav(tab)
+            }
+        };
+        self.act_inner(to);
+    }
+
+    /// [`Self::flow_drop`] of backup flow `i`, unless its key is made.
+    fn flow_drop_unmade(&mut self, i: Option<usize>) {
+        if let Some(i) = i
+            && self.backup_flows.get(i).is_some_and(|f| !f.made)
+        {
+            self.flow_drop(i);
+        }
+    }
+
+    /// Takes backup flow `i` out of the list, and with it the vault form
+    /// it had open; what points into the list past it follows.
+    fn flow_drop(&mut self, i: usize) {
+        if i >= self.backup_flows.len() {
+            return;
+        }
+        self.backup_flows.remove(i);
+        match self.flow_on {
+            Some(k) if k == i => {
+                self.flow_on = None;
+                if self.vaults.back_to == Some(Screen::BackupFlow) {
+                    self.vaults.back_to = None;
+                    self.vaults.create = None;
+                    self.vaults.focus = None;
+                }
+            }
+            Some(k) if k > i => self.flow_on = Some(k - 1),
+            _ => {}
+        }
+        self.flows_begun.retain(|(g, _)| *g != Going::Flow(i));
+        for (g, _) in &mut self.flows_begun {
+            if let Going::Flow(k) = g
+                && *k > i
+            {
+                *k -= 1;
+            }
+        }
+    }
+
     /// Flow `g`'s row: its tab, its name and its open step.
     fn flow_row(&self, g: Going) -> Option<Row> {
         let wallets = Screen::Start;
@@ -448,4 +701,51 @@ impl Faraday {
             }),
         }
     }
+}
+
+/// The Cancel sheet over flow `g` (F51): its question, the one line of
+/// what is lost, then **Cancel the flow** and **Keep going**. Reads only.
+pub(crate) fn cancel_sheet(app: &Faraday, ui: &mut crate::ui::Ui, g: Going, w: f32, h: f32) {
+    use crate::Action;
+    use crate::compact::{buttons, scroll_sheet};
+    use crate::ui::pal::*;
+    use crate::ui::{Style, W};
+    use osk_ui::widgets::Icon;
+    let title = app.cancel_title(g);
+    let line = app.cancel_loses(g).unwrap_or_default();
+    let place = if ui.compact {
+        (8.0, w - 16.0)
+    } else {
+        let sw = (w - 48.0).min(520.0);
+        ((w - sw) / 2.0, sw)
+    };
+    let margin = if ui.compact { 8.0 } else { 32.0 };
+    let pad = if ui.compact { 16.0 } else { 32.0 };
+    scroll_sheet(ui, place, h, margin, pad, &mut |ui, x, y, iw| {
+        let mut cy = y;
+        if ui.compact {
+            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Warning, WARN, title);
+        } else {
+            ui.icon(x, cy, 30.0, Icon::Warning, 18.0, WARN);
+            let t = ui.fit(20.0, W::S, title, iw - 42.0);
+            ui.text_mid(x + 42.0, cy, 30.0, 20.0, W::S, TEXT, &t);
+            cy += 46.0;
+        }
+        cy += ui.wrap(x, cy, iw, 14.0, W::R, TEXT, line) + 18.0;
+        cy += buttons(
+            ui,
+            x,
+            cy,
+            iw,
+            &[
+                (EN.flow_keep_going, Style::Secondary, Action::Cancel),
+                (
+                    EN.flow_cancel_the_flow,
+                    Style::Primary,
+                    Action::CancelFlowNow,
+                ),
+            ],
+        );
+        cy - y
+    });
 }

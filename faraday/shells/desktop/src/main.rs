@@ -853,7 +853,11 @@ mod tests {
         std::fs::write(boot.join("savings.json"), "{}").unwrap();
         prepare(&dir).unwrap();
         assert_eq!(std::fs::read_dir(&boot).unwrap().count(), 0);
-        assert!(dir.join(format!("{BOOT}-old-1")).join("savings.json").exists());
+        assert!(
+            dir.join(format!("{BOOT}-old-1"))
+                .join("savings.json")
+                .exists()
+        );
         // A person's own file stays, and nothing is added beside it.
         std::fs::write(boot.join("spend.psbt"), "psbt").unwrap();
         prepare(&dir).unwrap();

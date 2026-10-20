@@ -89,6 +89,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         note: from.is_none().then_some(EN.family_this_page_takes),
         chip: None,
         chip_tap: None,
+        cancel: app.cancel_offered().is_some(),
     };
     let scroll = app.family.scroll;
     let (next, again) = {

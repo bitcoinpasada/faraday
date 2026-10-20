@@ -145,28 +145,42 @@ fn tools(app: &Faraday, ui: &mut Ui, w: f32) -> f32 {
         let kx = right - 34.0;
         let ky = (BAR_H - 34.0) / 2.0;
         right = kx - 6.0;
-        if !draw {
-            return right;
-        }
-        if shown || ui.is_pressed(action) {
-            ui.fill(
+        if draw {
+            if shown || ui.is_pressed(action) {
+                ui.fill(
+                    kx,
+                    ky,
+                    34.0,
+                    34.0,
+                    8.0,
+                    if shown { ACCENT.with_alpha(40) } else { INNER },
+                );
+            }
+            ui.icon(
                 kx,
                 ky,
                 34.0,
-                34.0,
-                8.0,
-                if shown { ACCENT.with_alpha(40) } else { INNER },
+                Icon::Keyboard,
+                14.0,
+                if shown { ACCENT } else { MUTED },
             );
+            ui.hit(kx - 4.0, 0.0, 42.0, BAR_H, action);
         }
-        ui.icon(
-            kx,
-            ky,
-            34.0,
-            Icon::Keyboard,
-            14.0,
-            if shown { ACCENT } else { MUTED },
-        );
-        ui.hit(kx - 4.0, 0.0, 42.0, BAR_H, action);
+    }
+    // Cancel, on a flow that can be in progress: it leaves the flow
+    // (`docs/FLOWS.md`, Cancel; F51).
+    if app.cancel_offered().is_some() {
+        let a = Action::CancelFlow;
+        let cw = ui.measure(13.0, W::S, EN.flow_cancel) + 20.0;
+        let cx = right - cw;
+        if draw {
+            if ui.is_pressed(a) {
+                ui.fill(cx, 8.0, cw, BAR_H - 16.0, 8.0, INNER);
+            }
+            ui.text_mid(cx + 10.0, 0.0, BAR_H, 13.0, W::S, MUTED, EN.flow_cancel);
+            ui.hit(cx, 0.0, cw, BAR_H, a);
+        }
+        right = cx - 2.0;
     }
     right
 }

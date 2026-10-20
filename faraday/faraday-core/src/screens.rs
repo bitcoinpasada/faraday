@@ -165,6 +165,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::Taken => crate::visit_taken::taken_sheet(app, ui, w, h),
             Sheet::Devices => devices_sheet(app, ui, w, h),
             Sheet::VaultSave => crate::vault_screens::stick_save_sheet(app, ui, w, h),
+            Sheet::CancelFlow(g) => crate::in_progress::cancel_sheet(app, ui, g, w, h),
         }
         ui.oy = 0.0;
     }
@@ -3727,6 +3728,7 @@ fn spend(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         note: None,
         chip: None,
         chip_tap: None,
+        cancel: app.cancel_offered().is_some(),
     };
     let (next, again) = {
         let app_ref: &Faraday = app;
@@ -5566,6 +5568,7 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             many.then_some(wallet.name.as_str())
         },
         chip_tap: (many && !b.from_create).then_some(Action::BWallets),
+        cancel: app.cancel_offered().is_some(),
     };
     let scroll = b.scroll;
     ui.chip_at = None;
@@ -7128,6 +7131,7 @@ fn message_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         note: None,
         chip: None,
         chip_tap: None,
+        cancel: app.cancel_offered().is_some(),
     };
     let scroll = m.scroll;
     let (next, again) = {
@@ -7665,6 +7669,7 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         note: None,
         chip: None,
         chip_tap: None,
+        cancel: app.cancel_offered().is_some(),
     };
     let scroll = c.scroll;
     let (next, again) = {
@@ -9063,6 +9068,7 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         note: None,
         chip: None,
         chip_tap: None,
+        cancel: app.cancel_offered().is_some(),
     };
     let scroll = r.scroll;
     let (next, again) = {

@@ -2114,6 +2114,36 @@ pub struct Strings {
     pub flow_about_this_step: &'static str,
     /// Text in `paged`.
     pub flow_home: &'static str,
+    /// Button in `column_foot` and `paged`: leaves the flow for good (F51).
+    pub flow_cancel: &'static str,
+    /// Button on the Cancel sheet (`in_progress::cancel_sheet`).
+    pub flow_cancel_the_flow: &'static str,
+    /// Button on the Cancel sheet (`in_progress::cancel_sheet`).
+    pub flow_keep_going: &'static str,
+    /// Title of the Cancel sheet over Make a new wallet.
+    pub flow_cancel_create: &'static str,
+    /// Title of the Cancel sheet over Restore a wallet.
+    pub flow_cancel_restore: &'static str,
+    /// Title of the Cancel sheet over a wallet's backup.
+    pub flow_cancel_backup: &'static str,
+    /// Title of the Cancel sheet over a spend.
+    pub flow_cancel_spend: &'static str,
+    /// Title of the Cancel sheet over Sign a message.
+    pub flow_cancel_message: &'static str,
+    /// Title of the Cancel sheet over Create a vault.
+    pub flow_cancel_vault: &'static str,
+    /// Title of the Cancel sheet over an APK or GPG key's flow.
+    pub flow_cancel_key: &'static str,
+    /// Title of the Cancel sheet over the Secure Boot keys' flow.
+    pub flow_cancel_keys: &'static str,
+    /// Line on the Cancel sheet: what it loses.
+    pub flow_lost_plan: &'static str,
+    /// Line on the Cancel sheet: what it loses.
+    pub flow_lost_answers: &'static str,
+    /// Line on the Cancel sheet: what it loses.
+    pub flow_lost_setup: &'static str,
+    /// Line on the Cancel sheet: what it loses.
+    pub flow_lost_spend: &'static str,
     // ----- forms (faraday-core/src/forms.rs) -----
     /// Text in `name`.
     pub forms_bip_39_words: &'static str,
@@ -9600,6 +9630,21 @@ pub static EN: Strings = Strings {
     flow_step_of: "Step {} of {}",
     flow_about_this_step: "About this step",
     flow_home: "Home",
+    flow_cancel: "Cancel",
+    flow_cancel_the_flow: "Cancel the flow",
+    flow_keep_going: "Keep going",
+    flow_cancel_create: "Cancel making this wallet?",
+    flow_cancel_restore: "Cancel restoring this wallet?",
+    flow_cancel_backup: "Cancel this backup?",
+    flow_cancel_spend: "Cancel this spend?",
+    flow_cancel_message: "Cancel signing this message?",
+    flow_cancel_vault: "Cancel making this vault?",
+    flow_cancel_key: "Cancel making this key?",
+    flow_cancel_keys: "Cancel making these keys?",
+    flow_lost_plan: "The plan and its places are lost.",
+    flow_lost_answers: "Its answers are lost.",
+    flow_lost_setup: "Its answers and the setup of its vaults are lost.",
+    flow_lost_spend: "Its steps and any signatures made are lost.",
     forms_bip_39_words: "BIP-39 words",
     forms_slip_39_shares: "SLIP-39 shares",
     forms_codex32: "codex32",

@@ -723,6 +723,7 @@ fn run(
         Some("addkey") => return add_key_tour(&mut t),
         Some("createfrom") => return create_from_tour(&mut t),
         Some("inprogress") => return in_progress_tour(&mut t),
+        Some("cancel") => return cancel_tour(&mut t),
         Some("l6") => return plan_first_tour(&mut t),
         Some("l3") => return layer_view_tour(&mut t),
         Some("l4") => return instructions_tour(&mut t),
@@ -5587,6 +5588,42 @@ fn in_progress_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("inprogress-home")
 }
 
+/// Cancel at the top of a flow (`docs/FLOWS.md`, Flows in progress,
+/// Cancel; F51): Make a new wallet past Kind with Cancel beside the
+/// switch, the sheet it brings up, and the sheet over its backup's Places.
+fn cancel_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::cstep;
+    for n in 0..3 {
+        t.press(Action::Entry(None));
+        type_text(t, &testkit::test_words(testkit::TEST_SEEDS[n].0));
+        t.press(Action::EntryAdd);
+    }
+    let multi = faraday_core::create::NewKind::ALL
+        .iter()
+        .position(|k| *k == faraday_core::create::NewKind::Multi)
+        .ok_or("no multisig")? as u8;
+    t.press(Action::Nav(Screen::Start));
+    t.create_knowing();
+    t.press(Action::CKind(multi));
+    t.press(Action::CNext(cstep::KIND));
+    t.shot("cancel-1-create")?;
+    t.press(Action::CancelFlow);
+    t.shot("cancel-2-sheet")?;
+    t.press(Action::Cancel);
+    for slot in 0..3u8 {
+        let fp = t.app.session.keys[usize::from(slot)].fingerprint().0;
+        t.press(Action::CSlotHere(slot, fp));
+    }
+    t.press(Action::CNext(cstep::KEYS));
+    t.press(Action::CNext(cstep::CHECK));
+    t.press(Action::CBackup(0));
+    t.shot("cancel-3-places")?;
+    t.press(Action::CancelFlow);
+    t.shot("cancel-4-places-sheet")?;
+    t.press(Action::CancelFlowNow);
+    t.shot("cancel-5-wallets")
+}
+
 fn flow_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::backup_flow::Kind;
     use faraday_core::backup_flow_steps::FlowAction as F;
@@ -5886,7 +5923,7 @@ fn main() -> ExitCode {
     };
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|walletflow|demo|vaultshow|addkey]"
+            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|walletflow|demo|vaultshow|addkey|cancel]"
         );
         return ExitCode::from(2);
     }
@@ -5953,6 +5990,7 @@ fn main() -> ExitCode {
             "addkey",
             "createfrom",
             "inprogress",
+            "cancel",
             "l6",
             "l3",
             "l4",
@@ -5960,7 +5998,7 @@ fn main() -> ExitCode {
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, layers, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey, createfrom, inprogress, l6, l3 or l4"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, layers, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey, createfrom, inprogress, cancel, l6, l3 or l4"
         );
         return ExitCode::from(2);
     }

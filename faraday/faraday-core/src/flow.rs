@@ -85,6 +85,10 @@ pub struct Column<'a> {
     /// What a press on the chip does; where it was drawn is left in
     /// [`Ui::chip_at`].
     pub chip_tap: Option<Action>,
+    /// **Cancel** at the top, beside the switch: the flow can be in
+    /// progress, and Cancel leaves it (F51). On a small panel it is in
+    /// the bar's tools, from the same state.
+    pub cancel: bool,
 }
 
 /// Draws the cards. `body` draws the open card's controls at (x, y) in a
@@ -138,8 +142,21 @@ pub fn column_foot(
             ui.chip_at = Some((cx, y + 30.0, cw));
         }
     }
-    // Steps only or Guided, beside the title; laid out from the right.
+    // Cancel at the right end, then Steps only or Guided beside it;
+    // laid out from the right.
     let mut bx = x + w;
+    if col.cancel {
+        let bw = ui.measure(12.0, W::S, EN.flow_cancel) + 24.0;
+        bx -= bw;
+        let a = Action::CancelFlow;
+        if ui.is_pressed(a) {
+            ui.fill(bx, y + 2.0, bw, 30.0, 8.0, INNER);
+        }
+        ui.stroke(bx, y + 2.0, bw, 30.0, 8.0, BORDER);
+        ui.text_mid(bx + 12.0, y + 2.0, 30.0, 12.0, W::S, MUTED, EN.flow_cancel);
+        ui.hit(bx, y + 2.0, bw, 30.0, a);
+        bx -= 12.0;
+    }
     let switch: &[(&str, bool, bool)] = if col.switch {
         &[
             (EN.flow_guided, col.guided, true),
@@ -496,6 +513,8 @@ fn paged(
     ui.icon(4.0, 4.0, BAR_H - 8.0, Icon::ChevronLeft, 13.0, TEXT);
     ui.hit(0.0, 0.0, BAR_H + 8.0, BAR_H, back.1);
     ui.back(back.1);
+    // The ?, the keyboard and Cancel go over its right end
+    // (`compact::flow_bar_tools`).
     let room = w - BAR_H - M;
     let label = ui.fit(11.0, W::R, back.0, room);
     ui.text(BAR_H, 5.0, 11.0, W::R, MUTED, &label);

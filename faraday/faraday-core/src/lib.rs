@@ -746,6 +746,12 @@ pub enum Action {
     /// sidebar, its tile on the small Home (`docs/FLOWS.md`, Flows in
     /// progress).
     Resume(in_progress::Going),
+    /// **Cancel** at the top of a flow that can be in progress: it ends
+    /// at once, or asks first when something would be lost
+    /// (`docs/FLOWS.md`, Flows in progress, Cancel; F51).
+    CancelFlow,
+    /// **Cancel the flow** on the sheet Cancel brought up.
+    CancelFlowNow,
     /// Open Backups on loaded wallet `i`.
     BackupsOf(usize),
     /// Open Back up a wallet on loaded wallet `i` at its checklist, from
@@ -1707,6 +1713,9 @@ pub enum Sheet {
     /// A vault record's Save to a stick: its files, to tick, and Save
     /// (`docs/BACKUP-FLOW.md` §19.7).
     VaultSave,
+    /// Cancel pressed in a flow whose ending loses something: what is
+    /// lost, **Cancel the flow** and **Keep going** (F51).
+    CancelFlow(in_progress::Going),
 }
 
 /// What a scan pass saw of a code ([`StorageEvent::QrSeen`]).
@@ -5206,6 +5215,8 @@ impl Faraday {
             | Action::KeyGenSlip39 => self.keygen_act(action),
             Action::Nav(Screen::Transfer) => self.transfer_open(),
             Action::Resume(g) => self.flow_resume(g),
+            Action::CancelFlow => self.flow_cancel(),
+            Action::CancelFlowNow => self.flow_cancel_now(),
             Action::TransferSend(i) => self.transfer_pick(i),
             Action::TransferReceive => self.transfer_receive(),
             Action::TransferOpenFolder => self.transfer_open_folder(),
