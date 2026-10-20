@@ -1,6 +1,6 @@
 [package]
 name = "faraday-payload"
-version = "0.1.4"
+version = "0.1.5"
 description = "The Starter's payload: MANIFEST's parser and the verifying, streaming xz decoder that writes a payload file or a developer's own image (docs/STARTER.md §1.3)"
 edition.workspace = true
 license.workspace = true

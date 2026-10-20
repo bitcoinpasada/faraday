@@ -1,6 +1,6 @@
 [package]
 name = "faraday-scanner"
-version = "0.1.4"
+version = "0.1.5"
 description = "Faraday's copy of opensigner-scanner: reads QR codes on a worker thread, and says what each pass saw"
 edition.workspace = true
 license.workspace = true

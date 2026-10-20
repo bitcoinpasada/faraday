@@ -1,6 +1,6 @@
 [package]
 name = "faraday-learn"
-version = "0.1.4"
+version = "0.1.5"
 description = "Faraday's own Learn pages and the website's guides: read from docs/learn/faraday when built, by id"
 edition.workspace = true
 license.workspace = true

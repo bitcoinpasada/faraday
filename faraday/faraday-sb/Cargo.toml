@@ -1,6 +1,6 @@
 [package]
 name = "faraday-sb"
-version = "0.1.4"
+version = "0.1.5"
 description = "Secure Boot keys Faraday makes: PK, KEK and db certificates, signature lists, signed .auth updates, Authenticode (PLAN.md §8)"
 edition.workspace = true
 license.workspace = true
