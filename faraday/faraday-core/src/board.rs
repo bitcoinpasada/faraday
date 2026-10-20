@@ -126,6 +126,11 @@ pub enum BoardPress {
     /// **Customize backup**: the board, read-only until now, opened for
     /// changes, and the list shown (`docs/BACKUP-FLOW.md` §19.6).
     Customize,
+    /// **Add watch-only software** on the read-only board: the software
+    /// place, with the description Scanned in; **Take off watch-only
+    /// software** while it is there. The board stays read-only
+    /// (`docs/BACKUP-FLOW.md` §19.21 item 3).
+    Software,
     /// **Keep it**, on the sheet over a drop that let a place see the
     /// balance (§19.5): the drop stands.
     SeesKeep,
@@ -326,7 +331,7 @@ pub fn forms_of(z: Zone, t: Thing) -> Vec<What> {
 /// What a held `w` is on the board: the chip it is drawn as. A seed kept
 /// in a vault with its passphrase is two chips there, the seed's and the
 /// passphrase's.
-fn things_of(w: What) -> Vec<Thing> {
+pub(crate) fn things_of(w: What) -> Vec<Thing> {
     match w {
         What::Words(i)
         | What::SeedQr(i)
@@ -619,8 +624,12 @@ pub(crate) struct StickView {
     pub remove: BoardPress,
     /// The vault on it: its chip, and the vault's own zone.
     pub vault: Option<(ChipView, ZoneView)>,
-    /// The vault's header band, "Vault 1 · sealed"; empty with no vault.
+    /// The vault's header band, "Vault 1 · sealed", or "Vault 1 · sealed ·
+    /// made in the checklist" while it is not made yet; empty with no
+    /// vault.
     pub sealed: String,
+    /// The band where `sealed` does not fit: the same, or "Vault 1 · new".
+    pub sealed_short: String,
     /// Its files.
     pub files: ZoneView,
 }
@@ -903,6 +912,18 @@ impl Faraday {
         }
     }
 
+    /// Whether plan vault `v` of the board on screen is made: on Back up,
+    /// a vault set up for it or the open vault the plan saves into
+    /// ([`Faraday::backup_vault_target`]); in a wallet flow's own plan, one
+    /// of the vaults set up before the keys (`docs/BACKUP-FLOW.md` §19.21
+    /// item 6).
+    fn board_vault_made(&self, shape: &Shape, v: usize) -> bool {
+        match self.board_of() {
+            Some(BoardOf::Flow(_)) => v < shape.vaults,
+            _ => self.backup_vault_target(v).is_some(),
+        }
+    }
+
     /// "Stick {}", or "SD card {}" where the medium is an SD card
     /// (§19.17 item 4).
     fn board_stick_word(&self) -> &'static str {
@@ -1178,14 +1199,25 @@ impl Faraday {
                             inside.chips.extend(self.board_before(&shape, &a, v));
                             (head, inside)
                         });
-                        let sealed = vault.as_ref().map_or_else(String::new, |(head, _)| {
-                            fill(EN.board_sealed, &[&head.name])
-                        });
+                        // A vault not made yet is made in the checklist
+                        // (`docs/BACKUP-FLOW.md` §19.21 item 6).
+                        let (sealed, sealed_short) = match (&vault, plan::stick_vault(&m, p, s)) {
+                            (Some((head, _)), Some(v)) if !self.board_vault_made(&shape, v) => (
+                                fill(EN.board_sealed_made, &[&head.name]),
+                                fill(EN.board_sealed_new, &[&head.name]),
+                            ),
+                            (Some((head, _)), _) => {
+                                let band = fill(EN.board_sealed, &[&head.name]);
+                                (band.clone(), band)
+                            }
+                            _ => (String::new(), String::new()),
+                        };
                         StickView {
                             label: fill(stick_word, &[&(s + 1).to_string()]),
                             remove: BoardPress::RemoveStick(p, s),
                             vault,
                             sealed,
+                            sealed_short,
                             files: zone(Zone::Files(p, s), At::Stick(p, s), Some(p), true),
                         }
                     })
@@ -1200,6 +1232,7 @@ impl Faraday {
                         remove: BoardPress::RemoveEmpty(p),
                         vault: None,
                         sealed: String::new(),
+                        sealed_short: String::new(),
                         files: ZoneView {
                             zone: Zone::Empty(p, k),
                             chips: Vec::new(),
@@ -1561,6 +1594,7 @@ impl Faraday {
             && !matches!(
                 press,
                 BoardPress::Customize
+                    | BoardPress::Software
                     | BoardPress::LetGo
                     | BoardPress::SeesKeep
                     | BoardPress::SeesUndo
@@ -1653,6 +1687,13 @@ impl Faraday {
             BoardPress::Customize => {
                 set(self, None);
                 self.board_change(&|a, _| a.custom = true);
+            }
+            BoardPress::Software => {
+                set(self, None);
+                if locked {
+                    return self.toast(EN.backup_flow_files_after_lock);
+                }
+                self.board_change(&|a, shape| a.toggle_software(shape));
             }
             BoardPress::SeesKeep => {
                 if let Some(st) = self.board_state_mut() {

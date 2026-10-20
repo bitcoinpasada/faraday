@@ -64,7 +64,7 @@ fn backing_up(words: &str, camera: bool) -> Faraday {
     app.press(Action::Seeds(S::Make));
     assert_eq!(app.session.wallets.len(), 1);
     app.press(Action::Backup(0));
-    app.press(Action::BPreset(1));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     app.press(Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));

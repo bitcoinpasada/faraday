@@ -962,9 +962,7 @@ pub fn preset_two_places(app: &mut Faraday, k: u8) {
     a.custom = true;
     let b = app.backup.as_mut().expect("Back up");
     b.answers = a;
-    if b.q == Some(faraday_core::qstep::PRESET) {
-        b.q = Some(faraday_core::qstep::BOARD);
-    }
+    b.q = Some(faraday_core::qstep::BOARD);
 }
 
 /// Vault `v`'s stick kept at place `p` too, dropped on its card where

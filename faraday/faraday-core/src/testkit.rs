@@ -1148,3 +1148,148 @@ pub fn started() -> crate::Faraday {
     }));
     app
 }
+
+/// The board on screen (Back up's plan, or a wallet flow's own) made into
+/// the plan `preset` builds, by the presses a person makes now that the
+/// presets are not offered (`docs/BACKUP-FLOW.md` §19.21 item 9, F53):
+/// **Add watch-only software**, **Customize backup**, a SeedQR's toggle
+/// on paper, **+ new vault** for each vault not set up before the keys,
+/// and the ⋮ menu's **Add to…** for each vault's stick and for what each
+/// vault holds. Works out the plan's map after each press. Panics where a
+/// press is not offered, or where the plan reached is not the preset's.
+pub fn backup_as(app: &mut crate::Faraday, preset: crate::plan::Preset) {
+    use crate::board::{BoardPress as P, Chip, MenuRow, Thing, Zone, things_of};
+    use crate::plan::{self, Answers, At, Spot, What};
+    use crate::{Action, Sheet};
+    let press = |app: &mut crate::Faraday, p: P| {
+        app.press(Action::Board(p));
+        // A drop that lets a place see the balance asks (§19.5): kept.
+        if app.sheet == Some(Sheet::BoardSees) {
+            app.press(Action::Board(P::SeesKeep));
+        }
+    };
+    let now = |app: &crate::Faraday| -> Vec<Spot> {
+        let (shape, a) = app.board_plan().expect("a board");
+        plan::map(&shape, &a)
+    };
+    let held = |m: &[Spot], at: At| plan::holds_at(m, at);
+    let press_q = |app: &mut crate::Faraday| app.press(Action::BQ(crate::qstep::BOARD));
+    // The ⋮ menu of `t` in the list, and the first box it offers that
+    // `pick` takes.
+    let add_to = |app: &mut crate::Faraday, t: Thing, pick: &dyn Fn(Zone) -> bool| {
+        press(app, P::Menu(Chip::List(t)));
+        let to = app
+            .board_state()
+            .and_then(|st| st.menu.as_ref())
+            .and_then(|m| {
+                m.rows.iter().find_map(|r| match r {
+                    MenuRow::Item(_, P::MenuTo(z)) if pick(*z) => Some(*z),
+                    _ => None,
+                })
+            });
+        let Some(to) = to else {
+            panic!(
+                "Add to… of {t:?} offers no such box: {:?}",
+                app.board_state()
+                    .and_then(|st| st.menu.as_ref())
+                    .map(|m| &m.rows)
+            );
+        };
+        press(app, P::MenuTo(to));
+    };
+    // Back up's board card opened, where another card is.
+    if !app.board_shown() && app.board_of() == Some(crate::board::BoardOf::Backup) {
+        press_q(app);
+    }
+    let (shape, _) = app.board_plan().expect("a board");
+    let want = plan::map(&shape, &Answers::preset(&shape, preset));
+    // The plan reached is the preset's.
+    let norm = |m: &[Spot]| -> Vec<String> {
+        let mut out: Vec<String> = m
+            .iter()
+            .filter(|s| !s.holds.is_empty())
+            .map(|s| {
+                let mut h: Vec<String> = s.holds.iter().map(|x| format!("{x:?}")).collect();
+                h.sort();
+                format!("{:?} {}", s.at, h.join(" "))
+            })
+            .collect();
+        out.sort();
+        out
+    };
+    // Nothing to press where the board shows it already.
+    if norm(&now(app)) == norm(&want) {
+        return;
+    }
+    // The software place, on the read-only board's own button.
+    if want.iter().any(|s| s.at == At::Software) && !now(app).iter().any(|s| s.at == At::Software) {
+        if app.board_plan().is_some_and(|(_, a)| a.custom) {
+            add_to(app, Thing::Software, &|z| z == Zone::Scanned);
+        } else {
+            press(app, P::Software);
+        }
+    }
+    if app.board_plan().is_some_and(|(_, a)| !a.custom) {
+        press(app, P::Customize);
+    }
+    // The SeedQR off the paper where the preset keeps the words alone.
+    let m = now(app);
+    for p in 0..plan::places_of(&m) {
+        for w in held(&m, At::Place(p)) {
+            if let What::SeedQr(i) = w
+                && !held(&want, At::Place(p)).contains(&w)
+            {
+                press(app, P::Form(Zone::Paper(p), Thing::Seed(i), 1));
+            }
+        }
+    }
+    // Each vault: made, its stick where the preset puts it, and what it
+    // holds.
+    let vaults: Vec<usize> = want
+        .iter()
+        .filter_map(|s| match s.at {
+            At::Vault(v) => Some(v),
+            _ => None,
+        })
+        .collect();
+    for &v in &vaults {
+        for _ in 0..=v {
+            if v < shape.vaults || now(app).iter().any(|s| s.at == At::Vault(v)) {
+                break;
+            }
+            press(app, P::AddVault);
+        }
+        let stick_of = |m: &[Spot], p: usize| {
+            (0..plan::sticks_at(m, p)).find(|&s| plan::stick_vault(m, p, s) == Some(v))
+        };
+        for p in 0..plan::places_of(&want) {
+            if stick_of(&want, p).is_some() && stick_of(&now(app), p).is_none() {
+                add_to(
+                    app,
+                    Thing::Vault(v),
+                    &|z| matches!(z, Zone::Card(q) | Zone::NewStick(q) | Zone::Empty(q, _) if q == p),
+                );
+            }
+        }
+        let m = now(app);
+        let Some((p, s)) = (0..plan::places_of(&m)).find_map(|p| stick_of(&m, p).map(|s| (p, s)))
+        else {
+            continue;
+        };
+        for w in held(&want, At::Vault(v)) {
+            for t in things_of(w) {
+                let there = held(&now(app), At::Vault(v))
+                    .into_iter()
+                    .any(|h| things_of(h).contains(&t));
+                if !there {
+                    add_to(app, t, &|z| z == Zone::Vault(p, s, v));
+                }
+            }
+        }
+    }
+    assert_eq!(
+        norm(&now(app)),
+        norm(&want),
+        "the presses reach the plan {preset:?} builds"
+    );
+}

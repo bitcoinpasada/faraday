@@ -149,7 +149,7 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     let mut app = later(earlier);
     let w = two_of_three_two_here(&mut app);
     app.press(Action::Backup(w));
-    app.press(Action::BPreset(2));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     no_words(&mut app);
     app.press(Action::BChecklist);
     if app.backup_items().contains(&bstep::BLANK) {

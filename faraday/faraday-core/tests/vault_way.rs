@@ -314,7 +314,7 @@ fn on_the_seeds_step(app: &mut Faraday) {
     app.press(Action::Seeds(S::Make));
     let w = app.session.wallets.len() - 1;
     app.press(Action::Backup(w));
-    app.press(Action::BPreset(2));
+    faraday_core::testkit::backup_as(app, faraday_core::plan::Preset::PaperVault);
     app.press(Action::BChecklist);
     app.press(Action::BStep(bstep::COPY));
     app.press(Action::BReveal);

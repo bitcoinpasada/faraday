@@ -3941,14 +3941,6 @@ pub struct Strings {
     /// Line in `blank_sheet`.
     pub pdf_holds: &'static str,
     // ----- plan (faraday-core/src/plan.rs) -----
-    /// Text in `name`: the first preset (`docs/BACKUP-FLOW.md` §19.6).
-    pub plan_the_standard_way: &'static str,
-    /// Text in `name`.
-    pub plan_paper_only: &'static str,
-    /// Text in `name`.
-    pub plan_paper_and_vault: &'static str,
-    /// Text in `name`.
-    pub plan_paper_vault_and: &'static str,
     /// Text in `vault_name`. `{}`: `v + 1`, `names.join(", ")`.
     pub plan_vault_2: &'static str,
     /// Text in `label`. `{}`: `seed(i)`.
@@ -4857,8 +4849,6 @@ pub struct Strings {
     pub spend_panel_of: &'static str,
     // ----- question_title (faraday-core/src/screens.rs) -----
     /// Text in `question_title`.
-    pub question_title_start: &'static str,
-    /// Text in `question_title`.
     pub question_title_software: &'static str,
     // ----- ticked (faraday-core/src/screens.rs) -----
     /// Text in `ticked`.
@@ -4913,9 +4903,6 @@ pub struct Strings {
     /// Text in `item_title`.
     pub item_title_envelopes: &'static str,
     // ----- question_summary (faraday-core/src/screens.rs) -----
-    /// Start from's line while it is closed, for a plan saved before its
-    /// preset was kept.
-    pub question_summary_presets: &'static str,
     /// Text in `question_summary`. `{}`: `c.lost.text()`.
     pub question_summary_any: &'static str,
     // ----- backup (faraday-core/src/screens.rs) -----
@@ -5188,8 +5175,9 @@ pub struct Strings {
     pub create_first_addresses: &'static str,
     /// Text in `create_screen`.
     pub create_not_made_yet: &'static str,
-    /// Text in `create_screen`.
-    pub create_paper_vault: &'static str,
+    /// Create's Back up card's line while it is closed: where Back up
+    /// opens (`docs/BACKUP-FLOW.md` §19.21 item 2).
+    pub create_opens_on_standard: &'static str,
     /// Text in `create_screen`.
     pub create_home: &'static str,
     /// Text in `create_screen`.
@@ -5270,6 +5258,9 @@ pub struct Strings {
     pub create_continue: &'static str,
     /// Text in `create_body`. `{}`: `app.session.wallets[old].name`.
     pub create_move_the_money: &'static str,
+    /// Create's Back up step's one button: Back up on the wallet just made
+    /// (`docs/BACKUP-FLOW.md` §19.21 item 2).
+    pub create_back_up_this: &'static str,
     /// Line in `create_body`.
     pub create_make_the_wallet: &'static str,
     // ----- kind_rows (faraday-core/src/screens.rs) -----
@@ -8222,6 +8213,9 @@ pub struct Strings {
     pub backup_flow_card_use_vaults: &'static str,
     /// The question on that card.
     pub backup_flow_use_vaults_question: &'static str,
+    /// The muted line under that question (`docs/BACKUP-FLOW.md` §19.21
+    /// item 5).
+    pub backup_flow_vaults_on_sticks: &'static str,
     /// The card that asks how many vaults.
     pub backup_flow_card_vault_count: &'static str,
     /// The line over the count of vaults.
@@ -8282,7 +8276,8 @@ pub struct Strings {
     pub board_share: &'static str,
     /// The list's group of vaults.
     pub board_vaults: &'static str,
-    /// The list's chip that adds a vault.
+    /// The list's button that adds a vault, always a new one, made in the
+    /// checklist (`docs/BACKUP-FLOW.md` §19.21 item 4).
     pub board_add_vault: &'static str,
     /// A cosigner's seed in the list: its key is not here.
     pub board_not_here: &'static str,
@@ -8322,6 +8317,12 @@ pub struct Strings {
     pub board_add_place: &'static str,
     /// A vault box's header band. `{}`: the vault, "Vault 1".
     pub board_sealed: &'static str,
+    /// A vault box's header band while the vault is not made yet: it is
+    /// made in the checklist (`docs/BACKUP-FLOW.md` §19.21 item 6). `{}`:
+    /// the vault.
+    pub board_sealed_made: &'static str,
+    /// The same, where that does not fit the band. `{}`: the vault.
+    pub board_sealed_new: &'static str,
     /// The ⋮ menu of a chip in the list, and its title: where it can be
     /// placed (`docs/BACKUP-FLOW.md` §19.20).
     pub board_menu_add: &'static str,
@@ -8341,6 +8342,12 @@ pub struct Strings {
     /// place of Add, while the board is read-only: opens it for changes
     /// (`docs/BACKUP-FLOW.md` §19.6).
     pub board_customize: &'static str,
+    /// The read-only board's button that adds the software place, with the
+    /// description Scanned in (`docs/BACKUP-FLOW.md` §19.21 item 3).
+    pub board_add_watch_only: &'static str,
+    /// The same button while the software place is on the board: takes it
+    /// off.
+    pub board_take_off_watch: &'static str,
     /// The sheet over a drop that lets a place see the balance
     /// (`docs/BACKUP-FLOW.md` §19.5). `{}`: the place.
     pub board_sees_title: &'static str,
@@ -9762,7 +9769,7 @@ pub static EN: Strings = Strings {
     guide_fill_each_slot: "Fill each slot. A key loaded here signs on this device. New key makes a fresh seed here; write its words down in the backup step before any money goes in. A cosigner's slot takes the account xpub their device exports, copied in on {} visit; it never brings a secret. If a cosigner's xpub is not here yet, mark the slot for later and carry on; this wallet waits under Nothing yet on the Wallets page. Each key held here can give its xpub as a file or a QR code, so the cosigners can make the same wallet on their side.",
     guide_choose_the_key: "Choose the key: one loaded here, or a new one made here from fresh randomness. A new key exists only in this session until its words are written down in the backup step.",
     guide_load_the_wallet: "Load the wallet into the software you will receive with, by the QR code or the descriptor file, and compare these addresses. They must match before you send anything to it.",
-    guide_the_plan_says: "The plan says what keeps this wallet: the seeds on paper, a copy in a vault, the wallet in watch-only software. Each choice opens the backup with its checklist. Go through it before any money goes in.",
+    guide_the_plan_says: "The backup opens on the standard way: each seed's words on paper with the wallet description, one place for each key. Go through it before any money goes in.",
     guide_the_kind_of_wallet: "The kind of wallet the backup is. A wallet description, scanned or in Files, says the kind, the quorum and every key, and the seeds are then matched to its keys.",
     guide_how_many_keys: "How many keys the wallet has and how many sign, as written on the backup, often as 2 of 3.",
     guide_the_descriptor: "The descriptor, wallet file, BIP 129 record or split sheets. Without one, the wallet is made from the seeds and the cosigners' xpubs at the kind's standard path.",
@@ -10316,10 +10323,6 @@ pub static EN: Strings = Strings {
     pdf_places: "Places",
     pdf_place: "Place",
     pdf_holds: "holds",
-    plan_the_standard_way: "The standard way",
-    plan_paper_only: "Paper only",
-    plan_paper_and_vault: "Paper and vault",
-    plan_paper_vault_and: "Paper, vault and watch-only software",
     plan_vault_2: "Vault {} · {}",
     plan_seed_words: "Seed {}: words",
     plan_seed_seedqr: "Seed {}: SeedQR",
@@ -10758,7 +10761,6 @@ pub static EN: Strings = Strings {
     spend_panel_txid: "Txid",
     spend_panel_signatures: "Signatures",
     spend_panel_of: "{} of {}",
-    question_title_start: "Start from",
     question_title_software: "Software",
     ticked_none: "None",
     item_title_print_blank: "Print {} blank {}",
@@ -10785,7 +10787,6 @@ pub static EN: Strings = Strings {
     item_title_one_envelope: "One envelope per place",
     item_title_envelope: "envelope",
     item_title_envelopes: "envelopes",
-    question_summary_presets: "4 presets",
     question_summary_any: "Any one place lost: {}",
     backup_after: "After: {}",
     backup_back_up_a_wallet: "Back up a wallet",
@@ -10913,7 +10914,7 @@ pub static EN: Strings = Strings {
     create_of_chosen_to: "{} of {} chosen · {} to come",
     create_first_addresses: "{} · first addresses",
     create_not_made_yet: "Not made yet",
-    create_paper_vault: "Paper, vault, watch-only software",
+    create_opens_on_standard: "Opens on the standard way",
     create_home: "Home",
     create_wallets: "Wallets",
     create_make_a_new_wallet: "Make a new wallet",
@@ -10952,6 +10953,7 @@ pub static EN: Strings = Strings {
     create_key: "Key",
     create_continue: "Continue",
     create_move_the_money: "Move the money from {}",
+    create_back_up_this: "Back up this wallet",
     create_make_the_wallet: "Make the wallet first",
     kind_rows_more_kinds: "More kinds",
     first_addresses_the: "The wallet's first addresses",
@@ -12374,6 +12376,7 @@ pub static EN: Strings = Strings {
     backup_flow_card_make_wallet: "Make the keys",
     backup_flow_card_use_vaults: "Use vaults",
     backup_flow_use_vaults_question: "Will you use vaults as part of this backup?",
+    backup_flow_vaults_on_sticks: "Vaults already on sticks are brought in here, not later.",
     backup_flow_card_vault_count: "Number of vaults",
     backup_flow_how_many_question: "How many vaults will be part of this backup?",
     backup_flow_vault_count_label: "Vaults",
@@ -12402,7 +12405,7 @@ pub static EN: Strings = Strings {
     board_whole: "Whole",
     board_share: "Share {}",
     board_vaults: "Vaults",
-    board_add_vault: "+ vault",
+    board_add_vault: "+ new vault",
     board_not_here: "Not here",
     board_keys_left_off: "Keys left off each share",
     board_words: "Words",
@@ -12420,6 +12423,8 @@ pub static EN: Strings = Strings {
     board_add: "Add",
     board_add_place: "+ place",
     board_sealed: "{} · sealed",
+    board_sealed_made: "{} · sealed · made in the checklist",
+    board_sealed_new: "{} · new",
     board_menu_add: "Add to…",
     board_menu_move: "Move to…",
     board_menu_copy: "Copy to…",
@@ -12428,6 +12433,8 @@ pub static EN: Strings = Strings {
     board_menu_new_stick: "New stick",
     board_menu_cancel: "Cancel",
     board_customize: "Customize backup",
+    board_add_watch_only: "Add watch-only software",
+    board_take_off_watch: "Take off watch-only software",
     board_sees_title: "{} can see the wallet's balance",
     board_sees_whole: "The whole description is kept there.",
     board_sees_together: "{} together make the whole description.",

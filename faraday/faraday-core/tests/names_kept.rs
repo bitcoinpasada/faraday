@@ -117,16 +117,6 @@ fn one_key(app: &mut Faraday) -> usize {
 }
 
 fn press_offered(app: &mut Faraday, action: Action) {
-    // A preset is chosen on Start from, opened by its Change: the board
-    // opens on The standard way (`docs/BACKUP-FLOW.md` §19.6).
-    if matches!(action, Action::BPreset(_))
-        && app
-            .backup
-            .as_ref()
-            .is_some_and(|b| b.q != Some(faraday_core::qstep::PRESET))
-    {
-        app.press(Action::BQ(faraday_core::qstep::PRESET));
-    }
     for _ in 0..20 {
         app.settle();
         let _ = app.frame();
@@ -209,7 +199,7 @@ fn a_place_names_name_never_leaves_the_vault() {
     made_and_unlocked(&mut app);
     let w = one_key(&mut app);
     app.press(Action::Backup(w));
-    press_offered(&mut app, Action::BPreset(2));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     // Start from goes on to the board itself; a place's name is typed
     // on its card there (`docs/BACKUP-FLOW.md` §19.12 item 2).
     if app.backup.as_ref().unwrap().q != Some(qstep::BOARD) {

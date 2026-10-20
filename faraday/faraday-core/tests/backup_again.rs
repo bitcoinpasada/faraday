@@ -93,16 +93,6 @@ fn in_outbox(app: &Faraday, name: &str) -> bool {
 /// Presses `action`, which the screen on show must offer somewhere down
 /// its column.
 fn press_offered(app: &mut Faraday, action: Action) {
-    // A preset is chosen on Start from, opened by its Change: the board
-    // opens on The standard way (`docs/BACKUP-FLOW.md` §19.6).
-    if matches!(action, Action::BPreset(_))
-        && app
-            .backup
-            .as_ref()
-            .is_some_and(|b| b.q != Some(faraday_core::qstep::PRESET))
-    {
-        app.press(Action::BQ(faraday_core::qstep::PRESET));
-    }
     // Make the checklist is on The plan card (`docs/BACKUP-FLOW.md`
     // §17.1): a person opens it first.
     if action == Action::BChecklist
@@ -133,7 +123,7 @@ fn press_offered(app: &mut Faraday, action: Action) {
 /// pictures, and nothing into a vault or on paper by hand, so the
 /// public files item is open to reach; then the checklist made from it.
 fn every_software(app: &mut Faraday) {
-    press_offered(app, Action::BPreset(3));
+    faraday_core::testkit::backup_as(app, faraday_core::plan::Preset::PaperVaultSoftware);
     // On the board: no words, no vault (its description goes with it).
     no_words(app);
     no_vaults(app);
@@ -170,7 +160,8 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
         );
     }
     assert!(app.drawn_texts().iter().any(|t| t == "Not here"));
-    app.press(Action::BQ(qstep::PRESET));
+    // The board closed.
+    app.press(Action::BQ(qstep::BOARD));
     every_software(&mut app);
     let items = app.backup_items();
     assert!(!items.contains(&bstep::BLANK) && !items.contains(&bstep::COPY));
@@ -235,7 +226,7 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     app.press(Action::Seeds(S::Make));
     let w = app.session.wallets.len() - 1;
     app.press(Action::Backup(w));
-    press_offered(&mut app, Action::BPreset(2));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     press_offered(&mut app, Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));

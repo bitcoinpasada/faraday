@@ -400,9 +400,10 @@ impl Faraday {
                 let f = &mut self.backup_flows[i];
                 f.live.open = Some(Step::Where.n());
                 f.live.scroll.follow = true;
-                // A wallet's plan opens on The plan, its map.
+                // A wallet's plan opens on its board (`docs/BACKUP-FLOW.md`
+                // §19.21 item 11).
                 if f.kind.is_wallet() {
-                    f.live.plan_q = Some(crate::qstep::PLAN);
+                    f.live.plan_q = Some(crate::qstep::BOARD);
                 }
             }
             F::AddPlace => self.flow_add_place(i),

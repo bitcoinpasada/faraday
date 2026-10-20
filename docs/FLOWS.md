@@ -1234,9 +1234,12 @@ guarantees for this file's rule:
   wallet; the name proposed is "{wallet} · account n" ("{kind} · account
   n" once the kind changed). The wallet it came from is not changed.
 - **The backup starts with a plan, then a checklist of only what it
-  needs** (owner, 2026-10-09, proposal A; `docs/WALLETS.md` §5). Three
-  presets (**Paper only**, **Paper and vault**, **Paper, vault and
-  watch-only software**) fill the plan's questions, each a multi-choice
+  needs** (owner, 2026-10-09, proposal A; `docs/WALLETS.md` §5). The
+  plan opens on The standard way, on the board, with **Add watch-only
+  software** and **Customize backup** (F53, `docs/BACKUP-FLOW.md`
+  §19.21; the three presets Paper only, Paper and vault, and Paper,
+  vault and watch-only software are withdrawn). Before F53 the presets
+  filled the plan's questions, each a multi-choice
   list (DESIGN §4.2): where the seeds go, the places (how many, share or
   whole sheet, which keep the vault's stick, their names with a vault
   open), where the wallet description goes, the software and form, each

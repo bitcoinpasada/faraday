@@ -1039,9 +1039,6 @@ pub enum Action {
     BQ(u8),
     /// Open the plan's question after this one.
     BQNext(u8),
-    /// Fill the plan's answers from a preset, by its place in
-    /// [`plan::Preset::ALL`].
-    BPreset(u8),
     /// Tick or untick a row of the plan's Software card (the software, the
     /// form; the wallet's flow's own plan asks the rest): the list by
     /// [`qrow`], then the row.
@@ -1367,9 +1364,10 @@ pub enum Action {
     CKeyBsms(u8),
     /// Throw away the creation under way and start again.
     CreateOver,
-    /// Create's Back up card: Back up a wallet on the wallet just made,
-    /// with the plan's preset `k` applied.
-    CBackup(u8),
+    /// Create's Back up card's **Back up this wallet**: Back up on the
+    /// wallet just made, the board open on The standard way
+    /// (`docs/BACKUP-FLOW.md` §19.21 item 2).
+    CBackup,
     /// Start restoring a wallet.
     RestoreWallet,
     /// Open or close a restore card.
@@ -2557,7 +2555,7 @@ pub mod cstep {
     pub const KEYS: u8 = 2;
     /// The descriptor and the first addresses.
     pub const CHECK: u8 = 3;
-    /// The backup plan's presets, each opening Back up a wallet.
+    /// Back up this wallet, opening Back up on the wallet just made.
     pub const BACKUP: u8 = 4;
     /// Whether vaults are part of the backup, before Keys.
     pub const WHERE: u8 = 5;
@@ -2759,7 +2757,7 @@ pub mod bstep {
 /// The backup's two parts.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum BStage {
-    /// The presets and the questions, with the map beside them.
+    /// The board and the plan's cards.
     #[default]
     Plan,
     /// The checklist made from the plan.
@@ -2769,8 +2767,6 @@ pub enum BStage {
 /// The cards of the backup's plan, in order (`docs/BACKUP-FLOW.md`
 /// §17.1).
 pub mod qstep {
-    /// Start from: the three presets.
-    pub const PRESET: u8 = 0;
     /// The watch-only software and the files' form.
     pub const SOFTWARE: u8 = 4;
     /// The plan: the map, approved with Make the checklist.
@@ -5720,33 +5716,6 @@ impl Faraday {
                     b.naming = None;
                 }
             }
-            Action::BPreset(k) => {
-                let Some(w) = self.backup.as_ref().map(|b| b.wallet) else {
-                    return;
-                };
-                let shape = self.plan_shape(w);
-                // After the lock, through the flow, with its refusals.
-                // A plan opened for changes stays so (§19.6).
-                if let Some(i) = self.backup_locked_flow() {
-                    if let Some(&preset) = plan::Preset::ALL.get(usize::from(k)) {
-                        self.flow_wallet_edit(i, &|a, shape| {
-                            let custom = a.custom;
-                            *a = plan::Answers::preset(shape, preset);
-                            a.custom = custom;
-                        });
-                    }
-                    return;
-                }
-                if let Some(&preset) = plan::Preset::ALL.get(usize::from(k)) {
-                    let mut answers = plan::Answers::preset(&shape, preset);
-                    if let Some(b) = self.backup.as_mut() {
-                        answers.custom = b.answers.custom;
-                        b.answers = answers;
-                        b.board = board::BoardState::default();
-                    }
-                    self.act(Action::BQNext(qstep::PRESET));
-                }
-            }
             Action::BAnswer(list, row) => {
                 // Back up's plan asks the rest place by place.
                 if !matches!(list, qrow::SOFTWARE | qrow::FORM) {
@@ -5842,7 +5811,9 @@ impl Faraday {
                 self.backup_prior();
                 if let Some(b) = self.backup.as_mut() {
                     b.stage = BStage::Plan;
-                    b.q = None;
+                    // On the board, the first card, at the top: as a new
+                    // plan opens (`docs/BACKUP-FLOW.md` §19.21 item 11).
+                    b.q = Some(qstep::BOARD);
                     b.checking = false;
                     b.scroll = flow::Scroll::default();
                 }
@@ -6337,13 +6308,12 @@ impl Faraday {
                 }
                 self.create_from_refresh();
             }
-            Action::CBackup(k) => {
+            Action::CBackup => {
                 if let Some(i) = self.create.as_ref().and_then(|c| c.built) {
                     self.act(Action::Backup(i));
                     if let Some(b) = self.backup.as_mut() {
                         b.from_create = true;
                     }
-                    self.act(Action::BPreset(k));
                 }
             }
             Action::CVaults(_) | Action::CVaultN(_)
@@ -7269,20 +7239,17 @@ impl Faraday {
     }
 
     /// The cards of the backup's plan, in order (`docs/BACKUP-FLOW.md`
-    /// §17.1): Start from, Places, a card per place, the wallet
-    /// description where it splits, where it goes, the software where the
-    /// description goes into software or as files, and The plan.
+    /// §17.1): the board, the software where the description goes into
+    /// software or as files, and The plan.
     pub fn backup_questions(&self) -> Vec<u8> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };
         // The board replaces the cards from Places to Where the
-        // description goes (`docs/BACKUP-FLOW.md` §19.1); Start from, the
-        // software and The plan stay.
+        // description goes (`docs/BACKUP-FLOW.md` §19.1); the software and
+        // The plan stay. Start from is gone (§19.21 item 1).
         let shape = self.plan_shape(b.wallet);
-        let mut v = vec![qstep::PRESET];
-        v.extend(plan_cards(&shape, &b.answers));
-        v
+        plan_cards(&shape, &b.answers)
     }
 
     /// The backup's checklist, by [`bstep`]: only what the plan needs. Works out the plan's shape

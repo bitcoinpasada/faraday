@@ -118,6 +118,14 @@ struct Tour {
 type Files = Vec<(String, Vec<u8>)>;
 
 impl Tour {
+    /// Back up's plan made into the plan preset `p` once placed, by the
+    /// presses a person makes now (`testkit::backup_as`,
+    /// `docs/BACKUP-FLOW.md` §19.21).
+    fn backup_as(&mut self, p: faraday_core::plan::Preset) {
+        testkit::backup_as(&mut self.app, p);
+        self.pump();
+    }
+
     fn stick(&self) -> StickInfo {
         let mut files: Vec<(String, u64)> = std::fs::read_dir(&self.kit)
             .map(|d| {
@@ -301,7 +309,7 @@ impl Tour {
         // (`docs/BACKUP-FLOW.md` §19.6), and keep a drop the sheet asks
         // about (§19.5); the std tour shows both itself.
         if let Action::Board(p) = a
-            && !matches!(p, B::Customize | B::SeesKeep | B::SeesUndo)
+            && !matches!(p, B::Customize | B::Software | B::SeesKeep | B::SeesUndo)
             && self.app.board_plan().is_some_and(|(_, plan)| !plan.custom)
         {
             self.app.press(Action::Board(B::Customize));
@@ -1249,7 +1257,7 @@ fn run(
     // with its own share.
     t.press(Action::Backup(0));
     t.shot("backup-plan")?;
-    t.press(Action::BPreset(1));
+    t.backup_as(faraday_core::plan::Preset::Paper);
     shares_on_paper(&mut t);
     t.press(Action::BChecklist);
     t.press(Action::BStep(bstep::BLANK));
@@ -1618,7 +1626,7 @@ fn run(
         .position(|w| w.name == "Spending")
         .ok_or("Spending is not loaded")?;
     t.press(Action::Backup(spending));
-    t.press(Action::BPreset(2));
+    t.backup_as(faraday_core::plan::Preset::PaperVault);
     t.press(Action::BChecklist);
     if t.app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {
         t.press(Action::BStep(bstep::COPY));
@@ -2129,7 +2137,8 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     // ticked into Vault 1, puts the new keys and the wallet into the open
     // vault from the checklist.
     let built = t.app.create.as_ref().and_then(|c| c.built).unwrap_or(0);
-    t.press(Action::CBackup(2));
+    t.press(Action::CBackup);
+    t.backup_as(faraday_core::plan::Preset::PaperVault);
     let here = t.app.plan_shape(built).here();
     let vaults = t
         .app
@@ -2582,7 +2591,8 @@ fn compact_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("create-check")?;
     t.press(Action::CStep(cstep::BACKUP));
     // Paper and vault: the backup on the new wallet, preset applied.
-    t.press(Action::CBackup(2));
+    t.press(Action::CBackup);
+    t.backup_as(faraday_core::plan::Preset::PaperVault);
     t.shot("create-backup-plan")?;
     t.press(Action::Nav(Screen::Home));
     t.shot("home-loaded")?;
@@ -3150,10 +3160,11 @@ fn shares_on_paper(t: &mut Tour) {
     }
 }
 
-/// The backup's plan from preset `preset`, with `ticks` ticked on its
-/// Software card (`BAnswer`'s list and row), then its checklist.
-fn to_checklist(t: &mut Tour, preset: u8, ticks: &[(u8, u8)]) {
-    t.press(Action::BPreset(preset));
+/// The backup's plan made into the plan `preset` once placed, with
+/// `ticks` ticked on its Software card (`BAnswer`'s list and row), then
+/// its checklist.
+fn to_checklist(t: &mut Tour, preset: faraday_core::plan::Preset, ticks: &[(u8, u8)]) {
+    t.backup_as(preset);
     for &(list, row) in ticks {
         t.press(Action::BAnswer(list, row));
     }
@@ -3228,7 +3239,8 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
     // software chosen and the description going as files, it offers
     // them all.
     let built = t.app.create.as_ref().and_then(|c| c.built).unwrap_or(0);
-    t.press(Action::CBackup(3));
+    t.press(Action::CBackup);
+    t.backup_as(faraday_core::plan::Preset::PaperVaultSoftware);
     for row in 0..5u8 {
         let on = t
             .app
@@ -3257,7 +3269,11 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("public-sheet")?;
     t.press(Action::Cancel);
     t.press(Action::Backup(built));
-    to_checklist(t, 3, &[(qrow::FORM, 1)]);
+    to_checklist(
+        t,
+        faraday_core::plan::Preset::PaperVaultSoftware,
+        &[(qrow::FORM, 1)],
+    );
     t.press(Action::BStep(bstep::PUBLIC));
     t.press(Action::PublicOut(built, 8));
     scroll_to(t, Action::PublicOut(built, 8));
@@ -3335,7 +3351,7 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
 fn copy_tour(t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     t.press(Action::Backup(0));
-    to_checklist(t, 1, &[]);
+    to_checklist(t, faraday_core::plan::Preset::Paper, &[]);
     t.press(Action::BNext(bstep::BLANK));
     t.press(Action::BReveal);
     t.app.storage(StorageEvent::Cameras(Vec::new()));
@@ -3386,7 +3402,7 @@ fn seedfile_tour(t: &mut Tour) -> Result<(), String> {
         })
         .ok_or("test key 2 was not added")?;
     t.press(Action::Backup(0));
-    t.press(Action::BPreset(2));
+    t.backup_as(faraday_core::plan::Preset::PaperVault);
     seed_files_at(t, 0);
     t.press(Action::BChecklist);
     t.press(Action::BStep(bstep::FILES));
@@ -3472,7 +3488,7 @@ fn seedfile_tour(t: &mut Tour) -> Result<(), String> {
 fn kept_tour(t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     t.press(Action::Backup(0));
-    t.press(Action::BPreset(1));
+    t.backup_as(faraday_core::plan::Preset::Paper);
     seed_files_at(t, 0);
     t.press(Action::BChecklist);
     t.press(Action::BNext(bstep::BLANK));
@@ -3512,7 +3528,7 @@ fn kept_tour(t: &mut Tour) -> Result<(), String> {
         return Err("the test vault did not open".into());
     }
     t.press(Action::Backup(1));
-    to_checklist(t, 2, &[]);
+    to_checklist(t, faraday_core::plan::Preset::PaperVault, &[]);
     t.press(Action::BNext(bstep::BLANK));
     t.press(Action::BReveal);
     t.press(Action::BCheck);
@@ -3550,7 +3566,7 @@ fn again_tour(t: &mut Tour) -> Result<(), String> {
         (qrow::SOFTWARE, 3),
         (qrow::FORM, 1),
     ];
-    to_checklist(t, 3, &every);
+    to_checklist(t, faraday_core::plan::Preset::PaperVaultSoftware, &every);
     t.press(Action::BStep(bstep::PUBLIC));
     scroll_to(t, Action::PublicOut(0, 7));
     t.shot("again-watch-only-files")?;
@@ -3587,7 +3603,7 @@ fn again_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Seeds(S::Make));
     let w = t.app.session.wallets.len() - 1;
     t.press(Action::Backup(w));
-    to_checklist(t, 2, &[]);
+    to_checklist(t, faraday_core::plan::Preset::PaperVault, &[]);
     t.press(Action::BStep(bstep::VAULT));
     scroll_to(t, Action::Vault(V::OpenFrom(0, Screen::Backup)));
     t.shot("again-restored-locked")?;
@@ -3638,8 +3654,8 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     // and vault, its board, Vault 1 held with the places that take it
     // edged, and The plan.
     t.press(Action::Backup(spending));
-    t.shot("plan-presets-one-key")?;
-    t.press(Action::BPreset(2));
+    t.shot("plan-board-read-only-one-key")?;
+    t.backup_as(faraday_core::plan::Preset::PaperVault);
     t.shot("plan-board-one-key")?;
     t.press(Action::Board(BP::Chip(Chip::List(Thing::Vault(0)))));
     t.shot("plan-board-vault-held-one-key")?;
@@ -3651,7 +3667,7 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     // Savings (2-of-3), no seed here: its board holds the vaults alone;
     // each place with a share on paper; What is a share? opens.
     t.press(Action::Backup(savings));
-    t.press(Action::BPreset(1));
+    t.backup_as(faraday_core::plan::Preset::Paper);
     t.shot("plan-board-two-of-three")?;
     shares_on_paper(t);
     t.shot("plan-board-shares-two-of-three")?;
@@ -3678,7 +3694,7 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
         )
         .map_err(|e| e.text())?;
     t.press(Action::Backup(five));
-    t.press(Action::BPreset(1));
+    t.backup_as(faraday_core::plan::Preset::Paper);
     shares_on_paper(t);
     t.press(Action::BOmit(2));
     t.shot("plan-board-shares-three-of-five")?;
@@ -3690,14 +3706,14 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     // each: the board, Vault 1's stick at Place 1 too, The plan and the
     // second vault's item.
     t.press(Action::Backup(spending));
-    t.press(Action::BPreset(2));
+    t.backup_as(faraday_core::plan::Preset::PaperVault);
     t.press(Action::BChecklist);
     t.press(Action::BStep(bstep::VAULT));
     t.shot("plan-checklist-vault-one-key")?;
     t.press(Action::Entry(None));
     t.type_key(1);
     t.press(Action::Backup(savings));
-    t.press(Action::BPreset(2));
+    t.backup_as(faraday_core::plan::Preset::PaperVault);
     t.shot("plan-board-vaults-two-of-three")?;
     if vault_stick(t, 0, 0).is_none() {
         bput(t, Thing::Vault(0), Zone::Card(0));
@@ -3742,7 +3758,7 @@ fn board_tour(t: &mut Tour) -> Result<(), String> {
         .ok_or("no Savings")?;
     t.press(Action::Backup(savings));
     // The preset opens the board.
-    t.press(Action::BPreset(2));
+    t.backup_as(faraday_core::plan::Preset::PaperVault);
     t.shot("board-paper-and-vault")?;
     t.press(Action::Board(B::Chip(Chip::List(Thing::Seed(0)))));
     t.shot("board-seed-selected")?;
@@ -3843,7 +3859,7 @@ fn menu_tour(t: &mut Tour) -> Result<(), String> {
         .position(|w| w.name == "Savings")
         .ok_or("no Savings")?;
     t.press(Action::Backup(savings));
-    t.press(Action::BPreset(2));
+    t.backup_as(faraday_core::plan::Preset::PaperVault);
     t.press(Action::Board(B::Customize));
     let seed = Chip::List(Thing::Seed(0));
     // A chip placed on Place 1's paper, as the preset placed it or put
@@ -3975,7 +3991,7 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     };
     shot_card(t, one, "glance-no-plan")?;
     t.press(Action::Backup(one));
-    t.press(Action::BPreset(2));
+    t.backup_as(faraday_core::plan::Preset::PaperVault);
     t.press(Action::BChecklist);
     shot_card(t, one, "glance-one-key")?;
     let press = Press::Loaded(one);
@@ -4024,7 +4040,7 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
         .map_err(|e| e.text())?;
     shot_card(t, two, "glance-two-of-three-no-plan")?;
     t.press(Action::Backup(two));
-    t.press(Action::BPreset(2));
+    t.backup_as(faraday_core::plan::Preset::PaperVault);
     // Key 2's passphrase into its vault too.
     pass_into_vault(t, 1);
     t.press(Action::BChecklist);
@@ -4068,7 +4084,7 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
         return Err("the vault made for the glance tour did not open".to_string());
     }
     t.press(Action::Backup(one));
-    t.press(Action::BPreset(2));
+    t.backup_as(faraday_core::plan::Preset::PaperVault);
     t.press(Action::BChecklist);
     t.press(Action::BVaultSave(0));
     t.press(Action::Nav(Screen::VaultContents));
@@ -4100,7 +4116,7 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     shot_item(t, "glance-vault")?;
     // The 2-of-3's plan made with the vault open, and the wallet saved.
     t.press(Action::Backup(two));
-    t.press(Action::BPreset(2));
+    t.backup_as(faraday_core::plan::Preset::PaperVault);
     // Key 2's passphrase into its vault too.
     pass_into_vault(t, 1);
     t.press(Action::BChecklist);
@@ -4184,7 +4200,7 @@ fn chart_edit_tour(t: &mut Tour) -> Result<(), String> {
         return Err("the vault made for the chart tour did not open".to_string());
     }
     t.press(Action::Backup(one));
-    t.press(Action::BPreset(2));
+    t.backup_as(faraday_core::plan::Preset::PaperVault);
     t.press(Action::BChecklist);
     t.press(Action::BVaultSave(0));
     t.press(Action::Nav(Screen::VaultContents));
@@ -4291,7 +4307,7 @@ fn chart_edit_tour(t: &mut Tour) -> Result<(), String> {
         )
         .map_err(|e| e.text())?;
     t.press(Action::Backup(two));
-    t.press(Action::BPreset(1));
+    t.backup_as(faraday_core::plan::Preset::Paper);
     t.press(Action::BChecklist);
     let press = Press::Loaded(two);
     t.press(Action::OpenWallet(two));
@@ -4390,11 +4406,7 @@ fn first_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("first-card-held")?;
     // The plan: Paper and vault; Vault 1's stick unticked on Places.
     t.press(Action::BackupFirst(w));
-    let paper_vault = Preset::ALL
-        .iter()
-        .position(|p| *p == Preset::PaperVault)
-        .ok_or("no Paper and vault")? as u8;
-    t.press(Action::BPreset(paper_vault));
+    t.backup_as(Preset::PaperVault);
     // The board, Vault 1 on the place that keeps its stick.
     vault_place(t, 0).ok_or("Vault 1's stick has no place")?;
     t.shot("first-place-vault-board")?;
@@ -5392,7 +5404,8 @@ fn in_progress_tour(t: &mut Tour) -> Result<(), String> {
     }
     t.press(Action::CNext(cstep::KEYS));
     t.press(Action::CNext(cstep::CHECK));
-    t.press(Action::CBackup(1));
+    t.press(Action::CBackup);
+    t.backup_as(faraday_core::plan::Preset::Paper);
     t.shot("inprogress-places")?;
     t.press(Action::Nav(Screen::Settings));
     t.shot("inprogress-settings")?;
@@ -5428,7 +5441,8 @@ fn cancel_tour(t: &mut Tour) -> Result<(), String> {
     }
     t.press(Action::CNext(cstep::KEYS));
     t.press(Action::CNext(cstep::CHECK));
-    t.press(Action::CBackup(1));
+    t.press(Action::CBackup);
+    t.backup_as(faraday_core::plan::Preset::Paper);
     t.shot("cancel-3-places")?;
     t.press(Action::CancelFlow);
     t.shot("cancel-4-places-sheet")?;
@@ -5437,8 +5451,10 @@ fn cancel_tour(t: &mut Tour) -> Result<(), String> {
 }
 
 /// The standard way on the board (`docs/BACKUP-FLOW.md` §19.6, §19.3,
-/// §19.5): Make a new wallet opening on Kind; a single key's Back up open
-/// on the board read-only; a 2-of-3's the same; the 2-of-3 after
+/// §19.5, §19.21): Make a new wallet opening on Kind; its Back up step
+/// with Back up this wallet; a single key's Back up open on the board
+/// read-only; a 2-of-3's the same, then with Add watch-only software
+/// pressed; the 2-of-3 after
 /// Customize backup with its form toggles; and the sheet over a drop that
 /// lets a place see the balance.
 fn standard_tour(t: &mut Tour) -> Result<(), String> {
@@ -5454,14 +5470,13 @@ fn standard_tour(t: &mut Tour) -> Result<(), String> {
     let fp = t.app.session.keys[0].fingerprint().0;
     t.press(Action::CSlotHere(0, fp));
     t.press(Action::CNext(cstep::KEYS));
-    let single = t
-        .app
-        .session
-        .wallets
-        .len()
-        .checked_sub(1)
-        .ok_or("no wallet")?;
-    t.press(Action::Backup(single));
+    // The vault question with its line (§19.21 item 5), then Create's
+    // Back up step: Back up this wallet (item 2).
+    t.press(Action::CStep(cstep::WHERE));
+    t.shot("std-2a-vault-question")?;
+    t.press(Action::CStep(cstep::BACKUP));
+    t.shot("std-2b-create-back-up")?;
+    t.press(Action::CBackup);
     t.shot("std-2-single-key")?;
     for n in 1..3 {
         t.press(Action::Entry(None));
@@ -5488,6 +5503,10 @@ fn standard_tour(t: &mut Tour) -> Result<(), String> {
         .ok_or("no wallet")?;
     t.press(Action::Backup(three));
     t.shot("std-3-two-of-three")?;
+    // Add watch-only software on the read-only board (§19.21 item 3).
+    t.press(Action::Board(B::Software));
+    t.shot("std-3a-watch-only")?;
+    t.press(Action::Board(B::Software));
     t.press(Action::Board(B::Customize));
     t.shot("std-4-customize")?;
     // Whole off Place 3, Share 1 dropped there beside seed 3: the sheet.
@@ -5747,7 +5766,8 @@ fn wallet_flow_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CSlotHere(0, fp));
     t.press(Action::CNext(cstep::KEYS));
     t.press(Action::CNext(cstep::CHECK));
-    t.press(Action::CBackup(2));
+    t.press(Action::CBackup);
+    t.backup_as(faraday_core::plan::Preset::PaperVault);
     // Back up's plan offers the two open vaults.
     t.shot("wallet-flow-7-back-up-vaults")?;
     // The key in both vaults, none on paper.

@@ -222,11 +222,7 @@ fn backing_up(app: &mut Faraday) -> usize {
     app.press(Action::Seeds(S::Make));
     let w = app.session.wallets.len() - 1;
     app.press(Action::Backup(w));
-    let paper = Preset::ALL
-        .iter()
-        .position(|p| *p == Preset::Paper)
-        .unwrap() as u8;
-    app.press(Action::BPreset(paper));
+    faraday_core::testkit::backup_as(app, Preset::Paper);
     app.press(Action::BQ(qstep::PLAN));
     app.press(Action::BChecklist);
     if app.backup_items().contains(&bstep::BLANK) {
@@ -304,11 +300,7 @@ fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished()
     app.press(Action::Seeds(S::Make));
     let w = app.session.wallets.len() - 1;
     app.press(Action::Backup(w));
-    let paper = Preset::ALL
-        .iter()
-        .position(|p| *p == Preset::Paper)
-        .unwrap() as u8;
-    app.press(Action::BPreset(paper));
+    faraday_core::testkit::backup_as(&mut app, Preset::Paper);
     // The board: none of what it offers or keeps is a split of the seed.
     if app.backup.as_ref().unwrap().q != Some(qstep::BOARD) {
         app.press(Action::BQ(qstep::BOARD));

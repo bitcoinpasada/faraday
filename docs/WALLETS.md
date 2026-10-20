@@ -332,9 +332,13 @@ starts the backup again on that wallet. The plan's logic is `plan.rs`,
 tested on its own; nothing is marked done that was not.
 
 **1. Presets, then the plan by place** (2026-10-15, F35,
-`docs/BACKUP-FLOW.md` §17). The flow opens on three presets, one tap
+`docs/BACKUP-FLOW.md` §17). *Narrowed by F53 (2026-10-20,
+`docs/BACKUP-FLOW.md` §19.21): a backup starts from The standard way
+only, on the board; Paper only, Paper and vault, and Paper, vault and
+watch-only software are offered nowhere, and vaults and the software
+are added on the board.* The flow opened on three presets, one tap
 each: **Paper only**, **Paper and vault**, **Paper, vault and watch-only
-software**. Each fills every card below; every answer stays changeable.
+software**. Each filled every card below; every answer stays changeable.
 The cards are step cards on the wide layout and a page each on the
 small panel:
 
@@ -394,7 +398,8 @@ share should shares be ticked; seeds held elsewhere are listed "On
 its own device" and get no paper here; watch only, no seed question.
 "Paper and vault" puts one seed in each vault, vault *v* holding the
 *v*th seed here, and the wallet in every vault; the third preset adds
-watch-only software. Each vault's stick goes, in turn, to the first
+watch-only software (these two are plan builders since F53, not
+offered). Each vault's stick goes, in turn, to the first
 place that keeps no seed's words and no other vault's stick; failing
 that, to the last place that keeps only that vault's own seeds' words
 (a second copy of a key already there, never a second key). So no place

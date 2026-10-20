@@ -6,11 +6,11 @@
 //! (Back up) and `backup_flow_wallet.rs` (the flow); both edit the map as
 //! `plan.rs` says.
 
-use crate::plan::{self, At, Preset};
+use crate::plan::{self, At};
 use crate::screens::{SOFTWARE_ROWS, held_item, next_button, section_label, ticked};
 use crate::strings::EN;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Ui, W};
 use crate::{Action, Faraday, PlanPress, qrow, qstep};
 use opensigner_core::strings::fill;
 
@@ -115,7 +115,6 @@ pub(crate) fn title(_ctx: &PlanCtx, q: u8) -> String {
 /// A plan card's title by its number alone.
 pub(crate) fn q_title(q: u8) -> String {
     match q {
-        qstep::PRESET => EN.question_title_start,
         qstep::BOARD => EN.board_title,
         qstep::SOFTWARE => EN.question_title_software,
         _ => EN.backup_flow_the_plan,
@@ -127,10 +126,6 @@ pub(crate) fn q_title(q: u8) -> String {
 pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> String {
     let (shape, a) = (&ctx.shape, &ctx.answers);
     match q {
-        qstep::PRESET => a
-            .preset
-            .map_or(EN.question_summary_presets, Preset::name)
-            .to_string(),
         qstep::BOARD => {
             if a.places == 1 {
                 EN.board_one_place.to_string()
@@ -208,26 +203,6 @@ pub(crate) fn body(
         cy += crate::board_screen::board(app, ui, x, cy, w);
     } else {
         match q {
-            qstep::PRESET => {
-                // F1's one line of fact, where a key made here waits for
-                // this backup (`docs/NEW-WALLET.md` §14.5).
-                if held {
-                    cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.plan_a_key_made_here) + 12.0;
-                }
-                for (k, p) in Preset::ALL.iter().enumerate() {
-                    ui.button(
-                        x,
-                        cy,
-                        Some(w),
-                        40.0,
-                        p.name(),
-                        Style::Secondary,
-                        Action::BPreset(k as u8),
-                    );
-                    cy += 48.0;
-                }
-                return cy - y;
-            }
             qstep::SOFTWARE => {
                 let rows = |list: u8, labels: &[&str], ticked: &[bool]| {
                     labels

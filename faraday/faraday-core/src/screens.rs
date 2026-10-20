@@ -5530,11 +5530,9 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                         .as_ref()
                         .map_or_else(String::new, |c| crate::plan_cards::summary(c, k)),
                     mono: false,
-                    // Start from is done once a preset is placed, closed on
-                    // its name with Change (`docs/BACKUP-FLOW.md` §19.6).
-                    done: k == crate::qstep::PRESET && b.answers.preset.is_some(),
+                    done: false,
                     open: b.q == Some(k),
-                    default: k == crate::qstep::PRESET && b.answers.preset.is_some(),
+                    default: false,
                     toggle: Action::BQ(k),
                     guide: None,
                 }
@@ -7639,7 +7637,7 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     Some(w) => fill(EN.create_first_addresses, &[&w.name.to_string()]),
                     None => EN.create_not_made_yet.to_string(),
                 },
-                _ => EN.create_paper_vault.to_string(),
+                _ => EN.create_opens_on_standard.to_string(),
             },
             mono: false,
             done: app.create_card_done(k),
@@ -8340,21 +8338,20 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             }
         }
         _ => {
-            // The backup plan's presets: each opens Back up a wallet on
-            // the wallet just made, with that preset applied.
+            // Back up this wallet: Back up on the wallet just made, the
+            // board open on The standard way (`docs/BACKUP-FLOW.md`
+            // §19.21 item 2).
             if c.built.is_some() {
-                for (k, p) in crate::plan::Preset::ALL.iter().enumerate() {
-                    ui.button(
-                        x,
-                        cy,
-                        Some(w),
-                        40.0,
-                        p.name(),
-                        Style::Secondary,
-                        Action::CBackup(k as u8),
-                    );
-                    cy += 48.0;
-                }
+                ui.button(
+                    x,
+                    cy,
+                    Some(w),
+                    40.0,
+                    EN.create_back_up_this,
+                    Style::Primary,
+                    Action::CBackup,
+                );
+                cy += 48.0;
                 // Made to move a wallet's money to (`docs/NEW-WALLET.md`
                 // §9.6): the spend of every coin from the old wallet.
                 if let Some(old) = app.moving_from() {

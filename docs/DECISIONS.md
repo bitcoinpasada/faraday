@@ -1971,7 +1971,9 @@ asked a question the board answers better.
 **Decision** (owner, 2026-10-20; `docs/BACKUP-FLOW.md` §19.21). A backup
 starts from The standard way only, on the read-only board, with two
 buttons: **Add watch-only software** and **Customize backup**. Create's
-Back up step has one button, **Back up this wallet**. A vault added on
+Back up step has one button, **Back up this wallet**. The standard way
+keeps each seed as its words on paper, with no SeedQR; a SeedQR is added
+in Customize backup. **Change the plan** goes back to the board. A vault added on
 the board is a new one (**+ new vault**), made in the checklist; its
 box says so until it is made. A vault already on a stick is brought in
 only at the vault question before the keys, and the question says so,

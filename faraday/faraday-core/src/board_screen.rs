@@ -986,10 +986,19 @@ fn outline(ui: &mut Ui, r: (f32, f32, f32, f32), radius: f32, width: f32, color:
 }
 
 /// A vault box's header band at (x, y), `w` wide: the vault's glyph and
-/// "Vault n · sealed" (`label`) on the solid band, its link and warning
-/// marks, and the × that takes its stick off this place. The band is the
-/// vault's chip: a press selects it, a drag moves its stick.
-fn vault_head(ui: &mut Ui, fr: &mut Frame, vc: &ChipView, label: &str, x: f32, y: f32, w: f32) {
+/// "Vault n · sealed" (`label`, or `short` where it does not fit) on the
+/// solid band, its link and warning marks, and the × that takes its stick
+/// off this place. The band is the vault's chip: a press selects it, a
+/// drag moves its stick.
+fn vault_head(
+    ui: &mut Ui,
+    fr: &mut Frame,
+    vc: &ChipView,
+    (label, short): (&str, &str),
+    x: f32,
+    y: f32,
+    w: f32,
+) {
     let hh = tokens::BOARD_VAULT_HEAD;
     let pad = tokens::BOARD_VAULT_PAD + tokens::GAP_SMALL;
     let mark = tokens::BOARD_MARK;
@@ -1047,7 +1056,13 @@ fn vault_head(ui: &mut Ui, fr: &mut Frame, vc: &ChipView, label: &str, x: f32, y
         right -= mark + tokens::BOARD_CHIP_GAP;
     }
     let nx = x + pad + mark + tokens::BOARD_CHIP_GAP;
-    let name = ui.fit(tokens::LABEL, W::S, label, (right - nx).max(0.0));
+    let room = (right - nx).max(0.0);
+    let label = if ui.measure(tokens::LABEL, W::S, label) > room {
+        short
+    } else {
+        label
+    };
+    let name = ui.fit(tokens::LABEL, W::S, label, room);
     ui.text_mid(nx, y, hh, tokens::LABEL, W::S, VAULT_ON, &name);
     if held && fr.drag.is_none() {
         let i = tokens::BOARD_EDGE;
@@ -1148,7 +1163,7 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, cus
             vault_h,
             Action::Board(BoardPress::Zone(vz.zone)),
         );
-        vault_head(ui, fr, vc, &st.sealed, vx, vy, vw);
+        vault_head(ui, fr, vc, (&st.sealed, &st.sealed_short), vx, vy, vw);
         let iy = vy + tokens::BOARD_VAULT_HEAD + vp;
         let (places, _) = flow(ui, &vz.chips, vx + vp, iy, vw - 2.0 * vp);
         for (c, at) in vz.chips.iter().zip(places) {
@@ -1581,6 +1596,30 @@ pub(crate) fn partials_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     });
 }
 
+/// The read-only board's two buttons, in the list's place (the narrow
+/// column's Add): **Add watch-only software**, or **Take off watch-only
+/// software** while the software place is there, then **Customize
+/// backup** (`docs/BACKUP-FLOW.md` §19.21 item 3).
+fn read_only_buttons(v: &crate::board::BoardView) -> Vec<(&'static str, Style, Action)> {
+    let software = if v.software.is_some() {
+        EN.board_take_off_watch
+    } else {
+        EN.board_add_watch_only
+    };
+    vec![
+        (
+            software,
+            Style::Secondary,
+            Action::Board(BoardPress::Software),
+        ),
+        (
+            EN.board_customize,
+            Style::Secondary,
+            Action::Board(BoardPress::Customize),
+        ),
+    ]
+}
+
 /// The board on a plan card (`docs/BACKUP-FLOW.md` §19.15): the places
 /// one under another, each a row the column's width, **+ place** after
 /// them, the software place last, the plan's three checks and the check
@@ -1598,20 +1637,19 @@ pub(crate) fn board(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let gap = tokens::BOARD_PLACE_GAP;
     let mut cy = y;
     if ui.compact {
-        // Read-only until Customize backup, in Add's place (§19.6).
-        let (label, press) = if v.custom {
-            (EN.board_add, BoardPress::OpenList)
+        // Read-only until Customize backup, its two buttons in Add's place
+        // (§19.6, §19.21 item 3).
+        let buttons = if v.custom {
+            vec![(
+                EN.board_add,
+                Style::Secondary,
+                Action::Board(BoardPress::OpenList),
+            )]
         } else {
-            (EN.board_customize, BoardPress::Customize)
+            read_only_buttons(&v)
         };
-        cy += faraday_ui::parts::wrap_buttons(
-            ui,
-            x,
-            cy,
-            w,
-            tokens::BOARD_CHIP,
-            &[(label, Style::Secondary, Action::Board(press))],
-        ) + tokens::BOARD_PAD;
+        cy += faraday_ui::parts::wrap_buttons(ui, x, cy, w, tokens::BOARD_CHIP, &buttons)
+            + tokens::BOARD_PAD;
     }
     for cv in &v.places {
         cy += place(ui, &mut fr, &v, cv, x, cy, w) + gap;
@@ -1738,11 +1776,7 @@ pub(crate) fn list_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32) {
                 cy,
                 w,
                 tokens::BOARD_CHIP,
-                &[(
-                    EN.board_customize,
-                    Style::Secondary,
-                    Action::Board(BoardPress::Customize),
-                )],
+                &read_only_buttons(&v),
             );
         }
         cy + pad - y

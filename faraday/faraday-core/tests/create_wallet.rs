@@ -163,7 +163,7 @@ fn made_on(mut app: Faraday) -> (Faraday, usize) {
 }
 
 #[test]
-fn after_check_the_next_card_is_back_up_with_three_presets() {
+fn after_check_the_next_card_is_back_up_with_one_button() {
     let (mut app, _) = made();
     app.press(Action::CNext(cstep::CHECK));
     assert_eq!(
@@ -172,28 +172,39 @@ fn after_check_the_next_card_is_back_up_with_three_presets() {
         "Back up follows Check"
     );
     let _ = app.frame();
-    for k in 0..3u8 {
-        assert!(app.offers(Action::CBackup(k)), "preset {k} is offered");
+    assert!(
+        app.offers(Action::CBackup),
+        "Back up this wallet is offered"
+    );
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Back up this wallet"));
+    for gone in ["Paper only", "Paper and vault", "The standard way"] {
+        assert!(!texts.iter().any(|t| t == gone), "{gone} is not offered");
     }
-    assert!(!app.offers(Action::CBackup(4)), "three presets, no more");
 }
 
 #[test]
-fn paper_and_vault_opens_the_backup_on_the_new_wallet_with_that_preset() {
+fn back_up_this_wallet_opens_the_board_read_only_on_the_standard_way() {
     let (mut app, built) = made();
     app.press(Action::CNext(cstep::CHECK));
-    let k = Preset::ALL
-        .iter()
-        .position(|p| *p == Preset::PaperVault)
-        .expect("Paper and vault") as u8;
-    app.press(Action::CBackup(k));
+    app.press(Action::CBackup);
     assert_eq!(app.screen, Screen::Backup);
     let b = app.backup.as_ref().expect("backup");
     assert_eq!(b.wallet, built, "the backup is of the wallet just made");
+    assert_eq!(b.q, Some(faraday_core::qstep::BOARD), "on the board");
     assert_eq!(
         b.answers,
-        Answers::preset(&app.plan_shape(built), Preset::PaperVault),
-        "the preset is applied"
+        Answers::preset(&app.plan_shape(built), Preset::Standard),
+        "The standard way placed"
+    );
+    assert!(!b.answers.custom, "read-only until Customize backup");
+    let _ = app.frame();
+    use faraday_core::board::BoardPress;
+    assert!(app.offers(Action::Board(BoardPress::Customize)));
+    assert!(app.offers(Action::Board(BoardPress::Software)));
+    assert!(
+        !app.offers(Action::Board(BoardPress::AddVault)),
+        "no list yet"
     );
 }
 
@@ -201,7 +212,8 @@ fn paper_and_vault_opens_the_backup_on_the_new_wallet_with_that_preset() {
 fn back_from_the_backup_returns_to_the_wallet_card() {
     let (mut app, built) = made();
     app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup(1));
+    app.press(Action::CBackup);
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     let _ = app.frame();
     assert!(
         app.offers(Action::OpenWallet(built)),

@@ -118,11 +118,8 @@ fn locked_after_backup() -> (Boxes, Boxes) {
         Some(cstep::BACKUP),
         "a single-key Create opens on Back up"
     );
-    let k = Preset::ALL
-        .iter()
-        .position(|p| *p == Preset::PaperVault)
-        .expect("Paper and vault") as u8;
-    app.press(Action::CBackup(k));
+    app.press(Action::CBackup);
+    faraday_core::testkit::backup_as(&mut app, Preset::PaperVault);
     assert_eq!(app.screen, Screen::Backup);
     app.press(Action::BChecklist);
     app.press(Action::BStep(bstep::COPY));

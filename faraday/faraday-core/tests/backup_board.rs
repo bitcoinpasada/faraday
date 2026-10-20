@@ -90,7 +90,8 @@ fn three_here() -> Faraday {
     }
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup(1));
+    app.press(Action::CBackup);
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     assert_eq!(backup_places(&app), 3);
     app
 }
@@ -299,7 +300,8 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
     }
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup(1));
+    app.press(Action::CBackup);
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     // Seed A in Vault 1 at Place 1; Seed C as a file at Place 2; nothing
     // on paper.
     no_words(&mut app);
@@ -389,7 +391,8 @@ fn a_seed_kept_nowhere_holds_the_plan() {
     app.press(Action::KLock);
     let fp = app.session.keys.last().unwrap().fingerprint().0;
     app.press(Action::KNext);
-    app.press(Action::CBackup(1));
+    app.press(Action::CBackup);
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     no_words(&mut app);
     no_paper_description(&mut app);
     assert!(app.backup_kept_nowhere().is_some(), "kept nowhere");
@@ -593,7 +596,8 @@ fn three_with_a_vault(shell: &mut Shell) -> (Faraday, Vec<[u8; 4]>) {
     }
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup(1));
+    app.press(Action::CBackup);
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     no_words(&mut app);
     no_paper_description(&mut app);
     (app, fps)
@@ -675,7 +679,8 @@ fn two_sticks_of_files_at_one_place_are_written_as_two_sticks_each_recognised() 
     }
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup(1));
+    app.press(Action::CBackup);
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     no_words(&mut app);
     no_paper_description(&mut app);
     put(&mut app, Thing::Seed(0), Zone::NewStick(0));
@@ -1096,7 +1101,8 @@ fn passphrase_key_on_the_board() -> Faraday {
     }
     app.press(Action::KLock);
     app.press(Action::KNext);
-    app.press(Action::CBackup(1));
+    app.press(Action::CBackup);
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     open_board(&mut app);
     // Over two places, as a plan saved before one place per key (§19.19).
     preset_two_places(&mut app, 1);
@@ -1474,7 +1480,8 @@ fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
     }
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup(1));
+    app.press(Action::CBackup);
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     open_board(&mut app);
     (app, other)
 }
@@ -1680,7 +1687,8 @@ fn a_narrow_window_places_from_the_add_sheets_menu_as_a_drag_does_on_wide() {
 /// §19.15, §19.17): under the stick's head "Stick 1", the files box
 /// headed "Files · not sealed" with Seed B's words file and SeedQR
 /// picture in it, and under it, apart from it, the vault box headed
-/// "Vault 1 · sealed" with Seed A inside; Paper is beside them.
+/// "Vault 1 · sealed · made in the checklist" (a vault not made yet)
+/// with Seed A inside; Paper is beside them.
 #[test]
 fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes() {
     let mut app = three_on_an_empty_board();
@@ -1734,7 +1742,12 @@ fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes()
     };
     let stick_head = at("Stick 1");
     let files_head = at("Files · not sealed");
-    let vault_head = at("Vault 1 · sealed");
+    // A vault added on the board, not made yet (§19.21 item 6).
+    let vault_head = texts
+        .iter()
+        .find(|(s, _)| s == "Vault 1 · sealed · made in the checklist" || s == "Vault 1 · new")
+        .map(|(_, b)| *b)
+        .expect("Vault 1's band");
     assert!(
         stick_head.1 < i32::from(files.1),
         "Stick 1 heads the stick box"
@@ -1745,7 +1758,7 @@ fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes()
     );
     assert!(
         vault_head.1 >= i32::from(vault.1) && vault_head.1 < i32::from(sealed.1),
-        "Vault 1 · sealed heads the vault box"
+        "Vault 1's band heads the vault box"
     );
     // Its forms are toggles on the chip (§19.3).
     for form in ["Words file", "SeedQR file"] {
@@ -2119,21 +2132,21 @@ fn paper(app: &Faraday, p: usize) -> Vec<What> {
 }
 
 /// A fresh Back up on a 2-of-3 opens on the board, The standard way
-/// placed (`docs/BACKUP-FLOW.md` §19.6): three places, each its seed's
-/// words and SeedQR and the whole description, no vault, no stick; Start
-/// from closed on its name with Change.
+/// placed (`docs/BACKUP-FLOW.md` §19.6, §19.21): three places, each its
+/// seed's words and the whole description, no SeedQR, no vault, no stick;
+/// no Start from, and the read-only board's two buttons.
 #[test]
 fn a_fresh_two_of_three_opens_on_the_board_with_the_standard_way_placed() {
     let mut app = fresh_three();
     let b = app.backup.as_ref().unwrap();
     assert_eq!(b.q, Some(qstep::BOARD), "the board is open");
-    assert_eq!(b.answers.preset, Some(Preset::Standard));
+    assert!(!b.answers.custom, "read-only");
     assert_eq!(backup_places(&app), 3);
     let m = the_map(&app);
     for p in 0..3 {
         assert_eq!(
             paper(&app, p),
-            vec![What::Words(p), What::SeedQr(p), What::Sheet],
+            vec![What::Words(p), What::Sheet],
             "Place {}",
             p + 1
         );
@@ -2141,16 +2154,16 @@ fn a_fresh_two_of_three_opens_on_the_board_with_the_standard_way_placed() {
     }
     assert!(!m.iter().any(|s| matches!(s.at, At::Vault(_))), "no vault");
     let t = app.drawn_texts();
-    let start = t
+    assert!(!t.iter().any(|s| s == "Start from"), "{t:?}");
+    let soft = t
         .iter()
-        .position(|s| s == "Start from")
-        .expect("Start from");
-    assert_eq!(t[start + 1], "The standard way", "{t:?}");
-    assert_eq!(t[start + 2], "Change", "{t:?}");
+        .position(|s| s == "Add watch-only software")
+        .expect("Add watch-only software");
+    assert_eq!(t[soft + 1], "Customize backup", "{t:?}");
 }
 
-/// A single key's standard way is one place: its words and SeedQR and the
-/// whole description.
+/// A single key's standard way is one place: its words and the whole
+/// description, no SeedQR (§19.21 item 12).
 #[test]
 fn a_single_keys_standard_way_is_one_place() {
     let mut app = testkit::started();
@@ -2161,10 +2174,7 @@ fn a_single_keys_standard_way_is_one_place() {
     app.press(Action::Backup(w));
     assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::BOARD));
     assert_eq!(backup_places(&app), 1);
-    assert_eq!(
-        paper(&app, 0),
-        vec![What::Words(0), What::SeedQr(0), What::Sheet]
-    );
+    assert_eq!(paper(&app, 0), vec![What::Words(0), What::Sheet]);
 }
 
 /// Until Customize backup the board is read-only: the list's column is the
@@ -2189,7 +2199,7 @@ fn the_board_is_read_only_until_customize_backup() {
     app.press(Action::Board(BP::Form(Zone::Paper(0), Thing::Seed(0), 0)));
     assert_eq!(the_map(&app), before);
     // The read-only chip reads its forms as text.
-    expect_part(&mut app, "· Words · SeedQR");
+    expect_part(&mut app, "· Words");
     // A drag of a placed chip onto another place moves nothing.
     let chip = Action::Board(placed(Zone::Paper(0), Thing::Seed(0)));
     let _ = app.frame();
@@ -2218,40 +2228,38 @@ fn the_board_is_read_only_until_customize_backup() {
     assert!(app.backup.as_ref().unwrap().answers.custom);
 }
 
-/// Change on Start from picks another preset, read-only or customised;
-/// the plan opened for changes stays so. A plan saved after customising
-/// reads back customised.
+/// **Add watch-only software** on the read-only board adds the software
+/// place with the description Scanned in, the board staying read-only;
+/// it then reads **Take off watch-only software** and takes it off again
+/// (`docs/BACKUP-FLOW.md` §19.21 item 3). The plan saved with it reads
+/// back as it was.
 #[test]
 fn another_preset_replaces_the_standard_way_in_both_states() {
     let mut app = fresh_three();
-    let paper_only = Preset::ALL
-        .iter()
-        .position(|p| *p == Preset::Paper)
-        .unwrap() as u8;
-    app.press(Action::BQ(qstep::PRESET));
     let _ = app.frame();
-    assert!(app.offers(Action::BPreset(paper_only)), "Change opens it");
-    app.press(Action::BPreset(paper_only));
+    assert!(app.offers(Action::Board(BP::Software)));
+    app.press(Action::Board(BP::Software));
     let b = app.backup.as_ref().unwrap();
-    assert_eq!(b.answers.preset, Some(Preset::Paper));
     assert!(!b.answers.custom, "still read-only");
-    for p in 0..3 {
-        assert!(!paper(&app, p).contains(&What::SeedQr(p)), "Paper only");
-    }
-    app.press(Action::Board(BP::Customize));
-    let standard = Preset::Standard.index() as u8;
-    app.press(Action::BQ(qstep::PRESET));
-    app.press(Action::BPreset(standard));
-    let b = app.backup.as_ref().unwrap();
-    assert_eq!(b.answers.preset, Some(Preset::Standard));
-    assert!(b.answers.custom, "customised stays so");
-    assert_eq!(
-        paper(&app, 2),
-        vec![What::Words(2), What::SeedQr(2), What::Sheet]
-    );
+    assert_eq!(held(&the_map(&app), At::Software), vec![What::Wallet]);
     let shape = backup_shape(&app);
     let text = b.answers.to_text();
     assert_eq!(Answers::from_text(&shape, &text).as_ref(), Some(&b.answers));
+    let _ = app.frame();
+    expect(&mut app, "Take off watch-only software");
+    assert!(
+        !app.drawn_texts()
+            .iter()
+            .any(|t| t == "Add watch-only software")
+    );
+    for p in 0..3 {
+        assert_eq!(paper(&app, p), vec![What::Words(p), What::Sheet]);
+    }
+    app.press(Action::Board(BP::Software));
+    assert!(held(&the_map(&app), At::Software).is_empty(), "taken off");
+    assert!(!app.backup.as_ref().unwrap().answers.custom);
+    let _ = app.frame();
+    expect(&mut app, "Add watch-only software");
 }
 
 /// The checklist after The standard way writes those copies: the blank
@@ -2275,8 +2283,9 @@ fn the_standard_ways_checklist_writes_its_copies() {
     assert!(!items.contains(&bstep::of(Item::Vault(0))), "no vault");
 }
 
-/// In Customize backup a seed chip's toggles: Words off keeps the SeedQR,
-/// and the last form on cannot be turned off.
+/// In Customize backup a seed chip's toggles: the SeedQR is added by its
+/// toggle (§19.21 item 12), Words off then keeps the SeedQR, and the last
+/// form on cannot be turned off.
 #[test]
 fn a_seed_chips_toggles_keep_the_last_form_on() {
     let mut app = fresh_three();
@@ -2286,9 +2295,23 @@ fn a_seed_chips_toggles_keep_the_last_form_on() {
     let seedqr = BP::Form(Zone::Paper(0), Thing::Seed(0), 1);
     assert!(app.offers(Action::Board(words)), "a toggle on the chip");
     app.press(Action::Board(words));
-    assert_eq!(paper(&app, 0), vec![What::SeedQr(0), What::Sheet]);
+    assert_eq!(paper(&app, 0), vec![What::Words(0), What::Sheet], "stays");
     app.press(Action::Board(seedqr));
-    assert_eq!(paper(&app, 0), vec![What::SeedQr(0), What::Sheet], "stays");
+    assert_eq!(
+        sorted(paper(&app, 0)),
+        sorted(vec![What::Words(0), What::SeedQr(0), What::Sheet])
+    );
+    app.press(Action::Board(words));
+    assert_eq!(
+        sorted(paper(&app, 0)),
+        sorted(vec![What::SeedQr(0), What::Sheet])
+    );
+    app.press(Action::Board(seedqr));
+    assert_eq!(
+        sorted(paper(&app, 0)),
+        sorted(vec![What::SeedQr(0), What::Sheet]),
+        "stays"
+    );
 }
 
 /// A 2-of-3 customised with the whole description off Place 3: Share 1
@@ -2585,4 +2608,152 @@ fn the_read_only_board_shows_no_dots() {
         &mut app,
         Action::Board(BP::Menu(Chip::List(Thing::Seed(0))))
     ));
+}
+
+/// The text a vault box's header band reads, by the vault's title.
+fn vault_band(app: &mut Faraday, title: &str) -> String {
+    let _ = app.frame();
+    app.drawn_texts()
+        .into_iter()
+        .find(|t| {
+            t.starts_with(&format!("{title} ·")) && (t.contains("sealed") || t.ends_with(" · new"))
+        })
+        .unwrap_or_else(|| panic!("no band for {title}: {:?}", app.drawn_texts()))
+}
+
+/// A vault added on the board with **+ new vault** is made in the
+/// checklist, and its box says so until it is (`docs/BACKUP-FLOW.md`
+/// §19.21 items 4 and 6).
+#[test]
+fn a_vault_added_with_new_vault_reads_made_in_the_checklist() {
+    let mut app = fresh_three();
+    app.press(Action::Board(BP::Customize));
+    let _ = app.frame();
+    expect(&mut app, "+ new vault");
+    app.press(Action::Board(BP::AddVault));
+    app.press(Action::Board(BP::Menu(Chip::List(Thing::Vault(0)))));
+    app.press(Action::Board(BP::MenuTo(Zone::NewStick(0))));
+    assert!(
+        vault_stick(&app, 0, 0).is_some(),
+        "Vault 1's stick at Place 1"
+    );
+    let band = vault_band(&mut app, "Vault 1");
+    assert!(
+        band == "Vault 1 · sealed · made in the checklist" || band == "Vault 1 · new",
+        "{band}"
+    );
+}
+
+/// A vault set up before the keys is made already: its box reads
+/// "· sealed" (`docs/BACKUP-FLOW.md` §19.21 item 6).
+#[test]
+fn a_vault_set_up_before_the_keys_reads_sealed() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 2);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(multi_index()));
+    app.press(Action::CVaults(true));
+    app.press(Action::CNext(cstep::WHERE));
+    app.press(Action::CVaultN(1));
+    app.press(Action::CNext(cstep::HOW_MANY));
+    shell.plug(&mut app, "S1");
+    shell.flow(&mut app, F::Tap);
+    shell.pull(&mut app, "S1");
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
+    app.press(Action::Nav(Screen::Create));
+    for (i, fp) in fps.iter().enumerate() {
+        app.press(Action::CSlotHere(i as u8, *fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup);
+    vault_at(&mut app, 0, 0, &[0]);
+    let band = vault_band(&mut app, "Vault 1");
+    assert!(band.ends_with(" · sealed"), "{band}");
+}
+
+/// A plan saved from Paper and vault, before the presets were withdrawn,
+/// reopens as it was saved and customisable; one from The standard way
+/// keeps its read-only state (`docs/BACKUP-FLOW.md` §19.21 item 7).
+#[test]
+fn a_plan_saved_from_paper_and_vault_reopens_unchanged_and_customisable() {
+    let shape = two_of_three();
+    let a = Answers::preset(&shape, Preset::PaperVault);
+    assert!(!a.to_text().contains("preset "), "no longer written");
+    let saved = format!("{}preset 2\n", a.to_text());
+    let back = Answers::from_text(&shape, &saved).expect("read, not refused");
+    assert!(back.custom, "customisable");
+    assert_eq!(plan::map(&shape, &back), plan::map(&shape, &a), "as saved");
+    let standard = Answers::preset(&shape, Preset::Standard);
+    let saved = format!("{}preset 0\n", standard.to_text());
+    let back = Answers::from_text(&shape, &saved).expect("read");
+    assert!(!back.custom, "The standard way stays read-only");
+}
+
+/// Change the plan, from the checklist, opens the board as it was left;
+/// Customize backup, the words off and the SeedQR on, then Make the
+/// checklist, gives a checklist that copies the SeedQR and no words
+/// (`docs/BACKUP-FLOW.md` §19.21 item 11).
+#[test]
+fn change_the_plan_from_the_checklist_shows_the_board() {
+    let mut app = fresh_three();
+    app.press(Action::BChecklist);
+    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    app.press(Action::BPlan);
+    let b = app.backup.as_ref().unwrap();
+    assert_eq!(b.stage, BStage::Plan);
+    assert_eq!(b.q, Some(qstep::BOARD), "the board card is open");
+    let _ = app.frame();
+    assert!(app.offers(Action::Board(BP::Customize)), "still read-only");
+    app.press(Action::Board(BP::Customize));
+    app.press(Action::Board(BP::Form(Zone::Paper(0), Thing::Seed(0), 1)));
+    app.press(Action::Board(BP::Form(Zone::Paper(0), Thing::Seed(0), 0)));
+    app.press(Action::BQNext(qstep::BOARD));
+    app.press(Action::BChecklist);
+    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    assert_eq!(
+        sorted(paper(&app, 0)),
+        sorted(vec![What::SeedQr(0), What::Sheet])
+    );
+    assert!(app.backup_items().contains(&bstep::of(Item::Copy(0))));
+}
+
+/// A new plan keeps each seed's words on paper and no SeedQR, a single key
+/// and a 2-of-3 alike; Customize backup and the SeedQR's toggle add it
+/// (`docs/BACKUP-FLOW.md` §19.21 item 12).
+#[test]
+fn a_new_plan_keeps_the_words_and_no_seedqr() {
+    let mut single = testkit::started();
+    let fp = key_in(&mut single, 1);
+    single.press(Action::KeyWallet(fp, 1));
+    single.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    let w = single.session.wallets.len() - 1;
+    single.press(Action::Backup(w));
+    let three = fresh_three();
+    for (mut app, n) in [(single, 1), (three, 3)] {
+        for p in 0..n {
+            assert_eq!(paper(&app, p), vec![What::Words(p), What::Sheet]);
+        }
+        app.press(Action::BChecklist);
+        let items = app.backup_items();
+        assert!(items.contains(&bstep::of(Item::Copy(0))), "{items:?}");
+        app.press(Action::BPlan);
+        app.press(Action::Board(BP::Customize));
+        app.press(Action::Board(BP::Form(Zone::Paper(0), Thing::Seed(0), 1)));
+        assert_eq!(
+            sorted(paper(&app, 0)),
+            sorted(vec![What::Words(0), What::SeedQr(0), What::Sheet])
+        );
+    }
+}
+
+/// What a box holds, in an order of its own: the board keeps what was
+/// added last at the end.
+fn sorted(mut v: Vec<What>) -> Vec<String> {
+    let mut out: Vec<String> = v.drain(..).map(|w| format!("{w:?}")).collect();
+    out.sort();
+    out
 }

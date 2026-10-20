@@ -572,9 +572,12 @@ and matched. A write made on the stick visit page does not count
   before Keys, and its plan is made in Back up after the keys (owner,
   2026-10-15). In order:
   1. **Whether vaults are part of the backup.** A question with Yes and
-     No: "Will you use vaults as part of this backup?". It is not done,
-     and shows no check, until the person has answered it and pressed
-     Continue. No goes on to Keys.
+     No: "Will you use vaults as part of this backup?", and under it,
+     in the muted style, "Vaults already on sticks are brought in here,
+     not later." (§19.21 item 5: a stick not read this power-on cannot
+     be read after the keys without the lock, which wipes them). It is
+     not done, and shows no check, until the person has answered it and
+     pressed Continue. No goes on to Keys.
   2. **How many vaults.** A count of one to 1024 (the most a saved plan
      reads back); the count refuses more. Not done until its own
      Continue, also after the wallet is made.
@@ -1976,38 +1979,39 @@ it the checklist would release the hold on a key that has no backup
 with no Start from card; §19.21. What follows on Customize backup
 stands.*
 
-The presets, in the order **Start from** offers them (owner,
-2026-10-19):
+The one way a backup starts (owner, 2026-10-19; narrowed 2026-10-20,
+§19.21):
 
-1. **The standard way**, the default. A single key: one place, Paper
-   holding the seed's words and SeedQR and the whole description. An
-   m-of-n multisig: n places, each Paper holding one seed's words and
-   SeedQR and the whole description. No vaults, no sticks. A seed with a
+1. **The standard way**. A single key: one place, Paper
+   holding the seed's words and the whole description. An m-of-n
+   multisig: n places, each Paper holding one seed's words and the
+   whole description. No SeedQR (§19.21 item 12). No vaults, no sticks. A seed with a
    passphrase has the passphrase at a place of its own, as every preset
    puts it (§10.3).
 2. **Paper only**, 3. **Paper and vault**, 4. **Paper, vault and
-   watch-only software**: the alternatives, as before.
+   watch-only software**: offered nowhere since §19.21. Paper only is
+   now the same plan as The standard way; vaults are added with
+   **+ new vault** and the software with **Add watch-only software**. A
+   plan saved from one of them reopens as it was, customisable.
 
 **A new plan opens on the board with The standard way placed**, on Back
-up and on Create's Back up alike: the person makes no selection. Start
-from is closed and done, its line "The standard way" with **Change**,
-which opens it to pick another preset. A plan already saved opens as it
-was; Start from names the preset it started from.
+up and on Create's Back up alike: the person makes no selection. There
+is no Start from card (§19.21). A plan already saved opens as it was.
 
 **Customize backup.** Until it is pressed the board shows the placement
 as it will be kept, read-only: no × on places, sticks or chips, no
 **+ place** or **+ stick**, no drag, and form toggles read as text. The
-right-hand column, where the list is, shows the one secondary button
-**Customize backup** instead of the list; in the narrow column the
-button stands where **Add** does. Continue goes on to The plan as
-usual. Pressing it shows the list (Seeds, Passphrases, Wallet
-description and shares, Vaults with **+ vault**, Watch-only software)
-and makes the board editable as §19.1 to §19.5 say. It stays so for
-that plan: the plan keeps it (a `custom 1` line in the plan's text, with
-`preset k` for the preset it started from), so a plan saved after
+right-hand column, where the list is, shows two secondary buttons,
+**Add watch-only software** and **Customize backup**, instead of the
+list; in the narrow column they stand where **Add** does (§19.21 item
+3). Continue goes on to The plan as usual. Pressing Customize backup
+shows the list (Seeds, Passphrases, Wallet description and shares,
+Vaults with **+ new vault**, Watch-only software) and makes the board
+editable as §19.1 to §19.5 say. It stays so for that plan: the plan
+keeps it (a `custom 1` line in the plan's text; a `preset k` line, no
+longer written, is still read, §19.21 item 7), so a plan saved after
 customising reopens customisable and one never customised reopens
-read-only with the button. Change on Start from to another preset works
-in both states and keeps the state. The plan, the checklist and the
+read-only with the buttons. The plan, the checklist and the
 checks under the board are the same in both states. A wallet flow's own
 plan (vaults set up before the keys) takes changes from the start: no
 preset places those vaults.
@@ -2759,10 +2763,11 @@ the visible way to place, move, copy and take off without dragging.
 
 ### 19.21 One way to start; Customize for the rest (owner, 2026-10-20; tracker #160)
 
-The standard way is the one preset. Paper only was the standard way
-without the SeedQR, and the vault presets chose for the person how many
-vaults there are and where their sticks go; both are done on the board
-in Customize backup.
+The standard way is the one preset, and it keeps each seed as its
+words on paper, without a SeedQR (owner, 2026-10-20): it is now what
+Paper only was. The vault presets chose for the person how many vaults
+there are and where their sticks go; that, and a SeedQR, are done on
+the board in Customize backup.
 
 1. **No Start from.** Back up's plan has no Start from card, no preset
    list and no **Change**: a new plan opens on the board with The
@@ -2773,8 +2778,8 @@ in Customize backup.
    Restore) has one primary button, **Back up this wallet**, which opens
    Back up on the wallet just made, on the board as item 1 says. Its
    guide line reads: "The backup opens on the standard way: each seed's
-   words and SeedQR on paper with the wallet description, one place for
-   each key. Go through it before any money goes in."
+   words on paper with the wallet description, one place for each key.
+   Go through it before any money goes in."
 3. **The read-only board** shows two secondary buttons where Customize
    backup is today (the right-hand column; in the narrow column where
    **Add** stands), in this order, with no text above them:
@@ -2830,3 +2835,67 @@ in Customize backup.
 10. **Docs:** §19.6 (presets), §10.2 (the line under the question),
     `docs/DECISIONS.md` F53, and the preset lists in `docs/WALLETS.md`,
     `docs/FLOWS.md` and `docs/DESIGN.md`.
+11. **Change the plan opens the board** (owner, 2026-10-20). From the
+    checklist, from its done state, and from a wallet flow's cards,
+    **Change the plan** goes back to the plan with the board card open
+    and scrolled to, as a new plan opens: in Back up (`Action::BPlan`,
+    today every card closed) and in a wallet flow (`F::ChangePlan`,
+    today The plan card). The board is as it was left: read-only until
+    Customize backup, or customisable if it was customised; §17.8's
+    limits after the lock stand. Test: from the checklist, Change the
+    plan shows the board; Customize backup, then a seed's words toggled
+    off and SeedQR on, then Continue and Make the checklist, gives a
+    checklist with the SeedQR's item and no words; the same from a
+    wallet flow.
+12. **Words, not SeedQR, by default** (owner, 2026-10-20). The standard
+    way puts each seed's words on paper and no SeedQR, single key and
+    multisig alike (`Answers::preset`, today it ticks SeedQR for The
+    standard way); everything else it places is unchanged. A SeedQR is
+    added in Customize backup, by the seed chip's form toggle. A plan
+    saved with a SeedQR keeps it. §19.6 item 1 reads accordingly. Test:
+    a new plan's checklist has the words' item and no SeedQR, for a
+    single key and a 2-of-3; Customize backup and the SeedQR toggled on
+    adds it.
+
+**Built (2026-10-20), with what the building decided:**
+
+- `plan::Preset` keeps its four variants as plan builders only
+  (`Answers::preset`): nothing in the UI offers them, and they are what
+  a saved plan's `preset` line named and what the tests' plans by
+  presses aim at. Since item 12 Paper only builds the same plan as The
+  standard way. `Preset::name` and `Preset::index`, which only Start
+  from and the plan's text used, are gone, and so is `Answers::preset`'s
+  field: a `preset k` line read sets `custom` for any `k` but 0 and is
+  not kept.
+- The tests' shared helper is `testkit::backup_as(app, preset)`: from
+  the board on screen (Back up's board card opened where another card
+  is), it presses **Add watch-only software** (on the read-only board;
+  the software chip's **Add to…** once customised), **Customize
+  backup**, a seed chip's SeedQR toggle on paper, **+ new vault** for
+  each vault not set up before the keys, and the ⋮ menu's **Add to…**
+  for each vault's stick and for what each vault holds; then it asserts
+  that the plan reached is the one the preset builds. It presses
+  nothing where the board shows that plan already. The snapshot tool's
+  tours use it too (`Tour::backup_as`). Tests that set a plan over two
+  places for a single key (`preset_two_places`, plans saved before
+  §19.19) still set the answers directly: no press reaches them now.
+- **Add watch-only software** is `BoardPress::Software`, taken while the
+  board is read-only; it toggles the software place as the software
+  chip does (`Answers::toggle_software`), refused after the lock as that
+  chip is.
+- Create's Back up card reads "Opens on the standard way" while closed,
+  in place of the presets' list. Back up this wallet is the card's
+  primary; **Move the money**, where a wallet is made to move money to,
+  stays as it was.
+- The vault box's band is chosen by the drawing: "{} · sealed · made in
+  the checklist" where it fits the band's room, "{} · new" where not.
+  Made or not is `backup_vault_target(v)` on Back up's board, and on a
+  wallet flow's own board a vault set up before the keys
+  (`v < shape.vaults`). `board_view` is worked out once a frame, so a
+  vault opened, made or locked shows at the next frame.
+- Change the plan sets Back up's open card to the board with the column
+  at its top (the board is the first card); a wallet flow's opens its
+  board card with the column following it. Tests that opened the board
+  by its card after Change the plan now find it open, and a test that
+  looks at The plan's card after the board's lets the cards' motion run
+  its course first.

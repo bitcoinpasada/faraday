@@ -94,7 +94,8 @@ fn made(seeds: &[usize], pass: &str) -> (Faraday, String, Vec<[u8; 4]>) {
     }
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup(1));
+    app.press(Action::CBackup);
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     assert_eq!(app.screen, Screen::Backup);
     let address = app.session.address(&app.session.wallets[0], false, 0);
     nothing_on_paper(&mut app);

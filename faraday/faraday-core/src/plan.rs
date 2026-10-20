@@ -60,15 +60,21 @@ pub mod form {
     pub const TEXT: usize = 1;
 }
 
-/// The ways to start, one tap each.
+/// The plans a backup once started from, kept as plan builders
+/// (`docs/BACKUP-FLOW.md` §19.21, F53): The standard way is the plan a new
+/// backup opens on; the others are offered nowhere, and are what a saved
+/// plan's `preset` line and the tests' plans by presses
+/// (`testkit::backup_as`) name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Preset {
-    /// The standard way (`docs/BACKUP-FLOW.md` §19.6): paper at one place
-    /// for a single key, at a place per seed for a multisig, each holding
-    /// its seed's words and SeedQR and the whole description; no vault,
-    /// no stick. The board opens on it for a new plan.
+    /// The standard way (`docs/BACKUP-FLOW.md` §19.6, §19.21 item 12):
+    /// paper at one place for a single key, at a place per seed for a
+    /// multisig, each holding its seed's words and the whole description;
+    /// no SeedQR, no vault, no stick. The board opens on it for a new
+    /// plan.
     Standard,
-    /// Paper in each place.
+    /// Paper in each place: since §19.21 item 12 the same plan as
+    /// [`Preset::Standard`], which a saved plan's `preset 1` named.
     Paper,
     /// Paper, and the seeds and the wallet in the vault.
     PaperVault,
@@ -77,28 +83,13 @@ pub enum Preset {
 }
 
 impl Preset {
-    /// Every preset, in the order offered.
+    /// Every preset, The standard way first.
     pub const ALL: [Preset; 4] = [
         Preset::Standard,
         Preset::Paper,
         Preset::PaperVault,
         Preset::PaperVaultSoftware,
     ];
-
-    /// What the preset is called.
-    pub fn name(self) -> &'static str {
-        match self {
-            Preset::Standard => EN.plan_the_standard_way,
-            Preset::Paper => EN.plan_paper_only,
-            Preset::PaperVault => EN.plan_paper_and_vault,
-            Preset::PaperVaultSoftware => EN.plan_paper_vault_and,
-        }
-    }
-
-    /// Its place in [`Preset::ALL`].
-    pub fn index(self) -> usize {
-        Preset::ALL.iter().position(|&p| p == self).unwrap_or(0)
-    }
 }
 
 /// One seed of the wallet, as the plan sees it.
@@ -194,10 +185,6 @@ pub struct Answers {
     /// gives a passphrase when every other place keeps a copy of its seed
     /// (`docs/BACKUP-FLOW.md` §10.3).
     pub bare: Vec<usize>,
-    /// The preset the plan started from, which Start from names while it
-    /// is closed (`docs/BACKUP-FLOW.md` §19.6); `None` for a plan saved
-    /// before presets were kept.
-    pub preset: Option<Preset>,
     /// The board has been opened for changes by **Customize backup**
     /// (§19.6): until then it shows the placement read-only. Kept with
     /// the plan, so a plan customised once reopens customisable.
@@ -220,7 +207,6 @@ impl Default for Answers {
             omit: 0,
             map: None,
             bare: Vec::new(),
-            preset: None,
             custom: false,
         }
     }
@@ -252,7 +238,6 @@ impl Answers {
             omit: shape.m.saturating_sub(1),
             map: None,
             bare: Vec::new(),
-            preset: None,
             custom: false,
         };
         a.pass = shape
@@ -371,16 +356,14 @@ impl Answers {
     /// place per key had it (two for a single key).
     pub fn preset_at(shape: &Shape, preset: Preset, base: usize) -> Answers {
         let mut a = Answers::defaults(shape);
-        a.preset = Some(preset);
         // The passphrase's own place is found again below, once the
         // vault's stick has its place.
         if a.places != base {
             a.set_places(shape, base);
         }
         a.bare.clear();
-        if preset == Preset::Standard {
-            a.seeds[seeds::SEEDQR] = !shape.watch_only();
-        }
+        // The words on paper and no SeedQR, The standard way too: a SeedQR
+        // is added on the board (`docs/BACKUP-FLOW.md` §19.21 item 12).
         if !matches!(preset, Preset::Paper | Preset::Standard) {
             a.seeds[seeds::VAULT] = !shape.watch_only();
             a.wallet[wallet::VAULT] = true;
@@ -1030,11 +1013,7 @@ impl Answers {
             }
             out.push('\n');
         }
-        // The preset it started from, and whether the board was opened
-        // for changes (§19.6).
-        if let Some(p) = self.preset {
-            out.push_str(&format!("preset {}\n", p.index()));
-        }
+        // Whether the board was opened for changes (§19.6).
         if self.custom {
             out.push_str("custom 1\n");
         }
@@ -1249,11 +1228,15 @@ impl Answers {
                 // builds before the layers were withdrawn (F38, F46): read
                 // past, never refused.
                 "layers" | "route" => continue,
-                // The preset it started from, and whether the board was
-                // opened for changes (§19.6).
+                // The preset a plan saved before F53 started from: read,
+                // never refused, and no longer written. A plan from Paper
+                // only, Paper and vault, or Paper, vault and watch-only
+                // software reopens as it was, customisable
+                // (`docs/BACKUP-FLOW.md` §19.21 item 7).
                 "preset" => {
-                    let k: usize = value.parse().ok()?;
-                    a.preset = Some(*Preset::ALL.get(k)?);
+                    if value != "0" {
+                        a.custom = true;
+                    }
                     continue;
                 }
                 "custom" => {

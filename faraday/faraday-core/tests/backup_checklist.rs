@@ -91,16 +91,6 @@ fn one_key(app: &mut Faraday) -> usize {
 /// Presses `action`, which the screen on show must offer somewhere down
 /// its column.
 fn press_offered(app: &mut Faraday, action: Action) {
-    // A preset is chosen on Start from, opened by its Change: the board
-    // opens on The standard way (`docs/BACKUP-FLOW.md` §19.6).
-    if matches!(action, Action::BPreset(_))
-        && app
-            .backup
-            .as_ref()
-            .is_some_and(|b| b.q != Some(faraday_core::qstep::PRESET))
-    {
-        app.press(Action::BQ(faraday_core::qstep::PRESET));
-    }
     // Make the checklist is on The plan card (`docs/BACKUP-FLOW.md`
     // §17.1): a person opens it first.
     if action == Action::BChecklist
@@ -138,7 +128,7 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
     unlock(&mut app);
     app.press(Action::Backup(w));
     assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::BOARD));
-    press_offered(&mut app, Action::BPreset(2));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     press_offered(&mut app, Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
@@ -214,7 +204,7 @@ fn making_the_checklist_with_sparrow_chosen_puts_the_wallet_file_for_the_stick()
     let mut app = device(Vec::new());
     let w = one_key(&mut app);
     app.press(Action::Backup(w));
-    press_offered(&mut app, Action::BPreset(3));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVaultSoftware);
     app.press(Action::BAnswer(
         qrow::SOFTWARE,
         plan::software::SPARROW as u8,
@@ -246,7 +236,7 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
     let w = one_key(&mut app);
     unlock(&mut app);
     app.press(Action::Backup(w));
-    press_offered(&mut app, Action::BPreset(3));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVaultSoftware);
     // Start from goes on to the board itself; a place's name is typed
     // on its card there (`docs/BACKUP-FLOW.md` §19.12 item 2).
     if app.backup.as_ref().unwrap().q != Some(qstep::BOARD) {
@@ -427,7 +417,7 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
     let mut app = device(Vec::new());
     let w = two_of_three_two_here(&mut app);
     app.press(Action::Backup(w));
-    press_offered(&mut app, Action::BPreset(2));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     // No paper words, so the vaults come first.
     no_words(&mut app);
     press_offered(&mut app, Action::BChecklist);
@@ -547,7 +537,7 @@ fn through_a_2_of_3_checklist_the_cards_tick_what_is_done_and_the_rest_wait_for_
     }));
     let w = two_of_three_two_here(&mut app);
     app.press(Action::Backup(w));
-    press_offered(&mut app, Action::BPreset(1));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     press_offered(&mut app, Action::BChecklist);
     assert_eq!(
         app.backup_items(),

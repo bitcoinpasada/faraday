@@ -256,6 +256,18 @@ fn ask_card(
         W::R,
         TEXT,
         FEN.backup_flow_use_vaults_question,
+    ) + 6.0;
+    // A vault on a stick is read before the keys only: after them the
+    // lock a new stick needs would wipe them (`docs/BACKUP-FLOW.md` §19.21
+    // item 5).
+    cy += ui.wrap(
+        x,
+        cy,
+        w,
+        13.0,
+        W::R,
+        MUTED,
+        FEN.backup_flow_vaults_on_sticks,
     ) + 14.0;
     let style = |on: bool| {
         if locked {

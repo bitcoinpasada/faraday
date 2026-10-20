@@ -295,7 +295,8 @@ fn create_at_places() -> Faraday {
     }
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup(1));
+    app.press(Action::CBackup);
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::BOARD));
     app
@@ -530,7 +531,8 @@ fn create_at_places_from_wallets() -> Faraday {
     }
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup(1));
+    app.press(Action::CBackup);
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     assert_eq!(app.screen, Screen::Backup);
     app
 }
@@ -650,7 +652,7 @@ fn restores_cancel_ends_it_and_removes_its_row() {
 fn back_ups_cancel_ends_it_on_the_wallet_and_removes_its_row() {
     let mut app = with(1, 1);
     app.press(Action::Backup(0));
-    app.press(Action::BPreset(1));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     assert!(row_on_settings(&mut app, Going::Backup));
     app.press(Action::Resume(Going::Backup));
     app.press(Action::CancelFlow);

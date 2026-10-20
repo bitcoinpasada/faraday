@@ -61,11 +61,8 @@ fn create_to_vault_step() -> Faraday {
         app.create.as_ref().unwrap().built.is_some(),
         "the wallet did not build"
     );
-    let paper_and_vault = faraday_core::plan::Preset::ALL
-        .iter()
-        .position(|p| *p == faraday_core::plan::Preset::PaperVault)
-        .unwrap() as u8;
-    app.press(Action::CBackup(paper_and_vault));
+    app.press(Action::CBackup);
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     assert_eq!(app.screen, Screen::Backup);
     // No paper words: the vault's item comes first and opens.
     common::no_words(&mut app);
@@ -189,7 +186,7 @@ fn a_finished_backup_offers_a_stick_and_asks_to_lock_first() {
     let mut app = create_to_vault_step();
     let wallet = app.create.as_ref().unwrap().built.unwrap();
     app.press(Action::Backup(wallet));
-    app.press(Action::BPreset(1));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     app.press(Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
@@ -388,5 +385,37 @@ fn this_computer_gives_what_it_has_free_and_can_be_unticked() {
         app.drawn_texts()
             .iter()
             .any(|t| t == "4 GiB (14.6 GiB free)")
+    );
+}
+
+/// A vault added with + new vault reads "made in the checklist" on the
+/// board until the checklist has made it, and "sealed" once it has
+/// (`docs/BACKUP-FLOW.md` §19.21 item 6).
+#[test]
+fn a_new_vault_reads_made_in_the_checklist_until_the_checklist_makes_it() {
+    let band = |app: &mut Faraday| -> String {
+        app.press(Action::BPlan);
+        let _ = app.frame();
+        app.drawn_texts()
+            .into_iter()
+            .find(|t| t.starts_with("Vault 1 ·") && (t.contains("sealed") || t.ends_with(" · new")))
+            .unwrap_or_else(|| panic!("no band: {:?}", app.drawn_texts()))
+    };
+    let mut app = create_to_vault_step();
+    let before = band(&mut app);
+    assert!(
+        before == "Vault 1 · sealed · made in the checklist" || before == "Vault 1 · new",
+        "{before}"
+    );
+    app.press(Action::BChecklist);
+    make_a_vault(&mut app);
+    type_text(&mut app, "test phrase");
+    app.press(Action::Vault(V::Unlock));
+    settle(&mut app, 30);
+    assert_eq!(app.vaults.open.len(), 1, "the new vault is open");
+    let after = band(&mut app);
+    assert!(
+        after.ends_with(" · sealed") && !after.contains("checklist"),
+        "{after}"
     );
 }
