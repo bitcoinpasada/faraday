@@ -8,8 +8,8 @@ use osk_learn::{EN, Page as LearnPage};
 
 use faraday_learn::known;
 pub use faraday_learn::{
-    GUIDES, MAKERS, Maker, apk_key_page, demo_page, gpg_page, guide_address, guide_id, maker, page,
-    shares_page, time_page, upgrade_page,
+    GUIDES, MAKERS, Maker, apk_key_page, backup_plan_check_page, demo_page, gpg_page,
+    guide_address, guide_id, maker, page, shares_page, time_page, upgrade_page,
 };
 
 use crate::create::NewKind;
@@ -133,13 +133,24 @@ impl Faraday {
                     .and_then(|b| self.session.wallets.get(b.wallet))
                     .is_some_and(crate::backup::splits);
                 if splits {
-                    vec![&EN.backups, shares_page(), &EN.other_backups, &EN.seed_xor]
+                    vec![
+                        &EN.backups,
+                        backup_plan_check_page(),
+                        shares_page(),
+                        &EN.other_backups,
+                        &EN.seed_xor,
+                    ]
                 } else {
-                    vec![&EN.backups, &EN.other_backups, &EN.seed_xor]
+                    vec![
+                        &EN.backups,
+                        backup_plan_check_page(),
+                        &EN.other_backups,
+                        &EN.seed_xor,
+                    ]
                 }
             }
-            Screen::Backups => vec![&EN.backups, &EN.encrypted_backups],
-            Screen::Restore => vec![&EN.backups, &EN.inheritance],
+            Screen::Backups => vec![&EN.backups, backup_plan_check_page(), &EN.encrypted_backups],
+            Screen::Restore => vec![&EN.backups, backup_plan_check_page(), &EN.inheritance],
             Screen::Message | Screen::CheckMessage => vec![&EN.message],
             Screen::Files | Screen::Visit => vec![&EN.air_gap, &EN.coordinators],
             // An APK signing key's page, and the form that makes one, name

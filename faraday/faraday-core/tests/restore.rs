@@ -701,3 +701,63 @@ fn it_matches_opens_done_with_two_vaults() {
     assert_eq!(app.screen, Screen::Restore);
     assert_eq!(app.restore.as_ref().unwrap().open, Some(DONE));
 }
+
+/// A wallet restored from the test vault kept under the file name
+/// `file`, then its Spend tab opened from the wallet's card.
+fn restored_from_vault_named(file: &str) -> Faraday {
+    use faraday_core::StorageEvent;
+    use faraday_core::vaults::VaultAction as V;
+    let mut app = shown();
+    app.storage(StorageEvent::Restored {
+        inbox: vec![(file.to_string(), testkit::test_vault().unwrap())],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    app.vaults.ms_per_unit = Some(100);
+    app.press(Action::Vault(V::Open(0)));
+    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..20u64 {
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    let record = {
+        use faraday_vault::records::{field, kind};
+        app.vaults.open[0]
+            .contents
+            .of(kind::WALLET)
+            .find(|(_, r)| r.text(field::WALLET_NAME) == Some("Spending"))
+            .map(|(i, _)| i)
+            .expect("the vault's Spending wallet")
+    };
+    app.press(Action::RFromVault(0, record));
+    let w = app
+        .session
+        .wallets
+        .iter()
+        .position(|w| w.name == "Spending")
+        .expect("the wallet was not restored");
+    app.press(Action::Family(F::SpendFrom(w)));
+    assert_eq!(app.screen, Screen::Family);
+    app
+}
+
+/// A wallet restored from a vault is a vault's wallet, whatever the
+/// vault is called.
+#[test]
+fn a_wallet_restored_from_a_vault_with_any_name_goes_the_vault_route() {
+    use faraday_core::family::Route;
+    let app = restored_from_vault_named("Savings vault.ofv");
+    assert_eq!(app.family.route, Some(Route::Vault));
+}
+
+#[test]
+fn a_wallet_restored_from_a_vault_named_vault_goes_the_vault_route() {
+    use faraday_core::family::Route;
+    let app = restored_from_vault_named("Vault");
+    assert_eq!(app.family.route, Some(Route::Vault));
+}

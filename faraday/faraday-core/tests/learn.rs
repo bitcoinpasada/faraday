@@ -26,3 +26,14 @@ fn the_question_mark_opens_the_pages_for_the_screen() {
     app.press(Action::Learn);
     assert_eq!(shown(&app), "Randomness");
 }
+
+#[test]
+fn the_backups_list_names_the_page_on_a_backup_plans_check_after_backups() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(faraday_core::Screen::Backups));
+    app.press(Action::Learn);
+    assert_eq!(app.sheet, Some(Sheet::Learn));
+    assert_eq!(shown(&app), "Backups");
+    app.press(Action::LearnPage(1));
+    assert_eq!(shown(&app), "A backup plan's check");
+}

@@ -9127,7 +9127,7 @@ impl Faraday {
             return;
         };
         let source = open.name.clone();
-        self.restore_wallet(&name, &text, &source, wallet::Origin::Named);
+        self.restore_wallet(&name, &text, &source, wallet::Origin::Vault);
         let Some(w) = self
             .restore
             .as_ref()

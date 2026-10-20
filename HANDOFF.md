@@ -172,6 +172,19 @@ is dropped here when upstream has it):
   `threshold.rs`, `core/osk-bip/tests/frost.rs` and `threshold.rs`.
   No result changes: the BIP-327, FROST and BIP-352 vectors pass as
   they were.
+- 2026-10-19, note for the owner to send in
+  `local/for-upstream/osk-codec-png-and-osk-ui-sd-card.md` (with its
+  `.patch`; tracker #64): `core/osk-codec`'s `png::grey_png` (an
+  eight-bit greyscale PNG, beside `qr_png`, with `tests/png.rs`), and
+  `core/osk-ui`'s `Icon::SdCard` and `Icon::Add` (their place in
+  `Icon::ALL`, the `tools/fontbake` entries, the rebaked `icon.outl`).
+  Both only add. OpenSigner's Learn page on backups no longer differs:
+  its four sections about Faraday's plan check are Faraday's own page,
+  `docs/learn/faraday/backup-plan-check.md`.
+- `docs/learn/06-where-randomness.md` and `osk-learn`'s `en.rs`: one
+  sentence in the dice section says a device may stop at 70 rolls for 12
+  words and 140 for 24 (the last word's final rolls only fill bits the
+  checksum replaces). Not yet offered upstream.
 - `core/osk-shell-api`: Faraday's desktop shells send keys and events
   upstream's enum does not have: `Key::Delete`, `Event::Wheel`,
   `ScrollEnd`, `Shift`, `Back`, `Forward`, `Hover` and `HoverEnd` (since
