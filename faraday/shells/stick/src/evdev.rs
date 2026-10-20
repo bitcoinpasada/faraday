@@ -69,6 +69,14 @@ pub const KEY_A: u16 = 30;
 pub const KEY_Z: u16 = 44;
 /// The left mouse button, and a touchpad's own button.
 pub const BTN_LEFT: u16 = 0x110;
+/// A mouse's thumb button nearer the person: back, on most mice.
+pub const BTN_SIDE: u16 = 0x113;
+/// A mouse's thumb button further from the person: forward, on most mice.
+pub const BTN_EXTRA: u16 = 0x114;
+/// Forward, on a mouse that names it so.
+pub const BTN_FORWARD: u16 = 0x115;
+/// Back, on a mouse that names it so.
+pub const BTN_BACK: u16 = 0x116;
 /// A touchpad saying one finger is on it.
 pub const BTN_TOOL_FINGER: u16 = 0x145;
 /// Contact: a finger is down.

@@ -5,7 +5,11 @@
 //! moves while it is down, and `BTN_LEFT` up are
 //! [`Event::Touch`](osk_shell_api::Event::Touch) Down, Move and Up at the
 //! cursor, and the wheel is [`Event::Scroll`](osk_shell_api::Event::Scroll)
-//! there. Every screen therefore works with a mouse for the same reason
+//! there. The thumb buttons (`BTN_SIDE` and `BTN_BACK`, `BTN_EXTRA` and
+//! `BTN_FORWARD`) are the core's
+//! [`Event::Back`](osk_shell_api::Event::Back) and
+//! [`Event::Forward`](osk_shell_api::Event::Forward), on the press
+//! (`docs/NEW-WALLET.md` §13.1). Every screen therefore works with a mouse for the same reason
 //! it works with a finger, and nothing in the core knows the difference.
 //!
 //! No acceleration: one device count moves the cursor by the arrow's scale
@@ -40,9 +44,10 @@
 
 use crate::Wake;
 use crate::evdev::{
-    ABS_MT_POSITION_X, ABS_MT_POSITION_Y, ABS_MT_SLOT, ABS_MT_TRACKING_ID, ABS_X, ABS_Y, BTN_LEFT,
-    BTN_TOOL_DOUBLETAP, BTN_TOOL_FINGER, BTN_TOUCH, EV_ABS, EV_KEY, EV_REL, EV_SYN, REL_WHEEL,
-    REL_WHEEL_HI_RES, REL_X, REL_Y, RawEvent, SYN_REPORT,
+    ABS_MT_POSITION_X, ABS_MT_POSITION_Y, ABS_MT_SLOT, ABS_MT_TRACKING_ID, ABS_X, ABS_Y, BTN_BACK,
+    BTN_EXTRA, BTN_FORWARD, BTN_LEFT, BTN_SIDE, BTN_TOOL_DOUBLETAP, BTN_TOOL_FINGER, BTN_TOUCH,
+    EV_ABS, EV_KEY, EV_REL, EV_SYN, REL_WHEEL, REL_WHEEL_HI_RES, REL_X, REL_Y, RawEvent,
+    SYN_REPORT,
 };
 
 /// `REL_WHEEL_HI_RES` units in one notch of the wheel.
@@ -105,6 +110,10 @@ pub enum Motion {
     /// clicks reports whole notches, 120 at a time; a fine one reports
     /// the fractions it turned.
     Wheel(i32),
+    /// The back thumb button went down.
+    Back,
+    /// The forward thumb button went down.
+    Forward,
 }
 
 /// One multitouch slot: a contact the pad is following.
@@ -303,6 +312,12 @@ impl Pointer {
                         }
                     }
                 }
+                // A thumb button acts on its press; its release and the
+                // kernel's repeats do nothing.
+                BTN_SIDE | BTN_BACK if ev.value == 1 => out.push(Wake::Pointer(Motion::Back)),
+                BTN_EXTRA | BTN_FORWARD if ev.value == 1 => {
+                    out.push(Wake::Pointer(Motion::Forward));
+                }
                 BTN_TOOL_FINGER => self.finger = ev.value != 0,
                 BTN_TOOL_DOUBLETAP => {
                     let two = ev.value != 0;
@@ -471,6 +486,48 @@ mod tests {
                 Motion::Button(false),
                 Motion::Wheel(-120),
             ]
+        );
+    }
+
+    #[test]
+    fn the_thumb_buttons_are_back_and_forward_on_the_press() {
+        let mut mouse = Pointer::new(false, false, false);
+        assert_eq!(
+            run(
+                &mut mouse,
+                &[
+                    ev(EV_KEY, BTN_SIDE, 1),
+                    syn(),
+                    ev(EV_KEY, BTN_SIDE, 2),
+                    syn(),
+                    ev(EV_KEY, BTN_SIDE, 0),
+                    syn(),
+                    ev(EV_KEY, BTN_EXTRA, 1),
+                    syn(),
+                    ev(EV_KEY, BTN_EXTRA, 0),
+                    syn(),
+                    ev(EV_KEY, BTN_BACK, 1),
+                    syn(),
+                    ev(EV_KEY, BTN_FORWARD, 1),
+                    syn(),
+                ],
+            ),
+            vec![Motion::Back, Motion::Forward, Motion::Back, Motion::Forward],
+            "one each per press, none for a repeat or a release"
+        );
+    }
+
+    #[test]
+    fn the_thumb_buttons_reach_the_core_as_back_and_forward() {
+        use crate::cursor::Pointed;
+        use osk_shell_api::Event;
+        assert_eq!(
+            Pointed::Back.events().collect::<Vec<_>>(),
+            vec![Event::Back]
+        );
+        assert_eq!(
+            Pointed::Forward.events().collect::<Vec<_>>(),
+            vec![Event::Forward]
         );
     }
 

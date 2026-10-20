@@ -868,10 +868,15 @@ The desktop shell passes the mouse's back and forward buttons (winit
 reopens the screen last left by Back, if nothing else has been opened
 since; a short history of screens left by Back, cleared by any other
 navigation. A flow's state is kept as it is kept today when leaving it.
-Other shells ignore the events.
+The stick's shell, which reads the mouse from evdev, sends the same
+events on a press of the thumb buttons: `BTN_SIDE` or `BTN_BACK` is
+Back, `BTN_EXTRA` or `BTN_FORWARD` is Forward; a release and the
+kernel's repeats send nothing (owner, 2026-10-20). Other shells ignore
+the events.
 
 **Where.** `core/osk-shell-api` (the events), `faraday/shells/desktop`,
-`lib.rs` (back, forward, the history).
+`faraday/shells/window` (winit's buttons), `faraday/shells/stick`
+(`pointer.rs`, `cursor.rs`), `lib.rs` (back, forward, the history).
 
 ### 13.2 Selecting part of a field
 

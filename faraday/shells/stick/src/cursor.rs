@@ -123,6 +123,10 @@ pub enum Pointed {
         /// Pixels the content should move; positive moves it up.
         dy: i16,
     },
+    /// The mouse's back button: the core's back.
+    Back,
+    /// The mouse's forward button: the core's forward.
+    Forward,
     /// The arrow moved to here with no button down.
     Hover {
         /// Pixels from the left edge.
@@ -146,6 +150,8 @@ impl Pointed {
             Pointed::ScrollEnd { x, y } => (Event::ScrollEnd { x, y }, None),
             Pointed::Wheel { x, y, dy } => (Event::Wheel { x, y, dy }, None),
             Pointed::Hover { x, y } => (Event::Hover { x, y }, None),
+            Pointed::Back => (Event::Back, None),
+            Pointed::Forward => (Event::Forward, None),
         };
         std::iter::once(first).chain(second)
     }
@@ -323,6 +329,8 @@ impl Cursor {
                 let (x, y) = self.at();
                 Some(Pointed::ScrollEnd { x, y })
             }
+            Motion::Back => Some(Pointed::Back),
+            Motion::Forward => Some(Pointed::Forward),
             Motion::Wheel(units) => {
                 // evdev counts a turn away from the person as positive,
                 // which moves the content down; the core's positive moves
