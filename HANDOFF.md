@@ -2905,6 +2905,13 @@ as possible before the next build.
     tour `startwarn`. f16cf7db. The warning shows once per program
     start, not after a lock.
 
+90. [x] 2026-10-20, owner: **unlocking a vault asks what to load**
+    (F62). `vault_load.rs`, `vault_load_screen.rs`; Load at unlock per
+    wallet and key (wallet records' flags field); Load with a
+    passphrase lists the seeds with no passphrase stored and checks the
+    key against the wallet. Tests in `tests/vault_load.rs`; snapshot
+    tour `passseeds`. 09acfa5c.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:
