@@ -206,6 +206,12 @@ impl Faraday {
         if !secret_out.is_empty() {
             out.push(("secret-out".to_string(), secret_out.join("\n").into_bytes()));
         }
+        // The files For the stick the person renamed and no visit has
+        // written yet (`docs/FLOWS.md` decision 61).
+        if !self.files_menu.renamed.is_empty() {
+            let names: Vec<&str> = self.files_menu.renamed.iter().map(String::as_str).collect();
+            out.push(("renamed".to_string(), names.join("\n").into_bytes()));
+        }
         // What each picture in the Inbox holds: the next process does not
         // decode it, and only the disk process could.
         let pictures: Vec<String> = self
@@ -333,6 +339,12 @@ impl Faraday {
                     }
                 }
                 "receipt" => self.receipt = crate::Receipt::decode(bytes),
+                "renamed" => {
+                    self.files_menu.renamed = String::from_utf8_lossy(bytes)
+                        .lines()
+                        .map(str::to_string)
+                        .collect();
+                }
                 "backup-flow" => self.flow_restore(bytes),
                 "backup-gate" => gate = Some(bytes),
                 "backups" => self.backup_records = crate::backups::decode(bytes),

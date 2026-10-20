@@ -43,6 +43,9 @@ pub enum Request {
         name: String,
         /// Over a file of that name, the person having chosen Replace.
         replace: bool,
+        /// The person renamed this file For the stick: a vault going over
+        /// its same vault takes this name (`faraday_files::write_file`).
+        renamed: bool,
         /// The contents.
         bytes: Vec<u8>,
     },
@@ -76,6 +79,15 @@ pub enum Request {
     MakeEmpty {
         /// The stick.
         stick: String,
+    },
+    /// A file renamed in place (`faraday_files::rename`).
+    Rename {
+        /// The stick.
+        stick: String,
+        /// The file.
+        from: String,
+        /// Its new name.
+        to: String,
     },
 }
 
@@ -164,6 +176,14 @@ pub enum Response {
         total: u32,
         /// Every free cluster is zeros.
         done: bool,
+    },
+    /// The file has its new name.
+    Renamed,
+    /// A rename refused, nothing written: another file has the name,
+    /// ignoring case, and is the same vault when `same_vault`.
+    NameTaken {
+        /// That file is the same vault, by identity.
+        same_vault: bool,
     },
     /// Why the request failed.
     Failed(String),
@@ -272,12 +292,14 @@ impl Request {
                 stick,
                 name,
                 replace,
+                renamed,
                 bytes,
             } => {
-                let mut o = Out::sized(3, 4 + stick.len() + name.len() + 1 + 4 + bytes.len());
+                let mut o = Out::sized(3, 4 + stick.len() + name.len() + 2 + 4 + bytes.len());
                 o.str(stick);
                 o.str(name);
                 o.0.push(u8::from(*replace));
+                o.0.push(u8::from(*renamed));
                 o.bytes(bytes);
                 o
             }
@@ -309,6 +331,13 @@ impl Request {
                 o.str(stick);
                 o
             }
+            Request::Rename { stick, from, to } => {
+                let mut o = Out::tag(9);
+                o.str(stick);
+                o.str(from);
+                o.str(to);
+                o
+            }
         };
         o.0
     }
@@ -330,6 +359,11 @@ impl Request {
                     1 => true,
                     _ => return Err(Malformed),
                 },
+                renamed: match i.u8()? {
+                    0 => false,
+                    1 => true,
+                    _ => return Err(Malformed),
+                },
                 bytes: i.bytes()?,
             },
             4 => Request::ReadQr {
@@ -346,6 +380,11 @@ impl Request {
                 from: u32::try_from(i.u64()?).map_err(|_| Malformed)?,
             },
             8 => Request::MakeEmpty { stick: i.str()? },
+            9 => Request::Rename {
+                stick: i.str()?,
+                from: i.str()?,
+                to: i.str()?,
+            },
             _ => return Err(Malformed),
         };
         i.end()?;
@@ -426,6 +465,12 @@ impl Response {
                 o.0.push(u8::from(*done));
                 o
             }
+            Response::Renamed => Out::tag(0x88),
+            Response::NameTaken { same_vault } => {
+                let mut o = Out::tag(0x89);
+                o.0.push(u8::from(*same_vault));
+                o
+            }
             Response::Failed(why) => {
                 let mut o = Out::tag(0xFF);
                 o.str(why);
@@ -489,6 +534,14 @@ impl Response {
                 total: u32::try_from(i.u64()?).map_err(|_| Malformed)?,
                 done: i.u8()? != 0,
             },
+            0x88 => Response::Renamed,
+            0x89 => Response::NameTaken {
+                same_vault: match i.u8()? {
+                    0 => false,
+                    1 => true,
+                    _ => return Err(Malformed),
+                },
+            },
             0xFF => Response::Failed(i.str()?),
             _ => return Err(Malformed),
         };
@@ -548,12 +601,14 @@ mod tests {
                 stick: "sdb1@7".into(),
                 name: "vault.ofv".into(),
                 replace: false,
+                renamed: true,
                 bytes: vec![1, 2, 3],
             },
             Request::Write {
                 stick: "sdb1@7".into(),
                 name: "wallet.json".into(),
                 replace: true,
+                renamed: false,
                 bytes: vec![4, 5],
             },
             Request::ReadQr {
@@ -573,6 +628,11 @@ mod tests {
             },
             Request::MakeEmpty {
                 stick: "sdb1@7".into(),
+            },
+            Request::Rename {
+                stick: "sdb1@7".into(),
+                from: "vault.ofv".into(),
+                to: "savings.ofv".into(),
             },
         ];
         for r in requests {
@@ -621,6 +681,9 @@ mod tests {
                 total: 490_000,
                 done: false,
             },
+            Response::Renamed,
+            Response::NameTaken { same_vault: true },
+            Response::NameTaken { same_vault: false },
             Response::Failed("the stick is full".into()),
         ];
         for r in responses {

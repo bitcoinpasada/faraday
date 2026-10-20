@@ -85,6 +85,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
+use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::plan::{self as fplan, At, Spot, What};
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
@@ -257,6 +258,8 @@ impl Tour {
                 StorageCommand::OpenDownloads
                 | StorageCommand::OpenInstitute
                 | StorageCommand::Wipe { .. }
+                | StorageCommand::Rename { .. }
+                | StorageCommand::Hash { .. }
                 | StorageCommand::ZeroFree { .. }
                 | StorageCommand::MakeEmpty { .. }
                 | StorageCommand::BootRead
@@ -755,6 +758,17 @@ fn run(
     t.sticks(true);
     // Every file Faraday reads comes in ticked but a seed's.
     t.shot("visit")?;
+    // A file on the stick: its ⋮, Rename, Delete from the stick and
+    // Details (`docs/FLOWS.md` decision 61 item 4).
+    let k = t
+        .stick()
+        .files
+        .iter()
+        .position(|(n, _)| n.ends_with(".psbt"))
+        .ok_or("the kit has no PSBT")?;
+    t.press(Action::File(FilePress::Menu(Row::Stick(k))));
+    t.shot("visit-file-menu")?;
+    t.press(Action::Cancel);
     // Delete files: one sheet, chosen files, the free space or the whole
     // partition.
     t.press(Action::DeleteFiles);
@@ -907,6 +921,13 @@ fn run(
     t.shot("spend-in-outbox")?;
     t.press(Action::Primary);
     t.shot("files-outbox")?;
+    // A file For the stick: its ⋮ and the Rename popup (`docs/FLOWS.md`
+    // decision 61).
+    t.press(Action::File(FilePress::Menu(Row::Out(0))));
+    t.shot("files-menu")?;
+    t.press(Action::File(FilePress::Rename(Row::Out(0))));
+    t.shot("files-rename")?;
+    t.press(Action::Cancel);
     // A single-key spend: no signers or signatures steps.
     let single = t
         .app

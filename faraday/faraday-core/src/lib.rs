@@ -32,6 +32,8 @@ mod drawing;
 pub mod edid;
 pub mod explore;
 pub mod family;
+pub mod file_menu;
+pub use file_menu::Unrenamed;
 pub mod flow;
 pub mod forms;
 mod fresh;
@@ -92,6 +94,7 @@ mod codes_screen;
 mod compact;
 mod edit;
 mod held;
+mod menu;
 mod plan_cards;
 pub use compact::OskPress;
 pub use medium::Medium;
@@ -318,6 +321,26 @@ pub enum StorageEvent {
         /// Why.
         reason: String,
     },
+    /// A rename's answer ([`StorageCommand::Rename`]): done, or why not.
+    Renamed {
+        /// The stick.
+        stick: String,
+        /// The file's name before.
+        from: String,
+        /// The name asked for.
+        to: String,
+        /// Why it was refused; `None` once renamed.
+        refused: Option<Unrenamed>,
+    },
+    /// A file's SHA-256 ([`StorageCommand::Hash`]), or why it was not read.
+    Hashed {
+        /// The stick.
+        stick: String,
+        /// The file.
+        name: String,
+        /// Its SHA-256.
+        sha: Result<[u8; 32], String>,
+    },
     /// A stick's free space and whole data space, in bytes; both 0 for a
     /// folder standing for a stick.
     StickSpace {
@@ -542,6 +565,11 @@ pub enum StorageCommand {
         bytes: Vec<u8>,
         /// Over the file of that name, rather than beside it.
         replace: bool,
+        /// The person renamed the file For the stick and no visit has
+        /// written it since: a vault going over its same vault takes this
+        /// name, where otherwise it keeps the name it has on the stick
+        /// (`docs/FLOWS.md` decision 61 item 2).
+        renamed: bool,
     },
     /// Read the QR codes in a PNG on a stick. The shell decodes the image;
     /// the app sees only what the codes hold.
@@ -578,6 +606,24 @@ pub enum StorageCommand {
     MakeEmpty {
         /// The stick's id.
         stick: String,
+    },
+    /// Rename a file on a stick in place, refused where another file has
+    /// the name ([`StorageEvent::Renamed`]; `docs/FLOWS.md` decision 61).
+    Rename {
+        /// The stick's id.
+        stick: String,
+        /// The file.
+        from: String,
+        /// Its new name.
+        to: String,
+    },
+    /// A file on a stick read for its SHA-256, for its Details
+    /// ([`StorageEvent::Hashed`]). The bytes go no further than the shell.
+    Hash {
+        /// The stick's id.
+        stick: String,
+        /// The file.
+        name: String,
     },
     /// Save a PDF where the person prints from. Only an online shell (the
     /// desktop app) does; the device refuses.
@@ -1461,6 +1507,9 @@ pub enum Action {
     /// [`ui::Ui`] (the Starter, `docs/STARTER.md` §2), in that app's own
     /// numbering. This app does nothing with it.
     Host(u32),
+    /// A file row's ⋮, its menu, Rename and Details (`docs/FLOWS.md`
+    /// decision 61).
+    File(file_menu::FilePress),
 }
 
 /// The largest file read from a stick, as the disk process reads them
@@ -1693,6 +1742,14 @@ pub enum Sheet {
     /// Cancel pressed in a flow whose ending loses something: what is
     /// lost, **Cancel the flow** and **Keep going** (F51).
     CancelFlow(in_progress::Going),
+    /// A file row's ⋮ menu (`docs/FLOWS.md` decision 61): a popup under
+    /// the ⋮ on `wide`, a sheet on the small panel.
+    FileMenu,
+    /// **Rename {name}**: a file For the stick, or one on the stick
+    /// visited.
+    Rename,
+    /// A file's Details: name, kind, size and SHA-256.
+    Details,
 }
 
 /// What a scan pass saw of a code ([`StorageEvent::QrSeen`]).
@@ -3400,6 +3457,9 @@ pub struct Faraday {
     pub seed_read: Option<seed_read::SeedRead>,
     /// What [`Sheet::Delete`] is choosing.
     pub delete_ask: Option<stick_wipe::DeleteAsk>,
+    /// A file row's ⋮ menu, Rename and Details (`docs/FLOWS.md`
+    /// decision 61).
+    pub files_menu: file_menu::FileMenus,
     /// Zeroing a stick's free space or whole partition, under way.
     pub zeroing: Option<stick_wipe::Zeroing>,
     /// The last tap that acted and when, for a double-click.
@@ -3662,6 +3722,7 @@ impl Faraday {
             potential: None,
             seed_read: None,
             delete_ask: None,
+            files_menu: Default::default(),
             zeroing: None,
             last_tap: None,
             down_at: (0, 0),
@@ -3853,6 +3914,9 @@ impl Faraday {
             }
             StorageEvent::Written { name, wrote_as, .. } => {
                 self.receipt_add(&name, None);
+                // A rename is carried by one write, to the stick written:
+                // another stick keeps its own name for the same vault.
+                self.files_menu.renamed.remove(&name);
                 // A copy from the Inbox stays there, for the next stick.
                 if self.visit.writing_inbox.remove(&name) {
                     self.visit.from_inbox.remove(&name);
@@ -3904,6 +3968,13 @@ impl Faraday {
             }
             StorageEvent::NotKept => self.not_kept(),
             StorageEvent::Wiped { stick, name } => self.wiped(&stick, &name, None),
+            StorageEvent::Renamed {
+                stick,
+                from,
+                to,
+                refused,
+            } => self.file_renamed(&stick, &from, &to, refused),
+            StorageEvent::Hashed { stick, name, sha } => self.file_hashed(&stick, &name, sha),
             StorageEvent::StickSpace { free, size, .. } => self.zero_space(free, size),
             StorageEvent::Zeroing {
                 next, total, done, ..
@@ -4977,6 +5048,8 @@ impl Faraday {
     }
 
     fn act(&mut self, action: Action) {
+        // A choice in a file's ⋮ menu closes the menu first.
+        self.file_menu_chosen(action);
         self.act_inner(action);
         // A wallet's flow follows the plan and the keys the press left.
         self.wallet_flow_sync();
@@ -5171,7 +5244,9 @@ impl Faraday {
             Action::DeleteWhat(k) => self.delete_what(k),
             Action::DeletePick(k) => self.delete_pick(k),
             Action::DeletePasses(n) => self.delete_passes(n),
-            Action::DeleteGo => self.delete_go(),
+            // A vault chosen is deleted by the hold alone (decision 4).
+            Action::DeleteGo if !self.delete_holds() => self.delete_go(),
+            Action::DeleteGo => {}
             Action::ZeroStop => self.zero_stop(),
             Action::OpenInstitute => {
                 if self.online {
@@ -5403,7 +5478,8 @@ impl Faraday {
             }
             Action::OutboxRemove(i) => {
                 if i < self.outbox.len() {
-                    self.outbox.remove(i);
+                    let gone = self.outbox.remove(i);
+                    self.files_menu.renamed.remove(&gone.name);
                     self.save_boxes();
                 }
             }
@@ -5575,6 +5651,15 @@ impl Faraday {
             Action::Cancel if self.sheet == Some(Sheet::BoardMenu) => {
                 self.board_act(board::BoardPress::MenuClose);
             }
+            Action::Cancel
+                if matches!(
+                    self.sheet,
+                    Some(Sheet::FileMenu | Sheet::Rename | Sheet::Details)
+                ) =>
+            {
+                self.file_act(file_menu::FilePress::Close);
+            }
+            Action::File(p) => self.file_act(p),
             Action::Cancel => {
                 self.pull = None;
                 self.vaults.stick_save = None;
@@ -10911,6 +10996,9 @@ impl Faraday {
         if self.sheet == Some(Sheet::SeedRead) {
             return self.seed_read.as_ref().is_some_and(|s| s.focus.is_some());
         }
+        if self.sheet == Some(Sheet::Rename) {
+            return self.files_menu.renaming.is_some();
+        }
         match self.screen {
             Screen::Family => self.vaults.focus.is_some() || self.seeds_typing(),
             Screen::Restore => self.seeds_typing(),
@@ -11008,6 +11096,9 @@ impl Faraday {
         } else {
             key
         };
+        if self.file_key(key) {
+            return;
+        }
         if self.seed_read_key(key) {
             return;
         }

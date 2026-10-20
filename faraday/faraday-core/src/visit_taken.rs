@@ -204,11 +204,13 @@ impl Faraday {
             .map(|(n, b, _)| (n.clone(), sha256_of(b)))
             .collect();
         for (name, bytes, replace) in sends {
+            let renamed = self.files_menu.renamed.contains(&name);
             self.storage_out.push_back(StorageCommand::Write {
                 stick: id.clone(),
                 name,
                 bytes,
                 replace,
+                renamed,
             });
         }
         if !sent.is_empty() {

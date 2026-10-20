@@ -127,7 +127,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
         ui.offset = app.sheet_offset;
         // A chip's ⋮ menu is a popup on `wide`: the board stays in view
         // under it, undimmed (`docs/BACKUP-FLOW.md` §19.20).
-        if sheet == Sheet::BoardMenu && !app.is_compact() {
+        if matches!(sheet, Sheet::BoardMenu | Sheet::FileMenu) && !app.is_compact() {
             ui.still();
         } else {
             ui.backdrop();
@@ -175,6 +175,9 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::Devices => devices_sheet(app, ui, w, h),
             Sheet::VaultSave => crate::vault_screens::stick_save_sheet(app, ui, w, h),
             Sheet::CancelFlow(g) => crate::in_progress::cancel_sheet(app, ui, g, w, h),
+            Sheet::FileMenu => crate::file_menu::menu_sheet(app, ui, w, h),
+            Sheet::Rename => crate::file_menu::rename_sheet(app, ui, w, h),
+            Sheet::Details => crate::file_menu::details_sheet(app, ui, w, h),
         }
         ui.oy = 0.0;
     }
@@ -9865,7 +9868,6 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     Style::Primary,
                     Action::LoadWallet(k),
                 ) + 8.0;
-                bx += add_to_vault(app, ui, bx, iy + 64.0, k, Style::Secondary);
             }
             FileKind::Text => {
                 bx += add_to_vault(app, ui, bx, iy + 64.0, k, Style::Primary);
@@ -9894,7 +9896,6 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     Style::Primary,
                     Action::LoadKey(k),
                 ) + 8.0;
-                bx += add_to_vault(app, ui, bx, iy + 64.0, k, Style::Secondary);
             }
             FileKind::Message => {
                 bx += ui.button(
@@ -9946,14 +9947,14 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             },
             _ => {}
         }
-        ui.button(
-            bx,
+        // The rest behind the ⋮ at the row's right end (decision 61).
+        crate::file_menu::dots(
+            app,
+            ui,
+            (x + colw - 16.0 - 36.0).max(bx),
             iy + 64.0,
-            None,
             36.0,
-            EN.files_remove,
-            Style::Ghost,
-            Action::InboxRemove(k),
+            crate::file_menu::Row::In(k),
         );
         iy += 124.0;
     }
@@ -10065,37 +10066,15 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 state.1,
                 state.0,
             );
-            // A vault is larger than a QR transfer carries: it goes by
-            // stick only.
-            let shown_as = if item.kind == FileKind::Sheet && app.online {
-                Some((EN.files_make_pdf, Action::PdfOutbox(k)))
-            } else if crate::qr_fits(item) {
-                Some((EN.files_show_as_qr, Action::QrOutbox(k)))
-            } else {
-                None
-            };
-            let qw = match shown_as {
-                Some((label, action)) => {
-                    ui.button(
-                        ox + 66.0,
-                        oy + 64.0,
-                        None,
-                        36.0,
-                        label,
-                        Style::Secondary,
-                        action,
-                    ) + 8.0
-                }
-                None => 0.0,
-            };
-            ui.button(
-                ox + 66.0 + qw,
+            // No main action: the row's ⋮ alone holds Show as QR or Make
+            // PDF, Rename, Details and Remove (decision 61).
+            crate::file_menu::dots(
+                app,
+                ui,
+                ox + colw - 16.0 - 36.0,
                 oy + 64.0,
-                None,
                 36.0,
-                EN.files_remove,
-                Style::Ghost,
-                Action::OutboxRemove(k),
+                crate::file_menu::Row::Out(k),
             );
             oy += 124.0;
         }
@@ -10908,8 +10887,8 @@ type Buttons = Vec<(String, Style, Action)>;
 /// A line and its colour.
 type Note = Option<(String, osk_ui::Color)>;
 
-/// What an Inbox file offers, in the order its card shows it: the way it
-/// is used, then Remove. A split sheet that does not add up yet says how
+/// What an Inbox file offers on its card: the way it is used; the rest
+/// is behind its ⋮ (decision 61). A split sheet that does not add up yet says how
 /// many keys are in hand instead of offering a button.
 fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note) {
     let mut out: Vec<(String, Style, Action)> = Vec::new();
@@ -10992,7 +10971,6 @@ fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note)
                 Style::Primary,
                 Action::LoadWallet(k),
             ));
-            out.push(add_to_vault(Style::Secondary));
         }
         FileKind::Text => out.push(add_to_vault(Style::Primary)),
         FileKind::Transaction => {
@@ -11033,7 +11011,6 @@ fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note)
                 Style::Primary,
                 Action::LoadKey(k),
             ));
-            out.push(add_to_vault(Style::Secondary));
         }
         FileKind::Apk => match app.apk_files_row(k) {
             crate::apk::Row::Sign => out.push(into_vault(
@@ -11065,18 +11042,15 @@ fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note)
         }
         _ => {}
     }
-    out.push((
-        EN.inbox_actions_remove.into(),
-        Style::Ghost,
-        Action::InboxRemove(k),
-    ));
     (out, note)
 }
 
-/// One file's card on a small panel: its icon, name and line, a tag at
-/// the right, and its buttons wrapped under them. Returns its height.
+/// One file's card on a small panel: its icon, name and line, its ⋮ at
+/// the right (decision 61), and its buttons wrapped under them. Returns
+/// its height.
 #[allow(clippy::too_many_arguments)]
 fn file_card(
+    app: &Faraday,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -11084,7 +11058,7 @@ fn file_card(
     (icon, ink, edge): (Icon, osk_ui::Color, osk_ui::Color),
     name: &str,
     line: &str,
-    tag: Option<(&str, osk_ui::Color)>,
+    row: crate::file_menu::Row,
     note: Option<&(String, osk_ui::Color)>,
     buttons: &[(String, Style, Action)],
 ) -> f32 {
@@ -11093,13 +11067,11 @@ fn file_card(
         let mut cy = y + 12.0;
         ui.fill(x + 12.0, cy, 32.0, 32.0, 8.0, ink.with_alpha(26));
         ui.icon(x + 12.0, cy, 32.0, icon, 13.0, ink);
-        let tw = tag.map_or(0.0, |(t, _)| ui.measure(12.0, W::S, t) + 8.0);
-        let room = w - 56.0 - 12.0;
-        let n = ui.fit(14.0, W::M, name, room - tw);
+        let dw = 32.0;
+        let room = w - 56.0 - 12.0 - dw - 8.0;
+        let n = ui.fit(14.0, W::M, name, room);
         ui.text(x + 56.0, cy, 14.0, W::M, TEXT, &n);
-        if let Some((t, c)) = tag {
-            ui.text_right(x + w - 12.0, cy - 2.0, 20.0, 12.0, W::S, c, t);
-        }
+        crate::file_menu::dots(app, ui, x + w - 12.0 - dw, cy, dw, row);
         let l = ui.fit(12.0, W::R, line, room);
         ui.text(x + 56.0, cy + 20.0, 12.0, W::R, MUTED, &l);
         cy += 46.0;
@@ -11204,6 +11176,7 @@ fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         let (buttons, note) = inbox_actions(app, k, item);
         y += file_card(
+            app,
             ui,
             x,
             y,
@@ -11211,7 +11184,7 @@ fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             (Icon::Download, ACCENT, LINE),
             &item.name,
             &line,
-            None,
+            crate::file_menu::Row::In(k),
             note.as_ref(),
             &buttons,
         ) + 10.0;
@@ -11306,28 +11279,11 @@ fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 _ if open_here.is_some() => (EN.files_written_after, ACCENT),
                 _ => (EN.files_ready, OK),
             };
-            let mut buttons: Vec<(String, Style, Action)> = Vec::new();
-            if item.kind == FileKind::Sheet && app.online {
-                buttons.push((
-                    EN.files_make_pdf.into(),
-                    Style::Secondary,
-                    Action::PdfOutbox(k),
-                ));
-            } else if crate::qr_fits(item) {
-                buttons.push((
-                    EN.files_show_as_qr.into(),
-                    Style::Secondary,
-                    Action::QrOutbox(k),
-                ));
-            }
-            buttons.push((
-                EN.files_remove.into(),
-                Style::Ghost,
-                Action::OutboxRemove(k),
-            ));
+            // No main action: the ⋮ alone (decision 61).
             // The state goes on the line, where the name leaves no room.
             let line = format!("{} · {line}", state.0);
             y += file_card(
+                app,
                 ui,
                 x,
                 y,
@@ -11335,9 +11291,9 @@ fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 (icon, ink, edge),
                 &item.name,
                 &line,
+                crate::file_menu::Row::Out(k),
                 None,
-                None,
-                &buttons,
+                &[],
             ) + 10.0;
         }
         y += 4.0;
@@ -11470,6 +11426,9 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let on = app.visit.inn.contains(name);
         ui.checkbox(x + 2.0, y + 10.0, on, kind.is_some());
         let fg = if kind.is_some() { TEXT } else { DIM };
+        // Its ⋮ at the right end (decision 61 item 4).
+        let menu = Faraday::stick_row_menu(name);
+        let dw = if menu { 32.0 + 8.0 } else { 0.0 };
         let held = app.inbox_holds(name, *size);
         let tag = EN.visit_in_faraday;
         let tw = if held {
@@ -11477,10 +11436,10 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         } else {
             0.0
         };
-        let n = ui.fit(14.0, W::M, name, w - 32.0 - tw);
+        let n = ui.fit(14.0, W::M, name, w - 32.0 - tw - dw);
         ui.text(x + 32.0, y + 4.0, 14.0, W::M, fg, &n);
         if held {
-            ui.text_right(x + w, y + 2.0, 20.0, 12.0, W::S, MUTED, tag);
+            ui.text_right(x + w - dw, y + 2.0, 20.0, 12.0, W::S, MUTED, tag);
         }
         let sub = match kind {
             Some(k) => format!("{k} · {}", size_text(*size as usize)),
@@ -11488,7 +11447,7 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             // Read at boot, not copied in.
             None => EN.visit_settings.to_string(),
         };
-        let sub = ui.fit(12.0, W::R, &sub, w - 32.0);
+        let sub = ui.fit(12.0, W::R, &sub, w - 32.0 - dw);
         ui.text(
             x + 32.0,
             y + 26.0,
@@ -11498,7 +11457,17 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &sub,
         );
         if kind.is_some() {
-            ui.hit(x - 4.0, y, w + 8.0, 48.0, Action::VisitIn(k));
+            ui.hit(x - 4.0, y, w + 8.0 - dw, 48.0, Action::VisitIn(k));
+        }
+        if menu {
+            crate::file_menu::dots(
+                app,
+                ui,
+                x + w - 32.0,
+                y + 8.0,
+                32.0,
+                crate::file_menu::Row::Stick(k),
+            );
         }
         y += 50.0;
         ui.rule(x, y, w, INNER);
@@ -12021,7 +11990,11 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let on = app.visit.inn.contains(name);
         ui.checkbox(ix + 22.0, ry + 15.0, on, kind.is_some());
         let fg = if kind.is_some() { TEXT } else { DIM };
-        let room = 90.0;
+        // Its ⋮ at the right end: every file but the settings file
+        // (decision 61 item 4).
+        let menu = Faraday::stick_row_menu(name);
+        let dw = if menu { 32.0 + 8.0 } else { 0.0 };
+        let room = 90.0 + dw;
         // A file Faraday holds already says so, as the left column's tags.
         let held = app.inbox_holds(name, *size);
         let tag = EN.visit_in_faraday;
@@ -12030,10 +12003,23 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         } else {
             0.0
         };
-        let n = ui.fit(14.0, W::M, name, colw - if held { 74.0 + tw } else { room });
+        let n = ui.fit(
+            14.0,
+            W::M,
+            name,
+            colw - if held { 74.0 + tw + dw } else { room },
+        );
         ui.text(ix + 54.0, ry + 6.0, 14.0, W::M, fg, &n);
         if held {
-            ui.text_right(ix + colw - 20.0, ry + 6.0, 20.0, 12.0, W::S, MUTED, tag);
+            ui.text_right(
+                ix + colw - 20.0 - dw,
+                ry + 6.0,
+                20.0,
+                12.0,
+                W::S,
+                MUTED,
+                tag,
+            );
         }
         let sub = match kind {
             Some(k) => format!("{k} · {}", size_text(*size as usize)),
@@ -12051,7 +12037,17 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &sub,
         );
         if kind.is_some() {
-            ui.hit(ix + 12.0, ry, colw - 24.0, 50.0, Action::VisitIn(k));
+            ui.hit(ix + 12.0, ry, colw - 24.0 - dw, 50.0, Action::VisitIn(k));
+        }
+        if menu {
+            crate::file_menu::dots(
+                app,
+                ui,
+                ix + colw - 20.0 - 32.0,
+                ry + 9.0,
+                32.0,
+                crate::file_menu::Row::Stick(k),
+            );
         }
         ui.rule(ix + 20.0, ry + 52.0, colw - 40.0, INNER);
     }

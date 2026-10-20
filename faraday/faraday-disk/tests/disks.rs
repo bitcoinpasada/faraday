@@ -221,6 +221,7 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
         stick: id.clone(),
         name: name.into(),
         replace: false,
+        renamed: false,
         bytes: bytes.to_vec(),
     };
     assert_eq!(
@@ -238,6 +239,7 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
             stick: id.clone(),
             name: "savings-signed-2.psbt".into(),
             replace: true,
+            renamed: false,
             bytes: b"replaced".to_vec(),
         }),
         Response::Written("savings-signed-2.psbt".into())
@@ -268,6 +270,7 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
             stick: id.clone(),
             name: "vault.ofv".into(),
             replace: true,
+            renamed: false,
             bytes: vault.clone(),
         }),
         Response::Written("vault.ofv".into())

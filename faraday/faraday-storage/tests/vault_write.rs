@@ -72,3 +72,57 @@ fn an_interrupted_write_back_is_finished() {
     assert!(!dir.join(".faraday-vault.ofv.part").exists());
     assert!(!dir.join(".faraday-vault-2.ofv.part").exists());
 }
+
+/// A vault written over its same vault on a stick keeps the name the
+/// stick has for it, whatever the app calls it, unless the person renamed
+/// it For the stick: then it takes the new name (`docs/FLOWS.md`
+/// decision 61 item 2). One copy is left either way.
+#[test]
+fn a_vault_keeps_its_name_on_the_stick_unless_renamed_for_the_stick() {
+    use faraday_storage::Sticks;
+    let dir = stick("renamed");
+    fs::write(dir.join("savings.ofv"), vault(1, 0)).unwrap();
+    let id = dir.to_str().unwrap();
+    let mut sticks = faraday_storage::Dirs;
+    let wrote = sticks
+        .write(id, "vault.ofv", &vault(1, 9), true, false)
+        .unwrap();
+    assert_eq!(wrote, "savings.ofv", "a rename made on the stick stays");
+    assert_eq!(fs::read(dir.join("savings.ofv")).unwrap(), vault(1, 9));
+    assert!(!dir.join("vault.ofv").exists());
+    let wrote = sticks
+        .write(id, "mine.ofv", &vault(1, 5), true, true)
+        .unwrap();
+    assert_eq!(wrote, "mine.ofv");
+    assert_eq!(fs::read(dir.join("mine.ofv")).unwrap(), vault(1, 5));
+    assert!(!dir.join("savings.ofv").exists());
+}
+
+/// A file on a stick renamed in place keeps its bytes; a name another
+/// file has, ignoring case, is refused with nothing written, and said to
+/// be the same vault where it is (`docs/FLOWS.md` decision 61 item 4).
+#[test]
+fn a_rename_on_a_stick_keeps_the_bytes_and_refuses_a_name_taken() {
+    use faraday_files::Unrenamed;
+    use faraday_storage::Sticks;
+    let dir = stick("rename");
+    fs::write(dir.join("notes.txt"), b"the notes").unwrap();
+    fs::write(dir.join("Other.txt"), b"other").unwrap();
+    fs::write(dir.join("vault.ofv"), vault(1, 0)).unwrap();
+    fs::write(dir.join("vault-copy.ofv"), vault(1, 0)).unwrap();
+    let id = dir.to_str().unwrap();
+    let mut sticks = faraday_storage::Dirs;
+    assert_eq!(
+        sticks.rename(id, "notes.txt", "other.txt"),
+        Err(Unrenamed::Taken)
+    );
+    assert_eq!(
+        sticks.rename(id, "vault-copy.ofv", "VAULT.ofv"),
+        Err(Unrenamed::SameVault)
+    );
+    assert_eq!(fs::read(dir.join("notes.txt")).unwrap(), b"the notes");
+    assert!(dir.join("vault-copy.ofv").exists());
+    assert_eq!(sticks.rename(id, "notes.txt", "march.txt"), Ok(()));
+    assert_eq!(fs::read(dir.join("march.txt")).unwrap(), b"the notes");
+    assert!(!dir.join("notes.txt").exists());
+}

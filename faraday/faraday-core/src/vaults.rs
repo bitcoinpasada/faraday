@@ -246,6 +246,9 @@ pub enum VaultAction {
     Reveal(usize),
     /// Held to delete the item.
     HoldDelete,
+    /// Held to delete the files chosen on the Delete files sheet, a vault
+    /// among them (`docs/FLOWS.md` decisions 4 and 61).
+    HoldWipe,
     /// A key loads at unlock, or stops loading.
     ToggleLoad,
     /// Load the item into the session.
@@ -369,6 +372,7 @@ pub fn is_hold(a: Action) -> bool {
         a,
         Action::Vault(
             VaultAction::HoldDelete
+                | VaultAction::HoldWipe
                 | VaultAction::SbHoldSign
                 | VaultAction::GpgHoldSign
                 | VaultAction::GpgHoldRevoke
@@ -1636,6 +1640,7 @@ impl Faraday {
             }
             V::SaveToStickGo => self.vault_stick_save_write(),
             V::HoldDelete => self.vault_delete(),
+            V::HoldWipe => self.delete_go(),
             V::ToggleLoad => {
                 if let Some(at) = self.vault_selected_index()
                     && let Some(v) = self.vaults.open.get_mut(self.vaults.current)

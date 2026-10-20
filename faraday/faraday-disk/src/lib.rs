@@ -390,11 +390,12 @@ impl Disks {
                 stick,
                 name,
                 replace,
+                renamed,
                 mut bytes,
             } => {
-                let written = self
-                    .place(&stick)
-                    .and_then(|mut p| faraday_files::write_any(&mut p, &name, &bytes, replace));
+                let written = self.place(&stick).and_then(|mut p| {
+                    faraday_files::write_file(&mut p, &name, &bytes, replace, renamed)
+                });
                 zeroize::Zeroize::zeroize(&mut bytes);
                 // What this process wrote changes the listing.
                 self.seen.remove(&stick);
@@ -431,6 +432,24 @@ impl Disks {
                 // What this process changed changes the listing.
                 self.seen.remove(&stick);
                 wiped.map(|()| Response::Wiped)
+            }
+            Request::Rename { stick, from, to } => {
+                let renamed = self
+                    .place(&stick)
+                    .map_err(faraday_files::Unrenamed::Failed)
+                    .and_then(|mut p| faraday_files::rename(&mut p, &from, &to));
+                // What this process changed changes the listing.
+                self.seen.remove(&stick);
+                return match renamed {
+                    Ok(()) => Response::Renamed,
+                    Err(faraday_files::Unrenamed::Taken) => {
+                        Response::NameTaken { same_vault: false }
+                    }
+                    Err(faraday_files::Unrenamed::SameVault) => {
+                        Response::NameTaken { same_vault: true }
+                    }
+                    Err(faraday_files::Unrenamed::Failed(why)) => Response::Failed(why),
+                };
             }
             Request::ReadQr { stick, name } => self
                 .place(&stick)

@@ -8411,6 +8411,63 @@ pub struct Strings {
     /// Why "Any one place lost" reads No when the description goes. `{}`:
     /// the place.
     pub plan_without_no_description: &'static str,
+    // ----- A ⋮ on every file; Rename; Details (docs/FLOWS.md decision 61), faraday-core -----
+    /// A file's ⋮ menu: the popup to rename it.
+    pub file_menu_rename: &'static str,
+    /// A file's ⋮ menu: the sheet of its name, kind, size and SHA-256.
+    pub file_menu_details: &'static str,
+    /// A file on the stick visited: its ⋮ menu's way to the Delete files
+    /// sheet with it alone chosen. `{}`: "stick", "SD card".
+    pub file_menu_delete_from: &'static str,
+    /// The ⋮ menu's way out on the small panel, where it is a sheet.
+    pub file_menu_cancel: &'static str,
+    /// The Rename popup's title. `{}`: the file's name.
+    pub rename_title: &'static str,
+    /// The Rename popup's button.
+    pub rename_button: &'static str,
+    /// The Rename popup's way out.
+    pub rename_cancel: &'static str,
+    /// Rename refused: nothing typed.
+    pub rename_empty: &'static str,
+    /// Rename refused: the name starts with a dot.
+    pub rename_dot: &'static str,
+    /// Rename refused: a character a stick's names cannot hold.
+    pub rename_character: &'static str,
+    /// Rename refused: the name with its extension is over 255 characters.
+    pub rename_long: &'static str,
+    /// Rename refused: another file For the stick has the name, ignoring
+    /// case. `{}`: "for the stick", the name.
+    pub rename_taken_for: &'static str,
+    /// The visit's line once a file on the stick is renamed. `{}`: the
+    /// old name, the new.
+    pub rename_done: &'static str,
+    /// The visit's line: refused, the name is on the stick already. `{}`:
+    /// the name, "stick".
+    pub rename_taken_on: &'static str,
+    /// The visit's line: refused, the file of that name is the same vault.
+    /// `{}`: the name, "stick".
+    pub rename_same_vault: &'static str,
+    /// The visit's line: the stick refused the rename. `{}`: the name, why.
+    pub rename_not_done: &'static str,
+    /// The Details sheet's labels.
+    pub details_name: &'static str,
+    /// The Details sheet's label for the row's kind line.
+    pub details_kind: &'static str,
+    /// The Details sheet's label for the size.
+    pub details_size: &'static str,
+    /// The size in bytes. `{}`: the number.
+    pub details_bytes: &'static str,
+    /// The Details sheet's label for the hash.
+    pub details_sha: &'static str,
+    /// The hash while the stick is read for it.
+    pub details_reading: &'static str,
+    /// The hash not read. `{}`: why.
+    pub details_not_read: &'static str,
+    /// The Details sheet's one button.
+    pub details_close: &'static str,
+    /// The Delete files sheet's button when a vault is chosen: a hold
+    /// (`docs/FLOWS.md` decision 4). `{}`: the count, "file" or "files".
+    pub stick_wipe_hold_delete: &'static str,
 }
 
 /// The English wording.
@@ -12462,4 +12519,29 @@ pub static EN: Strings = Strings {
     backup_extra_copies_link: "Extra copies",
     plan_no_single_place: "No: a single place",
     plan_without_no_description: "Without {}, the rest cannot put the description back together",
+    file_menu_rename: "Rename",
+    file_menu_details: "Details",
+    file_menu_delete_from: "Delete from the {}",
+    file_menu_cancel: "Cancel",
+    rename_title: "Rename {}",
+    rename_button: "Rename",
+    rename_cancel: "Cancel",
+    rename_empty: "Type a name",
+    rename_dot: "A name cannot start with a dot",
+    rename_character: "A name cannot hold / \\ : * ? \" < > | or a control character",
+    rename_long: "A name is at most 255 characters with its extension",
+    rename_taken_for: "Another file {} is named {}",
+    rename_done: "{} renamed {}",
+    rename_taken_on: "{} is already on this {}",
+    rename_same_vault: "{} on this {} is this same vault",
+    rename_not_done: "{} not renamed: {}",
+    details_name: "Name",
+    details_kind: "Kind",
+    details_size: "Size",
+    details_bytes: "{} bytes",
+    details_sha: "SHA-256",
+    details_reading: "Reading…",
+    details_not_read: "Not read: {}",
+    details_close: "Close",
+    stick_wipe_hold_delete: "Hold to delete {} {} with zeros",
 };

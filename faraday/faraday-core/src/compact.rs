@@ -703,6 +703,9 @@ impl Faraday {
         if self.sheet == Some(crate::Sheet::Import) {
             return self.vaults.focus == Some(crate::vaults::Focus::Passphrase);
         }
+        if self.sheet == Some(crate::Sheet::Rename) {
+            return self.files_menu.renaming.is_some();
+        }
         if self.sheet.is_some() {
             return false;
         }

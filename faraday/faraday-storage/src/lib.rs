@@ -62,13 +62,16 @@ pub trait Sticks {
     /// One file's bytes.
     fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, String>;
     /// A file written, over a file of its name when `replace`; the name
-    /// it went under.
+    /// it went under. `renamed`: the person renamed it For the stick, and
+    /// a vault going over its same vault takes the name
+    /// (`faraday_files::write_file`).
     fn write(
         &mut self,
         stick: &str,
         name: &str,
         bytes: &[u8],
         replace: bool,
+        renamed: bool,
     ) -> Result<String, String>;
     /// Deletes a file, zeros over it first.
     fn wipe(&mut self, stick: &str, name: &str) -> Result<(), String>;
@@ -81,6 +84,10 @@ pub trait Sticks {
     fn make_empty(&mut self, stick: &str) -> Result<(), String>;
     /// A picture: its bytes and its QR codes.
     fn read_qr(&mut self, stick: &str, name: &str) -> Result<faraday_files::Picture, String>;
+    /// A file renamed in place; refused, nothing written, where another
+    /// file has the name (`faraday_files::rename`).
+    fn rename(&mut self, stick: &str, from: &str, to: &str)
+    -> Result<(), faraday_files::Unrenamed>;
 }
 
 /// The boot copier (`PLAN.md` §5.5), as a shell reaches it: the process
@@ -236,8 +243,9 @@ impl Sticks for Dirs {
         name: &str,
         bytes: &[u8],
         replace: bool,
+        renamed: bool,
     ) -> Result<String, String> {
-        faraday_files::write_any(&mut dir(stick), name, bytes, replace)
+        faraday_files::write_file(&mut dir(stick), name, bytes, replace, renamed)
     }
     fn wipe(&mut self, stick: &str, name: &str) -> Result<(), String> {
         faraday_files::wipe(&mut dir(stick), name)
@@ -253,6 +261,14 @@ impl Sticks for Dirs {
     }
     fn read_qr(&mut self, stick: &str, name: &str) -> Result<faraday_files::Picture, String> {
         read_qr_png(stick, name)
+    }
+    fn rename(
+        &mut self,
+        stick: &str,
+        from: &str,
+        to: &str,
+    ) -> Result<(), faraday_files::Unrenamed> {
+        faraday_files::rename(&mut dir(stick), from, to)
     }
 }
 
@@ -639,8 +655,9 @@ pub fn serve_all(
                 name,
                 bytes,
                 replace,
+                renamed,
             } => {
-                let written = sticks.write(&stick, &name, &bytes, replace);
+                let written = sticks.write(&stick, &name, &bytes, replace, renamed);
                 let ev = match written {
                     Ok(wrote_as) => {
                         said.push(format!("wrote {stick}/{wrote_as}"));
@@ -717,6 +734,33 @@ pub fn serve_all(
                     }
                 };
                 app.storage(ev);
+            }
+            StorageCommand::Rename { stick, from, to } => {
+                let refused = sticks.rename(&stick, &from, &to).err().map(|r| match r {
+                    faraday_files::Unrenamed::Taken => faraday_core::Unrenamed::Taken,
+                    faraday_files::Unrenamed::SameVault => faraday_core::Unrenamed::SameVault,
+                    faraday_files::Unrenamed::Failed(why) => faraday_core::Unrenamed::Failed(why),
+                });
+                said.push(match &refused {
+                    None => format!("renamed {stick}/{from} {to}"),
+                    Some(r) => format!("cannot rename {stick}/{from}: {r:?}"),
+                });
+                app.storage(StorageEvent::Renamed {
+                    stick,
+                    from,
+                    to,
+                    refused,
+                });
+            }
+            // A file read for its Details' SHA-256: the bytes are wiped
+            // here, and only the hash goes to the app.
+            StorageCommand::Hash { stick, name } => {
+                let sha = sticks.read(&stick, &name).map(|mut bytes| {
+                    let sha = faraday_core::file_menu::sha256(&bytes);
+                    zeroize::Zeroize::zeroize(&mut bytes);
+                    sha
+                });
+                app.storage(StorageEvent::Hashed { stick, name, sha });
             }
             StorageCommand::ReadQr { stick, name } => {
                 let ev = match sticks.read_qr(&stick, &name) {
@@ -1002,12 +1046,14 @@ impl Sticks for DiskProcess {
         name: &str,
         bytes: &[u8],
         replace: bool,
+        renamed: bool,
     ) -> Result<String, String> {
         use faraday_files::proto::{Request, Response};
         let mut req = Request::Write {
             stick: stick.into(),
             name: name.into(),
             replace,
+            renamed,
             bytes: bytes.to_vec(),
         };
         let answer = self.ask(&req);
@@ -1074,6 +1120,30 @@ impl Sticks for DiskProcess {
             Response::Qr { bytes, codes } => Ok((bytes, codes)),
             Response::Failed(why) => Err(why),
             _ => Err("an answer that is not codes".to_string()),
+        }
+    }
+
+    fn rename(
+        &mut self,
+        stick: &str,
+        from: &str,
+        to: &str,
+    ) -> Result<(), faraday_files::Unrenamed> {
+        use faraday_files::Unrenamed as U;
+        use faraday_files::proto::{Request, Response};
+        match self
+            .ask(&Request::Rename {
+                stick: stick.into(),
+                from: from.into(),
+                to: to.into(),
+            })
+            .map_err(U::Failed)?
+        {
+            Response::Renamed => Ok(()),
+            Response::NameTaken { same_vault: false } => Err(U::Taken),
+            Response::NameTaken { same_vault: true } => Err(U::SameVault),
+            Response::Failed(why) => Err(U::Failed(why)),
+            _ => Err(U::Failed("an answer that is not a rename".to_string())),
         }
     }
 }

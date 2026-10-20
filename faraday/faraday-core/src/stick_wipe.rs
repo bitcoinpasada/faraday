@@ -35,6 +35,11 @@ const SECRET: &str = EN.stick_wipe_if_a_seed;
 const WITHIN: &str = EN.stick_wipe_only_this;
 const BOUNDARY: &str = EN.stick_wipe_why_the;
 
+/// Whether a file on a stick is a vault, by its name.
+fn is_vault_name(name: &str) -> bool {
+    name.to_ascii_lowercase().ends_with(".ofv")
+}
+
 /// How fast a typical stick is written and read back, MB a second, for
 /// the time the sheet says before the first step measures it.
 const TYPICAL_MBPS: u64 = 6;
@@ -158,6 +163,14 @@ impl Faraday {
             space: None,
         });
         self.sheet = Some(Sheet::Delete);
+    }
+
+    /// Whether the sheet's button is a hold: a vault is among the files
+    /// chosen (`docs/FLOWS.md` decisions 4 and 61).
+    pub(crate) fn delete_holds(&self) -> bool {
+        self.delete_ask
+            .as_ref()
+            .is_some_and(|d| d.what == What::Files && d.chosen.iter().any(|f| is_vault_name(f)))
     }
 
     /// The sheet's choice of what.
@@ -412,6 +425,18 @@ pub(crate) fn delete_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         What::Free => EN.stick_wipe_zero_the_free.to_string(),
         What::Whole => EN.stick_wipe_zero_the.to_string(),
     };
+    let hold = app.delete_holds();
+    let held_go = fill(
+        EN.stick_wipe_hold_delete,
+        &[
+            &n.to_string(),
+            (if n == 1 {
+                EN.stick_wipe_file
+            } else {
+                EN.stick_wipe_files
+            }),
+        ],
+    );
     let go_style = if d.what == What::Files && n == 0 {
         Style::Disabled
     } else {
@@ -562,6 +587,28 @@ pub(crate) fn delete_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         cy += ui.wrap(x, cy, iw, 12.0, W::R, MUTED, BOUNDARY) + 10.0;
         cy += ui.wrap(x, cy, iw, 12.0, W::R, MUTED, LIMIT) + 10.0;
         cy += ui.wrap(x, cy, iw, 12.0, W::R, MUTED, SECRET) + 12.0;
+        // A vault chosen is deleted by a hold (decision 4).
+        if hold {
+            crate::vault_screens::hold_button_in(
+                app,
+                ui,
+                x,
+                cy,
+                iw,
+                &held_go,
+                Action::Vault(crate::vaults::VaultAction::HoldWipe),
+                ERR,
+            );
+            cy += 36.0 + 8.0;
+            cy += buttons(
+                ui,
+                x,
+                cy,
+                iw,
+                &[(EN.stick_wipe_cancel, Style::Secondary, Action::Cancel)],
+            );
+            return cy - y;
+        }
         cy += buttons(
             ui,
             x,

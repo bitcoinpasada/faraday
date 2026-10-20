@@ -399,16 +399,20 @@ fn vault_identity(bytes: &[u8], len: u64) -> Option<([u8; 32], u64)> {
 /// compared before the original is replaced. Two vaults with the same
 /// identity on one stick are refused, naming both.
 pub fn write_vault(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<String, String> {
-    write_vault_over(place, name, bytes, true)
+    write_vault_over(place, name, bytes, true, false)
 }
 
 /// [`write_vault`], refusing to go over the same vault when `over` is
-/// false.
+/// false. Over the same vault the file keeps the name it has on the
+/// stick, unless `renamed`: the person renamed the vault's file For the
+/// stick, and the file takes that name (`docs/FLOWS.md` decision 61
+/// item 2), or `name-2.ofv` where another file has it.
 pub fn write_vault_over(
     place: &mut dyn Place,
     name: &str,
     bytes: &[u8],
     over: bool,
+    renamed: bool,
 ) -> Result<String, String> {
     finish_vault_writes(place);
     let want = vault_identity(bytes, bytes.len() as u64).ok_or("not a vault")?;
@@ -442,10 +446,67 @@ pub fn write_vault_over(
     let temp = format!(".faraday-{original}.part");
     put_checked(place, &temp, bytes)?;
     // FAT has no atomic replace: the original goes, then the copy that
-    // read back whole takes its name.
+    // read back whole takes its name, or the person's new one.
     place.remove(&original)?;
-    place.rename(&temp, &original)?;
-    Ok(original)
+    let to = if renamed {
+        free_name(place, checked(name)?)?
+    } else {
+        original
+    };
+    place.rename(&temp, &to)?;
+    Ok(to)
+}
+
+/// Why a rename on a stick was refused (`docs/FLOWS.md` decision 61
+/// item 4).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Unrenamed {
+    /// Another file on the stick has the new name, ignoring case.
+    Taken,
+    /// That other file is the same vault, by identity (`docs/VAULT.md`
+    /// §6).
+    SameVault,
+    /// The stick refused, or a name is not one the app may use.
+    Failed(String),
+}
+
+/// Renames a file on a stick in place, its directory entry alone, as the
+/// person asked on a visit (`docs/FLOWS.md` decision 61 item 4). Refused,
+/// nothing written, where another file has the new name, ignoring case:
+/// [`Unrenamed::SameVault`] where both are the same vault. Reads both
+/// files where both are vaults of one length.
+pub fn rename(place: &mut dyn Place, from: &str, to: &str) -> Result<(), Unrenamed> {
+    let from = checked(from).map_err(Unrenamed::Failed)?;
+    let to = checked(to).map_err(Unrenamed::Failed)?;
+    let files = place.files().map_err(Unrenamed::Failed)?;
+    let Some(&(_, len)) = files.iter().find(|(n, _)| n == from) else {
+        return Err(Unrenamed::Failed(format!("{from} is not on the stick")));
+    };
+    if let Some((other, olen)) = files
+        .iter()
+        .find(|(n, _)| n != from && n.eq_ignore_ascii_case(to))
+    {
+        let vaults = from.to_ascii_lowercase().ends_with(".ofv")
+            && other.to_ascii_lowercase().ends_with(".ofv")
+            && len == *olen;
+        let same = vaults && {
+            let a = place.read(from, len).ok();
+            let b = place.read(other, len).ok();
+            match (a, b) {
+                (Some(a), Some(b)) => {
+                    vault_identity(&a, len).is_some()
+                        && vault_identity(&a, len) == vault_identity(&b, len)
+                }
+                _ => false,
+            }
+        };
+        return Err(if same {
+            Unrenamed::SameVault
+        } else {
+            Unrenamed::Taken
+        });
+    }
+    place.rename(from, to).map_err(Unrenamed::Failed)
 }
 
 /// Whether these bytes are a whole vault file: its length is the one its
@@ -523,8 +584,21 @@ pub fn write_any(
     bytes: &[u8],
     replace: bool,
 ) -> Result<String, String> {
+    write_file(place, name, bytes, replace, false)
+}
+
+/// [`write_any`], for a file whose name the person changed For the stick
+/// when `renamed`: a vault going over its same vault takes that name
+/// ([`write_vault_over`]).
+pub fn write_file(
+    place: &mut dyn Place,
+    name: &str,
+    bytes: &[u8],
+    replace: bool,
+    renamed: bool,
+) -> Result<String, String> {
     if name.ends_with(".ofv") && bytes.starts_with(b"OFVT") {
-        write_vault_over(place, name, bytes, replace)
+        write_vault_over(place, name, bytes, replace, renamed)
     } else if name.eq_ignore_ascii_case(SETTINGS_FILE) && bytes.starts_with(b"faraday-settings ") {
         write_settings(place, bytes)
     } else if replace {

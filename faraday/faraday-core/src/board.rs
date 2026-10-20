@@ -2148,10 +2148,9 @@ impl Faraday {
                     m.keys = true;
                 }
             };
-            match key {
-                K::Down if n > 0 => step(self, (menu.at + 1) % n),
-                K::Up if n > 0 => step(self, (menu.at + n - 1) % n),
-                K::Enter | K::Char(' ') => {
+            match crate::menu::step(key, menu.at, n) {
+                Some(crate::menu::Step::To(at)) => step(self, at),
+                Some(crate::menu::Step::Choose) => {
                     if let Some(&p) = presses.get(menu.at) {
                         self.board_act(p);
                         // Into Move to… or Copy to…, still by the keys.
@@ -2160,7 +2159,7 @@ impl Faraday {
                         }
                     }
                 }
-                K::Escape => {
+                Some(crate::menu::Step::Close) => {
                     if let (Some(Verb::Move | Verb::Copy), Chip::Placed(z, t)) =
                         (menu.verb, menu.chip)
                     {
@@ -2206,16 +2205,9 @@ impl Faraday {
         let focus = st.focus.filter(|c| dots.contains(c));
         match key {
             K::Tab | K::BackTab if !dots.is_empty() => {
-                let n = dots.len();
-                let i = focus.and_then(|c| dots.iter().position(|d| *d == c));
-                let next = match (key, i) {
-                    (K::Tab, Some(i)) => (i + 1) % n,
-                    (K::Tab, None) => 0,
-                    (_, Some(i)) => (i + n - 1) % n,
-                    (_, None) => n - 1,
-                };
+                let next = crate::menu::tab(&dots, focus, key == K::BackTab);
                 if let Some(st) = self.board_state_mut() {
-                    st.focus = Some(dots[next]);
+                    st.focus = next;
                 }
                 true
             }

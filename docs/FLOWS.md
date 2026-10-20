@@ -858,6 +858,57 @@ to get it.
        Remove button. Existing tests that press `InboxRemove` or the
        outbox's Remove reach it through the ⋮.
 
+    **Built (2026-10-20), with what the building decided:**
+
+    - Every ⋮ menu is drawn and keyed by one module (`menu.rs`): the
+      backup board's chip menu and the file rows' menu share its popup,
+      its sheet on the small panel, its rows, and its arrows, Enter,
+      Escape and Tab handling. The file menu is `Sheet::FileMenu`; a
+      choice in it closes it before it acts.
+    - Where the ⋮ is: in Files on `wide`, at the right end of the row's
+      button line; on the small panel, at the card's top right beside
+      the name; on the visit, at the stick row's right end, where a
+      press opens the menu and does not tick the row. A file over 18 MiB
+      has one; the settings file has none.
+    - For the stick keeps one of Make PDF (a sheet, online) and Show as
+      QR, as its button did. Add to vault in the ⋮ is, with no vault
+      open, the way to one (Make a vault, Unlock), as the button was.
+    - The Rename field takes any character and says why at once; spaces
+      at the ends are dropped; the name unchanged leaves Rename disabled
+      with no line. On the stick the popup checks only the name's form:
+      whether the name is taken, and by the same vault, is the disk
+      process's answer (it reads both vaults for their identity), said
+      on the visit. The pipe has `Request::Rename`, answered
+      `Renamed`, `NameTaken { same_vault }` or `Failed`.
+    - A vault written over its same vault on a stick keeps the name the
+      stick has for it, unless the person renamed it For the stick: the
+      app keeps the files renamed (across a lock, key `renamed`) and the
+      write says so (`renamed` on `StorageCommand::Write` and the pipe's
+      `Request::Write`); then the file takes the new name, or
+      `name-2.ofv` where another file has it. The mark goes once a visit
+      has written the file, so another stick holding the same vault
+      under its own name keeps that name. `docs/VAULT.md` §6 step 3 says
+      so.
+    - Renaming a vault's file For the stick renames the file an open
+      vault seals back into, so Lock does not leave a second copy under
+      the old name; that changes what the next write of it is called,
+      and renames the same vault only on the stick that write goes to.
+    - A file chosen on the visit stays chosen under its new name; a
+      backup flow's copy on that stick (by label and serial) takes the
+      new name when the rename is answered.
+    - Details of a file on the stick: the shell reads it through the
+      disk process and hashes it (`StorageCommand::Hash`); its bytes are
+      wiped there and only the hash reaches the app, "Reading…" until
+      then, and "Not read: …" for a file over 18 MiB. The SHA-256 is two
+      lines of four groups.
+    - Wherever a vault is among the files chosen on the Delete files
+      sheet, by Delete from the stick or by ticks, its button is the
+      hold of decision 4, "Hold to delete 1 file with zeros"
+      (`VaultAction::HoldWipe`); the plain button is not offered.
+    - The ⋮s on Files and the visit are in the Tab order, in the order
+      drawn; Enter or Space opens the one the keyboard is on, which is
+      edged only once the keyboard has been used on it.
+
 ## Home
 
 **Start** is decision 50's tiles. **Add a key** (make, type or scan a

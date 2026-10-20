@@ -2416,6 +2416,7 @@ impl Faraday {
                 name,
                 bytes,
                 replace: vault,
+                renamed: false,
             });
         }
         let f = &mut self.backup_flows[i];
@@ -2587,6 +2588,7 @@ impl Faraday {
             name: sent.to_string(),
             bytes,
             replace: over,
+            renamed: false,
         });
     }
 

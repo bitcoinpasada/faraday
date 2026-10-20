@@ -276,7 +276,11 @@ stick visit:
    `name-2.ofv`.
 2. Write the sealed vault as a new file beside it, read it back and
    compare byte for byte.
-3. Delete the original and rename the new file to the original's name.
+3. Delete the original and rename the new file to the name it is
+   written under: the original's, unless the person renamed the file
+   For the stick since a visit last wrote it (`docs/FLOWS.md` decision
+   61), when it takes the new name, or `name-2.ofv` where another file
+   on the stick has that.
 4. FAT has no atomic replace. If a visit finds a new file that reads back
    whole and no original, it completes step 3; if it finds both, it
    keeps the original and discards the new file.

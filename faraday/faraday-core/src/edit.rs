@@ -41,6 +41,9 @@ impl Faraday {
         if self.sheet == Some(Sheet::Import) {
             return Some(Action::Vault(V::FocusPassphrase));
         }
+        if self.sheet == Some(Sheet::Rename) {
+            return Some(crate::file_menu::FIELD);
+        }
         if self.sheet == Some(Sheet::SeedRead) {
             return self
                 .seed_read
@@ -116,6 +119,7 @@ impl Faraday {
             Action::EntryPassphrase => &self.entry.passphrase,
             Action::SeedRead(_) => self.seed_read.as_ref()?.field()?,
             Action::Rename => self.renaming.as_deref()?,
+            crate::file_menu::FIELD => &self.files_menu.renaming.as_ref()?.stem,
             Action::BName(p) => self.backup.as_ref()?.names.get(usize::from(p))?,
             Action::MType => &self.message.as_ref()?.text,
             Action::KPassField(0) => &self.keygen.as_ref()?.passphrase,
