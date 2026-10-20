@@ -1765,13 +1765,10 @@ fn lone_passphrase_round(
     }
     assert_eq!(app.vaults.open.len(), 3, "{:?}", app.vaults.unlock_error);
     let name = app.flow().unwrap().wallet.as_ref().unwrap().name.clone();
+    // Unlocked inside the flow, nothing loaded (F62): everything they
+    // hold, from the Vaults tab.
     for o in 0..app.vaults.open.len() {
-        if app.session.wallets.iter().any(|x| x.name == name) {
-            break;
-        }
-        app.press(Action::Vault(
-            faraday_core::vaults::VaultAction::LoadChosen(o),
-        ));
+        app.press(Action::Vault(faraday_core::vaults::VaultAction::LoadAll(o)));
     }
     let w = app
         .session
@@ -5252,9 +5249,7 @@ fn another_open_vault_never_replaces_a_backup_past_its_lock() {
     let contents = faraday_vault::Contents {
         records: vec![
             Record::new(records::kind::SLOT_LABEL).with(field::LABEL, b"Second"),
-            Record::new(kind::KEY)
-                .with(field::KEY, &records::words_payload(&m))
-                .with(field::KEY_FLAGS, &[records::LOAD_AT_UNLOCK]),
+            Record::new(kind::KEY).with(field::KEY, &records::words_payload(&m)),
             Record::new(kind::WALLET)
                 .with(field::WALLET, desc.as_bytes())
                 .with(field::WALLET_NAME, name.as_bytes()),

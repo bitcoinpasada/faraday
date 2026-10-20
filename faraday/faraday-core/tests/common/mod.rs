@@ -645,12 +645,16 @@ pub fn create_vault(shell: &mut Shell, app: &mut Faraday, v: usize, phrase: &str
     settle(app, 40);
 }
 
-/// Unlock the vault the flow asks for with this passphrase.
+/// Unlock the vault the flow asks for with this passphrase; unlocked from
+/// the Vaults tab, its Load sheet's Load ticked, everything ticked (F62).
 pub fn unlock(app: &mut Faraday, phrase: &str) {
     app.press(Action::Vault(V::FocusPassphrase));
     type_text(app, phrase);
     app.press(Action::Vault(V::Unlock));
     settle(app, 100);
+    if app.sheet == Some(faraday_core::Sheet::UnlockLoad) {
+        app.press(Action::Vault(V::LoadTicked));
+    }
 }
 
 /// Sets the clock checked, as a person on the stick does before a key.

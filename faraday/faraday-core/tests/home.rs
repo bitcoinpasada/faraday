@@ -670,6 +670,7 @@ fn home_lead_rule_6_a_vault_changed_since_written_offers_to_write_it() {
         app.event(Event::Tick { now_ms: t * 1000 });
     }
     assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    app.press(Action::Vault(V::LoadTicked));
     app.press(Action::Vault(V::AddKind(0)));
     app.press(Action::Vault(V::SaveKey(0)));
     app.press(Action::Nav(Screen::Home));

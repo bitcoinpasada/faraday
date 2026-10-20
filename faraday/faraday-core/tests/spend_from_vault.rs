@@ -32,7 +32,8 @@ fn pump(app: &mut Faraday, vault: &[u8]) {
 }
 
 /// Started from the boot stick, the stick pulled, the vault's passphrase
-/// typed on the import sheet and Unlock pressed.
+/// typed on the import sheet, Unlock pressed and its Load sheet's Load
+/// ticked, with everything ticked.
 fn unlocked() -> Faraday {
     let vault = testkit::test_vault().unwrap();
     let mut app = testkit::started();
@@ -59,6 +60,9 @@ fn unlocked() -> Faraday {
     app.event(Event::Tick { now_ms: 1000 });
     let _ = app.frame();
     assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::UnlockLoad));
+    app.press(Action::Vault(faraday_core::vaults::VaultAction::LoadTicked));
+    let _ = app.frame();
     app
 }
 

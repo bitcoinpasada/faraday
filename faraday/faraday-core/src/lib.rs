@@ -78,6 +78,7 @@ pub mod transfer;
 pub mod ui;
 pub mod upgrade;
 pub mod vanity;
+pub mod vault_load;
 pub mod vault_out;
 pub mod vaults;
 pub mod visit_taken;
@@ -117,6 +118,7 @@ mod tools_screen;
 mod transfer_screen;
 mod upgrade_screen;
 mod vanity_screen;
+mod vault_load_screen;
 mod vault_screens;
 mod wordlist_screen;
 
@@ -1117,6 +1119,9 @@ pub enum Action {
     /// everything the plan puts in that vault: its seeds, each passphrase
     /// the plan keeps there, and the wallet where the plan puts it there.
     BVaultSave(u8),
+    /// Vault `v`'s item: turn **Load at unlock** off or on for the
+    /// wallet's record in that vault (F62).
+    BVaultLoad(u8),
     /// Make the checklist's public files again: the template, the sheet
     /// or the shares, the files for the software.
     BFilesMake,
@@ -1754,6 +1759,13 @@ pub enum Sheet {
     Rename,
     /// A file's Details: name, kind, size and SHA-256.
     Details,
+    /// **Load from {vault}**, after an unlock from the boot sheet or the
+    /// Vaults tab: what to load, ticked (`vault_load`, F62).
+    UnlockLoad,
+    /// **Seeds with no passphrase stored**, from a wallet short of a key:
+    /// one to load with a passphrase typed now, checked against the
+    /// wallet (`vault_load`, F62).
+    PassphraseSeeds,
 }
 
 /// What a scan pass saw of a code ([`StorageEvent::QrSeen`]).
@@ -2465,6 +2477,10 @@ pub struct BackupState {
     /// **Lock and write** makes a seed's file only once it is here
     /// (`docs/BACKUP-FLOW.md` §19.12 item 6). Never a secret.
     pub files_warned: Vec<String>,
+    /// The plan's vaults, by number, whose record of the wallet is set
+    /// not to load at unlock: the vault item's **Load at unlock** turned
+    /// off (F62). Every other starts on.
+    pub no_load: Vec<usize>,
 }
 
 /// Signing a message: the cards' state.
@@ -4596,7 +4612,8 @@ impl Faraday {
             | Action::ScanPart
             | Action::LoadKey(_)
             | Action::KeyGen(None)
-            | Action::CSlotVault(..) => EN.pull_what_add_a_key,
+            | Action::CSlotVault(..)
+            | Action::Vault(vaults::VaultAction::PassphraseKey(_)) => EN.pull_what_add_a_key,
             Action::KeyGen(Some(_)) | Action::KeyGenSlip39 => EN.pull_what_make_a_key,
             Action::PotentialOpen(_) => EN.pull_what_load_the,
             Action::BackupOpen(_) => EN.pull_what_open_the,
@@ -5742,6 +5759,13 @@ impl Faraday {
                 self.file_act(file_menu::FilePress::Close);
             }
             Action::File(p) => self.file_act(p),
+            // Escape on the Load sheet is its Not now (F62).
+            Action::Cancel if self.sheet == Some(Sheet::UnlockLoad) => {
+                self.load_sheet_act(vaults::VaultAction::LoadNotNow);
+            }
+            Action::Cancel if self.sheet == Some(Sheet::PassphraseSeeds) => {
+                self.pass_seeds_close();
+            }
             Action::Cancel => {
                 self.pull = None;
                 self.vaults.stick_save = None;
@@ -6084,6 +6108,7 @@ impl Faraday {
             }
             Action::BCheckClear => self.copy_check_clear(),
             Action::BVaultSave(v) => self.backup_vault_save(usize::from(v)),
+            Action::BVaultLoad(v) => self.backup_vault_load_toggle(usize::from(v)),
             Action::BFilesMake => {
                 self.backup_files_make();
                 self.backups_sync();
@@ -11056,6 +11081,9 @@ impl Faraday {
         if self.sheet == Some(Sheet::SeedRead) {
             return self.seed_read.as_ref().is_some_and(|s| s.focus.is_some());
         }
+        if self.sheet == Some(Sheet::PassphraseSeeds) {
+            return self.vaults.focus == Some(vaults::Focus::Prompt);
+        }
         if self.sheet == Some(Sheet::Rename) {
             return self.files_menu.renaming.is_some();
         }
@@ -11943,7 +11971,7 @@ impl Faraday {
                 ui.bar = (bar > 0).then_some((bar, offset));
                 ui.stretch_in_sheet = matches!(
                     self.sheet,
-                    Some(Sheet::Learn | Sheet::WordList | Sheet::Import)
+                    Some(Sheet::Learn | Sheet::WordList | Sheet::Import | Sheet::UnlockLoad)
                 ) || (self.compact && self.sheet.is_some());
                 ui.disclosure = disclosure;
                 let frost_key = ((self.screen, self.sheet), self.theme);

@@ -968,8 +968,7 @@ fn seeds_vault() -> Result<Vec<u8>, String> {
         main.records.push(
             Record::new(kind::KEY)
                 .with(field::KEY, &records::words_payload(&m))
-                .with(field::KEY_LABEL, label.as_bytes())
-                .with(field::KEY_FLAGS, &[records::LOAD_AT_UNLOCK]),
+                .with(field::KEY_LABEL, label.as_bytes()),
         );
     }
     let cost = Cost {
@@ -992,7 +991,7 @@ fn seeds_vault() -> Result<Vec<u8>, String> {
 pub const VAULT_PASSPHRASES: [&str; 2] = ["test vault", "decoy"];
 
 /// The test stick's vault (`docs/VAULT.md`): two passphrases at the
-/// Light cost with 64 KiB slots. The first opens test key 1 (loaded at
+/// Light cost with 64 KiB slots. The first opens test key 1 (ticked at
 /// unlock), every test wallet, an entry and a note; the second opens a
 /// slot with one entry. Everything is a dummy.
 pub fn test_vault() -> Result<Vec<u8>, String> {
@@ -1014,8 +1013,7 @@ pub fn test_vault() -> Result<Vec<u8>, String> {
             Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Test vault"),
             Record::new(kind::KEY)
                 .with(field::KEY, &records::words_payload(&m))
-                .with(field::KEY_LABEL, TEST_SEEDS[0].1.as_bytes())
-                .with(field::KEY_FLAGS, &[records::LOAD_AT_UNLOCK]),
+                .with(field::KEY_LABEL, TEST_SEEDS[0].1.as_bytes()),
             Record::new(kind::ENTRY)
                 .with(field::TITLE, b"Email")
                 .with(field::USERNAME, b"you@example.com")

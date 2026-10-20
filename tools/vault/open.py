@@ -76,7 +76,7 @@ SLOT_INFO = b"Faraday vault v1 slot"
 RECORDS = {
     1: ("Slot label", {1: "label"}),
     2: ("Bitcoin key", {1: "key", 2: "label", 3: "flags", 4: "BIP-39 passphrase"}),
-    3: ("Wallet", {1: "policy", 2: "name"}),
+    3: ("Wallet", {1: "policy", 2: "name", 3: "flags"}),
     4: ("Note", {1: "text"}),
     5: ("Recovery sheet", {1: "sheet"}),
     6: ("Entry", {1: "title", 2: "username", 3: "password", 4: "URL", 5: "notes", 6: "TOTP"}),

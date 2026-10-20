@@ -304,6 +304,15 @@ fn build(
     let quorum_here =
         slots.iter().filter(|s| s.held_by.is_some()).count() >= crate::wallet::needed(wallet);
     let may = app.may_load_keys();
+    // Asked once for the chart (F62).
+    let loaded_w = match press {
+        Press::Loaded(w) => Some(w),
+        _ => None,
+    };
+    let passphrase_key = slots
+        .iter()
+        .any(|s| s.held_by.is_none() && s.fingerprint.is_some())
+        && !app.vault_passphrase_seeds().is_empty();
     let threshold = wallet.policy().record().is_some();
     // Each slot's seed in the plan: a share by its number, else by
     // fingerprint.
@@ -352,6 +361,12 @@ fn build(
                 Some(f) => (
                     Some(Action::Vault(crate::vaults::VaultAction::LoadKeyOf(f.0))),
                     Some(EN.glance_load_from_vault),
+                ),
+                // A seed an open vault keeps without the passphrase this
+                // wallet may use it with (F62), short or not.
+                None if !held && passphrase_key && loaded_w.is_some() => (
+                    loaded_w.map(|w| Action::Vault(crate::vaults::VaultAction::PassphraseKey(w))),
+                    Some(EN.vault_load_with_a_passphrase),
                 ),
                 None => (None, None),
             };

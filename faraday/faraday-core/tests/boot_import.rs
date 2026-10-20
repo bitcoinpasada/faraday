@@ -2,8 +2,9 @@
 //! files into memory, nothing in Files, and the sheet lists every one
 //! ticked, a seed's too. Pulling the stick changes nothing. Import brings
 //! in what is ticked, its wallets and keys with it, and the vaults into
-//! Files, locked, each then offered its Unlock with Cancel; Later brings
-//! in nothing, and Home leads with the import. A lock drops it.
+//! Files, locked, each then offered its Unlock with Cancel, an unlock
+//! followed by its Load sheet (F62); Later brings in nothing, and Home
+//! leads with the import. A lock drops it.
 
 use faraday_core::boot_import::{self, ImportAction as I};
 use faraday_core::testkit;
@@ -296,6 +297,13 @@ fn import_brings_in_every_ticked_file_then_the_vaults_unlock_loads_its_wallets()
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
     assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    // Its Load sheet (F62), everything ticked; Load ticked ends the
+    // import and lands on Wallets.
+    assert_eq!(
+        (app.screen, app.sheet),
+        (Screen::Home, Some(Sheet::UnlockLoad))
+    );
+    app.press(Action::Vault(V::LoadTicked));
     assert!(app.import.is_none());
     assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
     for name in ["Savings", "Spending", "Zebra"] {
@@ -325,6 +333,8 @@ fn a_seed_imported_from_its_file_and_held_by_the_vault_loads_once() {
     run_unlock(&mut app);
     assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
     assert_eq!(app.vaults.unlock_error, None);
+    // The vault's copy of the key is Loaded on its Load sheet.
+    app.press(Action::Vault(V::LoadTicked));
     let mut want = vec![fp(0), fp(1), fp(2)];
     want.sort();
     // Once each: what Wallets and Sign list.
@@ -346,10 +356,13 @@ fn a_wrong_passphrase_stays_on_the_sheet_and_says_so() {
         drawn(&mut app).contains(&error),
         "the error is not on the sheet"
     );
-    // And the right one, typed again, unlocks.
+    // And the right one, typed again, unlocks: its Load sheet, then the
+    // import is over.
     type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
+    app.press(Action::Vault(V::LoadNotNow));
     assert!(app.import.is_none() && app.vaults.open.len() == 1);
 }
 
@@ -404,6 +417,8 @@ fn the_reminders_before_the_passphrase_leave_the_sheet_where_it_was() {
     type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
+    app.press(Action::Vault(V::LoadTicked));
     assert!(app.import.is_none() && app.vaults.open.len() == 1);
 }
 
@@ -474,8 +489,14 @@ fn with_two_vaults_each_is_offered_in_turn_and_cancel_leaves_it_locked() {
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
     assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    // Its Load sheet, then the second vault.
+    assert_eq!(
+        (app.screen, app.sheet),
+        (Screen::Home, Some(Sheet::UnlockLoad))
+    );
+    app.press(Action::Vault(V::LoadTicked));
     assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
-    // The second, on the sheet in its turn.
+    // The second, on the sheet in its turn; Cancel shows no Load sheet.
     assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
     assert_eq!(app.import_field().map(|v| v.name), Some("spare.ofv".into()));
     app.press(Action::Import(I::Cancel));
@@ -723,10 +744,13 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
 
 #[test]
 fn a_vault_imported_then_unlocked_on_vaults_loads_its_own_wallets() {
-    let app = unlocked_elsewhere();
+    let mut app = unlocked_elsewhere();
     // Unlocked through the list, not the sheet (`docs/NEW-WALLET.md`
-    // §11.1a): Wallets, with the vault's own wallets and keys loaded; the
-    // import, its one vault open, is over.
+    // §11.1a): its Load sheet; Load ticked lands on Wallets, with the
+    // vault's own wallets and keys loaded; the import, its one vault
+    // open, is over.
+    assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
+    app.press(Action::Vault(V::LoadTicked));
     assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
     assert!(app.import.is_none());
     assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
@@ -927,9 +951,9 @@ fn every_kind_of_seed_file_imported_with_the_stick_in_loads_at_the_pull() {
 }
 
 /// A vault holding a master seed, as a SLIP-39 or codex32 key is kept
-/// (BIP 93 vector 1's master seed), its key marked to load at unlock.
+/// (BIP 93 vector 1's master seed), its key loading at unlock.
 fn seed_vault() -> Vec<u8> {
-    use faraday_vault::records::{LOAD_AT_UNLOCK, field, kind};
+    use faraday_vault::records::{field, kind};
     use faraday_vault::{Contents, Cost, Record};
     let seed = osk_bip::codex32::Codex32::parse(CODEX32_SECRET)
         .unwrap()
@@ -944,8 +968,7 @@ fn seed_vault() -> Vec<u8> {
             Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Seeds"),
             Record::new(kind::KEY)
                 .with(field::KEY, &payload)
-                .with(field::KEY_LABEL, b"codex32")
-                .with(field::KEY_FLAGS, &[LOAD_AT_UNLOCK]),
+                .with(field::KEY_LABEL, b"codex32"),
         ],
     };
     let cost = Cost {
@@ -977,10 +1000,10 @@ fn codex32_fp() -> String {
         .expect("the codex32 secret did not load")
 }
 
-/// A vault's keys load on unlock whatever they are: BIP-39 words (the
-/// test vault's test key 1) or a master seed, as a SLIP-39 or codex32
-/// key is kept, which gives the same key as its codex32 file. On the
-/// boot sheet and from the Vaults list alike.
+/// A vault's keys load from its Load sheet whatever they are: BIP-39
+/// words (the test vault's test key 1) or a master seed, as a SLIP-39 or
+/// codex32 key is kept, which gives the same key as its codex32 file. On
+/// the boot sheet and from the Vaults list alike.
 #[test]
 fn a_vaults_words_and_master_seed_keys_load_on_unlock() {
     let codex32 = codex32_fp();
@@ -1008,6 +1031,7 @@ fn a_vaults_words_and_master_seed_keys_load_on_unlock() {
             "{kind}: {:?}",
             app.vaults.unlock_error
         );
+        app.press(Action::Vault(V::LoadTicked));
         assert_eq!(
             key_fps(&app),
             std::slice::from_ref(&want),
@@ -1029,6 +1053,7 @@ fn a_vaults_words_and_master_seed_keys_load_on_unlock() {
             "{kind}: {:?}",
             app.vaults.unlock_error
         );
+        app.press(Action::Vault(V::LoadTicked));
         assert_eq!(key_fps(&app), [want], "{kind}, Vaults");
     }
 }

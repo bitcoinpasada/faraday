@@ -1,9 +1,9 @@
 //! A session at boot: the boot stick's vault comes into the Inbox with
 //! the import over Home, pulling the stick leaves Home with the import,
 //! not the passphrase prompt, and a vault unlocked on its own
-//! (`docs/NEW-WALLET.md` §11.1a) loads the wallets and keys it holds and
-//! lands on Wallets. Opened from inside a flow, it still shows what it
-//! holds without loading it until asked.
+//! (`docs/NEW-WALLET.md` §11.1a) asks what to load (F62), loads what is
+//! ticked and lands on Wallets. Opened from inside a flow, it still shows
+//! what it holds without loading it until asked.
 
 use faraday_core::boot_import::ImportAction as I;
 use faraday_core::testkit;
@@ -86,12 +86,17 @@ fn the_boot_sticks_vault_waits_on_the_sheet_and_pulling_the_stick_leaves_it_up()
 }
 
 #[test]
-fn unlocking_loads_the_vaults_wallets_and_keys_and_lands_on_wallets() {
+fn unlocking_asks_what_to_load_and_load_ticked_loads_it_and_lands_on_wallets() {
     let (mut app, _) = later();
     app.storage(StorageEvent::Sticks(Vec::new()));
     app.press(Action::Vault(V::Open(0)));
     unlock(&mut app);
     assert_eq!(app.vaults.open.len(), 1);
+    // The Load sheet, everything ticked: nothing loaded yet.
+    assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
+    assert!(app.session.keys.is_empty() && app.session.wallets.is_empty());
+    app.press(Action::Vault(V::LoadTicked));
+    assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Wallets);
     assert_eq!(app.session.keys.len(), 1);
     let n = app.session.wallets.len();

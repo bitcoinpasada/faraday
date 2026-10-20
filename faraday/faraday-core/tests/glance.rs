@@ -508,7 +508,7 @@ fn a_wallet_loaded_from_its_vault_on_another_power_on_charts_the_vaults_plan() {
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, |a| !a.vaults.open.is_empty());
     assert_eq!(app.vaults.open.len(), 1, "the vault did not unlock");
-    app.press(Action::Vault(V::LoadWithKeys(0)));
+    app.press(Action::Vault(V::LoadTicked));
     assert_eq!(app.session.wallets.len(), 1, "the wallet did not load");
     app.press(Action::OpenWallet(0));
     let _ = app.frame();

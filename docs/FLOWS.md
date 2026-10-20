@@ -266,7 +266,8 @@ to get it.
     stick with their wallets and keys, the vaults into Files, locked; then
     each vault in turn takes its passphrase on the sheet, once the stick is
     pulled, with **Unlock** and **Cancel** (left locked in Files). An
-    unlock loads the vault's wallets and keys. **Later** brings in nothing,
+    unlock shows the vault's Load sheet (F62) before the next vault; it
+    loads what is ticked there. **Later** brings in nothing,
     vaults included; Home leads with "Import from {label}", or after
     Import "Unlock {name}", which opens the sheet again. Pulling the stick
     before a choice changes nothing; with only the settings file there is
@@ -966,8 +967,12 @@ all** above them →
   one came; with vaults, each in turn on the sheet: its name, "Pull the
   stick to continue" (Pi: "Pull the SD card to continue") while it is
   in, then its passphrase field with **Unlock** and **Cancel** →
-  **Unlock** loads its wallets and keys (a key loaded from a file
-  already is not loaded twice) → the next vault, or, after the last,
+  **Unlock** → **Load from {vault}** (F62; none when it holds no wallet
+  or key, or all are loaded): a card per wallet with its seeds there,
+  the Keys card, each ticked from its Load at unlock → **Load ticked**
+  loads what is ticked (anything loaded already, a key from a file
+  among them, shows Loaded and is not loaded twice), **Not now** loads
+  nothing → the next vault, or, after the last,
   Wallets, on the first wallet loaded that can sign here, with "Savings
   loaded from vault.ofv" (decision 43; Home when no wallet loaded); a
   wrong passphrase → stays, says so; **Cancel** → the vault stays in
@@ -1105,7 +1110,11 @@ since written; decision 26) and source; an open one with its size and
 cost, a locked one with what it held when last seen open (decision 23);
 **Create a vault** at the top.
 - open vault → **Open** → Vault contents;
-- locked vault → **Unlock** → passphrase sheet → Vault contents.
+- locked vault → **Unlock** → passphrase sheet → Files, with **Load
+  from {vault}** over it (F62): **Load ticked** → Wallets on the first
+  wallet loaded that can sign here (Files when only keys loaded); **Not
+  now** → Files, the vault open, nothing loaded. No sheet when the vault
+  holds no wallet or key, or all are loaded already.
 - opened from a flow that needs a vault (decision 10): **Unlock** →
   the flow, on the step it was on; the way back returns to it.
 
@@ -1132,7 +1141,7 @@ title, and the unlock goes back to the flow.
   skipped with the reason → choose the vault → import → Entries list.
 - **Edit** → the same form → back to the item.
 - **Hold to delete from vault** → gone; the next item selected.
-- A Bitcoin key or wallet → **Open in Wallets**, **Open in OpenSigner** (a key), or **Don't load at unlock**.
+- A Bitcoin key or wallet → **Open in Wallets**, **Open in OpenSigner** (a key), or **Don't load at unlock** / **Load at unlock** (F62: a wallet's, and a key's in no wallet of the vault; a key in one reads "Loads with {wallet}").
 - A GPG key → **Export public key** with **Show as QR** and **PNG** on its
   row; **Export the kept revocation** and **Make a revocation** (the
   secret sheet, no code or picture); **Sign a file**, whose list shows

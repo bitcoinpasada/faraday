@@ -137,6 +137,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
         ui.outside = match sheet {
             Sheet::Lock => Some(Action::NotNow),
             Sheet::Import => Some(crate::boot_import::LATER),
+            Sheet::UnlockLoad => Some(Action::Vault(crate::vaults::VaultAction::LoadNotNow)),
             Sheet::NewInput => app.inputs.first().map(|d| Action::InputIgnore(d.id)),
             // Zeroing stops by its own Stop, never by a press beside it.
             Sheet::WordList | Sheet::IdleWarn | Sheet::Zeroing => None,
@@ -178,6 +179,8 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::FileMenu => crate::file_menu::menu_sheet(app, ui, w, h),
             Sheet::Rename => crate::file_menu::rename_sheet(app, ui, w, h),
             Sheet::Details => crate::file_menu::details_sheet(app, ui, w, h),
+            Sheet::UnlockLoad => crate::vault_load_screen::draw(app, ui, w, h),
+            Sheet::PassphraseSeeds => crate::vault_load_screen::pass_seeds(app, ui, w, h),
         }
         ui.oy = 0.0;
     }
@@ -4442,8 +4445,10 @@ pub(crate) fn step_body(
             let wl = wallet.and_then(|wi| app.session.wallets.get(wi).map(|wl| (wi, wl)));
             let may = app.may_load_keys();
             match wl {
-                Some((_, wl)) => {
+                Some((wi, wl)) => {
                     let slots = app.session.slots(wl);
+                    let passphrase_key = slots.iter().any(|s| s.held_by.is_none())
+                        && !app.vault_passphrase_seeds().is_empty();
                     // On a small panel a key is two lines: the key, then
                     // whether it signs here and the way to bring it here.
                     let compact = ui.compact;
@@ -4469,7 +4474,28 @@ pub(crate) fn step_body(
                         let from_vault = slot
                             .fingerprint
                             .filter(|f| slot.held_by.is_none() && app.vault_key_for(*f).is_some());
+                        // A seed an open vault keeps without the
+                        // passphrase this wallet may use it with (F62).
+                        let with_pass =
+                            from_vault.is_none() && slot.held_by.is_none() && passphrase_key;
                         match from_vault {
+                            None if with_pass => {
+                                let l = EN.vault_load_with_a_passphrase;
+                                let bw = ui.measure(13.0, W::S, l) + 28.0;
+                                ui.button(
+                                    x + w - bw,
+                                    cy + 5.0,
+                                    Some(bw),
+                                    32.0,
+                                    l,
+                                    if may {
+                                        Style::Secondary
+                                    } else {
+                                        Style::Disabled
+                                    },
+                                    Action::Vault(crate::vaults::VaultAction::PassphraseKey(wi)),
+                                );
+                            }
                             Some(f) => {
                                 let l = EN.step_load_from_vault;
                                 let bw = ui.measure(13.0, W::S, l) + 28.0;
@@ -6830,6 +6856,23 @@ fn vault_item(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f
         let label = ui.fit(13.0, W::R, &label, w - 18.0);
         ui.text_mid(x + 18.0, cy, 18.0, 13.0, W::R, TEXT, &label);
         cy += 24.0;
+    }
+    // The wallet's record loads at unlock unless turned off here (F62).
+    if b.answers.wallet_in_vault(v) {
+        let on = !b.no_load.contains(&v);
+        let top = cy;
+        cy += 4.0;
+        ui.checkbox(x, cy, on, true);
+        let label = ui.fit(13.0, W::S, EN.vault_load_at_unlock, w - 28.0);
+        ui.text_mid(x + 28.0, cy - 2.0, 22.0, 13.0, W::S, TEXT, &label);
+        cy += 28.0;
+        ui.hit(
+            x - 4.0,
+            top,
+            w + 8.0,
+            cy - top,
+            Action::BVaultLoad(v.min(255) as u8),
+        );
     }
     // No vault yet for this one while another is open: a vault already on
     // a stick read this power-on is the other way to it.

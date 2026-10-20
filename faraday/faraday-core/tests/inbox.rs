@@ -47,6 +47,8 @@ fn unlocked(mut files: Vec<(String, Vec<u8>)>) -> Faraday {
         app.event(Event::Tick { now_ms: t * 1000 });
     }
     assert_eq!(app.vaults.open.len(), 1);
+    // Its Load sheet's Not now: the vault stays open on Files (F62).
+    app.press(Action::Vault(V::LoadNotNow));
     app
 }
 

@@ -7168,7 +7168,7 @@ pub struct Strings {
     /// Text in `item_heading`.
     pub vault_master_seed: &'static str,
     /// Text in `item_heading`.
-    pub vault_chosen_at_unlock_inline: &'static str,
+    pub vault_not_loaded_at_unlock_inline: &'static str,
     /// Text in `item_heading`.
     pub vault_totp: &'static str,
     /// Text in `item_heading`. `{}`: `t.chars().count()`.
@@ -7293,8 +7293,11 @@ pub struct Strings {
     pub vault_stored: &'static str,
     /// Text in `detail`.
     pub vault_not_stored: &'static str,
-    /// Label in `detail`.
-    pub vault_chosen_at_unlock: &'static str,
+    /// Label in `detail`, and the action that turns it on (F62).
+    pub vault_load_at_unlock: &'static str,
+    /// Text in `detail`: a key that loads with a wallet of its vault.
+    /// `{}`: the wallet's name.
+    pub vault_loads_with: &'static str,
     /// Text in `detail`.
     pub vault_yes: &'static str,
     /// Text in `detail`.
@@ -7307,10 +7310,51 @@ pub struct Strings {
     pub vault_load_into_session: &'static str,
     /// Text in `detail`.
     pub vault_load_with_a_passphrase: &'static str,
-    /// Text in `detail`.
-    pub vault_leave_unchosen: &'static str,
-    /// Text in `detail`.
-    pub vault_choose_at_unlock: &'static str,
+    /// Text in `detail`: the action that turns Load at unlock off.
+    pub vault_dont_load_at_unlock: &'static str,
+    /// Title of the Load sheet an unlock shows (F62). `{}`: the vault.
+    pub load_sheet_title: &'static str,
+    /// The Load sheet's count: one wallet.
+    pub load_sheet_wallet: &'static str,
+    /// The Load sheet's count: wallets.
+    pub load_sheet_wallets: &'static str,
+    /// The Load sheet's count: one key.
+    pub load_sheet_key: &'static str,
+    /// The Load sheet's count: keys.
+    pub load_sheet_keys: &'static str,
+    /// A wallet card's line when the vault holds none of its seeds.
+    pub load_sheet_watch_only: &'static str,
+    /// A wallet card's line. `{}`: seeds not in the vault, then the
+    /// wallet's seeds.
+    pub load_sheet_kept_elsewhere: &'static str,
+    /// A seed in one other wallet of the vault too. `{}`: that wallet.
+    pub load_sheet_also_in: &'static str,
+    /// A seed in two other wallets of the vault. `{}`: each wallet.
+    pub load_sheet_also_in_two: &'static str,
+    /// A seed in three or more other wallets. `{}`: how many.
+    pub load_sheet_also_in_n: &'static str,
+    /// What the session holds already, on the Load sheet.
+    pub load_sheet_loaded: &'static str,
+    /// Title of the Load sheet's card of keys in no wallet.
+    pub load_sheet_keys_card: &'static str,
+    /// The Load sheet's button that loads nothing.
+    pub load_sheet_not_now: &'static str,
+    /// The Load sheet's button that loads what is ticked.
+    pub load_sheet_load_ticked: &'static str,
+    /// Title of the sheet of seeds an open vault keeps with no
+    /// passphrase, from a wallet short of a key (F62).
+    pub pass_seeds_title: &'static str,
+    /// Label of that sheet's passphrase field.
+    pub pass_seeds_passphrase: &'static str,
+    /// The typed passphrase made another key. `{}`: its fingerprint, then
+    /// the wallet's name.
+    pub pass_seeds_not_a_key: &'static str,
+    /// That sheet's way back from a seed's field to the list.
+    pub pass_seeds_other_seed: &'static str,
+    /// That sheet's button that loads the seed with the passphrase.
+    pub pass_seeds_load: &'static str,
+    /// That sheet's button that closes it.
+    pub pass_seeds_cancel: &'static str,
     /// Text in `detail`.
     pub vault_open_in_wallets: &'static str,
     /// Label in `detail`.
@@ -11942,7 +11986,7 @@ pub static EN: Strings = Strings {
     vault_key: "Key",
     vault_words_n: "{} words",
     vault_master_seed: "Master seed",
-    vault_chosen_at_unlock_inline: "chosen at unlock",
+    vault_not_loaded_at_unlock_inline: "not loaded at unlock",
     vault_totp: "TOTP",
     vault_note_characters: "Note · {} characters",
     vault_recovery_sheet: "Recovery sheet",
@@ -12005,15 +12049,35 @@ pub static EN: Strings = Strings {
     vault_bip_39_passphrase: "BIP-39 passphrase",
     vault_stored: "Stored",
     vault_not_stored: "Not stored",
-    vault_chosen_at_unlock: "Chosen at unlock",
+    vault_load_at_unlock: "Load at unlock",
+    vault_loads_with: "Loads with {}",
     vault_yes: "Yes",
     vault_no: "No",
     vault_in_this_session: "In this session",
     vault_not_loaded: "Not loaded",
     vault_load_into_session: "Load into session",
     vault_load_with_a_passphrase: "Load with a passphrase",
-    vault_leave_unchosen: "Leave unchosen at unlock",
-    vault_choose_at_unlock: "Choose at unlock",
+    vault_dont_load_at_unlock: "Don't load at unlock",
+    load_sheet_title: "Load from {}",
+    load_sheet_wallet: "wallet",
+    load_sheet_wallets: "wallets",
+    load_sheet_key: "key",
+    load_sheet_keys: "keys",
+    load_sheet_watch_only: "Watch-only here",
+    load_sheet_kept_elsewhere: "{} of {} seeds kept elsewhere",
+    load_sheet_also_in: "also in {}",
+    load_sheet_also_in_two: "also in {} and {}",
+    load_sheet_also_in_n: "also in {} other wallets",
+    load_sheet_loaded: "Loaded",
+    load_sheet_keys_card: "Keys",
+    load_sheet_not_now: "Not now",
+    load_sheet_load_ticked: "Load ticked",
+    pass_seeds_title: "Seeds with no passphrase stored",
+    pass_seeds_passphrase: "BIP-39 passphrase",
+    pass_seeds_not_a_key: "This passphrase gives {}, not a key of {}",
+    pass_seeds_other_seed: "Another seed",
+    pass_seeds_load: "Load",
+    pass_seeds_cancel: "Cancel",
     vault_open_in_wallets: "Open in Wallets",
     vault_username: "Username",
     vault_password: "Password",

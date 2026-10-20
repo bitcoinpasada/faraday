@@ -78,6 +78,7 @@ fn unlock(app: &mut Faraday) {
         app.event(Event::Tick { now_ms: t * 1000 });
     }
     assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    app.press(Action::Vault(V::LoadTicked));
 }
 
 /// Device A: test key 1 signs as share 1 for shares 1 and 2, leaving the

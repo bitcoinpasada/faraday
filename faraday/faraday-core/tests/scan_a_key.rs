@@ -27,8 +27,8 @@ fn pump(app: &mut Faraday, vault: &[u8]) {
     }
 }
 
-/// Started from the boot stick and its vault unlocked: every test wallet
-/// loaded, with Test key 1 here.
+/// Started from the boot stick, its vault unlocked and Load ticked: every
+/// test wallet loaded, with Test key 1 here.
 fn unlocked() -> Faraday {
     let vault = testkit::test_vault().unwrap();
     let mut app = testkit::started();
@@ -57,6 +57,8 @@ fn unlocked() -> Faraday {
     app.event(Event::Tick { now_ms: 1000 });
     let _ = app.frame();
     assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    // Its Load sheet, everything ticked (F62).
+    app.press(Action::Vault(faraday_core::vaults::VaultAction::LoadTicked));
     app
 }
 

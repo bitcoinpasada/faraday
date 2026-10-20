@@ -63,6 +63,12 @@ pub(crate) struct Drawing {
     /// The sticks the wallet being backed up is written to
     /// ([`crate::Faraday::wallet_stick_rows`]).
     pub stick_rows: OnceCell<Vec<StickRow>>,
+    /// The Load sheet an unlock shows ([`crate::Faraday::vault_load_view`],
+    /// F62).
+    pub load_sheet: OnceCell<std::rc::Rc<crate::vault_load::LoadView>>,
+    /// The seeds open vaults keep without a passphrase
+    /// ([`crate::Faraday::vault_passphrase_seeds`], F62).
+    pub passphrase_seeds: OnceCell<std::rc::Rc<Vec<crate::vault_load::PassSeed>>>,
 }
 
 impl Drawing {

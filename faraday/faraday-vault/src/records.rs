@@ -67,7 +67,8 @@ pub mod field {
     pub const KEY: u8 = 1;
     /// Bitcoin key: what the person calls it.
     pub const KEY_LABEL: u8 = 2;
-    /// Bitcoin key: flags, bit 0 load at unlock.
+    /// Bitcoin key: flags, bit 0 not loaded at unlock
+    /// ([`super::NO_LOAD_AT_UNLOCK`]), bit 1 its backup not done.
     pub const KEY_FLAGS: u8 = 3;
     /// Bitcoin key: its BIP-39 passphrase, only when the person chose to
     /// store it.
@@ -77,6 +78,9 @@ pub mod field {
     pub const WALLET: u8 = 1;
     /// Wallet: its name.
     pub const WALLET_NAME: u8 = 2;
+    /// Wallet: flags, bit 0 not loaded at unlock
+    /// ([`super::NO_LOAD_AT_UNLOCK`]). Absent, it loads.
+    pub const WALLET_FLAGS: u8 = 3;
 
     /// Note: the text.
     pub const NOTE: u8 = 1;
@@ -147,8 +151,10 @@ pub mod field {
     pub const PASSPHRASE: u8 = 2;
 }
 
-/// Bit 0 of a key's flags: load it into the session at unlock.
-pub const LOAD_AT_UNLOCK: u8 = 1;
+/// Bit 0 of a key's or a wallet's flags: the Load sheet an unlock
+/// shows starts it unticked (`docs/DECISIONS.md` F62). With the bit
+/// clear, or no flags field, it starts ticked.
+pub const NO_LOAD_AT_UNLOCK: u8 = 1;
 
 /// Bit 1 of a key's flags: the key was made in Faraday and its backup is
 /// not done; it signs nothing until it is. Never a secret.
@@ -235,7 +241,11 @@ const KEY_RULES: &[Rule] = &[
     rule(3, false, false, Shape::Exact(1)),
     rule(4, false, false, TEXT),
 ];
-const WALLET_RULES: &[Rule] = &[rule(1, true, false, TEXT), rule(2, false, false, TEXT)];
+const WALLET_RULES: &[Rule] = &[
+    rule(1, true, false, TEXT),
+    rule(2, false, false, TEXT),
+    rule(3, false, false, Shape::Exact(1)),
+];
 const NOTE_RULES: &[Rule] = &[rule(1, true, false, TEXT)];
 const SHEET_RULES: &[Rule] = &[rule(1, true, false, Shape::Bytes)];
 const ENTRY_RULES: &[Rule] = &[
@@ -560,6 +570,49 @@ impl Contents {
             .iter()
             .enumerate()
             .filter(move |(_, r)| r.kind == kind)
+    }
+}
+
+/// The flags field of a key or wallet record, by its type.
+fn flags_field(record: &Record) -> Option<u8> {
+    match record.kind {
+        kind::KEY => Some(field::KEY_FLAGS),
+        kind::WALLET => Some(field::WALLET_FLAGS),
+        _ => None,
+    }
+}
+
+/// Whether a key or wallet record starts ticked on the Load sheet an
+/// unlock shows: its flags' bit 0 clear, or no flags at all.
+pub fn loads_at_unlock(record: &Record) -> bool {
+    let Some(f) = flags_field(record) else {
+        return false;
+    };
+    record
+        .field(f)
+        .and_then(|b| b.first())
+        .is_none_or(|b| b & NO_LOAD_AT_UNLOCK == 0)
+}
+
+/// Sets whether a key or wallet record loads at unlock, keeping its other
+/// flags; a record left with no flag set has no flags field.
+pub fn set_loads_at_unlock(record: &mut Record, loads: bool) {
+    let Some(f) = flags_field(record) else {
+        return;
+    };
+    let old = record
+        .field(f)
+        .and_then(|b| b.first().copied())
+        .unwrap_or(0);
+    let new = if loads {
+        old & !NO_LOAD_AT_UNLOCK
+    } else {
+        old | NO_LOAD_AT_UNLOCK
+    };
+    if new == 0 {
+        record.set(f, &[]);
+    } else {
+        record.set(f, &[new]);
     }
 }
 

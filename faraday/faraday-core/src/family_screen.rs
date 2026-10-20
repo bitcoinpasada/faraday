@@ -1698,6 +1698,8 @@ fn signers(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             // On a small panel a key's name has its line, and what it
             // does goes under it.
             let compact = ui.compact;
+            let passphrase_key = app.session.slots(wl).iter().any(|s| s.held_by.is_none())
+                && !app.vault_passphrase_seeds().is_empty();
             for (k, slot) in app.session.slots(wl).iter().enumerate() {
                 ui.text_mid(x, cy, 42.0, 12.0, W::R, DIM, &(k + 1).to_string());
                 let fp = slot.fingerprint.map(fp_text).unwrap_or_default();
@@ -1746,6 +1748,24 @@ fn signers(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                         label,
                         Style::Secondary,
                         Action::BackupFirst(wi),
+                    );
+                } else if in_vault.is_none() && slot.held_by.is_none() && passphrase_key {
+                    // A seed an open vault keeps without the passphrase
+                    // this wallet may use it with (F62).
+                    let label = EN.vault_load_with_a_passphrase;
+                    let bw = ui.measure(13.0, W::S, label) + 32.0;
+                    ui.button(
+                        x + w - bw,
+                        cy + 3.0,
+                        Some(bw),
+                        36.0,
+                        label,
+                        if may {
+                            Style::Secondary
+                        } else {
+                            Style::Disabled
+                        },
+                        Action::Vault(VaultAction::PassphraseKey(wi)),
                     );
                 } else if let Some(f) = in_vault {
                     // A key an open vault holds loads from it.

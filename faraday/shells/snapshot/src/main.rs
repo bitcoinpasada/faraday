@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|power|pills]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|passseeds|power|pills]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -68,7 +68,10 @@
 //! follows, a vault copied to another stick, and a cosigner's holder
 //! named; with `restore`, Restore a wallet's cards (§12): Kind with the description
 //! shortcut, Quorum, Seeds with a seed matched and one refused, Check and
-//! Done; with `flow`, the backup flow (`docs/BACKUP-FLOW.md`) for a GPG key
+//! Done; with `passseeds`, a vault keeping a 2-of-3's third seed without
+//! the passphrase the wallet uses it with (F62): its Load sheet, Seeds
+//! with no passphrase stored from the wallet's chart, a passphrase that
+//! gives another key, and the right one; with `flow`, the backup flow (`docs/BACKUP-FLOW.md`) for a GPG key
 //! kept in the test vault and a new vault at three places: Where, the
 //! first stick with the vault choice, the place confirmed, two empty sticks
 //! read alike and the hold, Vaults, Make, the Lock card, each stick
@@ -744,6 +747,7 @@ fn run(
         Some("osk") => return osk_tour(&mut t),
         Some("flow") => return flow_tour(&mut t),
         Some("bootplace") => return boot_place_tour(&mut t),
+        Some("passseeds") => return pass_seeds_tour(&mut t),
         Some("power") => return power_tour(&mut t),
         Some("pills") => return pills_tour(&mut t),
         Some("walletflow") => return wallet_flow_tour(&mut t),
@@ -1539,7 +1543,15 @@ fn run(
     t.press(Action::Vault(V::Unlock));
     t.tick();
     // Unlocked from the Vaults list (`docs/NEW-WALLET.md` §11.1a): its
-    // wallets and keys load now, landing on Wallets.
+    // Load sheet (F62), every card ticked; Load ticked lands on Wallets.
+    if t.app.sheet != Some(faraday_core::Sheet::UnlockLoad) || !t.app.session.keys.is_empty() {
+        return Err("the unlock did not ask what to load".into());
+    }
+    t.shot("vault-load-sheet")?;
+    t.press(Action::Vault(V::LoadTickAll));
+    t.shot("vault-load-sheet-none")?;
+    t.press(Action::Vault(V::LoadTickAll));
+    t.press(Action::Vault(V::LoadTicked));
     if t.app.screen != Screen::Wallets || t.app.session.keys.is_empty() {
         return Err("the unlock did not load the vault's wallets".into());
     }
@@ -2122,6 +2134,12 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
+    // Its Load sheet (F62), then Load ticked; none when everything it
+    // holds is loaded already.
+    if t.app.sheet == Some(Sheet::UnlockLoad) {
+        t.shot("boot-load-sheet")?;
+        t.press(Action::Vault(V::LoadTicked));
+    }
     if t.app.vaults.open.len() != 1
         || t.app.import.is_some()
         || t.app.sheet.is_some()
@@ -5265,6 +5283,119 @@ fn flow_made(t: &mut Tour, kind: faraday_core::backup_flow::Kind) -> Result<(), 
 /// The backup flow's Bring in the sticks with the boot stick taken for
 /// Place 1 (`docs/BACKUP-FLOW.md` §18): it is Stick 1, the Boot stick,
 /// and the next stick is Stick 2.
+/// A vault of the three test keys, the third kept without the passphrase
+/// its 2-of-3 uses it with, and a seed of no wallet (F62): the Load sheet,
+/// Seeds with no passphrase stored, a passphrase giving another key, and
+/// the right one.
+fn pass_seeds_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::vaults::VaultAction as V;
+    use faraday_vault::records::{self, field, kind};
+    use faraday_vault::{Contents, Cost, Record};
+    use osk_bip::bip39::{Language, Mnemonic};
+    use osk_bip::bitcoin::bip32::DerivationPath;
+    let words = |p: &str| Mnemonic::parse(Language::English, p).map_err(|e| format!("{e:?}"));
+    let key = |m: &Mnemonic, label: &str| {
+        Record::new(kind::KEY)
+            .with(field::KEY, &records::words_payload(m))
+            .with(field::KEY_LABEL, label.as_bytes())
+    };
+    let p = "m/48'/1'/0'/2'";
+    let third = words(&testkit::test_words(testkit::TEST_SEEDS[2].0))?;
+    let seed = third.to_seed(b"kept apart").map_err(|e| format!("{e:?}"))?;
+    let master = osk_bip::keys::MasterKey::from_seed(&seed, testkit::NET);
+    let path: DerivationPath = p.parse().map_err(|e| format!("{e:?}"))?;
+    let trio = format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,[{}/48h/1h/0h/2h]{}/<0;1>/*))",
+        testkit::key(0, p),
+        testkit::key(1, p),
+        master.fingerprint(),
+        master.derive(&path).to_xpub()
+    );
+    let mut records = vec![Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Trio")];
+    for n in 0..3 {
+        let m = words(&testkit::test_words(testkit::TEST_SEEDS[n].0))?;
+        records.push(key(&m, testkit::TEST_SEEDS[n].1));
+    }
+    records.push(key(
+        &words("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")?,
+        "Spare",
+    ));
+    records.push(
+        Record::new(kind::WALLET)
+            .with(field::WALLET, trio.as_bytes())
+            .with(field::WALLET_NAME, b"Trio"),
+    );
+    let cost = Cost {
+        memory_kib: 64 * 1024,
+        passes: 1,
+        lanes: 1,
+    };
+    let file = faraday_vault::create(
+        faraday_vault::SLOT_SIZES[0],
+        cost,
+        &[b"trio phrase".as_slice()],
+        &[Contents { records }],
+        &[0x5e; 32],
+    )
+    .map_err(|e| e.reason())?;
+    t.app.storage(StorageEvent::Restored {
+        inbox: vec![("trio.ofv".into(), file)],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.vaults.ms_per_unit = Some(180);
+    t.press(Action::Nav(Screen::Vaults));
+    t.press(Action::Vault(V::Open(0)));
+    type_text(t, "trio phrase");
+    t.press(Action::Vault(V::Unlock));
+    t.tick();
+    if t.app.sheet != Some(faraday_core::Sheet::UnlockLoad) {
+        return Err(format!(
+            "the trio vault did not ask what to load: {:?}",
+            t.app.vaults.unlock_error
+        ));
+    }
+    t.shot("passseeds-load-sheet")?;
+    let keys: Vec<usize> = t
+        .app
+        .vault_load_view()
+        .ok_or("no Load sheet")?
+        .keys
+        .iter()
+        .filter(|k| k.ticked)
+        .map(|k| k.record)
+        .collect();
+    for r in keys {
+        t.press(Action::Vault(V::LoadTick(r)));
+    }
+    t.press(Action::Vault(V::LoadTicked));
+    t.press(Action::OpenWallet(0));
+    t.press(Action::Vault(V::PassphraseKey(0)));
+    t.shot("passseeds-list")?;
+    let pick = t
+        .app
+        .vault_passphrase_seeds()
+        .iter()
+        .find(|s| s.line.ends_with(testkit::TEST_SEEDS[2].1))
+        .map(|s| (s.vault, s.record))
+        .ok_or("test key 3 is not listed")?;
+    t.press(Action::Vault(V::PassphrasePick(pick.0, pick.1)));
+    type_text(t, "wrong");
+    t.press(Action::Vault(V::PromptGo));
+    t.shot("passseeds-mismatch")?;
+    type_text(t, "kept apart");
+    t.press(Action::Vault(V::PromptGo));
+    if t.app.sheet.is_some() || t.app.session.keys.len() != 3 {
+        return Err("the right passphrase did not load test key 3".into());
+    }
+    t.shot("passseeds-loaded")?;
+    println!("passseeds: a seed kept without its passphrase, found by its passphrase");
+    Ok(())
+}
+
 fn boot_place_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::backup_flow::Kind;
     use faraday_core::backup_flow_steps::FlowAction as F;
@@ -5867,6 +5998,7 @@ fn main() -> ExitCode {
             "osk",
             "flow",
             "bootplace",
+            "passseeds",
             "power",
             "pills",
             "walletflow",
@@ -5883,7 +6015,7 @@ fn main() -> ExitCode {
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, power, pills, walletflow, demo, startwarn, vaultshow, addkey, createfrom, inprogress, cancel, std or parts"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, startwarn, vaultshow, addkey, createfrom, inprogress, cancel, std or parts"
         );
         return ExitCode::from(2);
     }

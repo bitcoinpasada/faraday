@@ -679,6 +679,10 @@ that holds no wallet lands where it does today. That test changes to
 the new rule. It answers the question in `local/REMAINING.md`, "Unlock
 from the Vaults list lands on Files. Open the vault instead?".
 
+Since F62 (2026-10-20) neither Unlock loads at once: each shows **Load
+from {vault}** with its wallets and keys ticked from their Load at
+unlock, and **Load ticked** loads and lands as above.
+
 ### 11.2 Spend from this wallet
 
 The wallet card's first and primary button is **Spend from this

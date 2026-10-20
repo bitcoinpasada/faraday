@@ -363,6 +363,22 @@ pub enum VaultAction {
     ShowSeedQr,
     /// The selected wallet's descriptor as the Wallets page shows it.
     WalletQr,
+    /// The Load sheet (F62): tick or untick wallet record or Keys-card
+    /// key record n.
+    LoadTick(usize),
+    /// The Load sheet's Unselect all, or Select all once none is ticked.
+    LoadTickAll,
+    /// The Load sheet's Load ticked.
+    LoadTicked,
+    /// The Load sheet's Not now: nothing loads, the vault stays open.
+    LoadNotNow,
+    /// From wallet n short of a key: the seeds open vaults keep without
+    /// a passphrase, one to load with a passphrase typed now (F62).
+    PassphraseKey(usize),
+    /// On that sheet: seed record r of open vault v, its field.
+    PassphrasePick(usize, usize),
+    /// On that sheet: back from a seed's field to the list.
+    PassphraseList,
     /// Save to a stick: the popup of the selected key's or wallet's files.
     SaveToStick,
     /// Tick or untick the popup's file n.
@@ -393,6 +409,9 @@ pub enum Purpose {
     Backup(usize),
     /// A BIP-39 passphrase to load the selected key with.
     KeyPassphrase,
+    /// A BIP-39 passphrase for seed record r of open vault v, checked
+    /// against the keys a wallet is missing (F62).
+    ForWallet(usize, usize),
     /// The passphrase a KeePass export of the selected entry is sealed
     /// under.
     Kdbx,
@@ -747,6 +766,10 @@ pub struct Vaults {
     pub(crate) seedqr: Option<(usize, osk_codec::qr::QrMatrix)>,
     /// Save to a stick's popup, while it is open.
     pub stick_save: Option<crate::vault_out::StickSave>,
+    /// The Load sheet an unlock shows, while it is up (F62).
+    pub load: Option<crate::vault_load::LoadSheet>,
+    /// The sheet of seeds kept with no passphrase, while it is up (F62).
+    pub pass_seeds: Option<crate::vault_load::PassSeeds>,
 }
 
 /// Memory in MiB as a person reads it.
@@ -1652,19 +1675,29 @@ impl Faraday {
                 }
             }
             V::SaveToStickGo => self.vault_stick_save_write(),
+            V::LoadTick(_) | V::LoadTickAll | V::LoadTicked | V::LoadNotNow => {
+                self.load_sheet_act(a)
+            }
+            V::PassphraseKey(w) => self.pass_seeds_open(w),
+            V::PassphrasePick(v, r) => self.pass_seed_pick(v, r),
+            V::PassphraseList => self.pass_seed_list(),
             V::HoldDelete => self.vault_delete(),
             V::HoldWipe => self.delete_go(),
             V::ToggleLoad => {
-                if let Some(at) = self.vault_selected_index()
-                    && let Some(v) = self.vaults.open.get_mut(self.vaults.current)
+                // A key that loads with a wallet of this vault has no
+                // setting of its own (F62).
+                let Some(at) = self.vault_selected_index() else {
+                    return;
+                };
+                if self.vault_key_wallet(self.vaults.current, at).is_some() {
+                    return;
+                }
+                if let Some(v) = self.vaults.open.get_mut(self.vaults.current)
                     && let Some(r) = v.contents.records.get_mut(at)
-                    && r.kind == kind::KEY
+                    && matches!(r.kind, kind::KEY | kind::WALLET)
                 {
-                    let flags = r
-                        .field(field::KEY_FLAGS)
-                        .and_then(|f| f.first().copied())
-                        .unwrap_or(0);
-                    r.set(field::KEY_FLAGS, &[flags ^ records::LOAD_AT_UNLOCK]);
+                    let loads = records::loads_at_unlock(r);
+                    records::set_loads_at_unlock(r, !loads);
                     v.changes += 1;
                 }
             }
@@ -2047,6 +2080,7 @@ impl Faraday {
             return;
         };
         match p.purpose {
+            Purpose::ForWallet(v, r) => self.pass_seed_try(v, r),
             Purpose::Backup(_) => {
                 if p.text.text.is_empty() {
                     p.error = Some(EN.vaults_type_the_backup.to_string());
@@ -2123,8 +2157,7 @@ impl Faraday {
             Ok(Opened::Words(m)) => (
                 Record::new(kind::KEY)
                     .with(field::KEY, &records::words_payload(&m))
-                    .with(field::KEY_LABEL, label.as_bytes())
-                    .with(field::KEY_FLAGS, &[records::LOAD_AT_UNLOCK]),
+                    .with(field::KEY_LABEL, label.as_bytes()),
                 0,
             ),
             Ok(Opened::Seed(seed)) => {
@@ -2134,8 +2167,7 @@ impl Faraday {
                 (
                     Record::new(kind::KEY)
                         .with(field::KEY, &payload)
-                        .with(field::KEY_LABEL, label.as_bytes())
-                        .with(field::KEY_FLAGS, &[records::LOAD_AT_UNLOCK]),
+                        .with(field::KEY_LABEL, label.as_bytes()),
                     0,
                 )
             }
@@ -2262,9 +2294,16 @@ impl Faraday {
     fn vault_unlock(&mut self) {
         let before = self.vaults.open.len();
         self.vault_unlock_inner();
-        // Unlocked inside a backup flow: it goes on.
+        // Unlocked inside a backup flow: it goes on, and loads what it
+        // needs itself, so no Load sheet waits over it (F62).
         if self.vaults.open.len() > before {
+            let screen = self.screen;
             self.flow_vault_opened();
+            let from_tab = self.vaults.load.as_ref().is_some_and(|l| !l.boot);
+            if self.screen != screen && from_tab && self.sheet == Some(crate::Sheet::UnlockLoad) {
+                self.vaults.load = None;
+                self.sheet = None;
+            }
         }
     }
 
@@ -2319,16 +2358,16 @@ impl Faraday {
                     self.vaults.category_chosen = true;
                 }
                 self.vaults.item = [0; 7];
-                // Keys not marked to load start unchosen; every wallet
-                // starts chosen. Nothing loads until the person says.
+                // Keys and wallets set not to load at unlock start
+                // unchosen on the Vaults tab's load list.
                 let v = self.vaults.current;
                 let skip = self.vaults.open[v]
                     .contents
-                    .of(kind::KEY)
+                    .records
+                    .iter()
+                    .enumerate()
                     .filter(|(_, r)| {
-                        !r.field(field::KEY_FLAGS).is_some_and(|f| {
-                            f.first().is_some_and(|b| b & records::LOAD_AT_UNLOCK != 0)
-                        })
+                        matches!(r.kind, kind::KEY | kind::WALLET) && !records::loads_at_unlock(r)
                     })
                     .map(|(i, _)| i)
                     .collect();
@@ -2344,7 +2383,7 @@ impl Faraday {
                 ));
                 self.vault_summaries_refresh();
                 if for_import {
-                    // Its wallets and keys load; the next vault the
+                    // Its Load sheet (F62); after it, the next vault the
                     // import brought is offered, or, with none left, the
                     // landing (F60).
                     self.vaults.back_to = None;
@@ -2369,19 +2408,15 @@ impl Faraday {
                     self.family_unlocked(v);
                 } else if back.is_none() && !made {
                     // The Vaults list's Unlock (`docs/NEW-WALLET.md`
-                    // §11.1a): the wallets it holds load now, with their
-                    // keys where it holds them, and it lands on Wallets
-                    // as the boot sheet's Unlock does. A vault opened
-                    // from inside a flow, or just made, keeps `back_to`
-                    // or `made` and takes the branch below instead.
+                    // §11.1a, F62): Files, where it landed before F62
+                    // when it loaded no wallet, with the vault's Load
+                    // sheet over it; a wallet loaded lands on Wallets as
+                    // the boot sheet's does. A vault opened from inside a flow, or
+                    // just made, keeps `back_to` or `made` and takes the
+                    // branch below instead, loading nothing here.
+                    self.screen = Screen::Files;
                     let before = self.session.wallets.len();
-                    self.vault_load(v, true);
-                    if self.session.wallets.len() > before {
-                        let file = self.vaults.open[v].name.clone();
-                        self.unlock_landed(before, &file, None);
-                    } else {
-                        self.screen = Screen::Files;
-                    }
+                    self.load_sheet_offer(v, false, before);
                 } else {
                     self.screen = back.unwrap_or(if made {
                         Screen::VaultContents
@@ -2412,12 +2447,13 @@ impl Faraday {
         }
     }
 
-    /// After an unlock that loaded wallets (`docs/NEW-WALLET.md` §11.1,
-    /// §11.1a: the boot sheet's Unlock or the Vaults list's): Wallets, on
+    /// After an unlock's Load sheet that loaded wallets
+    /// (`docs/NEW-WALLET.md` §11.1, §11.1a, F62: the boot sheet's Unlock or
+    /// the Vaults list's): Wallets, on
     /// the first loaded that can sign here, else the first loaded, and a
     /// toast naming what loaded from where. One that loaded none stays
     /// where it landed.
-    fn unlock_landed(&mut self, before: usize, file: &str, stick: Option<&str>) {
+    pub(crate) fn unlock_landed(&mut self, before: usize, file: &str, stick: Option<&str>) {
         let loaded: Vec<usize> = (before..self.session.wallets.len()).collect();
         let Some(&first) = loaded.first() else {
             return;
@@ -3075,8 +3111,7 @@ impl Faraday {
                 (
                     Record::new(kind::KEY)
                         .with(field::KEY, &records::words_payload(&m))
-                        .with(field::KEY_LABEL, stem.as_bytes())
-                        .with(field::KEY_FLAGS, &[records::LOAD_AT_UNLOCK]),
+                        .with(field::KEY_LABEL, stem.as_bytes()),
                     fill(EN.vaults_is_in_the_vault_as_a, &[&it.name.to_string()]),
                     0,
                 )
@@ -3137,7 +3172,7 @@ impl Faraday {
         None
     }
 
-    /// Session key `k` as the vault's key record, loaded at unlock, and
+    /// Session key `k` as the vault's key record, ticked at unlock, and
     /// its label: what Save on Vaults writes, and the secret sheet for a
     /// seed. With its BIP-39 passphrase only when `with_passphrase`.
     pub(crate) fn key_record(
@@ -3153,15 +3188,13 @@ impl Faraday {
         let m = osk_bip::bip39::Mnemonic::parse(key.language, words).ok()?;
         // Made here and its backup not done: the vault says so, beside
         // the seed.
-        let flags = if self.key_held_stored(key.fingerprint()) {
-            records::LOAD_AT_UNLOCK | records::BACKUP_PENDING
-        } else {
-            records::LOAD_AT_UNLOCK
-        };
+        // It loads at unlock (no flag says otherwise, F62).
         let mut record = Record::new(kind::KEY)
             .with(field::KEY, &records::words_payload(&m))
-            .with(field::KEY_LABEL, key.label.as_bytes())
-            .with(field::KEY_FLAGS, &[flags]);
+            .with(field::KEY_LABEL, key.label.as_bytes());
+        if self.key_held_stored(key.fingerprint()) {
+            record.push(field::KEY_FLAGS, &[records::BACKUP_PENDING]);
+        }
         // A BIP-39 passphrase is stored only when the person asks
         // (`PLAN.md` §6.3).
         if with_passphrase && let Some(p) = key.passphrase.as_ref() {
@@ -3372,6 +3405,8 @@ impl Faraday {
             self.put_outbox(&name, bytes);
         }
         self.vaults.open.clear();
+        self.vaults.load = None;
+        self.vaults.pass_seeds = None;
     }
 
     /// Open vault `i`, with the signed-amount memory added, sealed: its
@@ -3460,7 +3495,10 @@ impl Faraday {
         use osk_shell_api::Key as K;
         // The boot import's sheet has a passphrase field of its own.
         let import = self.sheet == Some(crate::Sheet::Import) && self.screen == Screen::Home;
+        // So has the sheet of seeds kept with no passphrase (F62).
+        let pass_seeds = self.sheet == Some(crate::Sheet::PassphraseSeeds);
         if !import
+            && !pass_seeds
             && !matches!(
                 self.screen,
                 Screen::Unlock
@@ -3685,7 +3723,7 @@ pub fn multiline(kind: u8, number: u8) -> bool {
 }
 
 /// A mnemonic's words, space-separated, in wiped memory.
-fn phrase_of(m: &osk_bip::bip39::Mnemonic) -> Zeroizing<String> {
+pub(crate) fn phrase_of(m: &osk_bip::bip39::Mnemonic) -> Zeroizing<String> {
     let lang = m.language();
     let mut out = crate::secret_text::room();
     for (k, &i) in m.indices().iter().enumerate() {

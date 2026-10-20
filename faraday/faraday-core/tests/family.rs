@@ -216,6 +216,23 @@ fn unlock_on_tab(app: &mut Faraday) {
     ));
 }
 
+/// An unlock the Spend tab asks for returns to it with no Load sheet
+/// (F62): what the spend needs is loaded from the tab.
+#[test]
+fn an_unlock_the_spend_asks_for_shows_no_load_sheet() {
+    let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());
+    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Family(F::Next(page::MAP)));
+    app.press(Action::Family(F::Next(page::SAFE)));
+    app.press(Action::Family(F::Pick(0)));
+    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    app.press(Action::Family(F::Unlock));
+    settle(&mut app);
+    assert_eq!(app.vaults.open.len(), 1, "the vault did not open");
+    assert_eq!(app.screen, Screen::Family);
+    assert_ne!(app.sheet, Some(Sheet::UnlockLoad));
+}
+
 #[test]
 fn the_vault_route_unlocks_loads_and_signs_without_leaving_the_tab() {
     let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());

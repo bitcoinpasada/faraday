@@ -326,8 +326,8 @@ exactly where its last field does, refuses the slot.
 | Type | Record | Fields |
 |---|---|---|
 | 1 | Slot label | 1 label (≤ 64 bytes). At most one per slot. |
-| 2 | Bitcoin key | 1 key: an `osk-backup` kind-1 (34 bytes) or kind-2 (65 bytes) payload; 2 label; 3 flags (`u8`: bit 0 load at unlock; bit 1 made in Faraday with its backup not done, so it signs nothing until it is, `docs/NEW-WALLET.md` §14.3); 4 BIP-39 passphrase, present only when the person chose to store it |
-| 3 | Wallet | 1 BIP-388 text, or the descriptor for a wallet whose key has no origin; 2 name |
+| 2 | Bitcoin key | 1 key: an `osk-backup` kind-1 (34 bytes) or kind-2 (65 bytes) payload; 2 label; 3 flags (`u8`: bit 0 not loaded at unlock, so the Load sheet an unlock shows starts it unticked, `docs/DECISIONS.md` F62; absent, or bit 0 clear, it starts ticked; bit 1 made in Faraday with its backup not done, so it signs nothing until it is, `docs/NEW-WALLET.md` §14.3); 4 BIP-39 passphrase, present only when the person chose to store it |
+| 3 | Wallet | 1 BIP-388 text, or the descriptor for a wallet whose key has no origin; 2 name; 3 flags (`u8`: bit 0 not loaded at unlock, as a key's; absent, it loads; F62, and a build before F62 refuses a slot whose wallet holds it) |
 | 4 | Note | 1 the note, as `osk-backup` kind 3 |
 | 5 | Recovery sheet | 1 the sheet, as `osk-backup` kind 4 |
 | 6 | Entry | 1 title (required); 2 username; 3 password; 4 URL; 5 notes; 6 TOTP secret, an `otpauth://` URI (a bare key is stored as one, `docs/TOTP.md` §4.3) |

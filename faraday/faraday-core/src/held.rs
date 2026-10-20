@@ -402,6 +402,65 @@ impl Faraday {
         b.answers.stickless(&shape)
     }
 
+    /// The vault item's **Load at unlock** (F62): turned off or on for
+    /// plan vault `v`, and set on the wallet's record there when the vault
+    /// holds it already.
+    pub(crate) fn backup_vault_load_toggle(&mut self, v: usize) {
+        let Some(b) = self.backup.as_mut() else {
+            return;
+        };
+        if !b.answers.wallet_in_vault(v) {
+            return;
+        }
+        if let Some(k) = b.no_load.iter().position(|&x| x == v) {
+            b.no_load.remove(k);
+        } else {
+            b.no_load.push(v);
+        }
+        self.backup_vault_load_set(v);
+    }
+
+    /// Sets the wallet's record in the vault plan vault `v` is saved into
+    /// to load at unlock or not, as the vault item says. Costs a parse of
+    /// the vault's wallet records.
+    fn backup_vault_load_set(&mut self, v: usize) {
+        let Some(b) = self.backup.as_ref() else {
+            return;
+        };
+        let loads = !b.no_load.contains(&v);
+        let Some(want) = self
+            .session
+            .wallets
+            .get(b.wallet)
+            .map(|w| crate::wallet::same_wallet(w.policy()))
+        else {
+            return;
+        };
+        let Some(cur) = self.backup_vault_target(v) else {
+            return;
+        };
+        if self.backup_vault_taken(v, cur) {
+            return;
+        }
+        let Some(open) = self.vaults.open.get_mut(cur) else {
+            return;
+        };
+        let mut changed = false;
+        for r in open.contents.records.iter_mut() {
+            let ours = r.kind == kind::WALLET
+                && r.text(field::WALLET)
+                    .and_then(|t| crate::wallet::read_wallet(t).ok())
+                    .is_some_and(|p| crate::wallet::same_wallet(&p) == want);
+            if ours && faraday_vault::records::loads_at_unlock(r) != loads {
+                faraday_vault::records::set_loads_at_unlock(r, loads);
+                changed = true;
+            }
+        }
+        if changed {
+            open.changes += 1;
+        }
+    }
+
     /// Save into the open vault everything the plan puts in vault `v`, in
     /// one press: each of its seeds, with its passphrase where the plan
     /// keeps it there, and the wallet where the plan puts it there; then
@@ -451,6 +510,7 @@ impl Faraday {
         if wallet_too && !has {
             self.vault_act(V::SaveWallet(w));
         }
+        self.backup_vault_load_set(v);
         // Each share the plan keeps in the vault, as a type 13 record
         // (`docs/BACKUP-FLOW.md` §17.6): once per wallet and share number,
         // an older text of that share replaced.

@@ -2154,3 +2154,65 @@ with test coins that the website's mainnet demo is not. Unpublished
   no warning.
 - `docs/DEMO.md` §9, `docs/STARTER.md` §1.1 and the README's Faraday
   Desktop and Verifying a release sections follow.
+
+### F62 Unlocking a vault asks what to load (2026-10-20)
+
+**Why.** F60's boot sheet loaded every wallet and key of a vault at its
+unlock, and the Vaults tab's unlock did the same, so a vault holding
+many wallets, or seeds kept there only as a backup, put them all in the
+session with no say.
+
+**Decision** (owner, 2026-10-20). Replaces F60's "an unlock loads the
+vault's wallets and keys" (`docs/FLOWS.md` decision 27, Session: Boot,
+Vaults overview).
+
+- After every unlock started from the boot sheet or the Vaults tab, the
+  sheet **Load from {vault}**: one count line ("2 wallets · 1 key"),
+  then a scrolling list of cards, never collapsible. A card per wallet
+  in vault order: a checkbox, its name, its kind as the app writes it
+  elsewhere, a row per seed of it the vault holds (fingerprint and
+  label), with "also in {wallet}" when the seed is in another wallet of
+  the vault, and one line for seeds not in the vault ("2 of 3 seeds kept
+  elsewhere", or "Watch-only here" when it holds none). Last, a **Keys**
+  card for keys in no wallet of the vault, a checkbox each.
+  **Unselect all** / **Select all** above the cards, **Not now** and
+  **Load ticked** (disabled with nothing ticked) at the foot.
+- A wallet card's tick loads the wallet and every seed on it, each with
+  its stored passphrase; a seed on two cards loads if either is ticked.
+  What the session holds already shows "Loaded", greyed; a card with
+  everything loaded has no checkbox; nothing loads twice. **Not now**
+  loads nothing and leaves the vault open; the Vaults tab loads from it
+  later as before.
+- No sheet when the vault holds no wallet and no key, or the session
+  holds all of them already, nor after an unlock a flow asked for
+  (Spend, Restore, Create's keys, a backup flow, any Unlock that returns
+  to its flow, decision 10): those load what they need.
+- The cards start from **Load at unlock**, stored per record: bit 0 of a
+  wallet record's new field 3 and of a key's flags, set meaning "don't
+  load at unlock", absent meaning load (`docs/VAULT.md` §7). Ticks on the
+  sheet are for that unlock and never change it. A wallet's page in the
+  vault shows **Load at unlock: Yes/No** with **Don't load at unlock** /
+  **Load at unlock**; a key's page the same when it is in no wallet of
+  the vault, else "Loads with {wallet}". Everything Faraday writes into a
+  vault starts Yes; the backup checklist's vault item has **Load at
+  unlock** for the wallet, on by default, saved on its record.
+- The boot sheet with several vaults: each Unlock is followed by its
+  Load sheet, then the next vault; Cancel at Unlock skips it; after the
+  last, the landing of F60.
+- Matching is by fingerprint, so a seed kept without the BIP-39
+  passphrase a wallet of the vault uses it with is another key: it is on
+  the Keys card, not the wallet's, whose line counts it elsewhere.
+  Faraday never takes such a seed for a key of a wallet until its
+  passphrase is typed and the key it gives is checked. With the wallet
+  loaded short of a key, its chart, Wallets' signing step and the Spend
+  tab offer **Load with a passphrase** while an open vault keeps a seed
+  as words with no passphrase stored, not loaded and in no wallet of its
+  vault. It opens **Seeds with no passphrase stored**, each such seed
+  with its vault, or, with only one, that seed's passphrase field at
+  once. The key the typed passphrase gives loads only when it is one
+  the wallet is missing here; otherwise nothing loads and the field
+  reads "This passphrase gives {fingerprint}, not a key of {wallet}",
+  with **Another seed** back to the list. The passphrase is never stored
+  in the vault by this. A key page's own **Load with a passphrase**, in
+  the vault, has no wallet to check against and is unchanged.
+- On the Pi, sizes as everywhere.

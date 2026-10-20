@@ -166,10 +166,11 @@ fn records_of_every_type_read_back() {
             Record::new(kind::KEY)
                 .with(field::KEY, &records::words_payload(&words))
                 .with(field::KEY_LABEL, b"Test")
-                .with(field::KEY_FLAGS, &[records::LOAD_AT_UNLOCK]),
+                .with(field::KEY_FLAGS, &[records::NO_LOAD_AT_UNLOCK]),
             Record::new(kind::WALLET)
                 .with(field::WALLET, b"wpkh(@0/**)")
-                .with(field::WALLET_NAME, b"Spending"),
+                .with(field::WALLET_NAME, b"Spending")
+                .with(field::WALLET_FLAGS, &[records::NO_LOAD_AT_UNLOCK]),
             Record::new(kind::NOTE).with(field::NOTE, "Recovery codes · ünïcode".as_bytes()),
             Record::new(kind::SHEET).with(field::SHEET, &sheet),
             Record::new(kind::ENTRY)
@@ -205,6 +206,14 @@ fn records_of_every_type_read_back() {
         records::words_of(&back.records[1]).unwrap().word_count(),
         12
     );
+    // A key and a wallet set not to load at unlock read back so; one
+    // with no flags loads.
+    assert!(!records::loads_at_unlock(&back.records[1]));
+    assert!(!records::loads_at_unlock(&back.records[2]));
+    let mut plain_wallet = back.records[2].clone();
+    records::set_loads_at_unlock(&mut plain_wallet, true);
+    assert!(plain_wallet.field(field::WALLET_FLAGS).is_none());
+    assert!(records::loads_at_unlock(&plain_wallet));
     assert_eq!(
         back.records[3].text(field::NOTE),
         Some("Recovery codes · ünïcode")

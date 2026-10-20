@@ -2123,16 +2123,14 @@ fn item_heading(app: &Faraday, r: &Record) -> (String, String, bool) {
             let words = records::words_of(r)
                 .map(|m| fill(FEN.vault_words_n, &[&m.word_count().to_string()]))
                 .unwrap_or_else(|| FEN.vault_master_seed.into());
-            let loads = r
-                .field(field::KEY_FLAGS)
-                .is_some_and(|f| f.first().is_some_and(|b| b & records::LOAD_AT_UNLOCK != 0));
+            let loads = records::loads_at_unlock(r);
             let label = r.text(field::KEY_LABEL).unwrap_or("");
             let mut line = vec![words];
             if !label.is_empty() {
                 line.push(label.to_string());
             }
-            if loads {
-                line.push(FEN.vault_chosen_at_unlock_inline.to_string());
+            if !loads {
+                line.push(FEN.vault_not_loaded_at_unlock_inline.to_string());
             }
             (fp, line.join(" · "), true)
         }
@@ -2141,11 +2139,11 @@ fn item_heading(app: &Faraday, r: &Record) -> (String, String, bool) {
                 .text(field::WALLET_NAME)
                 .unwrap_or(FEN.vault_wallet)
                 .to_string();
-            (
-                name,
-                wallet_shape(r).unwrap_or_else(|| FEN.vault_wallet.into()),
-                false,
-            )
+            let mut line = wallet_shape(r).unwrap_or_else(|| FEN.vault_wallet.into());
+            if !records::loads_at_unlock(r) {
+                line = format!("{line} · {}", FEN.vault_not_loaded_at_unlock_inline);
+            }
+            (name, line, false)
         }
         kind::ENTRY => {
             let mut parts = Vec::new();
@@ -3131,7 +3129,9 @@ fn detail(
                     .get(k)
                     .map_or(FEN.vault_the_backup, |i| i.name.as_str()))],
             ),
-            vaults::Purpose::KeyPassphrase => FEN.vault_load_with_a_bip.to_string(),
+            vaults::Purpose::KeyPassphrase | vaults::Purpose::ForWallet(..) => {
+                FEN.vault_load_with_a_bip.to_string()
+            }
             vaults::Purpose::Kdbx => FEN.vault_export_for_keepass.to_string(),
         };
         let heading = ui.fit(18.0, W::S, &heading, dw);
@@ -3160,7 +3160,7 @@ fn detail(
             let label = match p.purpose {
                 vaults::Purpose::Backup(_) => FEN.vault_open_2,
                 vaults::Purpose::Kdbx => FEN.vault_seal_and_export,
-                vaults::Purpose::KeyPassphrase => FEN.vault_load,
+                vaults::Purpose::KeyPassphrase | vaults::Purpose::ForWallet(..) => FEN.vault_load,
             };
             let sw = if crate::screens::pin_button(
                 ui,
@@ -3391,9 +3391,11 @@ fn detail(
                     dy += seedqr_box(app, ui, dx, dy, dw) + 14.0;
                 }
             }
-            let loads = r
-                .field(field::KEY_FLAGS)
-                .is_some_and(|f| f.first().is_some_and(|b| b & records::LOAD_AT_UNLOCK != 0));
+            let loads = records::loads_at_unlock(r);
+            // A seed of a wallet in this vault loads with it (F62).
+            let with = app
+                .vault_selected_index()
+                .and_then(|i| app.vault_key_wallet(app.vaults.current, i));
             field_row(
                 ui,
                 &mut dy,
@@ -3405,13 +3407,22 @@ fn detail(
                 },
                 false,
             );
-            field_row(
-                ui,
-                &mut dy,
-                FEN.vault_chosen_at_unlock,
-                if loads { FEN.vault_yes } else { FEN.vault_no },
-                false,
-            );
+            match &with {
+                Some(w) => field_row(
+                    ui,
+                    &mut dy,
+                    FEN.vault_load_at_unlock,
+                    &fill(FEN.vault_loads_with, &[w]),
+                    false,
+                ),
+                None => field_row(
+                    ui,
+                    &mut dy,
+                    FEN.vault_load_at_unlock,
+                    if loads { FEN.vault_yes } else { FEN.vault_no },
+                    false,
+                ),
+            }
             let here = app
                 .session
                 .keys
@@ -3434,14 +3445,16 @@ fn detail(
                     actions.push((FEN.vault_load_with_a_passphrase, va(V::LoadWithPassphrase)));
                 }
             }
-            actions.push((
-                if loads {
-                    FEN.vault_leave_unchosen
-                } else {
-                    FEN.vault_choose_at_unlock
-                },
-                va(V::ToggleLoad),
-            ));
+            if with.is_none() {
+                actions.push((
+                    if loads {
+                        FEN.vault_dont_load_at_unlock
+                    } else {
+                        FEN.vault_load_at_unlock
+                    },
+                    va(V::ToggleLoad),
+                ));
+            }
             if m.is_some() {
                 actions.push((FEN.vault_save_to_a_stick, va(V::SaveToStick)));
             }
@@ -3462,7 +3475,23 @@ fn detail(
             }
             let text = r.text(field::WALLET).unwrap_or("");
             field_row(ui, &mut dy, FEN.vault_descriptor, text, true);
+            let loads = records::loads_at_unlock(r);
+            field_row(
+                ui,
+                &mut dy,
+                FEN.vault_load_at_unlock,
+                if loads { FEN.vault_yes } else { FEN.vault_no },
+                false,
+            );
             actions.push((FEN.vault_open_in_wallets, va(V::Load)));
+            actions.push((
+                if loads {
+                    FEN.vault_dont_load_at_unlock
+                } else {
+                    FEN.vault_load_at_unlock
+                },
+                va(V::ToggleLoad),
+            ));
             actions.push((FEN.vault_show_as_qr, va(V::WalletQr)));
             actions.push((FEN.vault_save_to_a_stick, va(V::SaveToStick)));
         }

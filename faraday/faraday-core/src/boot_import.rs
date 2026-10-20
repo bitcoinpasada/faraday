@@ -3,15 +3,14 @@
 //! lists each with a checkbox, every one ticked. **Import** brings in what
 //! is ticked: the files From the stick, their wallets and keys through the
 //! Inbox's loader (`Faraday::load_found_in`), and the vaults into Files,
-//! locked, each then offered its Unlock in turn with **Cancel**. **Later**
-//! brings in nothing. Until then nothing read enters Files: what is not
+//! locked, each then offered its Unlock in turn with **Cancel**; an
+//! unlock shows the vault's Load sheet (F62, `vault_load`) before the
+//! next. **Later** brings in nothing. Until then nothing read enters Files: what is not
 //! imported is dropped, its bytes wiped as each [`Item`] drops.
 
 use crate::strings::EN;
 use opensigner_core::strings::fill;
 use std::collections::BTreeSet;
-
-use faraday_vault::records::kind;
 
 use crate::inbox::SeedSource;
 use crate::vaults::{Focus, VaultAction};
@@ -771,20 +770,24 @@ impl Faraday {
         }
     }
 
-    /// Vault `v` just unlocked on the sheet: every wallet and key in it
-    /// loads, and the next vault is offered. Returns whether the import
-    /// is over.
+    /// Vault `v` just unlocked on the sheet: its Load sheet (F62), or,
+    /// when it holds no wallet and no key, the next vault at once.
+    /// Returns whether the import is over with nothing left on screen.
     pub(crate) fn import_unlocked(&mut self, v: usize) -> bool {
-        let Some(open) = self.vaults.open.get(v) else {
+        let before = self
+            .import
+            .as_ref()
+            .map_or(self.session.wallets.len(), |i| i.wallets_before);
+        if self.load_sheet_offer(v, true, before) {
             return false;
-        };
-        let set: BTreeSet<usize> = open
-            .contents
-            .of(kind::WALLET)
-            .chain(open.contents.of(kind::KEY))
-            .map(|(i, _)| i)
-            .collect();
-        self.vault_load_set(v, &set);
+        }
+        self.import_after_unlock()
+    }
+
+    /// After a vault's unlock on the sheet, and its Load sheet if it had
+    /// one: the next vault's field, or the import over. Returns whether
+    /// it is over.
+    pub(crate) fn import_after_unlock(&mut self) -> bool {
         self.import_next();
         self.import.is_none()
     }

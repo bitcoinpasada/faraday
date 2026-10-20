@@ -200,6 +200,8 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
         app.event(Event::Tick { now_ms: t * 1000 });
     }
     assert_eq!(app.vaults.open.len(), 2, "{:?}", app.vaults.unlock_error);
+    // Its Load sheet put off: the vault stays open (F62).
+    app.press(Action::Vault(V::LoadNotNow));
     app.press(Action::Nav(Screen::Backup));
     let boxes = next_frame(&mut app);
     assert!(ticked(&boxes, &title, number), "{boxes:?}");

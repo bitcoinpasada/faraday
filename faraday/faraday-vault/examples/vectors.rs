@@ -50,7 +50,7 @@ pub fn contents(label: &str) -> Contents {
             Record::new(kind::KEY)
                 .with(field::KEY, &records::words_payload(&words))
                 .with(field::KEY_LABEL, b"Test key")
-                .with(field::KEY_FLAGS, &[records::LOAD_AT_UNLOCK]),
+                .with(field::KEY_FLAGS, &[records::NO_LOAD_AT_UNLOCK]),
             Record::new(kind::WALLET)
                 .with(field::WALLET, b"wpkh([73c5da0a/84h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/<0;1>/*)")
                 .with(field::WALLET_NAME, b"Spending"),

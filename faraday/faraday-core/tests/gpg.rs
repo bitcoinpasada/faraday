@@ -148,6 +148,7 @@ fn unlocked() -> Faraday {
     type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 1);
+    app.press(Action::Vault(V::LoadTicked));
     assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(4)));
@@ -734,6 +735,7 @@ fn with_one_file_it_starts_ticked() {
     type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 1);
+    app.press(Action::Vault(V::LoadTicked));
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(4)));
     keep_the_time(&mut app);
@@ -1162,6 +1164,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 30);
+    app.press(Action::Vault(V::LoadTicked));
     assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(4)));
@@ -1235,6 +1238,7 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
     ));
     settle(&mut app, 1);
     assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    app.press(Action::Vault(V::LoadTicked));
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(4)));
     keep_the_time(&mut app);

@@ -659,8 +659,7 @@ fn unlock_file(app: &mut Faraday, name: &str, phrase: &str) {
 fn a_key_loads_with_its_passphrase_kept_in_another_open_vault() {
     let words = Mnemonic::parse(Language::English, &testkit::test_words("summer")).unwrap();
     let key = faraday_vault::Record::new(kind::KEY)
-        .with(field::KEY, &faraday_vault::records::words_payload(&words))
-        .with(field::KEY_FLAGS, &[faraday_vault::records::LOAD_AT_UNLOCK]);
+        .with(field::KEY, &faraday_vault::records::words_payload(&words));
     let with = fp_of(2, PASS);
     let pass = faraday_vault::Record::new(kind::PASSPHRASE)
         .with(field::PASSPHRASE_KEY, &with)

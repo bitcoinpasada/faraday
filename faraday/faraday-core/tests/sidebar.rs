@@ -742,6 +742,7 @@ fn a_backup_flow_with_its_key_made_offers_no_cancel() {
         app.event(Event::Tick { now_ms: t * 1000 });
     }
     assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    app.press(Action::Vault(V::LoadTicked));
     // The randomness and the clock a shell gives.
     for i in 0..8u8 {
         app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
