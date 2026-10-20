@@ -3771,6 +3771,12 @@ impl Faraday {
         !self.shell_sticks
     }
 
+    /// Never shows the online app's not-air-gapped warning before a test
+    /// network: Faraday Desktop opens on testnet (owner, 2026-10-19).
+    pub fn without_airgap_warning(&mut self) {
+        self.airgap_warned = true;
+    }
+
     /// Whether a storage request is waiting for the shell (a lookup).
     pub fn storage_pending(&self) -> bool {
         !self.storage_out.is_empty()

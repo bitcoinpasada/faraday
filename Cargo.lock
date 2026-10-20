@@ -761,6 +761,7 @@ dependencies = [
  "faraday-core",
  "faraday-storage",
  "faraday-window",
+ "osk-bip",
  "osk-crypto",
  "osk-shell-api",
  "winit",

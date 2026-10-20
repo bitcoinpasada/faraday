@@ -25,3 +25,6 @@ faraday-window = { path = "../window" }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+osk-bip = { path = "../../../core/osk-bip" }

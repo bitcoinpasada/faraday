@@ -674,12 +674,13 @@ The check, `just`, needs cargo-nextest and cargo-deny (`cargo install
 cargo build -p faraday-desktop --release          # target/release/faraday
 just faraday-linux-bin                            # one Linux file, out/linux/faraday
 just faraday-windows-bin build out/windows out/build/run faraday-desktop faraday
-./target/release/faraday [--sticks DIR] [--size WxH] [--full-kit] [--transfer] [--downloads DIR]
+./target/release/faraday [--sticks DIR] [--size WxH] [--transfer] [--downloads DIR]
 ```
 
 Sticks are folders under `--sticks` (default `~/faraday-sticks`):
-`BOOTSTICK` is the stick Faraday booted from, holding a test kit
-(`--full-kit` for the full one), and `STICK-2` and on are backup sticks.
+`BOOTSTICK` is the stick Faraday booted from, which starts empty: put
+there the files to boot with. `STICK-2` and on are backup sticks.
+Faraday Desktop opens on testnet.
 The pills across the top of the window plug each one in or pull it out.
 
 Build the test kit on its own with:

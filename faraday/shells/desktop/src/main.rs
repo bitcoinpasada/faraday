@@ -1,7 +1,7 @@
 //! Faraday in a window.
 //!
 //! ```text
-//! faraday [--sticks DIR] [--size WxH] [--full-kit] [--transfer]
+//! faraday [--sticks DIR] [--size WxH] [--transfer]
 //!         [--downloads DIR] [--panel INCHES [--aspect W:H] [--ppi N]]
 //! ```
 //!
@@ -18,18 +18,15 @@
 //!
 //! Sticks are folders. `--sticks DIR` (default `faraday-sticks` in the home folder: `$HOME`, or
 //! `%USERPROFILE%` on Windows)
-//! holds `BOOTSTICK`, which gets every test kit file it lacks at each
-//! start and never has a file overwritten, and one folder for each backup
-//! stick: `STICK-2`, `STICK-3` and on (the boot stick is Stick 1), made
-//! when a stick is first put in and empty (until 2026-10-11 the boot stick and the second were
-//! `TESTSTICK` and `BLANK`, renamed at the next start). The boot stick holds the backup
-//! test kit (`faraday_core::testkit::backup_files`: a 2-of-3 Taproot
-//! multisig's public backup files and a vault, passphrase `a`, holding
-//! its three seeds); `--full-kit` makes it the full test kit instead. A
-//! folder made for the other kit is moved aside, not mixed. In a
-//! release build the boot stick starts empty, as the stick image's does,
-//! and nothing in the folders is added to or moved. The folders
-//! are made once, the first time; one renamed or removed later is not
+//! holds `BOOTSTICK`, the boot stick, which starts empty and to which
+//! the desktop never adds a file (owner, 2026-10-19: a person puts there
+//! the files to boot with; a folder the desktop's test kit filled before
+//! is moved aside once to `BOOTSTICK-old-N`), and one folder for each
+//! backup stick: `STICK-2`, `STICK-3` and on (the boot stick is Stick 1),
+//! made when a stick is first put in and empty (until 2026-10-11 the boot
+//! stick and the second were `TESTSTICK` and `BLANK`, renamed at the next
+//! start). The folders are made once, the first time; one renamed or
+//! removed later is not
 //! made again, and with no `BOOTSTICK` the app starts with no stick in,
 //! as it did before 2026-10-11. The boot
 //! stick is plugged in when Faraday opens, as the device starts with the
@@ -58,8 +55,9 @@
 //! winit reports the drop: on X11, not on native Wayland. Nothing
 //! received goes into the app's Inbox.
 //!
-//! Every session here starts on testnet, the test stick's network; the
-//! stick's app starts on mainnet.
+//! Every session here opens on testnet, with no not-air-gapped warning
+//! (owner, 2026-10-19); mainnet, chosen from Network, is the demo (F20).
+//! The stick's app starts on mainnet.
 //!
 //! Locking ends the app's process on the device; here it replaces the app
 //! with a fresh one in the same window, with the Inbox and Outbox carried
@@ -578,30 +576,36 @@ impl ApplicationHandler for Shell {
 }
 
 /// A fresh app as the desktop runs it: the online Faraday, which turns
-/// sheets into PDFs, on mainnet as the demo (F20): there it takes only
-/// the public seeds and shows every address with a broken checksum. A
-/// test network takes any seed, after the not-air-gapped warning.
+/// sheets into PDFs, opening on testnet, where it takes any seed and
+/// shows real addresses, with no not-air-gapped warning (owner,
+/// 2026-10-19). Mainnet, chosen from Network, is the demo (F20): there
+/// it takes only the public seeds and shows every address with a broken
+/// checksum.
 fn desktop_app() -> Faraday {
     let mut app = Faraday::new();
     app.online = true;
     app.shell_sticks = true;
     app.session = faraday_core::wallet::Session::default();
     app.session.set_demo();
+    app.session
+        .set_network(faraday_core::testkit::NET)
+        .expect("a fresh session takes any network");
+    app.without_airgap_warning();
     app
 }
 
-/// Which test kit a test stick folder holds. A folder from another kit
-/// (the mainnet one before this) is moved aside, not mixed with this one.
-const KIT_MARK: &str = "faraday-testkit testnet 1\n";
-/// The mark of the backup test stick.
-const BACKUP_MARK: &str = "faraday-testkit backup 1\n";
+/// The mark the desktop's own test kit left in a boot stick folder it
+/// filled, before 2026-10-19.
+const KIT_MARK_FILE: &str = ".faraday-testkit";
 
-/// Makes the two stick folders the first time, and fills the boot stick
-/// with the test kit while there is one. A folder renamed or removed is
-/// not made again: with no boot stick, the app starts with no stick in.
-/// A release's boot stick starts empty, as the stick image's does; it
-/// gets the test kit only when `--full-kit` asks for it.
-fn prepare(dir: &Path, full: bool) -> Result<(), String> {
+/// Makes the two stick folders the first time. The boot stick starts
+/// empty and the desktop never adds to it: a person puts there the files
+/// to boot with (owner, 2026-10-19). A boot stick folder the desktop
+/// filled with its test kit before is moved aside once, so it starts
+/// empty too; nothing a person put there is touched. A folder renamed or
+/// removed is not made again: with no boot stick, the app starts with no
+/// stick in.
+fn prepare(dir: &Path) -> Result<(), String> {
     let test = dir.join(BOOT);
     let blank = dir.join("STICK-2");
     let first_stick = dir.join(FIRST);
@@ -625,38 +629,18 @@ fn prepare(dir: &Path, full: bool) -> Result<(), String> {
     if !first && !test.is_dir() {
         return Ok(());
     }
-    if faraday_core::is_release() && !full {
-        // What is in it is the person's own: nothing added, nothing moved.
-        return std::fs::create_dir_all(&test).map_err(|e| format!("{}: {e}", test.display()));
-    }
-    let (kit_mark, files) = if full {
-        (KIT_MARK, faraday_core::testkit::files()?)
-    } else {
-        (BACKUP_MARK, faraday_core::testkit::backup_files()?)
-    };
-    let mark = test.join(".faraday-testkit");
-    if test.exists() && std::fs::read_to_string(&mark).ok().as_deref() != Some(kit_mark) {
+    if test.join(KIT_MARK_FILE).exists() {
         let aside = (1..)
             .map(|n| dir.join(format!("{BOOT}-old-{n}")))
             .find(|p| !p.exists())
             .expect("a free name");
         std::fs::rename(&test, &aside).map_err(|e| format!("{}: {e}", test.display()))?;
         eprintln!(
-            "faraday: the old boot stick folder is now {}",
+            "faraday: the test kit's boot stick folder is now {}; the boot stick starts empty",
             aside.display()
         );
     }
-    // Files the test kit has and the folder lacks are added; nothing
-    // already there is replaced.
-    std::fs::create_dir_all(&test).map_err(|e| format!("{}: {e}", test.display()))?;
-    for (name, bytes) in files {
-        let path = test.join(&name);
-        if !path.exists() {
-            std::fs::write(&path, bytes).map_err(|e| format!("{name}: {e}"))?;
-        }
-    }
-    std::fs::write(&mark, kit_mark).map_err(|e| format!("{}: {e}", mark.display()))?;
-    Ok(())
+    std::fs::create_dir_all(&test).map_err(|e| format!("{}: {e}", test.display()))
 }
 
 /// The person's home folder: `HOME`, and on Windows `USERPROFILE` when
@@ -686,7 +670,6 @@ fn main() -> ExitCode {
         .map(|h| h.join("faraday-sticks"))
         .unwrap_or_else(|| PathBuf::from("faraday-sticks"));
     let mut size = (1280, 800);
-    let mut full_kit = false;
     let mut panel: Option<f64> = None;
     let mut aspect: Option<(f64, f64)> = None;
     let mut ppi: Option<f64> = None;
@@ -705,7 +688,6 @@ fn main() -> ExitCode {
                     return ExitCode::from(2);
                 }
             },
-            "--full-kit" => full_kit = true,
             "--transfer" => open_transfer = true,
             "--timings" => timings = true,
             "--downloads" => match args.next() {
@@ -760,7 +742,7 @@ fn main() -> ExitCode {
             }
             "--help" | "-h" => {
                 println!(
-                    "faraday [--sticks DIR] [--size WxH] [--full-kit] [--transfer] [--downloads DIR] [--panel INCHES [--aspect W:H] [--ppi N]] [--timings]\n  the sticks are the pills at the top of the window\n  --full-kit: the boot stick carries the full test kit, not the backup test kit\n  --transfer: open on Transfer · --downloads: the folder Transfer sends from and saves into (default ~/Downloads)\n  --panel: a device's screen at its true size: 2.8 is the Pi's panel (3:4), 5 a phone (9:16)\n  --aspect: the panel's width to height · --ppi: this screen's pixels per inch, if its EDID is wrong\n  --timings: once a second, what the frames cost (render, copy to the window, frame to frame) on stderr"
+                    "faraday [--sticks DIR] [--size WxH] [--transfer] [--downloads DIR] [--panel INCHES [--aspect W:H] [--ppi N]] [--timings]\n  the sticks are the pills at the top of the window\n  --transfer: open on Transfer · --downloads: the folder Transfer sends from and saves into (default ~/Downloads)\n  --panel: a device's screen at its true size: 2.8 is the Pi's panel (3:4), 5 a phone (9:16)\n  --aspect: the panel's width to height · --ppi: this screen's pixels per inch, if its EDID is wrong\n  --timings: once a second, what the frames cost (render, copy to the window, frame to frame) on stderr"
                 );
                 return ExitCode::SUCCESS;
             }
@@ -790,7 +772,7 @@ fn main() -> ExitCode {
         }
         None => None,
     };
-    if let Err(e) = prepare(&sticks_dir, full_kit) {
+    if let Err(e) = prepare(&sticks_dir) {
         eprintln!("faraday: {e}");
         return ExitCode::FAILURE;
     }
@@ -856,20 +838,53 @@ fn main() -> ExitCode {
 mod tests {
     use super::*;
 
-    /// The desktop starts on mainnet as the demo (F20): a public seed
-    /// loads and the words of any other key are refused; on testnet the
-    /// same words load.
+    /// The boot stick starts empty and the desktop adds nothing to it; a
+    /// folder the old test kit filled is moved aside, and a person's own
+    /// files are left where they are.
     #[test]
-    fn the_desktop_starts_on_mainnet_taking_only_public_seeds() {
+    fn the_boot_stick_starts_empty_and_keeps_a_persons_files() {
+        let dir = std::env::temp_dir().join(format!("faraday-prepare-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        prepare(&dir).unwrap();
+        let boot = dir.join(BOOT);
+        assert_eq!(std::fs::read_dir(&boot).unwrap().count(), 0);
+        // A folder the old test kit filled goes aside; the boot stick is empty.
+        std::fs::write(boot.join(KIT_MARK_FILE), "faraday-testkit backup 1\n").unwrap();
+        std::fs::write(boot.join("savings.json"), "{}").unwrap();
+        prepare(&dir).unwrap();
+        assert_eq!(std::fs::read_dir(&boot).unwrap().count(), 0);
+        assert!(dir.join(format!("{BOOT}-old-1")).join("savings.json").exists());
+        // A person's own file stays, and nothing is added beside it.
+        std::fs::write(boot.join("spend.psbt"), "psbt").unwrap();
+        prepare(&dir).unwrap();
+        let names: Vec<_> = std::fs::read_dir(&boot)
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect();
+        assert_eq!(names, vec![std::ffi::OsString::from("spend.psbt")]);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// The desktop opens on testnet, which takes any seed, with no
+    /// warning to acknowledge; mainnet, chosen from Network, is still the
+    /// demo that takes only public seeds (F20).
+    #[test]
+    fn the_desktop_opens_on_testnet_and_its_mainnet_is_the_demo() {
         let mut app = desktop_app();
-        assert!(app.session.network().is_mainnet());
-        let public = faraday_core::demo::words("zebra");
-        assert!(app.session.add_words(&public, "", None).is_ok());
+        assert_eq!(app.session.network(), faraday_core::testkit::NET);
         let other = "abandon abandon abandon abandon abandon abandon \
                      abandon abandon abandon abandon abandon about";
-        assert!(app.session.add_words(other, "", None).is_err());
-        let mut app = desktop_app();
-        app.session.set_network(faraday_core::testkit::NET).unwrap();
         assert!(app.session.add_words(other, "", None).is_ok());
+        let mut app = desktop_app();
+        app.press(faraday_core::Action::Network(
+            osk_bip::keys::Network::Mainnet,
+        ));
+        assert!(app.session.network().is_mainnet());
+        assert!(app.session.add_words(other, "", None).is_err());
+        let public = faraday_core::demo::words("zebra");
+        assert!(app.session.add_words(&public, "", None).is_ok());
+        app.press(faraday_core::Action::Network(faraday_core::testkit::NET));
+        assert_eq!(app.session.network(), faraday_core::testkit::NET);
+        assert!(app.sheet.is_none());
     }
 }
