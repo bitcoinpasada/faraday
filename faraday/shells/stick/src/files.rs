@@ -434,7 +434,13 @@ fn seconds(time: SystemTime) -> Option<u64> {
 }
 
 /// Whether a file directly in the directory could be what was asked for.
+/// An operating system's own file never is, whatever its extension says
+/// (`faraday_storage::foreign`: a Mac's `._unsigned.psbt` is AppleDouble
+/// metadata, not a PSBT).
 fn wanted(name: &str, kind: FileKind) -> bool {
+    if faraday_storage::foreign(name) {
+        return false;
+    }
     match kind {
         // A computer writes PSBTs under either case, and FAT does not
         // care which one the card kept.
@@ -447,11 +453,7 @@ fn wanted(name: &str, kind: FileKind) -> bool {
         // Anything the user put there, and nothing the card came with or
         // an operating system left behind.
         FileKind::Text | FileKind::Any => {
-            !name.starts_with('.')
-                && name != NOTE
-                && name != SETTINGS
-                && name != SETTINGS_TEMP
-                && name != TIMINGS
+            name != NOTE && name != SETTINGS && name != SETTINGS_TEMP && name != TIMINGS
         }
         FileKind::Png => {
             let lower = name.to_ascii_lowercase();

@@ -507,7 +507,9 @@ Home goes on to the next step (HANDOFF item 73, A3a).
   `/dev/rdiskN`, read and write), so no part of the Starter runs as root;
   after writing and reading back, `diskutil eject`, because macOS
   mounts every FAT volume it sees and writes `.fseventsd` and other
-  folders to it. Facts (§7.1): maker Apple, `sysctl hw.model`,
+  folders to it (Faraday never lists, reads or counts them, nor the
+  `._` and `.DS_Store` files a Mac writes on a data partition:
+  `docs/STARTER.md` §4.4). Facts (§7.1): maker Apple, `sysctl hw.model`,
   `uname -m` and `sysctl.proc_translated`, T2 from the model
   identifier, Startup Security where NVRAM shows it (batch A3 checks
   `AppleSecureBootPolicy`). Built on a Mac, as §5.

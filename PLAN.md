@@ -219,7 +219,8 @@ files.
 
 `faraday-disk` reads and writes FAT16 and FAT32 in Rust, unprivileged, and
 speaks to the app over a pipe with a small request format: list a
-partition, read a file, write a file (reading and writing in parts is
+partition (its top-level files, but a computer's own, told by name,
+`docs/STARTER.md` §4.4), read a file, write a file (reading and writing in parts is
 specified in `docs/LARGE-FILES.md` §8, not built; no request there names
 a temporary file or renames or removes any file but the one write
 open). It writes by creating a new file,
@@ -431,7 +432,10 @@ one vault alone.
 ### 5.4 Flows
 
 **Boot.** The first time the app sees the boot medium in a power-on, it
-reads every file on its data partition into memory, but one over 18 MiB
+reads every file on its data partition into memory, but a computer's
+own (Windows' `System Volume Information` and the like, a Mac's
+dot-files; `docs/STARTER.md` §4.4, never listed, read or counted) and
+one over 18 MiB
 (specified, not built: over 64 MiB, counted and left for a stick visit,
 `docs/LARGE-FILES.md` §2): vault files into the
 Inbox, encrypted; every other file into a holding area apart from the

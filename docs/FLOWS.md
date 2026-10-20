@@ -670,8 +670,9 @@ to get it.
     files with zeros", "Zero the free space", "Zero the whole
     partition") or Cancel. The disk process does the work; a file's
     answer is a line on the visit ("{file} deleted, zeros over it
-    first", or why not). Hidden files and the boot partition are never
-    touched.
+    first", or why not). A computer's own files (dot-files and
+    Windows' own, `docs/STARTER.md` §4.4) are never offered or deleted
+    one by one, and the boot partition is never touched.
 55. **The free space; the whole partition** (owner, 2026-10-11). On
     the Delete files sheet (decision 54): each says how much it writes
     and about how long on a typical stick, and the whole partition

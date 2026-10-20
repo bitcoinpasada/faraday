@@ -229,10 +229,37 @@ pub fn wipe(place: &mut dyn Place, name: &str) -> Result<(), String> {
     place.wipe(checked(name)?)
 }
 
-/// A name the app may use: one path component, no hidden files.
+/// The names Windows gives its own files and folders at the top of a
+/// FAT volume it has a drive letter for, compared ignoring case
+/// (`docs/STARTER.md` §4.4, D11): the indexer's and System Restore's
+/// folder (`IndexerVolumeGuid`, `WPSettings.dat`), the Recycle Bin's
+/// folder (and XP's), Explorer's folder settings and its thumbnail
+/// cache.
+const WINDOWS_OWN: [&str; 5] = [
+    "System Volume Information",
+    "$RECYCLE.BIN",
+    "RECYCLER",
+    "desktop.ini",
+    "Thumbs.db",
+];
+
+/// Whether a name at a stick's top level is an operating system's own
+/// file rather than one a person put there (`docs/STARTER.md` §4.4,
+/// D11; owner, 2026-10-19). Such a file is never listed, never read and
+/// never counted, and a write leaves it where it is. Decided by name
+/// alone, never by the hidden or system attribute: every name beginning
+/// with a dot (macOS's `.Spotlight-V100`, `.fseventsd`, `.Trashes`,
+/// `.DS_Store` and `._` AppleDouble files, a Linux desktop's
+/// `.Trash-1000`, Faraday's own part files) and Windows' own names.
+pub fn foreign(name: &str) -> bool {
+    name.starts_with('.') || WINDOWS_OWN.iter().any(|w| w.eq_ignore_ascii_case(name))
+}
+
+/// A name the app may use: one path component, no hidden files, and
+/// none of an operating system's own ([`foreign`]).
 pub fn checked(name: &str) -> Result<&str, String> {
     if name.is_empty()
-        || name.starts_with('.')
+        || foreign(name)
         || name.contains('/')
         || name.contains('\\')
         || name.contains('\0')
@@ -242,13 +269,14 @@ pub fn checked(name: &str) -> Result<&str, String> {
     Ok(name)
 }
 
-/// The files a person sees: no hidden ones, sorted by name.
+/// The files a person sees: none of an operating system's own
+/// ([`foreign`]), sorted by name.
 pub fn listing(place: &mut dyn Place) -> Vec<(String, u64)> {
     let mut files: Vec<(String, u64)> = place
         .files()
         .unwrap_or_default()
         .into_iter()
-        .filter(|(n, _)| !n.starts_with('.'))
+        .filter(|(n, _)| !foreign(n))
         .collect();
     files.sort();
     files

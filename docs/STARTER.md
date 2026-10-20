@@ -5,7 +5,7 @@
 step, and since F49 (2026-10-19) BitLocker's suspension, Resume and the
 key on the sheet offered, never required, §6. v0.2 is v0.1 with the
 owner's answers to a review of it: §12 records each decision, §13 lists
-what changed. One decision stays open (D11).
+what changed. No decision stays open: D11 was taken on 2026-10-19.
 
 The problem it solves: getting Faraday onto a stick or a Pi card, and a
 laptop to start from it, takes a terminal, `dd`, a firmware menu and a
@@ -852,9 +852,9 @@ write; write `\\.\PhysicalDriveN` unbuffered, write-through, in
 sector-aligned buffers; then `IOCTL_DISK_UPDATE_PROPERTIES`. Batch W
 records what Windows does with the stick after the write (drive letters
 given to OSKBOOT and OSKDATA, folders it writes such as `System Volume
-Information`) and reports it; whether to stop Windows giving OSKDATA a
-letter (the GPT "no drive letter" attribute) is an owner decision
-(§12, D11).
+Information`) and reports it. OSKDATA keeps its drive letter: nothing
+sets the GPT "no drive letter" attribute, and Faraday reads what
+Windows writes there and ignores Windows' own files (§4.4; §12, D11).
 
 ### 4.4 Keep data
 
@@ -866,6 +866,38 @@ it with a drive letter. The vaults there are encrypted; the settings
 file is not. The Learn page "Replacing Faraday on a stick" says this
 and points to Settings → Upgrade a Faraday stick, which upgrades a
 stick from another stick without an online computer.
+
+**OSKDATA from Windows and macOS** (owner, 2026-10-19, tracker #30;
+D11). OSKDATA keeps the drive letter Windows gives it, so a person can
+put a PSBT, or any file, on a Faraday stick from Windows, and a Mac
+mounts it as it mounts any FAT volume. Faraday reads what they write
+there as it reads any file a person puts on a stick. What each writes
+of its own, at the volume's top level:
+
+| | Folders | Files |
+|---|---|---|
+| Windows | `System Volume Information\` (`IndexerVolumeGuid`, `WPSettings.dat`), on the first mount; `$RECYCLE.BIN\` (`desktop.ini`, `$I…`/`$R…` pairs) once a file is deleted in Explorer; `RECYCLER\` on older Windows | `desktop.ini` once a folder view is customised; `Thumbs.db` where Explorer caches thumbnails |
+| macOS | `.Spotlight-V100\`, `.fseventsd\`, `.Trashes\`, `.TemporaryItems\` | `.DS_Store`; a `._<name>` AppleDouble file beside every file the Mac copies there |
+
+The rule, by name alone: a name beginning with a dot, or one of
+`System Volume Information`, `$RECYCLE.BIN`, `RECYCLER`, `desktop.ini`
+and `Thumbs.db` compared ignoring case, is the computer's own. It is
+never listed, never read and never counted: not in the first look at
+the boot stick (`PLAN.md` §5.4), not on a visit, not in the Inbox, and
+a read that names one is refused. Folders are never entered in any
+case. The hidden and system attributes are not trusted alone, either
+way: Windows marks its own files with them, but a file is ignored for
+its name, and a person's file is read whatever its attributes say.
+Everything else a person puts there is read as before. A write leaves
+the computer's files where they are: Faraday writes a new file at the
+top level under a name no file there has, and goes over only the file
+it replaces (a vault over its own, the settings file over the settings
+file, a file the person chose Replace for); zeroing the whole
+partition, which the person asks for by name, empties it of them too,
+and the computer writes them again the next time it mounts the stick.
+The rule is `faraday_files::foreign`; the device's disk process, the
+desktop app's stick folders and its Downloads listing all list through
+it.
 
 ## 5. Install, run without installing, uninstall
 
@@ -1687,8 +1719,8 @@ byte.
 
 ## 12. Decisions
 
-All taken by the owner on 2026-10-12 in discussion, except D11, which
-waits for batch W's report. Where a decision changed v0.1, §13 says
+All taken by the owner on 2026-10-12 in discussion, except D11, taken
+on 2026-10-19 (#30). Where a decision changed v0.1, §13 says
 what moved.
 
 - **D1 Pi screens:** the Waveshare 2.8 inch DPI panel only, for now.
@@ -1716,8 +1748,11 @@ what moved.
 - **D10 Names:** "Faraday Starter" to people (F16, which changed v0.2's
   "Faraday"), "Faraday Desktop" for the desktop app; `faraday-starter` in the
   code.
-- **D11 OSKDATA on Windows:** open. Decided after batch W reports what
-  Windows writes to a stick.
+- **D11 OSKDATA on Windows:** decided (owner, 2026-10-19, #30;
+  `docs/DECISIONS.md` F50). OSKDATA keeps its drive letter, so a person
+  can put a PSBT or any file on a Faraday stick from Windows; Faraday
+  reads what Windows writes there and never lists, reads or counts
+  Windows' or macOS's own files, told by name (§4.4).
 - **D12 Home:** a checklist that leads with this computer's next step,
   then the rows (§3.1).
 - **D13 Linux writer:** udisks2 over D-Bus, no root in the Starter;

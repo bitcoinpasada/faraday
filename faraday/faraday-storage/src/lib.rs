@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use faraday_core::{BootPart, Faraday, StickInfo, StorageCommand, StorageEvent};
 use faraday_files::{Dir, checked};
 
-pub use faraday_files::{MAX_PIXELS, MAX_READ};
+pub use faraday_files::{MAX_PIXELS, MAX_READ, foreign};
 
 /// What a stick directory holds at its top level, as the app sees it.
 pub fn stick_info(dir: &Path, label: &str, boot: bool) -> StickInfo {
@@ -495,7 +495,8 @@ pub fn can_open_folders() -> bool {
 }
 
 /// The files in a folder of this computer's, newest first, with their
-/// sizes: no hidden ones, no folders.
+/// sizes: no folders, and none of an operating system's own
+/// ([`foreign`]: a Windows Downloads folder's `desktop.ini`).
 pub fn host_listing(dir: &Path) -> Vec<(String, u64)> {
     let Ok(d) = fs::read_dir(dir) else {
         return Vec::new();
@@ -504,7 +505,7 @@ pub fn host_listing(dir: &Path) -> Vec<(String, u64)> {
         .flatten()
         .filter_map(|e| {
             let name = e.file_name().into_string().ok()?;
-            if name.starts_with('.') {
+            if foreign(&name) {
                 return None;
             }
             // A link is listed as what it points to.
