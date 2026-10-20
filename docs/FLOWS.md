@@ -866,7 +866,10 @@ to get it.
       Escape and Tab handling. The file menu is `Sheet::FileMenu`; a
       choice in it closes it before it acts.
     - Where the ⋮ is: in Files on `wide`, at the right end of the row's
-      button line; on the small panel, at the card's top right beside
+      button line From the stick, and at the card's top right For the
+      stick, whose rows have no button line, with the row's state
+      ("Ready") left of it and the card one line shorter (owner,
+      2026-10-20); on the small panel, at the card's top right beside
       the name; on the visit, at the stick row's right end, where a
       press opens the menu and does not tick the row. A file over 18 MiB
       has one; the settings file has none.

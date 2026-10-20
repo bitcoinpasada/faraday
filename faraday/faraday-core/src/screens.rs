@@ -9752,7 +9752,7 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         30.0 + r.files.len() as f32 * 28.0 + if app.outbox.is_empty() { 84.0 } else { 0.0 }
     });
     let content_in = app.inbox.len().max(1) as f32 * 124.0 + 8.0;
-    let content_out = app.outbox.len() as f32 * 124.0 + groups * 30.0 + receipt_h + 8.0;
+    let content_out = app.outbox.len() as f32 * 78.0 + groups * 30.0 + receipt_h + 8.0;
     let shift = app.list_offset.min((content_in - view).max(0.0));
     let shift_out = app.files_out_offset.min((content_out - view).max(0.0));
     let split = x + colw + 10.0;
@@ -10019,11 +10019,9 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Exposure::Sealed => (OK.with_alpha(70), Icon::Lock, OK),
                 Exposure::Secret => (ERR.with_alpha(110), Icon::Lock, ERR),
             };
-            ui.card(ox, oy, colw, 112.0, edge);
+            ui.card(ox, oy, colw, 66.0, edge);
             ui.fill(ox + 16.0, oy + 14.0, 36.0, 36.0, 10.0, ink.with_alpha(26));
             ui.icon(ox + 16.0, oy + 14.0, 36.0, icon, 14.0, ink);
-            let name = ui.fit(14.0, W::M, &item.name, colw - 160.0);
-            ui.text(ox + 66.0, oy + 14.0, 14.0, W::M, TEXT, &name);
             // A vault open in this session: the file here is the copy
             // sealed before it was opened, and Lock seals it again.
             let open_here = (item.kind == FileKind::Vault)
@@ -10050,33 +10048,31 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Some(_) => EN.files_vault_open_sealed.to_string(),
                 None => kind_line(item.kind, item.bytes.len()),
             };
-            let line = ui.fit(12.0, W::R, &line, colw - 160.0);
-            ui.text(ox + 66.0, oy + 36.0, 12.0, W::R, MUTED, &line);
             let state = match exposure {
                 Exposure::Secret => (EN.files_unprotected, ERR),
                 _ if open_here.is_some() => (EN.files_written_after, ACCENT),
                 _ => (EN.files_ready, OK),
             };
-            ui.text_right(
-                ox + colw - 16.0,
-                oy + 14.0,
-                20.0,
-                12.0,
-                W::R,
-                state.1,
-                state.0,
-            );
-            // No main action: the row's ⋮ alone holds Show as QR or Make
-            // PDF, Rename, Details and Remove (decision 61).
+            // No main action: the row's ⋮ alone, at its top right, holds
+            // Show as QR or Make PDF, Rename, Details and Remove (decision
+            // 61); the state stands left of it.
+            let dots_x = ox + colw - 16.0 - 36.0;
             crate::file_menu::dots(
                 app,
                 ui,
-                ox + colw - 16.0 - 36.0,
-                oy + 64.0,
+                dots_x,
+                oy + 14.0,
                 36.0,
                 crate::file_menu::Row::Out(k),
             );
-            oy += 124.0;
+            let state_w = ui.measure(12.0, W::R, state.0);
+            ui.text_right(dots_x - 12.0, oy + 14.0, 20.0, 12.0, W::R, state.1, state.0);
+            let room = (dots_x - 12.0 - state_w - 12.0 - (ox + 66.0)).max(0.0);
+            let name = ui.fit(14.0, W::M, &item.name, room);
+            ui.text(ox + 66.0, oy + 14.0, 14.0, W::M, TEXT, &name);
+            let line = ui.fit(12.0, W::R, &line, (dots_x - 12.0 - (ox + 66.0)).max(0.0));
+            ui.text(ox + 66.0, oy + 36.0, 12.0, W::R, MUTED, &line);
+            oy += 78.0;
         }
         oy += 6.0;
     }
