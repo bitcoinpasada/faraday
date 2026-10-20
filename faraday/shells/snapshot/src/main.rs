@@ -2035,11 +2035,12 @@ fn test_key_1(t: &Tour) -> Result<[u8; 4], String> {
 }
 
 /// A fresh session at boot: the boot stick's files are copied into
-/// memory and the sheet says what was read; pulling the stick puts the
-/// vault's passphrase on the sheet. A wrong passphrase stays; Not now
-/// leaves Home leading with the vault's Unlock; Choose what to import
-/// lists the wallets, keys and files; the right passphrase imports
-/// everything. Then a wallet made here is saved into the vault.
+/// memory and the sheet lists them, each ticked (F60); pulling the stick
+/// leaves the sheet as it was. Import brings them in and puts the vault's
+/// passphrase on the sheet. A wrong passphrase stays; Later leaves Home
+/// leading with the vault's Unlock; the right passphrase loads the
+/// vault's wallets and keys. Then a wallet made here is saved into the
+/// vault.
 fn boot_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::Sheet;
     use faraday_core::boot_import::ImportAction as I;
@@ -2055,17 +2056,26 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     t.app.vaults.ms_per_unit = Some(180);
     if t.app.screen != Screen::Home
         || t.app.sheet != Some(Sheet::Import)
-        || !t.app.inbox.iter().any(|i| i.name == "vault.ofv")
+        || t.app.inbox.iter().any(|i| i.name == "vault.ofv")
     {
         return Err("the boot stick's files did not come up for the import".into());
     }
     t.shot("boot-import-stick")?;
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
+    if t.app.sheet != Some(Sheet::Import) || t.app.import_field().is_some() {
+        return Err("pulling the boot stick did not leave the sheet's list".into());
+    }
+    let (w, h) = t.size();
+    t.app.event(Event::Scroll {
+        x: w / 2,
+        y: h / 2,
+        dy: i16::MAX,
+    });
+    t.shot("boot-import-end")?;
+    t.press(Action::Import(I::Go));
     if t.app.sheet != Some(Sheet::Import) || t.app.import_field().is_none() {
-        return Err(
-            "pulling the boot stick did not put the vault's passphrase on the sheet".into(),
-        );
+        return Err("Import did not put the vault's passphrase on the sheet".into());
     }
     t.shot("boot-import")?;
     // A wrong passphrase stays on the sheet and says so. A tap on the
@@ -2078,29 +2088,14 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
         return Err("a wrong passphrase did not stay on the sheet".into());
     }
     t.shot("boot-import-wrong")?;
-    // Not now leaves Home leading with the vault's Unlock, which opens
-    // the sheet again.
+    // Later leaves Home leading with the vault's Unlock, which opens the
+    // sheet again.
     t.press(Action::Import(I::Later));
     t.shot("home-import-waiting")?;
     t.press(faraday_core::boot_import::OPEN);
     if t.app.sheet != Some(Sheet::Import) {
         return Err("the import did not open again from Home".into());
     }
-    // Choose what to import: the wallets, the keys and the files.
-    t.press(Action::Import(I::Choose));
-    let (w, h) = t.size();
-    let scroll = |t: &mut Tour, dy: i16| {
-        t.app.event(Event::Scroll {
-            x: w / 2,
-            y: h / 2,
-            dy,
-        });
-    };
-    scroll(t, 1400);
-    t.shot("boot-import-wallets")?;
-    scroll(t, i16::MAX);
-    t.shot("boot-import-end")?;
-    scroll(t, i16::MIN);
     t.press(Action::Vault(V::FocusPassphrase));
     type_text(t, testkit::VAULT_PASSPHRASES[0]);
     t.shot("boot-unlock")?;
@@ -4529,6 +4524,7 @@ fn from_vault_tour(t: &mut Tour) -> Result<(), String> {
     t.app.vaults.ms_per_unit = Some(180);
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
+    t.press(Action::Import(I::Go));
     t.press(Action::Vault(V::FocusPassphrase));
     type_text(t, testkit::VAULT_PASSPHRASES[0]);
     t.press(Action::Import(I::Submit));

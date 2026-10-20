@@ -3226,6 +3226,9 @@ pub struct Faraday {
     /// The boot import's sheet waits under the new-device sheet, and
     /// comes up once every waiting device is decided.
     import_under_input: bool,
+    /// Files the boot import brought in with the stick still in, by name:
+    /// the seeds they hold load once it is pulled (F60).
+    pub(crate) import_load_after: BTreeSet<String>,
     /// Decisions the shell has not taken yet.
     input_decisions: VecDeque<(u32, bool)>,
     /// New keys made this session, which number their labels.
@@ -3630,6 +3633,7 @@ impl Faraday {
             ignored_inputs: Vec::new(),
             inputs_kept_out: 0,
             import_under_input: false,
+            import_load_after: BTreeSet::new(),
             input_decisions: VecDeque::new(),
             new_keys: 0,
             made_here: Vec::new(),
@@ -4388,7 +4392,7 @@ impl Faraday {
                 }
             }
             if had {
-                let loaded = self.load_after_pull();
+                let loaded = self.load_after_pull() + self.import_load_after_pull();
                 let said = if loaded == 0 {
                     fill(EN.sticks_changed_removed_2, &[self.medium.cap()])
                 } else {
@@ -4879,6 +4883,7 @@ impl Faraday {
         // What the boot stick brought and was not imported is not kept:
         // its bytes are wiped as it drops.
         self.import = None;
+        self.import_load_after.clear();
         // Nothing secret copied in outlives the process that read it
         // (`PLAN.md` §5.3): the next process is clean, and these would be
         // in its memory and in `/run/faraday`. They are still on the stick

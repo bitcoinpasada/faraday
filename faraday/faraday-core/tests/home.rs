@@ -401,17 +401,26 @@ fn home_lead_rule_3_an_import_waiting() {
     pump(&mut app, &files);
     let _ = app.frame();
     assert!(app.import.is_some());
-    // The sheet comes up over Home on arrival; Not now leaves it waiting
-    // behind the stick, and Home leads with it once the sheet is closed.
+    // The sheet comes up over Home on arrival; Later leaves it waiting,
+    // and Home leads with it once the sheet is closed.
     app.press(faraday_core::boot_import::LATER);
     let _ = app.frame();
     assert!(
         app.offers(faraday_core::boot_import::OPEN),
         "Home does not lead with the import, stick still in"
     );
-    // Pulled: Unlock {name}, the stick's vault, and the tap reopens the
-    // boot sheet with its passphrase field.
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Import from Boot stick"),
+        "{texts:?}"
+    );
+    // Imported and put off again, pulled: Unlock {name}, the stick's
+    // vault, and the tap reopens the sheet with its passphrase field.
+    app.press(faraday_core::boot_import::OPEN);
+    app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
+    app.press(faraday_core::boot_import::LATER);
     app.storage(StorageEvent::Sticks(Vec::new()));
+    let _ = app.frame();
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "Unlock vault.ofv"), "{texts:?}");
     assert!(app.offers(faraday_core::boot_import::OPEN));

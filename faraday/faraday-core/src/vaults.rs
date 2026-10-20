@@ -2344,14 +2344,24 @@ impl Faraday {
                 ));
                 self.vault_summaries_refresh();
                 if for_import {
+                    // Its wallets and keys load; the next vault the
+                    // import brought is offered, or, with none left, the
+                    // landing (F60).
                     self.vaults.back_to = None;
-                    let before = self.session.wallets.len();
+                    let before = self
+                        .import
+                        .as_ref()
+                        .map_or(self.session.wallets.len(), |i| i.wallets_before);
                     let label = self.import.as_ref().map(|i| i.label.clone());
-                    self.import_go();
-                    let file = self.vaults.open[v].name.clone();
-                    self.unlock_landed(before, &file, label.as_deref());
+                    if self.import_unlocked(v) {
+                        let file = self.vaults.open[v].name.clone();
+                        self.unlock_landed(before, &file, label.as_deref());
+                    }
                     return;
                 }
+                // Every vault the boot import brought unlocked elsewhere:
+                // the import is over (F60).
+                self.import_settle();
                 // Unlocked from the Spend tab, or for it: everything loads.
                 let back = self.vaults.back_to.take();
                 if self.screen == Screen::Family || back == Some(Screen::Family) {

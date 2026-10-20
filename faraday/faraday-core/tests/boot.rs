@@ -55,9 +55,11 @@ fn booted() -> (Faraday, Vec<u8>) {
     (app, vault)
 }
 
-/// Booted, with the import put off for later: the vault waits in Files.
+/// Booted, the vault imported and its Unlock put off for later: it waits
+/// in Files, locked.
 fn later() -> (Faraday, Vec<u8>) {
     let (mut app, vault) = booted();
+    app.press(Action::Import(I::Go));
     app.press(Action::Import(I::Later));
     (app, vault)
 }
@@ -72,11 +74,11 @@ fn unlock(app: &mut Faraday) {
 }
 
 #[test]
-fn the_boot_sticks_vault_waits_on_home_and_pulling_the_stick_leaves_the_import_up() {
+fn the_boot_sticks_vault_waits_on_the_sheet_and_pulling_the_stick_leaves_it_up() {
     let (mut app, _) = booted();
     assert_eq!(app.screen, Screen::Home);
     assert_eq!(app.sheet, Some(Sheet::Import));
-    assert!(app.inbox.iter().any(|i| i.name == "vault.ofv"));
+    assert!(!app.inbox.iter().any(|i| i.name == "vault.ofv"));
     app.storage(StorageEvent::Sticks(Vec::new()));
     assert_eq!(app.screen, Screen::Home, "pulling the stick left Home");
     assert_eq!(app.sheet, Some(Sheet::Import));

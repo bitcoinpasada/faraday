@@ -955,12 +955,6 @@ pub struct Strings {
     /// Text in `card`.
     pub bip85_out_unprotected: &'static str,
     // ----- boot_import (faraday-core/src/boot_import.rs) -----
-    /// Text in `status`.
-    pub boot_import_can_sign: &'static str,
-    /// Text in `status`. `{}`: `self.here`, `n`, `more`.
-    pub boot_import_of_keys: &'static str,
-    /// Text in `status`.
-    pub boot_import_watch_only: &'static str,
     /// Text in `line`.
     pub boot_import_vault_inline: &'static str,
     /// Text in `line`.
@@ -989,16 +983,12 @@ pub struct Strings {
     pub boot_import_codes: &'static str,
     /// Text in `import_stick_gone`. `{}`: `noun`.
     pub boot_import_the_was: &'static str,
-    /// Text in `import_view`.
-    pub boot_import_wallet: &'static str,
     /// Text in `import_view`. `{}`: `size`.
     pub boot_import_being_read: &'static str,
     /// Text in `import_view`. `{}`: `size`.
     pub boot_import_not_a_kind: &'static str,
     /// Text in `import_view`. `{}`: `why`.
     pub boot_import_not_read: &'static str,
-    /// Text in `import_view`. `{}`: `size`.
-    pub boot_import_vault_open: &'static str,
     /// Text in `import_view`. `{}`: `size`.
     pub boot_import_vault_n: &'static str,
     /// Text in `import_go`. `{}`: `count(wallets, EN.boot_import_wallet_inline,…`, `count(keys, EN.boot_import_key, EN.bo…`, `count(moved, EN.boot_import_file, EN.…`.
@@ -1024,22 +1014,16 @@ pub struct Strings {
     pub boot_import_open: &'static str,
     /// Text in `body`. `{}`: `crate::vaults::file_text(vault.len)`.
     pub boot_import_locked: &'static str,
-    /// Text in `body`.
-    pub boot_import_choose: &'static str,
-    /// Text in `body`.
-    pub boot_import_not_now: &'static str,
+    /// Text in `picker`.
+    pub boot_import_later: &'static str,
+    /// Text in `unlock`.
+    pub boot_import_cancel: &'static str,
     /// Text in `body`.
     pub boot_import_import: &'static str,
     /// Text in `body`.
     pub boot_import_unlock: &'static str,
     /// Text in `unlocking`. `{}`: `time`.
     pub boot_import_unlocking: &'static str,
-    /// Text in `lists`.
-    pub boot_import_wallets: &'static str,
-    /// Text in `lists`.
-    pub boot_import_keys_with: &'static str,
-    /// Text in `lists`.
-    pub boot_import_files: &'static str,
     // ----- catalog (faraday-core/src/catalog.rs) -----
     /// Text in `TILES`.
     pub catalog_new_key: &'static str,
@@ -8968,9 +8952,6 @@ pub static EN: Strings = Strings {
     bip85_save_into: "Save into {}",
     bip85_load_as_a_key: "Load as a key",
     bip85_out_unprotected: "Out unprotected…",
-    boot_import_can_sign: "Can sign",
-    boot_import_of_keys: "{} of {} keys here · {} more needed",
-    boot_import_watch_only: "Watch-only",
     boot_import_vault_inline: "vault",
     boot_import_vaults: "vaults",
     boot_import_psbt: "PSBT",
@@ -8985,11 +8966,9 @@ pub static EN: Strings = Strings {
     boot_import_code: "code",
     boot_import_codes: "codes",
     boot_import_the_was: "the {} was removed before it was read",
-    boot_import_wallet: "Wallet",
     boot_import_being_read: "Being read · {}",
     boot_import_not_a_kind: "Not a kind of file Faraday reads · {}",
     boot_import_not_read: "Not read: {}",
-    boot_import_vault_open: "Vault, open · {}",
     boot_import_vault_n: "Vault · {}",
     boot_import_imported: "Imported {} · {} · {}",
     boot_import_wallet_inline: "wallet",
@@ -9002,14 +8981,11 @@ pub static EN: Strings = Strings {
     boot_import_pull_the: "Pull the {} to continue",
     boot_import_open: "Open · {}",
     boot_import_locked: "Locked · {}",
-    boot_import_choose: "Choose what to import",
-    boot_import_not_now: "Not now",
+    boot_import_later: "Later",
+    boot_import_cancel: "Cancel",
     boot_import_import: "Import",
     boot_import_unlock: "Unlock",
     boot_import_unlocking: "Unlocking · {}",
-    boot_import_wallets: "Wallets",
-    boot_import_keys_with: "Keys with no wallet here",
-    boot_import_files: "Files",
     catalog_new_key: "New key",
     catalog_dice_coins: "Dice, coins, cards, hex, camera or a mix",
     catalog_add_a_key: "Add a key",

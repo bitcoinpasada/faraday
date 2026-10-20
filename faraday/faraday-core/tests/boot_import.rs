@@ -1,13 +1,9 @@
-//! The boot import: the first look at the boot stick copies its files
-//! into memory with only its vault From the stick, and the sheet says what
-//! was read and to pull the stick. Once it is out, the vault's passphrase
-//! is typed on the sheet, and the unlock imports everything; a wrong one
-//! stays on the sheet. Choose what to import lists the wallets its text
-//! files and pictures hold with whether they can sign, and Import loads
-//! what is ticked, moves the ticked files From the stick and wipes the
-//! rest. With no vault everything comes in as the stick is pulled; with
-//! only the settings file there is no sheet. Not now leaves Home leading
-//! with the vault's Unlock; a lock drops the import.
+//! The boot import (F60): the first look at the boot stick copies its
+//! files into memory, nothing in Files, and the sheet lists every one
+//! ticked, a seed's too. Pulling the stick changes nothing. Import brings
+//! in what is ticked, its wallets and keys with it, and the vaults into
+//! Files, locked, each then offered its Unlock with Cancel; Later brings
+//! in nothing, and Home leads with the import. A lock drops it.
 
 use faraday_core::boot_import::{self, ImportAction as I};
 use faraday_core::testkit;
@@ -146,10 +142,11 @@ fn run_unlock(app: &mut Faraday) {
     let _ = app.frame();
 }
 
-/// Pulled, put off with Not now, and the vault unlocked on Vaults: the
-/// import still waits.
+/// Pulled, Import pressed, put off with Later, and the vault unlocked on
+/// Vaults.
 fn unlocked_elsewhere() -> Faraday {
     let mut app = pulled();
+    app.press(Action::Import(I::Go));
     app.press(Action::Import(I::Later));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
@@ -192,36 +189,49 @@ fn drawn(app: &mut Faraday) -> String {
     app.drawn_texts().join("\n")
 }
 
-fn wallet<'a>(
-    view: &'a boot_import::ImportView,
-    name: &str,
-) -> Option<&'a boot_import::ImportWallet> {
-    view.wallets.iter().find(|w| w.name == name)
-}
-
 fn file<'a>(view: &'a boot_import::ImportView, name: &str) -> &'a boot_import::ImportFile {
     view.files.iter().find(|f| f.name == name).unwrap()
 }
 
-#[test]
-fn the_boot_stick_is_copied_into_memory_with_only_its_vault_in_the_inbox() {
-    let mut app = booted();
-    assert_eq!(app.screen, Screen::Home);
-    assert_eq!(app.sheet, Some(Sheet::Import));
-    let inbox: Vec<&str> = app.inbox.iter().map(|i| i.name.as_str()).collect();
-    assert_eq!(inbox, ["vault.ofv"]);
-    let c = app.import_count().unwrap();
-    assert_eq!((c.copied, c.not_read, c.vaults), (7, 0, 1));
-    // Nothing loads, and nothing is imported, while it is in.
-    let _ = app.frame();
-    assert!(app.offers(Action::Import(I::Later)));
-    assert!(!app.offers(Action::Import(I::Go)));
-    app.press(Action::Import(I::Go));
-    assert!(app.session.keys.is_empty() && app.import.is_some());
+/// The place of `name` in the sheet's list.
+fn row(app: &Faraday, name: &str) -> usize {
+    let view = app.import_view().unwrap();
+    view.files.iter().position(|f| f.name == name).unwrap()
+}
+
+fn inbox_names(app: &Faraday) -> Vec<String> {
+    let mut v: Vec<String> = app.inbox.iter().map(|i| i.name.clone()).collect();
+    v.sort();
+    v
+}
+
+fn key_fps(app: &Faraday) -> Vec<String> {
+    let mut v: Vec<String> = app
+        .session
+        .keys
+        .iter()
+        .map(|k| faraday_core::wallet::fp_text(k.fingerprint()))
+        .collect();
+    v.sort();
+    v
 }
 
 #[test]
-fn with_the_stick_in_the_sheet_says_what_was_read_and_to_pull_it() {
+fn the_boot_stick_is_copied_into_memory_and_nothing_is_in_files_until_import() {
+    let mut app = booted();
+    assert_eq!(app.screen, Screen::Home);
+    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.inbox.is_empty(), "{:?}", inbox_names(&app));
+    let c = app.import_count().unwrap();
+    assert_eq!((c.copied, c.not_read, c.vaults), (7, 0, 1));
+    let _ = app.frame();
+    assert!(app.offers(Action::Import(I::Later)));
+    assert!(app.offers(Action::Import(I::Go)));
+    assert!(app.session.keys.is_empty() && app.session.wallets.is_empty());
+}
+
+#[test]
+fn with_the_stick_in_the_sheet_lists_every_file_ticked_a_seeds_too() {
     let mut app = booted();
     let texts = drawn(&mut app);
     assert!(texts.contains("Read from Boot stick"), "{texts}");
@@ -229,96 +239,140 @@ fn with_the_stick_in_the_sheet_says_what_was_read_and_to_pull_it() {
         texts.contains("1 vault · 1 PSBT · 5 other files"),
         "{texts}"
     );
-    assert!(texts.contains("Pull the stick to continue"), "{texts}");
-    // No lists, no passphrase and no import while it is in.
-    assert!(!texts.contains("zebra-wallet.txt"), "{texts}");
-    assert!(!app.offers(Action::Import(I::Choose)));
+    let view = app.import_view().unwrap();
+    for (name, _) in stick_files() {
+        assert!(texts.contains(&name), "{name} is not listed: {texts}");
+        let f = file(&view, &name);
+        assert!(f.chosen && f.enabled, "{name} is not ticked");
+    }
     assert!(!app.offers(Action::Import(I::Submit)));
-    assert!(!app.offers(Action::Import(I::Unlock(0))));
+}
+
+#[test]
+fn pulling_the_stick_before_choosing_keeps_the_sheet_and_brings_in_nothing() {
+    let mut app = pulled();
+    assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
+    assert!(
+        app.import_field().is_none(),
+        "a passphrase field before Import"
+    );
+    assert!(app.inbox.is_empty() && app.session.keys.is_empty());
+    let _ = app.frame();
+    assert!(app.offers(Action::Import(I::Go)));
     assert!(app.offers(Action::Import(I::Later)));
 }
 
 #[test]
-fn after_the_pull_with_one_vault_the_sheet_takes_its_passphrase() {
+fn import_brings_in_every_ticked_file_then_the_vaults_unlock_loads_its_wallets() {
     let mut app = pulled();
-    assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
-    let texts = drawn(&mut app);
-    assert!(texts.contains("Read from Boot stick"), "{texts}");
-    assert!(texts.contains("vault.ofv"), "{texts}");
-    assert!(texts.contains("Choose what to import"), "{texts}");
-    assert!(
-        app.offers(Action::Import(I::Submit)),
-        "no Unlock on the sheet"
+    app.press(Action::Import(I::Go));
+    // The files From the stick, the picture as what its code held, and
+    // the vault, locked.
+    assert_eq!(
+        inbox_names(&app),
+        [
+            "notes.txt",
+            "photo.jpg",
+            "savings-unsigned.psbt",
+            "summer-words.txt",
+            "vault.ofv",
+            "zebra-seedqr-words.txt",
+            "zebra-wallet.txt"
+        ]
     );
-    assert!(app.offers(Action::Import(I::Later)), "no Not now");
-    assert!(app.offers(Action::Import(I::Choose)));
-    // Typing goes to the field at once.
-    type_in(&mut app, "abc");
-    assert_eq!(app.vaults.passphrase.text.len(), 3);
-}
-
-#[test]
-fn a_right_passphrase_on_the_sheet_imports_everything_and_closes_it() {
-    let mut app = pulled();
+    assert!(app.vaults.open.is_empty());
+    // Their wallet and keys: Zebra, test keys 2 and 3.
+    assert!(app.session.wallets.iter().any(|w| w.name == "Zebra"));
+    let mut want = vec![fp(1), fp(2)];
+    want.sort();
+    assert_eq!(key_fps(&app), want);
+    // The vault's Unlock, on the sheet, typing going to it.
+    assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
+    assert_eq!(app.import_field().map(|v| v.name), Some("vault.ofv".into()));
+    let _ = app.frame();
+    assert!(app.offers(Action::Import(I::Submit)));
+    assert!(app.offers(Action::Import(I::Cancel)));
     type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
     assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
     assert!(app.import.is_none());
-    // Wallets loaded: Wallets (`docs/NEW-WALLET.md` §11.1).
     assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
-    // The vault's wallets, the stick's own, and test keys 1, 2 and 3:
-    // the vault's, the picture's and the words'.
     for name in ["Savings", "Spending", "Zebra"] {
         assert!(
             app.session.wallets.iter().any(|w| w.name == name),
             "{name} is not loaded"
         );
     }
-    let mut keys: Vec<String> = app
-        .session
-        .keys
-        .iter()
-        .map(|k| faraday_core::wallet::fp_text(k.fingerprint()))
-        .collect();
-    keys.sort();
     let mut want = vec![fp(0), fp(1), fp(2)];
     want.sort();
-    assert_eq!(keys, want);
-    // Every file but the seeds' comes in.
-    let mut inbox: Vec<&str> = app.inbox.iter().map(|i| i.name.as_str()).collect();
-    inbox.sort();
-    assert_eq!(
-        inbox,
-        [
-            "notes.txt",
-            "photo.jpg",
-            "savings-unsigned.psbt",
-            "vault.ofv",
-            "zebra-wallet.txt"
-        ]
-    );
+    assert_eq!(key_fps(&app), want);
+}
+
+#[test]
+fn a_seed_imported_from_its_file_and_held_by_the_vault_loads_once() {
+    let mut files = stick_files();
+    files.push((
+        "bacon-words.txt".into(),
+        testkit::test_words(testkit::TEST_SEEDS[0].0).into_bytes(),
+    ));
+    let mut app = booted_with(&files);
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::Import(I::Go));
+    assert!(key_fps(&app).contains(&fp(0)), "the words file's key");
+    type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    app.press(Action::Import(I::Submit));
+    run_unlock(&mut app);
+    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(app.vaults.unlock_error, None);
+    let mut want = vec![fp(0), fp(1), fp(2)];
+    want.sort();
+    // Once each: what Wallets and Sign list.
+    assert_eq!(key_fps(&app), want, "a key loaded twice");
 }
 
 #[test]
 fn a_wrong_passphrase_stays_on_the_sheet_and_says_so() {
     let mut app = pulled();
+    app.press(Action::Import(I::Go));
     type_in(&mut app, "not the passphrase");
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
     assert!(app.vaults.open.is_empty());
     assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
-    assert!(app.import.is_some() && app.session.keys.is_empty());
+    assert!(app.import.is_some());
     let error = app.vaults.unlock_error.clone().expect("no error said");
     assert!(
         drawn(&mut app).contains(&error),
         "the error is not on the sheet"
     );
-    // And the right one, typed again, imports.
+    // And the right one, typed again, unlocks.
     type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
-    assert!(app.import.is_none() && !app.session.keys.is_empty());
+    assert!(app.import.is_none() && app.vaults.open.len() == 1);
+}
+
+#[test]
+fn import_with_the_stick_in_waits_for_the_pull_to_unlock() {
+    let mut app = booted();
+    app.press(Action::Import(I::Go));
+    assert!(app.inbox.iter().any(|i| i.name == "notes.txt"));
+    assert!(
+        app.session.keys.is_empty(),
+        "a key loaded with the stick in"
+    );
+    let texts = drawn(&mut app);
+    assert!(texts.contains("Pull the stick to continue"), "{texts}");
+    assert!(!app.offers(Action::Import(I::Submit)));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let _ = app.frame();
+    // The words file's key loads as the stick goes; the field is ready.
+    assert!(key_fps(&app).contains(&fp(2)));
+    type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    app.press(Action::Import(I::Submit));
+    run_unlock(&mut app);
+    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
 }
 
 #[test]
@@ -335,32 +389,73 @@ fn the_reminders_before_the_passphrase_leave_the_sheet_where_it_was() {
     pump(&mut app, &files);
     app.storage(StorageEvent::Sticks(Vec::new()));
     let _ = app.frame();
-    // The first secret: the passphrase field. The reminders come first.
+    app.press(Action::Import(I::Go));
+    if app.sheet == Some(Sheet::Devices) {
+        app.press(Action::DevicesUnderstood);
+    }
+    // The first secret typed: the passphrase field. The reminders come
+    // first if they have not yet.
     app.press(Action::Vault(V::FocusPassphrase));
-    assert_eq!(app.sheet, Some(Sheet::Devices));
-    app.press(Action::DevicesUnderstood);
+    if app.sheet == Some(Sheet::Devices) {
+        app.press(Action::DevicesUnderstood);
+    }
     assert_eq!(app.sheet, Some(Sheet::Import));
     assert!(app.import_field().is_some());
     type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
-    assert!(app.import.is_none() && !app.session.keys.is_empty());
+    assert!(app.import.is_none() && app.vaults.open.len() == 1);
 }
 
 #[test]
-fn not_now_leaves_home_leading_with_the_vaults_unlock() {
+fn later_brings_in_nothing_and_home_leads_with_the_import() {
     let mut app = pulled();
-    type_in(&mut app, "half typ");
     app.press(Action::Import(I::Later));
     assert_eq!((app.screen, app.sheet), (Screen::Home, None));
     assert!(app.import.is_some());
+    assert!(app.inbox.is_empty() && app.session.keys.is_empty());
+    let texts = drawn(&mut app);
+    assert!(texts.contains("Import from Boot stick"), "{texts}");
+    assert!(app.offers(boot_import::OPEN));
+    app.press(boot_import::OPEN);
+    assert_eq!(app.sheet, Some(Sheet::Import));
+    let _ = app.frame();
+    assert!(app.offers(Action::Import(I::Go)));
+}
+
+#[test]
+fn later_with_the_stick_in_leaves_the_files_to_the_stick_visit() {
+    let files = stick_files();
+    let mut app = booted();
+    app.press(Action::Import(I::Later));
+    assert!(app.inbox.is_empty());
+    app.press(Action::Nav(Screen::Visit));
+    assert!(app.visit.inn.contains("notes.txt"), "{:?}", app.visit.inn);
+    app.press(Action::VisitCopy);
+    pump(&mut app, &files);
+    assert!(app.inbox.iter().any(|i| i.name == "notes.txt"));
+    assert!(app.inbox.iter().any(|i| i.name == "vault.ofv"));
+}
+
+#[test]
+fn put_off_after_import_home_leads_with_the_vaults_unlock() {
+    // No PSBT, whose Sign would lead Home first.
+    let files: Vec<(String, Vec<u8>)> = stick_files()
+        .into_iter()
+        .filter(|(n, _)| !n.ends_with(".psbt"))
+        .collect();
+    let mut app = booted_with(&files);
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::Import(I::Go));
+    type_in(&mut app, "half typ");
+    app.press(Action::Import(I::Later));
+    assert_eq!((app.screen, app.sheet), (Screen::Home, None));
     assert!(
         app.vaults.passphrase.text.is_empty(),
         "what was typed stays"
     );
     let texts = drawn(&mut app);
     assert!(texts.contains("Unlock vault.ofv"), "{texts}");
-    assert!(app.offers(boot_import::OPEN));
     app.press(boot_import::OPEN);
     assert_eq!(app.sheet, Some(Sheet::Import));
     let _ = app.frame();
@@ -368,51 +463,54 @@ fn not_now_leaves_home_leading_with_the_vaults_unlock() {
 }
 
 #[test]
-fn with_two_vaults_each_is_unlocked_from_its_row_and_one_imports_everything() {
+fn with_two_vaults_each_is_offered_in_turn_and_cancel_leaves_it_locked() {
     let mut files = stick_files();
     files.push(("spare.ofv".into(), spare_vault()));
     let mut app = booted_with(&files);
     app.storage(StorageEvent::Sticks(Vec::new()));
-    let _ = app.frame();
-    let view = app.import_view().unwrap();
-    assert_eq!(view.vaults.len(), 2);
-    let test = view
-        .vaults
-        .iter()
-        .position(|v| v.name == "vault.ofv")
-        .unwrap();
-    // No field until a row's Unlock is pressed.
-    assert!(app.offers(Action::Import(I::Unlock(0))));
-    assert!(app.offers(Action::Import(I::Unlock(1))));
-    assert!(!app.offers(Action::Import(I::Submit)));
-    app.press(Action::Import(I::Unlock(test)));
-    let _ = app.frame();
-    assert!(app.offers(Action::Import(I::Submit)));
-    assert!(!app.offers(Action::Import(I::Unlock(test))));
+    app.press(Action::Import(I::Go));
+    assert_eq!(app.import_field().map(|v| v.name), Some("vault.ofv".into()));
     type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
+    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
+    // The second, on the sheet in its turn.
+    assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
+    assert_eq!(app.import_field().map(|v| v.name), Some("spare.ofv".into()));
+    app.press(Action::Import(I::Cancel));
     assert!(app.import.is_none());
     assert_eq!(app.sheet, None);
-    assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
-    // The other stays in Files, locked.
     let spare = app
         .vault_files()
         .into_iter()
         .find(|f| f.name == "spare.ofv")
-        .expect("the other vault is gone");
+        .expect("the cancelled vault is not in Files");
     assert!(spare.open.is_none());
 }
 
 #[test]
-fn with_no_vault_the_files_come_in_as_the_stick_is_pulled() {
+fn cancel_leaves_the_only_vault_locked_in_files() {
+    let mut app = pulled();
+    app.press(Action::Import(I::Go));
+    app.press(Action::Import(I::Cancel));
+    assert!(app.import.is_none());
+    assert_eq!((app.screen, app.sheet), (Screen::Home, None));
+    let files = app.vault_files();
+    assert_eq!(files.len(), 1);
+    assert!(files[0].open.is_none());
+}
+
+#[test]
+fn with_no_vault_import_brings_the_files_in_and_home_leads_with_the_psbt() {
     let files: Vec<(String, Vec<u8>)> = stick_files()
         .into_iter()
         .filter(|(n, _)| n != "vault.ofv")
         .collect();
     let mut app = booted_with(&files);
-    assert_eq!(app.sheet, Some(Sheet::Import));
     app.storage(StorageEvent::Sticks(Vec::new()));
+    assert!(app.import.is_some() && app.inbox.is_empty());
+    app.press(Action::Import(I::Go));
     assert!(app.import.is_none());
     assert_eq!((app.screen, app.sheet), (Screen::Home, None));
     let psbt = app
@@ -439,176 +537,60 @@ fn with_only_the_settings_file_no_sheet_comes_up() {
 }
 
 #[test]
-fn choose_what_to_import_lists_a_wallet_with_its_key_from_a_picture() {
-    let mut app = pulled();
-    app.press(Action::Import(I::Choose));
-    let _ = app.frame();
-    assert!(app.offers(Action::Import(I::Go)));
-    let texts = drawn(&mut app);
-    assert!(texts.contains("Zebra"), "{texts}");
-    let view = app.import_view().unwrap();
-    let zebra = wallet(&view, "Zebra").expect("the wallet file is not listed");
-    assert!(zebra.chosen);
-    assert_eq!(zebra.status(), "Can sign");
-    assert!(zebra.files.contains(&"zebra-wallet.txt".to_string()));
-    assert!(
-        zebra.files.contains(&"zebra-seedqr.png".to_string()),
-        "the picture that holds its key is not named: {:?}",
-        zebra.files
-    );
-    // Test key 3: no wallet on the stick uses it.
-    assert!(
-        view.keys
-            .iter()
-            .any(|k| k.fingerprint == fp(2) && k.chosen && k.files == ["summer-words.txt"])
-    );
-    // Every file is ticked but the seeds': the words file and the
-    // picture of a SeedQR, whose keys come in without them.
-    for name in [
-        "savings-unsigned.psbt",
-        "notes.txt",
-        "photo.jpg",
-        "vault.ofv",
-        "zebra-wallet.txt",
-    ] {
-        assert!(file(&view, name).chosen, "{name} is not ticked");
-    }
-    assert!(!file(&view, "summer-words.txt").chosen);
-    assert!(!file(&view, "zebra-seedqr.png").chosen);
-}
-
-#[test]
-fn a_vault_unlocked_elsewhere_has_already_loaded_its_wallets_off_the_sheet() {
-    let mut app = unlocked_elsewhere();
-    // Savings loaded already with the rest of the vault's wallets
-    // (`docs/NEW-WALLET.md` §11.1a), so the sheet leaves it out: only
-    // Zebra, from the stick's own file, still needs choosing.
-    assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
-    app.press(boot_import::OPEN);
-    assert_eq!(app.sheet, Some(Sheet::Import));
-    let view = app.import_view().unwrap();
-    assert!(
-        wallet(&view, "Savings").is_none(),
-        "a wallet loaded already is not offered again"
-    );
-    let zebra = wallet(&view, "Zebra").expect("the stick's own wallet is not listed");
-    assert_eq!(zebra.status(), "Can sign");
-    // Test key 1, the vault's own, loaded with Savings; it is not
-    // offered again either. Test key 3 (the words file) is not used by
-    // any wallet left on the sheet, so it stands on its own now.
-    assert!(!view.keys.iter().any(|k| k.fingerprint == fp(0)));
-    assert!(view.keys.iter().any(|k| k.fingerprint == fp(2)));
-    // An open vault's file stays From the stick, and has no field.
-    let v = file(&view, "vault.ofv");
-    assert!(v.chosen && !v.enabled);
-    assert_eq!(app.import_field(), None);
-}
-
-#[test]
-fn a_wallet_short_of_keys_says_how_many_more_it_needs() {
-    // Savings, 2 of 3, with test key 2 in a picture; Spending with no key.
+fn wallet_files_with_no_key_here_still_load_as_wallets() {
     let kit = testkit::files().unwrap();
-    let mut files: Vec<(String, Vec<u8>)> = kit
+    let files: Vec<(String, Vec<u8>)> = kit
         .into_iter()
         .filter(|(n, _)| n == "savings-wallet.txt" || n == "spending-wallet.txt")
         .collect();
-    files.push(("zebra-seedqr.png".into(), b"a picture".to_vec()));
-    files.push(("vault.ofv".into(), testkit::test_vault().unwrap()));
     let mut app = booted_with(&files);
     app.storage(StorageEvent::Sticks(Vec::new()));
-    app.press(Action::Import(I::Choose));
-    let view = app.import_view().unwrap();
-    assert_eq!(
-        wallet(&view, "Savings").unwrap().status(),
-        "1 of 3 keys here · 1 more needed"
-    );
-    assert_eq!(wallet(&view, "Spending").unwrap().status(), "Watch-only");
-}
-
-#[test]
-fn import_loads_what_is_ticked_and_wipes_the_rest() {
-    let mut app = pulled();
-    app.press(Action::Import(I::Choose));
-    let view = app.import_view().unwrap();
-    let notes = view
-        .files
-        .iter()
-        .position(|f| f.name == "notes.txt")
-        .unwrap();
-    let summer = view
-        .keys
-        .iter()
-        .position(|k| k.fingerprint == fp(2))
-        .unwrap();
-    app.press(Action::Import(I::File(notes)));
-    app.press(Action::Import(I::Key(summer)));
     app.press(Action::Import(I::Go));
-    assert!(app.import.is_none());
-    assert_eq!((app.screen, app.sheet), (Screen::Home, None));
-    assert!(app.vaults.open.is_empty(), "Import unlocked the vault");
-    // Zebra and its key from the picture; not test key 3.
-    let names: Vec<&str> = app
-        .session
-        .wallets
-        .iter()
-        .map(|w| w.name.as_str())
-        .collect();
-    assert_eq!(names, ["Zebra"]);
-    let keys: Vec<String> = app
-        .session
-        .keys
-        .iter()
-        .map(|k| faraday_core::wallet::fp_text(k.fingerprint()))
-        .collect();
-    assert_eq!(keys, [fp(1)]);
-    // The ticked files are From the stick; the rest are gone.
-    let mut inbox: Vec<&str> = app.inbox.iter().map(|i| i.name.as_str()).collect();
-    inbox.sort();
-    assert_eq!(
-        inbox,
-        [
-            "photo.jpg",
-            "savings-unsigned.psbt",
-            "vault.ofv",
-            "zebra-wallet.txt"
-        ]
-    );
-    assert!(!app.inbox.iter().any(|i| i.kind == FileKind::Words));
-    // And Home has nothing left to open.
-    let _ = app.frame();
-    assert!(!app.offers(boot_import::OPEN));
+    for name in ["Savings", "Spending"] {
+        assert!(
+            app.session.wallets.iter().any(|w| w.name == name),
+            "{name} is not loaded"
+        );
+    }
+    assert!(app.session.keys.is_empty());
 }
 
 #[test]
-fn a_locked_vault_left_out_leaves_the_inbox_and_its_wallets_are_not_listed() {
+fn an_unticked_file_is_not_imported_and_its_key_does_not_load() {
     let mut app = pulled();
-    app.press(Action::Import(I::Choose));
-    let view = app.import_view().unwrap();
-    assert!(wallet(&view, "Savings").is_none());
-    let k = view
-        .files
-        .iter()
-        .position(|f| f.name == "vault.ofv")
-        .unwrap();
+    for name in ["notes.txt", "summer-words.txt"] {
+        let k = row(&app, name);
+        app.press(Action::Import(I::File(k)));
+        assert!(!file(&app.import_view().unwrap(), name).chosen);
+    }
+    app.press(Action::Import(I::Go));
+    assert!(!app.inbox.iter().any(|i| i.name == "notes.txt"));
+    assert!(!app.inbox.iter().any(|i| i.name == "summer-words.txt"));
+    assert!(app.inbox.iter().any(|i| i.name == "photo.jpg"));
+    assert_eq!(key_fps(&app), [fp(1)]);
+    assert!(
+        !app.inbox
+            .iter()
+            .any(|i| i.name == "summer-words.txt" && i.kind == FileKind::Words)
+    );
+}
+
+#[test]
+fn an_unticked_vault_stays_out_of_files_and_nothing_asks_to_unlock_it() {
+    let mut app = pulled();
+    let k = row(&app, "vault.ofv");
     app.press(Action::Import(I::File(k)));
     app.press(Action::Import(I::Go));
     assert!(!app.inbox.iter().any(|i| i.name == "vault.ofv"));
-    // Zebra and its key, and test key 3 on its own.
+    assert!(app.import.is_none());
+    assert_eq!(app.sheet, None);
     assert_eq!(app.session.wallets.len(), 1);
     assert_eq!(app.session.keys.len(), 2);
 }
 
 #[test]
-fn not_now_goes_home_and_the_lead_opens_it_again() {
+fn a_tap_beside_the_sheet_is_later() {
     let mut app = pulled();
-    app.press(Action::Import(I::Later));
-    assert_eq!((app.screen, app.sheet), (Screen::Home, None));
-    assert!(app.import.is_some());
-    let _ = app.frame();
-    assert!(app.offers(boot_import::OPEN));
-    app.press(boot_import::OPEN);
-    assert_eq!(app.sheet, Some(Sheet::Import));
-    // A tap beside the sheet is Not now.
     let _ = app.frame();
     app.event(Event::Touch {
         x: 4,
@@ -621,7 +603,7 @@ fn not_now_goes_home_and_the_lead_opens_it_again() {
         phase: TouchPhase::Up,
     });
     assert_eq!(app.sheet, None);
-    assert!(app.import.is_some());
+    assert!(app.import.is_some() && app.inbox.is_empty());
 }
 
 #[test]
@@ -641,11 +623,6 @@ fn a_lock_drops_the_import_and_the_next_process_visits_the_stick() {
             inbox = i;
         }
     }
-    assert!(
-        inbox.iter().all(|(n, _)| n == "vault.ofv"),
-        "what was not imported was kept: {:?}",
-        inbox.iter().map(|(n, _)| n).collect::<Vec<_>>()
-    );
     let mut next = testkit::started();
     next.storage(StorageEvent::Restored {
         inbox,
@@ -727,8 +704,9 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
             _ => {}
         }
     }
-    // No vault: pulling the stick imports it.
+    // No vault: Import brings it in.
     app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::Import(I::Go));
     assert!(app.import.is_none());
     let key = app
         .session
@@ -744,13 +722,13 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
 }
 
 #[test]
-fn a_vault_unlocked_on_vaults_while_the_import_waits_loads_its_own_wallets() {
+fn a_vault_imported_then_unlocked_on_vaults_loads_its_own_wallets() {
     let app = unlocked_elsewhere();
     // Unlocked through the list, not the sheet (`docs/NEW-WALLET.md`
-    // §11.1a): Wallets, with the vault's own wallets and keys loaded;
-    // the stick's import still waits, untouched.
+    // §11.1a): Wallets, with the vault's own wallets and keys loaded; the
+    // import, its one vault open, is over.
     assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
-    assert!(app.import.is_some());
+    assert!(app.import.is_none());
     assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
     assert_eq!(app.vaults.back_to, None);
 }
@@ -801,4 +779,256 @@ fn a_mouse_waiting_comes_up_when_the_import_is_put_off() {
     app.press(Action::InputUse(9));
     // The import was put off, so it stays behind Sticks.
     assert_eq!(app.sheet, None);
+}
+
+#[test]
+fn a_codex32_seed_imported_with_the_stick_in_loads_when_it_is_pulled() {
+    let files: Vec<(String, Vec<u8>)> = vec![
+        ("notes.txt".into(), b"Shopping list\n".to_vec()),
+        (
+            "seed-codex32.txt".into(),
+            b"ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw\n".to_vec(),
+        ),
+    ];
+    let mut app = booted_with(&files);
+    app.press(Action::Import(I::Go));
+    assert!(app.inbox.iter().any(|i| i.name == "seed-codex32.txt"));
+    assert!(
+        app.session.keys.is_empty(),
+        "a key loaded with the stick in"
+    );
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    assert_eq!(app.session.keys.len(), 1, "the codex32 seed did not load");
+}
+
+#[test]
+fn unselect_all_unticks_every_file_and_import_then_waits_for_a_choice() {
+    let mut app = pulled();
+    let _ = app.frame();
+    assert!(drawn(&mut app).contains("Unselect all"));
+    app.press(Action::Import(I::All));
+    let view = app.import_view().unwrap();
+    assert!(view.files.iter().all(|f| !f.chosen));
+    let texts = drawn(&mut app);
+    assert!(texts.contains("Select all"), "{texts}");
+    // Import is disabled with nothing ticked: pressed, it does nothing.
+    assert!(!app.offers(Action::Import(I::Go)));
+    app.press(Action::Import(I::Go));
+    assert_eq!(app.sheet, Some(Sheet::Import));
+    assert!(app.import.is_some() && app.inbox.is_empty());
+    // Select all ticks them again.
+    app.press(Action::Import(I::All));
+    let view = app.import_view().unwrap();
+    assert!(view.files.iter().filter(|f| f.enabled).all(|f| f.chosen));
+}
+
+/// SLIP-39 vector 4, "Basic sharing 2-of-3 (128 bits)": two shares.
+const SLIP39_SHARES: [&str; 2] = [
+    "shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed",
+    "shadow pistol academic acid actress prayer class unknown daughter sweater depict flip twice unkind craft early superior advocate guest smoking",
+];
+
+/// BIP 93 vector 1: a codex32 secret, its master seed `318c6318…`.
+const CODEX32_SECRET: &str = "ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw";
+
+/// BIP 93 vector 2: two shares of a codex32 secret.
+const CODEX32_SHARES: [&str; 2] = [
+    "MS12NAMEA320ZYXWVUTSRQPNMLKJHGFEDCAXRPP870HKKQRM",
+    "MS12NAMECACDEFGHJKLMNPQRSTUVWXYZ023FTR2GDZMPY6PN",
+];
+
+/// The fingerprint test seed 3's words make with `passphrase`.
+fn fp_with(passphrase: &str) -> String {
+    let mut probe = faraday_core::wallet::Session::default();
+    let fp = probe
+        .add_words_with(
+            &testkit::test_words(testkit::TEST_SEEDS[2].0),
+            passphrase,
+            "",
+            None,
+        )
+        .unwrap();
+    faraday_core::wallet::fp_text(fp)
+}
+
+/// Every kind of seed file Faraday reads, imported from the boot sheet
+/// with the stick in: none loads while it is in, and each loads, once,
+/// as the stick is pulled, the moment a BIP-39 words file's does (F60).
+#[test]
+fn every_kind_of_seed_file_imported_with_the_stick_in_loads_at_the_pull() {
+    let words = || testkit::test_words(testkit::TEST_SEEDS[2].0).into_bytes();
+    let line = |s: &str| format!("{s}\n").into_bytes();
+    type Case = (&'static str, Vec<(String, Vec<u8>)>, Option<String>);
+    let cases: Vec<Case> = vec![
+        (
+            "BIP-39 words",
+            vec![("summer-words.txt".into(), words())],
+            Some(fp(2)),
+        ),
+        (
+            "BIP-39 words with a passphrase file",
+            vec![
+                ("summer-words.txt".into(), words()),
+                (
+                    format!("passphrase-{}.txt", fp_with("orchard")),
+                    b"orchard".to_vec(),
+                ),
+            ],
+            Some(fp_with("orchard")),
+        ),
+        (
+            "SeedQR picture",
+            vec![("zebra-seedqr.png".into(), b"a picture".to_vec())],
+            Some(fp(1)),
+        ),
+        (
+            "SLIP-39 shares",
+            vec![
+                ("slip39-share-1.txt".into(), line(SLIP39_SHARES[0])),
+                ("slip39-share-2.txt".into(), line(SLIP39_SHARES[1])),
+            ],
+            None,
+        ),
+        (
+            "codex32 secret",
+            vec![("codex32-secret.txt".into(), line(CODEX32_SECRET))],
+            None,
+        ),
+        (
+            "codex32 shares",
+            vec![
+                ("codex32-share-a.txt".into(), line(CODEX32_SHARES[0])),
+                ("codex32-share-c.txt".into(), line(CODEX32_SHARES[1])),
+            ],
+            None,
+        ),
+    ];
+    for (kind, files, want) in cases {
+        let mut app = booted_with(&files);
+        app.press(Action::Import(I::Go));
+        for (name, _) in &files {
+            assert!(
+                app.inbox
+                    .iter()
+                    .any(|i| i.name.starts_with(&name[..name.len() - 4])),
+                "{kind}: {name} is not in Files"
+            );
+        }
+        assert!(
+            app.session.keys.is_empty(),
+            "{kind}: loaded with the stick in"
+        );
+        app.storage(StorageEvent::Sticks(Vec::new()));
+        assert_eq!(app.session.keys.len(), 1, "{kind}: not loaded at the pull");
+        if let Some(want) = want {
+            assert_eq!(key_fps(&app), [want], "{kind}");
+        }
+    }
+}
+
+/// A vault holding a master seed, as a SLIP-39 or codex32 key is kept
+/// (BIP 93 vector 1's master seed), its key marked to load at unlock.
+fn seed_vault() -> Vec<u8> {
+    use faraday_vault::records::{LOAD_AT_UNLOCK, field, kind};
+    use faraday_vault::{Contents, Cost, Record};
+    let seed = osk_bip::codex32::Codex32::parse(CODEX32_SECRET)
+        .unwrap()
+        .to_seed()
+        .unwrap();
+    let seed = seed.expose().bytes();
+    let mut payload = vec![0u8; 65];
+    payload[0] = seed.len() as u8;
+    payload[1..1 + seed.len()].copy_from_slice(seed);
+    let slot = Contents {
+        records: vec![
+            Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Seeds"),
+            Record::new(kind::KEY)
+                .with(field::KEY, &payload)
+                .with(field::KEY_LABEL, b"codex32")
+                .with(field::KEY_FLAGS, &[LOAD_AT_UNLOCK]),
+        ],
+    };
+    let cost = Cost {
+        memory_kib: 64 * 1024,
+        passes: 1,
+        lanes: 1,
+    };
+    faraday_vault::create(
+        faraday_vault::SLOT_SIZES[0],
+        cost,
+        &[b"seeds".as_slice()],
+        &[slot],
+        &[0x5c; 32],
+    )
+    .unwrap()
+}
+
+/// The key a codex32 secret file gives, imported from the boot sheet.
+fn codex32_fp() -> String {
+    let files = vec![(
+        "codex32-secret.txt".to_string(),
+        format!("{CODEX32_SECRET}\n").into_bytes(),
+    )];
+    let mut app = booted_with(&files);
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::Import(I::Go));
+    key_fps(&app)
+        .pop()
+        .expect("the codex32 secret did not load")
+}
+
+/// A vault's keys load on unlock whatever they are: BIP-39 words (the
+/// test vault's test key 1) or a master seed, as a SLIP-39 or codex32
+/// key is kept, which gives the same key as its codex32 file. On the
+/// boot sheet and from the Vaults list alike.
+#[test]
+fn a_vaults_words_and_master_seed_keys_load_on_unlock() {
+    let codex32 = codex32_fp();
+    let cases: Vec<(&str, Vec<u8>, &str, String)> = vec![
+        (
+            "BIP-39 words",
+            testkit::test_vault().unwrap(),
+            testkit::VAULT_PASSPHRASES[0],
+            fp(0),
+        ),
+        ("master seed", seed_vault(), "seeds", codex32),
+    ];
+    for (kind, vault, phrase, want) in cases {
+        let files = vec![("vault.ofv".to_string(), vault)];
+        // On the boot sheet.
+        let mut app = booted_with(&files);
+        app.storage(StorageEvent::Sticks(Vec::new()));
+        app.press(Action::Import(I::Go));
+        type_in(&mut app, phrase);
+        app.press(Action::Import(I::Submit));
+        run_unlock(&mut app);
+        assert_eq!(
+            app.vaults.open.len(),
+            1,
+            "{kind}: {:?}",
+            app.vaults.unlock_error
+        );
+        assert_eq!(
+            key_fps(&app),
+            std::slice::from_ref(&want),
+            "{kind}, boot sheet"
+        );
+        // From the Vaults list.
+        let mut app = booted_with(&files);
+        app.press(Action::Import(I::Go));
+        app.press(Action::Import(I::Later));
+        app.storage(StorageEvent::Sticks(Vec::new()));
+        app.press(Action::Nav(Screen::Vaults));
+        app.press(Action::Vault(V::Open(0)));
+        type_in(&mut app, phrase);
+        app.press(Action::Vault(V::Unlock));
+        run_unlock(&mut app);
+        assert_eq!(
+            app.vaults.open.len(),
+            1,
+            "{kind}: {:?}",
+            app.vaults.unlock_error
+        );
+        assert_eq!(key_fps(&app), [want], "{kind}, Vaults");
+    }
 }

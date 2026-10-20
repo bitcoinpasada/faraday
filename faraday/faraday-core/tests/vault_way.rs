@@ -392,8 +392,10 @@ fn going_back_on_the_way_drops_the_secret() {
     assert_eq!(app.vaults.back_to, None);
 }
 
+/// An `.oskb` in Files with no vault offers no way to one on its row
+/// (F60); once a vault is made and open, its Import is live.
 #[test]
-fn an_oskb_in_files_makes_a_vault_and_comes_back_with_import_live() {
+fn an_oskb_in_files_offers_import_once_a_vault_is_open() {
     let (name, bytes) = testkit::files()
         .unwrap()
         .into_iter()
@@ -402,13 +404,18 @@ fn an_oskb_in_files_makes_a_vault_and_comes_back_with_import_live() {
     let mut app = device(vec![(name.clone(), bytes)]);
     app.press(Action::Nav(Screen::Files));
     let k = app.inbox.iter().position(|i| i.name == name).unwrap();
-    press_make(&mut app, Screen::Files);
+    assert!(!offered(
+        &mut app,
+        Action::Vault(V::CreateFrom(Screen::Files))
+    ));
+    assert!(!offered(&mut app, Action::Vault(V::ImportBackup(k))));
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
     make_the_vault(&mut app);
     unlock_with(&mut app, NEW_PHRASE);
-    assert_eq!(app.screen, Screen::Files);
-    let _ = app.frame();
+    app.press(Action::Nav(Screen::Files));
     assert!(
-        app.offers(Action::Vault(V::ImportBackup(k))),
+        offered(&mut app, Action::Vault(V::ImportBackup(k))),
         "Import into the vault is live"
     );
 }

@@ -2074,3 +2074,47 @@ named as one. The code, its tests (which turn the switch on), the
 spec `docs/APK-SIGNING.md`, its Learn page and its fuzz target stay,
 so turning the switch on brings it all back. Supersedes F25's place in
 the app until the owner picks it up again.
+
+### F60 The boot sheet is a picker; a file row offers a vault only while one is open (2026-10-20)
+
+**Why.** Booting with a stick holding a vault and two other files, the
+sheet said "1 vault · 2 other files" and "Pull the stick to continue";
+pulling it brought in the vault alone, the files waiting on an unlock
+that "Not now" put off, while the stick visit showed the vault In
+Faraday and the files still On the stick. And in Files, a text file's
+Add to vault, or a backup's Import, became "Unlock {vault}" or "Make a
+vault" while no vault was open: the vault's own row's Unlock again,
+with what the row's button does hidden.
+
+**Decision** (owner, 2026-10-20; `docs/FLOWS.md` decision 27, Session:
+Boot, Files). The boot sheet lists every vault and file read from the
+boot stick (the settings file not listed), each with a checkbox, every
+one ticked, a seed's file too (words, SeedQR, BIP-85): the person
+already chose to keep that seed unprotected on the stick. Above the
+list, **Unselect all** while any file is ticked, **Select all** once
+none is, as on the stick visit (decision 29). Its actions are
+**Import**, disabled while nothing is ticked, and **Later**, with the
+stick in or out. Nothing read
+enters Files until Import, vault files included. **Import** brings in
+what is ticked: the files From the stick, the wallets and keys they
+hold through Files' loader (a seed of any kind, words, SeedQR, SLIP-39,
+codex32 or shares, imported with the stick still in loads as it is
+pulled, the moment a BIP-39 words file's does), and the vaults into Files, locked; then each vault in
+turn offers its passphrase field, once the stick is pulled ("Pull the
+stick to continue"), with **Unlock** and **Cancel**. An unlock loads
+the vault's wallets and keys, a key kept as BIP-39 words and one kept
+as a master seed (as a SLIP-39 or codex32 key is) alike; Cancel leaves the vault locked in Files
+and goes on to the next. A key already loaded from a file is not loaded
+again from the vault. **Later** brings in nothing; Home leads with
+"Import from {label}" (after Import, "Unlock {vault}"), which opens the
+sheet again, and the stick visit can still bring the files in. Pulling
+the stick before a choice leaves the sheet as it is. "Choose what to
+import" and its wallet and key lists are gone. On the Pi, SD card for
+stick, as everywhere.
+
+In Files and the stick visit, a file row whose action needs an open
+vault (Add to vault on text, a wallet or words; Import on entries and
+backups; Sign with key on an APK) shows no vault action at all while no
+vault is open; the vault's own row keeps its Unlock. Once one is open,
+the action shows as before.
+

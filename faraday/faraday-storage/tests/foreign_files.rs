@@ -87,8 +87,10 @@ fn the_boot_stick_reads_and_counts_the_psbt_alone() {
     let texts = app.drawn_texts().join("\n");
     assert!(texts.contains("1 PSBT"), "{texts}");
     assert!(!texts.contains("other file"), "{texts}");
-    // No vault: it comes in as the stick is pulled.
+    // Nothing comes in by the pull; Import brings it in (F60).
     app.storage(StorageEvent::Sticks(Vec::new()));
+    assert!(inbox(&app).is_empty());
+    app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
     assert_eq!(inbox(&app), [PSBT]);
     let _ = fs::remove_dir_all(&dir);
 }

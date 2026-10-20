@@ -228,11 +228,14 @@ impl Faraday {
                 let Some(item) = self.inbox.get(k) else {
                     return out;
                 };
-                if matches!(item.kind, FileKind::Wallet | FileKind::Words) {
-                    out.push(self.vault_way(Screen::Files).unwrap_or((
+                // Only while a vault is open (F60).
+                if matches!(item.kind, FileKind::Wallet | FileKind::Words)
+                    && self.vault_way(Screen::Files).is_none()
+                {
+                    out.push((
                         EN.add_to_vault_add_to.to_string(),
                         Action::Vault(crate::vaults::VaultAction::AddFile(k)),
-                    )));
+                    ));
                 }
                 out.push(details);
                 out.push((EN.files_remove.to_string(), Action::InboxRemove(k)));

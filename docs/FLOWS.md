@@ -256,21 +256,21 @@ to get it.
     lock, or "Unchanged" when that stick is not known. It leads the vault's Vaults row; a changed vault makes
     Home lead with "Write {name} to a stick" and the session strip read
     Write out.
-27. **The boot sheet is a front door** (owner, 2026-10-10;
-    `docs/SIMPLIFY.md` §4.4). With the stick in, the sheet reads "Read
-    from {label}", one line of counts ("1 vault · 2 PSBTs · 4 other
-    files") and "Pull the stick to continue", with no lists. Once it is
-    out, a stick with one vault puts that vault's passphrase field on the
-    sheet with **Unlock** and **Not now**; several put **Unlock** on each
-    row, which opens the field under it. An unlock that succeeds imports
-    everything, the vault's wallets and keys with the stick's, and closes
-    the sheet; a wrong passphrase stays and says so. Everything is ticked
-    by default but a secret's file, whose key loads without it. **Choose
-    what to import** shows the ticked lists, and **Import** brings in what
-    is ticked without unlocking. With no vault everything comes in as the
-    stick is pulled; with only the settings file there is no sheet. **Not
-    now** leaves Home leading with "Unlock {name}", which opens the sheet
-    again.
+27. **The boot sheet is a picker** (owner, 2026-10-10;
+    `docs/SIMPLIFY.md` §4.4; changed 2026-10-20 by F60). With the stick in
+    or out, the sheet reads "Read from {label}", one line of counts ("1
+    vault · 2 PSBTs · 4 other files") and every vault and file read, each
+    with a checkbox, all ticked, a seed's file too, under **Unselect all**
+    (**Select all** once none is); the settings file is not listed.
+    **Import**, disabled while nothing is ticked, brings in what is ticked: the files From the
+    stick with their wallets and keys, the vaults into Files, locked; then
+    each vault in turn takes its passphrase on the sheet, once the stick is
+    pulled, with **Unlock** and **Cancel** (left locked in Files). An
+    unlock loads the vault's wallets and keys. **Later** brings in nothing,
+    vaults included; Home leads with "Import from {label}", or after
+    Import "Unlock {name}", which opens the sheet again. Pulling the stick
+    before a choice changes nothing; with only the settings file there is
+    no sheet.
 28. **The lock, write-out and power-off sheets lead with what is kept**
     (owner, 2026-10-10; `docs/SIMPLIFY.md` §4.5). Each lists **Kept**
     first: one line per vault with its currency, and one for the files
@@ -807,7 +807,7 @@ to get it.
     small panel, keyboard reachable, a press outside closes it).
     1. **Files, both columns.** The visible button is the row's main
        action, as today: Sign, Unlock or Contents, Load the wallet, Load
-       this key, Import into the vault (or the way to a vault), Decode,
+       this key, Import into the vault, Decode,
        Check the signature, Add to signatures, the shares' restore, the
        APK row's button, Make PDF for a sheet From the stick, Add to
        vault where it is the only action. The ⋮ holds, in this order and
@@ -815,7 +815,9 @@ to get it.
        visible one), **Show as QR**, **Make PDF** (For the stick),
        **Rename** (For the stick only), **Details**, **Remove**. The
        visible **Remove** button goes. A row with no main action shows
-       only the ⋮.
+       only the ⋮. A vault action (Add to vault, Import, Sign with key)
+       is not shown, as a button or in the ⋮, while no vault is open;
+       the vault's own row keeps its Unlock (changed 2026-10-20, F60).
     2. **Rename, For the stick.** A popup, "Rename {name}": a field
        holding the name before its extension, the extension shown fixed
        after it (`.ofv` for a vault; every file keeps its own), and
@@ -882,8 +884,8 @@ to get it.
       press opens the menu and does not tick the row. A file over 18 MiB
       has one; the settings file has none.
     - For the stick keeps one of Make PDF (a sheet, online) and Show as
-      QR, as its button did. Add to vault in the ⋮ is, with no vault
-      open, the way to one (Make a vault, Unlock), as the button was.
+      QR, as its button did. Add to vault in the ⋮ is there only while
+      a vault is open (F60).
     - The Rename field takes any character and says why at once; spaces
       at the ends are dropped; the name unchanged leaves Rename disabled
       with no line. On the stick the popup checks only the name's form:
@@ -950,28 +952,31 @@ from the seeds card returns to Wallets with the key still loaded.
 
 **Boot.** Firmware loads the system → the boot medium's data partition
 copied into memory, but a file over 18 MiB (F26, specified, not built:
-over 64 MiB, counted and left for a stick visit): vault files into From the stick, every other file held
-apart for the import, a PNG as what its QR codes hold → the import sheet
-over Home: "Read from {label}", what was read in one line ("1 vault ·
-2 PSBTs · 4 other files"), "Pull the stick to continue" (Pi: "Pull the SD
-card to continue") → the moment no removable partition remains (decision
-27):
-- one vault from the medium → its passphrase field on the sheet →
-  **Unlock** → everything imported (the vault's wallets and keys, the
-  stick's wallets, keys and files but a secret's file) → Wallets, on the
-  first wallet loaded that can sign here, with "Savings loaded from
-  vault.ofv" (decision 43; Home, leading by its ranking, when no wallet
-  loaded); a wrong passphrase → stays, says so;
-- several vaults → **Unlock** on each row opens the field under it; one
-  unlocked imports everything; the others stay locked in Files;
-- **Choose what to import** → the wallets found, once each, ticked, each
-  with whether it can sign here; the keys no wallet uses, ticked; every
-  file, ticked but a secret's → **Import** → what is ticked, without
-  unlocking → Home;
-- no vault → everything imported at once → Home, leading with **Sign
-  {psbt}** when one came;
-- **Not now**, or a tap beside the sheet → Home, the files waiting; Home
-  leads with **Unlock {name}**, which opens the sheet again;
+over 64 MiB, counted and left for a stick visit), a PNG as what its QR
+codes hold, nothing of it in Files yet → the import sheet over Home
+(decision 27, F60): "Read from {label}", what was read in one line ("1
+vault · 2 PSBTs · 4 other files"), every vault and file with a
+checkbox, all ticked (a seed's file too), **Unselect all** / **Select
+all** above them →
+- **Import** (disabled while nothing is ticked), the stick in or out →
+  what is ticked comes in: the files From the stick, their wallets and
+  keys through Files' loader (a seed of any kind, with the stick in,
+  loads as it is pulled), the vaults into
+  Files, locked → with no vault, Home, leading with **Sign {psbt}** when
+  one came; with vaults, each in turn on the sheet: its name, "Pull the
+  stick to continue" (Pi: "Pull the SD card to continue") while it is
+  in, then its passphrase field with **Unlock** and **Cancel** →
+  **Unlock** loads its wallets and keys (a key loaded from a file
+  already is not loaded twice) → the next vault, or, after the last,
+  Wallets, on the first wallet loaded that can sign here, with "Savings
+  loaded from vault.ofv" (decision 43; Home when no wallet loaded); a
+  wrong passphrase → stays, says so; **Cancel** → the vault stays in
+  Files, locked → the next vault, or Home;
+- **Later**, or a tap beside the sheet → Home, nothing brought in; Home
+  leads with **Import from {label}** (after Import, **Unlock {name}**),
+  which opens the sheet again; with the stick still in, the stick visit
+  brings in what it ticks;
+- the stick pulled before a choice → the sheet stays as it is;
 - nothing on the medium but the settings file → no sheet; Home.
 
 **Unlock.** Choose a vault (its memory need shown first) → passphrase →

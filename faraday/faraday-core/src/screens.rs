@@ -1059,21 +1059,10 @@ fn home_jobs(app: &Faraday) -> Vec<(Option<Going>, Lead)> {
             ),
         ));
     }
-    // Rule 3: an import waiting. Put off with the stick's vault locked,
-    // it is that vault's Unlock, on the sheet (§4.4).
+    // Rule 3: an import waiting (F60). Put off after Import with a vault
+    // it brought still locked, it is that vault's Unlock, on the sheet.
     if let Some(imp) = app.import.as_ref() {
-        let lead = if app.import_stick_present() {
-            (
-                app.medium.icon(),
-                fill(EN.home_job_remove_the, &[app.medium.noun()]),
-                String::new(),
-                crate::boot_import::OPEN,
-                true,
-            )
-        } else if let Some(lv) = app
-            .import_view()
-            .and_then(|v| v.vaults.into_iter().find(|v| v.open.is_none()))
-        {
+        let lead = if let Some(lv) = app.import_field() {
             (
                 Glyph::Icon(Icon::Lock),
                 fill(EN.home_job_unlock, &[&lv.title.to_string()]),
@@ -9688,14 +9677,14 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
     }
 }
 
-/// Add to vault, for an Inbox file a vault keeps; with none open, Make a
-/// vault or Unlock, which come back to Files. Returns the width used.
+/// Add to vault, for an Inbox file a vault keeps; nothing while no vault
+/// is open (F60: the vault's own row unlocks it). Returns the width used.
 fn add_to_vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, k: usize, style: Style) -> f32 {
-    let (label, action) = app.vault_way(Screen::Files).unwrap_or((
-        EN.add_to_vault_add_to.to_string(),
-        Action::Vault(crate::vaults::VaultAction::AddFile(k)),
-    ));
-    ui.button(x, y, None, 36.0, &label, style, action) + 8.0
+    if app.vault_way(Screen::Files).is_some() {
+        return 0.0;
+    }
+    let action = Action::Vault(crate::vaults::VaultAction::AddFile(k));
+    ui.button(x, y, None, 36.0, EN.add_to_vault_add_to, style, action) + 8.0
 }
 
 /// Restore the wallet, on a share of a split backup: the shares in the
@@ -9863,11 +9852,18 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 } else {
                     crate::vaults::VaultAction::ImportBackup(k)
                 };
-                // No vault open: make or unlock one, and back here.
-                let (label, action) = app
-                    .vault_way(Screen::Files)
-                    .unwrap_or((EN.files_import_into_the.to_string(), Action::Vault(action)));
-                bx += ui.button(bx, iy + 64.0, None, 36.0, &label, Style::Primary, action) + 8.0;
+                // No vault open: no button (F60).
+                if app.vault_way(Screen::Files).is_none() {
+                    bx += ui.button(
+                        bx,
+                        iy + 64.0,
+                        None,
+                        36.0,
+                        EN.files_import_into_the,
+                        Style::Primary,
+                        Action::Vault(action),
+                    ) + 8.0;
+                }
             }
             FileKind::Vault => {
                 let files = app.vault_files();
@@ -9980,14 +9976,18 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 ) + 8.0;
             }
             FileKind::Apk => match app.apk_files_row(k) {
-                crate::apk::Row::Sign => {
-                    let (label, action) = app.vault_way(Screen::Files).unwrap_or((
-                        EN.apk_sign_with_key.to_string(),
+                crate::apk::Row::Sign if app.vault_way(Screen::Files).is_none() => {
+                    bx += ui.button(
+                        bx,
+                        iy + 64.0,
+                        None,
+                        36.0,
+                        EN.apk_sign_with_key,
+                        Style::Primary,
                         Action::Vault(crate::vaults::VaultAction::ApkFromFiles(k)),
-                    ));
-                    bx +=
-                        ui.button(bx, iy + 64.0, None, 36.0, &label, Style::Primary, action) + 8.0;
+                    ) + 8.0;
                 }
+                crate::apk::Row::Sign => {}
                 crate::apk::Row::Back => {
                     bx += ui.button(
                         bx,
@@ -10949,14 +10949,11 @@ type Note = Option<(String, osk_ui::Color)>;
 fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note) {
     let mut out: Vec<(String, Style, Action)> = Vec::new();
     let mut note = None;
-    // With no vault open, what goes into one offers Make a vault or
-    // Unlock instead, which come back to Files.
-    let into_vault = |label: &str, style, action| {
-        let (label, action) = app
-            .vault_way(Screen::Files)
-            .unwrap_or((label.to_string(), action));
-        (label, style, action)
-    };
+    // What goes into a vault shows only while one is open (F60); the
+    // vault's own row unlocks it.
+    let vault_open = app.vault_way(Screen::Files).is_none();
+    let into_vault =
+        |label: &str, style, action| vault_open.then(|| (label.to_string(), style, action));
     let add_to_vault = |style| {
         into_vault(
             EN.inbox_actions_add_to_vault,
@@ -10983,7 +10980,7 @@ fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note)
             } else {
                 crate::vaults::VaultAction::ImportBackup(k)
             };
-            out.push(into_vault(
+            out.extend(into_vault(
                 EN.inbox_actions_import,
                 Style::Primary,
                 Action::Vault(action),
@@ -11028,7 +11025,7 @@ fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note)
                 Action::LoadWallet(k),
             ));
         }
-        FileKind::Text => out.push(add_to_vault(Style::Primary)),
+        FileKind::Text => out.extend(add_to_vault(Style::Primary)),
         FileKind::Transaction => {
             out.push((
                 EN.inbox_actions_decode.into(),
@@ -11069,7 +11066,7 @@ fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note)
             ));
         }
         FileKind::Apk => match app.apk_files_row(k) {
-            crate::apk::Row::Sign => out.push(into_vault(
+            crate::apk::Row::Sign => out.extend(into_vault(
                 EN.apk_sign_with_key,
                 Style::Primary,
                 Action::Vault(crate::vaults::VaultAction::ApkFromFiles(k)),

@@ -103,6 +103,57 @@ fn a_seed_words_file_goes_into_the_vault_as_a_key() {
     assert_eq!(app.vaults.open[0].contents.of(kind::KEY).count(), keys + 1);
 }
 
+/// Whether Files offers `action` anywhere down the page, moved down by
+/// key as a person would, each glide ticked through.
+fn files_offers(app: &mut Faraday, action: Action) -> bool {
+    app.press(Action::Nav(Screen::Files));
+    let mut now = 20_000;
+    for _ in 0..20 {
+        let _ = app.frame();
+        if app.offers(action) {
+            return true;
+        }
+        app.event(Event::Key(Key::Down));
+        for _ in 0..12 {
+            now += 16;
+            app.event(Event::Tick { now_ms: now });
+        }
+    }
+    false
+}
+
+/// With every vault locked, a text file's row offers nothing for a vault:
+/// not Add to vault, not the vault's Unlock, which stays on the vault's
+/// own row (F60). Once the vault is open, Add to vault is there.
+#[test]
+fn a_text_file_offers_add_to_vault_only_while_a_vault_is_open() {
+    let vault = ("vault.ofv".to_string(), testkit::test_vault().unwrap());
+    let codes = ("gmail-codes.txt".to_string(), CODES.as_bytes().to_vec());
+    let mut app = with_files(vec![vault, codes.clone()]);
+    let k = at(&app, "gmail-codes.txt");
+    assert!(!files_offers(&mut app, Action::Vault(V::AddFile(k))));
+    assert!(!files_offers(
+        &mut app,
+        Action::Vault(V::OpenFrom(0, Screen::Files))
+    ));
+    assert!(
+        files_offers(&mut app, Action::Vault(V::Open(0))),
+        "the vault's own row unlocks it"
+    );
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        !texts
+            .iter()
+            .any(|t| t == "Add to vault" || t == "Unlock vault.ofv"),
+        "{texts:?}"
+    );
+
+    let mut app = unlocked(vec![codes]);
+    let k = at(&app, "gmail-codes.txt");
+    assert!(files_offers(&mut app, Action::Vault(V::AddFile(k))));
+}
+
 #[test]
 fn without_an_open_vault_nothing_is_added() {
     let mut app = with_files(vec![("gmail-codes.txt".into(), CODES.into())]);

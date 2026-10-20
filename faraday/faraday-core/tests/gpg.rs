@@ -1105,6 +1105,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     app.storage(StorageEvent::Sticks(Vec::new()));
     let _ = app.frame();
     assert_eq!(app.sheet, Some(Sheet::Import));
+    app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
     type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Import(
         faraday_core::boot_import::ImportAction::Submit,
@@ -1174,5 +1175,76 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
             "{name} is not offered: {page}"
         );
         assert!(app.signature_code(name).is_some(), "{name}");
+    }
+}
+
+/// The same files on the boot stick beside its vault: the boot sheet lists
+/// them ticked, Import brings them into Files with the vault, the vault
+/// unlocked on the sheet, and the GPG key's Sign a file lists both (F60).
+#[test]
+fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
+    let mut app = Faraday::new();
+    display(&mut app);
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    app.storage(StorageEvent::Clock { unix_secs: CLOCK });
+    app.vaults.ms_per_unit = Some(180);
+    let files = vec![
+        (
+            "SHA256SUMS".to_string(),
+            b"# Faraday 0.1.5, commit 70193d94\n3bdf73f7  faraday-stick-0.1.5-x86_64-uefi.img.xz\n"
+                .to_vec(),
+        ),
+        (
+            "v0.1.5.tag".to_string(),
+            b"object 70193d94\ntype commit\ntag v0.1.5\n\nFaraday 0.1.5\n".to_vec(),
+        ),
+    ];
+    let mut boot = files.clone();
+    boot.push(("vault.ofv".to_string(), testkit::test_vault().unwrap()));
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
+        id: "B".into(),
+        label: "FARADAY".into(),
+        boot: true,
+        files: boot
+            .iter()
+            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .collect(),
+    }]));
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::Read { stick, name } = c {
+            let bytes = boot.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+            app.storage(StorageEvent::Read { stick, name, bytes });
+        }
+    }
+    assert_eq!(app.sheet, Some(Sheet::Import));
+    let view = app.import_view().unwrap();
+    assert!(view.files.iter().all(|f| f.chosen), "{view:?}");
+    app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
+    for (name, bytes) in &files {
+        let item = app.inbox.iter().find(|i| i.name == *name);
+        assert_eq!(item.map(|i| &i.bytes[..]), Some(&bytes[..]), "{name}");
+    }
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let _ = app.frame();
+    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    app.press(Action::Import(
+        faraday_core::boot_import::ImportAction::Submit,
+    ));
+    settle(&mut app, 1);
+    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(4)));
+    keep_the_time(&mut app);
+    make_key(&mut app, "Release");
+    app.press(Action::Vault(V::GpgSignPick));
+    let page = drawn(&mut app);
+    for (name, bytes) in &files {
+        assert!(
+            page.contains(&format!("{name}·{}B", bytes.len())),
+            "{name} is not offered: {page}"
+        );
     }
 }

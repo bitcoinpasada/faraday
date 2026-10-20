@@ -1,13 +1,13 @@
-//! The boot import's sheet (`boot_import`): with the stick in, what was
-//! read and that the stick is to be pulled; once it is out, the vaults it
-//! brought, each unlocked on the sheet, and "Choose what to import", which
-//! lists the wallets, keys and files with a checkbox each.
+//! The boot import's sheet (`boot_import`, F60): what was read from the
+//! boot stick, each file with its checkbox, with Later and Import; after
+//! Import, each vault it brought in turn with its passphrase field, once
+//! the stick is out, and Cancel.
 
 use crate::strings::EN;
 use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
 
-use crate::boot_import::{ImportAction as I, ImportCount, ImportView};
+use crate::boot_import::{ImportAction as I, ImportCount, ImportVault, ImportView};
 use crate::compact::{buttons, scroll_sheet, sheet_head};
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui, W};
@@ -25,11 +25,9 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         return;
     };
     let label = imp.label.clone();
-    let choosing = imp.choosing;
     let count = app.import_count().unwrap_or_default();
-    let view = (!app.import_stick_present())
-        .then(|| app.import_view())
-        .flatten();
+    let view = app.import_view().unwrap_or_default();
+    let field = app.import_field();
     let place = if ui.compact {
         ((8.0, w - 16.0), 8.0, 16.0)
     } else {
@@ -42,9 +40,9 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         h,
         place.1,
         place.2,
-        &mut |ui, x, y, iw| match &view {
-            None => present(app, ui, x, y, iw, &label, &count),
-            Some(v) => body(app, ui, x, y, iw, &label, &count, v, choosing),
+        &mut |ui, x, y, iw| match &field {
+            None => picker(app, ui, x, y, iw, &label, &count, &view),
+            Some(v) => unlock(app, ui, x, y, iw, &label, v),
         },
     );
 }
@@ -60,13 +58,10 @@ fn head(ui: &mut Ui, x: f32, y: f32, w: f32, icon: Glyph, title: &str) -> f32 {
     46.0
 }
 
-/// "1 vault · 2 PSBTs · 4 other files". Returns its height.
-fn counted(ui: &mut Ui, x: f32, y: f32, w: f32, c: &ImportCount) -> f32 {
-    ui.wrap(x, y, w, 14.0, W::S, TEXT, &c.line()) + 16.0
-}
-
-/// The stick is still in: what was read, and that it is to be pulled.
-fn present(
+/// What was read: "1 vault · 2 other files", every file with its
+/// checkbox, Later and Import. Returns its height.
+#[allow(clippy::too_many_arguments)]
+fn picker(
     app: &Faraday,
     ui: &mut Ui,
     x: f32,
@@ -74,6 +69,7 @@ fn present(
     w: f32,
     label: &str,
     c: &ImportCount,
+    v: &ImportView,
 ) -> f32 {
     let mut cy = y;
     cy += head(
@@ -84,58 +80,64 @@ fn present(
         app.medium.icon(),
         &fill(EN.boot_import_read_from, &[label]),
     );
-    cy += counted(ui, x, cy, w, c);
-    let pull = fill(EN.boot_import_pull_the, &[app.medium.noun()]);
-    cy += stick_banner(ui, x, cy, w, &pull);
+    cy += ui.wrap(x, cy, w, 14.0, W::S, TEXT, &c.line()) + 16.0;
+    // Unselect all while any is ticked; Select all once none is.
+    let any = v.files.iter().any(|f| f.chosen);
+    if v.files.iter().any(|f| f.enabled) {
+        let t = if any {
+            EN.visit_unselect_all
+        } else {
+            EN.visit_select_all
+        };
+        let tw = ui.measure(13.0, W::S, t);
+        ui.text_mid(x, cy - 6.0, 30.0, 13.0, W::S, ACCENT, t);
+        ui.hit(x - 6.0, cy - 6.0, tw + 12.0, 30.0, ia(I::All));
+        cy += 30.0;
+    }
+    cy += files(ui, x, cy, w, v);
     cy += buttons(
         ui,
         x,
         cy,
         w,
-        &[(EN.boot_import_not_now, Style::Secondary, ia(I::Later))],
+        &[
+            (EN.boot_import_later, Style::Secondary, ia(I::Later)),
+            (
+                EN.boot_import_import,
+                if any { Style::Primary } else { Style::Disabled },
+                ia(I::Go),
+            ),
+        ],
     );
     cy - y
 }
 
-/// A group's name over its rows.
-fn group(ui: &mut Ui, x: f32, y: f32, w: f32, name: &str) -> f32 {
-    ui.rule(x, y, w, INNER);
-    ui.text(x, y + 14.0, 13.0, W::S, MUTED, name);
-    40.0
-}
-
-/// The stick is out: its vaults, each unlocked here; and, once asked
-/// for, the wallets, the keys and the files to import.
+/// A vault the import brought: its row, its passphrase field once the
+/// stick is out, Cancel and Unlock. Returns its height.
 #[allow(clippy::too_many_arguments)]
-fn body(
+fn unlock(
     app: &Faraday,
     ui: &mut Ui,
     x: f32,
     y: f32,
     w: f32,
     label: &str,
-    c: &ImportCount,
-    v: &ImportView,
-    choosing: bool,
+    vault: &ImportVault,
 ) -> f32 {
     let may = app.may_load_keys();
-    let field = app.import_field();
+    let mut foot: Vec<(&str, Style, Action)> =
+        vec![(EN.boot_import_cancel, Style::Secondary, ia(I::Cancel))];
+    if app.vaults.working != Some(Work::Unlock) {
+        foot.push((
+            EN.boot_import_unlock,
+            if may { Style::Primary } else { Style::Disabled },
+            ia(I::Submit),
+        ));
+    }
     // A small panel with its keyboard up has room for the field alone.
-    if ui.compact
-        && app.osk_shown()
-        && let Some(vault) = field.and_then(|i| v.vaults.get(i))
-    {
+    if ui.compact && app.osk_shown() {
         let cy = y + typing(app, ui, x, y, w, &vault.title, vault.file);
-        let foot = [
-            (EN.boot_import_not_now, Style::Secondary, ia(I::Later)),
-            (EN.boot_import_unlock, Style::Primary, ia(I::Submit)),
-        ];
-        let n = if app.vaults.working == Some(Work::Unlock) {
-            1
-        } else {
-            2
-        };
-        return cy + buttons(ui, x, cy, w, &foot[..n]) - y;
+        return cy + buttons(ui, x, cy, w, &foot) - y;
     }
     let mut cy = y;
     cy += head(
@@ -146,104 +148,21 @@ fn body(
         Icon::Download.into(),
         &fill(EN.boot_import_read_from, &[label]),
     );
-    cy += counted(ui, x, cy, w, c);
     if !may {
         let pull = fill(EN.boot_import_pull_the, &[app.medium.noun()]);
         cy += stick_banner(ui, x, cy, w, &pull);
     }
-
-    // The vaults the stick brought; the passphrase field under the one
-    // being unlocked.
-    let several = v.vaults.len() > 1;
-    for (i, vault) in v.vaults.iter().enumerate() {
-        let open = vault.open.is_some();
-        let button = several && !open && field != Some(i);
-        let (bw, room) = if button {
-            let bw = ui.measure(13.0, W::S, EN.boot_import_unlock) + 32.0;
-            (bw, w - 28.0 - bw - 12.0)
-        } else {
-            (0.0, w - 28.0)
-        };
-        ui.icon(
-            x - 2.0,
-            cy + 2.0,
-            22.0,
-            Icon::Lock,
-            12.0,
-            if open { OK } else { MUTED },
-        );
-        let name = ui.fit(14.0, W::M, &vault.title, room);
-        ui.text(x + 28.0, cy + 2.0, 14.0, W::M, TEXT, &name);
-        let line = match &vault.open {
-            Some(slot) => fill(EN.boot_import_open, &[&slot.to_string()]),
-            None => fill(
-                EN.boot_import_locked,
-                &[&crate::vaults::file_text(vault.len).to_string()],
-            ),
-        };
-        let line = ui.fit(12.0, W::R, &line, room);
-        ui.text(
-            x + 28.0,
-            cy + 24.0,
-            12.0,
-            W::R,
-            if open { OK } else { MUTED },
-            &line,
-        );
-        if button {
-            ui.button(
-                x + w - bw,
-                cy + 4.0,
-                Some(bw),
-                36.0,
-                EN.boot_import_unlock,
-                if may {
-                    Style::Secondary
-                } else {
-                    Style::Disabled
-                },
-                ia(I::Unlock(i)),
-            );
-        }
-        cy += 52.0;
-        if field == Some(i) {
-            cy += passphrase(app, ui, x, cy, w, vault.file);
-        }
-    }
-
-    // What to import, ticked, once asked for.
-    if !choosing {
-        let t = EN.boot_import_choose;
-        let tw = ui.measure(13.0, W::S, t);
-        ui.text_mid(x, cy, 36.0, 13.0, W::S, ACCENT, t);
-        ui.hit(x - 6.0, cy, tw + 12.0, 36.0, ia(I::Choose));
-        cy += 44.0;
-    } else {
-        cy += lists(ui, x, cy, w, v);
-    }
-
-    // Not now; Import, for what is ticked without unlocking, once the
-    // lists are shown; Unlock under a field. A small panel has room for
-    // two, and a tap beside the sheet is Not now there.
-    let mut foot: Vec<(&str, Style, Action)> = Vec::new();
-    if !(ui.compact && choosing) {
-        foot.push((EN.boot_import_not_now, Style::Secondary, ia(I::Later)));
-    }
-    if choosing {
-        let style = match (may, field.is_none()) {
-            (false, _) => Style::Disabled,
-            (true, true) => Style::Primary,
-            (true, false) => Style::Secondary,
-        };
-        foot.push((EN.boot_import_import, style, ia(I::Go)));
-    }
-    if field.is_some() && app.vaults.working != Some(Work::Unlock) {
-        foot.push((
-            EN.boot_import_unlock,
-            if may { Style::Primary } else { Style::Disabled },
-            ia(I::Submit),
-        ));
-    }
+    ui.icon(x - 2.0, cy + 2.0, 22.0, Icon::Lock, 12.0, MUTED);
+    let name = ui.fit(14.0, W::M, &vault.title, w - 28.0);
+    ui.text(x + 28.0, cy + 2.0, 14.0, W::M, TEXT, &name);
+    let line = fill(
+        EN.boot_import_locked,
+        &[&crate::vaults::file_text(vault.len).to_string()],
+    );
+    let line = ui.fit(12.0, W::R, &line, w - 28.0);
+    ui.text(x + 28.0, cy + 24.0, 12.0, W::R, MUTED, &line);
+    cy += 52.0;
+    cy += passphrase(app, ui, x, cy, w, vault.file);
     cy += buttons(ui, x, cy, w, &foot);
     cy - y
 }
@@ -318,102 +237,32 @@ fn unlocking(app: &Faraday, file: usize) -> String {
     fill(EN.boot_import_unlocking, &[&time.to_string()])
 }
 
-/// The wallets, the keys no wallet here uses, and every file, each with
-/// its checkbox. Returns their height.
-fn lists(ui: &mut Ui, x: f32, y: f32, w: f32, v: &ImportView) -> f32 {
+/// Every file the stick held, each with its checkbox. Returns their
+/// height.
+fn files(ui: &mut Ui, x: f32, y: f32, w: f32, v: &ImportView) -> f32 {
     let mut cy = y;
-    // The wallets, with whether they sign here and what carries them.
-    if !v.wallets.is_empty() {
-        cy += group(ui, x, cy, w, EN.boot_import_wallets);
-        for (i, wt) in v.wallets.iter().enumerate() {
-            let top = cy;
-            ui.checkbox(x, cy + 4.0, wt.chosen, true);
-            let rx = x + 28.0;
-            ui.icon(rx, cy + 2.0, 20.0, Icon::Wallet, 11.0, MUTED);
-            let tx = rx + 26.0;
-            let tw = x + w - tx;
-            let name = ui.fit(14.0, W::S, &wt.name, tw);
-            ui.text(tx, cy + 2.0, 14.0, W::S, TEXT, &name);
-            cy += 24.0;
-            let status = wt.status();
-            let tone = if wt.can_sign() {
-                OK
-            } else if wt.here > 0 {
-                WARN
-            } else {
-                MUTED
-            };
-            let shape = format!("{} · ", wt.shape);
-            let (shw, stw) = (
-                ui.measure(12.0, W::R, &shape),
-                ui.measure(12.0, W::S, &status),
-            );
-            if shw + stw <= tw {
-                ui.text(tx, cy, 12.0, W::R, MUTED, &shape);
-                ui.text(tx + shw, cy, 12.0, W::S, tone, &status);
-                cy += 20.0;
-            } else {
-                let shape = ui.fit(12.0, W::R, &wt.shape, tw);
-                ui.text(tx, cy, 12.0, W::R, MUTED, &shape);
-                cy += 20.0;
-                let status = ui.fit(12.0, W::S, &status, tw);
-                ui.text(tx, cy, 12.0, W::S, tone, &status);
-                cy += 20.0;
-            }
-            if !wt.files.is_empty() {
-                cy += ui.wrap(tx, cy, tw, 12.0, W::R, DIM, &wt.files.join(" · ")) + 2.0;
-            }
-            ui.hit(x - 4.0, top, w + 8.0, cy - top, ia(I::Wallet(i)));
-            cy += 12.0;
+    for (i, f) in v.files.iter().enumerate() {
+        let top = cy;
+        ui.checkbox(x, cy + 4.0, f.chosen, f.enabled);
+        let tx = x + 28.0;
+        let tw = w - 28.0;
+        let fg = if f.enabled { TEXT } else { DIM };
+        let name = ui.fit(14.0, W::M, &f.name, tw);
+        ui.text(tx, cy + 2.0, 14.0, W::M, fg, &name);
+        cy += 24.0;
+        cy += ui.wrap(
+            tx,
+            cy,
+            tw,
+            12.0,
+            W::R,
+            if f.enabled { MUTED } else { DIM },
+            &f.line,
+        ) + 2.0;
+        if f.enabled {
+            ui.hit(x - 4.0, top, w + 8.0, cy - top, ia(I::File(i)));
         }
-    }
-
-    // The keys no wallet here uses.
-    if !v.keys.is_empty() {
-        cy += group(ui, x, cy, w, EN.boot_import_keys_with);
-        for (i, k) in v.keys.iter().enumerate() {
-            let top = cy;
-            ui.checkbox(x, cy + 4.0, k.chosen, true);
-            let rx = x + 28.0;
-            ui.icon(rx, cy + 2.0, 20.0, Icon::Keys, 11.0, MUTED);
-            let tx = rx + 26.0;
-            let tw = x + w - tx;
-            ui.text(tx, cy + 2.0, 14.0, W::M, TEXT, &k.fingerprint);
-            cy += 24.0;
-            if !k.files.is_empty() {
-                cy += ui.wrap(tx, cy, tw, 12.0, W::R, DIM, &k.files.join(" · ")) + 2.0;
-            }
-            ui.hit(x - 4.0, top, w + 8.0, cy - top, ia(I::Key(i)));
-            cy += 12.0;
-        }
-    }
-
-    // Every file, for From the stick.
-    if !v.files.is_empty() {
-        cy += group(ui, x, cy, w, EN.boot_import_files);
-        for (i, f) in v.files.iter().enumerate() {
-            let top = cy;
-            ui.checkbox(x, cy + 4.0, f.chosen, f.enabled);
-            let tx = x + 28.0;
-            let tw = w - 28.0;
-            let fg = if f.enabled { TEXT } else { DIM };
-            let name = ui.fit(14.0, W::M, &f.name, tw);
-            ui.text(tx, cy + 2.0, 14.0, W::M, fg, &name);
-            cy += 24.0;
-            cy += ui.wrap(
-                tx,
-                cy,
-                tw,
-                12.0,
-                W::R,
-                if f.enabled { MUTED } else { DIM },
-                &f.line,
-            ) + 2.0;
-            if f.enabled {
-                ui.hit(x - 4.0, top, w + 8.0, cy - top, ia(I::File(i)));
-            }
-            cy += 10.0;
-        }
+        cy += 10.0;
     }
     cy - y
 }
