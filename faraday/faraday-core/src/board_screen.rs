@@ -1165,8 +1165,8 @@ fn add_place(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     h
 }
 
-/// One entry of the list at (x, y), `w` wide: its chip, its count at the
-/// right, and under it the keys a share carries. Returns its height.
+/// One entry of the list at (x, y), `w` wide: its chip and its count at
+/// the right. Returns its height.
 fn entry(
     ui: &mut Ui,
     fr: &mut Frame,
@@ -1232,22 +1232,6 @@ fn entry(
         ui.hit(x + w - off_w, y, off_w, ch, a);
     }
     let mut cy = y + ch + under;
-    if !e.keys.is_empty() {
-        // The keys a share carries, by fingerprint, laid left to right.
-        let line = ui.line(tokens::CAPTION, W::M);
-        let (left, right) = (x + tokens::BOARD_PAD, x + w);
-        let (mut kx, mut ky) = (left, cy + tokens::BOARD_CHIP_GAP);
-        for k in &e.keys {
-            let kw = ui.measure(tokens::CAPTION, W::M, k);
-            if kx > left && kx + kw > right {
-                kx = left;
-                ky += line;
-            }
-            ui.text(kx, ky, tokens::CAPTION, W::M, MUTED, k);
-            kx += kw + tokens::GAP;
-        }
-        cy = ky + line + tokens::BOARD_CHIP_GAP;
-    }
     if let Some(line) = &e.holds {
         cy += tokens::BOARD_CHIP_GAP;
         cy += ui.wrap(x, cy, w, tokens::CAPTION, W::R, WARN, line) + tokens::BOARD_CHIP_GAP;
@@ -1283,9 +1267,9 @@ fn group(ui: &mut Ui, label: &str, x: f32, y: f32) -> f32 {
     tokens::BOARD_ZONE_LABEL
 }
 
-/// The list: the seeds, the passphrases, the description and its
-/// shares with the keys left off each, the vaults with **+ vault**, and
-/// the watch-only software. Returns its height.
+/// The list: the seeds, the passphrases, the description with **Add
+/// partial descriptions to this backup** under it, the vaults with
+/// **+ vault**, and the watch-only software. Returns its height.
 fn list(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f32 {
     let gap = tokens::BOARD_CHIP_GAP;
     let mut cy = y;
@@ -1305,59 +1289,23 @@ fn list(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f
     if let Some(whole) = v.description.first() {
         cy += entry(ui, fr, whole, x, cy, w, None) + gap;
     }
-    if let Some((omit, most)) = v.omit {
+    if v.splits {
+        // One button hands a share to every place, or takes them all off
+        // (`docs/BACKUP-FLOW.md` §19.19 item 1).
+        let label = if v.partials {
+            EN.board_partials_remove
+        } else {
+            EN.board_partials_add
+        };
         cy += gap;
-        cy += ui.wrap(
+        cy += faraday_ui::parts::wrap_buttons(
+            ui,
             x,
             cy,
             w,
-            tokens::CAPTION,
-            W::R,
-            MUTED,
-            EN.board_keys_left_off,
+            tokens::BOARD_CHIP,
+            &[(label, Style::Secondary, Action::Board(BoardPress::Partials))],
         ) + gap;
-        let side = tokens::BOARD_CHIP;
-        // Back up's keys left off, or the flow's own (§17.7).
-        let omit_to = |n: usize| match v.flow {
-            None => Action::BOmit(n),
-            Some(_) => Action::Flow(crate::backup_flow_steps::FlowAction::Plan(
-                crate::PlanPress::Omit(u8::try_from(n).unwrap_or(u8::MAX)),
-            )),
-        };
-        let minus = omit_to(omit.saturating_sub(1));
-        let plus = omit_to((omit + 1).min(most));
-        let style = |on: bool| {
-            if on {
-                Style::Secondary
-            } else {
-                Style::Disabled
-            }
-        };
-        ui.button(x, cy, Some(side), side, "-", style(omit > 0), minus);
-        let n = omit.to_string();
-        let nw = ui.measure(tokens::LABEL, W::S, &n);
-        ui.text_mid(
-            x + side + (side - nw) / 2.0,
-            cy,
-            side,
-            tokens::LABEL,
-            W::S,
-            TEXT,
-            &n,
-        );
-        ui.button(
-            x + 2.0 * side,
-            cy,
-            Some(side),
-            side,
-            "+",
-            style(omit < most),
-            plus,
-        );
-        cy += side + gap;
-        for e in v.description.iter().skip(1) {
-            cy += entry(ui, fr, e, x, cy, w, None) + gap;
-        }
         // The Learn page on shares, as the description card had it.
         let label = EN.plan_what_is_a_share;
         let bw = (ui.measure(tokens::CAPTION, W::S, label) + 2.0 * tokens::BOARD_PAD).min(w);
@@ -1500,6 +1448,52 @@ pub(crate) fn sees_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     });
 }
 
+/// The sheet after partial descriptions are added
+/// (`docs/BACKUP-FLOW.md` §19.19 item 4): each place holds a part; where
+/// the whole is still kept, **Take it off every place**; **Keep it**. It
+/// reads what the press worked out.
+pub(crate) fn partials_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+    let Some((line, off)) = app.board_state().and_then(|st| st.partials.clone()) else {
+        return;
+    };
+    let place = if ui.compact {
+        (tokens::GAP, w - 2.0 * tokens::GAP)
+    } else {
+        let sw = (w - 2.0 * tokens::BOARD_GAP).min(tokens::BOARD_POPUP_WIDTH * 2.0);
+        ((w - sw) / 2.0, sw)
+    };
+    let pad = tokens::GRID * 2.0;
+    crate::compact::scroll_sheet(ui, place, h, tokens::GAP, pad, &mut |ui, x, y, iw| {
+        let mut cy = y;
+        cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::File, TEXT, EN.board_partials_each);
+        let rest = line
+            .strip_prefix(EN.board_partials_each)
+            .map_or(line.as_str(), str::trim);
+        if !rest.is_empty() {
+            cy += ui.wrap(x, cy, iw, tokens::LABEL, W::R, TEXT, rest) + tokens::GAP;
+        }
+        let keep = (
+            EN.board_keep_it,
+            Style::Primary,
+            Action::Board(BoardPress::PartialsKeep),
+        );
+        let buttons: Vec<(&str, Style, Action)> = if off {
+            vec![
+                (
+                    EN.board_take_it_off_every,
+                    Style::Secondary,
+                    Action::Board(BoardPress::PartialsWholeOff),
+                ),
+                keep,
+            ]
+        } else {
+            vec![keep]
+        };
+        cy += crate::compact::buttons(ui, x, cy, iw, &buttons);
+        cy - y
+    });
+}
+
 /// The board on a plan card (`docs/BACKUP-FLOW.md` §19.15): the places
 /// one under another, each a row the column's width, **+ place** after
 /// them, the software place last, the plan's three checks and the check
@@ -1536,7 +1530,8 @@ pub(crate) fn board(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += place(ui, &mut fr, &v, cv, x, cy, w) + gap;
     }
     // A place may be added after the lock too (§17.8).
-    if v.custom {
+    // Not at one place per key (§19.19).
+    if v.custom && v.room {
         cy += add_place(ui, x, cy, w) + gap;
     }
     if v.software.is_some() {

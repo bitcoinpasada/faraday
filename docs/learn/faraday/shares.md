@@ -10,7 +10,7 @@ The seeds sign. The description finds the coins. A multisig backup needs both: a
 
 A share is the wallet description with some keys left off. Faraday writes each share as a multisig config holding the keys it keeps, the quorum and the script type, on its own sheet.
 
-The backup plan's Places question gives each place either the whole wallet sheet or its own share. The whole sheet is the default. With shares, the slider sets how many keys are left off each share.
+The whole wallet sheet at each place is the default. On the backup board, Add partial descriptions to this backup gives every place one share: Faraday sets how many keys are left off each share, as many as it can up to m - 1, and chooses which share goes to which place so that any group of places able to spend can also rebuild the description. Remove partial descriptions takes every share off.
 
 ## What leaving keys off gives
 

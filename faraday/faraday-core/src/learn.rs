@@ -199,17 +199,18 @@ impl Faraday {
     /// Opens the Learn sheet on the page about shares; closing it leaves
     /// the screen as it was.
     pub(crate) fn learn_shares(&mut self) {
+        self.learn_on(shares_page());
+    }
+
+    /// The Learn sheet on `page`: on its tab where the screen's pages
+    /// have it, else on it alone.
+    pub(crate) fn learn_on(&mut self, page: &'static LearnPage) {
         self.learn_open();
-        if let Some(i) = self
-            .learn
-            .pages
-            .iter()
-            .position(|p| std::ptr::eq(*p, shares_page()))
-        {
+        if let Some(i) = self.learn.pages.iter().position(|p| std::ptr::eq(*p, page)) {
             self.learn.page = i;
         } else {
             self.learn = LearnState {
-                pages: vec![shares_page()],
+                pages: vec![page],
                 ..LearnState::default()
             };
             self.sheet = Some(crate::Sheet::Learn);

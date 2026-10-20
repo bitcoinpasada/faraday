@@ -1941,3 +1941,20 @@ Cancel). **Cancel** at the top of every flow with a row ends it, asking
 first only when something would be lost; keys, vaults and the Outbox
 are never lost by it. Not a hold on the sidebar row: a press there only
 returns to the flow.
+
+### F52 At most one place per key; partial descriptions by one button (2026-10-19)
+
+**Why.** Places beyond the wallet's keys add nothing the plan can check,
+and handing a multisig description out as shares one by one is a puzzle
+a person should not have to solve.
+
+**Decision** (owner, 2026-10-19; `docs/BACKUP-FLOW.md` §19.19). A plan
+has at most N places, N the wallet's keys; a single key has one place.
+An extra copy is made outside the plan (copied between sticks, or by
+hand) and the plan does not track it. Partial descriptions are added to
+the whole backup by one button, **Add partial descriptions to this
+backup**: Faraday chooses how many keys each share leaves off (M − 1
+where it can) and which share goes to which place, so any M places
+rebuild the description and, where it can, no place sees the balance
+alone. Shares are no longer placed one by one, and the "Keys left off
+each share" stepper goes. Problems are warnings, never refusals (§19.5).

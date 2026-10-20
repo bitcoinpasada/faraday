@@ -2579,3 +2579,106 @@ after the name, which says typing adds to it, though typing replaces it.
 3. **Tests** (`tests/backup_board.rs`): after the press, one key typed
    gives a name of that one character; a snapshot of the name just
    pressed, and after one key.
+
+
+### 19.19 At most N places; partial descriptions by one button (owner, 2026-10-19)
+
+**At most one place per key.** A plan has at most N places, N the
+wallet's number of keys: + place is not offered once there are N, and a
+preset never makes more. A single key has one place. An extra backup
+somewhere else is a copy made outside the plan (Faraday's copy between
+sticks for files, by hand for paper), which the plan does not track.
+Fewer places than N are allowed (a place may then hold more than one
+seed). With one place, "Any one place lost" is No by the nature of a
+single place, and reads so: "No: a single place" in the muted tone, not
+as a warning.
+
+The description's shares are not dragged one by one. In Customize
+backup, one button adds them to the whole backup, and Faraday chooses
+which share goes where.
+
+1. **Add partial descriptions to this backup** (Customize backup, under
+   the list's Wallet description): every place gets one share of the
+   description; while they are on, a place added later gets its own, and
+   the button reads **Remove partial descriptions**, which takes every
+   share off. Shares are no longer offered one by one in the list, and
+   the "Keys left off each share" stepper goes.
+2. **How many keys each share leaves off:** as many as possible, and
+   never so many that a group of M places (M the wallet's quorum) cannot
+   rebuild the whole description and spend. With one seed per place the
+   most is M − 1: 1 for a 2 of 3, 2 for a 3 of 5.
+3. **Which share goes where:** Faraday tries every way of handing the
+   shares out to the places (which keys each place's share leaves off),
+   once, on the press, and keeps one where:
+   - every group of places that holds enough seeds to spend can also
+     rebuild the description from its shares and the keys of its seeds;
+   - where possible, no single place can see the balance from its own
+     share and seeds (a share at the same place as the seed of a key it
+     leaves off would let that place fill the gap).
+   It starts at M − 1 keys left off. With N places and one seed at
+   each, M − 1 always works: one share per place, any M places rebuild
+   the description, and no place sees the balance alone. With fewer
+   places than N (a place holding two seeds), the search may need fewer
+   keys left off, down to 1; if even 1 fails, the whole description is
+   kept where it is needed and the warnings say so.
+4. **The sheet after adding them:** "Each place now holds a part of the
+   description. The whole description is still kept at <places>, so the
+   balance can be seen there. Take it off any place where the balance
+   should stay hidden." with **Take it off every place** and **Keep it**.
+   Taking it off every place leaves any M places able to rebuild it.
+5. **Warnings** (never refusals, §19.5), under the board, on every
+   change:
+   - the description cannot be put back together from everything kept
+     (naming what is kept and what is missing: "the places hold Share 1
+     twice and Share 2; add Share 3 or the whole description");
+   - "Any one place lost" names the description when that is what fails;
+   - a place that can see the balance from its share and seeds, when the
+     search could not avoid it, naming the place and why;
+   - a place that holds no seed: "Place 2 holds no seed".
+   The sheet when a drop makes a place able to see the balance (Customize
+   backup, owner 2026-10-19) stays, for seeds dragged by hand.
+6. **Tests:** + place is not offered at N places, and no preset makes
+   more; a single key's one place reads "Any one place lost: No: a
+   single place" not as a warning; a 2 of 3 with three places: one share
+   at each, each leaving off 1 key, no place can see the balance, any 2
+   places rebuild the description; a 3 of 5 with five places: each
+   share leaves off 2 keys, any 3 places rebuild it, no place sees the
+   balance; a 2 of 3 with two places (one holding two seeds): the rules
+   hold with fewer keys left off; Take it off every place leaves the
+   description only in shares and any M places still rebuild it; Remove
+   partial descriptions takes every share off; the result is the same
+   on every run.
+7. **Extra copies, after the wallet is made** (owner, 2026-10-19). The
+   backup's last card (the wallet flow's Done, and Back up's checklist
+   once done) carries, in its guided walk-through only (shown in Guided,
+   hidden in Steps only), one line: "More copies can be made once the
+   wallet is made: a vault copied to another stick, words copied by hand.
+   They are not part of the plan." and a Learn link **Extra copies**: a
+   new Faraday Learn page (`docs/learn/faraday/extra-copies.md`) saying
+   how: a vault's file copied to another stick with Copy between sticks
+   (the visit), the words written again by hand from the paper, the
+   description saved again; that these copies are not checked by the
+   plan; and that each is as sensitive as what it copies.
+
+**Built (2026-10-19), with what the building decided:**
+
+- At most N places: the board's **+ place** stops at N (`plan::max_places`)
+  and every preset makes one place for a single key and one per seed for a
+  multisig. A plan saved with more places keeps them and is not cut down.
+  A single key's passphrase, with no second place, goes into the vault
+  where the preset has one, else beside its words, which the board warns
+  of (§19.5).
+- The search (`plan::hand_out`) tries, in a fixed order, each place's
+  share from the place's own number on, from `M − 1` keys left off down
+  to 1, under a budget of 20 000 hand-outs; it keeps the first where
+  every group of places holding `M` seeds, and every group of `M`
+  places, rebuilds the description, and no place that cannot spend sees
+  the balance. A place that can spend sees the balance anyway and is not
+  held to the second rule. Failing the second rule it keeps the first
+  hand-out that rebuilds; failing both, one share per place in order
+  with a key left off, and the warnings say what is missing. A seed in a
+  vault whose stick the place keeps counts as there.
+- Take it off every place takes the whole description off each place's
+  paper and sticks; a vault and the software keep theirs. It is offered
+  only where the hand-out rebuilds.
+- The checklist's Shares card still sets the keys left off.

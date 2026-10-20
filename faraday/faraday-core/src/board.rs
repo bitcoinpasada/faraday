@@ -131,6 +131,14 @@ pub enum BoardPress {
     SeesKeep,
     /// **Take it off**, on that sheet: the drop undone.
     SeesUndo,
+    /// **Add partial descriptions to this backup**, or **Remove partial
+    /// descriptions** while they are on (`docs/BACKUP-FLOW.md` §19.19).
+    Partials,
+    /// **Take it off every place**, on the sheet after adding them: the
+    /// whole description off every place.
+    PartialsWholeOff,
+    /// **Keep it**, on that sheet.
+    PartialsKeep,
 }
 
 /// Whose plan the board edits: Back up's (after the lock, its wallet's
@@ -163,6 +171,9 @@ pub struct BoardState {
     /// The drop that let a place see the balance, asked about on a sheet
     /// (`docs/BACKUP-FLOW.md` §19.5).
     pub sees: Option<Sees>,
+    /// The sheet after partial descriptions are added (§19.19 item 4):
+    /// its line, and whether **Take it off every place** is offered.
+    pub partials: Option<(String, bool)>,
 }
 
 /// A drop that let a place see the balance it could not before: the
@@ -578,8 +589,6 @@ pub(crate) struct Entry {
     pub dim: bool,
     /// Drawn dim but moved as any other: a vault kept at no place.
     pub faint: bool,
-    /// Under it: the keys a share carries, by fingerprint.
-    pub keys: Vec<String>,
     /// For a vault: what it holds, said before it is taken off.
     pub holds: Option<String>,
 }
@@ -602,11 +611,16 @@ pub(crate) struct BoardView {
     pub seeds: Vec<Entry>,
     /// The passphrases.
     pub passes: Vec<Entry>,
-    /// The whole description, then each share.
+    /// The whole description.
     pub description: Vec<Entry>,
-    /// The keys left off each share, and the most there may be; `None`
-    /// for a description that does not split.
-    pub omit: Option<(usize, usize)>,
+    /// The description splits into shares: **Add partial descriptions**
+    /// (or **Remove partial descriptions**) under it (§19.19 item 1).
+    pub splits: bool,
+    /// Partial descriptions are on.
+    pub partials: bool,
+    /// Another place may be added: fewer than one per key
+    /// (`docs/BACKUP-FLOW.md` §19.19).
+    pub room: bool,
     /// The vaults.
     pub vaults: Vec<Entry>,
     /// The software's entry, while the board has no software place.
@@ -915,7 +929,9 @@ impl Faraday {
         if let Some(line) = plan::lost_why(&shape, &a, &place_name, self.medium.noun()) {
             warn(line, &mut warnings);
         }
-        if let Some(p) = plan::all_at_one_place(&shape, &a) {
+        // A single key's one place is no warning (§19.19).
+        if let Some(p) = plan::all_at_one_place(&shape, &a).filter(|_| plan::max_places(&shape) > 1)
+        {
             warn(
                 fill(EN.plan_all_at_one_place, &[&place_name(p)]),
                 &mut warnings,
@@ -927,6 +943,33 @@ impl Faraday {
                     fill(EN.board_alone_spends, &[&place_name(p)]),
                     &mut warnings,
                 );
+            }
+        }
+        // The description and the places (`docs/BACKUP-FLOW.md` §19.19
+        // item 5): what cannot put it back together, a place that sees
+        // the balance from its share and seeds, a place with no seed.
+        if !plan::description_kept(&shape, &a) {
+            warn(description_line(&shape, &a), &mut warnings);
+        }
+        for (p, here) in things.iter().enumerate() {
+            let alone = plan::alone(&shape, &a, At::Place(p));
+            let share = here.iter().any(|t| matches!(t, Thing::Share(_)));
+            if share
+                && !here.contains(&Thing::Whole)
+                && alone.balance == plan::Found::Yes
+                && alone.spend != plan::Found::Yes
+            {
+                let held = plan::holds_at(&plan::place_map(&shape, &a), At::Place(p));
+                warn(
+                    fill(
+                        EN.board_sees_warn,
+                        &[&place_name(p), &sees_line(&shape, &a, &held)],
+                    ),
+                    &mut warnings,
+                );
+            }
+            if !shape.here().is_empty() && !here.iter().any(|t| matches!(t, Thing::Seed(_))) {
+                warn(fill(EN.board_no_seed, &[&place_name(p)]), &mut warnings);
             }
         }
         if let Some(v) = a.stickless(&shape) {
@@ -1112,7 +1155,6 @@ impl Faraday {
             count: count_text(count(t)),
             dim: false,
             faint: false,
-            keys: Vec::new(),
             holds: None,
         };
         let seeds = (0..shape.seeds.len())
@@ -1134,24 +1176,9 @@ impl Faraday {
             .filter(|&i| shape.seeds[i].passphrase)
             .map(|i| entry(Thing::Pass(i)))
             .collect();
-        let mut description = vec![entry(Thing::Whole)];
-        let omit = shape.splits.then(|| {
-            let most = shape.m.saturating_sub(1).min(shape.keys.saturating_sub(1));
-            (a.omit.min(most), most)
-        });
-        if let Some((omit, _)) = omit {
-            let split = crate::backup::split_plan(shape.keys, shape.m, omit);
-            for j in 0..shape.keys {
-                let keys: Vec<String> = split
-                    .get(j)
-                    .map(|row| row.iter().map(|&k| seed_name(k).to_lowercase()).collect())
-                    .unwrap_or_default();
-                description.push(Entry {
-                    keys,
-                    ..entry(Thing::Share(j))
-                });
-            }
-        }
+        // The shares are not offered one by one: one button adds them to
+        // the whole backup (§19.19 item 1).
+        let description = vec![entry(Thing::Whole)];
         let shown_vaults: Vec<usize> = {
             let named: Vec<usize> = m
                 .iter()
@@ -1206,7 +1233,9 @@ impl Faraday {
             seeds,
             passes,
             description,
-            omit,
+            splits: shape.splits && !locked,
+            partials: a.partials_on(),
+            room: places < plan::max_places(&shape),
             vaults,
             software_entry: (!has_software && !locked).then(|| entry(Thing::Software)),
             warnings,
@@ -1440,6 +1469,8 @@ impl Faraday {
                     | BoardPress::LetGo
                     | BoardPress::SeesKeep
                     | BoardPress::SeesUndo
+                    | BoardPress::PartialsWholeOff
+                    | BoardPress::PartialsKeep
             )
         {
             return;
@@ -1471,6 +1502,42 @@ impl Faraday {
                 }
                 if let Some(sees) = before {
                     self.board_change(&|a, _| *a = sees.before.clone());
+                }
+            }
+            BoardPress::Partials => {
+                set(self, None);
+                if locked {
+                    return self.toast(EN.backup_flow_files_after_lock);
+                }
+                if self.board_plan().is_some_and(|(_, a)| a.partials_on()) {
+                    return self.board_change(&|a, shape| a.remove_partials(shape));
+                }
+                self.board_change(&|a, shape| {
+                    a.add_partials(shape);
+                });
+                self.board_partials_ask();
+            }
+            BoardPress::PartialsWholeOff => {
+                let offered = self
+                    .board_state()
+                    .and_then(|st| st.partials.as_ref())
+                    .is_some_and(|(_, off)| *off);
+                if let Some(st) = self.board_state_mut() {
+                    st.partials = None;
+                }
+                if self.sheet == Some(crate::Sheet::BoardPartials) {
+                    self.sheet = None;
+                }
+                if offered {
+                    self.board_change(&|a, shape| a.whole_off_places(shape));
+                }
+            }
+            BoardPress::PartialsKeep => {
+                if let Some(st) = self.board_state_mut() {
+                    st.partials = None;
+                }
+                if self.sheet == Some(crate::Sheet::BoardPartials) {
+                    self.sheet = None;
                 }
             }
             BoardPress::OpenList => {
@@ -1540,11 +1607,14 @@ impl Faraday {
             BoardPress::LetGo => set(self, None),
             BoardPress::AddPlace => {
                 set(self, None);
+                // At most one place per key (`docs/BACKUP-FLOW.md` §19.19);
+                // a plan saved with more keeps them.
                 self.board_change(&|a, shape| {
-                    if a.places < crate::qstep::MAX_PLACES {
+                    if a.places < crate::qstep::MAX_PLACES.min(plan::max_places(shape)) {
                         a.add_place(shape);
                     }
                 });
+                self.board_partials_refresh();
             }
             BoardPress::RemovePlace(p) => {
                 set(self, None);
@@ -1556,6 +1626,7 @@ impl Faraday {
                 }
                 let names = !locked && self.board_backup_names();
                 self.board_change(&|a, shape| a.remove_place(shape, p));
+                self.board_partials_refresh();
                 // Its empty sticks go with it; the places after move down
                 // with theirs (§19.16 item 1).
                 if self.board_plan().is_some_and(|(_, a)| a.places < places)
@@ -1734,6 +1805,60 @@ impl Faraday {
             });
         }
         self.sheet = Some(crate::Sheet::BoardSees);
+        self.sheet_scroll = (0.0, None);
+    }
+
+    /// While partial descriptions are on, a place added or taken off has
+    /// them handed out again, every place one (`docs/BACKUP-FLOW.md`
+    /// §19.19 item 1). Works out the hand-out, a search.
+    fn board_partials_refresh(&mut self) {
+        if self.board_locked().is_some() || !self.board_plan().is_some_and(|(_, a)| a.partials_on())
+        {
+            return;
+        }
+        self.board_change(&|a, shape| {
+            a.add_partials(shape);
+        });
+    }
+
+    /// The sheet after partial descriptions are added (§19.19 item 4):
+    /// where the whole description is still kept, and **Take it off every
+    /// place** where taking it off leaves any `M` places able to rebuild
+    /// it. Works out the hand-out again, a search.
+    fn board_partials_ask(&mut self) {
+        let Some((shape, a)) = self.board_plan() else {
+            return;
+        };
+        if !a.partials_on() {
+            return;
+        }
+        let whole: Vec<String> = a
+            .whole_at(&shape)
+            .into_iter()
+            .map(|p| self.board_place_name(p))
+            .collect();
+        let rebuilds = plan::hand_out(&shape, &a).rebuilds;
+        let line = match whole.as_slice() {
+            [] => EN.board_partials_each.to_string(),
+            [one] => format!(
+                "{} {}",
+                EN.board_partials_each,
+                fill(EN.board_partials_whole, &[one])
+            ),
+            [rest @ .., last] => format!(
+                "{} {}",
+                EN.board_partials_each,
+                fill(
+                    EN.board_partials_whole,
+                    &[&fill(EN.board_sees_both, &[&rest.join(", "), last])]
+                )
+            ),
+        };
+        let off = rebuilds && !whole.is_empty();
+        if let Some(st) = self.board_state_mut() {
+            st.partials = Some((line, off));
+        }
+        self.sheet = Some(crate::Sheet::BoardPartials);
         self.sheet_scroll = (0.0, None);
     }
 
@@ -1936,6 +2061,42 @@ fn sees_line(shape: &Shape, a: &Answers, held: &[What]) -> String {
     } else {
         fill(EN.board_sees_together, &[&what])
     }
+}
+
+/// The line under the board when nothing kept puts the description back
+/// together (`docs/BACKUP-FLOW.md` §19.19 item 5): what is kept, and what
+/// would complete it.
+fn description_line(shape: &Shape, a: &Answers) -> String {
+    let kept = plan::shares_kept(shape, a);
+    if kept.is_empty() {
+        return EN.board_desc_nothing.to_string();
+    }
+    let held: Vec<String> = kept
+        .iter()
+        .map(|&(j, n)| match n {
+            1 => fill(EN.board_sees_share, &[&(j + 1).to_string()]),
+            2 => fill(EN.board_share_twice, &[&(j + 1).to_string()]),
+            n => fill(
+                EN.board_share_times,
+                &[&(j + 1).to_string(), &n.to_string()],
+            ),
+        })
+        .collect();
+    let joined = |v: &[String]| match v {
+        [] => String::new(),
+        [one] => one.clone(),
+        [rest @ .., last] => fill(EN.board_sees_both, &[&rest.join(", "), last]),
+    };
+    let missing: Vec<String> = (0..shape.keys)
+        .filter(|j| !kept.iter().any(|(k, _)| k == j))
+        .map(|j| (j + 1).to_string())
+        .collect();
+    let add = match missing.as_slice() {
+        [] => return fill(EN.board_desc_kept_add, &[&joined(&held)]),
+        [one] => fill(EN.board_sees_share, &[one]),
+        [rest @ .., last] => fill(EN.board_sees_shares, &[&rest.join(", "), last]),
+    };
+    fill(EN.board_desc_missing, &[&joined(&held), &add])
 }
 
 /// The software the plan names: the first chosen, or "Watch-only

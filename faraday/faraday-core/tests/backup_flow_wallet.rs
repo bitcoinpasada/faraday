@@ -342,8 +342,10 @@ fn single_key_with(
     assert_eq!(app.screen, Screen::Backup);
     // The seed in Vault 1 only, its stick at both places, the wallet
     // description as files at Place 2.
+    second_place(&mut app);
     no_words(&mut app);
     stick_also_at(&mut app, 0, 0);
+    stick_also_at(&mut app, 1, 0);
     no_paper_description(&mut app);
     description_file_at(&mut app, 1);
     if !description_in_vault {
@@ -592,25 +594,29 @@ fn a_plan_may_have_any_number_of_places_and_one_place_says_so() {
         a.set_places(&shape, n);
         assert_eq!(a.places, n, "no cap on places");
     }
-    // A single place keeps every secret: the plan says so, and that is all.
+    // A single key's one place keeps every secret: by the nature of a
+    // single place, no warning (`docs/BACKUP-FLOW.md` §19.19).
     a.set_places(&shape, 1);
     assert_eq!(plan::all_at_one_place(&shape, &a), Some(0));
-    assert_eq!(plan::check(&shape, &a).one_place, Some(0));
+    assert_eq!(plan::check(&shape, &a).one_place, None);
+    assert!(plan::check(&shape, &a).single);
     assert!(plan::check(&shape, &a).passphrase_apart, "no passphrase");
 }
 
 #[test]
-fn the_flow_follows_any_number_of_places() {
+fn the_flow_follows_its_places_and_none_past_one_per_key() {
     let mut shell = Shell::new();
     let (mut app, _, _) = single_key_ready(&mut shell);
-    // Back up's places card: any number, and the flow follows it.
+    // Back up's board: no place past one per key (`docs/BACKUP-FLOW.md`
+    // §19.19); a place taken off, and the flow follows it.
     app.press(Action::BPlan);
-    while backup_places(&app) < 8 {
-        board(&mut app, BoardPress::AddPlace);
-    }
+    assert_eq!(backup_places(&app), 2, "a plan saved with two");
+    board(&mut app, BoardPress::AddPlace);
+    assert_eq!(backup_places(&app), 2, "no place past one per key");
+    board(&mut app, BoardPress::RemovePlace(1));
     let f = app.backup_flows.last().unwrap();
-    assert_eq!(f.wallet.as_ref().unwrap().answers.places, 8);
-    assert_eq!(f.plan.places.len(), 8);
+    assert_eq!(f.wallet.as_ref().unwrap().answers.places, 1);
+    assert_eq!(f.plan.places.len(), 1);
 }
 
 /// A 2-of-3 with three vaults set up before the keys: Vault 1 an existing
@@ -973,24 +979,19 @@ fn the_plan_says_when_every_secret_is_at_one_place() {
 }
 
 #[test]
-fn a_passphrase_has_a_place_that_keeps_no_copy_of_its_seed() {
+fn a_single_keys_passphrase_is_kept_at_its_one_place() {
+    // One place for a single key (`docs/BACKUP-FLOW.md` §19.19): its
+    // passphrase goes into the vault where the preset has one, else beside
+    // its words, which the board warns of.
     let shape = shape_with(true, 1);
     for preset in Preset::ALL {
         let a = Answers::preset(&shape, preset);
-        let place = (0..a.places).find(|&p| a.pass_at(0, p)).expect("a place");
-        assert!(
-            !a.seed_at(&shape, 0, place),
-            "{preset:?}: Place {} keeps a copy of the seed",
-            place + 1
-        );
-        assert_eq!(plan::all_at_one_place(&shape, &a), None, "{preset:?}");
+        assert_eq!(a.places, 1, "{preset:?}");
+        let vault = !matches!(preset, Preset::Paper | Preset::Standard);
+        assert_eq!(a.pass_at(0, 0), !vault, "{preset:?}: beside its words");
+        // The plan reads back with it.
+        assert_eq!(Answers::from_text(&shape, &a.to_text()), Some(a));
     }
-    // Paper and the vault: the passphrase is at a third place.
-    let a = Answers::preset(&shape, Preset::PaperVault);
-    assert_eq!(a.places, 3);
-    assert!(a.pass_at(0, 2));
-    // The plan reads back with that place.
-    assert_eq!(Answers::from_text(&shape, &a.to_text()), Some(a));
 }
 
 #[test]
@@ -1012,7 +1013,7 @@ fn the_lines_are_drawn_and_add_a_passphrase_opens_the_key_with_its_fields() {
 }
 
 #[test]
-fn a_one_place_plan_shows_the_warning_and_blocks_nothing() {
+fn a_single_keys_one_place_reads_so_and_blocks_nothing() {
     let mut shell = Shell::new();
     let (mut app, _, _) = single_key_ready(&mut shell);
     app.press(Action::BPlan);
@@ -1021,8 +1022,10 @@ fn a_one_place_plan_shows_the_warning_and_blocks_nothing() {
         board(&mut app, BoardPress::RemovePlace(last));
     }
     assert_eq!(app.backup_flows.last().unwrap().plan.places.len(), 1);
-    expect_part(&mut app, "Every secret of this wallet is at Place 1");
-    expect_part(&mut app, "Separate places are strongly");
+    // A single key's one place: "No: a single place", no warning
+    // (`docs/BACKUP-FLOW.md` §19.19).
+    expect_part(&mut app, "No: a single place");
+    assert!(!has_part(&mut app, "Separate places are strongly"));
     app.press(Action::BQ(faraday_core::qstep::PLAN));
     assert!(
         offered_down(&mut app, Action::BChecklist),
@@ -1277,6 +1280,9 @@ fn a_seed_let_out_unprotected_is_written_to_the_stick_of_files_and_to_no_other()
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(2));
+    // Over two places, as a plan saved before one place per key
+    // (`docs/BACKUP-FLOW.md` §19.19).
+    preset_two_places(&mut app, 2);
     // The seed in Vault 1 and as a file at Place 2; nothing else.
     no_words(&mut app);
     files_at(&mut app, 1, &[0]);
@@ -2019,6 +2025,9 @@ fn the_setups_cards_and_the_plan_read_what_is_so_after_the_keys() {
     // Paper alone: no vault, every place on The plan.
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(1));
+    // Over two places, as a plan saved before one place per key
+    // (`docs/BACKUP-FLOW.md` §19.19).
+    preset_two_places(&mut app, 1);
     let places = backup_places(&app);
     assert!(places > 1);
     app.press(Action::BChecklist);
@@ -2863,6 +2872,9 @@ fn back_ups_plan_offers_the_open_vaults_and_a_vault_at_two_places_writes_both_co
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(2));
+    // Over two places, as a plan saved before one place per key
+    // (`docs/BACKUP-FLOW.md` §19.19).
+    preset_two_places(&mut app, 2);
     // The plan offers both open vaults, though there is one key: a chip
     // each in the board's list.
     assert_eq!(app.backup.as_ref().unwrap().answers.vaults.len(), 2);
@@ -3588,6 +3600,9 @@ fn single_key_one_stick(shell: &mut Shell) -> Faraday {
     }
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(2));
+    // Over two places, as a plan saved before one place per key
+    // (`docs/BACKUP-FLOW.md` §19.19).
+    preset_two_places(&mut app, 2);
     no_words(&mut app);
     no_paper_description(&mut app);
     description_file_at(&mut app, 1);
@@ -3921,11 +3936,9 @@ fn the_flows_slider_sets_its_keys_left_off_and_the_vault_takes_the_share_it_impl
         &mut app,
         PlanPress::Q(faraday_core::qstep::BOARD),
     );
+    // The keys left off set as the checklist's slider sets them; the
+    // board has no stepper (`docs/BACKUP-FLOW.md` §19.19).
     let omit = Action::Flow(F::Plan(PlanPress::Omit(0)));
-    assert!(
-        offered_down(&mut app, omit),
-        "the flow's board draws the keys left off"
-    );
     shell.press(&mut app, omit);
     assert_eq!(app.flow().unwrap().wallet.as_ref().unwrap().answers.omit, 0);
     assert!(app.flow().unwrap().adding, "Vault 1's share is another now");
@@ -4976,6 +4989,9 @@ fn a_written_stick_of_files_is_never_sent_back_after_the_lock() {
     let name = app.session.wallets[w].name.clone();
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup(2));
+    // Over two places, as a plan saved before one place per key
+    // (`docs/BACKUP-FLOW.md` §19.19).
+    preset_two_places(&mut app, 2);
     // Vault 1 at both places, the description in it and as files at
     // Place 1, nothing else.
     no_words(&mut app);

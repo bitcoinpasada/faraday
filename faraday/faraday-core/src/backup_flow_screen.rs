@@ -1320,6 +1320,10 @@ fn done_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32)
         cy += ui.wrap(x, cy, w, 12.0, W::M, MUTED, &files.join(", ")) + 8.0;
     }
     cy += 8.0;
+    // In Guided, extra copies (`docs/BACKUP-FLOW.md` §19.19 item 7).
+    if f.wallet.is_some() {
+        cy += crate::screens::extra_copies(app, ui, x, cy, w);
+    }
     let mut items: Vec<(String, Style, Action)> = Vec::new();
     // Unlock the first of the plan's vaults; its key's page follows, or a
     // wallet's checklist.

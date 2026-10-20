@@ -1258,6 +1258,9 @@ pub enum Action {
     /// **What is a share?** beside the backup plan's In shares: the
     /// Learn sheet on the page about shares (`docs/NEW-WALLET.md` §4.2).
     LearnShares,
+    /// The Learn page on extra copies, from the backup's last card
+    /// (`docs/BACKUP-FLOW.md` §19.19 item 7).
+    LearnExtraCopies,
     /// The word-list sheet, or a link to it.
     WordList(wordlist::WordListAction),
     /// Make a new key, for this Create slot or for the session; for the
@@ -1665,6 +1668,9 @@ pub enum Sheet {
     /// A drop let a place see the balance it could not before
     /// (`docs/BACKUP-FLOW.md` §19.5): **Keep it** or **Take it off**.
     BoardSees,
+    /// Partial descriptions added (`docs/BACKUP-FLOW.md` §19.19 item 4):
+    /// **Take it off every place** or **Keep it**.
+    BoardPartials,
     /// A seed the camera read, asking how it loads: with no passphrase
     /// or with one (`seed_read`).
     SeedRead,
@@ -5054,6 +5060,7 @@ impl Faraday {
             Action::Vanity(v) => self.vanity_act(v),
             Action::Learn => self.learn_open(),
             Action::LearnShares => self.learn_shares(),
+            Action::LearnExtraCopies => self.learn_on(faraday_learn::extra_copies_page()),
             Action::LearnSpend => {
                 self.sheet = None;
                 self.screen = Screen::Family;

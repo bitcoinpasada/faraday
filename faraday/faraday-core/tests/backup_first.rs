@@ -543,3 +543,35 @@ fn a_plan_with_the_seed_unticked_everywhere_offers_no_make_the_checklist() {
     }
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Plan);
 }
+
+/// The backup's last card, in Guided, says extra copies are made outside
+/// the plan and links the Learn page on them; Steps only shows neither
+/// (`docs/BACKUP-FLOW.md` §19.19 item 7).
+#[test]
+fn the_done_card_says_extra_copies_are_made_outside_the_plan_in_guided_only() {
+    let mut app = device(Vec::new(), 2400);
+    let (_, fp) = made_here(&mut app);
+    app.press(Action::CBackup(preset(Preset::Paper)));
+    no_paper_description(&mut app);
+    app.press(Action::BChecklist);
+    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
+    check_the_copy(&mut app, fp);
+    the_envelopes(&mut app);
+    app.press(Action::Guided(true));
+    let _ = app.frame();
+    let t = app.drawn_texts().join(" ");
+    assert!(
+        t.contains("More copies can be made once the wallet is made"),
+        "{t}"
+    );
+    assert!(app.offers(Action::LearnExtraCopies));
+    app.press(Action::LearnExtraCopies);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
+    assert_eq!(app.learn.pages[app.learn.page].title, "Extra copies");
+    app.press(Action::Cancel);
+    app.press(Action::Guided(false));
+    let _ = app.frame();
+    assert!(!app.offers(Action::LearnExtraCopies), "not in Steps only");
+}

@@ -1502,8 +1502,14 @@ fn check_boxes(ui: &mut Ui, x: f32, y: f32, w: f32, c: plan::Check, beside: bool
         Found::OnlyWithVault => ACCENT,
         Found::No => OK,
     };
+    // A single place: No by the nature of it, said so, muted (§19.19).
+    let (lost_text, lost) = if c.single && c.lost == Lost::No {
+        (EN.plan_no_single_place, MUTED)
+    } else {
+        (c.lost.text(), lost)
+    };
     let lines = [
-        (CHECK_LINES[0], c.lost.text(), lost),
+        (CHECK_LINES[0], lost_text, lost),
         (CHECK_LINES[1], c.spend.text(), found(c.spend)),
         (CHECK_LINES[2], c.balance.text(), found(c.balance)),
     ];

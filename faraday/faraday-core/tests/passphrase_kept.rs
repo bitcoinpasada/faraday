@@ -196,7 +196,7 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
         )
         .unwrap();
     app.press(Action::Backup(w));
-    app.press(Action::BPreset(1));
+    preset_saved(&mut app, 1);
     app.press(Action::BChecklist);
     app.press(Action::OpenWallet(w));
     let _ = app.frame();
@@ -251,4 +251,15 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
             "{name} holds the passphrase checked"
         );
     }
+}
+
+/// Back up's plan as preset `k` (by `Preset::ALL`) fills it over two
+/// places for a single key: as a plan saved before plans kept at most one
+/// place per key has it (`docs/BACKUP-FLOW.md` §19.19).
+fn preset_saved(app: &mut Faraday, k: u8) {
+    let w = app.backup.as_ref().unwrap().wallet;
+    let shape = app.plan_shape(w);
+    let preset = faraday_core::plan::Preset::ALL[usize::from(k)];
+    app.backup.as_mut().unwrap().answers =
+        faraday_core::plan::Answers::preset_at(&shape, preset, 2);
 }

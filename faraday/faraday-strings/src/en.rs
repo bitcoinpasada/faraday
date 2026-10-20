@@ -8350,6 +8350,45 @@ pub struct Strings {
     pub board_keep_it: &'static str,
     /// Undoes the drop.
     pub board_take_it_off: &'static str,
+    /// Under the list's Wallet description: hands a share to every place
+    /// (`docs/BACKUP-FLOW.md` §19.19 item 1).
+    pub board_partials_add: &'static str,
+    /// The same button while they are on: takes every share off.
+    pub board_partials_remove: &'static str,
+    /// The sheet after adding them: its title.
+    pub board_partials_each: &'static str,
+    /// Its line where the whole description is still kept. `{}`: the
+    /// places, "Place 1, Place 2 and Place 3".
+    pub board_partials_whole: &'static str,
+    /// Takes the whole description off every place.
+    pub board_take_it_off_every: &'static str,
+    /// A warning: nothing of the description is kept.
+    pub board_desc_nothing: &'static str,
+    /// A warning: what is kept does not put it back together. `{}`: what
+    /// is kept ("Share 1 twice and Share 2"), what would complete it
+    /// ("Share 3").
+    pub board_desc_missing: &'static str,
+    /// The same, every share kept somewhere. `{}`: what is kept.
+    pub board_desc_kept_add: &'static str,
+    /// A share kept twice, in those warnings. `{}`: its number.
+    pub board_share_twice: &'static str,
+    /// A share kept more often. `{}`: its number, how often.
+    pub board_share_times: &'static str,
+    /// A warning: a place sees the balance from its share and seeds.
+    /// `{}`: the place, what there makes the description.
+    pub board_sees_warn: &'static str,
+    /// A warning: a place keeps no seed. `{}`: the place.
+    pub board_no_seed: &'static str,
+    /// The backup's last card, in Guided only (`docs/BACKUP-FLOW.md`
+    /// §19.19 item 7).
+    pub backup_extra_copies: &'static str,
+    /// The Learn link under it.
+    pub backup_extra_copies_link: &'static str,
+    /// "Any one place lost" with a single place (§19.19).
+    pub plan_no_single_place: &'static str,
+    /// Why "Any one place lost" reads No when the description goes. `{}`:
+    /// the place.
+    pub plan_without_no_description: &'static str,
 }
 
 /// The English wording.
@@ -12378,4 +12417,20 @@ pub static EN: Strings = Strings {
     board_sees_both: "{} and {}",
     board_keep_it: "Keep it",
     board_take_it_off: "Take it off",
+    board_partials_add: "Add partial descriptions to this backup",
+    board_partials_remove: "Remove partial descriptions",
+    board_partials_each: "Each place now holds a part of the description.",
+    board_partials_whole: "The whole description is still kept at {}, so the balance can be seen there. Take it off any place where the balance should stay hidden.",
+    board_take_it_off_every: "Take it off every place",
+    board_desc_nothing: "The description cannot be put back together: add the whole description",
+    board_desc_missing: "The description cannot be put back together: the places hold {}; add {} or the whole description",
+    board_desc_kept_add: "The description cannot be put back together: the places hold {}; add the whole description",
+    board_share_twice: "Share {} twice",
+    board_share_times: "Share {} {} times",
+    board_sees_warn: "{} can see the balance. {}",
+    board_no_seed: "{} holds no seed",
+    backup_extra_copies: "More copies can be made once the wallet is made: a vault copied to another stick, words copied by hand. They are not part of the plan.",
+    backup_extra_copies_link: "Extra copies",
+    plan_no_single_place: "No: a single place",
+    plan_without_no_description: "Without {}, the rest cannot put the description back together",
 };

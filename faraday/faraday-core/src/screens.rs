@@ -159,6 +159,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::Chart => crate::glance_sheet::draw(app, ui, w, h),
             Sheet::BoardList => crate::board_screen::list_sheet(app, ui, w, h),
             Sheet::BoardSees => crate::board_screen::sees_sheet(app, ui, w, h),
+            Sheet::BoardPartials => crate::board_screen::partials_sheet(app, ui, w, h),
             Sheet::SeedRead => crate::seed_read::sheet(app, ui, w, h),
             Sheet::Delete => crate::stick_wipe::delete_sheet(app, ui, w, h),
             Sheet::Zeroing => crate::stick_wipe::zeroing_sheet(app, ui, w, h),
@@ -5763,6 +5764,7 @@ fn backup_done(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         };
         cy += 16.0;
     }
+    cy += extra_copies(app, ui, x, cy, w);
     // What the checklist made was written inside it: nothing waits For the
     // stick (`docs/BACKUP-FLOW.md` §10.2).
     let items: Vec<(&str, Style, Action)> = vec![
@@ -5774,6 +5776,30 @@ fn backup_done(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         (EN.backup_done_change, Style::Secondary, Action::BPlan),
     ];
     cy += wrap_buttons(ui, x, cy, w, 40.0, &items);
+    cy - y
+}
+
+/// The backup's last card, in Guided only (`docs/BACKUP-FLOW.md` §19.19
+/// item 7): copies made outside the plan, and the Learn page on them.
+/// Returns its height; nothing in Steps only.
+pub(crate) fn extra_copies(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    if !app.guided {
+        return 0.0;
+    }
+    let mut cy = y;
+    cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.backup_extra_copies) + 6.0;
+    let label = EN.backup_extra_copies_link;
+    let bw = (ui.measure(13.0, W::S, label) + 24.0).min(w);
+    ui.button(
+        x,
+        cy,
+        Some(bw),
+        32.0,
+        label,
+        Style::Ghost,
+        Action::LearnExtraCopies,
+    );
+    cy += 32.0 + 12.0;
     cy - y
 }
 

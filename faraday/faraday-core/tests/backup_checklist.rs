@@ -7,8 +7,8 @@
 
 mod common;
 
-use common::{board, files_stick, form, no_words, put};
-use faraday_core::board::{BoardPress, Thing, Zone};
+use common::{files_stick, form, no_words, put};
+use faraday_core::board::{Thing, Zone};
 use faraday_core::plan::Item;
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
@@ -332,11 +332,10 @@ fn the_blank_template_has_a_line_per_place_and_no_name() {
     let w = one_key(&mut app);
     unlock(&mut app);
     app.press(Action::Backup(w));
-    app.press(Action::BPreset(1));
-    board(&mut app, BoardPress::AddPlace);
-    assert_eq!(app.backup.as_ref().unwrap().answers.places, 3);
-    // The new place keeps the seed's words too.
-    put(&mut app, Thing::Seed(0), Zone::Paper(2));
+    // Paper only over two places, as a plan saved before one place per
+    // key (`docs/BACKUP-FLOW.md` §19.19): the seed's words at each.
+    common::preset_two_places(&mut app, 1);
+    assert_eq!(app.backup.as_ref().unwrap().answers.places, 2);
     app.press(Action::BName(1));
     type_text(&mut app, NAME);
     app.press(Action::BChecklist);
@@ -356,7 +355,7 @@ fn the_blank_template_has_a_line_per_place_and_no_name() {
     assert!(
         app.drawn_texts()
             .iter()
-            .any(|t| t.starts_with("Print 3 from Faraday Starter: Blank templates, 24 words")),
+            .any(|t| t.starts_with("Print 2 from Faraday Starter: Blank templates, 24 words")),
         "the Templates item says to print them from Faraday Starter: {:?}",
         app.drawn_texts()
     );

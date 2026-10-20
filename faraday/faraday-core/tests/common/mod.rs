@@ -938,6 +938,35 @@ pub fn description_file_at(app: &mut Faraday, p: usize) {
     }
 }
 
+/// A second place on Back up's plan, as a plan saved before plans kept
+/// at most one place per key has it (`docs/BACKUP-FLOW.md` §19.19): the
+/// board offers no **+ place** past one per key, and a plan that has more
+/// keeps them. The flows these tests drive write any number of places.
+pub fn second_place(app: &mut Faraday) {
+    let w = app.backup.as_ref().expect("Back up").wallet;
+    let shape = app.plan_shape(w);
+    let b = app.backup.as_mut().expect("Back up");
+    if b.answers.places < 2 {
+        b.answers.add_place(&shape);
+    }
+}
+
+/// Back up's plan as preset `k` (by [`plan::Preset::ALL`]) filled it over
+/// two places for a single key, as a plan saved before plans kept at most
+/// one place per key has it (`docs/BACKUP-FLOW.md` §19.19), customised.
+pub fn preset_two_places(app: &mut Faraday, k: u8) {
+    let w = app.backup.as_ref().expect("Back up").wallet;
+    let shape = app.plan_shape(w);
+    let preset = plan::Preset::ALL[usize::from(k)];
+    let mut a = plan::Answers::preset_at(&shape, preset, 2);
+    a.custom = true;
+    let b = app.backup.as_mut().expect("Back up");
+    b.answers = a;
+    if b.q == Some(faraday_core::qstep::PRESET) {
+        b.q = Some(faraday_core::qstep::BOARD);
+    }
+}
+
 /// Vault `v`'s stick kept at place `p` too, dropped on its card where
 /// the place keeps none.
 pub fn stick_also_at(app: &mut Faraday, p: usize, v: usize) {

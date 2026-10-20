@@ -34,6 +34,18 @@ fn one_key() -> Shape {
     }
 }
 
+fn three_of_five() -> Shape {
+    Shape {
+        m: 3,
+        keys: 5,
+        seeds: (1..=5)
+            .map(|i| seed(&format!("aaaa000{i}"), true))
+            .collect(),
+        splits: true,
+        vaults: 0,
+    }
+}
+
 fn two_of_three() -> Shape {
     Shape {
         m: 2,
@@ -60,7 +72,8 @@ fn each_preset_fills_a_one_key_wallets_answers() {
         assert_eq!(a.seeds[seeds::SEEDQR], standard, "{preset:?}");
         assert!(!a.seeds[seeds::FILE], "{preset:?}");
         assert_eq!(a.seeds[seeds::VAULT], vault, "{preset:?}");
-        assert_eq!(a.places, if standard { 1 } else { 2 }, "{preset:?}: places");
+        // One place for a single key, whatever the preset (§19.19).
+        assert_eq!(a.places, 1, "{preset:?}: places");
         assert!(a.wallet[wallet::PAPER], "{preset:?}: the sheet in each");
         assert_eq!(a.wallet[wallet::VAULT], vault, "{preset:?}");
         assert_eq!(
@@ -190,7 +203,8 @@ fn a_place_with_a_quorum_of_seeds_on_paper_can_spend() {
 #[test]
 fn the_vault_counts_with_its_passphrase() {
     let shape = one_key();
-    let mut a = Answers::preset(&shape, Preset::PaperVault);
+    // Two places, as a plan saved before one place per key (§19.19).
+    let mut a = Answers::preset_at(&shape, Preset::PaperVault, 2);
     // No paper seed: the seed is in the vault alone, its stick in place 2.
     a.toggle(&shape, Question::Seeds, seeds::WORDS);
     a.toggle(&shape, Question::Sticks(0), 0);
@@ -477,8 +491,9 @@ fn places_of(name: &str) -> faraday_core::Faraday {
     app
 }
 
-/// A multisig's plan keeps the whole wallet sheet in each place, and the
-/// board offers its shares beside it, with nothing to choose first.
+/// A multisig's plan keeps the whole wallet sheet in each place; the
+/// board's list offers **Add partial descriptions to this backup** and no
+/// share by itself (`docs/BACKUP-FLOW.md` §19.19 item 1).
 #[test]
 fn a_fresh_multisig_plan_keeps_the_whole_sheet_in_each_place() {
     use faraday_core::Action;
@@ -492,50 +507,50 @@ fn a_fresh_multisig_plan_keeps_the_whole_sheet_in_each_place() {
         assert!(b.answers.shares_at(&shape, p).is_empty(), "place {p}");
     }
     let _ = app.frame();
+    assert!(shows(&mut app, Action::Board(BoardPress::Partials)));
     for j in 0..3 {
         assert!(
-            shows(
+            !shows(
                 &mut app,
                 Action::Board(BoardPress::Chip(Chip::List(Thing::Share(j))))
             ),
-            "Share {}",
+            "Share {} by itself",
             j + 1
         );
     }
 }
 
-/// The board's shares of a 3-of-5 have a stepper of the keys left off
-/// each share, from 0 to 2; the checklist's Shares card has the same.
+/// A 3-of-5 over five places, partial descriptions added: each share
+/// leaves 2 keys off, any 3 places rebuild the description, and no place
+/// sees the balance once the whole is off every place
+/// (`docs/BACKUP-FLOW.md` §19.19 items 2 and 6). The checklist's Shares
+/// card still sets the keys left off.
 #[test]
-fn its_own_share_on_a_three_of_five_offers_0_to_2_keys_left_off() {
+fn a_three_of_five_over_five_places_leaves_two_keys_off_each_share() {
     use faraday_core::seeds::SLIDE_OMIT;
     use faraday_core::{Action, bstep};
     use osk_shell_api::App;
+    let shape = three_of_five();
+    let mut a = Answers::preset(&shape, Preset::Standard);
+    assert_eq!(a.places, 5);
+    let out = a.add_partials(&shape);
+    assert!(out.rebuilds && out.sees.is_empty(), "{out:?}");
+    assert_eq!(a.omit, 2);
+    a.whole_off_places(&shape);
+    assert_partials_hold(&shape, &a);
+    // On the board: the button, then the checklist's Shares card.
     let mut app = places_of("Five");
+    app.press(Action::Board(BoardPress::Partials));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::BoardPartials));
+    app.press(Action::Board(BoardPress::PartialsWholeOff));
     assert_eq!(app.backup.as_ref().unwrap().answers.omit, 2);
-    // At 2, the most: − offered, + not.
-    assert!(shows(&mut app, Action::BOmit(1)));
-    assert!(!app.offers(Action::BOmit(3)), "no step past 2");
-    app.press(Action::BOmit(1));
-    assert!(shows(&mut app, Action::BOmit(0)) && app.offers(Action::BOmit(2)));
-    app.press(Action::BOmit(0));
-    assert_eq!(app.backup.as_ref().unwrap().answers.omit, 0);
-    assert!(shows(&mut app, Action::BOmit(1)));
-    app.press(Action::BOmit(1));
-    assert_eq!(app.backup.as_ref().unwrap().answers.omit, 1);
-    // The shares on paper in place of the sheet: the checklist prints them.
-    let places = app.backup.as_ref().unwrap().answers.places;
-    for p in 0..places {
-        take_off(&mut app, Zone::Paper(p), Thing::Whole);
-        put(&mut app, Thing::Share(p), Zone::Paper(p));
-    }
     app.press(Action::BQ(faraday_core::qstep::PLAN));
     app.press(Action::BChecklist);
     app.press(Action::BStep(bstep::SHEETS));
     let _ = app.frame();
-    assert!(app.offers(Action::Slide(SLIDE_OMIT, 2)), "the Shares card");
-    app.press(Action::Slide(SLIDE_OMIT, 2));
-    assert_eq!(app.backup.as_ref().unwrap().answers.omit, 2);
+    assert!(app.offers(Action::Slide(SLIDE_OMIT, 1)), "the Shares card");
+    app.press(Action::Slide(SLIDE_OMIT, 1));
+    assert_eq!(app.backup.as_ref().unwrap().answers.omit, 1);
 }
 
 /// What is a share? opens Learn on the page about shares; closing it
@@ -695,12 +710,13 @@ fn no_place_holds_two_different_keys_where_the_places_allow_it() {
             assert!(keys.len() <= 1, "{name}: place {p} holds {keys:?}");
         }
     }
-    // A single key: its words at Place 1, the vault's stick at Place 2.
+    // A single key: its one place keeps its words and the vault's stick
+    // (§19.19).
     let shape = one_key();
     let a = Answers::preset(&shape, Preset::PaperVault);
+    assert_eq!(a.places, 1);
     assert_eq!(a.words_at(&shape, 0), vec![0]);
-    assert_eq!(sticks_at(&shape, &a, 0), Vec::<usize>::new());
-    assert_eq!(sticks_at(&shape, &a, 1), vec![0]);
+    assert_eq!(sticks_at(&shape, &a, 0), vec![0]);
 }
 
 #[test]
@@ -752,7 +768,8 @@ fn the_single_key_with_words_unticked_places_vault_1s_stick() {
 #[test]
 fn a_plan_that_does_not_survive_a_place_lost_says_why() {
     let shape = one_key();
-    let mut a = Answers::preset(&shape, Preset::PaperVault);
+    // Two places, as a plan saved before one place per key (§19.19).
+    let mut a = Answers::preset_at(&shape, Preset::PaperVault, 2);
     a.toggle(&shape, Question::Seeds, seeds::WORDS);
     let stick = (0..a.places).find(|&p| a.stick_at(0, p)).unwrap();
     assert_eq!(check(&shape, &a).lost, Lost::No);
@@ -1053,7 +1070,9 @@ fn words_cannot_be_ticked_where_the_passphrase_is_kept() {
     let mut app = passphrase_key();
     app.press(Action::CBackup(1));
     open_board(&mut app);
-    // Paper only: the passphrase at Place 3, which keeps no words.
+    // Paper only over two places for the words, as a plan saved before
+    // one place per key (§19.19): the passphrase at Place 3.
+    common::preset_two_places(&mut app, 1);
     assert!(held(&app, At::Place(2)).contains(&What::Passphrase(0)));
     put(&mut app, Thing::Seed(0), Zone::Paper(2));
     common::form(&mut app, Zone::Paper(2), Thing::Seed(0), 1);
@@ -1165,26 +1184,126 @@ fn a_passphrase_cannot_be_ticked_where_its_words_are() {
     ));
 }
 
+/// A 2-of-3 over three places, partial descriptions added: one share at
+/// each place, each leaving 1 key off, no place seeing the balance, any 2
+/// places rebuilding the description; Take it off every place leaves the
+/// description in shares alone and any 2 still rebuild it; Remove partial
+/// descriptions takes every share off; the hand-out is the same on every
+/// run (`docs/BACKUP-FLOW.md` §19.19 item 6).
 #[test]
 fn in_shares_a_share_on_paper_at_a_place_is_on_the_map_there() {
+    let shape = two_of_three();
+    let mut a = Answers::preset(&shape, Preset::Standard);
+    let out = a.add_partials(&shape);
+    assert_eq!(a.omit, 1);
+    assert!(out.rebuilds && out.sees.is_empty(), "{out:?}");
+    let mut seen: Vec<usize> = Vec::new();
+    for p in 0..3 {
+        let shares = a.shares_at(&shape, p);
+        assert_eq!(shares.len(), 1, "Place {}: one share", p + 1);
+        assert!(!seen.contains(&shares[0]), "each its own");
+        seen.push(shares[0]);
+        assert!(a.sheet_at(&shape, p), "the whole stays until taken off");
+    }
+    // The same on every run.
+    let mut again = Answers::preset(&shape, Preset::Standard);
+    assert_eq!(again.add_partials(&shape), out);
+    assert_eq!(again, a);
+    a.whole_off_places(&shape);
+    assert_eq!(a.whole_at(&shape), Vec::<usize>::new());
+    assert_partials_hold(&shape, &a);
+    assert_eq!(check(&shape, &a).lost, Lost::Yes);
+    a.remove_partials(&shape);
+    for p in 0..3 {
+        assert!(a.shares_at(&shape, p).is_empty(), "Place {}", p + 1);
+    }
+    assert!(!a.partials_on());
+}
+
+/// A 2-of-3 over two places, one holding two seeds: that place spends
+/// and sees; the other, with one seed, does not see the balance from its
+/// share; both together rebuild the description.
+#[test]
+fn a_two_of_three_over_two_places_keeps_the_rules_with_one_holding_two_seeds() {
+    let shape = two_of_three();
+    let mut a = Answers::preset(&shape, Preset::Standard);
+    // Seed 3 moved to Place 1, Place 3 taken off.
+    a.ensure_map(&shape);
+    let m = faraday_core::plan::stored_map(&shape, &a);
+    let m = faraday_core::plan::with_added(&m, At::Place(0), What::Words(2));
+    a.set_map(m);
+    a.remove_place(&shape, 2);
+    assert_eq!(a.places, 2);
+    let out = a.add_partials(&shape);
+    assert!(out.rebuilds, "{out:?}");
+    a.whole_off_places(&shape);
+    let alone = faraday_core::plan::alone(&shape, &a, At::Place(1));
+    assert_ne!(alone.balance, Found::Yes, "Place 2 does not see alone");
+    assert!(rebuilds_at(&shape, &a, &[0]), "Place 1 spends, so rebuilds");
+    assert!(rebuilds_at(&shape, &a, &[0, 1]));
+}
+
+/// The keys every group of `m` places, and every group holding `m` seeds,
+/// rebuild; no place that cannot spend sees the balance.
+fn assert_partials_hold(shape: &Shape, a: &Answers) {
+    let places = a.places;
+    for g in 1u32..(1 << places) {
+        let group: Vec<usize> = (0..places).filter(|p| g & (1 << p) != 0).collect();
+        let seeds: usize = (0..shape.seeds.len())
+            .filter(|&i| group.iter().any(|&p| a.words_at(shape, p).contains(&i)))
+            .count();
+        if group.len() >= shape.m || seeds >= shape.m {
+            assert!(rebuilds_at(shape, a, &group), "{group:?} rebuilds");
+        }
+    }
+    for p in 0..places {
+        let alone = faraday_core::plan::alone(shape, a, At::Place(p));
+        if alone.spend != Found::Yes {
+            assert_ne!(alone.balance, Found::Yes, "Place {} sees alone", p + 1);
+        }
+    }
+}
+
+/// Whether places `group` together put the description back together:
+/// the whole of it, or its shares and their own seeds holding every key.
+fn rebuilds_at(shape: &Shape, a: &Answers, group: &[usize]) -> bool {
+    let split = faraday_core::backup::split_plan(shape.keys, shape.m, a.omit);
+    (0..shape.keys).all(|k| {
+        group.iter().any(|&p| {
+            a.sheet_at(shape, p)
+                || a.words_at(shape, p).contains(&k)
+                || a.shares_at(shape, p)
+                    .iter()
+                    .any(|&j| split.get(j).is_some_and(|row| row.contains(&k)))
+        })
+    })
+}
+
+/// No preset makes more places than one per key, and the board offers no
+/// **+ place** at that many (`docs/BACKUP-FLOW.md` §19.19).
+#[test]
+fn no_preset_makes_more_than_one_place_per_key() {
     use faraday_core::Action;
+    use osk_shell_api::App;
+    for shape in [one_key(), two_of_three(), three_of_five()] {
+        for preset in Preset::ALL {
+            let a = Answers::preset(&shape, preset);
+            assert!(
+                a.places <= faraday_core::plan::max_places(&shape),
+                "{preset:?}: {} places for {} keys",
+                a.places,
+                shape.keys
+            );
+        }
+    }
     let mut app = places_of("Savings");
-    assert_eq!(
-        app.backup.as_ref().unwrap().answers.omit,
-        1,
-        "one key left off"
-    );
-    let share = Action::Board(BoardPress::Chip(Chip::List(Thing::Share(0))));
-    assert!(shows(&mut app, share), "Share 1 in the list");
-    // Share 1 on Place 1's paper, off, and on again.
-    put(&mut app, Thing::Share(0), Zone::Paper(0));
-    assert!(held(&app, At::Place(0)).contains(&What::Share(0)));
-    take_off(&mut app, Zone::Paper(0), Thing::Share(0));
-    assert!(!held(&app, At::Place(0)).contains(&What::Share(0)));
-    put(&mut app, Thing::Share(0), Zone::Paper(0));
-    assert!(held(&app, At::Place(0)).contains(&What::Share(0)));
-    let b = app.backup.as_ref().unwrap();
-    assert!(b.answers.form_at(&app.plan_shape(b.wallet), 0, Form::Paper));
+    assert_eq!(app.backup.as_ref().unwrap().answers.places, 3);
+    let _ = app.frame();
+    assert!(!shows(&mut app, Action::Board(BoardPress::AddPlace)));
+    app.press(Action::Board(BoardPress::AddPlace));
+    assert_eq!(app.backup.as_ref().unwrap().answers.places, 3, "none added");
+    app.press(Action::Board(BoardPress::RemovePlace(2)));
+    assert!(shows(&mut app, Action::Board(BoardPress::AddPlace)));
 }
 
 #[test]
@@ -1227,7 +1346,9 @@ fn fewer_places_take_the_last_with_what_it_held_and_a_seed_kept_nowhere_holds_th
     use faraday_core::{Action, BStage, qstep};
     let mut app = passphrase_key();
     app.press(Action::CBackup(1));
-    // Words at Places 1 and 2, the passphrase at Place 3.
+    // Words at Places 1 and 2, the passphrase at Place 3, as a plan saved
+    // before one place per key (§19.19).
+    common::preset_two_places(&mut app, 1);
     assert_eq!(app.backup.as_ref().unwrap().answers.places, 3);
     // The seed's words at Place 3 alone, its passphrase at Place 1.
     put(&mut app, Thing::Seed(0), Zone::Paper(2));
@@ -1294,13 +1415,14 @@ fn each_preset_fills_the_board() {
             Some(vec![0]),
             "{preset:?}"
         );
+        // One place: the vault's stick there too (§19.19).
+        assert_eq!(a.places, 1, "{preset:?}: one place");
         let vault = !matches!(preset, Preset::Paper | Preset::Standard);
         assert_eq!(
-            a.row_seeds(&shape, 1, Row::Vault(0)).is_some(),
+            a.row_seeds(&shape, 0, Row::Vault(0)).is_some(),
             vault,
-            "{preset:?}: Vault 1's stick at Place 2"
+            "{preset:?}: Vault 1's stick at Place 1"
         );
-        assert_eq!(a.row_seeds(&shape, 0, Row::Vault(0)), None, "{preset:?}");
         assert_eq!(
             a.software_on(&shape),
             *preset == Preset::PaperVaultSoftware,

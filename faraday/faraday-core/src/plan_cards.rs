@@ -141,7 +141,12 @@ pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> String {
         qstep::SOFTWARE => ticked(&SOFTWARE_ROWS, &a.software),
         _ => {
             let c = plan::check(shape, a);
-            fill(EN.question_summary_any, &[c.lost.text()])
+            let lost = if c.single && c.lost == plan::Lost::No {
+                EN.plan_no_single_place
+            } else {
+                c.lost.text()
+            };
+            fill(EN.question_summary_any, &[lost])
         }
     }
 }

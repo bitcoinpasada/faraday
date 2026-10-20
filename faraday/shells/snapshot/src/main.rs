@@ -726,6 +726,7 @@ fn run(
         Some("inprogress") => return in_progress_tour(&mut t),
         Some("cancel") => return cancel_tour(&mut t),
         Some("std") => return standard_tour(&mut t),
+        Some("parts") => return partials_tour(&mut t),
         _ => {}
     }
     if medium == Medium::Stick {
@@ -5432,6 +5433,48 @@ fn standard_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("std-5-sees-sheet")
 }
 
+/// Partial descriptions by one button (`docs/BACKUP-FLOW.md` §19.19): a
+/// 2-of-3's board customised; the sheet after adding them; the board with
+/// a share at each place and the whole taken off every place; the board
+/// after Remove partial descriptions, its warning under it.
+fn partials_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::board::BoardPress as B;
+    use faraday_core::cstep;
+    for n in 0..3 {
+        t.press(Action::Entry(None));
+        type_text(t, &testkit::test_words(testkit::TEST_SEEDS[n].0));
+        t.press(Action::EntryAdd);
+    }
+    let multi = faraday_core::create::NewKind::ALL
+        .iter()
+        .position(|k| *k == faraday_core::create::NewKind::Multi)
+        .ok_or("no multisig")? as u8;
+    t.press(Action::CreateWallet);
+    t.press(Action::CKind(multi));
+    for slot in 0..3u8 {
+        let fp = t.app.session.keys[usize::from(slot)].fingerprint().0;
+        t.press(Action::CSlotHere(slot, fp));
+    }
+    t.press(Action::CNext(cstep::KEYS));
+    let w = t
+        .app
+        .session
+        .wallets
+        .len()
+        .checked_sub(1)
+        .ok_or("no wallet")?;
+    t.press(Action::Backup(w));
+    t.press(Action::Board(B::Customize));
+    t.app.press(Action::Board(B::Partials));
+    t.pump();
+    t.shot("parts-1-sheet")?;
+    t.press(Action::Board(B::PartialsWholeOff));
+    t.shot("parts-2-shares")?;
+    t.press(Action::Board(B::Partials));
+    scroll(t, 400);
+    t.shot("parts-3-removed")
+}
+
 fn flow_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::backup_flow::Kind;
     use faraday_core::backup_flow_steps::FlowAction as F;
@@ -5799,11 +5842,12 @@ fn main() -> ExitCode {
             "inprogress",
             "cancel",
             "std",
+            "parts",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey, createfrom, inprogress, cancel or std"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey, createfrom, inprogress, cancel, std or parts"
         );
         return ExitCode::from(2);
     }

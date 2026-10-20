@@ -128,7 +128,7 @@ fn backed_up(copies: usize) -> Faraday {
     let mut app = with_a_wallet();
     open_a_vault(&mut app);
     app.press(Action::Backup(0));
-    app.press(Action::BPreset(2));
+    preset_saved(&mut app, 2);
     app.press(Action::BChecklist);
     if app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {
         app.press(Action::BStep(bstep::COPY));
@@ -304,4 +304,16 @@ fn the_wallet_card_of_a_fresh_wallet_says_it_is_not_backed_up() {
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "Not backed up"), "{texts:?}");
     assert!(app.offers(Action::Backup(0)), "the card offers Back up");
+}
+
+/// Back up's plan as preset `k` (by `Preset::ALL`) fills it over a place
+/// per key, two for a single key: as a plan saved before plans kept at
+/// most one place per key has it (`docs/BACKUP-FLOW.md` §19.19).
+fn preset_saved(app: &mut Faraday, k: u8) {
+    let w = app.backup.as_ref().unwrap().wallet;
+    let shape = app.plan_shape(w);
+    let base = if shape.multi() { shape.seeds.len() } else { 2 };
+    let preset = faraday_core::plan::Preset::ALL[usize::from(k)];
+    app.backup.as_mut().unwrap().answers =
+        faraday_core::plan::Answers::preset_at(&shape, preset, base);
 }

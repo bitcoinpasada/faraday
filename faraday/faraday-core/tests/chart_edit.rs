@@ -130,7 +130,7 @@ fn fresh_vault(app: &mut Faraday) {
 /// checklist made; then the wallet's card.
 fn planned(app: &mut Faraday, w: usize, preset: u8) {
     app.press(Action::Backup(w));
-    app.press(Action::BPreset(preset));
+    preset_saved(app, preset);
     app.press(Action::BChecklist);
     app.press(Action::OpenWallet(w));
     let _ = app.frame();
@@ -665,4 +665,16 @@ fn in_an_open_vaults_view_a_change_is_kept_in_that_vault() {
     // The date moved with the words; the sheet still there.
     assert_eq!(all[2].checked, [Some("2026-10-03".to_string())]);
     assert_eq!(names(&chart(&app, w)), names(&g));
+}
+
+/// Back up's plan as preset `k` (by `Preset::ALL`) fills it over a place
+/// per key, two for a single key: as a plan saved before plans kept at
+/// most one place per key has it (`docs/BACKUP-FLOW.md` §19.19).
+fn preset_saved(app: &mut Faraday, k: u8) {
+    let w = app.backup.as_ref().unwrap().wallet;
+    let shape = app.plan_shape(w);
+    let base = if shape.multi() { shape.seeds.len() } else { 2 };
+    let preset = faraday_core::plan::Preset::ALL[usize::from(k)];
+    app.backup.as_mut().unwrap().answers =
+        faraday_core::plan::Answers::preset_at(&shape, preset, base);
 }

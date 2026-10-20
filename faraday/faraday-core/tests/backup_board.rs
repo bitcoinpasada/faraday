@@ -875,6 +875,27 @@ fn find(app: &mut Faraday, a: Action) -> Option<(u16, u16)> {
 
 /// [`expect`] for a line under the board: the page scrolled from its top
 /// a step at a time until it is drawn (the checks stand above it).
+/// [`expect_down`] for a line that may wrap: its start drawn.
+fn expect_down_part(app: &mut Faraday, part: &str) {
+    app.event(Event::Scroll {
+        x: 600,
+        y: 400,
+        dy: -20_000,
+    });
+    for _ in 0..30 {
+        app.settle();
+        if app.drawn_texts().iter().any(|t| t.contains(part)) {
+            return;
+        }
+        app.event(Event::Scroll {
+            x: 600,
+            y: 400,
+            dy: 150,
+        });
+    }
+    panic!("{part:?} is not drawn down the page");
+}
+
 fn expect_down(app: &mut Faraday, want: &str) {
     app.event(Event::Scroll {
         x: 600,
@@ -1077,6 +1098,8 @@ fn passphrase_key_on_the_board() -> Faraday {
     app.press(Action::KNext);
     app.press(Action::CBackup(1));
     open_board(&mut app);
+    // Over two places, as a plan saved before one place per key (§19.19).
+    preset_two_places(&mut app, 1);
     app
 }
 
@@ -1212,77 +1235,79 @@ fn a_cosigners_seed_is_dim_and_does_not_move() {
     assert_eq!(the_map(&app), before);
 }
 
-/// Shares: with nothing chosen first, the list offers Share 1 to Share 3
-/// of the 2-of-3; Share 1 on Place 1's paper and Share 2 in Vault 1 are on
-/// the map there; the keys left off from 1 to 0 changes the keys each
-/// share lists and leaves both where they are; the checks count the
-/// description kept where two shares together rebuild it.
+/// Partial descriptions by one button (`docs/BACKUP-FLOW.md` §19.19):
+/// no share is offered by itself; the button hands one to every place
+/// and the sheet says the whole is still kept at every place; Take it off
+/// every place leaves the shares alone, and the plan survives any one
+/// place lost; a place taken off or added has them handed out again;
+/// Remove partial descriptions takes every share off, and the warning
+/// says the description cannot be put back together.
 #[test]
-fn shares_are_offered_placed_and_follow_the_keys_left_off() {
-    let mut app = three_on_an_empty_board();
-    for j in 0..3 {
-        expect(&mut app, &format!("Share {}", j + 1));
-        on_board(&mut app, list(Thing::Share(j)));
-    }
-    tap(&mut app, BP::AddPlace);
-    tap(&mut app, BP::AddPlace);
-    tap(&mut app, BP::AddVault);
-    drag(&mut app, list(Thing::Vault(0)), BP::Zone(Zone::Card(1)));
-    drag(&mut app, list(Thing::Share(0)), BP::Zone(Zone::Paper(0)));
-    drag(
-        &mut app,
-        list(Thing::Share(1)),
-        BP::Zone(Zone::Vault(1, 0, 0)),
+fn partial_descriptions_are_added_by_one_button_and_follow_the_places() {
+    let mut app = fresh_three();
+    app.press(Action::Board(BP::Customize));
+    let _ = app.frame();
+    assert!(!app.offers(Action::Board(list(Thing::Share(0)))));
+    assert!(!app.offers(Action::BOmit(0)), "no stepper");
+    expect(&mut app, "Add partial descriptions to this backup");
+    app.press(Action::Board(BP::Partials));
+    assert_eq!(app.sheet, Some(Sheet::BoardPartials));
+    let t = app.drawn_texts().join(" ");
+    assert!(
+        t.contains("Each place now holds a part of the description."),
+        "{t}"
     );
-    let m = the_map(&app);
-    assert_eq!(held(&m, At::Place(0)), vec![What::Share(0)]);
-    assert_eq!(held(&m, At::Vault(0)), vec![What::Share(1)]);
-    assert_eq!(app.backup.as_ref().unwrap().answers.omit, 1);
+    assert!(
+        t.contains("The whole description is still kept at Place 1, Place 2 and Place 3"),
+        "{t}"
+    );
+    assert!(app.offers(Action::Board(BP::PartialsWholeOff)), "{t}");
+    app.press(Action::Board(BP::PartialsWholeOff));
+    assert_eq!(app.sheet, None);
     let shape = backup_shape(&app);
-    let keys = |ks: &[usize]| {
-        ks.iter()
-            .map(|&k| shape.seeds[k].name.to_lowercase())
-            .collect::<Vec<_>>()
-            .join(", ")
-    };
-    // How many times each key's fingerprint is drawn: in the list of
-    // seeds, and under each share that carries it.
-    let drawn = |app: &mut Faraday| -> Vec<usize> {
-        let t = texts(app);
-        (0..3)
-            .map(|k| t.iter().filter(|x| **x == keys(&[k])).count())
-            .collect()
-    };
-    let one_off = drawn(&mut app);
-    let at = on_screen(&mut app, Action::BOmit(0));
-    touch(&mut app, at, TouchPhase::Down);
-    touch(&mut app, at, TouchPhase::Up);
-    assert_eq!(app.backup.as_ref().unwrap().answers.omit, 0);
-    // Each key is under one share more: every share carries every key.
-    let none_off = drawn(&mut app);
-    for k in 0..3 {
-        assert_eq!(
-            none_off[k],
-            one_off[k] + 1,
-            "key {k}: {one_off:?} {none_off:?}"
-        );
-    }
-    let m = the_map(&app);
-    assert_eq!(held(&m, At::Place(0)), vec![What::Share(0)], "still there");
-    assert_eq!(held(&m, At::Vault(0)), vec![What::Share(1)], "still there");
-    // Each place's seed on its paper; with one key left off, two shares
-    // together rebuild the description: Share 1 and 2 alone do not
-    // survive losing Place 1, Share 3 at Place 3 makes every loss
-    // survivable.
-    app.press(Action::BOmit(1));
+    let a = app.backup.as_ref().unwrap().answers.clone();
+    assert_eq!(a.omit, 1);
     for p in 0..3 {
-        drag(&mut app, list(Thing::Seed(p)), BP::Zone(Zone::Paper(p)));
+        assert!(!a.sheet_at(&shape, p), "Place {}: the whole is off", p + 1);
+        assert_eq!(a.shares_at(&shape, p).len(), 1, "Place {}", p + 1);
     }
-    let a = &app.backup.as_ref().unwrap().answers;
-    assert_eq!(plan::check(&shape, a).lost, plan::Lost::No);
-    drag(&mut app, list(Thing::Share(2)), BP::Zone(Zone::Paper(2)));
-    let a = &app.backup.as_ref().unwrap().answers;
-    assert_eq!(plan::check(&shape, a).lost, plan::Lost::WithVault);
+    assert_eq!(plan::check(&shape, &a).lost, plan::Lost::Yes);
+    // A place taken off and one added: every place has its share.
+    app.press(Action::Board(BP::RemovePlace(2)));
+    app.press(Action::Board(BP::AddPlace));
+    let a = app.backup.as_ref().unwrap().answers.clone();
+    assert_eq!(a.places, 3);
+    for p in 0..3 {
+        assert_eq!(a.shares_at(&shape, p).len(), 1, "Place {}", p + 1);
+    }
+    expect_down(&mut app, "Place 3 holds no seed");
+    // Remove partial descriptions: no share, and the description cannot
+    // be put back together.
+    expect(&mut app, "Remove partial descriptions");
+    app.press(Action::Board(BP::Partials));
+    let a = app.backup.as_ref().unwrap().answers.clone();
+    assert!((0..3).all(|p| a.shares_at(&shape, p).is_empty()));
+    expect_down_part(&mut app, "The description cannot be put back together");
+}
+
+/// A single key's one place: "Any one place lost" reads "No: a single
+/// place", muted, not as a warning (`docs/BACKUP-FLOW.md` §19.19).
+#[test]
+fn a_single_keys_one_place_reads_no_a_single_place() {
+    let mut app = testkit::started();
+    let fp = key_in(&mut app, 1);
+    app.press(Action::KeyWallet(fp, 1));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    let w = app.session.wallets.len() - 1;
+    app.press(Action::Backup(w));
+    let _ = app.frame();
+    expect(&mut app, "No: a single place");
+    let t = app.drawn_texts().join(" ");
+    assert!(
+        !t.contains("Separate places are strongly recommended"),
+        "{t}"
+    );
+    assert!(!t.contains("is kept only at"), "{t}");
 }
 
 /// The software place: its card, the description scanned in, and its

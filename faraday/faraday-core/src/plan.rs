@@ -227,13 +227,13 @@ impl Default for Answers {
 }
 
 impl Answers {
-    /// The wallet's defaults: one key, paper words, two places, the
-    /// sheet in each, the descriptor as a QR picture; a multisig, a
+    /// The wallet's defaults: one key, paper words, one place (the most a
+    /// single key has, `docs/BACKUP-FLOW.md` §19.19), the sheet there, the descriptor as a QR picture; a multisig, a
     /// place per seed, each with its seed and the whole wallet sheet; no
     /// seed here, no seed on paper. Should the seeds go into vaults, a
     /// vault per seed here, vault `v` holding the `v`th.
     pub fn defaults(shape: &Shape) -> Answers {
-        let places = if shape.multi() { shape.seeds.len() } else { 2 };
+        let places = if shape.multi() { shape.seeds.len() } else { 1 };
         let mut a = Answers {
             seeds: [!shape.watch_only(), false, false, false],
             places,
@@ -304,6 +304,11 @@ impl Answers {
     /// is none, a place is added for it (`docs/BACKUP-FLOW.md` §10.3). A
     /// passphrase the plan already puts somewhere stays.
     pub fn place_passphrases(&mut self, shape: &Shape) {
+        self.place_passphrases_up_to(shape, max_places(shape));
+    }
+
+    /// [`Answers::place_passphrases`], adding no place past `most`.
+    fn place_passphrases_up_to(&mut self, shape: &Shape, most: usize) {
         for i in 0..shape.seeds.len() {
             if !(shape.seeds[i].here && shape.seeds[i].passphrase) {
                 continue;
@@ -318,6 +323,23 @@ impl Answers {
                 continue;
             }
             let free = (0..self.places).find(|&p| !self.seed_at(shape, i, p));
+            // At the most places a plan has (§19.19), the passphrase goes
+            // into the vault where the seeds go into one, else beside its
+            // seed, which the board warns of.
+            let full = self.places >= most;
+            if free.is_none() && full {
+                let vault = self.seeds[seeds::VAULT];
+                let row = &mut self.pass[i];
+                match row.last_mut() {
+                    Some(v) if vault => *v = true,
+                    _ => {
+                        if let Some(first) = row.first_mut() {
+                            *first = true;
+                        }
+                    }
+                }
+                continue;
+            }
             let p = match free {
                 Some(p) => p,
                 None => {
@@ -338,18 +360,20 @@ impl Answers {
 
     /// The answers a preset fills in, from the wallet's defaults.
     pub fn preset(shape: &Shape, preset: Preset) -> Answers {
+        // A place per key, one for a single key (`docs/BACKUP-FLOW.md`
+        // §19.19).
+        let base = if shape.multi() { shape.seeds.len() } else { 1 };
+        Answers::preset_at(shape, preset, base)
+    }
+
+    /// The answers a preset fills in over `base` places: [`Answers::preset`]
+    /// at a place per key, or as a plan saved before plans kept at most one
+    /// place per key had it (two for a single key).
+    pub fn preset_at(shape: &Shape, preset: Preset, base: usize) -> Answers {
         let mut a = Answers::defaults(shape);
         a.preset = Some(preset);
         // The passphrase's own place is found again below, once the
-        // vault's stick has its place. The standard way keeps a single
-        // key at one place.
-        let base = if shape.multi() {
-            shape.seeds.len()
-        } else if preset == Preset::Standard {
-            1
-        } else {
-            2
-        };
+        // vault's stick has its place.
         if a.places != base {
             a.set_places(shape, base);
         }
@@ -370,7 +394,14 @@ impl Answers {
         for row in a.pass.iter_mut().filter(|r| !r.is_empty()) {
             row.iter_mut().for_each(|b| *b = false);
         }
-        a.place_passphrases(shape);
+        // A plan over more places than one per key is one saved before
+        // (§19.19): its passphrase finds a place as it did then.
+        let most = if base > max_places(shape) {
+            usize::MAX
+        } else {
+            max_places(shape)
+        };
+        a.place_passphrases_up_to(shape, most);
         a
     }
 
@@ -1744,6 +1775,9 @@ pub struct Check {
     /// passphrase (`docs/BACKUP-FLOW.md` §10.3): a line of fact, never a
     /// block.
     pub one_place: Option<usize>,
+    /// The plan has a single place: "Any one place lost" is No by the
+    /// nature of it, and reads so, muted (`docs/BACKUP-FLOW.md` §19.19).
+    pub single: bool,
     /// A single key with no passphrase: a passphrase kept at another
     /// place than the seed is recommended.
     pub passphrase_apart: bool,
@@ -2055,7 +2089,10 @@ fn check_of(shape: &Shape, a: &Answers, boxes: &[Spot]) -> Check {
         lost,
         spend,
         balance,
-        one_place: one_place_in(shape, boxes),
+        // A single key has one place at most: its every secret there is
+        // no warning (§19.19).
+        one_place: one_place_in(shape, boxes).filter(|_| max_places(shape) > 1),
+        single: places.len() == 1,
         passphrase_apart: shape.seeds.len() == 1
             && shape.seeds[0].here
             && !shape.seeds[0].passphrase,
@@ -2216,6 +2253,11 @@ pub fn lost_why(
 ) -> Option<String> {
     let boxes = place_map(shape, a);
     let places = spots(&boxes);
+    // A single place: "No: a single place" says why (§19.19); a seed kept
+    // nowhere still says so.
+    if places.len() == 1 {
+        return kept_nowhere(shape, a, &shape.here());
+    }
     let gone = places
         .iter()
         .copied()
@@ -2277,6 +2319,26 @@ pub fn lost_why(
                 ));
             }
         }
+    }
+    // The seeds are there without it, the description is not (§19.19
+    // item 5): the line names the description.
+    let mut have = Have::none(shape);
+    let mut readable: Vec<usize> = Vec::new();
+    for &at in places.iter().filter(|&&at| at != gone) {
+        if !matches!(at, At::Vault(_)) {
+            holds_in(&boxes, at).into_iter().for_each(|w| have.add(w));
+        }
+        readable.extend(reads_in(&boxes, at));
+    }
+    for at in [At::Software, At::Away] {
+        holds_in(&boxes, at).into_iter().for_each(|w| have.add(w));
+    }
+    let have = opened_in(&boxes, &have, &readable);
+    if have.seeds_ok(shape) >= shape.m.max(1) && !have.wallet_ok(shape, a) {
+        return Some(fill(
+            EN.plan_without_no_description,
+            &[&name_at(gone, name, noun).to_string()],
+        ));
     }
     Some(fill(
         EN.plan_without_the_rest,
@@ -3751,4 +3813,281 @@ pub fn follows(shape: &Shape, a: &Answers, marks: &[(At, What, Mark)]) -> Follow
         elsewhere,
         any_lost: !lost.is_empty(),
     }
+}
+
+/// The most places a plan for `shape` has (`docs/BACKUP-FLOW.md` §19.19):
+/// one per key of the wallet, one for a single key. Fewer are allowed.
+pub fn max_places(shape: &Shape) -> usize {
+    shape.keys.max(shape.seeds.len()).max(1)
+}
+
+/// How the description's shares are handed out to a plan's places
+/// (`docs/BACKUP-FLOW.md` §19.19 items 2 and 3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HandOut {
+    /// The keys each share leaves off.
+    pub omit: usize,
+    /// The share each place keeps, by place.
+    pub shares: Vec<usize>,
+    /// Every group of places that holds enough seeds to spend, and every
+    /// group of `m` places, can rebuild the description.
+    pub rebuilds: bool,
+    /// The places that can see the balance from their own share and
+    /// seeds though they cannot spend: none where the search could avoid
+    /// it.
+    pub sees: Vec<usize>,
+}
+
+/// The keys place `p` gives by its seeds on the map `boxes` (by place,
+/// [`by_place`]), as a bit per key: a seed's words, SeedQR or file there,
+/// or in a vault whose stick it keeps.
+fn seed_keys(boxes: &[Spot], p: usize) -> u64 {
+    let at = At::Place(p);
+    let mut held = holds_in(boxes, at);
+    for v in reads_in(boxes, at) {
+        held.extend(holds_in(boxes, At::Vault(v)));
+    }
+    held.iter().fold(0u64, |acc, w| match w {
+        What::Words(i)
+        | What::SeedQr(i)
+        | What::Seed(i)
+        | What::SeedPassphrase(i)
+        | What::SeedFile(i)
+        | What::SeedQrFile(i)
+            if *i < 64 =>
+        {
+            acc | (1 << i)
+        }
+        _ => acc,
+    })
+}
+
+/// Works out which share goes where (`docs/BACKUP-FLOW.md` §19.19 item
+/// 3): tries the ways of handing one share to each place, as many keys
+/// left off as can be (from `M − 1` down to 1), and keeps the first in a
+/// fixed order where every group of places that holds enough seeds to
+/// spend, and every group of `M` places, rebuilds the description, and no
+/// place that cannot spend sees the balance alone; failing that, the
+/// first where the groups rebuild. Every group of places is tried for
+/// each way: a search, bounded by a step budget, once, on the press.
+pub fn hand_out(shape: &Shape, a: &Answers) -> HandOut {
+    let boxes = place_map(shape, a);
+    let places = places_of(&boxes).max(1);
+    let n = shape.keys.clamp(1, 63);
+    let m = shape.m.max(1);
+    let all: u64 = (1u64 << n) - 1;
+    let seeds: Vec<u64> = (0..places).map(|p| seed_keys(&boxes, p)).collect();
+    let most = m.saturating_sub(1).min(n.saturating_sub(1)).max(1);
+    // The groups that must rebuild: by bit mask of places, up to 16
+    // places tried in full.
+    let groups: Vec<u64> = if places <= 16 {
+        (1u64..(1 << places))
+            .filter(|&g| {
+                let keys = (0..places)
+                    .filter(|p| g & (1 << p) != 0)
+                    .fold(0u64, |k, p| k | seeds[p]);
+                g.count_ones() as usize >= m || keys.count_ones() as usize >= m
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let masks = |omit: usize| -> Vec<u64> {
+        split_plan(n, m, omit)
+            .iter()
+            .map(|row| row.iter().fold(0u64, |k, &i| k | (1 << i)))
+            .collect()
+    };
+    let can_spend = |p: usize| seeds[p].count_ones() as usize >= m;
+    let rebuilds = |shares: &[u64], pick: &[usize]| {
+        groups.iter().all(|&g| {
+            (0..places)
+                .filter(|p| g & (1 << p) != 0)
+                .fold(0u64, |k, p| k | seeds[p] | shares[pick[p]])
+                == all
+        })
+    };
+    let sees_alone = |shares: &[u64], pick: &[usize]| -> Vec<usize> {
+        (0..places)
+            .filter(|&p| !can_spend(p) && (seeds[p] | shares[pick[p]]) == all)
+            .collect()
+    };
+    let mut budget: u32 = 20_000;
+    for strict in [true, false] {
+        for omit in (1..=most).rev() {
+            let shares = masks(omit);
+            let mut pick: Vec<usize> = Vec::with_capacity(places);
+            let found = search(
+                &shares,
+                places,
+                &mut pick,
+                &mut budget,
+                &|p, j| !(strict && !can_spend(p) && (seeds[p] | shares[j]) == all),
+                &|pick| rebuilds(&shares, pick),
+            );
+            if found {
+                return HandOut {
+                    omit,
+                    sees: sees_alone(&shares, &pick),
+                    shares: pick,
+                    rebuilds: true,
+                };
+            }
+        }
+    }
+    // Nothing rebuilds: one share each in order, a key left off each.
+    let shares = masks(1);
+    let pick: Vec<usize> = (0..places).map(|p| p % shares.len().max(1)).collect();
+    HandOut {
+        omit: 1,
+        sees: sees_alone(&shares, &pick),
+        shares: pick,
+        rebuilds: false,
+    }
+}
+
+/// [`hand_out`]'s search: a share for each place in turn, each tried from
+/// the place's own number on and none twice while there are shares
+/// enough, `ok` deciding a place's share and `done` the whole. Returns
+/// whether it found one, leaving it in `pick`.
+fn search(
+    shares: &[u64],
+    places: usize,
+    pick: &mut Vec<usize>,
+    budget: &mut u32,
+    ok: &dyn Fn(usize, usize) -> bool,
+    done: &dyn Fn(&[usize]) -> bool,
+) -> bool {
+    let p = pick.len();
+    if p == places {
+        *budget = budget.saturating_sub(1);
+        return done(pick);
+    }
+    let n = shares.len().max(1);
+    for k in 0..n {
+        if *budget == 0 {
+            return false;
+        }
+        let j = (p + k) % n;
+        if (places <= n && pick.contains(&j)) || !ok(p, j) {
+            continue;
+        }
+        pick.push(j);
+        if search(shares, places, pick, budget, ok, done) {
+            return true;
+        }
+        pick.pop();
+    }
+    false
+}
+
+/// Whether everything the plan keeps, anywhere, puts the description
+/// back together (`docs/BACKUP-FLOW.md` §19.19 item 5): the whole of it,
+/// or shares and seeds that hold every key.
+pub fn description_kept(shape: &Shape, a: &Answers) -> bool {
+    let boxes = place_map(shape, a);
+    let mut have = Have::none(shape);
+    for s in &boxes {
+        s.holds.iter().for_each(|(w, _)| have.add(*w));
+    }
+    have.wallet_ok(shape, a)
+}
+
+/// The shares the plan keeps, each with how many places, vaults and the
+/// software keep it, in share order.
+pub fn shares_kept(shape: &Shape, a: &Answers) -> Vec<(usize, usize)> {
+    let boxes = place_map(shape, a);
+    (0..shape.keys)
+        .map(|j| {
+            let n = boxes
+                .iter()
+                .filter(|s| {
+                    s.holds.iter().any(
+                        |(w, _)| matches!(w, What::Share(k) | What::ShareFile(k, _) if *k == j),
+                    )
+                })
+                .count();
+            (j, n)
+        })
+        .filter(|&(_, n)| n > 0)
+        .collect()
+}
+
+impl Answers {
+    /// **Add partial descriptions to this backup** (`docs/BACKUP-FLOW.md`
+    /// §19.19 item 1): any share kept taken off, then one share of the
+    /// description on each place's paper, handed out by [`hand_out`], the
+    /// keys left off each as it found. The whole description stays where
+    /// it is. Works out the hand-out, a search.
+    pub fn add_partials(&mut self, shape: &Shape) -> HandOut {
+        self.edit_map(shape, |m| without_shares(&m));
+        let out = hand_out(shape, self);
+        self.omit = out.omit;
+        let shares = out.shares.clone();
+        self.edit_map(shape, |m| {
+            shares
+                .iter()
+                .enumerate()
+                .fold(m, |m, (p, &j)| with_added(&m, At::Place(p), What::Share(j)))
+        });
+        self.split = shape.splits;
+        out
+    }
+
+    /// **Remove partial descriptions**: every share of the description
+    /// taken off, wherever it is kept.
+    pub fn remove_partials(&mut self, shape: &Shape) {
+        self.edit_map(shape, |m| without_shares(&m));
+        self.split = false;
+    }
+
+    /// The whole description taken off every place, on paper and on its
+    /// sticks (`docs/BACKUP-FLOW.md` §19.19 item 4): vaults and the
+    /// software keep theirs.
+    pub fn whole_off_places(&mut self, shape: &Shape) {
+        self.edit_map(shape, |mut m| {
+            for s in m.iter_mut() {
+                if matches!(s.at, At::Place(_) | At::Stick(..)) {
+                    s.holds
+                        .retain(|(w, _)| !matches!(w, What::Sheet | What::WalletFile(_)));
+                }
+            }
+            tidy_sticks(m)
+        });
+    }
+
+    /// The places that keep the whole description, on paper or on a stick
+    /// there.
+    pub fn whole_at(&self, shape: &Shape) -> Vec<usize> {
+        let boxes = place_map(shape, self);
+        boxes
+            .iter()
+            .filter_map(|s| match s.at {
+                At::Place(p)
+                    if s.holds
+                        .iter()
+                        .any(|(w, _)| matches!(w, What::Sheet | What::WalletFile(_))) =>
+                {
+                    Some(p)
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Partial descriptions are on: a share of the description is kept.
+    pub fn partials_on(&self) -> bool {
+        self.split
+    }
+}
+
+/// The map `m` with every share of the description taken off.
+fn without_shares(m: &[Spot]) -> Vec<Spot> {
+    let mut out = m.to_vec();
+    for s in out.iter_mut() {
+        s.holds
+            .retain(|(w, _)| !matches!(w, What::Share(_) | What::ShareFile(..)));
+    }
+    out.retain(|s| !(s.holds.is_empty() && matches!(s.at, At::Files | At::Software | At::Away)));
+    tidy_sticks(out)
 }

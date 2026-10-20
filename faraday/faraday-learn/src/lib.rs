@@ -28,7 +28,7 @@ pub use sketch::{Sketch, is_marker};
 /// (`docs/learn/faraday/boot/*.md`) are `faraday-guides`' own table, not
 /// this one, except `replace-faraday`, which the stick's Upgrade screen
 /// shows directly ([`known`]).
-const OWN: [(&str, &str); 8] = [
+const OWN: [(&str, &str); 9] = [
     // Upgrading a stick from another stick (`PLAN.md` §5.5).
     (
         "upgrade-a-stick",
@@ -58,6 +58,12 @@ const OWN: [(&str, &str); 8] = [
     (
         "backup-plan-check",
         include_str!("../../../docs/learn/faraday/backup-plan-check.md"),
+    ),
+    // Copies made outside the backup plan (`docs/BACKUP-FLOW.md` §19.19
+    // item 7).
+    (
+        "extra-copies",
+        include_str!("../../../docs/learn/faraday/extra-copies.md"),
     ),
 ];
 
@@ -318,6 +324,11 @@ pub fn gpg_page() -> &'static LearnPage {
 /// "A backup plan's check".
 pub fn backup_plan_check_page() -> &'static LearnPage {
     known("backup-plan-check")
+}
+
+/// "Extra copies".
+pub fn extra_copies_page() -> &'static LearnPage {
+    known("extra-copies")
 }
 
 /// "The demo and its public seeds".
