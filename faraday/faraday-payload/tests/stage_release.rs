@@ -1,9 +1,10 @@
 //! Staging a release (`faraday/tools/stage-release.sh`, `docs/DEMO.md`
-//! §9.2) over test builds: what the owner signs and what each Starter
-//! embeds hold the stick and Pi images and no desktop app (F30), and a
-//! release folder holding a desktop app is refused by name. The builds are
-//! small stand-ins carrying a build ID where the script reads one; the
-//! script needs xz, strings and mtools, as on the build machine.
+//! §9.2) over test builds: what the owner signs holds the stick and Pi
+//! images and Faraday Desktop's two files under their testnet-only names
+//! (F61), what each Starter embeds holds the images only, and a payload
+//! holding a desktop app is refused by name. The builds are small
+//! stand-ins carrying a build ID where the script reads one; the script
+//! needs xz, strings and mtools, as on the build machine.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -82,6 +83,19 @@ fn builds(root: &Path) -> PathBuf {
     builds
 }
 
+/// Faraday Desktop's two builds under `builds/`, as the container builds
+/// leave them, each carrying `build` as its build ID.
+fn desktop_builds(builds: &Path, build: &str) {
+    fs::create_dir_all(builds.join("linux")).expect("folder");
+    fs::create_dir_all(builds.join("windows")).expect("folder");
+    let app = format!("Faraday Desktop {build}\n").repeat(100);
+    fs::write(builds.join("linux/faraday"), &app).expect("linux");
+    fs::write(builds.join("windows/faraday.exe"), &app).expect("windows");
+}
+
+const DESKTOP_LINUX: &str = "faraday-desktop-0.9.0-testnet-only-linux-x86_64";
+const DESKTOP_WINDOWS: &str = "faraday-desktop-0.9.0-testnet-only-windows-x86_64.exe";
+
 fn script() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../tools/stage-release.sh")
 }
@@ -98,6 +112,7 @@ fn stage(args: &[&str]) -> Output {
 /// folders.
 fn first_pass(root: &Path) -> (PathBuf, PathBuf) {
     let builds = builds(root);
+    desktop_builds(&builds, "0.9.0+0123456789ab.test");
     let (out, payload) = (root.join("release"), root.join("payload"));
     let done = stage(&[
         VERSION,
@@ -127,14 +142,13 @@ fn names(dir: &Path) -> Vec<String> {
 }
 
 #[test]
-fn a_staged_release_lists_no_desktop_app_and_its_payloads_hold_only_the_images() {
+fn a_staged_release_lists_the_desktop_files_and_its_payloads_hold_only_the_images() {
     let root = fresh("staged");
     let (out, payload) = first_pass(&root);
     let stick = format!("faraday-stick-{VERSION}-x86_64-uefi.img");
     let pi = format!("faraday-pi-{VERSION}-pi3-waveshare-28dpi.img");
 
     let sums = fs::read_to_string(out.join("SHA256SUMS")).expect("SHA256SUMS");
-    assert!(!sums.contains("faraday-desktop-"), "{sums}");
     let listed: Vec<&str> = sums
         .lines()
         .skip(1)
@@ -146,13 +160,37 @@ fn a_staged_release_lists_no_desktop_app_and_its_payloads_hold_only_the_images()
             format!("{stick}.xz"),
             format!("{pi}.xz"),
             stick.clone(),
-            pi.clone()
+            pi.clone(),
+            DESKTOP_LINUX.to_string(),
+            DESKTOP_WINDOWS.to_string(),
         ]
     );
     assert_eq!(
         names(&out),
-        ["SHA256SUMS", &format!("{pi}.xz"), &format!("{stick}.xz")]
+        [
+            "SHA256SUMS",
+            DESKTOP_LINUX,
+            DESKTOP_WINDOWS,
+            &format!("{pi}.xz"),
+            &format!("{stick}.xz")
+        ]
     );
+    // Each published as built, and the Linux one runs.
+    let built = fs::read(root.join("builds/linux/faraday")).expect("build");
+    assert_eq!(fs::read(out.join(DESKTOP_LINUX)).expect("staged"), built);
+    use std::os::unix::fs::PermissionsExt;
+    let mode = fs::metadata(out.join(DESKTOP_LINUX))
+        .expect("staged")
+        .permissions()
+        .mode();
+    assert_eq!(mode & 0o111, 0o111);
+    // The sums check out from the release folder, as a person runs them.
+    let checked = Command::new("sha256sum")
+        .args(["-c", "--quiet", "--ignore-missing", "SHA256SUMS"])
+        .current_dir(&out)
+        .output()
+        .unwrap_or_err("sha256sum");
+    assert!(checked.status.success(), "{checked:?}");
 
     for system in ["linux", "windows"] {
         let dir = payload.join(system);
@@ -173,11 +211,11 @@ fn a_staged_release_lists_no_desktop_app_and_its_payloads_hold_only_the_images()
 }
 
 #[test]
-fn staging_refuses_a_release_folder_holding_a_desktop_app_and_names_it() {
+fn staging_refuses_a_payload_holding_a_desktop_app_and_names_it() {
     let root = fresh("refused");
     let (out, payload) = first_pass(&root);
-    // A desktop app left in the folder, as an earlier release staged one.
-    let left = out.join(format!("faraday-desktop-{VERSION}-linux-x86_64"));
+    // A desktop app put in a Starter's payload, which no Starter carries.
+    let left = payload.join(format!("linux/{DESKTOP_LINUX}"));
     fs::write(&left, "a desktop app").expect("file");
     // A Starter built against the payload: it carries its MANIFEST's
     // first line.
@@ -201,17 +239,37 @@ fn staging_refuses_a_release_folder_holding_a_desktop_app_and_names_it() {
     ]);
     assert!(
         !done.status.success(),
-        "a release folder with a desktop app was staged"
+        "a payload with a desktop app was staged"
     );
     let said = String::from_utf8_lossy(&done.stderr);
-    assert!(
-        said.contains(&format!("faraday-desktop-{VERSION}-linux-x86_64")),
-        "{said}"
-    );
+    assert!(said.contains(DESKTOP_LINUX), "{said}");
     // The Starter was not added; what the first pass staged stays.
     assert!(
         !out.join(format!("Faraday-Starter-{VERSION}-Linux.tar.gz"))
             .exists()
     );
     assert!(out.join("SHA256SUMS").is_file());
+}
+
+#[test]
+fn a_release_refuses_a_desktop_test_build_and_names_it() {
+    let root = fresh("test-desktop");
+    let builds = builds(&root);
+    desktop_builds(&builds, "0.9.0+0123456789ab.test");
+    let done = stage(&[
+        VERSION,
+        "--builds",
+        builds.to_str().expect("a path"),
+        "--out",
+        root.join("release").to_str().expect("a path"),
+        "--payload",
+        root.join("payload").to_str().expect("a path"),
+    ]);
+    assert!(
+        !done.status.success(),
+        "a test build was staged as a release"
+    );
+    let said = String::from_utf8_lossy(&done.stderr);
+    assert!(said.contains("linux/faraday is a test build"), "{said}");
+    assert!(!root.join("release").exists());
 }

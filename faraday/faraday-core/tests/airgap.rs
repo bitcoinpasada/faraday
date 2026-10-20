@@ -4,11 +4,14 @@
 //! is not air-gapped: the network waits for "I understand", and Cancel
 //! leaves it on mainnet. Reaching a test network another way brings the
 //! same warning up with no way past it but the acknowledgement. The
-//! device never shows it.
+//! device never shows it. A released Faraday Desktop, which opens on
+//! testnet, shows it at start, before any key can be added (F61).
 
 use faraday_core::create::NewKind;
 use faraday_core::wallet::Session;
-use faraday_core::{Action, Faraday, Sheet, StorageEvent, demo, testkit};
+use faraday_core::{
+    Action, Faraday, Sheet, StickInfo, StorageCommand, StorageEvent, demo, testkit,
+};
 use osk_bip::keys::Network;
 use osk_shell_api::App;
 
@@ -173,4 +176,80 @@ fn the_demo_names_its_learn_page_first_and_the_device_never() {
             .iter()
             .all(|p| p.title != "The demo and its public seeds")
     );
+}
+
+/// The released desktop's app: online, opening on testnet, with the start
+/// warning, before its first frame or stick (F61).
+fn released_desktop() -> Faraday {
+    let mut app = desktop();
+    app.session.set_network(Network::Testnet).unwrap();
+    app.with_start_warning();
+    app
+}
+
+#[test]
+fn the_released_desktop_warns_at_start_before_any_key_can_be_added() {
+    let mut app = released_desktop();
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::NotAirgapped));
+    assert!(app.offers(Action::AirgapUnderstood));
+    assert!(!app.offers(Action::Cancel), "only the acknowledgement");
+    assert!(
+        !app.offers(Action::Scan),
+        "no Scan, or anything else, under it"
+    );
+    app.press(Action::AirgapUnderstood);
+    let _ = app.frame();
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.session.network(), Network::Testnet);
+    assert!(app.offers(Action::Scan));
+    assert!(app.session.add_words(OTHER, "", None).is_ok());
+}
+
+#[test]
+fn the_start_warning_is_acknowledged_once_a_session() {
+    let mut app = released_desktop();
+    app.press(Action::AirgapUnderstood);
+    app.press(Action::Network(Network::Mainnet));
+    let _ = app.frame();
+    app.press(Action::Network(Network::Signet));
+    let _ = app.frame();
+    assert_eq!(app.session.network(), Network::Signet);
+    assert_eq!(app.sheet, None);
+}
+
+#[test]
+fn the_boot_import_waits_for_the_start_warning() {
+    let mut app = released_desktop();
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
+        id: "boot".into(),
+        label: "FARADAY".into(),
+        boot: true,
+        files: vec![("words.txt".into(), OTHER.len() as u64)],
+    }]));
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::Read { stick, name } = c {
+            app.storage(StorageEvent::Read {
+                stick,
+                name,
+                bytes: OTHER.as_bytes().to_vec(),
+            });
+        }
+    }
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::NotAirgapped));
+    assert!(app.session.keys.is_empty());
+    app.press(Action::AirgapUnderstood);
+    assert_eq!(app.sheet, Some(Sheet::Import));
+}
+
+#[test]
+fn a_developer_desktop_opens_on_testnet_with_no_warning() {
+    let mut app = desktop();
+    app.session.set_network(Network::Testnet).unwrap();
+    app.without_airgap_warning();
+    let _ = app.frame();
+    assert_eq!(app.sheet, None);
+    assert!(app.offers(Action::Scan));
 }

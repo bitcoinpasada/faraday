@@ -1137,6 +1137,10 @@ they were typed, with the seed allowed on screen above the field.
 
 ### F30 No released Faraday Desktop; the demo makes no secrets (2026-10-14)
 
+*Partly reversed by F61 (2026-10-20): releases publish Faraday Desktop
+again, for Linux and Windows, testnet only for real seeds. The Starter
+part stands: no payload entry, no Install tick, no Try the desktop app.*
+
 **Why.** Faraday Desktop runs on an online computer, and released, it
 offered every flow there: GPG and Secure Boot keys, BIP-85 passwords,
 shares of a seed. The website runs the same app in a browser and is a
@@ -2118,3 +2122,35 @@ backups; Sign with key on an APK) shows no vault action at all while no
 vault is open; the vault's own row keeps its Unlock. Once one is open,
 the action shows as before.
 
+### F61 Faraday Desktop is published again, testnet only for real seeds (2026-10-20)
+
+**Why.** Faraday Desktop opens on testnet since 2026-10-19, taking any
+seed and showing real addresses, which makes it a way to try Faraday
+with test coins that the website's mainnet demo is not. Unpublished
+(F30), only a developer could run it.
+
+**Decision** (owner, 2026-10-20; partly reverses F30).
+
+- Releases publish Faraday Desktop for Linux and Windows as standalone
+  files: `faraday-desktop-X.Y.Z-testnet-only-linux-x86_64` and
+  `faraday-desktop-X.Y.Z-testnet-only-windows-x86_64.exe`, each with its
+  line in `SHA256SUMS` and through the same published-file check as the
+  other files (`faraday/tools/stage-release.sh`, its first pass, from
+  `out/linux/faraday` and `out/windows/faraday.exe` built with
+  `release=1`). The macOS desktop file stays unpublished.
+- Faraday Starter does not carry it, as F30 has it: no payload entry, no
+  Install tick, no Try the desktop app. Staging refuses a desktop app in
+  a payload.
+- A release build of the desktop (`faraday_core::is_release`: a build
+  ID with nothing after the version) opens on testnet and shows F20's
+  online warning sheet ("This computer is online: never enter a seed
+  that holds funds here") once at start, before any seed can be loaded:
+  the boot import and a new device wait under it. It has only **I
+  understand**. Once acknowledged, it is not shown again that session;
+  a lock starts a new session, which shows it again.
+- Mainnet stays the public-seed demo (F20). Going back to a test network
+  after acknowledging shows nothing more that session.
+- Developer and test builds keep the behaviour of 2026-10-19: testnet,
+  no warning.
+- `docs/DEMO.md` §9, `docs/STARTER.md` §1.1 and the README's Faraday
+  Desktop and Verifying a release sections follow.

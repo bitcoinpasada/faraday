@@ -241,23 +241,36 @@ these words.
 
 ## 9. Releases
 
+*Partly reversed by F61 (owner, 2026-10-20): releases publish Faraday
+Desktop again, for Linux and Windows, as
+`faraday-desktop-X.Y.Z-testnet-only-linux-x86_64` and
+`faraday-desktop-X.Y.Z-testnet-only-windows-x86_64.exe`, each in
+`SHA256SUMS`. A release build opens on testnet and shows F20's online
+warning once at start. No Starter carries, installs or offers to try
+it (§10 stands). §9.1, §9.2 and §9.4 below read with that change; the
+macOS desktop file stays unpublished.*
+
 ### 9.1 What a release publishes
 
-`docs/STARTER.md` §1.1 without the three `faraday-desktop-` rows: the
+`docs/STARTER.md` §1.1 without the macOS `faraday-desktop-` row: the
 two Starters (and the macOS one when it exists), the stick image, the
-Pi image, the Apple Silicon image and start-up file when they exist. `SHA256SUMS` lists no `faraday-desktop-` file.
+Pi image, the two Faraday Desktop files (F61), the Apple Silicon image
+and start-up file when they exist. `SHA256SUMS` lists the two desktop
+files.
 
 ### 9.2 `faraday/tools/stage-release.sh`
 
-- The first pass no longer takes `out/linux/faraday` or
-  `out/windows/faraday.exe`, copies no desktop app, and writes no
-  desktop line to `SHA256SUMS`. The one-build check compares the stick
-  and the Pi only.
+- The first pass takes `out/linux/faraday` and
+  `out/windows/faraday.exe`, each a release build unless `--any-build`,
+  publishes them under F61's names and writes their lines to
+  `SHA256SUMS`, and runs the published-file check on them. The
+  one-build check compares the stick and the Pi only.
 - The payload's `linux/` and `windows/` folders hold the two image
   `.xz` files and `MANIFEST`, nothing else. The two folders stay, since
   each Starter embeds its own and they may differ later (MAC's images).
-- Before it finishes, it refuses a release folder that holds any file
-  whose name starts `faraday-desktop-`, and says which.
+- Before it finishes, it refuses a payload folder that holds any file
+  whose name starts `faraday-desktop-`, and says which (F61: the release
+  folder's two are published).
 - The `faraday-release-stage` recipe's comment in `faraday/faraday.just`
   drops the desktop builds.
 
@@ -287,7 +300,8 @@ Pi image, the Apple Silicon image and start-up file when they exist. `SHA256SUMS
 
 ### 9.4 Release notes
 
-The "Other downloads" list (STARTER §1.1) has no desktop app. The first
+The "Other downloads" list (STARTER §1.1) has the two desktop files
+since F61, each named testnet only. The first
 release after this says once: "Faraday Desktop is no longer published.
 Try Faraday on the website's demo; developers build the desktop app
 from source (README)."

@@ -269,8 +269,9 @@ impl Faraday {
         self.after_visit = None;
         self.screen = Screen::Home;
         // A device waiting to be believed is asked about first
-        // (`PLAN.md` §4.6); this sheet comes up once it is decided.
-        if self.sheet == Some(Sheet::NewInput) {
+        // (`PLAN.md` §4.6), and the online app's start warning is
+        // acknowledged first (F61); this sheet comes up after.
+        if matches!(self.sheet, Some(Sheet::NewInput | Sheet::NotAirgapped)) {
             self.import_under_input = true;
         } else {
             self.sheet = Some(Sheet::Import);

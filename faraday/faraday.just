@@ -11,7 +11,9 @@ version := ""
 # The desktop app at out/linux/faraday, built in a Debian 11 container
 # (faraday/build/linux) against glibc 2.31, so one file runs on Ubuntu
 # 20.04 and later, Debian 11 and later, Fedora 32 and later and Arch
-# (docs/STARTER.md §1.2): a developer's build, not released (F30). The
+# (docs/STARTER.md §1.2). With release=1 it is the file a release
+# publishes as faraday-desktop-X.Y.Z-testnet-only-linux-x86_64, which
+# shows the online warning at start (docs/DECISIONS.md F61). The
 # Wayland and X11 libraries are loaded from the
 # desktop it runs on. The Starter is built the same way with
 # the arguments `out/linux out/build/run faraday-starter-shell faraday-starter`, against the payload a first
@@ -26,12 +28,8 @@ version := ""
 # as the stick the device booted from (renamed, the app starts with no
 # stick in), and STICK-1 and on, one folder for each backup stick. The
 # pills across the top of the window plug each stick in or pull it out.
-# The boot stick holds the backup
-# test kit (a 2-of-3 Taproot multisig's public
-# backup files, an unsigned spend, and vault.ofv, passphrase a, holding
-# its three seeds), all testnet, and every session starts on testnet;
-# run the app with --full-kit for the full test kit. The stick image's
-# app starts on mainnet.
+# The boot stick starts empty, and every session starts on testnet. The
+# stick image's app starts on mainnet.
 faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop" bin="faraday":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -67,8 +65,9 @@ faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop
 # into OUT/BIN.exe, with its icon, version and asInvoker manifest, and
 # checked: no library beside Windows' own, no local path in its strings.
 # Parameters are positional, in this order, as faraday-linux-bin's are;
-# the last two default to the Starter; the desktop app is a developer's
-# build, not released (F30). FARADAY_STARTER_PAYLOAD=out/payload/VERSION/windows
+# the last two default to the Starter; the desktop app with release=1 is
+# released on its own as faraday-desktop-X.Y.Z-testnet-only-windows-x86_64.exe
+# (F61). FARADAY_STARTER_PAYLOAD=out/payload/VERSION/windows
 # builds that payload into the Starter (the stick and Pi images); without
 # it the Starter offers only --image. what
 # `clippy` runs clippy for the Windows target on that package instead.
@@ -372,8 +371,12 @@ faraday-pi-image: faraday-pi-bin
 # (STARTER §1.3); refuses files carrying a home folder, user name or host
 # name. The stick image must be the release build (release=1); the stick
 # and Pi builds must carry one build ID; --any-build tries it on a test
-# build. No desktop app is staged (F30). The payload has linux/ and
-# windows/, one for each Starter, each holding the two images and MANIFEST.
+# build. Faraday Desktop, out/linux/faraday and out/windows/faraday.exe
+# built with release=1, is staged beside them as
+# faraday-desktop-VERSION-testnet-only-linux-x86_64 and
+# faraday-desktop-VERSION-testnet-only-windows-x86_64.exe (F61), never in
+# the payload. The payload has linux/ and windows/, one for each Starter,
+# each holding the two images and MANIFEST.
 #
 #   just faraday-release-stage 0.2.0
 #   just faraday-release-stage 0.2.0 --any-build --out DIR

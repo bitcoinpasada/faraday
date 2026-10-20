@@ -478,7 +478,7 @@ different from the one read first among them.
   makes §4's refusal come sooner, and signing only is the usual way to
   sign a large file there.
 - **Faraday Desktop**'s sticks are folders read through the same storage
-  code (`README.md`, "Faraday Desktop, for developers"), so it has the same visit,
+  code (`README.md`, "Faraday Desktop"), so it has the same visit,
   threshold, choice and rule, with two differences, since the computer's
   memory changes with what else runs on it:
   - *F* is the free memory now, and *L* counts only reads and products

@@ -3223,8 +3223,9 @@ pub struct Faraday {
     pub ignored_inputs: Vec<(u32, String)>,
     /// Keyboards kept out this session for typing the wrong code.
     inputs_kept_out: usize,
-    /// The boot import's sheet waits under the new-device sheet, and
-    /// comes up once every waiting device is decided.
+    /// The boot import's sheet waits under the new-device sheet, or the
+    /// online app's start warning (F61), and comes up once every waiting
+    /// device is decided and the warning acknowledged.
     import_under_input: bool,
     /// Files the boot import brought in with the stick still in, by name:
     /// the seeds they hold load once it is pulled (F60).
@@ -3573,7 +3574,7 @@ pub struct Faraday {
     pub devices: devices::DeviceCheck,
     /// The online app's warning that this computer is not air-gapped has
     /// been acknowledged this session: it comes before a test network
-    /// does (F20).
+    /// does (F20), and at start in a released Faraday Desktop (F61).
     airgap_warned: bool,
     /// The test network asked for while that warning is on show.
     test_asked: Option<osk_bip::keys::Network>,
@@ -3813,6 +3814,16 @@ impl Faraday {
     /// network: Faraday Desktop opens on testnet (owner, 2026-10-19).
     pub fn without_airgap_warning(&mut self) {
         self.airgap_warned = true;
+    }
+
+    /// Shows the online app's not-air-gapped warning at once, before any
+    /// seed can be loaded, until it is acknowledged; once acknowledged, it
+    /// is not shown again this session. A released Faraday Desktop, which
+    /// opens on testnet, starts with it (F61).
+    pub fn with_start_warning(&mut self) {
+        self.airgap_warned = false;
+        self.test_asked = None;
+        self.sheet = Some(Sheet::NotAirgapped);
     }
 
     /// Whether a storage request is waiting for the shell (a lookup).
@@ -5696,6 +5707,15 @@ impl Faraday {
                 self.sheet = None;
                 if let Some(n) = self.test_asked.take() {
                     self.act(Action::Network(n));
+                }
+                // What waited under the start warning comes up now: a new
+                // device first, then the boot import (F61).
+                self.input_sheet();
+                if self.sheet.is_none()
+                    && self.import.is_some()
+                    && std::mem::take(&mut self.import_under_input)
+                {
+                    self.sheet = Some(Sheet::Import);
                 }
             }
             Action::Network(n) => match self.session.set_network(n) {

@@ -640,9 +640,9 @@ Files shows through the webcam and saves each whole file into the same
 folder, under its own name or `received-N`, never over a file already
 there (`name (2).ext`).
 
-Faraday Desktop is no longer published; try Faraday on the website's
-demo. A desktop app an earlier Faraday Starter installed stays until
-removed by hand: `~/.local/bin/faraday-desktop` and
+Faraday Starter does not carry or install Faraday Desktop, which is
+published on its own ("Faraday Desktop" below). A desktop app an
+earlier Faraday Starter installed stays until removed by hand: `~/.local/bin/faraday-desktop` and
 `~/.local/share/applications/app.faradayoffline.FaradayDesktop.desktop`
 on Linux, `Faraday Desktop.exe` in `%LOCALAPPDATA%\Programs\Faraday Starter`
 and its Start menu shortcut on Windows.
@@ -651,17 +651,22 @@ Without Faraday Starter, Raspberry Pi Imager and balenaEtcher take the
 `.img.xz` as it is; other tools need it decompressed (`xz -d` on Linux,
 7-Zip on Windows).
 
-## Faraday Desktop, for developers
+## Faraday Desktop
 
 Faraday Desktop runs Faraday in a window on an ordinary computer, for
-developing it. It is not released. It has none of the stick's
-protections and is never for a seed that holds funds. It runs as the
-demo on mainnet, which takes only the public seeds (each of `bacon`,
-`flag`, `gas`, `great`, `slice`, `solution`, `summer`, `they`, `trade`,
-`trap` and `zebra`, twenty-four times), shows every address with a
-broken checksum and makes no secret a person could keep
-(`docs/DEMO.md`); on a test network, after **Test network** and
-**I understand**, it takes any seed.
+trying it on testnet and for developing it. Each release publishes it
+for Linux and Windows as `faraday-desktop-X.Y.Z-testnet-only-linux-x86_64`
+and `faraday-desktop-X.Y.Z-testnet-only-windows-x86_64.exe`
+(`docs/DECISIONS.md` F61). It has none of the stick's protections and is
+never for a seed that holds funds. It opens on testnet, which takes any
+seed; a release first says this computer is online and never to enter a
+seed that holds funds there, once each session, before any seed can be
+loaded. Mainnet, chosen from **Network**, is the demo, which takes only
+the public seeds (each of `bacon`, `flag`, `gas`, `great`, `slice`,
+`solution`, `summer`, `they`, `trade`, `trap` and `zebra`, twenty-four
+times), shows every address with a broken checksum and makes no secret
+a person could keep (`docs/DEMO.md`). A developer's build opens on
+testnet with no warning.
 
 Prerequisites: stable Rust (see `rust-toolchain.toml`), a C compiler
 (`secp256k1-sys` builds libsecp256k1 from source), and on Linux the X11
@@ -677,11 +682,11 @@ just faraday-windows-bin build out/windows out/build/run faraday-desktop faraday
 ./target/release/faraday [--sticks DIR] [--size WxH] [--transfer] [--downloads DIR]
 ```
 
-Sticks are folders under `--sticks` (default `~/faraday-sticks`):
-`BOOTSTICK` is the stick Faraday booted from, which starts empty: put
-there the files to boot with. `STICK-2` and on are backup sticks.
-Faraday Desktop opens on testnet.
-The pills across the top of the window plug each one in or pull it out.
+Sticks are folders in `faraday-sticks` in the home folder
+(`~/faraday-sticks` on Linux, `%USERPROFILE%\faraday-sticks` on Windows;
+`--sticks DIR` moves them): `BOOTSTICK` is the boot stick, empty at
+first: put there the files to boot with. `STICK-2` and on are backup
+sticks. The pills across the top of the window plug each one in or pull it out.
 
 Build the test kit on its own with:
 
@@ -801,7 +806,9 @@ From 0.1.2 the images are published as `.xz` only. `SHA256SUMS` lists
 each `.xz` and, under the `.img` name, the image inside it, so the same
 command checks a download and, after `xz -d`, the image. It lists the
 Linux Starter's `.tar.gz` and, under its own name, the file inside it, so
-either can be checked.
+either can be checked, and Faraday Desktop's two files as they are:
+`faraday-desktop-0.1.5-testnet-only-linux-x86_64` and
+`faraday-desktop-0.1.5-testnet-only-windows-x86_64.exe`.
 
 On Windows, Gpg4win's `gpg` takes the same first three commands, and
 PowerShell prints a file's sum to compare with its line in

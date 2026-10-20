@@ -55,8 +55,11 @@
 //! winit reports the drop: on X11, not on native Wayland. Nothing
 //! received goes into the app's Inbox.
 //!
-//! Every session here opens on testnet, with no not-air-gapped warning
-//! (owner, 2026-10-19); mainnet, chosen from Network, is the demo (F20).
+//! Every session here opens on testnet. A release build (a build ID
+//! with nothing after the version, `faraday_core::is_release`) first
+//! shows the not-air-gapped warning, once a session, before any seed can
+//! be loaded (F61); a developer or test build shows none (owner,
+//! 2026-10-19). Mainnet, chosen from Network, is the demo (F20).
 //! The stick's app starts on mainnet.
 //!
 //! Locking ends the app's process on the device; here it replaces the app
@@ -577,11 +580,17 @@ impl ApplicationHandler for Shell {
 
 /// A fresh app as the desktop runs it: the online Faraday, which turns
 /// sheets into PDFs, opening on testnet, where it takes any seed and
-/// shows real addresses, with no not-air-gapped warning (owner,
-/// 2026-10-19). Mainnet, chosen from Network, is the demo (F20): there
-/// it takes only the public seeds and shows every address with a broken
-/// checksum.
+/// shows real addresses. A release build shows the not-air-gapped
+/// warning once at start, before any seed can be loaded (F61); a
+/// developer or test build shows none (owner, 2026-10-19). Mainnet,
+/// chosen from Network, is the demo (F20): there it takes only the
+/// public seeds and shows every address with a broken checksum.
 fn desktop_app() -> Faraday {
+    desktop_app_for(faraday_core::is_release())
+}
+
+/// [`desktop_app`], as a release build (`release`) or not.
+fn desktop_app_for(release: bool) -> Faraday {
     let mut app = Faraday::new();
     app.online = true;
     app.shell_sticks = true;
@@ -590,7 +599,11 @@ fn desktop_app() -> Faraday {
     app.session
         .set_network(faraday_core::testkit::NET)
         .expect("a fresh session takes any network");
-    app.without_airgap_warning();
+    if release {
+        app.with_start_warning();
+    } else {
+        app.without_airgap_warning();
+    }
     app
 }
 
@@ -890,5 +903,18 @@ mod tests {
         app.press(faraday_core::Action::Network(faraday_core::testkit::NET));
         assert_eq!(app.session.network(), faraday_core::testkit::NET);
         assert!(app.sheet.is_none());
+    }
+
+    /// A release opens on testnet behind the online warning, which is
+    /// acknowledged once (F61); a developer's build shows none.
+    #[test]
+    fn a_release_opens_on_testnet_behind_the_online_warning() {
+        let mut app = desktop_app_for(true);
+        assert_eq!(app.session.network(), faraday_core::testkit::NET);
+        assert_eq!(app.sheet, Some(faraday_core::Sheet::NotAirgapped));
+        app.press(faraday_core::Action::AirgapUnderstood);
+        assert!(app.sheet.is_none());
+        assert_eq!(app.session.network(), faraday_core::testkit::NET);
+        assert!(desktop_app_for(false).sheet.is_none());
     }
 }
