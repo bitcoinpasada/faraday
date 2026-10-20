@@ -1972,6 +1972,10 @@ it the checklist would release the hold on a key that has no backup
 
 ### 19.6 Presets
 
+*Narrowed (owner, 2026-10-20): The standard way is the only preset,
+with no Start from card; §19.21. What follows on Customize backup
+stands.*
+
 The presets, in the order **Start from** offers them (owner,
 2026-10-19):
 
@@ -2752,3 +2756,77 @@ the visible way to place, move, copy and take off without dragging.
   left.
 - On a placed chip the × stays, before the rule; the ⋮ is at the
   chip's right end.
+
+### 19.21 One way to start; Customize for the rest (owner, 2026-10-20; tracker #160)
+
+The standard way is the one preset. Paper only was the standard way
+without the SeedQR, and the vault presets chose for the person how many
+vaults there are and where their sticks go; both are done on the board
+in Customize backup.
+
+1. **No Start from.** Back up's plan has no Start from card, no preset
+   list and no **Change**: a new plan opens on the board with The
+   standard way placed (§19.6), read-only until **Customize backup**.
+   Paper only, Paper and vault, and Paper, vault and watch-only software
+   are not offered anywhere.
+2. **Create's Back up step** (step 9 of Make a new wallet and of
+   Restore) has one primary button, **Back up this wallet**, which opens
+   Back up on the wallet just made, on the board as item 1 says. Its
+   guide line reads: "The backup opens on the standard way: each seed's
+   words and SeedQR on paper with the wallet description, one place for
+   each key. Go through it before any money goes in."
+3. **The read-only board** shows two secondary buttons where Customize
+   backup is today (the right-hand column; in the narrow column where
+   **Add** stands), in this order, with no text above them:
+   - **Add watch-only software**: adds the software place (§19.1) with
+     the description Scanned in, as Paper, vault and watch-only
+     software did. With the software place on the board the button
+     reads **Take off watch-only software** and takes it off again. The
+     board stays read-only either way. The software place holds no key
+     and is not counted in §19.19's places.
+   - **Customize backup**, as §19.6 says.
+4. **+ vault reads + new vault** in Customize's list: a vault added on
+   the board is always a new one, made in the checklist (Make a vault,
+   on an empty stick, checked at the write step, §4.8). A vault already
+   on a stick is brought in only before the keys (item 5).
+5. **The vault question says so.** Under "Will you use vaults as part of
+   this backup?" (Make a new wallet and Restore, §10.2), one line in the
+   muted style: "Vaults already on sticks are brought in here, not
+   later." Reason, not shown: a vault on a stick not read this power-on
+   cannot be read after the keys without a lock, and the lock wipes the
+   keys and Create's state (tracker #106, the extra round of §4.8 is not
+   built).
+6. **A planned vault not made yet says so.** A vault box's header band
+   reads "Vault 2 · sealed · made in the checklist" while the plan's
+   vault has no vault set up for it and none open to save into
+   (`backup_vault_target(v)` is `None`); where that does not fit the
+   band, "Vault 2 · new". A vault set up before the keys, or the open
+   vault the plan saves into, reads "Vault 2 · sealed" as today. The
+   header is worked out in the board's memo (`board_view`), which must
+   be recomputed when a vault is opened, made or locked (`docs/SPEED.md`
+   §3.3).
+7. **Plans saved before.** A saved plan whose `preset` line names Paper
+   only, Paper and vault, or Paper, vault and watch-only software reopens
+   as it was saved and customisable (as if `custom 1`). A plan from The
+   standard way keeps its `custom` state. The `preset` line is still
+   read, never refused, and is no longer written.
+8. **Strings.** Removed when nothing else uses them: the three preset
+   names, Start from, Change on it, and Create's preset labels. Added:
+   Back up this wallet, Add watch-only software, Take off watch-only
+   software, + new vault (replacing + vault), the vault question's line,
+   "{} · sealed · made in the checklist" and "{} · new".
+9. **Tests** (user-facing behaviour): Create's Back up step offers one
+   button and it opens the board read-only with The standard way
+   placed; Add watch-only software adds the software place with the
+   description Scanned in and the board stays read-only, and its Take
+   off removes it; a vault added with + new vault reads "made in the
+   checklist" and, once the checklist has made it, "sealed"; a vault set
+   up before the keys reads "sealed"; the vault question shows its line
+   in Make a new wallet and Restore; a plan text saved from Paper and
+   vault reopens unchanged and customisable. Tests that chose a preset
+   to reach a plan build the same plan as a person now would: Customize
+   backup, + new vault, and the ⋮ menu's Add to… (§19.20), through a
+   shared helper; none is deleted.
+10. **Docs:** §19.6 (presets), §10.2 (the line under the question),
+    `docs/DECISIONS.md` F53, and the preset lists in `docs/WALLETS.md`,
+    `docs/FLOWS.md` and `docs/DESIGN.md`.

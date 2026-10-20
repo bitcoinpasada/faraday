@@ -1960,3 +1960,20 @@ where it can) and which share goes to which place, so any M places
 rebuild the description and, where it can, no place sees the balance
 alone. Shares are no longer placed one by one, and the "Keys left off
 each share" stepper goes. Problems are warnings, never refusals (§19.5).
+
+### F53 One way to start a backup; Customize for the rest (2026-10-20)
+
+**Why.** Paper only was the standard way without the SeedQR, and the
+vault presets chose how many vaults a wallet has and where their sticks
+go, which only the person can say. A choice of four before the board
+asked a question the board answers better.
+
+**Decision** (owner, 2026-10-20; `docs/BACKUP-FLOW.md` §19.21). A backup
+starts from The standard way only, on the read-only board, with two
+buttons: **Add watch-only software** and **Customize backup**. Create's
+Back up step has one button, **Back up this wallet**. A vault added on
+the board is a new one (**+ new vault**), made in the checklist; its
+box says so until it is made. A vault already on a stick is brought in
+only at the vault question before the keys, and the question says so,
+because the lock that reading a new stick needs wipes the keys. Plans
+saved from the other presets reopen as they were, customisable.
