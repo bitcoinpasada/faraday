@@ -5568,3 +5568,66 @@ fn change_the_plan_from_a_wallet_flow_opens_its_board() {
     let _ = app.frame();
     assert!(app.offers(Action::Board(BoardPress::Zone(Zone::Paper(0)))));
 }
+
+/// NEW-WALLET §17 (F55): with the vaults set up before the keys, Check's
+/// Path Change takes the wallet back and the remade wallet, at another
+/// account, is the one the backup is for.
+#[test]
+fn a_wallet_taken_back_from_check_after_the_vault_setup_backs_up_as_remade() {
+    let mut shell = Shell::new();
+    sticks(&mut shell, 3);
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    keep_time(&mut app);
+    create_with_vaults(&mut app, false, 1);
+    bring_in_all(&mut shell, &mut app, &["S1"]);
+    create_vault(&mut shell, &mut app, 0, PHRASE);
+    let fp = key_in(&mut app, 1);
+    app.press(Action::Nav(Screen::Create));
+    app.press(Action::CSlotHere(0, fp));
+    app.press(Action::CNext(cstep::KEYS));
+    let first = app.create.as_ref().unwrap().built.expect("wallet made");
+    let first_sum = app.session.wallets[first].checksum().to_string();
+    let wallets = app.session.wallets.len();
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::CPathChange),
+        "Check's Path offers Change"
+    );
+    app.press(Action::CPathChange);
+    assert_eq!(
+        app.session.wallets.len(),
+        wallets - 1,
+        "the wallet is taken back"
+    );
+    app.press(Action::CAccount(1));
+    app.press(Action::CNext(cstep::KIND));
+    if app.create.as_ref().unwrap().built.is_none() {
+        app.press(Action::CNext(cstep::KEYS));
+    }
+    let w = app
+        .create
+        .as_ref()
+        .unwrap()
+        .built
+        .expect("wallet made again");
+    assert_eq!(app.session.wallets.len(), wallets, "one wallet, not two");
+    let sum = app.session.wallets[w].checksum().to_string();
+    assert_ne!(sum, first_sum, "another account, another wallet");
+    app.press(Action::CNext(cstep::CHECK));
+    app.press(Action::CBackup);
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
+    assert_eq!(app.screen, Screen::Backup);
+    let tied: Vec<&str> = app
+        .backup_flows
+        .iter()
+        .filter_map(|f| f.subject.as_ref().map(|s| s.id.as_str()))
+        .collect();
+    assert!(
+        tied.contains(&sum.as_str()),
+        "the backup is the remade wallet's"
+    );
+    assert!(
+        !tied.contains(&first_sum.as_str()),
+        "nothing is tied to the one taken back"
+    );
+}

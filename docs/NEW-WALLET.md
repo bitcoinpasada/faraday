@@ -1599,3 +1599,79 @@ panel's Create pages. Strings in `faraday-strings`.
 
 **Docs.** FLOWS (Create, the wallet card), WALLETS (the card's
 buttons), §12.3 item 2 here.
+
+## 17. The derivation path on Check, its account on Kind (owner, 2026-10-20; F55)
+
+**Why.** Check showed the descriptor (kind, fingerprints, checksum) and
+the first addresses, but not the derivation path, which another wallet
+asks for when the wallet is loaded there. The account could be chosen
+only for a wallet made from another (§16.2).
+
+**Survey (2026-10-20).** `screens.rs` `create_body`, `cstep::CHECK`:
+`descriptor_row`, `first_addresses`, Continue. Kind's **Account**
+stepper (§16.2) is drawn only when `c.from` is set, and
+`create_account_step` refuses otherwise. The keys are made at
+`c.account` already (`key_text_account`, `NewKind::path_at`). The wallet
+is made on Keys' Continue (`create_make`), which also ties the backup
+flow that set up the vaults to it (`wallet_flow_attach`); after that
+every card is locked.
+
+### 17.1 The rules
+
+- **Only the account changes.** The rest of the path is the kind's
+  standard one (BIP-84, 86, 49, 44, 48). `m/45'` has no account
+  (`has_account`): no stepper, and Check's Path has no Change. FROST's
+  shares are dealt here, not derived: no stepper and no Path row.
+- **Kind's Account** − n + stepper is offered for every kind with an
+  account, starting at 0; a wallet made from another starts where §16.2
+  says. Kind's closed line reads "{kind} · account n" when the account
+  is not 0 (or the wallet was made from another).
+- **Check's Path row**, under the descriptor row: the label **Path**
+  and the path in the mono face, as `m/84'/0'/0'`. When the keys' paths
+  differ (a cosigner's xpub at another account), each key's fingerprint
+  and path, separated by " · "; a key that came with no origin reads
+  "no path given". The text is worked out once, when the wallet is made
+  (`create::paths_text`, kept in `CreateState::path`); drawing reads it.
+- **Change** beside the path takes the made wallet back: Kind opens,
+  Keys and Check are no longer done, the keys stay in their slots, and
+  Keys' Continue makes the wallet again at the account then chosen. A
+  wallet Create added is removed from the session; one found loaded
+  already (the same descriptor) stays. The backup flow that set up the
+  vaults is put back as it was before the wallet was tied to it, and a
+  move of money waiting for this wallet (§9.6) forgets it.
+- **Change is offered while nothing has used the wallet**: its backup
+  has not begun, the setup flow stands where it stood when the wallet
+  was made, and the wallet is the last one added. Otherwise the row
+  shows the path alone.
+- A cosigner's key held only as an xpub is used as it came; it does not
+  follow the account (§16.2's "Needs Key n's xpub at account n" applies
+  to a wallet made from another).
+
+### 17.2 Where
+
+`create.rs` (`paths_text`), `create_from.rs` (`create_account_step` for
+every kind with an account, `create_can_take_back`, `create_take_back`),
+`lib.rs` (`CreateState::path`, `added`, `before_made`; `create_make`
+keeps the path and a copy of the setup flow; `Action::CPathChange`),
+`screens.rs` (`path_row`, Kind's stepper and closed line). Strings in
+`faraday-strings` (`create_path`, `create_path_change`,
+`create_path_not_given`). The snapshot tour `createfrom` shows Check's
+Path and Kind after Change.
+
+### 17.3 Tests
+
+`tests/create_wallet.rs`, `tests/backup_flow_wallet.rs`:
+
+- Check shows `m/84'/1'/0'` for a single key on testnet; Change takes
+  the wallet back, Kind opens, no wallet is left; at account 2 the
+  wallet made again has the address the same words give at
+  `m/84'/1'/2'/0/0`, it is the only wallet, and Check shows account 2;
+- a fresh 2-of-3 at account 1 has every key at account 1, and Check
+  shows the kind's path at account 1;
+- Kind offers the Account stepper for a single key and not for `m/45'`;
+- with the vaults set up before the keys, Change and a new account make
+  one wallet, and the backup that follows is that wallet's, nothing tied
+  to the one taken back.
+
+**Docs.** FLOWS decision 20, F55.
+

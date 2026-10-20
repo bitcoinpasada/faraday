@@ -5280,7 +5280,21 @@ fn create_from_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CVaults(false));
     t.press(Action::CNext(cstep::WHERE));
     t.shot("create-from-keys")?;
-    down(t, Action::CSlotClear(2), "create-from-keys-down")
+    down(t, Action::CSlotClear(2), "create-from-keys-down")?;
+    // A fresh single-key wallet: Check's Path, and Change back to Kind's
+    // Account (`docs/NEW-WALLET.md` §17).
+    t.press(Action::CreateOver);
+    t.press(Action::CNext(cstep::KIND));
+    t.press(Action::CVaults(false));
+    t.press(Action::CNext(cstep::WHERE));
+    let fp = t.app.session.keys[0].fingerprint().0;
+    t.press(Action::CSlotHere(0, fp));
+    t.press(Action::CNext(cstep::KEYS));
+    t.shot("create-check-path")?;
+    down(t, Action::CPathChange, "create-check-path-down")?;
+    t.press(Action::CPathChange);
+    t.press(Action::CAccount(1));
+    t.shot("create-path-kind-account")
 }
 
 /// A flow standing on Make over the vault open now, as a person has it after

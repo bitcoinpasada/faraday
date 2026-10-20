@@ -7606,12 +7606,14 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 cstep::WHERE | cstep::HOW_MANY | cstep::STICKS | cstep::VAULTS => {
                     create_flow_summary(app, k)
                 }
-                // A wallet made from another says its account
-                // (`docs/NEW-WALLET.md` §16.2).
-                cstep::KIND if c.from.is_some() && c.kind.has_account() => fill(
-                    EN.create_at_account,
-                    &[c.kind.name(), &c.account.to_string()],
-                ),
+                // A wallet made from another, or at another account than
+                // 0, says its account (`docs/NEW-WALLET.md` §16.2, §17).
+                cstep::KIND if (c.from.is_some() || c.account != 0) && c.kind.has_account() => {
+                    fill(
+                        EN.create_at_account,
+                        &[c.kind.name(), &c.account.to_string()],
+                    )
+                }
                 cstep::KIND => c.kind.name().to_string(),
                 cstep::QUORUM => fill(EN.create_of, &[&c.m.to_string(), &c.n.to_string()]),
                 cstep::KEYS if c.kind.threshold() => fill(
@@ -7933,9 +7935,9 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 Action::CMoreKinds,
             );
             cy += 6.0;
-            // A wallet made from another: the account its keys are used
-            // at (`docs/NEW-WALLET.md` §16.2).
-            if c.from.is_some() && c.kind.has_account() {
+            // The account its keys are used at, for every kind whose
+            // path has one (`docs/NEW-WALLET.md` §16.2, §17).
+            if c.kind.has_account() {
                 stepper(
                     ui,
                     x,
@@ -8325,6 +8327,7 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 // The descriptor as a summary row: tapping it opens the
                 // wallet's code with the descriptor's full text under it.
                 cy += descriptor_row(ui, x, cy, w, wl, Action::QrWallet(c.built.unwrap_or(0)));
+                cy += path_row(ui, x, cy, w, &c.path, app.create_can_take_back());
                 cy += first_addresses(app, ui, c.built.unwrap_or(0), x, cy, w);
                 cy += 6.0;
                 cy += buttons_and_next(
@@ -8694,6 +8697,34 @@ pub(crate) fn descriptor_row(
         DIM,
     );
     ui.hit(x, y - 4.0, w, h, action);
+    ui.rule(x, y + h, w, INNER);
+    h + 12.0
+}
+
+/// Check's Path row: the made wallet's derivation paths, worked out when
+/// it was made, with **Change** back to Kind's Account while the wallet
+/// can be taken back (`docs/NEW-WALLET.md` §17). Nothing when there is no
+/// path. Returns its height.
+fn path_row(ui: &mut Ui, x: f32, y: f32, w: f32, path: &str, change: bool) -> f32 {
+    if path.is_empty() {
+        return 0.0;
+    }
+    let bw = ui.measure(13.0, W::S, EN.create_path_change) + 32.0;
+    let vw = if change { w - bw - 10.0 } else { w };
+    ui.text(x, y, 12.0, W::R, MUTED, EN.create_path);
+    let vh = ui.wrap(x, y + 20.0, vw, 13.0, W::M, TEXT, path).max(18.0);
+    let h = 20.0 + vh + 8.0;
+    if change {
+        ui.button(
+            x + w - bw,
+            y + (h - 34.0) / 2.0,
+            Some(bw),
+            34.0,
+            EN.create_path_change,
+            Style::Ghost,
+            Action::CPathChange,
+        );
+    }
     ui.rule(x, y + h, w, INNER);
     h + 12.0
 }

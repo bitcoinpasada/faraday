@@ -542,3 +542,29 @@ pub fn key_for(kind: NewKind, text: &str) -> Option<String> {
 pub fn build(kind: NewKind, m: usize, keys: &[String]) -> Result<WalletPolicy, String> {
     WalletPolicy::parse_any(&kind.descriptor(m, keys)).map_err(|e| e.to_string())
 }
+
+/// A wallet's derivation paths as Make a new wallet's Check shows them
+/// (`docs/NEW-WALLET.md` §17): the one path when every key has it, else
+/// each key's fingerprint and path. A key that came with no origin
+/// reads as such.
+pub fn paths_text(policy: &WalletPolicy) -> String {
+    let shown = |k: &PolicyKey| match k.path() {
+        Some(p) => format!("m/{p}"),
+        None => EN.create_path_not_given.to_string(),
+    };
+    let keys = policy.keys();
+    let paths: Vec<String> = keys.iter().map(shown).collect();
+    match paths.first() {
+        None => String::new(),
+        Some(first) if paths.iter().all(|p| p == first) => first.clone(),
+        Some(_) => keys
+            .iter()
+            .zip(&paths)
+            .map(|(k, p)| {
+                let fp = k.fingerprint().or(Some(k.identifier_fingerprint()));
+                format!("{} {p}", crate::backup::fp_of(fp))
+            })
+            .collect::<Vec<_>>()
+            .join(" · "),
+    }
+}

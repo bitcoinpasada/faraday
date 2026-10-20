@@ -304,11 +304,12 @@ impl Faraday {
     }
 
     /// Kind's Account stepper: the account every key of the creation is
-    /// used at.
+    /// used at (`docs/NEW-WALLET.md` §16.2, §17), for every kind that
+    /// has one.
     pub(crate) fn create_account_step(&mut self, d: i8) {
         if let Some(c) = self.create.as_mut()
             && c.built.is_none()
-            && c.from.is_some()
+            && c.kind.has_account()
         {
             c.account =
                 (i64::from(c.account) + i64::from(d)).clamp(0, i64::from(u32::MAX >> 1)) as u32;
@@ -330,5 +331,69 @@ impl Faraday {
             EN.create_needs_xpub_at,
             &[&(slot + 1).to_string(), &c.account.to_string()],
         ))
+    }
+
+    /// Whether Check's Path row offers **Change**: the kind has an
+    /// account, and nothing has used the made wallet yet. Its backup has
+    /// not started, and the flow that set up its vaults is where it was
+    /// when the wallet was made (`docs/NEW-WALLET.md` §17).
+    pub(crate) fn create_can_take_back(&self) -> bool {
+        let Some(c) = self.create.as_ref() else {
+            return false;
+        };
+        let Some(w) = c.built else {
+            return false;
+        };
+        if !c.kind.has_account() || c.kind.threshold() {
+            return false;
+        }
+        if self.backup.as_ref().is_some_and(|b| b.wallet == w) {
+            return false;
+        }
+        // A wallet added here comes off the end; one found loaded already
+        // stays where it is.
+        if c.added && w + 1 != self.session.wallets.len() {
+            return false;
+        }
+        match c.before_made.as_ref() {
+            None => self.wallet_flow_of_owner(c.owner).is_none(),
+            Some((f, was)) => self.backup_flows.get(*f).is_some_and(|now| {
+                now.step == was.step && now.wallet.as_ref().is_some_and(|wf| wf.owner == c.owner)
+            }),
+        }
+    }
+
+    /// Check's Path row **Change**: the made wallet is taken back and
+    /// Kind opens on its Account. The keys stay in their slots; Keys'
+    /// Continue makes the wallet again at the account chosen.
+    pub(crate) fn create_take_back(&mut self) {
+        if !self.create_can_take_back() {
+            return;
+        }
+        let Some(c) = self.create.as_mut() else {
+            return;
+        };
+        let Some(w) = c.built.take() else {
+            return;
+        };
+        c.done[crate::cstep::KEYS as usize] = false;
+        c.done[crate::cstep::CHECK as usize] = false;
+        c.open = Some(crate::cstep::KIND);
+        c.scroll.follow = true;
+        c.path.clear();
+        c.error = None;
+        let added = std::mem::take(&mut c.added);
+        let before = c.before_made.take();
+        if let Some((f, was)) = before {
+            self.backup_flows[f] = *was;
+        }
+        if added {
+            let sum = self.session.wallets[w].checksum().to_string();
+            if self.chart_work.moving_to.as_deref() == Some(sum.as_str()) {
+                self.chart_work.moving_to = None;
+            }
+            self.session.wallets.remove(w);
+            self.wallet = w.saturating_sub(1);
+        }
     }
 }

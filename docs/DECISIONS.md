@@ -1995,3 +1995,18 @@ Faraday's copies From the stick are not renamed. A vault's file keeps
 `.ofv`, and a rename never takes a name already on the stick: a vault
 is known by its identity, not its name, so a renamed vault is found,
 unlocked and updated as before.
+
+### F55 The derivation path on Check, its account on Kind (2026-10-20)
+
+**Why.** A new wallet's derivation path was nowhere on Make a new
+wallet, and its account could be chosen only for a wallet made from
+another (F45).
+
+**Decision** (owner, 2026-10-20; `docs/NEW-WALLET.md` §17). Check shows
+the made wallet's path under the descriptor. Only the account changes,
+the rest of the path stays the kind's standard one. Kind's **Account**
+stepper is offered for every kind whose path has an account, starting at
+0. Check's **Change** takes the made wallet back and opens Kind on its
+Account; Keys' Continue makes it again. It is offered while nothing has
+used the wallet: its backup not begun, the flow that set up its vaults
+where it stood when the wallet was made.

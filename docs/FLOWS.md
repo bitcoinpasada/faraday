@@ -198,7 +198,11 @@ to get it.
     under it; Back up is the plan's three presets, each opening the
     backup on the new wallet with that preset, its chip "Then: Wallets",
     its way back the wallet's card. The vault, public-files and paper
-    cards are gone: they are the checklist's items.
+    cards are gone: they are the checklist's items. Since F55
+    (`docs/NEW-WALLET.md` §17, 2026-10-20) Kind carries an **Account**
+    − n + stepper for every kind whose path has one, starting at 0, and
+    Check shows a **Path** row under the descriptor, with **Change**
+    that takes the made wallet back and opens Kind on its Account.
 21. **Create a vault offers two sizes** (owner, 2026-10-10;
     `docs/SIMPLIFY.md` §3.1 and §3.2). Its cards are Size and Name and
     passphrases; Size is **PCs only** (512 MiB) or **PCs and a Raspberry

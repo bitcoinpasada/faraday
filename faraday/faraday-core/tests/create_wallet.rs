@@ -604,3 +604,91 @@ fn changing_kind_to_taproot_keeps_the_keys_and_makes_a_taproot_wallet() {
     assert_eq!(account_of_key(&keys[0]), 1);
     assert_eq!(w.name, format!("{} · account 1", NewKind::Taproot.name()));
 }
+
+// NEW-WALLET §17 (F55): the derivation path on Check, its account
+// changed on Kind.
+
+fn kind_index(kind: NewKind) -> u8 {
+    NewKind::ALL
+        .iter()
+        .position(|k| *k == kind)
+        .expect("one of the ten kinds") as u8
+}
+
+fn drawn_joined(app: &mut Faraday) -> String {
+    app.drawn_texts().join("\n")
+}
+
+#[test]
+fn check_shows_the_path_and_change_makes_the_wallet_again_at_another_account() {
+    let (mut app, _) = made_on_testnet();
+    let text = drawn_joined(&mut app);
+    assert!(text.contains("m/84'/1'/0'"), "Check shows the path: {text}");
+    assert!(
+        app.offers(Action::CPathChange),
+        "the Path row offers Change"
+    );
+    app.press(Action::CPathChange);
+    let c = app.create.as_ref().expect("create");
+    assert_eq!(c.built, None, "the wallet is taken back");
+    assert_eq!(c.open, Some(cstep::KIND), "Kind opens on its Account");
+    assert!(app.session.wallets.is_empty(), "no wallet left behind");
+    app.press(Action::CAccount(1));
+    app.press(Action::CAccount(1));
+    let made = continue_throughout(&mut app);
+    assert_eq!(app.session.wallets.len(), 1, "one wallet, not two");
+    let w = &app.session.wallets[made];
+    assert_eq!(
+        app.session.address(w, false, 0),
+        p2wpkh_at("bacon", "m/84'/1'/2'/0/0"),
+        "the same words at account 2"
+    );
+    let text = drawn_joined(&mut app);
+    assert!(
+        text.contains("m/84'/1'/2'"),
+        "Check shows account 2: {text}"
+    );
+}
+
+#[test]
+fn a_fresh_two_of_three_at_account_1_uses_every_key_there() {
+    let mut app = testkit::started();
+    for seed in ["bacon", "zebra", "summer"] {
+        add_key(&mut app, seed);
+    }
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(multi_index()));
+    app.press(Action::CAccount(1));
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CVaults(false));
+    app.press(Action::CNext(cstep::WHERE));
+    app.press(Action::CNext(cstep::QUORUM));
+    for k in 0..3u8 {
+        let fp = app.session.keys[usize::from(k)].fingerprint().0;
+        app.press(Action::CSlotHere(k, fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    let made = app.create.as_ref().and_then(|c| c.built).expect("made");
+    for k in app.session.wallets[made].policy().keys() {
+        assert_eq!(account_of_key(k), 1, "{} is at account 1", k.key_text());
+    }
+    let want = NewKind::Multi.path_at(app.session.network(), 1);
+    let text = drawn_joined(&mut app);
+    assert!(text.contains(&want), "Check shows {want}: {text}");
+}
+
+#[test]
+fn a_kind_without_an_account_offers_no_account_stepper() {
+    let mut app = opened();
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::CAccount(1)),
+        "a single key's Kind offers its account"
+    );
+    app.press(Action::CKind(kind_index(NewKind::MultiLegacy)));
+    let _ = app.frame();
+    assert!(
+        !app.offers(Action::CAccount(1)),
+        "m/45' has no account to choose"
+    );
+}

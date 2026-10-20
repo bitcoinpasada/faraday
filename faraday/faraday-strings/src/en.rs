@@ -5226,6 +5226,13 @@ pub struct Strings {
     /// Kind's closed line and the proposed name of a wallet made from
     /// another. `{}`: the kind's or the wallet's name, the account.
     pub create_at_account: &'static str,
+    /// Label in `create_body`: Check's row of the made wallet's
+    /// derivation paths (`docs/NEW-WALLET.md` §17).
+    pub create_path: &'static str,
+    /// Button in `create_body`: Check's Path row, back to Kind's Account.
+    pub create_path_change: &'static str,
+    /// Text in Check's Path row: a key that came with no origin.
+    pub create_path_not_given: &'static str,
     /// Button on a wallet's card.
     pub wallets_new_wallet_from: &'static str,
     /// Text in `create_body`.
@@ -10994,6 +11001,9 @@ pub static EN: Strings = Strings {
     create_needs_xpub_at: "Needs Key {}'s xpub at account {}",
     create_account: "Account",
     create_at_account: "{} · account {}",
+    create_path: "Path",
+    create_path_change: "Change",
+    create_path_not_given: "no path given",
     wallets_new_wallet_from: "New wallet from this one",
     create_clear: "Clear",
     create_show_xpub_qr: "Show xpub QR",

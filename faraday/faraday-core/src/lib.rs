@@ -1183,8 +1183,11 @@ pub enum Action {
     /// Fill slot s with key record r of open vault v, loading that key
     /// (`docs/NEW-WALLET.md` §16.1).
     CSlotVault(u8, usize, usize),
-    /// Kind's Account stepper, on a creation started from a wallet.
+    /// Kind's Account stepper (`docs/NEW-WALLET.md` §16.2, §17).
     CAccount(i8),
+    /// Check's Path row **Change**: the made wallet taken back, Kind
+    /// open on its Account (`docs/NEW-WALLET.md` §17).
+    CPathChange,
     /// A wallet card's **New wallet from this one**: Create filled from
     /// wallet i (`docs/NEW-WALLET.md` §16.2).
     NewWalletFrom(usize),
@@ -2580,6 +2583,15 @@ pub struct CreateState {
     /// The wallet the creation was started from, by **New wallet from
     /// this one**.
     pub from: Option<create::FromWallet>,
+    /// The made wallet's derivation paths as Check shows them, worked out
+    /// once when it is made (`docs/NEW-WALLET.md` §17).
+    pub path: String,
+    /// The made wallet was added to the session by this creation, not
+    /// found there already: taking it back removes it.
+    pub added: bool,
+    /// The creation's backup flow as it stood before the made wallet was
+    /// tied to it, by index: what taking the wallet back puts back.
+    pub before_made: Option<(usize, Box<backup_flow::BackupFlow>)>,
 }
 
 impl CreateState {
@@ -6464,6 +6476,7 @@ impl Faraday {
             // wallet from one held.
             Action::CSlotVault(k, v, r) => self.create_slot_vault(k, v, r),
             Action::CAccount(d) => self.create_account_step(d),
+            Action::CPathChange => self.create_take_back(),
             Action::NewWalletFrom(i) => self.create_from_wallet(i),
             Action::CSlotHere(k, fp) => {
                 if let Some(c) = self.create.as_mut()
@@ -9251,6 +9264,7 @@ impl Faraday {
                 &[&(self.session.wallets.len() + 1).to_string()],
             ),
         };
+        let before = self.session.wallets.len();
         match self.session.add_wallet(
             &name,
             &descriptor,
@@ -9260,16 +9274,24 @@ impl Faraday {
             Ok(i) => {
                 self.chart_work.moved_to(&self.session, i);
                 self.wallet = i;
+                let path = create::paths_text(self.session.wallets[i].policy());
+                let owner = self.create.as_ref().map(|c| c.owner);
+                let before_made = owner
+                    .and_then(|o| self.wallet_flow_pre_of(o))
+                    .map(|f| (f, Box::new(self.backup_flows[f].clone())));
                 if let Some(c) = self.create.as_mut() {
                     c.built = Some(i);
                     c.error = None;
                     c.done[cstep::KEYS as usize] = true;
                     c.open = Some(cstep::CHECK);
                     c.scroll.follow = true;
+                    c.path = path;
+                    c.added = i == before;
+                    c.before_made = before_made;
                 }
                 // The flow that decided where its keys go knows the wallet
                 // now.
-                if let Some(owner) = self.create.as_ref().map(|c| c.owner) {
+                if let Some(owner) = owner {
                     self.wallet_flow_attach(i, owner);
                 }
             }
