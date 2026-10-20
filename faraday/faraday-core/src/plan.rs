@@ -2232,12 +2232,13 @@ fn check_of(shape: &Shape, a: &Answers, boxes: &[Spot]) -> Check {
     }
 }
 
-/// The place that holds every secret of the wallet: every seed loaded
-/// here, in any form (words, SeedQR, a seed file on the place's stick of
-/// files, a vault whose stick is there; a seed file on the stick of files
-/// is at no place), and every passphrase of those seeds (on paper
-/// there, or in a vault whose stick is there). It is also the place that
-/// holds a seed with its own passphrase, whatever else is elsewhere
+/// The place that holds every secret of the wallet: every seed of the
+/// wallet, loaded here or not, in any form (words, SeedQR, a seed file on
+/// the place's stick of files, a vault whose stick is there; a seed file
+/// on the stick of files, and a seed kept on its own device, are at no
+/// place), and every passphrase of those seeds (on paper there, or in a
+/// vault whose stick is there). It is also the place that holds a seed
+/// with its own passphrase, whatever else is elsewhere
 /// (`docs/BACKUP-FLOW.md` §10.3).
 pub fn all_at_one_place(shape: &Shape, a: &Answers) -> Option<usize> {
     one_place_in(shape, &place_map(shape, a))
@@ -2245,10 +2246,10 @@ pub fn all_at_one_place(shape: &Shape, a: &Answers) -> Option<usize> {
 
 /// [`all_at_one_place`] on the map `boxes`.
 fn one_place_in(shape: &Shape, boxes: &[Spot]) -> Option<usize> {
-    let here = shape.here();
-    if here.is_empty() {
+    if shape.watch_only() {
         return None;
     }
+    let seeds: Vec<usize> = (0..shape.seeds.len()).collect();
     let places: Vec<usize> = boxes
         .iter()
         .filter_map(|s| match s.at {
@@ -2281,7 +2282,7 @@ fn one_place_in(shape: &Shape, boxes: &[Spot]) -> Option<usize> {
         })
     };
     for &p in &places {
-        if here
+        if seeds
             .iter()
             .all(|&i| seed_at(i, p) && (!shape.seeds[i].passphrase || pass_at(i, p)))
         {
@@ -2289,7 +2290,8 @@ fn one_place_in(shape: &Shape, boxes: &[Spot]) -> Option<usize> {
         }
     }
     places.iter().copied().find(|&p| {
-        here.iter()
+        seeds
+            .iter()
             .any(|&i| shape.seeds[i].passphrase && seed_at(i, p) && pass_at(i, p))
     })
 }

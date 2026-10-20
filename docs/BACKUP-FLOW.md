@@ -701,9 +701,10 @@ Keys card, for a key loaded from words without one.
 
 **The one-place warning.** A new test, `plan::all_at_one_place(shape,
 answers) -> Option<usize>`, gives the place, if any, that holds every
-secret of the wallet: every seed loaded here, in any form (words,
-SeedQR, a vault whose stick is there; a seed file, on the stick of
-files, is at no place and does not count), and every passphrase of those seeds (on
+secret of the wallet: every seed of the wallet, loaded here or not, in
+any form (words, SeedQR, a vault whose stick is there; a seed file, on
+the stick of files, is at no place and does not count, nor is a seed
+kept on its own device), and every passphrase of those seeds (on
 paper there, or in a vault whose stick is there). It fires on a
 one-place plan, on every seed and passphrase at Place 1 beside other
 places, and whenever a seed and its passphrase are at the same place.

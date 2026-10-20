@@ -983,6 +983,20 @@ fn the_plan_says_when_every_secret_is_at_one_place() {
 }
 
 #[test]
+fn a_multisig_with_one_seed_here_is_not_all_at_one_place() {
+    // A 2-of-3 of which only the first seed is loaded here: the others are
+    // kept elsewhere, so the place keeping the first seed does not hold
+    // every secret of the wallet.
+    let mut shape = shape_with(false, 3);
+    shape.seeds[1].here = false;
+    shape.seeds[2].here = false;
+    let mut a = Answers::preset(&shape, Preset::Paper);
+    a.set_places(&shape, 1);
+    assert_eq!(plan::all_at_one_place(&shape, &a), None);
+    assert_eq!(plan::check(&shape, &a).one_place, None);
+}
+
+#[test]
 fn a_single_keys_passphrase_has_a_place_of_its_own_and_sits_at_the_one_place_without_it() {
     // Two places for a single key with a passphrase (`docs/BACKUP-FLOW.md`
     // §19.19): every preset keeps the passphrase alone at Place 2.
