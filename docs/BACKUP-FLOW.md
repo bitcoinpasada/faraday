@@ -349,7 +349,10 @@ inserted before step 2.
   step 6; one that fails offers **Use another stick**.
 - **A copy of a vault already in the plan**: no extra round; one more
   stick at step 6, with the second-copy rules.
-- **A stick holding an existing vault the key should go into**: one
+- **A stick holding an existing vault the key should go into**:
+  *Dropped (owner, 2026-10-20; tracker #161): an existing vault is
+  brought in only before the keys (§10.2, §19.21 item 5). The round
+  below is not built.* One
   guided extra round, inside the flow, on its own card, **Add {vault}**:
   1. **Lock**: the key's vaults are sealed and kept For the stick, as
      the Outbox is kept; everything secret wiped;
