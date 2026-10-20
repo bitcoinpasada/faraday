@@ -94,40 +94,34 @@ wallet descriptors, PSBTs, seed words, pictures of QR codes. Faraday
 reads it once, when it first sees the stick after power-on, and does
 not leave it attached while anything secret is open.
 
-1. **Copied into memory.** Every file on the stick is read into RAM. A
-   vault file goes into Files, From the stick, still encrypted. Every
-   other file is held apart until the import. A PNG is not kept as a
-   picture: its QR codes are read, and what they hold is kept, a SeedQR
-   as its seed words. A file Faraday reads as nothing it knows, up to
-   18 MiB, is kept as a File, which can go into Files to be signed
-   with a GPG key or sent as QR codes. A sheet reads "Read from
-   {label}", one line of what was read ("1 vault · 2 PSBTs · 4 other
-   files"), and "Pull the stick to continue".
-2. **Pull the stick.** Keys never load and passphrases are never typed
-   while a stick is attached.
-3. **Unlock on the sheet.** With one vault on the stick, its passphrase
-   field is on the sheet; with several, each has an Unlock button that
-   opens the field under it. An unlock that succeeds imports everything:
-   the vault's wallets and keys, the wallets and keys the stick's files
-   and pictures hold, and every file into Files but a secret's, whose
-   key loads without it. Everything else is wiped from memory, and the
-   session goes on from Home. A wrong passphrase stays on the sheet and
+1. **Copied into memory.** Every file on the stick is read into RAM and
+   held apart: nothing enters Files until the import. A PNG is not kept
+   as a picture: its QR codes are read, and what they hold is kept, a
+   SeedQR as its seed words. A file Faraday reads as nothing it knows,
+   up to 18 MiB, is kept as a File, which can be signed with a GPG key
+   or sent as QR codes.
+2. **Choose what to import.** A sheet reads "Read from {label}", one
+   line of what was read ("1 vault · 2 PSBTs · 4 other files"), and
+   lists every vault and file, each ticked, a seed's file too, with
+   **Unselect all**, **Later** and **Import** (F60). **Import** brings
+   in what is ticked: the files into Files, the wallets and keys they
+   hold, and the vaults into Files, locked. A seed imported with the
+   stick still in loads as the stick is pulled.
+3. **Pull the stick, then unlock.** Keys never load and passphrases are
+   never typed while a stick is attached. Each vault imported offers its
+   passphrase field in turn, with **Unlock** and **Cancel**; Cancel
+   leaves it locked in Files. A wrong passphrase stays on the sheet and
    says so.
-4. **Or choose.** **Choose what to import** lists every wallet found in
-   the files, the pictures and the open vaults, once each, ticked: its
-   name, its shape, whether the keys present can sign for it ("Can
-   sign", "1 of 3 keys here · 1 more needed", or "Watch-only"), and the
-   files that carry it and its keys. Keys that no wallet listed uses
-   follow, ticked; then every file, ticked but a secret's. **Import**
-   brings in what is ticked without unlocking. A file not chosen is
-   still on the stick; bringing it in later means inserting the stick
-   again, for an ordinary stick visit.
+4. **Choose what to load.** After an unlock, **Load from {vault}** lists
+   a card for each wallet in the vault, with its seeds, and the keys of
+   no wallet, ticked from each item's Load at unlock setting (F62).
+   **Load ticked** loads them; **Not now** loads nothing and leaves the
+   vault open.
 
-A stick with no vault is imported as it is pulled; one with only the
-settings file brings up no sheet. **Not now**, or a tap beside the sheet,
-leaves the copied files waiting in memory and goes to Home, which leads
-with the vault's Unlock and opens the sheet again; the Sticks row in the
-sidebar does too. Locking wipes whatever was not imported. A later
+**Later**, or a tap beside the sheet, brings in nothing: the copied
+files wait in memory and Home leads with the import, which opens the
+sheet again; the Sticks row in the sidebar does too. Locking wipes
+whatever was not imported. A later
 insertion of the boot stick in the same power-on is an ordinary stick
 visit; the desktop app's Boot stick pill stands for the boot stick, so
 its first plugging in a session runs the import.

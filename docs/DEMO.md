@@ -278,7 +278,9 @@ files.
 
 - **Faraday Starter**: drop "and opens Faraday Desktop for testing".
 - **Build** and **Run the desktop shell** become one short section,
-  "Faraday Desktop, for developers": it is not released; build it with
+  "Faraday Desktop, for developers" (since F61, "Faraday Desktop": it is
+  published as the testnet-only files, and a developer still builds it
+  as below): it is not released; build it with
   `cargo build -p faraday-desktop --release`, or as one Linux file with
   `just faraday-linux-bin` or for Windows with `just faraday-windows-bin
   build out/windows out/build/run faraday-desktop faraday`; it runs as
@@ -341,7 +343,7 @@ checked 2026-10-14). The Starter's About lists only the images.
 
 | Decision | What it said | Now |
 |---|---|---|
-| F11, F12 | the desktop app opened from the Starter, installed with it, on Windows too | not released; developer builds only (§9, §10) |
+| F11, F12 | the desktop app opened from the Starter, installed with it, on Windows too | not carried by the Starter; published on its own as testnet-only files since F61 (§9, §10) |
 | F13, MAC §5 | the desktop app on macOS, `faraday-desktop-X.Y.Z-macos.zip` | not published; MAC batch D is dropped from the plan (decided, §13); a developer with a Mac can still build it |
 | F16 | "Faraday Desktop" with DESKTOP beside the wordmark | the name and wordmark stay on developer builds |
 | F18 | sketches only in the Starter | unchanged |

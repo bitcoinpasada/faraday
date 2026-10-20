@@ -21,8 +21,9 @@ People see the app as **Faraday Starter** (owner, 2026-10-12, DECISIONS
 F16), and the code's crates use `starter` as well (DECISIONS F16,
 2026-10-14). `docs/DESIGN.md` §5 has a reusable screen called Hub (a
 Navigate screen); the two are unrelated. The desktop app is **Faraday
-Desktop**, a developer's build that is not released (F30,
-`docs/DEMO.md`); the stick is Faraday.
+Desktop**, published on its own as testnet-only files and not carried
+by the Starter (F61, partly reversing F30; `docs/DEMO.md`); the stick
+is Faraday.
 
 ## 0. Rules for the implementing agent
 
