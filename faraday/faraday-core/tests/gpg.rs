@@ -1047,3 +1047,132 @@ fn a_rev_file_a_guarded_block_and_a_comment_with_a_seed_are_not_public() {
     let seeded = armor(Armor::PublicKey, &k2.certificate(1_780_000_000));
     assert_ne!(classify("k.asc", seeded.as_bytes()), FileKind::Gpg);
 }
+
+/// What the app last asked the shell to keep across a lock.
+fn boxes_kept(app: &mut Faraday) -> Option<StorageEvent> {
+    let mut last = None;
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes {
+            inbox,
+            outbox,
+            kept,
+        } = c
+        {
+            last = Some(StorageEvent::Restored {
+                inbox,
+                outbox,
+                kept,
+            });
+        }
+    }
+    last
+}
+
+/// The owner's release signing of 2026-10-20: booted from the stick that
+/// holds the vault, its vault unlocked on the import sheet; a second stick
+/// with `SHA256SUMS` and `v0.1.5.tag` asks for a lock first; after the
+/// lock the visit copies both in, the stick is pulled, the vault unlocked
+/// again, and the GPG key's Sign a file lists both.
+#[test]
+fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
+    let mut app = Faraday::new();
+    display(&mut app);
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    app.storage(StorageEvent::Clock { unix_secs: CLOCK });
+    app.vaults.ms_per_unit = Some(180);
+    let boot = [("vault.ofv".to_string(), testkit::test_vault().unwrap())];
+    let listing = |files: &[(String, Vec<u8>)]| -> Vec<(String, u64)> {
+        files
+            .iter()
+            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .collect()
+    };
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
+        id: "B".into(),
+        label: "FARADAY".into(),
+        boot: true,
+        files: listing(&boot),
+    }]));
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::Read { stick, name } = c {
+            let bytes = boot.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+            app.storage(StorageEvent::Read { stick, name, bytes });
+        }
+    }
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::Import));
+    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    app.press(Action::Import(
+        faraday_core::boot_import::ImportAction::Submit,
+    ));
+    settle(&mut app, 1);
+    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+
+    let files = vec![
+        (
+            "SHA256SUMS".to_string(),
+            b"# Faraday 0.1.5, commit 70193d94\n3bdf73f7  faraday-stick-0.1.5-x86_64-uefi.img.xz\n"
+                .to_vec(),
+        ),
+        (
+            "v0.1.5.tag".to_string(),
+            b"object 70193d94\ntype commit\ntag v0.1.5\n\nFaraday 0.1.5\n".to_vec(),
+        ),
+    ];
+    let second = StickInfo {
+        serial: None,
+        id: "S".into(),
+        label: "FILES".into(),
+        boot: false,
+        files: listing(&files),
+    };
+    app.storage(StorageEvent::Sticks(vec![second.clone()]));
+    assert_eq!(app.sheet, Some(Sheet::Lock));
+    let _ = boxes_kept(&mut app);
+    app.press(Action::Lock);
+    let restored = boxes_kept(&mut app).expect("the boxes kept at the lock");
+
+    // The process after the lock, the second stick still in.
+    let mut app = Faraday::new();
+    display(&mut app);
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    app.storage(restored);
+    app.storage(StorageEvent::Clock { unix_secs: CLOCK });
+    app.vaults.ms_per_unit = Some(180);
+    app.storage(StorageEvent::Sticks(vec![second]));
+    assert_eq!(app.screen, Screen::Visit);
+    app.press(Action::VisitCopy);
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::Read { stick, name } = c {
+            let bytes = files.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+            app.storage(StorageEvent::Read { stick, name, bytes });
+        }
+    }
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let _ = app.frame();
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    app.press(Action::Vault(V::Unlock));
+    settle(&mut app, 30);
+    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(4)));
+    keep_the_time(&mut app);
+    make_key(&mut app, "Release");
+    app.press(Action::Vault(V::GpgSignPick));
+    let page = drawn(&mut app);
+    for (name, bytes) in &files {
+        assert!(
+            page.contains(&format!("{name}·{}B", bytes.len())),
+            "{name} is not offered: {page}"
+        );
+        assert!(app.signature_code(name).is_some(), "{name}");
+    }
+}
