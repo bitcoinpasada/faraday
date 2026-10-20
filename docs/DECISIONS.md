@@ -1926,3 +1926,14 @@ and `Thumbs.db` ignoring case, is never listed, read or counted, by
 name and never by the hidden or system attribute. A write leaves those
 files where they are. Built as `faraday_files::foreign`, used by every
 listing of a stick and of the desktop app's Downloads folder.
+
+### F51 A flow is left by Cancel inside it (2026-10-19)
+
+**Why.** A flow in progress has a sidebar row to return to (F41) and no
+way to end it.
+
+**Decision** (owner, 2026-10-19; `docs/FLOWS.md`, Flows in progress,
+Cancel). **Cancel** at the top of every flow with a row ends it, asking
+first only when something would be lost; keys, vaults and the Outbox
+are never lost by it. Not a hold on the sidebar row: a press there only
+returns to the flow.

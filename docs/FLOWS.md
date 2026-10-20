@@ -1748,3 +1748,27 @@ the machine it is plugged into"), `EFIVAR_FS` in the x86_64-uefi
 board's `kernel.forbidden`, and the Learn pages that cite it. It would
 also need a privileged helper for the write. The BIOS key row does the
 same job and writes nothing.
+
+
+### Cancel: leaving a flow for good (owner, 2026-10-19; F51)
+
+A flow in progress has a way out where the person is, not on its
+sidebar row (a press on the row only returns to the flow).
+
+1. **Cancel** at the top of every flow that has a sidebar row, beside
+   **Steps only · Guided**: it ends the flow, its row goes, and the
+   screen it was opened from is shown (Wallets, Vaults, Tools).
+2. **Asked first only when something would be lost** that the person
+   would notice: a sheet naming it ("Cancel making this wallet? The plan
+   and its places are lost."), **Cancel the flow** and **Keep going**.
+   A flow with nothing done past its first card ends at once.
+3. **Nothing secret is lost silently.** Keys made or loaded stay in the
+   session; a vault with unsealed changes asks as a lock does; files in
+   the Outbox stay. What ends is the flow's own state: its answers, its
+   plan, its board.
+4. Create's **Start over** stays: it begins the same flow again; Cancel
+   leaves it.
+5. **Tests** (`tests/sidebar.rs`): Create taken to Places, Cancel, the
+   sheet, Cancel the flow: Wallets shown, no row, keys made still
+   loaded; Keep going keeps it; a flow on its first card ends without
+   the sheet; the GPG flow's Cancel removes its Tools row.
