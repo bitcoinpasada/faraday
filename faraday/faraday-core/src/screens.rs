@@ -125,7 +125,13 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
         ui.hits.clear();
         ui.in_sheet = true;
         ui.offset = app.sheet_offset;
-        ui.backdrop();
+        // A chip's ⋮ menu is a popup on `wide`: the board stays in view
+        // under it, undimmed (`docs/BACKUP-FLOW.md` §19.20).
+        if sheet == Sheet::BoardMenu && !app.is_compact() {
+            ui.still();
+        } else {
+            ui.backdrop();
+        }
         // A press beside the sheet leaves it as its own way out does. The
         // word list takes such a press itself.
         ui.outside = match sheet {
@@ -137,6 +143,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             // Reached a test network without asking: only the
             // acknowledgement.
             Sheet::NotAirgapped if app.test_asked.is_none() => None,
+            Sheet::BoardMenu => Some(Action::Board(crate::board::BoardPress::MenuClose)),
             _ => Some(Action::Cancel),
         };
         match sheet {
@@ -160,6 +167,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::BoardList => crate::board_screen::list_sheet(app, ui, w, h),
             Sheet::BoardSees => crate::board_screen::sees_sheet(app, ui, w, h),
             Sheet::BoardPartials => crate::board_screen::partials_sheet(app, ui, w, h),
+            Sheet::BoardMenu => crate::board_screen::menu_sheet(app, ui, w, h),
             Sheet::SeedRead => crate::seed_read::sheet(app, ui, w, h),
             Sheet::Delete => crate::stick_wipe::delete_sheet(app, ui, w, h),
             Sheet::Zeroing => crate::stick_wipe::zeroing_sheet(app, ui, w, h),

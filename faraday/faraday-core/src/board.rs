@@ -139,6 +139,75 @@ pub enum BoardPress {
     PartialsWholeOff,
     /// **Keep it**, on that sheet.
     PartialsKeep,
+    /// The ⋮ on a chip: its menu opened (`docs/BACKUP-FLOW.md` §19.20).
+    Menu(Chip),
+    /// **Move to…** or **Copy to…** in a placed chip's menu: the boxes it
+    /// can go to.
+    MenuVerb(Verb),
+    /// A box chosen in the menu: the item placed, moved or copied there,
+    /// as a drop does.
+    MenuTo(Zone),
+    /// The menu closed with nothing chosen: Escape, or a press outside it.
+    MenuClose,
+}
+
+/// What a chip's ⋮ menu does with the box chosen (`docs/BACKUP-FLOW.md`
+/// §19.20).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Verb {
+    /// **Add to…**: a list chip placed, as a drop from the list.
+    Add,
+    /// **Move to…**: a placed chip leaves its box for the one chosen.
+    Move,
+    /// **Copy to…**: a placed chip also kept in the box chosen, as a
+    /// second drop from the list keeps it.
+    Copy,
+}
+
+/// One row of a chip's ⋮ menu.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MenuRow {
+    /// A place's name, over the boxes there.
+    Head(String),
+    /// A choice: what it reads, and the press it is.
+    Item(String, BoardPress),
+}
+
+/// A chip's ⋮ menu while it is open: worked out on the press that opened
+/// it (`docs/BACKUP-FLOW.md` §19.20), and read by the drawing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Menu {
+    /// The chip whose ⋮ opened it.
+    pub chip: Chip,
+    /// What a box chosen does; `None` at a placed chip's first level
+    /// (**Move to…**, **Copy to…**, **Take off**).
+    pub verb: Option<Verb>,
+    /// Its title: "Add to…", "Move to…", "Copy to…", or the chip's name.
+    pub title: String,
+    /// Its rows, in order.
+    pub rows: Vec<MenuRow>,
+    /// The choice the arrows are on, by its place among the choices.
+    pub at: usize,
+    /// Opened by a key: the choice the arrows are on is drawn so.
+    pub keys: bool,
+    /// Opened from the narrow column's Add sheet, which Escape returns to.
+    pub from_list: bool,
+    /// Where the ⋮ was drawn, in pixels (x, y, w, h): the popup goes
+    /// under it.
+    pub anchor: Option<(i32, i32, i32, i32)>,
+}
+
+impl Menu {
+    /// Its choices' presses, in order.
+    pub fn presses(&self) -> Vec<BoardPress> {
+        self.rows
+            .iter()
+            .filter_map(|r| match r {
+                MenuRow::Item(_, p) => Some(*p),
+                MenuRow::Head(_) => None,
+            })
+            .collect()
+    }
 }
 
 /// Whose plan the board edits: Back up's (after the lock, its wallet's
@@ -174,6 +243,11 @@ pub struct BoardState {
     /// The sheet after partial descriptions are added (§19.19 item 4):
     /// its line, and whether **Take it off every place** is offered.
     pub partials: Option<(String, bool)>,
+    /// The chip's ⋮ menu that is open (`docs/BACKUP-FLOW.md` §19.20).
+    pub menu: Option<Menu>,
+    /// The chip whose ⋮ the keyboard is on: Tab and Shift+Tab move it,
+    /// Enter or Space opens its menu.
+    pub focus: Option<Chip>,
 }
 
 /// A drop that let a place see the balance it could not before: the
@@ -522,6 +596,9 @@ pub(crate) struct ChipView {
     pub faint: bool,
     /// Its × is drawn: it can be taken off here.
     pub off: bool,
+    /// Its ⋮ is drawn: it can be placed, moved or copied by its menu
+    /// (`docs/BACKUP-FLOW.md` §19.20).
+    pub menu: bool,
 }
 
 /// A zone, as it is drawn: what it is and its chips.
@@ -591,6 +668,8 @@ pub(crate) struct Entry {
     pub faint: bool,
     /// For a vault: what it holds, said before it is taken off.
     pub holds: Option<String>,
+    /// Its ⋮ is drawn: once the board takes changes, on what can move.
+    pub menu: bool,
 }
 
 /// The board as one frame draws it: worked out once per frame
@@ -824,6 +903,30 @@ impl Faraday {
         }
     }
 
+    /// "Stick {}", or "SD card {}" where the medium is an SD card
+    /// (§19.17 item 4).
+    fn board_stick_word(&self) -> &'static str {
+        match self.medium {
+            crate::Medium::Stick => EN.board_stick,
+            crate::Medium::SdCard => EN.board_sd_card,
+        }
+    }
+
+    /// What the chip of `t` reads: a seed's or a passphrase's
+    /// fingerprint, "Whole", "Share 1", the vault's title.
+    fn board_thing_name(&self, shape: &Shape, t: Thing) -> String {
+        match t {
+            Thing::Seed(i) | Thing::Pass(i) => shape
+                .seeds
+                .get(i)
+                .map_or_else(String::new, |s| s.name.clone()),
+            Thing::Whole => EN.board_whole.to_string(),
+            Thing::Share(j) => fill(EN.board_share, &[&(j + 1).to_string()]),
+            Thing::Vault(v) => self.board_vault_title(v),
+            Thing::Software => EN.board_watch_only.to_string(),
+        }
+    }
+
     /// Works out the plan's map and its checks, once a frame: the board as
     /// this frame draws it, kept in the drawing memo while a frame is
     /// drawn (`docs/SPEED.md` §3.3). Drawing reads it; nothing decides
@@ -859,15 +962,7 @@ impl Faraday {
                 .get(i)
                 .map_or_else(String::new, |s| s.name.clone())
         };
-        let name_of = |t: Thing| -> String {
-            match t {
-                Thing::Seed(i) | Thing::Pass(i) => seed_name(i),
-                Thing::Whole => EN.board_whole.to_string(),
-                Thing::Share(j) => fill(EN.board_share, &[&(j + 1).to_string()]),
-                Thing::Vault(v) => self.board_vault_title(v),
-                Thing::Software => EN.board_watch_only.to_string(),
-            }
-        };
+        let name_of = |t: Thing| -> String { self.board_thing_name(&shape, t) };
         // The checks (`docs/BACKUP-FLOW.md` §19.5): each a line, and the
         // chips each names marked.
         let place_name = |p: usize| self.board_place_name(p);
@@ -1017,6 +1112,10 @@ impl Faraday {
             let toggles = custom
                 && all.len() > 1
                 && !(locked && matches!(k, Some(Kind::Paper | Kind::Files)));
+            let off = custom
+                && !(locked
+                    && matches!(k, Some(Kind::Paper | Kind::Files | Kind::Public))
+                    && !matches!(t, Thing::Vault(_)));
             let forms = if toggles {
                 all.iter()
                     .zip(labels)
@@ -1038,10 +1137,8 @@ impl Faraday {
                 link: matches!(t, Thing::Vault(v) if vault_places(v) > 1),
                 fixed: false,
                 faint: false,
-                off: custom
-                    && !(locked
-                        && matches!(k, Some(Kind::Paper | Kind::Files | Kind::Public))
-                        && !matches!(t, Thing::Vault(_))),
+                off,
+                menu: off,
             }
         };
         let zone = |z: Zone, at: At, p: Option<usize>, skip_vaults: bool| -> ZoneView {
@@ -1068,12 +1165,7 @@ impl Faraday {
             .as_ref()
             .and_then(|b| b.naming)
             .filter(|_| names_typed);
-        // "Stick n", or "SD card n" where the medium is an SD card
-        // (§19.17 item 4).
-        let stick_word = match self.medium {
-            crate::Medium::Stick => EN.board_stick,
-            crate::Medium::SdCard => EN.board_sd_card,
-        };
+        let stick_word = self.board_stick_word();
         let cards: Vec<CardView> = (0..places)
             .map(|p| {
                 let sticks = (0..plan::sticks_at(&m, p))
@@ -1156,6 +1248,7 @@ impl Faraday {
             dim: false,
             faint: false,
             holds: None,
+            menu: custom,
         };
         let seeds = (0..shape.seeds.len())
             .map(|i| {
@@ -1165,6 +1258,7 @@ impl Faraday {
                     Entry {
                         count: EN.board_not_here.to_string(),
                         dim: true,
+                        menu: false,
                         ..entry(Thing::Seed(i))
                     }
                 }
@@ -1385,6 +1479,7 @@ impl Faraday {
                 fixed: true,
                 faint: false,
                 off: false,
+                menu: false,
             });
         }
         out
@@ -1471,18 +1566,90 @@ impl Faraday {
                     | BoardPress::SeesUndo
                     | BoardPress::PartialsWholeOff
                     | BoardPress::PartialsKeep
+                    | BoardPress::MenuClose
             )
         {
             return;
         }
-        // A chip pressed in the list's sheet closes it, the chip selected
-        // (§19.12 item 3).
-        if matches!(press, BoardPress::Chip(Chip::List(_)))
+        // A press on anything but the open menu closes it first: its
+        // **Take off** is the chip's × (`docs/BACKUP-FLOW.md` §19.20).
+        let in_menu = matches!(
+            press,
+            BoardPress::Menu(_)
+                | BoardPress::MenuVerb(_)
+                | BoardPress::MenuTo(_)
+                | BoardPress::MenuClose
+        );
+        if !in_menu && state.menu.is_some() {
+            self.board_menu_shut();
+        }
+        // A chip pressed in the narrow column's Add sheet opens its menu,
+        // as its ⋮ does: the sheet places by the menu, not by a tap on a
+        // chip then a box (§19.20 item 4).
+        if let BoardPress::Chip(c @ Chip::List(_)) = press
             && self.sheet == Some(crate::Sheet::BoardList)
         {
-            self.sheet = None;
+            return self.board_act(BoardPress::Menu(c));
         }
         match press {
+            BoardPress::Menu(c) => {
+                set(self, None);
+                if c != Chip::List(Thing::Software) && !self.board_movable(c) {
+                    return;
+                }
+                self.board_menu_open(c, false);
+            }
+            BoardPress::MenuVerb(v) => {
+                let Some(menu) = state.menu else {
+                    return;
+                };
+                let Chip::Placed(..) = menu.chip else {
+                    return;
+                };
+                if !menu.presses().contains(&press) {
+                    return;
+                }
+                let rows = self.board_menu_boxes(menu.chip);
+                let title = match v {
+                    Verb::Copy => EN.board_menu_copy,
+                    _ => EN.board_menu_move,
+                };
+                if let Some(m) = self.board_state_mut().and_then(|st| st.menu.as_mut()) {
+                    m.verb = Some(v);
+                    m.title = title.to_string();
+                    m.rows = rows;
+                    m.at = 0;
+                }
+                self.sheet_scroll = (0.0, None);
+            }
+            BoardPress::MenuTo(z) => {
+                let Some(menu) = state.menu else {
+                    return;
+                };
+                if !menu.presses().contains(&press) {
+                    return;
+                }
+                self.board_menu_shut();
+                set(self, None);
+                // The same edit a drop makes, with all that follows it
+                // (§19.20 item 2): from the list for Add to… and Copy to…
+                // (a second drop from the list), from its box for Move to….
+                let t = menu.chip.thing();
+                match (menu.verb, menu.chip) {
+                    (Some(Verb::Move), Chip::Placed(from, _)) => {
+                        self.board_put(Chip::Placed(from, t), z);
+                    }
+                    (Some(_), _) => self.board_put(Chip::List(t), z),
+                    (None, _) => {}
+                }
+            }
+            BoardPress::MenuClose => {
+                let from_list = state.menu.as_ref().is_some_and(|m| m.from_list);
+                self.board_menu_shut();
+                if from_list && self.sheet.is_none() {
+                    self.sheet = Some(crate::Sheet::BoardList);
+                }
+            }
             BoardPress::Customize => {
                 set(self, None);
                 self.board_change(&|a, _| a.custom = true);
@@ -1717,6 +1884,310 @@ impl Faraday {
         }
     }
 
+    /// The chip's ⋮ menu opened (`docs/BACKUP-FLOW.md` §19.20): a list
+    /// chip's Add to…, a placed chip's Move to…, Copy to… and Take off,
+    /// worked out here, on the press, as the plan is (a map read). `keys`:
+    /// opened by Enter or Space, the arrows' choice drawn.
+    pub(crate) fn board_menu_open(&mut self, c: Chip, keys: bool) {
+        let anchor = self
+            .hits
+            .iter()
+            .rev()
+            .find(|(_, a)| *a == crate::Action::Board(BoardPress::Menu(c)))
+            .map(|(r, _)| (r.x, r.y, r.w, r.h));
+        let from_list = self.sheet == Some(crate::Sheet::BoardList);
+        let Some((shape, _)) = self.board_plan() else {
+            return;
+        };
+        let (verb, title, rows) = match c {
+            Chip::List(_) => (
+                Some(Verb::Add),
+                EN.board_menu_add.to_string(),
+                self.board_menu_boxes(c),
+            ),
+            Chip::Placed(z, t) => (
+                None,
+                self.board_thing_name(&shape, t),
+                self.board_menu_top(z, t),
+            ),
+        };
+        if let Some(st) = self.board_state_mut() {
+            st.held = None;
+            st.removing = None;
+            st.menu = Some(Menu {
+                chip: c,
+                verb,
+                title,
+                rows,
+                at: 0,
+                keys,
+                from_list,
+                anchor,
+            });
+        }
+        self.sheet = Some(crate::Sheet::BoardMenu);
+        self.sheet_scroll = (0.0, None);
+    }
+
+    /// The open menu closed, its sheet with it.
+    fn board_menu_shut(&mut self) {
+        if let Some(st) = self.board_state_mut() {
+            st.menu = None;
+        }
+        if self.sheet == Some(crate::Sheet::BoardMenu) {
+            self.sheet = None;
+        }
+    }
+
+    /// Works out a placed chip's first menu level (a map read): **Move
+    /// to…** and **Copy to…** where there is a box to go to, and **Take
+    /// off**. A share is handed out by Faraday and not copied by hand
+    /// (§19.19), so it has no Copy to….
+    fn board_menu_top(&self, z: Zone, t: Thing) -> Vec<MenuRow> {
+        let boxes = self
+            .board_menu_boxes(Chip::Placed(z, t))
+            .iter()
+            .any(|r| matches!(r, MenuRow::Item(..)));
+        let mut rows = Vec::new();
+        if boxes {
+            rows.push(MenuRow::Item(
+                EN.board_menu_move.to_string(),
+                BoardPress::MenuVerb(Verb::Move),
+            ));
+            if !matches!(t, Thing::Share(_)) {
+                rows.push(MenuRow::Item(
+                    EN.board_menu_copy.to_string(),
+                    BoardPress::MenuVerb(Verb::Copy),
+                ));
+            }
+        }
+        rows.push(MenuRow::Item(
+            EN.board_take_off.to_string(),
+            BoardPress::Off(z, t),
+        ));
+        rows
+    }
+
+    /// Works out every box chip `c`'s item can go to, from the plan's map
+    /// (a map read): grouped under each place's name, its paper, each
+    /// stick's files, each stick's vault, its empty sticks and **New
+    /// stick**; then the software place. Only a box that takes the item
+    /// in some form ([`takes`]), and not one that keeps it already
+    /// (`docs/BACKUP-FLOW.md` §19.20 item 2).
+    fn board_menu_boxes(&self, c: Chip) -> Vec<MenuRow> {
+        let Some((shape, a)) = self.board_plan() else {
+            return Vec::new();
+        };
+        let locked = self.board_locked().is_some();
+        let m = plan::stored_map(&shape, &a);
+        let t = c.thing();
+        let item = |label: String, z: Zone| MenuRow::Item(label, BoardPress::MenuTo(z));
+        if t == Thing::Software {
+            if locked {
+                return Vec::new();
+            }
+            return vec![
+                MenuRow::Head(software_name(&a)),
+                item(EN.board_scanned_in.to_string(), Zone::Scanned),
+            ];
+        }
+        let from = match c {
+            Chip::Placed(z, _) => Some(z),
+            Chip::List(_) => None,
+        };
+        // A box that keeps the item already: a drop there changes
+        // nothing. For a vault's stick, a place that keeps one.
+        let keeps = |z: Zone| -> bool {
+            match (t, z) {
+                (Thing::Vault(v), Zone::Card(p)) => {
+                    (0..plan::sticks_at(&m, p)).any(|s| plan::stick_vault(&m, p, s) == Some(v))
+                }
+                (_, Zone::NewStick(_) | Zone::Empty(..)) => false,
+                _ => at_of(&m, z).is_some_and(|at| {
+                    plan::holds_at(&m, at)
+                        .into_iter()
+                        .any(|w| things_of(w).contains(&t))
+                }),
+            }
+        };
+        let ok = |z: Zone| Some(z) != from && takes(&shape, target(z, t), t, locked) && !keeps(z);
+        let empty = self
+            .board_state()
+            .map_or_else(Vec::new, |st| st.empty.clone());
+        let word = self.board_stick_word();
+        let stick = |n: usize| fill(word, &[&n.to_string()]);
+        let mut rows = Vec::new();
+        for p in 0..plan::places_of(&m).max(1) {
+            let n = plan::sticks_at(&m, p);
+            let k = empty.get(p).copied().unwrap_or(0);
+            let mut boxes: Vec<(String, Zone)> = Vec::new();
+            if let Thing::Vault(_) = t {
+                // A vault's stick goes on the place's first stick with no
+                // vault, or a new one.
+                if let Some(s) = (0..n).find(|&s| plan::stick_vault(&m, p, s).is_none()) {
+                    boxes.push((stick(s + 1), Zone::Card(p)));
+                }
+                for e in 0..k {
+                    boxes.push((stick(n + e + 1), Zone::Empty(p, e)));
+                }
+            } else {
+                boxes.push((EN.board_paper.to_string(), Zone::Paper(p)));
+                for s in 0..n {
+                    let label = stick(s + 1);
+                    boxes.push((fill(EN.board_menu_files, &[&label]), Zone::Files(p, s)));
+                    if let Some(v) = plan::stick_vault(&m, p, s) {
+                        boxes.push((
+                            fill(EN.board_menu_vault, &[&label, &self.board_vault_title(v)]),
+                            Zone::Vault(p, s, v),
+                        ));
+                    }
+                }
+                for e in 0..k {
+                    boxes.push((
+                        fill(EN.board_menu_files, &[&stick(n + e + 1)]),
+                        Zone::Empty(p, e),
+                    ));
+                }
+            }
+            boxes.push((EN.board_menu_new_stick.to_string(), Zone::NewStick(p)));
+            let boxes: Vec<MenuRow> = boxes
+                .into_iter()
+                .filter(|(_, z)| ok(*z))
+                .map(|(l, z)| item(l, z))
+                .collect();
+            if !boxes.is_empty() {
+                rows.push(MenuRow::Head(self.board_place_name(p)));
+                rows.extend(boxes);
+            }
+        }
+        // The software place, where the board has one.
+        let has_software = m.iter().any(|s| s.at == At::Software);
+        let has_files = m.iter().any(|s| s.at == At::Files);
+        if has_software || has_files {
+            let mut boxes = vec![(EN.board_scanned_in.to_string(), Zone::Scanned)];
+            if has_files {
+                boxes.push((fill(EN.board_menu_files, &[&stick(1)]), Zone::SoftStick));
+            }
+            let boxes: Vec<MenuRow> = boxes
+                .into_iter()
+                .filter(|(_, z)| ok(*z))
+                .map(|(l, z)| item(l, z))
+                .collect();
+            if !boxes.is_empty() {
+                rows.push(MenuRow::Head(software_name(&a)));
+                rows.extend(boxes);
+            }
+        }
+        rows
+    }
+
+    /// A key on the board (`docs/BACKUP-FLOW.md` §19.20 item 5): while a
+    /// chip's menu is open, the arrows move, Enter or Space chooses and
+    /// Escape closes it back to its ⋮ (from Move to… or Copy to…, back to
+    /// the first level); else Tab and Shift+Tab move among the ⋮s on
+    /// screen, in the order they are drawn, and Enter or Space opens the
+    /// one the keyboard is on. Returns whether the key was taken.
+    pub(crate) fn board_key(&mut self, key: osk_shell_api::Key) -> bool {
+        use osk_shell_api::Key as K;
+        if !self.board_shown() {
+            return false;
+        }
+        let Some(st) = self.board_state() else {
+            return false;
+        };
+        if self.sheet == Some(crate::Sheet::BoardMenu) {
+            let Some(menu) = st.menu.clone() else {
+                return false;
+            };
+            let presses = menu.presses();
+            let n = presses.len();
+            let step = |app: &mut Faraday, at: usize| {
+                if let Some(m) = app.board_state_mut().and_then(|st| st.menu.as_mut()) {
+                    m.at = at;
+                    m.keys = true;
+                }
+            };
+            match key {
+                K::Down if n > 0 => step(self, (menu.at + 1) % n),
+                K::Up if n > 0 => step(self, (menu.at + n - 1) % n),
+                K::Enter | K::Char(' ') => {
+                    if let Some(&p) = presses.get(menu.at) {
+                        self.board_act(p);
+                        // Into Move to… or Copy to…, still by the keys.
+                        if let Some(m) = self.board_state_mut().and_then(|st| st.menu.as_mut()) {
+                            m.keys = true;
+                        }
+                    }
+                }
+                K::Escape => {
+                    if let (Some(Verb::Move | Verb::Copy), Chip::Placed(z, t)) =
+                        (menu.verb, menu.chip)
+                    {
+                        let rows = self.board_menu_top(z, t);
+                        let title = self
+                            .board_plan()
+                            .map(|(shape, _)| self.board_thing_name(&shape, t))
+                            .unwrap_or_default();
+                        if let Some(m) = self.board_state_mut().and_then(|st| st.menu.as_mut()) {
+                            m.verb = None;
+                            m.title = title;
+                            m.rows = rows;
+                            m.at = 0;
+                            m.keys = true;
+                        }
+                    } else {
+                        if let Some(st) = self.board_state_mut() {
+                            st.focus = Some(menu.chip);
+                        }
+                        self.board_act(BoardPress::MenuClose);
+                    }
+                }
+                _ => {}
+            }
+            return true;
+        }
+        if !(self.sheet.is_none() || self.sheet == Some(crate::Sheet::BoardList)) {
+            return false;
+        }
+        if self.backup.as_ref().is_some_and(|b| b.naming.is_some()) {
+            return false;
+        }
+        // The ⋮s the frame on screen offers, in the order drawn: the Tab
+        // order.
+        let mut dots: Vec<Chip> = Vec::new();
+        for (_, a) in &self.hits {
+            if let crate::Action::Board(BoardPress::Menu(c)) = a
+                && !dots.contains(c)
+            {
+                dots.push(*c);
+            }
+        }
+        let focus = st.focus.filter(|c| dots.contains(c));
+        match key {
+            K::Tab | K::BackTab if !dots.is_empty() => {
+                let n = dots.len();
+                let i = focus.and_then(|c| dots.iter().position(|d| *d == c));
+                let next = match (key, i) {
+                    (K::Tab, Some(i)) => (i + 1) % n,
+                    (K::Tab, None) => 0,
+                    (_, Some(i)) => (i + n - 1) % n,
+                    (_, None) => n - 1,
+                };
+                if let Some(st) = self.board_state_mut() {
+                    st.focus = Some(dots[next]);
+                }
+                true
+            }
+            K::Enter | K::Char(' ') if focus.is_some() => {
+                if let Some(c) = focus {
+                    self.board_menu_open(c, true);
+                }
+                true
+            }
+            _ => false,
+        }
+    }
+
     /// Chip `c` dropped on zone `z`: kept there, moved there, or taken off
     /// on the list; refused when the zone does not take it, with §17.8's
     /// line after the lock (§19.12 item 8).
@@ -1871,10 +2342,14 @@ impl Faraday {
             && let Some(b) = self.backup.as_mut()
         {
             b.board.empty.clear();
+            b.board.menu = None;
+            b.board.focus = None;
         }
         for (i, f) in self.backup_flows.iter_mut().enumerate() {
             if shown != Some(BoardOf::Flow(i)) {
                 f.live.board.empty.clear();
+                f.live.board.menu = None;
+                f.live.board.focus = None;
             }
         }
     }

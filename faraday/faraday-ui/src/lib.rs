@@ -1332,6 +1332,16 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         }
     }
 
+    /// The page under a popup, kept as it is drawn, not dimmed: copied
+    /// once, and each frame after is that copy, as [`Ui::backdrop`] keeps
+    /// its frosted one.
+    pub fn still(&mut self) {
+        match self.frost.as_deref() {
+            Some(page) => self.c.restore(page),
+            None => self.frost = Some(self.c.snapshot()),
+        }
+    }
+
     /// A soft shadow under something that floats at (x, y), w by h with
     /// corners of `r`: drawn before it, in the theme's depth.
     pub fn shadow(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32) {

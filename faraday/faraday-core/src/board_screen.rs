@@ -9,7 +9,9 @@
 use osk_ui::tokens;
 use osk_ui::widgets::Icon;
 
-use crate::board::{BoardPress, BoardView, CardView, Chip, ChipView, Entry, Thing, Zone, takes};
+use crate::board::{
+    BoardPress, BoardView, CardView, Chip, ChipView, Entry, Menu, MenuRow, Thing, Zone, takes,
+};
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui, W};
@@ -29,6 +31,8 @@ struct Frame {
     held_at: Option<((f32, f32, f32, f32), ChipView)>,
     /// A stick's glyph: the USB stick, or the SD card on the Pi.
     stick_glyph: Glyph,
+    /// The chip whose ⋮ the keyboard is on.
+    focus: Option<Chip>,
 }
 
 impl Frame {
@@ -123,7 +127,8 @@ fn sealed(cv: &ChipView) -> bool {
 }
 
 /// What a chip's line needs beside its name and its marks: its glyph,
-/// its link, warning, lock and × marks, each a mark and a small gap.
+/// its link, warning, lock and × marks, each a mark and a small gap, and
+/// its ⋮ part.
 fn marks_w(cv: &ChipView) -> f32 {
     let one = tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
     let t = cv.chip.thing();
@@ -132,7 +137,66 @@ fn marks_w(cv: &ChipView) -> f32 {
         + usize::from(cv.link)
         + usize::from(cv.warn)
         + usize::from(cv.off && matches!(cv.chip, Chip::Placed(..)) && !cv.fixed);
-    n as f32 * one
+    n as f32 * one + if cv.menu { menu_w() } else { 0.0 }
+}
+
+/// The width of a chip's ⋮ part at its right end, from its rule: the ⋮
+/// and its padding, a press target as the × is (`docs/BACKUP-FLOW.md`
+/// §19.20 item 1).
+fn menu_w() -> f32 {
+    tokens::BOARD_MARK + 2.0 * tokens::BOARD_PAD
+}
+
+/// A chip's ⋮ part at (x, y), `h` tall (`docs/BACKUP-FLOW.md` §19.20):
+/// a thin rule, then the three dots in `color`; a press opens the chip's
+/// menu, and never drags or selects it. Edged in the accent while the
+/// keyboard is on it (on a vault's band, in `VAULT_ON`). `hits`: it
+/// takes presses.
+#[allow(clippy::too_many_arguments)]
+fn dots(
+    ui: &mut Ui,
+    fr: &Frame,
+    c: Chip,
+    x: f32,
+    y: f32,
+    h: f32,
+    color: osk_ui::Color,
+    hits: bool,
+) {
+    let mw = menu_w();
+    let a = Action::Board(BoardPress::Menu(c));
+    if hits && (ui.is_pressed(a) || ui.is_hovered(a)) {
+        ui.fill(x + 1.0, y + 1.0, mw - 2.0, h - 2.0, (h - 2.0) / 2.0, INNER);
+    }
+    let inset = tokens::GAP_SMALL;
+    ui.fill(
+        x,
+        y + inset,
+        1.0,
+        h - 2.0 * inset,
+        0.0,
+        color.with_alpha(tokens::BOARD_MENU_RULE),
+    );
+    let d = tokens::BOARD_MENU_DOT;
+    let (cx, cy) = (x + mw / 2.0, y + h / 2.0);
+    let step = (tokens::BOARD_MARK - d) / 2.0;
+    for k in [-1.0, 0.0, 1.0] {
+        ui.fill(cx - d / 2.0, cy + k * step - d / 2.0, d, d, d / 2.0, color);
+    }
+    if fr.focus == Some(c) {
+        outline(
+            ui,
+            (x + 1.0, y + 1.0, mw - 2.0, h - 2.0),
+            (h - 2.0) / 2.0,
+            tokens::FOCUS_STROKE,
+            // On a vault's band, whose fill is the accent's kin, the
+            // band's own text colour.
+            if color == VAULT_ON { VAULT_ON } else { ACCENT },
+        );
+    }
+    if hits {
+        ui.hit(x, y, mw, h, a);
+    }
 }
 
 /// How a chip is laid out: its size, and the size its name is drawn at.
@@ -299,8 +363,10 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
         );
         cx += tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
     }
-    // The marks at the right, from the edge in: ×, warning, link.
-    let mut right = x + w - tokens::BOARD_PAD;
+    // The marks at the right, from the edge in: the ⋮ after its rule, ×,
+    // warning, link.
+    let mw = if cv.menu { menu_w() } else { 0.0 };
+    let mut right = x + w - mw - tokens::BOARD_PAD;
     let off = cv.off && !cv.fixed && matches!(cv.chip, Chip::Placed(..));
     if off {
         cross(
@@ -312,7 +378,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
         if hits && let Chip::Placed(z, t) = cv.chip {
             let side = tokens::BOARD_MARK + 2.0 * tokens::BOARD_PAD;
             ui.hit(
-                x + w - side,
+                x + w - mw - side,
                 y,
                 side,
                 line_h,
@@ -400,9 +466,9 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
         // The chip's body; its × over it at the right. With toggles, the
         // body is its name's part: a press on a toggle is the toggle's.
         let body = if off {
-            w - tokens::BOARD_MARK - 2.0 * tokens::BOARD_PAD
+            w - mw - tokens::BOARD_MARK - 2.0 * tokens::BOARD_PAD
         } else {
-            w
+            w - mw
         };
         let (body, body_h) = match toggles_at {
             Some((tx, _)) if h <= line_h => (tx - x, h),
@@ -413,6 +479,21 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
         if held {
             fr.held_at = Some(((x, y, w, h), cv.clone()));
         }
+    }
+    // The ⋮, its own press target over the chip's right end, after the
+    // chip's own press (§19.20 item 1).
+    if cv.menu {
+        let color = if lifted || cv.faint { DIM } else { MUTED };
+        dots(
+            ui,
+            fr,
+            cv.chip,
+            x + w - mw,
+            y,
+            line_h,
+            color,
+            hits && !cv.fixed,
+        );
     }
     if let Some((tx, ty)) = toggles_at {
         let th = if h > line_h {
@@ -933,7 +1014,8 @@ fn vault_head(ui: &mut Ui, fr: &mut Frame, vc: &ChipView, label: &str, x: f32, y
         mark,
         VAULT_ON,
     );
-    let mut right = x + w - pad;
+    let mw = if vc.menu { menu_w() } else { 0.0 };
+    let mut right = x + w - mw - pad;
     let mut off_w = 0.0;
     if vc.off
         && let Chip::Placed(z, t) = vc.chip
@@ -941,7 +1023,7 @@ fn vault_head(ui: &mut Ui, fr: &mut Frame, vc: &ChipView, label: &str, x: f32, y
         cross(ui, right - mark / 2.0, y + hh / 2.0, VAULT_ON);
         off_w = mark + 2.0 * pad;
         ui.hit(
-            x + w - off_w,
+            x + w - mw - off_w,
             y,
             off_w,
             hh,
@@ -976,9 +1058,12 @@ fn vault_head(ui: &mut Ui, fr: &mut Frame, vc: &ChipView, label: &str, x: f32, y
             VAULT_ON,
         );
     }
-    ui.hit_quiet(x, y, w - off_w, hh, action);
+    ui.hit_quiet(x, y, w - mw - off_w, hh, action);
     if held {
         fr.held_at = Some(((x, y, w, hh), vc.clone()));
+    }
+    if vc.menu {
+        dots(ui, fr, vc.chip, x + w - mw, y, hh, VAULT_ON, true);
     }
 }
 
@@ -1192,6 +1277,7 @@ fn entry(
         fixed: e.dim,
         faint: e.faint,
         off: false,
+        menu: e.menu,
     };
     // The count beside the chip, or under it where the chip's name would
     // drop a size beside it.
@@ -1372,6 +1458,7 @@ fn frame(app: &Faraday, ui: &Ui, v: &BoardView) -> Option<Frame> {
         locked: v.locked,
         held_at: None,
         stick_glyph: app.medium.icon(),
+        focus: st.focus,
     })
 }
 
@@ -1615,6 +1702,7 @@ fn view_of(v: &BoardView, c: Chip) -> Option<ChipView> {
             fixed: false,
             faint: e.faint,
             off: false,
+            menu: e.menu,
         })
     })
 }
@@ -1716,4 +1804,159 @@ pub(crate) fn list_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32) {
         chip(ui, &mut ghost, &cv, gx, gy, fit, false);
         edge(ui, (gx, gy, fit.w, fit.h), tokens::BOARD_CHIP / 2.0, ACCENT);
     }
+}
+
+/// A chip's ⋮ menu's rows from (x, y), `w` wide: each place's name over
+/// the boxes there, the boxes set in under it; each a press. The choice
+/// the arrows are on is filled and edged. Returns their height.
+fn menu_rows(ui: &mut Ui, menu: &Menu, x: f32, y: f32, w: f32) -> f32 {
+    let rh = tokens::BOARD_MENU_ROW;
+    let mut cy = y;
+    let mut k = 0;
+    let mut under = false;
+    for row in &menu.rows {
+        match row {
+            MenuRow::Head(name) => {
+                if cy > y {
+                    cy += tokens::GAP_SMALL;
+                }
+                let hx = x + tokens::GAP_SMALL;
+                let shown = ui.fit(tokens::CAPTION, W::S, name, w - tokens::GAP_SMALL);
+                ui.text_mid(
+                    hx,
+                    cy,
+                    tokens::BOARD_ZONE_LABEL,
+                    tokens::CAPTION,
+                    W::S,
+                    MUTED,
+                    &shown,
+                );
+                cy += tokens::BOARD_ZONE_LABEL;
+                under = true;
+            }
+            MenuRow::Item(label, press) => {
+                let a = Action::Board(*press);
+                let on = menu.keys && menu.at == k;
+                if on || ui.is_pressed(a) || ui.is_hovered(a) {
+                    ui.fill(x, cy, w, rh, tokens::GAP_SMALL, INNER);
+                }
+                if on {
+                    outline(
+                        ui,
+                        (x, cy, w, rh),
+                        tokens::GAP_SMALL,
+                        tokens::FOCUS_STROKE,
+                        ACCENT,
+                    );
+                }
+                let ix = x + tokens::GAP_SMALL + if under { tokens::BOARD_PAD } else { 0.0 };
+                let shown = ui.fit(tokens::LABEL, W::R, label, x + w - ix - tokens::GAP_SMALL);
+                ui.text_mid(ix, cy, rh, tokens::LABEL, W::R, TEXT, &shown);
+                ui.hit(x, cy, w, rh, a);
+                cy += rh;
+                k += 1;
+            }
+        }
+    }
+    cy - y
+}
+
+/// A chip's ⋮ menu (`docs/BACKUP-FLOW.md` §19.20 item 5): on `wide` a
+/// popup under the ⋮ (above it where it does not fit below), on the small
+/// panel a sheet with its way out at its foot; its title, then its rows.
+/// A press outside it closes it. It reads what the press that opened it
+/// worked out.
+pub(crate) fn menu_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+    let Some(menu) = app.board_state().and_then(|st| st.menu.clone()) else {
+        return;
+    };
+    if ui.compact {
+        let place = (tokens::GAP, w - 2.0 * tokens::GAP);
+        let pad = tokens::GRID * 2.0;
+        crate::compact::scroll_sheet(ui, place, h, tokens::GAP, pad, &mut |ui, x, y, iw| {
+            let mut cy = y;
+            // Add to… under the add glyph; a placed chip's menu under the
+            // chip's own glyph.
+            let icon = match menu.chip {
+                Chip::List(_) => Icon::Add,
+                Chip::Placed(_, t) => glyph(t).unwrap_or(Icon::File),
+            };
+            cy += crate::compact::sheet_head(ui, x, cy, iw, icon, TEXT, &menu.title);
+            cy += menu_rows(ui, &menu, x, cy, iw) + tokens::GAP;
+            cy += crate::compact::buttons(
+                ui,
+                x,
+                cy,
+                iw,
+                &[(
+                    EN.board_menu_cancel,
+                    Style::Secondary,
+                    Action::Board(BoardPress::MenuClose),
+                )],
+            );
+            cy - y
+        });
+        return;
+    }
+    let pad = tokens::GAP_SMALL;
+    let margin = tokens::GAP;
+    let pw = tokens::BOARD_POPUP_WIDTH.min(w - 2.0 * margin);
+    let iw = pw - 2.0 * pad;
+    let draw = |ui: &mut Ui, x: f32, y: f32| -> f32 {
+        let shown = ui.fit(tokens::CAPTION, W::S, &menu.title, iw - tokens::GAP_SMALL);
+        ui.text_mid(
+            x + tokens::GAP_SMALL,
+            y,
+            tokens::BOARD_ZONE_LABEL,
+            tokens::CAPTION,
+            W::S,
+            TEXT,
+            &shown,
+        );
+        tokens::BOARD_ZONE_LABEL + menu_rows(ui, &menu, x, y + tokens::BOARD_ZONE_LABEL, iw)
+    };
+    let content = measure(ui, &mut |ui| draw(ui, 0.0, 0.0)) + 2.0 * pad;
+    let ph = content.min(h - 2.0 * margin);
+    let f = ui.f.max(0.1);
+    let (x, y) = match menu.anchor {
+        Some((ax, ay, aw, ah)) => {
+            let (ax, ay) = (ax as f32 / f - ui.ox, ay as f32 / f - ui.oy);
+            let (aw, ah) = (aw as f32 / f, ah as f32 / f);
+            let x = (ax + aw - pw).clamp(margin, (w - pw - margin).max(margin));
+            let y = if ay + ah + ph <= h - margin {
+                ay + ah
+            } else if ay - ph >= margin {
+                ay - ph
+            } else {
+                (h - ph - margin).max(margin)
+            };
+            (x, y)
+        }
+        None => ((w - pw) / 2.0, (h - ph) / 2.0),
+    };
+    if let Some(a) = ui.outside {
+        ui.hit_around(x, y, pw, ph, a);
+    }
+    ui.shadow(x, y, pw, ph, tokens::GAP);
+    ui.fill(x, y, pw, ph, tokens::GAP, SURFACE);
+    ui.stroke(x, y, pw, ph, tokens::GAP, BORDER);
+    let max = (content - ph).max(0.0);
+    let off = ui.offset.clamp(0.0, max);
+    let clip = ui.rect(x, y, pw, ph);
+    ui.c.push_clip(clip);
+    let mark = ui.hits.len();
+    draw(ui, x + pad, y + pad - off);
+    // What is scrolled out of the popup takes no press.
+    let mut k = mark;
+    while k < ui.hits.len() {
+        let r = ui.hits[k].0.intersect(&clip);
+        if r.w <= 0 || r.h <= 0 {
+            ui.hits.remove(k);
+        } else {
+            ui.hits[k].0 = r;
+            k += 1;
+        }
+    }
+    ui.c.pop_clip();
+    ui.report_scroll(clip, max);
 }

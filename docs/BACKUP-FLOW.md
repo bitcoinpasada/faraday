@@ -2723,3 +2723,32 @@ the visible way to place, move, copy and take off without dragging.
    Copy to… keeps it in both; Take off takes it off; on the narrow
    column the Add sheet's ⋮ places an item; Escape closes the menu; the
    read-only board shows no ⋮.
+
+**Built (2026-10-19), with what the building decided:**
+
+- The menu is a sheet of its own (`Sheet::BoardMenu`), drawn on `wide`
+  as a popup under the ⋮ with no backdrop, and on the small panel as
+  the full-width sheet with **Cancel** at its foot. What it lists is
+  worked out on the press that opens it (`board_menu_boxes`), with the
+  board's own `takes`; a box that keeps the item already is not listed
+  (a drop there changes nothing), nor, for Move to… and Copy to…, the
+  box it is in.
+- A vault's chip lists, at each place, the place's first stick with no
+  vault (where a drop on the place puts it), its empty sticks, and New
+  stick; a place that keeps the vault's stick already offers only its
+  empty sticks and New stick (a second stick of it there).
+- A chosen box goes through `board_put`: Add to… and Copy to… as a drop
+  from the list, Move to… as a drop of the placed chip. Copy to… is on
+  every placed chip but a share (Faraday hands shares out, §19.19).
+- The watch-only software's chip has a ⋮ too: Add to… lists Scanned in,
+  under the software's name.
+- In the Add sheet a press on a chip opens its menu, as its ⋮ does; on
+  the board itself a tap on a chip still selects it for a tap on a box.
+  Escape or Cancel from a menu opened in the Add sheet returns to the
+  sheet; a box chosen closes both.
+- The ⋮s on screen are the Tab order, in the order drawn (the places,
+  then the list); Faraday has no Tab order of its own elsewhere. The
+  keyboard's ⋮ stays edged until another is chosen or the board is
+  left.
+- On a placed chip the × stays, before the rule; the ⋮ is at the
+  chip's right end.

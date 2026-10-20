@@ -1051,8 +1051,18 @@ pub const BOARD_MARK_STROKE: f32 = 1.5;
 /// Stroke in dp of the edge round a zone that takes the chip held, and
 /// round the chip held.
 pub const BOARD_EDGE: f32 = 2.0;
-/// Width in dp of a placed chip's forms popup.
+/// Width in dp of a chip's ⋮ menu, a popup under the ⋮
+/// (`docs/BACKUP-FLOW.md` §19.20); the board's sheets on `wide` are twice
+/// it.
 pub const BOARD_POPUP_WIDTH: f32 = 220.0;
+/// Diameter in dp of each of the three dots of a chip's ⋮.
+pub const BOARD_MENU_DOT: f32 = 3.0;
+/// Opacity (of 255) of the thin rule between a chip and its ⋮, drawn in
+/// the ⋮'s colour.
+pub const BOARD_MENU_RULE: u8 = 120;
+/// Height in dp of a row of a chip's ⋮ menu: a box it can go to, or a
+/// place's name over them.
+pub const BOARD_MENU_ROW: f32 = 32.0;
 /// How far in dp a dragged chip's shadow falls below it.
 pub const BOARD_LIFT: f32 = GAP_SMALL;
 /// Height in dp of a stick box's head on a place card ("Stick 1" and the

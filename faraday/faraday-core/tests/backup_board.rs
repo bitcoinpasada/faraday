@@ -1623,12 +1623,13 @@ fn narrow(app: &mut Faraday) {
     app.settle();
 }
 
-/// A narrow window (`docs/BACKUP-FLOW.md` §19.12 item 3): the place cards
-/// stand in one column; **Add** opens the list as a sheet; a tap on a
-/// chip there closes it with the chip selected, and a tap on a zone
-/// places it: the map a drag makes on `wide`.
+/// A narrow window (`docs/BACKUP-FLOW.md` §19.12 item 3, §19.20 item 4):
+/// the place cards stand in one column; **Add** opens the list as a
+/// sheet, each item with its ⋮; a tap on a chip there opens its Add to…
+/// as its ⋮ does, and a box chosen places it: the map a drag makes on
+/// `wide`.
 #[test]
-fn a_narrow_window_places_by_tap_from_the_add_sheet_as_a_drag_does_on_wide() {
+fn a_narrow_window_places_from_the_add_sheets_menu_as_a_drag_does_on_wide() {
     let mut wide = three_on_an_empty_board();
     drag(&mut wide, list(Thing::Seed(0)), BP::Zone(Zone::Paper(0)));
     let mut app = three_on_an_empty_board();
@@ -1644,15 +1645,28 @@ fn a_narrow_window_places_by_tap_from_the_add_sheet_as_a_drag_does_on_wide() {
     assert!(!offered(&mut app, Action::Board(list(Thing::Seed(0)))));
     tap(&mut app, BP::OpenList);
     assert_eq!(app.sheet, Some(Sheet::BoardList));
+    for t in [Thing::Seed(0), Thing::Seed(1), Thing::Whole] {
+        assert!(
+            offered(&mut app, Action::Board(BP::Menu(Chip::List(t)))),
+            "{t:?}'s ⋮"
+        );
+    }
     tap(&mut app, list(Thing::Seed(0)));
-    assert_eq!(app.sheet, None, "the sheet closes");
+    assert_eq!(app.sheet, Some(Sheet::BoardMenu), "its Add to…");
+    expect(&mut app, "Add to…");
     assert_eq!(
         app.backup.as_ref().unwrap().board.held,
-        Some(Chip::List(Thing::Seed(0))),
-        "the chip selected"
+        None,
+        "nothing held"
     );
-    tap(&mut app, BP::Zone(Zone::Paper(0)));
+    tap(&mut app, BP::MenuTo(Zone::Paper(0)));
+    assert_eq!(app.sheet, None, "the menu closes on the board");
     assert_eq!(the_map(&app), the_map(&wide));
+    // The Add sheet's ⋮ places an item the same way.
+    tap(&mut app, BP::OpenList);
+    tap(&mut app, BP::Menu(Chip::List(Thing::Seed(1))));
+    tap(&mut app, BP::MenuTo(Zone::Paper(0)));
+    assert!(held(&the_map(&app), At::Place(0)).contains(&What::Words(1)));
     // A placed chip's forms open as on `wide`.
     tap(&mut app, placed(Zone::Paper(0), Thing::Seed(0)));
     assert!(offered_on_page(
@@ -2329,4 +2343,246 @@ fn a_share_on_a_place_that_still_cannot_see_asks_nothing() {
     app.press(Action::Board(BP::Zone(Zone::Paper(0))));
     assert!(paper(&app, 0).contains(&What::Share(0)));
     assert_eq!(app.sheet, None);
+}
+
+// ---- §19.20: the ⋮ menu ----
+
+/// The ⋮ menu of the chip `c`.
+fn dots(c: Chip) -> BP {
+    BP::Menu(c)
+}
+
+/// [`three_on_an_empty_board`] with a second place, Vault 1 on a stick at
+/// Place 1, and the watch-only software's place.
+fn menu_board() -> Faraday {
+    let mut app = three_on_an_empty_board();
+    app.press(Action::Board(BP::AddPlace));
+    app.press(Action::Board(BP::AddVault));
+    app.press(Action::Board(list(Thing::Vault(0))));
+    app.press(Action::Board(BP::Zone(Zone::Card(0))));
+    app.press(Action::Board(list(Thing::Software)));
+    app.settle();
+    assert!(vault_stick(&app, 0, 0).is_some(), "Vault 1 at Place 1");
+    app
+}
+
+/// A seed's ⋮ in the list opens Add to…: every box that takes the seed,
+/// under each place's name in order (Place 1's paper, its stick's files,
+/// the vault on it, a new stick there; then Place 2's), and none that
+/// does not (the software place's Scanned in). A box chosen places the
+/// seed as a drop there does, and the menu closes
+/// (`docs/BACKUP-FLOW.md` §19.20 items 2 and 6).
+#[test]
+fn add_to_on_a_seed_lists_the_boxes_that_take_it_by_place_and_places_it_as_a_drop() {
+    let mut dropped = menu_board();
+    drag(&mut dropped, list(Thing::Seed(0)), BP::Zone(Zone::Paper(1)));
+    let mut app = menu_board();
+    let s = vault_stick(&app, 0, 0).unwrap();
+    tap(&mut app, dots(Chip::List(Thing::Seed(0))));
+    assert_eq!(app.sheet, Some(Sheet::BoardMenu));
+    assert_eq!(
+        app.backup.as_ref().unwrap().board.held,
+        None,
+        "not selected"
+    );
+    expect(&mut app, "Add to…");
+    let boxes = [
+        Zone::Paper(0),
+        Zone::Files(0, s),
+        Zone::Vault(0, s, 0),
+        Zone::NewStick(0),
+        Zone::Paper(1),
+        Zone::NewStick(1),
+    ];
+    let _ = app.frame();
+    let ys: Vec<u16> = boxes
+        .iter()
+        .map(|z| {
+            app.hit_box(Action::Board(BP::MenuTo(*z)))
+                .unwrap_or_else(|| panic!("{z:?} is offered"))
+                .1
+        })
+        .collect();
+    assert!(ys.windows(2).all(|w| w[0] < w[1]), "in order: {ys:?}");
+    assert!(
+        !app.offers(Action::Board(BP::MenuTo(Zone::Scanned))),
+        "Scanned in does not take a seed"
+    );
+    // Each place's name over its boxes.
+    let heads = app.drawn_text_boxes();
+    let between = |name: &str, lo: u16, hi: u16| {
+        heads
+            .iter()
+            .any(|(t, (_, y, _, _))| t == name && *y > i32::from(lo) && *y < i32::from(hi))
+    };
+    assert!(between("Place 2", ys[3], ys[4]), "Place 2 over its boxes");
+    assert!(
+        between("Stick 1 · Vault 1", ys[1], ys[3]),
+        "the vault named by its stick"
+    );
+    tap(&mut app, BP::MenuTo(Zone::Paper(1)));
+    assert_eq!(app.sheet, None, "the menu closes");
+    assert_eq!(the_map(&app), the_map(&dropped), "as the drop placed it");
+}
+
+/// A placed chip's ⋮: **Move to…** moves it with its forms, as a drag
+/// does; **Copy to…** keeps it in both boxes, as a second drop from the
+/// list does; **Take off** takes it off, as its × does (§19.20 items 3
+/// and 6).
+#[test]
+fn a_placed_chips_menu_moves_copies_and_takes_off() {
+    let start = |app: &mut Faraday| {
+        app.press(Action::Board(list(Thing::Seed(0))));
+        app.press(Action::Board(BP::Zone(Zone::Paper(0))));
+        app.press(Action::Board(BP::Form(Zone::Paper(0), Thing::Seed(0), 1)));
+        app.settle();
+    };
+    let chip = Chip::Placed(Zone::Paper(0), Thing::Seed(0));
+    // Move to….
+    let mut dragged = menu_board();
+    start(&mut dragged);
+    drag(&mut dragged, BP::Chip(chip), BP::Zone(Zone::Paper(1)));
+    let mut app = menu_board();
+    start(&mut app);
+    tap(&mut app, dots(chip));
+    expect(&mut app, "Move to…");
+    expect(&mut app, "Copy to…");
+    expect(&mut app, "Take off");
+    tap(&mut app, BP::MenuVerb(faraday_core::board::Verb::Move));
+    assert!(
+        !offered(&mut app, Action::Board(BP::MenuTo(Zone::Paper(0)))),
+        "not the box it is in"
+    );
+    tap(&mut app, BP::MenuTo(Zone::Paper(1)));
+    assert_eq!(the_map(&app), the_map(&dragged));
+    assert_eq!(
+        held(&the_map(&app), At::Place(1)),
+        vec![What::Words(0), What::SeedQr(0)],
+        "with its forms"
+    );
+    assert!(held(&the_map(&app), At::Place(0)).is_empty());
+    // Copy to….
+    let mut app = menu_board();
+    start(&mut app);
+    tap(&mut app, dots(chip));
+    tap(&mut app, BP::MenuVerb(faraday_core::board::Verb::Copy));
+    expect(&mut app, "Copy to…");
+    tap(&mut app, BP::MenuTo(Zone::Paper(1)));
+    assert_eq!(
+        held(&the_map(&app), At::Place(0)),
+        vec![What::Words(0), What::SeedQr(0)],
+        "still kept where it was"
+    );
+    assert_eq!(held(&the_map(&app), At::Place(1)), vec![What::Words(0)]);
+    // Take off.
+    let mut app = menu_board();
+    start(&mut app);
+    tap(&mut app, dots(chip));
+    tap(&mut app, BP::Off(Zone::Paper(0), Thing::Seed(0)));
+    assert_eq!(app.sheet, None);
+    assert!(held(&the_map(&app), At::Place(0)).is_empty());
+}
+
+/// A press on a chip's ⋮ opens its menu and neither selects the chip
+/// nor starts its drag, even when the finger moves (§19.20 item 1).
+#[test]
+fn a_press_on_the_dots_neither_selects_nor_drags() {
+    let mut app = menu_board();
+    let before = the_map(&app);
+    let at = on_board(&mut app, dots(Chip::List(Thing::Seed(0))));
+    touch(&mut app, at, TouchPhase::Down);
+    touch(&mut app, (at.0 - 200, at.1 + 40), TouchPhase::Move);
+    let _ = app.frame();
+    let b = &app.backup.as_ref().unwrap().board;
+    assert_eq!(b.held, None, "not held");
+    assert_eq!(b.drag, None, "not dragged");
+    touch(&mut app, (at.0 - 200, at.1 + 40), TouchPhase::Up);
+    app.settle();
+    assert_eq!(app.backup.as_ref().unwrap().board.held, None);
+    assert_eq!(the_map(&app), before, "nothing placed");
+}
+
+/// The menu by the keys (§19.20 item 5): Tab reaches a chip's ⋮, Enter
+/// opens its menu, the arrows move and Enter chooses; Escape goes back
+/// from Move to… to the first level, then closes the menu with the
+/// keyboard on the ⋮ again. A press outside the menu closes it, nothing
+/// changed.
+#[test]
+fn the_menu_by_the_keys_and_escape_closes_it_back_to_its_dots() {
+    let mut app = menu_board();
+    app.press(Action::Board(list(Thing::Seed(0))));
+    app.press(Action::Board(BP::Zone(Zone::Paper(0))));
+    app.settle();
+    let chip = Chip::Placed(Zone::Paper(0), Thing::Seed(0));
+    let focus = |app: &Faraday| app.backup.as_ref().unwrap().board.focus;
+    let _ = app.frame();
+    for _ in 0..40 {
+        if focus(&app) == Some(chip) {
+            break;
+        }
+        app.event(Event::Key(Key::Tab));
+    }
+    assert_eq!(focus(&app), Some(chip), "Tab reaches the chip's ⋮");
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(app.sheet, Some(Sheet::BoardMenu));
+    expect(&mut app, "Move to…");
+    // Down to Copy to… and up again, to Move to…; Enter opens it.
+    app.event(Event::Key(Key::Down));
+    app.event(Event::Key(Key::Up));
+    app.event(Event::Key(Key::Enter));
+    expect(&mut app, "Paper");
+    assert!(offered(&mut app, Action::Board(BP::MenuTo(Zone::Paper(1)))));
+    // Escape: back to the first level, then closed, on the ⋮.
+    app.event(Event::Key(Key::Escape));
+    assert_eq!(app.sheet, Some(Sheet::BoardMenu));
+    expect(&mut app, "Copy to…");
+    app.event(Event::Key(Key::Escape));
+    assert_eq!(app.sheet, None, "closed");
+    assert_eq!(focus(&app), Some(chip), "the keyboard on its ⋮");
+    // Enter opens it again (on the frame a shell draws after the key);
+    // Down, Down to Take off; Enter.
+    let _ = app.frame();
+    app.event(Event::Key(Key::Enter));
+    app.event(Event::Key(Key::Down));
+    app.event(Event::Key(Key::Down));
+    app.event(Event::Key(Key::Enter));
+    assert!(held(&the_map(&app), At::Place(0)).is_empty(), "taken off");
+    // A press outside closes it, nothing changed.
+    let before = the_map(&app);
+    tap(&mut app, dots(Chip::List(Thing::Seed(1))));
+    assert_eq!(app.sheet, Some(Sheet::BoardMenu));
+    let _ = app.frame();
+    touch(&mut app, (4, 760), TouchPhase::Down);
+    touch(&mut app, (4, 760), TouchPhase::Up);
+    app.settle();
+    assert_eq!(app.sheet, None, "closed by a press outside");
+    assert_eq!(the_map(&app), before);
+}
+
+/// The read-only board (before Customize backup) shows no ⋮; once
+/// customised every chip has one (§19.20 items 1 and 6).
+#[test]
+fn the_read_only_board_shows_no_dots() {
+    let mut app = fresh_three();
+    let chip = Chip::Placed(Zone::Paper(0), Thing::Seed(0));
+    let _ = app.frame();
+    for p in 0..3 {
+        for c in [
+            Chip::Placed(Zone::Paper(p), Thing::Seed(p)),
+            Chip::Placed(Zone::Paper(p), Thing::Whole),
+        ] {
+            assert!(
+                !offered(&mut app, Action::Board(BP::Menu(c))),
+                "no ⋮ while read-only: {c:?}"
+            );
+        }
+    }
+    app.press(Action::Board(BP::Menu(chip)));
+    assert_eq!(app.sheet, None, "nothing opens");
+    app.press(Action::Board(BP::Customize));
+    assert!(offered(&mut app, Action::Board(BP::Menu(chip))));
+    assert!(offered(
+        &mut app,
+        Action::Board(BP::Menu(Chip::List(Thing::Seed(0))))
+    ));
 }

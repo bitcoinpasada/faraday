@@ -1671,6 +1671,9 @@ pub enum Sheet {
     /// Partial descriptions added (`docs/BACKUP-FLOW.md` §19.19 item 4):
     /// **Take it off every place** or **Keep it**.
     BoardPartials,
+    /// A chip's ⋮ menu on the backup board (`docs/BACKUP-FLOW.md`
+    /// §19.20): a popup under the ⋮ on `wide`, a sheet on the small panel.
+    BoardMenu,
     /// A seed the camera read, asking how it loads: with no passphrase
     /// or with one (`seed_read`).
     SeedRead,
@@ -5571,6 +5574,11 @@ impl Faraday {
             Action::DevicesCheck => self.device_check(),
             Action::DevicesContinue => self.device_continue(),
             Action::DevicesUnderstood => self.device_understood(),
+            // The ⋮ menu's way out is its own: back to the Add sheet it
+            // came from (`docs/BACKUP-FLOW.md` §19.20).
+            Action::Cancel if self.sheet == Some(Sheet::BoardMenu) => {
+                self.board_act(board::BoardPress::MenuClose);
+            }
             Action::Cancel => {
                 self.pull = None;
                 self.vaults.stick_save = None;
@@ -11007,6 +11015,9 @@ impl Faraday {
             return;
         }
         if self.wordlist_key(key) {
+            return;
+        }
+        if self.board_key(key) {
             return;
         }
         if self.chart_key(key) {

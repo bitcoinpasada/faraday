@@ -704,6 +704,7 @@ fn run(
         Some("again") => return again_tour(&mut t),
         Some("plan") => return plan_tour(&mut t),
         Some("board") => return board_tour(&mut t),
+        Some("menu") => return menu_tour(&mut t),
         Some("inbox") => return inbox_tour(&mut t),
         Some("transfer") => return transfer_tour(&mut t),
         Some("upgrade") => return upgrade_tour(&mut t),
@@ -3795,14 +3796,14 @@ fn board_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Board(B::AddVault));
     t.shot("board-vault-at-no-place")?;
     // The narrow column: Add opens the list as a sheet; a chip pressed
-    // there closes it, the chip selected and the zones that take it
-    // edged (§19.12 item 3).
+    // there opens its menu, Add to… (§19.12 item 3, §19.20 item 4).
     if t.app.is_compact() {
         t.press(Action::Board(B::OpenList));
         t.shot("board-narrow-add-sheet")?;
         t.press(Action::Board(B::Chip(Chip::List(Thing::Seed(2)))));
-        t.shot("board-narrow-seed-selected")?;
-        t.press(Action::Board(B::LetGo));
+        t.shot("board-narrow-seed-menu")?;
+        t.press(Action::Board(B::MenuClose));
+        t.press(Action::Cancel);
     }
     t.press(Action::BQ(qstep::PLAN));
     t.shot("board-the-plan")?;
@@ -3819,6 +3820,71 @@ fn board_tour(t: &mut Tour) -> Result<(), String> {
     type_text(t, "K");
     t.shot("board-name-one-key")?;
     t.app.event(Event::Key(Key::Enter));
+    Ok(())
+}
+
+/// The ⋮ menu on the backup board (`docs/BACKUP-FLOW.md` §19.20) for
+/// Savings, its three keys typed in, on Paper and vault, customised: on
+/// `wide` a list chip's Add to…, a placed chip's menu and its Move to…,
+/// and the menu opened by the keys; in the narrow column the Add sheet
+/// with each chip's ⋮, a chip's Add to… over it, and a placed chip's menu.
+fn menu_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::board::{BoardPress as B, Chip, Thing, Verb, Zone};
+    t.load_kit()?;
+    for n in 1..3 {
+        t.press(Action::Entry(None));
+        t.type_key(n);
+    }
+    let savings = t
+        .app
+        .session
+        .wallets
+        .iter()
+        .position(|w| w.name == "Savings")
+        .ok_or("no Savings")?;
+    t.press(Action::Backup(savings));
+    t.press(Action::BPreset(2));
+    t.press(Action::Board(B::Customize));
+    let seed = Chip::List(Thing::Seed(0));
+    // A chip placed on Place 1's paper, as the preset placed it or put
+    // there now.
+    let placed = Chip::Placed(Zone::Paper(0), Thing::Seed(0));
+    let _ = t.app.frame();
+    if !t.app.offers(Action::Board(B::Menu(placed))) {
+        bput(t, Thing::Seed(0), Zone::Paper(0));
+    }
+    if t.app.is_compact() {
+        t.press(Action::Board(B::OpenList));
+        t.shot("menu-narrow-add-sheet")?;
+        t.press(Action::Board(B::Menu(seed)));
+        t.shot("menu-narrow-add-to")?;
+        t.press(Action::Board(B::MenuClose));
+        t.press(Action::Cancel);
+        scroll_to(t, Action::Board(B::Menu(placed)));
+        t.press(Action::Board(B::Menu(placed)));
+        t.shot("menu-narrow-placed")?;
+        t.press(Action::Board(B::MenuClose));
+        return Ok(());
+    }
+    let _ = t.app.frame();
+    t.press(Action::Board(B::Menu(seed)));
+    t.shot("menu-add-to")?;
+    t.press(Action::Board(B::MenuClose));
+    scroll_to(t, Action::Board(B::Menu(placed)));
+    t.press(Action::Board(B::Menu(placed)));
+    t.shot("menu-placed")?;
+    t.press(Action::Board(B::MenuVerb(Verb::Move)));
+    t.shot("menu-move-to")?;
+    t.press(Action::Board(B::MenuClose));
+    // By the keys: Tab to the first ⋮, Enter, and Down twice.
+    let _ = t.app.frame();
+    t.app.event(Event::Key(Key::Tab));
+    t.shot("menu-dot-focused")?;
+    t.app.event(Event::Key(Key::Enter));
+    t.app.event(Event::Key(Key::Down));
+    t.app.event(Event::Key(Key::Down));
+    t.shot("menu-keys")?;
+    t.app.event(Event::Key(Key::Escape));
     Ok(())
 }
 
@@ -5820,6 +5886,7 @@ fn main() -> ExitCode {
             "again",
             "plan",
             "board",
+            "menu",
             "inbox",
             "transfer",
             "upgrade",
@@ -5847,7 +5914,7 @@ fn main() -> ExitCode {
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey, createfrom, inprogress, cancel, std or parts"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey, createfrom, inprogress, cancel, std or parts"
         );
         return ExitCode::from(2);
     }

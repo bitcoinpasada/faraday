@@ -8322,6 +8322,21 @@ pub struct Strings {
     pub board_add_place: &'static str,
     /// A vault box's header band. `{}`: the vault, "Vault 1".
     pub board_sealed: &'static str,
+    /// The ⋮ menu of a chip in the list, and its title: where it can be
+    /// placed (`docs/BACKUP-FLOW.md` §19.20).
+    pub board_menu_add: &'static str,
+    /// A placed chip's ⋮ menu: the item moved to another box.
+    pub board_menu_move: &'static str,
+    /// A placed chip's ⋮ menu: the item also kept in another box.
+    pub board_menu_copy: &'static str,
+    /// A box in the ⋮ menu: a stick's files. `{}`: the stick, "Stick 1".
+    pub board_menu_files: &'static str,
+    /// A box in the ⋮ menu: a vault on a stick. `{}`: the stick, the vault.
+    pub board_menu_vault: &'static str,
+    /// A box in the ⋮ menu: a new stick at the place, as **+ stick** makes.
+    pub board_menu_new_stick: &'static str,
+    /// The ⋮ menu's way out on the small panel, where it is a sheet.
+    pub board_menu_cancel: &'static str,
     /// The board's right-hand column, and the narrow column's button in
     /// place of Add, while the board is read-only: opens it for changes
     /// (`docs/BACKUP-FLOW.md` §19.6).
@@ -12405,6 +12420,13 @@ pub static EN: Strings = Strings {
     board_add: "Add",
     board_add_place: "+ place",
     board_sealed: "{} · sealed",
+    board_menu_add: "Add to…",
+    board_menu_move: "Move to…",
+    board_menu_copy: "Copy to…",
+    board_menu_files: "{} · files",
+    board_menu_vault: "{} · {}",
+    board_menu_new_stick: "New stick",
+    board_menu_cancel: "Cancel",
     board_customize: "Customize backup",
     board_sees_title: "{} can see the wallet's balance",
     board_sees_whole: "The whole description is kept there.",
