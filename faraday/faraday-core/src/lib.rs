@@ -11348,8 +11348,20 @@ impl Faraday {
         {
             match key {
                 KeyIn::Char(c) if b.checking && c.is_ascii_digit() => {
-                    b.typed.push(c);
-                    self.backup_typed_check();
+                    // A copy is as many digits as its seed: four a word.
+                    // Digits past them are no further check and are not
+                    // kept (tracker #156); a copy more is typed after
+                    // Clear.
+                    let full = self
+                        .session
+                        .keys
+                        .get(b.key)
+                        .and_then(|k| k.words.as_ref())
+                        .map_or(0, |w| w.split_whitespace().count() * 4);
+                    if b.typed.len() < full {
+                        b.typed.push(c);
+                        self.backup_typed_check();
+                    }
                     return;
                 }
                 KeyIn::Backspace if b.checking => {

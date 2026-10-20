@@ -402,8 +402,16 @@ impl Faraday {
             self.backups_sync();
         }
         if let Some(r) = self.backup_records.iter_mut().find(|r| r.sum == sum) {
+            // One count per copy on paper the plan keeps of the seed:
+            // checks past them count no further copy (tracker #156).
+            let copies = r
+                .spots
+                .iter()
+                .filter(|s| matches!(s.at, At::Place(_)) && s.copies.contains(&fp))
+                .count()
+                .max(1) as u32;
             match r.checks.iter_mut().find(|(f, _)| *f == fp) {
-                Some((_, n)) => *n += 1,
+                Some((_, n)) => *n = (*n + 1).min(copies),
                 None => r.checks.push((fp, 1)),
             }
         }

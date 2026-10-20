@@ -522,6 +522,40 @@ thirtieth). A person does not check one copy thirty times, but something
 grows with each check; the build machine has no sampling profiler, so
 its stacks are not taken. It is left for a later batch.
 
+What grew (tracker #156, 2026-10-19): the digits typed back. The field
+took every digit typed while it had the typing, also past the seed's own
+48 or 96 once the copy matched, and drawing it joins all of them in
+groups of four and shortens the line to its box one character at a time
+(`ui.fit`), each try measured again: a cost that grows faster than the
+digits. A check after Clear, and a scanned check, keep nothing more;
+the record of the backup counted one more copy per check without end,
+which drew nothing more. Now the field takes no digit past the seed's,
+and the record counts no more checks than the plan has copies on paper
+of that seed. Measured on the build machine, release profile, with a
+harness like §4's (outside the repository, removed after), in a lighter
+session than the one above: the 2-of-3 with two of its seeds typed in,
+no vault, Back up on Paper, vault and software, the first copy's item
+open with its seed shown and the typing on; one copy checked once or
+thirty times, then a frame, a scroll step and frame, and a frame with
+the next item open. Medians of five runs of the median of 30, in ms, at
+1366×768:
+
+| How the copy was checked again | Checks | Before | After |
+|---|---|---|---|
+| typed again, no Clear: frame | 1 | 4.68 | 4.60 |
+| typed again, no Clear: frame | 30 | 330.98 | 4.25 |
+| typed again, no Clear: scroll step and frame | 30 | 331.33 | 4.31 |
+| typed again, no Clear: next item open, frame | 30 | 3.73 | 3.57 |
+| Clear, then typed: frame | 1 | 4.71 | 4.36 |
+| Clear, then typed: frame | 30 | 4.51 | 4.35 |
+| scanned: frame | 1 | 3.98 | 4.25 |
+| scanned: frame | 30 | 4.15 | 3.98 |
+
+The spread between runs was about 0.3 ms. The growth here is steeper
+than the aside's 0.7 ms a check, which came from the heavier session and
+a harness not kept; the aside's exact numbers were not reproduced. The
+field was the only state a further check grew that a frame reads.
+
 The owner's check (2026-10-16): the stick built from batch B, on the
 slow laptop, through the same flow: quick throughout.
 

@@ -265,3 +265,82 @@ fn escape_closes_the_scanner_with_its_camera() {
         "the camera stayed on"
     );
 }
+
+/// The copy's numbers typed in full, `times` over: after the first, each
+/// again as it is, or after Clear when `clear`.
+fn typed_back(words: &str, times: usize, clear: bool) -> Faraday {
+    let mut app = backing_up(words, false);
+    assert!(offered(&mut app, Action::BCheck));
+    app.press(Action::BCheck);
+    for i in 0..times {
+        if i > 0 && clear {
+            app.press(Action::BCheckClear);
+        }
+        for &c in &standard(words) {
+            app.event(Event::Key(Key::Char(char::from(c))));
+        }
+        let _ = app.frame();
+    }
+    app
+}
+
+/// What the checklist shows and goes on to: every string drawn with its
+/// box, the items, the open item and whether the copy's item is done.
+type Shown = (
+    Vec<(String, (i32, i32, i32, i32))>,
+    Vec<u8>,
+    Option<u8>,
+    bool,
+);
+
+fn checklist(app: &mut Faraday) -> Shown {
+    app.settle();
+    let boxes = app.drawn_text_boxes();
+    (
+        boxes,
+        app.backup_items(),
+        app.backup.as_ref().and_then(|b| b.open),
+        seeds_done(app),
+    )
+}
+
+#[test]
+fn a_copy_checked_thirty_times_leaves_the_checklist_as_one_check_does() {
+    for clear in [false, true] {
+        let mut once = typed_back(ATTACK, 1, false);
+        let one = checklist(&mut once);
+        assert!(one.3, "the typed copy did not check");
+        let mut again = typed_back(ATTACK, 30, clear);
+        assert_eq!(checklist(&mut again), one, "Clear between: {clear}");
+        // One digit taken back: the copy reads one digit short in both.
+        once.event(Event::Key(Key::Backspace));
+        again.event(Event::Key(Key::Backspace));
+        let short = checklist(&mut once);
+        assert!(
+            short
+                .0
+                .iter()
+                .any(|(t, _)| t.starts_with("95 of 96 digits")),
+            "the copy does not read one digit short: {:?}",
+            short.0
+        );
+        assert_eq!(checklist(&mut again), short, "Clear between: {clear}");
+    }
+}
+
+#[test]
+fn a_copy_scanned_thirty_times_leaves_the_checklist_as_one_scan_does() {
+    let scanned = |times: usize| {
+        let mut app = backing_up(ATTACK, true);
+        for _ in 0..times {
+            app.press(Action::BScan);
+            scan(&mut app, standard(ATTACK));
+            let _ = commands(&mut app);
+        }
+        app
+    };
+    let mut once = scanned(1);
+    let one = checklist(&mut once);
+    assert!(one.3, "the scanned copy did not check");
+    assert_eq!(checklist(&mut scanned(30)), one);
+}
