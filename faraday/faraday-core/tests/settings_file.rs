@@ -96,12 +96,12 @@ fn same_settings(a: &Faraday, b: &Faraday) -> bool {
 
 #[test]
 fn the_boot_sticks_settings_apply_before_the_passphrase() {
-    let file = b"faraday-settings 1\nscale=125\ntheme=gruvbox\nmotion=reduced\nidle-lock=30\nidle-off=60\nqr-ms=200\n";
+    let file = b"faraday-settings 1\nscale=125\ntheme=gruvbox\nmotion=reduced\nidle-lock=10\nidle-off=20\nqr-ms=200\n";
     let mut app = booted(Some(file));
     assert_eq!(app.theme, Theme::Gruvbox);
     assert_eq!(app.scale_pct, 125);
     assert!(app.reduce_motion);
-    assert_eq!((app.idle_lock_min, app.idle_off_min), (30, 60));
+    assert_eq!((app.idle_lock_min, app.idle_off_min), (10, 20));
     assert_eq!(app.qr_frame_ms, 200);
     // Pulling the stick asks for nothing the settings did not already set.
     app.storage(StorageEvent::Sticks(Vec::new()));

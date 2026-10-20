@@ -1680,7 +1680,7 @@ new keyboards are ignored without a code until Faraday starts again.
 offers Type and Read a file.
 
 **Settings**: keyboard layout (US first), display scale, idle lock and
-power-off times, reduce motion, light or dark, ignored devices, **Time**
+power-off times (30 and 60 minutes at first, F58), reduce motion, light or dark, ignored devices, **Time**
 (decision 56) and About (version, build hash). They are kept across a
 lock in RAM, and across a power-off in `faraday-settings.txt` on the
 boot stick, read at boot before the passphrase (`PLAN.md` §5.2). Never

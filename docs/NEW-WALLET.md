@@ -1680,3 +1680,58 @@ Path and Kind after Change.
 
 **Docs.** FLOWS decision 20, F55.
 
+
+## 18. No idle lock while a new wallet's keys are kept nowhere (owner, 2026-10-20; F58)
+
+**Why.** A lock during Make a new wallet wiped every key made so far and
+left the flow with nothing to come back to: the keys were gone, and the
+flow still showed. A person making a wallet should not have to race the
+idle lock.
+
+**Rules.**
+
+1. **The hold.** From the first card of Make a new wallet answered (or
+   the wallet made) until its keys are kept somewhere, the idle lock
+   does not come: no warning, no lock. Kept somewhere is the backup
+   flow's own **Lock and write** step (BACKUP-FLOW §4.5), reached once
+   every key is sealed into its vaults (the flow's `made`), or, for a
+   plan that writes no stick, Back up's checklist done. Nothing changes
+   for any other screen or flow.
+2. **The pill.** While held, the sidebar shows "Auto-lock off until
+   backup complete" under Lock and the power button, as an outlined
+   pill in the accent; the small panel's Home shows it under its Lock
+   row. It does not say "locking disabled": the person's own Lock still
+   works.
+3. **The person's own Lock ends it.** Lock while held always asks, with
+   the row **Ends** "Make a new wallet" on the lock sheet. The lock ends
+   Make a new wallet as its Cancel does (F51): its state, its Back up
+   and the backup flows of it that made nothing go; what was set up
+   before the keys goes with them. After the restart nothing is in
+   progress. The power button asks too, with "Make a new wallet · ends"
+   under Wiped from memory.
+4. **A flow's own lock keeps it.** The locks a backup flow asks for as
+   a step (bringing in the setup's sticks, Lock and write) keep Make a
+   new wallet as before.
+5. **Defaults.** Lock after 30 minutes without input (was 10), power off
+   after 60 (was 20). A time chosen in Settings and kept on the boot
+   stick stays as chosen.
+
+**Where.** `in_progress.rs` (`lock_held`, `create_drop` shared with
+Cancel), `lib.rs` (`idle_tick` skips the warning and the lock while
+held, `lock_ask` for the person and for a flow, `lock_for_flow`,
+`lock_ends_create`, `lock_now`, PowerAsk, `IDLE_LOCK_MIN`,
+`IDLE_OFF_MIN`), `backup_flow_steps.rs` (the flow's locks),
+`vaults.rs` (`kept_wiped_now`'s line), `vault_screens.rs` (the lock
+sheet's Ends row), `screens.rs` (`lock_held_pill` in the sidebar),
+`compact.rs` (the small Home). Strings `lock_held_*`.
+
+**Tests** (`tests/idle.rs`): the session warned at 25 minutes and
+locked at 30, power-off at 60; Make a new wallet begun with a key holds
+the lock past two hours and shows the pill; once it is cancelled the
+idle lock comes back at 30; Lock while held asks with Ends "Make a new
+wallet", and after the restart nothing is in progress. The flows' own
+locks keep their tests (`backup_flow_wallet.rs`,
+`a_setup_survives_the_lock_that_makes_the_process_clean`).
+
+**Docs.** F58; F31's idle-lock line; BACKUP-FLOW §4.5; FLOWS Settings;
+FAMILY's guide line.

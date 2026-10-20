@@ -425,7 +425,7 @@ impl Faraday {
                 }
             }
             F::Continue => self.flow_continue(i),
-            F::LockBring => self.act(Action::LockAsk),
+            F::LockBring => self.lock_ask(true),
             // One stick, one place: the boot stick that holds a place is
             // not taken for another; at step 6 it is offered for its own.
             F::UseBoot(_)
@@ -2021,6 +2021,7 @@ impl Faraday {
         if self.backup_flows[i].step != Step::Lock {
             return;
         }
+        self.lock_for_flow = true;
         self.lock();
     }
 

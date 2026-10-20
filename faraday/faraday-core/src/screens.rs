@@ -645,7 +645,10 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
     // seeds and wallets, as high as the last tab. A group that does not
     // fit shows its first rows and how many more, which opens the whole
     // list; each row opens what it names.
-    let foot = h - 172.0;
+    // The pill under Lock while the idle lock waits for a new wallet's
+    // backup (`docs/NEW-WALLET.md` §18) takes its room from the list.
+    let held = app.lock_held();
+    let foot = h - 172.0 - if held { LOCK_PILL_H + 8.0 } else { 0.0 };
     let seeds = app.session.keys.len();
     let wallets = app.session.wallets.len();
     const ROW: f32 = 22.0;
@@ -917,6 +920,25 @@ fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
     ui.stroke(px, fy, 36.0, 36.0, 8.0, BORDER);
     ui.icon(px, fy, 36.0, Glyph::Icon(Icon::Power), 14.0, MUTED);
     ui.hit(px, fy, 36.0, 36.0, Action::PowerAsk);
+    if held {
+        lock_held_pill(ui, 16.0, fy + 44.0, SIDEBAR_W - 32.0);
+    }
+}
+
+/// The pill's height.
+pub(crate) const LOCK_PILL_H: f32 = 24.0;
+
+/// "Auto-lock off until backup complete" as an outlined pill at (x, y),
+/// `w` wide at most (`docs/NEW-WALLET.md` §18). Returns its height.
+pub(crate) fn lock_held_pill(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let (size, pad) = (11.0, 8.0);
+    let text = ui.fit(size, W::R, EN.lock_held_pill, w - 2.0 * pad);
+    let pw = (ui.measure(size, W::R, &text) + 2.0 * pad).min(w);
+    let r = LOCK_PILL_H / 2.0;
+    ui.fill(x, y, pw, LOCK_PILL_H, r, SURFACE);
+    ui.stroke(x, y, pw, LOCK_PILL_H, r, ACCENT);
+    ui.text_mid(x + pad, y, LOCK_PILL_H, size, W::R, ACCENT, &text);
+    LOCK_PILL_H
 }
 
 // ---------------------------------------------------------------------

@@ -448,26 +448,9 @@ impl Faraday {
         use crate::Action;
         let to = match g {
             Going::Create => {
-                let Some(c) = self.create.as_ref() else {
+                let Some(home) = self.create_drop() else {
                     return;
                 };
-                let (owner, home) = (c.owner, c.from_home);
-                // Its Back up goes with it; the wallet made stays.
-                let backup = (self.backup_going() == Some(Going::Create))
-                    .then(|| self.wallet_flow_of_backup())
-                    .flatten();
-                if self.backup_going() == Some(Going::Create) {
-                    self.backup = None;
-                }
-                self.create = None;
-                let setup = self.wallet_flow_of_owner(owner);
-                // The later index first, so the earlier stays where it is.
-                let mut drop: Vec<usize> = setup.into_iter().chain(backup).collect();
-                drop.sort_unstable();
-                drop.dedup();
-                for i in drop.into_iter().rev() {
-                    self.flow_drop_unmade(Some(i));
-                }
                 if home {
                     Action::Nav(Screen::Home)
                 } else {
@@ -544,6 +527,49 @@ impl Faraday {
         {
             self.flow_drop(i);
         }
+    }
+
+    /// Make a new wallet ended: its state, its Back up and the backup
+    /// flows that were part of it and made nothing. The wallet made
+    /// stays. Returns whether it was opened from Home; `None` when none
+    /// was under way.
+    pub(crate) fn create_drop(&mut self) -> Option<bool> {
+        let c = self.create.as_ref()?;
+        let (owner, home) = (c.owner, c.from_home);
+        // Its Back up goes with it.
+        let backup = (self.backup_going() == Some(Going::Create))
+            .then(|| self.wallet_flow_of_backup())
+            .flatten();
+        if self.backup_going() == Some(Going::Create) {
+            self.backup = None;
+        }
+        self.create = None;
+        let setup = self.wallet_flow_of_owner(owner);
+        // The later index first, so the earlier stays where it is.
+        let mut drop: Vec<usize> = setup.into_iter().chain(backup).collect();
+        drop.sort_unstable();
+        drop.dedup();
+        for i in drop.into_iter().rev() {
+            self.flow_drop_unmade(Some(i));
+        }
+        Some(home)
+    }
+
+    /// Make a new wallet is under way and its keys are kept nowhere yet:
+    /// begun, its backup not done, and no backup flow of it has made its
+    /// vaults (`docs/NEW-WALLET.md` §18). The idle lock waits, a lock or
+    /// a power-off ends it, and the sidebar says so. Only lookups.
+    pub fn lock_held(&self) -> bool {
+        let Some(c) = self.create.as_ref() else {
+            return false;
+        };
+        let begun = c.built.is_some() || c.done.iter().any(|d| *d);
+        let kept = self.backup_flows.iter().any(|f| {
+            f.kind == Kind::Wallet
+                && f.made
+                && f.wallet.as_ref().is_some_and(|w| w.owner == c.owner)
+        });
+        begun && !kept && !self.flow_finished(Going::Create)
     }
 
     /// Takes backup flow `i` out of the list, and with it the vault form

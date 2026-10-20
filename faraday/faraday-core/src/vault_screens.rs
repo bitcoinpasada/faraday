@@ -4088,6 +4088,16 @@ pub(crate) fn lock_ask(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
                 format!("{} · {}", wallets.len(), wallets.join(", "))
             },
         ),
+        // Make a new wallet ends with this lock (`docs/NEW-WALLET.md`
+        // §18).
+        (
+            FEN.lock_held_label,
+            if app.lock_ends_create() {
+                FEN.lock_held_create.to_string()
+            } else {
+                String::new()
+            },
+        ),
     ]
     .into_iter()
     .filter(|(_, v)| !v.is_empty())

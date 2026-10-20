@@ -990,6 +990,11 @@ impl Faraday {
     /// [`Self::kept_wiped`] answers.
     fn kept_wiped_now(&self, power_off: bool) -> KeptWiped {
         let mut out = KeptWiped::default();
+        // Make a new wallet before its keys are kept anywhere ends with
+        // the lock or the power-off (`docs/NEW-WALLET.md` §18).
+        if self.lock_held() {
+            out.wiped.push((EN.lock_held_ends.to_string(), true));
+        }
         if power_off {
             for line in self.backup_power_lines() {
                 out.wiped.push((line, true));

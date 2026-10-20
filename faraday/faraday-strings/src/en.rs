@@ -7681,6 +7681,15 @@ pub struct Strings {
     /// A vault's state in what a lock wipes, while the system has given
     /// no randomness.
     pub vaults_changes_not_sealed: &'static str,
+    /// The pill under Lock while Make a new wallet's keys are kept
+    /// nowhere yet (`docs/NEW-WALLET.md` §18).
+    pub lock_held_pill: &'static str,
+    /// The lock and power sheets' wiped line then: the flow ends.
+    pub lock_held_ends: &'static str,
+    /// The lock sheet's row then: its label.
+    pub lock_held_label: &'static str,
+    /// The value: the flow it ends.
+    pub lock_held_create: &'static str,
     /// Text in `line`.
     pub vaults_unchanged: &'static str,
     /// Text in `line`. `{}`: `self.wallets.len()`.
@@ -12204,6 +12213,10 @@ pub static EN: Strings = Strings {
     vaults_on_current: "On {} · current",
     vaults_changed_since: "Changed since written",
     vaults_changes_not_sealed: "Changes not sealed",
+    lock_held_pill: "Auto-lock off until backup complete",
+    lock_held_ends: "Make a new wallet · ends",
+    lock_held_label: "Ends",
+    lock_held_create: "Make a new wallet",
     vaults_unchanged: "Unchanged",
     vaults_wallets_n: "{} wallets",
     vaults_key: "key {}",

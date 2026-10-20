@@ -1297,7 +1297,9 @@ FAT volume serial, which sticks written from one image can share.
   the Nostr key's part.
 - No coins arrive at a key before its backup (owner, 2026-10-15). A new
   key lives only in memory from Keys until Back up saves it, and the
-  idle lock wipes it after its warning. So the idle lock is unchanged,
+  idle lock wipes it after its warning. So the idle lock is unchanged
+  (replaced by F58 for Make a new wallet: no idle lock until its keys
+  are sealed),
   and every receive address of a wallet holding such a key, and any code
   of one, is not shown until the backup is done (`docs/NEW-WALLET.md`
   §14.3, F28).
@@ -2040,3 +2042,18 @@ of a new vault is labelled with the vault's name as typed on the form,
 or "Vault" when none is, whichever passphrase opens it. Renaming an
 open slot stays as it was. Vaults made before keep their labels; a
 person who wants them neutral renames them.
+
+### F58 No idle lock while a new wallet's keys are kept nowhere; 30 and 60 minutes (2026-10-20)
+
+**Why.** An idle lock during Make a new wallet wiped the keys made so
+far and left a flow with nothing to come back to.
+
+**Decision** (owner, 2026-10-20; `docs/NEW-WALLET.md` §18). From Make a
+new wallet begun until its keys are sealed into their vaults (the
+backup flow's Lock and write), or its backup is done when no stick is
+written, the idle lock does not come, and the sidebar says "Auto-lock
+off until backup complete". The person's own Lock still works, asks
+first, and ends Make a new wallet as its Cancel does. A backup flow's
+own locks keep it. The defaults become 30 minutes to lock and 60 to
+power off. Replaces F31's "the idle lock is unchanged" for a key made in
+Make a new wallet.

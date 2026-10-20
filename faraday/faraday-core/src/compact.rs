@@ -540,6 +540,11 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     ui.icon(px, y, pw, Icon::Power, 15.0, MUTED);
     ui.hit(px, y, pw, 44.0, Action::PowerAsk);
     y += 44.0 + 16.0;
+    // The idle lock waits for a new wallet's backup (`docs/NEW-WALLET.md`
+    // §18).
+    if app.lock_held() {
+        y += crate::screens::lock_held_pill(ui, M, y - 8.0, inner) + 8.0;
+    }
 
     let content = y - top;
     app.content_h.set(content);

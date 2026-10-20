@@ -211,11 +211,11 @@ pub fn version_label() -> String {
     }
 }
 
-/// Minutes without input before the session locks, at first.
-pub const IDLE_LOCK_MIN: u16 = 10;
+/// Minutes without input before the session locks, at first (F58).
+pub const IDLE_LOCK_MIN: u16 = 30;
 /// Minutes without input before the machine powers off, at first,
-/// counted from the last input across the lock.
-pub const IDLE_OFF_MIN: u16 = 20;
+/// counted from the last input across the lock (F58).
+pub const IDLE_OFF_MIN: u16 = 60;
 /// How long before an idle lock its warning comes up, at most: half the
 /// lock time when that is shorter.
 pub const IDLE_WARN_MS: u64 = 5 * 60_000;
@@ -3202,6 +3202,11 @@ pub struct Faraday {
     idle_carry: u64,
     /// This process locks for idleness, after this many ms without input.
     idle_locking: Option<u64>,
+    /// The lock asked for last is a step of a backup flow (bringing in
+    /// the setup's sticks, Lock and write), not the person's own Lock:
+    /// it keeps Make a new wallet (`docs/NEW-WALLET.md` §18). Set by
+    /// every way a lock is asked for.
+    pub(crate) lock_for_flow: bool,
     /// The idle countdown's whole seconds last drawn, so a tick redraws
     /// only when the number on screen changes.
     idle_shown: Option<u64>,
@@ -3616,6 +3621,7 @@ impl Faraday {
             last_input: None,
             idle_carry: 0,
             idle_locking: None,
+            lock_for_flow: false,
             idle_shown: None,
             idle_warn_min: 0,
             tainted: false,
@@ -4260,11 +4266,15 @@ impl Faraday {
         let idle = now_ms.saturating_sub(since) + self.idle_carry;
         let min = 60_000u64;
         // The warning, with its countdown, before the lock.
+        // Make a new wallet before its keys are kept anywhere: no idle
+        // lock at all (`docs/NEW-WALLET.md` §18).
+        let held = self.lock_held();
         if let Some((warn, lock)) = self.idle_lock_at()
             && idle >= warn
             && idle < lock
             && self.lockable()
             && self.idle_locking.is_none()
+            && !held
         {
             let changed = self.sheet != Some(Sheet::IdleWarn);
             if changed && self.sheet.is_none() {
@@ -4294,6 +4304,7 @@ impl Faraday {
             && idle >= u64::from(self.idle_lock_min) * min
             && self.lockable()
             && self.idle_locking.is_none()
+            && !held
         {
             self.idle_locking = Some(idle);
             // No one is there to ask: the lock goes ahead, and an open
@@ -4809,6 +4820,30 @@ impl Faraday {
         !self.seeded() && self.vaults.open.iter().any(|v| v.changes > 0)
     }
 
+    /// Lock asked for: by the person (`for_flow` false), or by a step of
+    /// a backup flow. Asks first when a vault is open with something
+    /// not in it, a seal waits, or the lock would end Make a new wallet
+    /// (`docs/NEW-WALLET.md` §18); else locks.
+    pub(crate) fn lock_ask(&mut self, for_flow: bool) {
+        self.lock_for_flow = for_flow;
+        let (keys, wallets) = self.unsaved();
+        let sealed = self.vaults.open.iter().any(|v| v.changes > 0);
+        if self.lock_ends_create()
+            || self.seal_waits()
+            || !self.vaults.open.is_empty() && (sealed || !keys.is_empty() || !wallets.is_empty())
+        {
+            self.sheet = Some(Sheet::LockAsk);
+        } else {
+            self.lock();
+        }
+    }
+
+    /// A lock now would end Make a new wallet: its keys are kept nowhere
+    /// yet and the lock is the person's own, not a flow's step.
+    pub(crate) fn lock_ends_create(&self) -> bool {
+        self.lock_held() && !self.lock_for_flow
+    }
+
     /// Lock, unless it would lose an open vault's changes: then nothing
     /// is sealed or wiped, the vaults stay open with their changes, and
     /// the Lock sheet says what a lock without sealing loses.
@@ -4832,6 +4867,12 @@ impl Faraday {
 
     /// Lock: what can be sealed is, and the session goes.
     fn lock_now(&mut self) {
+        // A lock before Make a new wallet's keys are kept anywhere ends
+        // it, as its Cancel does: nothing is left to come back to
+        // (`docs/NEW-WALLET.md` §18).
+        if self.lock_ends_create() {
+            self.create_drop();
+        }
         self.flow_before_lock();
         self.vault_seal_all();
         // What the boot stick brought and was not imported is not kept:
@@ -5569,18 +5610,7 @@ impl Faraday {
             Action::Lock => self.lock(),
             Action::LockUnsealed => self.lock_now(),
             Action::EntryPassphrase => self.entry.on_passphrase = !self.entry.on_passphrase,
-            Action::LockAsk => {
-                let (keys, wallets) = self.unsaved();
-                let sealed = self.vaults.open.iter().any(|v| v.changes > 0);
-                if self.seal_waits()
-                    || !self.vaults.open.is_empty()
-                        && (sealed || !keys.is_empty() || !wallets.is_empty())
-                {
-                    self.sheet = Some(Sheet::LockAsk);
-                } else {
-                    self.lock();
-                }
-            }
+            Action::LockAsk => self.lock_ask(false),
             Action::NotNow => {
                 self.sheet = None;
                 // Asked for by Upgrade, with no stick in: nothing waits.
@@ -5594,6 +5624,7 @@ impl Faraday {
                     && !self.secure_boot_reminder()
                     && !changed
                     && !self.offers_restart()
+                    && !self.lock_held()
                 {
                     self.commands.push_back(Command::Exit);
                 } else {

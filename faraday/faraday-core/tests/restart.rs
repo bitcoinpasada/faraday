@@ -103,7 +103,7 @@ fn the_idle_power_off_never_restarts() {
     let mut app = Faraday::new();
     app.event(Event::Tick { now_ms: 0 });
     app.event(Event::Tick {
-        now_ms: 21 * 60_000,
+        now_ms: 61 * 60_000,
     });
     assert!(exited(&mut app));
     assert!(!app.computer_restart_requested());

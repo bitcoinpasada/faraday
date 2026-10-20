@@ -340,7 +340,7 @@ guide gives them; the signed copy goes back with **Scan QR** and
 - Paying into an exchange: the exchange gives you a deposit address for
   bitcoin in your account. Copy it exactly; compare the first and last few
   characters after pasting.
-- Faraday may lock while you are away; it locks after 5 minutes without
+- Faraday may lock while you are away; it locks after 30 minutes without
   input. That is expected. Unlock again with the same passphrase and this
   tab opens where you left it.
 

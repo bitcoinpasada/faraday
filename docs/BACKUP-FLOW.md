@@ -289,7 +289,8 @@ Only when the plan writes any stick. The **Lock** card: the lock
 sheet's sections, **Kept** then **Wiped from memory** (decision 28), and
 **Lock and write**. Every open vault is sealed For the stick and
 everything secret wiped; the app starts again clean, on step 6. A plan
-with no stick skips steps 5 and 6.
+with no stick skips steps 5 and 6. For a wallet of Make a new wallet,
+the idle lock waits until this step (`docs/NEW-WALLET.md` §18, F58).
 
 ### 4.6 Write each stick by place
 
