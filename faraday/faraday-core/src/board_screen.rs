@@ -1494,6 +1494,24 @@ pub(crate) fn board(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // A layer's or the stranger's view: its checks alone (§20.7).
     if v.view != crate::board::View::All {
         bottom += view_checks(ui, &v, x, bottom, w);
+        // A layer's instructions, to copy out by hand (§20.5).
+        if let crate::board::View::Layer(l) = v.view
+            && v.instructions
+        {
+            bottom += tokens::GAP;
+            bottom += faraday_ui::parts::wrap_buttons(
+                ui,
+                x,
+                bottom,
+                w,
+                tokens::BOARD_CHIP,
+                &[(
+                    EN.instr_open,
+                    Style::Secondary,
+                    Action::Instructions(u8::try_from(l).unwrap_or(u8::MAX)),
+                )],
+            );
+        }
         return board_foot(ui, &mut fr, x, y, w, bottom);
     }
     // The plan's three checks, as the Map drew them, under the board

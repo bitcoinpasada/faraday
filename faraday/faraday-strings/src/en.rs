@@ -8442,6 +8442,70 @@ pub struct Strings {
     pub board_vault_open: &'static str,
     /// A vault's band in a view that cannot open it. `{}`: the vault.
     pub board_vault_shut: &'static str,
+    /// A warning under the board: a place of a route holds fewer seeds in words than its kinds say (§20.13). The route, the place.
+    pub board_kinds_no_words: &'static str,
+    /// The same, some but too few. The route, the place, how many, how many said.
+    pub board_kinds_few_words: &'static str,
+    /// A warning under the board: a place of a route holds no seed as a file where its kinds say one. The route, the place.
+    pub board_kinds_no_files: &'static str,
+    /// The same, some but too few. The route, the place, how many, how many said.
+    pub board_kinds_few_files: &'static str,
+    /// A warning under the board: a place of a route holds no part of the description. The route, the place.
+    pub board_kinds_no_part: &'static str,
+    /// A warning under the board: a place of a route lacks the whole description. The route, the place.
+    pub board_kinds_no_whole: &'static str,
+    /// A warning under the board: a place of a route holds no stick of its vault. The route, the place, the vault.
+    pub board_kinds_no_vault: &'static str,
+    /// The same, where the route has several vaults. The route, the place.
+    pub board_kinds_no_vaults: &'static str,
+    /// The button that opens a layer's instructions to copy out by hand (§20.5).
+    pub instr_open: &'static str,
+    /// The instructions: how many of the route's places are enough. `{}`: how many, of how many.
+    pub instr_any: &'static str,
+    /// The instructions: the label over the places to go to.
+    pub instr_go_to: &'static str,
+    /// The instructions: a place with nothing on it for the route.
+    pub instr_nothing: &'static str,
+    /// The instructions: the label over the passphrases needed, by name.
+    pub instr_know: &'static str,
+    /// The instructions: no passphrase needed.
+    pub instr_none: &'static str,
+    /// The instructions: the label over the vaults to open.
+    pub instr_open_vaults: &'static str,
+    /// The instructions: the label over what to restore with.
+    pub instr_restore: &'static str,
+    /// The instructions: Faraday's Restore.
+    pub instr_faraday_restore: &'static str,
+    /// The instructions: the label over the watch-only software.
+    pub instr_watch: &'static str,
+    /// To take: seed `{}`'s words on paper.
+    pub instr_words: &'static str,
+    /// To take: seed `{}`'s SeedQR on paper.
+    pub instr_seedqr: &'static str,
+    /// To take, or to know: the passphrase of seed `{}`.
+    pub instr_passphrase: &'static str,
+    /// To take: the wallet description on paper.
+    pub instr_sheet: &'static str,
+    /// To take: share `{}` of the description on paper.
+    pub instr_share: &'static str,
+    /// To take: vault `{}`'s stick. The medium, the vault.
+    pub instr_vault_stick: &'static str,
+    /// To take, or to know: vault `{}`'s passphrase.
+    pub instr_vault_passphrase: &'static str,
+    /// To take: seed `{}`'s words as a file.
+    pub instr_seed_file: &'static str,
+    /// To take: seed `{}`'s SeedQR as a picture.
+    pub instr_seedqr_file: &'static str,
+    /// To take: the passphrase of seed `{}` as a file.
+    pub instr_passphrase_file: &'static str,
+    /// To take: the wallet description as a file.
+    pub instr_wallet_file: &'static str,
+    /// To take: share `{}` of the description as a file.
+    pub instr_share_file: &'static str,
+    /// To take: the watch-only software's file.
+    pub instr_software_file: &'static str,
+    /// A vault to open: vault `{}`.
+    pub instr_vault: &'static str,
 }
 
 /// The English wording.
@@ -12521,4 +12585,36 @@ pub static EN: Strings = Strings {
     board_view_no_balance_one: "A stranger with any one place sees the balance",
     board_vault_open: "{} · open",
     board_vault_shut: "{} · shut",
+    board_kinds_no_words: "{}: {} holds no seed in words",
+    board_kinds_few_words: "{}: {} holds {} of {} seeds in words",
+    board_kinds_no_files: "{}: {} holds no seed as a file",
+    board_kinds_few_files: "{}: {} holds {} of {} seeds as files",
+    board_kinds_no_part: "{}: {} holds no part of the description",
+    board_kinds_no_whole: "{}: {} does not hold the whole description",
+    board_kinds_no_vault: "{}: {} holds no stick of Vault {}",
+    board_kinds_no_vaults: "{}: {} holds no stick of its vaults",
+    instr_open: "Instructions",
+    instr_any: "Any {} of {}",
+    instr_go_to: "Go to",
+    instr_nothing: "Nothing",
+    instr_know: "Passphrases needed",
+    instr_none: "None",
+    instr_open_vaults: "Open",
+    instr_restore: "Restore with",
+    instr_faraday_restore: "Faraday's Restore",
+    instr_watch: "Watch with",
+    instr_words: "Seed {}'s words",
+    instr_seedqr: "Seed {}'s SeedQR",
+    instr_passphrase: "The passphrase of seed {}",
+    instr_sheet: "The wallet description",
+    instr_share: "Share {} of the description",
+    instr_vault_stick: "Vault {}'s {}",
+    instr_vault_passphrase: "Vault {}'s passphrase",
+    instr_seed_file: "Seed {}'s words, a file",
+    instr_seedqr_file: "Seed {}'s SeedQR, a picture",
+    instr_passphrase_file: "The passphrase of seed {}, a file",
+    instr_wallet_file: "The wallet description, a file",
+    instr_share_file: "Share {} of the description, a file",
+    instr_software_file: "The watch-only software's file",
+    instr_vault: "Vault {}",
 };

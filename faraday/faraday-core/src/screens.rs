@@ -158,6 +158,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::Pull => pull_sheet(app, ui, w, h),
             Sheet::Chart => crate::glance_sheet::draw(app, ui, w, h),
             Sheet::BoardList => crate::board_screen::list_sheet(app, ui, w, h),
+            Sheet::Instructions(_) => crate::layers_screen::instructions_sheet(app, ui, w, h),
             Sheet::SeedRead => crate::seed_read::sheet(app, ui, w, h),
             Sheet::Delete => crate::stick_wipe::delete_sheet(app, ui, w, h),
             Sheet::Zeroing => crate::stick_wipe::zeroing_sheet(app, ui, w, h),

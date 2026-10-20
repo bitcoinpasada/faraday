@@ -43,6 +43,7 @@ pub mod gpg;
 pub mod in_progress;
 pub mod inbox;
 pub mod inputs;
+pub mod instructions;
 pub mod keygen;
 pub mod layers;
 pub mod learn;
@@ -1055,6 +1056,9 @@ pub enum Action {
     /// A press on the plan's Access layers card (`docs/BACKUP-FLOW.md`
     /// §20.3), on Back up and in a wallet flow alike.
     Layers(layers::LayersPress),
+    /// Access layer n's instructions opened on a sheet, to copy out by
+    /// hand (`docs/BACKUP-FLOW.md` §20.5).
+    Instructions(u8),
     /// The plan made: on to the checklist, the plan saved into the open
     /// vault.
     BChecklist,
@@ -1682,6 +1686,9 @@ pub enum Sheet {
     /// The backup board's list, opened by **Add** in the narrow column
     /// (`docs/BACKUP-FLOW.md` §19.12 item 3).
     BoardList,
+    /// Access layer n's instructions, to copy out by hand
+    /// (`docs/BACKUP-FLOW.md` §20.5): shown, never kept.
+    Instructions(u8),
     /// A seed the camera read, asking how it loads: with no passphrase
     /// or with one (`seed_read`).
     SeedRead,
@@ -5792,6 +5799,7 @@ impl Faraday {
             }
             Action::Board(p) => self.board_act(p),
             Action::Layers(p) => self.layers_act(p),
+            Action::Instructions(l) => self.instructions_open(l),
             Action::BName(p8) => {
                 let open = self.vaults.open.get(self.vaults.current).is_some();
                 let mut focused = false;

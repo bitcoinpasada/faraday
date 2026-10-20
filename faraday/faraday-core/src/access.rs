@@ -990,3 +990,87 @@ pub fn stranger_margin(shape: &Shape, a: &Answers) -> usize {
 pub fn balance_margin(shape: &Shape, a: &Answers) -> usize {
     Reach::of(shape, a).balance_margin()
 }
+
+/// What one place of a route lacks of what the route's kinds say it holds
+/// (§20.13 item 1, L2b choice 11): the board edited by hand after Work it
+/// out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Short {
+    /// Seeds in words on paper: how many it holds, how many said.
+    Words(usize, usize),
+    /// Seeds as files on a stick there: how many it holds, how many said.
+    Files(usize, usize),
+    /// No part of the description, nor the whole.
+    Part,
+    /// Not the whole description.
+    Whole,
+    /// No stick of the route's vault; the vault where it has one alone.
+    Vault(Option<usize>),
+}
+
+/// What each place of `route` lacks, on the map `m` of a wallet of
+/// `shape`, of what its kinds say each holds (§20.13 item 1): the place,
+/// by number from 0, and what it lacks, in the order of its places, each
+/// lack once. Read as Work it out keeps them: seeds in words on paper at
+/// the place (a SeedQR among them), or as files on a stick there; the
+/// description (for more than one seed) on paper, or off a paper route
+/// as a file there too, the whole counting as a part; a stick of one of
+/// the vaults the route opens that way. Nothing for a route whose kinds
+/// are unset. A walk of `m` per place of the route.
+pub fn kinds_short(shape: &Shape, m: &[Spot], route: &Route) -> Vec<(usize, Short)> {
+    let Some(k) = route.kinds else {
+        return Vec::new();
+    };
+    let k = if route.paper { k.on_paper() } else { k };
+    let vaults: &[usize] = match k.vault {
+        KindVault::None => &[],
+        KindVault::Remembered => &route.passwords,
+        KindVault::Written => &route.written,
+    };
+    let mut places = route.places.clone();
+    places.sort_unstable();
+    places.dedup();
+    let mut out = Vec::new();
+    for p in places {
+        let (mut words, mut files) = (0u64, 0u64);
+        let (mut part, mut whole, mut stick) = (false, false, false);
+        for s in m {
+            let paper = match s.at {
+                At::Place(q) if q == p => true,
+                At::Stick(q, _) if q == p => false,
+                _ => continue,
+            };
+            for &(w, _) in &s.holds {
+                let paper = paper && !on_stick(w);
+                match w {
+                    What::Words(i) | What::SeedQr(i) if paper => words |= bit(i),
+                    What::SeedFile(i) | What::SeedQrFile(i) => files |= bit(i),
+                    What::Sheet if paper => whole = true,
+                    What::Share(_) if paper => part = true,
+                    What::WalletFile(_) if !route.paper => whole = true,
+                    What::ShareFile(..) if !route.paper => part = true,
+                    What::VaultStick(v) if vaults.contains(&v) => stick = true,
+                    _ => {}
+                }
+            }
+        }
+        let (words, files) = (words.count_ones() as usize, files.count_ones() as usize);
+        match k.form {
+            SeedForm::Paper if words < k.seeds => out.push((p, Short::Words(words, k.seeds))),
+            SeedForm::Stick if files < k.seeds => out.push((p, Short::Files(files, k.seeds))),
+            _ => {}
+        }
+        if shape.multi() {
+            match k.description {
+                Described::Part if !part && !whole => out.push((p, Short::Part)),
+                Described::Whole if !whole => out.push((p, Short::Whole)),
+                _ => {}
+            }
+        }
+        if !vaults.is_empty() && !stick {
+            let one = (vaults.len() == 1).then(|| vaults[0]);
+            out.push((p, Short::Vault(one)));
+        }
+    }
+    out
+}

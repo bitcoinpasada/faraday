@@ -11,6 +11,8 @@
 use osk_ui::tokens;
 use osk_ui::widgets::Icon;
 
+use opensigner_core::strings::fill;
+
 use crate::access::{Described, KindVault, SeedForm};
 use crate::layers::{KindsView, LayersPress as P, LayersView};
 use crate::strings::EN;
@@ -30,13 +32,12 @@ fn u(n: usize) -> u8 {
 }
 
 /// A head row `h` tall at (x, y), `w` wide: `label` in `size`, semibold,
-/// in `color`, and its × at the right when it has one.
+/// in `color`, `keep` left free before its × at the right when it has
+/// one.
 #[allow(clippy::too_many_arguments)]
 fn head(
     ui: &mut Ui,
-    x: f32,
-    y: f32,
-    w: f32,
+    (x, y, w, keep): (f32, f32, f32, f32),
     h: f32,
     size: f32,
     color: osk_ui::Color,
@@ -45,7 +46,7 @@ fn head(
 ) {
     let mark = tokens::BOARD_MARK;
     let side = mark + 2.0 * tokens::BOARD_PAD;
-    let room = if off.is_some() { w - side } else { w };
+    let room = if off.is_some() { w - side } else { w } - keep;
     let shown = ui.fit(size, W::S, label, room);
     ui.text_mid(x, y, h, size, W::S, color, &shown);
     if let Some(a) = off {
@@ -61,10 +62,10 @@ fn head(
 
 /// A layer's head row at (x, y), `w` wide, while names are typed: its
 /// name a field pressed with `press` (typed while `typing`, an accent rule
-/// under it), and its × when it has one.
+/// under it), `keep` left free before its × when it has one.
 fn name_head(
     ui: &mut Ui,
-    (x, y, w): (f32, f32, f32),
+    (x, y, w, keep): (f32, f32, f32, f32),
     name: &str,
     press: Action,
     typing: bool,
@@ -73,7 +74,7 @@ fn name_head(
     let h = tokens::BOARD_HEAD;
     let mark = tokens::BOARD_MARK;
     let side = mark + 2.0 * tokens::BOARD_PAD;
-    let room = if off.is_some() { w - side } else { w };
+    let room = if off.is_some() { w - side } else { w } - keep;
     if typing {
         ui.typed(x, y, h, tokens::LABEL, W::S, TEXT, name, room, true, press);
         ui.rule(x, y + h - tokens::GAP_SMALL, room, ACCENT);
@@ -177,6 +178,80 @@ fn kinds(ui: &mut Ui, x: f32, y: f32, w: f32, l8: u8, r8: u8, k: &KindsView, on:
     cy + gap - y
 }
 
+/// A layer's instructions as a sheet (`docs/BACKUP-FLOW.md` §20.5): its
+/// name at the head; for each route (its head where the layer has
+/// several) how many places are enough, each place in order by name with
+/// what to take from it, the passphrases needed by name, the vaults to
+/// open and what to restore with; Close at its foot. Facts in order,
+/// nothing else; drawn from [`Faraday::instructions_view`].
+pub(crate) fn instructions_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+    let Some(t) = app.instructions_view() else {
+        return;
+    };
+    let place = if ui.compact {
+        (tokens::GAP, w - 2.0 * tokens::GAP)
+    } else {
+        let sw = (w - 2.0 * tokens::BOARD_GAP).min(tokens::BOARD_POPUP_WIDTH * 2.0);
+        ((w - sw) / 2.0, sw)
+    };
+    let pad = tokens::GRID * 2.0;
+    let gap = tokens::GAP;
+    crate::compact::scroll_sheet(ui, place, h, tokens::GAP, pad, &mut |ui, x, y, iw| {
+        let mut cy = y;
+        cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::House, TEXT, &t.title);
+        for route in &t.routes {
+            if let Some(head) = &route.head {
+                cy += ui.wrap(x, cy, iw, tokens::LABEL, W::S, TEXT, head) + gap;
+            }
+            cy += crate::compact::kv(ui, x, cy, iw, EN.instr_go_to, &route.any, TEXT);
+            for (k, (name, takes)) in route.places.iter().enumerate() {
+                let line = fill("{}. {}", &[&(k + 1).to_string(), name]);
+                cy += ui.wrap(x, cy, iw, tokens::LABEL, W::S, TEXT, &line) + tokens::GAP_SMALL;
+                let inset = tokens::BOARD_HEAD;
+                if takes.is_empty() {
+                    cy += ui.wrap(
+                        x + inset,
+                        cy,
+                        iw - inset,
+                        tokens::LABEL,
+                        W::R,
+                        MUTED,
+                        EN.instr_nothing,
+                    ) + tokens::GAP_SMALL;
+                }
+                for take in takes {
+                    cy += ui.wrap(x + inset, cy, iw - inset, tokens::LABEL, W::R, TEXT, take)
+                        + tokens::GAP_SMALL;
+                }
+                cy += gap;
+            }
+            let know = if route.know.is_empty() {
+                EN.instr_none.to_string()
+            } else {
+                route.know.join(", ")
+            };
+            cy += crate::compact::kv(ui, x, cy, iw, EN.instr_know, &know, TEXT);
+            if !route.open.is_empty() {
+                let open = route.open.join(", ");
+                cy += crate::compact::kv(ui, x, cy, iw, EN.instr_open_vaults, &open, TEXT);
+            }
+            cy += crate::compact::kv(ui, x, cy, iw, EN.instr_restore, &route.restore, TEXT);
+            if let Some(watch) = &route.watch {
+                cy += crate::compact::kv(ui, x, cy, iw, EN.instr_watch, watch, TEXT);
+            }
+            cy += gap;
+        }
+        cy += crate::compact::buttons(
+            ui,
+            x,
+            cy,
+            iw,
+            &[(EN.glance_sheet_close, Style::Secondary, Action::Cancel)],
+        );
+        cy - y
+    });
+}
+
 /// The Access layers card's body at (x, y), `w` wide; `on`, its rows take
 /// presses. Returns its height.
 pub(crate) fn card(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, on: bool) -> f32 {
@@ -196,12 +271,35 @@ pub(crate) fn card(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, on: bool)
     for (l, layer) in v.layers.iter().enumerate() {
         let l8 = u(l);
         let off = (many && on).then_some(la(P::RemoveLayer(l8)));
+        // Its instructions, at the head's right before its × (§20.5).
+        let keep = if v.instructions && on {
+            let bw = (ui.measure(tokens::LABEL, W::S, EN.instr_open) + 2.0 * tokens::BOARD_PAD)
+                .min(w / 2.0);
+            let bh = tokens::BOARD_CHIP;
+            let side = if off.is_some() {
+                tokens::BOARD_MARK + 2.0 * tokens::BOARD_PAD
+            } else {
+                0.0
+            };
+            ui.button(
+                x + w - side - bw,
+                cy + (tokens::BOARD_HEAD - bh) / 2.0,
+                Some(bw),
+                bh,
+                EN.instr_open,
+                Style::Ghost,
+                Action::Instructions(l8),
+            );
+            bw + gap
+        } else {
+            0.0
+        };
         if v.names_typed && on {
             // A press on the name types it, as a place's is (§19.18 item
             // 3): just pressed, the whole of it selected and no caret.
             name_head(
                 ui,
-                (x, cy, w),
+                (x, cy, w, keep),
                 &layer.name,
                 Action::BLayerName(l8),
                 v.naming == Some(l),
@@ -210,9 +308,7 @@ pub(crate) fn card(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, on: bool)
         } else {
             head(
                 ui,
-                x,
-                cy,
-                w,
+                (x, cy, w, keep),
                 tokens::BOARD_HEAD,
                 tokens::LABEL,
                 TEXT,
@@ -227,9 +323,7 @@ pub(crate) fn card(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, on: bool)
             let r8 = u(r);
             head(
                 ui,
-                rx,
-                cy,
-                rw,
+                (rx, cy, rw, 0.0),
                 tokens::BOARD_STICK_HEAD,
                 tokens::CAPTION,
                 MUTED,

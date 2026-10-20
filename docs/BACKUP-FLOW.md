@@ -2769,6 +2769,61 @@ where drawing changes.
 - **L4, instructions by hand** (§20.5): each layer's template on screen,
   nothing written. A test that leaving the screen leaves no file and
   nothing in the plan text.
+
+  **L4 built** (2026-10-19): `faraday-core/src/instructions.rs` (the
+  template, `Template` and `RouteSteps`, worked out once a frame through
+  the drawing memo while `Sheet::Instructions(l)` is open; the sheet
+  keeps only the layer's number), drawn by `layers_screen.rs`
+  (`instructions_sheet`); opened by `Action::Instructions(l)` from
+  **Instructions** under a layer's view checks on the board and at the
+  right of each layer's head on the Access layers card (not in Create,
+  which has no wallet); strings in `faraday-strings`; DESIGN §4.17 row
+  Layer instructions; tests `tests/access_instructions.rs`; the snapshot
+  tour `l4`. With it, L2b's choice 11: `access::kinds_short` and its
+  warning lines under the board (`board.rs`, the drawing memo). Its
+  choices:
+  - **What a route's template lists.** Its places in their numbered
+    order, each by name (typed with a vault open, else "Place n"); at
+    each, what the route can use there, as the map keeps it: on a paper
+    route its paper alone; off paper its paper, then each stick's files
+    ("Seed 9a6a2580's words, a file · Stick 2") and the sticks of the
+    vaults the route opens (a vault's stick it cannot open is left out).
+    "Any k of n" above them. A route opens a vault whose stick one of its
+    places keeps and whose passphrase it remembers or finds written at one
+    of its places. **Passphrases needed**: the vaults it opens by a
+    passphrase remembered, then the seeds' passphrases it remembers, by
+    name; "None". **Open**: those vaults. **Restore with**: Faraday's
+    Restore, for every route; **Watch with**: the software the plan names
+    where the plan keeps anything for it ("Not sure" names none). Route
+    heads ("Route 2 · paper") only where the layer has several.
+  - **Leaving** is Close, a press beside the sheet or Escape (the sheet's
+    Cancel); nothing was worked out on the press, so nothing is dropped.
+  - **The kinds warning.** For each route whose kinds are set, every
+    place of it is read as Work it out keeps the kinds: seeds in words on
+    paper there (a SeedQR counts), or as files on a stick there; for more
+    than one seed the description on paper (off a paper route, a file on
+    a stick there too), the whole counting as a part; a stick of one of
+    the vaults the kinds name. Each lack is a line: "Access layer 2, route
+    1: Place 3 holds no seed in words", "… holds 1 of 2 seeds in words",
+    "… holds no part of the description", "… does not hold the whole
+    description", "… holds no stick of Vault 1". The vault's contents do
+    not count for a place, as in the search. The lines stand whenever the
+    board falls short of set kinds, before a Work it out too, and come
+    after the layer's own lines in the All view.
+  - **Timings** (SPEED §7), the harness of §4 on the build machine,
+    release build, a 2-of-3 with three keys here and a vault open, the
+    Paper and vault preset with the two layers of the tests worked out
+    and Access layer 2's route's kinds set, All view, medians of 30 in ms,
+    two runs each of two sessions before and after: at 1366×768, frame at
+    the board's top, frame at its lines, a scroll step and frame there,
+    then with Place 3's seed taken off (the warning drawn) frame and
+    scroll: before 4.73 to 5.15, 4.44 to 4.69, 4.62 to 5.01, 4.52 to
+    6.11, 4.36 to 6.05; after 4.43 to 4.67, 4.10 to 4.18, 4.22 to 4.54,
+    3.93 to 4.77, 4.01 to 5.70. At 2560×1600 scale 2: before 13.33 to
+    15.87, 13.48 to 14.10, 13.43 to 14.16, 13.29 to 17.05, 13.35 to
+    14.30; after 12.10 to 12.85, 12.04 to 13.01, 12.48 to 13.32, 11.93 to
+    16.51, 12.34 to 16.20. Within the runs' spread: the new lines are a
+    walk of the map per place of a route with kinds.
 - **L5, the questions in Back up** (§20.10): dropped 2026-10-19; the
   Access layers card is where the layers are said (§20.14).
 - **L6, Create plans the backup first** (§20.11, §20.14): Start, the

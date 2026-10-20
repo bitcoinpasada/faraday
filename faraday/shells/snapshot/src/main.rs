@@ -725,6 +725,7 @@ fn run(
         Some("inprogress") => return in_progress_tour(&mut t),
         Some("l6") => return plan_first_tour(&mut t),
         Some("l3") => return layer_view_tour(&mut t),
+        Some("l4") => return instructions_tour(&mut t),
         _ => {}
     }
     if medium == Medium::Stick {
@@ -3956,6 +3957,89 @@ fn layer_view_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// A layer's instructions by hand (`docs/BACKUP-FLOW.md` §20.5, L4) and
+/// a route's kinds against the board edited by hand (§20.13, L2b choice
+/// 11), for Savings as the L3 tour has it, Access layer 2's route set to
+/// one seed in words and a part at each place, Place 1 named: the layer
+/// view's Instructions, each layer's sheet, the Access layers card's
+/// heading, and the warning under the board once Place 3's seed is taken
+/// off.
+fn instructions_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::board::{BoardPress as B, Thing, View, Zone};
+    use faraday_core::layers::LayersPress as L;
+    use faraday_core::plan::{At, What};
+    t.load_kit()?;
+    for n in 1..3 {
+        t.press(Action::Entry(None));
+        t.type_key(n);
+    }
+    open_a_vault(t, "layer view phrase")?;
+    let savings = t
+        .app
+        .session
+        .wallets
+        .iter()
+        .position(|w| w.name == "Savings")
+        .ok_or("no Savings")?;
+    t.press(Action::Backup(savings));
+    t.press(Action::BPreset(1));
+    t.press(Action::BQ(qstep::LAYERS));
+    for p in [
+        L::AddRoute(0),
+        L::Place(0, 1, 1),
+        L::Place(0, 1, 2),
+        L::Password(0, 1, 0),
+        L::AddLayer,
+        L::Place(1, 0, 0),
+        L::KindsSet(1, 0),
+        L::WorkItOut,
+    ] {
+        t.press(Action::Layers(p));
+    }
+    if t.app.backup.as_ref().and_then(|b| b.q) != Some(qstep::BOARD) {
+        t.press(Action::BQ(qstep::BOARD));
+    }
+    t.press(Action::BName(0));
+    type_text(t, "Kitchen drawer");
+    t.app.event(Event::Key(Key::Enter));
+    t.press(Action::Board(B::View(View::Layer(0))));
+    scroll_to(t, Action::Instructions(0));
+    t.shot("l4-layer-1-button")?;
+    t.press(Action::Instructions(0));
+    t.shot("l4-instructions-1")?;
+    scroll(t, 2_000);
+    t.shot("l4-instructions-1-foot")?;
+    t.press(Action::Cancel);
+    t.press(Action::Board(B::View(View::Layer(1))));
+    t.press(Action::Instructions(1));
+    t.shot("l4-instructions-2")?;
+    t.press(Action::Cancel);
+    t.press(Action::BQ(qstep::LAYERS));
+    scroll(t, -20_000);
+    t.shot("l4-card")?;
+    t.press(Action::BQ(qstep::BOARD));
+    t.press(Action::Board(B::View(View::All)));
+    let seed = t
+        .app
+        .board_plan()
+        .and_then(|(shape, a)| {
+            faraday_core::plan::map(&shape, &a)
+                .iter()
+                .filter(|s| s.at == At::Place(2))
+                .flat_map(|s| s.holds.iter())
+                .find_map(|(w, _)| match w {
+                    What::Words(i) => Some(*i),
+                    _ => None,
+                })
+        })
+        .ok_or("no seed at Place 3")?;
+    t.press(Action::Board(B::Off(Zone::Paper(2), Thing::Seed(seed))));
+    scroll_to(t, Action::Board(B::AddPlace));
+    scroll(t, 400);
+    t.shot("l4-kinds-warning")?;
+    Ok(())
+}
+
 /// Create plans the backup first (`docs/BACKUP-FLOW.md` §20.14): Start,
 /// the Access layers card in Create with the fresh plan, the Wallet card
 /// with the shapes that do not fit dimmed, and after the three test keys
@@ -5871,11 +5955,12 @@ fn main() -> ExitCode {
             "inprogress",
             "l6",
             "l3",
+            "l4",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, layers, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey, createfrom, inprogress, l6 or l3"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, layers, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey, createfrom, inprogress, l6, l3 or l4"
         );
         return ExitCode::from(2);
     }

@@ -481,6 +481,8 @@ pub(crate) struct LayersView {
     pub names_typed: bool,
     /// The layer whose name is being typed.
     pub naming: Option<usize>,
+    /// Each layer's head offers its instructions (§20.5): not in Create.
+    pub instructions: bool,
 }
 
 impl Faraday {
@@ -603,6 +605,7 @@ impl Faraday {
                 work: false,
                 names_typed: false,
                 naming: None,
+                instructions: false,
             });
         }
         let layer_of = |l: usize| self.board_layer_name(l);
@@ -631,6 +634,7 @@ impl Faraday {
                 .as_ref()
                 .and_then(|b| b.naming_layer)
                 .filter(|_| names_typed),
+            instructions: self.instructions_offered(),
         })
     }
 

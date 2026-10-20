@@ -690,6 +690,8 @@ pub(crate) struct BoardView {
     pub found: Option<(usize, usize)>,
     /// The checks under the board in a layer's or the stranger's view.
     pub view_checks: Vec<CheckGroup>,
+    /// A layer's view offers its instructions (§20.5).
+    pub instructions: bool,
 }
 
 /// What place `p` keeps, on paper or on a stick there, read through the
@@ -1323,6 +1325,7 @@ impl Faraday {
             view,
             found: (view == View::Stranger).then_some((found, places)),
             view_checks,
+            instructions: self.instructions_offered(),
             flow: match of {
                 BoardOf::Flow(i) => Some(i),
                 BoardOf::Backup => None,
@@ -1361,6 +1364,12 @@ impl Faraday {
     ) -> Vec<(String, bool)> {
         let layers = a.layers_shown(shape);
         let mut out = Vec::new();
+        // The plan's map, read for the routes whose kinds are set.
+        let kinds_map = layers
+            .iter()
+            .flat_map(|l| l.routes.iter())
+            .any(|r| r.kinds.is_some())
+            .then(|| plan::map(shape, a));
         for (l, layer) in layers.iter().enumerate() {
             let name = self.board_layer_name(l);
             let mut places: Vec<usize> = layer
@@ -1384,6 +1393,16 @@ impl Faraday {
                 out.push((fill(EN.board_layer_can, &[&name, &list]), false));
             } else {
                 out.push((fill(EN.board_layer_cannot, &[&name, &list]), true));
+            }
+            // A route's kinds the board no longer holds at one of its
+            // places, edited by hand (§20.13, L2b choice 11): a warning.
+            if let Some(m) = &kinds_map {
+                for (r, route) in layer.routes.iter().enumerate() {
+                    let at = fill(EN.layers_route_of, &[&name, &(r + 1).to_string()]);
+                    for (p, short) in crate::access::kinds_short(shape, m, route) {
+                        out.push((kinds_line(&at, &place_name(p), short), true));
+                    }
+                }
             }
         }
         let margin = reach.stranger_margin();
@@ -2181,7 +2200,32 @@ impl Faraday {
 /// The software the plan names: the first chosen, or "Watch-only
 /// software" when it is none or "Not sure". The software place's title,
 /// and the name of its own file's form.
-fn software_name(a: &Answers) -> String {
+/// The warning line for what a route's place lacks of its kinds: "Access
+/// layer 2, route 1: Place 3 holds no seed in words". A lookup.
+fn kinds_line(route: &str, place: &str, short: crate::access::Short) -> String {
+    use crate::access::Short;
+    match short {
+        Short::Words(0, _) => fill(EN.board_kinds_no_words, &[route, place]),
+        Short::Words(has, said) => fill(
+            EN.board_kinds_few_words,
+            &[route, place, &has.to_string(), &said.to_string()],
+        ),
+        Short::Files(0, _) => fill(EN.board_kinds_no_files, &[route, place]),
+        Short::Files(has, said) => fill(
+            EN.board_kinds_few_files,
+            &[route, place, &has.to_string(), &said.to_string()],
+        ),
+        Short::Part => fill(EN.board_kinds_no_part, &[route, place]),
+        Short::Whole => fill(EN.board_kinds_no_whole, &[route, place]),
+        Short::Vault(Some(v)) => fill(
+            EN.board_kinds_no_vault,
+            &[route, place, &(v + 1).to_string()],
+        ),
+        Short::Vault(None) => fill(EN.board_kinds_no_vaults, &[route, place]),
+    }
+}
+
+pub(crate) fn software_name(a: &Answers) -> String {
     a.software
         .iter()
         .position(|&on| on)
