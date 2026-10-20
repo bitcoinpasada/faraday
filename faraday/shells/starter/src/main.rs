@@ -8,6 +8,8 @@
 //! faraday-starter --uninstall
 //! faraday-starter --record-disks                  (Windows)
 //! faraday-starter --write …                       (Windows, elevated)
+//! faraday-starter --bitlocker key|suspend|resume … (Windows, elevated)
+//! faraday-starter --record-bitlocker              (Windows, as administrator)
 //! ```
 //!
 //! `--image FILE` writes a developer's own image in place of the
@@ -82,6 +84,9 @@ struct Shell {
     check: Sender<()>,
     /// The disk being written.
     writing: Option<String>,
+    /// The folders of the sheets this run printed with the BitLocker
+    /// recovery key on them (F49), removed when the Starter exits.
+    key_sheets: Vec<PathBuf>,
     /// The Downloads folder Transfer uses.
     host: Host,
     listed: Option<StorageEvent>,
@@ -228,10 +233,49 @@ impl Shell {
                 let opened = faraday_starter_shell::pdf::open(std::path::Path::new(&path));
                 let _ = self.tx.send(StarterEvent::TemplateOpened(opened));
             }
-            StarterCommand::PrintNotes { name, pdf } => {
-                let opened = faraday_starter_shell::pdf::write_temp(&name, &pdf)
-                    .and_then(|path| faraday_starter_shell::pdf::open(&path));
+            StarterCommand::PrintNotes {
+                name,
+                mut pdf,
+                with_key,
+            } => {
+                use zeroize::Zeroize;
+                let written = if with_key {
+                    let w = faraday_starter_shell::pdf::write_key_sheet(&name, &pdf);
+                    // The Starter's copy of the key goes once it is in the
+                    // file the viewer opens.
+                    pdf.zeroize();
+                    if let Some(dir) = w.as_ref().ok().and_then(|p| p.parent()) {
+                        self.key_sheets.push(dir.to_path_buf());
+                    }
+                    w
+                } else {
+                    faraday_starter_shell::pdf::write_temp(&name, &pdf)
+                };
+                let opened = written.and_then(|path| faraday_starter_shell::pdf::open(&path));
                 let _ = self.tx.send(StarterEvent::NotesOpened(opened));
+            }
+            StarterCommand::ReadBitLocker => {
+                let (system, tx) = self.threaded();
+                std::thread::spawn(move || {
+                    let _ = tx.send(StarterEvent::BitLocker(system.bitlocker()));
+                });
+            }
+            StarterCommand::BitLocker(step) => {
+                let (system, tx) = self.threaded();
+                std::thread::spawn(move || {
+                    let (result, read) = system.bitlocker_step(step);
+                    let _ = tx.send(StarterEvent::BitLockerDone { step, result });
+                    // As the elevated copy read it at the end; read again
+                    // without elevation when it did not.
+                    let now = read.or_else(|| system.bitlocker());
+                    let _ = tx.send(StarterEvent::BitLocker(now));
+                });
+            }
+            StarterCommand::ReadRecoveryKey => {
+                let (system, tx) = self.threaded();
+                std::thread::spawn(move || {
+                    let _ = tx.send(StarterEvent::RecoveryKey(system.recovery_key()));
+                });
             }
         }
     }
@@ -427,6 +471,8 @@ impl ApplicationHandler for Shell {
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
         self.lens.off();
         self.view = None;
+        faraday_starter_shell::pdf::remove_key_sheets(&self.key_sheets);
+        self.key_sheets.clear();
         self.system.exiting();
     }
 }
@@ -549,6 +595,9 @@ fn main() -> ExitCode {
             }
         },
     };
+    // A sheet with the recovery key an earlier run could not remove (a
+    // crash, a power cut) goes now (F49).
+    faraday_starter_shell::pdf::sweep_key_sheets(&std::env::temp_dir());
     let computer = system.computer();
     let payload = Payload::built_in();
     let mut starter = Starter::new();
@@ -600,6 +649,7 @@ fn main() -> ExitCode {
         forget,
         check,
         writing: None,
+        key_sheets: Vec::new(),
         host: Host {
             print,
             downloads,
@@ -621,7 +671,10 @@ fn main() -> ExitCode {
         pointer: Pointer::new(),
         lens: Lens::new(Camera::new(None, false)),
     };
-    match event_loop.run_app(&mut shell) {
+    let ran = event_loop.run_app(&mut shell);
+    // However the loop ended, the key's sheets go.
+    faraday_starter_shell::pdf::remove_key_sheets(&shell.key_sheets);
+    match ran {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("faraday-starter: {e}");

@@ -116,6 +116,12 @@ pub(crate) fn reason_fields(r: &Reason) -> (&'static str, Vec<String>) {
         Reason::NoStick => ("NoStick", vec![]),
         Reason::Declined => ("Declined", vec![]),
         Reason::Unsupported => ("Unsupported", vec![]),
+        Reason::NoAdmin => ("NoAdmin", vec![]),
+        Reason::Managed(c) => ("Managed", vec![n(u64::from(*c))]),
+        Reason::BitLocker { call, code } => ("BitLocker", vec![s(call), n(u64::from(*code))]),
+        Reason::NotEncrypted => ("NotEncrypted", vec![]),
+        Reason::NotRead => ("NotRead", vec![]),
+        Reason::NoRecoveryKey => ("NoRecoveryKey", vec![]),
     }
 }
 
@@ -191,6 +197,10 @@ fn fault(f: &mut Fields<'_>) -> Result<StickFault, String> {
         "BootPastEnd" => StickFault::BootPastEnd,
         other => return Err(format!("{other}: not a fault")),
     })
+}
+
+fn code(n: u64) -> Result<u32, String> {
+    u32::try_from(n).map_err(|_| String::from("not a code"))
 }
 
 pub(crate) fn reason(name: &str, f: &mut Fields<'_>) -> Result<Reason, String> {
@@ -279,6 +289,15 @@ pub(crate) fn reason(name: &str, f: &mut Fields<'_>) -> Result<Reason, String> {
         "NoStick" => Reason::NoStick,
         "Declined" => Reason::Declined,
         "Unsupported" => Reason::Unsupported,
+        "NoAdmin" => Reason::NoAdmin,
+        "Managed" => Reason::Managed(code(f.n()?)?),
+        "BitLocker" => Reason::BitLocker {
+            call: f.s()?,
+            code: code(f.n()?)?,
+        },
+        "NotEncrypted" => Reason::NotEncrypted,
+        "NotRead" => Reason::NotRead,
+        "NoRecoveryKey" => Reason::NoRecoveryKey,
         other => return Err(format!("{other}: not a reason")),
     })
 }

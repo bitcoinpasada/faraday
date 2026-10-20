@@ -608,6 +608,8 @@ fn start_offers_the_firmware_buttons_on_windows() {
     let mut starter = starter_with(Vec::new());
     starter.starter_event(StarterEvent::Computer(windows(true)));
     starter.press(StarterAction::Start);
+    // Shown, the page reads BitLocker (F49), which changes nothing.
+    assert_eq!(commands(&mut starter), [StarterCommand::ReadBitLocker]);
     assert!(shows(&mut starter, "Restart into the BIOS"));
     let _ = starter.drawn_texts();
     assert!(starter.offers_action(StarterAction::Restart));
@@ -867,8 +869,9 @@ fn homes_next_step_on_windows_with_secure_boot_on_is_the_firmware() {
     starter.press(StarterAction::Start);
     let _ = starter.drawn_texts();
     assert!(starter.offers_action(StarterAction::Restart));
-    // Nothing was sent to the computer for it.
-    assert!(commands(&mut starter).is_empty());
+    // Nothing was sent to the computer for it: the page's reading of
+    // BitLocker (F49) changes nothing.
+    assert_eq!(commands(&mut starter), [StarterCommand::ReadBitLocker]);
 }
 
 #[test]

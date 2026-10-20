@@ -358,6 +358,43 @@ pub struct Strings {
     pub starter_notes_t2_only: &'static str,
     /// Button: the sheet as a PDF, opened in the system's viewer.
     pub starter_notes_print: &'static str,
+    /// Tick box beside Print, on Windows with BitLocker on the system
+    /// drive (§3.4, §6, F49): the sheet then carries the drive's recovery
+    /// key. Unticked by default.
+    pub starter_notes_include_key: &'static str,
+    /// The sheet's row for the recovery key: `{}` the drive (`C:`).
+    pub starter_sheet_recovery_key: &'static str,
+    /// The sheet's line to circle the BIOS key that worked (F47).
+    pub starter_sheet_bios_key_used: &'static str,
+    /// The sheet's line to circle the boot menu key that worked (F47).
+    pub starter_sheet_boot_key_used: &'static str,
+    /// The last choice of a circle line, with a line to write on.
+    pub starter_sheet_other_key: &'static str,
+    /// The Escape key's name as the maker table writes it: first on the
+    /// circle lines, before the function keys.
+    pub starter_sheet_key_esc: &'static str,
+    /// The Start page's BitLocker row (§6, F49): `{}` the drive (`C:`).
+    pub starter_bitlocker_row: &'static str,
+    /// Its value: protection on.
+    pub starter_bitlocker_on: &'static str,
+    /// Its value: suspended, with the times Windows starts before it turns
+    /// back on: `{}` the number.
+    pub starter_bitlocker_suspended_times: &'static str,
+    /// The same, with one start left.
+    pub starter_bitlocker_suspended_once: &'static str,
+    /// Its value: suspended with no count (`DisableCount` 0).
+    pub starter_bitlocker_suspended_until: &'static str,
+    /// Its value: suspended, the count not read (read without
+    /// elevation).
+    pub starter_bitlocker_suspended: &'static str,
+    /// Button: suspend BitLocker for the next starts of Windows.
+    pub starter_bitlocker_suspend: &'static str,
+    /// Under the button: `{}` the number of starts.
+    pub starter_bitlocker_suspend_for: &'static str,
+    /// Button: turn BitLocker back on now.
+    pub starter_bitlocker_resume: &'static str,
+    /// While the elevation prompt is open.
+    pub starter_waiting_permission: &'static str,
     /// Under the Secure Boot step, and on the sheet, on Windows.
     pub starter_not_found_windows: &'static str,
     /// The same, on Linux.
@@ -484,6 +521,19 @@ pub struct Strings {
     pub starter_why_boot_entry: &'static str,
     /// Reason.
     pub starter_why_no_stick: &'static str,
+    /// Reason: declined on an account that is not an administrator's.
+    pub starter_why_no_admin: &'static str,
+    /// Reason: BitLocker refused to suspend: `{}` its return value.
+    pub starter_why_managed: &'static str,
+    /// Reason: a BitLocker call failed: `{}` the call, `{}` its code.
+    pub starter_why_bitlocker: &'static str,
+    /// Reason: the system drive is not encrypted.
+    pub starter_why_not_encrypted: &'static str,
+    /// Reason: BitLocker on the system drive could not be read.
+    pub starter_why_not_read: &'static str,
+    /// Reason: the system drive has no recovery key (no numerical
+    /// password protector).
+    pub starter_why_no_recovery_key: &'static str,
     /// Reason.
     pub starter_why_unsupported: &'static str,
     /// The app menu entry's name, in the desktop entry file install writes.
@@ -8679,6 +8729,22 @@ pub static EN: Strings = Strings {
     starter_notes_not_known: "Not known",
     starter_notes_t2_only: "{}, only on a Mac with the T2 chip",
     starter_notes_print: "Print",
+    starter_notes_include_key: "Include the BitLocker recovery key",
+    starter_sheet_recovery_key: "BitLocker recovery key, drive {}",
+    starter_sheet_bios_key_used: "BIOS key used (circle one)",
+    starter_sheet_boot_key_used: "Boot menu key used (circle one)",
+    starter_sheet_other_key: "Other: ________",
+    starter_sheet_key_esc: "Esc",
+    starter_bitlocker_row: "BitLocker, drive {}",
+    starter_bitlocker_on: "On",
+    starter_bitlocker_suspended_times: "Suspended · turns back on by itself after Windows starts {} times",
+    starter_bitlocker_suspended_once: "Suspended · turns back on by itself after Windows starts once",
+    starter_bitlocker_suspended_until: "Suspended until resumed",
+    starter_bitlocker_suspended: "Suspended",
+    starter_bitlocker_suspend: "Temporarily suspend BitLocker",
+    starter_bitlocker_suspend_for: "For the next {} times Windows starts; then it turns back on by itself",
+    starter_bitlocker_resume: "Resume BitLocker",
+    starter_waiting_permission: "Waiting for administrator permission",
     starter_not_found_windows: "If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.",
     starter_not_found: "If the Secure Boot setting cannot be found: exit the BIOS without saving changes. The computer starts as before.",
     starter_sheet_off_how: "In the BIOS: the Secure Boot setting to Disabled, then save and exit",
@@ -8739,6 +8805,12 @@ pub static EN: Strings = Strings {
     starter_why_start: "Starting {} failed: {}",
     starter_why_restart: "Restarting into the BIOS failed: {}",
     starter_why_declined: "Administrator permission was declined. Nothing was changed.",
+    starter_why_no_admin: "An administrator of this computer has to do this step.",
+    starter_why_managed: "BitLocker was not suspended ({}). This computer's BitLocker is managed: its administrator has to suspend it.",
+    starter_why_bitlocker: "BitLocker refused {}: {}",
+    starter_why_not_encrypted: "The drive is not encrypted.",
+    starter_why_not_read: "BitLocker on the system drive could not be read.",
+    starter_why_no_recovery_key: "The drive has no BitLocker recovery key.",
     starter_why_unsupported: "Not on this computer",
     starter_why_missing: "{} is not installed",
     starter_why_boot_entry: "efibootmgr failed: {}",

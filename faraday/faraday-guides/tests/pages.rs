@@ -56,7 +56,8 @@ fn the_windows_guide_says_the_last_step_turns_secure_boot_back_on_before_any_bio
     assert_eq!(
         first.paragraphs[0],
         "The last step turns Secure Boot back on, before Windows starts. With Secure Boot back on, \
-         Windows starts as usual and asks for nothing."
+         Windows usually starts as before; on some computers it asks for the BitLocker recovery \
+         key, as If something is different says."
     );
 }
 
@@ -146,7 +147,7 @@ fn every_guide_ends_with_the_step_that_turns_secure_boot_back_on() {
 }
 
 #[test]
-fn no_guide_offers_a_key_backup_a_suspension_or_a_resume() {
+fn no_guide_has_a_resume_step_or_a_key_backup_page() {
     for id in faraday_guides::ids() {
         let all = guide(id)
             .sections
@@ -167,7 +168,7 @@ fn no_guide_offers_a_key_backup_a_suspension_or_a_resume() {
 }
 
 #[test]
-fn the_windows_guide_and_each_maker_page_frame_the_recovery_key_and_say_where_it_is() {
+fn the_windows_guide_and_each_maker_page_say_the_key_may_be_asked_for_and_where_it_is() {
     for id in faraday_learn::MAKERS
         .iter()
         .map(|m| m.id)
@@ -182,11 +183,16 @@ fn the_windows_guide_and_each_maker_page_frame_the_recovery_key_and_say_where_it
         assert!(
             p.starts_with(
                 "The BitLocker recovery key: with Secure Boot off, Windows cannot start without \
-                 it. It is not needed here: the last step turns Secure Boot back on before \
-                 Windows starts."
+                 it. Windows may ask for it even after Secure Boot is back on, on a computer \
+                 whose BIOS changes its Secure Boot keys when the setting is turned off and on. \
+                 Suspending BitLocker first avoids that: Faraday Starter's Temporarily suspend \
+                 BitLocker, before the restart, suspends it for the next 3 times Windows \
+                 starts, after which Windows turns it back on by itself."
             ),
             "{id}: {p}"
         );
+        // F49 corrects F48: the key can be needed.
+        assert!(!p.contains("not needed"), "{id}");
         // Where it is on this computer, and the Microsoft account's page
         // only as a condition (F48).
         assert!(p.contains("Back up your recovery key"), "{id}");

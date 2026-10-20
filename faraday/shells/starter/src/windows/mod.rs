@@ -14,10 +14,14 @@
 //! - [`pipe`]: what the elevated writer reports over its pipe.
 //! - [`install`] and [`shortcut`]: install and uninstall as a plan of
 //!   files and registry values.
+//! - [`bitlocker`]: BitLocker's steps (§6, F49): the elevated copy's
+//!   `--bitlocker` arguments, its verbs against WMI as recorded, and what
+//!   it answers over its pipe.
 //!
 //! On Windows alone, `sys` makes the calls (every `unsafe` block of the
 //! module) and `win` puts them behind [`crate::platform::Platform`].
 
+pub mod bitlocker;
 pub mod devices;
 pub mod disks;
 pub mod elevated;

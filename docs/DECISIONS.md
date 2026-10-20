@@ -1825,6 +1825,19 @@ carries what the person needs there.
   off, start from the stick, Secure Boot back on before Windows
   starts) and the one line below; nothing else. The PDF carries no
   document information, path, user or computer name.
+- **The keys used** (owner, 2026-10-19): the sheet also has a line each
+  to circle the key that worked, so it is plain later which one did:
+  "Boot menu key used (circle one)" and "BIOS key used (circle one)",
+  each with this maker's key from the table first, then every other
+  key the maker table names in a fixed order (Esc, the function keys
+  by number, Fn with one, then the rest as the table has them), then
+  "Other:" and a line to write on. A maker without a page gets the same
+  lines without a key first; an Intel Mac's sheet has neither (its keys
+  are fixed).
+- **One sheet** (owner, 2026-10-19, with F49): on Windows with BitLocker
+  on, a tick box beside Print, "Include the BitLocker recovery key",
+  unticked by default; only when it is ticked does the sheet carry the
+  system drive and its 48-digit recovery key. No second Print.
 - **If the setting cannot be found**, the page, the sheet and every
   guide's firmware step say plainly: exit the BIOS without saving
   changes, and Windows starts as before.
@@ -1870,9 +1883,24 @@ F33 and F48's "it is not needed".
   the next 3 restarts, after which Windows turns it back on by itself;
   `manage-bde -protectors -disable C: -RebootCount 3` or WMI's
   equivalent, elevated) and **Resume BitLocker** (turns it back on at
-  once); and **Print the recovery key**, a one-page PDF opened in the
-  system's viewer, as the write-down sheet is (F47). No QR code, no key
-  file, no key shown for a phone (F33's reason stands).
+  once). Suspended, the state reads "BitLocker suspended · turns back on
+  by itself after Windows starts 3 times", with Resume BitLocker beside
+  it. The count is kept by Windows and counts the times Windows starts,
+  not every restart: the BIOS and the stick do not run Windows. When
+  protection resumes, by the count or by Resume, the key is sealed
+  again to the computer's state at that moment, so a firmware whose
+  Secure Boot keys changed does not ask for it. How Windows counts is to
+  be confirmed on the Windows test virtual machine (tracker #157); the
+  count stays 3 (owner).
+- **The recovery key on the one sheet** (owner, 2026-10-19, amending
+  "Print the recovery key"): no separate Print. The Start page's Print
+  (F47) prints one sheet; beside it, a tick box "Include the BitLocker
+  recovery key", unticked by default; only when it is ticked does the
+  sheet carry the drive and its 48-digit key, read through the elevated
+  copy. No QR code, no key file, no key shown for a phone or on screen
+  (F33's reason stands). The PDF with the key is written to a temporary
+  folder of its own, which the Starter overwrites and removes when it
+  exits, and sweeps at its next start if a run left one.
 - Neither is a step Faraday needs: the steps stay Secure Boot off,
   start from the stick, Secure Boot back on.
 - The guides say plainly that Windows may ask for the recovery key

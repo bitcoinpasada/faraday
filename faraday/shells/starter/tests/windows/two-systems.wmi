@@ -1,0 +1,13 @@
+# Win32_EncryptableVolume's answers, in the form
+# faraday_starter_shell::windows::bitlocker::Recorded reads, made by hand to
+# the class's documented methods and return values (`faraday-starter
+# --record-bitlocker` on a Windows computer prints the same form, with no
+# recovery password in it). The volumes, IDs and keys are made up.
+#
+# Two Windows installations, C: and E:. C: suspends; E: is refused, so C:
+# is resumed again and nothing is left half done.
+volume \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000c}\ C: type 0 protection 1
+volume \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000e}\ E: type 0 protection 1
+call \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000c}\ DisableKeyProtectors DisableCount=u32:3 -> 0
+call \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000e}\ DisableKeyProtectors DisableCount=u32:3 -> 2150694970
+call \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000c}\ EnableKeyProtectors -> 0

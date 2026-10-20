@@ -13,10 +13,12 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use faraday_starter::api::{
-    Bus, Computer, Concern, DevImage, Disk, FaradayStick, InUse, InstallItem, Installed, Kind,
-    Mode, Os, Payload, PayloadFile, Reason, StarterEvent, Volume, WriteStage,
+    BitLocker, BitLockerStep, Bus, Computer, Concern, DevImage, Disk, FaradayStick, InUse,
+    InstallItem, Installed, Kind, Mode, Os, Payload, PayloadFile, Protection, Reason, RecoveryKey,
+    StarterEvent, Volume, WriteStage,
 };
 use faraday_starter::decide::Target;
+use faraday_starter::notes::Notes;
 use faraday_starter::{LearnId, Starter, StarterAction};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
@@ -178,6 +180,15 @@ impl Snap<'_> {
         Ok(())
     }
 
+    /// Scrolled down by `dy` wheel units, for what is below the first
+    /// screen on a small panel.
+    fn shot_down(&self, starter: &mut Starter, name: &str, dy: i16) -> Result<(), String> {
+        let _ = starter.frame();
+        starter.event(Event::Wheel { x: 10, y: 10, dy });
+        let _ = starter.frame();
+        self.shot(starter, name)
+    }
+
     /// Scrolled to the end, for a page longer than the screen.
     fn shot_end(&self, starter: &mut Starter, name: &str) -> Result<(), String> {
         let _ = starter.frame();
@@ -212,6 +223,119 @@ fn other_encryption_shots(s: &Snap) -> Result<(), String> {
     )]));
     h.starter_event(StarterEvent::OtherEncryption(Some("VeraCrypt".into())));
     s.shot(&mut h, "home-windows-veracrypt")
+}
+
+/// BitLocker on the Start page (§6, F49): on, the key's tick box ticked,
+/// suspended for three times Windows starts, a refusal, and off.
+fn bitlocker_shots(s: &Snap) -> Result<(), String> {
+    let read = |protection, starts_left| {
+        StarterEvent::BitLocker(Some(BitLocker {
+            drive: "C:".into(),
+            protection,
+            starts_left,
+        }))
+    };
+    let mut h = s.starter();
+    h.starter_event(StarterEvent::Computer(laptop(Os::Windows, true)));
+    h.starter_event(StarterEvent::Disks(vec![stick(
+        "sde",
+        "6.6.84-faraday-0.2.0",
+    )]));
+    h.press(StarterAction::Start);
+    h.starter_event(read(Protection::On, None));
+    s.shot(&mut h, "start-windows-bitlocker-on")?;
+    if s.size.0 < 800 {
+        s.shot_down(&mut h, "start-windows-bitlocker-on-down", 520)?;
+        h.event(Event::Wheel {
+            x: 10,
+            y: 10,
+            dy: -5000,
+        });
+    }
+    h.press(StarterAction::IncludeKey);
+    s.shot(&mut h, "start-windows-bitlocker-key-ticked")?;
+    if s.size.0 < 800 {
+        s.shot_down(&mut h, "start-windows-bitlocker-key-ticked-down", 520)?;
+        h.event(Event::Wheel {
+            x: 10,
+            y: 10,
+            dy: -5000,
+        });
+    }
+    h.press(StarterAction::IncludeKey);
+    h.press(StarterAction::SuspendBitLocker);
+    s.shot(&mut h, "start-windows-bitlocker-waiting")?;
+    if s.size.0 < 800 {
+        s.shot_down(&mut h, "start-windows-bitlocker-waiting-down", 520)?;
+        h.event(Event::Wheel {
+            x: 10,
+            y: 10,
+            dy: -5000,
+        });
+    }
+    h.starter_event(StarterEvent::BitLockerDone {
+        step: BitLockerStep::Suspend,
+        result: Ok(()),
+    });
+    h.starter_event(read(Protection::Suspended, Some(3)));
+    s.shot(&mut h, "start-windows-bitlocker-suspended")?;
+    if s.size.0 < 800 {
+        s.shot_down(&mut h, "start-windows-bitlocker-suspended-down", 520)?;
+        h.event(Event::Wheel {
+            x: 10,
+            y: 10,
+            dy: -5000,
+        });
+    }
+    h.starter_event(read(Protection::On, None));
+    h.press(StarterAction::SuspendBitLocker);
+    h.starter_event(StarterEvent::BitLockerDone {
+        step: BitLockerStep::Suspend,
+        result: Err(Reason::Managed(0x8031_003A)),
+    });
+    s.shot(&mut h, "start-windows-bitlocker-managed")?;
+    if s.size.0 < 800 {
+        s.shot_down(&mut h, "start-windows-bitlocker-managed-down", 520)?;
+        h.event(Event::Wheel {
+            x: 10,
+            y: 10,
+            dy: -5000,
+        });
+    }
+    let mut h = s.starter();
+    h.starter_event(StarterEvent::Computer(laptop(Os::Windows, true)));
+    h.starter_event(StarterEvent::Disks(vec![stick(
+        "sde",
+        "6.6.84-faraday-0.2.0",
+    )]));
+    // The sheet Print hands the viewer, with a made-up key ticked in, for
+    // a maker with a page and one without (§3.4, F49).
+    let key = RecoveryKey::parse(
+        "C:",
+        "111111-222222-333333-444444-555555-666666-777777-888888",
+    )
+    .ok_or("the made-up key")?;
+    let mut dell = laptop(Os::Windows, true);
+    dell.maker = "Dell Inc.".into();
+    dell.family = "Latitude".into();
+    dell.model = "Latitude 5440".into();
+    for (c, name) in [
+        (dell, "sheet-key-dell"),
+        (laptop(Os::Windows, true), "sheet-key"),
+    ] {
+        let notes = Notes::for_computer(&c).ok_or("notes")?;
+        let path = s.out.join(format!("{name}.pdf"));
+        std::fs::write(&path, notes.pdf_with_key(&key))
+            .map_err(|e| format!("{}: {e}", path.display()))?;
+        println!("{}", path.display());
+    }
+    h.press(StarterAction::Start);
+    h.starter_event(read(Protection::None, None));
+    s.shot(&mut h, "start-windows-bitlocker-off")?;
+    if s.size.0 < 800 {
+        s.shot_down(&mut h, "start-windows-bitlocker-off-down", 520)?;
+    }
+    Ok(())
 }
 
 fn concern(kind: Kind, name: &str, id: &str) -> Concern {
@@ -546,6 +670,7 @@ fn run(s: &Snap) -> Result<(), String> {
     s.shot(&mut h, "about")?;
     s.shot_end(&mut h, "about-end")?;
     other_encryption_shots(s)?;
+    bitlocker_shots(s)?;
 
     // Blank templates (§3.8): the menu, a Choice, and after a save.
     let mut h = s.starter();

@@ -544,6 +544,14 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         Reason::NoStick => S.starter_why_no_stick.to_string(),
         Reason::Declined => S.starter_why_declined.to_string(),
         Reason::Unsupported => S.starter_why_unsupported.to_string(),
+        Reason::NoAdmin => S.starter_why_no_admin.to_string(),
+        Reason::Managed(code) => fill(S.starter_why_managed, &[&format!("0x{code:08X}")]),
+        Reason::BitLocker { call, code } => {
+            fill(S.starter_why_bitlocker, &[call, &format!("0x{code:08X}")])
+        }
+        Reason::NotEncrypted => S.starter_why_not_encrypted.to_string(),
+        Reason::NotRead => S.starter_why_not_read.to_string(),
+        Reason::NoRecoveryKey => S.starter_why_no_recovery_key.to_string(),
     }
 }
 
@@ -1431,6 +1439,7 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         ) + 20.0;
     }
     y += notes_block(starter, ui, x, y, w);
+    y += bitlocker_block(starter, ui, x, y, w);
     // 1. Restart into firmware settings.
     n += 1;
     y += step_head(ui, x, y, w, n, S.starter_restart, false);
@@ -1571,18 +1580,134 @@ fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     if let Some(why) = &starter.notes_open_failed {
         y += line(ui, x, y, w, &reason_text(why), ERR);
     }
-    y += buttons(
+    let print = if starter.key_reading {
+        Style::Disabled
+    } else {
+        Style::Secondary
+    };
+    if !starter.bitlocker_offered() {
+        y += buttons(
+            ui,
+            x,
+            y,
+            w,
+            &[(S.starter_notes_print, print, StarterAction::PrintNotes)],
+        );
+        return y + 24.0 - y0;
+    }
+    // Beside Print, on Windows with BitLocker on (F49): the tick box
+    // that puts the recovery key on the sheet, unticked until ticked.
+    let tick_w = 18.0 + 12.0 + ui.measure(14.0, W::R, S.starter_notes_include_key);
+    let (tx, ty) = if ui.compact {
+        let bh = buttons(
+            ui,
+            x,
+            y,
+            w,
+            &[(S.starter_notes_print, print, StarterAction::PrintNotes)],
+        );
+        y += bh + 8.0;
+        (x, y)
+    } else {
+        let bw = ui.button(
+            x,
+            y,
+            None,
+            44.0,
+            S.starter_notes_print,
+            print,
+            StarterAction::PrintNotes.host(),
+        );
+        (x + bw + 20.0, y)
+    };
+    let a = StarterAction::IncludeKey.host();
+    if ui.is_pressed(a) || ui.is_hovered(a) {
+        ui.fill(tx - 6.0, ty, tick_w + 12.0, 44.0, 8.0, INNER);
+    }
+    ui.checkbox(tx, ty + 13.0, starter.include_key, true);
+    ui.text_mid(
+        tx + 30.0,
+        ty,
+        44.0,
+        14.0,
+        W::R,
+        TEXT,
+        S.starter_notes_include_key,
+    );
+    ui.hit(tx - 6.0, ty, tick_w + 12.0, 44.0, a);
+    y = ty + 44.0;
+    if starter.key_reading {
+        y += 8.0;
+        y += line(ui, x, y, w, S.starter_waiting_permission, MUTED);
+    }
+    y + 24.0 - y0
+}
+
+/// BitLocker on the system drive (§6, F49), on Windows with it on or
+/// suspended: the drive's state as Windows reads it, and the one step it
+/// allows, never required: Temporarily suspend BitLocker while on,
+/// Resume BitLocker while suspended. Returns its height.
+fn bitlocker_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let Some(b) = starter
+        .bitlocker
+        .as_ref()
+        .filter(|_| starter.bitlocker_offered())
+    else {
+        return 0.0;
+    };
+    let mut y = y0;
+    let on = b.protection == crate::api::Protection::On;
+    let state = if on {
+        S.starter_bitlocker_on.to_string()
+    } else {
+        match b.starts_left {
+            Some(0) => S.starter_bitlocker_suspended_until.to_string(),
+            Some(1) => S.starter_bitlocker_suspended_once.to_string(),
+            Some(n) => fill(S.starter_bitlocker_suspended_times, &[&n.to_string()]),
+            None => S.starter_bitlocker_suspended.to_string(),
+        }
+    };
+    y += note_row(
         ui,
         x,
         y,
         w,
-        &[(
-            S.starter_notes_print,
-            Style::Secondary,
-            StarterAction::PrintNotes,
-        )],
+        &fill(S.starter_bitlocker_row, &[&b.drive]),
+        &state,
+        TEXT,
     );
-    y + 24.0 - y0
+    y += 10.0;
+    if let Some(why) = &starter.bitlocker_failed {
+        y += line(ui, x, y, w, &reason_text(why), ERR);
+    }
+    let busy = starter.bitlocker_step.is_some();
+    let style = if busy {
+        Style::Disabled
+    } else {
+        Style::Secondary
+    };
+    let (label, action) = if on {
+        (S.starter_bitlocker_suspend, StarterAction::SuspendBitLocker)
+    } else {
+        (S.starter_bitlocker_resume, StarterAction::ResumeBitLocker)
+    };
+    y += buttons(ui, x, y, w, &[(label, style, action)]) + 8.0;
+    if busy {
+        y += line(ui, x, y, w, S.starter_waiting_permission, MUTED);
+    } else if on {
+        y += line(
+            ui,
+            x,
+            y,
+            w,
+            &fill(
+                S.starter_bitlocker_suspend_for,
+                &[&crate::api::SUSPEND_STARTS.to_string()],
+            ),
+            MUTED,
+        );
+    }
+    y + 16.0 - y0
 }
 
 /// A value row whose value is never cut: under its label, wrapped, when

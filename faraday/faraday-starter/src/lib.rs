@@ -33,8 +33,9 @@ use osk_shell_api::{App, Command, DisplayInfo, Event, Frame, Key, TouchPhase};
 use osk_ui::{Canvas, Rect};
 
 use api::{
-    Computer, Concern, DevImage, Disk, Installed, Kind, Mode, Os, Payload, PayloadFile,
-    PayloadKind, Reason, Source, StarterCommand, StarterEvent, WriteOrder, WriteStage,
+    BitLocker, BitLockerStep, Computer, Concern, DevImage, Disk, Installed, Kind, Mode, Os,
+    Payload, PayloadFile, PayloadKind, Protection, Reason, Source, StarterCommand, StarterEvent,
+    WriteOrder, WriteStage,
 };
 use decide::{Facts, Item, Target};
 use macs::StickFor;
@@ -289,6 +290,13 @@ pub enum StarterAction {
     /// Print what to write down on the Start page (§3.4, F47): its PDF
     /// opened in the system's viewer.
     PrintNotes,
+    /// Include the BitLocker recovery key on the sheet, ticked or not
+    /// (F49).
+    IncludeKey,
+    /// Temporarily suspend BitLocker (§6, F49).
+    SuspendBitLocker,
+    /// Resume BitLocker (§6, F49).
+    ResumeBitLocker,
 }
 
 /// Which blank-template choice a row opens.
@@ -362,6 +370,9 @@ impl StarterAction {
             StarterAction::SaveTemplate => (48, 0),
             StarterAction::OpenTemplate => (49, 0),
             StarterAction::PrintNotes => (50, 0),
+            StarterAction::IncludeKey => (51, 0),
+            StarterAction::SuspendBitLocker => (52, 0),
+            StarterAction::ResumeBitLocker => (53, 0),
         };
         (kind << 16) | arg
     }
@@ -424,6 +435,9 @@ impl StarterAction {
             48 => StarterAction::SaveTemplate,
             49 => StarterAction::OpenTemplate,
             50 => StarterAction::PrintNotes,
+            51 => StarterAction::IncludeKey,
+            52 => StarterAction::SuspendBitLocker,
+            53 => StarterAction::ResumeBitLocker,
             _ => return None,
         })
     }
@@ -525,6 +539,17 @@ pub struct Starter {
     pub template: template::Template,
     /// Why the last Print on the Start page did not open (§3.4).
     pub notes_open_failed: Option<Reason>,
+    /// BitLocker on the system drive, as last read (Windows, §6, F49).
+    pub bitlocker: Option<BitLocker>,
+    /// A BitLocker step under way: the elevation prompt, then the step.
+    pub bitlocker_step: Option<BitLockerStep>,
+    /// Why the last BitLocker step did not happen.
+    pub bitlocker_failed: Option<Reason>,
+    /// The sheet is to carry the recovery key (F49): unticked until the
+    /// person ticks it, for the session.
+    pub include_key: bool,
+    /// The recovery key is being read for the sheet.
+    pub key_reading: bool,
     /// Another encryption product found here (§6.4), by name.
     pub other: Option<String>,
     /// The person said they have its rescue disk or password.
@@ -600,6 +625,11 @@ impl Starter {
             entry_kept: None,
             template: template::Template::default(),
             notes_open_failed: None,
+            bitlocker: None,
+            bitlocker_step: None,
+            bitlocker_failed: None,
+            include_key: false,
+            key_reading: false,
             other: None,
             other_confirmed: false,
             concerns: Vec::new(),
@@ -686,6 +716,54 @@ impl Starter {
     /// The number an item of concern's Continue anyway carries.
     pub fn concern_number(&self, id: &str) -> u16 {
         self.concern_seen.iter().position(|s| s == id).unwrap_or(0) as u16
+    }
+
+    /// Whether the Start page offers BitLocker's steps and the key on the
+    /// sheet (§6, F49): on Windows, with BitLocker on or suspended on the
+    /// system drive as last read. Not encrypted, or not read, offers
+    /// nothing.
+    pub fn bitlocker_offered(&self) -> bool {
+        self.computer.os == Os::Windows
+            && self.facts().mac().is_none()
+            && self
+                .bitlocker
+                .as_ref()
+                .is_some_and(|b| matches!(b.protection, Protection::On | Protection::Suspended))
+    }
+
+    /// Whether `step` can be asked now: offered, nothing under way, and
+    /// the drive as the step needs it (Suspend with protection on,
+    /// Resume while suspended).
+    fn step_open(&self, step: BitLockerStep) -> bool {
+        let want = match step {
+            BitLockerStep::Suspend => Protection::On,
+            BitLockerStep::Resume => Protection::Suspended,
+        };
+        self.page == Page::Start
+            && self.bitlocker_offered()
+            && self.bitlocker_step.is_none()
+            && self
+                .bitlocker
+                .as_ref()
+                .is_some_and(|b| b.protection == want)
+    }
+
+    /// Makes the sheet and asks the shell to open it: with the recovery
+    /// key when one is given, which is dropped (and wiped) once the PDF
+    /// is made.
+    fn print_notes(&mut self, key: Option<api::RecoveryKey>) {
+        if let Some(notes) = notes::Notes::for_computer(&self.computer) {
+            self.notes_open_failed = None;
+            let pdf = match &key {
+                Some(k) => notes.pdf_with_key(k),
+                None => notes.pdf(),
+            };
+            self.out.push_back(StarterCommand::PrintNotes {
+                name: notes::FILE_NAME.to_string(),
+                pdf,
+                with_key: key.is_some(),
+            });
+        }
     }
 
     /// Whether Remove the Faraday boot entry is offered on Home (§3.1c):
@@ -981,6 +1059,36 @@ impl Starter {
                 self.template.open_failed = r.err();
             }
             StarterEvent::NotesOpened(r) => self.notes_open_failed = r.err(),
+            StarterEvent::BitLocker(b) => {
+                // The reading without elevation has no count: the one the
+                // elevated copy read this session stands while the drive
+                // stays suspended (Windows has not started since).
+                let kept = self
+                    .bitlocker
+                    .as_ref()
+                    .filter(|o| o.protection == Protection::Suspended)
+                    .and_then(|o| o.starts_left);
+                self.bitlocker = b.map(|mut b| {
+                    if b.protection == Protection::Suspended && b.starts_left.is_none() {
+                        b.starts_left = kept;
+                    }
+                    b
+                });
+            }
+            StarterEvent::BitLockerDone { result, .. } => {
+                self.bitlocker_step = None;
+                self.bitlocker_failed = result.err();
+            }
+            StarterEvent::RecoveryKey(r) => {
+                self.key_reading = false;
+                match r {
+                    Ok(key) if self.page == Page::Start && self.include_key => {
+                        self.print_notes(Some(key));
+                    }
+                    Ok(_) => {}
+                    Err(why) => self.notes_open_failed = Some(why),
+                }
+            }
             StarterEvent::BootEntry(e) => self.boot_entry = e,
             StarterEvent::BootEntryRemoved(r) => {
                 self.entry_removing = false;
@@ -1001,6 +1109,13 @@ impl Starter {
         self.page = page;
         self.sheet = None;
         self.offset = 0.0;
+        // BitLocker is read from Windows each time the Start page is
+        // shown (F49): it may have been changed outside the Starter.
+        // A Mac's Start page has no BitLocker block: its steps change
+        // Startup Security, not Secure Boot.
+        if page == Page::Start && self.computer.os == Os::Windows && self.facts().mac().is_none() {
+            self.out.push_back(StarterCommand::ReadBitLocker);
+        }
     }
 
     /// Opens the held desktop app on Transfer, or on the Learn sheet with
@@ -1277,13 +1392,32 @@ impl Starter {
                 }
             }
             StarterAction::PrintNotes if self.page == Page::Start => {
-                if let Some(notes) = notes::Notes::for_computer(&self.computer) {
-                    self.notes_open_failed = None;
-                    self.out.push_back(StarterCommand::PrintNotes {
-                        name: notes::FILE_NAME.to_string(),
-                        pdf: notes.pdf(),
-                    });
+                if self.include_key && self.bitlocker_offered() {
+                    // The key is read through the elevated copy first; the
+                    // sheet is made when it arrives.
+                    if !self.key_reading {
+                        self.key_reading = true;
+                        self.notes_open_failed = None;
+                        self.out.push_back(StarterCommand::ReadRecoveryKey);
+                    }
+                } else {
+                    self.print_notes(None);
                 }
+            }
+            StarterAction::IncludeKey if self.page == Page::Start && self.bitlocker_offered() => {
+                self.include_key = !self.include_key;
+            }
+            StarterAction::SuspendBitLocker if self.step_open(BitLockerStep::Suspend) => {
+                self.bitlocker_step = Some(BitLockerStep::Suspend);
+                self.bitlocker_failed = None;
+                self.out
+                    .push_back(StarterCommand::BitLocker(BitLockerStep::Suspend));
+            }
+            StarterAction::ResumeBitLocker if self.step_open(BitLockerStep::Resume) => {
+                self.bitlocker_step = Some(BitLockerStep::Resume);
+                self.bitlocker_failed = None;
+                self.out
+                    .push_back(StarterCommand::BitLocker(BitLockerStep::Resume));
             }
             StarterAction::Rescue => {
                 if self.page == Page::Start {
@@ -1324,6 +1458,9 @@ impl Starter {
             // A template action, or the Start page's Print, pressed on
             // another page does nothing.
             StarterAction::PrintNotes
+            | StarterAction::IncludeKey
+            | StarterAction::SuspendBitLocker
+            | StarterAction::ResumeBitLocker
             | StarterAction::TemplateChoice(_)
             | StarterAction::TemplateWords(_)
             | StarterAction::TemplateCopy(_)

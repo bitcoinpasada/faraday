@@ -9,7 +9,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
 
-use faraday_starter::api::{Computer, Concern, Installed, Reason, StarterEvent, WriteOrder};
+use faraday_starter::api::{
+    BitLocker, BitLockerStep, Computer, Concern, Installed, Reason, RecoveryKey, StarterEvent,
+    WriteOrder,
+};
 
 use crate::writer::Job;
 
@@ -75,6 +78,27 @@ pub trait Platform: Send + Sync {
     /// wait for batch A3c.
     fn concerns(&self) -> Vec<Concern> {
         Vec::new()
+    }
+
+    /// BitLocker on the system drive (Windows, §6, F49), read without
+    /// elevation; `None` on other systems. Called off the window's
+    /// thread, each time the Start page is shown.
+    fn bitlocker(&self) -> Option<BitLocker> {
+        None
+    }
+
+    /// A BitLocker step through the elevated copy (Windows, §6, F49):
+    /// how it ended, and BitLocker as the elevated copy read it at the
+    /// end, when it did.
+    fn bitlocker_step(&self, step: BitLockerStep) -> (Result<(), Reason>, Option<BitLocker>) {
+        let _ = step;
+        (Err(Reason::Unsupported), None)
+    }
+
+    /// The system drive's BitLocker recovery key, read through the
+    /// elevated copy for the sheet (Windows, F49).
+    fn recovery_key(&self) -> Result<RecoveryKey, Reason> {
+        Err(Reason::Unsupported)
     }
 
     /// The Starter is exiting: on Windows an uninstall run from the

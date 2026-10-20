@@ -105,7 +105,10 @@ fn every_page(starter: &mut Starter) -> Vec<String> {
 }
 
 #[test]
-fn nothing_in_the_starter_asks_for_shows_or_holds_a_recovery_key() {
+fn without_bitlocker_read_on_nothing_in_the_starter_asks_for_shows_or_holds_a_recovery_key() {
+    // BitLocker's steps and the key on the sheet are offered only with
+    // BitLocker read on the system drive (F49, `tests/bitlocker.rs`);
+    // here Windows has answered nothing about it.
     for secure_boot in [Some(true), Some(false), None] {
         let mut s = starter(secure_boot);
         for page in every_page(&mut s) {
@@ -114,8 +117,13 @@ fn nothing_in_the_starter_asks_for_shows_or_holds_a_recovery_key() {
                 assert!(!page.contains(word), "{secure_boot:?}: {word}: {page}");
             }
         }
-        // Nothing was sent to the computer.
-        assert!(commands(&mut s).is_empty());
+        // Nothing was sent to the computer but the Start page's reading
+        // of BitLocker, which changes nothing.
+        assert!(
+            commands(&mut s)
+                .iter()
+                .all(|c| *c == StarterCommand::ReadBitLocker)
+        );
     }
 }
 

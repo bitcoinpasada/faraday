@@ -87,7 +87,7 @@ fn printed(s: &mut Starter) -> (String, Vec<u8>) {
     s.press(StarterAction::PrintNotes);
     let c: Vec<StarterCommand> = std::iter::from_fn(|| s.next_command()).collect();
     match c.as_slice() {
-        [StarterCommand::PrintNotes { name, pdf }] => (name.clone(), pdf.clone()),
+        [StarterCommand::PrintNotes { name, pdf, .. }] => (name.clone(), pdf.clone()),
         other => panic!("one PrintNotes expected: {other:?}"),
     }
 }
@@ -314,5 +314,83 @@ fn the_sheet_names_no_path_user_or_computer() {
         b"Dell Inc.",
     ] {
         assert!(!pdf.windows(word.len()).any(|w| w == word), "{word:?}");
+    }
+}
+
+// The lines to circle the key that worked (F47, owner 2026-10-19): the
+// maker's own key first, then every other key the maker table names, in
+// a fixed order (Esc, the function keys by number, Fn with one, then the
+// rest as the table has them), then Other with a line to write on.
+
+fn circles(c: &Computer) -> Vec<(&'static str, Vec<&'static str>)> {
+    Notes::for_computer(c)
+        .expect("notes")
+        .circles
+        .iter()
+        .map(|c| (c.label, c.keys.clone()))
+        .collect()
+}
+
+#[test]
+fn the_sheet_has_a_line_to_circle_each_key_used_the_maker_s_first() {
+    assert_eq!(
+        circles(&dell()),
+        [
+            (
+                "Boot menu key used (circle one)",
+                vec!["F12", "Esc", "F9", "F11", "Fn+F12", "Volume Down"]
+            ),
+            (
+                "BIOS key used (circle one)",
+                vec!["F2", "Esc", "F1", "F10", "Fn+F2", "Delete", "Volume Up"]
+            ),
+        ]
+    );
+    // HP's keys are two in turn: both first, as the table says them.
+    let hp = computer(Os::Windows, "HP", "HP EliteBook", "HP EliteBook 840 G9");
+    assert_eq!(
+        circles(&hp)[1].1,
+        ["Esc", "F10", "F1", "F2", "Fn+F2", "Delete", "Volume Up"]
+    );
+    let mut s = start_page(dell());
+    let (_, pdf) = printed(&mut s);
+    for t in [
+        "Boot menu key used (circle one)",
+        "BIOS key used (circle one)",
+        "Volume Down",
+        "Fn+F2",
+        "Other: ________",
+    ] {
+        assert!(pdf_has(&pdf, t), "{t}");
+    }
+    // The page itself shows the three rows only.
+    assert!(!texts(&mut s).iter().any(|t| t.contains("circle one")));
+}
+
+#[test]
+fn a_maker_without_a_page_circles_every_key_in_the_fixed_order() {
+    assert_eq!(
+        circles(&unknown()),
+        [
+            (
+                "Boot menu key used (circle one)",
+                vec!["Esc", "F9", "F11", "F12", "Fn+F12", "Volume Down"]
+            ),
+            (
+                "BIOS key used (circle one)",
+                vec!["Esc", "F1", "F2", "F10", "Fn+F2", "Delete", "Volume Up"]
+            ),
+        ]
+    );
+}
+
+#[test]
+fn a_mac_s_sheet_has_nothing_to_circle() {
+    // Its keys are fixed: Option, and Command-R on a T2 Mac.
+    for model in ["MacBookPro15,1", "MacBookPro11,1", "MacBookPro99,9"] {
+        assert!(circles(&mac(model)).is_empty(), "{model}");
+        let mut s = start_page(mac(model));
+        let (_, pdf) = printed(&mut s);
+        assert!(!pdf_has(&pdf, "circle"), "{model}");
     }
 }

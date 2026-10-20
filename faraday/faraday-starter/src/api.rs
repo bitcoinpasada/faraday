@@ -46,6 +46,112 @@ pub struct Computer {
     pub tpm_unlock: bool,
 }
 
+/// How many times Windows starts before a suspension the Starter makes
+/// ends by itself (§6, F49): `DisableKeyProtectors`' `DisableCount`, as
+/// `manage-bde -protectors -disable C: -RebootCount 3` sets it. Windows
+/// keeps the count and lowers it each time Windows starts; the BIOS and
+/// the stick do not run Windows, so they do not count (to be confirmed
+/// on the Windows test virtual machine, tracker #157).
+pub const SUSPEND_STARTS: u32 = 3;
+
+/// The protection of the Windows system drive (§6, F49).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Protection {
+    /// Not encrypted.
+    None,
+    /// Encrypted and protected.
+    On,
+    /// Encrypted, protection suspended.
+    Suspended,
+    /// Could not be read.
+    Unknown,
+}
+
+/// BitLocker on this computer's system drive (Windows only, §6, F49),
+/// read from Windows each time the Start page is shown.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BitLocker {
+    /// The system drive, as Windows names it (`C:`).
+    pub drive: String,
+    /// Its protection now.
+    pub protection: Protection,
+    /// While suspended, how many more times Windows starts before
+    /// protection comes back by itself (0: not until resumed), when it
+    /// was read: the elevated copy reads it (`GetSuspendCount`); the
+    /// reading without elevation cannot.
+    pub starts_left: Option<u32>,
+}
+
+/// A BitLocker recovery key, eight groups of six digits, with the drive
+/// it opens (§3.4, F49): read by the elevated copy for the sheet, and
+/// held only until the sheet is made. `Debug` prints none of the key,
+/// and it is wiped when dropped.
+#[derive(Clone, PartialEq, Eq)]
+pub struct RecoveryKey {
+    drive: String,
+    key: zeroize::Zeroizing<String>,
+}
+
+/// The groups in a recovery key.
+pub const KEY_GROUPS: usize = 8;
+/// The digits in a group.
+pub const KEY_DIGITS: usize = 6;
+
+/// Whether `s` is a drive, `C:`.
+pub fn drive_ok(s: &str) -> bool {
+    let d = s.as_bytes();
+    d.len() == 2 && d[0].is_ascii_alphabetic() && d[1] == b':'
+}
+
+impl RecoveryKey {
+    /// The key in `key` (groups separated by `-`, as Windows writes it)
+    /// for `drive` (`C:`), or `None` for anything else.
+    pub fn parse(drive: &str, key: &str) -> Option<RecoveryKey> {
+        let key = key.trim();
+        let key_ok = key.len() == KEY_GROUPS * KEY_DIGITS + KEY_GROUPS - 1
+            && key.split('-').count() == KEY_GROUPS
+            && key
+                .split('-')
+                .all(|g| g.len() == KEY_DIGITS && g.bytes().all(|b| b.is_ascii_digit()));
+        if !drive_ok(drive) || !key_ok {
+            return None;
+        }
+        let mut k = zeroize::Zeroizing::new(String::with_capacity(key.len()));
+        k.push_str(key);
+        Some(RecoveryKey {
+            drive: drive.to_ascii_uppercase(),
+            key: k,
+        })
+    }
+
+    /// The drive (`C:`).
+    pub fn drive(&self) -> &str {
+        &self.drive
+    }
+
+    /// The key as Windows writes it.
+    pub fn as_str(&self) -> &str {
+        &self.key
+    }
+}
+
+impl std::fmt::Debug for RecoveryKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "RecoveryKey({}, ..)", self.drive)
+    }
+}
+
+/// A BitLocker step, done by the elevated copy (`--bitlocker <verb>`,
+/// §2, §6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BitLockerStep {
+    /// Suspend protection on the system drive for the next
+    /// [`SUSPEND_STARTS`] times Windows starts.
+    Suspend,
+    /// Turn protection back on now.
+    Resume,
+}
+
 /// How a disk is attached.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Bus {
@@ -440,6 +546,28 @@ pub enum Reason {
     /// for (Windows' elevation prompt, polkit's password on Linux), so
     /// nothing was done.
     Declined,
+    /// The elevation prompt was declined on an account that is not an
+    /// administrator's: an administrator has to do the step.
+    NoAdmin,
+    /// BitLocker refused to suspend (`DisableKeyProtectors`' return
+    /// value, or 0 when the volume was still protected after it): the
+    /// computer's BitLocker is managed.
+    Managed(u32),
+    /// A BitLocker call failed: the method and its return value or
+    /// HRESULT.
+    BitLocker {
+        /// The method (`GetKeyProtectors`).
+        call: String,
+        /// What it returned.
+        code: u32,
+    },
+    /// The system drive is not encrypted.
+    NotEncrypted,
+    /// The system drive's protection could not be read: Windows did not
+    /// list it, or answered something else.
+    NotRead,
+    /// The system drive has no recovery key (no numerical password).
+    NoRecoveryKey,
     /// Not on this computer.
     Unsupported,
 }
@@ -542,6 +670,20 @@ pub enum StarterEvent {
     /// [`StarterCommand::PrintNotes`] ended: opened in the viewer, or why
     /// not.
     NotesOpened(Result<(), Reason>),
+    /// BitLocker on the system drive (Windows, §6, F49), as read after
+    /// [`StarterCommand::ReadBitLocker`] and after each BitLocker step;
+    /// `None` where there is none to read.
+    BitLocker(Option<BitLocker>),
+    /// [`StarterCommand::BitLocker`] ended: done, or why not. The shell
+    /// sends [`StarterEvent::BitLocker`] after it, as read then.
+    BitLockerDone {
+        /// Which step.
+        step: BitLockerStep,
+        /// Done, or why not.
+        result: Result<(), Reason>,
+    },
+    /// [`StarterCommand::ReadRecoveryKey`] ended: the key, or why not.
+    RecoveryKey(Result<RecoveryKey, Reason>),
 }
 
 /// How a stick or card is written (§3.2 step 2).
@@ -650,5 +792,19 @@ pub enum StarterCommand {
         name: String,
         /// The PDF.
         pdf: Vec<u8>,
+        /// It carries the BitLocker recovery key (F49): the shell wipes
+        /// its copy once written, and removes the file when the Starter
+        /// exits.
+        with_key: bool,
     },
+    /// Read BitLocker on the system drive (Windows, §6, F49), without
+    /// elevation; answered by [`StarterEvent::BitLocker`]. Asked each
+    /// time the Start page is shown.
+    ReadBitLocker,
+    /// A BitLocker step through the elevated copy; answered by
+    /// [`StarterEvent::BitLockerDone`], then [`StarterEvent::BitLocker`].
+    BitLocker(BitLockerStep),
+    /// Read the system drive's recovery key through the elevated copy,
+    /// for the sheet (F49); answered by [`StarterEvent::RecoveryKey`].
+    ReadRecoveryKey,
 }

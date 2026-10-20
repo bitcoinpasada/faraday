@@ -910,6 +910,7 @@ dependencies = [
  "osk-shell-api",
  "osk-ui",
  "png",
+ "zeroize",
 ]
 
 [[package]]
@@ -929,6 +930,7 @@ dependencies = [
  "rustbus",
  "windows-sys 0.52.0",
  "winit",
+ "zeroize",
 ]
 
 [[package]]

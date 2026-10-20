@@ -1,0 +1,6 @@
+# Win32_EncryptableVolume's answers, in the form
+# faraday_starter_shell::windows::bitlocker::Recorded reads, made by hand.
+# The volumes, IDs and keys are made up.
+#
+# Windows lists a data volume and no operating-system volume.
+volume \\?\Volume{1b2c3d4e-0000-4000-8000-00000000000e}\ E: type 1 protection 1

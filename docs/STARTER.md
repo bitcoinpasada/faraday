@@ -2,7 +2,8 @@
 
 **Status:** spec v0.2 · 2026-10-12 · decided by the owner in discussion
 (`docs/DECISIONS.md` F11 and F12); since F33 (2026-10-14) no BitLocker
-step, §6, specified, not built. v0.2 is v0.1 with the
+step, and since F49 (2026-10-19) BitLocker's suspension, Resume and the
+key on the sheet offered, never required, §6. v0.2 is v0.1 with the
 owner's answers to a review of it: §12 records each decision, §13 lists
 what changed. One decision stays open (D11).
 
@@ -34,9 +35,11 @@ Desktop**, a developer's build that is not released (F30,
   one review and one completion report each. A batch that needs an
   owner decision from §12 does not start until the owner has confirmed
   it.
-- There is no BitLocker step (F33, §6): the Starter shows, keeps and
-  asks for no recovery key and suspends nothing; the step is turning
-  Secure Boot back on before Windows starts. Another encryption product
+- There is no BitLocker step (F33, §6): the step is turning Secure
+  Boot back on before Windows starts. Since F49 the Start page offers,
+  never requires, to suspend BitLocker for three times Windows starts,
+  to resume it, and to print its recovery key on the sheet; it shows no
+  key on screen and keeps none. Another encryption product
   closes the firmware steps until its rescue is confirmed (§6.4).
 - The Windows builds are tried on a Windows computer the owner
   provides. §6.6 says which of its runs may happen on an owner's
@@ -500,7 +503,8 @@ what each is and what it guards against; why starting Faraday from a
 stick puts neither the computer nor its data at risk (the stick's
 kernel has no driver for the computer's own drives, SATA, NVMe or
 eMMC, so it cannot read or write them, and no network); that Windows
-started with Secure Boot back on asks for nothing; the risk while
+started with Secure Boot back on usually asks for nothing, and when it
+may (F49, §6.1); the risk while
 Secure Boot is off (the computer would start software not signed by a
 key its firmware trusts, Microsoft's on most computers sold with
 Windows); and that the Windows guide says where Windows keeps the
@@ -615,12 +619,42 @@ once in the system's own viewer, exactly as Blank templates' Print
 no printing code or service of the Starter's own, on Windows, Linux
 and macOS. A viewer that cannot be opened shows why under the button.
 The sheet carries the page's title, the three rows (a line to write on
-for a value not known), the steps in order, each with one line of how
-— **Turn Secure Boot off**, **Start from the stick**, **Turn Secure
-Boot back on before starting Windows** (on Linux, **Turn Secure Boot
-back on**) — and under the first, the not-found line below. Nothing
-else: no guide address, no computer name, no date, no explanation
-(CLAUDE.md: labels, values and actions). On an Intel Mac, the Mac's
+for a value not known), two lines to circle the key that worked (below),
+on Windows with the box ticked the BitLocker recovery key (below), the
+steps in order, each with one line of how — **Turn Secure Boot off**,
+**Start from the stick**, **Turn Secure Boot back on before starting
+Windows** (on Linux, **Turn Secure Boot back on**) — and under the
+first, the not-found line below. Nothing else: no guide address, no
+computer name, no date, no explanation (CLAUDE.md: labels, values and
+actions).
+
+**The keys used** (owner, 2026-10-19; F47): the sheet, not the page,
+has a line each to circle the key that worked, so it is plain later
+which one did: **Boot menu key used (circle one)** and **BIOS key used
+(circle one)**, each the maker's own key from the table first (both
+keys, in order, where the table names two: HP's "Esc, then F10"), then
+every other single key the maker table's `boot_key` or `bios_key`
+names, in a fixed order (Esc, the function keys by number, Fn with a
+function key, then the rest as the table has them: Delete, Volume Up),
+then **Other:** with a line to write on. For Dell: "F12 · Esc · F9 ·
+F11 · Fn+F12 · Volume Down · Other: ________" and "F2 · Esc · F1 · F10
+· Fn+F2 · Delete · Volume Up · Other: ________". A maker without a
+page has the same lines with no key first. The keys come from the
+table, so a maker added to it adds its keys. An Intel Mac's sheet has
+neither line: its keys are fixed (Option; Command-R on a T2 Mac), so
+there is nothing to circle.
+
+**The BitLocker recovery key on the sheet** (owner, 2026-10-19; F49):
+on Windows with BitLocker on or suspended on the system drive (§6),
+beside Print a tick box **Include the BitLocker recovery key**,
+unticked whenever the Starter starts. Unticked, Print is as above.
+Ticked, Print first reads the key through the elevated copy (§6.2, one
+elevation prompt; "Waiting for administrator permission" meanwhile),
+then the sheet carries, after the rows, **BitLocker recovery key, drive
+C:** and the 48 digits as Windows writes them, four groups to a line.
+Nothing else of BitLocker: no key ID, no computer name, no QR code. A
+key that cannot be read says why under Print and nothing is printed.
+The key is never drawn on the page. On an Intel Mac, the Mac's
 steps as the page has them, and no not-found line: the Startup
 Security Utility is always in macOS Recovery. The PDF has no
 document information dictionary (no title, author, producer or
@@ -659,17 +693,23 @@ as for a Mac with the T2 chip only.
    (F33). The last step, shown always, as the guides' last step is
    (§6.7).
 
-Nothing follows the steps: no BitLocker row (F33). Another encryption
-product not yet confirmed (§6.4) still closes the restart button.
+**BitLocker** (F49), on Windows with BitLocker on or suspended on the
+system drive, between Write down and step 1: the row **BitLocker, drive
+C:** with its state, and the one step that state allows, never required
+(§6.2). Nothing waits on it: the restart and the steps are the same
+with BitLocker off. Another encryption product not yet confirmed
+(§6.4) still closes the restart button.
 
 Tests (F47), user-facing: the page's rows and the sheet's content for
 a known maker, a maker without a page and an Intel Mac (a T2 Mac, one
 without T2, one the table does not know); Print hands the shell that
 PDF to open; the not-found line on the page, on the sheet and in every
 guide's firmware step; the maker table's boot menu key, BIOS key and
-setting agreeing with each maker's guide (`faraday-guides`). Built:
-`faraday-starter`'s `notes.rs`, `tests/notes.rs`; `faraday-core`'s
-`pdf::notes`; the shell's `pdf.rs` as for §3.8.
+setting agreeing with each maker's guide (`faraday-guides`); the lines
+to circle the keys, the maker's first, for Dell, HP and a maker without
+a page, and none on a Mac. F49's: §6.5. Built: `faraday-starter`'s
+`notes.rs`, `tests/notes.rs`; `faraday-core`'s `pdf::notes`; the
+shell's `pdf.rs` as for §3.8.
 
 ### 3.5 Install and uninstall
 
@@ -863,21 +903,26 @@ exited.
 Uninstall's BitLocker paragraph (Resume, the logon reminder and the
 marker) is removed by F33, with no Resume kept (§6.3).
 
-## 6. Secure Boot back on (Windows)
+## 6. Secure Boot back on, and BitLocker offered (Windows)
 
 **The requirement (owner, 2026-10-14, DECISIONS F33):** the step that
 keeps Windows from asking for the BitLocker recovery key is turning
-Secure Boot back on in the BIOS before Windows starts again. The Starter
-shows, keeps and asks for no recovery key, and suspend
-nothing. Specified, not built: §6.5's batches F33a to F33d.
+Secure Boot back on in the BIOS before Windows starts again. **Since
+F49** (owner, 2026-10-19) that holds in the common case only, and the
+Starter offers, never requires, three things on the Start page (§3.4):
+**Temporarily suspend BitLocker**, **Resume BitLocker**, and the
+recovery key on the printed sheet. The steps stay Secure Boot off,
+start from the stick, Secure Boot back on.
 
 Until 2026-10-14 this section was the BitLocker guard (F11, F12, F17,
 F21): Show the recovery key with its QR code and Save, an extra-safe
 suspension with a marker, a logon reminder and Resume, and §6.6's
-acceptance runs. That text is in the repository's history before F33;
-§6.6 below lists what of it is removed.
+acceptance runs. F33 removed it (commit 53a715be); F49 brings back,
+from that code, the elevated `--bitlocker` verbs and the WMI reading,
+with a restart count in place of the marker (§6.2), and nothing of the
+rest (§6.3).
 
-### 6.1 Why turning Secure Boot back on is enough
+### 6.1 Why turning Secure Boot back on is usually enough, and when not
 
 BitLocker, and Windows 11's Device encryption, which turns it on
 without asking on many laptops, seals the drive's key to the TPM's
@@ -888,22 +933,73 @@ back on, then Windows: Windows sees the start it knows and asks for
 nothing (F17's observation on a computer of the owner's, and run 5 of
 the old acceptance list in a virtual machine).
 
-**The risk, said plainly.** A person who forgets, and starts Windows
-with Secure Boot still off, is asked for the 48-digit recovery key.
-Faraday offers nothing for it. The guides say, in one line of fact,
-where Windows keeps the key (§6.7); that line is a pointer, not a flow
-(owner, 2026-10-14: offering to copy a recovery key onto a phone is
-irresponsible).
+**When it is not enough** (F49). The key unseals only when the
+measurements match those it was sealed to. A firmware that resets its
+Secure Boot keys or databases when Secure Boot is turned off and on
+(Setup Mode, factory keys, a dbx update lost), BitLocker sealed to
+other PCRs, or Windows started while Secure Boot is still off: Windows
+asks for the 48-digit recovery key. Faraday never touches the internal
+drive; that does not prevent it.
+
+**Suspending first avoids it.** A suspended volume's key is kept in the
+clear on the drive, so Windows starts without the TPM's answer; when
+protection comes back (by itself after the count, or by Resume), it is
+sealed again to the computer's state at that moment, so a firmware
+whose Secure Boot keys changed does not ask afterwards either.
 
 ### 6.2 What the Starter does on Windows
 
-- Nothing about BitLocker. It does not read the drive's BitLocker
-  state, asks for no elevation for it, shows no key and changes no
-  protector. This computer (§3.1) has no encryption line.
+- **BitLocker is read each time the Start page is shown**, without
+  elevation: the shell's `System.Volume.BitLockerProtection` for the
+  system drive (the drive of the Windows folder, `C:`), on a thread of
+  its own. 1, 3 and 6 read as on, 5 as suspended (the Windows test
+  virtual machine read 1 and 5, `tests/windows/vm-on.wmi`,
+  `vm-suspended.wmi`); anything else, 2 included, or nothing read, is
+  not known, and not known offers nothing. No marker file and no logon
+  entry: Windows' own count ends a suspension.
+- **On**: the row **BitLocker, drive C:** reads **On**, with
+  **Temporarily suspend BitLocker** and under it "For the next 3 times
+  Windows starts; then it turns back on by itself". The button starts
+  the elevated copy (`--bitlocker suspend`, one elevation prompt, as the
+  writer's), which calls `DisableKeyProtectors` with a `DisableCount`
+  of 3 on every protected operating-system volume, as `manage-bde
+  -protectors -disable C: -RebootCount 3` does, reads every volume
+  back (one still protected is a refusal), and on a refusal resumes
+  those it suspended, so nothing is half done. A refusal reads "This
+  computer's BitLocker is managed: its administrator has to suspend
+  it."; a declined prompt on an account that is not an administrator's
+  reads "An administrator of this computer has to do this step."
+- **Suspended**: the row reads **Suspended · turns back on by itself
+  after Windows starts 3 times** (the count as the elevated copy read it
+  back, `GetSuspendCount`; "once" for 1; "Suspended until resumed" for a
+  suspension with no count; "Suspended" when the count was not read,
+  as after the Starter restarts, since the reading without elevation
+  has none), with **Resume BitLocker** beside it, which turns it back
+  on now (`EnableKeyProtectors` on every suspended operating-system
+  volume, read back). Whoever suspended it, Resume is the same step.
+- **The count counts Windows' starts.** Windows keeps the count and
+  lowers it each time Windows starts; the BIOS and the stick do not run
+  Windows, so the restart into the BIOS, Faraday's session and the
+  restart after it do not use it up. 3 leaves room for a Windows start
+  between (an update, a start before the stick is chosen). How Windows
+  counts is to be confirmed on the Windows test virtual machine
+  (tracker #157); the count is `api::SUSPEND_STARTS`, held at 3 by the
+  owner.
+- **The recovery key on the sheet** (§3.4): the tick box beside Print;
+  ticked, Print starts the elevated copy (`--bitlocker key`), which
+  reads the system drive's first numerical password
+  (`GetKeyProtectors` type 3, `GetKeyProtectorNumericalPassword`) and
+  answers it over the pipe only this account can open, through buffers
+  wiped after each line. A drive with no recovery password is not given
+  one: "The drive has no BitLocker recovery key." The key is held in
+  the Starter only until the PDF is made, and the PDF is wiped once
+  written. The PDF goes into its own `faraday-key-…` folder in the
+  system's temporary folder; the Starter overwrites and removes it when
+  it exits, and at its next start removes any such folder an earlier
+  run left (a crash, a power cut, a file Windows' viewer held open).
 - **Turn Secure Boot back on** is listed on Home whenever Secure Boot
-  is off (§3.1).
-- The Start page's step 4 (§3.4) is **Turn Secure Boot back on**,
-  before Windows starts, and is the last step.
+  is off (§3.1), and the Start page's step 4 (§3.4) is **Turn Secure
+  Boot back on**, before Windows starts, and is the last step.
 - **Restart to choose a device** and Windows' **Restart from the
   stick** (*Use a device*) are shown only when Windows reports Secure Boot off at that moment (`UEFISecureBootEnabled` 0 under `HKLM\SYSTEM\CurrentControlSet\Control\SecureBoot\State`, read without elevation, as This computer reads it, §7.1), and hidden when it reads on or cannot be read (owner, 2026-10-14:
   decided). The stick then starts with Secure Boot already off, and the
@@ -911,22 +1007,29 @@ irresponsible).
   stick from the boot menu on the restart that saves Secure Boot off
   (§3.4 step 3).
 - The stick reminds at power-off (§7.5).
-- **No Microsoft account row** (F48; tracker #87). The BitLocker
-  page's **Also kept in** "Microsoft account: aka.ms/myrecoverykey",
-  shown on every computer including one with a local account, went
-  with the page (F33, §6.6). Nothing in the Starter names a Microsoft
-  account, so the Starter does not read the account type either. The
-  only place the key's whereabouts are said is the guides' pointer
-  (§6.7), which names the Microsoft account as a condition ("On a
-  computer signed in with a Microsoft account …") rather than as a
-  fact about every computer.
+- **No Microsoft account row** (F48; tracker #87). Nothing in the
+  Starter names a Microsoft account, so the Starter does not read the
+  account type. The guides' pointer (§6.7) names the Microsoft account
+  as a condition.
+- **Not on a Mac**: an Intel Mac's Start page (Boot Camp included) has
+  no BitLocker row; its steps change Startup Security, not Secure Boot.
 
-### 6.3 No Resume, for any release (owner, 2026-10-14: decided)
+The elevated copy's verbs, `--bitlocker key|suspend|resume --pipe
+\\.\pipe\faraday-starter-…`, take nothing else; `--record-bitlocker`,
+run as an administrator, prints this computer's BitLocker as
+`tests/windows/*.wmi` records it, with no recovery password.
 
-The suspension is removed entirely, as §6.6 lists: no Starter keeps
-**Resume BitLocker**, reads the 0.1.2 marker
-(`%LOCALAPPDATA%\faraday\bitlocker-suspended`) or removes its Run
-entry. There are no users yet, so no computer needs it.
+### 6.3 What F49 does not bring back
+
+The QR code of the key; the key file and Save; "Or take a photo of
+this screen"; Show the recovery key on screen; the typed-back groups;
+the TV and remote-session hold (it guarded showing the key); adding a
+recovery password to a drive with none; the 0.1.2 marker
+(`%LOCALAPPDATA%\faraday\bitlocker-suspended`), the logon reminder
+(`--remind`, the Run entry) and the boot-time check that went with
+"until resumed" (the count ends a suspension now); the Companion's
+parts and `faraday_qr::bitlocker` (F34). The suspension is never a
+step: nothing waits on it, and Home has no BitLocker item.
 
 ### 6.4 What stays: another encryption product, and Linux
 
@@ -966,16 +1069,57 @@ stick and the Pi) and Faraday Starter.
   "unknown says nothing" test changes to the rule it now encodes).
 - Every guide's last numbered step begins "Turn Secure Boot back on"
   (the Windows, Linux and maker pages) (`faraday-guides`).
-- Nothing in the Starter asks for or holds a recovery
-  key: on Windows with a protected drive the Starter's Home and Start
-  page show no BitLocker item, row or key, and no Resume BitLocker,
-  marker or logon entry.
+- Nothing in the Starter asks for or holds a recovery key unless
+  BitLocker reads on (F49 replaced F33's "on Windows with a protected
+  drive" here): with BitLocker not read, Home and the Start page show no
+  BitLocker item, row or key, and the only thing sent to the computer
+  is the Start page's reading of BitLocker; no marker or logon entry
+  ever.
 - On Windows, **Restart to choose a device** and the card's **Restart
   from the stick** are shown with Secure Boot reported off, and hidden
   with it reported on or unread (`UEFISecureBootEnabled` 1, or no
   value), against recorded registry answers.
 - Another encryption product still closes the firmware steps until its
   rescue is confirmed.
+
+**F49, built 2026-10-19** in one batch: `faraday-starter` (`api.rs`'s
+`BitLocker`, `Protection`, `RecoveryKey`, `BitLockerStep`, the events
+and commands; `lib.rs`, `draw.rs`, `notes.rs`, `examples/snap.rs`),
+the shell (`windows/bitlocker.rs`, `sys.rs`'s WMI and property store,
+`win.rs`'s elevated verbs, `pipe.rs`'s reasons, `platform.rs`,
+`main.rs`, `pdf.rs`'s key sheets), `faraday-strings`, the guides
+(§6.7). Tests, user-facing:
+
+- With BitLocker on, the Start page offers Temporarily suspend
+  BitLocker and the tick box, between Write down and the restart; the
+  restart is offered as without it (`faraday-starter/tests/bitlocker.rs`).
+- Suspend asks once ("Waiting for administrator permission"); after it
+  the row reads "Suspended · turns back on by itself after Windows
+  starts 3 times" with Resume BitLocker, and keeps the count when the
+  page is shown again; Resume returns to On; a refusal says why.
+- With BitLocker off, not read, or not on Windows, none of it shows and
+  the sheet has no key.
+- The sheet carries the key only when ticked: the drive and the 48
+  digits, nothing else; no document information, path, computer name
+  or key ID; no QR code (no filled squares); the key is never drawn.
+- The elevated copy's verbs against recorded WMI answers
+  (`shells/starter/tests/bitlocker.rs`, `tests/windows/*.wmi`, restored
+  from before F33 and adapted): the key read and nothing changed, no
+  recovery password added; Suspend with `DisableCount` 3 on operating-
+  system volumes only, read back with 3 left; a managed computer's
+  refusal leaves nothing half done; a drive already suspended is left as
+  it is; Resume read back; the pipe's lines round-trip and are wiped;
+  the real virtual-machine recordings read as on, suspended (no count)
+  and not encrypted.
+- The guides say the key may be asked for with Secure Boot back on and
+  that suspending first avoids it, and no longer say it is not needed
+  (`faraday-guides`).
+
+Only real Windows can show: the elevation prompt on an administrator's
+and a standard account, the shell property and WMI on Windows Home with
+Device encryption, a managed computer's refusal code, how Windows
+counts the starts (tracker #157), and whether the viewer holds the key
+sheet open when the Starter exits.
 
 ### 6.6 What is removed
 
@@ -1024,25 +1168,33 @@ every app, so the pages change with the code that reads them).
   is its last.
 - **Before you start** (maker pages): "On Linux, have the disk's
   passphrase or recovery key ready if it is unlocked by the TPM." The
-  BitLocker sentence goes. The Windows guide's opens: "The last step
-  turns Secure Boot back on, before Windows starts. With Secure Boot
-  back on, Windows starts as usual and asks for nothing."
+  BitLocker sentence goes. The Windows guide's opens (F49): "The
+  last step turns Secure Boot back on, before Windows starts. With
+  Secure Boot back on, Windows usually starts as before; on some
+  computers it asks for the BitLocker recovery key, as If something is
+  different says."
 - **The pointer**, one paragraph under If something is different, in
   the Windows guide and each maker page. Until F48 it read "If Windows
   asks for the BitLocker recovery key: for a computer set up with a
   Microsoft account, the key is on the account's recovery-key page,
-  aka.ms/myrecoverykey; otherwise …". Since F48 (owner, 2026-10-19;
-  tracker #87) it frames the key plainly, and names the Microsoft
-  account only as a condition: "The BitLocker recovery key: with
-  Secure Boot off, Windows cannot start without it. It is not needed
-  here: the last step turns Secure Boot back on before Windows starts.
-  To see it on this computer anyway: in Windows, Control Panel →
-  BitLocker Drive Encryption → Back up your recovery key; on Windows
-  Home, manage-bde -protectors -get C: in a terminal run as
-  administrator. On a computer signed in with a Microsoft account it
-  is also at aka.ms/myrecoverykey. If Windows asks for it: turn the
-  computer off and turn Secure Boot back on; Windows then starts
-  without it."
+  aka.ms/myrecoverykey; otherwise …". F48 (owner, 2026-10-19; tracker
+  #87) framed the key plainly and named the Microsoft account only as a
+  condition, but also said "It is not needed here", which F49 corrects:
+  Windows may ask for it even with Secure Boot back on (§6.1). Since
+  F49 it reads: "The BitLocker recovery key: with Secure Boot off,
+  Windows cannot start without it. Windows may ask for it even after
+  Secure Boot is back on, on a computer whose BIOS changes its Secure
+  Boot keys when the setting is turned off and on. Suspending BitLocker
+  first avoids that: Faraday Starter's Temporarily suspend BitLocker,
+  before the restart, suspends it for the next 3 times Windows starts,
+  after which Windows turns it back on by itself. To see the key on
+  this computer: in Windows, Control Panel → BitLocker Drive Encryption
+  → Back up your recovery key; on Windows Home, manage-bde -protectors
+  -get C: in a terminal run as administrator; Faraday Starter prints it
+  on its sheet when asked to. On a computer signed in with a Microsoft
+  account it is also at aka.ms/myrecoverykey. If Windows asks for it
+  while Secure Boot is still off: turn the computer off and turn Secure
+  Boot back on; Windows then starts without it."
 - **The firmware step** (F47): in the Windows, Linux and maker pages
   (not the Mac's), the step that turns Secure Boot off is followed by
   "If the Secure Boot setting cannot be found: exit the BIOS without
@@ -1066,10 +1218,14 @@ every app, so the pages change with the code that reads them).
   Boot off:", and its sentence on the recovery key goes.
 - **"What Secure Boot and BitLocker are"** (`secure-boot-bitlocker`)
   stays, with its first two sections unchanged; its BitLocker section's
-  last paragraph reads: "If Windows starts while Secure Boot is still
-  off, it asks for the drive's 48-digit recovery key. The Windows guide
-  says where Windows keeps it. Turn Secure Boot back on before the next
-  start." Its title stays.
+  last paragraph reads (F49): "If Windows starts while Secure Boot is
+  still off, it asks for the drive's 48-digit recovery key. Turn Secure
+  Boot back on before the next start. Some computers' BIOS changes its
+  Secure Boot keys when the setting is turned off and on; Windows then
+  asks for the key even with Secure Boot back on. BitLocker suspended
+  first, as Faraday Starter offers, avoids it. The Windows guide says
+  where Windows keeps the key.", and the paragraph before it says "on
+  most computers" Windows asks for nothing. Its title stays.
 - **"Screens that record"**: under Remote desktop, screen sharing, a
   wireless display, the sentence on the Starter checking for them
   before it shows the recovery key goes; the Starter shows no secret.
@@ -1528,7 +1684,9 @@ what moved.
   tried family alone would tell which maker the owner has).
 - **D7 BitLocker:** the guard: the key shown and confirmed, then
   suspended until resumed; since F21 an optional backup. Superseded by
-  F33: no BitLocker step (§6).
+  F33: no BitLocker step (§6); since F49 offered, never required: a
+  suspension for three times Windows starts, Resume, and the key on the
+  printed sheet.
 - **D8 The stick's power-off reminder:** yes, as §7.5; since F33 the
   backstop for turning Secure Boot back on.
 - **D9 Keeping Secure Boot on:** a later batch.
@@ -1590,6 +1748,14 @@ item; *Use a device* only with Secure Boot reported off), §3.1a, §3.1b, §3.4 
 §5.2, §5.4, §7.1, §7.2, §7.3, §7.5 (the power-off line, its place,
 tone and states; the idle power-off unchanged), §7.7, §10.2, §10.3,
 §11 and §12 follow it. Specified, not built.
+
+Changed on 2026-10-19 by F49 (owner): the Start page offers, never
+requires, Temporarily suspend BitLocker (for the next 3 times Windows
+starts), Resume BitLocker, and the recovery key on the printed sheet
+behind a tick box; the sheet gains lines to circle the boot menu key
+and the BIOS key used (F47). §0, §3.1b, §3.4, §6 (rewritten: §6.1's
+when it is not enough, §6.2, §6.3 what is not brought back, §6.5's
+F49 batch and tests, §6.7's pointer) and §12's D7 follow it. Built.
 
 From v0.1:
 
