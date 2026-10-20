@@ -217,14 +217,7 @@ fn a_place_names_name_never_leaves_the_vault() {
     app.press(Action::BReveal);
     app.storage(StorageEvent::Cameras(Vec::new()));
     press_offered(&mut app, Action::BCheck);
-    let words = testkit::test_words(testkit::TEST_SEEDS[1].0);
-    let digits = osk_codec::seedqr::to_digits(
-        &osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, &words).unwrap(),
-    );
-    type_text(
-        &mut app,
-        std::str::from_utf8(digits.expose().as_bytes()).unwrap(),
-    );
+    testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     press_offered(&mut app, Action::BStep(faraday_core::bstep::VAULT));
     press_offered(&mut app, Action::BVaultSave(0));
     // The wallet itself into the vault too, so the next process can load

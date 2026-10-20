@@ -15,7 +15,6 @@ use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, BStage, Faraday, Screen, StorageEvent, bstep, plan, qrow, qstep};
 use faraday_vault::records::{field, kind};
-use osk_bip::bip39::{Language, Mnemonic};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 const NAME: &str = "Harbour cellar";
@@ -166,12 +165,7 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
     app.press(Action::BReveal);
     app.storage(StorageEvent::Cameras(Vec::new()));
     press_offered(&mut app, Action::BCheck);
-    let words = testkit::test_words(testkit::TEST_SEEDS[1].0);
-    let digits = osk_codec::seedqr::to_digits(&Mnemonic::parse(Language::English, &words).unwrap());
-    type_text(
-        &mut app,
-        std::str::from_utf8(digits.expose().as_bytes()).unwrap(),
-    );
+    testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     assert!(done(&app, Item::Copy(0)));
     assert!(!done(&app, Item::Vault(0)), "the copy is not the vault");
     // The seed and the wallet, into the vault, by the vault item's one
@@ -498,12 +492,11 @@ fn ticked(boxes: &[TextBox], title: &str, number: usize) -> bool {
         .any(|(t, (bx, by, _, _))| *t == number.to_string() && bx < x && (by - y).abs() < 24)
 }
 
-/// The copy by hand of the wallet's seed `i`, checked by its numbers
-/// typed back.
+/// The copy by hand of the wallet's seed `i`, checked by its words typed
+/// back.
 fn check_copy(app: &mut Faraday, w: usize, i: usize) {
     let k = app.backup_seed_list(w)[i].1.expect("the seed is here");
     let words = app.session.keys[k].words.as_ref().unwrap().to_string();
-    let digits = osk_codec::seedqr::to_digits(&Mnemonic::parse(Language::English, &words).unwrap());
     let item = bstep::COPY + i as u8;
     if app.backup.as_ref().unwrap().open != Some(item) {
         press_offered(app, Action::BStep(item));
@@ -511,10 +504,7 @@ fn check_copy(app: &mut Faraday, w: usize, i: usize) {
     app.press(Action::BReveal);
     app.storage(StorageEvent::Cameras(Vec::new()));
     press_offered(app, Action::BCheck);
-    type_text(
-        app,
-        std::str::from_utf8(digits.expose().as_bytes()).unwrap(),
-    );
+    testkit::type_words(app, &words);
     assert!(done(app, Item::Copy(i)), "copy {i} did not check");
 }
 

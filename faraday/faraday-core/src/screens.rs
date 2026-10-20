@@ -5543,8 +5543,19 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     open: b.open == Some(k),
                     default: false,
                     toggle: Action::BStep(k),
-                    guide: Some(guide::backup(k, m, n, keys.len(), app.medium))
-                        .filter(|g| !g.is_empty()),
+                    guide: Some(guide::backup(
+                        k,
+                        m,
+                        n,
+                        keys.len(),
+                        app.medium,
+                        if crate::bstep::is_copy(k) {
+                            app.copy_forms(b, usize::from(k - crate::bstep::COPY))
+                        } else {
+                            crate::plan::CopyForms::default()
+                        },
+                    ))
+                    .filter(|g| !g.is_empty()),
                 }
             } else {
                 flow::Card {
@@ -6278,6 +6289,9 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             let key = &app.session.keys[b.key];
             let words = key.words.as_ref().map(|z| z.as_str()).unwrap_or("");
             let list: Vec<&str> = words.split_whitespace().collect();
+            // The seed's copies and the forms they take: the grid is drawn
+            // for a SeedQR copy only (`docs/NEW-WALLET.md` §14.7).
+            let forms = app.copy_forms(b, usize::from(n - bstep::COPY));
             let bw = ui.button(
                 x,
                 cy,
@@ -6311,7 +6325,8 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             let info = ui.fit(13.0, W::R, &info, x + w - ix);
             ui.text_mid(ix, iy, 38.0, 13.0, W::R, MUTED, &info);
             cy = iy + 52.0;
-            if b.reveal {
+            // The seed is not drawn while the typed check is open.
+            if b.reveal && b.check.is_none() {
                 // The words, with each word's index as SeedQR writes it.
                 let lang = key.language;
                 // Two columns on a small panel, the index at each one's end.
@@ -6337,49 +6352,40 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 cy += rows as f32 * 26.0 + 16.0;
                 // SeedQR numbers the English list's words: another list's
                 // words have no SeedQR another signer would read right.
-                if lang != osk_bip::bip39::Language::English {
-                    let lh = ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.backup_seedqr_is_for);
-                    let cy = cy + lh + 12.0;
-                    let cy = cy + paper_section(app, ui, x, cy, w);
-                    let cy = cy + copy_check(app, ui, x, cy, w);
-                    let cy = if ui.compact {
-                        cy + 8.0 + kept_rows(app, ui, x, cy + 8.0, w)
-                    } else {
-                        cy
-                    };
-                    let drawn = item_next(app, ui, x, cy, w, n);
-                    return cy + (if drawn { 48.0 } else { 8.0 }) - y;
-                }
-                // The SeedQR as a ruled grid to copy.
-                let items: Vec<(&str, Style, Action)> = [
-                    (EN.backup_standard_seedqr, false),
-                    (EN.backup_compact_seedqr, true),
-                ]
-                .into_iter()
-                .map(|(label, c)| {
-                    let style = if b.compact == c {
-                        Style::Primary
-                    } else {
-                        Style::Secondary
-                    };
-                    (label, style, Action::BCompact(c))
-                })
-                .collect();
-                cy += wrap_buttons(ui, x, cy, w, 34.0, &items) + 6.0;
-                if let Ok(mn) = osk_bip::bip39::Mnemonic::parse(lang, words) {
-                    let matrix = if b.compact {
-                        osk_codec::seedqr::encode_compact(&mn)
-                    } else {
-                        osk_codec::seedqr::encode_seedqr(&mn)
-                    };
-                    if let Ok(mx) = matrix {
-                        cy += seed_grid(ui, &mx, x, cy, w.min(560.0), b.pin) + 12.0;
+                if forms.seedqr && lang != osk_bip::bip39::Language::English {
+                    cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.backup_seedqr_is_for) + 12.0;
+                } else if forms.seedqr {
+                    // The SeedQR as a ruled grid to copy.
+                    let items: Vec<(&str, Style, Action)> = [
+                        (EN.backup_standard_seedqr, false),
+                        (EN.backup_compact_seedqr, true),
+                    ]
+                    .into_iter()
+                    .map(|(label, c)| {
+                        let style = if b.compact == c {
+                            Style::Primary
+                        } else {
+                            Style::Secondary
+                        };
+                        (label, style, Action::BCompact(c))
+                    })
+                    .collect();
+                    cy += wrap_buttons(ui, x, cy, w, 34.0, &items) + 6.0;
+                    if let Ok(mn) = osk_bip::bip39::Mnemonic::parse(lang, words) {
+                        let matrix = if b.compact {
+                            osk_codec::seedqr::encode_compact(&mn)
+                        } else {
+                            osk_codec::seedqr::encode_seedqr(&mn)
+                        };
+                        if let Ok(mx) = matrix {
+                            cy += seed_grid(ui, &mx, x, cy, w.min(560.0), b.pin) + 12.0;
+                        }
                     }
                 }
                 cy += paper_section(app, ui, x, cy, w);
             }
-            // The copy checked: scanned, or its words' numbers typed back;
-            // the foot's Check my copy starts it.
+            // The copy checked: its words typed back, or its SeedQR
+            // scanned; the foot's Check my copy starts it.
             cy += copy_check(app, ui, x, cy, w);
             if ui.compact {
                 cy += 8.0;
@@ -6532,9 +6538,10 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
 /// Returns its height.
 /// The key's other paper forms: a Seed XOR split and codex32 shares,
 /// shown to copy by hand like the words.
-/// The copy of the seed on screen checked: what scanning it found, and
-/// with no camera, once Check my copy is pressed, the numbers typed back
-/// and how they compare. Returns its height.
+/// The copy of the seed checked: what scanning it found, and the typed
+/// check while it is open (`docs/NEW-WALLET.md` §14.7): the word being
+/// typed, the words taken masked, and how the last comparison went.
+/// Returns its height.
 fn copy_check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(b) = app.backup.as_ref() else {
         return 0.0;
@@ -6542,14 +6549,6 @@ fn copy_check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(key) = app.session.keys.get(b.key) else {
         return 0.0;
     };
-    let Some(words) = key.words.as_ref() else {
-        return 0.0;
-    };
-    let Ok(mn) = osk_bip::bip39::Mnemonic::parse(key.language, words.as_str()) else {
-        return 0.0;
-    };
-    let digits = osk_codec::seedqr::to_digits(&mn);
-    let digits = digits.expose().as_bytes().to_vec();
     let mut cy = y;
     if let Some(found) = b.scanned.as_ref() {
         let c = if *found == crate::backup::CopyCheck::Matches {
@@ -6560,73 +6559,63 @@ fn copy_check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let line = crate::backup::copy_scan_line(found);
         cy += ui.wrap(x, cy, w, 13.0, W::S, c, &line) + 12.0;
     }
-    if !(b.checking || !b.typed.is_empty()) {
-        return cy - y;
-    }
-    let hint = EN.copy_check_type_the;
-    cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, hint) + 10.0;
-    let typed: String = b
-        .typed
-        .chars()
-        .collect::<Vec<_>>()
-        .chunks(4)
-        .map(|c| c.iter().collect::<String>())
-        .collect::<Vec<_>>()
-        .join(" ");
-    ui.fill(x, cy, w, 44.0, 8.0, BG);
-    ui.stroke(
-        x,
-        cy,
-        w,
-        44.0,
-        8.0,
-        if b.checking {
-            ACCENT.with_alpha(110)
-        } else {
-            INNER
-        },
-    );
-    let empty = typed.is_empty();
-    let shown = if empty {
-        EN.copy_check_type_here.to_string()
-    } else {
-        typed
-    };
-    let shown = ui.fit(14.0, W::M, &shown, w - 28.0);
-    // The caret stands before the hint while nothing is typed, after the
-    // digits once some are.
-    let lead = if b.checking && empty { 6.0 } else { 0.0 };
-    let tw = ui.text_mid(
-        x + 14.0 + lead,
-        cy,
-        44.0,
-        14.0,
-        W::M,
-        if empty { DIM } else { TEXT },
-        &shown,
-    );
-    if b.checking {
-        ui.caret(
-            x + 14.0 + if empty { 0.0 } else { tw + 1.0 },
-            cy + 13.0,
-            18.0,
-        );
-    }
-    cy += 54.0;
-    let (line, c) = match crate::backup::check_copy(&b.typed, &digits) {
-        crate::backup::CopyCheck::Matches => (EN.copy_check_your_copy.to_string(), OK),
-        crate::backup::CopyCheck::WrongWord(k) => {
-            (fill(EN.copy_check_word_differs, &[&k.to_string()]), ERR)
+    let Some(c) = b.check.as_ref() else {
+        if b.checked
+            .contains(&(key.fingerprint().0, crate::plan::CopyForm::Words))
+        {
+            cy += ui.wrap(x, cy, w, 13.0, W::S, OK, EN.copy_check_your_copy) + 12.0;
         }
-        crate::backup::CopyCheck::SoFar { typed, of } => (
-            fill(
-                EN.copy_check_of_digits,
-                &[&typed.to_string(), &of.to_string()],
-            ),
-            MUTED,
-        ),
+        return cy - y;
     };
-    let lh = ui.wrap(x, cy, w - 88.0, 13.0, W::S, c, &line);
+    let lang = c.lang;
+    if !ui.compact {
+        cy += ui.wrap(x, cy, w, 12.0, W::R, DIM, EN.copy_check_your_copys_words) + 4.0;
+    }
+    let at = (c.taken() + 1).min(c.count);
+    let label = fill(
+        EN.copy_check_word_of,
+        &[&at.to_string(), &c.count.to_string()],
+    );
+    let error = c.error.as_deref();
+    match c.keys.as_deref() {
+        None => {
+            cy += ui.wrap(x, cy, w, 13.0, W::S, MUTED, &label) + 8.0;
+            let cells = Cells {
+                boxes: c.count,
+                masked: true,
+                caret: true,
+            };
+            cy = typed_cells(ui, (x, cy, w), lang, &c.typed, cells);
+        }
+        Some(k) if ui.compact => {
+            let status = error.map(|e| (e, ERR));
+            cy = crate::compact_screens::keyed_head(
+                ui,
+                (x, cy, w),
+                k,
+                lang,
+                &label,
+                status,
+                (true, c.shift),
+            );
+        }
+        Some(k) => {
+            cy += ui.wrap(x, cy, w, 13.0, W::S, MUTED, &label) + 8.0;
+            let taken: Vec<u16> = k.committed_indices().collect();
+            let prefix: String = k.prefix().iter().collect();
+            let cells = Cells {
+                boxes: c.count,
+                masked: true,
+                caret: true,
+            };
+            cy += keyed_cells(ui, (x, cy, w), lang, &taken, &prefix, cells);
+            cy += keyed_pills(ui, x, cy, w, k, lang, false);
+            cy = word_keys(c.shift, k, ui, x, cy, w, 30.0);
+        }
+    }
+    // How the last comparison went, and Clear.
+    let line = error.unwrap_or("");
+    let lh = ui.wrap(x, cy, w - 88.0, 13.0, W::S, ERR, line);
     ui.button(
         x + w - 80.0,
         cy - 8.0,
@@ -6666,11 +6655,24 @@ fn item_action(app: &Faraday, n: u8) -> (String, Action) {
             EN.backup_flow_lock_and_write.to_string(),
             Action::Flow(crate::backup_flow_steps::FlowAction::WalletLock),
         ),
-        Item::Copy(_) if !app.cameras.is_empty() => {
-            (EN.item_action_check_my.to_string(), Action::BScan)
+        // The words typed back first; then, for a SeedQR copy, the scan
+        // (`docs/NEW-WALLET.md` §14.7 item 1).
+        Item::Copy(i) => {
+            use crate::plan::CopyForm;
+            let words_left = app.session.keys.get(b.key).is_none_or(|k| {
+                let fp = k.fingerprint().0;
+                let has = |f| b.checked.contains(&(fp, f));
+                app.copy_checks(b, i, k).typed
+                    && !(has(CopyForm::Words)
+                        || (!app.copy_forms(b, i).words && has(CopyForm::SeedQr)))
+            });
+            let action = if words_left {
+                Action::BCheck
+            } else {
+                Action::BScan
+            };
+            (EN.item_action_check_my.to_string(), action)
         }
-        Item::Copy(_) if b.checking => (EN.item_action_stop_typing.to_string(), Action::BCheck),
-        Item::Copy(_) => (EN.item_action_check_my.to_string(), Action::BCheck),
         Item::Vault(v) => match app.backup_vault_target(v) {
             Some(cur) if app.backup_vault_taken(v, cur) => (
                 EN.item_action_lock_it.to_string(),
@@ -6707,6 +6709,11 @@ fn item_action(app: &Faraday, n: u8) -> (String, Action) {
 /// drawn in the column (on a small panel it is pinned instead).
 fn item_next(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> bool {
     let (label, action) = item_action(app, n);
+    // While the typed check is open it compares on the last word: the
+    // foot's Check my copy would do nothing, so it is not drawn.
+    if action == Action::BCheck && app.backup.as_ref().is_some_and(|b| b.check.is_some()) {
+        return false;
+    }
     let label = ui.fit(14.0, W::S, &label, w - 36.0);
     next_button(ui, x, y, w, &label, action)
 }
@@ -12519,12 +12526,64 @@ pub(crate) fn entry_words(
     y += guide_text(app, ui, x, y, width, EN.entry_type_the_words);
 
     let words: Vec<&str> = app.entry.typed.split_whitespace().collect();
-    let typing_word = !app.entry.typed.is_empty() && !app.entry.typed.ends_with(' ');
     y += word_count_row(app, ui, x, y, width, true);
+    y = typed_cells(
+        ui,
+        (x, y, width),
+        lang,
+        &app.entry.typed,
+        Cells {
+            boxes: app.entry.word_boxes(words.len()),
+            masked: false,
+            caret: !app.entry.on_passphrase,
+        },
+    );
+    y += button_rows(ui, x, y, width, &langs);
+
+    // Status.
+    let n = words.len();
+    let complete = [12, 15, 18, 21, 24].contains(&n)
+        && words
+            .iter()
+            .all(|wd| crate::forms::typed_index(lang, wd).is_some());
+    let m = complete.then(|| crate::forms::typed_mnemonic(lang, &app.entry.typed));
+    entry_status(app, ui, x, y, n, m)
+}
+
+/// How a grid of word cells is drawn: as many as `boxes`, a word taken
+/// as bullets when `masked`, the caret at the word being typed when
+/// `caret`.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Cells {
+    pub boxes: usize,
+    pub masked: bool,
+    pub caret: bool,
+}
+
+/// A Latin list's words as typed, in a grid of numbered cells with the
+/// words the word being typed can still become under it: Add a key's
+/// word entry and Check my copy's. `masked` draws a word once taken as
+/// bullets, and the one being typed in full. Returns where the next row
+/// starts.
+pub(crate) fn typed_cells(
+    ui: &mut Ui,
+    (x, y, width): (f32, f32, f32),
+    lang: osk_bip::bip39::Language,
+    typed: &str,
+    cells: Cells,
+) -> f32 {
+    let Cells {
+        boxes,
+        masked,
+        caret,
+    } = cells;
+    let mut y = y;
+    let words: Vec<&str> = typed.split_whitespace().collect();
+    let typing_word = !typed.is_empty() && !typed.ends_with(' ');
     // A grid of numbered word cells, as many as the count chosen.
     let cols = 4;
     let cellw = (width - 3.0 * 10.0) / cols as f32;
-    let shown = app.entry.word_boxes(words.len());
+    let shown = boxes;
     for k in 0..shown {
         let cx = x + (k % cols) as f32 * (cellw + 10.0);
         let cy = y + (k / cols) as f32 * 46.0;
@@ -12538,8 +12597,12 @@ pub(crate) fn entry_words(
         ui.stroke(cx, cy, cellw, 38.0, 8.0, edge);
         ui.text_mid(cx + 10.0, cy, 38.0, 11.0, W::R, DIM, &(k + 1).to_string());
         if let Some(wd) = words.get(k) {
-            let found = crate::forms::typed_index(lang, wd);
             let last_partial = typing_word && k + 1 == words.len();
+            if masked && !last_partial {
+                ui.text_mid(cx + 36.0, cy, 38.0, 14.0, W::M, TEXT, "••••••");
+                continue;
+            }
+            let found = crate::forms::typed_index(lang, wd);
             let c = if found.is_some() || last_partial {
                 TEXT
             } else {
@@ -12551,10 +12614,10 @@ pub(crate) fn entry_words(
                 _ => wd,
             };
             let tw = ui.text_mid(cx + 36.0, cy, 38.0, 14.0, W::M, c, shown);
-            if last_partial && !app.entry.on_passphrase {
+            if last_partial && caret {
                 ui.caret(cx + 37.0 + tw, cy + 10.0, 18.0);
             }
-        } else if current && !app.entry.on_passphrase {
+        } else if current && caret {
             ui.caret(cx + 37.0, cy + 10.0, 18.0);
         }
     }
@@ -12581,17 +12644,7 @@ pub(crate) fn entry_words(
             &line,
         );
     }
-    y += 30.0;
-    y += button_rows(ui, x, y, width, &langs);
-
-    // Status.
-    let n = words.len();
-    let complete = [12, 15, 18, 21, 24].contains(&n)
-        && words
-            .iter()
-            .all(|wd| crate::forms::typed_index(lang, wd).is_some());
-    let m = complete.then(|| crate::forms::typed_mnemonic(lang, &app.entry.typed));
-    entry_status(app, ui, x, y, n, m)
+    y + 30.0
 }
 
 /// Closes the clip `entry` opened around its content and reports how far
@@ -12677,10 +12730,55 @@ fn keyed_words(
     // The words taken, in a grid, the next one's keys in its cell.
     let taken: Vec<u16> = w.committed_indices().collect();
     y += word_count_row(app, ui, x, y, width, true);
-    let shown = app.entry.word_boxes(taken.len() + 1);
+    let prefix: String = w.prefix().iter().collect();
+    y += keyed_cells(
+        ui,
+        (x, y, width),
+        lang,
+        &taken,
+        &prefix,
+        Cells {
+            boxes: app.entry.word_boxes(taken.len() + 1),
+            masked: false,
+            caret: !app.entry.on_passphrase,
+        },
+    );
+    // The count and, when the words are a whole key, its checksum and
+    // fingerprint, or the last refusal: on the line above the
+    // candidates, to keep the keyboard on screen.
+    let (status, tone) = match &app.entry.error {
+        Some(e) => (e.clone(), ERR),
+        None => keyed_status(app, lang, &taken),
+    };
+    ui.text_right(x + width, y - 4.0, 24.0, 13.0, W::S, tone, &status);
+    // What the keys typed can be: a pill each, pressed to take it.
+    y += keyed_pills(ui, x, y, width, w, lang, true);
+    // The keyboard, laid out in design units, its keys as tall as the
+    // room above the status, the passphrase and the buttons allows.
+    let rows = osk_ui::widgets::keyboard::rows(kind) as f32;
+    let room = h - 82.0 - 8.0 - 40.0 - 12.0 - y;
+    let kh = (room / rows).clamp(22.0, 36.0);
+    word_keys(app.entry.shift, w, ui, x, y, width, kh)
+}
+
+/// The words taken on a list's own keyboard, in a grid, the next one's
+/// keys in its cell; `masked` draws a word once taken as bullets. Returns
+/// its height.
+pub(crate) fn keyed_cells(
+    ui: &mut Ui,
+    (x, y, width): (f32, f32, f32),
+    lang: osk_bip::bip39::Language,
+    taken: &[u16],
+    prefix: &str,
+    cells: Cells,
+) -> f32 {
+    let Cells {
+        boxes: shown,
+        masked,
+        caret,
+    } = cells;
     let cols = 6;
     let cellw = (width - (cols - 1) as f32 * 8.0) / cols as f32;
-    let prefix: String = w.prefix().iter().collect();
     for k in 0..shown {
         let cx = x + (k % cols) as f32 * (cellw + 8.0);
         let cy = y + (k / cols) as f32 * 42.0;
@@ -12700,8 +12798,9 @@ fn keyed_words(
         );
         ui.text_mid(cx + 8.0, cy, 36.0, 11.0, W::R, DIM, &(k + 1).to_string());
         let word = match taken.get(k) {
+            Some(_) if masked => Some(("••••••".to_string(), TEXT)),
             Some(&i) => Some((lang.word_display(i).to_string(), TEXT)),
-            None if current && !prefix.is_empty() => Some((prefix.clone(), ACCENT)),
+            None if current && !prefix.is_empty() => Some((prefix.to_string(), ACCENT)),
             None => None,
         };
         let tw = match word {
@@ -12711,20 +12810,27 @@ fn keyed_words(
             }
             None => 0.0,
         };
-        if current && !app.entry.on_passphrase {
+        if current && caret {
             ui.caret(cx + 31.0 + tw, cy + 9.0, 18.0);
         }
     }
-    y += shown.div_ceil(cols) as f32 * 42.0 + 8.0;
-    // The count and, when the words are a whole key, its checksum and
-    // fingerprint, or the last refusal: on the line above the
-    // candidates, to keep the keyboard on screen.
-    let (status, tone) = match &app.entry.error {
-        Some(e) => (e.clone(), ERR),
-        None => keyed_status(app, lang, &taken),
-    };
-    ui.text_right(x + width, y - 4.0, 24.0, 13.0, W::S, tone, &status);
-    // What the keys typed can be: a pill each, pressed to take it.
+    shown.div_ceil(cols) as f32 * 42.0 + 8.0
+}
+
+/// What the keys typed on a list's own keyboard can be: a pill each,
+/// pressed to take it (`hint`: with a line saying so). Returns its height.
+pub(crate) fn keyed_pills(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    width: f32,
+    w: &opensigner_core::load::LoadWizard,
+    lang: osk_bip::bip39::Language,
+    hint: bool,
+) -> f32 {
+    let mut y = y;
+    let top = y;
+    let prefix: String = w.prefix().iter().collect();
     let cands: Vec<u16> = w.candidates().collect();
     if cands.is_empty() {
         let line = if prefix.is_empty() {
@@ -12737,8 +12843,10 @@ fn keyed_words(
         ui.text_mid(x, y, 30.0, 13.0, W::R, MUTED, line);
         y += 34.0;
     } else {
-        ui.text(x, y, 12.0, W::R, MUTED, EN.keyed_words_press_a);
-        y += 22.0;
+        if hint {
+            ui.text(x, y, 12.0, W::R, MUTED, EN.keyed_words_press_a);
+            y += 22.0;
+        }
         let mut bx = x;
         for (n, &i) in cands.iter().enumerate() {
             let word = lang.word_display(i);
@@ -12751,18 +12859,13 @@ fn keyed_words(
         }
         y += 36.0;
     }
-    // The keyboard, laid out in design units, its keys as tall as the
-    // room above the status, the passphrase and the buttons allows.
-    let rows = osk_ui::widgets::keyboard::rows(kind) as f32;
-    let room = h - 82.0 - 8.0 - 40.0 - 12.0 - y;
-    let kh = (room / rows).clamp(22.0, 36.0);
-    word_keys(app, w, ui, x, y, width, kh)
+    y - top
 }
 
 /// The word keyboard: OpenSigner's, for the list being typed, every key
 /// that leads to no word off. Returns where the next row starts.
 pub(crate) fn word_keys(
-    app: &Faraday,
+    shift: bool,
     w: &opensigner_core::load::LoadWizard,
     ui: &mut Ui,
     x: f32,
@@ -12779,7 +12882,7 @@ pub(crate) fn word_keys(
         osk_ui::geom::SizeClass::Wide,
     );
     let mods = Modifiers {
-        shift: app.entry.shift,
+        shift,
         symbols: false,
     };
     for cap in keyboard::keys(kind, area, &ctx, w.enabled_keys(), None, mods) {
@@ -12822,7 +12925,7 @@ pub(crate) fn word_keys(
                 );
             }
             KeyInput::Shift => {
-                let style = if app.entry.shift {
+                let style = if shift {
                     Style::Primary
                 } else {
                     Style::Secondary

@@ -382,13 +382,18 @@ impl Faraday {
         }
     }
 
-    /// A copy by hand of seed `fp` matched in the backup under way: the
-    /// seed is checked in it, and one more of its copies in the record.
-    pub(crate) fn copy_matched(&mut self, fp: [u8; 4]) {
+    /// A copy by hand of seed `fp` matched in the backup under way in
+    /// `form`: that form is checked. Once the seed is checked in every
+    /// form its copies ask for, one more of its copies is checked in the
+    /// record.
+    pub(crate) fn copy_matched(&mut self, fp: [u8; 4], form: crate::plan::CopyForm) {
         if let Some(b) = self.backup.as_mut()
-            && !b.checked.contains(&fp)
+            && !b.checked.contains(&(fp, form))
         {
-            b.checked.push(fp);
+            b.checked.push((fp, form));
+        }
+        if !self.seed_copy_checked(fp) {
+            return;
         }
         let Some(sum) = self
             .backup

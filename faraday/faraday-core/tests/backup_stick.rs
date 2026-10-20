@@ -277,7 +277,7 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
         kept: Vec::new(),
     });
     let label = with_seed(&mut app);
-    // Its copy by hand, checked from its typed numbers.
+    // Its copy by hand, checked from its typed words.
     app.press(Action::Backup(0));
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     app.press(Action::BChecklist);
@@ -289,16 +289,7 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     }
     app.press(Action::BReveal);
     app.press(Action::BCheck);
-    let m = osk_bip::bip39::Mnemonic::parse(
-        osk_bip::bip39::Language::English,
-        &testkit::test_words(testkit::TEST_SEEDS[0].0),
-    )
-    .unwrap();
-    for i in m.indices() {
-        for c in format!("{i:04}").chars() {
-            app.event(Event::Key(Key::Char(c)));
-        }
-    }
+    testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     assert!(
         app.backup_item_done(faraday_core::plan::Item::Copy(0)),
         "the copy was not checked"

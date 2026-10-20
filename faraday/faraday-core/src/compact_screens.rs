@@ -652,68 +652,88 @@ pub(crate) fn entry_words(app: &Faraday, ui: &mut Ui, x: f32, y: f32, iw: f32, p
         return y + crate::screens::button_rows(ui, x, y, iw, &langs);
     };
     let taken: Vec<u16> = w.committed_indices().collect();
-    let prefix: String = w.prefix().iter().collect();
-    // The word being typed, and the last ones taken before it.
-    ui.text(
-        x,
-        y,
-        12.0,
-        W::R,
-        MUTED,
-        &fill(EN.compact_word, &[&(taken.len() + 1).to_string()]),
-    );
-    let on = !app.entry.on_passphrase;
-    let shown = if prefix.is_empty() && !on {
-        "…".to_string()
-    } else {
-        prefix.clone()
-    };
-    let pw = ui.text(x + 64.0, y - 4.0, 18.0, W::M, ACCENT, &shown);
-    if on {
-        ui.caret(x + 66.0 + pw, y - 2.0, 20.0);
-    }
     let (status, tone) = match &app.entry.error {
         Some(e) => (e.clone(), ERR),
         None => crate::screens::keyed_status(app, lang, &taken),
     };
-    y += 26.0;
-    let status = ui.fit(12.0, W::S, &status, iw);
-    ui.text(x, y, 12.0, W::S, tone, &status);
-    y += 22.0;
-    // What the keys typed can be: a pill each.
-    let cands: Vec<u16> = w.candidates().collect();
-    if cands.is_empty() {
-        let line = if prefix.is_empty() {
-            EN.compact_type_the_next
-        } else if w.awaiting_tone() {
-            EN.compact_now_its_tone
-        } else {
-            EN.compact_no_word_starts
-        };
-        ui.text_mid(x, y, 30.0, 13.0, W::R, MUTED, line);
-        y += 34.0;
-    } else {
-        let mut bx = x;
-        for (n, &i) in cands.iter().enumerate() {
-            let word = lang.word_display(i);
-            let bw = ui.measure(14.0, W::M, word) + 24.0;
-            if bx > x && bx + bw > x + iw {
-                bx = x;
-                y += 32.0;
-            }
-            bx += ui.word_pill(bx, y, word, Action::EntryCandidate(n as u8)) + 6.0;
-        }
-        y += 36.0;
-    }
-    // The keyboard, unless the passphrase has the docked one up.
-    if !app.entry.on_passphrase {
-        y = crate::screens::word_keys(app, w, ui, x - 4.0, y, iw + 8.0, 34.0);
-    }
+    y = keyed_head(
+        ui,
+        (x, y, iw),
+        w,
+        lang,
+        &fill(EN.compact_word, &[&(taken.len() + 1).to_string()]),
+        Some((&status, tone)),
+        (!app.entry.on_passphrase, app.entry.shift),
+    );
     // The words taken, as many boxes as the count chosen.
-    let count = app.entry.word_boxes(taken.len() + 1);
     y += 6.0;
     y += heading(ui, x, y, EN.compact_words);
     y += crate::screens::word_count_row(app, ui, x, y, iw, false);
+    y += keyed_taken(
+        ui,
+        (x, y, iw),
+        lang,
+        &taken,
+        app.entry.word_boxes(taken.len() + 1),
+        false,
+    );
+    // Under the word fields.
+    y + crate::screens::button_rows(ui, x, y, iw, &langs) - 6.0
+}
+
+/// A list typed on its own keyboard, on a small panel: the word being
+/// typed under `label`, `status` under it, the words it can be as pills
+/// and the keyboard, with the on-screen keyboard's shift as `shift`. Add a
+/// key's word entry and Check my copy's both draw it. Returns where the
+/// next row starts.
+pub(crate) fn keyed_head(
+    ui: &mut Ui,
+    (x, y, iw): (f32, f32, f32),
+    w: &opensigner_core::load::LoadWizard,
+    lang: osk_bip::bip39::Language,
+    label: &str,
+    status: Option<(&str, osk_ui::Color)>,
+    (caret, shift): (bool, bool),
+) -> f32 {
+    let mut y = y;
+    let prefix: String = w.prefix().iter().collect();
+    // The word being typed.
+    ui.text(x, y, 12.0, W::R, MUTED, label);
+    let off = (ui.measure(12.0, W::R, label) + 12.0).max(64.0);
+    let shown = if prefix.is_empty() && !caret {
+        "…".to_string()
+    } else {
+        prefix.clone()
+    };
+    let pw = ui.text(x + off, y - 4.0, 18.0, W::M, ACCENT, &shown);
+    if caret {
+        ui.caret(x + off + 2.0 + pw, y - 2.0, 20.0);
+    }
+    y += 26.0;
+    if let Some((status, tone)) = status {
+        let status = ui.fit(12.0, W::S, status, iw);
+        ui.text(x, y, 12.0, W::S, tone, &status);
+    }
+    y += 22.0;
+    // What the keys typed can be: a pill each.
+    y += crate::screens::keyed_pills(ui, x, y, iw, w, lang, false);
+    // The keyboard, unless the passphrase has the docked one up.
+    if caret {
+        y = crate::screens::word_keys(shift, w, ui, x - 4.0, y, iw + 8.0, 34.0);
+    }
+    y
+}
+
+/// The words taken on a small panel, as `count` boxes; `masked` draws a
+/// word once taken as bullets. Returns its height.
+pub(crate) fn keyed_taken(
+    ui: &mut Ui,
+    (x, y, iw): (f32, f32, f32),
+    lang: osk_bip::bip39::Language,
+    taken: &[u16],
+    count: usize,
+    masked: bool,
+) -> f32 {
     let cols = 3;
     let cellw = (iw - (cols - 1) as f32 * 6.0) / cols as f32;
     for k in 0..count {
@@ -734,13 +754,16 @@ pub(crate) fn entry_words(app: &Faraday, ui: &mut Ui, x: f32, y: f32, iw: f32, p
         );
         ui.text_mid(cx + 6.0, cy, 28.0, 10.0, W::R, DIM, &(k + 1).to_string());
         if let Some(&i) = taken.get(k) {
-            let t = ui.fit(12.0, W::M, lang.word_display(i), cellw - 26.0);
+            let word = if masked {
+                "••••••"
+            } else {
+                lang.word_display(i)
+            };
+            let t = ui.fit(12.0, W::M, word, cellw - 26.0);
             ui.text_mid(cx + 22.0, cy, 28.0, 12.0, W::M, TEXT, &t);
         }
     }
-    y += count.div_ceil(cols) as f32 * 32.0 + 10.0;
-    // Under the word fields.
-    y + crate::screens::button_rows(ui, x, y, iw, &langs) - 6.0
+    count.div_ceil(cols) as f32 * 32.0 + 10.0
 }
 
 /// Add a key in another form: one share, string or part typed at a time

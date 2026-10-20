@@ -87,7 +87,14 @@ pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState, m:
 }
 
 /// The walk-through for one card of the backup.
-pub(crate) fn backup(n: u8, m: usize, keys: usize, seeds_here: usize, medium: Medium) -> String {
+pub(crate) fn backup(
+    n: u8,
+    m: usize,
+    keys: usize,
+    seeds_here: usize,
+    medium: Medium,
+    forms: crate::plan::CopyForms,
+) -> String {
     use crate::bstep;
     match n {
         bstep::BLANK => fill(EN.guide_print_the_blank, &[medium.for_the()]),
@@ -95,7 +102,12 @@ pub(crate) fn backup(n: u8, m: usize, keys: usize, seeds_here: usize, medium: Me
             let lead = if seeds_here == 0 {
                 EN.guide_none_of_this.to_string()
             } else {
-                EN.guide_copy_each_seed.to_string()
+                match (forms.words, forms.seedqr) {
+                    (true, true) => EN.guide_copy_both,
+                    (false, true) => EN.guide_copy_seedqr,
+                    _ => EN.guide_copy_words,
+                }
+                .to_string()
             };
             let further = if seeds_here == 0 {
                 String::new()

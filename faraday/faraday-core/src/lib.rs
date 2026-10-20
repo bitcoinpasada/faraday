@@ -23,6 +23,7 @@ pub mod boot_import;
 pub mod catalog;
 pub mod chart_edit;
 pub mod codes;
+pub mod copy_check;
 pub mod create;
 mod create_from;
 pub mod decode;
@@ -2423,18 +2424,15 @@ pub struct BackupState {
     pub compact: bool,
     /// The grid row pinned for copying.
     pub pin: usize,
-    /// Typing goes to the check field.
-    pub checking: bool,
-    /// The digits typed back.
-    pub typed: secret_text::SecretText,
+    /// The typed check of a copy of the words, while it is open
+    /// (`docs/NEW-WALLET.md` §14.7 item 2).
+    pub check: Option<copy_check::WordCheck>,
     /// What scanning the copy of the seed on screen found.
     pub scanned: Option<backup::CopyCheck>,
-    /// The seeds, by fingerprint, whose copy by hand matched when typed
-    /// back or scanned, in this backup.
-    pub checked: Vec<[u8; 4]>,
-    /// The digits typed back have matched and the match is counted: a
-    /// further copy is counted once Clear empties the field.
-    pub counted: bool,
+    /// The seeds, by fingerprint, whose copy by hand matched in this
+    /// backup, with the form that matched: the words typed back, or the
+    /// drawn SeedQR scanned.
+    pub checked: Vec<([u8; 4], plan::CopyForm)>,
     /// Template word count.
     pub words: usize,
     /// What went to the Outbox, for the summary.
@@ -5404,27 +5402,40 @@ impl Faraday {
                 }
             }
             Action::EntryKey(c) => {
-                let lang = self.entry.language();
-                if let Some(w) = self.entry.keys.as_mut() {
-                    w.type_char(c);
-                    self.entry.shift = false;
-                    self.entry.error = None;
-                    if forms::word_whole(w, lang) {
-                        forms::take_typed(w, lang);
+                let w = self.words_use();
+                let (lang, in_check) = (w.lang, w.in_check);
+                if let Some(k) = w.keys.as_mut() {
+                    k.type_char(c);
+                    *w.shift = false;
+                    *w.error = None;
+                    if forms::word_whole(k, lang) {
+                        forms::take_typed(k, lang);
                     }
+                }
+                if in_check {
+                    self.copy_check_after();
                 }
             }
             Action::EntryKeyBack => {
-                if let Some(w) = self.entry.keys.as_mut() {
-                    w.backspace();
-                    self.entry.error = None;
+                let w = self.words_use();
+                if let Some(k) = w.keys.as_mut() {
+                    k.backspace();
+                    *w.error = None;
                 }
             }
-            Action::EntryShift => self.entry.shift = !self.entry.shift,
+            Action::EntryShift => {
+                let w = self.words_use();
+                *w.shift = !*w.shift;
+            }
             Action::EntryCandidate(n) => {
-                if let Some(w) = self.entry.keys.as_mut() {
-                    w.commit_candidate(usize::from(n));
-                    self.entry.error = None;
+                let w = self.words_use();
+                let in_check = w.in_check;
+                if let Some(k) = w.keys.as_mut() {
+                    k.commit_candidate(usize::from(n));
+                    *w.error = None;
+                }
+                if in_check {
+                    self.copy_check_after();
                 }
             }
             Action::EntryForm(i) => {
@@ -5815,7 +5826,11 @@ impl Faraday {
                         ),
                     };
                     // A copy checked this power-on stays checked.
-                    let checked = self.backups_checked(i);
+                    let checked = self
+                        .backups_checked(i)
+                        .into_iter()
+                        .flat_map(|fp| [(fp, plan::CopyForm::Words), (fp, plan::CopyForm::SeedQr)])
+                        .collect();
                     self.backup = Some(BackupState {
                         wallet: i,
                         q,
@@ -5942,7 +5957,7 @@ impl Faraday {
                     // On the board, the first card, at the top: as a new
                     // plan opens (`docs/BACKUP-FLOW.md` §19.21 item 11).
                     b.q = Some(qstep::BOARD);
-                    b.checking = false;
+                    b.check = None;
                     b.scroll = flow::Scroll::default();
                 }
             }
@@ -5993,15 +6008,17 @@ impl Faraday {
                 if let Some(b) = self.backup.as_mut() {
                     b.key = k;
                     b.reveal = false;
-                    b.typed.clear();
-                    b.counted = false;
+                    b.check = None;
                     b.scanned = None;
                     b.paper = None;
                 }
             }
             Action::BReveal => {
+                // Show the seed ends the check and wipes what was typed;
+                // the check starts again from word 1.
                 if let Some(b) = self.backup.as_mut() {
-                    b.reveal = !b.reveal;
+                    b.reveal = b.check.is_some() || !b.reveal;
+                    b.check = None;
                 }
             }
             Action::BXor(n) => self.paper_xor(n),
@@ -6022,11 +6039,7 @@ impl Faraday {
                     b.pin = r;
                 }
             }
-            Action::BCheck => {
-                if let Some(b) = self.backup.as_mut() {
-                    b.checking = !b.checking;
-                }
-            }
+            Action::BCheck => self.copy_check_open(),
             Action::BScan => {
                 let fp = self
                     .backup
@@ -6041,12 +6054,7 @@ impl Faraday {
                     self.commands.push_back(Command::CameraOn);
                 }
             }
-            Action::BCheckClear => {
-                if let Some(b) = self.backup.as_mut() {
-                    b.typed.clear();
-                    b.counted = false;
-                }
-            }
+            Action::BCheckClear => self.copy_check_clear(),
             Action::BVaultSave(v) => self.backup_vault_save(usize::from(v)),
             Action::BFilesMake => {
                 self.backup_files_make();
@@ -7169,7 +7177,7 @@ impl Faraday {
                     None => (EN.backup_kept_not_in.to_string(), Tone::Warn),
                 },
             );
-            lines.push(if b.checked.contains(&fp.0) {
+            lines.push(if self.seed_copy_checked(fp.0) {
                 (EN.backup_kept_paper_copy.to_string(), Tone::Ok)
             } else {
                 (EN.backup_kept_paper_not.to_string(), Tone::Warn)
@@ -7427,14 +7435,12 @@ impl Faraday {
         if let Some(b) = self.backup.as_mut() {
             b.open = n;
             b.scroll.follow = true;
-            b.checking = false;
+            b.check = None;
             if let Some(k) = key
                 && b.key != k
             {
                 b.key = k;
                 b.reveal = false;
-                b.typed.clear();
-                b.counted = false;
                 b.scanned = None;
                 b.paper = None;
             }
@@ -7658,7 +7664,7 @@ impl Faraday {
             plan::Item::Copy(i) => here
                 .iter()
                 .find(|(j, _)| *j == i)
-                .is_some_and(|(_, k)| b.checked.contains(&k.fingerprint().0)),
+                .is_some_and(|(_, k)| self.copy_checked(b, i, k)),
             plan::Item::Vault(v) => self.backup_vault_fits(v).is_some(),
             plan::Item::SeedFiles => {
                 !here.is_empty() && here.iter().all(|(_, k)| self.seed_file_made(&stem, k))
@@ -9700,33 +9706,6 @@ impl Faraday {
         self.seed_read_open(words);
     }
 
-    /// A seed's copy is checked once the numbers typed back match the seed
-    /// on screen, as a scanned copy that matches makes it.
-    fn backup_typed_check(&mut self) {
-        let Some(b) = self.backup.as_mut() else {
-            return;
-        };
-        let Some(key) = self.session.keys.get(b.key) else {
-            return;
-        };
-        let Some(words) = key.words.as_ref() else {
-            return;
-        };
-        let Ok(mn) = osk_bip::bip39::Mnemonic::parse(key.language, words.as_str()) else {
-            return;
-        };
-        let digits = osk_codec::seedqr::to_digits(&mn);
-        // A match is counted once: a copy more is typed after Clear.
-        if !b.counted
-            && backup::check_copy(&b.typed, digits.expose().as_bytes())
-                == backup::CopyCheck::Matches
-        {
-            b.counted = true;
-            let fp = key.fingerprint().0;
-            self.copy_matched(fp);
-        }
-    }
-
     /// A code read while the backup's copy item scans the copy of the
     /// seed `fp`: decoded as a SeedQR and compared word by word with that
     /// seed, never loaded. A match closes the camera; a word that differs
@@ -9762,7 +9741,7 @@ impl Faraday {
         drop(seed);
         let matched = found == backup::CopyCheck::Matches;
         if matched {
-            self.copy_matched(fp.0);
+            self.copy_matched(fp.0, plan::CopyForm::SeedQr);
         }
         if let Some(b) = self.backup.as_mut() {
             b.scanned = Some(found.clone());
@@ -11234,48 +11213,26 @@ impl Faraday {
             }
             return;
         }
-        // A list with an on-screen keyboard takes what a physical one can
-        // type of it: pinyin's letters and tone digits, or the list's
-        // own characters from an input method.
-        let lang = self.entry.language();
-        if here && let Some(w) = self.entry.keys.as_mut() {
-            match key {
-                KeyIn::Char(' ') | KeyIn::Tab => forms::take_typed(w, lang),
-                KeyIn::Char(c) => {
-                    w.type_char(c);
-                    if forms::word_whole(w, lang) {
-                        forms::take_typed(w, lang);
-                    }
-                }
-                KeyIn::Backspace => w.backspace(),
-                KeyIn::Enter => self.entry_enter(),
-                KeyIn::Escape => self.screen = self.entry_leave(),
-                _ => {}
-            }
-            self.entry.error = None;
-            return;
-        }
+        // The words of a key: a list with an on-screen keyboard takes what
+        // a physical one can type of it (pinyin's letters and tone digits,
+        // or the list's own characters from an input method); the rest are
+        // typed in Latin letters. Check my copy types through the same
+        // function (`forms::word_key`).
         if here {
-            match key {
-                KeyIn::Char(c) if c.is_ascii_alphabetic() => {
-                    self.entry.typed.push(c.to_ascii_lowercase());
-                    self.entry.error = None;
-                    if self.entry_word_whole() {
-                        self.entry_complete_word();
-                    }
-                }
-                KeyIn::Char(' ') => {
-                    if !self.entry.typed.is_empty() && !self.entry.typed.ends_with(' ') {
-                        self.entry.typed.push(' ');
-                    }
-                }
-                KeyIn::Backspace => {
-                    self.entry.typed.pop();
-                    self.entry.error = None;
-                }
-                KeyIn::Tab => self.entry_complete_word(),
-                KeyIn::Enter => self.entry_enter(),
-                KeyIn::Escape => self.screen = self.entry_leave(),
+            let lang = self.entry.language();
+            let typed = forms::word_key(
+                forms::WordsMut {
+                    typed: &mut self.entry.typed,
+                    keys: &mut self.entry.keys,
+                    error: &mut self.entry.error,
+                    lang,
+                    numbers: false,
+                },
+                key,
+            );
+            match typed {
+                forms::WordKey::Enter => self.entry_enter(),
+                forms::WordKey::Escape => self.screen = self.entry_leave(),
                 _ => {}
             }
             return;
@@ -11324,6 +11281,12 @@ impl Faraday {
             }
             return;
         }
+        // The words of a copy, typed back for Check my copy.
+        if self.screen == Screen::Backup && self.backup.as_ref().is_some_and(|b| b.check.is_some())
+        {
+            self.copy_check_key(key);
+            return;
+        }
         // A place's name is typed on Back up's plan, and on a wallet
         // flow's plan card before its lock (`docs/BACKUP-FLOW.md` §17.7).
         let naming_in_flow = self.screen == Screen::BackupFlow
@@ -11332,27 +11295,6 @@ impl Faraday {
             && let Some(b) = self.backup.as_mut()
         {
             match key {
-                KeyIn::Char(c) if b.checking && c.is_ascii_digit() => {
-                    // A copy is as many digits as its seed: four a word.
-                    // Digits past them are no further check and are not
-                    // kept (tracker #156); a copy more is typed after
-                    // Clear.
-                    let full = self
-                        .session
-                        .keys
-                        .get(b.key)
-                        .and_then(|k| k.words.as_ref())
-                        .map_or(0, |w| w.split_whitespace().count() * 4);
-                    if b.typed.len() < full {
-                        b.typed.push(c);
-                        self.backup_typed_check();
-                    }
-                    return;
-                }
-                KeyIn::Backspace if b.checking => {
-                    b.typed.pop();
-                    return;
-                }
                 KeyIn::Down if b.open.is_some_and(bstep::is_copy) => {
                     b.pin += 1;
                     return;

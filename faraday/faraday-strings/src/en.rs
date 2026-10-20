@@ -2426,7 +2426,7 @@ pub struct Strings {
     /// Row in `view`.
     pub glance_sheet_scan_my: &'static str,
     /// Row in `view`.
-    pub glance_sheet_type_it_back: &'static str,
+    pub glance_sheet_type_my: &'static str,
     /// Row in `view`.
     pub glance_sheet_check_this: &'static str,
     /// Row in `view`.
@@ -2730,7 +2730,11 @@ pub struct Strings {
     /// Text in `backup`.
     pub guide_none_of_this: &'static str,
     /// Text in `backup`.
-    pub guide_copy_each_seed: &'static str,
+    pub guide_copy_words: &'static str,
+    /// Text in `backup`, a copy of the SeedQR.
+    pub guide_copy_seedqr: &'static str,
+    /// Text in `backup`, a copy of both.
+    pub guide_copy_both: &'static str,
     /// Text in `backup`. `{}`: `lead`, `further`.
     pub guide_a_printer_is: &'static str,
     /// Text in `backup`, after a space. `{}`: `medium.for_the()`, `medium.noun()`.
@@ -5023,23 +5027,19 @@ pub struct Strings {
     /// Text in `shares_card`.
     pub shares_card_each_share: &'static str,
     // ----- copy_check (faraday-core/src/screens.rs) -----
-    /// Text in `copy_check`.
-    pub copy_check_type_the: &'static str,
-    /// Text in `copy_check`.
-    pub copy_check_type_here: &'static str,
+    /// Label of the typed words in `copy_check`.
+    pub copy_check_your_copys_words: &'static str,
+    /// Text in `copy_check`. `{}`: the word being typed, the seed's word count.
+    pub copy_check_word_of: &'static str,
     /// Text in `copy_check`.
     pub copy_check_your_copy: &'static str,
     /// Text in `copy_check`. `{}`: `k`.
     pub copy_check_word_differs: &'static str,
-    /// Text in `copy_check`. `{}`: `typed`, `of`.
-    pub copy_check_of_digits: &'static str,
     /// Button in `copy_check`.
     pub copy_check_clear: &'static str,
     // ----- item_action (faraday-core/src/screens.rs) -----
     /// Text in `item_action`.
     pub item_action_continue: &'static str,
-    /// Text in `item_action`.
-    pub item_action_stop_typing: &'static str,
     /// Text in `item_action`.
     pub item_action_check_my: &'static str,
     /// Text in `item_action`.
@@ -9694,7 +9694,7 @@ pub static EN: Strings = Strings {
     glance_sheet_marked: "Marked",
     glance_sheet_load_this_key: "Load this key",
     glance_sheet_scan_my: "Scan my copy",
-    glance_sheet_type_it_back: "Type it back",
+    glance_sheet_type_my: "Type my copy",
     glance_sheet_check_this: "Check this copy",
     glance_sheet_make_another: "Make another copy",
     glance_sheet_write_it: "Write it again",
@@ -9845,7 +9845,9 @@ pub static EN: Strings = Strings {
     guide_the_transaction: "The transaction is finished when enough keys have signed. Until then it cannot be broadcast.",
     guide_print_the_blank: "Print the blank template first, anywhere: it holds no secret, only numbered lines for the words and the squares every SeedQR of this length shares. It waits {}: carry it to the desktop app, and print one copy per seed. You write on it by hand in the next step.",
     guide_none_of_this: "None of this wallet's seeds were typed into this session, so there is nothing to copy here. Each seed is backed up on the device that holds it.",
-    guide_copy_each_seed: "Copy each seed onto its own template by hand: the words, and if you want a code to scan, the SeedQR square by square. The grey squares are already on the template. Click a row to keep your place, or move it with the arrow keys. Then scan your copy with the camera; a mistake is named by its word.",
+    guide_copy_words: "Copy each seed onto its own template by hand, the words in order. Then type your copy's words back; the first word that differs is named.",
+    guide_copy_seedqr: "Copy each seed onto its own template by hand, the SeedQR square by square. The grey squares are already on the template. Click a row to keep your place, or move it with the arrow keys. Then scan your copy with the camera; a mistake is named by its word. With no camera, type the seed's words back.",
+    guide_copy_both: "Copy each seed onto its own template by hand: the words, and the SeedQR square by square. The grey squares are already on the template. Click a row to keep your place, or move it with the arrow keys. Then type your copy's words back and scan the grid with the camera; a mistake is named by its word. With no camera, type the words back.",
     guide_a_printer_is: "{}{} A printer is a computer with memory and often a network, so a seed never goes to one. There is no line for a passphrase: written beside the words it stops being a second factor.",
     guide_paper_comes_first: "Paper comes first. Under the copy, Save into the open vault keeps a further copy sealed under the vault's passphrase. Save as a file makes the words or the SeedQR picture a file {}, unprotected, only after you tick that anyone who copies the {} can spend with it: the least safe of the three. A file never holds the passphrase; the vault keeps it only when saved with its passphrase.",
     guide_this_half_is: "This half is xpubs only. It can spend nothing, but it is the only thing that puts the keys back together into this wallet, so keep copies. Show the descriptor as a QR to load the wallet into watch-only software, or keep the QR as a picture with the wallet's name, keys and checksum under it, to print or to scan later. The files and the backup sheet wait {} from the moment the checklist is made; the sheet goes as a PDF to print. Sparrow imports the .json under Specter Desktop, and the multisig config under Coldcard Multisig.",
@@ -10936,14 +10938,12 @@ pub static EN: Strings = Strings {
     shares_card_each_key: "Each key is on {} shares",
     shares_card_no_single: "No single share holds every key",
     shares_card_each_share: "Each share holds every key",
-    copy_check_type_the: "Type the four-digit number beside each word, in order",
-    copy_check_type_here: "Type here",
+    copy_check_your_copys_words: "Your copy's words",
+    copy_check_word_of: "Word {} of {}",
     copy_check_your_copy: "Your copy matches the seed",
-    copy_check_word_differs: "Word {} differs: check its four digits",
-    copy_check_of_digits: "{} of {} digits typed · all match so far",
+    copy_check_word_differs: "Word {} differs from the seed",
     copy_check_clear: "Clear",
     item_action_continue: "Continue",
-    item_action_stop_typing: "Stop typing",
     item_action_check_my: "Check my copy",
     item_action_lock_it: "Lock it and make a new vault",
     item_action_save_into: "Save into {}",

@@ -2626,6 +2626,65 @@ pub fn checklist(shape: &Shape, a: &Answers) -> Vec<Item> {
     out
 }
 
+/// A form of copy by hand, as a check of it is kept.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CopyForm {
+    /// The words, checked by typing them back.
+    Words,
+    /// The SeedQR, checked by scanning the drawn grid.
+    SeedQr,
+}
+
+/// The forms seed `i`'s copies by hand take on the map: the words, a
+/// SeedQR, or both (`docs/NEW-WALLET.md` §14.7).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct CopyForms {
+    /// A copy of the words at a place.
+    pub words: bool,
+    /// A copy of the SeedQR at a place.
+    pub seedqr: bool,
+}
+
+/// What checking seed `i`'s copies asks for (`docs/NEW-WALLET.md` §14.7
+/// item 1).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct CopyChecks {
+    /// The words are typed back.
+    pub typed: bool,
+    /// The drawn SeedQR is scanned.
+    pub scan: bool,
+}
+
+impl CopyForms {
+    /// What checking asks for. A scan needs a camera and a SeedQR the
+    /// seed's list has (`english`: the list is the English one); a SeedQR
+    /// copy checked another way is checked by its typed words.
+    pub fn checks(self, camera: bool, english: bool) -> CopyChecks {
+        let scan = self.seedqr && camera && english;
+        CopyChecks {
+            typed: self.words || (self.seedqr && !scan),
+            scan,
+        }
+    }
+}
+
+/// The forms of seed `i`'s copies at the places of the plan's map: the
+/// map's `Words(i)` and `SeedQr(i)`, whether from the seeds question or
+/// from the board's placed chips and the chart's edits. Builds the map.
+pub fn copy_forms(shape: &Shape, a: &Answers, i: usize) -> CopyForms {
+    let boxes = map(shape, a);
+    let at = |w: What| {
+        boxes
+            .iter()
+            .filter(|s| matches!(s.at, At::Place(_)))
+            .any(|s| s.holds.iter().any(|(h, _)| *h == w))
+    };
+    CopyForms {
+        words: at(What::Words(i)),
+        seedqr: at(What::SeedQr(i)),
+    }
+}
+
 /// How many blank templates the plan prints: one per paper copy of a
 /// seed, in every place.
 pub fn templates(shape: &Shape, a: &Answers) -> usize {

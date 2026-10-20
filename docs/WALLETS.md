@@ -466,8 +466,8 @@ replaced (2026-10-15, F35).
    numbers, and the SeedQR grid only when the plan copies the seed as a
    SeedQR, behind hold-to-reveal, never a printer, no line for a BIP-39
    passphrase. Its button, **Check my copy**, checks each form the
-   seed's copies have (F29, `docs/NEW-WALLET.md` §14.7; specified, not
-   built): a words copy by typing the whole seed back as words (or
+   seed's copies have (F29, `docs/NEW-WALLET.md` §14.7; built, except
+   Keep the words only and the grid drawn in part): a words copy by typing the whole seed back as words (or
    their four-digit numbers, or four-letter prefixes) with the seed
    not on screen, compared once the last word is in and the first word
    that differs named; a SeedQR copy by **Scan my copy** (the camera

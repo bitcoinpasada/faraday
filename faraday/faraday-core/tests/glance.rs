@@ -326,8 +326,9 @@ fn a_key_held_here_shows_its_xpub_and_where_its_seed_is() {
     let fp = app.session.keys[0].fingerprint().0;
     open(&mut app, press, Target::Key(0));
     assert!(shown(&mut app, "Make another backup of this seed"));
-    assert!(app.offers(Action::Chart(C::Do(press, Step::Scan(fp)))));
-    assert!(app.offers(Action::Chart(C::Do(press, Step::Item(bstep::COPY)))));
+    // A copy of the words is checked by typing them back, not scanned.
+    assert!(app.offers(Action::Chart(C::Do(press, Step::Type(fp, bstep::COPY)))));
+    assert!(!app.offers(Action::Chart(C::Do(press, Step::Scan(fp)))));
     // The xpub's code over the card; closed, the chart again.
     app.press(Action::Chart(C::Do(press, Step::KeyQr(0))));
     assert_eq!(app.sheet, Some(Sheet::Qr));
@@ -338,12 +339,11 @@ fn a_key_held_here_shows_its_xpub_and_where_its_seed_is() {
     app.press(Action::Chart(C::Where(press, 0)));
     assert_eq!(app.sheet, None);
     assert_eq!(chart(&app, w).focus, Some(0));
-    // Scanning a copy keeps the chart under the camera.
+    // Typing a copy opens the checklist at its check.
     open(&mut app, press, Target::Key(0));
-    app.press(Action::Chart(C::Do(press, Step::Scan(fp))));
-    assert_eq!(app.sheet, Some(Sheet::Scan));
-    app.press(Action::Cancel);
-    assert_eq!(app.screen, Screen::Wallets);
+    app.press(Action::Chart(C::Do(press, Step::Type(fp, bstep::COPY))));
+    assert_eq!(app.screen, Screen::Backup);
+    assert!(app.backup.as_ref().is_some_and(|b| b.check.is_some()));
 }
 
 #[test]
@@ -354,7 +354,7 @@ fn a_cosigners_key_offers_nothing_secret() {
     let press = Press::Loaded(w);
     open(&mut app, press, Target::Key(2));
     assert!(shown(&mut app, "Cosigner · xpub only"));
-    for not in ["Show xpub QR", "Scan my copy", "By hand"] {
+    for not in ["Show xpub QR", "Scan my copy", "Type my copy", "By hand"] {
         assert!(!shown(&mut app, not), "{not} offered for a cosigner's key");
     }
 }

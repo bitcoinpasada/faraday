@@ -19,7 +19,6 @@ use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, bstep, cstep, demo, qstep};
 use faraday_vault::records::kind;
 use opensigner_core::vanity::Dial;
-use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::Network;
 use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
@@ -324,13 +323,7 @@ fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished()
     app.press(Action::BReveal);
     app.storage(faraday_core::StorageEvent::Cameras(Vec::new()));
     app.press(Action::BCheck);
-    let digits = osk_codec::seedqr::to_digits(
-        &Mnemonic::parse(Language::English, &demo::words("bacon")).unwrap(),
-    );
-    common::type_text(
-        &mut app,
-        std::str::from_utf8(digits.expose().as_bytes()).unwrap(),
-    );
+    faraday_core::testkit::type_words(&mut app, &demo::words("bacon"));
     assert!(
         app.backup_item_done(Item::Copy(0)),
         "the copy did not check"

@@ -2,9 +2,10 @@
 //! §5):
 //!
 //! - the seeds, copied by hand from the screen: words with their BIP-39
-//!   indices, and the SeedQR drawn as a ruled grid, checked afterwards by
-//!   scanning the drawn grid ([`compare_words`]), or, with no camera, by
-//!   typing the words' numbers back ([`check_copy`]). Never a printer.
+//!   indices, and the SeedQR drawn as a ruled grid. A copy of the words is
+//!   checked by typing the words back, and a SeedQR by scanning the drawn
+//!   grid, each compared by [`compare_words`] (`docs/NEW-WALLET.md`
+//!   §14.7). Never a printer.
 //!   After the copy by hand, a further copy: into the open vault as the
 //!   key record Vaults saves, or as a file only through the secret sheet
 //!   (`crate::secrets`), past a warning: the words or the SeedQR as a
@@ -324,42 +325,17 @@ pub fn structural_fixed(x: usize, y: usize, n: usize) -> bool {
     (finder && !format) || ((x == 6 || y == 6) && !format) || align
 }
 
-/// What a typed-back copy of a standard SeedQR's digits says.
+/// What comparing a copy of a seed with the seed says.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CopyCheck {
-    /// Every digit matches.
+    /// Every word matches.
     Matches,
-    /// Digits so far match; more to type.
-    SoFar {
-        /// Digits typed.
-        typed: usize,
-        /// Digits in all.
-        of: usize,
-    },
-    /// A word's four digits differ.
+    /// A word differs, counting from one.
     WrongWord(usize),
 }
 
-/// Compares typed digits with the seed's: four digits per word.
-pub fn check_copy(typed: &str, digits: &[u8]) -> CopyCheck {
-    let t: Vec<u8> = typed.bytes().filter(u8::is_ascii_digit).collect();
-    for (i, (a, b)) in t.iter().zip(digits).enumerate() {
-        if a != b {
-            return CopyCheck::WrongWord(i / 4 + 1);
-        }
-    }
-    if t.len() >= digits.len() {
-        CopyCheck::Matches
-    } else {
-        CopyCheck::SoFar {
-            typed: t.len(),
-            of: digits.len(),
-        }
-    }
-}
-
-/// Compares the words a scanned copy holds with the seed's, by their
-/// BIP-39 numbers: the first that differs, counting from one, or a copy
+/// Compares the words of a copy, scanned or typed, with the seed's, by
+/// their BIP-39 numbers: the first that differs, counting from one, or a copy
 /// of another length at the first word one has and the other lacks.
 pub fn compare_words(copy: &[u16], seed: &[u16]) -> CopyCheck {
     match copy.iter().zip(seed).position(|(a, b)| a != b) {
@@ -484,15 +460,13 @@ mod tests {
         }
     }
 
-    /// A typed copy that differs names the word, counting from one.
+    /// A copy that differs names the word, counting from one, and one of
+    /// another length the first word one has and the other lacks.
     #[test]
-    fn a_wrong_digit_names_its_word() {
-        let digits = b"013801380138";
-        assert_eq!(
-            check_copy("01380138", digits),
-            CopyCheck::SoFar { typed: 8, of: 12 }
-        );
-        assert_eq!(check_copy("0138 0139", digits), CopyCheck::WrongWord(2));
-        assert_eq!(check_copy("013801380138", digits), CopyCheck::Matches);
+    fn a_wrong_word_is_named() {
+        let seed = [1, 2, 3, 4];
+        assert_eq!(compare_words(&[1, 2, 3, 4], &seed), CopyCheck::Matches);
+        assert_eq!(compare_words(&[1, 2, 9, 4], &seed), CopyCheck::WrongWord(3));
+        assert_eq!(compare_words(&[1, 2, 3], &seed), CopyCheck::WrongWord(4));
     }
 }

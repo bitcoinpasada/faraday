@@ -79,11 +79,11 @@ to get it.
    BSMS record, Bitcoin Core import, each key's account key and its BSMS
    record; each with **Show as QR** and **PNG** where a wallet reads it
    from a code, and **Remove** while it waits For the stick) and has the seeds copied by hand,
-   each copy checked by its form (F29; specified, not built): a words
-   copy by typing the whole seed back as words with the seed not on
-   screen, a SeedQR copy by scanning the drawn grid (by typed words
-   where there is no camera), which **Keep the words only** turns into
-   words by hand.
+   each copy checked by its form (F29; built, except Keep the words
+   only): a words copy by typing the whole seed back as words with the
+   seed not on screen, a SeedQR copy by scanning the drawn grid (by typed
+   words where there is no camera); **Keep the words only**, which turns
+   a SeedQR copy into words by hand, is specified, not built.
 
 7. **Words for keys** (2026-10-06). A **key** or **seed** is what signs:
    words, a SeedQR, a share of one. An account's public key with its
@@ -454,8 +454,11 @@ to get it.
     lines bold, the rest dimmed, until the next screen or sheet); **Make
     another backup of this seed**: **By hand** (the checklist's copy, with
     Seed XOR and codex32), **Into Vault n**, **As a file**, each where the
-    plan has that item; **Check a copy of this seed**: **Scan my copy**,
-    which leaves the chart under the camera, and **Type it back**. A key
+    plan has that item; **Check a copy of this seed**: a row for each check
+    its copies ask for (`docs/NEW-WALLET.md` §14.7): **Type my copy**
+    for a words copy, which opens the typed check at the checklist's
+    copy item, and **Scan my copy** for a SeedQR copy with a camera,
+    which leaves the chart under the camera. A key
     not here: **Load this key** with its way in, where the quorum needs
     it. A place: its lines, each opening its own sheet; **Rename** (the
     plan's place names, with a vault open; else the vault way, "Open a
@@ -464,8 +467,8 @@ to get it.
     to another stick** (the stick visit). Files: **Write the seed files
     again**, **Write the public files again**. Software: **Show the
     descriptor QR again**, **Public files for this software**. Lines:
-    words or SeedQR, **Scan my copy**, **Type it back**, **Make another
-    copy**; the wallet sheet, **Print it again**, **As a QR picture**,
+    words, **Type my copy**; SeedQR, **Scan my copy** (**Type my copy**
+    with no camera); **Make another copy**; the wallet sheet, **Print it again**, **As a QR picture**,
     **As text**; a share, **Print the shares again**, **Keys left off
     each share** (the checklist's shares); a vault's stick, the vault way
     and **Copy the vault to another stick**; a seed file, **Write it
@@ -478,7 +481,8 @@ to get it.
     checklist: an item's foot button is its next action (a vault item's
     **Make a vault** or the way to one, then one **Save into {vault}**
     that saves every seed, passphrase and the description the plan puts
-    there, then **Continue**; a copy's **Check my copy**; files' **Make
+    there, then **Continue**; a copy's **Check my copy**, which types the
+    words back for a words copy and scans a SeedQR copy; files' **Make
     it**), and the items after one not done do not open. Places waits
     while a vault's stick has no place ("Vault 1's stick needs a
     place"); a plan that keeps no copy of a key made here is not made

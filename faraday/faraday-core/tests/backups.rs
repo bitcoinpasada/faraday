@@ -108,18 +108,9 @@ fn open_a_vault(app: &mut Faraday) {
     assert_eq!(app.vaults.open.len(), 1, "the vault did not open");
 }
 
-/// The copy of the seed on screen typed back by its numbers.
+/// The copy of the seed on screen typed back as its words.
 fn type_the_copy(app: &mut Faraday) {
-    let mn = osk_bip::bip39::Mnemonic::parse(
-        osk_bip::bip39::Language::English,
-        &testkit::test_words(testkit::TEST_SEEDS[0].0),
-    )
-    .unwrap();
-    let digits = osk_codec::seedqr::to_digits(&mn);
-    let digits = digits.expose().as_bytes().to_vec();
-    for c in digits {
-        app.event(Event::Key(Key::Char(char::from(c))));
-    }
+    testkit::type_words(app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
 }
 
 /// The wallet backed up with Paper and vault, its copy checked `copies`
@@ -134,14 +125,11 @@ fn backed_up(copies: usize) -> Faraday {
         app.press(Action::BStep(bstep::COPY));
     }
     app.press(Action::BReveal);
-    app.press(Action::BCheck);
-    for k in 0..copies {
-        if k > 0 {
-            app.press(Action::BCheckClear);
-        }
+    // Each copy past the first is checked again from the start.
+    for _ in 0..copies {
+        app.press(Action::BCheck);
         type_the_copy(&mut app);
     }
-    app.press(Action::BCheck);
     app.press(Action::BVaultSave(0));
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::AddKind(1)));

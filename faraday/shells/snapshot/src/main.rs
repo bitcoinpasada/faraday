@@ -1298,10 +1298,7 @@ fn run(
     t.press(Action::BPaperHide);
     // The copy typed back.
     t.press(Action::BCheck);
-    for c in copy_digits(&t, None)? {
-        t.app.event(Event::Key(Key::Char(char::from(c))));
-    }
-    t.press(Action::BCheck);
+    type_words(&mut t, None)?;
     t.press(Action::BStep(bstep::SHEETS));
     t.shot("backup-split")?;
     t.press(Action::BStep(bstep::ENVELOPE));
@@ -1653,16 +1650,10 @@ fn run(
         t.press(Action::BStep(bstep::COPY));
     }
     t.press(Action::BReveal);
-    t.press(Action::BCheck);
-    for k in 0..2 {
-        if k > 0 {
-            t.press(Action::BCheckClear);
-        }
-        for c in copy_digits(&t, None)? {
-            t.app.event(Event::Key(Key::Char(char::from(c))));
-        }
+    for _ in 0..2 {
+        t.press(Action::BCheck);
+        type_words(&mut t, None)?;
     }
-    t.press(Action::BCheck);
     t.press(Action::BackupsOf(spending));
     t.shot("backups")?;
     t.press(Action::OpenWallet(spending));
@@ -3008,9 +2999,23 @@ fn copy_digits(t: &Tour, wrong: Option<usize>) -> Result<Vec<u8>, String> {
     Ok(digits)
 }
 
+/// The open copy item's seed typed back as its words, a space after
+/// each, `count` words of it (all when `None`).
+fn type_words(t: &mut Tour, count: Option<usize>) -> Result<(), String> {
+    let b = t.app.backup.as_ref().ok_or("no backup")?;
+    let key = t.app.session.keys.get(b.key).ok_or("no key")?;
+    let words = key.words.as_deref().ok_or("no words")?.to_string();
+    for w in words.split_whitespace().take(count.unwrap_or(usize::MAX)) {
+        for c in w.chars().chain([' ']) {
+            t.app.event(Event::Key(Key::Char(c)));
+        }
+    }
+    Ok(())
+}
+
 /// Does each checklist item before `target` in the checklist's order,
 /// as a person must (`docs/NEW-WALLET.md` §14.1): a copy by hand is
-/// checked by its numbers typed back, the envelopes by their Continue.
+/// checked by its words typed back, the envelopes by their Continue.
 fn items_before(t: &mut Tour, target: u8) -> Result<(), String> {
     use faraday_core::bstep;
     while let Some(n) = t.app.backup_waiting() {
@@ -3022,9 +3027,7 @@ fn items_before(t: &mut Tour, target: u8) -> Result<(), String> {
         }
         if bstep::is_copy(n) {
             t.press(Action::BCheck);
-            for c in copy_digits(t, None)? {
-                t.app.event(Event::Key(Key::Char(char::from(c))));
-            }
+            type_words(t, None)?;
         }
         t.press(Action::BNext(n));
         if t.app.backup_waiting() == Some(n) {
@@ -3370,25 +3373,31 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
 }
 
 fn copy_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::board::{BoardPress, Thing, Zone};
     t.load_kit()?;
     t.press(Action::Backup(0));
-    to_checklist(t, faraday_core::plan::Preset::Paper, &[]);
+    // The words and the SeedQR both copied by hand.
+    t.backup_as(faraday_core::plan::Preset::Paper);
+    t.press(Action::Board(BoardPress::Form(
+        Zone::Paper(0),
+        Thing::Seed(0),
+        1,
+    )));
+    t.press(Action::BChecklist);
     t.press(Action::BNext(bstep::BLANK));
     t.press(Action::BReveal);
     t.app.storage(StorageEvent::Cameras(Vec::new()));
     scroll_to(t, Action::BCheck);
     t.shot("copy-no-camera")?;
     t.press(Action::BCheck);
-    for &c in &copy_digits(t, None)?[..12] {
-        t.app.event(Event::Key(Key::Char(char::from(c))));
-    }
+    type_words(t, Some(3))?;
     t.shot("copy-typing")?;
-    t.press(Action::BCheck);
     t.press(Action::BCheckClear);
     t.app.storage(StorageEvent::Cameras(vec![(
         "/dev/video0".into(),
         "Integrated Camera".into(),
     )]));
+    type_words(t, None)?;
     scroll_to(t, Action::BScan);
     t.shot("copy-camera")?;
     t.press(Action::BScan);
@@ -3553,12 +3562,7 @@ fn kept_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::BNext(bstep::BLANK));
     t.press(Action::BReveal);
     t.press(Action::BCheck);
-    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
-    let mn = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, &words)
-        .map_err(|e| format!("{e:?}"))?;
-    let digits = osk_codec::seedqr::to_digits(&mn);
-    let typed = String::from_utf8_lossy(digits.expose().as_bytes()).into_owned();
-    type_text(t, &typed);
+    type_words(t, None)?;
     scroll_to_open_next(t);
     t.shot("kept-one-key")?;
     Ok(())
@@ -4433,20 +4437,8 @@ fn first_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("first-place-vault-board")?;
     t.press(Action::BChecklist);
     // The copy checked, typed back.
-    let digits = {
-        let key = t.app.session.keys.last().ok_or("no key")?;
-        let words = key.words.as_ref().ok_or("no words")?.to_string();
-        let m = osk_bip::bip39::Mnemonic::parse(key.language, &words).map_err(|e| e.to_string())?;
-        osk_codec::seedqr::to_digits(&m)
-            .expose()
-            .as_bytes()
-            .to_vec()
-    };
     t.press(Action::BCheck);
-    for c in digits {
-        t.app.event(Event::Key(Key::Char(char::from(c))));
-    }
-    t.press(Action::BCheck);
+    type_words(t, None)?;
     t.press(Action::BStep(bstep::VAULT));
     scroll_to(t, Action::Vault(V::CreateFrom(Screen::Backup)));
     t.shot("first-vault-make")?;

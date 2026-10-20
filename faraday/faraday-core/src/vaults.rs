@@ -1058,14 +1058,13 @@ impl Faraday {
                     .then(|| v.label())
             })
         };
-        let checked: &[[u8; 4]] = self.backup.as_ref().map_or(&[], |b| &b.checked);
         for k in &self.session.keys {
             let vault = k
                 .words
                 .as_ref()
                 .and_then(|w| osk_bip::bip39::Mnemonic::parse(k.language, w).ok())
                 .and_then(|m| in_vault_key(&records::words_payload(&m)));
-            let copy = checked.contains(&k.fingerprint().0);
+            let copy = self.seed_copy_checked(k.fingerprint().0);
             let (state, nowhere) = match (vault, copy) {
                 (Some(v), true) => (fill(EN.vaults_in_copy_checked, &[&v.to_string()]), false),
                 (Some(v), false) => (fill(EN.vaults_in, &[&v.to_string()]), false),

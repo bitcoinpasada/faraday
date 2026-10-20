@@ -20,7 +20,6 @@ use faraday_core::wallet::fp_text;
 use faraday_core::{
     Action, BStage, Faraday, Screen, StorageCommand, StorageEvent, bstep, cstep, qstep,
 };
-use osk_bip::bip39::Mnemonic;
 use osk_bip::keys::Fingerprint;
 use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
@@ -117,7 +116,7 @@ fn checklist(app: &mut Faraday, p: Preset) {
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
 }
 
-/// The copy by hand of the key's seed, checked by its numbers typed back.
+/// The copy by hand of the key's seed, checked by its words typed back.
 fn check_the_copy(app: &mut Faraday, fp: Fingerprint) {
     let key = app
         .session
@@ -126,13 +125,8 @@ fn check_the_copy(app: &mut Faraday, fp: Fingerprint) {
         .find(|k| k.fingerprint() == fp)
         .unwrap();
     let words = key.words.as_ref().unwrap().to_string();
-    let lang = key.language;
-    let digits = osk_codec::seedqr::to_digits(&Mnemonic::parse(lang, &words).unwrap());
     app.press(Action::BCheck);
-    type_text(
-        app,
-        std::str::from_utf8(digits.expose().as_bytes()).unwrap(),
-    );
+    testkit::type_words(app, &words);
     assert!(
         app.backup_item_done(Item::Copy(0)),
         "the copy did not check"

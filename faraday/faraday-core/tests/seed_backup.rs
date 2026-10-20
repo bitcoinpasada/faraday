@@ -469,7 +469,6 @@ fn a_seed_file_for_the_stick_is_listed_as_unprotected() {
 
 #[test]
 fn a_matched_copy_check_marks_that_seed_only() {
-    use osk_bip::bip39::{Language, Mnemonic};
     let mut app = device(Vec::new());
     let k1 = add_key(&mut app, 0);
     add_key(&mut app, 1);
@@ -489,13 +488,8 @@ fn a_matched_copy_check_marks_that_seed_only() {
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY + i));
     assert_eq!(app.backup.as_ref().unwrap().key, k1);
     app.press(Action::BReveal);
-    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
-    let digits = osk_codec::seedqr::to_digits(&Mnemonic::parse(Language::English, &words).unwrap());
     app.press(Action::BCheck);
-    type_text(
-        &mut app,
-        std::str::from_utf8(digits.expose().as_bytes()).unwrap(),
-    );
+    testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     let k = kept(&app);
     let checked = line("Paper copy checked", Tone::Ok);
     let other = 1 - usize::from(i);

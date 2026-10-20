@@ -1293,3 +1293,27 @@ pub fn backup_as(app: &mut crate::Faraday, preset: crate::plan::Preset) {
         "the presses reach the plan {preset:?} builds"
     );
 }
+
+/// Types `words` into the open word entry as a person does on a
+/// keyboard: each word, then a space.
+pub fn type_words(app: &mut crate::Faraday, words: &str) {
+    use osk_shell_api::{App, Event, Key};
+    for word in words.split_whitespace() {
+        for c in word.chars().chain([' ']) {
+            app.event(Event::Key(Key::Char(c)));
+        }
+    }
+}
+
+/// Opens Check my copy on the backup's open copy item and types the
+/// seed's own words back, as a person with a right copy does.
+pub fn type_copy(app: &mut crate::Faraday) {
+    use crate::Action;
+    let words = {
+        let b = app.backup.as_ref().expect("a backup is open");
+        let key = app.session.keys.get(b.key).expect("the open seed");
+        key.words.as_ref().expect("a seed with words").to_string()
+    };
+    app.press(Action::BCheck);
+    type_words(app, &words);
+}

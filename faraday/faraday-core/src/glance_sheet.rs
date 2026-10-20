@@ -88,6 +88,9 @@ pub enum Step {
     /// Scan a copy of the seed with this fingerprint, and back to the
     /// chart.
     Scan([u8; 4]),
+    /// Type the words of a copy of the seed with this fingerprint, at the
+    /// checklist's copy item by [`bstep`], with the check open.
+    Type([u8; 4], u8),
     /// The backup's plan questions, with the plan the chart shows.
     Plan,
     /// Type a new name for place p: the plan's Places question.
@@ -257,6 +260,27 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
             .flatten()
     };
     let holds = |f: &dyn Fn(What) -> bool| nodes.iter().any(|n| n.whats.iter().any(|w| f(*w)));
+    // What checking a copy of seed `s`, with fingerprint `fp`, in the
+    // `forms` it takes asks for (`docs/NEW-WALLET.md` §14.7): the rows a
+    // key or a line offers, one per check.
+    let check_rows = |forms: plan::CopyForms, s: usize, fp: [u8; 4]| {
+        let english = app
+            .session
+            .keys
+            .iter()
+            .find(|k| k.fingerprint().0 == fp)
+            .is_none_or(|k| k.language == osk_bip::bip39::Language::English);
+        let checks = forms.checks(!app.cameras.is_empty(), english);
+        let mut rows = Vec::new();
+        if checks.scan {
+            rows.push((EN.glance_sheet_scan_my, doing(Step::Scan(fp))));
+        }
+        if checks.typed && items.contains(&Item::Copy(s)) {
+            let n = bstep::of(Item::Copy(s));
+            rows.push((EN.glance_sheet_type_my, doing(Step::Type(fp, n))));
+        }
+        rows
+    };
     let split = holds(&|w| matches!(w, What::Share(_)));
     // A vault: open it, or the way to one, back to this chart.
     let back = match press {
@@ -470,12 +494,15 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
                     groups.push((EN.glance_sheet_make_another_backup.to_string(), make));
                 }
                 let mut check = Vec::new();
-                let by_hand =
-                    seed.is_some_and(|s| holds(&|w| w == What::Words(s) || w == What::SeedQr(s)));
-                if by_hand && let Some(fp) = key.fp {
-                    check.push(row(EN.glance_sheet_scan_my, "", doing(Step::Scan(fp))));
-                    if let Some(a) = seed.and_then(|s| item(Item::Copy(s))) {
-                        check.push(row(EN.glance_sheet_type_it_back, "", Some(a)));
+                if let Some(s) = seed
+                    && let Some(fp) = key.fp
+                {
+                    let forms = plan::CopyForms {
+                        words: holds(&|w| w == What::Words(s)),
+                        seedqr: holds(&|w| w == What::SeedQr(s)),
+                    };
+                    for (label, a) in check_rows(forms, s, fp) {
+                        check.push(row(label, "", a));
                     }
                 }
                 if !check.is_empty() {
@@ -748,17 +775,12 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
             let mut rows = Vec::new();
             match what {
                 What::Words(s) | What::SeedQr(s) => secret(s, &mut rows, &|rows, fp| {
-                    rows.push(row(
-                        EN.glance_sheet_scan_my,
-                        EN.glance_sheet_check_this,
-                        doing(Step::Scan(fp)),
-                    ));
-                    if let Some(a) = item(Item::Copy(s)) {
-                        rows.push(row(
-                            EN.glance_sheet_type_it_back,
-                            EN.glance_sheet_check_this,
-                            Some(a),
-                        ));
+                    let forms = plan::CopyForms {
+                        words: matches!(what, What::Words(_)),
+                        seedqr: matches!(what, What::SeedQr(_)),
+                    };
+                    for (label, a) in check_rows(forms, s, fp) {
+                        rows.push(row(label, EN.glance_sheet_check_this, a));
                     }
                     rows.push(row(
                         EN.glance_sheet_make_another,
@@ -1530,6 +1552,22 @@ impl Faraday {
                             self.act(Action::BScan);
                         }
                     }
+                    Step::Type(fp, n) => {
+                        // The words of the copy typed back, at its item.
+                        let k = self
+                            .session
+                            .keys
+                            .iter()
+                            .position(|k| k.fingerprint().0 == fp);
+                        if let Some(k) = k
+                            && self.chart_checklist(w, from_vault)
+                        {
+                            self.backup_item_open(Some(n));
+                            self.act(Action::BKey(k));
+                            self.act(Action::BCheck);
+                            self.screen = Screen::Backup;
+                        }
+                    }
                     Step::Plan => self.chart_plan(w, from_vault, None),
                     Step::RenamePlace(p) => {
                         self.chart_plan(w, from_vault, Some(crate::qstep::BOARD));
@@ -1589,7 +1627,7 @@ impl Faraday {
         if let Some(b) = self.backup.as_mut() {
             b.stage = BStage::Plan;
             b.q = q;
-            b.checking = false;
+            b.check = None;
             b.scroll = crate::flow::Scroll::default();
         }
         self.screen = Screen::Backup;

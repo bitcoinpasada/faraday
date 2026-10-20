@@ -440,3 +440,152 @@ pub fn take_typed(w: &mut opensigner_core::load::LoadWizard, lang: Language) {
         w.commit_candidate(n);
     }
 }
+
+/// What a key did in the word entry that the screen it is on acts on
+/// (`docs/NEW-WALLET.md` §14.7 item 2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WordKey {
+    /// A word, or part of one, was typed or taken back.
+    Edited,
+    /// Enter.
+    Enter,
+    /// Escape.
+    Escape,
+    /// Nothing the entry takes.
+    Ignored,
+}
+
+/// The state a word entry types into: Add a key's, and Check my copy's.
+pub(crate) struct WordsMut<'a> {
+    /// The words as typed, for a list typed on the computer's keyboard.
+    pub typed: &'a mut crate::secret_text::SecretText,
+    /// OpenSigner's word entry, for a list typed on an on-screen
+    /// keyboard.
+    pub keys: &'a mut Option<Box<opensigner_core::load::LoadWizard>>,
+    /// The last refusal.
+    pub error: &'a mut Option<String>,
+    /// The list the words are from.
+    pub lang: Language,
+    /// A word may be typed as its four-digit number.
+    pub numbers: bool,
+}
+
+/// The one word of the list a Latin entry's last word can still become,
+/// as it is typed, when it is not that word already.
+fn latin_take(typed: &mut crate::secret_text::SecretText, lang: Language) {
+    if let Some(word) = completion(lang, typed) {
+        let cut = typed.rfind(' ').map(|i| i + 1).unwrap_or(0);
+        typed.truncate(cut);
+        typed.push_str(&word);
+    }
+}
+
+/// Handles one key of a word entry, typed on the computer's keyboard
+/// into `typed` (a Latin list) or into OpenSigner's word entry `keys`:
+/// letters; Space and Tab take the word as it is or as the one word its
+/// letters can still become; a word typed whole and alone on its prefix
+/// is taken at once; Backspace; with `numbers`, a word as its four-digit
+/// number. Add a key and Check my copy both type through here.
+pub(crate) fn word_key(w: WordsMut<'_>, key: osk_shell_api::Key) -> WordKey {
+    use osk_shell_api::Key;
+    let lang = w.lang;
+    if let Some(wizard) = w.keys.as_mut() {
+        let out = match key {
+            Key::Char(' ') | Key::Tab => {
+                take_typed(wizard, lang);
+                WordKey::Edited
+            }
+            Key::Char(c) => {
+                wizard.type_char(c);
+                if word_whole(wizard, lang) {
+                    take_typed(wizard, lang);
+                }
+                WordKey::Edited
+            }
+            Key::Backspace => {
+                wizard.backspace();
+                WordKey::Edited
+            }
+            Key::Enter => WordKey::Enter,
+            Key::Escape => WordKey::Escape,
+            _ => WordKey::Ignored,
+        };
+        *w.error = None;
+        return out;
+    }
+    let typed = w.typed;
+    match key {
+        Key::Char(c) if c.is_ascii_alphabetic() => {
+            // A number being typed takes no letter.
+            if typed
+                .rsplit(' ')
+                .next()
+                .is_some_and(|t| t.bytes().any(|b| b.is_ascii_digit()))
+            {
+                return WordKey::Ignored;
+            }
+            typed.push(c.to_ascii_lowercase());
+            *w.error = None;
+            let last = typed.rsplit(' ').next().unwrap_or("");
+            if !last.is_empty() && completion(lang, typed).as_deref() == Some(last) {
+                latin_take(typed, lang);
+                typed.push(' ');
+            }
+            WordKey::Edited
+        }
+        Key::Char(c) if w.numbers && c.is_ascii_digit() => {
+            let cut = typed.rfind(' ').map(|i| i + 1).unwrap_or(0);
+            if typed[cut..].bytes().any(|b| b.is_ascii_alphabetic()) {
+                return WordKey::Ignored;
+            }
+            typed.push(c);
+            *w.error = None;
+            if typed.len() - cut == 4 {
+                let number: u16 = typed[cut..].parse().unwrap_or(u16::MAX);
+                let at = typed[..cut].split_whitespace().count() + 1;
+                typed.truncate(cut);
+                match (number < 2048).then(|| lang.typed(number)).flatten() {
+                    Some(t) => {
+                        typed.push_str(&t.as_chars().iter().collect::<String>());
+                        typed.push(' ');
+                    }
+                    None => {
+                        *w.error = Some(fill(
+                            EN.forms_word_is_not_on,
+                            &[&at.to_string(), language_name(lang)],
+                        ));
+                    }
+                }
+            }
+            WordKey::Edited
+        }
+        Key::Char(' ') => {
+            if !typed.is_empty() && !typed.ends_with(' ') {
+                let last = typed.rsplit(' ').next().unwrap_or("");
+                if last.bytes().any(|b| b.is_ascii_digit()) {
+                    return WordKey::Ignored;
+                }
+                if typed_index(lang, last).is_none() {
+                    latin_take(typed, lang);
+                }
+                typed.push(' ');
+            }
+            WordKey::Edited
+        }
+        Key::Tab => {
+            if completion(lang, typed).is_some() {
+                latin_take(typed, lang);
+                typed.push(' ');
+            }
+            WordKey::Edited
+        }
+        Key::Backspace => {
+            typed.pop();
+            *w.error = None;
+            WordKey::Edited
+        }
+        Key::Enter => WordKey::Enter,
+        Key::Escape => WordKey::Escape,
+        _ => WordKey::Ignored,
+    }
+}

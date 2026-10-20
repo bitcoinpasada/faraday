@@ -1065,7 +1065,18 @@ chart.
 
 ### 14.7 A copy by hand is checked by its form (F29)
 
-Specified, not built.
+Items 1, 2 and 4 and the chart are built (2026-10-20); item 3 (Keep
+the words only, the three scans, the grid drawn in part) is not.
+Built as specified, with these notes: the blank template's `copy:`
+line (`backup::sheet_blank`, `pdf::blank_sheet`) was built with the
+Starter's template page and is unchanged; the typed words are
+`copy_check::WordCheck`, typed through `forms::word_key`, which Add a
+key's words form uses too (Space takes a word as its unique prefix
+there as well); the chart's typed row opens the check with
+`Step::Type`; `copy_check_word_differs` keeps its name with the new
+text; the check's strings are `copy_check_word_of` and
+`copy_check_your_copys_words`, and `glance_sheet_type_my` replaces
+`glance_sheet_type_it_back`.
 
 **As built.** Show the seed on a copy item draws the words with their
 four-digit numbers and, for an English seed, the SeedQR grid with

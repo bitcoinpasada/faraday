@@ -906,15 +906,9 @@ fn a_two_of_three_with_key_3_on_paper_asks_for_two_sticks_and_holds_key_3_until_
         .find(|k| k.fingerprint().0 == fps[2])
         .unwrap();
     let words = key3.words.as_ref().unwrap().to_string();
-    let lang = key3.language;
-    let digits =
-        osk_codec::seedqr::to_digits(&osk_bip::bip39::Mnemonic::parse(lang, &words).unwrap());
     app.press(Action::BStep(bstep::COPY + 2));
     app.press(Action::BCheck);
-    type_text(
-        &mut app,
-        std::str::from_utf8(digits.expose().as_bytes()).unwrap(),
-    );
+    faraday_core::testkit::type_words(&mut app, &words);
     assert!(
         app.backup_item_done(Item::Copy(2)),
         "the typed check matched"
@@ -4605,20 +4599,14 @@ fn names_on(shell: &Shell, d: &str) -> Vec<String> {
 /// Types back the copy of the key in Create's slot 0 on the checklist's
 /// copy item.
 fn type_back_the_copy(app: &mut Faraday) {
-    use osk_bip::bip39::Mnemonic;
     let k = app.session.keys.len() - 1;
     let key = &app.session.keys[k];
     let words = key.words.as_ref().unwrap().to_string();
-    let m = Mnemonic::parse(key.language, &words).unwrap();
-    let digits = osk_codec::seedqr::to_digits(&m);
     if app.backup.as_ref().unwrap().open != Some(bstep::COPY) {
         app.press(Action::BStep(bstep::COPY));
     }
     app.press(Action::BCheck);
-    type_text(
-        app,
-        std::str::from_utf8(digits.expose().as_bytes()).unwrap(),
-    );
+    faraday_core::testkit::type_words(app, &words);
     assert!(app.backup_item_done(Item::Copy(0)), "the copy is checked");
 }
 

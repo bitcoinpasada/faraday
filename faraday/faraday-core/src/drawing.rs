@@ -36,6 +36,8 @@ pub(crate) struct Drawing {
     pub shapes: RefCell<Vec<(usize, plan::Shape)>>,
     /// `backup_seed_list` per wallet.
     pub seed_lists: RefCell<Vec<(usize, SeedList)>>,
+    /// `copy_forms` per wallet and seed.
+    pub copy_forms: RefCell<Vec<((usize, usize), plan::CopyForms)>>,
     /// `held_keys`.
     pub held: OnceCell<Vec<Fingerprint>>,
     /// `backup_public_names_for` per wallet, for the backup's own answers.

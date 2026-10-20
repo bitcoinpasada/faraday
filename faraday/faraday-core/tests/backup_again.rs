@@ -239,14 +239,7 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     app.press(Action::BStep(bstep::VAULT));
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY));
     press_offered(&mut app, Action::BCheck);
-    let words = testkit::test_words(testkit::TEST_SEEDS[1].0);
-    let digits = osk_codec::seedqr::to_digits(
-        &osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, &words).unwrap(),
-    );
-    type_text(
-        &mut app,
-        std::str::from_utf8(digits.expose().as_bytes()).unwrap(),
-    );
+    testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     assert!(app.backup_item_done(plan::Item::Copy(0)));
     press_offered(&mut app, Action::BStep(bstep::VAULT));
     // The vault is locked: Unlock it, and back to this step.
