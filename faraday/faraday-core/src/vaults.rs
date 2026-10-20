@@ -97,6 +97,9 @@ pub const CATEGORIES: [(&str, &[u8]); 7] = [
     (EN.apk_signing_keys, &[kind::APK_KEY]),
 ];
 
+/// The place of the APK signing keys in `CATEGORIES`.
+pub const APK_CATEGORY: usize = 6;
+
 /// Bits of a passphrase from dice counted strong: six words of the EFF
 /// long list (`docs/VAULT.md` §3.1).
 pub const STRONG_BITS: u32 = 77;
@@ -1599,6 +1602,9 @@ impl Faraday {
                     self.vault_item_offset = 0.0;
                 }
             }
+            V::Category(k) if !self.category_listed(k) => {}
+            V::AddKind(k) if !self.category_listed(k) => {}
+            V::ApkSignOpen | V::ApkFromFiles(_) if !self.category_listed(APK_CATEGORY) => {}
             V::Category(k) => {
                 self.vaults.apk.leave();
                 self.gpg_page_reset();
@@ -1925,6 +1931,19 @@ impl Faraday {
             V::ApkFromFiles(k) => self.apk_from_files(k),
             V::ApkKeyPick(v, at) => self.apk_key_picked(v, at),
         }
+    }
+
+    /// Whether category `k` is offered: the APK signing keys only with APK
+    /// signing on or an open vault that holds one (F59).
+    pub(crate) fn category_listed(&self, k: usize) -> bool {
+        k != APK_CATEGORY
+            || self.apk_signing
+            || self.vaults.open.iter().any(|v| {
+                v.contents
+                    .records
+                    .iter()
+                    .any(|r| CATEGORIES[APK_CATEGORY].1.contains(&r.kind))
+            })
     }
 
     fn vault_import_entries(&mut self, files: &[usize]) {

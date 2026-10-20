@@ -90,6 +90,7 @@ fn vault_file() -> (String, Vec<u8>) {
 /// A process restored with these files in Files and the clock known.
 fn process(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     let mut app = Faraday::new();
+    app.apk_signing = true;
     display(&mut app);
     entropy(&mut app, 8);
     app.storage(StorageEvent::Restored {
@@ -219,6 +220,7 @@ fn flow_to_make(shell: &mut Shell, keep_time: bool) -> Faraday {
     shell.add(Disk::empty("S1", "KEYSTICK"));
     shell.add(Disk::empty("S2", "KEYSTICK"));
     let mut app = common::process(Vec::new(), Vec::new(), Vec::new());
+    app.apk_signing = true;
     if keep_time {
         common::keep_time(&mut app);
     }
@@ -820,4 +822,84 @@ fn files_reads_a_file_that_is_one_pem_certificate_as_public() {
         faraday_core::wallet::FileKind::Certificate
     );
     let _ = &mut app;
+}
+
+// ---------------------------------------------------------------------
+// APK signing switched off, as it is by default (F59).
+// ---------------------------------------------------------------------
+
+/// A process with the vault and one APK in Files, the switch off.
+fn switched_off(apks: &[(&str, Vec<u8>)]) -> Faraday {
+    let mut inbox = vec![vault_file()];
+    inbox.extend(apks.iter().map(|(n, b)| (n.to_string(), b.clone())));
+    let mut app = process(inbox, Vec::new(), Vec::new());
+    app.apk_signing = false;
+    app
+}
+
+fn open_vault(app: &mut Faraday) {
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    type_text(app, PASSPHRASE);
+    app.press(Action::Vault(V::Unlock));
+    settle(app, 1);
+    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    app.press(Action::Nav(Screen::VaultContents));
+}
+
+#[test]
+fn with_apk_signing_off_tools_has_no_apk_tile_and_typing_apk_finds_none() {
+    let mut app = switched_off(&[]);
+    app.press(Action::Nav(Screen::Catalog));
+    type_text(&mut app, "apk");
+    assert!(!texts(&mut app).iter().any(|t| t.contains("APK")));
+    app.apk_signing = true;
+    assert!(has(&mut app, "APK signing key"));
+}
+
+#[test]
+fn with_apk_signing_off_a_vault_without_an_apk_key_lists_no_such_category() {
+    let mut app = switched_off(&[]);
+    open_vault(&mut app);
+    assert!(!has(&mut app, "APK signing keys"));
+    assert!(!has(&mut app, "Make an APK key"));
+    app.press(Action::Vault(V::Category(6)));
+    app.press(Action::Vault(V::AddKind(6)));
+    assert!(!has(&mut app, "APK signing keys"));
+    app.press(Action::Vault(V::ApkSignOpen));
+    assert!(!app.vaults.apk.signing);
+}
+
+#[test]
+fn with_apk_signing_off_an_apk_in_files_has_no_sign_row_but_is_named_an_apk() {
+    let apk = fixture("small-unsigned.apk");
+    let mut app = switched_off(&[("x-unsigned.apk", apk)]);
+    open_vault(&mut app);
+    app.press(Action::Nav(Screen::Files));
+    assert!(texts(&mut app).iter().any(|t| t.starts_with("APK ·")));
+    for row in ["Sign with APK key", "Back up first", "Sign an APK"] {
+        assert!(!has(&mut app, row), "{row}");
+    }
+    let k = app
+        .inbox
+        .iter()
+        .position(|i| i.name == "x-unsigned.apk")
+        .unwrap();
+    app.press(Action::Vault(V::ApkFromFiles(k)));
+    assert!(!app.vaults.apk.signing);
+    assert_ne!(app.screen, Screen::VaultContents);
+}
+
+#[test]
+fn with_apk_signing_off_a_vault_that_holds_an_apk_key_still_lists_it() {
+    let mut app = ready(FIXTURE, &[]);
+    app.apk_signing = false;
+    app.press(Action::Nav(Screen::VaultContents));
+    assert!(
+        texts(&mut app)
+            .iter()
+            .any(|t| t.starts_with("APK signing keys"))
+    );
+    app.press(Action::Vault(V::Category(6)));
+    assert_eq!(app.vaults.category, 6);
 }

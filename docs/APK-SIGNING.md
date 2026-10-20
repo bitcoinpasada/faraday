@@ -8,6 +8,10 @@ flow's, `docs/BACKUP-FLOW.md` (F31), built in batch B1a.
 Batch 2 is built as far as the key allows (§11); `docs/LARGE-FILES.md`
 (F26) is not built.
 
+**Switched off (F59, 2026-10-20).** APK signing is not in the app: the
+switch `Faraday::apk_signing` is off by default. Everything here is
+built and tested with the switch on, and comes back when it is turned on.
+
 **Faraday Companion was dropped (F34, 2026-10-15).** This spec was
 written for the Companion's APK key. **Sign an APK** stays, for the APK
 of any app: the name and the package start empty, and the release

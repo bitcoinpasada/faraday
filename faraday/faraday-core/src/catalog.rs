@@ -6,7 +6,7 @@
 use crate::create::NewKind;
 use crate::forms::Form;
 use crate::strings::EN;
-use crate::vaults::VaultAction;
+use crate::vaults::{APK_CATEGORY, VaultAction};
 use crate::wallet::FileKind;
 use crate::{Action, Faraday, Screen};
 
@@ -436,6 +436,12 @@ pub fn matches(tile: &Tile, find: &str) -> bool {
 }
 
 impl Faraday {
+    /// Whether Tools shows a tile: the APK signing key tile only with
+    /// APK signing on (F59).
+    pub fn tile_shown(&self, tile: &Tile) -> bool {
+        self.apk_signing || tile.go != Go::VaultCategory(APK_CATEGORY)
+    }
+
     /// What a tile needs first, when it cannot open now.
     pub fn tile_need(&self, go: Go) -> Option<&'static str> {
         let keys = !self.session.keys.is_empty();
@@ -497,7 +503,7 @@ impl Faraday {
 
     /// Opens tile `i`'s flow.
     pub(crate) fn catalog_go(&mut self, i: usize) {
-        let Some(tile) = TILES.get(i) else {
+        let Some(tile) = TILES.get(i).filter(|t| self.tile_shown(t)) else {
             return;
         };
         if !self.tile_opens(tile.go) {

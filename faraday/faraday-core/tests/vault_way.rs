@@ -480,6 +480,7 @@ fn create_a_vault_lands_on_unlock_asking_for_the_passphrase_once_more() {
 #[test]
 fn an_empty_open_vault_offers_every_add_and_a_stick() {
     let mut app = device(Vec::new());
+    app.apk_signing = true;
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     make_the_vault(&mut app);

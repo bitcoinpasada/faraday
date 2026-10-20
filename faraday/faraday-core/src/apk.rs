@@ -419,6 +419,9 @@ impl Faraday {
     /// sign, when an open vault holds a key for its package; a note of why
     /// not otherwise; and Unlock or Make a vault, where none is open.
     pub fn apk_files_row(&self, k: usize) -> Row {
+        if !self.apk_signing {
+            return Row::None;
+        }
         let Some(item) = self.inbox.get(k) else {
             return Row::None;
         };

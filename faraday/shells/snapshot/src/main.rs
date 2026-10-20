@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|bootplace|power|pills]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|power|pills]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -725,7 +725,6 @@ fn run(
         Some("first") => return first_tour(&mut t),
         Some("restore") => return restore_tour(&mut t),
         Some("osk") => return osk_tour(&mut t),
-        Some("apk") => return apk_only_tour(&mut t),
         Some("flow") => return flow_tour(&mut t),
         Some("bootplace") => return boot_place_tour(&mut t),
         Some("power") => return power_tour(&mut t),
@@ -1785,7 +1784,6 @@ fn run(
         return Err("the signed image does not check against the db key".into());
     }
     println!("Secure Boot keys made, enrolment files written, an image signed");
-    apk_tour(&mut t)?;
     t.press(Action::LockAsk);
     t.shot("vault-lock-ask")?;
     // Lock seals the changed slot; the decoy slot is copied byte for byte.
@@ -1964,10 +1962,6 @@ fn run(
     t.shot("tools")?;
     type_text(&mut t, "bip-8");
     t.shot("tools-find")?;
-    t.app.event(Event::Key(Key::Escape));
-    // The APK signing key's tile, found by typing.
-    type_text(&mut t, "apk");
-    t.shot("tools-apk")?;
     t.app.event(Event::Key(Key::Escape));
     // New key as SLIP-39 shares: the plan and what shares reveal.
     t.press(Action::KeyGenSlip39);
@@ -5009,95 +5003,6 @@ fn type_text(t: &mut Tour, text: &str) {
     t.pump();
 }
 
-/// An APK signing key made in the vault for the fixture's package, the
-/// key's page, and the review of the fixture APK copied in
-/// (`docs/APK-SIGNING.md` §4).
-fn apk_tour(t: &mut Tour) -> Result<(), String> {
-    t.press(Action::Vault(V::Category(6)));
-    flow_at_make(t, faraday_core::backup_flow::Kind::Apk);
-    t.shot("vault-apk-make")?;
-    // The package is the fixture's, so its APK can be signed.
-    t.press(Action::Vault(V::FocusField(1)));
-    for _ in 0..40 {
-        t.app.event(Event::Key(Key::Backspace));
-    }
-    type_text(t, "app.faradayoffline.fixture");
-    t.press(Action::Flow(
-        faraday_core::backup_flow_steps::FlowAction::Make,
-    ));
-    t.tick();
-    t.tick();
-    if !t.app.vaults.open[0]
-        .contents
-        .records
-        .iter()
-        .any(|r| r.kind == 12)
-    {
-        return Err("no APK signing key was made".into());
-    }
-    t.shot("vault-apk-made")?;
-    t.shot("vault-apk-key-waiting")?;
-    flow_made(t, faraday_core::backup_flow::Kind::Apk)?;
-    t.press(Action::Vault(V::Item(0)));
-    t.shot("vault-apk-key")?;
-    let apk = std::fs::read("tools/vectors/apk/small-unsigned.apk").map_err(|e| e.to_string())?;
-    t.app.inbox.push(faraday_core::Item {
-        name: "example-0.1.3-android-unsigned.apk".into(),
-        bytes: apk,
-        kind: faraday_core::wallet::FileKind::Apk,
-        secret: false,
-        picture: None,
-        sha: None,
-    });
-    t.press(Action::Vault(V::ApkSignOpen));
-    t.shot("vault-apk-sign")?;
-    let k = t.app.inbox.len() - 1;
-    t.press(Action::Vault(V::ApkPick(k)));
-    type_text(t, "1dfe b6f8 a687 82f9");
-    t.shot("vault-apk-review")?;
-    t.press(Action::Vault(V::ApkBack));
-    t.press(Action::Vault(V::ApkBack));
-    println!("an APK signing key made, its page and the review of an APK");
-    Ok(())
-}
-
-/// The APK signing key alone: the test vault unlocked, the Tools tile
-/// found, then [`apk_tour`].
-fn apk_only_tour(t: &mut Tour) -> Result<(), String> {
-    let vault = testkit::files()?
-        .into_iter()
-        .find(|(n, _)| n == "vault.ofv")
-        .ok_or("no test vault")?;
-    t.app.storage(StorageEvent::Restored {
-        inbox: vec![vault],
-        outbox: Vec::new(),
-        kept: Vec::new(),
-    });
-    t.app.storage(StorageEvent::Memory {
-        available_mib: 15_000,
-    });
-    t.app.storage(StorageEvent::Clock {
-        unix_secs: 1_791_000_000,
-    });
-    t.app.vaults.ms_per_unit = Some(180);
-    t.press(Action::Nav(Screen::Vaults));
-    t.press(Action::Vault(V::Open(0)));
-    type_text(t, testkit::VAULT_PASSPHRASES[0]);
-    t.press(Action::Vault(V::Unlock));
-    t.tick();
-    t.press(Action::OpenSetTime);
-    t.press(Action::SetTimeKeep);
-    t.press(Action::Nav(Screen::Catalog));
-    if t.app.is_compact() {
-        t.app.event(Event::Key(Key::Escape));
-    }
-    type_text(t, "apk");
-    t.shot("tools-apk")?;
-    t.app.event(Event::Key(Key::Escape));
-    t.press(Action::Nav(Screen::VaultContents));
-    apk_tour(t)
-}
-
 /// The test vault's key and wallet shown and saved (`docs/BACKUP-FLOW.md`
 /// §19.7): the key with its SeedQR held, its Save to a stick, and the
 /// Spending wallet's Save to a stick.
@@ -5458,10 +5363,13 @@ fn cancel_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CreateWallet);
     t.press(Action::CKind(multi));
     t.press(Action::CNext(cstep::KIND));
+    t.press(Action::CVaults(false));
+    t.press(Action::CNext(cstep::WHERE));
     t.shot("cancel-1-create")?;
     t.press(Action::CancelFlow);
     t.shot("cancel-2-sheet")?;
     t.press(Action::Cancel);
+    t.press(Action::CNext(cstep::QUORUM));
     for slot in 0..3u8 {
         let fp = t.app.session.keys[usize::from(slot)].fingerprint().0;
         t.press(Action::CSlotHere(slot, fp));
@@ -5887,7 +5795,7 @@ fn main() -> ExitCode {
     };
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|walletflow|demo|vaultshow|addkey|cancel]"
+            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|vaultshow|addkey|cancel]"
         );
         return ExitCode::from(2);
     }
@@ -5943,7 +5851,6 @@ fn main() -> ExitCode {
             "first",
             "restore",
             "osk",
-            "apk",
             "flow",
             "bootplace",
             "power",
@@ -5961,7 +5868,7 @@ fn main() -> ExitCode {
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey, createfrom, inprogress, cancel, std or parts"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey, createfrom, inprogress, cancel, std or parts"
         );
         return ExitCode::from(2);
     }

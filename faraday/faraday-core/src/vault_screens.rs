@@ -2457,7 +2457,7 @@ pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if ky > top {
             ky += 8.0;
         }
-        add_rows(ui, x, ky, kinds_w, 38.0);
+        add_rows(app, ui, x, ky, kinds_w, 38.0);
     }
 
     let ix = x + kinds_w + 16.0;
@@ -2670,6 +2670,7 @@ fn shows_empty(app: &Faraday, v: &vaults::OpenVault) -> bool {
 /// An empty vault's next steps: every way to add, then writing it out.
 fn empty_buttons(app: &Faraday) -> Vec<(String, Style, Action)> {
     let mut out: Vec<(String, Style, Action)> = (0..CATEGORIES.len())
+        .filter(|&k| app.category_listed(k))
         .filter_map(|k| add_full(k).map(|a| (a.to_string(), Style::Secondary, va(V::AddKind(k)))))
         .collect();
     out.push((
@@ -2711,9 +2712,9 @@ fn add_short(k: usize) -> Option<&'static str> {
 
 /// A row for each kind to add at (x, y), w wide and `row` tall, the Add
 /// icon in the accent colour before its label. Returns their height.
-fn add_rows(ui: &mut Ui, x: f32, y: f32, w: f32, row: f32) -> f32 {
+fn add_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, row: f32) -> f32 {
     let mut cy = y;
-    for k in 0..CATEGORIES.len() {
+    for k in (0..CATEGORIES.len()).filter(|&k| app.category_listed(k)) {
         let Some(add) = add_short(k) else {
             continue;
         };
@@ -2867,7 +2868,7 @@ fn contents_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += wrap_buttons(ui, x, y, w, 34.0, &kind_items) + 4.0;
     }
     if !empty {
-        y += add_rows(ui, x, y, w, 36.0) + 4.0;
+        y += add_rows(app, ui, x, y, w, 36.0) + 4.0;
     }
     ui.rule(x, y, w, LINE);
     y += 14.0;

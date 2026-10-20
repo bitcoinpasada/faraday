@@ -3298,6 +3298,8 @@ pub struct Faraday {
     pub decode: Option<DecodeState>,
     /// What is typed in Tools' Find a tool.
     pub catalog_find: String,
+    /// APK signing is in the app: off by default (F59).
+    pub apk_signing: bool,
     /// Files read from sticks.
     pub inbox: Vec<Item>,
     /// Results waiting for a stick.
@@ -3662,6 +3664,7 @@ impl Faraday {
             spend: None,
             decode: None,
             catalog_find: String::new(),
+            apk_signing: false,
             inbox: Vec::new(),
             outbox: Vec::new(),
             sticks: Vec::new(),

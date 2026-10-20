@@ -2057,3 +2057,20 @@ first, and ends Make a new wallet as its Cancel does. A backup flow's
 own locks keep it. The defaults become 30 minutes to lock and 60 to
 power off. Replaces F31's "the idle lock is unchanged" for a key made in
 Make a new wallet.
+
+### F59 APK signing is switched off in the app; its code stays (2026-10-20)
+
+**Why.** Signing APKs is not a focus. It cost a Tools tile, a vault
+category, a Files row and a step in the snapshot tour that no longer
+reached its end (tracker #163).
+
+**Decision** (owner, 2026-10-20). One switch, `Faraday::apk_signing`,
+off by default, takes APK signing out of the app: no APK signing key
+tile in Tools, no APK signing keys category in a vault (unless the
+vault already holds one, which still shows and works as before, so
+nothing a vault holds is hidden), no Sign with a key row on an APK in
+Files, and no APK step in the snapshot tour. An APK in Files is still
+named as one. The code, its tests (which turn the switch on), the
+spec `docs/APK-SIGNING.md`, its Learn page and its fuzz target stay,
+so turning the switch on brings it all back. Supersedes F25's place in
+the app until the owner picks it up again.
