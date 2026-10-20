@@ -40,6 +40,23 @@ fn boot_image(len: usize, release: &str, seed: u8) -> Vec<u8> {
     b
 }
 
+/// A Pi card's boot partition of `len` bytes: a compressed kernel that
+/// carries no release string, and, when `release` is given, the build
+/// file the image build writes (`faraday-build.txt`: the release string
+/// and a newline) among the other files.
+fn pi_boot_image(len: usize, release: Option<&str>, seed: u8) -> Vec<u8> {
+    // High bits set: no byte is text, so no release string by chance.
+    let mut b: Vec<u8> = (0..len)
+        .map(|i| (i as u32).wrapping_mul(2_654_435_761).to_le_bytes()[3] ^ seed | 0x80)
+        .collect();
+    if let Some(r) = release {
+        let at = len / 3;
+        let text = format!("{r}\n");
+        b[at..at + text.len()].copy_from_slice(text.as_bytes());
+    }
+    b
+}
+
 /// A data partition: a vault and a settings file, as far as this test
 /// cares.
 fn data_image(len: usize) -> Vec<u8> {
@@ -178,6 +195,28 @@ fn the_stick_holding_the_running_faraday_is_the_source_whenever_it_went_in() {
             },
         ]
     );
+}
+
+#[test]
+fn a_pi_card_with_the_build_file_is_read_as_that_version_and_one_without_as_today() {
+    let m = Machine::new("pi");
+    // The card Faraday started from, and an older card made before the
+    // image wrote the build file.
+    let source = pi_boot_image(2 * MIB, Some(RUNNING), 3);
+    m.stick("sda", 1, source.clone(), data_image(MIB));
+    m.stick("sdb", 2, pi_boot_image(2 * MIB, None, 4), data_image(MIB));
+    let mut b = m.boots();
+    assert_eq!(
+        b.handle(Request::ReadSource),
+        Response::Source {
+            id: "sda1@sda#1".into(),
+            release: RUNNING.into(),
+            size: source.len() as u64,
+        }
+    );
+    let list = parts(b.handle(Request::List));
+    assert_eq!(list[0].release, Some(RUNNING.into()));
+    assert_eq!(list[1].release, None);
 }
 
 #[test]

@@ -164,6 +164,21 @@ fn a_faraday_stick_is_known_by_its_partitions_and_read_from_its_boot_volume_alon
 }
 
 #[test]
+fn a_pi_cards_build_file_is_its_version_and_a_card_without_one_has_none() {
+    let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("starter-pi-boot");
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).expect("folder");
+    // A compressed kernel carries no release string.
+    fs::write(root.join("zImage"), vec![0x8bu8; 4096]).expect("file");
+    assert_eq!(stick::release_at(&root), None);
+    fs::write(root.join("faraday-build.txt"), "6.6.84-faraday-0.2.0\n").expect("file");
+    assert_eq!(
+        stick::release_at(&root).as_deref(),
+        Some("6.6.84-faraday-0.2.0")
+    );
+}
+
+#[test]
 fn a_stick_windows_did_not_let_the_starter_read_is_not_read_not_an_old_one() {
     // As listed, before its boot volume is tried.
     let s = laptop();

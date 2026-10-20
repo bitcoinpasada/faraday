@@ -18,6 +18,19 @@ merged="$root/out/faraday/image-src"
 mkdir -p "$merged"
 rsync -a --delete "$root/opensigner/shells/pi/image/" "$merged/"
 cp -a "$root/faraday/image/overlay/." "$merged/"
+# The FAT filesystems' volume serials, from the commit date and each
+# partition's role, so two builds of one commit have the same ones
+# (fat-serial.sh). The board's genimage.cfg carries the placeholders.
+epoch="${SOURCE_DATE_EPOCH:-$(git -C "$root" log -1 --format=%ct 2>/dev/null || echo 0)}"
+serial_boot="$("$root/faraday/image/fat-serial.sh" boot "$epoch")"
+serial_data="$("$root/faraday/image/fat-serial.sh" data "$epoch")"
+sed -i -e "s|@FAT_SERIAL_BOOT@|$serial_boot|g" -e "s|@FAT_SERIAL_DATA@|$serial_data|g" \
+    "$merged/boards/$board/genimage.cfg"
+if grep -q '@FAT_SERIAL_' "$merged/boards/$board/genimage.cfg"; then
+    echo "$board/genimage.cfg: a FAT serial placeholder is left" >&2
+    exit 1
+fi
+echo "FAT serials: boot $serial_boot, data $serial_data (SOURCE_DATE_EPOCH $epoch)"
 # The disk process, the grant helper (PLAN.md §4.3) and the boot copier
 # (§5.5) go in as files of the root filesystem overlay: upstream's
 # Buildroot package installs the app alone.

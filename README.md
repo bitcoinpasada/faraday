@@ -752,7 +752,15 @@ the commit's first twelve hex digits and the kind of build, test or dev
 (and `.dirty-XXXXXXXX` for a tree that differs from its commit), never a
 date (`docs/DECISIONS.md` F5). The Pi image carries the same string in
 `faraday-build.txt` on its boot partition, since its kernel is
-compressed. No second builder has checked a Faraday image yet. The
+compressed; Upgrade and the Starter read a Pi card's version from that
+file, and a card made before it existed reads as it always did. Each
+FAT filesystem in an image (the boot and the data partition, on the
+stick and on the Pi) is stamped with a volume serial that is a function
+of `SOURCE_DATE_EPOCH` and the partition's role
+(`faraday/image/fat-serial.sh`, given to `mkfs.vfat -i` through the
+board's `genimage.cfg`), so two builds of one commit have the same
+serials; two sticks of one build have the same serials too. No second
+builder has checked a Faraday image yet. The
 Starter for Linux is built by `just faraday-linux-bin` in a pinned
 Debian 11 container (`faraday/build/linux`), against glibc 2.31, with
 the same path rewriting, so one file runs on Ubuntu 20.04 and later,
