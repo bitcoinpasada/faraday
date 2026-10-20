@@ -54,6 +54,7 @@ fn stick() -> Disk {
         in_use: None,
         faraday: Some(FaradayStick {
             release: Some("6.6.84-faraday-0.2.0".into()),
+            read: true,
         }),
     }
 }

@@ -348,7 +348,10 @@ impl Answers {
                 bus,
                 volumes,
                 in_use: self.in_use(id),
-                faraday: boot.as_ref().map(|_| FaradayStick { release: None }),
+                faraday: boot.as_ref().map(|_| FaradayStick {
+                    release: None,
+                    read: true,
+                }),
             },
             boot,
             block,

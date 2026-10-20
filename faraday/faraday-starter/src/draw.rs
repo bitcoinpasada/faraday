@@ -542,6 +542,7 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         Reason::Missing(program) => fill(S.starter_why_missing, &[program]),
         Reason::BootEntry(d) => fill(S.starter_why_boot_entry, &[d]),
         Reason::NoStick => S.starter_why_no_stick.to_string(),
+        Reason::SameBuild => S.starter_why_same_build.to_string(),
         Reason::Declined => S.starter_why_declined.to_string(),
         Reason::Unsupported => S.starter_why_unsupported.to_string(),
         Reason::NoAdmin => S.starter_why_no_admin.to_string(),
@@ -611,7 +612,7 @@ fn disk_name(d: &crate::api::Disk) -> String {
 /// What is on a disk, in a few words (§3.2 step 1).
 fn on_it(d: &crate::api::Disk) -> String {
     if let Some(f) = &d.faraday {
-        return fill(S.starter_on_faraday, &[&version(f.release.as_deref())]);
+        return fill(S.starter_on_faraday, &[&crate::decide::version_of(f)]);
     }
     if d.volumes.is_empty() {
         return S.starter_on_empty.to_string();
@@ -1135,6 +1136,9 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         let (sub, tone) = match refused {
             Some(ModeRefusal::Same) => (S.starter_mode_same, WARN),
             Some(ModeRefusal::BootOnly) => (S.starter_mode_boot_only, WARN),
+            None if m == Mode::KeepData && starter.version_reading.is_some() => {
+                (S.starter_mode_reading, MUTED)
+            }
             _ => (sub, MUTED),
         };
         let sub = ui.fit(12.0, W::R, sub, w - 40.0);
@@ -1150,8 +1154,12 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         }
         ui.rule(x, y, w, INNER);
     }
+    if let Some(why) = &starter.version_failed {
+        y += 12.0;
+        y += line(ui, x, y, w, &reason_text(why), ERR);
+    }
     y += 20.0;
-    let style = if chosen.is_some() {
+    let style = if chosen.is_some() && !starter.keep_unread() {
         Style::Primary
     } else {
         Style::Disabled

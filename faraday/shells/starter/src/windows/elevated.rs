@@ -10,6 +10,14 @@
 //!   (--payload NAME | --image PATH --image-size N) --sha256 HEX
 //! ```
 //!
+//! Keep data on a stick whose version Windows did not let the window
+//! read (tracker #21) starts it with `--read-version` first:
+//!
+//! ```text
+//! --read-version --pipe \\.\pipe\faraday-starter-… --disk \\.\PhysicalDrive2
+//!   --serial S --size N
+//! ```
+//!
 //! Each key once, in any order; nothing else. A value that is not what
 //! the key takes refuses the whole list before any disk or file is
 //! opened. The writer then checks the disk again itself (§4.1).
@@ -20,6 +28,8 @@ use super::disks::{disk_device, disk_number};
 
 /// The first argument of the elevated copy.
 pub const WRITE: &str = "--write";
+/// The first argument of the elevated copy that reads a stick's version.
+pub const READ_VERSION: &str = "--read-version";
 /// Every pipe the Starter makes starts so.
 pub const PIPE_PREFIX: &str = r"\\.\pipe\faraday-starter-";
 
@@ -113,14 +123,7 @@ impl Elevated {
         }
         let need = |i: usize| got[i].ok_or_else(|| format!("{} missing", KEYS[i]));
         let pipe = need(0)?;
-        let ok_pipe = pipe.strip_prefix(PIPE_PREFIX).is_some_and(|id| {
-            !id.is_empty()
-                && id.len() <= 64
-                && id.bytes().all(|b| b.is_ascii_hexdigit() || b == b'-')
-        });
-        if !ok_pipe {
-            return Err(format!("--pipe {pipe}: not the starter app's pipe"));
-        }
+        check_pipe(pipe)?;
         let disk = need(1)?;
         let n = disk_number(disk).ok_or_else(|| format!("--disk {disk}: not a disk"))?;
         let device = need(2)?;
@@ -128,9 +131,7 @@ impl Elevated {
             return Err(format!("--device {device}: not {disk}'s"));
         }
         let serial = need(3)?;
-        if serial.chars().count() > MAX_SERIAL || serial.chars().any(char::is_control) {
-            return Err(String::from("--serial: not a serial"));
-        }
+        check_serial(serial)?;
         let size = number(need(4)?).ok_or("--size: not a size")?;
         let mode = match need(5)? {
             "whole" => Mode::Whole,
@@ -195,6 +196,95 @@ impl Elevated {
             },
             image_size,
         })
+    }
+}
+
+/// A stick's version to read, as the elevated copy is given it: the
+/// disk the window listed, by its serial and size as listed then.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReadVersion {
+    /// The pipe the answer goes back over.
+    pub pipe: String,
+    /// The disk (`\\.\PhysicalDriveN`).
+    pub disk: String,
+    /// Its serial as listed: the elevated copy refuses another.
+    pub serial: String,
+    /// Its size in bytes as listed: the elevated copy refuses another.
+    pub size: u64,
+}
+
+impl ReadVersion {
+    /// The arguments, `--read-version` first.
+    pub fn args(&self) -> Vec<String> {
+        vec![
+            READ_VERSION.into(),
+            "--pipe".into(),
+            self.pipe.clone(),
+            "--disk".into(),
+            self.disk.clone(),
+            "--serial".into(),
+            self.serial.clone(),
+            "--size".into(),
+            self.size.to_string(),
+        ]
+    }
+
+    /// Reads the arguments after the program's name, `--read-version`
+    /// first, or says what is wrong with them.
+    pub fn parse(args: &[String]) -> Result<ReadVersion, String> {
+        let (first, rest) = args.split_first().ok_or("no arguments")?;
+        if first != READ_VERSION {
+            return Err(format!("{first}: not {READ_VERSION}"));
+        }
+        if !rest.len().is_multiple_of(2) {
+            return Err(String::from("a key without its value"));
+        }
+        const KEYS: [&str; 4] = ["--pipe", "--disk", "--serial", "--size"];
+        let mut got: [Option<&str>; 4] = [None; 4];
+        for pair in rest.chunks(2) {
+            let i = KEYS
+                .iter()
+                .position(|k| *k == pair[0])
+                .ok_or_else(|| format!("{}: not a key", pair[0]))?;
+            if got[i].replace(pair[1].as_str()).is_some() {
+                return Err(format!("{} twice", pair[0]));
+            }
+        }
+        let need = |i: usize| got[i].ok_or_else(|| format!("{} missing", KEYS[i]));
+        let pipe = need(0)?;
+        check_pipe(pipe)?;
+        let disk = need(1)?;
+        disk_number(disk).ok_or_else(|| format!("--disk {disk}: not a disk"))?;
+        let serial = need(2)?;
+        check_serial(serial)?;
+        let size = number(need(3)?).ok_or("--size: not a size")?;
+        Ok(ReadVersion {
+            pipe: pipe.to_string(),
+            disk: disk.to_string(),
+            serial: serial.to_string(),
+            size,
+        })
+    }
+}
+
+/// A pipe the Starter made: [`PIPE_PREFIX`] and its own hex id.
+fn check_pipe(pipe: &str) -> Result<(), String> {
+    let ok = pipe.strip_prefix(PIPE_PREFIX).is_some_and(|id| {
+        !id.is_empty() && id.len() <= 64 && id.bytes().all(|b| b.is_ascii_hexdigit() || b == b'-')
+    });
+    if ok {
+        Ok(())
+    } else {
+        Err(format!("--pipe {pipe}: not the starter app's pipe"))
+    }
+}
+
+/// A serial: no longer than [`MAX_SERIAL`], no control characters.
+fn check_serial(serial: &str) -> Result<(), String> {
+    if serial.chars().count() > MAX_SERIAL || serial.chars().any(char::is_control) {
+        Err(String::from("--serial: not a serial"))
+    } else {
+        Ok(())
     }
 }
 

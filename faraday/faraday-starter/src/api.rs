@@ -188,14 +188,20 @@ pub struct Volume {
 }
 
 /// What a Faraday stick's boot partition says (§4.1): the stick has
-/// OSKBOOT and OSKDATA, and OSKBOOT was read through `faraday-fat`,
-/// read-only. OSKDATA is never opened.
+/// OSKBOOT and OSKDATA, and OSKBOOT was read, read-only. OSKDATA is
+/// never opened.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FaradayStick {
     /// The kernel release string found on OSKBOOT
     /// (`faraday_boot::find_release`), or `None` for a stick made before
     /// Faraday put one there.
     pub release: Option<String>,
+    /// OSKBOOT was read. On Windows it is not until keep data asks the
+    /// elevated copy ([`StarterCommand::ReadVersion`]): OSKBOOT is an
+    /// EFI system partition, which Windows lets only an administrator
+    /// read (tracker #21). While `false`, `release` is `None` and says
+    /// nothing about the stick.
+    pub read: bool,
 }
 
 /// One disk attached, as the shell reads it (udisks2's `Drive`, `Block`,
@@ -542,6 +548,9 @@ pub enum Reason {
     BootEntry(String),
     /// No Faraday stick is attached.
     NoStick,
+    /// Keep data: the stick already holds the build to be written, as
+    /// the elevated writer read it on Windows (tracker #21).
+    SameBuild,
     /// The person declined the administrator permission a step asks
     /// for (Windows' elevation prompt, polkit's password on Linux), so
     /// nothing was done.
@@ -684,6 +693,19 @@ pub enum StarterEvent {
     },
     /// [`StarterCommand::ReadRecoveryKey`] ended: the key, or why not.
     RecoveryKey(Result<RecoveryKey, Reason>),
+    /// [`StarterCommand::ReadVersion`] ended: the release string on the
+    /// stick's OSKBOOT (`None` for a stick made before Faraday put one
+    /// there), or why not.
+    VersionRead {
+        /// The disk, as the command named it.
+        disk: String,
+        /// Its serial, as the command named it.
+        serial: String,
+        /// Its size, as the command named it.
+        size: u64,
+        /// What was read, or why not.
+        result: Result<Option<String>, Reason>,
+    },
 }
 
 /// How a stick or card is written (§3.2 step 2).
@@ -807,4 +829,16 @@ pub enum StarterCommand {
     /// Read the system drive's recovery key through the elevated copy,
     /// for the sheet (F49); answered by [`StarterEvent::RecoveryKey`].
     ReadRecoveryKey,
+    /// Read a Faraday stick's version through the elevated copy
+    /// (Windows, tracker #21), for keep data's rules; answered by
+    /// [`StarterEvent::VersionRead`]. The elevated copy refuses a disk
+    /// whose serial or size is not these.
+    ReadVersion {
+        /// The disk's handle, from [`Disk::id`].
+        disk: String,
+        /// Its serial.
+        serial: String,
+        /// Its size in bytes.
+        size: u64,
+    },
 }

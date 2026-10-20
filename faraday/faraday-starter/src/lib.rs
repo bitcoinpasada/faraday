@@ -505,8 +505,19 @@ pub struct Starter {
 
     /// This computer.
     pub computer: Computer,
-    /// The disks attached.
+    /// The disks attached, with the versions read through the elevated
+    /// copy this session in place of the shell's unread ones.
     pub disks: Vec<Disk>,
+    /// The disks as the shell last sent them.
+    shell_disks: Vec<Disk>,
+    /// The versions the elevated copy read this session (Windows,
+    /// tracker #21), by disk id, serial and size: asked once per stick,
+    /// and forgotten once the stick is written.
+    versions: Vec<((String, String, u64), Option<String>)>,
+    /// A stick's version being read through the elevated copy: its id.
+    pub version_reading: Option<String>,
+    /// Why the last such read did not happen.
+    pub version_failed: Option<Reason>,
     /// The payload, when the Starter carries one.
     pub payload: Option<Payload>,
     /// A developer's image, in place of the payload's stick image.
@@ -610,6 +621,10 @@ impl Starter {
             dirty: true,
             computer: Computer::default(),
             disks: Vec::new(),
+            shell_disks: Vec::new(),
+            versions: Vec::new(),
+            version_reading: None,
+            version_failed: None,
             payload: None,
             dev: None,
             installed: None,
@@ -878,6 +893,47 @@ impl Starter {
         self.disks.iter().find(|d| d.id == id)
     }
 
+    /// The disks as the shell sent them, each unread stick's version in
+    /// place when the elevated copy read it this session.
+    fn apply_versions(&mut self) {
+        let mut disks = self.shell_disks.clone();
+        for d in &mut disks {
+            let key = (d.id.clone(), d.serial.clone(), d.size);
+            if let Some(f) = d.faraday.as_mut().filter(|f| !f.read)
+                && let Some((_, release)) = self.versions.iter().find(|(k, _)| *k == key)
+            {
+                f.release = release.clone();
+                f.read = true;
+            }
+        }
+        self.disks = disks;
+    }
+
+    /// Keep data is ticked on a stick whose version is not read yet
+    /// (Windows, tracker #21): Continue waits for it.
+    pub fn keep_unread(&self) -> bool {
+        self.making.as_ref().and_then(|m| m.mode) == Some(Mode::KeepData)
+            && self
+                .chosen_disk()
+                .and_then(|d| d.faraday.as_ref())
+                .is_some_and(|f| !f.read)
+    }
+
+    /// Keep data ticked on a stick whose version is not read: the
+    /// elevated copy asked to read it, once while the read is under way.
+    fn read_version(&mut self) {
+        if !self.keep_unread() || self.version_reading.is_some() {
+            return;
+        }
+        let Some(d) = self.chosen_disk() else {
+            return;
+        };
+        let (disk, serial, size) = (d.id.clone(), d.serial.clone(), d.size);
+        self.version_reading = Some(disk.clone());
+        self.out
+            .push_back(StarterCommand::ReadVersion { disk, serial, size });
+    }
+
     /// Whether `mode` can be chosen for the disk tapped, and why not.
     pub fn mode_refusal(&self, mode: Mode) -> Option<ModeRefusal> {
         let m = self.making.as_ref()?;
@@ -975,7 +1031,8 @@ impl Starter {
                         self.seen.push(disk.id.clone());
                     }
                 }
-                self.disks = d;
+                self.shell_disks = d;
+                self.apply_versions();
                 // A disk pulled out before Confirm is no longer chosen.
                 if let Some(m) = self.making.as_mut()
                     && m.confirmed.is_none()
@@ -1000,6 +1057,12 @@ impl Starter {
                 }
             }
             StarterEvent::Written(r) => {
+                // What the elevated copy read is no longer on the stick.
+                if let Some((id, ..)) = self.making.as_ref().and_then(|m| m.confirmed.as_ref()) {
+                    let id = id.clone();
+                    self.versions.retain(|((v, ..), _)| *v != id);
+                    self.apply_versions();
+                }
                 if let Some(m) = self.making.as_mut() {
                     m.result = Some(r);
                     m.progress = None;
@@ -1087,6 +1150,36 @@ impl Starter {
                     }
                     Ok(_) => {}
                     Err(why) => self.notes_open_failed = Some(why),
+                }
+            }
+            StarterEvent::VersionRead {
+                disk,
+                serial,
+                size,
+                result,
+            } => {
+                if self.version_reading.as_ref() == Some(&disk) {
+                    self.version_reading = None;
+                }
+                match result {
+                    Ok(release) => {
+                        self.version_failed = None;
+                        let key = (disk, serial, size);
+                        self.versions.retain(|(k, _)| *k != key);
+                        self.versions.push((key, release));
+                        self.apply_versions();
+                    }
+                    Err(why) => self.version_failed = Some(why),
+                }
+                // Keep data stays ticked only on a stick whose version is
+                // read and allows it.
+                let unticked = self
+                    .making
+                    .as_ref()
+                    .is_some_and(|m| m.mode == Some(Mode::KeepData))
+                    && (self.keep_unread() || self.mode_refusal(Mode::KeepData).is_some());
+                if unticked && let Some(m) = self.making.as_mut() {
+                    m.mode = None;
                 }
             }
             StarterEvent::BootEntry(e) => self.boot_entry = e,
@@ -1228,6 +1321,7 @@ impl Starter {
                     m.confirmed = None;
                     m.refused = None;
                 }
+                self.version_failed = None;
                 self.go(Page::Mode);
             }
             StarterAction::Mode(mode) => {
@@ -1236,6 +1330,10 @@ impl Starter {
                     && let Some(m) = self.making.as_mut()
                 {
                     m.mode = Some(mode);
+                    self.version_failed = None;
+                    if mode == Mode::KeepData {
+                        self.read_version();
+                    }
                 }
             }
             StarterAction::Continue => {
@@ -1246,7 +1344,8 @@ impl Starter {
                     .making
                     .as_ref()
                     .and_then(|m| m.mode)
-                    .is_some_and(|mode| self.mode_refusal(mode).is_none());
+                    .is_some_and(|mode| self.mode_refusal(mode).is_none())
+                    && !self.keep_unread();
                 if self.page == Page::Mode
                     && ready
                     && let Some(m) = self.making.as_mut()
@@ -1508,7 +1607,7 @@ impl Starter {
             }
             return;
         }
-        if self.no_writer || self.mode_refusal(mode).is_some() {
+        if self.no_writer || self.mode_refusal(mode).is_some() || self.keep_unread() {
             return;
         }
         self.out.push_back(StarterCommand::Write(WriteOrder {

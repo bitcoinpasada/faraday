@@ -442,7 +442,10 @@ impl Snapshot {
                     bus,
                     volumes,
                     in_use,
-                    faraday: faraday.then_some(FaradayStick { release: None }),
+                    faraday: faraday.then_some(FaradayStick {
+                        release: None,
+                        read: false,
+                    }),
                 },
                 boot,
             });
@@ -605,4 +608,17 @@ fn unhex(s: &str) -> Option<Vec<u8>> {
         .step_by(2)
         .map(|i| u8::from_str_radix(s.get(i..i + 2)?, 16).ok())
         .collect()
+}
+
+/// A Faraday stick as Windows reads it without elevation: the release
+/// string found on its boot volume, when Windows let it be read. Windows
+/// lets only an administrator read OSKBOOT, an EFI system partition
+/// (tracker #21), so nothing found is "not read", never a stick made
+/// before Faraday put its version there; keep data asks the elevated
+/// copy to read it.
+pub fn stick_read(release: Option<String>) -> FaradayStick {
+    FaradayStick {
+        read: release.is_some(),
+        release,
+    }
 }

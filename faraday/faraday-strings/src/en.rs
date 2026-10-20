@@ -167,6 +167,9 @@ pub struct Strings {
     pub starter_disk_unnamed: &'static str,
     /// What is on a disk: `{}` the version.
     pub starter_on_faraday: &'static str,
+    /// A Faraday stick's version when it was not read: Windows lets
+    /// only an administrator read the boot partition (tracker #21).
+    pub starter_version_not_read: &'static str,
     /// What is on a disk.
     pub starter_on_empty: &'static str,
     /// One volume with no name.
@@ -207,6 +210,9 @@ pub struct Strings {
     pub starter_mode_keep_fact: &'static str,
     /// Keep data refused.
     pub starter_mode_same: &'static str,
+    /// Keep data ticked on a stick whose version was not read: the
+    /// elevated copy reading it (tracker #21).
+    pub starter_mode_reading: &'static str,
     /// The whole stick refused for a boot partition image.
     pub starter_mode_boot_only: &'static str,
     /// Button.
@@ -521,6 +527,8 @@ pub struct Strings {
     pub starter_why_boot_entry: &'static str,
     /// Reason.
     pub starter_why_no_stick: &'static str,
+    /// The elevated writer found this build already on the stick.
+    pub starter_why_same_build: &'static str,
     /// Reason: declined on an account that is not an administrator's.
     pub starter_why_no_admin: &'static str,
     /// Reason: BitLocker refused to suspend: `{}` its return value.
@@ -8637,6 +8645,7 @@ pub static EN: Strings = Strings {
     starter_no_disks_card: "No SD card or USB stick attached",
     starter_disk_unnamed: "Disk",
     starter_on_faraday: "Faraday stick · {}",
+    starter_version_not_read: "version not read",
     starter_on_empty: "Empty",
     starter_on_volume: "1 volume",
     starter_on_volumes: "{} volumes",
@@ -8657,6 +8666,7 @@ pub static EN: Strings = Strings {
     starter_mode_keep_sub: "Only the boot partition is written",
     starter_mode_keep_fact: "This computer can read and change the data partition while the stick is attached.",
     starter_mode_same: "Already this build",
+    starter_mode_reading: "Reading the stick's version",
     starter_mode_boot_only: "The image is a boot partition alone",
     starter_continue: "Continue",
     starter_confirm_title: "Confirm",
@@ -8815,6 +8825,7 @@ pub static EN: Strings = Strings {
     starter_why_missing: "{} is not installed",
     starter_why_boot_entry: "efibootmgr failed: {}",
     starter_why_no_stick: "No Faraday stick is attached",
+    starter_why_same_build: "The stick already holds this build. Nothing was written.",
     starter_menu_name: "Faraday Starter",
     starter_publisher: "Faraday",
     starter_fault_reading: "reading the partition table failed: {}",

@@ -558,3 +558,70 @@ fn an_image_that_ends_inside_a_block_is_written_to_a_disk_that_takes_whole_block
     assert_eq!(&after[..bytes.len()], bytes.as_slice());
     untouched_outside(&before, &after, 0, bytes.len());
 }
+
+// ---- which Faraday a stick holds, read by the elevated copy (#21) ---------
+
+/// A Faraday stick whose boot partition holds `release` as its kernel
+/// does, a string among other bytes, near the partition's end.
+fn stick_holding(release: &[u8]) -> Vec<u8> {
+    let mut image = stick_image(gpt::DISK_UUID, 0xDA);
+    let from = (BOOT_FIRST * SECTOR) as usize;
+    let to = (DATA_FIRST * SECTOR) as usize;
+    let mut boot = boot_partition(to - from, 0x00);
+    let at = boot.len() - 1003;
+    boot[at..at + release.len()].copy_from_slice(release);
+    image[from..to].copy_from_slice(&boot);
+    image
+}
+
+#[test]
+fn the_elevated_copy_reads_which_faraday_a_stick_holds_from_its_boot_partition() {
+    let read = |image: Vec<u8>| {
+        let len = image.len() as u64;
+        writer::release_on_stick(&mut StrictDisk(std::io::Cursor::new(image)), len, "Disk 2")
+    };
+    assert_eq!(
+        read(stick_holding(
+            b"\x006.6.84-faraday-0.2.0+0123456789ab.test (buildroot@buildroot) #1 SMP\x00"
+        )),
+        Ok(Some(String::from("6.6.84-faraday-0.2.0+0123456789ab.test")))
+    );
+    // A stick made before Faraday put its version there.
+    assert_eq!(read(stick_image(gpt::DISK_UUID, 0xDA)), Ok(None));
+    // The data partition is not where the version is looked for.
+    let mut image = stick_image(gpt::DISK_UUID, 0xDA);
+    let d = (DATA_FIRST * SECTOR) as usize + 4096;
+    image[d..d + 22].copy_from_slice(b"\x006.6.84-faraday-0.9.0\x00");
+    assert_eq!(read(image), Ok(None));
+    // A disk that is not a Faraday stick says why.
+    assert!(matches!(
+        read(stick_image("11111111-2222-3333-4444-555555555555", 0xDA)),
+        Err(Reason::NotStick {
+            fault: StickFault::DiskUuid,
+            ..
+        })
+    ));
+}
+
+#[test]
+fn the_elevated_writer_refuses_keep_data_of_the_build_the_stick_already_holds() {
+    use faraday_core::strings::EN;
+    let on = Some("6.6.84-faraday-0.2.0+0123456789ab");
+    assert_eq!(
+        writer::refuse_same_build(on, Some("0.2.0+0123456789ab")),
+        Err(Reason::SameBuild)
+    );
+    assert_eq!(
+        faraday_starter::reason_text(&Reason::SameBuild),
+        EN.starter_why_same_build
+    );
+    assert_eq!(writer::refuse_same_build(on, Some("0.3.0")), Ok(()));
+    // An older Faraday over a newer one: Confirm warned, and it is written.
+    assert_eq!(
+        writer::refuse_same_build(Some("6.6.84-faraday-0.3.0"), Some("0.2.0")),
+        Ok(())
+    );
+    // A stick made before versions, and an image with no build ID.
+    assert_eq!(writer::refuse_same_build(None, Some("0.2.0")), Ok(()));
+    assert_eq!(writer::refuse_same_build(on, None), Ok(()));
+}

@@ -337,7 +337,7 @@ are not shown.
 
 | Item | State shown | Done when |
 |---|---|---|
-| **Make a Faraday stick** → §3.2 | "No Faraday stick attached" or the attached stick's Faraday version (read as §4.1 reads it) | a Faraday stick is attached |
+| **Make a Faraday stick** → §3.2 | "No Faraday stick attached" or the attached stick's Faraday version (read as §4.1 reads it; on Windows "version not read" until keep data reads it) | a Faraday stick is attached |
 | **Start this computer from the stick** → §3.4 | "Secure Boot: on" or "off" | never ticked; it is where the firmware steps live |
 | **Turn Secure Boot back on** → §3.4 at step 4 (shown while Secure Boot is off, never marked), with the link **What Secure Boot and BitLocker are** (§3.1b) | "Secure Boot: off" | Secure Boot is on |
 
@@ -552,7 +552,10 @@ in the firmware. Uninstall removes it too.
      rules apply (F2, F5; owner, D15): the same build string as the
      stick already holds is refused with the reason; an older Faraday
      over a newer stick is warned about on Confirm and can still be
-     written; anything else is written.
+     written; anything else is written. On Windows, ticking it on a
+     stick whose version was not read asks for administrator permission
+     once to read it (§4.1, D22), and Continue waits for the answer;
+     *New Faraday stick* needs no version and asks nothing.
 3. **Confirm** (Record) the stick (maker, model, size, device, serial),
    what is on it (its Faraday version, when it is a Faraday stick),
    what is written (the build ID and the `.img` SHA-256), the warning
@@ -804,6 +807,26 @@ the boot sector's OSKBOOT label). A stick whose version cannot be read
 shows as one made before versions were recorded. That version is shown
 on Which stick and Confirm and drives the keep-data rules (§3.2).
 OSKDATA is never mounted, opened, read or written (§4.4).
+
+**On Windows** (owner, 2026-10-19, tracker #21 option (e), D22) OSKBOOT
+is an EFI system partition, which Windows lets only an elevated process
+read, so the Starter's own process cannot read the version. "Could not
+read" is kept apart from "no version on the stick": Home and Which stick
+say "Faraday stick · version not read", never "0.1.0 or earlier".
+*New Faraday stick* needs no version. *Keep data* starts the elevated
+copy once with `--read-version` (the disk, its serial and size as
+listed, and the pipe to answer on); it checks the disk is still that one,
+reads the partition table as keep data checks it and up to the first 64
+MiB of OSKBOOT, and answers the release string found there
+(`faraday_boot::find_release`), or none for a stick made before versions
+were recorded. The Starter then applies the same rules as on Linux: the
+same build refused, an older Faraday over a newer stick warned about on
+Confirm. What was read stands for the session until the stick is
+written. A declined prompt says so on What to write and nothing is
+written. As a second check, the elevated writer reads the stick's
+version again before a keep-data write and refuses the same build.
+Linux and macOS read the version as above and never ask; the image and
+Upgrade a Faraday stick are unchanged.
 
 ### 4.2 Which disks are offered
 
@@ -1723,6 +1746,12 @@ what moved.
   and the desktop app on Windows is a developer's build.
 - **D21 `tools/flash-stick`:** removed once the Starter writes a
   developer's own image (`--image`, §1.1), in batch L.
+- **D22 The stick's version on Windows** (owner, 2026-10-19, tracker
+  #21, option (e)): an elevated read when keep data is chosen, one
+  administrator prompt, and "version not read" kept apart from "0.1.0 or
+  earlier" (§4.1). A copy of the version on OSKDATA or in the GPT was
+  rejected: what Windows reads without elevation is not updated by keep
+  data or Upgrade a Faraday stick.
 
 ## 13. What changed from v0.1
 

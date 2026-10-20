@@ -302,7 +302,10 @@ impl Objects {
                     bus,
                     volumes,
                     in_use: self.in_use(whole),
-                    faraday: boot.as_ref().map(|_| FaradayStick { release: None }),
+                    faraday: boot.as_ref().map(|_| FaradayStick {
+                        release: None,
+                        read: true,
+                    }),
                 },
                 boot,
             });

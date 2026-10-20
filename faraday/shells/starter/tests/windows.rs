@@ -12,12 +12,13 @@ use std::path::{Path, PathBuf};
 use faraday_core::strings::EN;
 use faraday_core::{Program, names};
 use faraday_starter::api::{
-    Bus, InUse, InstallItem, Mode, Os, Reason, Source, StickFault, WriteOrder, WriteStage,
+    Bus, FaradayStick, InUse, InstallItem, Mode, Os, Reason, Source, StickFault, WriteOrder,
+    WriteStage,
 };
 use faraday_starter::decide::{Refusal, Target, offers};
 use faraday_starter_shell::stick;
-use faraday_starter_shell::windows::disks::{Found, Snapshot};
-use faraday_starter_shell::windows::elevated::{Elevated, command_line, split};
+use faraday_starter_shell::windows::disks::{Found, Snapshot, stick_read};
+use faraday_starter_shell::windows::elevated::{Elevated, ReadVersion, command_line, split};
 use faraday_starter_shell::windows::install::{self, Data, Dirs, Left, Registry, uninstall_key};
 use faraday_starter_shell::windows::pipe::{self, Message};
 use faraday_starter_shell::windows::registry::{self, Facts};
@@ -163,6 +164,26 @@ fn a_faraday_stick_is_known_by_its_partitions_and_read_from_its_boot_volume_alon
 }
 
 #[test]
+fn a_stick_windows_did_not_let_the_starter_read_is_not_read_not_an_old_one() {
+    // As listed, before its boot volume is tried.
+    let s = laptop();
+    let list = found(&s);
+    let f = disk(&list, "Disk 2").disk.faraday.clone();
+    assert_eq!(
+        f,
+        Some(FaradayStick {
+            release: None,
+            read: false,
+        })
+    );
+    // Windows refused the boot volume to a process that is not elevated.
+    assert!(!stick_read(None).read);
+    let read = stick_read(Some("6.6.84-faraday-0.2.0".into()));
+    assert!(read.read);
+    assert_eq!(read.release.as_deref(), Some("6.6.84-faraday-0.2.0"));
+}
+
+#[test]
 fn the_writer_checks_the_same_disk_it_was_shown() {
     let s = laptop();
     let (id, bus) = s.identity(1).expect("disk 1");
@@ -299,6 +320,48 @@ fn the_elevated_writer_reads_back_the_order_it_was_started_with() {
         String::new(),
     ];
     assert_eq!(split(&command_line(&tricky)), tricky);
+}
+
+#[test]
+fn the_elevated_version_read_reads_back_the_disk_it_was_started_with() {
+    let r = ReadVersion {
+        pipe: PIPE.into(),
+        disk: r"\\.\PhysicalDrive2".into(),
+        serial: "AAA 111 \"x\\\"".into(),
+        size: 8_004_304_896,
+    };
+    assert_eq!(
+        ReadVersion::parse(&split(&command_line(&r.args()))),
+        Ok(r.clone())
+    );
+    let good = r.args();
+    let with = |key: &str, value: &str| {
+        let mut a = good.clone();
+        let i = a.iter().position(|k| k == key).expect("key");
+        a[i + 1] = value.to_string();
+        a
+    };
+    let refused = [
+        with("--disk", r"\\.\C:"),
+        with("--disk", r"C:\Windows"),
+        with("--pipe", r"\\.\pipe\someone-else"),
+        with("--size", "0"),
+        with("--size", "16 GB"),
+        with("--serial", "two\nlines"),
+        good[1..].to_vec(),
+        good[..good.len() - 1].to_vec(),
+        [good.clone(), vec!["--mode".into(), "whole".into()]].concat(),
+        [
+            good.clone(),
+            vec!["--disk".into(), r"\\.\PhysicalDrive1".into()],
+        ]
+        .concat(),
+    ];
+    for args in refused {
+        assert!(ReadVersion::parse(&args).is_err(), "{args:?} was taken");
+    }
+    // A write's arguments are not a read's, nor the other way round.
+    assert!(Elevated::parse(&good).is_err());
 }
 
 #[test]
@@ -455,6 +518,7 @@ fn every_reason() -> Vec<Reason> {
         Reason::Missing(s()),
         Reason::BootEntry(s()),
         Reason::NoStick,
+        Reason::SameBuild,
         Reason::Declined,
         Reason::Unsupported,
     ]
@@ -474,6 +538,8 @@ fn what_the_elevated_writer_reports_reaches_the_window_as_it_was_sent() {
             total: IMAGE,
         },
         Message::Done(Ok(())),
+        Message::Release(Some("6.6.84-faraday-0.2.0+0123456789ab.test".into())),
+        Message::Release(None),
     ];
     sent.extend(every_reason().into_iter().map(|r| Message::Done(Err(r))));
     let bytes: String = sent.iter().map(Message::encode).collect();
@@ -491,6 +557,7 @@ fn what_the_elevated_writer_reports_reaches_the_window_as_it_was_sent() {
         "failed\tTooSmall\t1\t2\t3\n",
         "failed\tWriteFailed\tbad \\x escape\n",
         "ok\textra\n",
+        "release\ta\tb\n",
         "ok",
     ] {
         let mut r = Cursor::new(bad.as_bytes().to_vec());

@@ -271,6 +271,18 @@ impl Shell {
                     let _ = tx.send(StarterEvent::BitLocker(now));
                 });
             }
+            StarterCommand::ReadVersion { disk, serial, size } => {
+                let (system, tx) = self.threaded();
+                std::thread::spawn(move || {
+                    let result = system.read_version(&disk, &serial, size);
+                    let _ = tx.send(StarterEvent::VersionRead {
+                        disk,
+                        serial,
+                        size,
+                        result,
+                    });
+                });
+            }
             StarterCommand::ReadRecoveryKey => {
                 let (system, tx) = self.threaded();
                 std::thread::spawn(move || {

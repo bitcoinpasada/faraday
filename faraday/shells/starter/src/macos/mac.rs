@@ -232,7 +232,10 @@ fn follow(out: &Sender<StarterEvent>, forget: &Receiver<String>) {
                                 r
                             }
                         };
-                        disk.faraday = Some(FaradayStick { release });
+                        disk.faraday = Some(FaradayStick {
+                            release,
+                            read: true,
+                        });
                     }
                     disks.push(disk);
                 }

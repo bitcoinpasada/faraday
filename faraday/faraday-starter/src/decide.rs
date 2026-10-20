@@ -148,6 +148,17 @@ pub fn keep_data(stick: &FaradayStick, build: Option<&str>) -> Fit {
     }
 }
 
+/// The Faraday version `stick` holds, as Home and Which stick say it:
+/// "version not read" when OSKBOOT was not read (Windows, tracker #21),
+/// kept apart from a stick made before Faraday put its version there.
+pub fn version_of(stick: &FaradayStick) -> String {
+    if stick.read {
+        faraday_core::upgrade::version(stick.release.as_deref())
+    } else {
+        EN.starter_version_not_read.to_string()
+    }
+}
+
 /// An item of Home's checklist (§3.1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Item {
@@ -244,7 +255,7 @@ impl Facts<'_> {
     pub fn stick_version(&self) -> Option<String> {
         self.stick()
             .and_then(|d| d.faraday.as_ref())
-            .map(|f| faraday_core::upgrade::version(f.release.as_deref()))
+            .map(version_of)
     }
 
     /// The checklist, in order, without the items that do not apply.

@@ -227,7 +227,10 @@ pub fn list<U: Udisks + ?Sized>(
                     release
                 }
             };
-            disk.faraday = Some(FaradayStick { release });
+            disk.faraday = Some(FaradayStick {
+                release,
+                read: true,
+            });
         }
         disks.push(disk);
     }

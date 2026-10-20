@@ -394,6 +394,82 @@ pub fn write(
     Ok(())
 }
 
+/// Reads the stick's partition table and up to `faraday_boot::MAX_PARTITION`
+/// bytes of its boot partition: which Faraday the stick on `disk` holds
+/// (`len` bytes long, `device` as a person knows it), read as the
+/// stick's own Upgrade a Faraday stick finds it, the kernel's release
+/// string searched for in the boot partition's bytes
+/// (`faraday_boot::find_release`). The partition table must be a
+/// Faraday stick's, as keep data checks it; `None` for a stick made
+/// before Faraday put its version there. Read in aligned blocks, as a
+/// disk opened unbuffered (Windows) takes its reads. The elevated copy's
+/// `--read-version` and its keep data's second check read the stick so
+/// (tracker #21).
+pub fn release_on_stick<R: Read + Seek>(
+    disk: &mut R,
+    len: u64,
+    device: &str,
+) -> Result<Option<String>, Reason> {
+    let not_stick = |fault| Reason::NotStick {
+        device: device.to_string(),
+        fault,
+    };
+    let failed = |e: io::Error| Reason::Device {
+        device: device.to_string(),
+        detail: e.to_string(),
+    };
+    let table = gpt::read(
+        &mut |at, buf| {
+            let (raw, skip, got) = aligned_read_at(disk, at, buf.len())?;
+            if got < skip + buf.len() {
+                return Err(io::Error::from(io::ErrorKind::UnexpectedEof));
+            }
+            buf.copy_from_slice(&raw[skip..skip + buf.len()]);
+            Ok(())
+        },
+        len,
+    )
+    .map_err(not_stick)?;
+    let boot = gpt::faraday_boot(&table, 0).map_err(not_stick)?;
+    let end = boot.offset + boot.len.min(faraday_boot::MAX_PARTITION);
+    // Each chunk keeps the end of the one before, so a string that
+    // straddles two is still seen whole.
+    let overlap = faraday_boot::MAX_RELEASE * 2;
+    let mut hay: Vec<u8> = Vec::with_capacity(CHUNK + overlap);
+    let mut at = boot.offset;
+    while at < end {
+        let n = (CHUNK as u64).min(end - at) as usize;
+        let (raw, skip, got) = aligned_read_at(disk, at, n).map_err(failed)?;
+        if got < skip + n {
+            return Err(failed(io::Error::from(io::ErrorKind::UnexpectedEof)));
+        }
+        hay.extend_from_slice(&raw[skip..skip + n]);
+        if let Some(r) = faraday_boot::find_release(&hay) {
+            return Ok(Some(r));
+        }
+        hay.drain(..hay.len().saturating_sub(overlap));
+        at += n as u64;
+    }
+    Ok(None)
+}
+
+/// Keep data's second check, in the elevated writer on Windows (tracker
+/// #21): writing build `build` over a stick that holds the release
+/// string `on_stick` is refused when it is the same build, by the
+/// stick's own rule (`faraday_core::upgrade::compare`). A source with
+/// no build ID it can be compared by passes, as Confirm lets it.
+pub fn refuse_same_build(on_stick: Option<&str>, build: Option<&str>) -> Result<(), Reason> {
+    let on_stick = on_stick.and_then(faraday_core::upgrade::build_id);
+    match build {
+        Some(b)
+            if faraday_core::upgrade::compare(on_stick, b) == faraday_core::upgrade::Fit::Same =>
+        {
+            Err(Reason::SameBuild)
+        }
+        _ => Ok(()),
+    }
+}
+
 /// The bytes of the partition table's regions. Read in aligned blocks:
 /// after the write the disk is open for reads straight from it
 /// (`O_DIRECT`), which refuses an unaligned offset, length or buffer.

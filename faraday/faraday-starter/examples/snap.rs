@@ -82,6 +82,7 @@ fn stick(id: &str, release: &str) -> Disk {
     Disk {
         faraday: Some(FaradayStick {
             release: Some(release.into()),
+            read: true,
         }),
         ..disk(id, "SanDisk", "Ultra Fit", 32 * GB, &[])
     }
@@ -508,6 +509,36 @@ fn run(s: &Snap) -> Result<(), String> {
     let n = StarterAction::Disk(h.disk_number("sde"));
     h.press(n);
     s.shot(&mut h, "stick-2-what-same-build")?;
+
+    // Windows, a stick whose version it did not let the Starter read
+    // (tracker #21): Home, Which stick, then keep data reading it and
+    // the prompt declined.
+    let unread = || {
+        let mut d = stick("sde", "");
+        d.faraday = Some(FaradayStick {
+            release: None,
+            read: false,
+        });
+        d
+    };
+    let mut h = s.starter();
+    h.starter_event(StarterEvent::Computer(laptop(Os::Windows, true)));
+    h.starter_event(StarterEvent::Disks(vec![unread()]));
+    s.shot(&mut h, "home-windows-stick-version-not-read")?;
+    h.press(StarterAction::Make(Target::Stick));
+    s.shot(&mut h, "stick-1-which-windows-version-not-read")?;
+    let n = StarterAction::Disk(h.disk_number("sde"));
+    h.press(n);
+    h.press(StarterAction::Mode(Mode::KeepData));
+    s.shot(&mut h, "stick-2-what-windows-reading")?;
+    let d = unread();
+    h.starter_event(StarterEvent::VersionRead {
+        disk: d.id,
+        serial: d.serial,
+        size: d.size,
+        result: Err(Reason::Declined),
+    });
+    s.shot(&mut h, "stick-2-what-windows-declined")?;
 
     let mut h = s.starter();
     h.starter_event(StarterEvent::Disks(many()));

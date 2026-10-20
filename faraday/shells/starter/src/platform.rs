@@ -101,6 +101,16 @@ pub trait Platform: Send + Sync {
         Err(Reason::Unsupported)
     }
 
+    /// The release string on the Faraday stick `disk` (serial `serial`,
+    /// `size` bytes, as listed), read through the elevated copy for keep
+    /// data (Windows, tracker #21): `None` for a stick made before
+    /// Faraday put one there. Other systems read it while listing the
+    /// disks and never ask.
+    fn read_version(&self, disk: &str, serial: &str, size: u64) -> Result<Option<String>, Reason> {
+        let _ = (disk, serial, size);
+        Err(Reason::Unsupported)
+    }
+
     /// The Starter is exiting: on Windows an uninstall run from the
     /// installed copy leaves its last step for now (§5.4).
     fn exiting(&self) {}

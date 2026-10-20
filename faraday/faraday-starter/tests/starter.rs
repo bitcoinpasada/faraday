@@ -91,6 +91,7 @@ fn faraday_stick(id: &str, model: &str, size: u64, release: Option<&str>) -> Dis
     Disk {
         faraday: Some(FaradayStick {
             release: release.map(str::to_string),
+            read: true,
         }),
         volumes: Vec::new(),
         ..disk(id, model, size)

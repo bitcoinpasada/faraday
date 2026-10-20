@@ -9,6 +9,11 @@
 //! ok
 //! failed TooSmall 15931539456 84955136
 //! ```
+//!
+//! The elevated copy's `--read-version` (tracker #21) answers on the
+//! same kind of pipe: `release` and the release string found on the
+//! stick's boot partition, or `release` alone for none, then `ok`; or
+//! `failed` and the reason.
 
 use std::io::BufRead;
 
@@ -31,6 +36,9 @@ pub enum Message {
     },
     /// The write ended: read back and matched, or why not.
     Done(Result<(), Reason>),
+    /// `--read-version`: the release string on the stick's boot
+    /// partition, or `None` for a stick made before Faraday put one there.
+    Release(Option<String>),
 }
 
 pub(crate) fn escape(s: &str) -> String {
@@ -114,6 +122,7 @@ pub(crate) fn reason_fields(r: &Reason) -> (&'static str, Vec<String>) {
         Reason::Missing(d) => ("Missing", vec![s(d)]),
         Reason::BootEntry(d) => ("BootEntry", vec![s(d)]),
         Reason::NoStick => ("NoStick", vec![]),
+        Reason::SameBuild => ("SameBuild", vec![]),
         Reason::Declined => ("Declined", vec![]),
         Reason::Unsupported => ("Unsupported", vec![]),
         Reason::NoAdmin => ("NoAdmin", vec![]),
@@ -287,6 +296,7 @@ pub(crate) fn reason(name: &str, f: &mut Fields<'_>) -> Result<Reason, String> {
         "Missing" => Reason::Missing(f.s()?),
         "BootEntry" => Reason::BootEntry(f.s()?),
         "NoStick" => Reason::NoStick,
+        "SameBuild" => Reason::SameBuild,
         "Declined" => Reason::Declined,
         "Unsupported" => Reason::Unsupported,
         "NoAdmin" => Reason::NoAdmin,
@@ -317,6 +327,9 @@ impl Message {
                 total.to_string(),
             ],
             Message::Done(Ok(())) => vec!["ok".into()],
+            Message::Release(r) => std::iter::once(String::from("release"))
+                .chain(r.clone())
+                .collect(),
             Message::Done(Err(r)) => {
                 let (name, rest) = reason_fields(r);
                 let mut f = vec!["failed".to_string(), name.to_string()];
@@ -355,6 +368,8 @@ impl Message {
                 }
             }
             "ok" => Message::Done(Ok(())),
+            "release" if fields.len() == 1 => Message::Release(None),
+            "release" => Message::Release(Some(f.s()?)),
             "failed" => {
                 let name = f.s()?;
                 Message::Done(Err(reason(&name, &mut f)?))

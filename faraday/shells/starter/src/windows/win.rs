@@ -1,6 +1,8 @@
 //! The Starter on Windows, on Windows: [`Windows`] answers the
 //! platform seam from the calls in `sys` and the readings in the pure
-//! modules, and [`elevated_write`] is the elevated copy's whole life.
+//! modules, and [`elevated_write`] is the elevated copy's whole life
+//! when it writes ([`elevated_read_version`] when it reads a stick's
+//! version for keep data, tracker #21).
 
 use std::collections::BTreeMap;
 use std::fs::{File, OpenOptions};
@@ -17,8 +19,8 @@ use faraday_core::strings::EN;
 use faraday_core::{Program, parse_version_output};
 use faraday_payload::{ImageKind, ImageSum, Sha256Sum};
 use faraday_starter::api::{
-    BitLocker, BitLockerStep, Bus, Computer, Concern, Disk, FaradayStick, Installed, Protection,
-    Reason, RecoveryKey, Source, StarterEvent, WriteOrder, WriteStage,
+    BitLocker, BitLockerStep, Bus, Computer, Concern, Disk, Installed, Mode, Protection, Reason,
+    RecoveryKey, Source, StarterEvent, WriteOrder, WriteStage,
 };
 use faraday_starter::concern;
 use windows_sys::Win32::Foundation::GENERIC_READ;
@@ -38,8 +40,8 @@ use zeroize::Zeroizing;
 
 use super::bitlocker::{self, Answer, Order, Reply, Verb};
 use super::devices::{self, Output};
-use super::disks::{RawDisk, RawVolume, Snapshot, disk_id, disk_number};
-use super::elevated::{self, Elevated};
+use super::disks::{RawDisk, RawVolume, Snapshot, disk_device, disk_id, disk_number, stick_read};
+use super::elevated::{self, Elevated, ReadVersion};
 use super::install::{self, Dirs, Left};
 use super::pipe::{self, Message};
 use super::registry::{self, Facts};
@@ -152,6 +154,10 @@ impl Platform for Windows {
                 code: 0,
             }),
         }
+    }
+
+    fn read_version(&self, disk: &str, serial: &str, size: u64) -> Result<Option<String>, Reason> {
+        elevate_read_version(disk, serial, size)
     }
 
     fn watch(&self, out: Sender<StarterEvent>, forget: Receiver<String>) {
@@ -451,7 +457,7 @@ fn follow(out: &Sender<StarterEvent>, forget: &Receiver<String>) {
                         r
                     }
                 };
-                disk.faraday = Some(FaradayStick { release });
+                disk.faraday = Some(stick_read(release));
             }
             disks.push(disk);
         }
@@ -519,10 +525,75 @@ fn elevate_write(
                 let _ = out.send(StarterEvent::WriteProgress { stage, done, total });
             }
             Message::Done(r) => result = Some(r),
+            Message::Release(_) => {}
         }
     }
     while !child.ended(Duration::from_millis(200)) {}
     result.unwrap_or_else(|| Err(ended(&child)))
+}
+
+/// The window's side of keep data's version read (tracker #21): a pipe,
+/// the elevated copy started on it with `--read-version`, and the
+/// release string it answered. A declined prompt on an account that is
+/// not an administrator's says so.
+fn elevate_read_version(disk: &str, serial: &str, size: u64) -> Result<Option<String>, Reason> {
+    let device = disk_number(disk).map_or_else(|| disk.to_string(), disk_device);
+    let fail = |detail: String| Reason::Device {
+        device: device.clone(),
+        detail,
+    };
+    let name = pipe_name();
+    let pipe = sys::pipe(&name).map_err(|e| fail(e.to_string()))?;
+    let args = ReadVersion {
+        pipe: name,
+        disk: disk.to_string(),
+        serial: serial.to_string(),
+        size,
+    }
+    .args();
+    let child = match sys::run_elevated(&running()?, &elevated::command_line(&args)) {
+        Ok(p) => p,
+        Err(Elevation::Declined) if sys::administrator() => return Err(Reason::Declined),
+        Err(Elevation::Declined) => return Err(Reason::NoAdmin),
+        Err(Elevation::Failed(e)) => return Err(fail(e.to_string())),
+    };
+    let ended = |child: &sys::Process| {
+        fail(format!(
+            "{} ended with code {}",
+            elevated::READ_VERSION,
+            child
+                .code()
+                .map_or_else(|| String::from("?"), |c| c.to_string())
+        ))
+    };
+    loop {
+        if sys::pipe_connected(&pipe).map_err(|e| fail(e.to_string()))? {
+            break;
+        }
+        if child.ended(Duration::from_millis(50)) {
+            return Err(ended(&child));
+        }
+    }
+    if sys::pipe_client(&pipe) != Some(child.id()) {
+        return Err(fail(String::from(
+            "another program answered on the Starter's pipe",
+        )));
+    }
+    let mut reader = BufReader::new(pipe);
+    let (mut release, mut result) = (None, None);
+    while let Some(m) = pipe::next(&mut reader) {
+        match m.map_err(fail)? {
+            Message::Release(r) => release = Some(r),
+            Message::Done(r) => result = Some(r),
+            Message::Progress { .. } => {}
+        }
+    }
+    while !child.ended(Duration::from_millis(200)) {}
+    match (result, release) {
+        (Some(Ok(())), Some(r)) => Ok(r),
+        (Some(Err(why)), _) => Err(why),
+        _ => Err(ended(&child)),
+    }
 }
 
 fn ended(child: &sys::Process) -> Reason {
@@ -540,6 +611,7 @@ fn ended(child: &sys::Process) -> Reason {
 pub fn early(args: &[String]) -> Option<ExitCode> {
     match args.first().map(String::as_str) {
         Some(elevated::WRITE) => Some(elevated_write(args)),
+        Some(elevated::READ_VERSION) => Some(elevated_read_version(args)),
         Some(bitlocker::BITLOCKER) => Some(elevated_bitlocker(args)),
         Some("--record-bitlocker") => Some(record_bitlocker()),
         Some("--record-disks") => {
@@ -617,6 +689,17 @@ fn elevated_write(args: &[String]) -> ExitCode {
             n,
             locks: Vec::new(),
         };
+        // Keep data's second check (tracker #21): the window could not
+        // read the stick's version without elevation, so this copy reads
+        // it again and refuses the same build.
+        if e.order.mode == Mode::KeepData {
+            let build = match &job {
+                Job::Payload { file, .. } => Some(file.build_id.as_str()),
+                Job::Image(i) => i.build_id.as_deref(),
+            };
+            let on_stick = release_of(&mut device, &e.order.device)?;
+            writer::refuse_same_build(on_stick.as_deref(), build)?;
+        }
         let mut last = None::<Instant>;
         let mut progress = |stage: WriteStage, done, total| {
             let now = Instant::now();
@@ -634,6 +717,66 @@ fn elevated_write(args: &[String]) -> ExitCode {
     } else {
         ExitCode::FAILURE
     }
+}
+
+/// The elevated copy that reads a stick's version for keep data
+/// (tracker #21): reads its arguments, refusing a malformed list before
+/// anything is opened, connects to the window's pipe, checks the disk is
+/// the one the window listed, reads its partition table and boot
+/// partition, and answers there.
+fn elevated_read_version(args: &[String]) -> ExitCode {
+    let Ok(r) = ReadVersion::parse(args) else {
+        return ExitCode::from(2);
+    };
+    let Ok(mut pipe) = OpenOptions::new().write(true).open(&r.pipe) else {
+        return ExitCode::from(3);
+    };
+    let mut send = |m: Message| {
+        let _ = pipe.write_all(m.encode().as_bytes());
+    };
+    match read_listed(&r) {
+        Ok(release) => {
+            send(Message::Release(release));
+            send(Message::Done(Ok(())));
+            ExitCode::SUCCESS
+        }
+        Err(why) => {
+            send(Message::Done(Err(why)));
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// The release string on the disk `r` names, once it is checked to be
+/// the one the window listed: the same serial and size, a disk the
+/// Starter offers.
+fn read_listed(r: &ReadVersion) -> Result<Option<String>, Reason> {
+    let n = disk_number(&r.disk).ok_or(Reason::Gone)?;
+    let mut device = PhysicalDrive {
+        n,
+        locks: Vec::new(),
+    };
+    let now = device.identity()?;
+    if now.serial != r.serial || now.size != r.size {
+        return Err(Reason::Changed {
+            device: now.device,
+            serial: now.serial,
+            size: now.size,
+        });
+    }
+    release_of(&mut device, &now.device)
+}
+
+/// Opens the disk read-only and reads its partition table and up to
+/// `faraday_boot::MAX_PARTITION` bytes of its boot partition: the
+/// release string on it (`writer::release_on_stick`).
+fn release_of(device: &mut PhysicalDrive, name: &str) -> Result<Option<String>, Reason> {
+    let mut f = device.open_read()?;
+    let len = device.length(&mut f).map_err(|e| Reason::Device {
+        device: name.to_string(),
+        detail: e.to_string(),
+    })?;
+    writer::release_on_stick(&mut f, len, name)
 }
 
 /// What the elevated copy writes: the one payload file named, from the

@@ -82,6 +82,7 @@ fn stick() -> Disk {
     Disk {
         faraday: Some(FaradayStick {
             release: Some("6.6.84-faraday-0.2.0".into()),
+            read: true,
         }),
         volumes: Vec::new(),
         ..blank("disk4")
