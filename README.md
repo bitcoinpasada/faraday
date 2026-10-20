@@ -760,7 +760,14 @@ stick and on the Pi) is stamped with a volume serial that is a function
 of `SOURCE_DATE_EPOCH` and the partition's role
 (`faraday/image/fat-serial.sh`, given to `mkfs.vfat -i` through the
 board's `genimage.cfg`), so two builds of one commit have the same
-serials; two sticks of one build have the same serials too. No second
+serials; two sticks of one build have the same serials too. The same
+`extraargs` carry `--invariant`: Buildroot builds dosfstools 4.2 for the
+host, which does not read `SOURCE_DATE_EPOCH` (that came in a later
+release), so `BR2_REPRODUCIBLE` and the exported variable did not reach
+`mkfs.vfat`, and it stamped the root directory's volume-label entry with
+the clock (creation and write time, 8 bytes per image). `--invariant`
+makes it use a fixed time; it also fixes the volume ID, which the
+following `-i` replaces. No second
 builder has checked a Faraday image yet. The
 Starter for Linux is built by `just faraday-linux-bin` in a pinned
 Debian 11 container (`faraday/build/linux`), against glibc 2.31, with
