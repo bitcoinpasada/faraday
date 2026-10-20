@@ -111,9 +111,9 @@ envelope's 256 KiB, written to another stick.
 ### 4.1 The rule
 
 **What a vault needs, *V*.** One function in `faraday-core`,
-`vault_need_mib(header, file_len)`, gives it, and both this rule and
-Unlock's check (`vault_unlock_check`, today Argon2id memory + 100 MiB
-from `memory_to_open_mib`) use it: *V* = its Argon2id memory + twice
+`vault_need_mib(memory_mib, slot_len)`, gives it from the vault's
+header, and both this rule and Unlock's check (`vault_unlock_check`)
+use it: *V* = its Argon2id memory + twice
 its file size + 100 MiB. That is the unlock's memory, the file and a
 sealed copy beside it while it is written, and the 100 MiB `APP_MIB`
 that Create already leaves beside a vault for a slot's plaintext and

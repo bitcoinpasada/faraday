@@ -12168,6 +12168,18 @@ impl Faraday {
             kept(Screen::Lightning),
             kept(Screen::Silent),
         );
+        // A vault's passphrase, typed or half typed, goes once nothing that
+        // takes it is up, however it was left; an unlock under way keeps it
+        // until it is done.
+        let typing = matches!(
+            self.screen,
+            Screen::Unlock | Screen::BackupFlow | Screen::Family
+        ) || self.sheet == Some(Sheet::Import);
+        if !typing && self.vaults.working != Some(vaults::Work::Unlock) {
+            self.vaults.passphrase.clear();
+            self.vaults.typed_shown = false;
+            self.vaults.unlock_error = None;
+        }
         // Leaving the new-key screen drops what it held.
         if self.screen != Screen::KeyGen && self.keygen.is_some() {
             self.keygen_drop();

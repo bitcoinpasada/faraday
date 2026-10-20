@@ -81,6 +81,15 @@ pub fn contents(label: &str) -> Contents {
                 .with(3, &[0x73, 0xc5, 0xda, 0x0a])
                 .with(4, &[0x55; 32]),
             amounts,
+            Record::new(kind::WALLET_SHARE)
+                .with(field::SHARE, b"wsh(sortedmulti(2,[73c5da0a/48h/0h/0h/2h]xpub...,...))")
+                .with(field::SHARE_WALLET_NAME, b"Savings")
+                .with(field::SHARE_NUMBER, &[1])
+                .with(field::SHARE_OF, &[3])
+                .with(field::SHARE_WALLET, b"wsh(sortedmulti(2,...))"),
+            Record::new(kind::PASSPHRASE)
+                .with(field::PASSPHRASE_KEY, &[0x9a, 0x6a, 0x25, 0x80])
+                .with(field::PASSPHRASE, b"TREZOR"),
         ],
     }
 }

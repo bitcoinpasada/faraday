@@ -1374,6 +1374,11 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             // needs; Customise opens the three cards they stand for.
             let chosen = app.vaults.size_row();
             let free = app.vaults.memory_free_mib;
+            let slot = app
+                .vaults
+                .create
+                .as_ref()
+                .map_or(faraday_vault::DEFAULT_SLOT, |c| c.slot);
             let row_h = if ui.compact { 70.0 } else { 56.0 };
             for (r, (label, preset, _)) in SIZES.iter().enumerate() {
                 let (_, mem, passes) = PRESETS[*preset];
@@ -1407,7 +1412,7 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 };
                 // Short of memory here: what this computer has free, in
                 // place of the time.
-                let short = free.filter(|f| mem + vaults::APP_MIB > *f);
+                let short = free.filter(|f| vaults::vault_need_mib(mem, slot) > *f);
                 if ui.compact {
                     // Three lines: the name, the cost and its time here,
                     // the memory it needs.
@@ -1968,8 +1973,13 @@ fn create_summary(app: &Faraday, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         PRESETS[k].0
     };
     let mut warnings: Vec<(String, osk_ui::Color)> = Vec::new();
+    let slot = app
+        .vaults
+        .create
+        .as_ref()
+        .map_or(faraday_vault::DEFAULT_SLOT, |c| c.slot);
     if let Some(free) = app.vaults.memory_free_mib
-        && mem + vaults::APP_MIB > free
+        && vaults::vault_need_mib(mem, slot) > free
     {
         warnings.push((
             fill(FEN.vault_this_computer_n, &[&mib_text(mem).to_string()]),

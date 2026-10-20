@@ -152,13 +152,6 @@ pub struct Header {
 }
 
 impl Header {
-    /// The memory a machine needs free to open this vault, in MiB: the
-    /// Argon2id memory, the file, one slot's plaintext and the running
-    /// system (§3.1).
-    pub fn memory_to_open_mib(&self) -> u32 {
-        self.cost.memory_kib / 1024 + 100
-    }
-
     fn to_bytes(self) -> [u8; HEADER_LEN] {
         let mut h = [0u8; HEADER_LEN];
         h[0..4].copy_from_slice(&MAGIC);

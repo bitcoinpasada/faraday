@@ -66,9 +66,19 @@ pub const MACHINES: [(&str, &str, &str, u32); 5] = [
 /// The most unlock memory This computer is suggested for, MiB: more
 /// buys a vault little.
 pub const MAX_UNLOCK_MIB: u32 = 4096;
-/// What the app itself takes beside a vault's unlock memory, MiB, as
-/// the vault file's header counts it.
+/// What the app itself takes beside a vault's unlock memory and file,
+/// MiB: a slot's plaintext and the app.
 pub const APP_MIB: u32 = 100;
+
+/// The memory a machine needs free to open a vault of this unlock memory
+/// and slot size, MiB: the Argon2id memory, twice the file (the file and
+/// a sealed copy beside it while it is written) and [`APP_MIB`]
+/// (`docs/VAULT.md` §3.1).
+pub fn vault_need_mib(memory_mib: u32, slot_len: u32) -> u32 {
+    const MIB: u64 = 1024 * 1024;
+    let twice = (2 * fv::file_len(slot_len) as u64 + MIB / 2) / MIB;
+    memory_mib + twice as u32 + APP_MIB
+}
 
 /// A custom cost's memory choices, MiB.
 pub const CUSTOM_MEMORY: [u32; 8] = [64, 128, 256, 512, 1024, 2048, 3072, 4096];
@@ -85,14 +95,6 @@ pub const CATEGORIES: [(&str, &[u8]); 7] = [
     (EN.vaults_gpg_keys, &[kind::GPG]),
     (EN.vaults_secure_boot, &[kind::SECURE_BOOT]),
     (EN.apk_signing_keys, &[kind::APK_KEY]),
-];
-
-/// The labels a new vault's slots start with, in passphrase order.
-const SLOT_LABELS: [&str; 4] = [
-    EN.vaults_main,
-    EN.vaults_second,
-    EN.vaults_third,
-    EN.vaults_fourth,
 ];
 
 /// Bits of a passphrase from dice counted strong: six words of the EFF
@@ -816,17 +818,18 @@ impl Vaults {
     }
 
     /// The most unlock memory this computer gives a vault, MiB: the
-    /// largest custom memory that fits in what it has free beside the
-    /// app, at most 4 GiB, which is as much as a vault needs; 4 GiB when
-    /// it does not say.
+    /// largest custom memory that fits in what it has free beside twice
+    /// the file and the app ([`vault_need_mib`]), at most 4 GiB, which is
+    /// as much as a vault needs; 4 GiB when it does not say.
     pub fn here_limit(&self) -> u32 {
         let Some(free) = self.memory_free_mib else {
             return MAX_UNLOCK_MIB;
         };
+        let slot = self.create.as_ref().map_or(fv::DEFAULT_SLOT, |c| c.slot);
         CUSTOM_MEMORY
             .iter()
             .copied()
-            .filter(|m| *m <= MAX_UNLOCK_MIB && m + APP_MIB <= free)
+            .filter(|m| *m <= MAX_UNLOCK_MIB && vault_need_mib(*m, slot) <= free)
             .max()
             .unwrap_or(CUSTOM_MEMORY[0])
     }
@@ -2217,13 +2220,11 @@ impl Faraday {
         } else if self.vaults.passphrase.text.is_empty() {
             Some(EN.vaults_type_the_passphrase.to_string())
         } else {
+            let need = vault_need_mib(f.header.cost.memory_kib / 1024, f.header.slot_len);
             match self.vaults.memory_free_mib {
-                Some(free) if f.header.memory_to_open_mib() > free => Some(fill(
+                Some(free) if need > free => Some(fill(
                     EN.vaults_needs_this_computer,
-                    &[
-                        &mib_text(f.header.memory_to_open_mib()).to_string(),
-                        &mib_text(free).to_string(),
-                    ],
+                    &[&mib_text(need).to_string(), &mib_text(free).to_string()],
                 )),
                 _ => None,
             }
@@ -3207,7 +3208,7 @@ impl Faraday {
             c.open = Some(vstep::PHRASES);
             Some(EN.vaults_two_passphrases.to_string())
         } else if let (Some(free), Some((_, mem, _))) = (free, cost)
-            && mem + 100 > free
+            && vault_need_mib(mem, c.slot) > free
         {
             Some(EN.vaults_choose_a_cost.to_string())
         } else {
@@ -3253,11 +3254,23 @@ impl Faraday {
                 .unwrap_or_default(),
         );
         let phrases: Vec<&[u8]> = c.phrases.iter().map(|(a, _)| a.text.as_bytes()).collect();
-        let contents: Vec<Contents> = (0..phrases.len())
-            .map(|i| Contents {
-                records: vec![
-                    Record::new(kind::SLOT_LABEL).with(field::LABEL, SLOT_LABELS[i].as_bytes()),
-                ],
+        // Every slot starts with the vault's name: a slot opened under
+        // pressure says nothing of the others (`docs/VAULT.md` §9, F57).
+        let label = match c.name.text.trim() {
+            "" => EN.vaults_vault,
+            typed => {
+                // A slot's label holds 64 bytes (`docs/VAULT.md` §7).
+                let end = (0..=typed.len().min(64))
+                    .rev()
+                    .find(|&i| typed.is_char_boundary(i))
+                    .unwrap_or(0);
+                &typed[..end]
+            }
+        };
+        let contents: Vec<Contents> = phrases
+            .iter()
+            .map(|_| Contents {
+                records: vec![Record::new(kind::SLOT_LABEL).with(field::LABEL, label.as_bytes())],
             })
             .collect();
         let made = fv::create(c.slot, cost, &phrases, &contents, &seed);

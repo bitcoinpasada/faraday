@@ -7496,14 +7496,6 @@ pub struct Strings {
     pub vaults_gpg_keys: &'static str,
     /// Text in `CATEGORIES`.
     pub vaults_secure_boot: &'static str,
-    /// Text in `SLOT_LABELS`.
-    pub vaults_main: &'static str,
-    /// Text in `SLOT_LABELS`.
-    pub vaults_second: &'static str,
-    /// Text in `SLOT_LABELS`.
-    pub vaults_third: &'static str,
-    /// Text in `SLOT_LABELS`.
-    pub vaults_fourth: &'static str,
     /// Text in `dice_aim`. `{}`: `n`, `STRONG_BITS`.
     pub vaults_aim_for_words: &'static str,
     /// Text in `mib_text`. `{}`: `f64::from(mib) / 1024.0`.
@@ -7594,7 +7586,7 @@ pub struct Strings {
     pub vaults_remove_the_to: &'static str,
     /// Text in `vault_unlock_check`.
     pub vaults_type_the_passphrase: &'static str,
-    /// Text in `vault_unlock_check`. `{}`: `mib_text(f.header.memory_to_open_mib())`, `mib_text(free)`.
+    /// Text in `vault_unlock_check`. `{}`: `mib_text(need)`, `mib_text(free)`.
     pub vaults_needs_this_computer: &'static str,
     /// Toast in `vault_unlock`. `{}`: `self.vaults.open[v].name`.
     pub vaults_unlocked: &'static str,
@@ -12120,10 +12112,6 @@ pub static EN: Strings = Strings {
     vaults_entries: "Entries",
     vaults_gpg_keys: "GPG keys",
     vaults_secure_boot: "Secure Boot",
-    vaults_main: "Main",
-    vaults_second: "Second",
-    vaults_third: "Third",
-    vaults_fourth: "Fourth",
     vaults_aim_for_words: "Aim for {} words or more on this list: the count turns green at {} bits, which this vault counts as strong. The lists and how to roll for them: eff.org/dice",
     vaults_gib: "{} GiB",
     vaults_mib: "{} MiB",

@@ -124,7 +124,7 @@ fn after_a_lock_the_vaults_list_names_the_vaults_wallet_and_key() {
         "the locked vault's row names {wallet} and key {fp}: {texts:?}"
     );
     assert!(
-        texts.iter().any(|t| t == "Main"),
+        texts.iter().any(|t| t == "Vault"),
         "the row goes by the slot's name: {texts:?}"
     );
 }

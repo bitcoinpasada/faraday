@@ -2026,3 +2026,17 @@ and n more places". A drop that brings a place keeping two seeds or
 more nearer a spend asks on a sheet: "Anyone with access to {place}
 (and the vault's passphrase) can spend", or "needs only n more places
 to spend", with Keep it and Take it off. A warning, never a refusal.
+
+### F57 A new vault's slots go by the vault's name (2026-10-20)
+
+**Why.** Each slot of a new vault was labelled by passphrase order:
+"Main", "Second", "Third", "Fourth". The label is inside the slot, so
+a person made to open one slot showed "Second" and with it that a
+first passphrase exists, which `docs/VAULT.md` §9 says the file does
+not reveal.
+
+**Decision** (owner, 2026-10-20; `docs/VAULT.md` §8, §9). Every slot
+of a new vault is labelled with the vault's name as typed on the form,
+or "Vault" when none is, whichever passphrase opens it. Renaming an
+open slot stays as it was. Vaults made before keep their labels; a
+person who wants them neutral renames them.

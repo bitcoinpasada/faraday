@@ -161,7 +161,8 @@ attacker, who runs guesses in parallel anyway.
 "Memory free to open" is the Argon2id memory, plus twice the vault
 file (the file and a sealed copy beside it while it is written), plus
 100 MiB (`APP_MIB`) for a slot's plaintext and the app. One function in
-`faraday-core`, `vault_need_mib(header, file_len)`, gives it; Unlock's
+`faraday-core`, `vault_need_mib(memory_mib, slot_len)`, gives it from the
+unlock memory and the slot size (a header's, or the form's); Unlock's
 check (`vault_unlock_check`), Create's choice for **This computer** and
 the import rule of `docs/LARGE-FILES.md` §4.1 all use it. On Faraday
 the whole system is a few tens of megabytes in RAM; on another
@@ -361,6 +362,9 @@ byte and the end record, and is still a used slot.
 
 The **Create vault** form takes the slot size, the Argon2id cost, and one
 to four passphrases, each typed twice. It refuses two equal passphrases.
+Every slot's label (type 1) starts as the vault's name, or "Vault" when
+none is typed, whichever passphrase opens it (F57): a slot opened under
+pressure names no other. A slot can be renamed once open.
 
 1. Draw a 32-byte salt.
 2. Choose the slot positions for the passphrases by a random permutation
@@ -382,7 +386,8 @@ know whether such a slot exists.
 
 **Holds.** Without a passphrase, a single copy of a vault file shows four
 random-looking slots of equal size. It does not say how many passphrases
-exist or which slot a passphrase opens. Unlocking takes the same work
+exist or which slot a passphrase opens, and an opened slot's default
+label is the vault's name, the same for every slot (§8). Unlocking takes the same work
 whichever slot opens. Nothing on screen counts slots or reports free
 ones.
 
@@ -432,10 +437,10 @@ the session seals, and written into the kept state at lock under the key
 are gone at power-off, with the rest of `/run/faraday`.
 
 The Vaults list's row of a locked vault with a summary goes by the
-slot's name ("Main"), keeps its file name, and reads the summary in
+slot's name ("Savings"), keeps its file name, and reads the summary in
 place of its size and cost: "Savings 2 of 3 · key 9a6a2580 · 12 entries
 · seen 14:02" (one or two wallets and keys by name, more by count).
-Home's Unlock lead is "Unlock Main" with the same line. A locked vault
+Home's Unlock lead is "Unlock Savings" with the same line. A locked vault
 with no summary keeps its row as before and reads "Unlock to see what
 it holds".
 

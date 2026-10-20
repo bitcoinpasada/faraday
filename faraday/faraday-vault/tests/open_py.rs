@@ -1,6 +1,7 @@
-//! `tools/vault/open.py` reads the vectors, including an APK signing key
-//! (type 12), and `--field TYPE.FIELD --out FILE` writes one field's bytes
-//! and nothing else, to a new file only its owner can read
+//! `tools/vault/open.py` reads the vectors, every record type among them
+//! (an APK signing key, a wallet share, a passphrase), and `--field
+//! TYPE.FIELD --out FILE` writes one field's bytes and nothing else, to a
+//! new file only its owner can read
 //! (`docs/APK-SIGNING.md` §3, §7). Skipped, and said, where Python or the
 //! libraries the reader needs are missing.
 
@@ -72,6 +73,22 @@ fn open_py_prints_the_apk_signing_key_record_of_the_vectors() {
         text.contains("package: app.faradayoffline.fixture"),
         "{text}"
     );
+}
+
+#[test]
+fn open_py_opens_a_slot_holding_a_wallet_share_and_a_passphrase() {
+    let Some(out) = open_py(vectors::ONE.0, vectors::ONE.1[0], &[]) else {
+        return;
+    };
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(text.contains("wallet name: Savings"), "{text}");
+    assert!(text.contains("key fingerprint: 9a6a2580"), "{text}");
+    assert!(text.contains("passphrase: TREZOR"), "{text}");
 }
 
 #[test]

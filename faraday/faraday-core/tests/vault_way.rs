@@ -3,7 +3,10 @@
 //! goes straight to Unlock with it picked, and unlocking it returns to
 //! the step that asked. With a vault file and none unlocked, Unlock
 //! opens with it picked, after the stick is pulled. Going back on the
-//! way returns to the flow and drops a secret held for it.
+//! way returns to the flow and drops a secret held for it. Leaving Unlock,
+//! by its back link or any other way, drops what was typed there. Unlock
+//! is refused, before any work, on a computer without the memory free that
+//! the vault's unlock memory, twice its file and the app need.
 
 mod common;
 
@@ -414,6 +417,51 @@ fn an_oskb_in_files_makes_a_vault_and_comes_back_with_import_live() {
 // §3.3 (`docs/SIMPLIFY.md`): after creation, once more to open it; an
 // empty vault's next steps.
 // ---------------------------------------------------------------------
+
+#[test]
+fn leaving_unlock_drops_a_half_typed_passphrase() {
+    let mut app = device(Vec::new());
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    make_the_vault(&mut app);
+    for way_out in [Action::Nav(Screen::Vaults), Action::Nav(Screen::Home)] {
+        app.press(Action::Nav(Screen::Vaults));
+        app.press(Action::Vault(V::Open(0)));
+        assert_eq!(app.screen, Screen::Unlock);
+        type_text(&mut app, "test phr");
+        app.press(way_out);
+        assert!(
+            app.vaults.passphrase.text.is_empty(),
+            "{way_out:?} kept the typed passphrase"
+        );
+    }
+    // Typed in full and unlocked, it opens: nothing left over was in the way.
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    unlock_with(&mut app, NEW_PHRASE);
+}
+
+#[test]
+fn unlock_counts_the_file_twice_in_the_memory_it_needs() {
+    let mut app = device(Vec::new());
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    make_the_vault(&mut app);
+    // Light's 64 MiB, twice the 1 MiB file and 100 MiB for the app.
+    app.storage(StorageEvent::Memory { available_mib: 165 });
+    type_text(&mut app, NEW_PHRASE);
+    app.press(Action::Vault(V::Unlock));
+    settle(&mut app, |a| !a.vaults.open.is_empty());
+    assert!(app.vaults.open.is_empty(), "it unlocked short of memory");
+    assert_eq!(
+        app.vaults.unlock_error.as_deref(),
+        Some("Needs 166 MiB. This computer has 165 MiB free.")
+    );
+    app.storage(StorageEvent::Memory { available_mib: 166 });
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    unlock_with(&mut app, NEW_PHRASE);
+}
 
 #[test]
 fn create_a_vault_lands_on_unlock_asking_for_the_passphrase_once_more() {
