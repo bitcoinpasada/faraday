@@ -2585,7 +2585,14 @@ after the name, which says typing adds to it, though typing replaces it.
 
 **At most one place per key.** A plan has at most N places, N the
 wallet's number of keys: + place is not offered once there are N, and a
-preset never makes more. A single key has one place. An extra backup
+preset never makes more. A single key has one place, except that a
+single key whose seed has a BIP-39 passphrase may have a second place,
+just for the passphrase (owner, 2026-10-19): its cap is 2, every preset
+(the standard way too) makes Place 1 with the seed and Place 2 with the
+passphrase alone, and + place is offered until 2. With only one place the
+passphrase sits there (in its vault when the preset has one, else beside
+the words) and the board warns as before. A multisig's cap stays N: no
+extra place for passphrases. An extra backup
 somewhere else is a copy made outside the plan (Faraday's copy between
 sticks for files, by hand for paper), which the plan does not track.
 Fewer places than N are allowed (a place may then hold more than one

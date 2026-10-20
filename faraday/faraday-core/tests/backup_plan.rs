@@ -1070,13 +1070,12 @@ fn words_cannot_be_ticked_where_the_passphrase_is_kept() {
     let mut app = passphrase_key();
     app.press(Action::CBackup(1));
     open_board(&mut app);
-    // Paper only over two places for the words, as a plan saved before
-    // one place per key (§19.19): the passphrase at Place 3.
-    common::preset_two_places(&mut app, 1);
-    assert!(held(&app, At::Place(2)).contains(&What::Passphrase(0)));
-    put(&mut app, Thing::Seed(0), Zone::Paper(2));
-    common::form(&mut app, Zone::Paper(2), Thing::Seed(0), 1);
-    let here = held(&app, At::Place(2));
+    // Paper only: the words at Place 1, the passphrase alone at Place 2.
+    app.press(Action::BPreset(1));
+    assert!(held(&app, At::Place(1)).contains(&What::Passphrase(0)));
+    put(&mut app, Thing::Seed(0), Zone::Paper(1));
+    common::form(&mut app, Zone::Paper(1), Thing::Seed(0), 1);
+    let here = held(&app, At::Place(1));
     assert!(here.contains(&What::Passphrase(0)), "kept");
     assert!(here.contains(&What::Words(0)) && here.contains(&What::SeedQr(0)));
     assert!(shows_text(&mut app, "words with its passphrase"));
@@ -1346,20 +1345,17 @@ fn fewer_places_take_the_last_with_what_it_held_and_a_seed_kept_nowhere_holds_th
     use faraday_core::{Action, BStage, qstep};
     let mut app = passphrase_key();
     app.press(Action::CBackup(1));
-    // Words at Places 1 and 2, the passphrase at Place 3, as a plan saved
-    // before one place per key (§19.19).
-    common::preset_two_places(&mut app, 1);
-    assert_eq!(app.backup.as_ref().unwrap().answers.places, 3);
-    // The seed's words at Place 3 alone, its passphrase at Place 1.
-    put(&mut app, Thing::Seed(0), Zone::Paper(2));
-    for p in 0..2 {
-        words_off_at(&mut app, p);
-    }
-    put(&mut app, Thing::Pass(0), Zone::Paper(0));
-    // Place 3's ×: it goes with what it kept.
-    board(&mut app, BoardPress::RemovePlace(2));
+    // The words at Place 1, the passphrase alone at Place 2 (§19.19).
+    app.press(Action::BPreset(1));
     assert_eq!(app.backup.as_ref().unwrap().answers.places, 2);
-    assert!(the_map(&app).iter().all(|s| s.at != At::Place(2)));
+    // The seed's words at Place 2 alone, its passphrase at Place 1.
+    put(&mut app, Thing::Seed(0), Zone::Paper(1));
+    words_off_at(&mut app, 0);
+    put(&mut app, Thing::Pass(0), Zone::Paper(0));
+    // Place 2's ×: it goes with what it kept.
+    board(&mut app, BoardPress::RemovePlace(1));
+    assert_eq!(app.backup.as_ref().unwrap().answers.places, 1);
+    assert!(the_map(&app).iter().all(|s| s.at != At::Place(1)));
     assert!(
         !the_map(&app)
             .iter()
@@ -1400,6 +1396,59 @@ fn make_the_checklist_is_on_the_plan_card_alone_and_the_checklist_is_the_maps() 
     assert!(app.backup_items().contains(&bstep::of(Item::Vault(0))));
 }
 
+/// A single key with a passphrase may have a second place for the
+/// passphrase alone: the standard way makes it, + place is hidden at 2 for
+/// that key and at 1 for a key without a passphrase, and a multisig whose
+/// seeds have passphrases still caps at its keys (`docs/BACKUP-FLOW.md`
+/// §19.19).
+#[test]
+fn a_single_key_with_a_passphrase_has_a_second_place_for_it() {
+    use faraday_core::Action;
+    let mut app = passphrase_key();
+    app.press(Action::CBackup(1));
+    let w = app.backup.as_ref().unwrap().wallet;
+    let shape = app.plan_shape(w);
+    assert_eq!(faraday_core::plan::max_places(&shape), 2);
+    app.press(Action::BPreset(
+        Preset::ALL
+            .iter()
+            .position(|p| *p == Preset::Standard)
+            .unwrap() as u8,
+    ));
+    let a = &app.backup.as_ref().unwrap().answers;
+    assert_eq!(a.places, 2);
+    assert!(
+        a.pass_at(0, 1) && !a.pass_at(0, 0),
+        "the passphrase alone at Place 2"
+    );
+    assert!(
+        !shows(&mut app, Action::Board(BoardPress::AddPlace)),
+        "none at 2"
+    );
+    board(&mut app, BoardPress::RemovePlace(1));
+    assert!(
+        shows(&mut app, Action::Board(BoardPress::AddPlace)),
+        "offered at 1"
+    );
+    board(&mut app, BoardPress::AddPlace);
+    assert_eq!(app.backup.as_ref().unwrap().answers.places, 2);
+    assert!(!shows(&mut app, Action::Board(BoardPress::AddPlace)));
+}
+
+#[test]
+fn passphrases_add_no_place_to_a_key_without_one_or_to_a_multisig() {
+    use faraday_core::plan::max_places;
+    assert_eq!(max_places(&one_key()), 1);
+    let mut multi = two_of_three();
+    for s in &mut multi.seeds {
+        s.passphrase = true;
+    }
+    assert_eq!(max_places(&multi), 3);
+    for preset in Preset::ALL {
+        assert!(Answers::preset(&multi, preset).places <= 3, "{preset:?}");
+    }
+}
+
 #[test]
 fn each_preset_fills_the_board() {
     use faraday_core::Action;
@@ -1415,8 +1464,11 @@ fn each_preset_fills_the_board() {
             Some(vec![0]),
             "{preset:?}"
         );
-        // One place: the vault's stick there too (§19.19).
-        assert_eq!(a.places, 1, "{preset:?}: one place");
+        // Two places for a key with a passphrase (§19.19): the seed at
+        // Place 1, the vault's stick there too, the passphrase alone at
+        // Place 2.
+        assert_eq!(a.places, 2, "{preset:?}: two places");
+        assert!(a.pass_at(0, 1) && !a.pass_at(0, 0), "{preset:?}");
         let vault = !matches!(preset, Preset::Paper | Preset::Standard);
         assert_eq!(
             a.row_seeds(&shape, 0, Row::Vault(0)).is_some(),

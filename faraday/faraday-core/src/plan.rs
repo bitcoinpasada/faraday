@@ -360,8 +360,8 @@ impl Answers {
 
     /// The answers a preset fills in, from the wallet's defaults.
     pub fn preset(shape: &Shape, preset: Preset) -> Answers {
-        // A place per key, one for a single key (`docs/BACKUP-FLOW.md`
-        // §19.19).
+        // A place per key, one for a single key; its passphrase's place is
+        // added below, up to two (`docs/BACKUP-FLOW.md` §19.19).
         let base = if shape.multi() { shape.seeds.len() } else { 1 };
         Answers::preset_at(shape, preset, base)
     }
@@ -3816,9 +3816,13 @@ pub fn follows(shape: &Shape, a: &Answers, marks: &[(At, What, Mark)]) -> Follow
 }
 
 /// The most places a plan for `shape` has (`docs/BACKUP-FLOW.md` §19.19):
-/// one per key of the wallet, one for a single key. Fewer are allowed.
+/// one per key of the wallet, one for a single key, two for a single key
+/// whose seed has a passphrase (the second place is for the passphrase
+/// alone; owner, 2026-10-19). Fewer are allowed.
 pub fn max_places(shape: &Shape) -> usize {
-    shape.keys.max(shape.seeds.len()).max(1)
+    let keys = shape.keys.max(shape.seeds.len()).max(1);
+    let passphrase = shape.seeds.len() == 1 && shape.seeds[0].here && shape.seeds[0].passphrase;
+    if keys == 1 && passphrase { 2 } else { keys }
 }
 
 /// How the description's shares are handed out to a plan's places

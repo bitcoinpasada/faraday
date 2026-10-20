@@ -1949,7 +1949,9 @@ and handing a multisig description out as shares one by one is a puzzle
 a person should not have to solve.
 
 **Decision** (owner, 2026-10-19; `docs/BACKUP-FLOW.md` §19.19). A plan
-has at most N places, N the wallet's keys; a single key has one place.
+has at most N places, N the wallet's keys; a single key has one place,
+or two when its seed has a passphrase (the second place holds the
+passphrase alone; owner, 2026-10-19). A multisig's cap stays N.
 An extra copy is made outside the plan (copied between sticks, or by
 hand) and the plan does not track it. Partial descriptions are added to
 the whole backup by one button, **Add partial descriptions to this

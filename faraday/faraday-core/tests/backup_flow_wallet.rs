@@ -979,18 +979,23 @@ fn the_plan_says_when_every_secret_is_at_one_place() {
 }
 
 #[test]
-fn a_single_keys_passphrase_is_kept_at_its_one_place() {
-    // One place for a single key (`docs/BACKUP-FLOW.md` §19.19): its
-    // passphrase goes into the vault where the preset has one, else beside
-    // its words, which the board warns of.
+fn a_single_keys_passphrase_has_a_place_of_its_own_and_sits_at_the_one_place_without_it() {
+    // Two places for a single key with a passphrase (`docs/BACKUP-FLOW.md`
+    // §19.19): every preset keeps the passphrase alone at Place 2.
     let shape = shape_with(true, 1);
     for preset in Preset::ALL {
         let a = Answers::preset(&shape, preset);
-        assert_eq!(a.places, 1, "{preset:?}");
-        let vault = !matches!(preset, Preset::Paper | Preset::Standard);
-        assert_eq!(a.pass_at(0, 0), !vault, "{preset:?}: beside its words");
-        // The plan reads back with it.
+        assert_eq!(a.places, 2, "{preset:?}");
+        assert!(a.pass_at(0, 1) && !a.pass_at(0, 0), "{preset:?}: alone");
         assert_eq!(Answers::from_text(&shape, &a.to_text()), Some(a));
+    }
+    // A passphrase left unplaced is placed again, at a place of its own.
+    for preset in Preset::ALL {
+        let mut a = Answers::preset(&shape, preset);
+        a.set_places(&shape, 1);
+        a.pass[0].iter_mut().for_each(|b| *b = false);
+        a.place_passphrases(&shape);
+        assert_eq!(a.places, 2, "{preset:?}: no passphrase is left unplaced");
     }
 }
 
