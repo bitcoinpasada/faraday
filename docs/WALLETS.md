@@ -427,7 +427,8 @@ split's, by trying each place lost and each place found:
   device counts as kept.
 - **One place found: can spend**: Yes, **Only with the vault's
   passphrase** (the place keeps a vault's stick and that vault holds
-  what is missing), or No.
+  what is missing), or No. Seeds alone count: the description is public
+  (`docs/BACKUP-FLOW.md` §19.22).
 - **One place found: sees the balance**: the same three values; the
   whole description, or a one-key wallet's seed, shows it.
 

@@ -434,7 +434,7 @@ colour alone: each box has its glyph and its label.
 
 | Box | Fill | Edge | Header | Glyph |
 |---|---|---|---|---|
-| Place | `PLACE_FILL`, a pale green | `PLACE_EDGE`, `BOARD_BOX_EDGE`, and a left stripe `BOARD_PLACE_STRIPE` wide | a `PLACE_BAND` band `BOARD_HEAD` high: the glyph, the name and the × in `PLACE_TEXT`, the line of fact an outlined tag | house |
+| Place | `PLACE_FILL`, a pale green | `PLACE_EDGE`, `BOARD_BOX_EDGE`, and a left stripe `BOARD_PLACE_STRIPE` wide | a `PLACE_BAND` band `BOARD_HEAD` high: the glyph, the name and the × in `PLACE_TEXT`, the balance and how near it brings a spend as outlined tags (`BACKUP-FLOW.md` §19.22) | house |
 | Stick | `STICK_FILL`, a cool slate grey | `STICK_EDGE`, `BOARD_STICK_EDGE` | "Stick n" and its × in `STICK_TEXT` | USB stick (SD card on the Pi) |
 | Files | `FILES_FILL`, a pale blue | `FILES_EDGE`, `BOARD_BOX_EDGE` | "Files · not sealed" in `FILES_TEXT` | file |
 | **+ stick** | `STICK_FILL` | `STICK_EDGE`, dashed (`BOARD_DASH`); solid while a chip it takes is held | "+ stick" in `STICK_TEXT` | |

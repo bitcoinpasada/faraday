@@ -8355,6 +8355,34 @@ pub struct Strings {
     /// The same button while the software place is on the board: takes it
     /// off.
     pub board_take_off_watch: &'static str,
+    /// A place's spend tag (`docs/BACKUP-FLOW.md` §19.22): its seeds alone sign.
+    pub board_spend_alone: &'static str,
+    /// Its seeds sign alone, with the vault's passphrase.
+    pub board_spend_alone_vault: &'static str,
+    /// One more place's seeds and this place's sign.
+    pub board_spend_more_one: &'static str,
+    /// `{}`: how many more places' seeds sign with this place's.
+    pub board_spend_more: &'static str,
+    /// As `board_spend_more_one`, with the vault's passphrase.
+    pub board_spend_vault_more_one: &'static str,
+    /// As `board_spend_more`, with the vault's passphrase. `{}`: places.
+    pub board_spend_vault_more: &'static str,
+    /// The sheet over a drop that brings a place nearer a spend (§19.22). `{}`: the place.
+    pub board_spend_title_alone: &'static str,
+    /// As `board_spend_title_alone`, with the vault's passphrase. `{}`: the place.
+    pub board_spend_title_alone_vault: &'static str,
+    /// `{}`: the place; one more place spends.
+    pub board_spend_title_one: &'static str,
+    /// `{}`: the place, then how many more places.
+    pub board_spend_title_more: &'static str,
+    /// As `board_spend_title_one`, with the vault's passphrase.
+    pub board_spend_title_vault_one: &'static str,
+    /// As `board_spend_title_more`, with the vault's passphrase.
+    pub board_spend_title_vault_more: &'static str,
+    /// The sheet's line. `{}`: the place, its seeds, the seeds a spend needs.
+    pub board_spend_line: &'static str,
+    /// As `board_spend_line`, counting the seeds in its vaults.
+    pub board_spend_line_vault: &'static str,
     /// The sheet over a drop that lets a place see the balance
     /// (`docs/BACKUP-FLOW.md` §19.5). `{}`: the place.
     pub board_sees_title: &'static str,
@@ -12502,6 +12530,20 @@ pub static EN: Strings = Strings {
     board_customize: "Customize backup",
     board_add_watch_only: "Add watch-only software",
     board_take_off_watch: "Take off watch-only software",
+    board_spend_alone: "Can spend alone",
+    board_spend_alone_vault: "Can spend alone with the vault's passphrase",
+    board_spend_more_one: "Spends with 1 more place",
+    board_spend_more: "Spends with {} more places",
+    board_spend_vault_more_one: "Spends with the vault's passphrase and 1 more place",
+    board_spend_vault_more: "Spends with the vault's passphrase and {} more places",
+    board_spend_title_alone: "Anyone with access to {} can spend",
+    board_spend_title_alone_vault: "Anyone with access to {} and the vault's passphrase can spend",
+    board_spend_title_one: "Anyone with access to {} needs only 1 more place to spend",
+    board_spend_title_more: "Anyone with access to {} needs only {} more places to spend",
+    board_spend_title_vault_one: "Anyone with access to {} and the vault's passphrase needs only 1 more place to spend",
+    board_spend_title_vault_more: "Anyone with access to {} and the vault's passphrase needs only {} more places to spend",
+    board_spend_line: "{} keeps {} of the {} seeds a spend needs.",
+    board_spend_line_vault: "{} keeps {} of the {} seeds a spend needs, counting its vaults.",
     board_sees_title: "{} can see the wallet's balance",
     board_sees_whole: "The whole description is kept there.",
     board_sees_together: "{} together make the whole description.",

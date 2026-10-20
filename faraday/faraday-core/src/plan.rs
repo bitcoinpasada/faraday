@@ -1961,6 +1961,16 @@ impl Alone {
         self.parts().0
     }
 
+    /// The balance alone, as a place's header tag reads it beside its
+    /// spend tag ([`Reach::tag`], `docs/BACKUP-FLOW.md` §19.22).
+    pub fn balance_tag(self) -> (&'static str, AloneKind) {
+        match self.balance {
+            Found::Yes => (EN.plan_sees_the_balance_2, AloneKind::SeesBalance),
+            Found::OnlyWithVault => (EN.plan_sees_the_balance, AloneKind::NeedsVault),
+            Found::No => (EN.plan_nothing, AloneKind::Nothing),
+        }
+    }
+
     /// What [`Alone::text`] reads as, for the chart's colour
     /// ([`crate::glance::alone_color`]), without the colour reading the
     /// words themselves.
@@ -1978,6 +1988,147 @@ pub fn alone(shape: &Shape, a: &Answers, at: At) -> Alone {
         At::Stick(..) => alone_in(shape, a, &map(shape, a), at),
         _ => alone_in(shape, a, &place_map(shape, a), at),
     }
+}
+
+/// How near place `p` brings a spend, counting seeds alone: the
+/// description is public, so it is never what stands in the way
+/// (`docs/BACKUP-FLOW.md` §19.22).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Reach {
+    /// The fewest other places that, with this one, hold enough seeds to
+    /// sign. 0: this place spends alone.
+    pub more: usize,
+    /// This place gets there only with its vaults' passphrases; without
+    /// them it needs more places, or cannot.
+    pub vault: bool,
+    /// The seeds this place gives to sign with, its vaults read, at most
+    /// the quorum.
+    pub seeds: usize,
+}
+
+impl Reach {
+    /// The place's spend tag and how it reads: spending alone in the
+    /// clear is a warning, with a vault's passphrase the vault's accent,
+    /// the rest neutral.
+    pub fn tag(self) -> (String, AloneKind) {
+        let kind = match (self.more, self.vault) {
+            (0, false) => AloneKind::CanSpend,
+            (_, true) => AloneKind::NeedsVault,
+            _ => AloneKind::SeesBalance,
+        };
+        let text = match (self.more, self.vault) {
+            (0, false) => EN.board_spend_alone.to_string(),
+            (0, true) => EN.board_spend_alone_vault.to_string(),
+            (1, false) => EN.board_spend_more_one.to_string(),
+            (1, true) => EN.board_spend_vault_more_one.to_string(),
+            (k, false) => fill(EN.board_spend_more, &[&k.to_string()]),
+            (k, true) => fill(EN.board_spend_vault_more, &[&k.to_string()]),
+        };
+        (text, kind)
+    }
+
+    /// Whether `self` is nearer a spend than `was`: fewer places, or as
+    /// many without the vault's passphrase.
+    pub fn nearer_than(self, was: Option<Reach>) -> bool {
+        was.is_none_or(|w| (self.more, self.vault) < (w.more, w.vault))
+    }
+}
+
+/// What place `p` brings to a spend: `None` when it keeps no seed, or no
+/// set of places adds up to a spend. Every other place counts with its
+/// vaults read. Costs a map of the plan and a search over the places,
+/// at most the quorum deep.
+pub fn reach(shape: &Shape, a: &Answers, p: usize) -> Option<Reach> {
+    let boxes = place_map(shape, a);
+    let m = shape.m.max(1);
+    let n = shape.seeds.len().min(64);
+    let need: u64 = (0..n)
+        .filter(|&i| shape.seeds[i].passphrase)
+        .fold(0, |acc, i| acc | 1 << i);
+    // A place as two masks: the seeds it keeps, the passphrases.
+    let masks = |h: &Have| -> (u64, u64) {
+        let bits = |v: &[bool]| {
+            (0..n)
+                .filter(|&i| v.get(i) == Some(&true))
+                .fold(0u64, |acc, i| acc | 1 << i)
+        };
+        (bits(&h.seeds), bits(&h.pass))
+    };
+    let signs = |(s, ps): (u64, u64)| (s & (ps | !need)).count_ones() as usize;
+    let read = |q: usize, vaults: bool| -> (u64, u64) {
+        let at = At::Place(q);
+        let mut have = Have::none(shape);
+        holds_in(&boxes, at).into_iter().for_each(|w| have.add(w));
+        if vaults {
+            have = opened_in(&boxes, &have, &reads_in(&boxes, at));
+        }
+        masks(&have)
+    };
+    let places: Vec<usize> = spots(&boxes)
+        .into_iter()
+        .filter_map(|at| match at {
+            At::Place(q) => Some(q),
+            _ => None,
+        })
+        .collect();
+    if !places.contains(&p) {
+        return None;
+    }
+    let open = read(p, true);
+    if open.0 == 0 {
+        return None;
+    }
+    let others: Vec<(u64, u64)> = places
+        .iter()
+        .filter(|&&q| q != p)
+        .map(|&q| read(q, true))
+        .collect();
+    let fewest = |start: (u64, u64)| -> Option<usize> {
+        // Only places that add something can help.
+        let useful: Vec<(u64, u64)> = others
+            .iter()
+            .copied()
+            .filter(|&(s, ps)| s & !start.0 != 0 || ps & !start.1 != 0)
+            .collect();
+        fn search(
+            from: &[(u64, u64)],
+            have: (u64, u64),
+            left: usize,
+            signs: &dyn Fn((u64, u64)) -> usize,
+            m: usize,
+        ) -> bool {
+            if signs(have) >= m {
+                return true;
+            }
+            if left == 0 {
+                return false;
+            }
+            (0..from.len()).any(|i| {
+                let (s, ps) = from[i];
+                search(
+                    &from[i + 1..],
+                    (have.0 | s, have.1 | ps),
+                    left - 1,
+                    signs,
+                    m,
+                )
+            })
+        }
+        let most = useful.len().min(m);
+        (0..=most).find(|&k| search(&useful, start, k, &signs, m))
+    };
+    let with = fewest(open)?;
+    let plain = read(p, false);
+    let without = if plain == open {
+        Some(with)
+    } else {
+        fewest(plain)
+    };
+    Some(Reach {
+        more: with,
+        vault: without != Some(with),
+        seeds: signs(open).min(m),
+    })
 }
 
 /// What spot `at` holds on the map `boxes`, in order.
@@ -2038,9 +2189,8 @@ fn alone_in(shape: &Shape, a: &Answers, boxes: &[Spot], at: At) -> Alone {
         }
     };
     Alone {
-        spend: found(&|h| {
-            h.seeds_ok(shape) >= shape.m.max(1) && (!shape.multi() || h.wallet_ok(shape, a))
-        }),
+        // Seeds alone spend: the description is public (§19.22).
+        spend: found(&|h| h.seeds_ok(shape) >= shape.m.max(1)),
         balance: found(&|h| h.sees(shape, a)),
     }
 }

@@ -12,7 +12,9 @@ Faraday's backup starts with a plan: where the seeds go, how many places keep pa
 
 ## One place found: can spend
 
-"One place found: can spend" is Yes when one place on its own holds a quorum of seeds, with their passphrases, and for a wallet of more than one key the description. Anyone who finds that place can take the coins.
+"One place found: can spend" is Yes when one place on its own holds a quorum of seeds, with their passphrases. The description is not counted: it holds only xpubs, which every watch-only wallet and every share also holds, so whoever finds the seeds can get it. Anyone who finds that place can take the coins.
+
+On the board, each place that keeps a seed says how near it brings a spend: "Can spend alone", or "Spends with 1 more place" when one other place adds enough seeds. Moving a second seed to a place that brings it nearer a spend asks first, with Keep it and Take it off.
 
 "Only with the vault's passphrase" means the place holds a stick with the vault, and the vault holds what is missing: the finder also needs the vault's passphrase. No is what a plan should aim for.
 

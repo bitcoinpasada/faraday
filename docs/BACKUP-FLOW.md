@@ -2902,3 +2902,78 @@ the board in Customize backup.
   by its card after Change the plan now find it open, and a test that
   looks at The plan's card after the board's lets the cards' motion run
   its course first.
+
+### 19.22 How near a place brings a spend (owner, 2026-10-20)
+
+**Why.** A place keeping two seeds of a 2-of-3 read "Cannot see
+balance" and gave no warning, because a spend was counted only where
+the place could also rebuild the description. The description is
+public: every watch-only wallet and every share holds the xpub that is
+missing. Whoever holds such a place is one public file away from
+spending.
+
+**Rules.**
+
+1. **Seeds alone spend.** A place spends when it keeps the seeds the
+   quorum needs, each with its passphrase where it has one; the
+   description is not needed. This is the "One place found: can spend"
+   line of the check, the "{place} alone can spend the wallet" warning
+   and the chart's lines. Rebuilding the wallet when a place is lost
+   still needs the description.
+2. **How near.** For each place that keeps at least one seed, Faraday
+   works out the fewest other places that, with it, keep enough seeds
+   to sign. The other places count with their vaults read, so the
+   number errs on the side of the warning. Whether this place needs its
+   own vaults' passphrases to get there is worked out too, by counting
+   it without them.
+3. **The spend tag.** The place's header carries a second tag after
+   the balance tag:
+
+   | Reach | Tag | Tone |
+   |---|---|---|
+   | Spends alone | Can spend alone | `WARN` |
+   | Spends alone with the vault | Can spend alone with the vault's passphrase | the vault's accent |
+   | n more places | Spends with 1 more place / Spends with n more places | `MUTED` |
+   | n more, with the vault | Spends with the vault's passphrase and 1 more place / … n more places | the vault's accent |
+
+   A place keeping no seed has no spend tag. The balance tag says only
+   the balance: "Cannot see balance", "Sees the balance", "Sees the
+   balance with the vault's passphrase". Where the header has no room,
+   a tag that cannot show its first letters is left off, with every tag
+   after it.
+4. **The sheet.** For a wallet of more than one seed, a drop (or a
+   tap-place) that brings a place keeping two seeds or more nearer a
+   spend opens a sheet with the warning mark. Nearer is fewer places, or
+   as many places without the vault's passphrase where it was needed
+   before. The title:
+
+   - "Anyone with access to {place} can spend"
+   - "Anyone with access to {place} and the vault's passphrase can spend"
+   - "Anyone with access to {place} needs only 1 more place to spend"
+     (n more places)
+   - "Anyone with access to {place} and the vault's passphrase needs
+     only 1 more place to spend" (n more places)
+
+   Its line: "{place} keeps k of the m seeds a spend needs." (", counting
+   its vaults." when the vault's passphrase is needed). **Keep it** and
+   **Take it off** as the balance sheet's. It is asked before the
+   balance sheet, which is not shown on the same drop. Never on a
+   preset's own placement.
+5. A single key's seed shows the spend tag and never the sheet.
+
+**Where.** `plan::reach` and `plan::Reach` (the count, a search over
+the places at most the quorum deep), `Alone::balance_tag`; `board.rs`
+(`CardView::facts`, `board_sees_ask`, `Sees::spend`); `board_screen.rs`
+(`place_head` takes a list of tags, `sees_sheet`'s warning mark).
+Strings `board_spend_*` in `faraday-strings`. The tags are worked out
+in `board_view`, once a frame through the drawing memo; the sheet's
+decision works out each place's reach before and after the drop.
+
+**Tests** (`tests/backup_spend_reach.rs`): a 2-of-3 with a second seed
+dropped at a place reads "Can spend alone" without the description and
+asks with the sheet, Take it off undoing the drop; a 3-of-5 with one
+seed per place reads "Spends with 2 more places", and a second seed
+dropped reads "Spends with 1 more place" and asks; a second seed put in
+the place's vault reads "Spends with the vault's passphrase and 1 more
+place"; a first seed at a place asks nothing; a single key asks
+nothing.

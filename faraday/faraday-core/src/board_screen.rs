@@ -802,13 +802,14 @@ fn row(
 }
 
 /// A place's header band at (x, y), `w` wide (`docs/DESIGN.md` §4.17):
-/// the place glyph, its name (a field while names are typed), its line of
-/// fact as an outlined tag in its tone, and its × when it can go.
+/// the place glyph, its name (a field while names are typed), its lines
+/// of fact as outlined tags in their tones, one after another as far as
+/// they fit, and its × when it can go.
 #[allow(clippy::too_many_arguments)]
 fn place_head(
     ui: &mut Ui,
     name: &str,
-    fact: Option<(&str, osk_ui::Color)>,
+    facts: &[(&str, osk_ui::Color)],
     x: f32,
     y: f32,
     w: f32,
@@ -829,9 +830,11 @@ fn place_head(
     );
     let nx = x + pad + mark + tokens::BOARD_CHIP_GAP;
     let right = x + w - pad - mark - pad;
-    let tag_w = fact.map_or(0.0, |(t, _)| {
-        ui.measure(tokens::CAPTION, W::R, t) + 2.0 * pad + tokens::GAP
-    });
+    let tag_ws: Vec<f32> = facts
+        .iter()
+        .map(|(t, _)| ui.measure(tokens::CAPTION, W::R, t) + 2.0 * pad + tokens::GAP)
+        .collect();
+    let tag_w: f32 = tag_ws.iter().sum();
     let room = (right - nx - tag_w).max((right - nx) / 2.0).max(0.0);
     // While it is typed, the name is a line of typing: just pressed, the
     // whole of it selected and no caret (§19.18).
@@ -860,19 +863,23 @@ fn place_head(
     if let Some((a, _)) = name_press {
         ui.hit(nx, y, room, hh, a);
     }
-    if let Some((text, tone)) = fact {
-        let tx = nx + nw + tokens::GAP;
-        let tw = (tag_w - tokens::GAP).min(right - tx);
-        if tw > 2.0 * pad {
-            let th = tokens::BOARD_TAG;
-            let ty = y + (hh - th) / 2.0;
-            ui.fill(tx, ty, tw, th, th / 2.0, SURFACE);
-            ui.stroke(tx, ty, tw, th, th / 2.0, tone);
-            // Laid out to fit (`tag_w`): the half unit is the rounding of
-            // a box placed at a fraction of a pixel.
-            let t = ui.fit(tokens::CAPTION, W::R, text, tw - 2.0 * pad + 0.5);
-            ui.text_mid(tx + pad, ty, th, tokens::CAPTION, W::R, tone, &t);
+    let mut tx = nx + nw + tokens::GAP;
+    for (&(text, tone), &want) in facts.iter().zip(&tag_ws) {
+        let tw = (want - tokens::GAP).min(right - tx);
+        // A tag that cannot show its first letters is left off, and so is
+        // every one after it.
+        if tw <= 2.0 * pad {
+            break;
         }
+        let th = tokens::BOARD_TAG;
+        let ty = y + (hh - th) / 2.0;
+        ui.fill(tx, ty, tw, th, th / 2.0, SURFACE);
+        ui.stroke(tx, ty, tw, th, th / 2.0, tone);
+        // Laid out to fit (`tag_ws`): the half unit is the rounding of a
+        // box placed at a fraction of a pixel.
+        let t = ui.fit(tokens::CAPTION, W::R, text, tw - 2.0 * pad + 0.5);
+        ui.text_mid(tx + pad, ty, th, tokens::CAPTION, W::R, tone, &t);
+        tx += want;
     }
     if let Some(a) = off {
         cross(ui, x + w - pad - mark / 2.0, y + hh / 2.0, PLACE_TEXT);
@@ -947,7 +954,10 @@ fn place(ui: &mut Ui, fr: &mut Frame, v: &BoardView, cv: &CardView, x: f32, y: f
     place_head(
         ui,
         &cv.name,
-        Some((&cv.alone.0, crate::glance::alone_color(cv.alone.1))),
+        &cv.facts
+            .iter()
+            .map(|(t, k)| (t.as_str(), crate::glance::alone_color(*k)))
+            .collect::<Vec<_>>(),
         bx,
         y + e,
         bw,
@@ -1197,7 +1207,7 @@ fn software(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) 
     let h = top + lay.h + pad + e - y;
     let (bx, bw) = place_box(ui, x, y, w, h);
     let off = (v.custom && !v.locked).then_some(Action::Board(BoardPress::RemoveSoftware));
-    place_head(ui, &sv.title, None, bx, y + e, bw, None, off);
+    place_head(ui, &sv.title, &[], bx, y + e, bw, None, off);
     // Its stick of public files: its files in a files box, no vault box
     // (§19.17 item 3).
     if let Some(&r) = lay.sticks.first() {
@@ -1487,7 +1497,8 @@ pub(crate) fn list_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     });
 }
 
-/// The sheet over a drop that let a place see the balance it could not
+/// The sheet over a drop that brought a place nearer a spend (§19.22),
+/// with the warning mark, or let a place see the balance it could not
 /// before (`docs/BACKUP-FLOW.md` §19.5): its title, the line naming what
 /// there makes the description, **Keep it** and **Take it off**. It
 /// reads what the drop worked out.
@@ -1504,7 +1515,12 @@ pub(crate) fn sees_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let pad = tokens::GRID * 2.0;
     crate::compact::scroll_sheet(ui, place, h, tokens::GAP, pad, &mut |ui, x, y, iw| {
         let mut cy = y;
-        cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Eye, TEXT, &sees.title);
+        let (icon, tone) = if sees.spend {
+            (Icon::Warning, WARN)
+        } else {
+            (Icon::Eye, TEXT)
+        };
+        cy += crate::compact::sheet_head(ui, x, cy, iw, icon, tone, &sees.title);
         cy += ui.wrap(x, cy, iw, tokens::LABEL, W::R, TEXT, &sees.line) + tokens::GAP;
         cy += crate::compact::buttons(
             ui,

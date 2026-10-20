@@ -264,8 +264,11 @@ pub struct Sees {
     pub before: Answers,
     /// "Place 2 can see the wallet's balance".
     pub title: String,
-    /// What there makes the description.
+    /// What there makes the description, or the seeds it keeps.
     pub line: String,
+    /// The drop brought the place nearer a spend (§19.22), not to the
+    /// balance: the sheet carries the warning mark.
+    pub spend: bool,
 }
 
 /// What kind of zone a zone is: what it keeps, and in what forms.
@@ -645,8 +648,10 @@ pub(crate) struct CardView {
     pub sticks: Vec<StickView>,
     /// Its paper.
     pub paper: ZoneView,
-    /// What finding it alone gives, and how that reads.
-    pub alone: (String, plan::AloneKind),
+    /// Its header's tags, each with how it reads: whether it sees the
+    /// balance, then how near it brings a spend, where it keeps a seed
+    /// (`docs/BACKUP-FLOW.md` §19.22).
+    pub facts: Vec<(String, plan::AloneKind)>,
 }
 
 /// The software place's card.
@@ -1251,7 +1256,12 @@ impl Faraday {
                     name,
                     sticks,
                     paper: zone(Zone::Paper(p), At::Place(p), Some(p), true),
-                    alone: (alone.text().to_string(), alone.kind()),
+                    facts: {
+                        let (t, k) = alone.balance_tag();
+                        let mut v = vec![(t.to_string(), k)];
+                        v.extend(plan::reach(&shape, &a, p).map(plan::Reach::tag));
+                        v
+                    },
                 }
             })
             .collect();
@@ -2278,8 +2288,9 @@ impl Faraday {
         }
     }
 
-    /// After a drop: where it let a place see the balance it could not
-    /// see before, the sheet that says so, with the plan as it was for
+    /// After a drop: where it brought a place keeping two seeds or more
+    /// nearer a spend (§19.22), or let a place see the balance it could
+    /// not see before, the sheet that says so, with the plan as it was for
     /// **Take it off** (`docs/BACKUP-FLOW.md` §19.5). Computes from the
     /// state as it is: the check of each place before and after, a map
     /// worked out each.
@@ -2290,11 +2301,48 @@ impl Faraday {
         if now == was {
             return;
         }
+        let places = now.places.min(was.places);
+        // Nearer a spend, at a place keeping more than one seed that
+        // signs (§19.22): asked before the balance. A single key's one
+        // seed is never asked about.
+        let near = (0..places).filter(|_| shape.multi()).find_map(|p| {
+            let r = plan::reach(&shape, &now, p)?;
+            (r.seeds >= 2 && r.nearer_than(plan::reach(&shape, &was, p))).then_some((p, r))
+        });
+        if let Some((p, r)) = near {
+            let place = self.board_place_name(p);
+            let title = match (r.more, r.vault) {
+                (0, false) => fill(EN.board_spend_title_alone, &[&place]),
+                (0, true) => fill(EN.board_spend_title_alone_vault, &[&place]),
+                (1, false) => fill(EN.board_spend_title_one, &[&place]),
+                (1, true) => fill(EN.board_spend_title_vault_one, &[&place]),
+                (k, false) => fill(EN.board_spend_title_more, &[&place, &k.to_string()]),
+                (k, true) => fill(EN.board_spend_title_vault_more, &[&place, &k.to_string()]),
+            };
+            let line = fill(
+                if r.vault {
+                    EN.board_spend_line_vault
+                } else {
+                    EN.board_spend_line
+                },
+                &[&place, &r.seeds.to_string(), &shape.m.to_string()],
+            );
+            if let Some(st) = self.board_state_mut() {
+                st.sees = Some(Sees {
+                    before: was,
+                    title,
+                    line,
+                    spend: true,
+                });
+            }
+            self.sheet = Some(crate::Sheet::BoardSees);
+            self.sheet_scroll = (0.0, None);
+            return;
+        }
         let sees = |a: &Answers, p: usize| {
             let x = plan::alone(&shape, a, At::Place(p));
             x.balance == plan::Found::Yes && x.spend != plan::Found::Yes
         };
-        let places = now.places.min(was.places);
         let Some(p) = (0..places).find(|&p| sees(&now, p) && !sees(&was, p)) else {
             return;
         };
@@ -2306,6 +2354,7 @@ impl Faraday {
                 before: was,
                 title,
                 line,
+                spend: false,
             });
         }
         self.sheet = Some(crate::Sheet::BoardSees);
