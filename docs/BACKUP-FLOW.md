@@ -2689,3 +2689,37 @@ which share goes where.
   paper and sticks; a vault and the software keep theirs. It is offered
   only where the hand-out rebuilds.
 - The checklist's Shares card still sets the keys left off.
+
+### 19.20 The ⋮ menu: placing without dragging (owner, 2026-10-19; tracker #150)
+
+Dragging stays, and so does tap to select then tap a box; the ⋮ menu is
+the visible way to place, move, copy and take off without dragging.
+
+1. **The ⋮ on every chip** in Customize backup: the chip reads its name,
+   a thin vertical rule, then ⋮ at its right end (`[ ◉ 9a6a2580 │ ⋮ ]`);
+   a placed chip keeps its form toggles before the rule. The ⋮ is its
+   own press target; the rest of the chip drags or selects as today.
+   Not shown on the read-only board (before Customize backup).
+2. **A list chip's ⋮: Add to…**, one menu listing every box that can
+   take the item, grouped under each place's name (as the place is
+   named): Paper, each stick's files ("Stick 1 · files"), each stick's
+   vault ("Stick 1 · Vault 1"), and **New stick** where + stick would
+   take it. Only boxes that take the item in some form are listed
+   (§19.3). One press places it there with its usual forms, as a drop
+   does, and closes the menu; everything a drop does follows (the
+   checks, the can-see-the-balance sheet).
+3. **A placed chip's ⋮:** **Move to…** (the same list, the item leaving
+   its box), **Copy to…** (the same list, the item also kept there, where
+   the item allows a copy), and **Take off** (as its ×).
+4. **Everywhere.** The narrow column and the Pi's panel use the same ⋮:
+   the Add sheet lists the items, each with its ⋮ and Add to…, in place
+   of tap a chip then tap a box.
+5. **The menu** is a popup under the ⋮ (a sheet on the small panel),
+   keyboard reachable: the ⋮ is in the Tab order, Enter or Space opens
+   it, arrows move, Enter chooses, Escape closes and returns to the ⋮.
+   A press outside closes it.
+6. **Tests:** Add to… on a seed lists only boxes that take it, grouped
+   by place, and a press places it as a drop would; Move to… moves it;
+   Copy to… keeps it in both; Take off takes it off; on the narrow
+   column the Add sheet's ⋮ places an item; Escape closes the menu; the
+   read-only board shows no ⋮.
