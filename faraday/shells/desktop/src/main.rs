@@ -298,7 +298,7 @@ impl Shell {
     }
 
     fn restart(&mut self, event_loop: &ActiveEventLoop) {
-        self.app = Some(desktop_app());
+        self.app = Some(desktop_app_after_lock());
         self.seen.clear();
         let display = self.display();
         let restored = self.boxes.restore();
@@ -581,15 +581,21 @@ impl ApplicationHandler for Shell {
 /// A fresh app as the desktop runs it: the online Faraday, which turns
 /// sheets into PDFs, opening on testnet, where it takes any seed and
 /// shows real addresses. A release build shows the not-air-gapped
-/// warning once at start, before any seed can be loaded (F61); a
-/// developer or test build shows none (owner, 2026-10-19). Mainnet,
+/// warning once at program start, before any seed can be loaded (F61);
+/// a developer or test build shows none (owner, 2026-10-19). Mainnet,
 /// chosen from Network, is the demo (F20): there it takes only the
 /// public seeds and shows every address with a broken checksum.
 fn desktop_app() -> Faraday {
     desktop_app_for(faraday_core::is_release())
 }
 
-/// [`desktop_app`], as a release build (`release`) or not.
+/// The fresh app a lock starts: the warning was shown at program start,
+/// so it is not shown again (owner, 2026-10-20).
+fn desktop_app_after_lock() -> Faraday {
+    desktop_app_for(false)
+}
+
+/// [`desktop_app`], with the start warning (`release`) or without.
 fn desktop_app_for(release: bool) -> Faraday {
     let mut app = Faraday::new();
     app.online = true;
@@ -916,5 +922,14 @@ mod tests {
         assert!(app.sheet.is_none());
         assert_eq!(app.session.network(), faraday_core::testkit::NET);
         assert!(desktop_app_for(false).sheet.is_none());
+    }
+
+    /// A lock starts a fresh app with no warning: it was shown once, at
+    /// program start (owner, 2026-10-20).
+    #[test]
+    fn after_a_lock_the_online_warning_is_not_shown_again() {
+        let app = desktop_app_after_lock();
+        assert!(app.sheet.is_none());
+        assert_eq!(app.session.network(), faraday_core::testkit::NET);
     }
 }

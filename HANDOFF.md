@@ -2902,8 +2902,8 @@ as possible before the next build.
 89. [x] 2026-10-20, owner: **Faraday Desktop published again, testnet
     only** (F61). `Faraday::with_start_warning` in a release build;
     `stage-release.sh` stages the two `-testnet-only-` files; snapshot
-    tour `startwarn`. f16cf7db. Open: a release shows the warning again
-    after each lock (the desktop replaces the app at a lock).
+    tour `startwarn`. f16cf7db. The warning shows once per program
+    start, not after a lock.
 
 ## Next steps
 

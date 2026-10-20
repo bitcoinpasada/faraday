@@ -2146,8 +2146,8 @@ with test coins that the website's mainnet demo is not. Unpublished
   online warning sheet ("This computer is online: never enter a seed
   that holds funds here") once at start, before any seed can be loaded:
   the boot import and a new device wait under it. It has only **I
-  understand**. Once acknowledged, it is not shown again that session;
-  a lock starts a new session, which shows it again.
+  understand**. It shows once per program start: a lock starts a new
+  session without it (owner, 2026-10-20), and the testnet pill stays.
 - Mainnet stays the public-seed demo (F20). Going back to a test network
   after acknowledging shows nothing more that session.
 - Developer and test builds keep the behaviour of 2026-10-19: testnet,
