@@ -463,7 +463,7 @@ fn in_the_demo_derive_with_bip85_shows_no_value_for_any_application() {
 fn frost(app: &mut Faraday) -> bool {
     let a = add_public(app, "bacon");
     let b = add_public(app, "flag");
-    faraday_core::testkit::create_knowing(app);
+    app.press(Action::CreateWallet);
     let at = NewKind::ALL
         .iter()
         .position(|k| *k == NewKind::Threshold)

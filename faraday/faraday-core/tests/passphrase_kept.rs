@@ -89,7 +89,7 @@ fn unlock_vault(app: &mut Faraday) {
 /// stick.
 fn locked_after_backup() -> (Boxes, Boxes) {
     let mut app = device();
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     let at = NewKind::ALL
         .iter()
         .position(|k| *k == NewKind::NativeSegwit)
@@ -196,7 +196,7 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
         )
         .unwrap();
     app.press(Action::Backup(w));
-    app.press(Action::BPreset(0));
+    app.press(Action::BPreset(1));
     app.press(Action::BChecklist);
     app.press(Action::OpenWallet(w));
     let _ = app.frame();

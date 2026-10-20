@@ -129,7 +129,7 @@ fn making() -> (Faraday, String) {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CKind(4));
     app.press(Action::CNext(0));
     app.press(Action::CNext(1));

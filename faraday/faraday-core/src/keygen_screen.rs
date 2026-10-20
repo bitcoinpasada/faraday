@@ -49,7 +49,6 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             // Once locked in, nothing before Key changes: no Change.
             default: !k.locked && matches!(s, kstep::START | kstep::LENGTH | kstep::SOURCE),
             toggle: Action::KStep(s),
-            inert: false,
             // The walk-through is New key's own: a key typed has none.
             guide: (s != kstep::START && s != kstep::TYPED && !(s == kstep::KEY && k.typed()))
                 .then(|| guide::keygen(s, k)),

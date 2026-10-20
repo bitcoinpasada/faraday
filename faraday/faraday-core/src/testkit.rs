@@ -1148,19 +1148,3 @@ pub fn started() -> crate::Faraday {
     }));
     app
 }
-
-/// Make a new wallet opened, then past Start by **I know what I want**
-/// (`docs/BACKUP-FLOW.md` §20.14 item 1): Kind open, as Create opened
-/// before Start. A creation Create comes back to stays where it was.
-pub fn create_knowing(app: &mut crate::Faraday) {
-    use crate::{Action, create_plan::CreateWay, cstep};
-    app.press(Action::CreateWallet);
-    if app
-        .create
-        .as_ref()
-        .is_some_and(|c| c.open == Some(cstep::START))
-    {
-        app.press(Action::CWay(CreateWay::Know.index()));
-        app.press(Action::CNext(cstep::START));
-    }
-}

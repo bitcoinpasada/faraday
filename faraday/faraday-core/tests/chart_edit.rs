@@ -228,7 +228,7 @@ fn single_key_with_vault() -> (Faraday, usize) {
     let mut app = desktop();
     let w = one_key(&mut app);
     fresh_vault(&mut app);
-    planned(&mut app, w, 1);
+    planned(&mut app, w, 2);
     app.press(Action::Backup(w));
     app.press(Action::BChecklist);
     app.press(Action::BVaultSave(0));
@@ -437,7 +437,7 @@ fn changing_the_plan_after_an_edit_opens_the_cards_with_the_edit_kept() {
 fn a_cosigners_key_takes_its_holders_name_and_a_date_kept_in_the_vault_alone() {
     let mut app = desktop();
     let w = two_of_three(&mut app);
-    planned(&mut app, w, 0);
+    planned(&mut app, w, 1);
     let press = Press::Loaded(w);
     // With no vault open: the way to one.
     open(&mut app, press, Target::Key(2));
@@ -526,7 +526,7 @@ fn a_seed_saved_into_another_vault_is_a_change_to_the_plan() {
     let mut app = desktop();
     let w = two_of_three(&mut app);
     fresh_vault(&mut app);
-    planned(&mut app, w, 1);
+    planned(&mut app, w, 2);
     let press = Press::Loaded(w);
     let (n, node) = node_of(&app, w, "Vault 1");
     assert!(!node.holds.contains(&"Key 2 seed".to_string()));
@@ -577,7 +577,7 @@ fn a_place_marked_checked_dates_each_thing_in_it() {
 fn the_wallet_node_checks_its_addresses_and_a_cosigners_key_shows_its_xpub() {
     let mut app = desktop();
     let w = two_of_three(&mut app);
-    planned(&mut app, w, 0);
+    planned(&mut app, w, 1);
     let press = Press::Loaded(w);
     open(&mut app, press, Target::Wallet);
     let check = Action::Chart(C::Do(press, Step::Addresses));
@@ -598,7 +598,7 @@ fn the_wallet_node_checks_its_addresses_and_a_cosigners_key_shows_its_xpub() {
 fn the_envelope_list_goes_for_the_stick_as_a_pdf() {
     let mut app = desktop();
     let w = one_key(&mut app);
-    planned(&mut app, w, 0);
+    planned(&mut app, w, 1);
     let press = Press::Loaded(w);
     let (n, _) = node_of(&app, w, "Place 1");
     open(&mut app, press, Target::Node(n));

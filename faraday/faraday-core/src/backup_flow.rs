@@ -1155,6 +1155,7 @@ impl BackupFlow {
         if let Some(w) = self.wallet.as_mut() {
             w.shape.vaults = count;
             w.answers = crate::plan::Answers::defaults(&w.shape);
+            w.answers.custom = true;
         }
         self.made_in.retain(|&v| v < count);
         self.sync_slots();

@@ -223,7 +223,7 @@ fn key_card() -> Faraday {
     use faraday_core::keygen::Way;
     let mut app = testkit::started();
     tall(&mut app);
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     let at = NewKind::ALL
         .iter()
         .position(|k| *k == NewKind::Multi)

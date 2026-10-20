@@ -105,7 +105,7 @@ fn backing_up(app: &mut Faraday, with: bool) -> Fingerprint {
     app.press(Action::Seeds(S::Make));
     let w = app.session.wallets.len() - 1;
     app.press(Action::Backup(w));
-    app.press(Action::BPreset(1));
+    app.press(Action::BPreset(2));
     if with {
         // The passphrase dropped into the vault that holds its seed, on
         // the board, at the place that keeps its stick.
@@ -481,7 +481,7 @@ fn a_matched_copy_check_marks_that_seed_only() {
         .iter()
         .position(|(_, k)| *k == Some(k1))
         .expect("test key 1 is a seed of Savings") as u8;
-    app.press(Action::BPreset(0));
+    app.press(Action::BPreset(1));
     app.press(Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));

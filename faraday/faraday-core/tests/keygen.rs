@@ -443,7 +443,7 @@ fn a_mix_of_dice_and_coins_is_the_hash_of_both_commitments() {
 #[test]
 fn a_key_made_for_a_create_slot_fills_it() {
     let mut app = faraday_core::testkit::started();
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CKind(4));
     app.press(Action::CNext(0));
     app.press(Action::CNext(1));
@@ -586,7 +586,7 @@ fn slot_flow(multi: bool) -> Faraday {
     use faraday_core::create::NewKind;
     let mut app = faraday_core::testkit::started();
     tall(&mut app);
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     let kind = if multi {
         NewKind::Multi
     } else {
@@ -972,7 +972,7 @@ fn add_a_key_opens_on_start_offering_every_way_in_and_a_create_slot_offers_the_s
     use faraday_core::create::NewKind;
     let mut app = faraday_core::testkit::started();
     tall(&mut app);
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     let at = NewKind::ALL
         .iter()
         .position(|k| *k == NewKind::Multi)
@@ -1087,7 +1087,7 @@ fn words_typed_for_a_create_slot_fill_the_slot_with_that_key() {
     let words = faraday_core::testkit::test_words("bacon");
     let mut app = faraday_core::testkit::started();
     tall(&mut app);
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     let at = NewKind::ALL
         .iter()
         .position(|k| *k == NewKind::Multi)
@@ -1150,7 +1150,7 @@ fn a_threshold_slot_offers_only_make_a_new_key_and_type_the_words() {
     };
     let mut app = faraday_core::testkit::started();
     tall(&mut app);
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CKind(at as u8));
     app.press(Action::CNext(faraday_core::cstep::KIND));
     app.press(Action::CNext(faraday_core::cstep::QUORUM));

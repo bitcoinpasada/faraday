@@ -60,9 +60,14 @@ pub mod form {
     pub const TEXT: usize = 1;
 }
 
-/// The three ways to start, one tap each.
+/// The ways to start, one tap each.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Preset {
+    /// The standard way (`docs/BACKUP-FLOW.md` §19.6): paper at one place
+    /// for a single key, at a place per seed for a multisig, each holding
+    /// its seed's words and SeedQR and the whole description; no vault,
+    /// no stick. The board opens on it for a new plan.
+    Standard,
     /// Paper in each place.
     Paper,
     /// Paper, and the seeds and the wallet in the vault.
@@ -73,7 +78,8 @@ pub enum Preset {
 
 impl Preset {
     /// Every preset, in the order offered.
-    pub const ALL: [Preset; 3] = [
+    pub const ALL: [Preset; 4] = [
+        Preset::Standard,
         Preset::Paper,
         Preset::PaperVault,
         Preset::PaperVaultSoftware,
@@ -82,10 +88,16 @@ impl Preset {
     /// What the preset is called.
     pub fn name(self) -> &'static str {
         match self {
+            Preset::Standard => EN.plan_the_standard_way,
             Preset::Paper => EN.plan_paper_only,
             Preset::PaperVault => EN.plan_paper_and_vault,
             Preset::PaperVaultSoftware => EN.plan_paper_vault_and,
         }
+    }
+
+    /// Its place in [`Preset::ALL`].
+    pub fn index(self) -> usize {
+        Preset::ALL.iter().position(|&p| p == self).unwrap_or(0)
     }
 }
 
@@ -182,11 +194,14 @@ pub struct Answers {
     /// gives a passphrase when every other place keeps a copy of its seed
     /// (`docs/BACKUP-FLOW.md` §10.3).
     pub bare: Vec<usize>,
-    /// The access layers (`docs/BACKUP-FLOW.md` §20.1), each with its
-    /// routes; their names are kept only in a vault's plan record. Empty
-    /// for a plan saved before them, which reads as one layer able to
-    /// spend with everything ([`Answers::access_layers`]).
-    pub layers: Vec<crate::access::Layer>,
+    /// The preset the plan started from, which Start from names while it
+    /// is closed (`docs/BACKUP-FLOW.md` §19.6); `None` for a plan saved
+    /// before presets were kept.
+    pub preset: Option<Preset>,
+    /// The board has been opened for changes by **Customize backup**
+    /// (§19.6): until then it shows the placement read-only. Kept with
+    /// the plan, so a plan customised once reopens customisable.
+    pub custom: bool,
 }
 
 impl Default for Answers {
@@ -205,7 +220,8 @@ impl Default for Answers {
             omit: 0,
             map: None,
             bare: Vec::new(),
-            layers: Vec::new(),
+            preset: None,
+            custom: false,
         }
     }
 }
@@ -236,7 +252,8 @@ impl Answers {
             omit: shape.m.saturating_sub(1),
             map: None,
             bare: Vec::new(),
-            layers: Vec::new(),
+            preset: None,
+            custom: false,
         };
         a.pass = shape
             .seeds
@@ -322,14 +339,25 @@ impl Answers {
     /// The answers a preset fills in, from the wallet's defaults.
     pub fn preset(shape: &Shape, preset: Preset) -> Answers {
         let mut a = Answers::defaults(shape);
+        a.preset = Some(preset);
         // The passphrase's own place is found again below, once the
-        // vault's stick has its place.
-        let base = if shape.multi() { shape.seeds.len() } else { 2 };
+        // vault's stick has its place. The standard way keeps a single
+        // key at one place.
+        let base = if shape.multi() {
+            shape.seeds.len()
+        } else if preset == Preset::Standard {
+            1
+        } else {
+            2
+        };
         if a.places != base {
             a.set_places(shape, base);
         }
         a.bare.clear();
-        if preset != Preset::Paper {
+        if preset == Preset::Standard {
+            a.seeds[seeds::SEEDQR] = !shape.watch_only();
+        }
+        if !matches!(preset, Preset::Paper | Preset::Standard) {
             a.seeds[seeds::VAULT] = !shape.watch_only();
             a.wallet[wallet::VAULT] = true;
             a.place_new_sticks(shape, &[]);
@@ -526,7 +554,6 @@ impl Answers {
         let places = places.max(1);
         self.places = places;
         self.bare.retain(|&p| p < places);
-        crate::access::fit(&mut self.layers, places);
         // A vault whose only stick was at a place that goes is given
         // another.
         let lost: Vec<usize> = self
@@ -972,8 +999,14 @@ impl Answers {
             }
             out.push('\n');
         }
-        // The access layers' routes; never a layer's name.
-        crate::access::write(&self.layers, &mut out);
+        // The preset it started from, and whether the board was opened
+        // for changes (§19.6).
+        if let Some(p) = self.preset {
+            out.push_str(&format!("preset {}\n", p.index()));
+        }
+        if self.custom {
+            out.push_str("custom 1\n");
+        }
         out
     }
 
@@ -990,7 +1023,6 @@ impl Answers {
             .count()
             .max(1);
         self.places = places;
-        crate::access::fit(&mut self.layers, places);
         for row in &mut self.sticks {
             row.resize(places, false);
         }
@@ -1041,8 +1073,7 @@ pub fn at_read(s: &str) -> Option<At> {
 /// stick, `seed0`, `seedp0` with its passphrase, `wallet`, `file0` its
 /// words file, `qrfile0` its SeedQR picture, `passfile0` its passphrase
 /// file, `wallettxt` and `walletqr` the description's text and picture,
-/// `sharetxt1` and `shareqr1` share 1's, `softwarefile` the software's,
-/// `vpw0` vault 0's password written on paper.
+/// `sharetxt1` and `shareqr1` share 1's, `softwarefile` the software's.
 pub fn what_code(w: What) -> String {
     let form = |f: usize| if f == form::TEXT { "txt" } else { "qr" };
     match w {
@@ -1055,7 +1086,6 @@ pub fn what_code(w: What) -> String {
         What::Seed(i) => format!("seed{i}"),
         What::SeedPassphrase(i) => format!("seedp{i}"),
         What::PassphraseSealed(i) => format!("vpass{i}"),
-        What::VaultPassword(v) => format!("vpw{v}"),
         What::Wallet => "wallet".to_string(),
         What::SeedFile(i) => format!("file{i}"),
         What::SeedQrFile(i) => format!("qrfile{i}"),
@@ -1084,7 +1114,6 @@ pub fn what_read(s: &str) -> Option<What> {
         _ if s.starts_with("shareqr") => What::ShareFile(n("shareqr")?, form::QR),
         _ if s.starts_with("seedp") => What::SeedPassphrase(n("seedp")?),
         _ if s.starts_with("vpass") => What::PassphraseSealed(n("vpass")?),
-        _ if s.starts_with("vpw") => What::VaultPassword(n("vpw")?),
         _ if s.starts_with("seed") => What::Seed(n("seed")?),
         _ if s.starts_with("share") => What::Share(n("share")?),
         _ if s.starts_with("stick") => What::VaultStick(n("stick")?),
@@ -1154,10 +1183,6 @@ impl Answers {
         // Each `spot` line's place and things, read once every answer is:
         // a thing written before the forms takes the `form` answers'.
         let mut lines: Vec<(At, Vec<&str>)> = Vec::new();
-        // The access layers (`docs/BACKUP-FLOW.md` §20.6): their count and
-        // each route's line, read once the places are known.
-        let mut layers: Option<usize> = None;
-        let mut routes: Vec<&str> = Vec::new();
         let numbered = |value: &str| -> Option<(usize, Vec<bool>)> {
             let (v, row) = value.split_once(' ')?;
             Some((v.parse().ok()?, flags(row)?))
@@ -1189,12 +1214,19 @@ impl Answers {
                 // A key made here whose backup is pending: read by the
                 // caller (`docs/NEW-WALLET.md` §14.3), not an answer.
                 "held" => continue,
-                "layers" => {
-                    layers = Some(value.parse().ok()?);
+                // The access layers' count and routes, written only by test
+                // builds before the layers were withdrawn (F38, F46): read
+                // past, never refused.
+                "layers" | "route" => continue,
+                // The preset it started from, and whether the board was
+                // opened for changes (§19.6).
+                "preset" => {
+                    let k: usize = value.parse().ok()?;
+                    a.preset = Some(*Preset::ALL.get(k)?);
                     continue;
                 }
-                "route" => {
-                    routes.push(value);
+                "custom" => {
+                    a.custom = value == "1";
                     continue;
                 }
                 // The map edited on the chart (§9.7).
@@ -1244,6 +1276,11 @@ impl Answers {
         for (at, parts) in lines {
             let mut holds: Vec<(What, Tag)> = Vec::new();
             for part in parts {
+                // A vault's password on paper, placed only by those same
+                // test builds: read past.
+                if part.starts_with("vpw") {
+                    continue;
+                }
                 // The description's or a share's files saved before the
                 // forms: every form the `form` answers had on
                 // (`docs/BACKUP-FLOW.md` §19.3).
@@ -1291,7 +1328,7 @@ impl Answers {
                 What::Share(j) => j < shape.keys.max(1),
                 What::ShareFile(j, f) => j < shape.keys.max(1) && f <= form::TEXT,
                 What::WalletFile(f) => f <= form::TEXT,
-                What::VaultStick(v) | What::VaultPassword(v) => v < 1024,
+                What::VaultStick(v) => v < 1024,
                 _ => true,
             };
             let sticks_ok = edited.iter().all(|s| match s.at {
@@ -1320,7 +1357,6 @@ impl Answers {
             }
             a.set_map(edited);
         }
-        a.layers = crate::access::read(shape, a.places, layers, &routes)?;
         let fits = seen >= 8
             && a.places >= 1
             && a.sticks.iter().all(|r| r.len() == a.places)
@@ -1422,10 +1458,6 @@ pub enum What {
     /// a passphrase record (`docs/VAULT.md` §7 type 14,
     /// `docs/BACKUP-FLOW.md` §19.12 item 4).
     PassphraseSealed(usize),
-    /// Vault `v`'s password, written on paper at a place
-    /// (`docs/BACKUP-FLOW.md` §20.4, §20.9): whoever has that place opens
-    /// the vault with it.
-    VaultPassword(usize),
     /// The wallet description.
     Wallet,
     /// Seed `i`'s words as a text file: on the stick of files, or on a
@@ -1507,7 +1539,6 @@ impl What {
             What::Seed(i) => fill(EN.plan_seed, &[&seed(i).to_string()]),
             What::SeedPassphrase(i) => fill(EN.plan_seed_with_its, &[&seed(i).to_string()]),
             What::PassphraseSealed(i) => fill(EN.plan_passphrase_of, &[&seed(i).to_string()]),
-            What::VaultPassword(v) => fill(EN.plan_vault_password, &[&(v + 1).to_string()]),
             What::Wallet => EN.plan_wallet_description.to_string(),
             What::SeedFile(i) => fill(EN.plan_seed_file, &[&seed(i).to_string()]),
             What::SeedQrFile(i) => fill(EN.plan_seedqr_file, &[&seed(i).to_string()]),
@@ -1769,8 +1800,7 @@ impl Have {
                     *s = true;
                 }
             }
-            // Read by the access layers (`crate::access`), not this check.
-            What::VaultStick(_) | What::VaultPassword(_) => {}
+            What::VaultStick(_) => {}
         }
     }
 
@@ -1780,7 +1810,9 @@ impl Have {
             .count()
     }
 
-    /// The description, whole or from shares that together hold every key.
+    /// The description, whole or from shares that together hold every key;
+    /// a seed kept beside a share gives its own key, the one a share left
+    /// off (`docs/BACKUP-FLOW.md` §19.5).
     fn wallet_ok(&self, shape: &Shape, a: &Answers) -> bool {
         if self.wallet {
             return true;
@@ -1790,9 +1822,19 @@ impl Have {
         }
         let plan = split_plan(shape.keys, shape.m, a.omit);
         (0..shape.keys).all(|k| {
-            plan.iter()
-                .enumerate()
-                .any(|(j, row)| self.shares[j] && row.contains(&k))
+            self.key_from_seed(shape, k)
+                || plan
+                    .iter()
+                    .enumerate()
+                    .any(|(j, row)| self.shares[j] && row.contains(&k))
+        })
+    }
+
+    /// Key `k` of the description is given by its own seed kept here,
+    /// with its passphrase where it has one.
+    fn key_from_seed(&self, shape: &Shape, k: usize) -> bool {
+        shape.seeds.get(k).is_some_and(|s| {
+            self.seeds.get(k) == Some(&true) && (!s.passphrase || self.pass.get(k) == Some(&true))
         })
     }
 
@@ -3097,8 +3139,6 @@ impl Answers {
         self.ensure_map(shape);
         let n = self.map.as_deref().map_or(0, places_of);
         if n > 1 && p < n {
-            // The routes' places after it move down with it (§20.1).
-            crate::access::without_place(&mut self.layers, p);
             self.edit_map(shape, |m| edited(&m, Edit::RemovePlace(p), &[]));
         }
     }

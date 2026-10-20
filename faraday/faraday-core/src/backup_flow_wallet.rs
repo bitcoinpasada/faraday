@@ -212,7 +212,11 @@ impl Faraday {
         };
         let mut with_vaults = shape.clone();
         with_vaults.vaults = count;
-        let answers = plan::Answers::defaults(&with_vaults);
+        // The flow's plan takes changes from the start: its vaults were
+        // set up before the keys, which no preset places
+        // (`docs/BACKUP-FLOW.md` §19.6).
+        let mut answers = plan::Answers::defaults(&with_vaults);
+        answers.custom = true;
         let mut f = BackupFlow::new_setup(shape, answers, count);
         if let Some(w) = f.wallet.as_mut() {
             w.owner = owner;
@@ -1806,15 +1810,6 @@ impl Faraday {
             return Vec::new();
         };
         let mut v = crate::create_steps(c.kind);
-        // Start first, and Plan the backup first's two cards after it
-        // (`docs/BACKUP-FLOW.md` §20.14).
-        if c.start {
-            let mut first = vec![cstep::START];
-            if c.way == crate::create_plan::CreateWay::Plan && c.plan.is_some() {
-                first.extend([cstep::LAYERS, cstep::WALLET]);
-            }
-            v.splice(0..0, first);
-        }
         if c.into_vaults() {
             let at = v
                 .iter()
@@ -1859,11 +1854,10 @@ impl Faraday {
             .create
             .as_ref()
             .is_some_and(|c| self.setup_pending(c.owner, c.into_vaults(), c.built.is_some()));
-        let next = cards.iter().copied().find(|&k| {
-            !self.create_card_done(k)
-                && !(pending && k == cstep::KEYS)
-                && !self.create_waits_for_wallet(k)
-        });
+        let next = cards
+            .iter()
+            .copied()
+            .find(|&k| !self.create_card_done(k) && !(pending && k == cstep::KEYS));
         if let Some(c) = self.create.as_mut() {
             c.open = next;
             c.scroll.follow = true;

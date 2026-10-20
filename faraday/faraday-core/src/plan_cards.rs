@@ -117,7 +117,6 @@ pub(crate) fn q_title(q: u8) -> String {
     match q {
         qstep::PRESET => EN.question_title_start,
         qstep::BOARD => EN.board_title,
-        qstep::LAYERS => EN.layers_title,
         qstep::SOFTWARE => EN.question_title_software,
         _ => EN.backup_flow_the_plan,
     }
@@ -128,8 +127,10 @@ pub(crate) fn q_title(q: u8) -> String {
 pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> String {
     let (shape, a) = (&ctx.shape, &ctx.answers);
     match q {
-        qstep::PRESET => EN.question_summary_3.to_string(),
-        qstep::LAYERS => Faraday::layers_summary(shape, a),
+        qstep::PRESET => a
+            .preset
+            .map_or(EN.question_summary_presets, Preset::name)
+            .to_string(),
         qstep::BOARD => {
             if a.places == 1 {
                 EN.board_one_place.to_string()
@@ -190,19 +191,22 @@ pub(crate) fn body(
     let on = ctx.enabled;
     let act = |p: PlanPress| ctx.act(p);
     let mut cy = y;
+    // F1's one line of fact, where a key made here waits for this backup
+    // (`docs/NEW-WALLET.md` §14.5): over the board too, which a new plan
+    // opens on.
+    let held = ctx.wallet.is_some_and(|wl| !app.wallet_held(wl).is_empty());
     if q == qstep::BOARD {
+        if held {
+            cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.plan_a_key_made_here) + 12.0;
+        }
         // The board (`docs/BACKUP-FLOW.md` §19), then Continue.
         cy += crate::board_screen::board(app, ui, x, cy, w);
-    } else if q == qstep::LAYERS {
-        // The layers, their routes, Work it out and the conflicts
-        // (`docs/BACKUP-FLOW.md` §20.3), then Continue.
-        cy += crate::layers_screen::card(app, ui, x, cy, w, on);
     } else {
         match q {
             qstep::PRESET => {
                 // F1's one line of fact, where a key made here waits for
                 // this backup (`docs/NEW-WALLET.md` §14.5).
-                if ctx.wallet.is_some_and(|wl| !app.wallet_held(wl).is_empty()) {
+                if held {
                     cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.plan_a_key_made_here) + 12.0;
                 }
                 for (k, p) in Preset::ALL.iter().enumerate() {
@@ -214,20 +218,6 @@ pub(crate) fn body(
                         p.name(),
                         Style::Secondary,
                         Action::BPreset(k as u8),
-                    );
-                    cy += 48.0;
-                }
-                // Back up's The standard way: no places, no board
-                // (`docs/BACKUP-FLOW.md` §20.11, §20.14 item 6).
-                if ctx.flow.is_none() {
-                    ui.button(
-                        x,
-                        cy,
-                        Some(w),
-                        40.0,
-                        EN.create_standard,
-                        Style::Secondary,
-                        Action::BStandard,
                     );
                     cy += 48.0;
                 }

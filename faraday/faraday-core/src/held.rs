@@ -274,12 +274,9 @@ impl Faraday {
         let items = self.backup_items();
         // Every item but the writes: those wait for the lock, and the
         // hold on a key kept in a vault moves to the flow there.
-        // The standard way asks nothing more than each seed's copy checked
-        // (`docs/BACKUP-FLOW.md` §20.11, F31).
         let all = items
             .iter()
             .filter(|&&n| n != bstep::STICKS)
-            .filter(|&&n| !b.standard || bstep::is_copy(n))
             .all(|&n| bstep::item(n).is_some_and(|it| self.backup_item_done(it)));
         if !all {
             return;
@@ -293,7 +290,7 @@ impl Faraday {
             .backup_held_seeds()
             .into_iter()
             .filter(|&i| !(writes && in_vault(i)))
-            .filter(|&i| b.standard || plan::kept_nowhere(&shape, &b.answers, &[i]).is_none())
+            .filter(|&i| plan::kept_nowhere(&shape, &b.answers, &[i]).is_none())
             .filter_map(|i| {
                 let k = list.get(i)?.1?;
                 Some((self.session.keys.get(k)?.fingerprint(), k))

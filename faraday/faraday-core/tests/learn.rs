@@ -11,7 +11,7 @@ fn shown(app: &Faraday) -> &'static str {
 #[test]
 fn the_question_mark_opens_the_pages_for_the_screen() {
     let mut app = faraday_core::testkit::started();
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CKind(4));
     app.press(Action::Learn);
     assert_eq!(app.sheet, Some(Sheet::Learn));

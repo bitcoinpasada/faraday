@@ -197,7 +197,6 @@ fn card(app: &Faraday, f: &BackupFlow, s: Step) -> flow::Card {
         open,
         default: false,
         toggle: fa(F::Open(s.n())),
-        inert: false,
         guide: None,
     }
 }

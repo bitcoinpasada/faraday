@@ -136,7 +136,7 @@ fn node<'a>(nodes: &'a [BackupNode], name: &str) -> &'a BackupNode {
 fn a_single_key_with_paper_and_vault_shows_two_places_and_the_vault() {
     let mut app = desktop();
     let w = one_key(&mut app);
-    planned(&mut app, w, 1);
+    planned(&mut app, w, 2);
     let g = chart(&app, w);
     assert_eq!(g.keys.len(), 1);
     assert_eq!(g.keys[0].state, "Can sign here");
@@ -166,7 +166,7 @@ fn a_single_key_with_paper_and_vault_shows_two_places_and_the_vault() {
 fn a_cosigners_key_is_xpub_only_and_no_backup_node_holds_its_seed() {
     let mut app = desktop();
     let w = two_of_three(&mut app);
-    planned(&mut app, w, 1);
+    planned(&mut app, w, 2);
     let g = chart(&app, w);
     let states: Vec<&str> = g.keys.iter().map(|k| k.state.as_str()).collect();
     assert_eq!(
@@ -199,7 +199,7 @@ fn a_cosigners_key_is_xpub_only_and_no_backup_node_holds_its_seed() {
 fn a_place_with_the_whole_sheet_sees_the_balance() {
     let mut app = desktop();
     let w = two_of_three(&mut app);
-    planned(&mut app, w, 0);
+    planned(&mut app, w, 1);
     let nodes = nodes(&chart(&app, w));
     // The cosigner's place keeps the sheet alone.
     let three = node(&nodes, "Place 3");
@@ -245,7 +245,7 @@ fn shown(app: &mut Faraday, want: &str) -> bool {
 fn pressing_a_place_opens_its_sheet_and_puts_nothing_for_the_stick() {
     let mut app = desktop();
     let w = one_key(&mut app);
-    planned(&mut app, w, 1);
+    planned(&mut app, w, 2);
     // A backup of it opened again starts on the presets; the card still
     // charts the plan this power-on made.
     app.press(Action::Backup(w));
@@ -285,7 +285,7 @@ fn pressing_a_place_opens_its_sheet_and_puts_nothing_for_the_stick() {
 fn a_line_inside_a_place_opens_its_own_sheet() {
     let mut app = desktop();
     let w = two_of_three(&mut app);
-    planned(&mut app, w, 0);
+    planned(&mut app, w, 1);
     let press = Press::Loaded(w);
     let at = nodes(&chart(&app, w))
         .iter()
@@ -321,7 +321,7 @@ fn a_line_inside_a_place_opens_its_own_sheet() {
 fn a_key_held_here_shows_its_xpub_and_where_its_seed_is() {
     let mut app = desktop();
     let w = one_key(&mut app);
-    planned(&mut app, w, 1);
+    planned(&mut app, w, 2);
     let press = Press::Loaded(w);
     let fp = app.session.keys[0].fingerprint().0;
     open(&mut app, press, Target::Key(0));
@@ -350,7 +350,7 @@ fn a_key_held_here_shows_its_xpub_and_where_its_seed_is() {
 fn a_cosigners_key_offers_nothing_secret() {
     let mut app = desktop();
     let w = two_of_three(&mut app);
-    planned(&mut app, w, 1);
+    planned(&mut app, w, 2);
     let press = Press::Loaded(w);
     open(&mut app, press, Target::Key(2));
     assert!(shown(&mut app, "Cosigner · xpub only"));
@@ -363,7 +363,7 @@ fn a_cosigners_key_offers_nothing_secret() {
 fn on_a_small_panel_the_chart_is_its_own_page() {
     let mut app = device(480, 640, 286);
     let w = two_of_three(&mut app);
-    planned(&mut app, w, 1);
+    planned(&mut app, w, 2);
     let open = Action::Glance(true);
     let mut offered = app.offers(open);
     for _ in 0..10 {
@@ -442,7 +442,7 @@ fn settle(app: &mut Faraday, until: impl Fn(&Faraday) -> bool) {
 fn after_a_lock_the_wallet_loaded_again_still_charts_its_plan() {
     let mut app = desktop();
     let w = one_key(&mut app);
-    planned(&mut app, w, 1);
+    planned(&mut app, w, 2);
     let before = nodes(&chart(&app, w));
     let kept = kept_at_lock(&mut app);
     let mut app = device_with(1366, 768, 160, kept);
@@ -481,7 +481,7 @@ fn a_wallet_loaded_from_its_vault_on_another_power_on_charts_the_vaults_plan() {
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, |a| !a.vaults.open.is_empty());
     assert_eq!(app.vaults.open.len(), 1, "the vault did not open");
-    planned(&mut app, w, 1);
+    planned(&mut app, w, 2);
     app.press(Action::Backup(w));
     app.press(Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
@@ -596,7 +596,7 @@ fn vault_holding(app: &mut Faraday, w: usize, plan: bool) {
     settle(app, |a| !a.vaults.open.is_empty());
     assert_eq!(app.vaults.open.len(), 1, "the vault did not open");
     if plan {
-        planned(app, w, 1);
+        planned(app, w, 2);
         app.press(Action::Backup(w));
         app.press(Action::BChecklist);
         if app.backup_items().contains(&faraday_core::bstep::BLANK) {

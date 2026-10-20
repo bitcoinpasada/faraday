@@ -120,10 +120,6 @@ pub mod field {
     /// date it was last checked here, a mark (lost, exposed), a key's
     /// holder, a vault's name. Never a secret.
     pub const PLAN_NOTE: u8 = 5;
-    /// Backup plan: an access layer's name, one per layer in order
-    /// (repeatable; `docs/BACKUP-FLOW.md` §20.1). Kept here alone, beside
-    /// the places' names, never in the answers' text.
-    pub const PLAN_LAYER: u8 = 6;
 
     /// APK signing key: the private key, PKCS #8 DER.
     pub const APK_KEY: u8 = 1;
@@ -287,6 +283,9 @@ const PLAN_RULES: &[Rule] = &[
     rule(3, false, true, Shape::Text(128)),
     rule(4, false, true, TEXT),
     rule(5, false, true, TEXT),
+    // Field 6, an access layer's name, was written only by test builds
+    // before the layers were withdrawn (`docs/DECISIONS.md` F38): still
+    // allowed so such a record opens, and read by nothing.
     rule(6, false, true, Shape::Text(128)),
 ];
 

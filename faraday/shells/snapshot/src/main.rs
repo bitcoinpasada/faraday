@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|layers|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|bootplace|power|pills]
+//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|apk|flow|bootplace|power|pills]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -44,10 +44,7 @@
 //! (`docs/BACKUP-FLOW.md` §19) for Savings with its three keys here: on
 //! Paper and vault, a seed selected with the zones that take it edged,
 //! a placed seed's forms open, a share placed with the keys left off,
-//! and the software place; with `layers`, the plan's Access layers card
-//! (`docs/BACKUP-FLOW.md` §20.3) for Savings with its three keys here: the
-//! card, the board Work it out filled with the lines under it, and a
-//! conflict with what would resolve it; with `inbox`, Stick visit offering the Inbox's
+//! and the software place; with `inbox`, Stick visit offering the Inbox's
 //! files under "From the Inbox" (a wallet, a vault, a wallet's QR
 //! picture, seed words and text), Select all, and the secret sheet for
 //! the text and for the words; with `transfer`, the desktop app's
@@ -298,16 +295,21 @@ impl Tour {
         self.pump();
     }
 
-    /// Make a new wallet opened past Start by I know what I want
-    /// (`docs/BACKUP-FLOW.md` §20.14 item 1), as the tours made before
-    /// Start open it.
-    fn create_knowing(&mut self) {
-        faraday_core::testkit::create_knowing(&mut self.app);
-        self.pump();
-    }
-
     fn press(&mut self, a: Action) {
+        use faraday_core::board::BoardPress as B;
+        // The tours that edit a board press Customize backup first
+        // (`docs/BACKUP-FLOW.md` §19.6), and keep a drop the sheet asks
+        // about (§19.5); the std tour shows both itself.
+        if let Action::Board(p) = a
+            && !matches!(p, B::Customize | B::SeesKeep | B::SeesUndo)
+            && self.app.board_plan().is_some_and(|(_, plan)| !plan.custom)
+        {
+            self.app.press(Action::Board(B::Customize));
+        }
         self.app.press(a);
+        if matches!(a, Action::Board(_)) && self.app.sheet == Some(faraday_core::Sheet::BoardSees) {
+            self.app.press(Action::Board(B::SeesKeep));
+        }
         self.pump();
         if self.go_on
             && self.app.sheet == Some(faraday_core::Sheet::Devices)
@@ -596,7 +598,7 @@ fn pills_tour(t: &mut Tour) -> Result<(), String> {
         .iter()
         .position(|k| *k == faraday_core::create::NewKind::Multi)
         .unwrap_or(0) as u8;
-    t.create_knowing();
+    t.press(Action::CreateWallet);
     t.press(Action::CKind(multi));
     t.press(Action::CVaults(true));
     t.press(Action::CNext(faraday_core::cstep::WHERE));
@@ -702,7 +704,6 @@ fn run(
         Some("again") => return again_tour(&mut t),
         Some("plan") => return plan_tour(&mut t),
         Some("board") => return board_tour(&mut t),
-        Some("layers") => return layers_tour(&mut t),
         Some("inbox") => return inbox_tour(&mut t),
         Some("transfer") => return transfer_tour(&mut t),
         Some("upgrade") => return upgrade_tour(&mut t),
@@ -724,9 +725,7 @@ fn run(
         Some("createfrom") => return create_from_tour(&mut t),
         Some("inprogress") => return in_progress_tour(&mut t),
         Some("cancel") => return cancel_tour(&mut t),
-        Some("l6") => return plan_first_tour(&mut t),
-        Some("l3") => return layer_view_tour(&mut t),
-        Some("l4") => return instructions_tour(&mut t),
+        Some("std") => return standard_tour(&mut t),
         _ => {}
     }
     if medium == Medium::Stick {
@@ -1248,7 +1247,7 @@ fn run(
     // with its own share.
     t.press(Action::Backup(0));
     t.shot("backup-plan")?;
-    t.press(Action::BPreset(0));
+    t.press(Action::BPreset(1));
     shares_on_paper(&mut t);
     t.press(Action::BChecklist);
     t.press(Action::BStep(bstep::BLANK));
@@ -1357,7 +1356,7 @@ fn run(
     }
     t.sticks(false);
     t.load_kit()?;
-    t.create_knowing();
+    t.press(Action::CreateWallet);
     // Create opens on Kind (`docs/NEW-WALLET.md` §2.1): single key is
     // the default, ticked to Multisig instead.
     t.press(Action::CKind(4));
@@ -1387,7 +1386,7 @@ fn run(
     }
     t.press(Action::Nav(Screen::Start));
     t.shot("start-create-waiting")?;
-    t.create_knowing();
+    t.press(Action::CreateWallet);
     if t.app.create_waiting() != 1 {
         return Err("Create did not come back to the wallet being made".into());
     }
@@ -1418,7 +1417,7 @@ fn run(
     t.press(Action::Cancel);
     // A FROST wallet dealt here: test key 1 and a new key are shares 1
     // and 2, and the deal computes share 3.
-    t.create_knowing();
+    t.press(Action::CreateWallet);
     t.press(Action::CKind(8)); // Threshold · FROST
     t.press(Action::CNext(0));
     t.press(Action::CNext(1));
@@ -1617,7 +1616,7 @@ fn run(
         .position(|w| w.name == "Spending")
         .ok_or("Spending is not loaded")?;
     t.press(Action::Backup(spending));
-    t.press(Action::BPreset(1));
+    t.press(Action::BPreset(2));
     t.press(Action::BChecklist);
     if t.app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {
         t.press(Action::BStep(bstep::COPY));
@@ -2113,7 +2112,7 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("boot-loaded")?;
     // A 2-of-3 made here over test key 1 and two new keys, saved into
     // the open vault with the new keys.
-    t.create_knowing();
+    t.press(Action::CreateWallet);
     t.press(Action::CKind(4));
     t.press(Action::CNext(0));
     t.press(Action::CNext(1));
@@ -2128,7 +2127,7 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     // ticked into Vault 1, puts the new keys and the wallet into the open
     // vault from the checklist.
     let built = t.app.create.as_ref().and_then(|c| c.built).unwrap_or(0);
-    t.press(Action::CBackup(1));
+    t.press(Action::CBackup(2));
     let here = t.app.plan_shape(built).here();
     let vaults = t
         .app
@@ -2527,7 +2526,7 @@ fn compact_tour(t: &mut Tour) -> Result<(), String> {
     });
     t.shot("entry-foot")?;
     t.press(Action::Nav(Screen::Home));
-    t.create_knowing();
+    t.press(Action::CreateWallet);
     // Create opens on Kind, single key the default
     // (`docs/NEW-WALLET.md` §2.1).
     t.shot("create-kind")?;
@@ -2581,7 +2580,7 @@ fn compact_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("create-check")?;
     t.press(Action::CStep(cstep::BACKUP));
     // Paper and vault: the backup on the new wallet, preset applied.
-    t.press(Action::CBackup(1));
+    t.press(Action::CBackup(2));
     t.shot("create-backup-plan")?;
     t.press(Action::Nav(Screen::Home));
     t.shot("home-loaded")?;
@@ -3211,7 +3210,7 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("public-silent-sheet")?;
     t.press(Action::QrPng);
     t.press(Action::Cancel);
-    t.create_knowing();
+    t.press(Action::CreateWallet);
     t.press(Action::CKind(4));
     t.press(Action::CNext(0));
     t.press(Action::CNext(1));
@@ -3227,7 +3226,7 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
     // software chosen and the description going as files, it offers
     // them all.
     let built = t.app.create.as_ref().and_then(|c| c.built).unwrap_or(0);
-    t.press(Action::CBackup(2));
+    t.press(Action::CBackup(3));
     for row in 0..5u8 {
         let on = t
             .app
@@ -3256,7 +3255,7 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("public-sheet")?;
     t.press(Action::Cancel);
     t.press(Action::Backup(built));
-    to_checklist(t, 2, &[(qrow::FORM, 1)]);
+    to_checklist(t, 3, &[(qrow::FORM, 1)]);
     t.press(Action::BStep(bstep::PUBLIC));
     t.press(Action::PublicOut(built, 8));
     scroll_to(t, Action::PublicOut(built, 8));
@@ -3334,7 +3333,7 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
 fn copy_tour(t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     t.press(Action::Backup(0));
-    to_checklist(t, 0, &[]);
+    to_checklist(t, 1, &[]);
     t.press(Action::BNext(bstep::BLANK));
     t.press(Action::BReveal);
     t.app.storage(StorageEvent::Cameras(Vec::new()));
@@ -3385,7 +3384,7 @@ fn seedfile_tour(t: &mut Tour) -> Result<(), String> {
         })
         .ok_or("test key 2 was not added")?;
     t.press(Action::Backup(0));
-    t.press(Action::BPreset(1));
+    t.press(Action::BPreset(2));
     seed_files_at(t, 0);
     t.press(Action::BChecklist);
     t.press(Action::BStep(bstep::FILES));
@@ -3471,7 +3470,7 @@ fn seedfile_tour(t: &mut Tour) -> Result<(), String> {
 fn kept_tour(t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     t.press(Action::Backup(0));
-    t.press(Action::BPreset(0));
+    t.press(Action::BPreset(1));
     seed_files_at(t, 0);
     t.press(Action::BChecklist);
     t.press(Action::BNext(bstep::BLANK));
@@ -3511,7 +3510,7 @@ fn kept_tour(t: &mut Tour) -> Result<(), String> {
         return Err("the test vault did not open".into());
     }
     t.press(Action::Backup(1));
-    to_checklist(t, 1, &[]);
+    to_checklist(t, 2, &[]);
     t.press(Action::BNext(bstep::BLANK));
     t.press(Action::BReveal);
     t.press(Action::BCheck);
@@ -3549,7 +3548,7 @@ fn again_tour(t: &mut Tour) -> Result<(), String> {
         (qrow::SOFTWARE, 3),
         (qrow::FORM, 1),
     ];
-    to_checklist(t, 2, &every);
+    to_checklist(t, 3, &every);
     t.press(Action::BStep(bstep::PUBLIC));
     scroll_to(t, Action::PublicOut(0, 7));
     t.shot("again-watch-only-files")?;
@@ -3586,7 +3585,7 @@ fn again_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Seeds(S::Make));
     let w = t.app.session.wallets.len() - 1;
     t.press(Action::Backup(w));
-    to_checklist(t, 1, &[]);
+    to_checklist(t, 2, &[]);
     t.press(Action::BStep(bstep::VAULT));
     scroll_to(t, Action::Vault(V::OpenFrom(0, Screen::Backup)));
     t.shot("again-restored-locked")?;
@@ -3638,7 +3637,7 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     // edged, and The plan.
     t.press(Action::Backup(spending));
     t.shot("plan-presets-one-key")?;
-    t.press(Action::BPreset(1));
+    t.press(Action::BPreset(2));
     t.shot("plan-board-one-key")?;
     t.press(Action::Board(BP::Chip(Chip::List(Thing::Vault(0)))));
     t.shot("plan-board-vault-held-one-key")?;
@@ -3650,7 +3649,7 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     // Savings (2-of-3), no seed here: its board holds the vaults alone;
     // each place with a share on paper; What is a share? opens.
     t.press(Action::Backup(savings));
-    t.press(Action::BPreset(0));
+    t.press(Action::BPreset(1));
     t.shot("plan-board-two-of-three")?;
     shares_on_paper(t);
     t.shot("plan-board-shares-two-of-three")?;
@@ -3677,7 +3676,7 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
         )
         .map_err(|e| e.text())?;
     t.press(Action::Backup(five));
-    t.press(Action::BPreset(0));
+    t.press(Action::BPreset(1));
     shares_on_paper(t);
     t.press(Action::BOmit(2));
     t.shot("plan-board-shares-three-of-five")?;
@@ -3689,14 +3688,14 @@ fn plan_tour(t: &mut Tour) -> Result<(), String> {
     // each: the board, Vault 1's stick at Place 1 too, The plan and the
     // second vault's item.
     t.press(Action::Backup(spending));
-    t.press(Action::BPreset(1));
+    t.press(Action::BPreset(2));
     t.press(Action::BChecklist);
     t.press(Action::BStep(bstep::VAULT));
     t.shot("plan-checklist-vault-one-key")?;
     t.press(Action::Entry(None));
     t.type_key(1);
     t.press(Action::Backup(savings));
-    t.press(Action::BPreset(1));
+    t.press(Action::BPreset(2));
     t.shot("plan-board-vaults-two-of-three")?;
     if vault_stick(t, 0, 0).is_none() {
         bput(t, Thing::Vault(0), Zone::Card(0));
@@ -3741,7 +3740,7 @@ fn board_tour(t: &mut Tour) -> Result<(), String> {
         .ok_or("no Savings")?;
     t.press(Action::Backup(savings));
     // The preset opens the board.
-    t.press(Action::BPreset(1));
+    t.press(Action::BPreset(2));
     t.shot("board-paper-and-vault")?;
     t.press(Action::Board(B::Chip(Chip::List(Thing::Seed(0)))));
     t.shot("board-seed-selected")?;
@@ -3819,260 +3818,6 @@ fn board_tour(t: &mut Tour) -> Result<(), String> {
     type_text(t, "K");
     t.shot("board-name-one-key")?;
     t.app.event(Event::Key(Key::Enter));
-    Ok(())
-}
-
-/// The plan's Access layers card (`docs/BACKUP-FLOW.md` §20.3) for
-/// Savings, its three keys typed in, on Paper only: the card with its one
-/// layer, the board Work it out filled, its top and the lines under it,
-/// a conflict (the route any one of its places) with what would resolve
-/// it, the route's kinds set by hand, a kinds conflict, and a second
-/// route off paper with a vault at each place.
-fn layers_tour(t: &mut Tour) -> Result<(), String> {
-    use faraday_core::access::KindVault;
-    use faraday_core::board::BoardPress as B;
-    use faraday_core::layers::LayersPress as L;
-    t.load_kit()?;
-    for n in 1..3 {
-        t.press(Action::Entry(None));
-        t.type_key(n);
-    }
-    let savings = t
-        .app
-        .session
-        .wallets
-        .iter()
-        .position(|w| w.name == "Savings")
-        .ok_or("no Savings")?;
-    t.press(Action::Backup(savings));
-    t.press(Action::BPreset(0));
-    t.press(Action::BQ(qstep::LAYERS));
-    t.shot("layers-card")?;
-    scroll_to(t, Action::Layers(L::WorkItOut));
-    t.shot("layers-card-work-it-out")?;
-    t.press(Action::Layers(L::WorkItOut));
-    t.shot("layers-worked-board")?;
-    scroll_to(t, Action::Board(B::AddPlace));
-    scroll(t, 400);
-    t.shot("layers-worked-lines")?;
-    t.press(Action::BQ(qstep::LAYERS));
-    t.press(Action::Layers(L::Fewer(0, 0)));
-    scroll_to(t, Action::Layers(L::AddPlaceTo(0, 0)));
-    t.shot("layers-conflict")?;
-    // What each place of the route holds, set by hand (§20.13), and a
-    // kinds conflict: no seed at each place.
-    t.press(Action::Layers(L::More(0, 0)));
-    t.press(Action::Layers(L::KindsSet(0, 0)));
-    scroll_to(t, Action::Layers(L::KindsFewerSeeds(0, 0)));
-    t.shot("layers-kinds")?;
-    t.press(Action::Layers(L::KindsFewerSeeds(0, 0)));
-    scroll_to(t, Action::Layers(L::KindsSeeds(0, 0, 1)));
-    t.shot("layers-kinds-conflict")?;
-    // A route off paper with its kinds: the seeds' form and a vault too.
-    t.press(Action::Layers(L::KindsSeeds(0, 0, 1)));
-    t.press(Action::Layers(L::AddRoute(0)));
-    t.press(Action::Layers(L::KindsSet(0, 1)));
-    t.press(Action::Layers(L::KindsVault(0, 1, KindVault::Remembered)));
-    scroll_to(t, Action::Layers(L::KindsVault(0, 1, KindVault::None)));
-    t.shot("layers-kinds-vault")?;
-    Ok(())
-}
-
-/// The board's views (`docs/BACKUP-FLOW.md` §20.7, L3) for Savings, its
-/// three keys typed in and a vault open, on Paper and vault with two
-/// layers worked out (Access layer 1 any 2 of the three places on paper,
-/// or Place 1 with Vault 1's password; Access layer 2 any 2 of Places 2
-/// and 3 on paper): All with each place's layer marks, each layer's view
-/// and its checks (Vault 1 open, then shut), the Stranger at one place
-/// and at two, and Access layer 1's name pressed and typed.
-fn layer_view_tour(t: &mut Tour) -> Result<(), String> {
-    use faraday_core::board::{BoardPress as B, View};
-    use faraday_core::layers::LayersPress as L;
-    t.load_kit()?;
-    for n in 1..3 {
-        t.press(Action::Entry(None));
-        t.type_key(n);
-    }
-    open_a_vault(t, "layer view phrase")?;
-    let savings = t
-        .app
-        .session
-        .wallets
-        .iter()
-        .position(|w| w.name == "Savings")
-        .ok_or("no Savings")?;
-    t.press(Action::Backup(savings));
-    t.press(Action::BPreset(1));
-    t.press(Action::BQ(qstep::LAYERS));
-    for p in [
-        L::AddRoute(0),
-        L::Place(0, 1, 1),
-        L::Place(0, 1, 2),
-        L::Password(0, 1, 0),
-        L::AddLayer,
-        L::Place(1, 0, 0),
-        L::WorkItOut,
-    ] {
-        t.press(Action::Layers(p));
-    }
-    if t.app.backup.as_ref().and_then(|b| b.q) != Some(qstep::BOARD) {
-        t.press(Action::BQ(qstep::BOARD));
-    }
-    let checks = |t: &mut Tour, name: &str| -> Result<(), String> {
-        scroll_to(t, Action::Board(B::AddPlace));
-        scroll(t, 400);
-        t.shot(name)
-    };
-    let top = |t: &mut Tour| {
-        scroll(t, -20_000);
-        scroll_to(t, Action::Board(B::View(View::All)));
-    };
-    top(t);
-    t.shot("l3-all")?;
-    checks(t, "l3-all-lines")?;
-    t.press(Action::Board(B::View(View::Layer(0))));
-    top(t);
-    t.shot("l3-layer-1")?;
-    checks(t, "l3-layer-1-checks")?;
-    t.press(Action::Board(B::View(View::Layer(1))));
-    top(t);
-    t.shot("l3-layer-2")?;
-    checks(t, "l3-layer-2-checks")?;
-    t.press(Action::Board(B::View(View::Stranger)));
-    top(t);
-    t.shot("l3-stranger-1")?;
-    t.press(Action::Board(B::FoundMore));
-    t.shot("l3-stranger-2")?;
-    checks(t, "l3-stranger-2-checks")?;
-    // Access layer 1's name: just pressed, the whole of it selected; then
-    // typed (§20.1, §19.18 item 3).
-    t.press(Action::Board(B::View(View::Layer(0))));
-    top(t);
-    t.press(Action::BLayerName(0));
-    t.shot("l3-name-pressed")?;
-    type_text(t, "Kitchen drawer");
-    t.app.event(Event::Key(Key::Enter));
-    t.shot("l3-renamed")?;
-    t.press(Action::BQ(qstep::LAYERS));
-    t.shot("l3-renamed-card")?;
-    Ok(())
-}
-
-/// A layer's instructions by hand (`docs/BACKUP-FLOW.md` §20.5, L4) and
-/// a route's kinds against the board edited by hand (§20.13, L2b choice
-/// 11), for Savings as the L3 tour has it, Access layer 2's route set to
-/// one seed in words and a part at each place, Place 1 named: the layer
-/// view's Instructions, each layer's sheet, the Access layers card's
-/// heading, and the warning under the board once Place 3's seed is taken
-/// off.
-fn instructions_tour(t: &mut Tour) -> Result<(), String> {
-    use faraday_core::board::{BoardPress as B, Thing, View, Zone};
-    use faraday_core::layers::LayersPress as L;
-    use faraday_core::plan::{At, What};
-    t.load_kit()?;
-    for n in 1..3 {
-        t.press(Action::Entry(None));
-        t.type_key(n);
-    }
-    open_a_vault(t, "layer view phrase")?;
-    let savings = t
-        .app
-        .session
-        .wallets
-        .iter()
-        .position(|w| w.name == "Savings")
-        .ok_or("no Savings")?;
-    t.press(Action::Backup(savings));
-    t.press(Action::BPreset(1));
-    t.press(Action::BQ(qstep::LAYERS));
-    for p in [
-        L::AddRoute(0),
-        L::Place(0, 1, 1),
-        L::Place(0, 1, 2),
-        L::Password(0, 1, 0),
-        L::AddLayer,
-        L::Place(1, 0, 0),
-        L::KindsSet(1, 0),
-        L::WorkItOut,
-    ] {
-        t.press(Action::Layers(p));
-    }
-    if t.app.backup.as_ref().and_then(|b| b.q) != Some(qstep::BOARD) {
-        t.press(Action::BQ(qstep::BOARD));
-    }
-    t.press(Action::BName(0));
-    type_text(t, "Kitchen drawer");
-    t.app.event(Event::Key(Key::Enter));
-    t.press(Action::Board(B::View(View::Layer(0))));
-    scroll_to(t, Action::Instructions(0));
-    t.shot("l4-layer-1-button")?;
-    t.press(Action::Instructions(0));
-    t.shot("l4-instructions-1")?;
-    scroll(t, 2_000);
-    t.shot("l4-instructions-1-foot")?;
-    t.press(Action::Cancel);
-    t.press(Action::Board(B::View(View::Layer(1))));
-    t.press(Action::Instructions(1));
-    t.shot("l4-instructions-2")?;
-    t.press(Action::Cancel);
-    t.press(Action::BQ(qstep::LAYERS));
-    scroll(t, -20_000);
-    t.shot("l4-card")?;
-    t.press(Action::BQ(qstep::BOARD));
-    t.press(Action::Board(B::View(View::All)));
-    let seed = t
-        .app
-        .board_plan()
-        .and_then(|(shape, a)| {
-            faraday_core::plan::map(&shape, &a)
-                .iter()
-                .filter(|s| s.at == At::Place(2))
-                .flat_map(|s| s.holds.iter())
-                .find_map(|(w, _)| match w {
-                    What::Words(i) => Some(*i),
-                    _ => None,
-                })
-        })
-        .ok_or("no seed at Place 3")?;
-    t.press(Action::Board(B::Off(Zone::Paper(2), Thing::Seed(seed))));
-    scroll_to(t, Action::Board(B::AddPlace));
-    scroll(t, 400);
-    t.shot("l4-kinds-warning")?;
-    Ok(())
-}
-
-/// Create plans the backup first (`docs/BACKUP-FLOW.md` §20.14): Start,
-/// the Access layers card in Create with the fresh plan, the Wallet card
-/// with the shapes that do not fit dimmed, and after the three test keys
-/// are put in the slots by hand, Create's Back up opened placed.
-fn plan_first_tour(t: &mut Tour) -> Result<(), String> {
-    use faraday_core::create_plan::WalletShape;
-    use faraday_core::cstep;
-    for (word, label) in testkit::TEST_SEEDS {
-        t.app
-            .session
-            .add_words(&testkit::test_words(word), label, None)
-            .map_err(|e| e.text())?;
-    }
-    t.press(Action::CreateWallet);
-    t.shot("l6-start")?;
-    t.press(Action::CNext(cstep::START));
-    t.shot("l6-layers")?;
-    scroll_to(t, Action::CSuggest);
-    t.shot("l6-layers-suggest")?;
-    t.press(Action::CSuggest);
-    t.shot("l6-wallet")?;
-    t.press(Action::CShape(WalletShape::TwoOfThree.index()));
-    t.shot("l6-keys")?;
-    for slot in 0..3u8 {
-        let fp = t.app.session.keys[usize::from(slot)].fingerprint().0;
-        t.press(Action::CSlotHere(slot, fp));
-    }
-    t.press(Action::CNext(cstep::KEYS));
-    t.press(Action::CNext(cstep::CHECK));
-    t.shot("l6-create-backup")?;
-    t.press(Action::CBackupPlanned);
-    t.shot("l6-backup-placed")?;
     Ok(())
 }
 
@@ -4163,7 +3908,7 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     };
     shot_card(t, one, "glance-no-plan")?;
     t.press(Action::Backup(one));
-    t.press(Action::BPreset(1));
+    t.press(Action::BPreset(2));
     t.press(Action::BChecklist);
     shot_card(t, one, "glance-one-key")?;
     let press = Press::Loaded(one);
@@ -4212,7 +3957,7 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
         .map_err(|e| e.text())?;
     shot_card(t, two, "glance-two-of-three-no-plan")?;
     t.press(Action::Backup(two));
-    t.press(Action::BPreset(1));
+    t.press(Action::BPreset(2));
     // Key 2's passphrase into its vault too.
     pass_into_vault(t, 1);
     t.press(Action::BChecklist);
@@ -4256,7 +4001,7 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
         return Err("the vault made for the glance tour did not open".to_string());
     }
     t.press(Action::Backup(one));
-    t.press(Action::BPreset(1));
+    t.press(Action::BPreset(2));
     t.press(Action::BChecklist);
     t.press(Action::BVaultSave(0));
     t.press(Action::Nav(Screen::VaultContents));
@@ -4288,7 +4033,7 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     shot_item(t, "glance-vault")?;
     // The 2-of-3's plan made with the vault open, and the wallet saved.
     t.press(Action::Backup(two));
-    t.press(Action::BPreset(1));
+    t.press(Action::BPreset(2));
     // Key 2's passphrase into its vault too.
     pass_into_vault(t, 1);
     t.press(Action::BChecklist);
@@ -4372,7 +4117,7 @@ fn chart_edit_tour(t: &mut Tour) -> Result<(), String> {
         return Err("the vault made for the chart tour did not open".to_string());
     }
     t.press(Action::Backup(one));
-    t.press(Action::BPreset(1));
+    t.press(Action::BPreset(2));
     t.press(Action::BChecklist);
     t.press(Action::BVaultSave(0));
     t.press(Action::Nav(Screen::VaultContents));
@@ -4479,7 +4224,7 @@ fn chart_edit_tour(t: &mut Tour) -> Result<(), String> {
         )
         .map_err(|e| e.text())?;
     t.press(Action::Backup(two));
-    t.press(Action::BPreset(0));
+    t.press(Action::BPreset(1));
     t.press(Action::BChecklist);
     let press = Press::Loaded(two);
     t.press(Action::OpenWallet(two));
@@ -4564,7 +4309,7 @@ fn first_tour(t: &mut Tour) -> Result<(), String> {
         .iter()
         .position(|k| *k == NewKind::NativeSegwit)
         .ok_or("no native SegWit")? as u8;
-    t.create_knowing();
+    t.press(Action::CreateWallet);
     t.press(Action::CKind(kind));
     t.press(Action::CNext(faraday_core::cstep::KIND));
     device_key(t, 0);
@@ -5358,7 +5103,7 @@ fn create_from_tour(t: &mut Tour) -> Result<(), String> {
         .iter()
         .position(|k| *k == NewKind::Multi)
         .ok_or("no multisig")? as u8;
-    t.create_knowing();
+    t.press(Action::CreateWallet);
     t.press(Action::CKind(multi));
     t.press(Action::CNext(cstep::KIND));
     t.press(Action::CVaults(false));
@@ -5572,7 +5317,7 @@ fn in_progress_tour(t: &mut Tour) -> Result<(), String> {
         .iter()
         .position(|k| *k == faraday_core::create::NewKind::Multi)
         .ok_or("no multisig")? as u8;
-    t.create_knowing();
+    t.press(Action::CreateWallet);
     t.press(Action::CKind(multi));
     for slot in 0..3u8 {
         let fp = t.app.session.keys[usize::from(slot)].fingerprint().0;
@@ -5580,7 +5325,7 @@ fn in_progress_tour(t: &mut Tour) -> Result<(), String> {
     }
     t.press(Action::CNext(cstep::KEYS));
     t.press(Action::CNext(cstep::CHECK));
-    t.press(Action::CBackup(0));
+    t.press(Action::CBackup(1));
     t.shot("inprogress-places")?;
     t.press(Action::Nav(Screen::Settings));
     t.shot("inprogress-settings")?;
@@ -5603,7 +5348,7 @@ fn cancel_tour(t: &mut Tour) -> Result<(), String> {
         .position(|k| *k == faraday_core::create::NewKind::Multi)
         .ok_or("no multisig")? as u8;
     t.press(Action::Nav(Screen::Start));
-    t.create_knowing();
+    t.press(Action::CreateWallet);
     t.press(Action::CKind(multi));
     t.press(Action::CNext(cstep::KIND));
     t.shot("cancel-1-create")?;
@@ -5616,12 +5361,75 @@ fn cancel_tour(t: &mut Tour) -> Result<(), String> {
     }
     t.press(Action::CNext(cstep::KEYS));
     t.press(Action::CNext(cstep::CHECK));
-    t.press(Action::CBackup(0));
+    t.press(Action::CBackup(1));
     t.shot("cancel-3-places")?;
     t.press(Action::CancelFlow);
     t.shot("cancel-4-places-sheet")?;
     t.press(Action::CancelFlowNow);
     t.shot("cancel-5-wallets")
+}
+
+/// The standard way on the board (`docs/BACKUP-FLOW.md` §19.6, §19.3,
+/// §19.5): Make a new wallet opening on Kind; a single key's Back up open
+/// on the board read-only; a 2-of-3's the same; the 2-of-3 after
+/// Customize backup with its form toggles; and the sheet over a drop that
+/// lets a place see the balance.
+fn standard_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::board::{BoardPress as B, Chip, Thing, Zone};
+    use faraday_core::cstep;
+    t.press(Action::Entry(None));
+    type_text(t, &testkit::test_words(testkit::TEST_SEEDS[0].0));
+    t.press(Action::EntryAdd);
+    t.press(Action::CreateWallet);
+    t.shot("std-1-create-kind")?;
+    // A single key from the key loaded.
+    t.press(Action::CNext(cstep::KIND));
+    let fp = t.app.session.keys[0].fingerprint().0;
+    t.press(Action::CSlotHere(0, fp));
+    t.press(Action::CNext(cstep::KEYS));
+    let single = t
+        .app
+        .session
+        .wallets
+        .len()
+        .checked_sub(1)
+        .ok_or("no wallet")?;
+    t.press(Action::Backup(single));
+    t.shot("std-2-single-key")?;
+    for n in 1..3 {
+        t.press(Action::Entry(None));
+        type_text(t, &testkit::test_words(testkit::TEST_SEEDS[n].0));
+        t.press(Action::EntryAdd);
+    }
+    let multi = faraday_core::create::NewKind::ALL
+        .iter()
+        .position(|k| *k == faraday_core::create::NewKind::Multi)
+        .ok_or("no multisig")? as u8;
+    t.press(Action::CreateWallet);
+    t.press(Action::CKind(multi));
+    for slot in 0..3u8 {
+        let fp = t.app.session.keys[usize::from(slot)].fingerprint().0;
+        t.press(Action::CSlotHere(slot, fp));
+    }
+    t.press(Action::CNext(cstep::KEYS));
+    let three = t
+        .app
+        .session
+        .wallets
+        .len()
+        .checked_sub(1)
+        .ok_or("no wallet")?;
+    t.press(Action::Backup(three));
+    t.shot("std-3-two-of-three")?;
+    t.press(Action::Board(B::Customize));
+    t.shot("std-4-customize")?;
+    // Whole off Place 3, Share 1 dropped there beside seed 3: the sheet.
+    t.press(Action::Board(B::Off(Zone::Paper(2), Thing::Whole)));
+    t.app
+        .press(Action::Board(B::Chip(Chip::List(Thing::Share(0)))));
+    t.app.press(Action::Board(B::Zone(Zone::Paper(2))));
+    t.pump();
+    t.shot("std-5-sees-sheet")
 }
 
 fn flow_tour(t: &mut Tour) -> Result<(), String> {
@@ -5778,7 +5586,7 @@ fn wallet_flow_tour(t: &mut Tour) -> Result<(), String> {
         boot: false,
         files: Vec::new(),
     };
-    t.create_knowing();
+    t.press(Action::CreateWallet);
     t.press(Action::CNext(cstep::KIND));
     t.shot("wallet-flow-1-create-yes-no")?;
     t.press(Action::CVaults(true));
@@ -5830,7 +5638,7 @@ fn wallet_flow_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CSlotHere(0, fp));
     t.press(Action::CNext(cstep::KEYS));
     t.press(Action::CNext(cstep::CHECK));
-    t.press(Action::CBackup(1));
+    t.press(Action::CBackup(2));
     // Back up's plan offers the two open vaults.
     t.shot("wallet-flow-7-back-up-vaults")?;
     // The key in both vaults, none on paper.
@@ -5969,7 +5777,6 @@ fn main() -> ExitCode {
             "again",
             "plan",
             "board",
-            "layers",
             "inbox",
             "transfer",
             "upgrade",
@@ -5991,14 +5798,12 @@ fn main() -> ExitCode {
             "createfrom",
             "inprogress",
             "cancel",
-            "l6",
-            "l3",
-            "l4",
+            "std",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, layers, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey, createfrom, inprogress, cancel, l6, l3 or l4"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, apk, flow, bootplace, power, pills, walletflow, demo, vaultshow, addkey, createfrom, inprogress, cancel or std"
         );
         return ExitCode::from(2);
     }

@@ -2804,11 +2804,13 @@ as possible before the next build.
     empty stick, and a vault kept at no place is not in the plan; with
     it §19.17 (a files box in every stick, the USB stick and lock
     glyphs) and §19.18 (a pressed name selected). Built 2026-10-19.
-    F3, the vault's show and save (§19.7), built 2026-10-19. Next:
-    item 79, access layers, when the owner moves it on.
+    F3, the vault's show and save (§19.7), built 2026-10-19. Item 79,
+    access layers, withdrawn 2026-10-19.
 
-79. [ ] 2026-10-16, owner: **access layers** (`docs/BACKUP-FLOW.md` §20,
-    F38). Access layers 1, 2, 3 …, each a list of what it is able to
+79. [x] 2026-10-16, owner: **access layers** (F38, F46). *Withdrawn
+    (owner, 2026-10-19): the layers, Create's Start card and their code,
+    strings, tests and spec (BACKUP-FLOW §20) were removed; a new plan
+    opens on the board with The standard way (§19.6).* As it was: Access layers 1, 2, 3 …, each a list of what it is able to
     spend with: places, and the vault passwords and passphrases known
     to it. Faraday works out the board so every layer can spend and a
     stranger who finds as many places as possible still cannot;

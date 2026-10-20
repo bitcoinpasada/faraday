@@ -701,9 +701,17 @@ pub fn let_seed_files_out(app: &mut Faraday) -> usize {
 use faraday_core::board::{BoardPress, Chip, Thing, Zone};
 use faraday_core::plan::{self, At, Spot, What};
 
-/// A press on Back up's board.
+/// A press on Back up's board, after **Customize backup** where the board
+/// is still read-only (`docs/BACKUP-FLOW.md` §19.6).
 pub fn board(app: &mut Faraday, p: BoardPress) {
+    if app.board_plan().is_some_and(|(_, a)| !a.custom) {
+        app.press(Action::Board(BoardPress::Customize));
+    }
     app.press(Action::Board(p));
+    // A drop that let a place see the balance asks (§19.5): kept.
+    if app.sheet == Some(faraday_core::Sheet::BoardSees) {
+        app.press(Action::Board(BoardPress::SeesKeep));
+    }
 }
 
 /// Tap to place: `t` pressed in the list, then zone `z`.
@@ -723,12 +731,10 @@ pub fn take_off(app: &mut Faraday, z: Zone, t: Thing) {
     board(app, BoardPress::Off(z, t));
 }
 
-/// Form `k` of the placed chip of `t` at `z` ticked or unticked in its
-/// popup, then the chip let go.
+/// Form `k` of the placed chip of `t` at `z` turned on or off by its
+/// toggle on the chip.
 pub fn form(app: &mut Faraday, z: Zone, t: Thing, k: u8) {
-    board(app, BoardPress::Chip(Chip::Placed(z, t)));
     board(app, BoardPress::Form(z, t, k));
-    board(app, BoardPress::LetGo);
 }
 
 /// The map of the plan the board on screen edits, sticks and all: Back

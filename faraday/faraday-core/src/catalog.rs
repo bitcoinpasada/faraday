@@ -521,15 +521,6 @@ impl Faraday {
             Go::Lightning => self.act(Action::Lightning),
             Go::Create(kind) => {
                 self.act(Action::CreateWallet);
-                // A tile names its kind: I know what I want, past Start
-                // (`docs/BACKUP-FLOW.md` §20.14).
-                if let Some(c) = self.create.as_mut()
-                    && c.open == Some(crate::cstep::START)
-                {
-                    c.way = crate::create_plan::CreateWay::Know;
-                    c.done[crate::cstep::START as usize] = true;
-                    c.open = Some(crate::cstep::KIND);
-                }
                 if let Some(k) = NewKind::ALL.iter().position(|x| *x == kind) {
                     self.act(Action::CKind(k as u8));
                 }

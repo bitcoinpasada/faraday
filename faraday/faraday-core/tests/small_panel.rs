@@ -76,15 +76,6 @@ fn tap(app: &mut Faraday, action: Action) {
     let _ = app.frame();
 }
 
-/// Make a new wallet tapped, then I know what I want and Start's
-/// Continue (`docs/BACKUP-FLOW.md` §20.14 item 1): Kind open.
-fn create_knowing_by_touch(app: &mut Faraday) {
-    use faraday_core::create_plan::CreateWay;
-    tap(app, Action::CreateWallet);
-    tap(app, Action::CWay(CreateWay::Know.index()));
-    tap(app, Action::CNext(faraday_core::cstep::START));
-}
-
 #[test]
 fn homes_grid_offers_learn_and_not_add_a_key() {
     let mut app = panel();
@@ -128,7 +119,7 @@ fn homes_grid_has_no_spend_tile() {
 fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     let mut app = panel();
     tap(&mut app, Action::Nav(Screen::Start));
-    create_knowing_by_touch(&mut app);
+    tap(&mut app, Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
     // Create opens on Kind (`docs/NEW-WALLET.md` §2.1); single key is
     // the default, so Continue reaches Keys straight away.
@@ -281,7 +272,7 @@ fn forward_in_view(mut app: Faraday, h: u16) {
     tap(&mut app, Action::Nav(Screen::Vaults));
     tap(&mut app, Action::Nav(Screen::Home));
     tap(&mut app, Action::Nav(Screen::Start));
-    create_knowing_by_touch(&mut app);
+    tap(&mut app, Action::CreateWallet);
     // Create opens on Kind (`docs/NEW-WALLET.md` §2.1): it is already
     // open, nothing to tap to reach it.
     // Taproot (kind 1) is behind More kinds now; the two always-shown
@@ -303,7 +294,7 @@ fn forward_in_view(mut app: Faraday, h: u16) {
 fn kind_is_offered_on_the_keys_page_and_opens() {
     let mut app = panel();
     tap(&mut app, Action::Nav(Screen::Start));
-    create_knowing_by_touch(&mut app);
+    tap(&mut app, Action::CreateWallet);
     assert_eq!(
         app.create.as_ref().and_then(|c| c.open),
         Some(faraday_core::cstep::KIND),
@@ -341,7 +332,7 @@ fn kind_is_offered_on_the_keys_page_and_opens() {
 fn the_page_title_shows_the_steps() {
     let mut app = panel();
     tap(&mut app, Action::Nav(Screen::Start));
-    create_knowing_by_touch(&mut app);
+    tap(&mut app, Action::CreateWallet);
     let kind = Action::CStep(faraday_core::cstep::KIND);
     tap(&mut app, kind);
     assert_eq!(app.create.as_ref().and_then(|c| c.open), None);

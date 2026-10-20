@@ -3941,6 +3941,8 @@ pub struct Strings {
     /// Line in `blank_sheet`.
     pub pdf_holds: &'static str,
     // ----- plan (faraday-core/src/plan.rs) -----
+    /// Text in `name`: the first preset (`docs/BACKUP-FLOW.md` §19.6).
+    pub plan_the_standard_way: &'static str,
     /// Text in `name`.
     pub plan_paper_only: &'static str,
     /// Text in `name`.
@@ -4033,12 +4035,6 @@ pub struct Strings {
     pub plan_without_the_rest: &'static str,
     /// Text in `name_at`. `{}`: `v + 1`.
     pub plan_vault: &'static str,
-    /// A vault's passphrase written on paper at a place
-    /// (docs/BACKUP-FLOW.md §20.4). `{}`: `v + 1`.
-    pub plan_vault_password: &'static str,
-    /// An access layer with no name, or none known while no vault is open
-    /// (docs/BACKUP-FLOW.md §20.1). `{}`: `l + 1`.
-    pub plan_access_layer: &'static str,
     /// Text in `name_at`. `{}`: `noun`.
     pub plan_the_of_files: &'static str,
     /// Text in `name_at`.
@@ -4917,8 +4913,9 @@ pub struct Strings {
     /// Text in `item_title`.
     pub item_title_envelopes: &'static str,
     // ----- question_summary (faraday-core/src/screens.rs) -----
-    /// Text in `question_summary`.
-    pub question_summary_3: &'static str,
+    /// Start from's line while it is closed, for a plan saved before its
+    /// preset was kept.
+    pub question_summary_presets: &'static str,
     /// Text in `question_summary`. `{}`: `c.lost.text()`.
     pub question_summary_any: &'static str,
     // ----- backup (faraday-core/src/screens.rs) -----
@@ -8324,276 +8321,35 @@ pub struct Strings {
     /// (`docs/BACKUP-FLOW.md` §19.15).
     pub board_add_place: &'static str,
     /// A vault box's header band. `{}`: the vault, "Vault 1".
-    pub board_sealed: &'static str, // ----- Access layers (docs/BACKUP-FLOW.md §20, F38), faraday-core -----
-    /// Title of the plan's Access layers card (`docs/BACKUP-FLOW.md` §20.3).
-    pub layers_title: &'static str,
-    /// The Access layers card's line while closed: one layer.
-    pub layers_one: &'static str,
-    /// The Access layers card's line while closed. `{}`: how many layers.
-    pub layers_many: &'static str,
-    /// A route of an access layer. `{}`: its number, from 1.
-    pub layers_route: &'static str,
-    /// A paper route of an access layer. `{}`: its number, from 1.
-    pub layers_route_paper: &'static str,
-    /// The label of a route's stepper of how many of its places are enough. `{}`: its places.
-    pub layers_any: &'static str,
-    /// A route's row: it spends from paper alone (§20.12 item 3).
-    pub layers_paper: &'static str,
-    /// A route's row: a vault's passphrase. `{}`: the vault's number.
-    pub layers_password: &'static str,
-    /// A vault's passphrase the route does not know.
-    pub layers_not_known: &'static str,
-    /// A vault's passphrase the route remembers.
-    pub layers_remembered: &'static str,
-    /// A vault's passphrase the route has written down (§20.9).
-    pub layers_written: &'static str,
-    /// A route's row: a seed's passphrase it remembers. `{}`: the seed.
-    pub layers_remembers: &'static str,
-    /// Adds a route to an access layer.
-    pub layers_add_route: &'static str,
-    /// Adds an access layer.
-    pub layers_add_layer: &'static str,
-    /// Runs the search and fills the board (§20.3).
-    pub layers_work_out: &'static str,
-    /// A conflict, and a warning under the board: a layer with no paper route (§20.12 item 3). `{}`: the layer.
-    pub layers_no_paper: &'static str,
-    /// A conflict (§20.4): a route of one place, and a stranger there. The layer, the place, the place, the place.
-    pub layers_alone: &'static str,
-    /// A conflict (§20.4): a route any one of whose places spends. The layer, its places.
-    pub layers_any_one: &'static str,
-    /// A conflict: a route can sign with fewer seeds than the wallet needs. The layer, the seeds it can use, the quorum.
-    pub layers_short: &'static str,
-    /// A conflict: the routes need another wallet shape (§20.12 item 6). The shape needed, this wallet's.
-    pub layers_shape: &'static str,
-    /// A conflict: every placement lets one place spend, and no shape tried does better.
-    pub layers_one_place: &'static str,
-    /// A wallet's shape: one key.
-    pub layers_single_key: &'static str,
-    /// A wallet's shape: a multisig. `{}`: the quorum, the keys.
-    pub layers_m_of_n: &'static str,
-    /// A resolution: a place added to a layer's route. The place, the layer.
-    pub layers_add_place: &'static str,
-    /// A resolution: a new place, added to a layer's route. `{}`: the layer.
-    pub layers_new_place: &'static str,
-    /// A resolution: a layer knows a vault's passphrase. The layer, the vault's number.
-    pub layers_knows: &'static str,
-    /// A resolution: a new vault whose passphrase a layer knows. `{}`: the layer.
-    pub layers_add_vault: &'static str,
-    /// A resolution: a paper route for a layer. `{}`: the layer.
-    pub layers_give_paper: &'static str,
-    /// A resolution: a layer remembers a seed's passphrase. The layer, the seed.
-    pub layers_remember: &'static str,
-    /// The route's kinds set by hand (§20.13), a tick row; unticked, Work it out chooses.
-    pub layers_kinds_set: &'static str,
-    /// The stepper: how many seeds each place of a route holds.
-    pub layers_seeds_each: &'static str,
-    /// The choice of the seeds' form at a route's places.
-    pub layers_seeds_as: &'static str,
-    /// A seeds' form: words on paper.
-    pub layers_words_on_paper: &'static str,
-    /// A seeds' form: a file on a stick.
-    pub layers_file_on_stick: &'static str,
-    /// The choice of how much of the wallet description a route's place holds.
-    pub layers_description: &'static str,
-    /// A choice: none.
-    pub layers_none: &'static str,
-    /// A choice: a part of the wallet description.
-    pub layers_part: &'static str,
-    /// A choice: the whole wallet description.
-    pub layers_whole: &'static str,
-    /// The choice of a vault at each of a route's places.
-    pub layers_vault: &'static str,
-    /// A route named in a conflict. The layer, the route's number.
-    pub layers_route_of: &'static str,
-    /// A conflict: a route's places give too few seeds. The route, its k, seeds each, k times that, the quorum.
-    pub layers_kinds_short: &'static str,
-    /// A conflict: more seeds at each place than the wallet has. The route, seeds each, the wallet's seeds.
-    pub layers_kinds_too_many: &'static str,
-    /// A conflict: a route's places hold no wallet description. The route.
-    pub layers_kinds_no_description: &'static str,
-    /// A conflict: parts at a route's places cannot be the whole description. The route, its k.
-    pub layers_kinds_part_alone: &'static str,
-    /// A conflict: a vault at each place and no vault's passphrase for the route. The route.
-    pub layers_kinds_no_password: &'static str,
-    /// A conflict: a stranger at one of a route's places could spend. The route.
-    pub layers_kinds_stranger: &'static str,
-    /// A resolution: so many seeds at each place of a route. The count, the route.
-    pub layers_seeds_at_each: &'static str,
-    /// A resolution: one seed at each place of a route. The route.
-    pub layers_seed_at_each: &'static str,
-    /// A resolution: a route needs any k of its places. k, the route.
-    pub layers_any_of: &'static str,
-    /// A resolution: the whole wallet description at each place of a route. The route.
-    pub layers_whole_each: &'static str,
-    /// A resolution: a part of the wallet description at each place of a route. The route.
-    pub layers_part_each: &'static str,
-    /// A resolution: a route's vault passphrase remembered. The route.
-    pub layers_vault_remembered: &'static str,
-    /// The Access layers card in Create (BACKUP-FLOW §20.14): a route remembers a passphrase.
-    pub layers_remembers_passphrase: &'static str,
-    // ----- Create plans the backup first (docs/BACKUP-FLOW.md §20.14), faraday-core -----
-    /// Create's first card's title.
-    pub create_card_start: &'static str,
-    /// The card after the Access layers card in Create: the wallets suggested.
-    pub create_card_wallet: &'static str,
-    /// A way on Create's Start: the Access layers card, then a wallet suggested.
-    pub create_plan_first: &'static str,
-    /// A way on Create's Start: Kind, as Create has always opened.
-    pub create_know: &'static str,
-    /// A way on Create's Start and on Back up's Start from: each seed and the description, no places.
-    pub create_standard: &'static str,
-    /// The Access layers card's foot button in Create.
-    pub create_suggest: &'static str,
-    /// A wallet's shape tried (§20.12 item 2).
-    pub create_shape_single: &'static str,
-    /// A wallet's shape tried (§20.12 item 2).
-    pub create_shape_single_pass: &'static str,
-    /// A wallet's shape tried: `{}` of `{}`.
-    pub create_shape_m_of_n: &'static str,
-    /// A shape on the Wallet card: its name, what a stranger needs, the keys to make.
-    pub create_shape_line: &'static str,
-    /// A shape on the Wallet card, or the shape on Kind or Quorum: its name, then a line.
-    pub create_shape_with: &'static str,
-    /// What a shape gives: `{}` places for a stranger.
-    pub create_stranger_places: &'static str,
-    /// What a shape gives: one place for a stranger.
-    pub create_stranger_place: &'static str,
-    /// What a shape gives: no set of places spends for a stranger.
-    pub create_stranger_none: &'static str,
-    /// The keys a shape needs: `{}` of them.
-    pub create_keys_to_make: &'static str,
-    /// The keys a shape needs: one.
-    pub create_key_to_make: &'static str,
-    /// A shape's line when its search ran out of steps: the line.
-    pub create_best_found: &'static str,
-    /// Kind, Quorum and Keys on Plan the backup first before a shape is chosen.
-    pub create_after_wallet: &'static str,
-    /// A shape dimmed: no route of the layers remembers its passphrase.
-    pub create_no_route_remembers: &'static str,
-    /// A shape dimmed, or a conflict in Create: a route that does not remember the passphrase. `{}`: the route.
-    pub create_route_forgets: &'static str,
-    /// A resolution in Create: the route remembers the passphrase. `{}`: the route.
-    pub create_route_remember: &'static str,
-    /// A shape dimmed: no placement meets every route.
-    pub create_unmet: &'static str,
-    /// A shape dimmed: its share of the steps ran out before a placement was found.
-    pub create_none_found: &'static str,
-    /// The Access layers card in Create when no shape fits and no route says why.
-    pub create_none_fits: &'static str,
-    /// The Keys card, a single key with a passphrase: the slot's key has none. `{}`: the slot.
-    pub create_no_passphrase: &'static str,
-    /// A line under the board: a layer met, each route with its paper route. The layer, its places.
-    pub board_layer_can: &'static str,
-    /// A warning under the board: a layer not met. The layer, its places.
-    pub board_layer_cannot: &'static str,
-    /// A warning under the board: a layer that cannot spend from paper. `{}`: the layer.
-    pub board_layer_not_on_paper: &'static str,
-    /// A line under the board: the stranger margin (§20.2). `{}`: how many places.
-    pub board_stranger: &'static str,
-    /// A line under the board: a stranger margin of one place.
-    pub board_stranger_one: &'static str,
-    /// A line under the board: no set of places spends for a stranger.
-    pub board_stranger_every: &'static str,
-    /// A warning under the board: a stranger margin of 0.
-    pub board_stranger_spends: &'static str,
-    /// A line under the board after Work it out ran out of steps (§20.8).
-    pub board_best_found: &'static str,
-    /// The board's view pill for every layer at once (§20.7).
-    pub board_view_all: &'static str,
-    /// The board's view pill for the stranger (§20.7).
-    pub board_view_stranger: &'static str,
-    /// The Stranger view's stepper: how many places the stranger found.
-    pub board_view_found: &'static str,
-    /// A layer's check under the board: whether it can spend.
-    pub board_view_can_spend: &'static str,
-    /// A layer's check under the board: the fewest of its places that spend.
-    pub board_view_needs: &'static str,
-    /// The value of Places it needs. `{}`: how many, then of how many.
-    pub board_view_needs_of: &'static str,
-    /// A layer's check under the board: how many places it may lose and still spend.
-    pub board_view_can_lose: &'static str,
-    /// A layer's check under the board: whether it sees the balance.
-    pub board_view_sees: &'static str,
-    /// The value of Places it needs or can lose when it cannot spend at all.
-    pub board_view_none: &'static str,
-    /// A paper route's checks under the board. `{}`: the layer, the route's number.
-    pub board_view_route_paper: &'static str,
-    /// The Stranger view's check. `{}`: how many places.
-    pub board_view_no_spend: &'static str,
-    /// The Stranger view's check at one place.
-    pub board_view_no_spend_one: &'static str,
-    /// The Stranger view's check of the balance. `{}`: how many places.
-    pub board_view_no_balance: &'static str,
-    /// The Stranger view's check of the balance at one place.
-    pub board_view_no_balance_one: &'static str,
-    /// A vault's band in a view that opens it. `{}`: the vault.
-    pub board_vault_open: &'static str,
-    /// A vault's band in a view that cannot open it. `{}`: the vault.
-    pub board_vault_shut: &'static str,
-    /// A warning under the board: a place of a route holds fewer seeds in words than its kinds say (§20.13). The route, the place.
-    pub board_kinds_no_words: &'static str,
-    /// The same, some but too few. The route, the place, how many, how many said.
-    pub board_kinds_few_words: &'static str,
-    /// A warning under the board: a place of a route holds no seed as a file where its kinds say one. The route, the place.
-    pub board_kinds_no_files: &'static str,
-    /// The same, some but too few. The route, the place, how many, how many said.
-    pub board_kinds_few_files: &'static str,
-    /// A warning under the board: a place of a route holds no part of the description. The route, the place.
-    pub board_kinds_no_part: &'static str,
-    /// A warning under the board: a place of a route lacks the whole description. The route, the place.
-    pub board_kinds_no_whole: &'static str,
-    /// A warning under the board: a place of a route holds no stick of its vault. The route, the place, the vault.
-    pub board_kinds_no_vault: &'static str,
-    /// The same, where the route has several vaults. The route, the place.
-    pub board_kinds_no_vaults: &'static str,
-    /// The button that opens a layer's instructions to copy out by hand (§20.5).
-    pub instr_open: &'static str,
-    /// The instructions: how many of the route's places are enough. `{}`: how many, of how many.
-    pub instr_any: &'static str,
-    /// The instructions: the label over the places to go to.
-    pub instr_go_to: &'static str,
-    /// The instructions: a place with nothing on it for the route.
-    pub instr_nothing: &'static str,
-    /// The instructions: the label over the passphrases needed, by name.
-    pub instr_know: &'static str,
-    /// The instructions: no passphrase needed.
-    pub instr_none: &'static str,
-    /// The instructions: the label over the vaults to open.
-    pub instr_open_vaults: &'static str,
-    /// The instructions: the label over what to restore with.
-    pub instr_restore: &'static str,
-    /// The instructions: Faraday's Restore.
-    pub instr_faraday_restore: &'static str,
-    /// The instructions: the label over the watch-only software.
-    pub instr_watch: &'static str,
-    /// To take: seed `{}`'s words on paper.
-    pub instr_words: &'static str,
-    /// To take: seed `{}`'s SeedQR on paper.
-    pub instr_seedqr: &'static str,
-    /// To take, or to know: the passphrase of seed `{}`.
-    pub instr_passphrase: &'static str,
-    /// To take: the wallet description on paper.
-    pub instr_sheet: &'static str,
-    /// To take: share `{}` of the description on paper.
-    pub instr_share: &'static str,
-    /// To take: vault `{}`'s stick. The medium, the vault.
-    pub instr_vault_stick: &'static str,
-    /// To take, or to know: vault `{}`'s passphrase.
-    pub instr_vault_passphrase: &'static str,
-    /// To take: seed `{}`'s words as a file.
-    pub instr_seed_file: &'static str,
-    /// To take: seed `{}`'s SeedQR as a picture.
-    pub instr_seedqr_file: &'static str,
-    /// To take: the passphrase of seed `{}` as a file.
-    pub instr_passphrase_file: &'static str,
-    /// To take: the wallet description as a file.
-    pub instr_wallet_file: &'static str,
-    /// To take: share `{}` of the description as a file.
-    pub instr_share_file: &'static str,
-    /// To take: the watch-only software's file.
-    pub instr_software_file: &'static str,
-    /// A vault to open: vault `{}`.
-    pub instr_vault: &'static str,
+    pub board_sealed: &'static str,
+    /// The board's right-hand column, and the narrow column's button in
+    /// place of Add, while the board is read-only: opens it for changes
+    /// (`docs/BACKUP-FLOW.md` §19.6).
+    pub board_customize: &'static str,
+    /// The sheet over a drop that lets a place see the balance
+    /// (`docs/BACKUP-FLOW.md` §19.5). `{}`: the place.
+    pub board_sees_title: &'static str,
+    /// Its line: the place keeps the whole description.
+    pub board_sees_whole: &'static str,
+    /// Its line: what at the place together makes the description. `{}`:
+    /// "Share 1 and seed 9a6a2580".
+    pub board_sees_together: &'static str,
+    /// Its line: one share alone makes the description. `{}`: "Share 1".
+    pub board_sees_alone: &'static str,
+    /// One share in its line. `{}`: its number.
+    pub board_sees_share: &'static str,
+    /// Shares in its line. `{}`: "1, 2", the last.
+    pub board_sees_shares: &'static str,
+    /// One seed in its line. `{}`: its fingerprint.
+    pub board_sees_seed: &'static str,
+    /// Seeds in its line. `{}`: the fingerprints but the last, the last.
+    pub board_sees_seeds: &'static str,
+    /// The shares and the seeds in its line. `{}`: the shares, the seeds.
+    pub board_sees_both: &'static str,
+    /// Keeps the drop.
+    pub board_keep_it: &'static str,
+    /// Undoes the drop.
+    pub board_take_it_off: &'static str,
 }
 
 /// The English wording.
@@ -10506,6 +10262,7 @@ pub static EN: Strings = Strings {
     pdf_places: "Places",
     pdf_place: "Place",
     pdf_holds: "holds",
+    plan_the_standard_way: "The standard way",
     plan_paper_only: "Paper only",
     plan_paper_and_vault: "Paper and vault",
     plan_paper_vault_and: "Paper, vault and watch-only software",
@@ -10552,8 +10309,6 @@ pub static EN: Strings = Strings {
     plan_the_passphrase_of: "The passphrase of {} is kept only with {}",
     plan_without_the_rest: "Without {}, the rest do not rebuild the wallet",
     plan_vault: "Vault {}",
-    plan_vault_password: "Vault {}'s passphrase",
-    plan_access_layer: "Access layer {}",
     plan_the_of_files: "the {} of files",
     plan_the_software: "the software",
     plan_the_devices: "the devices",
@@ -10976,7 +10731,7 @@ pub static EN: Strings = Strings {
     item_title_one_envelope: "One envelope per place",
     item_title_envelope: "envelope",
     item_title_envelopes: "envelopes",
-    question_summary_3: "3 presets",
+    question_summary_presets: "4 presets",
     question_summary_any: "Any one place lost: {}",
     backup_after: "After: {}",
     backup_back_up_a_wallet: "Back up a wallet",
@@ -12611,138 +12366,16 @@ pub static EN: Strings = Strings {
     board_add: "Add",
     board_add_place: "+ place",
     board_sealed: "{} · sealed",
-    layers_title: "Access layers",
-    layers_one: "1 layer",
-    layers_many: "{} layers",
-    layers_route: "Route {}",
-    layers_route_paper: "Route {} · paper",
-    layers_any: "Any of its {} places",
-    layers_paper: "Paper route",
-    layers_password: "Vault {}'s passphrase",
-    layers_not_known: "Not known",
-    layers_remembered: "Remembered",
-    layers_written: "Written down",
-    layers_remembers: "Remembers {}'s passphrase",
-    layers_add_route: "+ route",
-    layers_add_layer: "+ layer",
-    layers_work_out: "Work it out",
-    layers_no_paper: "{} has no paper route",
-    layers_alone: "{} with {} alone and a stranger at {} cannot both hold: {} alone would spend",
-    layers_any_one: "{} with any one of {} and a stranger at one of them cannot both hold: each alone would spend",
-    layers_short: "{} can sign with {} seeds; the wallet needs {}",
-    layers_shape: "These routes need a {}; this wallet is a {}",
-    layers_one_place: "Every placement lets one place spend",
-    layers_single_key: "single key",
-    layers_m_of_n: "{} of {}",
-    layers_add_place: "Add {} to {}",
-    layers_new_place: "Add a new place to {}",
-    layers_knows: "{} knows Vault {}'s passphrase",
-    layers_add_vault: "Add a vault for {}",
-    layers_give_paper: "Give {} a paper route",
-    layers_remember: "{} remembers {}'s passphrase",
-    layers_kinds_set: "Set what each place holds",
-    layers_seeds_each: "Seeds at each place",
-    layers_seeds_as: "Seeds as",
-    layers_words_on_paper: "Words on paper",
-    layers_file_on_stick: "File on a stick",
-    layers_description: "Wallet description",
-    layers_none: "None",
-    layers_part: "Part",
-    layers_whole: "Whole",
-    layers_vault: "Vault",
-    layers_route_of: "{}, route {}",
-    layers_kinds_short: "{}: any {} places with {} each give {} seeds; the wallet needs {}",
-    layers_kinds_too_many: "{}: {} seeds at each place; the wallet has {}",
-    layers_kinds_no_description: "{}: its places hold no wallet description",
-    layers_kinds_part_alone: "{}: parts of the wallet description at any {} of its places are not all of it",
-    layers_kinds_no_password: "{}: a vault at each place, and no vault's passphrase for it",
-    layers_kinds_stranger: "{}: a stranger who finds one of its places can spend",
-    layers_seeds_at_each: "{} seeds at each place of {}",
-    layers_seed_at_each: "1 seed at each place of {}",
-    layers_any_of: "Any {} places for {}",
-    layers_whole_each: "The whole wallet description at each place of {}",
-    layers_part_each: "A part of the wallet description at each place of {}",
-    layers_vault_remembered: "{} remembers its vault's passphrase",
-    layers_remembers_passphrase: "Remembers a passphrase",
-    create_card_start: "Start",
-    create_card_wallet: "Wallet",
-    create_plan_first: "Plan the backup first",
-    create_know: "I know what I want",
-    create_standard: "The standard way",
-    create_suggest: "Suggest a wallet",
-    create_shape_single: "Single key",
-    create_shape_single_pass: "Single key with a passphrase",
-    create_shape_m_of_n: "{} of {}",
-    create_shape_line: "{}: {}; {}",
-    create_shape_with: "{}: {}",
-    create_stranger_places: "a stranger needs {} places",
-    create_stranger_place: "a stranger needs 1 place",
-    create_stranger_none: "a stranger who finds every place cannot spend",
-    create_keys_to_make: "{} keys to make",
-    create_key_to_make: "1 key to make",
-    create_best_found: "{}; best found",
-    create_after_wallet: "After Wallet",
-    create_no_route_remembers: "no route remembers the passphrase",
-    create_route_forgets: "{} does not remember the passphrase",
-    create_route_remember: "{} remembers the passphrase",
-    create_unmet: "no placement meets every route",
-    create_none_found: "no placement found; not every placement was tried",
-    create_none_fits: "No wallet tried meets every layer",
-    create_no_passphrase: "Key {} has no passphrase",
-    board_layer_can: "{}: {} · can spend",
-    board_layer_cannot: "{}: {} · cannot spend",
-    board_layer_not_on_paper: "{} cannot spend from paper",
-    board_stranger: "A stranger who finds any {} places cannot spend",
-    board_stranger_one: "A stranger who finds one place cannot spend",
-    board_stranger_every: "A stranger who finds every place cannot spend",
-    board_stranger_spends: "A stranger who finds one place can spend",
-    board_best_found: "Best found; not every placement was tried",
-    board_view_all: "All",
-    board_view_stranger: "Stranger",
-    board_view_found: "Places found",
-    board_view_can_spend: "Can spend",
-    board_view_needs: "Places it needs",
-    board_view_needs_of: "{} of its {}",
-    board_view_can_lose: "Places it can lose",
-    board_view_sees: "Sees the balance",
-    board_view_none: "None",
-    board_view_route_paper: "{}, route {} · paper",
-    board_view_no_spend: "A stranger with any {} places can spend",
-    board_view_no_spend_one: "A stranger with any one place can spend",
-    board_view_no_balance: "A stranger with any {} places sees the balance",
-    board_view_no_balance_one: "A stranger with any one place sees the balance",
-    board_vault_open: "{} · open",
-    board_vault_shut: "{} · shut",
-    board_kinds_no_words: "{}: {} holds no seed in words",
-    board_kinds_few_words: "{}: {} holds {} of {} seeds in words",
-    board_kinds_no_files: "{}: {} holds no seed as a file",
-    board_kinds_few_files: "{}: {} holds {} of {} seeds as files",
-    board_kinds_no_part: "{}: {} holds no part of the description",
-    board_kinds_no_whole: "{}: {} does not hold the whole description",
-    board_kinds_no_vault: "{}: {} holds no stick of Vault {}",
-    board_kinds_no_vaults: "{}: {} holds no stick of its vaults",
-    instr_open: "Instructions",
-    instr_any: "Any {} of {}",
-    instr_go_to: "Go to",
-    instr_nothing: "Nothing",
-    instr_know: "Passphrases needed",
-    instr_none: "None",
-    instr_open_vaults: "Open",
-    instr_restore: "Restore with",
-    instr_faraday_restore: "Faraday's Restore",
-    instr_watch: "Watch with",
-    instr_words: "Seed {}'s words",
-    instr_seedqr: "Seed {}'s SeedQR",
-    instr_passphrase: "The passphrase of seed {}",
-    instr_sheet: "The wallet description",
-    instr_share: "Share {} of the description",
-    instr_vault_stick: "Vault {}'s {}",
-    instr_vault_passphrase: "Vault {}'s passphrase",
-    instr_seed_file: "Seed {}'s words, a file",
-    instr_seedqr_file: "Seed {}'s SeedQR, a picture",
-    instr_passphrase_file: "The passphrase of seed {}, a file",
-    instr_wallet_file: "The wallet description, a file",
-    instr_share_file: "Share {} of the description, a file",
-    instr_software_file: "The watch-only software's file",
-    instr_vault: "Vault {}",
+    board_customize: "Customize backup",
+    board_sees_title: "{} can see the wallet's balance",
+    board_sees_whole: "The whole description is kept there.",
+    board_sees_together: "{} together make the whole description.",
+    board_sees_alone: "{} makes the whole description.",
+    board_sees_share: "Share {}",
+    board_sees_shares: "Shares {} and {}",
+    board_sees_seed: "seed {}",
+    board_sees_seeds: "seeds {} and {}",
+    board_sees_both: "{} and {}",
+    board_keep_it: "Keep it",
+    board_take_it_off: "Take it off",
 };

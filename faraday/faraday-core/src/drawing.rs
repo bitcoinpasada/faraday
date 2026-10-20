@@ -46,12 +46,6 @@ pub(crate) struct Drawing {
     /// The backup board as the frame draws it
     /// ([`crate::Faraday::board_view`], `docs/BACKUP-FLOW.md` §19).
     pub board: OnceCell<Option<std::rc::Rc<crate::board::BoardView>>>,
-    /// The plan's Access layers card as the frame draws it
-    /// ([`crate::Faraday::layers_view`], `docs/BACKUP-FLOW.md` §20.3).
-    pub layers: OnceCell<Option<std::rc::Rc<crate::layers::LayersView>>>,
-    /// A layer's instructions on their sheet
-    /// ([`crate::Faraday::instructions_view`], `docs/BACKUP-FLOW.md` §20.5).
-    pub instructions: OnceCell<Option<std::rc::Rc<crate::instructions::Template>>>,
     /// What Create's Keys card offers from the vaults
     /// ([`crate::Faraday::create_vaults`], `docs/NEW-WALLET.md` §16.1).
     pub create_vaults: OnceCell<std::rc::Rc<crate::create_from::CreateVaults>>,

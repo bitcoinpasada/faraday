@@ -82,7 +82,7 @@ fn three_here() -> Faraday {
     for n in 0..3 {
         key_in(&mut app, n);
     }
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CKind(multi_index()));
     for slot in 0..3u8 {
         let fp = app.session.keys[usize::from(slot)].fingerprint().0;
@@ -90,7 +90,7 @@ fn three_here() -> Faraday {
     }
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup(0));
+    app.press(Action::CBackup(1));
     assert_eq!(backup_places(&app), 3);
     app
 }
@@ -280,7 +280,7 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     // A 2-of-3 with one vault set up before its keys.
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CKind(multi_index()));
     app.press(Action::CVaults(true));
     app.press(Action::CNext(cstep::WHERE));
@@ -299,7 +299,7 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
     }
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup(0));
+    app.press(Action::CBackup(1));
     // Seed A in Vault 1 at Place 1; Seed C as a file at Place 2; nothing
     // on paper.
     no_words(&mut app);
@@ -377,7 +377,7 @@ fn a_seed_kept_nowhere_holds_the_plan() {
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::KeyGen(Some(0)));
     app.press(Action::KWords(12));
     app.press(Action::KWay(faraday_core::keygen::Way::Coins.index()));
@@ -389,7 +389,7 @@ fn a_seed_kept_nowhere_holds_the_plan() {
     app.press(Action::KLock);
     let fp = app.session.keys.last().unwrap().fingerprint().0;
     app.press(Action::KNext);
-    app.press(Action::CBackup(0));
+    app.press(Action::CBackup(1));
     no_words(&mut app);
     no_paper_description(&mut app);
     assert!(app.backup_kept_nowhere().is_some(), "kept nowhere");
@@ -574,7 +574,7 @@ fn an_old_plan_text_loads_with_its_sticks_and_makes_the_same_checklist() {
 fn three_with_a_vault(shell: &mut Shell) -> (Faraday, Vec<[u8; 4]>) {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CKind(multi_index()));
     app.press(Action::CVaults(true));
     app.press(Action::CNext(cstep::WHERE));
@@ -593,7 +593,7 @@ fn three_with_a_vault(shell: &mut Shell) -> (Faraday, Vec<[u8; 4]>) {
     }
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup(0));
+    app.press(Action::CBackup(1));
     no_words(&mut app);
     no_paper_description(&mut app);
     (app, fps)
@@ -668,14 +668,14 @@ fn two_sticks_of_files_at_one_place_are_written_as_two_sticks_each_recognised() 
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CKind(multi_index()));
     for (i, fp) in fps.iter().enumerate() {
         app.press(Action::CSlotHere(i as u8, *fp));
     }
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup(0));
+    app.press(Action::CBackup(1));
     no_words(&mut app);
     no_paper_description(&mut app);
     put(&mut app, Thing::Seed(0), Zone::NewStick(0));
@@ -770,13 +770,15 @@ use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use osk_shell_api::TouchPhase;
 
 /// A 2-of-3 made in Create over three keys typed in here, its backup
-/// opened from the wallet with no plan yet: the board as it starts, open.
+/// opened from the wallet with no plan yet (the board on The standard
+/// way), Customize backup pressed and the board emptied by its ×s: one
+/// place keeping nothing.
 fn three_on_an_empty_board() -> Faraday {
     let mut app = testkit::started();
     for n in 0..3 {
         key_in(&mut app, n);
     }
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CKind(multi_index()));
     for slot in 0..3u8 {
         let fp = app.session.keys[usize::from(slot)].fingerprint().0;
@@ -787,6 +789,12 @@ fn three_on_an_empty_board() -> Faraday {
     let w = app.session.wallets.len() - 1;
     app.press(Action::Backup(w));
     open_board(&mut app);
+    app.press(Action::Board(BP::Customize));
+    app.press(Action::Board(BP::RemovePlace(2)));
+    app.press(Action::Board(BP::RemovePlace(1)));
+    app.press(Action::Board(BP::Off(Zone::Paper(0), Thing::Seed(0))));
+    app.press(Action::Board(BP::Off(Zone::Paper(0), Thing::Whole)));
+    app.settle();
     app
 }
 
@@ -821,6 +829,16 @@ fn offered_on_page(app: &mut Faraday, a: Action) -> bool {
 
 /// [`on_screen`], or `None` where the page offers `a` nowhere.
 fn find(app: &mut Faraday, a: Action) -> Option<(u16, u16)> {
+    // A drop that let a place see the balance asks (§19.5): kept. The
+    // board takes changes once Customize backup is pressed (§19.6).
+    if app.sheet == Some(faraday_core::Sheet::BoardSees) {
+        app.press(Action::Board(BP::SeesKeep));
+    }
+    if matches!(a, Action::Board(p) if !matches!(p, BP::Customize | BP::SeesKeep | BP::SeesUndo))
+        && app.board_plan().is_some_and(|(_, plan)| !plan.custom)
+    {
+        app.press(Action::Board(BP::Customize));
+    }
     let right = 1326;
     for x in [600, right] {
         app.event(Event::Scroll {
@@ -945,33 +963,33 @@ fn the_board_starts_with_one_empty_place_and_plus_and_x_add_and_remove_places() 
     assert!(!has(&mut app, "Place 2"));
 }
 
-/// Seed A dragged onto Place 1's paper keeps its words there; its forms
-/// add the SeedQR; the chip reads both forms, and the map holds both.
+/// Seed A dragged onto Place 1's paper keeps its words there; its toggles
+/// on the chip add the SeedQR, and the last form on stays on
+/// (`docs/BACKUP-FLOW.md` §19.3); the map holds both.
 #[test]
 fn seed_a_dragged_onto_paper_keeps_its_words_and_its_forms_add_the_seedqr() {
     let mut app = three_on_an_empty_board();
     drag(&mut app, list(Thing::Seed(0)), BP::Zone(Zone::Paper(0)));
     assert_eq!(held(&the_map(&app), At::Place(0)), vec![What::Words(0)]);
-    // A press on the placed chip opens its forms; SeedQR ticked.
-    let chip = placed(Zone::Paper(0), Thing::Seed(0));
-    tap(&mut app, chip);
+    // The chip's toggles, with no popup: SeedQR turned on.
     let seedqr = BP::Form(Zone::Paper(0), Thing::Seed(0), 1);
     assert!(
         offered(&mut app, Action::Board(seedqr)),
-        "its forms are open"
+        "its toggles are on the chip"
     );
+    expect(&mut app, "Words");
+    expect(&mut app, "SeedQR");
     tap(&mut app, seedqr);
     assert_eq!(
         held(&the_map(&app), At::Place(0)),
         vec![What::Words(0), What::SeedQr(0)]
     );
-    // The last form on stays on.
+    // Words off keeps the SeedQR; the last form on stays on.
     tap(&mut app, BP::Form(Zone::Paper(0), Thing::Seed(0), 0));
+    assert_eq!(held(&the_map(&app), At::Place(0)), vec![What::SeedQr(0)]);
     tap(&mut app, BP::Form(Zone::Paper(0), Thing::Seed(0), 1));
     assert_eq!(held(&the_map(&app), At::Place(0)), vec![What::SeedQr(0)]);
     tap(&mut app, BP::Form(Zone::Paper(0), Thing::Seed(0), 0));
-    tap(&mut app, chip);
-    expect_part(&mut app, "Words · SeedQR");
     assert_eq!(
         held(&the_map(&app), At::Place(0)),
         vec![What::SeedQr(0), What::Words(0)]
@@ -1041,7 +1059,7 @@ fn a_vault_on_two_places_holds_seed_a_once_and_a_second_vault_takes_a_second_sti
 fn passphrase_key_on_the_board() -> Faraday {
     use faraday_core::keygen::Way;
     let mut app = testkit::started();
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::KeyGen(Some(0)));
     app.press(Action::KWords(12));
@@ -1057,7 +1075,7 @@ fn passphrase_key_on_the_board() -> Faraday {
     }
     app.press(Action::KLock);
     app.press(Action::KNext);
-    app.press(Action::CBackup(0));
+    app.press(Action::CBackup(1));
     open_board(&mut app);
     app
 }
@@ -1161,6 +1179,7 @@ fn a_cosigners_seed_is_dim_and_does_not_move() {
     let w = app.session.wallets.len() - 1;
     app.press(Action::Backup(w));
     open_board(&mut app);
+    app.press(Action::Board(BP::Customize));
     let shape = backup_shape(&app);
     let away = (0..shape.seeds.len())
         .find(|&i| !shape.seeds[i].here)
@@ -1281,13 +1300,10 @@ fn the_software_place_scans_the_description_in_and_keeps_it_through_any_loss() {
     let lost = |app: &Faraday| plan::check(&shape, &app.backup.as_ref().unwrap().answers).lost;
     assert_eq!(lost(&app), plan::Lost::No, "no description kept");
     tap(&mut app, list(Thing::Software));
-    expect_down(&mut app, "Scanned in");
+    expect(&mut app, "Scanned in");
     assert_eq!(held(&the_map(&app), At::Software), vec![What::Wallet]);
     assert!(!offered(&mut app, Action::Board(list(Thing::Software))));
-    // Tapped and placed: the view pills above the board leave the list's
-    // Whole and the software's stick apart on a 768-high window.
-    tap(&mut app, list(Thing::Whole));
-    tap(&mut app, BP::Zone(Zone::SoftStick));
+    drag(&mut app, list(Thing::Whole), BP::Zone(Zone::SoftStick));
     assert_eq!(held(&the_map(&app), At::Files), vec![What::Wallet]);
     assert_eq!(lost(&app), plan::Lost::Yes);
     // The software is a card of the plan too: its × takes it off.
@@ -1401,7 +1417,7 @@ fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
     shell.disk_mut("S1").files = vec![("main.ofv".into(), main)];
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CKind(multi_index()));
     app.press(Action::CVaults(true));
     app.press(Action::CNext(cstep::WHERE));
@@ -1433,7 +1449,7 @@ fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
     }
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup(0));
+    app.press(Action::CBackup(1));
     open_board(&mut app);
     (app, other)
 }
@@ -1692,11 +1708,10 @@ fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes()
         vault_head.1 >= i32::from(vault.1) && vault_head.1 < i32::from(sealed.1),
         "Vault 1 · sealed heads the vault box"
     );
-    assert!(
-        texts
-            .iter()
-            .any(|(s, _)| s.contains("Words file · SeedQR file"))
-    );
+    // Its forms are toggles on the chip (§19.3).
+    for form in ["Words file", "SeedQR file"] {
+        assert!(texts.iter().any(|(s, _)| s == form), "no {form} toggle");
+    }
 }
 
 /// On `wide` the board reads a place to a row (`docs/BACKUP-FLOW.md`
@@ -2036,339 +2051,257 @@ fn a_press_on_a_places_name_selects_it_and_the_first_key_replaces_it() {
     assert_eq!(app.place_name(0), ">L2");
 }
 
-// ---- The Access layers card and Work it out (`docs/BACKUP-FLOW.md` §20.3) ----
+// ---- The standard way, Customize backup, the sheet over a drop ----
 
-use faraday_core::layers::LayersPress as LP;
-use faraday_core::work_out::{BUDGET, work_out};
-
-fn layers(app: &mut Faraday, p: LP) {
-    app.press(Action::Layers(p));
-}
-
-/// Whether `want` is drawn at any scroll of the page, from its top.
-fn drawn_anywhere(app: &mut Faraday, want: &str) -> bool {
-    drawn_where(app, &|t| t == want)
-}
-
-/// Whether a line starting with `start` is drawn at any scroll of the
-/// page: a long line wraps, each of its lines drawn on its own.
-fn starts_anywhere(app: &mut Faraday, start: &str) -> bool {
-    drawn_where(app, &|t| t.starts_with(start))
-}
-
-fn drawn_where(app: &mut Faraday, ok: &dyn Fn(&str) -> bool) -> bool {
-    app.event(Event::Scroll {
-        x: 600,
-        y: 400,
-        dy: -20_000,
-    });
-    for _ in 0..30 {
-        app.settle();
-        if app.drawn_texts().iter().any(|t| ok(t)) {
-            return true;
-        }
-        app.event(Event::Scroll {
-            x: 600,
-            y: 400,
-            dy: 150,
-        });
-    }
-    false
-}
-
-/// The Access layers card stands before the board with the one layer a
-/// fresh plan starts with; Work it out fills the board with the search's
-/// placement and opens it, and under the board a line per layer and the
-/// stranger's say what it found. A share taken off after leaves the
-/// layer unable to spend: a warning line, and the plan still made.
-#[test]
-fn work_it_out_fills_the_board_and_the_lines_under_it_say_who_can_spend() {
-    let mut app = three_here();
-    let shape = backup_shape(&app);
-    let cards = app.backup_questions();
-    let at = |q: u8| cards.iter().position(|&c| c == q).unwrap();
-    assert!(at(qstep::PRESET) < at(qstep::LAYERS) && at(qstep::LAYERS) < at(qstep::BOARD));
-    app.press(Action::BQ(qstep::LAYERS));
-    expect_down(&mut app, "Access layer 1");
-    expect_down(&mut app, "Route 1 · paper");
-    let before = app.backup.as_ref().unwrap().answers.clone();
-    let want = work_out(&shape, &before, &before.layers_shown(&shape), BUDGET).unwrap();
-    assert!(
-        offered(&mut app, Action::Layers(LP::WorkItOut)) || {
-            find(&mut app, Action::Layers(LP::WorkItOut)).is_some()
-        }
-    );
-    layers(&mut app, LP::WorkItOut);
-    let b = app.backup.as_ref().unwrap();
-    assert_eq!(b.q, Some(qstep::BOARD), "the board opens on the result");
-    let mut after = before.clone();
-    after.set_map(want.map.clone());
-    assert_eq!(the_map(&app), plan::map(&shape, &after));
-    // The layer is kept with the plan now.
-    assert_eq!(b.answers.layers, before.layers_shown(&shape));
-    expect_down(
-        &mut app,
-        "Access layer 1: Place 1, Place 2, Place 3 · can spend",
-    );
-    expect_down(&mut app, "A stranger who finds one place cannot spend");
-    assert!(!drawn_anywhere(
-        &mut app,
-        "Best found; not every placement was tried"
-    ));
-    // A share taken off: the layer's line warns; nothing is refused.
-    let p = (0..3)
-        .find(|&p| {
-            held(&the_map(&app), At::Place(p))
-                .iter()
-                .any(|w| matches!(w, What::Share(_)))
-        })
-        .unwrap();
-    let j = held(&the_map(&app), At::Place(p))
-        .iter()
-        .find_map(|w| match w {
-            What::Share(j) => Some(*j),
-            _ => None,
-        })
-        .unwrap();
-    board(&mut app, BP::Off(Zone::Paper(p), Thing::Share(j)));
-    expect_down(
-        &mut app,
-        "Access layer 1: Place 1, Place 2, Place 3 · cannot spend",
-    );
-    expect_down(&mut app, "Access layer 1 cannot spend from paper");
-    app.press(Action::BQ(qstep::PLAN));
-    assert!(offered(&mut app, Action::BChecklist) || find(&mut app, Action::BChecklist).is_some());
-}
-
-/// A route any one of whose places spends, with nothing remembered, is a
-/// conflict with a stranger at one of them: the card names the layer and
-/// why, and offers what resolves it, a place more for the route first.
-/// Pressed, the route needs two of four places and the line is gone.
-#[test]
-fn a_conflict_names_its_layer_and_its_first_resolution_removes_it() {
-    let mut app = three_here();
-    app.press(Action::BQ(qstep::LAYERS));
-    layers(&mut app, LP::Fewer(0, 0));
-    // "… and a stranger at one of them cannot both hold: each alone
-    // would spend", wrapped.
-    let line = "Access layer 1 with any one of Place 1, Place 2, Place 3 and a stranger";
-    assert!(starts_anywhere(&mut app, line));
-    expect_down(&mut app, "Add a new place to Access layer 1");
-    let fix = Action::Layers(LP::AddPlaceTo(0, 0));
-    assert!(find(&mut app, fix).is_some(), "the resolution is offered");
-    app.press(fix);
-    assert!(!starts_anywhere(&mut app, "Access layer 1 with"));
-    let b = app.backup.as_ref().unwrap();
-    assert_eq!(b.answers.places, 4);
-    let r = &b.answers.layers[0].routes[0];
-    assert_eq!((r.any, r.places.clone()), (2, vec![0, 1, 2, 3]));
-}
-
-/// The wallet flow's plan card has the same Access layers card, and Work
-/// it out there fills the flow's own board.
-#[test]
-fn the_flows_plan_card_works_its_layers_out_too() {
-    let mut shell = Shell::new();
-    sticks(&mut shell, 3);
-    let (mut app, _) = three_with_a_vault(&mut shell);
-    let i = app.backup_flows.len() - 1;
-    shell.flow(&mut app, F::Show(i));
-    shell.flow(&mut app, F::ChangePlan);
-    shell.flow(&mut app, F::Plan(faraday_core::PlanPress::Q(qstep::LAYERS)));
-    expect_down(&mut app, "Access layer 1");
-    let wf = app.flow().unwrap().wallet.as_ref().unwrap();
-    let (shape, before) = (wf.shape.clone(), wf.answers.clone());
-    let want = work_out(&shape, &before, &before.layers_shown(&shape), BUDGET).unwrap();
-    layers(&mut app, LP::WorkItOut);
-    let mut after = before.clone();
-    after.set_map(want.map.clone());
-    assert_eq!(flow_map(&app), plan::map(&shape, &after));
-    assert_eq!(app.flow().unwrap().live.plan_q, Some(qstep::BOARD));
-}
-
-/// A place removed takes its number out of every route, and the places
-/// after it move down with their routes.
-#[test]
-fn removing_a_place_renumbers_the_routes_places() {
-    let mut app = three_here();
-    app.press(Action::BQ(qstep::LAYERS));
-    // Route 1 any 2 of Places 1, 2, 3; a second layer of Places 2 and 3.
-    layers(&mut app, LP::AddLayer);
-    layers(&mut app, LP::Place(1, 0, 0));
-    open_board(&mut app);
-    board(&mut app, BP::RemovePlace(0));
-    let b = app.backup.as_ref().unwrap();
-    assert_eq!(b.answers.places, 2);
-    let routes: Vec<(usize, Vec<usize>)> = b
-        .answers
-        .layers
-        .iter()
-        .map(|l| (l.routes[0].any, l.routes[0].places.clone()))
-        .collect();
-    assert_eq!(routes, vec![(2, vec![0, 1]), (2, vec![0, 1])]);
-}
-
-/// A one-key wallet's layer on paper, any 2 of 3 places: every placement
-/// leaves the seed's words alone at a place, which spends there (§20.12
-/// item 5), and Back up keeps the wallet's shape (item 6): Work it out
-/// says the shape these routes need. Before that, any 1 of its places is
-/// a conflict of its own, resolved by a place more.
-#[test]
-fn a_shape_that_lets_one_place_spend_names_the_shape_the_routes_need() {
+/// A 2-of-3 made in Create over three keys typed in here, its backup
+/// opened from the wallet with no plan yet.
+fn fresh_three() -> Faraday {
     let mut app = testkit::started();
-    key_in(&mut app, 1);
-    let fp = app.session.keys.last().unwrap().fingerprint();
-    app.press(Action::KeyWallet(fp.0, 1));
+    for n in 0..3 {
+        key_in(&mut app, n);
+    }
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(multi_index()));
+    for slot in 0..3u8 {
+        let fp = app.session.keys[usize::from(slot)].fingerprint().0;
+        app.press(Action::CSlotHere(slot, fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    app.press(Action::CNext(cstep::CHECK));
+    let w = app.session.wallets.len() - 1;
+    app.press(Action::Backup(w));
+    let _ = app.frame();
+    app
+}
+
+/// What place `p`'s paper holds, in order.
+fn paper(app: &Faraday, p: usize) -> Vec<What> {
+    held(&the_map(app), At::Place(p))
+}
+
+/// A fresh Back up on a 2-of-3 opens on the board, The standard way
+/// placed (`docs/BACKUP-FLOW.md` §19.6): three places, each its seed's
+/// words and SeedQR and the whole description, no vault, no stick; Start
+/// from closed on its name with Change.
+#[test]
+fn a_fresh_two_of_three_opens_on_the_board_with_the_standard_way_placed() {
+    let mut app = fresh_three();
+    let b = app.backup.as_ref().unwrap();
+    assert_eq!(b.q, Some(qstep::BOARD), "the board is open");
+    assert_eq!(b.answers.preset, Some(Preset::Standard));
+    assert_eq!(backup_places(&app), 3);
+    let m = the_map(&app);
+    for p in 0..3 {
+        assert_eq!(
+            paper(&app, p),
+            vec![What::Words(p), What::SeedQr(p), What::Sheet],
+            "Place {}",
+            p + 1
+        );
+        assert_eq!(plan::sticks_at(&m, p), 0, "no stick");
+    }
+    assert!(!m.iter().any(|s| matches!(s.at, At::Vault(_))), "no vault");
+    let t = app.drawn_texts();
+    let start = t
+        .iter()
+        .position(|s| s == "Start from")
+        .expect("Start from");
+    assert_eq!(t[start + 1], "The standard way", "{t:?}");
+    assert_eq!(t[start + 2], "Change", "{t:?}");
+}
+
+/// A single key's standard way is one place: its words and SeedQR and the
+/// whole description.
+#[test]
+fn a_single_keys_standard_way_is_one_place() {
+    let mut app = testkit::started();
+    let fp = key_in(&mut app, 1);
+    app.press(Action::KeyWallet(fp, 1));
     app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
     let w = app.session.wallets.len() - 1;
     app.press(Action::Backup(w));
-    app.press(Action::BPreset(0));
-    app.press(Action::BQ(qstep::LAYERS));
-    assert!(starts_anywhere(
-        &mut app,
-        "Access layer 1 with any one of Place 1, Place 2 and"
-    ));
-    layers(&mut app, LP::AddPlaceTo(0, 0));
-    assert!(!starts_anywhere(&mut app, "Access layer 1 with"));
-    layers(&mut app, LP::WorkItOut);
-    assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::LAYERS));
-    assert!(starts_anywhere(
-        &mut app,
-        "These routes need a 2 of 3; this wallet is a single key"
-    ));
-}
-
-/// A route's kinds set on the card (§20.13): ticked, the route says a
-/// seed's words and a part of the description at each place, drawn with
-/// their controls. No seed at each place is a conflict naming the route
-/// (any 2 places with none give no seeds, the wallet needs 2), and its
-/// first resolution, pressed, removes it. Work it out then keeps, by
-/// hand, one different seed's words and one share at each of the three
-/// places: what any two must give, and no less than the kinds say.
-#[test]
-fn a_routes_kinds_are_set_on_the_card_and_constrain_work_it_out() {
-    let mut app = three_here();
-    app.press(Action::BQ(qstep::LAYERS));
-    layers(&mut app, LP::KindsSet(0, 0));
-    let r = app.backup.as_ref().unwrap().answers.layers[0].routes[0].clone();
-    assert!(r.kinds.is_some_and(|k| k.seeds == 1));
-    assert!(drawn_anywhere(&mut app, "Seeds at each place"));
-    assert!(drawn_anywhere(&mut app, "Wallet description"));
-    layers(&mut app, LP::KindsFewerSeeds(0, 0));
-    let line = "Access layer 1, route 1: any 2 places with 0 each give 0 seeds;";
-    assert!(starts_anywhere(&mut app, line));
-    let fix = Action::Layers(LP::KindsSeeds(0, 0, 1));
-    assert!(find(&mut app, fix).is_some(), "the resolution is offered");
-    app.press(fix);
-    assert!(!starts_anywhere(&mut app, "Access layer 1, route 1:"));
-    layers(&mut app, LP::WorkItOut);
     assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::BOARD));
-    let m = the_map(&app);
-    let mut seeds = Vec::new();
-    for p in 0..3 {
-        let here = held(&m, At::Place(p));
-        let words: Vec<usize> = here
-            .iter()
-            .filter_map(|w| match w {
-                What::Words(i) => Some(*i),
-                _ => None,
-            })
-            .collect();
-        let shares = here.iter().filter(|w| matches!(w, What::Share(_))).count();
-        assert_eq!((words.len(), shares), (1, 1), "Place {}: {here:?}", p + 1);
-        seeds.extend(words);
-    }
-    seeds.sort_unstable();
-    assert_eq!(seeds, vec![0, 1, 2]);
+    assert_eq!(backup_places(&app), 1);
+    assert_eq!(
+        paper(&app, 0),
+        vec![What::Words(0), What::SeedQr(0), What::Sheet]
+    );
 }
 
-// ---- The layer view's names (`docs/BACKUP-FLOW.md` §20.1, §20.7, §19.18 item 3) ----
-
-use faraday_core::board::View;
-
-/// With a vault open, a press on the chosen layer's pill selects its
-/// whole name, and the first key replaces it, as a place's name is typed.
-/// The name is the pill's, the Access layers card's and the lines under
-/// the board; the plan text never holds it, the vault's plan record does,
-/// and nothing kept outside the vault or written to a stick holds it.
+/// Until Customize backup the board is read-only: the list's column is the
+/// button, a press on a place's × or a chip's × changes nothing, and a
+/// drag moves nothing. Customize backup shows the list, and a drag places
+/// a chip.
 #[test]
-fn a_layers_name_typed_with_a_vault_open_is_kept_in_the_vaults_record_alone() {
-    use faraday_vault::records::{field, kind};
-    const NAME: &str = "Kitchen drawer";
-    let mut shell = Shell::new();
-    let (mut app, _) = main_vault_board(&mut shell);
-    board(&mut app, BP::View(View::Layer(0)));
-    let at = on_screen(&mut app, Action::BLayerName(0));
-    touch(&mut app, at, TouchPhase::Down);
-    touch(&mut app, at, TouchPhase::Up);
-    app.settle();
-    assert!(app.selected_all(), "the whole name selected");
-    app.event(Event::Key(Key::Char('K')));
-    expect_down(&mut app, "K");
-    for c in NAME.chars().skip(1) {
-        app.event(Event::Key(Key::Char(c)));
+fn the_board_is_read_only_until_customize_backup() {
+    let mut app = fresh_three();
+    let before = the_map(&app);
+    assert!(app.offers(Action::Board(BP::Customize)), "Customize backup");
+    expect(&mut app, "Customize backup");
+    for t in [Thing::Seed(0), Thing::Whole] {
+        assert!(!app.offers(Action::Board(list(t))), "no list: {t:?}");
     }
-    app.event(Event::Key(Key::Enter));
-    expect_down(&mut app, NAME);
-    board(&mut app, BP::View(View::All));
-    assert!(starts_anywhere(&mut app, &format!("{NAME}: ")));
-    app.press(Action::BQ(qstep::LAYERS));
-    expect_down(&mut app, NAME);
+    assert!(!app.offers(Action::Board(BP::RemovePlace(0))), "no ×");
+    assert!(!app.offers(Action::Board(BP::AddPlace)), "no + place");
+    assert!(!app.offers(Action::Board(BP::Off(Zone::Paper(0), Thing::Whole))));
+    // Pressed anyway, nothing changes.
+    app.press(Action::Board(BP::RemovePlace(0)));
+    app.press(Action::Board(BP::Off(Zone::Paper(0), Thing::Whole)));
+    app.press(Action::Board(BP::Form(Zone::Paper(0), Thing::Seed(0), 0)));
+    assert_eq!(the_map(&app), before);
+    // The read-only chip reads its forms as text.
+    expect_part(&mut app, "· Words · SeedQR");
+    // A drag of a placed chip onto another place moves nothing.
+    let chip = Action::Board(placed(Zone::Paper(0), Thing::Seed(0)));
+    let _ = app.frame();
+    let (x, y, w, h) = app.hit_box(chip).expect("the chip is drawn");
+    let start = (x + w / 2, y + h / 2);
+    let (px, py, pw, ph) = app
+        .hit_box(Action::Board(BP::Zone(Zone::Paper(1))))
+        .expect("Place 2's paper");
+    let end = (px + pw / 2, py + ph - 4);
+    touch(&mut app, start, TouchPhase::Down);
+    touch(&mut app, (start.0 + 12, start.1 + 4), TouchPhase::Move);
+    touch(&mut app, end, TouchPhase::Move);
+    touch(&mut app, end, TouchPhase::Up);
+    app.settle();
+    assert_eq!(the_map(&app), before, "the drag moved nothing");
+    // Customize backup: the list, and a drag places a chip.
+    app.press(Action::Board(BP::Customize));
+    let _ = app.frame();
+    assert!(app.offers(Action::Board(list(Thing::Seed(0)))), "the list");
+    drag(&mut app, list(Thing::Seed(1)), BP::Zone(Zone::Paper(0)));
+    assert!(
+        paper(&app, 0).contains(&What::Words(1)),
+        "{:?}",
+        paper(&app, 0)
+    );
+    assert!(app.backup.as_ref().unwrap().answers.custom);
+}
+
+/// Change on Start from picks another preset, read-only or customised;
+/// the plan opened for changes stays so. A plan saved after customising
+/// reads back customised.
+#[test]
+fn another_preset_replaces_the_standard_way_in_both_states() {
+    let mut app = fresh_three();
+    let paper_only = Preset::ALL
+        .iter()
+        .position(|p| *p == Preset::Paper)
+        .unwrap() as u8;
+    app.press(Action::BQ(qstep::PRESET));
+    let _ = app.frame();
+    assert!(app.offers(Action::BPreset(paper_only)), "Change opens it");
+    app.press(Action::BPreset(paper_only));
     let b = app.backup.as_ref().unwrap();
-    assert!(!b.answers.to_text().contains(NAME), "not in the plan text");
-    // The plan made into a checklist is saved into the open vault.
+    assert_eq!(b.answers.preset, Some(Preset::Paper));
+    assert!(!b.answers.custom, "still read-only");
+    for p in 0..3 {
+        assert!(!paper(&app, p).contains(&What::SeedQr(p)), "Paper only");
+    }
+    app.press(Action::Board(BP::Customize));
+    let standard = Preset::Standard.index() as u8;
+    app.press(Action::BQ(qstep::PRESET));
+    app.press(Action::BPreset(standard));
+    let b = app.backup.as_ref().unwrap();
+    assert_eq!(b.answers.preset, Some(Preset::Standard));
+    assert!(b.answers.custom, "customised stays so");
+    assert_eq!(
+        paper(&app, 2),
+        vec![What::Words(2), What::SeedQr(2), What::Sheet]
+    );
+    let shape = backup_shape(&app);
+    let text = b.answers.to_text();
+    assert_eq!(Answers::from_text(&shape, &text).as_ref(), Some(&b.answers));
+}
+
+/// The checklist after The standard way writes those copies: the blank
+/// templates, each seed's words and SeedQR by hand, and the description's
+/// sheets.
+#[test]
+fn the_standard_ways_checklist_writes_its_copies() {
+    let mut app = fresh_three();
     app.press(Action::BQ(qstep::PLAN));
-    assert!(find(&mut app, Action::BChecklist).is_some());
     app.press(Action::BChecklist);
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
-    let record = app.vaults.open[0]
-        .contents
-        .of(kind::PLAN)
-        .next()
-        .expect("a plan record")
-        .1
-        .clone();
-    assert_eq!(
-        faraday_core::access::layer_names(&record),
-        vec![NAME.to_string()]
-    );
-    let answers = record.field(field::PLAN_ANSWERS).unwrap();
-    assert!(!answers.windows(NAME.len()).any(|w| w == NAME.as_bytes()));
-    shell.pump(&mut app);
-    let holds = |bytes: &[u8]| bytes.windows(NAME.len()).any(|w| w == NAME.as_bytes());
-    let (inbox, outbox, kept) = &shell.boxes;
-    for (name, bytes) in inbox.iter().chain(outbox).chain(kept) {
+    let items = app.backup_items();
+    for i in 0..3 {
         assert!(
-            !holds(bytes),
-            "{name}, kept outside the vault, holds the name"
+            items.contains(&bstep::of(Item::Copy(i))),
+            "seed {i}: {items:?}"
         );
     }
-    for d in &shell.disks {
-        for (name, bytes) in &d.files {
-            assert!(!holds(bytes), "{name} on {} holds the name", d.id);
-        }
-    }
+    assert!(items.contains(&bstep::of(Item::Sheets)), "{items:?}");
+    assert!(items.contains(&bstep::of(Item::Templates)), "{items:?}");
+    assert!(!items.contains(&bstep::of(Item::Vault(0))), "no vault");
 }
 
-/// With no vault open a layer is "Access layer n": neither its pill nor
-/// its head on the Access layers card types its name, and a press there
-/// changes nothing.
+/// In Customize backup a seed chip's toggles: Words off keeps the SeedQR,
+/// and the last form on cannot be turned off.
 #[test]
-fn with_no_vault_open_a_layers_name_is_not_typed() {
-    let mut app = three_here();
-    app.press(Action::BQ(qstep::LAYERS));
-    expect_down(&mut app, "Access layer 1");
-    assert!(!offered_on_page(&mut app, Action::BLayerName(0)));
-    open_board(&mut app);
-    board(&mut app, BP::View(View::Layer(0)));
-    assert!(!offered_on_page(&mut app, Action::BLayerName(0)));
-    assert!(offered_on_page(
-        &mut app,
-        Action::Board(BP::View(View::Layer(0)))
-    ));
-    app.press(Action::BLayerName(0));
-    let b = app.backup.as_ref().unwrap();
-    assert_eq!(b.naming_layer, None);
-    assert!(b.layer_names.is_none());
-    expect_down(&mut app, "Access layer 1");
+fn a_seed_chips_toggles_keep_the_last_form_on() {
+    let mut app = fresh_three();
+    app.press(Action::Board(BP::Customize));
+    let _ = app.frame();
+    let words = BP::Form(Zone::Paper(0), Thing::Seed(0), 0);
+    let seedqr = BP::Form(Zone::Paper(0), Thing::Seed(0), 1);
+    assert!(app.offers(Action::Board(words)), "a toggle on the chip");
+    app.press(Action::Board(words));
+    assert_eq!(paper(&app, 0), vec![What::SeedQr(0), What::Sheet]);
+    app.press(Action::Board(seedqr));
+    assert_eq!(paper(&app, 0), vec![What::SeedQr(0), What::Sheet], "stays");
+}
+
+/// A 2-of-3 customised with the whole description off Place 3: Share 1
+/// leaves off key 3, whose seed Place 3 holds, so dropping it there lets
+/// Place 3 see the balance and the sheet says so (§19.5).
+fn share_sheet_board() -> Faraday {
+    let mut app = fresh_three();
+    app.press(Action::Board(BP::Customize));
+    app.press(Action::Board(BP::Off(Zone::Paper(2), Thing::Whole)));
+    app.press(Action::Board(list(Thing::Share(0))));
+    app.press(Action::Board(BP::Zone(Zone::Paper(2))));
+    app
+}
+
+#[test]
+fn dropping_a_share_beside_the_seed_of_its_missing_key_asks_and_take_it_off_undoes_it() {
+    let mut app = share_sheet_board();
+    assert_eq!(app.sheet, Some(Sheet::BoardSees));
+    assert!(paper(&app, 2).contains(&What::Share(0)));
+    let fp = backup_shape(&app).seeds[2].name.clone();
+    let t = app.drawn_texts().join(" ");
+    assert!(t.contains("Place 3 can see the wallet's balance"), "{t}");
+    assert!(
+        t.contains(&format!(
+            "Share 1 and seed {fp} together make the whole description."
+        )),
+        "{t}"
+    );
+    app.press(Action::Board(BP::SeesUndo));
+    assert_eq!(app.sheet, None);
+    assert!(!paper(&app, 2).contains(&What::Share(0)), "taken off");
+}
+
+#[test]
+fn keep_it_keeps_the_drop() {
+    let mut app = share_sheet_board();
+    assert_eq!(app.sheet, Some(Sheet::BoardSees));
+    app.press(Action::Board(BP::SeesKeep));
+    assert_eq!(app.sheet, None);
+    assert!(paper(&app, 2).contains(&What::Share(0)), "kept");
+}
+
+/// A share dropped where the place still cannot see the balance asks
+/// nothing.
+#[test]
+fn a_share_on_a_place_that_still_cannot_see_asks_nothing() {
+    let mut app = fresh_three();
+    app.press(Action::Board(BP::Customize));
+    app.press(Action::Board(BP::Off(Zone::Paper(0), Thing::Whole)));
+    // Share 1 carries keys 1 and 2, Place 1 holds seed 1: key 3 missing.
+    app.press(Action::Board(list(Thing::Share(0))));
+    app.press(Action::Board(BP::Zone(Zone::Paper(0))));
+    assert!(paper(&app, 0).contains(&What::Share(0)));
+    assert_eq!(app.sheet, None);
 }

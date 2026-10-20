@@ -65,7 +65,7 @@ fn faradays_own_records_read_back() {
         app.event(osk_shell_api::Event::Key(osk_shell_api::Key::Char(c)));
     }
     app.press(Action::EntryAdd);
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CKind(4));
     app.press(Action::CNext(0));
     app.press(Action::CNext(1));

@@ -128,7 +128,7 @@ fn backed_up(copies: usize) -> Faraday {
     let mut app = with_a_wallet();
     open_a_vault(&mut app);
     app.press(Action::Backup(0));
-    app.press(Action::BPreset(1));
+    app.press(Action::BPreset(2));
     app.press(Action::BChecklist);
     if app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {
         app.press(Action::BStep(bstep::COPY));

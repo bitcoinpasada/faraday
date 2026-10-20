@@ -151,7 +151,7 @@ fn a_code_says_whether_it_is_safe_to_scan() {
 #[test]
 fn a_cosigners_key_scanned_while_making_a_multisig_fills_the_waiting_slot() {
     let mut app = Faraday::new();
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CKind(4));
     app.press(Action::CNext(0));
     app.press(Action::CNext(1));

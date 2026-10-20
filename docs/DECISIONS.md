@@ -1630,6 +1630,8 @@ places, and wants to see it that way.
 
 ### F38 Access layers (2026-10-16)
 
+*Withdrawn (owner, 2026-10-19): the access layers were removed from Faraday; a backup is planned on the board from The standard way (`docs/BACKUP-FLOW.md` §19.6).*
+
 **Why.** A backup may serve several access layers, each reaching the
 wallet by its own route with its own knowledge; arranging places by
 hand so that each layer can spend and no stranger can is hard.
@@ -1777,6 +1779,8 @@ already held.
   starting at the next unused account.
 
 ### F46 Access layers: layers first, a paper route for every layer (2026-10-19)
+
+*Withdrawn (owner, 2026-10-19): the access layers were removed from Faraday; a backup is planned on the board from The standard way (`docs/BACKUP-FLOW.md` §19.6).*
 
 **Why.** The owner wants the backup's layers to choose the wallet, and
 every layer able to get in on paper when sticks fail.

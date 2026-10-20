@@ -115,7 +115,7 @@ fn several_sticks_may_be_in_at_once() {
 }
 
 fn create_with_vaults(app: &mut Faraday, count: usize) {
-    faraday_core::testkit::create_knowing(app);
+    app.press(Action::CreateWallet);
     let multi = NewKind::ALL
         .iter()
         .position(|k| *k == NewKind::Multi)

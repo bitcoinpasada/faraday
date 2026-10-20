@@ -13,7 +13,6 @@
 //! PSBTs and wallets move by stick or QR. Test wallets come in on a test
 //! stick (`testkit`, built only with the `testkit` feature).
 
-pub mod access;
 pub mod backup;
 pub mod backup_flow;
 pub mod backup_flow_steps;
@@ -26,7 +25,6 @@ pub mod chart_edit;
 pub mod codes;
 pub mod create;
 mod create_from;
-pub mod create_plan;
 pub mod decode;
 pub mod demo;
 pub mod devices;
@@ -43,9 +41,7 @@ pub mod gpg;
 pub mod in_progress;
 pub mod inbox;
 pub mod inputs;
-pub mod instructions;
 pub mod keygen;
-pub mod layers;
 pub mod learn;
 pub mod lightning;
 pub mod medium;
@@ -84,7 +80,6 @@ pub mod vaults;
 pub mod visit_taken;
 pub mod wallet;
 pub mod wordlist;
-pub mod work_out;
 
 mod backup_flow_screen;
 mod backup_flow_wallet;
@@ -108,7 +103,6 @@ mod family_screen;
 mod family_text;
 mod guide;
 mod keygen_screen;
-mod layers_screen;
 mod lightning_screen;
 mod motion;
 mod scan_key;
@@ -1054,17 +1048,8 @@ pub enum Action {
     BAnswer(u8, u8),
     /// Start or stop typing place n's name (only with a vault open).
     BName(u8),
-    /// Start or stop typing access layer n's name (only with a vault
-    /// open, `docs/BACKUP-FLOW.md` §20.1).
-    BLayerName(u8),
     /// A press on the backup board (`docs/BACKUP-FLOW.md` §19).
     Board(board::BoardPress),
-    /// A press on the plan's Access layers card (`docs/BACKUP-FLOW.md`
-    /// §20.3), on Back up and in a wallet flow alike.
-    Layers(layers::LayersPress),
-    /// Access layer n's instructions opened on a sheet, to copy out by
-    /// hand (`docs/BACKUP-FLOW.md` §20.5).
-    Instructions(u8),
     /// The plan made: on to the checklist, the plan saved into the open
     /// vault.
     BChecklist,
@@ -1124,21 +1109,6 @@ pub enum Action {
     CheckMessage(usize),
     /// Start creating a wallet.
     CreateWallet,
-    /// The way on Create's Start, by [`create_plan::CreateWay::ALL`].
-    CWay(u8),
-    /// Suggest a wallet: the shapes tried against the layers.
-    CSuggest,
-    /// A shape chosen on the Wallet card, by
-    /// [`create_plan::WalletShape::ALL`].
-    CShape(u8),
-    /// Create's Back up, planned: Back up a wallet with the layers set and
-    /// Work it out run.
-    CBackupPlanned,
-    /// Create's Back up the standard way.
-    CBackupStandard,
-    /// Back up's The standard way: each seed and the description, as a
-    /// checklist, with no places.
-    BStandard,
     /// Open or close a create card.
     CStep(u8),
     /// Close a create card as done and open the next.
@@ -1692,9 +1662,9 @@ pub enum Sheet {
     /// The backup board's list, opened by **Add** in the narrow column
     /// (`docs/BACKUP-FLOW.md` §19.12 item 3).
     BoardList,
-    /// Access layer n's instructions, to copy out by hand
-    /// (`docs/BACKUP-FLOW.md` §20.5): shown, never kept.
-    Instructions(u8),
+    /// A drop let a place see the balance it could not before
+    /// (`docs/BACKUP-FLOW.md` §19.5): **Keep it** or **Take it off**.
+    BoardSees,
     /// A seed the camera read, asking how it loads: with no passphrase
     /// or with one (`seed_read`).
     SeedRead,
@@ -2367,13 +2337,6 @@ pub struct BackupState {
     pub names: Vec<String>,
     /// The place whose name is being typed.
     pub naming: Option<usize>,
-    /// What each access layer is called (`docs/BACKUP-FLOW.md` §20.1),
-    /// kept only in a vault's plan record: read from it when Back up
-    /// opens, typed with a vault open; `None` while neither, when the
-    /// record's own names are kept as they are.
-    pub layer_names: Option<Vec<String>>,
-    /// The access layer whose name is being typed.
-    pub naming_layer: Option<usize>,
     /// The open item of the checklist, by [`bstep`].
     pub open: Option<u8>,
     /// The envelopes closed as done: the one item nothing else marks.
@@ -2437,10 +2400,6 @@ pub struct BackupState {
     /// **Lock and write** makes a seed's file only once it is here
     /// (`docs/BACKUP-FLOW.md` §19.12 item 6). Never a secret.
     pub files_warned: Vec<String>,
-    /// The standard way (`docs/BACKUP-FLOW.md` §20.11): the checklist is
-    /// each seed's copy and the description, with no places, layers or
-    /// board.
-    pub standard: bool,
 }
 
 /// Signing a message: the cards' state.
@@ -2557,15 +2516,6 @@ pub struct CreateState {
     /// The wallet the creation was started from, by **New wallet from
     /// this one**.
     pub from: Option<create::FromWallet>,
-    /// The creation began on Start (`docs/BACKUP-FLOW.md` §20.14): one
-    /// opened any other way (a wallet's New wallet from this one, a Tools
-    /// tile, a wallet flow) is past it.
-    pub start: bool,
-    /// The way chosen on Start.
-    pub way: create_plan::CreateWay,
-    /// Plan the backup first: the places and the layers, and what Suggest
-    /// a wallet found.
-    pub plan: Option<create_plan::CreatePlan>,
 }
 
 impl CreateState {
@@ -2608,15 +2558,8 @@ pub mod cstep {
     pub const VAULTS: u8 = 7;
     /// How many vaults, before the sticks.
     pub const HOW_MANY: u8 = 8;
-    /// Start: Plan the backup first, I know what I want, or The standard
-    /// way (`docs/BACKUP-FLOW.md` §20.14 item 1).
-    pub const START: u8 = 9;
-    /// The Access layers card, Plan the backup first's (§20.14 item 2).
-    pub const LAYERS: u8 = 10;
-    /// The wallets Suggest a wallet found (§20.14 item 3).
-    pub const WALLET: u8 = 11;
     /// How many cards there are.
-    pub const COUNT: usize = 12;
+    pub const COUNT: usize = 9;
 }
 
 /// Restoring a wallet: the cards' state (`docs/NEW-WALLET.md` §12).
@@ -2826,9 +2769,6 @@ pub mod qstep {
     /// The board: the places, what each keeps, and the list of what the
     /// backup can keep (`docs/BACKUP-FLOW.md` §19).
     pub const BOARD: u8 = 8;
-    /// Access layers: who may spend, by which routes, and Work it out
-    /// (`docs/BACKUP-FLOW.md` §20.3).
-    pub const LAYERS: u8 = 9;
     /// The most places a plan has.
     pub const MAX_PLACES: usize = 240;
 }
@@ -2861,11 +2801,11 @@ impl PlanPress {
 }
 
 /// The cards of a plan after Start from, in order (`docs/BACKUP-FLOW.md`
-/// §17.1, §19.1, §20.3): Access layers, the board, the software where the
-/// description goes into software or as files, and The plan. Back up's and
-/// a wallet flow's alike (§19.12 item 1).
+/// §17.1, §19.1): the board, the software where the description goes
+/// into software or as files, and The plan. Back up's and a wallet flow's
+/// alike (§19.12 item 1).
 pub fn plan_cards(shape: &plan::Shape, a: &plan::Answers) -> Vec<u8> {
-    let mut v = vec![qstep::LAYERS, qstep::BOARD];
+    let mut v = vec![qstep::BOARD];
     if a.asks_software(shape) {
         v.push(qstep::SOFTWARE);
     }
@@ -5724,25 +5664,24 @@ impl Faraday {
                     let first_key = keys.first().copied().unwrap_or(0);
                     let shape = self.plan_shape(i);
                     // The plan this wallet's last backup saved into an
-                    // open vault, else the presets over an empty board
+                    // open vault, as it was; else the board open on The
+                    // standard way, read-only until Customize backup
                     // (`docs/BACKUP-FLOW.md` §19.6).
                     let (answers, names, q) = match self.plan_load(i, &shape) {
                         Some((a, names)) => (a, names, None),
                         None => (
-                            plan::Answers::empty(&shape),
+                            plan::Answers::preset(&shape, plan::Preset::Standard),
                             Vec::new(),
-                            Some(qstep::PRESET),
+                            Some(qstep::BOARD),
                         ),
                     };
                     // A copy checked this power-on stays checked.
                     let checked = self.backups_checked(i);
-                    let layer_names = self.plan_layer_names(i);
                     self.backup = Some(BackupState {
                         wallet: i,
                         q,
                         answers,
                         names,
-                        layer_names,
                         checked,
                         key: first_key,
                         words: 24,
@@ -5756,7 +5695,6 @@ impl Faraday {
                     b.q = if b.q == Some(n) { None } else { Some(n) };
                     b.scroll.follow = true;
                     b.naming = None;
-                    b.naming_layer = None;
                 }
             }
             Action::BQNext(n) => {
@@ -5765,7 +5703,6 @@ impl Faraday {
                     b.q = qs.iter().skip_while(|&&q| q != n).nth(1).copied();
                     b.scroll.follow = true;
                     b.naming = None;
-                    b.naming_layer = None;
                 }
             }
             Action::BPreset(k) => {
@@ -5774,26 +5711,25 @@ impl Faraday {
                 };
                 let shape = self.plan_shape(w);
                 // After the lock, through the flow, with its refusals.
+                // A plan opened for changes stays so (§19.6).
                 if let Some(i) = self.backup_locked_flow() {
                     if let Some(&preset) = plan::Preset::ALL.get(usize::from(k)) {
                         self.flow_wallet_edit(i, &|a, shape| {
-                            *a = plan::Answers::preset(shape, preset)
+                            let custom = a.custom;
+                            *a = plan::Answers::preset(shape, preset);
+                            a.custom = custom;
                         });
                     }
                     return;
                 }
                 if let Some(&preset) = plan::Preset::ALL.get(usize::from(k)) {
-                    let answers = plan::Answers::preset(&shape, preset);
-                    // The preset fills the board, which opens on it; the
-                    // Access layers card before it is opened by a press
-                    // (`docs/BACKUP-FLOW.md` §20.3).
+                    let mut answers = plan::Answers::preset(&shape, preset);
                     if let Some(b) = self.backup.as_mut() {
+                        answers.custom = b.answers.custom;
                         b.answers = answers;
-                        b.q = Some(qstep::BOARD);
-                        b.scroll.follow = true;
-                        b.naming = None;
-                        b.naming_layer = None;
+                        b.board = board::BoardState::default();
                     }
+                    self.act(Action::BQNext(qstep::PRESET));
                 }
             }
             Action::BAnswer(list, row) => {
@@ -5815,8 +5751,6 @@ impl Faraday {
                 }
             }
             Action::Board(p) => self.board_act(p),
-            Action::Layers(p) => self.layers_act(p),
-            Action::Instructions(l) => self.instructions_open(l),
             Action::BName(p8) => {
                 let open = self.vaults.open.get(self.vaults.current).is_some();
                 let mut focused = false;
@@ -5829,7 +5763,6 @@ impl Faraday {
                     }
                     if b.naming == Some(p) {
                         b.naming = None;
-                        b.naming_layer = None;
                     } else {
                         // The field holds the name shown, "Place 1" until
                         // one is typed, so the press selects all of it
@@ -5838,48 +5771,12 @@ impl Faraday {
                             b.names[p] = fill(EN.place_name_place, &[&(p + 1).to_string()]);
                         }
                         b.naming = Some(p);
-                        b.naming_layer = None;
                         focused = true;
                     }
                 }
                 if focused {
                     self.edit = ui::Edit {
                         field: Some(Action::BName(p8)),
-                        caret: None,
-                        anchor: Some(0),
-                    };
-                }
-            }
-            Action::BLayerName(l8) => {
-                // Typed as a place's name is (`docs/BACKUP-FLOW.md` §19.18
-                // item 3): with a vault open, the whole name selected.
-                let layers = self
-                    .board_plan()
-                    .map_or(0, |(shape, a)| a.layers_shown(&shape).len());
-                let l = usize::from(l8);
-                if !self.layer_names_typed() || l >= layers {
-                    return;
-                }
-                let mut focused = false;
-                if let Some(b) = self.backup.as_mut() {
-                    let names = b.layer_names.get_or_insert_with(Vec::new);
-                    if names.len() <= l {
-                        names.resize(l + 1, String::new());
-                    }
-                    if b.naming_layer == Some(l) {
-                        b.naming_layer = None;
-                    } else {
-                        if names[l].trim().is_empty() {
-                            names[l] = fill(EN.plan_access_layer, &[&(l + 1).to_string()]);
-                        }
-                        b.naming_layer = Some(l);
-                        b.naming = None;
-                        focused = true;
-                    }
-                }
-                if focused {
-                    self.edit = ui::Edit {
-                        field: Some(Action::BLayerName(l8)),
                         caret: None,
                         anchor: Some(0),
                     };
@@ -5916,7 +5813,6 @@ impl Faraday {
                 if let Some(b) = self.backup.as_mut() {
                     b.stage = BStage::Checklist;
                     b.naming = None;
-                    b.naming_layer = None;
                     b.scroll = flow::Scroll::default();
                 }
                 self.backup_item_open(first);
@@ -5933,7 +5829,6 @@ impl Faraday {
                     b.stage = BStage::Plan;
                     b.q = None;
                     b.checking = false;
-                    b.standard = false;
                     b.scroll = flow::Scroll::default();
                 }
             }
@@ -6330,17 +6225,12 @@ impl Faraday {
                 // Where the keys will be kept is done only once the person
                 // has pressed its own Continue, whatever is ticked to begin
                 // with.
-                // Create opens on Start, Plan the backup first ticked
-                // (`docs/BACKUP-FLOW.md` §20.14 item 1).
                 let done = [false; cstep::COUNT];
                 let owner = self.fresh_owner();
                 self.create = Some(CreateState {
                     owner,
                     done,
-                    open: Some(cstep::START),
-                    start: true,
-                    way: create_plan::CreateWay::Plan,
-                    plan: Some(create_plan::CreatePlan::fresh()),
+                    open: Some(cstep::KIND),
                     // Start over keeps it.
                     from_home: self.screen == Screen::Home
                         || (self.screen == Screen::Create
@@ -6358,22 +6248,12 @@ impl Faraday {
                     && self.create.as_ref().is_some_and(|c| {
                         self.setup_pending(c.owner, c.into_vaults(), c.built.is_some())
                     }) => {}
-            // Kind, Quorum and Keys wait for a shape on Plan the backup
-            // first (`docs/BACKUP-FLOW.md` §20.14 item 4).
-            Action::CStep(k) if self.create_waits_for_wallet(k) => {}
             Action::CStep(k) => {
                 if let Some(c) = self.create.as_mut() {
                     c.open = if c.open == Some(k) { None } else { Some(k) };
                     c.scroll.follow = true;
                 }
             }
-            Action::CWay(k) => self.create_way(k),
-            Action::CNext(k) if k == cstep::START => self.create_start_next(),
-            Action::CSuggest => self.create_suggest(),
-            Action::CShape(k) => self.create_choose(k),
-            Action::CBackupPlanned => self.create_backup_planned(),
-            Action::CBackupStandard => self.create_backup_standard(),
-            Action::BStandard => self.backup_standard(),
             // Keys' Continue makes the wallet, which opens Check; until
             // it is made, a refusal keeps Keys open with the reason.
             Action::CNext(k)
@@ -6441,7 +6321,6 @@ impl Faraday {
                     c.slots.truncate(n);
                 }
                 self.create_from_refresh();
-                self.create_plan_recheck();
             }
             Action::CBackup(k) => {
                 if let Some(i) = self.create.as_ref().and_then(|c| c.built) {
@@ -6499,7 +6378,6 @@ impl Faraday {
                         c.slots.resize(c.m, create::Source::Empty);
                     }
                 }
-                self.create_plan_recheck();
             }
             Action::CN(d) => {
                 if let Some(c) = self.create.as_mut()
@@ -6511,7 +6389,6 @@ impl Faraday {
                     c.slots.resize(slots, create::Source::Empty);
                 }
                 self.create_from_refresh();
-                self.create_plan_recheck();
             }
             // NEW-WALLET §16 (F45): keys from a vault in Create; a new
             // wallet from one held.
@@ -7411,12 +7288,6 @@ impl Faraday {
             return Vec::new();
         };
         let shape = self.plan_shape(b.wallet);
-        if b.standard {
-            return create_plan::standard_items(&shape)
-                .into_iter()
-                .map(bstep::of)
-                .collect();
-        }
         plan::checklist(&shape, &b.answers)
             .into_iter()
             .map(bstep::of)
@@ -8059,23 +7930,6 @@ impl Faraday {
         })
     }
 
-    /// The access layers' names an open vault's plan for loaded wallet `w`
-    /// keeps (`docs/BACKUP-FLOW.md` §20.1), or none when it names none.
-    /// Reads each open vault's plan records, a wallet parsed each.
-    fn plan_layer_names(&self, w: usize) -> Option<Vec<String>> {
-        use faraday_vault::records::{field, kind};
-        let want = wallet::same_wallet(self.session.wallets.get(w)?.policy());
-        let names = self.vaults.open.iter().find_map(|o| {
-            o.contents.of(kind::PLAN).find_map(|(_, r)| {
-                r.text(field::PLAN_WALLET)
-                    .and_then(|t| wallet::read_wallet(t).ok())
-                    .filter(|p| wallet::same_wallet(p) == want)
-                    .map(|_| crate::access::layer_names(r))
-            })
-        })?;
-        names.iter().any(|n| !n.trim().is_empty()).then_some(names)
-    }
-
     /// Saves the backup's plan into the open vault as record type 11,
     /// over the one it kept for this wallet: the wallet, the answers, the
     /// places' names and what each holds. The names are kept nowhere
@@ -8147,11 +8001,6 @@ impl Faraday {
         let Some(open) = self.vaults.open.get(v) else {
             return;
         };
-        let typed_layers = self
-            .backup
-            .as_ref()
-            .filter(|b| b.wallet == wi)
-            .and_then(|b| b.layer_names.clone());
         let shape = self.plan_shape(wi);
         // The keys made here with their backup pending, by fingerprint
         // (`docs/NEW-WALLET.md` §14.3).
@@ -8220,18 +8069,6 @@ impl Faraday {
         for n in &kept {
             record.push(field::PLAN_NOTE, n.as_bytes());
         }
-        // The access layers' names (`docs/BACKUP-FLOW.md` §20.1): those
-        // Back up on this wallet read or typed, else as the record kept
-        // them. A name is kept here alone, never in the text.
-        let layer_names: Vec<String> = typed_layers.unwrap_or_else(|| {
-            open.contents
-                .records
-                .iter()
-                .find(|r| same(r))
-                .map(crate::access::layer_names)
-                .unwrap_or_default()
-        });
-        crate::access::push_layer_names(&mut record, &layer_names, answers.layers.len().max(1));
         // Kept as it was: nothing to write back.
         let unchanged = open.contents.records.iter().any(|r| {
             same(r)
@@ -11102,10 +10939,7 @@ impl Faraday {
             | Screen::BackupFlow => {
                 self.vaults.focus.is_some()
                     || (self.screen == Screen::BackupFlow
-                        && self
-                            .backup
-                            .as_ref()
-                            .is_some_and(|b| b.naming.is_some() || b.naming_layer.is_some()))
+                        && self.backup.as_ref().is_some_and(|b| b.naming.is_some()))
             }
             Screen::Entry => true,
             Screen::Wallets => self.renaming.is_some(),
@@ -11364,10 +11198,7 @@ impl Faraday {
         // A place's name is typed on Back up's plan, and on a wallet
         // flow's plan card before its lock (`docs/BACKUP-FLOW.md` §17.7).
         let naming_in_flow = self.screen == Screen::BackupFlow
-            && self
-                .backup
-                .as_ref()
-                .is_some_and(|b| b.naming.is_some() || b.naming_layer.is_some());
+            && self.backup.as_ref().is_some_and(|b| b.naming.is_some());
         if (self.screen == Screen::Backup || naming_in_flow)
             && let Some(b) = self.backup.as_mut()
         {
@@ -11419,33 +11250,6 @@ impl Faraday {
                 }
                 KeyIn::Enter | KeyIn::Escape if b.naming.is_some() => {
                     b.naming = None;
-                    b.naming_layer = None;
-                    return;
-                }
-                // An access layer's name, typed: kept in the vault alone
-                // (`docs/BACKUP-FLOW.md` §20.1).
-                KeyIn::Char(c) if b.naming_layer.is_some() => {
-                    if let Some(name) = b
-                        .naming_layer
-                        .and_then(|l| b.layer_names.as_mut()?.get_mut(l))
-                        && name.chars().count() < 32
-                        && !c.is_control()
-                    {
-                        name.push(c);
-                    }
-                    return;
-                }
-                KeyIn::Backspace if b.naming_layer.is_some() => {
-                    if let Some(name) = b
-                        .naming_layer
-                        .and_then(|l| b.layer_names.as_mut()?.get_mut(l))
-                    {
-                        name.pop();
-                    }
-                    return;
-                }
-                KeyIn::Enter | KeyIn::Escape if b.naming_layer.is_some() => {
-                    b.naming_layer = None;
                     return;
                 }
                 _ => {}

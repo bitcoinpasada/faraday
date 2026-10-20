@@ -44,7 +44,7 @@ fn create_to_vault_step() -> Faraday {
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x20 + i; 32])));
     }
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CNext(faraday_core::cstep::KIND));
     app.press(Action::KeyGen(Some(0)));
     app.press(Action::KWords(12));
@@ -189,7 +189,7 @@ fn a_finished_backup_offers_a_stick_and_asks_to_lock_first() {
     let mut app = create_to_vault_step();
     let wallet = app.create.as_ref().unwrap().built.unwrap();
     app.press(Action::Backup(wallet));
-    app.press(Action::BPreset(0));
+    app.press(Action::BPreset(1));
     app.press(Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));

@@ -502,7 +502,6 @@ fn backup_nodes(
             ],
         ),
         What::SoftwareFile => EN.plan_software_file.to_string(),
-        What::VaultPassword(v) => fill(EN.plan_vault_password, &[&(v + 1).to_string()]),
     };
     // The small panel names the keys a vault's stick opens.
     let keys_label = |what: What| match what {
@@ -1667,6 +1666,5 @@ pub(crate) fn thing_label(g: Option<&Glance>, what: What) -> String {
         What::WalletFile(f) => fill(EN.plan_wallet_file, &[plan::form_name(f)]),
         What::ShareFile(j, _) => fill(EN.glance_share, &[&(j + 1).to_string()]),
         What::SoftwareFile => EN.plan_software_file.to_string(),
-        What::VaultPassword(v) => fill(EN.plan_vault_password, &[&(v + 1).to_string()]),
     }
 }

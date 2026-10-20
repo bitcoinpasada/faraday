@@ -279,7 +279,7 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     let label = with_seed(&mut app);
     // Its copy by hand, checked from its typed numbers.
     app.press(Action::Backup(0));
-    app.press(Action::BPreset(0));
+    app.press(Action::BPreset(1));
     app.press(Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));

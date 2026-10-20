@@ -502,7 +502,7 @@ fn a_description_read_first_then_a_vault_resumes_the_backup_with_the_vault() {
     );
     app.press(Action::Backup(w));
     assert_eq!(app.screen, Screen::Backup);
-    app.press(Action::BPreset(0));
+    app.press(Action::BPreset(1));
     assert_eq!(
         app.backup.as_ref().unwrap().answers.vaults.len(),
         1,
@@ -595,7 +595,7 @@ fn with_vaults_back_up_this_wallet_resumes_at_the_plan_with_its_vaults() {
     app.press(Action::Backup(w));
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.backup.as_ref().unwrap().wallet, w);
-    app.press(Action::BPreset(0));
+    app.press(Action::BPreset(1));
     assert_eq!(
         app.backup.as_ref().unwrap().answers.vaults.len(),
         2,
@@ -629,7 +629,7 @@ fn the_wallets_card_and_backups_offer_the_unfinished_backup() {
     assert!(app.offers(Action::Backup(w)));
     app.press(Action::Backup(w));
     assert_eq!(app.screen, Screen::Backup);
-    app.press(Action::BPreset(0));
+    app.press(Action::BPreset(1));
     assert_eq!(app.backup.as_ref().unwrap().answers.vaults.len(), 2);
 
     // With no vaults, nothing is left part way.

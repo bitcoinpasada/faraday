@@ -287,7 +287,7 @@ fn create_at_places() -> Faraday {
     for n in 0..3 {
         key_in(&mut app, n);
     }
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CKind(multi_index()));
     for slot in 0..3u8 {
         let fp = app.session.keys[usize::from(slot)].fingerprint().0;
@@ -295,7 +295,7 @@ fn create_at_places() -> Faraday {
     }
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup(0));
+    app.press(Action::CBackup(1));
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::BOARD));
     app
@@ -397,7 +397,7 @@ fn no_row_before_a_step_is_done() {
 #[test]
 fn the_row_goes_when_the_flow_is_started_over() {
     let mut app = testkit::started();
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::Nav(Screen::Settings));
     assert!(offered(&mut app, Action::Resume(Going::Create)));
@@ -487,7 +487,7 @@ fn a_lock_wipes_what_it_wipes_and_a_kept_flow_keeps_its_row() {
     let mut app = common::process(Vec::new(), Vec::new(), Vec::new());
     common::start(&mut app, Kind::Gpg);
     app.press(Action::Flow(F::Continue));
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CNext(cstep::KIND));
     assert!(offered(&mut app, Action::Resume(Going::Create)));
     let mut app = shell.lock(&mut app);
@@ -522,7 +522,7 @@ fn create_at_places_from_wallets() -> Faraday {
         key_in(&mut app, n);
     }
     app.press(Action::Nav(Screen::Start));
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CKind(multi_index()));
     for slot in 0..3u8 {
         let fp = app.session.keys[usize::from(slot)].fingerprint().0;
@@ -530,7 +530,7 @@ fn create_at_places_from_wallets() -> Faraday {
     }
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
-    app.press(Action::CBackup(0));
+    app.press(Action::CBackup(1));
     assert_eq!(app.screen, Screen::Backup);
     app
 }
@@ -581,26 +581,24 @@ fn keep_going_leaves_the_flow_as_it_was() {
 fn a_flow_on_its_first_card_ends_without_the_sheet() {
     let mut app = testkit::started();
     app.press(Action::Nav(Screen::Start));
-    faraday_core::testkit::create_knowing(&mut app);
-    assert!(
-        row_on_settings(&mut app, Going::Create),
-        "Start done: a row"
-    );
+    app.press(Action::CreateWallet);
+    app.press(Action::CNext(cstep::KIND));
+    assert!(row_on_settings(&mut app, Going::Create), "Kind done: a row");
     app.press(Action::Resume(Going::Create));
     assert_eq!(app.screen, Screen::Create);
     app.press(Action::CancelFlow);
     assert_eq!(app.sheet, None, "nothing past the first card: no sheet");
     assert_eq!(app.screen, Screen::Start);
     assert!(!row_on_settings(&mut app, Going::Create));
-    // Make a new wallet opens afresh, on Start.
+    // Make a new wallet opens afresh, on Kind.
     app.press(Action::CreateWallet);
-    assert_eq!(app.create.as_ref().unwrap().open, Some(cstep::START));
+    assert_eq!(app.create.as_ref().unwrap().open, Some(cstep::KIND));
 }
 
 #[test]
 fn start_over_still_begins_make_a_new_wallet_again() {
     let mut app = testkit::started();
-    faraday_core::testkit::create_knowing(&mut app);
+    app.press(Action::CreateWallet);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CreateOver);
     assert_eq!(app.screen, Screen::Create, "Start over stays on the flow");
@@ -652,7 +650,7 @@ fn restores_cancel_ends_it_and_removes_its_row() {
 fn back_ups_cancel_ends_it_on_the_wallet_and_removes_its_row() {
     let mut app = with(1, 1);
     app.press(Action::Backup(0));
-    app.press(Action::BPreset(0));
+    app.press(Action::BPreset(1));
     assert!(row_on_settings(&mut app, Going::Backup));
     app.press(Action::Resume(Going::Backup));
     app.press(Action::CancelFlow);
