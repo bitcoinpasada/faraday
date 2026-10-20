@@ -2886,6 +2886,25 @@ as possible before the next build.
     count moves the cursor by the arrow's scale, not one pixel. Built
     2026-10-19 (`shells/stick/src/cursor.rs`, tests there).
 
+86. [x] 2026-10-20, owner: **APK signing switched off** (F59; tracker
+    #95 Later). `Faraday::apk_signing`, off by default; the code, tests,
+    spec and Learn page stay. The snapshot tour has no APK step.
+    4c377473.
+
+87. [x] 2026-10-20: **the one-place warning counts every seed**
+    (BACKUP-FLOW §10.3; tracker #173). c101783a.
+
+88. [x] 2026-10-20, owner: **the boot sheet is a picker; vault actions
+    on file rows only while a vault is open** (F60; tracker #171,
+    #172). `boot_import.rs`, `boot_import_screen.rs`; tests in
+    `tests/boot_import.rs`, `tests/gpg.rs`, `tests/inbox.rs`. f0e1ed81.
+
+89. [x] 2026-10-20, owner: **Faraday Desktop published again, testnet
+    only** (F61). `Faraday::with_start_warning` in a release build;
+    `stage-release.sh` stages the two `-testnet-only-` files; snapshot
+    tour `startwarn`. f16cf7db. Open: a release shows the warning again
+    after each lock (the desktop replaces the app at a lock).
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:
