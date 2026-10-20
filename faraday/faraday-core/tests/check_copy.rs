@@ -818,3 +818,25 @@ fn check_my_copy_is_not_offered_while_the_typed_check_is_open() {
         "not while the check is open"
     );
 }
+
+/// Save as a file under a copy of the words offers the words alone: no
+/// SeedQR picture where the plan copies no SeedQR.
+#[test]
+fn save_as_a_file_offers_no_seedqr_picture_for_a_words_only_copy() {
+    let labels = |copies| {
+        let mut app = backing_up(ATTACK, true, copies);
+        app.press(Action::BFile);
+        app.secret_out
+            .as_ref()
+            .expect("the file is offered")
+            .forms
+            .iter()
+            .map(|f| f.name.clone())
+            .collect::<Vec<_>>()
+    };
+    let words = labels(WORDS_ONLY);
+    assert_eq!(words.len(), 1, "{words:?}");
+    assert!(words[0].ends_with("-words.txt"), "{words:?}");
+    let both = labels(BOTH);
+    assert!(both.iter().any(|n| n.ends_with("seedqr.png")), "{both:?}");
+}

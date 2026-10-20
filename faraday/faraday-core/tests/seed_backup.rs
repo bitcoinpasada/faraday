@@ -91,6 +91,13 @@ fn unlock(app: &mut Faraday) {
 /// vault and a file; the seed's copy open.
 /// Returns the key's fingerprint.
 fn backing_up(app: &mut Faraday, with: bool) -> Fingerprint {
+    backing_up_as(app, with, false)
+}
+
+/// [`backing_up`], the seed also copied as a SeedQR on paper when
+/// `seedqr`: a SeedQR picture is offered only for a SeedQR copy
+/// (`docs/NEW-WALLET.md` §14.7).
+fn backing_up_as(app: &mut Faraday, with: bool, seedqr: bool) -> Fingerprint {
     app.press(Action::Entry(None));
     type_text(app, &testkit::test_words(testkit::TEST_SEEDS[SEED].0));
     if with {
@@ -117,6 +124,19 @@ fn backing_up(app: &mut Faraday, with: bool) -> Fingerprint {
     }
     // The seed as a file, at Place 1.
     files_at(app, 0, &[0]);
+    if seedqr {
+        let p = (0..app.backup.as_ref().unwrap().answers.places)
+            .find(|&p| {
+                common::backup_map(app).iter().any(|s| {
+                    s.at == faraday_core::plan::At::Place(p)
+                        && s.holds
+                            .iter()
+                            .any(|(w, _)| *w == faraday_core::plan::What::Words(0))
+                })
+            })
+            .expect("the seed's words are on paper at a place");
+        common::form(app, Zone::Paper(p), Thing::Seed(0), 1);
+    }
     app.press(Action::BChecklist);
     if app.backup_items().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
@@ -305,7 +325,7 @@ fn the_words_file_read_from_a_stick_loads_the_same_key() {
 fn the_seedqr_picture_scans_back_as_the_same_key_standard_and_compact() {
     for compact in [false, true] {
         let mut app = device(Vec::new());
-        let fp = backing_up(&mut app, false);
+        let fp = backing_up_as(&mut app, false, true);
         app.press(Action::BCompact(compact));
         let (name, png) = seed_file(&mut app, 1);
         let want = if compact {
@@ -321,7 +341,7 @@ fn the_seedqr_picture_scans_back_as_the_same_key_standard_and_compact() {
 #[test]
 fn no_file_holds_the_passphrase() {
     let mut app = device(Vec::new());
-    let fp = backing_up(&mut app, true);
+    let fp = backing_up_as(&mut app, true, true);
     let mut files = vec![seed_file(&mut app, 0), seed_file(&mut app, 1)];
     app.press(Action::BCompact(true));
     files.push(seed_file(&mut app, 1));
@@ -351,7 +371,7 @@ fn no_file_holds_the_passphrase() {
 fn a_stick_visit_leaves_the_seed_file_unticked() {
     for form in [0u8, 1] {
         let mut app = device(Vec::new());
-        backing_up(&mut app, false);
+        backing_up_as(&mut app, false, form == 1);
         let (name, _) = seed_file(&mut app, form);
         // A public file beside it, which the visit does tick.
         app.outbox.push(faraday_core::Item {

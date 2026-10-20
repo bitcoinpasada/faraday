@@ -226,8 +226,15 @@ impl Faraday {
             name: format!("{stem}-words.txt"),
             bytes: zeroize::Zeroizing::new(text),
         }];
-        // SeedQR numbers the English list's words only.
-        if key.language == Language::English {
+        // SeedQR numbers the English list's words only, and a SeedQR
+        // picture is offered only where the plan copies the seed as a
+        // SeedQR (`docs/NEW-WALLET.md` §14.7).
+        let seedqr = self
+            .backup_seed_list(b.wallet)
+            .iter()
+            .position(|(_, i)| *i == Some(k))
+            .is_none_or(|i| self.copy_forms(b, i).seedqr);
+        if key.language == Language::English && seedqr {
             let matrix = if compact {
                 osk_codec::seedqr::encode_compact(&m)
             } else {
