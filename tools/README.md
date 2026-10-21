@@ -56,7 +56,7 @@ in `justfile` and `faraday/faraday.just`.
 - `cargo fmt --all --check`: formatting.
 - `lint-secrets.sh`: in `core/*/src` and a named list of secret-holding files, no printing or logging macros, no `Debug` derive on secret type names, and no heap text (`String`, `to_string`, `format!`) in the files that hold secrets. A new file that touches secrets is added to `SECRET_FILES`.
 - `lint-strings.sh`: no wording literal in screen code; every user-facing string is in `faraday-strings/src/en.rs`, which is also checked for untidy strings. Learn pages and self-test names are outside it.
-- `lint-tokens.sh`: no layout number written in `core/faraday-draw/src/widgets/`; each is a name in `tokens.rs`.
+- `lint-tokens.sh`: no layout number written in `core/faraday-draw/src/widgets/`; each is a name in `tokens.rs`. In `faraday-core` and `faraday-ui` the numbers written in place are counted against `lint-tokens.counts`: a count that rises fails, and so does one that falls until the file is lowered to match.
 - `lint-docs.sh`: every document under `docs/` and the root `README.md` has a Kind and a Status in its first 12 lines; every backticked repository path in a tracked `.md` file exists; nothing outside `CLAUDE.md` cites the private folder.
 - `cargo run -p costs-lint`: a function taking `&Compute` has "Costs " first in its doc; `Compute::new` is minted only where listed; no `Compute` is stored except in `View`; drawing reaches the token only through `View`'s accessors (`docs/COMPUTE.md` §8).
 - `lint-unchecked.sh`: the `unchecked` feature of `faraday-crypto` is off in the dependency graph of every shipped binary (`docs/COMPUTE.md` §3).

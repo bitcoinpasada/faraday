@@ -1,14 +1,23 @@
 #!/usr/bin/env bash
 # Design-token lint (docs/DESIGN.md §3).
 #
-# Every dimension, size, ratio and timing of the design system is a name
-# in core/faraday-draw/src/tokens.rs, so that changing a number changes it
-# everywhere and a review is settled by editing one file. This lint fails
-# when a widget writes a layout number of its own instead.
+# A new dimension, size, ratio or timing of the design system is a name in
+# core/faraday-draw/src/tokens.rs, so that changing a number changes it
+# everywhere and a review is settled by editing one file. Two checks:
 #
-# Checked: every file under core/faraday-draw/src/widgets/ (the icon and the
-# keyboard). Not checked: tokens.rs itself, which is where the numbers
-# live.
+# 1. The widgets (every file under core/faraday-draw/src/widgets/, the icon
+#    and the keyboard) write no layout number of their own. Zero allowed.
+#
+# 2. The screens still hold numbers written in place from before this rule
+#    was checked there. tools/lint-tokens.counts holds, per crate, how many
+#    decimal literals the rule below flags in faraday/faraday-core/src/ and
+#    faraday/faraday-ui/src/, one `crate count` line each. A count above
+#    the file fails: name the new numbers as tokens. A count below the
+#    file also fails: lower the number in the file to the new count, so the
+#    ratchet only ever tightens. A change that names numbers lowers the
+#    count in the same commit.
+#
+# Not checked: tokens.rs itself, which is where the numbers live.
 #
 # A decimal literal is allowed when it is:
 #   - 0.0, 0.5, 1.0 or 2.0 (an origin, a half, a whole, a halving)
@@ -23,12 +32,8 @@
 set -u
 cd "$(dirname "$0")/.."
 
-FILES=()
-while IFS= read -r f; do
-    FILES+=("$f")
-done < <(find core/faraday-draw/src/widgets -name '*.rs' | sort)
-
 TOKENS="core/faraday-draw/src/tokens.rs"
+COUNTS="tools/lint-tokens.counts"
 
 status=0
 
@@ -37,8 +42,9 @@ if [ ! -f "$TOKENS" ]; then
     exit 1
 fi
 
-hits=$(
-    for f in "${FILES[@]}"; do
+# Prints "file:line: literal" for each flagged literal in the files given.
+scan() {
+    for f in "$@"; do
         [ -f "$f" ] || continue
         awk -v file="$f" '
             # The test module names the reference sizes it solves at.
@@ -60,13 +66,47 @@ hits=$(
             }
         ' "$f"
     done
-)
+}
 
+files_of() {
+    find "$1" -name '*.rs' | sort
+}
+
+# 1. The widgets: none.
+mapfile -t WIDGETS < <(files_of core/faraday-draw/src/widgets)
+hits=$(scan "${WIDGETS[@]}")
 if [ -n "$hits" ]; then
     echo "lint-tokens: layout number written in place; name it in $TOKENS"
     echo "$hits"
     status=1
 fi
+
+# 2. The screens: no more than the committed counts, and no fewer.
+if [ ! -f "$COUNTS" ]; then
+    echo "lint-tokens: missing $COUNTS"
+    exit 1
+fi
+while read -r crate want; do
+    [ -n "$crate" ] || continue
+    case "$crate" in
+        faraday-core) dir=faraday/faraday-core/src ;;
+        faraday-ui) dir=faraday/faraday-ui/src ;;
+        *)
+            echo "lint-tokens: $COUNTS names an unknown crate: $crate"
+            status=1
+            continue
+            ;;
+    esac
+    mapfile -t SRC < <(files_of "$dir")
+    have=$(scan "${SRC[@]}" | wc -l)
+    if [ "$have" -gt "$want" ]; then
+        echo "lint-tokens: $crate has $have layout numbers written in place, $COUNTS allows $want; name the new numbers as tokens in $TOKENS"
+        status=1
+    elif [ "$have" -lt "$want" ]; then
+        echo "lint-tokens: $crate has $have layout numbers written in place, $COUNTS says $want; lower the number in $COUNTS to $have"
+        status=1
+    fi
+done < "$COUNTS"
 
 if [ "$status" -eq 0 ]; then
     echo "lint-tokens: ok"

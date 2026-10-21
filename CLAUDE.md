@@ -9,8 +9,11 @@ changes and nothing else has to be kept in step.
 - A screen is one of DESIGN §5's sixteen screens, built from the §4
   components. The Starter's screens are `docs/STARTER.md` §3, built from
   the same components, drawn with Faraday's own look (`faraday-ui`).
-- Every dimension is a name in `core/faraday-draw/src/tokens.rs`;
-  `tools/lint-tokens.sh` fails the build otherwise.
+- A new dimension is a name in `core/faraday-draw/src/tokens.rs`. The
+  screens still hold numbers written in place from before the rule was
+  checked there; `tools/lint-tokens.counts` holds how many per crate,
+  `tools/lint-tokens.sh` fails if a count rises, and a change that names
+  numbers lowers the count.
 - Every user-facing string is in one file,
   `faraday/faraday-strings/src/en.rs`. Two exceptions: the Learn pages
   (`faraday/faraday-learn/src/pages/en.rs`, edited as `docs/learn/`) and the
