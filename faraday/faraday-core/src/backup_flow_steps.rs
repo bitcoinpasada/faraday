@@ -137,10 +137,11 @@ impl Faraday {
     /// Starts the flow for `kind` on its first card, or resumes one
     /// that has not made its key (§5).
     pub(crate) fn flow_begin(&mut self, kind: Kind) {
+        let c = self.compute();
         if let Some(i) = self.flow_resumable(kind) {
             return self.flow_show(i);
         }
-        self.backup_flows.push(BackupFlow::new(kind));
+        self.backup_flows.push(BackupFlow::new(&c, kind));
         let i = self.backup_flows.len() - 1;
         self.flow_show(i);
     }
@@ -470,6 +471,7 @@ impl Faraday {
     }
 
     fn flow_add_place(&mut self, i: usize) {
+        let c = self.compute();
         if self.backup_flows[i].kind.is_wallet() {
             return self.flow_wallet_add_place(i);
         }
@@ -479,13 +481,14 @@ impl Faraday {
             f.plan.vaults.push(VaultPlan::default());
         }
         f.plan.places.push(vec![v]);
-        f.sync_slots();
+        f.sync_slots(&c);
     }
 
     /// Takes place `p` out of the plan: before its write at once, after
     /// it only as "I destroyed this copy" (§4.8). The key is never taken
     /// out of the last vault that holds it.
     fn flow_remove_place(&mut self, i: usize, p: usize, destroyed: bool) {
+        let c = self.compute();
         // A wallet's places are its plan's: Back up's questions take them
         // out.
         if self.backup_flows[i].kind.is_wallet() && !destroyed {
@@ -559,10 +562,11 @@ impl Faraday {
         }
         f.live.reading = None;
         self.flow_tidy(i, &used_before);
-        self.backup_flows[i].sync_slots();
+        self.backup_flows[i].sync_slots(&c);
     }
 
     fn flow_place_vault(&mut self, i: usize, p: usize, v: usize) {
+        let c = self.compute();
         if self.backup_flows[i].kind.is_wallet() {
             return;
         }
@@ -588,12 +592,13 @@ impl Faraday {
         f.plan.together.retain(|&q| q != p);
         f.live.reading = None;
         self.flow_tidy(i, &used_before);
-        self.backup_flows[i].sync_slots();
+        self.backup_flows[i].sync_slots(&c);
     }
 
     /// Place `p` also keeps the stick of vault `v`, or stops (§4.2: a
     /// place may hold a stick for each vault).
     fn flow_also_vault(&mut self, i: usize, p: usize, v: usize) {
+        let c = self.compute();
         if self.backup_flows[i].kind.is_wallet() {
             return;
         }
@@ -621,12 +626,13 @@ impl Faraday {
         f.plan.places[p] = after.places[p].clone();
         f.live.reading = None;
         self.flow_tidy(i, &used_before);
-        self.backup_flows[i].sync_slots();
+        self.backup_flows[i].sync_slots(&c);
     }
 
     /// **One stick for both**: a place that keeps several vaults keeps them
     /// on one stick, or on one each.
     fn flow_together(&mut self, i: usize, p: usize) {
+        let c = self.compute();
         // A wallet's sticks are its map's, a vault on each
         // (`docs/BACKUP-FLOW.md` §19.4).
         if self.backup_flows[i].kind.is_wallet() {
@@ -645,7 +651,7 @@ impl Faraday {
             f.plan.together.push(p);
         }
         f.live.reading = None;
-        f.sync_slots();
+        f.sync_slots(&c);
     }
 
     /// The stick of place `p` carries the key's public files.
@@ -789,6 +795,7 @@ impl Faraday {
 
     /// Continue on the first card, or after a change of plan.
     fn flow_continue(&mut self, i: usize) {
+        let c = self.compute();
         if self.backup_flows[i].kind.is_wallet()
             && self.backup_flows[i]
                 .wallet
@@ -798,7 +805,7 @@ impl Faraday {
             return;
         }
         let f = &mut self.backup_flows[i];
-        f.sync_slots();
+        f.sync_slots(&c);
         // A wallet may keep nothing on a stick at all: its plan decides.
         if !f.kind.is_wallet() && f.plan.stick_places().len() < f.kind.min_places() {
             return;
@@ -811,7 +818,7 @@ impl Faraday {
             let unbound = (0..f.slots.len())
                 .any(|s| f.slots[s].target.place().is_some() && f.slots[s].bound.is_none());
             if f.made {
-                f.made_plan_changed(true);
+                f.made_plan_changed(&c, true);
                 f.live.open = Some(f.step.n());
             } else {
                 if unbound {
@@ -2335,6 +2342,7 @@ impl Faraday {
     /// 6 writes; every vault of the slot must have its sealing and its
     /// Outbox copy, and nothing secret goes to a stick.
     fn flow_write_go(&mut self, i: usize) {
+        let c = self.compute();
         if !self.clean() || self.backup_flows[i].step != Step::Write {
             return;
         }
@@ -2390,7 +2398,7 @@ impl Faraday {
                         && f.public_slot() != Some(slot)
                         && it.secret
                         && f.kind.is_wallet()
-                        && f.seed_file_ok_for(slot, &it.name) =>
+                        && f.seed_file_ok_for(&c, slot, &it.name) =>
                 {
                     sends.push((it.name.clone(), it.bytes.clone(), false));
                 }

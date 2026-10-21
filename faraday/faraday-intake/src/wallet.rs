@@ -13,6 +13,7 @@ use osk_bip::json::{self, Value};
 use osk_bip::keys::Network;
 use osk_bip::policy::WalletPolicy;
 use osk_bip::slip132::{self, Mismatch, Script};
+use osk_crypto::work::Compute;
 
 /// What a network is called on screen.
 pub fn network_name(n: Network) -> &'static str {
@@ -118,24 +119,27 @@ pub fn policy_network(policy: &WalletPolicy, current: Network) -> Option<Network
         .map(|k| network_of_kind(k.xpub().network, current))
 }
 
-/// Reads a wallet from text: a descriptor, a BIP-388 policy, a
-/// threshold record, or another wallet's file (module doc). Comment lines (`#`) and blank lines are skipped.
+/// Costs a parse of the description and its keys, and for some forms an
+/// address derivation to check the first address they state: reads a
+/// wallet from text, a descriptor, a BIP-388 policy, a threshold record,
+/// or another wallet's file (module doc). Comment lines (`#`) and blank
+/// lines are skipped.
 ///
 /// One wallet has one checksum (`docs/DECISIONS.md` F35, F66): the
 /// policy keeps every hardened step written `h`, however the text wrote
 /// it, so a wallet read from a multisig config or typed with `'` is the
 /// same wallet, with the same descriptor and checksum, as the one made
 /// here.
-pub fn read_wallet(text: &str) -> Result<WalletPolicy, Refusal> {
+pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
     // A threshold record and a silent payments record are read whole:
     // their lines are their fields.
     if osk_bip::threshold::ThresholdRecord::looks_like_record(text)
         || osk_bip::silent_wallet::SilentWallet::looks_like_record(text)
     {
-        return WalletPolicy::parse_any(text).map_err(|e| Refusal::NotAWallet(e.to_string()));
+        return WalletPolicy::parse_any(c, text).map_err(|e| Refusal::NotAWallet(e.to_string()));
     }
     if osk_bip::coldcard::looks_like_export(text) {
-        return coldcard_export(text);
+        return coldcard_export(c, text);
     }
     let plain =
         |d: &str| slip132::plain_descriptor(d).map_err(|m| Refusal::NotAWallet(mismatch_text(&m)));
@@ -161,17 +165,17 @@ pub fn read_wallet(text: &str) -> Result<WalletPolicy, Refusal> {
                             &[EN.wallet_single_key_no_type],
                         ))
                     })?;
-                    return WalletPolicy::parse_any(&d)
+                    return WalletPolicy::parse_any(c, &d)
                         .map_err(|e| Refusal::NotAWallet(e.to_string()));
                 }
                 if caravan::looks_like(&v) {
                     let d = caravan::descriptor(&v).map_err(Refusal::NotAWallet)?;
-                    return WalletPolicy::parse_any(&d)
+                    return WalletPolicy::parse_any(c, &d)
                         .map_err(|e| Refusal::NotAWallet(e.to_string()));
                 }
                 if electrum::looks_like(&v) {
                     let d = electrum::descriptor(&v).map_err(Refusal::NotAWallet)?;
-                    return WalletPolicy::parse_any(&d)
+                    return WalletPolicy::parse_any(c, &d)
                         .map_err(|e| Refusal::NotAWallet(e.to_string()));
                 }
                 read_json = Some(v);
@@ -199,27 +203,27 @@ pub fn read_wallet(text: &str) -> Result<WalletPolicy, Refusal> {
             .and_then(Value::as_str)
             .or_else(|| v.find("desc").and_then(Value::as_str))
             .ok_or_else(no_descriptor)?;
-        return WalletPolicy::parse_any(&plain(d)?).or_else(|e| {
+        return WalletPolicy::parse_any(c, &plain(d)?).or_else(|e| {
             let mut all = v.strings_named("descriptor");
             all.extend(v.strings_named("desc"));
             let all = all
                 .iter()
                 .map(|d| plain(d.as_str()))
                 .collect::<Result<Vec<_>, _>>()?;
-            multipath(&all).ok_or_else(|| Refusal::NotAWallet(e.to_string()))
+            multipath(c, &all).ok_or_else(|| Refusal::NotAWallet(e.to_string()))
         });
     }
     // BIP 129's descriptor record: read whole, its first address checked
     // against the wallet it states.
     if osk_bip::bsms::looks_like_record(text) && !osk_bip::bsms::is_signer_record(text) {
-        return osk_bip::bsms::DescriptorRecord::parse(text)
+        return osk_bip::bsms::DescriptorRecord::parse(c, text)
             .map(|r| r.policy)
             .map_err(|e| Refusal::NotAWallet(fill(EN.wallet_bsms, &[&format!("{e:?}")])));
     }
     if osk_bip::multisig_config::looks_like_config(text) {
         // A key whose SLIP-132 version names another script than the
         // file's `Format:` is refused as a key; the refusal names it.
-        return osk_bip::multisig_config::parse(text).map_err(|e| {
+        return osk_bip::multisig_config::parse(c, text).map_err(|e| {
             match osk_bip::multisig_config::slip132_mismatch(text) {
                 Some(m) if e == osk_bip::policy::Error::Key => {
                     Refusal::NotAWallet(mismatch_text(&m))
@@ -246,7 +250,7 @@ pub fn read_wallet(text: &str) -> Result<WalletPolicy, Refusal> {
             _ => None,
         };
         if let Some(wrap) = wrap {
-            return WalletPolicy::parse_any(&wrap.replace('K', &k.text))
+            return WalletPolicy::parse_any(c, &wrap.replace('K', &k.text))
                 .map_err(|e| Refusal::NotAWallet(e.to_string()));
         }
     }
@@ -259,8 +263,8 @@ pub fn read_wallet(text: &str) -> Result<WalletPolicy, Refusal> {
             None => plain(l),
         })
         .collect::<Result<Vec<String>, _>>()?;
-    WalletPolicy::parse_any(&lines.concat())
-        .or_else(|e| multipath(&lines).ok_or_else(|| Refusal::NotAWallet(e.to_string())))
+    WalletPolicy::parse_any(c, &lines.concat())
+        .or_else(|e| multipath(c, &lines).ok_or_else(|| Refusal::NotAWallet(e.to_string())))
 }
 
 /// Whether text is another wallet's file that holds a secret beside its
@@ -274,8 +278,9 @@ pub fn holds_secret(text: &str) -> bool {
         && json::parse(t).is_ok_and(|v| electrum::looks_like(&v) && electrum::holds_secret(&v))
 }
 
-/// Descriptors other wallets write that are not one multipath
-/// descriptor, read as the `<0;1>` wallet they describe:
+/// Costs a parse of each descriptor and of each wallet tried: descriptors
+/// other wallets write that are not one multipath descriptor, read as
+/// the `<0;1>` wallet they describe:
 ///
 /// - a receive and a change descriptor, the same but for `/0/*` and
 ///   `/1/*` (Sparrow's older export, Bitcoin Core's `listdescriptors`,
@@ -290,13 +295,13 @@ pub fn holds_secret(text: &str) -> bool {
 ///
 /// Each descriptor must read on its own, checksum and all, before it is
 /// rewritten; one that does not refuses the file.
-fn multipath(descs: &[String]) -> Option<WalletPolicy> {
-    use std::str::FromStr;
+fn multipath(c: &Compute, descs: &[String]) -> Option<WalletPolicy> {
     let mut plain = Vec::new();
     for d in descs {
         let d = without_label(d.trim());
-        osk_bip::miniscript::Descriptor::<osk_bip::miniscript::DescriptorPublicKey>::from_str(d)
-            .ok()?;
+        if !osk_bip::descriptor::reads_as_descriptor(c, d) {
+            return None;
+        }
         plain.push(d.split('#').next().unwrap_or(d).to_string());
     }
     let mut wallets: Vec<String> = plain
@@ -330,7 +335,9 @@ fn multipath(descs: &[String]) -> Option<WalletPolicy> {
         }
     };
     wallets.sort_by_key(rank);
-    wallets.iter().find_map(|d| WalletPolicy::parse_any(d).ok())
+    wallets
+        .iter()
+        .find_map(|d| WalletPolicy::parse_any(c, d).ok())
 }
 
 /// A descriptor line without the label before it: `Receive: wpkh(…)`.
@@ -366,14 +373,14 @@ fn with_chains(d: &str) -> Option<String> {
     found.then_some(out)
 }
 
-/// Coldcard's account export, which Nunchuk, Passport and Sparrow also
-/// write, read by `osk_bip::coldcard::read` (rooted at the top-level
+/// Costs what `osk_bip::coldcard::read` costs: Coldcard's account
+/// export, which Nunchuk, Passport and Sparrow also write, read by `osk_bip::coldcard::read` (rooted at the top-level
 /// `xfp`, the stated first address checked), its refusals in Faraday's
 /// own sentences.
-fn coldcard_export(text: &str) -> Result<WalletPolicy, Refusal> {
+fn coldcard_export(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
     use osk_bip::coldcard::ReadError;
     let bad = |why: &str| Refusal::NotAWallet(fill(EN.wallet_coldcard_export, &[why]));
-    osk_bip::coldcard::read(text)
+    osk_bip::coldcard::read(c, text)
         .map(|(policy, _)| policy)
         .map_err(|e| match e {
             ReadError::NoXfp => bad(EN.wallet_no_xfp),
@@ -428,14 +435,14 @@ pub fn json_label(text: &str) -> Option<String> {
     (!label.trim().is_empty()).then(|| label.to_string())
 }
 
-/// A wallet's first receive address, worked out as the device works it
-/// out (`WalletPolicy::address_at`), on the network its keys name, with
+/// Costs an address derivation: a wallet's first receive address,
+/// worked out as the device works it out (`WalletPolicy::address_at`), on the network its keys name, with
 /// that network; `None` for a wallet with no address at an index (a
 /// silent payments wallet).
-pub fn first_address(policy: &WalletPolicy) -> Option<(Network, String)> {
+pub fn first_address(c: &Compute, policy: &WalletPolicy) -> Option<(Network, String)> {
     let net = policy_network(policy, Network::Mainnet).unwrap_or(Network::Mainnet);
     policy
-        .address_at(net, false, 0)
+        .address_at(c, net, false, 0)
         .ok()
         .map(|a| (net, a.to_string()))
 }

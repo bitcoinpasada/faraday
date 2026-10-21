@@ -153,22 +153,25 @@ fn note(app: &Faraday) -> String {
 
 /// The first receive address of the test kit's wallet `id`.
 fn kit_address(id: &str) -> String {
+    let c = faraday_core::testkit::compute();
     let mut s = testkit::session();
     let i = s
         .add_wallet(
+            &c,
             "kit",
             &kit(id).descriptor,
             "kit",
             faraday_core::wallet::Origin::Named,
         )
         .expect("the kit's wallet reads");
-    s.address(&s.wallets[i], false, 0)
+    s.address(&c, &s.wallets[i], false, 0)
 }
 
 /// The first receive address of the wallet the tab chose.
 fn chosen_address(app: &Faraday) -> String {
+    let c = faraday_core::testkit::compute();
     let w = app.family_wallet().expect("no wallet chosen");
-    app.session.address(&app.session.wallets[w], false, 0)
+    app.session.address(&c, &app.session.wallets[w], false, 0)
 }
 
 /// Lock, and the next process restored from what the lock kept.
@@ -382,6 +385,7 @@ fn a_lock_comes_back_to_the_same_page_and_wallet_after_unlocking_again() {
 
 #[test]
 fn typed_words_open_the_kind_of_wallet_the_transaction_spends_from() {
+    let c = faraday_core::testkit::compute();
     let taproot = kit("taproot");
     let (u, _) = testkit::spend_of(&taproot).unwrap();
     let mut app = with_files(
@@ -397,13 +401,13 @@ fn typed_words_open_the_kind_of_wallet_the_transaction_spends_from() {
     // That's everything: native SegWit first, the Spending test wallet.
     app.press(Action::Family(F::Everything));
     let w = app.family_wallet().expect("no wallet opened");
-    let spending = faraday_core::wallet::read_wallet(&kit("spending").descriptor).unwrap();
+    let spending = faraday_core::wallet::read_wallet(&c, &kit("spending").descriptor).unwrap();
     assert_eq!(desc(app.session.wallets[w].policy()), desc(&spending));
     // A Taproot spend opens the Taproot kind of the same words.
     app.press(Action::Family(F::UsePsbt(0)));
     let s = app.spend.as_ref().unwrap();
     let w = s.wallet.expect("no wallet matched the Taproot spend");
-    let tr = faraday_core::wallet::read_wallet(&taproot.descriptor).unwrap();
+    let tr = faraday_core::wallet::read_wallet(&c, &taproot.descriptor).unwrap();
     assert_eq!(desc(app.session.wallets[w].policy()), desc(&tr));
     app.press(Action::SignHere);
     assert!(app.spend.as_ref().unwrap().complete);

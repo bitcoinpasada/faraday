@@ -25,11 +25,12 @@ fn wallet(path: &str) -> WalletPolicy {
         FileKind::Wallet,
         "{path} is not a wallet in Files"
     );
-    read_wallet(&text).unwrap_or_else(|e| panic!("{path}: {e:?}"))
+    read_wallet(&c, &text).unwrap_or_else(|e| panic!("{path}: {e:?}"))
 }
 
 fn first(policy: &WalletPolicy, net: Network) -> String {
-    policy.address_at(net, false, 0).unwrap().to_string()
+    let c = faraday_core::testkit::compute();
+    policy.address_at(&c, net, false, 0).unwrap().to_string()
 }
 
 /// The `first` address a Coldcard export states for its BIP-84 account.
@@ -152,6 +153,7 @@ fn bsms_records_from_nunchuk_and_sparrow_load_and_their_first_address_holds() {
 
 #[test]
 fn a_bsms_record_whose_address_is_not_its_wallets_is_refused() {
+    let c = faraday_core::testkit::compute();
     let text = file("sparrow/bsms/multisig-1.bsms");
     let lines: Vec<&str> = text.lines().collect();
     let other = file("sparrow/bsms/multisig-2.bsms");
@@ -162,14 +164,15 @@ fn a_bsms_record_whose_address_is_not_its_wallets_is_refused() {
         lines[2],
         other.lines().nth(3).unwrap()
     );
-    assert!(read_wallet(&wrong).is_err());
+    assert!(read_wallet(&c, &wrong).is_err());
 }
 
 #[test]
 fn multipath_descriptors_from_sparrow_load() {
+    let c = faraday_core::testkit::compute();
     let w = wallet("sparrow/descriptor-multipath.txt");
     assert!(w.to_descriptor().starts_with("wpkh([a262308d/84"));
-    assert!(w.address_at(Network::Mainnet, true, 0).is_ok());
+    assert!(w.address_at(&c, Network::Mainnet, true, 0).is_ok());
 }
 
 #[test]
@@ -197,9 +200,10 @@ fn scanned(text: &str) -> faraday_core::Item {
 
 #[test]
 fn sparrows_multisig_as_a_crypto_output_code_scans_in_as_its_wallet() {
+    let c = faraday_core::testkit::compute();
     let item = scanned(&file("bluewallet/sparrow-crypto-output.txt"));
     assert_eq!(item.kind, FileKind::Wallet, "{}", item.name);
-    let w = read_wallet(&String::from_utf8_lossy(&item.bytes)).unwrap();
+    let w = read_wallet(&c, &String::from_utf8_lossy(&item.bytes)).unwrap();
     assert!(w.to_descriptor().starts_with("wsh(sortedmulti(2,"));
     assert_eq!(w.keys().len(), 3);
 }
@@ -235,6 +239,7 @@ fn a_receive_and_a_change_descriptor_or_a_receive_one_alone_read_as_the_multipat
 
 #[test]
 fn jades_single_chain_export_reads_with_its_change_chain() {
+    let c = faraday_core::testkit::compute();
     // Jade's test file is the "abandon … about" seed's BIP-84 account,
     // whose first address BIP-84 publishes.
     let w = wallet("sparrow/jade-keystore.txt");
@@ -242,7 +247,7 @@ fn jades_single_chain_export_reads_with_its_change_chain() {
         first(&w, Network::Mainnet),
         "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
     );
-    assert!(w.address_at(Network::Mainnet, true, 0).is_ok());
+    assert!(w.address_at(&c, Network::Mainnet, true, 0).is_ok());
 }
 
 #[test]
@@ -276,9 +281,10 @@ fn bitcoin_cores_listdescriptors_reads_as_its_native_segwit_wallet() {
 
 #[test]
 fn a_descriptor_whose_checksum_is_wrong_is_refused_however_it_is_written() {
+    let c = faraday_core::testkit::compute();
     let text = file("sparrow/descriptor-receive-change1.txt");
     let broken = text.replacen("#s5x06kda", "#s5x06kdb", 1);
-    assert!(read_wallet(&broken).is_err());
+    assert!(read_wallet(&c, &broken).is_err());
 }
 
 // Cosigner keys for Create.
@@ -410,6 +416,7 @@ fn written_keys(text: &str) -> Vec<String> {
 
 #[test]
 fn casas_descriptor_of_ypubs_loads_as_its_nested_segwit_multisig() {
+    let c = faraday_core::testkit::compute();
     let w = wallet("bluewallet/casa-descriptor.txt");
     assert!(
         w.to_descriptor().starts_with("sh(wsh(sortedmulti(3,")
@@ -419,11 +426,12 @@ fn casas_descriptor_of_ypubs_loads_as_its_nested_segwit_multisig() {
     );
     assert_eq!(w.keys().len(), 5);
     assert_eq!(w.quorum().map(|(m, _)| m), Some(3));
-    assert!(w.address_at(Network::Mainnet, false, 0).is_ok());
+    assert!(w.address_at(&c, Network::Mainnet, false, 0).is_ok());
 }
 
 #[test]
 fn specter_diys_keystore_fills_a_native_segwit_slot_and_no_multisig_one() {
+    let c = faraday_core::testkit::compute();
     let text = file("sparrow/specter-diy-keystore.txt");
     let key = key_for(NewKind::NativeSegwit, &text).unwrap();
     assert!(
@@ -435,34 +443,40 @@ fn specter_diys_keystore_fills_a_native_segwit_slot_and_no_multisig_one() {
     // On its own the key is the testnet BIP-84 wallet it names.
     let w = wallet("sparrow/specter-diy-keystore.txt");
     assert!(w.to_descriptor().starts_with("wpkh([b317ec86/84"));
-    assert!(w.address_at(Network::Testnet, false, 0).is_ok());
+    assert!(w.address_at(&c, Network::Testnet, false, 0).is_ok());
 }
 
 #[test]
 fn keystones_change_descriptor_with_an_upper_case_fingerprint_reads_as_its_wallet() {
+    let c = faraday_core::testkit::compute();
     let w = wallet("sparrow/keystone-singlesig-keystore-1.txt");
     let d = w.to_descriptor().to_lowercase();
     assert!(d.starts_with("wpkh([5271c071/84"), "{d}");
     assert!(d.contains("/<0;1>/*"), "{d}");
-    assert!(w.address_at(Network::Mainnet, false, 0).is_ok());
-    assert!(w.address_at(Network::Mainnet, true, 0).is_ok());
+    assert!(w.address_at(&c, Network::Mainnet, false, 0).is_ok());
+    assert!(w.address_at(&c, Network::Mainnet, true, 0).is_ok());
 }
 
 #[test]
 fn bip_84s_account_as_a_zpub_has_bip_84s_first_address() {
-    let bare = read_wallet(BIP84_ZPUB).unwrap();
+    let c = faraday_core::testkit::compute();
+    let bare = read_wallet(&c, BIP84_ZPUB).unwrap();
     assert_eq!(first(&bare, Network::Mainnet), BIP84_FIRST);
-    let rooted = read_wallet(&format!("[73c5da0a/84h/0h/0h]{BIP84_ZPUB}")).unwrap();
+    let rooted = read_wallet(&c, &format!("[73c5da0a/84h/0h/0h]{BIP84_ZPUB}")).unwrap();
     assert_eq!(first(&rooted, Network::Mainnet), BIP84_FIRST);
     // The same account as Jade writes it, in xpub form.
     assert!(same(&rooted, &wallet("sparrow/jade-keystore.txt")));
-    let described =
-        read_wallet(&format!("wpkh([73c5da0a/84h/0h/0h]{BIP84_ZPUB}/<0;1>/*)")).unwrap();
+    let described = read_wallet(
+        &c,
+        &format!("wpkh([73c5da0a/84h/0h/0h]{BIP84_ZPUB}/<0;1>/*)"),
+    )
+    .unwrap();
     assert!(same(&described, &rooted));
 }
 
 #[test]
 fn a_slip132_key_whose_version_disagrees_with_its_script_or_path_is_refused() {
+    let c = faraday_core::testkit::compute();
     let unchained = file("bluewallet/unchained.json");
     let zpub = unchained
         .split('"')
@@ -485,7 +499,7 @@ fn a_slip132_key_whose_version_disagrees_with_its_script_or_path_is_refused() {
         (format!("[73c5da0a/49h/0h/0h]{BIP84_ZPUB}"), BIP84_ZPUB),
     ] {
         // Refused by name: the refusal names the key it will not take.
-        let e = read_wallet(&text).expect_err(&text);
+        let e = read_wallet(&c, &text).expect_err(&text);
         assert!(e.text().contains(&key[..8]), "{text}: {}", e.text());
     }
     // A key file whose zpub sits on another purpose's path gives no key.
@@ -514,20 +528,22 @@ fn sparrows_bsms_records_in_upper_case_or_without_path_restrictions_load_at_thei
 
 #[test]
 fn bsms_records_sparrow_refuses_stay_refused() {
+    let c = faraday_core::testkit::compute();
     for n in [5, 7, 9, 11, 13, 14, 15, 17] {
         let path = format!("sparrow/bsms/multisig-{n}.bsms");
-        assert!(read_wallet(&file(&path)).is_err(), "{path}");
+        assert!(read_wallet(&c, &file(&path)).is_err(), "{path}");
     }
 }
 
 #[test]
 fn a_bsms_records_base58_address_with_its_case_changed_is_refused() {
+    let c = faraday_core::testkit::compute();
     let text = file("sparrow/bsms/multisig-3.bsms");
     let address = text.lines().nth(3).unwrap().trim();
-    assert!(read_wallet(&text).is_ok());
+    assert!(read_wallet(&c, &text).is_ok());
     for changed in [address.to_uppercase(), address.to_lowercase()] {
         assert!(
-            read_wallet(&text.replace(address, &changed)).is_err(),
+            read_wallet(&c, &text.replace(address, &changed)).is_err(),
             "{changed}"
         );
     }
@@ -569,29 +585,32 @@ fn blue_wallets_cobo_skeleton_is_the_wallet_keystone_exports_for_the_same_key() 
 
 #[test]
 fn coldcards_wasabi_file_is_the_native_segwit_account_of_its_generic_export() {
+    let c = faraday_core::testkit::compute();
     let generic = file("bluewallet/coldcardmk4-generic.json");
     let wasabi = wallet("bluewallet/coldcardmk4-wasabi.json");
-    assert!(same(&wasabi, &read_wallet(&generic).unwrap()));
+    assert!(same(&wasabi, &read_wallet(&c, &generic).unwrap()));
     assert_eq!(first(&wasabi, Network::Mainnet), stated_first(&generic));
 }
 
 #[test]
 fn a_single_key_file_whose_key_disagrees_with_its_path_is_refused() {
+    let c = faraday_core::testkit::compute();
     // BIP-84's zpub on a BIP-49 path, and a Wasabi file (BIP-84) with a
     // ypub.
     let cobo = file("sparrow/cobo-singlesig-keystore-1.json").replace("84'", "49'");
-    let e = read_wallet(&cobo).expect_err("zpub at 49'");
+    let e = read_wallet(&c, &cobo).expect_err("zpub at 49'");
     assert!(e.text().contains(&BIP84_ZPUB[..8]), "{}", e.text());
     let generic = file("bluewallet/coldcardmk4-generic.json");
     let ypub = generic.split('"').find(|t| t.starts_with("ypub")).unwrap();
     let wasabi = format!(
         "{{\"ColdCardFirmwareVersion\": \"5.2.2\", \"MasterFingerprint\": \"086EE178\", \"ExtPubKey\": \"{ypub}\"}}"
     );
-    assert!(read_wallet(&wasabi).is_err());
+    assert!(read_wallet(&c, &wasabi).is_err());
 }
 
 #[test]
 fn json_nested_past_the_depth_limit_is_refused() {
+    let c = faraday_core::testkit::compute();
     // The object is one level; the arrays inside it the rest.
     let depth = osk_bip::json::MAX_DEPTH;
     let cobo = file("sparrow/cobo-singlesig-keystore-1.json");
@@ -601,7 +620,7 @@ fn json_nested_past_the_depth_limit_is_refused() {
         "[".repeat(depth),
         "]".repeat(depth)
     );
-    assert!(read_wallet(&deep).is_err());
+    assert!(read_wallet(&c, &deep).is_err());
     // One level less reads as the file it is.
     let shallow = format!(
         "{{{body}, \"x\": {}{}}}",
@@ -609,7 +628,7 @@ fn json_nested_past_the_depth_limit_is_refused() {
         "]".repeat(depth - 1)
     );
     assert_eq!(
-        first(&read_wallet(&shallow).unwrap(), Network::Mainnet),
+        first(&read_wallet(&c, &shallow).unwrap(), Network::Mainnet),
         BIP84_FIRST
     );
 }
@@ -619,13 +638,14 @@ fn json_nested_past_the_depth_limit_is_refused() {
 /// writer wrote; both are refused, where the whole file loads.
 #[test]
 fn a_wallet_json_naming_its_descriptor_twice_or_cut_short_is_refused() {
+    let c = faraday_core::testkit::compute();
     let specter = file("sparrow/specter-wallet.json");
-    assert!(read_wallet(&specter).is_ok());
+    assert!(read_wallet(&c, &specter).is_ok());
     let other = "\"descriptor\": \"wpkh([4df18faa/84'/0'/0']xpub6BgwyseZdeGJj2vB3FPHSGPxR1LLkr8AsAJqedrgjwBXKXXVWkH31fhwtQXgrM7uMrWjLwXhuDhhenNAh5eBdUSjrHkrKfaXutcJdAfgQ8D)\",\n  \"descriptor\"";
     let twice = specter.replacen("\"descriptor\"", other, 1);
-    assert!(read_wallet(&twice).is_err());
+    assert!(read_wallet(&c, &twice).is_err());
     let cut = specter.trim_end().trim_end_matches('}');
-    assert!(read_wallet(cut).is_err());
+    assert!(read_wallet(&c, cut).is_err());
     assert_eq!(
         faraday_intake::wallet::json_label(&specter).as_deref(),
         Some("specter-wallet")
@@ -635,11 +655,13 @@ fn a_wallet_json_naming_its_descriptor_twice_or_cut_short_is_refused() {
 /// The files Public files' row `what` puts in the Outbox for a wallet
 /// loaded from `descriptor`, as text.
 fn public_out(descriptor: &str, what: u8) -> Vec<(String, String)> {
+    let c = faraday_core::testkit::compute();
     let mut app = faraday_core::Faraday::new();
     app.session = faraday_core::testkit::session();
     let w = app
         .session
         .add_wallet(
+            &c,
             "Test",
             descriptor,
             "Test wallet",
@@ -668,17 +690,18 @@ fn kit(id: &str) -> String {
 
 #[test]
 fn faradays_wasabi_file_reads_back_as_the_same_wallet_and_only_bip_84s_account_0_has_one() {
+    let c = faraday_core::testkit::compute();
     let spending = kit("spending");
     let out = public_out(&spending, WASABI_ROW);
     let [(name, text)] = &out[..] else {
         panic!("{out:?}")
     };
     assert_eq!(name, "test-wasabi.json");
-    let back = read_wallet(text).unwrap();
-    assert!(same(&back, &read_wallet(&spending).unwrap()));
+    let back = read_wallet(&c, text).unwrap();
+    assert!(same(&back, &read_wallet(&c, &spending).unwrap()));
     assert_eq!(
         first(&back, Network::Testnet),
-        first(&read_wallet(&spending).unwrap(), Network::Testnet)
+        first(&read_wallet(&c, &spending).unwrap(), Network::Testnet)
     );
     for other in ["nested", "taproot", "savings"] {
         assert!(public_out(&kit(other), WASABI_ROW).is_empty(), "{other}");
@@ -695,32 +718,35 @@ fn faradays_wasabi_file_reads_back_as_the_same_wallet_and_only_bip_84s_account_0
 
 #[test]
 fn sparrows_caravan_export_loads_as_the_descriptor_its_fields_spell() {
+    let c = faraday_core::testkit::compute();
     let w = wallet("sparrow/caravan-multisig-export-1.json");
     let p = "48'/0'/0'/2'";
     let by_hand = format!(
         "wsh(sortedmulti(2,[8188029f/{p}]xpub6EMVvcTUbaABdaPLaVWE72CjcN72URa5pKK1knrKLz1hKaDwUkgddc3832a8MHEpLyuow7MfjMRomt2iMtwPH4pWrFLft4JsquHjeZfKsYp/<0;1>/*,[a15e8133/{p}]xpub6EbTHAgvzZtVppjLPXia2prt6T2w7DD2VQ8gysgV6ECzmKkA6zt4WR3hX4bgciTDrnaneZoJbA19tYKBMrWuA89SbgYAdbMNWmtzrgLhqco/<0;1>/*,[d31cf7f9/{p}]xpub6Ea6qWGr6BWpCSyLo8ggypvXg1MwadiAGZxAHvrBUwvT2ki6pNVG61bg3YEdxkj7FRJ1cLFK7Vvqd9rcDvwCLX7VfEMfJJfdbA1NGsFazvz/<0;1>/*))"
     );
-    assert!(same(&w, &read_wallet(&by_hand).unwrap()));
+    assert!(same(&w, &read_wallet(&c, &by_hand).unwrap()));
 }
 
 #[test]
 fn caravan_exports_sparrow_refuses_are_refused() {
+    let c = faraday_core::testkit::compute();
     // Sparrow's own test refuses both: a quorum of 0, and a total of 3
     // over two keys.
     for path in [
         "sparrow/caravan-multisig-export-2.json",
         "sparrow/caravan-multisig-export-3.json",
     ] {
-        assert!(read_wallet(&file(path)).is_err(), "{path}");
+        assert!(read_wallet(&c, &file(path)).is_err(), "{path}");
     }
 }
 
 #[test]
 fn blue_wallets_caravan_file_with_its_third_keys_path_loads_at_blue_wallets_first_address() {
+    let c = faraday_core::testkit::compute();
     // As written, its third key's bip32Path is "Unknown": a multisig
     // wallet here holds no key without its origin, and the key is named.
     let text = file("bluewallet/caravan-multisig.json");
-    let e = read_wallet(&text).expect_err("a key with no origin");
+    let e = read_wallet(&c, &text).expect_err("a key with no origin");
     assert!(e.text().contains("xpub6ERj"), "{}", e.text());
     // Sparrow's Coldcard export of the same wallet states that key's
     // path; with it, the config is the wallet that export is.
@@ -728,7 +754,7 @@ fn blue_wallets_caravan_file_with_its_third_keys_path_loads_at_blue_wallets_firs
         "\"bip32Path\": \"Unknown\"",
         "\"bip32Path\": \"m/48'/0'/0'/2'\"",
     );
-    let w = read_wallet(&given).unwrap();
+    let w = read_wallet(&c, &given).unwrap();
     assert!(same(&w, &wallet("bluewallet/fromsparrow-coldcard.txt")));
     // BlueWallet's `multisig-hd-wallet.test.js`, "can parse files from
     // sparrow wallet".
@@ -740,13 +766,14 @@ fn blue_wallets_caravan_file_with_its_third_keys_path_loads_at_blue_wallets_firs
 
 #[test]
 fn a_caravan_config_whose_keys_or_start_disagree_with_it_is_refused() {
+    let c = faraday_core::testkit::compute();
     let text = file("sparrow/caravan-multisig-export-1.json");
     for changed in [
         text.replace("\"mainnet\"", "\"testnet\""),
         text.replace("\"startingAddressIndex\": 0", "\"startingAddressIndex\": 5"),
         text.replace("\"P2WSH\"", "\"P2TR\""),
     ] {
-        assert!(read_wallet(&changed).is_err(), "{changed}");
+        assert!(read_wallet(&c, &changed).is_err(), "{changed}");
     }
     // A key whose SLIP-132 version names nested multisig, in a P2WSH
     // config: Unchained's Ypub.
@@ -760,12 +787,13 @@ fn a_caravan_config_whose_keys_or_start_disagree_with_it_is_refused() {
         .find(|t| t.starts_with("xpub6"))
         .unwrap()
         .to_string();
-    let e = read_wallet(&text.replace(&first_xpub, &ypub)).expect_err("Ypub in P2WSH");
+    let e = read_wallet(&c, &text.replace(&first_xpub, &ypub)).expect_err("Ypub in P2WSH");
     assert!(e.text().contains(&ypub[..8]), "{}", e.text());
 }
 
 #[test]
 fn faradays_caravan_file_reads_back_with_the_same_first_address() {
+    let c = faraday_core::testkit::compute();
     for id in ["savings", "vault-nested", "vault-legacy"] {
         let d = kit(id);
         let out = public_out(&d, CARAVAN_ROW);
@@ -773,8 +801,8 @@ fn faradays_caravan_file_reads_back_with_the_same_first_address() {
             panic!("{id}: {out:?}")
         };
         assert_eq!(name, "test-caravan.json");
-        let back = read_wallet(text).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
-        let own = read_wallet(&d).unwrap();
+        let back = read_wallet(&c, text).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
+        let own = read_wallet(&c, &d).unwrap();
         assert!(same(&back, &own), "{id}");
         assert_eq!(
             first(&back, Network::Testnet),
@@ -828,11 +856,12 @@ fn import_requests(text: &str) -> Vec<(String, bool)> {
 
 #[test]
 fn the_import_for_core_before_29_is_the_receive_and_change_descriptors_core_itself_lists() {
+    let c = faraday_core::testkit::compute();
     // Core 31's `listdescriptors` reads as its BIP-84 wallet; the file for
     // Core before 29 holds the two descriptors Core listed for it,
     // checksums and all.
     let core = file("core/listdescriptors.json");
-    let w = read_wallet(&core).unwrap();
+    let w = read_wallet(&c, &core).unwrap();
     let out = public_out(&w.to_descriptor_checksummed(), CORE_BEFORE_29_ROW);
     let [(name, text)] = &out[..] else {
         panic!("{out:?}")
@@ -860,6 +889,7 @@ fn the_import_for_core_before_29_is_the_receive_and_change_descriptors_core_itse
 
 #[test]
 fn the_two_descriptors_for_core_before_29_read_back_as_the_wallet_each_with_a_valid_checksum() {
+    let c = faraday_core::testkit::compute();
     for id in [
         "savings",
         "spending",
@@ -887,7 +917,7 @@ fn the_two_descriptors_for_core_before_29_read_back_as_the_wallet_each_with_a_va
             assert!(!desc.contains('<'), "{id}: {desc}");
             assert!(osk_bip::descriptor::verify_checksum(desc), "{id}: {desc}");
         }
-        let own = read_wallet(&d).unwrap().to_descriptor();
+        let own = read_wallet(&c, &d).unwrap().to_descriptor();
         for ((desc, _), chain) in requests.iter().zip(["0", "1"]) {
             assert_eq!(
                 desc.split('#').next().unwrap(),
@@ -899,8 +929,8 @@ fn the_two_descriptors_for_core_before_29_read_back_as_the_wallet_each_with_a_va
         // which reads such a pair here, has no `sortedmulti_a`.
         if id != "taproot-multisig" {
             let both = format!("{}\n{}", requests[0].0, requests[1].0);
-            let back = read_wallet(&both).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
-            assert!(same(&back, &read_wallet(&d).unwrap()), "{id}");
+            let back = read_wallet(&c, &both).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
+            assert!(same(&back, &read_wallet(&c, &d).unwrap()), "{id}");
         }
     }
 }
@@ -964,6 +994,7 @@ fn electrum_bip84(origin: &str) -> String {
 
 #[test]
 fn an_electrum_file_of_bip_84s_account_has_bip_84s_first_address_however_its_origin_is_written() {
+    let c = faraday_core::testkit::compute();
     // 73c5da0a, BIP-84's master fingerprint, as `root_fingerprint` and
     // as Coldcard's little-endian `ckcc_xfp`.
     let derivation = ", \"derivation\": \"m/84'/0'/0'\"";
@@ -972,7 +1003,7 @@ fn an_electrum_file_of_bip_84s_account_has_bip_84s_first_address_however_its_ori
         format!("{derivation}, \"root_fingerprint\": \"73c5da0a\""),
         format!("{derivation}, \"ckcc_xfp\": {le}"),
     ] {
-        let w = read_wallet(&electrum_bip84(&origin)).unwrap();
+        let w = read_wallet(&c, &electrum_bip84(&origin)).unwrap();
         assert!(
             w.to_descriptor()
                 .starts_with("wpkh([73c5da0a/84h/0h/0h]xpub")
@@ -981,7 +1012,7 @@ fn an_electrum_file_of_bip_84s_account_has_bip_84s_first_address_however_its_ori
     }
     // With neither, a single key loads with no origin, at the same
     // address: upstream holds a single key without one.
-    let bare = read_wallet(&electrum_bip84("")).unwrap();
+    let bare = read_wallet(&c, &electrum_bip84("")).unwrap();
     assert!(bare.keys()[0].fingerprint().is_none());
     assert_eq!(first(&bare, Network::Mainnet), BIP84_FIRST);
 }
@@ -997,7 +1028,7 @@ fn an_electrum_file_holding_a_private_key_is_a_secret_and_its_origin_less_multis
     assert_eq!(kind.exposure(), Exposure::Secret);
     // Its keystores name no fingerprint or derivation: a multisig wallet
     // here holds no key without its origin, and the first is named.
-    let e = read_wallet(&text).expect_err("no origins");
+    let e = read_wallet(&c, &text).expect_err("no origins");
     assert!(e.text().contains("Zpub74sR"), "{}", e.text());
     assert!(!e.text().contains("prv"), "{}", e.text());
     // Its public keys are the keys of the same wallet's Specter file.
@@ -1020,13 +1051,14 @@ fn an_electrum_file_holding_a_private_key_is_a_secret_and_its_origin_less_multis
 
 #[test]
 fn an_encrypted_electrum_file_is_refused_as_encrypted() {
+    let c = faraday_core::testkit::compute();
     let text = file("sparrow/electrum-singlesig-wallet.json");
     for encrypted in [
         text.replace("\"use_encryption\": false", "\"use_encryption\": true"),
         // Electrum's whole-file encryption: base64 of its `BIE1` envelope.
         "QklFMQOm0k8xWLe5KvvT1W9t3w3JY0oYxVqVZ6a0r7c9Qw==".to_string(),
     ] {
-        let e = read_wallet(&encrypted).expect_err("encrypted");
+        let e = read_wallet(&c, &encrypted).expect_err("encrypted");
         assert_eq!(e.text(), "Not a wallet: This Electrum file is encrypted");
     }
 }
@@ -1058,8 +1090,8 @@ fn faradays_electrum_file_reads_back_as_the_same_wallet_with_slip_132_keys_and_n
             FileKind::Wallet,
             "{id}"
         );
-        let back = read_wallet(text).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
-        let own = read_wallet(&d).unwrap();
+        let back = read_wallet(&c, text).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
+        let own = read_wallet(&c, &d).unwrap();
         assert!(same(&back, &own), "{id}");
         assert_eq!(
             first(&back, Network::Testnet),
@@ -1103,6 +1135,7 @@ fn a_psbt_electrum_builds_from_a_bare_zpub_is_not_signed_here() {
             .unwrap();
         session
             .add_wallet(
+                &c,
                 "Spending",
                 &format!("wpkh({rooted}/<0;1>/*)"),
                 "Test wallet",

@@ -61,7 +61,7 @@ fn multisig(masters: &[MasterKey], threshold: usize) -> WalletPolicy {
     let keys: Vec<&str> = keys.iter().map(String::as_str).collect();
     let slots: Vec<String> = (0..masters.len()).map(|i| format!("@{i}/**")).collect();
     let template = format!("wsh(sortedmulti({threshold},{}))", slots.join(","));
-    WalletPolicy::from_parts(&template, &keys).expect("policy built from fixed keys")
+    WalletPolicy::from_parts(&c, &template, &keys).expect("policy built from fixed keys")
 }
 
 /// A version 2 transaction with one input and no witness.
@@ -93,7 +93,7 @@ fn main() {
     println!("{}", policy.to_descriptor_checksummed());
     for change in [false, true] {
         for i in 0..3 {
-            let address = policy.address_at(NET, change, i).expect("address");
+            let address = policy.address_at(&c, NET, change, i).expect("address");
             println!("{}/{i} {address}", u8::from(change));
         }
     }
@@ -106,7 +106,7 @@ fn main() {
         OutPoint::new(Txid::from_byte_array(fake), 0),
         vec![TxOut {
             value: Amount::from_sat(10_000_000),
-            script_pubkey: policy.script_at(false, 0).expect("receive script"),
+            script_pubkey: policy.script_at(&c, false, 0).expect("receive script"),
         }],
     );
     let funding_id = funding.compute_txid();
@@ -130,7 +130,7 @@ fn main() {
             },
             TxOut {
                 value: Amount::from_sat(8_497_860),
-                script_pubkey: policy.script_at(true, 0).expect("change script"),
+                script_pubkey: policy.script_at(&c, true, 0).expect("change script"),
             },
         ],
     );
@@ -166,7 +166,7 @@ fn main() {
     let family = multisig(&family, 3);
     println!(
         "3of5 0/0 {}",
-        family.address_at(NET, false, 0).expect("address")
+        family.address_at(&c, NET, false, 0).expect("address")
     );
 }
 

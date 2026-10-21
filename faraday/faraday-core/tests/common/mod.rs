@@ -698,6 +698,7 @@ pub fn expect_part(app: &mut Faraday, part: &str) {
 /// not about the flow starts from. (The flow itself is tested end to end
 /// in `backup_flow.rs`.)
 pub fn at_make(app: &mut Faraday, kind: Kind) {
+    let c = faraday_core::testkit::compute();
     use faraday_core::backup_flow::{BackupFlow, Plan, Step};
     let (salt, name) = {
         let o = &app.vaults.open[app.vaults.current];
@@ -707,7 +708,7 @@ pub fn at_make(app: &mut Faraday, kind: Kind) {
     plan.vaults[0].salt = Some(salt);
     plan.vaults[0].file = Some(name);
     plan.vaults[0].existing = true;
-    let mut f = BackupFlow::with_plan(kind, plan);
+    let mut f = BackupFlow::with_plan(&c, kind, plan);
     f.step = Step::Make;
     app.backup_flows.push(f);
     let i = app.backup_flows.len() - 1;
@@ -824,8 +825,9 @@ pub fn form(app: &mut Faraday, z: Zone, t: Thing, k: u8) {
 /// The map of the plan the board on screen edits, sticks and all: Back
 /// up's, or the wallet flow's on the flow's screen.
 pub fn backup_map(app: &Faraday) -> Vec<Spot> {
+    let c = faraday_core::testkit::compute();
     let (shape, a) = app.board_plan().expect("a board");
-    plan::map(&shape, &a)
+    plan::map(&c, &shape, &a)
 }
 
 /// How many places the plan the board on screen edits has.

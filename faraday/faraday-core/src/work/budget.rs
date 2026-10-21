@@ -11,6 +11,7 @@ mod moments;
 mod presses;
 mod scaling;
 
+use osk_crypto::work::Compute;
 use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 use super::{Counts, KINDS, Work, since, snapshot};
@@ -245,7 +246,7 @@ impl Report {
 /// The heavy session walked through every screen the budget covers:
 /// `stop` is called at each, with its name, on the app as it stands
 /// there. Returns the app at the end and the 2-of-3's index.
-pub(super) fn walk(stop: &mut dyn FnMut(&mut Faraday, &str)) -> (Faraday, usize) {
+pub(super) fn walk(c: &Compute, stop: &mut dyn FnMut(&mut Faraday, &str)) -> (Faraday, usize) {
     let (mut app, w) = heavy();
     stop(&mut app, "Create");
 
@@ -255,7 +256,7 @@ pub(super) fn walk(stop: &mut dyn FnMut(&mut Faraday, &str)) -> (Faraday, usize)
     assert_eq!(app.screen, Screen::Backup);
     stop(&mut app, "Backup board");
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&bstep::BLANK) {
+    if app.backup_items_now(c).contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
     stop(&mut app, "Backup checklist");
@@ -274,6 +275,7 @@ pub(super) fn walk(stop: &mut dyn FnMut(&mut Faraday, &str)) -> (Faraday, usize)
     // Every test wallet loaded beside the 2-of-3, as Load would.
     for kit in testkit::kits() {
         let _ = app.session.add_wallet(
+            c,
             kit.name,
             &kit.descriptor,
             "test",
@@ -294,7 +296,7 @@ pub(super) fn walk(stop: &mut dyn FnMut(&mut Faraday, &str)) -> (Faraday, usize)
     plan.vaults[0].salt = Some(salt);
     plan.vaults[0].file = Some(name);
     plan.vaults[0].existing = true;
-    let mut f = BackupFlow::with_plan(Kind::Gpg, plan);
+    let mut f = BackupFlow::with_plan(c, Kind::Gpg, plan);
     f.step = Step::Make;
     app.backup_flows.push(f);
     app.press(Action::Flow(F::Show(app.backup_flows.len() - 1)));
@@ -382,12 +384,13 @@ pub(super) const MAIN: [(&str, Screen); 9] = [
 
 #[test]
 fn a_frame_drawn_again_and_a_pointer_move_do_no_costly_work_beyond_the_budget() {
+    let c = crate::testkit::compute();
     let start = snapshot();
     let mut r = Report {
         lines: Vec::new(),
         failures: Vec::new(),
     };
-    let _ = walk(&mut |app, name| r.check(app, name));
+    let _ = walk(&c, &mut |app, name| r.check(app, name));
     assert!(
         since(&start).of(Work::MasterKey) >= 3,
         "the three keys made here were counted"

@@ -28,6 +28,7 @@ fn settle(app: &mut Faraday, from: u64) {
 /// flow's own New key, its backup opened on Paper and vault, stopping on
 /// the checklist's vault item.
 fn create_to_vault_step() -> Faraday {
+    let c = faraday_core::testkit::compute();
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
@@ -67,7 +68,10 @@ fn create_to_vault_step() -> Faraday {
     // No paper words: the vault's item comes first and opens.
     common::no_words(&mut app);
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     assert_eq!(
@@ -183,12 +187,16 @@ fn a_new_vaults_passphrases_wait_until_the_stick_is_pulled() {
 
 #[test]
 fn a_finished_backup_offers_a_stick_and_asks_to_lock_first() {
+    let c = faraday_core::testkit::compute();
     let mut app = create_to_vault_step();
     let wallet = app.create.as_ref().unwrap().built.unwrap();
     app.press(Action::Backup(wallet));
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     app.press(Action::BOut(0));

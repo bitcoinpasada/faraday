@@ -48,11 +48,11 @@ pub fn words_id(m: &Mnemonic) -> WordsId {
     zeroize::Zeroizing::new(crate::sha256_of(entropy.expose().as_bytes()))
 }
 
-/// Reads a wallet description: `faraday_intake`'s reader, counted
-/// ([`crate::work`]). Costs a parse of the description and its keys.
-pub fn read_wallet(text: &str) -> Result<WalletPolicy, Refusal> {
-    crate::work::count(crate::work::Work::DescriptorParse);
-    faraday_intake::wallet::read_wallet(text)
+/// Costs a parse of the description and its keys: reads a wallet
+/// description with `faraday_intake`'s reader, which counts through the
+/// token.
+pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
+    faraday_intake::wallet::read_wallet(c, text)
 }
 
 /// Parses seed words in `lang`: BIP-39's parser, counted through the
@@ -304,11 +304,16 @@ impl Wallet {
         }
     }
 
-    /// Its script at `change`/`index`, `None` when it has none there:
-    /// derived the first time it is asked and kept on the wallet, a
-    /// lookup after, as [`Wallet::address_on`] keeps addresses. Costs a
-    /// script derivation the first time.
-    pub fn script_at(&self, change: bool, index: u32) -> Option<osk_bip::bitcoin::ScriptBuf> {
+    /// Costs a script derivation the first time: its script at
+    /// `change`/`index`, `None` when it has none there, derived the first
+    /// time it is asked and kept on the wallet, a lookup after, as
+    /// [`Wallet::address_on`] keeps addresses.
+    pub fn script_at(
+        &self,
+        c: &Compute,
+        change: bool,
+        index: u32,
+    ) -> Option<osk_bip::bitcoin::ScriptBuf> {
         if let Some((.., s)) = self
             .scripts
             .borrow()
@@ -319,7 +324,7 @@ impl Wallet {
         }
         let s = crate::work::keeping(|| {
             crate::work::count(crate::work::Work::WalletMatch);
-            self.policy.script_at(change, index).ok()
+            self.policy.script_at(c, change, index).ok()
         });
         let mut kept = self.scripts.borrow_mut();
         // A long walk through places keeps the latest only.
@@ -330,13 +335,13 @@ impl Wallet {
         s
     }
 
-    /// Its address on `network` at `change`/`index`, or why there is
-    /// none: derived the first time it is asked and kept on the wallet, a
-    /// lookup after (`docs/SPEED.md` §2: a kept value is public and goes
-    /// with what it describes). A frame that shows an address asks it
-    /// again every frame; it is derived once. Costs an address derivation
-    /// the first time.
-    pub fn address_on(&self, network: Network, change: bool, index: u32) -> String {
+    /// Costs an address derivation the first time: its address on
+    /// `network` at `change`/`index`, or why there is none, derived the
+    /// first time it is asked and kept on the wallet, a lookup after
+    /// (`docs/SPEED.md` §2: a kept value is public and goes with what it
+    /// describes). A frame that shows an address asks it again every
+    /// frame; it is derived once.
+    pub fn address_on(&self, c: &Compute, network: Network, change: bool, index: u32) -> String {
         if let Some((.., a)) = self
             .addresses
             .borrow()
@@ -346,9 +351,8 @@ impl Wallet {
             return a.clone();
         }
         let a = crate::work::keeping(|| {
-            crate::work::count(crate::work::Work::Address);
             self.policy
-                .address_at(network, change, index)
+                .address_at(c, network, change, index)
                 .map(|a| a.to_string())
                 .unwrap_or_else(|e| fill(EN.wallet_no_address, &[&e.to_string()]))
         });
@@ -823,12 +827,13 @@ impl Session {
     /// the text back.
     pub fn add_wallet(
         &mut self,
+        c: &Compute,
         name: &str,
         text: &str,
         source: &str,
         origin: Origin,
     ) -> Result<usize, Refusal> {
-        self.add_policy(name, read_wallet(text)?, source, origin)
+        self.add_policy(name, read_wallet(c, text)?, source, origin)
     }
 
     /// [`Session::add_wallet`] of a description read before (a vault's
@@ -986,8 +991,8 @@ impl Session {
 
     /// An address of the wallet, on the session's network.
     /// Derived once per wallet and kept on it ([`Wallet::address_on`]).
-    pub fn address(&self, wallet: &Wallet, change: bool, index: u32) -> String {
-        wallet.address_on(self.network, change, index)
+    pub fn address(&self, c: &Compute, wallet: &Wallet, change: bool, index: u32) -> String {
+        wallet.address_on(c, self.network, change, index)
     }
 
     /// The public seed New key adds next while the demo is on, as its
@@ -1004,8 +1009,8 @@ impl Session {
     }
 
     /// An address of the wallet as the screen shows it ([`Session::shown`]).
-    pub fn address_shown(&self, wallet: &Wallet, change: bool, index: u32) -> String {
-        self.shown(&self.address(wallet, change, index))
+    pub fn address_shown(&self, c: &Compute, wallet: &Wallet, change: bool, index: u32) -> String {
+        self.shown(&self.address(c, wallet, change, index))
     }
 
     /// `address` as the screen shows it: as it is, or with its checksum
@@ -1102,7 +1107,7 @@ impl Session {
         let mut ctx = context(self.network, &refs, &policies);
         ctx.shares = &shares;
         ctx.carry = carry;
-        osk_psbt::inspect(psbt, &ctx)
+        osk_psbt::inspect(c, psbt, &ctx)
     }
 
     /// The loaded keys that are shares of the threshold wallet `w`, by
@@ -1165,7 +1170,7 @@ impl Session {
         let inspection = match known {
             Some(i) => i,
             None => {
-                own = osk_psbt::inspect(psbt, &ctx);
+                own = osk_psbt::inspect(c, psbt, &ctx);
                 &own
             }
         };
@@ -1348,19 +1353,19 @@ impl Session {
     /// spends, found by re-deriving each wallet's script at the paths the
     /// input's own key origins state. Costs a txid and, the first time a
     /// wallet is asked a place, a script derivation ([`Wallet::script_at`]).
-    pub fn wallet_for(&self, psbt: &Psbt) -> Option<usize> {
-        self.spends_from(&PsbtSeen::of(psbt))
+    pub fn wallet_for(&self, c: &Compute, psbt: &Psbt) -> Option<usize> {
+        self.spends_from(c, &PsbtSeen::of(psbt))
     }
 
     /// [`Session::wallet_for`] of a PSBT read before ([`PsbtSeen`]):
     /// lookups once each wallet keeps its scripts at the input's places,
     /// so a frame may ask it of every file in Files.
-    pub fn spends_from(&self, seen: &PsbtSeen) -> Option<usize> {
+    pub fn spends_from(&self, c: &Compute, seen: &PsbtSeen) -> Option<usize> {
         let (spk, places) = seen.first.as_ref()?;
         self.wallets.iter().position(|w| {
             places
                 .iter()
-                .any(|(change, index)| w.script_at(*change, *index).as_ref() == Some(spk))
+                .any(|(change, index)| w.script_at(c, *change, *index).as_ref() == Some(spk))
         })
     }
 }
@@ -1674,7 +1679,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
         if faraday_intake::wallet::holds_secret(text) {
             return FileKind::SecretWallet.into();
         }
-        if let Ok(w) = read_wallet(text) {
+        if let Ok(w) = read_wallet(c, text) {
             return Classified {
                 kind: FileKind::Wallet,
                 psbt: None,
@@ -1757,7 +1762,7 @@ impl Spend {
         inspection: Option<&Inspection>,
     ) -> Vec<Fingerprint> {
         if let Some(w) = session
-            .wallet_for(&self.psbt)
+            .wallet_for(c, &self.psbt)
             .and_then(|i| session.wallets.get(i))
             && Kind::of(&w.policy) == Kind::MuSig
         {
@@ -1948,7 +1953,7 @@ impl Session {
 
     /// Checks a signed message, and finds its address among the loaded
     /// wallets' first hundred addresses on each chain.
-    pub fn check_message(&self, text: &str) -> Option<MessageCheck> {
+    pub fn check_message(&self, c: &Compute, text: &str) -> Option<MessageCheck> {
         let signed = osk_psbt::message::parse_signed(text)?;
         let address = signed
             .address
@@ -1961,7 +1966,7 @@ impl Session {
             .map_err(|e| format!("{e:?}"));
         let wallet = self.wallets.iter().enumerate().find_map(|(i, w)| {
             w.policy
-                .find_address(self.network, &address, 100)
+                .find_address(c, self.network, &address, 100)
                 .map(|(change, index)| (i, change, index))
         });
         Some(MessageCheck {

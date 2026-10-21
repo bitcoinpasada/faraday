@@ -253,7 +253,7 @@ impl View<'_> {
     pub fn backup_items(&self) -> Vec<u8> {
         self.drawing
             .items
-            .get_or_init(|| self.filled(|_c| self.app.backup_items_now()))
+            .get_or_init(|| self.filled(|c| self.app.backup_items_now(c)))
             .clone()
     }
 

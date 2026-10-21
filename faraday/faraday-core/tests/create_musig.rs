@@ -61,9 +61,10 @@ fn a_musig2_wallet_made_here_is_bip390s_over_the_taproot_accounts() {
             .unwrap()
     };
     let (a, b) = (account(0), account(1));
-    let want = WalletPolicy::from_parts("tr(musig(@0,@1)/**)", &[a.as_str(), b.as_str()]).unwrap();
+    let want =
+        WalletPolicy::from_parts(&c, "tr(musig(@0,@1)/**)", &[a.as_str(), b.as_str()]).unwrap();
     assert_eq!(made, &want);
-    assert!(made.address_at(app.session.network(), false, 0).is_ok());
+    assert!(made.address_at(&c, app.session.network(), false, 0).is_ok());
 }
 
 #[test]

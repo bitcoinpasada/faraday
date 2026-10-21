@@ -44,8 +44,8 @@ fn press_and_draw(app: &mut Faraday, a: Action) {
 const STARTUP: Table = &[
     (
         Work::DescriptorParse,
-        41,
-        "the classifier tries each text file of the test stick that is no other kind as a wallet description, once as it comes in (41 of its 82 files); what a wallet file says is kept on it (Item::wallet)",
+        57,
+        "the classifier tries each text file of the test stick that is no other kind as a wallet description, once as it comes in (41 of its 82 files): the 25 wallet files read once each; the 16 that are none (three seeds' words, twelve xpubs, the vault's entries) refused whole and then read line by line as descriptors (faraday-intake's multipath reader), two parses each; what a wallet file says is kept on it (Item::wallet)",
     ),
     (
         Work::FileHash,
@@ -144,8 +144,8 @@ const UNLOCK: Table = &[
     ),
     (
         Work::DescriptorParse,
-        13,
-        "each of the vault's 12 wallet records read once and kept (VaultRecords), and its kept wallet text once (read_kept)",
+        14,
+        "each of the vault's 12 wallet records read once and kept (VaultRecords); Savings' share sheets in Files put together, the config they make read once for its name (config_name_kept) and once for its wallet (read_kept), each kept",
     ),
     (
         Work::Blur,
@@ -182,8 +182,8 @@ const LOAD: Table = &[
     ),
     (
         Work::Address,
-        1,
-        "Wallets opens on a wallet's card, which shows its first receive address: derived once, then kept",
+        13,
+        "Wallets opens on a wallet's card, which shows its first receive address: derived once, then kept (1); each script a wallet derives for the PSBTs in Files (WalletMatch below) is a script derivation, counted at its source (12)",
     ),
     (
         Work::WalletMatch,
@@ -237,6 +237,7 @@ fn with_spend() -> Faraday {
     let kit = kits.iter().find(|k| k.id == "savings").expect("Savings");
     app.session
         .add_wallet(
+            &c,
             kit.name,
             &kit.descriptor,
             "test",
@@ -275,6 +276,11 @@ const OPEN: Table = &[
         "Savings derives its script at the input's place once, then keeps it (Wallet::script_at)",
     ),
     (
+        Work::Address,
+        4,
+        "Savings' script at the input's place for WalletMatch (1); the inspection derives it at the places the PSBT claims are Savings', to verify them: the input's wallet and its spend route, and the change output (3)",
+    ),
+    (
         Work::FullCanvas,
         5,
         "the change to the spend's screen fades from the frame before: one copy, blended on each frame after",
@@ -299,8 +305,13 @@ const SIGN: Table = &[
     ),
     (
         Work::DescriptorParse,
-        1,
-        "the finished transaction put For the stick, tried once as a wallet description as it is classified",
+        2,
+        "the finished transaction put For the stick, tried as a wallet description as it is classified: refused whole, then line by line (faraday-intake's multipath reader)",
+    ),
+    (
+        Work::Address,
+        6,
+        "each of the two inspections (the signing's own and the signed PSBT's) derives Savings' script at the input's and the change output's places to verify the claims (3 each)",
     ),
     (
         Work::FullCanvas,

@@ -12,6 +12,7 @@ use crate::strings::fill;
 use osk_bip::bitcoin::consensus::encode::serialize_hex;
 use osk_bip::bitcoin::{Address, Amount, Script, Transaction, TxOut};
 use osk_bip::keys::Network;
+use osk_crypto::work::Compute;
 
 use crate::wallet::Session;
 
@@ -116,6 +117,7 @@ fn locktime_text(n: u32) -> String {
 /// order, where the source states them; the session marks the outputs
 /// that come back to a loaded wallet.
 pub fn decode(
+    c: &Compute,
     tx: &Transaction,
     prevouts: &[Option<TxOut>],
     session: &Session,
@@ -149,7 +151,7 @@ pub fn decode(
             let ours = address.as_ref().ok().and_then(|a| {
                 session.wallets.iter().find_map(|w| {
                     w.policy()
-                        .find_address(network, a, 100)
+                        .find_address(c, network, a, 100)
                         .map(|(change, index)| (w.name.clone(), change, index))
                 })
             });

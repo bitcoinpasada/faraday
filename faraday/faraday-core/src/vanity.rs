@@ -372,6 +372,7 @@ impl Faraday {
             find.address.as_str().get(..10).unwrap_or("")
         );
         match self.session.add_wallet(
+            &c,
             &name,
             &kind.descriptor(1, &[text]),
             EN.vanity_vanity_search,

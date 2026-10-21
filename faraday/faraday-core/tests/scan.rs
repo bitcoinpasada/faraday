@@ -69,12 +69,13 @@ fn a_file_in_the_envelope_arrives_under_its_own_name() {
 
 #[test]
 fn a_scanned_address_is_named_as_a_loaded_wallets_own() {
+    let c = faraday_core::testkit::compute();
     let mut app = scanning(vec![(
         "spending-wallet.txt",
         kit("spending").descriptor.into_bytes(),
     )]);
     app.press(Action::LoadWallet(0));
-    let ours = app.session.address(&app.session.wallets[0], false, 3);
+    let ours = app.session.address(&c, &app.session.wallets[0], false, 3);
     app.press(Action::Scan);
     scan(&mut app, &format!("bitcoin:{ours}?amount=0.001"));
     let said = note(&app);
@@ -84,12 +85,13 @@ fn a_scanned_address_is_named_as_a_loaded_wallets_own() {
 
 #[test]
 fn a_scanned_address_with_one_character_wrong_is_refused_for_its_checksum() {
+    let c = faraday_core::testkit::compute();
     let mut app = scanning(vec![(
         "spending-wallet.txt",
         kit("spending").descriptor.into_bytes(),
     )]);
     app.press(Action::LoadWallet(0));
-    let ours = app.session.address(&app.session.wallets[0], false, 0);
+    let ours = app.session.address(&c, &app.session.wallets[0], false, 0);
     let wrong = faraday_core::wallet::broken_checksum(&ours);
     assert_ne!(wrong, ours);
     app.press(Action::Scan);

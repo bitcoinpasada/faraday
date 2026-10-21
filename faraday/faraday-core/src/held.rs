@@ -22,7 +22,7 @@ use crate::{Action, BStage, Faraday, Screen, bstep, plan};
 /// nothing parses the words again and two seeds never pass for one.
 fn same_words(c: &Compute, app: &Faraday, r: &Record, key: &wallet::Key) -> bool {
     key.words_id(c)
-        .is_some_and(|id| app.record_words_id(r).is_some_and(|x| *x == *id))
+        .is_some_and(|id| app.record_words_id(c, r).is_some_and(|x| *x == *id))
 }
 
 /// Whether vault key record `r` says its key's backup is pending.
@@ -202,7 +202,7 @@ impl Faraday {
             return (crate::glance::RECEIVE_WARNING.to_string(), true);
         }
         (
-            crate::ui::grouped(&self.session.address_shown(wl, change, index)),
+            crate::ui::grouped(&self.session.address_shown(c, wl, change, index)),
             false,
         )
     }
@@ -249,7 +249,7 @@ impl Faraday {
         let shape = self.plan_shape(b.wallet);
         plan::kept_nowhere_on(
             &shape,
-            &self.plan_mapped(&shape, &b.answers),
+            &self.plan_mapped(c, &shape, &b.answers),
             &self.backup_held_seeds(c),
         )
     }
@@ -301,7 +301,7 @@ impl Faraday {
             return;
         }
         let w = b.wallet;
-        let items = self.backup_items_now();
+        let items = self.backup_items_now(&c);
         // Every item but the writes: those wait for the lock, and the
         // hold on a key kept in a vault moves to the flow there.
         let all = items
@@ -314,7 +314,7 @@ impl Faraday {
         let writes = items.contains(&bstep::STICKS);
         let shape = self.plan_shape_now(w);
         let list = self.backup_seed_list_now(w);
-        let mapped = self.plan_mapped(&shape, &b.answers);
+        let mapped = self.plan_mapped(&c, &shape, &b.answers);
         // A seed kept on any stick, a vault's or a file's, waits for it.
         let in_vault = |i: usize| mapped.seed_on_stick(i);
         let released: Vec<(Fingerprint, usize)> = self
@@ -433,7 +433,7 @@ impl Faraday {
     /// Whether checklist item `n` may open: it is on the checklist and
     /// every item before it is done.
     pub(crate) fn backup_reachable(&self, c: &Compute, n: u8) -> bool {
-        let items = self.backup_items_now();
+        let items = self.backup_items_now(c);
         items.contains(&n)
             && items
                 .iter()
@@ -443,7 +443,7 @@ impl Faraday {
 
     /// The first item not done, which the later items wait for.
     pub fn backup_waiting(&self, c: &Compute) -> Option<u8> {
-        self.backup_items()
+        self.backup_items(c)
             .into_iter()
             .find(|&i| bstep::item(i).is_some_and(|it| !self.backup_item_done(c, it)))
     }
@@ -502,7 +502,7 @@ impl Faraday {
         // This wallet's records whose mark is not as wanted yet.
         let to_set: Vec<usize> = open
             .contents
-            .described_of(kind::WALLET)
+            .described_of(&c, kind::WALLET)
             .filter(|(_, r, d)| {
                 d.same == want && faraday_vault::records::loads_at_unlock(r) != loads
             })
@@ -562,7 +562,7 @@ impl Faraday {
             .session
             .wallets
             .get(w)
-            .is_some_and(|wl| vault_has_wallet(self, cur, wl));
+            .is_some_and(|wl| vault_has_wallet(&c, self, cur, wl));
         if wallet_too && !has {
             self.vault_act(V::SaveWallet(w));
         }
@@ -573,7 +573,7 @@ impl Faraday {
         // Each passphrase the plan keeps alone in the vault, as a
         // passphrase record (`docs/BACKUP-FLOW.md` §19.12 item 4): one per
         // key, an older one of that key replaced.
-        for k in self.backup_vault_passphrases(v) {
+        for k in self.backup_vault_passphrases(&c, v) {
             if self.vault_holds_passphrase(cur, k) {
                 continue;
             }
@@ -605,8 +605,8 @@ impl Faraday {
         }) else {
             return;
         };
-        for (j, text, of) in self.backup_vault_shares(v) {
-            if self.vault_holds_share(cur, &cs, j, &text) {
+        for (j, text, of) in self.backup_vault_shares(&c, v) {
+            if self.vault_holds_share(&c, cur, &cs, j, &text) {
                 continue;
             }
             let number = u8::try_from(j + 1).unwrap_or(u8::MAX);
@@ -615,7 +615,7 @@ impl Faraday {
             if let Some(open) = self.vaults.open.get_mut(cur) {
                 open.contents
                     .records
-                    .retain(|r| !crate::share_record_is(r, &cs, Some(j)));
+                    .retain(|r| !crate::share_record_is(&c, r, &cs, Some(j)));
             }
             let record = Record::new(kind::WALLET_SHARE)
                 .with(field::SHARE, text.as_bytes())

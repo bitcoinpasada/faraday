@@ -50,7 +50,8 @@ fn add_seed(app: &mut Faraday, word: &str) {
 }
 
 fn desc(text: &str) -> String {
-    faraday_core::wallet::read_wallet(text)
+    let c = faraday_core::testkit::compute();
+    faraday_core::wallet::read_wallet(&c, text)
         .unwrap()
         .to_descriptor()
         .replace('\'', "h")
@@ -117,6 +118,7 @@ fn two_seeds_and_the_third_cosigners_xpub_make_the_same_wallet() {
 
 #[test]
 fn one_seed_on_restore_makes_the_words_routes_wallet() {
+    let c = faraday_core::testkit::compute();
     let mut app = restore_from_seeds(false);
     add_seed(&mut app, "bacon");
     app.press(Action::Seeds(S::Make));
@@ -133,8 +135,8 @@ fn one_seed_on_restore_makes_the_words_routes_wallet() {
     let words = &tab.session.wallets[w];
     let r = app.restore.as_ref().unwrap().wallet.unwrap();
     assert_eq!(
-        tab.session.address(words, false, 0),
-        app.session.address(&app.session.wallets[r], false, 0)
+        tab.session.address(&c, words, false, 0),
+        app.session.address(&c, &app.session.wallets[r], false, 0)
     );
 }
 

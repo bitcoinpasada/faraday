@@ -3,6 +3,7 @@
 //! what the next frame shows and the next press reads (`docs/SPEED.md`
 //! §3.3).
 
+use osk_crypto::work::Compute;
 use osk_shell_api::App;
 
 use super::budget::{heavy, unlock_test_vault};
@@ -10,8 +11,8 @@ use crate::wallet::{Origin, Wallet, read_wallet};
 use crate::{Action, Screen, testkit};
 
 /// A wallet's shape, as the session names it.
-fn shape_of(descriptor: &str) -> String {
-    crate::vault_screens::policy_shape(read_wallet(descriptor).expect("a test wallet"))
+fn shape_of(c: &Compute, descriptor: &str) -> String {
+    crate::vault_screens::policy_shape(read_wallet(c, descriptor).expect("a test wallet"))
 }
 
 #[test]
@@ -30,7 +31,7 @@ fn a_wallet_record_changed_in_an_open_vault_shows_as_it_now_is() {
         .expect("the test vault keeps a wallet");
     let other = testkit::kits()
         .into_iter()
-        .find(|k| shape_of(&k.descriptor) != row.detail)
+        .find(|k| shape_of(&c, &k.descriptor) != row.detail)
         .expect("a test wallet of another shape");
     app.vaults.open[v].contents.records[row.record].set(field::WALLET, other.descriptor.as_bytes());
     let _ = app.frame();
@@ -41,13 +42,14 @@ fn a_wallet_record_changed_in_an_open_vault_shows_as_it_now_is() {
         .expect("the record is listed");
     assert_eq!(
         now.detail,
-        shape_of(&other.descriptor),
+        shape_of(&c, &other.descriptor),
         "the vault's list shows the wallet the record now holds"
     );
 }
 
 #[test]
 fn the_checklist_follows_a_plan_changed_since_the_last_frame() {
+    let c = crate::testkit::compute();
     use crate::plan::{Answers, Preset};
     let (mut app, w) = heavy();
     app.press(Action::Backup(w));
@@ -55,18 +57,18 @@ fn the_checklist_follows_a_plan_changed_since_the_last_frame() {
     app.press(Action::BChecklist);
     let _ = app.frame();
     let shape = app.plan_shape_now(w);
-    let before = app.backup_items_now();
+    let before = app.backup_items_now(&c);
     let mut changed = false;
     for preset in Preset::ALL {
         let answers = Answers::preset(&shape, preset);
         app.backup.as_mut().expect("the backup is open").answers = answers.clone();
         let _ = app.frame();
-        let want: Vec<u8> = crate::plan::checklist(&shape, &answers)
+        let want: Vec<u8> = crate::plan::checklist(&c, &shape, &answers)
             .into_iter()
             .map(crate::bstep::of)
             .collect();
         assert_eq!(
-            app.backup_items_now(),
+            app.backup_items_now(&c),
             want,
             "{preset:?}: the checklist is the one the plan as it is makes"
         );
@@ -77,27 +79,28 @@ fn the_checklist_follows_a_plan_changed_since_the_last_frame() {
 
 #[test]
 fn a_wallets_address_follows_its_network_and_its_policy() {
+    let c = crate::testkit::compute();
     let kits = testkit::kits();
     let (one, two) = (&kits[0], &kits[1]);
     let mut w = Wallet::new(
         one.name.to_string(),
-        read_wallet(&one.descriptor).expect("a test wallet"),
+        read_wallet(&c, &one.descriptor).expect("a test wallet"),
         String::new(),
         Origin::Named,
     );
     let fresh = |d: &str, net: osk_bip::keys::Network| {
-        read_wallet(d)
+        read_wallet(&c, d)
             .expect("a test wallet")
-            .address_at(net, false, 0)
+            .address_at(&c, net, false, 0)
             .expect("an address")
             .to_string()
     };
     for net in [testkit::NET, osk_bip::keys::Network::Regtest, testkit::NET] {
-        assert_eq!(w.address_on(net, false, 0), fresh(&one.descriptor, net));
+        assert_eq!(w.address_on(&c, net, false, 0), fresh(&one.descriptor, net));
     }
-    w.set_policy(read_wallet(&two.descriptor).expect("a test wallet"));
+    w.set_policy(read_wallet(&c, &two.descriptor).expect("a test wallet"));
     assert_eq!(
-        w.address_on(testkit::NET, false, 0),
+        w.address_on(&c, testkit::NET, false, 0),
         fresh(&two.descriptor, testkit::NET),
         "the address is the new policy's"
     );
@@ -217,7 +220,7 @@ fn a_vault_seed_whose_fingerprint_matches_a_slot_but_not_its_key_is_not_offered(
         .expect("Savings");
     let wallet = Wallet::new(
         savings.name.to_string(),
-        read_wallet(&savings.descriptor).expect("a test wallet"),
+        read_wallet(&c, &savings.descriptor).expect("a test wallet"),
         String::new(),
         Origin::Named,
     );
@@ -340,17 +343,17 @@ fn a_psbt_waiting_in_files_is_offered_on_its_wallets_card_once_the_wallet_loads(
     let other = kits.iter().find(|k| k.id == "spending").expect("Spending");
     let w = app
         .session
-        .add_wallet(other.name, &other.descriptor, "test", Origin::Named)
+        .add_wallet(&c, other.name, &other.descriptor, "test", Origin::Named)
         .expect("Spending loads");
     app.press(Action::Nav(Screen::Wallets));
     let _ = app.frame();
-    assert_eq!(app.psbt_for(w), None, "the PSBT is not Spending's");
+    assert_eq!(app.psbt_for(&c, w), None, "the PSBT is not Spending's");
     let w = app
         .session
-        .add_wallet(savings.name, &savings.descriptor, "test", Origin::Named)
+        .add_wallet(&c, savings.name, &savings.descriptor, "test", Origin::Named)
         .expect("Savings loads");
     let _ = app.frame();
-    assert_eq!(app.psbt_for(w), Some(0), "the PSBT is Savings'");
+    assert_eq!(app.psbt_for(&c, w), Some(0), "the PSBT is Savings'");
     assert_ne!(
         app.spend_button(&c, w).0,
         crate::strings::EN.family_spend_from_this,
@@ -367,7 +370,7 @@ fn a_spend_opened_before_its_seeds_were_loaded_signs_with_them_once_they_are() {
     let mut app = testkit::started();
     let _ = app.session.set_network(testkit::NET);
     app.session
-        .add_wallet(savings.name, &savings.descriptor, "test", Origin::Named)
+        .add_wallet(&c, savings.name, &savings.descriptor, "test", Origin::Named)
         .expect("Savings loads");
     let psbt = testkit::unsigned(savings).expect("Savings' spend");
     app.storage(StorageEvent::Restored {
@@ -487,7 +490,7 @@ fn what_the_inbox_gives_follows_the_files_and_the_session() {
 
     // The session's wallets: loaded, renamed, its policy changed.
     app.session
-        .add_wallet(one.name, &one.descriptor, "test", Origin::Named)
+        .add_wallet(&c, one.name, &one.descriptor, "test", Origin::Named)
         .expect("the wallet loads");
     step(&mut app, "the file's wallet loaded", true);
     assert!(kept_found(&app).wallets.iter().all(|w| w.loaded));
@@ -498,7 +501,7 @@ fn what_the_inbox_gives_follows_the_files_and_the_session() {
     app.session.wallets[0].name = "Another name".to_string();
     step(&mut app, "the loaded wallet renamed", true);
     assert_eq!(kept_found(&app).wallets[0].name, "Another name");
-    app.session.wallets[0].set_policy(read_wallet(&two.descriptor).expect("a test wallet"));
+    app.session.wallets[0].set_policy(read_wallet(&c, &two.descriptor).expect("a test wallet"));
     step(&mut app, "the loaded wallet's policy changed", true);
     app.session.wallets.clear();
     step(&mut app, "the loaded wallet gone", true);

@@ -106,11 +106,15 @@ fn made_here(app: &mut Faraday) -> (usize, Fingerprint) {
 /// The backup of wallet `w` from Create made into the plan preset `p`
 /// builds, by presses, and its checklist made.
 fn checklist(app: &mut Faraday, p: Preset) {
+    let c = faraday_core::testkit::compute();
     app.press(Action::CBackup);
     backup_as(app, p);
     assert_eq!(app.screen, Screen::Backup);
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
@@ -187,7 +191,10 @@ fn a_key_from_new_key_cannot_sign_until_its_wallets_checklist_is_complete_and_ca
     assert_eq!(app.screen, Screen::Backup);
     backup_as(&mut app, Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     check_the_copy(&mut app, fp);
@@ -291,6 +298,7 @@ fn after_a_lock_and_an_unlock_from_the_vault_the_held_key_is_still_held() {
 
 #[test]
 fn the_cards_address_carries_the_warning_until_the_backup_is_done() {
+    let c = faraday_core::testkit::compute();
     let mut app = device(Vec::new(), 2400);
     let (w, fp) = made_here(&mut app);
     app.press(Action::OpenWallet(w));
@@ -298,7 +306,10 @@ fn the_cards_address_carries_the_warning_until_the_backup_is_done() {
     app.press(Action::Backup(w));
     backup_as(&mut app, Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     check_the_copy(&mut app, fp);
@@ -310,10 +321,11 @@ fn the_cards_address_carries_the_warning_until_the_backup_is_done() {
 /// Whether the frame draws any of the wallet's first receive or change
 /// addresses, grouped or not.
 fn draws_an_address(app: &mut Faraday, w: usize) -> bool {
+    let c = faraday_core::testkit::compute();
     let wl = &app.session.wallets[w];
     let addrs: Vec<String> = [(false, 0), (false, 1), (true, 0)]
         .iter()
-        .map(|&(c, i)| app.session.address_shown(wl, c, i))
+        .map(|&(change, i)| app.session.address_shown(&c, wl, change, i))
         .collect();
     app.drawn_texts().iter().any(|t| {
         let t = t.replace(' ', "");
@@ -344,7 +356,10 @@ fn a_key_made_here_shows_no_receive_address_until_its_backup_is_done() {
     app.press(Action::Backup(w));
     backup_as(&mut app, Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     check_the_copy(&mut app, fp);
@@ -363,7 +378,10 @@ fn the_press_that_completes_the_last_item_shows_the_receive_address_on_the_next_
     app.press(Action::Backup(w));
     backup_as(&mut app, Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     check_the_copy(&mut app, fp);
@@ -401,6 +419,7 @@ fn a_restored_key_shows_its_addresses_at_once() {
 
 #[test]
 fn with_every_item_done_the_done_card_shows_the_three_checks_above_the_chart() {
+    let c = faraday_core::testkit::compute();
     let mut app = device(Vec::new(), 2400);
     let (_, fp) = made_here(&mut app);
     // Paper alone, with no sheet: nothing is written to a stick, so the
@@ -409,7 +428,10 @@ fn with_every_item_done_the_done_card_shows_the_three_checks_above_the_chart() {
     backup_as(&mut app, Preset::Paper);
     no_paper_description(&mut app);
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     check_the_copy(&mut app, fp);
@@ -446,7 +468,10 @@ fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
     // No paper: the vault's item comes first.
     no_words(&mut app);
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
@@ -516,16 +541,19 @@ fn changing_to_paper_only_after_the_vault_keeps_its_copy_on_the_map_and_the_hold
     app.press(Action::Board(BoardPress::RemoveVaultSure(0)));
     let (shape, a) = app.board_plan().expect("Change the plan opens the board");
     assert!(
-        !faraday_core::plan::map(&shape, &a)
+        !faraday_core::plan::map(&c, &shape, &a)
             .iter()
             .any(|s| matches!(s.at, faraday_core::plan::At::Vault(_))),
         "no vault on the plan"
     );
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
-    assert!(!app.backup_items_now().contains(&bstep::VAULT));
+    assert!(!app.backup_items_now(&c).contains(&bstep::VAULT));
     let line = format!("vault.ofv holds seed {}", fp_text(fp));
     let shown = app.drawn_texts().join(" ");
     assert!(shown.contains(&line), "{shown}");
@@ -536,6 +564,7 @@ fn changing_to_paper_only_after_the_vault_keeps_its_copy_on_the_map_and_the_hold
 
 #[test]
 fn a_plan_with_the_seed_unticked_everywhere_offers_no_make_the_checklist() {
+    let c = faraday_core::testkit::compute();
     let mut app = device(Vec::new(), 2400);
     let (w, fp) = made_here(&mut app);
     app.press(Action::Backup(w));
@@ -553,7 +582,10 @@ fn a_plan_with_the_seed_unticked_everywhere_offers_no_make_the_checklist() {
     let nowhere = format!("Seed {} is kept nowhere", fp_text(fp));
     assert!(app.drawn_texts().contains(&nowhere));
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Plan);
@@ -564,13 +596,17 @@ fn a_plan_with_the_seed_unticked_everywhere_offers_no_make_the_checklist() {
 /// (`docs/BACKUP-FLOW.md` §19.19 item 7).
 #[test]
 fn the_done_card_says_extra_copies_are_made_outside_the_plan_in_guided_only() {
+    let c = faraday_core::testkit::compute();
     let mut app = device(Vec::new(), 2400);
     let (_, fp) = made_here(&mut app);
     app.press(Action::CBackup);
     backup_as(&mut app, Preset::Paper);
     no_paper_description(&mut app);
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     check_the_copy(&mut app, fp);

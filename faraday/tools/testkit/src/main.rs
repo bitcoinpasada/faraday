@@ -36,6 +36,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
         .map_err(|e| e.text())?;
     session
         .add_wallet(
+            c,
             "Savings",
             &testkit::savings(),
             "Test wallet",
@@ -90,6 +91,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
                 .map_err(|e| e.text())?;
         }
         all.add_wallet(
+            c,
             kit.name,
             &kit.descriptor,
             "Test wallet",
@@ -138,6 +140,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
         .map_err(|e| e.text())?;
     second
         .add_wallet(
+            c,
             kit.name,
             &kit.descriptor,
             "Test wallet",
@@ -163,6 +166,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
     s1.add_words(c, &testkit::test_words(word), label, None)
         .map_err(|e| e.text())?;
     s1.add_wallet(
+        c,
         "MuSig2",
         &testkit::musig_policy()?.to_descriptor_checksummed(),
         "Test wallet",
@@ -202,6 +206,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
         .map_err(|e| e.text())?;
     second
         .add_wallet(
+            c,
             "Threshold",
             &testkit::threshold_record()?.to_text(),
             "Test wallet",

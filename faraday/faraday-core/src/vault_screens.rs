@@ -4215,9 +4215,9 @@ fn save_panel(
             dy += 30.0;
         }
     } else {
-        let held: Vec<String> = v
-            .contents
-            .described_of(kind::WALLET)
+        let held: Vec<String> = app
+            .described_of(&v.contents, kind::WALLET)
+            .iter()
             .map(|(_, _, d)| d.policy.to_descriptor())
             .collect();
         for (k, wl) in app.session.wallets.iter().enumerate() {
@@ -4573,11 +4573,11 @@ fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
 /// Whether open vault `v` holds a wallet with the same descriptor, as
 /// [`crate::wallet::same_wallet`] compares them: from its wallet records
 /// as the vault keeps them read ([`crate::vaults::VaultRecords`]).
-pub(crate) fn vault_has_wallet(app: &Faraday, v: usize, w: &Wallet) -> bool {
+pub(crate) fn vault_has_wallet(c: &Compute, app: &Faraday, v: usize, w: &Wallet) -> bool {
     let want = crate::wallet::same_wallet(w.policy());
     app.vaults.open.get(v).is_some_and(|o| {
         o.contents
-            .described_of(kind::WALLET)
+            .described_of(c, kind::WALLET)
             .any(|(_, _, d)| d.same == want)
     })
 }

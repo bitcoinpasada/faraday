@@ -106,6 +106,7 @@ pub fn key(n: usize, path: &str) -> String {
 /// The test wallet: a 2-of-3 native SegWit multisig over the three test
 /// seeds at BIP-48 account 0, with its checksum.
 pub fn savings() -> String {
+    let c = compute();
     let p = "m/48'/1'/0'/2'";
     let d = format!(
         "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
@@ -113,7 +114,7 @@ pub fn savings() -> String {
         key(1, p),
         key(2, p)
     );
-    WalletPolicy::parse_any(&d)
+    WalletPolicy::parse_any(&c, &d)
         .map(|w| w.to_descriptor_checksummed())
         .unwrap_or(d)
 }
@@ -135,7 +136,7 @@ pub fn three_of_five() -> String {
         })
         .collect();
     let d = format!("wsh(sortedmulti(3,{}))", keys.join(","));
-    WalletPolicy::parse_any(&d)
+    WalletPolicy::parse_any(&c, &d)
         .map(|w| w.to_descriptor_checksummed())
         .unwrap_or(d)
 }
@@ -309,8 +310,9 @@ fn funding(script_pubkey: ScriptBuf) -> Transaction {
 
 /// The unsigned spend of a test wallet.
 pub fn unsigned(kit: &Kit) -> Result<Psbt, String> {
+    let c = compute();
     let policy =
-        WalletPolicy::parse_any(&kit.descriptor).map_err(|e| format!("{}: {e}", kit.id))?;
+        WalletPolicy::parse_any(&c, &kit.descriptor).map_err(|e| format!("{}: {e}", kit.id))?;
     let input = definite(&policy, false, 0)?;
     let back = definite(&policy, true, 0)?;
     let fund = funding(input.script_pubkey());
@@ -370,6 +372,7 @@ pub fn spend_of(kit: &Kit) -> Result<(Psbt, Option<(String, Psbt)>), String> {
         .map_err(|e| e.text())?;
     session
         .add_wallet(
+            &c,
             kit.name,
             &kit.descriptor,
             "Test wallet",
@@ -406,13 +409,14 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
         ));
         // The same wallet as a coordinator's export: the wallet .json
         // Sparrow imports, and a multisig's setup file.
-        let policy = WalletPolicy::parse_any(&kit.descriptor).map_err(|e| e.to_string())?;
+        let policy = WalletPolicy::parse_any(&c, &kit.descriptor).map_err(|e| e.to_string())?;
         out.push((
             format!("{}-wallet.json", kit.id),
             crate::backup::wallet_json(kit.name, &policy).into_bytes(),
         ));
         let mut one = session();
         one.add_wallet(
+            &c,
             kit.name,
             &kit.descriptor,
             "Test wallet",
@@ -483,6 +487,7 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
     // Savings split between its signers, one key left off each share.
     let mut one = session();
     one.add_wallet(
+        &c,
         "Savings",
         &savings(),
         "Test wallet",
@@ -560,6 +565,7 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
         .ok_or("no Spending kit")?;
     let i = one
         .add_wallet(
+            &c,
             spending.name,
             &spending.descriptor,
             "Test wallet",
@@ -591,6 +597,7 @@ pub fn recovery(kit: &Kit) -> Result<Psbt, String> {
 /// The MuSig2 test wallet: one aggregate key over the three test seeds'
 /// Taproot account keys, every participant signs (BIP-390).
 pub fn musig_policy() -> Result<WalletPolicy, String> {
+    let c = compute();
     let texts: Vec<String> = TEST_SEEDS
         .iter()
         .map(|(w, _)| {
@@ -601,7 +608,7 @@ pub fn musig_policy() -> Result<WalletPolicy, String> {
         })
         .collect();
     let refs: Vec<&str> = texts.iter().map(String::as_str).collect();
-    WalletPolicy::from_parts("tr(musig(@0,@1,@2)/**)", &refs).map_err(|e| e.to_string())
+    WalletPolicy::from_parts(&c, "tr(musig(@0,@1,@2)/**)", &refs).map_err(|e| e.to_string())
 }
 
 fn taproot_account(n: usize) -> osk_bip::bitcoin::bip32::Xpub {
@@ -652,9 +659,10 @@ fn musig_tweaks(
 /// address, everything less the fee out to the recipient, with the fields
 /// a coordinator that speaks BIP-373 fills in.
 pub fn musig_unsigned() -> Result<Psbt, String> {
+    let c = compute();
     use std::collections::BTreeMap;
     let policy = musig_policy()?;
-    let spk = policy.script_at(false, 0).map_err(|e| e.to_string())?;
+    let spk = policy.script_at(&c, false, 0).map_err(|e| e.to_string())?;
     let fund = funding(spk);
     let recipient: Address = RECIPIENT
         .parse::<Address<_>>()
@@ -761,6 +769,7 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
         .map_err(|e| e.text())?;
     session
         .add_wallet(
+            &c,
             "MuSig2",
             &policy.to_descriptor_checksummed(),
             "Test wallet",
@@ -908,6 +917,7 @@ pub fn threshold_carry() -> Result<Vec<u8>, String> {
         .map_err(|e| e.text())?;
     session
         .add_wallet(
+            &c,
             "Threshold",
             &threshold_record()?.to_text(),
             "Test wallet",
@@ -929,11 +939,13 @@ pub const BACKUP_VAULT_PASSPHRASE: &str = "a";
 /// Back up step offers (`Faraday::public_out`), under the names it gives
 /// them.
 pub fn public_files(name: &str, descriptor: &str) -> Result<Vec<(String, Vec<u8>)>, String> {
+    let c = compute();
     let mut app = crate::Faraday::new();
     app.session = session();
     let w = app
         .session
         .add_wallet(
+            &c,
             name,
             descriptor,
             "Test wallet",
@@ -1185,6 +1197,7 @@ pub fn started() -> crate::Faraday {
 /// vault holds. Works out the plan's map after each press. Panics where a
 /// press is not offered, or where the plan reached is not the preset's.
 pub fn backup_as(app: &mut crate::Faraday, preset: crate::plan::Preset) {
+    let c = compute();
     use crate::board::{BoardPress as P, Chip, MenuRow, Thing, Zone, things_of};
     use crate::plan::{self, Answers, At, Spot, What};
     use crate::{Action, Sheet};
@@ -1197,7 +1210,7 @@ pub fn backup_as(app: &mut crate::Faraday, preset: crate::plan::Preset) {
     };
     let now = |app: &crate::Faraday| -> Vec<Spot> {
         let (shape, a) = app.board_plan().expect("a board");
-        plan::map(&shape, &a)
+        plan::map(&c, &shape, &a)
     };
     let held = |m: &[Spot], at: At| plan::holds_at(m, at);
     let press_q = |app: &mut crate::Faraday| app.press(Action::BQ(crate::qstep::BOARD));
@@ -1229,7 +1242,7 @@ pub fn backup_as(app: &mut crate::Faraday, preset: crate::plan::Preset) {
         press_q(app);
     }
     let (shape, _) = app.board_plan().expect("a board");
-    let want = plan::map(&shape, &Answers::preset(&shape, preset));
+    let want = plan::map(&c, &shape, &Answers::preset(&shape, preset));
     // The plan reached is the preset's.
     let norm = |m: &[Spot]| -> Vec<String> {
         let mut out: Vec<String> = m

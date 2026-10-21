@@ -32,13 +32,36 @@ impl View<'_> {
     /// ([`Wallet::address_on`]), kept on the wallet. Costs an address
     /// derivation the first time.
     pub fn address_on(&self, w: &Wallet, network: Network, change: bool, index: u32) -> String {
-        self.kept(|_c| w.address_on(network, change, index))
+        self.kept(|c| w.address_on(c, network, change, index))
+    }
+
+    /// The Inbox PSBT loaded wallet `w` spends from with the fewest
+    /// signatures ([`crate::Faraday::psbt_for`]), from each wallet's kept
+    /// scripts. Costs a script derivation per wallet and place the first
+    /// time.
+    pub fn psbt_for(&self, w: usize) -> Option<usize> {
+        self.kept(|c| self.app.psbt_for(c, w))
+    }
+
+    /// The loaded wallet a PSBT read before spends from
+    /// ([`crate::wallet::Session::spends_from`]), from each wallet's kept
+    /// scripts. Costs a script derivation per wallet and place the first
+    /// time.
+    pub fn spends_from(&self, seen: &crate::wallet::PsbtSeen) -> Option<usize> {
+        self.kept(|c| self.session.spends_from(c, seen))
+    }
+
+    /// An address of wallet `w` as the screen shows it
+    /// ([`crate::wallet::Session::address_shown`]), kept on the wallet.
+    /// Costs an address derivation the first time.
+    pub fn address_shown(&self, w: &Wallet, change: bool, index: u32) -> String {
+        self.kept(|c| self.session.address_shown(c, w, change, index))
     }
 
     /// Wallet `w`'s script at `change`/`index` ([`Wallet::script_at`]),
     /// kept on the wallet. Costs a script derivation the first time.
     pub fn script_at(&self, w: &Wallet, change: bool, index: u32) -> Option<ScriptBuf> {
-        self.kept(|_c| w.script_at(change, index))
+        self.kept(|c| w.script_at(c, change, index))
     }
 
     /// Key `k`'s account key text for `kind` and `account`
@@ -83,13 +106,115 @@ impl View<'_> {
     /// Wallet description `text` read ([`crate::Faraday::read_kept`]),
     /// kept by its text. Costs a parse the first time.
     pub fn read_kept(&self, text: &str) -> Option<WalletPolicy> {
-        self.kept(|_c| self.app.read_kept(text))
+        self.kept(|c| self.app.read_kept(c, text))
     }
 
     /// A plan's map and its check ([`crate::Faraday::plan_mapped`]), kept
     /// by the shape and answers. Costs a map and a check the first time.
     pub fn plan_mapped(&self, shape: &plan::Shape, a: &plan::Answers) -> Rc<plan::Mapped> {
-        self.kept(|_c| self.app.plan_mapped(shape, a))
+        self.kept(|c| self.app.plan_mapped(c, shape, a))
+    }
+
+    /// A plan's check ([`plan::Mapped::check`]) on its kept map
+    /// ([`crate::Faraday::plan_mapped`]), kept with it by the shape and
+    /// answers. Costs a map and a check the first time.
+    pub(crate) fn plan_check(&self, shape: &plan::Shape, a: &plan::Answers) -> plan::Check {
+        self.kept(|c| self.app.plan_mapped(c, shape, a).check(c, shape, a))
+    }
+
+    /// The forms of the copies of seed `i` the backup's map keeps
+    /// ([`crate::Faraday::copy_forms`]), from the memo's shape and the
+    /// kept map. Costs a map the first time.
+    pub(crate) fn copy_forms(&self, b: &crate::BackupState, i: usize) -> plan::CopyForms {
+        let shape = self.plan_shape(b.wallet);
+        plan::copy_forms_on(&self.plan_mapped(&shape, &b.answers), i)
+    }
+
+    /// What checking seed `i`'s copies asks for with the cameras listed
+    /// now ([`crate::Faraday::copy_checks`]), from
+    /// [`View::copy_forms`]. Costs a map the first time.
+    pub(crate) fn copy_checks(
+        &self,
+        b: &crate::BackupState,
+        i: usize,
+        key: &Key,
+    ) -> plan::CopyChecks {
+        self.copy_forms(b, i).checks(
+            !self.cameras.is_empty(),
+            key.language == osk_bip::bip39::Language::English,
+        )
+    }
+
+    /// The cards of the backup's plan, in order
+    /// ([`crate::Faraday::backup_questions`]), from the memo's shape and
+    /// the kept map. Costs a map the first time.
+    pub(crate) fn backup_questions(&self) -> Vec<u8> {
+        let Some(b) = self.backup.as_ref() else {
+            return Vec::new();
+        };
+        let shape = self.plan_shape(b.wallet);
+        crate::plan_cards_on(&self.plan_mapped(&shape, &b.answers))
+    }
+
+    /// Signed message `text` checked ([`crate::Faraday::message_check`]),
+    /// kept by its text, the network and the loaded wallets. Costs an
+    /// address derivation per loaded wallet and address tried and a
+    /// signature check the first time.
+    pub(crate) fn message_check(&self, text: &str) -> Option<Rc<crate::wallet::MessageCheck>> {
+        self.kept(|c| self.app.message_check(c, text))
+    }
+
+    /// The wallet description record `r` holds
+    /// ([`crate::Faraday::record_described`]), as its open vault keeps it
+    /// read, or as a description no record keeps, kept by its text.
+    /// Costs a parse the first time.
+    pub(crate) fn record_described(
+        &self,
+        r: &Record,
+    ) -> Option<std::borrow::Cow<'_, crate::vaults::Described>> {
+        self.kept(|c| self.app.record_described(c, r))
+    }
+
+    /// The texts of the shares the restore screen puts together
+    /// ([`crate::Faraday::restore_share_texts`]), each vault share's
+    /// wallet read once and kept by its text. Costs a parse per vault
+    /// share's wallet the first time.
+    pub fn restore_share_texts(&self) -> Vec<String> {
+        self.kept(|c| self.app.restore_share_texts(c))
+    }
+
+    /// Whether the checklist's writes are done
+    /// ([`crate::Faraday::wallet_sticks_done`]), from the memo's shape and
+    /// the kept map. Costs a map the first time.
+    pub(crate) fn wallet_sticks_done(&self) -> bool {
+        self.kept(|c| self.app.wallet_sticks_done(c))
+    }
+
+    /// Each record of kind `k` among open vault records `o` with the
+    /// wallet description it holds ([`crate::vaults::VaultRecords::described_of`]),
+    /// as the vault keeps them read. Costs a parse of each description
+    /// the first time after a change.
+    pub(crate) fn described_of<'r>(
+        &self,
+        o: &'r crate::vaults::VaultRecords,
+        k: u8,
+    ) -> Vec<(usize, &'r Record, &'r crate::vaults::Described)> {
+        self.kept(|c| o.described_of(c, k).collect())
+    }
+
+    /// Whether open vault `v` holds a wallet with `w`'s descriptor
+    /// ([`crate::vault_screens::vault_has_wallet`]), from its records as
+    /// the vault keeps them read. Costs a parse of each description the
+    /// first time after a change.
+    pub(crate) fn vault_has_wallet(&self, v: usize, w: &Wallet) -> bool {
+        self.kept(|c| crate::vault_screens::vault_has_wallet(c, self.app, v, w))
+    }
+
+    /// How many words key record `r`'s seed has
+    /// ([`crate::Faraday::record_word_count`]), as its open vault keeps it
+    /// read. Costs a parse of the words the first time.
+    pub(crate) fn record_word_count(&self, r: &Record) -> Option<usize> {
+        self.kept(|c| self.app.record_word_count(c, r))
     }
 
     /// The Seeds tool's address ([`crate::Faraday::seeds_address`]), kept
@@ -145,7 +270,7 @@ impl View<'_> {
     /// fingerprint. Costs a PBKDF2 and two elliptic-curve multiplications
     /// per key record the first time.
     pub(crate) fn glance_of_vault(&self, v: usize, r: usize) -> Option<Glance> {
-        self.kept(|c| crate::glance::of_vault(c, self.app, v, r))
+        crate::glance::of_vault(self, v, r)
     }
 
     /// The account key in slot `slot` of wallet `i`
@@ -190,7 +315,7 @@ impl View<'_> {
     /// memo and the values kept on the state. Costs what those cost the
     /// first time.
     pub(crate) fn glance_of(&self, w: usize) -> Option<Glance> {
-        self.kept(|c| crate::glance::of(c, self.app, w))
+        crate::glance::of(self, w)
     }
 
     /// The sheet for `target` on the chart of `press`
@@ -201,7 +326,7 @@ impl View<'_> {
         press: crate::glance::Press,
         target: crate::glance_sheet::Target,
     ) -> Option<crate::glance_sheet::View> {
-        self.kept(|c| crate::glance_sheet::view(c, self.app, press, target))
+        crate::glance_sheet::view(self, press, target)
     }
 
     /// Whether open vault `o` holds a seed the plan puts into another
@@ -216,7 +341,7 @@ impl View<'_> {
     /// ([`crate::screens::item_title`]), from the memo. Costs what the
     /// memo's answers cost the first time in a frame.
     pub(crate) fn item_title(&self, n: u8) -> (String, String) {
-        self.kept(|c| crate::screens::item_title(c, self.app, n))
+        crate::screens::item_title(self, n)
     }
 
     /// The keys the key scanner for wallet `w` takes
@@ -224,6 +349,14 @@ impl View<'_> {
     /// Costs what the chart costs the first time.
     pub(crate) fn wallet_key_lines(&self, w: usize) -> Vec<String> {
         self.kept(|c| self.app.wallet_key_lines(c, w))
+    }
+
+    /// What the open calculator worked out of what is typed
+    /// ([`crate::Faraday::tools_reading`]), kept on its state by what it
+    /// is worked out from. Costs a parse, a compile or the hashes the
+    /// first time.
+    pub(crate) fn tools_reading(&self) -> Option<Rc<crate::tools::Reading>> {
+        self.kept(|c| self.app.tools_reading(c))
     }
 
     /// The loaded keys a policy may name ([`crate::Faraday::tools_keys`]),
@@ -264,5 +397,75 @@ impl View<'_> {
     /// PBKDF2 and two elliptic-curve multiplications the first time.
     pub fn vault_key_fingerprint(&self, r: &Record) -> Option<String> {
         self.kept(|c| crate::vault_screens::key_fingerprint(c, self.app, r))
+    }
+}
+
+/// What the chart, its sheet and the checklist's titles read, as a frame
+/// reads it: the memo's answers and the values kept on the state, each
+/// through the accessor of the same name ([`crate::glance::Reads`]).
+impl crate::glance::Reads for View<'_> {
+    fn app(&self) -> &crate::Faraday {
+        self.app
+    }
+    fn plan_shape(&self, w: usize) -> plan::Shape {
+        View::plan_shape(self, w)
+    }
+    fn held_keys(&self) -> Vec<Fingerprint> {
+        View::held_keys(self)
+    }
+    fn backups(&self) -> Vec<crate::backups::Entry> {
+        View::backups(self)
+    }
+    fn passphrase_seeds(&self) -> bool {
+        !View::vault_passphrase_seeds(self).is_empty()
+    }
+    fn vault_key_for(&self, slot: &crate::wallet::Slot) -> Option<(usize, usize)> {
+        View::vault_key_for(self, slot)
+    }
+    fn plan_load_of(
+        &self,
+        wallet: &Wallet,
+        shape: &plan::Shape,
+    ) -> Option<(plan::Answers, Vec<String>)> {
+        self.kept(|c| self.app.plan_load_of(c, wallet, shape))
+    }
+    fn plan_in_vault(
+        &self,
+        v: usize,
+        wallet: &Wallet,
+        shape: &plan::Shape,
+    ) -> Option<(plan::Answers, Vec<String>)> {
+        self.kept(|c| self.app.plan_in_vault(c, v, wallet, shape))
+    }
+    fn plan_notes(&self, wallet: &Wallet, v: Option<usize>) -> Vec<plan::Note> {
+        self.kept(|c| self.app.plan_notes(c, wallet, v))
+    }
+    fn key_fingerprint(&self, r: &Record) -> Option<String> {
+        View::vault_key_fingerprint(self, r)
+    }
+    fn described<'o>(
+        &self,
+        o: &'o crate::vaults::VaultRecords,
+        r: usize,
+    ) -> Option<&'o crate::vaults::Described> {
+        self.kept(|c| o.described(c, r))
+    }
+    fn plan_mapped(&self, shape: &plan::Shape, a: &plan::Answers) -> Rc<plan::Mapped> {
+        View::plan_mapped(self, shape, a)
+    }
+    fn plan_check(&self, shape: &plan::Shape, a: &plan::Answers) -> plan::Check {
+        View::plan_check(self, shape, a)
+    }
+    fn backup_item_done(&self, item: plan::Item) -> bool {
+        View::backup_item_done(self, item)
+    }
+    fn backup_public_names_for(&self, wi: usize, a: &plan::Answers) -> Vec<String> {
+        View::backup_public_names_for(self, wi, a)
+    }
+    fn backup_vault_fits(&self, v: usize) -> Option<String> {
+        self.kept(|c| self.app.backup_vault_fits(c, v))
+    }
+    fn wallet_stick_rows(&self) -> Vec<super::StickRow> {
+        View::wallet_stick_rows(self)
     }
 }

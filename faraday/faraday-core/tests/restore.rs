@@ -137,7 +137,8 @@ fn desc(app: &Faraday, w: usize) -> String {
 }
 
 fn plain(text: &str) -> String {
-    faraday_core::wallet::read_wallet(text)
+    let c = faraday_core::testkit::compute();
+    faraday_core::wallet::read_wallet(&c, text)
         .unwrap()
         .to_descriptor_checksummed()
         .replace('\'', "h")

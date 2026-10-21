@@ -457,7 +457,11 @@ impl Faraday {
         true
     }
 
-    /// The descriptor the piece describes now, or what it still lacks.
+    /// Costs a key derivation per seed and a parse of the description the
+    /// first time each is asked, lookups after: the descriptor the piece
+    /// describes now, or what it still lacks. The keys' texts are kept on
+    /// the keys and the description read is kept by its text
+    /// ([`Faraday::parsed_kept`]).
     pub fn seeds_descriptor(&self, c: &Compute, s: &SeedsState) -> Result<String, String> {
         let net = self.session.network();
         let path = s.path(net);
@@ -510,7 +514,7 @@ impl Faraday {
             s.kind
         };
         let d = kind.descriptor(s.m.max(1), &keys);
-        create::build(kind, s.m.max(1), &keys)?;
+        self.parsed_kept(c, &d)?;
         Ok(d)
     }
 
@@ -531,9 +535,8 @@ impl Faraday {
             return a.clone();
         }
         let a = crate::work::keeping(|| {
-            let p = crate::wallet::read_wallet(&d).map_err(|e| e.text())?;
-            crate::work::count(crate::work::Work::Address);
-            p.address_at(net, false, 0)
+            let p = crate::wallet::read_wallet(c, &d).map_err(|e| e.text())?;
+            p.address_at(c, net, false, 0)
                 .map(|a| a.to_string())
                 .map_err(|e| e.to_string())
         });
@@ -719,10 +722,13 @@ impl Faraday {
                 self.refresh_spend();
             }
             Screen::Family => {
-                match self
-                    .session
-                    .add_wallet(name, &d, SOURCE, crate::wallet::Origin::TypedSeeds)
-                {
+                match self.session.add_wallet(
+                    &c,
+                    name,
+                    &d,
+                    SOURCE,
+                    crate::wallet::Origin::TypedSeeds,
+                ) {
                     Ok(i) => {
                         self.family.wallet = Some(self.session.wallets[i].name.clone());
                         self.wallet = i;

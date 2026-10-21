@@ -323,7 +323,7 @@ impl Faraday {
                     return;
                 };
                 self.sheet = None;
-                let label = self.wallet_key_label(w, fp);
+                let label = self.wallet_key_label(&c, w, fp);
                 match self
                     .session
                     .add_words_with(&c, &s.words, pass, &label, None)

@@ -349,7 +349,7 @@ impl Faraday {
         let stem = file_stem(&wallet.name);
         let public = wi.map_or_else(Vec::new, |wi| self.backup_public_names_for(c, wi, a));
         // A place with what its sticks keep.
-        self.plan_mapped(&shape, a)
+        self.plan_mapped(c, &shape, a)
             .places
             .iter()
             .map(|spot| {
@@ -488,12 +488,13 @@ impl Faraday {
     /// form its copies ask for, one more of its copies is checked in the
     /// record.
     pub(crate) fn copy_matched(&mut self, fp: [u8; 4], form: crate::plan::CopyForm) {
+        let c = self.compute();
         if let Some(b) = self.backup.as_mut()
             && !b.checked.contains(&(fp, form))
         {
             b.checked.push((fp, form));
         }
-        if !self.seed_copy_checked(fp) {
+        if !self.seed_copy_checked(&c, fp) {
             return;
         }
         let Some(sum) = self
@@ -587,7 +588,7 @@ impl Faraday {
             });
         }
         for v in &self.vaults.open {
-            for (_, r, d) in v.contents.described_of(kind::WALLET) {
+            for (_, r, d) in v.contents.described_of(c, kind::WALLET) {
                 let sum = d.checksum.clone();
                 if seen(&out, &sum) {
                     continue;
@@ -652,7 +653,7 @@ impl Faraday {
         sum: &str,
     ) -> Option<Vec<Line>> {
         let shape = self.plan_shape_of(w);
-        let kept = self.plan_load_of(w, &shape);
+        let kept = self.plan_load_of(c, w, &shape);
         // The places' names: the backup under way's, else the vault's.
         let names = match self.backup.as_ref() {
             Some(b) if wi.is_some_and(|i| i == b.wallet) => b.names.clone(),
@@ -795,7 +796,7 @@ impl Faraday {
                 });
             }
             o.contents
-                .described_of(kind::WALLET)
+                .described_of(c, kind::WALLET)
                 .any(|(_, _, d)| d.checksum == sum)
         };
         let id_of = |f: [u8; 4]| self.seed_id(Some(r), f);

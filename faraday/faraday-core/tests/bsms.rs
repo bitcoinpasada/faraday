@@ -40,7 +40,7 @@ fn the_bips_descriptor_record_loads_as_its_wallet() {
     assert_eq!(app.session.wallets.len(), 1);
     let w = &app.session.wallets[0];
     assert_eq!(
-        app.session.address(w, false, 0),
+        app.session.address(&c, w, false, 0),
         "bc1qrgc6p3kylfztu06ysl752gwwuekhvtfh9vr7zg43jvu60mutamcsv948ej"
     );
     // A record whose first address is not the wallet's is not a wallet.

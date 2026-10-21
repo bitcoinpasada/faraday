@@ -434,6 +434,7 @@ impl Faraday {
             &[&fp_text(osk_bip::keys::Fingerprint(fp)).to_string()],
         );
         match self.session.add_wallet(
+            &c,
             &name,
             &text,
             EN.silent_silent_payments,

@@ -15,6 +15,7 @@
 
 use faraday_vault::Record;
 use faraday_vault::records::kind as rkind;
+use osk_crypto::work::Compute;
 
 use crate::Faraday;
 use crate::flow;
@@ -537,8 +538,8 @@ impl Plan {
 /// stick of files where the map keeps seeds or the wallet as files; and
 /// the stick that carries the public files and sheets. Every stick of the
 /// map is one stick of the flow ([`stick_target`]).
-pub fn plan_of(shape: &crate::plan::Shape, a: &crate::plan::Answers) -> Plan {
-    plan_of_on(a, &crate::plan::Mapped::of(shape, a))
+pub fn plan_of(c: &Compute, shape: &crate::plan::Shape, a: &crate::plan::Answers) -> Plan {
+    plan_of_on(a, &crate::plan::Mapped::of(c, shape, a))
 }
 
 /// [`plan_of`] on the plan's map `m`.
@@ -947,13 +948,13 @@ pub struct Again {
 
 impl BackupFlow {
     /// A new flow at step 1 with `kind`'s own plan.
-    pub fn new(kind: Kind) -> BackupFlow {
-        BackupFlow::with_plan(kind, Plan::key_default())
+    pub fn new(c: &Compute, kind: Kind) -> BackupFlow {
+        BackupFlow::with_plan(c, kind, Plan::key_default())
     }
 
     /// A new flow at step 1 with this plan. Batch B1b makes a wallet's
     /// from its map.
-    pub fn with_plan(kind: Kind, plan: Plan) -> BackupFlow {
+    pub fn with_plan(c: &Compute, kind: Kind, plan: Plan) -> BackupFlow {
         let mut f = BackupFlow {
             kind,
             step: Step::Where,
@@ -971,42 +972,45 @@ impl BackupFlow {
             live: Live::default(),
         };
         f.live.open = Some(Step::Where.n());
-        f.sync_slots();
+        f.sync_slots(c);
         f
     }
 
     /// A new flow for a wallet, at step 1, with the plan its answers draw.
     pub fn new_wallet(
+        c: &Compute,
         shape: crate::plan::Shape,
         answers: crate::plan::Answers,
         name: &str,
     ) -> BackupFlow {
-        let plan = plan_of(&shape, &answers);
-        BackupFlow::with_wallet(plan, shape, answers, name)
+        let plan = plan_of(c, &shape, &answers);
+        BackupFlow::with_wallet(c, plan, shape, answers, name)
     }
 
     /// [`BackupFlow::new_wallet`] on the plan's map `m` of `shape` and
     /// `answers`, mapped already.
     pub fn new_wallet_on(
+        c: &Compute,
         shape: crate::plan::Shape,
         answers: crate::plan::Answers,
         name: &str,
         m: &crate::plan::Mapped,
     ) -> BackupFlow {
         let plan = plan_of_on(&answers, m);
-        BackupFlow::with_wallet(plan, shape, answers, name)
+        BackupFlow::with_wallet(c, plan, shape, answers, name)
     }
 
     /// A new flow that sets up `count` vaults for a wallet whose keys are
     /// not made yet: it starts at step 2, with a stick for each vault, and
     /// asks nothing about places, paper or which key goes where.
     pub fn new_setup(
+        c: &Compute,
         mut shape: crate::plan::Shape,
         answers: crate::plan::Answers,
         count: usize,
     ) -> BackupFlow {
         shape.vaults = count;
-        let mut f = BackupFlow::with_wallet(BackupFlow::setup_plan(count), shape, answers, "");
+        let mut f = BackupFlow::with_wallet(c, BackupFlow::setup_plan(count), shape, answers, "");
         if let Some(w) = f.wallet.as_mut() {
             w.setup = true;
         }
@@ -1016,12 +1020,13 @@ impl BackupFlow {
     }
 
     fn with_wallet(
+        c: &Compute,
         plan: Plan,
         shape: crate::plan::Shape,
         answers: crate::plan::Answers,
         name: &str,
     ) -> BackupFlow {
-        let mut f = BackupFlow::with_plan(Kind::Wallet, plan);
+        let mut f = BackupFlow::with_plan(c, Kind::Wallet, plan);
         f.wallet = Some(WalletFlow {
             shape,
             answers,
@@ -1083,17 +1088,17 @@ impl BackupFlow {
     /// keep their vaults on one stick. A wallet not made yet has the plan
     /// of its setup (a vault at a place each), which its answers do not
     /// draw.
-    pub(crate) fn wallet_replan(&mut self) {
+    pub(crate) fn wallet_replan(&mut self, c: &Compute) {
         let Some(w) = self.wallet.as_ref() else {
             return;
         };
-        let m = crate::plan::Mapped::of(&w.shape, &w.answers);
-        self.wallet_replan_on(&m);
+        let m = crate::plan::Mapped::of(c, &w.shape, &w.answers);
+        self.wallet_replan_on(c, &m);
     }
 
     /// [`BackupFlow::wallet_replan`] on its plan's map `m`, mapped
     /// already.
-    pub(crate) fn wallet_replan_on(&mut self, m: &crate::plan::Mapped) {
+    pub(crate) fn wallet_replan_on(&mut self, c: &Compute, m: &crate::plan::Mapped) {
         let Some(w) = self.wallet.as_ref() else {
             return;
         };
@@ -1121,7 +1126,7 @@ impl BackupFlow {
             .filter(|&p| plan.places.get(p).is_some_and(|vs| vs.len() > 1))
             .collect();
         self.plan = plan;
-        self.sync_slots();
+        self.sync_slots(c);
         self.place_parked();
     }
 
@@ -1171,7 +1176,7 @@ impl BackupFlow {
     /// The setup has another number of vaults: the last ones go, or new
     /// ones are added after the others, and every stick and vault already
     /// read or opened stays as it is.
-    pub(crate) fn resize_setup(&mut self, count: usize) {
+    pub(crate) fn resize_setup(&mut self, c: &Compute, count: usize) {
         self.plan.places.truncate(count);
         self.plan.vaults.truncate(count);
         while self.plan.places.len() < count {
@@ -1185,7 +1190,7 @@ impl BackupFlow {
             w.answers.custom = true;
         }
         self.made_in.retain(|&v| v < count);
-        self.sync_slots();
+        self.sync_slots(c);
         for s in &mut self.slots {
             if let Some(b) = s.bound.as_mut() {
                 b.picks.retain(|(v, _)| *v < count);
@@ -1253,7 +1258,7 @@ impl BackupFlow {
     /// vault of a place that keeps several apart), in order, then the
     /// extras. A place that left takes its slot, and its public files go
     /// to the first stick.
-    pub(crate) fn sync_slots(&mut self) {
+    pub(crate) fn sync_slots(&mut self, c: &Compute) {
         if self.plan.public_at >= self.plan.places.len() {
             self.plan.public_at = 0;
         }
@@ -1295,7 +1300,7 @@ impl BackupFlow {
         }
         // A seed's file goes nowhere but its own stick of files: a stick
         // that leaves the plan takes it off the plan with it.
-        orphaned.retain(|n| !self.seed_file_ok(n));
+        orphaned.retain(|n| !self.seed_file_ok(c, n));
         if !orphaned.is_empty()
             && let Some(first) = self.slots.first_mut()
         {
@@ -1660,7 +1665,7 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
 /// state of another version, one that does not read, or one whose parts do
 /// not agree (an index out of range, a stick that the plan does not name,
 /// a step past the key with nothing sealed) is dropped whole.
-pub fn decode(bytes: &[u8]) -> (Vec<BackupFlow>, usize) {
+pub fn decode(c: &Compute, bytes: &[u8]) -> (Vec<BackupFlow>, usize) {
     use crate::apk::hex_array;
     let text = String::from_utf8_lossy(bytes);
     let mut lines = text.lines();
@@ -1714,7 +1719,7 @@ pub fn decode(bytes: &[u8]) -> (Vec<BackupFlow>, usize) {
         .into_iter()
         .flatten()
         .filter_map(|mut f| {
-            if !f.valid() {
+            if !f.valid(c) {
                 return None;
             }
             f.live.open = Some(f.step.n());
@@ -2102,7 +2107,7 @@ impl BackupFlow {
     /// Whether what was read back agrees with itself, and brings the slots
     /// to the plan. A flow past the key must have made it and sealed a copy
     /// of each vault.
-    fn valid(&mut self) -> bool {
+    fn valid(&mut self, c: &Compute) -> bool {
         // A made wallet flow with no wallet part, or none that names the
         // wallet, is not one: its gate entry holds its keys instead.
         if self.kind.is_wallet()
@@ -2138,7 +2143,7 @@ impl BackupFlow {
             return false;
         }
         let before = self.slots.len();
-        self.sync_slots();
+        self.sync_slots(c);
         // A slot's bound picks must name vaults of the plan.
         for s in &self.slots {
             if let Some(b) = &s.bound
@@ -2256,7 +2261,8 @@ impl Faraday {
     /// Reads back what the previous process kept. A flow that was on screen
     /// opens on its step (`docs/BACKUP-FLOW.md` §5).
     pub(crate) fn flow_restore(&mut self, bytes: &[u8]) {
-        let (flows, dropped) = decode(bytes);
+        let c = self.compute();
+        let (flows, dropped) = decode(&c, bytes);
         self.backup_flows = flows;
         // The Make a new wallet or Restore a flow came from is gone with
         // the lock: it keeps an id no screen has.
@@ -2280,6 +2286,7 @@ impl Faraday {
     /// Reads the keys that wait. One whose flow did not read comes back as
     /// a flow of its own at Where, made and unwritten, so it still waits.
     pub(crate) fn flow_gate_restore(&mut self, bytes: &[u8]) {
+        let c = self.compute();
         for line in String::from_utf8_lossy(bytes).lines() {
             let mut p = line.splitn(4, '\t');
             let (Some(k), Some(id), Some(name)) = (p.next(), p.next(), p.next()) else {
@@ -2314,7 +2321,7 @@ impl Faraday {
                 }
                 continue;
             }
-            let mut f = BackupFlow::new(kind);
+            let mut f = BackupFlow::new(&c, kind);
             f.made = true;
             f.on_screen = false;
             f.subject = Some(Subject {

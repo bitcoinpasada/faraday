@@ -5,6 +5,7 @@
 
 use crate::strings::EN;
 use osk_bip::multisig_config;
+use osk_crypto::work::Compute;
 
 /// What one multisig config file, whole or a share, says.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -149,8 +150,8 @@ pub fn merge(texts: &[String]) -> Result<Merged, String> {
 }
 
 /// Whether the rebuilt text reads as a wallet.
-pub fn readable(whole: &str) -> bool {
-    multisig_config::parse(whole).is_ok() || crate::wallet::read_wallet(whole).is_ok()
+pub fn readable(c: &Compute, whole: &str) -> bool {
+    multisig_config::parse(c, whole).is_ok() || crate::wallet::read_wallet(c, whole).is_ok()
 }
 
 /// BIP-341's unspendable internal key, a Taproot multisig's.
@@ -164,6 +165,7 @@ mod tests {
     /// config, from any quorum of them.
     #[test]
     fn a_quorum_of_shares_rebuilds_the_wallet() {
+        let c = crate::testkit::compute();
         let whole = "Name: T\nPolicy: 2 of 3\nFormat: P2WSH\n";
         let keys = [
             (
@@ -193,16 +195,16 @@ mod tests {
         assert!(one.whole.is_none(), "one share alone does not rebuild");
         let two = merge(&[share(&[0, 1]), share(&[1, 2])]).unwrap();
         let rebuilt = two.whole.expect("two shares rebuild");
-        let a = multisig_config::parse(&rebuilt).unwrap();
+        let a = multisig_config::parse(&c, &rebuilt).unwrap();
         let mut full = whole.to_string();
         for k in keys {
             full.push_str(&format!("\nDerivation: m/48'/0'/0'/2'\n{}: {}\n", k.0, k.1));
         }
         assert_eq!(
             a.to_descriptor(),
-            multisig_config::parse(&full).unwrap().to_descriptor()
+            multisig_config::parse(&c, &full).unwrap().to_descriptor()
         );
-        assert!(readable(&rebuilt));
+        assert!(readable(&c, &rebuilt));
     }
 
     /// A rebuilt config is checked as any other: a key whose SLIP-132
@@ -210,6 +212,7 @@ mod tests {
     /// or a nested `Ypub` in a P2WSH wallet) does not read as a wallet.
     #[test]
     fn a_config_with_a_slip132_key_of_another_script_is_not_readable() {
+        let c = crate::testkit::compute();
         use osk_bip::slip132::{Script, encode};
         let xpub = |i: usize| {
             [
@@ -223,13 +226,13 @@ mod tests {
                 xpub(0)
             )
         };
-        assert!(readable(&config(xpub(1))));
+        assert!(readable(&c, &config(xpub(1))));
         let zpub_multi = encode(xpub(1), Script::NativeMultisig).unwrap();
         assert!(zpub_multi.starts_with("Zpub"));
-        assert!(readable(&config(&zpub_multi)));
+        assert!(readable(&c, &config(&zpub_multi)));
         for script in [Script::NativeSegwit, Script::NestedMultisig] {
             let other = encode(xpub(1), script).unwrap();
-            assert!(!readable(&config(&other)), "{other}");
+            assert!(!readable(&c, &config(&other)), "{other}");
         }
     }
 }

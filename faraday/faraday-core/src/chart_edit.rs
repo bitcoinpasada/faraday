@@ -75,9 +75,14 @@ impl Faraday {
     /// The notes the plan's record keeps for `wallet` (§9.5): in open
     /// vault `v`, or in whichever open vault keeps its plan. None kept,
     /// or no vault open: none.
-    pub(crate) fn plan_notes(&self, wallet: &crate::wallet::Wallet, v: Option<usize>) -> Vec<Note> {
+    pub(crate) fn plan_notes(
+        &self,
+        c: &Compute,
+        wallet: &crate::wallet::Wallet,
+        v: Option<usize>,
+    ) -> Vec<Note> {
         use faraday_vault::records::{field, kind};
-        let Some(v) = v.or_else(|| self.plan_vault_of(wallet)) else {
+        let Some(v) = v.or_else(|| self.plan_vault_of(c, wallet)) else {
             return Vec::new();
         };
         let Some(open) = self.vaults.open.get(v) else {
@@ -85,7 +90,7 @@ impl Faraday {
         };
         let want = crate::wallet::same_wallet(wallet.policy());
         open.contents
-            .described_of(kind::PLAN)
+            .described_of(c, kind::PLAN)
             .filter(|(_, _, d)| d.same == want)
             .flat_map(|(_, r, _)| {
                 r.fields
@@ -117,12 +122,12 @@ impl Faraday {
     /// The open vault a chart's notes and plan are kept in: the vault
     /// drawing it, else the one keeping the wallet's plan, else the
     /// current one.
-    fn notes_vault(&self, press: Press, w: usize) -> Option<usize> {
+    fn notes_vault(&self, c: &Compute, press: Press, w: usize) -> Option<usize> {
         if let Press::Vault(v, _) = press {
             return Some(v);
         }
         let wallet = self.session.wallets.get(w)?;
-        self.plan_vault_of(wallet).or_else(|| {
+        self.plan_vault_of(c, wallet).or_else(|| {
             self.vaults
                 .open
                 .get(self.vaults.current)
@@ -138,23 +143,24 @@ impl Faraday {
         press: Press,
         change: &dyn Fn(&mut Vec<Note>),
     ) -> bool {
+        let c = self.compute();
         use faraday_vault::records::{field, kind};
         let Some(w) = self.press_wallet(press) else {
             return false;
         };
-        let Some(v) = self.notes_vault(press, w) else {
+        let Some(v) = self.notes_vault(&c, press, w) else {
             return false;
         };
         let Some(wallet) = self.session.wallets.get(w) else {
             return false;
         };
-        let mut notes = self.plan_notes(wallet, Some(v));
+        let mut notes = self.plan_notes(&c, wallet, Some(v));
         change(&mut notes);
         let want = crate::wallet::same_wallet(wallet.policy());
         // This wallet's plan records, by place.
         let ours: Vec<usize> = self.vaults.open.get(v).map_or_else(Vec::new, |o| {
             o.contents
-                .described_of(kind::PLAN)
+                .described_of(&c, kind::PLAN)
                 .filter(|(_, _, d)| d.same == want)
                 .map(|(i, _, _)| i)
                 .collect()
@@ -163,7 +169,7 @@ impl Faraday {
         if !has {
             // No record of this plan here yet: the plan the chart shows,
             // saved with the notes.
-            let Some((answers, names)) = glance::plan_of(self, w) else {
+            let Some((answers, names)) = glance::plan_of_now(&c, self, w) else {
                 return false;
             };
             self.plan_store(v, w, &answers, &names, &[], Some(&notes));
@@ -200,11 +206,11 @@ impl Faraday {
         let Some(w) = self.press_wallet(press) else {
             return;
         };
-        let Some((answers, names)) = glance::plan_of(self, w) else {
+        let Some((answers, names)) = glance::plan_of_now(&c, self, w) else {
             return;
         };
         let shape = self.plan_shape_now(w);
-        let boxes = plan::map(&shape, &answers);
+        let boxes = plan::map(&c, &shape, &answers);
         let dest: Vec<(What, Option<usize>)> = match edit {
             // Each thing the place keeps, its sticks' too, as the chart
             // lists them.
@@ -239,8 +245,8 @@ impl Faraday {
             press,
             edit,
             title,
-            before: plan::check(&shape, &answers),
-            after: plan::check(&shape, &after),
+            before: plan::check(&c, &shape, &answers),
+            after: plan::check(&c, &shape, &after),
             answers: after,
             names: new_names,
             dest,
@@ -260,8 +266,8 @@ impl Faraday {
         names: &[String],
     ) -> String {
         let g = match press {
-            Press::Loaded(_) => glance::of(c, self, w),
-            Press::Vault(v, r) => glance::of_vault(c, self, v, r),
+            Press::Loaded(_) => glance::of_now(c, self, w),
+            Press::Vault(v, r) => glance::of_vault_now(c, self, v, r),
         };
         let place = |p: usize| {
             let places = g.as_ref().map_or(0, |g| match &g.backup {
@@ -339,6 +345,7 @@ impl Faraday {
     /// its notes following what moved; then the flow that makes a new
     /// copy, where it makes one.
     pub(crate) fn chart_confirm(&mut self) {
+        let c = self.compute();
         let Some(ask) = self.chart_work.ask.take() else {
             return;
         };
@@ -380,15 +387,16 @@ impl Faraday {
             extras = b.extras.clone();
         }
         self.backups_sync();
-        if let Some(v) = self.notes_vault(ask.press, w)
+        if let Some(v) = self.notes_vault(&c, ask.press, w)
             && let Some(wallet) = self.session.wallets.get(w)
         {
-            for line in self.plan_extras(wallet, v) {
+            for line in self.plan_extras(&c, wallet, v) {
                 if !extras.contains(&line) {
                     extras.push(line);
                 }
             }
-            let notes = plan::notes_after(&self.plan_notes(wallet, Some(v)), ask.edit, &ask.dest);
+            let notes =
+                plan::notes_after(&self.plan_notes(&c, wallet, Some(v)), ask.edit, &ask.dest);
             self.plan_store(v, w, &ask.answers, &ask.names, &extras, Some(&notes));
             self.vault_summaries_refresh();
         }
@@ -397,7 +405,7 @@ impl Faraday {
 
     /// The lines of work a later plan dropped that open vault `v`'s record
     /// keeps for `wallet` ("vault.ofv holds seed 9A6A2580").
-    fn plan_extras(&self, wallet: &crate::wallet::Wallet, v: usize) -> Vec<String> {
+    fn plan_extras(&self, c: &Compute, wallet: &crate::wallet::Wallet, v: usize) -> Vec<String> {
         use faraday_vault::records::{field, kind};
         let want = crate::wallet::same_wallet(wallet.policy());
         // What stands between the vault and the seed in such a line.
@@ -409,7 +417,7 @@ impl Faraday {
             return Vec::new();
         };
         open.contents
-            .described_of(kind::PLAN)
+            .described_of(c, kind::PLAN)
             .filter(|(_, _, d)| d.same == want)
             .flat_map(|(_, r, _)| {
                 r.fields
@@ -443,8 +451,8 @@ impl Faraday {
             (At::Place(_), What::Passphrase(i)) => {
                 // The new line, and its key: the passphrase shown to copy.
                 let g = match press {
-                    Press::Loaded(_) => glance::of(&c, self, w),
-                    Press::Vault(v, r) => glance::of_vault(&c, self, v, r),
+                    Press::Loaded(_) => glance::of_now(&c, self, w),
+                    Press::Vault(v, r) => glance::of_vault_now(&c, self, v, r),
                 };
                 let Some(g) = g else {
                     return;
@@ -547,7 +555,8 @@ impl Faraday {
                 })
             }
             Target::VaultName(n) => {
-                let Some(At::Vault(v)) = crate::glance_sheet::node_at(&c, self, press, n) else {
+                let Some(At::Vault(v)) = crate::glance_sheet::node_at_now(&c, self, press, n)
+                else {
                     return;
                 };
                 self.chart_notes_change(press, &|notes: &mut Vec<Note>| {
@@ -615,8 +624,8 @@ impl Faraday {
         line: Option<u8>,
     ) -> Option<Vec<(At, What)>> {
         let g = match press {
-            Press::Loaded(w) => glance::of(c, self, w),
-            Press::Vault(v, r) => glance::of_vault(c, self, v, r),
+            Press::Loaded(w) => glance::of_now(c, self, w),
+            Press::Vault(v, r) => glance::of_vault_now(c, self, v, r),
         }?;
         let glance::Backup::Plan { nodes, .. } = &g.backup else {
             return None;
@@ -631,8 +640,8 @@ impl Faraday {
     /// The master fingerprint of key `k` of the chart of `press`.
     fn chart_key_fp(&self, c: &Compute, press: Press, k: u8) -> Option<[u8; 4]> {
         let g = match press {
-            Press::Loaded(w) => glance::of(c, self, w),
-            Press::Vault(v, r) => glance::of_vault(c, self, v, r),
+            Press::Loaded(w) => glance::of_now(c, self, w),
+            Press::Vault(v, r) => glance::of_vault_now(c, self, v, r),
         }?;
         g.keys.get(usize::from(k))?.fp
     }
@@ -747,7 +756,7 @@ impl Faraday {
     /// what it holds.
     pub(crate) fn envelopes_out(&mut self, w: usize) {
         let c = self.compute();
-        let Some(g) = glance::of(&c, self, w) else {
+        let Some(g) = glance::of_now(&c, self, w) else {
             return;
         };
         let glance::Backup::Plan { nodes, .. } = &g.backup else {

@@ -237,7 +237,7 @@ impl Faraday {
             .backup_seed_list_now(b.wallet)
             .iter()
             .position(|(_, i)| *i == Some(k))
-            .is_none_or(|i| self.copy_forms(b, i).seedqr);
+            .is_none_or(|i| self.copy_forms(&c, b, i).seedqr);
         if key.language == Language::English && seedqr {
             crate::work::count(crate::work::Work::QrEncode);
             let matrix = if compact {

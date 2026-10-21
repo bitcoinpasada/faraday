@@ -11,5 +11,6 @@ fuzz_target!(|data: &[u8]| {
     let Ok(text) = std::str::from_utf8(data) else {
         return;
     };
-    let _ = faraday_intake::wallet::read_wallet(text);
+    let c = osk_crypto::work::Compute::unchecked();
+    let _ = faraday_intake::wallet::read_wallet(&c, text);
 });

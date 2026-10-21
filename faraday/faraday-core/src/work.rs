@@ -115,6 +115,8 @@ fn of_core(w: osk_crypto::work::Work) -> Work {
         C::WordsParse => Work::WordsParse,
         C::MasterKey => Work::MasterKey,
         C::KeyDerive => Work::KeyDerive,
+        C::DescriptorParse => Work::DescriptorParse,
+        C::Address => Work::Address,
         C::Blur => Work::Blur,
         C::FullCanvas => Work::FullCanvas,
     }

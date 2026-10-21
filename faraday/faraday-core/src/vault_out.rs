@@ -90,13 +90,14 @@ impl Faraday {
     /// the record read in for `f` alone and taken out again, so the
     /// session is as it was. Reads the descriptor.
     fn with_vault_wallet<T>(&mut self, f: impl FnOnce(&mut Self, usize) -> T) -> Option<T> {
+        let c = self.compute();
         let (_, r) = self.vault_record_of(kind::WALLET)?;
         let text = r.text(field::WALLET)?.to_string();
         let name = r
             .text(field::WALLET_NAME)
             .unwrap_or(EN.vaults_wallet)
             .to_string();
-        let policy = crate::wallet::read_wallet(&text).ok()?;
+        let policy = crate::wallet::read_wallet(&c, &text).ok()?;
         let same = crate::wallet::same_wallet(&policy);
         if let Some(i) = self
             .session

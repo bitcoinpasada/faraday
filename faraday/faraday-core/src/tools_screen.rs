@@ -3,12 +3,11 @@
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::tools::Reading;
 use crate::tools::Tool;
-use osk_bip::compile::{PolicyScript, compile};
-use osk_bip::descriptor::checksum_facts;
-use osk_bip::hashes::hashes;
-use osk_bip::slip132::{KeyReading, key_facts};
-use osk_codec::encodings::{ReadAs, read as encoding_of, read_input};
+use osk_bip::compile::PolicyScript;
+use osk_bip::slip132::KeyReading;
+use osk_codec::encodings::ReadAs;
 
 use crate::Action;
 use crate::screens::{button_rows, guide_text, title};
@@ -168,20 +167,19 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         Action::TClear,
     );
     y += 58.0;
-    if t.typed.trim().is_empty() {
+    let Some(reading) = app.tools_reading() else {
         return y;
-    }
+    };
     let mut rows: Vec<(String, String)> = Vec::new();
     let mut note: Option<String> = None;
-    match t.tool {
-        Tool::Hashes => {
-            let h = hashes(&read_input(t.typed.trim(), t.read_as));
+    match &*reading {
+        Reading::Hashes(h) => {
             rows.push((EN.tools_bytes.into(), h.len.to_string()));
             rows.push(("SHA-256".into(), hex(&h.sha256)));
             rows.push(("SHA-256d".into(), hex(&h.sha256d)));
             rows.push(("HASH160".into(), hex(&h.hash160)));
         }
-        Tool::Encodings => match encoding_of(t.typed.trim()) {
+        Reading::Encodings(r) => match r {
             Some(r) => {
                 rows.push((EN.tools_encoding.into(), format!("{:?}", r.encoding)));
                 if let Some(h) = &r.hrp {
@@ -205,7 +203,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
             }
             None => note = Some(EN.tools_not_base58_bech32.into()),
         },
-        Tool::Descriptor => match checksum_facts(&t.typed) {
+        Reading::Descriptor(f) => match f {
             Some(f) => {
                 rows.push((EN.tools_checksum.into(), f.checksum.clone()));
                 if let Some((g, holds)) = &f.given {
@@ -233,7 +231,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
             }
             None => note = Some(EN.tools_not_a_descriptor.into()),
         },
-        Tool::ConvertKey => match key_facts(&t.typed, app.session.network()) {
+        Reading::Key(k) => match k {
             KeyReading::Public(f) => {
                 rows.push(("BIP-32".into(), f.bip32.clone()));
                 for (s, k) in &f.slip132 {
@@ -252,7 +250,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
             KeyReading::Private => note = Some(EN.tools_that_is_an_extended.into()),
             KeyReading::None => note = Some(EN.tools_not_an_extended.into()),
         },
-        Tool::Units => {
+        Reading::Nothing => {
             let digits: u64 = t.typed.parse().unwrap_or(0);
             let sats = digits
                 .saturating_mul(UNITS[usize::from(t.unit)].1)
@@ -268,7 +266,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
             ));
             rows.push(("bits".into(), format!("{}.{:02}", sats / 100, sats % 100)));
         }
-        Tool::Miniscript => match compile(&t.typed, t.script, &app.tools_keys()) {
+        Reading::Miniscript(f) => match f {
             Ok(f) => {
                 rows.push((EN.tools_descriptor.into(), f.descriptor.clone()));
                 rows.push((EN.tools_spend_paths.into(), f.paths.len().to_string()));
@@ -281,7 +279,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
                     },
                 ));
             }
-            Err(e) => note = Some(e),
+            Err(e) => note = Some(e.clone()),
         },
     }
     if let Some(n) = note {

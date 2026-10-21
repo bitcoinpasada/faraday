@@ -177,7 +177,7 @@ fn a_wallet_as_crypto_output_reads_as_its_descriptor() {
         format!("wsh(sortedmulti(1,[9a6a2580/48h/1h/0h/2h]{xpub}/<0;1>/*))")
     );
     // And it is a wallet Faraday reads.
-    assert!(osk_bip::policy::WalletPolicy::parse_any(d.trim()).is_ok());
+    assert!(osk_bip::policy::WalletPolicy::parse_any(&c, d.trim()).is_ok());
 }
 
 #[test]

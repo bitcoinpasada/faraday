@@ -166,6 +166,7 @@ fn without_an_open_vault_nothing_is_added() {
 
 #[test]
 fn files_restores_a_wallet_from_its_shares() {
+    let c = faraday_core::testkit::compute();
     let shares: Vec<(String, Vec<u8>)> = testkit::files()
         .unwrap()
         .into_iter()
@@ -182,17 +183,21 @@ fn files_restores_a_wallet_from_its_shares() {
     app.press(Action::RestoreShares);
     assert_eq!(app.screen, Screen::Wallets);
     assert_eq!(app.session.wallets.len(), 1);
-    assert_eq!(app.session.address(&app.session.wallets[0], false, 0), {
-        let mut s = faraday_core::wallet::Session::on(testkit::NET);
-        s.add_wallet(
-            "Savings",
-            &testkit::savings(),
-            "test",
-            faraday_core::wallet::Origin::Named,
-        )
-        .unwrap();
-        s.address(&s.wallets[0], false, 0)
-    });
+    assert_eq!(
+        app.session.address(&c, &app.session.wallets[0], false, 0),
+        {
+            let mut s = faraday_core::wallet::Session::on(testkit::NET);
+            s.add_wallet(
+                &c,
+                "Savings",
+                &testkit::savings(),
+                "test",
+                faraday_core::wallet::Origin::Named,
+            )
+            .unwrap();
+            s.address(&c, &s.wallets[0], false, 0)
+        }
+    );
 }
 
 // ---------------------------------------------------------------------

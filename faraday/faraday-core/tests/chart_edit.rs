@@ -73,6 +73,7 @@ fn one_key(app: &mut Faraday) -> usize {
         .unwrap();
     app.session
         .add_wallet(
+            &c,
             "Spending",
             &format!("wpkh({text}/<0;1>/*)"),
             "test",
@@ -84,10 +85,12 @@ fn one_key(app: &mut Faraday) -> usize {
 /// Test keys 1 and 2 typed in and the 2-of-3 over the three test keys:
 /// the third is a cosigner's.
 fn two_of_three(app: &mut Faraday) -> usize {
+    let c = faraday_core::testkit::compute();
     add_key(app, 0);
     add_key(app, 1);
     app.session
         .add_wallet(
+            &c,
             "Savings",
             &testkit::savings(),
             "test",
@@ -139,7 +142,7 @@ fn planned(app: &mut Faraday, w: usize, preset: u8) {
 
 fn chart(app: &Faraday, w: usize) -> Glance {
     let c = testkit::compute();
-    faraday_core::glance::of(&c, app, w).expect("the wallet has a chart")
+    faraday_core::glance::of_now(&c, app, w).expect("the wallet has a chart")
 }
 
 fn nodes(g: &Glance) -> Vec<BackupNode> {
@@ -618,6 +621,7 @@ fn the_envelope_list_goes_for_the_stick_as_a_pdf() {
 
 #[test]
 fn a_plan_saved_before_the_chart_could_edit_it_still_loads() {
+    let c = faraday_core::testkit::compute();
     use faraday_core::plan::{Answers, Seed, Shape};
     let shape = Shape {
         m: 1,
@@ -634,7 +638,7 @@ fn a_plan_saved_before_the_chart_could_edit_it_still_loads() {
     let a = Answers::from_text(&shape, text).expect("the plan loads");
     assert!(a.map.is_none());
     assert_eq!(
-        faraday_core::plan::check(&shape, &a).spend,
+        faraday_core::plan::check(&c, &shape, &a).spend,
         Found::Yes,
         "a place with the words can spend"
     );
@@ -650,7 +654,7 @@ fn in_an_open_vaults_view_a_change_is_kept_in_that_vault() {
     let _ = app.frame();
     let r = app.vault_selected_index().expect("a wallet is chosen");
     let press = Press::Vault(0, r);
-    let vault_chart = |app: &Faraday| faraday_core::glance::of_vault(&c, app, 0, r).unwrap();
+    let vault_chart = |app: &Faraday| faraday_core::glance::of_vault_now(&c, app, 0, r).unwrap();
     let at = nodes(&vault_chart(&app))
         .iter()
         .position(|n| n.name == "Place 1")

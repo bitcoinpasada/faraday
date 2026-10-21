@@ -98,6 +98,7 @@ fn backing_up(app: &mut Faraday, with: bool) -> Fingerprint {
 /// `seedqr`: a SeedQR picture is offered only for a SeedQR copy
 /// (`docs/NEW-WALLET.md` §14.7).
 fn backing_up_as(app: &mut Faraday, with: bool, seedqr: bool) -> Fingerprint {
+    let c = faraday_core::testkit::compute();
     app.press(Action::Entry(None));
     type_text(app, &testkit::test_words(testkit::TEST_SEEDS[SEED].0));
     if with {
@@ -138,7 +139,10 @@ fn backing_up_as(app: &mut Faraday, with: bool, seedqr: bool) -> Fingerprint {
         common::form(app, Zone::Paper(p), Thing::Seed(0), 1);
     }
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     app.press(Action::BStep(bstep::COPY));
@@ -420,8 +424,10 @@ fn add_key(app: &mut Faraday, n: usize) -> usize {
 
 /// The test 2-of-3 over the test seeds, its backup open.
 fn savings_backup(app: &mut Faraday) {
+    let c = faraday_core::testkit::compute();
     app.session
         .add_wallet(
+            &c,
             "Savings",
             &testkit::savings(),
             "test",
@@ -492,6 +498,7 @@ fn a_seed_file_for_the_stick_is_listed_as_unprotected() {
 
 #[test]
 fn a_matched_copy_check_marks_that_seed_only() {
+    let c = faraday_core::testkit::compute();
     let mut app = device(Vec::new());
     let k1 = add_key(&mut app, 0);
     add_key(&mut app, 1);
@@ -505,7 +512,10 @@ fn a_matched_copy_check_marks_that_seed_only() {
         .expect("test key 1 is a seed of Savings") as u8;
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY + i));

@@ -2302,7 +2302,7 @@ fn secret_text(c: &Compute, text: &str) -> Option<&'static str> {
 }
 
 /// What a code is when a SeedQR was wanted and something else came.
-fn what_instead_of_a_seed(text: &str) -> Option<&'static str> {
+fn what_instead_of_a_seed(c: &Compute, text: &str) -> Option<&'static str> {
     let t = text.trim();
     if wallet::read_psbt(t.as_bytes()).is_some()
         || t.to_ascii_lowercase().starts_with("ur:crypto-psbt")
@@ -2312,7 +2312,7 @@ fn what_instead_of_a_seed(text: &str) -> Option<&'static str> {
     if faraday_qr::bbqr::is_part(t) || osk_codec::ur::is_ur(t) {
         return Some(EN.what_instead_of_a_seed_that_is);
     }
-    if wallet::read_wallet(t).is_ok() || crate::create::read_key(t).is_some() {
+    if wallet::read_wallet(c, t).is_ok() || crate::create::read_key(t).is_some() {
         return Some(EN.what_instead_of_a_seed_that);
     }
     None
@@ -2510,6 +2510,15 @@ pub struct WalletKey<'a> {
     pub standard: Option<create::NewKind>,
     /// The seed's master key.
     pub master: &'a osk_bip::keys::MasterKey,
+}
+
+/// A signed message checked, by what its check is worked out from
+/// ([`Faraday::message_check`]).
+struct KeptMessage {
+    text: String,
+    network: osk_bip::keys::Network,
+    wallets: Vec<String>,
+    check: Option<std::rc::Rc<wallet::MessageCheck>>,
 }
 
 /// The backup flow's state.
@@ -3006,8 +3015,8 @@ impl PlanPress {
 /// §17.1, §19.1): the board, the software where the description goes
 /// into software or as files, and The plan. Back up's and a wallet flow's
 /// alike (§19.12 item 1).
-pub fn plan_cards(shape: &plan::Shape, a: &plan::Answers) -> Vec<u8> {
-    plan_cards_on(&plan::Mapped::of(shape, a))
+pub fn plan_cards(c: &Compute, shape: &plan::Shape, a: &plan::Answers) -> Vec<u8> {
+    plan_cards_on(&plan::Mapped::of(c, shape, a))
 }
 
 /// [`plan_cards`] on the plan's map `m`.
@@ -3023,11 +3032,16 @@ pub(crate) fn plan_cards_on(m: &plan::Mapped) -> Vec<u8> {
 /// Whether record `r` is a wallet share (type 13) of the wallet with
 /// checksum `cs`, told by its field 5, never by its name; with `j`, share
 /// `j` (field 3, from 1) of it (`docs/BACKUP-FLOW.md` §17.6).
-pub(crate) fn share_record_is(r: &faraday_vault::Record, cs: &str, j: Option<usize>) -> bool {
+pub(crate) fn share_record_is(
+    c: &Compute,
+    r: &faraday_vault::Record,
+    cs: &str,
+    j: Option<usize>,
+) -> bool {
     use faraday_vault::records::{field, kind};
     r.kind == kind::WALLET_SHARE
         && r.text(field::SHARE_WALLET)
-            .and_then(|t| wallet::read_wallet(t).ok())
+            .and_then(|t| wallet::read_wallet(c, t).ok())
             .is_some_and(|p| p.checksum() == cs)
         && j.is_none_or(|j| {
             r.field(field::SHARE_NUMBER)
@@ -3386,6 +3400,18 @@ pub struct Faraday {
     /// Wallet descriptions read that no file or record keeps read, each
     /// by its text ([`Faraday::read_kept`]): public, and never stale.
     texts_read: std::cell::RefCell<Vec<(String, Option<osk_bip::policy::WalletPolicy>)>>,
+    /// The `Name:` line of each multisig config put together from split
+    /// sheets ([`Faraday::config_name_kept`]), by its text: public, and
+    /// never stale.
+    config_names: std::cell::RefCell<Vec<(String, Option<String>)>>,
+    /// Descriptions the Seeds tool puts together, each parsed as Create
+    /// builds it ([`Faraday::parsed_kept`]), by its text: public, and
+    /// never stale.
+    texts_parsed: std::cell::RefCell<Vec<(String, Result<osk_bip::policy::WalletPolicy, String>)>>,
+    /// The signed message last checked ([`Faraday::message_check`]), by
+    /// its text, the network and the loaded wallets' checksums: public,
+    /// and never stale, since a change to any of them is another key.
+    message_checked: std::cell::RefCell<Option<KeptMessage>>,
     /// Plans mapped, each by the shape and answers it is the map of
     /// ([`Faraday::plan_mapped`]): public, and never stale, since a
     /// change to either is another key.
@@ -3801,6 +3827,9 @@ impl Faraday {
             seeds_addresses: Default::default(),
             plans_mapped: Default::default(),
             texts_read: Default::default(),
+            message_checked: Default::default(),
+            texts_parsed: Default::default(),
+            config_names: Default::default(),
             owner_seq: 0,
             // A new GPG key's term starts at GnuPG's default, never at "never".
             vaults: {
@@ -5197,7 +5226,7 @@ impl Faraday {
                 .iter()
                 .map(|f| f.0)
                 .collect();
-            s.wallet = self.session.wallet_for(&s.spend.psbt);
+            s.wallet = self.session.wallet_for(&c, &s.spend.psbt);
             let wallet = s.wallet.and_then(|w| self.session.wallets.get(w));
             let kind = wallet.map(|w| wallet::Kind::of(w.policy()));
             s.needed = wallet.map(wallet::needed).unwrap_or(1);
@@ -5535,7 +5564,7 @@ impl Faraday {
                 self.act(Action::Nav(Screen::Backups));
                 self.backups_at = at;
                 if !self.compact {
-                    self.list_offset = crate::backups_screen::offset_of(&c, self, at);
+                    self.list_offset = crate::backups_screen::offset_of_now(&c, self, at);
                 }
             }
             Action::BackupsPage(i) => {
@@ -6041,7 +6070,7 @@ impl Faraday {
                 // The plan the chart shows, at its first item not done;
                 // nothing is made For the stick by opening it.
                 if self.chart_checklist(i, false) {
-                    let first = self.backup_items_now().into_iter().find(|&n| {
+                    let first = self.backup_items_now(&c).into_iter().find(|&n| {
                         bstep::item(n).is_some_and(|it| !self.backup_item_done_now(&c, it))
                     });
                     self.backup_item_open(first);
@@ -6057,7 +6086,7 @@ impl Faraday {
                     // open vault, as it was; else the board open on The
                     // standard way, read-only until Customize backup
                     // (`docs/BACKUP-FLOW.md` §19.6).
-                    let (answers, names, q) = match self.plan_load(i, &shape) {
+                    let (answers, names, q) = match self.plan_load(&c, i, &shape) {
                         Some((a, names)) => (a, names, None),
                         None => (
                             plan::Answers::preset(&shape, plan::Preset::Standard),
@@ -6092,7 +6121,7 @@ impl Faraday {
                 }
             }
             Action::BQNext(n) => {
-                let qs = self.backup_questions();
+                let qs = self.backup_questions(&c);
                 if let Some(b) = self.backup.as_mut() {
                     b.q = qs.iter().skip_while(|&&q| q != n).nth(1).copied();
                     b.scroll.follow = true;
@@ -6172,7 +6201,7 @@ impl Faraday {
                 self.backup_extras();
                 self.plan_save();
                 self.backup_files_make();
-                let items = self.backup_items_now();
+                let items = self.backup_items_now(&c);
                 let first = items
                     .iter()
                     .copied()
@@ -6226,7 +6255,7 @@ impl Faraday {
                 {
                     return;
                 }
-                let items = self.backup_items_now();
+                let items = self.backup_items_now(&c);
                 let next = if n == bstep::ENVELOPE || n == bstep::BLANK {
                     if let Some(b) = self.backup.as_mut() {
                         if n == bstep::ENVELOPE {
@@ -6416,7 +6445,7 @@ impl Faraday {
                 {
                     let prevouts = decode::prevouts_of(&s.spend.psbt);
                     let source = fill(EN.act_finished_from, &[&s.spend.source.to_string()]);
-                    let decoded = decode::decode(tx, &prevouts, &self.session, &source);
+                    let decoded = decode::decode(&c, tx, &prevouts, &self.session, &source);
                     self.decode = Some(DecodeState {
                         decoded,
                         back: self.screen,
@@ -6444,7 +6473,7 @@ impl Faraday {
                                 .and_then(|i| wallet::read_psbt(&i.bytes))
                         });
                     let prevouts = psbt.map(|p| decode::prevouts_of(&p)).unwrap_or_default();
-                    let decoded = decode::decode(&tx, &prevouts, &self.session, &item.name);
+                    let decoded = decode::decode(&c, &tx, &prevouts, &self.session, &item.name);
                     self.decode = Some(DecodeState {
                         decoded,
                         back: self.screen,
@@ -7056,7 +7085,7 @@ impl Faraday {
             Action::RUse(i) => {
                 if let Some(item) = self.inbox.get(i) {
                     let text = String::from_utf8_lossy(&item.bytes).into_owned();
-                    let name = osk_bip::multisig_config::parse_named(&text)
+                    let name = osk_bip::multisig_config::parse_named(&c, &text)
                         .ok()
                         .and_then(|(_, n)| n)
                         .unwrap_or_else(|| stem(&item.name));
@@ -7077,11 +7106,11 @@ impl Faraday {
                 }
             }
             Action::RRebuild => {
-                let texts = self.restore_share_texts();
+                let texts = self.restore_share_texts(&c);
                 match restore::merge(&texts) {
                     Ok(m) => match m.whole {
                         Some(whole) => {
-                            let name = osk_bip::multisig_config::parse_named(&whole)
+                            let name = osk_bip::multisig_config::parse_named(&c, &whole)
                                 .ok()
                                 .and_then(|(_, n)| n)
                                 .unwrap_or_else(|| EN.act_restored_wallet.to_string());
@@ -7156,11 +7185,12 @@ impl Faraday {
                     .collect();
                 match restore::merge(&texts).map(|m| m.whole) {
                     Ok(Some(whole)) => {
-                        let name = osk_bip::multisig_config::parse_named(&whole)
+                        let name = osk_bip::multisig_config::parse_named(&c, &whole)
                             .ok()
                             .and_then(|(_, n)| n)
                             .unwrap_or_else(|| EN.act_restored_wallet.to_string());
                         match self.session.add_wallet(
+                            &c,
                             &name,
                             &whole,
                             EN.act_its_shares,
@@ -7381,7 +7411,7 @@ impl Faraday {
         // A locked vault cannot be looked into.
         let unknown = self.vaults.open.is_empty() && !self.vault_files().is_empty();
         let not_known = || (EN.backup_kept_not_checked.to_string(), Tone::Dim);
-        let wallet_line = match open.clone().find(|&v| vault_has_wallet(self, v, wallet)) {
+        let wallet_line = match open.clone().find(|&v| vault_has_wallet(c, self, v, wallet)) {
             Some(v) => (
                 fill(
                     EN.backup_kept_wallet_in,
@@ -7420,7 +7450,7 @@ impl Faraday {
                     None => (EN.backup_kept_not_in.to_string(), Tone::Warn),
                 },
             );
-            lines.push(if self.seed_copy_checked(fp.0) {
+            lines.push(if self.seed_copy_checked(c, fp.0) {
                 (EN.backup_kept_paper_copy.to_string(), Tone::Ok)
             } else {
                 (EN.backup_kept_paper_not.to_string(), Tone::Warn)
@@ -7570,17 +7600,102 @@ impl Faraday {
     /// state by its text, a lookup after. For a description no Inbox file
     /// or vault record keeps read: split sheets put together, a threshold
     /// wallet's descriptor. Costs a parse the first time.
-    pub(crate) fn read_kept(&self, text: &str) -> Option<osk_bip::policy::WalletPolicy> {
+    pub(crate) fn read_kept(
+        &self,
+        c: &Compute,
+        text: &str,
+    ) -> Option<osk_bip::policy::WalletPolicy> {
         if let Some((_, p)) = self.texts_read.borrow().iter().find(|(t, _)| t == text) {
             return p.clone();
         }
-        let p = crate::work::keeping(|| wallet::read_wallet(text).ok());
+        let p = crate::work::keeping(|| wallet::read_wallet(c, text).ok());
         let mut kept = self.texts_read.borrow_mut();
         if kept.len() >= 32 {
             kept.remove(0);
         }
         kept.push((text.to_string(), p.clone()));
         p
+    }
+
+    /// Costs a parse of the config the first time: the name multisig
+    /// config `text` carries on its `Name:` line
+    /// (`osk_bip::multisig_config::parse_named`), kept on the state by
+    /// its text ([`Faraday::config_names`]), a lookup after.
+    pub(crate) fn config_name_kept(&self, c: &Compute, text: &str) -> Option<String> {
+        if let Some((_, n)) = self.config_names.borrow().iter().find(|(t, _)| t == text) {
+            return n.clone();
+        }
+        let n = crate::work::keeping(|| {
+            osk_bip::multisig_config::parse_named(c, text)
+                .ok()
+                .and_then(|(_, n)| n)
+        });
+        let mut kept = self.config_names.borrow_mut();
+        if kept.len() >= 16 {
+            kept.remove(0);
+        }
+        kept.push((text.to_string(), n.clone()));
+        n
+    }
+
+    /// Costs a parse of the description the first time: description
+    /// `text` parsed as Create builds a wallet ([`create::build`]'s
+    /// reader, `WalletPolicy::parse_any`), with the parser's refusal, kept
+    /// on the state by its text ([`Faraday::texts_parsed`]), a lookup
+    /// after.
+    pub(crate) fn parsed_kept(
+        &self,
+        c: &Compute,
+        text: &str,
+    ) -> Result<osk_bip::policy::WalletPolicy, String> {
+        if let Some((_, p)) = self.texts_parsed.borrow().iter().find(|(t, _)| t == text) {
+            return p.clone();
+        }
+        let p = crate::work::keeping(|| {
+            osk_bip::policy::WalletPolicy::parse_any(c, text).map_err(|e| e.to_string())
+        });
+        let mut kept = self.texts_parsed.borrow_mut();
+        if kept.len() >= 32 {
+            let _ = kept.remove(0);
+        }
+        kept.push((text.to_string(), p.clone()));
+        p
+    }
+
+    /// Costs an address derivation per loaded wallet and address tried,
+    /// up to its first hundred on each chain, and a signature check, the
+    /// first time: signed message `text` checked
+    /// ([`wallet::Session::check_message`]), kept by its text, the network
+    /// and the loaded wallets ([`Faraday::message_checked`]), a lookup
+    /// after.
+    pub(crate) fn message_check(
+        &self,
+        c: &Compute,
+        text: &str,
+    ) -> Option<std::rc::Rc<wallet::MessageCheck>> {
+        let network = self.session.network();
+        let sums: Vec<String> = self
+            .session
+            .wallets
+            .iter()
+            .map(|w| w.checksum().to_string())
+            .collect();
+        if let Some(k) = self.message_checked.borrow().as_ref()
+            && k.text == text
+            && k.network == network
+            && k.wallets == sums
+        {
+            return k.check.clone();
+        }
+        let check =
+            crate::work::keeping(|| self.session.check_message(c, text)).map(std::rc::Rc::new);
+        *self.message_checked.borrow_mut() = Some(KeptMessage {
+            text: text.to_string(),
+            network,
+            wallets: sums,
+            check: check.clone(),
+        });
+        check
     }
 
     /// The plan of `shape` under answers `a`, mapped with its check, for
@@ -7593,6 +7708,7 @@ impl Faraday {
     /// the plan and its check the first time.
     pub(crate) fn plan_mapped(
         &self,
+        c: &Compute,
         shape: &plan::Shape,
         a: &plan::Answers,
     ) -> std::rc::Rc<plan::Mapped> {
@@ -7605,8 +7721,8 @@ impl Faraday {
             return m.clone();
         }
         let m = std::rc::Rc::new(crate::work::keeping(|| {
-            let m = plan::Mapped::of(shape, a);
-            m.check(shape, a);
+            let m = plan::Mapped::of(c, shape, a);
+            m.check(c, shape, a);
             m
         }));
         let mut kept = self.plans_mapped.borrow_mut();
@@ -7664,7 +7780,7 @@ impl Faraday {
     /// The cards of the backup's plan, in order (`docs/BACKUP-FLOW.md`
     /// §17.1): the board, the software where the description goes into
     /// software or as files, and The plan.
-    pub fn backup_questions(&self) -> Vec<u8> {
+    pub fn backup_questions(&self, c: &Compute) -> Vec<u8> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };
@@ -7672,25 +7788,25 @@ impl Faraday {
         // description goes (`docs/BACKUP-FLOW.md` §19.1); the software and
         // The plan stay. Start from is gone (§19.21 item 1).
         let shape = self.plan_shape(b.wallet);
-        plan_cards_on(&self.plan_mapped(&shape, &b.answers))
+        plan_cards_on(&self.plan_mapped(c, &shape, &b.answers))
     }
 
     /// The backup's checklist, by [`bstep`]: only what the plan needs. Works out the plan's shape
     /// (kept for the frame while one is drawn).
-    pub fn backup_items(&self) -> Vec<u8> {
+    pub fn backup_items(&self, c: &Compute) -> Vec<u8> {
         if self.drawing.is_on() {
             return crate::drawing::View::new(self).backup_items();
         }
-        self.backup_items_now()
+        self.backup_items_now(c)
     }
 
     /// Works out [`Faraday::backup_items`] from the state as it is.
-    pub fn backup_items_now(&self) -> Vec<u8> {
+    pub fn backup_items_now(&self, c: &Compute) -> Vec<u8> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };
         let shape = self.plan_shape(b.wallet);
-        plan::checklist_on(&shape, &b.answers, &self.plan_mapped(&shape, &b.answers))
+        plan::checklist_on(&shape, &b.answers, &self.plan_mapped(c, &shape, &b.answers))
             .into_iter()
             .map(bstep::of)
             .collect()
@@ -7945,7 +8061,7 @@ impl Faraday {
             plan::Item::Copy(i) => here
                 .iter()
                 .find(|(j, _)| *j == i)
-                .is_some_and(|(_, k)| self.copy_checked(b, i, k)),
+                .is_some_and(|(_, k)| self.copy_checked(c, b, i, k)),
             plan::Item::Vault(v) => self.backup_vault_fits(c, v).is_some(),
             plan::Item::SeedFiles => {
                 !here.is_empty() && here.iter().all(|(_, k)| self.seed_file_made(&stem, k))
@@ -7962,7 +8078,7 @@ impl Faraday {
             plan::Item::ShowDescriptor => b.shown,
             plan::Item::Envelopes => b.envelopes,
             // Every stick of the plan written, inside the flow.
-            plan::Item::Sticks => self.wallet_sticks_done(),
+            plan::Item::Sticks => self.wallet_sticks_done(c),
         }
     }
 
@@ -8062,7 +8178,7 @@ impl Faraday {
     /// keys is the plan's vault of its number; no other plan vault takes
     /// it. Its place among the open vaults.
     pub(crate) fn backup_vault_open(&self, c: &Compute, v: usize) -> Option<usize> {
-        self.backup_vault_wanted(v)?;
+        self.backup_vault_wanted(c, v)?;
         if let Some(o) = self.backup_vault_set_up(v) {
             return self.backup_open_fits(c, v, o).then_some(o);
         }
@@ -8114,12 +8230,12 @@ impl Faraday {
     }
 
     /// Whether the plan puts anything in vault `v`.
-    fn backup_vault_wanted(&self, v: usize) -> Option<()> {
+    fn backup_vault_wanted(&self, c: &Compute, v: usize) -> Option<()> {
         let b = self.backup.as_ref()?;
         self.session.wallets.get(b.wallet)?;
         let (own_seeds, _) = self.backup_vault_seeds(v);
-        let shares = !self.backup_vault_shares(v).is_empty();
-        let passphrases = !self.backup_vault_passphrases(v).is_empty();
+        let shares = !self.backup_vault_shares(c, v).is_empty();
+        let passphrases = !self.backup_vault_passphrases(c, v).is_empty();
         (!own_seeds.is_empty() || b.answers.wallet_in_vault(v) || shares || passphrases)
             .then_some(())
     }
@@ -8127,13 +8243,13 @@ impl Faraday {
     /// The session keys whose passphrase the plan keeps alone in vault
     /// `v`, as a passphrase record (`docs/BACKUP-FLOW.md` §19.12 item 4):
     /// a key with a passphrase only.
-    pub(crate) fn backup_vault_passphrases(&self, v: usize) -> Vec<usize> {
+    pub(crate) fn backup_vault_passphrases(&self, c: &Compute, v: usize) -> Vec<usize> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };
         let shape = self.plan_shape(b.wallet);
         let list = self.backup_seed_list(b.wallet);
-        self.plan_mapped(&shape, &b.answers)
+        self.plan_mapped(c, &shape, &b.answers)
             .vault_passphrases(v)
             .into_iter()
             .filter_map(|i| list.get(i)?.1)
@@ -8162,7 +8278,7 @@ impl Faraday {
 
     /// The shares the plan keeps in vault `v`, each with its text and how
     /// many shares there are (`docs/BACKUP-FLOW.md` §17.6).
-    pub(crate) fn backup_vault_shares(&self, v: usize) -> Vec<(usize, String, usize)> {
+    pub(crate) fn backup_vault_shares(&self, c: &Compute, v: usize) -> Vec<(usize, String, usize)> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };
@@ -8172,7 +8288,7 @@ impl Faraday {
         let shape = self.plan_shape(b.wallet);
         let (m, n) = Session::quorum(w);
         let plan = backup::split_plan(n, m, b.answers.omit);
-        self.plan_mapped(&shape, &b.answers)
+        self.plan_mapped(c, &shape, &b.answers)
             .vault_shares(v)
             .into_iter()
             .filter_map(|j| Some((j, backup::split_share(w, plan.get(j)?)?, plan.len())))
@@ -8181,13 +8297,20 @@ impl Faraday {
 
     /// Whether open vault `o` holds share `j` of the wallet with checksum
     /// `cs` (type 13, told by its field 5 and field 3), with this text.
-    pub(crate) fn vault_holds_share(&self, o: usize, cs: &str, j: usize, text: &str) -> bool {
+    pub(crate) fn vault_holds_share(
+        &self,
+        c: &Compute,
+        o: usize,
+        cs: &str,
+        j: usize,
+        text: &str,
+    ) -> bool {
         use faraday_vault::records::field;
         self.vaults.open.get(o).is_some_and(|x| {
             x.contents
                 .records
                 .iter()
-                .any(|r| share_record_is(r, cs, Some(j)) && r.text(field::SHARE) == Some(text))
+                .any(|r| share_record_is(c, r, cs, Some(j)) && r.text(field::SHARE) == Some(text))
         })
     }
 
@@ -8201,7 +8324,7 @@ impl Faraday {
         let Some(w) = self.session.wallets.get(b.wallet) else {
             return false;
         };
-        if self.backup_vault_wanted(v).is_none() {
+        if self.backup_vault_wanted(c, v).is_none() {
             return false;
         }
         let (own_seeds, other_seeds) = self.backup_vault_seeds(v);
@@ -8212,13 +8335,13 @@ impl Faraday {
             && !other_seeds
                 .iter()
                 .any(|&k| self.vault_holds_seed(c, o, k, false))
-            && (!wallet_too || vault_has_wallet(self, o, w))
+            && (!wallet_too || vault_has_wallet(c, self, o, w))
             && self
-                .backup_vault_shares(v)
+                .backup_vault_shares(c, v)
                 .iter()
-                .all(|(j, text, _)| self.vault_holds_share(o, w.checksum(), *j, text))
+                .all(|(j, text, _)| self.vault_holds_share(c, o, w.checksum(), *j, text))
             && self
-                .backup_vault_passphrases(v)
+                .backup_vault_passphrases(c, v)
                 .iter()
                 .all(|&k| self.vault_holds_passphrase(o, k))
     }
@@ -8233,8 +8356,8 @@ impl Faraday {
         let w = self.session.wallets.get(b.wallet)?;
         let wallet_too = b.answers.wallet_in_vault(v);
         let (own_seeds, _) = self.backup_vault_seeds(v);
-        let shares = !self.backup_vault_shares(v).is_empty();
-        let passphrases = !self.backup_vault_passphrases(v).is_empty();
+        let shares = !self.backup_vault_shares(c, v).is_empty();
+        let passphrases = !self.backup_vault_passphrases(c, v).is_empty();
         if own_seeds.is_empty() && !wallet_too && !shares && !passphrases {
             return None;
         }
@@ -8293,23 +8416,30 @@ impl Faraday {
     /// The plan an open vault keeps for wallet `w` (record type 11): its
     /// answers and the places' names. None when no open vault has one,
     /// or it is not for a wallet of this shape.
-    fn plan_load(&self, w: usize, shape: &plan::Shape) -> Option<(plan::Answers, Vec<String>)> {
-        self.plan_load_of(self.session.wallets.get(w)?, shape)
+    fn plan_load(
+        &self,
+        c: &Compute,
+        w: usize,
+        shape: &plan::Shape,
+    ) -> Option<(plan::Answers, Vec<String>)> {
+        self.plan_load_of(c, self.session.wallets.get(w)?, shape)
     }
 
     /// [`Faraday::plan_load`] for a wallet that need not be loaded.
     pub(crate) fn plan_load_of(
         &self,
+        c: &Compute,
         wallet: &wallet::Wallet,
         shape: &plan::Shape,
     ) -> Option<(plan::Answers, Vec<String>)> {
-        (0..self.vaults.open.len()).find_map(|v| self.plan_in_vault(v, wallet, shape))
+        (0..self.vaults.open.len()).find_map(|v| self.plan_in_vault(c, v, wallet, shape))
     }
 
     /// The plan open vault `v` keeps for `wallet` (its type 11 record),
     /// read against `shape`, with the places' names.
     pub(crate) fn plan_in_vault(
         &self,
+        c: &Compute,
         v: usize,
         wallet: &wallet::Wallet,
         shape: &plan::Shape,
@@ -8317,19 +8447,21 @@ impl Faraday {
         use faraday_vault::records::{field, kind};
         let want = wallet::same_wallet(wallet.policy());
         let o = self.vaults.open.get(v)?;
-        o.contents.described_of(kind::PLAN).find_map(|(_, r, d)| {
-            if d.same != want {
-                return None;
-            }
-            let a = plan::Answers::from_text(shape, r.text(field::PLAN_ANSWERS)?)?;
-            let names = r
-                .fields
-                .iter()
-                .filter(|f| f.number == field::PLAN_PLACE)
-                .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
-                .collect();
-            Some((a, names))
-        })
+        o.contents
+            .described_of(c, kind::PLAN)
+            .find_map(|(_, r, d)| {
+                if d.same != want {
+                    return None;
+                }
+                let a = plan::Answers::from_text(shape, r.text(field::PLAN_ANSWERS)?)?;
+                let names = r
+                    .fields
+                    .iter()
+                    .filter(|f| f.number == field::PLAN_PLACE)
+                    .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
+                    .collect();
+                Some((a, names))
+            })
     }
 
     /// Saves the backup's plan into the open vault as record type 11,
@@ -8338,6 +8470,7 @@ impl Faraday {
     /// else. The vault that already keeps a plan for the wallet is the one
     /// written, else the current one.
     fn plan_save(&mut self) {
+        let c = self.compute();
         let Some(b) = self.backup.as_ref() else {
             return;
         };
@@ -8345,7 +8478,7 @@ impl Faraday {
             return;
         };
         let v = self
-            .plan_vault_of(w)
+            .plan_vault_of(&c, w)
             .filter(|_| self.vaults.open.get(self.vaults.current).is_some())
             .unwrap_or(self.vaults.current);
         let (wi, answers, names, extras) = (
@@ -8370,13 +8503,13 @@ impl Faraday {
     }
 
     /// The open vault that keeps a plan (record type 11) for `wallet`.
-    pub(crate) fn plan_vault_of(&self, wallet: &wallet::Wallet) -> Option<usize> {
+    pub(crate) fn plan_vault_of(&self, c: &Compute, wallet: &wallet::Wallet) -> Option<usize> {
         use faraday_vault::records::kind;
         let want = wallet::same_wallet(wallet.policy());
         (0..self.vaults.open.len()).find(|&v| {
             self.vaults.open[v]
                 .contents
-                .described_of(kind::PLAN)
+                .described_of(c, kind::PLAN)
                 .any(|(_, _, d)| d.same == want)
         })
     }
@@ -8418,7 +8551,7 @@ impl Faraday {
             record.push(field::PLAN_PLACE, name.as_bytes());
         }
         // A place with what its sticks keep.
-        for spot in plan::place_map(&shape, answers) {
+        for spot in plan::place_map(&c, &shape, answers) {
             let at = match spot.at {
                 // The map's field names a place by number only; the name
                 // itself lives in field 3 (`field::PLAN_PLACE`) alone.
@@ -8448,7 +8581,7 @@ impl Faraday {
         // This wallet's plan records, by place.
         let ours: Vec<usize> = open
             .contents
-            .described_of(kind::PLAN)
+            .described_of(&c, kind::PLAN)
             .filter(|(_, _, d)| d.same == want)
             .map(|(i, _, _)| i)
             .collect();
@@ -8721,7 +8854,7 @@ impl Faraday {
             .get(w)
             .is_some_and(|wl| b.answers.split && backup::splits(wl));
         let items: Vec<plan::Item> = self
-            .backup_items_now()
+            .backup_items_now(&c)
             .into_iter()
             .filter_map(bstep::item)
             .collect();
@@ -8790,6 +8923,7 @@ impl Faraday {
     /// [`Faraday::public_made`], its pictures and PDFs made only when
     /// `bytes`, else named with no bytes.
     fn public_files(&mut self, wallet: usize, what: u8, bytes: bool) -> Vec<(String, Vec<u8>)> {
+        let c = self.compute();
         let Some(w) = self.session.wallets.get(wallet) else {
             return Vec::new();
         };
@@ -8823,7 +8957,7 @@ impl Faraday {
                 backup::wallet_json(&w.name, w.policy()).into_bytes(),
             )),
             6 => {
-                if let Some(record) = self.wallet_file_text(wallet, 6) {
+                if let Some(record) = self.wallet_file_text(&c, wallet, 6) {
                     files.push((format!("{stem}-bsms.txt"), record.into_bytes()));
                 }
             }
@@ -8836,12 +8970,12 @@ impl Faraday {
                 .into_bytes(),
             )),
             2 => {
-                if let Some(c) = self.wallet_file_text(wallet, 2) {
+                if let Some(c) = self.wallet_file_text(&c, wallet, 2) {
                     files.push((format!("{stem}-multisig-config.txt"), c.into_bytes()));
                 }
             }
             3 if !bytes => files.push((format!("{stem}-backup.pdf"), Vec::new())),
-            3 => match pdf::sheet(&backup::sheet_wallet(&self.session, w)) {
+            3 => match pdf::sheet(&backup::sheet_wallet(&c, &self.session, w)) {
                 Ok(p) => files.push((format!("{stem}-backup.pdf"), p)),
                 Err(e) => self.toast(&fill(EN.public_made_no_pdf, &[&e.to_string()])),
             },
@@ -9247,6 +9381,7 @@ impl Faraday {
             &[&(self.session.wallets.len() + 1).to_string()],
         );
         let i = match self.session.add_wallet(
+            &c,
             &name,
             &record.to_text(),
             EN.create_deal_dealt_here,
@@ -9380,6 +9515,7 @@ impl Faraday {
     /// for one: the wallet loads, or the share is taken. Returns whether
     /// it was.
     fn restore_arrived(&mut self, at: usize) -> bool {
+        let c = self.compute();
         let Some((kind, name)) = self.inbox.get(at).map(|i| (i.kind, i.name.clone())) else {
             return false;
         };
@@ -9398,7 +9534,7 @@ impl Faraday {
                 r.open = Some(rstep::DESCRIPTION);
                 r.scroll.follow = true;
                 let whole =
-                    restore::merge(&self.restore_share_texts()).is_ok_and(|m| m.whole.is_some());
+                    restore::merge(&self.restore_share_texts(&c)).is_ok_and(|m| m.whole.is_some());
                 if whole {
                     self.act(Action::RRebuild);
                 }
@@ -9641,12 +9777,12 @@ impl Faraday {
     }
 
     fn create_make(&mut self) {
-        let c = self.compute();
+        let k = self.compute();
         if self.create.as_ref().is_some_and(|c| c.kind.threshold()) {
             self.create_deal();
             return;
         }
-        let keys = match self.create_keys(&c) {
+        let keys = match self.create_keys(&k) {
             Ok(k) => k,
             Err(e) => {
                 if let Some(c) = self.create.as_mut() {
@@ -9670,6 +9806,7 @@ impl Faraday {
         };
         let before = self.session.wallets.len();
         match self.session.add_wallet(
+            &k,
             &name,
             &descriptor,
             EN.create_make_made_here,
@@ -9707,8 +9844,10 @@ impl Faraday {
         }
     }
 
-    /// The texts of the shares chosen on the restore screen.
-    pub fn restore_share_texts(&self) -> Vec<String> {
+    /// The texts of the shares chosen on the restore screen, and those
+    /// kept in the open vaults, each vault share's wallet read as a
+    /// description no record keeps ([`Faraday::read_kept`]).
+    pub fn restore_share_texts(&self, c: &Compute) -> Vec<String> {
         let Some(r) = self.restore.as_ref() else {
             return Vec::new();
         };
@@ -9731,7 +9870,7 @@ impl Faraday {
                 };
                 let of = rec
                     .text(field::SHARE_WALLET)
-                    .and_then(|d| wallet::read_wallet(d).ok())
+                    .and_then(|d| self.read_kept(c, d))
                     .map(|p| p.checksum().to_string());
                 if wallet.is_some() && of != wallet {
                     continue;
@@ -9754,7 +9893,8 @@ impl Faraday {
     /// Quorum from it: the seeds are matched to its keys next. `origin`
     /// is what `source` is, given by the caller, which already knows.
     fn restore_wallet(&mut self, name: &str, text: &str, source: &str, origin: wallet::Origin) {
-        match self.session.add_wallet(name, text, source, origin) {
+        let c = self.compute();
+        match self.session.add_wallet(&c, name, text, source, origin) {
             Ok(i) => {
                 self.wallet = i;
                 let w = &self.session.wallets[i];
@@ -9893,7 +10033,7 @@ impl Faraday {
                 None => {
                     let text = String::from_utf8_lossy(&bytes).to_string();
                     scan.note = Some(
-                        what_instead_of_a_seed(&text)
+                        what_instead_of_a_seed(&c, &text)
                             .unwrap_or(EN.scanned_not_a_seedqr)
                             .to_string(),
                     );
@@ -9927,7 +10067,7 @@ impl Faraday {
                     // Named, when it is something else.
                     let text = String::from_utf8_lossy(&bytes).to_string();
                     scan.note = Some(
-                        what_instead_of_a_seed(&text)
+                        what_instead_of_a_seed(&c, &text)
                             .unwrap_or(EN.scanned_not_a_seedqr)
                             .to_string(),
                     );
@@ -10227,7 +10367,7 @@ impl Faraday {
             None => {
                 // An address is checked against the loaded wallets, not
                 // filed.
-                if let Some(said) = self.address_note(&text) {
+                if let Some(said) = self.address_note(&c, &text) {
                     if let Some(scan) = self.scan.as_mut() {
                         scan.note = Some(said);
                     }
@@ -10243,7 +10383,7 @@ impl Faraday {
     /// wallet's first hundred on either chain, or none of them (`docs/QR.md`
     /// §2: "Is this address mine?"). `None` when the text is not an
     /// address.
-    fn address_note(&self, text: &str) -> Option<String> {
+    fn address_note(&self, c: &Compute, text: &str) -> Option<String> {
         let t = text.trim();
         let t = t.strip_prefix("bitcoin:").unwrap_or(t);
         let t = t.split('?').next().unwrap_or(t);
@@ -10266,7 +10406,7 @@ impl Faraday {
             ));
         };
         for w in &self.session.wallets {
-            if let Some((change, index)) = w.policy().find_address(net, &addr, 100) {
+            if let Some((change, index)) = w.policy().find_address(c, net, &addr, 100) {
                 let chain = if change {
                     EN.address_note_change
                 } else {
@@ -10376,7 +10516,7 @@ impl Faraday {
                     6
                 };
                 let text = self
-                    .wallet_file_text(i, what)
+                    .wallet_file_text(c, i, what)
                     .ok_or(EN.code_view_this_wallet_has)?;
                 let (title, name) = if what == 2 {
                     (
@@ -10542,14 +10682,13 @@ impl Faraday {
 
     /// A wallet's public text file `what` (as [`Faraday::public_out`]
     /// numbers them): 2 the multisig config, 6 the BIP 129 record.
-    fn wallet_file_text(&self, wallet: usize, what: u8) -> Option<String> {
+    fn wallet_file_text(&self, c: &Compute, wallet: usize, what: u8) -> Option<String> {
         let w = self.session.wallets.get(wallet)?;
         match what {
             2 => backup::multisig_config(w, None),
             6 => {
                 let net = self.session.network();
-                crate::work::count(crate::work::Work::Address);
-                let first = w.policy().address_at(net, false, 0).ok()?;
+                let first = w.policy().address_at(c, net, false, 0).ok()?;
                 Some(
                     osk_bip::bsms::DescriptorRecord {
                         policy: w.policy().clone(),
@@ -10722,7 +10861,7 @@ impl Faraday {
                     }
                     scan_key::Found::Missing(n) => {
                         if label.trim().is_empty() {
-                            label = self.wallet_key_label(w, fp);
+                            label = self.wallet_key_label(&c, w, fp);
                         }
                         for_wallet = Some((w, n));
                     }
@@ -10788,6 +10927,7 @@ impl Faraday {
     }
 
     fn load_wallet(&mut self, index: usize) {
+        let c = self.compute();
         let Some(item) = self.inbox.get(index) else {
             return;
         };
@@ -10810,7 +10950,7 @@ impl Faraday {
         let name = wallet::json_label(&text).unwrap_or(name);
         match self
             .session
-            .add_wallet(&name, &text, &source, wallet::Origin::Named)
+            .add_wallet(&c, &name, &text, &source, wallet::Origin::Named)
         {
             Ok(i) => {
                 self.wallet = i;
@@ -11320,7 +11460,7 @@ impl Faraday {
         // aggregates them; until then the pass changes nothing.
         let musig = self
             .session
-            .wallet_for(&s.spend.psbt)
+            .wallet_for(&c, &s.spend.psbt)
             .and_then(|i| self.session.wallets.get(i))
             .is_some_and(|w| wallet::Kind::of(w.policy()) == wallet::Kind::MuSig);
         if musig && !s.spend.signed_here.is_empty() && s.spend.finish().is_err() {
@@ -12227,8 +12367,9 @@ impl Faraday {
     /// each open vault's records read again when they changed. Called
     /// before every [`Self::render`].
     fn before_frame(&mut self) {
+        let c = self.compute();
         for o in &self.vaults.open {
-            o.contents.warm();
+            o.contents.warm(&c);
         }
     }
 

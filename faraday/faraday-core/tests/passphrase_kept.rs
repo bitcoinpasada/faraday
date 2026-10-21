@@ -188,6 +188,7 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
     let w = app
         .session
         .add_wallet(
+            &c,
             "Spending",
             &format!("wpkh({text}/<0;1>/*)"),
             "test",
@@ -227,7 +228,7 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
     );
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t.starts_with("Matches")), "{texts:?}");
-    let g = faraday_core::glance::of(&c, &app, w).unwrap();
+    let g = faraday_core::glance::of_now(&c, &app, w).unwrap();
     let Backup::Plan { nodes, .. } = &g.backup else {
         panic!("no plan");
     };

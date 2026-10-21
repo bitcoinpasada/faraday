@@ -13,6 +13,7 @@ use crate::strings::fill;
 use crate::word_entry::WordEntry;
 use crate::{BackupState, Faraday, Screen, wallet};
 use osk_bip::bip39::Language;
+use osk_crypto::work::Compute;
 use osk_shell_api::Key as KeyIn;
 use zeroize::Zeroize;
 
@@ -159,35 +160,47 @@ impl Faraday {
     /// The forms of the copies of seed `i` the backup's map keeps, read
     /// from the plan's map ([`Faraday::plan_mapped`]: once a frame while
     /// drawing).
-    pub(crate) fn copy_forms(&self, b: &BackupState, i: usize) -> CopyForms {
+    pub(crate) fn copy_forms(&self, c: &Compute, b: &BackupState, i: usize) -> CopyForms {
         let shape = self.plan_shape(b.wallet);
-        plan::copy_forms_on(&self.plan_mapped(&shape, &b.answers), i)
+        plan::copy_forms_on(&self.plan_mapped(c, &shape, &b.answers), i)
     }
 
     /// What checking seed `i`'s copies asks for with the cameras listed
     /// now.
-    pub(crate) fn copy_checks(&self, b: &BackupState, i: usize, key: &wallet::Key) -> CopyChecks {
-        self.copy_forms(b, i)
+    pub(crate) fn copy_checks(
+        &self,
+        c: &Compute,
+        b: &BackupState,
+        i: usize,
+        key: &wallet::Key,
+    ) -> CopyChecks {
+        self.copy_forms(c, b, i)
             .checks(!self.cameras.is_empty(), key.language == Language::English)
     }
 
     /// Whether every check seed `i`'s copy item asks for has matched in
     /// this backup. A scan of the drawn grid also stands for the words of
     /// a seed with no copy of its words.
-    pub(crate) fn copy_checked(&self, b: &BackupState, i: usize, key: &wallet::Key) -> bool {
+    pub(crate) fn copy_checked(
+        &self,
+        c: &Compute,
+        b: &BackupState,
+        i: usize,
+        key: &wallet::Key,
+    ) -> bool {
         let fp = key.fingerprint().0;
-        let c = self.copy_checks(b, i, key);
+        let checks = self.copy_checks(c, b, i, key);
         let has = |f: CopyForm| b.checked.contains(&(fp, f));
-        (c.typed || c.scan)
-            && (!c.typed
+        (checks.typed || checks.scan)
+            && (!checks.typed
                 || has(CopyForm::Words)
-                || (!self.copy_forms(b, i).words && has(CopyForm::SeedQr)))
-            && (!c.scan || has(CopyForm::SeedQr))
+                || (!self.copy_forms(c, b, i).words && has(CopyForm::SeedQr)))
+            && (!checks.scan || has(CopyForm::SeedQr))
     }
 
     /// Whether seed `fp`'s copy item is done in the backup under way; a
     /// seed the backup has no item for is checked by any match.
-    pub(crate) fn seed_copy_checked(&self, fp: [u8; 4]) -> bool {
+    pub(crate) fn seed_copy_checked(&self, c: &Compute, fp: [u8; 4]) -> bool {
         let Some(b) = self.backup.as_ref() else {
             return false;
         };
@@ -200,7 +213,7 @@ impl Faraday {
                 (key.fingerprint().0 == fp).then_some((i, key))
             });
         match at {
-            Some((i, key)) => self.copy_checked(b, i, key),
+            Some((i, key)) => self.copy_checked(c, b, i, key),
             None => b.checked.iter().any(|(f, _)| *f == fp),
         }
     }

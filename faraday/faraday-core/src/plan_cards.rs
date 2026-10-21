@@ -24,6 +24,8 @@ pub(crate) struct PlanCtx {
     /// The plan mapped, with its check: once a frame through the drawing
     /// memo ([`Faraday::plan_mapped`]).
     pub mapped: std::rc::Rc<plan::Mapped>,
+    /// The plan's check, kept with its map ([`View::plan_check`]).
+    pub check: plan::Check,
     /// What each place is called; "Place 1" where it has no name.
     pub names: Vec<String>,
     /// A wallet flow's plan, by index; `None` for Back up's.
@@ -50,6 +52,7 @@ impl PlanCtx {
             .collect();
         Some(PlanCtx {
             mapped: app.plan_mapped(&shape, &a),
+            check: app.plan_check(&shape, &a),
             shape,
             answers: a,
             names,
@@ -84,6 +87,7 @@ impl PlanCtx {
             .collect();
         Some(PlanCtx {
             mapped: app.plan_mapped(&wf.shape, &a),
+            check: app.plan_check(&wf.shape, &a),
             shape: wf.shape.clone(),
             answers: a,
             names,
@@ -130,7 +134,7 @@ pub(crate) fn q_title(q: u8) -> String {
 
 /// A plan card's line while it is closed: its answers.
 pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> String {
-    let (shape, a) = (&ctx.shape, &ctx.answers);
+    let a = &ctx.answers;
     match q {
         qstep::BOARD => {
             if a.places == 1 {
@@ -141,7 +145,7 @@ pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> String {
         }
         qstep::SOFTWARE => ticked(&SOFTWARE_ROWS, &a.software),
         _ => {
-            let c = ctx.mapped.check(shape, a);
+            let c = ctx.check;
             let lost = if c.single && c.lost == plan::Lost::No {
                 EN.plan_no_single_place
             } else {
@@ -341,7 +345,7 @@ pub(crate) fn map_rows(
 /// The check under the map: its three lines, each with its value, and
 /// why "Any one place lost" reads No. Returns its height.
 pub(crate) fn check_rows(app: &View, ui: &mut Ui, ctx: &PlanCtx, x: f32, y: f32, w: f32) -> f32 {
-    let c = ctx.mapped.check(&ctx.shape, &ctx.answers);
+    let c = ctx.check;
     let name = |p: usize| ctx.name(p);
     let mut h = crate::glance::check_lines(ui, x, y, w, c, false, &name);
     // Why "Any one place lost" reads No (`docs/NEW-WALLET.md` §14.2).

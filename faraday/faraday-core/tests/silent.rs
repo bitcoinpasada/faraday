@@ -330,13 +330,14 @@ fn a_silent_payments_wallet_saved_into_a_vault_reads_back_as_itself() {
     let open = &app.vaults.open[0];
     let (_, saved) = open.contents.of(kind::WALLET).last().unwrap();
     let text = saved.text(field::WALLET).unwrap();
-    let back = faraday_core::wallet::read_wallet(text).expect("the saved wallet reads back");
+    let back = faraday_core::wallet::read_wallet(&c, text).expect("the saved wallet reads back");
     assert_eq!(back.silent(), app.session.wallets[w].policy().silent());
     assert_eq!(back.silent().unwrap().labels, 1);
 }
 
 #[test]
 fn after_a_label_is_handed_out_the_wallets_checksum_is_its_exported_files() {
+    let c = faraday_core::testkit::compute();
     let mut app = with_key();
     app.press(Action::Silent);
     app.press(Action::SAddWallet);
@@ -349,7 +350,8 @@ fn after_a_label_is_handed_out_the_wallets_checksum_is_its_exported_files() {
     assert_eq!(before, after);
     app.press(Action::SRecord);
     let text = String::from_utf8(app.outbox[0].bytes.clone()).unwrap();
-    let exported = faraday_core::wallet::read_wallet(&text).expect("the file reads as a wallet");
+    let exported =
+        faraday_core::wallet::read_wallet(&c, &text).expect("the file reads as a wallet");
     assert_eq!(exported.silent().unwrap().labels, 2);
     assert_eq!(exported.checksum(), after);
 }

@@ -70,11 +70,11 @@ impl Faraday {
 
     /// The name a key of wallet `w` loads under: who holds it, as the
     /// backup's plan keeps it, else none.
-    pub(crate) fn wallet_key_label(&self, w: usize, fp: Fingerprint) -> String {
+    pub(crate) fn wallet_key_label(&self, c: &Compute, w: usize, fp: Fingerprint) -> String {
         let Some(wl) = self.session.wallets.get(w) else {
             return String::new();
         };
-        self.plan_notes(wl, None)
+        self.plan_notes(c, wl, None)
             .into_iter()
             .find_map(|n| match n {
                 crate::plan::Note::Holder(f, name) if f == fp.0 => Some(name),
@@ -101,7 +101,7 @@ impl Faraday {
         let Some(wl) = self.session.wallets.get(w) else {
             return Vec::new();
         };
-        let glance = crate::glance::of(c, self, w);
+        let glance = crate::glance::of_now(c, self, w);
         let place = |n: usize| -> Option<String> {
             let g = glance.as_ref()?;
             let seed = g.keys.get(n)?.seed?;
@@ -155,7 +155,7 @@ impl Faraday {
                 }
             }
             Found::Missing(n) => {
-                let label = self.wallet_key_label(w, fp);
+                let label = self.wallet_key_label(&c, w, fp);
                 match self.session.add_words_with(&c, words, "", &label, None) {
                     Ok(_) => self.wallet_key_added(w, n),
                     Err(e) => {

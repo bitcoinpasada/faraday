@@ -786,11 +786,10 @@ impl Faraday {
             match crate::restore::merge(&shares) {
                 Ok(m) => match m.whole {
                     Some(whole) => {
-                        let name = osk_bip::multisig_config::parse_named(&whole)
-                            .ok()
-                            .and_then(|(_, n)| n)
+                        let name = self
+                            .config_name_kept(c, &whole)
                             .unwrap_or_else(|| EN.inbox_restored_wallet.to_string());
-                        if let Some(p) = self.read_kept(&whole) {
+                        if let Some(p) = self.read_kept(c, &whole) {
                             let loaded = loaded_desc.contains(&crate::wallet::same_wallet(&p));
                             push_wallet(&mut found, name, p, None, true, loaded);
                         }
@@ -817,7 +816,7 @@ impl Faraday {
             let policy = if w.policy().silent().is_some() {
                 continue;
             } else if w.policy().record().is_some() {
-                match self.read_kept(&w.policy().to_descriptor()) {
+                match self.read_kept(c, &w.policy().to_descriptor()) {
                     Some(p) => p,
                     None => continue,
                 }
@@ -967,7 +966,7 @@ impl Faraday {
                 .map_or(EN.inbox_its_shares.to_string(), |k| items[*k].name.clone());
             if self
                 .session
-                .add_wallet(&name, &text, &source, crate::wallet::Origin::Named)
+                .add_wallet(&c, &name, &text, &source, crate::wallet::Origin::Named)
                 .is_ok()
             {
                 wallets += 1;
@@ -1001,7 +1000,7 @@ impl Faraday {
             };
             if self
                 .session
-                .add_wallet(&name, &text, &source, crate::wallet::Origin::Named)
+                .add_wallet(&c, &name, &text, &source, crate::wallet::Origin::Named)
                 .is_ok()
             {
                 n += 1;
@@ -1077,6 +1076,7 @@ impl Faraday {
 
     /// Makes the watch-only wallet an account xpub describes.
     fn xpub_make(&mut self) {
+        let c = self.compute();
         let Some((key, kind, fp)) = self.potential.as_ref().and_then(|p| {
             p.xpub
                 .as_ref()
@@ -1095,6 +1095,7 @@ impl Faraday {
             ],
         );
         match self.session.add_wallet(
+            &c,
             &name,
             &descriptor,
             EN.inbox_an_xpub_in_files,
@@ -1291,6 +1292,7 @@ impl Faraday {
         let descriptor = kind.descriptor(1, &[text]);
         let name = format!("{} · {}", fp_text(fp), crate::family::kind_name(kind));
         match self.session.add_wallet(
+            &c,
             &name,
             &descriptor,
             EN.inbox_a_seed_in_files,
@@ -1349,6 +1351,7 @@ impl Faraday {
                 };
                 self.session
                     .add_wallet(
+                        &c,
                         &name,
                         &text,
                         &item_name(self, k),

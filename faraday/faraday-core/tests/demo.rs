@@ -218,6 +218,7 @@ fn on_a_test_network_the_gpg_key_screen_does_not_name_the_demo_page_first() {
 /// A one-key wallet over bacon, its backup's checklist made from Paper
 /// only, the copy open and shown.
 fn backing_up(app: &mut Faraday) -> usize {
+    let c = faraday_core::testkit::compute();
     let fp = a_key(app);
     app.press(Action::KeyWallet(fp, 1));
     app.press(Action::Seeds(S::Make));
@@ -226,7 +227,7 @@ fn backing_up(app: &mut Faraday) -> usize {
     faraday_core::testkit::backup_as(app, Preset::Paper);
     app.press(Action::BQ(qstep::PLAN));
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&bstep::BLANK) {
+    if app.backup_items_now(&c).contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
     if app.backup.as_ref().unwrap().open != Some(bstep::COPY) {
@@ -316,7 +317,7 @@ fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished()
     }
     app.press(Action::BQ(qstep::PLAN));
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&bstep::BLANK) {
+    if app.backup_items_now(&c).contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
     // The copy, typed back.
@@ -341,7 +342,7 @@ fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished()
         Item::Copy(0),
         Item::Envelopes,
     ] {
-        if app.backup_items_now().contains(&item_step(item)) {
+        if app.backup_items_now(&c).contains(&item_step(item)) {
             assert!(app.backup_item_done_now(&c, item), "{item:?} is not done");
         }
     }

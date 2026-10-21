@@ -195,6 +195,7 @@ fn unlock_made(app: &mut Faraday) {
 /// again once the same vault is unlocked.
 #[test]
 fn a_place_names_name_never_leaves_the_vault() {
+    let c = faraday_core::testkit::compute();
     let mut app = device(Vec::new());
     made_and_unlocked(&mut app);
     let w = one_key(&mut app);
@@ -211,7 +212,10 @@ fn a_place_names_name_never_leaves_the_vault() {
     assert_eq!(app.place_name(0), NAME);
     app.press(Action::BQ(qstep::PLAN));
     press_offered(&mut app, Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     app.press(Action::BReveal);

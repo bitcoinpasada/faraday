@@ -79,6 +79,7 @@ fn one_key(app: &mut Faraday) -> usize {
         .unwrap();
     app.session
         .add_wallet(
+            &c,
             "Spending",
             &format!("wpkh({text}/<0;1>/*)"),
             "test",
@@ -90,10 +91,12 @@ fn one_key(app: &mut Faraday) -> usize {
 /// Test keys 1 and 2 typed in and the 2-of-3 over the three test keys:
 /// the third is a cosigner's. Returns its index.
 fn two_of_three(app: &mut Faraday) -> usize {
+    let c = faraday_core::testkit::compute();
     add_key(app, 0);
     add_key(app, 1);
     app.session
         .add_wallet(
+            &c,
             "Savings",
             &testkit::savings(),
             "test",
@@ -105,10 +108,14 @@ fn two_of_three(app: &mut Faraday) -> usize {
 /// The backup of wallet `w` planned with preset `preset` and its
 /// checklist made; then the wallet's card.
 fn planned(app: &mut Faraday, w: usize, preset: u8) {
+    let c = faraday_core::testkit::compute();
     app.press(Action::Backup(w));
     preset_saved(app, preset);
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     app.press(Action::OpenWallet(w));
@@ -117,7 +124,7 @@ fn planned(app: &mut Faraday, w: usize, preset: u8) {
 
 fn chart(app: &Faraday, w: usize) -> Glance {
     let c = testkit::compute();
-    faraday_core::glance::of(&c, app, w).expect("the wallet has a chart")
+    faraday_core::glance::of_now(&c, app, w).expect("the wallet has a chart")
 }
 
 fn nodes(g: &Glance) -> Vec<BackupNode> {
@@ -462,6 +469,7 @@ fn after_a_lock_the_wallet_loaded_again_still_charts_its_plan() {
 
 #[test]
 fn a_wallet_loaded_from_its_vault_on_another_power_on_charts_the_vaults_plan() {
+    let c = faraday_core::testkit::compute();
     let mut app = desktop();
     let w = one_key(&mut app);
     // A vault made and open, the plan made with it, the seed and the
@@ -486,7 +494,10 @@ fn a_wallet_loaded_from_its_vault_on_another_power_on_charts_the_vaults_plan() {
     planned(&mut app, w, 2);
     app.press(Action::Backup(w));
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     app.press(Action::BVaultSave(0));
@@ -580,6 +591,7 @@ fn the_layout_reads_wallet_first_or_backup_first_and_no_line_crosses_a_node() {
 /// its seed saved into it; then the wallet saved into it. Then the
 /// vault's wallets, the first chosen.
 fn vault_holding(app: &mut Faraday, w: usize, plan: bool) {
+    let c = faraday_core::testkit::compute();
     for i in 0..8u8 {
         app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
             [0x40 + i; 32],
@@ -601,7 +613,10 @@ fn vault_holding(app: &mut Faraday, w: usize, plan: bool) {
         planned(app, w, 2);
         app.press(Action::Backup(w));
         app.press(Action::BChecklist);
-        if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+        if app
+            .backup_items_now(&c)
+            .contains(&faraday_core::bstep::BLANK)
+        {
             app.press(Action::BNext(faraday_core::bstep::BLANK));
         }
         app.press(Action::BVaultSave(0));

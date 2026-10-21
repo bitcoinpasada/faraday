@@ -59,6 +59,7 @@ fn add_key(app: &mut Faraday, words: &str) -> [u8; 4] {
 
 #[test]
 fn a_key_with_no_wallet_makes_the_bip84_wallet() {
+    let c = faraday_core::testkit::compute();
     let mut app = desktop();
     let fp = add_key(&mut app, ABANDON);
     assert_eq!(app.screen, Screen::Wallets);
@@ -83,7 +84,7 @@ fn a_key_with_no_wallet_makes_the_bip84_wallet() {
         .filter(|s| s.held_by.is_some())
         .count();
     assert!(here >= needed(w), "the wallet cannot sign here");
-    assert_eq!(app.session.address(w, false, 0), BIP84_FIRST);
+    assert_eq!(app.session.address(&c, w, false, 0), BIP84_FIRST);
 }
 
 #[test]

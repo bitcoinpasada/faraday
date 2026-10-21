@@ -849,7 +849,8 @@ fn a_single_key_create_opens_on_back_up_and_the_key_card_holds_the_address_back(
     assert!(c.done[faraday_core::cstep::CHECK as usize]);
     let w = c.built.expect("the wallet is made");
     let wallet = &app.session.wallets[w];
-    let first = faraday_core::ui::grouped(&app.session.address_shown(wallet, false, 0));
+    let k = faraday_core::testkit::compute();
+    let first = faraday_core::ui::grouped(&app.session.address_shown(&k, wallet, false, 0));
     assert!(!on_key.contains(&first), "{first} shown while held");
 }
 

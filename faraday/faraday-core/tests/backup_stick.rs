@@ -22,11 +22,12 @@ fn names() -> Vec<String> {
 }
 
 fn first_address(text: &str) -> String {
+    let c = faraday_core::testkit::compute();
     let mut s = testkit::session();
     let i = s
-        .add_wallet("w", text, "test", faraday_core::wallet::Origin::Named)
+        .add_wallet(&c, "w", text, "test", faraday_core::wallet::Origin::Named)
         .unwrap();
-    s.address(&s.wallets[i], false, 0)
+    s.address(&c, &s.wallets[i], false, 0)
 }
 
 fn taproot_multisig() -> String {
@@ -283,7 +284,10 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     app.press(Action::Backup(0));
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     if app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {

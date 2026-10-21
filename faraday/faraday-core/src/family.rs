@@ -291,13 +291,13 @@ impl Faraday {
     /// stands in for the transaction.
     /// Reads what each file said when it came in ([`crate::Item::psbt`])
     /// and the scripts each wallet keeps: lookups once kept.
-    pub fn psbt_for(&self, w: usize) -> Option<usize> {
+    pub fn psbt_for(&self, c: &Compute, w: usize) -> Option<usize> {
         self.inbox
             .iter()
             .enumerate()
             .filter_map(|(k, it)| {
                 let seen = it.psbt()?;
-                (self.session.spends_from(seen) == Some(w)).then_some((seen.sigs, k))
+                (self.session.spends_from(c, seen) == Some(w)).then_some((seen.sigs, k))
             })
             .min()
             .map(|(_, k)| k)
@@ -342,7 +342,7 @@ impl Faraday {
                 self.carry_on(),
             );
         }
-        let label = match self.psbt_for(w) {
+        let label = match self.psbt_for(c, w) {
             Some(_) => fill(EN.family_sign_the_psbt, &[self.medium.noun()]),
             None => EN.family_spend_from_this.to_string(),
         };
@@ -663,7 +663,7 @@ impl Faraday {
                 self.family.closed[page::MAP as usize] = true;
                 self.family.closed[page::SAFE as usize] = true;
                 self.family.walkthrough = true;
-                let psbt = self.psbt_for(i);
+                let psbt = self.psbt_for(&c, i);
                 match (self.spend.as_ref().map(|s| s.wallet), psbt) {
                     (Some(Some(w)), _) if w == i => self.family.open = Some(Open::Spend),
                     (_, Some(k)) if self.spend.is_none() => self.family_use_psbt(k),
@@ -757,6 +757,7 @@ impl Faraday {
     /// The wallet to spend from, when the session says which: the only
     /// one, or the one a PSBT waiting in Files spends from.
     fn family_choose_only(&mut self) {
+        let c = self.compute();
         if self.family_wallet().is_some() {
             return;
         }
@@ -764,7 +765,7 @@ impl Faraday {
         let by_psbt = || {
             self.lead_psbt()
                 .and_then(|i| self.inbox[i].psbt())
-                .and_then(|p| self.session.spends_from(p))
+                .and_then(|p| self.session.spends_from(&c, p))
         };
         if let Some(i) = only.or_else(by_psbt) {
             self.family.wallet = Some(self.session.wallets[i].name.clone());
@@ -939,7 +940,7 @@ impl Faraday {
         };
         let note = match self.wallet_key_found(w, fp) {
             Found::Missing(_) => {
-                let label = self.wallet_key_label(w, fp);
+                let label = self.wallet_key_label(&c, w, fp);
                 match self.session.add_words_with(&c, words, "", &label, None) {
                     Ok(_) => {
                         self.family_came(Came::Seed(fp.0));
@@ -1029,6 +1030,7 @@ impl Faraday {
     /// shown by the transaction, not guessed. It does not start the
     /// spend; Bring the transaction here finds it in Files.
     fn family_psbt_kinds(&mut self, index: usize) {
+        let c = self.compute();
         if self.family_ready() || self.family_question() != Question::Anything {
             return;
         }
@@ -1038,7 +1040,7 @@ impl Faraday {
         for kind in SINGLE {
             self.family_words_kind(kind);
             if self.family_wallet().is_some()
-                && self.session.spends_from(&p) == self.family_wallet()
+                && self.session.spends_from(&c, &p) == self.family_wallet()
             {
                 self.family.everything = true;
                 self.family.guess = None;
@@ -1194,6 +1196,7 @@ impl Faraday {
         let name = self.session.wallets[w].name.clone();
         self.session.wallets.remove(w);
         match self.session.add_wallet(
+            &c,
             &name,
             &d,
             crate::seeds::SOURCE,
@@ -1334,6 +1337,7 @@ impl Faraday {
             .retain(|w| w.origin != crate::wallet::Origin::TypedWords);
         let name = fill(EN.family_words, &[kind_name(kind)]);
         match self.session.add_wallet(
+            &c,
             &name,
             &descriptor,
             WORDS_SOURCE,
@@ -1362,11 +1366,12 @@ impl Faraday {
     }
 
     fn family_use_wallet(&mut self, index: usize) {
+        let c = self.compute();
         let Some(item) = self.inbox.get(index) else {
             return;
         };
         let text = String::from_utf8_lossy(&item.bytes).into_owned();
-        let name = osk_bip::multisig_config::parse_named(&text)
+        let name = osk_bip::multisig_config::parse_named(&c, &text)
             .ok()
             .and_then(|(_, n)| n)
             .or_else(|| crate::wallet::json_label(&text))
@@ -1374,7 +1379,7 @@ impl Faraday {
         let source = item.name.clone();
         match self
             .session
-            .add_wallet(&name, &text, &source, crate::wallet::Origin::Named)
+            .add_wallet(&c, &name, &text, &source, crate::wallet::Origin::Named)
         {
             Ok(i) => {
                 self.family.wallet = Some(self.session.wallets[i].name.clone());
@@ -1410,6 +1415,7 @@ impl Faraday {
     /// The split sheets in the Inbox, put together. Says what is still
     /// missing only when asked (`loud`).
     fn family_rebuild(&mut self, loud: bool) {
+        let c = self.compute();
         let texts: Vec<String> = self
             .inbox
             .iter()
@@ -1422,11 +1428,12 @@ impl Faraday {
         match crate::restore::merge(&texts) {
             Ok(m) => match m.whole {
                 Some(whole) => {
-                    let name = osk_bip::multisig_config::parse_named(&whole)
+                    let name = osk_bip::multisig_config::parse_named(&c, &whole)
                         .ok()
                         .and_then(|(_, n)| n)
                         .unwrap_or_else(|| EN.family_restored_wallet.to_string());
                     match self.session.add_wallet(
+                        &c,
                         &name,
                         &whole,
                         EN.family_its_shares,

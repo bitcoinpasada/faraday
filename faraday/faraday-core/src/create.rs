@@ -543,8 +543,13 @@ fn named_agrees(kind: NewKind, text: &str) -> bool {
 }
 
 /// Builds and reads back the wallet a creation describes.
-pub fn build(kind: NewKind, m: usize, keys: &[String]) -> Result<WalletPolicy, String> {
-    WalletPolicy::parse_any(&kind.descriptor(m, keys)).map_err(|e| e.to_string())
+pub fn build(
+    c: &Compute,
+    kind: NewKind,
+    m: usize,
+    keys: &[String],
+) -> Result<WalletPolicy, String> {
+    WalletPolicy::parse_any(c, &kind.descriptor(m, keys)).map_err(|e| e.to_string())
 }
 
 /// A wallet's derivation paths as Make a new wallet's Check shows them

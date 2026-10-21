@@ -981,7 +981,7 @@ impl Faraday {
         // (`docs/BACKUP-FLOW.md` §19.16 item 3).
         let m = plan::stored_map(&shape, &a);
         // The plan's map and its check, once for every line below.
-        let mapped = self.plan_mapped(&shape, &a);
+        let mapped = self.plan_mapped(c, &shape, &a);
         let kept = plan::kept_vaults(&m);
         let custom = a.custom;
         let places = plan::places_of(&m).max(1);
@@ -1009,7 +1009,7 @@ impl Faraday {
             }
         }
         let things: Vec<Vec<Thing>> = (0..places).map(|p| things_at(&m, p)).collect();
-        let lost_no = mapped.check(&shape, &a).lost == plan::Lost::No;
+        let lost_no = mapped.check(c, &shape, &a).lost == plan::Lost::No;
         for (p, here) in things.iter().enumerate() {
             for i in shape.here() {
                 // A passphrase beside its seed's words, on paper or a stick
@@ -1388,7 +1388,7 @@ impl Faraday {
             custom,
             names_typed,
             naming,
-            check: mapped.check(&shape, &a),
+            check: mapped.check(c, &shape, &a),
             shape,
         })
     }
@@ -1595,6 +1595,7 @@ impl Faraday {
 
     /// A press on the board (`docs/BACKUP-FLOW.md` §19.2, §19.3).
     pub(crate) fn board_act(&mut self, press: BoardPress) {
+        let c = self.compute();
         let Some(state) = self.board_state().cloned() else {
             return;
         };
@@ -1711,7 +1712,7 @@ impl Faraday {
                 if locked {
                     return self.toast(EN.backup_flow_files_after_lock);
                 }
-                self.board_change(&|a, shape| a.toggle_software(shape));
+                self.board_change(&|a, shape| a.toggle_software(&c, shape));
             }
             BoardPress::SeesKeep => {
                 if let Some(st) = self.board_state_mut() {
@@ -1739,7 +1740,7 @@ impl Faraday {
                     return self.board_change(&|a, shape| a.remove_partials(shape));
                 }
                 self.board_change(&|a, shape| {
-                    a.add_partials(shape);
+                    a.add_partials(&c, shape);
                 });
                 self.board_partials_ask();
             }
@@ -2248,9 +2249,10 @@ impl Faraday {
             if self.board_locked().is_some() {
                 return self.toast(EN.backup_flow_files_after_lock);
             }
+            let k = self.compute();
             return self.board_change(&|a, shape| {
-                if !a.software_on(shape) {
-                    a.toggle_software(shape);
+                if !a.software_on(&k, shape) {
+                    a.toggle_software(&k, shape);
                 }
             });
         }
@@ -2303,6 +2305,7 @@ impl Faraday {
     /// state as it is: the check of each place before and after, a map
     /// worked out each.
     fn board_sees_ask(&mut self, was: Answers) {
+        let c = self.compute();
         let Some((shape, now)) = self.board_plan() else {
             return;
         };
@@ -2312,8 +2315,8 @@ impl Faraday {
         let places = now.places.min(was.places);
         // Each plan mapped once for every place asked of it.
         let (now_m, was_m) = (
-            plan::Mapped::of(&shape, &now),
-            plan::Mapped::of(&shape, &was),
+            plan::Mapped::of(&c, &shape, &now),
+            plan::Mapped::of(&c, &shape, &was),
         );
         // Nearer a spend, at a place keeping more than one seed that
         // signs (§19.22): asked before the balance. A single key's one
@@ -2378,12 +2381,13 @@ impl Faraday {
     /// them handed out again, every place one (`docs/BACKUP-FLOW.md`
     /// §19.19 item 1). Works out the hand-out, a search.
     fn board_partials_refresh(&mut self) {
+        let c = self.compute();
         if self.board_locked().is_some() || !self.board_plan().is_some_and(|(_, a)| a.partials_on())
         {
             return;
         }
         self.board_change(&|a, shape| {
-            a.add_partials(shape);
+            a.add_partials(&c, shape);
         });
     }
 
@@ -2392,6 +2396,7 @@ impl Faraday {
     /// place** where taking it off leaves any `M` places able to rebuild
     /// it. Works out the hand-out again, a search.
     fn board_partials_ask(&mut self) {
+        let c = self.compute();
         let Some((shape, a)) = self.board_plan() else {
             return;
         };
@@ -2399,11 +2404,11 @@ impl Faraday {
             return;
         }
         let whole: Vec<String> = a
-            .whole_at(&shape)
+            .whole_at(&c, &shape)
             .into_iter()
             .map(|p| self.board_place_name(p))
             .collect();
-        let rebuilds = plan::hand_out(&shape, &a).rebuilds;
+        let rebuilds = plan::hand_out(&c, &shape, &a).rebuilds;
         let line = match whole.as_slice() {
             [] => EN.board_partials_each.to_string(),
             [one] => format!(

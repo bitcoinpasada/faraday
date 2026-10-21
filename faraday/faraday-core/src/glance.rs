@@ -21,11 +21,152 @@ use osk_crypto::work::Compute;
 use osk_ui::{Color, tokens};
 
 use crate::backup::Tone;
+use crate::drawing::View;
 use crate::plan::{self, At, Tag, What};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::{Session, fp_text};
 use crate::{Action, Faraday};
+
+/// What the chart, its sheet and the checklist's titles read of the app
+/// that a frame keeps: through [`View`]'s memo and kept accessors while a
+/// frame is drawn, and worked out from the state as it is by [`Now`] for
+/// a decision (`docs/COMPUTE.md` §4). Each says what it reads.
+pub(crate) trait Reads {
+    /// The app, read only.
+    fn app(&self) -> &Faraday;
+    /// What loaded wallet `w`'s plan is for ([`Faraday::plan_shape_now`]).
+    fn plan_shape(&self, w: usize) -> plan::Shape;
+    /// The keys here that are held ([`Faraday::held_keys_now`]).
+    fn held_keys(&self) -> Vec<osk_bip::keys::Fingerprint>;
+    /// Every wallet known and where its backup is
+    /// ([`Faraday::backups_now`]).
+    fn backups(&self) -> Vec<crate::backups::Entry>;
+    /// Whether open vaults keep a seed without a passphrase
+    /// ([`Faraday::vault_passphrase_seeds_now`]).
+    fn passphrase_seeds(&self) -> bool;
+    /// Where the seed of wallet slot `slot` is in the open vaults
+    /// ([`Faraday::vault_key_for`]).
+    fn vault_key_for(&self, slot: &crate::wallet::Slot) -> Option<(usize, usize)>;
+    /// The plan an open vault keeps for `wallet` ([`Faraday::plan_load_of`]).
+    fn plan_load_of(
+        &self,
+        wallet: &crate::wallet::Wallet,
+        shape: &plan::Shape,
+    ) -> Option<(plan::Answers, Vec<String>)>;
+    /// The plan open vault `v` keeps for `wallet` ([`Faraday::plan_in_vault`]).
+    fn plan_in_vault(
+        &self,
+        v: usize,
+        wallet: &crate::wallet::Wallet,
+        shape: &plan::Shape,
+    ) -> Option<(plan::Answers, Vec<String>)>;
+    /// The notes the vaults keep on `wallet` ([`Faraday::plan_notes`]).
+    fn plan_notes(&self, wallet: &crate::wallet::Wallet, v: Option<usize>) -> Vec<plan::Note>;
+    /// A vault key record's fingerprint
+    /// ([`crate::vault_screens::key_fingerprint`]).
+    fn key_fingerprint(&self, r: &faraday_vault::Record) -> Option<String>;
+    /// The wallet description record `r` of open vault records `o` holds
+    /// ([`crate::vaults::VaultRecords::described`]).
+    fn described<'o>(
+        &self,
+        o: &'o crate::vaults::VaultRecords,
+        r: usize,
+    ) -> Option<&'o crate::vaults::Described>;
+    /// A plan's map ([`Faraday::plan_mapped`]).
+    fn plan_mapped(&self, shape: &plan::Shape, a: &plan::Answers) -> std::rc::Rc<plan::Mapped>;
+    /// A plan's check on its map ([`plan::Mapped::check`]).
+    fn plan_check(&self, shape: &plan::Shape, a: &plan::Answers) -> plan::Check;
+    /// Whether a checklist item is done ([`Faraday::backup_item_done_now`]).
+    fn backup_item_done(&self, item: plan::Item) -> bool;
+    /// The public files of loaded wallet `wi` under answers `a`
+    /// ([`Faraday::backup_public_names_for_now`]).
+    fn backup_public_names_for(&self, wi: usize, a: &plan::Answers) -> Vec<String>;
+    /// The open vault the backup's vault `v` is saved in
+    /// ([`Faraday::backup_vault_fits`]).
+    fn backup_vault_fits(&self, v: usize) -> Option<String>;
+    /// The sticks the wallet being backed up is written to
+    /// ([`Faraday::wallet_stick_rows_now`]).
+    fn wallet_stick_rows(&self) -> Vec<crate::drawing::StickRow>;
+}
+
+/// The app as a decision reads it: every answer worked out from the
+/// state as it is, with the caller's token ([`Reads`]).
+pub(crate) struct Now<'a> {
+    /// The app.
+    pub app: &'a Faraday,
+    /// The caller's token.
+    pub c: &'a Compute,
+}
+
+impl Reads for Now<'_> {
+    fn app(&self) -> &Faraday {
+        self.app
+    }
+    fn plan_shape(&self, w: usize) -> plan::Shape {
+        self.app.plan_shape_now(w)
+    }
+    fn held_keys(&self) -> Vec<osk_bip::keys::Fingerprint> {
+        self.app.held_keys_now(self.c)
+    }
+    fn backups(&self) -> Vec<crate::backups::Entry> {
+        self.app.backups_now(self.c)
+    }
+    fn passphrase_seeds(&self) -> bool {
+        !self.app.vault_passphrase_seeds_now(self.c).is_empty()
+    }
+    fn vault_key_for(&self, slot: &crate::wallet::Slot) -> Option<(usize, usize)> {
+        self.app.vault_key_for(self.c, slot)
+    }
+    fn plan_load_of(
+        &self,
+        wallet: &crate::wallet::Wallet,
+        shape: &plan::Shape,
+    ) -> Option<(plan::Answers, Vec<String>)> {
+        self.app.plan_load_of(self.c, wallet, shape)
+    }
+    fn plan_in_vault(
+        &self,
+        v: usize,
+        wallet: &crate::wallet::Wallet,
+        shape: &plan::Shape,
+    ) -> Option<(plan::Answers, Vec<String>)> {
+        self.app.plan_in_vault(self.c, v, wallet, shape)
+    }
+    fn plan_notes(&self, wallet: &crate::wallet::Wallet, v: Option<usize>) -> Vec<plan::Note> {
+        self.app.plan_notes(self.c, wallet, v)
+    }
+    fn key_fingerprint(&self, r: &faraday_vault::Record) -> Option<String> {
+        crate::vault_screens::key_fingerprint(self.c, self.app, r)
+    }
+    fn described<'o>(
+        &self,
+        o: &'o crate::vaults::VaultRecords,
+        r: usize,
+    ) -> Option<&'o crate::vaults::Described> {
+        o.described(self.c, r)
+    }
+    fn plan_mapped(&self, shape: &plan::Shape, a: &plan::Answers) -> std::rc::Rc<plan::Mapped> {
+        self.app.plan_mapped(self.c, shape, a)
+    }
+    fn plan_check(&self, shape: &plan::Shape, a: &plan::Answers) -> plan::Check {
+        self.app
+            .plan_mapped(self.c, shape, a)
+            .check(self.c, shape, a)
+    }
+    fn backup_item_done(&self, item: plan::Item) -> bool {
+        self.app.backup_item_done_now(self.c, item)
+    }
+    fn backup_public_names_for(&self, wi: usize, a: &plan::Answers) -> Vec<String> {
+        self.app.backup_public_names_for_now(self.c, wi, a)
+    }
+    fn backup_vault_fits(&self, v: usize) -> Option<String> {
+        self.app.backup_vault_fits(self.c, v)
+    }
+    fn wallet_stick_rows(&self) -> Vec<crate::drawing::StickRow> {
+        self.app.wallet_stick_rows_now(self.c)
+    }
+}
 
 /// The chart of one wallet.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -171,17 +312,30 @@ pub struct BackupNode {
 
 /// The plan the chart draws for loaded wallet `w`, with the places'
 /// names: the backup under way once its checklist is made, else this
-/// power-on's record of it, else an open vault's.
-pub fn plan_of(app: &Faraday, w: usize) -> Option<(plan::Answers, Vec<String>)> {
+/// power-on's record of it, else an open vault's. Drawing's form, through
+/// the memo and the kept values.
+pub fn plan_of(v: &View, w: usize) -> Option<(plan::Answers, Vec<String>)> {
+    plan_on(v, w)
+}
+
+/// Costs what an open vault's plan records cost to read the first time:
+/// [`plan_of`] for a decision, worked out from the state as it is.
+pub fn plan_of_now(c: &Compute, app: &Faraday, w: usize) -> Option<(plan::Answers, Vec<String>)> {
+    plan_on(&Now { app, c }, w)
+}
+
+/// [`plan_of`] through `r`.
+fn plan_on(r: &impl Reads, w: usize) -> Option<(plan::Answers, Vec<String>)> {
+    let app = r.app();
     let wallet = app.session.wallets.get(w)?;
-    let shape = app.plan_shape(w);
+    let shape = r.plan_shape(w);
     if let Some(b) = app.backup.as_ref()
         && b.wallet == w
         && b.stage == crate::BStage::Checklist
     {
         return Some((b.answers.clone(), b.names.clone()));
     }
-    let kept = app.plan_load_of(wallet, &shape);
+    let kept = r.plan_load_of(wallet, &shape);
     let sum = wallet.checksum();
     let recorded = app
         .backup_records
@@ -195,17 +349,30 @@ pub fn plan_of(app: &Faraday, w: usize) -> Option<(plan::Answers, Vec<String>)> 
 }
 
 /// The chart of loaded wallet `w`; `None` for a silent payments wallet,
-/// which has no quorum or plan to draw.
-pub fn of(c: &Compute, app: &Faraday, w: usize) -> Option<Glance> {
+/// which has no quorum or plan to draw. Drawing's form, through the memo
+/// and the kept values.
+pub fn of(v: &View, w: usize) -> Option<Glance> {
+    of_on(v, w)
+}
+
+/// Costs what the open vaults' records and the plan's map cost to read
+/// the first time: [`of`] for a decision, worked out from the state as it
+/// is.
+pub fn of_now(c: &Compute, app: &Faraday, w: usize) -> Option<Glance> {
+    of_on(&Now { app, c }, w)
+}
+
+/// [`of`] through `r`.
+pub(crate) fn of_on(r: &impl Reads, w: usize) -> Option<Glance> {
+    let app = r.app();
     let wallet = app.session.wallets.get(w)?;
-    let plan = plan_of(app, w);
+    let plan = plan_on(r, w);
     let none = locked(app, wallet.checksum());
-    let notes = app.plan_notes(wallet, None);
+    let notes = r.plan_notes(wallet, None);
     build(
-        c,
-        app,
+        r,
         wallet,
-        app.plan_shape(w),
+        r.plan_shape(w),
         &[],
         plan,
         &notes,
@@ -217,9 +384,23 @@ pub fn of(c: &Compute, app: &Faraday, w: usize) -> Option<Glance> {
 /// The chart of the wallet that record `r` of open vault `v` holds, from
 /// that vault's plan for it, whether or not the wallet is loaded: a seed
 /// the vault keeps counts as here. `None` for a record that is not a
-/// wallet, or a silent payments wallet.
-pub fn of_vault(c: &Compute, app: &Faraday, v: usize, r: usize) -> Option<Glance> {
+/// wallet, or a silent payments wallet. Drawing's form, through the memo
+/// and the kept values.
+pub fn of_vault(view: &View, v: usize, r: usize) -> Option<Glance> {
+    of_vault_on(view, v, r)
+}
+
+/// Costs what the vault's records and the plan's map cost to read the
+/// first time: [`of_vault`] for a decision, worked out from the state as
+/// it is.
+pub fn of_vault_now(c: &Compute, app: &Faraday, v: usize, r: usize) -> Option<Glance> {
+    of_vault_on(&Now { app, c }, v, r)
+}
+
+/// [`of_vault`] through `reads`.
+pub(crate) fn of_vault_on(reads: &impl Reads, v: usize, r: usize) -> Option<Glance> {
     use faraday_vault::records::{field, kind};
+    let app = reads.app();
     let open = app.vaults.open.get(v)?;
     let rec = open
         .contents
@@ -230,7 +411,7 @@ pub fn of_vault(c: &Compute, app: &Faraday, v: usize, r: usize) -> Option<Glance
         rec.text(field::WALLET_NAME)
             .unwrap_or(EN.glance_wallet)
             .to_string(),
-        open.contents.described(r)?.policy.clone(),
+        reads.described(&open.contents, r)?.policy.clone(),
         String::new(),
         crate::wallet::Origin::Named,
     );
@@ -240,7 +421,7 @@ pub fn of_vault(c: &Compute, app: &Faraday, v: usize, r: usize) -> Option<Glance
         .contents
         .of(kind::KEY)
         .filter_map(|(_, k)| {
-            let fp = crate::vault_screens::key_fingerprint(c, app, k)?;
+            let fp = reads.key_fingerprint(k)?;
             Some((fp, k.field(field::KEY_PASSPHRASE).is_some()))
         })
         .collect();
@@ -265,11 +446,10 @@ pub fn of_vault(c: &Compute, app: &Faraday, v: usize, r: usize) -> Option<Glance
             shape.seeds[i].passphrase |= *pass;
         }
     }
-    let plan = app.plan_in_vault(v, &wallet, &shape);
-    let notes = app.plan_notes(&wallet, Some(v));
+    let plan = reads.plan_in_vault(v, &wallet, &shape);
+    let notes = reads.plan_notes(&wallet, Some(v));
     build(
-        c,
-        app,
+        reads,
         &wallet,
         shape,
         &in_vault,
@@ -286,8 +466,7 @@ pub fn of_vault(c: &Compute, app: &Faraday, v: usize, r: usize) -> Option<Glance
 /// drawing it keeps, which count as here.
 #[allow(clippy::too_many_arguments)]
 fn build(
-    c: &Compute,
-    app: &Faraday,
+    r: &impl Reads,
     wallet: &crate::wallet::Wallet,
     shape: plan::Shape,
     in_vault: &[String],
@@ -299,6 +478,7 @@ fn build(
     if wallet.policy().silent().is_some() {
         return None;
     }
+    let app = r.app();
     let slots = app.session.slots(wallet);
     let kept = |slot: &crate::wallet::Slot| {
         slot.fingerprint
@@ -316,7 +496,7 @@ fn build(
     let passphrase_key = slots
         .iter()
         .any(|s| s.held_by.is_none() && s.fingerprint.is_some())
-        && !app.vault_passphrase_seeds(c).is_empty();
+        && r.passphrase_seeds();
     let threshold = wallet.policy().record().is_some();
     // Each slot's seed in the plan: a share by its number, else by
     // fingerprint.
@@ -330,7 +510,7 @@ fn build(
     let slot_of: Vec<Option<usize>> = (0..shape.seeds.len())
         .map(|i| (0..slots.len()).find(|&n| seed_of(n, &slots[n]) == Some(i)))
         .collect();
-    let held_keys = app.held_keys(c);
+    let held_keys = r.held_keys();
     let keys: Vec<KeyNode> = slots
         .iter()
         .enumerate()
@@ -360,7 +540,7 @@ fn build(
             // A key an open vault holds loads from it, while short.
             let (action, way_in) = match slot
                 .fingerprint
-                .filter(|_| !held && !quorum_here && app.vault_key_for(c, slot).is_some())
+                .filter(|_| !held && !quorum_here && r.vault_key_for(slot).is_some())
             {
                 Some(f) => (
                     Some(Action::Vault(crate::vaults::VaultAction::LoadKeyOf(
@@ -415,7 +595,7 @@ fn build(
     let charted = plan.as_ref().map(|(a, _)| (shape.clone(), a.clone()));
     let backup = match plan {
         Some((a, names)) => backup_nodes(
-            c, app, &sum, &shape, &a, &names, notes, &slot_of, &keys, any_here,
+            r, &sum, &shape, &a, &names, notes, &slot_of, &keys, any_here,
         ),
         None => none,
     };
@@ -466,8 +646,7 @@ fn locked(app: &Faraday, sum: &str) -> Backup {
 /// The plan's map as the chart's nodes, with its check.
 #[allow(clippy::too_many_arguments)]
 fn backup_nodes(
-    c: &Compute,
-    app: &Faraday,
+    r: &impl Reads,
     sum: &str,
     shape: &plan::Shape,
     a: &plan::Answers,
@@ -477,6 +656,7 @@ fn backup_nodes(
     keys: &[KeyNode],
     any_here: bool,
 ) -> Backup {
+    let app = r.app();
     let number = |i: usize| slot_of.get(i).copied().flatten().map_or(i + 1, |n| n + 1);
     // A vault of the plan by the name the vault keeps for it, else its
     // number.
@@ -545,8 +725,8 @@ fn backup_nodes(
         }
         _ => label(what),
     };
-    let lines = app
-        .backups(c)
+    let lines = r
+        .backups()
         .into_iter()
         .find(|e| e.sum == sum)
         .and_then(|e| e.lines)
@@ -563,7 +743,7 @@ fn backup_nodes(
             .unwrap_or(Tag::Public)
     };
     // The chart draws places: each with what its sticks keep.
-    let mapped = app.plan_mapped(shape, a);
+    let mapped = r.plan_mapped(shape, a);
     let boxes = &mapped.places;
     // A vault's stick at more than one place: the first is its stick, each
     // further one a copy, "Vault 1 · copy" (§9.4).
@@ -701,7 +881,7 @@ fn backup_nodes(
         .collect();
     Backup::Plan {
         nodes,
-        check: mapped.check(shape, a),
+        check: r.plan_check(shape, a),
         items: plan::checklist_on(shape, a, &mapped),
         edited: a.map.is_some(),
     }

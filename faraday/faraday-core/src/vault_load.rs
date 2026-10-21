@@ -174,7 +174,7 @@ impl Faraday {
             .filter(|x| x.kind == kind::KEY)?;
         let fp = crate::vault_screens::key_fingerprint(c, self, rec)?;
         open.contents
-            .described_of(kind::WALLET)
+            .described_of(c, kind::WALLET)
             .find_map(|(_, w, d)| {
                 let p = &d.policy;
                 p.keys()
@@ -213,7 +213,8 @@ impl Faraday {
         for (v, open) in self.vaults.open.iter().enumerate() {
             for (i, r) in open.contents.of(kind::KEY) {
                 // Words, as the vault keeps them read: no parse here.
-                if r.field(field::KEY_PASSPHRASE).is_some() || open.contents.word_count(i).is_none()
+                if r.field(field::KEY_PASSPHRASE).is_some()
+                    || open.contents.word_count(c, i).is_none()
                 {
                     continue;
                 }
@@ -436,14 +437,14 @@ impl Faraday {
                     .text(field::WALLET_NAME)
                     .unwrap_or(EN.vaults_wallet)
                     .to_string();
-                let policy = open.contents.described(i).map(|d| &d.policy);
+                let policy = open.contents.described(c, i).map(|d| &d.policy);
                 let fps = policy.as_ref().map_or_else(Vec::new, |p| {
                     p.keys()
                         .iter()
                         .map(|k| k.fingerprint().map(fp_text))
                         .collect()
                 });
-                let loaded = open.contents.described(i).is_some_and(|d| {
+                let loaded = open.contents.described(c, i).is_some_and(|d| {
                     self.session
                         .wallets
                         .iter()
@@ -454,7 +455,7 @@ impl Faraday {
                     name,
                     kind: open
                         .contents
-                        .described(i)
+                        .described(c, i)
                         .map(|d| d.shape.clone())
                         .unwrap_or_default(),
                     fps,

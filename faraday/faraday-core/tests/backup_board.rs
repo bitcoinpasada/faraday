@@ -64,7 +64,12 @@ fn backup_shape(app: &Faraday) -> Shape {
 
 /// The plan's map as it is, sticks and all.
 fn the_map(app: &Faraday) -> Vec<Spot> {
-    plan::map(&backup_shape(app), &app.backup.as_ref().unwrap().answers)
+    let c = faraday_core::testkit::compute();
+    plan::map(
+        &c,
+        &backup_shape(app),
+        &app.backup.as_ref().unwrap().answers,
+    )
 }
 
 /// What spot `at` holds on the map `m`.
@@ -100,7 +105,7 @@ fn three_here() -> Faraday {
 fn save_vaults(app: &mut Faraday) {
     let c = testkit::compute();
     let vaults: Vec<usize> = app
-        .backup_items_now()
+        .backup_items_now(&c)
         .into_iter()
         .filter_map(|n| match bstep::item(n) {
             Some(Item::Vault(v)) => Some(v),
@@ -183,6 +188,7 @@ fn write_stick(shell: &mut Shell, app: &mut Faraday, d: &str) {
 /// on the map once, in the vault, and each place keeps a stick of it.
 #[test]
 fn a_vault_at_two_places_is_held_once() {
+    let c = faraday_core::testkit::compute();
     let mut app = three_here();
     vault_at(&mut app, 0, 0, &[0]);
     vault_at(&mut app, 2, 0, &[0, 1]);
@@ -208,7 +214,7 @@ fn a_vault_at_two_places_is_held_once() {
     assert!(held(&m, At::Place(0)).iter().all(|w| !plan::on_stick(*w)));
     // The write step writes a copy of it at each place.
     let shape = backup_shape(&app);
-    let flow = BackupFlow::new_wallet(shape, app.backup.as_ref().unwrap().answers.clone(), "w");
+    let flow = BackupFlow::new_wallet(&c, shape, app.backup.as_ref().unwrap().answers.clone(), "w");
     assert_eq!(
         places_targets(&flow),
         vec![Target::Place(0), Target::Place(2)]
@@ -221,6 +227,7 @@ fn a_vault_at_two_places_is_held_once() {
 /// sticks with it.
 #[test]
 fn a_second_vault_at_a_place_goes_on_a_second_stick() {
+    let c = faraday_core::testkit::compute();
     let mut app = three_here();
     vault_at(&mut app, 0, 0, &[0]);
     vault_at(&mut app, 0, 1, &[1]);
@@ -231,6 +238,7 @@ fn a_second_vault_at_a_place_goes_on_a_second_stick() {
     // Written as two sticks, each its vault's.
     let shape = backup_shape(&app);
     let flow = BackupFlow::new_wallet(
+        &c,
         shape.clone(),
         app.backup.as_ref().unwrap().answers.clone(),
         "w",
@@ -243,7 +251,7 @@ fn a_second_vault_at_a_place_goes_on_a_second_stick() {
     // (§19.12 item 7).
     let a = &mut app.backup.as_mut().unwrap().answers;
     a.add_vault_stick(&shape, 0, 0);
-    let m = plan::map(&shape, a);
+    let m = plan::map(&c, &shape, a);
     assert_eq!(plan::sticks_at(&m, 0), 3);
     assert_eq!(held(&m, At::Stick(0, 2)), vec![What::VaultStick(0)]);
     // A file dropped on Place 1 goes on a stick of files of its own; the
@@ -258,7 +266,7 @@ fn a_second_vault_at_a_place_goes_on_a_second_stick() {
     a.set_map(m);
     // Vault 1 taken off the plan: its sticks go, the vault with them.
     a.remove_vault(&shape, 0);
-    let m = plan::map(&shape, a);
+    let m = plan::map(&c, &shape, a);
     assert!(m.iter().all(|s| s.at != At::Vault(0)));
     assert!(
         m.iter()
@@ -322,7 +330,7 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
     // The files are no items of their own: they go with their sticks.
     assert_eq!(
-        app.backup_items_now(),
+        app.backup_items_now(&c),
         vec![bstep::VAULT, bstep::ENVELOPE, bstep::STICKS]
     );
     save_vaults(&mut app);
@@ -417,7 +425,10 @@ fn a_seed_kept_nowhere_holds_the_plan() {
     assert_eq!(app.backup_kept_nowhere(&c), None);
     app.press(Action::BChecklist);
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
-    assert_eq!(app.backup_items_now(), vec![bstep::ENVELOPE, bstep::STICKS]);
+    assert_eq!(
+        app.backup_items_now(&c),
+        vec![bstep::ENVELOPE, bstep::STICKS]
+    );
     app.press(Action::BNext(bstep::ENVELOPE));
     assert!(
         app.key_held(&c, Fingerprint(fp)),
@@ -473,6 +484,7 @@ fn two_of_three() -> Shape {
 /// the plan written out now reads back as it is.
 #[test]
 fn an_old_plan_text_loads_with_its_sticks_and_makes_the_same_checklist() {
+    let c = faraday_core::testkit::compute();
     let shape = two_of_three();
     // The answers as a plan of then wrote them, its two forms on.
     let head = Answers::preset(&shape, Preset::Paper)
@@ -484,14 +496,14 @@ fn an_old_plan_text_loads_with_its_sticks_and_makes_the_same_checklist() {
         "{head}spot place0 w0 sheet stick1 stick0\nspot place1 w1 sheet\nspot place2 w2 sheet stick0\nspot vault0 seed0 wallet\nspot vault1 seed1 wallet\n"
     );
     let a = Answers::from_text(&shape, &old).expect("the old plan loads");
-    let m = plan::map(&shape, &a);
+    let m = plan::map(&c, &shape, &a);
     assert_eq!(held(&m, At::Place(0)), vec![What::Words(0), What::Sheet]);
     assert_eq!(held(&m, At::Stick(0, 0)), vec![What::VaultStick(0)]);
     assert_eq!(held(&m, At::Stick(0, 1)), vec![What::VaultStick(1)]);
     assert_eq!(held(&m, At::Stick(2, 0)), vec![What::VaultStick(0)]);
     assert_eq!(plan::sticks_at(&m, 1), 0);
     assert_eq!(
-        checklist(&shape, &a),
+        checklist(&c, &shape, &a),
         vec![
             Item::Templates,
             Item::Copy(0),
@@ -505,7 +517,7 @@ fn an_old_plan_text_loads_with_its_sticks_and_makes_the_same_checklist() {
         ],
         "the checklist it made before"
     );
-    let targets: Vec<Target> = BackupFlow::new_wallet(shape.clone(), a.clone(), "w")
+    let targets: Vec<Target> = BackupFlow::new_wallet(&c, shape.clone(), a.clone(), "w")
         .slots
         .iter()
         .map(|s| s.target)
@@ -526,7 +538,7 @@ fn an_old_plan_text_loads_with_its_sticks_and_makes_the_same_checklist() {
         "{head}spot place0 w0 file1 stick0 walletfile sharefile2\nspot place1 w1\nspot place2 w2\nspot vault0 seed0\n"
     );
     let a = Answers::from_text(&shape, &old).expect("the old plan loads");
-    let m = plan::map(&shape, &a);
+    let m = plan::map(&c, &shape, &a);
     assert_eq!(held(&m, At::Place(0)), vec![What::Words(0)]);
     assert_eq!(held(&m, At::Stick(0, 0)), vec![What::VaultStick(0)]);
     assert_eq!(
@@ -540,7 +552,7 @@ fn an_old_plan_text_loads_with_its_sticks_and_makes_the_same_checklist() {
         ]
     );
     assert_eq!(plan::sticks_at(&m, 2), 0);
-    let targets: Vec<Target> = BackupFlow::new_wallet(shape.clone(), a.clone(), "w")
+    let targets: Vec<Target> = BackupFlow::new_wallet(&c, shape.clone(), a.clone(), "w")
         .slots
         .iter()
         .map(|s| s.target)
@@ -566,12 +578,12 @@ fn an_old_plan_text_loads_with_its_sticks_and_makes_the_same_checklist() {
     assert!(text.contains("spot stick2.0 qrfile0 passfile0\n"), "{text}");
     assert_eq!(Answers::from_text(&shape, &text), Some(a.clone()));
     // A seed whose only copy outside paper is a file on a stick is kept.
-    let m = plan::without(&plan::map(&shape, &a), At::Place(1), What::Words(1));
+    let m = plan::without(&plan::map(&c, &shape, &a), At::Place(1), What::Words(1));
     a.set_map(m);
-    assert_eq!(kept_nowhere(&shape, &a, &[0, 1, 2]), None);
-    let m = plan::without(&plan::map(&shape, &a), At::Place(0), What::SeedFile(1));
+    assert_eq!(kept_nowhere(&c, &shape, &a, &[0, 1, 2]), None);
+    let m = plan::without(&plan::map(&c, &shape, &a), At::Place(0), What::SeedFile(1));
     a.set_map(m);
-    assert!(kept_nowhere(&shape, &a, &[0, 1, 2]).is_some());
+    assert!(kept_nowhere(&c, &shape, &a, &[0, 1, 2]).is_some());
 }
 
 /// A 2-of-3 made in Create with one vault set up on stick S1 before its
@@ -1199,11 +1211,13 @@ fn a_seed_kept_nowhere_on_the_board_holds_the_plan() {
 /// A cosigner's seed is in the list, dim, "Not here", and does not move.
 #[test]
 fn a_cosigners_seed_is_dim_and_does_not_move() {
+    let c = faraday_core::testkit::compute();
     let mut app = testkit::started();
     app.session = testkit::session();
     key_in(&mut app, 0);
     app.session
         .add_wallet(
+            &c,
             "Savings",
             &testkit::savings(),
             "test",
@@ -1255,6 +1269,7 @@ fn a_cosigners_seed_is_dim_and_does_not_move() {
 /// says the description cannot be put back together.
 #[test]
 fn partial_descriptions_are_added_by_one_button_and_follow_the_places() {
+    let c = faraday_core::testkit::compute();
     let mut app = fresh_three();
     app.press(Action::Board(BP::Customize));
     let _ = app.frame();
@@ -1282,7 +1297,7 @@ fn partial_descriptions_are_added_by_one_button_and_follow_the_places() {
         assert!(!a.sheet_at(&shape, p), "Place {}: the whole is off", p + 1);
         assert_eq!(a.shares_at(&shape, p).len(), 1, "Place {}", p + 1);
     }
-    assert_eq!(plan::check(&shape, &a).lost, plan::Lost::Yes);
+    assert_eq!(plan::check(&c, &shape, &a).lost, plan::Lost::Yes);
     // A place taken off and one added: every place has its share.
     app.press(Action::Board(BP::RemovePlace(2)));
     app.press(Action::Board(BP::AddPlace));
@@ -1326,6 +1341,7 @@ fn a_single_keys_one_place_reads_no_a_single_place() {
 /// checks count the description as kept.
 #[test]
 fn the_software_place_scans_the_description_in_and_keeps_it_through_any_loss() {
+    let c = faraday_core::testkit::compute();
     let mut app = three_on_an_empty_board();
     tap(&mut app, BP::AddPlace);
     tap(&mut app, BP::AddPlace);
@@ -1333,7 +1349,7 @@ fn the_software_place_scans_the_description_in_and_keeps_it_through_any_loss() {
         drag(&mut app, list(Thing::Seed(p)), BP::Zone(Zone::Paper(p)));
     }
     let shape = backup_shape(&app);
-    let lost = |app: &Faraday| plan::check(&shape, &app.backup.as_ref().unwrap().answers).lost;
+    let lost = |app: &Faraday| plan::check(&c, &shape, &app.backup.as_ref().unwrap().answers).lost;
     assert_eq!(lost(&app), plan::Lost::No, "no description kept");
     tap(&mut app, list(Thing::Software));
     expect(&mut app, "Scanned in");
@@ -1497,6 +1513,7 @@ fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
 /// what it held in its zone, dimmed, taking no press (§19.12 item 7).
 #[test]
 fn an_existing_vaults_contents_are_drawn_dimmed_and_take_no_press() {
+    let c = faraday_core::testkit::compute();
     let mut shell = Shell::new();
     let (mut app, other) = main_vault_board(&mut shell);
     if vault_stick(&app, 0, 0).is_none() {
@@ -1504,7 +1521,7 @@ fn an_existing_vaults_contents_are_drawn_dimmed_and_take_no_press() {
         // On **+ stick**: the card's middle is a chip of its paper.
         tap(&mut app, BP::Zone(Zone::NewStick(0)));
     }
-    let sum = faraday_core::wallet::read_wallet(&other.descriptor)
+    let sum = faraday_core::wallet::read_wallet(&c, &other.descriptor)
         .unwrap()
         .checksum()
         .to_string();
@@ -1541,8 +1558,9 @@ fn open_flow_board(shell: &mut Shell, app: &mut Faraday) {
 
 /// The flow's own plan's map.
 fn flow_map(app: &Faraday) -> Vec<Spot> {
+    let c = faraday_core::testkit::compute();
     let wf = app.flow().unwrap().wallet.as_ref().unwrap();
-    plan::map(&wf.shape, &wf.answers)
+    plan::map(&c, &wf.shape, &wf.answers)
 }
 
 /// The same presses on a board: Vault 1 holding Seeds A and B at Place
@@ -1873,6 +1891,7 @@ fn ink_light(app: &mut Faraday, text: &str) -> u32 {
 /// §19.16 item 1, §19.17 item 1).
 #[test]
 fn a_press_on_plus_stick_adds_an_empty_stick_that_the_plan_does_not_see() {
+    let c = faraday_core::testkit::compute();
     let mut app = three_on_an_empty_board();
     let shape = backup_shape(&app);
     let before = app.backup.as_ref().unwrap().answers.clone();
@@ -1891,10 +1910,13 @@ fn a_press_on_plus_stick_adds_an_empty_stick_that_the_plan_does_not_see() {
     let after = app.backup.as_ref().unwrap().answers.clone();
     assert_eq!(
         the_map(&app),
-        plan::map(&shape, &before),
+        plan::map(&c, &shape, &before),
         "The plan unchanged"
     );
-    assert_eq!(checklist(&shape, &after), checklist(&shape, &before));
+    assert_eq!(
+        checklist(&c, &shape, &after),
+        checklist(&c, &shape, &before)
+    );
     // Another: two empty sticks in a row.
     tap(&mut app, BP::Zone(Zone::NewStick(0)));
     expect(&mut app, "Stick 2");
@@ -1946,6 +1968,7 @@ fn a_press_on_plus_stick_adds_an_empty_stick_that_the_plan_does_not_see() {
 /// (`docs/BACKUP-FLOW.md` §19.16 item 3).
 #[test]
 fn a_vault_kept_at_no_place_is_out_of_the_plan_and_comes_back_with_what_it_held() {
+    let c = faraday_core::testkit::compute();
     let mut app = three_on_an_empty_board();
     tap(&mut app, BP::AddPlace);
     tap(&mut app, BP::AddPlace);
@@ -1972,7 +1995,7 @@ fn a_vault_kept_at_no_place_is_out_of_the_plan_and_comes_back_with_what_it_held(
             "Vault {} out of The plan",
             v + 1
         );
-        assert!(!checklist(&shape, &a).contains(&Item::Vault(v)));
+        assert!(!checklist(&c, &shape, &a).contains(&Item::Vault(v)));
         assert!(offered_on_page(
             &mut app,
             Action::Board(list(Thing::Vault(v)))
@@ -1988,7 +2011,7 @@ fn a_vault_kept_at_no_place_is_out_of_the_plan_and_comes_back_with_what_it_held(
     );
     assert!(away < kept, "Vault 2 is drawn dim: {away} against {kept}");
     // Seed B was kept only in Vault 2.
-    let line = kept_nowhere(&shape, &a, &[1]).expect("Seed B is kept nowhere");
+    let line = kept_nowhere(&c, &shape, &a, &[1]).expect("Seed B is kept nowhere");
     assert_eq!(
         line,
         format!("Seed {} is kept nowhere", shape.seeds[1].name)
@@ -1999,7 +2022,7 @@ fn a_vault_kept_at_no_place_is_out_of_the_plan_and_comes_back_with_what_it_held(
     let m = the_map(&app);
     assert_eq!(held(&m, At::Vault(1)), vec![What::Seed(1)]);
     let a = app.backup.as_ref().unwrap().answers.clone();
-    assert!(kept_nowhere(&shape, &a, &[1]).is_none());
+    assert!(kept_nowhere(&c, &shape, &a, &[1]).is_none());
 }
 
 /// A vault set up before the keys whose stick no place keeps reads
@@ -2274,11 +2297,12 @@ fn another_preset_replaces_the_standard_way_in_both_states() {
 /// sheets.
 #[test]
 fn the_standard_ways_checklist_writes_its_copies() {
+    let c = faraday_core::testkit::compute();
     let mut app = fresh_three();
     app.press(Action::BQ(qstep::PLAN));
     app.press(Action::BChecklist);
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
-    let items = app.backup_items_now();
+    let items = app.backup_items_now(&c);
     for i in 0..3 {
         assert!(
             items.contains(&bstep::of(Item::Copy(i))),
@@ -2687,13 +2711,18 @@ fn a_vault_set_up_before_the_keys_reads_sealed() {
 /// keeps its read-only state (`docs/BACKUP-FLOW.md` §19.21 item 7).
 #[test]
 fn a_plan_saved_from_paper_and_vault_reopens_unchanged_and_customisable() {
+    let c = faraday_core::testkit::compute();
     let shape = two_of_three();
     let a = Answers::preset(&shape, Preset::PaperVault);
     assert!(!a.to_text().contains("preset "), "no longer written");
     let saved = format!("{}preset 2\n", a.to_text());
     let back = Answers::from_text(&shape, &saved).expect("read, not refused");
     assert!(back.custom, "customisable");
-    assert_eq!(plan::map(&shape, &back), plan::map(&shape, &a), "as saved");
+    assert_eq!(
+        plan::map(&c, &shape, &back),
+        plan::map(&c, &shape, &a),
+        "as saved"
+    );
     let standard = Answers::preset(&shape, Preset::Standard);
     let saved = format!("{}preset 0\n", standard.to_text());
     let back = Answers::from_text(&shape, &saved).expect("read");
@@ -2706,6 +2735,7 @@ fn a_plan_saved_from_paper_and_vault_reopens_unchanged_and_customisable() {
 /// (`docs/BACKUP-FLOW.md` §19.21 item 11).
 #[test]
 fn change_the_plan_from_the_checklist_shows_the_board() {
+    let c = faraday_core::testkit::compute();
     let mut app = fresh_three();
     app.press(Action::BChecklist);
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
@@ -2725,7 +2755,7 @@ fn change_the_plan_from_the_checklist_shows_the_board() {
         sorted(paper(&app, 0)),
         sorted(vec![What::SeedQr(0), What::Sheet])
     );
-    assert!(app.backup_items_now().contains(&bstep::of(Item::Copy(0))));
+    assert!(app.backup_items_now(&c).contains(&bstep::of(Item::Copy(0))));
 }
 
 /// A new plan keeps each seed's words on paper and no SeedQR, a single key
@@ -2733,6 +2763,7 @@ fn change_the_plan_from_the_checklist_shows_the_board() {
 /// (`docs/BACKUP-FLOW.md` §19.21 item 12).
 #[test]
 fn a_new_plan_keeps_the_words_and_no_seedqr() {
+    let c = faraday_core::testkit::compute();
     let mut single = testkit::started();
     let fp = key_in(&mut single, 1);
     single.press(Action::KeyWallet(fp, 1));
@@ -2745,7 +2776,7 @@ fn a_new_plan_keeps_the_words_and_no_seedqr() {
             assert_eq!(paper(&app, p), vec![What::Words(p), What::Sheet]);
         }
         app.press(Action::BChecklist);
-        let items = app.backup_items_now();
+        let items = app.backup_items_now(&c);
         assert!(items.contains(&bstep::of(Item::Copy(0))), "{items:?}");
         app.press(Action::BPlan);
         app.press(Action::Board(BP::Customize));

@@ -55,6 +55,7 @@ fn light(c: &Counts) -> bool {
 
 #[test]
 fn the_checklists_pictures_are_made_after_the_frame_that_shows_the_press() {
+    let c = faraday_core::testkit::compute();
     // A 2-of-15 whose descriptor needs a picture per part.
     let keys: Vec<String> = (0..5)
         .flat_map(|a| (0..3).map(move |n| testkit::key(n, &format!("m/48'/1'/{a}'/2'"))))
@@ -70,6 +71,7 @@ fn the_checklists_pictures_are_made_after_the_frame_that_shows_the_press() {
     let w = app
         .session
         .add_wallet(
+            &c,
             "Big",
             &descriptor,
             "test",

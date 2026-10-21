@@ -85,8 +85,9 @@ fn idle_at(app: &mut Faraday, offset: f32) -> (usize, Option<f32>) {
 
 #[test]
 fn a_page_at_rest_asks_for_no_frame_at_any_scale_at_its_top_or_its_end() {
+    let c = crate::testkit::compute();
     let mut failures = Vec::new();
-    let _ = walk(&mut |app, name| {
+    let _ = walk(&c, &mut |app, name| {
         if !PAGES.contains(&name) {
             return;
         }

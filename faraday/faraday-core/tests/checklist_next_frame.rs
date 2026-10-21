@@ -14,6 +14,7 @@ use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 /// loaded: two of its seeds here, the third a cosigner's. Returns the
 /// wallet's index.
 fn two_of_three_two_here(app: &mut Faraday) -> usize {
+    let c = faraday_core::testkit::compute();
     for k in 0..2 {
         app.press(Action::Entry(None));
         type_text(
@@ -24,6 +25,7 @@ fn two_of_three_two_here(app: &mut Faraday) -> usize {
     }
     app.session
         .add_wallet(
+            &c,
             "Savings",
             &faraday_core::testkit::savings(),
             "test",
@@ -153,7 +155,7 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     no_words(&mut app);
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&bstep::BLANK) {
+    if app.backup_items_now(&c).contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
@@ -166,7 +168,7 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     let seed2 = app.backup_seed_list_now(w)[1].0.clone();
     let title = format!("Vault 2 · {seed2}");
     let number = app
-        .backup_items_now()
+        .backup_items_now(&c)
         .iter()
         .position(|&n| n == bstep::VAULT + 1)
         .expect("a Vault 2 item")

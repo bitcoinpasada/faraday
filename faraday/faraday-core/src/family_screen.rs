@@ -1609,7 +1609,7 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .filter(|(_, i)| {
             !card
                 || i.psbt()
-                    .and_then(|p| app.session.spends_from(p))
+                    .and_then(|p| app.spends_from(p))
                     .is_some_and(|w| Some(w) == wallet)
         })
         .map(|(k, i)| (k, i.name.as_str()))

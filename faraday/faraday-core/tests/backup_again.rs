@@ -123,6 +123,7 @@ fn press_offered(app: &mut Faraday, action: Action) {
 /// pictures, and nothing into a vault or on paper by hand, so the
 /// public files item is open to reach; then the checklist made from it.
 fn every_software(app: &mut Faraday) {
+    let c = faraday_core::testkit::compute();
     faraday_core::testkit::backup_as(app, faraday_core::plan::Preset::PaperVaultSoftware);
     // On the board: no words, no vault (its description goes with it).
     no_words(app);
@@ -134,7 +135,10 @@ fn every_software(app: &mut Faraday) {
     }
     app.press(Action::BAnswer(qrow::FORM, plan::form::TEXT as u8));
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
 }
@@ -164,7 +168,7 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
     // The board closed.
     app.press(Action::BQ(qstep::BOARD));
     every_software(&mut app);
-    let items = app.backup_items_now();
+    let items = app.backup_items_now(&c);
     assert!(!items.contains(&bstep::BLANK) && !items.contains(&bstep::COPY));
     // Making the checklist made every file it calls for, For the stick:
     // the public files and the shares are done with no press; the rest
@@ -230,7 +234,10 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     app.press(Action::Backup(w));
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     press_offered(&mut app, Action::BChecklist);
-    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
+    if app
+        .backup_items_now(&c)
+        .contains(&faraday_core::bstep::BLANK)
+    {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     // Seeds here: the blank template is printed from Faraday Starter and

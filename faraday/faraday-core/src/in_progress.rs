@@ -163,7 +163,7 @@ impl Faraday {
         self.backup.as_ref().is_some_and(|b| {
             b.stage == BStage::Checklist
                 && self
-                    .backup_items()
+                    .backup_items(c)
                     .into_iter()
                     .filter_map(bstep::item)
                     .all(|it| self.backup_item_done(c, it))
@@ -701,12 +701,12 @@ impl Faraday {
             ));
         }
         let n = b.open.or_else(|| {
-            self.backup_items()
+            self.backup_items(c)
                 .into_iter()
                 .find(|&n| bstep::item(n).is_some_and(|it| !self.backup_item_done(c, it)))
         });
         Some(match n {
-            Some(n) => crate::screens::item_title(c, self, n).0,
+            Some(n) => crate::screens::item_title_now(c, self, n).0,
             None => EN.app_done.to_string(),
         })
     }

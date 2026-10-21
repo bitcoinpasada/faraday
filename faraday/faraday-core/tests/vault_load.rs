@@ -333,6 +333,7 @@ fn a_key_in_no_wallet_follows_its_own_setting() {
 /// the rest, and nothing loads twice.
 #[test]
 fn what_is_loaded_already_shows_loaded_and_is_not_loaded_twice() {
+    let c = faraday_core::testkit::compute();
     let mut app = device(vec![("cellar.ofv".into(), load_vault())]);
     // Test key 1 and Summer, here before the unlock.
     app.press(Action::Entry(None));
@@ -340,6 +341,7 @@ fn what_is_loaded_already_shows_loaded_and_is_not_loaded_twice() {
     app.press(Action::EntryAdd);
     app.session
         .add_wallet(
+            &c,
             "Summer",
             &format!("wpkh({}/<0;1>/*)", testkit::key(2, "m/84'/1'/0'")),
             "test",
@@ -456,6 +458,7 @@ fn from_the_boot_sheet_each_unlock_asks_what_to_load_before_the_next() {
 /// the next unlock, on another power-on.
 #[test]
 fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
+    let c = faraday_core::testkit::compute();
     for off in [false, true] {
         let vault = testkit::files()
             .unwrap()
@@ -477,7 +480,7 @@ fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
         app.press(Action::Backup(w));
         testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
         app.press(Action::BChecklist);
-        if app.backup_items_now().contains(&bstep::BLANK) {
+        if app.backup_items_now(&c).contains(&bstep::BLANK) {
             app.press(Action::BNext(bstep::BLANK));
         }
         // The copy by hand first, typed back: the vault item comes after.

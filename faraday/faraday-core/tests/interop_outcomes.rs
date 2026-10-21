@@ -16,10 +16,10 @@ fn outcome(path: &str, bytes: &[u8]) -> String {
     let text = String::from_utf8_lossy(bytes);
     let mut out = format!("== {path}\n");
     out.push_str(&format!("kind {:?}\n", classify(&c, path, bytes)));
-    match read_wallet(&text) {
+    match read_wallet(&c, &text) {
         Ok(p) => {
             out.push_str(&format!("wallet {}\n", same_wallet(&p)));
-            match faraday_intake::wallet::first_address(&p) {
+            match faraday_intake::wallet::first_address(&c, &p) {
                 Some((net, a)) => out.push_str(&format!("first {a} {net:?}\n")),
                 None => out.push_str("first none\n"),
             }
@@ -37,12 +37,12 @@ fn outcome(path: &str, bytes: &[u8]) -> String {
     if let Some(l) = faraday_intake::wallet::json_label(&text) {
         out.push_str(&format!("label {l}\n"));
     }
-    if let Ok((_, Some(n))) = osk_bip::multisig_config::parse_named(&text) {
+    if let Ok((_, Some(n))) = osk_bip::multisig_config::parse_named(&c, &text) {
         out.push_str(&format!("config name {n}\n"));
     }
     out.push_str(&format!(
         "rebuilt {}\n",
-        faraday_core::restore::readable(&text)
+        faraday_core::restore::readable(&c, &text)
     ));
     out
 }

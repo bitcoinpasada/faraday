@@ -176,6 +176,7 @@ impl Faraday {
     /// way follows. No vaults leaves nothing to set up; another count
     /// adds or drops the last vaults and keeps the rest as they are.
     pub(crate) fn wallet_vaults_changed(&mut self, owner: u64) {
+        let c = self.compute();
         let Some(i) = self.wallet_flow_pre_of(owner) else {
             return;
         };
@@ -190,7 +191,7 @@ impl Faraday {
                     .as_ref()
                     .is_some_and(|w| w.shape.vaults != count)
                 {
-                    self.backup_flows[i].resize_setup(count);
+                    self.backup_flows[i].resize_setup(&c, count);
                 }
             }
         }
@@ -201,6 +202,7 @@ impl Faraday {
     /// resumes. Nothing about places, paper or which key goes where is
     /// asked: that is Back up's plan, after the keys.
     pub(crate) fn wallet_flow_begin(&mut self, owner: u64) {
+        let c = self.compute();
         let Some(count) = self.wallet_vault_count(owner) else {
             return;
         };
@@ -218,7 +220,7 @@ impl Faraday {
         // (`docs/BACKUP-FLOW.md` §19.6).
         let mut answers = plan::Answers::defaults(&with_vaults);
         answers.custom = true;
-        let mut f = BackupFlow::new_setup(shape, answers, count);
+        let mut f = BackupFlow::new_setup(&c, shape, answers, count);
         if let Some(w) = f.wallet.as_mut() {
             w.owner = owner;
         }
@@ -273,7 +275,7 @@ impl Faraday {
         // The vaults the flow knows are numbered as the answers number
         // them: they follow the rows that were kept.
         f.remap_vaults(&keep);
-        f.wallet_replan();
+        f.wallet_replan(&c);
     }
 
     /// The keys chosen for the wallet being made by Make a new wallet or
@@ -404,6 +406,7 @@ impl Faraday {
     /// The flow's answers follow the backup's, while the backup is open on
     /// a wallet whose flow has not locked yet. Called after each press.
     pub(crate) fn wallet_flow_sync(&mut self) {
+        let c = self.compute();
         let Some(i) = self.wallet_flow_of_backup() else {
             return;
         };
@@ -424,7 +427,7 @@ impl Faraday {
         }
         wf.answers = answers;
         wf.shape = shape;
-        f.wallet_replan();
+        f.wallet_replan(&c);
     }
 
     // ---- the checklist's Write to sticks ----
@@ -459,7 +462,7 @@ impl Faraday {
         // for a fingerprint of the wallet's seeds, exactly.
         // and only for a seed the plan keeps as a file now.
         let shape = self.plan_shape(w);
-        let kept = self.plan_mapped(&shape, &b.answers).seeds_as_files();
+        let kept = self.plan_mapped(c, &shape, &b.answers).seeds_as_files();
         let fps: Vec<String> = self
             .backup_seed_list(w)
             .into_iter()
@@ -489,7 +492,7 @@ impl Faraday {
             return out;
         };
         let shape = self.plan_shape(w);
-        let mapped = self.plan_mapped(&shape, &b.answers);
+        let mapped = self.plan_mapped(c, &shape, &b.answers);
         // The public files go to an online computer only where the plan
         // needs them there; files kept at a place go on its own stick.
         let public_k = flow
@@ -606,7 +609,7 @@ impl Faraday {
         };
         let shape = self.plan_shape_now(w);
         let answers = b.answers.clone();
-        let boxes = plan::map(&shape, &answers);
+        let boxes = plan::map(&c, &shape, &answers);
         let mut expect: Vec<(String, ReadBack)> = Vec::new();
         let mut whats: Vec<P> = Vec::new();
         for s in boxes.iter().filter(|s| matches!(s.at, plan::At::Stick(..))) {
@@ -739,10 +742,10 @@ impl Faraday {
     /// ([`crate::plan::Answers::seeds_on_stick_files`]): the gate **Lock
     /// and write** passes only once there is none. Computes from the state
     /// as it is.
-    pub fn backup_stick_seed_unwarned(&self) -> Option<usize> {
+    pub fn backup_stick_seed_unwarned(&self, c: &Compute) -> Option<usize> {
         let b = self.backup.as_ref()?;
         let shape = self.plan_shape_now(b.wallet);
-        self.plan_mapped(&shape, &b.answers)
+        self.plan_mapped(c, &shape, &b.answers)
             .seeds_on_stick_files(&shape)
             .into_iter()
             .find(|&i| {
@@ -758,6 +761,7 @@ impl Faraday {
     /// they are made: what the seed gives whoever finds the stick, and the
     /// line to tick. Past it the seed is let out and the lock goes on.
     fn offer_stick_seed(&mut self, i: usize) {
+        let c = self.compute();
         let Some(b) = self.backup.as_ref() else {
             return;
         };
@@ -767,7 +771,7 @@ impl Faraday {
             return;
         };
         let fp = seed.name.clone();
-        let names: Vec<String> = plan::map(&shape, &b.answers)
+        let names: Vec<String> = plan::map(&c, &shape, &b.answers)
             .iter()
             .filter(|s| matches!(s.at, plan::At::Stick(..)))
             .flat_map(|s| s.holds.iter().map(|(x, _)| *x))
@@ -839,7 +843,7 @@ impl Faraday {
             return;
         }
         let w = b.wallet;
-        let items = self.backup_items_now();
+        let items = self.backup_items_now(&c);
         if !items.contains(&bstep::STICKS) {
             return;
         }
@@ -865,7 +869,7 @@ impl Faraday {
         // is not protected, as the seed files item made one: nothing is
         // made or written until the person has said so for each seed
         // (`docs/BACKUP-FLOW.md` §19.12 item 6).
-        if let Some(i) = self.backup_stick_seed_unwarned() {
+        if let Some(i) = self.backup_stick_seed_unwarned(&c) {
             return self.offer_stick_seed(i);
         }
         let used = answers.vaults_made(&shape);
@@ -905,7 +909,7 @@ impl Faraday {
                     }
                 }
                 self.flow_on = None;
-                let mut nf = BackupFlow::new_wallet(shape.clone(), answers.clone(), &name);
+                let mut nf = BackupFlow::new_wallet(&c, shape.clone(), answers.clone(), &name);
                 let id = self.fresh_owner();
                 if let Some(w) = nf.wallet.as_mut() {
                     w.owner = id;
@@ -926,7 +930,7 @@ impl Faraday {
                 id: checksum.clone(),
                 name,
             });
-            f.wallet_replan();
+            f.wallet_replan(&c);
         }
         // Each vault of the plan is the open vault that holds it; a new
         // seal is made of each, so that a copy for every stick is there.
@@ -957,7 +961,7 @@ impl Faraday {
                 .as_ref()
                 .and_then(|b| b.before.iter().find(|(s, _)| *s == salt))
                 .map_or_else(|| self.vault_tokens(&c, o), |(_, t)| t.clone());
-            let others = self.vault_others(o, &checksum);
+            let others = self.vault_others(&c, o, &checksum);
             if let Some(wf) = self.backup_flows[i].wallet.as_mut() {
                 if !wf.before.iter().any(|(s, _)| *s == salt) {
                     wf.before.push((salt, held));
@@ -987,10 +991,10 @@ impl Faraday {
         self.wallet_assign_files(i, w);
         let f = &mut self.backup_flows[i];
         if let Some(wf) = f.wallet.as_mut() {
-            wf.sealed = used.iter().map(|&v| (v, sealed_marks(wf, v))).collect();
+            wf.sealed = used.iter().map(|&v| (v, sealed_marks(&c, wf, v))).collect();
             // The description on paper or as files at the lock: its split
             // is fixed from now on.
-            wf.pieces = plan::map(&wf.shape, &wf.answers).iter().any(|s| {
+            wf.pieces = plan::map(&c, &wf.shape, &wf.answers).iter().any(|s| {
                 s.holds.iter().any(|(w, _)| match s.at {
                     plan::At::Place(_) | plan::At::Stick(..) => matches!(
                         w,
@@ -1053,7 +1057,7 @@ impl Faraday {
         let list = self.backup_seed_list_now(w);
         let held = self.backup_held_seeds(&c);
         // A seed kept on any stick, a vault's or a file's, waits for it.
-        let on_stick = |s: usize| b.answers.seed_on_stick(&shape, s);
+        let on_stick = |s: usize| b.answers.seed_on_stick(&c, &shape, s);
         let mut moved: Vec<(Fingerprint, usize)> = Vec::new();
         for s in held.into_iter().filter(|&s| on_stick(s)) {
             if let Some(k) = list.get(s).and_then(|(_, k)| *k)
@@ -1202,13 +1206,14 @@ impl Faraday {
     /// wallet loaded, or its description in an open vault or Files.
     fn wallet_share_record(
         &self,
+        c: &Compute,
         wf: &crate::backup_flow::WalletFlow,
         cs: &str,
         j: usize,
     ) -> Option<faraday_vault::Record> {
         use faraday_vault::records::{field, kind as rkind};
         let of_wallet = |t: &str| {
-            crate::wallet::read_wallet(t)
+            crate::wallet::read_wallet(c, t)
                 .ok()
                 .is_some_and(|p| p.checksum() == cs)
         };
@@ -1252,7 +1257,7 @@ impl Faraday {
                     .find(|t| of_wallet(t))?;
                 let mut s = crate::wallet::Session::on(self.session.network());
                 let k = s
-                    .add_wallet(&wf.name, desc.trim(), "", crate::wallet::Origin::Named)
+                    .add_wallet(c, &wf.name, desc.trim(), "", crate::wallet::Origin::Named)
                     .ok()?;
                 text(&s.wallets[k])
             }
@@ -1302,7 +1307,7 @@ impl Faraday {
             .collect();
         // A record of this wallet's description, by its checksum.
         let of_wallet = |t: &str| {
-            crate::wallet::read_wallet(t)
+            crate::wallet::read_wallet(&c, t)
                 .ok()
                 .is_some_and(|p| p.checksum() == cs)
         };
@@ -1323,7 +1328,7 @@ impl Faraday {
             // and the keys other wallets' records in it name: kept.
             let salt = self.vaults.open[o].header().salt;
             let first = self.vault_tokens(&c, o);
-            let others = self.vault_others(o, &cs);
+            let others = self.vault_others(&c, o, &cs);
             if let Some(f) = self.backup_flows[i].wallet.as_mut() {
                 if !f.before.iter().any(|(s, _)| *s == salt) {
                     f.before.push((salt, first));
@@ -1492,24 +1497,24 @@ impl Faraday {
             // record of this wallet (told by its field 5, never by its
             // name), with the text the plan's split gives now; any other
             // share of this wallet goes.
-            let kept = wf.answers.vault_shares(&wf.shape, v);
+            let kept = wf.answers.vault_shares(&c, &wf.shape, v);
             for (k, r) in self.vaults.open[o].contents.records.iter().enumerate() {
-                if crate::share_record_is(r, &cs, None)
+                if crate::share_record_is(&c, r, &cs, None)
                     && !kept
                         .iter()
-                        .any(|&j| crate::share_record_is(r, &cs, Some(j)))
+                        .any(|&j| crate::share_record_is(&c, r, &cs, Some(j)))
                 {
                     w.out.push(k);
                 }
             }
             for j in kept {
-                let want = self.wallet_share_record(&wf, &cs, j).or_else(|| {
+                let want = self.wallet_share_record(&c, &wf, &cs, j).or_else(|| {
                     holders.iter().find_map(|&h| {
                         self.vaults.open[h]
                             .contents
                             .records
                             .iter()
-                            .find(|r| crate::share_record_is(r, &cs, Some(j)))
+                            .find(|r| crate::share_record_is(&c, r, &cs, Some(j)))
                             .cloned()
                     })
                 });
@@ -1519,7 +1524,7 @@ impl Faraday {
                 let text = want.text(field::SHARE).map(str::to_string);
                 let mut have = false;
                 for (k, r) in self.vaults.open[o].contents.records.iter().enumerate() {
-                    if crate::share_record_is(r, &cs, Some(j)) {
+                    if crate::share_record_is(&c, r, &cs, Some(j)) {
                         if !have && r.text(field::SHARE).map(str::to_string) == text {
                             have = true;
                         } else {
@@ -1531,7 +1536,7 @@ impl Faraday {
                     && !w
                         .add
                         .iter()
-                        .any(|r| crate::share_record_is(r, &cs, Some(j)))
+                        .any(|r| crate::share_record_is(&c, r, &cs, Some(j)))
                 {
                     w.add.push(want);
                 }
@@ -1541,7 +1546,7 @@ impl Faraday {
             // vault's record of it, or its key's record that stores it;
             // one of this wallet's seeds' the plan no longer keeps here
             // goes.
-            let alone = wf.answers.vault_passphrases(&wf.shape, v);
+            let alone = wf.answers.vault_passphrases(&c, &wf.shape, v);
             let fp_of = |s: usize| -> Option<[u8; 4]> {
                 let name = &wf.shape.seeds.get(s)?.name;
                 let mut out = [0u8; 4];
@@ -1685,7 +1690,7 @@ impl Faraday {
         let f = &mut self.backup_flows[i];
         if let Some(wf) = f.wallet.as_mut() {
             for &v in &added {
-                let marks = sealed_marks(wf, v);
+                let marks = sealed_marks(&c, wf, v);
                 wf.sealed.retain(|(x, _)| *x != v);
                 wf.sealed.push((v, marks));
             }
@@ -1721,22 +1726,23 @@ impl Faraday {
         let shape = self.plan_shape(b.wallet);
         let own = || {
             BackupFlow::new_wallet_on(
+                c,
                 shape.clone(),
                 b.answers.clone(),
                 &wl.name,
-                &self.plan_mapped(&shape, &b.answers),
+                &self.plan_mapped(c, &shape, &b.answers),
             )
         };
         let mut flow = match self.wallet_flow_of_backup() {
-            Some(i) if self.backup_flows[i].step != Step::Done || self.wallet_sticks_done() => {
+            Some(i) if self.backup_flows[i].step != Step::Done || self.wallet_sticks_done(c) => {
                 self.backup_flows[i].clone()
             }
             _ => own(),
         };
         if !flow.made {
             if let Some(w) = flow.wallet.as_ref() {
-                let mapped = self.plan_mapped(&w.shape, &w.answers);
-                flow.wallet_replan_on(&mapped);
+                let mapped = self.plan_mapped(c, &w.shape, &w.answers);
+                flow.wallet_replan_on(c, &mapped);
             }
             let files = self.wallet_slot_files(c, b.wallet, &flow);
             for (s, f) in flow.slots.iter_mut().zip(files) {
@@ -1782,11 +1788,11 @@ impl Faraday {
 
     /// The `PublicOn` the wallet's plan carries its public files on, for
     /// the card that names the stick.
-    pub fn wallet_public_on(&self) -> Option<PublicOn> {
+    pub fn wallet_public_on(&self, c: &Compute) -> Option<PublicOn> {
         let b = self.backup.as_ref()?;
         let shape = self.plan_shape(b.wallet);
         Some(
-            crate::backup_flow::plan_of_on(&b.answers, &self.plan_mapped(&shape, &b.answers))
+            crate::backup_flow::plan_of_on(&b.answers, &self.plan_mapped(c, &shape, &b.answers))
                 .public_on,
         )
     }
@@ -1891,6 +1897,7 @@ impl Faraday {
     /// software, or the keys left off each share. The board's own presses
     /// are `board.rs`'s (§19.12 item 1).
     pub(crate) fn flow_plan_press(&mut self, i: usize, press: crate::PlanPress) {
+        let c = self.compute();
         use crate::PlanPress as P;
         let Some(wf) = self.backup_flows[i].wallet.as_ref() else {
             return;
@@ -1906,7 +1913,7 @@ impl Faraday {
                 };
             }
             P::Next(q) => {
-                let cards = crate::plan_cards(&shape, &answers);
+                let cards = crate::plan_cards(&c, &shape, &answers);
                 self.backup_flows[i].live.plan_q =
                     cards.iter().skip_while(|&&c| c != q).nth(1).copied();
             }
@@ -1928,7 +1935,7 @@ impl Faraday {
     pub(crate) fn record_tokens(&self, c: &Compute, r: &faraday_vault::Record) -> Vec<String> {
         use faraday_vault::records::{field, kind as rkind};
         // As an open vault keeps it read; a copy is read now.
-        let sum = || self.record_described(r).map(|d| d.checksum.clone());
+        let sum = || self.record_described(c, r).map(|d| d.checksum.clone());
         match r.kind {
             rkind::KEY => {
                 let Some(fp) = crate::vault_screens::key_fingerprint(c, self, r) else {
@@ -1984,7 +1991,7 @@ impl Faraday {
     /// The keys, by fingerprint, that a record in open vault `o` of a
     /// wallet other than the one with checksum `cs` names: its
     /// description, or its plan.
-    pub(crate) fn vault_others(&self, o: usize, cs: &str) -> Vec<String> {
+    pub(crate) fn vault_others(&self, c: &Compute, o: usize, cs: &str) -> Vec<String> {
         let mut out: Vec<String> = Vec::new();
         let Some(v) = self.vaults.open.get(o) else {
             return out;
@@ -1992,7 +1999,7 @@ impl Faraday {
         // A wallet's, a plan's or a share's description, as the vault
         // keeps it read.
         for i in 0..v.contents.records.len() {
-            let Some(d) = v.contents.described(i) else {
+            let Some(d) = v.contents.described(c, i) else {
                 continue;
             };
             let p = &d.policy;
@@ -2013,7 +2020,7 @@ impl Faraday {
     /// did not put there (`docs/BACKUP-FLOW.md` §17): a key, a passphrase,
     /// a description or a share the vault held before the flow, or a key
     /// another wallet's record in it names. The toast's line, or `None`.
-    fn flow_takes_out_foreign(&self, trial: &BackupFlow) -> Option<String> {
+    fn flow_takes_out_foreign(&self, c: &Compute, trial: &BackupFlow) -> Option<String> {
         let wf = trial.wallet.as_ref()?;
         let cs = wf.checksum.clone().unwrap_or_default();
         for (v, had) in &wf.sealed {
@@ -2023,7 +2030,7 @@ impl Faraday {
             if !trial.plan.used_vaults().contains(v) {
                 continue;
             }
-            let now = sealed_marks(wf, *v);
+            let now = sealed_marks(c, wf, *v);
             let before: Vec<String> = wf
                 .before
                 .iter()
@@ -2094,12 +2101,12 @@ impl Faraday {
     /// share's files, the software or the form, a stick's files, or Whole
     /// / In shares and the keys left off while any of the description is
     /// on paper or in a file.
-    fn flow_changes_files(&self, old: &BackupFlow, new: &BackupFlow) -> bool {
+    fn flow_changes_files(&self, c: &Compute, old: &BackupFlow, new: &BackupFlow) -> bool {
         let (Some(a), Some(b)) = (old.wallet.as_ref(), new.wallet.as_ref()) else {
             return false;
         };
         let pieces = |wf: &crate::backup_flow::WalletFlow, p: usize| -> Vec<plan::What> {
-            let mut v: Vec<plan::What> = plan::place_map(&wf.shape, &wf.answers)
+            let mut v: Vec<plan::What> = plan::place_map(c, &wf.shape, &wf.answers)
                 .into_iter()
                 .filter(|s| s.at == plan::At::Place(p))
                 .flat_map(|s| s.holds.into_iter().map(|(w, _)| w))
@@ -2109,7 +2116,7 @@ impl Faraday {
             v
         };
         let elsewhere = |wf: &crate::backup_flow::WalletFlow| -> Vec<(String, Vec<String>)> {
-            plan::map(&wf.shape, &wf.answers)
+            plan::map(c, &wf.shape, &wf.answers)
                 .into_iter()
                 .filter(|s| matches!(s.at, plan::At::Files | plan::At::Software))
                 .map(|s| {
@@ -2160,6 +2167,7 @@ impl Faraday {
         i: usize,
         edit: &dyn Fn(&mut plan::Answers, &plan::Shape),
     ) {
+        let c = self.compute();
         // The plan does not change under a write, by any way in.
         if self.backup_flows[i].live.writing.is_some() {
             return;
@@ -2172,12 +2180,12 @@ impl Faraday {
             let shape = w.shape.clone();
             edit(&mut w.answers, &shape);
         }
-        trial.wallet_replan();
+        trial.wallet_replan(&c);
         // Files and paper stay as they were made: after the lock only what
         // goes into a vault and where its sticks are kept change, until a
         // backup is done and Back up runs again (§17.8), a vault open or
         // not.
-        if trial.made && self.flow_changes_files(&self.backup_flows[i], &trial) {
+        if trial.made && self.flow_changes_files(&c, &self.backup_flows[i], &trial) {
             return self.toast(EN.backup_flow_files_after_lock);
         }
         let written: Vec<Target> = self.backup_flows[i]
@@ -2201,14 +2209,14 @@ impl Faraday {
             let bad = trial.wallet.as_ref().is_some_and(|wf| {
                 wf.answers.stickless(&wf.shape).is_some()
                     || held.iter().any(|&s| trial.seed_slots(s).is_empty())
-                    || plan::kept_nowhere(&wf.shape, &wf.answers, &held).is_some()
+                    || plan::kept_nowhere(&c, &wf.shape, &wf.answers, &held).is_some()
             });
             if bad {
                 return self.toast(EN.backup_flow_held_stays);
             }
             // Nothing the vault held before the flow, or another wallet
             // in it uses, is taken out.
-            if let Some(line) = self.flow_takes_out_foreign(&trial) {
+            if let Some(line) = self.flow_takes_out_foreign(&c, &trial) {
                 return self.toast(&line);
             }
         }
@@ -2218,7 +2226,7 @@ impl Faraday {
         if trial.made {
             // What a vault must hold changed: it is as one added, now.
             let step = trial.step;
-            trial.made_plan_changed(false);
+            trial.made_plan_changed(&c, false);
             if trial.step != step {
                 trial.live.open = Some(trial.step.n());
             }
@@ -2333,7 +2341,11 @@ const OTHER_WALLET: &str = "*";
 /// What vault `v` of the plan holds: its seeds, the wallet description where
 /// the plan puts it there, and each passphrase the plan puts in with its
 /// seed. A plan changed after the lock that asks for more is a round.
-pub(crate) fn sealed_marks(wf: &crate::backup_flow::WalletFlow, v: usize) -> Vec<usize> {
+pub(crate) fn sealed_marks(
+    c: &Compute,
+    wf: &crate::backup_flow::WalletFlow,
+    v: usize,
+) -> Vec<usize> {
     let seeds = wf.answers.vault_seeds(&wf.shape, v);
     let mut marks = seeds.clone();
     if wf.answers.wallet_in_vault(v) {
@@ -2341,7 +2353,7 @@ pub(crate) fn sealed_marks(wf: &crate::backup_flow::WalletFlow, v: usize) -> Vec
     }
     // Each share the vault keeps (`docs/BACKUP-FLOW.md` §17.6): one added
     // after the lock is a change of what the vault holds (§10.2).
-    let shares = wf.answers.vault_shares(&wf.shape, v);
+    let shares = wf.answers.vault_shares(c, &wf.shape, v);
     for &j in &shares {
         marks.push(SHARE_MARK + j);
     }
@@ -2355,7 +2367,7 @@ pub(crate) fn sealed_marks(wf: &crate::backup_flow::WalletFlow, v: usize) -> Vec
             marks.push(PASS_MARK + s);
         }
     }
-    for s in wf.answers.vault_passphrases(&wf.shape, v) {
+    for s in wf.answers.vault_passphrases(c, &wf.shape, v) {
         marks.push(PASS_ALONE_MARK + s);
     }
     marks
@@ -2465,7 +2477,7 @@ impl BackupFlow {
     /// and its sticks are written again), and a vault the plan has and the
     /// flow has not made starts the round. With `advance`, a flow that has
     /// not reached the writes goes on to the lock.
-    pub(crate) fn made_plan_changed(&mut self, advance: bool) {
+    pub(crate) fn made_plan_changed(&mut self, c: &Compute, advance: bool) {
         let f = self;
         let stale: Vec<usize> = match f.wallet.as_ref() {
             Some(wf) => f
@@ -2479,7 +2491,7 @@ impl BackupFlow {
                         .iter()
                         .find(|(x, _)| x == v)
                         .map_or(&[][..], |(_, s)| s.as_slice());
-                    let now = sealed_marks(wf, *v);
+                    let now = sealed_marks(c, wf, *v);
                     // Anything of this wallet added to it or taken out of
                     // it: a seed, a passphrase, the description, a share
                     // (§10.2, §17.6).
@@ -2562,14 +2574,14 @@ impl BackupFlow {
     /// `slot`: the stick of files takes the seeds kept there; a stick at a
     /// place the seeds' files the plan keeps on that stick, beside its
     /// vault or not (`docs/BACKUP-FLOW.md` §17.2, §19.4).
-    pub fn seed_file_ok_for(&self, slot: usize, name: &str) -> bool {
+    pub fn seed_file_ok_for(&self, c: &Compute, slot: usize, name: &str) -> bool {
         let Some(w) = self.wallet.as_ref() else {
             return false;
         };
         let Some(target) = self.slots.get(slot).map(|s| s.target) else {
             return false;
         };
-        let boxes = plan::map(&w.shape, &w.answers);
+        let boxes = plan::map(c, &w.shape, &w.answers);
         if target == Target::Files {
             let fps: Vec<String> = plan::holds_at(&boxes, plan::At::Files)
                 .into_iter()
@@ -2597,11 +2609,11 @@ impl BackupFlow {
 
     /// Whether `name` is a seed's file of the wallet this flow is for that
     /// the plan keeps: on the stick of files, or on a stick at a place.
-    pub fn seed_file_ok(&self, name: &str) -> bool {
+    pub fn seed_file_ok(&self, c: &Compute, name: &str) -> bool {
         let Some(w) = self.wallet.as_ref() else {
             return false;
         };
-        let kept = w.answers.seeds_as_files(&w.shape);
+        let kept = w.answers.seeds_as_files(c, &w.shape);
         let fps: Vec<String> = w
             .shape
             .seeds
@@ -2613,7 +2625,7 @@ impl BackupFlow {
         if seed_file_of(&file_stem(&w.name), &fps, name) {
             return true;
         }
-        plan::map(&w.shape, &w.answers)
+        plan::map(c, &w.shape, &w.answers)
             .iter()
             .filter(|s| matches!(s.at, plan::At::Stick(..)))
             .flat_map(|s| s.holds.iter())
@@ -2632,7 +2644,7 @@ impl BackupFlow {
 impl Faraday {
     /// The checklist's writes are done: the flow wrote every stick the plan
     /// as it is now names, so a plan changed since is not done.
-    pub(crate) fn wallet_sticks_done(&self) -> bool {
+    pub(crate) fn wallet_sticks_done(&self, c: &Compute) -> bool {
         let Some(i) = self.wallet_flow_of_backup() else {
             return false;
         };
@@ -2644,8 +2656,8 @@ impl Faraday {
             return false;
         };
         let shape = self.plan_shape(b.wallet);
-        let mapped = self.plan_mapped(&shape, &b.answers);
-        let now = BackupFlow::new_wallet_on(shape, b.answers.clone(), "", &mapped);
+        let mapped = self.plan_mapped(c, &shape, &b.answers);
+        let now = BackupFlow::new_wallet_on(c, shape, b.answers.clone(), "", &mapped);
         now.slots.iter().all(|n| {
             f.slots
                 .iter()

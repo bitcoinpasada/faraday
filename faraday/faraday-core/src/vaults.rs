@@ -600,7 +600,7 @@ impl VaultRecords {
     /// Reads the wallet descriptions the records hold, unless they are
     /// read already. Costs a parse of each description the first time
     /// after a change, a lookup after.
-    pub fn warm(&self) {
+    pub fn warm(&self, c: &Compute) {
         self.read.get_or_init(|| {
             // Each key record's words, parsed once for both.
             let (words, words_ids) = self
@@ -617,13 +617,14 @@ impl VaultRecords {
                     )
                 })
                 .unzip();
-            self.read_with(words, words_ids)
+            self.read_with(c, words, words_ids)
         });
     }
 
     /// What [`VaultRecords::warm`] keeps, with the key records' words read.
     fn read_with(
         &self,
+        c: &Compute,
         words: Vec<Option<usize>>,
         words_ids: Vec<Option<crate::wallet::WordsId>>,
     ) -> Read {
@@ -639,7 +640,7 @@ impl VaultRecords {
                         kind::WALLET_SHARE => field::SHARE_WALLET,
                         _ => return None,
                     };
-                    let policy = crate::wallet::read_wallet(r.text(f)?).ok()?;
+                    let policy = crate::wallet::read_wallet(c, r.text(f)?).ok()?;
                     Some(Described::of(policy))
                 })
                 .collect(),
@@ -651,16 +652,16 @@ impl VaultRecords {
     /// Key record `i`'s words' [`crate::wallet::WordsId`]; `None` for
     /// another record or one holding a seed rather than words. A lookup
     /// once the records are read.
-    pub fn words_id(&self, i: usize) -> Option<&[u8; 32]> {
-        self.warm();
+    pub fn words_id(&self, c: &Compute, i: usize) -> Option<&[u8; 32]> {
+        self.warm(c);
         self.read.get()?.words_ids.get(i)?.as_deref()
     }
 
     /// How many words key record `i`'s seed has; `None` for another
     /// record, or a key record holding a seed rather than words. A lookup
     /// once the records are read.
-    pub fn word_count(&self, i: usize) -> Option<usize> {
-        self.warm();
+    pub fn word_count(&self, c: &Compute, i: usize) -> Option<usize> {
+        self.warm(c);
         *self.read.get()?.words.get(i)?
     }
 
@@ -669,16 +670,16 @@ impl VaultRecords {
     /// one whose description does not read. A lookup once the records
     /// are read ([`VaultRecords::warm`]); the first ask after a change
     /// parses them.
-    pub fn described(&self, i: usize) -> Option<&Described> {
-        self.warm();
+    pub fn described(&self, c: &Compute, i: usize) -> Option<&Described> {
+        self.warm(c);
         self.read.get()?.described.get(i)?.as_ref()
     }
 
     /// The wallet description record `r` holds, read, when `r` is one of
     /// these records itself (told by where it is, not by what it says);
     /// `None` for a copy. A search of the records' places.
-    pub fn described_rec(&self, r: &Record) -> Option<&Described> {
-        self.described(self.place_of(r)?)
+    pub fn described_rec(&self, c: &Compute, r: &Record) -> Option<&Described> {
+        self.described(c, self.place_of(r)?)
     }
 
     /// Where record `r` is among these records, when it is one of them
@@ -692,10 +693,14 @@ impl VaultRecords {
 
     /// Each record of kind `k` with the wallet description it holds, read
     /// (see [`VaultRecords::described`]).
-    pub fn described_of(&self, k: u8) -> impl Iterator<Item = (usize, &Record, &Described)> {
+    pub fn described_of(
+        &self,
+        c: &Compute,
+        k: u8,
+    ) -> impl Iterator<Item = (usize, &Record, &Described)> {
         self.contents
             .of(k)
-            .filter_map(move |(i, r)| self.described(i).map(|d| (i, r, d)))
+            .filter_map(move |(i, r)| self.described(c, i).map(|d| (i, r, d)))
     }
 }
 
@@ -725,14 +730,14 @@ impl Faraday {
     /// How many words key record `r`'s seed has, as its open vault keeps
     /// it read ([`VaultRecords::word_count`]); a record that is no open
     /// vault's own (a copy) is read afresh, which costs a parse.
-    pub(crate) fn record_word_count(&self, r: &Record) -> Option<usize> {
+    pub(crate) fn record_word_count(&self, c: &Compute, r: &Record) -> Option<usize> {
         if let Some((o, i)) = self
             .vaults
             .open
             .iter()
             .find_map(|o| o.contents.place_of(r).map(|i| (o, i)))
         {
-            return o.contents.word_count(i);
+            return o.contents.word_count(c, i);
         }
         crate::wallet::record_words(r).map(|m| m.word_count())
     }
@@ -740,7 +745,11 @@ impl Faraday {
     /// Key record `r`'s words' [`crate::wallet::WordsId`], as its open
     /// vault keeps it ([`VaultRecords::words_id`]); a record that is no
     /// open vault's own (a copy) is read afresh, which costs a parse.
-    pub(crate) fn record_words_id(&self, r: &Record) -> Option<crate::wallet::WordsId> {
+    pub(crate) fn record_words_id(
+        &self,
+        c: &Compute,
+        r: &Record,
+    ) -> Option<crate::wallet::WordsId> {
         if let Some((o, i)) = self
             .vaults
             .open
@@ -749,7 +758,7 @@ impl Faraday {
         {
             return o
                 .contents
-                .words_id(i)
+                .words_id(c, i)
                 .map(|id| zeroize::Zeroizing::new(*id));
         }
         crate::wallet::record_words(r).map(|m| crate::wallet::words_id(&m))
@@ -757,13 +766,18 @@ impl Faraday {
 
     /// The wallet description record `r` holds, as its open vault keeps
     /// it read ([`VaultRecords`]); a record that is no open vault's own
-    /// (a copy) is read afresh, which costs a parse.
-    pub(crate) fn record_described(&self, r: &Record) -> Option<std::borrow::Cow<'_, Described>> {
+    /// (a copy) is read as a description no record keeps
+    /// ([`Faraday::read_kept`]), which costs a parse the first time.
+    pub(crate) fn record_described(
+        &self,
+        c: &Compute,
+        r: &Record,
+    ) -> Option<std::borrow::Cow<'_, Described>> {
         if let Some(d) = self
             .vaults
             .open
             .iter()
-            .find_map(|o| o.contents.described_rec(r))
+            .find_map(|o| o.contents.described_rec(c, r))
         {
             return Some(std::borrow::Cow::Borrowed(d));
         }
@@ -773,7 +787,7 @@ impl Faraday {
             kind::WALLET_SHARE => field::SHARE_WALLET,
             _ => return None,
         };
-        let policy = crate::wallet::read_wallet(r.text(f)?).ok()?;
+        let policy = self.read_kept(c, r.text(f)?)?;
         Some(std::borrow::Cow::Owned(Described::of(policy)))
     }
 }
@@ -1246,7 +1260,7 @@ impl Faraday {
             .iter()
             .flat_map(|v| {
                 v.contents
-                    .described_of(kind::WALLET)
+                    .described_of(c, kind::WALLET)
                     .map(|(_, _, d)| d.policy.to_descriptor())
             })
             .collect();
@@ -1351,21 +1365,21 @@ impl Faraday {
             self.vaults.open.iter().find_map(|v| {
                 v.contents
                     .of(kind::KEY)
-                    .any(|(i, _)| v.contents.words_id(i) == Some(id))
+                    .any(|(i, _)| v.contents.words_id(c, i) == Some(id))
                     .then(|| v.label())
             })
         };
         let in_vault_wallet = |descriptor: &str| {
             self.vaults.open.iter().find_map(|v| {
                 v.contents
-                    .described_of(kind::WALLET)
+                    .described_of(c, kind::WALLET)
                     .any(|(_, _, d)| d.policy.to_descriptor() == descriptor)
                     .then(|| v.label())
             })
         };
         for k in &self.session.keys {
             let vault = k.words_id(c).and_then(in_vault_key);
-            let copy = self.seed_copy_checked(k.fingerprint().0);
+            let copy = self.seed_copy_checked(c, k.fingerprint().0);
             let (state, nowhere) = match (vault, copy) {
                 (Some(v), true) => (fill(EN.vaults_in_copy_checked, &[&v.to_string()]), false),
                 (Some(v), false) => (fill(EN.vaults_in, &[&v.to_string()]), false),
@@ -1623,7 +1637,7 @@ impl Faraday {
             }
             V::LoadKeyOf(fp, at) => {
                 let found = self
-                    .slot_of(fp, at)
+                    .slot_of(&c, fp, at)
                     .and_then(|slot| self.vault_key_for(&c, &slot));
                 let fp = osk_bip::keys::Fingerprint(fp);
                 if let Some((v, i)) = found {
@@ -2791,7 +2805,7 @@ impl Faraday {
         };
         let mut rows = Vec::new();
         for (i, r) in open.contents.of(kind::WALLET) {
-            let described = open.contents.described(i);
+            let described = open.contents.described(c, i);
             let loaded = described.is_some_and(|d| {
                 self.session
                     .wallets
@@ -2857,7 +2871,12 @@ impl Faraday {
     /// The slot [`SlotOf`] `at` names, with master fingerprint `fp`;
     /// `None` when that wallet or slot is gone or names another key.
     /// Costs a read of the wallet's keys.
-    pub(crate) fn slot_of(&self, fp: [u8; 4], at: SlotOf) -> Option<crate::wallet::Slot> {
+    pub(crate) fn slot_of(
+        &self,
+        c: &Compute,
+        fp: [u8; 4],
+        at: SlotOf,
+    ) -> Option<crate::wallet::Slot> {
         let fp = osk_bip::keys::Fingerprint(fp);
         let slot = match at {
             SlotOf::Loaded(w, k) => {
@@ -2865,7 +2884,7 @@ impl Faraday {
                 self.session.slots(wallet).into_iter().nth(k)?
             }
             SlotOf::Vault(v, r, k) => {
-                let d = self.vaults.open.get(v)?.contents.described(r)?;
+                let d = self.vaults.open.get(v)?.contents.described(c, r)?;
                 let wallet = crate::wallet::Wallet::new(
                     String::new(),
                     d.policy.clone(),
@@ -2893,7 +2912,7 @@ impl Faraday {
         let rows = self.vault_rows(c, v);
         let loaded = |i: usize| rows.iter().any(|r| r.record == i && r.loaded);
         let mut out = Vec::new();
-        for (i, r, d) in open.contents.described_of(kind::WALLET) {
+        for (i, r, d) in open.contents.described_of(c, kind::WALLET) {
             let policy = d.policy.clone();
             let name = r
                 .text(field::WALLET_NAME)
@@ -2955,7 +2974,7 @@ impl Faraday {
             .records
             .get(r)
             .filter(|x| x.kind == kind::WALLET)?;
-        let described = open.contents.described(r)?;
+        let described = open.contents.described(&c, r)?;
         let policy = described.policy.clone();
         let want = described.same.clone();
         let mut set = BTreeSet::from([r]);
@@ -3028,7 +3047,7 @@ impl Faraday {
             }
             // Read once when the records changed (`VaultRecords`), not
             // again here.
-            if let Some(d) = open.contents.described(i) {
+            if let Some(d) = open.contents.described(&c, i) {
                 descs.push((
                     d.policy.clone(),
                     r.text(field::WALLET_NAME)
@@ -3221,6 +3240,7 @@ impl Faraday {
                     .unwrap_or(EN.vaults_wallet)
                     .to_string();
                 match self.session.add_wallet(
+                    &c,
                     &name,
                     &text,
                     EN.vaults_vault,
@@ -4439,7 +4459,7 @@ impl Faraday {
                             .unwrap_or(EN.vaults_wallet)
                             .to_string(),
                         v.contents
-                            .described(i)
+                            .described(&c, i)
                             .map(|d| d.shape.clone())
                             .unwrap_or_default(),
                     )
@@ -4451,7 +4471,7 @@ impl Faraday {
                 .filter_map(|(_, r)| crate::vault_screens::key_identity(&c, self, r))
                 .map(|(fp, id)| (fp, Some(id)))
                 .unzip();
-            let sum_of = |i: usize| v.contents.described(i).map(|d| d.checksum.clone());
+            let sum_of = |i: usize| v.contents.described(&c, i).map(|d| d.checksum.clone());
             let sums = v
                 .contents
                 .of(kind::WALLET)

@@ -62,16 +62,17 @@ fn cameras(app: &mut Faraday) {
 /// The copies of seed `seed` made words, a SeedQR or both, on the board:
 /// what is missing is added first, as the last form cannot be taken off.
 fn copies_as(app: &mut Faraday, seed: usize, words: bool, seedqr: bool) {
+    let c = faraday_core::testkit::compute();
     if app.board_plan().is_some_and(|(_, a)| !a.custom) {
         app.press(Action::Board(BP::Customize));
     }
     let forms = |app: &Faraday| {
         let (shape, a) = app.board_plan().expect("a board");
-        plan::copy_forms(&shape, &a, seed)
+        plan::copy_forms(&c, &shape, &a, seed)
     };
     let place = {
         let (shape, a) = app.board_plan().expect("a board");
-        plan::map(&shape, &a)
+        plan::map(&c, &shape, &a)
             .iter()
             .find_map(|s| match s.at {
                 plan::At::Place(p)
@@ -118,6 +119,7 @@ fn copies_as(app: &mut Faraday, seed: usize, words: bool, seedqr: bool) {
 /// as asked, a camera listed when `camera`; open on the seed's copy with
 /// the seed shown.
 fn backing_up_on(app: &mut Faraday, words: &str, camera: bool, copies: (bool, bool)) {
+    let c = faraday_core::testkit::compute();
     if camera {
         cameras(app);
     }
@@ -136,7 +138,7 @@ fn backing_up_on(app: &mut Faraday, words: &str, camera: bool, copies: (bool, bo
     testkit::backup_as(app, plan::Preset::Paper);
     copies_as(app, 0, copies.0, copies.1);
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&bstep::BLANK) {
+    if app.backup_items_now(&c).contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
     // The template is made with the checklist, so the copy is the first
@@ -624,6 +626,7 @@ fn each_seed_is_checked_by_its_own_forms() {
     }
     app.session
         .add_wallet(
+            &c,
             "Savings",
             &testkit::savings(),
             "test",
@@ -644,7 +647,7 @@ fn each_seed_is_checked_by_its_own_forms() {
     copies_as(&mut app, seeds[0], true, false);
     copies_as(&mut app, seeds[1], false, true);
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&bstep::BLANK) {
+    if app.backup_items_now(&c).contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
     let first = bstep::COPY + seeds[0] as u8;
@@ -741,11 +744,12 @@ type Shown = (
 );
 
 fn checklist(app: &mut Faraday) -> Shown {
+    let c = faraday_core::testkit::compute();
     app.settle();
     let boxes = app.drawn_text_boxes();
     (
         boxes,
-        app.backup_items_now(),
+        app.backup_items_now(&c),
         app.backup.as_ref().and_then(|b| b.open),
         seeds_done(app),
     )

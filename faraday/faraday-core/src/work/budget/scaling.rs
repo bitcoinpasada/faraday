@@ -45,6 +45,7 @@ fn session(copies: usize, wallets: usize, spend: bool) -> Faraday {
     for kit in kits.iter().take(wallets) {
         app.session
             .add_wallet(
+                &c,
                 kit.name,
                 &kit.descriptor,
                 "test",

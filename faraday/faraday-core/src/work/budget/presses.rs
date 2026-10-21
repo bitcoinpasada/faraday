@@ -55,8 +55,8 @@ const PRESS_BUDGETS: &[(&str, Work, u64, &str)] = &[
     (
         "PickWallet",
         Work::Address,
-        1,
-        "the wallet's card shows its first receive address: derived the first time the card shows, then kept on the wallet (Wallet::address_on)",
+        12,
+        "the wallet's card shows its first receive address: derived the first time the card shows, then kept on the wallet (Wallet::address_on) (1); each script a wallet derives for WalletMatch below is a script derivation, counted at its source (11)",
     ),
     (
         "PickWallet",
@@ -138,8 +138,9 @@ fn press_work(app: &mut Faraday, a: Action) -> Counts {
 
 #[test]
 fn every_press_a_main_screen_offers_does_no_costly_work_beyond_its_budget() {
+    let c = crate::testkit::compute();
     // Each screen of the walk drawn, as a person reaches it.
-    let (mut app, _) = walk(&mut |app, _| {
+    let (mut app, _) = walk(&c, &mut |app, _| {
         app.settle();
         let _ = app.frame();
     });

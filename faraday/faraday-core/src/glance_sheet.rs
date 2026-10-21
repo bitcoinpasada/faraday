@@ -188,17 +188,19 @@ fn row(label: impl Into<String>, sub: impl Into<String>, action: Option<Action>)
     }
 }
 
-/// The chart a press was made on.
-fn chart(c: &Compute, app: &Faraday, press: Press) -> Option<Glance> {
+/// The chart a press was made on, read through `r` ([`glance::Reads`]).
+fn chart(r: &impl glance::Reads, press: Press) -> Option<Glance> {
     match press {
-        Press::Loaded(w) => glance::of(c, app, w),
-        Press::Vault(v, r) => glance::of_vault(c, app, v, r),
+        Press::Loaded(w) => glance::of_on(r, w),
+        Press::Vault(v, i) => glance::of_vault_on(r, v, i),
     }
 }
 
-/// Where backup node `n` of the chart of `press` is.
-pub(crate) fn node_at(c: &Compute, app: &Faraday, press: Press, n: u8) -> Option<At> {
-    match chart(c, app, press)?.backup {
+/// Costs what the chart costs to read the first time: where backup node
+/// `n` of the chart of `press` is, for a decision, from the state as it
+/// is.
+pub(crate) fn node_at_now(c: &Compute, app: &Faraday, press: Press, n: u8) -> Option<At> {
+    match chart(&glance::Now { app, c }, press)?.backup {
         Backup::Plan { nodes, .. } => nodes.get(usize::from(n)).map(|x| x.at),
         _ => None,
     }
@@ -242,9 +244,10 @@ fn check_facts(before: plan::Check, after: plan::Check) -> Vec<(&'static str, St
 }
 
 /// The sheet for `target` on the chart of `press`; `None` when it is no
-/// longer there.
-pub(crate) fn view(c: &Compute, app: &Faraday, press: Press, target: Target) -> Option<View> {
-    let g = chart(c, app, press)?;
+/// longer there. Drawing's form: the chart through the memo and the kept
+/// values. Only drawing asks for it.
+pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> Option<View> {
+    let g = chart(app, press)?;
     let chart_do = |a: ChartAction| Some(Action::Chart(a));
     let doing = |s: Step| chart_do(ChartAction::Do(press, s));
     let open = |t: Target| chart_do(ChartAction::Open(press, t));
@@ -1454,7 +1457,7 @@ impl Faraday {
                 // A sheet that types or chooses starts from what is kept.
                 match target {
                     Target::Remove(n) => {
-                        let things = chart(&c, self, press)
+                        let things = chart(&glance::Now { app: self, c: &c }, press)
                             .and_then(|g| match g.backup {
                                 Backup::Plan { nodes, .. } => {
                                     nodes.get(usize::from(n)).map(|x| x.whats.len())
@@ -1465,12 +1468,12 @@ impl Faraday {
                         self.chart_work.dest = vec![None; things];
                     }
                     Target::Holder(k) => {
-                        self.chart_work.text = chart(&c, self, press)
+                        self.chart_work.text = chart(&glance::Now { app: self, c: &c }, press)
                             .and_then(|g| g.keys.get(usize::from(k)).and_then(|k| k.holder.clone()))
                             .unwrap_or_default();
                     }
                     Target::VaultName(n) => {
-                        self.chart_work.text = chart(&c, self, press)
+                        self.chart_work.text = chart(&glance::Now { app: self, c: &c }, press)
                             .and_then(|g| match g.backup {
                                 Backup::Plan { nodes, .. } => {
                                     nodes.get(usize::from(n)).map(|x| x.name.clone())
@@ -1640,7 +1643,8 @@ impl Faraday {
     /// plan put into it. False when no plan is known and no backup of it
     /// is under way.
     pub(crate) fn chart_backup(&mut self, w: usize, from_vault: bool) -> bool {
-        let known = glance::plan_of(self, w);
+        let c = self.compute();
+        let known = glance::plan_of_now(&c, self, w);
         let mine = self.backup.as_ref().is_some_and(|b| b.wallet == w);
         if !mine {
             if known.is_none() {

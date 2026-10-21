@@ -45,9 +45,11 @@ fn card_h(e: &Entry) -> f32 {
     CARD_HEAD + rows as f32 * ROW + CARD_FOOT
 }
 
-/// Where the wide list scrolls to show wallet `at` at its top.
-pub(crate) fn offset_of(c: &Compute, app: &Faraday, at: usize) -> f32 {
-    app.backups(c)
+/// Costs what the backups list costs to work out: where the wide list
+/// scrolls to show wallet `at` at its top, for the press that scrolls
+/// it, from the state as it is. Only a press asks it.
+pub(crate) fn offset_of_now(c: &Compute, app: &Faraday, at: usize) -> f32 {
+    app.backups_now(c)
         .iter()
         .take(at)
         .map(|e| card_h(e) + GAP)

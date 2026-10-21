@@ -79,11 +79,13 @@ fn reads_back(app: &mut Faraday, code: Code, png: &str, want: &str) {
 }
 
 fn holding(name: &str, descriptor: &str) -> (Faraday, usize) {
+    let c = faraday_core::testkit::compute();
     let mut app = testkit::started();
     app.session = testkit::session();
     let w = app
         .session
         .add_wallet(
+            &c,
             name,
             descriptor,
             "test",
@@ -260,6 +262,7 @@ fn a_signed_message_reads_back_from_its_code_and_its_picture() {
         .unwrap();
     app.session
         .add_wallet(
+            &c,
             spending.name,
             &spending.descriptor,
             "test",

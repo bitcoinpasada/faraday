@@ -465,6 +465,7 @@ fn p2wpkh_at(word: &str, path: &str) -> String {
 
 #[test]
 fn new_wallet_from_a_single_key_wallet_is_its_words_at_account_1() {
+    let c = faraday_core::testkit::compute();
     let (mut app, original) = made_on_testnet();
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::OpenWallet(original));
@@ -477,7 +478,7 @@ fn new_wallet_from_a_single_key_wallet_is_its_words_at_account_1() {
     let sum = app.session.wallets[original].checksum().to_string();
     let first = app
         .session
-        .address(&app.session.wallets[original], false, 0);
+        .address(&c, &app.session.wallets[original], false, 0);
     app.press(Action::NewWalletFrom(original));
     assert_eq!(app.screen, Screen::Create);
     let c = app.create.as_ref().unwrap();
@@ -490,7 +491,9 @@ fn new_wallet_from_a_single_key_wallet_is_its_words_at_account_1() {
     let made = continue_throughout(&mut app);
     assert_ne!(made, original);
     let w = &app.session.wallets[made];
-    let address = app.session.address(w, false, 0);
+    let address = app
+        .session
+        .address(&faraday_core::testkit::compute(), w, false, 0);
     assert_eq!(
         address,
         p2wpkh_at("bacon", "m/84'/1'/1'/0/0"),
@@ -502,7 +505,11 @@ fn new_wallet_from_a_single_key_wallet_is_its_words_at_account_1() {
     let o = &app.session.wallets[original];
     assert_eq!(o.name, name);
     assert_eq!(o.checksum(), sum);
-    assert_eq!(app.session.address(o, false, 0), first);
+    assert_eq!(
+        app.session
+            .address(&faraday_core::testkit::compute(), o, false, 0),
+        first
+    );
 }
 
 #[test]
@@ -543,6 +550,7 @@ fn new_wallet_from_a_two_of_three_held_here_takes_every_key_at_account_1() {
 
 #[test]
 fn a_cosigners_xpub_at_another_account_leaves_its_slot_to_someone_else() {
+    let c = faraday_core::testkit::compute();
     use faraday_core::create::Source;
     let mut app = testkit::started();
     add_key(&mut app, "bacon");
@@ -551,6 +559,7 @@ fn a_cosigners_xpub_at_another_account_leaves_its_slot_to_someone_else() {
     let i = app
         .session
         .add_wallet(
+            &c,
             "Shared",
             &NewKind::Multi.descriptor(2, &keys),
             "Test",
@@ -643,7 +652,8 @@ fn check_shows_the_path_and_change_makes_the_wallet_again_at_another_account() {
     assert_eq!(app.session.wallets.len(), 1, "one wallet, not two");
     let w = &app.session.wallets[made];
     assert_eq!(
-        app.session.address(w, false, 0),
+        app.session
+            .address(&faraday_core::testkit::compute(), w, false, 0),
         p2wpkh_at("bacon", "m/84'/1'/2'/0/0"),
         "the same words at account 2"
     );

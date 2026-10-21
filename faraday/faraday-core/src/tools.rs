@@ -2,7 +2,10 @@
 //! descriptor's checksum, an extended key in every spelling, an amount in
 //! every unit and the miniscript compiler, with Faraday's screen over them
 //! (`docs/OPENSIGNER-PARITY.md` plan C4). Nothing here is a secret: an
-//! extended private key is refused, and nothing is kept.
+//! extended private key is refused. What the open calculator works out
+//! of what is typed is kept on its state by what it is worked out from
+//! ([`Faraday::tools_reading`]), so a frame drawn again works out
+//! nothing.
 
 use crate::strings::EN;
 use osk_bip::compile::PolicyScript;
@@ -60,6 +63,38 @@ pub struct ToolsState {
     pub script: PolicyScript,
     /// Where it returns to.
     pub back: Screen,
+    /// What the calculator worked out last, by what it worked it out
+    /// from ([`Faraday::tools_reading`]).
+    read: std::cell::RefCell<Option<KeptReading>>,
+}
+
+/// What the open calculator worked out of what is typed.
+pub enum Reading {
+    /// Nothing to work out: the amount is converted as it is drawn.
+    Nothing,
+    /// The three hashes of the bytes typed.
+    Hashes(osk_bip::hashes::Hashes),
+    /// What the string is encoded in, when it is.
+    Encodings(Option<osk_codec::encodings::Reading>),
+    /// The descriptor's checksum and whether it is a wallet here.
+    Descriptor(Option<osk_bip::descriptor::ChecksumFacts>),
+    /// The extended key in every spelling.
+    Key(osk_bip::slip132::KeyReading),
+    /// The policy compiled, or the compiler's refusal.
+    Miniscript(Result<osk_bip::compile::PolicyFacts, String>),
+}
+
+/// A [`Reading`] with what it was worked out from: the calculator, the
+/// text typed (wiped when dropped), its modes, the network and the keys
+/// a policy may name.
+struct KeptReading {
+    tool: Tool,
+    typed: crate::secret_text::SecretText,
+    read_as: ReadAs,
+    script: PolicyScript,
+    network: osk_bip::keys::Network,
+    keys: Vec<(String, String)>,
+    reading: std::rc::Rc<Reading>,
 }
 
 /// A calculator's name, as OpenSigner writes it.
@@ -92,6 +127,7 @@ impl Faraday {
             unit: 0,
             script: PolicyScript::Segwit,
             back: self.screen,
+            read: std::cell::RefCell::new(None),
         });
         self.screen = Screen::Tools;
     }
@@ -110,6 +146,60 @@ impl Faraday {
                 ))
             })
             .collect()
+    }
+
+    /// Costs what the open calculator works out the first time (a parse
+    /// of a descriptor, a policy compiled, the hashes), a lookup after:
+    /// what it worked out of what is typed, kept on its state by the
+    /// calculator, the text, its modes, the network and the keys a policy
+    /// may name. `None` with Tools closed or nothing typed.
+    pub(crate) fn tools_reading(&self, c: &Compute) -> Option<std::rc::Rc<Reading>> {
+        use osk_codec::encodings::{read as encoding_of, read_input};
+        let t = self.tools.as_ref()?;
+        if t.typed.trim().is_empty() {
+            return None;
+        }
+        let network = self.session.network();
+        let keys = if t.tool == Tool::Miniscript {
+            self.tools_keys(c)
+        } else {
+            Vec::new()
+        };
+        if let Some(k) = t.read.borrow().as_ref()
+            && k.tool == t.tool
+            && k.typed == *t.typed.as_str()
+            && k.read_as == t.read_as
+            && k.script == t.script
+            && k.network == network
+            && k.keys == keys
+        {
+            return Some(k.reading.clone());
+        }
+        let reading = std::rc::Rc::new(crate::work::keeping(|| match t.tool {
+            Tool::Hashes => Reading::Hashes(osk_bip::hashes::hashes(&read_input(
+                t.typed.trim(),
+                t.read_as,
+            ))),
+            Tool::Encodings => Reading::Encodings(encoding_of(t.typed.trim())),
+            Tool::Descriptor => {
+                Reading::Descriptor(osk_bip::descriptor::checksum_facts(c, &t.typed))
+            }
+            Tool::ConvertKey => Reading::Key(osk_bip::slip132::key_facts(&t.typed, network)),
+            Tool::Units => Reading::Nothing,
+            Tool::Miniscript => {
+                Reading::Miniscript(osk_bip::compile::compile(c, &t.typed, t.script, &keys))
+            }
+        }));
+        *t.read.borrow_mut() = Some(KeptReading {
+            tool: t.tool,
+            typed: t.typed.clone(),
+            read_as: t.read_as,
+            script: t.script,
+            network,
+            keys,
+            reading: reading.clone(),
+        });
+        Some(reading)
     }
 
     /// One press on the screen.

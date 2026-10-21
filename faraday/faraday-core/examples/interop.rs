@@ -104,11 +104,11 @@ fn run(args: &[String]) -> Result<(), String> {
         ["addresses", id, n] => {
             let k = kit(id)?;
             let n: u32 = n.parse().map_err(|_| "n is a number")?;
-            let policy = WalletPolicy::parse_any(&k.descriptor).map_err(|e| e.to_string())?;
+            let policy = WalletPolicy::parse_any(&c, &k.descriptor).map_err(|e| e.to_string())?;
             for change in [false, true] {
                 for i in 0..n {
                     let a = policy
-                        .address_at(Network::Regtest, change, i)
+                        .address_at(&c, Network::Regtest, change, i)
                         .map_err(|e| e.to_string())?;
                     println!("{} {i} {a}", u8::from(change));
                 }
@@ -121,10 +121,10 @@ fn run(args: &[String]) -> Result<(), String> {
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_default();
             println!("{:?}", faraday_core::wallet::classify(&c, &name, &bytes));
-            match faraday_core::wallet::read_wallet(&String::from_utf8_lossy(&bytes)) {
+            match faraday_core::wallet::read_wallet(&c, &String::from_utf8_lossy(&bytes)) {
                 Ok(w) => {
                     println!("{}", w.to_descriptor_checksummed());
-                    if let Ok(a) = w.address_at(Network::Regtest, false, 0) {
+                    if let Ok(a) = w.address_at(&c, Network::Regtest, false, 0) {
                         println!("{a}");
                     }
                 }

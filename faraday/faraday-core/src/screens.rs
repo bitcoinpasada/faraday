@@ -5319,23 +5319,36 @@ pub(crate) fn ticked(labels: &[&str], on: &[bool]) -> String {
     }
 }
 
-/// A checklist item's title and the line shown while it is closed.
-pub(crate) fn item_title(c: &Compute, app: &Faraday, n: u8) -> (String, String) {
+/// A checklist item's title and the line shown while it is closed:
+/// drawing's form, through the memo and the kept values.
+pub(crate) fn item_title(app: &View, n: u8) -> (String, String) {
+    item_title_on(app, n)
+}
+
+/// Costs what the backup's answers cost to work out: [`item_title`] for
+/// a decision, from the state as it is.
+pub(crate) fn item_title_now(c: &Compute, app: &Faraday, n: u8) -> (String, String) {
+    item_title_on(&crate::glance::Now { app, c }, n)
+}
+
+/// [`item_title`] through `reads`.
+fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
     use crate::plan::Item;
+    let app = reads.app();
     let Some(b) = app.backup.as_ref() else {
         return (String::new(), String::new());
     };
     let Some(wallet) = app.session.wallets.get(b.wallet) else {
         return (String::new(), String::new());
     };
-    let shape = app.plan_shape(b.wallet);
+    let shape = reads.plan_shape(b.wallet);
     let a = &b.answers;
     let (_, keys_n) = Session::quorum(wallet);
     let item = crate::bstep::item(n).unwrap_or(Item::Envelopes);
-    let done = app.backup_item_done(c, item);
+    let done = reads.backup_item_done(item);
     match item {
         Item::Templates => {
-            let k = crate::plan::templates_on(&shape, &app.plan_mapped(&shape, a)).max(1);
+            let k = crate::plan::templates_on(&shape, &reads.plan_mapped(&shape, a)).max(1);
             (
                 fill(
                     EN.item_title_print_blank,
@@ -5377,7 +5390,7 @@ pub(crate) fn item_title(c: &Compute, app: &Faraday, n: u8) -> (String, String) 
                     &[&(v + 1).to_string(), &names.join(", ").to_string()],
                 )
             };
-            let line = match app.backup_vault_fits(c, v) {
+            let line = match reads.backup_vault_fits(v) {
                 Some(name) => fill(EN.item_title_in, &[&name.to_string()]),
                 None => EN.item_title_not_saved.to_string(),
             };
@@ -5420,13 +5433,13 @@ pub(crate) fn item_title(c: &Compute, app: &Faraday, n: u8) -> (String, String) 
         ),
         Item::PublicFiles => (
             EN.item_title_the_public.to_string(),
-            app.wallet_item_written(&app.backup_public_names_for(c, b.wallet, a))
+            app.wallet_item_written(&reads.backup_public_names_for(b.wallet, a))
                 .unwrap_or_else(|| ticked(&SOFTWARE_ROWS, &a.software)),
         ),
         Item::Sticks => {
             let (n, m) = app
                 .wallet_flow_of_backup()
-                .map_or((0, app.wallet_stick_rows(c).len()), |i| {
+                .map_or((0, reads.wallet_stick_rows().len()), |i| {
                     app.backup_flows[i].written_of()
                 });
             (
@@ -6764,7 +6777,6 @@ fn sticks_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// another vault's seed, that. Its one button is the foot's. Returns its
 /// height.
 fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 {
-    use crate::vault_screens::vault_has_wallet;
     let Some(b) = app.backup.as_ref() else {
         return 0.0;
     };
@@ -6810,7 +6822,7 @@ fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 
                 .session
                 .wallets
                 .get(b.wallet)
-                .is_some_and(|wl| vault_has_wallet(app, cur, wl));
+                .is_some_and(|wl| app.vault_has_wallet(cur, wl));
         rows.push((EN.vault_item_wallet_description.to_string(), has));
     }
     for (label, has) in rows {
@@ -7133,7 +7145,7 @@ fn message_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if app.receive_held(w) {
             crate::glance::RECEIVE_WARNING.to_string()
         } else {
-            app.session.address_shown(w, false, m.index)
+            app.address_shown(w, false, m.index)
         }
     });
     let cards: Vec<flow::Card> = (0..4u8)
@@ -7458,10 +7470,7 @@ fn check_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text(x, y, 14.0, W::R, MUTED, EN.check_no_signed_message);
         return;
     };
-    let Some(c) = app
-        .session
-        .check_message(&String::from_utf8_lossy(&item.bytes))
-    else {
+    let Some(c) = app.message_check(&String::from_utf8_lossy(&item.bytes)) else {
         ui.wrap(
             x,
             y,
@@ -8986,7 +8995,7 @@ fn restore_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 }
                 rstep::CHECK => match wl.filter(|_| r.done[rstep::SEEDS as usize]) {
                     Some(w) if app.receive_held(w) => crate::glance::RECEIVE_WARNING.to_string(),
-                    Some(w) => short(&app.session.address_shown(w, false, 0)),
+                    Some(w) => short(&app.address_shown(w, false, 0)),
                     None => String::new(),
                 },
                 _ => String::new(),

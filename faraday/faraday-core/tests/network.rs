@@ -58,6 +58,7 @@ fn with_inbox(files: Vec<(&str, Vec<u8>)>) -> Faraday {
 
 #[test]
 fn a_testnet_wallet_moves_the_session_to_testnet_and_a_mainnet_one_is_then_refused() {
+    let c = faraday_core::testkit::compute();
     let mut app = with_inbox(vec![
         (
             "spending-wallet.txt",
@@ -69,7 +70,7 @@ fn a_testnet_wallet_moves_the_session_to_testnet_and_a_mainnet_one_is_then_refus
     app.press(Action::LoadWallet(0));
     assert_eq!(app.session.network(), Network::Testnet);
     assert_eq!(app.session.wallets.len(), 1);
-    let first = app.session.address(&app.session.wallets[0], false, 0);
+    let first = app.session.address(&c, &app.session.wallets[0], false, 0);
     assert!(first.starts_with("tb1q"), "{first}");
 
     app.press(Action::LoadWallet(1));
@@ -149,13 +150,19 @@ fn every_wallet_form_on_the_test_stick_loads_its_wallet() {
     let mut seen = 0;
     for (id, descriptor) in &wallets {
         let mut want = Session::default();
-        want.add_wallet(id, descriptor, "kit", faraday_core::wallet::Origin::Named)
-            .unwrap();
+        want.add_wallet(
+            &c,
+            id,
+            descriptor,
+            "kit",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
         // The same wallet: the same first receive and change addresses.
         let addresses = |s: &Session| {
             (
-                s.address(&s.wallets[0], false, 0),
-                s.address(&s.wallets[0], true, 0),
+                s.address(&c, &s.wallets[0], false, 0),
+                s.address(&c, &s.wallets[0], true, 0),
             )
         };
         let want = addresses(&want);
@@ -167,6 +174,7 @@ fn every_wallet_form_on_the_test_stick_loads_its_wallet() {
             assert_eq!(classify(&c, &name, bytes), FileKind::Wallet, "{name}");
             let mut s = Session::default();
             s.add_wallet(
+                &c,
                 id,
                 &String::from_utf8_lossy(bytes),
                 &name,

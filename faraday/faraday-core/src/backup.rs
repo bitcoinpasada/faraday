@@ -21,6 +21,7 @@
 use crate::strings::EN;
 use crate::strings::fill;
 use osk_bip::keys::{Fingerprint, Network};
+use osk_crypto::work::Compute;
 
 use crate::wallet::{Kind, Session, Wallet, fp_text};
 
@@ -211,7 +212,7 @@ pub fn sheet_share(wallet: &Wallet, part: usize, of: usize, share: &str) -> Stri
 /// The sheet file for a wallet's backup page: everything on it is public.
 /// The desktop app turns it into a PDF; the format is lines of
 /// `field: value` after a first line naming it.
-pub fn sheet_wallet(session: &Session, wallet: &Wallet) -> String {
+pub fn sheet_wallet(c: &Compute, session: &Session, wallet: &Wallet) -> String {
     let mut out = String::from("faraday-sheet 1\nkind: wallet\n");
     out.push_str(&format!("network: {}\n", session.network().name()));
     out.push_str(&format!("name: {}\n", wallet.name));
@@ -239,7 +240,7 @@ pub fn sheet_wallet(session: &Session, wallet: &Wallet) -> String {
     ] {
         out.push_str(&format!(
             "address: {label} {}\n",
-            session.address(wallet, change, index)
+            session.address(c, wallet, change, index)
         ));
     }
     out
@@ -447,10 +448,11 @@ mod tests {
     /// wallet.
     #[test]
     fn a_wallet_json_reads_back() {
+        let c = crate::testkit::compute();
         for kit in crate::testkit::kits() {
-            let policy = crate::wallet::read_wallet(&kit.descriptor).expect("kit");
+            let policy = crate::wallet::read_wallet(&c, &kit.descriptor).expect("kit");
             let json = wallet_json(kit.name, &policy);
-            let back = crate::wallet::read_wallet(&json).expect(kit.id);
+            let back = crate::wallet::read_wallet(&c, &json).expect(kit.id);
             assert_eq!(
                 back.to_descriptor_checksummed(),
                 policy.to_descriptor_checksummed(),

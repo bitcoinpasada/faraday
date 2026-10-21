@@ -57,9 +57,10 @@ fn backup_shape(app: &Faraday) -> Shape {
 /// A change to Back up's plan made straight to its map, as a drop on the
 /// board makes it (the board itself is `backup_board.rs`'s).
 fn board_edit(app: &mut Faraday, f: impl FnOnce(Vec<Spot>) -> Vec<Spot>) {
+    let c = faraday_core::testkit::compute();
     let shape = backup_shape(app);
     let a = &mut app.backup.as_mut().unwrap().answers;
-    let m = plan::map(&shape, a);
+    let m = plan::map(&c, &shape, a);
     a.set_map(f(m));
 }
 
@@ -75,6 +76,7 @@ fn nothing_on_paper(app: &mut Faraday) {
 /// first with `pass`: one key Native SegWit, or a 2-of-3. Its backup is
 /// open with nothing on paper; the address it receives at first.
 fn made(seeds: &[usize], pass: &str) -> (Faraday, String, Vec<[u8; 4]>) {
+    let c = faraday_core::testkit::compute();
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     let fps: Vec<[u8; 4]> = seeds
@@ -97,7 +99,7 @@ fn made(seeds: &[usize], pass: &str) -> (Faraday, String, Vec<[u8; 4]>) {
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     assert_eq!(app.screen, Screen::Backup);
-    let address = app.session.address(&app.session.wallets[0], false, 0);
+    let address = app.session.address(&c, &app.session.wallets[0], false, 0);
     nothing_on_paper(&mut app);
     (app, address, fps)
 }
@@ -204,15 +206,16 @@ fn seed_made_wallet(app: &mut Faraday, fp: [u8; 4]) -> String {
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(app.session.keys[0].fingerprint().0, fp);
     assert_eq!(app.session.wallets.len(), 1);
-    app.session.address(&app.session.wallets[0], false, 0)
+    app.session.address(&c, &app.session.wallets[0], false, 0)
 }
 
 /// Every wallet the Inbox describes, loaded: the first one's first
 /// address.
 fn described_wallet(app: &mut Faraday) -> String {
+    let c = faraday_core::testkit::compute();
     app.press(Action::InboxLoad);
     assert_eq!(app.session.wallets.len(), 1, "one wallet");
-    app.session.address(&app.session.wallets[0], false, 0)
+    app.session.address(&c, &app.session.wallets[0], false, 0)
 }
 
 /// The fingerprint of test seed `n` with `pass`.
@@ -368,6 +371,7 @@ fn the_softwares_file_restores_the_wallet() {
 /// Share 1 at Place 1 and Share 2 at Place 2, as text files or as QR
 /// pictures: the two places' sticks together give the wallet back.
 fn shares_restore(f: usize) {
+    let c = faraday_core::testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 2);
     let (mut app, address, _) = made(&[0, 1, 2], "");
@@ -392,7 +396,7 @@ fn shares_restore(f: usize) {
     back.press(Action::RestoreShares);
     assert_eq!(back.session.wallets.len(), 1, "{:?}", back.toast_text());
     assert_eq!(
-        back.session.address(&back.session.wallets[0], false, 0),
+        back.session.address(&c, &back.session.wallets[0], false, 0),
         address
     );
 }
@@ -576,6 +580,7 @@ fn after_a_seedqr_is_written_and_read_back_the_kept_state_holds_nothing_of_the_s
 /// as the passphrase kept; a seed added beside it takes it in.
 #[test]
 fn a_passphrase_dropped_in_a_vault_without_its_seed_is_a_record_of_its_own() {
+    let c = faraday_core::testkit::compute();
     let shape = Shape {
         m: 1,
         keys: 1,
@@ -588,7 +593,7 @@ fn a_passphrase_dropped_in_a_vault_without_its_seed_is_a_record_of_its_own() {
         vaults: 0,
     };
     let mut a = plan::Answers::preset(&shape, plan::Preset::Paper);
-    let mut m = plan::map(&shape, &a);
+    let mut m = plan::map(&c, &shape, &a);
     for p in 0..plan::places_of(&m) {
         m = plan::without(&m, At::Place(p), What::Passphrase(0));
     }
@@ -598,10 +603,10 @@ fn a_passphrase_dropped_in_a_vault_without_its_seed_is_a_record_of_its_own() {
     let held = |m: &[Spot], at: At| plan::holds_at(m, at);
     assert_eq!(held(&m, At::Vault(1)), vec![What::PassphraseSealed(0)]);
     a.set_map(m.clone());
-    assert_eq!(plan::kept_nowhere(&shape, &a, &[0]), None, "kept");
+    assert_eq!(plan::kept_nowhere(&c, &shape, &a, &[0]), None, "kept");
     let gone = plan::without(&m, At::Vault(1), What::PassphraseSealed(0));
     a.set_map(gone);
-    assert!(plan::kept_nowhere(&shape, &a, &[0]).is_some());
+    assert!(plan::kept_nowhere(&c, &shape, &a, &[0]).is_some());
     // Its seed added beside it: one key record with its passphrase.
     let m = plan::with_added(&m, At::Vault(1), What::Seed(0));
     assert_eq!(held(&m, At::Vault(1)), vec![What::SeedPassphrase(0)]);

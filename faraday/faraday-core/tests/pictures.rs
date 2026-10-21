@@ -54,11 +54,12 @@ fn file(files: &[(String, Vec<u8>)], name: &str) -> Vec<u8> {
 }
 
 fn first_address(text: &str) -> String {
+    let c = faraday_core::testkit::compute();
     let mut s = testkit::session();
     let i = s
-        .add_wallet("w", text, "test", faraday_core::wallet::Origin::Named)
+        .add_wallet(&c, "w", text, "test", faraday_core::wallet::Origin::Named)
         .expect("a wallet");
-    s.address(&s.wallets[i], false, 0)
+    s.address(&c, &s.wallets[i], false, 0)
 }
 
 fn checksum(text: &str) -> String {
@@ -71,11 +72,13 @@ fn checksum(text: &str) -> String {
 
 /// The wallet `descriptor` loaded under `name` in an app of its own.
 fn holding(name: &str, descriptor: &str) -> (Faraday, usize) {
+    let c = faraday_core::testkit::compute();
     let mut app = Faraday::new();
     app.session = testkit::session();
     let w = app
         .session
         .add_wallet(
+            &c,
             name,
             descriptor,
             "test",
@@ -189,6 +192,7 @@ fn any_two_share_pictures_of_a_taproot_2_of_3_rebuild_the_wallet() {
 /// Any two of the three share pictures of `id`, scanned on a visit,
 /// rebuild the wallet with Restore.
 fn shares_rebuild(id: &str) {
+    let c = faraday_core::testkit::compute();
     let kit = testkit::kits().into_iter().find(|k| k.id == id).unwrap();
     let files = testkit::public_files(kit.name, &kit.descriptor).unwrap();
     let want = first_address(&kit.descriptor);
@@ -210,7 +214,7 @@ fn shares_rebuild(id: &str) {
             app.session
                 .wallets
                 .iter()
-                .any(|w| app.session.address(w, false, 0) == want),
+                .any(|w| app.session.address(&c, w, false, 0) == want),
             "{pair:?} did not rebuild"
         );
     }
@@ -241,6 +245,7 @@ fn a_share_picture_names_what_it_holds_and_leaves_off() {
 /// The backup of the wallet `descriptor`, with test key 1 typed in and
 /// the checklist made for the descriptor as a public file.
 fn checklist_for(name: &str, descriptor: &str) -> (Faraday, usize) {
+    let c = faraday_core::testkit::compute();
     let mut app = testkit::started();
     app.press(Action::Entry(None));
     for c in testkit::test_words(testkit::TEST_SEEDS[0].0).chars() {
@@ -250,6 +255,7 @@ fn checklist_for(name: &str, descriptor: &str) -> (Faraday, usize) {
     let w = app
         .session
         .add_wallet(
+            &c,
             name,
             descriptor,
             "test",
@@ -272,7 +278,7 @@ fn checklist_for(name: &str, descriptor: &str) -> (Faraday, usize) {
         }
     }
     app.press(Action::BChecklist);
-    if app.backup_items_now().contains(&bstep::BLANK) {
+    if app.backup_items_now(&c).contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
     (app, w)
@@ -302,7 +308,7 @@ fn public_item_lists_the_pictures_written(name: &str, descriptor: &str, parts: b
     let mut want = pictures.clone();
     want.sort();
     assert_eq!(have, want);
-    assert!(app.backup_items_now().contains(&bstep::PUBLIC));
+    assert!(app.backup_items_now(&c).contains(&bstep::PUBLIC));
     assert!(app.backup_item_done_now(&c, Item::PublicFiles));
     // Taking the descriptor's picture (its first part, past one code) off
     // the stick makes the item not done again.
