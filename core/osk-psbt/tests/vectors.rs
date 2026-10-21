@@ -6,10 +6,12 @@ mod common;
 
 use common::{records, unhex};
 use osk_bip::keys::Network;
+use osk_crypto::work::Compute;
 use osk_psbt::{Context, Error, Level, Psbt, WarningKind, inspect};
 
 #[test]
 fn bip174_round_trips_and_rejections() {
+    let c = Compute::unchecked();
     let recs = records("tools/vectors/psbt/bip174.txt");
     assert_eq!(recs.len(), 34);
     let (mut valid, mut invalid, mut signer_fails) = (0, 0, 0);
@@ -42,7 +44,7 @@ fn bip174_round_trips_and_rejections() {
                         shares: &[],
                         carry: None,
                     };
-                    let insp = inspect(&psbt, &ctx);
+                    let insp = inspect(&c, &psbt, &ctx);
                     assert!(
                         insp.warnings
                             .iter()

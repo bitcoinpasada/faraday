@@ -35,6 +35,7 @@ use crate::json::{self, Value};
 use crate::keys::{MultisigScriptType, Network, ScriptType};
 use crate::policy::{DESCRIPTOR_SUFFIX, Error, PolicyKey, WalletPolicy};
 use crate::slip132::{self, Script};
+use osk_crypto::work::Compute;
 
 /// The four single-sig standards, in the order [`parse`] prefers them,
 /// with the field each is written under.
@@ -81,7 +82,7 @@ pub enum ReadError {
 /// The single-sig wallet the export offers, with the field it was read
 /// from. Costs a JSON parse, a policy parse and an address derivation
 /// per network until the stated first address is found.
-pub fn read(text: &str) -> Result<(WalletPolicy, &'static str), ReadError> {
+pub fn read(c: &Compute, text: &str) -> Result<(WalletPolicy, &'static str), ReadError> {
     let file = read_json(text).ok_or(ReadError::NoXfp)?;
     let xfp = string_field(&file, "xfp").ok_or(ReadError::NoXfp)?;
     for (name, script) in ACCOUNTS {
@@ -100,11 +101,11 @@ pub fn read(text: &str) -> Result<(WalletPolicy, &'static str), ReadError> {
             ScriptType::NativeSegwit => alloc::format!("wpkh({key})"),
             ScriptType::Taproot => alloc::format!("tr({key})"),
         };
-        let policy = WalletPolicy::from_descriptor(&template).map_err(ReadError::Policy)?;
+        let policy = WalletPolicy::from_descriptor(c, &template).map_err(ReadError::Policy)?;
         if let Some(first) = string_field(account, "first") {
             let found = Network::ALL.iter().any(|&net| {
                 policy
-                    .address_at(net, false, 0)
+                    .address_at(c, net, false, 0)
                     .is_ok_and(|a| alloc::format!("{a}") == first)
             });
             if !found {
@@ -119,13 +120,15 @@ pub fn read(text: &str) -> Result<(WalletPolicy, &'static str), ReadError> {
     Err(ReadError::NoAccount)
 }
 
-/// The single-sig wallet the export offers ([`read`]).
-pub fn parse(text: &str) -> Result<WalletPolicy, Error> {
-    read(text).map(|(policy, _)| policy).map_err(|e| match e {
-        ReadError::NoAccount => Error::Template,
-        ReadError::Policy(e) => e,
-        _ => Error::Key,
-    })
+/// Costs what [`read`] costs: the single-sig wallet the export offers.
+pub fn parse(c: &Compute, text: &str) -> Result<WalletPolicy, Error> {
+    read(c, text)
+        .map(|(policy, _)| policy)
+        .map_err(|e| match e {
+            ReadError::NoAccount => Error::Template,
+            ReadError::Policy(e) => e,
+            _ => Error::Key,
+        })
 }
 
 /// The `"name"` the export carries, where it has one that is not
@@ -331,8 +334,9 @@ mod tests {
     /// means by "my wallet", so it is the one built.
     #[test]
     fn a_coldcard_export_is_the_segwit_account_of_its_master() {
+        let c = Compute::unchecked();
         assert!(looks_like_export(EXPORT));
-        let policy = parse(EXPORT).unwrap();
+        let policy = parse(&c, EXPORT).unwrap();
         assert_eq!(policy.script_type(), ScriptType::NativeSegwit);
         let key = &policy.keys()[0];
         assert_eq!(
@@ -350,9 +354,13 @@ mod tests {
     /// A file with only a legacy account is that account's wallet.
     #[test]
     fn an_export_of_one_account_is_that_account() {
+        let c = Compute::unchecked();
         const ONLY_44: &str = r#"{"xfp":"0F056943","bip44":{"deriv":"m/44'/0'/0'","xpub":"xpub6Br37sWxruYfT8ASpCjVHKGwgdnYFEn98DwiN76i2oyY6fgH1LAPmmDcF46xjxJr22gw4jmVjTE2E3URMnRPEPYyo1zoPSUba563ESMXCeb"}}"#;
         assert!(looks_like_export(ONLY_44));
-        assert_eq!(parse(ONLY_44).unwrap().script_type(), ScriptType::Legacy);
+        assert_eq!(
+            parse(&c, ONLY_44).unwrap().script_type(),
+            ScriptType::Legacy
+        );
     }
 
     /// A whole export as a Coldcard writes one, for the BIP-39 test

@@ -13,6 +13,7 @@ use osk_bip::miniscript::Descriptor;
 use osk_bip::miniscript::descriptor::DescriptorPublicKey;
 use osk_bip::policy::{Error, MiniscriptKind, Template, WalletPolicy};
 use osk_bip::spend::{Lock, SpendPath};
+use osk_crypto::work::Compute;
 
 /// The two fixture wallets, as `tools/vectors/psbt/` holds them.
 const LIANA: &str = include_str!("../../../tools/vectors/psbt/wallet-liana.policy");
@@ -28,6 +29,7 @@ fn path(keys: &[usize], locks: &[Lock]) -> SpendPath {
 /// The address a wallet pays to is the address `miniscript` derives from
 /// the same descriptor, on both chains and at more than one index.
 fn matches_miniscript(policy: &WalletPolicy, network: Network) {
+    let c = Compute::unchecked();
     let descriptor = Descriptor::<DescriptorPublicKey>::from_str(&policy.to_descriptor())
         .expect("the wallet's own descriptor");
     let chains = descriptor
@@ -45,7 +47,7 @@ fn matches_miniscript(policy: &WalletPolicy, network: Network) {
                 .address(bitcoin::Network::from(network))
                 .expect("an address");
             let ours = policy
-                .address_at(network, chain == 1, index)
+                .address_at(&c, network, chain == 1, index)
                 .expect("an address");
             assert_eq!(ours, theirs, "chain {chain} index {index}");
         }
@@ -56,7 +58,8 @@ fn matches_miniscript(policy: &WalletPolicy, network: Network) {
 /// after a year of blocks.
 #[test]
 fn a_wsh_miniscript_wallet_names_its_two_spend_paths() {
-    let policy = WalletPolicy::parse_any(LIANA).expect("the fixture wallet");
+    let c = Compute::unchecked();
+    let policy = WalletPolicy::parse_any(&c, LIANA).expect("the fixture wallet");
     assert_eq!(
         policy.template(),
         Template::Miniscript {
@@ -77,7 +80,8 @@ fn a_wsh_miniscript_wallet_names_its_two_spend_paths() {
 /// the leaf that does not.
 #[test]
 fn a_taproot_tree_wallet_lists_the_key_path_before_its_leaves() {
-    let policy = WalletPolicy::parse_any(TREE).expect("the fixture wallet");
+    let c = Compute::unchecked();
+    let policy = WalletPolicy::parse_any(&c, TREE).expect("the fixture wallet");
     assert_eq!(policy.template(), Template::Tree);
     assert_eq!(policy.script_type(), ScriptType::Taproot);
     assert_eq!(policy.keys().len(), 3);
@@ -96,6 +100,7 @@ fn a_taproot_tree_wallet_lists_the_key_path_before_its_leaves() {
 /// descriptors, recorded in `tools/vectors/psbt/README.md`.
 #[test]
 fn the_fixture_wallets_pay_the_addresses_bitcoin_core_derives() {
+    let c = Compute::unchecked();
     const CASES: &[(&str, &[(&str, &str)])] = &[
         (
             LIANA,
@@ -125,19 +130,19 @@ fn the_fixture_wallets_pay_the_addresses_bitcoin_core_derives() {
         ),
     ];
     for (text, addresses) in CASES {
-        let policy = WalletPolicy::parse_any(text).expect("the fixture wallet");
+        let policy = WalletPolicy::parse_any(&c, text).expect("the fixture wallet");
         for (index, (receive, change)) in addresses.iter().enumerate() {
             let index = index as u32;
             assert_eq!(
                 policy
-                    .address_at(Network::Regtest, false, index)
+                    .address_at(&c, Network::Regtest, false, index)
                     .expect("an address")
                     .to_string(),
                 *receive
             );
             assert_eq!(
                 policy
-                    .address_at(Network::Regtest, true, index)
+                    .address_at(&c, Network::Regtest, true, index)
                     .expect("an address")
                     .to_string(),
                 *change
@@ -150,11 +155,12 @@ fn the_fixture_wallets_pay_the_addresses_bitcoin_core_derives() {
 /// policy the fixture holds, and the descriptor with its checksum.
 #[test]
 fn a_miniscript_wallet_reads_the_same_from_both_forms() {
+    let c = Compute::unchecked();
     for text in [LIANA, TREE] {
-        let policy = WalletPolicy::parse_any(text).expect("the fixture wallet");
+        let policy = WalletPolicy::parse_any(&c, text).expect("the fixture wallet");
         assert_eq!(format!("{}\n", policy.to_text()), *text);
         let descriptor = policy.to_descriptor_checksummed();
-        assert_eq!(WalletPolicy::parse_any(&descriptor).unwrap(), policy);
+        assert_eq!(WalletPolicy::parse_any(&c, &descriptor).unwrap(), policy);
         // The checksum this crate computes is the one `miniscript`
         // computes for the same descriptor.
         assert_eq!(
@@ -167,7 +173,7 @@ fn a_miniscript_wallet_reads_the_same_from_both_forms() {
         let theirs = Descriptor::<DescriptorPublicKey>::from_str(&policy.to_descriptor())
             .expect("a descriptor")
             .to_string();
-        assert_eq!(WalletPolicy::parse_any(&theirs).unwrap(), policy);
+        assert_eq!(WalletPolicy::parse_any(&c, &theirs).unwrap(), policy);
     }
 }
 
@@ -175,10 +181,11 @@ fn a_miniscript_wallet_reads_the_same_from_both_forms() {
 /// change could never be verified.
 #[test]
 fn a_miniscript_key_without_both_chains_is_refused() {
-    let policy = WalletPolicy::parse_any(LIANA).expect("the fixture wallet");
+    let c = Compute::unchecked();
+    let policy = WalletPolicy::parse_any(&c, LIANA).expect("the fixture wallet");
     let one_chain = policy.to_descriptor().replace("/<0;1>/*", "/0/*");
     assert_eq!(
-        WalletPolicy::from_descriptor(&one_chain),
+        WalletPolicy::from_descriptor(&c, &one_chain),
         Err(Error::Derivation)
     );
 }
@@ -187,7 +194,8 @@ fn a_miniscript_key_without_both_chains_is_refused() {
 /// satisfies the threshold is one line, and the recovery path is another.
 #[test]
 fn a_threshold_lists_every_combination_that_satisfies_it() {
-    let keys: Vec<String> = WalletPolicy::parse_any(TREE)
+    let c = Compute::unchecked();
+    let keys: Vec<String> = WalletPolicy::parse_any(&c, TREE)
         .expect("the fixture wallet")
         .keys()
         .iter()
@@ -195,6 +203,7 @@ fn a_threshold_lists_every_combination_that_satisfies_it() {
         .collect();
     let refs: Vec<&str> = keys.iter().map(String::as_str).collect();
     let policy = WalletPolicy::from_parts(
+        &c,
         "wsh(or_d(multi(2,@0/**,@1/**,@2/**),and_v(v:pkh(@2/**),older(1008))))",
         &refs,
     )
@@ -213,7 +222,8 @@ fn a_threshold_lists_every_combination_that_satisfies_it() {
 /// `after()` above 500 000 000 is a time, below it a height.
 #[test]
 fn an_absolute_locktime_is_a_height_or_a_time() {
-    let policy = WalletPolicy::parse_any(LIANA).expect("the fixture wallet");
+    let c = Compute::unchecked();
+    let policy = WalletPolicy::parse_any(&c, LIANA).expect("the fixture wallet");
     let keys: Vec<String> = policy.keys().iter().map(|k| k.key_text()).collect();
     let refs: Vec<&str> = keys.iter().map(String::as_str).collect();
     for (template, lock) in [
@@ -226,7 +236,7 @@ fn an_absolute_locktime_is_a_height_or_a_time() {
             Lock::Time(1_789_000_000),
         ),
     ] {
-        let policy = WalletPolicy::from_parts(template, &refs).expect(template);
+        let policy = WalletPolicy::from_parts(&c, template, &refs).expect(template);
         assert_eq!(
             policy.spend_paths(),
             vec![path(&[0], &[]), path(&[1], &[lock])]

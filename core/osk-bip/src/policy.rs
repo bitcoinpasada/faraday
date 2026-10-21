@@ -9,7 +9,9 @@
 //! ```
 //! use osk_bip::policy::WalletPolicy;
 //!
+//! let c = osk_crypto::work::Compute::unchecked();
 //! let policy = WalletPolicy::parse(
+//!     &c,
 //!     "pkh(@0/**)\n\
 //!      [d34db33f/44'/0'/0']xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL",
 //! )
@@ -49,6 +51,8 @@ use bitcoin::{Address, PublicKey, ScriptBuf};
 
 use miniscript::descriptor::{DescriptorMultiXKey, DescriptorPublicKey, Wildcard};
 use miniscript::{Descriptor, ForEachKey, ToPublicKey};
+
+use osk_crypto::work::{Compute, Work};
 
 use crate::descriptor::descriptor_checksum;
 use crate::keys::{Fingerprint, Network, ScriptType};
@@ -276,10 +280,18 @@ pub struct WalletPolicy {
 }
 
 impl WalletPolicy {
-    /// Reads the two-part form: the descriptor template on the first
-    /// line, then one `[fingerprint/path]xpub` per line (or several,
-    /// separated by commas).
-    pub fn parse(text: &str) -> Result<Self, Error> {
+    /// Costs a parse of the policy and its keys: reads the two-part form,
+    /// the descriptor template on the first line, then one
+    /// `[fingerprint/path]xpub` per line (or several, separated by
+    /// commas).
+    pub fn parse(c: &Compute, text: &str) -> Result<Self, Error> {
+        c.count(Work::DescriptorParse);
+        Self::read_two_part(text)
+    }
+
+    /// [`parse`](Self::parse) uncounted, for the readers here that count
+    /// once themselves.
+    fn read_two_part(text: &str) -> Result<Self, Error> {
         let mut lines = text
             .lines()
             .map(str::trim)
@@ -294,17 +306,24 @@ impl WalletPolicy {
                 }
             }
         }
-        Self::from_parts(template, &keys)
+        Self::read_parts(template, &keys)
     }
 
-    /// Reads a template and its key vector as separate pieces.
-    pub fn from_parts(template: &str, keys: &[&str]) -> Result<Self, Error> {
+    /// Costs a parse of the template and its keys: reads a template and
+    /// its key vector as separate pieces.
+    pub fn from_parts(c: &Compute, template: &str, keys: &[&str]) -> Result<Self, Error> {
+        c.count(Work::DescriptorParse);
+        Self::read_parts(template, keys)
+    }
+
+    /// [`from_parts`](Self::from_parts) uncounted.
+    fn read_parts(template: &str, keys: &[&str]) -> Result<Self, Error> {
         let (structure, placeholders) = match parse_template(template) {
             Ok(parsed) => parsed,
             // A template none of the named shapes matches is a
             // miniscript, which is read from the descriptor the keys
             // make of it.
-            Err(Error::Template) => return Self::from_descriptor(&fill(template, keys)?),
+            Err(Error::Template) => return Self::read_descriptor(&fill(template, keys)?),
             Err(error) => return Err(error),
         };
         if placeholders != keys.len() {
@@ -327,10 +346,18 @@ impl WalletPolicy {
         .sealed())
     }
 
-    /// Reads a plain multipath descriptor as a policy, so that a
-    /// descriptor and the policy made from it show the same review.
-    /// A `#checksum`, if present, must hold.
-    pub fn from_descriptor(text: &str) -> Result<Self, Error> {
+    /// Costs a parse of the descriptor and its keys: reads a plain
+    /// multipath descriptor as a policy, so that a descriptor and the
+    /// policy made from it show the same review. A `#checksum`, if
+    /// present, must hold.
+    pub fn from_descriptor(c: &Compute, text: &str) -> Result<Self, Error> {
+        c.count(Work::DescriptorParse);
+        Self::read_descriptor(text)
+    }
+
+    /// [`from_descriptor`](Self::from_descriptor) uncounted, for the
+    /// readers in this crate that count once themselves.
+    pub(crate) fn read_descriptor(text: &str) -> Result<Self, Error> {
         let body = match text.trim().split_once('#') {
             Some((body, _)) => {
                 if !crate::descriptor::verify_checksum(text.trim()) {
@@ -362,11 +389,13 @@ impl WalletPolicy {
         .sealed())
     }
 
-    /// Reads any of the three forms: a threshold wallet's record, the
-    /// two-part policy, or a plain descriptor.
-    pub fn parse_any(text: &str) -> Result<Self, Error> {
+    /// Costs a parse of the text and its keys: reads any of the three
+    /// forms, a threshold wallet's record, the two-part policy, or a
+    /// plain descriptor.
+    pub fn parse_any(c: &Compute, text: &str) -> Result<Self, Error> {
+        c.count(Work::DescriptorParse);
         if ThresholdRecord::looks_like_record(text) {
-            return Self::from_record(text);
+            return ThresholdRecord::read(text).map(Self::of_record);
         }
         if SilentWallet::looks_like_record(text) {
             return SilentWallet::parse(text)
@@ -374,9 +403,9 @@ impl WalletPolicy {
                 .ok_or(Error::Template);
         }
         if text.contains('@') {
-            Self::parse(text)
+            Self::read_two_part(text)
         } else {
-            Self::from_descriptor(text)
+            Self::read_descriptor(text)
         }
     }
 
@@ -400,11 +429,13 @@ impl WalletPolicy {
         .sealed())
     }
 
-    /// The threshold wallet a group record states: one key, which is the
-    /// group key's synthetic extended public key, and the record itself
-    /// as the wallet's text.
-    pub fn from_record(text: &str) -> Result<Self, Error> {
-        let record = ThresholdRecord::parse(text)?;
+    /// Costs a parse of the record and its descriptor: the threshold
+    /// wallet a group record states, one key, which is the group key's
+    /// synthetic extended public key, and the record itself as the
+    /// wallet's text.
+    pub fn from_record(c: &Compute, text: &str) -> Result<Self, Error> {
+        c.count(Work::DescriptorParse);
+        let record = ThresholdRecord::read(text)?;
         Ok(Self::of_record(record))
     }
 
@@ -697,14 +728,29 @@ impl WalletPolicy {
         self
     }
 
-    /// The script the policy pays to at `change`/`index`.
-    pub fn script_at(&self, change: bool, index: u32) -> Result<ScriptBuf, Error> {
+    /// Costs a derivation of each key: the script the policy pays to at
+    /// `change`/`index`.
+    pub fn script_at(&self, c: &Compute, change: bool, index: u32) -> Result<ScriptBuf, Error> {
+        c.count(Work::Address);
         let secp = Secp256k1::verification_only();
-        self.script_at_with(&secp, change, index)
+        self.script_with(&secp, change, index)
     }
 
-    /// The same script, with a caller's secp context.
-    pub fn script_at_with<C: Verification>(
+    /// Costs a derivation of each key: the same script, with a caller's
+    /// secp context.
+    pub fn script_at_with<V: Verification>(
+        &self,
+        c: &Compute,
+        secp: &Secp256k1<V>,
+        change: bool,
+        index: u32,
+    ) -> Result<ScriptBuf, Error> {
+        c.count(Work::Address);
+        self.script_with(secp, change, index)
+    }
+
+    /// [`script_at_with`](Self::script_at_with) uncounted.
+    fn script_with<C: Verification>(
         &self,
         secp: &Secp256k1<C>,
         change: bool,
@@ -773,17 +819,28 @@ impl WalletPolicy {
         })
     }
 
-    /// The address that script is, on `network`.
-    pub fn address_at(&self, network: Network, change: bool, index: u32) -> Result<Address, Error> {
-        let script = self.script_at(change, index)?;
+    /// Costs a derivation of each key: the address that script is, on
+    /// `network`.
+    pub fn address_at(
+        &self,
+        c: &Compute,
+        network: Network,
+        change: bool,
+        index: u32,
+    ) -> Result<Address, Error> {
+        c.count(Work::Address);
+        let secp = Secp256k1::verification_only();
+        let script = self.script_with(&secp, change, index)?;
         Address::from_script(&script, bitcoin::Network::from(network)).map_err(|_| Error::Template)
     }
 
-    /// Looks for `target` among the first `max_index + 1` receive and
-    /// change addresses on `network`, nearest index first. Returns
-    /// `(change, index)`.
+    /// Costs an address derivation per address tried, up to
+    /// `2 * (max_index + 1)`: looks for `target` among the first
+    /// `max_index + 1` receive and change addresses on `network`, nearest
+    /// index first. Returns `(change, index)`.
     pub fn find_address(
         &self,
+        c: &Compute,
         network: Network,
         target: &Address,
         max_index: u32,
@@ -791,7 +848,7 @@ impl WalletPolicy {
         (0..=max_index)
             .flat_map(|index| [(false, index), (true, index)])
             .find(|&(change, index)| {
-                self.address_at(network, change, index)
+                self.address_at(c, network, change, index)
                     .is_ok_and(|a| &a == target)
             })
     }
@@ -1444,6 +1501,7 @@ mod tests {
     /// produces the descriptor the BIP lists.
     #[test]
     fn bip388_examples_produce_their_descriptors() {
+        let c = Compute::unchecked();
         const CASES: &[(&str, &[&str], &str)] = &[
             (
                 "pkh(@0/**)",
@@ -1483,14 +1541,14 @@ mod tests {
             ),
         ];
         for (template, keys, descriptor) in CASES {
-            let policy = WalletPolicy::from_parts(template, keys).expect(template);
+            let policy = WalletPolicy::from_parts(&c, template, keys).expect(template);
             // The BIP writes a hardened step `'`; the policy writes `h`.
             let written = descriptor.replace('\'', "h");
             assert_eq!(policy.to_descriptor(), written);
             assert_eq!(&policy.template_text(), template);
             // The descriptor read back is the same policy, so both forms
             // of the same wallet show the same review.
-            let from_descriptor = WalletPolicy::from_descriptor(descriptor).expect(descriptor);
+            let from_descriptor = WalletPolicy::from_descriptor(&c, descriptor).expect(descriptor);
             assert_eq!(from_descriptor.keys(), policy.keys());
             assert_eq!(from_descriptor.to_descriptor(), written);
         }
@@ -1500,6 +1558,7 @@ mod tests {
     /// this crate accepts at all.
     #[test]
     fn bip388_invalid_policies_are_refused() {
+        let c = Compute::unchecked();
         const KEY: &str = "[d34db33f/44'/0'/0']xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL";
         const OTHER: &str = "[b2b1f0cf/48'/0'/0'/2']xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7";
         for (template, keys) in [
@@ -1516,7 +1575,7 @@ mod tests {
             ),
         ] {
             assert!(
-                WalletPolicy::from_parts(template, keys).is_err(),
+                WalletPolicy::from_parts(&c, template, keys).is_err(),
                 "{template} was accepted"
             );
         }
@@ -1529,11 +1588,12 @@ mod tests {
     /// fixture.
     #[test]
     fn a_threshold_record_is_not_a_policy_or_a_descriptor() {
+        let c = Compute::unchecked();
         const RECORD: &str = "osk-threshold 1\nthreshold 2\ngroup 02\ntr(tpub)#aaaaaaaa";
-        assert!(WalletPolicy::parse(RECORD).is_err());
-        assert!(WalletPolicy::from_descriptor(RECORD).is_err());
+        assert!(WalletPolicy::parse(&c, RECORD).is_err());
+        assert!(WalletPolicy::from_descriptor(&c, RECORD).is_err());
         assert!(
-            WalletPolicy::parse_any(RECORD).is_err(),
+            WalletPolicy::parse_any(&c, RECORD).is_err(),
             "and it is no group"
         );
     }
@@ -1542,10 +1602,11 @@ mod tests {
     /// wallet with no change chain cannot verify its own change.
     #[test]
     fn a_miniscript_key_with_one_chain_is_refused() {
+        let c = Compute::unchecked();
         const KEY: &str = "[d34db33f/48'/0'/0'/2']xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL";
         let one_chain = alloc::format!("wsh(and_v(v:pk({KEY}/0/*),older(12960)))");
         assert_eq!(
-            WalletPolicy::from_descriptor(&one_chain),
+            WalletPolicy::from_descriptor(&c, &one_chain),
             Err(Error::Derivation)
         );
     }
@@ -1561,7 +1622,9 @@ mod tests {
     /// the aggregate key.
     #[test]
     fn a_musig_wallet_is_one_policy_in_both_forms() {
-        let policy = WalletPolicy::from_parts("tr(musig(@0,@1)/**)", &[MUSIG_A, MUSIG_B]).unwrap();
+        let c = Compute::unchecked();
+        let policy =
+            WalletPolicy::from_parts(&c, "tr(musig(@0,@1)/**)", &[MUSIG_A, MUSIG_B]).unwrap();
         assert_eq!(policy.template_text(), "tr(musig(@0,@1)/**)");
         assert_eq!(
             policy.to_descriptor(),
@@ -1572,12 +1635,12 @@ mod tests {
         assert_eq!(policy.keys().len(), 2);
 
         let text = policy.to_text();
-        assert_eq!(WalletPolicy::parse_any(&text).unwrap(), policy);
+        assert_eq!(WalletPolicy::parse_any(&c, &text).unwrap(), policy);
         let descriptor = policy.to_descriptor_checksummed();
-        assert_eq!(WalletPolicy::parse_any(&descriptor).unwrap(), policy);
+        assert_eq!(WalletPolicy::parse_any(&c, &descriptor).unwrap(), policy);
         // The spelled-out multipath is the same wallet as `/**`.
         assert_eq!(
-            WalletPolicy::from_parts("tr(musig(@0,@1)/<0;1>/*)", &[MUSIG_A, MUSIG_B]).unwrap(),
+            WalletPolicy::from_parts(&c, "tr(musig(@0,@1)/<0;1>/*)", &[MUSIG_A, MUSIG_B]).unwrap(),
             policy
         );
     }
@@ -1587,6 +1650,7 @@ mod tests {
     /// aggregate, one participant, and a participant with no origin.
     #[test]
     fn musig_expressions_that_are_not_a_wallet_are_refused() {
+        let c = Compute::unchecked();
         for (template, keys) in [
             ("tr(musig(@0,@1))", &[MUSIG_A, MUSIG_B][..]),
             ("tr(musig(@0/**,@1/**))", &[MUSIG_A, MUSIG_B]),
@@ -1595,7 +1659,7 @@ mod tests {
             ("tr(musig(@0)/**)", &[MUSIG_A]),
         ] {
             assert!(
-                WalletPolicy::from_parts(template, keys).is_err(),
+                WalletPolicy::from_parts(&c, template, keys).is_err(),
                 "{template} was accepted"
             );
         }
@@ -1605,7 +1669,7 @@ mod tests {
             MUSIG_B.split_once(']').unwrap().1
         );
         assert_eq!(
-            WalletPolicy::from_descriptor(&no_origin),
+            WalletPolicy::from_descriptor(&c, &no_origin),
             Err(Error::Key),
             "a participant with no origin is no wallet key"
         );
@@ -1618,16 +1682,23 @@ mod tests {
     /// from.
     #[test]
     fn a_wallet_over_a_bare_key_derives_the_published_addresses() {
+        let c = Compute::unchecked();
         const ZPUB: &str = "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs";
         let (xpub, script) = crate::slip132::decode_xpub(ZPUB).unwrap();
         assert_eq!(script, ScriptType::NativeSegwit);
         let policy = WalletPolicy::from_xpub(xpub, script).unwrap();
         assert_eq!(
-            alloc::format!("{}", policy.address_at(Network::Mainnet, false, 0).unwrap()),
+            alloc::format!(
+                "{}",
+                policy.address_at(&c, Network::Mainnet, false, 0).unwrap()
+            ),
             "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
         );
         assert_eq!(
-            alloc::format!("{}", policy.address_at(Network::Mainnet, true, 0).unwrap()),
+            alloc::format!(
+                "{}",
+                policy.address_at(&c, Network::Mainnet, true, 0).unwrap()
+            ),
             "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el"
         );
 
@@ -1640,9 +1711,9 @@ mod tests {
             alloc::format!("wpkh({xpub}{DESCRIPTOR_SUFFIX})")
         );
         assert_eq!(policy.to_text(), descriptor);
-        assert_eq!(WalletPolicy::parse_any(&descriptor).unwrap(), policy);
+        assert_eq!(WalletPolicy::parse_any(&c, &descriptor).unwrap(), policy);
         assert_eq!(
-            WalletPolicy::parse_any(&policy.to_descriptor_checksummed()).unwrap(),
+            WalletPolicy::parse_any(&c, &policy.to_descriptor_checksummed()).unwrap(),
             policy
         );
 
@@ -1673,6 +1744,7 @@ mod tests {
     /// origin BIP-388 writes.
     #[test]
     fn only_a_single_key_template_reads_a_key_with_no_origin() {
+        let c = Compute::unchecked();
         const A: &str = "xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw";
         const B: &str = "xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7";
         for (template, script) in [
@@ -1681,13 +1753,13 @@ mod tests {
             ("tr", ScriptType::Taproot),
         ] {
             let descriptor = alloc::format!("{template}({A}{DESCRIPTOR_SUFFIX})");
-            let policy = WalletPolicy::from_descriptor(&descriptor).expect(&descriptor);
+            let policy = WalletPolicy::from_descriptor(&c, &descriptor).expect(&descriptor);
             assert_eq!(policy.script_type(), script);
             assert_eq!(policy.to_descriptor(), descriptor);
         }
         let nested = alloc::format!("sh(wpkh({A}{DESCRIPTOR_SUFFIX}))");
         assert_eq!(
-            WalletPolicy::from_descriptor(&nested)
+            WalletPolicy::from_descriptor(&c, &nested)
                 .unwrap()
                 .script_type(),
             ScriptType::NestedSegwit
@@ -1698,7 +1770,7 @@ mod tests {
             alloc::format!("tr(musig({A},{B}){DESCRIPTOR_SUFFIX})"),
         ] {
             assert_eq!(
-                WalletPolicy::from_descriptor(&descriptor),
+                WalletPolicy::from_descriptor(&c, &descriptor),
                 Err(Error::Key),
                 "{descriptor} was accepted with no origin on its keys"
             );
@@ -1709,9 +1781,10 @@ mod tests {
     /// key twice; BIP-388 requires the keys to be distinct.
     #[test]
     fn repeated_keys_are_refused() {
+        let c = Compute::unchecked();
         const KEY: &str = "[6738736c/48'/0'/0'/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw";
         assert_eq!(
-            WalletPolicy::from_parts("wsh(sortedmulti(2,@0/**,@1/**))", &[KEY, KEY]),
+            WalletPolicy::from_parts(&c, "wsh(sortedmulti(2,@0/**,@1/**))", &[KEY, KEY]),
             Err(Error::Key)
         );
     }
@@ -1719,14 +1792,15 @@ mod tests {
     /// The threshold a wallet states must be one a script can hold.
     #[test]
     fn a_threshold_above_the_keys_is_refused() {
+        let c = Compute::unchecked();
         const A: &str = "[6738736c/48'/0'/0'/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw";
         const B: &str = "[b2b1f0cf/48'/0'/0'/2']xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7";
         assert_eq!(
-            WalletPolicy::from_parts("wsh(sortedmulti(3,@0/**,@1/**))", &[A, B]),
+            WalletPolicy::from_parts(&c, "wsh(sortedmulti(3,@0/**,@1/**))", &[A, B]),
             Err(Error::Threshold)
         );
         assert_eq!(
-            WalletPolicy::from_parts("wsh(sortedmulti(0,@0/**,@1/**))", &[A, B]),
+            WalletPolicy::from_parts(&c, "wsh(sortedmulti(0,@0/**,@1/**))", &[A, B]),
             Err(Error::Threshold)
         );
     }
@@ -1734,16 +1808,20 @@ mod tests {
     /// A descriptor whose checksum does not hold is not a wallet.
     #[test]
     fn a_wrong_checksum_is_refused() {
-        let policy = WalletPolicy::from_descriptor(
+        let c = Compute::unchecked();
+        let policy = WalletPolicy::from_descriptor(&c,
             "wpkh([6738736c/84'/0'/2']xpub6CRQzb8u9dmMcq5XAwwRn9gcoYCjndJkhKgD11WKzbVGd932UmrExWFxCAvRnDN3ez6ZujLmMvmLBaSWdfWVn75L83Qxu1qSX4fJNrJg2Gt/<0;1>/*)",
         )
         .unwrap();
         let good = policy.to_descriptor_checksummed();
-        assert!(WalletPolicy::from_descriptor(&good).is_ok());
+        assert!(WalletPolicy::from_descriptor(&c, &good).is_ok());
         let mut bad = good.clone();
         bad.pop();
         bad.push('q');
-        assert_eq!(WalletPolicy::from_descriptor(&bad), Err(Error::Checksum));
+        assert_eq!(
+            WalletPolicy::from_descriptor(&c, &bad),
+            Err(Error::Checksum)
+        );
     }
 
     /// The two-part form and the descriptor form of one wallet are one
@@ -1751,20 +1829,22 @@ mod tests {
     /// hardened step `h`.
     #[test]
     fn both_forms_are_the_same_wallet() {
+        let c = Compute::unchecked();
         let text = "wsh(sortedmulti(2,@0/**,@1/**))\n\
             [6738736c/48'/0'/0'/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw\n\
             [b2b1f0cf/48'/0'/0'/2']xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7";
-        let policy = WalletPolicy::parse_any(text).unwrap();
+        let policy = WalletPolicy::parse_any(&c, text).unwrap();
         assert_eq!(policy.to_text(), text.replace('\'', "h"));
         assert_eq!(policy.quorum(), Some((2, 2)));
         let descriptor = policy.to_descriptor_checksummed();
-        assert_eq!(WalletPolicy::parse_any(&descriptor).unwrap(), policy);
+        assert_eq!(WalletPolicy::parse_any(&c, &descriptor).unwrap(), policy);
     }
 
     /// One wallet written with `'`, with `h`, or with both is one wallet:
     /// the same text and the same checksum, the checksum of its `h` form.
     #[test]
     fn a_hardened_step_written_either_way_is_the_same_wallet() {
+        let c = Compute::unchecked();
         const H: &str = "wsh(sortedmulti(2,[6738736c/48h/0h/0h/2h]xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw/<0;1>/*,[b2b1f0cf/48h/0h/0h/2h]xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7/<0;1>/*))";
         const APOSTROPHE: &str = "wsh(sortedmulti(2,[6738736c/48'/0'/0'/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw/<0;1>/*,[b2b1f0cf/48'/0'/0'/2']xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7/<0;1>/*))";
         const MIXED: &str = "wsh(sortedmulti(2,[6738736c/48h/0'/0h/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw/<0;1>/*,[b2b1f0cf/48'/0h/0'/2h]xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7/<0;1>/*))";
@@ -1779,18 +1859,21 @@ mod tests {
                 .unwrap();
             alloc::format!("wsh(or_d(pk({a}),and_v(v:pkh([{b}),older(144))))")
         };
-        let text_h = WalletPolicy::from_descriptor(H).unwrap().to_text();
+        let text_h = WalletPolicy::from_descriptor(&c, H).unwrap().to_text();
         assert!(!text_h.contains('\''));
         let tree_h = tree(H);
         let tree_sum = descriptor_checksum(&tree_h).expect("a descriptor");
         let tree_sum = core::str::from_utf8(&tree_sum).unwrap();
         for text in [H, APOSTROPHE, MIXED] {
-            let policy = WalletPolicy::from_descriptor(text).unwrap();
+            let policy = WalletPolicy::from_descriptor(&c, text).unwrap();
             assert_eq!(policy.to_descriptor(), H, "{text}");
             assert_eq!(policy.checksum(), sum);
             assert_eq!(policy.to_text(), text_h);
-            assert_eq!(WalletPolicy::parse_any(&policy.to_text()).unwrap(), policy);
-            let policy = WalletPolicy::from_descriptor(&tree(text)).unwrap();
+            assert_eq!(
+                WalletPolicy::parse_any(&c, &policy.to_text()).unwrap(),
+                policy
+            );
+            let policy = WalletPolicy::from_descriptor(&c, &tree(text)).unwrap();
             assert_eq!(policy.to_descriptor(), tree_h, "{text}");
             assert_eq!(policy.checksum(), tree_sum);
         }

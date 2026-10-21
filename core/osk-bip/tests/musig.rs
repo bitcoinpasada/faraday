@@ -388,10 +388,12 @@ fn a_tweak_out_of_range_is_refused() {
 /// reads back as the same wallet.
 #[test]
 fn a_musig_wallet_policy_pays_to_the_published_aggregate_keys() {
+    let c = Compute::unchecked();
     use osk_bip::policy::WalletPolicy;
+    use osk_crypto::work::Compute;
 
     const POLICY: &str = include_str!("../../../tools/vectors/psbt/wallet-musig.policy");
-    let policy = WalletPolicy::parse(POLICY).unwrap();
+    let policy = WalletPolicy::parse(&c, POLICY).unwrap();
     let published = bip390_cases()
         .into_iter()
         .find(|c| c.valid && c.descriptor.starts_with("rawtr(musig(xpub"))
@@ -411,10 +413,10 @@ fn a_musig_wallet_policy_pays_to_the_published_aggregate_keys() {
         // The wallet pays to that key tweaked, which is what the same
         // aggregate written as `tr(musig(A,B)/0/*)` pays to.
         let tweaked = script_pubkey_at(&expr, false, index).unwrap();
-        assert_eq!(policy.script_at(false, index).unwrap(), tweaked);
+        assert_eq!(policy.script_at(&c, false, index).unwrap(), tweaked);
     }
     assert_eq!(
-        WalletPolicy::from_descriptor(&policy.to_descriptor_checksummed()).unwrap(),
+        WalletPolicy::from_descriptor(&c, &policy.to_descriptor_checksummed()).unwrap(),
         policy
     );
 }

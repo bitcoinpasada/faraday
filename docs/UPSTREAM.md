@@ -313,6 +313,28 @@ Since the fork:
   Why: Faraday never ran the app, and it compiled
   `osk-crypto/unchecked` into Faraday's binaries; nothing in Faraday's
   normal graph enables it now, which `tools/lint-unchecked.sh` checks.
+- The token taken by wallet descriptions and addresses (2026-10-21;
+  `docs/COMPUTE.md` C2): `osk-crypto`'s `Work` gains `DescriptorParse`
+  and `Address`. `WalletPolicy::parse`, `from_parts`, `from_descriptor`,
+  `parse_any`, `from_record` and `ThresholdRecord::parse`, `parse_with`
+  take `c: &Compute` first and count `DescriptorParse` once each (they
+  read through uncounted private helpers, so `parse_any` reading a
+  record counts once); `WalletPolicy::script_at`, `script_at_with` and
+  `address_at` count `Address`, and `find_address` counts each address
+  it tries. Their callers take the token too: `bsms::DescriptorRecord::parse`
+  (a parse and its first address), `coldcard::read` and `parse`,
+  `multisig_config::parse` and `parse_named`,
+  `RecoveryPolicy::to_wallet_policy`, `compile::compile`,
+  `descriptor::checksum_facts`; and `osk-psbt`'s `inspect`, which now
+  takes the token and counts `PsbtInspect` through it (a wallet claim
+  derives the wallet's script: `Context::wallet_claim` takes it). New:
+  `descriptor::reads_as_descriptor(c, text)`, `miniscript`'s descriptor
+  reader behind the token, for the multipath reader in
+  `faraday-intake`, which called `miniscript` directly. Core's tests,
+  doc examples and `fuzz/` (`policy`, `psbt_parse`) use
+  `Compute::unchecked()`. Why: a screen that parses a description or
+  derives an address while drawing does not compile. Nothing computed
+  changes.
 
 ## 4. Watching upstream
 

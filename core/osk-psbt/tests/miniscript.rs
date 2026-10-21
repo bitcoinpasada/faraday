@@ -47,11 +47,12 @@ fn master(words: &str) -> MasterKey {
 fn the_change_of_a_miniscript_wallet_is_verified_while_it_is_in_use() {
     let c = Compute::unchecked();
     let psbt = Psbt::parse_base64(LIANA_PSBT.trim()).expect("the fixture transaction");
-    let policy = WalletPolicy::parse_any(LIANA_POLICY).expect("the fixture wallet");
+    let policy = WalletPolicy::parse_any(&c, LIANA_POLICY).expect("the fixture wallet");
     let keys = [KeyRef::from_master(&c, &master(ABANDON), 0).expect("accounts")];
 
     let wallets = [policy];
     let insp = inspect(
+        &c,
         &psbt,
         &Context {
             network: NET,
@@ -73,6 +74,7 @@ fn the_change_of_a_miniscript_wallet_is_verified_while_it_is_in_use() {
     assert_eq!(insp.change_total.to_sat(), 39_000);
 
     let insp = inspect(
+        &c,
         &psbt,
         &Context {
             network: NET,
@@ -96,7 +98,7 @@ fn the_change_of_a_miniscript_wallet_is_verified_while_it_is_in_use() {
 fn the_liana_spend_completes_with_the_first_key_alone() {
     let c = Compute::unchecked();
     let mut psbt = Psbt::parse_base64(LIANA_PSBT.trim()).expect("the fixture transaction");
-    let policy = WalletPolicy::parse_any(LIANA_POLICY).expect("the fixture wallet");
+    let policy = WalletPolicy::parse_any(&c, LIANA_POLICY).expect("the fixture wallet");
     let abandon = master(ABANDON);
     let keys = [KeyRef::from_master(&c, &abandon, 0).expect("accounts")];
     let wallets = [policy];
@@ -109,7 +111,7 @@ fn the_liana_spend_completes_with_the_first_key_alone() {
         carry: None,
     };
 
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert_eq!(
         insp.inputs[0].script_type,
         ScriptKind::Miniscript {
@@ -154,7 +156,7 @@ fn the_liana_spend_completes_with_the_first_key_alone() {
 #[test]
 fn the_liana_recovery_spend_waits_for_the_recovery_key() {
     let c = Compute::unchecked();
-    let policy = WalletPolicy::parse_any(LIANA_POLICY).expect("the fixture wallet");
+    let policy = WalletPolicy::parse_any(&c, LIANA_POLICY).expect("the fixture wallet");
     let (abandon, zoo) = (master(ABANDON), master(ZOO));
     let wallets = [policy];
 
@@ -168,7 +170,7 @@ fn the_liana_recovery_spend_waits_for_the_recovery_key() {
         shares: &[],
         carry: None,
     };
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert_eq!(
         insp.inputs[0].spend_route,
         Some(SpendRoute::Script(path(&[1], &[Lock::Blocks(52_560)]))),
@@ -243,7 +245,7 @@ fn the_liana_recovery_spend_waits_for_the_recovery_key() {
 #[test]
 fn a_recovery_spend_below_its_timelock_stays_partial() {
     let c = Compute::unchecked();
-    let policy = WalletPolicy::parse_any(LIANA_POLICY).expect("the fixture wallet");
+    let policy = WalletPolicy::parse_any(&c, LIANA_POLICY).expect("the fixture wallet");
     let (abandon, zoo) = (master(ABANDON), master(ZOO));
     let wallets = [policy];
     let mut psbt = Psbt::parse_base64(LIANA_RECOVERY_PSBT.trim()).expect("the fixture transaction");
@@ -261,7 +263,7 @@ fn a_recovery_spend_below_its_timelock_stays_partial() {
         shares: &[],
         carry: None,
     };
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert!(
         insp.warnings.iter().any(|w| w.kind
             == WarningKind::TimelockNotMet {
@@ -298,7 +300,7 @@ fn a_recovery_spend_below_its_timelock_stays_partial() {
 fn the_tree_key_path_spend_signs_with_the_internal_key() {
     let c = Compute::unchecked();
     let mut psbt = Psbt::parse_base64(TREE_KEYPATH_PSBT.trim()).expect("the fixture transaction");
-    let policy = WalletPolicy::parse_any(TREE_POLICY).expect("the fixture wallet");
+    let policy = WalletPolicy::parse_any(&c, TREE_POLICY).expect("the fixture wallet");
     let abandon = master(ABANDON);
     let keys = [KeyRef::from_master(&c, &abandon, 0).expect("accounts")];
     let wallets = [policy];
@@ -311,7 +313,7 @@ fn the_tree_key_path_spend_signs_with_the_internal_key() {
         carry: None,
     };
 
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert_eq!(insp.inputs[0].script_type, ScriptKind::P2trScript);
     assert_eq!(insp.inputs[0].spend_route, Some(SpendRoute::KeyPath));
 
@@ -353,7 +355,7 @@ fn the_tree_key_path_spend_signs_with_the_internal_key() {
 fn the_tree_leaf_spend_signs_under_the_leaf_hash() {
     let c = Compute::unchecked();
     let mut psbt = Psbt::parse_base64(TREE_PSBT.trim()).expect("the fixture transaction");
-    let policy = WalletPolicy::parse_any(TREE_POLICY).expect("the fixture wallet");
+    let policy = WalletPolicy::parse_any(&c, TREE_POLICY).expect("the fixture wallet");
     let legal = master(LEGAL);
     let keys = [KeyRef::from_master(&c, &legal, 0).expect("accounts")];
     let wallets = [policy];
@@ -366,7 +368,7 @@ fn the_tree_leaf_spend_signs_under_the_leaf_hash() {
         carry: None,
     };
 
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert_eq!(insp.inputs[0].script_type, ScriptKind::P2trScript);
     assert_eq!(
         insp.inputs[0].spend_route,

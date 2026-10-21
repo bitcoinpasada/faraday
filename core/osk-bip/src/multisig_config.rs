@@ -37,17 +37,20 @@ use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
 
+use osk_crypto::work::Compute;
+
 use crate::policy::{Error, WalletPolicy};
 use crate::slip132::{self, Mismatch, Script};
 
-/// Reads a coordinator's multisig config as a wallet policy.
-pub fn parse(text: &str) -> Result<WalletPolicy, Error> {
-    parse_named(text).map(|(policy, _)| policy)
+/// Costs a parse of the policy and its keys: reads a coordinator's
+/// multisig config as a wallet policy.
+pub fn parse(c: &Compute, text: &str) -> Result<WalletPolicy, Error> {
+    parse_named(c, text).map(|(policy, _)| policy)
 }
 
-/// The same, with the `Name:` line the file carries, where it has one
-/// and it is not empty.
-pub fn parse_named(text: &str) -> Result<(WalletPolicy, Option<String>), Error> {
+/// Costs a parse of the policy and its keys: the same, with the `Name:`
+/// line the file carries, where it has one and it is not empty.
+pub fn parse_named(c: &Compute, text: &str) -> Result<(WalletPolicy, Option<String>), Error> {
     let mut name: Option<String> = None;
     let mut threshold = 0usize;
     let mut total = 0usize;
@@ -120,7 +123,7 @@ pub fn parse_named(text: &str) -> Result<(WalletPolicy, Option<String>), Error> 
         _ => format!("wsh(sortedmulti({threshold},{args}))"),
     };
     let refs: Vec<&str> = keys.iter().map(String::as_str).collect();
-    let policy = WalletPolicy::from_parts(&template, &refs)?;
+    let policy = WalletPolicy::from_parts(c, &template, &refs)?;
     let around = script_of(wrapper);
     if named.iter().any(|n| !slip132::agrees(*n, around)) {
         return Err(Error::Key);
@@ -249,13 +252,14 @@ Derivation: m/48'/1'/0'/2'
 
     #[test]
     fn the_three_script_forms_wrap_the_same_keys() {
+        let c = Compute::unchecked();
         for (format, head) in [
             ("P2WSH", "wsh(sortedmulti(2,"),
             ("P2SH-P2WSH", "sh(wsh(sortedmulti(2,"),
             ("P2WSH-P2SH", "sh(wsh(sortedmulti(2,"),
             ("P2SH", "sh(sortedmulti(2,"),
         ] {
-            let policy = parse(&with_format(format)).expect(format);
+            let policy = parse(&c, &with_format(format)).expect(format);
             assert!(
                 policy.to_descriptor().starts_with(head),
                 "{format}: {}",
@@ -267,18 +271,19 @@ Derivation: m/48'/1'/0'/2'
 
     #[test]
     fn a_config_without_a_format_or_with_a_quorum_it_cannot_meet_is_refused() {
-        assert_eq!(parse(CONFIG), Err(Error::Template));
+        let c = Compute::unchecked();
+        assert_eq!(parse(&c, CONFIG), Err(Error::Template));
         assert_eq!(
-            parse(&with_format("P2WSH").replace("2 of 2", "3 of 2")),
+            parse(&c, &with_format("P2WSH").replace("2 of 2", "3 of 2")),
             Err(Error::Threshold)
         );
         assert_eq!(
-            parse(&with_format("P2WSH").replace("2 of 2", "2 of 3")),
+            parse(&c, &with_format("P2WSH").replace("2 of 2", "2 of 3")),
             Err(Error::Placeholder),
             "a quorum that names more keys than the file lists"
         );
         assert_eq!(
-            parse(&with_format("P2TR")),
+            parse(&c, &with_format("P2TR")),
             Err(Error::Template),
             "a format no multisig script here pays to"
         );
@@ -291,11 +296,12 @@ Derivation: m/48'/1'/0'/2'
     /// what the key is for, and a disagreement is not guessed past.
     #[test]
     fn slip132_spellings_of_a_key_read_as_the_same_wallet() {
+        let c = Compute::unchecked();
         use bitcoin::base58;
 
         use crate::xkey;
 
-        let plain = parse(&with_format("P2WSH")).unwrap();
+        let plain = parse(&c, &with_format("P2WSH")).unwrap();
         let tpub = "tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ";
         let respell = |version: [u8; 4]| {
             let mut bytes = xkey::payload(tpub).unwrap();
@@ -308,22 +314,22 @@ Derivation: m/48'/1'/0'/2'
         assert!(vpub_multi.starts_with("Vpub"), "{vpub_multi}");
         assert!(vpub_single.starts_with("vpub"), "{vpub_single}");
         assert!(upub_multi.starts_with("Upub"), "{upub_multi}");
-        let policy = parse(&with_format("P2WSH").replace(tpub, &vpub_multi)).unwrap();
+        let policy = parse(&c, &with_format("P2WSH").replace(tpub, &vpub_multi)).unwrap();
         assert_eq!(policy, plain);
         assert_eq!(policy.checksum(), plain.checksum());
         for other in [&vpub_single, &upub_multi] {
             let text = with_format("P2WSH").replace(tpub, other);
-            assert_eq!(parse(&text), Err(Error::Key), "{other}");
+            assert_eq!(parse(&c, &text), Err(Error::Key), "{other}");
             let m = slip132_mismatch(&text).expect("the key that disagrees");
             assert_eq!(m.key, *other);
             assert_eq!(m.around, Script::NativeMultisig);
         }
         // In a P2SH-P2WSH file the `Upub` is the one that agrees.
-        let nested = parse(&with_format("P2SH-P2WSH").replace(tpub, &upub_multi)).unwrap();
-        assert_eq!(nested, parse(&with_format("P2SH-P2WSH")).unwrap());
+        let nested = parse(&c, &with_format("P2SH-P2WSH").replace(tpub, &upub_multi)).unwrap();
+        assert_eq!(nested, parse(&c, &with_format("P2SH-P2WSH")).unwrap());
         assert_eq!(slip132_mismatch(&with_format("P2WSH")), None);
         assert_eq!(
-            parse(&with_format("P2WSH").replace(tpub, "tpubnotakey")),
+            parse(&c, &with_format("P2WSH").replace(tpub, "tpubnotakey")),
             Err(Error::Key)
         );
     }

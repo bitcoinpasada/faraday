@@ -35,6 +35,7 @@ fn abandon() -> &'static KeyRef {
 }
 
 fn run(psbt: &Psbt) {
+    let c = Compute::unchecked();
     let empty = Context {
         network: Network::Testnet,
         keys: &[],
@@ -43,7 +44,7 @@ fn run(psbt: &Psbt) {
         shares: &[],
         carry: None,
     };
-    let _ = inspect(psbt, &empty);
+    let _ = inspect(&c, psbt, &empty);
 
     let keys = core::slice::from_ref(abandon());
     let loaded = Context {
@@ -54,7 +55,7 @@ fn run(psbt: &Psbt) {
         shares: &[],
         carry: None,
     };
-    let _ = inspect(psbt, &loaded);
+    let _ = inspect(&c, psbt, &loaded);
 }
 
 fuzz_target!(|data: &[u8]| {

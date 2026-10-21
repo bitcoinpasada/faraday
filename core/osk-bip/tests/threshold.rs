@@ -27,7 +27,8 @@ const SHARES: [&str; 3] = [
 ];
 
 fn record() -> ThresholdRecord {
-    ThresholdRecord::parse(RECORD).expect("the committed record")
+    let c = Compute::unchecked();
+    ThresholdRecord::parse(&c, RECORD).expect("the committed record")
 }
 
 /// The record with one line replaced, which is how every refusal below
@@ -45,18 +46,19 @@ fn with_line(prefix: &str, line: &str) -> String {
 /// from.
 #[test]
 fn the_record_round_trips_and_states_its_group() {
+    let c = Compute::unchecked();
     let record = record();
     assert_eq!(record.t(), 2);
     assert_eq!(record.n(), 3);
     assert_eq!(format!("{}\n", record.to_text()), RECORD);
     assert_eq!(
-        ThresholdRecord::parse(&record.to_text()),
+        ThresholdRecord::parse(&c, &record.to_text()),
         Ok(record.clone())
     );
 
     // Blank lines and comments are skipped, as a wallet policy's are.
     let commented = format!("# a group\n\n{RECORD}\n");
-    assert_eq!(ThresholdRecord::parse(&commented), Ok(record.clone()));
+    assert_eq!(ThresholdRecord::parse(&c, &commented), Ok(record.clone()));
 
     // Every participant has a fingerprint of its own, and the wallet's
     // is the extended public key's.
@@ -72,6 +74,7 @@ fn the_record_round_trips_and_states_its_group() {
 /// Every way a record can be wrong, each refused with its own reason.
 #[test]
 fn a_record_that_states_something_untrue_is_refused() {
+    let c = Compute::unchecked();
     const OTHER_KEY: &str = "0376c80f9704bbf33f96b9fcf464deec0548997110fc1e0fed81c9bea5e0ea8500";
     let record = record();
     let group = record.info.thresh_pk;
@@ -126,7 +129,7 @@ fn a_record_that_states_something_untrue_is_refused() {
             "a group key the shares do not give",
         ),
     ] {
-        assert_eq!(ThresholdRecord::parse(&text), Err(expected), "{why}");
+        assert_eq!(ThresholdRecord::parse(&c, &text), Err(expected), "{why}");
     }
 
     // Sixteen participants: more than one QR and one slot carry.
@@ -141,7 +144,7 @@ fn a_record_that_states_something_untrue_is_refused() {
     let big = frost::deal(&secp, 16, 2, &chosen).expect("a group of sixteen");
     let big = ThresholdRecord::new(big.info, NetworkKind::Test);
     assert_eq!(
-        ThresholdRecord::parse(&big.to_text()),
+        ThresholdRecord::parse(&c, &big.to_text()),
         Err(Error::Threshold),
         "sixteen participants"
     );
@@ -156,7 +159,7 @@ fn a_record_that_states_something_untrue_is_refused() {
         &record.descriptor_checksummed(),
         1,
     );
-    assert_eq!(ThresholdRecord::parse(&mixed), Err(Error::Group));
+    assert_eq!(ThresholdRecord::parse(&c, &mixed), Err(Error::Group));
 
     // The extended public key is the group key's own: another group's
     // key over these shares is no wallet of theirs.
@@ -171,7 +174,7 @@ fn a_record_that_states_something_untrue_is_refused() {
         &theirs.descriptor_checksummed(),
         1,
     );
-    assert_eq!(ThresholdRecord::parse(&wrong_xpub), Err(Error::Xpub));
+    assert_eq!(ThresholdRecord::parse(&c, &wrong_xpub), Err(Error::Xpub));
 
     // The network is what the version bytes state, so the same group
     // written as mainnet is another extended public key and another
@@ -179,7 +182,7 @@ fn a_record_that_states_something_untrue_is_refused() {
     let mainnet = ThresholdRecord::new(record.info.clone(), NetworkKind::Main);
     assert_ne!(mainnet.xpub, record.xpub);
     assert_eq!(
-        ThresholdRecord::parse(&mainnet.to_text())
+        ThresholdRecord::parse(&c, &mainnet.to_text())
             .expect("a mainnet record of the same group")
             .xpub
             .network,
@@ -190,18 +193,19 @@ fn a_record_that_states_something_untrue_is_refused() {
     let bad = record.descriptor_checksummed().replace("#q", "#p");
     let wrong_checksum = RECORD.replacen(&record.descriptor_checksummed(), &bad, 1);
     assert_eq!(
-        ThresholdRecord::parse(&wrong_checksum),
+        ThresholdRecord::parse(&c, &wrong_checksum),
         Err(Error::Checksum)
     );
     let none = RECORD.replacen(&record.descriptor_checksummed(), &record.descriptor(), 1);
-    assert_eq!(ThresholdRecord::parse(&none), Err(Error::Checksum));
+    assert_eq!(ThresholdRecord::parse(&c, &none), Err(Error::Checksum));
 }
 
 /// The record is a wallet: `parse_any` reads it, writes it back
 /// unchanged, and names the kind and the script it pays to.
 #[test]
 fn the_record_is_a_wallet_policy() {
-    let policy = WalletPolicy::parse_any(RECORD).expect("the committed record");
+    let c = Compute::unchecked();
+    let policy = WalletPolicy::parse_any(&c, RECORD).expect("the committed record");
     assert_eq!(
         policy.template(),
         Template::Threshold {
@@ -221,22 +225,23 @@ fn the_record_is_a_wallet_policy() {
     );
     assert_eq!(format!("{}\n", policy.to_text()), RECORD);
     assert_eq!(
-        WalletPolicy::parse_any(&policy.to_text()),
+        WalletPolicy::parse_any(&c, &policy.to_text()),
         Ok(policy.clone())
     );
     assert!(policy.spend_paths().is_empty(), "one key, one signature");
     assert_eq!(policy.record().map(|r| r.n()), Some(3));
 
     // The two-part form and the plain-descriptor form are not records.
-    assert!(WalletPolicy::parse(RECORD).is_err());
-    assert!(WalletPolicy::from_descriptor(RECORD).is_err());
+    assert!(WalletPolicy::parse(&c, RECORD).is_err());
+    assert!(WalletPolicy::from_descriptor(&c, RECORD).is_err());
 }
 
 /// The wallet pays where any descriptor wallet given the record's own
 /// descriptor line pays.
 #[test]
 fn the_wallet_pays_where_its_descriptor_says() {
-    let policy = WalletPolicy::parse_any(RECORD).expect("the committed record");
+    let c = Compute::unchecked();
+    let policy = WalletPolicy::parse_any(&c, RECORD).expect("the committed record");
     let descriptor = Descriptor::<DescriptorPublicKey>::from_str(&record().descriptor())
         .expect("the record's descriptor line");
     let chains = descriptor
@@ -254,7 +259,7 @@ fn the_wallet_pays_where_its_descriptor_says() {
                 .address(bitcoin::Network::Regtest)
                 .expect("an address");
             let ours = policy
-                .address_at(Network::Regtest, chain == 1, index)
+                .address_at(&c, Network::Regtest, chain == 1, index)
                 .expect("an address");
             assert_eq!(ours, theirs, "chain {chain} index {index}");
         }
@@ -266,7 +271,8 @@ fn the_wallet_pays_where_its_descriptor_says() {
 /// and that is the output the wallet claims.
 #[test]
 fn an_output_of_the_wallet_is_named_by_its_chain_and_index() {
-    let policy = WalletPolicy::parse_any(RECORD).expect("the committed record");
+    let c = Compute::unchecked();
+    let policy = WalletPolicy::parse_any(&c, RECORD).expect("the committed record");
     let fp = record().fingerprint();
     for (path, expected) in [
         ("0/0", Some((false, 0))),

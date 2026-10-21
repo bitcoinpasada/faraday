@@ -186,7 +186,7 @@ pub fn multisig_policy(masters: &[&MasterKey], m: usize, network: Network) -> Wa
         let xpub = master.derive(&c, &path).to_xpub(&c);
         text.push_str(&format!("\n[{}/{path:#}]{xpub}", master.fingerprint()));
     }
-    WalletPolicy::parse(&text).expect("policy built from test keys")
+    WalletPolicy::parse(&c, &text).expect("policy built from test keys")
 }
 
 /// The `sortedmulti(m, …)` witness script of `masters` at `path`.
@@ -252,7 +252,7 @@ pub fn sorted_multisig_change(
     let inner = psbt.inner_mut();
     inner.unsigned_tx.output.push(TxOut {
         value: Amount::from_sat(change),
-        script_pubkey: policy.script_at(true, 0).unwrap(),
+        script_pubkey: policy.script_at(&c, true, 0).unwrap(),
     });
     let mut out = bitcoin::psbt::Output::default();
     for master in masters {

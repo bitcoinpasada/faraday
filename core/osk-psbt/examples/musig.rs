@@ -67,8 +67,9 @@ pub fn abandon() -> MasterKey {
 
 /// The registered wallet, read from the committed policy file.
 pub fn policy(dir: &Path) -> WalletPolicy {
+    let c = Compute::unchecked();
     let text = std::fs::read_to_string(dir.join(POLICY_NAME)).expect("the policy fixture");
-    WalletPolicy::parse(&text).expect("a two-line BIP-388 policy")
+    WalletPolicy::parse(&c, &text).expect("a two-line BIP-388 policy")
 }
 
 /// Core's round-1 PSBT, signed by this device: its public nonce and its

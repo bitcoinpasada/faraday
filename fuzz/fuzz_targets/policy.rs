@@ -6,10 +6,11 @@
 
 use libfuzzer_sys::fuzz_target;
 use osk_bip::policy::WalletPolicy;
+use osk_crypto::work::Compute;
 
 fuzz_target!(|data: &[u8]| {
     let Ok(text) = core::str::from_utf8(data) else {
         return;
     };
-    let _ = WalletPolicy::parse_any(text);
+    let _ = WalletPolicy::parse_any(&Compute::unchecked(), text);
 });

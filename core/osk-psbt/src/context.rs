@@ -180,15 +180,17 @@ impl<'a> Context<'a> {
         self.key(fingerprint).is_some()
     }
 
-    /// The registered wallet a set of stated key origins belongs to, the
-    /// chain and index they name, and whether the wallet's script at
-    /// that index is `script_pubkey`.
+    /// Costs a script derivation for the wallet claimed: the registered
+    /// wallet a set of stated key origins belongs to, the chain and index
+    /// they name, and whether the wallet's script at that index is
+    /// `script_pubkey`.
     ///
     /// A wallet is claimed by any origin whose fingerprint and path
     /// belong to one of its keys; the claim is verified only by the
     /// script.
     pub(crate) fn wallet_claim<'o, I>(
         &self,
+        c: &Compute,
         origins: I,
         script_pubkey: &bitcoin::Script,
     ) -> Option<WalletClaim>
@@ -201,7 +203,7 @@ impl<'a> Context<'a> {
                     continue;
                 };
                 let verified = policy
-                    .script_at(change, index)
+                    .script_at(c, change, index)
                     .is_ok_and(|s| s == *script_pubkey);
                 return Some(WalletClaim {
                     wallet,

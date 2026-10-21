@@ -197,6 +197,7 @@ pub fn signed(dir: &std::path::Path) -> (osk_psbt::Psbt, osk_psbt::SignResult) {
 /// share and secret nonce, which are this fixture group's and no one
 /// else's.
 pub fn transcript(dir: &std::path::Path) -> String {
+    let c = Compute::unchecked();
     let secp = Secp256k1::new();
     let file = carry_file(dir);
     let carry = osk_psbt::threshold::Carry::parse(&file).expect("the carry file");
@@ -211,7 +212,7 @@ pub fn transcript(dir: &std::path::Path) -> String {
         shares: &shares,
         carry: Some(&carry.section),
     };
-    let inspection = osk_psbt::inspect(&psbt, &ctx);
+    let inspection = osk_psbt::inspect(&c, &psbt, &ctx);
     let ti = inspection.inputs[0]
         .threshold
         .as_ref()

@@ -54,6 +54,7 @@ use bitcoin::secp256k1::{Message, PublicKey, Secp256k1, SecretKey, Signing, Veri
 use bitcoin::sign_message::signed_msg_hash;
 use core::fmt::{self, Write as _};
 use core::str::FromStr;
+use osk_crypto::work::Compute;
 
 use crate::account::MultisigAccountXpub;
 use crate::base64;
@@ -307,9 +308,10 @@ pub struct DescriptorRecord {
 }
 
 impl DescriptorRecord {
-    /// Reads a descriptor record, checking that the address on it is
-    /// the wallet's own first receive address.
-    pub fn parse(text: &str) -> Result<Self, Error> {
+    /// Costs a parse of the descriptor and an address derivation: reads
+    /// a descriptor record, checking that the address on it is the
+    /// wallet's own first receive address.
+    pub fn parse(c: &Compute, text: &str) -> Result<Self, Error> {
         let lines = record_lines(text)?;
         if lines.len() != 4 {
             return Err(Error::Lines);
@@ -329,7 +331,7 @@ impl DescriptorRecord {
         if paths.is_empty() == descriptor.contains(TEMPLATE_SUFFIX) {
             return Err(Error::Paths);
         }
-        let policy = WalletPolicy::from_descriptor(descriptor).map_err(Error::Policy)?;
+        let policy = WalletPolicy::from_descriptor(c, descriptor).map_err(Error::Policy)?;
         let stated = lines[3].trim();
         let unchecked =
             Address::<NetworkUnchecked>::from_str(stated).map_err(|_| Error::Address)?;
@@ -338,7 +340,7 @@ impl DescriptorRecord {
             .find(|n| unchecked.is_valid_for_network(bitcoin::Network::from(*n)))
             .ok_or(Error::Address)?;
         let first = policy
-            .address_at(network, false, 0)
+            .address_at(c, network, false, 0)
             .map_err(Error::Policy)?;
         // The address as its encoding writes it: a bech32 address in
         // upper case, which BIP 173 has a reader take, is the same

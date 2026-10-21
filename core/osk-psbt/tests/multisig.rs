@@ -61,7 +61,7 @@ fn two_of_three_sortedmulti() {
         shares: &[],
         carry: None,
     };
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert!(!insp.has_danger(), "{:?}", insp.warnings);
     assert_eq!(
         insp.inputs[0].script_type,
@@ -117,7 +117,7 @@ fn two_of_three_sortedmulti() {
     assert!(!r.complete);
     assert!(!is_complete(&psbt));
     assert_eq!(finalize(&mut psbt).unwrap(), None);
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     let ms = insp.multisig.as_ref().unwrap();
     assert_eq!(ms.signed(), 1);
     assert!(
@@ -149,7 +149,7 @@ fn two_of_three_sortedmulti() {
     .unwrap();
     assert_eq!(r.signed_inputs.len(), 1);
     assert!(r.complete);
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert_eq!(insp.multisig.as_ref().unwrap().signed(), 2);
     assert_eq!(insp.inputs[0].signatures, 2);
 
@@ -232,6 +232,7 @@ fn multisig_participation_by_fingerprint_only() {
     );
     let keys = [KeyRef::from_master(&c, &other, 0).unwrap()];
     let insp = inspect(
+        &c,
         &psbt,
         &Context {
             network: NET,
@@ -288,7 +289,7 @@ fn bip174_signer_finalizer_extractor() {
         shares: &[],
         carry: None,
     };
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert!(!insp.has_danger(), "{:?}", insp.warnings);
     assert_eq!(
         insp.inputs[0].script_type,
@@ -518,6 +519,7 @@ fn change_of_a_registered_wallet() {
     // Nothing registered: the change output is a claim the device cannot
     // check, so it counts as a payment to others.
     let insp = inspect(
+        &c,
         &psbt,
         &Context {
             network: NET,
@@ -546,7 +548,7 @@ fn change_of_a_registered_wallet() {
         shares: &[],
         carry: None,
     };
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert!(!insp.has_danger(), "{:?}", insp.warnings);
     assert_eq!(
         insp.outputs[1].kind,
@@ -570,6 +572,7 @@ fn change_of_a_registered_wallet() {
     );
     let wallets = [multisig_policy(&[&abandon, &zoo, &other], 2, NET)];
     let insp = inspect(
+        &c,
         &psbt,
         &Context {
             network: NET,
@@ -620,6 +623,7 @@ fn bip48_change_is_ours_before_a_wallet_is_registered() {
     );
     let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let insp = inspect(
+        &c,
         &psbt,
         &Context {
             network: NET,
@@ -664,6 +668,7 @@ fn bip48_change_is_ours_before_a_wallet_is_registered() {
         39_000,
     );
     let insp = inspect(
+        &c,
         &theirs,
         &Context {
             network: NET,

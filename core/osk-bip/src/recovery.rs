@@ -20,7 +20,8 @@
 //!         path: Path::single(recovery),
 //!     }],
 //! };
-//! let policy = wanted.to_wallet_policy(Form::SegWit).unwrap();
+//! let c = osk_crypto::work::Compute::unchecked();
+//! let policy = wanted.to_wallet_policy(&c, Form::SegWit).unwrap();
 //! assert!(policy.to_descriptor().starts_with("wsh(or_d(pk("));
 //! assert_eq!(RecoveryPolicy::from_wallet_policy(&policy), Some(wanted));
 //! ```
@@ -57,6 +58,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::fmt;
 use core::str::FromStr;
+use osk_crypto::work::Compute;
 
 use bitcoin::bip32::{ChainCode, Xpub};
 use bitcoin::hashes::{Hash, sha256};
@@ -231,12 +233,13 @@ pub fn days_of_blocks(blocks: u32) -> u32 {
 }
 
 impl RecoveryPolicy {
-    /// The wallet these keys and delays make, in `form`.
+    /// Costs a miniscript compilation and a parse of the descriptor: the
+    /// wallet these keys and delays make, in `form`.
     ///
     /// The recovery paths are taken shortest wait first whatever order
     /// they arrive in, because that is the order the script's branches
     /// open in and the order a person reads them.
-    pub fn to_wallet_policy(&self, form: Form) -> Result<WalletPolicy, Error> {
+    pub fn to_wallet_policy(&self, c: &Compute, form: Form) -> Result<WalletPolicy, Error> {
         let concrete = self.to_concrete()?;
         let descriptor = match form {
             Form::SegWit => {
@@ -245,7 +248,7 @@ impl RecoveryPolicy {
             }
             Form::Taproot => taproot(concrete)?,
         };
-        WalletPolicy::from_descriptor(&alloc::format!("{descriptor}")).map_err(|_| Error::Script)
+        WalletPolicy::from_descriptor(c, &alloc::format!("{descriptor}")).map_err(|_| Error::Script)
     }
 
     /// The primary path, the recovery paths and their delays of a wallet

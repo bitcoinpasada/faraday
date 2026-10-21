@@ -115,6 +115,7 @@ fn signed_single(script_type: ScriptType, nonce: Nonce, aux: Aux, change: u64) -
 /// keys they are under.
 #[test]
 fn every_signature_the_committed_fixtures_carry_verifies() {
+    let c = Compute::unchecked();
     valid(&read(TAPMULTI), "wallet-tapmulti-signed");
     valid(&read(THRESHOLD), "wallet-threshold-signed");
     // What the MuSig2 fixture carries is one participant's partial
@@ -122,10 +123,10 @@ fn every_signature_the_committed_fixtures_carry_verifies() {
     // does not: there is no signature of the transaction on it yet, and
     // the review says nothing about one.
     let musig = read(MUSIG);
-    let policy = WalletPolicy::parse_any(MUSIG_POLICY).expect("the MuSig2 wallet");
+    let policy = WalletPolicy::parse_any(&c, MUSIG_POLICY).expect("the MuSig2 wallet");
     assert!(verdicts(&musig).is_empty());
     assert!(
-        inspect(&musig, &ctx(&[], std::slice::from_ref(&policy)))
+        inspect(&c, &musig, &ctx(&[], std::slice::from_ref(&policy)))
             .warnings
             .iter()
             .all(|w| !matches!(
@@ -149,7 +150,7 @@ fn the_signatures_this_device_writes_verify_when_they_are_read_back() {
     // the path it takes names, partly signed and then finalized.
     for (text, policy_text, words) in [(LIANA, LIANA_POLICY, ABANDON), (TREE, TREE_POLICY, LEGAL)] {
         let mut psbt = read(text);
-        let policy = WalletPolicy::parse_any(policy_text).expect("the fixture wallet");
+        let policy = WalletPolicy::parse_any(&c, policy_text).expect("the fixture wallet");
         let key = master(words, NET);
         let keys = [KeyRef::from_master(&c, &key, 0).expect("accounts")];
         let wallets = [policy];
@@ -229,9 +230,9 @@ fn the_signatures_inside_a_finalized_witness_are_read_back_and_verify() {
     // A taproot multisig by script path: two leaf signatures in the
     // witness, before the leaf script and its control block.
     let mut tapmulti = read(TAPMULTI);
-    let policy = WalletPolicy::parse_any(TAPMULTI_POLICY).expect("the taproot multisig wallet");
+    let policy = WalletPolicy::parse_any(&c, TAPMULTI_POLICY).expect("the taproot multisig wallet");
     finalize(&mut tapmulti).expect("two of three finalizes");
-    let _ = inspect(&tapmulti, &ctx(&[], std::slice::from_ref(&policy)));
+    let _ = inspect(&c, &tapmulti, &ctx(&[], std::slice::from_ref(&policy)));
     let found = verdicts(&tapmulti);
     assert_eq!(found, vec![Verdict::Valid, Verdict::Valid], "{found:?}");
 }
@@ -272,7 +273,7 @@ fn one_byte_changed_in_a_signature_is_invalid() {
 
     let abandon = master(ABANDON, NET);
     let keys = [KeyRef::from_master(&c, &abandon, 0).expect("accounts")];
-    let insp = inspect(&altered, &ctx(&keys, &[]));
+    let insp = inspect(&c, &altered, &ctx(&keys, &[]));
     assert!(
         insp.dangers()
             .iter()
@@ -399,7 +400,7 @@ fn two_signatures_under_one_nonce_are_found() {
     assert_eq!(reuse.len(), 1, "{reuse:?}");
     assert_eq!(reuse[0].inputs, vec![0, 1]);
 
-    let insp = inspect(&psbt, &ctx(&keys, &[]));
+    let insp = inspect(&c, &psbt, &ctx(&keys, &[]));
     assert!(
         insp.dangers()
             .iter()
@@ -554,7 +555,7 @@ fn an_inscription_envelope_is_stated() {
     assert_eq!(found[0].size, Some(body.len()));
 
     let keys = [KeyRef::from_master(&c, &abandon, 0).expect("accounts")];
-    let insp = inspect(&psbt, &ctx(&keys, &[]));
+    let insp = inspect(&c, &psbt, &ctx(&keys, &[]));
     assert!(
         insp.warnings.iter().any(
             |w| matches!(w.kind, WarningKind::Inscription { input: 0, .. })
@@ -569,6 +570,7 @@ fn an_inscription_envelope_is_stated() {
 /// checked, rather than passing it off as either answer.
 #[test]
 fn a_signature_with_no_previous_output_is_not_checked() {
+    let c = Compute::unchecked();
     let mut psbt = signed_single(
         ScriptType::NativeSegwit,
         Nonce::LowR,
@@ -582,7 +584,7 @@ fn a_signature_with_no_previous_output_is_not_checked() {
         verdicts(&psbt),
         vec![Verdict::Unchecked(Unchecked::NoPrevout)]
     );
-    let insp = inspect(&psbt, &ctx(&[], &[]));
+    let insp = inspect(&c, &psbt, &ctx(&[], &[]));
     assert!(
         insp.warnings
             .iter()

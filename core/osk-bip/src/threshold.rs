@@ -27,6 +27,7 @@ use bitcoin::NetworkKind;
 use bitcoin::bip32::Xpub;
 use bitcoin::hashes::{Hash, hash160};
 use bitcoin::secp256k1::{PublicKey, Secp256k1, Verification};
+use osk_crypto::work::{Compute, Work};
 
 use crate::descriptor::descriptor_checksum;
 use crate::frost::ThresholdInfo;
@@ -76,20 +77,39 @@ impl ThresholdRecord {
         ThresholdRecord { info, xpub }
     }
 
-    /// Reads a record, checking everything it states.
+    /// Costs a parse of the record and its descriptor and a check of its
+    /// shares: reads a record, checking everything it states.
     ///
     /// The threshold is between one and the participant count, the
     /// participants are numbered from zero with none missing, every key
     /// is a point, the shares lie on one polynomial that gives this
     /// group key, the descriptor is the group key's own synthetic xpub
     /// with both chains, and its checksum holds.
-    pub fn parse(text: &str) -> Result<ThresholdRecord, Error> {
-        let secp = Secp256k1::verification_only();
-        ThresholdRecord::parse_with(&secp, text)
+    pub fn parse(c: &Compute, text: &str) -> Result<ThresholdRecord, Error> {
+        c.count(Work::DescriptorParse);
+        ThresholdRecord::read(text)
     }
 
-    /// The same, with a caller's secp context.
-    pub fn parse_with<C: Verification>(
+    /// Costs a parse of the record and its descriptor and a check of its
+    /// shares: the same, with a caller's secp context.
+    pub fn parse_with<V: Verification>(
+        c: &Compute,
+        secp: &Secp256k1<V>,
+        text: &str,
+    ) -> Result<ThresholdRecord, Error> {
+        c.count(Work::DescriptorParse);
+        ThresholdRecord::read_with(secp, text)
+    }
+
+    /// [`parse`](Self::parse) uncounted, for the policy readers, which
+    /// count once themselves.
+    pub(crate) fn read(text: &str) -> Result<ThresholdRecord, Error> {
+        let secp = Secp256k1::verification_only();
+        ThresholdRecord::read_with(&secp, text)
+    }
+
+    /// [`parse_with`](Self::parse_with) uncounted.
+    fn read_with<C: Verification>(
         secp: &Secp256k1<C>,
         text: &str,
     ) -> Result<ThresholdRecord, Error> {
@@ -252,7 +272,7 @@ fn descriptor_xpub(text: &str) -> Result<Xpub, Error> {
     if !text.contains('#') {
         return Err(Error::Checksum);
     }
-    let policy = WalletPolicy::from_descriptor(text)?;
+    let policy = WalletPolicy::read_descriptor(text)?;
     if policy.template()
         != (Template::Single {
             script: ScriptType::Taproot,

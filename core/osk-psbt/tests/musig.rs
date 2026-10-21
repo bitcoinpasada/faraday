@@ -74,7 +74,7 @@ fn the_device_signs_last_after_bitcoin_core() {
     let ctx = core_context(&keys, &wallets);
     let mut psbt = fixture(example::CORE_FIRST_NAME);
 
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert!(!insp.has_blocked(), "{:?}", insp.warnings);
     assert_eq!(insp.participating_keys, vec![abandon.fingerprint()]);
     assert_eq!(insp.musig.as_ref().map(|m| m.keys), Some(2));
@@ -106,7 +106,7 @@ fn the_device_signs_last_after_bitcoin_core() {
     assert_eq!(sigs.len(), 1);
     // What this device writes is keyed by the taproot output key, which
     // is what Core writes and reads.
-    let established = inspect(&psbt, &ctx).inputs[0].musig.clone().unwrap();
+    let established = inspect(&c, &psbt, &ctx).inputs[0].musig.clone().unwrap();
     assert_eq!(sigs[0].aggregate, established.output_key);
     assert!(
         established
@@ -195,7 +195,7 @@ fn a_psbt_with_no_nonce_on_it_shares_this_devices_nonce() {
     let ctx = core_context(&keys, &wallets);
     let mut psbt = fixture(example::DEVICE_FIRST_NAME);
 
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert!(!insp.has_blocked(), "{:?}", insp.warnings);
     assert!(
         insp.inputs[0]
@@ -231,7 +231,7 @@ fn a_psbt_with_no_nonce_on_it_shares_this_devices_nonce() {
     let session = session.expect("the session is open");
     assert_eq!(session.len(), 1, "one secret nonce, for the one input");
     assert_eq!(session.txid(), psbt.unsigned_tx().compute_txid());
-    let established = inspect(&psbt, &ctx).inputs[0].musig.clone().unwrap();
+    let established = inspect(&c, &psbt, &ctx).inputs[0].musig.clone().unwrap();
     assert!(session.holds(0, &established.ours[0].key));
 }
 
@@ -245,7 +245,7 @@ fn the_musig_change_output_is_verified() {
     let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [core_policy()];
     let ctx = core_context(&keys, &wallets);
-    let insp = inspect(&fixture(example::DEVICE_FIRST_NAME), &ctx);
+    let insp = inspect(&c, &fixture(example::DEVICE_FIRST_NAME), &ctx);
     let change = insp
         .outputs
         .iter()
@@ -264,7 +264,7 @@ fn an_unregistered_musig_wallet_is_blocked() {
     let abandon = master(ABANDON, NET);
     let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let ctx = core_context(&keys, &[]);
-    let insp = inspect(&fixture(example::CORE_FIRST_NAME), &ctx);
+    let insp = inspect(&c, &fixture(example::CORE_FIRST_NAME), &ctx);
     assert!(
         insp.blocked()
             .contains(&WarningKind::MusigWalletNotRegistered),
@@ -314,7 +314,7 @@ fn a_script_path_musig_field_is_refused() {
     let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [core_policy()];
     let ctx = core_context(&keys, &wallets);
-    assert!(inspect(&psbt, &ctx).has_blocked());
+    assert!(inspect(&c, &psbt, &ctx).has_blocked());
 }
 
 /// A malformed participants field blocks the input with a reason instead
@@ -335,7 +335,7 @@ fn a_malformed_participants_field_blocks_the_input() {
     let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [core_policy()];
     let ctx = core_context(&keys, &wallets);
-    assert!(inspect(&psbt, &ctx).has_blocked());
+    assert!(inspect(&c, &psbt, &ctx).has_blocked());
 }
 
 // ---------------------------------------------------------------------
@@ -358,8 +358,9 @@ fn account_xpub(key: &MasterKey) -> Xpub {
 
 /// The two-key wallet the two seeds make, `@0` first.
 fn two_key_policy(a: &MasterKey, b: &MasterKey) -> WalletPolicy {
+    let c = Compute::unchecked();
     let text = |k: &MasterKey| format!("[{}/86'/1'/0']{}", k.fingerprint(), account_xpub(k));
-    WalletPolicy::from_parts("tr(musig(@0,@1)/**)", &[&text(a), &text(b)]).unwrap()
+    WalletPolicy::from_parts(&c, "tr(musig(@0,@1)/**)", &[&text(a), &text(b)]).unwrap()
 }
 
 /// The tweaks from the root aggregate to the output key at `chain/index`,
@@ -391,7 +392,7 @@ fn tweaks_at(participants: &[PublicKey], change: bool, index: u32) -> (Vec<Tweak
 fn two_key_psbt(policy: &WalletPolicy, a: &MasterKey, b: &MasterKey) -> Psbt {
     let c = Compute::unchecked();
     let secp = Secp256k1::verification_only();
-    let spk = policy.script_at(false, 0).unwrap();
+    let spk = policy.script_at(&c, false, 0).unwrap();
     let funding = funding_tx(spk.clone(), 100_000);
     let recipient = b
         .account_xpub(&c, ScriptType::NativeSegwit, 0)
@@ -511,7 +512,7 @@ fn a_second_signer_and_the_device_finish_the_transaction() {
 
     // With nobody's nonce on it, a pass would go first and share one.
     assert!(
-        inspect(&psbt, &ctx).inputs[0]
+        inspect(&c, &psbt, &ctx).inputs[0]
             .musig
             .as_ref()
             .is_some_and(|m| m.will_share_nonce)
@@ -520,7 +521,7 @@ fn a_second_signer_and_the_device_finish_the_transaction() {
     let established = {
         let mut ours = psbt.clone();
         let _ = &mut ours;
-        inspect(&psbt, &ctx).inputs[0].musig.clone().unwrap()
+        inspect(&c, &psbt, &ctx).inputs[0].musig.clone().unwrap()
     };
     let msg = key_path_sighash(&psbt);
 
@@ -619,7 +620,7 @@ fn a_bad_partial_signature_names_its_participant() {
     let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [policy];
     let ctx = core_context(&keys, &wallets);
-    let established = inspect(&psbt, &ctx).inputs[0].musig.clone().unwrap();
+    let established = inspect(&c, &psbt, &ctx).inputs[0].musig.clone().unwrap();
     let msg = key_path_sighash(&psbt);
     let (_, pubnonce) = other_nonce(
         &zoo,
@@ -699,7 +700,7 @@ fn the_review_names_the_musig_wallet() {
     let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [core_policy()];
     let ctx = core_context(&keys, &wallets);
-    let insp = inspect(&fixture(example::CORE_FIRST_NAME), &ctx);
+    let insp = inspect(&c, &fixture(example::CORE_FIRST_NAME), &ctx);
     let musig = insp.musig.as_ref().unwrap();
     assert_eq!(musig.keys, 2);
     assert_eq!(musig.partial_signatures, 0);
@@ -794,7 +795,7 @@ fn the_device_goes_first_and_finishes_when_the_transaction_returns() {
     let established = {
         let view = session.as_ref().unwrap().view();
         let ctx = context_with(&keys, &wallets, Some(&view));
-        inspect(&psbt, &ctx).inputs[0].musig.clone().unwrap()
+        inspect(&c, &psbt, &ctx).inputs[0].musig.clone().unwrap()
     };
     let msg = key_path_sighash(&psbt);
     let (secnonce, pubnonce) = other_nonce(
@@ -922,7 +923,7 @@ fn a_nonce_no_session_holds_is_replaced_and_earlier_signatures_dropped() {
 
     // The other signer answers, against the nonce that is now stale.
     let ctx = context_with(&keys, &wallets, None);
-    let established = inspect(&psbt, &ctx).inputs[0].musig.clone().unwrap();
+    let established = inspect(&c, &psbt, &ctx).inputs[0].musig.clone().unwrap();
     let msg = key_path_sighash(&psbt);
     let (_, pubnonce) = other_nonce(
         &zoo,
@@ -944,7 +945,7 @@ fn a_nonce_no_session_holds_is_replaced_and_earlier_signatures_dropped() {
         &osk_bip::musig::PartialSig::from_bytes(&[9u8; 32]).unwrap(),
     );
 
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert!(
         insp.warnings
             .iter()
@@ -999,7 +1000,7 @@ fn a_nonce_drawn_again_in_one_session_is_a_new_nonce() {
     let first = our_nonce(&psbt);
 
     // The other signer answers and round 2 signs.
-    let established = inspect(&psbt, &ctx).inputs[0].musig.clone().unwrap();
+    let established = inspect(&c, &psbt, &ctx).inputs[0].musig.clone().unwrap();
     let msg = key_path_sighash(&psbt);
     let agg = established.output_key.x_only_public_key().0.serialize();
     let (_, other1) = other_nonce(&zoo, &agg, &msg, 0x71);

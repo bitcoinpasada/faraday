@@ -237,7 +237,7 @@ pub fn sign(
     others: &[u32],
 ) -> Result<SignResult, Error> {
     osk_crypto::work::count(osk_crypto::work::Work::Sign);
-    let inspection = inspect(psbt, ctx);
+    let inspection = inspect(c, psbt, ctx);
     if inspection.has_blocked() {
         return Err(Error::Blocked(inspection.blocked()));
     }

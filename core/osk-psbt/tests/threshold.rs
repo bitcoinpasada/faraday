@@ -86,6 +86,7 @@ fn review(
     holding: u32,
     carry: Option<&CarrySection>,
 ) -> Vec<WarningKind> {
+    let c = Compute::unchecked();
     let secp = Secp256k1::new();
     let pubshare = dealt.shares[holding as usize].public_share(&secp);
     let wallets = [policy.clone()];
@@ -98,7 +99,7 @@ fn review(
         shares: &shares,
         carry,
     };
-    inspect(psbt, &ctx)
+    inspect(&c, psbt, &ctx)
         .warnings
         .iter()
         .filter(|w| w.level == Level::Blocked)
@@ -245,6 +246,7 @@ fn three_of_three_signs_at_three_locations() {
 /// change address: what a coordinator would build for a group this test
 /// deals itself.
 fn spend_of(record: &ThresholdRecord, policy: &WalletPolicy) -> Psbt {
+    let c = Compute::unchecked();
     use osk_psbt::bitcoin::bip32::ChildNumber;
     use osk_psbt::bitcoin::hashes::Hash;
     use osk_psbt::bitcoin::transaction::Version;
@@ -267,7 +269,9 @@ fn spend_of(record: &ThresholdRecord, policy: &WalletPolicy) -> Psbt {
         .0;
     let spent = TxOut {
         value: Amount::from_sat(100_000),
-        script_pubkey: policy.script_at(false, 0).expect("the wallet's address"),
+        script_pubkey: policy
+            .script_at(&c, false, 0)
+            .expect("the wallet's address"),
     };
     let tx = Transaction {
         version: Version::TWO,
@@ -283,7 +287,7 @@ fn spend_of(record: &ThresholdRecord, policy: &WalletPolicy) -> Psbt {
         }],
         output: vec![TxOut {
             value: Amount::from_sat(99_800),
-            script_pubkey: policy.script_at(true, 0).expect("the change address"),
+            script_pubkey: policy.script_at(&c, true, 0).expect("the change address"),
         }],
     };
     let mut inner = osk_psbt::bitcoin::Psbt::from_unsigned_tx(tx).expect("an unsigned tx");
@@ -511,6 +515,7 @@ fn the_wrong_number_of_chosen_shares_is_refused() {
 
 #[test]
 fn a_threshold_input_of_an_unregistered_group_is_blocked() {
+    let c = Compute::unchecked();
     let dealt = fixture::dealt();
     let secp = Secp256k1::new();
     let pubshare = dealt.shares[0].public_share(&secp);
@@ -526,7 +531,7 @@ fn a_threshold_input_of_an_unregistered_group_is_blocked() {
     let (file, _) = route(0, 1);
     let carry = Carry::parse(&file).expect("the carry file");
     let psbt = Psbt::parse_bytes(&carry.psbt).expect("the carried PSBT");
-    let blocked: Vec<WarningKind> = inspect(&psbt, &ctx)
+    let blocked: Vec<WarningKind> = inspect(&c, &psbt, &ctx)
         .warnings
         .iter()
         .filter(|w| w.level == Level::Blocked)
@@ -537,6 +542,7 @@ fn a_threshold_input_of_an_unregistered_group_is_blocked() {
 
 #[test]
 fn change_back_to_the_wallet_is_verified() {
+    let c = Compute::unchecked();
     let dealt = fixture::dealt();
     let policy = policy();
     let secp = Secp256k1::new();
@@ -551,7 +557,7 @@ fn change_back_to_the_wallet_is_verified() {
         shares: &shares,
         carry: None,
     };
-    let inspection = inspect(&funded(), &ctx);
+    let inspection = inspect(&c, &funded(), &ctx);
     assert!(
         inspection
             .outputs

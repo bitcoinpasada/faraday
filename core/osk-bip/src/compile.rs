@@ -11,6 +11,7 @@ use miniscript::policy::{Concrete, Liftable};
 
 use crate::policy::WalletPolicy;
 use crate::spend::SpendPath;
+use osk_crypto::work::Compute;
 
 /// What a compiled policy is wrapped in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -41,7 +42,8 @@ pub struct PolicyFacts {
     pub wallet: Option<WalletPolicy>,
 }
 
-/// Compiles a concrete policy into a descriptor.
+/// Costs a miniscript compilation and a parse of the descriptor:
+/// compiles a concrete policy into a descriptor.
 ///
 /// `keys` is a substitution: each pair is a token and the key expression
 /// it stands for, so a policy can name a key by a loaded key's
@@ -51,6 +53,7 @@ pub struct PolicyFacts {
 ///
 /// The error is the compiler's own message on one line.
 pub fn compile(
+    c: &Compute,
     text: &str,
     script: PolicyScript,
     keys: &[(String, String)],
@@ -85,7 +88,7 @@ pub fn compile(
         .unwrap_or_default();
     Ok(PolicyFacts {
         keys: policy_keys(&descriptor, &text),
-        wallet: WalletPolicy::parse_any(&text).ok(),
+        wallet: WalletPolicy::parse_any(c, &text).ok(),
         paths,
         descriptor: text,
     })

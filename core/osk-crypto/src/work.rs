@@ -45,6 +45,12 @@ pub enum Work {
     /// A child key derived from a master key, or an extended public key
     /// made from a private one: elliptic-curve multiplications.
     KeyDerive,
+    /// A wallet description read: a descriptor, a BIP-388 policy or a
+    /// record parsed, its keys decoded and its shape checked.
+    DescriptorParse,
+    /// A wallet's script or address at an index derived: a derivation of
+    /// each of its keys and the script built.
+    Address,
     /// A canvas reduced and blurred (a sheet's frosted backdrop).
     Blur,
     /// A whole canvas copied: a snapshot taken, restored or blended.

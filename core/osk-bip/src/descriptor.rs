@@ -19,6 +19,8 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 
+use osk_crypto::work::{Compute, Work};
+
 use crate::keys::ScriptType;
 use crate::policy::WalletPolicy;
 
@@ -139,9 +141,10 @@ pub struct ChecksumFacts {
     pub wallet: Option<WalletPolicy>,
 }
 
-/// The checksum of `text`, or `None` when it is empty or holds a
-/// character no descriptor may.
-pub fn checksum_facts(text: &str) -> Option<ChecksumFacts> {
+/// Costs a checksum and a parse of the descriptor: the checksum of
+/// `text`, or `None` when it is empty or holds a character no descriptor
+/// may.
+pub fn checksum_facts(c: &Compute, text: &str) -> Option<ChecksumFacts> {
     let text = text.trim();
     if text.is_empty() {
         return None;
@@ -158,7 +161,7 @@ pub fn checksum_facts(text: &str) -> Option<ChecksumFacts> {
             let holds = g == sum;
             (g, holds)
         }),
-        wallet: WalletPolicy::parse_any(body).ok(),
+        wallet: WalletPolicy::parse_any(c, body).ok(),
         checksum: sum,
         with_checksum,
     })
@@ -183,6 +186,15 @@ pub fn script_type(text: &str) -> Option<ScriptType> {
     } else {
         None
     }
+}
+
+/// Costs a parse of the descriptor: whether `text` reads as one output
+/// descriptor of public keys, checksum and all, by `miniscript`'s own
+/// reader, whatever wallet it is or is not.
+pub fn reads_as_descriptor(c: &Compute, text: &str) -> bool {
+    use core::str::FromStr;
+    c.count(Work::DescriptorParse);
+    miniscript::Descriptor::<miniscript::DescriptorPublicKey>::from_str(text).is_ok()
 }
 
 /// The master fingerprint of every key origin a descriptor carries, in

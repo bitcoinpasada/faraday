@@ -37,6 +37,6 @@ fuzz_target!(|data: &[u8]| {
         assert_eq!(json::parse(&write(&v)), Ok(v));
     }
     if osk_bip::coldcard::looks_like_export(text) {
-        let _ = osk_bip::coldcard::parse(text);
+        let _ = osk_bip::coldcard::parse(&osk_crypto::work::Compute::unchecked(), text);
     }
 });

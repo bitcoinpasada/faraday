@@ -7,6 +7,7 @@
 use osk_bip::core_import::{import_descriptors_pair, pair_descriptors, writes_pair};
 use osk_bip::json::{self, Value};
 use osk_bip::policy::WalletPolicy;
+use osk_crypto::work::Compute;
 
 const LISTED: &str =
     include_str!("../../../faraday/faraday-core/tests/vectors/interop/core/listdescriptors.json");
@@ -43,6 +44,7 @@ fn listed() -> Vec<(String, String)> {
 
 #[test]
 fn the_pair_for_core_before_29_is_cores_own_receive_and_change_descriptors() {
+    let c = Compute::unchecked();
     let pairs = listed();
     assert_eq!(pairs.len(), 4);
     for (receive, change) in pairs {
@@ -51,7 +53,7 @@ fn the_pair_for_core_before_29_is_cores_own_receive_and_change_descriptors() {
             .next()
             .unwrap()
             .replace("/0/*", "/<0;1>/*");
-        let policy = WalletPolicy::parse_any(&multipath).unwrap();
+        let policy = WalletPolicy::parse_any(&c, &multipath).unwrap();
         assert!(writes_pair(&policy));
         assert_eq!(
             pair_descriptors(&policy),

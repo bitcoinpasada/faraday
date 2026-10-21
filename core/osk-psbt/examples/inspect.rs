@@ -303,7 +303,7 @@ fn run(a: Args) -> Result<(), String> {
         shares: &[],
         carry: None,
     };
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     print_inspection(&insp, &ctx);
 
     if !a.sign {

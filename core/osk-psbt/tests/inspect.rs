@@ -44,6 +44,7 @@ fn inspect_with_abandon(psbt: &Psbt) -> Inspection {
     let abandon = master(ABANDON, NET);
     let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     inspect(
+        &c,
         psbt,
         &Context {
             network: NET,
@@ -199,6 +200,7 @@ fn change_under_an_unloaded_account_is_unverified() {
     // Only account 1 loaded: the change path is under account 0.
     let keys = [KeyRef::from_master(&c, &abandon, 1).unwrap()];
     let insp = inspect(
+        &c,
         &psbt,
         &Context {
             network: NET,
@@ -383,6 +385,7 @@ fn network_mismatch() {
     let psbt = single_sig(&mainnet, &b);
     let keys = [KeyRef::from_master(&c, &mainnet, 0).unwrap()];
     let insp = inspect(
+        &c,
         &psbt,
         &Context {
             network: Network::Testnet,
@@ -396,6 +399,7 @@ fn network_mismatch() {
     assert!(has(&insp, Level::Danger, &WarningKind::NetworkMismatch));
     // The same PSBT is clean in its own network.
     let insp = inspect(
+        &c,
         &psbt,
         &Context {
             network: Network::Mainnet,
@@ -412,6 +416,7 @@ fn network_mismatch() {
     let testnet = master(ABANDON, Network::Testnet);
     let keys = [KeyRef::from_master(&c, &testnet, 0).unwrap()];
     let insp = inspect(
+        &c,
         &psbt,
         &Context {
             network: Network::Testnet,
@@ -467,7 +472,7 @@ fn no_participating_key() {
         carry: None,
     };
     let mut psbt = basic(ScriptType::NativeSegwit);
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert!(insp.participating_keys.is_empty());
     assert!(!insp.inputs[0].is_ours);
     assert!(has(&insp, Level::Danger, &WarningKind::NoParticipatingKey));
@@ -506,6 +511,7 @@ fn no_participating_key() {
     assert!(r.signed_inputs.is_empty() && !r.complete);
     // No keys loaded at all.
     let insp = inspect(
+        &c,
         &psbt,
         &Context {
             network: NET,
@@ -614,13 +620,13 @@ fn segwit_v0_inputs_without_their_previous_transaction_block_a_transaction_of_tw
         for missing in [&[0, 1][..], &[0][..], &[1][..]] {
             let mut psbt = two_inputs(script_type);
             assert!(
-                !inspect(&psbt, &ctx).has_blocked(),
+                !inspect(&c, &psbt, &ctx).has_blocked(),
                 "{script_type}: both transactions present"
             );
             for i in missing {
                 psbt.inner_mut().inputs[*i].non_witness_utxo = None;
             }
-            let insp = inspect(&psbt, &ctx);
+            let insp = inspect(&c, &psbt, &ctx);
             assert!(
                 has(&insp, Level::Blocked, &WarningKind::AmountUnverified),
                 "{script_type} without {missing:?}: {:?}",
@@ -675,7 +681,7 @@ fn a_single_input_transaction_is_signed_without_its_previous_transaction() {
     for script_type in ScriptType::ALL {
         let mut psbt = basic(script_type);
         psbt.inner_mut().inputs[0].non_witness_utxo = None;
-        let insp = inspect(&psbt, &ctx);
+        let insp = inspect(&c, &psbt, &ctx);
         assert!(!has(&insp, Level::Blocked, &WarningKind::AmountUnverified));
         if script_type == ScriptType::Legacy {
             assert!(has(&insp, Level::Danger, &WarningKind::MissingUtxo));
@@ -758,9 +764,9 @@ fn a_p2wsh_input_without_its_previous_transaction_is_blocked() {
         .input
         .push(other.unsigned_tx().input[0].clone());
     inner.inputs.push(other.inner().inputs[0].clone());
-    assert!(!inspect(&psbt, &ctx).has_blocked());
+    assert!(!inspect(&c, &psbt, &ctx).has_blocked());
     psbt.inner_mut().inputs[0].non_witness_utxo = None;
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert!(has(&insp, Level::Blocked, &WarningKind::AmountUnverified));
     assert_eq!(
         sign(

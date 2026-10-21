@@ -13,6 +13,7 @@ use osk_bip::recovery::{
     days_of_blocks,
 };
 use osk_bip::spend::Lock;
+use osk_crypto::work::Compute;
 
 /// The wallets Liana wrote, as `tools/vectors/psbt/` holds them.
 const LIANA: &str = include_str!("../../../tools/vectors/psbt/wallet-liana.policy");
@@ -65,13 +66,14 @@ fn sorted(mut ways: Vec<(Vec<String>, Vec<Lock>)>) -> Vec<(Vec<String>, Vec<Lock
 /// delay, character for character.
 #[test]
 fn a_segwit_recovery_wallet_is_the_descriptor_liana_wrote() {
+    let c = Compute::unchecked();
     let built = RecoveryPolicy {
         primary: Path::single(A),
         recovery: vec![recovery(52_560, Path::single(B))],
     }
-    .to_wallet_policy(Form::SegWit)
+    .to_wallet_policy(&c, Form::SegWit)
     .expect("a recovery wallet");
-    let fixture = WalletPolicy::parse_any(LIANA).expect("the fixture wallet");
+    let fixture = WalletPolicy::parse_any(&c, LIANA).expect("the fixture wallet");
     assert_eq!(built.to_descriptor(), fixture.to_descriptor());
     assert_eq!(format!("{}\n", built.to_text()), *LIANA);
 }
@@ -80,7 +82,8 @@ fn a_segwit_recovery_wallet_is_the_descriptor_liana_wrote() {
 /// wallet is told who spends now and who spends after the wait.
 #[test]
 fn liana_s_own_wallet_reads_back_as_its_keys_and_its_delay() {
-    let policy = WalletPolicy::parse_any(LIANA).expect("the fixture wallet");
+    let c = Compute::unchecked();
+    let policy = WalletPolicy::parse_any(&c, LIANA).expect("the fixture wallet");
     assert_eq!(
         RecoveryPolicy::from_wallet_policy(&policy),
         Some(RecoveryPolicy {
@@ -94,7 +97,8 @@ fn liana_s_own_wallet_reads_back_as_its_keys_and_its_delay() {
 /// one of them the key path — and one key behind the wait.
 #[test]
 fn a_taproot_wallet_with_a_leaf_that_waits_reads_back_as_two_paths() {
-    let policy = WalletPolicy::parse_any(TREE).expect("the fixture wallet");
+    let c = Compute::unchecked();
+    let policy = WalletPolicy::parse_any(&c, TREE).expect("the fixture wallet");
     let read = RecoveryPolicy::from_wallet_policy(&policy).expect("a recovery wallet");
     assert_eq!(read.primary.threshold, 1);
     assert_eq!(read.primary.keys, vec![String::from(C), String::from(E)]);
@@ -105,13 +109,14 @@ fn a_taproot_wallet_with_a_leaf_that_waits_reads_back_as_two_paths() {
 /// else it is.
 #[test]
 fn a_wallet_that_never_waits_is_not_a_recovery_wallet() {
+    let c = Compute::unchecked();
     for text in [
         "wsh(sortedmulti(2,@0/**,@1/**,@2/**))",
         "tr(@0/**)",
         "wpkh(@0/**)",
     ] {
         let keys: Vec<&str> = [A, B, C][..text.matches('@').count()].to_vec();
-        let policy = WalletPolicy::from_parts(text, &keys).expect(text);
+        let policy = WalletPolicy::from_parts(&c, text, &keys).expect(text);
         assert_eq!(RecoveryPolicy::from_wallet_policy(&policy), None, "{text}");
     }
 }
@@ -120,6 +125,7 @@ fn a_wallet_that_never_waits_is_not_a_recovery_wallet() {
 /// built from, in both forms and whatever the paths hold.
 #[test]
 fn every_built_wallet_reads_back_as_the_paths_it_was_built_from() {
+    let c = Compute::unchecked();
     let cases = [
         RecoveryPolicy {
             primary: Path::single(A),
@@ -155,7 +161,7 @@ fn every_built_wallet_reads_back_as_the_paths_it_was_built_from() {
     for wanted in cases {
         for form in [Form::SegWit, Form::Taproot] {
             let policy = wanted
-                .to_wallet_policy(form)
+                .to_wallet_policy(&c, form)
                 .unwrap_or_else(|e| panic!("{wanted:?} in {form:?}: {e}"));
             assert_eq!(
                 RecoveryPolicy::from_wallet_policy(&policy).as_ref(),
@@ -165,7 +171,8 @@ fn every_built_wallet_reads_back_as_the_paths_it_was_built_from() {
             );
             // The wallet written down and read back from its text is
             // still the same wallet.
-            let again = WalletPolicy::parse_any(&policy.to_text()).expect("the wallet's own text");
+            let again =
+                WalletPolicy::parse_any(&c, &policy.to_text()).expect("the wallet's own text");
             assert_eq!(again, policy);
         }
     }
@@ -176,12 +183,13 @@ fn every_built_wallet_reads_back_as_the_paths_it_was_built_from() {
 /// after its wait.
 #[test]
 fn the_ways_a_recovery_wallet_spends_are_the_paths_it_was_built_from() {
+    let c = Compute::unchecked();
     let two_of_three = RecoveryPolicy {
         primary: Path::multi(2, &[A, B, C]),
         recovery: vec![recovery(4_320, Path::single(D))],
     };
     for form in [Form::SegWit, Form::Taproot] {
-        let policy = two_of_three.to_wallet_policy(form).expect("a wallet");
+        let policy = two_of_three.to_wallet_policy(&c, form).expect("a wallet");
         assert_eq!(
             ways(&policy),
             sorted(vec![
@@ -202,7 +210,7 @@ fn the_ways_a_recovery_wallet_spends_are_the_paths_it_was_built_from() {
         ],
     };
     for form in [Form::SegWit, Form::Taproot] {
-        let policy = two_delays.to_wallet_policy(form).expect("a wallet");
+        let policy = two_delays.to_wallet_policy(&c, form).expect("a wallet");
         assert_eq!(
             ways(&policy),
             sorted(vec![
@@ -221,11 +229,12 @@ fn the_ways_a_recovery_wallet_spends_are_the_paths_it_was_built_from() {
 /// descriptor can recompute.
 #[test]
 fn a_taproot_wallet_puts_one_primary_key_on_the_key_path() {
+    let c = Compute::unchecked();
     let one = RecoveryPolicy {
         primary: Path::single(A),
         recovery: vec![recovery(52_560, Path::single(B))],
     }
-    .to_wallet_policy(Form::Taproot)
+    .to_wallet_policy(&c, Form::Taproot)
     .expect("a wallet");
     assert!(
         one.to_descriptor().starts_with(&format!("tr({A}/<0;1>/*,")),
@@ -237,7 +246,7 @@ fn a_taproot_wallet_puts_one_primary_key_on_the_key_path() {
         primary: Path::multi(2, &[A, B]),
         recovery: vec![recovery(52_560, Path::single(D))],
     }
-    .to_wallet_policy(Form::Taproot)
+    .to_wallet_policy(&c, Form::Taproot)
     .expect("a wallet");
     assert!(
         two.to_descriptor().starts_with("tr(tpub"),
@@ -255,6 +264,7 @@ fn a_taproot_wallet_puts_one_primary_key_on_the_key_path() {
 /// The refusals, each by the thing a person got wrong.
 #[test]
 fn a_wallet_no_one_could_recover_is_refused() {
+    let c = Compute::unchecked();
     let primary = || Path::single(A);
     let cases = [
         (
@@ -315,7 +325,7 @@ fn a_wallet_no_one_could_recover_is_refused() {
     ];
     for (policy, error) in cases {
         for form in [Form::SegWit, Form::Taproot] {
-            assert_eq!(policy.to_wallet_policy(form), Err(error), "{policy:?}");
+            assert_eq!(policy.to_wallet_policy(&c, form), Err(error), "{policy:?}");
         }
     }
 }
@@ -324,6 +334,7 @@ fn a_wallet_no_one_could_recover_is_refused() {
 /// wait a relative timelock can hold is about fifteen months.
 #[test]
 fn a_delay_in_days_is_that_many_days_of_blocks() {
+    let c = Compute::unchecked();
     assert_eq!(blocks_for_days(1), Some(BLOCKS_A_DAY));
     assert_eq!(blocks_for_days(365), Some(52_560));
     assert_eq!(days_of_blocks(52_560), 365);
@@ -338,7 +349,7 @@ fn a_delay_in_days_is_that_many_days_of_blocks() {
         primary: Path::single(A),
         recovery: vec![recovery(MAX_DELAY, Path::single(B))],
     }
-    .to_wallet_policy(Form::SegWit)
+    .to_wallet_policy(&c, Form::SegWit)
     .expect("a wallet");
     assert_eq!(
         ways(&policy),
@@ -352,6 +363,7 @@ fn a_delay_in_days_is_that_many_days_of_blocks() {
 /// internal key is unspendable.
 #[test]
 fn the_taproot_recovery_wallets_pay_the_addresses_bitcoin_core_derives() {
+    let c = Compute::unchecked();
     /// The primary keys, the threshold over them, and the wallet's
     /// first two receive and change addresses.
     type Case = (
@@ -395,20 +407,20 @@ fn the_taproot_recovery_wallets_pay_the_addresses_bitcoin_core_derives() {
             primary: Path::multi(*threshold, keys),
             recovery: vec![recovery(52_560, Path::single(recovery_key))],
         }
-        .to_wallet_policy(Form::Taproot)
+        .to_wallet_policy(&c, Form::Taproot)
         .expect("a wallet");
         for (index, (receive, change)) in addresses.iter().enumerate() {
             let index = index as u32;
             assert_eq!(
                 policy
-                    .address_at(Network::Regtest, false, index)
+                    .address_at(&c, Network::Regtest, false, index)
                     .expect("an address")
                     .to_string(),
                 *receive
             );
             assert_eq!(
                 policy
-                    .address_at(Network::Regtest, true, index)
+                    .address_at(&c, Network::Regtest, true, index)
                     .expect("an address")
                     .to_string(),
                 *change

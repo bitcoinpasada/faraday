@@ -8,6 +8,7 @@ use osk_bip::descriptor::{checksum_facts, origin_fingerprints, script_type};
 use osk_bip::hashes::hashes;
 use osk_bip::keys::{Network, ScriptType};
 use osk_bip::slip132::{KeyReading, decode_xpub, encode_xpub, key_facts, network_kind};
+use osk_crypto::work::Compute;
 
 /// BIP-32 test vector 1: the master extended public key of seed
 /// `000102030405060708090a0b0c0d0e0f`.
@@ -52,11 +53,12 @@ fn the_hashes_match_the_published_vectors() {
 /// arrived with.
 #[test]
 fn the_descriptor_checksum_matches_bip_380() {
-    let f = checksum_facts("raw(deadbeef)").expect("a descriptor");
+    let c = Compute::unchecked();
+    let f = checksum_facts(&c, "raw(deadbeef)").expect("a descriptor");
     assert_eq!(f.with_checksum, "raw(deadbeef)#89f8spxm");
     assert_eq!(f.given, None);
 
-    let holds = checksum_facts("raw(deadbeef)#89f8spxm").expect("a descriptor");
+    let holds = checksum_facts(&c, "raw(deadbeef)#89f8spxm").expect("a descriptor");
     assert_eq!(
         holds.given.as_ref().map(|(g, ok)| (g.as_str(), *ok)),
         Some(("89f8spxm", true))
@@ -65,7 +67,7 @@ fn the_descriptor_checksum_matches_bip_380() {
     // BIP-380's invalid examples: a checksum of the wrong length, and
     // one whose characters are not the ones this descriptor produces.
     for wrong in ["raw(deadbeef)#89f8spxmx", "raw(deadbeef)#89f8spxn"] {
-        let f = checksum_facts(wrong).expect("a descriptor");
+        let f = checksum_facts(&c, wrong).expect("a descriptor");
         assert_eq!(f.with_checksum, "raw(deadbeef)#89f8spxm");
         assert!(!f.given.expect("a checksum arrived").1, "{wrong} held");
     }
@@ -73,14 +75,14 @@ fn the_descriptor_checksum_matches_bip_380() {
     // Only a descriptor this device could derive from is one it offers
     // to load: a raw script is a descriptor and not a wallet.
     assert!(
-        checksum_facts("raw(deadbeef)")
+        checksum_facts(&c, "raw(deadbeef)")
             .expect("a descriptor")
             .wallet
             .is_none()
     );
     let wpkh = format!("wpkh([3442193e/84h/0h/0h]{VECTOR_1_XPUB}/<0;1>/*)");
     assert!(
-        checksum_facts(&wpkh)
+        checksum_facts(&c, &wpkh)
             .expect("a descriptor")
             .wallet
             .is_some()

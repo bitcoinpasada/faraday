@@ -169,6 +169,7 @@ fn a_version_that_disagrees_with_its_path_or_script_is_a_mismatch() {
 /// the nested multisig it states, with a checksum made for the new text.
 #[test]
 fn casas_descriptor_of_ypubs_is_its_nested_multisig_in_xpubs() {
+    let c = Compute::unchecked();
     let casa = include_str!(
         "../../../faraday/faraday-core/tests/vectors/interop/bluewallet/casa-descriptor.txt"
     )
@@ -178,7 +179,7 @@ fn casas_descriptor_of_ypubs_is_its_nested_multisig_in_xpubs() {
     assert!(plain.starts_with("sh(wsh(sortedmulti(3,"), "{plain}");
     assert!(!slip132::mentions(&plain));
     assert_eq!(
-        osk_bip::policy::WalletPolicy::parse_any(&plain)
+        osk_bip::policy::WalletPolicy::parse_any(&c, &plain)
             .unwrap()
             .keys()
             .len(),

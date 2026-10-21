@@ -96,7 +96,7 @@ pub fn liana_policy() -> WalletPolicy {
         })
         .collect();
     let keys: Vec<&str> = keys.iter().map(String::as_str).collect();
-    WalletPolicy::from_parts(LIANA_TEMPLATE, &keys).expect("policy built from test keys")
+    WalletPolicy::from_parts(&c, LIANA_TEMPLATE, &keys).expect("policy built from test keys")
 }
 
 /// The taproot tree wallet over all three keys, at the BIP-86 account
@@ -112,7 +112,7 @@ pub fn tree_policy() -> WalletPolicy {
         })
         .collect();
     let keys: Vec<&str> = keys.iter().map(String::as_str).collect();
-    WalletPolicy::from_parts(TREE_TEMPLATE, &keys).expect("policy built from test keys")
+    WalletPolicy::from_parts(&c, TREE_TEMPLATE, &keys).expect("policy built from test keys")
 }
 
 /// A spend of the Liana-shaped wallet: 100 000 sat in, 60 000 to someone
@@ -130,7 +130,10 @@ pub fn liana_psbt() -> Psbt {
         .address(false, 0)
         .expect("address")
         .script_pubkey();
-    let funding = funding_tx(policy.script_at(false, 0).expect("receive script"), 100_000);
+    let funding = funding_tx(
+        policy.script_at(&c, false, 0).expect("receive script"),
+        100_000,
+    );
     let tx = Transaction {
         version: Version::TWO,
         lock_time: LockTime::ZERO,
@@ -147,7 +150,7 @@ pub fn liana_psbt() -> Psbt {
             },
             TxOut {
                 value: Amount::from_sat(39_000),
-                script_pubkey: policy.script_at(true, 0).expect("change script"),
+                script_pubkey: policy.script_at(&c, true, 0).expect("change script"),
             },
         ],
     };

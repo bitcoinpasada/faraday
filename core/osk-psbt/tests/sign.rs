@@ -100,7 +100,7 @@ fn sign_verify_finalize_every_script_type() {
         let mut psbt = build(script_type);
         let unsigned = psbt.clone();
 
-        let insp = inspect(&psbt, &ctx);
+        let insp = inspect(&c, &psbt, &ctx);
         assert!(!insp.has_danger(), "{script_type}: {:?}", insp.warnings);
         assert_eq!(insp.inputs.len(), 1);
         assert_eq!(insp.inputs[0].script_type, expected_kind(script_type));
@@ -330,7 +330,7 @@ fn key_origin_that_does_not_match_the_derived_key_is_refused() {
     for (fp, _) in input.bip32_derivation.values_mut() {
         *fp = abandon.fingerprint().into();
     }
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert!(!insp.inputs[0].is_ours);
     assert_eq!(
         sign(
@@ -373,7 +373,7 @@ fn a_taproot_tree_with_no_way_into_it_is_refused() {
         bitcoin::Script::new(),
         bitcoin::taproot::LeafVersion::TapScript,
     ));
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert_eq!(insp.inputs[0].script_type, ScriptKind::P2trScript);
     assert_eq!(
         sign(

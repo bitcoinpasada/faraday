@@ -86,16 +86,17 @@ fn a_key_record_changed_after_signing_does_not_verify() {
 /// receive address, which is the check the BIP is built around.
 #[test]
 fn every_descriptor_record_the_bip_writes_is_its_wallet_and_its_first_address() {
+    let c = Compute::unchecked();
     let records = records(4);
     assert_eq!(records.len(), 4, "the BIP writes four descriptor records");
     let mut read = 0;
     for text in &records {
         let descriptor = text.lines().nth(1).unwrap();
         if !descriptor.contains("xpub") {
-            assert!(DescriptorRecord::parse(text).is_err(), "{descriptor}");
+            assert!(DescriptorRecord::parse(&c, text).is_err(), "{descriptor}");
             continue;
         }
-        let record = DescriptorRecord::parse(text).expect(text);
+        let record = DescriptorRecord::parse(&c, text).expect(text);
         assert_eq!(record.network, Network::Mainnet);
         assert_eq!(record.paths, ["/0/*", "/1/*"]);
         // The BIP writes a hardened step `'`; the wallet writes `h`.
@@ -110,6 +111,7 @@ fn every_descriptor_record_the_bip_writes_is_its_wallet_and_its_first_address() 
 /// record carrying any other address is refused.
 #[test]
 fn a_descriptor_record_stating_another_address_is_refused() {
+    let c = Compute::unchecked();
     let text = records(4)
         .into_iter()
         .find(|t| t.contains("/0/*,/1/*"))
@@ -117,11 +119,11 @@ fn a_descriptor_record_stating_another_address_is_refused() {
     let address = text.lines().nth(3).unwrap();
     let other = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
     assert_eq!(
-        DescriptorRecord::parse(&text.replace(address, other)),
+        DescriptorRecord::parse(&c, &text.replace(address, other)),
         Err(bsms::Error::FirstAddress)
     );
     assert_eq!(
-        DescriptorRecord::parse(&text.replace(address, "not an address")),
+        DescriptorRecord::parse(&c, &text.replace(address, "not an address")),
         Err(bsms::Error::Address)
     );
 }
@@ -131,12 +133,16 @@ fn a_descriptor_record_stating_another_address_is_refused() {
 /// malformed.
 #[test]
 fn an_encrypted_record_is_refused_as_encrypted() {
+    let c = Compute::unchecked();
     let blob = blocks()
         .into_iter()
         .find(|b| b.len() > 400 && b.bytes().all(|c| c.is_ascii_hexdigit()))
         .expect("an encrypted example file");
     assert_eq!(SignerRecord::parse(&blob), Err(bsms::Error::Encrypted));
-    assert_eq!(DescriptorRecord::parse(&blob), Err(bsms::Error::Encrypted));
+    assert_eq!(
+        DescriptorRecord::parse(&c, &blob),
+        Err(bsms::Error::Encrypted)
+    );
 }
 
 #[test]
@@ -166,19 +172,22 @@ const FINGERPRINTS: [&str; 3] = ["793cc70b", "b3118e52", "842bd2ed"];
 /// set up by different routes sees one thing.
 #[test]
 fn a_bsms_wallet_is_the_same_wallet_as_its_coordinator_config_twin() {
+    let c = Compute::unchecked();
     let mut config =
         String::from("Name: Demo\nPolicy: 2 of 3\nFormat: P2WSH\nDerivation: m/48'/0'/0'/1'\n\n");
     for (fp, key) in FINGERPRINTS.iter().zip(KEYS) {
         config.push_str(&format!("{fp}: {key}\n"));
     }
-    let from_config = multisig_config::parse(&config).expect("the coordinator's config");
+    let from_config = multisig_config::parse(&c, &config).expect("the coordinator's config");
 
-    let address = from_config.address_at(Network::Mainnet, false, 0).unwrap();
+    let address = from_config
+        .address_at(&c, Network::Mainnet, false, 0)
+        .unwrap();
     let record = format!(
         "BSMS 1.0\n{}\n/0/*,/1/*\n{address}",
         from_config.to_descriptor_template()
     );
-    let from_bsms = DescriptorRecord::parse(&record).expect("the coordinator's BSMS record");
+    let from_bsms = DescriptorRecord::parse(&c, &record).expect("the coordinator's BSMS record");
 
     assert_eq!(from_bsms.policy, from_config);
     assert_eq!(from_bsms.policy.to_text(), from_config.to_text());
@@ -194,25 +203,30 @@ fn a_bsms_wallet_is_the_same_wallet_as_its_coordinator_config_twin() {
 /// owner's decision (`docs/DECISIONS.md` F64), where upstream refused it.
 #[test]
 fn a_descriptor_record_whose_paths_and_template_disagree_is_refused() {
+    let c = Compute::unchecked();
     let text = records(4)
         .into_iter()
         .find(|t| t.contains("/0/*,/1/*"))
         .expect("a template record");
-    let read = DescriptorRecord::parse(&text).unwrap();
+    let read = DescriptorRecord::parse(&c, &text).unwrap();
     let unrestricted =
-        DescriptorRecord::parse(&text.replace("/0/*,/1/*", "No path restrictions")).unwrap();
+        DescriptorRecord::parse(&c, &text.replace("/0/*,/1/*", "No path restrictions")).unwrap();
     assert_eq!(unrestricted, read);
     let template = text.lines().nth(1).unwrap();
     let untemplated = text.replace(template, &read.policy.to_descriptor());
     assert!(
-        DescriptorRecord::parse(&untemplated.replace("/0/*,/1/*", "No path restrictions")).is_ok()
+        DescriptorRecord::parse(
+            &c,
+            &untemplated.replace("/0/*,/1/*", "No path restrictions")
+        )
+        .is_ok()
     );
     assert_eq!(
-        DescriptorRecord::parse(&untemplated),
+        DescriptorRecord::parse(&c, &untemplated),
         Err(bsms::Error::Paths)
     );
     assert_eq!(
-        DescriptorRecord::parse(&text.replace("/0/*,/1/*", "/0/*,/1/*,/2/*")),
+        DescriptorRecord::parse(&c, &text.replace("/0/*,/1/*", "/0/*,/1/*,/2/*")),
         Err(bsms::Error::Paths)
     );
 }
@@ -255,12 +269,15 @@ fn the_record_this_device_writes_parses_back_and_verifies() {
     // The coordinator puts that key into the wallet, and the wallet
     // that comes back names this key whole.
     let policy =
-        WalletPolicy::from_parts("wsh(sortedmulti(1,@0/**))", &[&read.key.key_text()]).unwrap();
-    let address = policy.address_at(Network::Mainnet, false, 0).unwrap();
-    let back = DescriptorRecord::parse(&format!(
-        "BSMS 1.0\n{}\n/0/*,/1/*\n{address}",
-        policy.to_descriptor_template()
-    ))
+        WalletPolicy::from_parts(&c, "wsh(sortedmulti(1,@0/**))", &[&read.key.key_text()]).unwrap();
+    let address = policy.address_at(&c, Network::Mainnet, false, 0).unwrap();
+    let back = DescriptorRecord::parse(
+        &c,
+        &format!(
+            "BSMS 1.0\n{}\n/0/*,/1/*\n{address}",
+            policy.to_descriptor_template()
+        ),
+    )
     .expect("the descriptor record");
     assert!(back.holds(&read.key));
 }
@@ -319,11 +336,12 @@ fn sparrow(n: u32) -> String {
 /// the wallet of the record written the BIP's way, at its first address.
 #[test]
 fn sparrows_upper_case_and_unrestricted_template_records_are_their_wallet() {
+    let c = Compute::unchecked();
     let four = sparrow(4);
     let upper = four.lines().nth(3).unwrap().trim();
-    let plain = DescriptorRecord::parse(&four.replace(upper, &upper.to_lowercase())).unwrap();
+    let plain = DescriptorRecord::parse(&c, &four.replace(upper, &upper.to_lowercase())).unwrap();
     for n in [4, 6] {
-        let r = DescriptorRecord::parse(&sparrow(n)).unwrap_or_else(|e| panic!("{n}: {e:?}"));
+        let r = DescriptorRecord::parse(&c, &sparrow(n)).unwrap_or_else(|e| panic!("{n}: {e:?}"));
         assert_eq!(r.policy, plain.policy, "{n}");
         assert_eq!(r.paths, ["/0/*", "/1/*"], "{n}");
         assert_eq!(
@@ -334,14 +352,14 @@ fn sparrows_upper_case_and_unrestricted_template_records_are_their_wallet() {
     }
     // "No path restrictions" beside a descriptor that is no template
     // stays what the BIP defines.
-    let r = DescriptorRecord::parse(&sparrow(6)).unwrap();
+    let r = DescriptorRecord::parse(&c, &sparrow(6)).unwrap();
     let descriptor = r.policy.to_descriptor();
     let untemplated = format!(
         "BSMS 1.0\n{descriptor}\nNo path restrictions\n{}\n",
         r.first_address
     );
     assert_eq!(
-        DescriptorRecord::parse(&untemplated).map(|r| r.paths),
+        DescriptorRecord::parse(&c, &untemplated).map(|r| r.paths),
         Ok(Vec::new())
     );
 }
@@ -349,6 +367,7 @@ fn sparrows_upper_case_and_unrestricted_template_records_are_their_wallet() {
 /// What Sparrow itself refuses stays refused, each for its reason.
 #[test]
 fn the_records_sparrow_refuses_are_refused() {
+    let c = Compute::unchecked();
     use bsms::Error::{Address, FirstAddress, Lines, Paths, Policy};
     use osk_bip::policy::Error::Derivation;
     for (n, why) in [
@@ -361,7 +380,7 @@ fn the_records_sparrow_refuses_are_refused() {
         (15, FirstAddress),
         (17, Address),
     ] {
-        assert_eq!(DescriptorRecord::parse(&sparrow(n)), Err(why), "{n}");
+        assert_eq!(DescriptorRecord::parse(&c, &sparrow(n)), Err(why), "{n}");
     }
 }
 
@@ -369,14 +388,15 @@ fn the_records_sparrow_refuses_are_refused() {
 /// is not the record's address, and the record is refused.
 #[test]
 fn a_base58_address_in_another_case_is_refused() {
+    let c = Compute::unchecked();
     let text = sparrow(3);
     let address = text.lines().nth(3).unwrap().trim();
     assert!(!address.starts_with("bc1"), "{address}");
-    let r = DescriptorRecord::parse(&text).unwrap();
+    let r = DescriptorRecord::parse(&c, &text).unwrap();
     assert_eq!(r.first_address, address);
     for changed in [address.to_uppercase(), address.to_lowercase()] {
         assert!(
-            DescriptorRecord::parse(&text.replace(address, &changed)).is_err(),
+            DescriptorRecord::parse(&c, &text.replace(address, &changed)).is_err(),
             "{changed}"
         );
     }

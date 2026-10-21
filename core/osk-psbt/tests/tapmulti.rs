@@ -73,6 +73,7 @@ fn key_text(m: &MasterKey) -> String {
 
 /// The 2-of-3 taproot multisig over the three test keys.
 fn policy() -> WalletPolicy {
+    let c = Compute::unchecked();
     let keys: Vec<String> = [ABANDON, ZOO, LEGAL]
         .iter()
         .map(|w| key_text(&master(w, NET)))
@@ -81,7 +82,7 @@ fn policy() -> WalletPolicy {
         "tr({NUMS},sortedmulti_a(2,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
         keys[0], keys[1], keys[2]
     );
-    WalletPolicy::parse_any(&text).expect("a taproot multisig wallet")
+    WalletPolicy::parse_any(&c, &text).expect("a taproot multisig wallet")
 }
 
 /// The wallet at one address, as a coordinator fills a PSBT in from it:
@@ -166,6 +167,7 @@ fn spend() -> (WalletPolicy, Psbt) {
 /// makes, and the key path cannot be spent.
 #[test]
 fn a_taproot_multisig_wallet_states_what_it_is() {
+    let c = Compute::unchecked();
     let policy = policy();
     assert!(policy.key_path_unspendable());
     assert_eq!(policy.tapscript_quorum(), Some((2, 3)));
@@ -178,21 +180,24 @@ fn a_taproot_multisig_wallet_states_what_it_is() {
         policy.to_descriptor()
     );
     assert_eq!(
-        WalletPolicy::parse_any(&policy.to_descriptor_checksummed())
+        WalletPolicy::parse_any(&c, &policy.to_descriptor_checksummed())
             .expect("its own descriptor reads back")
             .to_descriptor(),
         policy.to_descriptor()
     );
-    let two_part = WalletPolicy::parse_any(&format!(
-        "tr({NUMS},sortedmulti_a(2,@0/**,@1/**,@2/**))\n{}\n{}\n{}",
-        policy.keys()[0].key_text(),
-        policy.keys()[1].key_text(),
-        policy.keys()[2].key_text()
-    ))
+    let two_part = WalletPolicy::parse_any(
+        &c,
+        &format!(
+            "tr({NUMS},sortedmulti_a(2,@0/**,@1/**,@2/**))\n{}\n{}\n{}",
+            policy.keys()[0].key_text(),
+            policy.keys()[1].key_text(),
+            policy.keys()[2].key_text()
+        ),
+    )
     .expect("the same wallet in the two-part form");
     assert_eq!(two_part.to_descriptor(), policy.to_descriptor());
     assert_eq!(
-        policy.address_at(NET, false, 0).expect("an address"),
+        policy.address_at(&c, NET, false, 0).expect("an address"),
         bitcoin::Address::from_script(
             &definite(&policy, false, 0).script_pubkey(),
             bitcoin::Network::Regtest
@@ -224,7 +229,7 @@ fn two_of_the_three_keys_sign_and_the_input_finalizes() {
         carry: None,
     };
 
-    let insp = inspect(&psbt, &ctx);
+    let insp = inspect(&c, &psbt, &ctx);
     assert_eq!(
         insp.outputs[1].kind,
         OutputKind::WalletChange {
@@ -282,14 +287,16 @@ fn two_of_the_three_keys_sign_and_the_input_finalizes() {
 /// address is the one Core paid into.
 #[test]
 fn the_committed_policy_is_the_wallet_core_imported() {
+    let c = Compute::unchecked();
     let committed = WalletPolicy::parse_any(
+        &c,
         &std::fs::read_to_string(vectors().join(example::POLICY_NAME)).expect("the fixture"),
     )
     .expect("a taproot multisig wallet");
     assert_eq!(committed.to_descriptor(), policy().to_descriptor());
     assert_eq!(
         committed
-            .address_at(NET, false, 0)
+            .address_at(&c, NET, false, 0)
             .expect("an address")
             .to_string(),
         FUNDED,
@@ -302,7 +309,7 @@ fn the_committed_policy_is_the_wallet_core_imported() {
         .replace("h/", "'/")
         .replace("h]", "']");
     assert_eq!(
-        WalletPolicy::parse_any(&format!("{as_core_had_it}#{CHECKSUM}"))
+        WalletPolicy::parse_any(&c, &format!("{as_core_had_it}#{CHECKSUM}"))
             .expect("the checksum Bitcoin Core computed for the same descriptor"),
         committed
     );

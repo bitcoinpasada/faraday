@@ -82,9 +82,11 @@ fn key_text(m: &MasterKey) -> String {
 
 /// The 2-of-3 taproot multisig over the three keys.
 pub fn policy() -> WalletPolicy {
+    let c = Compute::unchecked();
     let keys: Vec<String> = SEEDS.iter().map(|w| key_text(&master(w))).collect();
     let refs: Vec<&str> = keys.iter().map(String::as_str).collect();
     WalletPolicy::from_parts(
+        &c,
         &format!("tr({NUMS},sortedmulti_a(2,@0/**,@1/**,@2/**))"),
         &refs,
     )

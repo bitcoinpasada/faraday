@@ -21,6 +21,7 @@ use bitcoin::sighash::{EcdsaSighashType, TapSighashType};
 use bitcoin::taproot::TapTweakHash;
 use bitcoin::{Address, Amount, ScriptBuf, Sequence, TxOut, Txid, VarInt};
 use osk_bip::keys::Fingerprint;
+use osk_crypto::work::{Compute, Work};
 
 use miniscript::{ExtParams, Miniscript, SigType, Tap, ToPublicKey};
 use osk_bip::spend::{Lock, SpendPath};
@@ -528,9 +529,10 @@ fn warn(warnings: &mut Vec<Warning>, level: Level, kind: WarningKind, text: Stri
     warnings.push(Warning { level, kind, text });
 }
 
-/// Inspects `psbt` for the keys and network in `ctx`.
-pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
-    osk_crypto::work::count(osk_crypto::work::Work::PsbtInspect);
+/// Costs a script derivation for each wallet an input or output claims,
+/// and the checks: inspects `psbt` for the keys and network in `ctx`.
+pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
+    c.count(Work::PsbtInspect);
     let secp = Secp256k1::verification_only();
     let inner = psbt.inner();
     let tx = &inner.unsigned_tx;
@@ -560,8 +562,8 @@ pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
         + VarInt::from(tx.output.len()).size() * 4;
 
     for (i, input) in inner.inputs.iter().enumerate() {
-        let c = classify(inner, i);
-        for p in &c.problems {
+        let cl = classify(inner, i);
+        for p in &cl.problems {
             warn(
                 &mut warnings,
                 Level::Blocked,
@@ -569,7 +571,7 @@ pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
                 format!("input {i}: {p}"),
             );
         }
-        if c.amount_unverified {
+        if cl.amount_unverified {
             warn(
                 &mut warnings,
                 Level::Blocked,
@@ -577,7 +579,7 @@ pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
                 format!("input {i} carries no previous transaction; its amount cannot be checked"),
             );
         }
-        let amount = match &c.utxo {
+        let amount = match &cl.utxo {
             Some(u) => {
                 total_in = total_in.checked_add(u.value).unwrap_or(Amount::MAX_MONEY);
                 input_scripts.push(u.script_pubkey.clone());
@@ -594,7 +596,7 @@ pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
                 None
             }
         };
-        let spk = c.utxo.as_ref().map(|u| u.script_pubkey.clone());
+        let spk = cl.utxo.as_ref().map(|u| u.script_pubkey.clone());
         let txin = &tx.input[i];
         let finalized = input.final_script_sig.is_some() || input.final_script_witness.is_some();
 
@@ -604,25 +606,25 @@ pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
             weight += (32 + 4 + 4 + VarInt::from(ss).size() + ss) * 4 + wit;
             has_witness |= wit > 0;
         } else {
-            weight += c
+            weight += cl
                 .satisfaction_weight
-                .unwrap_or_else(|| c.kind.estimated_weight());
-            has_witness |= !matches!(c.kind, ScriptKind::P2pkh);
+                .unwrap_or_else(|| cl.kind.estimated_weight());
+            has_witness |= !matches!(cl.kind, ScriptKind::P2pkh);
         }
-        let signable = c.kind.is_supported()
-            && (c.kind != ScriptKind::P2trScript || tap_signable(&secp, input, spk.as_deref()));
+        let signable = cl.kind.is_supported()
+            && (cl.kind != ScriptKind::P2trScript || tap_signable(&secp, input, spk.as_deref()));
         if signable {
-            if !kinds.contains(&c.kind) {
-                kinds.push(c.kind);
+            if !kinds.contains(&cl.kind) {
+                kinds.push(cl.kind);
             }
         } else {
-            let what = match c.kind {
+            let what = match cl.kind {
                 ScriptKind::P2trScript => {
                     "the taproot input names no leaf script and no internal key of this tree"
                 }
                 _ => "unknown script type",
             };
-            if c.utxo.is_some() && !finalized {
+            if cl.utxo.is_some() && !finalized {
                 warn(
                     &mut warnings,
                     Level::Caution,
@@ -636,7 +638,7 @@ pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
         let mut origin: Option<KeyOrigin> = None;
         let mut musig_established: Option<MusigInput> = None;
         let mut threshold_established: Option<ThresholdInput> = None;
-        match c.kind {
+        match cl.kind {
             ScriptKind::P2pkh | ScriptKind::P2shP2wpkh | ScriptKind::P2wpkh => {
                 for (pk, (fp, path)) in &input.bip32_derivation {
                     let fp = Fingerprint::from(*fp);
@@ -677,7 +679,7 @@ pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
                 }
             }
             ScriptKind::Multisig { m, n, .. } => {
-                let ms = c
+                let ms = cl
                     .multisig
                     .as_ref()
                     .expect("multisig kind carries the script");
@@ -706,7 +708,7 @@ pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
                             n: usize::from(n),
                             cosigners,
                             ours,
-                            wallet: wallet_input(ctx, input, spk.as_deref()),
+                            wallet: wallet_input(c, ctx, input, spk.as_deref()),
                         })
                     }
                     Some(first) if first.m != usize::from(m) || first.n != usize::from(n) => warn(
@@ -722,7 +724,7 @@ pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
                 }
             }
             ScriptKind::P2trKey if has_musig_field(input) => {
-                match musig_input(&secp, ctx, input, spk.as_deref()) {
+                match musig_input(c, &secp, ctx, input, spk.as_deref()) {
                     Err(block) => warn(
                         &mut warnings,
                         Level::Blocked,
@@ -790,7 +792,7 @@ pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
                         .ok()
                         .map(|h| h.to_byte_array())
                 });
-                match threshold_input(&secp, ctx, input, spk.as_deref(), i, msg) {
+                match threshold_input(c, &secp, ctx, input, spk.as_deref(), i, msg) {
                     Err(block) => warn(
                         &mut warnings,
                         Level::Blocked,
@@ -888,7 +890,7 @@ pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
                 // is the rule a multisig input is read by, and it is the
                 // only thing that says whose these coins are, since the
                 // script itself is not one this crate takes apart.
-                if wallet_input(ctx, input, spk.as_deref()).is_some() {
+                if wallet_input(c, ctx, input, spk.as_deref()).is_some() {
                     is_ours = true;
                     for (fp, _) in input
                         .bip32_derivation
@@ -909,7 +911,7 @@ pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
             }
         }
 
-        let sighash = sighash_kind(input, c.kind, spk.as_deref());
+        let sighash = sighash_kind(input, cl.kind, spk.as_deref());
         if sighash.is_none() {
             warn(
                 &mut warnings,
@@ -953,7 +955,7 @@ pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
             + usize::from(input.tap_key_sig.is_some())
             + input.tap_script_sigs.len();
 
-        let spend_route = spend_route(&secp, ctx, input, &c, txin.sequence, tx.lock_time);
+        let spend_route = spend_route(c, &secp, ctx, input, &cl, txin.sequence, tx.lock_time);
         if let Some(SpendRoute::Script(path)) = &spend_route {
             for lock in &path.locks {
                 if !lock_met(*lock, txin.sequence, tx.lock_time) {
@@ -978,7 +980,7 @@ pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
             txid: txin.previous_output.txid,
             vout: txin.previous_output.vout,
             amount,
-            script_type: c.kind,
+            script_type: cl.kind,
             is_ours,
             origin,
             sighash,
@@ -1028,7 +1030,7 @@ pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
             }
         };
 
-        let kind = output_kind(&secp, out, txout, ctx, i, &mut warnings);
+        let kind = output_kind(c, &secp, out, txout, ctx, i, &mut warnings);
         match kind {
             OutputKind::Change { .. } | OutputKind::WalletChange { .. } => {
                 change_total = change_total
@@ -1377,6 +1379,7 @@ fn leaf_keys(input: &Input, leaf: &ScriptBuf) -> Vec<bitcoin::secp256k1::XOnlyPu
 /// sequence and locktime the coordinator set, which are what arm a
 /// timelocked path. The answer is `None` unless exactly one way is left.
 fn spend_route<C: Verification>(
+    work: &Compute,
     secp: &Secp256k1<C>,
     ctx: &Context,
     input: &Input,
@@ -1385,7 +1388,7 @@ fn spend_route<C: Verification>(
     locktime: LockTime,
 ) -> Option<SpendRoute> {
     let spk = &c.utxo.as_ref()?.script_pubkey;
-    let claim = ctx.wallet_claim(input_origins(input), spk)?;
+    let claim = ctx.wallet_claim(work, input_origins(input), spk)?;
     if !claim.verified {
         return None;
     }
@@ -1476,9 +1479,14 @@ fn hex(bytes: &[u8]) -> String {
 /// The registered wallet an input spends: the one its key origins name,
 /// when the wallet's own script at that index is the input's. Taproot
 /// states its origins in their own field, so both are read.
-fn wallet_input(ctx: &Context, input: &Input, spk: Option<&bitcoin::Script>) -> Option<usize> {
+fn wallet_input(
+    c: &Compute,
+    ctx: &Context,
+    input: &Input,
+    spk: Option<&bitcoin::Script>,
+) -> Option<usize> {
     let spk = spk?;
-    let claim = ctx.wallet_claim(input_origins(input), spk)?;
+    let claim = ctx.wallet_claim(c, input_origins(input), spk)?;
     claim.verified.then_some(claim.wallet)
 }
 
@@ -1543,6 +1551,7 @@ fn sighash_kind(input: &Input, kind: ScriptKind, spk: Option<&bitcoin::Script>) 
 /// that claims our key and derives to some other script is worth saying
 /// even about an output we went on to verify.
 fn output_kind<C: Verification>(
+    c: &Compute,
     secp: &Secp256k1<C>,
     out: &Output,
     txout: &TxOut,
@@ -1551,7 +1560,7 @@ fn output_kind<C: Verification>(
     warnings: &mut Vec<Warning>,
 ) -> OutputKind {
     let mut claim_warnings = Vec::new();
-    let kind = output_claims(secp, out, txout, ctx, i, &mut claim_warnings);
+    let kind = output_claims(c, secp, out, txout, ctx, i, &mut claim_warnings);
     let verified = matches!(
         kind,
         OutputKind::Change { .. } | OutputKind::WalletChange { .. }
@@ -1565,6 +1574,7 @@ fn output_kind<C: Verification>(
 
 /// The body of [`output_kind`], with every warning its claims raise.
 fn output_claims<C: Verification>(
+    c: &Compute,
     secp: &Secp256k1<C>,
     out: &Output,
     txout: &TxOut,
@@ -1574,7 +1584,7 @@ fn output_claims<C: Verification>(
 ) -> OutputKind {
     let spk = &txout.script_pubkey;
     let mut kind = OutputKind::Recipient;
-    match musig_output(secp, out, txout, ctx) {
+    match musig_output(c, secp, out, txout, ctx) {
         Some(Ok((wallet, change, index))) => {
             return OutputKind::WalletChange {
                 wallet,
@@ -1612,7 +1622,7 @@ fn output_claims<C: Verification>(
                 .values()
                 .map(|(_, (fp, path))| (Fingerprint::from(*fp), path)),
         );
-    if let Some(claim) = ctx.wallet_claim(origins, spk) {
+    if let Some(claim) = ctx.wallet_claim(c, origins, spk) {
         if claim.verified {
             return OutputKind::WalletChange {
                 wallet: claim.wallet,
@@ -2069,6 +2079,7 @@ fn musig_sub_path(path: &DerivationPath) -> Option<(bool, u32)> {
 /// classified [`ScriptKind::P2trScript`], which this crate refuses to
 /// sign for a `musig()` wallet, since `tr(musig())` has no tree.
 fn musig_input<C: Verification>(
+    c: &Compute,
     secp: &Secp256k1<C>,
     ctx: &Context,
     input: &Input,
@@ -2204,7 +2215,7 @@ fn musig_input<C: Verification>(
             }
         }
     }
-    let wallet_script = policy.script_at_with(secp, change, index).ok();
+    let wallet_script = policy.script_at_with(c, secp, change, index).ok();
     if wallet_script.as_deref() != spk {
         return musig_block(
             WarningKind::UtxoMismatch,
@@ -2234,6 +2245,7 @@ fn musig_input<C: Verification>(
 /// `Some(Err(()))` is an output that claims the wallet and pays
 /// somewhere else, which is the `ChangeSpoof` a multisig claim would be.
 fn musig_output<C: Verification>(
+    c: &Compute,
     secp: &Secp256k1<C>,
     out: &Output,
     txout: &TxOut,
@@ -2257,7 +2269,7 @@ fn musig_output<C: Verification>(
     let Some((change, index)) = claim else {
         return Some(Err(()));
     };
-    match policy.script_at_with(secp, change, index) {
+    match policy.script_at_with(c, secp, change, index) {
         Ok(script) if script == txout.script_pubkey => Some(Ok((wallet, change, index))),
         _ => Some(Err(())),
     }
@@ -2425,6 +2437,7 @@ fn is_threshold_input(ctx: &Context, input: &Input) -> bool {
 /// signer set the records name, the shares this device holds, and what
 /// this pass will do with each.
 fn threshold_input<C: Verification>(
+    c: &Compute,
     secp: &Secp256k1<C>,
     ctx: &Context,
     input: &Input,
@@ -2491,7 +2504,7 @@ fn threshold_input<C: Verification>(
     };
     let output_key = output.public_key();
     if policy
-        .script_at_with(secp, change, index_at)
+        .script_at_with(c, secp, change, index_at)
         .ok()
         .as_deref()
         != spk

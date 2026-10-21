@@ -6,6 +6,7 @@
 
 use osk_bip::coldcard::{self, Cosigner, ReadError};
 use osk_bip::keys::{MultisigScriptType, Network};
+use osk_crypto::work::Compute;
 
 const MK4: &str = include_str!(
     "../../../faraday/faraday-core/tests/vectors/interop/bluewallet/coldcardmk4-generic.json"
@@ -24,14 +25,15 @@ const CCXP: &str = include_str!(
 /// Coldcard states, as Coldcard's own descriptor in the same set has it.
 #[test]
 fn an_export_is_rooted_at_the_masters_xfp_and_has_its_stated_first_address() {
+    let c = Compute::unchecked();
     assert!(coldcard::looks_like_export(MK4));
-    let (policy, field) = coldcard::read(MK4).unwrap();
+    let (policy, field) = coldcard::read(&c, MK4).unwrap();
     assert_eq!(field, "bip84");
     let d = policy.to_descriptor();
     assert!(d.starts_with("wpkh([086ee178/84h/0h/0h]xpub"), "{d}");
     assert_eq!(
         policy
-            .address_at(Network::Mainnet, false, 0)
+            .address_at(&c, Network::Mainnet, false, 0)
             .unwrap()
             .to_string(),
         "bc1q5y4r767v5fzx74ez4nw36hjqrhr4ayeyut5px6"
@@ -39,9 +41,9 @@ fn an_export_is_rooted_at_the_masters_xfp_and_has_its_stated_first_address() {
     let descriptor = include_str!(
         "../../../faraday/faraday-core/tests/vectors/interop/bluewallet/coldcardmk4-descriptor.txt"
     );
-    let theirs = osk_bip::policy::WalletPolicy::parse_any(descriptor.trim()).unwrap();
+    let theirs = osk_bip::policy::WalletPolicy::parse_any(&c, descriptor.trim()).unwrap();
     assert_eq!(theirs.to_descriptor(), d);
-    let (q, _) = coldcard::read(Q).unwrap();
+    let (q, _) = coldcard::read(&c, Q).unwrap();
     assert!(
         q.to_descriptor()
             .starts_with("wpkh([b68af6e4/84h/0h/0h]xpub")
@@ -50,22 +52,26 @@ fn an_export_is_rooted_at_the_masters_xfp_and_has_its_stated_first_address() {
 
 #[test]
 fn an_export_whose_stated_first_address_is_not_its_wallets_is_refused() {
+    let c = Compute::unchecked();
     let other = MK4.replace(
         "bc1q5y4r767v5fzx74ez4nw36hjqrhr4ayeyut5px6",
         "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
     );
     assert_eq!(
-        coldcard::read(&other),
+        coldcard::read(&c, &other),
         Err(ReadError::FirstAddress {
             account: "bip84",
             first: "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu".into(),
         })
     );
-    assert!(coldcard::parse(&other).is_err());
+    assert!(coldcard::parse(&c, &other).is_err());
     // An account with a key and no derivation states no origin.
     let no_deriv = MK4.replace("\"deriv\": \"m/84'/0'/0'\", ", "");
     assert_ne!(no_deriv, MK4);
-    assert_eq!(coldcard::read(&no_deriv), Err(ReadError::NoDeriv("bip84")));
+    assert_eq!(
+        coldcard::read(&c, &no_deriv),
+        Err(ReadError::NoDeriv("bip84"))
+    );
 }
 
 /// Every account key a file offers, rooted at the master: the multisig
