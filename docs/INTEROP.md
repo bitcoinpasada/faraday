@@ -1,7 +1,8 @@
 # Interoperability with other wallets
 
-**Status:** v0.2 · 2026-10-07 · what was tested, what passed, and what
-Faraday does not read or write yet.
+**Status:** v0.3 · 2026-10-20 · what was tested, what passed, what
+Faraday does not read or write yet, and the batches that build §4 (§5,
+F64).
 
 Faraday is a signer. Other wallets hand it a wallet description, a
 cosigner's key or a PSBT, and take back a signed PSBT, a finished
@@ -102,9 +103,254 @@ wallets.
 6. **Bitcoin Core before 29** takes no multipath descriptor; Faraday's
    import file is one multipath request.
 7. **BIP 129 records** with an upper-case address or "No path
-   restrictions" are refused by `osk_bip::bsms` (BIP 129's own examples
-   include both).
+   restrictions" are refused by `osk_bip::bsms`. Neither is in BIP 129's
+   own examples (its one "No path restrictions" example, Vector A, is
+   over plain public keys); both are Sparrow's test records
+   `multisig-4.bsms` and `multisig-6.bsms`, which Sparrow accepts.
 8. Not read or written: Specter DIY's `addwallet name&descriptor` code,
    BIP-392 `sp()` silent payment descriptors (Sparrow, Keystone), BIP-329
    label files, PSBT version 2 (BIP-370; the Sign tile names BIP-370,
    which nothing here reads), and Coldcard's encrypted backup file.
+
+## 5. The batches that build §4 (F64, owner 2026-10-20)
+
+Every reader goes in `faraday-intake`, after the pattern of
+`wallet::coldcard_export` (§3). Faraday reads the format itself and never
+edits an upstream crate (`core/`, `opensigner/`); what upstream should
+change is noted at the end, for the owner to send. New strings go in
+`faraday/faraday-strings/src/en.rs`. New vectors go under
+`faraday/faraday-core/tests/vectors/interop/<source>/`, with their source
+and licence in that folder's README. Reading needs no choice: every format
+is recognised by its content wherever a wallet, a key or a PSBT is read
+today. Choices few people need sit under **More options** (F64).
+
+### I1. SLIP-132 keys everywhere (§4 item 1; tracker #43)
+
+Reads extended keys with SLIP-0132's version bytes:
+
+| Prefix | Version bytes | Network | Script type it names |
+|---|---|---|---|
+| `ypub` / `upub` | `049d7cb2` / `044a5262` | main / test | `sh(wpkh)` |
+| `zpub` / `vpub` | `04b24746` / `045f1cf6` | main / test | `wpkh` |
+| `Ypub` / `Upub` | `0295b43f` / `024289ef` | main / test | `sh(wsh(multi…))` |
+| `Zpub` / `Vpub` | `02aa7ed3` / `02575483` | main / test | `wsh(multi…)` |
+| `xpub` / `tpub` | — | main / test | any |
+
+inside a descriptor (Casa's `sh(wsh(sortedmulti(3,[35282ae3]Ypub…`), on a
+key line `[fp/path]vpub…` (Specter DIY), and as a bare key; each is
+rewritten to `xpub`/`tpub` before `WalletPolicy` sees it.
+
+**The rule.** The type the version names must agree with the script
+around the key, and in a key file with the purpose in its path: 84′ →
+`z`/`v`; 49′ → `y`/`u`; 48′/…/2′ → `Z`/`V`; 48′/…/1′ → `Y`/`U`; 44′, 45′,
+86′ and 352′ → `x`/`t` only. A key that disagrees is refused
+(`wallet_slip132_mismatch`, "{} is a {} key; this wallet is {}"); nothing
+is converted silently. This replaces `wallet::plain_xpub`, which converts
+Coldcard's flat fields unchecked today. A key line or bare key with no
+descriptor reads as the single-key wallet its version names; as a
+cosigner key, `key_for` takes it.
+
+Where: `faraday-intake/src/slip132.rs`, called from
+`read_wallet_as_written` before `parse_any`, `create::read_keys` and
+`coldcard_keys`. Tests (`tests/interop.rs`): Casa's descriptor loads as
+`sh(wsh(sortedmulti(3,…)))`; Specter DIY's keystore fills a native SegWit
+slot; Keystone's singlesig keystore (upper-case fingerprint, `/1/*` only)
+reads as `<0;1>`; `wpkh(Zpub…)` and `wsh(multi(…Ypub…))` are refused; the
+`abandon…about` BIP-84 vector given as a zpub has BIP-84's published first
+address.
+
+### I2. A JSON reader; single-key JSON from Cobo/Keystone and Wasabi (§4 item 4; #46)
+
+`faraday-intake/src/json.rs`: a value parser (depth ≤ 32, size ≤ 1 MiB,
+full string escapes including `\uXXXX`), no new crate, and a fuzz target
+`faraday/fuzz/fuzz_targets/json.rs`. Every new reader uses it; the
+existing `json_string`/`json_object` stay for the files they read now.
+
+Reads Cobo/Keystone `{"ExtPubKey","MasterFingerprint","AccountKeyPath"}`
+(`AccountKeyPath` may lack `m/`; the version is checked against the path
+as in I1) as the single-key wallet `[fp/path]xpub/<0;1>/*`, also offered as
+a key in Create's slots; and Coldcard's Wasabi file
+`{"MasterFingerprint","ExtPubKey","ColdCardFirmwareVersion"}`, which
+names no path: Wasabi assumes BIP-84 account 0, so it reads as
+`wpkh([fp/84h/{0h|1h}/0h]…)`, coin type from the key's network.
+
+Writes `{stem}-wasabi.json` under More options, only for a single-key
+`wpkh` at exactly `84h/0h/0h` or `84h/1h/0h`. Check against Wasabi's reader
+what `ColdCardFirmwareVersion` must hold; if it needs a real version,
+copy BlueWallet's vector. The Cobo/Keystone file is not written: it is a
+device's export of its own key, and no coordinator takes it from a third
+party. Tests: Cobo's singlesig keystore (73C5DA0A) has BIP-84's first
+address for `abandon…about`; `skeleton-cobo.txt` loads; Coldcard MK4's
+Wasabi file is the BIP-84 account of its generic file, with the generic
+file's `first`; Faraday's Wasabi file reads back as the same wallet; JSON
+past the depth limit is refused.
+
+### I3. BIP 129 records Faraday refuses (§4 item 7; #50)
+
+Before `DescriptorRecord::parse`, in `faraday-intake/src/wallet.rs`: (a) an
+address line that is all upper-case bech32/bech32m (`BC1…`, `TB1…`,
+`BCRT1…`) is lower-cased, and a base58 line is never touched; (b) a `/**`
+template whose third line is exactly `No path restrictions` reads as
+`/0/*,/1/*`. The first-address check runs unchanged on the result. When
+upstream fixes the parser this becomes a no-op. Not read: Sparrow's
+fixed-path records (one address, not a wallet), a blank paths line
+(cannot be told from a cut-off file), encrypted records. Tests:
+`multisig-4.bsms` and `multisig-6.bsms` load with Sparrow's stated first
+address; Sparrow's refused records (`-5`, `-7`, `-9`, `-11`, `-13`, `-14`,
+`-15`, `-17`) stay refused; a base58 address with its case changed is
+refused.
+
+### I4. More options on Public files; Bitcoin Core before 29 (§4 item 6; #48)
+
+`screens.rs::public_files` splits its rows into primary and more;
+`public_rows_for` draws the primary rows, a ghost **More options**
+(`Action::PublicMore(i)`), and the rest once pressed; the open state lives
+on the backup flow and the chart sheet and resets when the screen opens.
+Primary: Descriptor; Wallet file (Sparrow, Specter); Multisig config;
+Backup sheet; BSMS record; Bitcoin Core import, now "Bitcoin Core 29 or
+later"; the cosigners' keys. More options: Bitcoin Core before 29,
+Electrum wallet file, Caravan config, Specter DIY, Wasabi file (numbers 9
+onward in `backup_public_for`/`public_out`).
+
+Writes `{stem}-bitcoin-core-before-29.json`: two `importdescriptors`
+requests, receive (`"internal":false`) and change (`"internal":true`),
+each from `Descriptor::into_single_descriptors()` with its own checksum,
+`"active":true`, `"range":[0,999]`, `"timestamp":0`. Not for MuSig2, FROST
+or silent payments. Tests: a fresh Public files list shows no row under
+More options until it is pressed; the file's two descriptors read back as
+the wallet; each checksum is Core's (shape of `core/listdescriptors.json`);
+`core-check.py` (not in `just`) gains a run against Core 28.x.
+
+### I5. Caravan and Unchained configs (§4 item 2; #44)
+
+Reads and writes
+`{"name","addressType":"P2WSH"|"P2SH-P2WSH"|"P2SH","network","client":{"type":"public"},"quorum":{"requiredSigners","totalSigners"},"extendedPublicKeys":[{"name","bip32Path","xpub","xfp","method"?}],"startingAddressIndex":0}`
+(Unchained's config is this format; extra fields are ignored). Read as
+`sortedmulti` (BIP 67), written only for `sortedmulti` `wsh`/`sh(wsh)`/`sh`
+wallets whose keys all have origins. A key with `"bip32Path":"Unknown"` or
+no `xfp` is read with no origin (watch-only here, its slot Not here); a key
+whose network disagrees with `network` is refused; `startingAddressIndex`
+other than 0 is refused. Writes `{stem}-caravan.json` under More options.
+Tests: Sparrow's three Caravan exports load and equal its own exports or
+the descriptor written by hand; BlueWallet's Caravan file loads with its
+third key origin-less; Faraday's file reads back with the same first
+address.
+
+### I6. Electrum wallet files (§4 item 3; #45)
+
+Reads an unencrypted Electrum 4.x file: standard
+`{"keystore":{"type":"bip32"|"hardware","xpub","derivation","root_fingerprint"|"ckcc_xfp"},"wallet_type":"standard"}`
+and multisig `{"wallet_type":"2of3","x1/":{…},…}`. Script type from each
+key's version (I1): single key `xpub`→`pkh`, `ypub`→`sh(wpkh)`,
+`zpub`→`wpkh`; multisig `xpub`→`sh`, `Ypub`→`sh(wsh)`, `Zpub`→`wsh`, always
+`sortedmulti`, every key the same type. Fingerprint from `root_fingerprint`
+(hex) or `ckcc_xfp`, a decimal u32 read little-endian (1130956047 →
+`0f056943`). A keystore without fingerprint and derivation is read
+origin-less. `"use_encryption": true` or an encrypted blob is refused
+("This Electrum file is encrypted"). A file holding `xprv` or `seed` is a
+secret: `classify` gives it the secret sheet and only its public keys are
+read.
+
+Writes `{stem}-electrum.json` under More options as Sparrow writes for
+Electrum (`"seed_version": 17`, `"use_encryption": false`, keystores
+`{"type":"bip32","xpub":<SLIP-132 for the type>,"xprv":null,"derivation","root_fingerprint","label":""}`),
+for `pkh`, `sh(wpkh)`, `wpkh` single keys with an origin and `sortedmulti`
+`sh`/`sh(wsh)`/`wsh`; not for Taproot, miniscript, unsorted `multi`,
+MuSig2, FROST or silent payments. A PSBT Electrum builds from a bare zpub
+carries the account key's own fingerprint; Faraday's matching is
+unchanged and a test states the refusal (Faraday's own Electrum file
+carries `root_fingerprint`, so Electrum's PSBTs from it are complete).
+Tests: Sparrow's Electrum singlesig (`sh(wpkh)` at 49′, ab543c67) and
+multisig (2-of-4 `sh(wsh)`, `ckcc_xfp` fingerprints) files; BlueWallet's
+Electrum skeletons; `fromsparrow-electrum.json` (holds an `xprv`) is
+secret and its wallet equals `fromsparrow-specter.json`'s; write then read
+is the same wallet; the bare-zpub PSBT is refused. Optional, not in
+`just`: `faraday/tools/electrum-check.py` compares addresses with
+`electrum --offline`.
+
+### I7. Electrum seed words (§4 item 5; #47)
+
+Add a key › Other forms › **Type Electrum seed words** (and the Entry
+form's other forms): 12 or 13 English words, Electrum 2.0 and later.
+Normalised as Electrum does (lower-case, whitespace collapsed). The seed
+version is the hex of HMAC-SHA512(key "Seed version", words): prefix `01`
+standard, `100` segwit; `101`/`102` (2FA) and pre-2.0 seeds are refused
+with their own lines; anything else "These words are not an Electrum
+seed". The seed is PBKDF2-HMAC-SHA512(words, "electrum" + extension, 2048
+rounds, 64 bytes); the key loads through `Session::add_seed`. Paths:
+standard `pkh([fp]xpub/<0;1>/*)` at the master; segwit `wpkh([fp/0h]…)`;
+as a multisig cosigner (from an Electrum file, I6) segwit `m/1h` (`wsh`),
+standard `m/` (`sh`). After Lock in, the Key card offers **Load its
+Electrum wallet**. The key is never treated as BIP-39 words: `Key` gains
+`electrum: Option<ElectrumType>`; its Backup menu offers the words by hand
+and the vault or encrypted backup of the master seed, never SeedQR,
+CompactSeedQR, Seed XOR, SLIP-39 or a FROST share; in a vault it is a
+master-seed record. Tests: Electrum's `test_mnemonic.py` English seed
+cases (seed version and seed bytes, with and without an extension);
+`test_wallet_vertical.py` standard and segwit (xpub/zpub, first receive
+and change addresses); a BIP-39 phrase that is no Electrum seed is
+refused here; an Electrum key's Backup menu has no SeedQR; an extension in
+capitals gives the same key.
+
+### I8. Specter DIY `addwallet` (§4 item 8; #49)
+
+Reads `addwallet {name}&{descriptor}` from a scan or a file (keys without
+`/<0;1>/*`, which `with_chains` reads). Writes the same text as Show as
+QR, PNG (Specter's numbered parts) and `{stem}-specter-diy.txt`, under
+More options, for every wallet with a descriptor but MuSig2, FROST and
+silent payments. Tests: Sparrow's `specter-diy-export.txt` loads, named
+"Sparrow Multisig"; Faraday's code for it is that text; scanned parts
+reassemble to it.
+
+### I9. BIP-392 `sp()` (§4 item 8; #49)
+
+Reads `sp([fp/352h/{coin}h/{acct}h]spscan1q…)` and `tspscan` (Keystone,
+Sparrow), a bare `[origin]spscan1q…` (Specter DIY), and Coldcard's export
+`bip352` object rooted at its top-level `xfp`, each as an `osk-silent 1`
+record. The scan private key is never kept; a file without an origin is
+refused ("This sp() descriptor names no key origin"); with the key
+loaded, a record whose keys are not the ones it derives is refused.
+Writes the descriptor under a silent payments wallet's Export › More
+options, through the secret sheet. Where: a public `spscan` decoder in
+`faraday-intake` (upstream's `decode_v0` is private). Tests: Sparrow's
+Keystone, Specter DIY and Coldcard sp keystores give one wallet rooted at
+0f056943; BIP-392's and BIP-352's keys round-trip.
+
+### I10. PSBT version 2 (§4 item 8; #49)
+
+`osk_psbt` and rust-bitcoin 0.32 read version 0 only, so Faraday converts.
+`faraday-intake/src/psbt_v2.rs`, on raw BIP-174 maps: v2 → v0 builds the
+unsigned transaction (globals `0x02` version, `0x03` fallback locktime,
+`0x04`/`0x05` counts; inputs `0x0e` txid, `0x0f` index, `0x10` sequence,
+absent = `0xffffffff`; outputs `0x03` amount, `0x04` script), the locktime
+by BIP-370's determination from `0x11`/`0x12` (an incompatible set is
+refused), drops the v2-only keys and `0xfb`, keeps every other key. Back
+to v2: the original bytes plus only the per-input fields signing added
+(`0x02`, `0x13`/`0x14`, MuSig2 nonces and partial signatures, `0x07`/`0x08`
+when finalised). `wallet::read_psbt` keeps the original on `Spend`
+(`v2: Option<Vec<u8>>`); every outward PSBT goes through
+`Spend::out_bytes()`; combining another signer's PSBT reads v2 too. Tests:
+BIP-370's valid vectors convert and invalid ones are refused; its locktime
+cases; a testkit PSBT to v2 and back is byte-identical; v2 and v0 of one
+transaction sign identically; the v2 output without the signature fields
+equals the input; `psbt_parse` fuzzing gains v2.
+
+### Left out (owner, 2026-10-20)
+
+- **BIP-329 label files.** A label from the coordinator beside an output
+  in the signing review is text an attacker controls ("Savings" beside
+  their address). Labels belong in the online wallet.
+- **Coldcard's encrypted backup** (7z, AES-256-CBC): a new AES crate and a
+  7z parser, to save typing a 12-word password no easier than the seed
+  words that already load.
+- **Electrum pre-2.0 and 2FA seeds**, Sparrow's fixed-path BSMS records,
+  the Cobo/Keystone single-key writer, and a longer Back up software
+  question (its `software` field is five bits).
+
+### Notes for upstream (`local/for-upstream/interop.md`, the owner sends them)
+
+`osk_bip::slip132` multisig versions and a version/script check;
+`osk_bip::bsms` (#50); `osk_bip::coldcard::parse` rooting at the top-level
+`xfp`; `osk-psbt` reading and writing BIP-370; `osk_bip::silent` public
+`spscan`/`sp()` decoding; `osk_bip::core_import` before 29; optionally
+`osk-psbt` matching a key by its account xpub's own fingerprint.
