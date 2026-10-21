@@ -8,7 +8,9 @@
 //! the camera, a copy of the seed on screen says it matches, a copy with a
 //! word wrong or of another seed names the first word that differs and
 //! keeps the camera open, and nothing scanned there is loaded as a key or
-//! put in Files.
+//! put in Files. Keep the words only drops a SeedQR copy for the words,
+//! offered at the foot after three scans without a match; the grid
+//! dropped stays on the map drawn in part until destroyed.
 //!
 //! The codes are SeedSigner's published SeedQR test vectors
 //! (`docs/seed_qr/README.md`, "Test SeedQRs"), drawn by the repository's
@@ -850,4 +852,328 @@ fn save_as_a_file_offers_no_seedqr_picture_for_a_words_only_copy() {
     assert!(words[0].ends_with("-words.txt"), "{words:?}");
     let both = labels(BOTH);
     assert!(both.iter().any(|n| n.ends_with("seedqr.png")), "{both:?}");
+}
+
+// ---------------------------------------------------------------------
+// Keep the words only, the three scans, the grid drawn in part (§14.7
+// item 3)
+// ---------------------------------------------------------------------
+
+/// The forms of seed 0's copies the backup's plan keeps now.
+fn plan_forms(app: &Faraday) -> plan::CopyForms {
+    let c = testkit::compute();
+    let b = app.backup.as_ref().unwrap();
+    let shape = app.plan_shape_now(b.wallet);
+    plan::copy_forms(&c, &shape, &b.answers, 0)
+}
+
+/// One opening of the camera on the copy that closes without a match:
+/// a SeedQR of another seed read, then closed by the person.
+fn scan_another(app: &mut Faraday) {
+    app.press(Action::BScan);
+    scan(app, standard(GOOD));
+    assert_eq!(app.sheet, Some(Sheet::Scan), "another seed matched");
+    app.press(Action::Cancel);
+    let _ = commands(app);
+    let _ = app.frame();
+}
+
+fn misses(app: &Faraday) -> u8 {
+    let b = app.backup.as_ref().unwrap();
+    b.misses_of(app.session.keys[b.key].fingerprint().0)
+}
+
+/// A 12-word seed's SeedQR copy item, with a camera, the seed hidden so
+/// the item fits the screen.
+fn seedqr_hidden() -> Faraday {
+    let mut app = backing_up(FORUM, true, SEEDQR_ONLY);
+    app.press(Action::BReveal);
+    let _ = app.frame();
+    app
+}
+
+/// Where `text` is drawn, its top.
+fn top_of(app: &mut Faraday, text: &str) -> Option<i32> {
+    app.settle();
+    app.drawn_text_boxes()
+        .into_iter()
+        .find(|(t, _)| t == text)
+        .map(|(_, r)| r.1)
+}
+
+#[test]
+fn keep_the_words_only_turns_the_seedqr_item_into_a_typed_words_check() {
+    let mut app = backing_up(ATTACK, true, SEEDQR_ONLY);
+    assert!(
+        offered(&mut app, Action::BKeepWords),
+        "no Keep the words only"
+    );
+    app.press(Action::BKeepWords);
+    let forms = plan_forms(&app);
+    assert!(forms.words && !forms.seedqr, "the plan's copies: {forms:?}");
+    assert!(!seeds_done(&app), "the item is done with nothing checked");
+    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY));
+    // Now typed back: no scan, no Keep the words only, no grid.
+    assert!(offered(&mut app, Action::BCheck));
+    assert!(!app.offers(Action::BScan), "the scan is still asked for");
+    assert!(!app.offers(Action::BKeepWords));
+    app.press(Action::BReveal);
+    let _ = app.frame();
+    assert!(
+        !shown(&mut app, "Standard SeedQR"),
+        "the grid is still drawn"
+    );
+    app.press(Action::BCheck);
+    testkit::type_words(&mut app, ATTACK);
+    assert!(
+        seeds_done(&app),
+        "the typed words did not complete the item"
+    );
+}
+
+#[test]
+fn keep_the_words_only_with_the_words_already_checked_completes_the_item_at_once() {
+    let mut app = backing_up(ATTACK, true, BOTH);
+    app.press(Action::BCheck);
+    testkit::type_words(&mut app, ATTACK);
+    assert!(!seeds_done(&app), "the words alone checked both copies");
+    assert!(offered(&mut app, Action::BKeepWords));
+    app.press(Action::BKeepWords);
+    assert!(
+        seeds_done(&app),
+        "the item waits for a check already passed"
+    );
+    assert_ne!(
+        app.backup.as_ref().unwrap().open,
+        Some(bstep::COPY),
+        "the checklist did not move on"
+    );
+    let forms = plan_forms(&app);
+    assert!(forms.words && !forms.seedqr, "{forms:?}");
+}
+
+#[test]
+fn three_scans_without_a_match_bring_keep_the_words_only_to_the_foot() {
+    let mut app = seedqr_hidden();
+    for n in 1..=3u8 {
+        assert!(
+            !says(&mut app, "scans without a match"),
+            "said before the third scan"
+        );
+        let body = top_of(&mut app, "Keep the words only").expect("Keep the words only");
+        let foot = top_of(&mut app, "Check my copy").expect("Check my copy");
+        assert!(body < foot, "Keep the words only is not in the body");
+        scan_another(&mut app);
+        assert_eq!(misses(&app), n);
+    }
+    assert!(shown(&mut app, "3 scans without a match"));
+    let line = top_of(&mut app, "3 scans without a match").unwrap();
+    let keep = top_of(&mut app, "Keep the words only").expect("Keep the words only");
+    assert!(keep > line, "Keep the words only did not move to the foot");
+    assert!(offered(&mut app, Action::BKeepWords));
+    assert!(app.offers(Action::BScan), "Check my copy left the foot");
+    // A match closes the camera itself, and is no scan without a match.
+    app.press(Action::BScan);
+    scan(&mut app, standard(FORUM));
+    assert_eq!(misses(&app), 3);
+    assert!(seeds_done(&app));
+}
+
+#[test]
+fn a_scan_closed_by_the_person_counts_once_however_many_codes_it_read() {
+    let mut app = backing_up(FORUM, true, SEEDQR_ONLY);
+    app.press(Action::BScan);
+    scan(&mut app, standard(GOOD));
+    scan(&mut app, b"not a seedqr".to_vec());
+    app.event(Event::Key(Key::Escape));
+    assert!(app.scan.is_none());
+    assert_eq!(misses(&app), 1);
+}
+
+#[test]
+fn a_lock_drops_the_count_of_scans_without_a_match() {
+    let mut app = seedqr_hidden();
+    for _ in 0..3 {
+        scan_another(&mut app);
+    }
+    assert!(top_of(&mut app, "3 scans without a match").is_some());
+    app.press(Action::Lock);
+    assert!(app.backup.is_none());
+    let mut app = seedqr_hidden();
+    assert_eq!(misses(&app), 0);
+    assert!(!says(&mut app, "scans without a match"));
+    let body = top_of(&mut app, "Keep the words only").expect("Keep the words only");
+    let foot = top_of(&mut app, "Check my copy").expect("Check my copy");
+    assert!(body < foot, "Keep the words only stayed at the foot");
+}
+
+#[test]
+fn the_grid_dropped_for_the_words_stays_on_the_map_drawn_in_part_until_destroyed() {
+    use faraday_core::glance::{self, Backup};
+    use faraday_core::plan::{Edit, Mark, What};
+    let c = testkit::compute();
+    let mut app = backing_up(ATTACK, true, SEEDQR_ONLY);
+    let fp = app.session.keys[0].fingerprint().to_string();
+    app.press(Action::BKeepWords);
+    let line = format!("Seed {fp}'s SeedQR, drawn in part, stays on the map until destroyed");
+    assert!(says(&mut app, &line), "the item does not say so");
+    assert_eq!(
+        app.drawn_texts()
+            .iter()
+            .filter(|t| t.contains(&line))
+            .count(),
+        1,
+        "said more than once"
+    );
+    // On the chart: the SeedQR line, marked drawn in part.
+    app.press(Action::OpenWallet(0));
+    let _ = app.frame();
+    let part_line = |app: &Faraday| {
+        let g = glance::of_now(&c, app, 0).expect("a chart");
+        let Backup::Plan { nodes, .. } = g.backup else {
+            panic!("no plan on the chart");
+        };
+        nodes.iter().enumerate().find_map(|(n, node)| {
+            let j = node
+                .whats
+                .iter()
+                .zip(&node.marks)
+                .position(|(w, m)| *w == What::SeedQr(0) && *m == Some(Mark::Part))?;
+            Some((n as u8, j as u8, node.at))
+        })
+    };
+    let (n, j, at) = part_line(&app).expect("no SeedQR drawn in part on the chart");
+    let press = Press::Loaded(0);
+    app.press(Action::Chart(C::Open(press, Target::Line(n, j))));
+    let _ = app.frame();
+    assert!(shown(&mut app, "Drawn in part"));
+    let destroy = Action::Chart(C::Edit(press, Edit::Drop(at, What::SeedQr(0))));
+    assert!(app.offers(destroy), "no I destroyed this copy");
+    app.press(destroy);
+    let _ = app.frame();
+    let confirm = Action::Chart(C::Confirm(press));
+    assert!(app.offers(confirm), "no Confirm");
+    app.press(confirm);
+    let _ = app.frame();
+    assert!(part_line(&app).is_none(), "the line stayed once destroyed");
+    assert!(app.backup.as_ref().unwrap().answers.part.is_empty());
+    // The words stay where they were.
+    let forms = plan_forms(&app);
+    assert!(forms.words && !forms.seedqr, "{forms:?}");
+}
+
+#[test]
+fn a_grid_drawn_in_part_is_a_secret_where_it_is_and_no_copy_that_rebuilds() {
+    use faraday_core::plan::{
+        Answers, At, Found, Lost, Seed, Shape, Spot, Tag, What, alone, check,
+    };
+    let c = testkit::compute();
+    let shape = Shape {
+        m: 1,
+        keys: 1,
+        seeds: vec![Seed {
+            name: "aaaa0001".into(),
+            here: true,
+            passphrase: false,
+        }],
+        splits: false,
+        vaults: 0,
+    };
+    // The words at place 1; place 2 keeps the wallet sheet, and the grid
+    // as `second` says.
+    let plan_with = |second: Option<What>, part: bool| {
+        let mut a = Answers::defaults(&shape);
+        let mut two = vec![(What::Sheet, Tag::Public)];
+        if let Some(w) = second {
+            two.push((w, Tag::Secret));
+        }
+        a.set_map(vec![
+            Spot {
+                at: At::Place(0),
+                holds: vec![(What::Words(0), Tag::Secret), (What::Sheet, Tag::Public)],
+            },
+            Spot {
+                at: At::Place(1),
+                holds: two,
+            },
+        ]);
+        if part {
+            a.part.push((1, 0));
+        }
+        a
+    };
+    let drawn_in_part = plan_with(None, true);
+    let nothing = plan_with(None, false);
+    let whole = plan_with(Some(What::SeedQr(0)), false);
+    // One place found: the grid drawn in part is the seed there.
+    assert_eq!(
+        alone(&c, &shape, &drawn_in_part, At::Place(1)).spend,
+        Found::Yes
+    );
+    assert_eq!(alone(&c, &shape, &nothing, At::Place(1)).spend, Found::No);
+    assert_eq!(check(&c, &shape, &drawn_in_part).spend, Found::Yes);
+    // Any one place lost: a whole grid rebuilds, one drawn in part does
+    // not.
+    assert_eq!(check(&c, &shape, &whole).lost, Lost::Yes);
+    assert_eq!(check(&c, &shape, &drawn_in_part).lost, Lost::No);
+    // It is no copy the checklist asks to check.
+    let forms = plan::copy_forms(&c, &shape, &drawn_in_part, 0);
+    assert!(forms.words && !forms.seedqr, "{forms:?}");
+    // The plan keeps it as the vault reads it back.
+    let back = Answers::from_text(&shape, &drawn_in_part.to_text()).unwrap();
+    assert_eq!(back.part, vec![(1, 0)]);
+}
+
+#[test]
+fn keep_the_words_only_keeps_a_plan_of_answers_its_answers_and_edits_an_edited_one() {
+    use faraday_core::plan::{Answers, At, Seed, Shape, Spot, Tag, What, keep_words, seeds};
+    let c = testkit::compute();
+    let shape = Shape {
+        m: 1,
+        keys: 1,
+        seeds: vec![Seed {
+            name: "aaaa0001".into(),
+            here: true,
+            passphrase: false,
+        }],
+        splits: false,
+        vaults: 0,
+    };
+    // The seeds question answered SeedQR alone: the rows swap, no edits.
+    let mut a = Answers::defaults(&shape);
+    a.seeds[seeds::WORDS] = false;
+    a.seeds[seeds::SEEDQR] = true;
+    let kept = keep_words(&shape, &a, 0);
+    assert!(kept.map.is_none(), "the plan became its map");
+    assert!(kept.seeds[seeds::WORDS] && !kept.seeds[seeds::SEEDQR]);
+    assert_eq!(kept.part, vec![(0, 0)]);
+    let forms = plan::copy_forms(&c, &shape, &kept, 0);
+    assert!(forms.words && !forms.seedqr, "{forms:?}");
+    // An edited map: the SeedQR becomes the words, not added twice where
+    // the words are already.
+    let mut e = Answers::defaults(&shape);
+    e.set_map(vec![
+        Spot {
+            at: At::Place(0),
+            holds: vec![(What::SeedQr(0), Tag::Secret)],
+        },
+        Spot {
+            at: At::Place(1),
+            holds: vec![
+                (What::Words(0), Tag::Secret),
+                (What::SeedQr(0), Tag::Secret),
+            ],
+        },
+    ]);
+    let kept = keep_words(&shape, &e, 0);
+    let map = plan::map(&c, &shape, &kept);
+    for p in 0..2 {
+        let held: Vec<What> = map
+            .iter()
+            .filter(|s| s.at == At::Place(p))
+            .flat_map(|s| s.holds.iter().map(|(w, _)| *w))
+            .collect();
+        assert_eq!(held, vec![What::Words(0)], "place {p}");
+    }
+    assert_eq!(kept.part, vec![(0, 0), (1, 0)]);
 }

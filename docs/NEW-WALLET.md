@@ -1069,9 +1069,30 @@ chart.
 
 ### 14.7 A copy by hand is checked by its form (F29)
 
-Items 1, 2 and 4 and the chart are built (2026-10-20), item 5 on
-2026-10-21; item 3 (Keep the words only, the three scans, the grid
-drawn in part) is not.
+Items 1, 2 and 4 and the chart are built (2026-10-20), items 5 and 3
+(Keep the words only, the three scans, the grid drawn in part) on
+2026-10-21.
+Item 3 as built: **Keep the words only** is `Action::BKeepWords`
+(`Faraday::keep_words_only`, the plan's side `plan::keep_words`).
+Every SeedQR copy it drops counts as drawn in part, at each place it
+was: the device cannot tell how much was drawn, so no press or scan
+decides it (an untick of the seeds question's SeedQR row drops the
+copy with no mark, as before). The mark is kept with the plan's
+answers, `Answers::part` (place, seed), written as a `part` line of
+the plan's text, not as a note: a plan with no edits stays its answers
+and its map has no `SeedQr(i)` line left to mark. `plan::Mark::Part`
+marks the line on the chart (`glance`), where its sheet offers **I
+destroyed this copy** alone, which takes the entry out of the answers;
+removing the place, or fewer places in the questions, takes it too.
+`plan::with_parts` adds the line for "One place found" (and the
+every-secret-at-one-place line) and `Mapped`'s map never has it, so
+"Any one place lost", the checklist and `copy_forms` do not see it.
+The three scans are `BackupState::misses`, by fingerprint: counted
+when the camera of a copy's scan (`ScanPurpose::CheckCopy`, from the
+item or the chart) is closed by the person (`Action::Cancel`, Escape),
+since a match closes it itself; the line reads the count, "3 scans
+without a match", and from then the foot is **Keep the words only**
+beside **Check my copy** (`screens::copy_foot`).
 Built as specified, with these notes: the blank template's `copy:`
 line (`backup::sheet_blank`, `pdf::blank_sheet`) was built with the
 Starter's template page and is unchanged; the typed words are

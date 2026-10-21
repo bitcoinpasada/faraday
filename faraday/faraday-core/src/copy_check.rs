@@ -380,6 +380,66 @@ impl Faraday {
     }
 }
 
+/// The scans without a match after which **Keep the words only** moves
+/// to the item's foot (`docs/NEW-WALLET.md` §14.7 item 3).
+pub const MISSES: u8 = 3;
+
+impl BackupState {
+    /// How many scans of seed `fp`'s SeedQR copy closed without a match
+    /// in this backup.
+    pub fn misses_of(&self, fp: [u8; 4]) -> u8 {
+        self.misses
+            .iter()
+            .find(|(f, _)| *f == fp)
+            .map_or(0, |(_, n)| *n)
+    }
+}
+
+impl Faraday {
+    /// A scan of seed `fp`'s copy closed without a match: counted once
+    /// for the backup under way.
+    pub(crate) fn copy_missed(&mut self, fp: [u8; 4]) {
+        let Some(b) = self.backup.as_mut() else {
+            return;
+        };
+        match b.misses.iter_mut().find(|(f, _)| *f == fp) {
+            Some((_, n)) => *n = n.saturating_add(1),
+            None => b.misses.push((fp, 1)),
+        }
+    }
+
+    /// Keep the words only, on the open copy item: its seed's SeedQR
+    /// copies become copies of the words, the grid kept on the map drawn
+    /// in part ([`plan::keep_words`]), and the plan saved. Items done stay
+    /// done; the item now asks for typed words, and with those already
+    /// checked it is done at once and the checklist moves on.
+    pub(crate) fn keep_words_only(&mut self) {
+        let c = self.compute();
+        let Some(b) = self.backup.as_ref() else {
+            return;
+        };
+        let Some(n) = b.open.filter(|&n| crate::bstep::is_copy(n)) else {
+            return;
+        };
+        let i = usize::from(n - crate::bstep::COPY);
+        if !self.copy_forms(&c, b, i).seedqr {
+            return;
+        }
+        let shape = self.plan_shape_now(b.wallet);
+        let answers = plan::keep_words(&shape, &b.answers, i);
+        if let Some(b) = self.backup.as_mut() {
+            b.answers = answers;
+            b.scanned = None;
+            b.check = None;
+        }
+        self.plan_save();
+        self.backups_sync();
+        if crate::bstep::item(n).is_some_and(|it| self.backup_item_done_now(&c, it)) {
+            self.act(crate::Action::BNext(n));
+        }
+    }
+}
+
 impl Faraday {
     /// Compare: the passphrase typed against the one the key was loaded
     /// with, whole, exactly and in constant time. A match is the item

@@ -1127,6 +1127,9 @@ pub enum Action {
     BScan,
     /// Clear the typed digits.
     BCheckClear,
+    /// Keep the words only: the open copy item's SeedQR copies become
+    /// copies of the words (`docs/NEW-WALLET.md` §14.7 item 3).
+    BKeepWords,
     /// Vault `v`'s item: save into the open vault, in one press,
     /// everything the plan puts in that vault: its seeds, each passphrase
     /// the plan keeps there, and the wallet where the plan puts it there.
@@ -2574,6 +2577,11 @@ pub struct BackupState {
     /// backup, with the form that matched: the words typed back, or the
     /// drawn SeedQR scanned.
     pub checked: Vec<([u8; 4], plan::CopyForm)>,
+    /// The scans of each seed's SeedQR copy without a match in this
+    /// backup, by fingerprint: each opening of the camera on the copy
+    /// that closed without one (`docs/NEW-WALLET.md` §14.7 item 3). Goes
+    /// with a lock, which drops the backup.
+    pub misses: Vec<([u8; 4], u8)>,
     /// Template word count.
     pub words: usize,
     /// What went to the Outbox, for the summary.
@@ -6023,8 +6031,13 @@ impl Faraday {
                         std::mem::take(&mut s.assembler),
                     ));
                 }
-                if self.scan.take().is_some() {
+                if let Some(scan) = self.scan.take() {
                     self.commands.push_back(Command::CameraOff);
+                    // A copy's scan closed by the person: one scan without
+                    // a match (a match closes the camera itself).
+                    if let ScanPurpose::CheckCopy(fp) = scan.purpose {
+                        self.copy_missed(fp.0);
+                    }
                 }
                 self.sheet = None;
                 self.qr = None;
@@ -6338,6 +6351,7 @@ impl Faraday {
                 }
             }
             Action::BCheckClear => self.copy_check_clear(),
+            Action::BKeepWords => self.keep_words_only(),
             Action::BVaultSave(v) => self.backup_vault_save(usize::from(v)),
             Action::BVaultLoad(v) => self.backup_vault_load_toggle(usize::from(v)),
             Action::BFilesMake => {

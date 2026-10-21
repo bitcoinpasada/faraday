@@ -2462,6 +2462,8 @@ pub struct Strings {
     pub glance_sheet_lost: &'static str,
     /// Text in `view`.
     pub glance_sheet_exposed: &'static str,
+    /// A line's mark on its sheet: a SeedQR dropped for the words.
+    pub glance_sheet_drawn_in_part: &'static str,
     /// Text in `view`. `{}`: `label`.
     pub glance_sheet_move_to: &'static str,
     /// Row in `view`.
@@ -4041,6 +4043,8 @@ pub struct Strings {
     pub plan_mark_lost: &'static str,
     /// A thing's mark on the chart.
     pub plan_mark_exposed: &'static str,
+    /// A thing's mark on the chart: a SeedQR dropped for the words.
+    pub plan_mark_drawn_in_part: &'static str,
     // ----- restore (faraday-core/src/restore.rs) -----
     /// Error in `merge`.
     pub restore_not_a_multisig: &'static str,
@@ -5043,6 +5047,12 @@ pub struct Strings {
     pub copy_check_passphrase_matches: &'static str,
     /// Text in `copy_check`.
     pub copy_check_passphrase_differs: &'static str,
+    /// Button on a SeedQR copy's item: the copy dropped for the words.
+    pub copy_check_keep_the_words: &'static str,
+    /// Text on a SeedQR copy's item. `{}`: the count.
+    pub copy_check_scans_without: &'static str,
+    /// Text on a copy's item. `{}`: the seed's fingerprint.
+    pub copy_check_drawn_in_part: &'static str,
     // ----- item_action (faraday-core/src/screens.rs) -----
     /// Text in `item_action`.
     pub item_action_continue: &'static str,
@@ -10010,6 +10020,7 @@ pub static EN: Strings = Strings {
     glance_sheet_i_destroyed: "I destroyed this copy",
     glance_sheet_lost: "Lost",
     glance_sheet_exposed: "Exposed",
+    glance_sheet_drawn_in_part: "Drawn in part",
     glance_sheet_move_to: "Move {} to",
     glance_sheet_a_new: "A new place",
     glance_sheet_another: "Another copy of {}",
@@ -10763,6 +10774,7 @@ pub static EN: Strings = Strings {
     plan_tag_public: "public",
     plan_mark_lost: "lost",
     plan_mark_exposed: "exposed",
+    plan_mark_drawn_in_part: "drawn in part",
     restore_not_a_multisig: "not a multisig config",
     restore_these_shares: "these shares are of different wallets",
     restore_no_shares: "no shares",
@@ -11243,6 +11255,9 @@ pub static EN: Strings = Strings {
     copy_check_your_copys_passphrase: "Your copy's passphrase",
     copy_check_passphrase_matches: "Your copy matches the passphrase",
     copy_check_passphrase_differs: "Your copy differs from the passphrase",
+    copy_check_keep_the_words: "Keep the words only",
+    copy_check_scans_without: "{} scans without a match",
+    copy_check_drawn_in_part: "Seed {}'s SeedQR, drawn in part, stays on the map until destroyed",
     item_action_continue: "Continue",
     item_action_check_my: "Check my copy",
     item_action_compare: "Compare",

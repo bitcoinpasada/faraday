@@ -191,6 +191,11 @@ pub struct Answers {
     /// (§19.6): until then it shows the placement read-only. Kept with
     /// the plan, so a plan customised once reopens customisable.
     pub custom: bool,
+    /// The SeedQR copies dropped for the words that stay on the map,
+    /// drawn in part (`docs/NEW-WALLET.md` §14.7 item 3), as (place,
+    /// seed): each a secret at its place for "One place found", never a
+    /// copy that rebuilds, until I destroyed this copy takes it off.
+    pub part: Vec<(usize, usize)>,
 }
 
 impl Default for Answers {
@@ -210,6 +215,7 @@ impl Default for Answers {
             map: None,
             bare: Vec::new(),
             custom: false,
+            part: Vec::new(),
         }
     }
 }
@@ -241,6 +247,7 @@ impl Answers {
             map: None,
             bare: Vec::new(),
             custom: false,
+            part: Vec::new(),
         };
         a.pass = shape
             .seeds
@@ -609,6 +616,7 @@ impl Answers {
         let places = places.max(1);
         self.places = places;
         self.bare.retain(|&p| p < places);
+        self.part.retain(|&(p, _)| p < places);
         // A vault whose only stick was at a place that goes is given
         // another.
         let lost: Vec<usize> = self
@@ -1058,6 +1066,10 @@ impl Answers {
         if self.custom {
             out.push_str("custom 1\n");
         }
+        // A SeedQR drawn in part, at its place (§14.7 item 3).
+        for (p, i) in &self.part {
+            out.push_str(&format!("part {p} {i}\n"));
+        }
         out
     }
 
@@ -1074,6 +1086,7 @@ impl Answers {
             .count()
             .max(1);
         self.places = places;
+        self.part.retain(|&(p, _)| p < places);
         for row in &mut self.sticks {
             row.resize(places, false);
         }
@@ -1282,6 +1295,15 @@ impl Answers {
                 }
                 "custom" => {
                     a.custom = value == "1";
+                    continue;
+                }
+                // A SeedQR drawn in part (§14.7 item 3).
+                "part" => {
+                    let (p, i) = value.split_once(' ')?;
+                    let pi = (p.parse().ok()?, i.parse().ok()?);
+                    if !a.part.contains(&pi) {
+                        a.part.push(pi);
+                    }
                     continue;
                 }
                 // The map edited on the chart (§9.7).
@@ -2219,8 +2241,40 @@ pub fn alone(c: &Compute, shape: &Shape, a: &Answers, at: At) -> Alone {
 pub fn alone_on(shape: &Shape, a: &Answers, m: &Mapped, at: At) -> Alone {
     match at {
         At::Stick(..) => alone_in(shape, a, &m.map, at),
-        _ => alone_in(shape, a, &m.places, at),
+        _ => alone_in(shape, a, &with_parts(&m.places, a), at),
     }
+}
+
+/// The map `boxes` with each SeedQR drawn in part ([`Answers::part`]) at
+/// its place, a secret there: what whoever finds the place finds. Not a
+/// copy that rebuilds, so "Any one place lost" never reads this.
+pub fn with_parts<'a>(boxes: &'a [Spot], a: &Answers) -> std::borrow::Cow<'a, [Spot]> {
+    if a.part.is_empty() {
+        return std::borrow::Cow::Borrowed(boxes);
+    }
+    let mut out = boxes.to_vec();
+    for s in out.iter_mut().filter(|s| matches!(s.at, At::Place(_))) {
+        for w in parts_at(a, s.at) {
+            if !s.holds.iter().any(|(h, _)| *h == w) {
+                s.holds.push((w, Tag::Secret));
+            }
+        }
+    }
+    std::borrow::Cow::Owned(out)
+}
+
+/// The SeedQR copies drawn in part at spot `at` ([`Answers::part`]).
+pub fn parts_at(a: &Answers, at: At) -> Vec<What> {
+    a.part
+        .iter()
+        .filter(|&&(p, _)| at == At::Place(p))
+        .map(|&(_, i)| What::SeedQr(i))
+        .collect()
+}
+
+/// Whether `what` at `at` is a SeedQR drawn in part ([`Answers::part`]).
+pub fn is_part(a: &Answers, at: At, what: What) -> bool {
+    matches!((at, what), (At::Place(p), What::SeedQr(i)) if a.part.contains(&(p, i)))
 }
 
 /// How near place `p` brings a spend, counting seeds alone: the
@@ -2452,8 +2506,11 @@ fn check_of(shape: &Shape, a: &Answers, boxes: &[Spot]) -> Check {
         .unwrap_or(Lost::Yes);
     let mut spend = Found::No;
     let mut balance = Found::No;
+    // A SeedQR drawn in part is a secret at its place when the place is
+    // found, and no copy when another is lost (§14.7 item 3).
+    let found_in = with_parts(boxes, a);
     for &at in &places {
-        let found = alone_in(shape, a, boxes, at);
+        let found = alone_in(shape, a, &found_in, at);
         spend = spend.max(found.spend);
         balance = balance.max(found.balance);
     }
@@ -2463,7 +2520,7 @@ fn check_of(shape: &Shape, a: &Answers, boxes: &[Spot]) -> Check {
         balance,
         // A single key has one place at most: its every secret there is
         // no warning (§19.19).
-        one_place: one_place_in(shape, boxes).filter(|_| max_places(shape) > 1),
+        one_place: one_place_in(shape, &found_in).filter(|_| max_places(shape) > 1),
         single: places.len() == 1,
         passphrase_apart: shape.seeds.len() == 1
             && shape.seeds[0].here
@@ -2996,6 +3053,51 @@ pub fn templates_on(shape: &Shape, m: &Mapped) -> usize {
                 .count()
         })
         .sum()
+}
+
+/// **Keep the words only** for seed `i` (`docs/NEW-WALLET.md` §14.7 item
+/// 3): each place's SeedQR of the seed becomes its words, not added where
+/// the place keeps them already, and stays on the map drawn in part
+/// ([`Answers::part`]): the device cannot tell how much of the grid was
+/// drawn. A plan with no edits, where no other seed keeps a SeedQR,
+/// stays its answers: the seeds question's SeedQR row unticked and its
+/// words row ticked. Else the map is edited and is the plan from then on
+/// (§9.7). Costs a map of the plan.
+pub fn keep_words(shape: &Shape, a: &Answers, i: usize) -> Answers {
+    let mut out = a.clone();
+    let stored = stored_map(shape, a);
+    let at: Vec<usize> = stored
+        .iter()
+        .filter_map(|s| match s.at {
+            At::Place(p) if s.holds.iter().any(|(w, _)| *w == What::SeedQr(i)) => Some(p),
+            _ => None,
+        })
+        .collect();
+    if at.is_empty() {
+        return out;
+    }
+    let others = stored.iter().any(|s| {
+        s.holds
+            .iter()
+            .any(|(w, _)| matches!(w, What::SeedQr(j) if *j != i))
+    });
+    if a.map.is_none() && !others {
+        out.seeds[seeds::SEEDQR] = false;
+        out.seeds[seeds::WORDS] = true;
+    } else {
+        let mut m = stored;
+        for &p in &at {
+            m = without(&m, At::Place(p), What::SeedQr(i));
+            m = with_added(&m, At::Place(p), What::Words(i));
+        }
+        out.set_map(m);
+    }
+    for p in at {
+        if !out.part.contains(&(p, i)) {
+            out.part.push((p, i));
+        }
+    }
+    out
 }
 
 // ---------------------------------------------------------------------
@@ -3965,6 +4067,10 @@ pub enum Mark {
     Lost,
     /// Exposed: someone has seen it, or has it.
     Exposed,
+    /// A SeedQR drawn in part and dropped for the words
+    /// (`docs/NEW-WALLET.md` §14.7 item 3): kept by the plan's answers
+    /// ([`Answers::part`]), not as a note.
+    Part,
 }
 
 impl Mark {
@@ -3973,6 +4079,7 @@ impl Mark {
         match self {
             Mark::Lost => "lost",
             Mark::Exposed => "exposed",
+            Mark::Part => "part",
         }
     }
 
@@ -3981,6 +4088,7 @@ impl Mark {
         match self {
             Mark::Lost => EN.plan_mark_lost,
             Mark::Exposed => EN.plan_mark_exposed,
+            Mark::Part => EN.plan_mark_drawn_in_part,
         }
     }
 }

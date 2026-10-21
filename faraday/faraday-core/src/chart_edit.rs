@@ -228,7 +228,28 @@ impl Faraday {
         };
         let places = plan::places_of(&boxes);
         let mut after = answers.clone();
-        after.set_map(plan::edited(&boxes, edit, &dest));
+        match edit {
+            // A SeedQR drawn in part is the plan's answers' alone, not its
+            // map's (`docs/NEW-WALLET.md` §14.7 item 3): destroyed, it goes
+            // from them, and the plan stays what it was.
+            Edit::Drop(at @ At::Place(p), What::SeedQr(i))
+                if plan::is_part(&answers, at, What::SeedQr(i))
+                    && !plan::holds_at(&boxes, at).contains(&What::SeedQr(i)) =>
+            {
+                after.part.retain(|&x| x != (p, i));
+            }
+            _ => {
+                if let Edit::RemovePlace(p) = edit {
+                    after.part.retain(|&(q, _)| q != p);
+                    for (q, _) in &mut after.part {
+                        if *q > p {
+                            *q -= 1;
+                        }
+                    }
+                }
+                after.set_map(plan::edited(&boxes, edit, &dest));
+            }
+        }
         let mut new_names = names.clone();
         new_names.resize(places, String::new());
         match edit {

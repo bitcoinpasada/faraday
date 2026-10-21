@@ -754,8 +754,24 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 let m = match m {
                     Mark::Lost => EN.glance_sheet_lost,
                     Mark::Exposed => EN.glance_sheet_exposed,
+                    Mark::Part => EN.glance_sheet_drawn_in_part,
                 };
                 facts.push((EN.glance_sheet_marked, m.to_string(), ERR));
+            }
+            // A SeedQR drawn in part (`docs/NEW-WALLET.md` §14.7 item 3):
+            // nothing to check or copy; I destroyed this copy takes it off.
+            if mark == Some(Mark::Part) {
+                let mut v = View::new(Icon::Keys, label);
+                v.facts = facts;
+                v.groups = vec![(
+                    String::new(),
+                    vec![row(
+                        EN.glance_sheet_i_destroyed,
+                        "",
+                        edit(Edit::Drop(node.at, what)),
+                    )],
+                )];
+                return Some(v);
             }
             // A secret's actions, with its seed here; else the way to it.
             let secret = |s: usize, rows: &mut Vec<Row>, with: &dyn Fn(&mut Vec<Row>, [u8; 4])| {

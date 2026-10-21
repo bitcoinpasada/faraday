@@ -781,10 +781,15 @@ fn backup_nodes(
             .any(|s| s.holds.iter().any(|(w, _)| *w == What::VaultStick(v))),
     };
     let note_of = |at: At, w: What| {
-        let mark = notes.iter().find_map(|n| match n {
-            plan::Note::Marked(x, y, m) if *x == at && *y == w => Some(*m),
-            _ => None,
-        });
+        // A SeedQR drawn in part is marked so by the plan itself.
+        let mark = if plan::is_part(a, at, w) {
+            Some(plan::Mark::Part)
+        } else {
+            notes.iter().find_map(|n| match n {
+                plan::Note::Marked(x, y, m) if *x == at && *y == w => Some(*m),
+                _ => None,
+            })
+        };
         let checked = notes.iter().find_map(|n| match n {
             plan::Note::Checked(x, y, d) if *x == at && *y == w => Some(d.clone()),
             _ => None,
@@ -796,6 +801,10 @@ fn backup_nodes(
         // A cosigner's seed is theirs to keep: no node of this backup.
         .filter(|spot| !(spot.at == At::Away && any_here))
         .map(|spot| {
+            // A place with its SeedQR copies drawn in part, which stay on
+            // the map until destroyed (`docs/NEW-WALLET.md` §14.7 item 3).
+            let parted = plan::with_parts(std::slice::from_ref(spot), a);
+            let spot = &parted[0];
             let label = |w: What| match w {
                 What::VaultStick(v) if copy_of(spot.at, v) => {
                     fill(EN.glance_copy, &[&vault_name(v).to_string()])

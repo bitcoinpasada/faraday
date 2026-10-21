@@ -6387,9 +6387,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += 8.0;
                 cy += kept_rows(app, ui, x, cy, w);
             }
-            if item_next(app, ui, x, cy, w, n) {
-                cy += 48.0;
-            }
+            cy += copy_foot(app, ui, x, cy, w, n);
         }
         n if bstep::is_passphrase(n) => {
             cy += passphrase_item(app, ui, x, cy, w);
@@ -6561,6 +6559,40 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         };
         let line = crate::backup::copy_scan_line(found);
         cy += ui.wrap(x, cy, w, 13.0, W::S, c, &line) + 12.0;
+    }
+    // A SeedQR copy kept as the words instead (§14.7 item 3): what stays
+    // of the grid, then Keep the words only, or the scans without a match
+    // once it has moved to the foot.
+    if let Some(i) = b
+        .open
+        .filter(|&n| crate::bstep::is_copy(n))
+        .map(|n| usize::from(n - crate::bstep::COPY))
+    {
+        if b.answers.part.iter().any(|&(_, s)| s == i) {
+            let line = fill(
+                EN.copy_check_drawn_in_part,
+                &[&key.fingerprint().to_string()],
+            );
+            cy += ui.wrap(x, cy, w, 13.0, W::R, WARN, &line) + 12.0;
+        }
+        let misses = b.misses_of(key.fingerprint().0);
+        if keep_words_offered(app, i) {
+            if misses >= crate::copy_check::MISSES {
+                let line = fill(EN.copy_check_scans_without, &[&misses.to_string()]);
+                cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 12.0;
+            } else if b.check.is_none() {
+                ui.button(
+                    x,
+                    cy,
+                    None,
+                    36.0,
+                    EN.copy_check_keep_the_words,
+                    Style::Secondary,
+                    Action::BKeepWords,
+                );
+                cy += 36.0 + 12.0;
+            }
+        }
     }
     let Some(c) = b.check.as_ref() else {
         let (form, line) = if pass {
@@ -6800,6 +6832,50 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
         ),
         Item::Envelopes => next,
     }
+}
+
+/// Whether seed `i`'s copy item offers Keep the words only
+/// (`docs/NEW-WALLET.md` §14.7 item 3): the seed has a SeedQR copy and
+/// the item is not done.
+fn keep_words_offered(app: &View, i: usize) -> bool {
+    app.backup.as_ref().is_some_and(|b| {
+        app.copy_forms(b, i).seedqr && !app.backup_item_done(crate::plan::Item::Copy(i))
+    })
+}
+
+/// A copy item's foot: its next action, and after three scans without a
+/// match Keep the words only beside it (`docs/NEW-WALLET.md` §14.7 item
+/// 3). Returns the height used in the column.
+fn copy_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> f32 {
+    let i = usize::from(n - crate::bstep::COPY);
+    let missed = app.backup.as_ref().is_some_and(|b| {
+        app.session
+            .keys
+            .get(b.key)
+            .is_some_and(|k| b.misses_of(k.fingerprint().0) >= crate::copy_check::MISSES)
+    });
+    if !(missed && keep_words_offered(app, i)) {
+        return if item_next(app, ui, x, y, w, n) {
+            48.0
+        } else {
+            0.0
+        };
+    }
+    let (label, action) = item_action(app, n);
+    let typing = app.backup.as_ref().and_then(|b| b.check.as_ref()).is_some();
+    let next = (!(typing && action == Action::BCheck)).then_some((label.as_str(), action));
+    buttons_and_next(
+        ui,
+        x,
+        y,
+        w,
+        &[(
+            EN.copy_check_keep_the_words,
+            Style::Secondary,
+            Action::BKeepWords,
+        )],
+        next,
+    )
 }
 
 /// The item's next action as its foot button. Returns whether it was
