@@ -52,6 +52,17 @@ Carried before the fork (`HANDOFF.md`, Upstream, has the detail):
 
 Since the fork:
 
+- `opensigner/shells/v4l2` and `opensigner/shells/avfoundation`
+  (2026-10-21; tracker #181): a camera that does not open says why.
+  v4l2 gains `Failure` (`NotFound` for ENOENT, ENODEV and ENXIO; `InUse`
+  for EBUSY; `Refused` for EACCES and EPERM; `of_errno`, `of_io`) and
+  `find_or_failure`, which names the strongest reason any node gave when
+  none opened; `find` is unchanged. avfoundation gains `Failure` and
+  `Message::Unavailable(Option<Failure>)`; `camera.m` reports state
+  codes (1 started, 0 failed, 2 refused or restricted, 3 no device, 4 in
+  use by another app) instead of 0 and 1. Why: the app has a line for
+  each reason and the shells could only say "unavailable". Additive:
+  anything not clearly one of the three stays `None`.
 - `docs/learn/*.md` and `osk-learn`'s `en.rs` (2026-10-20): the Learn
   pages Faraday shows name Faraday and its screens instead of
   OpenSigner's: start here, words, transactions, randomness, where

@@ -121,8 +121,35 @@ pub enum Message {
     /// One captured frame.
     Frame(Frame),
     /// No frames will come: no camera, or the user refused permission.
-    /// Sent once.
-    Unavailable,
+    /// Sent once. The reason, when macOS gave one this crate can tell.
+    Unavailable(Option<Failure>),
+}
+
+/// Why a camera gave no frames, when it is clearly one of three things.
+/// The Windows crate uses the same type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Failure {
+    /// Camera access is denied or restricted, or the person said no.
+    Refused,
+    /// Another app holds the camera.
+    InUse,
+    /// There is no camera, or the one asked for is gone.
+    NotFound,
+}
+
+impl Failure {
+    /// The reason in the state code `src/camera.m` reports: 2 is
+    /// refused, 3 no device, 4 in use by another app. Any other code
+    /// (0, "could not start") has no reason.
+    #[must_use]
+    pub fn of_state(code: i32) -> Option<Failure> {
+        match code {
+            2 => Some(Failure::Refused),
+            3 => Some(Failure::NotFound),
+            4 => Some(Failure::InUse),
+            _ => None,
+        }
+    }
 }
 
 /// The most frames a second a `Camera` sends on.
@@ -143,7 +170,7 @@ mod macos {
     use std::sync::mpsc::SyncSender;
     use std::time::{Duration, Instant};
 
-    use crate::{Device, Frame, MAX_FPS, Message};
+    use crate::{Device, Failure, Frame, MAX_FPS, Message};
 
     /// The C ABI of `src/camera.m`, which declares the same two
     /// signatures in its header comment.
@@ -157,7 +184,7 @@ mod macos {
     type FrameFn = unsafe extern "C" fn(*mut c_void, *const u8, u32, u32, u32, *const u8, u32);
 
     /// ```c
-    /// typedef void (*osk_avf_state_fn)(void *ctx, int32_t ok);
+    /// typedef void (*osk_avf_state_fn)(void *ctx, int32_t state);
     /// ```
     type StateFn = unsafe extern "C" fn(*mut c_void, i32);
 
@@ -326,14 +353,16 @@ mod macos {
     /// # Safety
     ///
     /// `ctx` is the pointer given to `osk_avf_start`.
-    unsafe extern "C" fn on_state(ctx: *mut c_void, ok: i32) {
+    unsafe extern "C" fn on_state(ctx: *mut c_void, state: i32) {
         if ctx.is_null() {
             return;
         }
         // SAFETY: as in `on_frame` — the box outlives every callback.
         let shared = unsafe { &*ctx.cast::<Shared>() };
-        if ok == 0 && !shared.stopped.load(Ordering::Relaxed) {
-            let _ = shared.tx.try_send(Message::Unavailable);
+        if state != 1 && !shared.stopped.load(Ordering::Relaxed) {
+            let _ = shared
+                .tx
+                .try_send(Message::Unavailable(Failure::of_state(state)));
         }
     }
 
@@ -427,6 +456,17 @@ mod tests {
         assert_eq!(Frame::from_plane(&plane[..15], 4, 3, 6, None), None);
         let frame = Frame::from_plane(&plane, 4, 3, 6, Some((&uv[..6], 6))).expect("long enough");
         assert_eq!(frame.chroma, None);
+    }
+
+    /// The state codes the Objective-C side reports map to the reasons a
+    /// person is told; a plain failure has none.
+    #[test]
+    fn state_codes_give_the_reason() {
+        assert_eq!(Failure::of_state(2), Some(Failure::Refused));
+        assert_eq!(Failure::of_state(3), Some(Failure::NotFound));
+        assert_eq!(Failure::of_state(4), Some(Failure::InUse));
+        assert_eq!(Failure::of_state(0), None);
+        assert_eq!(Failure::of_state(1), None);
     }
 
     /// A 2560 × 1440 plane comes back halved: 2560 needs a factor of two

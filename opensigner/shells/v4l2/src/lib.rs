@@ -132,18 +132,73 @@ pub struct Frame {
 /// the first one that passes is the camera. Nothing is set on a node
 /// that is only probed — the format test is `VIDIOC_TRY_FMT`.
 pub fn find() -> Option<PathBuf> {
+    search().0
+}
+
+/// [`find`], and when it finds nothing, why: the strongest reason any
+/// node gave for not opening ([`Failure::Refused`] over
+/// [`Failure::InUse`] over [`Failure::NotFound`]). A box with no
+/// `/dev/video*` at all is `NotFound`.
+pub fn find_or_failure() -> Result<PathBuf, Failure> {
+    match search() {
+        (Some(path), _) => Ok(path),
+        (None, why) => Err(why.unwrap_or(Failure::NotFound)),
+    }
+}
+
+/// The camera [`find`] picks, and the strongest reason a node refused to
+/// open.
+fn search() -> (Option<PathBuf>, Option<Failure>) {
     let mut grey = None;
+    let mut why: Option<Failure> = None;
     for n in 0..MAX_NODES {
         let path = PathBuf::from(format!("/dev/video{n}"));
         match capture(&path) {
-            Some(Capture::Colour) => return Some(path),
-            Some(Capture::Grey) => {
+            Ok(Some(Capture::Colour)) => return (Some(path), None),
+            Ok(Some(Capture::Grey)) => {
                 grey.get_or_insert(path);
             }
-            None => {}
+            Ok(None) => {}
+            Err(e) => {
+                why = why.max(Failure::of_io(&e));
+            }
         }
     }
-    grey
+    (grey, why)
+}
+
+/// Why a camera did not open, as far as the kernel's error says.
+///
+/// Ordered by how much the person can do about it: a refused camera
+/// outranks one in use, which outranks one that is not there.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Failure {
+    /// There is no such device (`ENOENT`, `ENODEV`, `ENXIO`).
+    NotFound,
+    /// Another program holds it (`EBUSY`).
+    InUse,
+    /// The user may not open it (`EACCES`, `EPERM`).
+    Refused,
+}
+
+impl Failure {
+    /// The reason an `errno` gives, or `None` for any other error.
+    #[must_use]
+    pub fn of_errno(errno: i32) -> Option<Failure> {
+        match errno {
+            libc::ENOENT | libc::ENODEV | libc::ENXIO => Some(Failure::NotFound),
+            libc::EBUSY => Some(Failure::InUse),
+            libc::EACCES | libc::EPERM => Some(Failure::Refused),
+            _ => None,
+        }
+    }
+
+    /// The reason an I/O error from opening or setting up a camera
+    /// gives, or `None` when it carries no OS error or an unrelated one.
+    #[must_use]
+    pub fn of_io(error: &io::Error) -> Option<Failure> {
+        error.raw_os_error().and_then(Failure::of_errno)
+    }
 }
 
 /// What a node that can capture gives.
@@ -156,12 +211,19 @@ enum Capture {
 
 /// Whether one node is a streaming video capture device that takes a
 /// format we can convert, and whether that format has colour.
-fn capture(path: &Path) -> Option<Capture> {
-    let file = open_rw(path).ok()?;
+fn capture(path: &Path) -> io::Result<Option<Capture>> {
+    let file = match open_rw(path) {
+        Ok(file) => file,
+        // A node that is not there is not a failure to report.
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(e),
+    };
     let fd = file.as_raw_fd();
-    let caps = query_cap(fd).ok()?.node_caps();
+    let Ok(caps) = query_cap(fd).map(|c| c.node_caps()) else {
+        return Ok(None);
+    };
     if caps & abi::CAP_VIDEO_CAPTURE == 0 || caps & abi::CAP_STREAMING == 0 {
-        return None;
+        return Ok(None);
     }
     let granted: Vec<u32> = abi::FORMATS
         .iter()
@@ -169,13 +231,13 @@ fn capture(path: &Path) -> Option<Capture> {
         .map(|f| f.pix.pixelformat)
         .filter(|&f| convert::luma_step(f).is_some())
         .collect();
-    if granted.iter().any(|&f| f != abi::PIX_FMT_GREY) {
+    Ok(if granted.iter().any(|&f| f != abi::PIX_FMT_GREY) {
         Some(Capture::Colour)
     } else if granted.is_empty() {
         None
     } else {
         Some(Capture::Grey)
-    }
+    })
 }
 
 /// A streaming camera: the device, its negotiated format, and the four
@@ -623,5 +685,32 @@ mod tests {
     #[test]
     fn find_answers_without_a_camera() {
         let _ = find();
+        let _ = find_or_failure();
+    }
+
+    /// The errors a person meets: no device, a device another program
+    /// holds, and a device their account may not open.
+    #[test]
+    fn errno_gives_the_reason() {
+        for e in [libc::ENOENT, libc::ENODEV, libc::ENXIO] {
+            assert_eq!(Failure::of_errno(e), Some(Failure::NotFound));
+        }
+        assert_eq!(Failure::of_errno(libc::EBUSY), Some(Failure::InUse));
+        for e in [libc::EACCES, libc::EPERM] {
+            assert_eq!(Failure::of_errno(e), Some(Failure::Refused));
+        }
+        assert_eq!(Failure::of_errno(libc::EINVAL), None);
+        let busy = io::Error::from_raw_os_error(libc::EBUSY);
+        assert_eq!(Failure::of_io(&busy), Some(Failure::InUse));
+        assert_eq!(Failure::of_io(&io::Error::other("no format")), None);
+    }
+
+    /// A node that is refused outranks one in use, which outranks one
+    /// that is missing, so `find_or_failure` names the thing to fix.
+    #[test]
+    fn refused_outranks_in_use_outranks_missing() {
+        assert!(Failure::Refused > Failure::InUse);
+        assert!(Failure::InUse > Failure::NotFound);
+        assert_eq!(None.max(Some(Failure::NotFound)), Some(Failure::NotFound));
     }
 }

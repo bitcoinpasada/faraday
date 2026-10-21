@@ -10,7 +10,7 @@
 //                                      uint32_t width, uint32_t height,
 //                                      uint32_t stride, const uint8_t *uv,
 //                                      uint32_t uv_stride);
-//     typedef void (*osk_avf_state_fn)(void *ctx, int32_t ok);
+//     typedef void (*osk_avf_state_fn)(void *ctx, int32_t state);
 //     typedef void (*osk_avf_device_fn)(void *ctx, const char *id,
 //                                       const char *name);
 //     void  osk_avf_list(void *ctx, osk_avf_device_fn on_device);
@@ -20,8 +20,12 @@
 //
 // `device` is a unique ID `osk_avf_list` gave, or NULL for the system's
 // default camera. An ID that no camera has any more is one
-// on_state(ctx, 0). The session asks for 1280 x 720 and takes 640 x 480,
+// on_state(ctx, 3). The session asks for 1280 x 720 and takes 640 x 480,
 // or the camera's own default, when the camera has no such mode.
+//
+// State codes: 1 started; 0 could not start, no reason known; 2 camera
+// access denied or restricted; 3 no such device; 4 the device is in use
+// by another app.
 //
 // Threads. `osk_avf_start` returns at once. When the permission is
 // already decided it calls `on_state` on the calling thread before it
@@ -47,7 +51,7 @@
 typedef void (*osk_avf_frame_fn)(void *ctx, const uint8_t *y, uint32_t width,
                                  uint32_t height, uint32_t stride,
                                  const uint8_t *uv, uint32_t uv_stride);
-typedef void (*osk_avf_state_fn)(void *ctx, int32_t ok);
+typedef void (*osk_avf_state_fn)(void *ctx, int32_t state);
 typedef void (*osk_avf_device_fn)(void *ctx, const char *id, const char *name);
 
 void osk_avf_list(void *ctx, osk_avf_device_fn on_device);
@@ -61,7 +65,7 @@ void osk_avf_stop(void *handle);
                       state:(osk_avf_state_fn)onState
                      device:(NSString *)device;
 - (void)configureAndStart;
-- (void)reportUnavailable;
+- (void)reportUnavailable:(int32_t)state;
 - (void)shutdown;
 @end
 
@@ -97,16 +101,16 @@ void osk_avf_stop(void *handle);
 
 // The state callback, under the lock, so that a stop cannot free the
 // caller's context while it runs.
-- (void)notify:(int32_t)ok {
+- (void)notify:(int32_t)state {
     [_lock lock];
     if (!_stopped && _onState != NULL) {
-        _onState(_ctx, ok);
+        _onState(_ctx, state);
     }
     [_lock unlock];
 }
 
-- (void)reportUnavailable {
-    [self notify:0];
+- (void)reportUnavailable:(int32_t)state {
+    [self notify:state];
 }
 
 // Builds the session and starts it, or reports unavailable. Held under
@@ -118,12 +122,13 @@ void osk_avf_stop(void *handle);
         [_lock unlock];
         return;
     }
-    int32_t ok = 0;
+    int32_t state = 3;
     AVCaptureDevice *device =
         _deviceID != nil
             ? [AVCaptureDevice deviceWithUniqueID:_deviceID]
             : [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
     if (device != nil) {
+        state = 0;
         NSError *error = nil;
         AVCaptureDeviceInput *input =
             [AVCaptureDeviceInput deviceInputWithDevice:device error:&error];
@@ -146,16 +151,18 @@ void osk_avf_stop(void *handle);
             [session addInput:input];
             [session addOutput:output];
             [output setSampleBufferDelegate:self queue:_queue];
-            ok = 1;
+            state = 1;
+        } else if (input == nil && device.inUseByAnotherApplication) {
+            state = 4;
         }
         [session commitConfiguration];
-        if (ok == 1) {
+        if (state == 1) {
             _session = session;
             [session startRunning];
         }
     }
     if (_onState != NULL) {
-        _onState(_ctx, ok);
+        _onState(_ctx, state);
     }
     [_lock unlock];
 }
@@ -233,8 +240,8 @@ void osk_avf_list(void *ctx, osk_avf_device_fn on_device) {
     }
 }
 
-// Asks for permission if it has not been asked for, then starts. Denied,
-// restricted, or no device is one on_state(ctx, 0). The handle is always
+// Asks for permission if it has not been asked for, then starts. Denied or
+// restricted is on_state(ctx, 2), no device on_state(ctx, 3). The handle is always
 // valid and must always be passed to osk_avf_stop.
 void *osk_avf_start(void *ctx, osk_avf_frame_fn on_frame,
                     osk_avf_state_fn on_state, const char *device) {
@@ -257,11 +264,11 @@ void *osk_avf_start(void *ctx, osk_avf_frame_fn on_frame,
                                      if (granted) {
                                          [capture configureAndStart];
                                      } else {
-                                         [capture reportUnavailable];
+                                         [capture reportUnavailable:2];
                                      }
                                  }];
     } else {
-        [capture reportUnavailable];
+        [capture reportUnavailable:2];
     }
     return (__bridge_retained void *)capture;
 }
