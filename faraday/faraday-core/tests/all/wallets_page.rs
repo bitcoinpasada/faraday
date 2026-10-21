@@ -44,7 +44,7 @@ fn with_single_key_wallet() -> Faraday {
             faraday_core::wallet::Origin::Named,
         )
         .unwrap();
-    app.press(Action::Nav(Screen::Start));
+    app.press(Action::Nav(Screen::WalletsStart));
     let _ = app.frame();
     app
 }
@@ -69,7 +69,7 @@ fn with_watch_only_wallet() -> Faraday {
             faraday_core::wallet::Origin::Named,
         )
         .unwrap();
-    app.press(Action::Nav(Screen::Start));
+    app.press(Action::Nav(Screen::WalletsStart));
     let _ = app.frame();
     app
 }

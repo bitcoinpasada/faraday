@@ -395,7 +395,7 @@ impl Tour {
             self.type_key(0);
         }
         self.app.wallet = 0;
-        self.press(Action::Nav(Screen::Start));
+        self.press(Action::Nav(Screen::WalletsStart));
         Ok(())
     }
 
@@ -854,7 +854,7 @@ fn run(
     t.shot("home-files")?;
     t.press(Action::Nav(Screen::Files));
     t.shot("files")?;
-    t.press(Action::Nav(Screen::Start));
+    t.press(Action::Nav(Screen::WalletsStart));
     t.shot("start-before")?;
     t.load_kit()?;
     t.shot("start")?;
@@ -1444,7 +1444,7 @@ fn run(
     if t.app.create_keys(c).is_ok() {
         return Err("a wallet with a key to come could be made".into());
     }
-    t.press(Action::Nav(Screen::Start));
+    t.press(Action::Nav(Screen::WalletsStart));
     t.shot("start-create-waiting")?;
     t.press(Action::CreateWallet);
     if t.app.create_waiting() != 1 {
@@ -2256,7 +2256,7 @@ fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     }
     println!("boot: imported from the boot stick, a new wallet saved into its vault");
     // BIP-85: a password from test key 1, into the open vault.
-    t.press(Action::Nav(Screen::Start));
+    t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::Bip85);
     if t.app.bip85.is_none() {
         return Err("BIP-85 did not open".into());
@@ -2271,24 +2271,24 @@ fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("bip85-value")?;
     t.press(Action::PVault);
     // Silent payments: test key 1's address with label 1.
-    t.press(Action::Nav(Screen::Start));
+    t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::Silent);
     t.press(Action::SKey(first));
     t.press(Action::SLabel(1));
     t.shot("silent-address")?;
     // Explore: test key 1 at BIP-86's first address.
-    t.press(Action::Nav(Screen::Start));
+    t.press(Action::Nav(Screen::WalletsStart));
     t.shot("start-tools")?;
     t.press(Action::Explore);
     t.press(Action::XPreset(1));
     t.shot("explore")?;
     // Lightning: test key 1 as ldk-node reads it.
-    t.press(Action::Nav(Screen::Start));
+    t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::Lightning);
     t.press(Action::LKey(first));
     t.shot("lightning")?;
     // Tools: a key in every spelling.
-    t.press(Action::Nav(Screen::Start));
+    t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::Tools);
     t.press(Action::TTool(3));
     type_text(
@@ -2298,7 +2298,7 @@ fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("tools-convert")?;
     // Restore begins with the kind of wallet (`docs/history/NEW-WALLET.md` §12).
     t.press(Action::Lock);
-    t.press(Action::Nav(Screen::Start));
+    t.press(Action::Nav(Screen::WalletsStart));
     t.shot("start-empty")?;
     t.press(Action::RestoreWallet);
     t.shot("restore-kind")?;
@@ -2518,7 +2518,7 @@ fn transfer_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("transfer-saved")?;
     t.press(Action::Nav(Screen::Home));
     t.shot("transfer-home")?;
-    t.press(Action::Nav(Screen::Start));
+    t.press(Action::Nav(Screen::WalletsStart));
     t.shot("transfer-wallets")
 }
 
@@ -2541,7 +2541,7 @@ fn scan_tour(t: &mut Tour) -> Result<(), String> {
 /// card for words typed, locked in; then the codex32 tile's Words card.
 fn add_key_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::keygen::Start;
-    t.press(Action::Nav(Screen::Start));
+    t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
     t.shot("addkey-start")?;
     t.press(Action::KOthers);
@@ -2575,7 +2575,7 @@ fn add_key_tour(t: &mut Tour) -> Result<(), String> {
 fn compact_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::cstep;
     t.shot("home")?;
-    t.press(Action::Nav(Screen::Start));
+    t.press(Action::Nav(Screen::WalletsStart));
     t.shot("wallets-empty")?;
     // Add a key with a stick in: the sheet, then Add a key once it is
     // pulled.
@@ -2871,7 +2871,7 @@ fn keys_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Wallets));
     t.shot("wallets-one-wallet-one-key")?;
     // The small panel's wallet list, where the loose key has its row.
-    t.press(Action::Nav(Screen::Start));
+    t.press(Action::Nav(Screen::WalletsStart));
     t.shot("wallet-list-one-wallet-one-key")?;
     Ok(())
 }
@@ -4596,7 +4596,7 @@ fn themes_tour(t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     for theme in faraday_core::ui::Theme::ALL {
         t.press(Action::Theme(theme));
-        t.press(Action::Nav(Screen::Start));
+        t.press(Action::Nav(Screen::WalletsStart));
         t.shot(&format!("theme-{}-wallets", theme.id()))?;
         t.press(Action::Nav(Screen::Wallets));
         t.shot(&format!("theme-{}-list", theme.id()))?;
@@ -5583,7 +5583,7 @@ fn cancel_tour(t: &mut Tour) -> Result<(), String> {
         .iter()
         .position(|k| *k == faraday_core::create::NewKind::Multi)
         .ok_or("no multisig")? as u8;
-    t.press(Action::Nav(Screen::Start));
+    t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::CreateWallet);
     t.press(Action::CKind(multi));
     t.press(Action::CNext(cstep::KIND));

@@ -80,8 +80,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Some(crate::Screen::Home) => {
                     Some((EN.family_home, Action::Nav(crate::Screen::Home)))
                 }
-                Some(crate::Screen::Start) => {
-                    Some((EN.family_wallets, Action::Nav(crate::Screen::Start)))
+                Some(crate::Screen::WalletsStart) => {
+                    Some((EN.family_wallets, Action::Nav(crate::Screen::WalletsStart)))
                 }
                 _ => None,
             }),

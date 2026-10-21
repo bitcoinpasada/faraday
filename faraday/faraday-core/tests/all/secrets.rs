@@ -335,7 +335,7 @@ fn a_round_signed_with_by_taps_leaves_the_vault_and_cannot_sign_again() {
         "the round used leaves the vault"
     );
     // The same transaction started again finds no round to sign with.
-    tap(&mut b, Action::Nav(Screen::Start));
+    tap(&mut b, Action::Nav(Screen::WalletsStart));
     b.press(Action::StartSpend(p));
     assert!(
         b.spend.as_ref().unwrap().carry.is_none(),

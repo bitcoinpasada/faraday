@@ -772,7 +772,7 @@ fn a_described_wallets_check_has_no_no_money_shows() {
 #[test]
 fn the_spend_tab_opens_from_the_wallets_empty_state() {
     let mut app = shown();
-    app.press(Action::Nav(Screen::Start));
+    app.press(Action::Nav(Screen::WalletsStart));
     let _ = app.frame();
     assert!(app.offers(Action::Nav(Screen::Family)));
     app.press(Action::Nav(Screen::Family));

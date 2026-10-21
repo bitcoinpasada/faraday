@@ -484,7 +484,7 @@ fn the_row_is_lit_on_its_flows_screen_and_its_tab_is_not() {
     assert!(!lit(&mut app, "Make a new wallet"));
     assert!(lit(&mut app, "Settings"), "Settings is");
     // On any other screen of the tab, the tab is lit as before.
-    app.press(Action::Nav(Screen::Start));
+    app.press(Action::Nav(Screen::WalletsStart));
     assert!(lit(&mut app, "Wallets"));
     assert!(!lit(&mut app, "Make a new wallet"));
 }
@@ -529,7 +529,7 @@ fn create_at_places_from_wallets() -> Faraday {
     for n in 0..3 {
         key_in(&mut app, n);
     }
-    app.press(Action::Nav(Screen::Start));
+    app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::CreateWallet);
     app.press(Action::CKind(multi_index()));
     for slot in 0..3u8 {
@@ -563,7 +563,7 @@ fn cancel_on_places_asks_then_ends_the_flow_on_wallets_with_the_keys_still_loade
     }
     app.press(Action::CancelFlowNow);
     assert_eq!(app.sheet, None);
-    assert_eq!(app.screen, Screen::Start, "Wallets shown");
+    assert_eq!(app.screen, Screen::WalletsStart, "Wallets shown");
     let now: Vec<[u8; 4]> = (0..3).map(|k| fp(&app, k)).collect();
     assert_eq!(now, keys, "the keys stay loaded");
     assert_eq!(app.session.wallets.len(), wallets, "the wallet made stays");
@@ -589,7 +589,7 @@ fn keep_going_leaves_the_flow_as_it_was() {
 #[test]
 fn a_flow_on_its_first_card_ends_without_the_sheet() {
     let mut app = testkit::started();
-    app.press(Action::Nav(Screen::Start));
+    app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::CreateWallet);
     app.press(Action::CNext(cstep::KIND));
     assert!(row_on_settings(&mut app, Going::Create), "Kind done: a row");
@@ -597,7 +597,7 @@ fn a_flow_on_its_first_card_ends_without_the_sheet() {
     assert_eq!(app.screen, Screen::Create);
     app.press(Action::CancelFlow);
     assert_eq!(app.sheet, None, "nothing past the first card: no sheet");
-    assert_eq!(app.screen, Screen::Start);
+    assert_eq!(app.screen, Screen::WalletsStart);
     assert!(!row_on_settings(&mut app, Going::Create));
     // Make a new wallet opens afresh, on Kind.
     app.press(Action::CreateWallet);
@@ -640,7 +640,7 @@ fn the_gpg_flows_cancel_removes_its_tools_row() {
 fn restores_cancel_ends_it_and_removes_its_row() {
     let mut app = testkit::started();
     app.press(Action::Network(testkit::NET));
-    app.press(Action::Nav(Screen::Start));
+    app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::RestoreWallet);
     app.press(Action::RNext(rstep::KIND));
     app.press(Action::RSeeds);
@@ -651,7 +651,7 @@ fn restores_cancel_ends_it_and_removes_its_row() {
     app.press(Action::CancelFlow);
     assert_eq!(app.sheet, Some(Sheet::CancelFlow(Going::Restore)));
     app.press(Action::CancelFlowNow);
-    assert_eq!(app.screen, Screen::Start);
+    assert_eq!(app.screen, Screen::WalletsStart);
     assert!(!row_on_settings(&mut app, Going::Restore));
 }
 
@@ -688,7 +688,7 @@ fn a_spends_cancel_ends_it_and_removes_its_row() {
 fn sign_a_messages_cancel_ends_it_and_removes_its_row() {
     use faraday_core::mstep;
     let mut app = with(1, 1);
-    app.press(Action::Nav(Screen::Start));
+    app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::SignMessage);
     app.press(Action::MNext(mstep::ADDRESS));
     app.press(Action::MNext(mstep::TEXT));
@@ -697,7 +697,7 @@ fn sign_a_messages_cancel_ends_it_and_removes_its_row() {
     app.press(Action::CancelFlow);
     assert_eq!(app.sheet, Some(Sheet::CancelFlow(Going::Message)));
     app.press(Action::CancelFlowNow);
-    assert_eq!(app.screen, Screen::Start);
+    assert_eq!(app.screen, Screen::WalletsStart);
     assert!(!row_on_settings(&mut app, Going::Message));
 }
 

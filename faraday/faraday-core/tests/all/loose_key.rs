@@ -186,7 +186,7 @@ fn the_small_panels_wallet_list_offers_a_wallet_from_a_loose_key() {
     app.press(Action::KeyWallet(first, 1));
     app.press(Action::Seeds(S::Make));
     let second = add_key(&mut app, &faraday_core::testkit::test_words("zebra"));
-    app.press(Action::Nav(Screen::Start));
+    app.press(Action::Nav(Screen::WalletsStart));
     let mut seen = false;
     for _ in 0..20 {
         let _ = app.frame();

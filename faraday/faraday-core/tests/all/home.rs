@@ -104,7 +104,7 @@ fn home_does_not_offer_add_a_key_directly() {
 #[test]
 fn add_a_key_from_wallets_opens_new_key_on_start() {
     let mut app = shown();
-    app.press(Action::Nav(Screen::Start));
+    app.press(Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::KeyGen(None));
     assert_eq!(app.screen, Screen::KeyGen);
     assert_eq!(app.sheet, None);
@@ -117,10 +117,10 @@ fn add_a_key_from_wallets_opens_new_key_on_start() {
 #[test]
 fn add_a_key_from_wallets_with_a_stick_in_asks_for_it_and_opens_once_it_is_pulled() {
     let mut app = home_with_stick();
-    app.press(Action::Nav(Screen::Start));
+    app.press(Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::KeyGen(None));
     assert_eq!(app.sheet, Some(Sheet::Pull));
-    assert_eq!(app.screen, Screen::Start);
+    assert_eq!(app.screen, Screen::WalletsStart);
     stick(&mut app, false);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::KeyGen);
@@ -129,19 +129,19 @@ fn add_a_key_from_wallets_with_a_stick_in_asks_for_it_and_opens_once_it_is_pulle
 #[test]
 fn cancel_leaves_wallets_and_a_later_pull_opens_nothing() {
     let mut app = home_with_stick();
-    app.press(Action::Nav(Screen::Start));
+    app.press(Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::KeyGen(None));
     tap(&mut app, Action::Cancel);
     assert_eq!(app.sheet, None);
-    assert_eq!(app.screen, Screen::Start);
+    assert_eq!(app.screen, Screen::WalletsStart);
     stick(&mut app, false);
-    assert_eq!(app.screen, Screen::Start);
+    assert_eq!(app.screen, Screen::WalletsStart);
 }
 
 #[test]
 fn the_wallets_tab_offers_add_a_key() {
     let mut app = shown();
-    app.press(Action::Nav(Screen::Start));
+    app.press(Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::KeyGen(None));
     assert_eq!(app.screen, Screen::KeyGen);
 }
@@ -221,7 +221,7 @@ fn a_seedqr_scanned_while_a_stick_is_held_loads_no_key() {
 fn a_seedqr_scanned_from_home_loads_the_key_add_a_keys_scan_loads() {
     use faraday_core::keygen::Start;
     let mut from_add = shown();
-    from_add.press(Action::Nav(Screen::Start));
+    from_add.press(Action::Nav(Screen::WalletsStart));
     tap(&mut from_add, Action::KeyGen(None));
     tap(&mut from_add, Action::KStart(Start::Scan.index()));
     tap(&mut from_add, Action::KNext);
@@ -460,7 +460,7 @@ fn home_and_empty_wallets_name_the_two_flows() {
         !joined.contains("Load or restore a wallet"),
         "the old name is gone: {joined}"
     );
-    tap(&mut app, Action::Nav(Screen::Start));
+    tap(&mut app, Action::Nav(Screen::WalletsStart));
     let joined = app.drawn_texts().join(" ");
     assert!(
         joined.contains("Make a new wallet"),
@@ -504,12 +504,12 @@ fn the_flows_opened_from_wallets_lead_back_to_wallets() {
         (Action::Nav(Screen::Family), Screen::Family),
     ] {
         let mut app = shown();
-        app.press(Action::Nav(Screen::Start));
+        app.press(Action::Nav(Screen::WalletsStart));
         tap(&mut app, action);
         assert_eq!(app.screen, screen);
         app.event(Event::Back);
         let _ = app.frame();
-        assert_eq!(app.screen, Screen::Start, "back from {screen:?}");
+        assert_eq!(app.screen, Screen::WalletsStart, "back from {screen:?}");
     }
 }
 

@@ -101,7 +101,7 @@ Every way in that names these two flows reads the same:
 | Load or restore a wallet (Home tile, Wallets empty state and loaded card, Restore's heading, `compact.rs`, `vault/mod.rs`, `catalog.rs`'s entry) | Restore an existing wallet |
 
 The sub-lines stay ("Single key or multisig", "From its backups").
-"Make a wallet from this key" (`screens.rs` `FROM_KEY`) is a different
+"Make a wallet from this key" (`screens/parts.rs` `FROM_KEY`) is a different
 action and stays. `docs/learn/` and `docs/FLOWS.md` follow where they
 name the tiles.
 
@@ -149,7 +149,7 @@ callers that keep it (Restore's slots).
 
 ### 2.2 The wallet card
 
-The signatures bar (`screens.rs` wallet card, `compact/screen.rs`'s
+The signatures bar (`screens/wallets.rs` wallet card, `compact/screen.rs`'s
 card):
 
 - Short of signers: the pips and `{here} of {m} signatures possible
@@ -173,7 +173,7 @@ line (no "Add its key"). The node's own press still opens its sheet. A
 key in an open vault keeps **Load from vault**. Once the wallet can
 spend, the nodes are as now ("Cosigner · xpub only").
 
-The same rows in Wallets' Sign step 4 (`screens.rs`, the `4 =>` arm
+The same rows in Wallets' Sign step 4 (`screens/spend.rs`, the `4 =>` arm
 with "Add its key") and the Spend tab's Who signs follow §3.
 
 ### 2.4 The Wallets list
@@ -215,7 +215,7 @@ loaded,
 ## 3. Who signs (batch A)
 
 The Spend tab's signers card (`family/screen.rs` `signers`) and Wallets'
-Sign step 4 (`screens.rs`):
+Sign step 4 (`screens/spend.rs`):
 
 ### 3.1 The count
 

@@ -446,12 +446,12 @@ writing it back is safe and optional.)*
 
 | Part | Where |
 |---|---|
-| `Screen::Family`, the sidebar row, `Action::Family(FamilyAction)` | `faraday-core/src/lib.rs`, `screens.rs` |
+| `Screen::Family`, the sidebar row, `Action::Family(FamilyAction)` | `faraday-core/src/lib.rs`, `faraday-core/src/screens/mod.rs`, `faraday-core/src/screens/sidebar.rs` |
 | `FamilyState { route, open }`; which pages apply; each page's done line from app state | new `faraday-core/src/family/mod.rs` |
 | Drawing: the column, the map, the answer tiles, the More folds | new `faraday-core/src/family/screen.rs`, on `flow::column` |
 | The text of §4 | new `faraday-core/src/family/text.rs`, one file, like `guide.rs` |
 | Unlock's controls without its title and back link, called by Unlock and by page 3 | `vault/screen.rs`: `unlock()` split into `unlock_body()` |
-| Pages 8, 10, 11 call Wallets' `step_body` for the spend's own steps; while one is open the Family card follows `spend.open` | `screens.rs` |
+| Pages 8, 10, 11 call Wallets' `step_body` for the spend's own steps; while one is open the Family card follows `spend.open` | `faraday-core/src/screens/spend.rs` |
 | Word entry, Restore and the stick visit return to Family when opened from it (as `after_visit` does for Create) | `lib.rs` |
 | Route and page kept across a lock; after Unlock, Family opens if it was open | `memory.rs` `kept()` / `restore_kept()` |
 | The words route's single-key wallet from the loaded key | `wallet.rs`, the descriptor Create builds for a single key |

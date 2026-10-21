@@ -218,7 +218,7 @@ change its own commit.
 | U4b | §5.2, then §5.3–5.4 (two commits), DECISIONS F66 | — | U4a | Opus |
 | A0 | `View`, `After`, `before_frame`; the 11 `&mut Faraday` draw roots take `&View`; `osk_track` leaves drawing; the guard stays | U4 | — | Opus |
 | A1 | Memo, kept and allowed accessors on `View`, beside the old forms; decisions switch to `*_now` | A0 | — | Opus |
-| B1 | `screens.rs` | A1 | B2–B6, C0 | Sonnet |
+| B1 | `screens/` | A1 | B2–B6, C0 | Sonnet |
 | B2 | `vault/screen.rs`, `vault/load_screen.rs`, `glance/sheet.rs`, `glance.rs` | A1 | ″ | Sonnet |
 | B3 | `backup_flow/screen.rs`, `backup_flow/wallet_screen.rs`, `board/screen.rs`, `plan/cards.rs`, `backups/screen.rs` | A1 | ″ | Sonnet |
 | B4 | `family/screen.rs`, `family/text.rs`, `keygen/screen.rs`, `seeds/screen.rs`, `codes/screen.rs`, `bip85/screen.rs` | A1 | ″ | Sonnet |

@@ -160,7 +160,7 @@ fn select_all_and_load_counts_what_it_loads_and_files_stays_on_screen() {
     );
     let _ = app.frame();
     assert!(
-        app.offers(Action::Nav(Screen::Start)),
+        app.offers(Action::Nav(Screen::WalletsStart)),
         "no way on to Wallets"
     );
 }

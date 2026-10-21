@@ -103,7 +103,7 @@ impl Faraday {
         match self.screen {
             Screen::Home => vec![&EN.start_here, &EN.air_gap],
             Screen::Family => vec![&EN.inheritance, &EN.transactions, &EN.air_gap, &EN.scams],
-            Screen::Start => vec![&EN.wallet_kinds, &EN.start_here],
+            Screen::WalletsStart => vec![&EN.wallet_kinds, &EN.start_here],
             Screen::Wallets => wallet().map_or_else(|| vec![&EN.wallet_kinds], for_kind),
             Screen::Spend => {
                 let mut p = vec![&EN.transactions, &EN.verifying];

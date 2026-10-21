@@ -423,7 +423,7 @@ impl Faraday {
                 if home {
                     Action::Nav(Screen::Home)
                 } else {
-                    Action::Nav(Screen::Start)
+                    Action::Nav(Screen::WalletsStart)
                 }
             }
             Going::Restore => {
@@ -434,7 +434,7 @@ impl Faraday {
                 if r.from_home {
                     Action::Nav(Screen::Home)
                 } else {
-                    Action::Nav(Screen::Start)
+                    Action::Nav(Screen::WalletsStart)
                 }
             }
             Going::Backup => {
@@ -453,7 +453,7 @@ impl Faraday {
                 let to = match self.family_wallet().filter(|_| self.family.from_card) {
                     Some(w) => Action::OpenWallet(w),
                     None if self.family.from == Some(Screen::Home) => Action::Nav(Screen::Home),
-                    None => Action::Nav(Screen::Start),
+                    None => Action::Nav(Screen::WalletsStart),
                 };
                 self.spend = None;
                 self.family_act(crate::family::FamilyAction::StartOver);
@@ -461,7 +461,7 @@ impl Faraday {
             }
             Going::Message => {
                 self.message = None;
-                Action::Nav(Screen::Start)
+                Action::Nav(Screen::WalletsStart)
             }
             Going::Vault => {
                 let home = self.vaults.from_home;
@@ -478,7 +478,7 @@ impl Faraday {
                     return;
                 };
                 let tab = if f.kind.is_wallet() {
-                    Screen::Start
+                    Screen::WalletsStart
                 } else {
                     Screen::Catalog
                 };
@@ -565,7 +565,7 @@ impl Faraday {
     /// Costs what `backup_step` costs. Flow `g`'s row: its tab, its name
     /// and its open step.
     fn flow_row(&self, c: &Compute, g: Going) -> Option<Row> {
-        let wallets = Screen::Start;
+        let wallets = Screen::WalletsStart;
         let (tab, name, step) = match g {
             Going::Create => {
                 let step = match self.backup_going() {

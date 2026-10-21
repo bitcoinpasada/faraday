@@ -414,7 +414,7 @@ default), `docs/learn/06-backups.md` only if it says "the vault" as one
 
 ### 6.1 What it shows
 
-On the Wallets card (`Screen::Start`'s right pane, the card that opens
+On the Wallets card (`Screen::WalletsStart`'s right pane, the card that opens
 when a loaded wallet is pressed), the **Keys** section is replaced by
 **At a glance**, a chart in three rows joined by lines:
 

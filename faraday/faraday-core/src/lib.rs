@@ -26,7 +26,8 @@
 //!   `CreateState` in `create`, `RestoreState` in `restore`. `lib.rs`
 //!   re-exports them all, so a caller names `faraday_core::Action`.
 //! - State and actions: `work`, `flow`, `inputs`, `file_menu`, `in_progress`.
-//! - Screens and drawing: `screens`, `drawing`, and each area's `screen.rs`
+//! - Screens and drawing: `screens` (the frame, the sidebar, the sheets and
+//!   the screens with no area folder), `drawing`, and each area's `screen.rs`
 //!   (`vault/screen.rs`, `keygen/screen.rs`).
 //! - Secrets and keys: `keygen`, `seeds` (with `seeds/read.rs`), `wallet`,
 //!   `inbox`, `create`, `bip85`, `forms`, `fresh`, `gpg`, `apk`,
@@ -42,6 +43,47 @@
 //! - Sticks, boot and files: `stick` (`pills.rs`, `settings.rs`, `wipe.rs`),
 //!   `upgrade`, `secure_boot/state.rs`, `names`.
 //! - Support: `wordlist`, `learn`, `tools`, `testkit`.
+//!
+//! Every `Screen` variant and the file that draws it. An area draws in its
+//! own `screen.rs`; a screen with no area folder is in `screens/`, whose
+//! `mod.rs` holds the frame and the dispatch, `sidebar.rs` the sidebar,
+//! `sheets.rs` the sheets and `parts.rs` what two or more screens share.
+//!
+//! | `Screen` | Drawn in |
+//! |---|---|
+//! | `Home` | `screens/home.rs` |
+//! | `WalletsStart` | `screens/wallets_start.rs` |
+//! | `Wallets` | `screens/wallets.rs` |
+//! | `Spend` | `screens/spend.rs` |
+//! | `Files` | `screens/files.rs` |
+//! | `Visit` | `screens/visit.rs` |
+//! | `Entry` | `screens/entry.rs` |
+//! | `Backup` | `screens/backup.rs` |
+//! | `Message` | `screens/message.rs` |
+//! | `CheckMessage` | `screens/check_message.rs` |
+//! | `Create` | `screens/create.rs` |
+//! | `Restore` | `screens/restore.rs` |
+//! | `Settings` | `screens/settings.rs` |
+//! | `SetTime` | `screens/set_time.rs` |
+//! | `Vaults` | `vault/screen.rs` |
+//! | `Backups` | `backups/screen.rs` |
+//! | `CreateVault` | `vault/screen.rs` |
+//! | `KeyGen` | `keygen/screen.rs` |
+//! | `Bip85` | `bip85/screen.rs` |
+//! | `Silent` | `silent/screen.rs` |
+//! | `Explore` | `explore/screen.rs` |
+//! | `Lightning` | `lightning/screen.rs` |
+//! | `Tools` | `tools/screen.rs` |
+//! | `Unlock` | `vault/screen.rs` |
+//! | `VaultContents` | `vault/screen.rs` |
+//! | `Codes` | `codes/screen.rs` |
+//! | `Family` | `family/screen.rs` |
+//! | `Vanity` | `vanity/screen.rs` |
+//! | `Decode` | `screens/decode.rs` |
+//! | `Catalog` | `screens/catalog.rs` |
+//! | `Transfer` | `transfer/screen.rs` |
+//! | `Upgrade` | `upgrade/screen.rs` |
+//! | `BackupFlow` | `backup_flow/screen.rs` |
 
 // The shell's protocol and the app's types: storage, version, actions, QR view, receipt, state.
 mod action;
@@ -154,14 +196,14 @@ pub use qr_view::{
     ScanState, Seen, TOO_FINE_TENTHS,
 };
 pub(crate) use qr_view::{TOO_FINE_PASSES, UrFed, send_error, ur_feed, ur_note};
-pub use receipt::{Receipt, ReceiptFile};
 pub(crate) use receipt::sha256_of;
+pub use receipt::{Receipt, ReceiptFile};
 pub use restore::RestoreState;
 pub use screens::qr_code;
 pub use secure_boot::state::SecureBootAtStart;
 pub use state::{EntryState, MessageState, VisitState};
-pub use storage_api::{BootPart, StickInfo, StorageCommand, StorageEvent};
 pub use stick::pills::{BOOT_FOLDER, FIRST_BACKUP, Pill, SticksWanted, backup_folder};
+pub use storage_api::{BootPart, StickInfo, StorageCommand, StorageEvent};
 pub use version::{
     BUILD, Program, VERSION, is_release, parse_version_output, version_label, version_line,
 };
@@ -202,7 +244,7 @@ pub enum Screen {
     /// Home.
     Home,
     /// The Wallets tab's first page: every flow, by what the person has.
-    Start,
+    WalletsStart,
     /// The Wallets tab: the wallets, the wallet card, and every flow
     /// (`docs/WALLETS.md`).
     Wallets,
@@ -3448,8 +3490,8 @@ impl Faraday {
                 }
                 // Spend's way back is to where it was opened from.
                 if s == Screen::Family && self.screen != Screen::Family {
-                    self.family.from =
-                        matches!(self.screen, Screen::Home | Screen::Start).then_some(self.screen);
+                    self.family.from = matches!(self.screen, Screen::Home | Screen::WalletsStart)
+                        .then_some(self.screen);
                 }
                 self.screen = s;
                 self.osk_leave();
@@ -10024,7 +10066,7 @@ impl Faraday {
             Screen::Visit
             | Screen::Files
             | Screen::Wallets
-            | Screen::Start
+            | Screen::WalletsStart
             | Screen::Decode
             | Screen::Catalog
             | Screen::Transfer

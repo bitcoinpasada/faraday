@@ -45,7 +45,7 @@ pub(crate) fn draws_own_bar(s: Screen) -> bool {
 pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
     match s {
         Screen::Home => EN.compact_home,
-        Screen::Start | Screen::Wallets => EN.compact_wallets,
+        Screen::WalletsStart | Screen::Wallets => EN.compact_wallets,
         Screen::Spend | Screen::Family => EN.compact_spend,
         Screen::Files => EN.compact_files,
         Screen::Visit => medium.visit(),
@@ -258,7 +258,7 @@ pub(crate) fn page(app: &View, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
             Action::Glance(false),
         ),
         Screen::Wallets | Screen::Explore | Screen::Entry | Screen::CheckMessage => {
-            (EN.compact_wallets, Action::Nav(Screen::Start))
+            (EN.compact_wallets, Action::Nav(Screen::WalletsStart))
         }
         // An item of a vault goes back to the vault's list.
         Screen::VaultContents if crate::vault::screen::contents_detail(app) => (
@@ -369,7 +369,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     let sub = app.home_files_line();
     let session = if keys + wallets == 0 {
-        Screen::Start
+        Screen::WalletsStart
     } else {
         Screen::Wallets
     };
@@ -578,7 +578,7 @@ fn tiles(app: &View) -> Vec<Tile> {
             } else {
                 wallets.to_string()
             },
-            Action::Nav(Screen::Start),
+            Action::Nav(Screen::WalletsStart),
             true,
         ),
         (

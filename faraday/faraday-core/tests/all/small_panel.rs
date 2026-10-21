@@ -98,7 +98,7 @@ fn home_offers_every_place_without_a_sidebar() {
     let mut app = panel();
     assert_eq!(app.screen, Screen::Home);
     for place in [
-        Screen::Start,
+        Screen::WalletsStart,
         Screen::Vaults,
         Screen::Files,
         Screen::Catalog,
@@ -123,7 +123,7 @@ fn homes_grid_has_no_spend_tile() {
 #[test]
 fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     let mut app = panel();
-    tap(&mut app, Action::Nav(Screen::Start));
+    tap(&mut app, Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
     // Create opens on Kind (`docs/history/NEW-WALLET.md` §2.1); single key is
@@ -276,7 +276,7 @@ fn forward_in_view(mut app: Faraday, h: u16) {
     // Back, by the bar, to Vaults and then Home.
     tap(&mut app, Action::Nav(Screen::Vaults));
     tap(&mut app, Action::Nav(Screen::Home));
-    tap(&mut app, Action::Nav(Screen::Start));
+    tap(&mut app, Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::CreateWallet);
     // Create opens on Kind (`docs/history/NEW-WALLET.md` §2.1): it is already
     // open, nothing to tap to reach it.
@@ -298,7 +298,7 @@ fn forward_in_view(mut app: Faraday, h: u16) {
 #[test]
 fn kind_is_offered_on_the_keys_page_and_opens() {
     let mut app = panel();
-    tap(&mut app, Action::Nav(Screen::Start));
+    tap(&mut app, Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::CreateWallet);
     assert_eq!(
         app.create.as_ref().and_then(|c| c.open),
@@ -336,7 +336,7 @@ fn kind_is_offered_on_the_keys_page_and_opens() {
 #[test]
 fn the_page_title_shows_the_steps() {
     let mut app = panel();
-    tap(&mut app, Action::Nav(Screen::Start));
+    tap(&mut app, Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::CreateWallet);
     let kind = Action::CStep(faraday_core::cstep::KIND);
     tap(&mut app, kind);
@@ -372,7 +372,7 @@ fn scan_never_covers_a_tile() {
     let _ = app.frame();
     let scan = app.hit_box(Action::Scan).expect("Scan is offered");
     for action in [
-        Action::Nav(Screen::Start),
+        Action::Nav(Screen::WalletsStart),
         Action::Nav(Screen::Vaults),
         Action::Nav(Screen::Files),
         Action::Learn,

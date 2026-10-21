@@ -59,7 +59,7 @@ fn with_key() -> Faraday {
     typed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     app.press(Action::EntryAdd);
     assert_eq!(app.session.keys.len(), 1);
-    app.press(Action::Nav(Screen::Start));
+    app.press(Action::Nav(Screen::WalletsStart));
     app
 }
 
@@ -77,7 +77,7 @@ fn bip85_shown(app: &mut Faraday) -> Vec<String> {
 fn new_key_left_by_a_tap_on_the_sidebar_forgets_the_words_typed() {
     let words = testkit::test_words("bacon");
     let mut app = testkit::started();
-    app.press(Action::Nav(Screen::Start));
+    app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
     app.press(Action::KStart(Start::Words.index()));
     app.press(Action::KNext);
@@ -93,7 +93,7 @@ fn new_key_left_by_a_tap_on_the_sidebar_forgets_the_words_typed() {
         "nor do its words stay typed"
     );
     not_drawn(&mut app, &shown);
-    tap(&mut app, Action::Nav(Screen::Start));
+    tap(&mut app, Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
     assert_eq!(
         app.keygen.as_ref().unwrap().open,
@@ -109,7 +109,7 @@ fn bip85_left_by_a_tap_forgets_the_child_seed_shown() {
     tap(&mut app, Action::Nav(Screen::Settings));
     assert!(app.bip85.is_none(), "BIP-85 keeps nothing when left");
     not_drawn(&mut app, &shown);
-    tap(&mut app, Action::Nav(Screen::Start));
+    tap(&mut app, Action::Nav(Screen::WalletsStart));
     app.press(Action::Bip85);
     assert!(!app.bip85.as_ref().unwrap().shown);
     not_drawn(&mut app, &shown);
@@ -232,7 +232,7 @@ fn upgrade_left_by_a_tap_lets_the_boot_partitions_go() {
     app.press(Action::UpgradeOpen);
     assert_eq!(app.screen, Screen::Upgrade);
     while app.poll_storage().is_some() {}
-    tap(&mut app, Action::Nav(Screen::Start));
+    tap(&mut app, Action::Nav(Screen::WalletsStart));
     assert!(!app.upgrading(), "Upgrade ends when it is left");
     let asked: Vec<StorageCommand> = std::iter::from_fn(|| app.poll_storage()).collect();
     assert!(

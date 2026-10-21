@@ -231,7 +231,7 @@ refused.
 
 ### I4. More options on Public files; Bitcoin Core before 29 (§4 item 6; #48)
 
-`screens.rs::public_files` splits its rows into primary and more;
+`screens/backup.rs::public_files` splits its rows into primary and more;
 `public_rows_for` draws the primary rows, a ghost **More options**
 (`Action::PublicMore(i)`), and the rest once pressed; the open state lives
 on the backup flow and the chart sheet and resets when the screen opens.

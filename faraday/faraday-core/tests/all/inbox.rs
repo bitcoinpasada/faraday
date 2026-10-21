@@ -210,7 +210,7 @@ use faraday_core::{Screen as S, Sheet, StickInfo};
 
 const SCREENS: [S; 29] = [
     S::Home,
-    S::Start,
+    S::WalletsStart,
     S::Wallets,
     S::Spend,
     S::Files,

@@ -37,7 +37,7 @@ draws is worked out that often. The backup screens work out a great deal:
    it. `plan_shape`, `receive_held`, `wallet_flow_of_backup` and the
    sidebar call it, several of them once per loaded wallet.
 3. **The checklist asks the same questions many times per frame.**
-   `backup_screen` (`screens.rs`) calls `item_title`, `backup_reachable`
+   `backup_screen` (`screens/backup.rs`) calls `item_title`, `backup_reachable`
    and `backup_item_done` for each card, then `backup_waiting` and the
    all-done check; `backup_reachable(k)` re-asks `backup_item_done` for
    every item before `k`; `backup_panel` and `plan_cards` ask again for
@@ -702,7 +702,7 @@ after), so single numbers read ±30 %; the counts are exact.
    the card with 1,620 files 2.4 ms (0.9 ms on the Pi's layout).
 3. **With a spend open, Files and the spend's cosigner rows parsed every
    PSBT in Files each frame** to find copies of the same transaction
-   (`screens.rs`, four places). They compare the kept txid. Before:
+   (`screens/spend.rs` and `screens/files.rs`, two places each). They compare the kept txid. Before:
    Files 18.8 ms a frame with 82 PSBT parses; after 6.4 ms with none.
 4. **Opening a spend inspected the PSBT four times, and Sign here
    twice** (`start_spend` and `refresh_spend`, each with `inspect` and

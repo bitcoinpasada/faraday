@@ -470,7 +470,7 @@ One batch, one review, one completion report.
   tests for user-facing behaviour only; `just` once at the end; no
   `rm`; no commits; no agents. Nothing in `core/`.
 - **Code.** `lib.rs` (the variants, their `code_view` arms,
-  `QrView::secret`, `lock_now` dropping the view); `screens.rs`
+  `QrView::secret`, `lock_now` dropping the view); `screens/parts.rs`
   (`first_addresses`, the wallet card's first receive address); `compact/screen.rs` (the small panel's
   card); `family/screen.rs` (**Receive address 0**, **Check the
   money**'s receive rows); `glance/sheet.rs` (through

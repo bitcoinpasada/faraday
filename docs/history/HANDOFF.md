@@ -728,7 +728,7 @@ as possible before the next build.
       It always opened `Screen::Wallets` (the session/wallet-card view),
       which has no "Create a wallet" button and says "None loaded" / "No
       wallet loaded" when the session is empty; the sidebar's own Wallets
-      tab opens `Screen::Start`, whose empty state is the "Create a
+      tab opens `Screen::WalletsStart`, whose empty state is the "Create a
       wallet" / "Restore a wallet" pair. Fixed: the Session card opens
       Start when the session is empty, Wallets once there is a key or
       wallet to show (`screens.rs`, `home()`).

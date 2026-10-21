@@ -942,7 +942,7 @@ fn typed(app: &mut Faraday, text: &str) {
 fn add_a_key() -> Faraday {
     let mut app = faraday_core::testkit::started();
     tall(&mut app);
-    app.press(Action::Nav(Screen::Start));
+    app.press(Action::Nav(Screen::WalletsStart));
     let _ = app.frame();
     assert!(app.offers(Action::KeyGen(None)), "Wallets offers Add a key");
     app.press(Action::KeyGen(None));
