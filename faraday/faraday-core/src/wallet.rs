@@ -443,6 +443,22 @@ pub struct Slot {
     pub fingerprint: Option<Fingerprint>,
     /// The label of the session key that fills it, when one does.
     pub held_by: Option<String>,
+    /// The descriptor's key for it, which says whether a seed is this
+    /// slot's where the fingerprint only finds a candidate; `None` for a
+    /// silent payments wallet's key and a threshold wallet's shares.
+    pub key: Option<osk_bip::policy::PolicyKey>,
+}
+
+impl Slot {
+    /// A slot known by its master fingerprint alone: a silent payments
+    /// wallet's key. A lookup.
+    pub fn bare(fp: Fingerprint) -> Slot {
+        Slot {
+            fingerprint: Some(fp),
+            held_by: None,
+            key: None,
+        }
+    }
 }
 
 /// The fingerprint as eight hex digits.
@@ -879,6 +895,7 @@ impl Session {
             return vec![Slot {
                 fingerprint: Some(r.fingerprint),
                 held_by: self.key_label(r.fingerprint).map(str::to_string),
+                key: None,
             }];
         }
         // A threshold wallet's slots are its shares, each named by its
@@ -892,6 +909,7 @@ impl Session {
                         .iter()
                         .find(|(id, _)| *id as usize == i)
                         .map(|(_, k)| k.label.clone()),
+                    key: None,
                 })
                 .collect();
         }
@@ -906,6 +924,7 @@ impl Session {
                     held_by: fingerprint
                         .and_then(|fp| self.key_label(fp))
                         .map(str::to_string),
+                    key: Some(k.clone()),
                 }
             })
             .collect()

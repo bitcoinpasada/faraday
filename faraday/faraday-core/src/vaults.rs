@@ -147,6 +147,19 @@ pub mod vstep {
     pub const COUNT: usize = 5;
 }
 
+/// The wallet slot a seed is loaded from a vault for: its descriptor key
+/// is what says a vault's record is that slot's seed (F65).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SlotOf {
+    /// Slot k of loaded wallet w.
+    Loaded(usize, usize),
+    /// Slot k of the wallet in open vault v's wallet record r.
+    Vault(usize, usize, usize),
+    /// A key no descriptor names with a path: a silent payments
+    /// wallet's, found by its fingerprint.
+    Bare,
+}
+
 /// Everything a vault screen can do.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VaultAction {
@@ -164,8 +177,9 @@ pub enum VaultAction {
     /// Back from the vault list to the flow that made a vault.
     Back,
     /// Load the seed with this master fingerprint from whichever open
-    /// vault holds it.
-    LoadKeyOf([u8; 4]),
+    /// vault holds it, as the key of wallet slot [`SlotOf`]: a record is
+    /// loaded only when it is that slot's key.
+    LoadKeyOf([u8; 4], SlotOf),
     /// Load the chosen wallets of open vault v with their seeds in it.
     LoadWithKeys(usize),
     /// From the vault's chart: load wallet record r of open vault v, with
@@ -769,6 +783,11 @@ impl Faraday {
 /// key's [`crate::wallet::master_id`].
 pub type KeyIdentity = ([u8; 32], String, [u8; 32]);
 
+/// A key record's account key at a path, kept once worked out: the
+/// record's id, the path as text, and the account key's public key and
+/// chain code.
+pub(crate) type KeyAccount = ([u8; 32], String, Option<[u8; 65]>);
+
 /// One open slot of one vault.
 pub struct OpenVault {
     /// The file name it came under, and goes back under.
@@ -1019,6 +1038,11 @@ pub struct Vaults {
     /// With each, the key's [`crate::wallet::master_id`], which says it
     /// is a given key where the fingerprint only finds it.
     pub fingerprints: std::cell::RefCell<Vec<KeyIdentity>>,
+    /// Key records' account keys at a wallet's path, by the record's id
+    /// and the path: public key and chain code, `None` where it could not
+    /// be derived. What confirms a record is a wallet slot's key
+    /// ([`crate::vault_screens::record_is_policy_key`]). In memory only.
+    pub(crate) accounts: std::cell::RefCell<Vec<KeyAccount>>,
     draws: u64,
     /// The selected key's SeedQR while Show SeedQR is held, by record
     /// index: made at the press, dropped at the lift.
@@ -1597,9 +1621,12 @@ impl Faraday {
                     o.each_shown = !o.each_shown;
                 }
             }
-            V::LoadKeyOf(fp) => {
+            V::LoadKeyOf(fp, at) => {
+                let found = self
+                    .slot_of(fp, at)
+                    .and_then(|slot| self.vault_key_for(&c, &slot));
                 let fp = osk_bip::keys::Fingerprint(fp);
-                if let Some((v, i)) = self.vault_key_for(&c, fp) {
+                if let Some((v, i)) = found {
                     let (k, _) = self.vault_load_set(v, &BTreeSet::from([i]));
                     if k > 0 {
                         self.toast(&fill(
@@ -2805,22 +2832,51 @@ impl Faraday {
         rows
     }
 
-    /// Where the seed with master fingerprint `fp` is in the open vaults:
-    /// the vault and its record.
-    pub fn vault_key_for(
-        &self,
-        c: &Compute,
-        fp: osk_bip::keys::Fingerprint,
-    ) -> Option<(usize, usize)> {
-        let want = crate::wallet::fp_text(fp);
+    /// Where the seed of wallet slot `slot` is in the open vaults: the
+    /// vault and its record. A record is that slot's seed when its key at
+    /// the descriptor's path is the descriptor's key; the fingerprint
+    /// only finds the candidate (F65). A slot with no descriptor key (a
+    /// silent payments wallet's, a share) is found by fingerprint. Costs
+    /// a PBKDF2 and two elliptic-curve multiplications per key record,
+    /// and a PBKDF2 and a key derivation per candidate, the first time.
+    pub fn vault_key_for(&self, c: &Compute, slot: &crate::wallet::Slot) -> Option<(usize, usize)> {
+        let want = crate::wallet::fp_text(slot.fingerprint?);
         self.vaults.open.iter().enumerate().find_map(|(v, open)| {
             open.contents
                 .of(kind::KEY)
-                .find(|(_, r)| {
-                    crate::vault_screens::key_fingerprint(c, self, r).as_deref() == Some(&want)
+                .find(|(_, r)| match &slot.key {
+                    Some(k) => crate::vault_screens::record_is_policy_key(c, self, r, k),
+                    None => {
+                        crate::vault_screens::key_fingerprint(c, self, r).as_deref() == Some(&want)
+                    }
                 })
                 .map(|(i, _)| (v, i))
         })
+    }
+
+    /// The slot [`SlotOf`] `at` names, with master fingerprint `fp`;
+    /// `None` when that wallet or slot is gone or names another key.
+    /// Costs a read of the wallet's keys.
+    pub(crate) fn slot_of(&self, fp: [u8; 4], at: SlotOf) -> Option<crate::wallet::Slot> {
+        let fp = osk_bip::keys::Fingerprint(fp);
+        let slot = match at {
+            SlotOf::Loaded(w, k) => {
+                let wallet = self.session.wallets.get(w)?;
+                self.session.slots(wallet).into_iter().nth(k)?
+            }
+            SlotOf::Vault(v, r, k) => {
+                let d = self.vaults.open.get(v)?.contents.described(r)?;
+                let wallet = crate::wallet::Wallet::new(
+                    String::new(),
+                    d.policy.clone(),
+                    String::new(),
+                    crate::wallet::Origin::Named,
+                );
+                self.session.slots(&wallet).into_iter().nth(k)?
+            }
+            SlotOf::Bare => crate::wallet::Slot::bare(fp),
+        };
+        (slot.fingerprint == Some(fp)).then_some(slot)
     }
 
     /// The wallets open vault `v` holds together with some of their
@@ -4064,8 +4120,8 @@ impl Currency {
 }
 
 /// What the app remembers of a vault seen open, across a lock
-/// (`docs/VAULT.md` §11): names and fingerprints, never anything that
-/// spends. Kept in the kept state, so it is gone at power-off.
+/// (`docs/VAULT.md` §11): names, fingerprints and master ids, never
+/// anything that spends. Kept in the kept state, so it is gone at power-off.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct VaultSummary {
     /// The file it was opened from.
@@ -4082,6 +4138,11 @@ pub struct VaultSummary {
     pub planned: Vec<String>,
     /// Its keys' fingerprints.
     pub keys: Vec<String>,
+    /// Its keys' [`crate::wallet::master_id`]s, in the same order: what
+    /// says a seed is one of its keys while it is locked, where the
+    /// fingerprint only finds a candidate (F65). `None` for a key a
+    /// summary kept before the ids were.
+    pub ids: Vec<Option<[u8; 32]>>,
     /// How many entries it holds.
     pub entries: usize,
     /// Its backup maps' lines: where each place is and what it holds
@@ -4195,8 +4256,15 @@ pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
                 kept_field(shape)
             ));
         }
-        for k in &s.keys {
-            out.push_str(&format!("key\t{}\n", kept_field(k)));
+        for (i, k) in s.keys.iter().enumerate() {
+            match s.ids.get(i).copied().flatten() {
+                Some(id) => out.push_str(&format!(
+                    "key\t{}\t{}\n",
+                    kept_field(k),
+                    crate::backups::hex32(&id)
+                )),
+                None => out.push_str(&format!("key\t{}\n", kept_field(k))),
+            }
         }
         for c in &s.sums {
             out.push_str(&format!("sum\t{}\n", kept_field(c)));
@@ -4244,6 +4312,13 @@ pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
             ["key", fp] => {
                 if let Some(s) = out.last_mut() {
                     s.keys.push(fp.to_string());
+                    s.ids.push(None);
+                }
+            }
+            ["key", fp, id] => {
+                if let Some(s) = out.last_mut() {
+                    s.keys.push(fp.to_string());
+                    s.ids.push(crate::backups::read_hex32(id));
                 }
             }
             ["sum", c] => {
@@ -4370,11 +4445,12 @@ impl Faraday {
                     )
                 })
                 .collect();
-            let keys = v
+            let (keys, ids): (Vec<String>, Vec<Option<[u8; 32]>>) = v
                 .contents
                 .of(kind::KEY)
-                .filter_map(|(_, r)| crate::vault_screens::key_fingerprint(&c, self, r))
-                .collect();
+                .filter_map(|(_, r)| crate::vault_screens::key_identity(&c, self, r))
+                .map(|(fp, id)| (fp, Some(id)))
+                .unzip();
             let sum_of = |i: usize| v.contents.described(i).map(|d| d.checksum.clone());
             let sums = v
                 .contents
@@ -4411,6 +4487,7 @@ impl Faraday {
                 sums,
                 planned,
                 keys,
+                ids,
                 entries: v.contents.of(kind::ENTRY).count(),
                 map,
                 seen,

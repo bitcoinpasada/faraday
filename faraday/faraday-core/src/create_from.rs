@@ -210,17 +210,20 @@ impl Faraday {
             .iter()
             .map(|k| (k.fingerprint().map(|f| f.0), k.key_text()))
             .collect();
+        let wallet_slots = self.session.slots(w);
         let n = keys.len().max(1);
         let mut slots = Vec::new();
         let mut xpubs = Vec::new();
-        for (fp, text) in &keys {
+        for (j, (fp, text)) in keys.iter().enumerate() {
             let here = |app: &Faraday, fp: [u8; 4]| {
                 app.session.keys.iter().any(|k| k.fingerprint().0 == fp)
             };
             let held = match fp {
                 Some(fp) if here(self, *fp) => true,
                 Some(fp) if self.may_load_keys() => {
-                    if let Some((v, r)) = self.vault_key_for(&c, Fingerprint(*fp)) {
+                    if let Some((v, r)) =
+                        wallet_slots.get(j).and_then(|s| self.vault_key_for(&c, s))
+                    {
                         self.vault_load_set(v, &BTreeSet::from([r]));
                     }
                     here(self, *fp)

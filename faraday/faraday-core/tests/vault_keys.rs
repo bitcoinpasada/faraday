@@ -4,7 +4,7 @@
 //! asked for, and a vault holding wallets with their seeds loads each
 //! with its seeds in one press.
 
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vaults::{SlotOf, VaultAction as V};
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
@@ -86,8 +86,8 @@ fn a_missing_key_in_an_open_vault_loads_from_the_wallet_card() {
     let fp = app.session.slots(&app.session.wallets[0])[0]
         .fingerprint
         .unwrap();
-    assert!(app.offers(Action::Vault(V::LoadKeyOf(fp.0))));
-    app.press(Action::Vault(V::LoadKeyOf(fp.0)));
+    assert!(app.offers(Action::Vault(V::LoadKeyOf(fp.0, SlotOf::Loaded(0, 0)))));
+    app.press(Action::Vault(V::LoadKeyOf(fp.0, SlotOf::Loaded(0, 0))));
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(app.session.keys[0].fingerprint(), fp);
 }
@@ -108,7 +108,7 @@ fn a_locked_vault_is_offered_from_the_wallet_card_and_unlocking_comes_back() {
     let fp = app.session.slots(&app.session.wallets[0])[0]
         .fingerprint
         .unwrap();
-    assert!(app.offers(Action::Vault(V::LoadKeyOf(fp.0))));
+    assert!(app.offers(Action::Vault(V::LoadKeyOf(fp.0, SlotOf::Loaded(0, 0)))));
 }
 
 #[test]

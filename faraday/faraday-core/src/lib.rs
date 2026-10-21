@@ -8244,15 +8244,20 @@ impl Faraday {
         }
         let (own, others) = self.backup_vault_keys(v);
         let sum = w.checksum().to_string();
-        let text = |f: &osk_bip::keys::Fingerprint| fp_text(*f);
+        // Each seed told by its whole master id, the session key's else
+        // the backup record's (F65); one that cannot be told is not done.
+        let record = self.backup_records.iter().find(|r| r.sum == sum);
+        let has = |s: &crate::vaults::VaultSummary, f: &osk_bip::keys::Fingerprint| {
+            crate::backups::summary_has_seed(s, f.0, self.seed_id(record, f.0))
+        };
         let salts: Vec<[u8; 32]> = self.vaults.open.iter().map(|o| o.header().salt).collect();
         self.vaults
             .summaries
             .iter()
             .filter(|s| !salts.contains(&s.salt))
             .find(|s| {
-                own.iter().all(|f| s.keys.contains(&text(f)))
-                    && !others.iter().any(|f| s.keys.contains(&text(f)))
+                own.iter().all(|f| has(s, f) == Some(true))
+                    && others.iter().all(|f| has(s, f) == Some(false))
                     && (!wallet_too || s.sums.contains(&sum))
             })
             .map(|s| s.file.clone())
@@ -12880,7 +12885,7 @@ fn slow(a: Action) -> bool {
                     | V::Category(_)
                     | V::LoadAll(_)
                     | V::LoadChosen(_)
-                    | V::LoadKeyOf(_)
+                    | V::LoadKeyOf(..)
                     | V::LoadTicked
                     | V::LoadWithKeys(_)
                     | V::Open(_)

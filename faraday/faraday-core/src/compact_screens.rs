@@ -378,11 +378,15 @@ fn silent_card(
             cy += 20.0;
         }
     } else {
-        let (label, style, action) = if app.vault_key_for(r.fingerprint).is_some() {
+        let slot = crate::wallet::Slot::bare(r.fingerprint);
+        let (label, style, action) = if app.vault_key_for(&slot).is_some() {
             (
                 EN.compact_load_from_vault,
                 Style::Primary,
-                Action::Vault(crate::vaults::VaultAction::LoadKeyOf(r.fingerprint.0)),
+                Action::Vault(crate::vaults::VaultAction::LoadKeyOf(
+                    r.fingerprint.0,
+                    crate::vaults::SlotOf::Bare,
+                )),
             )
         } else {
             (

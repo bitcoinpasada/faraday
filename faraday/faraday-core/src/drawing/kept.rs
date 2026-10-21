@@ -106,12 +106,14 @@ impl View<'_> {
         self.kept(|_c| self.app.gpg_files())
     }
 
-    /// Where the seed with master fingerprint `fp` is in the open vaults
+    /// Where the seed of wallet slot `slot` is in the open vaults
     /// ([`crate::Faraday::vault_key_for`]), from each key record's kept
-    /// fingerprint. Costs a PBKDF2 and two elliptic-curve multiplications
-    /// per key record the first time.
-    pub fn vault_key_for(&self, fp: Fingerprint) -> Option<(usize, usize)> {
-        self.kept(|c| self.app.vault_key_for(c, fp))
+    /// fingerprint and each candidate's account key kept by record and
+    /// path. Costs a PBKDF2 and two elliptic-curve multiplications per
+    /// key record, and a PBKDF2 and a key derivation per candidate, the
+    /// first time.
+    pub fn vault_key_for(&self, slot: &crate::wallet::Slot) -> Option<(usize, usize)> {
+        self.kept(|c| self.app.vault_key_for(c, slot))
     }
 
     /// The wallets open vault `v` holds with some of their seeds

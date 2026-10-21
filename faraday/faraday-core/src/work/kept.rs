@@ -192,6 +192,136 @@ fn a_seed_whose_fingerprint_finds_a_record_of_another_seed_is_not_kept_there() {
     );
 }
 
+/// A wallet slot is offered a vault's seed only when the seed's account
+/// key at the slot's path is the slot's key: the fingerprint finds the
+/// record, the key derived says whose it is (F65). A real four-byte
+/// collision cannot be made here, so the record's kept fingerprint is set
+/// to another slot's, as a collision would leave it.
+#[test]
+fn a_vault_seed_whose_fingerprint_matches_a_slot_but_not_its_key_is_not_offered() {
+    let c = crate::testkit::compute();
+    use crate::vault_screens::key_fingerprint;
+    use crate::wallet::{Slot, fp_text};
+    use faraday_vault::records::kind;
+    let (mut app, _) = heavy();
+    unlock_test_vault(&mut app);
+    let v = app.vaults.current;
+    let record_fp = app.vaults.open[v]
+        .contents
+        .of(kind::KEY)
+        .find_map(|(_, r)| key_fingerprint(&c, &app, r))
+        .expect("the vault's key record");
+    let savings = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "savings")
+        .expect("Savings");
+    let wallet = Wallet::new(
+        savings.name.to_string(),
+        read_wallet(&savings.descriptor).expect("a test wallet"),
+        String::new(),
+        Origin::Named,
+    );
+    let slots = app.session.slots(&wallet);
+    let fp_of = |s: &Slot| s.fingerprint.map(fp_text);
+    let own = slots
+        .iter()
+        .find(|s| fp_of(s).as_deref() == Some(record_fp.as_str()))
+        .expect("Savings has the vault's seed");
+    assert!(
+        app.vault_key_for(&c, own).is_some(),
+        "the vault's seed is offered for its own slot"
+    );
+    let other = slots
+        .iter()
+        .find(|s| s.fingerprint.is_some() && fp_of(s).as_deref() != Some(record_fp.as_str()))
+        .expect("Savings has another seed");
+    let other_fp = other.fingerprint.expect("a fingerprint");
+    // The vault's record now looks up as the other slot's fingerprint.
+    for e in app.vaults.fingerprints.borrow_mut().iter_mut() {
+        if e.1 == record_fp {
+            e.1 = fp_text(other_fp);
+        }
+    }
+    assert!(
+        app.vault_key_for(&c, &Slot::bare(other_fp)).is_some(),
+        "the fingerprint alone finds the record"
+    );
+    assert!(
+        app.vault_key_for(&c, other).is_none(),
+        "a record whose key at the slot's path is another is not offered"
+    );
+}
+
+/// The checklist's vault item is done by a vault locked since it was
+/// open only when its summary holds each seed by the seed's whole master
+/// id: done for the seeds it held, not done from a summary with no ids,
+/// and not done for a seed another seed's entry only shares the
+/// fingerprint of. A real four-byte collision cannot be made here, so
+/// another seed's entry is given the seed's fingerprint, as a collision
+/// would leave it.
+#[test]
+fn the_checklists_locked_vault_is_done_by_each_seeds_whole_id() {
+    let c = crate::testkit::compute();
+    use crate::plan::Preset;
+    use crate::wallet::fp_text;
+    let (mut app, w) = heavy();
+    unlock_test_vault(&mut app);
+    app.press(Action::Backup(w));
+    testkit::backup_as(&mut app, Preset::PaperVault);
+    app.press(Action::BChecklist);
+    app.press(Action::BVaultSave(0));
+    let (own, _) = app.backup_vault_keys(0);
+    assert!(!own.is_empty(), "the plan puts seeds into its vault");
+    let o = app
+        .backup_vault_open(&c, 0)
+        .expect("an open vault holds the plan's vault");
+    let name = app.vaults.open[o].name.clone();
+    assert!(app.vault_lock_one(o), "the vault locks");
+    assert_eq!(
+        app.backup_vault_fits(&c, 0),
+        Some(name.clone()),
+        "the locked vault is done"
+    );
+    let salt = app
+        .vault_files()
+        .iter()
+        .find(|f| f.name == name)
+        .expect("the vault's file")
+        .header
+        .salt;
+    let at = app
+        .vaults
+        .summaries
+        .iter()
+        .position(|s| s.salt == salt)
+        .expect("its summary");
+
+    // A summary kept before the ids were: not done.
+    let ids = app.vaults.summaries[at].ids.clone();
+    for id in &mut app.vaults.summaries[at].ids {
+        *id = None;
+    }
+    assert_eq!(app.backup_vault_fits(&c, 0), None, "nothing is verified");
+    app.vaults.summaries[at].ids = ids;
+
+    // Another seed's entry under the first seed's fingerprint, and the
+    // first seed's entry gone.
+    let fp = fp_text(own[0]);
+    let s = &mut app.vaults.summaries[at];
+    let mine = s.keys.iter().position(|k| *k == fp).expect("the seed");
+    let other = (0..s.keys.len())
+        .find(|&i| i != mine && s.ids[i].is_some())
+        .expect("another seed in the vault");
+    s.keys[other] = fp;
+    s.keys.remove(mine);
+    s.ids.remove(mine);
+    assert_eq!(
+        app.backup_vault_fits(&c, 0),
+        None,
+        "a fingerprint alone does not make the vault done"
+    );
+}
+
 #[test]
 fn a_psbt_waiting_in_files_is_offered_on_its_wallets_card_once_the_wallet_loads() {
     let c = crate::testkit::compute();

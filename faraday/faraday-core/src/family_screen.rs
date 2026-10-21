@@ -1724,7 +1724,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     slot.held_by.is_some() && slot.fingerprint.is_some_and(|f| app.key_held(f));
                 let in_vault = slot
                     .fingerprint
-                    .filter(|f| slot.held_by.is_none() && app.vault_key_for(*f).is_some());
+                    .filter(|_| slot.held_by.is_none() && app.vault_key_for(slot).is_some());
                 if waits {
                     let t = crate::glance::WAITING;
                     let label = EN.family_finish_the_backup_2;
@@ -1783,7 +1783,10 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                         } else {
                             Style::Disabled
                         },
-                        Action::Vault(VaultAction::LoadKeyOf(f.0)),
+                        Action::Vault(VaultAction::LoadKeyOf(
+                            f.0,
+                            crate::vaults::SlotOf::Loaded(wi, k),
+                        )),
                     );
                 } else {
                     let (t, fg, bg) = if slot.held_by.is_some() {

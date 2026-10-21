@@ -426,15 +426,22 @@ implementations in the tests: a 64 KiB vault with one passphrase, and a
 (owner, 2026-10-10; `docs/SIMPLIFY.md` §3.4, decision 4.) While a slot
 is open, the app keeps a summary of it: the file's name and salt, the
 slot's name, its wallets (name, shape and descriptor checksum), its keys
-(fingerprints), how many entries it holds, its backup maps' lines
-(record type 11, field 4), the checksums of the wallets it keeps a plan
-for, and the time it was last open by this computer's clock. The
-Backups screen lists a locked vault's wallets from it
-(`docs/SIMPLIFY.md` §5). The summaries
-are rebuilt on unlock, after every change made on a vault screen and as
-the session seals, and written into the kept state at lock under the key
-`vault-summaries` (`memory.rs`), which the next process reads back. They
-are gone at power-off, with the rest of `/run/faraday`.
+(each key's fingerprint and its 32-byte master id, the SHA-256 of the
+master public key and chain code with the passphrase applied,
+`wallet::master_id`; owner, 2026-10-21), how many entries it holds,
+its backup maps' lines (record type 11, field 4), the checksums of the
+wallets it keeps a plan for, and the time it was last open by this
+computer's clock. The Backups screen lists a locked vault's wallets
+from it (`docs/SIMPLIFY.md` §5), and its vault line says a seed is kept
+in a locked vault only when the seed's master id, the session key's or
+the one the backup's record kept, is the summary's for that key: the
+fingerprint finds the candidate, the id says it is that seed (F65). A
+summary kept before the ids were verifies nothing, and the line reads
+"A vault is locked". The summaries are rebuilt on unlock, after every
+change made on a vault screen and as the session seals, and written
+into the kept state at lock under the key `vault-summaries`
+(`memory.rs`), which the next process reads back. They are gone at
+power-off, with the rest of `/run/faraday`.
 
 The Vaults list's row of a locked vault with a summary goes by the
 slot's name ("Savings"), keeps its file name, and reads the summary in
@@ -445,8 +452,8 @@ with no summary keeps its row as before and reads "Unlock to see what
 it holds".
 
 **The trade-off.** Wallet names, shapes and descriptor checksums, key
-fingerprints, the backup
-map's places and the slot's name stay in RAM, and in `/run/faraday`,
+fingerprints and master ids, the backup map's places and the slot's
+name stay in RAM, and in `/run/faraday`,
 while the vault is locked, until power-off. None of it spends: no seed,
 no words, no entry's fields, no descriptor. It does say which slot was
 open, which §9's deniability does not cover while the machine stays on;

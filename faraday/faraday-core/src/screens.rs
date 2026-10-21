@@ -2809,12 +2809,11 @@ pub(crate) fn missing_keys_line(
     y: f32,
     w: f32,
 ) -> f32 {
-    let missing: Vec<osk_bip::keys::Fingerprint> = slots
+    if slots
         .iter()
-        .filter(|s| s.held_by.is_none())
-        .filter_map(|s| s.fingerprint)
-        .collect();
-    if missing.iter().any(|f| app.vault_key_for(*f).is_some()) {
+        .filter(|s| s.held_by.is_none() && s.fingerprint.is_some())
+        .any(|s| app.vault_key_for(s).is_some())
+    {
         return 0.0;
     }
     let files = app.vault_files();
@@ -3585,11 +3584,15 @@ fn silent_wallet_card(
         (EN.silent_wallet_card_not, MUTED, INNER)
     };
     let button = held.is_none().then(|| {
-        if app.vault_key_for(r.fingerprint).is_some() {
+        let slot = crate::wallet::Slot::bare(r.fingerprint);
+        if app.vault_key_for(&slot).is_some() {
             (
                 EN.silent_wallet_card_load,
                 Style::Primary,
-                Action::Vault(crate::vaults::VaultAction::LoadKeyOf(r.fingerprint.0)),
+                Action::Vault(crate::vaults::VaultAction::LoadKeyOf(
+                    r.fingerprint.0,
+                    crate::vaults::SlotOf::Bare,
+                )),
             )
         } else {
             (
@@ -4446,9 +4449,9 @@ pub(crate) fn step_body(
                         }
                         // A key an open vault holds loads from it; any
                         // other not here says so.
-                        let from_vault = slot
-                            .fingerprint
-                            .filter(|f| slot.held_by.is_none() && app.vault_key_for(*f).is_some());
+                        let from_vault = slot.fingerprint.filter(|_| {
+                            slot.held_by.is_none() && app.vault_key_for(slot).is_some()
+                        });
                         // A seed an open vault keeps without the
                         // passphrase this wallet may use it with (F62).
                         let with_pass =
@@ -4485,7 +4488,10 @@ pub(crate) fn step_body(
                                     } else {
                                         Style::Disabled
                                     },
-                                    Action::Vault(crate::vaults::VaultAction::LoadKeyOf(f.0)),
+                                    Action::Vault(crate::vaults::VaultAction::LoadKeyOf(
+                                        f.0,
+                                        crate::vaults::SlotOf::Loaded(wi, k),
+                                    )),
                                 );
                             }
                             None => {

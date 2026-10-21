@@ -247,6 +247,64 @@ fn after_the_vault_is_written_the_vault_line_names_the_stick() {
     assert_eq!(line(&lines, "Place 2").state, "Checked");
 }
 
+/// A locked vault's summary says a seed is kept there by the seed's
+/// whole master id: the vault line names the vault for the seed it held,
+/// says nothing is verified from a summary with no ids, and does not
+/// name it for another seed that only shares the fingerprint. A real
+/// four-byte collision cannot be made here, so the summary's entry of
+/// another seed is given this seed's fingerprint, as a collision would
+/// leave it.
+#[test]
+fn a_locked_vault_is_named_for_a_seed_it_held_and_not_for_another_with_its_fingerprint() {
+    use faraday_core::wallet::fp_text;
+    let mut app = backed_up(2);
+    // Test key 2 kept in the vault too.
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    app.press(Action::EntryAdd);
+    assert_eq!(app.session.keys.len(), 2, "test key 2 loaded");
+    let (fp1, fp2) = (
+        fp_text(app.session.keys[0].fingerprint()),
+        fp_text(app.session.keys[1].fingerprint()),
+    );
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::SaveKey(1)));
+    let file = app.vault_files()[0].name.clone();
+    app.press(Action::Lock);
+    let (inbox, outbox, kept) = saved(&mut app);
+    let mut app = shown(inbox, outbox, kept);
+    assert!(app.vaults.open.is_empty(), "the vault is locked");
+    assert!(app.session.keys.is_empty(), "no seed is loaded");
+    let vault = line(&lines(&mut app), "Vault").clone();
+    assert!(vault.state.starts_with(&format!("{file} · ")), "{vault:?}");
+
+    // A summary kept before the ids were: nothing is verified.
+    let ids = app.vaults.summaries[0].ids.clone();
+    for id in &mut app.vaults.summaries[0].ids {
+        *id = None;
+    }
+    let vault = line(&lines(&mut app), "Vault").clone();
+    assert_eq!(
+        (vault.state.as_str(), vault.tone),
+        ("A vault is locked", Tone::Dim)
+    );
+    app.vaults.summaries[0].ids = ids;
+
+    // Test key 2's entry under test key 1's fingerprint, and test key 1
+    // gone from the summary.
+    let s = &mut app.vaults.summaries[0];
+    let i1 = s.keys.iter().position(|k| *k == fp1).expect("test key 1");
+    let i2 = s.keys.iter().position(|k| *k == fp2).expect("test key 2");
+    s.keys[i2] = fp1.clone();
+    s.keys.remove(i1);
+    s.ids.remove(i1);
+    let vault = line(&lines(&mut app), "Vault").clone();
+    assert!(
+        !vault.state.contains(&file),
+        "a fingerprint alone does not make another seed kept: {vault:?}"
+    );
+}
+
 #[test]
 fn a_wallet_with_no_plan_offers_back_up() {
     let mut app = with_a_wallet();

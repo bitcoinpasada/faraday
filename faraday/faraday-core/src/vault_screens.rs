@@ -2288,10 +2288,10 @@ pub(crate) fn record_is_key(
         .is_some_and(|(fp, id)| fp == fp_text(key.fingerprint()) && id == key.master_id())
 }
 
-/// A key record's fingerprint and [`crate::wallet::master_id`], worked
-/// out once per key and kept. Costs a PBKDF2 and two elliptic-curve
-/// multiplications the first time.
-fn key_identity(c: &Compute, app: &Faraday, r: &Record) -> Option<(String, [u8; 32])> {
+/// A key record's id: the SHA-256 of its payload and the passphrase
+/// stored with it, by which what is worked out of it is kept. `None` for
+/// a record with no key. Costs a hash.
+fn record_id(r: &Record) -> Option<[u8; 32]> {
     use osk_bip::bitcoin::hashes::{Hash, sha256};
     // By the payload and the passphrase stored with it: the same words
     // with a passphrase are another key.
@@ -2302,7 +2302,35 @@ fn key_identity(c: &Compute, app: &Faraday, r: &Record) -> Option<(String, [u8; 
         osk_bip::bitcoin::hashes::HashEngine::input(&mut engine, &[0]);
         osk_bip::bitcoin::hashes::HashEngine::input(&mut engine, p);
     }
-    let id = sha256::Hash::from_engine(engine).to_byte_array();
+    Some(sha256::Hash::from_engine(engine).to_byte_array())
+}
+
+/// A key record's master key, its passphrase applied. Costs a PBKDF2
+/// for words and an elliptic-curve multiplication.
+fn record_master(c: &Compute, app: &Faraday, r: &Record) -> Option<osk_bip::keys::MasterKey> {
+    Some(match crate::wallet::record_words(r) {
+        Some(m) => {
+            let passphrase = r.text(field::KEY_PASSPHRASE).unwrap_or("");
+            let seed = m.to_seed(c, passphrase.as_bytes()).ok()?;
+            osk_bip::keys::MasterKey::from_seed(c, &seed, app.session.network())
+        }
+        None => {
+            let seed = vaults::seed_of(r)?;
+            let bytes = osk_crypto::SeedBytes::new(&seed)?;
+            osk_bip::keys::MasterKey::from_seed_bytes(
+                c,
+                &osk_crypto::Secret::new(bytes),
+                app.session.network(),
+            )
+        }
+    })
+}
+
+/// A key record's fingerprint and [`crate::wallet::master_id`], worked
+/// out once per key and kept. Costs a PBKDF2 and two elliptic-curve
+/// multiplications the first time.
+pub(crate) fn key_identity(c: &Compute, app: &Faraday, r: &Record) -> Option<(String, [u8; 32])> {
+    let id = record_id(r)?;
     if let Some((_, fp, mid)) = app
         .vaults
         .fingerprints
@@ -2313,24 +2341,7 @@ fn key_identity(c: &Compute, app: &Faraday, r: &Record) -> Option<(String, [u8; 
         return Some((fp.clone(), *mid));
     }
     // Kept by the key's id once worked out, by whoever asks first.
-    let master = crate::work::keeping(|| -> Option<osk_bip::keys::MasterKey> {
-        Some(match crate::wallet::record_words(r) {
-            Some(m) => {
-                let passphrase = r.text(field::KEY_PASSPHRASE).unwrap_or("");
-                let seed = m.to_seed(c, passphrase.as_bytes()).ok()?;
-                osk_bip::keys::MasterKey::from_seed(c, &seed, app.session.network())
-            }
-            None => {
-                let seed = vaults::seed_of(r)?;
-                let bytes = osk_crypto::SeedBytes::new(&seed)?;
-                osk_bip::keys::MasterKey::from_seed_bytes(
-                    c,
-                    &osk_crypto::Secret::new(bytes),
-                    app.session.network(),
-                )
-            }
-        })
-    })?;
+    let master = crate::work::keeping(|| record_master(c, app, r))?;
     let fp = fp_text(master.fingerprint());
     let mid = crate::work::keeping(|| crate::wallet::master_id(c, &master));
     app.vaults
@@ -2338,6 +2349,57 @@ fn key_identity(c: &Compute, app: &Faraday, r: &Record) -> Option<(String, [u8; 
         .borrow_mut()
         .push((id, fp.clone(), mid));
     Some((fp, mid))
+}
+
+/// Whether key record `r` is the key a wallet's descriptor names as
+/// `key`: its master fingerprint the descriptor's, and its account key at
+/// the descriptor's path the descriptor's own, public key and chain code
+/// both, where the fingerprint alone only finds a candidate (F65). A key
+/// with no origin is never confirmed. The account key is worked out once
+/// per record and path and kept. Costs a PBKDF2 and a key derivation the
+/// first time for a record whose fingerprint matches.
+pub(crate) fn record_is_policy_key(
+    c: &Compute,
+    app: &Faraday,
+    r: &Record,
+    key: &osk_bip::policy::PolicyKey,
+) -> bool {
+    let (Some(fp), Some(path)) = (key.fingerprint(), key.path()) else {
+        return false;
+    };
+    if key_fingerprint(c, app, r).as_deref() != Some(fp_text(fp).as_str()) {
+        return false;
+    }
+    let Some(id) = record_id(r) else {
+        return false;
+    };
+    let want = account_bytes(key.xpub());
+    let at = path.to_string();
+    if let Some((.., kept)) = app
+        .vaults
+        .accounts
+        .borrow()
+        .iter()
+        .find(|(k, p, _)| *k == id && *p == at)
+    {
+        return kept.is_some_and(|b| b == want);
+    }
+    // Kept by the record's id and the path once worked out.
+    let got = crate::work::keeping(|| {
+        let master = record_master(c, app, r)?;
+        Some(account_bytes(&master.derive(c, path).to_xpub(c)))
+    });
+    app.vaults.accounts.borrow_mut().push((id, at, got));
+    got.is_some_and(|b| b == want)
+}
+
+/// An extended public key's public key and chain code, which do not
+/// change with the network it is written for. A lookup.
+fn account_bytes(x: &osk_bip::bitcoin::bip32::Xpub) -> [u8; 65] {
+    let mut out = [0u8; 65];
+    out[..33].copy_from_slice(&x.public_key.serialize());
+    out[33..].copy_from_slice(x.chain_code.as_bytes());
+    out
 }
 
 fn words_text(m: &osk_bip::bip39::Mnemonic) -> String {

@@ -38,6 +38,12 @@ pub struct Record {
     /// what the wallet's card draws its chart from once the backup is
     /// left. Empty in a record kept before it was written.
     pub answers: String,
+    /// Each seed's [`crate::wallet::master_id`], by fingerprint, as the
+    /// session held it when the record was made or brought up to date:
+    /// public, and what a locked vault's summary is compared with, where
+    /// the fingerprint only finds a candidate (F65). Empty in a record
+    /// kept before it was written.
+    pub ids: Vec<([u8; 4], [u8; 32])>,
 }
 
 /// One place of the map.
@@ -151,6 +157,46 @@ fn read_hex4(s: &str) -> Option<[u8; 4]> {
     Some(out)
 }
 
+pub(crate) fn hex32(b: &[u8; 32]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
+pub(crate) fn read_hex32(s: &str) -> Option<[u8; 32]> {
+    if s.len() != 64 {
+        return None;
+    }
+    let mut out = [0u8; 32];
+    for (i, b) in out.iter_mut().enumerate() {
+        *b = u8::from_str_radix(s.get(2 * i..2 * i + 2)?, 16).ok()?;
+    }
+    Some(out)
+}
+
+/// Whether locked vault summary `s` holds seed `fp` whose master id is
+/// `id`: `Some(true)` when an entry of that fingerprint has that id,
+/// `Some(false)` when no entry has the fingerprint or every one has
+/// another id, `None` when an entry of the fingerprint has no id or `id`
+/// is not known, so nothing is verified (F65). A lookup per key.
+pub(crate) fn summary_has_seed(
+    s: &crate::vaults::VaultSummary,
+    fp: [u8; 4],
+    id: Option<[u8; 32]>,
+) -> Option<bool> {
+    let text = fp_text(osk_bip::keys::Fingerprint(fp));
+    let mut unknown = false;
+    for (i, k) in s.keys.iter().enumerate() {
+        if *k != text {
+            continue;
+        }
+        match (s.ids.get(i).copied().flatten(), id) {
+            (Some(a), Some(b)) if a == b => return Some(true),
+            (Some(_), Some(_)) => {}
+            _ => unknown = true,
+        }
+    }
+    if unknown { None } else { Some(false) }
+}
+
 /// The records as the kept state holds them: a `backup` line per
 /// wallet, then its `spot` and `check` lines, fields split by tabs.
 pub(crate) fn encode(all: &[Record]) -> Vec<u8> {
@@ -182,6 +228,9 @@ pub(crate) fn encode(all: &[Record]) -> Vec<u8> {
         }
         for (fp, n) in &r.checks {
             out.push_str(&format!("check\t{}\t{n}\n", hex4(*fp)));
+        }
+        for (fp, id) in &r.ids {
+            out.push_str(&format!("id\t{}\t{}\n", hex4(*fp), hex32(id)));
         }
         if !r.answers.is_empty() {
             out.push_str(&format!(
@@ -231,6 +280,13 @@ pub(crate) fn decode(bytes: &[u8]) -> Vec<Record> {
                     r.answers = answers.replace(';', "\n");
                 }
             }
+            ["id", fp, id] => {
+                if let (Some(fp), Some(id), Some(r)) =
+                    (read_hex4(fp), read_hex32(id), out.last_mut())
+                {
+                    r.ids.push((fp, id));
+                }
+            }
             ["check", fp, n] => {
                 if let (Some(fp), Ok(n), Some(r)) = (read_hex4(fp), n.parse(), out.last_mut()) {
                     r.checks.push((fp, n));
@@ -243,6 +299,12 @@ pub(crate) fn decode(bytes: &[u8]) -> Vec<Record> {
 }
 
 impl Record {
+    /// The [`crate::wallet::master_id`] the record keeps for seed `fp`.
+    /// A lookup.
+    fn id_of(&self, fp: [u8; 4]) -> Option<[u8; 32]> {
+        self.ids.iter().find(|(f, _)| *f == fp).map(|(_, id)| *id)
+    }
+
     /// How many copies of seed `fp` were checked here.
     fn checked(&self, fp: [u8; 4]) -> u32 {
         self.checks
@@ -352,6 +414,32 @@ impl Faraday {
             .collect()
     }
 
+    /// Seed `fp`'s [`crate::wallet::master_id`]: the session key's, else
+    /// the one record `r` kept. A lookup.
+    pub(crate) fn seed_id(&self, r: Option<&Record>, fp: [u8; 4]) -> Option<[u8; 32]> {
+        self.session
+            .keys
+            .iter()
+            .find(|k| k.fingerprint().0 == fp)
+            .map(|k| k.master_id())
+            .or_else(|| r?.id_of(fp))
+    }
+
+    /// The [`crate::wallet::master_id`] of each seed `spots` keep that a
+    /// session key holds, by fingerprint. A lookup per key.
+    fn seed_ids(&self, spots: &[Spot]) -> Vec<([u8; 4], [u8; 32])> {
+        let mut out: Vec<([u8; 4], [u8; 32])> = Vec::new();
+        for fp in spots.iter().flat_map(|s| &s.copies) {
+            if out.iter().any(|(f, _)| f == fp) {
+                continue;
+            }
+            if let Some(k) = self.session.keys.iter().find(|k| k.fingerprint().0 == *fp) {
+                out.push((*fp, k.master_id()));
+            }
+        }
+        out
+    }
+
     /// The record of the backup under way, made or brought up to date
     /// from its plan: when its checklist is made. What was checked is
     /// kept.
@@ -364,12 +452,20 @@ impl Faraday {
             return;
         };
         let spots = self.backup_spots(&c, wallet, Some(b.wallet), &b.answers);
+        let ids = self.seed_ids(&spots);
         let sum = wallet.checksum().to_string();
         let name = wallet.name.clone();
         let shown = b.shown;
         let answers = b.answers.to_text();
         match self.backup_records.iter_mut().find(|r| r.sum == sum) {
             Some(r) => {
+                // An id the session no longer holds the key of is kept.
+                for (fp, id) in ids {
+                    match r.ids.iter_mut().find(|(f, _)| *f == fp) {
+                        Some(e) => e.1 = id,
+                        None => r.ids.push((fp, id)),
+                    }
+                }
                 r.spots = spots;
                 r.name = name;
                 r.shown |= shown;
@@ -382,6 +478,7 @@ impl Faraday {
                 checks: Vec::new(),
                 shown,
                 answers,
+                ids,
             }),
         }
     }
@@ -521,7 +618,7 @@ impl Faraday {
                     continue;
                 }
                 let lines = match self.backup_records.iter().find(|r| &r.sum == sum) {
-                    Some(r) => Some(self.record_lines(c, r, sum, &[])),
+                    Some(r) => Some(self.record_lines(c, r, &[])),
                     None if s.planned.contains(sum) => Some(vec![Line {
                         place: EN.backups_plan.to_string(),
                         holds: String::new(),
@@ -562,22 +659,24 @@ impl Faraday {
             _ => kept.as_ref().map(|(_, n)| n.clone()).unwrap_or_default(),
         };
         if let Some(r) = self.backup_records.iter().find(|r| r.sum == sum) {
-            return Some(self.record_lines(c, r, sum, &names));
+            return Some(self.record_lines(c, r, &names));
         }
         let (a, _) = kept?;
+        let spots = self.backup_spots(c, w, wi, &a);
         let r = Record {
             sum: sum.to_string(),
             name: w.name.clone(),
-            spots: self.backup_spots(c, w, wi, &a),
+            ids: self.seed_ids(&spots),
+            spots,
             checks: Vec::new(),
             shown: false,
             answers: String::new(),
         };
-        Some(self.record_lines(c, &r, sum, &names))
+        Some(self.record_lines(c, &r, &names))
     }
 
     /// A record's lines, each place named and given what was seen of it.
-    fn record_lines(&self, c: &Compute, r: &Record, sum: &str, names: &[String]) -> Vec<Line> {
+    fn record_lines(&self, c: &Compute, r: &Record, names: &[String]) -> Vec<Line> {
         // One vault is "Vault"; several are numbered.
         let vaults = r
             .spots
@@ -611,7 +710,7 @@ impl Faraday {
                             (EN.backups_not_checked.to_string(), Tone::Warn)
                         }
                     }
-                    At::Vault(_) => self.vault_state(c, sum, &s.copies),
+                    At::Vault(_) => self.vault_state(c, r, &s.copies),
                     At::Away => (EN.backups_not_here.to_string(), Tone::Dim),
                     _ if !s.secret.is_empty() && self.secret_out(&s.secret) => (
                         fill(EN.backups_unprotected, &[self.medium.for_box()]),
@@ -668,17 +767,17 @@ impl Faraday {
         (EN.backups_not_made.to_string(), Tone::Warn)
     }
 
-    /// The vault that holds the seeds `seeds`, or with none, wallet `sum`,
-    /// and where its file stands: an open vault holding them, else a
-    /// locked one remembered to.
-    pub(crate) fn vault_state(&self, c: &Compute, sum: &str, seeds: &[[u8; 4]]) -> (String, Tone) {
+    /// The vault that holds the seeds `seeds` of record `r`, or with
+    /// none, its wallet, and where its file stands: an open vault holding
+    /// them, else a locked one remembered to. A seed is kept in a vault
+    /// when it is that very key, told by all 32 bytes of its master id
+    /// (F65): an open vault's record against the session's key, a locked
+    /// vault's summary against the id the session or the record keeps.
+    pub(crate) fn vault_state(&self, c: &Compute, r: &Record, seeds: &[[u8; 4]]) -> (String, Tone) {
+        let sum = r.sum.as_str();
         let files = self.vault_files();
-        let wanted: Vec<String> = seeds
-            .iter()
-            .map(|f| fp_text(osk_bip::keys::Fingerprint(*f)))
-            .collect();
         let holds = |o: &crate::vaults::OpenVault| {
-            if !wanted.is_empty() {
+            if !seeds.is_empty() {
                 // Each seed as the session holds it, and a record of that
                 // very key: the fingerprint finds it, all 32 bytes of the
                 // master key's id say it is the one (F65). A seed not held
@@ -689,9 +788,9 @@ impl Faraday {
                         .iter()
                         .find(|k| k.fingerprint().0 == *f)
                         .is_some_and(|k| {
-                            o.contents
-                                .of(kind::KEY)
-                                .any(|(_, r)| crate::vault_screens::record_is_key(c, self, r, k))
+                            o.contents.of(kind::KEY).any(|(_, rec)| {
+                                crate::vault_screens::record_is_key(c, self, rec, k)
+                            })
                         })
                 });
             }
@@ -699,24 +798,56 @@ impl Faraday {
                 .described_of(kind::WALLET)
                 .any(|(_, _, d)| d.checksum == sum)
         };
-        let file = self
+        let id_of = |f: [u8; 4]| self.seed_id(Some(r), f);
+        // Whether locked vault summary `s` holds every seed: `Some(true)`
+        // told by the ids, `Some(false)` not, `None` when a seed's
+        // fingerprint is there and its id cannot be compared.
+        let summary_holds = |s: &crate::vaults::VaultSummary| -> Option<bool> {
+            if seeds.is_empty() {
+                return Some(s.sums.iter().any(|c| c == sum));
+            }
+            let mut told = true;
+            for f in seeds {
+                match summary_has_seed(s, *f, id_of(*f)) {
+                    Some(true) => {}
+                    Some(false) => return Some(false),
+                    None => told = false,
+                }
+            }
+            if told { Some(true) } else { None }
+        };
+        // The locked vault file summary `s` is of.
+        let locked = |s: &crate::vaults::VaultSummary| {
+            files
+                .iter()
+                .find(|f| f.open.is_none() && f.header.salt == s.salt)
+        };
+        let open_file = self
             .vaults
             .open
             .iter()
             .position(holds)
-            .and_then(|v| files.iter().find(|f| f.open == Some(v)))
-            .or_else(|| {
-                // A locked vault, as remembered when it was open: the
-                // summary keeps fingerprints only (see `VaultSummary`).
-                let s = self.vaults.summaries.iter().find(|s| {
-                    if wanted.is_empty() {
-                        s.sums.iter().any(|c| c == sum)
-                    } else {
-                        wanted.iter().all(|f| s.keys.contains(f))
-                    }
-                })?;
-                files.iter().find(|f| f.header.salt == s.salt)
-            });
+            .and_then(|v| files.iter().find(|f| f.open == Some(v)));
+        let file = open_file.or_else(|| {
+            // A locked vault, as remembered when it was open.
+            self.vaults
+                .summaries
+                .iter()
+                .filter(|s| summary_holds(s) == Some(true))
+                .find_map(&locked)
+        });
+        // A locked vault whose summary names the seed by fingerprint
+        // alone, from before the summaries kept master ids, or a seed no
+        // id is kept for: nothing is verified.
+        if file.is_none()
+            && self
+                .vaults
+                .summaries
+                .iter()
+                .any(|s| summary_holds(s).is_none() && locked(s).is_some())
+        {
+            return (EN.backups_a_vault_is.to_string(), Tone::Dim);
+        }
         let Some(f) = file else {
             // A locked vault seen nowhere this power-on may hold it.
             let unknown = files

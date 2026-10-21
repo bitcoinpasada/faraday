@@ -360,10 +360,16 @@ fn build(
             // A key an open vault holds loads from it, while short.
             let (action, way_in) = match slot
                 .fingerprint
-                .filter(|f| !held && !quorum_here && app.vault_key_for(c, *f).is_some())
+                .filter(|_| !held && !quorum_here && app.vault_key_for(c, slot).is_some())
             {
                 Some(f) => (
-                    Some(Action::Vault(crate::vaults::VaultAction::LoadKeyOf(f.0))),
+                    Some(Action::Vault(crate::vaults::VaultAction::LoadKeyOf(
+                        f.0,
+                        match press {
+                            Press::Loaded(w) => crate::vaults::SlotOf::Loaded(w, n),
+                            Press::Vault(v, r) => crate::vaults::SlotOf::Vault(v, r, n),
+                        },
+                    ))),
                     Some(EN.glance_load_from_vault),
                 ),
                 // A seed an open vault keeps without the passphrase this
