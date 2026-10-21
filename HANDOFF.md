@@ -137,6 +137,10 @@ payment outputs is left, which waits on upstream (BIP-375).
 
 ## Upstream
 
+Since 2026-10-20 Faraday maintains `core/` and `opensigner/` itself, a
+soft fork (F65); `docs/UPSTREAM.md` is the record of the fork point and
+every change. What follows is the history before that.
+
 The OpenSigner developer made §16.138 for forks like this one: code that
 defines bytes or answers a question without a screen lives in `core/`
 crates. New since the design started: `osk-backup` (the `.oskb` format, the

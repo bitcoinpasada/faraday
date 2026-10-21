@@ -2296,3 +2296,30 @@ people use.
 - **PSBT version 2** is read, shown, signed and returned in version 2;
   it offers no choice.
 - The Back up plan's software question is unchanged.
+
+### F65 OpenSigner's code taken in house: a soft fork (2026-10-20)
+
+**Why.** Faraday never edited `core/` or `opensigner/`, so every gap in
+them was wrapped in Faraday's own code or waited on a note to
+OpenSigner: a BIP 129 tidy-up before upstream's parser, SLIP-132 read a
+second time, a PSBT version 2 converter, the constant-time patch and the
+other carried changes. OpenSigner's development has slowed (no upstream
+commit since 2026-10-10), and the speed work needs a compute token on
+the costly functions, upstream's included.
+
+**Decision** (owner, 2026-10-20; `docs/UPSTREAM.md`).
+
+- Faraday maintains `core/` and `opensigner/` as a soft fork from
+  upstream's `d26b84e`. It changes them where it needs to, fixing a gap
+  at its source rather than wrapping it.
+- Each change there is its own commit with what and why, listed in
+  `docs/UPSTREAM.md` §3 the same day; a cryptographic change is tested
+  against published vectors or another implementation first.
+- OpenSigner's new commits are read when there is reason to and ported
+  as commits naming theirs, security fixes first. Notes for upstream
+  become optional.
+- OpenSigner's licence and notices stay; the README says Faraday began
+  as a fork and that `core/` is now Faraday's to review.
+- Faraday's strings stay in `faraday-strings`.
+- `docs/PLANNING.md` stays upstream's planning record and is not edited
+  for Faraday's decisions.
