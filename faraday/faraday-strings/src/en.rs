@@ -5936,6 +5936,8 @@ pub struct Strings {
     pub settings_remove_every: &'static str,
     /// Button in `settings`.
     pub settings_power_off_2: &'static str,
+    /// Button in `settings` in the desktop app, where there is no power to turn off.
+    pub settings_quit: &'static str,
     /// Text in `settings`.
     pub settings_lock_after: &'static str,
     /// Text in `settings`.
@@ -6187,6 +6189,10 @@ pub struct Strings {
     pub power_cancel: &'static str,
     /// Text in `power_sheet`.
     pub power_power_off: &'static str,
+    /// Title and button of `power_sheet` in the desktop app.
+    pub power_quit: &'static str,
+    /// Text in `power_sheet` in the desktop app.
+    pub power_app_closes: &'static str,
     /// Title of `power_sheet` where it offers Restart.
     pub power_title: &'static str,
     /// Button in `power_sheet`.
@@ -11630,6 +11636,7 @@ pub static EN: Strings = Strings {
     settings_lock: "Lock",
     settings_remove_every: "Remove every key",
     settings_power_off_2: "Power off",
+    settings_quit: "Quit",
     settings_lock_after: "Lock after",
     settings_power_off: "Power off after",
     settings_never: "Never",
@@ -11748,6 +11755,8 @@ pub static EN: Strings = Strings {
     power_the_computer: "The computer powers off",
     power_cancel: "Cancel",
     power_power_off: "Power off",
+    power_quit: "Quit",
+    power_app_closes: "Faraday closes",
     power_title: "Power",
     power_restart: "Restart",
     power_the_computer_restarts: "The computer powers off, or restarts",

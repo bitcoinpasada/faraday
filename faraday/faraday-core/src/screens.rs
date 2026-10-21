@@ -13686,26 +13686,17 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Action::RemoveKeys,
             ));
         }
-        items.push((EN.settings_power_off_2, Style::Secondary, Action::PowerAsk));
+        let leave = if app.online {
+            EN.settings_quit
+        } else {
+            EN.settings_power_off_2
+        };
+        items.push((leave, Style::Secondary, Action::PowerAsk));
         y += wrap_buttons(ui, x, y, w, 38.0, &items) + 4.0;
         if !app.online {
             y += ui.wrap(x, y, w, 13.0, W::R, MUTED, PANIC_KEY) + 10.0;
         }
-        let rows: [IdleRow; 2] = [
-            (
-                EN.settings_lock_after,
-                app.idle_lock_min,
-                &crate::stick_settings::IDLE_LOCK_CHOICES,
-                Action::IdleLock,
-            ),
-            (
-                EN.settings_power_off,
-                app.idle_off_min,
-                &crate::stick_settings::IDLE_OFF_CHOICES,
-                Action::IdleOff,
-            ),
-        ];
-        for (label, now, choices, action) in rows {
+        for (label, now, choices, action) in idle_rows(app) {
             ui.text(x, y, 13.0, W::R, MUTED, label);
             y += 22.0;
             let labels: Vec<String> = choices
@@ -13978,7 +13969,10 @@ fn settings(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         30.0
     };
-    ui.card(x, y, width, 224.0 + ignored_h, LINE);
+    // One 46-unit row less where there is no power-off timer.
+    let rows = idle_rows(app);
+    let fewer = 46.0 * (2 - rows.len()) as f32;
+    ui.card(x, y, width, 224.0 - fewer + ignored_h, LINE);
     ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, EN.settings_session);
     let n = app.session.keys.len();
     ui.text(
@@ -14025,7 +14019,11 @@ fn settings(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y + 74.0,
         None,
         38.0,
-        EN.settings_power_off_2,
+        if app.online {
+            EN.settings_quit
+        } else {
+            EN.settings_power_off_2
+        },
         Style::Secondary,
         Action::PowerAsk,
     ) + 14.0;
@@ -14035,22 +14033,8 @@ fn settings(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text_mid(bx, y + 74.0, 38.0, 13.0, W::R, MUTED, &line);
     }
     // The idle timers: lock, then power off with nothing left to lose.
-    let rows: [IdleRow; 2] = [
-        (
-            EN.settings_lock_after,
-            app.idle_lock_min,
-            &crate::stick_settings::IDLE_LOCK_CHOICES,
-            Action::IdleLock,
-        ),
-        (
-            EN.settings_power_off,
-            app.idle_off_min,
-            &crate::stick_settings::IDLE_OFF_CHOICES,
-            Action::IdleOff,
-        ),
-    ];
     let mut ry = y + 126.0;
-    for (label, now, choices, action) in rows {
+    for &(label, now, choices, action) in &rows {
         ui.text_mid(x + 22.0, ry, 38.0, 13.0, W::R, MUTED, label);
         let mut sx = x + 150.0;
         for &m in choices {
@@ -14074,7 +14058,7 @@ fn settings(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let line = ui.fit(13.0, W::R, &line, width - 44.0);
         ui.text_mid(x + 22.0, ry, 26.0, 13.0, W::R, WARN, &line);
     }
-    y += 244.0 + ignored_h;
+    y += 244.0 - fewer + ignored_h;
     y += time_section(app, ui, x, y, width) + 20.0;
     ui.card(x, y, width, 94.0, LINE);
     ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, EN.settings_network);
@@ -15060,10 +15044,6 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
             Action::QrPartSize(crate::QR_PARTS[(pp + 1) % 3]),
         ));
     }
-    // One code of public content: kept as a picture with its label.
-    if q.offers_png() {
-        cycles.push(("PNG", Style::Secondary, Action::QrPng));
-    }
     let rows_h = if cycles.is_empty() { 0.0 } else { 40.0 };
     crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
         let mut cy = y;
@@ -15268,6 +15248,26 @@ fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// One idle timer on Settings: its label, its minutes now, the choices
 /// (0 for never), and the action that sets it.
 type IdleRow = (&'static str, u16, &'static [u16], fn(u16) -> Action);
+
+/// Settings' idle timers: lock always, power off only where the device
+/// can power off (the desktop app quits by the button alone, no timer).
+fn idle_rows(app: &View) -> Vec<IdleRow> {
+    let mut rows: Vec<IdleRow> = vec![(
+        EN.settings_lock_after,
+        app.idle_lock_min,
+        &crate::stick_settings::IDLE_LOCK_CHOICES,
+        Action::IdleLock,
+    )];
+    if !app.online {
+        rows.push((
+            EN.settings_power_off,
+            app.idle_off_min,
+            &crate::stick_settings::IDLE_OFF_CHOICES,
+            Action::IdleOff,
+        ));
+    }
+    rows
+}
 
 /// Minutes and seconds, `4:05`.
 fn clock_text(ms: u64) -> String {
@@ -15612,13 +15612,16 @@ fn power_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         ""
     };
     let row = app.bios_key().map(|key| (EN.power_bios_key, key));
-    let title = if restart {
-        EN.power_title
+    let leave = if app.online {
+        EN.power_quit
     } else {
         EN.power_power_off
     };
+    let title = if restart { EN.power_title } else { leave };
     let then = if restart {
         EN.power_the_computer_restarts
+    } else if app.online {
+        EN.power_app_closes
     } else {
         EN.power_the_computer
     };
@@ -15626,7 +15629,7 @@ fn power_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if restart {
         buttons.push((EN.power_restart, Style::Secondary, Action::Restart));
     }
-    buttons.push((EN.power_power_off, Style::Primary, Action::PowerOff));
+    buttons.push((leave, Style::Primary, Action::PowerOff));
     // The guide's address, and its code: made once, kept on the state.
     let guide = app.secure_boot_guide().filter(|g| !g.is_empty());
     let guide_qr = guide.as_deref().and_then(|g| app.public_qr(g));
