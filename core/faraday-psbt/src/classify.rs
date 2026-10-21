@@ -51,19 +51,6 @@ pub enum ScriptKind {
 }
 
 impl ScriptKind {
-    /// Whether the spend is ECDSA (legacy or SegWit v0) rather than
-    /// Schnorr.
-    pub fn is_ecdsa(self) -> bool {
-        matches!(
-            self,
-            ScriptKind::P2pkh
-                | ScriptKind::P2shP2wpkh
-                | ScriptKind::P2wpkh
-                | ScriptKind::Multisig { .. }
-                | ScriptKind::Miniscript { .. }
-        )
-    }
-
     /// Whether this crate can sign and finalize the spend.
     pub fn is_supported(self) -> bool {
         !matches!(self, ScriptKind::Unknown)
@@ -187,14 +174,6 @@ impl Multisig {
     /// Keys in the script.
     pub fn n(&self) -> usize {
         self.keys.len()
-    }
-
-    /// Whether the keys are in lexicographic order, as `sortedmulti`
-    /// produces.
-    pub fn is_sorted(&self) -> bool {
-        self.keys
-            .windows(2)
-            .all(|w| w[0].to_bytes() <= w[1].to_bytes())
     }
 }
 

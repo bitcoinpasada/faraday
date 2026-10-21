@@ -79,10 +79,6 @@ impl Objects {
         self.0.get(path)?.get(iface)
     }
 
-    fn has(&self, path: &str, iface: &str) -> bool {
-        self.props(path, iface).is_some()
-    }
-
     fn str(&self, path: &str, iface: &str, prop: &str) -> String {
         match self.props(path, iface).and_then(|p| p.get(prop)) {
             Some(Value::Str(s)) => s.trim().to_string(),
@@ -405,11 +401,4 @@ fn nul(s: &str) -> Vec<u8> {
 /// interfaces by.
 pub fn short(iface: &str) -> &str {
     iface.strip_prefix(IFACE).unwrap_or(iface)
-}
-
-impl Objects {
-    /// Whether `path` is a block with a filesystem.
-    pub fn is_filesystem(&self, path: &str) -> bool {
-        self.has(path, "Filesystem")
-    }
 }

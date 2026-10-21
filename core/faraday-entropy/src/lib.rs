@@ -257,11 +257,6 @@ impl Warnings {
     pub fn any(self) -> bool {
         self.too_few || self.long_run || self.skewed || self.sequential
     }
-
-    /// Whether any caution (a flag other than `too_few`) is set.
-    pub fn any_caution(self) -> bool {
-        self.long_run || self.skewed || self.sequential
-    }
 }
 
 // ----- dice -----

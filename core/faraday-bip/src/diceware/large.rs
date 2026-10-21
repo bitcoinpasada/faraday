@@ -8,10 +8,6 @@ pub const SHA256: &str = "addd35536511597a02fa0a9ff1e5284677b8883b83e986e43f15a3
 /// Dice thrown for one word of this list.
 pub const DICE: usize = 5;
 
-/// Characters in the longest word, which is what a panel of
-/// these words is sized for.
-pub const CHARS: usize = 9;
-
 /// The words in roll order: index `i` is the roll whose digits are
 /// `i` in base six with one added to each digit.
 #[rustfmt::skip]

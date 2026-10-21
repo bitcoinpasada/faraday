@@ -9,7 +9,7 @@
 //! `backup_flow_screen.rs`, shared with the other kinds. This file is what
 //! only a wallet needs.
 
-use crate::backup_flow::{BackupFlow, Kind, PublicOn, Step, Subject, Target};
+use crate::backup_flow::{BackupFlow, Kind, Step, Subject, Target};
 use crate::plan;
 use crate::strings::{EN, fill};
 use crate::vaults::VaultAction as V;
@@ -91,14 +91,6 @@ impl Faraday {
         let b = self.backup.as_ref()?;
         let cs = self.session.wallets.get(b.wallet)?.checksum();
         self.wallet_flow_at(cs)
-    }
-
-    /// The writes wallet `checksum` waits for: how many sticks are written
-    /// and how many there are. `None` once every one is.
-    pub fn wallet_backup_waits(&self, checksum: &str) -> Option<(usize, usize)> {
-        let i = self.wallet_flow_at(checksum)?;
-        let f = &self.backup_flows[i];
-        f.waiting().then(|| f.written_of())
     }
 
     /// Whether wallet `w`'s backup was left part way: its vaults set up
@@ -1773,17 +1765,6 @@ impl Faraday {
         let first = names.first()?;
         let label = self.wallet_written_to(first)?;
         Some(fill(EN.backup_flow_written_to, &[&label]))
-    }
-
-    /// Costs what `plan_mapped` costs. The `PublicOn` the wallet's plan
-    /// carries its public files on, for the card that names the stick.
-    pub fn wallet_public_on(&self, c: &Compute) -> Option<PublicOn> {
-        let b = self.backup.as_ref()?;
-        let shape = self.plan_shape_now(b.wallet);
-        Some(
-            crate::backup_flow::plan_of_on(&b.answers, &self.plan_mapped(c, &shape, &b.answers))
-                .public_on,
-        )
     }
 }
 

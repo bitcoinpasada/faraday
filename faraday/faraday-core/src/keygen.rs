@@ -57,11 +57,6 @@ pub fn procedure_name(p: DiceProcedure) -> &'static str {
     }
 }
 
-/// Its place in [`SOURCE_ROWS`], which actions carry.
-pub fn source_index(s: Source) -> u8 {
-    SOURCE_ROWS.iter().position(|x| *x == s).unwrap_or(0) as u8
-}
-
 /// One option on the Randomness card: a source and, for dice, how the
 /// rolls are read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

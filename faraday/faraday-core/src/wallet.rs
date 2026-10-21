@@ -226,21 +226,6 @@ impl Key {
         self.public.borrow_mut().clear();
     }
 
-    /// Whether the key's words are the ones with these BIP-39 `indices`;
-    /// a lookup per word, with no parsing and no copy of the words.
-    pub fn words_are(&self, indices: &[u16]) -> bool {
-        let Some(words) = self.words.as_ref() else {
-            return false;
-        };
-        let mut have = words.as_str().split(' ');
-        for &i in indices {
-            if have.next() != Some(self.language.word(i)) {
-                return false;
-            }
-        }
-        have.next().is_none()
-    }
-
     /// Costs what `parse_words` costs. Runs `take` on the secret share
     /// these words are, rebuilt for the call and wiped after it.
     pub fn with_secret_share(
@@ -788,11 +773,6 @@ impl Session {
     /// Whether the demo is on: set up, and the session on mainnet.
     pub fn demo(&self) -> bool {
         !self.demo.is_empty() && self.network.is_mainnet()
-    }
-
-    /// The public seed a key is, as its word, when the demo is set up.
-    pub fn public_seed(&self, fp: Fingerprint) -> Option<&'static str> {
-        self.demo.iter().find(|(_, f)| *f == fp).map(|(w, _)| *w)
     }
 
     /// Keeps the session on the network it is on: every move to another

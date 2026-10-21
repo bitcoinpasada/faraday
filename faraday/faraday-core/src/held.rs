@@ -418,13 +418,6 @@ impl Faraday {
             .find(|&i| bstep::item(i).is_some_and(|it| !self.backup_item_done_now(c, it)))
     }
 
-    /// The first vault the plan makes whose stick no place keeps.
-    pub fn backup_stickless(&self) -> Option<usize> {
-        let b = self.backup.as_ref()?;
-        let shape = self.plan_shape_now(b.wallet);
-        b.answers.stickless(&shape)
-    }
-
     /// The vault item's **Load at unlock** (F62): turned off or on for
     /// plan vault `v`, and set on the wallet's record there when the vault
     /// holds it already.

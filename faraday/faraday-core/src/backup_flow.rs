@@ -92,16 +92,6 @@ impl Kind {
         }
     }
 
-    /// What the key is known by, as its page labels it.
-    pub fn subject_label(self) -> &'static str {
-        match self {
-            Kind::Apk => crate::strings::EN.apk_certificate_sha_256,
-            Kind::Gpg => crate::strings::EN.vault_fingerprint,
-            Kind::SecureBoot => crate::strings::EN.vault_owner_guid,
-            Kind::Wallet => crate::strings::EN.backup_flow_subject_wallet,
-        }
-    }
-
     /// The fewest places with a stick: two for a key that cannot be made
     /// again from seed words, one for a wallet (§1).
     pub fn min_places(self) -> usize {

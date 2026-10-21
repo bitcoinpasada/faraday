@@ -505,14 +505,6 @@ impl Participant {
         }
     }
 
-    /// The participant's plain public key, when it has one.
-    pub fn plain_key(&self) -> Option<PublicKey> {
-        match &self.key {
-            ParticipantKey::Plain(key) => Some(*key),
-            ParticipantKey::Extended(_) => None,
-        }
-    }
-
     fn key_at<C: Verification>(
         &self,
         secp: &Secp256k1<C>,
@@ -572,12 +564,6 @@ impl MusigExpr {
         &self.participants
     }
 
-    /// Whether the expression derives from the aggregate key, which is
-    /// BIP-328 derivation and needs every participant to be an xpub.
-    pub fn derives_from_aggregate(&self) -> bool {
-        !self.path.is_empty()
-    }
-
     /// Whether the expression names one key or a range of them.
     pub fn is_ranged(&self) -> bool {
         self.path.is_ranged() || self.participants.iter().any(|p| p.path.is_ranged())
@@ -597,21 +583,6 @@ impl MusigExpr {
             keys.push(participant.key_at(secp, change, index)?);
         }
         key_agg_with(secp, &sort_keys(&keys))
-    }
-
-    /// The aggregate as a BIP-328 extended public key at `change`/`index`,
-    /// before the expression's own derivation.
-    pub fn aggregate_xpub_at<C: Verification>(
-        &self,
-        secp: &Secp256k1<C>,
-        network: Network,
-        change: bool,
-        index: u32,
-    ) -> Result<Xpub, Error> {
-        Ok(synthetic_xpub(
-            self.aggregate_at(secp, change, index)?.public_key(),
-            network.kind(),
-        ))
     }
 
     /// The public key this expression names at `change`/`index`: the

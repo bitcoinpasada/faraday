@@ -5,7 +5,6 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::keys::{MasterKey, MultisigScriptType, ScriptType};
 use faraday_bip::policy::{PolicyKey, WalletPolicy};
 use faraday_bip::slip132;
@@ -422,17 +421,6 @@ impl FromWallet {
         };
         fill(EN.create_at_account, &[base, &account.to_string()])
     }
-}
-
-/// A new 24-word seed from 32 bytes of entropy.
-pub fn new_words(entropy: &[u8; 32]) -> Result<String, String> {
-    let m = Mnemonic::from_entropy(Language::English, entropy).map_err(|e| e.to_string())?;
-    let lang = Language::English;
-    Ok(m.indices()
-        .iter()
-        .map(|&i| lang.word(i))
-        .collect::<Vec<_>>()
-        .join(" "))
 }
 
 /// The account key in a file, if the file is one: the first of

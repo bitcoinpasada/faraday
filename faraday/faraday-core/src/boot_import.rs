@@ -455,13 +455,6 @@ impl Faraday {
         self.import_view()?.vaults.into_iter().next()
     }
 
-    /// The boot stick the import came from is still attached.
-    pub fn import_stick_present(&self) -> bool {
-        self.import
-            .as_ref()
-            .is_some_and(|i| self.sticks.iter().any(|s| s.id == i.stick))
-    }
-
     /// Costs a read of every file it brought that may describe a wallet or
     /// a seed. What the boot stick brought, counted for the sheet's first
     /// line. Kept in the drawing memo while a frame is drawn

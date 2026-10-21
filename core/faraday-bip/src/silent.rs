@@ -578,12 +578,6 @@ pub fn needs_signature_data(script: &[u8]) -> bool {
     is_p2pkh(script) || is_p2sh(script) || is_p2wpkh(script)
 }
 
-/// Whether BIP-352 derives a shared secret from an input spending this
-/// output at all.
-pub fn is_eligible(script: &[u8]) -> bool {
-    needs_signature_data(script) || is_p2tr(script)
-}
-
 /// The public key BIP-352 takes from one input, where it takes one.
 ///
 /// `None` is an input the protocol ignores: a script type not on its

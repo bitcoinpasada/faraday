@@ -54,8 +54,6 @@ pub const MAX_MNEMONIC_WORDS: usize = 24;
 const NONCE_LABEL: &[u8] = b"osk-sealed-nonce";
 /// Domain separation for a key mixed from weak material.
 const WEAK_LABEL: &[u8] = b"osk-session-key-weak";
-/// Domain separation for the libsecp256k1 context blind.
-const SECP_BLIND_LABEL: &[u8] = b"osk-secp-blind";
 /// Associated data bound to every seal, so that a future format change
 /// cannot be confused with this one.
 const AAD: &[u8] = b"osk-sealed-v1";
@@ -167,22 +165,6 @@ impl SessionKey {
     /// sealed material.
     pub fn derive(&self, label: &[u8]) -> Secret<[u8; 64]> {
         Secret::new(hmac_sha512(self.key.expose(), label))
-    }
-
-    /// The 32 bytes a libsecp256k1 context is randomized with, so that
-    /// the intermediate values of a signature are blinded by something
-    /// an attacker cannot predict (security review M1). Derived like any
-    /// other per-session value, so it is new after every rotation and
-    /// tells nothing about the key.
-    ///
-    /// It is a blinding factor, not key material: it is copied out
-    /// because the context keeps its own copy anyway, and knowing it
-    /// opens nothing.
-    pub fn secp_blind(&self) -> [u8; 32] {
-        let derived = self.derive(SECP_BLIND_LABEL);
-        let mut blind = [0u8; 32];
-        blind.copy_from_slice(&derived.expose()[..32]);
-        blind
     }
 
     /// The next nonce: `counter ‖ prefix`. See the module documentation.

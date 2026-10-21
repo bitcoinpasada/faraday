@@ -488,11 +488,6 @@ impl Inspection {
     pub fn present_signatures(&self) -> impl Iterator<Item = &crate::verify::SignaturePresent> {
         self.signatures.iter().flat_map(|i| i.signatures.iter())
     }
-
-    /// How many signatures the transaction carries.
-    pub fn signature_count(&self) -> usize {
-        self.present_signatures().count()
-    }
 }
 
 impl Inspection {

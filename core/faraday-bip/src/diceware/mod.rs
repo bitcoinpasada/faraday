@@ -96,16 +96,6 @@ impl List {
         self.words().get(index).copied()
     }
 
-    /// Characters in the longest word of this list, which is what a
-    /// panel of them is sized for.
-    pub fn max_chars(self) -> usize {
-        match self {
-            List::Large => large::CHARS,
-            List::Short1 => short1::CHARS,
-            List::Short2 => short2::CHARS,
-        }
-    }
-
     /// The digest of the file this list was baked from.
     pub fn sha256(self) -> &'static str {
         match self {

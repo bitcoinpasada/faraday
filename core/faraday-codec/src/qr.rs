@@ -275,25 +275,6 @@ pub fn byte_capacity(version: u8, ecc: Ecc) -> usize {
     bits.saturating_sub(4 + usize::from(Mode::Byte.count_bits(version))) / 8
 }
 
-/// Largest alphanumeric-mode payload, in characters, that fits version
-/// `version` at `ecc`.
-///
-/// Alphanumeric mode packs two characters into 11 bits and a lone last
-/// character into 6, which is why this is not a byte count divided by
-/// anything. A caller that has to split a message into codes of a known
-/// version — an animated BC-UR run at the module-pitch floor — sizes its
-/// fragments from this.
-pub fn alnum_capacity(version: u8, ecc: Ecc) -> usize {
-    let version = version.clamp(1, 40);
-    let bits = num_data_codewords(version, ecc) * 8;
-    let bits = bits.saturating_sub(4 + usize::from(Mode::Alphanumeric.count_bits(version)));
-    let mut chars = bits / 11 * 2;
-    if bits % 11 >= 6 {
-        chars += 1;
-    }
-    chars
-}
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Mode {
     Numeric,

@@ -1770,7 +1770,7 @@ list column and checks. Choices made where the spec says nothing:
 - The Pi draws what the PC stick draws at its size: the narrow column.
   Nothing of §15's cards is kept for it (§17 left the Pi out; the Pi's
   screens are a later question for the owner).
-- §15's model functions in `plan.rs` (`set_row`, `row_seeds`, the forms
+- §15's model functions in `plan.rs` (`row_seeds`, the forms
   of Where the description goes) stay: the presets, old plans and the
   tests read plans through them.
 - Timed per SPEED §7: at 1366×768 the board's frames with the list

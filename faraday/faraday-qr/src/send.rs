@@ -167,62 +167,6 @@ pub fn frames(c: &Compute, source: &Source, format: Format, part: usize) -> Resu
     })
 }
 
-/// Costs a QR encoding. `source` as frames shown in turn even where one
-/// code would hold it: for a scanner that reads an animated code better
-/// than a dense one. BBQr and numbered parts are split by `part` either
-/// way.
-pub fn animated_frames(
-    c: &Compute,
-    source: &Source,
-    format: Format,
-    part: usize,
-) -> Result<Frames, Error> {
-    match (source, format) {
-        (Source::Psbt(bytes), Format::Ur) => ur_psbt_frames(c, bytes, part),
-        (Source::Text(text), Format::Ur) | (Source::Key(text, None), Format::Ur) => {
-            ur_bytes_animated(c, text.as_bytes(), false, part)
-        }
-        (Source::File(name, data), Format::Ur) => {
-            ur_bytes_animated(c, &envelope(name, data)?, true, part)
-        }
-        (Source::Text(text), Format::Parts) | (Source::Key(text, _), Format::Parts) => {
-            let parts = crate::specter::encode(text, part);
-            numbered(c, parts)
-        }
-        _ => frames(c, source, format, part),
-    }
-}
-
-/// Costs a QR encoding (through `frames` and `encode_bounded`).
-/// `source` as one code in `format`, where one code holds it at the
-/// bound a single code keeps to (version 20 at low error correction for
-/// a UR or a BBQr part, version 25 at medium for text): for a screen
-/// whose Animated switch is off. `None` where it takes more than one.
-pub fn one_code(c: &Compute, source: &Source, format: Format) -> Option<Frames> {
-    match (source, format) {
-        (_, Format::Ur) => frames(c, source, Format::Ur, PARTS[1])
-            .ok()
-            .filter(|(_, f)| f.len() == 1),
-        (Source::Text(text), Format::Parts) | (Source::Key(text, _), Format::Parts) => {
-            encode_bounded(c, Payload::Bytes(text.as_bytes()), Ecc::Medium, 25)
-                .ok()
-                .map(|m| (Made::PartsOne, vec![m]))
-        }
-        (_, _) => {
-            let (t, data) = match source {
-                Source::Psbt(b) => ('P', b.clone()),
-                Source::Text(t) | Source::Key(t, _) => ('U', t.as_bytes().to_vec()),
-                Source::File(name, data) => ('J', envelope(name, data).ok()?),
-            };
-            let mut parts = crate::bbqr::encode(t, &data, data.len().div_ceil(5).max(1) * 5)?;
-            let part = parts.pop().filter(|_| parts.is_empty())?;
-            encode_bounded(c, Payload::Alphanumeric(part.as_bytes()), Ecc::Low, 20)
-                .ok()
-                .map(|m| (Made::BbqrOne(t), vec![m]))
-        }
-    }
-}
-
 fn envelope(name: &str, data: &[u8]) -> Result<Vec<u8>, Error> {
     crate::envelope::pack(&envelope_name(name), data, "file").map_err(Error::Envelope)
 }

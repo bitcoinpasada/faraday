@@ -8394,8 +8394,6 @@ pub struct Strings {
     pub backup_flow_item_sticks: &'static str,
     /// Heading of a Bitcoin wallet's flow.
     pub backup_flow_kind_wallet: &'static str,
-    /// What a wallet is known by.
-    pub backup_flow_subject_wallet: &'static str,
     /// A key of a wallet to be made, before it has a fingerprint.
     pub backup_flow_key_n: &'static str,
     /// Toast: a key kept only on paper is not here to be copied into a vault.
@@ -12877,7 +12875,6 @@ pub static EN: Strings = Strings {
     item_action_done: "Done",
     backup_flow_item_sticks: "Write to {}",
     backup_flow_kind_wallet: "Bitcoin wallet",
-    backup_flow_subject_wallet: "Descriptor checksum",
     backup_flow_key_n: "Key {}",
     backup_flow_key_on_paper: "Its key is kept only on paper. Type its words in first",
     backup_flow_written_to: "Written to {}",
