@@ -25,8 +25,10 @@ import os
 import sys
 
 BLACK = (0, 0, 0)
-# Faraday's: cyan, the app's accent, and its lit edge.
-FARADAY = {"#": (0, 170, 230), "o": (140, 225, 255)}
+# Faraday's: Cobalt's accent (#0062A3, faraday-ui's COBALT ACCENT), and its
+# lit edge, the accent mixed half with white as the app's `Ui::mark` draws it;
+# the name is drawn in the lit edge's blue, which reads on the black screen.
+FARADAY = {"#": (0x00, 0x62, 0xA3), "o": (0x80, 0xB1, 0xD1)}
 
 FARADAY_MARK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "faraday-mark.txt")
 
@@ -107,7 +109,7 @@ def build(faraday, width, height):
     x = centre - (left + right) * scale // 2
     y = baseline - used_bottom * scale
     blit(canvas, faraday, FARADAY, x, y, scale)
-    draw_word(canvas, "FARADAY", centre, baseline + gap, text_scale, FARADAY["#"])
+    draw_word(canvas, "FARADAY", centre, baseline + gap, text_scale, FARADAY["o"])
     return canvas
 
 
