@@ -257,3 +257,27 @@ fn a_deal_gives_a_record_and_the_words_of_the_shares_left_to_write_down() {
         Err(faraday_keys::frost::DealError::NoShare)
     ));
 }
+
+/// RFC 6238's SHA-1 vectors (secret "12345678901234567890"), six digits.
+#[test]
+fn totp_codes_are_the_ones_rfc_6238_publishes() {
+    let secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+    for (time, code) in [
+        (59, "287082"),
+        (1_111_111_109, "081804"),
+        (1_234_567_890, "005924"),
+        (2_000_000_000, "279037"),
+    ] {
+        let shown = faraday_keys::totp::code_at(secret, time).expect("a TOTP key");
+        assert_eq!(shown.grouped.replace(' ', ""), code, "at {time}");
+        assert_eq!(shown.period, 30);
+        assert_eq!(u64::from(shown.left), 30 - time % 30);
+    }
+    // A key read but no time to show it at.
+    assert!(matches!(faraday_keys::totp::shown(secret, None), Ok(None)));
+    // A counter-based key is no TOTP key.
+    assert!(matches!(
+        faraday_keys::totp::code_at("otpauth://hotp/x?secret=GEZDGNBVGY3TQOJQ&counter=1", 0),
+        Err(faraday_keys::totp::NotTotp::Hotp)
+    ));
+}

@@ -550,7 +550,8 @@ impl Faraday {
             .fresh(b"apk key")
             .map(zeroize::Zeroizing::new)
             .ok_or_else(|| EN.apk_no_randomness.to_string())?;
-        let pair = key::make(&seed, &name, now).map_err(|e| e.reason().to_string())?;
+        let pair =
+            faraday_keys::apk::make(&seed, &name, now).map_err(|e| e.reason().to_string())?;
         let fp = key::fingerprint(&pair.cert);
         let stem = file_stem(&name, &fp);
         Ok(Built {
@@ -687,10 +688,7 @@ impl Faraday {
         if out_name.len() > NAME_MAX {
             return;
         }
-        let mut blind = faraday_sb::rng::Stream::new(&seed, 0);
-        let signed = match sign::sign(&mut blind, &mut src, &apk, pkcs8, cert)
-            .and_then(|s| sign::assemble(&mut src, &apk, &s))
-        {
+        let signed = match faraday_keys::apk::sign(&seed, &mut src, &apk, pkcs8, cert) {
             Ok(bytes) => bytes,
             Err(e) => return self.toast(e.reason()),
         };

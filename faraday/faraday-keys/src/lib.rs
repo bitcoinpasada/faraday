@@ -11,15 +11,19 @@
 //!
 //! This crate does not depend on faraday-core.
 
+pub mod apk;
 pub mod bip85;
 pub mod carry;
 pub mod frost;
+pub mod gpg;
 pub mod identity;
 pub mod lightning;
 pub mod message;
 pub mod psbt;
+pub mod secure_boot;
 pub mod silent;
 pub mod texts;
+pub mod totp;
 pub mod vanity;
 
 pub use identity::{Material, fingerprint, master_of};

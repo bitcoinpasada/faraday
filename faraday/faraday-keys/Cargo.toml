@@ -12,6 +12,10 @@ publish = false
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-psbt = { path = "../../core/faraday-psbt" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
+faraday-pgp = { path = "../faraday-pgp" }
+faraday-sb = { path = "../faraday-sb" }
+faraday-apk = { path = "../faraday-apk" }
+faraday-vault = { path = "../faraday-vault" }
 zeroize = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]

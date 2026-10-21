@@ -38,12 +38,12 @@ fn pair(r: &Record, key: u8, cert: u8) -> Option<Pair> {
 
 /// The keys a type-8 record holds.
 pub fn keys_of(r: &Record) -> Option<Keys> {
-    Some(Keys {
-        owner: r.field(f::OWNER)?.try_into().ok()?,
-        pk: pair(r, f::PK_KEY, f::PK_CERT)?,
-        kek: pair(r, f::KEK_KEY, f::KEK_CERT)?,
-        db: pair(r, f::DB_KEY, f::DB_CERT)?,
-    })
+    faraday_keys::secure_boot::keys_of(
+        r.field(f::OWNER)?,
+        pair(r, f::PK_KEY, f::PK_CERT)?,
+        pair(r, f::KEK_KEY, f::KEK_CERT)?,
+        pair(r, f::DB_KEY, f::DB_CERT)?,
+    )
 }
 
 fn record_of(k: &Keys) -> Record {
@@ -134,7 +134,8 @@ impl Faraday {
             return Err(EN.secureboot_no_randomness.to_string());
         };
         let owner = owner.trim();
-        let keys = faraday_sb::make(&seed, owner, now).map_err(|e| e.reason().to_string())?;
+        let keys = faraday_keys::secure_boot::make(&seed, owner, now)
+            .map_err(|e| e.reason().to_string())?;
         // The enrolment files are made with the keys, as the policy chosen
         // says, and written in the flow with the other public files.
         let policy = if self.vaults.sb_own_only {
@@ -145,8 +146,7 @@ impl Faraday {
         let blind_seed = self
             .fresh(b"secure boot enrolment")
             .ok_or_else(|| EN.secureboot_no_randomness.to_string())?;
-        let mut blind = faraday_sb::rng::Stream::new(&blind_seed, 0);
-        let outbox = faraday_sb::enrolment(&mut blind, &keys, policy, now)
+        let outbox = faraday_keys::secure_boot::enrolment(&blind_seed, &keys, policy, now)
             .map_err(|e| e.reason().to_string())?;
         Ok(Built {
             record: record_of(&keys),
@@ -180,8 +180,7 @@ impl Faraday {
         let Some(seed) = self.fresh(b"secure boot enrolment") else {
             return self.toast(EN.secureboot_no_randomness);
         };
-        let mut blind = faraday_sb::rng::Stream::new(&seed, 0);
-        match faraday_sb::enrolment(&mut blind, &keys, policy, now) {
+        match faraday_keys::secure_boot::enrolment(&seed, &keys, policy, now) {
             Ok(files) => {
                 let n = files.len();
                 for (name, bytes) in files {
@@ -209,12 +208,11 @@ impl Faraday {
         let Some(seed) = self.fresh(b"secure boot signing") else {
             return self.toast(EN.secureboot_no_randomness);
         };
-        let mut blind = faraday_sb::rng::Stream::new(&seed, 0);
         let Some(item) = self.inbox.get(k) else {
             return;
         };
         let name = item.name.clone();
-        match faraday_sb::pe::sign(&mut blind, &item.bytes, &keys.db) {
+        match faraday_keys::secure_boot::sign_image(&seed, &item.bytes, &keys) {
             Ok(signed) => {
                 self.put_outbox(&name, signed);
                 self.vaults.sb_sign = None;

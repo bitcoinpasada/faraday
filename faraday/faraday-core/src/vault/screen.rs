@@ -3600,11 +3600,10 @@ fn detail(
                 // §6).
                 ui.text(dx, dy, 12.0, W::R, MUTED, EN.vault_code);
                 dy += 20.0;
-                match faraday_vault::totp::parse(t) {
-                    Ok(code) if app.clock_checked() => {
-                        let now = app.clock_now().unwrap_or(0);
-                        let grouped = faraday_vault::totp::grouped(&code.code(now));
-                        let left = code.left(now);
+                let now = app.clock_checked().then(|| app.clock_now().unwrap_or(0));
+                match faraday_keys::totp::shown(t, now) {
+                    Ok(Some(code)) => {
+                        let (grouped, left) = (code.grouped, code.left);
                         let gw = ui.measure(18.0, W::M, &grouped);
                         ui.text(dx, dy, 18.0, W::M, TEXT, &grouped);
                         ui.text(
@@ -3617,7 +3616,7 @@ fn detail(
                         );
                         dy += 34.0;
                     }
-                    Ok(_) => {
+                    Ok(None) => {
                         ui.button(
                             dx,
                             dy,
@@ -3629,11 +3628,11 @@ fn detail(
                         );
                         dy += 44.0;
                     }
-                    Err(faraday_vault::totp::NotTotp::Hotp) => {
+                    Err(faraday_keys::totp::NotTotp::Hotp) => {
                         code_badge(ui, dx, dy, "HOTP");
                         dy += 36.0;
                     }
-                    Err(faraday_vault::totp::NotTotp::Unreadable) => {
+                    Err(faraday_keys::totp::NotTotp::Unreadable) => {
                         code_badge(ui, dx, dy, EN.vault_unreadable);
                         dy += 36.0;
                     }

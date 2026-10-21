@@ -923,9 +923,13 @@ dependencies = [
 name = "faraday-keys"
 version = "0.1.5"
 dependencies = [
+ "faraday-apk",
  "faraday-bip",
  "faraday-crypto",
+ "faraday-pgp",
  "faraday-psbt",
+ "faraday-sb",
+ "faraday-vault",
  "serde_json",
  "zeroize",
 ]

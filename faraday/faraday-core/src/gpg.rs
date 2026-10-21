@@ -9,7 +9,8 @@
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_crypto::work::Compute;
-use faraday_pgp::{Armor, Hash, Key, Reason, armor};
+use faraday_keys::gpg::Key;
+use faraday_pgp::{Armor, Reason, armor};
 use faraday_vault::Record;
 use faraday_vault::records::kind;
 use zeroize::Zeroizing;
@@ -58,26 +59,19 @@ fn u32_of(r: &Record, n: u8) -> Option<u32> {
 pub fn key_of(r: &Record) -> Option<Key> {
     let primary = r.field(f::PRIMARY)?;
     let subkey = r.field(f::SUBKEY)?;
-    if primary.len() != 32 || subkey.len() != 32 {
-        return None;
-    }
     let created = u32_of(r, f::CREATED)?;
-    let mut key = Key {
-        primary_seed: [0; 32],
+    faraday_keys::gpg::key_of(
+        primary,
         created,
-        subkey_seed: [0; 32],
-        subkey_created: u32_of(r, f::SUBKEY_CREATED).unwrap_or(created),
-        user_ids: r
-            .fields
+        subkey,
+        u32_of(r, f::SUBKEY_CREATED).unwrap_or(created),
+        r.fields
             .iter()
             .filter(|x| x.number == f::USER_ID)
             .map(|x| String::from_utf8_lossy(&x.bytes).into_owned())
             .collect(),
-        expiry: u32_of(r, f::EXPIRY).unwrap_or(0),
-    };
-    key.primary_seed.copy_from_slice(primary);
-    key.subkey_seed.copy_from_slice(subkey);
-    Some(key)
+        u32_of(r, f::EXPIRY).unwrap_or(0),
+    )
 }
 
 /// A type-7 record for a key, the certificate last made from it and the
@@ -348,17 +342,16 @@ impl Faraday {
         };
         let primary = Zeroizing::new(primary);
         let subkey = Zeroizing::new(subkey);
-        let key = Key {
-            primary_seed: *primary,
-            created: now,
-            subkey_seed: *subkey,
-            subkey_created: now,
-            user_ids: vec![uid.clone()],
-            expiry: self.vaults.gpg_years * YEAR,
-        };
-        let cert = key.certificate(now);
+        let key = faraday_keys::gpg::make(
+            &primary,
+            &subkey,
+            now,
+            uid.clone(),
+            self.vaults.gpg_years * YEAR,
+        );
+        let cert = faraday_keys::gpg::certificate(&key, now);
         let stem = file_stem(&key);
-        let revocation = key.revocation(now, Reason::Unspecified, "");
+        let revocation = faraday_keys::gpg::revocation(&key, now, Reason::Unspecified, "");
         let record = record_of(&key, &cert, &revocation);
         Ok(Built {
             record,
@@ -401,7 +394,7 @@ impl Faraday {
         let Ok(now) = self.clock() else {
             return;
         };
-        let rev = key.revocation(now, Reason::Unspecified, "");
+        let rev = faraday_keys::gpg::revocation(&key, now, Reason::Unspecified, "");
         if let Some(v) = self.vaults.open.get_mut(self.vaults.current) {
             v.contents.records[at].set(f::REVOCATION, &rev);
             v.changes += 1;
@@ -414,7 +407,7 @@ impl Faraday {
         let r = self.gpg_record(at)?;
         let cert = match r.field(f::CERTIFICATE) {
             Some(c) => c.to_vec(),
-            None => key.certificate(certified_at(r).unwrap_or(key.created)),
+            None => faraday_keys::gpg::certificate(&key, certified_at(r).unwrap_or(key.created)),
         };
         Some((key, armor(Armor::PublicKey, &cert)))
     }
@@ -472,10 +465,9 @@ impl Faraday {
                     .find(|f| f.hash[..8] == prefix)
                     .and_then(|f| self.inbox.get(f.index))
                     .ok_or(EN.gpg_that_file_is_no)?;
-                let sig = key.sign(&item.bytes, now, Hash::Sha512);
                 (
                     fill(EN.gpg_gpg_signature, &[&item.name.to_string()]),
-                    armor(Armor::Signature, &sig),
+                    faraday_keys::gpg::sign_armored(&key, &item.bytes, now),
                     format!("{}.asc.png", item.name),
                     vec![
                         fill(EN.gpg_signs, &[&item.name.to_string()]),
@@ -495,7 +487,7 @@ impl Faraday {
     fn gpg_offer_revocation(&mut self, key: &Key, revocation: &[u8]) {
         let mut out = crate::secrets::SecretOut::new(
             rev_name(key),
-            Zeroizing::new(key.revocation_file(revocation).into_bytes()),
+            Zeroizing::new(faraday_keys::gpg::revocation_file(key, revocation).into_bytes()),
             EN.gpg_gpg_revocation,
             EN.gpg_whoever_has_it,
         );
@@ -532,7 +524,7 @@ impl Faraday {
             Ok(t) => t,
             Err(e) => return self.toast(&e),
         };
-        let rev = key.revocation(now, reason, text.trim());
+        let rev = faraday_keys::gpg::revocation(&key, now, reason, text.trim());
         self.gpg_offer_revocation(&key, &rev);
     }
 
@@ -594,7 +586,7 @@ impl Faraday {
             0 => 0,
             y => now.saturating_sub(key.created) + y * YEAR,
         };
-        let cert = key.certificate(at_time);
+        let cert = faraday_keys::gpg::certificate(&key, at_time);
         let name = format!("{}.asc", file_stem(&key));
         if let Some(v) = self.vaults.open.get_mut(self.vaults.current) {
             let r = &mut v.contents.records[at];
@@ -816,8 +808,8 @@ impl Faraday {
                 failure.get_or_insert_with(|| fill(EN.gpg_exists, &[&out.to_string()]));
                 continue;
             }
-            let sig = key.sign(&self.inbox[k].bytes, now, Hash::Sha512);
-            self.put_outbox(&out, armor(Armor::Signature, &sig).into_bytes());
+            let sig = faraday_keys::gpg::sign_armored(&key, &self.inbox[k].bytes, now);
+            self.put_outbox(&out, sig.into_bytes());
             written += 1;
         }
         let _ = changed;
@@ -888,5 +880,5 @@ pub fn shown(r: &Record, tz_min: i16) -> Option<Shown> {
 pub fn paperkey(r: &Record) -> Option<Zeroizing<String>> {
     // The key wipes its seeds when it drops.
     let key = key_of(r)?;
-    Some(key.paperkey())
+    Some(faraday_keys::gpg::paperkey(&key))
 }

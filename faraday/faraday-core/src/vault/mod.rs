@@ -3383,7 +3383,9 @@ impl Faraday {
         let totp_store: Result<Option<String>, ()> = match &totp_text {
             None => Ok(None),
             Some(t) if t.trim().is_empty() => Ok(None),
-            Some(t) => fv::totp::normalise(t, &title, &account).map(Some).ok_or(()),
+            Some(t) => faraday_keys::totp::normalise(t, &title, &account)
+                .map(Some)
+                .ok_or(()),
         };
         let Ok(totp_store) = totp_store else {
             self.vaults.form = Some(form);

@@ -151,3 +151,13 @@ pub fn secret_id(tag: &[u8], secret: &[u8]) -> [u8; 32] {
     e.input(secret);
     sha256::Hash::from_engine(e).to_byte_array()
 }
+
+/// Costs a PBKDF2. The 64-byte BIP-39 seed `m` makes with `passphrase`:
+/// what a codex32 backup of the key is made from.
+pub fn seed_of(
+    c: &Compute,
+    m: &Mnemonic,
+    passphrase: &str,
+) -> Option<faraday_crypto::Secret<[u8; 64]>> {
+    m.to_seed(c, passphrase.as_bytes()).ok()
+}

@@ -619,9 +619,13 @@ impl Faraday {
                 .find(|key| key.fingerprint().0 == fp)?;
             let words = key.words.as_ref()?;
             let m = crate::wallet::parse_words(&c, key.language, words).ok()?;
-            let seed = m.to_seed(&c, self.chart_work.secret.as_bytes()).ok()?;
-            let made = faraday_bip::keys::MasterKey::from_seed(&c, &seed, self.session.network());
-            Some(made.fingerprint().0 == fp)
+            let made = faraday_keys::fingerprint(
+                &c,
+                faraday_keys::Material::Words(&m),
+                &self.chart_work.secret,
+                self.session.network(),
+            )?;
+            Some(made.0 == fp)
         });
         self.chart_work.secret.clear();
         let matched = matched.unwrap_or(false);

@@ -123,7 +123,7 @@ impl Faraday {
         let Some((m, passphrase, fp)) = self.paper_key(&c) else {
             return self.toast(EN.paper_this_key_has);
         };
-        let Ok(seed) = m.to_seed(&c, passphrase.as_bytes()) else {
+        let Some(seed) = faraday_keys::identity::seed_of(&c, &m, &passphrase) else {
             return;
         };
         let Some(draw) = self.fresh(b"codex32") else {

@@ -6,8 +6,8 @@
 pub(crate) mod screen;
 
 use crate::strings::EN;
+use faraday_keys::totp::NotTotp;
 use faraday_vault::records::{field, kind};
-use faraday_vault::totp::{self, NotTotp};
 
 use crate::vault::VaultAction;
 use crate::{Action, Faraday, Screen};
@@ -70,11 +70,11 @@ pub fn codes_rows(app: &Faraday, now: u64) -> Vec<CodeRow> {
                 .filter(|a| !a.is_empty())
                 .or_else(|| r.text(field::USERNAME).map(str::to_string))
                 .unwrap_or_default();
-            let kind = match totp::parse(t) {
+            let kind = match faraday_keys::totp::code_at(t, now) {
                 Ok(code) => CodeKind::Code {
-                    grouped: totp::grouped(&code.code(now)),
-                    left: code.left(now),
-                    period: code.period(),
+                    grouped: code.grouped,
+                    left: code.left,
+                    period: code.period,
                 },
                 Err(NotTotp::Hotp) => CodeKind::Hotp,
                 Err(NotTotp::Unreadable) => CodeKind::Unreadable,
