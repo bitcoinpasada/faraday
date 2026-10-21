@@ -24,6 +24,7 @@ use faraday_bip::keys::{Fingerprint, Network};
 use faraday_crypto::work::Compute;
 
 use crate::wallet::{Kind, Session, Wallet, fp_text};
+use crate::{BStage, board, copy_check, flow, paper, plan};
 
 /// Which keys each sheet of a split backup carries: sheet `i` carries `d`
 /// keys starting at key `i`, wrapping, where `d` is `n` less the keys each
@@ -423,6 +424,96 @@ pub fn envelope(session: &Session, wallet: &Wallet, plan: Option<&[Vec<usize>]>)
 /// The fingerprint a key line on a sheet carries.
 pub fn fp_of(fp: Option<Fingerprint>) -> String {
     fp.map(fp_text).unwrap_or_else(|| "--------".into())
+}
+
+/// The backup flow's state.
+#[derive(Default)]
+pub struct BackupState {
+    /// The wallet being backed up.
+    pub wallet: usize,
+    /// The plan, or the checklist made from it.
+    pub stage: BStage,
+    /// The open question of the plan, by [`qstep`].
+    pub q: Option<u8>,
+    /// The plan's answers.
+    pub answers: plan::Answers,
+    /// What each place is called, kept only in a vault; empty for
+    /// "Place 1", "Place 2".
+    pub names: Vec<String>,
+    /// The place whose name is being typed.
+    pub naming: Option<usize>,
+    /// The open item of the checklist, by [`bstep`].
+    pub open: Option<u8>,
+    /// The public files item shows its files under More options (F64):
+    /// pressed, or one of them already For the stick when it opened.
+    pub public_more: bool,
+    /// The envelopes closed as done: the one item nothing else marks.
+    pub envelopes: bool,
+    /// The blank templates were printed from Faraday Starter: the item is
+    /// done by its press.
+    pub printed: bool,
+    /// The descriptor was shown as a code in this backup.
+    pub shown: bool,
+    /// The column's scroll.
+    pub scroll: flow::Scroll,
+    /// The session key whose seed is shown, by index into the session.
+    pub key: usize,
+    /// The words are shown.
+    pub reveal: bool,
+    /// Compact SeedQR rather than standard.
+    pub compact: bool,
+    /// The grid row pinned for copying.
+    pub pin: usize,
+    /// The typed check of a copy of the words, while it is open
+    /// (`docs/history/NEW-WALLET.md` §14.7 item 2).
+    pub check: Option<copy_check::WordCheck>,
+    /// What scanning the copy of the seed on screen found.
+    pub scanned: Option<CopyCheck>,
+    /// The seeds, by fingerprint, whose copy by hand matched in this
+    /// backup, with the form that matched: the words typed back, or the
+    /// drawn SeedQR scanned.
+    pub checked: Vec<([u8; 4], plan::CopyForm)>,
+    /// The scans of each seed's SeedQR copy without a match in this
+    /// backup, by fingerprint: each opening of the camera on the copy
+    /// that closed without one (`docs/history/NEW-WALLET.md` §14.7 item 3). Goes
+    /// with a lock, which drops the backup.
+    pub misses: Vec<([u8; 4], u8)>,
+    /// Template word count.
+    pub words: usize,
+    /// What went to the Outbox, for the summary.
+    pub sent: Vec<String>,
+    /// Another paper form of the key, on screen.
+    pub paper: Option<paper::PaperForm>,
+    /// The list of loaded wallets is open under the wallet chip.
+    pub pick: bool,
+    /// Opened from Create's Back up card: the chip says the way on is
+    /// the wallet card.
+    pub from_create: bool,
+    /// Opened from a chart in an open vault's view: the way back is the
+    /// vault.
+    pub from_vault: bool,
+    /// The board's chip held, by a tap or a drag
+    /// (`docs/BACKUP-FLOW.md` §17.2).
+    pub board: board::BoardState,
+    /// Work done that a later plan dropped, as what it is ("vault.ofv
+    /// holds seed 9A6A2580"): the copy exists until it is destroyed.
+    pub extras: Vec<String>,
+    /// The vaults the checklist had filled when Change the plan was
+    /// pressed, by name, with the seeds each holds.
+    pub prior: Vec<(String, Vec<String>)>,
+    /// What each vault held, by its salt, before this backup first saved
+    /// into it ([`Faraday::vault_tokens`]): the flow's round never takes
+    /// it out (`docs/BACKUP-FLOW.md` §15). Never a secret.
+    pub before: Vec<([u8; 32], Vec<String>)>,
+    /// The seeds, by fingerprint as text, whose files on a stick the
+    /// person has let out unprotected past the secret sheet's warning:
+    /// **Lock and write** makes a seed's file only once it is here
+    /// (`docs/BACKUP-FLOW.md` §17.12 item 6). Never a secret.
+    pub files_warned: Vec<String>,
+    /// The plan's vaults, by number, whose record of the wallet is set
+    /// not to load at unlock: the vault item's **Load at unlock** turned
+    /// off (F62). Every other starts on.
+    pub no_load: Vec<usize>,
 }
 
 #[cfg(test)]

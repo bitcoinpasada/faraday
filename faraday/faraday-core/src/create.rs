@@ -10,6 +10,8 @@ use faraday_bip::policy::{PolicyKey, WalletPolicy};
 use faraday_bip::slip132;
 use faraday_crypto::work::Compute;
 
+use crate::{VaultAsk, backup_flow, cstep, flow, secret_text};
+
 /// The kinds a wallet can be created as.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum NewKind {
@@ -563,5 +565,85 @@ pub fn paths_text(policy: &WalletPolicy) -> String {
             })
             .collect::<Vec<_>>()
             .join(" · "),
+    }
+}
+
+/// Creating a wallet: the cards' state.
+#[derive(Default)]
+pub struct CreateState {
+    /// The open card.
+    pub open: Option<u8>,
+    /// Opened from Home: Back goes to Home, not Wallets.
+    pub from_home: bool,
+    /// Cards closed as done.
+    pub done: [bool; cstep::COUNT],
+    /// The column's scroll.
+    pub scroll: flow::Scroll,
+    /// The kind.
+    pub kind: NewKind,
+    /// Signatures needed.
+    pub m: usize,
+    /// Keys.
+    pub n: usize,
+    /// Where each key comes from.
+    pub slots: Vec<Source>,
+    /// The wallet, once made, by index into the session.
+    pub built: Option<usize>,
+    /// The last refusal.
+    pub error: Option<String>,
+    /// The Kind card's **More kinds** is expanded: the other eight kinds
+    /// are shown too.
+    pub more_kinds: bool,
+    /// New keys made for this wallet.
+    pub made: u32,
+    /// The slot whose passphrase fields are open (`docs/history/NEW-WALLET.md`
+    /// §3.6).
+    pub pass_slot: Option<u8>,
+    /// The passphrase typed there.
+    pub pass: secret_text::SecretText,
+    /// The same passphrase typed again.
+    pub pass2: secret_text::SecretText,
+    /// Which of the two fields typing goes to, if either.
+    pub pass_focus: Option<u8>,
+    /// Why the last Lock in did nothing.
+    pub pass_note: Option<String>,
+    /// Keys locked in with a passphrase here, by fingerprint: their slot
+    /// shows **Locked in**.
+    pub pass_locked: Vec<[u8; 4]>,
+    /// Whether vaults are part of the backup and how many; with yes, the
+    /// sticks and the vaults come before the keys.
+    pub vaults: VaultAsk,
+    /// The number the wallet's backup flow is tied to (`Faraday::owner_seq`).
+    pub owner: u64,
+    /// The account every key is used at (`docs/history/NEW-WALLET.md` §16.2): 0
+    /// unless the creation was started from a wallet.
+    pub account: u32,
+    /// The wallet the creation was started from, by **New wallet from
+    /// this one**.
+    pub from: Option<FromWallet>,
+    /// The made wallet's derivation paths as Check shows them, worked out
+    /// once when it is made (`docs/history/NEW-WALLET.md` §17).
+    pub path: String,
+    /// The made wallet was added to the session by this creation, not
+    /// found there already: taking it back removes it.
+    pub added: bool,
+    /// The creation's backup flow as it stood before the made wallet was
+    /// tied to it, by index: what taking the wallet back puts back.
+    pub before_made: Option<(usize, Box<backup_flow::BackupFlow>)>,
+}
+
+impl CreateState {
+    /// The person answered yes to using vaults.
+    pub fn into_vaults(&self) -> bool {
+        self.vaults.answer == Some(true)
+    }
+
+    /// Closes a slot's passphrase fields, forgetting what was typed.
+    pub fn close_pass(&mut self) {
+        self.pass_slot = None;
+        self.pass.clear();
+        self.pass2.clear();
+        self.pass_focus = None;
+        self.pass_note = None;
     }
 }

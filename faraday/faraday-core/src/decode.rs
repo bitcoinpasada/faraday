@@ -14,6 +14,7 @@ use faraday_bip::bitcoin::{Address, Amount, Script, Transaction, TxOut};
 use faraday_bip::keys::Network;
 use faraday_crypto::work::Compute;
 
+use crate::Screen;
 use crate::wallet::Session;
 
 /// One input, as decoded.
@@ -212,4 +213,14 @@ pub fn btc(sats: u64) -> String {
 
 fn hex(bytes: impl AsRef<[u8]>) -> String {
     bytes.as_ref().iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// A transaction being decoded, and where the person came from.
+pub struct DecodeState {
+    /// What it decoded to.
+    pub decoded: Decoded,
+    /// The screen its back link returns to.
+    pub back: Screen,
+    /// The hex is shown.
+    pub show_hex: bool,
 }

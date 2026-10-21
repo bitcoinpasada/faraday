@@ -7,6 +7,8 @@ use crate::strings::EN;
 use faraday_bip::multisig_config;
 use faraday_crypto::work::Compute;
 
+use crate::{VaultAsk, create, flow, rstep, seeds};
+
 /// What one multisig config file, whole or a share, says.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfigParts {
@@ -157,6 +159,105 @@ pub fn readable(c: &Compute, whole: &str) -> bool {
 
 /// BIP-341's unspendable internal key, a Taproot multisig's.
 const NUMS: &str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0";
+
+/// Restoring a wallet: the cards' state (`docs/history/NEW-WALLET.md` §12).
+#[derive(Default)]
+pub struct RestoreState {
+    /// The open card.
+    pub open: Option<u8>,
+    /// Cards closed as done.
+    pub done: [bool; rstep::COUNT as usize],
+    /// The column's scroll.
+    pub scroll: flow::Scroll,
+    /// The Inbox shares chosen, by name.
+    pub shares: Vec<String>,
+    /// The wallet, by index into the session: read from its description,
+    /// or made from the seeds.
+    pub wallet: Option<usize>,
+    /// The wallet came from its description: the seeds are matched to its
+    /// keys.
+    pub described: bool,
+    /// The last refusal.
+    pub error: Option<String>,
+    /// The kind, the quorum and the seeds and cosigners' xpubs in hand,
+    /// for a wallet made from the seeds.
+    pub seeds: Option<seeds::SeedsState>,
+    /// Kind's **More kinds** is expanded.
+    pub more_kinds: bool,
+    /// The description's keys marked Not here, by place.
+    pub absent: Vec<u8>,
+    /// Opened from a key on Wallets: Back goes to Wallets.
+    pub from_key: bool,
+    /// Opened from Home: Back goes to Home.
+    pub from_home: bool,
+    /// Whether vaults are part of the backup and how many; with yes, the
+    /// sticks and the vaults come before the seeds are typed
+    /// (`docs/BACKUP-FLOW.md` §11).
+    pub vaults: VaultAsk,
+    /// The number the wallet's backup flow is tied to (`Faraday::owner_seq`).
+    pub owner: u64,
+}
+
+impl RestoreState {
+    /// The person answered yes to using vaults.
+    pub fn into_vaults(&self) -> bool {
+        self.vaults.answer == Some(true)
+    }
+
+    /// The wallet is made from the Keys card, and the card is closed: a
+    /// key loaded now is not one of its seeds.
+    pub fn keys_made(&self) -> bool {
+        self.done[rstep::SEEDS as usize] && self.open != Some(rstep::SEEDS)
+    }
+
+    /// A fresh Restore, open on Kind with a single key ticked.
+    pub fn new() -> RestoreState {
+        let mut s = seeds::SeedsState::default();
+        s.fix(create::NewKind::NativeSegwit);
+        // The question of vaults is done only once the person has
+        // answered it and pressed its own Continue.
+        let done = [false; rstep::COUNT as usize];
+        RestoreState {
+            open: Some(rstep::KIND),
+            seeds: Some(s),
+            done,
+            ..RestoreState::default()
+        }
+    }
+
+    /// The kind chosen or read.
+    pub fn kind(&self) -> create::NewKind {
+        self.seeds.as_ref().map(|s| s.kind).unwrap_or_default()
+    }
+
+    /// The cards this kind has, in order: Quorum for a multisig.
+    pub fn steps(&self) -> Vec<u8> {
+        let kind = self.kind();
+        let mut v = vec![rstep::KIND];
+        if kind.multi() && !kind.threshold() {
+            v.push(rstep::QUORUM);
+        }
+        v.extend([rstep::DESCRIPTION, rstep::WHERE]);
+        if self.into_vaults() {
+            v.push(rstep::HOW_MANY);
+        }
+        v.extend([rstep::SEEDS, rstep::CHECK, rstep::DONE]);
+        v
+    }
+
+    /// Closes card `k` as done and opens the next not done after it.
+    pub fn next(&mut self, k: u8) {
+        self.done[k as usize] = true;
+        let steps = self.steps();
+        let at = steps.iter().position(|&s| s == k).unwrap_or(0);
+        self.open = steps[at..]
+            .iter()
+            .chain(steps[..at].iter())
+            .copied()
+            .find(|&s| !self.done[s as usize]);
+        self.scroll.follow = true;
+    }
+}
 
 #[cfg(test)]
 mod tests {

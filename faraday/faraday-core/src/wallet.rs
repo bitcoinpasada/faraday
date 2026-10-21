@@ -2138,6 +2138,79 @@ pub fn broken_checksum(address: &str) -> String {
     chars.into_iter().collect()
 }
 
+/// A transaction being signed, with its screen's state.
+pub struct SpendState {
+    /// The spend.
+    pub spend: Spend,
+    /// The open step, if any.
+    pub open: Option<u8>,
+    /// Steps closed as done.
+    pub done: [bool; 10],
+    /// The full table is shown.
+    pub table: bool,
+    /// The last refusal or failure.
+    pub error: Option<String>,
+    /// The inspection, kept current: worked out again only when what it
+    /// is of changed ([`SpendState::inspected`]).
+    pub inspection: faraday_psbt::Inspection,
+    /// What [`SpendState::inspection`] is of: the PSBT, the session's
+    /// network, keys and wallets, and whether a carry came with it.
+    /// `refresh_spend` inspects again only when one of them changed.
+    pub(crate) inspected: Option<(faraday_psbt::Psbt, InspectInputs, bool)>,
+    /// Fingerprints with a valid signature.
+    pub signers: Vec<[u8; 4]>,
+    /// Which results went to the Outbox.
+    pub out_signed: bool,
+    /// The finished transaction went to the Outbox.
+    pub out_tx: bool,
+    /// The finished transaction's hex is shown.
+    pub show_hex: bool,
+    /// The last nonce check, with the PSBT bytes it was made over: it
+    /// signs again to compare, so it runs once per set of signatures,
+    /// not once per frame.
+    pub(crate) nonce_check: std::cell::RefCell<Option<(Vec<u8>, std::rc::Rc<NonceCheck>)>>,
+    /// The step column's scroll, in design units.
+    pub scroll: f32,
+    /// The open step changed: scroll it into view on the next frame.
+    pub follow: bool,
+    /// The loaded wallet the transaction spends from.
+    pub wallet: Option<usize>,
+    /// The steps this spend shows, in order (`wallet::step`).
+    pub steps: Vec<u8>,
+    /// Signatures needed.
+    pub needed: usize,
+    /// Every input can be finalised now.
+    pub complete: bool,
+    /// A MuSig2 round this device opened: its secret nonce, until round
+    /// two. Gone on lock.
+    pub musig: Option<faraday_psbt::MusigSession>,
+    /// A threshold spend's first location: the other shares chosen to
+    /// sign, by identifier.
+    pub others: Vec<u32>,
+    /// The carry section a threshold spend arrived with: the secret nonce
+    /// of a share held here. Wiped on drop.
+    pub carry: Option<faraday_psbt::threshold::CarrySection>,
+    /// The carry file this device's pass leaves for the next share, until
+    /// it goes to the Outbox.
+    pub carry_out: Option<zeroize::Zeroizing<Vec<u8>>>,
+    /// The carry it arrived with has signed: a vault's round for it goes.
+    pub round_spent: bool,
+    /// The open step has been set once, at entry (`refresh_spend`): once
+    /// true, closing every card (an interactive collapse) leaves `open`
+    /// at `None` rather than reopening one.
+    pub opened: bool,
+}
+
+impl SpendState {
+    /// Whether [`SpendState::inspection`] is of the PSBT as it is, with
+    /// the session's `inputs` and the carry as they are.
+    pub(crate) fn inspected_for(&self, inputs: &InspectInputs) -> bool {
+        self.inspected.as_ref().is_some_and(|(p, i, c)| {
+            *c == self.carry.is_some() && i == inputs && *p == self.spend.psbt
+        })
+    }
+}
+
 #[cfg(test)]
 impl Wallet {
     /// How many addresses and scripts it keeps, for the test that bounds
