@@ -16,28 +16,12 @@ fn compute() -> faraday_crypto::work::Compute {
     faraday_crypto::work::Compute::new(|_| {})
 }
 
-/// CRC-32 as PNG chunks carry it.
-fn crc32(bytes: &[u8]) -> u32 {
-    let mut c = !0u32;
-    for &b in bytes {
-        c ^= u32::from(b);
-        for _ in 0..8 {
-            c = if c & 1 != 0 {
-                0xEDB8_8320 ^ (c >> 1)
-            } else {
-                c >> 1
-            };
-        }
-    }
-    !c
-}
-
 fn chunk(out: &mut Vec<u8>, kind: &[u8; 4], data: &[u8]) {
     out.extend_from_slice(&(data.len() as u32).to_be_bytes());
     let mut body = kind.to_vec();
     body.extend_from_slice(data);
     out.extend_from_slice(&body);
-    out.extend_from_slice(&crc32(&body).to_be_bytes());
+    out.extend_from_slice(&faraday_crypto::crc32(&body).to_be_bytes());
 }
 
 /// A grey PNG whose header says `w` × `h`, with a few bytes of picture

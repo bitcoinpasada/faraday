@@ -20,6 +20,7 @@ path = "src/main.rs"
 [dependencies]
 faraday-starter = { path = "../../faraday-starter" }
 faraday-core = { path = "../../faraday-core" }
+faraday-crypto = { path = "../../../core/faraday-crypto" }
 faraday-payload = { path = "../../faraday-payload" }
 faraday-fat = { path = "../../faraday-fat" }
 faraday-storage = { path = "../../faraday-storage" }

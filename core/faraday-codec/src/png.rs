@@ -14,7 +14,7 @@
 use alloc::vec::Vec;
 
 use crate::qr::{QUIET_ZONE, QrMatrix};
-use crate::ur::bytewords::crc32;
+use faraday_crypto::crc32;
 
 /// The eight bytes every PNG file starts with.
 const SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];

@@ -188,8 +188,7 @@ mod tests {
             assert_eq!(rng.next_u64() % 100, e);
         }
 
-        let mut rng =
-            Xoshiro256::from_bytes(&super::super::bytewords::crc32(b"Wolf").to_be_bytes());
+        let mut rng = Xoshiro256::from_bytes(&faraday_crypto::crc32(b"Wolf").to_be_bytes());
         let expected = [
             88, 44, 94, 74, 0, 99, 7, 77, 68, 35, 47, 78, 19, 21, 50, 15, 42, 36, 91, 11, 85, 39,
             64, 22, 57, 11, 25, 12, 1, 91, 17, 75, 29, 47, 88, 11, 68, 58, 27, 65, 21, 54, 47, 54,

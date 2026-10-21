@@ -11,8 +11,8 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::vec::Vec;
 
 use super::Fault;
-use super::bytewords::crc32;
 use super::xoshiro::Xoshiro256;
+use faraday_crypto::crc32;
 
 /// One part of a fountain-encoded message.
 #[derive(Clone, Debug, PartialEq, Eq)]

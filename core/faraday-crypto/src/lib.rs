@@ -40,6 +40,7 @@
 extern crate alloc;
 
 mod blake2b;
+mod crc32;
 mod hash;
 mod pinned;
 mod scrypt;
@@ -48,6 +49,7 @@ mod secret;
 pub mod work;
 
 pub use blake2b::{MAX_OUT as BLAKE2B_MAX_OUT, blake2b};
+pub use crc32::crc32;
 pub use hash::{
     hmac_sha256, hmac_sha512, pbkdf2_hmac_sha256, pbkdf2_hmac_sha512, sha256, sha256_whole,
 };

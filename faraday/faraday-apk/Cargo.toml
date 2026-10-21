@@ -10,6 +10,7 @@ publish = false
 
 [dependencies]
 faraday-sb = { path = "../faraday-sb" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
 zeroize = { workspace = true, features = ["alloc"] }
 sha2 = { workspace = true }
 # The manifest is deflated in most APKs; inflated here, bounded

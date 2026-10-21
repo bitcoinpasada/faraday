@@ -447,7 +447,7 @@ fn inflate(src: &mut dyn Source, e: &Entry) -> Result<Vec<u8>, Refusal> {
         }
         out
     };
-    if out.len() != usize_ || crate::crc32(&out) != e.crc {
+    if out.len() != usize_ || faraday_crypto::crc32(&out) != e.crc {
         return Err(Refusal::NotApk);
     }
     Ok(out)

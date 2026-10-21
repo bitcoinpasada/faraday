@@ -297,8 +297,8 @@ fn stick_layout(
         h[72..80].copy_from_slice(&entries_lba.to_le_bytes());
         h[80..84].copy_from_slice(&128u32.to_le_bytes());
         h[84..88].copy_from_slice(&128u32.to_le_bytes());
-        h[88..92].copy_from_slice(&gpt::crc32(&entries).to_le_bytes());
-        let crc = gpt::crc32(&h);
+        h[88..92].copy_from_slice(&faraday_crypto::crc32(&entries).to_le_bytes());
+        let crc = faraday_crypto::crc32(&h);
         h[16..20].copy_from_slice(&crc.to_le_bytes());
         h
     };

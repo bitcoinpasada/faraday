@@ -8,6 +8,7 @@
 
 use std::io;
 
+use faraday_crypto::crc32;
 use faraday_starter::api::StickFault;
 
 /// Faraday's disk UUID (`genimage.cfg`).
@@ -83,19 +84,6 @@ pub fn guid(b: &[u8]) -> String {
         b[14],
         b[15]
     )
-}
-
-/// The CRC-32 GPT uses (IEEE 802.3, reflected).
-pub fn crc32(data: &[u8]) -> u32 {
-    let mut crc = 0xFFFF_FFFFu32;
-    for &byte in data {
-        crc ^= u32::from(byte);
-        for _ in 0..8 {
-            let mask = (crc & 1).wrapping_neg();
-            crc = (crc >> 1) ^ (0xEDB8_8320 & mask);
-        }
-    }
-    !crc
 }
 
 /// Reads the GPT through `read_at`, which fills a buffer from a byte
