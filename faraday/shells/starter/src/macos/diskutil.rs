@@ -317,7 +317,7 @@ impl Answers {
                 .collect()
         };
         // A Faraday stick, as Linux finds one: two partitions named
-        // OSKBOOT and OSKDATA (their GPT names, which IOKit gives the
+        // FARADAYBOOT and FARADAYDATA (their GPT names, which IOKit gives the
         // partitions' media).
         let names: Vec<&str> = parts
             .iter()
@@ -328,7 +328,7 @@ impl Answers {
                     .unwrap_or("")
             })
             .collect();
-        let boot = (names == ["OSKBOOT", "OSKDATA"]).then(|| BootPart {
+        let boot = (names == ["FARADAYBOOT", "FARADAYDATA"]).then(|| BootPart {
             id: parts[0].to_string(),
             mounted: items(entry, "Partitions")
                 .first()

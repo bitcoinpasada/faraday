@@ -421,7 +421,7 @@ impl Snapshot {
             };
             let names: Vec<&str> = parts.iter().map(|p| p.name.as_str()).collect();
             let faraday = table.as_ref().is_some_and(|l| l.style == Style::Gpt)
-                && names == ["OSKBOOT", "OSKDATA"];
+                && names == ["FARADAYBOOT", "FARADAYDATA"];
             let boot = faraday
                 .then(|| at(parts[0].offset))
                 .flatten()
@@ -483,7 +483,7 @@ impl Snapshot {
     /// volume \\?\Volume{…}\
     ///   device \Device\HarddiskVolume7
     ///   extents …
-    ///   label OSKBOOT
+    ///   label FARADAYBOOT
     ///   filesystem FAT32
     ///   path E:\
     /// ```
@@ -612,7 +612,7 @@ fn unhex(s: &str) -> Option<Vec<u8>> {
 
 /// A Faraday stick as Windows reads it without elevation: the release
 /// string found on its boot volume, when Windows let it be read. Windows
-/// lets only an administrator read OSKBOOT, an EFI system partition
+/// lets only an administrator read FARADAYBOOT, an EFI system partition
 /// (tracker #21), so nothing found is "not read", never a stick made
 /// before Faraday put its version there; keep data asks the elevated
 /// copy to read it.

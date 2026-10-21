@@ -8125,7 +8125,7 @@ pub struct Strings {
     pub backup_flow_one_at_a_time: &'static str,
     /// A stick that is not FAT32.
     pub backup_flow_not_fat: &'static str,
-    /// An OSKBOOT partition.
+    /// An FARADAYBOOT partition.
     pub backup_flow_boot_part: &'static str,
     /// A stick that is read-only.
     pub backup_flow_read_only: &'static str,
@@ -8869,7 +8869,7 @@ pub static EN: Strings = Strings {
     starter_why_not_stick: "{} is not a Faraday stick: {}. Nothing was written.",
     starter_why_not_stick_image: "The image is not a Faraday stick image: {}",
     starter_why_boot_larger: "The image's boot partition ({}) is larger than the stick's ({})",
-    starter_why_boot_label: "The image's boot partition is not a FAT32 filesystem labelled OSKBOOT",
+    starter_why_boot_label: "The image's boot partition is not a FAT32 filesystem labelled FARADAYBOOT",
     starter_why_boot_short: "The boot partition image is shorter than one sector",
     starter_why_table_changed: "The partition table on {} changed",
     starter_why_reading_table: "Reading the partition table failed: {}",
@@ -8912,11 +8912,11 @@ pub static EN: Strings = Strings {
     starter_fault_entries_checksum: "its GPT entries' checksum is wrong",
     starter_fault_disk_uuid: "its disk UUID is not a Faraday stick's",
     starter_fault_partitions: "it has {} partitions, not two",
-    starter_fault_boot_name: "its first partition is not named OSKBOOT",
+    starter_fault_boot_name: "its first partition is not named FARADAYBOOT",
     starter_fault_boot_type: "its first partition is not a Faraday EFI system partition",
-    starter_fault_data_type: "its second partition is not a Faraday OSKDATA partition",
-    starter_fault_boot_damaged: "its OSKBOOT partition is damaged",
-    starter_fault_boot_small: "its OSKBOOT partition ({}) is smaller than the image ({})",
+    starter_fault_data_type: "its second partition is not a Faraday FARADAYDATA partition",
+    starter_fault_boot_damaged: "its FARADAYBOOT partition is damaged",
+    starter_fault_boot_small: "its FARADAYBOOT partition ({}) is smaller than the image ({})",
     starter_fault_overlap: "its partitions overlap",
     starter_fault_boot_past_end: "its boot partition runs past its end",
     starter_version: "Version",

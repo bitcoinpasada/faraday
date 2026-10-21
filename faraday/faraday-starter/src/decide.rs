@@ -149,7 +149,7 @@ pub fn keep_data(stick: &FaradayStick, build: Option<&str>) -> Fit {
 }
 
 /// The Faraday version `stick` holds, as Home and Which stick say it:
-/// "version not read" when OSKBOOT was not read (Windows, tracker #21),
+/// "version not read" when FARADAYBOOT was not read (Windows, tracker #21),
 /// kept apart from a stick made before Faraday put its version there.
 pub fn version_of(stick: &FaradayStick) -> String {
     if stick.read {

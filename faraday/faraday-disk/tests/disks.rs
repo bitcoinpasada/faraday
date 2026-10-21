@@ -159,20 +159,20 @@ fn only_handed_out_fat_partitions_are_listed_and_never_the_boot_one() {
         "sda",
         3,
         &[
-            ("OSKBOOT", fat16("OSKBOOT"), true),
-            ("OSKDATA", fat16("OSKDATA"), true),
+            ("FARADAYBOOT", fat16("FARADAYBOOT"), true),
+            ("FARADAYDATA", fat16("FARADAYDATA"), true),
         ],
     );
-    // A stick with one FAT partition, one that is not FAT, and an older
-    // OpenSigner stick's boot partition: named `esp`, labelled OSKBOOT,
-    // handed out because the grant helper reads no labels.
+    // A stick with one FAT partition, one that is not FAT, and a boot
+    // partition whose GPT name is not FARADAYBOOT (`esp`) but whose FAT
+    // label is: handed out, because the grant helper reads no labels.
     m.disk(
         "sdb",
         7,
         &[
             ("", fat16("TESTSTICK"), true),
             ("", vec![0u8; 1 << 20], true),
-            ("esp", fat16("OSKBOOT"), true),
+            ("esp", fat16("FARADAYBOOT"), true),
         ],
     );
     // A stick inserted while the app was not clean: not handed out, so
@@ -188,7 +188,7 @@ fn only_handed_out_fat_partitions_are_listed_and_never_the_boot_one() {
     assert_eq!(
         shown,
         vec![
-            ("sda2@sda#3", "OSKDATA", true),
+            ("sda2@sda#3", "FARADAYDATA", true),
             ("sdb1@sdb#7", "TESTSTICK", false),
             // Handed out, not FAT: listed, saying so, with nothing on it.
             ("sdb2@sdb#7", "sdb2", false),
@@ -364,7 +364,10 @@ fn the_pis_own_card_is_the_boot_medium_and_its_first_partition_is_never_listed()
     m.disk(
         "mmcblk0",
         1,
-        &[("", fat16("OSKBOOT"), true), ("", fat16("OSKDATA"), true)],
+        &[
+            ("", fat16("FARADAYBOOT"), true),
+            ("", fat16("FARADAYDATA"), true),
+        ],
     );
     let mut d = Disks::new(&m.sys(), &m.dev());
     let list = sticks(d.handle(Request::List));

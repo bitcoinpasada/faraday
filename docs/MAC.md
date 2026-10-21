@@ -209,8 +209,8 @@ A new board, `faraday/image/boards/arm64-apple/`, beside
 `kernel.required`, `kernel.forbidden`, `cmdline.txt`, `genimage.cfg`,
 `board.conf`, `buildroot.fragment`).
 
-- **Layout:** as the PC stick: GPT, OSKBOOT (FAT32, ESP type) holding
-  only `EFI/BOOT/BOOTAA64.EFI`, then OSKDATA. Same partition names and
+- **Layout:** as the PC stick: GPT, FARADAYBOOT (FAT32, ESP type) holding
+  only `EFI/BOOT/BOOTAA64.EFI`, then FARADAYDATA. Same partition names and
   sizes, so `faraday-grant`, `faraday-disk`, `faraday-boot` and the
   Starter's keep data work unchanged. The image is
   `faraday-stick-X.Y.Z-arm64-apple.img.xz`.
@@ -445,7 +445,7 @@ The stick's own upgrade (`PLAN.md` §5.5) works unchanged: it copies the
 running Faraday's boot partition, and only to a stick of the same kind,
 since it requires the running kernel's release string. The Starter's
 *Replace Faraday, keep data* refuses to write one kind's boot partition
-over the other's: it reads which EFI file the stick's OSKBOOT holds
+over the other's: it reads which EFI file the stick's FARADAYBOOT holds
 (`BOOTX64.EFI` or `BOOTAA64.EFI`) through `faraday-fat`.
 
 With my own key, every release's `BOOTAA64.EFI` is signed by the owner

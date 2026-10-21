@@ -9,7 +9,7 @@ while it plugs sticks in and pulls them out through QMP:
 
 1. At boot no filesystem is mounted, the kernel has no vfat, and the
    grant helper and the disk process are running.
-2. The boot partition (OSKBOOT) stays root's; the boot stick's data
+2. The boot partition (FARADAYBOOT) stays root's; the boot stick's data
    partition belongs to the disk process (uid 201) while the app is clean.
 3. A test stick plugged in while the app is clean is handed out, and the
    app shows its files (a screenshot).
@@ -204,7 +204,7 @@ def main():
         expect("NoNewPrivs:\t1" in grant_status,
                "the grant helper has no-new-privileges")
 
-        # 2. The boot stick: OSKBOOT root's, its data partition handed out.
+        # 2. The boot stick: FARADAYBOOT root's, its data partition handed out.
         expect(console.run("cat /run/faraday-clean/clean 2>/dev/null").strip() == "clean",
                "the app publishes that it is clean")
         # QEMU on the build machine runs the guest's clock slowly: the boot stick's

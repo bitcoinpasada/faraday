@@ -78,7 +78,7 @@ fn the_pi_calls_the_card_it_started_from_the_boot_sd_card() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         serial: None,
         id: "boot".into(),
-        label: "OSKDATA".into(),
+        label: "FARADAYDATA".into(),
         boot: true,
         files: Vec::new(),
     }]));

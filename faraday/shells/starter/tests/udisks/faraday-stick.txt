@@ -21,10 +21,10 @@
     Drive o /org/freedesktop/UDisks2/drives/Acme_Flash_HHH888
     IdUsage s filesystem
     IdType s vfat
-    IdLabel s OSKBOOT
+    IdLabel s FARADAYBOOT
   Partition
     Number u 1
-    Name s OSKBOOT
+    Name s FARADAYBOOT
     Table o /org/freedesktop/UDisks2/block_devices/sdg
   Filesystem
     MountPoints aay BOOT_MOUNT
@@ -34,10 +34,10 @@
     Drive o /org/freedesktop/UDisks2/drives/Acme_Flash_HHH888
     IdUsage s filesystem
     IdType s vfat
-    IdLabel s OSKDATA
+    IdLabel s FARADAYDATA
   Partition
     Number u 2
-    Name s OSKDATA
+    Name s FARADAYDATA
     Table o /org/freedesktop/UDisks2/block_devices/sdg
   Filesystem
     MountPoints aay DATA_MOUNT

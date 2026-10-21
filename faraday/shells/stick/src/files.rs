@@ -46,14 +46,14 @@ const NOTE: &str = "README.txt";
 /// The settings the app keeps (`docs/PLANNING.md` §6). It is the
 /// device's own file, not one anyone meant to sign, so it is never
 /// offered either.
-pub const SETTINGS: &str = "opensigner-settings.txt";
+pub const SETTINGS: &str = "faraday-settings.txt";
 
 /// Where the settings are written before being renamed into place.
-const SETTINGS_TEMP: &str = "opensigner-settings.tmp";
+const SETTINGS_TEMP: &str = "faraday-settings.tmp";
 
 /// What `--timings` writes on a dev card (`docs/PLANNING.md` §16.35).
 /// It is the device's own file too, so it is never offered.
-pub const TIMINGS: &str = "opensigner-timings.txt";
+pub const TIMINGS: &str = "faraday-timings.txt";
 
 /// The name a hint that survives sanitising to nothing is written under.
 const FALLBACK_NAME: &str = "output";
@@ -68,7 +68,7 @@ const MAX_ATTEMPTS: u32 = 1000;
 const MAX_ENTRIES: usize = 64;
 
 /// Which partition `rcS` mounts at the exchange directory, as the image
-/// wrote it: a node, or `LABEL=OSKDATA` for a medium whose node name is
+/// wrote it: a node, or `LABEL=FARADAYDATA` for a medium whose node name is
 /// not fixed. It is the only place the device records what the file
 /// channel is called.
 const EXCHANGE: &str = "/etc/faraday/exchange";
@@ -498,13 +498,16 @@ mod tests {
     /// as well as the boot medium, it names both.
     #[test]
     fn a_listing_names_every_partition_it_looked_on() {
-        assert_eq!(label_of("LABEL=OSKDATA\n").as_deref(), Some("OSKDATA"));
+        assert_eq!(
+            label_of("LABEL=FARADAYDATA\n").as_deref(),
+            Some("FARADAYDATA")
+        );
         assert_eq!(
             label_of("/dev/mmcblk0p2\n"),
             None,
             "a node is not a name anyone would recognise"
         );
-        let root = std::env::temp_dir().join("opensigner-files-places");
+        let root = std::env::temp_dir().join("faraday-files-places");
         let _ = fs::remove_dir_all(&root);
         let given = root.join("psbt");
         fs::create_dir_all(&given).unwrap();
@@ -514,13 +517,13 @@ mod tests {
             "--files names the directory it was given"
         );
 
-        let card = root.join("OSKDATA");
+        let card = root.join("FARADAYDATA");
         let usb = root.join("usb");
         fs::create_dir_all(&card).unwrap();
         fs::create_dir_all(usb.join("KINGSTON")).unwrap();
         assert_eq!(
             Files::at(card, usb).place().as_deref(),
-            Some("OSKDATA, KINGSTON")
+            Some("FARADAYDATA, KINGSTON")
         );
     }
 
@@ -531,9 +534,9 @@ mod tests {
     /// there at all.
     #[test]
     fn a_save_goes_to_the_devices_own_medium_while_it_is_there() {
-        let root = std::env::temp_dir().join("opensigner-files-save");
+        let root = std::env::temp_dir().join("faraday-files-save");
         let _ = fs::remove_dir_all(&root);
-        let card = root.join("OSKDATA");
+        let card = root.join("FARADAYDATA");
         let usb = root.join("usb");
         let stick = usb.join("KINGSTON");
         fs::create_dir_all(&card).unwrap();

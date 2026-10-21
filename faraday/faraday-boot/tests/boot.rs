@@ -122,7 +122,7 @@ impl Machine {
             &bus,
             disk,
             seq,
-            &[("OSKBOOT", boot, true), ("OSKDATA", data, true)],
+            &[("FARADAYBOOT", boot, true), ("FARADAYDATA", data, true)],
         );
     }
 
@@ -453,25 +453,25 @@ fn only_a_handed_out_boot_partition_of_a_faraday_stick_on_usb_is_touched() {
         "sdc",
         3,
         &[
-            ("OSKBOOT", image.clone(), false),
-            ("OSKDATA", data_image(MIB), true),
+            ("FARADAYBOOT", image.clone(), false),
+            ("FARADAYDATA", data_image(MIB), true),
         ],
     );
-    // A stick with a partition named OSKBOOT and nothing beside it, and
+    // A stick with a partition named FARADAYBOOT and nothing beside it, and
     // one with a third partition.
     m.disk(
         "pci0/usb1/1-4/block",
         "sdd",
         4,
-        &[("OSKBOOT", image.clone(), true)],
+        &[("FARADAYBOOT", image.clone(), true)],
     );
     m.disk(
         "pci0/usb1/1-5/block",
         "sde",
         5,
         &[
-            ("OSKBOOT", image.clone(), true),
-            ("OSKDATA", data_image(MIB), true),
+            ("FARADAYBOOT", image.clone(), true),
+            ("FARADAYDATA", data_image(MIB), true),
             ("", data_image(MIB), true),
         ],
     );
@@ -481,8 +481,8 @@ fn only_a_handed_out_boot_partition_of_a_faraday_stick_on_usb_is_touched() {
         "sdf",
         6,
         &[
-            ("OSKBOOT", image.clone(), true),
-            ("OSKDATA", data_image(MIB), true),
+            ("FARADAYBOOT", image.clone(), true),
+            ("FARADAYDATA", data_image(MIB), true),
         ],
     );
     let mut b = m.boots();

@@ -89,9 +89,12 @@ fn a_partition_windows_and_a_mac_wrote_to_lists_and_keeps_the_psbt_alone() {
     let dir = std::env::temp_dir().join(format!("faraday-files-foreign-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let img = dir.join("oskdata.img");
+    let img = dir.join("faradaydata.img");
     let i = img.to_str().unwrap();
-    let (ok, _) = run("mkfs.fat", &["-C", "-F", "16", "-n", "OSKDATA", i, "32768"]);
+    let (ok, _) = run(
+        "mkfs.fat",
+        &["-C", "-F", "16", "-n", "FARADAYDATA", i, "32768"],
+    );
     assert!(ok, "mkfs.fat");
     let src = dir.join("src");
     for (d, attrs) in DIRS {

@@ -79,7 +79,9 @@ fn the_boot_stick_reads_and_counts_the_psbt_alone() {
         available_mib: 15_000,
     });
     app.storage(StorageEvent::Sticks(vec![stick_info(
-        &dir, "OSKDATA", true,
+        &dir,
+        "FARADAYDATA",
+        true,
     )]));
     let asked = pump(&mut app, &dir);
     assert_eq!(asked, [PSBT], "only the PSBT is read");

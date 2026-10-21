@@ -89,7 +89,7 @@ as the PC treats its boot stick: it is removed after boot, before any
 vault is unlocked, and it or any other SD card can be put back for a
 stick visit (§5.4) to save a vault or move files. The card is the Pi's
 only storage. It has two partitions: the boot partition, labelled
-`OSKBOOT` (OpenSigner's Pi image leaves it unlabelled) so the grant
+`FARADAYBOOT` (OpenSigner's Pi image leaves it unlabelled) so the grant
 helper refuses it, and an empty FAT partition for exchanging files. SD
 partitions are handed out by the same grant helper as USB partitions,
 under the same rules (§4.3). Whether the Pi 3's slot reports removal and
@@ -189,14 +189,17 @@ privileged action happens per partition:
    whole-disk node.
 3. The helper decides from `/sys` alone and reads nothing from the
    stick. A partition whose GPT name (`PARTNAME`, parsed by the kernel)
-   is `OSKBOOT` is the boot partition, and so is the first partition of
+   is `FARADAYBOOT` is the boot partition, and so is the first partition of
    the Pi's own card (`mmcblk0p1`), which is MBR and has no names but a
    fixed layout. The boot partition stays root's and is never handed to
    the disk process. The disk process checks again: it refuses any
-   partition whose FAT label is `OSKBOOT`, which also covers an older
-   stick, named `esp`, plugged in as a second stick. While the app
+   partition whose FAT label is `FARADAYBOOT`, whatever its GPT name.
+   A stick made before 2026-10-21 has OpenSigner's names, `OSKBOOT` and
+   `OSKDATA`, and is not a Faraday stick to any of this: its partitions
+   are handed out and read like any other stick's, and keep data refuses
+   it (owner, 2026-10-21; `docs/DECISIONS.md` F67). While the app
    publishes the upgrade marker (`/run/faraday-clean/upgrade`) beside
-   the clean marker, a partition named `OSKBOOT` goes to the boot copier
+   the clean marker, a partition named `FARADAYBOOT` goes to the boot copier
    (`ofboot`, mode `0600`) instead (§5.5), and back to root when either
    marker goes; the Pi's `mmcblk0p1` does not, yet.
 4. Any other partition is handed to `ofdisk`, mode `0600`, but only while
@@ -233,12 +236,15 @@ Outbox (public) and sealed vaults (ciphertext). It never holds a secret.
 The boot partition is never handed out, so the running system cannot
 rewrite its own kernel. OpenSigner has the same property by never mounting
 it. The one exception is upgrading a stick (§5.5, built for the PC): while
-the app is in that flow, a partition named `OSKBOOT` goes to
+the app is in that flow, a partition named `FARADAYBOOT` goes to
 `faraday-boot`, never to the disk process, and only for a raw copy of
 the Faraday that is running. This requires both images' `genimage.cfg` to name or label the boot
-partition `OSKBOOT`: the ESP's GPT name and FAT label on the PC, the boot
+partition `FARADAYBOOT`: the ESP's GPT name and FAT label on the PC, the boot
 partition's FAT label on the Pi, where it is also the card's first
-partition.
+partition. The data partition is `FARADAYDATA` on both, and the PC
+stick's GPT UUIDs spell "Faraday-Stick" in ASCII hex: the disk
+`46617261-6461-792D-5374-69636B000000`, `FARADAYBOOT` `…000001` and
+`FARADAYDATA` `…000002` (`genimage.cfg`).
 
 ### 4.4 Untrusted input, the complete list
 
@@ -601,13 +607,13 @@ stick are the release strings, bounded and printable only. The app asks
 it two things over a pipe: read the source, and write the copy to a
 partition. It never hands it bytes, so a compromised app can at most
 write the Faraday that is running. `faraday-grant` hands a partition
-named `OSKBOOT` to `ofboot`, never to `ofdisk`, and only while the app
+named `FARADAYBOOT` to `ofboot`, never to `ofdisk`, and only while the app
 publishes an upgrade marker beside the clean marker (§5.1). Outside the
 flow no boot partition is handed out, as before (§4.3).
 
 As built: the copier takes a partition only if `/sys` says it is
-partition 1, named `OSKBOOT`, of a USB disk with exactly two partitions,
-the second named `OSKDATA`, and it can open the node (the grant gave it).
+partition 1, named `FARADAYBOOT`, of a USB disk with exactly two partitions,
+the second named `FARADAYDATA`, and it can open the node (the grant gave it).
 The GPT UUIDs `stick-boot.sh` checks are on the whole-disk node, which is
 never handed out, so they are not checked. The source is read whole (64
 MB at most) and kept in the copier's memory until the next read or a
@@ -658,7 +664,7 @@ working screens do not explain them.
 **The Pi.** The same flow over the card's first partition
 (`mmcblk0p1`, 32 MB), swapping cards in the one slot. After the PC. Not
 built: the grant keeps `mmcblk0p1` back even with the marker, and the
-copier takes only `OSKBOOT` on USB. Open: the Pi's kernel is a zImage,
+copier takes only `FARADAYBOOT` on USB. Open: the Pi's kernel is a zImage,
 whose release string is compressed, so a card's version has to be found
 another way (`run-build.sh` does put the release string in its kernel).
 
@@ -686,12 +692,12 @@ files (`faraday-storage/tests/upgrade.rs`), the copier alone in
 partition's own image (`esp.vfat`) as
 `out/stick/faraday-x86_64-uefi[-dev]-boot.vfat`, and
 `just [dev=1] faraday-stick-boot /dev/sdX` (`faraday/image/stick-boot.sh`)
-writes it over the partition named `OSKBOOT` alone, so a test stick
+writes it over the partition named `FARADAYBOOT` alone, so a test stick
 keeps its vaults and settings across builds. It refuses unless the disk
 is whole, removable and on USB, nothing on it is mounted or used as
 swap, and its partition table is a Faraday stick's: GPT with
-`genimage.cfg`'s disk UUID and two partitions, `OSKBOOT` an EFI system
-partition with its UUID and at least the image's size, then `OSKDATA`
+`genimage.cfg`'s disk UUID and two partitions, `FARADAYBOOT` an EFI system
+partition with its UUID and at least the image's size, then `FARADAYDATA`
 with its own. The device is typed back; it reads back and compares, and
 checks the partition table is unchanged. `--dry-run` checks and says
 what it would write where. A regular file holding a stick image is
@@ -917,7 +923,7 @@ device graph, to be measured with `cargo tree` once a prototype exists.
    and Secure Boot as rendered screens at the reference sizes, to settle
    the look before the flows are built.
 2. **Image and processes.** Kernel changes (§4.2), `faraday-grant`,
-   `faraday-disk`, the app loop, the ESP named `OSKBOOT`. QEMU test:
+   `faraday-disk`, the app loop, the ESP named `FARADAYBOOT`. QEMU test:
    a stick inserted while clean is listed and read; inserted while a
    secret is held, it is not handed out.
 3. **Vaults.** `faraday-vault` with vectors and a reference reader;

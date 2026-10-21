@@ -188,16 +188,16 @@ pub struct Volume {
 }
 
 /// What a Faraday stick's boot partition says (§4.1): the stick has
-/// OSKBOOT and OSKDATA, and OSKBOOT was read, read-only. OSKDATA is
+/// FARADAYBOOT and FARADAYDATA, and FARADAYBOOT was read, read-only. FARADAYDATA is
 /// never opened.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FaradayStick {
-    /// The kernel release string found on OSKBOOT
+    /// The kernel release string found on FARADAYBOOT
     /// (`faraday_boot::find_release`), or `None` for a stick made before
     /// Faraday put one there.
     pub release: Option<String>,
-    /// OSKBOOT was read. On Windows it is not until keep data asks the
-    /// elevated copy ([`StarterCommand::ReadVersion`]): OSKBOOT is an
+    /// FARADAYBOOT was read. On Windows it is not until keep data asks the
+    /// elevated copy ([`StarterCommand::ReadVersion`]): FARADAYBOOT is an
     /// EFI system partition, which Windows lets only an administrator
     /// read (tracker #21). While `false`, `release` is `None` and says
     /// nothing about the stick.
@@ -370,15 +370,15 @@ pub enum StickFault {
     DiskUuid,
     /// The number of partitions is not two.
     Partitions(usize),
-    /// The first partition is not named OSKBOOT.
+    /// The first partition is not named FARADAYBOOT.
     BootName,
     /// The first partition is not a Faraday EFI system partition.
     BootType,
-    /// The second partition is not a Faraday OSKDATA partition.
+    /// The second partition is not a Faraday FARADAYDATA partition.
     DataType,
-    /// The OSKBOOT partition is damaged.
+    /// The FARADAYBOOT partition is damaged.
     BootDamaged,
-    /// The OSKBOOT partition is smaller than the image.
+    /// The FARADAYBOOT partition is smaller than the image.
     BootSmall {
         /// The partition's size in bytes.
         boot: u64,
@@ -470,7 +470,7 @@ pub enum Reason {
         /// The stick's.
         stick: u64,
     },
-    /// The image's boot partition is not FAT32 labelled OSKBOOT.
+    /// The image's boot partition is not FAT32 labelled FARADAYBOOT.
     BootLabel,
     /// The boot partition image is shorter than one sector.
     BootShort,
@@ -694,7 +694,7 @@ pub enum StarterEvent {
     /// [`StarterCommand::ReadRecoveryKey`] ended: the key, or why not.
     RecoveryKey(Result<RecoveryKey, Reason>),
     /// [`StarterCommand::ReadVersion`] ended: the release string on the
-    /// stick's OSKBOOT (`None` for a stick made before Faraday put one
+    /// stick's FARADAYBOOT (`None` for a stick made before Faraday put one
     /// there), or why not.
     VersionRead {
         /// The disk, as the command named it.
@@ -713,7 +713,7 @@ pub enum StarterEvent {
 pub enum Mode {
     /// The whole disk; everything on it is lost.
     Whole,
-    /// Only the boot partition of a Faraday stick; OSKDATA is not read
+    /// Only the boot partition of a Faraday stick; FARADAYDATA is not read
     /// and not written.
     KeepData,
 }

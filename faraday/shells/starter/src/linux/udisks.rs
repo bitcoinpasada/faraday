@@ -286,7 +286,7 @@ impl Objects {
                 .iter()
                 .map(|p| self.str(p, "Partition", "Name"))
                 .collect();
-            let boot = (names == ["OSKBOOT", "OSKDATA"]).then(|| BootPart {
+            let boot = (names == ["FARADAYBOOT", "FARADAYDATA"]).then(|| BootPart {
                 object: parts[0].to_string(),
                 mounted: self.mount_points(parts[0]).first().map(PathBuf::from),
             });

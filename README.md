@@ -141,7 +141,7 @@ Format it like this:
   neither is FAT12. Sticks larger than 32 GB usually come formatted
   exFAT and need reformatting; most smaller ones come as MBR and FAT32
   and work as they are.
-- **Any label except `OSKBOOT`**, which marks a boot partition and is
+- **Any label except `FARADAYBOOT`**, which marks a boot partition and is
   never opened.
 - **Files at the top level.** Files inside folders are not read. The
   largest file read is 18 MiB. Files of any size are specified in
@@ -709,10 +709,12 @@ just release=1 faraday-stick-image        # a published release
 
 `faraday-stick-boot` writes the image's boot partition
 (`out/stick/faraday-x86_64-uefi[-dev]-boot.vfat`) over a Faraday
-stick's `OSKBOOT` partition and leaves its data partition as it is. It
+stick's `FARADAYBOOT` partition and leaves its data partition as it is. It
 refuses a disk that is not a Faraday stick on USB or has anything
 mounted, and asks for the device to be typed back; `--dry-run` only
-checks. It is for development only.
+checks. It is for development only. A stick made before 2026-10-21,
+whose partitions are `OSKBOOT` and `OSKDATA`, is not a Faraday stick to
+it or to the Starter's *keep data*: copy its files to a newly made stick.
 
 Flash the image to a stick and boot a PC from it; the stick image starts
 on mainnet. `faraday/image/README.md` describes the image layout and

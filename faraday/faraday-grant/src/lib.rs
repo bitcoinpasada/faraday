@@ -7,12 +7,12 @@
 //! 1. A partition is considered only when it is a partition, never a whole
 //!    disk, and its disk is on the USB bus or is an SD card.
 //! 2. The boot partition is kept back, so the running system never gets
-//!    to rewrite its own kernel: a partition whose GPT name is `OSKBOOT`,
+//!    to rewrite its own kernel: a partition whose GPT name is `FARADAYBOOT`,
 //!    or the first partition of the Pi's own card. Both are known from
 //!    `/sys`; nothing is read from a stick (`PLAN.md` §12, decision 8).
 //!    The one exception is upgrading a stick (`PLAN.md` §5.5): while the
 //!    app publishes its upgrade marker beside the clean marker, a
-//!    partition named `OSKBOOT` is handed to the boot copier, mode
+//!    partition named `FARADAYBOOT` is handed to the boot copier, mode
 //!    `0600`, and never to the disk process. The Pi's own card is not,
 //!    yet.
 //! 3. Any other partition is handed to the disk process, mode `0600`, but
@@ -38,7 +38,7 @@ use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 /// The boot partition's GPT name and FAT label.
-pub const BOOT: &str = "OSKBOOT";
+pub const BOOT: &str = "FARADAYBOOT";
 
 /// The changes of ownership the helper makes.
 pub trait Owner {
@@ -90,7 +90,7 @@ fn is_boot(name: &str, dir: &Path) -> bool {
 }
 
 /// Whether a boot partition may go to the boot copier while the app is
-/// upgrading a stick: one named `OSKBOOT`. The Pi's own card's first
+/// upgrading a stick: one named `FARADAYBOOT`. The Pi's own card's first
 /// partition is not, until the Pi's upgrade is built (`PLAN.md` §5.5).
 fn is_upgradable(name: &str) -> bool {
     name != PI_BOOT

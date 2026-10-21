@@ -167,7 +167,7 @@ const ATTR_LFN: u8 = ATTR_RO | ATTR_HIDDEN | ATTR_SYSTEM | ATTR_LABEL;
 /// The volume label a boot sector states, from its first 512 bytes,
 /// without trusting anything else in it: the label of a FAT16 or FAT32
 /// extended boot record, by the signature byte that says one is there.
-/// What `faraday-grant` reads to keep `OSKBOOT` back (`PLAN.md` §4.3).
+/// What `faraday-grant` reads to keep `FARADAYBOOT` back (`PLAN.md` §4.3).
 pub fn boot_sector_label(sector: &[u8]) -> Option<[u8; 11]> {
     if sector.len() < 512 {
         return None;

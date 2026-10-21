@@ -791,7 +791,14 @@ unmount what the desktop mounted from it; write; flush; read the whole
 write back and compare; ask the system to read the partition table
 again. *Keep data* writes the boot partition at its offset after the
 same partition-table checks as `faraday/image/stick-boot.sh`, and
-checks the partition table is unchanged afterwards. The source is
+checks the partition table is unchanged afterwards: GPT with the disk
+UUID `46617261-6461-792D-5374-69636B000000` and exactly two partitions,
+`FARADAYBOOT` (an EFI system partition, `…000001`) and `FARADAYDATA`
+(`…000002`). A stick made before 2026-10-21, whose partitions are
+OpenSigner's `OSKBOOT` and `OSKDATA` with UUIDs spelling "OpenSignerKit",
+is refused as any other disk is, and nothing is relabelled: its files are
+moved to a new stick by hand (owner, 2026-10-21; `docs/DECISIONS.md`
+F67). The source is
 decompressed from the payload while it is written, and the SHA-256 of
 the decompressed stream must equal the manifest's before the writer
 reports success.
@@ -802,17 +809,17 @@ partition, and only to learn which Faraday it holds: the build string
 (`faraday-core/src/upgrade.rs`): the kernel release string in
 `EFI/BOOT/BOOTX64.EFI` on a stick, or `faraday-build.txt` on a Pi
 card (§1.3). On Linux it is read from the desktop's own mount of
-OSKBOOT; when OSKBOOT is not mounted, the Starter has udisks2 mount it
+FARADAYBOOT; when FARADAYBOOT is not mounted, the Starter has udisks2 mount it
 read-only without asking for a password (`auth.no_user_interaction`),
 reads it and unmounts it (batch L: opening the raw partition needs
 `OpenDevice`, whose polkit prompt would ask for a password just to list
 disks, and `faraday-fat` does not enter subdirectories; it only checks
-the boot sector's OSKBOOT label). A stick whose version cannot be read
+the boot sector's FARADAYBOOT label). A stick whose version cannot be read
 shows as one made before versions were recorded. That version is shown
 on Which stick and Confirm and drives the keep-data rules (§3.2).
-OSKDATA is never mounted, opened, read or written (§4.4).
+FARADAYDATA is never mounted, opened, read or written (§4.4).
 
-**On Windows** (owner, 2026-10-19, tracker #21 option (e), D22) OSKBOOT
+**On Windows** (owner, 2026-10-19, tracker #21 option (e), D22) FARADAYBOOT
 is an EFI system partition, which Windows lets only an elevated process
 read, so the Starter's own process cannot read the version. "Could not
 read" is kept apart from "no version on the stick": Home and Which stick
@@ -821,7 +828,7 @@ say "Faraday stick · version not read", never "0.1.0 or earlier".
 copy once with `--read-version` (the disk, its serial and size as
 listed, and the pipe to answer on); it checks the disk is still that one,
 reads the partition table as keep data checks it and up to the first 64
-MiB of OSKBOOT, and answers the release string found there
+MiB of FARADAYBOOT, and answers the release string found there
 (`faraday_boot::find_release`), or none for a stick made before versions
 were recorded. The Starter then applies the same rules as on Linux: the
 same build refused, an older Faraday over a newer stick warned about on
@@ -855,15 +862,15 @@ and dismount every volume on the disk and hold the locks for the whole
 write; write `\\.\PhysicalDriveN` unbuffered, write-through, in
 sector-aligned buffers; then `IOCTL_DISK_UPDATE_PROPERTIES`. Batch W
 records what Windows does with the stick after the write (drive letters
-given to OSKBOOT and OSKDATA, folders it writes such as `System Volume
-Information`) and reports it. OSKDATA keeps its drive letter: nothing
+given to FARADAYBOOT and FARADAYDATA, folders it writes such as `System Volume
+Information`) and reports it. FARADAYDATA keeps its drive letter: nothing
 sets the GPT "no drive letter" attribute, and Faraday reads what
 Windows writes there and ignores Windows' own files (§4.4; §12, D11).
 
 ### 4.4 Keep data
 
 Offered to everyone on a Faraday stick (F11). The writer never reads
-or writes OSKDATA. The fact the person should know is that plugging the
+or writes FARADAYDATA. The fact the person should know is that plugging the
 stick into this computer is what exposes it: the computer can read and
 write the data partition whatever the Starter does, and Windows mounts
 it with a drive letter. The vaults there are encrypted; the settings
@@ -871,8 +878,8 @@ file is not. The Learn page "Replacing Faraday on a stick" says this
 and points to Settings → Upgrade a Faraday stick, which upgrades a
 stick from another stick without an online computer.
 
-**OSKDATA from Windows and macOS** (owner, 2026-10-19, tracker #30;
-D11). OSKDATA keeps the drive letter Windows gives it, so a person can
+**FARADAYDATA from Windows and macOS** (owner, 2026-10-19, tracker #30;
+D11). FARADAYDATA keeps the drive letter Windows gives it, so a person can
 put a PSBT, or any file, on a Faraday stick from Windows, and a Mac
 mounts it as it mounts any FAT volume. Faraday reads what they write
 there as it reads any file a person puts on a stick. What each writes
@@ -1693,7 +1700,7 @@ this Mac* takes back.
 | Batch | What | Needs | Order |
 |---|---|---|---|
 | R | Release groundwork: the glibc 2.31 container for the desktop app; `.xz` images; the new names; the Linux `.tar.gz`; `SHA256SUMS` with the `.img` and inner-file lines; the Starter's payload build; the xz decoder and its `docs/deps` note; README "Verifying a release" for Windows and the two Linux steps | decided | first |
-| L | The Starter on Linux: crates (§2), the D-Bus crate and its `docs/deps` note, Home as a checklist, Make a stick through udisks2 (with what each tried distribution asks for), the stick's version read from OSKBOOT and the keep-data rules, Make a Pi card for the one image, Install and uninstall, Try the desktop app, Transfer and Learn, About, `--image` for developers; then `tools/flash-stick` removed and the README's mention of it with it | decided | after R |
+| L | The Starter on Linux: crates (§2), the D-Bus crate and its `docs/deps` note, Home as a checklist, Make a stick through udisks2 (with what each tried distribution asks for), the stick's version read from FARADAYBOOT and the keep-data rules, Make a Pi card for the one image, Install and uninstall, Try the desktop app, Transfer and Learn, About, `--image` for developers; then `tools/flash-stick` removed and the README's mention of it with it | decided | after R |
 | G | Guides: the general Windows and Linux pages and §7.2's other pages with their sources; detection on Linux; Restart into the BIOS on Linux; the stick's power-off reminder (§7.5); the first group of maker pages, several families at once (D6, F14); the website item in its own repository | decided | after R, independent of L and W |
 | W | The Starter on Windows: window, install and uninstall, disks and writing, detection, the firmware buttons, Transfer Send; Defender run; the report on what Windows does to a written stick (D11). Its BitLocker guard, marker, logon reminder and acceptance were built and are removed by F33a | decided; D11 is answered by this batch's report | after L; needs G's general Windows page only |
 | F33a–F33d | No BitLocker step: removal in the Starter, the stick's power-off line, the guides' last step (§6.5) | decided | any time |
@@ -1752,8 +1759,8 @@ what moved.
 - **D10 Names:** "Faraday Starter" to people (F16, which changed v0.2's
   "Faraday"), "Faraday Desktop" for the desktop app; `faraday-starter` in the
   code.
-- **D11 OSKDATA on Windows:** decided (owner, 2026-10-19, #30;
-  `docs/DECISIONS.md` F50). OSKDATA keeps its drive letter, so a person
+- **D11 FARADAYDATA on Windows:** decided (owner, 2026-10-19, #30;
+  `docs/DECISIONS.md` F50). FARADAYDATA keeps its drive letter, so a person
   can put a PSBT or any file on a Faraday stick from Windows; Faraday
   reads what Windows writes there and never lists, reads or counts
   Windows' or macOS's own files, told by name (§4.4).
@@ -1788,7 +1795,7 @@ what moved.
 - **D22 The stick's version on Windows** (owner, 2026-10-19, tracker
   #21, option (e)): an elevated read when keep data is chosen, one
   administrator prompt, and "version not read" kept apart from "0.1.0 or
-  earlier" (§4.1). A copy of the version on OSKDATA or in the GPT was
+  earlier" (§4.1). A copy of the version on FARADAYDATA or in the GPT was
   rejected: what Windows reads without elevation is not updated by keep
   data or Upgrade a Faraday stick.
 

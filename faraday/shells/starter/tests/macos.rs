@@ -113,7 +113,7 @@ fn a_faraday_stick_is_known_by_its_partition_names_and_its_data_partition_is_nev
     assert_eq!(boot.id, "disk3s1");
     assert_eq!(boot.mounted, None);
     let labels: Vec<_> = f.disk.volumes.iter().map(|v| v.label.as_deref()).collect();
-    assert_eq!(labels, [Some("OSKBOOT"), None]);
+    assert_eq!(labels, [Some("FARADAYBOOT"), None]);
     // A stick whose volumes carry those names as labels alone is not one.
     assert!(disk(&list, "disk2").disk.faraday.is_none());
 }

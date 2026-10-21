@@ -3,11 +3,11 @@
 //! write it over another.
 //!
 //! A boot partition reaches this process only while the app is in the
-//! upgrade flow: `faraday-grant` makes a partition named `OSKBOOT` this
+//! upgrade flow: `faraday-grant` makes a partition named `FARADAYBOOT` this
 //! process's, mode `0600`, while the app publishes its upgrade marker
 //! beside the clean marker, and gives it back to root when either goes.
 //! Here a partition is taken only if `/sys` also says it is the first of
-//! exactly two on a USB disk, named `OSKBOOT` and `OSKDATA`: a Faraday
+//! exactly two on a USB disk, named `FARADAYBOOT` and `FARADAYDATA`: a Faraday
 //! stick's layout (`genimage.cfg`). The GPT UUIDs `stick-boot.sh` checks
 //! are in the partition table on the whole-disk node, which is never
 //! handed out, so they are not checked here.
@@ -55,9 +55,9 @@ use faraday_strings::{EN, fill};
 use proto::{Part, Request, Response};
 
 /// The boot partition's GPT name.
-pub const BOOT: &str = "OSKBOOT";
+pub const BOOT: &str = "FARADAYBOOT";
 /// The data partition's GPT name.
-pub const DATA: &str = "OSKDATA";
+pub const DATA: &str = "FARADAYDATA";
 
 /// What the image build puts in the kernel's release string before the
 /// Faraday version: `6.6.84-faraday-0.2.0+4d0680b1a2b3`.
@@ -265,7 +265,7 @@ impl Boots {
             let Ok(dir) = fs::canonicalize(e.path()) else {
                 continue;
             };
-            // A partition named OSKBOOT, the first, on a USB disk. The
+            // A partition named FARADAYBOOT, the first, on a USB disk. The
             // Pi's own card (`mmcblk0p1`, no names) comes later
             // (`PLAN.md` §5.5).
             if !dir.to_string_lossy().contains("/usb")

@@ -65,7 +65,10 @@ impl Machine {
             .join(format!("sys/devices/pci0/usb1/1-{seq}/block/{disk}"));
         fs::create_dir_all(&d).unwrap();
         fs::write(d.join("diskseq"), format!("{seq}\n")).unwrap();
-        for (k, (name, image)) in [("OSKBOOT", boot), ("OSKDATA", data)].iter().enumerate() {
+        for (k, (name, image)) in [("FARADAYBOOT", boot), ("FARADAYDATA", data)]
+            .iter()
+            .enumerate()
+        {
             let node = format!("{disk}{}", k + 1);
             let p = d.join(&node);
             fs::create_dir_all(&p).unwrap();

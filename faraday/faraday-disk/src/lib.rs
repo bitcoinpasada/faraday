@@ -6,7 +6,7 @@
 //! open was not handed out: it is listed with no files, so the app knows
 //! a stick is there and asks to lock (`PLAN.md` §5.4). Nothing here mounts anything: the
 //! filesystem is read by `faraday-fat`. A partition named or labelled
-//! `OSKBOOT` is never touched, even if it could be opened: the grant
+//! `FARADAYBOOT` is never touched, even if it could be opened: the grant
 //! helper keeps it back, and this is the second lock on the same door.
 //!
 //! Where `/sys` and `/dev` are is a parameter, so the tests can stand a
@@ -23,7 +23,7 @@ use faraday_files::proto::{Problem, Request, Response, Stick};
 use faraday_files::{Fat, Place};
 
 /// The label and partition name the boot partition carries.
-pub const BOOT: &str = "OSKBOOT";
+pub const BOOT: &str = "FARADAYBOOT";
 
 /// A partition's device node, as a FAT volume reads it.
 pub struct Node {
@@ -185,7 +185,7 @@ impl Disks {
                         .collect()
                 })
                 .unwrap_or_default();
-            // The boot medium: a disk with a partition named OSKBOOT, or
+            // The boot medium: a disk with a partition named FARADAYBOOT, or
             // the Pi's own card, which is MBR and has no names.
             let boot = disk.file_name().is_some_and(|n| n == "mmcblk0")
                 || siblings

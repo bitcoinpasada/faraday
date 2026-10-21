@@ -315,7 +315,7 @@ faraday-stick-image: faraday-stick-bin
     ls -l "out/stick/$name.img" "out/stick/$name-boot.vfat"
 
 # For development, not offered to users (PLAN.md §5.5): writes the stick
-# image's boot partition over the partition named OSKBOOT on a Faraday
+# image's boot partition over the partition named FARADAYBOOT on a Faraday
 # stick, leaving its data partition, vaults and settings as they are.
 # Refuses a disk that is not removable on USB, has anything mounted, or
 # whose partition table is not a Faraday stick's; the device is typed

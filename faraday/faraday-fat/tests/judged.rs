@@ -121,7 +121,7 @@ fn volumes() -> Vec<(&'static str, Vec<&'static str>, u32, Kind)> {
     vec![
         (
             "fat16",
-            vec!["-F", "16", "-n", "OSKDATA"],
+            vec!["-F", "16", "-n", "FARADAYDATA"],
             32 * 1024,
             Kind::Fat16,
         ),
@@ -346,12 +346,12 @@ fn the_boot_partitions_label_is_read_from_its_first_sector() {
     }
     let dir = scratch("label");
     for (args, kib) in [
-        (vec!["-F", "32", "-n", "OSKBOOT"], 48 * 1024),
-        (vec!["-F", "16", "-n", "OSKBOOT"], 32 * 1024),
+        (vec!["-F", "32", "-n", "FARADAYBOOT"], 48 * 1024),
+        (vec!["-F", "16", "-n", "FARADAYBOOT"], 32 * 1024),
     ] {
         let img = mkfs(&dir, &args, kib);
         let bytes = std::fs::read(&img).unwrap();
-        assert_eq!(boot_sector_label(&bytes[..512]), Some(*b"OSKBOOT    "));
+        assert_eq!(boot_sector_label(&bytes[..512]), Some(*b"FARADAYBOOT"));
     }
 }
 

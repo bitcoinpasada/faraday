@@ -2361,3 +2361,27 @@ which also specifies the compute token this prepares for).
   `derivation`.
 - A received BSMS key record keeps its key line as it came, and its
   signature is checked over that line; a record made here writes `h`.
+
+### F67 The stick's partitions and files have Faraday's names (2026-10-21)
+
+**Why.** A Faraday stick's partitions were still OpenSigner's: `OSKBOOT`
+and `OSKDATA`, with GPT UUIDs that spell "OpenSignerKit", and the stick
+shell kept `opensigner-settings.txt` and `opensigner-timings.txt` on the
+data partition.
+
+**Decision** (owner, 2026-10-21).
+
+- The partitions are `FARADAYBOOT` and `FARADAYDATA`: FAT labels on the
+  stick and the Pi card, and GPT names on the stick.
+- The stick's GPT UUIDs spell "Faraday-Stick" in ASCII hex and end in a
+  number: the disk `46617261-6461-792D-5374-69636B000000`, `FARADAYBOOT`
+  `…000001`, `FARADAYDATA` `…000002` (`genimage.cfg`, `stick-boot.sh`,
+  the Starter's `gpt.rs`).
+- The stick shell's files are `faraday-settings.txt` and
+  `faraday-timings.txt`. Faraday writes no file under an `opensigner-`
+  name.
+- No compatibility with sticks made before: a stick with the old names
+  or UUIDs is not a Faraday stick. The Starter's keep data refuses it as
+  it refuses any other disk and relabels nothing; its files are moved to
+  a new stick by hand. The device treats its partitions as any other
+  stick's, and Upgrade a Faraday stick does not offer it.

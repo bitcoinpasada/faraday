@@ -400,6 +400,8 @@ fi
 # A build tree from before the image's names were Faraday's (2026-10-21):
 # the app was /usr/bin/opensigner-pi from the opensigner-pi package, its
 # arguments were in /etc/opensigner, and the image was opensigner-*.img.
+# The overlay's /usr/sbin/faraday-usb-watch, which nothing started, is
+# gone too.
 # Buildroot never takes a file out of the target tree once a package or
 # an overlay has put it there, so the old names go here, once. The users
 # need nothing: Buildroot writes them into a copy of the target tree for
@@ -409,6 +411,7 @@ old_names=(
     /output/target/etc/opensigner
     /output/target/usr/bin/opensigner-pi
     /output/target/usr/sbin/opensigner-usb-watch
+    /output/target/usr/sbin/faraday-usb-watch
     /output/build/opensigner-pi-prebuilt
 )
 for old in "${old_names[@]}" /output/images/opensigner-*.img; do

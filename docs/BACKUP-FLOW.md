@@ -204,7 +204,7 @@ step 6 instead (§4.6), since they hold no vault the key goes into.
 - **Usable**, else why and what to do, before anything is made:
   - not FAT32 as Faraday reads sticks: "Not a FAT32 stick. Format it as
     FAT32, or use another stick";
-  - an `OSKBOOT` partition: "This is a boot partition. Use another
+  - an `FARADAYBOOT` partition: "This is a boot partition. Use another
     stick";
   - read-only: "Cannot be written. Use another stick";
   - too little room: "Not enough room: {needed} needed, {free} free".
@@ -858,7 +858,7 @@ a new `faraday-core/tests/backup_flow.rs`; the wallet's in
   a place given a new vault, **A new vault beside them** is chosen; a
   stick bound to Place 1 inserted for Place 2 is refused; a second
   empty stick of the same label and serial needs the hold; a non-FAT,
-  read-only, full or `OSKBOOT` stick says why and binds nothing.
+  read-only, full or `FARADAYBOOT` stick says why and binds nothing.
 - **Steps 3 and 4.** New vaults are made with their own passphrases; the
   key is in every vault the plan keeps it in after one **Make the key**;
   **I do not have its passphrase** offers a new vault beside it.
@@ -1054,7 +1054,7 @@ flow's place with `Screen::BackupFlow` kept, so no other screen shows.
    flow; a person with a vault open reaches an existing key without
    going through Where. Decision 10 no longer applies to these three
    tiles.
-4. **Usable sticks (§4.2).** An `OSKBOOT` label is refused. The disk
+4. **Usable sticks (§4.2).** An `FARADAYBOOT` label is refused. The disk
    process lists every USB and SD device it is handed (a partition with
    no FAT volume, a disk with no partition, an empty reader slot not) and
    marks each with a `Problem` on the wire (`faraday-files::proto::Stick`):

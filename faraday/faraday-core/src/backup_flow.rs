@@ -676,7 +676,7 @@ pub struct Sealed {
 /// Why a stick cannot be used, or is not the one wanted (§4.2, §4.6).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Problem {
-    /// An `OSKBOOT` partition.
+    /// An `FARADAYBOOT` partition.
     Boot,
     /// Not a FAT32 stick, as Faraday reads sticks.
     NotFat,

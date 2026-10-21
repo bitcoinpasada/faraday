@@ -234,6 +234,16 @@ Since the fork:
   search of `arch/` found user-mode Linux's `x86_64_defconfig` first,
   so every stick build unpacked and built the kernel again. Why: the
   images are Faraday's; nothing reads these names off an older stick.
+  Then the stick's (2026-10-21, F67): the partitions are `FARADAYBOOT`
+  and `FARADAYDATA` (were `OSKBOOT` and `OSKDATA`), as FAT labels on
+  both images and GPT names on the PC stick, whose disk and partition
+  UUIDs now spell "Faraday-Stick" (`46617261-6461-792D-5374-69636B`
+  then `000000`, `000001`, `000002`; were `4F70656E-5369-676E-6572-4B6974`,
+  "OpenSignerKit"); the stick shell's files on the data partition are
+  `faraday-settings.txt`, `faraday-settings.tmp` and `faraday-timings.txt`
+  (were `opensigner-*`); `/usr/sbin/faraday-usb-watch`, which nothing
+  started, is removed. Why: the same; a stick with the old names is not
+  a Faraday stick and keep data refuses it.
 - `opensigner/shells/avfoundation/src/convert.rs` (2026-10-21, U1): the
   NV12 conversion is public (`opensigner_avfoundation::convert`), and
   `faraday-mediafoundation` uses it instead of its own copy. Why: one

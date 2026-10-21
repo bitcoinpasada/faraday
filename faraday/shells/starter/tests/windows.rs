@@ -142,7 +142,7 @@ fn a_faraday_stick_is_known_by_its_partitions_and_read_from_its_boot_volume_alon
         .iter()
         .map(|v| v.label.as_deref())
         .collect();
-    assert_eq!(labels, [Some("OSKBOOT"), Some("OSKDATA")]);
+    assert_eq!(labels, [Some("FARADAYBOOT"), Some("FARADAYDATA")]);
     // An MBR stick whose volumes happen to carry those labels is not one.
     assert!(disk(&list, "Disk 1").disk.faraday.is_none());
     // Its version, read as from the boot volume's root.
@@ -216,7 +216,7 @@ fn a_recording_reads_back_as_it_was_written() {
     let s = laptop();
     assert_eq!(Snapshot::parse(&s.record()), Ok(s));
     assert!(Snapshot::parse("disk 1\n  descriptor 0g\n").is_err());
-    assert!(Snapshot::parse("  label OSKBOOT\n").is_err());
+    assert!(Snapshot::parse("  label FARADAYBOOT\n").is_err());
 }
 
 fn sz(s: &str) -> Vec<u8> {

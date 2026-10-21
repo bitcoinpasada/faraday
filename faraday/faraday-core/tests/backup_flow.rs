@@ -326,7 +326,7 @@ fn an_unusable_stick_says_why_and_binds_nothing() {
         ("full", |d| d.free = 1000, "Not enough room"),
         (
             "boot",
-            |d| d.label = "OSKBOOT".into(),
+            |d| d.label = "FARADAYBOOT".into(),
             "This is a boot partition. Use another stick",
         ),
     ];

@@ -2357,7 +2357,7 @@ fn upgrade_tour(t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Sticks(vec![StickInfo {
         serial: None,
         id: "sdb2@sdb#2".into(),
-        label: "OSKDATA".into(),
+        label: "FARADAYDATA".into(),
         boot: false,
         files: vec![
             ("vault.ofv".into(), 16_778_240),

@@ -237,14 +237,14 @@ def main():
     old_parts = partitions(target)
     print(f"new image partitions {new_parts}")
     print(f"old image partitions {old_parts}")
-    source = region(boot_img, new_parts["OSKBOOT"])
+    source = region(boot_img, new_parts["FARADAYBOOT"])
     running = release_in(source)
     print(f"new image release {running}")
-    print(f"old image release {release_in(region(target, old_parts['OSKBOOT']))}")
+    print(f"old image release {release_in(region(target, old_parts['FARADAYBOOT']))}")
     check(running is not None, "the new image's kernel carries a Faraday release string")
 
     # The older stick's data partition: a vault-sized file and settings.
-    data_at = old_parts["OSKDATA"][0]
+    data_at = old_parts["FARADAYDATA"][0]
     vault = os.path.join(work, "vault.ofv")
     with open(vault, "wb") as f:
         f.write(os.urandom(4 << 20))
@@ -253,7 +253,7 @@ def main():
         f.write("theme=nord\n")
     for path in (vault, settings):
         subprocess.check_call([tool("mcopy"), "-o", "-i", f"{target}@@{data_at}", path, "::"])
-    data_before = hashlib.sha256(region(target, old_parts["OSKDATA"])).hexdigest()
+    data_before = hashlib.sha256(region(target, old_parts["FARADAYDATA"])).hexdigest()
     print(f"old stick data partition sha256 {data_before}")
 
     log = open(os.path.join(out, "console-upgrade.txt"), "w")
@@ -322,11 +322,11 @@ def main():
             proc.wait(timeout=10)
         log.close()
 
-    upgraded_boot = region(target, partitions(target)["OSKBOOT"])
+    upgraded_boot = region(target, partitions(target)["FARADAYBOOT"])
     check(partitions(target) == old_parts, "the older stick's partition table is unchanged")
     check(upgraded_boot[:len(source)] == source,
           "the older stick's boot partition is the new image's, byte for byte")
-    data_after = hashlib.sha256(region(target, old_parts["OSKDATA"])).hexdigest()
+    data_after = hashlib.sha256(region(target, old_parts["FARADAYDATA"])).hexdigest()
     print(f"old stick data partition sha256 after {data_after}")
     check(data_after == data_before, "the older stick's data partition is byte for byte what it was")
 

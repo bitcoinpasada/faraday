@@ -76,7 +76,7 @@
 //! has no `unsafe` of its own. `--no-camera` refuses, which is how the
 //! file fallback is exercised on a build box that has a webcam.
 //!
-//! Files (§16.16): the boot medium's `OSKDATA` partition is mounted at
+//! Files (§16.16): the boot medium's `FARADAYDATA` partition is mounted at
 //! `/mnt/microsd` by init, every other FAT partition on a USB disk under
 //! `/mnt/usb`, and `--files DIR` points the channel at one directory on
 //! a build box. A `RequestFile` is answered with every file in every
@@ -92,7 +92,7 @@
 //! screen, and this shell only says what is on the media.
 //!
 //! Settings (§6): the six settings the app keeps live in
-//! `opensigner-settings.txt` on the same partition, read once at start
+//! `faraday-settings.txt` on the same partition, read once at start
 //! and rewritten whenever the user changes one. The write goes to a
 //! temporary file, is flushed, and is renamed over the settings, so a
 //! card pulled mid-write keeps the old ones. No card mounted is no
@@ -100,7 +100,7 @@
 //!
 //! Timings (§16.35): `--timings` is the dev card's one way of saying how
 //! long anything takes. The loop times every call it already makes into
-//! five buckets and appends a block of them to `opensigner-timings.txt`
+//! five buckets and appends a block of them to `faraday-timings.txt`
 //! on the card every five seconds and once at exit. The image adds the
 //! flag only when `DEV=1`, so a release card never records anything.
 //!
@@ -268,7 +268,7 @@ const BOXES: &str = "/run/faraday";
 const USB_MOUNTS: &str = "/mnt/usb";
 
 /// Which partition the image mounts at [`DEFAULT_FILES`], as it wrote it:
-/// `/dev/mmcblk0p2` on a Raspberry Pi, `LABEL=OSKDATA` on the PC image.
+/// `/dev/mmcblk0p2` on a Raspberry Pi, `LABEL=FARADAYDATA` on the PC image.
 const EXCHANGE: &str = "/etc/faraday/exchange";
 
 /// What the removable medium is called on this machine: an SD card on
@@ -1001,7 +1001,7 @@ impl Shell {
                         pending.push_back(Event::ClipboardNotWritten { kind });
                     }
                     Command::Exit => self.done = true,
-                    // The boot medium's OSKDATA partition at
+                    // The boot medium's FARADAYDATA partition at
                     // /mnt/microsd and every FAT partition init mounted
                     // under /mnt/usb, looked at again for each request
                     // so a stick plugged in a moment ago is on the

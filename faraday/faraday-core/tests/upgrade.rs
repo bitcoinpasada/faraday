@@ -121,7 +121,7 @@ fn the_stick_faraday_started_from_is_read_and_another_is_written_from_it() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         serial: None,
         id: "sdb2@sdb#2".into(),
-        label: "OSKDATA".into(),
+        label: "FARADAYDATA".into(),
         boot: false,
         files: vec![("vault.ofv".into(), 16_778_240)],
     }]));
@@ -396,7 +396,7 @@ fn leaving_the_upgrade_ends_it_and_a_stick_then_is_visited() {
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         serial: None,
         id: "sdb2@sdb#2".into(),
-        label: "OSKDATA".into(),
+        label: "FARADAYDATA".into(),
         boot: false,
         files: Vec::new(),
     }]));

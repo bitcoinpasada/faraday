@@ -719,7 +719,7 @@ impl<K: Flush> Buffered<K> {
 }
 
 /// The source's bytes placed at `base` on the disk; with `label`, the
-/// first sector must be a FAT32 boot sector labelled OSKBOOT before any
+/// first sector must be a FAT32 boot sector labelled FARADAYBOOT before any
 /// of it is let through.
 struct Placed<K: Flush> {
     out: Buffered<K>,
@@ -742,11 +742,11 @@ impl<K: Flush> Placed<K> {
     }
 }
 
-/// Whether `sector` is a FAT32 boot sector labelled OSKBOOT, as
+/// Whether `sector` is a FAT32 boot sector labelled FARADAYBOOT, as
 /// `stick-boot.sh` checks a boot partition before writing it.
-fn oskboot(sector: &[u8]) -> io::Result<()> {
+fn faraday_boot(sector: &[u8]) -> io::Result<()> {
     let fat32 = sector.len() >= 512 && &sector[82..90] == b"FAT32   ";
-    if fat32 && faraday_fat::boot_sector_label(sector) == Some(*b"OSKBOOT    ") {
+    if fat32 && faraday_fat::boot_sector_label(sector) == Some(*b"FARADAYBOOT") {
         Ok(())
     } else {
         Err(fail(Reason::BootLabel))
@@ -759,7 +759,7 @@ impl<K: Flush> Write for Placed<K> {
             let take = (512 - self.first.len()).min(data.len());
             self.first.extend_from_slice(&data[..take]);
             if self.first.len() == 512 {
-                oskboot(&self.first)?;
+                faraday_boot(&self.first)?;
                 self.label = false;
                 let first = std::mem::take(&mut self.first);
                 self.out.put(self.base, &first)?;
@@ -782,7 +782,7 @@ impl<K: Flush> Write for Placed<K> {
     }
 }
 
-/// A whole stick image streaming past, of which only its own OSKBOOT
+/// A whole stick image streaming past, of which only its own FARADAYBOOT
 /// partition goes to the stick's: the image's partition table is read
 /// from its first bytes, must be a Faraday stick's, and its boot
 /// partition must fit the stick's; nothing reaches the disk before all
@@ -859,7 +859,7 @@ impl<K: Flush> Window<K> {
             if self.first.len() < 512 {
                 return Ok(());
             }
-            oskboot(&self.first)?;
+            faraday_boot(&self.first)?;
             let first = std::mem::take(&mut self.first);
             self.out.put(self.target.offset, &first)?;
         }

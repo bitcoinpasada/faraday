@@ -2,7 +2,7 @@
 //!
 //! The release card gives nothing back: no console, no network, no login,
 //! and the owner has no serial adapter. The one channel out is the
-//! `OSKDATA` partition, so a dev card records how long the loop's calls
+//! `FARADAYDATA` partition, so a dev card records how long the loop's calls
 //! take into a file there, and the owner reads it on a computer after
 //! using the device for a minute.
 //!

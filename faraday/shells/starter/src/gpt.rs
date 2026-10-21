@@ -1,9 +1,9 @@
 //! A GPT partition table read, and a Faraday stick's layout checked, as
 //! `faraday/image/stick-boot.sh` checks it before keep data writes the
 //! boot partition: GPT with Faraday's disk UUID and exactly two
-//! partitions, the first named `OSKBOOT`, an EFI system partition with
+//! partitions, the first named `FARADAYBOOT`, an EFI system partition with
 //! Faraday's partition UUID and at least as large as what is written,
-//! the second named `OSKDATA` with its own UUID, and the two not
+//! the second named `FARADAYDATA` with its own UUID, and the two not
 //! overlapping (`genimage.cfg` sets the UUIDs).
 
 use std::io;
@@ -11,11 +11,11 @@ use std::io;
 use faraday_starter::api::StickFault;
 
 /// Faraday's disk UUID (`genimage.cfg`).
-pub const DISK_UUID: &str = "4F70656E-5369-676E-6572-4B6974000000";
-/// The OSKBOOT partition's UUID.
-pub const BOOT_UUID: &str = "4F70656E-5369-676E-6572-4B6974000001";
-/// The OSKDATA partition's UUID.
-pub const DATA_UUID: &str = "4F70656E-5369-676E-6572-4B6974000002";
+pub const DISK_UUID: &str = "46617261-6461-792D-5374-69636B000000";
+/// The FARADAYBOOT partition's UUID.
+pub const BOOT_UUID: &str = "46617261-6461-792D-5374-69636B000001";
+/// The FARADAYDATA partition's UUID.
+pub const DATA_UUID: &str = "46617261-6461-792D-5374-69636B000002";
 /// The EFI system partition's type.
 pub const ESP_TYPE: &str = "C12A7328-F81F-11D2-BA4B-00A0C93EC93B";
 
@@ -197,14 +197,14 @@ pub fn faraday_boot(table: &Table, needs: u64) -> Result<Boot, StickFault> {
         return Err(StickFault::Partitions(table.parts.len()));
     }
     let (boot, data) = (&table.parts[0], &table.parts[1]);
-    if boot.name != "OSKBOOT" {
+    if boot.name != "FARADAYBOOT" {
         return Err(StickFault::BootName);
     }
     if !boot.guid.eq_ignore_ascii_case(BOOT_UUID) || !boot.type_guid.eq_ignore_ascii_case(ESP_TYPE)
     {
         return Err(StickFault::BootType);
     }
-    if data.name != "OSKDATA" || !data.guid.eq_ignore_ascii_case(DATA_UUID) {
+    if data.name != "FARADAYDATA" || !data.guid.eq_ignore_ascii_case(DATA_UUID) {
         return Err(StickFault::DataType);
     }
     if boot.last < boot.first {

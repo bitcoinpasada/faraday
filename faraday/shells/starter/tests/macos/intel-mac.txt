@@ -225,7 +225,7 @@
 					<key>Size</key>
 					<integer>1610612736</integer>
 					<key>VolumeName</key>
-					<string>OSKBOOT</string>
+					<string>FARADAYBOOT</string>
 				</dict>
 				<dict>
 					<key>Content</key>
@@ -634,7 +634,7 @@
 	<key>FilesystemType</key>
 	<string>msdos</string>
 	<key>IORegistryEntryName</key>
-	<string>OSKBOOT</string>
+	<string>FARADAYBOOT</string>
 	<key>MediaName</key>
 	<string></string>
 	<key>MountPoint</key>
@@ -646,7 +646,7 @@
 	<key>TotalSize</key>
 	<integer>1610612736</integer>
 	<key>VolumeName</key>
-	<string>OSKBOOT</string>
+	<string>FARADAYBOOT</string>
 	<key>WholeDisk</key>
 	<false/>
 </dict>
@@ -667,7 +667,7 @@
 	<key>DeviceNode</key>
 	<string>/dev/disk3s2</string>
 	<key>IORegistryEntryName</key>
-	<string>OSKDATA</string>
+	<string>FARADAYDATA</string>
 	<key>MediaName</key>
 	<string></string>
 	<key>MountPoint</key>

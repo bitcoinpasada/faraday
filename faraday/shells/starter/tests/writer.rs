@@ -214,7 +214,7 @@ fn a_disk_whose_serial_or_size_changed_since_confirm_is_refused_before_any_byte(
 // ---- keep data ------------------------------------------------------------
 
 const SECTOR: u64 = 512;
-/// A small stick: 8 MiB, OSKBOOT at 1 MiB for 2 MiB, OSKDATA after it.
+/// A small stick: 8 MiB, FARADAYBOOT at 1 MiB for 2 MiB, FARADAYDATA after it.
 const STICK: u64 = 8 << 20;
 const BOOT_FIRST: u64 = 2048;
 const BOOT_SECTORS: u64 = 4096;
@@ -241,6 +241,20 @@ fn guid_bytes(s: &str) -> [u8; 16] {
 /// A stick image with Faraday's partition table (or another disk UUID),
 /// its data partition filled with `data`.
 fn stick_image(disk_uuid: &str, data: u8) -> Vec<u8> {
+    stick_layout(
+        [disk_uuid, gpt::BOOT_UUID, gpt::DATA_UUID],
+        ["FARADAYBOOT", "FARADAYDATA"],
+        data,
+    )
+}
+
+/// A stick image with the given disk, boot and data partition UUIDs and
+/// partition names, its data partition filled with `data`.
+fn stick_layout(
+    [disk_uuid, boot_uuid, data_uuid]: [&str; 3],
+    names: [&str; 2],
+    data: u8,
+) -> Vec<u8> {
     let mut img = vec![0u8; STICK as usize];
     let mut entries = vec![0u8; 128 * 128];
     let mut entry = |i: usize, ty: &str, id: &str, first: u64, last: u64, name: &str| {
@@ -256,18 +270,18 @@ fn stick_image(disk_uuid: &str, data: u8) -> Vec<u8> {
     entry(
         0,
         gpt::ESP_TYPE,
-        gpt::BOOT_UUID,
+        boot_uuid,
         BOOT_FIRST,
         DATA_FIRST - 1,
-        "OSKBOOT",
+        names[0],
     );
     entry(
         1,
         "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7",
-        gpt::DATA_UUID,
+        data_uuid,
         DATA_FIRST,
         DATA_LAST,
-        "OSKDATA",
+        names[1],
     );
     let last = STICK / SECTOR - 1;
     let header = |current: u64, backup: u64, entries_lba: u64| {
@@ -302,14 +316,14 @@ fn stick_image(disk_uuid: &str, data: u8) -> Vec<u8> {
 }
 
 /// A boot partition of `len` bytes: a FAT32 boot sector labelled
-/// OSKBOOT, then `fill`.
+/// FARADAYBOOT, then `fill`.
 fn boot_partition(len: usize, fill: u8) -> Vec<u8> {
     let mut v = vec![fill; len];
     v[..512].fill(0);
     v[11..13].copy_from_slice(&512u16.to_le_bytes());
     v[13] = 8;
     v[66] = 0x29;
-    v[71..82].copy_from_slice(b"OSKBOOT    ");
+    v[71..82].copy_from_slice(b"FARADAYBOOT");
     v[82..90].copy_from_slice(b"FAT32   ");
     v[510] = 0x55;
     v[511] = 0xAA;
@@ -390,7 +404,7 @@ fn keep_data_from_a_whole_image_writes_only_its_boot_partition() {
     assert_eq!(r, Ok(()));
     let after = std::fs::read(&path).expect("read");
     assert_eq!(&after[from..to], &new[from..to]);
-    // The vaults and settings on OSKDATA keep their bytes.
+    // The vaults and settings on FARADAYDATA keep their bytes.
     untouched_outside(&before, &after, from, to);
 }
 
@@ -420,6 +434,44 @@ fn keep_data_over_a_disk_that_is_not_a_faraday_stick_writes_nothing() {
         "{r:?}"
     );
     assert_eq!(std::fs::read(&path).expect("read"), before);
+}
+
+#[test]
+fn keep_data_over_a_stick_with_the_old_partition_table_writes_nothing() {
+    // A stick made before the partitions were renamed: OSKBOOT and
+    // OSKDATA, and the UUIDs that spell "OpenSignerKit".
+    let old = [
+        "4F70656E-5369-676E-6572-4B6974000000",
+        "4F70656E-5369-676E-6572-4B6974000001",
+        "4F70656E-5369-676E-6572-4B6974000002",
+    ];
+    let new = [gpt::DISK_UUID, gpt::BOOT_UUID, gpt::DATA_UUID];
+    for (name, uuids, fault) in [
+        ("keep-old-table", old, StickFault::DiskUuid),
+        ("keep-old-names", new, StickFault::BootName),
+    ] {
+        let path = tmp(name);
+        let before = stick_layout(uuids, ["OSKBOOT", "OSKDATA"], 0xDA);
+        std::fs::write(&path, &before).expect("a stick");
+        let image = image_file(
+            &format!("{name}-boot.vfat"),
+            &boot_partition(1536 << 10, 0xB0),
+        );
+        let mut disk = FileDisk::new(&path);
+        let order = disk.order(
+            Confirmed::Image {
+                path: image.path.display().to_string(),
+                sha256: image.sum.sha256.to_string(),
+            },
+            Mode::KeepData,
+        );
+        let (r, _) = run(&order, &Job::Image(image), &mut disk);
+        assert!(
+            matches!(&r, Err(Reason::NotStick { fault: f, .. }) if *f == fault),
+            "{name}: {r:?}"
+        );
+        assert_eq!(std::fs::read(&path).expect("read"), before, "{name}");
+    }
 }
 
 // ---- --image --------------------------------------------------------------

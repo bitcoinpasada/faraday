@@ -425,7 +425,7 @@ pub fn snapshot() -> Snapshot {
 /// Lists the disks now and again every [`POLL`], sending each list
 /// that differs from the last; a Faraday stick's version is read once
 /// while it stays attached, from its boot volume (read-only, and only
-/// two files there; never OSKDATA).
+/// two files there; never FARADAYDATA).
 fn follow(out: &Sender<StarterEvent>, forget: &Receiver<String>) {
     let mut versions: BTreeMap<String, ((String, u64), Option<String>)> = BTreeMap::new();
     let mut last: Option<Vec<Disk>> = None;

@@ -183,8 +183,8 @@ fn a_stick_is_handed_out_while_clean_and_the_boot_partition_never() {
         "pci0/usb1/1-1/host0/target0/0:0:0:0/block",
         "sda",
         &[
-            ("OSKBOOT", sector("OSKBOOT")),
-            ("OSKDATA", sector("OSKDATA")),
+            ("FARADAYBOOT", sector("FARADAYBOOT")),
+            ("FARADAYDATA", sector("FARADAYDATA")),
         ],
     );
     m.disk("pci0/usb2/2-1/block", "sdc", &[("", sector("TESTSTICK"))]);
@@ -196,7 +196,7 @@ fn a_stick_is_handed_out_while_clean_and_the_boot_partition_never() {
     m.disk(
         "soc/mmc0/block",
         "mmcblk0",
-        &[("", sector("OSKBOOT")), ("", sector("OSKDATA"))],
+        &[("", sector("FARADAYBOOT")), ("", sector("FARADAYDATA"))],
     );
     m.clean(true);
     let mut owners = Owners::default();
@@ -262,8 +262,8 @@ fn a_boot_partition_goes_to_the_boot_copier_only_while_the_app_upgrades_a_stick(
             bus,
             disk,
             &[
-                ("OSKBOOT", sector("OSKBOOT")),
-                ("OSKDATA", sector("OSKDATA")),
+                ("FARADAYBOOT", sector("FARADAYBOOT")),
+                ("FARADAYDATA", sector("FARADAYDATA")),
             ],
         )
     };
@@ -272,7 +272,7 @@ fn a_boot_partition_goes_to_the_boot_copier_only_while_the_app_upgrades_a_stick(
     m.disk(
         "soc/mmc0/block",
         "mmcblk0",
-        &[("", sector("OSKBOOT")), ("", sector("OSKDATA"))],
+        &[("", sector("FARADAYBOOT")), ("", sector("FARADAYDATA"))],
     );
     let state = |g: &Grant<&mut Owners>, id: &str| g.decided[id].1;
     let mut owners = Owners::default();
@@ -294,7 +294,7 @@ fn a_boot_partition_goes_to_the_boot_copier_only_while_the_app_upgrades_a_stick(
     assert_eq!(owners.by_node.get("sdb1"), None);
     {
         let mut g = m.grant(&mut owners);
-        // Clean and upgrading: each partition named OSKBOOT goes to the
+        // Clean and upgrading: each partition named FARADAYBOOT goes to the
         // copier; the data partitions stay the disk process's; the Pi's
         // card is not handed out.
         m.upgrading(true);

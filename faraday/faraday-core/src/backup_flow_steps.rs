@@ -937,7 +937,7 @@ impl Faraday {
             .iter()
             .find(|(id, _)| *id == st.id)
             .map(|(_, ro)| *ro);
-        if st.label.to_ascii_uppercase().starts_with("OSKBOOT") {
+        if st.label.to_ascii_uppercase().starts_with("FARADAYBOOT") {
             r.problem = Some(Problem::Boot);
             r.pending.clear();
         } else if let Some(ro) = found {
