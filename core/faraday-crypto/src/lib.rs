@@ -1,7 +1,7 @@
 //! Secret wrapper types, in-memory sealing, and thin wrappers over vetted
 //! hash primitives.
 //!
-//! This is the bottom crate of the OpenSignerKit core. It has three jobs:
+//! This is the bottom crate of Faraday's core. It has three jobs:
 //!
 //! - [`Secret`]: hold a value that must be wiped from memory when it is no
 //!   longer needed, and make accidental leaks (formatting, cloning,

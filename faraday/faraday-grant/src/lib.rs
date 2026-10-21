@@ -326,8 +326,8 @@ impl<O: Owner> Grant<O> {
 
     /// Input and video nodes that appeared after boot get the owners
     /// `/etc/mdev.conf` gave the ones present at boot: input to the app's
-    /// user (`opensigner:opensigner 0640`), video to its group
-    /// (`root:opensigner 0660`). No hotplug helper runs, so nothing else
+    /// user (`faraday:faraday 0640`), video to its group
+    /// (`root:faraday 0660`). No hotplug helper runs, so nothing else
     /// would, and a keyboard plugged in later could not be read.
     fn devnodes_tick(&mut self) {
         const APP: u32 = 200;

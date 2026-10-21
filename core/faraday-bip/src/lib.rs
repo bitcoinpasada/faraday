@@ -1,4 +1,4 @@
-//! BIP standards for OpenSignerKit: BIP-39 mnemonics, BIP-32 keys,
+//! BIP standards: BIP-39 mnemonics, BIP-32 keys,
 //! BIP-44/49/84/86 accounts and addresses, SLIP-132 and BIP-380
 //! descriptor checksums, and BIP-85 child mnemonics.
 //!

@@ -1,11 +1,12 @@
 [package]
 name = "faraday-bip"
 version = "0.1.0"
-description = "BIP-39, BIP-32 keys, addresses and descriptors for OpenSignerKit, no_std + alloc"
+description = "BIP-39, BIP-32 keys, addresses and descriptors, no_std + alloc"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
+publish = false
 
 [dependencies]
 faraday-crypto = { path = "../faraday-crypto" }

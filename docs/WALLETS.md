@@ -30,9 +30,7 @@ review. Its wording is in one strings file, as OpenSigner's is.
 
 1. **Since F65 Faraday maintains `core/` and `opensigner/` itself**
    (`docs/history/UPSTREAM.md` lists every change; none loosens a check). The
-   Wallets tab does not run `opensigner-core`, and the OpenSigner tab
-   connects to the vault through its existing interface (below), so no
-   vault bridge inside OpenSigner is needed.
+   Wallets tab runs no OpenSigner app code.
 2. **Where Faraday needs a variant of an upstream part** (the stick's
    image boards, its shell, `faraday-draw`), the variant is a copy under
    `faraday/` recording the upstream commit it was copied from.
@@ -50,9 +48,9 @@ review. Its wording is in one strings file, as OpenSigner's is.
 5. **Shared logic lives in `core/`.** OpenSigner's rule since
    §16.138 (2026-10-04, made for forks like this one): code that defines
    bytes, or answers a question with no screen in it, is a `core/` crate, and
-   `opensigner-core` holds only flows and wording. That move put the `.oskb`
-   format, the KDBX writer and the Argon2id `Cost` in **`faraday-backup`**, the
-   kept-key blob in `osk-keep`, the signed-message text form and a
+   OpenSigner's app (`opensigner-core`, deleted under F68) held only flows
+   and wording. That move put the `.oskb` format, the KDBX writer and the
+   Argon2id `Cost` in **`faraday-backup`**, the signed-message text form and a
    transaction with its previous outputs in `faraday-psbt`, and address parsing
    and a wallet's address search in `faraday-bip`. The Wallets tab therefore
    depends on no app code. Still in the app, and moved into `core/` by

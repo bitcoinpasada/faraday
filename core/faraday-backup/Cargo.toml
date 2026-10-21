@@ -1,11 +1,12 @@
 [package]
 name = "faraday-backup"
 version = "0.1.0"
-description = "OpenSigner's encrypted file formats: faraday-backup (.oskb) and a KDBX 4 writer, no_std + alloc"
+description = "Encrypted file formats: the .oskb backup and a KDBX 4 writer, no_std + alloc"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
+publish = false
 
 [dependencies]
 faraday-bip = { path = "../faraday-bip" }

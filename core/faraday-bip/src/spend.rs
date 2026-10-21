@@ -9,8 +9,7 @@
 //! turns it into the list.
 //!
 //! Nothing here is words. A [`SpendPath`] is key indices and locks; the
-//! sentence a screen shows is built from
-//! `opensigner-core`'s strings.
+//! sentence a screen shows is built from `faraday-strings`.
 
 use alloc::vec::Vec;
 

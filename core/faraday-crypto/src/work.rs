@@ -107,8 +107,8 @@ impl Compute {
         }
     }
 
-    /// A token that counts nothing, for OpenSigner's app, core's tests,
-    /// fuzz targets and tools: code with no drawing guarantee to keep.
+    /// A token that counts nothing, for core's tests, fuzz
+    /// targets and tools: code with no drawing guarantee to keep.
     /// Cheap.
     #[cfg(feature = "unchecked")]
     #[must_use]

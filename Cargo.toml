@@ -59,7 +59,7 @@ exclude = ["fuzz", "faraday/fuzz", "third_party/rqrr"]
 edition = "2024"
 license = "MIT"
 rust-version = "1.97"
-repository = "https://github.com/maxmoney21m/opensignerkit"
+repository = "https://github.com/bitcoinpasada/faraday"
 
 [workspace.dependencies]
 zeroize = { version = "1.8", default-features = false, features = ["derive"] }

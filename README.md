@@ -6,8 +6,9 @@ RAM, and keeps nothing when it powers off. It holds Bitcoin keys,
 wallets, passwords, GPG keys and Secure Boot keys in encrypted vaults and
 signs with them on a machine that has no network.
 
-Faraday is a fork of OpenSignerKit / OpenSigner and uses its library
-crates for every piece of Bitcoin cryptography.
+Faraday began as a fork of OpenSignerKit, OpenSigner's code, and its
+Bitcoin cryptography is that code, now Faraday's own (see "Where Faraday
+came from").
 
 > **Use at your own risk.** Faraday is not reviewed. 0.1.5 is a
 > pre-release: no one outside the project has reviewed its code, its
@@ -29,7 +30,7 @@ is in [Auditing Faraday](#auditing-faraday).
 | Area | Jobs |
 |---|---|
 | Vaults | Create a passphrase-encrypted vault; unlock it after the boot stick is removed; hold Bitcoin keys, wallets, notes and recovery sheets, password entries with TOTP secrets, GPG keys and Secure Boot keys; seal it and write it back to a stick. TOTP codes for the entries in open vaults. |
-| Wallets | Wallet creation, restore, backup and spending flows, built on OpenSigner's library crates. |
+| Wallets | Wallet creation, restore, backup and spending flows, built on the `core/` crates. |
 | GPG | Create an Ed25519 certification key with an Ed25519 signing subkey, export the public certificate, make detached signatures, make a revocation certificate, renew expiry, write a paperkey backup. |
 | Secure Boot | Generate PK, KEK and db keys and certificates, write enrolment files, sign and check `BOOTX64.EFI`. |
 | QR | One scanner and one sender: fountain-coded `ur:bytes`, BBQr, and the `faraday-file-v1` envelope for any file. |
@@ -558,31 +559,28 @@ a vetted crate, and what it is checked against.
 **Bitcoin cryptography is in `core/`.** Every key derivation, mnemonic,
 signature, PSBT and message signature is in the `core/` crates
 (`faraday-crypto`, `faraday-bip`, `faraday-psbt`, `faraday-entropy`), which began as
-OpenSigner's. Since 2026-10-20 Faraday maintains them itself, as a soft
-fork (`docs/history/UPSTREAM.md`, F65): it changes them where it needs to, each
-change its own commit listed in `docs/history/UPSTREAM.md`, and ports what
-OpenSigner fixes. Faraday's own crates
-compute only what OpenSigner has no use for, each as a library with no
-interface: the vault (`faraday-vault`), OpenPGP (`faraday-pgp`) and
-Secure Boot (`faraday-sb`).
+OpenSigner's and are Faraday's own since the hard fork (F72). The rest
+is in Faraday's other crates, each a library with no interface: the
+vault (`faraday-vault`), OpenPGP (`faraday-pgp`), Secure Boot
+(`faraday-sb`) and APK signing (`faraday-apk`).
 
 Why this is better than one repository and one application:
 
 - **A smaller thing to read.** An auditor of signing reads `core/`:
   libraries with no rendering, layout, fonts or event handling in them.
-  `faraday-core` and the shells are flows and wording; a change there can
-  change what the person sees and when, never the bytes signed. The two
-  layers can be reviewed at different depths, and `docs/AUDIT.md` §5
-  draws the line.
-- **Every change listed.** `core/` here is OpenSigner's tree at a
-  recorded commit plus the changes `docs/history/UPSTREAM.md` lists, each its own
-  commit, so a diff against that commit shows exactly what Faraday
-  changed. A reviewer who has audited OpenSigner's signing reads only
-  those.
+  The shells are input, storage and drawing. `faraday-core` is flows and
+  wording, but today it also derives keys and calls the signing
+  functions; F70 moves that into one crate, `faraday-keys`.
+  `docs/AUDIT.md` says which crate computes what.
+- **Every change traceable.** `core/` began as OpenSigner's tree at a
+  recorded commit. `docs/history/UPSTREAM.md` gives that commit, the diff
+  of everything Faraday changed up to the fork, and a per-crate
+  summary; Faraday's own history covers the rest. A reviewer who has
+  audited OpenSigner's signing reads those changes.
 - **No interface pressure on the cryptography.** A screen that wants a
   value in a new shape gets it from a library function written and
   tested against published vectors, not from a shortcut taken inside a
-  view. OpenSigner's rule is that code that defines bytes, or answers a
+  view. The rule, from OpenSigner, is that code that defines bytes, or answers a
   question with no screen in it, lives in `core/` (`docs/WALLETS.md` §1
   rule 5).
 - **Checked against others.** Each cryptographic crate is tested against
@@ -813,26 +811,32 @@ Get-FileHash -Algorithm SHA256 .\faraday-stick-0.1.5-x86_64-uefi.img.xz
 
 The release tags are signed with the same key: `git tag -v v0.1.5`.
 
-## Relationship to OpenSigner
+## Where Faraday came from
 
-`core/` and `opensigner/` began as OpenSignerKit/OpenSigner's tree.
-Faraday maintains them as a soft fork (`docs/history/UPSTREAM.md`, F65): it
-changes them where it needs to, lists every change, and ports what
-OpenSigner fixes from the git remote `upstream`; this repository's
-history starts fresh and shares none with upstream's.
-Faraday uses the `osk-*` crates as a library. `faraday/`
-is Faraday itself: `faraday-core`, the desktop and stick shells, the
-vault, GPG, Secure Boot and QR code. See `PLAN.md` for the full spec,
-`docs/FLOWS.md` for every flow, and `docs/VAULT.md` / `docs/QR.md` for
-the vault and QR formats.
+Faraday began as a fork of OpenSignerKit, OpenSigner's code, at
+`d26b84e92f4e960071fd4a8279112bf6d7f0d34c` (2026-10-10). On 2026-10-21
+it became a hard fork (F72):
+- the crates took Faraday's names (`osk-bip` is `faraday-bip`, `osk-ui`
+  is `faraday-draw`, and so on);
+- the code is Faraday's to answer for, and nothing is ported either way;
+- file formats and their tags keep their bytes, so an OpenSigner backup
+  (`.oskb`) still opens.
+
+This repository's history starts fresh and shares none with OpenSigner's.
+`docs/history/UPSTREAM.md` records the base, how to check it, and every
+change Faraday made before the fork. OpenSigner's MIT notice is kept in
+`LICENSE`.
+
+`core/` holds the libraries with no flow and no wording in them: the
+cryptography, the codecs, the drawing base and the shell contract.
+`faraday/` is Faraday itself: `faraday-core`, the shells, the vault, GPG,
+Secure Boot, APK signing and QR codes. See `docs/FLOWS.md` for every
+flow, and `docs/VAULT.md` and `docs/QR.md` for the vault and QR
+formats.
 
 ## Repository rules
 
 - No GitHub Actions or hosted CI. Everything builds and tests locally.
-- OpenSigner's changes are ported from the `upstream` remote
-  (`git diff <last> upstream/main`), not copied by hand; Faraday's own
-  changes to `core/` and `opensigner/` are each a commit listed in
-  `docs/history/UPSTREAM.md`.
 - Nothing under `local/` is committed; use it for private notes.
 
 ## License

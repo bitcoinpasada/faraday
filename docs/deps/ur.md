@@ -24,7 +24,8 @@ uses) with `bitcoin-internals` and `bitcoin-consensus-encoding` behind
 it, `crc`, `crc-catalog`, `minicbor`, `rand_xoshiro` and `rand_core`.
 `minicbor`'s derive macro also kept `syn`, `quote`, `proc-macro2` and
 `unicode-ident` in every device graph after `rqrr` stopped needing them.
-Measured with
+Measured while OpenSigner's app existed (deleted, F68); the
+`opensigner-*` rows are its graphs. Command:
 `cargo tree -p <root> -e normal --prefix none | sed 's/ (.*//' | sort -u | wc -l`:
 
 | Graph | Before | After |
@@ -79,7 +80,7 @@ Every one of these is a test in `core/faraday-codec/src/ur/`:
 | `ur` 0.5.2 `fountain.rs` | `fragment_length` for six sizes, the eleven fragments of the 1,024-byte message, `choose_fragments` for sequences 1 to 30, the twenty emitted parts and their CBOR, the loss-tolerant round trip over 32,767 bytes, and every rejection case |
 | `ur` 0.5.2 `ur.rs` | the single-part and multi-part vectors above, upper-case decoding, and the malformed strings |
 | Recorded from `ur` 0.5.2 here | three streams over a 120-byte payload at fragment lengths 20, 60 and 400, and its single-part form — a payload that is in no specification, so the match is asserted against the crate's actual output and not against a document |
-| `opensigner-core/tests/scan.rs` | the Sparrow-style stream through the scanner |
+| `faraday/faraday-core/tests/scan.rs` | a PSBT's UR animation through the scanner |
 
 **The cross-check.** Before the crate was removed it was kept as a
 dev-dependency and run beside the new code over 200 random payloads of 1

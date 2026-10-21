@@ -28,7 +28,7 @@ counting from 1; without it the command refuses and says how many there are.
 
 Dependencies: the standard library plus either `argon2-cffi` and
 `pynacl`, or `cryptography` 44 or newer on OpenSSL 3.2 or newer. The two
-primitives and the BIP-39 wordlists are OpenSigner's own reader's,
+primitives and the BIP-39 wordlists are those of the backup reader,
 `tools/backup/decrypt.py`, imported from this repository.
 
 The layout, all little-endian:

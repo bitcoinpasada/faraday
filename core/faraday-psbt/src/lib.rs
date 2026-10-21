@@ -1,5 +1,5 @@
 //! PSBT (BIP-174) parsing, inspection, policy warnings, signing and
-//! finalization for OpenSignerKit.
+//! finalization.
 //!
 //! The crate is the only place in the core where a private key is used.
 //! Everything else works from non-secret data:

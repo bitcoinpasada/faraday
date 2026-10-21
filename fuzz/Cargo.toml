@@ -3,7 +3,7 @@
 # `cargo fuzz` build with sanitizer flags never shares a target directory
 # or a resolved lock file with the pinned 1.97.0 workspace build.
 [package]
-name = "osk-fuzz"
+name = "faraday-fuzz"
 version = "0.0.0"
 edition = "2024"
 publish = false

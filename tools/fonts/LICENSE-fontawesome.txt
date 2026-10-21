@@ -14,7 +14,7 @@ under several licences, and the two that apply to a vendored font file are:
 
     Attribution: icons by Font Awesome (https://fontawesome.com),
     licensed under CC BY 4.0. No changes were made to the icon designs;
-    OpenSignerKit rasterises a subset of them into glyph atlases at build
+    Faraday rasterises a subset of them into glyph atlases at build
     time.
 
   - Fonts — SIL OFL 1.1 License (https://scripts.sil.org/OFL)

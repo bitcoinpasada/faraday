@@ -1,4 +1,4 @@
-//! QR payloads for OpenSignerKit (`docs/PLANNING.md` §4.1, §7, §8.2 #2,
+//! QR payloads (`docs/PLANNING.md` §4.1, §7, §8.2 #2,
 //! §8.4 #1/#12/#16; `docs/UX.md` §4 "Scan routing"):
 //!
 //! - [`png`]: a QR code as a PNG file, for a public code saved as a

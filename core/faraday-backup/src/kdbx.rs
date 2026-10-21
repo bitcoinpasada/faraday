@@ -43,7 +43,7 @@
 //!
 //! The body is the inner header — inner random stream ChaCha20 with its
 //! key, no binaries — and one XML document: a root group named
-//! `OpenSigner` with one entry per item, each carrying Title, Notes and
+//! `Faraday` with one entry per item, each carrying Title, Notes and
 //! a Password field marked `Protected` and encrypted with the inner
 //! stream. There is no compression: gzip over a handful of secrets buys
 //! nothing and costs a second format in the path.
@@ -555,8 +555,8 @@ fn document(items: &[Item<'_>], inner_key: &[u8], master_seed: &[u8], out: &mut 
     wide.zeroize();
 
     out.extend_from_slice(b"<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>");
-    out.extend_from_slice(b"<KeePassFile><Meta><Generator>OpenSigner</Generator>");
-    out.extend_from_slice(b"<DatabaseName>OpenSigner</DatabaseName>");
+    out.extend_from_slice(b"<KeePassFile><Meta><Generator>Faraday</Generator>");
+    out.extend_from_slice(b"<DatabaseName>Faraday</DatabaseName>");
     out.extend_from_slice(b"<MemoryProtection><ProtectTitle>False</ProtectTitle>");
     out.extend_from_slice(b"<ProtectUserName>False</ProtectUserName>");
     out.extend_from_slice(b"<ProtectPassword>True</ProtectPassword>");
@@ -564,7 +564,7 @@ fn document(items: &[Item<'_>], inner_key: &[u8], master_seed: &[u8], out: &mut 
     out.extend_from_slice(b"<ProtectNotes>False</ProtectNotes></MemoryProtection></Meta>");
     out.extend_from_slice(b"<Root><Group>");
     put_uuid(master_seed, 0xFF, out);
-    out.extend_from_slice(b"<Name>OpenSigner</Name>");
+    out.extend_from_slice(b"<Name>Faraday</Name>");
     put_times(out);
     for (i, item) in items.iter().enumerate() {
         out.extend_from_slice(b"<Entry>");

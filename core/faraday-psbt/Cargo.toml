@@ -1,11 +1,12 @@
 [package]
 name = "faraday-psbt"
 version = "0.1.0"
-description = "PSBT (BIP-174) parsing, inspection, policy warnings, signing and finalization for OpenSignerKit, no_std + alloc"
+description = "PSBT (BIP-174) parsing, inspection, policy warnings, signing and finalization, no_std + alloc"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
+publish = false
 
 [dependencies]
 faraday-bip = { path = "../faraday-bip" }

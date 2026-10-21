@@ -34,10 +34,10 @@ pub const BYTES_TYPE: &str = "bytes";
 /// The count comes out of the part's own text, and a decoder that
 /// believes it reserves a slot per fragment before a single one has been
 /// checked, so a one-code message can ask for as much memory as it likes.
-/// The number is what the transport is for: the app splits a payload into
-/// fragments of 20 to 400 bytes (`opensigner-core`'s `UR_FRAGMENT_MIN`
-/// and `UR_FRAGMENT_MAX`), and a real transaction can be long — a PSBT
-/// with a hundred inputs runs to several hundred parts at those sizes,
+/// The number is what the transport is for: a payload is split into
+/// fragments of a few tens to a few hundred bytes, and a real transaction
+/// can be long — a PSBT with a hundred inputs runs to several hundred
+/// parts at those sizes,
 /// and requiring the previous transaction of every SegWit v0 input makes
 /// it longer still. 2048 parts is 40 KiB of the smallest fragments and
 /// under 1 MiB of the largest: room for any transaction a person scans
@@ -603,8 +603,8 @@ mod tests {
     /// Streams the `ur` 0.5.2 crate produced for a payload that is not
     /// one of the specification's, recorded here so that the match is
     /// asserted for good once that crate is gone. Fragment lengths 20,
-    /// 60 and 400 are the ends and the middle of what `opensigner-core`
-    /// offers (`UR_FRAGMENT_MIN`, `UR_FRAGMENT_LEN`, `UR_FRAGMENT_MAX`).
+    /// 60 and 400 are the ends and the middle of the range a QR code
+    /// carries.
     #[test]
     fn parts_recorded_from_the_reference_crate() {
         let payload: Vec<u8> = (0..120u32).map(|i| (i * 37 % 251) as u8).collect();

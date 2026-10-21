@@ -1,11 +1,12 @@
 [package]
 name = "faraday-codec"
 version = "0.1.0"
-description = "QR payloads for OpenSignerKit: QR encode and decode, SeedQR, BC-UR, payload classification; no_std + alloc"
+description = "QR payloads: QR encode and decode, SeedQR, BC-UR, payload classification; no_std + alloc"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
+publish = false
 
 [features]
 default = ["decode"]

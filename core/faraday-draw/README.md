@@ -1,6 +1,6 @@
 # faraday-draw
 
-The drawing base of Faraday's screens, from OpenSigner's UI crate. It holds
+The drawing base of Faraday's screens. It holds
 the pixel canvas, text and the fonts, geometry, the design tokens, the
 layout context, and the icon and keyboard widgets. `no_std` + `alloc`; the
 dependencies are `tiny-skia` (shapes), `faraday-shell-api` (the display and

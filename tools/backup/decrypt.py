@@ -4,7 +4,7 @@
 The format is documented in
 `docs/BACKUP.md` and `core/faraday-backup/src/oskb.rs` and is not this app's
 secret: these ninety lines and two published libraries read it. A person
-who has the file and the passphrase does not need OpenSigner to get their
+who has the file and the passphrase needs neither OpenSigner nor Faraday to get their
 words back.
 
 Usage:

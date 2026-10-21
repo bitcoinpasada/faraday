@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Secret-hygiene lint for the OpenSignerKit core crates and the secret
-# state Faraday took from OpenSigner's app (docs/PLANNING.md §5.3,
-# docs/DECISIONS.md F68).
+# Secret-hygiene lint for the core crates and the secret state in
+# faraday/ (docs/PLANNING.md §5.3, docs/DECISIONS.md F68).
 #
 # Rules, applied to every file under core/*/src/ and to the three files
-# Faraday took from OpenSigner's app (MOVED below):
+# moved from the app that was deleted (MOVED below):
 #   1. No output or logging macros: println!, eprintln!, print!, eprint!,
 #      dbg!, log::, tracing::. Tests that need to print live under tests/
 #      (integration tests), or use assert! only.

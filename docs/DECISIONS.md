@@ -2529,8 +2529,8 @@ the spec is `docs/STRUCTURE-PASS.md` §6).
 
 ### F72 OpenSigner's code becomes Faraday's: a hard fork (2026-10-21)
 
-**Why.** OpenSigner's developer will not maintain it. F65's soft fork
-kept upstream's names, an `upstream` remote and a change list, all for
+**Why.** Faraday no longer follows OpenSigner. F65's soft fork kept
+upstream's names, an `upstream` remote and a change list, all for
 porting both ways, and nothing will now be ported. Eleven crates named
 `osk-*`, a folder named `opensigner/` and descriptions "for
 OpenSignerKit" told a reader the code was someone else's when it is

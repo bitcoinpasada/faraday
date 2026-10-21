@@ -27,7 +27,8 @@ proc-macro that generated its tables at build time, and `g2poly`) and
 `lru` (with `hashbrown`, `foldhash`, `equivalent` and `allocator-api2`
 behind it). `g2gen` was the only proc-macro in a device graph, and with
 it went `syn 2`, `quote` and `proc-macro2` from the core, FFI and Pi
-graphs. Measured with
+graphs. Measured while OpenSigner's app existed (deleted, F68); the
+`opensigner-*` rows are its graphs. Command:
 `cargo tree -p <root> -e normal --prefix none | sed 's/ (.*//' | sort -u | wc -l`:
 
 | Graph | Before | After |

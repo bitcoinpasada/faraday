@@ -12,8 +12,8 @@ what a second implementation is written against, and the vectors under
 The cryptography is OpenSigner's `.oskb` format (`docs/BACKUP.md`),
 whose crate `core/faraday-backup` also provides the Argon2id `Cost` type:
 Argon2id version 1.3 and XChaCha20-Poly1305. The slot structure follows the duress
-record of OpenSigner's kept-key blob, which is random bytes under a random
-key when no duress PIN is set (`opensigner-core/src/keep.rs`).
+record of OpenSigner's kept-key blob, which was random bytes under a random
+key when no duress PIN was set (`docs/history/UPSTREAM.md`).
 
 ## 1. The file
 

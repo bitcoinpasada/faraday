@@ -18,7 +18,7 @@ every build.
 
 **Cost.** Version 0.10 with `default-features = false` and the `cipher`
 and `zeroize` features: no new crate in the lock file, one new edge from
-`opensigner-core`. No `alloc`, no RNG feature: the nonce and the key
+`faraday-backup`. No `alloc`, no RNG feature: the nonce and the key
 come from the file's header and the session key. No `unsafe` outside the
 optional SIMD paths, which are gated on target features.
 

@@ -35,13 +35,13 @@ SHA-256 of a label:
 The mnemonics are the standard BIP-39 encoding of those bytes.
 
 Because the files were not taken from a published source, the test that
-reads them (`opensigner/opensigner-core/tests/xor.rs`) does not trust
-either the files or `faraday_entropy::SeedXor` alone. It recovers each
-mnemonic's entropy by packing the 11-bit word indices itself, checks the
-BIP-39 checksum itself, XORs the parts with a plain byte fold, and
-compares all three answers: the file's hex, its own computation, and
-`SeedXor`. A wrong file or a wrong implementation fails the test; only
-all three being wrong the same way could pass it.
+read them did not trust either the files or `faraday_entropy::SeedXor`
+alone: it packed the word indices itself, checked the BIP-39 checksum
+itself, XORed the parts with a plain byte fold, and compared all three
+answers. That test was OpenSigner's app's and went with it (F68); until
+it is restored beside `SeedXor`, no test reads these files.
+`seed_xor_parts_combine_into_the_seeds_words`
+(`faraday/faraday-core/tests/forms.rs`) uses the 12-word example's words.
 
 Swap these for Coldcard's own examples when a machine with network
 access can fetch them; the file format and the test do not change.

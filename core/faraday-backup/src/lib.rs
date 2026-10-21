@@ -1,7 +1,7 @@
-//! The two encrypted file formats OpenSigner writes, apart from any
+//! The two encrypted file formats Faraday writes, apart from any
 //! screen that asks for them (`docs/PLANNING.md` §16.138):
 //!
-//! - [`oskb`]: `faraday-backup`, OpenSigner's own format for a key's words,
+//! - [`oskb`]: `faraday-backup`, Faraday's own format for a key's words,
 //!   a master seed, a note or a wallet's recovery sheet under a
 //!   passphrase. `docs/BACKUP.md` writes it down byte for byte, the
 //!   vectors in `tools/vectors/backup/` pin it, and
@@ -12,8 +12,7 @@
 //! Both stretch the passphrase with [`argon2id`] at a [`Cost`] the
 //! caller chooses and the file carries, and both take their salt and
 //! nonces from a seed the caller supplies: nothing here draws
-//! randomness. `osk-keep` stretches its PIN with the same function.
-//!
+//! randomness. //!
 //! `no_std` + `alloc`. The Argon2id working memory is asked for with
 //! `try_reserve`, so a cost a device cannot meet is an error rather
 //! than an abort.
@@ -42,7 +41,7 @@ pub struct Cost {
     pub lanes: u32,
 }
 
-/// The Argon2id cost OpenSigner writes the kept-key blob at: 64 MiB,
+/// The device's own Argon2id cost: 64 MiB,
 /// three passes, one lane. Its passes and lanes are also the most an
 /// `faraday-backup` file may state, so a hostile header cannot ask for more
 /// work than the device does for itself.

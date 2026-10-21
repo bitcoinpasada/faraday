@@ -196,17 +196,14 @@ that line; a record made here writes `h`; the BIP-129 vectors in
 and mixed gives the same text and checksum, equal to the `h` form's
 `descriptor_checksum`.
 
-### 5.4 What changes for OpenSigner's app
+### 5.4 What changes for imported wallets
 
 Wallets it made already write `h`. Wallets imported with `'` now export
-`h` and show a different checksum; `osk-keep`'s names keyed by checksum
-are lost for those (OpenSigner's app is not shipped by Faraday; listed in
-UPSTREAM §3). Faraday's stored records were already `h`. Tests whose
+`h` and show a different checksum. Faraday's stored records were already `h`. Tests whose
 expectations change from `'` to `h`: `faraday-bip` (`policy.rs` units,
 `coldcard.rs`, `multisig_config.rs`, `tests/{descriptor,bsms,musig,
 recovery,silent}.rs`), `faraday-psbt` (`tests/multisig.rs`, `musig.rs`,
-`common/builder.rs`), `opensigner-core` (`tests/{wallets,bsms,keep,names,
-backup_file,lightning,swap}.rs`); reading tests keep their `'` inputs.
+`common/builder.rs`); reading tests keep their `'` inputs.
 
 ## 6. Batches
 
@@ -225,7 +222,7 @@ change its own commit.
 | B4 | `family_screen.rs`, `family_text.rs`, `keygen_screen.rs`, `seeds_screen.rs`, `codes_screen.rs`, `bip85_screen.rs` | A1 | ″ | Sonnet |
 | B5 | `compact.rs`, `compact_screens.rs`, `boot_import_screen.rs`, `in_progress.rs`, `stick_pills.rs`, `stick_wipe.rs`, `upgrade_screen.rs`, `transfer_screen.rs`, `tools_screen.rs` | A1 | ″ | Sonnet |
 | B6 | the rest (`explore_screen`, `silent_screen`, `vanity_screen`, `lightning_screen`, `wordlist_screen`, `file_menu`, `edit`, …) | A1 | ″ | Sonnet |
-| C0 | `Compute` and `unchecked`; `Faraday::compute`; `View`'s token; the mint sites; `opensigner-core`'s private helper; `faraday/clippy.toml` with the two mint entries; the global counter stays | A1 | B1–B6 | Opus |
+| C0 | `Compute` and `unchecked`; `Faraday::compute`; `View`'s token; the mint sites; `faraday/clippy.toml` with the two mint entries; the global counter stays | A1 | B1–B6 | Opus |
 | C1 | Gate `WordsParse`, `Kdf`, `MasterKey`, `KeyDerive`; their counts move to `c.count` | B, C0 | — | Sonnet |
 | C2 | Gate `DescriptorParse`, `Address`, `WalletMatch`, `PlanMap`; `faraday-intake`'s miniscript call moves into `faraday-bip` | C1 | D1 drafting | Sonnet |
 | C3 | Gate PSBT, QR, `PngDecode`, `Picture`, `FileHash`; the Starter's QR kept on its state; remove `set_counter`, the `OnceLock`, the `count` feature; `Canvas::set_counter`; drop the old memo forms | C2 | D1 drafting | Sonnet |

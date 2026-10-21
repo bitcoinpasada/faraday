@@ -48,7 +48,8 @@ and after differs by exactly these three lines:
 │   └── bitcoin v0.32.102 (*)
 ```
 
-Measured with
+Measured while OpenSigner's app existed (deleted, F68); the
+`opensigner-*` rows are its graphs. Command:
 `cargo tree -p <root> -e normal --prefix none | sed 's/ (.*//' | sort -u | wc -l`:
 
 | Graph | Before | After |

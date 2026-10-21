@@ -1293,7 +1293,7 @@ fn tap_signable<C: Verification>(
 }
 
 /// A wait in the plainest words this crate has; the screen's own
-/// wording is `opensigner-core`'s.
+/// wording is `faraday-strings`'.
 fn wait(lock: Lock) -> String {
     match lock {
         Lock::Blocks(n) => format!("{n} blocks"),

@@ -3,7 +3,7 @@
 //! is accepted. Each check calls the function the product itself calls:
 //! BIP-39 words and seed (PBKDF2-HMAC-SHA512), BIP-32 derivation, a
 //! BIP-84 address, ECDSA and BIP-340 signing, and the two other KDFs,
-//! scrypt and Argon2id. In OpenSigner a failure names the check and
+//! scrypt and Argon2id. In Faraday a failure names the check and
 //! blocks the app; the only way out is Exit.
 //!
 //! The expected values are copied from the vector files the integration

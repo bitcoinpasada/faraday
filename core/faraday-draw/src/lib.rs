@@ -1,4 +1,4 @@
-//! The drawing base of Faraday's screens, from OpenSigner's UI crate: the
+//! The drawing base of Faraday's screens: the
 //! pixel canvas, text and the fonts, geometry, the design tokens, the layout
 //! context, and the icon and keyboard widgets.
 //!

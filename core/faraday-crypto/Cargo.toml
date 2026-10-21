@@ -1,11 +1,12 @@
 [package]
 name = "faraday-crypto"
 version = "0.1.0"
-description = "Secret wrapper types and thin wrappers over vetted hash primitives for OpenSignerKit"
+description = "Secret wrapper types and thin wrappers over vetted hash primitives"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
+publish = false
 
 [features]
 # The pages that hold long-lived secrets are pinned into RAM, so that a
@@ -15,7 +16,7 @@ repository.workspace = true
 # turn it on through their dependency on this crate.
 pin-pages = ["dep:libc"]
 # `work::Compute::unchecked`, a token that counts nothing, for code with
-# no drawing guarantee to keep: OpenSigner's app, core's tests, fuzz
+# no drawing guarantee to keep: core's tests, fuzz
 # targets and tools (docs/COMPUTE.md §3). Faraday mints with
 # `Compute::new` at its entry points; `faraday/clippy.toml` refuses
 # `unchecked` there.

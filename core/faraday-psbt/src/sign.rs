@@ -219,7 +219,7 @@ pub struct SignResult {
 /// for two different signatures, which gives away the key. A MuSig2
 /// session takes the seed of the call that opens it and moves it forward
 /// after every draw, so nonces drawn while it stays open never repeat;
-/// a new session for the same transaction needs a new seed. OpenSigner
+/// a new session for the same transaction needs a new seed. Faraday
 /// derives one per signing press from its session key and a count of
 /// the draws.
 #[allow(clippy::too_many_arguments)]

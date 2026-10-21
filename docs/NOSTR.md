@@ -173,7 +173,7 @@ Desktop, on every network) or the session is the demo
 
 - **The BIP-85 screen** (`Screen::Bip85`): Nostr is the seventh row of
   the Application card, after OpenSigner's six.
-  `opensigner_core::Bip85App` is OpenSigner's and is not extended:
+  `faraday_core::bip85::Bip85App` is OpenSigner's and is not extended:
   `bip85.rs` gets its own `App` (`Os(Bip85App)` or `Nostr`), and the
   list is OpenSigner's six, then Nostr where §7 allows it. The name is
   Faraday's string, the others stay OpenSigner's.

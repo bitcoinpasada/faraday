@@ -63,13 +63,10 @@ allow = ["MITNFA"]
 # §10.1's crate-count work lands and does not grow without a reason here.
 [bans]
 multiple-versions = "deny"
-# The seven `core/osk-*` crates are publishable and depend on each other
-# by path with no version requirement, which `allow-wildcard-paths` does
-# not cover for a publishable crate. A path dependency inside this
-# workspace resolves to the tree it is in, so it is not the unpinned
-# dependency this check is for; it becomes one the day these crates are
-# published, and the warning is the reminder.
-wildcards = "warn"
+# Every workspace crate has `publish = false`, so `allow-wildcard-paths`
+# covers their path dependencies on each other, and a wildcard version
+# anywhere else is an error.
+wildcards = "deny"
 allow-wildcard-paths = true
 
 skip = [

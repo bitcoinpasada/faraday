@@ -1,4 +1,4 @@
-//! The core ↔ shell contract for OpenSignerKit (`docs/PLANNING.md` §4.2,
+//! The core ↔ shell contract (`docs/PLANNING.md` §4.2,
 //! amended by §16.3 and §16.4).
 //!
 //! A shell is deliberately dumb. It owns a display and some input devices,

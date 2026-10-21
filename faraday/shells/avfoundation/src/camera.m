@@ -93,7 +93,7 @@ void osk_avf_stop(void *handle);
         _onState = onState;
         _deviceID = device;
         _session = nil;
-        _queue = dispatch_queue_create("app.opensigner.camera",
+        _queue = dispatch_queue_create("app.faradayoffline.camera",
                                        DISPATCH_QUEUE_SERIAL);
     }
     return self;

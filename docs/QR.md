@@ -15,7 +15,7 @@ state.
 Sources read for this file: Faraday OS's `docs/gpg-qr-workflows.md` and
 `lib/faraday/qr_*.py`, `qr-transfer-gui.py` and `ur/` (the Foundation
 Devices UR reference, vendored); OpenSigner's `faraday-codec`
-(`classify.rs`, `ur/`) and `opensigner-core/src/scan.rs`.
+(`classify.rs`, `ur/`).
 
 ## 1. Where each piece stands
 

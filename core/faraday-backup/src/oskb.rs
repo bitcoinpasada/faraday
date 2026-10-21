@@ -35,7 +35,7 @@
 //! carries, and the associated data is the header, so a backup whose
 //! parameters or salt were changed fails the tag rather than costing
 //! work under the wrong ones. The memory is the caller's choice, which
-//! in OpenSigner is the person's setting; a file made at another
+//! in Faraday is the person's setting; a file made at another
 //! device's setting opens here as long as this device can allocate that much, and one
 //! that asks for more is refused by [`Error::Memory`] with the MiB it
 //! needs, before any work is done. `tools/backup/decrypt.py` reads the

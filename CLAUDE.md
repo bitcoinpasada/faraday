@@ -37,18 +37,18 @@ changes and nothing else has to be kept in step.
   vectors and other implementations. A test never states a design rule, a
   token's value, a library's or the language's own behaviour, or a
   comparison of a screen's geometry against the design document.
-- `core/` and `opensigner/` are Faraday's to change (a soft fork,
-  `docs/history/UPSTREAM.md`, F65): fix a thing at its source rather than wrap
-  it. Each change there is its own commit, listed in `docs/history/UPSTREAM.md`
-  §3 the same day; a cryptographic change is tested against published
-  vectors or another implementation. Owning the code never loosens it:
-  what OpenSigner refuses stays refused (a multisig key without an
-  origin, a guessed path, an ambiguous input); refuse what cannot be
-  verified rather than assume; accepting more than a standard requires
-  is the owner's decision, recorded in DECISIONS.
-- Faraday's own version of an upstream type keeps what upstream's works
+- `core/` is Faraday's own code (a hard fork of OpenSignerKit, F72;
+  `docs/history/UPSTREAM.md` records where it came from): fix a thing at
+  its source rather than wrap it. A cryptographic change, anywhere in the
+  repository, is tested against published vectors or another
+  implementation. Owning the code never loosens it: what OpenSigner
+  refused stays refused (a multisig key without an origin, a guessed
+  path, an ambiguous input); refuse what cannot be verified rather than
+  assume; accepting more than a standard requires is the owner's
+  decision, recorded in DECISIONS.
+- A type re-implemented from a `core/` one keeps what the original works
   out once and keeps (a key's fingerprint, its share); a spec that
-  re-implements an upstream type lists those values.
+  re-implements a `core/` type lists those values.
 - A function that costs more than a lookup (an elliptic-curve
   multiplication, a descriptor written out, a QR code made, a file read)
   says so in the first line of its doc comment.

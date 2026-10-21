@@ -1,11 +1,12 @@
 [package]
 name = "faraday-selftest"
 version = "0.1.0"
-description = "The start-up self-test of OpenSignerKit: published vectors for BIP-39, BIP-32, ECDSA, BIP-340 and the KDFs, run before any key is accepted"
+description = "The start-up self-test: published vectors for BIP-39, BIP-32, ECDSA, BIP-340 and the KDFs, run before any key is accepted"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
+publish = false
 
 [dependencies]
 faraday-backup = { path = "../faraday-backup" }
