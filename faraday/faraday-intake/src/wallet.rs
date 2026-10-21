@@ -230,7 +230,7 @@ fn read_wallet_as_written(text: &str) -> Result<WalletPolicy, Refusal> {
     // BIP 129's descriptor record: read whole, its first address checked
     // against the wallet it states.
     if osk_bip::bsms::looks_like_record(text) && !osk_bip::bsms::is_signer_record(text) {
-        return osk_bip::bsms::DescriptorRecord::parse(&bsms_as_upstream_reads(text))
+        return osk_bip::bsms::DescriptorRecord::parse(text)
             .map(|r| r.policy)
             .map_err(|e| Refusal::NotAWallet(fill(EN.wallet_bsms, &[&format!("{e:?}")])));
     }
@@ -290,29 +290,6 @@ pub fn holds_secret(text: &str) -> bool {
     t.starts_with('{')
         && t.contains("\"wallet_type\"")
         && json::parse(t).is_ok_and(|v| electrum::looks_like(&v) && electrum::holds_secret(&v))
-}
-
-/// A BIP 129 descriptor record in the form `osk_bip::bsms` reads, for two
-/// that Sparrow writes and accepts and it refuses (`docs/INTEROP.md` §5
-/// I3): an address line all in upper case, bech32 or bech32m (`BC1…`,
-/// `TB1…`, `BCRT1…`), is lower-cased, as bech32 allows; a template (`/**`)
-/// whose paths line is `No path restrictions` reads as `/0/*,/1/*`. A
-/// base58 address is never touched: its case is part of it. The first
-/// address is checked on the result as on any record.
-fn bsms_as_upstream_reads(text: &str) -> String {
-    let mut lines: Vec<String> = text.lines().map(String::from).collect();
-    if let [_, descriptor, paths, address, ..] = &mut lines[..] {
-        if paths.trim() == osk_bip::bsms::NO_PATH_RESTRICTIONS && descriptor.contains("/**") {
-            *paths = String::from("/0/*,/1/*");
-        }
-        let a = address.trim();
-        if ["BC1", "TB1", "BCRT1"].iter().any(|p| a.starts_with(p))
-            && !a.bytes().any(|b| b.is_ascii_lowercase())
-        {
-            *address = a.to_ascii_lowercase();
-        }
-    }
-    lines.join("\n")
 }
 
 /// Descriptors other wallets write that are not one multipath

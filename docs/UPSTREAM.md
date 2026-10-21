@@ -104,6 +104,19 @@ Since the fork:
   OpenSigner's scan of a real Coldcard file: the wallet is the master's,
   not refused or mis-rooted; nothing it read correctly before reads
   differently (its tests' file repeats the master's `xfp` per account).
+  Its test export's two `first` addresses were no key's; they are now
+  the keys' own.
+- `core/osk-bip/src/bsms.rs` (2026-10-20): `DescriptorRecord::parse`
+  compares the wallet's first address with the stated one as its
+  encoding writes it (`assume_checked().to_string()`; the network check
+  stays), so an all upper-case bech32 address, which BIP 173 has a
+  reader take, is read; and a `/**` template whose paths line is `No path
+  restrictions` reads as `/0/*,/1/*` (F64, the owner's decision; the
+  first-address check still decides). `faraday-intake`'s tidy-up before
+  the parser (`bsms_as_upstream_reads`) is gone. Why: Sparrow writes and
+  reads both. Accepts more than before only in these two owner-confirmed
+  cases; a base58 address in another case and every record Sparrow
+  refuses stay refused.
 
 ## 4. Watching upstream
 

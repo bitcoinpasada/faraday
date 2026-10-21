@@ -302,7 +302,15 @@ impl DescriptorRecord {
             return Err(Error::Lines);
         }
         let descriptor = lines[1].trim();
-        let paths = parse_paths(lines[2].trim())?;
+        let mut paths = parse_paths(lines[2].trim())?;
+        // A template (`/**`) whose paths line says `No path restrictions`,
+        // which BIP 129 does not define, is read as the receive and change
+        // chains: Sparrow writes and reads it so. The owner's decision
+        // (`docs/DECISIONS.md` F64), the one place this reader takes more
+        // than the BIP; the first-address check below still decides.
+        if paths.is_empty() && descriptor.contains(TEMPLATE_SUFFIX) {
+            paths = ["/0/*", "/1/*"].map(String::from).to_vec();
+        }
         // A template is written with `/**`; a descriptor with no
         // template says so on its paths line, and the two must agree.
         if paths.is_empty() == descriptor.contains(TEMPLATE_SUFFIX) {
@@ -319,13 +327,18 @@ impl DescriptorRecord {
         let first = policy
             .address_at(network, false, 0)
             .map_err(Error::Policy)?;
+        // The address as its encoding writes it: a bech32 address in
+        // upper case, which BIP 173 has a reader take, is the same
+        // address in lower case; a base58 address's case is part of it,
+        // and one written in another case does not parse above.
+        let stated = unchecked.assume_checked().to_string();
         if first.to_string() != stated {
             return Err(Error::FirstAddress);
         }
         Ok(DescriptorRecord {
             policy,
             paths,
-            first_address: String::from(stated),
+            first_address: stated,
             network,
         })
     }

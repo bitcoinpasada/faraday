@@ -212,12 +212,15 @@ past the depth limit is refused.
 
 ### I3. BIP 129 records Faraday refuses (§4 item 7; #50)
 
-Before `DescriptorRecord::parse`, in `faraday-intake/src/wallet.rs`: (a) an
-address line that is all upper-case bech32/bech32m (`BC1…`, `TB1…`,
-`BCRT1…`) is lower-cased, and a base58 line is never touched; (b) a `/**`
+In `osk_bip::bsms::DescriptorRecord::parse` (since 2026-10-20; before
+that a tidy-up in `faraday-intake/src/wallet.rs` ran first): (a) the
+stated address is compared as its encoding writes it
+(`assume_checked().to_string()`), so an all upper-case bech32/bech32m
+address (`BC1…`, `TB1…`, `BCRT1…`) is the same address in lower case,
+and a base58 address in another case does not parse; (b) a `/**`
 template whose third line is exactly `No path restrictions` reads as
-`/0/*,/1/*`. The first-address check runs unchanged on the result. The tidy-up
-moves into `osk_bip::bsms` (batch U3). Not read: Sparrow's
+`/0/*,/1/*`. The network check and the first-address check are
+unchanged. Not read: Sparrow's
 fixed-path records (one address, not a wallet), a blank paths line
 (cannot be told from a cut-off file), encrypted records. Tests:
 `multisig-4.bsms` and `multisig-6.bsms` load with Sparrow's stated first
