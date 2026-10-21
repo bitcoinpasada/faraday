@@ -418,7 +418,7 @@ mod tests {
     use crate::layout::{LayoutCtx, solve};
     use crate::organisms;
 
-    /// The four sizes `just snapshots` renders: the smallest supported
+    /// The four reference sizes: the smallest supported
     /// panel, the 2.8" reference panel, a phone, and the desktop window.
     const REFERENCE: [(Rect, u16, SizeClass); 4] = [
         (Rect::new(0, 0, 240, 320), 143, SizeClass::Small),

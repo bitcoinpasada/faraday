@@ -13,9 +13,9 @@ use faraday_core::{RESTART_CODE, RESTART_COMPUTER_CODE};
 const APP: &str = "/bin/setpriv --nnp /usr/bin/setuidgid opensigner /usr/bin/opensigner-pi \
                    $(cat /etc/opensigner/args)";
 
-fn overlay(file: &str) -> String {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../image/overlay");
-    fs::read_to_string(path.join(file)).expect("an inittab in the overlay")
+fn image(file: &str) -> String {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../image");
+    fs::read_to_string(path.join(file)).expect("an inittab in the image tree")
 }
 
 /// The command of the line that runs the app, from `sh -c '` to its
@@ -120,10 +120,10 @@ fn check(inittab: &str) {
 
 #[test]
 fn the_release_inittab_restarts_on_restarts_status_and_powers_off_otherwise() {
-    check(&overlay("common/rootfs-overlay/etc/inittab"));
+    check(&image("common/rootfs-overlay/etc/inittab"));
 }
 
 #[test]
 fn the_dev_inittab_does_the_same() {
-    check(&overlay("variants/dev/inittab.in"));
+    check(&image("variants/dev/inittab.in"));
 }

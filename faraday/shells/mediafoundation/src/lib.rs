@@ -51,7 +51,9 @@
 //! setting refuses this program the camera, the first message is
 //! [`Message::Unavailable`]; otherwise it is a [`Message::Frame`].
 
-mod convert;
+// The NV12 conversion is opensigner-avfoundation's: the same buffer
+// layout on both systems.
+use opensigner_avfoundation::convert;
 
 /// One captured frame: 8-bit luma, row-major, `width × height` bytes,
 /// and the NV12 chroma plane for it, which is exactly the payload of

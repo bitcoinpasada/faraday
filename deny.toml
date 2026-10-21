@@ -73,9 +73,8 @@ wildcards = "warn"
 allow-wildcard-paths = true
 
 skip = [
-    # jni-sys 0.4 arrives through android-activity, which is winit's
-    # Android backend and is in no device graph; opensigner-ffi pins
-    # =0.3.0 (docs/deps/jni-sys.md).
+    # jni-sys 0.3 (through ndk) and 0.4 (through android-activity) are
+    # both winit's Android backend, in no device graph.
     { crate = "jni-sys@0.4", reason = "android-activity, shell-only" },
 
     # Everything below is reached only through winit, softbuffer and the

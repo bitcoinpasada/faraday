@@ -278,8 +278,8 @@ that caps the node at `rows × key height` alone loses
    `hit_target` (if interactive), and `draw`.
 3. If it needs cross-frame state, add it to `UiState` and an `Action`
    variant, and handle it in `UiState::touch`/`key`.
-4. Add it to a gallery page and look at it at all four reference sizes
-   (`just snapshots`).
+4. Add it to a gallery page, and look at it where a screen uses it
+   (`just faraday-snap 480x640`, below).
 5. Test geometry, not pixels: `measure` results, hit targets, any pure
    planning function (see `chunked.rs`, `keyboard.rs`).
 
@@ -289,12 +289,10 @@ Composite pieces that are just trees of existing widgets go in
 ## Reviewing screens
 
 ```
-just snapshots                     # out/snapshots/<WxH>/ for 240×320, 480×640, 1080×2340, 960×640
-cargo run -p opensigner-snapshot -- --size 480x640 --dpi 286 --out out/x --script events.txt
-cargo run -p opensigner-snapshot -- --strip 4.1-navigation --out out/x   # one page, three sizes
+just faraday-snap 480x640          # Faraday's default tour at one size, out/snapshots/faraday/480x640/
+just faraday-snap 480x640 spend    # one named tour (faraday-snapshot's usage lists them)
+just faraday-snapshots             # the default tour at every reference size
 ```
 
-Script commands: `tap X Y`, `down/move/up X Y`, `key K`, `text "abc"`,
-`scroll X Y DY`, `tick MS`, `snap NAME`, `page N`, `#` comments. The
-snapshot shell is a review tool; there are no image-comparison tests
+The snapshot tool is a review tool; there are no image-comparison tests
 (PLANNING §16.7).

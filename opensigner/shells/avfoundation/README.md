@@ -24,6 +24,6 @@ less readable. Every `unsafe` block carries a `// SAFETY:` comment and
 the public API is entirely safe.
 
 The camera permission needs an application bundle with an
-`NSCameraUsageDescription`: `just mac-app` builds and ad-hoc signs one.
+`NSCameraUsageDescription` (`docs/MAC.md`).
 A bare binary run from Terminal asks for Terminal's permission instead,
 which may or may not have been granted.

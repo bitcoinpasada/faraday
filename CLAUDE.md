@@ -30,9 +30,10 @@ changes and nothing else has to be kept in step.
   rule it now encodes; do not delete a test to make the build pass. Run
   it once, at the end; while working, run the one test file you touched
   (`cargo nextest run -p opensigner-core --test keep`). To look at a
-  screen, render one script at one size (`just snap load-key 480x640`);
-  `just snapshots`, all scripts at all sizes, is for a change to the
-  layout engine itself, not for a change to a screen.
+  screen, render one tour at one size (`just faraday-snap 480x640 spend`,
+  into `out/snapshots/faraday/480x640/spend/`); `just faraday-snapshots`,
+  the default tour at every size, is for a change to the layout engine
+  itself, not for a change to a screen.
 - Tests cover user-facing behaviour: what a person using the device or a
   wallet talking to it would notice, and correctness against published
   vectors and other implementations. A test never states a design rule, a

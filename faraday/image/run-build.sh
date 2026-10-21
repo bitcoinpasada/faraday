@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Builds the Faraday stick image: upstream's image tree
-# (opensigner/shells/pi/image) with faraday/image/overlay copied over
-# it, and the Faraday binary where upstream's Buildroot package looks
-# for opensigner-pi. The Buildroot checkout, downloads, compiler cache and
-# build tree are upstream's own under out/pi/, so only what changed is
-# rebuilt.
+# Builds a Faraday image, the stick's or a Pi card's: this directory's
+# image tree (build.sh and the boards, panels and variants it combines)
+# in the pinned Buildroot, in a container. faraday.just's
+# faraday-stick-image and faraday-pi-image run it after building the
+# binaries into out/faraday/<board>/. The Buildroot checkout, downloads,
+# compiler cache and build trees are under out/pi/, so only what changed
+# is rebuilt.
 #
 #   run-build.sh <board> <panel> <dev> <buildroot tag> <buildroot commit>
 set -euo pipefail
@@ -14,30 +15,21 @@ dev="${3:?}"
 tag="${4:?}"
 commit="${5:?}"
 root="$(pwd)"
-merged="$root/out/faraday/image-src"
-mkdir -p "$merged"
-rsync -a --delete "$root/opensigner/shells/pi/image/" "$merged/"
-cp -a "$root/faraday/image/overlay/." "$merged/"
+image="$root/faraday/image"
+binaries="$root/out/faraday/$board"
+[ -d "$image/boards/$board" ] || { echo "no such board: $board" >&2; exit 1; }
+for b in faraday faraday-disk faraday-grant faraday-boot; do
+    [ -f "$binaries/$b" ] || { echo "$binaries/$b: not built" >&2; exit 1; }
+done
+
 # The FAT filesystems' volume serials, from the commit date and each
 # partition's role, so two builds of one commit have the same ones
-# (fat-serial.sh). The board's genimage.cfg carries the placeholders.
+# (fat-serial.sh). build.sh puts them where the board's genimage.cfg
+# says @FAT_SERIAL_BOOT@ and @FAT_SERIAL_DATA@.
 epoch="${SOURCE_DATE_EPOCH:-$(git -C "$root" log -1 --format=%ct 2>/dev/null || echo 0)}"
-serial_boot="$("$root/faraday/image/fat-serial.sh" boot "$epoch")"
-serial_data="$("$root/faraday/image/fat-serial.sh" data "$epoch")"
-sed -i -e "s|@FAT_SERIAL_BOOT@|$serial_boot|g" -e "s|@FAT_SERIAL_DATA@|$serial_data|g" \
-    "$merged/boards/$board/genimage.cfg"
-if grep -q '@FAT_SERIAL_' "$merged/boards/$board/genimage.cfg"; then
-    echo "$board/genimage.cfg: a FAT serial placeholder is left" >&2
-    exit 1
-fi
+serial_boot="$("$image/fat-serial.sh" boot "$epoch")"
+serial_data="$("$image/fat-serial.sh" data "$epoch")"
 echo "FAT serials: boot $serial_boot, data $serial_data (SOURCE_DATE_EPOCH $epoch)"
-# The disk process, the grant helper (PLAN.md §4.3) and the boot copier
-# (§5.5) go in as files of the root filesystem overlay: upstream's
-# Buildroot package installs the app alone.
-mkdir -p "$merged/common/rootfs-overlay/usr/bin"
-for b in faraday-disk faraday-grant faraday-boot; do
-    install -m 0755 "$root/out/faraday/$board/$b" "$merged/common/rootfs-overlay/usr/bin/$b"
-done
 
 variant="$board-$panel"
 if [ "$dev" != "0" ]; then
@@ -50,26 +42,9 @@ fi
 # when the tree differs from the commit. The upgrade takes a boot partition
 # as the source only if it holds the running kernel's release string, and
 # shows a target's version from the one it holds. It comes from the commit,
-# never the clock, so two builders get the same bytes.
-localversion="-faraday-$(FARADAY_DEV="$dev" "$root/faraday/image/build-id.sh")"
-fragment="$merged/boards/$board/linux.fragment"
-[ -f "$fragment" ] || { echo "$fragment: no board fragment to add the version to" >&2; exit 1; }
-printf '\n# Faraday'"'"'s version and commit (run-build.sh).\nCONFIG_LOCALVERSION="%s"\n# CONFIG_LOCALVERSION_AUTO is not set\n' \
-    "$localversion" >> "$fragment"
-# Buildroot configures the kernel again when a fragment is newer than its
-# .config. The fragment is dated by the newer of its source and the last
-# change of version, so a build with nothing new configures nothing again.
-stamp="$root/out/faraday/$board/localversion"
-mkdir -p "$(dirname "$stamp")"
-if [ "$(cat "$stamp" 2>/dev/null)" != "$localversion" ]; then
-    printf '%s\n' "$localversion" > "$stamp"
-fi
-source_fragment="$root/faraday/image/overlay/boards/$board/linux.fragment"
-if [ "$stamp" -nt "$source_fragment" ]; then
-    touch -r "$stamp" "$fragment"
-else
-    touch -r "$source_fragment" "$fragment"
-fi
+# never the clock, so two builders get the same bytes. build.sh writes it
+# into a kernel fragment of its own.
+localversion="-faraday-$(FARADAY_DEV="$dev" "$image/build-id.sh")"
 echo "kernel release: <version>$localversion"
 mkdir -p out/pi/dl out/pi/ccache "out/pi/$variant/output"
 if [ ! -d out/pi/buildroot/.git ]; then
@@ -81,17 +56,21 @@ if [ "$head" != "$commit" ]; then
     echo "out/pi/buildroot is not the pinned Buildroot ($commit)" >&2
     exit 1
 fi
-"${DOCKER:-docker}" build -t opensigner-pi-image "$merged"
+"${DOCKER:-docker}" build -t faraday-image "$image"
+# /binary holds the app (faraday) and the disk process, the grant helper
+# (PLAN.md §4.3) and the boot copier (§5.5) beside it.
 in_container() {
     "${DOCKER:-docker}" run --rm \
         -e BOARD="$board" -e PANEL="$panel" -e DEV="$dev" \
+        -e FAT_SERIAL_BOOT="$serial_boot" -e FAT_SERIAL_DATA="$serial_data" \
+        -e FARADAY_LOCALVERSION="$localversion" \
         -v "$root/out/pi/buildroot":/buildroot \
         -v "$root/out/pi/$variant/output":/output \
         -v "$root/out/pi/dl":/dl \
         -v "$root/out/pi/ccache":/ccache \
-        -v "$root/out/faraday/$board/opensigner-pi":/binary/opensigner-pi:ro \
-        -v "$merged":/image:ro \
-        opensigner-pi-image "$@"
+        -v "$binaries":/binary:ro \
+        -v "$image":/image:ro \
+        faraday-image "$@"
 }
 
 # Buildroot unpacks the kernel once per build tree, and builds the
@@ -101,14 +80,14 @@ in_container() {
 # when that changes, the build tree is cleaned first. The downloads and
 # the compiler cache stay. A tree built before this stamp existed is
 # judged by the tarball and patches its .config names.
-board_fragment="$merged/boards/$board/buildroot.fragment"
+board_fragment="$image/boards/$board/buildroot.fragment"
 kernel_lines() {
     grep -E '^(BR2_LINUX_KERNEL_CUSTOM_TARBALL_LOCATION|BR2_LINUX_KERNEL_PATCH)=' "$1" | sort || true
 }
 kernel_source="$({
     kernel_lines "$board_fragment"
     grep -E '^# KERNEL_SHA256 ' "$board_fragment" || true
-    cat "$merged/boards/$board/linux-patches/"*.patch 2>/dev/null || true
+    cat "$image/boards/$board/linux-patches/"*.patch 2>/dev/null || true
 } | sha256sum | cut -d' ' -f1)"
 source_stamp="$root/out/pi/$variant/kernel-source"
 config="$root/out/pi/$variant/output/.config"

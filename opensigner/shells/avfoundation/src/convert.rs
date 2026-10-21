@@ -1,25 +1,26 @@
-//! Turning a locked pixel buffer's two planes into the packed 8-bit
-//! luma the core decodes and the NV12 chroma it draws the preview from,
-//! and shrinking both when the device hands us more pixels than QR
-//! detection needs.
+//! Turning a locked NV12 buffer's two planes into the packed 8-bit luma
+//! the core decodes and the NV12 chroma it draws the preview from, and
+//! shrinking both when the device hands us more pixels than QR detection
+//! needs.
 //!
-//! The bi-planar video-range format the session asks for already lays
-//! plane 1 out as interleaved Cb and Cr pairs, one per 2 x 2 block of
-//! luma, which is the order the core takes; the only work is the row
-//! stride and the shrink.
+//! NV12 (AVFoundation's bi-planar video-range format, and Media
+//! Foundation's NV12) already lays its second plane out as interleaved
+//! Cb and Cr pairs, one per 2 x 2 block of luma, which is the order the
+//! core takes; the only work is the row stride and the shrink.
 //!
 //! None of this is macOS-specific and none of it is `unsafe`, so it is
 //! compiled and tested on every platform: it is the half of the capture
-//! path that can be checked on the build box.
+//! path that can be checked on the build machine. It is public because
+//! Faraday's Windows capture, `faraday-mediafoundation`, uses it too.
 
 /// The widest frame we hand the core. Above this a frame is shrunk by an
 /// integer factor: `rqrr` needs no more than about 640 pixels across to
-/// find a code, and a Mac's built-in camera offers 1280 × 720 and more.
+/// find a code, and a laptop's built-in camera offers 1280 × 720 and more.
 pub const MAX_WIDTH: usize = 800;
 
-/// Copies plane 0 out of a bi-planar 4:2:0 buffer into a packed
-/// `width × height` buffer. One byte per pixel, so a row is `width`
-/// bytes of the `stride` bytes AVFoundation lays out.
+/// Copies plane 0 (Y) out of an NV12 buffer into a packed `width ×
+/// height` buffer. One byte per pixel, so a row is `width` bytes of the
+/// `stride` bytes the device lays out.
 ///
 /// Returns `None` when the plane is shorter than the rows it claims,
 /// which is not something to guess at.
@@ -46,7 +47,7 @@ pub fn chroma_size(width: usize, height: usize) -> (usize, usize) {
     (width.div_ceil(2), height.div_ceil(2))
 }
 
-/// Copies plane 1 out of a bi-planar 4:2:0 buffer into a packed
+/// Copies plane 1 (UV) out of an NV12 buffer into a packed
 /// `⌈width / 2⌉ × ⌈height / 2⌉` plane of interleaved pairs. `width` and
 /// `height` are the luma's; `stride` is plane 1's own bytes per row.
 ///

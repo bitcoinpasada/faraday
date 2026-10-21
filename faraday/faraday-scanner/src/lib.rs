@@ -1,8 +1,8 @@
-//! Faraday's copy of `opensigner/shells/scanner` at upstream c418768 (a
-//! later batch may fold it into `opensigner/`, U1):
-//! reads the QR codes in a shell's camera frames on a worker thread, as
-//! that crate does, and also says what each pass saw (`docs/QR.md` §1,
-//! "the found code outlined" and "too fine for this camera").
+//! Reads the QR codes in a shell's camera frames on a worker thread, and
+//! says what each pass saw (`docs/QR.md` §1, "the found code outlined"
+//! and "too fine for this camera"). It began as a copy of upstream's
+//! `opensigner/shells/scanner` at c418768, which Faraday no longer
+//! carries (`docs/UPSTREAM.md` §3); this crate does all that one did.
 //!
 //! A pass that finds a code's finder patterns reports a [`Seen`]: its
 //! four corners in the frame, the size of one module in pixels, and
@@ -11,7 +11,7 @@
 //! [`TOO_FINE_PX`] pixels, is one this camera cannot resolve: the sheet
 //! says so and offers the fix (an animated code, or a file).
 //!
-//! Everything else is upstream's: the newest frame replaces the one not
+//! Everything else is as upstream's was: the newest frame replaces the one not
 //! yet taken, the reduced copy is read every pass and the full frame on
 //! every [`FULL_FRAME_EVERY`]th miss, and a frame, a reduced copy and a
 //! payload are wiped when this crate lets go of them.

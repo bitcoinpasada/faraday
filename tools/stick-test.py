@@ -33,8 +33,8 @@ Each step writes a screendump. Their paths are printed, because a frame
 that changed is not the same as a frame that changed correctly, and the
 only way to know which screen it opened is to look.
 
-  just stick-test           the release image
-  just dev=1 stick-test     the dev image
+  tools/stick-test.py --image out/stick/faraday-x86_64-uefi.img
+  tools/stick-test.py --dev --image out/stick/faraday-x86_64-uefi-dev.img
 
 The dev image prints what the shell found on ttyS0 when it starts, and
 the test waits for that line and reports it. Neither variant depends on
@@ -60,7 +60,7 @@ import zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# The QEMU command is the one `just stick-qemu` uses, so the machine this
+# The QEMU command is the one tools/stick-qemu.py uses, so the machine this
 # test proves is the machine the owner looks at.
 _spec = importlib.util.spec_from_file_location(
     "stick_qemu", os.path.join(HERE, "stick-qemu.py")
@@ -988,7 +988,7 @@ def main():
     args = parser.parse_args()
 
     if not os.path.exists(args.image):
-        sys.exit(f"{args.image}: no such image. Run `just stick-image` first.")
+        sys.exit(f"{args.image}: no such image. Run `just faraday-stick-image` first.")
 
     out = os.path.abspath(args.out)
     os.makedirs(out, exist_ok=True)
@@ -1182,11 +1182,11 @@ def main():
                     print(f"init says: {card_back}")
         else:
             # The release image prints nothing anywhere, so there is no
-            # line to read. `just dev=1 stick-test` is what checks the
+            # line to read. `--dev` on the dev image is what checks the
             # mount.
             time.sleep(PLUGGED_SECONDS / 6)
             print("the release image says nothing about what it mounted; "
-                  "run `just dev=1 stick-test` for that")
+                  "run with --dev on the dev image for that")
 
         # And then nothing: with every stick where it is, init must not
         # be reading any of them. A stick's light shows every read, and
@@ -1223,7 +1223,7 @@ def main():
                         failures)
         else:
             print("the release image says nothing about what it mounted, so "
-                  "the named cases run under `just dev=1 stick-test` only")
+                  "the named cases run with --dev on the dev image only")
 
         monitor.command("quit")
     finally:

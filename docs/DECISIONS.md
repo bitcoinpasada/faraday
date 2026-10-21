@@ -805,7 +805,7 @@ until upstream moved it; waiting left both open.
   `kernel.required` and `kernel.forbidden` lists are checked as
   before.
 - Five mainline commits from 6.19 are carried as patches in
-  `faraday/image/overlay/boards/x86_64-uefi/linux-patches/`, each the
+  `faraday/image/boards/x86_64-uefi/linux-patches/`, each the
   commit's diff unchanged: 9d805709d897, ae42b9c5ddda, 17029cdd8f9d,
   e41ef37ddfe7 and 5688e977ed2b. Nothing else is patched, and DRM
   stays forbidden.

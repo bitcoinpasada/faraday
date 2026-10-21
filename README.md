@@ -715,8 +715,8 @@ mounted, and asks for the device to be typed back; `--dry-run` only
 checks. It is for development only.
 
 Flash the image to a stick and boot a PC from it; the stick image starts
-on mainnet. `faraday/image/run-build.sh` and
-`opensigner/shells/pi/image/README.md` describe the image layout.
+on mainnet. `faraday/image/README.md` describes the image layout and
+`faraday/image/run-build.sh` the build.
 
 ### Writing a developer's image
 

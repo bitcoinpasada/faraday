@@ -8,9 +8,12 @@ rust-version.workspace = true
 repository.workspace = true
 publish = false
 
-# No dependencies at all: the capture is `src/camera.c`, and the two
-# functions it exports are declared in src/lib.rs.
+# The capture is `src/camera.c`, and the two functions it exports are
+# declared in src/lib.rs. The NV12 conversion is opensigner-avfoundation's
+# `convert` module, which builds on every platform (on Windows that crate
+# is the conversion alone).
 [dependencies]
+opensigner-avfoundation = { path = "../../../opensigner/shells/avfoundation" }
 
 # `cc` compiles src/camera.c, and only when the target is Windows. It is
 # a build dependency on every target because the build script runs on

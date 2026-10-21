@@ -192,12 +192,44 @@ Since the fork:
   wallet imported with `'` now shows and exports `h` and a different
   checksum, and `osk-keep`'s names and kept-wallet choices keyed by the
   old checksum are lost for it.
+- OpenSigner code no Faraday binary is built from, removed (2026-10-21;
+  the fork audit's U1, owner-approved): `opensigner/opensigner-ffi`
+  (and the `jni-sys` 0.3.0 pin only it needed), `opensigner/shells/`
+  `android`, `desktop`, `scanner` (`faraday-scanner` is its superset),
+  `snapshot` and `pi`'s source (its image tree moved, below);
+  `tools/qrgen`, `tools/fixtures`, the review scripts in
+  `tools/scripts/*.txt` that only the snapshot shell ran,
+  `tools/android-screenshot.py` and `tools/release/`; and the root
+  justfile's recipes for them (`snapshots`, `snap`, `audit`,
+  `qr-fixtures`, `android-*`, `pi-*`, `stick-*`, `mac-app`,
+  `linux-bin`, `reproduce`, `release`, `release-sign`), with the
+  comments and READMEs in `osk-ui`, `opensigner-v4l2` and
+  `opensigner-avfoundation` that named them. Why: none of it
+  reaches a Faraday binary, and each was built and tested by every
+  `just`. Upstream's changes to them are not ported (§4).
+- `opensigner/shells/pi/image` → `faraday/image` (2026-10-21, U1): the
+  image tree (build.sh, the boards, panels and variants, the Buildroot
+  package) is Faraday's, with what `faraday/image/overlay` laid over it
+  now in place; `run-build.sh` builds from it directly, and `build.sh`
+  takes the FAT serials, the kernel's release string and the helper
+  binaries from it rather than from an edited copy. The app keeps the
+  name the inittab starts, `/usr/bin/opensigner-pi`, which the
+  `opensigner-pi` package installs from Faraday's `faraday` binary. Same
+  image as before but for the build ID and one fix: the Pi 3's
+  `cmdline.txt` is Faraday's pi3 one (with `loglevel=5`); the overlay's
+  copy over a symlink had written pi02w's into it.
+- `opensigner/shells/avfoundation/src/convert.rs` (2026-10-21, U1): the
+  NV12 conversion is public (`opensigner_avfoundation::convert`), and
+  `faraday-mediafoundation` uses it instead of its own copy. Why: one
+  copy. Same output as before.
 
 ## 4. Watching upstream
 
 When there is reason to (a release, a security advisory, or every few
 weeks), fetch `upstream` and read `git log d26b84e..upstream/main`. Port
 what matters, security fixes first, as a commit per upstream change
-naming upstream's commit, and move §1's sync point. Notes once meant for
+naming upstream's commit, and move §1's sync point. Changes to what §3
+lists as removed (OpenSigner's own shells, their tools and recipes) are
+not ported. Notes once meant for
 upstream (`local/for-upstream/`) are optional: they may still be sent,
 and nothing waits on them.

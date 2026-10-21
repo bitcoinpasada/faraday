@@ -527,7 +527,7 @@ mod tests {
     use crate::geom::{Rect, Scale};
     use crate::layout::{LayoutCtx, solve};
 
-    /// The four sizes `just snapshots` renders.
+    /// The four reference sizes.
     const REFERENCE: [(Rect, u16, SizeClass); 4] = [
         (Rect::new(0, 0, 240, 320), 143, SizeClass::Small),
         (Rect::new(0, 0, 480, 640), 286, SizeClass::Small),

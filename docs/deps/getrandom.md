@@ -6,11 +6,9 @@ random number generator, consumed into the core's session key.
 
 **Shell only.** The core has no random number generator by design (§4.2:
 the shell is the only thing that talks to the OS). `getrandom` is a
-dependency of `opensigner-desktop` alone; it does not appear in any
-`osk-*` crate or in `opensigner-core`, and the snapshot shell answers
-from a fixed seed instead so that review renders are reproducible. A Pi
-shell will read `/dev/urandom` or the SoC's hardware RNG; the phone
-shells will call the platform API from Kotlin or Swift.
+dependency of Faraday's desktop shells (`faraday/shells/window`) alone;
+it does not appear in any `osk-*` crate or in `opensigner-core`. The
+stick shell reads `/dev/random`.
 
 **Why this crate.** It is the standard binding to `getrandom(2)`,
 `getentropy`, `BCryptGenRandom` and friends, with the fallbacks (older

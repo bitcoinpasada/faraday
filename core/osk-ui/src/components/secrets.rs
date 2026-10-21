@@ -403,7 +403,7 @@ mod tests {
     use crate::layout::{LayoutCtx, solve};
     use crate::widgets::HitTarget;
 
-    /// The four sizes `just snapshots` renders.
+    /// The four reference sizes.
     const REFERENCE: [(Rect, u16, SizeClass); 4] = [
         (Rect::new(0, 0, 240, 320), 143, SizeClass::Small),
         (Rect::new(0, 0, 480, 640), 286, SizeClass::Small),

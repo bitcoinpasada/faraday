@@ -165,7 +165,7 @@ mod tests {
 
     const XPUB: &str = "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz";
 
-    /// The four sizes `just snapshots` renders.
+    /// The four reference sizes.
     const REFERENCE: [(Rect, u16, SizeClass); 4] = [
         (Rect::new(0, 0, 240, 320), 143, SizeClass::Small),
         (Rect::new(0, 0, 480, 640), 286, SizeClass::Small),

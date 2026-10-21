@@ -1,6 +1,6 @@
-//! Faraday's stick shell: a copy of `opensigner/shells/pi` at upstream
-//! c418768 that hosts `faraday-core` instead of OpenSigner (a later
-//! batch may fold it into `opensigner/`, U1). What
+//! Faraday's stick shell: a copy of upstream's `opensigner/shells/pi` at
+//! c418768 (which Faraday no longer carries, `docs/UPSTREAM.md` §3) that
+//! hosts `faraday-core` instead of OpenSigner. What
 //! differs from the original: the app (`Faraday`), sticks reported to
 //! it by the disk process over its two FIFOs (`PLAN.md` §4.3), or from
 //! `/proc/mounts` where there is no disk process, with their files read
@@ -50,7 +50,7 @@
 //! twice.
 //!
 //! What it is: the standard library, `osk-shell-api`, `opensigner-core`,
-//! `opensigner-scanner` for the decode and, for the camera alone,
+//! `faraday-scanner` for the decode and, for the camera alone,
 //! `opensigner-v4l2`. No `mmap` of its own
 //! (the standard library has none, and `write_all_at` on a framebuffer
 //! is one `pwrite` per frame), no `libc`, no `unsafe`, no logging. The
@@ -67,7 +67,7 @@
 //! runs at the rate the preview costs rather than at the tick. That
 //! thread reduces each frame to preview size as well, so the frame goes
 //! two ways without a copy: the reduced one to the core, which draws
-//! it, and the captured one to `opensigner-scanner`, whose worker reads
+//! it, and the captured one to `faraday-scanner`, whose worker reads
 //! the codes in it and hands them back for the loop to send on as
 //! `Event::Scanned`. The
 //! `ioctl`, `mmap` and `poll` that needs live in `opensigner-v4l2`, the
@@ -1620,7 +1620,7 @@ fn run(args: Args) -> Result<Exit, String> {
 }
 
 /// How the app ended, which init reads from the exit status
-/// (`faraday/image/overlay/common/rootfs-overlay/etc/inittab`).
+/// (`faraday/image/common/rootfs-overlay/etc/inittab`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Exit {
     /// Power off: status 0, or any other not named here.

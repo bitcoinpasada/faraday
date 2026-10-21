@@ -830,6 +830,7 @@ name = "faraday-mediafoundation"
 version = "0.1.5"
 dependencies = [
  "cc",
+ "opensigner-avfoundation",
 ]
 
 [[package]]
@@ -1801,67 +1802,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opensigner-desktop"
-version = "0.1.0"
-dependencies = [
- "getrandom 0.4.3",
- "opensigner-avfoundation",
- "opensigner-core",
- "opensigner-scanner",
- "opensigner-v4l2",
- "osk-crypto",
- "osk-shell-api",
- "softbuffer",
- "winit",
-]
-
-[[package]]
-name = "opensigner-ffi"
-version = "0.1.0"
-dependencies = [
- "jni-sys 0.3.0",
- "opensigner-core",
- "opensigner-scanner",
- "osk-shell-api",
- "zeroize",
-]
-
-[[package]]
-name = "opensigner-pi"
-version = "0.1.0"
-dependencies = [
- "opensigner-core",
- "opensigner-scanner",
- "opensigner-v4l2",
- "osk-crypto",
- "osk-shell-api",
- "zeroize",
-]
-
-[[package]]
-name = "opensigner-scanner"
-version = "0.1.0"
-dependencies = [
- "opensigner-core",
- "osk-bip",
- "osk-codec",
- "zeroize",
-]
-
-[[package]]
-name = "opensigner-snapshot"
-version = "0.1.0"
-dependencies = [
- "hmac",
- "opensigner-core",
- "opensigner-scanner",
- "osk-shell-api",
- "osk-ui",
- "png",
- "sha2",
-]
-
-[[package]]
 name = "opensigner-v4l2"
 version = "0.1.0"
 dependencies = [
@@ -1975,16 +1915,6 @@ dependencies = [
  "osk-bip",
  "osk-crypto",
  "serde_json",
-]
-
-[[package]]
-name = "osk-qrgen"
-version = "0.1.0"
-dependencies = [
- "osk-bip",
- "osk-codec",
- "osk-psbt",
- "png",
 ]
 
 [[package]]

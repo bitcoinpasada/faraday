@@ -8,8 +8,10 @@ FAT partition of a removable disk and runs it, which is the path the stick
 takes on real hardware; the keyboard and the mouse are USB devices. There
 is no virtio anything and no virtual hard disk.
 
-  just stick-qemu           the release image, display on VNC 127.0.0.1:5909
-  just dev=1 stick-qemu     the dev image, whose console is on stdio
+  tools/stick-qemu.py --image out/stick/faraday-x86_64-uefi.img
+        the image, display on VNC 127.0.0.1:5909
+  tools/stick-qemu.py --image out/stick/faraday-x86_64-uefi-dev.img
+        the dev image, whose console is on stdio
 
 `--usb IMAGE` attaches a second USB disk at start, which is how a person
 tries the file channel with a stick that is not the boot stick. Any raw
@@ -118,7 +120,7 @@ def main():
     args = parser.parse_args()
 
     if not os.path.exists(args.image):
-        sys.exit(f"{args.image}: no such image. Run `just stick-image` first.")
+        sys.exit(f"{args.image}: no such image. Run `just faraday-stick-image` first.")
     for path in args.usb:
         if not os.path.exists(path):
             sys.exit(f"{path}: no such disk image to plug in.")

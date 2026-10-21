@@ -8,6 +8,37 @@
 release := "0"
 version := ""
 
+# The containers' runtime: `docker`, or DOCKER=podman in the environment.
+# Rootless is what the builds are written for: container root is you, so
+# every file written into out/ belongs to you.
+docker := env_var_or_default("DOCKER", "docker")
+# The commit date, so what a builder gets depends on the commit and not
+# on the day it was built.
+source_date_epoch := `git log -1 --format=%ct 2>/dev/null || echo 0`
+# Where the containers keep their caches: the cargo registry and the
+# cargo target directories. Nothing here is an artifact.
+build_cache := "out/build"
+
+# Buildroot's long-term-support series, pinned to a release tag and to the
+# commit that tag pointed at when it was taken. The tag is what a person
+# reads; the commit is what the build checks, because a tag can be moved
+# and a commit cannot. faraday/image/run-build.sh clones at the tag and
+# then fails if HEAD is not this.
+buildroot_tag := "2024.02.13"
+buildroot_commit := "e687e3815f76c1c5ea9fb52b6558bedfe53ab117"
+
+# Which image to build. These are `just` variables, so they are set on
+# the command line before the recipe name (`just dev=1 faraday-pi-image`).
+# board and panel name directories under faraday/image/boards and
+# faraday/image/panels; dev=1 adds faraday/image/variants/dev, a console
+# and a login, which never goes on a device that signs anything.
+board := "pi3"
+panel := "waveshare-28dpi"
+dev := "0"
+# The stick's board and panel.
+stick_board := "x86_64-uefi"
+stick_panel := "efi-framebuffer"
+
 # The desktop app at out/linux/faraday, built in a Debian 11 container
 # (faraday/build/linux) against glibc 2.31, so one file runs on Ubuntu
 # 20.04 and later, Debian 11 and later, Fedora 32 and later and Arch
@@ -142,11 +173,14 @@ faraday-snapshots: faraday-testkit
         echo "out/snapshots/faraday/$size"
     done
 
-# The default tour at one size, for looking at a change: `just faraday-snap
-# 480x640`. Known sizes (480x640, 240x320, 1280x800, 1920x1080, 1024x768,
-# 3840x2160) carry their own dpi; any other size needs `WxH@DPI` spelled
-# out (`just faraday-snap 320x480@213`), or it renders at 160.
-faraday-snap size: faraday-testkit
+# One tour at one size, for looking at a change: `just faraday-snap
+# 480x640` for the default tour, `just faraday-snap 480x640 spend` for one
+# of the named tours faraday-snapshot's usage lists, into
+# out/snapshots/faraday/WxH[/TOUR]. Known sizes (480x640, 240x320,
+# 1280x800, 1920x1080, 1024x768, 3840x2160) carry their own dpi; any other
+# size needs `WxH@DPI` spelled out (`just faraday-snap 320x480@213`), or
+# it renders at 160.
+faraday-snap size tour="": faraday-testkit
     #!/usr/bin/env bash
     set -euo pipefail
     arg="{{size}}"
@@ -154,8 +188,14 @@ faraday-snap size: faraday-testkit
         480x640) arg="480x640@286" ;;
         240x320) arg="240x320@143" ;;
     esac
-    cargo run -q -p faraday-snapshot -- "$arg" out/testkit "out/snapshots/faraday/{{size}}"
-    echo "out/snapshots/faraday/{{size}}"
+    out="out/snapshots/faraday/{{size}}"
+    tour=()
+    if [ -n "{{tour}}" ]; then
+        out="$out/{{tour}}"
+        tour=("{{tour}}")
+    fi
+    cargo run -q -p faraday-snapshot -- "$arg" out/testkit "$out" ${tour[@]+"${tour[@]}"}
+    echo "$out"
 
 # The Starter (docs/STARTER.md), built and run here: `just faraday-starter`, or
 # `just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img` to write
@@ -218,14 +258,15 @@ faraday-sb-ovmf out="out/sb-ovmf-check":
 faraday-upgrade-check old out="out/upgrade-check":
     python3 -B faraday/tools/upgrade-check.py out/stick/faraday-x86_64-uefi-dev.img "{{old}}" "{{out}}"
 
-# The stick shell for x86-64, static against musl, at
-# out/faraday/x86_64-uefi/opensigner-pi: the name upstream's Buildroot
-# package installs as /usr/bin/opensigner-pi. Beside it faraday-disk,
-# faraday-grant and faraday-boot.
+# The stick's app for x86-64, static against musl, at
+# out/faraday/x86_64-uefi/faraday, and beside it faraday-disk,
+# faraday-grant and faraday-boot: what faraday/image/run-build.sh puts in
+# the image. The board's board.conf (faraday/image/boards/) names the
+# Rust target and the C compiler.
 faraday-stick-bin:
     #!/usr/bin/env bash
     set -euo pipefail
-    . opensigner/shells/pi/image/boards/{{stick_board}}/board.conf
+    . faraday/image/boards/{{stick_board}}/board.conf
     under="${RUST_TARGET//-/_}"
     upper="$(echo "$under" | tr 'a-z' 'A-Z')"
     export "CC_${under}=$CC"
@@ -241,12 +282,10 @@ faraday-stick-bin:
     export FARADAY_BUILD
     cargo build --release --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant -p faraday-boot
     mkdir -p out/faraday/{{stick_board}}
-    cp "target/$RUST_TARGET/release/faraday" out/faraday/{{stick_board}}/opensigner-pi
-    # The disk process, the grant helper (PLAN.md §4.3) and the boot
-    # copier (§5.5), which run-build.sh puts in the image's /usr/bin.
-    cp "target/$RUST_TARGET/release/faraday-disk" "target/$RUST_TARGET/release/faraday-grant" \
-        "target/$RUST_TARGET/release/faraday-boot" out/faraday/{{stick_board}}/
-    file out/faraday/{{stick_board}}/opensigner-pi out/faraday/{{stick_board}}/faraday-disk \
+    cp "target/$RUST_TARGET/release/faraday" "target/$RUST_TARGET/release/faraday-disk" \
+        "target/$RUST_TARGET/release/faraday-grant" "target/$RUST_TARGET/release/faraday-boot" \
+        out/faraday/{{stick_board}}/
+    file out/faraday/{{stick_board}}/faraday out/faraday/{{stick_board}}/faraday-disk \
         out/faraday/{{stick_board}}/faraday-grant out/faraday/{{stick_board}}/faraday-boot
 
 # The Faraday USB stick image, at out/stick/faraday-x86_64-uefi.img
@@ -304,18 +343,17 @@ faraday-stick-boot +args:
     [ $# -eq 1 ] || { echo "usage: just [dev=1] faraday-stick-boot [--dry-run] /dev/sdX" >&2; exit 1; }
     exec faraday/image/stick-boot.sh $dry "out/stick/$name-boot.vfat" "$1"
 
-# The Pi shell, cross-compiled for the board the root justfile's `board`
-# variable names (armv7, static against glibc, as upstream's own pi-bin
-# does), at out/faraday/<board>/opensigner-pi: the name upstream's
-# Buildroot package installs as /usr/bin/opensigner-pi. Beside it
-# faraday-disk, faraday-grant and faraday-boot, same as the stick.
+# The Pi's app, cross-compiled for the board the `board` variable names
+# (armv7, static against glibc), at out/faraday/<board>/faraday, and
+# beside it faraday-disk, faraday-grant and faraday-boot, as for the
+# stick.
 #
 #   just faraday-pi-bin                  the owner's board (pi3)
 #   just board=pi02w faraday-pi-bin      the Zero 2 W
 faraday-pi-bin:
     #!/usr/bin/env bash
     set -euo pipefail
-    . opensigner/shells/pi/image/boards/{{board}}/board.conf
+    . faraday/image/boards/{{board}}/board.conf
     under="${RUST_TARGET//-/_}"
     upper="$(echo "$under" | tr 'a-z' 'A-Z')"
     export "CC_${under}=$CC"
@@ -331,10 +369,10 @@ faraday-pi-bin:
     export FARADAY_BUILD
     cargo build --release --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant -p faraday-boot
     mkdir -p out/faraday/{{board}}
-    cp "target/$RUST_TARGET/release/faraday" out/faraday/{{board}}/opensigner-pi
-    cp "target/$RUST_TARGET/release/faraday-disk" "target/$RUST_TARGET/release/faraday-grant" \
-        "target/$RUST_TARGET/release/faraday-boot" out/faraday/{{board}}/
-    file out/faraday/{{board}}/opensigner-pi out/faraday/{{board}}/faraday-disk \
+    cp "target/$RUST_TARGET/release/faraday" "target/$RUST_TARGET/release/faraday-disk" \
+        "target/$RUST_TARGET/release/faraday-grant" "target/$RUST_TARGET/release/faraday-boot" \
+        out/faraday/{{board}}/
+    file out/faraday/{{board}}/faraday out/faraday/{{board}}/faraday-disk \
         out/faraday/{{board}}/faraday-grant out/faraday/{{board}}/faraday-boot
 
 # The Faraday microSD card image, at

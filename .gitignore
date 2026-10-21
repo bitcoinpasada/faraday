@@ -9,19 +9,11 @@
 *.swp
 *~
 
-# Snapshot shell output
+# Build output: images, renders, staging
 /out/
 
-# Android shell: built artefacts and the local SDK path
-**/jniLibs/
-.gradle/
-.kotlin/
+# Build directories
 **/build/
-local.properties
-
-# tools/build/ is not build output: it is the container recipes every
-# release artifact is built with, and it is committed.
-!/tools/build/
 
 # Session handoff notes; private, never committed
 /.thoughts/

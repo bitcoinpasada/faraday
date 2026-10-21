@@ -578,7 +578,7 @@ pub mod pal {
 use pal::*;
 
 /// Faraday's mark as a pixel grid, the one the boot logo is drawn from.
-const MARK: &str = include_str!("../../image/overlay/common/faraday-mark.txt");
+const MARK: &str = include_str!("../../image/common/faraday-mark.txt");
 
 /// Faraday's name as outlines: SVG path data in font units.
 const WORDMARK: &str = include_str!("../assets/wordmark.txt");
@@ -1626,7 +1626,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// Faraday's mark in a box `w` by `h` units at (x, y): the keyhole
-    /// shield of the boot logo (`faraday/image/overlay/common/faraday-mark.txt`),
+    /// shield of the boot logo (`faraday/image/common/faraday-mark.txt`),
     /// drawn as smooth outlines at the grid's proportions rather than its
     /// squares, the shield in the accent with its rim lighter and the
     /// keyhole cut through.

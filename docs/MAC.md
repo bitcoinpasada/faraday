@@ -158,7 +158,7 @@ records which GPU drives the panel on one if one is tried.
 
 ### 3.3 The PC kernel's changes
 
-In `faraday/image/overlay/boards/x86_64-uefi/`:
+In `faraday/image/boards/x86_64-uefi/`:
 
 - `linux.fragment` and `kernel.required`: `KEYBOARD_APPLESPI` with what
   it needs (`SPI`, `SPI_PXA2XX`, `SPI_PXA2XX_PCI` through `PCI` and
@@ -204,7 +204,7 @@ through a USB ancestor not.
 
 ### 4.1 The stick image
 
-A new board, `faraday/image/overlay/boards/arm64-apple/`, beside
+A new board, `faraday/image/boards/arm64-apple/`, beside
 `x86_64-uefi`, with the same parts (`linux.fragment`,
 `kernel.required`, `kernel.forbidden`, `cmdline.txt`, `genimage.cfg`,
 `board.conf`, `buildroot.fragment`).

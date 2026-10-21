@@ -53,7 +53,7 @@
 //! [`Message::Unavailable`] if there is no camera or no permission, and
 //! a [`Message::Frame`] otherwise.
 
-mod convert;
+pub mod convert;
 
 /// One captured frame: 8-bit luma, row-major, `width × height` bytes,
 /// and the NV12 chroma plane for it, which is exactly the payload of

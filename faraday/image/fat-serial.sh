@@ -5,7 +5,7 @@
 # builds of one commit stamp the same serial and the two partitions of
 # an image differ from each other. mkfs.vfat would otherwise stamp a
 # random one, the only bytes in which two builds of the same source
-# differ (docs/VERIFY.md, "Reproducible builds").
+# differ (README.md, "Reproducible builds").
 #
 #   fat-serial.sh <boot|data> <SOURCE_DATE_EPOCH>
 set -euo pipefail

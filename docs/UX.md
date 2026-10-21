@@ -42,7 +42,7 @@ not only on the class it belongs to.
 **The desktop window has one size.** A desktop build is not a resizable app: it opens at 960×640 at 160 dpi, the `wide` class, which fits any laptop. `--size` and `--dpi` are review flags for the other screens the app is built for, not a way to run it at an arbitrary size.
 
 **A laptop is a device class, not a port.** The OpenSigner stick boots a
-laptop or a PC into the same binary the Pi runs (`opensigner/shells/pi`),
+laptop or a PC into the same binary the Pi runs (`faraday/shells/stick`),
 so a machine somebody already owns becomes an airgapped signer for as
 long as it is powered from the stick and nothing else. The display is
 whatever the firmware left running — 1366×768, 1920×1080, 2560×1600 —

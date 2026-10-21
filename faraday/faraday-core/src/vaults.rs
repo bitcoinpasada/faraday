@@ -4278,7 +4278,7 @@ pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
 
 /// A clock reading below this is not known: the Pi has no real-time
 /// clock and starts at 1970 (`docs/TOTP.md` §1.1), the same floor
-/// `opensigner/shells/pi/src/files.rs` uses for file dates.
+/// `faraday/shells/stick/src/files.rs` uses for file dates.
 pub const CLOCK_FLOOR: u64 = 1_577_836_800;
 
 /// Unix seconds turned into local seconds for a time zone offset east of

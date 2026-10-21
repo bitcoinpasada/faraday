@@ -108,7 +108,7 @@ already parsed); `osk_crypto::hash::sha256` on small fixed inputs;
 | `faraday/shells/snapshot/src/main.rs` | `new(\|_\| {})` | A tool |
 | `faraday-core/src/testkit.rs`: `testkit::compute()` (cfg `test`/`testkit`) | `new(work::core_count)` | Faraday's tests |
 | `opensigner-core`: a crate-private `fn unchecked() -> Compute`, never re-exported | `unchecked()` | OpenSigner's app has no memo and makes no drawing claim; it mints where it needs to until U5; its pub API takes tokens from callers |
-| OpenSigner shells, `tools/qrgen`, core tests and benches, `fuzz/`, `faraday/fuzz/` | `unchecked()` | No app guarantee |
+| Core tests and benches, `fuzz/`, `faraday/fuzz/` | `unchecked()` | No app guarantee |
 
 Core's non-test sources mint nothing; they pass their callers' tokens
 through. The Starter's `phone_code` (a QR code each frame) is kept on its

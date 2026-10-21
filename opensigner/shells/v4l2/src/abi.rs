@@ -306,7 +306,7 @@ pub const VIDIOC_STREAMOFF: u32 = ioc(IOC_WRITE, 19, size_of::<c_int>());
 pub const VIDIOC_TRY_FMT: u32 = ioc(IOC_READ | IOC_WRITE, 64, size_of::<Format>());
 
 // The same sizes as the tests below, checked at compile time, because
-// the 32-bit tests cannot run on a 64-bit build box: `just pi-bin`
+// the 32-bit tests cannot run on a 64-bit build box: `just faraday-pi-bin`
 // cross-compiles for `armv7-unknown-linux-gnueabihf` and nothing on the
 // box executes ARM. A wrong layout there is otherwise `EINVAL` on the
 // device and nowhere else.
@@ -344,7 +344,7 @@ mod tests {
         assert_eq!(align_of::<Buffer>(), 8);
     }
 
-    /// The 32-bit layouts, which is what `just pi-bin` builds.
+    /// The 32-bit layouts, which is what `just faraday-pi-bin` builds.
     #[test]
     #[cfg(target_pointer_width = "32")]
     fn struct_sizes_32_bit() {

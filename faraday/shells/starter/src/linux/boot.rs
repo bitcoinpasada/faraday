@@ -3,7 +3,7 @@
 //! boot entry labelled `Faraday stick`.
 //!
 //! Every Faraday stick's boot partition carries the same partition GUID
-//! and is the first partition (`image/overlay/boards/x86_64-uefi/
+//! and is the first partition (`faraday/image/boards/x86_64-uefi/
 //! genimage.cfg`), so one entry starts any of them. The Starter stays
 //! unprivileged (D13): it reads the entries with `efibootmgr` as itself
 //! (the firmware's variables are readable by everyone), then asks polkit

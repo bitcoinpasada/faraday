@@ -80,7 +80,7 @@ adds the milliseconds since it arrived. Every caller keeps using
 ### 1.1 A clock before 2020 is not known
 
 `CLOCK_FLOOR = 1_577_836_800` (2020-01-01T00:00:00Z), the same floor
-`opensigner/shells/pi/src/files.rs` uses for file dates. The core keeps
+`faraday/shells/stick/src/files.rs` uses for file dates. The core keeps
 the shell's raw reading in every case, but `clock_now()` returns `None`
 when there is no time set by hand and the raw reading is below the
 floor. On the Pi, which reports about 1970 after boot, GPG, Secure Boot
