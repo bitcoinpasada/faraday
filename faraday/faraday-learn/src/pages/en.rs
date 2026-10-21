@@ -4,7 +4,7 @@
 //! edited; `just learn-import` writes it here and `just lint` fails
 //! while the two differ (`tools/learn/sync.py`).
 
-use crate::{Learn, Page, Section};
+use super::{Learn, Page, Section};
 
 /// The Learn pages in English.
 pub static EN: Learn = Learn {
@@ -616,45 +616,6 @@ pub static EN: Learn = Learn {
                     "There are two dials. The passphrase counter appends characters to the key's BIP-39 passphrase, which means every candidate is a different key and costs a full derivation; taking the find loads that key beside the one you started from. The account index steps through the accounts of the key you already have, which is far cheaper and adds a wallet rather than a key.",
                     "A vanity address is not safer. It is the same kind of address, with the same key behind it, and a string that looks familiar is a string an attacker can imitate: never check an address by its first characters alone. What the passphrase dial leaves you with is a passphrase to back up, since the words alone no longer reach the funds, and a counter written down nowhere is a key lost. The account dial leaves you with a wallet at an account no other software will look for unless you tell it, which its descriptor does.",
                     "The counter is the one other tools use, in the same order, so a find here is a find there.",
-                ],
-            },
-        ],
-    },
-    secure_element: Page {
-        title: "The secure element",
-        sections: &[
-            Section {
-                heading: "When this applies",
-                paragraphs: &[
-                    "Only when you choose to keep a key on an Android device between sessions. Otherwise your seed words are in memory while OpenSigner runs and gone when it stops, and nothing on this page matters.",
-                    "Keeping a key on a phone is a convenience with a cost. Read this page before you do it.",
-                ],
-            },
-            Section {
-                heading: "What the chip does",
-                paragraphs: &[
-                    "A secure element is a separate chip inside the phone that holds its own keys and never hands them out. When you keep your keys on the phone, OpenSigner encrypts each key's words under a key that lives in that chip. Every key you add afterwards is kept the same way, under the one PIN, and a key you forget is removed from the phone. Opening them again requires the chip, your phone's screen lock, and the OpenSigner PIN together. A copy of the phone's storage is useless on its own. While a key is kept, OpenSigner opens on its PIN pad and shows nothing else until the PIN is entered.",
-                    "The wallets you are using are kept beside the keys, and so are the notes and recovery sheets you ask it to keep: each one carries a \"Keep on this device\" switch, and the phone holds eight of them. They are encrypted under the same key as the words and they go the same way — a wipe, the duress PIN or eight wrong PINs takes them with the keys.",
-                    "After eight wrong PINs in a row, on any PIN pad, OpenSigner has the chip delete its keys. The stored words are unrecoverable from that point, which ends any guessing attack for good. Your written backup is still your backup.",
-                ],
-            },
-            Section {
-                heading: "What it cannot do",
-                paragraphs: &[
-                    "The chip cannot check what you are signing. The phone's software still draws the screen, and a compromised phone can still show you a false address. It does nothing for your written seed words, and nothing against someone who takes the phone out of your hand while OpenSigner is unlocked.",
-                    "It never holds a passphrase. The passphrase stays in your head or on paper, and you type it every time.",
-                ],
-            },
-            Section {
-                heading: "The duress PIN",
-                paragraphs: &[
-                    "You can set a second PIN. Entering it wherever OpenSigner asks for a PIN, including the lock screen, deletes the stored key and opens an empty OpenSigner, as if no key had ever been kept. Nothing in the stored data shows that a duress PIN exists. If you are forced to unlock the phone, the duress PIN gives the person forcing you nothing, and your written backup still has the funds.",
-                ],
-            },
-            Section {
-                heading: "Losing the phone",
-                paragraphs: &[
-                    "The stored key is bound to that one chip. A new phone cannot open the old data, and neither can you. Recovery is your written seed words, exactly as it is everywhere else. A key kept on a phone is never a backup.",
                 ],
             },
         ],

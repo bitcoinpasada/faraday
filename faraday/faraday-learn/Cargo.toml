@@ -1,7 +1,7 @@
 [package]
 name = "faraday-learn"
 version = "0.1.5"
-description = "Faraday's own Learn pages and the website's guides: read from docs/learn/faraday when built, by id"
+description = "Every Learn page: those that came from OpenSigner (docs/learn) and Faraday's own (docs/learn/faraday), and the website's guides, by id"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
@@ -10,7 +10,6 @@ publish = false
 
 [dependencies]
 faraday-strings = { path = "../faraday-strings" }
-osk-learn = { path = "../../core/osk-learn" }
 
 [lints]
 workspace = true

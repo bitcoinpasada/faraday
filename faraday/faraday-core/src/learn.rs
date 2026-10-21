@@ -1,10 +1,11 @@
-//! The ? button: OpenSigner's Learn pages, read from `osk_learn::EN`
-//! (edited as `docs/learn/*.md` upstream), so Faraday shows the same text
+//! The ? button: the Learn pages, read from `faraday_learn::pages::EN`
+//! (edited as `docs/learn/*.md`), so Faraday shows the same text
 //! and never a copy that
 //! drifts. Each screen names the pages that explain it; a wallet's screens
 //! name the pages for its kind.
 
-use osk_learn::{EN, Page as LearnPage};
+use faraday_learn::Page as LearnPage;
+use faraday_learn::pages::EN;
 
 use faraday_learn::known;
 pub use faraday_learn::{

@@ -19,7 +19,7 @@ fn every_maker_and_general_guide_has_a_page() {
 // guide puts what has to be in hand before any firmware step first.
 // `replace-faraday` is faraday-learn's, found through `page`'s fallback.
 
-fn guide(id: &str) -> &'static osk_learn::Page {
+fn guide(id: &str) -> &'static faraday_learn::Page {
     faraday_guides::page(id).unwrap_or_else(|| panic!("no page {id}"))
 }
 
@@ -261,7 +261,7 @@ fn keys_of(value: &str) -> (Vec<String>, bool) {
 
 /// Whether one numbered step of `page` names every key of `value` (a
 /// held key as "Hold <key>", in any case).
-fn a_step_gives(page: &osk_learn::Page, value: &str) -> bool {
+fn a_step_gives(page: &faraday_learn::Page, value: &str) -> bool {
     let (keys, held) = keys_of(value);
     page.sections
         .iter()

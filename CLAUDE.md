@@ -16,7 +16,7 @@ changes and nothing else has to be kept in step.
   `tools/lint-tokens.sh` fails the build otherwise.
 - Every user-facing string is in one file,
   `faraday/faraday-strings/src/en.rs`. Two exceptions: the Learn pages
-  (`core/osk-learn/src/en.rs`, edited as `docs/learn/`) and the
+  (`faraday/faraday-learn/src/pages/en.rs`, edited as `docs/learn/`) and the
   self-test's check names (`core/faraday-selftest`).
 - A working screen carries labels, values and actions, never an
   explanation. Explanations live in Learn and About, which are not

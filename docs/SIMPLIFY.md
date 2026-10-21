@@ -484,7 +484,7 @@ boot sheet, the lock and power-off sheets, Learn's pages that name them.
 Code names (`inbox`, `outbox`, `FileKind`) do not change.
 
 **Where.** `grep -n 'Inbox\|Outbox' faraday/faraday-core/src/*.rs
-core/osk-learn/src/en.rs docs/learn/` and every match a person reads.
+faraday/faraday-learn/src/pages/en.rs docs/learn/` and every match a person reads.
 
 **Tests.** `tests/inbox.rs`: no screen's labels contain "Inbox" or
 "Outbox". (This is a test of what a person sees; it exempts nothing

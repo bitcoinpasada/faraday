@@ -8,7 +8,6 @@ members = [
     "core/faraday-shell-api",
     "core/faraday-codec",
     "core/faraday-backup",
-    "core/osk-learn",
     "core/faraday-selftest",
     "core/faraday-draw",
     "faraday/shells/v4l2",

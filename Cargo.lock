@@ -810,7 +810,6 @@ dependencies = [
  "faraday-strings",
  "faraday-ui",
  "faraday-vault",
- "osk-learn",
  "zeroize",
 ]
 
@@ -905,7 +904,6 @@ name = "faraday-guides"
 version = "0.1.5"
 dependencies = [
  "faraday-learn",
- "osk-learn",
 ]
 
 [[package]]
@@ -925,7 +923,6 @@ name = "faraday-learn"
 version = "0.1.5"
 dependencies = [
  "faraday-strings",
- "osk-learn",
 ]
 
 [[package]]
@@ -1045,7 +1042,6 @@ dependencies = [
  "faraday-learn",
  "faraday-shell-api",
  "faraday-ui",
- "osk-learn",
  "png",
  "zeroize",
 ]
@@ -1921,10 +1917,6 @@ dependencies = [
  "libc",
  "libredox",
 ]
-
-[[package]]
-name = "osk-learn"
-version = "0.1.0"
 
 [[package]]
 name = "owned_ttf_parser"

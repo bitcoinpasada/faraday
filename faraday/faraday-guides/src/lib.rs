@@ -20,7 +20,7 @@ pub use sketch::{SKETCHES, sketch_of};
 
 use std::sync::OnceLock;
 
-use osk_learn::Page as LearnPage;
+use faraday_learn::Page as LearnPage;
 
 /// Every guide here, each by its id. Edited as
 /// `docs/learn/faraday/boot/<id>.md`, beside `replace-faraday`, which is

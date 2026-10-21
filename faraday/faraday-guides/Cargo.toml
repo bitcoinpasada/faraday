@@ -10,7 +10,6 @@ publish = false
 
 [dependencies]
 faraday-learn = { path = "../faraday-learn" }
-osk-learn = { path = "../../core/osk-learn" }
 
 [lints]
 workspace = true

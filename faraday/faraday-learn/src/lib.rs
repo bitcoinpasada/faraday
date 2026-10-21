@@ -1,4 +1,5 @@
-//! Faraday's own Learn pages, which OpenSigner does not have: read from
+//! Every Learn page: those that came from OpenSigner ([`pages`]) and
+//! Faraday's own, which OpenSigner does not have: read from
 //! `docs/learn/faraday/` when Faraday is built, so the desktop app, the
 //! stick and the Starter carry the same text. Nothing
 //! here names a screen of any app: each app maps its own screens to
@@ -13,16 +14,19 @@
 use std::sync::OnceLock;
 
 use faraday_strings::EN;
-use osk_learn::{Page as LearnPage, Section};
+use pages::Page as LearnPage;
 
+pub mod pages;
 pub mod sketch;
+
+pub use pages::{Page, Section};
 
 pub use sketch::{Sketch, is_marker};
 
 /// Faraday's own pages, which OpenSigner does not have, each by its id.
 /// They are edited as `docs/learn/faraday/<id>.md`, beside OpenSigner's
 /// pages but outside the set `tools/learn/sync.py` keeps in step with
-/// `osk_learn::EN`, and read from those files when Faraday is built, so
+/// `pages::EN`, and read from those files when Faraday is built, so
 /// the desktop app, the stick and the Starter carry the same text. The
 /// guides to starting a computer from the stick
 /// (`docs/learn/faraday/boot/*.md`) are `faraday-guides`' own table, not

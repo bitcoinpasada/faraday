@@ -12,7 +12,6 @@ publish = false
 faraday-shell-api = { path = "../../core/faraday-shell-api" }
 faraday-draw = { path = "../../core/faraday-draw" }
 faraday-codec = { path = "../../core/faraday-codec" }
-osk-learn = { path = "../../core/osk-learn" }
 # The network the blank sheet names (`faraday-core` brings it already).
 faraday-bip = { path = "../../core/faraday-bip" }
 # The desktop app's own Transfer and Learn, held in online mode

@@ -428,7 +428,7 @@ fn the_upgrade_s_learn_page_takes_secure_boot_through_a_spare_stick() {
     assert!(secure.paragraphs.iter().any(|p| p.starts_with("4. ")));
     // It is Faraday's alone: OpenSigner's Learn has no such page.
     assert!(
-        osk_learn::EN
+        faraday_learn::pages::EN
             .pages()
             .iter()
             .all(|p| p.title != "Upgrading a Faraday stick")

@@ -42,7 +42,7 @@ fn open_hp(starter: &mut Starter) {
     starter.press(StarterAction::LearnPage(LearnId::Maker("maker-hp")));
 }
 
-fn hp_page() -> &'static osk_learn::Page {
+fn hp_page() -> &'static faraday_learn::Page {
     faraday_guides::page("maker-hp").expect("the HP guide")
 }
 

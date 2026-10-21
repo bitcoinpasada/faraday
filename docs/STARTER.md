@@ -1324,7 +1324,7 @@ Mac.
 ### 7.2 The guides are Learn pages
 
 Each guide is a Learn page in `docs/learn/faraday/boot/`, round-tripped
-into `osk-learn` as every Learn page is. The Starter
+into `faraday-learn` as every Learn page is. The Starter
 carries them (`faraday-guides`), and the website publishes the same text
 (§7.4); the desktop app and the stick carry only the address of the
 guide for this computer, not its text. Pages:

@@ -368,7 +368,7 @@ Each batch's tests describe what a person or a wallet would notice.
 `Style::Disabled` and refused in its handler; Generate with dice's
 public passphrase (§5.2) and its line; the backup plan's dimmed forms (§5.3); the aezeed row
 (§6); the demo Learn page first on every §4 screen and its text
-(`docs/learn/faraday/demo.md`, round-tripped into `osk-learn`); FLOWS
+(`docs/learn/faraday/demo.md`, round-tripped into `faraday-learn`); FLOWS
 decision 10's exception (§7.1). APK-SIGNING and NOSTR take the gate in
 their own batches.
 

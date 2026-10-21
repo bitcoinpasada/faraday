@@ -1,12 +1,11 @@
-//! The Learn pages: what a person needs to know to hold and use a key,
+//! The Learn pages that came from OpenSigner, edited as
+//! `docs/learn/NN-name.md` (`tools/learn/sync.py`): what a person needs to know to hold and use a key,
 //! as titled sections of paragraphs (`docs/PLANNING.md` §16.139).
 //!
 //! The text is plain data with no screen in it: a page is a title and
 //! its sections, and [`Learn::pages`] lists them in reading order. Which
 //! screen opens which page, and which flow a page offers to start, is
 //! the app's business. One static per language; [`EN`] is English.
-
-#![no_std]
 
 mod en;
 
@@ -29,7 +28,7 @@ pub struct Section {
 }
 
 /// How many pages there are.
-pub const PAGES: usize = 26;
+pub const PAGES: usize = 25;
 
 /// Every page, in one language.
 pub struct Learn {
@@ -83,10 +82,6 @@ pub struct Learn {
     /// "Xpubs and privacy" (UX.md L11): what an account key
     /// shows, what it cannot do, and who should have one.
     pub xpubs: Page,
-    /// "The secure element" (UX.md L13): what the chip does for
-    /// a key kept on a phone, what it does not, the PIN and the duress
-    /// PIN, and why a lost phone means the words.
-    pub secure_element: Page,
     /// "Inheritance" (UX.md L15): what an heir needs, what to
     /// leave, what not to leave, and where the passphrase fits.
     pub inheritance: Page,
@@ -143,7 +138,6 @@ impl Learn {
             &self.multisig,
             &self.spend_paths,
             &self.xpubs,
-            &self.secure_element,
             &self.inheritance,
             &self.nonces,
             &self.message,

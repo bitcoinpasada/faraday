@@ -3810,7 +3810,7 @@ pub struct Faraday {
     /// The steps ticked on each guide page the Learn sheet has shown
     /// this session, by page; a page with none ticked is not here.
     /// Session state only, in memory, never written to a file.
-    learn_ticks: Vec<(&'static osk_learn::Page, Vec<u32>)>,
+    learn_ticks: Vec<(&'static faraday_learn::Page, Vec<u32>)>,
     /// The word-list sheet, while it is open.
     pub wordlist: Option<wordlist::WordListState>,
     /// BIP-85 being derived.

@@ -55,7 +55,7 @@ status=0
 #   - notation: derivation paths (`m`, `m/…`), descriptors, codex32's
 #     `ms1`, hex (`0x…`, a fingerprint), PDF operators, and a type as
 #     Debug prints it
-# The Learn pages (docs/learn, osk-learn) and the self-test's check names
+# The Learn pages (docs/learn, faraday-learn's pages) and the self-test's check names
 # are outside this lint, as CLAUDE.md says, and so are the maker pages'
 # firmware sketches (`sketch.rs` in faraday-learn, the shape, and
 # faraday-guides, the data; docs/STARTER.md §7.8, F18): their words are a

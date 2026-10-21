@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Learn pages as Markdown, round-tripped with `osk-learn`'s `en.rs`.
+"""Learn pages as Markdown, round-tripped with `faraday-learn`'s `pages/en.rs`.
 
-The Learn pages are `Page` literals in `core/osk-learn/src/en.rs`.
+The Learn pages are `Page` literals in `faraday/faraday-learn/src/pages/en.rs`.
 Editing prose inside Rust string literals is miserable, so each page also
 lives as one Markdown file in `docs/learn/`, which is where the text is
 written and revised:
@@ -25,7 +25,7 @@ Commands, from the repository root:
 
 Pages are matched by the field name in `en.rs` (`words` ↔
 `02-words.md`); the number prefix is the order `Learn::pages()` lists
-them in, in `core/osk-learn/src/lib.rs`. Adding or removing a page is a
+them in, in `faraday/faraday-learn/src/pages/mod.rs`. Adding or removing a page is a
 code change (the struct field, `PAGES` and `pages()`), not something this
 script does: it refuses a file with no field and a field with no file.
 """
@@ -37,8 +37,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-LIB_RS = ROOT / "core" / "osk-learn" / "src" / "lib.rs"
-EN_RS = ROOT / "core" / "osk-learn" / "src" / "en.rs"
+LIB_RS = ROOT / "faraday" / "faraday-learn" / "src" / "pages" / "mod.rs"
+EN_RS = ROOT / "faraday" / "faraday-learn" / "src" / "pages" / "en.rs"
 DOCS = ROOT / "docs" / "learn"
 
 # ----- en.rs -----------------------------------------------------------------

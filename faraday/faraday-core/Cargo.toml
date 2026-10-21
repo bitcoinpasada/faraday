@@ -16,7 +16,6 @@ faraday-psbt = { path = "../../core/faraday-psbt" }
 faraday-codec = { path = "../../core/faraday-codec" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
 faraday-entropy = { path = "../../core/faraday-entropy" }
-osk-learn = { path = "../../core/osk-learn" }
 faraday-selftest = { path = "../../core/faraday-selftest" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-qr = { path = "../faraday-qr" }

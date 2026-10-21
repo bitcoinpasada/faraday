@@ -164,7 +164,7 @@ impl LearnId {
     }
 
     /// The page.
-    pub fn page(self) -> Option<&'static osk_learn::Page> {
+    pub fn page(self) -> Option<&'static faraday_learn::Page> {
         faraday_guides::page(self.id())
     }
 
@@ -1274,7 +1274,7 @@ impl Starter {
 
     /// Opens the held desktop app on Transfer, or on the Learn sheet with
     /// `pages`.
-    fn show_held(&mut self, pages: Option<Vec<&'static osk_learn::Page>>) {
+    fn show_held(&mut self, pages: Option<Vec<&'static faraday_learn::Page>>) {
         match pages {
             Some(pages) => {
                 self.held.screen = Screen::Home;
@@ -1293,8 +1293,8 @@ impl Starter {
     }
 
     /// The Learn pages the Starter's Learn row opens.
-    pub fn learn_pages(&self) -> Vec<&'static osk_learn::Page> {
-        let mut pages: Vec<&'static osk_learn::Page> =
+    pub fn learn_pages(&self) -> Vec<&'static faraday_learn::Page> {
+        let mut pages: Vec<&'static faraday_learn::Page> =
             LearnId::ALL.iter().filter_map(|id| id.page()).collect();
         if let id @ LearnId::Maker(_) = LearnId::for_computer(&self.computer)
             && let Some(page) = id.page()
