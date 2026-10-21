@@ -143,6 +143,23 @@ Since the fork:
   `osk-ui`'s `Canvas::frost` (blurred) and `snapshot`, `snapshot_into`,
   `restore`, `blend_from` (a whole canvas copied), with `osk-ui` now
   depending on `osk-crypto`. Nothing computed changes.
+- `core/osk-codec/src/decode.rs` (2026-10-21; `docs/SPEED.md` §9):
+  `decode::decode_picture` reads a still picture for codes dark on
+  light and, when it holds none, light on dark, counted once;
+  `decode_luma` and it share the grid reading. Why: Faraday's PNG
+  reader inverted the picture into a second copy and counted two
+  decodes. Same codes read as before.
+- `core/osk-ui/src/canvas.rs` (2026-10-21; `docs/SPEED.md` §9), five
+  changes: a line of text wholly above or below
+  the clip is measured, not drawn, and `Canvas::lines_drawn` counts the
+  lines drawn; `shadow` skips its covered middle; `blend_from` passes
+  over runs where the two frames agree; `restore` of the same pixels
+  again copies only the box written since (`damaged`, called by every
+  drawing call); `frost` on a dense screen (a reduced pixel 16 or more
+  across) reads every other pixel of every other row and enlarges per
+  two by two pixels. Why: frames a person waits on at HiDPI. The first
+  four draw the same pixels; the fifth differs by at most 3 levels in
+  a frosted backdrop at scale 2 and above.
 
 ## 4. Watching upstream
 

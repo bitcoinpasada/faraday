@@ -115,7 +115,7 @@ fn serve(app: &mut Faraday, boots: &mut Boots) {
         outbox: Vec::new(),
         kept: Vec::new(),
     };
-    serve_all(app, &mut boxes, None, &mut Dirs, Some(boots));
+    serve_all(app, &mut boxes, None, &mut Dirs::default(), Some(boots));
 }
 
 #[test]

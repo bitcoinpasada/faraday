@@ -64,6 +64,27 @@ pub fn wrap_buttons<A: Copy + PartialEq>(
     by - y + h + 8.0
 }
 
+/// The height [`wrap_buttons`] takes for these labels, `h` high in `w`,
+/// measured and not drawn.
+pub fn wrap_buttons_height<A: Copy + PartialEq>(
+    ui: &Ui<A>,
+    w: f32,
+    h: f32,
+    labels: &[&str],
+) -> f32 {
+    let size = if h >= 38.0 { 14.0 } else { 13.0 };
+    let (mut bx, mut by) = (0.0, 0.0);
+    for label in labels {
+        let bw = (ui.measure(size, W::S, label) + 32.0).min(w);
+        if bx > 0.0 && bx + bw > w {
+            bx = 0.0;
+            by += h + 8.0;
+        }
+        bx += bw + 8.0;
+    }
+    by + h + 8.0
+}
+
 /// The height `draw` takes, drawing nothing and keeping no hits: what a
 /// card is measured with before its surface goes down.
 pub fn measured<A: Copy + PartialEq>(ui: &mut Ui<A>, draw: impl FnOnce(&mut Ui<A>) -> f32) -> f32 {

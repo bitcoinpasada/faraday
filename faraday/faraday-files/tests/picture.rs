@@ -1,9 +1,11 @@
 //! A picture on a stick is read for QR codes in the disk process, which
 //! a stick's maker can hand any PNG: one that says it is larger than
 //! `MAX_PIXELS` is refused from its header, before its pixels are
-//! decoded.
+//! decoded. A code is read whether it is printed dark on light or light
+//! on dark (a screenshot of a phone in dark mode).
 
 use faraday_files::qr_in_png;
+use osk_codec::qr::{self, Ecc, Payload, QUIET_ZONE};
 
 /// CRC-32 as PNG chunks carry it.
 fn crc32(bytes: &[u8]) -> u32 {
@@ -68,4 +70,29 @@ fn a_picture_at_the_limit_is_decoded() {
         matches!(&got, Err(e) if e != "the image is too large"),
         "{got:?}"
     );
+}
+
+/// A picture of one code holding `payload`, four pixels a module, dark
+/// on light or, `light`, light on dark.
+fn code_png(payload: &[u8], light: bool) -> Vec<u8> {
+    let m = qr::encode(Payload::Bytes(payload), Ecc::Low).expect("a code");
+    let (w, h, mut px) = m.to_luma(4, QUIET_ZONE);
+    if light {
+        for p in &mut px {
+            *p = 255 - *p;
+        }
+    }
+    osk_codec::png::grey_png(w, h, &px)
+}
+
+#[test]
+fn a_code_is_read_dark_on_light_and_light_on_dark() {
+    let payload = b"xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz";
+    for light in [false, true] {
+        assert_eq!(
+            qr_in_png(&code_png(payload, light)),
+            Ok(vec![payload.to_vec()]),
+            "light on dark: {light}"
+        );
+    }
 }

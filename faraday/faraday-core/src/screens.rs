@@ -9897,6 +9897,11 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.c.push_clip(clip);
     let mut iy = y + 32.0 - shift;
     for (k, item) in app.inbox.iter().enumerate() {
+        // A row scrolled out of the list's sight is passed over.
+        if !ui.shows(iy, 112.0) {
+            iy += 124.0;
+            continue;
+        }
         ui.card(x, iy, colw, 112.0, LINE);
         ui.fill(x + 16.0, iy + 14.0, 36.0, 36.0, 10.0, ACCENT.with_alpha(26));
         ui.icon(x + 16.0, iy + 14.0, 36.0, Icon::Download, 14.0, ACCENT);
@@ -10158,6 +10163,10 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text(ox + lw + 10.0, oy, 12.0, W::R, DIM, &line);
         oy += 24.0;
         for (k, item) in group {
+            if !ui.shows(oy, 66.0) {
+                oy += 78.0;
+                continue;
+            }
             let (edge, icon, ink) = match exposure {
                 Exposure::Public => (LINE, Icon::Export, ACCENT),
                 Exposure::Sealed => (OK.with_alpha(70), Icon::Lock, OK),
@@ -11198,7 +11207,6 @@ fn file_card(
     note: Option<&(String, osk_ui::Color)>,
     buttons: &[(String, Style, Action)],
 ) -> f32 {
-    use crate::compact_screens::measured;
     let draw = |ui: &mut Ui| -> f32 {
         let mut cy = y + 12.0;
         ui.fill(x + 12.0, cy, 32.0, 32.0, 8.0, ink.with_alpha(26));
@@ -11221,9 +11229,22 @@ fn file_card(
         cy += wrap_buttons(ui, x + 12.0, cy, w - 24.0, 36.0, &items);
         cy - y + 2.0
     };
-    let h = measured(ui, |ui| draw(ui));
+    // Its height worked out from what it holds, so a card scrolled out of
+    // sight is passed over, not drawn.
+    let labels: Vec<&str> = buttons.iter().map(|(l, ..)| l.as_str()).collect();
+    let note_h = note.map_or(0.0, |(t, _)| {
+        faraday_ui::parts::measure_wrap(ui, w - 24.0, 13.0, W::R, t) + 8.0
+    });
+    let h = 60.0 + note_h + faraday_ui::parts::wrap_buttons_height(ui, w - 24.0, 36.0, &labels);
+    if !ui.shows(y, h) {
+        return h;
+    }
     ui.card(x, y, w, h, edge);
-    draw(ui);
+    let drawn = draw(ui);
+    debug_assert!(
+        (drawn - h).abs() < 0.01,
+        "a file card is {drawn} high, worked out {h}"
+    );
     h
 }
 
@@ -11578,6 +11599,10 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ui.text_right(x + w - dw, y + 2.0, 20.0, 12.0, W::S, MUTED, tag);
         }
         let sub = match kind {
+            // Asked for: a picture's codes take a moment.
+            Some(_) if app.visit.reading.contains(name) => {
+                fill(EN.visit_being_read, &[&size_text(*size as usize)])
+            }
             Some(k) => format!("{k} · {}", size_text(*size as usize)),
             None if big => EN.visit_larger_than_18.to_string(),
             // Read at boot, not copied in.
@@ -11962,6 +11987,10 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     line: &str,
                     tag: (&str, osk_ui::Color),
                     action: Option<Action>| {
+        // A row scrolled out of the list's sight is passed over.
+        if !ui.shows(ry, ROW) {
+            return;
+        }
         // No action: the stick holds the file already, drawn greyed.
         let held = action.is_none();
         ui.checkbox(x + 22.0, ry + 15.0, on && !held, !held);
@@ -12120,6 +12149,10 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.c.push_clip(clip);
     for (k, (name, size)) in stick.files.iter().enumerate() {
         let ry = list_top - shift + k as f32 * ROW;
+        // A row scrolled out of the list's sight is passed over.
+        if !ui.shows(ry, ROW) {
+            continue;
+        }
         // A file larger than the disk process reads is listed, not read.
         let big = *size > crate::READ_MAX;
         let kind = crate::stick_kind(name).filter(|_| !big);
@@ -12158,6 +12191,10 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             );
         }
         let sub = match kind {
+            // Asked for: a picture's codes take a moment.
+            Some(_) if app.visit.reading.contains(name) => {
+                fill(EN.visit_being_read, &[&size_text(*size as usize)])
+            }
             Some(k) => format!("{k} · {}", size_text(*size as usize)),
             None if big => EN.visit_larger_than_18.to_string(),
             // Read at boot, not copied in.

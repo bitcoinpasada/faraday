@@ -2,7 +2,10 @@
 //! however many wallets are loaded (`docs/SPEED.md` §8): what a frame
 //! reads of each file and each wallet is kept, so drawing does not grow
 //! with them. One copy of the test stick's files against five, one
-//! wallet against every test wallet, with a spend open and without.
+//! wallet against every test wallet, with a spend open and without. A
+//! frame also draws as many lines of text with five copies of the files
+//! as with one: a list draws the rows that can be seen, not the rest
+//! (`docs/SPEED.md` §9).
 
 use super::{frame_work, hover_work};
 use crate::work::{Counts, KINDS};
@@ -71,15 +74,30 @@ const SCREENS: [(&str, Action); 6] = [
     ("Spend", Action::Nav(Screen::Spend)),
 ];
 
-/// Each screen's frame drawn again, and a pointer moved over it.
-fn works(app: &mut Faraday) -> Vec<(&'static str, Counts, Counts)> {
+/// Each screen's frame drawn again, and a pointer moved over it; and
+/// the lines of text a frame of it draws.
+fn works(app: &mut Faraday) -> Vec<(&'static str, Counts, Counts, u64)> {
     SCREENS
         .iter()
         .map(|&(name, a)| {
             app.press(a);
-            (name, frame_work(app), hover_work(app))
+            let frame = frame_work(app);
+            let lines = lines_drawn(app);
+            (name, frame, hover_work(app), lines)
         })
         .collect()
+}
+
+/// The lines of text one frame of the screen at rest draws.
+fn lines_drawn(app: &mut Faraday) -> u64 {
+    use osk_shell_api::App;
+    let count = |app: &Faraday| app.canvas.as_ref().map_or(0, |c| c.lines_drawn());
+    app.settle();
+    let _ = app.frame();
+    let before = count(app);
+    app.dirty = true;
+    let _ = app.frame();
+    count(app) - before
 }
 
 fn text(c: &Counts) -> String {
@@ -103,13 +121,19 @@ fn a_frame_does_the_same_work_with_five_times_the_files_and_every_wallet() {
             assert_eq!(app.inbox.len(), copies * base.inbox.len());
             let work = works(&mut app);
             assert_eq!(work.len(), base_work.len());
-            for ((name, frame, hover), (_, f1, _)) in work.iter().zip(&base_work) {
+            for ((name, frame, hover, lines), (_, f1, _, l1)) in work.iter().zip(&base_work) {
                 assert_eq!(
                     text(frame),
                     text(f1),
                     "{name}, spend open {spend}: a frame with {copies}x the files and {wallets} wallets did other work than with 1x and one"
                 );
                 assert_eq!(text(hover), "", "{name}: a pointer move did work");
+                if wallets == 1 {
+                    assert_eq!(
+                        lines, l1,
+                        "{name}, spend open {spend}: a frame with {copies}x the files drew other lines of text than with 1x"
+                    );
+                }
             }
         }
     }

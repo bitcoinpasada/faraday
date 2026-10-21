@@ -30,10 +30,10 @@ pub const MAX_READ: u64 = 18 * 1024 * 1024;
 /// The largest picture read for QR codes, in pixels: 4096 × 4096, about
 /// 16.8 million. That takes in a phone's screenshot (1440 × 3200 is 4.6
 /// million), a 4K or 5K screen's (8.3 and 14.7 million) and a 12-megapixel
-/// photograph, with room. Decoding holds about 8 bytes a pixel at once
-/// (the pixels as RGBA, their grey copy, its inverse, and the QR reader's
-/// own copy at 2 bytes a pixel), so a picture at the limit takes about
-/// 135 MB of the disk process, which a 1 GB Pi has to spare. Its header is checked against
+/// photograph, with room. Decoding holds about 6 bytes a pixel at once
+/// (the pixels as RGBA, their grey copy, and the QR reader's own
+/// thresholded copy), so a picture at the limit takes about 100 MB of
+/// the disk process, which a 1 GB Pi has to spare. Its header is checked against
 /// this before any pixel is decoded.
 pub const MAX_PIXELS: usize = 4096 * 4096;
 
@@ -620,8 +620,18 @@ pub fn read_qr_png(place: &mut dyn Place, name: &str) -> Result<Picture, String>
     Ok((bytes, codes))
 }
 
-/// The QR codes in a PNG's bytes. Costs a PNG decode and one or two
-/// passes of the QR reader over its pixels.
+/// A picture's bytes as the disk process answers them
+/// ([`proto::Response::Qr`]): the bytes as they are, and its QR codes,
+/// none when they cannot be read. Costs [`qr_in_png`].
+pub fn picture_answer(bytes: Vec<u8>) -> proto::Response {
+    let codes = qr_in_png(&bytes).unwrap_or_default();
+    proto::Response::Qr { bytes, codes }
+}
+
+/// The QR codes in a PNG's bytes, dark on light or light on dark. Costs
+/// a PNG decode and [`osk_codec::decode::decode_picture`]: a third of a
+/// second for a 12-megapixel photograph, seconds on a Pi, so a shell
+/// reads pictures off its own thread.
 pub fn qr_in_png(bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
     osk_crypto::work::count(osk_crypto::work::Work::PngDecode);
     let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
@@ -661,17 +671,8 @@ pub fn qr_in_png(bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
     if luma.len() != w * h {
         return Err("the image's pixels do not add up".into());
     }
-    let codes: Vec<Vec<u8>> = osk_codec::decode::decode_luma(w, h, &luma)
-        .into_iter()
-        .map(|d| d.bytes)
-        .collect();
-    if !codes.is_empty() {
-        return Ok(codes);
-    }
-    // A code printed light on dark reads once the picture is inverted.
-    let inverted: zeroize::Zeroizing<Vec<u8>> =
-        zeroize::Zeroizing::new(luma.iter().map(|b| 255 - b).collect());
-    Ok(osk_codec::decode::decode_luma(w, h, &inverted)
+    // A code printed light on dark is read too.
+    Ok(osk_codec::decode::decode_picture(w, h, &luma)
         .into_iter()
         .map(|d| d.bytes)
         .collect())

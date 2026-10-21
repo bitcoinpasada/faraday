@@ -985,6 +985,7 @@ dependencies = [
  "faraday-learn",
  "faraday-strings",
  "osk-codec",
+ "osk-shell-api",
  "osk-ui",
 ]
 

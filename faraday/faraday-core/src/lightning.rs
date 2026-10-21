@@ -206,6 +206,16 @@ impl Faraday {
         }
     }
 
+    /// Whether the screen reads a typed aezeed, whose Enter stretches it
+    /// with scrypt.
+    pub(crate) fn lightning_reads_aezeed(&self) -> bool {
+        self.sheet.is_none()
+            && self
+                .lightning
+                .as_ref()
+                .is_some_and(|l| l.source == Some(NodeSource::Aezeed))
+    }
+
     /// Typing the aezeed and its passphrase. Returns whether the key was
     /// taken.
     pub(crate) fn lightning_key(&mut self, key: osk_shell_api::Key) -> bool {

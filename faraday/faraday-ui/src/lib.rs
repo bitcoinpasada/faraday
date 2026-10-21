@@ -1493,6 +1493,17 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         Rect::new(x0, y0, self.px(x + w) - x0, self.px(y + h) - y0)
     }
 
+    /// Whether anything drawn in the band from `y` to `y + h`, design
+    /// units, can be seen: the band meets the clip, with a few pixels to
+    /// spare for a stroke's or a shadow's edge. A row of a long list out
+    /// of it is passed over, its height alone counted.
+    pub fn shows(&self, y: f32, h: f32) -> bool {
+        let band = self.rect(0.0, y, 1.0, h);
+        let clip = self.c.clip();
+        let spare = 4;
+        band.y - spare < clip.bottom() && band.bottom() + spare > clip.y
+    }
+
     /// A filled circle.
     pub fn dot(&mut self, cx: f32, cy: f32, r: f32, color: Color) {
         let color = self.col(color);
@@ -1840,20 +1851,30 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         lines
     }
 
-    /// `s` cut with an ellipsis to fit `max` units.
+    /// `s` cut with an ellipsis to fit `max` units: the longest start of
+    /// it that fits with "…" after it, or nothing when "…" alone does
+    /// not. One pass over its characters' advances, which only add up,
+    /// so the first start that does not fit ends the search.
     pub fn fit(&self, size: f32, w: W, s: &str, max: f32) -> String {
-        if self.measure(size, w, s) <= max {
+        let face = self.font(size, w).sized(self.c.scale());
+        let fits = |pen: u32| text::px_from_64(pen) as f32 / self.f <= max;
+        let whole: u32 = s.chars().map(|c| face.advance_64(c)).sum();
+        if fits(whole) {
             return s.to_string();
         }
-        let mut chars: Vec<char> = s.chars().collect();
-        while !chars.is_empty() {
-            chars.pop();
-            let t: String = chars.iter().collect::<String>() + "…";
-            if self.measure(size, w, &t) <= max {
-                return t;
-            }
+        let ellipsis = face.advance_64('…');
+        if !fits(ellipsis) {
+            return String::new();
         }
-        String::new()
+        let (mut pen, mut end) = (0u32, 0usize);
+        for (i, c) in s.char_indices() {
+            pen += face.advance_64(c);
+            if !fits(pen + ellipsis) {
+                break;
+            }
+            end = i + c.len_utf8();
+        }
+        format!("{}…", &s[..end])
     }
 
     /// `s` wrapped to `width`. Returns the height used.
@@ -2292,4 +2313,70 @@ fn shield(x: f32, y: f32, w: f32, h: f32) -> Vec<(f32, f32)> {
     let left: Vec<(f32, f32)> = curve(x, x + 0.02 * w).collect();
     out.extend(left.into_iter().rev());
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use osk_shell_api::{BootState, DisplayInfo, SecureHardware};
+
+    /// `fit` as it was until 2026-10-21: one character off the end at a
+    /// time, the rest measured again with "…" after it each time.
+    fn fit_by_popping(ui: &Ui<u8>, size: f32, w: W, s: &str, max: f32) -> String {
+        if ui.measure(size, w, s) <= max {
+            return s.to_string();
+        }
+        let mut chars: Vec<char> = s.chars().collect();
+        while !chars.is_empty() {
+            chars.pop();
+            let t: String = chars.iter().collect::<String>() + "…";
+            if ui.measure(size, w, &t) <= max {
+                return t;
+            }
+        }
+        String::new()
+    }
+
+    #[test]
+    fn a_name_too_long_for_its_room_is_cut_where_it_always_was() {
+        let long = "savings-2-of-3-multisig-wallet-backup-".repeat(6);
+        let names = [
+            "",
+            "a",
+            "…",
+            "savings-unsigned.psbt",
+            "Wallet · 2-of-3 · 8f3a91c2 · wsh(sortedmulti)",
+            "Grüße – ñandú · 漢字のテスト · Ωmega",
+            "WWWWWWWWWWWWWWWWWWWWiiiiiiiiiiiiiiiiiiii",
+            long.as_str(),
+        ];
+        for dpi in [160, 286, 320] {
+            let mut canvas = Canvas::new(&DisplayInfo {
+                width: 640,
+                height: 480,
+                dpi,
+                inset_bottom: 0,
+                inset_top: 0,
+                buttons: 0,
+                camera_fixed: false,
+                secure: SecureHardware::None,
+                boot: BootState::Unknown,
+                memory_mib: None,
+            });
+            let mut hits = Vec::new();
+            let f = f32::from(dpi) / 160.0;
+            let ui: Ui<u8> = Ui::new(&mut canvas, f, &mut hits, None);
+            for name in names {
+                for (size, w) in [(12.0, W::R), (14.0, W::M), (13.0, W::S)] {
+                    for max in [0.0, 3.0, 9.5, 20.0, 47.25, 80.0, 133.0, 260.0, 1000.0] {
+                        assert_eq!(
+                            ui.fit(size, w, name, max),
+                            fit_by_popping(&ui, size, w, name, max),
+                            "{name:?} at {size} {w:?} in {max} at {dpi} dpi"
+                        );
+                    }
+                }
+            }
+        }
+    }
 }

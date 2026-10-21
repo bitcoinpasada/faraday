@@ -790,3 +790,127 @@ All counts, no wall time, in `faraday-core/src/work/budget/`:
   offered on its wallet's card once that wallet loads; a spend opened
   before its seeds were loaded signs with both once they are, and its
   review shows both signatures.
+
+## 9. Batch S2: nothing a person waits on blocks a frame (2026-10-21)
+
+The speed audit's findings 4 and 9 to 12, and what S1 left in Files.
+Build machine, release profile, the audit's harness and three probes
+(all outside the repository); "before" is `main` at 0712461e, "after"
+is S2, both run twice in turn on the same machine, medians in ms. The
+"Pi" column is the Pi's layout on the build machine's CPU; a Pi 3 is
+about ten times slower.
+
+1. **Pictures on a stick were read for their codes on the shell's own
+   thread, all at once.** A boot stick or a visit with pictures froze
+   the window until every one was decoded: 15 code pictures and two
+   photographs (1920×1080 and 4000×3000) took one pass of 512 ms with
+   no frame drawn, the photograph alone 349 ms (est. 3 to 5 s on a Pi).
+   Now a picture asked for is read off the shell's thread, one at a
+   time in the order asked, and its answer comes as a storage event on
+   a later pass (`faraday_storage::Sticks::read_qr_later`,
+   `pictures_read`). On a desktop, `Dirs` keeps a thread that reads
+   the file and its codes (`Pictures`); on the device the disk process
+   keeps decoding there (`docs/QR.md` §4) but on a thread of its own,
+   answering the requests asked meanwhile, and the shell has one
+   picture asked of it at a time, so the process holds one picture's
+   bytes (`DiskProcess`, `faraday-disk`'s `main`). An answer for a
+   shell that has gone (a lock) is dropped. The boot stick's sheet
+   says "Being read" for each picture until it comes; the visit's row
+   now says so too (`VisitState::reading`). After: the longest pass
+   0.7 to 0.9 ms, a frame drawn every pass (23 passes), all read in
+   478 ms. A picture is decoded once and searched for light-on-dark
+   codes only when it holds no dark-on-light one
+   (`osk_codec::decode::decode_picture`, one count where it was two):
+   the 4000×3000 photograph 349 to 312 ms, 1920×1080 58 to 52 ms. The
+   second search stays: dropping it would stop a dark-mode screenshot
+   from reading.
+2. **Presses that stretch a key or make pictures did it before any
+   frame.** A press whose work stretches a key (PBKDF2, scrypt,
+   Argon2) or makes more than one picture or PDF is now drawn first and
+   done on the tick after (`slow`, `Faraday::press_in`, `Later`): a
+   person's tap or Enter does none of that work, the frame after it
+   shows the press and, for files or a node key, a toast ("Making the
+   files", "Working out the node key") that goes when the work is
+   done. The list came from the whole suite and the snapshot tours (about
+   forty kinds of press: the checklist, a seed's files at the lock, every
+   load of a key, Create's Next, New key's Lock, a vault's key saved,
+   the chart's checks, Import, Lock, the self-test). A slider that
+   changes the shares (`BOmit`) sets its value at once and makes the
+   files again once it is let go and a frame drawn; working out which
+   files it replaces no longer makes them (`Faraday::public_names`).
+   Enter on Lightning's aezeed goes the same way. A scripted press
+   (`Faraday::press`, the snapshot tool, the tests) does the work at
+   once, as a script waits for no frame. Before → after, the press
+   itself: the checklist of a 2-of-15 (15 pictures) 186 to 195 ms → 0.0
+   (the tick after 162 to 185 ms); the aezeed's Enter 126 to 131 →
+   0.0 (the tick 125); Add a key's Add 1.1 → 0.0 (the tick 1.1). **The
+   rule, in every test** (`press_in`): in a debug build a press not on
+   the list that stretches a key or makes more than one picture panics,
+   naming itself; `tests/slow_press.rs` taps the checklist, Add and
+   Enter on an aezeed and checks that the tap does none of it, the
+   frame says so, and the tick does it. Left out: typing a passphrase
+   on the passphrase-check and SeedQR sheets works out the key on each
+   character (one PBKDF2, about 1 ms here), and Enter on Add a key's,
+   New key's and a chart's fields does what their buttons do at once;
+   both are keys, not presses.
+3. **Files laid out and drew every row, seen or not; Vault contents
+   walked ~24,400 glyphs a frame.** A line of text wholly above or
+   below the clip is now measured from its advances, not drawn
+   (`Canvas::text_with_face`), and Files, the visit's lists and a
+   small panel's file cards pass over a row out of sight with its
+   height worked out without drawing (`Ui::shows`,
+   `parts::wrap_buttons_height`, `file_card`, which checks the two
+   heights agree in a debug build). Glyphs a frame: Vault contents
+   24,395 → 2,008 (1366), 23,344 → 331 (Pi); Files 5,750 → 1,301,
+   9,072 → 203 (Pi); with 1,620 files 89,882 → 1,252 and 149,843 →
+   244 (Pi), the same as with 81. Frames: Vault contents 4.6 → 3.7,
+   4.2 → 2.9 (Pi); Files with 405 files 11.7 → 9.9, 18.6 → 9.9 (Pi);
+   with 1,620 files 42.7 → 33.4, 73.2 → 37.5 (Pi). **Still growing:**
+   Files works out what the Inbox gives (`found_in`, for its panel of
+   wallets and keys to load) once a frame, about 20 µs a file; a kept
+   copy, made again when the Inbox or the session changes, is the next
+   step. The scaling test (§8.3) now also holds every screen to the
+   same lines of text drawn with one and five copies of the files
+   (`Canvas::lines_drawn`).
+4. **`ui.fit` measured the string again for each character it took
+   off.** It adds the characters' advances once and stops at the first
+   that does not fit with "…" (`Ui::fit`); the same output, which a
+   test checks against the old loop for eight strings, nine widths,
+   three faces and three densities. A 200-character descriptor into
+   120 units 441 µs → 4.9 µs; a 40-character file name 16.9 → 1.4 µs.
+5. **Pixels.** At 2560×1600 and 3840×2160 a scale of 2 and 2.5:
+   - The frosted page under a sheet, made when it opens, reads a
+     quarter of the pixels and works out the enlarged picture once for
+     each two by two pixels where a small pixel is sixteen or more
+     across (`Canvas::frost`). Below that, at 1× and on the Pi, it is
+     the same pixels as before. At 2× the frosted area differs from
+     before by 1 to 3 levels of 255 in 2 to 5 % of the pixels (39 of
+     the 232 renders of the 2560×1600@320 tour, all sheets; the rest
+     identical): not visible side by side. Frost alone 9.7 → 7.0 ms
+     (2560), 20.7 → 14.4 (3840).
+   - A sheet's later frames put back only the box drawn over since the
+     page was last put back (`Canvas::restore`, which tracks the box
+     every drawing call writes); the same pixels as a whole copy, which
+     a test checks.
+   - A screen change's fade passes over runs of 16 pixels where the two
+     frames agree (`Canvas::blend_from`); the same pixels.
+   - A shadow skips its covered middle instead of stepping through it
+     (`Canvas::shadow`): 3.4 → 2.5 ms (2560), 5.4 → 3.6 (3840) for a
+     sheet-sized one.
+   - The backup board's overdraw is its look (each box's edge under its
+     fill, a chip's shadow, fill and edge): left as it is; it gains
+     from the text and shadow changes only (2560 13.2 → 12.0 ms).
+
+   Frames (the Learn sheet over Settings; Settings to Tools and back):
+
+   | | 1366 | 2560 | Pi | 3840 |
+   |---|---|---|---|---|
+   | sheet's first frame | 11.0 → 9.6 | 39.9–44.3 → 27.9 | 4.6 → 3.9 | 101 → 75 |
+   | sheet's later frames | 4.8 → 3.6 | 20.8 → 14.8 | 2.6 → 2.0 | 37.8 → 29.1 |
+   | screen change, first frame | 3.5 → 1.8 | 13.7 → 7.7 | 1.7 → 1.1 | 28.2 → 15.0 |
+   | fade frames | 2.6 → 0.9 | 10.3 → 3.4 | 0.8 → 0.3 | 20.6 → 7.2 |
+   | Load sheet over Files | 2.2 → 1.8 | 9.2 → 6.7 | 2.1 → 1.9 | 16.8 → 12.6 |
+
+The renders of the 1280×800, 3840×2160 and `--sd-card` 480×640@286
+tours are the same pixels before and after; the 2560×1600@320 tour
+differs only in frosted pages, as above.

@@ -126,8 +126,9 @@ intact, not who sent it.
    (`PLAN.md` §5.4), with the exposure of what the codes held; it never
    parses them. A picture whose codes cannot be read still comes in, as
    one with no code read. Several images at
-   once are read in turn, and reading stops when a multi-part transfer
-   completes. Images are tried at about 1,200 pixels on the
+   once are read in turn, one at a time off the shell's own thread (the
+   disk process answers other requests meanwhile; `docs/SPEED.md` §9), and
+   reading stops when a multi-part transfer completes. Images are tried at about 1,200 pixels on the
    long side first and at full size second; one over
    4096 × 4096 pixels (about 16.8 megapixels, `MAX_PIXELS`) is refused
    from its header, before its pixels are decoded: it covers phone and

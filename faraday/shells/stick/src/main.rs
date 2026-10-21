@@ -636,6 +636,8 @@ struct Shell {
     next_scan: Instant,
     /// The disk process, when the image runs one.
     disk: Option<DiskProcess>,
+    /// Sticks that are folders, where the image runs no disk process.
+    dirs: Dirs,
     /// What the clean marker last said: `None` before it was written.
     clean: Option<bool>,
     /// The boot copier, when the image runs one.
@@ -1104,7 +1106,7 @@ impl Shell {
                 let boot = self.boot.as_mut().map(|b| b as &mut dyn Boot);
                 let said = match self.disk.as_mut() {
                     Some(disk) => serve_all(app, &mut self.boxes, None, disk, boot),
-                    None => serve_all(app, &mut self.boxes, None, &mut Dirs, boot),
+                    None => serve_all(app, &mut self.boxes, None, &mut self.dirs, boot),
                 };
                 for line in said {
                     if self.verbose {
@@ -1481,6 +1483,7 @@ fn run(args: Args) -> Result<Exit, String> {
         } else {
             None
         },
+        dirs: Dirs::default(),
         clean: None,
         boot: Path::new(BOOT_REQUESTS)
             .exists()

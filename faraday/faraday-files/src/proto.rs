@@ -3,7 +3,10 @@
 //!
 //! A frame is a 4-byte little-endian length, a 4-byte sequence number
 //! the answer repeats, and that many bytes. A shell that gave up waiting
-//! for an answer knows the late one when it comes. The bytes are a tag
+//! for an answer knows the late one when it comes. A picture's codes
+//! ([`Request::ReadQr`]) are answered once read, after the requests asked
+//! meanwhile: the shell has one picture asked at a time and knows its
+//! answer by its number. The bytes are a tag
 //! and the fields in order: a string is a 2-byte length
 //! and UTF-8, bytes are a 4-byte length and the bytes, a flag is one byte,
 //! 0 or 1, a list is a 2-byte count and its items. Every length is checked against what is left of

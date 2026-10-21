@@ -73,6 +73,11 @@ fn tap(app: &mut Faraday, action: Action) {
         y,
         phase: TouchPhase::Up,
     });
+    // The frame that shows the press, and the tick after it, on which a
+    // press that stretches a key does its work (`docs/SPEED.md` §9).
+    let _ = app.frame();
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
     let _ = app.frame();
 }
 

@@ -3088,6 +3088,9 @@ pub struct VisitState {
     pub out: BTreeSet<String>,
     /// Stick files chosen to copy, by name.
     pub inn: BTreeSet<String>,
+    /// Stick files asked for and not yet answered, by name: a picture's
+    /// codes are read off the shell's thread, one picture at a time.
+    pub reading: BTreeSet<String>,
     /// The settings file's row as the person set it; `None` for its
     /// default (`Faraday::visit_settings_on`).
     pub settings: Option<bool>,
@@ -3638,6 +3641,10 @@ pub struct Faraday {
     caret_at: u64,
     /// The last frame drew a caret, and whether it showed.
     caret_drawn: Option<bool>,
+    /// A press whose work waits for a frame (`docs/SPEED.md` §9), and
+    /// whether a frame has been drawn since it was pressed.
+    later: Option<Later>,
+    later_drawn: bool,
     /// The tick the last two-finger scroll came in at, until its end.
     scroll_at: Option<u64>,
     /// Where the pointer is, with no button down, in pixels.
@@ -3898,6 +3905,8 @@ impl Faraday {
             bar_held: None,
             caret_at: 0,
             caret_drawn: None,
+            later: None,
+            later_drawn: false,
             scroll_at: None,
             hover: None,
             toast_at: None,
@@ -4084,9 +4093,11 @@ impl Faraday {
                     self.visit.log.push((line, true));
                 }
                 self.visit.inn.remove(&name);
+                self.visit.reading.remove(&name);
                 self.save_boxes();
             }
             StorageEvent::ReadFailed { name, reason, .. } => {
+                self.visit.reading.remove(&name);
                 self.visit.log.push((format!("{name}: {reason}"), false));
             }
             StorageEvent::Written { name, wrote_as, .. } => {
@@ -4223,6 +4234,7 @@ impl Faraday {
                 payloads,
             } => {
                 self.visit.inn.remove(&name);
+                self.visit.reading.remove(&name);
                 // The picture itself comes in as it is, beside what its
                 // codes hold, to be written to another stick; it takes
                 // the exposure of what they hold.
@@ -6304,8 +6316,11 @@ impl Faraday {
                 if let Some(b) = self.backup.as_mut() {
                     b.answers.omit = n;
                 }
+                // The shares' files and pictures are made again once the
+                // slider is let go and a frame drawn (`docs/SPEED.md` §9).
                 if let Some(w) = remake {
-                    self.public_out(w, 4);
+                    self.later = Some(Later::PublicOut(w, 4));
+                    self.later_drawn = false;
                 }
             }
             Action::BOut(what) => self.backup_out(what),
@@ -8654,11 +8669,7 @@ impl Faraday {
     /// Removes from For the stick what [`Faraday::public_out`] makes for
     /// `wallet` and `what`.
     fn public_remove(&mut self, wallet: usize, what: u8) {
-        let names: Vec<String> = self
-            .public_made(wallet, what)
-            .into_iter()
-            .map(|(n, _)| n)
-            .collect();
+        let names = self.public_names(wallet, what);
         let before = self.outbox.len();
         self.outbox.retain(|i| !names.contains(&i.name));
         if self.outbox.len() != before {
@@ -8675,11 +8686,7 @@ impl Faraday {
             return None;
         }
         let w = b.wallet;
-        let made: Vec<String> = self
-            .public_made(w, what)
-            .into_iter()
-            .map(|(n, _)| n)
-            .collect();
+        let made = self.public_names(w, what);
         if !self.outbox.iter().any(|i| made.contains(&i.name)) {
             return None;
         }
@@ -8760,6 +8767,21 @@ impl Faraday {
 
     /// The files [`Faraday::public_out`] makes, with their bytes.
     fn public_made(&mut self, wallet: usize, what: u8) -> Vec<(String, Vec<u8>)> {
+        self.public_files(wallet, what, true)
+    }
+
+    /// The names of the files [`Faraday::public_made`] makes, with no
+    /// picture or PDF made: a PDF that cannot be made is named anyway.
+    fn public_names(&mut self, wallet: usize, what: u8) -> Vec<String> {
+        self.public_files(wallet, what, false)
+            .into_iter()
+            .map(|(n, _)| n)
+            .collect()
+    }
+
+    /// [`Faraday::public_made`], its pictures and PDFs made only when
+    /// `bytes`, else named with no bytes.
+    fn public_files(&mut self, wallet: usize, what: u8, bytes: bool) -> Vec<(String, Vec<u8>)> {
         let Some(w) = self.session.wallets.get(wallet) else {
             return Vec::new();
         };
@@ -8810,6 +8832,7 @@ impl Faraday {
                     files.push((format!("{stem}-multisig-config.txt"), c.into_bytes()));
                 }
             }
+            3 if !bytes => files.push((format!("{stem}-backup.pdf"), Vec::new())),
             3 => match pdf::sheet(&backup::sheet_wallet(&self.session, w)) {
                 Ok(p) => files.push((format!("{stem}-backup.pdf"), p)),
                 Err(e) => self.toast(&fill(EN.public_made_no_pdf, &[&e.to_string()])),
@@ -8821,9 +8844,13 @@ impl Faraday {
                 for (i, row) in plan.iter().enumerate() {
                     if let Some(c) = backup::split_share(w, row) {
                         // The sheet to print beside each file.
-                        let sheet = backup::sheet_share(w, i + 1, plan.len(), &c);
-                        if let Ok(pdf) = pdf::sheet(&sheet) {
-                            files.push((format!("{stem}-share-{}-of-{n}.pdf", i + 1), pdf));
+                        let pdf_name = format!("{stem}-share-{}-of-{n}.pdf", i + 1);
+                        if !bytes {
+                            files.push((pdf_name, Vec::new()));
+                        } else if let Ok(pdf) =
+                            pdf::sheet(&backup::sheet_share(w, i + 1, plan.len(), &c))
+                        {
+                            files.push((pdf_name, pdf));
                         }
                         files.push((format!("{stem}-share-{}-of-{n}.txt", i + 1), c.into_bytes()));
                         // And its code, to scan back.
@@ -8833,14 +8860,14 @@ impl Faraday {
                                 .strip_prefix(share.as_str())
                                 .is_some_and(|rest| rest == ".png" || rest.starts_with("-part-"))
                         }) {
-                            files.push((p.name.clone(), p.png()));
+                            files.push((p.name.clone(), if bytes { p.png() } else { Vec::new() }));
                         }
                     }
                 }
             }
             8 => {
                 for p in self.public_pictures(wallet, 8) {
-                    files.push((p.name.clone(), p.png()));
+                    files.push((p.name.clone(), if bytes { p.png() } else { Vec::new() }));
                 }
             }
             9 => {
@@ -11031,6 +11058,7 @@ impl Faraday {
             for name in self.visit.inn.clone() {
                 // A picture's QR codes are read, not its bytes.
                 let stick = id.clone();
+                self.visit.reading.insert(name.clone());
                 self.storage_out
                     .push_back(if name.to_ascii_lowercase().ends_with(".png") {
                         StorageCommand::ReadQr { stick, name }
@@ -12093,7 +12121,7 @@ impl Faraday {
                         return;
                     }
                     self.last_tap = Some((a, self.now_ms));
-                    self.act(a);
+                    self.press_in(a);
                     if field_action(a) {
                         self.field_press(a, x, x, false);
                     }
@@ -12311,6 +12339,7 @@ impl Faraday {
         self.extent = (!scrolled.is_empty()).then(|| (self.region_key(), scrolled));
         self.caret_drawn = caret;
         self.vaults.drawn = true;
+        self.later_drawn = true;
         self.hits = hits;
         // The new screen or sheet shown part of the way from the old,
         // until the fade's time is up. A frame part of the way asks for
@@ -12458,9 +12487,104 @@ impl Faraday {
         // worked out again.
         self.entry.forget_probe();
         self.note_secrets();
-        self.act(action);
+        self.press_in(action);
+        // A script does not wait for frames: what a person's press leaves
+        // for the tick after its frame is done now.
+        self.later_now();
         self.backup_settle();
         self.after_input();
+        self.dirty = true;
+        self.commands.push_back(Command::Draw);
+    }
+
+    /// A person's press: done now, or, when its work stretches a key or
+    /// makes pictures ([`slow`]), drawn first and done on the tick after
+    /// (`docs/SPEED.md` §9). A press left waiting goes first.
+    fn press_in(&mut self, action: Action) {
+        // A slider moved again replaces the files it asked to be made.
+        if !(matches!(action, Action::Slide(..))
+            && matches!(self.later, Some(Later::PublicOut(..))))
+        {
+            self.later_now();
+        }
+        if slow(action) && !field_action(action) {
+            self.later = Some(Later::Press(action));
+            self.later_drawn = false;
+            if let Some(text) = working_text(action) {
+                self.working(text);
+            }
+            self.dirty = true;
+            self.commands.push_back(Command::Draw);
+            return;
+        }
+        let before = work::snapshot();
+        self.act(action);
+        // The rule `slow` keeps, held in debug builds and every test: a
+        // press not left for the tick stretches no key and makes at most
+        // one picture.
+        let done = work::since(&before);
+        debug_assert!(
+            done.of(work::Work::Kdf) == 0 && done.of(work::Work::Picture) <= 1,
+            "{action:?} stretched a key {} times and made {} pictures with no frame drawn first: \
+             add it to `slow` (docs/SPEED.md §9)",
+            done.of(work::Work::Kdf),
+            done.of(work::Work::Picture),
+        );
+    }
+
+    /// Says what a press left for the tick is doing, at once: the toast
+    /// shows in full on the frame drawn before the work.
+    fn working(&mut self, text: &str) {
+        self.toast(text);
+        self.toast_at = Some(self.now_ms.saturating_sub(motion::TOAST_MS));
+    }
+
+    /// Whether `key` is left for the tick after a frame: Enter where it
+    /// reads an aezeed, which scrypt stretches for seconds on a Pi.
+    fn key_slow(&self, key: KeyIn) -> bool {
+        key == KeyIn::Enter && self.screen == Screen::Lightning && self.lightning_reads_aezeed()
+    }
+
+    /// Does the press waiting, once a frame has been drawn since it was
+    /// pressed. Public files a slider asked for wait until it is let go.
+    /// Returns whether it did.
+    fn later_tick(&mut self) -> bool {
+        let held = matches!(self.pressed, Some((Action::Slide(..), _)));
+        if !self.later_drawn
+            || self.later.is_none()
+            || (held && matches!(self.later, Some(Later::PublicOut(..))))
+        {
+            return false;
+        }
+        self.later_now();
+        true
+    }
+
+    /// Does the press waiting now, whatever has been drawn.
+    fn later_now(&mut self) {
+        let Some(later) = self.later.take() else {
+            return;
+        };
+        let toast = self.toast.as_ref().map(|(t, _)| t.clone());
+        match later {
+            Later::Press(a) => self.act(a),
+            Later::Key(k) => self.key(k),
+            Later::PublicOut(w, what) => self.public_out(w, what),
+        }
+        if let Later::Press(_) | Later::Key(_) = later {
+            self.backup_settle();
+            self.after_input();
+        }
+        // The working toast goes once the work is done, unless the work
+        // said something of its own.
+        if toast.is_some()
+            && self.toast.as_ref().map(|(t, _)| t.clone()) == toast
+            && [EN.working_files, EN.working_node_key]
+                .iter()
+                .any(|w| toast.as_deref() == Some(*w))
+        {
+            self.toast = None;
+        }
         self.dirty = true;
         self.commands.push_back(Command::Draw);
     }
@@ -12556,6 +12680,11 @@ impl Faraday {
         self.hits.iter().any(|(_, a)| *a == action)
     }
 
+    /// The time of the last tick, ms: what a test's next tick follows.
+    pub fn now_ms(&self) -> u64 {
+        self.now_ms
+    }
+
     /// Where the last frame drawn offers `action`, in pixels: the middle
     /// of where it can be pressed, for tests that touch it.
     pub fn where_offered(&self, action: Action) -> Option<(u16, u16)> {
@@ -12648,6 +12777,86 @@ pub fn result_stem(source: &str) -> String {
 
 /// Whether pressing `a` is pressing a text field, which a second press
 /// or a drag selects all of.
+/// What a press leaves for the tick after the frame that shows it
+/// (`docs/SPEED.md` §9).
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Later {
+    /// A press whose work is [`slow`].
+    Press(Action),
+    /// A key whose work is slow (`Faraday::key_slow`).
+    Key(KeyIn),
+    /// The backup's public files of kind `what` for wallet `w`, made again
+    /// once a slider that changes them is let go.
+    PublicOut(usize, u8),
+}
+
+/// Whether a press stretches a key (PBKDF2, scrypt, Argon2) or makes more
+/// than one picture or PDF, so that the frame that shows it is drawn
+/// first and its work is done on the tick after (`docs/SPEED.md` §9). A
+/// press that does such work and is not here fails the guard in
+/// `Faraday::press_in` in every test.
+fn slow(a: Action) -> bool {
+    use crate::backup_flow_steps::FlowAction as F;
+    use crate::glance_sheet::ChartAction as C;
+    use crate::vaults::VaultAction as V;
+    matches!(
+        a,
+        Action::BChecklist
+            | Action::BCodex32(..)
+            | Action::BNewVault(_)
+            | Action::CNext(_)
+            | Action::CPassLock
+            | Action::CSlotVault(..)
+            | Action::EntryAdd
+            | Action::Flow(F::CopyKey | F::LockWrite | F::WalletLock)
+            | Action::Import(boot_import::ImportAction::Go)
+            | Action::InboxLoad
+            | Action::KLock
+            | Action::KNext
+            | Action::LKey(_)
+            | Action::LResolve
+            | Action::LoadKey(_)
+            | Action::Lock
+            | Action::PLoad
+            | Action::PotentialMake
+            | Action::SecretUnprotected
+            | Action::SeedRead(seed_read::Choice::Plain | seed_read::Choice::WithPass)
+            | Action::Seeds(seeds::SeedsAction::Make)
+            | Action::SelfTestRun
+            | Action::Vanity(vanity::VanityAction::Use)
+            | Action::Chart(
+                C::Checked(..) | C::Confirm(_) | C::Do(..) | C::Edit(..) | C::PassTry(_)
+            )
+            | Action::Vault(
+                V::AddFile(_)
+                    | V::AddKind(_)
+                    | V::Category(_)
+                    | V::LoadAll(_)
+                    | V::LoadChosen(_)
+                    | V::LoadKeyOf(_)
+                    | V::LoadTicked
+                    | V::LoadWithKeys(_)
+                    | V::Open(_)
+                    | V::OpenWalletOf(..)
+                    | V::PromptGo
+                    | V::SaveKey(_)
+                    | V::SaveKeyWithPassphrase(_)
+                    | V::SaveWallet(_)
+            )
+    )
+}
+
+/// What the frame drawn before a slow press's work says, when the work
+/// is long enough to be seen: pictures and PDFs made.
+fn working_text(a: Action) -> Option<&'static str> {
+    use crate::backup_flow_steps::FlowAction as F;
+    matches!(
+        a,
+        Action::BChecklist | Action::SecretUnprotected | Action::Flow(F::WalletLock)
+    )
+    .then_some(EN.working_files)
+}
+
 fn field_action(a: Action) -> bool {
     use vaults::VaultAction as V;
     matches!(
@@ -12738,7 +12947,18 @@ impl App for Faraday {
                 self.caret_at = self.now_ms;
                 if self.sheet == Some(Sheet::IdleWarn) {
                     self.sheet = None;
+                } else if self.key_slow(k) {
+                    // Drawn first, done on the tick after (`docs/SPEED.md`
+                    // §9).
+                    self.later_now();
+                    self.later = Some(Later::Key(k));
+                    self.later_drawn = false;
+                    self.working(EN.working_node_key);
+                    self.dirty = true;
+                    self.commands.push_back(Command::Draw);
+                    return;
                 } else {
+                    self.later_now();
                     self.key(k);
                 }
             }
@@ -12883,6 +13103,10 @@ impl App for Faraday {
                     return;
                 }
                 if self.vault_tick(now_ms) {
+                    self.dirty = true;
+                    self.commands.push_back(Command::Draw);
+                }
+                if self.later_tick() {
                     self.dirty = true;
                     self.commands.push_back(Command::Draw);
                 }

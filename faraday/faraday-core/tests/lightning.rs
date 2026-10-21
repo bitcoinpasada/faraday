@@ -33,6 +33,11 @@ fn an_lnd_cipher_seed_gives_lnds_node_id() {
     app.press(Action::LAezeed);
     typed(&mut app, CIPHER_SEED);
     app.event(Event::Key(Key::Enter));
+    // Drawn first, the aezeed stretched on the tick after (`docs/SPEED.md`
+    // §9).
+    let _ = app.frame();
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
     let l = app.lightning.as_ref().unwrap();
     let n = l.node.as_ref().unwrap_or_else(|| panic!("{:?}", l.error));
     assert_eq!(hex(&n.public), NODE_KEY);

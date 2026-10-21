@@ -83,7 +83,7 @@ fn a_vault_keeps_its_name_on_the_stick_unless_renamed_for_the_stick() {
     let dir = stick("renamed");
     fs::write(dir.join("savings.ofv"), vault(1, 0)).unwrap();
     let id = dir.to_str().unwrap();
-    let mut sticks = faraday_storage::Dirs;
+    let mut sticks = faraday_storage::Dirs::default();
     let wrote = sticks
         .write(id, "vault.ofv", &vault(1, 9), true, false)
         .unwrap();
@@ -111,7 +111,7 @@ fn a_rename_on_a_stick_keeps_the_bytes_and_refuses_a_name_taken() {
     fs::write(dir.join("vault.ofv"), vault(1, 0)).unwrap();
     fs::write(dir.join("vault-copy.ofv"), vault(1, 0)).unwrap();
     let id = dir.to_str().unwrap();
-    let mut sticks = faraday_storage::Dirs;
+    let mut sticks = faraday_storage::Dirs::default();
     assert_eq!(
         sticks.rename(id, "notes.txt", "other.txt"),
         Err(Unrenamed::Taken)

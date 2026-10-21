@@ -19,5 +19,9 @@ faraday-strings = { path = "../faraday-strings" }
 # faraday-guides, read by whoever looks a sketch up.
 faraday-learn = { path = "../faraday-learn" }
 
+[dev-dependencies]
+# A canvas the size of a display, for the tests.
+osk-shell-api = { path = "../../core/osk-shell-api" }
+
 [lints]
 workspace = true

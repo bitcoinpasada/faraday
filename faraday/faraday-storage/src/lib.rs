@@ -82,8 +82,13 @@ pub trait Sticks {
     fn zero_free(&mut self, stick: &str, from: u32) -> Result<(u32, u32, bool), String>;
     /// Every file gone, the volume empty, its layout and label kept.
     fn make_empty(&mut self, stick: &str) -> Result<(), String>;
-    /// A picture: its bytes and its QR codes.
-    fn read_qr(&mut self, stick: &str, name: &str) -> Result<faraday_files::Picture, String>;
+    /// Starts reading a picture's bytes and QR codes off the shell's
+    /// thread; the answer comes from [`Sticks::pictures_read`] on a later
+    /// pass. Pictures are read one at a time, in the order asked.
+    fn read_qr_later(&mut self, stick: &str, name: &str);
+    /// The pictures read since the last call, each with its stick and
+    /// name; and the next picture asked is started.
+    fn pictures_read(&mut self) -> Vec<PictureRead>;
     /// A file renamed in place; refused, nothing written, where another
     /// file has the name (`faraday_files::rename`).
     fn rename(&mut self, stick: &str, from: &str, to: &str)
@@ -230,8 +235,63 @@ pub fn boot_poll(app: &mut Faraday, boot: &mut dyn Boot) {
     }
 }
 
-/// Sticks that are folders, named by their paths.
-pub struct Dirs;
+/// A picture read for its codes: its stick, its name, and its bytes and
+/// codes or why it was not read.
+pub type PictureRead = (String, String, Result<faraday_files::Picture, String>);
+
+/// Pictures in folders read for their QR codes on a thread of their own,
+/// one at a time in the order asked (`docs/SPEED.md` §9): a photograph
+/// takes a third of a second on a desktop and seconds on a Pi, and the
+/// frames go on being drawn meanwhile. The thread starts with the first
+/// picture asked. Dropped, it reads no more: the picture it is reading
+/// is finished and let go.
+#[derive(Default)]
+pub struct Pictures {
+    worker: Option<Worker>,
+}
+
+/// The pictures' thread, as the shell reaches it: where pictures are
+/// asked for, and where they come back read.
+type Worker = (
+    std::sync::mpsc::Sender<(String, String)>,
+    std::sync::mpsc::Receiver<PictureRead>,
+);
+
+impl Pictures {
+    /// Asks for the picture `name` in the folder `stick`.
+    pub fn ask(&mut self, stick: &str, name: &str) {
+        let (jobs, _) = self.worker.get_or_insert_with(|| {
+            let (jobs, asked) = std::sync::mpsc::channel::<(String, String)>();
+            let (read, done) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                for (stick, name) in asked {
+                    let picture = read_qr_png(&stick, &name);
+                    if read.send((stick, name, picture)).is_err() {
+                        return;
+                    }
+                }
+            });
+            (jobs, done)
+        });
+        // The thread ends only when this end is dropped.
+        let _ = jobs.send((stick.to_string(), name.to_string()));
+    }
+
+    /// The pictures read since the last call.
+    pub fn read(&mut self) -> Vec<PictureRead> {
+        self.worker
+            .as_ref()
+            .map(|(_, done)| done.try_iter().collect())
+            .unwrap_or_default()
+    }
+}
+
+/// Sticks that are folders, named by their paths; their pictures read
+/// on a thread of their own ([`Pictures`]).
+#[derive(Default)]
+pub struct Dirs {
+    pictures: Pictures,
+}
 
 impl Sticks for Dirs {
     fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, String> {
@@ -259,8 +319,11 @@ impl Sticks for Dirs {
     fn make_empty(&mut self, stick: &str) -> Result<(), String> {
         faraday_files::Place::make_empty(&mut dir(stick))
     }
-    fn read_qr(&mut self, stick: &str, name: &str) -> Result<faraday_files::Picture, String> {
-        read_qr_png(stick, name)
+    fn read_qr_later(&mut self, stick: &str, name: &str) {
+        self.pictures.ask(stick, name);
+    }
+    fn pictures_read(&mut self) -> Vec<PictureRead> {
+        self.pictures.read()
     }
     fn rename(
         &mut self,
@@ -608,15 +671,13 @@ fn open_folder(dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Answers every storage request the app has queued. `host` is what an
-/// online shell has of its computer's folders; the device passes `None`
-/// and refuses to print, read or save there. Returns the lines a verbose
-/// shell prints.
-pub fn serve(app: &mut Faraday, boxes: &mut Boxes, host: Option<&Host>) -> Vec<String> {
-    serve_with(app, boxes, host, &mut Dirs)
-}
-
-/// [`serve`], with the sticks' files wherever `sticks` keeps them.
+/// Answers every storage request the app has queued, the sticks' files
+/// wherever `sticks` keeps them, and hands it the pictures read since the
+/// last pass: a picture's codes are read off the shell's thread and come
+/// on a later pass ([`Sticks::read_qr_later`]), so the shell serves on
+/// every pass, asked or not. `host` is what an online shell has of its
+/// computer's folders; the device passes `None` and refuses to print,
+/// read or save there. Returns the lines a verbose shell prints.
 pub fn serve_with(
     app: &mut Faraday,
     boxes: &mut Boxes,
@@ -637,6 +698,40 @@ pub fn serve_all(
 ) -> Vec<String> {
     let print = host.map(|h| h.print.as_path());
     let mut said = Vec::new();
+    loop {
+        // What was read of the pictures, as their answers.
+        for (stick, name, picture) in sticks.pictures_read() {
+            app.storage(match picture {
+                Ok((bytes, payloads)) => StorageEvent::QrRead {
+                    name,
+                    bytes,
+                    payloads,
+                },
+                Err(reason) => StorageEvent::ReadFailed {
+                    stick,
+                    name,
+                    reason,
+                },
+            });
+        }
+        if !app.storage_pending() {
+            break;
+        }
+        serve_queued(app, boxes, host, print, sticks, &mut boot, &mut said);
+    }
+    said
+}
+
+/// Answers the storage requests the app has queued now.
+fn serve_queued(
+    app: &mut Faraday,
+    boxes: &mut Boxes,
+    host: Option<&Host>,
+    print: Option<&Path>,
+    sticks: &mut dyn Sticks,
+    boot: &mut Option<&mut dyn Boot>,
+    said: &mut Vec<String>,
+) {
     while let Some(c) = app.poll_storage() {
         match c {
             StorageCommand::Read { stick, name } => {
@@ -762,21 +857,8 @@ pub fn serve_all(
                 });
                 app.storage(StorageEvent::Hashed { stick, name, sha });
             }
-            StorageCommand::ReadQr { stick, name } => {
-                let ev = match sticks.read_qr(&stick, &name) {
-                    Ok((bytes, payloads)) => StorageEvent::QrRead {
-                        name,
-                        bytes,
-                        payloads,
-                    },
-                    Err(reason) => StorageEvent::ReadFailed {
-                        stick,
-                        name,
-                        reason,
-                    },
-                };
-                app.storage(ev);
-            }
+            // Read off this thread: its answer comes on a later pass.
+            StorageCommand::ReadQr { stick, name } => sticks.read_qr_later(&stick, &name),
             StorageCommand::Print { name, bytes } => {
                 let ev = match print {
                     None => StorageEvent::PrintFailed {
@@ -896,7 +978,6 @@ pub fn serve_all(
             }
         }
     }
-    said
 }
 
 /// The disk process, from the shell's side (`PLAN.md` §4.3): requests go
@@ -913,6 +994,14 @@ pub struct DiskProcess {
     problems: Vec<(String, bool)>,
     /// The sticks the last listing found not handed out yet, by id.
     waiting: Vec<String>,
+    /// Pictures asked for, not yet sent: one is asked of the process at a
+    /// time, so it holds one picture's bytes.
+    pictures: std::collections::VecDeque<(String, String)>,
+    /// The picture the process is reading: its request's number, stick,
+    /// name, and when it was asked.
+    picture: Option<(u32, String, String, std::time::Instant)>,
+    /// Pictures answered, not yet handed to the app.
+    pictures_done: Vec<PictureRead>,
 }
 
 /// How long a list or a read may take.
@@ -920,6 +1009,9 @@ const ASK: std::time::Duration = std::time::Duration::from_secs(15);
 /// How long a write may take: a vault of four 4 MiB slots on a slow stick,
 /// written and read back.
 const ASK_WRITE: std::time::Duration = std::time::Duration::from_secs(120);
+/// How long a picture may take to be read for its codes: the largest
+/// (`MAX_PIXELS`) takes seconds on a Pi.
+const ASK_PICTURE: std::time::Duration = std::time::Duration::from_secs(60);
 
 impl DiskProcess {
     /// Opens the two FIFOs. Both are opened read-write, which on a FIFO
@@ -943,7 +1035,29 @@ impl DiskProcess {
             seq: 0,
             problems: Vec::new(),
             waiting: Vec::new(),
+            pictures: std::collections::VecDeque::new(),
+            picture: None,
+            pictures_done: Vec::new(),
         })
+    }
+
+    /// An answer that is not to the request asked now: the picture's,
+    /// kept for [`Sticks::pictures_read`]; any other is a late one,
+    /// wiped.
+    fn aside(&mut self, seq: u32, mut frame: Vec<u8>) {
+        use faraday_files::proto::Response;
+        if self.picture.as_ref().is_some_and(|p| p.0 == seq)
+            && let Some((_, stick, name, _)) = self.picture.take()
+        {
+            let picture = match Response::decode(&frame) {
+                Ok(Response::Qr { bytes, codes }) => Ok((bytes, codes)),
+                Ok(Response::Failed(why)) => Err(why),
+                Ok(_) => Err("an answer that is not codes".to_string()),
+                Err(_) => Err("a malformed answer".to_string()),
+            };
+            self.pictures_done.push((stick, name, picture));
+        }
+        zeroize::Zeroize::zeroize(&mut frame);
     }
 
     /// The sticks the last listing found unusable, by id: true when the
@@ -983,8 +1097,8 @@ impl DiskProcess {
                     zeroize::Zeroize::zeroize(&mut frame);
                     return answer.map_err(|_| "a malformed answer".to_string());
                 }
-                Ok((_, mut late)) => {
-                    zeroize::Zeroize::zeroize(&mut late);
+                Ok((seq, other)) => {
+                    self.aside(seq, other);
                     continue;
                 }
                 Err(_) => return Err("the disk process does not answer".to_string()),
@@ -1111,16 +1225,41 @@ impl Sticks for DiskProcess {
         }
     }
 
-    fn read_qr(&mut self, stick: &str, name: &str) -> Result<faraday_files::Picture, String> {
-        use faraday_files::proto::{Request, Response};
-        match self.ask(&Request::ReadQr {
-            stick: stick.into(),
-            name: name.into(),
-        })? {
-            Response::Qr { bytes, codes } => Ok((bytes, codes)),
-            Response::Failed(why) => Err(why),
-            _ => Err("an answer that is not codes".to_string()),
+    fn read_qr_later(&mut self, stick: &str, name: &str) {
+        self.pictures
+            .push_back((stick.to_string(), name.to_string()));
+    }
+
+    fn pictures_read(&mut self) -> Vec<PictureRead> {
+        use faraday_files::proto::{Request, send};
+        while let Ok((seq, frame)) = self.answers.try_recv() {
+            self.aside(seq, frame);
         }
+        if self
+            .picture
+            .as_ref()
+            .is_some_and(|p| p.3.elapsed() > ASK_PICTURE)
+            && let Some((_, stick, name, _)) = self.picture.take()
+        {
+            let why = "the disk process does not answer".to_string();
+            self.pictures_done.push((stick, name, Err(why)));
+        }
+        if self.picture.is_none()
+            && let Some((stick, name)) = self.pictures.pop_front()
+        {
+            self.seq = self.seq.wrapping_add(1);
+            let req = Request::ReadQr {
+                stick: stick.clone(),
+                name: name.clone(),
+            };
+            match send(&mut self.tx, self.seq, &req.encode()) {
+                Ok(()) => {
+                    self.picture = Some((self.seq, stick, name, std::time::Instant::now()));
+                }
+                Err(e) => self.pictures_done.push((stick, name, Err(e.to_string()))),
+            }
+        }
+        std::mem::take(&mut self.pictures_done)
     }
 
     fn rename(

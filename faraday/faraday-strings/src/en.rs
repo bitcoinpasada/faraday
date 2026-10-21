@@ -5738,6 +5738,14 @@ pub struct Strings {
     pub visit_larger_than_18: &'static str,
     /// Text in `visit`.
     pub visit_settings: &'static str,
+    /// Text in `visit`: a file asked for and not yet read. `{}`: its size.
+    pub visit_being_read: &'static str,
+    /// A toast on the frame drawn before a press's pictures and PDFs are
+    /// made (`docs/SPEED.md` §9).
+    pub working_files: &'static str,
+    /// A toast on the frame drawn before an aezeed is stretched for its
+    /// node key.
+    pub working_node_key: &'static str,
     /// Text in `visit`. `{}`: `app.medium.noun()`.
     pub visit_no_files_on_this: &'static str,
     /// Button in `visit`.
@@ -11396,6 +11404,9 @@ pub static EN: Strings = Strings {
     visit_write: "Write {} {}",
     visit_larger_than_18: "Larger than 18 MB: not read",
     visit_settings: "Settings",
+    visit_being_read: "Being read · {}",
+    working_files: "Making the files",
+    working_node_key: "Working out the node key",
     visit_no_files_on_this: "No files on this {}",
     visit_delete_files: "Delete files",
     visit_import_and_load: "Import and load",

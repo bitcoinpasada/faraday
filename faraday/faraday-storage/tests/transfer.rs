@@ -5,7 +5,7 @@
 //! over a file already there, and never into the Inbox. The device's app
 //! has no Transfer.
 //!
-//! This crate's `serve` is the desktop shell's storage, with a folder in
+//! This crate's `serve_with` is the desktop shell's storage, with a folder in
 //! the system's temporary directory standing for Downloads.
 
 use std::fs;
@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use faraday_core::wallet::{FileKind, Session};
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent, testkit};
-use faraday_storage::{Boxes, Host, serve};
+use faraday_storage::{Boxes, Dirs, Host, serve_with};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// A test's own folder standing for Downloads; removed when it drops.
@@ -123,7 +123,7 @@ fn send(app: &mut Faraday, boxes: &mut Boxes, host: &Host, name: &str) {
         .position(|(n, _)| n == name)
         .unwrap_or_else(|| panic!("{name} not listed: {:?}", app.transfer.files));
     app.press(Action::TransferSend(i));
-    serve(app, boxes, Some(host));
+    serve_with(app, boxes, Some(host), &mut Dirs::default());
 }
 
 /// The device's Files scanner reading the codes `app` shows, in turn,
@@ -224,7 +224,7 @@ fn device_codes(files: &[(&str, Vec<u8>)]) -> Vec<Vec<Vec<u8>>> {
 fn receive(app: &mut Faraday, boxes: &mut Boxes, host: &Host, codes: &[Vec<u8>]) {
     for c in codes {
         app.event(Event::Scanned { bytes: c.clone() });
-        serve(app, boxes, Some(host));
+        serve_with(app, boxes, Some(host), &mut Dirs::default());
     }
 }
 
@@ -351,7 +351,7 @@ fn a_file_dropped_on_the_window_is_sent() {
         path: path.display().to_string(),
         size: psbt.len() as u64,
     });
-    serve(&mut app, &mut boxes, Some(&host));
+    serve_with(&mut app, &mut boxes, Some(&host), &mut Dirs::default());
     assert_eq!(app.screen, Screen::Transfer);
     assert_eq!(device_reads(&app).bytes, psbt);
 }

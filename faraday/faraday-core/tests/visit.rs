@@ -855,3 +855,43 @@ fn the_same_vault_is_replaced_and_another_vault_never_is() {
     app.press(Action::VisitWrite);
     assert_eq!(writes(&mut app), [("vault.ofv".to_string(), true)]);
 }
+
+#[test]
+fn a_picture_asked_for_says_it_is_being_read_until_its_codes_come() {
+    let mut app = with_stick(1);
+    app.press(Action::VisitCopy);
+    let (mut asked, mut reads) = (Vec::new(), Vec::new());
+    while let Some(c) = app.poll_storage() {
+        match c {
+            StorageCommand::ReadQr { name, .. } => asked.push(name),
+            StorageCommand::Read { stick, name } => reads.push((stick, name)),
+            _ => {}
+        }
+    }
+    assert_eq!(asked, ["photo.png"], "the picture is read for its codes");
+    let _ = app.frame();
+    let being_read = |app: &mut Faraday| {
+        app.drawn_texts()
+            .iter()
+            .any(|t| t.starts_with("Being read"))
+    };
+    assert!(being_read(&mut app), "{:?}", app.drawn_texts());
+    // The other files come at once; the picture's codes on a later pass
+    // of the shell's storage.
+    for (stick, name) in reads {
+        app.storage(StorageEvent::Read {
+            stick,
+            name,
+            bytes: b"text".to_vec(),
+        });
+    }
+    let _ = app.frame();
+    assert!(being_read(&mut app), "{:?}", app.drawn_texts());
+    app.storage(StorageEvent::QrRead {
+        name: "photo.png".into(),
+        bytes: b"\x89PNG".to_vec(),
+        payloads: Vec::new(),
+    });
+    let _ = app.frame();
+    assert!(!being_read(&mut app), "{:?}", app.drawn_texts());
+}

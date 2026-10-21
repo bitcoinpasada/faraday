@@ -72,7 +72,7 @@ use std::time::{Duration, Instant};
 
 use faraday_core::strings::{EN, fill};
 use faraday_core::{Action, BOOT_FOLDER, Faraday, Screen, StickInfo, StorageEvent};
-use faraday_storage::{Boxes, Host, serve, stick_info};
+use faraday_storage::{Boxes, Dirs, Host, serve_with, stick_info};
 use faraday_window::camera::{self, Camera};
 use faraday_window::entropy;
 use faraday_window::input::Pointer;
@@ -158,6 +158,8 @@ struct Shell {
     size: (u32, u32),
     app: Option<Faraday>,
     boxes: Boxes,
+    /// The sticks' folders, their pictures read on a thread of their own.
+    dirs: Dirs,
     attached: BTreeSet<String>,
     seen: Vec<StickInfo>,
     /// The window and its surface (`faraday-window`).
@@ -251,7 +253,9 @@ impl Shell {
                     Command::CameraOff => self.lens.off(),
                     Command::Exit => {
                         if app.restart_requested() {
-                            for line in serve(app, &mut self.boxes, Some(&self.host)) {
+                            for line in
+                                serve_with(app, &mut self.boxes, Some(&self.host), &mut self.dirs)
+                            {
                                 eprintln!("{line}");
                             }
                             self.restart(event_loop);
@@ -269,7 +273,7 @@ impl Shell {
             self.lens.chosen(app);
             served |= app.storage_pending();
             let at = Instant::now();
-            for line in serve(app, &mut self.boxes, Some(&self.host)) {
+            for line in serve_with(app, &mut self.boxes, Some(&self.host), &mut self.dirs) {
                 eprintln!("{line}");
             }
             storage += at.elapsed();
@@ -297,6 +301,8 @@ impl Shell {
 
     fn restart(&mut self, event_loop: &ActiveEventLoop) {
         self.app = Some(desktop_app_after_lock());
+        // Pictures the last app asked for are not this one's.
+        self.dirs = Dirs::default();
         self.seen.clear();
         let display = self.display();
         let restored = self.boxes.restore();
@@ -334,7 +340,7 @@ impl Shell {
             path: path.display().to_string(),
             size,
         });
-        for line in serve(app, &mut self.boxes, Some(&self.host)) {
+        for line in serve_with(app, &mut self.boxes, Some(&self.host), &mut self.dirs) {
             eprintln!("{line}");
         }
         while let Some(c) = app.poll_command() {
@@ -366,7 +372,7 @@ impl Shell {
             // Which cameras there are, so a screen can offer the camera
             // or do without it.
             app.storage(StorageEvent::Cameras(camera::list()));
-            for line in serve(app, &mut self.boxes, Some(&self.host)) {
+            for line in serve_with(app, &mut self.boxes, Some(&self.host), &mut self.dirs) {
                 eprintln!("{line}");
             }
             while let Some(c) = app.poll_command() {
@@ -804,6 +810,7 @@ fn main() -> ExitCode {
             outbox: Vec::new(),
             kept: Vec::new(),
         },
+        dirs: Dirs::default(),
         attached,
         seen: Vec::new(),
         view: None,

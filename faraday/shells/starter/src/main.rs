@@ -45,7 +45,7 @@ use faraday_starter::{Starter, StarterAction};
 use faraday_starter_shell::payload::{Image, Payload};
 use faraday_starter_shell::platform::{self, Platform};
 use faraday_starter_shell::writer::Job;
-use faraday_storage::{Boxes, Host, serve};
+use faraday_storage::{Boxes, Dirs, Host, serve_with};
 use faraday_window::camera::{self, Camera};
 use faraday_window::entropy;
 use faraday_window::input::Pointer;
@@ -92,6 +92,8 @@ struct Shell {
     listed: Option<StorageEvent>,
     cameras: Option<Vec<(String, String)>>,
     boxes: Boxes,
+    /// The sticks' folders, their pictures read on a thread of their own.
+    dirs: Dirs,
     size: (u32, u32),
     view: Option<View>,
     shown: (u32, u32),
@@ -147,7 +149,12 @@ impl Shell {
             }
         }
         self.lens.chosen(self.starter.held());
-        for line in serve(self.starter.held(), &mut self.boxes, Some(&self.host)) {
+        for line in serve_with(
+            self.starter.held(),
+            &mut self.boxes,
+            Some(&self.host),
+            &mut self.dirs,
+        ) {
             eprintln!("{line}");
         }
         while let Some(c) = self.starter.next_command() {
@@ -674,6 +681,7 @@ fn main() -> ExitCode {
             outbox: Vec::new(),
             kept: Vec::new(),
         },
+        dirs: Dirs::default(),
         size,
         view: None,
         shown: size,
