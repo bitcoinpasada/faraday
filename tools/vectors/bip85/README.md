@@ -15,7 +15,7 @@ digest changed for a reason.
 |---|---|---|---|
 | `bip-0085.mediawiki` | 2026-09-19 | `dcbeb97709eba4751f4af7dc582c35dff37dc831abb5adc5e2e975d708d1cf7e` | `extract.py`, people |
 | `extract.py` | written here | `dda5e2e94178f345b15a560564f15d3bc246b61d965b1550bb527adbdf7aaf37` | people |
-| `vectors.json` | 2026-09-19 | `018e89f952067120373fe029bbb24be768ac1973bcc6106c5510ba647948ff94` | `core/faraday-bip/tests/bip85.rs` |
+| `vectors.json` | 2026-09-19 | `018e89f952067120373fe029bbb24be768ac1973bcc6106c5510ba647948ff94` | `core/faraday-bip/tests/all/bip85.rs` |
 
 `vectors.json` has three keys:
 
@@ -36,7 +36,7 @@ digest changed for a reason.
 The applications the BIP defines that this tree does not derive — RSA,
 RSA GPG, DICE and Nostr — are skipped by the script.
 
-`core/faraday-bip/tests/bip85.rs` reads the file whole and derives every
+`core/faraday-bip/tests/all/bip85.rs` reads the file whole and derives every
 entry from the master key: the three English mnemonics, the HD-seed WIF,
 the extended private key, the 64 bytes of hex and the two passwords.
 

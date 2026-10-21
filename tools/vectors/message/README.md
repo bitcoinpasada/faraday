@@ -1,6 +1,6 @@
 # Signed-message vectors
 
-What `core/faraday-psbt/tests/message.rs` checks `faraday_psbt::message` against.
+What `core/faraday-psbt/tests/all/message.rs` checks `faraday_psbt::message` against.
 Every file here is copied verbatim from the source named below; nothing
 in it was produced by this repository.
 
@@ -26,7 +26,7 @@ silently called invalid.
 ## `bip137.txt`
 
 One record per case, `key: value` lines, records separated by a blank
-line — the format `core/faraday-psbt/tests/common` reads.
+line — the format `core/faraday-psbt/tests/all/common` reads.
 
 - `source: trezor` — from
   `tests/device_tests/bitcoin/test_signmessage.py` in

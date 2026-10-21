@@ -844,8 +844,8 @@ Starter: Blank templates, {} words, {}" for the Templates item.
 ## 13. Tests
 
 User-facing behaviour, through `Action`s and the test kit's sticks, in
-a new `faraday-core/tests/backup_flow.rs`; the wallet's in
-`tests/backup_checklist.rs` and `tests/backup_first.rs`.
+a new `faraday-core/tests/all/backup_flow.rs`; the wallet's in
+`tests/all/backup_checklist.rs` and `tests/all/backup_first.rs`.
 
 - **The order.** An APK, GPG and Secure Boot Make starts on **Where it
   will be kept**; Make the key is not offered before its sticks are
@@ -955,7 +955,7 @@ and done test in `backup_item_done`, the "Written to" lines, the visit's
   `apk-visit`, `apk-back`; `apk_waiting`, `apk_second_refusal`,
   `apk_inbox_ticks`, `apk_written`, `apk_sealed`, `apk_first_gone`,
   `apk_return`, and their hooks;
-- the strings of §12's last paragraph; `tests/apk.rs`'s two-stick
+- the strings of §12's last paragraph; `tests/all/apk.rs`'s two-stick
   tests, which move here.
 - `vault_is_this_sessions` and `apk_vault_not_replaced` stay: they guard
   the ordinary visit's copy of a vault from Files.
@@ -1590,7 +1590,7 @@ the old seed and description rows, "Each place keeps") are removed.
 
 ### 17.4 Tests
 
-`faraday-core/tests/backup_plan.rs` (the wallet's plan, through the
+`faraday-core/tests/all/backup_plan.rs` (the wallet's plan, through the
 app's actions as a person presses them):
 
 - A 2-of-3 with its three keys made here, three places: three place
@@ -1660,7 +1660,7 @@ it into the whole description.
 
 **Tests.** `faraday-vault`: a slot with two type 13 records seals and
 opens with every field; a type 13 record without field 1 refuses the
-slot. `faraday-core/tests/backup_flow_wallet.rs` (or the vault item's
+slot. `faraday-core/tests/all/backup_flow_wallet.rs` (or the vault item's
 own test file): a 2-of-3 with In shares and Share 2 in Vault 1 at Place
 1: Save into Vault 1 puts that share there, the item is done only then,
 and the sealed vault holds it after the lock. Restore with that vault
@@ -1779,7 +1779,7 @@ that reads as another slot's stick (a blank stick read alike) reads
 **Strings** (`faraday-strings`, `backup_flow_` prefix): "Mark it as {}
 {}", "This is {} {}", "Not one of this backup's sticks".
 
-**Tests** (`tests/stick_pills.rs`): on a device shell no pills without a
+**Tests** (`tests/all/stick_pills.rs`): on a device shell no pills without a
 flow, the boot pill and a pill per slot with one; no action on a device;
 a bound stick lights its own pill only; a stick matching no slot lights
 none and reads its line; the mark line shows after binding and goes on
@@ -2050,7 +2050,7 @@ seed". §17's strings the board no longer draws are removed.
 
 ### 19.9 Tests
 
-`faraday-core/tests/backup_board.rs`, through the app's events as a
+`faraday-core/tests/all/backup_board.rs`, through the app's events as a
 person makes them (a press, moves past the slop, a lift), on a 2-of-3
 with three keys made here unless said:
 
@@ -2517,7 +2517,7 @@ F40. Built in F2d.
      no warning at no place, and its × removes it from the list as today.
    - After the lock, a vault's stick and the vault change as §17.8
      already allows; nothing here widens it.
-4. **Tests** (user-facing behaviour, `tests/backup_board.rs`): a press
+4. **Tests** (user-facing behaviour, `tests/all/backup_board.rs`): a press
    on **+ stick** with nothing held shows a new empty stick and a
    further **+ stick**, and The plan and the checklist are unchanged;
    a file dropped on the empty stick is kept on a stick of the plan at
@@ -2567,7 +2567,7 @@ seen. Built in F2d with §19.16.
    closed lock (`Icon::Lock`) in `VAULT_ON`, as the chips sealed in it
    carry, in place of `Icon::Vault`; the vault's chip in the list
    (`Thing::Vault`) takes the closed lock too.
-6. **Tests** (`tests/backup_board.rs`): a drop on the files box of a
+6. **Tests** (`tests/all/backup_board.rs`): a drop on the files box of a
    stick that carries a vault keeps the thing on the stick as a file,
    not in the vault; a stick with no vault takes a drop on its files box
    the same; the files box is there, empty, on a new stick. Snapshots of
@@ -2588,7 +2588,7 @@ after the name, which says typing adds to it, though typing replaces it.
    ordinary text field, the caret at the end of what is typed. An arrow
    key or Home or End lets the selection go and puts the caret there,
    as any text field does.
-3. **Tests** (`tests/backup_board.rs`): after the press, one key typed
+3. **Tests** (`tests/all/backup_board.rs`): after the press, one key typed
    gives a name of that one character; a snapshot of the name just
    pressed, and after one key.
 
@@ -2970,7 +2970,7 @@ Strings `board_spend_*` in `faraday-strings`. The tags are worked out
 in `board_view`, once a frame through the drawing memo; the sheet's
 decision works out each place's reach before and after the drop.
 
-**Tests** (`tests/backup_spend_reach.rs`): a 2-of-3 with a second seed
+**Tests** (`tests/all/backup_spend_reach.rs`): a 2-of-3 with a second seed
 dropped at a place reads "Can spend alone" without the description and
 asks with the sheet, Take it off undoing the drop; a 3-of-5 with one
 seed per place reads "Spends with 2 more places", and a second seed

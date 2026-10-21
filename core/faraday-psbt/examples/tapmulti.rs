@@ -18,7 +18,7 @@
 //! per key under the leaf's hash, and the input not final, because
 //! `sign` finalizes nothing. Two of three satisfies the leaf, so Core
 //! finalizes it, and so does the Sign flow, which hands over the
-//! finished transaction. `tests/tapmulti.rs` checks the committed files
+//! finished transaction. `tests/all/tapmulti.rs` checks the committed files
 //! against this code.
 #![allow(dead_code)]
 

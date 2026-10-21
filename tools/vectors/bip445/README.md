@@ -9,12 +9,12 @@ check the digest changed for a reason.
 
 | File | Downloaded | SHA-256 | Read by |
 |---|---|---|---|
-| `nonce_gen_vectors.json` | 2026-09-18 | `b9a2256b923784adec9183290454001857e2becbe50bb6956adfaa63147048c3` | `core/faraday-bip/tests/frost.rs` |
-| `nonce_agg_vectors.json` | 2026-09-18 | `b2f470b9ae6aed57bab3336c915d8e23e3db4c0e51b7dd181cf93216e09b7c7a` | `core/faraday-bip/tests/frost.rs` |
-| `sign_verify_vectors.json` | 2026-09-18 | `9c6651f34f5e714af276fc6ee243a8e69bc3a03b29805dce1526353e0213f737` | `core/faraday-bip/tests/frost.rs` |
-| `tweak_vectors.json` | 2026-09-18 | `236adcb702a052713d2d8cc88fff603eb81c2e9324ffcfffb11b2c9c59a445d9` | `core/faraday-bip/tests/frost.rs` |
-| `det_sign_vectors.json` | 2026-09-18 | `b8c2f66194736df7d279c140ae90e8b7562cf03ca731f54c4f97cde4d87c72a0` | `core/faraday-bip/tests/frost.rs` |
-| `sig_agg_vectors.json` | 2026-09-18 | `4ac061cf6a931ea3c044fa497338ad15d9b332e8eb190b93424ce50ba06d1c4c` | `core/faraday-bip/tests/frost.rs` |
+| `nonce_gen_vectors.json` | 2026-09-18 | `b9a2256b923784adec9183290454001857e2becbe50bb6956adfaa63147048c3` | `core/faraday-bip/tests/all/frost.rs` |
+| `nonce_agg_vectors.json` | 2026-09-18 | `b2f470b9ae6aed57bab3336c915d8e23e3db4c0e51b7dd181cf93216e09b7c7a` | `core/faraday-bip/tests/all/frost.rs` |
+| `sign_verify_vectors.json` | 2026-09-18 | `9c6651f34f5e714af276fc6ee243a8e69bc3a03b29805dce1526353e0213f737` | `core/faraday-bip/tests/all/frost.rs` |
+| `tweak_vectors.json` | 2026-09-18 | `236adcb702a052713d2d8cc88fff603eb81c2e9324ffcfffb11b2c9c59a445d9` | `core/faraday-bip/tests/all/frost.rs` |
+| `det_sign_vectors.json` | 2026-09-18 | `b8c2f66194736df7d279c140ae90e8b7562cf03ca731f54c4f97cde4d87c72a0` | `core/faraday-bip/tests/all/frost.rs` |
+| `sig_agg_vectors.json` | 2026-09-18 | `4ac061cf6a931ea3c044fa497338ad15d9b332e8eb190b93424ce50ba06d1c4c` | `core/faraday-bip/tests/all/frost.rs` |
 | `test_vectors_summary.md` | 2026-09-18 | `6bb8799adc83314b9f580f54697076d1b787ab679c467e74c3c404db7a64fd59` | people |
 
 `test_vectors_summary.md` is the reference's own description of the
@@ -24,7 +24,7 @@ own key setup and shared inputs that the cases index into. Identifiers
 are 0-based; a participant with identifier `id` holds the polynomial's
 value at `id + 1`, and the group secret is its value at 0.
 
-`core/faraday-bip/tests/frost.rs` reads all six. `nonce_gen`: the secret and
+`core/faraday-bip/tests/all/frost.rs` reads all six. `nonce_gen`: the secret and
 public nonce each fixed `rand` draws, with and without the optional
 inputs. `nonce_agg`: both sums and the three malformed nonces, each
 blamed on the signer the file names. `sign_verify`: every partial

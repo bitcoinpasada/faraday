@@ -110,7 +110,7 @@ already parsed); `faraday_crypto::hash::sha256` on small fixed inputs;
 | `faraday/shells/snapshot/src/main.rs`: `main` | `new(\|_\| {})` | A tool |
 | `faraday/tools/argon2-bench/src/main.rs`: `main` | `new(\|_\| {})` | A benchmark tool |
 | `faraday-core/src/testkit.rs`: `testkit::compute()` (cfg `test`/`testkit`) | `new(work::core_count)` | Faraday's tests and the snapshot tool's sessions |
-| `compute()` in `faraday-vault`'s `src/tests.rs` and `examples/vectors.rs`, `faraday-disk/tests/disks.rs`, `faraday-files/tests/picture.rs`, `faraday-qr/tests/formats.rs` and `interop.rs`, `faraday-scanner/src/lib.rs` (its unit tests), `faraday-starter/tests/{bitlocker,notes,template}.rs`, the Starter's `examples/snap.rs` | `new(\|_\| {})` | Tests and tools in crates that cannot reach faraday-core's test kit |
+| `compute()` in `faraday-vault`'s `src/tests.rs` and `examples/vectors.rs`, `faraday-disk/tests/disks.rs`, `faraday-files/tests/picture.rs`, `faraday-qr/tests/formats.rs` and `interop.rs`, `faraday-scanner/src/lib.rs` (its unit tests), `faraday-starter/tests/all/{bitlocker,notes,template}.rs`, the Starter's `examples/snap.rs` | `new(\|_\| {})` | Tests and tools in crates that cannot reach faraday-core's test kit |
 | Core tests and benches, `fuzz/`, `faraday/fuzz/` | `unchecked()` | No app guarantee |
 
 The costs lint's `MINTS` (`tools/costs-lint/src/main.rs`) is this table,
@@ -201,9 +201,9 @@ and mixed gives the same text and checksum, equal to the `h` form's
 Wallets it made already write `h`. Wallets imported with `'` now export
 `h` and show a different checksum. Faraday's stored records were already `h`. Tests whose
 expectations change from `'` to `h`: `faraday-bip` (`policy.rs` units,
-`coldcard.rs`, `multisig_config.rs`, `tests/{descriptor,bsms,musig,
-recovery,silent}.rs`), `faraday-psbt` (`tests/multisig.rs`, `musig.rs`,
-`common/builder.rs`); reading tests keep their `'` inputs.
+`coldcard.rs`, `multisig_config.rs`, `tests/all/{descriptor,bsms,musig,
+recovery,silent}.rs`), `faraday-psbt` (`tests/all/multisig.rs`, `musig.rs`,
+`tests/all/common/builder.rs`); reading tests keep their `'` inputs.
 
 ## 6. Batches
 

@@ -610,7 +610,7 @@ User-facing behaviour and published vectors (`CLAUDE.md`).
 
 ### 10.1 Vectors
 
-`tools/vectors/bip85/` is OpenSigner's (`core/faraday-bip/tests/bip85.rs`
+`tools/vectors/bip85/` is OpenSigner's (`core/faraday-bip/tests/all/bip85.rs`
 reads it) and is not changed: its extractor skips Nostr, and adding it
 there would be drift from OpenSigner's copy (`docs/history/UPSTREAM.md`). Faraday's are a new folder, `tools/vectors/nostr/`,
 as `tools/vectors/vault/` is Faraday's:

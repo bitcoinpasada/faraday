@@ -39,7 +39,7 @@
 
 The first two receive and change addresses of each, checked against
 Bitcoin Core v29.4.0 `deriveaddresses` on this machine on 2026-09-13 and
-against `miniscript` used directly (`core/faraday-bip/tests/miniscript.rs`).
+against `miniscript` used directly (`core/faraday-bip/tests/all/miniscript.rs`).
 
 | Wallet | Chain | 0 | 1 |
 |---|---|---|---|
@@ -60,7 +60,7 @@ Core also accepted both descriptors' checksums, `#d9zz2z8e` for the
 rows above. Its two taproot answers are new descriptors, and their first
 two receive and change addresses were checked against Bitcoin Core
 v31.1.0 `deriveaddresses` on this machine on 2026-09-18
-(`core/faraday-bip/tests/recovery.rs`):
+(`core/faraday-bip/tests/all/recovery.rs`):
 
 - **key path**, one primary key and one recovery key after 52 560
   blocks, the primary on the key path —
@@ -180,7 +180,7 @@ The three PSBTs this device wrote are written by
 `cargo run -p faraday-psbt --example musig -- tools/vectors/psbt`, that is
 `just psbt-fixtures`, under `Aux::Deterministic` and the example's fixed
 session seed, and are checked byte for byte by
-`core/faraday-psbt/tests/musig.rs`, which also carries the rounds the whole
+`core/faraday-psbt/tests/all/musig.rs`, which also carries the rounds the whole
 way with a second signer played in the test, so that the aggregate
 signature this crate builds finalizes the input. The files are recorded
 as they came out of the run:
@@ -310,13 +310,13 @@ signatures would be given.
 The signed fixture is written by
 `cargo run -p faraday-psbt --example tapmulti -- tools/vectors/psbt`, that is
 `just psbt-fixtures`, and checked byte for byte by
-`core/faraday-psbt/tests/tapmulti.rs`.
+`core/faraday-psbt/tests/all/tapmulti.rs`.
 
 ## The warning fixtures
 
 Written by `cargo run -p faraday-psbt --example warnings`, that is
 `just psbt-fixtures`, and checked byte for byte by
-`core/faraday-psbt/tests/fixtures.rs`. All but `warn-network-mismatch.psbt`
+`core/faraday-psbt/tests/all/fixtures.rs`. All but `warn-network-mismatch.psbt`
 are regtest spends of the "abandon … about" seed; addresses that are not
 ours belong to "zoo … wrong". Read them with the `abandon` key loaded on
 regtest.
@@ -358,8 +358,8 @@ these vectors may use them.
 
 Written by `cargo run -p faraday-psbt --example threshold`, that is
 `just psbt-fixtures`, and checked byte for byte by
-`core/faraday-psbt/tests/fixtures.rs`. What the record states is checked by
-`core/faraday-bip/tests/threshold.rs`: it round-trips, its shares lie on one
+`core/faraday-psbt/tests/all/fixtures.rs`. What the record states is checked by
+`core/faraday-bip/tests/all/threshold.rs`: it round-trips, its shares lie on one
 polynomial that gives its group key, any two of the share files rebuild
 it, and its first receive and change addresses are what `miniscript`
 derives from the record's own descriptor line.

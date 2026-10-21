@@ -14,7 +14,7 @@ than a wallet screen, verbatim, from
 BIP-392 is a draft and its "Test Vectors" section reads "TBD"; its
 examples are written as `sp(spscan1q...)` with the payload elided, so
 there is no published string to check an encoding against. What
-`core/faraday-bip/tests/silent.rs` checks instead is the encoding the BIP
+`core/faraday-bip/tests/all/silent.rs` checks instead is the encoding the BIP
 specifies — the human-readable part, the version character `q` and the
 payload `ser256(b_scan) || serP(B_spend)` — and that the descriptor is
 that key expression inside `sp()` with the key origin the BIP puts

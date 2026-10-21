@@ -7,7 +7,7 @@ reason.
 
 | File | Downloaded | SHA-256 | Read by |
 |---|---|---|---|
-| `vectors.json` | 2026-09-18 | `13ebecebdd869dd2bc2cdf69e7ce3a158cf106cac76c39d17682b1c6cdabbdc4` | `core/faraday-bip/tests/slip39.rs` |
+| `vectors.json` | 2026-09-18 | `13ebecebdd869dd2bc2cdf69e7ce3a158cf106cac76c39d17682b1c6cdabbdc4` | `core/faraday-bip/tests/all/slip39.rs` |
 
 The file is 45 cases, each an array of four: a description, the share
 mnemonics, the master secret in hex — empty when the case must be
@@ -32,5 +32,5 @@ The 1024 words are not in this directory: they are embedded in
 (downloaded 2026-09-18, SHA-256
 `bcc4555340332d169718aed8bf31dd9d5248cb7da6e5d355140ef4f1e601eec3`).
 The digest is recorded in the generated module and
-`core/faraday-bip/tests/slip39.rs` rebuilds the file's bytes from the
+`core/faraday-bip/tests/all/slip39.rs` rebuilds the file's bytes from the
 embedded words and re-hashes them, as the BIP-39 lists are checked.

@@ -241,7 +241,7 @@ the scanner and QR sheet in `faraday-core`:
 - **Tests:** the ten BBQr parts against their own base64; Faraday OS's
   envelopes over BBQr `Z`, written by its `qr_transfer.py`; a
   `crypto-account` read back by `faraday-codec`; the app's scan path
-  (`faraday-core/tests/scan.rs`).
+  (`faraday-core/tests/all/scan.rs`).
 
 Built 2026-10-06: Specter `pNofM` written (the QR sheet's **Parts**, for
 a descriptor or a key); every code on the QR sheet says whether it is
@@ -276,7 +276,7 @@ never over a file, saying when it holds a secret. A file read again, or
 the device's animated code coming round again, is saved once. The
 device's Scan now files an envelope of any kind under its name, as §2's
 table says; before, a file Faraday does not read was refused there.
-Tests: `faraday-storage/tests/transfer.rs`.
+Tests: `faraday-storage/tests/all/transfer.rs`.
 
 Not built: camera choice on the desktop shell (it opens the first camera);
 a descriptor scanned while Create waits goes to the Inbox, not into the
@@ -482,9 +482,9 @@ One batch, one review, one completion report.
   `vault_screens.rs` and `vaults.rs` (the sheet's row, the TOTP hold,
   `VaultAction::TotpQr`); `faraday-strings/src/en.rs`.
 - **Tests**, through `Action`s and `StorageEvent`s as their neighbours
-  do; the public codes in `faraday/faraday-core/tests/codes.rs`, which
+  do; the public codes in `faraday/faraday-core/tests/all/codes.rs`, which
   already reads codes back through the camera's decoder (`shown`,
-  `read_png`), the TOTP code in `tests/totp.rs`:
+  `read_png`), the TOTP code in `faraday/faraday-core/tests/all/totp.rs`:
   - each new code reads back as exactly the value its screen shows: a
     wallet's receive 0 and 1 from the card, Create's and Restore's
     Check, the family pages; Vanity's found address; Explore's address,

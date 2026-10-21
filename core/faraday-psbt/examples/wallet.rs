@@ -7,7 +7,7 @@
 //!
 //! Everything is fixed, as in `examples/warnings.rs`: the "abandon …
 //! about" seed with "zoo … wrong" and "legal … yellow" as its two
-//! cosigners, on regtest, and one fake funding output. `tests/fixtures.rs`
+//! cosigners, on regtest, and one fake funding output. `tests/all/fixtures.rs`
 //! checks the committed files against this code.
 #![allow(dead_code)]
 
@@ -17,7 +17,7 @@ use faraday_bip::keys::{MasterKey, Network, ScriptType};
 use faraday_bip::policy::WalletPolicy;
 use faraday_psbt::Psbt;
 
-#[path = "../tests/common/builder.rs"]
+#[path = "../tests/all/common/builder.rs"]
 mod builder;
 
 use builder::{bip48_path, funding_tx, multisig_policy, sorted_multisig_change};

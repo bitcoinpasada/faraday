@@ -23,7 +23,7 @@
 //! place a secret can be erased from.
 //!
 //! The vectors are in `tools/vectors/bip85/`, read by
-//! `core/faraday-bip/tests/bip85.rs`.
+//! `core/faraday-bip/tests/all/bip85.rs`.
 
 use faraday_crypto::Zeroize;
 use faraday_crypto::work::Compute;

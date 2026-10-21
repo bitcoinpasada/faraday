@@ -12,7 +12,7 @@ The list was taken from the `===Test vector 5===` section verbatim; the
 keys were not retyped. To refresh it, download that file again, check the
 digest changed for a reason, and re-extract the bullet list.
 
-`core/faraday-bip/tests/bip32.rs` reads the file: every key in it must be
+`core/faraday-bip/tests/all/bip32.rs` reads the file: every key in it must be
 rejected by `faraday_bip::xkey`, and the reason the decoder gives must be the
 one the BIP states. Vectors 1 to 4 stay in that test file, since they are
 key/child pairs rather than a list.

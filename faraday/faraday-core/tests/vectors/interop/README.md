@@ -1,7 +1,7 @@
 # Other wallets' files
 
 Files other wallets write, taken from those wallets' own test suites on
-2026-10-07, for `tests/interop.rs`. Public keys and addresses only; the
+2026-10-07, for `tests/all/interop.rs`. Public keys and addresses only; the
 seeds behind them are the projects' published test seeds.
 
 | Folder | From | Licence |

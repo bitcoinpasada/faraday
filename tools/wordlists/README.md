@@ -49,7 +49,7 @@ To regenerate, from the repository root:
 
     just wordlists        # or: python3 tools/wordlists/gen.py && cargo fmt --all
 
-Then run `just test`: `core/faraday-bip/tests/wordlists.rs` re-hashes the
-embedded words and compares against `SHA256`, `tests/crosscheck.rs`
-compares every word against the `bip39` crate, and `tests/readings.rs`
+Then run `just test`: `core/faraday-bip/tests/all/wordlists.rs` re-hashes the
+embedded words and compares against `SHA256`, `tests/all/crosscheck.rs`
+compares every word against the `bip39` crate, and `tests/all/readings.rs`
 checks the readings and the composed forms.

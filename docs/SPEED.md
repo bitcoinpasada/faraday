@@ -104,7 +104,7 @@ wallets, flows and open vault records.
 5. **The same answer as before.** Every part changes how often work is
    done, never what a person sees or what is written. F31 (no receive
    address before the backup is done) holds at every step; its tests in
-   `tests/backup_first.rs` pass unchanged.
+   `tests/all/backup_first.rs` pass unchanged.
 
 ## 3. Design
 
@@ -403,27 +403,27 @@ the tree, `just` green.
 
 - **A, the kept values** (§3.1, §3.2, §3.7; issues 120, 121, 126).
   Mechanical: new fields, constructors, accessors, call sites. Tests:
-  - `tests/network.rs`: the "abandon … about" key reads `73c5da0a` on
+  - `tests/all/network.rs`: the "abandon … about" key reads `73c5da0a` on
     the Wallets page before and after the session moves to testnet and
     back.
-  - `tests/silent.rs`: after a label is handed out, the wallet's card
+  - `tests/all/silent.rs`: after a label is handed out, the wallet's card
     shows the checksum of the new policy (the one a descriptor read from
     its exported file gives).
-  - `tests/vault_keys.rs`: a key whose words are in a vault reads as
+  - `tests/all/vault_keys.rs`: a key whose words are in a vault reads as
     kept there, and a key of different words does not; if the app takes
     a seed's words in a second language, the same seed typed in that
     language reads as kept too.
 - **B, the checklist and the hold** (§3.3, §3.4, §3.5; issues 122,
   123, 124). Tests:
-  - `tests/backup_first.rs` passes unchanged.
-  - `tests/backup_checklist.rs`: through a 2-of-3 checklist, after each
+  - `tests/all/backup_first.rs` passes unchanged.
+  - `tests/all/backup_checklist.rs`: through a 2-of-3 checklist, after each
     item is done, the cards drawn tick exactly the items done and every
     card after the waiting one reads "After …" with its title.
-  - `tests/backup_first.rs`: the press that completes the last item
+  - `tests/all/backup_first.rs`: the press that completes the last item
     shows the wallet's receive address on the next frame, with no frame
     drawn between the press and the check (the decision does not wait
     for a memo).
-  - `tests/pictures.rs`: for a descriptor that fits one code and one
+  - `tests/all/pictures.rs`: for a descriptor that fits one code and one
     that needs parts, the public files item lists exactly the picture
     names of the files written.
 - **C, the desktop shell** (§3.6, §3.10, §3.11; issues 125, 129, 130).
@@ -435,7 +435,7 @@ the tree, `just` green.
   built only if it clears every frame.
 - **E, the web demo** (§3.9; issue 128): in the website's own repository.
 - **F, the vault 2 card, the sticks card, the late flow again**
-  (§3.12; issue 119). Tests: `tests/backup_checklist.rs` passes
+  (§3.12; issue 119). Tests: `tests/all/backup_checklist.rs` passes
   unchanged; a vault opened mid-checklist, holding the wallet, ticks
   the vault 2 card on the next frame; a stick's files written show on
   the sticks card on the next frame.
@@ -921,7 +921,7 @@ about ten times slower.
    0.0 (the tick 125); Add a key's Add 1.1 → 0.0 (the tick 1.1). **The
    rule, in every test** (`press_in`): in a debug build a press not on
    the list that stretches a key or makes more than one picture panics,
-   naming itself; `tests/slow_press.rs` taps the checklist, Add and
+   naming itself; `tests/all/slow_press.rs` taps the checklist, Add and
    Enter on an aezeed and checks that the tap does none of it, the
    frame says so, and the tick does it. Enter on Add a key's, New
    key's and a chart's fields does what their buttons do at once: a
@@ -1133,7 +1133,7 @@ read ends the program with its reason before a window is shown.
 4. The Starter's canvas counts its pixel work with faraday-core's
    counter (`work::core_count`, now public).
 
-**Tested.** `faraday-starter/tests/budget.rs`, on Home, the restart
+**Tested.** `faraday-starter/tests/all/budget.rs`, on Home, the restart
 sheet, Start and its restart sheet, Which stick, About, Blank templates,
 Install, the uninstall sheet, the Continue anyway sheet, Transfer and
 Learn: a frame drawn again does no counted work but one `FullCanvas` a

@@ -608,7 +608,7 @@ mod tests {
     /// round's MixColumns kept and no whitening key, so a ten-round run
     /// under an all-zero key schedule is a fixed permutation. What it
     /// is worth checking against is AEZ's own vectors, which the
-    /// integration test in `core/faraday-bip/tests/aez.rs` runs; this one
+    /// integration test in `core/faraday-bip/tests/all/aez.rs` runs; this one
     /// states that enciphering and deciphering are inverse over every
     /// length the two branches divide at.
     #[test]

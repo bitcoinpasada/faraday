@@ -117,17 +117,17 @@ const MINTS: &[(&str, &str, &str)] = &[
         "faraday-scanner's unit tests, which cannot reach faraday-core's test kit",
     ),
     (
-        "faraday/faraday-starter/tests/bitlocker.rs",
+        "faraday/faraday-starter/tests/all/bitlocker.rs",
         "compute",
         "the Starter's tests, which draw nothing",
     ),
     (
-        "faraday/faraday-starter/tests/notes.rs",
+        "faraday/faraday-starter/tests/all/notes.rs",
         "compute",
         "the Starter's tests, which draw nothing",
     ),
     (
-        "faraday/faraday-starter/tests/template.rs",
+        "faraday/faraday-starter/tests/all/template.rs",
         "compute",
         "the Starter's tests, which draw nothing",
     ),

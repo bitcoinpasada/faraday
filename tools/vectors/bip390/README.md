@@ -6,7 +6,7 @@
 per descriptor: `valid` with the scripts it pays to on the lines below
 it, `invalid` on its own.
 
-`core/faraday-bip/tests/musig.rs` reads `descriptors.txt`. Every invalid
+`core/faraday-bip/tests/all/musig.rs` reads `descriptors.txt`. Every invalid
 descriptor must be refused. Of the six valid ones, three are built and
 compared against their scripts; the other three name shapes this crate
 does not build — a participant written as a WIF private key, a taproot

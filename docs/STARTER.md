@@ -714,7 +714,7 @@ guide's firmware step; the maker table's boot menu key, BIOS key and
 setting agreeing with each maker's guide (`faraday-guides`); the lines
 to circle the keys, the maker's first, for Dell, HP and a maker without
 a page, and none on a Mac. F49's: §6.5. Built: `faraday-starter`'s
-`notes.rs`, `tests/notes.rs`; `faraday-core`'s `pdf::notes`; the
+`notes.rs`, `tests/all/notes.rs`; `faraday-core`'s `pdf::notes`; the
 shell's `pdf.rs` as for §3.8.
 
 ### 3.5 Install and uninstall
@@ -776,7 +776,7 @@ T): each of the six choices of Words and Copy makes a PDF whose sheet
 text has those `words:` and `copy:` lines and no `name:`, saved under
 its name; a second save beside a first is named "(2)"; Print makes the
 same PDF bytes as Save and asks the shell to open it. Built:
-`faraday-starter`'s `template.rs`, `tests/template.rs` and the shell's
+`faraday-starter`'s `template.rs`, `tests/all/template.rs` and the shell's
 `pdf.rs`.
 
 ## 4. Writing a stick or a card
@@ -1130,7 +1130,7 @@ stick and the Pi) and Faraday Starter.
   BIOS before starting Windows." when the stick started with Secure
   Boot off, and when the state was not read; not when it started with
   Secure Boot on. The Pi's power-off sheet and Faraday Desktop's never
-  show it (`faraday-core/tests/secure_boot_reminder.rs`, whose
+  show it (`faraday-core/tests/all/secure_boot_reminder.rs`, whose
   "unknown says nothing" test changes to the rule it now encodes).
 - Every guide's last numbered step begins "Turn Secure Boot back on"
   (the Windows, Linux and maker pages) (`faraday-guides`).
@@ -1157,7 +1157,7 @@ the shell (`windows/bitlocker.rs`, `sys.rs`'s WMI and property store,
 
 - With BitLocker on, the Start page offers Temporarily suspend
   BitLocker and the tick box, between Write down and the restart; the
-  restart is offered as without it (`faraday-starter/tests/bitlocker.rs`).
+  restart is offered as without it (`faraday-starter/tests/all/bitlocker.rs`).
 - Suspend asks once ("Waiting for administrator permission"); after it
   the row reads "Suspended · turns back on by itself after Windows
   starts 3 times" with Resume BitLocker, and keeps the count when the
@@ -1168,7 +1168,7 @@ the shell (`windows/bitlocker.rs`, `sys.rs`'s WMI and property store,
   digits, nothing else; no document information, path, computer name
   or key ID; no QR code (no filled squares); the key is never drawn.
 - The elevated copy's verbs against recorded WMI answers
-  (`shells/starter/tests/bitlocker.rs`, `tests/windows/*.wmi`, restored
+  (`shells/starter/tests/all/bitlocker.rs`, `tests/windows/*.wmi`, restored
   from before F33 and adapted): the key read and nothing changed, no
   recovery password added; Suspend with `DisableCount` 3 on operating-
   system volumes only, read back with 3 left; a managed computer's
@@ -1193,15 +1193,15 @@ sheet open when the Starter exits.
   page's BitLocker row, the guard's steps (show, type back, suspend,
   done, resume) and the TV hold on Show the recovery key, in `lib.rs`,
   `decide.rs`, `api.rs`, `draw.rs` and `examples/snap.rs`; the
-  dependency on `faraday-qr` for the key; `tests/bitlocker.rs`,
+  dependency on `faraday-qr` for the key; `tests/all/bitlocker.rs`,
   `tests/unreadable_bitlocker.rs`, and the BitLocker cases of
-  `tests/starter.rs` and `tests/concern_holds.rs`.
+  `tests/all/starter.rs` and `tests/all/concern_holds.rs`.
 - **The Starter's shell** (`faraday/shells/starter`):
   `src/windows/bitlocker.rs`; the BitLocker reading and WMI calls in
   `win.rs`, `sys.rs` and `mod.rs`; `--bitlocker` and `--remind` in
   `main.rs` and `pipe.rs`; the logon Run entry in `install.rs`; the
-  key file Save; `platform.rs`'s BitLocker facts; `tests/bitlocker.rs`,
-  the BitLocker cases of `tests/windows.rs`, and the recorded WMI
+  key file Save; `platform.rs`'s BitLocker facts; `tests/all/bitlocker.rs`,
+  the BitLocker cases of `tests/all/windows.rs`, and the recorded WMI
   answers in `tests/windows/` that serve only them. The VeraCrypt
   driver check stays.
 - **Shared:** `faraday/faraday-qr/src/bitlocker.rs`, its `pub mod`, its

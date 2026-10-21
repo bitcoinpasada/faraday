@@ -14,7 +14,7 @@ digest changed for a reason.
 |---|---|---|---|
 | `bip-0093.mediawiki` | 2026-09-18 | `c847c6e513b64ee6ab10975690757d64a875f77c0e75866a86b733f3985784ec` | `extract.py`, people |
 | `extract.py` | written here | `b9015466d4fcbe1a7ff66a7cbbd30d0ce802d1da333967be9f46c6621f456890` | people |
-| `vectors.json` | 2026-09-18 | `9f6d9d1969072c0a635bf217a26934f7ab5d40e136c9f3d4a4d35acfb4d1447e` | `core/faraday-bip/tests/codex32.rs` |
+| `vectors.json` | 2026-09-18 | `9f6d9d1969072c0a635bf217a26934f7ab5d40e136c9f3d4a4d35acfb4d1447e` | `core/faraday-bip/tests/all/codex32.rs` |
 
 `vectors.json` has four keys, each entry naming the BIP vector it came
 from:
@@ -35,7 +35,7 @@ from:
   threshold that is not a digit, a missing `ms`/`1` prefix, and mixed
   case.
 
-`core/faraday-bip/tests/codex32.rs` reads the file whole. Every secret is
+`core/faraday-bip/tests/all/codex32.rs` reads the file whole. Every secret is
 decoded to its seed and re-encoded; every set derives each share the BIP
 derives and recovers the secret from every combination of the threshold
 many shares; every alternate decodes to the same seed; every invalid

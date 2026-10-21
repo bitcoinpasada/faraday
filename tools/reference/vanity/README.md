@@ -123,5 +123,5 @@ The grinder returns the address as a payload — HASH160 for the
 hash-based scripts — and the two above are
 `03156329a55b2ad8e4225da856e29626edf386c7` and
 `007ab2dae95e9b3d94017ce636048cd910a22e17`, encoded with EntropyLab's
-own `addressFromScript`. `core/faraday-bip/tests/vanity.rs` asserts both
+own `addressFromScript`. `core/faraday-bip/tests/all/vanity.rs` asserts both
 counters and both addresses.

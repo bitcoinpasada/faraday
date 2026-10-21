@@ -302,7 +302,7 @@ extent; a motion left from another screen or sheet is stopped.
     about twice that in a window with twice 1080p's pixels): a smoothed mean counted it, judged
     the machine too slow and cancelled the very fade the sheet had
     started, which is why the owner saw none on the ? button (2026-10-12;
-    `tests/transitions.rs`). `Faraday::settle` ends a
+    `tests/all/transitions.rs`). `Faraday::settle` ends a
     fade and the next frame is drawn at rest, so the snapshot tool and a
     test that reads pixels see the screen itself;
 
@@ -507,15 +507,15 @@ drag, the double tap, the slow touch, two fingers during a drag.
 
 User-facing behaviour only (`CLAUDE.md`):
 
-- `faraday-core/tests/scroll.rs`, rewritten to the new rules: a wheel
+- `faraday-core/tests/all/scroll.rs`, rewritten to the new rules: a wheel
   notch glides and ends exactly 48 pixels on; notches in quick
   succession add up; a pan moves at once; a pan then `ScrollEnd` keeps
   moving and comes to rest; a pan past the top stretches and springs
   back to the top; the wheel at an end does not stretch; offsets are
   whole pixels after any of these; a touchscreen drag scrolls a page.
-- `faraday-core/tests/hover.rs`: hovering a button changes its pixels
+- `faraday-core/tests/all/hover.rs`: hovering a button changes its pixels
   and `HoverEnd` restores them; hovering does not press.
-- `faraday-core/tests/appearance.rs`: Settings › Light turns the page's
+- `faraday-core/tests/all/appearance.rs`: Settings › Light turns the page's
   background light and Dark turns it back; a QR stays black on white.
 - `faraday-draw` canvas: a rounded card cut by a scroll region's top and
   bottom draws the same pixels on the fast path as through the mask.
@@ -618,10 +618,10 @@ smooth as a native window):
 - [x] 4.4 A shape wholly outside the clip is not drawn (§3.2): off-page
       cards no longer cost a fill and a restore each frame.
 - [x] 4.6 Cross-fades back, for a change of screen or sheet, gated on
-      the frame cadence the core measures (§3.5); `tests/transitions.rs`
+      the frame cadence the core measures (§3.5); `tests/all/transitions.rs`
       covers the fade, reduce motion and the slow machine.
 - [x] 4.7 The wheel notch and the arrow keys move 56 units (§3.3),
-      the same amount of page on every screen; `tests/scroll.rs`.
+      the same amount of page on every screen; `tests/all/scroll.rs`.
 - [x] 4.8 The stick's arrow is painted by the input thread that read
       the move, a few rows at a time, on a panel shared under a lock and
       written in bands (§3.2; `panel.rs` and its tests, the band test in
@@ -671,7 +671,7 @@ Same harness and machine as §2, release profile.
   scrolling, as a shell does: a scroll stops where the last frame said
   the page ends.
 - Tests that read pixels after a change tick at 16 ms first, as a shell
-  does (`tests/transitions.rs`, `tests/scroll.rs`).
+  does (`tests/all/transitions.rs`, `tests/all/scroll.rs`).
 - Settings scrolls now: it outgrew 800 units with Appearance and Motion.
 - On the desktop, a `Tick` is sent on every `RedrawRequested` when the
   window is Wayland's (`Shell::paced`); a change that needs a tick before

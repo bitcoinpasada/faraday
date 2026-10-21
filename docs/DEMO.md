@@ -372,7 +372,7 @@ public passphrase (§5.2) and its line; the backup plan's dimmed forms (§5.3); 
 decision 10's exception (§7.1). APK-SIGNING and NOSTR take the gate in
 their own batches.
 
-Tests, in a new `faraday/faraday-core/tests/demo.rs`:
+Tests, in a new `faraday/faraday-core/tests/all/demo.rs`:
 
 - In the demo, the GPG key screen opens and Make a GPG key is
   disabled: pressing it adds no GPG key to the open vault.
@@ -410,9 +410,9 @@ Tests, in a new `faraday/faraday-core/tests/demo.rs`:
 
 Tests:
 
-- `faraday-starter/tests/starter.rs`: Home's rows offer no Try the
+- `faraday-starter/tests/all/starter.rs`: Home's rows offer no Try the
   desktop app; Install offers no desktop app and installs on one press.
-- `shells/starter/tests/install.rs`: Install puts no `faraday-desktop`
+- `shells/starter/tests/all/install.rs`: Install puts no `faraday-desktop`
   and no Faraday Desktop menu entry; a `faraday-desktop` already in
   `~/.local/bin` is the same after Install, after Update and after
   Uninstall.

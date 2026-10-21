@@ -1,0 +1,30 @@
+//! The integration tests of faraday-bip, one module per subject.
+
+mod accounts;
+mod aez;
+mod api;
+mod bip32;
+mod bip387;
+mod bip85;
+mod bsms;
+mod calculators;
+mod codex32;
+mod coldcard;
+mod common;
+mod core_import;
+mod crosscheck;
+mod descriptor;
+mod diceware;
+mod frost;
+mod json;
+mod miniscript;
+mod musig;
+mod readings;
+mod recovery;
+mod silent;
+mod slip132;
+mod slip39;
+mod threshold;
+mod vanity;
+mod vectors;
+mod wordlists;

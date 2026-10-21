@@ -25,7 +25,7 @@ is UTC today.
   before batch 1 is reviewed.
 - Tests go in the files named in §8, driving the app through `Action`s
   and `StorageEvent`s as the neighbouring tests do
-  (`faraday/faraday-core/tests/settings_file.rs`, `gpg.rs`,
+  (`faraday/faraday-core/tests/all/settings_file.rs`, `gpg.rs`,
   `import.rs`). A test states what a person sees or can do.
 - Docs in the same batch as the code they describe (§9).
 - The snapshot tour (`faraday/shells/snapshot/src/main.rs`) gains the
@@ -386,7 +386,7 @@ each row, Now on one line at the top. Check at `480x640` and `240x320`.
 - `normalise` of a bare key reads back through `parse` with the same
   code as the key; of garbage is `None`.
 
-`faraday/faraday-core/tests/clock.rs` (batch 1):
+`faraday/faraday-core/tests/all/clock.rs` (batch 1):
 
 - A `Clock` of 1000 (the Pi at boot): making a GPG key says the clock
   is not known.
@@ -403,7 +403,7 @@ each row, Now on one line at the top. Check at `480x640` and `240x320`.
 - With `UTC−04:00`, "Written to STICK at" shows the local time.
 - Set is not offered for 2026-02-30 or 24:00.
 
-`faraday/faraday-core/tests/totp.rs` (batch 2), with an entry holding
+`faraday/faraday-core/tests/all/totp.rs` (batch 2), with an entry holding
 the RFC 4226 secret as a SHA1 6-digit URI, so the expected codes are
 the RFC's:
 

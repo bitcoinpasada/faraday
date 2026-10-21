@@ -14,7 +14,7 @@
 //!
 //! The share files are secret material of a fixture wallet: they exist
 //! so that the passes that load a share have one to load, and no coin
-//! this group can spend exists. `tests/fixtures.rs` checks the committed
+//! this group can spend exists. `tests/all/fixtures.rs` checks the committed
 //! files against this code.
 #![allow(dead_code)]
 

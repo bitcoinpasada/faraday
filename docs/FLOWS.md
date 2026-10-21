@@ -1757,7 +1757,7 @@ Built 2026-10-19 (`faraday-core/src/in_progress.rs`; the sidebar's
 7. **Speed.** Which flows are in progress is worked out once a frame
    through the drawing memo (`docs/SPEED.md` §3.3) when it costs more
    than lookups; a press decides from the state as it is.
-8. **Tests** (`tests/sidebar.rs`, `tests/small_panel.rs`): Create a
+8. **Tests** (`tests/all/sidebar.rs`, `tests/all/small_panel.rs`): Create a
    wallet taken to Places, Settings opened, then the sidebar's Create a
    wallet row returns to Places with the board as it was left; no row
    before a step is done; the row goes when the flow is finished or
@@ -1918,7 +1918,7 @@ sidebar row (a press on the row only returns to the flow).
    plan, its board.
 4. Create's **Start over** stays: it begins the same flow again; Cancel
    leaves it.
-5. **Tests** (`tests/sidebar.rs`): Create taken to Places, Cancel, the
+5. **Tests** (`tests/all/sidebar.rs`): Create taken to Places, Cancel, the
    sheet, Cancel the flow: Wallets shown, no row, keys made still
    loaded; Keep going keeps it; a flow on its first card ends without
    the sheet; the GPG flow's Cancel removes its Tools row.

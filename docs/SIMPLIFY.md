@@ -29,7 +29,7 @@ every flow with its kind preset, so the everyday surfaces can be quiet.
   tests pass.
 - Where this file names a test, add it to the named file under
   `faraday/faraday-core/tests/`, driving the app through `Action`s as
-  `tests/home.rs` does. A test states what a person sees or can do,
+  `tests/all/home.rs` does. A test states what a person sees or can do,
   never a geometry or a token.
 - Where this file names a doc, update it in the same batch so that the
   doc and the build agree. `docs/FLOWS.md` gets a dated decision line
@@ -49,7 +49,7 @@ every flow with its kind preset, so the everyday surfaces can be quiet.
   goes; §3.4 adds the summary line to the Unlock lead, §3.5 adds lead
   rule 6, §4.3 adds lead rule 4, and §5 adds the Backups tile and the
   wallet card's line, each as that batch's last item, with the Home
-  tests for it in `tests/home.rs`. The session strip's "a vault has
+  tests for it in `tests/all/home.rs`. The session strip's "a vault has
   changed since it was written" clause is likewise §3.5's.
 - Old Home tiles that §1.2 does not name (Load a wallet, Bring a PSBT
   in, the import card, the locked-vault card) go; their jobs are the
@@ -89,7 +89,7 @@ three. Home is the title, then **Start**.
 **Where.** `screens.rs` `fn home` (the `cards` array and its loop).
 The sidebar status block is unchanged.
 
-**Tests.** `tests/home.rs`: with nothing loaded, Home's hit targets are
+**Tests.** `tests/all/home.rs`: with nothing loaded, Home's hit targets are
 Start's tiles, Scan and the sidebar, and no target opens Files or the
 visit from a status card.
 
@@ -132,7 +132,7 @@ not on Home: it is on Wallets' empty state and in Tools.
 lead is the prompt row and the grid drops **Add a key** and **Spend**
 (§6.2) and gains **Learn** (§1.4).
 
-**Tests.** `tests/home.rs`: one test per lead rule, each setting up the
+**Tests.** `tests/all/home.rs`: one test per lead rule, each setting up the
 state and asserting the lead's label and where its tap lands; a test
 that Home never shows more than three Start tiles.
 
@@ -151,7 +151,7 @@ allows it) and from Tools.
 message** beside **Back up** when `message_wallets()` holds the card's
 wallet. `compact_screens::wallet_card` the same.
 
-**Tests.** `tests/home.rs` or a new `tests/wallets_page.rs`: with
+**Tests.** `tests/all/home.rs` or a new `tests/all/wallets_page.rs`: with
 wallets loaded, the Wallets page's targets are the wallet rows, the
 card's buttons and Add a key; the card offers Sign a message for a
 single-key wallet with its key here and not otherwise.
@@ -165,7 +165,7 @@ tile in the same place. The "?" button stays.
 **Where.** `screens.rs` sidebar `items` (about line 342); `compact.rs`
 `fn tiles`.
 
-**Tests.** `tests/sidebar.rs`, `tests/small_panel.rs`: Learn is
+**Tests.** `tests/all/sidebar.rs`, `tests/all/small_panel.rs`: Learn is
 offered and opens the Learn sheet.
 
 ### 1.5 The network pill only off mainnet; the chooser in Settings
@@ -182,7 +182,7 @@ removed once nothing opens it.
 **Where.** `screens.rs` `fn network_pill`, `fn settings`; `compact.rs`
 `fn home`; `lib.rs` `Action::NetworkAsk`.
 
-**Tests.** `tests/network.rs`: on mainnet Home has no network target;
+**Tests.** `tests/all/network.rs`: on mainnet Home has no network target;
 Settings changes the network; off mainnet Home shows the badge.
 
 ### 1.6 The session strip
@@ -204,7 +204,7 @@ sheet asks to lock.
 **Where.** `screens.rs` sidebar status block; `compact.rs` `fn home`
 status card; a `fn session_stage(&self)` on `Faraday` in `lib.rs`.
 
-**Tests.** `tests/sidebar.rs`: the stage for each of the four states.
+**Tests.** `tests/all/sidebar.rs`: the stage for each of the four states.
 
 **Docs.** `docs/DESIGN.md` §4.1 (Status line, Sidebar), `docs/FLOWS.md`
 Home.
@@ -229,8 +229,8 @@ where it opens today. On the small panel the same:
 **Change**; each flow's card builder sets it. The flows' `open` state
 at entry: `create.rs`, `keygen.rs`, `vaults.rs`, `wallet.rs`.
 
-**Tests.** `tests/create_vault.rs`, a new `tests/create_wallet.rs`,
-`tests/keygen.rs`: at entry the open card is the one this file says;
+**Tests.** `tests/all/create_vault.rs`, a new `tests/all/create_wallet.rs`,
+`tests/all/keygen.rs`: at entry the open card is the one this file says;
 Change opens the card; the cards after it keep their values.
 
 **Docs.** `docs/DESIGN.md` §4.14 (Progress and state) gains the rule.
@@ -250,7 +250,7 @@ whatever the kind.
 **Where.** `screens.rs` `fn create_screen` (`CSTEPS`, the Kind card's
 rows), `create.rs`.
 
-**Tests.** `tests/create_wallet.rs`: a fresh Create opens on Keys with
+**Tests.** `tests/all/create_wallet.rs`: a fresh Create opens on Keys with
 the single-key kind; More kinds offers FROST; a Tools tile for MuSig2
 opens Create with MuSig2 chosen and Kind closed.
 
@@ -274,10 +274,10 @@ change to this path.
 **Where.** `screens.rs` `fn create_screen`, `create.rs` (`cstep`),
 `backup.rs` entry from Create, `faraday/shells/snapshot/src/main.rs`.
 
-**Tests.** `tests/create_wallet.rs`: after Check, the next card is Back
+**Tests.** `tests/all/create_wallet.rs`: after Check, the next card is Back
 up with three presets; choosing Paper and vault opens the backup on the
 new wallet with that preset; Back returns to the wallet card.
-`tests/backup_plan.rs`: the plan's public-files item lists the files
+`tests/all/backup_plan.rs`: the plan's public-files item lists the files
 Create's Public files card listed, drawn from the wallet.
 
 **Docs.** `docs/WALLETS.md` §5 (the Create table and the Backup
@@ -301,7 +301,7 @@ shown and the title "Add a key · SLIP-39 shares" (the form's name).
 **Where.** `screens.rs` `fn entry` (about line 11150 on), `catalog.rs`
 unchanged.
 
-**Tests.** `tests/forms.rs`: a fresh Add a key offers the words form
+**Tests.** `tests/all/forms.rs`: a fresh Add a key offers the words form
 and no share form until Other forms; the SLIP-39 tile opens on shares.
 
 ### 2.5 Sign a transaction: Transaction before Check, no Txid step
@@ -325,7 +325,7 @@ nothing.
 **Where.** `screens.rs` `fn spend` (`STEPS`), `wallet.rs` `mod step`,
 `memory.rs`, `faraday/shells/snapshot/src/main.rs` `spend_tour`.
 
-**Tests.** `tests/spend_loaded.rs` or `tests/finish.rs`: the card after
+**Tests.** `tests/all/spend_loaded.rs` or `tests/all/finish.rs`: the card after
 Wallet is Transaction and carries the txid; a wallet whose Check card
 had Continue pressed has Check closed on the next spend, still after a
 lock and the next process, and open again in a fresh process; a wallet
@@ -344,7 +344,7 @@ Title). The step count moved off the title and beside it, 2026-10-10
 
 **Where.** `flow.rs` `fn paged`.
 
-**Tests.** `tests/small_panel.rs`: a flow's page title carries no
+**Tests.** `tests/all/small_panel.rs`: a flow's page title carries no
 count, and the step count is drawn as its own text.
 
 ### 2.7 Scan never covers a tile
@@ -356,7 +356,7 @@ no tile is under the button.
 **Where.** `compact.rs` `fn home`, the `tiles` loop and
 `compact_screens::finish`.
 
-**Tests.** `tests/small_panel.rs`: with the full grid, every tile's hit
+**Tests.** `tests/all/small_panel.rs`: with the full grid, every tile's hit
 area is clear of Scan's.
 
 ### 2.8 The idle sheet has no clock
@@ -368,7 +368,7 @@ closes on input and the lock still fires at the set time.
 
 **Where.** `screens.rs` idle sheet (about line 13270).
 
-**Tests.** `tests/idle.rs`: the sheet's text does not change from one
+**Tests.** `tests/all/idle.rs`: the sheet's text does not change from one
 second to the next; the lock fires at the set time.
 
 ## 3. Vaults
@@ -390,7 +390,7 @@ computer cannot spare is refused as now.
 line 837), `vaults.rs` (`PRESETS` gains the 512 MiB entry; the
 `cost` preset index).
 
-**Tests.** `tests/create_vault.rs`: a fresh Create opens on Name and
+**Tests.** `tests/all/create_vault.rs`: a fresh Create opens on Name and
 passphrases with 64 MiB chosen; PCs only gives 512 MiB; Customise
 exposes the three cards and a custom memory survives Continue.
 
@@ -417,7 +417,7 @@ kind as the category rows' Add actions do today.
 
 **Where.** `vault_screens.rs` Unlock caption, Vault contents.
 
-**Tests.** `tests/vault_way.rs`, `tests/vault_keys.rs`: Create lands on
+**Tests.** `tests/all/vault_way.rs`, `tests/all/vault_keys.rs`: Create lands on
 Unlock with the caption; an empty open vault offers the two buttons; a
 vault with one key lists Keys and Add… and no other category.
 
@@ -438,7 +438,7 @@ vault with no summary reads "Unlock to see what it holds".
 **Where.** `vaults.rs` (`VaultSummary`, built on unlock and on every
 save), `memory.rs`, `vault_screens.rs` Vaults list, `screens.rs` Home.
 
-**Tests.** `tests/vault_keys.rs` or a new `tests/vault_summary.rs`:
+**Tests.** `tests/all/vault_keys.rs` or a new `tests/all/vault_summary.rs`:
 after unlock, lock and the next process, the Vaults list names the
 vault's wallet and key; after power-off (a fresh `Faraday` with no kept
 state) it does not.
@@ -465,7 +465,7 @@ lock and power-off sheets (§4.5).
 **Where.** `vaults.rs` (`fn currency`), `vault_screens.rs`,
 `screens.rs` sheets.
 
-**Tests.** `tests/vault_way.rs` or `tests/vault_summary.rs`: the three
+**Tests.** `tests/all/vault_way.rs` or `tests/all/vault_summary.rs`: the three
 states in order across create, write, change.
 
 **Docs.** `docs/FLOWS.md` Vaults overview.
@@ -486,7 +486,7 @@ Code names (`inbox`, `outbox`, `FileKind`) do not change.
 **Where.** `grep -n 'Inbox\|Outbox' faraday/faraday-core/src/*.rs
 faraday/faraday-learn/src/pages/en.rs docs/learn/` and every match a person reads.
 
-**Tests.** `tests/inbox.rs`: no screen's labels contain "Inbox" or
+**Tests.** `tests/all/inbox.rs`: no screen's labels contain "Inbox" or
 "Outbox". (This is a test of what a person sees; it exempts nothing
 because nothing shown should carry the words.)
 
@@ -516,10 +516,10 @@ own push for the secret sheet),
 `screens.rs` Finish, the backup checklist's public-files item, GPG and
 message screens, `vault_screens.rs` lock.
 
-**Tests.** `tests/finish.rs`: finishing a spend puts both files For the
-stick with no further press; `tests/backup_checklist.rs`: making the
+**Tests.** `tests/all/finish.rs`: finishing a spend puts both files For the
+stick with no further press; `tests/all/backup_checklist.rs`: making the
 checklist with Sparrow chosen puts the wallet file For the stick and
-the item is done; `tests/secrets.rs` unchanged and still passing.
+the item is done; `tests/all/secrets.rs` unchanged and still passing.
 
 **Docs.** `docs/FLOWS.md` decision 6 and the Finish line of the Wallets
 tab, `docs/WALLETS.md` §5 item 7.
@@ -539,7 +539,7 @@ nothing on it is written again.
 **Where.** `lib.rs` visit write completion, `memory.rs`, `screens.rs`
 `fn files` and `fn home`, `compact.rs` prompts.
 
-**Tests.** `tests/visit.rs`: after a write, Files lists the receipt
+**Tests.** `tests/all/visit.rs`: after a write, Files lists the receipt
 with the file names; after the lock that follows and the next process,
 it is still listed and Home leads with it; a fresh process has none.
 
@@ -578,7 +578,7 @@ of §1.2 rule 3 reopens the sheet.
 or reuses the Unlock screen's field logic from `vault_screens.rs`),
 `boot_import_screen.rs`, `screens.rs`.
 
-**Tests.** `tests/boot_import.rs`, `tests/boot.rs`: each bullet above
+**Tests.** `tests/all/boot_import.rs`, `tests/all/boot.rs`: each bullet above
 as one test: what the sheet offers with the stick in, after the pull
 with one vault, with two, with none and files, with settings only; a
 right passphrase imports the wallets and closes; a wrong one stays;
@@ -602,7 +602,7 @@ rows at lines 12502, 12509, 13241, 13258 and the "Not in a vault" row
 at line 12626), `vaults.rs` `unsaved`,
 `Faraday::backup_kept`.
 
-**Tests.** `tests/airgap.rs` or `tests/backup_stick.rs`: with a seed
+**Tests.** `tests/all/airgap.rs` or `tests/all/backup_stick.rs`: with a seed
 copied and checked and in a vault, the lock sheet lists it as kept
 and nothing as "nowhere else"; with a seed in memory only, that seed
 is listed "nowhere else".
@@ -617,7 +617,7 @@ and size. **Select all** goes; **Unselect all** takes its place.
 **Where.** `screens.rs` stick visit (about line 10400), `lib.rs` visit
 state.
 
-**Tests.** `tests/visit.rs`: a fresh visit has the PSBTs and
+**Tests.** `tests/all/visit.rs`: a fresh visit has the PSBTs and
 descriptors ticked and the words file not.
 
 ### 4.7 The visit says where it goes next
@@ -629,7 +629,7 @@ Home leads with the receipt (§4.3).
 
 **Where.** `screens.rs` stick visit header.
 
-**Tests.** `tests/visit.rs`: the chip's text in both cases.
+**Tests.** `tests/all/visit.rs`: the chip's text in both cases.
 
 ## 5. Backups
 
@@ -653,7 +653,7 @@ the top, scrolling. On the small panel, one wallet per page.
 `backups_screen.rs`, `backup.rs` (`fn backup_kept` extended to read a
 plan record and a receipt), sidebar unchanged.
 
-**Tests.** A new `tests/backups.rs`: a wallet backed up with Paper and
+**Tests.** A new `tests/all/backups.rs`: a wallet backed up with Paper and
 vault shows its two paper places checked and the vault line sealed;
 after the vault is written, the vault line names the stick; a wallet
 with no plan offers Back up; a wallet seen only in a locked vault's
@@ -671,7 +671,7 @@ there. Tapping the line opens Backups on that wallet.
 
 **Where.** `screens.rs` `fn wallets` card, `compact_screens::wallet_card`.
 
-**Tests.** `tests/backups.rs`: the card's line for a backed-up wallet
+**Tests.** `tests/all/backups.rs`: the card's line for a backed-up wallet
 and for a fresh one.
 
 ## 6. Guided and the Spend tab
@@ -688,7 +688,7 @@ the left; a first start is on Guided.
 **Where.** `lib.rs` `guided: false` at construction;
 `stick_settings.rs` `apply_setting`.
 
-**Tests.** `tests/settings_file.rs`: a fresh app is Guided; one whose
+**Tests.** `tests/all/settings_file.rs`: a fresh app is Guided; one whose
 settings file says `guided=0` is Steps only.
 
 **Docs.** `docs/WALLETS.md` §6, `docs/FAMILY.md` §2.
@@ -706,8 +706,8 @@ kept across a lock is unchanged.
 **Where.** `screens.rs` sidebar `items`, `fn start` empty state,
 `learn_sheet`; `compact.rs` `fn tiles`.
 
-**Tests.** `tests/family.rs`: the Spend tab opens from the Wallets
-empty state and from Learn; `tests/sidebar.rs`: the sidebar has no
+**Tests.** `tests/all/family.rs`: the Spend tab opens from the Wallets
+empty state and from Learn; `tests/all/sidebar.rs`: the sidebar has no
 Spend row.
 
 **Docs.** `docs/FAMILY.md` §2 "Where it sits", `docs/FLOWS.md` Spend

@@ -22,7 +22,7 @@ use faraday_psbt::{
     Aux, Context, Inspection, KeyRef, Nonce, OutputKind, Psbt, finalize, inspect, sign,
 };
 
-#[path = "../tests/common/builder.rs"]
+#[path = "../tests/all/common/builder.rs"]
 mod builder;
 
 const USAGE: &str = "\

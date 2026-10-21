@@ -3,7 +3,7 @@
 **Status:** v0.3 · 2026-10-11 (page 3 and the guessed Check,
 `docs/SCAN-TO-SIGN.md` §4 and §5) · built: `faraday-core/src/family.rs`
 (state and logic), `family_screen.rs`, `family_text.rs`,
-`tests/family.rs`, and the snapshot tool's `spend` tour
+`tests/all/family.rs`, and the snapshot tool's `spend` tour
 (`cargo run -p faraday-snapshot -- 1366x768 out/testkit OUT spend`).
 The code names it `family`; the tab is labelled **Spend**.
 
@@ -455,7 +455,7 @@ writing it back is safe and optional.)*
 
 Nothing upstream is edited; no new dependency.
 
-**Tests** (`tests/family.rs`, user-facing behaviour, on the test kit):
+**Tests** (`tests/all/family.rs`, user-facing behaviour, on the test kit):
 - Vault route end to end: the test stick's `vault.ofv` and passphrase
   `test vault` → the wallet opens → a spend from Files → signed → finished,
   with the same signature bytes as Wallets › Sign.

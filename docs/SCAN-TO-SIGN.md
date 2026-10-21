@@ -27,8 +27,8 @@ to GPG's Sign a file.
   §5. Each is one review and one completion report. Do not start batch
   B before batch A is reviewed.
 - Tests drive the app through `Action`s, `Command`s and scanner payloads
-  as the neighbouring tests do (`tests/scan.rs`, `tests/glance.rs`,
-  `tests/family.rs`, `tests/spend_from_vault.rs`, `tests/gpg.rs`), on the
+  as the neighbouring tests do (`tests/all/scan.rs`, `tests/all/glance.rs`,
+  `tests/all/family.rs`, `tests/all/spend_from_vault.rs`, `tests/all/gpg.rs`), on the
   test kit's seeds (`testkit::TEST_SEEDS`) and its 2-of-3 wallet. A test
   states what a person sees or can do; never a geometry, a token or a
   colour.
@@ -102,7 +102,7 @@ The sub-lines stay ("Single key or multisig", "From its backups").
 action and stays. `docs/learn/` and `docs/FLOWS.md` follow where they
 name the tiles.
 
-Tests: `tests/home.rs` asserts the two new names on Home and on the
+Tests: `tests/all/home.rs` asserts the two new names on Home and on the
 empty Wallets tab; the tests that pressed the old names press the new.
 
 ## 2. Scan a key (batch A)
@@ -193,7 +193,7 @@ is (Add key is then the primary). The foot's own "Scan a SeedQR" goes.
 Other forms, Make a new key and the rest are unchanged. Small panel
 alike, above its word keyboard's field.
 
-Tests (`tests/scan_a_key.rs`, new): on the 2-of-3 wallet with Seed A
+Tests (`tests/all/scan_a_key.rs`, new): on the 2-of-3 wallet with Seed A
 loaded,
 - the card offers Scan a key and no "Add its key" anywhere; pressing it
   turns the camera on;
@@ -243,7 +243,7 @@ not drawn beside it, on these rows as on the chart.
 `guide.rs`'s Who signs text names the chip "Signs here", which stays;
 it changes only if the wording drifts.
 
-Tests (`tests/spend_from_vault.rs`, `tests/family.rs`): at quorum the
+Tests (`tests/all/spend_from_vault.rs`, `tests/all/family.rs`): at quorum the
 card shows `2 of 2 signatures here` and Can spend and no Scan a key,
 Scan a SeedQR or Collect a signature; short, it shows `1 of 2
 signatures here · 1 more needed`, Scan a key, and no Type its words;
@@ -335,7 +335,7 @@ are. A wallet card's **Spend from this wallet** skips the intake as now
 (`docs/FAMILY.md` §7). The Loaded overview (`family_overview`) is
 unchanged.
 
-Tests (`tests/family.rs`, rewritten where it pressed the answers):
+Tests (`tests/all/family.rs`, rewritten where it pressed the answers):
 - a vault in Files: the card offers Unlock {vault}; the test stick's
   vault and passphrase open the wallet and the column goes on to Check
   (the old vault route test, through the new card);
@@ -386,7 +386,7 @@ passphrase**, which reopen the intake card. A wallet that came from a
 description or a vault was not guessed: its Check page is as now, with
 **Yes, my money shows** in place of It matches.
 
-Tests (`tests/family.rs`): on the single-key route, No money shows
+Tests (`tests/all/family.rs`): on the single-key route, No money shows
 steps through the passphrase question, Taproot, nested SegWit and
 legacy, each with its own first address; Continue is reached only by
 Yes, my money shows; after legacy the None of these line shows; a
@@ -415,7 +415,7 @@ cleared when the Inbox changes), `VaultAction::GpgTick(usize)`,
 `GpgTickAll`, `GpgSignTicked`. `gpg_sign(k)` stays for the QR and PNG
 paths.
 
-Tests (`tests/gpg.rs`): two files ticked and Sign 2 files put two `.asc`
+Tests (`tests/all/gpg.rs`): two files ticked and Sign 2 files put two `.asc`
 in the Outbox, each verifying against its own file with the key's
 certificate (as the existing sign test verifies); an `.asc` in the
 Inbox is not listed; with one file it is ticked and Sign 1 file signs

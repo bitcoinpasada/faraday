@@ -90,7 +90,7 @@ with shares a person has not heard of.
 with a #0062A3 accent (`docs/MOTION.md` §3.7).
 **Where.** `faraday/faraday-ui/src/lib.rs` `enum Theme` (the
 `#[default]` and the doc comments that name the first-start theme).
-**Tests.** `tests/appearance.rs`: a first start is in the light theme
+**Tests.** `tests/all/appearance.rs`: a first start is in the light theme
 (change the test that says otherwise).
 
 ### 1.2 No bar for a test network
@@ -116,7 +116,7 @@ still show their value and **Change** (§4.14).
 **Where.** `create.rs`/`lib.rs` where Create's `open` is set at entry;
 `KeyGen::new` (`keygen.rs`), whose comment cites the rule being
 reversed; the Length body in `keygen_screen.rs`.
-**Tests.** `tests/create_wallet.rs`, `tests/keygen.rs`: a fresh Create
+**Tests.** `tests/all/create_wallet.rs`, `tests/all/keygen.rs`: a fresh Create
 opens on Kind; a Tools tile for MuSig2 opens on Kind with MuSig2 ticked;
 a fresh New key opens on Length, and two Continues reach the entry card.
 
@@ -127,7 +127,7 @@ not offered in any other slot; a cosigner's file whose key fills one
 slot is not offered in another. Clearing the slot offers it again.
 **Where.** `screens.rs` `create_body`, `cstep::KEYS` (the `row` built
 per slot).
-**Tests.** `tests/create_wallet.rs`: on a 2-of-3, after a key fills Key
+**Tests.** `tests/all/create_wallet.rs`: on a 2-of-3, after a key fills Key
 1, Key 2 does not offer it; after Clear on Key 1, it does.
 
 ### 2.3 The Keys card's foot button
@@ -137,7 +137,7 @@ per slot).
 slot, and opens New key for that slot. Once no slot is empty it reads
 **Continue**, as now.
 **Where.** `create_body`, the Continue at the end of `cstep::KEYS`.
-**Tests.** `tests/create_wallet.rs`: on a fresh 2-of-3 the foot button
+**Tests.** `tests/all/create_wallet.rs`: on a fresh 2-of-3 the foot button
 opens New key for Key 1.
 
 ### 2.4 Check names whose addresses they are
@@ -262,7 +262,7 @@ passphrase, if any, was given when it was loaded.
 and Create's re-entry), the session's way of removing a key (find the
 one Seeds' Forget uses).
 
-**Tests.** `tests/keygen.rs`:
+**Tests.** `tests/all/keygen.rs`:
 - a Create-slot New key shows no Words or Quiz card;
 - Lock in with a passphrase adds the key whose fingerprint is that of
   the words with that passphrase (compare with `add_words_with`);
@@ -277,13 +277,13 @@ one Seeds' Forget uses).
 - New key on its own shows no passphrase fields and adds the key
   without one.
 
-`tests/create_wallet.rs`: a key made on its own, chosen for a
+`tests/all/create_wallet.rs`: a key made on its own, chosen for a
 single-key slot, takes a passphrase there; the slot then holds the
 fingerprint of the words with that passphrase, and the wallet made is
 that key's; a slot whose key has a passphrase offers no Add a
 passphrase.
 
-`tests/backup_plan.rs`: a single-key Create with a passphrase gives a
+`tests/all/backup_plan.rs`: a single-key Create with a passphrase gives a
 plan that asks where the passphrase goes.
 
 **Docs.** `docs/FLOWS.md` (New key and Create), `docs/WALLETS.md` §5.
@@ -321,9 +321,9 @@ rebuilds the whole description from shares; that other software
 (Sparrow, a coordinator) needs the whole description, so the person
 rebuilding uses Faraday or rebuilds it first.
 
-**Tests.** `tests/backup_plan.rs`: a fresh multisig plan keeps the whole
+**Tests.** `tests/all/backup_plan.rs`: a fresh multisig plan keeps the whole
 sheet in each place; ticking Its own share on a 3-of-5 offers 0 to 2
-keys left off; What is a share? opens the page. `tests/learn.rs` if it
+keys left off; What is a share? opens the page. `tests/all/learn.rs` if it
 lists every page.
 
 ## 5. Back up: one seed per vault
@@ -395,12 +395,12 @@ follows is the questions as they were.
 `backup_body`, `seed_copies`, the map panel), `lib.rs` (`bstep`,
 `plan::Item`), the For the stick defaults (SIMPLIFY §4.2's code).
 
-**Tests.** `tests/backup_plan.rs`: a 2-of-3 with two seeds here and
+**Tests.** `tests/all/backup_plan.rs`: a 2-of-3 with two seeds here and
 Paper and vault makes two vaults, one seed each, each stick at a place
 without that seed's words; ticking seed 2 into vault 1 too keeps both;
 an old plan text with one `sticks` line still loads.
-`tests/backup_checklist.rs`: two vault items; the second does not
-accept the vault the first filled. `tests/backup_stick.rs`: with two
+`tests/all/backup_checklist.rs`: two vault items; the second does not
+accept the vault the first filled. `tests/all/backup_stick.rs`: with two
 vault files waiting, a visit ticks one.
 
 **Docs.** `docs/WALLETS.md` §5, `docs/VAULT.md` (a vault per seed by
@@ -485,7 +485,7 @@ panel's code to reuse), `plan.rs` (the per-spot finding), a new
 `faraday-core/src/glance.rs` for the chart's layout, `core/faraday-draw/src/
 tokens.rs`, `compact_screens.rs` for the small panel's page.
 
-**Tests.** A new `tests/glance.rs`: a single-key wallet with the Paper
+**Tests.** A new `tests/all/glance.rs`: a single-key wallet with the Paper
 and vault preset shows Place 1, Place 2 and Vault 1, with the seed's
 words at one place and the vault's stick at the other; a 2-of-3 with one
 cosigner xpub shows that key as "Cosigner · xpub only" and no backup
@@ -523,7 +523,7 @@ nodes only, with "No backup plan in this vault".
 **Where.** `vault_screens.rs` (the open vault's view), the chart's
 layout from §6 with its reverse direction, `compact_screens.rs`.
 
-**Tests.** `tests/glance.rs`: an open vault holding a wallet with a plan
+**Tests.** `tests/all/glance.rs`: an open vault holding a wallet with a plan
 shows the chart with the places above the keys and the keys above the
 wallet; pressing the wallet node opens its card.
 
@@ -668,7 +668,7 @@ from inside a flow still returns to that flow.
 ### 11.1a The Vaults list's Unlock loads too (owner, 2026-10-10)
 
 Built first for the boot sheet's Unlock only, because the Vaults list's
-Unlock loaded nothing until Load was pressed (`tests/boot.rs`
+Unlock loaded nothing until Load was pressed (`tests/all/boot.rs`
 `unlocking_loads_nothing_until_the_person_chooses`). The owner reversed
 that: an Unlock from the Vaults list loads the wallets the vault holds,
 with their keys where the vault holds them (as the boot sheet's Unlock
@@ -726,7 +726,7 @@ PSBT reads, goes to its Check, skipping the pages before.
 button), `family.rs`/`family_screen.rs` (entering the flow on a wallet
 already open, the shortcut), `compact_screens.rs`.
 
-**Tests.** A new `tests/spend_from_vault.rs`: unlocking a vault that
+**Tests.** A new `tests/all/spend_from_vault.rs`: unlocking a vault that
 holds a wallet lands on Wallets with that wallet selected and the toast;
 Spend from this wallet opens on Load the wallet in Sparrow; the shortcut
 scans a PSBT and opens its Check; with a PSBT for the wallet in Files
@@ -789,7 +789,7 @@ tab's (§11 and `docs/FAMILY.md`), whose routes keep working.
 `compact_screens.rs`, the Spend tab's entry into what was Restore's
 transaction card.
 
-**Tests.** `tests/restore.rs` (new or the existing one): Restore opens
+**Tests.** `tests/all/restore.rs` (new or the existing one): Restore opens
 on Kind with no transaction card; a 2-of-3 from three typed seeds, one
 with a passphrase, makes the wallet whose descriptor is the one Sparrow
 would make (compare with a fixed vector); the description scanned first
@@ -839,7 +839,7 @@ seeds. Restore ends on a choice, every time.
    the backup (2026-10-16), and the likely place is the backup flow
    taking the screen once `restore_wallet` attaches the wallet to it
    (`wallet_flow_attach`, `backup_flow_wallet.rs`).
-6. **Tests** (`faraday-core/tests/restore.rs`): the two of item 5; on
+6. **Tests** (`faraday-core/tests/all/restore.rs`): the two of item 5; on
    Done, each choice does what it says (Spend opens the spend for this
    wallet, Back up opens Back up on it or, with vaults, resumes its flow
    at the plan with the vaults set up, Wallets opens it); after Spend,
@@ -900,7 +900,7 @@ each field keeps its own filter and limits.
 fields' handling in `lib.rs`, `secret_text.rs`, `keygen.rs` (the
 entries' box: a deletion in the middle removes those entries).
 
-**Tests.** `tests/caret.rs` and `tests/select.rs`: a drag over three
+**Tests.** `tests/all/caret.rs` and `tests/all/select.rs`: a drag over three
 characters and Backspace leaves the rest; typing over a selection
 replaces it; in a passphrase field the same, and the key made is the
 words with the edited passphrase; in the dice box, deleting rolls 4 to
@@ -913,7 +913,7 @@ do) as the chosen button from the start, on the desktop and the small
 panel, as any choice shows its value.
 
 **Where.** `keygen_screen.rs` `length_counts` and the compact Length
-page. **Tests.** `tests/keygen.rs`: a fresh New key draws 12 words as
+page. **Tests.** `tests/all/keygen.rs`: a fresh New key draws 12 words as
 chosen.
 
 ### 13.4 An empty passphrase field says "No passphrase" in a pill
@@ -929,7 +929,7 @@ first character typed replaces it with the dots. A field for a vault's
 passphrase, which is never optional, keeps no pill. The locked Key
 card's Set / Not set pill (§3.3) is unchanged.
 
-**Tests.** `tests/keygen.rs`: an empty Key card field draws "No
+**Tests.** `tests/all/keygen.rs`: an empty Key card field draws "No
 passphrase" and no "None"; after one character it does not.
 
 ## 14. The backup comes before spending
@@ -1010,7 +1010,7 @@ is the one way out of a forced item, so:
 3. The hold on spending (§14.3) follows the plan now chosen: a simpler
    plan is allowed, and its own checklist must still be completed.
 
-**Tests** (`tests/backup_first.rs`): changing from Paper and vault to
+**Tests** (`tests/all/backup_first.rs`): changing from Paper and vault to
 Paper only after the vault item is done keeps the vault's copy on the
 map and holds the key until the paper items are done; a plan with the
 seed unticked everywhere offers no Make the checklist.
@@ -1051,11 +1051,11 @@ Who signs), `plan.rs` (the stick fallback, the why line), `vaults.rs`
 (the made-here flag in the key record), `backups.rs`, `family.rs` (Who
 signs on the Spend tab).
 
-**Tests.** `tests/backup_checklist.rs`: a vault item offers only Make a
+**Tests.** `tests/all/backup_checklist.rs`: a vault item offers only Make a
 vault, then only Save into the vault, then Continue; the next item does
-not open before. `tests/backup_plan.rs`: a vault with no stick place
+not open before. `tests/all/backup_plan.rs`: a vault with no stick place
 holds Places; the single key with words unticked places Vault 1's
-stick. New `tests/backup_first.rs`: a key from New key cannot sign until
+stick. New `tests/all/backup_first.rs`: a key from New key cannot sign until
 its wallet's checklist is complete, and can after; a restored key signs
 at once; after a lock and an unlock from the vault the held key is still
 held; the card's address carries the warning until the backup is done; with
@@ -1320,7 +1320,7 @@ rule), `screens.rs` (the copy item in `backup_body`, `copy_check`,
 `item_action`, `entry`), `compact_screens.rs` (`entry`),
 `glance_sheet.rs`, `held.rs` and `backups.rs` (the record's checks).
 
-**Tests** (`tests/check_copy.rs`, rewritten; the helpers of
+**Tests** (`tests/all/check_copy.rs`, rewritten; the helpers of
 `backup_first.rs`, `backup_checklist.rs`, `backups.rs`,
 `backup_stick.rs`, `backup_again.rs`, `names_kept.rs` and
 `seed_backup.rs` that type numbers type words instead):
@@ -1550,7 +1550,7 @@ split so Lock in and Entry's Add share the loading), the small panel's
 
 ### 15.5 Tests
 
-`tests/keygen.rs`, `tests/home.rs`, `tests/forms.rs`, `tests/catalog.rs`:
+`tests/all/keygen.rs`, `tests/all/home.rs`, `tests/all/forms.rs`, `tests/all/catalog.rs`:
 
 - Add a key from the Wallets page opens on Start, offering Make a new
   key, Type the words, Scan a SeedQR and, under Other forms, the four
@@ -1565,7 +1565,7 @@ split so Lock in and Entry's Add share the loading), the small panel's
 - The codex32 tile opens on the codex32 Words card.
 - A key wanted by fingerprint still opens the Entry screen.
 
-The tests that state decision 18 (`tests/forms.rs`, Add a key opens on
+The tests that state decision 18 (`tests/all/forms.rs`, Add a key opens on
 the words form; `scan_a_key.rs` `add_a_key_leads_with_scan_a_seedqr`;
 `home.rs` `add_a_key_from_wallets_opens_add_a_key`) change to this rule.
 
@@ -1651,7 +1651,7 @@ panel's Create pages. Strings in `faraday-strings`.
 
 ### 16.5 Tests
 
-`tests/create_wallet.rs`, `tests/vault_keys.rs`:
+`tests/all/create_wallet.rs`, `tests/all/vault_keys.rs`:
 
 - with a vault open holding a key not loaded, a 2-of-3's Key 1 offers
   it under the vault's name; pressing it loads the key and fills Key 1,
@@ -1734,7 +1734,7 @@ Path and Kind after Change.
 
 ### 17.3 Tests
 
-`tests/create_wallet.rs`, `tests/backup_flow_wallet.rs`:
+`tests/all/create_wallet.rs`, `tests/all/backup_flow_wallet.rs`:
 
 - Check shows `m/84'/1'/0'` for a single key on testnet; Change takes
   the wallet back, Kind opens, no wallet is left; at account 2 the
@@ -1794,7 +1794,7 @@ held, `lock_ask` for the person and for a flow, `lock_for_flow`,
 sheet's Ends row), `screens.rs` (`lock_held_pill` in the sidebar),
 `compact.rs` (the small Home). Strings `lock_held_*`.
 
-**Tests** (`tests/idle.rs`): the session warned at 25 minutes and
+**Tests** (`tests/all/idle.rs`): the session warned at 25 minutes and
 locked at 30, power-off at 60; Make a new wallet begun with a key holds
 the lock past two hours and shows the pill; once it is cancelled the
 idle lock comes back at 30; Lock while held asks with Ends "Make a new

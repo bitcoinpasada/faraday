@@ -9,8 +9,8 @@
 //! The expected values are copied from the vector files the integration
 //! tests use (`tools/vectors/bip39/vectors.json`,
 //! `tools/vectors/bip39/test_JP_BIP39.json`,
-//! `tools/vectors/psbt/rfc6979.txt`, `core/faraday-bip/tests/bip32.rs`,
-//! `core/faraday-bip/tests/accounts.rs`, `tools/vectors/kdf/README.md`) and
+//! `tools/vectors/psbt/rfc6979.txt`, `core/faraday-bip/tests/all/bip32.rs`,
+//! `core/faraday-bip/tests/all/accounts.rs`, `tools/vectors/kdf/README.md`) and
 //! from libsecp256k1's copy of the BIP-340 vectors; nothing here is
 //! retyped. The whole set runs in a few milliseconds in a release build:
 //! one PBKDF2 at 2048 rounds per BIP-39 seed, a handful of EC
@@ -150,7 +150,7 @@ fn bip39_vector(c: &Compute) -> bool {
 // The words are written as a reader sees them, with the ideographic
 // space the Japanese list is displayed with. The passphrase is not
 // ASCII, so it is stated in the NFKD form BIP-39 hashes — the same bytes
-// `core/faraday-bip/tests/vectors.rs` derives from the file — and goes
+// `core/faraday-bip/tests/all/vectors.rs` derives from the file — and goes
 // through `to_seed_unchecked`, which is that form without the ASCII
 // check.
 

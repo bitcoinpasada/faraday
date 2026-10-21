@@ -8,10 +8,10 @@
 //! Everything is fixed: the "abandon … about" seed on regtest, the
 //! "zoo … wrong" seed for the addresses that are not ours, one fake
 //! funding output per input, and no randomness anywhere, so the files
-//! are byte-identical from one run to the next. `tests/fixtures.rs`
+//! are byte-identical from one run to the next. `tests/all/fixtures.rs`
 //! checks the committed files against this code.
 //!
-//! Each fixture is built the way `tests/inspect.rs` builds the same
+//! Each fixture is built the way `tests/all/inspect.rs` builds the same
 //! warning. A few warnings cannot appear alone; where a file carries
 //! more than one, its note says so.
 #![allow(dead_code)]
@@ -26,7 +26,7 @@ use faraday_bip::keys::{MasterKey, Network, ScriptType};
 use faraday_crypto::work::Compute;
 use faraday_psbt::Psbt;
 
-#[path = "../tests/common/builder.rs"]
+#[path = "../tests/all/common/builder.rs"]
 mod builder;
 
 use builder::{Build, single_sig};

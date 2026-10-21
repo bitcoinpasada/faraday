@@ -210,6 +210,16 @@ The plan's phases 1 and 2 stand, with these changes:
   `settle` and `add_key` are each defined once. faraday-intake gets
   vector tests. No test is deleted. Test names keep the file as a module
   prefix, so the count before and after is the check.
+  - Done 2026-10-21 for faraday-core (110 binaries to 1), faraday-bip
+    (27), faraday-psbt (14), faraday-starter (12), the Starter shell (10)
+    and faraday-storage (8): `tests/all/main.rs`, one module per former
+    file. All 2,394 tests are kept, under `<file>::` names.
+    - Rebuilding the test binaries after a faraday-core change went from
+      59 s to 10 s.
+    - The identical copies of `type_text`, `shown`, `device` and
+      `add_key` moved into `common`; copies that differ stay where they
+      are.
+    - faraday-intake's vector tests are still to do (phase 6).
 - **`lint-docs.sh`:**
   - It skips `docs/history/` for path resolution. PLANNING alone names
     about 70 paths from upstream's layout.

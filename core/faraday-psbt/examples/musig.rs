@@ -10,7 +10,7 @@
 //! `wallet-musig-core-first.psbt` with Bitcoin Core 31.1 on regtest.
 //! This writes what the device wrote in both orders, under
 //! [`Aux::Deterministic`] and a fixed session seed so that every byte is
-//! reproducible, and `tests/musig.rs` checks the committed files against
+//! reproducible, and `tests/all/musig.rs` checks the committed files against
 //! this code:
 //!
 //! - Core first: `wallet-musig-core-first-signed.psbt`, the device

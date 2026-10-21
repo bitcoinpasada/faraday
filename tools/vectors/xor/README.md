@@ -41,7 +41,7 @@ itself, XORed the parts with a plain byte fold, and compared all three
 answers. That test was OpenSigner's app's and went with it (F68); until
 it is restored beside `SeedXor`, no test reads these files.
 `seed_xor_parts_combine_into_the_seeds_words`
-(`faraday/faraday-core/tests/forms.rs`) uses the 12-word example's words.
+(`faraday/faraday-core/tests/all/forms.rs`) uses the 12-word example's words.
 
 Swap these for Coldcard's own examples when a machine with network
 access can fetch them; the file format and the test do not change.

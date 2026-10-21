@@ -7,10 +7,10 @@ digest changed for a reason.
 
 | File | Downloaded | SHA-256 | Read by |
 |---|---|---|---|
-| `bip-0129.mediawiki` | 2026-09-18 | `e31e847c6b87f192086c89313f19beae3ac7ace4038e61bde983dcd8ba2e3814` | `core/faraday-bip/tests/bsms.rs`, people |
+| `bip-0129.mediawiki` | 2026-09-18 | `e31e847c6b87f192086c89313f19beae3ac7ace4038e61bde983dcd8ba2e3814` | `core/faraday-bip/tests/all/bsms.rs`, people |
 
 BIP 129 ships no separate vector files: its examples are the `<pre>`
-blocks of the text itself, and `core/faraday-bip/tests/bsms.rs` reads them
+blocks of the text itself, and `core/faraday-bip/tests/all/bsms.rs` reads them
 out of the file rather than copying them. Four sessions are written out:
 
 | Session | Keys | Key records | Descriptor record |

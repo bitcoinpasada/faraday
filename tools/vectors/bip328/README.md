@@ -11,5 +11,5 @@ Source:
 downloaded 2026-09-12. The values were taken from the bullet list; no key
 was retyped.
 
-`core/faraday-bip/tests/musig.rs` reads the file: `aggregate_xpub` must
+`core/faraday-bip/tests/all/musig.rs` reads the file: `aggregate_xpub` must
 produce both the aggregate key and the extended key of every case.

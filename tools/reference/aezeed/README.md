@@ -7,7 +7,7 @@ later change to a source shows up as a change to this page.
 
 Only one thing is vendored: `aez-testdata/`, the seven JSON vector files
 the AEZ reference implementation publishes, copied byte for byte and
-read by `core/faraday-bip/tests/aez.rs`. Everything else was cloned to read
+read by `core/faraday-bip/tests/all/aez.rs`. Everything else was cloned to read
 and nothing else is kept.
 
 | Source | URL | Commit | Read |

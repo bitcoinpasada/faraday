@@ -1584,7 +1584,7 @@ mod tests {
     /// A group record is neither a BIP-388 policy nor a descriptor, and
     /// the two readers that expect one of those refuse it. What reads it
     /// is [`WalletPolicy::parse_any`], which
-    /// `core/faraday-bip/tests/threshold.rs` carries with the committed
+    /// `core/faraday-bip/tests/all/threshold.rs` carries with the committed
     /// fixture.
     #[test]
     fn a_threshold_record_is_not_a_policy_or_a_descriptor() {

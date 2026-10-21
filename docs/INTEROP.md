@@ -25,7 +25,7 @@ those files and codes for the major desktop, mobile and hardware wallets.
   transaction it accepts. Core's own wallet export (`listdescriptors`)
   reads in Faraday as its BIP-84 wallet, with Core's first address.
   **Passed against Bitcoin Core 31.1.0, 2026-10-07: every check.**
-- **Other wallets' files** (`faraday-core/tests/interop.rs`, in `just`):
+- **Other wallets' files** (`faraday-core/tests/all/interop.rs`, in `just`):
   files from Sparrow's and BlueWallet's own test suites
   (`tests/vectors/interop/README.md`). Each must load as the wallet the
   other wallet holds; where the file states an address (Coldcard's
@@ -45,15 +45,15 @@ the files and codes they write.
 | Sparrow, Liana, Nunchuk, BlueWallet, Keeper | Descriptor with `<0;1>` | yes | yes | Sparrow's and Coldcard Mk4's files |
 | Coldcard, Sparrow, Electrum, Nunchuk, BlueWallet, Keystone, Jade, Keeper | Coldcard multisig setup `.txt` (one derivation, or one per key) | yes | yes | Coldcard's, Sparrow's and Electrum's files |
 | Nunchuk, Sparrow, Coldcard, Keeper | BIP 129 descriptor record, also with an upper-case bech32 address or `No path restrictions` (§5 I3) | yes, first address checked | yes | Nunchuk's and Sparrow's records |
-| Nunchuk, Coldcard | BIP 129 signer record (a cosigner's key) | yes, signature checked | yes | `tests/bsms.rs` |
+| Nunchuk, Coldcard | BIP 129 signer record (a cosigner's key) | yes, signature checked | yes | `faraday-core/tests/all/bsms.rs` |
 | Coldcard, Passport, Nunchuk, Sparrow | Coldcard's generic account export `.json`, as a single-sig wallet | yes (BIP-84, else 86, 49, 44), `first` checked | — | Coldcard Mk4, Coldcard Q, Nunchuk, Sparrow |
 | Sparrow, Specter | Specter Desktop wallet `.json` with a `<0;1>` descriptor | yes | yes | Faraday's own read back; not against Specter |
 | Sparrow, Keystone, SeedSigner, Jade, Passport | `ur:crypto-output`, `ur:crypto-account`, `ur:crypto-hdkey` | yes | `crypto-account` for a wsh cosigner key | Sparrow's multisig code, a Keystone/Cobo account code, SeedSigner's vector |
 | Every coordinator | PSBT: binary, base64, `ur:crypto-psbt`, `ur:psbt`, BBQr `P` | yes | binary, `crypto-psbt`, BBQr `P` | BlueWallet's sample, Core |
 | Coldcard, Sparrow | Finished transaction as hex (`-final.txn`) | yes | yes | Core |
-| SeedSigner, Krux, Jade, Coldcard Q | SeedQR, CompactSeedQR | yes | yes (backup grid) | SeedQR's specification vectors (`faraday-codec`), `tests/import.rs` |
-| Trezor, Keystone | SLIP-39 shares | yes | yes | `tests/keygen_slip39.rs` |
-| Coldcard | Seed XOR, BIP-85 | yes | yes | `tests/forms.rs`, `tests/bip85.rs` |
+| SeedSigner, Krux, Jade, Coldcard Q | SeedQR, CompactSeedQR | yes | yes (backup grid) | SeedQR's specification vectors (`faraday-codec`), `tests/all/import.rs` |
+| Trezor, Keystone | SLIP-39 shares | yes | yes | `tests/all/keygen_slip39.rs` |
+| Coldcard | Seed XOR, BIP-85 | yes | yes | `tests/all/forms.rs`, `tests/all/bip85.rs` |
 | Ledger, Trezor, BitBox02 | BIP-39 words | yes | — | — |
 | Coldcard, Passport, Unchained | Cosigner key file (`ccxp-….json`, flat `p2wsh`/`p2sh_p2wsh`/`p2sh`, SLIP-132 keys) and the generic export's `bip48_1`, `bip48_2`, `bip45` accounts, in Create's key slots | yes, the account the kind needs | — | Coldcard's key file against its own setup file; Unchained's file against the same Coldcard's export |
 | Sparrow, Bitcoin Core | A receive and a change descriptor, one per line or in `listdescriptors` | yes, as `<0;1>` | — | Sparrow's files; Core's `listdescriptors`, first address against Core's |
@@ -168,7 +168,7 @@ refusal's sentence staying in `faraday_intake::wallet::mismatch_text`),
 called from `read_wallet_as_written` before `parse_any`,
 `create::read_keys`, Coldcard's files and `faraday_bip::multisig_config`, which
 since 2026-10-20 refuses a key whose version disagrees with its `Format:`
-itself (so a rebuilt backup config is checked too, `restore::readable`). Tests (`tests/interop.rs`): Casa's descriptor loads as
+itself (so a rebuilt backup config is checked too, `restore::readable`). Tests (`tests/all/interop.rs`): Casa's descriptor loads as
 `sh(wsh(sortedmulti(3,…)))`; Specter DIY's keystore fills a native SegWit
 slot; Keystone's singlesig keystore (upper-case fingerprint, `/1/*` only)
 reads as `<0;1>`; `wpkh(Zpub…)` and `wsh(multi(…Ypub…))` are refused; the

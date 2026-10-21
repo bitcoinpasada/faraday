@@ -627,7 +627,7 @@ there:
 - Removing the block from Faraday's output and restoring the offset
   gives back the unsigned file.
 
-**In `faraday-core/tests/apk.rs`**, through `Action`s as `gpg.rs` does:
+**In `faraday-core/tests/all/apk.rs`**, through `Action`s as `gpg.rs` does:
 
 - Make an APK key puts a type 12 record in the open vault, and the
   certificate For the stick; the vault sealed and opened again shows the

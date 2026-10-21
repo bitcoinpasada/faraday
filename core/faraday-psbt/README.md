@@ -301,19 +301,19 @@ creator → extractor chain including the master `tprv` Bitcoin Core signed
 with) and RFC 6979 cross-check vectors (`rfc6979.txt`, from python-ecdsa
 and Bitcoin Core's `key_tests.cpp`). The files are blank-line separated
 records of `key: value` lines; each file's header lists its keys. Tests:
-`tests/vectors.rs`, `tests/sign.rs`, `tests/inspect.rs`,
-`tests/multisig.rs`, `tests/nonce.rs`.
+`tests/all/vectors.rs`, `tests/all/sign.rs`, `tests/all/inspect.rs`,
+`tests/all/multisig.rs`, `tests/all/nonce.rs`.
 
 The threshold fixtures (`wallet-threshold-*`) are the committed regtest
 group, Bitcoin Core's funded spend of it, the carry file the first
 location wrote and the transaction the second one finished;
-`tests/threshold.rs` runs the route in both orders and every refusal, and
+`tests/all/threshold.rs` runs the route in both orders and every refusal, and
 `tools/scripts/threshold-reference.py` replays one session against BIP
 445's own reference implementation.
 
 The MuSig2 fixtures (`wallet-musig-*`) are Bitcoin Core 31.1's own PSBTs
 from a regtest round trip in both orders, with the commands and the
-accepted transaction in `tools/vectors/psbt/README.md`; `tests/musig.rs`
+accepted transaction in `tools/vectors/psbt/README.md`; `tests/all/musig.rs`
 reads them.
 
 ## Example

@@ -26,8 +26,8 @@ changes and nothing else has to be kept in step.
 - `just` is the check: tests, clippy with warnings as errors, fmt and the
   lints in the `lint` recipe. Keep every test passing or change it to the
   rule it now encodes; do not delete a test to make the build pass. Run
-  it once, at the end; while working, run the one test file you touched
-  (`cargo nextest run -p faraday-core --test keygen`). To look at a
+  it once, at the end; while working, run the one test module you touched
+  (`cargo nextest run -p faraday-core -E 'test(/^keygen::/)'`). To look at a
   screen, render one tour at one size (`just faraday-snap 480x640 spend`,
   into `out/snapshots/faraday/480x640/spend/`); `just faraday-snapshots`,
   the default tour at every size, is for a change to the layout engine

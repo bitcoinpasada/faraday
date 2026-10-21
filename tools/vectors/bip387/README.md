@@ -8,9 +8,9 @@ ones with the reason each is invalid.
 
 | File | Downloaded | SHA-256 | Read by |
 |---|---|---|---|
-| `bip-0387.mediawiki` | 2026-09-18 | `c0761b2b078dbfc1a973ae3f5187ce58c47688fe3ec58ca75f1fbb80f6b03207` | `core/faraday-bip/tests/bip387.rs` |
+| `bip-0387.mediawiki` | 2026-09-18 | `c0761b2b078dbfc1a973ae3f5187ce58c47688fe3ec58ca75f1fbb80f6b03207` | `core/faraday-bip/tests/all/bip387.rs` |
 
-`core/faraday-bip/tests/bip387.rs` reads the two lists out of the text and
+`core/faraday-bip/tests/all/bip387.rs` reads the two lists out of the text and
 checks every script. The keys are raw public keys, WIF private keys and
 extended private keys, which no wallet of this tree loads, so what the
 vectors check is the reader underneath a wallet: `miniscript` for
