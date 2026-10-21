@@ -20,6 +20,10 @@ Faraday took the code in house on 2026-10-20.
   PSBTs, message signatures, the entropy and secret-handling crates) is
   tested against published vectors or an independent implementation
   before it is committed, as everything there already is.
+- Conservative as OpenSigner is: no change loosens a check. What it
+  refuses stays refused (a multisig key without an origin, a guessed
+  path, an ambiguous input); accepting more than a standard requires is
+  the owner's decision (F65).
 - OpenSigner's licence and copyright notices stay as they are.
 - Faraday's strings stay in `faraday/faraday-strings`; OpenSigner's
   strings file keeps OpenSigner's strings (CLAUDE.md).

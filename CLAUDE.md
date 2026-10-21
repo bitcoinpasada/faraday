@@ -42,7 +42,11 @@ changes and nothing else has to be kept in step.
   `docs/UPSTREAM.md`, F65): fix a thing at its source rather than wrap
   it. Each change there is its own commit, listed in `docs/UPSTREAM.md`
   §3 the same day; a cryptographic change is tested against published
-  vectors or another implementation.
+  vectors or another implementation. Owning the code never loosens it:
+  what OpenSigner refuses stays refused (a multisig key without an
+  origin, a guessed path, an ambiguous input); refuse what cannot be
+  verified rather than assume; accepting more than a standard requires
+  is the owner's decision, recorded in DECISIONS.
 - Faraday's own version of an upstream type keeps what upstream's works
   out once and keeps (a key's fingerprint, its share); a spec that
   re-implements an upstream type lists those values.

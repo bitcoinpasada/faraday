@@ -2320,6 +2320,15 @@ the costly functions, upstream's included.
   become optional.
 - OpenSigner's licence and notices stay; the README says Faraday began
   as a fork and that `core/` is now Faraday's to review.
+- **The fork keeps OpenSigner's caution.** Owning the code is for fixing
+  gaps, speed and correctness, never for loosening a check. What
+  OpenSigner refuses stays refused: a key without an origin in a
+  multisig (BIP-388), a guessed path, an input that could mean two
+  things, anything a standard leaves undefined. Faraday follows the
+  BIPs strictly and refuses what it cannot verify rather than assume;
+  accepting more than a standard requires (as F64's BIP 129 tidy-up
+  does, with the first-address check kept) is a decision for the owner,
+  recorded here.
 - Faraday's strings stay in `faraday-strings`.
 - `docs/PLANNING.md` stays upstream's planning record and is not edited
   for Faraday's decisions.
