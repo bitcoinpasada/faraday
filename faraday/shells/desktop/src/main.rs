@@ -75,6 +75,7 @@ use faraday_core::strings::{EN, fill};
 use faraday_core::{Action, BOOT_FOLDER, Faraday, Screen, StickInfo, StorageEvent};
 use faraday_storage::{Boxes, Dirs, Host, serve_with, stick_info};
 use faraday_window::camera::{self, Camera};
+use faraday_window::clipboard::Clipboard;
 use faraday_window::entropy;
 use faraday_window::input::Pointer;
 use faraday_window::lens::{Lens, LensHost};
@@ -188,6 +189,8 @@ struct Shell {
     /// The webcam, when the app asks for it, and the scanner that reads
     /// its frames on its own thread (`faraday-window`).
     lens: Lens,
+    /// The system clipboard, read for the scanner's Paste.
+    clipboard: Clipboard,
 }
 
 impl Shell {
@@ -262,6 +265,9 @@ impl Shell {
                     Command::RequestEntropy => events.extend(entropy()),
                     Command::CameraOn => events.extend(self.lens.on(app)),
                     Command::CameraOff => self.lens.off(),
+                    Command::RequestClipboard { kind } => {
+                        events.push(self.clipboard.answer(kind));
+                    }
                     Command::Exit => {
                         if app.restart_requested() {
                             for line in
@@ -670,6 +676,8 @@ fn desktop_app_after_lock() -> Faraday {
 fn desktop_app_for(release: bool) -> Faraday {
     let mut app = Faraday::new();
     app.online = true;
+    // This shell answers `RequestClipboard` (faraday_window::clipboard).
+    app.clipboard = true;
     app.shell_sticks = true;
     app.session = faraday_core::wallet::Session::default();
     let c = app.compute();
@@ -895,6 +903,7 @@ fn main() -> ExitCode {
         last_slow: None,
         pointer: Pointer::new(),
         lens: Lens::new(Camera::new(None, false)),
+        clipboard: Clipboard::system(),
     };
     match event_loop.run_app(&mut shell) {
         Ok(()) => ExitCode::SUCCESS,

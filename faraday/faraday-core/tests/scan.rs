@@ -587,3 +587,31 @@ fn the_scanner_draws_its_state_over_the_picture() {
     app.event(Event::CameraFailed(osk_shell_api::CameraFailure::InUse));
     let _ = app.frame();
 }
+
+fn asks_for_clipboard(app: &mut Faraday) -> bool {
+    std::iter::from_fn(|| app.poll_command())
+        .any(|c| matches!(c, osk_shell_api::Command::RequestClipboard { .. }))
+}
+
+#[test]
+fn ctrl_v_on_the_open_scanner_pastes_and_elsewhere_does_nothing() {
+    let mut app = scanning(Vec::new());
+    app.clipboard = true;
+    app.event(Event::Key(osk_shell_api::Key::Paste));
+    assert!(asks_for_clipboard(&mut app), "Ctrl+V did not ask");
+    // The same refusal of a secret as the Paste tile.
+    app.event(Event::Clipboard {
+        kind: osk_shell_api::FileKind::Text,
+        text: "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".into(),
+    });
+    assert!(app.inbox.is_empty() && app.session.keys.is_empty());
+    // With the clipboard absent, nothing is asked.
+    let mut app = scanning(Vec::new());
+    app.event(Event::Key(osk_shell_api::Key::Paste));
+    assert!(!asks_for_clipboard(&mut app));
+    // With the scanner closed, nothing is asked.
+    let mut app = Faraday::new();
+    app.clipboard = true;
+    app.event(Event::Key(osk_shell_api::Key::Paste));
+    assert!(!asks_for_clipboard(&mut app));
+}

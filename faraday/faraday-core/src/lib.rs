@@ -12027,6 +12027,11 @@ impl Faraday {
         if self.selftest_failed() {
             return;
         }
+        // Ctrl+V is the scanner's Paste, and nothing anywhere else.
+        if key == KeyIn::Paste {
+            self.scan_paste();
+            return;
+        }
         if self.wordlist_key(key) {
             return;
         }

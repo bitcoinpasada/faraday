@@ -22,6 +22,8 @@ pub struct Pointer {
     /// Ctrl is held: Ctrl+A is [`Key::SelectAll`], as Shift+Tab is
     /// [`Key::BackTab`].
     ctrl: bool,
+    /// Ctrl is held, or Command on macOS: with V it is [`Key::Paste`].
+    command: bool,
 }
 
 impl Pointer {
@@ -142,6 +144,7 @@ impl Pointer {
                     out.push(Event::Shift { held: shift });
                 }
                 self.ctrl = m.state().control_key();
+                self.command = self.ctrl || (cfg!(target_os = "macos") && m.state().super_key());
             }
             // The mouse's back and forward buttons.
             WindowEvent::MouseInput {
@@ -165,6 +168,8 @@ impl Pointer {
                     Key::BackTab
                 } else if self.ctrl && matches!(key, Key::Char('a' | 'A')) {
                     Key::SelectAll
+                } else if self.command && matches!(key, Key::Char('v' | 'V')) {
+                    Key::Paste
                 } else {
                     key
                 };

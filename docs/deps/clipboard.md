@@ -4,6 +4,34 @@ Decision: the desktop shell reads and writes the clipboard by running
 `wl-paste`/`wl-copy`, `xclip` or `pbpaste`/`pbcopy`, in that order. No
 clipboard crate is used.
 
+The read path is used by the scanner's Paste on the desktop (tracker
+#182; `faraday/shells/window/src/clipboard.rs`). The owner chose this
+over `arboard` on 2026-10-21, as this page had decided.
+
+## How the read runs
+
+- Linux: with `WAYLAND_DISPLAY` set, `wl-paste --no-newline --type
+  text/plain`, otherwise `xclip -selection clipboard -o`. If the first
+  tool is not installed the other is tried. With neither the answer is
+  `ClipboardUnavailable`.
+- macOS: `pbpaste`.
+- The tool runs only on a press of Paste, never at start and never kept
+  open, with standard input and error null and no shell. After about two
+  seconds it is killed and the answer is `ClipboardUnavailable`. More
+  than 1 MiB of output, a failing exit or empty text is
+  `ClipboardUnavailable` too. The text is moved to the core, not copied.
+
+## Windows
+
+No tool and no crate. The shell calls the API through `windows-sys`,
+the release the Starter already pins (`=0.52.0`), with the features
+`Win32_System_DataExchange`, `Win32_System_Memory` and `Win32_System_Ole`
+added to `Win32_Foundation`: `OpenClipboard`,
+`GetClipboardData(CF_UNICODETEXT)`, `GlobalLock`, `GlobalUnlock`,
+`CloseClipboard`, the UTF-16 converted to a string. The clipboard is
+closed on every path. A clipboard that cannot be opened, holds no
+Unicode text, is empty or is over 1 MiB gives `ClipboardUnavailable`.
+
 ## What was considered
 
 `arboard` and `copypasta` are the two maintained Rust clipboard crates.

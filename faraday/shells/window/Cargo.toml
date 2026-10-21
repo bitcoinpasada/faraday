@@ -27,5 +27,21 @@ opensigner-avfoundation = { path = "../../../opensigner/shells/avfoundation" }
 [target.'cfg(target_os = "windows")'.dependencies]
 faraday-mediafoundation = { path = "../mediafoundation" }
 
-[lints]
-workspace = true
+# The clipboard's text on Windows: the API, no tool (clipboard.rs,
+# docs/deps/clipboard.md). The release the Starter pins (winit brings it
+# too); the features add no crate.
+[target.'cfg(windows)'.dependencies.windows-sys]
+version = "=0.52.0"
+features = [
+    "Win32_Foundation",
+    "Win32_System_DataExchange",
+    "Win32_System_Memory",
+    "Win32_System_Ole",
+]
+
+[lints.rust]
+# Not `workspace = true`: on Windows the clipboard's four Win32 calls need
+# `unsafe` (clipboard.rs, `windows` alone). `deny`, not `forbid`, so that
+# module alone can allow it; the other workspace lint is repeated by hand.
+unsafe_code = "deny"
+missing_docs = "warn"

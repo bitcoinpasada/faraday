@@ -572,7 +572,12 @@ shells'. DESIGN §4.9 Scanner is the design they meet. No torch (DESIGN
    routed. Empty text or `ClipboardUnavailable` puts "Nothing to paste"
    on the state line for `NOTE_FLASH_MS` (2 s). The small panel has no
    Paste: no shell there has a clipboard, and no dimmed tile stands in
-   for it. Paste is not on the small panel.
+   for it. Paste on the desktop is live: the window shell reads the text
+   through the platform's own tool (`wl-paste`, `xclip`, `pbpaste`; the
+   Windows API on Windows; `docs/deps/clipboard.md`), run only on a press,
+   and sets `Faraday::clipboard`. Ctrl+V (Command+V on macOS) is
+   `Key::Paste` and does what the tile does; it does nothing where the
+   tile is dimmed or the scanner is closed.
 6. **Camera failures.** If no frame arrives `NO_PICTURE_MS` (6 s) after
    the sheet opens, the square says "The camera sends no picture". A
    frame arriving later clears it. `osk-shell-api` gains
