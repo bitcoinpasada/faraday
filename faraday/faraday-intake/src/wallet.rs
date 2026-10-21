@@ -7,11 +7,12 @@
 //! (`faraday-strings`). Moved here from `faraday-core`'s `wallet` module,
 //! which re-exports it.
 
-use crate::{caravan, electrum, single_key, slip132};
+use crate::{caravan, electrum, single_key};
 use faraday_strings::{EN, fill};
 use osk_bip::json::{self, Value};
 use osk_bip::keys::Network;
 use osk_bip::policy::WalletPolicy;
+use osk_bip::slip132::{self, Mismatch, Script};
 
 /// What a network is called on screen.
 pub fn network_name(n: Network) -> &'static str {
@@ -154,7 +155,8 @@ fn read_wallet_as_written(text: &str) -> Result<WalletPolicy, Refusal> {
     if osk_bip::coldcard::looks_like_export(text) {
         return coldcard_export(text);
     }
-    let plain = |d: &str| slip132::plain_descriptor(d).map_err(|m| Refusal::NotAWallet(m.text()));
+    let plain =
+        |d: &str| slip132::plain_descriptor(d).map_err(|m| Refusal::NotAWallet(mismatch_text(&m)));
     if electrum::encrypted_whole(text) {
         return Err(Refusal::NotAWallet(EN.wallet_electrum_encrypted.into()));
     }
@@ -233,9 +235,16 @@ fn read_wallet_as_written(text: &str) -> Result<WalletPolicy, Refusal> {
             .map_err(|e| Refusal::NotAWallet(fill(EN.wallet_bsms, &[&format!("{e:?}")])));
     }
     if osk_bip::multisig_config::looks_like_config(text) {
-        let policy = osk_bip::multisig_config::parse(text)
-            .map_err(|e| Refusal::NotAWallet(format!("{e:?}")))?;
-        return config_keys_agree(text, &policy).map(|()| policy);
+        // A key whose SLIP-132 version names another script than the
+        // file's `Format:` is refused as a key; the refusal names it.
+        return osk_bip::multisig_config::parse(text).map_err(|e| {
+            match osk_bip::multisig_config::slip132_mismatch(text) {
+                Some(m) if e == osk_bip::policy::Error::Key => {
+                    Refusal::NotAWallet(mismatch_text(&m))
+                }
+                _ => Refusal::NotAWallet(format!("{e:?}")),
+            }
+        });
     }
     let written: Vec<&str> = text
         .lines()
@@ -248,10 +257,10 @@ fn read_wallet_as_written(text: &str) -> Result<WalletPolicy, Refusal> {
     if let [line] = written[..]
         && let Some(read) = slip132::key_line(line)
     {
-        let k = read.map_err(|m| Refusal::NotAWallet(m.text()))?;
+        let k = read.map_err(|m| Refusal::NotAWallet(mismatch_text(&m)))?;
         let wrap = match k.named {
-            Some(slip132::Script::NativeSegwit) => Some("wpkh(K/<0;1>/*)"),
-            Some(slip132::Script::NestedSegwit) => Some("sh(wpkh(K/<0;1>/*))"),
+            Some(Script::NativeSegwit) => Some("wpkh(K/<0;1>/*)"),
+            Some(Script::NestedSegwit) => Some("sh(wpkh(K/<0;1>/*))"),
             _ => None,
         };
         if let Some(wrap) = wrap {
@@ -264,7 +273,7 @@ fn read_wallet_as_written(text: &str) -> Result<WalletPolicy, Refusal> {
         .map(|l| match slip132::key_line(l) {
             Some(read) => read
                 .map(|k| k.text)
-                .map_err(|m| Refusal::NotAWallet(m.text())),
+                .map_err(|m| Refusal::NotAWallet(mismatch_text(&m))),
             None => plain(l),
         })
         .collect::<Result<Vec<String>, _>>()?;
@@ -281,35 +290,6 @@ pub fn holds_secret(text: &str) -> bool {
     t.starts_with('{')
         && t.contains("\"wallet_type\"")
         && json::parse(t).is_ok_and(|v| electrum::looks_like(&v) && electrum::holds_secret(&v))
-}
-
-/// A multisig config's SLIP-132 keys checked against the wallet read from
-/// it (`osk_bip::multisig_config` takes them without asking): each
-/// version's script type must be the wallet's. Costs a base58 decode per
-/// line that names such a key.
-fn config_keys_agree(text: &str, policy: &WalletPolicy) -> Result<(), Refusal> {
-    let around = slip132::Script::of_descriptor(&policy.to_descriptor());
-    for line in text.lines() {
-        let Some((_, value)) = line.split_once(':') else {
-            continue;
-        };
-        if !slip132::mentions(value) {
-            continue;
-        }
-        if let Some(slip132::Key {
-            named: Some(named), ..
-        }) = slip132::decode(value)
-            && !slip132::agrees(Some(named), around)
-        {
-            let m = slip132::Mismatch {
-                key: value.trim().to_string(),
-                named,
-                around,
-            };
-            return Err(Refusal::NotAWallet(m.text()));
-        }
-    }
-    Ok(())
 }
 
 /// A BIP 129 descriptor record in the form `osk_bip::bsms` reads, for two
@@ -479,6 +459,36 @@ fn coldcard_export(text: &str) -> Result<WalletPolicy, Refusal> {
         return Ok(policy);
     }
     Err(bad(EN.wallet_no_single_sig))
+}
+
+/// What a script type is called in a refusal.
+pub fn script_name(s: Script) -> &'static str {
+    match s {
+        Script::NativeSegwit => EN.wallet_native_segwit,
+        Script::NestedSegwit => EN.wallet_nested_segwit,
+        Script::NativeMultisig => EN.wallet_slip132_native_multisig,
+        Script::NestedMultisig => EN.wallet_slip132_nested_multisig,
+        Script::Taproot => EN.wallet_taproot,
+        Script::Legacy => EN.wallet_legacy,
+        Script::LegacyMultisig => EN.wallet_slip132_legacy_multisig,
+        Script::SilentPayments => EN.wallet_slip132_silent_payments,
+        Script::Other => EN.wallet_slip132_other,
+    }
+}
+
+/// The sentence a SLIP-132 refusal shows (`osk_bip::slip132`,
+/// `docs/INTEROP.md` §5 I1): the key, shortened, and both types.
+pub fn mismatch_text(m: &Mismatch) -> String {
+    let k = &m.key;
+    let short = if k.len() > 16 && k.is_ascii() {
+        format!("{}…{}", &k[..8], &k[k.len() - 6..])
+    } else {
+        k.clone()
+    };
+    fill(
+        EN.wallet_slip132_mismatch,
+        &[&short, script_name(m.named), script_name(m.around)],
+    )
 }
 
 /// The name a wallet `.json` carries in its `"label"` (Specter Desktop's,

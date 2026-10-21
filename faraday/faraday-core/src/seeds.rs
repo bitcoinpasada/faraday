@@ -287,7 +287,7 @@ pub fn cosigner_key(text: &str) -> Option<String> {
         .strip_suffix("/0/*")
         .or_else(|| t.strip_suffix("/*"))
         .unwrap_or(t);
-    let line = faraday_intake::slip132::key_line(t)?.ok()?;
+    let line = osk_bip::slip132::key_line(t)?.ok()?;
     osk_bip::policy::PolicyKey::parse(&line.text)
         .ok()
         .map(|k| k.key_text())

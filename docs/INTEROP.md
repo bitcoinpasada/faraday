@@ -160,9 +160,13 @@ converted Coldcard's flat fields unchecked until 2026-10-20. A key line or bare 
 descriptor reads as the single-key wallet its version names; as a
 cosigner key, `key_for` takes it.
 
-Where: `faraday-intake/src/slip132.rs`, called from
-`read_wallet_as_written` before `parse_any`, `create::read_keys` and
-`coldcard_keys`. Tests (`tests/interop.rs`): Casa's descriptor loads as
+Where: `osk_bip::slip132` (`decode`, `key_line`, `plain_descriptor`,
+`encode`; moved from `faraday-intake/src/slip132.rs` 2026-10-20, the
+refusal's sentence staying in `faraday_intake::wallet::mismatch_text`),
+called from `read_wallet_as_written` before `parse_any`,
+`create::read_keys`, Coldcard's files and `osk_bip::multisig_config`, which
+since 2026-10-20 refuses a key whose version disagrees with its `Format:`
+itself (so a rebuilt backup config is checked too, `restore::readable`). Tests (`tests/interop.rs`): Casa's descriptor loads as
 `sh(wsh(sortedmulti(3,…)))`; Specter DIY's keystore fills a native SegWit
 slot; Keystone's singlesig keystore (upper-case fingerprint, `/1/*` only)
 reads as `<0;1>`; `wpkh(Zpub…)` and `wsh(multi(…Ypub…))` are refused; the

@@ -7861,18 +7861,18 @@ pub struct Strings {
     pub wallet_its_first_address: &'static str,
     /// Error in `coldcard_export`.
     pub wallet_no_single_sig: &'static str,
-    /// Error in `slip132::Mismatch::text`. `{}`: the key, shortened; the
+    /// Error in `wallet::mismatch_text`. `{}`: the key, shortened; the
     /// script type its version names; the script type around it.
     pub wallet_slip132_mismatch: &'static str,
-    /// Text in `slip132::Script::name`.
+    /// Text in `wallet::script_name`.
     pub wallet_slip132_native_multisig: &'static str,
-    /// Text in `slip132::Script::name`.
+    /// Text in `wallet::script_name`.
     pub wallet_slip132_nested_multisig: &'static str,
-    /// Text in `slip132::Script::name`.
+    /// Text in `wallet::script_name`.
     pub wallet_slip132_legacy_multisig: &'static str,
-    /// Text in `slip132::Script::name`.
+    /// Text in `wallet::script_name`.
     pub wallet_slip132_silent_payments: &'static str,
-    /// Text in `slip132::Script::name`: a descriptor of no type a
+    /// Text in `wallet::script_name`: a descriptor of no type a
     /// SLIP-132 version names.
     pub wallet_slip132_other: &'static str,
     /// Error in `single_key::read`. `{}`: why.

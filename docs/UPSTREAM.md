@@ -74,6 +74,20 @@ Since the fork:
   with `json::quote`. Why: one JSON reader for every wallet file, in the
   crate that reads the formats. Stricter only: text that is not JSON,
   names a key twice or nests deeper than 32 is no Coldcard export.
+- `core/osk-bip/src/slip132.rs` (2026-10-20): one decoder,
+  `slip132::decode`, for SLIP-0132's ten public versions, multisig
+  `Ypub`/`Zpub`/`Upub`/`Vpub` included, saying which script a version
+  names (none for `xpub`/`tpub`, which are not Legacy); with it the
+  agreement check (`agrees`, `Mismatch { key, named, around }`),
+  `plain_descriptor`, `key_line` and `encode`, moved in from
+  `faraday-intake` (the refusal's sentence stays there). `decode_xpub`
+  keeps its contract on top of it. `multisig_config` and `coldcard` read
+  their keys with it instead of their own unchecked version tables. Why:
+  the two core readers converted a SLIP-132 key whatever script it
+  named, so a config with a `zpub` or a `Ypub` in a P2WSH wallet loaded
+  wherever Faraday's own check was not run first (a rebuilt backup
+  config, `restore::readable`). Stricter only: such a key is refused
+  (`policy::Error::Key`; `multisig_config::slip132_mismatch` names it).
 
 ## 4. Watching upstream
 

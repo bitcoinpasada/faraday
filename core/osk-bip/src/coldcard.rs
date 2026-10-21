@@ -20,12 +20,10 @@
 
 use alloc::string::String;
 
-use bitcoin::base58;
-
 use crate::json::{self, Value};
 use crate::keys::{MultisigScriptType, ScriptType};
 use crate::policy::{DESCRIPTOR_SUFFIX, Error, WalletPolicy};
-use crate::xkey;
+use crate::slip132::{self, Script};
 
 /// The four single-sig standards, in the order [`parse`] prefers them,
 /// with the field each is written under.
@@ -118,17 +116,6 @@ const MULTISIG: [(MultisigScriptType, &str, &str); 2] = [
     ),
 ];
 
-/// SLIP-132 version bytes for a multisig account key: `Ypub` and `Zpub`
-/// on mainnet, `Upub` and `Vpub` on the test networks. Coldcard writes
-/// its multisig keys in these, and a descriptor takes `xpub` or `tpub`,
-/// so they are swapped back to BIP-32's own versions.
-const MULTISIG_VERSIONS: [([u8; 4], [u8; 4]); 4] = [
-    ([0x02, 0x95, 0xb4, 0x3f], xkey::XPUB),
-    ([0x02, 0xaa, 0x7e, 0xd3], xkey::XPUB),
-    ([0x02, 0x42, 0x89, 0xef], xkey::TPUB),
-    ([0x02, 0x57, 0x54, 0x83], xkey::TPUB),
-];
-
 /// The key expression `[fingerprint/path]xpub` the export offers for
 /// `account`, which is one cosigner's contribution to a wallet policy.
 ///
@@ -154,7 +141,7 @@ pub fn cosigner_key(text: &str, account: Cosigner) -> Result<String, Error> {
                 .expect("both BIP-48 script types are listed");
             (
                 string_field(text, deriv).ok_or(Error::Key)?,
-                plain_xpub(string_field(text, key).ok_or(Error::Key)?)?,
+                multisig_key(string_field(text, key).ok_or(Error::Key)?, script)?,
             )
         }
     };
@@ -170,24 +157,21 @@ pub fn cosigner_key(text: &str, account: Cosigner) -> Result<String, Error> {
     Ok(alloc::format!("[{origin}]{key}"))
 }
 
-/// A multisig account key as `xpub` or `tpub`, whichever SLIP-132
-/// spelling the file wrote it in. A key already in BIP-32's own
-/// encoding is returned as it stands.
-fn plain_xpub(key: &str) -> Result<String, Error> {
-    if xkey::decode_xpub(key).is_ok() {
-        return Ok(String::from(key));
+/// A multisig account key as `xpub` or `tpub`, whichever spelling the
+/// file wrote it in: BIP-32's own, or the SLIP-132 version that names
+/// `script`'s multisig (`Zpub`/`Vpub` for P2WSH, `Ypub`/`Upub` for
+/// P2SH-P2WSH). A version naming another script is refused, never
+/// converted ([`slip132::agrees`]).
+fn multisig_key(key: &str, script: MultisigScriptType) -> Result<String, Error> {
+    let read = slip132::decode(key).map_err(|_| Error::Key)?;
+    let around = match script {
+        MultisigScriptType::NativeSegwit => Script::NativeMultisig,
+        MultisigScriptType::NestedSegwit => Script::NestedMultisig,
+    };
+    if !slip132::agrees(read.named, around) {
+        return Err(Error::Key);
     }
-    let mut bytes = xkey::payload(key).map_err(|_| Error::Key)?;
-    let version = xkey::version(&bytes);
-    let plain = MULTISIG_VERSIONS
-        .iter()
-        .find(|(v, _)| *v == version)
-        .map(|(_, plain)| *plain)
-        .ok_or(Error::Key)?;
-    bytes[..4].copy_from_slice(&plain);
-    // The rules every extended key text is read by apply here too.
-    xkey::xpub_from_bytes(&bytes).map_err(|_| Error::Key)?;
-    Ok(base58::encode_check(&bytes))
+    Ok(read.plain)
 }
 
 /// The text read as JSON, when it is a JSON object.

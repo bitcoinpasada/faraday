@@ -4,11 +4,11 @@
 //! account key in a file. Nothing secret leaves the session.
 
 use crate::strings::EN;
-use faraday_intake::slip132;
 use opensigner_core::strings::fill;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, MultisigScriptType, ScriptType};
 use osk_bip::policy::{PolicyKey, WalletPolicy};
+use osk_bip::slip132;
 
 /// The kinds a wallet can be created as.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

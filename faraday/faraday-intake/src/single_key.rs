@@ -12,13 +12,13 @@
 //! `GetKeyManagerByColdcardJson`). Both are read here as Wasabi reads
 //! them, and the file Faraday writes carries a version Wasabi parses.
 
-use crate::slip132::{self, Script};
 use faraday_strings::{EN, fill};
 use osk_bip::bitcoin::NetworkKind;
 use osk_bip::bitcoin::bip32::ChildNumber;
 use osk_bip::json::{self, Value};
 use osk_bip::keys::ScriptType;
 use osk_bip::policy::{Template, WalletPolicy};
+use osk_bip::slip132::{self, Script};
 
 /// The firmware version the Wasabi file Faraday writes states: the one
 /// Coldcard Mk4's file in BlueWallet's tests states. Wasabi parses it as a
@@ -72,7 +72,7 @@ pub fn read(v: &Value) -> Option<Result<SingleKey, String>> {
 fn read_fields(v: &Value, xpub: &str, fp: &str) -> Result<SingleKey, String> {
     let bad = |why: &str| fill(EN.wallet_single_key_file, &[why]);
     let mut bytes = hex4(fp).ok_or_else(|| bad(EN.wallet_single_key_fingerprint))?;
-    let decoded = slip132::decode(xpub).ok_or_else(|| bad(EN.wallet_single_key_xpub))?;
+    let decoded = slip132::decode(xpub).map_err(|_| bad(EN.wallet_single_key_xpub))?;
     let test = decoded.plain.starts_with("tpub");
     let (source, path) = match v.get("AccountKeyPath") {
         Some(p) => {
@@ -98,7 +98,7 @@ fn read_fields(v: &Value, xpub: &str, fp: &str) -> Result<SingleKey, String> {
     let fp: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
     let line = slip132::key_line(&format!("[{fp}/{path}]{xpub}"))
         .ok_or_else(|| bad(EN.wallet_single_key_xpub))?
-        .map_err(|m| m.text())?;
+        .map_err(|m| crate::wallet::mismatch_text(&m))?;
     let script = Script::of_path(&path)
         .or(line.named)
         .ok_or_else(|| bad(EN.wallet_single_key_no_type))?;

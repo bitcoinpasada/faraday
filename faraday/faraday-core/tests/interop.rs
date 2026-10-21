@@ -913,7 +913,7 @@ fn sparrows_electrum_singlesig_file_loads_as_its_nested_segwit_key() {
         .find(|t| t.starts_with("ypub"))
         .unwrap()
         .to_string();
-    let plain = faraday_intake::slip132::decode(&ypub).unwrap().plain;
+    let plain = osk_bip::slip132::decode(&ypub).unwrap().plain;
     assert_eq!(
         w.to_descriptor(),
         format!("sh(wpkh([ab543c67/49h/0h/0h]{plain}/<0;1>/*))")
@@ -945,7 +945,7 @@ fn blue_wallets_electrum_file_loads_as_its_native_segwit_key_at_its_root_fingerp
     let text = file("bluewallet/skeleton-electrum-hex-only.txt");
     let w = wallet("bluewallet/skeleton-electrum-hex-only.txt");
     let zpub = text.split('"').find(|t| t.starts_with("zpub")).unwrap();
-    let plain = faraday_intake::slip132::decode(zpub).unwrap().plain;
+    let plain = osk_bip::slip132::decode(zpub).unwrap().plain;
     assert_eq!(
         w.to_descriptor(),
         format!("wpkh([b616be56/84h/0h/0h]{plain}/<0;1>/*)")
@@ -1002,7 +1002,7 @@ fn an_electrum_file_holding_a_private_key_is_a_secret_and_its_origin_less_multis
     let keys: Vec<String> = text
         .split('"')
         .filter(|t| t.starts_with("Zpub"))
-        .map(|k| faraday_intake::slip132::decode(k).unwrap().plain)
+        .map(|k| osk_bip::slip132::decode(k).unwrap().plain)
         .collect();
     let mut theirs: Vec<String> = specter
         .keys()

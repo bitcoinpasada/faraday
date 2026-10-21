@@ -26,30 +26,19 @@
 //! The keys may be written as plain `xpub`/`tpub`, or with SLIP-132
 //! version bytes: the single-signature `ypub`/`zpub`/`upub`/`vpub`, or
 //! the multisignature `Ypub`/`Zpub`/`Upub`/`Vpub` Coldcard, Nunchuk and
-//! Specter write for P2SH-P2WSH and P2WSH. The version bytes carry no
-//! information the `Format:` line does not, so every key is read back
-//! to its BIP-32 form before the policy is built, and the wallet is
-//! the same whichever spelling the file used.
+//! Specter write for P2SH-P2WSH and P2WSH. Each is read back to its
+//! BIP-32 form before the policy is built, so the wallet is the same
+//! whichever spelling the file used; but a version that names another
+//! script than the `Format:` line's (a `zpub`, a single-key version, in
+//! a P2WSH file; a `Ypub` in a P2WSH one) is refused as [`Error::Key`],
+//! never converted silently ([`slip132_mismatch`] says which key).
 
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use bitcoin::base58;
-
 use crate::policy::{Error, WalletPolicy};
-use crate::xkey::{self, TPUB, XPUB};
-
-/// SLIP-132's multisignature version bytes, which the single-signature
-/// table in [`crate::slip132`] leaves out: `Ypub`, `Zpub` on mainnet and
-/// `Upub`, `Vpub` on test networks, each paired with the plain version
-/// the key is read back to.
-const MULTISIG_VERSIONS: [([u8; 4], [u8; 4]); 4] = [
-    ([0x02, 0x95, 0xb4, 0x3f], XPUB), // Ypub
-    ([0x02, 0xaa, 0x7e, 0xd3], XPUB), // Zpub
-    ([0x02, 0x42, 0x89, 0xef], TPUB), // Upub
-    ([0x02, 0x57, 0x54, 0x83], TPUB), // Vpub
-];
+use crate::slip132::{self, Mismatch, Script};
 
 /// Reads a coordinator's multisig config as a wallet policy.
 pub fn parse(text: &str) -> Result<WalletPolicy, Error> {
@@ -65,6 +54,7 @@ pub fn parse_named(text: &str) -> Result<(WalletPolicy, Option<String>), Error> 
     let mut wrapper: Option<&str> = None;
     let mut derivation: Option<String> = None;
     let mut keys: Vec<String> = Vec::new();
+    let mut named: Vec<Option<Script>> = Vec::new();
 
     for line in text.lines() {
         let line = match line.split_once('#') {
@@ -94,8 +84,13 @@ pub fn parse_named(text: &str) -> Result<(WalletPolicy, Option<String>), Error> 
             wrapper = Some(wrapper_of(value).ok_or(Error::Template)?);
         } else if is_fingerprint(label) {
             let path = derivation.as_deref().ok_or(Error::Derivation)?;
-            let xpub = plain_xpub(value)?;
-            keys.push(format!("[{}/{path}]{xpub}", label.to_ascii_lowercase()));
+            let key = slip132::decode(value).map_err(|_| Error::Key)?;
+            keys.push(format!(
+                "[{}/{path}]{}",
+                label.to_ascii_lowercase(),
+                key.plain
+            ));
+            named.push(key.named);
         } else {
             return Err(Error::Key);
         }
@@ -125,7 +120,54 @@ pub fn parse_named(text: &str) -> Result<(WalletPolicy, Option<String>), Error> 
         _ => format!("wsh(sortedmulti({threshold},{args}))"),
     };
     let refs: Vec<&str> = keys.iter().map(String::as_str).collect();
-    Ok((WalletPolicy::from_parts(&template, &refs)?, name))
+    let policy = WalletPolicy::from_parts(&template, &refs)?;
+    let around = script_of(wrapper);
+    if named.iter().any(|n| !slip132::agrees(*n, around)) {
+        return Err(Error::Key);
+    }
+    Ok((policy, name))
+}
+
+/// The script type a `Format:` wrapper is.
+fn script_of(wrapper: &str) -> Script {
+    match wrapper {
+        "sh(wsh" => Script::NestedMultisig,
+        "sh" => Script::LegacyMultisig,
+        _ => Script::NativeMultisig,
+    }
+}
+
+/// The first key of a config whose SLIP-132 version names another
+/// script than its `Format:` line, which [`parse`] refuses as
+/// [`Error::Key`]; `None` when there is none, or no format to compare
+/// with. Costs a base58 decode per key.
+pub fn slip132_mismatch(text: &str) -> Option<Mismatch> {
+    let mut around = None;
+    let mut keys = Vec::new();
+    for line in text.lines() {
+        let line = match line.split_once('#') {
+            Some((head, _)) => head,
+            None => line,
+        };
+        let Some((label, value)) = line.split_once(':') else {
+            continue;
+        };
+        let label = label.trim();
+        if label.eq_ignore_ascii_case("format") {
+            around = wrapper_of(value).map(script_of);
+        } else if is_fingerprint(label) {
+            keys.push(value.trim());
+        }
+    }
+    let around = around?;
+    keys.into_iter().find_map(|k| {
+        let named = slip132::decode(k).ok()?.named?;
+        (!slip132::agrees(Some(named), around)).then(|| Mismatch {
+            key: String::from(k),
+            named,
+            around,
+        })
+    })
 }
 
 /// Whether `text` reads as one of these files: the first line that says
@@ -181,25 +223,6 @@ fn wrapper_of(value: &str) -> Option<&'static str> {
         }
     }
     None
-}
-
-/// The key as `xpub`/`tpub`, whichever SLIP-132 spelling the file used.
-/// Only the version bytes change, and the key is checked as strictly as
-/// any other extended key the device reads.
-fn plain_xpub(value: &str) -> Result<String, Error> {
-    let mut bytes = xkey::payload(value).map_err(|_| Error::Key)?;
-    let version = xkey::version(&bytes);
-    let plain = if version == XPUB || version == TPUB {
-        version
-    } else if let Some((_, plain)) = MULTISIG_VERSIONS.iter().find(|(v, _)| *v == version) {
-        *plain
-    } else {
-        let (xpub, _) = crate::slip132::decode_xpub(value).map_err(|_| Error::Key)?;
-        return Ok(alloc::format!("{xpub}"));
-    };
-    bytes[..4].copy_from_slice(&plain);
-    xkey::xpub_from_bytes(&bytes).map_err(|_| Error::Key)?;
-    Ok(base58::encode_check(&bytes))
 }
 
 /// Whether a label is a master fingerprint: eight hex characters.
@@ -261,10 +284,17 @@ Derivation: m/48'/1'/0'/2'
         );
     }
 
-    /// The same key spelled `Vpub` (SLIP-132's multisig prefix for a test
-    /// network) or `vpub` reads as the same wallet with the same checksum.
+    /// The same key spelled `Vpub` (SLIP-132's P2WSH multisig prefix for a
+    /// test network) reads as the same wallet with the same checksum. A
+    /// version naming another script, `vpub` (single-key native SegWit)
+    /// or `Upub` (P2SH-P2WSH), is refused in a P2WSH file: SLIP-132 says
+    /// what the key is for, and a disagreement is not guessed past.
     #[test]
     fn slip132_spellings_of_a_key_read_as_the_same_wallet() {
+        use bitcoin::base58;
+
+        use crate::xkey;
+
         let plain = parse(&with_format("P2WSH")).unwrap();
         let tpub = "tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ";
         let respell = |version: [u8; 4]| {
@@ -274,13 +304,24 @@ Derivation: m/48'/1'/0'/2'
         };
         let vpub_multi = respell([0x02, 0x57, 0x54, 0x83]);
         let vpub_single = respell([0x04, 0x5f, 0x1c, 0xf6]);
+        let upub_multi = respell([0x02, 0x42, 0x89, 0xef]);
         assert!(vpub_multi.starts_with("Vpub"), "{vpub_multi}");
         assert!(vpub_single.starts_with("vpub"), "{vpub_single}");
-        for spelled in [vpub_multi, vpub_single] {
-            let policy = parse(&with_format("P2WSH").replace(tpub, &spelled)).unwrap();
-            assert_eq!(policy, plain);
-            assert_eq!(policy.checksum(), plain.checksum());
+        assert!(upub_multi.starts_with("Upub"), "{upub_multi}");
+        let policy = parse(&with_format("P2WSH").replace(tpub, &vpub_multi)).unwrap();
+        assert_eq!(policy, plain);
+        assert_eq!(policy.checksum(), plain.checksum());
+        for other in [&vpub_single, &upub_multi] {
+            let text = with_format("P2WSH").replace(tpub, other);
+            assert_eq!(parse(&text), Err(Error::Key), "{other}");
+            let m = slip132_mismatch(&text).expect("the key that disagrees");
+            assert_eq!(m.key, *other);
+            assert_eq!(m.around, Script::NativeMultisig);
         }
+        // In a P2SH-P2WSH file the `Upub` is the one that agrees.
+        let nested = parse(&with_format("P2SH-P2WSH").replace(tpub, &upub_multi)).unwrap();
+        assert_eq!(nested, parse(&with_format("P2SH-P2WSH")).unwrap());
+        assert_eq!(slip132_mismatch(&with_format("P2WSH")), None);
         assert_eq!(
             parse(&with_format("P2WSH").replace(tpub, "tpubnotakey")),
             Err(Error::Key)
