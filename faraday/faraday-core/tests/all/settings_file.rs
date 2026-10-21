@@ -4,7 +4,7 @@
 //! they changed; and a lock does not read the file again over settings
 //! changed since.
 
-use faraday_core::stick_settings::FILE;
+use faraday_core::stick::settings::FILE;
 use faraday_core::ui::Theme;
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};

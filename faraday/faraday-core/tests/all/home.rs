@@ -171,7 +171,7 @@ fn without_passphrase(app: &mut Faraday) {
         Some(Sheet::SeedRead),
         "the seed asks how it loads"
     );
-    app.press(Action::SeedRead(faraday_core::seed_read::Choice::Plain));
+    app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
     let _ = app.frame();
 }
 
@@ -343,7 +343,7 @@ fn home_lead_rule_2_a_psbt_in_files_offers_to_sign_it() {
 
 #[test]
 fn home_lead_rule_5_a_locked_vault_offers_to_unlock_it() {
-    use faraday_core::vaults::VaultAction as V;
+    use faraday_core::vault::VaultAction as V;
     let vault = faraday_core::testkit::test_vault().unwrap();
     let app = with_inbox(vec![("vault.ofv", vault)]);
     assert!(
@@ -354,7 +354,7 @@ fn home_lead_rule_5_a_locked_vault_offers_to_unlock_it() {
 
 #[test]
 fn home_lead_rule_5_with_a_stick_in_asks_to_pull_it_first() {
-    use faraday_core::vaults::VaultAction as V;
+    use faraday_core::vault::VaultAction as V;
     let vault = faraday_core::testkit::test_vault().unwrap();
     let mut app = with_inbox(vec![("vault.ofv", vault)]);
     stick(&mut app, true);
@@ -478,7 +478,7 @@ fn home_and_empty_wallets_name_the_two_flows() {
 /// at all opens Create a vault.
 #[test]
 fn homes_four_ways_in_open_their_flows_and_lead_back_home() {
-    use faraday_core::vaults::VaultAction as V;
+    use faraday_core::vault::VaultAction as V;
     for (action, screen) in [
         (Action::CreateWallet, Screen::Create),
         (Action::RestoreWallet, Screen::Restore),
@@ -517,7 +517,7 @@ fn the_flows_opened_from_wallets_lead_back_to_wallets() {
 /// vault.
 #[test]
 fn homes_vaults_opens_the_list_once_there_is_a_vault() {
-    use faraday_core::vaults::VaultAction as V;
+    use faraday_core::vault::VaultAction as V;
     let vault = faraday_core::testkit::test_vault().unwrap();
     let app = with_inbox(vec![("vault.ofv", vault)]);
     assert!(!app.offers(Action::Vault(V::Create)));
@@ -541,7 +541,7 @@ fn home_offers_stick_visit_with_one_attached() {
 #[test]
 fn home_lead_rule_5_reads_what_the_vault_held_when_last_seen_open() {
     use faraday_core::StorageCommand;
-    use faraday_core::vaults::VaultAction as V;
+    use faraday_core::vault::VaultAction as V;
     let vault = faraday_core::testkit::test_vault().unwrap();
     let mut app = with_inbox(vec![("vault.ofv", vault)]);
     app.storage(StorageEvent::Memory {
@@ -648,7 +648,7 @@ fn home_lead_rule_4_a_receipt_with_nothing_loaded_shows_what_was_written() {
 #[test]
 fn home_lead_rule_6_a_vault_changed_since_written_offers_to_write_it() {
     let c = faraday_core::testkit::compute();
-    use faraday_core::vaults::VaultAction as V;
+    use faraday_core::vault::VaultAction as V;
     let vault = faraday_core::testkit::test_vault().unwrap();
     let mut app = with_inbox(vec![("vault.ofv", vault)]);
     app.storage(StorageEvent::Memory {

@@ -299,7 +299,7 @@ fn a_vault_deleted_from_the_stick_takes_a_hold() {
         app.poll_storage().is_none(),
         "a press alone deletes nothing"
     );
-    let hold = Action::Vault(faraday_core::vaults::VaultAction::HoldWipe);
+    let hold = Action::Vault(faraday_core::vault::VaultAction::HoldWipe);
     assert!(app.offers(hold));
     assert!(
         app.drawn_texts()

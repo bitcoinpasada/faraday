@@ -359,7 +359,7 @@ partitions and does not count.
   fresh boot less protected than the defaults. A stick visit offers it
   as its first row, ticked on the boot stick when the settings changed,
   and writes it over the settings file there
-  (`faraday-core/src/stick_settings.rs`).
+  (`faraday-core/src/stick/settings.rs`).
 
 Both live under `/run/faraday`, a RAM directory readable only by
 uid 200. Nothing decrypted is ever placed in the Outbox. Both are shown on one

@@ -5,7 +5,7 @@
 use crate::common::type_text;
 use faraday_bip::bip39::Language;
 use faraday_core::testkit;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 use faraday_vault::records::{field, kind};

@@ -6,7 +6,7 @@
 use crate::create::NewKind;
 use crate::forms::Form;
 use crate::strings::EN;
-use crate::vaults::{APK_CATEGORY, VaultAction};
+use crate::vault::{APK_CATEGORY, VaultAction};
 use crate::wallet::FileKind;
 use crate::{Action, Faraday, Screen};
 
@@ -53,7 +53,7 @@ pub enum Go {
     Vaults,
     /// Create a vault (its passphrases are rolled with dice there).
     CreateVault,
-    /// An open vault's category, by place in `vaults::CATEGORIES`.
+    /// An open vault's category, by place in `vault::CATEGORIES`.
     VaultCategory(usize),
     /// TOTP codes for the entries in open vaults (`docs/TOTP.md` §5).
     Codes,

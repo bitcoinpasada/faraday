@@ -5,7 +5,7 @@
 //! unlock it to see. Each row reads its currency too (§3.5).
 
 use crate::common::type_text;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 

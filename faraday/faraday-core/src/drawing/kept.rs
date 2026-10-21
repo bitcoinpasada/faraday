@@ -23,7 +23,7 @@ use crate::glance::Glance;
 use crate::gpg::GpgFile;
 use crate::plan;
 use crate::seeds::SeedsState;
-use crate::vaults::VaultWallet;
+use crate::vault::VaultWallet;
 use crate::wallet::{Key, NonceCheck, Wallet};
 
 impl View<'_> {
@@ -175,7 +175,7 @@ impl View<'_> {
     pub(crate) fn record_described(
         &self,
         r: &Record,
-    ) -> Option<std::borrow::Cow<'_, crate::vaults::Described>> {
+    ) -> Option<std::borrow::Cow<'_, crate::vault::Described>> {
         self.kept(|c| self.app.record_described(c, r))
     }
 
@@ -195,23 +195,23 @@ impl View<'_> {
     }
 
     /// Each record of kind `k` among open vault records `o` with the
-    /// wallet description it holds ([`crate::vaults::VaultRecords::described_of`]),
+    /// wallet description it holds ([`crate::vault::VaultRecords::described_of`]),
     /// as the vault keeps them read. Costs a parse of each description
     /// the first time after a change.
     pub(crate) fn described_of<'r>(
         &self,
-        o: &'r crate::vaults::VaultRecords,
+        o: &'r crate::vault::VaultRecords,
         k: u8,
-    ) -> Vec<(usize, &'r Record, &'r crate::vaults::Described)> {
+    ) -> Vec<(usize, &'r Record, &'r crate::vault::Described)> {
         self.kept(|c| o.described_of(c, k).collect())
     }
 
     /// Whether open vault `v` holds a wallet with `w`'s descriptor
-    /// ([`crate::vault_screens::vault_has_wallet`]), from its records as
+    /// ([`crate::vault::screen::vault_has_wallet`]), from its records as
     /// the vault keeps them read. Costs a parse of each description the
     /// first time after a change.
     pub(crate) fn vault_has_wallet(&self, v: usize, w: &Wallet) -> bool {
-        self.kept(|c| crate::vault_screens::vault_has_wallet(c, self.app, v, w))
+        self.kept(|c| crate::vault::screen::vault_has_wallet(c, self.app, v, w))
     }
 
     /// How many words key record `r`'s seed has
@@ -246,7 +246,7 @@ impl View<'_> {
     /// Where vault file `f` stands against the last write
     /// ([`crate::Faraday::currency`]), from its hash taken when it came
     /// in. Costs a hash of a file whose hash was not taken.
-    pub fn currency(&self, f: &crate::vaults::VaultFile) -> Option<crate::vaults::Currency> {
+    pub fn currency(&self, f: &crate::vault::VaultFile) -> Option<crate::vault::Currency> {
         self.kept(|c| self.app.currency(c, f))
     }
 
@@ -356,18 +356,18 @@ impl View<'_> {
     }
 
     /// Whether open vault `v` holds session key `key`
-    /// ([`crate::vault_screens::vault_has_key`]), from each key record's
+    /// ([`crate::vault::screen::vault_has_key`]), from each key record's
     /// kept fingerprint and id. Costs a PBKDF2 and two elliptic-curve
     /// multiplications per key record the first time.
     pub(crate) fn vault_has_key(&self, v: usize, key: &Key) -> bool {
-        self.kept(|c| crate::vault_screens::vault_has_key(c, self.app, v, key))
+        self.kept(|c| crate::vault::screen::vault_has_key(c, self.app, v, key))
     }
 
     /// Where the wallet being backed up and its keys are kept
     /// ([`crate::Faraday::backup_kept`]), from each key record's kept
     /// fingerprint and id. Costs a PBKDF2 and two elliptic-curve
     /// multiplications per key record the first time.
-    pub fn backup_kept(&self) -> Option<crate::backup::Kept> {
+    pub fn backup_kept(&self) -> Option<crate::wallet_backup::Kept> {
         self.kept(|c| self.app.backup_kept(c))
     }
 
@@ -379,14 +379,14 @@ impl View<'_> {
     }
 
     /// The sheet for `target` on the chart of `press`
-    /// ([`crate::glance_sheet::view`]), from the memo and the values kept
+    /// ([`crate::glance::sheet::view`]), from the memo and the values kept
     /// on the state. Costs what those cost the first time.
     pub(crate) fn glance_sheet(
         &self,
         press: crate::glance::Press,
-        target: crate::glance_sheet::Target,
-    ) -> Option<crate::glance_sheet::View> {
-        crate::glance_sheet::view(self, press, target)
+        target: crate::glance::sheet::Target,
+    ) -> Option<crate::glance::sheet::View> {
+        crate::glance::sheet::view(self, press, target)
     }
 
     /// Whether open vault `o` holds a seed the plan puts into another
@@ -453,10 +453,10 @@ impl View<'_> {
     }
 
     /// A vault key record's fingerprint
-    /// (`vault_screens::key_fingerprint`), kept by the key's id. Costs a
+    /// (`vault::screen::key_fingerprint`), kept by the key's id. Costs a
     /// PBKDF2 and two elliptic-curve multiplications the first time.
     pub fn vault_key_fingerprint(&self, r: &Record) -> Option<String> {
-        self.kept(|c| crate::vault_screens::key_fingerprint(c, self.app, r))
+        self.kept(|c| crate::vault::screen::key_fingerprint(c, self.app, r))
     }
 }
 
@@ -505,9 +505,9 @@ impl crate::glance::Reads for View<'_> {
     }
     fn described<'o>(
         &self,
-        o: &'o crate::vaults::VaultRecords,
+        o: &'o crate::vault::VaultRecords,
         r: usize,
-    ) -> Option<&'o crate::vaults::Described> {
+    ) -> Option<&'o crate::vault::Described> {
         self.kept(|c| o.described(c, r))
     }
     fn plan_mapped(&self, shape: &plan::Shape, a: &plan::Answers) -> Rc<plan::Mapped> {

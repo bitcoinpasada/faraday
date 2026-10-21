@@ -95,8 +95,8 @@ wallets the whole set holds, with their keys and whether they can sign,
 and the files, to choose from; one button imports the choice and wipes
 the rest.
 
-**What it does** (`faraday-core/src/boot_import.rs`, its sheet in
-`boot_import_screen.rs`; README, "Starting a session: the boot import";
+**What it does** (`faraday-core/src/boot_import/mod.rs`, its sheet in
+`boot_import/screen.rs`; README, "Starting a session: the boot import";
 `docs/history/PLAN.md` §5.4). The first look at the boot stick in a power-on (the
 condition the settings file is read under) copies every file: vaults
 into the Inbox, where the vault screens unlock them, the rest into a
@@ -218,7 +218,7 @@ medium's name moved out of `faraday-storage` into the app, which names a
 capital SD and lowercase card, "SD cards", never "card" alone; so the
 PC's Files foot now reads "Waiting for a stick" where it read "Waiting
 for a stick or card". Code names and file names are unchanged
-(`StickInfo`, `stick_settings.rs`, `faraday-settings.txt`).
+(`StickInfo`, `stick/settings.rs`, `faraday-settings.txt`).
 
 The medium's glyph follows it: `Icon::Drive` on the PC, `Icon::SdCard` on
 the Pi, Font Awesome 6 Free Solid `sd-card` (U+F7C2) added back to the
@@ -2503,7 +2503,7 @@ Faraday binary (`docs/COMPUTE.md` §3).
   own keyboard (`word_entry.rs`, the typing step of the upstream app's Load
   wizard and nothing else of it), the backup quiz (`quiz.rs`), the
   vanity grinder's state (`grind.rs`), the silent payment check
-  (`silent_check.rs`), the calculators' list (`tools.rs`), BIP-85's
+  (`silent/check.rs`), the calculators' list (`tools.rs`), BIP-85's
   applications (`bip85.rs`) and Explore's path parser (`explore.rs`);
   into `faraday-scanner`, the camera frame's chroma reduction beside the
   luma one it already had, which the stick's camera now uses.

@@ -6,7 +6,7 @@
 //! passphrase field, Unlock's too, has an eye that shows what is typed.
 
 use faraday_bip::diceware::List;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday};
 use faraday_shell_api::App;
 
@@ -174,7 +174,7 @@ fn create_vault_passphrase_fields_have_the_eye() {
 
 #[test]
 fn the_dice_panel_says_how_many_words_make_a_strong_passphrase() {
-    use faraday_core::vaults::dice_aim;
+    use faraday_core::vault::dice_aim;
     assert!(dice_aim(List::Large).starts_with("Aim for 6 words"));
     assert!(dice_aim(List::Short1).starts_with("Aim for 8 words"));
     assert!(dice_aim(List::Large).contains("eff.org/dice"));
@@ -182,7 +182,7 @@ fn the_dice_panel_says_how_many_words_make_a_strong_passphrase() {
 
 #[test]
 fn a_dice_passphrase_has_a_strength_until_it_is_changed() {
-    use faraday_core::vaults::Vaults;
+    use faraday_core::vault::Vaults;
     use faraday_shell_api::{Event, Key};
     let mut app = rolling();
     // Six words of the long list: thirty dice.

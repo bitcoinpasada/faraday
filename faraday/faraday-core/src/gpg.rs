@@ -14,7 +14,7 @@ use faraday_vault::Record;
 use faraday_vault::records::kind;
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::backup_flow_steps::Built;
+use crate::backup_flow::steps::Built;
 use crate::{Faraday, Item};
 
 /// The fields of a type-7 record.
@@ -862,7 +862,7 @@ pub struct Shown {
 /// §2.3); the key's own creation and expiry stay UTC (`key.created`).
 pub fn shown(r: &Record, tz_min: i16) -> Option<Shown> {
     let key = key_of(r)?;
-    let local = |t: u64| date(crate::vaults::local_secs(t, tz_min));
+    let local = |t: u64| date(crate::vault::local_secs(t, tz_min));
     Some(Shown {
         fingerprint: faraday_pgp::fingerprint_text(&key.fingerprint()),
         subkey: faraday_pgp::fingerprint_text(&key.subkey_fingerprint()),

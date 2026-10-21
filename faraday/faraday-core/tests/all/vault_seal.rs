@@ -7,7 +7,7 @@
 
 use crate::common::type_text;
 use faraday_core::strings::EN;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event};

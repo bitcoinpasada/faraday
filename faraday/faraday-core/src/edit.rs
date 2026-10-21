@@ -16,7 +16,7 @@ use faraday_shell_api::Key as KeyIn;
 
 use crate::secret_text::SecretText;
 use crate::ui::Edit;
-use crate::vaults::{self, VaultAction as V};
+use crate::vault::{self, VaultAction as V};
 use crate::{Action, Faraday, Screen, Sheet, keygen};
 
 /// The most screens kept for the forward button.
@@ -26,7 +26,7 @@ impl Faraday {
     /// The field typing goes to, by the action that focuses it: one
     /// that takes a caret, a selection and an edit inside it.
     pub(crate) fn typing_target(&self) -> Option<Action> {
-        use vaults::Focus as F;
+        use vault::Focus as F;
         // A place's name on Back up's plan or a flow's plan card
         // (`docs/BACKUP-FLOW.md` §17.18).
         if (self.screen == Screen::Backup
@@ -49,7 +49,7 @@ impl Faraday {
                 .seed_read
                 .as_ref()?
                 .focus
-                .map(|f| Action::SeedRead(crate::seed_read::Choice::Field(f)));
+                .map(|f| Action::SeedRead(crate::seeds::read::Choice::Field(f)));
         }
         match self.screen {
             Screen::Family | Screen::Restore if self.seeds_typing() => self
@@ -92,7 +92,7 @@ impl Faraday {
     /// dropped.
     fn typing_text(&self) -> Option<SecretText> {
         use crate::seeds::{Focus as SF, SeedsAction as S};
-        use vaults::Focus as F;
+        use vault::Focus as F;
         let text: &str = match self.typing_target()? {
             Action::Seeds(S::Focus(f)) => {
                 let s = self.seeds()?;
@@ -140,7 +140,7 @@ impl Faraday {
             Action::Vault(V::FocusField(k)) => !self.vaults.form.as_ref().is_some_and(|f| {
                 f.fields
                     .get(k)
-                    .is_some_and(|field| vaults::multiline(f.kind, field.0))
+                    .is_some_and(|field| vault::multiline(f.kind, field.0))
             }),
             _ => true,
         }

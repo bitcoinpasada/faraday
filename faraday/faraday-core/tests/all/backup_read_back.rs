@@ -9,11 +9,11 @@
 use crate::common::*;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::keys::{Fingerprint, MasterKey};
+use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::backup_flow::{Problem, Step};
-use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::create::NewKind;
 use faraday_core::plan::{self, At, Shape, Spot, What, form};
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, BStage, Faraday, Screen, StorageEvent, bstep, cstep, testkit};
 use faraday_shell_api::{App, Event, Key};
 use faraday_vault::records::{field, kind};

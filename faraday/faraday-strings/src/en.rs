@@ -788,7 +788,7 @@ pub struct Strings {
     pub apk_back: &'static str,
     /// Files: the button on an APK's row.
     pub apk_sign_with_key: &'static str,
-    // ----- backup (faraday-core/src/backup.rs) -----
+    // ----- backup (faraday-core/src/wallet_backup.rs) -----
     /// Text in `copy_scan_line`. `{}`: `k`.
     pub backup_your_copy_scans_but: &'static str,
     /// Text in `copy_scan_line`.
@@ -799,7 +799,7 @@ pub struct Strings {
     pub backup_the_backup_sheet: &'static str,
     /// Text in `envelope`. `{}`: `i + 1`, `i + 1`, `fp`, `sheet`.
     pub backup_envelope_the: &'static str,
-    // ----- backups (faraday-core/src/backups.rs) -----
+    // ----- backups (faraday-core/src/backups/mod.rs) -----
     /// Text in `backups`.
     pub backups_wallet: &'static str,
     /// Text in `backups`.
@@ -856,11 +856,11 @@ pub struct Strings {
     pub backups_planned: &'static str,
     /// Text in `backup_line`. `{}`: `parts.join(" · ")`.
     pub backups_backup: &'static str,
-    /// Text in `on_stick`. `{}`: `label`, `crate::vaults::time_of_day(crate::vau…`.
+    /// Text in `on_stick`. `{}`: `label`, `crate::vault::time_of_day(crate::vau…`.
     pub backups_on_2: &'static str,
     /// Text in `on_stick`. `{}`: `label`.
     pub backups_on: &'static str,
-    // ----- backups (faraday-core/src/backups_screen.rs) -----
+    // ----- backups (faraday-core/src/backups/screen.rs) -----
     /// Title in `draw`.
     pub backups_backups: &'static str,
     /// Line in `compact`.
@@ -875,7 +875,7 @@ pub struct Strings {
     pub backups_previous: &'static str,
     /// Button in `compact`.
     pub backups_next: &'static str,
-    // ----- bip85 (faraday-core/src/bip85.rs) -----
+    // ----- bip85 (faraday-core/src/bip85/mod.rs) -----
     /// Toast in `bip85_open`.
     pub bip85_load_a_key_first: &'static str,
     /// Text in `bip85_title`. `{}`: `app_name(b.app)`, `fp`, `b.index().unwrap_or(0)`.
@@ -898,7 +898,7 @@ pub struct Strings {
     pub bip85_a_password: &'static str,
     /// Text in `bip85_out`.
     pub bip85_whoever_has_it: &'static str,
-    // ----- bip85 (faraday-core/src/bip85_screen.rs) -----
+    // ----- bip85 (faraday-core/src/bip85/screen.rs) -----
     /// Text in `TITLES`.
     pub bip85_key: &'static str,
     /// Text in `TITLES`.
@@ -951,7 +951,7 @@ pub struct Strings {
     pub bip85_load_as_a_key: &'static str,
     /// Text in `card`.
     pub bip85_out_unprotected: &'static str,
-    // ----- boot_import (faraday-core/src/boot_import.rs) -----
+    // ----- boot_import (faraday-core/src/boot_import/mod.rs) -----
     /// Text in `line`.
     pub boot_import_vault_inline: &'static str,
     /// Text in `line`.
@@ -1002,14 +1002,14 @@ pub struct Strings {
     pub boot_import_file: &'static str,
     /// Text in `import_go`.
     pub boot_import_files_inline: &'static str,
-    // ----- boot_import (faraday-core/src/boot_import_screen.rs) -----
+    // ----- boot_import (faraday-core/src/boot_import/screen.rs) -----
     /// Text in `body`. `{}`: `label`.
     pub boot_import_read_from: &'static str,
     /// Text in `body`. `{}`: `app.medium.noun()`.
     pub boot_import_pull_the: &'static str,
     /// Text in `body`. `{}`: `slot`.
     pub boot_import_open: &'static str,
-    /// Text in `body`. `{}`: `crate::vaults::file_text(vault.len)`.
+    /// Text in `body`. `{}`: `crate::vault::file_text(vault.len)`.
     pub boot_import_locked: &'static str,
     /// Text in `picker`.
     pub boot_import_later: &'static str,
@@ -1259,11 +1259,11 @@ pub struct Strings {
     pub chart_edit_checked: &'static str,
     /// Text in `envelopes_out`. `{}`: `v + 1`.
     pub chart_edit_vault_stick: &'static str,
-    // ----- codes (faraday-core/src/codes.rs) -----
+    // ----- codes (faraday-core/src/codes/mod.rs) -----
     /// Text in `codes_rows`.
     pub codes_entry: &'static str,
-    // ----- codes (faraday-core/src/codes_screen.rs) -----
-    /// Text in `now_row`. `{}`: `crate::vaults::tz_offset_text(app.tz_…`.
+    // ----- codes (faraday-core/src/codes/screen.rs) -----
+    /// Text in `now_row`. `{}`: `crate::vault::tz_offset_text(app.tz_…`.
     pub codes_now_utc: &'static str,
     /// Text in `now_row`.
     pub codes_not_known: &'static str,
@@ -1279,7 +1279,7 @@ pub struct Strings {
     pub codes_scan_a_setup: &'static str,
     /// Button in `compact`.
     pub codes_add_an_entry: &'static str,
-    // ----- compact (faraday-core/src/compact.rs) -----
+    // ----- compact (faraday-core/src/compact/mod.rs) -----
     /// Text in `screen_name`.
     pub compact_spend: &'static str,
     /// Text in `screen_name`.
@@ -1376,7 +1376,7 @@ pub struct Strings {
     pub compact_none: &'static str,
     /// Text in `home_files_line`. `{}`: `self.medium.noun()`.
     pub compact_no: &'static str,
-    // ----- compact (faraday-core/src/compact_screens.rs) -----
+    // ----- compact (faraday-core/src/compact/screen.rs) -----
     /// Line in `wallet_card`.
     pub compact_no_wallet_loaded: &'static str,
     /// Text in `wallet_card`. `{}`: `s.spend.source`.
@@ -1535,10 +1535,10 @@ pub struct Strings {
     pub decode_unix_time: &'static str,
     /// Text in `btc`. `{}`: `Amount::from_sat(sats).to_btc()`.
     pub decode_btc: &'static str,
-    // ----- explore (faraday-core/src/explore.rs) -----
+    // ----- explore (faraday-core/src/explore/mod.rs) -----
     /// Toast in `explore_open`.
     pub explore_load_a_key: &'static str,
-    // ----- explore (faraday-core/src/explore_screen.rs) -----
+    // ----- explore (faraday-core/src/explore/screen.rs) -----
     /// Text in `draw`.
     pub explore_the_public: &'static str,
     /// Line in `draw`.
@@ -1567,7 +1567,7 @@ pub struct Strings {
     pub explore_wallets: &'static str,
     /// Title in `header`.
     pub explore_explore: &'static str,
-    // ----- family (faraday-core/src/family.rs) -----
+    // ----- family (faraday-core/src/family/mod.rs) -----
     /// Text in `WORDS_SOURCE`.
     pub family_typed_words: &'static str,
     /// Text in `spend_button`.
@@ -1630,7 +1630,7 @@ pub struct Strings {
     pub family_nested_segwit: &'static str,
     /// Text in `kind_label`.
     pub family_legacy_multisig: &'static str,
-    // ----- family (faraday-core/src/family_screen.rs) -----
+    // ----- family (faraday-core/src/family/screen.rs) -----
     /// Text in `draw`. `{}`: `app.session.wallets[i].name`.
     pub family_spend_from_n: &'static str,
     /// Text in `draw`.
@@ -1891,7 +1891,7 @@ pub struct Strings {
     pub family_power_off: &'static str,
     /// Text in `away`.
     pub family_start_over: &'static str,
-    // ----- family (faraday-core/src/family_text.rs) -----
+    // ----- family (faraday-core/src/family/text.rs) -----
     /// Text in `map`.
     pub family_paper: &'static str,
     /// Text in `map`.
@@ -2190,7 +2190,7 @@ pub struct Strings {
     pub forms_chinese_traditional: &'static str,
     /// Text in `typed_mnemonic`. `{}`: `k + 1`, `language_name(lang)`.
     pub forms_word_is_not_on: &'static str,
-    // ----- glance (faraday-core/src/glance.rs) -----
+    // ----- glance (faraday-core/src/glance/mod.rs) -----
     /// Text in `RECEIVE_WARNING`.
     pub glance_back_up_before: &'static str,
     /// Text in `WAITING`.
@@ -2285,7 +2285,7 @@ pub struct Strings {
     pub glance_the_description: &'static str,
     /// Text in `thing_label`. `{}`: `number(i)`.
     pub glance_key: &'static str,
-    // ----- glance_sheet (faraday-core/src/glance_sheet.rs) -----
+    // ----- glance_sheet (faraday-core/src/glance/sheet.rs) -----
     /// Row in `view`.
     pub glance_sheet_open_the: &'static str,
     /// Row in `view`.
@@ -2874,7 +2874,7 @@ pub struct Strings {
     pub inputs_wrong_code: &'static str,
     /// Toast in `input_typed` and `input_new`.
     pub inputs_new_keyboards_ignored: &'static str,
-    // ----- keygen (faraday-core/src/keygen.rs) -----
+    // ----- keygen (faraday-core/src/keygen/mod.rs) -----
     /// Text in `source_name`.
     pub keygen_seed_xor: &'static str,
     /// Text in `procedure_name`.
@@ -2921,7 +2921,7 @@ pub struct Strings {
     pub keygen_shares_inline: &'static str,
     /// Text in `keygen_done`.
     pub keygen_words_inline: &'static str,
-    // ----- keygen (faraday-core/src/keygen_screen.rs) -----
+    // ----- keygen (faraday-core/src/keygen/screen.rs) -----
     /// Text in `TITLES`.
     pub keygen_check: &'static str,
     /// Text in `TITLES`.
@@ -3325,7 +3325,7 @@ pub struct Strings {
     /// Text in `NOT_A_KEY`.
     pub app_not_a_key_of_this: &'static str,
     // ----- heading (faraday-core/src/lib.rs) -----
-    /// Text in `heading`. `{}`: `self.label`, `vaults::time_of_day(vaults::local_sec…`.
+    /// Text in `heading`. `{}`: `self.label`, `vault::time_of_day(vault::local_sec…`.
     pub heading_written_to_at: &'static str,
     /// Text in `heading`. `{}`: `self.label`.
     pub heading_written_to: &'static str,
@@ -3764,7 +3764,7 @@ pub struct Strings {
     // ----- event (faraday-core/src/lib.rs) -----
     /// Line in `scan_sheet` after `CameraUnavailable`.
     pub event_no_camera_or: &'static str,
-    // ----- lightning (faraday-core/src/lightning.rs) -----
+    // ----- lightning (faraday-core/src/lightning/mod.rs) -----
     /// Error in `lightning_resolve`.
     pub lightning_this_key: &'static str,
     /// Error in `lightning_resolve`. `{}`: `words.len()`.
@@ -3783,7 +3783,7 @@ pub struct Strings {
     pub lightning_a_lightning: &'static str,
     /// Text in `lightning_act`.
     pub lightning_whoever_has: &'static str,
-    // ----- lightning (faraday-core/src/lightning_screen.rs) -----
+    // ----- lightning (faraday-core/src/lightning/screen.rs) -----
     /// Text in `draw`.
     pub lightning_a_lightning_node: &'static str,
     /// Line in `header`.
@@ -3947,7 +3947,7 @@ pub struct Strings {
     pub pdf_place: &'static str,
     /// Line in `blank_sheet`.
     pub pdf_holds: &'static str,
-    // ----- plan (faraday-core/src/plan.rs) -----
+    // ----- plan (faraday-core/src/plan/mod.rs) -----
     /// Text in `vault_name`. `{}`: `v + 1`, `names.join(", ")`.
     pub plan_vault_2: &'static str,
     /// Text in `label`. `{}`: `seed(i)`.
@@ -6375,7 +6375,7 @@ pub struct Strings {
     pub secrets_is_in: &'static str,
     /// Text in `secret_unprotected`. `{}`: `name`, `self.medium.for_the()`.
     pub secrets_waits_unprotected: &'static str,
-    // ----- secureboot (faraday-core/src/secureboot.rs) -----
+    // ----- secureboot (faraday-core/src/secure_boot/mod.rs) -----
     /// Toast in `sb_make`.
     pub secureboot_no_randomness: &'static str,
     /// Toast in `sb_make`.
@@ -6396,7 +6396,7 @@ pub struct Strings {
     pub secureboot_not_signed: &'static str,
     /// Text in `sb_check`.
     pub secureboot_its_signature: &'static str,
-    // ----- seed_read (faraday-core/src/seed_read.rs) -----
+    // ----- seed_read (faraday-core/src/seeds/read.rs) -----
     /// Error in `seed_read_act`.
     pub seed_read_type_the: &'static str,
     /// Text in `seed_read_wallet`. `{}`: `n + 1`.
@@ -6425,7 +6425,7 @@ pub struct Strings {
     pub seed_read_the_two_passphrases: &'static str,
     /// Text in `sheet`.
     pub seed_read_seedqr_read: &'static str,
-    // ----- seeds (faraday-core/src/seeds.rs) -----
+    // ----- seeds (faraday-core/src/seeds/mod.rs) -----
     /// Error in `seeds_take_file`.
     pub seeds_no_account_key: &'static str,
     /// Error in `seeds_descriptor`.
@@ -6448,7 +6448,7 @@ pub struct Strings {
     pub seeds_typed_seed: &'static str,
     /// Text in `seeds_make`.
     pub seeds_typed_seeds: &'static str,
-    // ----- seeds (faraday-core/src/seeds_screen.rs) -----
+    // ----- seeds (faraday-core/src/seeds/screen.rs) -----
     /// Text in `more_ways`. `{}`: `fp`, `name`.
     pub seeds_load_from: &'static str,
     /// Text in `quorum`. `{}`: `s.m.max(1)`, `n`.
@@ -6498,7 +6498,7 @@ pub struct Strings {
     pub set_time_not_known: &'static str,
     /// Toast in `set_time_set`. `{}`: `h`, `mi`.
     pub set_time_time_set_to: &'static str,
-    // ----- silent (faraday-core/src/silent.rs) -----
+    // ----- silent (faraday-core/src/silent/mod.rs) -----
     /// Toast in `silent_open`.
     pub silent_load_a_key_first: &'static str,
     /// Error in `silent_code`.
@@ -6541,7 +6541,7 @@ pub struct Strings {
     pub silent_added_to_your: &'static str,
     /// Toast in `silent_check`.
     pub silent_not_a_transaction: &'static str,
-    // ----- silent (faraday-core/src/silent_screen.rs) -----
+    // ----- silent (faraday-core/src/silent/screen.rs) -----
     /// Text in `TITLES`.
     pub silent_key: &'static str,
     /// Text in `TITLES`.
@@ -6622,12 +6622,12 @@ pub struct Strings {
     pub silent_check: &'static str,
     /// Line in `check_card`.
     pub silent_no_transaction: &'static str,
-    // ----- stick_settings (faraday-core/src/stick_settings.rs) -----
+    // ----- stick_settings (faraday-core/src/stick/settings.rs) -----
     /// Text in `settings_event`. `{}`: `wrote_as`.
     pub stick_settings_wrote: &'static str,
     /// Text in `settings_event`. `{}`: `name`, `reason`.
     pub stick_settings_not: &'static str,
-    // ----- stick_wipe (faraday-core/src/stick_wipe.rs) -----
+    // ----- stick_wipe (faraday-core/src/stick/wipe.rs) -----
     /// Text in `LIMIT`.
     pub stick_wipe_no_zeroing: &'static str,
     /// Text in `REACH`.
@@ -6722,7 +6722,7 @@ pub struct Strings {
     pub stick_wipe_stopping: &'static str,
     /// Text in `zeroing_sheet`.
     pub stick_wipe_stop: &'static str,
-    // ----- tools (faraday-core/src/tools_screen.rs) -----
+    // ----- tools (faraday-core/src/tools/screen.rs) -----
     /// Text in `GUIDE`.
     pub tools_calculators_each: &'static str,
     /// Line in `header`.
@@ -6803,7 +6803,7 @@ pub struct Strings {
     pub tools_one_this_device: &'static str,
     /// Text in `body`.
     pub tools_keys_need_origins: &'static str,
-    // ----- transfer (faraday-core/src/transfer.rs) -----
+    // ----- transfer (faraday-core/src/transfer/mod.rs) -----
     /// Text in `transfer_send`. `{}`: `self.medium.a()`.
     pub transfer_larger_than: &'static str,
     /// Text in `transfer_send`. `{}`: `base_name(&path)`.
@@ -6816,7 +6816,7 @@ pub struct Strings {
     pub transfer_saved: &'static str,
     /// Error in `transfer_saved`. `{}`: `reason`.
     pub transfer_not_saved: &'static str,
-    // ----- transfer (faraday-core/src/transfer_screen.rs) -----
+    // ----- transfer (faraday-core/src/transfer/screen.rs) -----
     /// Text in `size_text`. `{}`: `bytes as f32 / 1e6`.
     pub transfer_mb: &'static str,
     /// Text in `size_text`. `{}`: `bytes as f32 / 1e3`.
@@ -6863,7 +6863,7 @@ pub struct Strings {
     pub ui_bitcoin_orange_light: &'static str,
     /// Text in `name`.
     pub ui_lamplight: &'static str,
-    // ----- upgrade (faraday-core/src/upgrade.rs) -----
+    // ----- upgrade (faraday-core/src/upgrade/mod.rs) -----
     /// Text in `version`.
     pub upgrade_0_1_0_or_earlier: &'static str,
     /// Text in `describe`. `{}`: `number`, `commit`.
@@ -6874,7 +6874,7 @@ pub struct Strings {
     pub upgrade_dev: &'static str,
     /// Text in `describe`. `{}`: `number`, `commit`, `fp`.
     pub upgrade_dev_changes: &'static str,
-    // ----- upgrade (faraday-core/src/upgrade_screen.rs) -----
+    // ----- upgrade (faraday-core/src/upgrade/screen.rs) -----
     /// Text in `source`. `{}`: `app.medium.noun()`.
     pub upgrade_insert_the: &'static str,
     /// Label in `source`.
@@ -6922,7 +6922,7 @@ pub struct Strings {
     pub upgrade_several_hold: &'static str,
     /// Text in `read_source`. `{}`: its MB, this Faraday's MB.
     pub upgrade_source_size: &'static str,
-    // ----- vanity (faraday-core/src/vanity.rs) -----
+    // ----- vanity (faraday-core/src/vanity/mod.rs) -----
     /// Text in `script_name`.
     pub vanity_legacy: &'static str,
     /// Text in `script_name`.
@@ -6957,7 +6957,7 @@ pub struct Strings {
     pub vanity_is_open: &'static str,
     /// Error in `vanity_key_in`. `{}`: `c`.
     pub vanity_cannot_stand: &'static str,
-    // ----- vanity (faraday-core/src/vanity_screen.rs) -----
+    // ----- vanity (faraday-core/src/vanity/screen.rs) -----
     /// Text in `TITLES`.
     pub vanity_key: &'static str,
     /// Text in `TITLES`.
@@ -7024,7 +7024,7 @@ pub struct Strings {
     pub vanity_min: &'static str,
     /// Text in `seconds_text`. `{}`: `s / 86_400`.
     pub vanity_days: &'static str,
-    // ----- vault (faraday-core/src/vault_screens.rs) -----
+    // ----- vault (faraday-core/src/vault/screen.rs) -----
     /// Text in `gpg_file_size`. `{}`: `bytes as f32 / 1e6`.
     pub vault_mb: &'static str,
     /// Text in `gpg_file_size`. `{}`: `bytes as f32 / 1e3`.
@@ -7099,7 +7099,7 @@ pub struct Strings {
     pub vault_passes_3: &'static str,
     /// Text. `{}`: `size_text(c.slot)`, `file_text(file_len(c.slot))`.
     pub vault_file_n: &'static str,
-    /// Text. `{}`: `vaults::vault_stem(&c.name.text)`, `n`, `if n == 1 { FEN.vault_passphrase_inline } …`, `if ok { FEN.vault_match } else { FEN.…`.
+    /// Text. `{}`: `vault::vault_stem(&c.name.text)`, `n`, `if n == 1 { FEN.vault_passphrase_inline } …`, `if ok { FEN.vault_match } else { FEN.…`.
     pub vault_ofv: &'static str,
     /// Text in `create_summaries`.
     pub vault_passphrase_inline: &'static str,
@@ -7123,7 +7123,7 @@ pub struct Strings {
     pub vault_fits: &'static str,
     /// Text in `create_body`. `{}`: `weakest`.
     pub vault_too_large_for: &'static str,
-    /// Text in `create_body`. `{}`: `mib_text(m)`, `p`, `vaults::cost_bits(m, p)`.
+    /// Text in `create_body`. `{}`: `mib_text(m)`, `p`, `vault::cost_bits(m, p)`.
     pub vault_passes_bits: &'static str,
     /// Line in `create_body`.
     pub vault_memory: &'static str,
@@ -7133,7 +7133,7 @@ pub struct Strings {
     pub vault_unlock_memory_n: &'static str,
     /// Text in `create_body`. `{}`: `weakest`, `mib_text(limit)`.
     pub vault_up_to: &'static str,
-    /// Text in `create_body`. `{}`: `vaults::cost_bits(mem, passes)`.
+    /// Text in `create_body`. `{}`: `vault::cost_bits(mem, passes)`.
     pub vault_adds_bits_to: &'static str,
     /// Text in `create_body`. `{}`: `mib_text(mem)`, `passes`.
     pub vault_passes: &'static str,
@@ -7155,7 +7155,7 @@ pub struct Strings {
     pub vault_name: &'static str,
     /// Text in `create_body`. `{}`: `app.medium.noun()`.
     pub vault_what_it_holds: &'static str,
-    /// Text in `create_body`. `{}`: `vaults::vault_stem(&c.name.text)`.
+    /// Text in `create_body`. `{}`: `vault::vault_stem(&c.name.text)`.
     pub vault_file_ofv: &'static str,
     /// Text in `create_body`. `{}`: `app.medium.noun()`.
     pub vault_remove_the_then: &'static str,
@@ -7190,7 +7190,7 @@ pub struct Strings {
     pub vault_roll_dice_for: &'static str,
     /// Line in `dice_panel`.
     pub vault_no_word_yet: &'static str,
-    /// Text in `dice_panel`. `{}`: `words.len()`, `if words.len() == 1 { FEN.vault_word …`, `own`, `own + vaults::cost_bits(mem, passes)`, `if left > 0 { format!(" · {left} of {…`.
+    /// Text in `dice_panel`. `{}`: `words.len()`, `if words.len() == 1 { FEN.vault_word …`, `own`, `own + vault::cost_bits(mem, passes)`, `if left > 0 { format!(" · {left} of {…`.
     pub vault_bits_with_the: &'static str,
     /// Text in `dice_panel`, after a space. `{}`: `left`, `per`.
     pub vault_dice_for_the_next_word: &'static str,
@@ -7570,7 +7570,7 @@ pub struct Strings {
     pub vault_check: &'static str,
     /// Button in `images_panel`.
     pub vault_back_to_the_keys: &'static str,
-    // ----- vaults (faraday-core/src/vaults.rs) -----
+    // ----- vaults (faraday-core/src/vault/mod.rs) -----
     /// Text in `PRESETS`.
     pub vaults_light: &'static str,
     /// Text in `PRESETS`.
@@ -8036,7 +8036,7 @@ pub struct Strings {
     pub wallet_after_time: &'static str,
     /// Text in `paths`.
     pub wallet_a_secret_preimage: &'static str,
-    // ----- wordlist (faraday-core/src/wordlist.rs) -----
+    // ----- wordlist (faraday-core/src/wordlist/mod.rs) -----
     /// Text in `PRESS_A_WORD`.
     pub wordlist_press_a_word: &'static str,
     /// Text in `name`.
@@ -8051,7 +8051,7 @@ pub struct Strings {
     pub wordlist_bits: &'static str,
     /// Text in `code_heading`.
     pub wordlist_dice: &'static str,
-    // ----- wordlist (faraday-core/src/wordlist_screen.rs) -----
+    // ----- wordlist (faraday-core/src/wordlist/screen.rs) -----
     /// Button in `draw`.
     pub wordlist_back: &'static str,
     /// Text in `draw`. `{}`: `words.len()`, `m + 1`, `words.len()`.

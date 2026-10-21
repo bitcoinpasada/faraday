@@ -268,7 +268,7 @@ Faraday's own storage channel (`StorageEvent::Cameras`, `QrSeen`, and
 scanned while Create waits fills the waiting slot.
 
 Built 2026-10-09, the desktop app's **Transfer** (`docs/FLOWS.md`, QR
-transfer tab; `faraday-core/src/transfer.rs`): Send shows a file from
+transfer tab; `faraday-core/src/transfer/mod.rs`): Send shows a file from
 `~/Downloads` (listed by the shell newest first, or dropped on the
 window where winit reports drops: X11) as the QR sheet shows an Outbox
 file, refused over 256 KiB; Receive is the scanner with the purpose
@@ -362,7 +362,7 @@ rule's reach is written down):
 - **A recovery sheet's page** (row 5): **Show as QR** and **PNG** on a
   row under **Descriptor**.
 - **An entry's TOTP secret** (row 6): **Hold to show as QR**, a hold
-  button (`vault_screens::hold_button`, `HOLD_MS`) under the held
+  button (`vault::screen::hold_button`, `HOLD_MS`) under the held
   **TOTP secret** row, shown when the URI reads as TOTP; an HOTP or
   unreadable one shows none.
 
@@ -471,12 +471,12 @@ One batch, one review, one completion report.
   `rm`; no commits; no agents. Nothing in `core/`.
 - **Code.** `lib.rs` (the variants, their `code_view` arms,
   `QrView::secret`, `lock_now` dropping the view); `screens.rs`
-  (`first_addresses`, the wallet card's first receive address); `compact_screens.rs` (the small panel's
-  card); `family_screen.rs` (**Receive address 0**, **Check the
-  money**'s receive rows); `glance_sheet.rs` (through
-  `first_addresses`); `vanity_screen.rs`; `explore_screen.rs`;
-  `lightning_screen.rs` and `lightning.rs` (the node's view);
-  `vault_screens.rs` and `vaults.rs` (the sheet's row, the TOTP hold,
+  (`first_addresses`, the wallet card's first receive address); `compact/screen.rs` (the small panel's
+  card); `family/screen.rs` (**Receive address 0**, **Check the
+  money**'s receive rows); `glance/sheet.rs` (through
+  `first_addresses`); `vanity/screen.rs`; `explore/screen.rs`;
+  `lightning/screen.rs` and `lightning.rs` (the node's view);
+  `vault/screen.rs` and `vault/mod.rs` (the sheet's row, the TOTP hold,
   `VaultAction::TotpQr`); `faraday-strings/src/en.rs`.
 - **Tests**, through `Action`s and `StorageEvent`s as their neighbours
   do; the public codes in `faraday/faraday-core/tests/all/codes.rs`, which

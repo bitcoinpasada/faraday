@@ -62,12 +62,12 @@ fn sizes(app: &Faraday) -> Vec<(String, usize, usize)> {
         (
             "vault keys' fingerprints (vaults.fingerprints)".into(),
             app.vaults.fingerprints.borrow().len(),
-            crate::vaults::FINGERPRINTS_KEPT,
+            crate::vault::FINGERPRINTS_KEPT,
         ),
         (
             "vault keys' account keys (vaults.accounts)".into(),
             app.vaults.accounts.borrow().len(),
-            crate::vaults::ACCOUNTS_KEPT,
+            crate::vault::ACCOUNTS_KEPT,
         ),
         (
             "APKs read (apk)".into(),

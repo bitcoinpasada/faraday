@@ -26,11 +26,11 @@ use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 use super::{Counts, KINDS, Work, since, snapshot};
+use crate::backup_flow::steps::FlowAction as F;
 use crate::backup_flow::{BackupFlow, Kind, Plan, Step, Written};
-use crate::backup_flow_steps::FlowAction as F;
 use crate::create::NewKind;
 use crate::keygen::Way;
-use crate::vaults::VaultAction as V;
+use crate::vault::VaultAction as V;
 use crate::{Action, Faraday, Screen, Sheet, StorageEvent, bstep, cstep, testkit};
 
 /// What one frame of a screen may work out each time it is drawn, in

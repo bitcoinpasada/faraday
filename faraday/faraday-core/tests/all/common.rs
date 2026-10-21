@@ -5,9 +5,9 @@
 #![allow(dead_code)]
 
 use faraday_core::backup_flow::Kind;
-use faraday_core::backup_flow_steps::FlowAction as F;
+use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::catalog::{Go, TILES};
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{
     Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent, testkit,
 };

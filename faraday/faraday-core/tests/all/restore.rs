@@ -5,11 +5,11 @@
 
 use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};
-use faraday_core::backup_flow_steps::FlowAction;
+use faraday_core::backup_flow::steps::FlowAction;
 use faraday_core::create::{NewKind, Source};
 use faraday_core::family::FamilyAction as F;
 use faraday_core::rstep::{CHECK, DESCRIPTION, DONE, HOW_MANY, KIND, QUORUM, SEEDS, WHERE};
-use faraday_core::seed_read::Choice;
+use faraday_core::seeds::read::Choice;
 use faraday_core::seeds::{Focus, SeedsAction as S};
 use faraday_core::{Action, Faraday, NOT_A_KEY, Screen, Sheet, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
@@ -707,7 +707,7 @@ fn it_matches_opens_done_with_two_vaults() {
 /// `file`, then its Spend tab opened from the wallet's card.
 fn restored_from_vault_named(file: &str) -> Faraday {
     use faraday_core::StorageEvent;
-    use faraday_core::vaults::VaultAction as V;
+    use faraday_core::vault::VaultAction as V;
     let mut app = shown();
     app.storage(StorageEvent::Restored {
         inbox: vec![(file.to_string(), testkit::test_vault().unwrap())],

@@ -34,7 +34,7 @@
 //! visited like any stick.
 //!
 //! The sticks are the pills across the top of the window
-//! (`faraday_core::stick_pills`): Boot stick, Stick 2, and one for each
+//! (`faraday_core::stick::pills`): Boot stick, Stick 2, and one for each
 //! stick a backup flow needs. A click on a pill plugs its stick in, or
 //! pulls it out; several may be in at once. Only the boot stick is in
 //! at start. What the app writes to a stick is a file in its folder, so a

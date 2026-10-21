@@ -485,8 +485,8 @@ impl Faraday {
     /// the plan beside them.
     pub(crate) fn backup_vault_save(&mut self, v: usize) {
         let c = self.compute();
-        use crate::vault_screens::vault_has_wallet;
-        use crate::vaults::VaultAction as V;
+        use crate::vault::VaultAction as V;
+        use crate::vault::screen::vault_has_wallet;
         let Some(cur) = self.backup_vault_target(v) else {
             return;
         };

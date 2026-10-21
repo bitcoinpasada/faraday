@@ -474,7 +474,7 @@ drawn; the keys are made and copied, the checklist as today.
 
 ## 7. The state
 
-`faraday-core/src/backup_flow.rs`, `BackupFlow`;
+`faraday-core/src/backup_flow/mod.rs`, `BackupFlow`;
 `Faraday::backup_flows: Vec<BackupFlow>`, at most one on screen.
 
 | Field | Holds |
@@ -563,7 +563,7 @@ and matched. A write made on the stick visit page does not count
   then **Continue**; done by `backup_vault_fits`.
 - **The writes are left to the stick visit**: the done card's **Write
   to {a stick}** and the chart's stick node (`chart_edit.rs`,
-  `glance_sheet.rs`) send `Action::WriteAsk`: with anything open the
+  `glance/sheet.rs`) send `Action::WriteAsk`: with anything open the
   Write out sheet, whose **Lock** sends the next stick to
   `Screen::Visit`; clean, `Screen::Visit` at once.
 - **The plan comes after the keys** (decision 20): New key makes the
@@ -1174,9 +1174,9 @@ open and Share 1 in the Inbox rebuilds the wallet.
 ### 15.7 The cards in the guided flow
 
 (owner, 2026-10-15.) The flow's plan card is the same place cards, drawn
-by the same code (`plan_cards.rs`), on the flow's own copy of the plan.
+by the same code (`plan/cards.rs`), on the flow's own copy of the plan.
 Since F2b the place cards are the board (§17, §17.12 item 1), drawn by
-`board_screen.rs` on the flow's plan; the keys left off each share are
+`board/screen.rs` on the flow's plan; the keys left off each share are
 the board list's stepper.
 
 - **Keys left off each share** is drawn in the flow too, with its table
@@ -1237,7 +1237,7 @@ unlocking a vault.
 ## 16. Stick pills on every device
 
 (owner, 2026-10-15.) The numbered stick pills that Faraday Desktop and
-the website demo draw across the top (`stick_pills.rs`, commit bbcfd1e)
+the website demo draw across the top (`stick/pills.rs`, commit bbcfd1e)
 are drawn on the PC stick and the Pi too, so a person who brings a stick
 back can see it is the one the flow wants.
 
@@ -1527,7 +1527,7 @@ preset places those vaults.
 
 ### 17.7 A vault's key and wallet, shown and saved
 
-The vault's contents screen (`vault_screens.rs` `detail`) gains, so the
+The vault's contents screen (`vault/screen.rs` `detail`) gains, so the
 PNG and text forms need not be kept in a vault:
 
 - On a key record: **Show SeedQR**, behind the same hold-to-reveal as
@@ -1610,7 +1610,7 @@ plans on the board, keeping what each checked; none is deleted.
 
 1. **Both plan cards.** The board replaces the place cards in Back up
    and in the wallet's guided backup flow (§15.7), drawn by the same
-   code (`plan_cards.rs`) on each one's own plan.
+   code (`plan/cards.rs`) on each one's own plan.
 2. **Place names** are typed by a press on the card's name, while a
    vault is open, as §15.7 says; otherwise the name is not a field.
 3. **A narrow window.** Where the cards and the list do not fit side by
@@ -2469,7 +2469,7 @@ spending.
 
 **Where.** `plan::reach` and `plan::Reach` (the count, a search over
 the places at most the quorum deep), `Alone::balance_tag`; `board.rs`
-(`CardView::facts`, `board_sees_ask`, `Sees::spend`); `board_screen.rs`
+(`CardView::facts`, `board_sees_ask`, `Sees::spend`); `board/screen.rs`
 (`place_head` takes a list of tags, `sees_sheet`'s warning mark).
 Strings `board_spend_*` in `faraday-strings`. The tags are worked out
 in `board_view`, once a frame through the drawing memo; the sheet's

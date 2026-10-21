@@ -4,7 +4,7 @@
 
 use crate::common::{CLOCK, Shell, no_words, process, type_text};
 use faraday_core::plan::Item;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageEvent, bstep};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 

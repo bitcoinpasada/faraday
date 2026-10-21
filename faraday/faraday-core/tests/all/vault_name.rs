@@ -3,7 +3,7 @@
 //! sidebar; a vault, larger than any QR transfer, is not offered as one.
 
 use crate::common::type_text;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event};
 

@@ -5,12 +5,12 @@
 //! item asks for. A passphrase on paper is checked the same way, typed
 //! back whole with the passphrase hidden (§14.7 item 5).
 
-use crate::backup::{self, CopyCheck};
 use crate::forms::{self, WordKey, WordsMut};
 use crate::plan::{self, CopyChecks, CopyForm, CopyForms};
 use crate::secret_text::SecretText;
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::wallet_backup::{self, CopyCheck};
 use crate::word_entry::WordEntry;
 use crate::{BackupState, Faraday, Screen, wallet};
 use faraday_bip::bip39::Language;
@@ -350,7 +350,7 @@ impl Faraday {
             return;
         };
         let mut typed = chk.indices();
-        let found = backup::compare_words(&typed, seed.indices());
+        let found = wallet_backup::compare_words(&typed, seed.indices());
         let off_list = match found {
             CopyCheck::WrongWord(k) => typed.get(k - 1) == Some(&u16::MAX),
             CopyCheck::Matches => false,

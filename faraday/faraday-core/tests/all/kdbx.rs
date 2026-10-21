@@ -5,7 +5,7 @@
 use crate::common::type_text;
 use faraday_core::secrets::Exposure;
 use faraday_core::testkit;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 

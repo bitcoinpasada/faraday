@@ -11,12 +11,12 @@
 
 use crate::common::{files_at, put, type_text, vault_stick};
 use faraday_bip::keys::Fingerprint;
-use faraday_core::backup::{Kept, Tone};
 use faraday_core::board::{Thing, Zone};
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::FileKind;
+use faraday_core::wallet_backup::{Kept, Tone};
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, bstep};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 use faraday_vault::records::kind;
@@ -199,7 +199,7 @@ fn scanned(png: &[u8]) -> Fingerprint {
         Some(Sheet::SeedRead),
         "the seed asks how it loads"
     );
-    app.press(Action::SeedRead(faraday_core::seed_read::Choice::Plain));
+    app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
     assert_eq!(app.session.keys.len(), 1, "the scanner loaded no key");
     app.session.keys[0].fingerprint()
 }

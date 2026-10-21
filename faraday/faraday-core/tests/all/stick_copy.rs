@@ -163,7 +163,7 @@ fn write(app: &mut Faraday, sticks: &[&Stick]) -> Vec<(String, String, Vec<u8>)>
     app.press(Action::VisitWrite);
     pump(app, sticks)
         .into_iter()
-        .filter(|(_, n, _)| !faraday_core::stick_settings::is_file(n))
+        .filter(|(_, n, _)| !faraday_core::stick::settings::is_file(n))
         .collect()
 }
 

@@ -6,7 +6,7 @@
 
 use crate::common::type_text;
 use faraday_core::keygen::Way;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 
@@ -266,7 +266,7 @@ fn create_and_read_cost(app: &mut Faraday) -> (u32, u32) {
 
 #[test]
 fn a_fresh_create_a_vault_opens_on_name_and_passphrases_with_64_mib_chosen() {
-    use faraday_core::vaults::vstep;
+    use faraday_core::vault::vstep;
     let mut app = on_create_vault();
     let c = app.vaults.create.as_ref().unwrap();
     assert_eq!(c.open, Some(vstep::PHRASES), "it opens on the passphrases");
@@ -310,7 +310,7 @@ fn every_slot_of_a_new_vault_goes_by_the_vaults_name() {
 
 #[test]
 fn pcs_only_makes_a_512_mib_vault() {
-    use faraday_core::vaults::vstep;
+    use faraday_core::vault::vstep;
     let mut app = on_create_vault();
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     let _ = app.frame();
@@ -331,7 +331,7 @@ fn pcs_only_makes_a_512_mib_vault() {
 
 #[test]
 fn customise_opens_the_three_cards_and_a_custom_memory_survives_continue() {
-    use faraday_core::vaults::{CUSTOM_MEMORY, vstep};
+    use faraday_core::vault::{CUSTOM_MEMORY, vstep};
     let mut app = on_create_vault();
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     let _ = app.frame();
@@ -361,7 +361,7 @@ fn customise_opens_the_three_cards_and_a_custom_memory_survives_continue() {
 /// top of it.
 #[test]
 fn the_unlock_memory_reads_the_same_on_the_size_and_the_summary() {
-    use faraday_core::vaults::vstep;
+    use faraday_core::vault::vstep;
     let mut app = on_create_vault();
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     let text = app.drawn_texts();
@@ -375,7 +375,7 @@ fn the_unlock_memory_reads_the_same_on_the_size_and_the_summary() {
 /// has free, and the cost suggested follows the machines chosen.
 #[test]
 fn this_computer_gives_what_it_has_free_and_can_be_unticked() {
-    use faraday_core::vaults::{PRESETS, vstep};
+    use faraday_core::vault::{PRESETS, vstep};
     let mut app = on_create_vault();
     app.storage(faraday_core::StorageEvent::Memory {
         available_mib: 1229,

@@ -420,7 +420,7 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
         let policy = WalletPolicy::parse_any(&c, &kit.descriptor).map_err(|e| e.to_string())?;
         out.push((
             format!("{}-wallet.json", kit.id),
-            crate::backup::wallet_json(kit.name, &policy).into_bytes(),
+            crate::wallet_backup::wallet_json(kit.name, &policy).into_bytes(),
         ));
         let mut one = session();
         one.add_wallet(
@@ -431,7 +431,7 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
             crate::wallet::Origin::Named,
         )
         .map_err(|e| e.text())?;
-        if let Some(text) = crate::backup::multisig_config(&one.wallets[0], None) {
+        if let Some(text) = crate::wallet_backup::multisig_config(&one.wallets[0], None) {
             out.push((format!("{}-multisig-setup.txt", kit.id), text.into_bytes()));
         }
         let (u, c) = spend_of(&kit)?;
@@ -503,9 +503,9 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
     )
     .map_err(|e| e.text())?;
     let w = &one.wallets[0];
-    let plan = crate::backup::split_plan(3, 2, 1);
+    let plan = crate::wallet_backup::split_plan(3, 2, 1);
     for (i, row) in plan.iter().enumerate() {
-        if let Some(text) = crate::backup::multisig_config(w, Some(row)) {
+        if let Some(text) = crate::wallet_backup::multisig_config(w, Some(row)) {
             out.push((
                 format!("savings-share-{}-of-3.txt", i + 1),
                 text.into_bytes(),

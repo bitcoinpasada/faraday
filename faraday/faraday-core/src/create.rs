@@ -559,7 +559,7 @@ pub fn paths_text(policy: &WalletPolicy) -> String {
             .zip(&paths)
             .map(|(k, p)| {
                 let fp = k.fingerprint().or(Some(k.identifier_fingerprint()));
-                format!("{} {p}", crate::backup::fp_of(fp))
+                format!("{} {p}", crate::wallet_backup::fp_of(fp))
             })
             .collect::<Vec<_>>()
             .join(" · "),

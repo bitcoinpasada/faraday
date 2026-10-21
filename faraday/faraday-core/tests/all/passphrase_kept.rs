@@ -6,7 +6,7 @@ use crate::common::type_text;
 use faraday_core::create::NewKind;
 use faraday_core::keygen::Way;
 use faraday_core::plan::Preset;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, bstep, cstep, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
@@ -163,8 +163,8 @@ fn locking_after_a_vault_backup_never_keeps_the_passphrase_in_the_clear() {
 fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
     let c = testkit::compute();
     use faraday_bip::bip39::{Language, Mnemonic};
+    use faraday_core::glance::sheet::{ChartAction as C, Target};
     use faraday_core::glance::{Backup, Press};
-    use faraday_core::glance_sheet::{ChartAction as C, Target};
     use faraday_core::plan::{At, Edit, What};
 
     let mut app = device();

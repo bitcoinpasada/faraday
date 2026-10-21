@@ -6,8 +6,8 @@
 //! vault's name are notes the plan's vault record keeps (type 11, field
 //! 5), in the vault alone.
 
+use crate::glance::sheet::Target;
 use crate::glance::{self, Press};
-use crate::glance_sheet::Target;
 use crate::plan::{self, At, Edit, Mark, Note, What};
 use crate::secret_text::SecretText;
 use crate::strings::EN;
@@ -107,7 +107,7 @@ impl Faraday {
     /// known (`docs/TOTP.md` §2.3).
     pub(crate) fn today(&self) -> String {
         self.clock_now()
-            .map(|t| crate::gpg::date(crate::vaults::local_secs(t, self.tz_min)))
+            .map(|t| crate::gpg::date(crate::vault::local_secs(t, self.tz_min)))
             .unwrap_or_default()
     }
 
@@ -460,7 +460,7 @@ impl Faraday {
     /// passphrase shown to be copied.
     fn chart_then(&mut self, press: Press, w: usize, edit: Edit) {
         let c = self.compute();
-        use crate::glance_sheet::{ChartAction as C, Step};
+        use crate::glance::sheet::{ChartAction as C, Step};
         let item = |it: plan::Item| {
             Action::Chart(C::Do(Press::Loaded(w), Step::Item(crate::bstep::of(it))))
         };
@@ -579,7 +579,7 @@ impl Faraday {
                 })
             }
             Target::VaultName(n) => {
-                let Some(At::Vault(v)) = crate::glance_sheet::node_at_now(&c, self, press, n)
+                let Some(At::Vault(v)) = crate::glance::sheet::node_at_now(&c, self, press, n)
                 else {
                     return;
                 };

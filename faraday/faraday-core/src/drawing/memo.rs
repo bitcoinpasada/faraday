@@ -17,8 +17,8 @@ use crate::create_from::CreateVaults;
 use crate::in_progress::Row;
 use crate::inbox::Found;
 use crate::plan;
-use crate::vault_load::{LoadView, PassSeed};
-use crate::vaults::{KeptWiped, VaultRow};
+use crate::vault::load::{LoadView, PassSeed};
+use crate::vault::{KeptWiped, VaultRow};
 
 impl View<'_> {
     /// Every wallet known and where its backup is

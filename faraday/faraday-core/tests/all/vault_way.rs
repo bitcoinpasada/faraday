@@ -12,7 +12,7 @@ use crate::common::type_text;
 use faraday_core::catalog::TILES;
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, bstep};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 use faraday_vault::records::kind;
@@ -507,7 +507,7 @@ fn an_empty_open_vault_offers_every_add_and_a_stick() {
         assert!(texts.iter().any(|t| t == add), "{add}: {texts:?}");
     }
     let _ = app.frame();
-    for k in 0..faraday_core::vaults::CATEGORIES.len() {
+    for k in 0..faraday_core::vault::CATEGORIES.len() {
         assert!(app.offers(Action::Vault(V::AddKind(k))), "add kind {k}");
     }
     assert!(

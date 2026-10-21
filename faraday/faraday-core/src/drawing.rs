@@ -71,22 +71,22 @@ pub(crate) struct Drawing {
     pub flows: OnceCell<std::rc::Rc<Vec<crate::in_progress::Row>>>,
     /// What a lock keeps and wipes, by `power_off`
     /// ([`crate::Faraday::kept_wiped_now`]).
-    pub kept_wiped: RefCell<Vec<(bool, crate::vaults::KeptWiped)>>,
+    pub kept_wiped: RefCell<Vec<(bool, crate::vault::KeptWiped)>>,
     /// The sticks the wallet being backed up is written to
     /// ([`crate::Faraday::wallet_stick_rows_now`]).
     pub stick_rows: OnceCell<Vec<StickRow>>,
     /// The Load sheet an unlock shows ([`crate::Faraday::vault_load_view_now`],
     /// F62).
-    pub load_sheet: OnceCell<Option<std::rc::Rc<crate::vault_load::LoadView>>>,
+    pub load_sheet: OnceCell<Option<std::rc::Rc<crate::vault::load::LoadView>>>,
     /// The seeds open vaults keep without a passphrase
     /// ([`crate::Faraday::vault_passphrase_seeds_now`], F62).
-    pub passphrase_seeds: OnceCell<std::rc::Rc<Vec<crate::vault_load::PassSeed>>>,
+    pub passphrase_seeds: OnceCell<std::rc::Rc<Vec<crate::vault::load::PassSeed>>>,
     /// Every wallet known and where its backup is
     /// ([`crate::Faraday::backups_now`]).
     pub backups: OnceCell<Vec<crate::backups::Entry>>,
     /// The keys and wallets each open vault holds, by its place among
     /// the open vaults ([`crate::Faraday::vault_rows_now`]).
-    pub vault_rows: RefCell<Vec<(usize, Vec<crate::vaults::VaultRow>)>>,
+    pub vault_rows: RefCell<Vec<(usize, Vec<crate::vault::VaultRow>)>>,
     /// Everything the Inbox gives ([`crate::Faraday::inbox_found_now`]).
     pub inbox_found: OnceCell<crate::inbox::Found>,
     /// The session's keys and wallets no open vault holds

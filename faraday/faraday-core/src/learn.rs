@@ -133,7 +133,7 @@ impl Faraday {
                     .backup
                     .as_ref()
                     .and_then(|b| self.session.wallets.get(b.wallet))
-                    .is_some_and(crate::backup::splits);
+                    .is_some_and(crate::wallet_backup::splits);
                 if splits {
                     vec![
                         &EN.backups,
@@ -164,7 +164,7 @@ impl Faraday {
                     .vaults
                     .prompt
                     .as_ref()
-                    .is_some_and(|p| matches!(p.purpose, crate::vaults::Purpose::Backup(_))) =>
+                    .is_some_and(|p| matches!(p.purpose, crate::vault::Purpose::Backup(_))) =>
             {
                 vec![&EN.encrypted_backups, vaults_page(), &EN.passphrases]
             }

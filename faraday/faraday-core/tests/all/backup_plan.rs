@@ -1287,7 +1287,7 @@ fn assert_partials_hold(shape: &Shape, a: &Answers) {
 /// Whether places `group` together put the description back together:
 /// the whole of it, or its shares and their own seeds holding every key.
 fn rebuilds_at(shape: &Shape, a: &Answers, group: &[usize]) -> bool {
-    let split = faraday_core::backup::split_plan(shape.keys, shape.m, a.omit);
+    let split = faraday_core::wallet_backup::split_plan(shape.keys, shape.m, a.omit);
     (0..shape.keys).all(|k| {
         group.iter().any(|&p| {
             a.sheet_at(shape, p)

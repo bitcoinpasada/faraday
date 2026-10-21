@@ -111,7 +111,7 @@ shows the two added as the passphrase's strength, for each passphrase and
 the weakest in the summary, and only while the field still holds the
 dice's words. Every figure that includes the cost's bits is written with
 ≈, never =, and the dice's own bits without it. A typed passphrase's own
-bits are not measured, and the form says so (`vaults::cost_bits`,
+bits are not measured, and the form says so (`vault::cost_bits`,
 `Vaults::phrase_bits`).
 
 **Two sizes, then Customise** (owner, 2026-10-10; `docs/history/SIMPLIFY.md`

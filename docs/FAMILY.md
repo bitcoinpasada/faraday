@@ -4,8 +4,8 @@
 **Status:** Built
 
 V0.3 · 2026-10-11 (page 3 and the guessed Check,
-`docs/SCAN-TO-SIGN.md` §4 and §5) · built: `faraday-core/src/family.rs`
-(state and logic), `family_screen.rs`, `family_text.rs`,
+`docs/SCAN-TO-SIGN.md` §4 and §5) · built: `faraday-core/src/family/mod.rs`
+(state and logic), `family/screen.rs`, `family/text.rs`,
 `tests/all/family.rs`, and the snapshot tool's `spend` tour
 (`cargo run -p faraday-snapshot -- 1366x768 out/testkit OUT spend`).
 The code names it `family`; the tab is labelled **Spend**.
@@ -447,10 +447,10 @@ writing it back is safe and optional.)*
 | Part | Where |
 |---|---|
 | `Screen::Family`, the sidebar row, `Action::Family(FamilyAction)` | `faraday-core/src/lib.rs`, `screens.rs` |
-| `FamilyState { route, open }`; which pages apply; each page's done line from app state | new `faraday-core/src/family.rs` |
-| Drawing: the column, the map, the answer tiles, the More folds | new `faraday-core/src/family_screen.rs`, on `flow::column` |
-| The text of §4 | new `faraday-core/src/family_text.rs`, one file, like `guide.rs` |
-| Unlock's controls without its title and back link, called by Unlock and by page 3 | `vault_screens.rs`: `unlock()` split into `unlock_body()` |
+| `FamilyState { route, open }`; which pages apply; each page's done line from app state | new `faraday-core/src/family/mod.rs` |
+| Drawing: the column, the map, the answer tiles, the More folds | new `faraday-core/src/family/screen.rs`, on `flow::column` |
+| The text of §4 | new `faraday-core/src/family/text.rs`, one file, like `guide.rs` |
+| Unlock's controls without its title and back link, called by Unlock and by page 3 | `vault/screen.rs`: `unlock()` split into `unlock_body()` |
 | Pages 8, 10, 11 call Wallets' `step_body` for the spend's own steps; while one is open the Family card follows `spend.open` | `screens.rs` |
 | Word entry, Restore and the stick visit return to Family when opened from it (as `after_visit` does for Create) | `lib.rs` |
 | Route and page kept across a lock; after Unlock, Family opens if it was open | `memory.rs` `kept()` / `restore_kept()` |

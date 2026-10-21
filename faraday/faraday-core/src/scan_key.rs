@@ -3,7 +3,7 @@
 //! missing keys and Faraday works out which; a seed whose key with no
 //! passphrase is one of them loads at once, since the match proves it
 //! has none, and one that matches nothing goes to the passphrase sheet
-//! (`seed_read`), which takes it only for a missing key of the wallet.
+//! (`seeds::read`), which takes it only for a missing key of the wallet.
 
 use crate::strings::EN;
 use crate::strings::fill;

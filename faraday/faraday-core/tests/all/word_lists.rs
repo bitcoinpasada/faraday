@@ -13,7 +13,7 @@
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::diceware::List;
 use faraday_core::keygen::{Way, kstep};
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::wordlist::{LISTS, WordList, WordListAction as WL};
 use faraday_core::{Action, Faraday, Screen, Sheet};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};

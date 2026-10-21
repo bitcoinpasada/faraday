@@ -7,7 +7,7 @@
 //! [`Faraday::sign_seed`]: the session's seed with a count of the passes,
 //! so that no two passes of a
 //! process draw the same nonce. A vault's seal nonce and a new keyboard's
-//! code are drawn from the seed too (`vaults.rs`, `inputs.rs`). The seed
+//! code are drawn from the seed too (`vault/mod.rs`, `inputs.rs`). The seed
 //! is a [`Seed`] held as an `Option`: until the shell's first answer there
 //! is none, and nothing drawn from it is made.
 

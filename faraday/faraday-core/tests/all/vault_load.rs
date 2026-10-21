@@ -12,8 +12,8 @@ use std::rc::Rc;
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::boot_import::ImportAction as I;
-use faraday_core::vault_load::{LoadCard, LoadView};
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
+use faraday_core::vault::load::{LoadCard, LoadView};
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
 use faraday_core::{bstep, testkit};
 use faraday_shell_api::{App, Event};
@@ -138,7 +138,7 @@ fn card<'a>(v: &'a LoadView, name: &str) -> &'a LoadCard {
     v.cards.iter().find(|c| c.name == name).expect(name)
 }
 
-fn loose<'a>(v: &'a LoadView, label: &str) -> &'a faraday_core::vault_load::LoadSeed {
+fn loose<'a>(v: &'a LoadView, label: &str) -> &'a faraday_core::vault::load::LoadSeed {
     v.keys
         .iter()
         .find(|k| k.line.ends_with(label))

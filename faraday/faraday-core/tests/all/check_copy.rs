@@ -20,7 +20,7 @@ use crate::common::shown;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::board::{BoardPress as BP, Thing, Zone};
 use faraday_core::glance::Press;
-use faraday_core::glance_sheet::{ChartAction as C, Step, Target};
+use faraday_core::glance::sheet::{ChartAction as C, Step, Target};
 use faraday_core::plan::{self, Item};
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
@@ -527,7 +527,7 @@ fn a_drawn_standard_seedqr_of_the_seed_matches_and_adds_nothing() {
     assert!(seeds_done(&app), "the seeds step is not done");
     let b = app.backup.as_ref().unwrap();
     assert_eq!(
-        faraday_core::backup::copy_scan_line(b.scanned.as_ref().unwrap()),
+        faraday_core::wallet_backup::copy_scan_line(b.scanned.as_ref().unwrap()),
         "Your copy scans and matches the seed"
     );
 }
@@ -592,7 +592,7 @@ fn a_seedqr_of_another_seed_is_not_loaded_and_names_the_first_word() {
     assert!(commands(&mut app).contains(&Command::CameraOff));
     let b = app.backup.as_ref().unwrap();
     assert_eq!(
-        faraday_core::backup::copy_scan_line(b.scanned.as_ref().unwrap()),
+        faraday_core::wallet_backup::copy_scan_line(b.scanned.as_ref().unwrap()),
         "Your copy scans but word 1 differs"
     );
 }

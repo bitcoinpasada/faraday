@@ -1646,7 +1646,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
     if faraday_intake::is_kdbx(bytes) {
         return FileKind::Kdbx.into();
     }
-    if crate::secureboot::is_image(name) && bytes.starts_with(b"MZ") {
+    if crate::secure_boot::is_image(name) && bytes.starts_with(b"MZ") {
         return FileKind::EfiImage.into();
     }
     if faraday_apk::zip::names_manifest(bytes) {

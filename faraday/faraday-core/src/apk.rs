@@ -19,8 +19,8 @@ use faraday_vault::records::{field, kind};
 
 use crate::Faraday;
 use crate::backup_flow::Kind;
-use crate::backup_flow_steps::Built;
-use crate::vaults::TextBox;
+use crate::backup_flow::steps::Built;
+use crate::vault::TextBox;
 
 /// The most APKs kept read ([`ApkState`]'s reads); the next one drops
 /// the oldest.
@@ -198,7 +198,7 @@ pub fn shown(r: &Record, tz_min: i16) -> Option<Shown> {
         package: r.text(field::APK_PACKAGE)?.to_string(),
         fingerprint: key::grouped(&info.fingerprint),
         hex: faraday_apk::hex(&info.fingerprint),
-        made: crate::gpg::date(crate::vaults::local_secs(info.made, tz_min)),
+        made: crate::gpg::date(crate::vault::local_secs(info.made, tz_min)),
     })
 }
 
@@ -631,7 +631,7 @@ impl Faraday {
         });
         self.vaults.apk.second.clear();
         self.vaults.apk.which = None;
-        self.vaults.focus = Some(crate::vaults::Focus::Second);
+        self.vaults.focus = Some(crate::vault::Focus::Second);
     }
 
     /// The second build typed so far against the file under review.

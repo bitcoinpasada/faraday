@@ -11,7 +11,7 @@
 use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::family::{CardId, FamilyAction as F, Open, Question, Route, page};
-use faraday_core::seed_read::Choice;
+use faraday_core::seeds::read::Choice;
 use faraday_core::testkit;
 use faraday_core::wallet::{FileKind, step};
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent};
@@ -211,9 +211,9 @@ fn unlock_on_tab(app: &mut Faraday) {
     // Unlocked: everything is ticked, nothing loaded until Load.
     assert!(app.session.keys.is_empty(), "the unlock loaded before Load");
     assert!(app.vault_rows_now(&c, 0).iter().all(|r| r.chosen));
-    app.press(Action::Vault(
-        faraday_core::vaults::VaultAction::LoadChosen(0),
-    ));
+    app.press(Action::Vault(faraday_core::vault::VaultAction::LoadChosen(
+        0,
+    )));
 }
 
 /// An unlock the Spend tab asks for returns to it with no Load sheet
@@ -265,11 +265,11 @@ fn the_vault_route_unlocks_loads_and_signs_without_leaving_the_tab() {
     // Wallets › Sign a transaction, from the same files, signs the same
     // bytes.
     let mut other = with_files(vec![vault_file(), savings_psbt()], Vec::new());
-    other.press(Action::Vault(faraday_core::vaults::VaultAction::Open(0)));
+    other.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
     type_text(&mut other, testkit::VAULT_PASSPHRASES[0]);
-    other.press(Action::Vault(faraday_core::vaults::VaultAction::Unlock));
+    other.press(Action::Vault(faraday_core::vault::VaultAction::Unlock));
     settle(&mut other);
-    other.press(Action::Vault(faraday_core::vaults::VaultAction::LoadAll(0)));
+    other.press(Action::Vault(faraday_core::vault::VaultAction::LoadAll(0)));
     let at = inbox_at(&other, "savings-unsigned.psbt");
     other.press(Action::StartSpend(at));
     other.press(Action::SignHere);
@@ -367,9 +367,9 @@ fn a_lock_comes_back_to_the_same_page_and_wallet_after_unlocking_again() {
     type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Family(F::Unlock));
     settle(&mut app);
-    app.press(Action::Vault(
-        faraday_core::vaults::VaultAction::LoadChosen(0),
-    ));
+    app.press(Action::Vault(faraday_core::vault::VaultAction::LoadChosen(
+        0,
+    )));
     assert_eq!(app.family_wallet(), Some(wallet_at(&app, "Savings")));
     assert_eq!(
         app.family.open,

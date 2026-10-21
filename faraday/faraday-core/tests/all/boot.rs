@@ -7,7 +7,7 @@
 
 use faraday_core::boot_import::ImportAction as I;
 use faraday_core::testkit;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 

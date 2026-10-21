@@ -548,7 +548,7 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
     }
 }
 
-/// The settings file's name (`faraday_core::stick_settings::FILE`).
+/// The settings file's name (`faraday_core::stick::settings::FILE`).
 pub const SETTINGS_FILE: &str = "faraday-settings.txt";
 
 /// Writes the settings file over the one already there: the new bytes

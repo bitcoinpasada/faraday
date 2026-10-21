@@ -379,7 +379,7 @@ fn reads(app: &Faraday) -> Vec<Read> {
             Box::new(move |v| {
                 let _ = v.glance_sheet(
                     crate::glance::Press::Loaded(w),
-                    crate::glance_sheet::Target::Wallet,
+                    crate::glance::sheet::Target::Wallet,
                 );
             }),
         ),

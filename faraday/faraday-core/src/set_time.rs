@@ -7,7 +7,7 @@ use crate::strings::EN;
 use crate::strings::fill;
 use faraday_shell_api::Key as KeyIn;
 
-use crate::vaults::TextBox;
+use crate::vault::TextBox;
 use crate::{Faraday, Screen, Sheet};
 
 /// Which of Set the time's two fields typing goes to.
@@ -111,11 +111,11 @@ impl Faraday {
     pub fn now_local_text(&self) -> String {
         match self.clock_now() {
             Some(t) => {
-                let local = crate::vaults::local_secs(t, self.tz_min);
+                let local = crate::vault::local_secs(t, self.tz_min);
                 format!(
                     "{} {}",
                     crate::gpg::date(local),
-                    crate::vaults::time_of_day_secs(local)
+                    crate::vault::time_of_day_secs(local)
                 )
             }
             None => EN.set_time_not_known.to_string(),
@@ -138,7 +138,7 @@ impl Faraday {
         self.set_time.date = TextBox::default();
         self.set_time.time = TextBox::default();
         if let Some(t) = self.clock_now() {
-            let local = crate::vaults::local_secs(t, self.tz_min);
+            let local = crate::vault::local_secs(t, self.tz_min);
             self.set_time.date.text.set(&crate::gpg::date(local));
         }
         self.set_time.focus = Some(Focus::Time);

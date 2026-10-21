@@ -463,7 +463,7 @@ impl Faraday {
     /// ([`Faraday::pull_what`]); showing a seed, a key or a vault's
     /// contents are added here.
     pub fn device_holds(&self, action: Action) -> bool {
-        use crate::vaults::VaultAction as V;
+        use crate::vault::VaultAction as V;
         self.devices.holding()
             && (self.pull_what(action).is_some()
                 || matches!(

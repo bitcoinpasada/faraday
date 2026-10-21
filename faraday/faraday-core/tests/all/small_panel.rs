@@ -4,8 +4,8 @@
 //! longer than the panel.
 
 use faraday_core::keygen::{Group, Way};
-use faraday_core::vaults::VaultAction as V;
-use faraday_core::vaults::vstep;
+use faraday_core::vault::VaultAction as V;
+use faraday_core::vault::vstep;
 use faraday_core::{Action, Faraday, OskPress, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 

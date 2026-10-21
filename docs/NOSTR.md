@@ -12,7 +12,7 @@ person who loses it loses the identity. BIP-85 2.1.0 (2026-08-02) adds
 application 128002', which derives Nostr keys from a Bitcoin seed, so
 the seed's backup and two numbers are the Nostr key's backup too.
 Faraday already derives six BIP-85 applications from a loaded key
-(`faraday/faraday-core/src/bip85.rs`); this adds the seventh, on the
+(`faraday/faraday-core/src/bip85/mod.rs`); this adds the seventh, on the
 device only (the stick and the Pi).
 
 Signing Nostr events is not part of this spec; it is a later item.
@@ -289,7 +289,7 @@ the notes (§5.1, §6.1).
 Why an Entry and not a Note, as WIF and xprv are:
 
 - The vault's view shows an Entry's username in clear and holds its
-  password behind the reveal (`vault_screens.rs`); a Note is one held
+  password behind the reveal (`vault/screen.rs`); a Note is one held
   text, so the npub would be hidden with the nsec.
 - The fields are separate, so the npub, the nsec and the path are read
   without parsing a note.
@@ -318,7 +318,7 @@ batch N1 and the flow's batch B1 is built second adds this.
 
 ### 5.1 The saved entry's page
 
-Today an Entry's page in Vault contents (`vault_screens.rs`, the
+Today an Entry's page in Vault contents (`vault/screen.rs`, the
 `kind::ENTRY` arm) shows the username, URL and notes as plain rows, the
 password and TOTP secret as held rows revealed by a hold, the live TOTP
 code, and two actions, **Edit** and **Export for KeePass**. Since F28

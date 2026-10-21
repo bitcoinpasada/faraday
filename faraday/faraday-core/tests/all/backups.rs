@@ -7,11 +7,11 @@
 //! from what was remembered of it.
 
 use crate::common::type_text;
-use faraday_core::backup::Tone;
 use faraday_core::backups::Line;
 use faraday_core::plan::Tag;
 use faraday_core::seeds::SeedsAction as S;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
+use faraday_core::wallet_backup::Tone;
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, bstep, testkit};
 use faraday_shell_api::{
     App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware, TouchPhase,

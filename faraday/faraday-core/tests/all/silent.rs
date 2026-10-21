@@ -14,7 +14,7 @@ use faraday_bip::bitcoin::{
 };
 use faraday_bip::silent::{self, Receiver, SendKey};
 use faraday_bip::silent_wallet::SilentWallet;
-use faraday_core::silent_check::Checked;
+use faraday_core::silent::check::Checked;
 use faraday_core::wallet::Kind;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent};
 use faraday_shell_api::{App, Event, Key};
@@ -291,7 +291,7 @@ fn a_payment_to_a_label_names_the_label_and_one_missing_its_funding_waits() {
 fn a_silent_payments_wallet_saved_into_a_vault_reads_back_as_itself() {
     let c = faraday_core::testkit::compute();
     use faraday_core::testkit;
-    use faraday_core::vaults::VaultAction as V;
+    use faraday_core::vault::VaultAction as V;
     use faraday_vault::records::{field, kind};
     let mut keyed = with_key();
     keyed.press(Action::Silent);

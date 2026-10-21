@@ -6,7 +6,7 @@
 
 use crate::common::add_key;
 use faraday_core::testkit::{self, Kit};
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, StorageEvent};
 use faraday_shell_api::{App, Event, Key};
 

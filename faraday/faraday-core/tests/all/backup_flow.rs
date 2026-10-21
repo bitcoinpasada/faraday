@@ -6,9 +6,9 @@
 
 use crate::common::*;
 use faraday_bip::bitcoin::hashes::{Hash, sha256};
+use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::backup_flow::{Kind, Problem, Step, Target};
-use faraday_core::backup_flow_steps::FlowAction as F;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet};
 use faraday_shell_api::App;
 use faraday_vault::records::kind;

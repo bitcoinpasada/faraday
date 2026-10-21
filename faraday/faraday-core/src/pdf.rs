@@ -3,14 +3,14 @@
 //! The pages use PDF's standard fonts (Helvetica and Courier), so nothing
 //! is embedded, and draw QR codes and grids as filled squares. The sheets
 //! go to the Outbox as PDFs on every shell; the device itself prints
-//! nothing. Neither sheet carries a secret ([`crate::backup`]).
+//! nothing. Neither sheet carries a secret ([`crate::wallet_backup`]).
 
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_codec::qr::{Ecc, Payload, QrMatrix, encode};
 use faraday_crypto::work::Compute;
 
-use crate::backup::structural_fixed;
+use crate::wallet_backup::structural_fixed;
 
 /// A4, in points.
 const PAGE_W: f32 = 595.0;

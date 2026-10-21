@@ -9,7 +9,7 @@
 use faraday_shell_api::{App, Event, Key};
 
 use super::walk;
-use crate::vaults::VaultAction as V;
+use crate::vault::VaultAction as V;
 use crate::work::{Counts, KINDS, PIXELS, Work, since, snapshot};
 use crate::{Action, Faraday, Screen, testkit};
 
@@ -125,7 +125,7 @@ fn fields() -> Vec<Field> {
             |app| {
                 on(app, Screen::Home);
                 app.seed_read_open(&testkit::test_words(testkit::TEST_SEEDS[2].0));
-                app.press(Action::SeedRead(crate::seed_read::Choice::AddPass));
+                app.press(Action::SeedRead(crate::seeds::read::Choice::AddPass));
             },
             "a passphrase".into(),
         ),
@@ -134,9 +134,9 @@ fn fields() -> Vec<Field> {
             |app| {
                 on(app, Screen::Home);
                 app.seed_read_open(&testkit::test_words(testkit::TEST_SEEDS[2].0));
-                app.press(Action::SeedRead(crate::seed_read::Choice::AddPass));
+                app.press(Action::SeedRead(crate::seeds::read::Choice::AddPass));
                 type_text(app, "a passphrase");
-                app.press(Action::SeedRead(crate::seed_read::Choice::Field(1)));
+                app.press(Action::SeedRead(crate::seeds::read::Choice::Field(1)));
             },
             "a passphrase".into(),
         ),
@@ -273,9 +273,9 @@ fn a_passphrase_typed_shows_the_key_it_makes_once_typing_pauses() {
     let (mut app, _) = walk(&c, &mut |_, _| {});
     on(&mut app, Screen::Home);
     app.seed_read_open(&testkit::test_words(testkit::TEST_SEEDS[2].0));
-    app.press(Action::SeedRead(crate::seed_read::Choice::AddPass));
+    app.press(Action::SeedRead(crate::seeds::read::Choice::AddPass));
     type_text(&mut app, "a passphrase");
-    app.press(Action::SeedRead(crate::seed_read::Choice::Field(1)));
+    app.press(Action::SeedRead(crate::seeds::read::Choice::Field(1)));
     let start = app.now_ms;
     type_text(&mut app, "a passphrase");
     let before = snapshot();

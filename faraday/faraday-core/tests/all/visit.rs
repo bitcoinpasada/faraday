@@ -741,7 +741,7 @@ fn writes(app: &mut Faraday) -> Vec<(String, bool)> {
         .into_iter()
         .filter_map(|c| match c {
             StorageCommand::Write { name, replace, .. }
-                if name != faraday_core::stick_settings::FILE =>
+                if name != faraday_core::stick::settings::FILE =>
             {
                 Some((name, replace))
             }

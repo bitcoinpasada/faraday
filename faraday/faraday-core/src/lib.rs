@@ -18,19 +18,21 @@
 //! The `mod` lines below are grouped by area:
 //!
 //! - State and actions: `work`, `flow`, `inputs`, `file_menu`, `in_progress`.
-//! - Screens and drawing: `screens`, `drawing`, `vault_screens`, `keygen_screen`.
-//! - Secrets and keys: `keygen`, `seeds`, `seed_read`, `wallet`, `inbox`,
-//!   `create`, `bip85`, `forms`, `fresh`, `gpg`, `apk`, `secureboot`,
-//!   `lightning`, `silent`, `vanity`, `paper`, `quiz`, `secrets`,
-//!   `word_entry`, `vault_out`, `chart_edit`, `boot_import` and
-//!   `backup_flow_wallet`. These derive, hold or use a key, seed, words or
+//! - Screens and drawing: `screens`, `drawing`, and each area's `screen.rs`
+//!   (`vault/screen.rs`, `keygen/screen.rs`).
+//! - Secrets and keys: `keygen`, `seeds` (with `seeds/read.rs`), `wallet`,
+//!   `inbox`, `create`, `bip85`, `forms`, `fresh`, `gpg`, `apk`,
+//!   `secure_boot`, `lightning`, `silent`, `vanity`, `paper`, `quiz`,
+//!   `secrets`, `word_entry`, `vault/out.rs`, `chart_edit`, `boot_import`
+//!   and `backup_flow/wallet.rs`. These derive, hold or use a key, seed, words or
 //!   passphrase. A later step (F70, `faraday-keys`) moves key use out of
 //!   this crate.
 //! - Wallets and PSBTs: `plan`, `decode`, `family`, `explore`, `catalog`.
-//! - Backups and the backup flow: `backup_flow`, `backups`, `board`, `restore`.
-//! - Vaults: `vaults`, `vault_load`, `codes`.
-//! - Sticks, boot and files: `stick_settings`, `stick_wipe`, `upgrade`,
-//!   `secure_boot_state`, `names`.
+//! - Backups and the backup flow: `backup_flow`, `backups`, `board`, `restore`,
+//!   `wallet_backup`.
+//! - Vaults: `vault` (with `vault/load.rs`), `codes`.
+//! - Sticks, boot and files: `stick` (`pills.rs`, `settings.rs`, `wipe.rs`),
+//!   `upgrade`, `secure_boot/state.rs`, `names`.
 //! - Support: `wordlist`, `learn`, `tools`, `testkit`.
 
 // State and actions: the app's state, its events and what a press does.
@@ -47,50 +49,25 @@ pub mod memory;
 mod menu;
 mod motion;
 pub mod set_time;
-mod stick_pills;
+pub mod stick;
 pub mod ui;
 pub mod visit_taken;
 pub mod work;
 
-// Screens and drawing: what is drawn from the state.
-mod backup_flow_screen;
-mod backup_flow_wallet_screen;
-mod backups_screen;
-mod bip85_screen;
-mod board_screen;
-mod boot_import_screen;
-mod codes_screen;
-mod compact_screens;
+// Screens and drawing: what is drawn from the state (each area's `screen.rs` is in its folder).
 pub mod demo;
 pub mod devices;
 mod drawing;
 pub mod edid;
-mod explore_screen;
-mod family_screen;
-mod family_text;
 pub mod glance;
-pub mod glance_sheet;
 mod guide;
-mod keygen_screen;
-mod lightning_screen;
 pub mod pdf;
 pub mod picture;
-mod plan_cards;
 mod scan_key;
 mod screens;
-mod seeds_screen;
-mod silent_screen;
-mod tools_screen;
-mod transfer_screen;
-mod upgrade_screen;
-mod vanity_screen;
-mod vault_load_screen;
-mod vault_screens;
-mod wordlist_screen;
 
 // Secrets and keys: derive, hold or use a key, seed, words or passphrase (F70 moves these to faraday-keys).
 pub mod apk;
-mod backup_flow_wallet;
 pub mod bip85;
 pub mod boot_import;
 pub mod chart_edit;
@@ -106,12 +83,11 @@ pub mod lightning;
 pub mod paper;
 pub mod quiz;
 pub mod secrets;
-pub mod secureboot;
-pub mod seed_read;
+pub mod secure_boot;
 pub mod seeds;
 pub mod silent;
 pub mod vanity;
-pub mod vault_out;
+pub mod vault;
 pub mod wallet;
 pub mod word_entry;
 
@@ -121,27 +97,20 @@ pub mod decode;
 pub mod explore;
 pub mod family;
 pub mod plan;
-pub mod silent_check;
 
 // Backups and the backup flow.
-pub mod backup;
 pub mod backup_flow;
-pub mod backup_flow_steps;
 pub mod backups;
 pub mod board;
 mod held;
 pub mod restore;
+pub mod wallet_backup;
 
 // Vaults.
 pub mod codes;
-pub mod vault_load;
-pub mod vaults;
 
 // Sticks, boot and files.
 pub mod names;
-pub mod secure_boot_state;
-pub mod stick_settings;
-pub mod stick_wipe;
 pub mod transfer;
 pub mod upgrade;
 
@@ -162,8 +131,8 @@ pub use faraday_strings as strings;
 pub use file_menu::Unrenamed;
 pub use medium::Medium;
 pub use screens::qr_code;
-pub use secure_boot_state::SecureBootAtStart;
-pub use stick_pills::{BOOT_FOLDER, FIRST_BACKUP, Pill, SticksWanted, backup_folder};
+pub use secure_boot::state::SecureBootAtStart;
+pub use stick::pills::{BOOT_FOLDER, FIRST_BACKUP, Pill, SticksWanted, backup_folder};
 
 use crate::strings::EN;
 use crate::strings::fill;
@@ -856,13 +825,13 @@ pub enum Action {
     StickPill(u8),
     /// A press on the wallet's chart or one of its sheets
     /// (`docs/history/NEW-WALLET.md` §9).
-    Chart(glance_sheet::ChartAction),
+    Chart(glance::sheet::ChartAction),
     /// A press in the backup flow (`docs/BACKUP-FLOW.md`).
-    Flow(backup_flow_steps::FlowAction),
+    Flow(backup_flow::steps::FlowAction),
     /// Show the Backups screen's wallet `i`, a page each on a small panel.
     BackupsPage(usize),
     /// A vault screen's action.
-    Vault(vaults::VaultAction),
+    Vault(vault::VaultAction),
     /// Open seed entry, for a slot's fingerprint or for any key.
     Entry(Option<[u8; 4]>),
     /// Add the typed key.
@@ -1084,7 +1053,7 @@ pub enum Action {
     /// online app only.
     OpenInstitute,
     /// The sheet of a seed the camera read.
-    SeedRead(seed_read::Choice),
+    SeedRead(seeds::read::Choice),
     /// The stick visit's Delete files: the sheet that chooses what.
     DeleteFiles,
     /// The sheet's choice: chosen files, the free space, the whole
@@ -1590,7 +1559,7 @@ fn seed_by_name(name: &str) -> bool {
 /// the settings file.
 pub fn stick_kind(name: &str) -> Option<&'static str> {
     // The settings file is read at boot, not copied in.
-    if stick_settings::is_file(name) {
+    if stick::settings::is_file(name) {
         return None;
     }
     let lower = name.to_ascii_lowercase();
@@ -2806,7 +2775,7 @@ pub struct BackupState {
     /// (`docs/history/NEW-WALLET.md` §14.7 item 2).
     pub check: Option<copy_check::WordCheck>,
     /// What scanning the copy of the seed on screen found.
-    pub scanned: Option<backup::CopyCheck>,
+    pub scanned: Option<wallet_backup::CopyCheck>,
     /// The seeds, by fingerprint, whose copy by hand matched in this
     /// backup, with the form that matched: the words typed back, or the
     /// drawn SeedQR scanned.
@@ -3244,7 +3213,7 @@ pub mod qstep {
 
 /// A press on a plan's cards (`docs/BACKUP-FLOW.md` §15.1), the same on
 /// Back up and in a wallet flow's own plan card: Back up gives each its
-/// own [`Action`], the flow its [`backup_flow_steps::FlowAction::Plan`].
+/// own [`Action`], the flow its [`backup_flow::steps::FlowAction::Plan`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanPress {
     /// Open or close a card, by [`qstep`].
@@ -3310,7 +3279,7 @@ pub(crate) fn share_record_is(
 }
 
 /// [`plan_cards`] for a plan drawn by `plan_cards`.
-pub(crate) fn plan_cards_of(ctx: &plan_cards::PlanCtx) -> Vec<u8> {
+pub(crate) fn plan_cards_of(ctx: &plan::cards::PlanCtx) -> Vec<u8> {
     plan_cards_on(&ctx.mapped)
 }
 
@@ -3449,7 +3418,7 @@ impl Receipt {
                 EN.heading_written_to_at,
                 &[
                     &self.label.to_string(),
-                    &vaults::time_of_day(vaults::local_secs(t, tz_min)).to_string(),
+                    &vault::time_of_day(vault::local_secs(t, tz_min)).to_string(),
                 ],
             ),
             None => fill(EN.heading_written_to, &[&self.label.to_string()]),
@@ -3682,7 +3651,7 @@ pub struct Faraday {
     /// wallet's backup flow is tied to while the wallet is being made.
     owner_seq: u64,
     /// The vaults: the open slots and the vault screens' state.
-    pub vaults: vaults::Vaults,
+    pub vaults: vault::Vaults,
     /// The amounts each signed transaction's inputs stated
     /// (`docs/WALLETS.md` §3.3).
     pub signed_amounts: Vec<memory::Signed>,
@@ -3797,7 +3766,7 @@ pub struct Faraday {
     /// The wallet's chart is open as its own page, on a small panel.
     pub glance: bool,
     /// The chart and the thing on it whose sheet is open.
-    pub chart: Option<(glance::Press, glance_sheet::Target)>,
+    pub chart: Option<(glance::Press, glance::sheet::Target)>,
     /// A chart's key whose lines are drawn bold, by place among its keys:
     /// **Where it is**.
     pub chart_focus: Option<(glance::Press, usize)>,
@@ -3916,14 +3885,14 @@ pub struct Faraday {
     /// worked out once typing has paused ([`motion::TYPED_PAUSE_MS`]).
     typed_at: Option<u64>,
     /// A seed the camera read, waiting on [`Sheet::SeedRead`].
-    pub seed_read: Option<seed_read::SeedRead>,
+    pub seed_read: Option<seeds::read::SeedRead>,
     /// What [`Sheet::Delete`] is choosing.
-    pub delete_ask: Option<stick_wipe::DeleteAsk>,
+    pub delete_ask: Option<stick::wipe::DeleteAsk>,
     /// A file row's ⋮ menu, Rename and Details (`docs/FLOWS.md`
     /// decision 61).
     pub files_menu: file_menu::FileMenus,
     /// Zeroing a stick's free space or whole partition, under way.
-    pub zeroing: Option<stick_wipe::Zeroing>,
+    pub zeroing: Option<stick::wipe::Zeroing>,
     /// The last tap that acted and when, for a double-click.
     last_tap: Option<(Action, u64)>,
     /// Where the finger or pointer went down, in pixels.
@@ -4098,7 +4067,7 @@ impl Faraday {
             owner_seq: 0,
             // A new GPG key's term starts at GnuPG's default, never at "never".
             vaults: {
-                let mut v = vaults::Vaults::default();
+                let mut v = vault::Vaults::default();
                 v.gpg_years = gpg::DEFAULT_YEARS;
                 v
             },
@@ -4878,7 +4847,7 @@ impl Faraday {
                 && self.vaults.focus.is_none()
                 && self.vault_files().iter().any(|f| f.open.is_none())
             {
-                self.vaults.focus = Some(vaults::Focus::Passphrase);
+                self.vaults.focus = Some(vault::Focus::Passphrase);
             }
             if self.screen == Screen::Visit {
                 // Where the visit's chip said it goes (§4.7).
@@ -4892,7 +4861,7 @@ impl Faraday {
                     self.family_settle();
                 }
                 if let Some(i) = unlock {
-                    self.vault_act(vaults::VaultAction::Open(i));
+                    self.vault_act(vault::VaultAction::Open(i));
                 }
             }
             if had {
@@ -4954,7 +4923,7 @@ impl Faraday {
         // it is attached.
         if matches!(
             self.vaults.focus,
-            Some(vaults::Focus::Passphrase | vaults::Focus::Phrase(..) | vaults::Focus::Dice)
+            Some(vault::Focus::Passphrase | vault::Focus::Phrase(..) | vault::Focus::Dice)
         ) {
             self.vaults.focus = None;
         }
@@ -4999,7 +4968,7 @@ impl Faraday {
             if first_look
                 && self.import.is_none()
                 && let Some(b) = boot.as_ref()
-                && b.files.iter().any(|(n, _)| !stick_settings::is_file(n))
+                && b.files.iter().any(|(n, _)| !stick::settings::is_file(n))
             {
                 self.import_start(b);
             }
@@ -5007,7 +4976,7 @@ impl Faraday {
             if self.stick_settings.is_none()
                 && let Some(boot) = self.sticks.iter().find(|s| s.boot)
             {
-                match boot.files.iter().find(|(n, _)| stick_settings::is_file(n)) {
+                match boot.files.iter().find(|(n, _)| stick::settings::is_file(n)) {
                     Some((n, _)) => self.storage_out.push_back(StorageCommand::Read {
                         stick: boot.id.clone(),
                         name: n.clone(),
@@ -5079,7 +5048,7 @@ impl Faraday {
         Some(match action {
             Action::Scan
             | Action::BScan
-            | Action::Vault(vaults::VaultAction::ScanEntry)
+            | Action::Vault(vault::VaultAction::ScanEntry)
             | Action::Family(family::FamilyAction::Scan | family::FamilyAction::Again(true)) => {
                 EN.pull_what_scan
             }
@@ -5091,26 +5060,26 @@ impl Faraday {
             | Action::LoadKey(_)
             | Action::KeyGen(None)
             | Action::CSlotVault(..)
-            | Action::Vault(vaults::VaultAction::PassphraseKey(_)) => EN.pull_what_add_a_key,
+            | Action::Vault(vault::VaultAction::PassphraseKey(_)) => EN.pull_what_add_a_key,
             Action::KeyGen(Some(_)) | Action::KeyGenSlip39 => EN.pull_what_make_a_key,
             Action::PotentialOpen(_) => EN.pull_what_load_the,
             Action::BackupOpen(_) => EN.pull_what_open_the,
             // Unlocking for another flow: the Pull sheet asks first, and
             // Unlock opens once the stick is out.
-            Action::Vault(vaults::VaultAction::OpenFrom(i, _))
+            Action::Vault(vault::VaultAction::OpenFrom(i, _))
                 if self.vault_files().get(i).is_some_and(|f| f.open.is_none()) =>
             {
                 EN.pull_what_unlock
             }
-            Action::Vault(vaults::VaultAction::ListFrom(_)) => EN.pull_what_unlock,
+            Action::Vault(vault::VaultAction::ListFrom(_)) => EN.pull_what_unlock,
             Action::Flow(
-                backup_flow_steps::FlowAction::UnlockVault(_)
-                | backup_flow_steps::FlowAction::UnlockDone(_),
+                backup_flow::steps::FlowAction::UnlockVault(_)
+                | backup_flow::steps::FlowAction::UnlockDone(_),
             ) => EN.pull_what_unlock,
             Action::Flow(
-                backup_flow_steps::FlowAction::CreateVault(_)
-                | backup_flow_steps::FlowAction::Make
-                | backup_flow_steps::FlowAction::CopyKey,
+                backup_flow::steps::FlowAction::CreateVault(_)
+                | backup_flow::steps::FlowAction::Make
+                | backup_flow::steps::FlowAction::CopyKey,
             ) => EN.pull_what_make_a_key,
             Action::Catalog(i) => match catalog::TILES.get(usize::from(i))?.go {
                 Go::VaultCategory(c)
@@ -5859,7 +5828,7 @@ impl Faraday {
                 self.act(Action::Nav(Screen::Backups));
                 self.backups_at = at;
                 if !self.compact {
-                    self.list_offset = crate::backups_screen::offset_of_now(&c, self, at);
+                    self.list_offset = crate::backups::screen::offset_of_now(&c, self, at);
                 }
             }
             Action::BackupsPage(i) => {
@@ -6269,7 +6238,7 @@ impl Faraday {
             Action::File(p) => self.file_act(p),
             // Escape on the Load sheet is its Not now (F62).
             Action::Cancel if self.sheet == Some(Sheet::UnlockLoad) => {
-                self.load_sheet_act(vaults::VaultAction::LoadNotNow);
+                self.load_sheet_act(vault::VaultAction::LoadNotNow);
             }
             // Sign with {key}'s Cancel: the sheet closes, the files stay
             // ticked, nothing is signed (F63).
@@ -6641,7 +6610,7 @@ impl Faraday {
                         let name = self.vaults.open[t].name.to_string();
                         self.toast(&fill(EN.backup_flow_set_up_holds_other, &[&name]));
                     } else if self.vault_lock_one(t) {
-                        self.vault_act(vaults::VaultAction::CreateFrom(Screen::Backup));
+                        self.vault_act(vault::VaultAction::CreateFrom(Screen::Backup));
                     }
                 }
             }
@@ -7704,9 +7673,9 @@ impl Faraday {
     /// kept, as the small panel's copy page lists them: in which open
     /// vault, whether the copy by hand was checked, whether a file of it is
     /// in the Outbox unprotected, or not here at all.
-    pub fn backup_kept(&self, c: &Compute) -> Option<backup::Kept> {
-        use crate::vault_screens::{vault_has_wallet, vault_key};
-        use backup::{KeptSeed, Tone};
+    pub fn backup_kept(&self, c: &Compute) -> Option<wallet_backup::Kept> {
+        use crate::vault::screen::{vault_has_wallet, vault_key};
+        use wallet_backup::{KeptSeed, Tone};
         let b = self.backup.as_ref()?;
         let wallet = self.session.wallets.get(b.wallet)?;
         let open = 0..self.vaults.open.len();
@@ -7815,7 +7784,7 @@ impl Faraday {
                 });
             }
         }
-        Some(backup::Kept {
+        Some(wallet_backup::Kept {
             wallet: wallet_line,
             seeds,
         })
@@ -8060,7 +8029,7 @@ impl Faraday {
             m: m.clamp(1, seeds.len().max(1)),
             keys: n.max(1),
             seeds,
-            splits: backup::splits(wallet),
+            splits: wallet_backup::splits(wallet),
             vaults,
         }
     }
@@ -8163,7 +8132,7 @@ impl Faraday {
     pub(crate) fn backup_public_for(w: &wallet::Wallet, a: &plan::Answers) -> Vec<u8> {
         use faraday_bip::policy::{Template, Wrapper};
         use plan::software as sw;
-        let config = backup::multisig_config(w, None).is_some();
+        let config = wallet_backup::multisig_config(w, None).is_some();
         let bsms = matches!(
             w.policy().template(),
             Template::Multi {
@@ -8348,7 +8317,7 @@ impl Faraday {
                 !here.is_empty() && here.iter().all(|(_, k)| self.seed_file_made(&stem, k))
             }
             plan::Item::Sheets => {
-                if b.answers.split && backup::splits(w) {
+                if b.answers.split && wallet_backup::splits(w) {
                     let (_, n) = Session::quorum(w);
                     out(&format!("{stem}-share-1-of-{n}.pdf"))
                 } else {
@@ -8572,11 +8541,11 @@ impl Faraday {
         };
         let shape = self.plan_shape_now(b.wallet);
         let (m, n) = Session::quorum(w);
-        let plan = backup::split_plan(n, m, b.answers.omit);
+        let plan = wallet_backup::split_plan(n, m, b.answers.omit);
         self.plan_mapped(c, &shape, &b.answers)
             .vault_shares(v)
             .into_iter()
-            .filter_map(|j| Some((j, backup::split_share(w, plan.get(j)?)?, plan.len())))
+            .filter_map(|j| Some((j, wallet_backup::split_share(w, plan.get(j)?)?, plan.len())))
             .collect()
     }
 
@@ -8605,7 +8574,7 @@ impl Faraday {
     /// `o` holds what the plan puts in vault `v` and no seed only another
     /// vault is to hold.
     pub(crate) fn backup_open_fits(&self, c: &Compute, v: usize, o: usize) -> bool {
-        use crate::vault_screens::vault_has_wallet;
+        use crate::vault::screen::vault_has_wallet;
         let Some(b) = self.backup.as_ref() else {
             return false;
         };
@@ -8663,7 +8632,7 @@ impl Faraday {
         // Each seed told by its whole master id, the session key's else
         // the backup record's (F65); one that cannot be told is not done.
         let record = self.backup_records.iter().find(|r| r.sum == sum);
-        let has = |s: &crate::vaults::VaultSummary, f: &faraday_bip::keys::Fingerprint| {
+        let has = |s: &crate::vault::VaultSummary, f: &faraday_bip::keys::Fingerprint| {
             crate::backups::summary_has_seed(s, f.0, self.seed_id(record, f.0))
         };
         let salts: Vec<[u8; 32]> = self.vaults.open.iter().map(|o| o.header().salt).collect();
@@ -9031,10 +9000,10 @@ impl Faraday {
                     .backup
                     .as_ref()
                     .map_or(m.saturating_sub(1), |b| b.answers.omit);
-                let plan = backup::split_plan(n, m, omit);
+                let plan = wallet_backup::split_plan(n, m, omit);
                 let mut out = Vec::new();
                 for (i, row) in plan.iter().enumerate() {
-                    let Some(text) = backup::split_share(w, row) else {
+                    let Some(text) = wallet_backup::split_share(w, row) else {
                         continue;
                     };
                     let mut lines = vec![
@@ -9145,7 +9114,7 @@ impl Faraday {
             .session
             .wallets
             .get(w)
-            .is_some_and(|wl| b.answers.split && backup::splits(wl));
+            .is_some_and(|wl| b.answers.split && wallet_backup::splits(wl));
         let items: Vec<plan::Item> = self
             .backup_items_now(&c)
             .into_iter()
@@ -9247,7 +9216,7 @@ impl Faraday {
             }
             5 => files.push((
                 format!("{stem}-wallet.json"),
-                backup::wallet_json(&w.name, w.policy()).into_bytes(),
+                wallet_backup::wallet_json(&w.name, w.policy()).into_bytes(),
             )),
             6 => {
                 if let Some(record) = self.wallet_file_text(&c, wallet, 6) {
@@ -9268,23 +9237,24 @@ impl Faraday {
                 }
             }
             3 if !bytes => files.push((format!("{stem}-backup.pdf"), Vec::new())),
-            3 => match pdf::sheet(&c, &backup::sheet_wallet(&c, &self.session, w)) {
+            3 => match pdf::sheet(&c, &wallet_backup::sheet_wallet(&c, &self.session, w)) {
                 Ok(p) => files.push((format!("{stem}-backup.pdf"), p)),
                 Err(e) => self.toast(&fill(EN.public_made_no_pdf, &[&e.to_string()])),
             },
             4 => {
                 let (m, n) = Session::quorum(w);
-                let plan = backup::split_plan(n, m, omit);
+                let plan = wallet_backup::split_plan(n, m, omit);
                 let pictures = self.public_pictures(&c, wallet, 4);
                 for (i, row) in plan.iter().enumerate() {
-                    if let Some(share) = backup::split_share(w, row) {
+                    if let Some(share) = wallet_backup::split_share(w, row) {
                         // The sheet to print beside each file.
                         let pdf_name = format!("{stem}-share-{}-of-{n}.pdf", i + 1);
                         if !bytes {
                             files.push((pdf_name, Vec::new()));
-                        } else if let Ok(pdf) =
-                            pdf::sheet(&c, &backup::sheet_share(w, i + 1, plan.len(), &share))
-                        {
+                        } else if let Ok(pdf) = pdf::sheet(
+                            &c,
+                            &wallet_backup::sheet_share(w, i + 1, plan.len(), &share),
+                        ) {
                             files.push((pdf_name, pdf));
                         }
                         files.push((
@@ -9920,7 +9890,7 @@ impl Faraday {
             .contents
             .of(kind::KEY)
             .filter(|(_, k)| {
-                vault_screens::key_fingerprint(&c, self, k).is_some_and(|fp| want.contains(&fp))
+                vault::screen::key_fingerprint(&c, self, k).is_some_and(|fp| want.contains(&fp))
             })
             .map(|(i, _)| i)
             .chain([r])
@@ -10550,10 +10520,10 @@ impl Faraday {
             self.commands.push_back(Command::CameraOff);
             return;
         };
-        let found = backup::compare_words(&copy, seed.indices());
+        let found = wallet_backup::compare_words(&copy, seed.indices());
         drop(copy);
         drop(seed);
-        let matched = found == backup::CopyCheck::Matches;
+        let matched = found == wallet_backup::CopyCheck::Matches;
         if matched {
             self.copy_matched(fp.0, plan::CopyForm::SeedQr);
         }
@@ -10565,7 +10535,7 @@ impl Faraday {
             self.sheet = None;
             self.commands.push_back(Command::CameraOff);
         } else if let Some(scan) = self.scan.as_mut() {
-            scan.note = Some(backup::copy_scan_line(&found));
+            scan.note = Some(wallet_backup::copy_scan_line(&found));
         }
     }
 
@@ -11075,7 +11045,7 @@ impl Faraday {
     fn wallet_file_text(&self, c: &Compute, wallet: usize, what: u8) -> Option<String> {
         let w = self.session.wallets.get(wallet)?;
         match what {
-            2 => backup::multisig_config(w, None),
+            2 => wallet_backup::multisig_config(w, None),
             6 => {
                 let net = self.session.network();
                 let first = w.policy().address_at(c, net, false, 0).ok()?;
@@ -11943,13 +11913,13 @@ impl Faraday {
             return true;
         }
         if self.sheet == Some(Sheet::Import) {
-            return self.vaults.focus == Some(vaults::Focus::Passphrase);
+            return self.vaults.focus == Some(vault::Focus::Passphrase);
         }
         if self.sheet == Some(Sheet::SeedRead) {
             return self.seed_read.as_ref().is_some_and(|s| s.focus.is_some());
         }
         if self.sheet == Some(Sheet::PassphraseSeeds) {
-            return self.vaults.focus == Some(vaults::Focus::Prompt);
+            return self.vaults.focus == Some(vault::Focus::Prompt);
         }
         if self.sheet == Some(Sheet::Rename) {
             return self.files_menu.renaming.is_some();
@@ -12729,7 +12699,7 @@ impl Faraday {
                 // A hold acts on the tick that completes it, never on release.
                 if let (Some((a, _)), Some((b, _))) = (pressed, found)
                     && a == b
-                    && !vaults::is_hold(a)
+                    && !vault::is_hold(a)
                 {
                     // On a field: the caret where it was pressed, a
                     // second press selecting all of it, a drag what it
@@ -13270,7 +13240,7 @@ impl Faraday {
             self.screen,
             Screen::Unlock | Screen::BackupFlow | Screen::Family
         ) || self.sheet == Some(Sheet::Import);
-        if !typing && self.vaults.working != Some(vaults::Work::Unlock) {
+        if !typing && self.vaults.working != Some(vault::Work::Unlock) {
             self.vaults.passphrase.clear();
             self.vaults.typed_shown = false;
             self.vaults.unlock_error = None;
@@ -13443,9 +13413,9 @@ enum Later {
 /// press that does such work and is not here fails the guard in
 /// `Faraday::press_in` in every test.
 fn slow(a: Action) -> bool {
-    use crate::backup_flow_steps::FlowAction as F;
-    use crate::glance_sheet::ChartAction as C;
-    use crate::vaults::VaultAction as V;
+    use crate::backup_flow::steps::FlowAction as F;
+    use crate::glance::sheet::ChartAction as C;
+    use crate::vault::VaultAction as V;
     matches!(
         a,
         Action::BChecklist
@@ -13467,7 +13437,7 @@ fn slow(a: Action) -> bool {
             | Action::PLoad
             | Action::PotentialMake
             | Action::SecretUnprotected
-            | Action::SeedRead(seed_read::Choice::Plain | seed_read::Choice::WithPass)
+            | Action::SeedRead(seeds::read::Choice::Plain | seeds::read::Choice::WithPass)
             | Action::Seeds(seeds::SeedsAction::Make)
             | Action::SelfTestRun
             | Action::Vanity(vanity::VanityAction::Use)
@@ -13496,7 +13466,7 @@ fn slow(a: Action) -> bool {
 /// What the frame drawn before a slow press's work says, when the work
 /// is long enough to be seen: pictures and PDFs made.
 fn working_text(a: Action) -> Option<&'static str> {
-    use crate::backup_flow_steps::FlowAction as F;
+    use crate::backup_flow::steps::FlowAction as F;
     matches!(
         a,
         Action::BChecklist | Action::SecretUnprotected | Action::Flow(F::WalletLock)
@@ -13505,7 +13475,7 @@ fn working_text(a: Action) -> Option<&'static str> {
 }
 
 fn field_action(a: Action) -> bool {
-    use vaults::VaultAction as V;
+    use vault::VaultAction as V;
     matches!(
         a,
         Action::Vault(
@@ -13518,7 +13488,7 @@ fn field_action(a: Action) -> bool {
         ) | Action::EntryPassphrase
             | Action::KPassField(_)
             | Action::CPassField(_)
-            | Action::SeedRead(seed_read::Choice::Field(_))
+            | Action::SeedRead(seeds::read::Choice::Field(_))
             | Action::Rename
             | Action::MType
             | Action::KTyping(true)

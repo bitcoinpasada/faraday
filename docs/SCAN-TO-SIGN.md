@@ -76,7 +76,7 @@ Decided in this spec (architect, inside the owner's eight):
 9. A scanned seed whose key with no passphrase is one of the wallet's
    missing keys loads at once, with no passphrase question: the match
    proves it has none. A seed that matches nothing opens the passphrase
-   sheet (`seed_read.rs`) with the reason, so a seed with a passphrase
+   sheet (`seeds/read.rs`) with the reason, so a seed with a passphrase
    is still found. Everywhere else the passphrase sheet works as
    decided on 2026-10-11.
 10. A missing key's chart node keeps its own sheet and loses its "Add
@@ -97,8 +97,8 @@ Every way in that names these two flows reads the same:
 | Was | Now |
 |---|---|
 | Make a wallet (Home lead and tile) | Make a new wallet |
-| Create a wallet (Wallets empty state, its small-panel row; Create's heading and the back labels that name it, `keygen_screen.rs`, `compact.rs`, `vaults.rs`) | Make a new wallet |
-| Load or restore a wallet (Home tile, Wallets empty state and loaded card, Restore's heading, `compact.rs`, `vaults.rs`, `catalog.rs`'s entry) | Restore an existing wallet |
+| Create a wallet (Wallets empty state, its small-panel row; Create's heading and the back labels that name it, `keygen/screen.rs`, `compact.rs`, `vault/mod.rs`) | Make a new wallet |
+| Load or restore a wallet (Home tile, Wallets empty state and loaded card, Restore's heading, `compact.rs`, `vault/mod.rs`, `catalog.rs`'s entry) | Restore an existing wallet |
 
 The sub-lines stay ("Single key or multisig", "From its backups").
 "Make a wallet from this key" (`screens.rs` `FROM_KEY`) is a different
@@ -149,7 +149,7 @@ callers that keep it (Restore's slots).
 
 ### 2.2 The wallet card
 
-The signatures bar (`screens.rs` wallet card, `compact_screens.rs`'s
+The signatures bar (`screens.rs` wallet card, `compact/screen.rs`'s
 card):
 
 - Short of signers: the pips and `{here} of {m} signatures possible
@@ -214,7 +214,7 @@ loaded,
 
 ## 3. Who signs (batch A)
 
-The Spend tab's signers card (`family_screen.rs` `signers`) and Wallets'
+The Spend tab's signers card (`family/screen.rs` `signers`) and Wallets'
 Sign step 4 (`screens.rs`):
 
 ### 3.1 The count
@@ -267,7 +267,7 @@ route (`Route`) is no longer chosen: it is set from what came in
 in, Words when only seeds did), so the pages after it, the kept state
 and `SpendFrom` work as before. `F::Holding` goes.
 
-**Lead** (the tab's text, `family_text.rs`): "Scan or type everything
+**Lead** (the tab's text, `family/text.rs`): "Scan or type everything
 in the envelope, one thing at a time, in any order. Faraday works out
 the wallet from it."
 
@@ -283,7 +283,7 @@ The card, top to bottom:
    scanner, §4.2), secondary **Type the words you have** (Add a key,
    returning here; `F::TypeWords`).
 3. A link, **Not sure what you have?**, which shows and hides the list
-   of what each thing looks like (`family_text::looks`, as `F::Unsure`
+   of what each thing looks like (`family::text::looks`, as `F::Unsure`
    does now).
 4. **What came in:** a row each, newest last: `Seed · {fp}` (and its
    label), `Wallet description · {name} · {shape}`, `Part {k} of {n}`
@@ -323,7 +323,7 @@ kept in `FamilyState`: `everything: bool` (That's everything) and
 | A description (whole or rebuilt) | none: the wallet opens and the column goes on to Check. Seeds that came in already are taken into its slots; one that matches no slot shows `Seed {fp} is not one of {wallet}'s keys` with **Add its passphrase** (the passphrase sheet on that seed). The other seeds are asked for on Who signs, after the transaction is read (`docs/FAMILY.md` rule 4). |
 | One seed, nothing else | **Anything else in the envelope?** Hint: "Another list of words, another QR code, a line starting wsh( or tr(, or a word kept apart from the list." Buttons: **Scan more**, **Type more words**, **That's everything**. That's everything opens the single-key wallet as native SegWit (`family_words_kind`) and §5 applies. |
 | Two seeds or more, no description, not `no_description` | **These seeds are one wallet with several keys.** Hint: "Its description says how they fit together: a QR code labelled wallet, descriptor, setup or multisig; a long line starting wsh( or tr(; or sheets with lines like 73C5DA0A: xpub…". Buttons: **Scan the description** (the intake scanner, that hint on its sheet), **I can't find one**. |
-| Two seeds or more, `no_description` | The seeds' shape as now (`seeds_screen::shape`): M of N on the sliders, a box per missing key, the kind (native SegWit multisig first), the path. While N exceeds the seeds here, the line `Without the description Faraday needs all {n} keys: their seeds or xpubs`, and the boxes take scans (§4.2) or typing. **Make the wallet** builds it once every key is in, as now; §5's guess applies to its kind. |
+| Two seeds or more, `no_description` | The seeds' shape as now (`seeds::screen::shape`): M of N on the sliders, a box per missing key, the kind (native SegWit multisig first), the path. While N exceeds the seeds here, the line `Without the description Faraday needs all {n} keys: their seeds or xpubs`, and the boxes take scans (§4.2) or typing. **Make the wallet** builds it once every key is in, as now; §5's guess applies to its kind. |
 | Only public keys, parts not adding up, or shares part-way | The rows say what is in; the two buttons stay. |
 
 The single-key wallet no longer opens on the first seed by itself
@@ -397,7 +397,7 @@ described wallet's Check has no No money shows.
 
 ## 6. GPG: sign several files (batch A)
 
-Sign a file (`vault_screens.rs`, `app.vaults.signing`) becomes a checkbox
+Sign a file (`vault/screen.rs`, `app.vaults.signing`) becomes a checkbox
 list (DESIGN §4 Multi choice, `Ui::multi_list` or `Ui::checkbox` rows):
 
 - **Select all** first; then a row per Inbox file: checkbox, name, size.

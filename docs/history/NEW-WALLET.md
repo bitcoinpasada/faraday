@@ -485,7 +485,7 @@ with enough, a green **Can spend** pill in place of "Nothing missing".
 
 **Where.** `screens.rs` (the Wallets card; `backup_line` and the map
 panel's code to reuse), `plan.rs` (the per-spot finding), a new
-`faraday-core/src/glance.rs` for the chart's layout, `core/faraday-draw/src/
+`faraday-core/src/glance/mod.rs` for the chart's layout, `core/faraday-draw/src/
 tokens.rs`, `compact_screens.rs` for the small panel's page.
 
 **Tests.** A new `tests/all/glance.rs`: a single-key wallet with the Paper

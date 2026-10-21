@@ -12,8 +12,8 @@
 
 use crate::common::*;
 use faraday_bip::keys::Fingerprint;
+use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::backup_flow::{BackupFlow, Step, Target};
-use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::create::NewKind;
 use faraday_core::plan::{
     self, Answers, At, Item, Preset, Seed, Shape, Spot, What, checklist, form, kept_nowhere,

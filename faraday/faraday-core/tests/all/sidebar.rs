@@ -129,7 +129,7 @@ fn the_session_strip_names_the_current_stage() {
 #[test]
 fn the_session_strip_reads_write_out_for_a_vault_changed_since_written() {
     let c = faraday_core::testkit::compute();
-    use faraday_core::vaults::VaultAction as V;
+    use faraday_core::vault::VaultAction as V;
     let mut app = with(1, 0);
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: vec![(
@@ -261,8 +261,8 @@ fn a_key_with_a_passphrase_says_so() {
 
 // ---- flows in progress (`docs/FLOWS.md`, Flows in progress; F41) ----
 
+use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::backup_flow::{Kind, Step};
-use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::in_progress::Going;
 use faraday_core::{cstep, qstep, rstep, testkit};
 use faraday_shell_api::Key;
@@ -703,7 +703,7 @@ fn sign_a_messages_cancel_ends_it_and_removes_its_row() {
 
 #[test]
 fn create_a_vaults_cancel_ends_it_on_vaults_and_removes_its_row() {
-    use faraday_core::vaults::{VaultAction as V, vstep};
+    use faraday_core::vault::{VaultAction as V, vstep};
     let mut app = with(0, 0);
     app.storage(faraday_core::StorageEvent::Memory {
         available_mib: 15_000,
@@ -724,7 +724,7 @@ fn create_a_vaults_cancel_ends_it_on_vaults_and_removes_its_row() {
 
 #[test]
 fn a_backup_flow_with_its_key_made_offers_no_cancel() {
-    use faraday_core::vaults::VaultAction as V;
+    use faraday_core::vault::VaultAction as V;
     let mut app = with(0, 0);
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: vec![(

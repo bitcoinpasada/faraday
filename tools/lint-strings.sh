@@ -60,7 +60,7 @@ status=0
 # firmware sketches (`sketch.rs` in faraday-learn, the shape, and
 # faraday-guides, the data; docs/STARTER.md §7.8, F18): their words are a
 # firmware's own, the screen a sketch depicts, not Faraday's wording.
-FARADAY_SCREENS="$(ls faraday/faraday-core/src/*.rs | grep -v '/testkit\.rs$\|/names\.rs$')
+FARADAY_SCREENS="$(find faraday/faraday-core/src -name '*.rs' -not -path '*/drawing/*' -not -path '*/work/*' | sort | grep -v '/testkit\.rs$\|/names\.rs$')
 faraday/faraday-starter/src/*.rs
 faraday/faraday-ui/src/*.rs
 $(ls faraday/faraday-learn/src/*.rs | grep -v '/sketch\.rs$')

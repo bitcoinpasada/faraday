@@ -91,7 +91,7 @@ use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::plan::{self as fplan, At, Spot, What};
 use faraday_core::testkit;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{
     Action, BootPart, Faraday, Medium, Screen, StickInfo, StorageCommand, StorageEvent, bstep,
     qrow, qstep,
@@ -1224,12 +1224,14 @@ fn run(
         return Err("the scanned SeedQR did not ask how it loads".into());
     }
     t.shot("scan-seedqr-read")?;
-    t.press(Action::SeedRead(faraday_core::seed_read::Choice::AddPass));
+    t.press(Action::SeedRead(faraday_core::seeds::read::Choice::AddPass));
     type_text(&mut t, "a passphrase");
-    t.press(Action::SeedRead(faraday_core::seed_read::Choice::Field(1)));
+    t.press(Action::SeedRead(faraday_core::seeds::read::Choice::Field(
+        1,
+    )));
     type_text(&mut t, "a passphrase");
     t.shot("scan-seedqr-passphrase")?;
-    t.press(Action::SeedRead(faraday_core::seed_read::Choice::Plain));
+    t.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
     let zebra_fp = [0x5d, 0x38, 0x83, 0x76];
     if t.app.session.keys.len() != keys_before + 1
         || !t
@@ -1711,7 +1713,7 @@ fn run(
     // On the stick, with the clock not checked, Make asks for the time
     // first (`docs/TOTP.md` §2.2); Keep this time, then Make again.
     t.press(Action::Flow(
-        faraday_core::backup_flow_steps::FlowAction::Make,
+        faraday_core::backup_flow::steps::FlowAction::Make,
     ));
     if t.app.screen != Screen::SetTime {
         return Err("making a GPG key did not ask for the time".into());
@@ -1823,7 +1825,7 @@ fn run(
         .records
         .iter()
         .find(|r| r.kind == 8)
-        .and_then(faraday_core::secureboot::keys_of)
+        .and_then(faraday_core::secure_boot::keys_of)
         .ok_or("the keys do not read back")?;
     if faraday_sb::pe::check(&signed, &keys.db.cert) != Ok(faraday_sb::Check::Valid) {
         return Err("the signed image does not check against the db key".into());
@@ -1914,12 +1916,12 @@ fn run(
     t.press(Action::Vault(V::Create));
     // It opens on Name and passphrases, the size closed on its default.
     t.shot("create-vault")?;
-    t.press(Action::Vault(V::CStep(faraday_core::vaults::vstep::PRESET)));
+    t.press(Action::Vault(V::CStep(faraday_core::vault::vstep::PRESET)));
     t.shot("create-vault-size")?;
     // Customise: the three cards in the size's place.
     t.press(Action::Vault(V::CCustomise));
     t.shot("create-vault-customise")?;
-    t.press(Action::Vault(V::CNext(faraday_core::vaults::vstep::WHERE)));
+    t.press(Action::Vault(V::CNext(faraday_core::vault::vstep::WHERE)));
     t.press(Action::Vault(V::CPreset(0)));
     t.shot("create-vault-cost")?;
     // A fresh Create, on the default size, makes the tour's vault.
@@ -1932,7 +1934,7 @@ fn run(
     t.shot("create-vault-dice")?;
     // The first word in its list, and back to the rolls as they were.
     let first =
-        faraday_core::vaults::dice_word_indices(rolls, faraday_bip::diceware::List::Large)[0];
+        faraday_core::vault::dice_word_indices(rolls, faraday_bip::diceware::List::Large)[0];
     t.press(Action::WordList(
         faraday_core::wordlist::WordListAction::Open(1, Some(first)),
     ));
@@ -1949,7 +1951,7 @@ fn run(
         .map(|c| c.phrases[0].0.text.to_string())
         .unwrap_or_default();
     let expect =
-        faraday_core::vaults::dice_words(rolls, faraday_bip::diceware::List::Large).join("");
+        faraday_core::vault::dice_words(rolls, faraday_bip::diceware::List::Large).join("");
     if dice_phrase != expect {
         return Err(format!("dice gave {dice_phrase:?}, expected {expect:?}"));
     }
@@ -3365,9 +3367,9 @@ fn public_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     );
     // Opened as the wallet's chart opens it: the items before it wait
     // for the copies and the vaults, which this tour does not make.
-    t.press(Action::Chart(faraday_core::glance_sheet::ChartAction::Do(
+    t.press(Action::Chart(faraday_core::glance::sheet::ChartAction::Do(
         faraday_core::glance::Press::Loaded(built),
-        faraday_core::glance_sheet::Step::Item(bstep::PUBLIC),
+        faraday_core::glance::sheet::Step::Item(bstep::PUBLIC),
     )));
     t.press(Action::PublicOut(built, 8));
     scroll_to(t, Action::PublicOut(built, 8));
@@ -4059,7 +4061,7 @@ fn open_a_vault(t: &mut Tour, phrase: &str) -> Result<(), String> {
 fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
     use faraday_core::glance::Press;
-    use faraday_core::glance_sheet::{ChartAction as C, Target};
+    use faraday_core::glance::sheet::{ChartAction as C, Target};
     let shot_sheet = |t: &mut Tour, press: Press, target: Target, name: &str| {
         t.press(Action::Chart(C::Open(press, target)));
         let shot = t.shot(name);
@@ -4264,8 +4266,8 @@ fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
 /// with it.
 fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
+    use faraday_core::glance::sheet::{ChartAction as C, Target};
     use faraday_core::glance::{Backup, Press};
-    use faraday_core::glance_sheet::{ChartAction as C, Target};
     use faraday_core::plan::{At, Edit, Mark, What};
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -5303,8 +5305,8 @@ fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
 /// open now, as a person has it after the sticks and the vaults: the
 /// tours that are not about the flow start from here.
 fn flow_at_make(c: &Compute, t: &mut Tour, kind: faraday_core::backup_flow::Kind) {
+    use faraday_core::backup_flow::steps::FlowAction as F;
     use faraday_core::backup_flow::{BackupFlow, Plan, Step};
-    use faraday_core::backup_flow_steps::FlowAction as F;
     let (salt, name) = {
         let o = &t.app.vaults.open[t.app.vaults.current];
         (o.header().salt, o.name.clone())
@@ -5324,7 +5326,7 @@ fn flow_at_make(c: &Compute, t: &mut Tour, kind: faraday_core::backup_flow::Kind
 /// vault unlocked from a stick holds is; the vault's contents shown on
 /// its kind.
 fn flow_made(t: &mut Tour, kind: faraday_core::backup_flow::Kind) -> Result<(), String> {
-    use faraday_core::backup_flow_steps::FlowAction as F;
+    use faraday_core::backup_flow::steps::FlowAction as F;
     t.press(Action::Flow(F::Make));
     t.tick();
     t.tick();
@@ -5364,7 +5366,7 @@ fn flow_made(t: &mut Tour, kind: faraday_core::backup_flow::Kind) -> Result<(), 
 fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_bip::bip39::{Language, Mnemonic};
     use faraday_bip::bitcoin::bip32::DerivationPath;
-    use faraday_core::vaults::VaultAction as V;
+    use faraday_core::vault::VaultAction as V;
     use faraday_vault::records::{self, field, kind};
     use faraday_vault::{Contents, Cost, Record};
     let words = |p: &str| Mnemonic::parse(c, Language::English, p).map_err(|e| format!("{e:?}"));
@@ -5475,7 +5477,7 @@ fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
 
 fn boot_place_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::backup_flow::Kind;
-    use faraday_core::backup_flow_steps::FlowAction as F;
+    use faraday_core::backup_flow::steps::FlowAction as F;
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
@@ -5523,7 +5525,7 @@ fn boot_place_tour(t: &mut Tour) -> Result<(), String> {
 /// their tabs, and the small Home leads with a tile for each.
 fn in_progress_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::backup_flow::Kind;
-    use faraday_core::backup_flow_steps::FlowAction as F;
+    use faraday_core::backup_flow::steps::FlowAction as F;
     use faraday_core::cstep;
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -5719,7 +5721,7 @@ fn partials_tour(t: &mut Tour) -> Result<(), String> {
 
 fn flow_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::backup_flow::Kind;
-    use faraday_core::backup_flow_steps::FlowAction as F;
+    use faraday_core::backup_flow::steps::FlowAction as F;
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
@@ -5854,7 +5856,7 @@ fn flow_tour(t: &mut Tour) -> Result<(), String> {
 /// up's plan offers the vaults; the checklist ends in Write to sticks;
 /// one lock, each stick by place, done.
 fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
-    use faraday_core::backup_flow_steps::FlowAction as F;
+    use faraday_core::backup_flow::steps::FlowAction as F;
     use faraday_core::cstep;
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,

@@ -8,7 +8,7 @@ use faraday_apk::{key, pem};
 use faraday_bip::bitcoin::hashes::{Hash, sha256};
 use faraday_core::backup_flow::Kind;
 use faraday_core::testkit;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 use faraday_vault::records::{field, kind};
@@ -210,7 +210,7 @@ fn saved(app: &mut Faraday) -> (Files, Files, Files) {
 /// The flow of the APK key as far as Make: two empty sticks of one label
 /// and serial, one new vault.
 fn flow_to_make(shell: &mut Shell, keep_time: bool) -> Faraday {
-    use faraday_core::backup_flow_steps::FlowAction as F;
+    use faraday_core::backup_flow::steps::FlowAction as F;
     shell.add(Disk::empty("S1", "KEYSTICK"));
     shell.add(Disk::empty("S2", "KEYSTICK"));
     let mut app = crate::common::process(Vec::new(), Vec::new(), Vec::new());
@@ -269,7 +269,7 @@ fn make_an_apk_key_in_the_flow_puts_a_record_in_every_vault_and_the_certificate_
 #[test]
 fn the_vault_sealed_and_opened_again_shows_the_same_name_fingerprint_and_package() {
     let c = testkit::compute();
-    use faraday_core::backup_flow_steps::FlowAction as F;
+    use faraday_core::backup_flow::steps::FlowAction as F;
     let mut shell = Shell::new();
     let mut app = flow_to_make(&mut shell, true);
     crate::common::make_key(&mut shell, &mut app, &["Faraday Test", FIXTURE]);

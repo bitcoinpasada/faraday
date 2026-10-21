@@ -811,7 +811,7 @@ reports success.
 **What the Starter reads from a Faraday stick.** Only the boot
 partition, and only to learn which Faraday it holds: the build string
 (F5) the stick's own Upgrade a Faraday stick reads from another stick
-(`faraday-core/src/upgrade.rs`): the kernel release string in
+(`faraday-core/src/upgrade/mod.rs`): the kernel release string in
 `EFI/BOOT/BOOTX64.EFI` on a stick, or `faraday-build.txt` on a Pi
 card (§1.3). On Linux it is read from the desktop's own mount of
 FARADAYBOOT; when FARADAYBOOT is not mounted, the Starter has udisks2 mount it
@@ -1565,7 +1565,7 @@ screenshot. Each is labelled a mock-up.
 
 ## 8. Transfer
 
-Transfer is the desktop app's (`faraday-core/src/transfer.rs`): Send
+Transfer is the desktop app's (`faraday-core/src/transfer/mod.rs`): Send
 shows a file as animated codes for the device's Scan; Receive reads the
 device's codes with the camera and saves each whole file into the
 Downloads folder. On Linux the camera is `faraday-v4l2`, as the

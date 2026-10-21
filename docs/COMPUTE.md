@@ -219,10 +219,10 @@ change its own commit.
 | A0 | `View`, `After`, `before_frame`; the 11 `&mut Faraday` draw roots take `&View`; `osk_track` leaves drawing; the guard stays | U4 | — | Opus |
 | A1 | Memo, kept and allowed accessors on `View`, beside the old forms; decisions switch to `*_now` | A0 | — | Opus |
 | B1 | `screens.rs` | A1 | B2–B6, C0 | Sonnet |
-| B2 | `vault_screens.rs`, `vault_load_screen.rs`, `glance_sheet.rs`, `glance.rs` | A1 | ″ | Sonnet |
-| B3 | `backup_flow_screen.rs`, `backup_flow_wallet_screen.rs`, `board_screen.rs`, `plan_cards.rs`, `backups_screen.rs` | A1 | ″ | Sonnet |
-| B4 | `family_screen.rs`, `family_text.rs`, `keygen_screen.rs`, `seeds_screen.rs`, `codes_screen.rs`, `bip85_screen.rs` | A1 | ″ | Sonnet |
-| B5 | `compact.rs`, `compact_screens.rs`, `boot_import_screen.rs`, `in_progress.rs`, `stick_pills.rs`, `stick_wipe.rs`, `upgrade_screen.rs`, `transfer_screen.rs`, `tools_screen.rs` | A1 | ″ | Sonnet |
+| B2 | `vault/screen.rs`, `vault/load_screen.rs`, `glance/sheet.rs`, `glance.rs` | A1 | ″ | Sonnet |
+| B3 | `backup_flow/screen.rs`, `backup_flow/wallet_screen.rs`, `board/screen.rs`, `plan/cards.rs`, `backups/screen.rs` | A1 | ″ | Sonnet |
+| B4 | `family/screen.rs`, `family/text.rs`, `keygen/screen.rs`, `seeds/screen.rs`, `codes/screen.rs`, `bip85/screen.rs` | A1 | ″ | Sonnet |
+| B5 | `compact.rs`, `compact/screen.rs`, `boot_import/screen.rs`, `in_progress.rs`, `stick/pills.rs`, `stick/wipe.rs`, `upgrade/screen.rs`, `transfer/screen.rs`, `faraday/faraday-core/src/tools/screen.rs` | A1 | ″ | Sonnet |
 | B6 | the rest (`explore_screen`, `silent_screen`, `vanity_screen`, `lightning_screen`, `wordlist_screen`, `file_menu`, `edit`, …) | A1 | ″ | Sonnet |
 | C0 | `Compute` and `unchecked`; `Faraday::compute`; `View`'s token; the mint sites; `faraday/clippy.toml` with the two mint entries; the global counter stays | A1 | B1–B6 | Opus |
 | C1 | Gate `WordsParse`, `Kdf`, `MasterKey`, `KeyDerive`; their counts move to `c.count` | B, C0 | — | Sonnet |

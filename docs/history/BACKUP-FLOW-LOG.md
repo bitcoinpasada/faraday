@@ -12,7 +12,7 @@ written, Done, the checklist's **Write to sticks**, and Make a new
 wallet's new cards. It touches `faraday-core`, so the device app's
 builds follow it.
 
-**Adds.** `faraday-core/src/backup_flow.rs` (§7, the steps, the
+**Adds.** `faraday-core/src/backup_flow/mod.rs` (§7, the steps, the
 checks); the cards (§4, §5) in one screen function used by the kinds'
 Make screens and by Make a new wallet and Back up; the hooks in
 `stick_arrived` and on a pull; the gate (§8) for the APK key, GPG and
@@ -69,7 +69,7 @@ What B1a built, and where the spec was silent or the build followed the
 closest existing pattern (`gpg.rs`, the stick visit, the lock, the kept
 state, NEW-WALLET's checklist). The wallet's part is batch B1b.
 
-**Where it is.** `faraday-core/src/backup_flow.rs` (the state of §7, the
+**Where it is.** `faraday-core/src/backup_flow/mod.rs` (the state of §7, the
 plan, the kept state, the gate of §8), `backup_flow_steps.rs` (the steps,
 `FlowAction`, the checks) and `backup_flow_screen.rs` (the cards).
 `Screen::BackupFlow` is the flow's one screen and `Action::Flow` its
@@ -262,7 +262,7 @@ The wallet's part: §10 and §11, on the code B1a built. Where the spec was
 silent, or two readings were open, the build followed the closest B1a
 pattern; each choice is here.
 
-**Where it is.** `faraday-core/src/backup_flow_wallet.rs` (what only a
+**Where it is.** `faraday-core/src/backup_flow/wallet.rs` (what only a
 wallet needs: its flow, the hold, the files, the round),
 `backup_flow_wallet_screen.rs` (its Where and Make cards and Make a new
 wallet's three), the shared `backup_flow.rs`, `backup_flow_steps.rs` and

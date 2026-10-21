@@ -8,7 +8,7 @@
 
 use faraday_core::boot_import::{self, ImportAction as I};
 use faraday_core::testkit;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
 use faraday_shell_api::{App, Event, Key, TouchPhase};
@@ -554,7 +554,7 @@ fn with_no_vault_import_brings_the_files_in_and_home_leads_with_the_psbt() {
 #[test]
 fn with_only_the_settings_file_no_sheet_comes_up() {
     let files = vec![(
-        faraday_core::stick_settings::FILE.to_string(),
+        faraday_core::stick::settings::FILE.to_string(),
         b"faraday-settings 1\n".to_vec(),
     )];
     let app = booted_with(&files);

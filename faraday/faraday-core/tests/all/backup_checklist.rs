@@ -10,7 +10,7 @@ use faraday_core::board::{Thing, Zone};
 use faraday_core::plan::Item;
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, BStage, Faraday, Screen, StorageEvent, bstep, plan, qrow, qstep};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 use faraday_vault::records::{field, kind};
@@ -186,7 +186,7 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::STICKS));
     press_offered(
         &mut app,
-        Action::Flow(faraday_core::backup_flow_steps::FlowAction::WalletLock),
+        Action::Flow(faraday_core::backup_flow::steps::FlowAction::WalletLock),
     );
 }
 

@@ -4,7 +4,7 @@
 //! asked for, and a vault holding wallets with their seeds loads each
 //! with its seeds in one press.
 
-use faraday_core::vaults::{SlotOf, VaultAction as V};
+use faraday_core::vault::{SlotOf, VaultAction as V};
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
@@ -238,7 +238,7 @@ fn a_vault_with_one_key_lists_keys_every_add_and_no_other_kind() {
     new_open_vault(&mut app);
     app.press(Action::Nav(Screen::VaultContents));
     let _ = app.frame();
-    for k in 0..faraday_core::vaults::CATEGORIES.len() {
+    for k in 0..faraday_core::vault::CATEGORIES.len() {
         assert!(
             app.offers(Action::Vault(V::AddKind(k))),
             "an empty vault offers kind {k} to add"
@@ -249,13 +249,13 @@ fn a_vault_with_one_key_lists_keys_every_add_and_no_other_kind() {
     app.press(Action::Vault(V::ItemBack));
     let _ = app.frame();
     assert!(app.offers(Action::Vault(V::Category(0))), "Bitcoin keys");
-    for k in 0..faraday_core::vaults::CATEGORIES.len() {
+    for k in 0..faraday_core::vault::CATEGORIES.len() {
         assert!(
             app.offers(Action::Vault(V::AddKind(k))),
             "a vault with a key still offers kind {k} to add"
         );
     }
-    for k in 1..faraday_core::vaults::CATEGORIES.len() {
+    for k in 1..faraday_core::vault::CATEGORIES.len() {
         assert!(
             !app.offers(Action::Vault(V::Category(k))),
             "kind {k} holds nothing and is not listed"

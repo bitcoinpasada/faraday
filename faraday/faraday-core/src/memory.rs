@@ -232,7 +232,7 @@ impl Faraday {
         if !self.vaults.summaries.is_empty() {
             out.push((
                 "vault-summaries".to_string(),
-                crate::vaults::summaries_encode(&self.vaults.summaries),
+                crate::vault::summaries_encode(&self.vaults.summaries),
             ));
         }
         // What was seen of each wallet's backup, for Backups and the
@@ -370,7 +370,7 @@ impl Faraday {
                     }
                 }
                 "vault-summaries" => {
-                    self.vaults.summaries = crate::vaults::summaries_decode(bytes);
+                    self.vaults.summaries = crate::vault::summaries_decode(bytes);
                 }
                 "secret-out" => {
                     let text = String::from_utf8_lossy(bytes);

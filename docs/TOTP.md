@@ -74,7 +74,7 @@ Decided in this spec (architect, 2026-10-11, inside the owner's four):
 ## 1. The clock model
 
 Today `vaults.unix_secs` holds the last `StorageEvent::Clock` and
-`clock_now()` (`faraday-core/src/vaults.rs`, "pub(crate) fn clock_now")
+`clock_now()` (`faraday-core/src/vault/mod.rs`, "pub(crate) fn clock_now")
 adds the milliseconds since it arrived. Every caller keeps using
 `clock_now()`; what it returns changes.
 
@@ -146,12 +146,12 @@ offset in use, including +05:30 and +05:45.
 
 ### 2.2 In the settings file and the kept set
 
-`settings_body()` (`faraday-core/src/stick_settings.rs`) gains a line
+`settings_body()` (`faraday-core/src/stick/settings.rs`) gains a line
 `tz=+02:00`: the sign always written, two-digit hours, two-digit
 minutes. `apply_setting()` takes `tz` only when it has that exact form,
 the minutes are 00, 15, 30 or 45, and the value is in range; anything
 else is skipped as an unknown value is now. The file is untrusted
-(`stick_settings.rs` header): a wrong zone gives wrong local times and
+(`stick/settings.rs` header): a wrong zone gives wrong local times and
 wrong codes, never a less protected session, so it may be read from the
 file. The stick-settings comment and `docs/history/HANDOFF.md` item 62's key list
 name it.
@@ -162,12 +162,12 @@ the body now differs. That is expected.
 
 ### 2.3 Every time shown is local
 
-One function in `vaults.rs`, beside `time_of_day`, turns Unix seconds
+One function in `vault/mod.rs`, beside `time_of_day`, turns Unix seconds
 into local seconds (`unix + tz_min × 60`). Every date or time **drawn
 on screen or written for the person** goes through it:
 
-- `vaults::time_of_day` callers: `backups.rs` ("On STICK, 14:02"),
-  `vaults.rs` ("seen 14:02"), `lib.rs` ("Written to STICK at 14:02");
+- `vault::time_of_day` callers: `backups.rs` ("On STICK, 14:02"),
+  `vault/mod.rs` ("seen 14:02"), `lib.rs` ("Written to STICK at 14:02");
 - `chart_edit.rs`'s today's date, which goes into the plan's
   `checked … 2026-10-10` notes;
 - the GPG screens' "From 2026-10-11" dates (`gpg::date` where it is
@@ -335,7 +335,7 @@ each row, Now on one line at the top. Check at `480x640` and `240x320`.
 
 ## 6. The entry
 
-- **Detail** (`vault_screens.rs`, `kind::ENTRY`): a row **Code** before
+- **Detail** (`vault/screen.rs`, `kind::ENTRY`): a row **Code** before
   the **TOTP secret** row, with the grouped code and `12 s`, live. When
   the clock is not checked, its value is the button **Set the time**,
   which opens §3 and comes back. HOTP and Unreadable show the badge

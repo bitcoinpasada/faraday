@@ -14,7 +14,7 @@ use faraday_draw::widgets::Icon;
 use crate::compact::{buttons, scroll_sheet};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
-use crate::{Action, Faraday, Sheet, StorageCommand, sha256_of, stick_settings};
+use crate::{Action, Faraday, Sheet, StorageCommand, sha256_of, stick};
 
 /// What becomes of one file whose name is taken.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -180,7 +180,7 @@ impl Faraday {
 
         if self.visit_settings_on() {
             sends.push((
-                stick_settings::FILE.to_string(),
+                stick::settings::FILE.to_string(),
                 self.settings_file_text().into_bytes(),
                 false,
             ));

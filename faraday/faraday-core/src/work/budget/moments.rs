@@ -7,7 +7,7 @@
 use faraday_shell_api::{App, Event};
 
 use super::type_text;
-use crate::vaults::VaultAction as V;
+use crate::vault::VaultAction as V;
 use crate::work::{Counts, KINDS, Work, since, snapshot};
 use crate::{Action, Faraday, Screen, Sheet, StorageEvent, testkit};
 

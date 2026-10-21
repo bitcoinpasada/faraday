@@ -9,7 +9,7 @@
 //! from the vault is not loaded.
 
 use faraday_bip::bip39::{Language, Mnemonic};
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
 use faraday_vault::records::{field, kind};

@@ -6,8 +6,8 @@
 //! written inside the flow.
 
 use crate::common::*;
+use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::backup_flow::{BackupFlow, Step, Target};
-use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::board::{BoardPress, Thing, Zone};
 use faraday_core::create::NewKind;
 use faraday_core::plan::{
@@ -470,12 +470,12 @@ fn the_hold_on_the_key_stays_until_the_last_stick_is_written_and_a_lock_resumes_
     let mut app = restart(&mut shell, &mut app);
     // The copies sealed say the backup is done; the flow holds the key.
     app.press(Action::Nav(Screen::Vaults));
-    app.press(Action::Vault(faraday_core::vaults::VaultAction::Open(0)));
+    app.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
     app.vaults.ms_per_unit = Some(180);
     unlock(&mut app, PHRASE);
-    app.press(Action::Vault(
-        faraday_core::vaults::VaultAction::LoadChosen(0),
-    ));
+    app.press(Action::Vault(faraday_core::vault::VaultAction::LoadChosen(
+        0,
+    )));
     assert!(
         app.session.keys.iter().any(|k| k.fingerprint() == fp),
         "the vault loaded the key"
@@ -1198,7 +1198,7 @@ fn changing_the_plan_after_the_lock_runs_the_round_and_writes_the_vault_again() 
     let mut next = process(vec![("vault.ofv".into(), bytes)], Vec::new(), Vec::new());
     next.vaults.ms_per_unit = Some(180);
     next.press(Action::Nav(Screen::Vaults));
-    next.press(Action::Vault(faraday_core::vaults::VaultAction::Open(0)));
+    next.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
     unlock(&mut next, PHRASE_2);
     assert_eq!(next.vaults.open[0].contents.of(kind::KEY).count(), 2);
 }
@@ -1265,12 +1265,12 @@ fn the_kept_state_of_a_wallet_flow_holds_nothing_secret_and_a_state_that_does_no
     let mut next = process(shell.boxes.0.clone(), shell.boxes.1.clone(), kept2);
     assert!(next.backup_flows.iter().any(|f| f.waiting()));
     next.press(Action::Nav(Screen::Vaults));
-    next.press(Action::Vault(faraday_core::vaults::VaultAction::Open(0)));
+    next.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
     next.vaults.ms_per_unit = Some(180);
     unlock(&mut next, PHRASE);
-    next.press(Action::Vault(
-        faraday_core::vaults::VaultAction::LoadChosen(0),
-    ));
+    next.press(Action::Vault(faraday_core::vault::VaultAction::LoadChosen(
+        0,
+    )));
     assert!(
         next.key_held(&c, faraday_bip::keys::Fingerprint(fp)),
         "fails closed: the key is held"
@@ -1581,12 +1581,12 @@ fn a_kept_state_cut_short_or_missing_its_wallet_part_still_holds_the_key() {
             .filter_map(|f| f.wallet.as_ref())
             .any(|w| !w.held.is_empty());
         next.press(Action::Nav(Screen::Vaults));
-        next.press(Action::Vault(faraday_core::vaults::VaultAction::Open(0)));
+        next.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
         next.vaults.ms_per_unit = Some(180);
         unlock(&mut next, PHRASE);
-        next.press(Action::Vault(
-            faraday_core::vaults::VaultAction::LoadChosen(0),
-        ));
+        next.press(Action::Vault(faraday_core::vault::VaultAction::LoadChosen(
+            0,
+        )));
         (
             held_in_flow,
             next.key_held(&c, faraday_bip::keys::Fingerprint(fp)),
@@ -1766,7 +1766,7 @@ fn lone_passphrase_round(
 ) -> (Faraday, usize, [u8; 4]) {
     let c = faraday_core::testkit::compute();
     use faraday_core::glance::Press;
-    use faraday_core::glance_sheet::ChartAction as C;
+    use faraday_core::glance::sheet::ChartAction as C;
     let mut shell = Shell::new();
     let mut app = two_of_three_ready_with(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
@@ -1790,7 +1790,7 @@ fn lone_passphrase_round(
             if app.vault_files().get(n).is_none_or(|f| f.open.is_some()) {
                 break;
             }
-            app.press(Action::Vault(faraday_core::vaults::VaultAction::Open(n)));
+            app.press(Action::Vault(faraday_core::vault::VaultAction::Open(n)));
             app.vaults.ms_per_unit = Some(180);
             unlock(&mut app, phrase);
         }
@@ -1800,7 +1800,7 @@ fn lone_passphrase_round(
     // Unlocked inside the flow, nothing loaded (F62): everything they
     // hold, from the Vaults tab.
     for o in 0..app.vaults.open.len() {
-        app.press(Action::Vault(faraday_core::vaults::VaultAction::LoadAll(o)));
+        app.press(Action::Vault(faraday_core::vault::VaultAction::LoadAll(o)));
     }
     let w = app
         .session
@@ -2014,7 +2014,7 @@ fn a_vault_preset_chosen_after_the_keys_goes_through_to_the_writes() {
     app.press(Action::CNext(cstep::CHECK));
     assert!(!app.create.as_ref().unwrap().into_vaults());
     app.press(Action::Nav(Screen::Vaults));
-    app.press(Action::Vault(faraday_core::vaults::VaultAction::Open(0)));
+    app.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
     app.vaults.ms_per_unit = Some(180);
     unlock(&mut app, PHRASE);
     app.press(Action::Nav(Screen::Create));
@@ -2322,12 +2322,12 @@ fn vault_with_key(label: &str, phrase: &str, seed: u8, n: usize) -> Vec<u8> {
 /// Loads the keys of the first vault of a fresh process into it.
 fn load_first_vault(app: &mut Faraday, phrase: &str) {
     app.press(Action::Nav(Screen::Vaults));
-    app.press(Action::Vault(faraday_core::vaults::VaultAction::Open(0)));
+    app.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
     app.vaults.ms_per_unit = Some(180);
     unlock(app, phrase);
-    app.press(Action::Vault(
-        faraday_core::vaults::VaultAction::LoadChosen(0),
-    ));
+    app.press(Action::Vault(faraday_core::vault::VaultAction::LoadChosen(
+        0,
+    )));
 }
 
 #[test]
@@ -2682,7 +2682,7 @@ fn the_lock_keeps_the_flows_own_vault_when_another_open_vault_holds_the_same_key
         if app.vaults.open.len() > 1 {
             break;
         }
-        app.press(Action::Vault(faraday_core::vaults::VaultAction::Open(n)));
+        app.press(Action::Vault(faraday_core::vault::VaultAction::Open(n)));
         unlock(&mut app, PHRASE_2);
     }
     assert_eq!(app.vaults.open.len(), 2, "{:?}", app.vaults.unlock_error);
@@ -2725,7 +2725,7 @@ fn two_wallets_in_vaults_keep_each_its_own_vaults_and_a_flow_with_no_owner_match
         if app.vaults.open.len() > 1 {
             break;
         }
-        app.press(Action::Vault(faraday_core::vaults::VaultAction::Open(n)));
+        app.press(Action::Vault(faraday_core::vault::VaultAction::Open(n)));
         unlock(&mut app, PHRASE_2);
     }
     assert_eq!(app.vaults.open.len(), 2, "{:?}", app.vaults.unlock_error);
@@ -3159,7 +3159,7 @@ fn two_of_three_with_setup(shell: &mut Shell, count: usize) -> Faraday {
 #[test]
 fn a_plan_vault_with_none_set_up_offers_to_make_one_while_another_is_open() {
     let c = testkit::compute();
-    use faraday_core::vaults::VaultAction as V;
+    use faraday_core::vault::VaultAction as V;
     let mut shell = Shell::new();
     let mut app = two_of_three_with_setup(&mut shell, 1);
     no_words(&mut app);
@@ -3214,7 +3214,7 @@ fn a_plan_vault_with_none_set_up_offers_to_make_one_while_another_is_open() {
 
 #[test]
 fn the_vault_set_up_for_a_plan_vault_is_not_locked_away_for_another_one_that_holds_a_key() {
-    use faraday_core::vaults::VaultAction as V;
+    use faraday_core::vault::VaultAction as V;
     let mut shell = Shell::new();
     let mut app = two_of_three_with_setup(&mut shell, 2);
     no_words(&mut app);
@@ -3527,10 +3527,10 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
     }
     let omit = app.backup.as_ref().unwrap().answers.omit;
     let (m, n) = faraday_core::wallet::Session::quorum(&app.session.wallets[w]);
-    let split = faraday_core::backup::split_plan(n, m, omit);
+    let split = faraday_core::wallet_backup::split_plan(n, m, omit);
     let texts: Vec<String> = split
         .iter()
-        .map(|row| faraday_core::backup::split_share(&app.session.wallets[w], row).unwrap())
+        .map(|row| faraday_core::wallet_backup::split_share(&app.session.wallets[w], row).unwrap())
         .collect();
     let share = |j: usize| texts[j].clone();
     let made = app.session.wallets[w].policy().to_descriptor_checksummed();
@@ -3591,7 +3591,7 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
     );
     keep_time(&mut r);
     r.press(Action::Nav(Screen::Vaults));
-    r.press(Action::Vault(faraday_core::vaults::VaultAction::Open(0)));
+    r.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
     unlock(&mut r, PHRASE);
     assert_eq!(r.vaults.open.len(), 1);
     r.press(Action::RestoreWallet);
@@ -4051,9 +4051,9 @@ fn the_flows_slider_sets_its_keys_left_off_and_the_vault_takes_the_share_it_impl
     no_paper_description(&mut app);
     assert_eq!(app.backup.as_ref().unwrap().answers.omit, 1);
     let (m, n) = faraday_core::wallet::Session::quorum(&app.session.wallets[w]);
-    let none_off = faraday_core::backup::split_share(
+    let none_off = faraday_core::wallet_backup::split_share(
         &app.session.wallets[w],
-        &faraday_core::backup::split_plan(n, m, 0)[1],
+        &faraday_core::wallet_backup::split_plan(n, m, 0)[1],
     )
     .unwrap();
     app.press(Action::BChecklist);
@@ -4190,12 +4190,12 @@ fn a_wallet_rebuilt_from_its_share_files_has_the_checksum_it_was_made_with() {
     let wallet = &app.session.wallets[w];
     let made = wallet.policy().to_descriptor_checksummed();
     let (m, n) = faraday_core::wallet::Session::quorum(wallet);
-    let split = faraday_core::backup::split_plan(n, m, 1);
+    let split = faraday_core::wallet_backup::split_plan(n, m, 1);
     let files: Vec<(String, Vec<u8>)> = (0..2)
         .map(|j| {
             (
                 format!("w-share-{}-of-{n}.txt", j + 1),
-                faraday_core::backup::split_share(wallet, &split[j])
+                faraday_core::wallet_backup::split_share(wallet, &split[j])
                     .unwrap()
                     .into_bytes(),
             )
@@ -4300,7 +4300,7 @@ fn a_vault_kept_with_apostrophes_opens_with_its_plan_attached() {
     let mut next = process(vec![("old.ofv".into(), file)], Vec::new(), Vec::new());
     keep_time(&mut next);
     next.press(Action::Nav(Screen::Vaults));
-    next.press(Action::Vault(faraday_core::vaults::VaultAction::Open(0)));
+    next.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
     unlock(&mut next, PHRASE);
     let loaded = next
         .session
@@ -4308,9 +4308,9 @@ fn a_vault_kept_with_apostrophes_opens_with_its_plan_attached() {
         .iter()
         .position(|x| x.checksum() == app.session.wallets[w].checksum());
     let loaded = loaded.unwrap_or_else(|| {
-        next.press(Action::Vault(
-            faraday_core::vaults::VaultAction::LoadChosen(0),
-        ));
+        next.press(Action::Vault(faraday_core::vault::VaultAction::LoadChosen(
+            0,
+        )));
         next.session.wallets.len().saturating_sub(1)
     });
     assert_eq!(
@@ -5325,7 +5325,7 @@ fn files_and_words_stay_as_made_after_the_lock_with_a_vault_unlocked() {
 fn another_open_vault_never_replaces_a_backup_past_its_lock() {
     let c = testkit::compute();
     use faraday_core::glance::Press;
-    use faraday_core::glance_sheet::ChartAction as C;
+    use faraday_core::glance::sheet::ChartAction as C;
     use faraday_vault::Record;
     use faraday_vault::records::{self, field};
     let mut shell = Shell::new();
@@ -5369,14 +5369,14 @@ fn another_open_vault_never_replaces_a_backup_past_its_lock() {
         if !app.vaults.open.is_empty() {
             break;
         }
-        app.press(Action::Vault(faraday_core::vaults::VaultAction::Open(n)));
+        app.press(Action::Vault(faraday_core::vault::VaultAction::Open(n)));
         app.vaults.ms_per_unit = Some(180);
         unlock(&mut app, PHRASE_2);
     }
     assert_eq!(app.vaults.open.len(), 1);
-    app.press(Action::Vault(
-        faraday_core::vaults::VaultAction::LoadChosen(0),
-    ));
+    app.press(Action::Vault(faraday_core::vault::VaultAction::LoadChosen(
+        0,
+    )));
     let w = app
         .session
         .wallets

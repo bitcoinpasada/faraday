@@ -164,7 +164,7 @@ bytes draws the serial and blinds the certificate's self-signature.
 Those bytes are not kept.
 
 **Every later signing is blinded with bytes of its own**, as Secure
-Boot's signing is (`faraday-core/src/secureboot.rs`): each **Sign an
+Boot's signing is (`faraday-core/src/secure_boot/mod.rs`): each **Sign an
 APK** takes `fresh(b"apk signing")`, keys a new `rng::Stream` with it,
 and passes that to `faraday-apk`, which draws no randomness of its own
 (§7). With no answer from the system yet, signing is refused as
@@ -284,7 +284,7 @@ prefix `apk_`, the Tools tile's with `catalog_`. `docs/FLOWS.md`'s
 - Tools, group "Vaults and …": a tile **APK signing key**, line "Make a
   key, sign Android apps", tags "Android" and "APK v2 · v3". It opens
   the open vault's new category **APK signing keys**
-  (`vaults::CATEGORIES`, after Secure Boot), and needs an open vault as
+  (`vault::CATEGORIES`, after Secure Boot), and needs an open vault as
   GPG's tile does (`docs/FLOWS.md` decision 10).
 - Vault contents: **Make an APK key** among the add actions (decision
   58).
@@ -564,7 +564,7 @@ F-Droid's own build of the same tag. The
   expiry). Secure Boot's output is unchanged, which its judged tests
   show. Moving `der`, `rng` and `x509` into a crate of their own waits
   for a third user.
-- **`faraday-core/src/apk.rs`**, beside `gpg.rs` and `secureboot.rs`:
+- **`faraday-core/src/apk.rs`**, beside `gpg.rs` and `secure_boot/mod.rs`:
   the record, the screens' state, Make, Sign, the wait for a written
   copy.
 - **`faraday-vault`**: `kind::APK_KEY = 12`. `tools/vault/open.py` reads
@@ -790,7 +790,7 @@ replaced it with the shared flow (`docs/BACKUP-FLOW.md`; `docs/history/BACKUP-FL
 certificate and the signing as items 1 to 3 and 7 to 9 say.
 
 Where this document was wrong or silent, the build followed the closest
-existing pattern (`gpg.rs`, `secureboot.rs`) or `apksigner`:
+existing pattern (`gpg.rs`, `secure_boot/mod.rs`) or `apksigner`:
 
 1. **Zero bytes before the block and the end record's offset** (§6):
    `apksigner` pads the entries to a multiple of 4096 before the block,

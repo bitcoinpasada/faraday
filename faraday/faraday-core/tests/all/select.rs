@@ -7,7 +7,7 @@
 //! name is typed without a stray caret character in it.
 
 use crate::common::type_text;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
 

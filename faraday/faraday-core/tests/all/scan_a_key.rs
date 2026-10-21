@@ -8,7 +8,7 @@
 use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::keys::Fingerprint;
-use faraday_core::seed_read::Choice;
+use faraday_core::seeds::read::Choice;
 use faraday_core::testkit;
 use faraday_core::wallet::fp_text;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
@@ -59,7 +59,7 @@ fn unlocked() -> Faraday {
     let _ = app.frame();
     assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
     // Its Load sheet, everything ticked (F62).
-    app.press(Action::Vault(faraday_core::vaults::VaultAction::LoadTicked));
+    app.press(Action::Vault(faraday_core::vault::VaultAction::LoadTicked));
     app
 }
 

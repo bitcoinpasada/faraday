@@ -14,9 +14,9 @@
 //! back to the chart where that flow can.
 
 use crate::common::{shown, type_text};
+use faraday_core::glance::sheet::{ChartAction as C, Step, Target};
 use faraday_core::glance::{Backup, BackupNode, Direction, Glance, Press, layout};
-use faraday_core::glance_sheet::{ChartAction as C, Step, Target};
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{
     Action, BStage, Faraday, Screen, Sheet, StorageCommand, StorageEvent, bstep, testkit,
 };

@@ -234,7 +234,7 @@ is dropped here when upstream has it):
 
 `docs/history/PLAN.md` §13: whether the Pi Zero 2 W is worth it. (Which Pis is
 decided: the Pi 3 with its panel, no HDMI, no USB input or storage.)
-Create a vault's unlock-cost choices (`faraday-core/src/vaults.rs`) still
+Create a vault's unlock-cost choices (`faraday-core/src/vault/mod.rs`) still
 list the Pi 5, 4 and Zero 2 W as places a vault may be opened; whether
 they stay is the owner's call.
 
@@ -585,7 +585,7 @@ as possible before the next build.
     across closing the scan sheet, `qrGuard`, `pNofM` written for
     SeedSigner, keys and descriptors routed to a wallet in progress.
 
-24. [x] New key, 2026-10-05 (`faraday-core/src/keygen.rs`,
+24. [x] New key, 2026-10-05 (`faraday-core/src/keygen/mod.rs`,
     `keygen_screen.rs`, `tests/keygen.rs`): a five-card flow (Length,
     Randomness, Entries, Check, Words) opened from a Create slot's New key
     and from Add a key's Make a new key. The options come from upstream
@@ -635,7 +635,7 @@ as possible before the next build.
     app feature, whether Faraday has it, and the plan for the rest.
 
 29. [x] 2026-10-06: New key's Quiz card (Upstream's `Quiz`, every word
-    from four, skip asks twice); BIP-85 (`faraday-core/src/bip85.rs`,
+    from four, skip asks twice); BIP-85 (`faraday-core/src/bip85/mod.rs`,
     `bip85_screen.rs`, `tests/bip85.rs`: Upstream's six applications,
     child words load as a key, passwords into the vault as entries, other
     values as notes, out only through the secret sheet); fresh shell bytes
@@ -1544,7 +1544,7 @@ as possible before the next build.
     an oversized file or a wrong first line changes nothing; a setting
     changed here ticks the Settings row on the boot stick and the write
     reads back as the settings now; another stick's row is unticked.
-    **Built** as specified: `faraday-core/src/stick_settings.rs` (the
+    **Built** as specified: `faraday-core/src/stick/settings.rs` (the
     file's text, the strict per-line reader shared with the kept set,
     the boot-stick read, the visit row's default), `kept` carries
     `stick-settings` (what the boot stick holds) so a later process

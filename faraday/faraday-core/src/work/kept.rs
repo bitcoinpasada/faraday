@@ -12,7 +12,7 @@ use crate::{Action, Screen, testkit};
 
 /// A wallet's shape, as the session names it.
 fn shape_of(c: &Compute, descriptor: &str) -> String {
-    crate::vault_screens::policy_shape(read_wallet(c, descriptor).expect("a test wallet"))
+    crate::vault::screen::policy_shape(read_wallet(c, descriptor).expect("a test wallet"))
 }
 
 #[test]
@@ -152,7 +152,7 @@ fn a_vault_holds_a_seed_typed_from_any_list_and_never_another_seed() {
 #[test]
 fn a_seed_whose_fingerprint_finds_a_record_of_another_seed_is_not_kept_there() {
     let c = crate::testkit::compute();
-    use crate::vault_screens::{key_fingerprint, vault_has_key};
+    use crate::vault::screen::{key_fingerprint, vault_has_key};
     use crate::wallet::fp_text;
     use faraday_bip::bip39::{Language, Mnemonic};
     use faraday_vault::records::kind;
@@ -207,7 +207,7 @@ fn a_seed_whose_fingerprint_finds_a_record_of_another_seed_is_not_kept_there() {
 #[test]
 fn a_vault_seed_whose_fingerprint_matches_a_slot_but_not_its_key_is_not_offered() {
     let c = crate::testkit::compute();
-    use crate::vault_screens::key_fingerprint;
+    use crate::vault::screen::key_fingerprint;
     use crate::wallet::{Slot, fp_text};
     use faraday_vault::records::kind;
     let (mut app, _) = heavy();

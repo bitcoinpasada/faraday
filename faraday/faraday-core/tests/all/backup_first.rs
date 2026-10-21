@@ -14,7 +14,7 @@ use faraday_core::keygen::Way;
 use faraday_core::plan::{CHECK_LINES, Item, Preset};
 use faraday_core::testkit::backup_as;
 use faraday_core::testkit::{self, Kit};
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::fp_text;
 use faraday_core::{
     Action, BStage, Faraday, Screen, StorageCommand, StorageEvent, bstep, cstep, qstep,

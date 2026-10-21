@@ -23,9 +23,9 @@ pub fn words(word: &str) -> String {
     vec![word; 24].join(" ")
 }
 
-use crate::backup_flow_steps::FlowAction as F;
+use crate::backup_flow::steps::FlowAction as F;
 use crate::grind::Dial;
-use crate::vaults::VaultAction as V;
+use crate::vault::VaultAction as V;
 use crate::{Action, Faraday, Screen};
 
 impl Faraday {

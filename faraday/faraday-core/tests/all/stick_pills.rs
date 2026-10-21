@@ -8,8 +8,8 @@
 //! numbered from 2.
 
 use crate::common::*;
+use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::backup_flow::{Kind, Slot, Step, Target};
-use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::create::NewKind;
 use faraday_core::{
     Action, BOOT_FOLDER, Faraday, Medium, Screen, SticksWanted, StorageEvent, cstep,

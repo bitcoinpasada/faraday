@@ -9,12 +9,12 @@
 //! other. The key rows list the wallet's keys whose seeds are here.
 
 use crate::common::{no_vaults, no_words, type_text};
-use faraday_core::backup::Tone;
 use faraday_core::board::{BoardPress, Chip, Thing};
 use faraday_core::catalog::{Go, TILES};
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
+use faraday_core::wallet_backup::Tone;
 use faraday_core::{Action, Code, Faraday, Screen, bstep, plan, qrow, qstep};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 

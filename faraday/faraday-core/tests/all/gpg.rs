@@ -11,10 +11,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use faraday_core::backup_flow::Kind;
-use faraday_core::backup_flow_steps::FlowAction as F;
+use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::gpg;
 use faraday_core::testkit;
-use faraday_core::vaults::VaultAction as V;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::{FileKind, classify};
 use faraday_core::{Action, Faraday, Item, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
 use faraday_pgp::{Armor, Hash, armor, armor_with};
@@ -730,8 +730,8 @@ fn the_page_shows_the_bytes_and_the_key_it_signs_with() {
 /// hold is up signs nothing.
 #[test]
 fn signing_takes_a_hold() {
-    assert!(faraday_core::vaults::is_hold(Action::Vault(V::GpgHoldSign)));
-    assert!(faraday_core::vaults::is_hold(Action::Vault(
+    assert!(faraday_core::vault::is_hold(Action::Vault(V::GpgHoldSign)));
+    assert!(faraday_core::vault::is_hold(Action::Vault(
         V::GpgHoldRevoke
     )));
 }

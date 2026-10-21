@@ -28,7 +28,7 @@ use crate::menu::{self, Line, Step};
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
-use crate::{Action, Faraday, FileKind, Screen, Sheet, StorageCommand, stick_settings};
+use crate::{Action, Faraday, FileKind, Screen, Sheet, StorageCommand, stick};
 
 /// A file row with a ⋮, by its place in its list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -183,7 +183,7 @@ impl Faraday {
     /// Whether a file on the stick has a ⋮: every file Faraday lists but
     /// the settings file (the computer's own are not listed).
     pub(crate) fn stick_row_menu(name: &str) -> bool {
-        !stick_settings::is_file(name)
+        !stick::settings::is_file(name)
     }
 
     /// The row's name, size and kind line: a lookup.
@@ -236,7 +236,7 @@ impl Faraday {
                 {
                     out.push((
                         EN.add_to_vault_add_to.to_string(),
-                        Action::Vault(crate::vaults::VaultAction::AddFile(k)),
+                        Action::Vault(crate::vault::VaultAction::AddFile(k)),
                     ));
                 }
                 out.push(details);

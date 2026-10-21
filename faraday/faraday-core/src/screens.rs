@@ -56,7 +56,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         ui.clear(SURFACE);
         // The stick pills take a strip across the top; the page is
         // drawn below it.
-        let strip = crate::stick_pills::strip_h(app, ui, full_w);
+        let strip = crate::stick::pills::strip_h(app, ui, full_w);
         ui.oy = strip;
         draw_compact(app, ui, full_w, full_h - strip, kb > 0.0, strip);
     } else if !frosted && app.held {
@@ -73,8 +73,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         let x = SIDEBAR_W;
         // The stick pills' strip lies over the room above the page's
         // first line; a taller strip moves the page down by the rest.
-        let strip = crate::stick_pills::strip_h(app, ui, full_w);
-        let drop = crate::stick_pills::page_drop(strip);
+        let strip = crate::stick::pills::strip_h(app, ui, full_w);
+        let drop = crate::stick::pills::page_drop(strip);
         ui.oy = drop - lift;
         dispatch(app, ui, x, cw, if kb > 0.0 { win_h } else { h } - drop);
         ui.oy = 0.0;
@@ -129,7 +129,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         ui.outside = match sheet {
             Sheet::Lock => Some(Action::NotNow),
             Sheet::Import => Some(crate::boot_import::LATER),
-            Sheet::UnlockLoad => Some(Action::Vault(crate::vaults::VaultAction::LoadNotNow)),
+            Sheet::UnlockLoad => Some(Action::Vault(crate::vault::VaultAction::LoadNotNow)),
             Sheet::NewInput => app.inputs.first().map(|d| Action::InputIgnore(d.id)),
             // Zeroing stops by its own Stop, never by a press beside it.
             Sheet::WordList | Sheet::IdleWarn | Sheet::Zeroing => None,
@@ -141,7 +141,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         };
         match sheet {
             Sheet::Lock => lock_sheet(app, ui, w, h),
-            Sheet::LockAsk => crate::vault_screens::lock_ask(app, ui, w, h),
+            Sheet::LockAsk => crate::vault::screen::lock_ask(app, ui, w, h),
             Sheet::Power => power_sheet(app, ui, w, h),
             Sheet::Qr => qr_sheet(app, ui, w, h),
             Sheet::Scan => scan_sheet(app, ui, w, h),
@@ -149,31 +149,31 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Locked => locked_sheet(app, ui, w, h),
             Sheet::NewInput => new_input_sheet(app, ui, w, h),
             Sheet::Learn => learn_sheet(app, ui, w, h),
-            Sheet::WordList => crate::wordlist_screen::draw(app, ui, w, h),
+            Sheet::WordList => crate::wordlist::screen::draw(app, ui, w, h),
             Sheet::SecretOut => secret_out_sheet(app, ui, w, h),
             Sheet::WriteOut => write_out_sheet(app, ui, w, h),
             Sheet::IdleWarn => idle_warn_sheet(app, ui, w, h),
             Sheet::Potential => potential_sheet(app, ui, w, h),
-            Sheet::Import => crate::boot_import_screen::draw(app, ui, w, h),
+            Sheet::Import => crate::boot_import::screen::draw(app, ui, w, h),
             Sheet::Pull => pull_sheet(app, ui, w, h),
-            Sheet::Chart => crate::glance_sheet::draw(app, ui, w, h),
-            Sheet::BoardList => crate::board_screen::list_sheet(app, ui, w, h),
-            Sheet::BoardSees => crate::board_screen::sees_sheet(app, ui, w, h),
-            Sheet::BoardPartials => crate::board_screen::partials_sheet(app, ui, w, h),
-            Sheet::BoardMenu => crate::board_screen::menu_sheet(app, ui, w, h),
-            Sheet::SeedRead => crate::seed_read::sheet(app, ui, w, h),
-            Sheet::Delete => crate::stick_wipe::delete_sheet(app, ui, w, h),
-            Sheet::Zeroing => crate::stick_wipe::zeroing_sheet(app, ui, w, h),
+            Sheet::Chart => crate::glance::sheet::draw(app, ui, w, h),
+            Sheet::BoardList => crate::board::screen::list_sheet(app, ui, w, h),
+            Sheet::BoardSees => crate::board::screen::sees_sheet(app, ui, w, h),
+            Sheet::BoardPartials => crate::board::screen::partials_sheet(app, ui, w, h),
+            Sheet::BoardMenu => crate::board::screen::menu_sheet(app, ui, w, h),
+            Sheet::SeedRead => crate::seeds::read::sheet(app, ui, w, h),
+            Sheet::Delete => crate::stick::wipe::delete_sheet(app, ui, w, h),
+            Sheet::Zeroing => crate::stick::wipe::zeroing_sheet(app, ui, w, h),
             Sheet::Taken => crate::visit_taken::taken_sheet(app, ui, w, h),
             Sheet::Devices => devices_sheet(app, ui, w, h),
-            Sheet::VaultSave => crate::vault_screens::stick_save_sheet(app, ui, w, h),
+            Sheet::VaultSave => crate::vault::screen::stick_save_sheet(app, ui, w, h),
             Sheet::CancelFlow(g) => crate::in_progress::cancel_sheet(app, ui, g, w, h),
             Sheet::FileMenu => crate::file_menu::menu_sheet(app, ui, w, h),
             Sheet::Rename => crate::file_menu::rename_sheet(app, ui, w, h),
             Sheet::Details => crate::file_menu::details_sheet(app, ui, w, h),
-            Sheet::UnlockLoad => crate::vault_load_screen::draw(app, ui, w, h),
-            Sheet::PassphraseSeeds => crate::vault_load_screen::pass_seeds(app, ui, w, h),
-            Sheet::GpgSign => crate::vault_screens::gpg_sign_sheet(app, ui, w, h),
+            Sheet::UnlockLoad => crate::vault::load_screen::draw(app, ui, w, h),
+            Sheet::PassphraseSeeds => crate::vault::load_screen::pass_seeds(app, ui, w, h),
+            Sheet::GpgSign => crate::vault::screen::gpg_sign_sheet(app, ui, w, h),
         }
         ui.oy = 0.0;
     }
@@ -202,7 +202,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         }
     }
     // The stick pills, pinned at the top over the page and any sheet.
-    crate::stick_pills::draw(app, ui, full_w);
+    crate::stick::pills::draw(app, ui, full_w);
 }
 
 /// The height of the strip across the top of a held app's frame
@@ -277,27 +277,27 @@ fn dispatch(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::Files => files(app, ui, x, cw, h),
         Screen::Visit => visit(app, ui, x, cw, h),
         Screen::Entry => entry(app, ui, x, cw, h),
-        Screen::KeyGen => crate::keygen_screen::draw(app, ui, x, cw, h),
-        Screen::Bip85 => crate::bip85_screen::draw(app, ui, x, cw, h),
-        Screen::Silent => crate::silent_screen::draw(app, ui, x, cw, h),
-        Screen::Explore => crate::explore_screen::draw(app, ui, x, cw, h),
-        Screen::Lightning => crate::lightning_screen::draw(app, ui, x, cw, h),
-        Screen::Tools => crate::tools_screen::draw(app, ui, x, cw, h),
+        Screen::KeyGen => crate::keygen::screen::draw(app, ui, x, cw, h),
+        Screen::Bip85 => crate::bip85::screen::draw(app, ui, x, cw, h),
+        Screen::Silent => crate::silent::screen::draw(app, ui, x, cw, h),
+        Screen::Explore => crate::explore::screen::draw(app, ui, x, cw, h),
+        Screen::Lightning => crate::lightning::screen::draw(app, ui, x, cw, h),
+        Screen::Tools => crate::tools::screen::draw(app, ui, x, cw, h),
         Screen::Settings => settings(app, ui, x, cw, h),
         Screen::SetTime => set_time_screen(app, ui, x, cw, h),
-        Screen::Codes => crate::codes_screen::draw(app, ui, x, cw, h),
-        Screen::Vaults => crate::vault_screens::list(app, ui, x, cw, h),
-        Screen::Backups => crate::backups_screen::draw(app, ui, x, cw, h),
-        Screen::CreateVault => crate::vault_screens::create(app, ui, x, cw, h),
-        Screen::Unlock => crate::vault_screens::unlock(app, ui, x, cw, h),
-        Screen::VaultContents => crate::vault_screens::contents(app, ui, x, cw, h),
-        Screen::Family => crate::family_screen::draw(app, ui, x, cw, h),
-        Screen::Vanity => crate::vanity_screen::draw(app, ui, x, cw, h),
+        Screen::Codes => crate::codes::screen::draw(app, ui, x, cw, h),
+        Screen::Vaults => crate::vault::screen::list(app, ui, x, cw, h),
+        Screen::Backups => crate::backups::screen::draw(app, ui, x, cw, h),
+        Screen::CreateVault => crate::vault::screen::create(app, ui, x, cw, h),
+        Screen::Unlock => crate::vault::screen::unlock(app, ui, x, cw, h),
+        Screen::VaultContents => crate::vault::screen::contents(app, ui, x, cw, h),
+        Screen::Family => crate::family::screen::draw(app, ui, x, cw, h),
+        Screen::Vanity => crate::vanity::screen::draw(app, ui, x, cw, h),
         Screen::Decode => decode_screen(app, ui, x, cw, h),
         Screen::Catalog => catalog_screen(app, ui, x, cw, h),
-        Screen::Transfer => crate::transfer_screen::draw(app, ui, x, cw, h),
-        Screen::Upgrade => crate::upgrade_screen::draw(app, ui, x, cw, h),
-        Screen::BackupFlow => crate::backup_flow_screen::draw(app, ui, x, cw, h),
+        Screen::Transfer => crate::transfer::screen::draw(app, ui, x, cw, h),
+        Screen::Upgrade => crate::upgrade::screen::draw(app, ui, x, cw, h),
+        Screen::BackupFlow => crate::backup_flow::screen::draw(app, ui, x, cw, h),
     }
 }
 
@@ -988,7 +988,7 @@ fn home_job(app: &View) -> Option<Lead> {
 /// Every lead §1.2's rules 1 to 6 give, in their order, each with the
 /// flow it opens or starts over, when it is one that can be in progress.
 fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
-    use crate::vaults::VaultAction as V;
+    use crate::vault::VaultAction as V;
     let mut v = Vec::new();
     // Rule 1: a spend under way; of a wallet loaded, as its card says it
     // (`docs/history/NEW-WALLET.md` §11.2).
@@ -1044,7 +1044,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
                         .map_or_else(|| f.kind.name().to_string(), |s| s.name.clone())],
                 ),
                 String::new(),
-                Action::Flow(crate::backup_flow_steps::FlowAction::Show(i)),
+                Action::Flow(crate::backup_flow::steps::FlowAction::Show(i)),
                 true,
             ),
         ));
@@ -1141,7 +1141,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
             (
                 Glyph::Icon(Icon::Export),
                 fill(EN.home_job_write_to, &[&name.to_string(), app.medium.a()]),
-                crate::vaults::Currency::Changed.line(),
+                crate::vault::Currency::Changed.line(),
                 Action::Nav(Screen::Files),
                 true,
             ),
@@ -1178,7 +1178,7 @@ pub(crate) fn backup_line(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: us
 /// and Backups (a wallet known). With no vault in Files or open, Vaults
 /// is Create a vault: the list would have nothing else on it.
 pub(crate) fn home_ways(app: &View) -> Vec<(Glyph, &'static str, String, Action)> {
-    use crate::vaults::VaultAction as V;
+    use crate::vault::VaultAction as V;
     let vault_files = app.vault_files().len();
     let open = app.vaults.open.len();
     let mut t = vec![
@@ -1415,7 +1415,7 @@ fn start(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // way back into a spend left for another tab, which lights Wallets.
     if !empty {
         if compact {
-            y += crate::compact_screens::row(
+            y += crate::compact::screen::row(
                 ui,
                 x,
                 y,
@@ -1426,7 +1426,7 @@ fn start(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 MUTED,
                 Some(Action::Nav(Screen::Family)),
             );
-            y += crate::compact_screens::row(
+            y += crate::compact::screen::row(
                 ui,
                 x,
                 y,
@@ -1455,7 +1455,7 @@ fn start(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ) + 10.0;
         }
         if compact {
-            crate::compact_screens::finish(app, ui, x0, cw, h, y + 16.0 + app.list_offset);
+            crate::compact::screen::finish(app, ui, x0, cw, h, y + 16.0 + app.list_offset);
         } else {
             app.content_h.set(y + app.list_offset + 24.0);
             let view = ui.rect(x0, 0.0, cw, h);
@@ -1464,7 +1464,7 @@ fn start(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     }
     if empty && compact {
-        y += crate::compact_screens::row(
+        y += crate::compact::screen::row(
             ui,
             x,
             y,
@@ -1475,7 +1475,7 @@ fn start(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             MUTED,
             Some(Action::CreateWallet),
         );
-        y += crate::compact_screens::row(
+        y += crate::compact::screen::row(
             ui,
             x,
             y,
@@ -1486,7 +1486,7 @@ fn start(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             MUTED,
             Some(Action::RestoreWallet),
         );
-        y += crate::compact_screens::row(
+        y += crate::compact::screen::row(
             ui,
             x,
             y,
@@ -1497,7 +1497,7 @@ fn start(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             MUTED,
             Some(Action::Nav(Screen::Family)),
         );
-        y += crate::compact_screens::row(
+        y += crate::compact::screen::row(
             ui,
             x,
             y,
@@ -1512,7 +1512,7 @@ fn start(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let files = app.vault_files();
         if let Some(i) = files.iter().position(|f| f.open.is_none()) {
             let line = fill(EN.start_is_in_files_locked, &[&files[i].name.to_string()]);
-            y += crate::compact_screens::row(
+            y += crate::compact::screen::row(
                 ui,
                 x,
                 y,
@@ -1521,10 +1521,10 @@ fn start(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 EN.start_unlock,
                 &line,
                 MUTED,
-                Some(Action::Vault(crate::vaults::VaultAction::Open(i))),
+                Some(Action::Vault(crate::vault::VaultAction::Open(i))),
             );
         }
-        crate::compact_screens::finish(app, ui, x0, cw, h, y + app.list_offset);
+        crate::compact::screen::finish(app, ui, x0, cw, h, y + app.list_offset);
         return;
     }
     if empty {
@@ -1620,7 +1620,7 @@ fn start(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 40.0,
                 EN.start_unlock,
                 Style::Secondary,
-                Action::Vault(crate::vaults::VaultAction::Open(i)),
+                Action::Vault(crate::vault::VaultAction::Open(i)),
             );
         }
     }
@@ -2120,7 +2120,7 @@ fn potential_compact(
                 );
                 ui.hit(x + iw - 44.0, cy, 44.0, 44.0, Action::PotentialShow);
             } else {
-                crate::vault_screens::stick_field(app.medium, ui, x, cy, iw);
+                crate::vault::screen::stick_field(app.medium, ui, x, cy, iw);
             }
             cy += 56.0;
         }
@@ -2298,7 +2298,7 @@ fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             );
             ui.hit(ix + iw - 40.0, cy, 40.0, 40.0, Action::PotentialShow);
         } else {
-            crate::vault_screens::stick_field(app.medium, ui, ix, cy, iw);
+            crate::vault::screen::stick_field(app.medium, ui, ix, cy, iw);
         }
         cy += 52.0;
     }
@@ -2848,7 +2848,7 @@ pub(crate) fn missing_keys_line(
                 } else {
                     Style::Disabled
                 },
-                Action::Vault(crate::vaults::VaultAction::OpenFrom(i, back)),
+                Action::Vault(crate::vault::VaultAction::OpenFrom(i, back)),
             );
             cy += 44.0;
         }
@@ -2869,7 +2869,7 @@ pub(crate) fn missing_keys_line(
             } else {
                 Style::Disabled
             },
-            Action::Vault(crate::vaults::VaultAction::OpenFrom(i, back)),
+            Action::Vault(crate::vault::VaultAction::OpenFrom(i, back)),
         );
     }
     44.0
@@ -2921,7 +2921,7 @@ pub(crate) fn wallet_rows(
                 _ => (EN.wallet_rows_watch_only.to_string(), DIM),
             };
             let sub = format!("{} · {state}", Session::shape(w));
-            cy += crate::compact_screens::row(
+            cy += crate::compact::screen::row(
                 ui,
                 x,
                 cy,
@@ -3079,7 +3079,7 @@ pub(crate) fn loose_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
         ),
     ];
     cy += if ui.compact {
-        crate::compact_screens::stack(ui, x, cy, w, &items)
+        crate::compact::screen::stack(ui, x, cy, w, &items)
     } else {
         wrap_buttons(ui, x, cy, w, 40.0, &items)
     };
@@ -3088,7 +3088,7 @@ pub(crate) fn loose_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
 
 fn wallets(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
-        crate::compact_screens::wallet_card(app, ui, x0, cw, h);
+        crate::compact::screen::wallet_card(app, ui, x0, cw, h);
         return;
     }
     let x = x0 + 40.0;
@@ -3595,9 +3595,9 @@ fn silent_wallet_card(
             (
                 EN.silent_wallet_card_load,
                 Style::Primary,
-                Action::Vault(crate::vaults::VaultAction::LoadKeyOf(
+                Action::Vault(crate::vault::VaultAction::LoadKeyOf(
                     r.fingerprint.0,
-                    crate::vaults::SlotOf::Bare,
+                    crate::vault::SlotOf::Bare,
                 )),
             )
         } else {
@@ -4477,7 +4477,7 @@ pub(crate) fn step_body(
                                     } else {
                                         Style::Disabled
                                     },
-                                    Action::Vault(crate::vaults::VaultAction::PassphraseKey(wi)),
+                                    Action::Vault(crate::vault::VaultAction::PassphraseKey(wi)),
                                 );
                             }
                             Some(f) => {
@@ -4494,9 +4494,9 @@ pub(crate) fn step_body(
                                     } else {
                                         Style::Disabled
                                     },
-                                    Action::Vault(crate::vaults::VaultAction::LoadKeyOf(
+                                    Action::Vault(crate::vault::VaultAction::LoadKeyOf(
                                         f.0,
-                                        crate::vaults::SlotOf::Loaded(wi, k),
+                                        crate::vault::SlotOf::Loaded(wi, k),
                                     )),
                                 );
                             }
@@ -4551,7 +4551,7 @@ pub(crate) fn step_body(
                     .map(|(k, f)| {
                         (
                             fill(EN.step_unlock, &[&f.name.to_string()]),
-                            Action::Vault(crate::vaults::VaultAction::OpenFrom(k, Screen::Spend)),
+                            Action::Vault(crate::vault::VaultAction::OpenFrom(k, Screen::Spend)),
                         )
                     })
                     .collect();
@@ -5513,7 +5513,7 @@ fn backup_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         None
     };
     let waiting_title = waiting.map(|n| app.item_title(n).0);
-    let ctx = crate::plan_cards::PlanCtx::backup(app);
+    let ctx = crate::plan::cards::PlanCtx::backup(app);
     // Each item's done mark, and whether it is reachable (every item
     // before it done), in one pass (`Faraday::backup_reachable`, for a
     // press, asks the same of one item).
@@ -5572,10 +5572,10 @@ fn backup_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 flow::Card {
                     title: ctx
                         .as_ref()
-                        .map_or_else(String::new, |c| crate::plan_cards::title(c, k)),
+                        .map_or_else(String::new, |c| crate::plan::cards::title(c, k)),
                     summary: ctx
                         .as_ref()
-                        .map_or_else(String::new, |c| crate::plan_cards::summary(c, k)),
+                        .map_or_else(String::new, |c| crate::plan::cards::summary(c, k)),
                     mono: false,
                     done: false,
                     open: b.q == Some(k),
@@ -5660,7 +5660,7 @@ fn backup_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // While the board is shown its list is the right-hand column, the
     // map's place (`docs/BACKUP-FLOW.md` §17.14).
     if !compact && app.board_shown() {
-        crate::board_screen::list_panel(app, ui, x0 + cw - panel_w, panel_w, h);
+        crate::board::screen::list_panel(app, ui, x0 + cw - panel_w, panel_w, h);
     } else if !compact {
         backup_panel(app, ui, x0 + cw - panel_w, panel_w, h);
     }
@@ -5676,7 +5676,7 @@ fn backup_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 fn plan_body(
     app: &View,
     ui: &mut Ui,
-    ctx: Option<&crate::plan_cards::PlanCtx>,
+    ctx: Option<&crate::plan::cards::PlanCtx>,
     q: u8,
     x: f32,
     y: f32,
@@ -5695,15 +5695,15 @@ fn plan_body(
     } else {
         (x, w)
     };
-    let mut cy = y + crate::plan_cards::body(app, ui, ctx, q, bx, y, bw);
+    let mut cy = y + crate::plan::cards::body(app, ui, ctx, q, bx, y, bw);
     if q != crate::qstep::PLAN {
         return cy - y;
     }
     cy += 8.0;
-    if let Some(line) = crate::plan_cards::stickless_line(app, ctx) {
+    if let Some(line) = crate::plan::cards::stickless_line(app, ctx) {
         cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 12.0;
     }
-    if let Some(line) = crate::plan_cards::held_line(app, ctx, app.backup_kept_nowhere()) {
+    if let Some(line) = crate::plan::cards::held_line(app, ctx, app.backup_kept_nowhere()) {
         // On a small panel, where the way on is pinned at the foot, the
         // line takes its place there, greyed.
         if ui.pinning {
@@ -5744,18 +5744,19 @@ pub(crate) fn held_item(
     has(item).then_some(item)
 }
 
-/// Back up's map ([`crate::plan_cards::map_rows`]). Returns its height.
+/// Back up's map ([`crate::plan::cards::map_rows`]). Returns its height.
 fn map_rows(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, boxed: bool) -> f32 {
-    crate::plan_cards::PlanCtx::backup(app).map_or(0.0, |c| {
-        crate::plan_cards::map_rows(app, ui, &c, x, y, w, boxed)
+    crate::plan::cards::PlanCtx::backup(app).map_or(0.0, |c| {
+        crate::plan::cards::map_rows(app, ui, &c, x, y, w, boxed)
     })
 }
 
-/// Back up's check ([`crate::plan_cards::check_rows`]). Returns its
+/// Back up's check ([`crate::plan::cards::check_rows`]). Returns its
 /// height.
 fn check_rows(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    crate::plan_cards::PlanCtx::backup(app)
-        .map_or(0.0, |c| crate::plan_cards::check_rows(app, ui, &c, x, y, w))
+    crate::plan::cards::PlanCtx::backup(app).map_or(0.0, |c| {
+        crate::plan::cards::check_rows(app, ui, &c, x, y, w)
+    })
 }
 
 /// The loaded wallets, one row each, under the backup's wallet chip at
@@ -6111,7 +6112,7 @@ pub(crate) fn shares_card(
     };
     let (m, keys_n) = Session::quorum(wallet);
     let slots = app.session.slots(wallet);
-    let fp = |j: usize| crate::backup::fp_of(slots.get(j).and_then(|s| s.fingerprint));
+    let fp = |j: usize| crate::wallet_backup::fp_of(slots.get(j).and_then(|s| s.fingerprint));
     shares_table(
         ui,
         (x, y, w),
@@ -6155,7 +6156,7 @@ pub(crate) fn shares_table(
         let at = u8::try_from(omit).unwrap_or(top);
         cy += ui.slider(sx, cy, sw, slider, 0, top, at) + 4.0;
     }
-    let plan = crate::backup::split_plan(keys_n, m, omit);
+    let plan = crate::wallet_backup::split_plan(keys_n, m, omit);
     for (k, row) in plan.iter().enumerate() {
         let fps: Vec<String> = row.iter().map(|&j| fp(j)).collect();
         ui.text(
@@ -6180,7 +6181,7 @@ pub(crate) fn shares_table(
         }
         cy += 24.0;
     }
-    let a = crate::backup::audit(&plan, m);
+    let a = crate::wallet_backup::audit(&plan, m);
     cy += 8.0;
     let lines = [
         (
@@ -6442,7 +6443,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += 48.0;
             }
         }
-        bstep::SHEETS if !(b.answers.split && crate::backup::splits(wallet)) => {
+        bstep::SHEETS if !(b.answers.split && crate::wallet_backup::splits(wallet)) => {
             let stem = crate::file_stem(&wallet.name);
             let file = format!("{stem}-backup.pdf");
             let (state, button) = made_state(
@@ -6558,12 +6559,12 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let pass = b.open.is_some_and(crate::bstep::is_passphrase);
     if let Some(found) = b.scanned.as_ref().filter(|_| !pass) {
-        let c = if *found == crate::backup::CopyCheck::Matches {
+        let c = if *found == crate::wallet_backup::CopyCheck::Matches {
             OK
         } else {
             ERR
         };
-        let line = crate::backup::copy_scan_line(found);
+        let line = crate::wallet_backup::copy_scan_line(found);
         cy += ui.wrap(x, cy, w, 13.0, W::S, c, &line) + 12.0;
     }
     // A SeedQR copy kept as the words instead (§14.7 item 3): what stays
@@ -6676,7 +6677,7 @@ fn word_check(ui: &mut Ui, x: f32, y: f32, w: f32, c: &crate::copy_check::WordCh
         }
         Some(k) if ui.compact => {
             let status = error.map(|e| (e, ERR));
-            cy = crate::compact_screens::keyed_head(
+            cy = crate::compact::screen::keyed_head(
                 ui,
                 (x, cy, w),
                 k,
@@ -6778,12 +6779,12 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
             .session
             .wallets
             .get(b.wallet)
-            .is_some_and(crate::backup::splits);
+            .is_some_and(crate::wallet_backup::splits);
     match item {
         Item::Templates => (EN.item_action_done.to_string(), Action::BNext(n)),
         Item::Sticks => (
             EN.backup_flow_lock_and_write.to_string(),
-            Action::Flow(crate::backup_flow_steps::FlowAction::WalletLock),
+            Action::Flow(crate::backup_flow::steps::FlowAction::WalletLock),
         ),
         // The words typed back first; then, for a SeedQR copy, the scan
         // (`docs/history/NEW-WALLET.md` §14.7 item 1).
@@ -6825,7 +6826,7 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
             // write step as an added copy is).
             None => app.vault_way(Screen::Backup).unwrap_or((
                 EN.vaults_make_a_vault.to_string(),
-                Action::Vault(crate::vaults::VaultAction::CreateFrom(Screen::Backup)),
+                Action::Vault(crate::vault::VaultAction::CreateFrom(Screen::Backup)),
             )),
         },
         Item::SeedFiles => (EN.item_action_make_it.to_string(), Action::BFile),
@@ -7194,7 +7195,7 @@ fn seed_grid(
     for row in 0..n {
         for col in 0..n {
             if m.module(col, row) {
-                let c = if crate::backup::structural(col, row, n) {
+                let c = if crate::wallet_backup::structural(col, row, n) {
                     faraday_draw::Color::rgb(0x8a, 0x94, 0x9e)
                 } else {
                     faraday_draw::Color::BLACK
@@ -7289,9 +7290,9 @@ fn backup_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
     check_rows(app, ui, x, foot + 8.0, w);
 }
 
-/// The colour of a line of [`crate::backup::Kept`].
-fn tone(t: crate::backup::Tone) -> faraday_draw::Color {
-    use crate::backup::Tone;
+/// The colour of a line of [`crate::wallet_backup::Kept`].
+fn tone(t: crate::wallet_backup::Tone) -> faraday_draw::Color {
+    use crate::wallet_backup::Tone;
     match t {
         Tone::Ok => OK,
         Tone::Warn => WARN,
@@ -7789,8 +7790,8 @@ fn check_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     y += ui.wrap(x + vx, y, width - vx, 14.0, W::R, TEXT, &c.signed.message);
     if compact {
-        y += 16.0 + crate::compact_screens::about(ui, x, y + 16.0, width, guide);
-        crate::compact_screens::finish(app, ui, x0, cw, h, y - top + 24.0);
+        y += 16.0 + crate::compact::screen::about(ui, x, y + 16.0, width, guide);
+        crate::compact::screen::finish(app, ui, x0, cw, h, y - top + 24.0);
     }
 }
 
@@ -8128,7 +8129,7 @@ fn create_vault_rows(
                 (
                     fill(EN.vaults_unlock, &[name]),
                     Style::Secondary,
-                    Action::Vault(crate::vaults::VaultAction::OpenFrom(*i, Screen::Create)),
+                    Action::Vault(crate::vault::VaultAction::OpenFrom(*i, Screen::Create)),
                 )
             })
             .collect();
@@ -8523,12 +8524,12 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             cy += 48.0;
         }
         cstep::WHERE => {
-            if let Some(h) = crate::backup_flow_wallet_screen::create_where(app, ui, x, cy, w) {
+            if let Some(h) = crate::backup_flow::wallet_screen::create_where(app, ui, x, cy, w) {
                 cy += h;
             }
         }
         cstep::HOW_MANY => {
-            if let Some(h) = crate::backup_flow_wallet_screen::create_count(app, ui, x, cy, w) {
+            if let Some(h) = crate::backup_flow::wallet_screen::create_count(app, ui, x, cy, w) {
                 cy += h;
             }
         }
@@ -8539,7 +8540,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 crate::backup_flow::Step::Vaults
             };
             if let Some(h) =
-                crate::backup_flow_wallet_screen::create_flow_card(app, ui, step, x, cy, w)
+                crate::backup_flow::wallet_screen::create_flow_card(app, ui, step, x, cy, w)
             {
                 cy += h;
             }
@@ -8899,7 +8900,7 @@ pub(crate) fn descriptor_row(
         .policy()
         .keys()
         .iter()
-        .map(|k| crate::backup::fp_of(k.fingerprint()))
+        .map(|k| crate::wallet_backup::fp_of(k.fingerprint()))
         .collect();
     let mut value = format!("{} · {}", Session::shape(wl), fps.join(", "));
     if wl.policy().record().is_none() {
@@ -8985,7 +8986,7 @@ fn public_files(
             Vec::new(),
         ),
     ];
-    if crate::backup::multisig_config(wl, None).is_some() {
+    if crate::wallet_backup::multisig_config(wl, None).is_some() {
         rows.push((
             EN.public_files_multisig.to_string(),
             EN.public_files_coldcard,
@@ -9336,7 +9337,7 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         }
         rstep::QUORUM => {
             if let Some(s) = r.seeds.as_ref() {
-                cy += crate::seeds_screen::quorum(ui, s, x, cy, w);
+                cy += crate::seeds::screen::quorum(ui, s, x, cy, w);
             }
             cy += 6.0;
             cy += buttons_and_next(
@@ -9350,12 +9351,12 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         }
         rstep::DESCRIPTION => cy += restore_description(app, ui, x, cy, w),
         rstep::WHERE => {
-            if let Some(h) = crate::backup_flow_wallet_screen::restore_where(app, ui, x, cy, w) {
+            if let Some(h) = crate::backup_flow::wallet_screen::restore_where(app, ui, x, cy, w) {
                 cy += h;
             }
         }
         rstep::HOW_MANY => {
-            if let Some(h) = crate::backup_flow_wallet_screen::restore_count(app, ui, x, cy, w) {
+            if let Some(h) = crate::backup_flow::wallet_screen::restore_count(app, ui, x, cy, w) {
                 cy += h;
             }
         }
@@ -9602,7 +9603,7 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let slot = here.len() + k;
             let focused = s.focus == Some(Focus::Cosigner(k as u8));
             if focused || !text.trim().is_empty() {
-                cy += crate::seeds_screen::cosigner(app, ui, s, k, slot + 1, x, cy, w);
+                cy += crate::seeds::screen::cosigner(app, ui, s, k, slot + 1, x, cy, w);
             } else if !open_drawn {
                 open_drawn = true;
                 let extra = multi.then_some((
@@ -9687,7 +9688,7 @@ fn restore_open_slot(
             Action::RSlotScan,
         ),
     ];
-    crate::seeds_screen::more_ways(app, here, true, &mut labels);
+    crate::seeds::screen::more_ways(app, here, true, &mut labels);
     if let Some((label, action)) = extra {
         labels.push((label.to_string(), Style::Secondary, action));
     }
@@ -9702,7 +9703,7 @@ fn restore_open_slot(
 /// Where a wallet's description comes back from besides the camera and
 /// Files: the files of a stick, or a vault.
 fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    use crate::vaults::VaultAction as V;
+    use crate::vault::VaultAction as V;
     use faraday_vault::records::{field, kind};
     if ui.compact {
         return restore_sources_compact(app, ui, x, y, w);
@@ -9798,7 +9799,7 @@ fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// [`restore_sources`] on a small panel: each source's name over its
 /// buttons, and what stands in the way under them.
 fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    use crate::vaults::VaultAction as V;
+    use crate::vault::VaultAction as V;
     use faraday_vault::records::{field, kind};
     let mut cy = y;
     // A stick.
@@ -9929,7 +9930,7 @@ fn add_to_vault(app: &View, ui: &mut Ui, x: f32, y: f32, k: usize, style: Style)
     if app.vault_way(Screen::Files).is_some() {
         return 0.0;
     }
-    let action = Action::Vault(crate::vaults::VaultAction::AddFile(k));
+    let action = Action::Vault(crate::vault::VaultAction::AddFile(k));
     ui.button(x, y, None, 36.0, EN.add_to_vault_add_to, style, action) + 8.0
 }
 
@@ -10096,9 +10097,9 @@ fn files(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             }
             FileKind::Entries | FileKind::Backup => {
                 let action = if item.kind == FileKind::Entries {
-                    crate::vaults::VaultAction::ImportEntries(k)
+                    crate::vault::VaultAction::ImportEntries(k)
                 } else {
-                    crate::vaults::VaultAction::ImportBackup(k)
+                    crate::vault::VaultAction::ImportBackup(k)
                 };
                 // No vault open: no button (F60).
                 if app.vault_way(Screen::Files).is_none() {
@@ -10132,7 +10133,7 @@ fn files(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     } else {
                         Style::Primary
                     },
-                    Action::Vault(crate::vaults::VaultAction::Open(at)),
+                    Action::Vault(crate::vault::VaultAction::Open(at)),
                 ) + 8.0;
             }
             FileKind::Carry => {
@@ -10232,7 +10233,7 @@ fn files(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                         36.0,
                         EN.apk_sign_with_key,
                         Style::Primary,
-                        Action::Vault(crate::vaults::VaultAction::ApkFromFiles(k)),
+                        Action::Vault(crate::vault::VaultAction::ApkFromFiles(k)),
                     ) + 8.0;
                 }
                 crate::apk::Row::Sign => {}
@@ -10244,7 +10245,7 @@ fn files(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                         36.0,
                         crate::strings::EN.backup_flow_first,
                         Style::Primary,
-                        Action::Vault(crate::vaults::VaultAction::ApkFromFiles(k)),
+                        Action::Vault(crate::vault::VaultAction::ApkFromFiles(k)),
                     ) + 8.0;
                 }
                 crate::apk::Row::Note(text) => {
@@ -10484,16 +10485,16 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
     if ui.compact {
         return vault_panel_compact(app, ui, v, x, y, w);
     }
-    use crate::vaults::VaultAction as V;
+    use crate::vault::VaultAction as V;
     let Some(open) = app.vaults.open.get(v) else {
         return 0.0;
     };
     let rows = app.vault_rows(v);
-    let waiting: Vec<&crate::vaults::VaultRow> = rows.iter().filter(|r| !r.loaded).collect();
+    let waiting: Vec<&crate::vault::VaultRow> = rows.iter().filter(|r| !r.loaded).collect();
     let per_col = rows.len().div_ceil(2).max(1);
     // Wallets this vault holds with seeds of theirs: one press loads each
     // with its seeds.
-    let together: Vec<crate::vaults::VaultWallet> = app
+    let together: Vec<crate::vault::VaultWallet> = app
         .vault_wallets_with_keys(v)
         .into_iter()
         .filter(|w| !w.done)
@@ -10743,7 +10744,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
 /// [`inbox_panel`] on a small panel: one column, each row's line under
 /// its name and its button under that, measured before its card is drawn.
 fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    use crate::compact_screens::measured;
+    use crate::compact::screen::measured;
     let found = app.inbox_found();
     let wallets = found.to_load();
     let potential: Vec<&crate::inbox::FoundSeed> = found.potential();
@@ -10972,14 +10973,14 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// [`vault_panel`] on a small panel: one column of the vault's wallets
 /// and seeds, each name over what it is, measured before its card.
 fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32) -> f32 {
-    use crate::compact_screens::measured;
-    use crate::vaults::VaultAction as V;
+    use crate::compact::screen::measured;
+    use crate::vault::VaultAction as V;
     let Some(open) = app.vaults.open.get(v) else {
         return 0.0;
     };
     let rows = app.vault_rows(v);
-    let waiting: Vec<&crate::vaults::VaultRow> = rows.iter().filter(|r| !r.loaded).collect();
-    let together: Vec<crate::vaults::VaultWallet> = app
+    let waiting: Vec<&crate::vault::VaultRow> = rows.iter().filter(|r| !r.loaded).collect();
+    let together: Vec<crate::vault::VaultWallet> = app
         .vault_wallets_with_keys(v)
         .into_iter()
         .filter(|w| !w.done)
@@ -11210,7 +11211,7 @@ fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
         into_vault(
             EN.inbox_actions_add_to_vault,
             style,
-            Action::Vault(crate::vaults::VaultAction::AddFile(k)),
+            Action::Vault(crate::vault::VaultAction::AddFile(k)),
         )
     };
     let same_spend = app.spend.as_ref().is_some_and(|s| {
@@ -11227,9 +11228,9 @@ fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
         }
         FileKind::Entries | FileKind::Backup => {
             let action = if item.kind == FileKind::Entries {
-                crate::vaults::VaultAction::ImportEntries(k)
+                crate::vault::VaultAction::ImportEntries(k)
             } else {
-                crate::vaults::VaultAction::ImportBackup(k)
+                crate::vault::VaultAction::ImportBackup(k)
             };
             out.extend(into_vault(
                 EN.inbox_actions_import,
@@ -11253,7 +11254,7 @@ fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
                 } else {
                     Style::Primary
                 },
-                Action::Vault(crate::vaults::VaultAction::Open(at)),
+                Action::Vault(crate::vault::VaultAction::Open(at)),
             ));
         }
         FileKind::Carry => out.push((
@@ -11320,12 +11321,12 @@ fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
             crate::apk::Row::Sign => out.extend(into_vault(
                 EN.apk_sign_with_key,
                 Style::Primary,
-                Action::Vault(crate::vaults::VaultAction::ApkFromFiles(k)),
+                Action::Vault(crate::vault::VaultAction::ApkFromFiles(k)),
             )),
             crate::apk::Row::Back => out.push((
                 crate::strings::EN.backup_flow_first.into(),
                 Style::Primary,
-                Action::Vault(crate::vaults::VaultAction::ApkFromFiles(k)),
+                Action::Vault(crate::vault::VaultAction::ApkFromFiles(k)),
             )),
             crate::apk::Row::Note(text) => note = Some((text, WARN)),
             crate::apk::Row::None => {}
@@ -11412,7 +11413,7 @@ fn file_card(
 /// read it, then the stick.
 fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
-    use crate::compact_screens::{about, finish};
+    use crate::compact::screen::{about, finish};
     use crate::secrets::Exposure;
     let (x, w) = (x0 + M, cw - 2.0 * M);
     let top = 12.0 - app.list_offset;
@@ -11459,7 +11460,7 @@ fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 26.0;
     // Arrived from Import and load: pulling the stick is the next step.
     if !app.sticks.is_empty() && !app.visit.load_after.is_empty() {
-        y += crate::vault_screens::stick_banner(ui, x, y, w, &pull_line(app));
+        y += crate::vault::screen::stick_banner(ui, x, y, w, &pull_line(app));
     }
     for v in 0..app.vaults.open.len() {
         y += vault_panel(app, ui, v, x, y, w) + 14.0;
@@ -11656,7 +11657,7 @@ fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// its buttons under it.
 fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
-    use crate::compact_screens::{about, finish};
+    use crate::compact::screen::{about, finish};
     let (x, w) = (x0 + M, cw - 2.0 * M);
     let top = 12.0 - app.list_offset;
     let mut y = top;
@@ -11698,7 +11699,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 26.0;
     }
     // What is left to do: pull the stick, and where the copied files went.
-    y += crate::vault_screens::stick_banner(ui, x, y, w, &pull_line(app));
+    y += crate::vault::screen::stick_banner(ui, x, y, w, &pull_line(app));
     ui.button(
         x,
         y,
@@ -11908,7 +11909,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui,
         y,
         settings_on,
-        crate::stick_settings::FILE,
+        crate::stick::settings::FILE,
         EN.visit_settings,
         (EN.visit_public, MUTED),
         Some(Action::VisitSettings),
@@ -12124,7 +12125,7 @@ fn visit(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         14.0,
         W::M,
         TEXT,
-        crate::stick_settings::FILE,
+        crate::stick::settings::FILE,
     );
     ui.text(x + 54.0, ry + 28.0, 12.0, W::R, MUTED, EN.visit_settings);
     ui.text_right(
@@ -12646,7 +12647,7 @@ fn pull_line(app: &View) -> String {
 /// The one word the typed prefix can complete to, if there is one.
 fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
-        crate::compact_screens::entry(app, ui, x0, cw, h);
+        crate::compact::screen::entry(app, ui, x0, cw, h);
         return;
     }
     let x = x0 + 56.0;
@@ -13601,7 +13602,7 @@ fn section(
     draw: &dyn Fn(&mut Ui, f32, f32, f32) -> f32,
 ) -> f32 {
     let (ix, iw) = (x + 14.0, w - 28.0);
-    let inner = crate::compact_screens::measured(ui, |ui| draw(ui, ix, y + 44.0, iw));
+    let inner = crate::compact::screen::measured(ui, |ui| draw(ui, ix, y + 44.0, iw));
     let h = 44.0 + inner + 12.0;
     ui.card(x, y, w, h, LINE);
     ui.text(ix, y + 16.0, 15.0, W::S, TEXT, title);
@@ -13634,7 +13635,7 @@ fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
         Style::Secondary,
         Action::TzStep(-15),
     );
-    let v = format!("UTC{}", crate::vaults::tz_offset_text(tz_min));
+    let v = format!("UTC{}", crate::vault::tz_offset_text(tz_min));
     let vw = ui.measure(14.0, W::S, &v);
     ui.text_mid(
         bx + 48.0 + (84.0 - vw) / 2.0,
@@ -13661,7 +13662,7 @@ fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
 /// Set the time. Returns its height.
 fn time_section(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
     // What reads the clock, under the title (`docs/TOTP.md` §2.1).
-    let what = crate::compact_screens::measured(ui, |ui| {
+    let what = crate::compact::screen::measured(ui, |ui| {
         ui.wrap(
             x + 22.0,
             y + 44.0,
@@ -13747,7 +13748,7 @@ fn set_time_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Entry: Date and Time.
     section_label(ui, x, y, EN.set_time_date);
     y += 26.0;
-    crate::vault_screens::text_box(
+    crate::vault::screen::text_box(
         ui,
         x,
         y,
@@ -13760,7 +13761,7 @@ fn set_time_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 56.0;
     section_label(ui, x, y, EN.set_time_time);
     y += 26.0;
-    crate::vault_screens::text_box(
+    crate::vault::screen::text_box(
         ui,
         x,
         y,
@@ -13821,7 +13822,7 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
     });
     section_label(ui, x, y, EN.set_time_date);
     y += 26.0;
-    crate::vault_screens::text_box(
+    crate::vault::screen::text_box(
         ui,
         x,
         y,
@@ -13834,7 +13835,7 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
     y += 56.0;
     section_label(ui, x, y, EN.set_time_time);
     y += 26.0;
-    crate::vault_screens::text_box(
+    crate::vault::screen::text_box(
         ui,
         x,
         y,
@@ -14112,7 +14113,7 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += institute_note(app, ui, x, y, w);
         y - y0
     });
-    crate::compact_screens::finish(app, ui, x0, cw, h, y - top + 8.0);
+    crate::compact::screen::finish(app, ui, x0, cw, h, y - top + 8.0);
 }
 
 /// About's foot: the Nakamoto Institute, `w` wide. In the online app its
@@ -15548,14 +15549,14 @@ fn idle_rows(app: &View) -> Vec<IdleRow> {
     let mut rows: Vec<IdleRow> = vec![(
         EN.settings_lock_after,
         app.idle_lock_min,
-        &crate::stick_settings::IDLE_LOCK_CHOICES,
+        &crate::stick::settings::IDLE_LOCK_CHOICES,
         Action::IdleLock,
     )];
     if !app.online {
         rows.push((
             EN.settings_power_off,
             app.idle_off_min,
-            &crate::stick_settings::IDLE_OFF_CHOICES,
+            &crate::stick::settings::IDLE_OFF_CHOICES,
             Action::IdleOff,
         ));
     }

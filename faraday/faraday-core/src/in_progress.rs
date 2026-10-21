@@ -129,7 +129,7 @@ impl Faraday {
                 c.done
                     .iter()
                     .enumerate()
-                    .any(|(k, d)| *d && k != usize::from(crate::vaults::vstep::PRESET))
+                    .any(|(k, d)| *d && k != usize::from(crate::vault::vstep::PRESET))
             })
         {
             v.push(Going::Vault);
@@ -394,7 +394,7 @@ impl Faraday {
             }
             Going::Vault => {
                 let c = self.vaults.create.as_ref()?;
-                let preset = crate::vaults::vstep::PRESET;
+                let preset = crate::vault::vstep::PRESET;
                 c.steps()
                     .iter()
                     .skip(1)
@@ -608,14 +608,14 @@ impl Faraday {
                 let k = c
                     .open
                     .or_else(|| (0..c.done.len()).find(|&k| !c.done[k]).map(|k| k as u8))
-                    .unwrap_or(crate::vaults::vstep::PHRASES);
-                let step = crate::vault_screens::VSTEPS[k as usize].to_string();
+                    .unwrap_or(crate::vault::vstep::PHRASES);
+                let step = crate::vault::screen::VSTEPS[k as usize].to_string();
                 (Screen::Vaults, EN.sidebar_flow_vault.to_string(), step)
             }
             Going::Flow(i) => {
                 let f = self.backup_flows.get(i)?;
                 let s = f.live.open.and_then(Step::of).unwrap_or(f.step);
-                let step = crate::backup_flow_screen::card_title(self, f, s);
+                let step = crate::backup_flow::screen::card_title(self, f, s);
                 match (f.kind, f.wallet.as_ref()) {
                     (Kind::Wallet, Some(w)) if !w.name.is_empty() => {
                         (wallets, fill(EN.sidebar_flow_backup_of, &[&w.name]), step)
@@ -654,7 +654,7 @@ impl Faraday {
     fn backup_step(&self, c: &Compute) -> Option<String> {
         let b = self.backup.as_ref()?;
         if b.stage == BStage::Plan {
-            return Some(crate::plan_cards::q_title(
+            return Some(crate::plan::cards::q_title(
                 b.q.unwrap_or(crate::qstep::PLAN),
             ));
         }
@@ -672,7 +672,7 @@ impl Faraday {
     /// The spend's open card: a page of the Spend tab or a step of the
     /// transaction.
     fn spend_step(&self) -> String {
-        let step_of = |n: u8| crate::family_text::title(self, CardId::Step(n));
+        let step_of = |n: u8| crate::family::text::title(self, CardId::Step(n));
         let spend_open = || {
             let s = self.spend.as_ref()?;
             s.open
@@ -683,10 +683,10 @@ impl Faraday {
             return spend_open().unwrap_or_else(|| EN.sidebar_flow_spend.to_string());
         }
         match self.family.open {
-            Some(Open::Page(p)) => crate::family_text::title(self, CardId::Page(p)),
+            Some(Open::Page(p)) => crate::family::text::title(self, CardId::Page(p)),
             Some(Open::Spend) => spend_open().unwrap_or_else(|| EN.sidebar_flow_spend.to_string()),
             None => spend_open().unwrap_or_else(|| {
-                crate::family_text::title(self, CardId::Page(crate::family::page::HOLDING))
+                crate::family::text::title(self, CardId::Page(crate::family::page::HOLDING))
             }),
         }
     }

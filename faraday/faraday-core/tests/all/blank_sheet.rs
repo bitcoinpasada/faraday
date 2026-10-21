@@ -2,8 +2,8 @@
 //! §14.7) and says to print at its true size on every page.
 
 use faraday_bip::keys::Network;
-use faraday_core::backup::{BlankCopy, sheet_blank};
 use faraday_core::pdf;
+use faraday_core::wallet_backup::{BlankCopy, sheet_blank};
 
 fn count(pdf: &[u8], s: &str) -> usize {
     pdf.windows(s.len()).filter(|w| *w == s.as_bytes()).count()

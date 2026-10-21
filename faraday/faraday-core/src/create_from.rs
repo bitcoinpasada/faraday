@@ -78,7 +78,7 @@ impl Faraday {
             for (i, r) in open.contents.of(kind::KEY) {
                 // The fingerprint the unlock worked out; the record's own
                 // label.
-                let Some(text) = crate::vault_screens::key_fingerprint(c, self, r) else {
+                let Some(text) = crate::vault::screen::key_fingerprint(c, self, r) else {
                     continue;
                 };
                 let Some(fp) = fp_bytes(&text) else {
@@ -138,7 +138,7 @@ impl Faraday {
         else {
             return;
         };
-        let want = crate::vault_screens::key_fingerprint(&c, self, rec).and_then(|t| fp_bytes(&t));
+        let want = crate::vault::screen::key_fingerprint(&c, self, rec).and_then(|t| fp_bytes(&t));
         let before = self.session.keys.len();
         self.vault_load_set(v, &BTreeSet::from([r]));
         let fp = if self.session.keys.len() > before {
