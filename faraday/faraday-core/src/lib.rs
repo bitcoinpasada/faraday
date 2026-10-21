@@ -9683,7 +9683,7 @@ impl Faraday {
                 let of = rec
                     .text(field::SHARE_WALLET)
                     .and_then(|d| wallet::read_wallet(d).ok())
-                    .map(|p| p.checksum());
+                    .map(|p| p.checksum().to_string());
                 if wallet.is_some() && of != wallet {
                     continue;
                 }

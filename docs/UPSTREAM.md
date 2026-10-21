@@ -151,7 +151,13 @@ Since the fork:
   asked and per derivation, in both apps; Faraday's `wallet::Key` no
   longer keeps its own copy. Same output as before; the BIP-32 vectors
   pass unchanged.
-
+- `core/osk-bip/src/policy.rs` (2026-10-21; `docs/COMPUTE.md` §5.2):
+  `WalletPolicy` keeps its descriptor checksum, worked out once by every
+  constructor; `checksum()` returns it as `&str` (it returned a new
+  `String`), and `opensigner-core`'s four callers copy it where they
+  keep it. Why: the checksum was written out and hashed again on every
+  ask, drawing included; Faraday's `wallet::Wallet` no longer keeps its
+  own copy. Same output as before.
 ## 4. Watching upstream
 
 When there is reason to (a release, a security advisory, or every few

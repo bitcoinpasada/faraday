@@ -197,7 +197,7 @@ fn a_miniscript_wallet_is_a_row_a_list_of_addresses_and_an_export() {
         h.tap(ids::WALLET_EXPORT);
         assert_eq!(h.app.screen(), ScreenKind::Export);
         assert!(
-            h.app.texts().iter().any(|t| t.contains(&wallet.checksum())),
+            h.app.texts().iter().any(|t| t.contains(wallet.checksum())),
             "the export names the checksum: {:?}",
             h.app.texts()
         );

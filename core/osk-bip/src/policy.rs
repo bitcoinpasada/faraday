@@ -268,6 +268,10 @@ pub struct WalletPolicy {
     /// The silent payments record, for [`Template::Silent`] and no
     /// other template, which is likewise the text it is written as.
     silent: Option<SilentWallet>,
+    /// The BIP-380 checksum of [`to_descriptor`](Self::to_descriptor),
+    /// worked out once when the policy is made. A function of the fields
+    /// above, so the derived `PartialEq` is unchanged by it.
+    checksum: [u8; 8],
 }
 
 impl WalletPolicy {
@@ -317,7 +321,9 @@ impl WalletPolicy {
             sorted_a: None,
             record: None,
             silent: None,
-        })
+            checksum: [0; 8],
+        }
+        .sealed())
     }
 
     /// Reads a plain multipath descriptor as a policy, so that a
@@ -350,7 +356,9 @@ impl WalletPolicy {
             sorted_a: None,
             record: None,
             silent: None,
-        })
+            checksum: [0; 8],
+        }
+        .sealed())
     }
 
     /// Reads any of the three forms: a threshold wallet's record, the
@@ -386,7 +394,9 @@ impl WalletPolicy {
             sorted_a: None,
             record: None,
             silent: None,
-        })
+            checksum: [0; 8],
+        }
+        .sealed())
     }
 
     /// The threshold wallet a group record states: one key, which is the
@@ -413,7 +423,9 @@ impl WalletPolicy {
             sorted_a: None,
             record: Some(record),
             silent: None,
+            checksum: [0; 8],
         }
+        .sealed()
     }
 
     /// The group record, for a threshold wallet and for nothing else.
@@ -432,7 +444,9 @@ impl WalletPolicy {
             sorted_a: None,
             record: None,
             silent: Some(silent),
+            checksum: [0; 8],
         }
+        .sealed()
     }
 
     /// That record, for a silent payments wallet and for nothing else.
@@ -662,15 +676,23 @@ impl WalletPolicy {
     pub fn to_descriptor_checksummed(&self) -> String {
         let mut desc = self.to_descriptor();
         desc.push('#');
-        desc.push_str(&self.checksum());
+        desc.push_str(self.checksum());
         desc
     }
 
-    /// The eight-character checksum of that descriptor.
-    pub fn checksum(&self) -> String {
+    /// The eight-character checksum of that descriptor; a lookup, worked
+    /// out when the policy was made.
+    pub fn checksum(&self) -> &str {
+        core::str::from_utf8(&self.checksum).expect("the checksum alphabet is ASCII")
+    }
+
+    /// The policy with its checksum worked out (writes the descriptor
+    /// out and hashes it): every constructor ends here.
+    fn sealed(mut self) -> Self {
         let desc = self.to_descriptor();
-        let sum = descriptor_checksum(&desc).expect("descriptor uses only charset characters");
-        String::from_utf8_lossy(&sum).into_owned()
+        self.checksum =
+            descriptor_checksum(&desc).expect("descriptor uses only charset characters");
+        self
     }
 
     /// The script the policy pays to at `change`/`index`.
@@ -1042,7 +1064,9 @@ fn parse_miniscript(text: &str) -> Result<WalletPolicy, Error> {
         sorted_a,
         record: None,
         silent: None,
-    })
+        checksum: [0; 8],
+    }
+    .sealed())
 }
 
 /// The internal key of a `tr()`, as the descriptor writes it.

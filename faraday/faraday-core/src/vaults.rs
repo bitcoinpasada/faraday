@@ -537,7 +537,7 @@ impl Described {
     fn of(policy: osk_bip::policy::WalletPolicy) -> Described {
         Described {
             same: crate::wallet::same_wallet(&policy),
-            checksum: policy.checksum(),
+            checksum: policy.checksum().to_string(),
             shape: crate::vault_screens::policy_shape(policy.clone()),
             policy,
         }

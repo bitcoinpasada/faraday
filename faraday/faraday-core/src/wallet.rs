@@ -268,9 +268,6 @@ pub struct Wallet {
     pub name: String,
     /// The policy, as it was read.
     policy: WalletPolicy,
-    /// The policy's descriptor checksum, written out once when the policy
-    /// is set.
-    checksum: String,
     /// Where it came from: "Test wallet" or the file's name.
     pub source: String,
     /// What [`Wallet::source`] is: every caller that adds a wallet
@@ -290,13 +287,11 @@ pub struct Wallet {
 }
 
 impl Wallet {
-    /// Makes a wallet; writes the policy's descriptor out, for its checksum.
+    /// Makes a wallet.
     pub fn new(name: String, policy: WalletPolicy, source: String, origin: Origin) -> Wallet {
-        let checksum = policy.checksum();
         Wallet {
             name,
             policy,
-            checksum,
             source,
             origin,
             addresses: std::cell::RefCell::new(Vec::new()),
@@ -366,16 +361,14 @@ impl Wallet {
         &self.policy
     }
 
-    /// The policy's descriptor checksum; a lookup, kept when the policy
-    /// was set.
+    /// The policy's descriptor checksum; a lookup, kept by the policy.
     pub fn checksum(&self) -> &str {
-        &self.checksum
+        self.policy.checksum()
     }
 
-    /// Replaces the policy; writes the descriptor out again, for its
-    /// checksum.
+    /// Replaces the policy, dropping the addresses and scripts kept from
+    /// the one before.
     pub fn set_policy(&mut self, policy: WalletPolicy) {
-        self.checksum = policy.checksum();
         self.policy = policy;
         self.addresses.borrow_mut().clear();
         self.scripts.borrow_mut().clear();
@@ -1048,7 +1041,11 @@ impl Session {
         InspectInputs {
             network: self.network,
             keys: self.keys.iter().map(Key::master_id).collect(),
-            wallets: self.wallets.iter().map(|w| w.checksum.clone()).collect(),
+            wallets: self
+                .wallets
+                .iter()
+                .map(|w| w.checksum().to_string())
+                .collect(),
         }
     }
 
