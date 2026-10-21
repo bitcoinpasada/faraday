@@ -1,0 +1,320 @@
+# Compute: costly work takes a token
+
+**Status:** 2026-10-21 · spec, owner approved the approach 2026-10-20
+
+Every costly function in `core/` and in Faraday's crates takes a
+`&Compute`, a token. Faraday mints one in two places: event code that
+holds `&mut Faraday`, and the drawing memo's own fills. Drawing gets a
+read-only `View`, so a screen that calls costly work does not compile.
+The work counters, the budget tests (`faraday-core/src/work/budget/`,
+`work/kept.rs`) and parse-once (`docs/SPEED.md` §3.3) all stay. The debug
+guard is removed once the types and the lint enforce everything it
+checked (§10).
+
+Before the token, two values move into core: the fingerprint and the
+checksum (§5). This follows `docs/UPSTREAM.md` and F65: each core change
+is its own commit, listed in UPSTREAM §3 the same day. Nothing here
+loosens a check.
+
+## 1. The guarantee
+
+- A function that draws can reach only `&View` or `&Faraday`. It cannot
+  reach `Faraday::compute(&mut self)`, and it cannot name a token field.
+- Every costly root (§2.3) requires `c: &Compute`. A costly call reached
+  from drawing is a compile error, except through the named `View`
+  accessors in `faraday-core/src/drawing/`: memo fills, kept values
+  worked out the first time, and the owner's `Allowed` entries — exactly
+  the guard's three exceptions.
+- What the types cannot hold is held by `faraday/clippy.toml` (§7) and
+  the costs lint (§8), both in `just lint`.
+
+## 2. The token
+
+### 2.1 Type (`core/osk-crypto/src/work.rs`, beside `Work`)
+
+```rust
+pub struct Compute { count: fn(Work), _local: PhantomData<*const ()> }
+impl Compute {
+    /// A mint. An application calls this at its entry points only.
+    pub fn new(count: fn(Work)) -> Compute;
+    /// A token that counts nothing, for OpenSigner's app, core's tests,
+    /// fuzz targets and tools.
+    #[cfg(feature = "unchecked")]
+    pub fn unchecked() -> Compute;
+    /// Notes one piece of work of kind `w`: a call through the pointer.
+    pub fn count(&self, w: Work);
+}
+```
+
+- `Compute` is not `Clone`, `Copy`, `Default`, `Send` or `Sync`, so it
+  cannot be put in a `static`.
+- A costly function takes `c: &Compute` as its first parameter after
+  `self`, calls `c.count(kind)` on its first line, and its doc's first
+  line says what it costs (CLAUDE.md).
+- A gated type keeps no `FromStr` impl (`FromStr` cannot take a token);
+  `"…".parse::<WalletPolicy>()` call sites become explicit calls.
+
+### 2.2 The token carries the counter
+
+It replaces S1's process-wide counter: `set_counter`, the `OnceLock` and
+the `count` feature go, and `osk-crypto` is `no_std` in every build.
+Core's `Work` gains the kinds counted at source from now on: `WordsParse`,
+`MasterKey`, `KeyDerive`, `Address`, `DescriptorParse`, `QrEncode`,
+`FileHash`. The pixel kinds (`Blur`, `FullCanvas`) are drawing's own work
+and are not gated: `osk_ui::Canvas` gets `set_counter(&mut self,
+fn(Work))`, set by Faraday on every canvas it receives. Faraday's own
+counting is unchanged (`faraday-core/src/work.rs`: `count`, `Counts`,
+`snapshot`, `since`, `KINDS`); its tokens carry `work::core_count`, which
+maps the core kind with `of_core`. Faraday's own kinds (`PlanMap`,
+`Picture`, `WalletMatch`, `PngDecode`, and `Kdf` in `faraday-vault`) still
+call `crate::work::count`; the functions that count them take
+`&Compute` as the gate.
+
+### 2.3 What takes a token
+
+The roots; every caller of a root takes the token too, and the compiler
+finds them.
+
+| Kind | Roots |
+|---|---|
+| `WordsParse` | `osk_bip::bip39::Mnemonic::parse` |
+| `Kdf` | `osk_crypto::pbkdf2_hmac_sha256`, `pbkdf2_hmac_sha512`, `scrypt`; `osk_backup::argon2id`; `faraday-vault`'s Argon2id. Through these: `Mnemonic::to_seed`, `to_seed_unchecked`, SLIP-39 recovery, aezeed, kdbx write and verify |
+| `MasterKey` | `MasterKey::from_seed`, `from_seed_bytes`, `from_xpriv`, `decode`, `from_chain_code_and_key` (each works out the fingerprint, §5.1) |
+| `KeyDerive` | `MasterKey::xpub`, `derive`, `account_xpub`, `multisig_account_xpub`, `with_multisig_account_secret`; `DerivedKey::to_xpub`; through these BIP-85 and silent payments derivations |
+| `DescriptorParse` | `WalletPolicy::parse`, `from_parts`, `from_descriptor`, `parse_any`, `from_record`; through these the BSMS, Coldcard, multisig config and Core import readers, and `faraday_intake::wallet::read_wallet` |
+| `Address` | `WalletPolicy::script_at`, `script_at_with`, `address_at`, `find_address` |
+| `PsbtParse`, `PsbtInspect`, `Sign` | `osk_psbt::Psbt::parse_bytes`, `parse_base64`; `inspect`; `sign::sign`, `message::sign` |
+| `QrEncode` | `osk_codec::qr::encode`, `encode_bounded`; `seedqr::encode_seedqr`, `encode_compact` |
+| `QrDecode` | `osk_codec::decode::decode_luma` |
+| `FileHash` | new `osk_crypto::hash::sha256_whole(c, bytes)`; Faraday's whole-file hashes move to it (`apk.rs`, `transfer.rs`, `lib.rs`, `gpg.rs`, `Item::sha`) |
+| Faraday's own | `plan::map`, `plan::check` (`PlanMap`); picture/pdf makers (`Picture`); `Wallet::script_at` (`WalletMatch`); `faraday_files::qr_in_png` (`PngDecode`); `Key` and `Wallet` kept accessors (`KeyDerive`, `Address`) |
+
+Not gated: `Canvas::frost`, `snapshot`, `snapshot_into`, `restore`,
+`blend_from` (pixel work, counted per frame by the budgets);
+`MasterKey::fingerprint`, `for_network`, `WalletPolicy::checksum`
+(lookups after §5); `to_descriptor`, `to_text`, `Display` (text from parts
+already parsed); `osk_crypto::hash::sha256` on small fixed inputs;
+`PolicyKey::parse` (inside gated parses); signature verification
+(`message::verify`, BSMS `KeyRecord::verify`, events only today; a
+`Verify` kind if a frame ever needs it).
+
+## 3. Who mints
+
+| Where | Constructor | Why |
+|---|---|---|
+| `faraday-core/src/compute.rs`: `Faraday::compute(&mut self) -> Compute` (pub) | `new(work::core_count)` | Event code: `event`, `press`, `act`, ticks, storage events, boot; the warm step before a frame (§4) |
+| `faraday-core/src/drawing.rs`: `View::new` | `new(work::core_count)`, into a private field | Memo fills, kept values, `Allowed` |
+| `faraday-storage`'s worker entry, `faraday-disk/src/main.rs` | `new(\|_\| {})` | Threads and processes that draw nothing |
+| `faraday/shells/snapshot/src/main.rs` | `new(\|_\| {})` | A tool |
+| `faraday-core/src/testkit.rs`: `testkit::compute()` (cfg `test`/`testkit`) | `new(work::core_count)` | Faraday's tests |
+| `opensigner-core`: a crate-private `fn unchecked() -> Compute`, never re-exported | `unchecked()` | OpenSigner's app has no memo and makes no drawing claim; it mints where it needs to until U5; its pub API takes tokens from callers |
+| OpenSigner shells, `tools/qrgen`, core tests and benches, `fuzz/`, `faraday/fuzz/` | `unchecked()` | No app guarantee |
+
+Core's non-test sources mint nothing; they pass their callers' tokens
+through. The Starter's `phone_code` (a QR code each frame) is kept on its
+state when the address is set (C3), so the Starter needs no mint while
+drawing.
+
+**Keeping Faraday off `unchecked`.** The feature alone cannot: Faraday's
+crates depend on `opensigner-core`, which turns `osk-crypto/unchecked`
+on, and cargo unifies features, so `Compute::unchecked` is compiled into
+Faraday's graph until U5. What holds it now: `faraday/clippy.toml`
+disallows `Compute::unchecked` outright and `Compute::new` except under
+`#[expect(clippy::disallowed_methods, reason = "a mint: …")]` at the sites
+above (clippy reads the nearest `clippy.toml` above each manifest, so this
+governs every crate under `faraday/` and no other); and the costs lint
+rejects any `expect`/`allow` over `unchecked`, a mint outside its list,
+and the `unchecked` feature in any `faraday/**/Cargo.toml`. After U5,
+`just lint` adds a check that `cargo tree -e features,normal -i
+osk-crypto` for the shipped binaries shows no `unchecked`.
+
+## 4. The drawing side
+
+- `View<'a>` (`faraday-core/src/drawing.rs`, `pub`, `#[doc(hidden)]`):
+  private fields `app: &'a Faraday`, `fill: Compute`, plus `after:
+  RefCell<After>`; `Deref<Target = Faraday>`, no `DerefMut`.
+- `After` collects what drawing writes today (scroll clamps, redraw
+  requests from about 12 sites, `osk_track`'s result); `render` applies
+  it after each pass.
+- `render` is split: `App::frame` first calls `before_frame(&mut self)`,
+  which mints and warms what was dropped since the last frame; `render`
+  builds a `View` per pass, draws, applies `After`, and mints nothing.
+- Accessors on `View` in `faraday-core/src/drawing/`: `memo.rs` (the 19
+  memo fills), `kept.rs` (the ~15 kept values reached while drawing),
+  `allowed.rs` (one named method per `Allowed` entry; today the three
+  `SecretShown`). No generic closure hands out a token; a new exception
+  is a new method, which the owner decides.
+- Decisions use `*_now(&self, c: &Compute)` forms on `Faraday`; the memo
+  exists only on `View`, so SPEED §2 rule 3 becomes a type rule.
+- Screens that need no accessor may keep `app: &Faraday`; deref coercion
+  lets `&View` call them.
+
+## 5. U4 first: what core keeps
+
+### 5.1 `MasterKey` keeps its fingerprint (`core/osk-bip/src/keys.rs`)
+
+`hold()` works out `fingerprint` once from the blinded context;
+`for_network` copies it; `fingerprint()` returns it; `derive()` takes
+`master_fingerprint` from the field (one EC multiplication saved per
+derivation, in both apps). Faraday drops `wallet::Key.fp`. No output
+changes; the BIP-32 vectors pass unchanged.
+
+### 5.2 `WalletPolicy` keeps its checksum (`core/osk-bip/src/policy.rs`)
+
+Eager: every constructor sets `checksum: [u8; 8]`; `checksum(&self) ->
+&str`. The derived `PartialEq` stays (the checksum is a function of the
+other fields). Faraday drops `Wallet.checksum` and `set_policy`'s
+recompute (it still drops kept addresses and scripts).
+
+### 5.3 Hardened steps written `h` (owner-approved; DECISIONS F66)
+
+Reading is unchanged: `'` or `h`, mixed or not. What is kept and written
+is `h`: `parse_key` normalises `Origin.text`; the miniscript branch of
+`to_descriptor` maps `'` to `h` (in a descriptor `'` is only a hardened
+marker). Faraday drops `faraday_intake::wallet::hardened_h` and its
+second parse (`read_wallet_as_written` folds into `read_wallet`) and the
+`.replace('\'', "h")` in `faraday-core/src/wallet.rs`. Writers whose
+format requires `'` convert at their own boundary (`backup.rs`,
+`faraday-intake/src/electrum.rs`; the batch checks Caravan's `bip32Path`
+and Coldcard's `Derivation:`). **BSMS:** `KeyRecord::signed_text`
+re-renders `key.key_text()` and the signature is verified over it; a
+received record keeps its key line as received and signs/verifies over
+that line; a record made here writes `h`; the BIP-129 vectors in
+`tools/vectors/bip129` must pass. Test: one wallet written with `'`, `h`
+and mixed gives the same text and checksum, equal to the `h` form's
+`descriptor_checksum`.
+
+### 5.4 What changes for OpenSigner's app
+
+Wallets it made already write `h`. Wallets imported with `'` now export
+`h` and show a different checksum; `osk-keep`'s names keyed by checksum
+are lost for those (OpenSigner's app is not shipped by Faraday; listed in
+UPSTREAM §3). Faraday's stored records were already `h`. Tests whose
+expectations change from `'` to `h`: `osk-bip` (`policy.rs` units,
+`coldcard.rs`, `multisig_config.rs`, `tests/{descriptor,bsms,musig,
+recovery,silent}.rs`), `osk-psbt` (`tests/multisig.rs`, `musig.rs`,
+`common/builder.rs`), `opensigner-core` (`tests/{wallets,bsms,keep,names,
+backup_file,lightning,swap}.rs`); reading tests keep their `'` inputs.
+
+## 6. Batches
+
+Each is one implementer; `just` green at the end of each; each core
+change its own commit.
+
+| Batch | Content | After | Alongside | Model |
+|---|---|---|---|---|
+| U4a | §5.1 | — | U4b | Sonnet |
+| U4b | §5.2, then §5.3–5.4 (two commits), DECISIONS F66 | — | U4a | Opus |
+| A0 | `View`, `After`, `before_frame`; the 11 `&mut Faraday` draw roots take `&View`; `osk_track` leaves drawing; the guard stays | U4 | — | Opus |
+| A1 | Memo, kept and allowed accessors on `View`, beside the old forms; decisions switch to `*_now` | A0 | — | Opus |
+| B1 | `screens.rs` | A1 | B2–B6, C0 | Sonnet |
+| B2 | `vault_screens.rs`, `vault_load_screen.rs`, `glance_sheet.rs`, `glance.rs` | A1 | ″ | Sonnet |
+| B3 | `backup_flow_screen.rs`, `backup_flow_wallet_screen.rs`, `board_screen.rs`, `plan_cards.rs`, `backups_screen.rs` | A1 | ″ | Sonnet |
+| B4 | `family_screen.rs`, `family_text.rs`, `keygen_screen.rs`, `seeds_screen.rs`, `codes_screen.rs`, `bip85_screen.rs` | A1 | ″ | Sonnet |
+| B5 | `compact.rs`, `compact_screens.rs`, `boot_import_screen.rs`, `in_progress.rs`, `stick_pills.rs`, `stick_wipe.rs`, `upgrade_screen.rs`, `transfer_screen.rs`, `tools_screen.rs` | A1 | ″ | Sonnet |
+| B6 | the rest (`explore_screen`, `silent_screen`, `vanity_screen`, `lightning_screen`, `wordlist_screen`, `file_menu`, `edit`, …) | A1 | ″ | Sonnet |
+| C0 | `Compute` and `unchecked`; `Faraday::compute`; `View`'s token; the mint sites; `opensigner-core`'s private helper; `faraday/clippy.toml` with the two mint entries; the global counter stays | A1 | B1–B6 | Opus |
+| C1 | Gate `WordsParse`, `Kdf`, `MasterKey`, `KeyDerive`; their counts move to `c.count` | B, C0 | — | Sonnet |
+| C2 | Gate `DescriptorParse`, `Address`, `WalletMatch`, `PlanMap`; `faraday-intake`'s miniscript call moves into `osk-bip` | C1 | D1 drafting | Sonnet |
+| C3 | Gate PSBT, QR, `PngDecode`, `Picture`, `FileHash`; the Starter's QR kept on its state; remove `set_counter`, the `OnceLock`, the `count` feature; `Canvas::set_counter`; drop the old memo forms | C2 | D1 drafting | Sonnet |
+| D1 | Costs lint (§8), compile_fail doctests (§9), full `faraday/clippy.toml` (§7), in `just lint` | C3 | — | Opus |
+| D2 | Remove the guard (§10) | D1 | D3 | Sonnet |
+| D3 | Docs (§11) | D2 | — | Sonnet |
+
+C1–C3 run in sequence (they share ~700 call sites). Each C batch updates
+`fuzz/` and `faraday/fuzz/` for what it gates. When a count moves to its
+source the batch re-derives `moments.rs` and `presses.rs` and says why
+each number moved; no frame budget may rise from none. The guard stays
+active through every C batch.
+
+## 7. `faraday/clippy.toml`
+
+Third-party paths only. `disallowed-methods`: `Compute::new` (allowed
+only by `#[expect]` at §3's sites), `Compute::unchecked`,
+`bitcoin::bip32::Xpriv::new_master`, `Xpriv::derive_priv`,
+`Xpriv::fingerprint`, `Xpub::from_priv`, `Xpub::derive_pub`,
+`secp256k1::PublicKey::from_secret_key` (`lightning.rs` moves to a gated
+`osk-bip` function), `bitcoin::psbt::Psbt::deserialize`.
+`disallowed-types`: `miniscript::Descriptor` (`testkit.rs` and `examples/`
+under `#[expect]`). Hashing engines are not listed (risk 5). Paths
+resolve through the `osk_bip::bitcoin`/`miniscript` re-exports; clippy
+warns on an unresolvable path and `-D warnings` fails it.
+
+## 8. The costs lint
+
+`tools/costs-lint`, a workspace binary on `syn` 2 (`full`, `visit`), run
+by `just lint`; walks `core/*/src` and `faraday/**/src`, skipping
+`#[cfg(test)]`; fails on:
+
+1. a function with a `&Compute` parameter whose doc's first line does not
+   state its cost; a function that calls `.count(` and takes no
+   `&Compute`;
+2. `Compute::new` outside §3's list, `Compute::unchecked` anywhere under
+   `faraday/`, either constructor in core's non-test sources, the
+   `unchecked` feature in a `faraday/**/Cargo.toml`;
+3. a field, `static` or `thread_local` of type `Compute` other than
+   `View.fill`;
+4. a `.compute()` call or `Compute::` path inside `render*` (but
+   `before_frame`) or any function taking `&View` or `&mut Ui`;
+5. a `pub` item in `opensigner-core` returning a `Compute`.
+
+## 9. compile_fail doctests
+
+Each pins its error code and has a sibling control that compiles.
+`core/osk-crypto/src/work.rs`: `c.clone()` (E0599), `Compute: Send`
+(E0277), `Compute: Default` (E0277). `faraday-core/src/drawing.rs`:
+`v.compute()` on `&View` (E0596), `app.compute()` on `&Faraday` (E0596),
+`WalletPolicy::parse(t)` without a token (E0061), `&v.fill` (E0616);
+control: `fn ev(app: &mut Faraday) { let c = app.compute();
+WalletPolicy::parse(&c, T); }`.
+
+## 10. When the debug guard is removed
+
+In D2, the commit after D1 is green on top of C3: every counted kind but
+the two pixel kinds then requires `&Compute`, the only token drawing can
+reach is `View`'s (used only by the guard's own three exceptions), and the
+lint and doctests hold the rest. Removed from `faraday-core/src/work.rs`:
+`Frame`, `DRAWING`, `FILLING`, `filling`, `keeping`, `allowed`, `callers`,
+the panic in `count`, and `PIXELS` if nothing reads it; `render`'s
+`work::Frame::begin()`. The `Allowed` enum moves to `drawing/allowed.rs`
+as the owner's list. Kept: `count`, `Counts`, `snapshot`, `since`,
+`KINDS`, `of_core`, `core_count`, `work/budget/`, `work/kept.rs`, and
+everything parse-once keeps.
+
+## 11. Docs
+
+`docs/SPEED.md` §3.1–§3.2 (core keeps fingerprint and checksum), §3.3
+("The guard" becomes "The token"), §8.2 (new sources); CLAUDE.md's
+"Drawing reads" bullet (the token replaces the guard sentence);
+`docs/UPSTREAM.md` §3 per core commit; `docs/DECISIONS.md` F66 (`h`, and
+the token).
+
+## 12. Risks
+
+1. Merge conflicts: ~700 call sites, mostly tests; C1–C3 in sequence, B in
+   parallel by disjoint files.
+2. BSMS verification (§5.3), gated by the BIP-129 vectors.
+3. Checksums of `'`-written wallets change in OpenSigner's app (§5.4);
+   formats needing `'` convert at their writer.
+4. `unchecked` is compiled into Faraday until U5; until then the
+   guarantee rests on clippy and the lint.
+5. Residual: a new whole-file hash written with `bitcoin::hashes` in a
+   screen is not caught (the guard did not catch it either).
+6. `View` grows to ~37 thin accessors in `drawing/`, each saying what it
+   reads.
+7. Count tables shift as counts move to their source; batches explain
+   each change.
+8. If rustdoc does not check pinned error codes on this toolchain, the
+   controls still catch a doctest failing for the wrong reason.
+
+## 13. Build time
+
+Runtime nil (one pointer; one indirect call inside microsecond work).
+Costs lint ~10 s clean, ~1 s after. Doctests: ~15 s more for `cargo test
+--doc`. Removing the guard makes tests marginally faster.
+
+## 14. Estimate
+
+U4a 0.5, U4b 1, A0 1, A1 1, B1–B6 3 (about 1 elapsed), C0 0.5, C1 1, C2 1,
+C3 1.5, D1 1, D2+D3 0.5 implementer days: about 12 of work, about 8
+elapsed with the parallel batches.
