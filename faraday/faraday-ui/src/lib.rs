@@ -2,8 +2,8 @@
 //! their screens with.
 //!
 //! Drawing in design units. Every screen is laid out on a canvas scaled
-//! to fill the display, with the prototype's palette
-//! (`design/prototype/`) and the themes beside it. Text is `faraday-draw`'s
+//! to fill the display, with Faraday's palette and the
+//! themes beside it. Text is `faraday-draw`'s
 //! Noto Sans and Noto Sans Mono. [`Ui`] is generic over the app's own
 //! action type: what a press on a region does is the caller's to name.
 

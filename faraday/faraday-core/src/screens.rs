@@ -1,6 +1,5 @@
-//! Every screen, drawn from the app's state each frame. The layouts are
-//! the prototype's (`design/prototype/project/`): a 240-unit sidebar and
-//! the screen beside it.
+//! Every screen, drawn from the app's state each frame: a 240-unit
+//! sidebar and the screen beside it.
 
 use crate::in_progress::Going;
 use crate::strings::EN;

@@ -1,6 +1,5 @@
-//! Prints the demo wallet the Wallets design mockups show
-//! (`design/prototype/project/WalletsWallet.dc.html` and
-//! `WalletsSpend.dc.html`), derived with `faraday-bip`.
+//! Prints the demo wallet the early Wallets design mock-ups showed,
+//! derived with `faraday-bip`.
 //!
 //! ```text
 //! cargo run -p faraday-core --example wallet_2of3_demo
