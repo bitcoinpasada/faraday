@@ -1433,11 +1433,12 @@ pub fn needed(wallet: &Wallet) -> usize {
         .unwrap_or(1)
 }
 
-/// A wallet's descriptor in one form, so that the same wallet read from a
-/// descriptor, a wallet .json or a multisig config compares equal: they
-/// write a hardened step as `h` or as `'`.
+/// A wallet's descriptor, the form the same wallet read from a
+/// descriptor, a wallet .json or a multisig config compares equal in:
+/// the policy writes every hardened step `h` however the file wrote it
+/// (F66). Writes the descriptor out.
 pub fn same_wallet(policy: &WalletPolicy) -> String {
-    policy.to_descriptor().replace('\'', "h")
+    policy.to_descriptor()
 }
 
 /// What a file holds, as far as this build is concerned.

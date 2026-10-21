@@ -158,6 +158,24 @@ Since the fork:
   keep it. Why: the checksum was written out and hashed again on every
   ask, drawing included; Faraday's `wallet::Wallet` no longer keeps its
   own copy. Same output as before.
+- `core/osk-bip` (2026-10-21; `docs/COMPUTE.md` §5.3, F66): hardened
+  steps are kept and written `h`. Reading is unchanged (`'`, `h`, mixed);
+  `policy.rs` keeps a key's origin written `h` and writes a miniscript
+  wallet's descriptor with `h`; `recovery.rs` writes a recovery path's
+  keys the same way. `bsms.rs`: a received key record keeps its key line
+  as received and its signature is checked over that line
+  (`SignerRecord::key_line`); a record made here writes `h`; BIP 129's
+  own records still read and verify, and its descriptor records are
+  written back with `h`. The PSBT fixtures' wallets
+  (`tools/vectors/psbt/*.policy`, the two cosigner lines) are
+  regenerated with `h`. Why: one wallet has one text and one checksum
+  however it was written, so the checksum can be kept on the policy,
+  and Faraday's second parse (`faraday_intake::wallet::hardened_h`) is
+  gone. For OpenSigner's app: wallets it made already wrote `h`; a
+  wallet imported with `'` now shows and exports `h` and a different
+  checksum, and `osk-keep`'s names and kept-wallet choices keyed by the
+  old checksum are lost for it.
+
 ## 4. Watching upstream
 
 When there is reason to (a release, a security advisory, or every few

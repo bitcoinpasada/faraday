@@ -97,7 +97,8 @@ fn every_descriptor_record_the_bip_writes_is_its_wallet_and_its_first_address() 
         let record = DescriptorRecord::parse(text).expect(text);
         assert_eq!(record.network, Network::Mainnet);
         assert_eq!(record.paths, ["/0/*", "/1/*"]);
-        assert_eq!(record.to_text(), *text);
+        // The BIP writes a hardened step `'`; the wallet writes `h`.
+        assert_eq!(record.to_text(), text.replace('\'', "h"));
         assert!(record.holds(&record.policy.keys()[0]));
         read += 1;
     }
@@ -241,7 +242,7 @@ fn the_record_this_device_writes_parses_back_and_verifies() {
 
     let text = written.to_text();
     assert!(
-        text.starts_with("BSMS 1.0\n00\n[73c5da0a/48'/0'/0'/2']xpub"),
+        text.starts_with("BSMS 1.0\n00\n[73c5da0a/48h/0h/0h/2h]xpub"),
         "{text}"
     );
     let read = SignerRecord::parse(&text).expect("what it wrote");

@@ -121,30 +121,12 @@ pub fn policy_network(policy: &WalletPolicy, current: Network) -> Option<Network
 /// Reads a wallet from text: a descriptor, a BIP-388 policy, a
 /// threshold record, or another wallet's file (module doc). Comment lines (`#`) and blank lines are skipped.
 ///
-/// One wallet has one checksum (`docs/DECISIONS.md` F35): every hardened
-/// step is kept written `h`, however the text wrote it, so a wallet read
-/// from a multisig config or typed with `'` is the same wallet, with the
-/// same descriptor and checksum, as the one made here.
+/// One wallet has one checksum (`docs/DECISIONS.md` F35, F66): the
+/// policy keeps every hardened step written `h`, however the text wrote
+/// it, so a wallet read from a multisig config or typed with `'` is the
+/// same wallet, with the same descriptor and checksum, as the one made
+/// here.
 pub fn read_wallet(text: &str) -> Result<WalletPolicy, Refusal> {
-    read_wallet_as_written(text).map(hardened_h)
-}
-
-/// `policy` with every hardened step of its keys' origins written `h`.
-/// In a policy's text `'` is only ever a hardened marker; a record (a
-/// threshold wallet's, a silent payments wallet's) is kept as it is.
-pub fn hardened_h(policy: WalletPolicy) -> WalletPolicy {
-    if policy.record().is_some() || policy.silent().is_some() {
-        return policy;
-    }
-    let text = policy.to_text();
-    if !text.contains('\'') {
-        return policy;
-    }
-    WalletPolicy::parse_any(&text.replace('\'', "h")).unwrap_or(policy)
-}
-
-/// [`read_wallet`] with the origins as the text wrote them.
-fn read_wallet_as_written(text: &str) -> Result<WalletPolicy, Refusal> {
     // A threshold record and a silent payments record are read whole:
     // their lines are their fields.
     if osk_bip::threshold::ThresholdRecord::looks_like_record(text)

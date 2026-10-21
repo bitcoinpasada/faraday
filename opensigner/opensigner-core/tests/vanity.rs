@@ -177,7 +177,7 @@ fn the_account_dial_finds_an_address_and_use_it_adds_that_wallet() {
     .find
     .expect("a find");
     assert!(
-        descriptor.contains(&format!("/{}']", find.account)),
+        descriptor.contains(&format!("/{}h]", find.account)),
         "the account the grind found: {descriptor}"
     );
 }
