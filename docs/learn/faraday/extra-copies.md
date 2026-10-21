@@ -8,7 +8,7 @@ Extra copies are made once the wallet is made and its backup is done.
 
 ## A vault
 
-A vault is one file on a stick. Copy between sticks, in a stick visit, copies the vault's file to another stick. The copy opens with the same passphrase and holds the same records. It does not change when the vault on the first stick is written again: a later change is copied again to keep the two the same.
+A vault is one file on a stick. Copy the vault to another stick, from the vault on the wallet's chart, writes the vault's file to another stick. The copy opens with the same passphrase and holds the same records. It does not change when the vault on the first stick is written again: a later change is copied again to keep the two the same.
 
 ## Words on paper
 

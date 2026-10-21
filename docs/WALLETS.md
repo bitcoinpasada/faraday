@@ -28,16 +28,16 @@ review. Its wording is in one strings file, as OpenSigner's is.
 
 **Rules that keep Faraday downstream of OpenSigner:**
 
-1. **No upstream file is edited.** The Wallets tab does not run
-   `opensigner-core`, and the OpenSigner tab connects to the vault through
-   its existing interface (below), so no vault bridge inside OpenSigner is
-   needed. The workspace manifest is the one shared file, and its change
-   is one line per new crate.
+1. **Since F65 Faraday maintains `core/` and `opensigner/` itself**
+   (`docs/UPSTREAM.md` lists every change; none loosens a check). The
+   Wallets tab does not run `opensigner-core`, and the OpenSigner tab
+   connects to the vault through its existing interface (below), so no
+   vault bridge inside OpenSigner is needed.
 2. **Where Faraday needs a variant of an upstream part** (the stick's
    image boards, its shell, `osk-ui`), the variant is a copy under
    `faraday/` recording the upstream commit it was copied from.
-   `just upstream-diff` lists every upstream change to those originals since
-   then, so a fix upstream is seen and carried over deliberately.
+   `docs/UPSTREAM.md` §4 says how upstream's changes to those originals
+   are watched, so a fix upstream is seen and carried over deliberately.
 3. **`faraday-core` names upstream types directly**, so if OpenSigner
    renames or changes something the Wallets tab uses, `faraday-core`
    stops compiling, and its errors are the complete list of what to
@@ -47,7 +47,7 @@ review. Its wording is in one strings file, as OpenSigner's is.
    fallback tree), the capability table gains a row and an adapter, and
    the flows gain one assembled from existing steps, plus a new step
    only where the protocol has a round no other scheme has.
-5. **Shared logic lives upstream, in `core/`.** Upstream's rule since
+5. **Shared logic lives in `core/`.** OpenSigner's rule since
    §16.138 (2026-10-04, made for forks like this one): code that defines
    bytes, or answers a question with no screen in it, is a `core/` crate, and
    `opensigner-core` holds only flows and wording. That move put the `.oskb`
@@ -55,8 +55,9 @@ review. Its wording is in one strings file, as OpenSigner's is.
    kept-key blob in `osk-keep`, the signed-message text form and a
    transaction with its previous outputs in `osk-psbt`, and address parsing
    and a wallet's address search in `osk-bip`. The Wallets tab therefore
-   depends on no app code. Still in the app, and asked for upstream when
-   the Wallets tab needs them: the Tools calculators, the self-test's
+   depends on no app code. Still in the app, and moved into `core/` by
+   Faraday (F65, listed in `docs/UPSTREAM.md`) when the Wallets tab needs
+   them: the Tools calculators, the self-test's
    vector set, and `inspect.rs`'s reading of key origins through `osk-ui`.
    Codex32 and SLIP-39 share handling and the MuSig2 session state are
    checked against the same rule before the Wallets tab uses them.
@@ -64,8 +65,8 @@ review. Its wording is in one strings file, as OpenSigner's is.
    the Wallets tab's flow tests, then the conformance corpus (§8).
 
 **The OpenSigner tab stays** beside the Wallets tab until the Wallets tab is
-robust enough to deprecate it (decided 2026-10-04). It keeps zero upstream edits:
-a vault key is opened in it by handing OpenSigner the key as a scanned
+robust enough to deprecate it (decided 2026-10-04). The vault link needs
+no change to it: a vault key is opened in it by handing OpenSigner the key as a scanned
 payload (`Event::Scanned`), which runs OpenSigner's own load flow, and a key
 leaves it as an `.oskb` encrypted backup, which imports into a vault.
 

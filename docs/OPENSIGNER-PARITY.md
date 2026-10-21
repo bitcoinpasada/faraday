@@ -1,5 +1,9 @@
 # OpenSigner in Faraday: what is used, what is not, and the plan
 
+**Status (2026-10-20):** since F65 `core/` is Faraday's to review and
+change; every change is listed in `docs/UPSTREAM.md`. What follows was
+written against upstream at c418768 and is not rewritten for later changes.
+
 Written 2026-10-06 against upstream at c418768. One row per OpenSigner
 crate, then per feature of OpenSigner's app (`opensigner-core`), saying
 whether Faraday has it, through which crate, and what is left. The plan at

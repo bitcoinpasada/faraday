@@ -2,7 +2,7 @@
 
 ## What a signed message is
 
-A signed message is a piece of text plus a signature made with the key behind one of your addresses. It has three parts: the address, the signature, and the text. The file OpenSigner saves and the QR code it shows carry the address on the first line, the signature on the second line, and the message from the third line to the end.
+A signed message is a piece of text plus a signature made with the key behind one of your addresses. It has three parts: the address, the signature, and the text. The file Faraday saves and the QR code it shows carry the address on the first line, the signature on the second line, and the message from the third line to the end.
 
 Nothing about it touches the blockchain. It is text, and it is checked by whoever you hand it to.
 
@@ -18,8 +18,8 @@ Anyone can copy the three lines and pass them on. Only the key can make a new on
 
 ## Formats
 
-OpenSigner produces BIP-137 signatures for legacy and SegWit addresses, and BIP-322 signatures, which work for every address type including Taproot. Choose the format your verifier expects. Most exchanges and older tools expect BIP-137.
+Faraday signs with a single-key wallet's key, at one of its receive addresses. It produces BIP-137 signatures for legacy and SegWit addresses, and BIP-322 signatures, which work for every address type including Taproot. Choose the format your verifier expects. Most exchanges and older tools expect BIP-137.
 
 ## Checking a signed message
 
-Verify on OpenSigner reads a signed message from a QR code or a file, checks whether the signature matches the address and the text, and shows you the text that was checked. Read the text. A valid signature over the wrong text proves the wrong thing.
+Check a signed message, in Tools, reads a signed message from a QR code or a file, checks whether the signature matches the address and the text, and shows you the text that was checked. Read the text. A valid signature over the wrong text proves the wrong thing.

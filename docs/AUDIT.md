@@ -1,6 +1,7 @@
 # What is cryptography, and where it lives
 
-**Status:** written 2026-10-06, against upstream at c418768. One row per
+**Status:** since F65 (2026-10-20) `core/` is Faraday's to review and
+change, with every change listed in `docs/UPSTREAM.md`. Written 2026-10-06, against upstream at c418768. One row per
 crate that touches a key, a seed, a signature, a cipher or a passphrase,
 saying what it computes, whether that is written in this tree or taken
 from a crate, and what it is checked against. For someone deciding what
@@ -27,7 +28,7 @@ Three tiers, used through the rest of this file:
 
 ## 1. Crates that compute cryptography
 
-### `core/` (upstream, shared with OpenSigner)
+### `core/` (OpenSigner's code as forked; changes listed in `docs/UPSTREAM.md`)
 
 | Crate | What it computes | Written here, or from a crate | Checked against |
 |---|---|---|---|

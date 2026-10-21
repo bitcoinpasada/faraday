@@ -555,13 +555,13 @@ nothing itself. `docs/AUDIT.md` lists every crate that touches a key,
 what it computes, whether the code is written in this tree or taken from
 a vetted crate, and what it is checked against.
 
-**Bitcoin cryptography starts upstream.** Every key derivation, mnemonic,
-signature, PSBT and message signature is OpenSigner's, in its `core/`
-crates (`osk-crypto`, `osk-bip`, `osk-psbt`, `osk-entropy`). Faraday
-does not edit them. A Bitcoin signing feature
-Faraday needs that OpenSigner lacks is proposed to OpenSigner, built
-there, and only then merged here; the one waiting now, signing silent
-payment outputs (BIP-375), waits for exactly that. Faraday's own crates
+**Bitcoin cryptography is in `core/`.** Every key derivation, mnemonic,
+signature, PSBT and message signature is in the `core/` crates
+(`osk-crypto`, `osk-bip`, `osk-psbt`, `osk-entropy`), which began as
+OpenSigner's. Since 2026-10-20 Faraday maintains them itself, as a soft
+fork (`docs/UPSTREAM.md`, F65): it changes them where it needs to, each
+change its own commit listed in `docs/UPSTREAM.md`, and ports what
+OpenSigner fixes. Faraday's own crates
 compute only what OpenSigner has no use for, each as a library with no
 interface: the vault (`faraday-vault`), OpenPGP (`faraday-pgp`) and
 Secure Boot (`faraday-sb`).
@@ -574,14 +574,11 @@ Why this is better than one repository and one application:
   change what the person sees and when, never the bytes signed. The two
   layers can be reviewed at different depths, and `docs/AUDIT.md` §5
   draws the line.
-- **Checkable as unchanged.** `core/` here is upstream's tree at a
-  recorded commit (`HANDOFF.md`, Git state), so a diff against that
-  commit shows that Faraday has changed nothing in it. A reviewer who has
-  audited OpenSigner's signing has audited Faraday's.
-- **Two projects behind one signing path.** OpenSigner's developers,
-  its own apps and its users exercise the same code. A signing bug has to
-  get past both projects, and a fix made upstream reaches Faraday by the
-  same merge.
+- **Every change listed.** `core/` here is OpenSigner's tree at a
+  recorded commit plus the changes `docs/UPSTREAM.md` lists, each its own
+  commit, so a diff against that commit shows exactly what Faraday
+  changed. A reviewer who has audited OpenSigner's signing reads only
+  those.
 - **No interface pressure on the cryptography.** A screen that wants a
   value in a new shape gets it from a library function written and
   tested against published vectors, not from a shortcut taken inside a
@@ -816,9 +813,11 @@ The release tags are signed with the same key: `git tag -v v0.1.5`.
 
 ## Relationship to OpenSigner
 
-`core/` and `opensigner/` are OpenSignerKit/OpenSigner's tree, kept in
-step with the git remote `upstream` by applying its changes; this
-repository's history starts fresh and shares none with upstream's.
+`core/` and `opensigner/` began as OpenSignerKit/OpenSigner's tree.
+Faraday maintains them as a soft fork (`docs/UPSTREAM.md`, F65): it
+changes them where it needs to, lists every change, and ports what
+OpenSigner fixes from the git remote `upstream`; this repository's
+history starts fresh and shares none with upstream's.
 Faraday uses the `osk-*` crates as a library. `faraday/`
 is Faraday itself: `faraday-core`, the desktop and stick shells, the
 vault, GPG, Secure Boot and QR code. See `PLAN.md` for the full spec,
@@ -828,8 +827,10 @@ the vault and QR formats.
 ## Repository rules
 
 - No GitHub Actions or hosted CI. Everything builds and tests locally.
-- Upstream changes are applied from the `upstream` remote
-  (`git diff <last> upstream/main`), not copied by hand.
+- OpenSigner's changes are ported from the `upstream` remote
+  (`git diff <last> upstream/main`), not copied by hand; Faraday's own
+  changes to `core/` and `opensigner/` are each a commit listed in
+  `docs/UPSTREAM.md`.
 - Nothing under `local/` is committed; use it for private notes.
 
 ## License

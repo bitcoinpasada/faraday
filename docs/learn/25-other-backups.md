@@ -12,7 +12,7 @@ SLIP-39 is Shamir's Secret Sharing over a word list, published by Trezor and use
 
 Its words are not BIP-39's. The list is a different one, a share is a different length from a seed phrase, and a share cannot be typed into a wallet that expects seed words. The master secret it protects is the entropy itself, stretched into a seed by SLIP-39's own rules, so a SLIP-39 backup and a BIP-39 backup of the same wallet are not interchangeable: you choose one at the moment the key is made.
 
-Pick it when you want a real threshold and your devices and heirs will have SLIP-39 software. This device reads and writes it, groups and all: Add a key has a row that makes a key whose only written form is shares, and a key loaded from shares can be written into a fresh set of them at any time.
+Pick it when you want a real threshold and your devices and heirs will have SLIP-39 software. Faraday reads it, groups and all, and Add a key › Make SLIP-39 shares makes a key whose only written form is shares.
 
 ## Codex32
 
@@ -22,7 +22,7 @@ That is the point of it. You can create a seed, verify the checksum, and combine
 
 Pick it when your objection is to trusting a computer at all.
 
-This device reads and writes it. Type a string, or the shares of a split of one, and the key it holds is loaded. Add a key has a row that makes a key and writes it as codex32: you choose how long a seed to make, whether to split it, and into how many shares of which how many must be present, and the device shows every string in turn and asks you to type it back. Every key already loaded can be written as codex32 from its Backup menu, whatever it was made from, because every key is a seed. What a codex32 backup of a key made of words holds is that seed, with the passphrase already in it, and not the words.
+Faraday reads and writes it. Add a key › Type a codex32 secret takes a string, or the shares of a split of one, and loads the key it holds. A backup's copies by hand can write a key made of words as codex32 shares of its seed, 2 of 3 or 3 of 5. What a codex32 backup of a key made of words holds is that seed, with the passphrase already in it, and not the words.
 
 ## Seed XOR
 
@@ -42,10 +42,10 @@ If the problem is that you want no single person or place to be able to act alon
 
 ## What this device reads today
 
-OpenSigner writes and reads Seed XOR parts and its own encrypted backup, and reads and writes BIP-39 words as every wallet does.
+Faraday writes and reads Seed XOR parts, reads OpenSigner's encrypted backup into a vault, and reads and writes BIP-39 words as every wallet does.
 
-It reads and writes SLIP-39 shares. Type the shares of a backup and the key they hold is loaded, under its passphrase if it has one. Add a key › Create SLIP-39 shares makes a new key and writes it as shares: you choose how many groups, how many of them must be present, and how many shares each group has and needs, and the device shows every share in turn with the quiz. A key already loaded from shares can be written again, under a new plan, from its Backup menu; the old shares still open it.
+It reads and writes SLIP-39 shares. Add a key › Type SLIP-39 shares loads the key a backup's shares hold, under its passphrase if it has one, groups and all. Add a key › Make SLIP-39 shares makes a new key and writes it as one group of shares: you choose how many shares there are and how many are needed, and Faraday shows every share in turn with the quiz.
 
 A key made of BIP-39 words is not backed up as SLIP-39 shares, and never will be. What a set of shares gives back is the seed itself, and a BIP-39 key's seed is 64 bytes, which no SLIP-39 implementation will take.
 
-It reads and writes Codex32. Type the string a Codex32 backup is written as, or the shares of a split of one, and the key it holds is loaded. Add a key › Create Codex32 shares makes a new key and writes it as one string or as a set of shares, and any key already loaded can be written as Codex32 from its Backup menu. A backup of a key made of BIP-39 words holds the 512-bit seed those words come to, which is 127 characters, and a wallet that expects words cannot read it back.
+It reads and writes Codex32. Add a key › Type a codex32 secret loads the key a string or its shares hold, and a backup's copies by hand write a key made of words as codex32 shares of its seed. A backup of a key made of BIP-39 words holds the 512-bit seed those words come to, which is 127 characters, and a wallet that expects words cannot read it back.

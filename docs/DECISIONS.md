@@ -2255,3 +2255,86 @@ and, for Sign a file, `docs/TOTP.md` §1.3.
 - Not changed: a row's **Show as QR** and **PNG**, which make one file's
   signature as a code or picture, and Make a key, Renew and Make a
   revocation, which still ask for the time first (§1.3).
+
+### F64 Other wallets' formats, the less common under More options (2026-10-20)
+
+**Why.** `docs/INTEROP.md` §4 lists what Faraday does not yet read or
+write from Electrum, Caravan and Unchained, Bitcoin Core before 29,
+Specter DIY, Cobo, Keystone, Wasabi and silent payments descriptors, as
+well as SLIP-132 keys, PSBT version 2 and two kinds of BIP 129 record it
+refuses. A person bringing a wallet from one of those has no way in.
+Adding every format to every list would bury the three or four most
+people use.
+
+**Decision** (owner, 2026-10-20; `docs/INTEROP.md` §5; tracker #43–#50).
+
+- Build §4 now, in §5's batches I1–I10. Left out, with the reasons in
+  §5: BIP-329 label files, Coldcard's encrypted backup, Electrum's
+  pre-2.0 and 2FA seeds, Sparrow's fixed-path BSMS records and the
+  Cobo/Keystone single-key writer.
+- **Reading needs no choice.** Every new format is recognised by its
+  content wherever a wallet, a key or a PSBT is read today: Files, Scan,
+  Restore's description, Create's and Restore's key slots, and the Spend
+  tab.
+- **More options.** Where a list offers a choice few people need, it
+  shows its common choices, then one ghost button, **More options**; the
+  rest appear below it once pressed, the button goes, and the list stays
+  open until the screen is left (the pattern of **Other forms** and
+  **Other languages**). A screen opens with it open when a choice under
+  it is already made. Nothing under More options is ever a default.
+- **Public files**: primary, where each applies, Descriptor; Wallet file
+  (Sparrow, Specter); Multisig config; Backup sheet; BSMS record; Bitcoin
+  Core import, now "Bitcoin Core 29 or later"; the cosigners' keys. Under
+  More options: Electrum wallet file; Caravan config (Caravan, Unchained);
+  Bitcoin Core before 29; Specter DIY (`addwallet` code); Wasabi file.
+- **Add a key**: the Start card's choices stay; **Other forms** gains
+  **Type Electrum seed words**, as does the Entry form's.
+- **A silent payments wallet's Export**: under More options, the BIP-392
+  `sp()` descriptor, shown through the secret sheet.
+- A SLIP-132 key whose version disagrees with its script or path is
+  refused, never converted silently.
+- **PSBT version 2** is read, shown, signed and returned in version 2;
+  it offers no choice.
+- **BIP 129 records** (owner, confirmed 2026-10-20): an all-upper-case
+  bech32 first address is read, as BIP 173 requires of a reader; and a
+  `/**` template with "No path restrictions", which BIP 129 does not
+  define, is read as `/0/*,/1/*` because Sparrow writes and reads it so.
+  This is the one place Faraday accepts more than a standard requires
+  (F65); the first-address check still decides.
+- The Back up plan's software question is unchanged.
+
+### F65 OpenSigner's code taken in house: a soft fork (2026-10-20)
+
+**Why.** Faraday never edited `core/` or `opensigner/`, so every gap in
+them was wrapped in Faraday's own code or waited on a note to
+OpenSigner: a BIP 129 tidy-up before upstream's parser, SLIP-132 read a
+second time, a PSBT version 2 converter, the constant-time patch and the
+other carried changes. OpenSigner's development has slowed (no upstream
+commit since 2026-10-10), and the speed work needs a compute token on
+the costly functions, upstream's included.
+
+**Decision** (owner, 2026-10-20; `docs/UPSTREAM.md`).
+
+- Faraday maintains `core/` and `opensigner/` as a soft fork from
+  upstream's `d26b84e`. It changes them where it needs to, fixing a gap
+  at its source rather than wrapping it.
+- Each change there is its own commit with what and why, listed in
+  `docs/UPSTREAM.md` §3 the same day; a cryptographic change is tested
+  against published vectors or another implementation first.
+- OpenSigner's new commits are read when there is reason to and ported
+  as commits naming theirs, security fixes first. Notes for upstream
+  become optional.
+- OpenSigner's licence and notices stay; the README says Faraday began
+  as a fork and that `core/` is now Faraday's to review.
+- **The fork keeps OpenSigner's caution.** Owning the code is for fixing
+  gaps, speed and correctness, never for loosening a check. What
+  OpenSigner refuses stays refused: a key without an origin in a
+  multisig (BIP-388), a guessed path, an input that could mean two
+  things, anything a standard leaves undefined. Faraday follows the
+  BIPs strictly and refuses what it cannot verify rather than assume;
+  accepting more than a standard requires (as F64's BIP 129 tidy-up
+  does, with the first-address check kept) is a decision for the owner,
+  recorded here.
+- Faraday's strings stay in `faraday-strings`.
+- `docs/PLANNING.md` stays upstream's planning record and is not edited
+  for Faraday's decisions.

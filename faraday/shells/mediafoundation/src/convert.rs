@@ -6,7 +6,8 @@
 //! NV12 already lays its second plane out as interleaved Cb and Cr
 //! pairs, one per 2 x 2 block of luma, which is the order the core takes;
 //! the only work is the row stride and the shrink. (A copy of
-//! `opensigner-avfoundation`'s, which is private to that crate.)
+//! `opensigner-avfoundation`'s, which is private to that crate; a later
+//! batch may fold the two into `core/`, U1.)
 //!
 //! None of this is Windows-specific and none of it is `unsafe`, so it is
 //! compiled and tested on every platform: it is the half of the capture

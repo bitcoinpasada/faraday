@@ -4,7 +4,7 @@
 
 A key is words. A wallet is a rule about which keys may spend, together with the addresses that rule produces. One key can be in several wallets, and the same key in two wallets with different script types gives two sets of addresses and two balances.
 
-In OpenSigner these are two screens: Keys lists the secrets, and Wallets lists the rules, whether you built them here or a coordinator sent them. The kinds below are the rules the device can read and build. Which one suits you depends on what you are protecting against, so all of them are offered.
+In Faraday the sidebar lists them apart: Keys are the secrets, and Wallets are the rules, whether you made them here or a coordinator sent them. The kinds below are the rules the device can read. Which one suits you depends on what you are protecting against, so all of them are offered.
 
 ## Single-sig
 
@@ -24,7 +24,7 @@ The same m-of-n written as a Taproot script path. Unspent, the address looks lik
 
 When the wallet has no way to spend with a single key, the Taproot internal key is set to a NUMS point: a public key chosen so that nobody knows a private key for it. The device shows this in the review, because an internal key that has not been shown to be unspendable is a way to spend the wallet that you never agreed to.
 
-Add a wallet builds this kind: pick Taproot multisig, choose the keys, choose how many must sign, and the review states the quorum, the keys and that the key path cannot spend. Fewer coordinators write this than write classic multisig, and recovery software for it is younger.
+Make a new wallet builds this kind: Taproot multisig under More kinds, then the keys and how many must sign. Fewer coordinators write this than write classic multisig, and recovery software for it is younger.
 
 ## MuSig2
 
@@ -44,7 +44,7 @@ A wallet can name one key that spends at any time and another that spends alone 
 
 It gives you a recovery that needs no second person on the day, and an inheritance an heir can execute by waiting. It costs a timelock whose clock restarts every time the coins move, so the wallet has to be refreshed or the recovery path opens while you are still using it. Spend paths and timelocks has the details.
 
-Add a wallet builds one: the keys that can sign now, then up to three recovery paths, each with its own keys and its own wait. Each wait has to be longer than the one before it, and you either pick one of the four offered or type a number of days, up to 455. Last comes whether the wallet pays to SegWit or to Taproot. The review names every path and every wait, in days and in blocks. A wallet Liana or another coordinator built arrives as a descriptor and is read the same way, including one with more than one recovery path.
+Make a new wallet does not offer this kind; Faraday reads one from its descriptor. A wallet Liana or another coordinator built arrives that way, including one with more than one recovery path, and Faraday names every path and every wait. Tools › Miniscript compiler writes a policy of your own as a descriptor, and says whether this device loads it.
 
 ## Silent payments
 
@@ -56,7 +56,7 @@ What it costs is that a wallet has to look for the payments. There is no chain o
 
 ## Wallets with none of your keys
 
-A wallet made from public keys alone derives addresses, checks change and exports itself, and cannot sign. Its rows carry the eye rather than the key. Loading a friend's descriptor to check an address they gave you is a legitimate use of the device, and so is keeping a watch-only copy of a wallet whose keys are elsewhere.
+A wallet made from public keys alone derives addresses, checks change and exports itself, and cannot sign. Faraday calls it watch-only. Loading a friend's descriptor to check an address they gave you is a legitimate use of the device, and so is keeping a watch-only copy of a wallet whose keys are elsewhere.
 
 ## Choosing
 

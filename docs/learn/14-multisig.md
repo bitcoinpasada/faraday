@@ -20,11 +20,11 @@ One backup kept badly does not become safer as three backups kept worse. For mos
 
 Multisig protects against a stolen key and a destroyed backup. It does not protect against a wrong address, a scam, or a wallet description that nobody wrote down.
 
-## Using multisig with OpenSigner
+## Using multisig with Faraday
 
-Your coordinator exports a wallet description, called a policy. Load it into OpenSigner by QR code or file. OpenSigner shows you every key in the wallet, marks which ones are yours, and asks you to accept it.
+Make a new wallet makes a multisig from keys loaded here and cosigners' xpubs. Restore an existing wallet reads one a coordinator made: a descriptor, a wallet file, a multisig config or a BIP 129 record, by QR code or from a file. Faraday shows every key in the wallet and which of them are loaded here.
 
-Once accepted, OpenSigner recognises the addresses and change of that wallet, so a transaction you sign is checked against the wallet you agreed to. The policy is kept for the current session only. It is not stored on the device, and you load it again next time.
+Once loaded, Faraday recognises the addresses and change of that wallet, so a transaction you sign is checked against the wallet you loaded. A wallet is kept for the session; saved into a vault, it comes back when the vault is unlocked.
 
 ## FROST and MuSig2
 

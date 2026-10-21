@@ -4,6 +4,7 @@
 //! account key in a file. Nothing secret leaves the session.
 
 use crate::strings::EN;
+use faraday_intake::slip132;
 use opensigner_core::strings::fill;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, MultisigScriptType, ScriptType};
@@ -436,7 +437,8 @@ pub fn read_key(text: &str) -> Option<String> {
 /// key record whose signature is the key's; Coldcard's multisig key file
 /// (`ccxp-….json`, which Passport and Unchained also write: flat `p2wsh`,
 /// `p2sh_p2wsh` and `p2sh` fields, each with its `_deriv`); Coldcard's
-/// generic export, one object per account; or `[fingerprint/path]xpub` on
+/// generic export, one object per account; a single-key file (Cobo's,
+/// Keystone's, Coldcard's for Wasabi); or `[fingerprint/path]xpub` on
 /// lines of their own.
 pub fn read_keys(text: &str) -> Vec<String> {
     if osk_bip::bsms::is_signer_record(text) {
@@ -448,19 +450,36 @@ pub fn read_keys(text: &str) -> Vec<String> {
             .collect();
     }
     if text.trim_start().starts_with('{') {
+        // A single-key file (Cobo, Keystone, Coldcard's for Wasabi): its
+        // one key.
+        if let Ok(v) = faraday_intake::json::parse(text)
+            && let Some(read) = faraday_intake::single_key::read(&v)
+        {
+            return read
+                .ok()
+                .and_then(|k| PolicyKey::parse(&k.key).ok())
+                .map(|k| k.key_text())
+                .into_iter()
+                .collect();
+        }
         return coldcard_keys(text);
     }
     text.lines()
         .map(str::trim)
         .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        .filter_map(|l| PolicyKey::parse(l).ok().map(|k| k.key_text()))
+        .filter_map(|l| match slip132::key_line(l) {
+            Some(read) => PolicyKey::parse(&read.ok()?.text).ok(),
+            None => PolicyKey::parse(l).ok(),
+        })
+        .map(|k| k.key_text())
         .collect()
 }
 
 /// The account keys in a Coldcard JSON file, each rooted at the file's
 /// top-level `xfp`, the master's. Coldcard writes the flat multisig keys
 /// in SLIP-132 form (`Zpub`, `Ypub`, `Vpub`, `Upub`), which a descriptor
-/// takes as `xpub` or `tpub`.
+/// takes as `xpub` or `tpub` once the version agrees with the purpose in
+/// the key's path (`slip132::key_line`); a key that disagrees is left out.
 fn coldcard_keys(text: &str) -> Vec<String> {
     use crate::wallet::{json_object, json_string};
     let Some(master) = json_string(text, "xfp") else {
@@ -469,10 +488,8 @@ fn coldcard_keys(text: &str) -> Vec<String> {
     let master = master.to_ascii_lowercase();
     let key = |deriv: &str, xpub: &str| {
         let path = deriv.trim_start_matches('m').trim_start_matches('/');
-        let xpub = crate::wallet::plain_xpub(xpub)?;
-        PolicyKey::parse(&format!("[{master}/{path}]{xpub}"))
-            .ok()
-            .map(|k| k.key_text())
+        let line = slip132::key_line(&format!("[{master}/{path}]{xpub}"))?.ok()?;
+        PolicyKey::parse(&line.text).ok().map(|k| k.key_text())
     };
     let mut keys = Vec::new();
     // The multisig key file: flat fields. Coldcard has written the nested
@@ -538,8 +555,31 @@ pub fn key_for(kind: NewKind, text: &str) -> Option<String> {
         .find(|k| at(k).as_deref() == Some(want.as_str()))
         .cloned()
         .or_else(|| {
-            (keys.len() == 1 && !text.trim_start().starts_with('{')).then(|| keys[0].clone())
+            (keys.len() == 1 && !text.trim_start().starts_with('{') && named_agrees(kind, text))
+                .then(|| keys[0].clone())
         })
+}
+
+/// Whether the one key in a file, when its version is SLIP-132's, names
+/// the script type of a `kind` wallet: a `zpub` fills a native SegWit
+/// slot and no other. Costs a base58 decode per line.
+fn named_agrees(kind: NewKind, text: &str) -> bool {
+    use slip132::Script;
+    let around = match kind {
+        NewKind::NativeSegwit => Script::NativeSegwit,
+        NewKind::NestedSegwit => Script::NestedSegwit,
+        NewKind::Legacy => Script::Legacy,
+        NewKind::Multi => Script::NativeMultisig,
+        NewKind::MultiNested => Script::NestedMultisig,
+        NewKind::MultiLegacy => Script::LegacyMultisig,
+        NewKind::Taproot | NewKind::TapMulti | NewKind::Threshold | NewKind::MuSig => {
+            Script::Taproot
+        }
+    };
+    text.lines()
+        .filter_map(slip132::key_line)
+        .filter_map(Result::ok)
+        .all(|k| slip132::agrees(k.named, around))
 }
 
 /// Builds and reads back the wallet a creation describes.

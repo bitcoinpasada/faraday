@@ -4,6 +4,7 @@
 //! `bytes` only) does not write. The word list and the checksum are a
 //! copy of `osk-codec/src/ur/bytewords.rs` at upstream c418768, whose
 //! module is private to that crate; `osk-codec` reads what this writes.
+//! A later batch may fold this into `core/` (U3).
 
 fn crc32(data: &[u8]) -> u32 {
     let mut crc = 0xFFFF_FFFFu32;

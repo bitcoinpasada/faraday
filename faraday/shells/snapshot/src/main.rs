@@ -3332,10 +3332,22 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
         faraday_core::plan::Preset::PaperVaultSoftware,
         &[(qrow::FORM, 1)],
     );
-    t.press(Action::BStep(bstep::PUBLIC));
+    // Opened as the wallet's chart opens it: the items before it wait
+    // for the copies and the vaults, which this tour does not make.
+    t.press(Action::Chart(faraday_core::glance_sheet::ChartAction::Do(
+        faraday_core::glance::Press::Loaded(built),
+        faraday_core::glance_sheet::Step::Item(bstep::PUBLIC),
+    )));
     t.press(Action::PublicOut(built, 8));
     scroll_to(t, Action::PublicOut(built, 8));
     t.shot("public-backup")?;
+    // The files few people need, under More options (F64): the button,
+    // then the rows it shows.
+    scroll_to(t, Action::PublicMore(built));
+    t.shot("public-more")?;
+    t.press(Action::PublicMore(built));
+    scroll_to(t, Action::PublicOut(built, 10));
+    t.shot("public-more-open")?;
     // A GPG key made in the test vault: its public key and revocation,
     // and a signature, each as a code and a picture.
     let vault = testkit::files()?

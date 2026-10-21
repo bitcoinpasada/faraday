@@ -60,9 +60,9 @@ GnuPG: the key then signs and renews nothing.
 
 A signature covers exactly the bytes of the file. The page shows each
 file's name, size and SHA-256, and the text of a small text file. The
-SHA-256 is compared with a number from another computer before the
-signature is made, because a signature on a bad file cannot be
-withdrawn. The signature is `name.asc` beside the file. `gpg --verify
+SHA-256 is for comparing with the one another computer prints for the
+same file before the signature is made, because a signature on a bad
+file cannot be withdrawn. The signature is `name.asc` beside the file. `gpg --verify
 name.asc name` checks it with the public certificate.
 
 The signature states the time of this computer's clock. Sign shows

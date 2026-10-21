@@ -55,14 +55,15 @@ file at a time.
 - This repository is a full clone of `maxmoney21m/opensignerkit` with its
   history. The original is the git remote `upstream`; upstream changes
   are merged, not copied.
-- **No upstream file is edited.** Faraday uses the `osk-*` crates as a
-  library; the Wallets tab (`docs/WALLETS.md`) replaces OpenSigner's app, so
-  `opensigner-core` and `osk-shell-api` need no changes. The workspace
-  manifest is the one shared file.
+- **Since F65 Faraday maintains `core/` and `opensigner/` itself**, a soft
+  fork (`docs/UPSTREAM.md`, which lists every change). Faraday uses the
+  `osk-*` crates as a library; the Wallets tab (`docs/WALLETS.md`) replaces
+  OpenSigner's app. A change to `core/` or `opensigner/` never loosens a
+  check OpenSigner makes.
 - Where Faraday needs a variant of an upstream part (the image boards,
   the stick shell, `osk-ui` as `faraday-ui`), it is a copy under
-  `faraday/` recording the upstream commit it came from;
-  `just upstream-diff` lists upstream changes to the originals since.
+  `faraday/` recording the upstream commit it came from; `docs/UPSTREAM.md`
+  §4 says how upstream is watched.
 - `faraday-core` names OpenSigner's `osk-*` types directly, so an upstream
   change that breaks Faraday breaks there and nowhere else (`docs/WALLETS.md` §1).
 - Changes that would help OpenSigner too (a key held outside the core,

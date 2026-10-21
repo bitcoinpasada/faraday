@@ -1352,42 +1352,6 @@ pub(crate) fn json_object<'a>(text: &'a str, key: &str) -> Option<&'a str> {
     Some(&rest[..rest.find('}')? + 1])
 }
 
-/// An extended public key in BIP-32's own encoding, `xpub` or `tpub`,
-/// whichever SLIP-132 spelling it came in (`ypub`, `zpub`, `Ypub`, `Zpub`
-/// and their test-network forms). A key that is no extended public key is
-/// `None`.
-pub(crate) fn plain_xpub(key: &str) -> Option<String> {
-    use osk_bip::bitcoin::base58;
-    const MAIN: [[u8; 4]; 5] = [
-        [0x04, 0x88, 0xb2, 0x1e],
-        [0x04, 0x9d, 0x7c, 0xb2],
-        [0x04, 0xb2, 0x47, 0x46],
-        [0x02, 0x95, 0xb4, 0x3f],
-        [0x02, 0xaa, 0x7e, 0xd3],
-    ];
-    const TEST: [[u8; 4]; 5] = [
-        [0x04, 0x35, 0x87, 0xcf],
-        [0x04, 0x4a, 0x52, 0x62],
-        [0x04, 0x5f, 0x1c, 0xf6],
-        [0x02, 0x42, 0x89, 0xef],
-        [0x02, 0x57, 0x54, 0x83],
-    ];
-    let mut bytes = base58::decode_check(key.trim()).ok()?;
-    if bytes.len() != 78 {
-        return None;
-    }
-    let version: [u8; 4] = bytes[..4].try_into().ok()?;
-    let plain = if MAIN.contains(&version) {
-        MAIN[0]
-    } else if TEST.contains(&version) {
-        TEST[0]
-    } else {
-        return None;
-    };
-    bytes[..4].copy_from_slice(&plain);
-    Some(base58::encode_check(&bytes))
-}
-
 /// What a file holds, as far as this build is concerned.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileKind {
@@ -1395,6 +1359,11 @@ pub enum FileKind {
     Psbt,
     /// A wallet description.
     Wallet,
+    /// Another wallet's file that holds a private key or a seed beside its
+    /// public keys (an Electrum wallet file with an `xprv` or a `seed`,
+    /// `docs/INTEROP.md` §5 I6): a secret. It loads as the wallet its
+    /// public keys describe; nothing secret in it is read.
+    SecretWallet,
     /// A finished transaction, as hex.
     Transaction,
     /// A sheet to print on the desktop app.
@@ -1541,6 +1510,9 @@ pub fn classify(name: &str, bytes: &[u8]) -> FileKind {
         }
         if crate::restore::is_share(text) {
             return FileKind::Share;
+        }
+        if faraday_intake::wallet::holds_secret(text) {
+            return FileKind::SecretWallet;
         }
         if read_wallet(text).is_ok() {
             return FileKind::Wallet;

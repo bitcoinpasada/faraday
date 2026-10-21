@@ -610,3 +610,104 @@ fn through_a_2_of_3_checklist_the_cards_tick_what_is_done_and_the_rest_wait_for_
         Some(&titles[5]),
     );
 }
+
+/// Whether the backup's column offers `action` anywhere down it: scrolled
+/// from the top to the end, then back to the top.
+fn offered_anywhere(app: &mut Faraday, action: Action) -> bool {
+    let mut seen = false;
+    for _ in 0..20 {
+        app.settle();
+        let _ = app.frame();
+        seen |= app.offers(action);
+        app.event(Event::Scroll {
+            x: 400,
+            y: 384,
+            dy: 300,
+        });
+    }
+    for _ in 0..20 {
+        app.event(Event::Scroll {
+            x: 400,
+            y: 384,
+            dy: -300,
+        });
+    }
+    app.settle();
+    let _ = app.frame();
+    seen
+}
+
+/// Opens the checklist's public files item afresh: closed, then opened.
+fn reopen_public(app: &mut Faraday) {
+    if app.backup.as_ref().and_then(|b| b.open) == Some(bstep::PUBLIC) {
+        app.press(Action::BStep(bstep::PUBLIC));
+    }
+    app.press(Action::BStep(bstep::PUBLIC));
+    assert_eq!(
+        app.backup.as_ref().and_then(|b| b.open),
+        Some(bstep::PUBLIC)
+    );
+}
+
+#[test]
+fn public_files_under_more_options_show_only_once_it_is_pressed_and_none_is_made_unasked() {
+    let mut app = device(vec![vault_file()]);
+    let w = one_key(&mut app);
+    unlock(&mut app);
+    app.press(Action::Backup(w));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVaultSoftware);
+    app.press(Action::BAnswer(
+        qrow::SOFTWARE,
+        plan::software::SPARROW as u8,
+    ));
+    app.press(Action::BAnswer(qrow::FORM, plan::form::TEXT as u8));
+    press_offered(&mut app, Action::BChecklist);
+    if app.backup_items().contains(&bstep::BLANK) {
+        app.press(Action::BNext(bstep::BLANK));
+    }
+    // The items before the public files: the copy typed back, the vault.
+    app.press(Action::BReveal);
+    app.storage(StorageEvent::Cameras(Vec::new()));
+    press_offered(&mut app, Action::BCheck);
+    testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    press_offered(&mut app, Action::BStep(bstep::VAULT));
+    press_offered(&mut app, Action::BVaultSave(0));
+    // Making the checklist makes no file that is under More options.
+    let stem = faraday_core::file_stem(&app.session.wallets[w].name);
+    let electrum = format!("{stem}-electrum.json");
+    let core = format!("{stem}-bitcoin-core-before-29.json");
+    assert!(
+        !app.outbox
+            .iter()
+            .any(|i| i.name == electrum || i.name == core || i.name.ends_with("-wasabi.json")),
+        "{:?}",
+        app.outbox.iter().map(|i| &i.name).collect::<Vec<_>>()
+    );
+    reopen_public(&mut app);
+    // A fresh item: the button, none of the files under it.
+    assert!(offered_anywhere(&mut app, Action::PublicMore(w)));
+    for what in [9, 10] {
+        assert!(
+            !offered_anywhere(&mut app, Action::PublicOut(w, what)),
+            "{what}"
+        );
+    }
+    app.press(Action::PublicMore(w));
+    assert!(!offered_anywhere(&mut app, Action::PublicMore(w)));
+    for what in [9, 10] {
+        assert!(
+            offered_anywhere(&mut app, Action::PublicOut(w, what)),
+            "{what}"
+        );
+    }
+    // Left and opened again with none of them made: closed again.
+    reopen_public(&mut app);
+    assert!(offered_anywhere(&mut app, Action::PublicMore(w)));
+    // With one made, it opens open.
+    app.press(Action::PublicMore(w));
+    app.press(Action::PublicOut(w, 10));
+    assert!(app.outbox.iter().any(|i| i.name == electrum));
+    reopen_public(&mut app);
+    assert!(!offered_anywhere(&mut app, Action::PublicMore(w)));
+    assert!(offered_anywhere(&mut app, Action::PublicOut(w, 9)));
+}

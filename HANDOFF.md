@@ -137,6 +137,10 @@ payment outputs is left, which waits on upstream (BIP-375).
 
 ## Upstream
 
+Since 2026-10-20 Faraday maintains `core/` and `opensigner/` itself, a
+soft fork (F65); `docs/UPSTREAM.md` is the record of the fork point and
+every change. What follows is the history before that.
+
 The OpenSigner developer made §16.138 for forks like this one: code that
 defines bytes or answers a question without a screen lives in `core/`
 crates. New since the design started: `osk-backup` (the `.oskb` format, the
@@ -203,8 +207,9 @@ is dropped here when upstream has it):
 
 ## Decisions so far (all in the docs)
 
-- Trust model kept from OpenSigner; no upstream file edited; variants of
-  upstream parts are copies under `faraday/`; `faraday-core` names
+- Trust model kept from OpenSigner; since F65 Faraday changes `core/` and
+  `opensigner/` itself (`docs/UPSTREAM.md` lists each change, none loosens
+  a check); variants of upstream parts are copies under `faraday/`; `faraday-core` names
   OpenSigner's `osk-*` types directly, with no separate adapter crate.
 - USB "option B": no filesystem in the kernel; a `CAP_CHOWN`-only helper
   hands USB/SD partitions (never whole disks, never `OSKBOOT`) to an
@@ -1261,7 +1266,8 @@ as possible before the next build.
     logo centred. Create's key slots take Coldcard's, Passport's and
     Unchained's cosigner key files and the generic export's BIP-48 and
     BIP-45 accounts (`create::read_keys`, `key_for`: the account the
-    kind needs, SLIP-132 keys made `xpub`/`tpub` by `wallet::plain_xpub`);
+    kind needs, SLIP-132 keys made `xpub`/`tpub`, since 2026-10-20 only where the
+    version agrees with the path, by `faraday_intake::slip132`);
     the slot offers any file with such a key. A wallet reads from a
     receive and a change descriptor (one per line, or Core's
     `listdescriptors`, multisig first, else BIP-84, 86, 49, 44), a receive
@@ -1567,8 +1573,8 @@ as possible before the next build.
     **The owner gave that file to the OpenSigner developer** and is
     waiting for upstream's changes. Most of it is upstream's x86 fragment,
     which Faraday's is a copy of.
-    - **Order.** When upstream's changes land, merge them (`just
-      upstream-diff` lists them) and carry them into Faraday's copies under
+    - **Order.** When upstream's changes land, merge them (`git log
+      d26b84e..upstream/main` lists them) and carry them into Faraday's copies under
       `faraday/image/overlay/boards/`. What upstream does not take, or that
       is Faraday's alone (the disk process, the grant helper, the clean
       marker), Faraday does in its overlay. Ask the owner before starting
