@@ -7,8 +7,8 @@ use faraday_core::plan::{self, Item};
 use faraday_core::testkit;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent, bstep, qrow};
-use osk_shell_api::{App, Event, Key};
-use osk_ui::canvas::InkKind;
+use faraday_draw::canvas::InkKind;
+use faraday_shell_api::{App, Event, Key};
 
 const STICK: &str = "S1";
 

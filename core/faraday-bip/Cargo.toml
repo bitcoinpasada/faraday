@@ -1,0 +1,24 @@
+[package]
+name = "faraday-bip"
+version = "0.1.0"
+description = "BIP-39, BIP-32 keys, addresses and descriptors for OpenSignerKit, no_std + alloc"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+faraday-crypto = { path = "../faraday-crypto" }
+zeroize.workspace = true
+bitcoin.workspace = true
+miniscript.workspace = true
+
+[dev-dependencies]
+# A token that counts nothing, for the tests (docs/COMPUTE.md §3).
+faraday-crypto = { path = "../faraday-crypto", features = ["unchecked"] }
+bip39.workspace = true
+serde_json.workspace = true
+unicode-normalization.workspace = true
+
+[lints]
+workspace = true

@@ -242,7 +242,7 @@ impl Faraday {
         };
         self.sheet = Some(crate::Sheet::Learn);
         self.dirty = true;
-        self.commands.push_back(osk_shell_api::Command::Draw);
+        self.commands.push_back(faraday_shell_api::Command::Draw);
     }
 
     /// Shows the sheet's page `i`.

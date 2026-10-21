@@ -8,10 +8,10 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use faraday_codec::qr::{self, Ecc, Payload, QUIET_ZONE};
 use faraday_core::{Faraday, Sheet, StorageEvent, testkit};
+use faraday_shell_api::App;
 use faraday_storage::{Boxes, Dirs, serve_with, stick_info};
-use osk_codec::qr::{self, Ecc, Payload, QUIET_ZONE};
-use osk_shell_api::App;
 
 /// A test's own folder standing for the boot stick; removed when it drops.
 struct Stick(PathBuf);
@@ -34,7 +34,7 @@ fn photo(w: usize, h: usize) -> Vec<u8> {
             ((i % w) * 160 / w + (x % 64) as usize) as u8
         })
         .collect();
-    osk_codec::png::grey_png(w, h, &grey)
+    faraday_codec::png::grey_png(w, h, &grey)
 }
 
 /// A picture of one code holding `text`.
@@ -42,7 +42,7 @@ fn code(text: &str) -> Vec<u8> {
     let c = crate::testkit::compute();
     let m = qr::encode(&c, Payload::Bytes(text.as_bytes()), Ecc::Low).expect("a code");
     let (w, h, px) = m.to_luma(4, QUIET_ZONE);
-    osk_codec::png::grey_png(w, h, &px)
+    faraday_codec::png::grey_png(w, h, &px)
 }
 
 #[test]

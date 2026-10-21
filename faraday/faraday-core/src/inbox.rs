@@ -19,12 +19,12 @@ use crate::strings::EN;
 use crate::strings::fill;
 use std::collections::BTreeSet;
 
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_bip::bitcoin::hashes::{Hash, sha256};
-use osk_bip::codex32::Codex32;
-use osk_bip::keys::{Fingerprint, MasterKey};
-use osk_bip::slip39;
-use osk_crypto::work::Compute;
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::bitcoin::hashes::{Hash, sha256};
+use faraday_bip::codex32::Codex32;
+use faraday_bip::keys::{Fingerprint, MasterKey};
+use faraday_bip::slip39;
+use faraday_crypto::work::Compute;
 use zeroize::Zeroizing;
 
 use crate::create::NewKind;
@@ -153,9 +153,9 @@ struct SessionSeen {
     keys: Vec<(
         Fingerprint,
         String,
-        Option<osk_bip::bitcoin::secp256k1::PublicKey>,
+        Option<faraday_bip::bitcoin::secp256k1::PublicKey>,
     )>,
-    wallets: Vec<(String, osk_bip::policy::WalletPolicy)>,
+    wallets: Vec<(String, faraday_bip::policy::WalletPolicy)>,
 }
 
 impl SessionSeen {
@@ -287,10 +287,10 @@ pub struct FoundXpub {
 /// The single-key kind an account path's purpose says; `Err` for a
 /// multisig account (BIP-45, 48, 87), which is a cosigner's key and not a
 /// wallet on its own.
-fn kind_of_path(path: &osk_bip::bitcoin::bip32::DerivationPath) -> Result<Option<NewKind>, ()> {
+fn kind_of_path(path: &faraday_bip::bitcoin::bip32::DerivationPath) -> Result<Option<NewKind>, ()> {
     let purpose = path.into_iter().next().map(|c| match c {
-        osk_bip::bitcoin::bip32::ChildNumber::Hardened { index }
-        | osk_bip::bitcoin::bip32::ChildNumber::Normal { index } => *index,
+        faraday_bip::bitcoin::bip32::ChildNumber::Hardened { index }
+        | faraday_bip::bitcoin::bip32::ChildNumber::Normal { index } => *index,
     });
     match purpose {
         Some(44) => Ok(Some(NewKind::Legacy)),
@@ -344,18 +344,18 @@ impl Secret {
             }
             Secret::Slip39(shares) => {
                 let secret = slip39::recover(c, shares, passphrase.as_bytes()).ok()?;
-                let bytes = osk_crypto::SeedBytes::new(secret.expose().as_bytes())?;
+                let bytes = faraday_crypto::SeedBytes::new(secret.expose().as_bytes())?;
                 Some(MasterKey::from_seed_bytes(
                     c,
-                    &osk_crypto::Secret::new(bytes),
+                    &faraday_crypto::Secret::new(bytes),
                     network,
                 ))
             }
             Secret::Seed(s) => {
-                let bytes = osk_crypto::SeedBytes::new(s)?;
+                let bytes = faraday_crypto::SeedBytes::new(s)?;
                 Some(MasterKey::from_seed_bytes(
                     c,
-                    &osk_crypto::Secret::new(bytes),
+                    &faraday_crypto::Secret::new(bytes),
                     network,
                 ))
             }
@@ -416,8 +416,8 @@ impl Faraday {
         f: impl FnOnce() -> Option<Fingerprint>,
     ) -> Option<Fingerprint> {
         let mut e = sha256::Hash::engine();
-        osk_bip::bitcoin::hashes::HashEngine::input(&mut e, tag);
-        osk_bip::bitcoin::hashes::HashEngine::input(&mut e, secret);
+        faraday_bip::bitcoin::hashes::HashEngine::input(&mut e, tag);
+        faraday_bip::bitcoin::hashes::HashEngine::input(&mut e, secret);
         let id = sha256::Hash::from_engine(e).to_byte_array();
         if let Some((_, fp)) = self.fp_memo.borrow().iter().find(|(k, _)| *k == id) {
             return Some(*fp);
@@ -718,7 +718,7 @@ impl Faraday {
         // they name is not a potential wallet.
         let push_wallet = |found: &mut Found,
                            name: String,
-                           policy: osk_bip::policy::WalletPolicy,
+                           policy: faraday_bip::policy::WalletPolicy,
                            file: Option<usize>,
                            shares: bool,
                            loaded: bool| {
@@ -841,7 +841,7 @@ impl Faraday {
             let Some(key) = crate::create::read_key(&text) else {
                 continue;
             };
-            let Ok(parsed) = osk_bip::policy::PolicyKey::parse(&key) else {
+            let Ok(parsed) = faraday_bip::policy::PolicyKey::parse(&key) else {
                 continue;
             };
             let kind = match parsed.path().map(kind_of_path) {
@@ -1332,8 +1332,8 @@ impl Faraday {
             return;
         };
         let label = stem(&item.name);
-        use osk_backup::oskb::{Error, Opened};
-        let opened = osk_backup::oskb::open_payload(&c, &item.bytes, p.passphrase.as_bytes());
+        use faraday_backup::oskb::{Error, Opened};
+        let opened = faraday_backup::oskb::open_payload(&c, &item.bytes, p.passphrase.as_bytes());
         let result: Result<String, String> = match opened {
             Ok(Opened::Words(m)) => self
                 .session

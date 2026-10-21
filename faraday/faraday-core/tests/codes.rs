@@ -13,8 +13,8 @@ use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Code, Faraday, Screen, StickInfo, StorageEvent};
-use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
-use osk_ui::canvas::InkKind;
+use faraday_draw::canvas::InkKind;
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 /// The one code in a PNG, as text.
 fn read_png(png: &[u8]) -> String {
@@ -28,7 +28,7 @@ fn read_png(png: &[u8]) -> String {
 fn shown(app: &Faraday) -> String {
     let q = app.qr.as_ref().expect("no QR sheet");
     assert_eq!(q.frames.len(), 1, "{}: one code", q.title);
-    read_png(&osk_codec::png::qr_png(&q.frames[0], 4))
+    read_png(&faraday_codec::png::qr_png(&q.frames[0], 4))
 }
 
 /// The bytes of Outbox file `name`.
@@ -182,7 +182,7 @@ fn a_cosigners_key_reads_back_from_its_code_and_its_picture() {
     app.press(Action::CKeyQr(0));
     let q = app.qr.as_ref().unwrap();
     assert!(q.offers_png());
-    let sheet = osk_codec::png::qr_png(&q.frames[0], 4);
+    let sheet = faraday_codec::png::qr_png(&q.frames[0], 4);
     assert_eq!(key_scanned("sheet.png", &sheet), want);
     let l = label(&app);
     assert!(

@@ -1,7 +1,7 @@
 [package]
-name = "osk-fontbake"
+name = "faraday-fontbake"
 version = "0.1.0"
-description = "Build-time glyph outline baker for osk-ui; never runs on a device"
+description = "Build-time glyph outline baker for faraday-draw; never runs on a device"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
@@ -9,15 +9,15 @@ repository.workspace = true
 publish = false
 
 [[bin]]
-name = "osk-fontbake"
+name = "faraday-fontbake"
 path = "src/main.rs"
 
 [dependencies]
 # The glyph set is computed from the wordlists themselves, so it cannot
-# drift from them; `osk-crypto` checks the downloaded CJK fonts.
-osk-bip = { path = "../../core/osk-bip" }
-osk-crypto = { path = "../../core/osk-crypto" }
-osk-ui = { path = "../../core/osk-ui" }
+# drift from them; `faraday-crypto` checks the downloaded CJK fonts.
+faraday-bip = { path = "../../core/faraday-bip" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
+faraday-draw = { path = "../../core/faraday-draw" }
 ttf-parser.workspace = true
 
 [lints]

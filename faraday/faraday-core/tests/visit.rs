@@ -9,7 +9,7 @@ use faraday_core::wallet::FileKind;
 use faraday_core::{
     Action, Column, Faraday, Item, Screen, StickInfo, StorageCommand, StorageEvent,
 };
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 /// A stick with `n` PSBTs, a picture and a file Faraday does not read.
 fn with_stick(n: usize) -> Faraday {

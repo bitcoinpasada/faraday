@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 
 use faraday_core::wallet::{FileKind, Session};
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent, testkit};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_storage::{Boxes, Dirs, Host, serve_with};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// A test's own folder standing for Downloads; removed when it drops.
 struct Downloads(PathBuf);
@@ -100,9 +100,9 @@ fn noise(len: usize) -> Vec<u8> {
 }
 
 /// What a camera reads off one code.
-fn read(m: &osk_codec::qr::QrMatrix) -> Vec<u8> {
+fn read(m: &faraday_codec::qr::QrMatrix) -> Vec<u8> {
     let c = crate::testkit::compute();
-    let png = osk_codec::png::qr_png(m, 3);
+    let png = faraday_codec::png::qr_png(m, 3);
     let mut read = faraday_files::qr_in_png(&c, &png).expect("a picture");
     assert_eq!(read.len(), 1, "one code a frame");
     read.remove(0)

@@ -7,8 +7,8 @@ use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 use faraday_vault::records::{field, kind};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 const CODES: &str = "Gmail backup codes\n1234 5678\n2345 6789\n";
 

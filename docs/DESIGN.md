@@ -11,7 +11,7 @@ own frames inside the scanner's square and adds the camera-rotation
 setting (§4.9). It replaced UX.md §5 and
 §6 and the composition specs on 2026-09-09; UX.md keeps the jobs,
 the navigation and the flows. Every dimension in it is a name in
-`core/osk-ui/src/tokens.rs`, and `tools/lint-tokens.sh` keeps it that
+`core/faraday-draw/src/tokens.rs`, and `tools/lint-tokens.sh` keeps it that
 way.
 
 ## 1. Why this exists
@@ -160,7 +160,7 @@ screen names the signing key before anything is signed.
 ## 4. Content inventory
 
 Each kind: its one rendering, how it behaves, the component that
-implements it. Names in `code` are components in `osk-ui`.
+implements it. Names in `code` are components in `faraday-draw`.
 
 ### 4.1 Navigation
 
@@ -179,7 +179,7 @@ implements it. Names in `code` are components in `osk-ui`.
 | Kind | Rendering | Behaviour |
 |---|---|---|
 | Choice | A list of full-width rows (`choice_list`), one option per row; the chosen row carries an accent check; Continue at the bottom. The question is the title ("How many words?"). The rows are one group centred in the space above Continue; a list taller than the space scrolls from the top. | Tap checks (the list keeps its scroll position). Continue is dimmed until a row is checked; a default is pre-checked where one exists. Used for: source, word count, language, how a transaction arrives, script type, unit, network, timers. |
-| Multi choice | A list of full-width rows (Faraday's `Ui::multi_list`; no `osk-ui` component yet), one option per row, a checkbox at its start; any number ticked; Continue under it. The question is the card's or the page's title. A row that may not be ticked is dimmed and inert. Several lists may share a page, each under its own label. | Tap ticks or unticks the row. Nothing has to be ticked. Used for: the backup plan's Software card (the software and the form), on Back up and in the wallet flow. |
+| Multi choice | A list of full-width rows (Faraday's `Ui::multi_list`; no `faraday-draw` component yet), one option per row, a checkbox at its start; any number ticked; Continue under it. The question is the card's or the page's title. A row that may not be ticked is dimmed and inert. Several lists may share a page, each under its own label. | Tap ticks or unticks the row. Nothing has to be ticked. Used for: the backup plan's Software card (the software and the form), on Back up and in the wallet flow. |
 | Setting | The same rows with the check on the current value; no Continue. | Tap applies at once and the screen stays. Used inside Settings only. |
 | Pair | Two equal buttons side by side, the chosen one on the accent (`pair`). | Exactly two short options: Receive \| Change, One code \| Animated where a toggle does not fit. |
 | Toggle | A row with a switch (`toggle_row`). | A boolean setting; dimmed with a reason when forced. |

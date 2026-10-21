@@ -3,12 +3,12 @@
 //! the keys' Taproot accounts, and its count of signatures is always all
 //! of its keys.
 
+use faraday_bip::policy::WalletPolicy;
 use faraday_core::create::NewKind;
 use faraday_core::testkit;
 use faraday_core::wallet::Kind;
 use faraday_core::{Action, Faraday, cstep};
-use osk_bip::policy::WalletPolicy;
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 fn add_key(app: &mut Faraday, seed: &str) {
     app.press(Action::Entry(None));

@@ -10,7 +10,7 @@
 #
 #   tools/scripts/tapmulti-regtest.sh setup <datadir>
 #   cp <datadir>/wallet-tapmulti-first.psbt tools/vectors/psbt/
-#   cargo run -p osk-psbt --example tapmulti -- tools/vectors/psbt
+#   cargo run -p faraday-psbt --example tapmulti -- tools/vectors/psbt
 #   tools/scripts/tapmulti-regtest.sh accept <datadir> \
 #       tools/vectors/psbt/wallet-tapmulti-signed.psbt
 #   tools/scripts/tapmulti-regtest.sh stop <datadir>

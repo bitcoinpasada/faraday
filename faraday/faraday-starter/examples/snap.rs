@@ -12,6 +12,7 @@
 use std::path::Path;
 use std::process::ExitCode;
 
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::api::{
     BitLocker, BitLockerStep, Bus, Computer, Concern, DevImage, Disk, FaradayStick, InUse,
     InstallItem, Installed, Kind, Mode, Os, Payload, PayloadFile, Protection, Reason, RecoveryKey,
@@ -20,15 +21,14 @@ use faraday_starter::api::{
 use faraday_starter::decide::Target;
 use faraday_starter::notes::Notes;
 use faraday_starter::{LearnId, Starter, StarterAction};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// A token for the PDFs these snapshots make, counting nothing. Cheap.
 #[expect(
     clippy::disallowed_methods,
     reason = "a mint: the Starter's snapshots, which draw nothing"
 )]
-fn compute() -> osk_crypto::work::Compute {
-    osk_crypto::work::Compute::new(|_| {})
+fn compute() -> faraday_crypto::work::Compute {
+    faraday_crypto::work::Compute::new(|_| {})
 }
 
 const GB: u64 = 1_000_000_000;

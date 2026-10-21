@@ -5,7 +5,7 @@
 use faraday_core::catalog::{TILES, matches};
 use faraday_core::create::NewKind;
 use faraday_core::{Action, Faraday, Screen};
-use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 fn shown() -> Faraday {
     let mut app = Faraday::new();

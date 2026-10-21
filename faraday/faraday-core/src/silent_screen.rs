@@ -67,7 +67,7 @@ fn summary(app: &View, s: &SilentState, k: u8) -> String {
     match k {
         sstep::KEY => s
             .key
-            .map(|fp| fp_text(osk_bip::keys::Fingerprint(fp)))
+            .map(|fp| fp_text(faraday_bip::keys::Fingerprint(fp)))
             .unwrap_or_else(|| EN.silent_not_chosen.to_string()),
         sstep::ADDRESS => app
             .silent_shown()
@@ -239,7 +239,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
 }
 
 /// What a check came to, as a line and its tone.
-fn checked_text(r: &crate::silent_check::Checked) -> (String, osk_ui::Color) {
+fn checked_text(r: &crate::silent_check::Checked) -> (String, faraday_draw::Color) {
     use crate::silent_check::Checked;
     match r {
         Checked::Paid(paid) => {

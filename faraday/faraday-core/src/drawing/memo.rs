@@ -7,7 +7,7 @@
 
 use std::rc::Rc;
 
-use osk_bip::keys::Fingerprint;
+use faraday_bip::keys::Fingerprint;
 
 use super::View;
 use crate::backups::Entry;

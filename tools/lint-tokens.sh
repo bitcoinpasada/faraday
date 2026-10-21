@@ -2,11 +2,11 @@
 # Design-token lint (docs/DESIGN.md §3).
 #
 # Every dimension, size, ratio and timing of the design system is a name
-# in core/osk-ui/src/tokens.rs, so that changing a number changes it
+# in core/faraday-draw/src/tokens.rs, so that changing a number changes it
 # everywhere and a review is settled by editing one file. This lint fails
 # when a widget writes a layout number of its own instead.
 #
-# Checked: every file under core/osk-ui/src/widgets/ (the icon and the
+# Checked: every file under core/faraday-draw/src/widgets/ (the icon and the
 # keyboard). Not checked: tokens.rs itself, which is where the numbers
 # live.
 #
@@ -26,9 +26,9 @@ cd "$(dirname "$0")/.."
 FILES=()
 while IFS= read -r f; do
     FILES+=("$f")
-done < <(find core/osk-ui/src/widgets -name '*.rs' | sort)
+done < <(find core/faraday-draw/src/widgets -name '*.rs' | sort)
 
-TOKENS="core/osk-ui/src/tokens.rs"
+TOKENS="core/faraday-draw/src/tokens.rs"
 
 status=0
 

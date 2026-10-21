@@ -8,12 +8,12 @@
 
 use std::rc::Rc;
 
+use faraday_bip::bip39::Mnemonic;
+use faraday_bip::bitcoin::ScriptBuf;
+use faraday_bip::keys::{Fingerprint, Network};
+use faraday_bip::policy::WalletPolicy;
+use faraday_codec::qr::QrMatrix;
 use faraday_vault::Record;
-use osk_bip::bip39::Mnemonic;
-use osk_bip::bitcoin::ScriptBuf;
-use osk_bip::keys::{Fingerprint, Network};
-use osk_bip::policy::WalletPolicy;
-use osk_codec::qr::QrMatrix;
 
 use super::View;
 use crate::WalletKey;
@@ -145,7 +145,7 @@ impl View<'_> {
     ) -> plan::CopyChecks {
         self.copy_forms(b, i).checks(
             !self.cameras.is_empty(),
-            key.language == osk_bip::bip39::Language::English,
+            key.language == faraday_bip::bip39::Language::English,
         )
     }
 
@@ -438,7 +438,7 @@ impl View<'_> {
     /// PSBT's bytes; `None` with no spend open. Costs the session's
     /// account keys, a derivation per signature made here and the checks
     /// the first time.
-    pub(crate) fn nonce_check(&self, psbt: &osk_psbt::Psbt) -> Option<Rc<NonceCheck>> {
+    pub(crate) fn nonce_check(&self, psbt: &faraday_psbt::Psbt) -> Option<Rc<NonceCheck>> {
         let s = self.spend.as_ref()?;
         let bytes = psbt.to_bytes();
         let mut cache = s.nonce_check.borrow_mut();

@@ -19,7 +19,7 @@ use faraday_core::vaults::VaultAction as V;
 use faraday_core::{
     Action, BStage, Faraday, Screen, Sheet, StorageCommand, StorageEvent, bstep, testkit,
 };
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 type Files = Vec<(String, Vec<u8>)>;
 
@@ -475,7 +475,7 @@ fn a_wallet_loaded_from_its_vault_on_another_power_on_charts_the_vaults_plan() {
     // A vault made and open, the plan made with it, the seed and the
     // wallet saved into it.
     for i in 0..8u8 {
-        app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
             [0x40 + i; 32],
         )));
     }
@@ -593,7 +593,7 @@ fn the_layout_reads_wallet_first_or_backup_first_and_no_line_crosses_a_node() {
 fn vault_holding(app: &mut Faraday, w: usize, plan: bool) {
     let c = faraday_core::testkit::compute();
     for i in 0..8u8 {
-        app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
             [0x40 + i; 32],
         )));
     }

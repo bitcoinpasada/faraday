@@ -15,11 +15,11 @@
 //! `policy::check`).
 
 use crate::wallet::network_name;
+use faraday_bip::json::{self, Value};
+use faraday_bip::keys::Network;
+use faraday_bip::policy::{Template, WalletPolicy, Wrapper};
+use faraday_bip::slip132::{self, Script};
 use faraday_strings::{EN, fill};
-use osk_bip::json::{self, Value};
-use osk_bip::keys::Network;
-use osk_bip::policy::{Template, WalletPolicy, Wrapper};
-use osk_bip::slip132::{self, Script};
 
 /// Whether JSON is a Caravan config: it has `extendedPublicKeys` and
 /// `quorum`.

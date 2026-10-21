@@ -18,7 +18,7 @@
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_ui::widgets::Icon;
+use faraday_draw::widgets::Icon;
 
 use crate::compact::{buttons, scroll_sheet};
 use crate::screens::wrap_buttons;
@@ -353,7 +353,7 @@ impl Faraday {
             from: z.next,
         });
         self.dirty = true;
-        self.commands.push_back(osk_shell_api::Command::Draw);
+        self.commands.push_back(faraday_shell_api::Command::Draw);
     }
 
     /// Zeroing failed, or the stick's space could not be read.
@@ -396,7 +396,7 @@ impl Faraday {
         }
         self.visit.log.push((line, ok));
         self.dirty = true;
-        self.commands.push_back(osk_shell_api::Command::Draw);
+        self.commands.push_back(faraday_shell_api::Command::Draw);
     }
 }
 

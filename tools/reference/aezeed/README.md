@@ -1,13 +1,13 @@
 # LND's aezeed, AEZ v5, and the two Lightning node keys
 
-`docs/PLANNING.md` §16.116. `osk_bip::aezeed` and `osk_bip::aez` are
+`docs/PLANNING.md` §16.116. `faraday_bip::aezeed` and `faraday_bip::aez` are
 written from the sources named here, never from a summary. Each file
 read is listed with the commit it was read at and its SHA-256, so a
 later change to a source shows up as a change to this page.
 
 Only one thing is vendored: `aez-testdata/`, the seven JSON vector files
 the AEZ reference implementation publishes, copied byte for byte and
-read by `core/osk-bip/tests/aez.rs`. Everything else was cloned to read
+read by `core/faraday-bip/tests/aez.rs`. Everything else was cloned to read
 and nothing else is kept.
 
 | Source | URL | Commit | Read |
@@ -114,7 +114,7 @@ var englishWordList = `abandon
 
 The 2048 words of that literal, each followed by a newline, hash to
 `2f5eed53a4727b4bf8880d8f3f199efc90e58503646d9ff8eff3a2ed3b24dbda`,
-which is the digest `core/osk-bip/src/wordlists/english.rs` already
+which is the digest `core/faraday-bip/src/wordlists/english.rs` already
 records for the BIP's own file. So the tool types an aezeed on the
 English wordlist this device already carries.
 
@@ -159,7 +159,7 @@ entropy=81b637d86359e6960de795e41e0b4cfd coin=1
 ```
 
 `lncli` publishes no worked example of a node key from a seed, so this
-is the vector `core/osk-bip/src/aezeed.rs` asserts.
+is the vector `core/faraday-bip/src/aezeed.rs` asserts.
 
 ## 4. LND's own vectors are not decodable by LND
 
@@ -181,7 +181,7 @@ vectors state were therefore enciphered under `scrypt(N = 16)`, and a
 released LND, which uses `N = 32768`, cannot read them. They are
 vectors of the scheme, not of the product.
 
-`osk_bip::aezeed::decode_at_cost` exists for exactly this: the published
+`faraday_bip::aezeed::decode_at_cost` exists for exactly this: the published
 words are checked at `N = 16`, and the same three seeds — same entropy,
 same salt, same birthday, same passphrases — re-enciphered at the
 production cost are checked through `decode`. Those three were produced
@@ -214,7 +214,7 @@ func extract(k []byte, extractedKey *[extractedKeySize]byte) {
 
 `extractedKeySize` is 48, and LND's key is scrypt's 32 bytes, so every
 aezeed decode runs BLAKE2b with a 48-byte digest. That is why
-`osk_crypto::blake2b` exists.
+`faraday_crypto::blake2b` exists.
 
 The round function, `round_vartime.go`, is AES's with MixColumns kept in
 the last round and no key added before the first:
@@ -248,7 +248,7 @@ and the two key schedules:
 
 `aes4Key` is sixteen words and only twelve are written, so the fourth
 round key is all zeros. `aez.go`'s `aezHash`, `aezPRF`, `aezCore` and
-`aezTiny` are ported line for line into `core/osk-bip/src/aez.rs`; a
+`aezTiny` are ported line for line into `core/faraday-bip/src/aez.rs`; a
 23-byte ciphertext — which is what an aezeed is — takes the `aezTiny`
 branch with an odd length, so the half-byte shift in it is on the path
 every decode runs.

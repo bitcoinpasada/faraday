@@ -73,6 +73,7 @@ use std::time::{Duration, Instant};
 
 use faraday_core::strings::{EN, fill};
 use faraday_core::{Action, BOOT_FOLDER, Faraday, Screen, StickInfo, StorageEvent};
+use faraday_shell_api::{App, Command, Event};
 use faraday_storage::{Boxes, Dirs, Host, serve_with, stick_info};
 use faraday_window::camera::{self, Camera};
 use faraday_window::clipboard::Clipboard;
@@ -81,7 +82,6 @@ use faraday_window::input::Pointer;
 use faraday_window::lens::{Lens, LensHost};
 use faraday_window::pace::{Pacer, TICK};
 use faraday_window::view::{self, View};
-use osk_shell_api::{App, Command, Event};
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalSize};
 use winit::event::WindowEvent;
@@ -992,7 +992,7 @@ mod tests {
         assert!(app.session.add_words(&c, other, "", None).is_ok());
         let mut app = desktop_app();
         app.press(faraday_core::Action::Network(
-            osk_bip::keys::Network::Mainnet,
+            faraday_bip::keys::Network::Mainnet,
         ));
         assert!(app.session.network().is_mainnet());
         assert!(app.session.add_words(&c, other, "", None).is_err());

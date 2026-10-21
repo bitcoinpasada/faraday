@@ -8,7 +8,7 @@ use common::{CLOCK, Shell, no_words, process, type_text};
 use faraday_core::plan::Item;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageEvent, bstep};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// Test keys 1 and 2 typed in and the 2-of-3 over the three test keys
 /// loaded: two of its seeds here, the third a cosigner's. Returns the
@@ -51,7 +51,7 @@ fn later(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
         memory_mib: None,
     }));
     for i in 0..8u8 {
-        app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
             [0x60 + i; 32],
         )));
     }

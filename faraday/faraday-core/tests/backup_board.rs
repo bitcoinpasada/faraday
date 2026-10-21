@@ -13,6 +13,7 @@
 mod common;
 
 use common::*;
+use faraday_bip::keys::Fingerprint;
 use faraday_core::backup_flow::{BackupFlow, Step, Target};
 use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::create::NewKind;
@@ -21,8 +22,7 @@ use faraday_core::plan::{
 };
 use faraday_core::testkit;
 use faraday_core::{Action, BStage, Faraday, Screen, Sheet, bstep, cstep, qstep};
-use osk_bip::keys::Fingerprint;
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 const PHRASE: &str = "first vault phrase";
 
@@ -787,7 +787,7 @@ fn a_seeds_words_file_on_a_stick_is_made_only_past_the_warning() {
 // ---- the board, as a person uses it (§19.1, §19.2, §19.3, §19.5) ----
 
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
-use osk_shell_api::TouchPhase;
+use faraday_shell_api::TouchPhase;
 
 /// A 2-of-3 made in Create over three keys typed in here, its backup
 /// opened from the wallet with no plan yet (the board on The standard
@@ -1640,7 +1640,7 @@ fn after_the_lock_the_flows_board_keeps_paper_and_files_and_changes_vaults() {
 
 /// The display of a small panel: the `compact` layout, the narrow column.
 fn narrow(app: &mut Faraday) {
-    app.event(Event::Display(osk_shell_api::DisplayInfo {
+    app.event(Event::Display(faraday_shell_api::DisplayInfo {
         width: 480,
         height: 640,
         dpi: 286,
@@ -1648,8 +1648,8 @@ fn narrow(app: &mut Faraday) {
         inset_top: 0,
         buttons: 0,
         camera_fixed: false,
-        secure: osk_shell_api::SecureHardware::None,
-        boot: osk_shell_api::BootState::Unknown,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
         memory_mib: None,
     }));
     app.settle();

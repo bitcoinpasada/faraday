@@ -3,7 +3,7 @@
 //! a path's purpose names, and a path that is not one named as such.
 
 use faraday_core::{Action, Faraday, Screen};
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 fn exploring() -> Faraday {
     let mut app = faraday_core::testkit::started();

@@ -15,7 +15,7 @@ digest changed for a reason.
 |---|---|---|---|
 | `bip-0085.mediawiki` | 2026-09-19 | `dcbeb97709eba4751f4af7dc582c35dff37dc831abb5adc5e2e975d708d1cf7e` | `extract.py`, people |
 | `extract.py` | written here | `dda5e2e94178f345b15a560564f15d3bc246b61d965b1550bb527adbdf7aaf37` | people |
-| `vectors.json` | 2026-09-19 | `018e89f952067120373fe029bbb24be768ac1973bcc6106c5510ba647948ff94` | `core/osk-bip/tests/bip85.rs` |
+| `vectors.json` | 2026-09-19 | `018e89f952067120373fe029bbb24be768ac1973bcc6106c5510ba647948ff94` | `core/faraday-bip/tests/bip85.rs` |
 
 `vectors.json` has three keys:
 
@@ -28,7 +28,7 @@ digest changed for a reason.
   not implemented here, and the entropy is checked through the
   applications that use it.
 - `applications` — one list per application this tree derives, keyed by
-  the name used in `core/osk-bip/src/bip85.rs`: `bip39`, `wif`, `xprv`,
+  the name used in `core/faraday-bip/src/bip85.rs`: `bip39`, `wif`, `xprv`,
   `hex`, `base64` and `base85`. Every entry carries the BIP's heading,
   its path, the parameters read back out of that path, the derived
   entropy and the application's own output.
@@ -36,7 +36,7 @@ digest changed for a reason.
 The applications the BIP defines that this tree does not derive — RSA,
 RSA GPG, DICE and Nostr — are skipped by the script.
 
-`core/osk-bip/tests/bip85.rs` reads the file whole and derives every
+`core/faraday-bip/tests/bip85.rs` reads the file whole and derives every
 entry from the master key: the three English mnemonics, the HD-seed WIF,
 the extended private key, the 64 bytes of hex and the two passwords.
 
@@ -46,4 +46,4 @@ BIP-85's application 707785' says only "Base85 encode all 64 bytes of
 entropy" and names no alphabet. Its published password, `` _s`{TW89)i4` ``,
 is in RFC 1924's alphabet and in no other one in use: Ascii85's runs
 from `!` to `u` and holds neither `` ` `` nor `{`. The alphabet is
-written out in `core/osk-bip/src/bip85.rs` with that reasoning beside it.
+written out in `core/faraday-bip/src/bip85.rs` with that reasoning beside it.

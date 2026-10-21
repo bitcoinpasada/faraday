@@ -1,7 +1,7 @@
 //! Vanity addresses (`docs/OPENSIGNER-PARITY.md` C4): a loaded key's
 //! first address made to begin with characters the person chose, by
 //! turning one of the key's two dials, the account index or a suffix on
-//! its BIP-39 passphrase. The engine is upstream's (`osk_bip::vanity`)
+//! its BIP-39 passphrase. The engine is upstream's (`faraday_bip::vanity`)
 //! and so is the state between frames (`crate::grind::Grind`):
 //! every tick tests a budget of candidates and comes back, so the screen
 //! stays live and Stop lands. A find is a fact about the key, the same on
@@ -10,8 +10,8 @@
 use crate::grind::{Dial, Grind, Step};
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_bip::keys::{Fingerprint, ScriptType};
-use osk_bip::vanity::{self as engine, Key, Method};
+use faraday_bip::keys::{Fingerprint, ScriptType};
+use faraday_bip::vanity::{self as engine, Key, Method};
 use zeroize::Zeroizing;
 
 use crate::create::NewKind;
@@ -83,7 +83,7 @@ pub struct VanityState {
 
 /// A script type's name, as the cards say it, with the characters its
 /// addresses begin with on `net`.
-pub fn script_name(s: ScriptType, net: osk_bip::keys::Network) -> String {
+pub fn script_name(s: ScriptType, net: faraday_bip::keys::Network) -> String {
     let name = match s {
         ScriptType::Legacy => EN.vanity_legacy,
         ScriptType::NestedSegwit => EN.vanity_nested_segwit,
@@ -288,7 +288,7 @@ impl Faraday {
             v.error = Some(EN.vanity_every_counter.into());
         }
         self.dirty = true;
-        self.commands.push_back(osk_shell_api::Command::Draw);
+        self.commands.push_back(faraday_shell_api::Command::Draw);
         true
     }
 
@@ -391,8 +391,8 @@ impl Faraday {
 
     /// Typing on the vanity screen: the prefix's characters, Backspace,
     /// Enter to go on. Returns whether the key was taken.
-    pub(crate) fn vanity_key_in(&mut self, k: osk_shell_api::Key) -> bool {
-        use osk_shell_api::Key as K;
+    pub(crate) fn vanity_key_in(&mut self, k: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
         if self.screen != Screen::Vanity {
             return false;
         }

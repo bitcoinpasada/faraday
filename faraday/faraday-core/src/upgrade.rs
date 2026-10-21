@@ -27,7 +27,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_shell_api::Command;
+use faraday_shell_api::Command;
 
 use crate::{BootPart, Faraday, Screen, Sheet, StorageCommand, StorageEvent};
 

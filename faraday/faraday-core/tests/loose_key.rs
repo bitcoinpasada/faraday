@@ -8,7 +8,7 @@
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::wallet::{Session, fp_text, key_line, needed};
 use faraday_core::{Action, Faraday, Screen};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 /// BIP-84's test mnemonic.
 const ABANDON: &str = "abandon abandon abandon abandon abandon abandon \
@@ -124,7 +124,7 @@ fn back_from_the_seeds_card_returns_to_wallets_with_the_key() {
 fn a_key_with_no_label_is_named_by_its_fingerprint_once() {
     let mut app = desktop();
     let fp = add_key(&mut app, ABANDON);
-    let f = osk_bip::keys::Fingerprint(fp);
+    let f = faraday_bip::keys::Fingerprint(fp);
     let line = key_line(f, app.session.key_label(f).unwrap_or(""));
     assert_eq!(line, fp_text(f));
 }

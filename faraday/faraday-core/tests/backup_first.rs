@@ -10,6 +10,7 @@
 mod common;
 
 use common::{no_paper_description, no_words};
+use faraday_bip::keys::Fingerprint;
 use faraday_core::create::NewKind;
 use faraday_core::keygen::Way;
 use faraday_core::plan::{CHECK_LINES, Item, Preset};
@@ -20,8 +21,7 @@ use faraday_core::wallet::fp_text;
 use faraday_core::{
     Action, BStage, Faraday, Screen, StorageCommand, StorageEvent, bstep, cstep, qstep,
 };
-use osk_bip::keys::Fingerprint;
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 const WARNING: &str = "Back up before you receive";
 
@@ -57,7 +57,7 @@ fn device(inbox: Vec<(String, Vec<u8>)>, height: u16) -> Faraday {
     });
     // The system's randomness, which a new vault draws on.
     for i in 0..8u8 {
-        app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
             [0x40 + i; 32],
         )));
     }

@@ -1,4 +1,4 @@
-//! `osk_codec::seedqr::from_digits` and `from_entropy`: the two ways a
+//! `faraday_codec::seedqr::from_digits` and `from_entropy`: the two ways a
 //! scanned SeedQR becomes a mnemonic.
 //!
 //! The first byte picks the wordlist, the rest is the payload, so one
@@ -7,8 +7,8 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use osk_bip::bip39::Language;
-use osk_codec::seedqr;
+use faraday_bip::bip39::Language;
+use faraday_codec::seedqr;
 
 fuzz_target!(|data: &[u8]| {
     let Some((&first, rest)) = data.split_first() else {

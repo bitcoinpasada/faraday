@@ -4,7 +4,7 @@
 //! step card grows open and comes to rest where it would have jumped to.
 
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 fn shown() -> Faraday {
     let mut app = Faraday::new();

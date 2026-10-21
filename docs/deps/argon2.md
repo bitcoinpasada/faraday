@@ -12,7 +12,7 @@ authors as `sha2`, `hmac` and `chacha20poly1305`, which are already in
 the graph, and it carries the RFC 9106 test vectors. It is `no_std` and
 does not need an allocator: `hash_password_into_with_memory` takes the
 working memory as a `&mut [Block]` the caller owns, which is how
-`osk_backup::argon2id` calls it for the kept-key blob, an `osk-backup`
+`faraday_backup::argon2id` calls it for the kept-key blob, an `.oskb`
 file and a KDBX database alike, so the 64 MiB is allocated once at the
 one moment a file or blob is written or opened and overwritten before
 it is dropped. Writing

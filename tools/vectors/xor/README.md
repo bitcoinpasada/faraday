@@ -36,7 +36,7 @@ The mnemonics are the standard BIP-39 encoding of those bytes.
 
 Because the files were not taken from a published source, the test that
 reads them (`opensigner/opensigner-core/tests/xor.rs`) does not trust
-either the files or `osk_entropy::SeedXor` alone. It recovers each
+either the files or `faraday_entropy::SeedXor` alone. It recovers each
 mnemonic's entropy by packing the 11-bit word indices itself, checks the
 BIP-39 checksum itself, XORs the parts with a plain byte fold, and
 compares all three answers: the file's hex, its own computation, and

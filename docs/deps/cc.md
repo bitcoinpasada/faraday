@@ -2,7 +2,7 @@
 
 **Where it is used:**
 
-- `opensigner/shells/avfoundation` (`opensigner-avfoundation`), as a
+- `faraday/shells/avfoundation` (`faraday-avfoundation`), as a
   build dependency under
   `[target.'cfg(target_os = "macos")'.build-dependencies]`. The desktop
   shell depends on that crate under
@@ -31,7 +31,7 @@ existing one usable by our own build script.
 gets a camera library: each shell captures through the operating
 system's own interface with code we write and can read. On macOS that
 interface is AVFoundation, which is Objective-C. Rust cannot call it
-directly, so the capture is `opensigner-avfoundation/src/camera.m` —
+directly, so the capture is `faraday-avfoundation/src/camera.m` —
 about two hundred lines with ARC — behind a three-function C ABI. `cc`
 is what compiles that file and links the frameworks.
 
@@ -61,7 +61,7 @@ Nothing changes on any other platform.
 **Risk.** `cc` runs the system compiler at build time, which is what it
 is for and what `secp256k1-sys` already has it do. It does not affect a
 release binary's contents beyond compiling our own source. The exposure
-this addition really adds is the `unsafe` in `opensigner-avfoundation`
+this addition really adds is the `unsafe` in `faraday-avfoundation`
 and `faraday-mediafoundation`, which is those crates' business: each is
 an exception to the workspace's `unsafe_code = "forbid"`, its
 `Cargo.toml` says so, every block carries a `// SAFETY:` comment, and

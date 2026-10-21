@@ -13,7 +13,7 @@ use faraday_core::glance_sheet::{ChartAction as C, Step, Target};
 use faraday_core::plan::{At, Edit, Found, Lost, Mark, What};
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, BStage, Faraday, Screen, Sheet, StorageCommand, StorageEvent, testkit};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 type Files = Vec<(String, Vec<u8>)>;
 
@@ -112,7 +112,7 @@ fn settle(app: &mut Faraday, until: impl Fn(&Faraday) -> bool) {
 /// A vault made and unlocked, with the passphrase "test phrase".
 fn fresh_vault(app: &mut Faraday) {
     for i in 0..8u8 {
-        app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
             [0x40 + i; 32],
         )));
     }

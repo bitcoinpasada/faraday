@@ -13,19 +13,19 @@
 //! seeds `examples/wallet_2of3_demo.rs` uses, at coin type 1 rather
 //! than that example's mainnet path; its spend's txid is [`SPEND_TXID`].
 
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_bip::bitcoin::absolute::LockTime;
-use osk_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
-use osk_bip::bitcoin::hashes::{Hash, sha256};
-use osk_bip::bitcoin::secp256k1::{Secp256k1, XOnlyPublicKey};
-use osk_bip::bitcoin::transaction::Version;
-use osk_bip::bitcoin::{
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::bitcoin::absolute::LockTime;
+use faraday_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
+use faraday_bip::bitcoin::hashes::{Hash, sha256};
+use faraday_bip::bitcoin::secp256k1::{Secp256k1, XOnlyPublicKey};
+use faraday_bip::bitcoin::transaction::Version;
+use faraday_bip::bitcoin::{
     Address, Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness,
 };
-use osk_bip::keys::{MasterKey, Network};
-use osk_bip::miniscript::psbt::PsbtExt;
-use osk_bip::policy::WalletPolicy;
-use osk_psbt::Psbt;
+use faraday_bip::keys::{MasterKey, Network};
+use faraday_bip::miniscript::psbt::PsbtExt;
+use faraday_bip::policy::WalletPolicy;
+use faraday_psbt::Psbt;
 
 use crate::wallet::Session;
 
@@ -46,8 +46,8 @@ pub const TEST_SEEDS: [(&str, &str); 3] = [
     clippy::disallowed_methods,
     reason = "a mint: Faraday's tests (docs/COMPUTE.md §3)"
 )]
-pub fn compute() -> osk_crypto::work::Compute {
-    osk_crypto::work::Compute::new(crate::work::core_count)
+pub fn compute() -> faraday_crypto::work::Compute {
+    faraday_crypto::work::Compute::new(crate::work::core_count)
 }
 
 /// The words of a test seed.
@@ -126,7 +126,7 @@ pub fn three_of_five() -> String {
     let p: DerivationPath = "m/48'/1'/0'/2'".parse().expect("path");
     let keys: Vec<String> = (1u8..=5)
         .map(|b| {
-            let m = MasterKey::from_seed(&c, &osk_crypto::Secret::new([b; 64]), NET);
+            let m = MasterKey::from_seed(&c, &faraday_crypto::Secret::new([b; 64]), NET);
             format!(
                 "[{}/48h/1h/0h/2h]{}/<0;1>/*",
                 m.fingerprint(),
@@ -248,10 +248,10 @@ fn definite(
     change: bool,
     index: u32,
 ) -> Result<
-    osk_bip::miniscript::Descriptor<osk_bip::miniscript::descriptor::DefiniteDescriptorKey>,
+    faraday_bip::miniscript::Descriptor<faraday_bip::miniscript::descriptor::DefiniteDescriptorKey>,
     String,
 > {
-    use osk_bip::miniscript::descriptor::{Descriptor, DescriptorPublicKey};
+    use faraday_bip::miniscript::descriptor::{Descriptor, DescriptorPublicKey};
     let text = policy.to_descriptor();
     if text.contains("sortedmulti_a(") {
         let secp = Secp256k1::verification_only();
@@ -351,7 +351,7 @@ pub fn unsigned(kit: &Kit) -> Result<Psbt, String> {
             },
         ],
     };
-    let mut psbt = osk_bip::bitcoin::Psbt::from_unsigned_tx(tx).map_err(|e| e.to_string())?;
+    let mut psbt = faraday_bip::bitcoin::Psbt::from_unsigned_tx(tx).map_err(|e| e.to_string())?;
     let segwit =
         !kit.descriptor.starts_with("pkh(") && !kit.descriptor.starts_with("sh(sortedmulti");
     if segwit {
@@ -516,13 +516,16 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
     // or a coordinator's export leaves one on a stick.
     for id in ["savings", "spending", "nested"] {
         if let Some(kit) = kits().into_iter().find(|k| k.id == id) {
-            let m = osk_codec::qr::encode(
+            let m = faraday_codec::qr::encode(
                 &c,
-                osk_codec::qr::Payload::Bytes(kit.descriptor.as_bytes()),
-                osk_codec::qr::Ecc::Medium,
+                faraday_codec::qr::Payload::Bytes(kit.descriptor.as_bytes()),
+                faraday_codec::qr::Ecc::Medium,
             )
             .map_err(|e| format!("{e:?}"))?;
-            out.push((format!("{id}-wallet-qr.png"), osk_codec::png::qr_png(&m, 6)));
+            out.push((
+                format!("{id}-wallet-qr.png"),
+                faraday_codec::png::qr_png(&m, 6),
+            ));
         }
     }
     // The three test seeds in every form a seed comes in, and their
@@ -541,12 +544,15 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
             )
             .into_bytes(),
         ));
-        let qr = osk_codec::seedqr::encode_seedqr(&c, &m).map_err(|e| format!("{e:?}"))?;
-        out.push((format!("{stem}-seedqr.png"), osk_codec::png::qr_png(&qr, 8)));
-        let qr = osk_codec::seedqr::encode_compact(&c, &m).map_err(|e| format!("{e:?}"))?;
+        let qr = faraday_codec::seedqr::encode_seedqr(&c, &m).map_err(|e| format!("{e:?}"))?;
+        out.push((
+            format!("{stem}-seedqr.png"),
+            faraday_codec::png::qr_png(&qr, 8),
+        ));
+        let qr = faraday_codec::seedqr::encode_compact(&c, &m).map_err(|e| format!("{e:?}"))?;
         out.push((
             format!("{stem}-compactseedqr.png"),
-            osk_codec::png::qr_png(&qr, 8),
+            faraday_codec::png::qr_png(&qr, 8),
         ));
         out.push((format!("{stem}.oskb"), test_backup(n)?));
         // The account xpubs a cosigner's device exports.
@@ -582,10 +588,10 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
         )
         .map_err(|e| e.text())?;
     let text = "Faraday test message: this address belongs to test key 1.";
-    let signed = one.sign_message(&c, i, 0, text, osk_psbt::message::Format::Bip322)?;
+    let signed = one.sign_message(&c, i, 0, text, faraday_psbt::message::Format::Bip322)?;
     out.push((
         "spending-message.txt".to_string(),
-        osk_psbt::message::signed_text(&signed.address, &signed.signature, text).into_bytes(),
+        faraday_psbt::message::signed_text(&signed.address, &signed.signature, text).into_bytes(),
     ));
     Ok(out)
 }
@@ -620,43 +626,43 @@ pub fn musig_policy() -> Result<WalletPolicy, String> {
     WalletPolicy::from_parts(&c, "tr(musig(@0,@1,@2)/**)", &refs).map_err(|e| e.to_string())
 }
 
-fn taproot_account(n: usize) -> osk_bip::bitcoin::bip32::Xpub {
+fn taproot_account(n: usize) -> faraday_bip::bitcoin::bip32::Xpub {
     let c = compute();
     *master(TEST_SEEDS[n].0)
-        .account_xpub(&c, osk_bip::keys::ScriptType::Taproot, 0)
+        .account_xpub(&c, faraday_bip::keys::ScriptType::Taproot, 0)
         .expect("account")
         .xpub()
 }
 
 /// The tweaks from the root aggregate to the output key at chain/index,
-/// and the internal key on the way (`osk-psbt`'s MuSig2 test, for three).
+/// and the internal key on the way (`faraday-psbt`'s MuSig2 test, for three).
 fn musig_tweaks(
-    participants: &[osk_bip::bitcoin::secp256k1::PublicKey],
+    participants: &[faraday_bip::bitcoin::secp256k1::PublicKey],
     change: bool,
     index: u32,
 ) -> Result<
     (
-        Vec<osk_bip::musig::Tweak>,
-        osk_bip::bitcoin::secp256k1::PublicKey,
+        Vec<faraday_bip::musig::Tweak>,
+        faraday_bip::bitcoin::secp256k1::PublicKey,
     ),
     String,
 > {
-    use osk_bip::bitcoin::taproot::TapTweakHash;
+    use faraday_bip::bitcoin::taproot::TapTweakHash;
     let secp = Secp256k1::verification_only();
     let mut xpub =
-        osk_bip::musig::aggregate_xpub(participants, NET).map_err(|e| format!("{e:?}"))?;
+        faraday_bip::musig::aggregate_xpub(participants, NET).map_err(|e| format!("{e:?}"))?;
     let mut tweaks = Vec::new();
     for step in [u32::from(change), index] {
         let child = ChildNumber::from_normal_idx(step).map_err(|e| e.to_string())?;
         let (tweak, _) = xpub.ckd_pub_tweak(child).map_err(|e| e.to_string())?;
-        tweaks.push(osk_bip::musig::Tweak {
+        tweaks.push(faraday_bip::musig::Tweak {
             bytes: tweak.secret_bytes(),
             x_only: false,
         });
         xpub = xpub.ckd_pub(&secp, child).map_err(|e| e.to_string())?;
     }
     let internal = xpub.public_key;
-    tweaks.push(osk_bip::musig::Tweak {
+    tweaks.push(faraday_bip::musig::Tweak {
         bytes: TapTweakHash::from_key_and_tweak(internal.x_only_public_key().0, None)
             .to_byte_array(),
         x_only: true,
@@ -694,15 +700,15 @@ pub fn musig_unsigned() -> Result<Psbt, String> {
             script_pubkey: recipient.script_pubkey(),
         }],
     };
-    let mut inner = osk_bip::bitcoin::Psbt::from_unsigned_tx(tx).map_err(|e| e.to_string())?;
+    let mut inner = faraday_bip::bitcoin::Psbt::from_unsigned_tx(tx).map_err(|e| e.to_string())?;
     inner.inputs[0].witness_utxo = Some(fund.output[0].clone());
     let keys: Vec<_> = (0..3).map(|n| taproot_account(n).public_key).collect();
-    let participants = osk_bip::musig::sort_keys(&keys);
+    let participants = faraday_bip::musig::sort_keys(&keys);
     let (_, internal) = musig_tweaks(&participants, false, 0)?;
     let internal = internal.x_only_public_key().0;
     inner.inputs[0].tap_internal_key = Some(internal);
     let aggregate =
-        osk_bip::musig::aggregate_xpub(&participants, NET).map_err(|e| format!("{e:?}"))?;
+        faraday_bip::musig::aggregate_xpub(&participants, NET).map_err(|e| format!("{e:?}"))?;
     let mut origins = BTreeMap::new();
     origins.insert(
         internal,
@@ -724,7 +730,7 @@ pub fn musig_unsigned() -> Result<Psbt, String> {
             (
                 Vec::new(),
                 (
-                    osk_bip::bitcoin::bip32::Fingerprint::from(m.fingerprint().0),
+                    faraday_bip::bitcoin::bip32::Fingerprint::from(m.fingerprint().0),
                     "m/86'/1'/0'"
                         .parse::<DerivationPath>()
                         .map_err(|e| format!("{e}"))?,
@@ -734,10 +740,11 @@ pub fn musig_unsigned() -> Result<Psbt, String> {
     }
     inner.inputs[0].tap_key_origins = origins;
     let secp = Secp256k1::verification_only();
-    let root = osk_bip::musig::key_agg_with(&secp, &participants).map_err(|e| format!("{e:?}"))?;
-    osk_psbt::musig::write_input_participants(
+    let root =
+        faraday_bip::musig::key_agg_with(&secp, &participants).map_err(|e| format!("{e:?}"))?;
+    faraday_psbt::musig::write_input_participants(
         &mut inner.inputs[0],
-        &osk_psbt::musig::Participants {
+        &faraday_psbt::musig::Participants {
             aggregate: root.public_key(),
             keys: participants,
         },
@@ -747,7 +754,7 @@ pub fn musig_unsigned() -> Result<Psbt, String> {
 
 /// The key-path sighash of the first input.
 fn key_path_sighash(psbt: &Psbt) -> Result<[u8; 32], String> {
-    use osk_bip::bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
+    use faraday_bip::bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
     let inner = psbt.inner();
     let prev = inner.inputs[0]
         .witness_utxo
@@ -770,7 +777,7 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
     let c = compute();
     let unsigned = musig_unsigned()?;
     let policy = musig_policy()?;
-    let secp = osk_bip::bitcoin::secp256k1::Secp256k1::new();
+    let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::new();
     // What the inspector establishes: output key and tweaks.
     let mut session = session();
     session
@@ -800,7 +807,7 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
             .derive(&c, &"m/86'/1'/0'".parse().map_err(|e| format!("{e}"))?)
             .secret_key();
         let pk = taproot_account(n).public_key;
-        let (sec, pubn) = osk_bip::musig::nonce_gen(
+        let (sec, pubn) = faraday_bip::musig::nonce_gen(
             &secp,
             &[0x40 + n as u8; 32],
             Some(&sk),
@@ -811,13 +818,13 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
         )
         .map_err(|e| format!("{e:?}"))?;
         let mut copy = unsigned.clone();
-        osk_psbt::musig::write_pub_nonce(
+        faraday_psbt::musig::write_pub_nonce(
             &mut copy.inner_mut().inputs[0],
             &pk,
             &established.output_key,
             &pubn,
         );
-        osk_psbt::musig::write_pub_nonce(
+        faraday_psbt::musig::write_pub_nonce(
             &mut with_nonces.inner_mut().inputs[0],
             &pk,
             &established.output_key,
@@ -836,7 +843,7 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
     }
     // Round two for keys 2 and 3, over everyone's nonces.
     let nonces =
-        osk_psbt::musig::pub_nonces(&device.inner().inputs[0]).map_err(|e| format!("{e:?}"))?;
+        faraday_psbt::musig::pub_nonces(&device.inner().inputs[0]).map_err(|e| format!("{e:?}"))?;
     let all: Vec<_> = established
         .participants
         .iter()
@@ -848,8 +855,8 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
                 .ok_or("a nonce is missing")
         })
         .collect::<Result<_, _>>()?;
-    let aggnonce = osk_bip::musig::nonce_agg(&all).map_err(|e| format!("{e:?}"))?;
-    let values = osk_bip::musig::session_values(
+    let aggnonce = faraday_bip::musig::nonce_agg(&all).map_err(|e| format!("{e:?}"))?;
+    let values = faraday_bip::musig::session_values(
         &secp,
         &established.participants,
         &established.tweaks,
@@ -859,9 +866,10 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
     .map_err(|e| format!("{e:?}"))?;
     let mut partial_files = Vec::new();
     for (n, sec, sk, pk) in secnonces {
-        let psig = osk_bip::musig::sign(&secp, sec, &sk, &values).map_err(|e| format!("{e:?}"))?;
+        let psig =
+            faraday_bip::musig::sign(&secp, sec, &sk, &values).map_err(|e| format!("{e:?}"))?;
         let mut copy = device.clone();
-        osk_psbt::musig::write_partial_sig(
+        faraday_psbt::musig::write_partial_sig(
             &mut copy.inner_mut().inputs[0],
             &pk,
             &established.output_key,
@@ -878,7 +886,7 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
 /// The FROST test wallet: 2 of 3, dealt here from test keys 1 and 2's
 /// words as shares 1 and 2 (`docs/PLANNING.md` §16.103); share 3 is
 /// computed. Its record is public and is the wallet's file.
-pub fn threshold_record() -> Result<osk_bip::threshold::ThresholdRecord, String> {
+pub fn threshold_record() -> Result<faraday_bip::threshold::ThresholdRecord, String> {
     let c = compute();
     let secp = Secp256k1::new();
     let mut chosen = Vec::new();
@@ -889,12 +897,12 @@ pub fn threshold_record() -> Result<osk_bip::threshold::ThresholdRecord, String>
             .map_err(|e| e.text())?;
         let mut share = None;
         session.keys[0].with_secret_share(&c, &mut |s| {
-            share = osk_bip::frost::SecShare::from_bytes(&s.secret_bytes()).ok();
+            share = faraday_bip::frost::SecShare::from_bytes(&s.secret_bytes()).ok();
         });
         chosen.push((id as u32, share.ok_or("a test seed is not a share")?));
     }
-    let dealt = osk_bip::frost::deal(&secp, 3, 2, &chosen).map_err(|e| format!("{e:?}"))?;
-    Ok(osk_bip::threshold::ThresholdRecord::new(
+    let dealt = faraday_bip::frost::deal(&secp, 3, 2, &chosen).map_err(|e| format!("{e:?}"))?;
+    Ok(faraday_bip::threshold::ThresholdRecord::new(
         dealt.info,
         NET.kind(),
     ))
@@ -938,7 +946,10 @@ pub fn threshold_carry() -> Result<Vec<u8>, String> {
     let section = signed
         .carry
         .ok_or("the first location left no carry section")?;
-    Ok(osk_psbt::threshold::carry_bytes(&section, &psbt.to_bytes()))
+    Ok(faraday_psbt::threshold::carry_bytes(
+        &section,
+        &psbt.to_bytes(),
+    ))
 }
 
 /// The backup test stick's vault passphrase.
@@ -1125,15 +1136,15 @@ pub fn test_backup(n: usize) -> Result<Vec<u8>, String> {
     let c = compute();
     let m = Mnemonic::parse(&c, Language::English, &test_words(TEST_SEEDS[n].0))
         .map_err(|e| format!("{e:?}"))?;
-    let mut seed = [0u8; osk_backup::oskb::SEED_LEN];
+    let mut seed = [0u8; faraday_backup::oskb::SEED_LEN];
     for (i, b) in seed.iter_mut().enumerate() {
         *b = i as u8;
     }
-    osk_backup::oskb::seal(
+    faraday_backup::oskb::seal(
         &c,
         &m,
         BACKUP_PASSPHRASE.as_bytes(),
-        osk_backup::MIN_PARAMS,
+        faraday_backup::MIN_PARAMS,
         &seed,
     )
     .ok_or_else(|| "the backup would not seal".to_string())
@@ -1180,7 +1191,7 @@ pub fn test_efi() -> Vec<u8> {
 /// 1280 × 800 at 160 dpi, the size the app assumes before a display
 /// arrives, so nothing on screen moves.
 pub fn started() -> crate::Faraday {
-    use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+    use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
     let mut app = crate::Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1280,
@@ -1201,7 +1212,7 @@ pub fn started() -> crate::Faraday {
 /// key a passphrase or words typed make is worked out and shown
 /// ([`crate::motion::TYPED_PAUSE_MS`]).
 pub fn pause(app: &mut crate::Faraday) {
-    use osk_shell_api::{App, Event};
+    use faraday_shell_api::{App, Event};
     let now = app.now_ms() + crate::motion::TYPED_PAUSE_MS;
     app.event(Event::Tick { now_ms: now });
 }
@@ -1355,7 +1366,7 @@ pub fn backup_as(app: &mut crate::Faraday, preset: crate::plan::Preset) {
 /// Types `words` into the open word entry as a person does on a
 /// keyboard: each word, then a space.
 pub fn type_words(app: &mut crate::Faraday, words: &str) {
-    use osk_shell_api::{App, Event, Key};
+    use faraday_shell_api::{App, Event, Key};
     for word in words.split_whitespace() {
         for c in word.chars().chain([' ']) {
             app.event(Event::Key(Key::Char(c)));
@@ -1369,7 +1380,7 @@ pub fn type_words(app: &mut crate::Faraday, words: &str) {
 /// §14.7 item 5).
 pub fn type_passphrases(app: &mut crate::Faraday) {
     use crate::{Action, bstep};
-    use osk_shell_api::{App, Event, Key};
+    use faraday_shell_api::{App, Event, Key};
     for n in app.backup_items_now(&compute()) {
         if !bstep::is_passphrase(n) {
             continue;

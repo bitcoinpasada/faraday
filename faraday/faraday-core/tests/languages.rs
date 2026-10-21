@@ -4,9 +4,9 @@
 //! Chinese lists are typed on keyboards of their own, OpenSigner's, and
 //! a word is taken by pressing it among those the keys can be.
 
+use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::{Action, Faraday};
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 fn type_folded(app: &mut Faraday, m: &Mnemonic) {
     let lang = m.language();
@@ -75,18 +75,20 @@ fn a_word_from_another_list_is_named_as_not_on_this_one() {
 #[test]
 fn the_other_lists_are_behind_one_button_until_asked_for() {
     let mut app = faraday_core::testkit::started();
-    app.event(osk_shell_api::Event::Display(osk_shell_api::DisplayInfo {
-        width: 1366,
-        height: 768,
-        dpi: 160,
-        inset_bottom: 0,
-        inset_top: 0,
-        buttons: 0,
-        camera_fixed: false,
-        secure: osk_shell_api::SecureHardware::None,
-        boot: osk_shell_api::BootState::Unknown,
-        memory_mib: None,
-    }));
+    app.event(faraday_shell_api::Event::Display(
+        faraday_shell_api::DisplayInfo {
+            width: 1366,
+            height: 768,
+            dpi: 160,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: faraday_shell_api::SecureHardware::None,
+            boot: faraday_shell_api::BootState::Unknown,
+            memory_mib: None,
+        },
+    ));
     app.press(Action::Entry(None));
     let _ = app.frame();
     assert!(app.offers(Action::EntryLanguages));
@@ -103,8 +105,8 @@ fn the_other_lists_are_behind_one_button_until_asked_for() {
 /// would: its kana or jamo key by key, or its reading and then its tone;
 /// then presses it among the words offered.
 fn type_on_keys(app: &mut Faraday, lang: Language, i: u16) {
-    use osk_bip::bip39::Script;
-    use osk_ui::widgets::keyboard::ZHUYIN_MARKS;
+    use faraday_bip::bip39::Script;
+    use faraday_draw::widgets::keyboard::ZHUYIN_MARKS;
     let keys: Vec<char> = match lang.script() {
         Script::Pinyin | Script::Zhuyin => {
             let (spelling, tone) = lang.word_readings(i).next().unwrap();

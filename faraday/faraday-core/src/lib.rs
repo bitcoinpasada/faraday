@@ -1,7 +1,7 @@
 //! Faraday's app: the screens, the Wallets tab's session, the Inbox and the
 //! Outbox, and the stick rule (`PLAN.md` §5).
 //!
-//! It is an [`osk_shell_api::App`], so the shells drive it with events and
+//! It is an [`faraday_shell_api::App`], so the shells drive it with events and
 //! read its frame, as they drive OpenSigner. Removable storage is the one
 //! thing upstream's interface has no event for, so this crate adds a
 //! second channel beside it: the shell reports the sticks it sees and the
@@ -135,9 +135,9 @@ use crate::strings::fill;
 use faraday_intake::{arrival, seed_in_code, seedqr_words};
 use std::collections::{BTreeSet, VecDeque};
 
-use osk_crypto::work::Compute;
-use osk_shell_api::{App, Command, DisplayInfo, Event, Frame, Key as KeyIn, TouchPhase};
-use osk_ui::{Canvas, Rect};
+use faraday_crypto::work::Compute;
+use faraday_draw::{Canvas, Rect};
+use faraday_shell_api::{App, Command, DisplayInfo, Event, Frame, Key as KeyIn, TouchPhase};
 
 use wallet::{FileKind, Session, Spend, fp_text};
 
@@ -992,7 +992,7 @@ pub enum Action {
     /// keys for its slots.
     RFromVault(usize, usize),
     /// Move the session to this network.
-    Network(osk_bip::keys::Network),
+    Network(faraday_bip::keys::Network),
     /// The online app's not-air-gapped warning acknowledged: the test
     /// network, if one was asked for, follows.
     AirgapUnderstood,
@@ -1595,7 +1595,8 @@ fn copy_indices(bytes: &[u8]) -> Option<zeroize::Zeroizing<Vec<u16>>> {
         }
         return Some(out);
     }
-    let m = osk_codec::seedqr::from_entropy(bytes, osk_bip::bip39::Language::English).ok()?;
+    let m =
+        faraday_codec::seedqr::from_entropy(bytes, faraday_bip::bip39::Language::English).ok()?;
     Some(zeroize::Zeroizing::new(m.indices().to_vec()))
 }
 
@@ -1663,7 +1664,7 @@ pub struct Item {
     /// any other file. An Item's bytes are never changed after it is
     /// made, so this stays what they say; nothing reads the bytes again
     /// for it.
-    pub wallet: Option<osk_bip::policy::WalletPolicy>,
+    pub wallet: Option<faraday_bip::policy::WalletPolicy>,
     /// What a PSBT file says (its txid, its signatures, what its first
     /// input spends), read once when the file came in, as
     /// [`Item::wallet`] is: `None` for any other file. Which loaded
@@ -1707,7 +1708,7 @@ impl Item {
     }
 
     /// The wallet a wallet file describes, read when it came in. A lookup.
-    pub fn wallet(&self) -> Option<&osk_bip::policy::WalletPolicy> {
+    pub fn wallet(&self) -> Option<&faraday_bip::policy::WalletPolicy> {
         self.wallet.as_ref()
     }
 
@@ -1884,7 +1885,7 @@ pub enum ScanPurpose {
     VaultEntry,
     /// The hand-drawn copy of the seed with this fingerprint, on the
     /// backup's copy item: compared with it there, never loaded.
-    CheckCopy(osk_bip::keys::Fingerprint),
+    CheckCopy(faraday_bip::keys::Fingerprint),
     /// Transfer's Receive: anything, saved by the shell into Downloads,
     /// never into the Inbox.
     Transfer,
@@ -1910,7 +1911,7 @@ pub struct ScanState {
     /// Passes in a row that found a code too fine to read.
     pub too_fine: u32,
     /// A multi-part UR being put together.
-    pub decoder: osk_codec::ur::Decoder,
+    pub decoder: faraday_codec::ur::Decoder,
     /// The last thing worth saying about what was read.
     pub note: Option<String>,
     /// Codes read so far.
@@ -1971,7 +1972,7 @@ impl ScanState {
 /// Why the scanner shows no picture (`docs/QR.md` §8 item 6).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NoPicture {
-    /// The camera started and no frame came in [`osk_ui::tokens::NO_PICTURE_MS`].
+    /// The camera started and no frame came in [`faraday_draw::tokens::NO_PICTURE_MS`].
     Silent,
     /// The shell answered `CameraUnavailable`, which says no more.
     Unavailable,
@@ -2003,7 +2004,7 @@ pub const SEEN_FRAMES: u32 = 10;
 /// What one UR part did to the decoder ([`ur_feed`]).
 pub(crate) enum UrFed {
     /// The message is whole; the decoder is left empty.
-    Whole(osk_codec::ur::Message),
+    Whole(faraday_codec::ur::Message),
     /// More parts are wanted. `restarted` when the part began another
     /// message, which replaced the one being read.
     More {
@@ -2018,13 +2019,13 @@ pub(crate) enum UrFed {
 /// message being read as it was. A message once whole is taken out, so
 /// the decoder is empty for the next. The refusal is the line to show.
 pub(crate) fn ur_feed(
-    decoder: &mut osk_codec::ur::Decoder,
+    decoder: &mut faraday_codec::ur::Decoder,
     text: &str,
 ) -> Result<UrFed, &'static str> {
     let restarted = match decoder.receive(text) {
         Ok(_) => false,
-        Err(osk_codec::ur::Error::Mismatch) => {
-            let mut fresh = osk_codec::ur::Decoder::new();
+        Err(faraday_codec::ur::Error::Mismatch) => {
+            let mut fresh = faraday_codec::ur::Decoder::new();
             if fresh.receive(text).is_err() {
                 return Err(EN.ur_feed_not_a_part);
             }
@@ -2044,7 +2045,7 @@ pub(crate) fn ur_feed(
 
 /// The state line for a UR read in parts: that another message started,
 /// or how far this one is and which parts it still wants.
-pub(crate) fn ur_note(decoder: &osk_codec::ur::Decoder, restarted: bool) -> Option<String> {
+pub(crate) fn ur_note(decoder: &faraday_codec::ur::Decoder, restarted: bool) -> Option<String> {
     if restarted {
         return Some(EN.ur_feed_new_qr.to_string());
     }
@@ -2071,7 +2072,7 @@ pub struct QrView {
     /// One line under the title: the format, and the frame count.
     pub subtitle: String,
     /// The codes, cycled when there is more than one.
-    pub frames: Vec<osk_codec::qr::QrMatrix>,
+    pub frames: Vec<faraday_codec::qr::QrMatrix>,
     /// The frame shown.
     pub frame: usize,
     /// When the next frame is due.
@@ -2099,7 +2100,7 @@ pub struct QrView {
 }
 
 /// A code on screen may be a seed: what it was made from is wiped when
-/// the sheet closes. The codes themselves are `osk-codec`'s, which has no
+/// the sheet closes. The codes themselves are `faraday-codec`'s, which has no
 /// way to wipe them.
 impl Drop for QrView {
     fn drop(&mut self) {
@@ -2322,7 +2323,7 @@ impl QrView {
 
 /// A description's first receive address on a network, or why there is
 /// none ([`Faraday::seeds_address`]).
-type KeptAddress = (String, osk_bip::keys::Network, Result<String, String>);
+type KeptAddress = (String, faraday_bip::keys::Network, Result<String, String>);
 
 impl Faraday {
     /// Costs a QR encoding the first time. The QR code of `text`, public
@@ -2334,15 +2335,15 @@ impl Faraday {
         &self,
         c: &Compute,
         text: &str,
-    ) -> Option<std::rc::Rc<osk_codec::qr::QrMatrix>> {
+    ) -> Option<std::rc::Rc<faraday_codec::qr::QrMatrix>> {
         if let Some((_, m)) = self.public_qrs.borrow().iter().find(|(t, _)| t == text) {
             return m.clone();
         }
         let m = {
-            osk_codec::qr::encode(
+            faraday_codec::qr::encode(
                 c,
-                osk_codec::qr::Payload::Bytes(text.as_bytes()),
-                osk_codec::qr::Ecc::Medium,
+                faraday_codec::qr::Payload::Bytes(text.as_bytes()),
+                faraday_codec::qr::Ecc::Medium,
             )
             .ok()
             .map(std::rc::Rc::new)
@@ -2365,8 +2366,8 @@ impl Faraday {
 pub(crate) fn picture_codes(
     c: &Compute,
     text: &str,
-) -> Result<Vec<osk_codec::qr::QrMatrix>, String> {
-    use osk_codec::qr::{Ecc, Payload, encode_bounded};
+) -> Result<Vec<faraday_codec::qr::QrMatrix>, String> {
+    use faraday_codec::qr::{Ecc, Payload, encode_bounded};
     if let Ok(m) = encode_bounded(c, Payload::Bytes(text.as_bytes()), Ecc::Medium, 25) {
         return Ok(vec![m]);
     }
@@ -2381,7 +2382,7 @@ pub(crate) fn picture_codes(
 /// the text cannot be sent as parts. Costs the splitting of `text` into
 /// BBQr parts when it needs more than one code, and no code is drawn.
 pub(crate) fn picture_names(name: &str, part: &str, text: &str) -> Vec<String> {
-    use osk_codec::qr::{Ecc, byte_capacity};
+    use faraday_codec::qr::{Ecc, byte_capacity};
     if text.len() <= byte_capacity(25, Ecc::Medium) {
         return vec![format!("{name}.png")];
     }
@@ -2402,7 +2403,7 @@ pub(crate) fn picture_names(name: &str, part: &str, text: &str) -> Vec<String> {
 /// [`picture_names`] names them: the text itself for one code, else each
 /// BBQr part. No code is drawn.
 pub(crate) fn picture_payloads(text: &str) -> Vec<Vec<u8>> {
-    use osk_codec::qr::{Ecc, byte_capacity};
+    use faraday_codec::qr::{Ecc, byte_capacity};
     if text.len() <= byte_capacity(25, Ecc::Medium) {
         return vec![text.as_bytes().to_vec()];
     }
@@ -2469,7 +2470,7 @@ fn secret_text(c: &Compute, text: &str) -> Option<&'static str> {
 /// codex32 string or a SLIP-39 share.
 fn pasted_secret(c: &Compute, text: &str) -> Option<&'static str> {
     let t = text.trim();
-    let english = osk_bip::bip39::Language::English;
+    let english = faraday_bip::bip39::Language::English;
     let words: Vec<&str> = t.split_whitespace().collect();
     if matches!(words.len(), 12 | 15 | 18 | 21 | 24)
         && words.iter().all(|w| {
@@ -2490,12 +2491,12 @@ fn pasted_secret(c: &Compute, text: &str) -> Option<&'static str> {
     if matches!(t.len(), 48 | 96) && t.bytes().all(|b| b.is_ascii_digit()) {
         return Some(EN.pasted_seedqr);
     }
-    if osk_bip::bitcoin::PrivateKey::from_wif(t).is_ok() {
+    if faraday_bip::bitcoin::PrivateKey::from_wif(t).is_ok() {
         return Some(EN.pasted_private_key);
     }
     let lower = zeroize::Zeroizing::new(t.to_lowercase());
-    if osk_bip::codex32::Codex32::parse(&lower).is_ok()
-        || osk_bip::slip39::Share::parse(&lower).is_ok()
+    if faraday_bip::codex32::Codex32::parse(&lower).is_ok()
+        || faraday_bip::slip39::Share::parse(&lower).is_ok()
     {
         return Some(EN.pasted_share);
     }
@@ -2511,7 +2512,7 @@ fn what_instead_of_a_seed(c: &Compute, text: &str) -> Option<&'static str> {
     {
         return Some(EN.what_instead_of_a_seed_that_is_a);
     }
-    if faraday_qr::bbqr::is_part(t) || osk_codec::ur::is_ur(t) {
+    if faraday_qr::bbqr::is_part(t) || faraday_codec::ur::is_ur(t) {
         return Some(EN.what_instead_of_a_seed_that_is);
     }
     if wallet::read_wallet(c, t).is_ok() || crate::create::read_key(t).is_some() {
@@ -2565,7 +2566,7 @@ pub struct EntryState {
     /// Worked out by the first frame that asks for it and kept until the
     /// next event that can change the words, list or passphrase clears it
     /// ([`EntryState::probed`], [`EntryState::forget_probe`]).
-    probe: std::cell::RefCell<Option<Result<osk_bip::keys::Fingerprint, String>>>,
+    probe: std::cell::RefCell<Option<Result<faraday_bip::keys::Fingerprint, String>>>,
 }
 
 impl EntryState {
@@ -2590,7 +2591,7 @@ impl EntryState {
     }
 
     /// The BIP-39 list the words are typed from.
-    pub fn language(&self) -> osk_bip::bip39::Language {
+    pub fn language(&self) -> faraday_bip::bip39::Language {
         forms::LANGUAGES[usize::from(self.language_at) % forms::LANGUAGES.len()]
     }
 
@@ -2603,8 +2604,8 @@ impl EntryState {
     pub(crate) fn probed(
         &self,
         c: &Compute,
-        m: &osk_bip::bip39::Mnemonic,
-    ) -> Result<osk_bip::keys::Fingerprint, String> {
+        m: &faraday_bip::bip39::Mnemonic,
+    ) -> Result<faraday_bip::keys::Fingerprint, String> {
         if let Some(r) = self.probe.borrow().as_ref() {
             return r.clone();
         }
@@ -2626,7 +2627,7 @@ impl EntryState {
     }
 
     /// The status line's key as kept, if it is: a lookup.
-    pub(crate) fn probe_kept(&self) -> Option<Result<osk_bip::keys::Fingerprint, String>> {
+    pub(crate) fn probe_kept(&self) -> Option<Result<faraday_bip::keys::Fingerprint, String>> {
         self.probe.borrow().clone()
     }
 }
@@ -2645,11 +2646,11 @@ pub struct SpendState {
     pub error: Option<String>,
     /// The inspection, kept current: worked out again only when what it
     /// is of changed ([`SpendState::inspected`]).
-    pub inspection: osk_psbt::Inspection,
+    pub inspection: faraday_psbt::Inspection,
     /// What [`SpendState::inspection`] is of: the PSBT, the session's
     /// network, keys and wallets, and whether a carry came with it.
     /// `refresh_spend` inspects again only when one of them changed.
-    pub(crate) inspected: Option<(osk_psbt::Psbt, wallet::InspectInputs, bool)>,
+    pub(crate) inspected: Option<(faraday_psbt::Psbt, wallet::InspectInputs, bool)>,
     /// Fingerprints with a valid signature.
     pub signers: Vec<[u8; 4]>,
     /// Which results went to the Outbox.
@@ -2676,13 +2677,13 @@ pub struct SpendState {
     pub complete: bool,
     /// A MuSig2 round this device opened: its secret nonce, until round
     /// two. Gone on lock.
-    pub musig: Option<osk_psbt::MusigSession>,
+    pub musig: Option<faraday_psbt::MusigSession>,
     /// A threshold spend's first location: the other shares chosen to
     /// sign, by identifier.
     pub others: Vec<u32>,
     /// The carry section a threshold spend arrived with: the secret nonce
     /// of a share held here. Wiped on drop.
-    pub carry: Option<osk_psbt::threshold::CarrySection>,
+    pub carry: Option<faraday_psbt::threshold::CarrySection>,
     /// The carry file this device's pass leaves for the next share, until
     /// it goes to the Outbox.
     pub carry_out: Option<zeroize::Zeroizing<Vec<u8>>>,
@@ -2716,14 +2717,14 @@ pub struct WalletKey<'a> {
     /// The kind, when the key is at Create's own account for it.
     pub standard: Option<create::NewKind>,
     /// The seed's master key.
-    pub master: &'a osk_bip::keys::MasterKey,
+    pub master: &'a faraday_bip::keys::MasterKey,
 }
 
 /// A signed message checked, by what its check is worked out from
 /// ([`Faraday::message_check`]).
 struct KeptMessage {
     text: String,
-    network: osk_bip::keys::Network,
+    network: faraday_bip::keys::Network,
     wallets: Vec<String>,
     check: Option<std::rc::Rc<wallet::MessageCheck>>,
 }
@@ -2838,7 +2839,7 @@ pub struct MessageState {
     /// BIP-322 rather than BIP-137.
     pub bip322: bool,
     /// The signature, once made.
-    pub signed: Option<osk_psbt::message::Signed>,
+    pub signed: Option<faraday_psbt::message::Signed>,
     /// The last refusal.
     pub error: Option<String>,
 }
@@ -3506,9 +3507,9 @@ impl Receipt {
 }
 
 /// Costs a SHA-256 pass over every byte: the SHA-256 of `bytes`, a
-/// whole file's or an id's, by `osk_crypto::sha256_whole`.
+/// whole file's or an id's, by `faraday_crypto::sha256_whole`.
 pub(crate) fn sha256_of(c: &Compute, bytes: &[u8]) -> [u8; 32] {
-    osk_crypto::sha256_whole(c, bytes)
+    faraday_crypto::sha256_whole(c, bytes)
 }
 
 /// Where a stick visit column's scrollbar was drawn, in pixels: the
@@ -3612,16 +3613,16 @@ pub struct Faraday {
     /// The keys made here whose backup is not yet done, by fingerprint
     /// (`docs/NEW-WALLET.md` §14.3): they sign nothing until it is. Never
     /// a secret; kept in a vault beside the seed and in the plan record.
-    made_here: Vec<osk_bip::keys::Fingerprint>,
+    made_here: Vec<faraday_bip::keys::Fingerprint>,
     /// What a frame works out once (`docs/SPEED.md` §3.3): on only while
     /// `render` runs.
     drawing: drawing::Drawing,
     /// QR codes of public text a screen shows (a guide's address), each
     /// made once, by its text ([`Faraday::public_qr`]).
-    public_qrs: std::cell::RefCell<Vec<(String, Option<std::rc::Rc<osk_codec::qr::QrMatrix>>)>>,
+    public_qrs: std::cell::RefCell<Vec<(String, Option<std::rc::Rc<faraday_codec::qr::QrMatrix>>)>>,
     /// Wallet descriptions read that no file or record keeps read, each
     /// by its text ([`Faraday::read_kept`]): public, and never stale.
-    texts_read: std::cell::RefCell<Vec<(String, Option<osk_bip::policy::WalletPolicy>)>>,
+    texts_read: std::cell::RefCell<Vec<(String, Option<faraday_bip::policy::WalletPolicy>)>>,
     /// The `Name:` line of each multisig config put together from split
     /// sheets ([`Faraday::config_name_kept`]), by its text: public, and
     /// never stale.
@@ -3629,7 +3630,8 @@ pub struct Faraday {
     /// Descriptions the Seeds tool puts together, each parsed as Create
     /// builds it ([`Faraday::parsed_kept`]), by its text: public, and
     /// never stale.
-    texts_parsed: std::cell::RefCell<Vec<(String, Result<osk_bip::policy::WalletPolicy, String>)>>,
+    texts_parsed:
+        std::cell::RefCell<Vec<(String, Result<faraday_bip::policy::WalletPolicy, String>)>>,
     /// The signed message last checked ([`Faraday::message_check`]), by
     /// its text, the network and the loaded wallets' checksums: public,
     /// and never stale, since a change to any of them is another key.
@@ -3829,7 +3831,7 @@ pub struct Faraday {
     keygen_camera_on: bool,
     /// A transfer in parts the camera was closed on, kept for the next
     /// scan.
-    scan_parts: Option<(osk_codec::ur::Decoder, faraday_qr::Assembler)>,
+    scan_parts: Option<(faraday_codec::ur::Decoder, faraday_qr::Assembler)>,
     /// The cameras the shell can open. With none, the backup's seeds
     /// step checks a copy by its typed numbers instead of the camera.
     pub cameras: Vec<(String, String)>,
@@ -3867,7 +3869,7 @@ pub struct Faraday {
     landed: Option<Screen>,
     /// Seeds' fingerprints with no passphrase, by a hash of the secret:
     /// the Inbox's wallets and seeds are put together on every frame.
-    pub(crate) fp_memo: std::cell::RefCell<Vec<([u8; 32], osk_bip::keys::Fingerprint)>>,
+    pub(crate) fp_memo: std::cell::RefCell<Vec<([u8; 32], faraday_bip::keys::Fingerprint)>>,
     /// Wallets the Inbox describes left out of its next load, by
     /// descriptor.
     pub inbox_skip: BTreeSet<String>,
@@ -3940,10 +3942,10 @@ pub struct Faraday {
     /// The Guided switch's pill sliding: where it started, 0 on Steps
     /// only and 1 on Guided, and the tick it started at.
     guided_moving: Option<(f32, Option<u64>)>,
-    /// What the start-up self-test found (`osk_selftest`): run when the
+    /// What the start-up self-test found (`faraday_selftest`): run when the
     /// display first arrives, before any input. A failure blocks the app
     /// on a screen naming the check, with Exit its only control.
-    selftest: Option<osk_selftest::Outcome>,
+    selftest: Option<faraday_selftest::Outcome>,
     /// What can be pressed under it.
     hovered: Option<Action>,
     scanned: u32,
@@ -3989,7 +3991,7 @@ pub struct Faraday {
     /// does (F20), and at start in a released Faraday Desktop (F61).
     airgap_warned: bool,
     /// The test network asked for while that warning is on show.
-    test_asked: Option<osk_bip::keys::Network>,
+    test_asked: Option<faraday_bip::keys::Network>,
     /// The backup flows, at most one on screen (`docs/BACKUP-FLOW.md` §7).
     pub backup_flows: Vec<backup_flow::BackupFlow>,
     /// The flow on screen.
@@ -4511,7 +4513,9 @@ impl Faraday {
                     } else {
                         match s.unread_since {
                             Some(since) if !away => {
-                                if now_ms.saturating_sub(since) >= osk_ui::tokens::POOR_PICTURE_MS {
+                                if now_ms.saturating_sub(since)
+                                    >= faraday_draw::tokens::POOR_PICTURE_MS
+                                {
                                     s.note = Some(EN.scan_hold_it_square_on.to_string());
                                 }
                             }
@@ -5094,7 +5098,7 @@ impl Faraday {
 
     /// What the start-up self-test found, once it has run: how many
     /// checks passed, or the name of the first that failed.
-    pub fn selftest(&self) -> Option<osk_selftest::Outcome> {
+    pub fn selftest(&self) -> Option<faraday_selftest::Outcome> {
         self.selftest
     }
 
@@ -5109,12 +5113,12 @@ impl Faraday {
     }
 
     /// Runs `checks` as the self-test, in place of
-    /// [`osk_selftest::CHECKS`]: for a test that a failed check blocks the
+    /// [`faraday_selftest::CHECKS`]: for a test that a failed check blocks the
     /// app.
     #[doc(hidden)]
-    pub fn run_selftest_with(&mut self, checks: &[osk_selftest::Check]) {
+    pub fn run_selftest_with(&mut self, checks: &[faraday_selftest::Check]) {
         let c = self.compute();
-        self.selftest = Some(osk_selftest::run_checks(&c, checks));
+        self.selftest = Some(faraday_selftest::run_checks(&c, checks));
         if self.selftest_failed() {
             self.sheet = None;
         }
@@ -5392,8 +5396,8 @@ impl Faraday {
         // A carry file is the PSBT and the secret nonce of the share that
         // signs next.
         let (psbt, carry) = if item.kind == FileKind::Carry {
-            match osk_psbt::threshold::Carry::parse(&item.bytes) {
-                Ok(carry) => match osk_psbt::Psbt::parse_bytes(&c, &carry.psbt) {
+            match faraday_psbt::threshold::Carry::parse(&item.bytes) {
+                Ok(carry) => match faraday_psbt::Psbt::parse_bytes(&c, &carry.psbt) {
                     Ok(p) => (p, Some(carry.section)),
                     Err(_) => {
                         self.toast(EN.start_spend_the_carry);
@@ -5487,9 +5491,9 @@ impl Faraday {
             // With no wallet loaded the signers come from the PSBT alone,
             // and a second device may still be needed.
             let kind = kind.unwrap_or(if s.inspection.participating_keys.len() > 1 {
-                wallet::Kind::Multi(osk_bip::policy::Wrapper::Wsh)
+                wallet::Kind::Multi(faraday_bip::policy::Wrapper::Wsh)
             } else {
-                wallet::Kind::Single(osk_bip::keys::ScriptType::NativeSegwit)
+                wallet::Kind::Single(faraday_bip::keys::ScriptType::NativeSegwit)
             });
             s.steps = kind.steps();
             s.complete = s.spend.finished.is_some() || s.spend.finish().is_ok();
@@ -5663,7 +5667,7 @@ impl Faraday {
         }
         match action {
             Action::SelfTestRun => {
-                self.selftest = Some(osk_selftest::run(&c));
+                self.selftest = Some(faraday_selftest::run(&c));
                 if self.selftest_failed() {
                     self.sheet = None;
                 }
@@ -6670,7 +6674,7 @@ impl Faraday {
             }
             Action::PotentialOpen(fp) => {
                 if self.may_load_keys() {
-                    self.potential_open(osk_bip::keys::Fingerprint(fp));
+                    self.potential_open(faraday_bip::keys::Fingerprint(fp));
                 } else {
                     self.toast(&fill(EN.act_remove_the_first, &[self.medium.noun()]));
                 }
@@ -6718,7 +6722,7 @@ impl Faraday {
             }
             Action::DecodeInbox(k) => {
                 if let Some(item) = self.inbox.get(k)
-                    && let Some(tx) = osk_psbt::transaction::read_raw(&item.bytes)
+                    && let Some(tx) = faraday_psbt::transaction::read_raw(&item.bytes)
                 {
                     // The amounts going in, from a PSBT of the same
                     // transaction when one is here.
@@ -6824,9 +6828,9 @@ impl Faraday {
                     && let Some(w) = m.wallet
                 {
                     let format = if m.bip322 {
-                        osk_psbt::message::Format::Bip322
+                        faraday_psbt::message::Format::Bip322
                     } else {
-                        osk_psbt::message::Format::Bip137
+                        faraday_psbt::message::Format::Bip137
                     };
                     match self.session.sign_message(&c, w, m.index, &m.text, format) {
                         Ok(signed) => {
@@ -6847,7 +6851,7 @@ impl Faraday {
                     && let Some(sig) = m.signed.as_ref()
                 {
                     let text =
-                        osk_psbt::message::signed_text(&sig.address, &sig.signature, &m.text);
+                        faraday_psbt::message::signed_text(&sig.address, &sig.signature, &m.text);
                     if action == Action::MOut {
                         let name = format!(
                             "message-{}.txt",
@@ -7069,7 +7073,7 @@ impl Faraday {
                 // A cosigner's key sets the network the wallet is made on.
                 let net = key
                     .as_deref()
-                    .and_then(|k| osk_bip::policy::PolicyKey::parse(k).ok())
+                    .and_then(|k| faraday_bip::policy::PolicyKey::parse(k).ok())
                     .map(|k| wallet::network_of_key(&k, self.session.network()));
                 if let Err(e) = self.session.follow(net) {
                     if let Some(c) = self.create.as_mut() {
@@ -7347,7 +7351,7 @@ impl Faraday {
             Action::RUse(i) => {
                 if let Some(item) = self.inbox.get(i) {
                     let text = String::from_utf8_lossy(&item.bytes).into_owned();
-                    let name = osk_bip::multisig_config::parse_named(&c, &text)
+                    let name = faraday_bip::multisig_config::parse_named(&c, &text)
                         .ok()
                         .and_then(|(_, n)| n)
                         .unwrap_or_else(|| stem(&item.name));
@@ -7372,7 +7376,7 @@ impl Faraday {
                 match restore::merge(&texts) {
                     Ok(m) => match m.whole {
                         Some(whole) => {
-                            let name = osk_bip::multisig_config::parse_named(&c, &whole)
+                            let name = faraday_bip::multisig_config::parse_named(&c, &whole)
                                 .ok()
                                 .and_then(|(_, n)| n)
                                 .unwrap_or_else(|| EN.act_restored_wallet.to_string());
@@ -7447,7 +7451,7 @@ impl Faraday {
                     .collect();
                 match restore::merge(&texts).map(|m| m.whole) {
                     Ok(Some(whole)) => {
-                        let name = osk_bip::multisig_config::parse_named(&c, &whole)
+                        let name = faraday_bip::multisig_config::parse_named(&c, &whole)
                             .ok()
                             .and_then(|(_, n)| n)
                             .unwrap_or_else(|| EN.act_restored_wallet.to_string());
@@ -7754,7 +7758,7 @@ impl Faraday {
                 });
             }
         } else {
-            let mut fps: Vec<osk_bip::keys::Fingerprint> = Vec::new();
+            let mut fps: Vec<faraday_bip::keys::Fingerprint> = Vec::new();
             for f in wallet
                 .policy()
                 .keys()
@@ -7821,7 +7825,7 @@ impl Faraday {
                 })
                 .collect();
         }
-        let mut fps: Vec<osk_bip::keys::Fingerprint> = Vec::new();
+        let mut fps: Vec<faraday_bip::keys::Fingerprint> = Vec::new();
         for f in wallet
             .policy()
             .keys()
@@ -7852,7 +7856,7 @@ impl Faraday {
         &self,
         c: &Compute,
         text: &str,
-    ) -> Option<osk_bip::policy::WalletPolicy> {
+    ) -> Option<faraday_bip::policy::WalletPolicy> {
         if let Some((_, p)) = self.texts_read.borrow().iter().find(|(t, _)| t == text) {
             return p.clone();
         }
@@ -7867,14 +7871,14 @@ impl Faraday {
 
     /// Costs a parse of the config the first time: the name multisig
     /// config `text` carries on its `Name:` line
-    /// (`osk_bip::multisig_config::parse_named`), kept on the state by
+    /// (`faraday_bip::multisig_config::parse_named`), kept on the state by
     /// its text ([`Faraday::config_names`]), a lookup after.
     pub(crate) fn config_name_kept(&self, c: &Compute, text: &str) -> Option<String> {
         if let Some((_, n)) = self.config_names.borrow().iter().find(|(t, _)| t == text) {
             return n.clone();
         }
         let n = {
-            osk_bip::multisig_config::parse_named(c, text)
+            faraday_bip::multisig_config::parse_named(c, text)
                 .ok()
                 .and_then(|(_, n)| n)
         };
@@ -7895,11 +7899,12 @@ impl Faraday {
         &self,
         c: &Compute,
         text: &str,
-    ) -> Result<osk_bip::policy::WalletPolicy, String> {
+    ) -> Result<faraday_bip::policy::WalletPolicy, String> {
         if let Some((_, p)) = self.texts_parsed.borrow().iter().find(|(t, _)| t == text) {
             return p.clone();
         }
-        let p = { osk_bip::policy::WalletPolicy::parse_any(c, text).map_err(|e| e.to_string()) };
+        let p =
+            { faraday_bip::policy::WalletPolicy::parse_any(c, text).map_err(|e| e.to_string()) };
         let mut kept = self.texts_parsed.borrow_mut();
         if kept.len() >= TEXTS_PARSED_KEPT {
             let _ = kept.remove(0);
@@ -8121,7 +8126,7 @@ impl Faraday {
 
     /// [`Faraday::backup_public`] for wallet `w` under answers `a`.
     pub(crate) fn backup_public_for(w: &wallet::Wallet, a: &plan::Answers) -> Vec<u8> {
-        use osk_bip::policy::{Template, Wrapper};
+        use faraday_bip::policy::{Template, Wrapper};
         use plan::software as sw;
         let config = backup::multisig_config(w, None).is_some();
         let bsms = matches!(
@@ -8343,8 +8348,8 @@ impl Faraday {
         &self,
         v: usize,
     ) -> (
-        Vec<osk_bip::keys::Fingerprint>,
-        Vec<osk_bip::keys::Fingerprint>,
+        Vec<faraday_bip::keys::Fingerprint>,
+        Vec<faraday_bip::keys::Fingerprint>,
     ) {
         let Some(b) = self.backup.as_ref() else {
             return (Vec::new(), Vec::new());
@@ -8623,7 +8628,7 @@ impl Faraday {
         // Each seed told by its whole master id, the session key's else
         // the backup record's (F65); one that cannot be told is not done.
         let record = self.backup_records.iter().find(|r| r.sum == sum);
-        let has = |s: &crate::vaults::VaultSummary, f: &osk_bip::keys::Fingerprint| {
+        let has = |s: &crate::vaults::VaultSummary, f: &faraday_bip::keys::Fingerprint| {
             crate::backups::summary_has_seed(s, f.0, self.seed_id(record, f.0))
         };
         let salts: Vec<[u8; 32]> = self.vaults.open.iter().map(|o| o.header().salt).collect();
@@ -9216,9 +9221,9 @@ impl Faraday {
             }
             7 => files.push((
                 format!("{stem}-bitcoin-core.json"),
-                osk_bip::core_import::import_descriptors(
+                faraday_bip::core_import::import_descriptors(
                     &w.policy().to_descriptor_checksummed(),
-                    osk_bip::core_import::Rescan::Start,
+                    faraday_bip::core_import::Rescan::Start,
                 )
                 .into_bytes(),
             )),
@@ -9270,7 +9275,7 @@ impl Faraday {
                 }
             }
             9 => {
-                if let Some(c) = osk_bip::core_import::import_descriptors_pair(w.policy()) {
+                if let Some(c) = faraday_bip::core_import::import_descriptors_pair(w.policy()) {
                     files.push((
                         format!("{stem}-bitcoin-core-before-29.json"),
                         c.into_bytes(),
@@ -9344,7 +9349,7 @@ impl Faraday {
         let standard = kind.filter(|k| {
             key.account_text(c, *k, 0)
                 .ok()
-                .and_then(|t| osk_bip::policy::PolicyKey::parse(&t).ok())
+                .and_then(|t| faraday_bip::policy::PolicyKey::parse(&t).ok())
                 .is_some_and(|t| t.xpub() == pk.xpub() && t.path() == pk.path())
         });
         Ok(WalletKey {
@@ -9383,7 +9388,7 @@ impl Faraday {
     /// [`Faraday::wallet_key`] has that key: its seed is here and the
     /// wallet is no threshold or silent payments wallet. A lookup; it
     /// derives nothing.
-    fn wallet_key_here(&self, i: usize, slot: u8) -> Option<osk_bip::keys::Fingerprint> {
+    fn wallet_key_here(&self, i: usize, slot: u8) -> Option<faraday_bip::keys::Fingerprint> {
         let w = self.session.wallets.get(i)?;
         if w.policy().record().is_some() || w.policy().silent().is_some() {
             return None;
@@ -9471,7 +9476,7 @@ impl Faraday {
             .find(|k| k.fingerprint().0 == *fp)
             .ok_or(EN.create_key_text_a_chosen)?;
         Ok((
-            fp_text(osk_bip::keys::Fingerprint(*fp)),
+            fp_text(faraday_bip::keys::Fingerprint(*fp)),
             key.account_text(c, cs.kind, cs.account)?,
         ))
     }
@@ -9505,7 +9510,7 @@ impl Faraday {
             .keys
             .iter()
             .find(|x| x.fingerprint().0 == *fp)?;
-        let fpt = fp_text(osk_bip::keys::Fingerprint(*fp));
+        let fpt = fp_text(faraday_bip::keys::Fingerprint(*fp));
         cs.kind
             .bsms_record(c, key.master(), cs.account, &format!("Faraday key {fpt}"))
             .map(|r| (fpt, r))
@@ -9603,7 +9608,7 @@ impl Faraday {
         if !self.makes_secrets() {
             return;
         }
-        let secp = osk_bip::bitcoin::secp256k1::Secp256k1::new();
+        let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::new();
         let (m, n) = match self.create.as_ref() {
             Some(c) => (c.m, c.n),
             None => return,
@@ -9614,12 +9619,12 @@ impl Faraday {
                 let mut got = None;
                 key.with_secret_share(&c, &mut |s| {
                     let mut b = s.secret_bytes();
-                    got = osk_bip::frost::SecShare::from_bytes(&b).ok();
+                    got = faraday_bip::frost::SecShare::from_bytes(&b).ok();
                     zeroize::Zeroize::zeroize(&mut b);
                 });
                 chosen.push((id as u32, got.ok_or(EN.create_deal_a_chosen)?));
             }
-            osk_bip::frost::deal(&secp, n, m, &chosen).map_err(|e| format!("{e:?}"))
+            faraday_bip::frost::deal(&secp, n, m, &chosen).map_err(|e| format!("{e:?}"))
         });
         let dealt = match dealt {
             Ok(d) => d,
@@ -9630,7 +9635,7 @@ impl Faraday {
                 return;
             }
         };
-        let record = osk_bip::threshold::ThresholdRecord::new(
+        let record = faraday_bip::threshold::ThresholdRecord::new(
             dealt.info.clone(),
             self.session.network().kind(),
         );
@@ -9655,17 +9660,19 @@ impl Faraday {
         };
         for (id, share) in dealt.shares.iter().enumerate().skip(m) {
             let mut bytes = share.secret_bytes();
-            let words =
-                osk_bip::bip39::Mnemonic::from_entropy(osk_bip::bip39::Language::English, &bytes)
-                    .map(|mn| {
-                        zeroize::Zeroizing::new(
-                            mn.indices()
-                                .iter()
-                                .map(|w| osk_bip::bip39::Language::English.word(*w))
-                                .collect::<Vec<_>>()
-                                .join(" "),
-                        )
-                    });
+            let words = faraday_bip::bip39::Mnemonic::from_entropy(
+                faraday_bip::bip39::Language::English,
+                &bytes,
+            )
+            .map(|mn| {
+                zeroize::Zeroizing::new(
+                    mn.indices()
+                        .iter()
+                        .map(|w| faraday_bip::bip39::Language::English.word(*w))
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                )
+            });
             zeroize::Zeroize::zeroize(&mut bytes);
             if let Ok(words) = words {
                 let label = fill(
@@ -9711,7 +9718,7 @@ impl Faraday {
     /// not: with the description known, not one of its keys; from the
     /// seeds alone, no slot left. Once the wallet is made and Keys is
     /// closed, a key added is no seed of Restore's: nothing to refuse.
-    pub(crate) fn restore_refusal(&self, fp: osk_bip::keys::Fingerprint) -> Option<String> {
+    pub(crate) fn restore_refusal(&self, fp: faraday_bip::keys::Fingerprint) -> Option<String> {
         let r = self.restore.as_ref().filter(|r| !r.keys_made())?;
         if r.described {
             let w = self.session.wallets.get(r.wallet?)?;
@@ -9734,7 +9741,7 @@ impl Faraday {
     /// A seed for Restore's open slot, loaded: matched to the
     /// description's keys or put in the slot (`docs/NEW-WALLET.md`
     /// §12.1).
-    pub(crate) fn restore_took(&mut self, fp: osk_bip::keys::Fingerprint) {
+    pub(crate) fn restore_took(&mut self, fp: faraday_bip::keys::Fingerprint) {
         if let Some(why) = self.restore_refusal(fp) {
             if let Some(r) = self.restore.as_mut() {
                 r.error = Some(why);
@@ -10303,12 +10310,12 @@ impl Faraday {
         }
         if scan.purpose == ScanPurpose::Seed {
             let mut bytes = bytes;
-            let lang = osk_bip::bip39::Language::English;
+            let lang = faraday_bip::bip39::Language::English;
             let digits = bytes.iter().all(u8::is_ascii_digit);
             let read = if digits {
-                osk_codec::seedqr::from_digits(&bytes, lang)
+                faraday_codec::seedqr::from_digits(&bytes, lang)
             } else {
-                osk_codec::seedqr::from_entropy(&bytes, lang)
+                faraday_codec::seedqr::from_entropy(&bytes, lang)
             };
             zeroize::Zeroize::zeroize(&mut *bytes);
             match read {
@@ -10383,7 +10390,7 @@ impl Faraday {
         if item.kind == FileKind::Other && !enveloped {
             if let Some(scan) = self.scan.as_mut() {
                 scan.note = Some(EN.scanned_not_a_psbt.to_string());
-                scan.decoder = osk_codec::ur::Decoder::new();
+                scan.decoder = faraday_codec::ur::Decoder::new();
             }
             return;
         }
@@ -10435,9 +10442,9 @@ impl Faraday {
     /// tab once the key is put together. Returns whether it was one.
     fn intake_key_part(&mut self, bytes: &[u8]) -> bool {
         let text = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_lowercase());
-        let form = if osk_bip::slip39::Share::parse(&text).is_ok() {
+        let form = if faraday_bip::slip39::Share::parse(&text).is_ok() {
             forms::Form::Slip39
-        } else if osk_bip::codex32::Codex32::parse(&text).is_ok() {
+        } else if faraday_bip::codex32::Codex32::parse(&text).is_ok() {
             forms::Form::Codex32
         } else {
             return false;
@@ -10478,7 +10485,11 @@ impl Faraday {
     /// seed `fp`: decoded as a SeedQR and compared word by word with that
     /// seed, never loaded. A match closes the camera; a word that differs
     /// is named and the camera stays open for the copy fixed.
-    fn copy_scanned(&mut self, fp: osk_bip::keys::Fingerprint, bytes: zeroize::Zeroizing<Vec<u8>>) {
+    fn copy_scanned(
+        &mut self,
+        fp: faraday_bip::keys::Fingerprint,
+        bytes: zeroize::Zeroizing<Vec<u8>>,
+    ) {
         let c = self.compute();
         let copy = copy_indices(&bytes);
         drop(bytes);
@@ -10575,7 +10586,7 @@ impl Faraday {
             faraday_qr::Step::Done(arrived) => item = Some(arrival(arrived)),
             faraday_qr::Step::NotMine => {}
         }
-        if item.is_none() && osk_codec::ur::is_ur(&text) {
+        if item.is_none() && faraday_codec::ur::is_ur(&text) {
             let message = match ur_feed(&mut scan.decoder, &text) {
                 Ok(UrFed::Whole(m)) => m,
                 Ok(UrFed::More { restarted }) => {
@@ -10588,13 +10599,13 @@ impl Faraday {
                 }
             };
             match message {
-                osk_codec::ur::Message::Psbt(p) => item = Some((None, "psbt", p)),
-                osk_codec::ur::Message::Bytes(b) => {
+                faraday_codec::ur::Message::Psbt(p) => item = Some((None, "psbt", p)),
+                faraday_codec::ur::Message::Bytes(b) => {
                     item = Some(arrival(faraday_qr::classify_text(
                         &String::from_utf8_lossy(&b),
                     )));
                 }
-                osk_codec::ur::Message::Other { ur_type, cbor } => {
+                faraday_codec::ur::Message::Other { ur_type, cbor } => {
                     match faraday_qr::registry::read(&ur_type, &cbor) {
                         Ok(Some(faraday_qr::registry::Read::Psbt(p))) => {
                             item = Some((None, "psbt", p));
@@ -10661,7 +10672,7 @@ impl Faraday {
     fn scan_paste(&mut self) {
         if self.clipboard && self.scan_pastes() {
             self.commands.push_back(Command::RequestClipboard {
-                kind: osk_shell_api::FileKind::Text,
+                kind: faraday_shell_api::FileKind::Text,
             });
         }
     }
@@ -10676,7 +10687,7 @@ impl Faraday {
             return;
         }
         let c = self.compute();
-        let until = self.now_ms + osk_ui::tokens::NOTE_FLASH_MS;
+        let until = self.now_ms + faraday_draw::tokens::NOTE_FLASH_MS;
         let t = text.trim();
         if let Some(scan) = self.scan.as_mut() {
             if t.is_empty() {
@@ -10707,7 +10718,9 @@ impl Faraday {
         if self.sheet == Some(Sheet::Scan) && s.frame.is_none() && s.no_picture.is_none() {
             match s.waiting_since {
                 None => s.waiting_since = Some(now_ms),
-                Some(since) if now_ms.saturating_sub(since) >= osk_ui::tokens::NO_PICTURE_MS => {
+                Some(since)
+                    if now_ms.saturating_sub(since) >= faraday_draw::tokens::NO_PICTURE_MS =>
+                {
                     s.no_picture = Some(NoPicture::Silent);
                     changed = true;
                 }
@@ -10727,14 +10740,14 @@ impl Faraday {
         let t = t.split('?').next().unwrap_or(t);
         let net = self.session.network();
         let Ok(addr) =
-            t.parse::<osk_bip::bitcoin::Address<osk_bip::bitcoin::address::NetworkUnchecked>>()
+            t.parse::<faraday_bip::bitcoin::Address<faraday_bip::bitcoin::address::NetworkUnchecked>>()
         else {
             // An address's characters, as many as one has, that fail its
             // checksum: one of them is wrong.
             let whole = t.len() >= 26
-                && osk_bip::keys::Network::ALL
+                && faraday_bip::keys::Network::ALL
                     .iter()
-                    .any(|&n| osk_bip::address::is_address_prefix(t, n));
+                    .any(|&n| faraday_bip::address::is_address_prefix(t, n));
             return whole.then(|| EN.address_note_that_address_fails.to_string());
         };
         let Ok(addr) = addr.require_network(net.into()) else {
@@ -10977,7 +10990,8 @@ impl Faraday {
             Code::Message => {
                 let m = self.message.as_ref().ok_or(EN.code_view_no_message)?;
                 let sig = m.signed.as_ref().ok_or(EN.code_view_the_message)?;
-                let text = osk_psbt::message::signed_text(&sig.address, &sig.signature, &m.text);
+                let text =
+                    faraday_psbt::message::signed_text(&sig.address, &sig.signature, &m.text);
                 let name = format!(
                     "message-{}.png",
                     &sig.address[sig.address.len().saturating_sub(6)..]
@@ -11031,7 +11045,7 @@ impl Faraday {
                 let net = self.session.network();
                 let first = w.policy().address_at(c, net, false, 0).ok()?;
                 Some(
-                    osk_bip::bsms::DescriptorRecord {
+                    faraday_bip::bsms::DescriptorRecord {
                         policy: w.policy().clone(),
                         paths: vec!["/0/*".to_string(), "/1/*".to_string()],
                         first_address: first.to_string(),
@@ -11064,7 +11078,7 @@ impl Faraday {
         match self.entry.form {
             forms::Form::Words => forms::completion(self.entry.language(), &self.entry.typed),
             forms::Form::Xor => {
-                forms::completion(osk_bip::bip39::Language::English, &self.entry.typed)
+                forms::completion(faraday_bip::bip39::Language::English, &self.entry.typed)
             }
             forms::Form::Slip39 => forms::slip39_completion(&self.entry.typed),
             forms::Form::Codex32 => None,
@@ -11094,7 +11108,7 @@ impl Faraday {
     /// The words typed on Add a key's words form, the word being typed
     /// on a list's own keyboard taken first, as a key's words: whole and
     /// with a checksum that holds, or what is wrong with them.
-    pub(crate) fn entry_mnemonic(&mut self) -> Result<osk_bip::bip39::Mnemonic, String> {
+    pub(crate) fn entry_mnemonic(&mut self) -> Result<faraday_bip::bip39::Mnemonic, String> {
         let lang = self.entry.language();
         if let Some(w) = self.entry.keys.as_mut() {
             forms::take_typed(w, lang);
@@ -11102,8 +11116,8 @@ impl Faraday {
         match self.entry.keys.as_ref() {
             Some(w) => {
                 let mut idx: Vec<u16> = w.committed_indices().collect();
-                let m =
-                    osk_bip::bip39::Mnemonic::from_indices(lang, &idx).map_err(|e| e.to_string());
+                let m = faraday_bip::bip39::Mnemonic::from_indices(lang, &idx)
+                    .map_err(|e| e.to_string());
                 zeroize::Zeroize::zeroize(&mut idx);
                 m
             }
@@ -11119,13 +11133,13 @@ impl Faraday {
     /// through here (`docs/NEW-WALLET.md` §15.2).
     pub(crate) fn typed_load(
         &mut self,
-        m: &osk_bip::bip39::Mnemonic,
+        m: &faraday_bip::bip39::Mnemonic,
         pass: &str,
         label: &str,
-        wanted: Option<osk_bip::keys::Fingerprint>,
+        wanted: Option<faraday_bip::keys::Fingerprint>,
         back: Option<Screen>,
-        said: impl FnOnce(&mut Self, osk_bip::keys::Fingerprint),
-    ) -> Result<osk_bip::keys::Fingerprint, wallet::Refusal> {
+        said: impl FnOnce(&mut Self, faraday_bip::keys::Fingerprint),
+    ) -> Result<faraday_bip::keys::Fingerprint, wallet::Refusal> {
         let c = self.compute();
         let fp = self.session.add_mnemonic(&c, m, pass, label, wanted)?;
         said(self, fp);
@@ -11159,7 +11173,7 @@ impl Faraday {
         if !self.may_load_keys() {
             return;
         }
-        let wanted = self.entry.wanted.map(osk_bip::keys::Fingerprint);
+        let wanted = self.entry.wanted.map(faraday_bip::keys::Fingerprint);
         let label = self.entry.label.clone();
         let typed = self.entry_mnemonic();
         let m = match typed {
@@ -11226,7 +11240,7 @@ impl Faraday {
             }
         }
         let pass = secret_text::SecretText::of(self.entry.passphrase.as_str());
-        let said = |app: &mut Self, fp: osk_bip::keys::Fingerprint| match for_wallet {
+        let said = |app: &mut Self, fp: faraday_bip::keys::Fingerprint| match for_wallet {
             Some((w, n)) => app.wallet_key_said(w, n),
             None => app.toast(&fill(EN.entry_add_key_added, &[&fp_text(fp).to_string()])),
         };
@@ -11642,7 +11656,7 @@ impl Faraday {
             }
             return;
         }
-        let mut remember: Option<osk_psbt::Psbt> = None;
+        let mut remember: Option<faraday_psbt::Psbt> = None;
         let Some(s) = self.spend.as_mut() else {
             return;
         };
@@ -11678,7 +11692,7 @@ impl Faraday {
         let mut nonce_only = false;
         // A threshold pass signs as the shares held here; it names them
         // by their own fingerprints.
-        let ours: Option<Vec<osk_bip::keys::Fingerprint>> = s
+        let ours: Option<Vec<faraday_bip::keys::Fingerprint>> = s
             .inspection
             .inputs
             .first()
@@ -11718,10 +11732,9 @@ impl Faraday {
                 s.carry = None;
             }
             if let Some(section) = out.carry {
-                s.carry_out = Some(zeroize::Zeroizing::new(osk_psbt::threshold::carry_bytes(
-                    &section,
-                    &psbt.to_bytes(),
-                )));
+                s.carry_out = Some(zeroize::Zeroizing::new(
+                    faraday_psbt::threshold::carry_bytes(&section, &psbt.to_bytes()),
+                ));
             }
             ours.unwrap_or(out.by)
         });
@@ -13305,7 +13318,7 @@ impl Faraday {
 
     /// The keys loaded that no wallet uses, and the one of them the
     /// Wallets card offers a wallet from: the one picked, else the first.
-    pub fn loose_keys(&self) -> (Vec<osk_bip::keys::Fingerprint>, Option<[u8; 4]>) {
+    pub fn loose_keys(&self) -> (Vec<faraday_bip::keys::Fingerprint>, Option<[u8; 4]>) {
         let loose = self.session.loose_keys();
         let picked = self
             .loose_pick
@@ -13350,7 +13363,7 @@ pub(crate) fn public_more_files(w: &wallet::Wallet) -> Vec<(u8, String)> {
     [
         (
             9,
-            osk_bip::core_import::writes_pair(p),
+            faraday_bip::core_import::writes_pair(p),
             "bitcoin-core-before-29",
         ),
         (10, faraday_intake::electrum::writes(p), "electrum"),
@@ -13808,9 +13821,9 @@ impl App for Faraday {
             }
             Event::CameraUnavailable => self.camera_failed(NoPicture::Unavailable),
             Event::CameraFailed(why) => self.camera_failed(match why {
-                osk_shell_api::CameraFailure::Refused => NoPicture::Refused,
-                osk_shell_api::CameraFailure::InUse => NoPicture::InUse,
-                osk_shell_api::CameraFailure::NotFound => NoPicture::NotFound,
+                faraday_shell_api::CameraFailure::Refused => NoPicture::Refused,
+                faraday_shell_api::CameraFailure::InUse => NoPicture::InUse,
+                faraday_shell_api::CameraFailure::NotFound => NoPicture::NotFound,
             }),
             Event::Clipboard { text, .. } => self.pasted(zeroize::Zeroizing::new(text)),
             Event::ClipboardUnavailable { .. } => {
@@ -13874,10 +13887,10 @@ impl Faraday {
                 c.ink()
                     .iter()
                     .filter_map(|i| match &i.kind {
-                        osk_ui::canvas::InkKind::Text { text, .. } => {
+                        faraday_draw::canvas::InkKind::Text { text, .. } => {
                             Some((text.clone(), (i.rect.x, i.rect.y, i.rect.w, i.rect.h)))
                         }
-                        osk_ui::canvas::InkKind::Icon(_) => None,
+                        faraday_draw::canvas::InkKind::Icon(_) => None,
                     })
                     .collect()
             })
@@ -13895,7 +13908,7 @@ impl Faraday {
         // The self-test runs once, at start, before any input: a display
         // comes before anything can be pressed.
         if self.selftest.is_none() {
-            self.selftest = Some(osk_selftest::run(&c));
+            self.selftest = Some(faraday_selftest::run(&c));
         }
         self.frost = None;
         self.fade = None;
@@ -13944,7 +13957,7 @@ impl Faraday {
 /// Whether a pass over this transaction may open a MuSig2 or FROST
 /// round, which draws secret nonces: any such input is one, since what
 /// the pass does with it is decided only as it signs.
-fn spend_opens_round(inspection: &osk_psbt::Inspection) -> bool {
+fn spend_opens_round(inspection: &faraday_psbt::Inspection) -> bool {
     inspection
         .inputs
         .iter()

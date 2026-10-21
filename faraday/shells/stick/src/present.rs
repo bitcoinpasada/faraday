@@ -128,7 +128,7 @@ mod tests {
     use super::*;
     use crate::fb::Depth;
     use faraday_core::Faraday;
-    use osk_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware};
+    use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware};
 
     /// The Pi's panel.
     const G: Geometry = Geometry {

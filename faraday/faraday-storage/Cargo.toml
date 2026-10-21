@@ -11,7 +11,7 @@ publish = false
 [dependencies]
 faraday-core = { path = "../faraday-core" }
 faraday-files = { path = "../faraday-files" }
-osk-crypto = { path = "../../core/osk-crypto" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
 zeroize = { workspace = true, features = ["alloc"] }
 
 # The boot copier's pipe and, for the tests, the copier itself
@@ -24,14 +24,14 @@ faraday-boot = { path = "../faraday-boot" }
 # of the codes, as the test wallets make them.
 faraday-core = { path = "../faraday-core", features = ["testkit"] }
 faraday-qr = { path = "../faraday-qr" }
-osk-codec = { path = "../../core/osk-codec" }
-osk-shell-api = { path = "../../core/osk-shell-api" }
+faraday-codec = { path = "../../core/faraday-codec" }
+faraday-shell-api = { path = "../../core/faraday-shell-api" }
 
 [lints.rust]
 # Not `workspace = true`: on Windows one function needs `unsafe`, asking
 # kernel32 for the memory free for a vault's Argon2id
 # (`memory_available_mib`; std has no way). `deny`, not `forbid`, so it
-# alone can allow it, as osk-crypto's `pinned.rs` and the Starter's
+# alone can allow it, as faraday-crypto's `pinned.rs` and the Starter's
 # shell do; the other workspace lint is repeated by hand.
 unsafe_code = "deny"
 missing_docs = "warn"

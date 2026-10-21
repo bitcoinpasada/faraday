@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Decrypt an OpenSigner encrypted backup (`osk-backup`, versions 2 and 3).
+"""Decrypt an OpenSigner encrypted backup (`.oskb`, versions 2 and 3).
 
 The format is documented in
-`docs/BACKUP.md` and `core/osk-backup/src/oskb.rs` and is not this app's
+`docs/BACKUP.md` and `core/faraday-backup/src/oskb.rs` and is not this app's
 secret: these ninety lines and two published libraries read it. A person
 who has the file and the passphrase does not need OpenSigner to get their
 words back.
@@ -25,7 +25,7 @@ Dependencies — the standard library plus **either**:
 
 Whichever is installed is used; the first is tried first. The BIP-39
 wordlists are read out of this repository's own copies
-(`core/osk-bip/src/wordlists/`), and each one is checked against the
+(`core/faraday-bip/src/wordlists/`), and each one is checked against the
 SHA-256 of the published file recorded beside it, so nothing is
 downloaded and a tampered list is caught.
 
@@ -66,7 +66,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-WORDLISTS = ROOT / "core" / "osk-bip" / "src" / "wordlists"
+WORDLISTS = ROOT / "core" / "faraday-bip" / "src" / "wordlists"
 
 MAGIC = b"OSKB"
 VERSIONS = (2, 3)
@@ -85,7 +85,7 @@ KIND_SHEET = 4
 
 # The order `Language::ALL` lists the wordlists in, which is the index
 # the plaintext's second byte carries. The names are the module names
-# under core/osk-bip/src/wordlists/.
+# under core/faraday-bip/src/wordlists/.
 LANGUAGES = [
     "english",
     "japanese",
@@ -231,10 +231,10 @@ def words_of(entropy: bytes, language: str) -> list[str]:
 def decrypt(blob: bytes, passphrase: bytes) -> tuple[str, str]:
     """`(kind, text)` of `blob` under `passphrase`, ready to print."""
     if blob[:4] != MAGIC:
-        raise SystemExit("not an osk-backup: wrong magic")
+        raise SystemExit("not an .oskb file: wrong magic")
     version = blob[4]
     if version not in VERSIONS:
-        raise SystemExit(f"osk-backup version {version}, this script reads {VERSIONS}")
+        raise SystemExit(f".oskb version {version}, this script reads {VERSIONS}")
     sealed_len = len(blob) - HEADER_LEN - NONCE_LEN - TAG_LEN
     if version == 2:
         if len(blob) != V2_BACKUP_LEN:

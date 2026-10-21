@@ -13,7 +13,7 @@ use crate::ui::{Style, Ui, W};
 use crate::vault_screens::{hold_button_in, secret_box, stick_banner, stick_field, text_box};
 use crate::vaults::{self, Focus, VaultAction as V};
 use crate::{Action, Faraday, flow};
-use osk_ui::widgets::Icon;
+use faraday_draw::widgets::Icon;
 
 /// A button, and the room it takes with the gap under it.
 #[allow(clippy::too_many_arguments)]
@@ -400,7 +400,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
 
 // ---- helpers ----
 
-fn line(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str, color: osk_ui::Color) -> f32 {
+fn line(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str, color: faraday_draw::Color) -> f32 {
     ui.wrap(x, y, w, 14.0, W::R, color, text) + 10.0
 }
 

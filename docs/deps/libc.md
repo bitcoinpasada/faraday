@@ -1,6 +1,6 @@
 # `libc` 0.2 — shell-only, for the V4L2 camera
 
-**Where it is used:** `opensigner/shells/v4l2` (`opensigner-v4l2`) and
+**Where it is used:** `faraday/shells/v4l2` (`faraday-v4l2`) and
 nowhere else. The Linux desktop shell depends on that crate under
 `[target.'cfg(target_os = "linux")'.dependencies]`; the Pi shell depends
 on it directly. No core crate depends on `libc`, and no release binary
@@ -18,7 +18,7 @@ struct, and the handful of constants (`PROT_READ`, `MAP_SHARED`,
 
 **What it is not used for.** The V4L2 ABI itself — the `#[repr(C)]`
 structs, the FourCC codes and the `ioctl` request numbers — is declared
-in `opensigner-v4l2`'s own `abi.rs`, not taken from `libc`, so that the
+in `faraday-v4l2`'s own `abi.rs`, not taken from `libc`, so that the
 32-bit and 64-bit layouts and the request numbers derived from them are
 visible and tested in this repository.
 
@@ -37,7 +37,7 @@ workspace names it directly.
 **Risk.** `libc` is the most-used crate in the ecosystem and is
 maintained by the Rust project. The exposure it adds is the `unsafe`
 this repository writes against it, not the crate itself: every `unsafe`
-block lives in `opensigner-v4l2`, that crate is the single exception to
+block lives in `faraday-v4l2`, that crate is the single exception to
 the workspace's `unsafe_code = "forbid"`, its `Cargo.toml` says so, and
 every block carries a `// SAFETY:` comment. Its public API is entirely
 safe — no raw pointer, file descriptor or mapped buffer crosses it.

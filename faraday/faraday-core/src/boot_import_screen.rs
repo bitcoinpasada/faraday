@@ -6,7 +6,7 @@
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_ui::widgets::Icon;
+use faraday_draw::widgets::Icon;
 
 use crate::Action;
 use crate::boot_import::{ImportAction as I, ImportCount, ImportVault, ImportView};

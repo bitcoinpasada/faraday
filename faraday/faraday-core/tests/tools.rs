@@ -1,12 +1,12 @@
 //! OpenSigner's calculators on Faraday's Tools screen: what is typed
 //! reaches the calculator, and the answers are the published ones.
 
+use faraday_bip::hashes::hashes;
+use faraday_bip::slip132::{KeyReading, key_facts};
+use faraday_codec::encodings::read_input;
 use faraday_core::tools::Tool;
 use faraday_core::{Action, Faraday, Screen};
-use osk_bip::hashes::hashes;
-use osk_bip::slip132::{KeyReading, key_facts};
-use osk_codec::encodings::read_input;
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 fn tool(app: &mut Faraday, t: Tool) {
     let i = Tool::ALL.iter().position(|x| *x == t).unwrap();

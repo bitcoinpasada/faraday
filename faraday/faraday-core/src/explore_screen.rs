@@ -2,7 +2,7 @@
 
 use crate::drawing::View;
 use crate::strings::EN;
-use osk_bip::keys::ScriptType;
+use faraday_bip::keys::ScriptType;
 
 use crate::Action;
 use crate::explore::PRESETS;
@@ -149,7 +149,7 @@ fn header(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32, guide: &str) 
         x - 4.0,
         y,
         16.0,
-        osk_ui::widgets::Icon::ChevronLeft,
+        faraday_draw::widgets::Icon::ChevronLeft,
         10.0,
         MUTED,
     );

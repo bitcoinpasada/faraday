@@ -9,7 +9,7 @@ use faraday_core::boot_import::ImportAction as I;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 /// Answers the app's reads from the test vault, the one file on the
 /// boot stick.

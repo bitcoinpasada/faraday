@@ -9,13 +9,13 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-osk-backup = { path = "../../core/osk-backup" }
-osk-bip = { path = "../../core/osk-bip" }
-osk-crypto = { path = "../../core/osk-crypto" }
+faraday-backup = { path = "../../core/faraday-backup" }
+faraday-bip = { path = "../../core/faraday-bip" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
 zeroize = { workspace = true, features = ["alloc"] }
 # What a vault and its entries look like.
 faraday-intake = { path = "../faraday-intake" }
-# Argon2id over the passphrase, as osk-backup stretches it.
+# Argon2id over the passphrase, as faraday-backup stretches it.
 argon2 = { workspace = true }
 # Each slot's cipher.
 chacha20poly1305 = { workspace = true }

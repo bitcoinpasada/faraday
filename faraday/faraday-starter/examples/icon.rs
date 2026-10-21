@@ -16,8 +16,8 @@ use std::io::BufWriter;
 use std::process::ExitCode;
 
 use faraday_core::ui::Ui;
-use osk_shell_api::{BootState, DisplayInfo, SecureHardware};
-use osk_ui::Canvas;
+use faraday_draw::Canvas;
+use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
 
 const SIZE: u16 = 256;
 /// The mark's box, in pixels, centred: the shield is as tall as the box,

@@ -4,16 +4,16 @@
 //! decoded. A code is read whether it is printed dark on light or light
 //! on dark (a screenshot of a phone in dark mode).
 
+use faraday_codec::qr::{self, Ecc, Payload, QUIET_ZONE};
 use faraday_files::qr_in_png;
-use osk_codec::qr::{self, Ecc, Payload, QUIET_ZONE};
 
 /// A token for the work these tests ask, counting nothing. Cheap.
 #[expect(
     clippy::disallowed_methods,
     reason = "a mint: faraday-files' tests, which cannot reach faraday-core's testkit"
 )]
-fn compute() -> osk_crypto::work::Compute {
-    osk_crypto::work::Compute::new(|_| {})
+fn compute() -> faraday_crypto::work::Compute {
+    faraday_crypto::work::Compute::new(|_| {})
 }
 
 /// CRC-32 as PNG chunks carry it.
@@ -94,7 +94,7 @@ fn code_png(payload: &[u8], light: bool) -> Vec<u8> {
             *p = 255 - *p;
         }
     }
-    osk_codec::png::grey_png(w, h, &px)
+    faraday_codec::png::grey_png(w, h, &px)
 }
 
 #[test]

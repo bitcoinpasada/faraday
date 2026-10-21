@@ -1,9 +1,9 @@
 # miniscript
 
-**Purpose.** Miniscript and output descriptors in `osk-bip`: reading a
+**Purpose.** Miniscript and output descriptors in `faraday-bip`: reading a
 `wsh(<miniscript>)`, `sh(wsh(<miniscript>))` or `tr(<key>,<tree>)`
 wallet, deriving its addresses, listing the ways it can be spent
-(`osk_bip::spend`), and compiling a typed policy into a descriptor for
+(`faraday_bip::spend`), and compiling a typed policy into a descriptor for
 Tools › Miniscript.
 
 **Why this crate.** This project writes formats in-house where the code
@@ -29,7 +29,7 @@ line is the one that pairs with `bitcoin` 0.32; 13.x moves to
 `bitcoin` 0.33 and is for whenever the rest of the tree does.
 
 - `no-std` keeps the core `no_std` + `alloc`, which the Pi and Android
-  shells build. Checked by building `osk-bip` for
+  shells build. Checked by building `faraday-bip` for
   `wasm32-unknown-unknown`, which has no `std` at all.
 - `compiler` is the concrete-policy compiler
   (`miniscript::policy::Concrete::compile`, `compile_tr`), which is what
@@ -38,8 +38,8 @@ line is the one that pairs with `bitcoin` 0.32; 13.x moves to
 - Not enabled: `std`, `serde`, `rand`, `base64`, `trace`.
 
 **Cost.** One crate. `miniscript` 12.3.7 depends on `bitcoin` and
-`bech32`, and both were already in `osk-bip`'s graph — `bitcoin` as the
-direct dependency, `bech32` through it. `cargo tree -p osk-bip` before
+`bech32`, and both were already in `faraday-bip`'s graph — `bitcoin` as the
+direct dependency, `bech32` through it. `cargo tree -p faraday-bip` before
 and after differs by exactly these three lines:
 
 ```
@@ -53,7 +53,7 @@ Measured with
 
 | Graph | Before | After |
 |---|--:|--:|
-| `osk-bip` | 34 | 35 |
+| `faraday-bip` | 34 | 35 |
 | `opensigner-core` | 51 | 52 |
 | `opensigner-ffi` | 54 | 55 |
 | `opensigner-pi` | 55 | 56 |
@@ -65,7 +65,7 @@ input is read, its change is verified, and signing it returns
 satisfaction machinery is the obvious way to do that, and is a pass of
 its own.
 
-`osk_bip::policy` still parses the BIP-388 templates it always did —
+`faraday_bip::policy` still parses the BIP-388 templates it always did —
 `multi`, `sortedmulti`, the four single-key forms and BIP-390's
 `tr(musig(…))` — in-house, and reaches `miniscript` only when none of
 them matches. Those templates are short, their tests are the BIP's own

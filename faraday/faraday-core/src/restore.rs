@@ -4,8 +4,8 @@
 //! then the seeds, typed back in.
 
 use crate::strings::EN;
-use osk_bip::multisig_config;
-use osk_crypto::work::Compute;
+use faraday_bip::multisig_config;
+use faraday_crypto::work::Compute;
 
 /// What one multisig config file, whole or a share, says.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -214,7 +214,7 @@ mod tests {
     #[test]
     fn a_config_with_a_slip132_key_of_another_script_is_not_readable() {
         let c = crate::testkit::compute();
-        use osk_bip::slip132::{Script, encode};
+        use faraday_bip::slip132::{Script, encode};
         let xpub = |i: usize| {
             [
                 "xpub6EeqK2JLwngrHJEQ4X4iqrySZV9qU3TgwMgf6NStLZa37AfNiHTtTE9ji1F9YQDLArJMLy8sw3Q2samVj5VQQjaaUHr5z2Hz57NWHJCfh31",

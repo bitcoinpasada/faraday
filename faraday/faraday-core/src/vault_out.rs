@@ -77,10 +77,10 @@ impl Faraday {
         let Some(m) = crate::wallet::record_words(&c, r) else {
             return;
         };
-        if m.language() != osk_bip::bip39::Language::English {
+        if m.language() != faraday_bip::bip39::Language::English {
             return;
         }
-        if let Ok(mx) = osk_codec::seedqr::encode_seedqr(&c, &m) {
+        if let Ok(mx) = faraday_codec::seedqr::encode_seedqr(&c, &m) {
             self.vaults.seedqr = Some((at, mx));
         }
     }
@@ -160,7 +160,8 @@ impl Faraday {
                     crate::plan::What::SeedQrFile(0),
                 ),
             ] {
-                if what == SaveWhat::SeedQr && m.language() != osk_bip::bip39::Language::English {
+                if what == SaveWhat::SeedQr && m.language() != faraday_bip::bip39::Language::English
+                {
                     continue;
                 }
                 if let Some(name) = crate::backup_flow_wallet::seed_stick_name(form, &fp) {

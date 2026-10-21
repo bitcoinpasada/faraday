@@ -23,7 +23,7 @@ use std::fs;
 use std::io::Write as _;
 use std::path::PathBuf;
 
-use osk_crypto::work::{Compute, Work};
+use faraday_crypto::work::{Compute, Work};
 
 /// The largest file read from a stick. A PSBT or a wallet is kilobytes; a
 /// vault with four 4 MiB slots is the largest thing Faraday writes.
@@ -631,7 +631,7 @@ pub fn picture_answer(c: &Compute, bytes: Vec<u8>) -> proto::Response {
     proto::Response::Qr { bytes, codes }
 }
 
-/// Costs a PNG decode and [`osk_codec::decode::decode_picture`]: a
+/// Costs a PNG decode and [`faraday_codec::decode::decode_picture`]: a
 /// third of a second for a 12-megapixel photograph, seconds on a Pi, so
 /// a shell reads pictures off its own thread. The QR codes in a PNG's
 /// bytes, dark on light or light on dark.
@@ -675,7 +675,7 @@ pub fn qr_in_png(c: &Compute, bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
         return Err("the image's pixels do not add up".into());
     }
     // A code printed light on dark is read too.
-    Ok(osk_codec::decode::decode_picture(c, w, h, &luma)
+    Ok(faraday_codec::decode::decode_picture(c, w, h, &luma)
         .into_iter()
         .map(|d| d.bytes)
         .collect())

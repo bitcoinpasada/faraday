@@ -11,7 +11,7 @@ use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
-use osk_shell_api::{App, Event, Key, TouchPhase};
+use faraday_shell_api::{App, Event, Key, TouchPhase};
 
 const BOOT: &str = "boot";
 
@@ -29,9 +29,9 @@ fn fp(n: usize) -> String {
 /// Test seed `n`'s SeedQR: each word's index as four digits.
 fn seed_seedqr(n: usize) -> Vec<u8> {
     let c = testkit::compute();
-    let m = osk_bip::bip39::Mnemonic::parse(
+    let m = faraday_bip::bip39::Mnemonic::parse(
         &c,
-        osk_bip::bip39::Language::English,
+        faraday_bip::bip39::Language::English,
         &testkit::test_words(testkit::TEST_SEEDS[n].0),
     )
     .unwrap();
@@ -963,7 +963,7 @@ fn seed_vault() -> Vec<u8> {
     let c = testkit::compute();
     use faraday_vault::records::{field, kind};
     use faraday_vault::{Contents, Cost, Record};
-    let seed = osk_bip::codex32::Codex32::parse(CODEX32_SECRET)
+    let seed = faraday_bip::codex32::Codex32::parse(CODEX32_SECRET)
         .unwrap()
         .to_seed()
         .unwrap();

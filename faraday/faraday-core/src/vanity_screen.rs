@@ -3,7 +3,7 @@
 use crate::grind::Dial;
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_bip::keys::ScriptType;
+use faraday_bip::keys::ScriptType;
 
 use crate::drawing::{Scrolled, View};
 use crate::screens::next_button;

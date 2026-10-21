@@ -20,8 +20,8 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_bip::keys::{Fingerprint, Network};
-use osk_crypto::work::Compute;
+use faraday_bip::keys::{Fingerprint, Network};
+use faraday_crypto::work::Compute;
 
 use crate::wallet::{Kind, Session, Wallet, fp_text};
 
@@ -94,8 +94,8 @@ pub fn audit(plan: &[Vec<usize>], m: usize) -> Audit {
 /// first line. `only` keeps those key lines alone, for a split sheet.
 pub fn multisig_config(wallet: &Wallet, only: Option<&[usize]>) -> Option<String> {
     let format = match Kind::of(wallet.policy()) {
-        Kind::Multi(osk_bip::policy::Wrapper::Sh) => "P2SH",
-        Kind::Multi(osk_bip::policy::Wrapper::ShWsh) => "P2SH-P2WSH",
+        Kind::Multi(faraday_bip::policy::Wrapper::Sh) => "P2SH",
+        Kind::Multi(faraday_bip::policy::Wrapper::ShWsh) => "P2SH-P2WSH",
         Kind::Multi(_) => "P2WSH",
         _ => return None,
     };
@@ -176,7 +176,7 @@ fn config(wallet: &Wallet, only: Option<&[usize]>, format: &str, head: &str) -> 
 /// scan from, and the descriptor. The descriptor and the label carry no
 /// character JSON needs escaped: a descriptor is ASCII without quotes or
 /// backslashes, and the label is sanitized.
-pub fn wallet_json(name: &str, policy: &osk_bip::policy::WalletPolicy) -> String {
+pub fn wallet_json(name: &str, policy: &faraday_bip::policy::WalletPolicy) -> String {
     let label: String = sanitize(name)
         .chars()
         .filter(|c| *c != '"' && *c != '\\')

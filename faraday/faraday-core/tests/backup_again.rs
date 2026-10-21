@@ -18,7 +18,7 @@ use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Code, Faraday, Screen, bstep, plan, qrow, qstep};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 fn kit_file(name: &str) -> (String, Vec<u8>) {
     testkit::files()
@@ -74,7 +74,7 @@ fn load(app: &mut Faraday, name: &str) -> usize {
 }
 
 /// Test key n typed into Add a key.
-fn add_key(app: &mut Faraday, n: usize) -> osk_bip::keys::Fingerprint {
+fn add_key(app: &mut Faraday, n: usize) -> faraday_bip::keys::Fingerprint {
     app.press(Action::Entry(None));
     type_text(app, &testkit::test_words(testkit::TEST_SEEDS[n].0));
     app.press(Action::EntryAdd);

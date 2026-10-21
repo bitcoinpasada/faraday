@@ -482,7 +482,7 @@ with enough, a green **Can spend** pill in place of "Nothing missing".
 
 **Where.** `screens.rs` (the Wallets card; `backup_line` and the map
 panel's code to reuse), `plan.rs` (the per-spot finding), a new
-`faraday-core/src/glance.rs` for the chart's layout, `core/osk-ui/src/
+`faraday-core/src/glance.rs` for the chart's layout, `core/faraday-draw/src/
 tokens.rs`, `compact_screens.rs` for the small panel's page.
 
 **Tests.** A new `tests/glance.rs`: a single-key wallet with the Paper
@@ -876,7 +876,7 @@ Back, `BTN_EXTRA` or `BTN_FORWARD` is Forward; a release and the
 kernel's repeats send nothing (owner, 2026-10-20). Other shells ignore
 the events.
 
-**Where.** `core/osk-shell-api` (the events), `faraday/shells/desktop`,
+**Where.** `core/faraday-shell-api` (the events), `faraday/shells/desktop`,
 `faraday/shells/window` (winit's buttons), `faraday/shells/stick`
 (`pointer.rs`, `cursor.rs`), `lib.rs` (back, forward, the history).
 

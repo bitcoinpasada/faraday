@@ -10,7 +10,7 @@ use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::time::Duration;
 
-use osk_shell_api::{Event, FileKind};
+use faraday_shell_api::{Event, FileKind};
 
 /// The most text a read returns, in bytes. More is unavailable.
 const CAP: usize = 1 << 20;

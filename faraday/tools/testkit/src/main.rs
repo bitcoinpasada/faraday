@@ -18,11 +18,11 @@
 use std::path::Path;
 use std::process::ExitCode;
 
+use faraday_bip::bitcoin::absolute::LockTime;
 use faraday_core::testkit::{self, SPEND_TXID};
 use faraday_core::wallet::Spend;
-use osk_bip::bitcoin::absolute::LockTime;
-use osk_crypto::work::Compute;
-use osk_psbt::Psbt;
+use faraday_crypto::work::Compute;
+use faraday_psbt::Psbt;
 
 /// Costs what `add_words`, `add_wallet`, `inspect` and the rest it
 /// calls cost.
@@ -199,8 +199,8 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
     // FROST 2 of 3: test key 1 signed as share 1 and chose share 2; test
     // key 2, at the second location, reads the carry file and finishes.
     let file = testkit::threshold_carry()?;
-    let carry = osk_psbt::threshold::Carry::parse(&file).map_err(|e| e.reason().to_string())?;
-    let psbt = osk_psbt::Psbt::parse_bytes(c, &carry.psbt).map_err(|e| e.to_string())?;
+    let carry = faraday_psbt::threshold::Carry::parse(&file).map_err(|e| e.reason().to_string())?;
+    let psbt = faraday_psbt::Psbt::parse_bytes(c, &carry.psbt).map_err(|e| e.to_string())?;
     let mut second = testkit::session();
     let (word, label) = testkit::TEST_SEEDS[1];
     second

@@ -32,7 +32,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use osk_shell_api::{FileEntry, FileKind};
+use faraday_shell_api::{FileEntry, FileKind};
 
 /// The most that will be handed to the core from one file. A PSBT is
 /// kilobytes; anything of this size on the card is not what was asked

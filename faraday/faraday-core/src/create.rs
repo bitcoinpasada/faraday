@@ -5,11 +5,11 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_bip::keys::{MasterKey, MultisigScriptType, ScriptType};
-use osk_bip::policy::{PolicyKey, WalletPolicy};
-use osk_bip::slip132;
-use osk_crypto::work::Compute;
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::keys::{MasterKey, MultisigScriptType, ScriptType};
+use faraday_bip::policy::{PolicyKey, WalletPolicy};
+use faraday_bip::slip132;
+use faraday_crypto::work::Compute;
 
 /// The kinds a wallet can be created as.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -93,7 +93,7 @@ impl NewKind {
     /// The kind a wallet of this policy is, when it is one Create makes:
     /// what names its keys and signs their BIP 129 records.
     pub fn of(policy: &WalletPolicy) -> Option<NewKind> {
-        use osk_bip::policy::{Template, Wrapper};
+        use faraday_bip::policy::{Template, Wrapper};
         Some(match policy.template() {
             Template::Single { script } => match script {
                 ScriptType::NativeSegwit => NewKind::NativeSegwit,
@@ -145,7 +145,7 @@ impl NewKind {
 
     /// The path a key of this kind is taken at, from its master, on
     /// `network`.
-    pub fn path(self, network: osk_bip::keys::Network) -> String {
+    pub fn path(self, network: faraday_bip::keys::Network) -> String {
         let c = network.coin_type();
         match self {
             NewKind::NativeSegwit => format!("m/84'/{c}'/0'"),
@@ -164,7 +164,7 @@ impl NewKind {
     /// The kind's path with account `account` in place of 0: the
     /// account is BIP-44's third step, BIP-48's too. `m/45'` has none
     /// and stays as it is.
-    pub fn path_at(self, network: osk_bip::keys::Network, account: u32) -> String {
+    pub fn path_at(self, network: faraday_bip::keys::Network, account: u32) -> String {
         let path = self.path(network);
         let mut steps: Vec<String> = path.split('/').map(str::to_string).collect();
         if steps.len() >= 4 {
@@ -225,7 +225,7 @@ impl NewKind {
                 (*a.xpub(), a.master_fingerprint(), a.path().clone())
             }
             NewKind::MultiLegacy | NewKind::TapMulti => {
-                let path: osk_bip::bitcoin::bip32::DerivationPath = self
+                let path: faraday_bip::bitcoin::bip32::DerivationPath = self
                     .path_at(master.network(), account)
                     .parse()
                     .map_err(|e| format!("{e}"))?;
@@ -258,7 +258,7 @@ impl NewKind {
         let path: Vec<_> = a.path().into_iter().copied().collect();
         let cbor =
             faraday_qr::registry::account_cbor(a.master_fingerprint().0, &path, a.xpub(), false);
-        Some(osk_codec::ur::encode_single("crypto-account", &cbor))
+        Some(faraday_codec::ur::encode_single("crypto-account", &cbor))
     }
 
     /// Costs a key derivation and a signature. A key's BIP 129 key record,
@@ -280,7 +280,7 @@ impl NewKind {
         };
         let record = master
             .with_multisig_account_secret(c, script, account, |secret, view| {
-                osk_bip::bsms::signer_record(master.secp(), view, secret, "00", description)
+                faraday_bip::bsms::signer_record(master.secp(), view, secret, "00", description)
             })
             .ok()?
             .ok()?;
@@ -316,7 +316,7 @@ impl NewKind {
 /// The account a wallet's keys are at: the third step of its first key's
 /// path, BIP-44's and BIP-48's account; 0 for a key with no such step.
 pub fn account_of(policy: &WalletPolicy) -> u32 {
-    use osk_bip::bitcoin::bip32::ChildNumber;
+    use faraday_bip::bitcoin::bip32::ChildNumber;
     policy
         .keys()
         .first()
@@ -332,7 +332,7 @@ pub fn account_of(policy: &WalletPolicy) -> u32 {
 /// what [`NewKind::key_text`] gives at a kind's own path, at any other.
 pub fn key_text_at(c: &Compute, master: &MasterKey, path: &str) -> Result<String, String> {
     let path = normal_path(path).ok_or_else(|| fill(EN.create_not_a_derivation, &[path]))?;
-    let parsed: osk_bip::bitcoin::bip32::DerivationPath =
+    let parsed: faraday_bip::bitcoin::bip32::DerivationPath =
         path.parse().map_err(|e| format!("{e}"))?;
     let d = master.derive(c, &parsed);
     let shown = path
@@ -451,8 +451,8 @@ pub fn read_key(text: &str) -> Option<String> {
 /// Keystone's, Coldcard's for Wasabi); or `[fingerprint/path]xpub` on
 /// lines of their own.
 pub fn read_keys(text: &str) -> Vec<String> {
-    if osk_bip::bsms::is_signer_record(text) {
-        return osk_bip::bsms::SignerRecord::parse(text)
+    if faraday_bip::bsms::is_signer_record(text) {
+        return faraday_bip::bsms::SignerRecord::parse(text)
             .ok()
             .filter(|r| r.verify().is_ok())
             .map(|r| r.key.key_text())
@@ -462,7 +462,7 @@ pub fn read_keys(text: &str) -> Vec<String> {
     if text.trim_start().starts_with('{') {
         // A single-key file (Cobo, Keystone, Coldcard's for Wasabi): its
         // one key.
-        if let Ok(v) = osk_bip::json::parse(text)
+        if let Ok(v) = faraday_bip::json::parse(text)
             && let Some(read) = faraday_intake::single_key::read(&v)
         {
             return read
@@ -473,7 +473,7 @@ pub fn read_keys(text: &str) -> Vec<String> {
                 .collect();
         }
         // Coldcard's multisig key file or generic export.
-        return osk_bip::coldcard::cosigner_keys(text);
+        return faraday_bip::coldcard::cosigner_keys(text);
     }
     text.lines()
         .map(str::trim)
@@ -507,7 +507,7 @@ pub fn key_for(kind: NewKind, text: &str) -> Option<String> {
             None => None,
         }
     };
-    let want = shape(&kind.path(osk_bip::keys::Network::Mainnet))?;
+    let want = shape(&kind.path(faraday_bip::keys::Network::Mainnet))?;
     let at = |k: &String| {
         let path = k.get(k.find('/')? + 1..k.find(']')?)?;
         shape(path)

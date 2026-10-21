@@ -22,10 +22,10 @@
 //! keys is a secret ([`holds_secret`]); only its public keys are read.
 
 use crate::single_key::path_h;
+use faraday_bip::json::{self, Value};
+use faraday_bip::policy::{Template, WalletPolicy, Wrapper};
+use faraday_bip::slip132::{self, Script};
 use faraday_strings::{EN, fill};
-use osk_bip::json::{self, Value};
-use osk_bip::policy::{Template, WalletPolicy, Wrapper};
-use osk_bip::slip132::{self, Script};
 
 /// The most keys a multisig script holds, and so the most keystores read.
 const MAX_KEYS: usize = 15;
@@ -224,7 +224,7 @@ fn short(k: &str) -> String {
 /// of one key, `sortedmulti` in `sh`, `sh(wsh)` or `wsh`; every key with
 /// its origin.
 fn shape(policy: &WalletPolicy) -> Option<(String, Script)> {
-    use osk_bip::keys::ScriptType;
+    use faraday_bip::keys::ScriptType;
     if !policy
         .keys()
         .iter()

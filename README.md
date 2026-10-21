@@ -557,7 +557,7 @@ a vetted crate, and what it is checked against.
 
 **Bitcoin cryptography is in `core/`.** Every key derivation, mnemonic,
 signature, PSBT and message signature is in the `core/` crates
-(`osk-crypto`, `osk-bip`, `osk-psbt`, `osk-entropy`), which began as
+(`faraday-crypto`, `faraday-bip`, `faraday-psbt`, `faraday-entropy`), which began as
 OpenSigner's. Since 2026-10-20 Faraday maintains them itself, as a soft
 fork (`docs/history/UPSTREAM.md`, F65): it changes them where it needs to, each
 change its own commit listed in `docs/history/UPSTREAM.md`, and ports what
@@ -591,8 +591,8 @@ Why this is better than one repository and one application:
   OpenPGP packets, `openssl` and `sbverify` its Secure Boot output.
 
 `unsafe` Rust is forbidden across the workspace. The exceptions in what
-Faraday builds are `osk-crypto` (locking secret pages in RAM), the camera crate
-`opensigner-v4l2` (its `ioctl`s), and `faraday-grant` (dropping
+Faraday builds are `faraday-crypto` (locking secret pages in RAM), the camera crate
+`faraday-v4l2` (its `ioctl`s), and `faraday-grant` (dropping
 privileges); each says why in its crate documentation.
 
 ## Faraday Starter

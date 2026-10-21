@@ -13,11 +13,11 @@ name = "faraday"
 path = "src/main.rs"
 
 [dependencies]
-osk-shell-api = { path = "../../../core/osk-shell-api" }
-osk-crypto = { path = "../../../core/osk-crypto", features = ["pin-pages"] }
+faraday-shell-api = { path = "../../../core/faraday-shell-api" }
+faraday-crypto = { path = "../../../core/faraday-crypto", features = ["pin-pages"] }
 faraday-core = { path = "../../faraday-core" }
 faraday-storage = { path = "../../faraday-storage" }
-opensigner-v4l2 = { path = "../../../opensigner/shells/v4l2" }
+faraday-v4l2 = { path = "../../../faraday/shells/v4l2" }
 faraday-scanner = { path = "../../faraday-scanner" }
 zeroize = { workspace = true, features = ["alloc"] }
 

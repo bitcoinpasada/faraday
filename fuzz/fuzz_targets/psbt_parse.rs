@@ -1,4 +1,4 @@
-//! `osk_psbt::Psbt::parse_bytes` / `parse_base64` and `osk_psbt::inspect`.
+//! `faraday_psbt::Psbt::parse_bytes` / `parse_base64` and `faraday_psbt::inspect`.
 //!
 //! A PSBT arrives from a coordinator that is assumed hostile, and
 //! `inspect` walks every input, output, key origin and script in it to
@@ -11,10 +11,10 @@
 use std::sync::OnceLock;
 
 use libfuzzer_sys::fuzz_target;
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_bip::keys::{MasterKey, Network};
-use osk_crypto::work::Compute;
-use osk_psbt::{Context, KeyRef, Psbt, inspect};
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::keys::{MasterKey, Network};
+use faraday_crypto::work::Compute;
+use faraday_psbt::{Context, KeyRef, Psbt, inspect};
 
 /// The BIP-39 test vector seed, as a key reference. Deriving it costs
 /// six hardened account derivations, so it is built once.

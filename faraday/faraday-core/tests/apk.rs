@@ -5,13 +5,13 @@
 
 use faraday_apk::zip::{Apk, Refusal, Slice};
 use faraday_apk::{key, pem};
+use faraday_bip::bitcoin::hashes::{Hash, sha256};
 use faraday_core::backup_flow::Kind;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 use faraday_vault::records::{field, kind};
-use osk_bip::bitcoin::hashes::{Hash, sha256};
-use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 mod common;
 

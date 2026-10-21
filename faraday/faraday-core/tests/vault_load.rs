@@ -9,15 +9,15 @@
 
 use std::rc::Rc;
 
+use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::boot_import::ImportAction as I;
 use faraday_core::vault_load::{LoadCard, LoadView};
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
 use faraday_core::{bstep, testkit};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{Contents, Cost, Record};
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 type Files = Vec<(String, Vec<u8>)>;
 
@@ -529,7 +529,7 @@ fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
         // Another power-on with the vault sealed at the lock, with the
         // randomness a shell gives.
         for i in 0..8u8 {
-            app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
+            app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
                 [0x60 + i; 32],
             )));
         }
@@ -559,8 +559,8 @@ fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
 /// passphrase the vault does not keep.
 fn trio_with_passphrase() -> String {
     let c = testkit::compute();
-    use osk_bip::bitcoin::bip32::DerivationPath;
-    use osk_bip::keys::MasterKey;
+    use faraday_bip::bitcoin::bip32::DerivationPath;
+    use faraday_bip::keys::MasterKey;
     let p = "m/48'/1'/0'/2'";
     let m = words(&testkit::test_words(testkit::TEST_SEEDS[2].0));
     let master = MasterKey::from_seed(&c, &m.to_seed(&c, b"kept apart").unwrap(), testkit::NET);

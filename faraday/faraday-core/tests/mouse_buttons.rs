@@ -5,7 +5,7 @@
 //! (New key) has nothing for forward to open.
 
 use faraday_core::{Action, Faraday, Screen, Sheet, testkit};
-use osk_shell_api::{App, Event};
+use faraday_shell_api::{App, Event};
 
 /// New key opened from Add a key, on its first card.
 fn new_key() -> Faraday {

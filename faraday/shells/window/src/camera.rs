@@ -1,10 +1,10 @@
 //! The camera channel, which exists on Linux, macOS and Windows.
 //!
-//! On Linux `opensigner-v4l2` finds a `/dev/video*`, streams it on its
+//! On Linux `faraday-v4l2` finds a `/dev/video*`, streams it on its
 //! own thread and posts frames to a bounded channel; the event loop
 //! drains that channel on every pass, so a frame reaches the core within
 //! a tick of capture and a slow decode drops frames instead of backing
-//! up. On macOS `opensigner-avfoundation` does the same through an
+//! up. On macOS `faraday-avfoundation` does the same through an
 //! `AVCaptureSession`, which posts to the channel from AVFoundation's
 //! own queue. On Windows `faraday-mediafoundation` reads a Media
 //! Foundation source reader on its own thread and posts to the channel
@@ -24,7 +24,7 @@
 
 use std::path::PathBuf;
 
-use osk_shell_api::{CameraFailure, Event};
+use faraday_shell_api::{CameraFailure, Event};
 
 /// A camera that would not start: the reason to print, and the reason
 /// to tell the app when it is clearly one of the three the app has
@@ -164,8 +164,8 @@ mod linux {
     use std::sync::mpsc::{Receiver, TryRecvError, sync_channel};
     use std::thread::JoinHandle;
 
-    use opensigner_v4l2::{Camera as Device, Failure, Frame, MAX_FPS, Size};
-    use osk_shell_api::{CameraFailure, Event};
+    use faraday_shell_api::{CameraFailure, Event};
+    use faraday_v4l2::{Camera as Device, Failure, Frame, MAX_FPS, Size};
 
     use super::Unavailable;
 
@@ -214,7 +214,7 @@ mod linux {
             }
             let path = match &self.device {
                 Some(p) => p.clone(),
-                None => opensigner_v4l2::find_or_failure().map_err(|why| Unavailable {
+                None => faraday_v4l2::find_or_failure().map_err(|why| Unavailable {
                     reason: String::from("no /dev/video* is a streaming capture device"),
                     why: Some(reason(why)),
                 })?,
@@ -233,7 +233,7 @@ mod linux {
             );
             let (tx, frames) = sync_channel(QUEUE);
             let stop = Arc::new(AtomicBool::new(false));
-            let thread = opensigner_v4l2::spawn(device, tx, Arc::clone(&stop));
+            let thread = faraday_v4l2::spawn(device, tx, Arc::clone(&stop));
             self.session = Some(Session {
                 frames,
                 stop,
@@ -294,16 +294,16 @@ mod macos {
     use std::path::PathBuf;
     use std::sync::mpsc::{Receiver, TryRecvError, sync_channel};
 
-    use opensigner_avfoundation::{Camera as Session, MAX_FPS, Message};
-    use osk_shell_api::{CameraFailure, Event};
+    use faraday_avfoundation::{Camera as Session, MAX_FPS, Message};
+    use faraday_shell_api::{CameraFailure, Event};
 
     use super::{Unavailable, event_for};
     /// The app's reason for the backend's.
-    fn failure(why: opensigner_avfoundation::Failure) -> CameraFailure {
+    fn failure(why: faraday_avfoundation::Failure) -> CameraFailure {
         match why {
-            opensigner_avfoundation::Failure::Refused => CameraFailure::Refused,
-            opensigner_avfoundation::Failure::InUse => CameraFailure::InUse,
-            opensigner_avfoundation::Failure::NotFound => CameraFailure::NotFound,
+            faraday_avfoundation::Failure::Refused => CameraFailure::Refused,
+            faraday_avfoundation::Failure::InUse => CameraFailure::InUse,
+            faraday_avfoundation::Failure::NotFound => CameraFailure::NotFound,
         }
     }
 
@@ -316,7 +316,7 @@ mod macos {
     /// sheet's choice, in the system's order: the first is not
     /// necessarily the default one, which is opened when none was chosen.
     pub fn list() -> Vec<(String, String)> {
-        opensigner_avfoundation::devices()
+        faraday_avfoundation::devices()
             .into_iter()
             .map(|d| (d.id, d.name))
             .collect()
@@ -414,7 +414,7 @@ mod windows {
     use std::sync::mpsc::{Receiver, TryRecvError, sync_channel};
 
     use faraday_mediafoundation::{Camera as Session, MAX_FPS, Message};
-    use osk_shell_api::{CameraFailure, Event};
+    use faraday_shell_api::{CameraFailure, Event};
 
     use super::{Unavailable, event_for};
     /// The app's reason for the backend's.
@@ -531,7 +531,7 @@ use other::Inner;
 mod other {
     use std::path::PathBuf;
 
-    use osk_shell_api::Event;
+    use faraday_shell_api::Event;
 
     use super::Unavailable;
 

@@ -4,7 +4,7 @@
 //! network at once, with nothing to close.
 
 use faraday_core::{Action, Faraday, Screen, Sheet, testkit};
-use osk_shell_api::{App, Command, Event, TouchPhase};
+use faraday_shell_api::{App, Command, Event, TouchPhase};
 
 fn press_at(app: &mut Faraday, x: u16, y: u16) -> Vec<Command> {
     let _ = app.frame();
@@ -36,8 +36,8 @@ fn the_camera_closes_on_a_press_beside_it() {
 fn the_network_choice_in_settings_changes_the_network_with_no_sheet() {
     let mut app = testkit::started();
     app.press(Action::Nav(Screen::Settings));
-    app.press(Action::Network(osk_bip::keys::Network::Testnet));
-    assert_eq!(app.session.network(), osk_bip::keys::Network::Testnet);
+    app.press(Action::Network(faraday_bip::keys::Network::Testnet));
+    assert_eq!(app.session.network(), faraday_bip::keys::Network::Testnet);
     assert_eq!(app.sheet, None);
 }
 

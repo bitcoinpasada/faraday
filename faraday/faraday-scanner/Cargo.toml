@@ -9,18 +9,18 @@ repository.workspace = true
 publish = false
 
 # The decode policy is OpenSigner's scan reduction, copied into
-# `src/scan.rs`; the preview's size is `osk-ui`'s token. The detector
+# `src/scan.rs`; the preview's size is `faraday-draw`'s token. The detector
 # is the workspace's vendored `rqrr`, read directly so that a pass can say
 # where a code was and how fine it is.
 [dependencies]
-osk-ui = { path = "../../core/osk-ui" }
+faraday-draw = { path = "../../core/faraday-draw" }
 rqrr = { workspace = true }
 zeroize = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
-osk-codec = { path = "../../core/osk-codec" }
+faraday-codec = { path = "../../core/faraday-codec" }
 # The token the tests' QR codes take (docs/COMPUTE.md §2).
-osk-crypto = { path = "../../core/osk-crypto" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
 
 [lints]
 workspace = true

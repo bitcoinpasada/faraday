@@ -20,7 +20,7 @@ faraday-apk = { path = "../faraday-apk" }
 faraday-intake = { path = "../faraday-intake" }
 # The token that counts nothing, for the readers the targets call
 # (docs/COMPUTE.md §3): a fuzz target keeps no drawing guarantee.
-osk-crypto = { path = "../../core/osk-crypto", features = ["unchecked"] }
+faraday-crypto = { path = "../../core/faraday-crypto", features = ["unchecked"] }
 
 [profile.release]
 debug = true

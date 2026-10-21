@@ -1,6 +1,6 @@
 # Encrypted-backup vectors
 
-Each vector is an `osk-backup` file: a `.hex` with the bytes on a single
+Each vector is an `.oskb` file: a `.hex` with the bytes on a single
 line and a `.oskb` with the same bytes as a file, which is what the
 snapshot scripts hand the scanner and what a person would hold. The test
 asserts each pair is equal, so neither can drift from the other. The
@@ -17,8 +17,8 @@ bytes, because a key's two doors share a padding step; the note is 345
 too, and the sheet is 601 because its payload needs a second step.
 
 The vectors exist so that two implementations can be shown to agree on
-the format: `core/osk-backup/tests/vectors.rs` opens them with
-`osk-backup` and again with `tools/backup/decrypt.py`, and both must
+the format: `core/faraday-backup/tests/vectors.rs` opens them with
+`faraday-backup` and again with `tools/backup/decrypt.py`, and both must
 print the same words.
 
 ## What is in them

@@ -13,9 +13,9 @@ use crate::strings::EN;
 use crate::strings::fill;
 use crate::word_entry::WordEntry;
 use crate::{BackupState, Faraday, Screen, wallet};
-use osk_bip::bip39::Language;
-use osk_crypto::work::Compute;
-use osk_shell_api::Key as KeyIn;
+use faraday_bip::bip39::Language;
+use faraday_crypto::work::Compute;
+use faraday_shell_api::Key as KeyIn;
 use zeroize::Zeroize;
 
 /// The typed check of a copy of the words, or of a passphrase on paper,
@@ -459,8 +459,8 @@ impl Faraday {
         };
         let fp = key.fingerprint().0;
         let matched = key.passphrase.as_ref().is_some_and(|p| {
-            osk_crypto::Secret::new(p.as_bytes().to_vec())
-                == osk_crypto::Secret::new(chk.typed.as_bytes().to_vec())
+            faraday_crypto::Secret::new(p.as_bytes().to_vec())
+                == faraday_crypto::Secret::new(chk.typed.as_bytes().to_vec())
         });
         let Some(b) = self.backup.as_mut() else {
             return;

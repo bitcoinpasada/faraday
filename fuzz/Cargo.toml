@@ -15,11 +15,11 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-osk-bip = { path = "../core/osk-bip" }
-osk-codec = { path = "../core/osk-codec" }
-osk-psbt = { path = "../core/osk-psbt" }
-osk-crypto = { path = "../core/osk-crypto", features = ["unchecked"] }
-osk-backup = { path = "../core/osk-backup" }
+faraday-bip = { path = "../core/faraday-bip" }
+faraday-codec = { path = "../core/faraday-codec" }
+faraday-psbt = { path = "../core/faraday-psbt" }
+faraday-crypto = { path = "../core/faraday-crypto", features = ["unchecked"] }
+faraday-backup = { path = "../core/faraday-backup" }
 faraday-pgp = { path = "../faraday/faraday-pgp" }
 
 [profile.release]

@@ -2,7 +2,7 @@
 //! `sp1…` address and its labelled ones, the public record a coordinator
 //! keeps, the scan key a scanner needs, and a silent payments wallet among
 //! the session's wallets, with a check of whether a transaction pays it
-//! (`docs/OPENSIGNER-PARITY.md` plan C2, upstream §16.113). Every computation is `osk-bip::silent`'s and
+//! (`docs/OPENSIGNER-PARITY.md` plan C2, upstream §16.113). Every computation is `faraday-bip::silent`'s and
 //! `silent_wallet`'s, as OpenSigner's own wallet uses them. The address
 //! and the record are public; the scan key shows every payment to the
 //! address, so it is a secret: into the vault, or out only through the
@@ -10,11 +10,11 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use faraday_bip::silent::Receiver;
+use faraday_bip::silent_wallet::{MAX_LABELS, SilentWallet};
+use faraday_crypto::work::Compute;
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
-use osk_bip::silent::Receiver;
-use osk_bip::silent_wallet::{MAX_LABELS, SilentWallet};
-use osk_crypto::work::Compute;
 use zeroize::Zeroizing;
 
 use crate::wallet::fp_text;
@@ -77,7 +77,7 @@ pub(crate) type SilentShownOf = (
     u32,
     Option<usize>,
     Option<[u8; 32]>,
-    osk_bip::keys::Network,
+    faraday_bip::keys::Network,
 );
 
 impl Faraday {
@@ -221,7 +221,7 @@ impl Faraday {
             return Some(w.address());
         }
         let (r, _) = self.silent_receiver(c)?;
-        let secp = osk_bip::bitcoin::secp256k1::Secp256k1::new();
+        let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::new();
         let a = if s.label == 0 {
             r.address(&secp)
         } else {
@@ -239,11 +239,11 @@ impl Faraday {
         }
         let s = self.silent.as_ref()?;
         let (r, fp) = self.silent_receiver(c)?;
-        let secp = osk_bip::bitcoin::secp256k1::Secp256k1::new();
+        let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::new();
         Some(
             SilentWallet {
                 network: r.network(),
-                fingerprint: osk_bip::keys::Fingerprint(fp),
+                fingerprint: faraday_bip::keys::Fingerprint(fp),
                 account: 0,
                 scan: r.scan_public_key(&secp),
                 spend: r.spend_public_key(),
@@ -266,7 +266,7 @@ impl Faraday {
     /// of the record, with the name and label of its picture.
     pub(crate) fn silent_code(&self, c: &Compute, code: crate::Code) -> Result<QrView, String> {
         let s = self.silent.as_ref().ok_or(EN.silent_silent_payments_is)?;
-        let fp = fp_text(osk_bip::keys::Fingerprint(
+        let fp = fp_text(faraday_bip::keys::Fingerprint(
             s.key.ok_or(EN.silent_choose_a_key)?,
         ));
         let mut lines = vec![fill(EN.silent_silent_payment, &[&fp.to_string()])];
@@ -282,7 +282,7 @@ impl Faraday {
                 }
                 let text = if uri {
                     name.push_str("-link");
-                    osk_bip::silent::uri(&a)
+                    faraday_bip::silent::uri(&a)
                         .map(|u| u.as_str().to_string())
                         .unwrap_or(a)
                 } else {
@@ -327,7 +327,8 @@ impl Faraday {
             A::SRecord => {
                 let fp = self.silent.as_ref().and_then(|s| s.key);
                 if let (Some(text), Some(fp)) = (self.silent_record(&c), fp) {
-                    let name = format!("silent-{}.txt", fp_text(osk_bip::keys::Fingerprint(fp)));
+                    let name =
+                        format!("silent-{}.txt", fp_text(faraday_bip::keys::Fingerprint(fp)));
                     self.put_outbox(&name, text.into_bytes());
                     self.toast_out(&name);
                 }
@@ -344,7 +345,7 @@ impl Faraday {
                 };
                 let title = fill(
                     EN.silent_silent_payments_scan,
-                    &[&fp_text(osk_bip::keys::Fingerprint(fp)).to_string()],
+                    &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
                 );
                 let note = Zeroizing::new(format!("{title}\n{}", key.as_str()));
                 self.vault_push(
@@ -359,7 +360,7 @@ impl Faraday {
                 else {
                     return;
                 };
-                let name = format!("spscan-{}.txt", fp_text(osk_bip::keys::Fingerprint(fp)));
+                let name = format!("spscan-{}.txt", fp_text(faraday_bip::keys::Fingerprint(fp)));
                 self.offer_secret(crate::secrets::SecretOut::new(
                     name,
                     Zeroizing::new(format!("{}\n", key.as_str()).into_bytes()),
@@ -406,7 +407,8 @@ impl Faraday {
                     && s.labels > r.labels
                 {
                     r.labels = s.labels;
-                    self.session.wallets[i].set_policy(osk_bip::policy::WalletPolicy::of_silent(r));
+                    self.session.wallets[i]
+                        .set_policy(faraday_bip::policy::WalletPolicy::of_silent(r));
                 }
             }
             A::SNext => {
@@ -434,7 +436,7 @@ impl Faraday {
         };
         let name = fill(
             EN.silent_silent_payments_n,
-            &[&fp_text(osk_bip::keys::Fingerprint(fp)).to_string()],
+            &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
         );
         match self.session.add_wallet(
             &c,
@@ -494,8 +496,8 @@ impl Faraday {
         let prevouts = check.prevouts()?;
         let tx = check.tx();
         for (i, input) in tx.input.iter().enumerate() {
-            if osk_bip::silent::needs_signature_data(prevouts[i].as_bytes())
-                && !osk_psbt::transaction::is_signed(&input.script_sig, &input.witness)
+            if faraday_bip::silent::needs_signature_data(prevouts[i].as_bytes())
+                && !faraday_psbt::transaction::is_signed(&input.script_sig, &input.witness)
             {
                 return Some(Checked::Unsigned);
             }
@@ -509,8 +511,8 @@ impl Faraday {
             .max(self.silent.as_ref().map_or(0, |s| s.labels));
         let labels: Vec<u32> = (0..=labels_out).collect();
         let scripts: Vec<&[u8]> = prevouts.iter().map(|s| s.as_bytes()).collect();
-        let secp = osk_bip::bitcoin::secp256k1::Secp256k1::new();
-        match osk_bip::silent::find_payments(&secp, &receiver, tx, &scripts, &labels) {
+        let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::new();
+        match faraday_bip::silent::find_payments(&secp, &receiver, tx, &scripts, &labels) {
             Err(_) => Some(Checked::NoInputs),
             Ok(found) if found.is_empty() => Some(Checked::NotPaid),
             Ok(found) => Some(Checked::Paid(

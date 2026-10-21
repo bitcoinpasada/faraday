@@ -4,7 +4,7 @@
 //! from the wallet card.
 
 use faraday_core::{Action, Faraday, Screen};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 const WORDS: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon \
                       abandon abandon about";

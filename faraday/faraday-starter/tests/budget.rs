@@ -7,13 +7,13 @@
 //! sheet opens.
 
 use faraday_core::work::{self, KINDS, Work};
+use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware, TouchPhase};
 use faraday_starter::api::{
     Bus, Computer, Concern, Disk, FaradayStick, InstallItem, Installed, Kind, Os, Payload,
     PayloadFile, StarterEvent,
 };
 use faraday_starter::decide::Target;
 use faraday_starter::{Starter, StarterAction};
-use osk_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 const GB: u64 = 1_000_000_000;
 const W: u16 = 1100;

@@ -19,9 +19,9 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_bip::keys::Fingerprint;
-use osk_crypto::work::Compute;
-use osk_shell_api::Command;
+use faraday_bip::keys::Fingerprint;
+use faraday_crypto::work::Compute;
+use faraday_shell_api::Command;
 
 use crate::create::NewKind;
 use crate::scan_key::{Found, key_of};
@@ -1380,7 +1380,7 @@ impl Faraday {
             return;
         };
         let text = String::from_utf8_lossy(&item.bytes).into_owned();
-        let name = osk_bip::multisig_config::parse_named(&c, &text)
+        let name = faraday_bip::multisig_config::parse_named(&c, &text)
             .ok()
             .and_then(|(_, n)| n)
             .or_else(|| crate::wallet::json_label(&text))
@@ -1437,7 +1437,7 @@ impl Faraday {
         match crate::restore::merge(&texts) {
             Ok(m) => match m.whole {
                 Some(whole) => {
-                    let name = osk_bip::multisig_config::parse_named(&c, &whole)
+                    let name = faraday_bip::multisig_config::parse_named(&c, &whole)
                         .ok()
                         .and_then(|(_, n)| n)
                         .unwrap_or_else(|| EN.family_restored_wallet.to_string());

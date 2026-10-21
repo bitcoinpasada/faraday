@@ -2,10 +2,10 @@
 //! link the shell opens in the browser; the stick and the Pi, offline,
 //! show the same words as text and open nothing.
 
+use faraday_bip::keys::Network;
 use faraday_core::wallet::Session;
 use faraday_core::{Action, Faraday, Screen, StorageCommand, testkit};
-use osk_bip::keys::Network;
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// Settings on a screen tall enough for About, online or not; online,
 /// on mainnet, where the online app has no warning over it.

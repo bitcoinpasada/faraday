@@ -5,7 +5,7 @@
 //! page must not clamp it back and draw again for ever. The same on the
 //! Pi's panel, whose compact screens scroll by their own code.
 
-use osk_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware};
 
 use super::{PI, walk, walk_on};
 use crate::Faraday;

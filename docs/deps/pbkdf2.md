@@ -1,7 +1,7 @@
 # pbkdf2
 
 **Purpose.** PBKDF2-HMAC-SHA512, 2048 rounds, the BIP-39 mnemonic-to-seed
-function (`osk_crypto::pbkdf2_hmac_sha512`).
+function (`faraday_crypto::pbkdf2_hmac_sha512`).
 
 **Why this crate.** The function is fifteen lines, but the crate's
 version is the one the `bip39` dev-dependency cross-checks against and

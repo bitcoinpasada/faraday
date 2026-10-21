@@ -17,7 +17,7 @@ CONFIG_DMA_BCM2708=y
 # ---- camera, legacy stack (PLANNING.md 16.33) ----
 # start_x.elf runs the camera in the GPU; bcm2835-camera talks to it over
 # VCHIQ/MMAL and publishes the sensor as a plain V4L2 device, which is what
-# opensigner-v4l2 opens. This supports the OV5647 and the IMX219; the v3
+# faraday-v4l2 opens. This supports the OV5647 and the IMX219; the v3
 # module is not supported because it needs libcamera. The sensor is
 # addressed over the SoC's hardware i2c controller.
 CONFIG_I2C=y

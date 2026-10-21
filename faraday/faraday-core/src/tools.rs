@@ -8,9 +8,9 @@
 //! nothing.
 
 use crate::strings::EN;
-use osk_bip::compile::PolicyScript;
-use osk_codec::encodings::ReadAs;
-use osk_crypto::work::Compute;
+use faraday_bip::compile::PolicyScript;
+use faraday_codec::encodings::ReadAs;
+use faraday_crypto::work::Compute;
 
 use crate::{Faraday, Screen};
 
@@ -73,15 +73,15 @@ pub enum Reading {
     /// Nothing to work out: the amount is converted as it is drawn.
     Nothing,
     /// The three hashes of the bytes typed.
-    Hashes(osk_bip::hashes::Hashes),
+    Hashes(faraday_bip::hashes::Hashes),
     /// What the string is encoded in, when it is.
-    Encodings(Option<osk_codec::encodings::Reading>),
+    Encodings(Option<faraday_codec::encodings::Reading>),
     /// The descriptor's checksum and whether it is a wallet here.
-    Descriptor(Option<osk_bip::descriptor::ChecksumFacts>),
+    Descriptor(Option<faraday_bip::descriptor::ChecksumFacts>),
     /// The extended key in every spelling.
-    Key(osk_bip::slip132::KeyReading),
+    Key(faraday_bip::slip132::KeyReading),
     /// The policy compiled, or the compiler's refusal.
-    Miniscript(Result<osk_bip::compile::PolicyFacts, String>),
+    Miniscript(Result<faraday_bip::compile::PolicyFacts, String>),
 }
 
 /// A [`Reading`] with what it was worked out from: the calculator, the
@@ -92,7 +92,7 @@ struct KeptReading {
     typed: crate::secret_text::SecretText,
     read_as: ReadAs,
     script: PolicyScript,
-    network: osk_bip::keys::Network,
+    network: faraday_bip::keys::Network,
     keys: Vec<(String, String)>,
     reading: std::rc::Rc<Reading>,
 }
@@ -154,7 +154,7 @@ impl Faraday {
     /// calculator, the text, its modes, the network and the keys a policy
     /// may name. `None` with Tools closed or nothing typed.
     pub(crate) fn tools_reading(&self, c: &Compute) -> Option<std::rc::Rc<Reading>> {
-        use osk_codec::encodings::{read as encoding_of, read_input};
+        use faraday_codec::encodings::{read as encoding_of, read_input};
         let t = self.tools.as_ref()?;
         if t.typed.trim().is_empty() {
             return None;
@@ -176,18 +176,18 @@ impl Faraday {
             return Some(k.reading.clone());
         }
         let reading = std::rc::Rc::new(match t.tool {
-            Tool::Hashes => Reading::Hashes(osk_bip::hashes::hashes(&read_input(
+            Tool::Hashes => Reading::Hashes(faraday_bip::hashes::hashes(&read_input(
                 t.typed.trim(),
                 t.read_as,
             ))),
             Tool::Encodings => Reading::Encodings(encoding_of(t.typed.trim())),
             Tool::Descriptor => {
-                Reading::Descriptor(osk_bip::descriptor::checksum_facts(c, &t.typed))
+                Reading::Descriptor(faraday_bip::descriptor::checksum_facts(c, &t.typed))
             }
-            Tool::ConvertKey => Reading::Key(osk_bip::slip132::key_facts(&t.typed, network)),
+            Tool::ConvertKey => Reading::Key(faraday_bip::slip132::key_facts(&t.typed, network)),
             Tool::Units => Reading::Nothing,
             Tool::Miniscript => {
-                Reading::Miniscript(osk_bip::compile::compile(c, &t.typed, t.script, &keys))
+                Reading::Miniscript(faraday_bip::compile::compile(c, &t.typed, t.script, &keys))
             }
         });
         *t.read.borrow_mut() = Some(KeptReading {
@@ -238,8 +238,8 @@ impl Faraday {
     }
 
     /// Typing into the field. Returns whether the key was taken.
-    pub(crate) fn tools_key(&mut self, key: osk_shell_api::Key) -> bool {
-        use osk_shell_api::Key as K;
+    pub(crate) fn tools_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
         if self.screen != Screen::Tools {
             return false;
         }

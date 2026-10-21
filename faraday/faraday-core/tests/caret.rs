@@ -6,7 +6,7 @@
 //! (`docs/NEW-WALLET.md` §13.2).
 
 use faraday_core::{Action, Faraday, Screen, testkit};
-use osk_shell_api::{App, Command, Event, Key, TouchPhase};
+use faraday_shell_api::{App, Command, Event, Key, TouchPhase};
 
 fn tick(app: &mut Faraday, now_ms: u64) -> bool {
     app.event(Event::Tick { now_ms });

@@ -8,7 +8,7 @@ use faraday_core::keygen::Start;
 use faraday_core::tools::Tool;
 use faraday_core::vanity::{VanityAction as V, vstep};
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, testkit};
-use osk_shell_api::{App, Event, Key, TouchPhase};
+use faraday_shell_api::{App, Event, Key, TouchPhase};
 
 /// A press where the last frame drew `action`, as a finger makes it.
 fn tap(app: &mut Faraday, action: Action) {

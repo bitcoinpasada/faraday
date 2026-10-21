@@ -14,7 +14,7 @@ state.
 
 Sources read for this file: Faraday OS's `docs/gpg-qr-workflows.md` and
 `lib/faraday/qr_*.py`, `qr-transfer-gui.py` and `ur/` (the Foundation
-Devices UR reference, vendored); OpenSigner's `osk-codec`
+Devices UR reference, vendored); OpenSigner's `faraday-codec`
 (`classify.rs`, `ur/`) and `opensigner-core/src/scan.rs`.
 
 ## 1. Where each piece stands
@@ -148,7 +148,7 @@ intact, not who sent it.
    label lines under it (the wallet's name, shape, fingerprints,
    checksum or share number), drawn on an off-screen canvas in the
    app's fonts and written as eight-bit greyscale in stored deflate
-   blocks (`osk_codec::png::grey_png`, no compressor, a few hundred
+   blocks (`faraday_codec::png::grey_png`, no compressor, a few hundred
    KB). Writing a picture is allowed in the app; reading one stays in
    the disk process (item 1). A descriptor past one code (version 25
    at ECL M) is one picture per BBQr part, which the reader assembles
@@ -240,7 +240,7 @@ the scanner and QR sheet in `faraday-core`:
   `ur:crypto-account`, SeedSigner's own CBOR.
 - **Tests:** the ten BBQr parts against their own base64; Faraday OS's
   envelopes over BBQr `Z`, written by its `qr_transfer.py`; a
-  `crypto-account` read back by `osk-codec`; the app's scan path
+  `crypto-account` read back by `faraday-codec`; the app's scan path
   (`faraday-core/tests/scan.rs`).
 
 Built 2026-10-06: Specter `pNofM` written (the QR sheet's **Parts**, for
@@ -521,8 +521,8 @@ One batch, one review, one completion report.
 ## 8. Parity with Gauss (tracker #181)
 
 Compared on 2026-10-21 with Gauss's camera scanner. Items 1 and 4 to 8
-are the core's (`faraday-core`, `faraday-qr`, `osk-codec`,
-`osk-shell-api`, `osk-ui`'s tokens); items 2, 3 and 9 are the camera
+are the core's (`faraday-core`, `faraday-qr`, `faraday-codec`,
+`faraday-shell-api`, `faraday-draw`'s tokens); items 2, 3 and 9 are the camera
 shells'. DESIGN §4.9 Scanner is the design they meet. No torch (DESIGN
 §4.9).
 
@@ -578,7 +578,7 @@ shells'. DESIGN §4.9 Scanner is the design they meet. No torch (DESIGN
    tile is dimmed or the scanner is closed.
 6. **Camera failures.** If no frame arrives `NO_PICTURE_MS` (6 s) after
    the sheet opens, the square says "The camera sends no picture". A
-   frame arriving later clears it. `osk-shell-api` gains
+   frame arriving later clears it. `faraday-shell-api` gains
    `Event::CameraFailed(CameraFailure)`, which a shell that knows why
    sends in place of `CameraUnavailable`. Its kinds and lines are
    `Refused` "The camera was refused", `InUse` "The camera is in use by
@@ -591,7 +591,7 @@ shells'. DESIGN §4.9 Scanner is the design they meet. No torch (DESIGN
 7. **UR progress names the missing parts.** "UR: 5 of 9 · missing 2,
    7", the line BBQr's parts get (`part_note`): at most eight numbers,
    then "…". The fountain decoder knows which fragments it has resolved.
-   `osk-codec`'s `Decoder::missing` lists the rest, numbered from 1,
+   `faraday-codec`'s `Decoder::missing` lists the rest, numbered from 1,
    which are the animation's first frames. A fragment resolved from
    mixtures counts as read.
 8. **The picture is the problem.** A QR that the scanner sees (`QrSeen`)

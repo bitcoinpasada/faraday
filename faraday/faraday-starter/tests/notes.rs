@@ -2,18 +2,18 @@
 //! what the Start page shows, and the sheet Print hands the shell to
 //! open, for a maker with a page, one without, and Intel Macs.
 
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::api::{Computer, Os, Reason, StarterCommand, StarterEvent};
 use faraday_starter::notes::Notes;
 use faraday_starter::{Page, Starter, StarterAction};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// A token for the PDFs these tests make, counting nothing. Cheap.
 #[expect(
     clippy::disallowed_methods,
     reason = "a mint: the Starter's tests, which draw nothing"
 )]
-fn compute() -> osk_crypto::work::Compute {
-    osk_crypto::work::Compute::new(|_| {})
+fn compute() -> faraday_crypto::work::Compute {
+    faraday_crypto::work::Compute::new(|_| {})
 }
 
 const NOT_FOUND: &str = "If the Secure Boot setting cannot be found: exit the BIOS without saving \

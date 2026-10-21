@@ -9,7 +9,7 @@ changed for a reason.
 | File | Path in the BIPs repository | SHA-256 | Read by |
 |---|---|---|---|
 | `bip-0352.mediawiki` | `bip-0352.mediawiki` | `ff03af7d6d0afd423c9250659718944bc2973201b5fabf35dd565c913d38b08b` | people |
-| `send_and_receive_test_vectors.json` | `bip-0352/send_and_receive_test_vectors.json` | `f5f9ed4afd76a1b76f3c70b1cbe67532f89abbe559f8e02d7fc3d8ecb93af4a1` | `core/osk-bip/tests/silent.rs` |
+| `send_and_receive_test_vectors.json` | `bip-0352/send_and_receive_test_vectors.json` | `f5f9ed4afd76a1b76f3c70b1cbe67532f89abbe559f8e02d7fc3d8ecb93af4a1` | `core/faraday-bip/tests/silent.rs` |
 | `reference.py` | `bip-0352/reference.py` | `a0bc88e8024dff880e6c89a1330557b6177b0dfa284931033cd0a77d1d387912` | people |
 
 `send_and_receive_test_vectors.json` is a list of 28 cases, each with a
@@ -24,7 +24,7 @@ publishes and which of the outputs it finds. Case 27 expects a count
 rather than a list, because it has 2,324 outputs and `K_max` stops the
 scan at 2,323.
 
-`core/osk-bip/tests/silent.rs` reads every case from both sides: the
+`core/faraday-bip/tests/silent.rs` reads every case from both sides: the
 sender's outputs are built from the input private keys and the
 recipients' addresses, and the receiver then finds those same outputs
 with the label each was paid to.

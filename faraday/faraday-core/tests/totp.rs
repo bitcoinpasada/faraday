@@ -9,11 +9,11 @@ use faraday_core::set_time::Focus;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent};
-use faraday_vault::records::{field, kind};
-use faraday_vault::{Contents, Cost, Record};
-use osk_shell_api::{
+use faraday_shell_api::{
     App, BootState, Command, DisplayInfo, EntropyBytes, Event, Key, SecureHardware,
 };
+use faraday_vault::records::{field, kind};
+use faraday_vault::{Contents, Cost, Record};
 
 fn display() -> Event {
     Event::Display(DisplayInfo {

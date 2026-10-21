@@ -11,8 +11,8 @@
 //! is a [`Seed`] held as an `Option`: until the shell's first answer there
 //! is none, and nothing drawn from it is made.
 
-use osk_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
-use osk_shell_api::Command;
+use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
+use faraday_shell_api::Command;
 use zeroize::Zeroizing;
 
 use crate::Faraday;

@@ -4,7 +4,7 @@
 //! SHA-256 and base64 data. A SHA-256 match shows the file arrived whole,
 //! not who sent it.
 
-use osk_bip::bitcoin::hashes::{Hash, sha256};
+use faraday_bip::bitcoin::hashes::{Hash, sha256};
 
 /// The largest file an envelope carries.
 pub const MAX_FILE: usize = 256 * 1024;
@@ -39,7 +39,7 @@ pub fn pack(name: &str, data: &[u8], kind: &str) -> Result<Vec<u8>, &'static str
     let digest = sha256::Hash::hash(data).to_byte_array();
     Ok(format!(
         "{{\"data\":\"{}\",\"format\":\"faraday-file-v1\",\"kind\":\"{kind}\",\"name\":\"{name}\",\"sha256\":\"{}\",\"size\":{}}}",
-        osk_bip::base64::encode(data),
+        faraday_bip::base64::encode(data),
         hex(&digest),
         data.len()
     )
@@ -76,7 +76,7 @@ pub fn unpack(raw: &[u8]) -> Result<(String, Vec<u8>, String), &'static str> {
     }
     let name = field(text, "name").ok_or("The envelope has no name")?;
     let kind = field(text, "kind").ok_or("The envelope has no kind")?;
-    let data = osk_bip::base64::decode(field(text, "data").ok_or("The envelope has no data")?)
+    let data = faraday_bip::base64::decode(field(text, "data").ok_or("The envelope has no data")?)
         .map_err(|_| "The envelope's data is not base64")?;
     let again = pack(name, &data, kind)?;
     if again != raw {

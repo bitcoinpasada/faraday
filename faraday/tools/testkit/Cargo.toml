@@ -10,10 +10,10 @@ publish = false
 
 [dependencies]
 faraday-core = { path = "../../faraday-core", features = ["testkit"] }
-osk-psbt = { path = "../../../core/osk-psbt" }
-osk-bip = { path = "../../../core/osk-bip" }
+faraday-psbt = { path = "../../../core/faraday-psbt" }
+faraday-bip = { path = "../../../core/faraday-bip" }
 # The token key work takes (docs/COMPUTE.md §2).
-osk-crypto = { path = "../../../core/osk-crypto" }
+faraday-crypto = { path = "../../../core/faraday-crypto" }
 
 [lints]
 workspace = true

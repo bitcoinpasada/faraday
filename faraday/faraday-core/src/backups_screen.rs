@@ -10,10 +10,10 @@ use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::{Action, Faraday};
-use osk_crypto::work::Compute;
+use faraday_crypto::work::Compute;
 
 /// A line's state colour.
-fn tone(t: Tone) -> osk_ui::Color {
+fn tone(t: Tone) -> faraday_draw::Color {
     match t {
         Tone::Ok => OK,
         Tone::Warn => WARN,
@@ -23,7 +23,7 @@ fn tone(t: Tone) -> osk_ui::Color {
 }
 
 /// A tag's colour, as the backup's map draws it.
-fn tag_tone(t: crate::plan::Tag) -> osk_ui::Color {
+fn tag_tone(t: crate::plan::Tag) -> faraday_draw::Color {
     match t {
         crate::plan::Tag::Secret => WARN,
         crate::plan::Tag::Sealed => ACCENT,

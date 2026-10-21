@@ -1,6 +1,6 @@
 # Vendored fonts
 
-Source files for the glyph outlines that `osk-ui` embeds. They are inputs
+Source files for the glyph outlines that `faraday-draw` embeds. They are inputs
 to `tools/fontbake` only; no font file and no TTF parser ships on a device
 (`docs/PLANNING.md` §4.3).
 
@@ -24,7 +24,7 @@ archive is 158 MiB. `tools/fontbake` downloads it into `iosevka/` when the
 Regular TTF is not already unpacked there, checks it against the digest
 pinned in `tools/fontbake/src/main.rs`, and unpacks `Iosevka-Regular.ttf`
 from it. `iosevka/` is ignored by version control; only the baked
-`core/osk-ui/assets/mono.outl` is committed.
+`core/faraday-draw/assets/mono.outl` is committed.
 
 Source:
 `https://github.com/be5invis/Iosevka/releases/download/v34.8.1/PkgTTF-Iosevka-34.8.1.zip`
@@ -43,7 +43,7 @@ The four Noto Sans CJK region subsets are 23 MB together, too large to
 commit. `tools/fontbake` downloads each into `cjk/` when the file is not
 there and checks it against the digest pinned in
 `tools/fontbake/src/main.rs`, aborting on a mismatch. `cjk/` is
-git-ignored; only the baked `core/osk-ui/assets/cjk.outl` is committed,
+git-ignored; only the baked `core/faraday-draw/assets/cjk.outl` is committed,
 so building the crates needs neither the fonts nor the network.
 
 Source, Regular weight only:
@@ -103,8 +103,8 @@ From the repository root:
 
     just fonts
 
-which runs `cargo run -p osk-fontbake` and rewrites
-`core/osk-ui/assets/*.outl` and `core/osk-ui/src/fonts/generated.rs`. The
+which runs `cargo run -p faraday-fontbake` and rewrites
+`core/faraday-draw/assets/*.outl` and `core/faraday-draw/src/fonts/generated.rs`. The
 glyph set and the icon code points are constants in
 `tools/fontbake/src/main.rs`; the outline format is documented in
 `tools/fontbake/README.md`. Generated files are committed so that building

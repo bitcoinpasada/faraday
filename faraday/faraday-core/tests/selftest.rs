@@ -1,16 +1,16 @@
-//! The start-up self-test (`osk_selftest`): it runs when the display
+//! The start-up self-test (`faraday_selftest`): it runs when the display
 //! first arrives, before anything can be pressed, and no key is accepted
 //! before it has passed. A failed check blocks the app on a screen that
 //! names it, with Exit the only thing that does anything. Settings runs
 //! it again.
 
 use faraday_core::{Action, Faraday, Screen};
-use osk_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
 
 #[test]
 fn the_self_test_passes_at_start_and_settings_runs_it_again() {
     let mut app = faraday_core::testkit::started();
-    assert_eq!(app.selftest(), Some(Ok(osk_selftest::CHECKS.len())));
+    assert_eq!(app.selftest(), Some(Ok(faraday_selftest::CHECKS.len())));
     assert!(app.may_load_keys());
     // A display tall enough for all of Settings.
     app.event(Event::Display(DisplayInfo {
@@ -29,7 +29,7 @@ fn the_self_test_passes_at_start_and_settings_runs_it_again() {
     let _ = app.frame();
     assert!(app.offers(Action::SelfTestRun));
     app.press(Action::SelfTestRun);
-    assert_eq!(app.selftest(), Some(Ok(osk_selftest::CHECKS.len())));
+    assert_eq!(app.selftest(), Some(Ok(faraday_selftest::CHECKS.len())));
 }
 
 #[test]
@@ -45,7 +45,7 @@ fn no_key_is_accepted_before_the_self_test_has_run() {
 fn a_failed_check_blocks_everything_but_exit() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Nav(Screen::Settings));
-    app.run_selftest_with(&[osk_selftest::Check {
+    app.run_selftest_with(&[faraday_selftest::Check {
         name: "Injected failure",
         run: |_| false,
     }]);

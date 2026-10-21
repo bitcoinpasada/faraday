@@ -1,16 +1,16 @@
 //! The other forms a key comes in, beside BIP-39 words, as Add a key
 //! takes them (`docs/OPENSIGNER-PARITY.md` plan B2): SLIP-39 shares,
 //! codex32 strings (BIP 93) and Seed XOR parts. Each is typed one at a
-//! time, collected, and put together by `osk-bip` or `osk-entropy`, the
+//! time, collected, and put together by `faraday-bip` or `faraday-entropy`, the
 //! crates OpenSigner's own Load reads them with. A SLIP-39 or codex32 key
 //! is a master seed and has no words; a Seed XOR key is BIP-39 words again.
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_bip::codex32::Codex32;
-use osk_bip::slip39;
-use osk_entropy::SeedXor;
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::codex32::Codex32;
+use faraday_bip::slip39;
+use faraday_entropy::SeedXor;
 
 use crate::Faraday;
 use crate::wallet::fp_text;
@@ -132,7 +132,7 @@ impl Parts {
                 .codex32
                 .first()
                 .is_some_and(|c| c.is_secret() || self.codex32.len() >= usize::from(c.threshold())),
-            Form::Xor => self.xor.parts() >= osk_entropy::MIN_XOR_PARTS,
+            Form::Xor => self.xor.parts() >= faraday_entropy::MIN_XOR_PARTS,
             Form::Words => false,
         }
     }
@@ -235,7 +235,7 @@ impl Faraday {
     /// the passphrase typed (not for codex32); what is wrong otherwise.
     /// Add a key's Make the key and New key's Lock in for a form other
     /// than words both load through here (`docs/NEW-WALLET.md` §15.2).
-    pub(crate) fn form_key(&mut self) -> Result<osk_bip::keys::Fingerprint, String> {
+    pub(crate) fn form_key(&mut self) -> Result<faraday_bip::keys::Fingerprint, String> {
         let c = self.compute();
         let form = self.entry.form;
         let label = match form {
@@ -317,7 +317,7 @@ pub const LANGUAGES: [Language; 10] = [
 /// Chinese lists. [`crate::word_entry::WordEntry`] does the typing, with
 /// the keys it allows and the words it offers.
 pub fn on_screen(lang: Language) -> bool {
-    lang.script() != osk_bip::bip39::Script::Latin
+    lang.script() != faraday_bip::bip39::Script::Latin
 }
 
 /// A word entry for `lang`. Up to 24 words; the count is however many
@@ -485,8 +485,8 @@ fn latin_take(typed: &mut crate::secret_text::SecretText, lang: Language) {
 /// letters can still become; a word typed whole and alone on its prefix
 /// is taken at once; Backspace; with `numbers`, a word as its four-digit
 /// number. Add a key and Check my copy both type through here.
-pub(crate) fn word_key(w: WordsMut<'_>, key: osk_shell_api::Key) -> WordKey {
-    use osk_shell_api::Key;
+pub(crate) fn word_key(w: WordsMut<'_>, key: faraday_shell_api::Key) -> WordKey {
+    use faraday_shell_api::Key;
     let lang = w.lang;
     if let Some(wizard) = w.keys.as_mut() {
         let out = match key {

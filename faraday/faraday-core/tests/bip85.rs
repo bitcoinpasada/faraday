@@ -2,12 +2,12 @@
 //! password goes into the open vault as an entry, and nothing leaves
 //! unprotected without the secret sheet.
 
+use faraday_bip::bip39::Language;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 use faraday_vault::records::{field, kind};
-use osk_bip::bip39::Language;
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 fn type_text(app: &mut Faraday, text: &str) {
     for c in text.chars() {
@@ -61,7 +61,7 @@ fn a_child_seed_loads_as_a_key_of_its_own() {
     app.press(Action::PLoad);
     assert_eq!(app.session.keys.len(), 2);
     let master = &app.session.keys[0].master();
-    let child = osk_bip::bip85::child_mnemonic(&c, master, Language::English, 12, 7).unwrap();
+    let child = faraday_bip::bip85::child_mnemonic(&c, master, Language::English, 12, 7).unwrap();
     let words: Vec<&str> = child
         .indices()
         .iter()
@@ -119,7 +119,7 @@ fn a_password_goes_into_the_vault_as_an_entry() {
     app.press(Action::PNext);
     app.press(Action::PVault);
     let want =
-        osk_bip::bip85::child_password_base64(&c, app.session.keys[0].master(), 21, 0).unwrap();
+        faraday_bip::bip85::child_password_base64(&c, app.session.keys[0].master(), 21, 0).unwrap();
     let v = &app.vaults.open[0];
     let found = v
         .contents

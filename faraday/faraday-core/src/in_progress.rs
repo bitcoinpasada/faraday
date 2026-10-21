@@ -16,7 +16,7 @@
 use std::rc::Rc;
 
 use crate::strings::fill;
-use osk_crypto::work::Compute;
+use faraday_crypto::work::Compute;
 
 use crate::backup_flow::{Kind, Step};
 use crate::drawing::View;
@@ -699,7 +699,7 @@ pub(crate) fn cancel_sheet(app: &View, ui: &mut crate::ui::Ui, g: Going, w: f32,
     use crate::compact::{buttons, scroll_sheet};
     use crate::ui::pal::*;
     use crate::ui::{Style, W};
-    use osk_ui::widgets::Icon;
+    use faraday_draw::widgets::Icon;
     let title = app.cancel_title(g);
     let line = app.cancel_loses(g).unwrap_or_default();
     let place = if ui.compact {

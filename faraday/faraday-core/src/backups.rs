@@ -11,8 +11,8 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use faraday_crypto::work::Compute;
 use faraday_vault::records::{field, kind};
-use osk_crypto::work::Compute;
 
 use crate::backup::Tone;
 use crate::plan::{self, At, Tag, What};
@@ -182,7 +182,7 @@ pub(crate) fn summary_has_seed(
     fp: [u8; 4],
     id: Option<[u8; 32]>,
 ) -> Option<bool> {
-    let text = fp_text(osk_bip::keys::Fingerprint(fp));
+    let text = fp_text(faraday_bip::keys::Fingerprint(fp));
     let mut unknown = false;
     for (i, k) in s.keys.iter().enumerate() {
         if *k != text {
@@ -390,7 +390,8 @@ impl Faraday {
                         // its own (`docs/BACKUP-FLOW.md` §19.12 item 6).
                         What::SeedFile(i) if spot.at == At::Files => {
                             if let Some(fp) = fp_of(i) {
-                                let fps = fp_text(osk_bip::keys::Fingerprint(fp)).to_lowercase();
+                                let fps =
+                                    fp_text(faraday_bip::keys::Fingerprint(fp)).to_lowercase();
                                 out.secret.push(format!("{stem}-{fps}-"));
                             }
                         }
@@ -398,7 +399,7 @@ impl Faraday {
                             if let Some(fp) = fp_of(i) {
                                 let name = crate::backup_flow_wallet::seed_stick_name(
                                     *what,
-                                    &fp_text(osk_bip::keys::Fingerprint(fp)),
+                                    &fp_text(faraday_bip::keys::Fingerprint(fp)),
                                 );
                                 out.secret.extend(name);
                             }

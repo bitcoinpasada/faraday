@@ -15,7 +15,7 @@ path = "src/main.rs"
 [dependencies]
 faraday-vault = { path = "../../faraday-vault" }
 # The token the derivation takes (docs/COMPUTE.md §2).
-osk-crypto = { path = "../../../core/osk-crypto" }
+faraday-crypto = { path = "../../../core/faraday-crypto" }
 
 [lints]
 workspace = true

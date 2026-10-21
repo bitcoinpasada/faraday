@@ -2,8 +2,8 @@
 //! (`docs/STARTER.md` §7.8, F18) where the page asks for them, and never
 //! prints the marker.
 
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::{LearnId, Starter, StarterAction};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 fn starter() -> Starter {
     let mut starter = Starter::new();

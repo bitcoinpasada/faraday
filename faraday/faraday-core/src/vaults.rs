@@ -12,10 +12,10 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
+use faraday_crypto::work::Compute;
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{self as fv, Contents, Cost, Header, Record};
-use osk_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
-use osk_crypto::work::Compute;
 use std::collections::BTreeSet;
 use zeroize::Zeroizing;
 
@@ -107,7 +107,7 @@ pub const STRONG_BITS: u32 = 77;
 
 /// The words this list needs for a strong passphrase, said with where the
 /// lists come from: text, since Faraday is offline.
-pub fn dice_aim(list: osk_bip::diceware::List) -> String {
+pub fn dice_aim(list: faraday_bip::diceware::List) -> String {
     let n = (1..=20)
         .find(|&n| list.bits(n) >= STRONG_BITS)
         .unwrap_or(20);
@@ -308,13 +308,13 @@ pub enum VaultAction {
     /// Roll dice for passphrase n.
     Dice(usize),
     /// Choose which of the three EFF lists to roll from, by index into
-    /// [`osk_bip::diceware::List::ALL`].
+    /// [`faraday_bip::diceware::List::ALL`].
     DiceList(u8),
     /// Fill the passphrase with the rolled words.
     DiceUse,
     /// Put the dice away.
     DiceClose,
-    /// Open an Inbox `osk-backup` file into the vault.
+    /// Open an Inbox `.oskb` file into the vault.
     ImportBackup(usize),
     /// The selected entry out as a KeePass database, under a passphrase
     /// asked for first.
@@ -537,7 +537,7 @@ pub struct VaultRow {
 #[derive(Debug, Clone)]
 pub struct Described {
     /// The description, parsed.
-    pub policy: osk_bip::policy::WalletPolicy,
+    pub policy: faraday_bip::policy::WalletPolicy,
     /// [`crate::wallet::same_wallet`] of it: what tells two descriptions
     /// of one wallet apart from another wallet's.
     pub same: String,
@@ -549,7 +549,7 @@ pub struct Described {
 
 impl Described {
     /// What is kept of a parsed description.
-    fn of(policy: osk_bip::policy::WalletPolicy) -> Described {
+    fn of(policy: faraday_bip::policy::WalletPolicy) -> Described {
         Described {
             same: crate::wallet::same_wallet(&policy),
             checksum: policy.checksum().to_string(),
@@ -1007,7 +1007,7 @@ pub struct Vaults {
     pub from_home: bool,
     /// Dice being rolled for a passphrase: which one, the rolls, and
     /// which of the three EFF lists.
-    pub dice: Option<(usize, TextBox, osk_bip::diceware::List)>,
+    pub dice: Option<(usize, TextBox, faraday_bip::diceware::List)>,
     /// The prompt in the contents.
     pub prompt: Option<Prompt>,
     /// This computer's clock, Unix seconds, as the shell last said.
@@ -1072,7 +1072,7 @@ pub struct Vaults {
     draws: u64,
     /// The selected key's SeedQR while Show SeedQR is held, by record
     /// index: made at the press, dropped at the lift.
-    pub(crate) seedqr: Option<(usize, osk_codec::qr::QrMatrix)>,
+    pub(crate) seedqr: Option<(usize, faraday_codec::qr::QrMatrix)>,
     /// Save to a stick's popup, while it is open.
     pub stick_save: Option<crate::vault_out::StickSave>,
     /// The Load sheet an unlock shows, while it is up (F62).
@@ -1234,7 +1234,7 @@ impl Faraday {
                 *d = None;
             }
             self.dirty = true;
-            self.commands.push_back(osk_shell_api::Command::Draw);
+            self.commands.push_back(faraday_shell_api::Command::Draw);
         }
     }
 
@@ -1549,7 +1549,7 @@ impl Faraday {
     pub(crate) fn vault_draw(&mut self, what: &[u8]) -> Option<[u8; 32]> {
         let Some(seed) = self.seed.as_ref() else {
             self.commands
-                .push_back(osk_shell_api::Command::RequestEntropy);
+                .push_back(faraday_shell_api::Command::RequestEntropy);
             return None;
         };
         self.vaults.draws += 1;
@@ -1640,7 +1640,7 @@ impl Faraday {
                 let found = self
                     .slot_of(&c, fp, at)
                     .and_then(|slot| self.vault_key_for(&c, &slot));
-                let fp = osk_bip::keys::Fingerprint(fp);
+                let fp = faraday_bip::keys::Fingerprint(fp);
                 if let Some((v, i)) = found {
                     let (k, _) = self.vault_load_set(v, &BTreeSet::from([i]));
                     if k > 0 {
@@ -2065,20 +2065,21 @@ impl Faraday {
                 scan.purpose = crate::ScanPurpose::VaultEntry;
                 self.scan = Some(scan);
                 self.sheet = Some(crate::Sheet::Scan);
-                self.commands.push_back(osk_shell_api::Command::CameraOn);
+                self.commands
+                    .push_back(faraday_shell_api::Command::CameraOn);
             }
             V::Dice(_) if !self.may_load_keys() => {}
             V::Dice(i) => {
                 // Pressed again, the rolls box keeps what is rolled.
                 if self.vaults.dice.as_ref().is_none_or(|d| d.0 != i) {
                     self.vaults.dice =
-                        Some((i, TextBox::default(), osk_bip::diceware::List::Large));
+                        Some((i, TextBox::default(), faraday_bip::diceware::List::Large));
                 }
                 self.vaults.focus = Some(Focus::Dice);
             }
             V::DiceList(k) => {
                 if let Some((_, rolls, list)) = self.vaults.dice.as_mut()
-                    && let Some(&l) = osk_bip::diceware::List::ALL.get(usize::from(k))
+                    && let Some(&l) = faraday_bip::diceware::List::ALL.get(usize::from(k))
                     && l != *list
                 {
                     *list = l;
@@ -2099,7 +2100,7 @@ impl Faraday {
                             (
                                 Zeroizing::new(crate::demo::PASSPHRASE.to_string()),
                                 crate::demo::PASSPHRASE_WORDS as f32
-                                    * osk_bip::diceware::List::Large.bits_per_word(),
+                                    * faraday_bip::diceware::List::Large.bits_per_word(),
                             )
                         } else {
                             (
@@ -2447,8 +2448,8 @@ impl Faraday {
             return;
         };
         let label = crate::stem(&item.name);
-        let opened = osk_backup::oskb::open_payload(&c, &item.bytes, p.text.text.as_bytes());
-        use osk_backup::oskb::Opened;
+        let opened = faraday_backup::oskb::open_payload(&c, &item.bytes, p.text.text.as_bytes());
+        use faraday_backup::oskb::Opened;
         let (record, category) = match opened {
             Ok(Opened::Words(m)) => (
                 Record::new(kind::KEY)
@@ -2457,7 +2458,7 @@ impl Faraday {
                 0,
             ),
             Ok(Opened::Seed(seed)) => {
-                let mut payload = Zeroizing::new(vec![0u8; 1 + osk_backup::oskb::MAX_SEED]);
+                let mut payload = Zeroizing::new(vec![0u8; 1 + faraday_backup::oskb::MAX_SEED]);
                 payload[0] = seed.len() as u8;
                 payload[1..1 + seed.len()].copy_from_slice(&seed);
                 (
@@ -2469,18 +2470,24 @@ impl Faraday {
             }
             Ok(Opened::Note(text)) => (Record::new(kind::NOTE).with(field::NOTE, &text), 3),
             Ok(Opened::Sheet(sheet)) => {
-                match osk_backup::oskb::sheet_payload(&sheet.descriptor, &sheet.name, &sheet.note) {
+                match faraday_backup::oskb::sheet_payload(
+                    &sheet.descriptor,
+                    &sheet.name,
+                    &sheet.note,
+                ) {
                     Some(payload) => (Record::new(kind::SHEET).with(field::SHEET, &payload), 3),
                     None => return,
                 }
             }
             Err(e) => {
                 let why = match e {
-                    osk_backup::oskb::Error::Passphrase => EN.vaults_that_passphrase.to_string(),
-                    osk_backup::oskb::Error::Memory(mib) => {
+                    faraday_backup::oskb::Error::Passphrase => {
+                        EN.vaults_that_passphrase.to_string()
+                    }
+                    faraday_backup::oskb::Error::Memory(mib) => {
                         fill(EN.vaults_needs_mib_which, &[&mib.to_string()])
                     }
-                    osk_backup::oskb::Error::Format => EN.vaults_not_a_backup.to_string(),
+                    faraday_backup::oskb::Error::Format => EN.vaults_not_a_backup.to_string(),
                 };
                 if let Some(p) = self.vaults.prompt.as_mut() {
                     p.text.clear();
@@ -2872,7 +2879,7 @@ impl Faraday {
         fp: [u8; 4],
         at: SlotOf,
     ) -> Option<crate::wallet::Slot> {
-        let fp = osk_bip::keys::Fingerprint(fp);
+        let fp = faraday_bip::keys::Fingerprint(fp);
         let slot = match at {
             SlotOf::Loaded(w, k) => {
                 let wallet = self.session.wallets.get(w)?;
@@ -3017,7 +3024,7 @@ impl Faraday {
             return (0, 0);
         };
         let mut words: Vec<(Zeroizing<String>, String)> = Vec::new();
-        let mut descs: Vec<(osk_bip::policy::WalletPolicy, String)> = Vec::new();
+        let mut descs: Vec<(faraday_bip::policy::WalletPolicy, String)> = Vec::new();
         let mut seeds: Vec<(Zeroizing<Vec<u8>>, String)> = Vec::new();
         let mut passphrases: Vec<Zeroizing<String>> = Vec::new();
         for (i, r) in open.contents.of(kind::KEY) {
@@ -3080,7 +3087,7 @@ impl Faraday {
     /// passphrase, to the Outbox: sealed, so it goes as it is.
     fn vault_kdbx(&mut self) {
         let c = self.compute();
-        use osk_backup::kdbx;
+        use faraday_backup::kdbx;
         let Some(at) = self.vault_selected_index() else {
             return;
         };
@@ -3141,7 +3148,7 @@ impl Faraday {
             &c,
             &[item],
             passphrase.as_bytes(),
-            osk_backup::DEVICE_PARAMS,
+            faraday_backup::DEVICE_PARAMS,
             &seed,
         ) {
             Some(file) => {
@@ -3457,7 +3464,8 @@ impl Faraday {
             }
             FileKind::Words => {
                 let words = crate::forms::file_words(&text);
-                let Ok(m) = crate::forms::typed_mnemonic(osk_bip::bip39::Language::English, &words)
+                let Ok(m) =
+                    crate::forms::typed_mnemonic(faraday_bip::bip39::Language::English, &words)
                 else {
                     return;
                 };
@@ -3505,7 +3513,7 @@ impl Faraday {
     pub(crate) fn passphrase_kept_for(
         &self,
         c: &Compute,
-        m: &osk_bip::bip39::Mnemonic,
+        m: &faraday_bip::bip39::Mnemonic,
     ) -> Option<Zeroizing<String>> {
         for open in &self.vaults.open {
             for (_, r) in open.contents.of(kind::PASSPHRASE) {
@@ -3517,7 +3525,8 @@ impl Faraday {
                 let Ok(seed) = m.to_seed(c, p.as_bytes()) else {
                     continue;
                 };
-                let master = osk_bip::keys::MasterKey::from_seed(c, &seed, self.session.network());
+                let master =
+                    faraday_bip::keys::MasterKey::from_seed(c, &seed, self.session.network());
                 if master.fingerprint().0[..] == *fp {
                     return Some(Zeroizing::new(p.to_string()));
                 }
@@ -3649,7 +3658,7 @@ impl Faraday {
         // its own; a vault is never made before it has arrived.
         if self.pool.is_empty() {
             self.commands
-                .push_back(osk_shell_api::Command::RequestEntropy);
+                .push_back(faraday_shell_api::Command::RequestEntropy);
             if let Some(c) = self.vaults.create.as_mut() {
                 c.error = Some(EN.vaults_no_randomness.to_string());
             }
@@ -3835,7 +3844,7 @@ impl Faraday {
         }
         if !self.seeded() && self.vaults.open[i].changes > 0 {
             self.commands
-                .push_back(osk_shell_api::Command::RequestEntropy);
+                .push_back(faraday_shell_api::Command::RequestEntropy);
             self.toast(EN.seed_missing);
             return false;
         }
@@ -3851,8 +3860,8 @@ impl Faraday {
     }
 
     /// Typing on a vault screen. Returns whether the key was taken.
-    pub(crate) fn vault_key(&mut self, key: osk_shell_api::Key) -> bool {
-        use osk_shell_api::Key as K;
+    pub(crate) fn vault_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
         // The boot import's sheet has a passphrase field of its own.
         let import = self.sheet == Some(crate::Sheet::Import) && self.screen == Screen::Home;
         // So has the sheet of seeds kept with no passphrase (F62).
@@ -4036,8 +4045,8 @@ pub fn vault_stem(typed: &str) -> String {
 }
 
 /// The words a list's dice rolls spell, for as many whole words as the
-/// rolls make (`osk-bip`'s diceware lists, in roll order).
-pub fn dice_words(rolls: &str, list: osk_bip::diceware::List) -> Vec<&'static str> {
+/// rolls make (`faraday-bip`'s diceware lists, in roll order).
+pub fn dice_words(rolls: &str, list: faraday_bip::diceware::List) -> Vec<&'static str> {
     let per = list.dice_per_word();
     let digits: Vec<u8> = rolls
         .bytes()
@@ -4052,7 +4061,7 @@ pub fn dice_words(rolls: &str, list: osk_bip::diceware::List) -> Vec<&'static st
 
 /// The place in its list of each whole word the rolls make, in order:
 /// the dice read as a number in base 6, first die highest.
-pub fn dice_word_indices(rolls: &str, list: osk_bip::diceware::List) -> Vec<u16> {
+pub fn dice_word_indices(rolls: &str, list: faraday_bip::diceware::List) -> Vec<u16> {
     let digits: Vec<u16> = rolls
         .bytes()
         .filter(|b| (b'1'..=b'6').contains(b))
@@ -4067,8 +4076,8 @@ pub fn dice_word_indices(rolls: &str, list: osk_bip::diceware::List) -> Vec<u16>
 /// The master seed a key record holds, when it holds a seed rather than
 /// words.
 pub fn seed_of(r: &Record) -> Option<Zeroizing<Vec<u8>>> {
-    match osk_backup::oskb::payload_of(osk_backup::oskb::KIND_SEED, r.field(field::KEY)?)? {
-        osk_backup::oskb::Opened::Seed(s) => Some(s),
+    match faraday_backup::oskb::payload_of(faraday_backup::oskb::KIND_SEED, r.field(field::KEY)?)? {
+        faraday_backup::oskb::Opened::Seed(s) => Some(s),
         _ => None,
     }
 }
@@ -4083,7 +4092,7 @@ pub fn multiline(kind: u8, number: u8) -> bool {
 }
 
 /// A mnemonic's words, space-separated, in wiped memory.
-pub(crate) fn phrase_of(m: &osk_bip::bip39::Mnemonic) -> Zeroizing<String> {
+pub(crate) fn phrase_of(m: &faraday_bip::bip39::Mnemonic) -> Zeroizing<String> {
     let lang = m.language();
     let mut out = crate::secret_text::room();
     for (k, &i) in m.indices().iter().enumerate() {

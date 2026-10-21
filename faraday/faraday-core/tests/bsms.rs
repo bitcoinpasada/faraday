@@ -5,7 +5,7 @@
 
 use faraday_core::wallet::{FileKind, classify};
 use faraday_core::{Action, Faraday, StorageEvent};
-use osk_shell_api::App;
+use faraday_shell_api::App;
 
 const SIGNER_1: &str = "BSMS 1.0
 00
@@ -65,7 +65,9 @@ fn faradays_own_records_read_back() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(None));
     for c in faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[0].0).chars() {
-        app.event(osk_shell_api::Event::Key(osk_shell_api::Key::Char(c)));
+        app.event(faraday_shell_api::Event::Key(faraday_shell_api::Key::Char(
+            c,
+        )));
     }
     app.press(Action::EntryAdd);
     app.press(Action::CreateWallet);

@@ -1,7 +1,7 @@
 [package]
 name = "faraday-mediafoundation"
 version = "0.1.5"
-description = "Media Foundation capture through one small C file: the Windows twin of opensigner-avfoundation"
+description = "Media Foundation capture through one small C file: the Windows twin of faraday-avfoundation"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
@@ -9,11 +9,11 @@ repository.workspace = true
 publish = false
 
 # The capture is `src/camera.c`, and the two functions it exports are
-# declared in src/lib.rs. The NV12 conversion is opensigner-avfoundation's
+# declared in src/lib.rs. The NV12 conversion is faraday-avfoundation's
 # `convert` module, which builds on every platform (on Windows that crate
 # is the conversion alone).
 [dependencies]
-opensigner-avfoundation = { path = "../../../opensigner/shells/avfoundation" }
+faraday-avfoundation = { path = "../../../faraday/shells/avfoundation" }
 
 # `cc` compiles src/camera.c, and only when the target is Windows. It is
 # a build dependency on every target because the build script runs on
@@ -25,7 +25,7 @@ opensigner-avfoundation = { path = "../../../opensigner/shells/avfoundation" }
 cc = { workspace = true }
 
 # The workspace lints are deliberately NOT inherited: like
-# `opensigner-avfoundation` and `opensigner-v4l2`, this crate is an
+# `faraday-avfoundation` and `faraday-v4l2`, this crate is an
 # exception to `unsafe_code = "forbid"` (docs/PLANNING.md §16.33). Every
 # other workspace lint that matters here is repeated by hand.
 [lints.rust]

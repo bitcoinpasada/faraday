@@ -6,8 +6,8 @@
 //! the board as the frame's memo has it ([`Faraday::board_view_now`]) and the
 //! chip held; it works nothing out but where things go.
 
-use osk_ui::tokens;
-use osk_ui::widgets::Icon;
+use faraday_draw::tokens;
+use faraday_draw::widgets::Icon;
 
 use crate::Action;
 use crate::board::{
@@ -64,14 +64,14 @@ fn inside(p: (f32, f32), r: (f32, f32, f32, f32)) -> bool {
 }
 
 /// The edge round what takes the chip held, or round the chip itself.
-fn edge(ui: &mut Ui, r: (f32, f32, f32, f32), radius: f32, color: osk_ui::Color) {
+fn edge(ui: &mut Ui, r: (f32, f32, f32, f32), radius: f32, color: faraday_draw::Color) {
     let rect = ui.rect(r.0, r.1, r.2, r.3);
     let c = ui.col(color);
     ui.c.stroke_rounded_rect(rect, radius * ui.f, tokens::BOARD_EDGE * ui.f, c);
 }
 
 /// The × mark, a cross centred on (cx, cy).
-fn cross(ui: &mut Ui, cx: f32, cy: f32, color: osk_ui::Color) {
+fn cross(ui: &mut Ui, cx: f32, cy: f32, color: faraday_draw::Color) {
     let h = tokens::BOARD_MARK / 2.0;
     let (f, ox, oy) = (ui.f, ui.ox, ui.oy);
     let c = ui.col(color);
@@ -97,7 +97,7 @@ fn cross(ui: &mut Ui, cx: f32, cy: f32, color: osk_ui::Color) {
 
 /// The link mark at (x, cy): two links of a chain, for a vault drawn at
 /// every place that keeps its stick.
-fn link(ui: &mut Ui, x: f32, cy: f32, color: osk_ui::Color) {
+fn link(ui: &mut Ui, x: f32, cy: f32, color: faraday_draw::Color) {
     let q = tokens::BOARD_MARK / 4.0;
     let rect_a = ui.rect(x, cy - q, 3.0 * q, 2.0 * q);
     let rect_b = ui.rect(x + q, cy - q, 3.0 * q, 2.0 * q);
@@ -162,7 +162,7 @@ fn dots(
     x: f32,
     y: f32,
     h: f32,
-    color: osk_ui::Color,
+    color: faraday_draw::Color,
     hits: bool,
 ) {
     let mw = menu_w();
@@ -532,7 +532,7 @@ type Box4 = (f32, f32, f32, f32);
 /// A box's edge drawn in dashes along its sides, `color`, at
 /// `BOARD_BOX_EDGE`: **+ stick** and **+ place**. The corners, `radius`
 /// round, are left open.
-fn dashed(ui: &mut Ui, r: Box4, radius: f32, color: osk_ui::Color) {
+fn dashed(ui: &mut Ui, r: Box4, radius: f32, color: faraday_draw::Color) {
     let (f, ox, oy) = (ui.f, ui.ox, ui.oy);
     let c = ui.col(color);
     let s = tokens::BOARD_BOX_EDGE * f;
@@ -572,7 +572,7 @@ fn dashed(ui: &mut Ui, r: Box4, radius: f32, color: osk_ui::Color) {
 
 /// A box with its top corners rounded and its bottom square: a header
 /// band.
-fn band(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, color: osk_ui::Color) {
+fn band(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, color: faraday_draw::Color) {
     let r = tokens::GAP;
     ui.fill(x, y, w, h, r, color);
     ui.fill(x, y + h - r, w, r, 0.0, color);
@@ -587,7 +587,11 @@ fn paper_h(ui: &Ui, chips: &[ChipView], w: f32) -> f32 {
 }
 
 /// A zone box's colours: its fill, its edge, and its label's.
-type Tones = (osk_ui::Color, osk_ui::Color, osk_ui::Color);
+type Tones = (
+    faraday_draw::Color,
+    faraday_draw::Color,
+    faraday_draw::Color,
+);
 
 /// Paper and Scanned in, in the paper colours.
 const PAPER: Tones = (PAPER_FILL, PAPER_EDGE, PAPER_TEXT);
@@ -810,7 +814,7 @@ fn row(
 fn place_head(
     ui: &mut Ui,
     name: &str,
-    facts: &[(&str, osk_ui::Color)],
+    facts: &[(&str, faraday_draw::Color)],
     x: f32,
     y: f32,
     w: f32,

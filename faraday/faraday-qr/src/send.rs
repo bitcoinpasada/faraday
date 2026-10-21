@@ -9,8 +9,8 @@
 //! says it in its own words. Moved here from `faraday-core` so that the
 //! desktop app and the stick make the same codes.
 
-use osk_codec::qr::{Ecc, Payload, QrMatrix, encode, encode_bounded};
-use osk_crypto::work::Compute;
+use faraday_codec::qr::{Ecc, Payload, QrMatrix, encode, encode_bounded};
+use faraday_crypto::work::Compute;
 
 /// What a QR view shows.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -120,7 +120,7 @@ pub type Frames = (Made, Vec<QrMatrix>);
 pub fn frames(c: &Compute, source: &Source, format: Format, part: usize) -> Result<Frames, Error> {
     Ok(match (source, format) {
         (Source::Psbt(bytes), Format::Ur) => {
-            let single = osk_codec::ur::encode_psbt(bytes).to_ascii_uppercase();
+            let single = faraday_codec::ur::encode_psbt(bytes).to_ascii_uppercase();
             if let Ok(m) = encode_bounded(c, Payload::Alphanumeric(single.as_bytes()), Ecc::Low, 20)
             {
                 (Made::UrPsbtOne, vec![m])
@@ -231,7 +231,7 @@ fn envelope(name: &str, data: &[u8]) -> Result<Vec<u8>, Error> {
 fn ur_psbt_frames(c: &Compute, bytes: &[u8], part: usize) -> Result<Frames, Error> {
     let frames = animated(
         c,
-        osk_codec::ur::Encoder::psbt(bytes, part).map_err(code_error)?,
+        faraday_codec::ur::Encoder::psbt(bytes, part).map_err(code_error)?,
         bytes.len(),
         part,
     )?;
@@ -284,7 +284,7 @@ pub fn bbqr_frames(c: &Compute, t: char, data: &[u8], part: usize) -> Result<Fra
 /// `ur_bytes_animated`). Bytes as `ur:bytes`: one code when it fits,
 /// else animated.
 pub fn ur_bytes_frames(c: &Compute, data: &[u8], file: bool, part: usize) -> Result<Frames, Error> {
-    let single = osk_codec::ur::encode_bytes(data).to_ascii_uppercase();
+    let single = faraday_codec::ur::encode_bytes(data).to_ascii_uppercase();
     if let Ok(m) = encode_bounded(c, Payload::Alphanumeric(single.as_bytes()), Ecc::Low, 20) {
         return Ok((Made::UrBytesOne { file }, vec![m]));
     }
@@ -295,7 +295,7 @@ pub fn ur_bytes_frames(c: &Compute, data: &[u8], file: bool, part: usize) -> Res
 fn ur_bytes_animated(c: &Compute, data: &[u8], file: bool, part: usize) -> Result<Frames, Error> {
     let frames = animated(
         c,
-        osk_codec::ur::Encoder::bytes(data, part).map_err(code_error)?,
+        faraday_codec::ur::Encoder::bytes(data, part).map_err(code_error)?,
         data.len(),
         part,
     )?;
@@ -334,7 +334,7 @@ pub fn envelope_name(name: &str) -> String {
 /// misses a few still completes on the first pass.
 pub fn animated(
     c: &Compute,
-    mut enc: osk_codec::ur::Encoder,
+    mut enc: faraday_codec::ur::Encoder,
     len: usize,
     frag: usize,
 ) -> Result<Vec<QrMatrix>, Error> {

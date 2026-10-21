@@ -9,9 +9,9 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use faraday_bip::keys::Fingerprint;
+use faraday_crypto::work::Compute;
 use faraday_vault::records::{self, Record, field, kind};
-use osk_bip::keys::Fingerprint;
-use osk_crypto::work::Compute;
 
 use crate::glance::{Now, Reads};
 use crate::wallet::{self, fp_text};

@@ -304,7 +304,7 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
     let c = faraday_core::testkit::compute();
     use faraday_core::create::NewKind;
     use faraday_core::{Action, bstep, cstep, qrow, testkit};
-    use osk_shell_api::{App, Event, Key};
+    use faraday_shell_api::{App, Event, Key};
     let mut app = testkit::started();
     for word in ["bacon", "zebra", "summer"] {
         app.press(Action::Entry(None));
@@ -419,7 +419,7 @@ fn a_single_key_create_with_a_passphrase_asks_where_the_passphrase_goes() {
 fn passphrase_key() -> Faraday {
     use faraday_core::keygen::Way;
     use faraday_core::{Action, cstep};
-    use osk_shell_api::{App, Event, Key};
+    use faraday_shell_api::{App, Event, Key};
     let mut app = faraday_core::testkit::started();
     app.press(Action::CreateWallet);
     app.press(Action::CNext(cstep::KIND));
@@ -455,7 +455,7 @@ fn passphrase_key() -> Faraday {
 fn places_of(name: &str) -> faraday_core::Faraday {
     let c = faraday_core::testkit::compute();
     use faraday_core::{Action, qstep, testkit};
-    use osk_shell_api::App;
+    use faraday_shell_api::App;
     let mut app = testkit::started();
     app.session = testkit::session();
     app.session
@@ -499,7 +499,7 @@ fn places_of(name: &str) -> faraday_core::Faraday {
 #[test]
 fn a_fresh_multisig_plan_keeps_the_whole_sheet_in_each_place() {
     use faraday_core::Action;
-    use osk_shell_api::App;
+    use faraday_shell_api::App;
     let mut app = places_of("Savings");
     let b = app.backup.as_ref().unwrap();
     assert!(!b.answers.split);
@@ -532,7 +532,7 @@ fn a_three_of_five_over_five_places_leaves_two_keys_off_each_share() {
     let c = faraday_core::testkit::compute();
     use faraday_core::seeds::SLIDE_OMIT;
     use faraday_core::{Action, bstep};
-    use osk_shell_api::App;
+    use faraday_shell_api::App;
     let shape = three_of_five();
     let mut a = Answers::preset(&shape, Preset::Standard);
     assert_eq!(a.places, 5);
@@ -844,7 +844,7 @@ fn a_vault_with_no_stick_place_is_out_of_the_plan() {
 /// Whether the plan offers `action` anywhere down its column, scrolled
 /// to as a person would.
 fn shows(app: &mut Faraday, action: faraday_core::Action) -> bool {
-    use osk_shell_api::{App, Event};
+    use faraday_shell_api::{App, Event};
     for _ in 0..20 {
         app.settle();
         let _ = app.frame();
@@ -862,7 +862,7 @@ fn shows(app: &mut Faraday, action: faraday_core::Action) -> bool {
 
 /// Whether a text with `part` in it is drawn anywhere down the column.
 fn shows_text(app: &mut Faraday, part: &str) -> bool {
-    use osk_shell_api::{App, Event};
+    use faraday_shell_api::{App, Event};
     for _ in 0..20 {
         app.settle();
         let _ = app.frame();
@@ -881,7 +881,7 @@ fn shows_text(app: &mut Faraday, part: &str) -> bool {
 /// Opens the board's card, unless it is open.
 fn open_board(app: &mut Faraday) {
     use faraday_core::{Action, qstep};
-    use osk_shell_api::App;
+    use faraday_shell_api::App;
     if app.backup.as_ref().unwrap().q != Some(qstep::BOARD) {
         app.press(Action::BQ(qstep::BOARD));
     }
@@ -912,7 +912,7 @@ fn held(app: &Faraday, at: At) -> Vec<What> {
 fn three_here() -> Faraday {
     use faraday_core::create::NewKind;
     use faraday_core::{Action, cstep, testkit};
-    use osk_shell_api::{App, Event, Key};
+    use faraday_shell_api::{App, Event, Key};
     let mut app = testkit::started();
     for word in ["bacon", "zebra", "summer"] {
         app.press(Action::Entry(None));
@@ -988,7 +988,7 @@ fn each_place_has_its_card_and_a_vaults_sheet_puts_the_seeds_ticked_in_it() {
 fn words_at_a_place_are_on_the_map_and_its_card_says_what_finding_it_alone_gives() {
     let c = faraday_core::testkit::compute();
     use faraday_core::plan::{Found, alone};
-    use osk_shell_api::App;
+    use faraday_shell_api::App;
     let mut app = three_here();
     open_board(&mut app);
     // Place 3's paper keeps the first seed's words in place of its own.
@@ -1306,7 +1306,7 @@ fn rebuilds_at(shape: &Shape, a: &Answers, group: &[usize]) -> bool {
 #[test]
 fn no_preset_makes_more_than_one_place_per_key() {
     use faraday_core::Action;
-    use osk_shell_api::App;
+    use faraday_shell_api::App;
     for shape in [one_key(), two_of_three(), three_of_five()] {
         for preset in Preset::ALL {
             let a = Answers::preset(&shape, preset);
@@ -1331,8 +1331,8 @@ fn no_preset_makes_more_than_one_place_per_key() {
 #[test]
 fn a_seed_file_at_a_place_has_that_places_stick_of_files_and_is_held_until_written() {
     let c = faraday_core::testkit::compute();
+    use faraday_bip::keys::Fingerprint;
     use faraday_core::{Action, bstep};
-    use osk_bip::keys::Fingerprint;
     let mut app = passphrase_key();
     let fp = app.session.keys.last().unwrap().fingerprint();
     app.press(Action::CBackup);

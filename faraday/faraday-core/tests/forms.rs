@@ -6,10 +6,10 @@
 
 use std::str::FromStr;
 
+use faraday_bip::bitcoin::bip32::Xpriv;
+use faraday_bip::bitcoin::secp256k1::Secp256k1;
 use faraday_core::{Action, Faraday, Screen};
-use osk_bip::bitcoin::bip32::Xpriv;
-use osk_bip::bitcoin::secp256k1::Secp256k1;
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 fn typed(app: &mut Faraday, text: &str) {
     for c in text.chars() {

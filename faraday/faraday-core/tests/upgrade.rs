@@ -8,7 +8,7 @@ use faraday_core::upgrade::{Fit, Step, version};
 use faraday_core::{
     Action, BootPart, Faraday, Medium, Screen, Sheet, StickInfo, StorageCommand, StorageEvent,
 };
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 /// A source whose release is our own choosing, rather than `read_source`'s
 /// fixed `RUNNING`: the boot stick in, read as the source.

@@ -2,7 +2,7 @@
 //! a touchscreen's first finger, the wheel and two-finger scrolling, the
 //! keyboard, and the mouse's back and forward buttons.
 
-use osk_shell_api::{Event, Key, TouchPhase};
+use faraday_shell_api::{Event, Key, TouchPhase};
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::keyboard::{Key as WinitKey, NamedKey};
 

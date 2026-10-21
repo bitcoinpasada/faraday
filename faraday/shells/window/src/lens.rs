@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use faraday_core::{Faraday, StorageEvent};
 use faraday_scanner::{ReadMode, Scanner, reduce, reduce_chroma, reduce_factor};
-use osk_shell_api::Event;
+use faraday_shell_api::Event;
 
 use crate::camera::{self, Camera};
 

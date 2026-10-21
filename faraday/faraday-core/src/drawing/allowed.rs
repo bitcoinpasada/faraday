@@ -6,9 +6,9 @@
 //! even for a frame. A new exception is a new method here, which the
 //! owner decides. Each is handed the view's token (`View::allowed`).
 
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_codec::qr::QrMatrix;
 use faraday_vault::Record;
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_codec::qr::QrMatrix;
 use zeroize::Zeroizing;
 
 use super::View;
@@ -50,9 +50,9 @@ impl View<'_> {
         self.allowed(Allowed::SecretShown, |c| {
             let mn = crate::wallet::parse_words(c, lang, words).ok()?;
             if compact {
-                osk_codec::seedqr::encode_compact(c, &mn).ok()
+                faraday_codec::seedqr::encode_compact(c, &mn).ok()
             } else {
-                osk_codec::seedqr::encode_seedqr(c, &mn).ok()
+                faraday_codec::seedqr::encode_seedqr(c, &mn).ok()
             }
         })
     }

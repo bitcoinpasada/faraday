@@ -2,7 +2,7 @@
 //! the stick shell starts it with `Medium::SdCard`. The PC keeps "stick".
 
 use faraday_core::{Action, Faraday, Medium, StickInfo, StorageEvent};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// The app as a shell starts it on the Pi's 480 × 640 panel, drawn once.
 fn panel(medium: Medium) -> Faraday {

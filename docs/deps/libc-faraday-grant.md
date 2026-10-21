@@ -1,7 +1,7 @@
 # `libc` 0.2 — Faraday's grant helper
 
 **Where it is used:** `faraday/faraday-grant` (the `faraday-grant`
-binary), on top of upstream's use in `opensigner-v4l2`
+binary), on top of upstream's use in `faraday-v4l2`
 (`docs/deps/libc.md`). The version is the workspace's; no new crate
 enters the lock file.
 
@@ -18,7 +18,7 @@ takes those declarations and `SYS_capset`.
 declared in `faraday-grant`'s own `main.rs`. There is no seccomp filter
 (`PLAN.md` §12, decision 8).
 
-**Why `unsafe` is allowed in that crate alone.** Like `opensigner-v4l2`,
+**Why `unsafe` is allowed in that crate alone.** Like `faraday-v4l2`,
 `faraday-grant` does not inherit the workspace's `unsafe_code = "forbid"`
 and says so in its `Cargo.toml`. Each `unsafe` block is one `libc` call
 with integers or a buffer that outlives it. The helper's decisions are in

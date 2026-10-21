@@ -5,7 +5,7 @@
 //! have kept. On a desktop and on the Pi's panel, whose compact screens
 //! offer their own presses.
 
-use osk_shell_api::{App, Event};
+use faraday_shell_api::{App, Event};
 
 use super::{DESKTOP, MAIN, PI, Panel, walk_on};
 use crate::work::{Counts, KINDS, Work, since, snapshot};

@@ -27,8 +27,8 @@
 use std::cell::{OnceCell, RefCell};
 use std::ops::Deref;
 
-use osk_bip::keys::Fingerprint;
-use osk_crypto::work::Compute;
+use faraday_bip::keys::Fingerprint;
+use faraday_crypto::work::Compute;
 
 use crate::{Faraday, flow, plan, work};
 
@@ -123,7 +123,7 @@ impl Drawing {
 ///
 /// ```
 /// use faraday_core::Faraday;
-/// use osk_bip::policy::WalletPolicy;
+/// use faraday_bip::policy::WalletPolicy;
 /// fn event(app: &mut Faraday, text: &str) {
 ///     let c = app.compute();
 ///     let _ = WalletPolicy::parse(&c, text);
@@ -150,7 +150,7 @@ impl Drawing {
 ///
 /// ```compile_fail,E0061
 /// fn draw(_v: &faraday_core::View<'_>, text: &str) {
-///     let _ = osk_bip::policy::WalletPolicy::parse(text);
+///     let _ = faraday_bip::policy::WalletPolicy::parse(text);
 /// }
 /// ```
 ///
@@ -381,7 +381,7 @@ impl Faraday {
         }
         if a.redraw {
             self.dirty = true;
-            self.commands.push_back(osk_shell_api::Command::Draw);
+            self.commands.push_back(faraday_shell_api::Command::Draw);
         }
     }
 }

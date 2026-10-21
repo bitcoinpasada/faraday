@@ -197,7 +197,7 @@ Starter itself about 13 MB).
 
 - `faraday/faraday-starter`: the Starter's state, screens and decisions, no
   I/O, tested as `faraday-core` is, through actions in and commands out.
-  It draws with `faraday-core::ui` and `osk-ui`, so it looks like
+  It draws with `faraday-core::ui` and `faraday-draw`, so it looks like
   Faraday and obeys the same tokens.
 - `faraday/shells/starter`: the window (winit and softbuffer, as the
   desktop shell; both run on Windows), the payload, and one module per
@@ -251,7 +251,7 @@ Starter itself about 13 MB).
   (`%USERPROFILE%\Downloads`; a Downloads folder Windows has moved
   elsewhere is not followed) and the PDFs; Open Downloads and the
   Nakamoto Institute link run `explorer.exe` from `%SystemRoot%`;
-  `osk-crypto`'s `pin-pages` pins through `VirtualLock` and
+  `faraday-crypto`'s `pin-pages` pins through `VirtualLock` and
   `VirtualUnlock`, two `kernel32` functions declared by hand, under the
   same audited-unsafe rules as the Unix pair; the window is a GUI
   program (no console) whose `.exe` carries the icon, the version and an
@@ -1562,9 +1562,9 @@ screenshot. Each is labelled a mock-up.
 Transfer is the desktop app's (`faraday-core/src/transfer.rs`): Send
 shows a file as animated codes for the device's Scan; Receive reads the
 device's codes with the camera and saves each whole file into the
-Downloads folder. On Linux the camera is `opensigner-v4l2`, as the
+Downloads folder. On Linux the camera is `faraday-v4l2`, as the
 desktop app's. On Windows it is `faraday-mediafoundation`
-(`faraday/shells/mediafoundation`), built as `opensigner-avfoundation`
+(`faraday/shells/mediafoundation`), built as `faraday-avfoundation`
 is: one small C file, `src/camera.c`, behind a two-function C ABI, that
 lists Media Foundation's video capture devices and reads the first, or
 the one chosen on the scan sheet, as NV12 near 640 x 480 on a thread of

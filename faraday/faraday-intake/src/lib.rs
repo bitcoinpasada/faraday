@@ -10,8 +10,8 @@
 //! [`wallet`], the description reader, and the readers of other
 //! wallets' files it calls ([`caravan`], [`electrum`], [`single_key`]),
 //! whose refusals are Faraday's own lines (`faraday-strings`), a SLIP-132
-//! key's among them (`osk_bip::slip132` reads the key); the JSON those
-//! readers read is `osk_bip::json`.
+//! key's among them (`faraday_bip::slip132` reads the key); the JSON those
+//! readers read is `faraday_bip::json`.
 //!
 //! [`secret_buf`] holds text a person types that may be a secret, wiped
 //! wherever it has been.
@@ -22,10 +22,10 @@ pub mod secret_buf;
 pub mod single_key;
 pub mod wallet;
 
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_bip::codex32::Codex32;
-use osk_bip::slip39;
-use osk_crypto::work::Compute;
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::codex32::Codex32;
+use faraday_bip::slip39;
+use faraday_crypto::work::Compute;
 use zeroize::Zeroizing;
 
 /// The room a seed phrase is built in, bytes: more than 24 words of the
@@ -45,9 +45,9 @@ pub fn seedqr_words(payload: &[u8]) -> Option<Zeroizing<String>> {
     let lang = Language::English;
     let digits = payload.iter().all(u8::is_ascii_digit);
     let m = if digits && matches!(payload.len(), 48 | 96) {
-        osk_codec::seedqr::from_digits(payload, lang).ok()?
+        faraday_codec::seedqr::from_digits(payload, lang).ok()?
     } else if matches!(payload.len(), 16 | 32) && std::str::from_utf8(payload).is_err() {
-        osk_codec::seedqr::from_entropy(payload, lang).ok()?
+        faraday_codec::seedqr::from_entropy(payload, lang).ok()?
     } else {
         return None;
     };

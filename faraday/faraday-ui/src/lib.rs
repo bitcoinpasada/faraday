@@ -3,7 +3,7 @@
 //!
 //! Drawing in design units. Every screen is laid out on a canvas scaled
 //! to fill the display, with the prototype's palette
-//! (`design/prototype/`) and the themes beside it. Text is `osk-ui`'s
+//! (`design/prototype/`) and the themes beside it. Text is `faraday-draw`'s
 //! Noto Sans and Noto Sans Mono. [`Ui`] is generic over the app's own
 //! action type: what a press on a region does is the caller's to name.
 
@@ -14,11 +14,11 @@ pub mod sheet;
 
 pub use firmware::sketch;
 
+use faraday_draw::fonts::Family;
+use faraday_draw::text::{self, TextAlign};
+use faraday_draw::widgets::Icon;
+use faraday_draw::{Canvas, Color, Font, Rect};
 use faraday_strings::EN;
-use osk_ui::fonts::Family;
-use osk_ui::text::{self, TextAlign};
-use osk_ui::widgets::Icon;
-use osk_ui::{Canvas, Color, Font, Rect};
 use std::sync::OnceLock;
 
 /// The overlay scrollbar's thumb, units wide.
@@ -59,7 +59,7 @@ impl BarGeometry {
 
 /// The prototype's palette.
 pub mod pal {
-    use osk_ui::Color;
+    use faraday_draw::Color;
 
     /// The page.
     pub const BG: Color = Color::rgb(0x11, 0x16, 0x1c);
@@ -189,7 +189,7 @@ pub mod pal {
     /// §7.8, `docs/DECISIONS.md` F18). Every theme draws them as they
     /// are.
     pub mod vga {
-        use osk_ui::Color;
+        use faraday_draw::Color;
 
         /// Black.
         pub const BLACK: Color = Color::rgb(0x00, 0x00, 0x00);
@@ -2329,7 +2329,7 @@ fn shield(x: f32, y: f32, w: f32, h: f32) -> Vec<(f32, f32)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use osk_shell_api::{BootState, DisplayInfo, SecureHardware};
+    use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
 
     /// `fit` as it was until 2026-10-21: one character off the end at a
     /// time, the rest measured again with "…" after it each time.

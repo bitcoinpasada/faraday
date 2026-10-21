@@ -1,4 +1,4 @@
-//! The keyboard: evdev key codes to [`osk_shell_api::Key`].
+//! The keyboard: evdev key codes to [`faraday_shell_api::Key`].
 //!
 //! One US layout, in one table. The core's keyboards need the BIP-39
 //! letters, the digits, space and hyphen for a wallet name, and the
@@ -28,7 +28,7 @@
 //! ([`Stroke::Panic`]); [`PanicTimer`] times it for the main loop. Super is not a
 //! typing key, so nothing typed while it is held reaches the app.
 
-use osk_shell_api::Key;
+use faraday_shell_api::Key;
 
 use crate::evdev::{EV_KEY, RawEvent};
 

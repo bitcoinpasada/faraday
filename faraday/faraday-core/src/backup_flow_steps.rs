@@ -4,10 +4,10 @@
 //! the key into every vault, and writing each stick by place. The state is
 //! `backup_flow.rs`; the cards are `backup_flow_screen.rs`.
 
+use faraday_crypto::work::Compute;
 use faraday_vault as fv;
 use faraday_vault::Record;
 use faraday_vault::records::kind;
-use osk_crypto::work::Compute;
 
 use crate::backup_flow::{
     BackupFlow, Bound, Confirm, Kind, Pick, Problem, Purpose, Reading, Sealed, Step, Subject,

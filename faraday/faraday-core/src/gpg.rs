@@ -8,10 +8,10 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use faraday_crypto::work::Compute;
 use faraday_pgp::{Armor, Hash, Key, Reason, armor};
 use faraday_vault::Record;
 use faraday_vault::records::kind;
-use osk_crypto::work::Compute;
 use zeroize::{Zeroize, Zeroizing};
 
 use crate::backup_flow_steps::Built;

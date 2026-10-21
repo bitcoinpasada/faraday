@@ -138,9 +138,9 @@ fn words_numbered_one_to_a_line_are_read_as_the_words() {
 /// Test key 1's SeedQR digits: each word's index as four digits.
 fn seedqr_digits() -> Vec<u8> {
     let c = faraday_core::testkit::compute();
-    let m = osk_bip::bip39::Mnemonic::parse(
+    let m = faraday_bip::bip39::Mnemonic::parse(
         &c,
-        osk_bip::bip39::Language::English,
+        faraday_bip::bip39::Language::English,
         &faraday_core::testkit::test_words("bacon"),
     )
     .unwrap();

@@ -5,10 +5,10 @@
 //! passphrase the dice made has a strength only while it is unchanged. Every
 //! passphrase field, Unlock's too, has an eye that shows what is typed.
 
+use faraday_bip::diceware::List;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday};
-use osk_bip::diceware::List;
-use osk_shell_api::App;
+use faraday_shell_api::App;
 
 /// The Create vault form, open on the Passphrases step, rolling for
 /// passphrase 0.
@@ -32,7 +32,9 @@ fn the_same_rolls_spell_different_words_on_different_lists() {
     // Five dice: a whole word on the long list, one short of a short
     // list's four.
     for c in ['1', '2', '3', '4', '5'] {
-        app.event(osk_shell_api::Event::Key(osk_shell_api::Key::Char(c)));
+        app.event(faraday_shell_api::Event::Key(faraday_shell_api::Key::Char(
+            c,
+        )));
     }
     app.press(Action::Vault(V::DiceUse));
     let long_word = app.vaults.create.as_ref().unwrap().phrases[0]
@@ -46,7 +48,9 @@ fn the_same_rolls_spell_different_words_on_different_lists() {
     let (_, _, list) = app.vaults.dice.as_ref().unwrap();
     assert_eq!(*list, List::Short1);
     for c in ['1', '2', '3', '4'] {
-        app.event(osk_shell_api::Event::Key(osk_shell_api::Key::Char(c)));
+        app.event(faraday_shell_api::Event::Key(faraday_shell_api::Key::Char(
+            c,
+        )));
     }
     app.press(Action::Vault(V::DiceUse));
     let short_word = app.vaults.create.as_ref().unwrap().phrases[0]
@@ -64,7 +68,9 @@ fn the_same_rolls_spell_different_words_on_different_lists() {
 fn dice_words_land_in_the_passphrase_field_with_no_spaces() {
     let mut app = rolling();
     for c in ['1', '2', '3', '4', '5', '6', '1', '2', '3', '4'] {
-        app.event(osk_shell_api::Event::Key(osk_shell_api::Key::Char(c)));
+        app.event(faraday_shell_api::Event::Key(faraday_shell_api::Key::Char(
+            c,
+        )));
     }
     app.press(Action::Vault(V::DiceUse));
     let phrase = app.vaults.create.as_ref().unwrap().phrases[0]
@@ -81,7 +87,9 @@ fn dice_words_land_in_the_passphrase_field_with_no_spaces() {
 fn choosing_a_list_clears_rolls_already_typed() {
     let mut app = rolling();
     for c in ['1', '2', '3'] {
-        app.event(osk_shell_api::Event::Key(osk_shell_api::Key::Char(c)));
+        app.event(faraday_shell_api::Event::Key(faraday_shell_api::Key::Char(
+            c,
+        )));
     }
     assert_eq!(app.vaults.dice.as_ref().unwrap().1.text.len(), 3);
     app.press(Action::Vault(V::DiceList(1)));
@@ -119,18 +127,20 @@ fn a_second_passphrase_added_by_mistake_can_be_removed() {
 
 fn shown() -> Faraday {
     let mut app = faraday_core::testkit::started();
-    app.event(osk_shell_api::Event::Display(osk_shell_api::DisplayInfo {
-        width: 1366,
-        height: 768,
-        dpi: 160,
-        inset_bottom: 0,
-        inset_top: 0,
-        buttons: 0,
-        camera_fixed: false,
-        secure: osk_shell_api::SecureHardware::None,
-        boot: osk_shell_api::BootState::Unknown,
-        memory_mib: None,
-    }));
+    app.event(faraday_shell_api::Event::Display(
+        faraday_shell_api::DisplayInfo {
+            width: 1366,
+            height: 768,
+            dpi: 160,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: faraday_shell_api::SecureHardware::None,
+            boot: faraday_shell_api::BootState::Unknown,
+            memory_mib: None,
+        },
+    ));
     app
 }
 
@@ -173,7 +183,7 @@ fn the_dice_panel_says_how_many_words_make_a_strong_passphrase() {
 #[test]
 fn a_dice_passphrase_has_a_strength_until_it_is_changed() {
     use faraday_core::vaults::Vaults;
-    use osk_shell_api::{Event, Key};
+    use faraday_shell_api::{Event, Key};
     let mut app = rolling();
     // Six words of the long list: thirty dice.
     for c in "123451234512345123451234512345".chars() {

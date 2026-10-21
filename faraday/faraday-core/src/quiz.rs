@@ -20,8 +20,8 @@
 //! Word indices live in fixed arrays zeroized on drop. This file is listed
 //! in `tools/lint-secrets.sh` and may hold no heap text.
 
-use osk_bip::slip39::MAX_WORDS;
-use osk_crypto::{Zeroize, ZeroizeOnDrop, sha256};
+use faraday_bip::slip39::MAX_WORDS;
+use faraday_crypto::{Zeroize, ZeroizeOnDrop, sha256};
 
 use crate::word_entry::EntryList;
 
@@ -277,7 +277,7 @@ impl Quiz {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use osk_bip::bip39::{Language, Mnemonic};
+    use faraday_bip::bip39::{Language, Mnemonic};
 
     fn abandon() -> Mnemonic {
         Mnemonic::from_entropy(Language::English, &[0u8; 16]).unwrap()

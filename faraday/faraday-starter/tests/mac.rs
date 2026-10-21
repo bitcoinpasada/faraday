@@ -2,13 +2,13 @@
 //! "On a Mac", §3.2 step 0, §3.4; `docs/MAC.md` §6): what a person sees
 //! and can do, on macOS and on Linux running on a Mac.
 
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::api::{
     Bus, Computer, Disk, FaradayStick, Mode, Os, Payload, PayloadFile, PayloadKind, Source,
     StarterCommand, StarterEvent, Volume,
 };
 use faraday_starter::decide::Target;
 use faraday_starter::{LearnId, Page, Starter, StarterAction};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 const GB: u64 = 1_000_000_000;
 

@@ -568,7 +568,7 @@ and add one device to the command `tools/stick-qemu.py` builds:
 
 Under rootless QEMU the host user needs read and write on the webcam's
 `/dev/bus/usb/BBB/DDD` node, and the host must not already have it open.
-The UVC path in the image is the same `opensigner-v4l2` crate the Linux
+The UVC path in the image is the same `faraday-v4l2` crate the Linux
 desktop shell uses, so a webcam that works there works here.
 
 **This has not been tried.** The build box is a headless server with no

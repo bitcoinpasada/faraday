@@ -11,7 +11,7 @@ use faraday_core::family::{CardId, FamilyAction as F, Open, page};
 use faraday_core::testkit;
 use faraday_core::wallet::step;
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent};
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 fn kit(id: &str) -> testkit::Kit {
     testkit::kits().into_iter().find(|k| k.id == id).unwrap()
@@ -233,9 +233,10 @@ fn who_signs() -> (Faraday, usize) {
 /// The camera reads these words' SeedQR.
 fn scan_seedqr(app: &mut Faraday, words: &str) {
     let c = testkit::compute();
-    let m = osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, words).unwrap();
+    let m = faraday_bip::bip39::Mnemonic::parse(&c, faraday_bip::bip39::Language::English, words)
+        .unwrap();
     app.event(Event::Scanned {
-        bytes: osk_codec::seedqr::to_digits(&m)
+        bytes: faraday_codec::seedqr::to_digits(&m)
             .expose()
             .as_bytes()
             .to_vec(),

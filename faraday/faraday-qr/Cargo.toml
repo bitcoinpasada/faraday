@@ -9,19 +9,19 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-osk-bip = { path = "../../core/osk-bip" }
+faraday-bip = { path = "../../core/faraday-bip" }
 # BBQr's `Z` encoding is raw DEFLATE; decompressed here with the size bounded
 # (docs/QR.md §4). Already in the build through `png` (docs/deps/miniz_oxide.md).
 miniz_oxide = { version = "0.8", default-features = false, features = ["with-alloc"] }
 # The QR sender (send.rs): QR and UR encoding. The decoder (`decode`) is
 # not needed to make codes.
-osk-codec = { path = "../../core/osk-codec", default-features = false }
+faraday-codec = { path = "../../core/faraday-codec", default-features = false }
 # The token a QR code made takes (docs/COMPUTE.md §2).
-osk-crypto = { path = "../../core/osk-crypto" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
 
 [dev-dependencies]
 faraday-files = { path = "../faraday-files" }
-osk-codec = { path = "../../core/osk-codec" }
+faraday-codec = { path = "../../core/faraday-codec" }
 
 [lints]
 workspace = true

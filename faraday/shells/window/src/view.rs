@@ -5,7 +5,7 @@ use std::num::NonZeroU32;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use osk_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware};
 use softbuffer::{Context, Surface};
 use winit::event_loop::ActiveEventLoop;
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};

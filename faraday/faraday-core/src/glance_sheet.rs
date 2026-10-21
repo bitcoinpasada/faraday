@@ -20,9 +20,9 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_crypto::work::Compute;
-use osk_ui::widgets::Icon;
-use osk_ui::{Color, tokens};
+use faraday_crypto::work::Compute;
+use faraday_draw::widgets::Icon;
+use faraday_draw::{Color, tokens};
 
 use crate::chart_edit::OFF;
 use crate::glance::{self, Backup, BackupNode, Glance, Press};
@@ -273,7 +273,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             .keys
             .iter()
             .find(|k| k.fingerprint().0 == fp)
-            .is_none_or(|k| k.language == osk_bip::bip39::Language::English);
+            .is_none_or(|k| k.language == faraday_bip::bip39::Language::English);
         let checks = forms.checks(!app.cameras.is_empty(), english);
         let mut rows = Vec::new();
         if checks.scan {

@@ -9,9 +9,9 @@
 //! under the frame one line, in Faraday's own secondary text, says it is
 //! a mock-up.
 
+use faraday_draw::tokens::{BODY, CAPTION, GAP, GAP_SMALL, GRID, LABEL};
 use faraday_learn::sketch::{Dialog, KEY_NAMES, Mark, Nav, Palette, Row, Sketch};
 use faraday_strings::EN;
-use osk_ui::tokens::{BODY, CAPTION, GAP, GAP_SMALL, GRID, LABEL};
 
 use crate::pal::MUTED;
 use crate::pal::vga::*;
@@ -44,39 +44,39 @@ struct Ink {
     /// The size every word is set at ([`size_for`]).
     size: f32,
     /// The screen.
-    screen: osk_ui::Color,
+    screen: faraday_draw::Color,
     /// Text.
-    text: osk_ui::Color,
+    text: faraday_draw::Color,
     /// Headings and group names.
-    bright: osk_ui::Color,
+    bright: faraday_draw::Color,
     /// The title bar and the tabs' strip.
-    bar: osk_ui::Color,
+    bar: faraday_draw::Color,
     /// Text on the bar.
-    bar_text: osk_ui::Color,
+    bar_text: faraday_draw::Color,
     /// The open tab or side item.
-    on: osk_ui::Color,
+    on: faraday_draw::Color,
     /// Text on the open tab or side item.
-    on_text: osk_ui::Color,
+    on_text: faraday_draw::Color,
     /// The highlight bar on the row to find and the button to choose.
-    row: osk_ui::Color,
+    row: faraday_draw::Color,
     /// Text on the highlight bar.
-    row_text: osk_ui::Color,
+    row_text: faraday_draw::Color,
     /// The value to set.
-    new: osk_ui::Color,
+    new: faraday_draw::Color,
     /// The frame's lines and the rules inside it.
-    line: osk_ui::Color,
+    line: faraday_draw::Color,
     /// Whether the frame is a double line.
     double: bool,
     /// The key hints' words.
-    hint: osk_ui::Color,
+    hint: faraday_draw::Color,
     /// The key a hint names.
-    key: osk_ui::Color,
+    key: faraday_draw::Color,
     /// A dialog's box.
-    dialog: osk_ui::Color,
+    dialog: faraday_draw::Color,
     /// Text in a dialog.
-    dialog_text: osk_ui::Color,
+    dialog_text: faraday_draw::Color,
     /// A dialog's double line.
-    dialog_line: osk_ui::Color,
+    dialog_line: faraday_draw::Color,
 }
 
 impl Ink {
@@ -354,7 +354,7 @@ fn frame<A: Copy + PartialEq>(
     y: f32,
     w: f32,
     h: f32,
-    color: osk_ui::Color,
+    color: faraday_draw::Color,
     double: bool,
 ) {
     ui.stroke(x, y, w, h, 0.0, color);
@@ -436,7 +436,7 @@ fn row<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     r: &Row,
     ink: Ink,
-    text: osk_ui::Color,
+    text: faraday_draw::Color,
     col: f32,
     x: f32,
     y: f32,

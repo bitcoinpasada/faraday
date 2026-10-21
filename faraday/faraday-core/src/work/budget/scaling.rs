@@ -91,7 +91,7 @@ fn works(app: &mut Faraday) -> Vec<(&'static str, Counts, Counts, u64, u64)> {
             let lines = lines_drawn(app);
             let before = app.inbox.rebuilds();
             app.dirty = true;
-            let _ = osk_shell_api::App::frame(app);
+            let _ = faraday_shell_api::App::frame(app);
             let rebuilt = app.inbox.rebuilds() - before;
             (name, frame, hover_work(app), lines, rebuilt)
         })
@@ -100,7 +100,7 @@ fn works(app: &mut Faraday) -> Vec<(&'static str, Counts, Counts, u64, u64)> {
 
 /// The lines of text one frame of the screen at rest draws.
 fn lines_drawn(app: &mut Faraday) -> u64 {
-    use osk_shell_api::App;
+    use faraday_shell_api::App;
     let count = |app: &Faraday| app.canvas.as_ref().map_or(0, |c| c.lines_drawn());
     app.settle();
     let _ = app.frame();
@@ -159,7 +159,7 @@ fn a_frame_does_the_same_work_with_five_times_the_files_and_every_wallet() {
 /// the test stick's files and the test vault, every read answered.
 fn boot_import(copies: usize) -> Faraday {
     use crate::{StorageCommand, StorageEvent};
-    use osk_shell_api::App;
+    use faraday_shell_api::App;
     let base = testkit::files().expect("the test stick's files");
     let mut files = Vec::new();
     for c in 0..copies {

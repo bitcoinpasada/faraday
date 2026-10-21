@@ -2,11 +2,11 @@
 //! screen or the keys is attached (`docs/STARTER.md` §3.1a), and the Learn
 //! links (§3.1b, §3.1c) and the boot entry's removal (§3.1c).
 
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 use faraday_starter::api::{
     Bus, Computer, Concern, Disk, FaradayStick, Kind, Os, Reason, StarterCommand, StarterEvent,
 };
 use faraday_starter::{LearnId, Page, RestartTo, Sheet, Starter, StarterAction, reason_text};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 fn display() -> Event {
     Event::Display(DisplayInfo {

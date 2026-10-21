@@ -7,7 +7,7 @@
 use faraday_core::testkit::{self, Kit};
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, StorageEvent};
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 fn kit(id: &str) -> Kit {
     testkit::kits().into_iter().find(|k| k.id == id).unwrap()
@@ -115,7 +115,7 @@ fn a_vault_with_both_wallets_loads_the_shared_seed_once() {
     let c = testkit::compute();
     let mut app = faraday_core::testkit::started();
     // Unlocking runs on the tick after a drawn frame: a display to draw on.
-    app.event(Event::Display(osk_shell_api::DisplayInfo {
+    app.event(Event::Display(faraday_shell_api::DisplayInfo {
         width: 1366,
         height: 768,
         dpi: 160,
@@ -123,8 +123,8 @@ fn a_vault_with_both_wallets_loads_the_shared_seed_once() {
         inset_top: 0,
         buttons: 0,
         camera_fixed: false,
-        secure: osk_shell_api::SecureHardware::None,
-        boot: osk_shell_api::BootState::Unknown,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {

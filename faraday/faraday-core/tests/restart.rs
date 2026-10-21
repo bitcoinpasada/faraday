@@ -5,7 +5,7 @@ use faraday_core::{
     Action, Faraday, Medium, RESTART_CODE, RESTART_COMPUTER_CODE, SecureBootAtStart, Sheet,
     StorageEvent,
 };
-use osk_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware};
 
 fn shown(app: &mut Faraday) -> Vec<String> {
     app.event(Event::Display(DisplayInfo {

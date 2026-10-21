@@ -1,6 +1,6 @@
 # BIP-174 test vectors, extracted from
 # https://raw.githubusercontent.com/bitcoin/bips/master/bip-0174.mediawiki
-# by tools/vectors/psbt/extract.py. Documented in core/osk-psbt/README.md.
+# by tools/vectors/psbt/extract.py. Documented in core/faraday-psbt/README.md.
 #
 # Format: blank-line separated records of `key: value` lines.
 #   case: free text description

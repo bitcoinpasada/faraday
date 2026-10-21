@@ -4,7 +4,7 @@
 use faraday_core::paper::PaperForm;
 use faraday_core::testkit;
 use faraday_core::{Action, Faraday, StorageEvent};
-use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 fn typed(app: &mut Faraday, text: &str) {
     for c in text.chars() {

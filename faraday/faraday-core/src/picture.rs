@@ -4,7 +4,7 @@
 //! The picture is drawn on an off-screen [`Canvas`] (tiny-skia on the
 //! CPU, in the app's own fonts), each module of the code a square of
 //! whole pixels, and written as eight-bit greyscale so that the edges of
-//! the text keep their shades ([`osk_codec::png::grey_png`]). Encoding a
+//! the text keep their shades ([`faraday_codec::png::grey_png`]). Encoding a
 //! picture here is allowed: only decoding stays in the disk process
 //! (`PLAN.md` §12 item 6).
 //!
@@ -12,11 +12,11 @@
 //! says; the label is plain statements, one a line, each wrapped to the
 //! picture's width.
 
-use osk_codec::qr::{QUIET_ZONE, QrMatrix};
-use osk_crypto::work::Compute;
-use osk_shell_api::{BootState, DisplayInfo, SecureHardware};
-use osk_ui::tokens;
-use osk_ui::{Canvas, Color, Dp, Font, Rect, Scale, SizeClass, TextAlign};
+use faraday_codec::qr::{QUIET_ZONE, QrMatrix};
+use faraday_crypto::work::Compute;
+use faraday_draw::tokens;
+use faraday_draw::{Canvas, Color, Dp, Font, Rect, Scale, SizeClass, TextAlign};
+use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
 
 /// The picture's width in pixels, whatever the code's size: the code is
 /// scaled to it in whole pixels a module, and the label is set at one
@@ -59,8 +59,9 @@ pub fn draw(code: &QrMatrix, title: &str, lines: &[String]) -> Canvas {
     let line_font = Font::regular(tokens::BODY);
 
     // The label's height, measured as it will be drawn.
-    let height_of =
-        |font: Font, s: &str| osk_ui::text::wrapped_height(&font.sized(scale), s, text_w).max(0);
+    let height_of = |font: Font, s: &str| {
+        faraday_draw::text::wrapped_height(&font.sized(scale), s, text_w).max(0)
+    };
     let mut h = side + height_of(title_font, title);
     for l in lines {
         h += gap + height_of(line_font, l);
@@ -146,7 +147,7 @@ pub fn png(_c: &Compute, canvas: &Canvas) -> Vec<u8> {
             .map(|p| ((u32::from(p[0]) * 3 + u32::from(p[1]) * 6 + u32::from(p[2])) / 10) as u8)
             .collect::<Vec<u8>>(),
     );
-    osk_codec::png::grey_png(usize::from(frame.width), usize::from(frame.height), &grey)
+    faraday_codec::png::grey_png(usize::from(frame.width), usize::from(frame.height), &grey)
 }
 
 /// One picture to write: the file's name, the code, and the title and

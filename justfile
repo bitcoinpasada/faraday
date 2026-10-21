@@ -53,19 +53,19 @@ diceware:
     python3 tools/diceware/gen.py
     cargo fmt --all
 
-# Re-extract the glyph outlines from tools/fonts/ into core/osk-ui (offline).
+# Re-extract the glyph outlines from tools/fonts/ into core/faraday-draw (offline).
 fonts:
-    cargo run -p osk-fontbake --release
+    cargo run -p faraday-fontbake --release
     cargo fmt --all
 
 # Rewrite the one PSBT per policy warning, and the registered-wallet
 # policy and transaction, in tools/vectors/psbt/ (offline).
 psbt-fixtures:
-    cargo run -p osk-psbt --release --example warnings -- tools/vectors/psbt
-    cargo run -p osk-psbt --release --example wallet -- tools/vectors/psbt
-    cargo run -p osk-psbt --release --example musig -- tools/vectors/psbt
-    cargo run -p osk-psbt --release --example threshold -- tools/vectors/psbt
-    cargo run -p osk-psbt --release --example tapmulti -- tools/vectors/psbt
+    cargo run -p faraday-psbt --release --example warnings -- tools/vectors/psbt
+    cargo run -p faraday-psbt --release --example wallet -- tools/vectors/psbt
+    cargo run -p faraday-psbt --release --example musig -- tools/vectors/psbt
+    cargo run -p faraday-psbt --release --example threshold -- tools/vectors/psbt
+    cargo run -p faraday-psbt --release --example tapmulti -- tools/vectors/psbt
 
 # --- Fuzzing (fuzz/, docs/PLANNING.md §12) --------------------------------
 #

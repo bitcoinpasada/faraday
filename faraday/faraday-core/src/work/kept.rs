@@ -3,8 +3,8 @@
 //! what the next frame shows and the next press reads (`docs/SPEED.md`
 //! §3.3).
 
-use osk_crypto::work::Compute;
-use osk_shell_api::App;
+use faraday_crypto::work::Compute;
+use faraday_shell_api::App;
 
 use super::budget::{heavy, unlock_test_vault};
 use crate::wallet::{Origin, Wallet, read_wallet};
@@ -88,14 +88,18 @@ fn a_wallets_address_follows_its_network_and_its_policy() {
         String::new(),
         Origin::Named,
     );
-    let fresh = |d: &str, net: osk_bip::keys::Network| {
+    let fresh = |d: &str, net: faraday_bip::keys::Network| {
         read_wallet(&c, d)
             .expect("a test wallet")
             .address_at(&c, net, false, 0)
             .expect("an address")
             .to_string()
     };
-    for net in [testkit::NET, osk_bip::keys::Network::Regtest, testkit::NET] {
+    for net in [
+        testkit::NET,
+        faraday_bip::keys::Network::Regtest,
+        testkit::NET,
+    ] {
         assert_eq!(w.address_on(&c, net, false, 0), fresh(&one.descriptor, net));
     }
     w.set_policy(read_wallet(&c, &two.descriptor).expect("a test wallet"));
@@ -109,7 +113,7 @@ fn a_wallets_address_follows_its_network_and_its_policy() {
 #[test]
 fn a_vault_holds_a_seed_typed_from_any_list_and_never_another_seed() {
     let c = crate::testkit::compute();
-    use osk_bip::bip39::{Language, Mnemonic};
+    use faraday_bip::bip39::{Language, Mnemonic};
     let (mut app, _) = heavy();
     unlock_test_vault(&mut app);
     let v = app.vaults.current;
@@ -150,8 +154,8 @@ fn a_seed_whose_fingerprint_finds_a_record_of_another_seed_is_not_kept_there() {
     let c = crate::testkit::compute();
     use crate::vault_screens::{key_fingerprint, vault_has_key};
     use crate::wallet::fp_text;
+    use faraday_bip::bip39::{Language, Mnemonic};
     use faraday_vault::records::kind;
-    use osk_bip::bip39::{Language, Mnemonic};
     let (mut app, _) = heavy();
     unlock_test_vault(&mut app);
     let v = app.vaults.current;

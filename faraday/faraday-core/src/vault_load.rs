@@ -11,9 +11,9 @@ use std::collections::BTreeSet;
 use std::rc::Rc;
 
 use crate::strings::fill;
+use faraday_bip::keys::Fingerprint;
+use faraday_crypto::work::Compute;
 use faraday_vault::records::{self, field, kind};
-use osk_bip::keys::Fingerprint;
-use osk_crypto::work::Compute;
 
 use crate::strings::EN;
 use crate::vaults::VaultAction;
@@ -338,8 +338,8 @@ impl Faraday {
         let Ok(seed) = m.to_seed(&c, passphrase.as_bytes()) else {
             return;
         };
-        let fp =
-            osk_bip::keys::MasterKey::from_seed(&c, &seed, self.session.network()).fingerprint();
+        let fp = faraday_bip::keys::MasterKey::from_seed(&c, &seed, self.session.network())
+            .fingerprint();
         if !missing.contains(&fp.0) {
             let wallet = self
                 .session

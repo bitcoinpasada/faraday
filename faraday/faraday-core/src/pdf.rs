@@ -7,8 +7,8 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_codec::qr::{Ecc, Payload, QrMatrix, encode};
-use osk_crypto::work::Compute;
+use faraday_codec::qr::{Ecc, Payload, QrMatrix, encode};
+use faraday_crypto::work::Compute;
 
 use crate::backup::structural_fixed;
 
@@ -608,8 +608,10 @@ fn probe_matrix(c: &Compute, words: usize) -> Result<QrMatrix, String> {
     // All-zero entropy: "abandon" ×11 "about", or ×23 "art".
     let entropy = [0u8; 32];
     let len = if words == 24 { 32 } else { 16 };
-    let m =
-        osk_bip::bip39::Mnemonic::from_entropy(osk_bip::bip39::Language::English, &entropy[..len])
-            .map_err(|e| e.to_string())?;
-    osk_codec::seedqr::encode_seedqr(c, &m).map_err(|e| format!("{e:?}"))
+    let m = faraday_bip::bip39::Mnemonic::from_entropy(
+        faraday_bip::bip39::Language::English,
+        &entropy[..len],
+    )
+    .map_err(|e| e.to_string())?;
+    faraday_codec::seedqr::encode_seedqr(c, &m).map_err(|e| format!("{e:?}"))
 }

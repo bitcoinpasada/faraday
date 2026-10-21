@@ -23,7 +23,7 @@ on the frame a step card opens. Whatever a screen works out while it
 draws is worked out that often. The backup screens work out a great deal:
 
 1. **A key's fingerprint is computed on every call.**
-   `MasterKey::fingerprint` (`core/osk-bip/src/keys.rs`) derives the
+   `MasterKey::fingerprint` (`core/faraday-bip/src/keys.rs`) derives the
    public key from the private key (an elliptic-curve multiplication)
    and hashes it, each time. About 100 call sites in faraday-core ask
    for it, many inside a search over every session key for each slot of
@@ -62,7 +62,7 @@ draws is worked out that often. The backup screens work out a great deal:
    vault key record it compares with; `Language::index_of` searches the
    2048-word list in order for each word.
 8. **Possibly: the glyph cache is cleared every frame at scale 2.**
-   `core/osk-ui/src/fonts/mod.rs` drops every rasterised glyph when the
+   `core/faraday-draw/src/fonts/mod.rs` drops every rasterised glyph when the
    cache passes `CACHE_BUDGET` (256 KB). One dense screen's glyphs at
    twice the size may not fit, and then every glyph is rasterised again
    on every frame. Not confirmed.
@@ -112,7 +112,7 @@ wallets, flows and open vault records.
 
 Built first in Faraday (a `fp` field on `wallet::Key`), then moved into
 core (`docs/COMPUTE.md` §5.1, `docs/history/UPSTREAM.md` §3). `MasterKey`
-(`core/osk-bip/src/keys.rs`) works out its fingerprint once, when the
+(`core/faraday-bip/src/keys.rs`) works out its fingerprint once, when the
 key is made, from the blinded context; `for_network` copies it,
 `fingerprint()` returns it, and `derive()` takes the master fingerprint
 from it. Every constructor of a `MasterKey` takes the token and says it
@@ -135,7 +135,7 @@ and blinded), thousands of times a second on the checklist.
 
 Built first in Faraday (a `checksum` field on `wallet::Wallet`), then
 moved into core (`docs/COMPUTE.md` §5.2, `docs/history/UPSTREAM.md` §3).
-`WalletPolicy` (`core/osk-bip/src/policy.rs`) sets its checksum in every
+`WalletPolicy` (`core/faraday-bip/src/policy.rs`) sets its checksum in every
 constructor, and `checksum(&self) -> &str` is a lookup. A policy has one
 text: hardened steps are kept and written `h` whichever way they were
 read (`docs/COMPUTE.md` §5.3, F66), so a wallet read with `'`, `h` or
@@ -214,7 +214,7 @@ A kept value is worked out by whoever asks first, a frame included;
 after that every frame and every press only looks it up.
 
 **The token** (`docs/COMPUTE.md`, F69). Every costly function, in core
-and in Faraday's crates, takes `c: &Compute` (`osk_crypto::work`) and
+and in Faraday's crates, takes `c: &Compute` (`faraday_crypto::work`) and
 counts its work through it; its doc's first line says "Costs …". The
 token is not `Clone`, `Copy`, `Default`, `Send` or `Sync`, and is
 minted only at entry points: event code holding `&mut Faraday`
@@ -248,7 +248,7 @@ source each frame because nothing secret is kept, not even for a frame
 A new function `picture_names(name: &str, part: &str, text: &str) ->
 Vec<String>` in `lib.rs`, beside `picture_codes`, gives the names of the
 pictures `picture_codes(text)` would make, without making them: one name
-when `text.len() <= osk_codec::qr::byte_capacity(25, Ecc::Medium)` (the
+when `text.len() <= faraday_codec::qr::byte_capacity(25, Ecc::Medium)` (the
 bound `encode_bounded` uses for a byte payload), else one per part of
 `faraday_qr::bbqr::encode('U', text.as_bytes(), QR_PARTS[1])`, numbered
 as today (`{name}{part}{j}-of-{k}.png`), and none when that encoder
@@ -318,7 +318,7 @@ measurement.
 If a screen clears the cache on every frame: the cache evicts the least
 recently used glyphs until the new one fits, in place of clearing
 everything, and `CACHE_BUDGET` becomes 1 MB. That is a change to
-`core/osk-ui`, upstream's, and is listed in HANDOFF's "Where Faraday's
+`core/faraday-draw`, upstream's, and is listed in HANDOFF's "Where Faraday's
 upstream files differ from upstream". If no screen clears it every frame,
 nothing changes and the issue is closed with the numbers.
 
@@ -738,7 +738,7 @@ every row, seen or not. A later batch.
 
 ### 8.2 New counted kinds
 
-Counted at their source, the core's through `osk_crypto::work` (F65,
+Counted at their source, the core's through `faraday_crypto::work` (F65,
 `docs/history/UPSTREAM.md` §3). S1 counted them behind a `count` feature and a
 process-wide counter the app installed; since COMPUTE C3 the count
 goes through the token the caller holds (`c.count(kind)`), the feature
@@ -748,14 +748,14 @@ kinds:
 
 | Kind | Where |
 |---|---|
-| `PsbtParse` | `osk_psbt::Psbt::parse_bytes`, past the magic check (base64 too) |
-| `PsbtInspect` | `osk_psbt::inspect`, also the one inside every signing |
-| `Sign` | `osk_psbt::sign`, `osk_psbt::message::sign` |
+| `PsbtParse` | `faraday_psbt::Psbt::parse_bytes`, past the magic check (base64 too) |
+| `PsbtInspect` | `faraday_psbt::inspect`, also the one inside every signing |
+| `Sign` | `faraday_psbt::sign`, `faraday_psbt::message::sign` |
 | `WalletMatch` | `Wallet::script_at`, a script derived to match a PSBT |
 | `PngDecode` | `faraday_files::qr_in_png` |
-| `QrDecode` | `osk_codec::decode::decode_luma` |
-| `Kdf` | `osk_crypto`'s PBKDF2 and scrypt, `osk_backup::argon2id`, `faraday-vault`'s Argon2id |
-| `Blur` | `osk_ui::Canvas::frost` |
+| `QrDecode` | `faraday_codec::decode::decode_luma` |
+| `Kdf` | `faraday_crypto`'s PBKDF2 and scrypt, `faraday_backup::argon2id`, `faraday-vault`'s Argon2id |
+| `Blur` | `faraday_draw::Canvas::frost` |
 | `FullCanvas` | `Canvas::snapshot`, `snapshot_into`, `restore`, `blend_from` |
 
 The kinds Faraday had counted itself before COMPUTE C1 to C3 are now
@@ -764,13 +764,13 @@ token (COMPUTE §2.3):
 
 | Kind | Where |
 |---|---|
-| `WordsParse` | `osk_bip::bip39::Mnemonic::parse` |
+| `WordsParse` | `faraday_bip::bip39::Mnemonic::parse` |
 | `MasterKey` | `MasterKey::from_seed`, `from_seed_bytes`, `from_xpriv`, `decode`, `from_chain_code_and_key`, each with the fingerprint it keeps (§3.1) |
 | `KeyDerive` | `MasterKey::xpub`, `derive`, `account_xpub`, `multisig_account_xpub`, `with_multisig_account_secret`; `DerivedKey::to_xpub` |
 | `DescriptorParse` | `WalletPolicy::parse`, `from_parts`, `from_descriptor`, `parse_any`, `from_record`, and the import readers through them |
 | `Address` | `WalletPolicy::script_at`, `script_at_with`, `address_at`, `find_address` |
-| `QrEncode` | `osk_codec::qr::encode`, `encode_bounded`; `seedqr::encode_seedqr`, `encode_compact` |
-| `FileHash` | `osk_crypto::sha256_whole`, which Faraday's whole-file hashes use |
+| `QrEncode` | `faraday_codec::qr::encode`, `encode_bounded`; `seedqr::encode_seedqr`, `encode_compact` |
+| `FileHash` | `faraday_crypto::sha256_whole`, which Faraday's whole-file hashes use |
 
 Faraday's own kinds (`PlanMap`, `Picture`, `WalletMatch`, `PngDecode`,
 and `Kdf` in `faraday-vault`) are counted with `work::count` by
@@ -895,7 +895,7 @@ about ten times slower.
    0.7 to 0.9 ms, a frame drawn every pass (23 passes), all read in
    478 ms. A picture is decoded once and searched for light-on-dark
    codes only when it holds no dark-on-light one
-   (`osk_codec::decode::decode_picture`, one count where it was two):
+   (`faraday_codec::decode::decode_picture`, one count where it was two):
    the 4000×3000 photograph 349 to 312 ms, 1920×1080 58 to 52 ms. The
    second search stays: dropping it would stop a dark-mode screenshot
    from reading.

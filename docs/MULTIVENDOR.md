@@ -21,7 +21,7 @@ result comes from decides what a second implementation has to differ from.
 
 | Part | Where it comes from |
 |---|---|
-| BIP-39 words to seed, BIP-85, SLIP-39, codex32 (BIP-93), Seed XOR, aezeed, MuSig2 (BIP-327, 328, 390), FROST (BIP-445), silent payments (BIP-352), the descriptor and wallet-policy layer | OpenSigner's own Rust, in `osk-bip` |
+| BIP-39 words to seed, BIP-85, SLIP-39, codex32 (BIP-93), Seed XOR, aezeed, MuSig2 (BIP-327, 328, 390), FROST (BIP-445), silent payments (BIP-352), the descriptor and wallet-policy layer | OpenSigner's own Rust, in `faraday-bip` |
 | Transactions, PSBT (BIP-174, 370), BIP-32 derivation, sighash (BIP-143, 341), addresses, script | `rust-bitcoin` 0.32 |
 | Descriptors and miniscript parsing and satisfaction | `rust-miniscript` 12 |
 | ECDSA and Schnorr signing and verifying, all curve arithmetic | `rust-secp256k1`, which wraps Bitcoin Core's C library `libsecp256k1` |

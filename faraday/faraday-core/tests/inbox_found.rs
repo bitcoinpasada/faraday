@@ -9,7 +9,7 @@ use faraday_core::inbox::SeedSource;
 use faraday_core::testkit;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Sheet, StorageEvent};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 fn with_inbox(files: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = Faraday::new();

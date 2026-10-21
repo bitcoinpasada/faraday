@@ -1,0 +1,20 @@
+[package]
+name = "faraday-draw"
+version = "0.1.0"
+description = "Canvas, text, fonts, geometry, tokens, layout context, and the icon and keyboard widgets, no_std + alloc"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+faraday-shell-api = { path = "../faraday-shell-api" }
+# The QR quiet zone (`tokens::QR_QUIET_ZONE`); the decoder and its `std` stay out.
+faraday-codec = { path = "../faraday-codec", default-features = false }
+tiny-skia.workspace = true
+# The count of costly work (`faraday_crypto::work`): a canvas blurred or
+# copied whole.
+faraday-crypto = { path = "../faraday-crypto" }
+
+[lints]
+workspace = true

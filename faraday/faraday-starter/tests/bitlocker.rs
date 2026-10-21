@@ -5,21 +5,21 @@
 //! person ticks it. With BitLocker off, not read, or not on Windows,
 //! none of it shows. The key is never drawn and never a QR code.
 
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::api::{
     BitLocker, BitLockerStep, Computer, Os, Protection, Reason, RecoveryKey, StarterCommand,
     StarterEvent,
 };
 use faraday_starter::notes::Notes;
 use faraday_starter::{Page, Starter, StarterAction};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// A token for the PDFs these tests make, counting nothing. Cheap.
 #[expect(
     clippy::disallowed_methods,
     reason = "a mint: the Starter's tests, which draw nothing"
 )]
-fn compute() -> osk_crypto::work::Compute {
-    osk_crypto::work::Compute::new(|_| {})
+fn compute() -> faraday_crypto::work::Compute {
+    faraday_crypto::work::Compute::new(|_| {})
 }
 
 const KEY: &str = "205568-492019-108251-336446-650375-210331-584155-047520";

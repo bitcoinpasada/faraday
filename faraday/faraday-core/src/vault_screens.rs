@@ -4,8 +4,8 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_crypto::work::Compute;
-use osk_ui::widgets::Icon;
+use faraday_crypto::work::Compute;
+use faraday_draw::widgets::Icon;
 
 use crate::drawing::{Scrolled, View};
 use crate::screens::{guide_text, section_label, title};
@@ -85,7 +85,7 @@ pub(crate) fn text_box(
 pub(crate) fn stick_banner(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
     if ui.compact {
         // Wrapped beside its icon on a small panel.
-        ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+        ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
         let th = ui.wrap(x + 40.0, y + 12.0, w - 52.0, 13.0, W::S, WARN, text);
         ui.c.pop_clip();
         let bh = th + 24.0;
@@ -207,7 +207,7 @@ fn secret_with(
     // Measured in a pass that draws nothing, so the field's surface goes
     // down before the words and does not cover them.
     let th = if held {
-        ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+        ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
         let th = ui.wrap(x + 14.0, y + 10.0, tw, 14.0, face, TEXT, &shown);
         ui.c.pop_clip();
         th
@@ -255,11 +255,11 @@ fn seedqr_box(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // The code's side, as a code is shown anywhere in the app, or the
     // field's width where that is less.
     let class = if ui.compact {
-        osk_ui::SizeClass::Small
+        faraday_draw::SizeClass::Small
     } else {
-        osk_ui::SizeClass::Wide
+        faraday_draw::SizeClass::Wide
     };
-    let side = osk_ui::tokens::qr_side(class).min(w - 28.0);
+    let side = faraday_draw::tokens::qr_side(class).min(w - 28.0);
     let bh = if code.is_some() { side + 58.0 } else { 58.0 };
     ui.fill(x, y, w, bh, 8.0, BG);
     ui.stroke(
@@ -307,7 +307,7 @@ pub(crate) fn hold_button(
     y: f32,
     label: &str,
     action: Action,
-    color: osk_ui::Color,
+    color: faraday_draw::Color,
 ) -> f32 {
     hold_button_in(app, ui, x, y, f32::MAX, label, action, color)
 }
@@ -322,7 +322,7 @@ pub(crate) fn hold_button_in(
     room: f32,
     label: &str,
     action: Action,
-    color: osk_ui::Color,
+    color: faraday_draw::Color,
 ) -> f32 {
     let w = (ui.measure(13.0, W::S, label) + 32.0).min(room);
     let label = ui.fit(13.0, W::S, label, w - 32.0);
@@ -1725,9 +1725,9 @@ fn dice_panel(
     y: f32,
     w: f32,
     rolls: &TextBox,
-    list: osk_bip::diceware::List,
+    list: faraday_bip::diceware::List,
 ) -> f32 {
-    use osk_bip::diceware::List;
+    use faraday_bip::diceware::List;
     let mut cy = y;
     ui.fill(x, cy, w, 4.0, 2.0, ACCENT.with_alpha(60));
     cy += 14.0;
@@ -1956,7 +1956,7 @@ fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     } else {
         PRESETS[k].0
     };
-    let mut warnings: Vec<(String, osk_ui::Color)> = Vec::new();
+    let mut warnings: Vec<(String, faraday_draw::Color)> = Vec::new();
     let slot = app
         .vaults
         .create
@@ -2218,7 +2218,7 @@ fn item_heading(app: &View, r: &Record) -> (String, String, bool) {
             let fp = r
                 .field(field::PASSPHRASE_KEY)
                 .and_then(|b| <[u8; 4]>::try_from(b).ok())
-                .map(|b| fp_text(osk_bip::keys::Fingerprint(b)))
+                .map(|b| fp_text(faraday_bip::keys::Fingerprint(b)))
                 .unwrap_or_default();
             (fill(EN.plan_passphrase_of, &[&fp]), String::new(), true)
         }
@@ -2233,9 +2233,9 @@ fn item_heading(app: &View, r: &Record) -> (String, String, bool) {
 fn sheet_parts(r: &Record) -> (String, String, String) {
     match r
         .field(field::SHEET)
-        .and_then(|p| osk_backup::oskb::payload_of(osk_backup::oskb::KIND_SHEET, p))
+        .and_then(|p| faraday_backup::oskb::payload_of(faraday_backup::oskb::KIND_SHEET, p))
     {
-        Some(osk_backup::oskb::Opened::Sheet(s)) => (
+        Some(faraday_backup::oskb::Opened::Sheet(s)) => (
             String::from_utf8_lossy(&s.descriptor).into_owned(),
             String::from_utf8_lossy(&s.name).into_owned(),
             String::from_utf8_lossy(&s.note).into_owned(),
@@ -2246,7 +2246,7 @@ fn sheet_parts(r: &Record) -> (String, String, String) {
 
 /// The shape of a wallet read already, as the session names one. Costs
 /// the descriptor's checksum.
-pub(crate) fn policy_shape(policy: osk_bip::policy::WalletPolicy) -> String {
+pub(crate) fn policy_shape(policy: faraday_bip::policy::WalletPolicy) -> String {
     Session::shape(&Wallet::new(
         String::new(),
         policy,
@@ -2281,34 +2281,34 @@ pub(crate) fn record_is_key(
 /// stored with it, by which what is worked out of it is kept. `None` for
 /// a record with no key. Costs a hash.
 fn record_id(r: &Record) -> Option<[u8; 32]> {
-    use osk_bip::bitcoin::hashes::{Hash, sha256};
+    use faraday_bip::bitcoin::hashes::{Hash, sha256};
     // By the payload and the passphrase stored with it: the same words
     // with a passphrase are another key.
     let payload = r.field(field::KEY)?;
     let mut engine = sha256::Hash::engine();
-    osk_bip::bitcoin::hashes::HashEngine::input(&mut engine, payload);
+    faraday_bip::bitcoin::hashes::HashEngine::input(&mut engine, payload);
     if let Some(p) = r.field(field::KEY_PASSPHRASE) {
-        osk_bip::bitcoin::hashes::HashEngine::input(&mut engine, &[0]);
-        osk_bip::bitcoin::hashes::HashEngine::input(&mut engine, p);
+        faraday_bip::bitcoin::hashes::HashEngine::input(&mut engine, &[0]);
+        faraday_bip::bitcoin::hashes::HashEngine::input(&mut engine, p);
     }
     Some(sha256::Hash::from_engine(engine).to_byte_array())
 }
 
 /// Costs a PBKDF2 for words and an elliptic-curve multiplication. A key
 /// record's master key, its passphrase applied.
-fn record_master(c: &Compute, app: &Faraday, r: &Record) -> Option<osk_bip::keys::MasterKey> {
+fn record_master(c: &Compute, app: &Faraday, r: &Record) -> Option<faraday_bip::keys::MasterKey> {
     Some(match crate::wallet::record_words(c, r) {
         Some(m) => {
             let passphrase = r.text(field::KEY_PASSPHRASE).unwrap_or("");
             let seed = m.to_seed(c, passphrase.as_bytes()).ok()?;
-            osk_bip::keys::MasterKey::from_seed(c, &seed, app.session.network())
+            faraday_bip::keys::MasterKey::from_seed(c, &seed, app.session.network())
         }
         None => {
             let seed = vaults::seed_of(r)?;
-            let bytes = osk_crypto::SeedBytes::new(&seed)?;
-            osk_bip::keys::MasterKey::from_seed_bytes(
+            let bytes = faraday_crypto::SeedBytes::new(&seed)?;
+            faraday_bip::keys::MasterKey::from_seed_bytes(
                 c,
-                &osk_crypto::Secret::new(bytes),
+                &faraday_crypto::Secret::new(bytes),
                 app.session.network(),
             )
         }
@@ -2353,7 +2353,7 @@ pub(crate) fn record_is_policy_key(
     c: &Compute,
     app: &Faraday,
     r: &Record,
-    key: &osk_bip::policy::PolicyKey,
+    key: &faraday_bip::policy::PolicyKey,
 ) -> bool {
     let (Some(fp), Some(path)) = (key.fingerprint(), key.path()) else {
         return false;
@@ -2388,14 +2388,14 @@ pub(crate) fn record_is_policy_key(
 
 /// An extended public key's public key and chain code, which do not
 /// change with the network it is written for. A lookup.
-fn account_bytes(x: &osk_bip::bitcoin::bip32::Xpub) -> [u8; 65] {
+fn account_bytes(x: &faraday_bip::bitcoin::bip32::Xpub) -> [u8; 65] {
     let mut out = [0u8; 65];
     out[..33].copy_from_slice(&x.public_key.serialize());
     out[33..].copy_from_slice(x.chain_code.as_bytes());
     out
 }
 
-fn words_text(m: &osk_bip::bip39::Mnemonic) -> String {
+fn words_text(m: &faraday_bip::bip39::Mnemonic) -> String {
     let lang = m.language();
     m.indices()
         .iter()
@@ -2499,8 +2499,8 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .is_some_and(|r| r.kind == kind::WALLET);
     let (kinds_w, items_w) = if chart_shown {
         (
-            osk_ui::tokens::CHART_PANE_KINDS,
-            osk_ui::tokens::CHART_PANE_ITEMS,
+            faraday_draw::tokens::CHART_PANE_KINDS,
+            faraday_draw::tokens::CHART_PANE_ITEMS,
         )
     } else {
         let kinds_w = 190.0;
@@ -2686,7 +2686,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.fill(detail_x - 16.0, top - 8.0, 1.0, h - top - 16.0, 0.0, LINE);
     // The item scrolls when it is taller than the room under the head: a
     // wallet's chart may be.
-    let gap = osk_ui::tokens::GAP;
+    let gap = faraday_draw::tokens::GAP;
     let view_top = top - gap;
     let clip = ui.rect(detail_x - gap, view_top, detail_w + 2.0 * gap, h - view_top);
     ui.c.push_clip(clip);
@@ -3465,7 +3465,7 @@ fn detail(
             let m = app.record_words_shown(r);
             if let Some(m) = &m {
                 hold_row(ui, &mut dy, EN.vault_words, &words_text(m), true);
-                if m.language() == osk_bip::bip39::Language::English {
+                if m.language() == faraday_bip::bip39::Language::English {
                     ui.text(dx, dy, 12.0, W::R, MUTED, EN.board_seedqr);
                     dy += 20.0;
                     dy += seedqr_box(app, ui, dx, dy, dw) + 14.0;
@@ -3551,7 +3551,7 @@ fn detail(
                     crate::glance::draw_column(ui, &g, up, dx, dy, dw)
                 } else {
                     crate::glance::draw(ui, &g, up, dx, dy, dw)
-                } + osk_ui::tokens::PAD;
+                } + faraday_draw::tokens::PAD;
             }
             let text = r.text(field::WALLET).unwrap_or("");
             field_row(ui, &mut dy, EN.vault_descriptor, text, true);
@@ -4109,7 +4109,7 @@ pub(crate) fn stick_save_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let sw = 560.0;
     let (ix, iw) = (32.0, sw - 64.0);
     // Measured first, out of sight, for the sheet's height.
-    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
     let body_h = body(ui, 0.0, 0.0, iw);
     let buttons_h = crate::screens::wrap_buttons(ui, 0.0, 0.0, iw, 44.0, &items);
     ui.c.pop_clip();
@@ -4335,7 +4335,7 @@ pub(crate) fn lock_ask(app: &View, ui: &mut Ui, w: f32, h: f32) {
     .filter(|(_, v)| !v.is_empty())
     .collect();
     if ui.compact {
-        let rows: Vec<(&str, String, osk_ui::Color)> = rows
+        let rows: Vec<(&str, String, faraday_draw::Color)> = rows
             .into_iter()
             .map(|(k, v)| {
                 let tone = if waits && k == sealed_label {

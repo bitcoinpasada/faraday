@@ -19,9 +19,9 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use faraday_bip::bitcoin::hashes::{Hash, sha256};
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
-use osk_bip::bitcoin::hashes::{Hash, sha256};
 
 use crate::wallet::FileKind;
 use crate::{Faraday, Sheet};
@@ -110,7 +110,7 @@ pub enum Keep {
         /// Its index in the session.
         key: usize,
         /// Its fingerprint, checked before it is saved.
-        fp: osk_bip::keys::Fingerprint,
+        fp: faraday_bip::keys::Fingerprint,
     },
     /// Nothing: a picture or a file Faraday does not read is not offered
     /// to a vault.
@@ -182,8 +182,8 @@ pub struct Round {
 }
 
 /// SHA-256 of a PSBT's unsigned transaction: what a round is bound to.
-pub fn tx_hash(psbt: &osk_psbt::Psbt) -> [u8; 32] {
-    let tx = osk_bip::bitcoin::consensus::serialize(&psbt.inner().unsigned_tx);
+pub fn tx_hash(psbt: &faraday_psbt::Psbt) -> [u8; 32] {
+    let tx = faraday_bip::bitcoin::consensus::serialize(&psbt.inner().unsigned_tx);
     sha256::Hash::hash(&tx).to_byte_array()
 }
 
@@ -201,7 +201,7 @@ impl Faraday {
     /// SeedQR in the form picked on the step, after the warning.
     pub(crate) fn offer_seed(&mut self) {
         let c = self.compute();
-        use osk_bip::bip39::Language;
+        use faraday_bip::bip39::Language;
         let Some(b) = self.backup.as_ref() else {
             return;
         };
@@ -240,9 +240,9 @@ impl Faraday {
             .is_none_or(|i| self.copy_forms(&c, b, i).seedqr);
         if key.language == Language::English && seedqr {
             let matrix = if compact {
-                osk_codec::seedqr::encode_compact(&c, &m)
+                faraday_codec::seedqr::encode_compact(&c, &m)
             } else {
-                osk_codec::seedqr::encode_seedqr(&c, &m)
+                faraday_codec::seedqr::encode_seedqr(&c, &m)
             };
             if let Ok(mx) = matrix {
                 let title = fill(EN.secrets_seed, &[&fps.to_string()]);
@@ -465,15 +465,15 @@ impl Faraday {
     /// vault has an unused round bound to it.
     pub(crate) fn vault_round(
         &self,
-        psbt: &osk_psbt::Psbt,
-    ) -> Option<osk_psbt::threshold::CarrySection> {
+        psbt: &faraday_psbt::Psbt,
+    ) -> Option<faraday_psbt::threshold::CarrySection> {
         let tx = tx_hash(psbt);
         for v in &self.vaults.open {
             for (_, r) in v.contents.of(kind::ROUND) {
                 if r.field(field::ROUND_TX) == Some(&tx[..])
                     && r.field(field::ROUND_USED).is_none()
                     && let Some(state) = r.field(field::ROUND_STATE)
-                    && let Ok(c) = osk_psbt::threshold::Carry::parse(state)
+                    && let Ok(c) = faraday_psbt::threshold::Carry::parse(state)
                 {
                     return Some(c.section);
                 }
@@ -483,7 +483,7 @@ impl Faraday {
     }
 
     /// A round has signed: it leaves every open vault at the next seal.
-    pub(crate) fn vault_round_used(&mut self, psbt: &osk_psbt::Psbt) {
+    pub(crate) fn vault_round_used(&mut self, psbt: &faraday_psbt::Psbt) {
         let tx = tx_hash(psbt);
         for v in &mut self.vaults.open {
             let before = v.contents.records.len();

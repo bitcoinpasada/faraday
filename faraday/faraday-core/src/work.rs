@@ -3,9 +3,9 @@
 //! not (`docs/SPEED.md` §3.3 and §7).
 //!
 //! Each costly function counts itself on its first line. The core's
-//! count through the token they take (`osk_crypto::work::Compute`, which
+//! count through the token they take (`faraday_crypto::work::Compute`, which
 //! this crate mints with [`core_count`]); a canvas notes its pixel work
-//! with the counter this crate sets on it (`osk_ui::Canvas::set_counter`);
+//! with the counter this crate sets on it (`faraday_draw::Canvas::set_counter`);
 //! this crate's own kinds call [`count`], in functions that take the
 //! token as their gate. A
 //! count is a thread-local add, about a nanosecond, always compiled: not
@@ -26,10 +26,10 @@ use std::cell::Cell;
 pub enum Work {
     /// A master key made from a seed (an HMAC-SHA-512) or an `xprv`,
     /// and its fingerprint (an elliptic-curve multiplication)
-    /// (`osk-bip`).
+    /// (`faraday-bip`).
     MasterKey,
     /// An account or child key derived from a master key, or an extended
-    /// public key made from a private one (`osk-bip`).
+    /// public key made from a private one (`faraday-bip`).
     KeyDerive,
     /// A wallet's address derived.
     Address,
@@ -47,28 +47,28 @@ pub enum Work {
     WordsParse,
     /// A PNG or a PDF made.
     Picture,
-    /// A PSBT parsed from its bytes or its base64 (`osk-psbt`).
+    /// A PSBT parsed from its bytes or its base64 (`faraday-psbt`).
     PsbtParse,
     /// A PSBT inspected against the session's keys and wallets
-    /// (`osk_psbt::inspect`, also inside every signing).
+    /// (`faraday_psbt::inspect`, also inside every signing).
     PsbtInspect,
-    /// A PSBT or a message signed (`osk-psbt`).
+    /// A PSBT or a message signed (`faraday-psbt`).
     Sign,
     /// A wallet's script derived to find which wallet a PSBT spends from
     /// ([`crate::wallet::Wallet::script_at`]).
     WalletMatch,
     /// A PNG's pixels decoded to look for QR codes (`faraday-files`).
     PngDecode,
-    /// QR codes looked for in a picture's pixels (`osk-codec`).
+    /// QR codes looked for in a picture's pixels (`faraday-codec`).
     QrDecode,
-    /// A key stretched: PBKDF2, scrypt or Argon2 (`osk-crypto`,
-    /// `osk-backup`, `faraday-vault`).
+    /// A key stretched: PBKDF2, scrypt or Argon2 (`faraday-crypto`,
+    /// `faraday-backup`, `faraday-vault`).
     Kdf,
     /// A canvas reduced and blurred: a sheet's frosted backdrop, made
-    /// once when the sheet opens (`osk-ui`).
+    /// once when the sheet opens (`faraday-draw`).
     Blur,
     /// A whole canvas copied: a snapshot taken, put back or blended
-    /// (`osk-ui`): a sheet's kept backdrop each frame, a fade's.
+    /// (`faraday-draw`): a sheet's kept backdrop each frame, a fade's.
     FullCanvas,
 }
 
@@ -100,8 +100,8 @@ pub const KINDS: [Work; 18] = [
 pub const PIXELS: [Work; 2] = [Work::Blur, Work::FullCanvas];
 
 /// The core's kind as this crate counts it.
-fn of_core(w: osk_crypto::work::Work) -> Work {
-    use osk_crypto::work::Work as C;
+fn of_core(w: faraday_crypto::work::Work) -> Work {
+    use faraday_crypto::work::Work as C;
     match w {
         C::PsbtParse => Work::PsbtParse,
         C::PsbtInspect => Work::PsbtInspect,
@@ -122,9 +122,9 @@ fn of_core(w: osk_crypto::work::Work) -> Work {
 }
 
 /// The counter the core's costly functions call through the token, and
-/// a canvas with its pixel work (`osk_crypto::work`): the Starter's
+/// a canvas with its pixel work (`faraday_crypto::work`): the Starter's
 /// canvas counts with it too. Costs an add.
-pub fn core_count(w: osk_crypto::work::Work) {
+pub fn core_count(w: faraday_crypto::work::Work) {
     count(of_core(w));
 }
 

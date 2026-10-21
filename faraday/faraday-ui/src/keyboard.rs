@@ -1,13 +1,13 @@
 //! Faraday's on-screen keyboard: OpenSigner's key layouts
-//! (`osk_ui::widgets::keyboard`) drawn as Faraday's buttons, across the
+//! (`faraday_draw::widgets::keyboard`) drawn as Faraday's buttons, across the
 //! foot of a small panel or a strip of the wide layout. A press is the
 //! key a physical keyboard would send. The desktop app types with it on
 //! the stick's touch panel.
 //!
 //! Moved here from `faraday-core`'s `compact.rs`.
 
-use osk_ui::widgets::Icon;
-use osk_ui::widgets::keyboard::{self, KeyInput, KeyboardKind, Modifiers};
+use faraday_draw::widgets::Icon;
+use faraday_draw::widgets::keyboard::{self, KeyInput, KeyboardKind, Modifiers};
 
 use crate::pal::*;
 use crate::{Style, Ui};
@@ -115,15 +115,15 @@ pub fn keyboard<A: Copy + PartialEq>(
     ui.fill(x, y, w, 1.0, 0.0, LINE);
     let kw = if compact { w } else { w.min(KEYS_MAX_W) };
     let kx = x + (w - kw) / 2.0;
-    let area = osk_ui::geom::Rect::new(
+    let area = faraday_draw::geom::Rect::new(
         (kx + 4.0) as i32,
         (y + 6.0) as i32,
         (kw - 4.0) as i32,
         (rows * KEY_ROW) as i32,
     );
-    let ctx = osk_ui::layout::LayoutCtx::new(
-        osk_ui::geom::Scale::new(160),
-        osk_ui::geom::SizeClass::Small,
+    let ctx = faraday_draw::layout::LayoutCtx::new(
+        faraday_draw::geom::Scale::new(160),
+        faraday_draw::geom::SizeClass::Small,
     );
     let mods = Modifiers {
         shift: keys.shift,

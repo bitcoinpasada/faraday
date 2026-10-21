@@ -10,9 +10,9 @@ publish = false
 
 [dependencies]
 # The canvas, the fonts, the icons.
-osk-ui = { path = "../../core/osk-ui" }
+faraday-draw = { path = "../../core/faraday-draw" }
 # A QR code's modules. The decoder (`rqrr`) is not needed to draw one.
-osk-codec = { path = "../../core/osk-codec", default-features = false }
+faraday-codec = { path = "../../core/faraday-codec", default-features = false }
 # The themes' names.
 faraday-strings = { path = "../faraday-strings" }
 # The firmware sketches' types (`docs/STARTER.md` §7.8); the data stays in
@@ -21,7 +21,7 @@ faraday-learn = { path = "../faraday-learn" }
 
 [dev-dependencies]
 # A canvas the size of a display, for the tests.
-osk-shell-api = { path = "../../core/osk-shell-api" }
+faraday-shell-api = { path = "../../core/faraday-shell-api" }
 
 [lints]
 workspace = true

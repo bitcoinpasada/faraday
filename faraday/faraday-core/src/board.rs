@@ -18,7 +18,7 @@
 use std::rc::Rc;
 
 use crate::strings::fill;
-use osk_crypto::work::Compute;
+use faraday_crypto::work::Compute;
 
 use crate::Faraday;
 use crate::plan::{self, Answers, At, Edit, Shape, Spot, What, form};
@@ -2143,8 +2143,8 @@ impl Faraday {
     /// the first level); else Tab and Shift+Tab move among the ⋮s on
     /// screen, in the order they are drawn, and Enter or Space opens the
     /// one the keyboard is on. Returns whether the key was taken.
-    pub(crate) fn board_key(&mut self, key: osk_shell_api::Key) -> bool {
-        use osk_shell_api::Key as K;
+    pub(crate) fn board_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
         if !self.board_shown() {
             return false;
         }

@@ -10,12 +10,12 @@
 //! Start, where words already held are typed or scanned and loaded as
 //! Add a key loads them (§15).
 
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::bitcoin::hashes::{Hash, sha256};
 use faraday_core::keygen::{Group, Source, Way};
 use faraday_core::{Action, Faraday, Screen};
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_bip::bitcoin::hashes::{Hash, sha256};
-use osk_entropy::DiceProcedure;
-use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
+use faraday_entropy::DiceProcedure;
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 
 /// From the Key card of a key on its own: Lock in, Continue to Words,
 /// the quiz passed, and Done.
@@ -578,7 +578,7 @@ fn tall(app: &mut Faraday) {
 
 fn type_text(app: &mut Faraday, text: &str) {
     for c in text.chars() {
-        app.event(Event::Key(osk_shell_api::Key::Char(c)));
+        app.event(Event::Key(faraday_shell_api::Key::Char(c)));
     }
 }
 
@@ -712,11 +712,9 @@ fn lock_in_with_a_passphrase_adds_the_key_of_the_words_with_that_passphrase() {
     assert_eq!(c.slots[0], faraday_core::create::Source::Here(with));
     let shown = texts(&mut app);
     assert!(shown.contains("Locked in"));
-    assert!(
-        shown.contains(&faraday_core::wallet::fp_text(osk_bip::keys::Fingerprint(
-            with
-        )))
-    );
+    assert!(shown.contains(&faraday_core::wallet::fp_text(
+        faraday_bip::keys::Fingerprint(with)
+    )));
     // Continue returns to Create on Keys, with the slot filled.
     app.press(Action::KNext);
     assert_eq!(app.screen, Screen::Create);
@@ -739,11 +737,11 @@ fn unequal_passphrases_lock_nothing_in() {
     assert!(app.session.keys.is_empty());
     assert!(texts(&mut app).contains("The two passphrases differ"));
     // Enter in a field locks in once the two agree.
-    app.event(Event::Key(osk_shell_api::Key::Backspace));
-    app.event(Event::Key(osk_shell_api::Key::Backspace));
-    app.event(Event::Key(osk_shell_api::Key::Backspace));
+    app.event(Event::Key(faraday_shell_api::Key::Backspace));
+    app.event(Event::Key(faraday_shell_api::Key::Backspace));
+    app.event(Event::Key(faraday_shell_api::Key::Backspace));
     type_text(&mut app, "one");
-    app.event(Event::Key(osk_shell_api::Key::Enter));
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
     assert_eq!(app.session.keys.len(), 1);
 }
 
@@ -786,7 +784,7 @@ fn on_a_test_network_the_demo_adds_the_key_made() {
     let mut app = faraday_core::testkit::started();
     app.session.set_demo(&c);
     app.session
-        .set_network(osk_bip::keys::Network::Testnet)
+        .set_network(faraday_bip::keys::Network::Testnet)
         .unwrap();
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
@@ -936,7 +934,7 @@ use faraday_core::keygen::{Start, kstep};
 /// Types `text` on the keyboard.
 fn typed(app: &mut Faraday, text: &str) {
     for c in text.chars() {
-        app.event(Event::Key(osk_shell_api::Key::Char(c)));
+        app.event(Event::Key(faraday_shell_api::Key::Char(c)));
     }
 }
 

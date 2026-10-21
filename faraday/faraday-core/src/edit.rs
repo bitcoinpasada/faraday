@@ -12,7 +12,7 @@
 //! held in a [`SecretText`] meanwhile, and nothing is copied out of a
 //! field anywhere else.
 
-use osk_shell_api::Key as KeyIn;
+use faraday_shell_api::Key as KeyIn;
 
 use crate::secret_text::SecretText;
 use crate::ui::Edit;

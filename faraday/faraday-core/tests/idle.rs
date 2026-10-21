@@ -6,7 +6,7 @@
 //! §18).
 
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent, testkit};
-use osk_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
 
 const MIN: u64 = 60_000;
 

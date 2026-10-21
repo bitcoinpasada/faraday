@@ -8,11 +8,11 @@
 //! files. Nothing new goes into the vault, and a wallet shown or saved
 //! from the vault is not loaded.
 
+use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent, testkit};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
 use faraday_vault::records::{field, kind};
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
 
 fn kit_file(name: &str) -> (String, Vec<u8>) {
     testkit::files()
@@ -109,9 +109,9 @@ fn fp() -> String {
 fn seedqr_digits() -> Vec<u8> {
     let c = testkit::compute();
     let m = Mnemonic::parse(&c, Language::English, &words()).unwrap();
-    let mx = osk_codec::seedqr::encode_seedqr(&c, &m).unwrap();
-    let (w, h, px) = mx.to_luma(4, osk_codec::qr::QUIET_ZONE);
-    let found = osk_codec::decode_luma(&c, w, h, &px);
+    let mx = faraday_codec::seedqr::encode_seedqr(&c, &m).unwrap();
+    let (w, h, px) = mx.to_luma(4, faraday_codec::qr::QUIET_ZONE);
+    let found = faraday_codec::decode_luma(&c, w, h, &px);
     assert_eq!(found.len(), 1);
     found[0].bytes.clone()
 }
@@ -127,7 +127,7 @@ fn on_screen(app: &mut Faraday) -> Vec<Vec<u8>> {
         .chunks_exact(4)
         .map(|p| ((u32::from(p[0]) * 3 + u32::from(p[1]) * 6 + u32::from(p[2])) / 10) as u8)
         .collect();
-    osk_codec::decode_luma(&c, usize::from(f.width), usize::from(f.height), &luma)
+    faraday_codec::decode_luma(&c, usize::from(f.width), usize::from(f.height), &luma)
         .into_iter()
         .map(|d| d.bytes)
         .collect()

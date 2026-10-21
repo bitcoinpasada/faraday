@@ -1,5 +1,5 @@
 //! The touch controller: turning its packets into
-//! [`osk_shell_api::Event::Touch`].
+//! [`faraday_shell_api::Event::Touch`].
 //!
 //! A controller reports multitouch (`ABS_MT_POSITION_X`,
 //! `ABS_MT_POSITION_Y`, `ABS_MT_TRACKING_ID`) and single touch (`ABS_X`,
@@ -30,7 +30,7 @@
 //! `ABS_X`/`ABS_Y`, the kernel's copy of whichever finger is oldest, are
 //! not read.
 
-use osk_shell_api::TouchPhase;
+use faraday_shell_api::TouchPhase;
 
 use crate::evdev::{
     ABS_MT_POSITION_X, ABS_MT_POSITION_Y, ABS_MT_SLOT, ABS_MT_TRACKING_ID, ABS_X, ABS_Y, BTN_TOUCH,

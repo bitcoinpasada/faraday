@@ -6,7 +6,7 @@ use faraday_core::secrets::Exposure;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 fn type_text(app: &mut Faraday, text: &str) {
     for c in text.chars() {
@@ -39,7 +39,7 @@ fn an_entry_exported_for_keepass_is_sealed_under_its_passphrase() {
     }));
     // The answers a shell gives to the requests for randomness.
     for i in 0..6u8 {
-        app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
             [0x40 + i; 32],
         )));
     }
@@ -87,10 +87,10 @@ fn an_entry_exported_for_keepass_is_sealed_under_its_passphrase() {
         .find(|i| i.name.ends_with(".kdbx"))
         .expect("no KeePass file");
     assert_eq!(file.kind.exposure(), Exposure::Sealed);
-    assert!(osk_backup::kdbx::verify(
+    assert!(faraday_backup::kdbx::verify(
         &c,
         &file.bytes,
         b"keepass passphrase"
     ));
-    assert!(!osk_backup::kdbx::verify(&c, &file.bytes, b"another"));
+    assert!(!faraday_backup::kdbx::verify(&c, &file.bytes, b"another"));
 }

@@ -5,6 +5,7 @@
 
 mod common;
 
+use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::backup_flow_steps::FlowAction;
 use faraday_core::create::{NewKind, Source};
 use faraday_core::family::FamilyAction as F;
@@ -12,8 +13,7 @@ use faraday_core::rstep::{CHECK, DESCRIPTION, DONE, HOW_MANY, KIND, QUORUM, SEED
 use faraday_core::seed_read::Choice;
 use faraday_core::seeds::{Focus, SeedsAction as S};
 use faraday_core::{Action, Faraday, NOT_A_KEY, Screen, Sheet, testkit};
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 const MULTI_PATH: &str = "m/48'/1'/0'/2'";
 /// Multisig · native SegWit, by its place on Kind.
@@ -78,7 +78,7 @@ fn scan_seed(app: &mut Faraday, words: &str) {
     app.press(Action::RSlotScan);
     let m = Mnemonic::parse(&c, Language::English, words).unwrap();
     app.event(Event::Scanned {
-        bytes: osk_codec::seedqr::to_digits(&m)
+        bytes: faraday_codec::seedqr::to_digits(&m)
             .expose()
             .as_bytes()
             .to_vec(),

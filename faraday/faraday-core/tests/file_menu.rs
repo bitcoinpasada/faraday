@@ -10,7 +10,7 @@ use common::*;
 use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Item, Screen, Sheet};
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 fn file(name: &str, bytes: &[u8]) -> (String, Vec<u8>) {
     (name.to_string(), bytes.to_vec())
@@ -370,7 +370,7 @@ fn no_file_row_shows_a_remove_button() {
             Vec::new(),
         );
         if compact {
-            app.event(Event::Display(osk_shell_api::DisplayInfo {
+            app.event(Event::Display(faraday_shell_api::DisplayInfo {
                 width: 480,
                 height: 640,
                 dpi: 286,
@@ -378,8 +378,8 @@ fn no_file_row_shows_a_remove_button() {
                 inset_top: 0,
                 buttons: 0,
                 camera_fixed: false,
-                secure: osk_shell_api::SecureHardware::None,
-                boot: osk_shell_api::BootState::Unknown,
+                secure: faraday_shell_api::SecureHardware::None,
+                boot: faraday_shell_api::BootState::Unknown,
                 memory_mib: None,
             }));
         }

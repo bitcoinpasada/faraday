@@ -1,7 +1,7 @@
 //! Word lists: BIP-39's English list and the three EFF diceware lists,
 //! every word with its number, on a sheet over the screen it was opened
 //! from, so that a word a key or a passphrase is made of can be found in
-//! its list and checked by hand. The words are `osk-bip`'s own lists, the
+//! its list and checked by hand. The words are `faraday-bip`'s own lists, the
 //! ones the keys and passphrases are made from.
 //!
 //! The sheet keeps the screen under it as it was: closing it returns to
@@ -9,8 +9,8 @@
 //! the rolls still typed.
 
 use crate::strings::EN;
-use osk_bip::bip39::Language;
-use osk_bip::diceware::List;
+use faraday_bip::bip39::Language;
+use faraday_bip::diceware::List;
 
 use crate::{Faraday, Sheet};
 
@@ -170,8 +170,8 @@ impl Faraday {
     /// Keys while the sheet is open: letters find a word, Backspace takes
     /// one back, the arrows scroll, Escape closes it. Every key is the
     /// sheet's while it is open, so none reaches the screen under it.
-    pub(crate) fn wordlist_key(&mut self, key: osk_shell_api::Key) -> bool {
-        use osk_shell_api::Key as K;
+    pub(crate) fn wordlist_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
         if self.sheet != Some(Sheet::WordList) {
             return false;
         }

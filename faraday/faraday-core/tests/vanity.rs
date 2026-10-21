@@ -5,7 +5,7 @@
 use faraday_core::testkit;
 use faraday_core::vanity::{VanityAction as V, vstep};
 use faraday_core::{Action, Faraday, Screen};
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 fn with_key() -> Faraday {
     let mut app = faraday_core::testkit::started();

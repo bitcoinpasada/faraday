@@ -1,6 +1,6 @@
 //! Prints the demo wallet the Wallets design mockups show
 //! (`design/prototype/project/WalletsWallet.dc.html` and
-//! `WalletsSpend.dc.html`), derived with `osk-bip`.
+//! `WalletsSpend.dc.html`), derived with `faraday-bip`.
 //!
 //! ```text
 //! cargo run -p faraday-core --example wallet_2of3_demo
@@ -16,15 +16,15 @@
 //! Last, the first address of the 3-of-5 the same three seeds are part of,
 //! with trade and slice.
 
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_bip::bitcoin::absolute::LockTime;
-use osk_bip::bitcoin::hashes::{Hash, sha256};
-use osk_bip::bitcoin::transaction::Version;
-use osk_bip::bitcoin::{
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::bitcoin::absolute::LockTime;
+use faraday_bip::bitcoin::hashes::{Hash, sha256};
+use faraday_bip::bitcoin::transaction::Version;
+use faraday_bip::bitcoin::{
     Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness,
 };
-use osk_bip::keys::{MasterKey, MultisigScriptType, Network, ScriptType};
-use osk_bip::policy::WalletPolicy;
+use faraday_bip::keys::{MasterKey, MultisigScriptType, Network, ScriptType};
+use faraday_bip::policy::WalletPolicy;
 
 const NET: Network = Network::Mainnet;
 const ABANDON: &str =
@@ -177,7 +177,7 @@ fn main() {
     reason = "a coordinator's own reading of the wallet, for the demo's transaction (docs/COMPUTE.md §7)"
 )]
 fn witness_script(policy: &WalletPolicy, change: bool, index: u32) -> ScriptBuf {
-    use osk_bip::miniscript::descriptor::{Descriptor, DescriptorPublicKey};
+    use faraday_bip::miniscript::descriptor::{Descriptor, DescriptorPublicKey};
     let descriptor: Descriptor<DescriptorPublicKey> =
         policy.to_descriptor().parse().expect("a descriptor");
     descriptor.into_single_descriptors().expect("two chains")[usize::from(change)]

@@ -9,11 +9,11 @@
 //! signed, and the same transaction stating other amounts is refused, with
 //! no override. Nothing here is secret: amounts and a hash.
 
+use faraday_bip::bitcoin::consensus::encode::serialize;
+use faraday_bip::bitcoin::hashes::{Hash, sha256};
+use faraday_psbt::Psbt;
 use faraday_vault::Record;
 use faraday_vault::records::kind;
-use osk_bip::bitcoin::consensus::encode::serialize;
-use osk_bip::bitcoin::hashes::{Hash, sha256};
-use osk_psbt::Psbt;
 
 use crate::Faraday;
 use crate::wallet::FileKind;

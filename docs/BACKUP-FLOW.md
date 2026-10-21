@@ -2094,7 +2094,7 @@ plans on the board, keeping what each checked; none is deleted.
 - `docs/DESIGN.md` gains §4.17 **Board**: the place card, its zones,
   the chip (in the list, placed, selected, dragged, with a link mark,
   with a warning mark), the edged drop target. Sizes are tokens in
-  `core/osk-ui/src/tokens.rs` (CLAUDE.md).
+  `core/faraday-draw/src/tokens.rs` (CLAUDE.md).
 - `docs/DECISIONS.md` F37. §17.1 items 2, 3 and 5 are marked "Replaced
   by §19 on `wide`".
 - The board redraws on every pointer move while a chip is dragged: it
@@ -2364,7 +2364,7 @@ and one page colour across the app (`docs/DECISIONS.md` F39); DESIGN
    alone".
 7. **Read back** (item 10): the storage channel's write already reads a
    text file back; a picture is read back by the disk process's QR
-   reading (`faraday-files`, osk-codec's decoder), not `faraday-scanner`.
+   reading (`faraday-files`, faraday-codec's decoder), not `faraday-scanner`.
    A public picture is checked against the SHA-256 of what its code
    must hold. A SeedQR is checked byte for byte against the Outbox's
    picture and, while its key is loaded, against the key's words; no

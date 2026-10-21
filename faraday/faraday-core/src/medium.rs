@@ -7,7 +7,7 @@
 
 use crate::strings::EN;
 use crate::ui::Glyph;
-use osk_ui::widgets::Icon;
+use faraday_draw::widgets::Icon;
 
 /// The medium files move on.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

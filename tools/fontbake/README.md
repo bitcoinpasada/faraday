@@ -1,7 +1,7 @@
-# osk-fontbake
+# faraday-fontbake
 
 Turns the vendored fonts in `tools/fonts/` into glyph outlines that
-`osk-ui` embeds with `include_bytes!`. Runs on the build box only
+`faraday-draw` embeds with `include_bytes!`. Runs on the build box only
 (`just fonts`); the device reads the format below and fills a glyph with
 tiny-skia at whatever pixel size a display asks for. No TTF or CFF
 parser ships on a device.
@@ -11,7 +11,7 @@ parser ships on a device.
 Until 2026-09-10 the baker rasterised each face at sixteen fixed pixel
 sizes, 4.1 MB of atlases, and a runtime size snapped to the nearest baked
 one. The CJK wordlists would have added 3,650 glyphs, 8 MB at nine sizes.
-`osk-ui` already depends on `tiny-skia`, which fills anti-aliased paths
+`faraday-draw` already depends on `tiny-skia`, which fills anti-aliased paths
 for every other shape on screen; only glyphs went around it. Storing each
 glyph once as an outline and filling it on demand costs 140 KB for the
 four faces, draws every size at its exact size instead of the nearest
@@ -46,10 +46,10 @@ not read: UI text is short and the monospace face has none.
   compatibility jamo U+3131–U+3163, bopomofo U+3105–U+3129 and the tone
   marks `ˇ ˊ ˋ ˙`; and the ideographic space U+3000. Anything the text
   faces already carry is left out. That is 3,723 code points. The baker
-  depends on `osk-bip` by path to read the lists, which is why it is the
+  depends on `faraday-bip` by path to read the lists, which is why it is the
   one tool in `tools/` that does.
 - Icon glyph set: the code points `ICONS` lists, which must match the
-  `Icon` enum in `core/osk-ui/src/widgets/icon.rs`. `U+E9xx` comes from
+  `Icon` enum in `core/faraday-draw/src/widgets/icon.rs`. `U+E9xx` comes from
   `seedsigner-icons.otf`, everything else from
   `Font_Awesome_6_Free-Solid-900.otf`. A crate test asserts that every
   `Icon` resolves in the outline file, so the two lists cannot drift.
@@ -72,8 +72,8 @@ not read: UI text is short and the monospace face has none.
 - A glyph taken from another face is rescaled to the em of the file it is
   written into, so one file is one coordinate system.
 
-Output: one `core/osk-ui/assets/<face>.outl` per face and
-`core/osk-ui/src/fonts/generated.rs`, a table of `include_bytes!` entries.
+Output: one `core/faraday-draw/assets/<face>.outl` per face and
+`core/faraday-draw/src/fonts/generated.rs`, a table of `include_bytes!` entries.
 
 ## Where the CJK fonts come from
 
@@ -139,7 +139,7 @@ non-zero winding rule.
 To draw a glyph at pixel size `px`, scale font units by
 `px / units_per_em`, flip y, and translate so that the bitmap's top-left
 is at `(floor(x_min × s), ceil(y_max × s))` relative to the pen on the
-baseline; that is what `core/osk-ui/src/fonts/` does, filling the path
+baseline; that is what `core/faraday-draw/src/fonts/` does, filling the path
 into a `tiny_skia::Mask` and caching the bytes. An icon carries no
 baseline: the icon face's ascent is a whole em, so its line box is the
 square `Canvas::icon` centres the glyph in.

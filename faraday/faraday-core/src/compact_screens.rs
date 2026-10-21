@@ -5,7 +5,7 @@
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_ui::widgets::Icon;
+use faraday_draw::widgets::Icon;
 
 use crate::compact::M;
 use crate::screens::missing_keys_line;
@@ -27,7 +27,7 @@ pub(crate) fn row(
     icon: Option<Icon>,
     label: &str,
     sub: &str,
-    sub_tone: osk_ui::Color,
+    sub_tone: faraday_draw::Color,
     action: Option<Action>,
 ) -> f32 {
     let enabled = action.is_some();
@@ -352,7 +352,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 fn silent_card(
     app: &View,
     ui: &mut Ui,
-    r: &osk_bip::silent_wallet::SilentWallet,
+    r: &faraday_bip::silent_wallet::SilentWallet,
     x: f32,
     iw: f32,
     y: f32,
@@ -515,7 +515,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let wanted = app.entry.wanted.map(|fp| {
         fill(
             EN.compact_for_key,
-            &[&fp_text(osk_bip::keys::Fingerprint(fp)).to_string()],
+            &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
         )
     });
     if let Some(line) = wanted.or(for_wallet) {
@@ -613,7 +613,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page: bool) -> f32 {
     let mut y = y;
     let lang = app.entry.language();
-    let english = lang == osk_bip::bip39::Language::English;
+    let english = lang == faraday_bip::bip39::Language::English;
     // One button for the list in use; the lists open from it; unless
     // the chips are already shown, Other forms beside it.
     let mut langs: Vec<(String, Style, Action)> = if !app.entry.languages {
@@ -695,9 +695,9 @@ pub(crate) fn keyed_head(
     ui: &mut Ui,
     (x, y, iw): (f32, f32, f32),
     w: &crate::word_entry::WordEntry,
-    lang: osk_bip::bip39::Language,
+    lang: faraday_bip::bip39::Language,
     label: &str,
-    status: Option<(&str, osk_ui::Color)>,
+    status: Option<(&str, faraday_draw::Color)>,
     (caret, shift): (bool, bool),
 ) -> f32 {
     let mut y = y;
@@ -734,7 +734,7 @@ pub(crate) fn keyed_head(
 pub(crate) fn keyed_taken(
     ui: &mut Ui,
     (x, y, iw): (f32, f32, f32),
-    lang: osk_bip::bip39::Language,
+    lang: faraday_bip::bip39::Language,
     taken: &[u16],
     count: usize,
     masked: bool,

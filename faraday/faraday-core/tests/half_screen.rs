@@ -3,7 +3,7 @@
 //! than the wide layout shrunk to fit.
 
 use faraday_core::Faraday;
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 fn window(width: u16, height: u16, dpi: u16) -> Faraday {
     let mut app = Faraday::new();

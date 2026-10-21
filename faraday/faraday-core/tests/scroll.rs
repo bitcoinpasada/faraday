@@ -7,7 +7,7 @@
 
 use faraday_core::testkit;
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
-use osk_shell_api::{App, Event};
+use faraday_shell_api::{App, Event};
 
 fn scroll(app: &mut Faraday, dy: i16) {
     app.event(Event::Scroll { x: 600, y: 400, dy });
@@ -55,7 +55,7 @@ fn a_list_scrolls_by_the_same_pixels_continuously() {
 // fingers and coasts when they lift, an end stretches and springs back.
 // ---------------------------------------------------------------------
 
-use osk_shell_api::{BootState, DisplayInfo, SecureHardware, TouchPhase};
+use faraday_shell_api::{BootState, DisplayInfo, SecureHardware, TouchPhase};
 
 /// Files on a 1280 × 800 panel, one pixel per unit, with an Inbox long
 /// enough to scroll, drawn once.

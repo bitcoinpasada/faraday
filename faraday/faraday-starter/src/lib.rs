@@ -1,5 +1,5 @@
 //! The Starter (`docs/STARTER.md`): its state, screens and decisions, with no
-//! I/O. It is an [`osk_shell_api::App`], as `faraday-core`'s `Faraday`
+//! I/O. It is an [`faraday_shell_api::App`], as `faraday-core`'s `Faraday`
 //! is: the shell sends input and display events through [`App::event`],
 //! reads the frame, and takes the drawing commands from
 //! [`App::poll_command`]. What upstream's interface has no event for
@@ -29,8 +29,8 @@ pub fn reason_text(reason: &api::Reason) -> String {
 use std::collections::VecDeque;
 
 use faraday_core::{Action, Faraday, Screen};
-use osk_shell_api::{App, Command, DisplayInfo, Event, Frame, Key, TouchPhase};
-use osk_ui::{Canvas, Rect};
+use faraday_draw::{Canvas, Rect};
+use faraday_shell_api::{App, Command, DisplayInfo, Event, Frame, Key, TouchPhase};
 
 use api::{
     BitLocker, BitLockerStep, Computer, Concern, DevImage, Disk, Installed, Kind, Mode, Os,
@@ -508,7 +508,7 @@ pub struct Starter {
     /// The QR codes of the guide pages the Start page and the restart
     /// sheet put on a phone, by address: made when this computer is
     /// reported ([`Starter::phone_codes_make`]), so drawing makes none.
-    phone_codes: Vec<(String, osk_codec::qr::QrMatrix)>,
+    phone_codes: Vec<(String, faraday_codec::qr::QrMatrix)>,
     /// The disks attached, with the versions read through the elevated
     /// copy this session in place of the shell's unread ones.
     pub disks: Vec<Disk>,
@@ -696,10 +696,10 @@ impl Starter {
             if self.phone_codes.iter().any(|(a, _)| *a == address) {
                 continue;
             }
-            if let Ok(m) = osk_codec::qr::encode(
+            if let Ok(m) = faraday_codec::qr::encode(
                 &c,
-                osk_codec::qr::Payload::Bytes(address.as_bytes()),
-                osk_codec::qr::Ecc::Medium,
+                faraday_codec::qr::Payload::Bytes(address.as_bytes()),
+                faraday_codec::qr::Ecc::Medium,
             ) {
                 self.phone_codes.push((address, m));
             }
@@ -708,7 +708,7 @@ impl Starter {
 
     /// The QR code of guide `address`, made when the computer was
     /// reported ([`Starter::phone_codes_make`]). A lookup.
-    pub(crate) fn phone_code(&self, address: &str) -> Option<&osk_codec::qr::QrMatrix> {
+    pub(crate) fn phone_code(&self, address: &str) -> Option<&faraday_codec::qr::QrMatrix> {
         self.phone_codes
             .iter()
             .find(|(a, _)| a == address)
@@ -1064,8 +1064,8 @@ impl Starter {
                 c.ink()
                     .iter()
                     .filter_map(|i| match &i.kind {
-                        osk_ui::canvas::InkKind::Text { text, .. } => Some(text.clone()),
-                        osk_ui::canvas::InkKind::Icon(_) => None,
+                        faraday_draw::canvas::InkKind::Text { text, .. } => Some(text.clone()),
+                        faraday_draw::canvas::InkKind::Icon(_) => None,
                     })
                     .collect()
             })

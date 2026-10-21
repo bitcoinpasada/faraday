@@ -15,9 +15,9 @@
 //! The tag numbers are those of `urtypes`, the library SeedSigner reads
 //! them with.
 
-use osk_bip::bitcoin::NetworkKind;
-use osk_bip::bitcoin::bip32::{ChainCode, ChildNumber, Fingerprint, Xpub};
-use osk_bip::bitcoin::secp256k1::PublicKey;
+use faraday_bip::bitcoin::NetworkKind;
+use faraday_bip::bitcoin::bip32::{ChainCode, ChildNumber, Fingerprint, Xpub};
+use faraday_bip::bitcoin::secp256k1::PublicKey;
 
 use crate::cbor::Value;
 

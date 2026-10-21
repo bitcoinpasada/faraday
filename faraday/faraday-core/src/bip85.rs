@@ -1,7 +1,7 @@
 //! BIP-85: child seeds, keys, bytes and passwords derived from a loaded
 //! key (`docs/OPENSIGNER-PARITY.md` plan B4). The applications and their
 //! names are OpenSigner's ([`Bip85App`], taken from its app at upstream
-//! `d26b84e`, F68), and every derivation is `osk-bip`'s. Each result is a secret: it goes into
+//! `d26b84e`, F68), and every derivation is `faraday-bip`'s. Each result is a secret: it goes into
 //! the open vault by default (a password as an entry, child words as a
 //! key, anything else as a note), loads as a key, or leaves unprotected
 //! only through the secret sheet (`docs/FLOWS.md` decision 6). The value
@@ -9,11 +9,11 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use faraday_bip::bip39::Language;
+use faraday_bip::bip85;
+use faraday_crypto::work::Compute;
 use faraday_vault::Record;
 use faraday_vault::records::{self, field, kind};
-use osk_bip::bip39::Language;
-use osk_bip::bip85;
-use osk_crypto::work::Compute;
 use zeroize::Zeroizing;
 
 use crate::wallet::fp_text;
@@ -220,7 +220,7 @@ impl Faraday {
         };
         let fp = b
             .key
-            .map(|f| fp_text(osk_bip::keys::Fingerprint(f)))
+            .map(|f| fp_text(faraday_bip::keys::Fingerprint(f)))
             .unwrap_or_default();
         fill(
             EN.bip85_bip_85_index,
@@ -294,7 +294,7 @@ impl Faraday {
         };
         let fp = b
             .key
-            .map(|f| fp_text(osk_bip::keys::Fingerprint(f)))
+            .map(|f| fp_text(faraday_bip::keys::Fingerprint(f)))
             .unwrap_or_default();
         let name = format!(
             "bip85-{fp}-{}-{}.txt",
@@ -383,8 +383,8 @@ impl Faraday {
     }
 
     /// Digits typed into the index. Returns whether the key was taken.
-    pub(crate) fn bip85_key(&mut self, key: osk_shell_api::Key) -> bool {
-        use osk_shell_api::Key as K;
+    pub(crate) fn bip85_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
         if self.screen != Screen::Bip85 {
             return false;
         }

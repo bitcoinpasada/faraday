@@ -8,7 +8,7 @@
 
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
 
 fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = Faraday::new();

@@ -7,7 +7,7 @@ what was done and how; §6 lists what was measured after.
 The owner's ask: scrolling should feel like any modern native app, the
 interface should gain the shadows, fades and transparency a modern app
 has, and Settings gains a light mode. Faraday draws every pixel in
-software (`osk-ui`'s tiny-skia canvas) and the stick writes them to the
+software (`faraday-draw`'s tiny-skia canvas) and the stick writes them to the
 firmware framebuffer, which has no vsync; everything below is designed
 for that.
 
@@ -48,7 +48,7 @@ Causes, in order of how much they are felt:
    and a touchpad pan loses its rounding remainder each pass.
 2. **Frames are slow and unevenly paced.** A rounded rectangle drawn
    inside a clip goes through a panel-sized tiny-skia `Mask`
-   (`core/osk-ui/src/canvas.rs`, `fill_rounded_rect`), about 30 times
+   (`core/faraday-draw/src/canvas.rs`, `fill_rounded_rect`), about 30 times
    slower than without one, and every card, button and pill on a
    scrolled page is drawn inside the scroll region's clip. The stick
    shell draws whenever input arrives, so frames land at irregular
@@ -71,7 +71,7 @@ Causes, in order of how much they are felt:
 
 ## 3. Design
 
-### 3.1 Shell API (`core/osk-shell-api`)
+### 3.1 Shell API (`core/faraday-shell-api`)
 
 New variants only; `Event::Scroll` keeps its meaning (move the content
 by `dy` pixels now), so upstream's cores and shells are unaffected
@@ -246,7 +246,7 @@ extent; a motion left from another screen or sheet is stopped.
   shown while the region moves and fading out over 300 ms after 800 ms
   of rest. Regions that do not overflow show none.
 
-### 3.4 Render cost (`core/osk-ui/src/canvas.rs`)
+### 3.4 Render cost (`core/faraday-draw/src/canvas.rs`)
 
 - **Clipped shapes without a mask.** A shape whose bounds lie inside the
   clip is filled with no mask. A shape whose bounds lie inside the clip's
@@ -517,7 +517,7 @@ User-facing behaviour only (`CLAUDE.md`):
   and `HoverEnd` restores them; hovering does not press.
 - `faraday-core/tests/appearance.rs`: Settings › Light turns the page's
   background light and Dark turns it back; a QR stays black on white.
-- `osk-ui` canvas: a rounded card cut by a scroll region's top and
+- `faraday-draw` canvas: a rounded card cut by a scroll region's top and
   bottom draws the same pixels on the fast path as through the mask.
 - Stick shell: two fingers lifting send `ScrollEnd`; a hi-res wheel's
   half notch scrolls half a notch; the pan carries its remainder.
@@ -533,7 +533,7 @@ Phase 1 — scrolling that is smooth with no change in feel elsewhere:
       the pixel-equality test (`canvas::draw_path`). Backup at
       1920×1080: 11 ms → 3.9 ms a frame.
 - [x] 1.2 Shell API: `Wheel`, `ScrollEnd`, `Hover`, `HoverEnd` (§3.1);
-      upstream's `osk-ui` takes `Wheel` as `Scroll` and ignores the rest.
+      upstream's `faraday-draw` takes `Wheel` as `Scroll` and ignores the rest.
 - [x] 1.3 `motion.rs`: `scroll_slot()`, pixel-rigid offsets, pan, wheel
       glide, keys through the glide, ticks while moving (§3.3). Each
       scrolled screen reports its viewport and extent with
@@ -601,7 +601,7 @@ Phase 3 — appearance:
 - [x] 3.9 No cross-fades (owner, 2026-10-07: they did not look smooth
       enough). A change of screen, sheet, Guided or theme is drawn at
       once; a sheet no longer rises. `Canvas::blend_from` is left in
-      `osk-ui`, unused here.
+      `faraday-draw`, unused here.
 
 Phase 4 — pacing (2026-10-12, owner: scrolling still did not read as
 smooth as a native window):
@@ -653,7 +653,7 @@ Same harness and machine as §2, release profile.
   tiny-skia; a sheet's dim paid it every frame before this work. It is
   blended in `Canvas::fill_rect` now (6 ms), and the dim itself is baked
   into the kept frosted copy, so a sheet's frames pay neither.
-- `osk-ui` at opt-level 3 in release changed none of these numbers, as
+- `faraday-draw` at opt-level 3 in release changed none of these numbers, as
   upstream found (`Cargo.toml`), so the profile is as it was.
 - The frame a sheet opens on costs two frames at 1080p, once.
   Frosting by a coarser reduction would be cheaper still.

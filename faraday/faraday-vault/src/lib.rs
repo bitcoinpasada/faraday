@@ -13,7 +13,7 @@
 //!   copies the other three byte for byte (§5).
 //! - [`records`] is the slot's plaintext: typed records of fields (§7).
 //!
-//! The cryptography is `osk-backup`'s: Argon2id version 1.3 and
+//! The cryptography is `faraday-backup`'s: Argon2id version 1.3 and
 //! XChaCha20-Poly1305, with the working memory asked for rather than
 //! taken. Nothing here draws randomness: the caller passes the seed a new
 //! vault is made from and the nonce a seal uses.
@@ -35,13 +35,13 @@ use chacha20::ChaCha20;
 use chacha20::cipher::{KeyIvInit, StreamCipher};
 use chacha20poly1305::aead::inout::InOutBuf;
 use chacha20poly1305::{AeadInOut, KeyInit, Tag, XChaCha20Poly1305, XNonce};
+use faraday_crypto::work::{Compute, Work};
+use faraday_crypto::{Secret, Zeroize};
 use hmac::{Hmac, KeyInit as HmacInit, Mac};
-use osk_crypto::work::{Compute, Work};
-use osk_crypto::{Secret, Zeroize};
 use sha2::Sha256;
 use zeroize::Zeroizing;
 
-pub use osk_backup::Cost;
+pub use faraday_backup::Cost;
 pub use records::{Contents, Field, Record};
 
 /// The first four bytes of every vault.

@@ -15,9 +15,9 @@ path = "src/main.rs"
 [dependencies]
 faraday-core = { path = "../../faraday-core", features = ["testkit"] }
 faraday-storage = { path = "../../faraday-storage" }
-osk-shell-api = { path = "../../../core/osk-shell-api" }
+faraday-shell-api = { path = "../../../core/faraday-shell-api" }
 # `pin-pages`: the `mlock` that keeps the loaded master keys out of swap.
-osk-crypto = { path = "../../../core/osk-crypto", features = ["pin-pages"] }
+faraday-crypto = { path = "../../../core/faraday-crypto", features = ["pin-pages"] }
 winit.workspace = true
 # The window's pacing, input, drawing and camera, shared with the
 # Starter (faraday/shells/starter).
@@ -27,4 +27,4 @@ faraday-window = { path = "../window" }
 workspace = true
 
 [dev-dependencies]
-osk-bip = { path = "../../../core/osk-bip" }
+faraday-bip = { path = "../../../core/faraday-bip" }

@@ -1,0 +1,397 @@
+//! Start-up self-test (`docs/PLANNING.md` §8.5 #5, §12, §16.139; UX.md
+//! §7.1 A3): a small fixed set of published vectors, run before any key
+//! is accepted. Each check calls the function the product itself calls:
+//! BIP-39 words and seed (PBKDF2-HMAC-SHA512), BIP-32 derivation, a
+//! BIP-84 address, ECDSA and BIP-340 signing, and the two other KDFs,
+//! scrypt and Argon2id. In OpenSigner a failure names the check and
+//! blocks the app; the only way out is Exit.
+//!
+//! The expected values are copied from the vector files the integration
+//! tests use (`tools/vectors/bip39/vectors.json`,
+//! `tools/vectors/bip39/test_JP_BIP39.json`,
+//! `tools/vectors/psbt/rfc6979.txt`, `core/faraday-bip/tests/bip32.rs`,
+//! `core/faraday-bip/tests/accounts.rs`, `tools/vectors/kdf/README.md`) and
+//! from libsecp256k1's copy of the BIP-340 vectors; nothing here is
+//! retyped. The whole set runs in a few milliseconds in a release build:
+//! one PBKDF2 at 2048 rounds per BIP-39 seed, a handful of EC
+//! operations, two signatures, an scrypt at N = 16 and an Argon2id over
+//! 256 KiB.
+//!
+//! The curve context these checks use is randomized like every other in
+//! the product (security review M1), from a fixed seed: a self-test has
+//! no session to derive one from, and what a context is blinded with
+//! cannot change what it computes, which is what the checks are here to
+//! confirm.
+
+#![no_std]
+
+extern crate alloc;
+
+use alloc::string::ToString;
+use alloc::vec::Vec;
+use core::str::FromStr;
+
+use faraday_backup::Cost;
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::keys::{MasterKey, Network, ScriptType};
+use faraday_crypto::work::Compute;
+use faraday_psbt::bitcoin::bip32::{DerivationPath, Xpriv};
+use faraday_psbt::bitcoin::hashes::{Hash, sha256d};
+use faraday_psbt::bitcoin::secp256k1::{All, Keypair, Message, Secp256k1, XOnlyPublicKey};
+use faraday_psbt::bitcoin::{NetworkKind, PrivateKey};
+
+/// One check: a name for the failure screen and the function that runs
+/// it. `true` means passed.
+pub struct Check {
+    /// Shown as `Self-test failed: <name>`.
+    pub name: &'static str,
+    /// The check, given the caller's token for its key work.
+    pub run: fn(&Compute) -> bool,
+}
+
+/// The checks, in the order they run.
+pub const CHECKS: [Check; 8] = [
+    Check {
+        name: "BIP-39 vector (entropy → words → seed)",
+        run: bip39_vector,
+    },
+    Check {
+        name: "BIP-39 Japanese vector (entropy → words → seed)",
+        run: bip39_japanese_vector,
+    },
+    Check {
+        name: "BIP-32 vector 1 (m/0H/1/2H)",
+        run: bip32_vector,
+    },
+    Check {
+        name: "BIP-84 first address",
+        run: bip84_address,
+    },
+    Check {
+        name: "ECDSA sign and verify (RFC 6979)",
+        run: ecdsa_vector,
+    },
+    Check {
+        name: "Schnorr sign and verify (BIP-340)",
+        run: schnorr_vector,
+    },
+    Check {
+        name: "scrypt (RFC 7914)",
+        run: scrypt_vector,
+    },
+    Check {
+        name: "Argon2id",
+        run: argon2id_vector,
+    },
+];
+
+/// The context the signing checks run in: blinded from a fixed seed,
+/// since there is no session here to derive one from.
+fn secp() -> Secp256k1<All> {
+    let mut secp = Secp256k1::new();
+    secp.seeded_randomize(&[0x53; 32]);
+    secp
+}
+
+/// What the self-test found: the number of checks that passed, or the
+/// name of the first that failed.
+pub type Outcome = Result<usize, &'static str>;
+
+/// Costs three PBKDF2s, an scrypt and an Argon2id at small costs, a few
+/// key derivations and two signatures: runs [`CHECKS`].
+pub fn run(c: &Compute) -> Outcome {
+    run_checks(c, &CHECKS)
+}
+
+/// Costs what the checks cost: runs `checks` in order and stops at the
+/// first failure.
+pub fn run_checks(c: &Compute, checks: &[Check]) -> Outcome {
+    for check in checks {
+        if !(check.run)(c) {
+            return Err(check.name);
+        }
+    }
+    Ok(checks.len())
+}
+
+// ----- BIP-39: Trezor vector 0, passphrase TREZOR -----
+
+const BIP39_ENTROPY: &str = "00000000000000000000000000000000";
+const BIP39_MNEMONIC: &str =
+    "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+const BIP39_SEED: &str = "c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04";
+const BIP39_PASSPHRASE: &[u8] = b"TREZOR";
+
+/// Costs a PBKDF2 (through `to_seed`).
+fn bip39_vector(c: &Compute) -> bool {
+    let Some(entropy) = unhex(BIP39_ENTROPY) else {
+        return false;
+    };
+    let Ok(m) = Mnemonic::from_entropy(Language::English, &entropy) else {
+        return false;
+    };
+    let words: Vec<&str> = m
+        .indices()
+        .iter()
+        .map(|&i| Language::English.word(i))
+        .collect();
+    if words.join(" ") != BIP39_MNEMONIC {
+        return false;
+    }
+    let Ok(seed) = m.to_seed(c, BIP39_PASSPHRASE) else {
+        return false;
+    };
+    unhex(BIP39_SEED).as_deref() == Some(&seed.expose()[..])
+}
+
+// ----- BIP-39: bip32JP vector 0, a non-Latin wordlist and a non-ASCII
+// passphrase (`tools/vectors/bip39/test_JP_BIP39.json`, first entry) -----
+//
+// The words are written as a reader sees them, with the ideographic
+// space the Japanese list is displayed with. The passphrase is not
+// ASCII, so it is stated in the NFKD form BIP-39 hashes — the same bytes
+// `core/faraday-bip/tests/vectors.rs` derives from the file — and goes
+// through `to_seed_unchecked`, which is that form without the ASCII
+// check.
+
+const BIP39_JP_ENTROPY: &str = "00000000000000000000000000000000";
+const BIP39_JP_MNEMONIC: &str = "あいこくしん　あいこくしん　あいこくしん　あいこくしん　あいこくしん　あいこくしん　あいこくしん　あいこくしん　あいこくしん　あいこくしん　あいこくしん　あおぞら";
+const BIP39_JP_PASSPHRASE_NFKD: &str = "e383a1e383bce38388e383abe382abe38299e3838fe38299e382a6e38299e382a1\
+    e381afe3829ae381afe38299e3818fe38299e3829de38299e381a1e381a1e38299e58d81e4babae58d81e889b2";
+const BIP39_JP_SEED: &str = "a262d6fb6122ecf45be09c50492b31f92e9beb7d9a845987a02cefda57a15f9c467a17872029a9e92299b5cbdf306e3a0ee620245cbd508959b6cb7ca637bd55";
+
+/// Costs a PBKDF2 (through `to_seed_unchecked`).
+fn bip39_japanese_vector(c: &Compute) -> bool {
+    let Some(entropy) = unhex(BIP39_JP_ENTROPY) else {
+        return false;
+    };
+    let Ok(m) = Mnemonic::from_entropy(Language::Japanese, &entropy) else {
+        return false;
+    };
+    let words: Vec<&str> = m
+        .indices()
+        .iter()
+        .map(|&i| Language::Japanese.word_display(i))
+        .collect();
+    if words.join(Language::Japanese.separator()) != BIP39_JP_MNEMONIC {
+        return false;
+    }
+    let Some(passphrase) = unhex(BIP39_JP_PASSPHRASE_NFKD) else {
+        return false;
+    };
+    let Ok(seed) = m.to_seed_unchecked(c, &passphrase) else {
+        return false;
+    };
+    unhex(BIP39_JP_SEED).as_deref() == Some(&seed.expose()[..])
+}
+
+// ----- BIP-32: vector 1, chain m/0H/1/2H -----
+
+const BIP32_SEED: &str = "000102030405060708090a0b0c0d0e0f";
+const BIP32_PATH: &str = "m/0h/1/2h";
+const BIP32_XPUB: &str = "xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5";
+
+/// Costs what `from_xpriv`, `derive` and `to_xpub` cost.
+fn bip32_vector(c: &Compute) -> bool {
+    let Some(seed) = unhex(BIP32_SEED) else {
+        return false;
+    };
+    let Ok(xpriv) = Xpriv::new_master(NetworkKind::Main, &seed) else {
+        return false;
+    };
+    let Ok(master) = MasterKey::from_xpriv(c, xpriv) else {
+        return false;
+    };
+    let Ok(path) = DerivationPath::from_str(BIP32_PATH) else {
+        return false;
+    };
+    master.derive(c, &path).to_xpub(c).to_string() == BIP32_XPUB
+}
+
+// ----- BIP-84: first receive address of the "abandon … about" seed -----
+
+const BIP84_ADDRESS: &str = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu";
+
+/// Costs what `parse`, `to_seed`, `from_seed` and the rest it calls
+/// cost.
+fn bip84_address(c: &Compute) -> bool {
+    let Ok(m) = Mnemonic::parse(c, Language::English, BIP39_MNEMONIC) else {
+        return false;
+    };
+    let Ok(seed) = m.to_seed(c, b"") else {
+        return false;
+    };
+    let master = MasterKey::from_seed(c, &seed, Network::Mainnet);
+    let Ok(account) = master.account_xpub(c, ScriptType::NativeSegwit, 0) else {
+        return false;
+    };
+    account
+        .address(false, 0)
+        .is_ok_and(|a| a.to_string() == BIP84_ADDRESS)
+}
+
+// ----- ECDSA: Bitcoin Core key_tests strSecret1C over SHA256d(message) -----
+
+const ECDSA_WIF: &str = "Kwr371tjA9u2rFSMZjTNun2PXXP3WPZu2afRHTcta6KxEUdm1vEw";
+const ECDSA_MESSAGE: &[u8] = b"Very deterministic message";
+const ECDSA_DER: &str = "304402205dbbddda71772d95ce91cd2d14b592cfbc1dd0aabd6a394b6c2d377bbe59d31d022014ddda21494a4e221f0824f0b8b924c43fa43c0ad57dccdaa11f81a6bd4582f6";
+
+/// Costs an ECDSA signature and its check; takes the token as every
+/// check does.
+fn ecdsa_vector(_c: &Compute) -> bool {
+    let Ok(key) = PrivateKey::from_wif(ECDSA_WIF) else {
+        return false;
+    };
+    let secp = secp();
+    let msg = Message::from_digest(sha256d::Hash::hash(ECDSA_MESSAGE).to_byte_array());
+    let sig = secp.sign_ecdsa(&msg, &key.inner);
+    if unhex(ECDSA_DER).as_deref() != Some(&sig.serialize_der()[..]) {
+        return false;
+    }
+    secp.verify_ecdsa(&msg, &sig, &key.public_key(&secp).inner)
+        .is_ok()
+}
+
+// ----- BIP-340: test vector 1, copied from libsecp256k1's own copy of
+// the BIP's vectors (secp256k1/src/modules/schnorrsig/tests_impl.h) -----
+//
+// The vector fixes the auxiliary randomness, so the signature is a fixed
+// 64 bytes. Taproot signing in this product uses none (§16.14), which is
+// the same code path with the aux hashed as zeros; what this check
+// covers is that the curve library signs and verifies BIP-340 as
+// published.
+
+const SCHNORR_SECRET: &str = "b7e151628aed2a6abf7158809cf4f3c762e7160f38b4da56a784d9045190cfef";
+const SCHNORR_PUBLIC: &str = "dff1d77f2a671c5f36183726db2341be58feae1da2deced843240f7b502ba659";
+const SCHNORR_AUX: &str = "0000000000000000000000000000000000000000000000000000000000000001";
+const SCHNORR_MESSAGE: &str = "243f6a8885a308d313198a2e03707344a4093822299f31d0082efa98ec4e6c89";
+const SCHNORR_SIG: &str = "6896bd60eeae296db48a229ff71dfe071bde413e6d43f917dc8dcf8c78de3341\
+    8906d11ac976abccb20b091292bff4ea897efcb639ea871cfa95f6de339e4b0a";
+
+/// Costs a BIP-340 signature and its check; takes the token as every
+/// check does.
+fn schnorr_vector(_c: &Compute) -> bool {
+    let (Some(secret), Some(public), Some(aux), Some(message), Some(expected)) = (
+        unhex(SCHNORR_SECRET),
+        unhex(SCHNORR_PUBLIC),
+        unhex(SCHNORR_AUX),
+        unhex(SCHNORR_MESSAGE),
+        unhex(SCHNORR_SIG),
+    ) else {
+        return false;
+    };
+    let (Ok(digest), Ok(aux)) = (
+        <[u8; 32]>::try_from(&message[..]),
+        <[u8; 32]>::try_from(&aux[..]),
+    ) else {
+        return false;
+    };
+    let secp = secp();
+    let Ok(mut keypair) = Keypair::from_seckey_slice(&secp, &secret) else {
+        return false;
+    };
+    let Ok(expected_key) = XOnlyPublicKey::from_slice(&public) else {
+        return false;
+    };
+    let msg = Message::from_digest(digest);
+    let (key, _) = keypair.x_only_public_key();
+    let sig = secp.sign_schnorr_with_aux_rand(&msg, &keypair, &aux);
+    keypair.non_secure_erase();
+    key == expected_key
+        && sig.serialize()[..] == expected[..]
+        && secp.verify_schnorr(&sig, &msg, &key).is_ok()
+}
+
+// ----- scrypt: RFC 7914 §12, the first vector -----
+//
+// The KDF of an LND cipher seed (aezeed), at the RFC's own N = 16 rather
+// than aezeed's 32768, so the check costs microseconds.
+
+const SCRYPT_KEY: &str = "77d6576238657b203b19ca42c18a0497f16b4844e3074ae8dfdffa3fede2144\
+    2fcd0069ded0948f8326a753a0fc81f17e8d3e0fb2e0d3628cf35e20c38d18906";
+
+/// Costs an scrypt run (through `scrypt`).
+fn scrypt_vector(c: &Compute) -> bool {
+    let mut out = [0u8; 64];
+    if faraday_crypto::scrypt(c, b"", b"", 16, 1, 1, &mut out).is_err() {
+        return false;
+    }
+    unhex(SCRYPT_KEY).as_deref() == Some(&out[..])
+}
+
+// ----- Argon2id: the known answer in `tools/vectors/kdf/README.md` -----
+//
+// The KDF of an `.oskb` file, a KDBX database and the kept-key
+// blob, all three through `faraday_backup::argon2id`, at 256 KiB rather than
+// their 64 MiB. The answer is the reference C implementation's
+// (argon2-cffi) and OpenSSL's, which agree.
+
+const ARGON2ID_COST: Cost = Cost {
+    memory_kib: 256,
+    passes: 2,
+    lanes: 1,
+};
+const ARGON2ID_PASSWORD: &[u8] = b"password";
+const ARGON2ID_SALT: &[u8] = b"somesaltsomesalt";
+const ARGON2ID_KEY: &str = "cab746b4621993fdc91ec50787980b414a90a692f0bc68dfe19f9c25b3cba9ec";
+
+/// Costs an Argon2id run (through `argon2id`).
+fn argon2id_vector(c: &Compute) -> bool {
+    let Ok(key) = faraday_backup::argon2id(c, &ARGON2ID_COST, ARGON2ID_PASSWORD, ARGON2ID_SALT)
+    else {
+        return false;
+    };
+    unhex(ARGON2ID_KEY).as_deref() == Some(&key.expose()[..])
+}
+
+fn unhex(s: &str) -> Option<Vec<u8>> {
+    if !s.len().is_multiple_of(2) {
+        return None;
+    }
+    s.as_bytes()
+        .chunks(2)
+        .map(|pair| {
+            let hi = (pair[0] as char).to_digit(16)?;
+            let lo = (pair[1] as char).to_digit(16)?;
+            Some((hi * 16 + lo) as u8)
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_check_passes_on_its_own() {
+        let c = Compute::unchecked();
+        for check in &CHECKS {
+            assert!((check.run)(&c), "{}", check.name);
+        }
+        assert_eq!(run(&c), Ok(CHECKS.len()));
+    }
+
+    #[test]
+    fn the_first_failure_is_named() {
+        fn ok(_c: &Compute) -> bool {
+            true
+        }
+        fn bad(_c: &Compute) -> bool {
+            false
+        }
+        let checks = [
+            Check { name: "a", run: ok },
+            Check {
+                name: "b",
+                run: bad,
+            },
+            Check {
+                name: "c",
+                run: bad,
+            },
+        ];
+        let c = Compute::unchecked();
+        assert_eq!(run_checks(&c, &checks), Err("b"));
+        assert_eq!(run_checks(&c, &checks[..1]), Ok(1));
+    }
+}

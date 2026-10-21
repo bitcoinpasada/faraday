@@ -24,7 +24,7 @@
 
 use std::time::{Duration, Instant};
 
-use osk_shell_api::{Event, TouchPhase};
+use faraday_shell_api::{Event, TouchPhase};
 
 use crate::fb::{self, Geometry};
 use crate::pointer::{Finger, Motion};

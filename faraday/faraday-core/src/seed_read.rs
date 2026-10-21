@@ -22,10 +22,10 @@
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_bip::keys::Fingerprint;
-use osk_crypto::work::Compute;
-use osk_shell_api::Key as KeyIn;
-use osk_ui::widgets::Icon;
+use faraday_bip::keys::Fingerprint;
+use faraday_crypto::work::Compute;
+use faraday_draw::widgets::Icon;
+use faraday_shell_api::Key as KeyIn;
 
 use crate::scan_key::{Found, key_of};
 use crate::screens::{pass_field, sheet_box, wrap_buttons};
@@ -138,7 +138,8 @@ impl Faraday {
     pub(crate) fn seed_read_open(&mut self, words: &str) {
         let c = self.compute();
         self.scan = None;
-        self.commands.push_back(osk_shell_api::Command::CameraOff);
+        self.commands
+            .push_back(faraday_shell_api::Command::CameraOff);
         let Some(plain) = key_of(&c, words, "") else {
             self.sheet = None;
             self.seed_read_load(words, "");
@@ -158,7 +159,8 @@ impl Faraday {
     pub(crate) fn seed_read_for_wallet(&mut self, words: &str, w: usize, reason: String) {
         let c = self.compute();
         self.scan = None;
-        self.commands.push_back(osk_shell_api::Command::CameraOff);
+        self.commands
+            .push_back(faraday_shell_api::Command::CameraOff);
         self.seed_read = Some(SeedRead {
             words: SecretText::of(words),
             plain: key_of(&c, words, ""),
@@ -571,7 +573,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let sw = 600.0;
     let (ix, iw) = (32.0, sw - 64.0);
     // Measured first, out of sight, for the sheet's height.
-    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
     let body_h = body(ui, 0.0, 0.0, iw);
     let buttons_h = wrap_buttons(ui, 0.0, 0.0, iw, 44.0, &items);
     ui.c.pop_clip();

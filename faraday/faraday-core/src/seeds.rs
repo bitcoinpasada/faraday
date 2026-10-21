@@ -14,7 +14,7 @@ use crate::strings::EN;
 use crate::strings::fill;
 use crate::wallet::FileKind;
 use crate::{Faraday, Screen, family};
-use osk_crypto::work::Compute;
+use faraday_crypto::work::Compute;
 
 /// The kinds a wallet of one key can be.
 pub const SINGLE: [NewKind; 4] = family::SINGLE;
@@ -117,7 +117,7 @@ impl SeedsState {
     }
 
     /// The path the seeds' keys are taken at.
-    pub fn path(&self, network: osk_bip::keys::Network) -> String {
+    pub fn path(&self, network: faraday_bip::keys::Network) -> String {
         match &self.custom {
             Some(p) => p.clone(),
             None => self.kind.path_at(network, self.account),
@@ -288,8 +288,8 @@ pub fn cosigner_key(text: &str) -> Option<String> {
         .strip_suffix("/0/*")
         .or_else(|| t.strip_suffix("/*"))
         .unwrap_or(t);
-    let line = osk_bip::slip132::key_line(t)?.ok()?;
-    osk_bip::policy::PolicyKey::parse(&line.text)
+    let line = faraday_bip::slip132::key_line(t)?.ok()?;
+    faraday_bip::policy::PolicyKey::parse(&line.text)
         .ok()
         .map(|k| k.key_text())
 }
@@ -356,7 +356,7 @@ impl Faraday {
     /// A key added from Add a key, or scanned, that `back` returns to: a
     /// seed of Restore's seeds-first route or of the Spend tab's words
     /// route.
-    pub(crate) fn seeds_took(&mut self, fp: osk_bip::keys::Fingerprint, back: Option<Screen>) {
+    pub(crate) fn seeds_took(&mut self, fp: faraday_bip::keys::Fingerprint, back: Option<Screen>) {
         match back {
             Some(Screen::Restore) => self.restore_took(fp),
             // On What do you have? with no wallet open yet: the seeds
@@ -481,7 +481,7 @@ impl Faraday {
             match cosigner_key(c) {
                 Some(key) => {
                     // A key of the other network makes no wallet here.
-                    if let Ok(k) = osk_bip::policy::PolicyKey::parse(&key) {
+                    if let Ok(k) = faraday_bip::policy::PolicyKey::parse(&key) {
                         let kn = crate::wallet::network_of_key(&k, net);
                         if kn.is_mainnet() != net.is_mainnet() {
                             return Err(fill(
@@ -577,10 +577,10 @@ impl Faraday {
         }
         if let S::UseLoaded(fp) = a {
             // With words and no passphrase, asked whether it has one.
-            if self.seed_read_loaded(osk_bip::keys::Fingerprint(fp)) {
+            if self.seed_read_loaded(faraday_bip::keys::Fingerprint(fp)) {
                 return;
             }
-            self.seeds_took(osk_bip::keys::Fingerprint(fp), Some(self.screen));
+            self.seeds_took(faraday_bip::keys::Fingerprint(fp), Some(self.screen));
             if self.screen == Screen::Family {
                 self.family_key_added();
             }
@@ -749,8 +749,8 @@ impl Faraday {
 
     /// Typing into the piece's boxes, and the arrow keys on its slider.
     /// Returns whether the key was taken.
-    pub(crate) fn seeds_key(&mut self, key: osk_shell_api::Key) -> bool {
-        use osk_shell_api::Key as K;
+    pub(crate) fn seeds_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
         let Some(s) = self.seeds() else {
             return false;
         };

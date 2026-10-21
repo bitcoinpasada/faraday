@@ -9,7 +9,7 @@ mod common;
 use faraday_core::keygen::Way;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen};
-use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 fn type_text(app: &mut Faraday, text: &str) {
     for c in text.chars() {

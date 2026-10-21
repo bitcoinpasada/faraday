@@ -3,7 +3,7 @@
 //! The scanner reads the reduced luma; the stick's camera reduces each
 //! frame with these before the core sees it.
 
-use osk_ui::tokens;
+use faraday_draw::tokens;
 
 /// The factor a frame `width` by `height` is reduced by so that its
 /// shorter side is at most [`tokens::PREVIEW_MAX`] pixels.

@@ -19,8 +19,8 @@ use faraday_core::vaults::VaultAction as V;
 use faraday_core::wallet::{FileKind, classify};
 use faraday_core::{Action, Faraday, Item, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
 use faraday_pgp::{Armor, Hash, armor, armor_with};
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 use faraday_vault::records::kind;
-use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 /// The clock the tests start at: October 2026.
 const CLOCK: u64 = 1_791_482_652;
@@ -1002,7 +1002,7 @@ fn the_signature_code_follows_the_file_not_its_place() {
         Armor::Signature,
         &key.sign(&release_files()[0].1, now, Hash::Sha512),
     );
-    let png = osk_codec::png::qr_png(&q.frames[0], 4);
+    let png = faraday_codec::png::qr_png(&q.frames[0], 4);
     let payloads = faraday_files::qr_in_png(&c, &png).unwrap();
     assert_eq!(
         String::from_utf8(payloads[0].clone()).unwrap().trim(),

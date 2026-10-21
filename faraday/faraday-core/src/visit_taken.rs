@@ -9,7 +9,7 @@
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_ui::widgets::Icon;
+use faraday_draw::widgets::Icon;
 
 use crate::compact::{buttons, scroll_sheet};
 use crate::ui::pal::*;

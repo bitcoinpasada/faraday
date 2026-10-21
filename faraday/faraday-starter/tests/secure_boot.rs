@@ -4,12 +4,12 @@
 //! Boot off. Another encryption product still closes the firmware steps
 //! until its rescue is confirmed (§6.4).
 
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::api::{
     Bus, Computer, Disk, FaradayStick, InstallItem, Installed, Os, StarterCommand, StarterEvent,
 };
 use faraday_starter::decide::Item;
 use faraday_starter::{Page, RestartTo, Sheet, Starter, StarterAction};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 fn display() -> Event {
     Event::Display(DisplayInfo {

@@ -1,0 +1,21 @@
+[package]
+name = "faraday-selftest"
+version = "0.1.0"
+description = "The start-up self-test of OpenSignerKit: published vectors for BIP-39, BIP-32, ECDSA, BIP-340 and the KDFs, run before any key is accepted"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+faraday-backup = { path = "../faraday-backup" }
+faraday-bip = { path = "../faraday-bip" }
+faraday-crypto = { path = "../faraday-crypto" }
+faraday-psbt = { path = "../faraday-psbt" }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+# A token that counts nothing, for the tests (docs/COMPUTE.md §3).
+faraday-crypto = { path = "../faraday-crypto", features = ["unchecked"] }

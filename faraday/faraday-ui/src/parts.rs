@@ -89,7 +89,7 @@ pub fn wrap_buttons_height<A: Copy + PartialEq>(
 /// card is measured with before its surface goes down.
 pub fn measured<A: Copy + PartialEq>(ui: &mut Ui<A>, draw: impl FnOnce(&mut Ui<A>) -> f32) -> f32 {
     let mark = ui.hits.len();
-    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
     let h = draw(ui);
     ui.c.pop_clip();
     ui.hits.truncate(mark);
@@ -104,7 +104,7 @@ pub fn measure_wrap<A: Copy + PartialEq>(
     w: W,
     s: &str,
 ) -> f32 {
-    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
     let h = ui.wrap(0.0, 0.0, width, size, w, TEXT, s);
     ui.c.pop_clip();
     h
@@ -134,12 +134,12 @@ pub fn sheet_box<A: Copy + PartialEq>(
 /// A QR code on a white card, square modules, the quiet zone included.
 pub fn qr_code<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
-    m: &osk_codec::qr::QrMatrix,
+    m: &faraday_codec::qr::QrMatrix,
     x: f32,
     y: f32,
     side: f32,
 ) {
-    ui.fill(x, y, side, side, 8.0, osk_ui::Color::WHITE);
+    ui.fill(x, y, side, side, 8.0, faraday_draw::Color::WHITE);
     let n = m.size();
     let quiet = 4.0;
     // Whole pixels per module, so every module is the same size.
@@ -157,13 +157,13 @@ pub fn qr_code<A: Copy + PartialEq>(
                 while col < n && m.module(col, row) {
                     col += 1;
                 }
-                let rect = osk_ui::Rect::new(
+                let rect = faraday_draw::Rect::new(
                     ox + start as i32 * module_px,
                     oy + row as i32 * module_px,
                     (col - start) as i32 * module_px,
                     module_px,
                 );
-                ui.c.fill_rect(rect, osk_ui::Color::BLACK);
+                ui.c.fill_rect(rect, faraday_draw::Color::BLACK);
             } else {
                 col += 1;
             }
@@ -184,7 +184,7 @@ pub const STEP_TOUCH: f32 = 44.0;
 
 /// A ticked step's green: one colour in every theme, so the number in
 /// white reads on it.
-pub const STEP_DONE: osk_ui::Color = osk_ui::Color::rgb(0x1d, 0x85, 0x56);
+pub const STEP_DONE: faraday_draw::Color = faraday_draw::Color::rgb(0x1d, 0x85, 0x56);
 
 /// A guide step's number in a circle, its top-left at (x, y): outlined
 /// while it is to do, filled green with the number in white once
@@ -205,7 +205,7 @@ pub fn step_circle<A: Copy + PartialEq>(
     let pressed = action.is_some_and(|a| ui.is_pressed(a));
     let fg = if ticked {
         ui.dot(x + r, y + r, r, STEP_DONE);
-        osk_ui::Color::WHITE
+        faraday_draw::Color::WHITE
     } else {
         if pressed {
             ui.dot(x + r, y + r, r, INNER);

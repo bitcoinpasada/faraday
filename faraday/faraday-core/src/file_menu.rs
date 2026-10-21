@@ -17,10 +17,10 @@
 //! kind line, the size in bytes and the SHA-256 in groups of eight.
 
 use crate::strings::fill;
-use osk_crypto::work::Compute;
-use osk_shell_api::Key as KeyIn;
-use osk_ui::tokens;
-use osk_ui::widgets::Icon;
+use faraday_crypto::work::Compute;
+use faraday_draw::tokens;
+use faraday_draw::widgets::Icon;
+use faraday_shell_api::Key as KeyIn;
 
 use crate::compact::{buttons, scroll_sheet};
 use crate::drawing::View;

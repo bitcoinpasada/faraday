@@ -16,7 +16,7 @@ use faraday_core::create::NewKind;
 use faraday_core::{
     Action, BOOT_FOLDER, Faraday, Medium, Screen, SticksWanted, StorageEvent, cstep,
 };
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 /// A desktop app with the boot stick and Stick 2 in, as the desktop
 /// starts.

@@ -15,7 +15,7 @@ use faraday_core::devices::{
 };
 use faraday_core::edid::from_boot_params;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent};
-use osk_shell_api::{App, DisplayInfo, Event};
+use faraday_shell_api::{App, DisplayInfo, Event};
 
 const CPU: &str = "processor\t: 0\nflags\t\t: fpu vme de pse tsc msr\n";
 const CPU_VM: &str = "processor\t: 0\nflags\t\t: fpu vme de pse tsc msr hypervisor\n";
@@ -199,8 +199,8 @@ fn shown(machine: DeviceCheck) -> Faraday {
         inset_top: 0,
         buttons: 0,
         camera_fixed: false,
-        secure: osk_shell_api::SecureHardware::None,
-        boot: osk_shell_api::BootState::Unknown,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
         memory_mib: None,
     }));
     app.devices = machine;

@@ -13,7 +13,7 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use osk_bip::bip39::{Language, Mnemonic};
+use faraday_bip::bip39::{Language, Mnemonic};
 use zeroize::Zeroizing;
 
 use crate::Error;
@@ -63,7 +63,7 @@ pub mod field {
     /// Slot label: the label.
     pub const LABEL: u8 = 1;
 
-    /// Bitcoin key: the `osk-backup` kind-1 or kind-2 payload.
+    /// Bitcoin key: the `.oskb` kind-1 or kind-2 payload.
     pub const KEY: u8 = 1;
     /// Bitcoin key: what the person calls it.
     pub const KEY_LABEL: u8 = 2;
@@ -84,7 +84,7 @@ pub mod field {
 
     /// Note: the text.
     pub const NOTE: u8 = 1;
-    /// Recovery sheet: the `osk-backup` kind-4 payload.
+    /// Recovery sheet: the `.oskb` kind-4 payload.
     pub const SHEET: u8 = 1;
 
     /// Entry: title.
@@ -106,7 +106,7 @@ pub mod field {
     pub const ROUND_TX: u8 = 2;
     /// Signing round: the fingerprint of the key that signed with it.
     pub const ROUND_KEY: u8 = 3;
-    /// Signing round: the secret state, as `osk-psbt` serialises it (for
+    /// Signing round: the secret state, as `faraday-psbt` serialises it (for
     /// FROST, the carry file).
     pub const ROUND_STATE: u8 = 4;
     /// Signing round: set when the round has been used.
@@ -441,17 +441,17 @@ impl Record {
             && let Some(payload) = self.field(field::KEY)
         {
             let k = if payload.len() == 34 {
-                osk_backup::oskb::KIND_WORDS
+                faraday_backup::oskb::KIND_WORDS
             } else {
-                osk_backup::oskb::KIND_SEED
+                faraday_backup::oskb::KIND_SEED
             };
-            if osk_backup::oskb::payload_of(k, payload).is_none() {
+            if faraday_backup::oskb::payload_of(k, payload).is_none() {
                 return Err(Fault::Value(self.kind, field::KEY));
             }
         }
         if self.kind == kind::SHEET
             && let Some(payload) = self.field(field::SHEET)
-            && osk_backup::oskb::payload_of(osk_backup::oskb::KIND_SHEET, payload).is_none()
+            && faraday_backup::oskb::payload_of(faraday_backup::oskb::KIND_SHEET, payload).is_none()
         {
             return Err(Fault::Value(self.kind, field::SHEET));
         }
@@ -616,7 +616,7 @@ pub fn set_loads_at_unlock(record: &mut Record, loads: bool) {
     }
 }
 
-/// A key's words as the `osk-backup` kind-1 payload a key record holds:
+/// A key's words as the `.oskb` kind-1 payload a key record holds:
 /// the word count, the wordlist, and the entropy padded to 32 bytes.
 pub fn words_payload(m: &Mnemonic) -> Zeroizing<Vec<u8>> {
     let entropy = m.entropy();
@@ -635,8 +635,8 @@ pub fn words_payload(m: &Mnemonic) -> Zeroizing<Vec<u8>> {
 /// The words a key record holds, when it holds words rather than a seed.
 pub fn words_of(record: &Record) -> Option<Mnemonic> {
     let payload = record.field(field::KEY)?;
-    match osk_backup::oskb::payload_of(osk_backup::oskb::KIND_WORDS, payload)? {
-        osk_backup::oskb::Opened::Words(m) => Some(m),
+    match faraday_backup::oskb::payload_of(faraday_backup::oskb::KIND_WORDS, payload)? {
+        faraday_backup::oskb::Opened::Words(m) => Some(m),
         _ => None,
     }
 }

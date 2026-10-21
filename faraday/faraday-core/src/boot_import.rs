@@ -10,7 +10,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_crypto::work::Compute;
+use faraday_crypto::work::Compute;
 use std::collections::BTreeSet;
 
 use crate::inbox::SeedSource;

@@ -7,13 +7,13 @@
 mod common;
 
 use common::*;
+use faraday_bip::bitcoin::hashes::{Hash, sha256};
 use faraday_core::backup_flow::{Kind, Problem, Step, Target};
 use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet};
+use faraday_shell_api::App;
 use faraday_vault::records::kind;
-use osk_bip::bitcoin::hashes::{Hash, sha256};
-use osk_shell_api::App;
 
 const PHRASE: &str = "first vault phrase";
 const PHRASE_2: &str = "second vault phrase";
@@ -1160,7 +1160,7 @@ fn enter_in_the_make_form_makes_the_key_and_adds_no_stray_record() {
     type_text(&mut app, "Release");
     app.press(Action::Vault(V::FocusField(1)));
     type_text(&mut app, "release@example.org");
-    app.event(osk_shell_api::Event::Key(osk_shell_api::Key::Enter));
+    app.event(faraday_shell_api::Event::Key(faraday_shell_api::Key::Enter));
     assert!(app.flow().unwrap().made, "{:?}", app.toast_text());
     let n: usize = app
         .vaults

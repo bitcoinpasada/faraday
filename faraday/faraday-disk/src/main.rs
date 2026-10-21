@@ -31,7 +31,7 @@ macro_rules! say {
     }};
 }
 
-use osk_crypto::work::Compute;
+use faraday_crypto::work::Compute;
 use std::fs::{File, OpenOptions};
 use std::path::Path;
 use std::process::ExitCode;
@@ -72,7 +72,7 @@ fn pictures(now: Now) -> Sender<(u64, u32, Vec<u8>)> {
             clippy::disallowed_methods,
             reason = "a mint: the disk process's pictures thread, which draws nothing (docs/COMPUTE.md §3)"
         )]
-        let c = osk_crypto::work::Compute::new(|_| {});
+        let c = faraday_crypto::work::Compute::new(|_| {});
         for (talk, seq, mut bytes) in asked {
             let current = now
                 .lock()

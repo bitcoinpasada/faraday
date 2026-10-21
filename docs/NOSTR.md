@@ -69,8 +69,8 @@ Signing Nostr events is not part of this spec; it is a later item.
 - The reading rules for `nsec`, `npub` and `ncryptsec` text are
   `faraday/faraday-intake/src/nostr.rs`, which the device reads
   (§2.4). The derivation and NIP-49 are
-  `faraday/faraday-core/src/nostr.rs`, over `osk-bip`'s public key
-  derivation and `osk-crypto`'s HMAC and scrypt; Bech32 is `bitcoin`'s.
+  `faraday/faraday-core/src/nostr.rs`, over `faraday-bip`'s public key
+  derivation and `faraday-crypto`'s HMAC and scrypt; Bech32 is `bitcoin`'s.
   No new crate enters the graph (§2.3, §6.4).
 
 ## 2. The key
@@ -91,7 +91,7 @@ line 426):
    application: the screen says "Not a valid key; use the next account"
    and shows no value. The chance is below 1 in 2¹²⁷.
 
-Identity and account are each 1 to 2³¹ − 1 (`osk_bip::bip85::MAX_INDEX`).
+Identity and account are each 1 to 2³¹ − 1 (`faraday_bip::bip85::MAX_INDEX`).
 
 ### 2.2 Encoding
 
@@ -100,21 +100,21 @@ Identity and account are each 1 to 2³¹ − 1 (`osk_bip::bip85::MAX_INDEX`).
 - **npub**: NIP-19 Bech32 of the 32-byte x-only public key (BIP-340),
   HRP `npub`, lower case. The x-only key does not depend on the
   public key's y parity.
-- Bech32 from `osk_bip::bitcoin::bech32` (bech32 0.11, already in the
+- Bech32 from `faraday_bip::bitcoin::bech32` (bech32 0.11, already in the
   graph through `bitcoin`). The x-only key from `bitcoin`'s secp256k1,
   through the derived key's own context.
 
 ### 2.3 Where the code lives
 
-`osk-bip`'s BIP-85 derivation (`derive`, its 64-byte `Bytes`) is
+`faraday-bip`'s BIP-85 derivation (`derive`, its 64-byte `Bytes`) is
 private, and its public functions are the six applications. Faraday
 does not make it public, which would be an edit to `core/`. The public
 pieces are enough, about twenty lines:
 
-- `osk_bip::keys::MasterKey::derive(&DerivationPath)` →
+- `faraday_bip::keys::MasterKey::derive(&DerivationPath)` →
   `DerivedKey::secret_key()` (and `DerivedKey::secp()`);
-- `osk_crypto::hmac_sha512(b"bip-entropy-from-k", k)`;
-- `osk_bip::bitcoin::secp256k1::SecretKey::from_slice` for step 4.
+- `faraday_crypto::hmac_sha512(b"bip-entropy-from-k", k)`;
+- `faraday_bip::bitcoin::secp256k1::SecretKey::from_slice` for step 4.
 
 `faraday/faraday-core/src/nostr.rs` holds:
 
@@ -129,7 +129,7 @@ pieces are enough, about twenty lines:
 
 Every intermediate (the derived private key, the 64 bytes, the 32-byte
 secret, a `SecretKey` through `non_secure_erase`) is zeroized before
-the function returns, as `osk-bip`'s own BIP-85 code does. When
+the function returns, as `faraday-bip`'s own BIP-85 code does. When
 OpenSigner adds the application, Faraday moves to its function and
 `nostr.rs` keeps only the encodings.
 
@@ -439,8 +439,8 @@ As NIP-49 writes it:
 | Ciphertext | XChaCha20-Poly1305 of the 32-byte secret, 48 bytes |
 
 - The symmetric key is `scrypt(password, salt, N, 8, 1)`, 32 bytes, from
-  `osk_crypto::scrypt`. The caller zeroizes it after use
-  (`osk_crypto::scrypt` zeroizes its own working memory, not its
+  `faraday_crypto::scrypt`. The caller zeroizes it after use
+  (`faraday_crypto::scrypt` zeroizes its own working memory, not its
   output), and zeroizes the password's copy, the plaintext secret and
   the decrypted copy.
 - The 40 random bytes come from one fresh draw (`Faraday::fresh`,
@@ -462,14 +462,14 @@ cannot make; `0x00` would be untrue of most keys.
 
 | Need | Where it comes from | Cost |
 |---|---|---|
-| scrypt | `osk_crypto::scrypt`, written in the tree for LND's aezeed (`docs/PLANNING.md` §16.116) | None. No `scrypt` crate is in `Cargo.lock`. |
-| XChaCha20-Poly1305 | `chacha20poly1305` 0.11, already used by `osk-crypto`, `osk-backup`, `faraday-vault` and others (`docs/deps/chacha20poly1305.md`) | None new: `faraday-core` adds it as a workspace dependency. |
+| scrypt | `faraday_crypto::scrypt`, written in the tree for LND's aezeed (`docs/PLANNING.md` §16.116) | None. No `scrypt` crate is in `Cargo.lock`. |
+| XChaCha20-Poly1305 | `chacha20poly1305` 0.11, already used by `faraday-crypto`, `faraday-backup`, `faraday-vault` and others (`docs/deps/chacha20poly1305.md`) | None new: `faraday-core` adds it as a workspace dependency. |
 | Bech32 | `bitcoin`'s re-export of `bech32` 0.11 | None. |
-| NFKC | not needed (printable ASCII only) | `unicode-normalization` is in the graph only as `osk-bip`'s dev-dependency; not added. |
+| NFKC | not needed (printable ASCII only) | `unicode-normalization` is in the graph only as `faraday-bip`'s dev-dependency; not added. |
 
 An export runs scrypt twice at LOG_N 16: once to encrypt, once for the
 check. Each holds 64 MiB, the same as a Light vault's unlock, freed and
-zeroized before the next. `osk_crypto::scrypt` allocates with `vec!`,
+zeroized before the next. `faraday_crypto::scrypt` allocates with `vec!`,
 which ends the app if the allocation fails; `core/` is not changed for
 this (F65 allows it, and nothing here needs it), and a Pi 3's 1 GiB holds it, since a vault's own key-derivation
 memory is freed once the vault is open. Time is an estimate, not a
@@ -610,7 +610,7 @@ User-facing behaviour and published vectors (`CLAUDE.md`).
 
 ### 10.1 Vectors
 
-`tools/vectors/bip85/` is OpenSigner's (`core/osk-bip/tests/bip85.rs`
+`tools/vectors/bip85/` is OpenSigner's (`core/faraday-bip/tests/bip85.rs`
 reads it) and is not changed: its extractor skips Nostr, and adding it
 there would be drift from OpenSigner's copy (`docs/history/UPSTREAM.md`). Faraday's are a new folder, `tools/vectors/nostr/`,
 as `tools/vectors/vault/` is Faraday's:

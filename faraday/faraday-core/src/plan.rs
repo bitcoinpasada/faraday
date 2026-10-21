@@ -10,7 +10,7 @@
 //! trusting arithmetic. Nothing here knows a place's name: names live in
 //! the vault alone and are put on screen by the caller.
 
-use osk_crypto::work::Compute;
+use faraday_crypto::work::Compute;
 
 use crate::backup::split_plan;
 use crate::strings::EN;

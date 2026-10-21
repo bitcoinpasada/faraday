@@ -9,7 +9,7 @@ use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::catalog::{Go, TILES};
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
-use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 pub type Files = Vec<(String, Vec<u8>)>;
 

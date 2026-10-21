@@ -1,6 +1,6 @@
 //! The camera channel: the Pi camera through V4L2.
 //!
-//! The capture itself is `opensigner-v4l2`, which owns the device on its
+//! The capture itself is `faraday-v4l2`, which owns the device on its
 //! own thread and posts 8-bit luma frames to a bounded channel. This
 //! module is the shell's side of that channel: start, stop, and one
 //! frame at a time for the main loop to fold in between touches.
@@ -40,8 +40,8 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 use faraday_scanner::{reduce, reduce_chroma, reduce_factor};
-use opensigner_v4l2::{Camera as Device, Failure, Frame, Size};
-use osk_shell_api::CameraFailure;
+use faraday_shell_api::CameraFailure;
+use faraday_v4l2::{Camera as Device, Failure, Frame, Size};
 use zeroize::Zeroizing;
 
 use crate::Wake;
@@ -236,7 +236,7 @@ impl Camera {
 /// The thread `on` starts: open the device, then pass its frames on
 /// until the shell says stop.
 ///
-/// The capture is `opensigner-v4l2`'s own thread, because that is where
+/// The capture is `faraday-v4l2`'s own thread, because that is where
 /// the device is owned and closed; this one waits on it, reduces it for
 /// the preview and forwards both sizes. A full channel drops the frame:
 /// the shell only ever wants the newest. Every message it does send is
@@ -250,7 +250,7 @@ fn capture(
 ) {
     let opened = match device {
         Some(p) => open(&p),
-        None => match opensigner_v4l2::find_or_failure() {
+        None => match faraday_v4l2::find_or_failure() {
             Ok(p) => open(&p),
             Err(why) => Err((
                 String::from("no /dev/video* is a streaming capture device"),
@@ -271,7 +271,7 @@ fn capture(
     };
     let (frames_tx, frames) = sync_channel(QUEUE);
     let inner_stop = Arc::new(AtomicBool::new(false));
-    let inner = opensigner_v4l2::spawn(opened, frames_tx, Arc::clone(&inner_stop));
+    let inner = faraday_v4l2::spawn(opened, frames_tx, Arc::clone(&inner_stop));
     while !stop.load(Ordering::Relaxed) {
         match frames.recv_timeout(POLL) {
             Ok(frame) => {

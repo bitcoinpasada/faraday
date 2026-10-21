@@ -4,11 +4,11 @@
 //! completes it, a wrong one does not. A plan with no passphrase on paper
 //! has no such item.
 
+use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::create::NewKind;
 use faraday_core::plan::{At, Item, Preset, What};
 use faraday_core::{Action, Faraday, bstep, testkit};
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 const PASSPHRASE: &str = "lantern Orchid 41";
 

@@ -727,8 +727,42 @@ dependencies = [
 name = "faraday-argon2-bench"
 version = "0.1.5"
 dependencies = [
+ "faraday-crypto",
  "faraday-vault",
- "osk-crypto",
+]
+
+[[package]]
+name = "faraday-avfoundation"
+version = "0.1.0"
+dependencies = [
+ "cc",
+]
+
+[[package]]
+name = "faraday-backup"
+version = "0.1.0"
+dependencies = [
+ "argon2",
+ "chacha20",
+ "chacha20poly1305",
+ "faraday-bip",
+ "faraday-crypto",
+ "hmac",
+ "sha2",
+ "zeroize",
+]
+
+[[package]]
+name = "faraday-bip"
+version = "0.1.0"
+dependencies = [
+ "bip39",
+ "bitcoin",
+ "faraday-crypto",
+ "miniscript",
+ "serde_json",
+ "unicode-normalization",
+ "zeroize",
 ]
 
 [[package]]
@@ -739,32 +773,57 @@ dependencies = [
 ]
 
 [[package]]
+name = "faraday-codec"
+version = "0.1.0"
+dependencies = [
+ "bitcoin",
+ "faraday-bip",
+ "faraday-crypto",
+ "png",
+ "rqrr",
+ "zeroize",
+]
+
+[[package]]
 name = "faraday-core"
 version = "0.1.5"
 dependencies = [
  "faraday-alloc-count",
  "faraday-apk",
+ "faraday-backup",
+ "faraday-bip",
+ "faraday-codec",
  "faraday-core",
+ "faraday-crypto",
+ "faraday-draw",
+ "faraday-entropy",
  "faraday-files",
  "faraday-guides",
  "faraday-intake",
  "faraday-learn",
  "faraday-pgp",
+ "faraday-psbt",
  "faraday-qr",
  "faraday-sb",
+ "faraday-selftest",
+ "faraday-shell-api",
  "faraday-strings",
  "faraday-ui",
  "faraday-vault",
- "osk-backup",
- "osk-bip",
- "osk-codec",
- "osk-crypto",
- "osk-entropy",
  "osk-learn",
- "osk-psbt",
- "osk-selftest",
- "osk-shell-api",
- "osk-ui",
+ "zeroize",
+]
+
+[[package]]
+name = "faraday-crypto"
+version = "0.1.0"
+dependencies = [
+ "chacha20poly1305",
+ "hmac",
+ "libc",
+ "pbkdf2",
+ "sha2",
+ "subtle",
  "zeroize",
 ]
 
@@ -772,12 +831,12 @@ dependencies = [
 name = "faraday-desktop"
 version = "0.1.5"
 dependencies = [
+ "faraday-bip",
  "faraday-core",
+ "faraday-crypto",
+ "faraday-shell-api",
  "faraday-storage",
  "faraday-window",
- "osk-bip",
- "osk-crypto",
- "osk-shell-api",
  "winit",
 ]
 
@@ -785,9 +844,27 @@ dependencies = [
 name = "faraday-disk"
 version = "0.1.5"
 dependencies = [
+ "faraday-crypto",
  "faraday-fat",
  "faraday-files",
- "osk-crypto",
+ "zeroize",
+]
+
+[[package]]
+name = "faraday-draw"
+version = "0.1.0"
+dependencies = [
+ "faraday-codec",
+ "faraday-crypto",
+ "faraday-shell-api",
+ "tiny-skia 0.12.0",
+]
+
+[[package]]
+name = "faraday-entropy"
+version = "0.1.0"
+dependencies = [
+ "faraday-crypto",
  "zeroize",
 ]
 
@@ -799,11 +876,21 @@ version = "0.1.5"
 name = "faraday-files"
 version = "0.1.5"
 dependencies = [
+ "faraday-codec",
+ "faraday-crypto",
  "faraday-fat",
- "osk-codec",
- "osk-crypto",
  "png",
  "zeroize",
+]
+
+[[package]]
+name = "faraday-fontbake"
+version = "0.1.0"
+dependencies = [
+ "faraday-bip",
+ "faraday-crypto",
+ "faraday-draw",
+ "ttf-parser",
 ]
 
 [[package]]
@@ -825,11 +912,11 @@ dependencies = [
 name = "faraday-intake"
 version = "0.1.5"
 dependencies = [
+ "faraday-bip",
+ "faraday-codec",
+ "faraday-crypto",
  "faraday-qr",
  "faraday-strings",
- "osk-bip",
- "osk-codec",
- "osk-crypto",
  "zeroize",
 ]
 
@@ -846,7 +933,7 @@ name = "faraday-mediafoundation"
 version = "0.1.5"
 dependencies = [
  "cc",
- "opensigner-avfoundation",
+ "faraday-avfoundation",
 ]
 
 [[package]]
@@ -868,14 +955,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "faraday-psbt"
+version = "0.1.0"
+dependencies = [
+ "bitcoin",
+ "faraday-bip",
+ "faraday-crypto",
+ "miniscript",
+ "serde_json",
+]
+
+[[package]]
 name = "faraday-qr"
 version = "0.1.5"
 dependencies = [
+ "faraday-bip",
+ "faraday-codec",
+ "faraday-crypto",
  "faraday-files",
  "miniz_oxide 0.8.9",
- "osk-bip",
- "osk-codec",
- "osk-crypto",
 ]
 
 [[package]]
@@ -893,10 +991,27 @@ dependencies = [
 name = "faraday-scanner"
 version = "0.1.5"
 dependencies = [
- "osk-codec",
- "osk-crypto",
- "osk-ui",
+ "faraday-codec",
+ "faraday-crypto",
+ "faraday-draw",
  "rqrr",
+ "zeroize",
+]
+
+[[package]]
+name = "faraday-selftest"
+version = "0.1.0"
+dependencies = [
+ "faraday-backup",
+ "faraday-bip",
+ "faraday-crypto",
+ "faraday-psbt",
+]
+
+[[package]]
+name = "faraday-shell-api"
+version = "0.1.0"
+dependencies = [
  "zeroize",
 ]
 
@@ -904,16 +1019,16 @@ dependencies = [
 name = "faraday-snapshot"
 version = "0.1.5"
 dependencies = [
+ "faraday-bip",
+ "faraday-codec",
  "faraday-core",
+ "faraday-crypto",
  "faraday-qr",
  "faraday-sb",
+ "faraday-selftest",
+ "faraday-shell-api",
  "faraday-storage",
  "faraday-vault",
- "osk-bip",
- "osk-codec",
- "osk-crypto",
- "osk-selftest",
- "osk-shell-api",
  "png",
 ]
 
@@ -921,16 +1036,16 @@ dependencies = [
 name = "faraday-starter"
 version = "0.1.5"
 dependencies = [
+ "faraday-bip",
+ "faraday-codec",
  "faraday-core",
+ "faraday-crypto",
+ "faraday-draw",
  "faraday-guides",
  "faraday-learn",
+ "faraday-shell-api",
  "faraday-ui",
- "osk-bip",
- "osk-codec",
- "osk-crypto",
  "osk-learn",
- "osk-shell-api",
- "osk-ui",
  "png",
  "zeroize",
 ]
@@ -943,11 +1058,11 @@ dependencies = [
  "faraday-core",
  "faraday-fat",
  "faraday-payload",
+ "faraday-shell-api",
  "faraday-starter",
  "faraday-storage",
  "faraday-window",
  "libc",
- "osk-shell-api",
  "rustbus",
  "windows-sys 0.52.0",
  "winit",
@@ -959,11 +1074,11 @@ name = "faraday-stick"
 version = "0.1.5"
 dependencies = [
  "faraday-core",
+ "faraday-crypto",
  "faraday-scanner",
+ "faraday-shell-api",
  "faraday-storage",
- "opensigner-v4l2",
- "osk-crypto",
- "osk-shell-api",
+ "faraday-v4l2",
  "zeroize",
 ]
 
@@ -972,12 +1087,12 @@ name = "faraday-storage"
 version = "0.1.5"
 dependencies = [
  "faraday-boot",
+ "faraday-codec",
  "faraday-core",
+ "faraday-crypto",
  "faraday-files",
  "faraday-qr",
- "osk-codec",
- "osk-crypto",
- "osk-shell-api",
+ "faraday-shell-api",
  "zeroize",
 ]
 
@@ -992,21 +1107,28 @@ dependencies = [
 name = "faraday-testkit"
 version = "0.1.5"
 dependencies = [
+ "faraday-bip",
  "faraday-core",
- "osk-bip",
- "osk-crypto",
- "osk-psbt",
+ "faraday-crypto",
+ "faraday-psbt",
 ]
 
 [[package]]
 name = "faraday-ui"
 version = "0.1.5"
 dependencies = [
+ "faraday-codec",
+ "faraday-draw",
  "faraday-learn",
+ "faraday-shell-api",
  "faraday-strings",
- "osk-codec",
- "osk-shell-api",
- "osk-ui",
+]
+
+[[package]]
+name = "faraday-v4l2"
+version = "0.1.0"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -1016,11 +1138,11 @@ dependencies = [
  "argon2",
  "chacha20",
  "chacha20poly1305",
+ "faraday-backup",
+ "faraday-bip",
+ "faraday-crypto",
  "faraday-intake",
  "hmac",
- "osk-backup",
- "osk-bip",
- "osk-crypto",
  "sha1",
  "sha2",
  "zeroize",
@@ -1030,13 +1152,13 @@ dependencies = [
 name = "faraday-window"
 version = "0.1.5"
 dependencies = [
+ "faraday-avfoundation",
  "faraday-core",
  "faraday-mediafoundation",
  "faraday-scanner",
+ "faraday-shell-api",
+ "faraday-v4l2",
  "getrandom 0.4.3",
- "opensigner-avfoundation",
- "opensigner-v4l2",
- "osk-shell-api",
  "softbuffer",
  "windows-sys 0.52.0",
  "winit",
@@ -1791,20 +1913,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
-name = "opensigner-avfoundation"
-version = "0.1.0"
-dependencies = [
- "cc",
-]
-
-[[package]]
-name = "opensigner-v4l2"
-version = "0.1.0"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "orbclient"
 version = "0.3.55"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1815,116 +1923,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "osk-backup"
-version = "0.1.0"
-dependencies = [
- "argon2",
- "chacha20",
- "chacha20poly1305",
- "hmac",
- "osk-bip",
- "osk-crypto",
- "sha2",
- "zeroize",
-]
-
-[[package]]
-name = "osk-bip"
-version = "0.1.0"
-dependencies = [
- "bip39",
- "bitcoin",
- "miniscript",
- "osk-crypto",
- "serde_json",
- "unicode-normalization",
- "zeroize",
-]
-
-[[package]]
-name = "osk-codec"
-version = "0.1.0"
-dependencies = [
- "bitcoin",
- "osk-bip",
- "osk-crypto",
- "png",
- "rqrr",
- "zeroize",
-]
-
-[[package]]
-name = "osk-crypto"
-version = "0.1.0"
-dependencies = [
- "chacha20poly1305",
- "hmac",
- "libc",
- "pbkdf2",
- "sha2",
- "subtle",
- "zeroize",
-]
-
-[[package]]
-name = "osk-entropy"
-version = "0.1.0"
-dependencies = [
- "osk-crypto",
- "zeroize",
-]
-
-[[package]]
-name = "osk-fontbake"
-version = "0.1.0"
-dependencies = [
- "osk-bip",
- "osk-crypto",
- "osk-ui",
- "ttf-parser",
-]
-
-[[package]]
 name = "osk-learn"
 version = "0.1.0"
-
-[[package]]
-name = "osk-psbt"
-version = "0.1.0"
-dependencies = [
- "bitcoin",
- "miniscript",
- "osk-bip",
- "osk-crypto",
- "serde_json",
-]
-
-[[package]]
-name = "osk-selftest"
-version = "0.1.0"
-dependencies = [
- "osk-backup",
- "osk-bip",
- "osk-crypto",
- "osk-psbt",
-]
-
-[[package]]
-name = "osk-shell-api"
-version = "0.1.0"
-dependencies = [
- "zeroize",
-]
-
-[[package]]
-name = "osk-ui"
-version = "0.1.0"
-dependencies = [
- "osk-codec",
- "osk-crypto",
- "osk-shell-api",
- "tiny-skia 0.12.0",
-]
 
 [[package]]
 name = "owned_ttf_parser"

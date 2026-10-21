@@ -56,7 +56,7 @@ pub fn finish_vault_writes(stick: &Path) {
 /// (`faraday_files::qr_in_png`): a PNG in a stick directory, its bytes
 /// and its QR codes.
 pub fn read_qr_png(
-    c: &osk_crypto::work::Compute,
+    c: &faraday_crypto::work::Compute,
     stick: &str,
     name: &str,
 ) -> Result<faraday_files::Picture, String> {
@@ -277,7 +277,7 @@ impl Pictures {
                     clippy::disallowed_methods,
                     reason = "a mint: the pictures' thread, which draws nothing (docs/COMPUTE.md §3)"
                 )]
-                let c = osk_crypto::work::Compute::new(|_| {});
+                let c = faraday_crypto::work::Compute::new(|_| {});
                 for (stick, name) in asked {
                     let picture = read_qr_png(&c, &stick, &name);
                     if read.send((stick, name, picture)).is_err() {

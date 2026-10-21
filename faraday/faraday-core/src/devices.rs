@@ -441,7 +441,7 @@ impl Faraday {
         }
         self.device_sheet();
         self.dirty = true;
-        self.commands.push_back(osk_shell_api::Command::Draw);
+        self.commands.push_back(faraday_shell_api::Command::Draw);
     }
 
     /// The sheet comes up when an item is held, it is due and no other

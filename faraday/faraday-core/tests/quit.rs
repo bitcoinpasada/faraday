@@ -2,7 +2,7 @@
 //! and the Power sheet say which, and the desktop has no power-off timer.
 
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent, testkit};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 use common::{has, offered};
 

@@ -11,9 +11,9 @@
 //! all-`abandon` test phrase; no coin is behind anything here.
 #![allow(dead_code)]
 
+use faraday_crypto::work::Compute;
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{Contents, Cost, MIN_MEMORY_KIB, Record, SLOT_SIZES};
-use osk_crypto::work::Compute;
 
 /// A token for the vectors' key work (`docs/COMPUTE.md` §3), counting
 /// nothing. Cheap.
@@ -43,13 +43,13 @@ pub const THREE: (&str, &[&str]) = (
 /// One record of every type, labelled `label`.
 pub fn contents(label: &str) -> Contents {
     let c = compute();
-    let words = osk_bip::bip39::Mnemonic::parse(
+    let words = faraday_bip::bip39::Mnemonic::parse(
         &c,
-        osk_bip::bip39::Language::English,
+        faraday_bip::bip39::Language::English,
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
     )
     .expect("the BIP-39 test phrase");
-    let sheet = osk_backup::oskb::sheet_payload(
+    let sheet = faraday_backup::oskb::sheet_payload(
         b"wpkh([73c5da0a/84h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/<0;1>/*)",
         label.as_bytes(),
         b"Third key is with the lawyer.",

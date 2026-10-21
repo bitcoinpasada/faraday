@@ -8,13 +8,13 @@
 //! survives a lock, and what it signs is byte for byte what Wallets ›
 //! Sign a transaction signs.
 
+use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::family::{CardId, FamilyAction as F, Open, Question, Route, page};
 use faraday_core::seed_read::Choice;
 use faraday_core::testkit;
 use faraday_core::wallet::{FileKind, step};
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent};
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 fn kit(id: &str) -> testkit::Kit {
     testkit::kits().into_iter().find(|k| k.id == id).unwrap()
@@ -57,7 +57,7 @@ fn shown_at(height: u16) -> Faraday {
 }
 
 /// A descriptor as text, hardened steps written one way.
-fn desc(p: &osk_bip::policy::WalletPolicy) -> String {
+fn desc(p: &faraday_bip::policy::WalletPolicy) -> String {
     p.to_descriptor().replace('\'', "h")
 }
 
@@ -128,7 +128,7 @@ fn scan(app: &mut Faraday, bytes: Vec<u8>) {
 fn seedqr(words: &str) -> Vec<u8> {
     let c = testkit::compute();
     let m = Mnemonic::parse(&c, Language::English, words).unwrap();
-    osk_codec::seedqr::to_digits(&m)
+    faraday_codec::seedqr::to_digits(&m)
         .expose()
         .as_bytes()
         .to_vec()

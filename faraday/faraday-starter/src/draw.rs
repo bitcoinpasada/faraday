@@ -8,11 +8,11 @@ use faraday_core::Action;
 use faraday_core::strings::fill;
 use faraday_core::strings::{EN, Strings};
 use faraday_core::upgrade::{Fit, describe, version};
+use faraday_draw::Color;
+use faraday_draw::widgets::Icon;
 use faraday_ui::pal::*;
 use faraday_ui::parts::qr_code;
 use faraday_ui::{Glyph, NameSuffix, Style, W};
-use osk_ui::Color;
-use osk_ui::widgets::Icon;
 
 use crate::api::{Concern, InUse, InstallItem, Kind, Mode, Os, Reason, StickFault, WriteStage};
 use crate::decide::{Item, Refusal, State, Target};
@@ -950,7 +950,7 @@ fn computer_card(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
     });
     // The lines wrap: measured first, drawing nothing.
     let n = ui.hits.len();
-    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
     let lines_h: f32 = lines
         .iter()
         .map(|(l, _)| ui.wrap(0.0, 0.0, iw, 13.0, W::R, TEXT, l) + 4.0)
@@ -1779,7 +1779,7 @@ fn sheet(ui: &mut Ui, w: f32, h: f32, body: &mut dyn FnMut(&mut Ui, f32, f32, f3
     };
     let pad = if compact { 14.0 } else { 24.0 };
     let n = ui.hits.len();
-    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
     let bh = body(ui, 0.0, 0.0, sw - 2.0 * pad);
     ui.c.pop_clip();
     ui.hits.truncate(n);

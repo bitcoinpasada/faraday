@@ -2,7 +2,7 @@
 //! at its foot, and what is above them scrolled when it is taller than
 //! the panel.
 
-use osk_ui::widgets::Icon;
+use faraday_draw::widgets::Icon;
 
 use crate::pal::*;
 use crate::{Style, Ui, W};
@@ -34,7 +34,7 @@ pub fn scroll_sheet<A: Copy + PartialEq>(
     // The sheet's buttons ([`buttons`]) are kept at its foot, and what is
     // above them scrolls when the sheet is taller than the panel.
     let mark = ui.hits.len();
-    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
     ui.sheet_pin = None;
     ui.sheet_pinning = true;
     let ch = body(ui, ix, 0.0, iw);
@@ -85,7 +85,7 @@ pub fn sheet_head<A: Copy + PartialEq>(
     y: f32,
     w: f32,
     icon: impl Into<crate::Glyph>,
-    tone: osk_ui::Color,
+    tone: faraday_draw::Color,
     title: &str,
 ) -> f32 {
     ui.icon(x - 4.0, y - 3.0, 28.0, icon, 15.0, tone);
@@ -101,7 +101,7 @@ pub fn kv<A: Copy + PartialEq>(
     w: f32,
     key: &str,
     value: &str,
-    tone: osk_ui::Color,
+    tone: faraday_draw::Color,
 ) -> f32 {
     ui.text(x, y, 12.0, W::R, MUTED, key);
     let vh = ui.wrap(x, y + 18.0, w, 14.0, W::R, tone, value);
@@ -163,9 +163,9 @@ pub fn kv_sheet<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     w: f32,
     h: f32,
-    head: (Icon, osk_ui::Color, &str),
+    head: (Icon, faraday_draw::Color, &str),
     sub: &str,
-    rows: &[(&str, String, osk_ui::Color)],
+    rows: &[(&str, String, faraday_draw::Color)],
     actions: &[(&str, Style, A)],
 ) {
     sheet(ui, w, h, &mut |ui, x, y, iw| {

@@ -68,7 +68,7 @@ fn heading(
     };
     ui.fill(x, y, 26.0, 26.0, 13.0, fill);
     if past {
-        ui.icon(x, y, 26.0, osk_ui::widgets::Icon::Check, 12.0, ink);
+        ui.icon(x, y, 26.0, faraday_draw::widgets::Icon::Check, 12.0, ink);
     } else {
         let s = n.to_string();
         let tw = ui.measure(13.0, W::S, &s);
@@ -87,7 +87,7 @@ fn value_row(
     w: f32,
     key: &str,
     value: &str,
-    tone: osk_ui::Color,
+    tone: faraday_draw::Color,
 ) -> f32 {
     if ui.compact {
         return crate::compact::kv(ui, x, y, w, key, value, tone);

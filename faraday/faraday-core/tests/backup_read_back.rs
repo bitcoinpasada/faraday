@@ -9,16 +9,16 @@
 mod common;
 
 use common::*;
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::keys::{Fingerprint, MasterKey};
 use faraday_core::backup_flow::{Problem, Step};
 use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::create::NewKind;
 use faraday_core::plan::{self, At, Shape, Spot, What, form};
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, BStage, Faraday, Screen, StorageEvent, bstep, cstep, testkit};
+use faraday_shell_api::{App, Event, Key};
 use faraday_vault::records::{field, kind};
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_bip::keys::{Fingerprint, MasterKey};
-use osk_shell_api::{App, Event, Key};
 
 const PASS: &str = "TREZOR";
 
@@ -508,7 +508,7 @@ fn a_text_file_that_does_not_read_back_is_written_again_once() {
 
 /// The SHA-256 of `bytes`, as lower-case hex.
 fn sha_hex(bytes: &[u8]) -> String {
-    use osk_bip::bitcoin::hashes::{Hash, sha256};
+    use faraday_bip::bitcoin::hashes::{Hash, sha256};
     sha256::Hash::hash(bytes)
         .to_byte_array()
         .iter()
@@ -535,7 +535,7 @@ fn after_a_seedqr_is_written_and_read_back_the_kept_state_holds_nothing_of_the_s
     shell.pump(&mut app);
     let words = testkit::test_words(testkit::TEST_SEEDS[2].0);
     let m = Mnemonic::parse(&c, Language::English, &words).unwrap();
-    let digits = osk_codec::seedqr::to_digits(&m)
+    let digits = faraday_codec::seedqr::to_digits(&m)
         .expose()
         .as_bytes()
         .to_vec();

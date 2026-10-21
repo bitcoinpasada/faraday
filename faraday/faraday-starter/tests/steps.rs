@@ -3,8 +3,8 @@
 //! survive leaving and reopening the page in the same session.
 
 use faraday_core::Action;
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 use faraday_starter::{LearnId, Starter, StarterAction};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 fn new_starter() -> Starter {
     let mut starter = Starter::new();

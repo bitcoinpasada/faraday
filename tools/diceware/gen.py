@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Generate the embedded EFF diceware wordlists for osk-bip.
+"""Generate the embedded EFF diceware wordlists for faraday-bip.
 
 Reads the three lists committed under tools/vectors/eff/ and writes one
-Rust module per list to core/osk-bip/src/diceware/. Each module holds:
+Rust module per list to core/faraday-bip/src/diceware/. Each module holds:
 
   SHA256  hex SHA-256 of the source file bytes. The script checks that
           the file is exactly `rolls<TAB>word\\n` per line, in rising
@@ -24,7 +24,7 @@ import re
 from pathlib import Path
 
 SRC_DIR = Path("tools/vectors/eff")
-OUT_DIR = Path("core/osk-bip/src/diceware")
+OUT_DIR = Path("core/faraday-bip/src/diceware")
 
 LISTS = [
     ("large", "eff_large_wordlist.txt", 5),

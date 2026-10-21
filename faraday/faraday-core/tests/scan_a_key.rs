@@ -5,13 +5,13 @@
 //! for its passphrase; the words can be typed instead; and a wallet that
 //! can spend says so on its card and in the list.
 
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::keys::Fingerprint;
 use faraday_core::seed_read::Choice;
 use faraday_core::testkit;
 use faraday_core::wallet::fp_text;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_bip::keys::Fingerprint;
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 /// Answers the app's reads from the test vault, the one file on the
 /// boot stick.
@@ -107,7 +107,7 @@ fn scan_seedqr(app: &mut Faraday, words: &str) {
     let c = testkit::compute();
     let m = Mnemonic::parse(&c, Language::English, words).unwrap();
     app.event(Event::Scanned {
-        bytes: osk_codec::seedqr::to_digits(&m)
+        bytes: faraday_codec::seedqr::to_digits(&m)
             .expose()
             .as_bytes()
             .to_vec(),

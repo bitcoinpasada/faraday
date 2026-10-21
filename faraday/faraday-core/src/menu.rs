@@ -7,9 +7,9 @@
 //! board's chips and the file rows share it; each works out its rows on
 //! the press that opens it, and this draws what it was given.
 
-use osk_shell_api::Key as KeyIn;
-use osk_ui::tokens;
-use osk_ui::widgets::Icon;
+use faraday_draw::tokens;
+use faraday_draw::widgets::Icon;
+use faraday_shell_api::Key as KeyIn;
 
 use crate::Action;
 use crate::ui::pal::*;
@@ -85,7 +85,7 @@ pub(crate) fn tab<T: PartialEq + Copy>(dots: &[T], at: Option<T>, back: bool) ->
 }
 
 /// The ⋮'s three dots, centred at (cx, cy) in `color`.
-pub(crate) fn dots(ui: &mut Ui, cx: f32, cy: f32, color: osk_ui::Color) {
+pub(crate) fn dots(ui: &mut Ui, cx: f32, cy: f32, color: faraday_draw::Color) {
     let d = tokens::BOARD_MENU_DOT;
     let step = (tokens::BOARD_MARK - d) / 2.0;
     for k in [-1.0, 0.0, 1.0] {
@@ -117,7 +117,7 @@ pub(crate) fn outline(
     r: (f32, f32, f32, f32),
     radius: f32,
     width: f32,
-    color: osk_ui::Color,
+    color: faraday_draw::Color,
 ) {
     let rect = ui.rect(r.0, r.1, r.2, r.3);
     let c = ui.col(color);
@@ -128,7 +128,7 @@ pub(crate) fn outline(
 /// kept.
 pub(crate) fn measure(ui: &mut Ui, draw: &mut dyn FnMut(&mut Ui) -> f32) -> f32 {
     let mark = ui.hits.len();
-    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
     let h = draw(ui);
     ui.c.pop_clip();
     ui.hits.truncate(mark);

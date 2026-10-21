@@ -6,8 +6,8 @@
 //! backup, a spend, the test vault open, and Explore, Tools, Silent
 //! payments and a Seeds piece open over a loaded key.
 
+use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_vault::records::kind;
-use osk_bip::bip39::{Language, Mnemonic};
 
 use super::walk;
 use crate::Action;

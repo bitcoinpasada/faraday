@@ -8,8 +8,8 @@
 use faraday_core::testkit;
 use faraday_core::work::{Counts, Work, since, snapshot};
 use faraday_core::{Action, Faraday, Screen, qrow};
+use faraday_shell_api::{App, Event, Key, TouchPhase};
 use faraday_strings::EN;
-use osk_shell_api::{App, Event, Key, TouchPhase};
 
 /// A person's tap on `action`, the page scrolled until it is drawn: the
 /// work the tap itself did.

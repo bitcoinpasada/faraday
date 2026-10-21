@@ -12,7 +12,7 @@
 //! what the Inbox gives, Load a key's probe) are an `Option` each, bound
 //! by their type.
 
-use osk_shell_api::App;
+use faraday_shell_api::App;
 
 use super::{unlock_test_vault, walk};
 use crate::create::NewKind;

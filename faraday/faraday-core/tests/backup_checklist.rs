@@ -14,8 +14,8 @@ use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, BStage, Faraday, Screen, StorageEvent, bstep, plan, qrow, qstep};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 use faraday_vault::records::{field, kind};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 const NAME: &str = "Harbour cellar";
 
@@ -378,7 +378,7 @@ fn the_blank_template_has_a_line_per_place_and_no_name() {
 fn two_of_three_two_here(app: &mut Faraday) -> usize {
     let c = faraday_core::testkit::compute();
     for i in 0..8u8 {
-        app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
             [0x40 + i; 32],
         )));
     }

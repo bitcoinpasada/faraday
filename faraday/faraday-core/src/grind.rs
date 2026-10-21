@@ -4,7 +4,7 @@
 //! upstream `d26b84e`) when Faraday dropped that app (`docs/DECISIONS.md`
 //! F68), unchanged; Faraday's flow over it is [`crate::vanity`].
 //!
-//! The engine is `osk_bip::vanity`; this is what the screens hold
+//! The engine is `faraday_bip::vanity`; this is what the screens hold
 //! between frames: which dial is being turned, the prefix as it is
 //! typed, how far the counter has gone, how long that took, and the
 //! find that stopped it.
@@ -15,8 +15,8 @@
 //! frame. The find is the same whatever the budget, because the order
 //! is the counter's.
 
-use osk_bip::keys::{Network, ScriptType};
-use osk_bip::vanity::{self, Find};
+use faraday_bip::keys::{Network, ScriptType};
+use faraday_bip::vanity::{self, Find};
 
 /// The longest prefix a person types, which is a whole Taproot address
 /// on a test network.

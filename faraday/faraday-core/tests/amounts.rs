@@ -4,7 +4,7 @@
 
 use faraday_core::testkit::{self, Kit};
 use faraday_core::{Action, Faraday, StorageCommand, StorageEvent};
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 fn kit() -> Kit {
     testkit::kits()
@@ -13,11 +13,11 @@ fn kit() -> Kit {
         .unwrap()
 }
 
-fn spending() -> osk_psbt::Psbt {
+fn spending() -> faraday_psbt::Psbt {
     testkit::unsigned(&kit()).unwrap()
 }
 
-fn offer(app: &mut Faraday, psbt: &osk_psbt::Psbt, kept: Vec<(String, Vec<u8>)>) {
+fn offer(app: &mut Faraday, psbt: &faraday_psbt::Psbt, kept: Vec<(String, Vec<u8>)>) {
     app.storage(StorageEvent::Restored {
         inbox: vec![
             ("spend.psbt".to_string(), psbt.to_bytes()),
@@ -60,8 +60,9 @@ fn the_same_transaction_with_other_amounts_is_refused_across_a_lock() {
     // A fresh process, as after a lock, offered the same transaction with
     // its input stating one satoshi more.
     let mut changed = psbt.inner().clone();
-    changed.inputs[0].witness_utxo.as_mut().unwrap().value += osk_bip::bitcoin::Amount::from_sat(1);
-    let changed = osk_psbt::Psbt::from(changed);
+    changed.inputs[0].witness_utxo.as_mut().unwrap().value +=
+        faraday_bip::bitcoin::Amount::from_sat(1);
+    let changed = faraday_psbt::Psbt::from(changed);
     let mut app = faraday_core::testkit::started();
     offer(&mut app, &changed, kept.clone());
     let s = app.spend.as_ref().unwrap();

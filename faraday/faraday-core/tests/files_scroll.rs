@@ -2,7 +2,7 @@
 //! its own, each under the pointer, with its own scrollbar.
 
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// Files with twenty files each way, on a 1366 by 768 desktop.
 fn files() -> Faraday {

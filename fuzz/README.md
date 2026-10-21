@@ -69,16 +69,16 @@ cd fuzz && cargo +nightly fuzz run decode_luma artifacts/decode_luma/rqrr-perspe
 
 | Target | Entry point |
 |---|---|
-| `classify` | `osk_codec::classify` |
-| `seedqr` | `osk_codec::seedqr::from_digits`, `from_entropy` |
-| `ur_receive` | `osk_codec::ur::Decoder::receive`, one part and a sequence |
-| `psbt_parse` | `osk_psbt::Psbt::parse_bytes` / `parse_base64`, then `inspect` with no key loaded and with the BIP-39 test vector key |
-| `policy` | `osk_bip::policy::WalletPolicy::parse_any` |
-| `message_verify` | `osk_psbt::message::verify` over the test vector key's four addresses |
-| `xkey` | `osk_bip::xkey::decode_xpriv` / `decode_xpub`, `slip132::decode_xpub` |
+| `classify` | `faraday_codec::classify` |
+| `seedqr` | `faraday_codec::seedqr::from_digits`, `from_entropy` |
+| `ur_receive` | `faraday_codec::ur::Decoder::receive`, one part and a sequence |
+| `psbt_parse` | `faraday_psbt::Psbt::parse_bytes` / `parse_base64`, then `inspect` with no key loaded and with the BIP-39 test vector key |
+| `policy` | `faraday_bip::policy::WalletPolicy::parse_any` |
+| `message_verify` | `faraday_psbt::message::verify` over the test vector key's four addresses |
+| `xkey` | `faraday_bip::xkey::decode_xpriv` / `decode_xpub`, `slip132::decode_xpub` |
 | `pgp_armor` | `faraday_pgp::read_public_armor` |
-| `json` | `osk_bip::json::parse`, written back with `quote` and read again; `osk_bip::coldcard::parse` |
-| `decode_luma` | `osk_codec::decode_luma`, the frame's width and height taken from the first two bytes |
+| `json` | `faraday_bip::json::parse`, written back with `quote` and read again; `faraday_bip::coldcard::parse` |
+| `decode_luma` | `faraday_codec::decode_luma`, the frame's width and height taken from the first two bytes |
 
 One of them shapes the input before the call, because the code under
 test rejects anything else in its first few lines and a fuzzer would
@@ -124,7 +124,7 @@ The path is `PreparedImage::detect_grids` → `find_groupings` →
 `fitness_all` → `fitness_capstone` → `fitness_ring` → `fitness_cell`
 (`src/identify/grid.rs:453`) → `Perspective::map`, so this is grid
 detection and it happens before any payload is read. Ours is
-`osk_codec::decode_luma` (`core/osk-codec/src/decode.rs:34`), which calls
+`faraday_codec::decode_luma` (`core/faraday-codec/src/decode.rs:34`), which calls
 `detect_grids` and has no way to refuse the frame first.
 
 These are `assert!`, not `debug_assert!`, so a release build panics too.

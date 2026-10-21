@@ -65,7 +65,7 @@ string, and the address is derived the standard way:
 ```
 
 The width is EntropyLab's own question: its screen asks for a passphrase
-length, and one run grinds one width. `osk_bip::vanity` asks no such
+length, and one run grinds one width. `faraday_bip::vanity` asks no such
 question, so it grinds width 1 first (62 counters), then width 2 (3 844),
 and so on. Inside a width the two orders are the same counter.
 
@@ -123,5 +123,5 @@ The grinder returns the address as a payload — HASH160 for the
 hash-based scripts — and the two above are
 `03156329a55b2ad8e4225da856e29626edf386c7` and
 `007ab2dae95e9b3d94017ce636048cd910a22e17`, encoded with EntropyLab's
-own `addressFromScript`. `core/osk-bip/tests/vanity.rs` asserts both
+own `addressFromScript`. `core/faraday-bip/tests/vanity.rs` asserts both
 counters and both addresses.

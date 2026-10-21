@@ -2,12 +2,12 @@
 
 **Purpose.** BC-UR (BCR-2020-005) encoding and decoding of animated QR
 payloads: `ur:crypto-psbt` in and out of the Sign flow and the scanner
-(`osk_codec::ur`, `docs/PLANNING.md` §7, §8.4 #1/#12, §16.20, §16.61).
+(`faraday_codec::ur`, `docs/PLANNING.md` §7, §8.4 #1/#12, §16.20, §16.61).
 
 **This is not a dependency page any more.** The `ur` 0.5.2 crate is gone
-from the workspace. `core/osk-codec/src/ur/` is the whole transport,
+from the workspace. `core/faraday-codec/src/ur/` is the whole transport,
 `no_std` + `alloc`, `#![forbid(unsafe_code)]`, with no dependency but
-`osk-crypto`'s SHA-256:
+`faraday-crypto`'s SHA-256:
 
 | File | What it holds |
 |---|---|
@@ -35,7 +35,7 @@ Measured with
 | `opensigner-desktop` | 137 | 128 |
 
 `bitcoin_hashes` was there to SHA-256 eight bytes of fountain seed;
-`osk-crypto` already had SHA-256. `crc` and `crc-catalog` were there for
+`faraday-crypto` already had SHA-256. `crc` and `crc-catalog` were there for
 one bitwise CRC-32. `minicbor` was there for a five-element array of four
 integers and a byte string.
 
@@ -69,7 +69,7 @@ Two deliberate differences, neither of them interoperable behaviour:
 
 ## The vectors
 
-Every one of these is a test in `core/osk-codec/src/ur/`:
+Every one of these is a test in `core/faraday-codec/src/ur/`:
 
 | Source | What it covers |
 |---|---|

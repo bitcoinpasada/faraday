@@ -4,7 +4,7 @@
 
 use faraday_core::keygen::{Way, kstep};
 use faraday_core::{Action, Faraday, Screen};
-use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 
 fn ready() -> Faraday {
     let mut app = Faraday::new();
@@ -56,7 +56,7 @@ fn any_two_of_the_three_shares_restore_the_key() {
     let fp = k.fingerprint.unwrap();
     for pair in [[0usize, 1], [0, 2], [1, 2]] {
         let two = [k.shares[pair[0]].clone(), k.shares[pair[1]].clone()];
-        let secret = osk_bip::slip39::recover(&c, &two, b"").unwrap();
+        let secret = faraday_bip::slip39::recover(&c, &two, b"").unwrap();
         let got = faraday_core::wallet::Session::default()
             .add_seed(&c, secret.expose().as_bytes(), "")
             .unwrap();
@@ -64,7 +64,7 @@ fn any_two_of_the_three_shares_restore_the_key() {
     }
     let one = [k.shares[0].clone()];
     assert!(
-        osk_bip::slip39::recover(&c, &one, b"").is_err(),
+        faraday_bip::slip39::recover(&c, &one, b"").is_err(),
         "one share is not enough"
     );
 }

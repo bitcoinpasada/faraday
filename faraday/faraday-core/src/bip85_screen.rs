@@ -81,9 +81,9 @@ fn summary(app: &View, b: &Bip85State, s: u8) -> String {
             Some(fp) => {
                 let label = app
                     .session
-                    .key_label(osk_bip::keys::Fingerprint(fp))
+                    .key_label(faraday_bip::keys::Fingerprint(fp))
                     .unwrap_or("");
-                format!("{} · {label}", fp_text(osk_bip::keys::Fingerprint(fp)))
+                format!("{} · {label}", fp_text(faraday_bip::keys::Fingerprint(fp)))
             }
             None => EN.bip85_not_chosen.to_string(),
         },

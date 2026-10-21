@@ -9,7 +9,7 @@
 use faraday_core::testkit::{self, Kit};
 use faraday_core::wallet::{FileKind, step};
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent};
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 fn kit(id: &str) -> Kit {
     testkit::kits().into_iter().find(|k| k.id == id).unwrap()

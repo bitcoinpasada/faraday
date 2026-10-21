@@ -1,5 +1,5 @@
 //! Turns the vendored fonts in `tools/fonts/` into glyph outlines for
-//! `osk-ui`.
+//! `faraday-draw`.
 //!
 //! Run from the repository root (`just fonts`). See `README.md` alongside
 //! this file for the outline format. The device fills these outlines at
@@ -20,9 +20,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use osk_bip::bip39::Language;
-use osk_crypto::sha256;
-use osk_ui::widgets::keyboard::{self, KeyboardKind};
+use faraday_bip::bip39::Language;
+use faraday_crypto::sha256;
+use faraday_draw::widgets::keyboard::{self, KeyboardKind};
 use ttf_parser::{Face, GlyphId, OutlineBuilder, Rect};
 
 /// What a face's file holds.
@@ -112,7 +112,7 @@ const TERMINUS_FILE: &str = "TerminusTTF-4.49.3.ttf";
 
 /// The icon code points, and where each comes from. `U+E9xx` are
 /// SeedSigner's own icon face; the rest are Font Awesome 6 Free Solid.
-/// This list must match `Icon` in `core/osk-ui/src/widgets/icon.rs`; the
+/// This list must match `Icon` in `core/faraday-draw/src/widgets/icon.rs`; the
 /// crate's tests assert that every `Icon` resolves in the outline file.
 const ICONS: &[u32] = &[
     // seedsigner-icons.otf
@@ -640,8 +640,8 @@ fn ensure_iosevka(fonts_dir: &Path) {
 fn main() {
     let root = repo_root();
     let fonts_dir = root.join("tools/fonts");
-    let assets_dir = root.join("core/osk-ui/assets");
-    let generated = root.join("core/osk-ui/src/fonts/generated.rs");
+    let assets_dir = root.join("core/faraday-draw/assets");
+    let generated = root.join("core/faraday-draw/src/fonts/generated.rs");
     fs::create_dir_all(&assets_dir).expect("create assets dir");
     // Stale face files from an earlier face list must not linger in the crate.
     for entry in fs::read_dir(&assets_dir)

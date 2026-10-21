@@ -4,7 +4,7 @@
 //! moment's work, frames included, is exactly its table: a step that
 //! starts doing a costly thing twice, or something new, fails here.
 
-use osk_shell_api::{App, Event};
+use faraday_shell_api::{App, Event};
 
 use super::type_text;
 use crate::vaults::VaultAction as V;
@@ -62,10 +62,10 @@ const STARTUP: Table = &[
 #[test]
 fn startup_to_home_does_its_fixed_work() {
     let c = crate::testkit::compute();
-    // The self-test's own work (`osk_selftest`), known vectors run at the
+    // The self-test's own work (`faraday_selftest`), known vectors run at the
     // first Display: whatever it is, the start does it once.
     let before = snapshot();
-    assert!(osk_selftest::run(&c).is_ok());
+    assert!(faraday_selftest::run(&c).is_ok());
     let selftest = since(&before);
     // The test stick's files, made (signed, some of them) before the
     // count starts.
@@ -291,7 +291,7 @@ const SIGN: Table = &[
     (
         Work::PsbtInspect,
         2,
-        "the signing's own inspection before it signs (osk_psbt::sign), and the signed PSBT's, kept on the spend; the keys are chosen from the spend's kept inspection",
+        "the signing's own inspection before it signs (faraday_psbt::sign), and the signed PSBT's, kept on the spend; the keys are chosen from the spend's kept inspection",
     ),
     (
         Work::PsbtParse,

@@ -4,7 +4,7 @@
 
 use crate::drawing::View;
 use crate::strings::EN;
-use osk_ui::widgets::Icon;
+use faraday_draw::widgets::Icon;
 
 use crate::Action;
 use crate::compact::{buttons, scroll_sheet, sheet_head};

@@ -1,6 +1,6 @@
 # KDF known answers
 
-The start-up self-test (`core/osk-selftest`) checks the two KDFs the
+The start-up self-test (`core/faraday-selftest`) checks the two KDFs the
 BIP vectors do not reach. PBKDF2-HMAC-SHA512 is checked by the BIP-39
 seed vectors and HMAC-SHA512 by the BIP-32 one.
 
@@ -23,7 +23,7 @@ python3 -I -c "import hashlib; print(hashlib.scrypt(b'', salt=b'', n=16, r=1, p=
 ## Argon2id
 
 RFC 9106's own vectors use a secret and associated data, which
-`osk_backup::argon2id` does not take, so this answer was computed with
+`faraday_backup::argon2id` does not take, so this answer was computed with
 two implementations, which agree: argon2-cffi, which binds the
 reference C implementation, and `cryptography`, which calls OpenSSL.
 

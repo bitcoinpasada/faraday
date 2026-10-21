@@ -26,11 +26,11 @@
 use std::path::Path;
 use std::process::ExitCode;
 
+use faraday_bip::keys::Network;
+use faraday_bip::policy::WalletPolicy;
 use faraday_core::testkit::{self, Kit};
 use faraday_core::{Action, Faraday, StorageEvent};
-use osk_bip::keys::Network;
-use osk_bip::policy::WalletPolicy;
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 fn kit(id: &str) -> Result<Kit, String> {
     testkit::kits()

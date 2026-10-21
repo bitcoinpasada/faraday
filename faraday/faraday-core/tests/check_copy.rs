@@ -16,6 +16,7 @@
 //! (`docs/seed_qr/README.md`, "Test SeedQRs"), drawn by the repository's
 //! own encoder and read back by its own decoder, as a camera would.
 
+use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::board::{BoardPress as BP, Thing, Zone};
 use faraday_core::glance::Press;
 use faraday_core::glance_sheet::{ChartAction as C, Step, Target};
@@ -23,8 +24,7 @@ use faraday_core::plan::{self, Item};
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit;
 use faraday_core::{Action, Faraday, ScanPurpose, Sheet, StorageEvent, bstep};
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
 
 /// SeedSigner's 24-word vector: the words and its Standard SeedQR digits.
 const ATTACK: &str = "attack pizza motion avocado network gather crop fresh patrol unusual \
@@ -164,10 +164,10 @@ const BOTH: (bool, bool) = (true, true);
 
 /// What a camera reads off a drawn code: the code drawn as pixels by the
 /// repository's encoder, read back by its decoder.
-fn read_off(matrix: &osk_codec::qr::QrMatrix) -> Vec<u8> {
+fn read_off(matrix: &faraday_codec::qr::QrMatrix) -> Vec<u8> {
     let c = faraday_core::testkit::compute();
-    let (w, h, px) = matrix.to_luma(4, osk_codec::qr::QUIET_ZONE);
-    let found = osk_codec::decode_luma(&c, w, h, &px);
+    let (w, h, px) = matrix.to_luma(4, faraday_codec::qr::QUIET_ZONE);
+    let found = faraday_codec::decode_luma(&c, w, h, &px);
     assert_eq!(found.len(), 1, "one code in the frame");
     found[0].bytes.clone()
 }
@@ -175,13 +175,13 @@ fn read_off(matrix: &osk_codec::qr::QrMatrix) -> Vec<u8> {
 fn standard(words: &str) -> Vec<u8> {
     let c = testkit::compute();
     let m = Mnemonic::parse(&c, Language::English, words).unwrap();
-    read_off(&osk_codec::seedqr::encode_seedqr(&c, &m).unwrap())
+    read_off(&faraday_codec::seedqr::encode_seedqr(&c, &m).unwrap())
 }
 
 fn compact(words: &str) -> Vec<u8> {
     let c = testkit::compute();
     let m = Mnemonic::parse(&c, Language::English, words).unwrap();
-    read_off(&osk_codec::seedqr::encode_compact(&c, &m).unwrap())
+    read_off(&faraday_codec::seedqr::encode_compact(&c, &m).unwrap())
 }
 
 fn scan(app: &mut Faraday, bytes: Vec<u8>) {
@@ -556,10 +556,10 @@ fn a_copy_with_one_word_wrong_names_that_word_and_stays_open() {
     // holds, and the word is still named.
     let mut digits = ATTACK_DIGITS.as_bytes().to_vec();
     digits[4 * 4 + 3] = b'1';
-    let m = osk_codec::qr::encode(
+    let m = faraday_codec::qr::encode(
         &c,
-        osk_codec::qr::Payload::Numeric(&digits),
-        osk_codec::qr::Ecc::Low,
+        faraday_codec::qr::Payload::Numeric(&digits),
+        faraday_codec::qr::Ecc::Low,
     )
     .unwrap();
     scan(&mut app, read_off(&m));

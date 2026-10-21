@@ -9,15 +9,15 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-osk-shell-api = { path = "../../core/osk-shell-api" }
-osk-ui = { path = "../../core/osk-ui" }
-osk-bip = { path = "../../core/osk-bip" }
-osk-psbt = { path = "../../core/osk-psbt" }
-osk-codec = { path = "../../core/osk-codec" }
-osk-crypto = { path = "../../core/osk-crypto" }
-osk-entropy = { path = "../../core/osk-entropy" }
+faraday-shell-api = { path = "../../core/faraday-shell-api" }
+faraday-draw = { path = "../../core/faraday-draw" }
+faraday-bip = { path = "../../core/faraday-bip" }
+faraday-psbt = { path = "../../core/faraday-psbt" }
+faraday-codec = { path = "../../core/faraday-codec" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
+faraday-entropy = { path = "../../core/faraday-entropy" }
 osk-learn = { path = "../../core/osk-learn" }
-osk-selftest = { path = "../../core/osk-selftest" }
+faraday-selftest = { path = "../../core/faraday-selftest" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-qr = { path = "../faraday-qr" }
 faraday-strings = { path = "../faraday-strings" }
@@ -33,7 +33,7 @@ faraday-intake = { path = "../faraday-intake" }
 faraday-pgp = { path = "../faraday-pgp" }
 faraday-sb = { path = "../faraday-sb" }
 faraday-apk = { path = "../faraday-apk" }
-osk-backup = { path = "../../core/osk-backup" }
+faraday-backup = { path = "../../core/faraday-backup" }
 zeroize = { workspace = true, features = ["alloc"] }
 
 [features]

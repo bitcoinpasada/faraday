@@ -4,7 +4,7 @@
 //! The options are OpenSigner's, taken from its Create wizard: the sources
 //! and their order ([`SOURCE_ROWS`]), what a mix may combine
 //! ([`MIX_SOURCES`]), the word counts and their names, and the dice
-//! procedures' names. Every cryptographic step is `osk-entropy`'s and `osk-bip`'s,
+//! procedures' names. Every cryptographic step is `faraday-entropy`'s and `faraday-bip`'s,
 //! the crates OpenSigner's wizard itself calls: the rolls, flips, draws,
 //! digits and frames accumulate in their fixed buffers, the procedures
 //! hash or spell them, the sanity checks are theirs, a mix combines their
@@ -16,23 +16,23 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_entropy::{
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_entropy::{
     CameraNoise, CardDraws, CoinFlips, DiceProcedure, DiceRolls, MIN_MIX, Mixed, RawHex, Strength,
     Warnings,
 };
 
 pub use crate::quiz::QuizState;
-pub use osk_entropy::{MIX_SOURCES, SOURCE_ROWS, Source};
+pub use faraday_entropy::{MIX_SOURCES, SOURCE_ROWS, Source};
 
-use osk_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
-use osk_crypto::work::Compute;
+use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
+use faraday_crypto::work::Compute;
 
 use crate::forms::Form;
 use crate::{Screen, flow};
 
 /// The word counts on offer, in OpenSigner's order.
-pub const COUNTS: [u8; 5] = osk_entropy::WORD_COUNTS;
+pub const COUNTS: [u8; 5] = faraday_entropy::WORD_COUNTS;
 
 /// A source's name, as OpenSigner writes it.
 pub fn source_name(s: Source) -> &'static str {
@@ -297,7 +297,7 @@ pub struct KeyGen {
     pub camera: CameraNoise,
     /// The 32 bytes the shell answered with, asked for when this
     /// device's generator is the source being entered.
-    pub device: osk_entropy::DeviceRandom,
+    pub device: faraday_entropy::DeviceRandom,
     /// Those bytes have been asked for and not yet answered.
     pub device_asked: bool,
     /// The newest camera frame's luma, while the camera is on.
@@ -337,7 +337,7 @@ pub struct KeyGen {
     /// The master secret, once the entropy is in.
     pub secret: Option<zeroize::Zeroizing<Vec<u8>>>,
     /// The shares, once dealt.
-    pub shares: Vec<osk_bip::slip39::Share>,
+    pub shares: Vec<faraday_bip::slip39::Share>,
     /// The share on screen.
     pub share_at: usize,
     /// The share the quiz is on.
@@ -419,7 +419,7 @@ impl KeyGen {
             cards: CardDraws::new(),
             hex: RawHex::new(),
             camera: CameraNoise::new(),
-            device: osk_entropy::DeviceRandom::new(),
+            device: faraday_entropy::DeviceRandom::new(),
             device_asked: false,
             frame: None,
             rank: None,
@@ -566,7 +566,7 @@ impl KeyGen {
     /// `slip_m` of `slip_n` shares, with `random` for the split's own
     /// randomness (a fresh draw from the system's generator).
     pub fn deal(&mut self, c: &Compute, random: [u8; 32]) -> Result<(), String> {
-        use osk_bip::slip39;
+        use faraday_bip::slip39;
         let Some(secret) = self.secret.as_ref() else {
             return Err(EN.keygen_no_secret_yet.to_string());
         };
@@ -606,7 +606,7 @@ impl KeyGen {
     /// The strength the word count takes.
     pub fn strength(&self) -> Strength {
         if self.slip39 {
-            return if self.words <= osk_bip::slip39::MIN_WORDS {
+            return if self.words <= faraday_bip::slip39::MIN_WORDS {
                 Strength::Bits128
             } else {
                 Strength::Bits256
@@ -662,7 +662,7 @@ impl KeyGen {
     /// The high bits of the last rolled word the key keeps under direct
     /// selection: what the checksum leaves, 11 less a bit for every three
     /// words (7 at 12 words, 3 at 24). The checksum replaces the rest
-    /// (`osk_entropy::DiceRolls::entropy_under`).
+    /// (`faraday_entropy::DiceRolls::entropy_under`).
     pub fn last_bits(&self) -> usize {
         11 - self.words / 3
     }
@@ -680,7 +680,7 @@ impl KeyGen {
     /// [`KeyGen::dice_needed`]).
     pub fn rolls_for(&self, p: DiceProcedure) -> usize {
         if p.direct() {
-            osk_entropy::DICE_WORD_ROLLS * (self.words - 1) + self.last_bits().div_ceil(2)
+            faraday_entropy::DICE_WORD_ROLLS * (self.words - 1) + self.last_bits().div_ceil(2)
         } else {
             p.needed(self.strength())
         }
@@ -692,7 +692,7 @@ impl KeyGen {
     fn dice_entropy(
         &self,
         strength: Strength,
-    ) -> Result<osk_entropy::RawEntropy, osk_entropy::Error> {
+    ) -> Result<faraday_entropy::RawEntropy, faraday_entropy::Error> {
         let p = self.procedure();
         if !p.direct() || self.dice.len() < self.dice_needed() {
             return self.dice.entropy_under(strength, p);
@@ -1067,7 +1067,7 @@ impl KeyGen {
             if have >= need {
                 return;
             }
-            self.note = match osk_entropy::card_index(r, s) {
+            self.note = match faraday_entropy::card_index(r, s) {
                 Some(i) if self.cards.push(i) => None,
                 Some(_) => Some(EN.keygen_that_card_is.to_string()),
                 None => None,
@@ -1302,7 +1302,8 @@ impl crate::Faraday {
         k.scroll.follow = true;
         self.scan = None;
         self.sheet = None;
-        self.commands.push_back(osk_shell_api::Command::CameraOff);
+        self.commands
+            .push_back(faraday_shell_api::Command::CameraOff);
         true
     }
 
@@ -1466,7 +1467,7 @@ impl crate::Faraday {
                 k.slip_m = (i16::from(k.slip_m) + i16::from(d)).clamp(2, i16::from(k.slip_n)) as u8;
             }
             A::KSlipN(d) => {
-                let max = osk_bip::slip39::MAX_COUNT as i16;
+                let max = faraday_bip::slip39::MAX_COUNT as i16;
                 k.slip_n = (i16::from(k.slip_n) + i16::from(d)).clamp(2, max) as u8;
                 k.slip_m = k.slip_m.min(k.slip_n);
             }
@@ -1839,7 +1840,7 @@ impl crate::Faraday {
     /// single-key Create it makes the wallet too, as Keys' Continue
     /// would, and Check is what the Key card shows (`docs/NEW-WALLET.md`
     /// §3.3). `made`: the key was made here, not typed.
-    fn keygen_fill(&mut self, slot: Option<u8>, fp: osk_bip::keys::Fingerprint, made: bool) {
+    fn keygen_fill(&mut self, slot: Option<u8>, fp: faraday_bip::keys::Fingerprint, made: bool) {
         let Some(slot) = slot else {
             return;
         };
@@ -1995,13 +1996,13 @@ impl crate::Faraday {
             // A key typed: Add a key's own toast.
             self.toast(&fill(
                 EN.entry_add_key_added,
-                &[&crate::wallet::fp_text(osk_bip::keys::Fingerprint(fp)).to_string()],
+                &[&crate::wallet::fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
             ));
         } else if let Some(fp) = k.fingerprint {
             self.toast(&fill(
                 EN.keygen_key_added_back,
                 &[
-                    &crate::wallet::fp_text(osk_bip::keys::Fingerprint(fp)).to_string(),
+                    &crate::wallet::fp_text(faraday_bip::keys::Fingerprint(fp)).to_string(),
                     (if k.slip39 {
                         EN.keygen_shares_inline
                     } else {
@@ -2040,7 +2041,7 @@ impl crate::Faraday {
         {
             k.device_asked = true;
             self.commands
-                .push_back(osk_shell_api::Command::RequestEntropy);
+                .push_back(faraday_shell_api::Command::RequestEntropy);
         }
     }
 
@@ -2066,9 +2067,9 @@ impl crate::Faraday {
         if want != self.keygen_camera_on {
             self.keygen_camera_on = want;
             self.commands.push_back(if want {
-                osk_shell_api::Command::CameraOn
+                faraday_shell_api::Command::CameraOn
             } else {
-                osk_shell_api::Command::CameraOff
+                faraday_shell_api::Command::CameraOff
             });
         }
         if !want
@@ -2082,8 +2083,8 @@ impl crate::Faraday {
 
     /// Keys typed while the flow is on screen. Returns whether it took
     /// the key.
-    pub(crate) fn keygen_key(&mut self, key: osk_shell_api::Key) -> bool {
-        use osk_shell_api::Key as KeyIn;
+    pub(crate) fn keygen_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as KeyIn;
         if self.screen != Screen::KeyGen {
             return false;
         }
@@ -2169,7 +2170,7 @@ impl crate::Faraday {
             (Some(Source::Hex), KeyIn::Char(c)) if c.is_ascii_hexdigit() => k.hex_digit(c),
             (Some(Source::Cards), KeyIn::Char(c)) => {
                 let c = c.to_ascii_uppercase();
-                if let Some(r) = osk_entropy::RANKS.iter().position(|x| *x == c) {
+                if let Some(r) = faraday_entropy::RANKS.iter().position(|x| *x == c) {
                     k.card(Some(r as u8), None);
                 } else if let Some(s) = ['S', 'H', 'D', 'C'].iter().position(|x| *x == c) {
                     k.card(None, Some(s as u8));

@@ -11,10 +11,10 @@ publish = false
 [dependencies]
 # The payload classifier, SeedQR and UR. The QR decoder (`decode`) is not
 # needed to recognise bytes already read.
-osk-codec = { path = "../../core/osk-codec", default-features = false }
-osk-bip = { path = "../../core/osk-bip" }
+faraday-codec = { path = "../../core/faraday-codec", default-features = false }
+faraday-bip = { path = "../../core/faraday-bip" }
 # The token key work takes (docs/COMPUTE.md §2).
-osk-crypto = { path = "../../core/osk-crypto" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
 # The Faraday file envelope, what a whole transfer arrived as, and CBOR.
 faraday-qr = { path = "../faraday-qr" }
 zeroize = { workspace = true, features = ["alloc"] }

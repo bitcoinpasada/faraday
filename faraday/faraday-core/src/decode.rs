@@ -4,15 +4,15 @@
 //! script type, which outputs come back to a loaded wallet, the witness
 //! stacks, the locktime, and the fee when the amounts going in are known.
 //!
-//! The parsing is rust-bitcoin's, through `osk_psbt::transaction`; this
+//! The parsing is rust-bitcoin's, through `faraday_psbt::transaction`; this
 //! module only arranges what it read.
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_bip::bitcoin::consensus::encode::serialize_hex;
-use osk_bip::bitcoin::{Address, Amount, Script, Transaction, TxOut};
-use osk_bip::keys::Network;
-use osk_crypto::work::Compute;
+use faraday_bip::bitcoin::consensus::encode::serialize_hex;
+use faraday_bip::bitcoin::{Address, Amount, Script, Transaction, TxOut};
+use faraday_bip::keys::Network;
+use faraday_crypto::work::Compute;
 
 use crate::wallet::Session;
 
@@ -147,8 +147,10 @@ pub fn decode(
         .output
         .iter()
         .map(|o| {
-            let address =
-                Address::from_script(&o.script_pubkey, osk_bip::bitcoin::Network::from(network));
+            let address = Address::from_script(
+                &o.script_pubkey,
+                faraday_bip::bitcoin::Network::from(network),
+            );
             let ours = address.as_ref().ok().and_then(|a| {
                 session.wallets.iter().find_map(|w| {
                     w.policy()
@@ -183,7 +185,7 @@ pub fn decode(
 }
 
 /// The outputs a PSBT's inputs spend, in order, as far as it says.
-pub fn prevouts_of(psbt: &osk_psbt::Psbt) -> Vec<Option<TxOut>> {
+pub fn prevouts_of(psbt: &faraday_psbt::Psbt) -> Vec<Option<TxOut>> {
     let inner = psbt.inner();
     inner
         .inputs

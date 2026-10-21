@@ -10,7 +10,7 @@ use common::*;
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_core::plan::{At, What};
 use faraday_core::{Action, Faraday, Sheet, cstep, testkit};
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 /// Two published BIP-39 test mnemonics, for a wallet of five keys.
 const MORE_WORDS: [&str; 2] = [

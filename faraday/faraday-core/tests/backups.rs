@@ -12,7 +12,7 @@ use faraday_core::plan::Tag;
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, bstep, testkit};
-use osk_shell_api::{
+use faraday_shell_api::{
     App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware, TouchPhase,
 };
 

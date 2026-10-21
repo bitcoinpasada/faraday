@@ -13,9 +13,9 @@ use std::cell::RefCell;
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_apk::{Apk, Info, Refusal, Slice, key, pem, sign};
+use faraday_crypto::work::Compute;
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
-use osk_crypto::work::Compute;
 
 use crate::Faraday;
 use crate::backup_flow::Kind;
@@ -294,7 +294,7 @@ pub fn compare_second(typed: &str, sha: &[u8; 32]) -> Second {
 
 /// Costs a SHA-256 pass over the whole file: the APK's SHA-256.
 fn sha_of(c: &Compute, bytes: &[u8]) -> [u8; 32] {
-    osk_crypto::sha256_whole(c, bytes)
+    faraday_crypto::sha256_whole(c, bytes)
 }
 
 impl Faraday {

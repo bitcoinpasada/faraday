@@ -1,18 +1,18 @@
 //! The Wallets tab's session: keys and wallets held in memory, and the spend of
 //! one transaction from loading it to the two results (`docs/WALLETS.md`
-//! §2 and §4). Every piece of cryptography is `osk-bip`'s or
-//! `osk-psbt`'s; this module only decides which call comes next.
+//! §2 and §4). Every piece of cryptography is `faraday-bip`'s or
+//! `faraday-psbt`'s; this module only decides which call comes next.
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_bip::bitcoin::consensus::encode::serialize_hex;
-use osk_bip::bitcoin::{Transaction, Txid};
-use osk_bip::keys::{Fingerprint, MasterKey, Network, ScriptType};
-use osk_bip::policy::{Template, WalletPolicy, Wrapper};
-use osk_crypto::work::Compute;
-use osk_psbt::verify::Verdict;
-use osk_psbt::{Aux, Context, Inspection, KeyRef, Nonce, Psbt};
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::bitcoin::consensus::encode::serialize_hex;
+use faraday_bip::bitcoin::{Transaction, Txid};
+use faraday_bip::keys::{Fingerprint, MasterKey, Network, ScriptType};
+use faraday_bip::policy::{Template, WalletPolicy, Wrapper};
+use faraday_crypto::work::Compute;
+use faraday_psbt::verify::Verdict;
+use faraday_psbt::{Aux, Context, Inspection, KeyRef, Nonce, Psbt};
 
 /// The network a session starts on, before a wallet or a PSBT says
 /// otherwise.
@@ -62,7 +62,7 @@ pub fn parse_words(
     c: &Compute,
     lang: Language,
     text: &str,
-) -> Result<Mnemonic, osk_bip::bip39::Error> {
+) -> Result<Mnemonic, faraday_bip::bip39::Error> {
     Mnemonic::parse(c, lang, text)
 }
 
@@ -70,7 +70,7 @@ pub fn parse_words(
 /// it holds words, read by the vault's reader and counted through the
 /// token.
 pub fn record_words(c: &Compute, r: &faraday_vault::Record) -> Option<Mnemonic> {
-    c.count(osk_crypto::work::Work::WordsParse);
+    c.count(faraday_crypto::work::Work::WordsParse);
     faraday_vault::records::words_of(r)
 }
 pub(crate) use faraday_intake::wallet::{json_label, network_of_kind};
@@ -103,7 +103,7 @@ pub struct Key {
     /// 32 bytes read as the share's scalar (`docs/PLANNING.md` §16.103).
     /// Every 24-word key has one; it signs as a share only for a loaded
     /// threshold record that lists it.
-    pub share: Option<osk_bip::bitcoin::secp256k1::PublicKey>,
+    pub share: Option<faraday_bip::bitcoin::secp256k1::PublicKey>,
     /// The BIP-39 passphrase it was loaded with, when it has one. Wiped
     /// with the session.
     pub passphrase: Option<zeroize::Zeroizing<String>>,
@@ -132,7 +132,7 @@ impl Key {
         label: String,
         words: Option<zeroize::Zeroizing<String>>,
         language: Language,
-        share: Option<osk_bip::bitcoin::secp256k1::PublicKey>,
+        share: Option<faraday_bip::bitcoin::secp256k1::PublicKey>,
         passphrase: Option<zeroize::Zeroizing<String>>,
     ) -> Key {
         let master_id = master_id(c, &master);
@@ -243,7 +243,11 @@ impl Key {
 
     /// Costs what `parse_words` costs. Runs `take` on the secret share
     /// these words are, rebuilt for the call and wiped after it.
-    pub fn with_secret_share(&self, c: &Compute, take: &mut dyn FnMut(&osk_bip::frost::SecShare)) {
+    pub fn with_secret_share(
+        &self,
+        c: &Compute,
+        take: &mut dyn FnMut(&faraday_bip::frost::SecShare),
+    ) {
         if let Some(share) = self
             .words
             .as_ref()
@@ -256,14 +260,14 @@ impl Key {
 }
 
 /// The FROST share 24 words are, when they are 24 words.
-fn secret_share(m: &Mnemonic) -> Option<osk_bip::frost::SecShare> {
+fn secret_share(m: &Mnemonic) -> Option<faraday_bip::frost::SecShare> {
     if m.word_count() != 24 {
         return None;
     }
     let entropy = m.entropy();
     let mut bytes = [0u8; 32];
     bytes.copy_from_slice(entropy.expose().as_bytes());
-    let share = osk_bip::frost::SecShare::from_bytes(&bytes).ok();
+    let share = faraday_bip::frost::SecShare::from_bytes(&bytes).ok();
     zeroize::Zeroize::zeroize(&mut bytes);
     share
 }
@@ -275,7 +279,7 @@ pub struct Signed {
     pub by: Vec<Fingerprint>,
     /// The carry section a threshold pass leaves for the shares still to
     /// sign: the secret nonce that travels on the stick.
-    pub carry: Option<osk_psbt::threshold::CarrySection>,
+    pub carry: Option<faraday_psbt::threshold::CarrySection>,
 }
 
 /// A wallet described by its public keys.
@@ -299,7 +303,7 @@ pub struct Wallet {
     /// The scripts asked of it to find which wallet a PSBT spends from,
     /// each derived once, by chain and index ([`Wallet::script_at`]):
     /// public, and dropped with the policy they come from.
-    scripts: std::cell::RefCell<Vec<(bool, u32, Option<osk_bip::bitcoin::ScriptBuf>)>>,
+    scripts: std::cell::RefCell<Vec<(bool, u32, Option<faraday_bip::bitcoin::ScriptBuf>)>>,
 }
 
 impl Wallet {
@@ -324,7 +328,7 @@ impl Wallet {
         c: &Compute,
         change: bool,
         index: u32,
-    ) -> Option<osk_bip::bitcoin::ScriptBuf> {
+    ) -> Option<faraday_bip::bitcoin::ScriptBuf> {
         if let Some((.., s)) = self
             .scripts
             .borrow()
@@ -423,7 +427,7 @@ pub struct NonceCheck {
     /// Every signature, in input order.
     pub rows: Vec<NonceRow>,
     /// Nonces used twice under one key: the key, given away.
-    pub reused: Vec<osk_psbt::verify::NonceReuse>,
+    pub reused: Vec<faraday_psbt::verify::NonceReuse>,
 }
 
 impl NonceCheck {
@@ -449,7 +453,7 @@ pub struct NonceRow {
     /// For a key held here: the nonce rule that recomputed it, or `None`
     /// inside when none did. `None` outside for a key held elsewhere,
     /// whose nonce cannot be recomputed without its private key.
-    pub recomputed: Option<Option<osk_psbt::verify::NonceMode>>,
+    pub recomputed: Option<Option<faraday_psbt::verify::NonceMode>>,
 }
 
 /// One key slot of a wallet, in the descriptor's order.
@@ -461,7 +465,7 @@ pub struct Slot {
     /// The descriptor's key for it, which says whether a seed is this
     /// slot's where the fingerprint only finds a candidate; `None` for a
     /// silent payments wallet's key and a threshold wallet's shares.
-    pub key: Option<osk_bip::policy::PolicyKey>,
+    pub key: Option<faraday_bip::policy::PolicyKey>,
 }
 
 impl Slot {
@@ -541,7 +545,7 @@ impl Default for Session {
 /// type of a BIP-44, 49, 84, 86 or 48 key path. A PSBT that says neither
 /// is taken on the session's network.
 pub fn psbt_network(psbt: &Psbt, current: Network) -> Option<Network> {
-    use osk_bip::bitcoin::bip32::ChildNumber;
+    use faraday_bip::bitcoin::bip32::ChildNumber;
     let inner = psbt.inner();
     if let Some(x) = inner.xpub.keys().next() {
         return Some(network_of_kind(x.network, current));
@@ -573,7 +577,7 @@ pub fn psbt_network(psbt: &Psbt, current: Network) -> Option<Network> {
         {
             return Some(match c {
                 0 => Network::Mainnet,
-                _ => network_of_kind(osk_bip::bitcoin::NetworkKind::Test, current),
+                _ => network_of_kind(faraday_bip::bitcoin::NetworkKind::Test, current),
             });
         }
     }
@@ -726,7 +730,7 @@ impl Session {
             }
             words.push_str(lang.word(i));
         }
-        let secp = osk_bip::bitcoin::secp256k1::Secp256k1::new();
+        let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::new();
         let share = secret_share(mnemonic).map(|s| s.public_share(&secp));
         self.keys.push(Key::new(
             c,
@@ -803,7 +807,7 @@ impl Session {
     }
 
     /// Costs what `from_seed_bytes` and `new` cost. Adds the key a master
-    /// seed gives, as an `osk-backup` kind-2 backup carries one: there are
+    /// seed gives, as an `.oskb` kind-2 backup carries one: there are
     /// no words to copy by hand.
     pub fn add_seed(
         &mut self,
@@ -811,9 +815,10 @@ impl Session {
         seed: &[u8],
         label: &str,
     ) -> Result<Fingerprint, Refusal> {
-        let bytes = osk_crypto::SeedBytes::new(seed)
+        let bytes = faraday_crypto::SeedBytes::new(seed)
             .ok_or_else(|| Refusal::Words(EN.wallet_a_master_seed.to_string()))?;
-        let master = MasterKey::from_seed_bytes(c, &osk_crypto::Secret::new(bytes), self.network);
+        let master =
+            MasterKey::from_seed_bytes(c, &faraday_crypto::Secret::new(bytes), self.network);
         let fp = master.fingerprint();
         self.allowed(fp)?;
         if self.keys.iter().any(|k| k.fingerprint() == fp) {
@@ -1057,15 +1062,15 @@ impl Session {
     /// its key and this transaction, each one a key held here made
     /// recomputed from that key (RFC 6979 or BIP-340 with no extra
     /// randomness), and any nonce used twice under one key. OpenSigner's
-    /// own checks (`osk_psbt::verify`).
+    /// own checks (`faraday_psbt::verify`).
     pub fn nonce_check(&self, c: &Compute, psbt: &Psbt) -> NonceCheck {
         let refs = self.key_refs(c);
         let policies = self.policies();
         let ctx = context(self.network, &refs, &policies);
         let masters: Vec<&MasterKey> = self.keys.iter().map(|k| &k.master).collect();
-        let made = osk_psbt::verify::deterministic(c, psbt, &masters);
+        let made = faraday_psbt::verify::deterministic(c, psbt, &masters);
         let mut rows = Vec::new();
-        for input in osk_psbt::verify::verify_signatures(psbt, &ctx) {
+        for input in faraday_psbt::verify::verify_signatures(psbt, &ctx) {
             for sig in input.signatures {
                 let recomputed = made
                     .iter()
@@ -1081,14 +1086,14 @@ impl Session {
         }
         NonceCheck {
             rows,
-            reused: osk_psbt::verify::repeated_nonces(psbt, &ctx),
+            reused: faraday_psbt::verify::repeated_nonces(psbt, &ctx),
         }
     }
 
-    fn share_refs(&self) -> Vec<osk_psbt::ShareRef> {
+    fn share_refs(&self) -> Vec<faraday_psbt::ShareRef> {
         self.keys
             .iter()
-            .filter_map(|k| k.share.map(|pubshare| osk_psbt::ShareRef { pubshare }))
+            .filter_map(|k| k.share.map(|pubshare| faraday_psbt::ShareRef { pubshare }))
             .collect()
     }
 
@@ -1119,7 +1124,7 @@ impl Session {
         &self,
         c: &Compute,
         psbt: &Psbt,
-        carry: Option<&osk_psbt::threshold::CarrySection>,
+        carry: Option<&faraday_psbt::threshold::CarrySection>,
     ) -> Inspection {
         let refs = self.key_refs(c);
         let policies = self.policies();
@@ -1127,7 +1132,7 @@ impl Session {
         let mut ctx = context(self.network, &refs, &policies);
         ctx.shares = &shares;
         ctx.carry = carry;
-        osk_psbt::inspect(c, psbt, &ctx)
+        faraday_psbt::inspect(c, psbt, &ctx)
     }
 
     /// The loaded keys that are shares of the threshold wallet `w`, by
@@ -1157,7 +1162,7 @@ impl Session {
         c: &Compute,
         psbt: &mut Psbt,
         seed: [u8; 32],
-        musig: &mut Option<osk_psbt::MusigSession>,
+        musig: &mut Option<faraday_psbt::MusigSession>,
     ) -> Result<Vec<Fingerprint>, String> {
         self.sign_with(c, psbt, seed, musig, &[], None, None)
             .map(|s| s.by)
@@ -1176,9 +1181,9 @@ impl Session {
         c: &Compute,
         psbt: &mut Psbt,
         seed: [u8; 32],
-        musig: &mut Option<osk_psbt::MusigSession>,
+        musig: &mut Option<faraday_psbt::MusigSession>,
         others: &[u32],
-        carry: Option<&osk_psbt::threshold::CarrySection>,
+        carry: Option<&faraday_psbt::threshold::CarrySection>,
         known: Option<&Inspection>,
     ) -> Result<Signed, String> {
         let refs = self.key_refs(c);
@@ -1191,7 +1196,7 @@ impl Session {
         let inspection = match known {
             Some(i) => i,
             None => {
-                own = osk_psbt::inspect(c, psbt, &ctx);
+                own = faraday_psbt::inspect(c, psbt, &ctx);
                 &own
             }
         };
@@ -1212,25 +1217,25 @@ impl Session {
         // A share's scalar is rebuilt from its words only inside the call
         // the signer makes through its door.
         let members: Vec<&Key> = self.keys.iter().filter(|k| k.share.is_some()).collect();
-        let doors: Vec<Box<osk_psbt::ShareDoor<'_>>> = members
+        let doors: Vec<Box<faraday_psbt::ShareDoor<'_>>> = members
             .iter()
-            .map(|key| -> Box<osk_psbt::ShareDoor<'_>> {
-                Box::new(move |take: &mut dyn FnMut(&osk_bip::frost::SecShare)| {
+            .map(|key| -> Box<faraday_psbt::ShareDoor<'_>> {
+                Box::new(move |take: &mut dyn FnMut(&faraday_bip::frost::SecShare)| {
                     key.with_secret_share(c, take);
                 })
             })
             .collect();
-        let share_keys: Vec<osk_psbt::ShareKey> = members
+        let share_keys: Vec<faraday_psbt::ShareKey> = members
             .iter()
             .zip(&doors)
             .filter_map(|(key, door)| {
-                Some(osk_psbt::ShareKey {
+                Some(faraday_psbt::ShareKey {
                     pubshare: key.share?,
                     open: door.as_ref(),
                 })
             })
             .collect();
-        let result = osk_psbt::sign(
+        let result = faraday_psbt::sign(
             c,
             psbt,
             &masters,
@@ -1413,7 +1418,7 @@ pub struct PsbtSeen {
     pub sigs: usize,
     /// The first input's script, and each (change, index) its key
     /// origins state.
-    first: Option<(osk_bip::bitcoin::ScriptBuf, Vec<(bool, u32)>)>,
+    first: Option<(faraday_bip::bitcoin::ScriptBuf, Vec<(bool, u32)>)>,
 }
 
 impl PsbtSeen {
@@ -1534,7 +1539,7 @@ pub enum FileKind {
     Vault,
     /// Entries for a vault: `otpauth://` URIs and `field: value` lines.
     Entries,
-    /// An OpenSigner encrypted backup (`osk-backup`).
+    /// An OpenSigner encrypted backup (`.oskb`).
     Backup,
     /// An EFI image to sign or check for Secure Boot.
     EfiImage,
@@ -1653,7 +1658,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
     if faraday_vault::read_header(bytes).is_ok() {
         return FileKind::Vault.into();
     }
-    if osk_backup::oskb::is_backup(bytes) {
+    if faraday_backup::oskb::is_backup(bytes) {
         return FileKind::Backup.into();
     }
     if bytes.starts_with(b"%PDF-") {
@@ -1671,7 +1676,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
     if faraday_apk::pem::read(bytes).is_some() {
         return FileKind::Certificate.into();
     }
-    if osk_psbt::threshold::Carry::looks_like_carry(bytes) {
+    if faraday_psbt::threshold::Carry::looks_like_carry(bytes) {
         return FileKind::Carry.into();
     }
     if let Some(p) = read_psbt(c, bytes) {
@@ -1690,8 +1695,10 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
         {
             return FileKind::Gpg.into();
         }
-        if let Some(m) = osk_psbt::message::parse_signed(text)
-            && m.address.parse::<osk_bip::bitcoin::Address<_>>().is_ok()
+        if let Some(m) = faraday_psbt::message::parse_signed(text)
+            && m.address
+                .parse::<faraday_bip::bitcoin::Address<_>>()
+                .is_ok()
         {
             return FileKind::Message.into();
         }
@@ -1726,7 +1733,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
         let t = text.trim();
         if !t.is_empty()
             && t.bytes().all(|b| b.is_ascii_hexdigit())
-            && osk_psbt::transaction::read_raw(t.as_bytes()).is_some()
+            && faraday_psbt::transaction::read_raw(t.as_bytes()).is_some()
         {
             return FileKind::Transaction.into();
         }
@@ -1800,7 +1807,7 @@ impl Spend {
                     .filter_map(|k| k.fingerprint())
                     .collect();
             }
-            let partials = osk_psbt::musig::partial_sigs(input).unwrap_or_default();
+            let partials = faraday_psbt::musig::partial_sigs(input).unwrap_or_default();
             return w
                 .policy
                 .keys()
@@ -1874,7 +1881,7 @@ impl Spend {
     /// Finishes the transaction when it has enough signatures.
     pub fn finish(&mut self) -> Result<(), String> {
         let mut copy = self.psbt.clone();
-        match osk_psbt::finalize(&mut copy) {
+        match faraday_psbt::finalize(&mut copy) {
             Ok(Some(tx)) => {
                 self.finished = Some(tx);
                 Ok(())
@@ -1887,7 +1894,7 @@ impl Spend {
     /// Why the transaction cannot be finished yet, when it cannot.
     pub fn finish_reason(&self) -> Option<String> {
         let mut copy = self.psbt.clone();
-        match osk_psbt::finalize(&mut copy) {
+        match faraday_psbt::finalize(&mut copy) {
             Ok(Some(_)) => None,
             Ok(None) => Some(EN.wallet_the_script_is.to_string()),
             Err(e) => Some(e.to_string()),
@@ -1903,10 +1910,10 @@ impl Spend {
 /// What checking a signed message found.
 pub struct MessageCheck {
     /// The signed text, as read.
-    pub signed: osk_psbt::message::SignedText,
+    pub signed: faraday_psbt::message::SignedText,
     /// The signature verifies against the address, and in which format;
     /// or why not.
-    pub verdict: Result<osk_psbt::message::Format, String>,
+    pub verdict: Result<faraday_psbt::message::Format, String>,
     /// The loaded wallet the address belongs to, with its chain and index.
     pub wallet: Option<(usize, bool, u32)>,
 }
@@ -1937,8 +1944,8 @@ impl Session {
         wallet: usize,
         index: u32,
         message: &str,
-        format: osk_psbt::message::Format,
-    ) -> Result<osk_psbt::message::Signed, String> {
+        format: faraday_psbt::message::Format,
+    ) -> Result<faraday_psbt::message::Signed, String> {
         let w = self.wallets.get(wallet).ok_or(EN.wallet_no_such_wallet)?;
         let Kind::Single(script) = Kind::of(&w.policy) else {
             return Err(EN.wallet_messages_are.into());
@@ -1954,15 +1961,15 @@ impl Session {
         let origin = key.path().ok_or(EN.wallet_the_wallet_s)?;
         let path = origin
             .child(
-                osk_bip::bitcoin::bip32::ChildNumber::from_normal_idx(0)
+                faraday_bip::bitcoin::bip32::ChildNumber::from_normal_idx(0)
                     .map_err(|e| e.to_string())?,
             )
             .child(
-                osk_bip::bitcoin::bip32::ChildNumber::from_normal_idx(index)
+                faraday_bip::bitcoin::bip32::ChildNumber::from_normal_idx(index)
                     .map_err(|e| e.to_string())?,
             );
         let derived = master.derive(c, &path);
-        osk_psbt::message::sign(
+        faraday_psbt::message::sign(
             c,
             derived.secp(),
             derived.secret_key(),
@@ -1980,14 +1987,14 @@ impl Session {
     /// signed message, and finds its address among the loaded wallets'
     /// first hundred addresses on each chain.
     pub fn check_message(&self, c: &Compute, text: &str) -> Option<MessageCheck> {
-        let signed = osk_psbt::message::parse_signed(text)?;
+        let signed = faraday_psbt::message::parse_signed(text)?;
         let address = signed
             .address
-            .parse::<osk_bip::bitcoin::Address<_>>()
+            .parse::<faraday_bip::bitcoin::Address<_>>()
             .ok()?
             .require_network(self.network.into())
             .ok()?;
-        let verdict = osk_psbt::message::verify(&address, &signed.message, &signed.signature)
+        let verdict = faraday_psbt::message::verify(&address, &signed.message, &signed.signature)
             .map(|c| c.format)
             .map_err(|e| format!("{e:?}"));
         let wallet = self.wallets.iter().enumerate().find_map(|(i, w)| {
@@ -2017,7 +2024,7 @@ pub struct PathView {
 
 /// Every path of a wallet, read against the transaction's first input.
 pub fn paths(session: &Session, wallet: &Wallet, psbt: &Psbt) -> Vec<PathView> {
-    use osk_bip::spend::Lock;
+    use faraday_bip::spend::Lock;
     let seq = psbt
         .unsigned_tx()
         .input
@@ -2092,7 +2099,7 @@ pub fn musig_nonces(
         .inner()
         .inputs
         .first()
-        .and_then(|i| osk_psbt::musig::pub_nonces(i).ok())
+        .and_then(|i| faraday_psbt::musig::pub_nonces(i).ok())
         .unwrap_or_default();
     session
         .slots(wallet)

@@ -190,13 +190,13 @@ fn create_refuses_what_it_cannot_keep() {
 #[test]
 fn records_of_every_type_read_back() {
     let c = compute();
-    let words = osk_bip::bip39::Mnemonic::parse(
+    let words = faraday_bip::bip39::Mnemonic::parse(
         &c,
-        osk_bip::bip39::Language::English,
+        faraday_bip::bip39::Language::English,
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
     )
     .unwrap();
-    let sheet = osk_backup::oskb::sheet_payload(b"wpkh(...)", b"Savings", b"").unwrap();
+    let sheet = faraday_backup::oskb::sheet_payload(b"wpkh(...)", b"Savings", b"").unwrap();
     let c = Contents {
         records: vec![
             Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Main"),

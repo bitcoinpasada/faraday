@@ -4,7 +4,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_ui::widgets::Icon;
+use faraday_draw::widgets::Icon;
 
 use crate::drawing::{Scrolled, View};
 use crate::family::{Came, CardId, FamilyAction as F, Question, more_bit, page};
@@ -944,7 +944,7 @@ fn came_rows(app: &View) -> Vec<String> {
     for c in &came {
         match c {
             Came::Seed(fp) => {
-                let f = osk_bip::keys::Fingerprint(*fp);
+                let f = faraday_bip::keys::Fingerprint(*fp);
                 let Some(label) = app.session.key_label(f) else {
                     continue;
                 };

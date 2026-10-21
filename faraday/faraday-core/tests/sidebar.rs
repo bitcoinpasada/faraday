@@ -4,9 +4,9 @@
 //! it names. Under its tab, each flow in progress has a row, its name
 //! and open step, which returns to it as it was left.
 
+use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::{Action, Faraday, Screen, Sheet};
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// `seeds` seeds and `wallets` single-key wallets over the first of them,
 /// on Files.
@@ -145,7 +145,7 @@ fn the_session_strip_reads_write_out_for_a_vault_changed_since_written() {
     app.vaults.ms_per_unit = Some(180);
     app.press(Action::Vault(V::Open(0)));
     for c in faraday_core::testkit::VAULT_PASSPHRASES[0].chars() {
-        app.event(Event::Key(osk_shell_api::Key::Char(c)));
+        app.event(Event::Key(faraday_shell_api::Key::Char(c)));
     }
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
@@ -267,7 +267,7 @@ use faraday_core::backup_flow::{Kind, Step};
 use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::in_progress::Going;
 use faraday_core::{cstep, qstep, rstep, testkit};
-use osk_shell_api::Key;
+use faraday_shell_api::Key;
 
 /// Test seed `n` typed in as a key.
 fn key_in(app: &mut Faraday, n: usize) {
@@ -754,7 +754,7 @@ fn a_backup_flow_with_its_key_made_offers_no_cancel() {
     app.press(Action::Vault(V::LoadTicked));
     // The randomness and the clock a shell gives.
     for i in 0..8u8 {
-        app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
             [0x60 + i; 32],
         )));
     }

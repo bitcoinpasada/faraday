@@ -2,18 +2,18 @@
 //! (`docs/OPENSIGNER-PARITY.md` plan B2): a Seed XOR split of its words
 //! into parts that are each BIP-39 words, every part needed; and codex32
 //! shares of its BIP-32 seed (BIP 93), any `k` of `n` enough. The
-//! arithmetic is `osk-entropy`'s and `osk-bip`'s; the randomness is fresh
+//! arithmetic is `faraday-entropy`'s and `faraday-bip`'s; the randomness is fresh
 //! from the system. The parts are shown to copy by hand and never
 //! written to a file; only the seed itself goes into a vault or, past
 //! the secret sheet, a file (`crate::secrets`).
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_bip::bip39::Mnemonic;
-use osk_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
-use osk_bip::codex32::{self, Codex32};
-use osk_crypto::work::Compute;
-use osk_entropy::SeedXor;
+use faraday_bip::bip39::Mnemonic;
+use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
+use faraday_bip::codex32::{self, Codex32};
+use faraday_crypto::work::Compute;
+use faraday_entropy::SeedXor;
 use zeroize::Zeroizing;
 
 use crate::Faraday;

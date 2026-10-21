@@ -3,12 +3,12 @@
 //! A pointer is a touch at a place the person aims with. The core has no
 //! pointer and needs none: the cursor lives here, `BTN_LEFT` down, the
 //! moves while it is down, and `BTN_LEFT` up are
-//! [`Event::Touch`](osk_shell_api::Event::Touch) Down, Move and Up at the
-//! cursor, and the wheel is [`Event::Scroll`](osk_shell_api::Event::Scroll)
+//! [`Event::Touch`](faraday_shell_api::Event::Touch) Down, Move and Up at the
+//! cursor, and the wheel is [`Event::Scroll`](faraday_shell_api::Event::Scroll)
 //! there. The thumb buttons (`BTN_SIDE` and `BTN_BACK`, `BTN_EXTRA` and
 //! `BTN_FORWARD`) are the core's
-//! [`Event::Back`](osk_shell_api::Event::Back) and
-//! [`Event::Forward`](osk_shell_api::Event::Forward), on the press
+//! [`Event::Back`](faraday_shell_api::Event::Back) and
+//! [`Event::Forward`](faraday_shell_api::Event::Forward), on the press
 //! (`docs/NEW-WALLET.md` §13.1). Every screen therefore works with a mouse for the same reason
 //! it works with a finger, and nothing in the core knows the difference.
 //!
@@ -520,7 +520,7 @@ mod tests {
     #[test]
     fn the_thumb_buttons_reach_the_core_as_back_and_forward() {
         use crate::cursor::Pointed;
-        use osk_shell_api::Event;
+        use faraday_shell_api::Event;
         assert_eq!(
             Pointed::Back.events().collect::<Vec<_>>(),
             vec![Event::Back]
@@ -764,7 +764,7 @@ mod tests {
     mod pad {
         use std::time::{Duration, Instant};
 
-        use osk_shell_api::{Event, TouchPhase};
+        use faraday_shell_api::{Event, TouchPhase};
 
         use super::*;
         use crate::cursor::Cursor;
@@ -1006,7 +1006,7 @@ mod tests {
         #[test]
         fn a_held_click_and_a_second_finger_drag_the_scrollbar_and_scroll_the_page() {
             use faraday_core::{Action, Faraday, Screen, StorageEvent};
-            use osk_shell_api::{App, BootState, DisplayInfo, SecureHardware};
+            use faraday_shell_api::{App, BootState, DisplayInfo, SecureHardware};
 
             let mut app = Faraday::new();
             app.event(Event::Display(DisplayInfo {

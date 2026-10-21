@@ -6,7 +6,7 @@
 
 use faraday_core::vaults::{SlotOf, VaultAction as V};
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 fn kit_file(name: &str) -> (String, Vec<u8>) {
     testkit::files()
@@ -195,7 +195,7 @@ fn only_the_chosen_wallets_load_with_their_seeds() {
 /// A vault made here and opened, with nothing in it.
 fn new_open_vault(app: &mut Faraday) {
     for i in 0..8u8 {
-        app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
             [0x50 + i; 32],
         )));
     }
@@ -266,7 +266,7 @@ fn a_vault_with_one_key_lists_keys_every_add_and_no_other_kind() {
 /// A key made here from coin flips and saved into the test vault, which
 /// is locked: the vault as it is written to the stick, and the key's
 /// words.
-fn vault_holding_a_made_key() -> (Vec<(String, Vec<u8>)>, osk_bip::bip39::Mnemonic) {
+fn vault_holding_a_made_key() -> (Vec<(String, Vec<u8>)>, faraday_bip::bip39::Mnemonic) {
     let c = testkit::compute();
     use faraday_core::create::NewKind;
     use faraday_core::keygen::Way;
@@ -292,7 +292,8 @@ fn vault_holding_a_made_key() -> (Vec<(String, Vec<u8>)>, osk_bip::bip39::Mnemon
     app.press(Action::KNext);
     let words = app.session.keys[0].words.as_ref().unwrap().to_string();
     let made =
-        osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, &words).unwrap();
+        faraday_bip::bip39::Mnemonic::parse(&c, faraday_bip::bip39::Language::English, &words)
+            .unwrap();
     app.vaults.ms_per_unit = Some(180);
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
@@ -301,7 +302,7 @@ fn vault_holding_a_made_key() -> (Vec<(String, Vec<u8>)>, osk_bip::bip39::Mnemon
     app.press(Action::Vault(V::SaveKey(0)));
     // The system's randomness, which sealing the vault draws on.
     for i in 0..8u8 {
-        app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
             [0x40 + i; 32],
         )));
     }
@@ -320,7 +321,11 @@ fn vault_holding_a_made_key() -> (Vec<(String, Vec<u8>)>, osk_bip::bip39::Mnemon
     (vault, made)
 }
 
-fn type_words(app: &mut Faraday, language: osk_bip::bip39::Language, m: &osk_bip::bip39::Mnemonic) {
+fn type_words(
+    app: &mut Faraday,
+    language: faraday_bip::bip39::Language,
+    m: &faraday_bip::bip39::Mnemonic,
+) {
     app.press(Action::Entry(None));
     let at = faraday_core::forms::LANGUAGES
         .iter()
@@ -341,7 +346,7 @@ fn type_words(app: &mut Faraday, language: osk_bip::bip39::Language, m: &osk_bip
 #[test]
 fn a_key_whose_words_are_in_the_vault_reads_as_kept_there_and_another_does_not() {
     let c = testkit::compute();
-    use osk_bip::bip39::{Language, Mnemonic};
+    use faraday_bip::bip39::{Language, Mnemonic};
     let (vault, made) = vault_holding_a_made_key();
     let mut app = device(vault);
     app.vaults.ms_per_unit = Some(180);
@@ -374,9 +379,10 @@ fn a_key_whose_words_are_in_the_vault_reads_as_kept_there_and_another_does_not()
 /// The master fingerprint of `words` with no passphrase, worked out here.
 fn fp_of_words(words: &str) -> [u8; 4] {
     let c = testkit::compute();
-    let m = osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, words).unwrap();
+    let m = faraday_bip::bip39::Mnemonic::parse(&c, faraday_bip::bip39::Language::English, words)
+        .unwrap();
     let seed = m.to_seed(&c, b"").unwrap();
-    osk_bip::keys::MasterKey::from_seed(&c, &seed, testkit::NET)
+    faraday_bip::keys::MasterKey::from_seed(&c, &seed, testkit::NET)
         .fingerprint()
         .0
 }
@@ -426,8 +432,10 @@ fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
         texts.iter().any(|t| t == "vault.ofv"),
         "under the vault's name: {texts:?}"
     );
-    let line =
-        faraday_core::wallet::key_line(osk_bip::keys::Fingerprint(fp), testkit::TEST_SEEDS[0].1);
+    let line = faraday_core::wallet::key_line(
+        faraday_bip::keys::Fingerprint(fp),
+        testkit::TEST_SEEDS[0].1,
+    );
     assert!(texts.contains(&line), "the key reads {line}");
     app.press(press);
     assert_eq!(app.session.keys.len(), 3, "the key is loaded");
@@ -448,10 +456,10 @@ fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
 #[test]
 fn a_threshold_kind_offers_only_a_vaults_shares() {
     let c = testkit::compute();
+    use faraday_bip::bip39::{Language, Mnemonic};
     use faraday_core::create::NewKind;
     use faraday_vault::records::{self, field, kind};
     use faraday_vault::{Contents, Cost, Record};
-    use osk_bip::bip39::{Language, Mnemonic};
     let twelve = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon \
                   abandon about";
     let mut contents = Contents {

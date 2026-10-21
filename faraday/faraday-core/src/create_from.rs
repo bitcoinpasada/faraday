@@ -11,9 +11,9 @@ use std::collections::BTreeSet;
 use std::rc::Rc;
 
 use crate::strings::fill;
+use faraday_bip::keys::Fingerprint;
+use faraday_crypto::work::Compute;
 use faraday_vault::records::{self, kind};
-use osk_bip::keys::Fingerprint;
-use osk_crypto::work::Compute;
 
 use crate::create::{self, FromWallet, NewKind, Source};
 use crate::strings::EN;

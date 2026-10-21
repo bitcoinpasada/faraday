@@ -10,7 +10,7 @@ use faraday_core::secrets::Exposure;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent};
-use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 fn kit_file(name: &str) -> (String, Vec<u8>) {
     testkit::files()
@@ -268,7 +268,7 @@ fn a_lock_leaves_no_secret_file_from_a_stick_in_the_inbox() {
 
 /// A press where the last frame drew `action`, as a finger makes it.
 fn tap(app: &mut Faraday, action: Action) {
-    use osk_shell_api::TouchPhase;
+    use faraday_shell_api::TouchPhase;
     let _ = app.frame();
     let (x, y) = app
         .where_offered(action)

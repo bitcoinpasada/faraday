@@ -7,10 +7,10 @@ digest changed for a reason.
 
 | File | Downloaded | SHA-256 | Read by |
 |---|---|---|---|
-| `bip-0129.mediawiki` | 2026-09-18 | `e31e847c6b87f192086c89313f19beae3ac7ace4038e61bde983dcd8ba2e3814` | `core/osk-bip/tests/bsms.rs`, people |
+| `bip-0129.mediawiki` | 2026-09-18 | `e31e847c6b87f192086c89313f19beae3ac7ace4038e61bde983dcd8ba2e3814` | `core/faraday-bip/tests/bsms.rs`, people |
 
 BIP 129 ships no separate vector files: its examples are the `<pre>`
-blocks of the text itself, and `core/osk-bip/tests/bsms.rs` reads them
+blocks of the text itself, and `core/faraday-bip/tests/bsms.rs` reads them
 out of the file rather than copying them. Four sessions are written out:
 
 | Session | Keys | Key records | Descriptor record |
@@ -32,5 +32,5 @@ The BIP gives each encrypted session's `ENCRYPTION_KEY`, `HMAC_KEY`,
 `MAC`, `IV` and ciphertext, so an implementation of AES-256-CTR and
 HMAC-SHA256 could be checked against it end to end. This tree has
 neither primitive (`Cargo.lock` carries ChaCha20-Poly1305 and Argon2 for
-the kept-key blob), so `core/osk-bip/src/bsms.rs` refuses an encrypted
+the kept-key blob), so `core/faraday-bip/src/bsms.rs` refuses an encrypted
 record by name and the test only checks that refusal.

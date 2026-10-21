@@ -15,7 +15,7 @@ The output has three keys:
                 section, each with its path, derived key and the 64
                 bytes of derived entropy, plus the DRNG case.
   applications  one list per application this tree derives, keyed by
-                the name used in core/osk-bip/src/bip85.rs: bip39, wif,
+                the name used in core/faraday-bip/src/bip85.rs: bip39, wif,
                 xprv, hex, base64 and base85. Every entry carries the
                 BIP's path, the parameters read back out of that path,
                 the derived entropy and the application's own output.

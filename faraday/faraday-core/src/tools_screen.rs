@@ -5,9 +5,9 @@ use crate::strings::EN;
 use crate::strings::fill;
 use crate::tools::Reading;
 use crate::tools::Tool;
-use osk_bip::compile::PolicyScript;
-use osk_bip::slip132::KeyReading;
-use osk_codec::encodings::ReadAs;
+use faraday_bip::compile::PolicyScript;
+use faraday_bip::slip132::KeyReading;
+use faraday_codec::encodings::ReadAs;
 
 use crate::Action;
 use crate::screens::{button_rows, guide_text, title};
@@ -51,7 +51,7 @@ fn header(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         x - 4.0,
         y,
         16.0,
-        osk_ui::widgets::Icon::ChevronLeft,
+        faraday_draw::widgets::Icon::ChevronLeft,
         10.0,
         MUTED,
     );
@@ -236,10 +236,10 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
                 rows.push(("BIP-32".into(), f.bip32.clone()));
                 for (s, k) in &f.slip132 {
                     let name = match s {
-                        osk_bip::keys::ScriptType::Legacy => EN.tools_legacy,
-                        osk_bip::keys::ScriptType::NestedSegwit => EN.tools_nested_segwit,
-                        osk_bip::keys::ScriptType::NativeSegwit => EN.tools_native_segwit,
-                        osk_bip::keys::ScriptType::Taproot => EN.tools_taproot,
+                        faraday_bip::keys::ScriptType::Legacy => EN.tools_legacy,
+                        faraday_bip::keys::ScriptType::NestedSegwit => EN.tools_nested_segwit,
+                        faraday_bip::keys::ScriptType::NativeSegwit => EN.tools_native_segwit,
+                        faraday_bip::keys::ScriptType::Taproot => EN.tools_taproot,
                     };
                     rows.push((name.to_string(), k.clone()));
                 }

@@ -96,8 +96,8 @@ use faraday_core::{
     Action, BootPart, Faraday, Medium, Screen, StickInfo, StorageCommand, StorageEvent, bstep,
     qrow, qstep,
 };
-use osk_crypto::work::Compute;
-use osk_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
+use faraday_crypto::work::Compute;
+use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
 
 struct Tour {
     app: Faraday,
@@ -165,7 +165,7 @@ impl Tour {
                 let bytes = [0x5a ^ self.answers; 32];
                 self.answers = self.answers.wrapping_add(1);
                 self.app
-                    .event(Event::Entropy(osk_shell_api::EntropyBytes::new(bytes)));
+                    .event(Event::Entropy(faraday_shell_api::EntropyBytes::new(bytes)));
                 continue;
             }
             if c == Command::Exit {
@@ -414,7 +414,7 @@ impl Tour {
             .chunks_exact(4)
             .map(|p| ((u32::from(p[0]) * 3 + u32::from(p[1]) * 6 + u32::from(p[2])) / 10) as u8)
             .collect();
-        osk_codec::decode::decode_luma(c, usize::from(f.width), usize::from(f.height), &luma)
+        faraday_codec::decode::decode_luma(c, usize::from(f.width), usize::from(f.height), &luma)
             .into_iter()
             .map(|d| String::from_utf8_lossy(&d.bytes).into_owned())
             .collect()
@@ -1207,13 +1207,13 @@ fn run(
         chroma: None,
     });
     t.shot("scan-seedqr")?;
-    let zebra = osk_bip::bip39::Mnemonic::parse(
+    let zebra = faraday_bip::bip39::Mnemonic::parse(
         c,
-        osk_bip::bip39::Language::English,
+        faraday_bip::bip39::Language::English,
         &testkit::test_words("zebra"),
     )
     .map_err(|e| format!("{e:?}"))?;
-    let digits = osk_codec::seedqr::to_digits(&zebra);
+    let digits = faraday_codec::seedqr::to_digits(&zebra);
     t.app.event(Event::Scanned {
         bytes: digits.expose().as_bytes().to_vec(),
     });
@@ -1256,7 +1256,7 @@ fn run(
         luma: frame,
         chroma: None,
     });
-    let mut enc = osk_codec::ur::Encoder::psbt(&savings, 120).map_err(|e| format!("{e:?}"))?;
+    let mut enc = faraday_codec::ur::Encoder::psbt(&savings, 120).map_err(|e| format!("{e:?}"))?;
     let mut parts = 0;
     while t.app.scan.is_some() && parts < 40 {
         let part = enc.next_part();
@@ -1931,7 +1931,8 @@ fn run(
     type_text(&mut t, rolls);
     t.shot("create-vault-dice")?;
     // The first word in its list, and back to the rolls as they were.
-    let first = faraday_core::vaults::dice_word_indices(rolls, osk_bip::diceware::List::Large)[0];
+    let first =
+        faraday_core::vaults::dice_word_indices(rolls, faraday_bip::diceware::List::Large)[0];
     t.press(Action::WordList(
         faraday_core::wordlist::WordListAction::Open(1, Some(first)),
     ));
@@ -1947,7 +1948,8 @@ fn run(
         .as_ref()
         .map(|c| c.phrases[0].0.text.to_string())
         .unwrap_or_default();
-    let expect = faraday_core::vaults::dice_words(rolls, osk_bip::diceware::List::Large).join("");
+    let expect =
+        faraday_core::vaults::dice_words(rolls, faraday_bip::diceware::List::Large).join("");
     if dice_phrase != expect {
         return Err(format!("dice gave {dice_phrase:?}, expected {expect:?}"));
     }
@@ -2059,7 +2061,7 @@ fn run(
     t.press(Action::KNext);
     t.shot("keygen-cards")?;
     // Last, since nothing after it does anything: a self-test that failed.
-    t.app.run_selftest_with(&[osk_selftest::Check {
+    t.app.run_selftest_with(&[faraday_selftest::Check {
         name: "BIP-39 vector (entropy → words → seed)",
         run: |_| false,
     }]);
@@ -3036,9 +3038,9 @@ fn copy_digits(c: &Compute, t: &Tour, wrong: Option<usize>) -> Result<Vec<u8>, S
     let b = t.app.backup.as_ref().ok_or("no backup")?;
     let key = t.app.session.keys.get(b.key).ok_or("no key")?;
     let words = key.words.as_deref().ok_or("no words")?;
-    let m = osk_bip::bip39::Mnemonic::parse(c, key.language, words.as_str())
+    let m = faraday_bip::bip39::Mnemonic::parse(c, key.language, words.as_str())
         .map_err(|e| format!("{e}"))?;
-    let mut digits = osk_codec::seedqr::to_digits(&m)
+    let mut digits = faraday_codec::seedqr::to_digits(&m)
         .expose()
         .as_bytes()
         .to_vec();
@@ -4703,9 +4705,9 @@ fn from_vault_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
                 .is_ok_and(|fp| missing.contains(&fp.0))
         })
         .ok_or("no test seed is a missing key")?;
-    let m = osk_bip::bip39::Mnemonic::parse(c, osk_bip::bip39::Language::English, &words)
+    let m = faraday_bip::bip39::Mnemonic::parse(c, faraday_bip::bip39::Language::English, &words)
         .map_err(|e| format!("{e:?}"))?;
-    let digits = osk_codec::seedqr::to_digits(&m);
+    let digits = faraday_codec::seedqr::to_digits(&m);
     t.app.event(Event::Scanned {
         bytes: digits.expose().as_bytes().to_vec(),
     });
@@ -5033,8 +5035,8 @@ fn rolled_words(t: &mut Tour) -> Result<(), String> {
 /// with a word half typed, Korean, Simplified Chinese with a reading
 /// awaiting its tone and with its characters offered, and Traditional.
 fn keyed_entry(t: &mut Tour) -> Result<(), String> {
+    use faraday_bip::bip39::Language;
     use faraday_core::forms::LANGUAGES;
-    use osk_bip::bip39::Language;
     let at = |l: Language| LANGUAGES.iter().position(|x| *x == l).unwrap_or(0) as u8;
     t.press(Action::Entry(None));
     t.press(Action::EntryLanguages);
@@ -5108,7 +5110,7 @@ fn type_text(t: &mut Tour, text: &str) {
 /// §19.7): the key with its SeedQR held, its Save to a stick, and the
 /// Spending wallet's Save to a stick.
 fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
-    use osk_shell_api::TouchPhase;
+    use faraday_shell_api::TouchPhase;
     let vault = testkit::files()?
         .into_iter()
         .find(|(n, _)| n == "vault.ofv")
@@ -5360,11 +5362,11 @@ fn flow_made(t: &mut Tour, kind: faraday_core::backup_flow::Kind) -> Result<(), 
 /// passphrase stored, a passphrase giving another key, and the right
 /// one.
 fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
+    use faraday_bip::bip39::{Language, Mnemonic};
+    use faraday_bip::bitcoin::bip32::DerivationPath;
     use faraday_core::vaults::VaultAction as V;
     use faraday_vault::records::{self, field, kind};
     use faraday_vault::{Contents, Cost, Record};
-    use osk_bip::bip39::{Language, Mnemonic};
-    use osk_bip::bitcoin::bip32::DerivationPath;
     let words = |p: &str| Mnemonic::parse(c, Language::English, p).map_err(|e| format!("{e:?}"));
     let key = |m: &Mnemonic, label: &str| {
         Record::new(kind::KEY)
@@ -5376,7 +5378,7 @@ fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let seed = third
         .to_seed(c, b"kept apart")
         .map_err(|e| format!("{e:?}"))?;
-    let master = osk_bip::keys::MasterKey::from_seed(c, &seed, testkit::NET);
+    let master = faraday_bip::keys::MasterKey::from_seed(c, &seed, testkit::NET);
     let path: DerivationPath = p.parse().map_err(|e| format!("{e:?}"))?;
     let trio = format!(
         "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,[{}/48h/1h/0h/2h]{}/<0;1>/*))",
@@ -6050,7 +6052,7 @@ fn main() -> ExitCode {
         clippy::disallowed_methods,
         reason = "a mint: the snapshot tool (docs/COMPUTE.md §3)"
     )]
-    let compute = osk_crypto::work::Compute::new(|_| {});
+    let compute = faraday_crypto::work::Compute::new(|_| {});
     let only = args.get(4).map(String::as_str);
     if only.is_some_and(|m| {
         ![

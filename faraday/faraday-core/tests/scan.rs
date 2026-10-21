@@ -6,7 +6,7 @@
 use faraday_core::testkit;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, StorageEvent};
-use osk_shell_api::{App, Event};
+use faraday_shell_api::{App, Event};
 
 fn kit(id: &str) -> testkit::Kit {
     testkit::kits().into_iter().find(|k| k.id == id).unwrap()
@@ -224,7 +224,7 @@ fn blue_pixels(app: &mut Faraday) -> usize {
 #[test]
 fn the_camera_preview_is_in_colour_when_the_camera_gives_colour() {
     let mut app = Faraday::new();
-    app.event(Event::Display(osk_shell_api::DisplayInfo {
+    app.event(Event::Display(faraday_shell_api::DisplayInfo {
         width: 1366,
         height: 768,
         dpi: 160,
@@ -232,8 +232,8 @@ fn the_camera_preview_is_in_colour_when_the_camera_gives_colour() {
         inset_top: 0,
         buttons: 0,
         camera_fixed: false,
-        secure: osk_shell_api::SecureHardware::None,
-        boot: osk_shell_api::BootState::Unknown,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
         memory_mib: None,
     }));
     app.press(Action::Scan);
@@ -264,7 +264,7 @@ fn the_camera_preview_is_in_colour_when_the_camera_gives_colour() {
 /// The parts of a PSBT as a UR animation shows them, in order: the
 /// fragments first, then mixes of them; and how many fragments there are.
 fn ur_frames(psbt: &[u8], n: usize) -> (Vec<String>, usize) {
-    let mut e = osk_codec::ur::Encoder::psbt(psbt, 60).unwrap();
+    let mut e = faraday_codec::ur::Encoder::psbt(psbt, 60).unwrap();
     let count = e.fragment_count();
     ((0..n).map(|_| e.next_part()).collect(), count)
 }
@@ -367,10 +367,10 @@ fn ur_progress_names_the_missing_parts() {
 fn paste(app: &mut Faraday, text: &str) {
     app.press(Action::ScanPaste);
     let asked = std::iter::from_fn(|| app.poll_command())
-        .any(|c| matches!(c, osk_shell_api::Command::RequestClipboard { .. }));
+        .any(|c| matches!(c, faraday_shell_api::Command::RequestClipboard { .. }));
     assert!(asked, "Paste did not ask the shell for the clipboard");
     app.event(Event::Clipboard {
-        kind: osk_shell_api::FileKind::Text,
+        kind: faraday_shell_api::FileKind::Text,
         text: text.to_string(),
     });
 }
@@ -434,7 +434,7 @@ fn paste_is_dimmed_where_the_shell_has_no_clipboard() {
     assert!(app.scan_pastes());
     app.press(Action::ScanPaste);
     let asked = std::iter::from_fn(|| app.poll_command())
-        .any(|c| matches!(c, osk_shell_api::Command::RequestClipboard { .. }));
+        .any(|c| matches!(c, faraday_shell_api::Command::RequestClipboard { .. }));
     assert!(!asked, "a shell with no clipboard was asked for it");
 }
 
@@ -456,7 +456,7 @@ fn nothing_to_paste_shows_for_two_seconds() {
     app.event(Event::Tick { now_ms: 1_000 });
     app.press(Action::ScanPaste);
     app.event(Event::ClipboardUnavailable {
-        kind: osk_shell_api::FileKind::Text,
+        kind: faraday_shell_api::FileKind::Text,
     });
     assert_eq!(state(&app), "Nothing to paste");
     app.event(Event::Tick { now_ms: 2_500 });
@@ -494,7 +494,7 @@ fn a_camera_that_sends_no_picture_is_said_to() {
 
 #[test]
 fn each_camera_failure_is_named_and_the_scanner_stays() {
-    use osk_shell_api::CameraFailure;
+    use faraday_shell_api::CameraFailure;
     for (event, said) in [
         (
             Event::CameraFailed(CameraFailure::Refused),
@@ -558,7 +558,7 @@ fn a_qr_seen_large_enough_that_never_reads_gets_a_hint() {
 }
 
 fn display(app: &mut Faraday) {
-    app.event(Event::Display(osk_shell_api::DisplayInfo {
+    app.event(Event::Display(faraday_shell_api::DisplayInfo {
         width: 1366,
         height: 768,
         dpi: 160,
@@ -566,8 +566,8 @@ fn display(app: &mut Faraday) {
         inset_top: 0,
         buttons: 0,
         camera_fixed: false,
-        secure: osk_shell_api::SecureHardware::None,
-        boot: osk_shell_api::BootState::Unknown,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
         memory_mib: None,
     }));
 }
@@ -584,34 +584,34 @@ fn the_scanner_draws_its_state_over_the_picture() {
     scan(&mut app, &a[1]);
     seen(&mut app, 60, true);
     let _ = app.frame();
-    app.event(Event::CameraFailed(osk_shell_api::CameraFailure::InUse));
+    app.event(Event::CameraFailed(faraday_shell_api::CameraFailure::InUse));
     let _ = app.frame();
 }
 
 fn asks_for_clipboard(app: &mut Faraday) -> bool {
     std::iter::from_fn(|| app.poll_command())
-        .any(|c| matches!(c, osk_shell_api::Command::RequestClipboard { .. }))
+        .any(|c| matches!(c, faraday_shell_api::Command::RequestClipboard { .. }))
 }
 
 #[test]
 fn ctrl_v_on_the_open_scanner_pastes_and_elsewhere_does_nothing() {
     let mut app = scanning(Vec::new());
     app.clipboard = true;
-    app.event(Event::Key(osk_shell_api::Key::Paste));
+    app.event(Event::Key(faraday_shell_api::Key::Paste));
     assert!(asks_for_clipboard(&mut app), "Ctrl+V did not ask");
     // The same refusal of a secret as the Paste tile.
     app.event(Event::Clipboard {
-        kind: osk_shell_api::FileKind::Text,
+        kind: faraday_shell_api::FileKind::Text,
         text: "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".into(),
     });
     assert!(app.inbox.is_empty() && app.session.keys.is_empty());
     // With the clipboard absent, nothing is asked.
     let mut app = scanning(Vec::new());
-    app.event(Event::Key(osk_shell_api::Key::Paste));
+    app.event(Event::Key(faraday_shell_api::Key::Paste));
     assert!(!asks_for_clipboard(&mut app));
     // With the scanner closed, nothing is asked.
     let mut app = Faraday::new();
     app.clipboard = true;
-    app.event(Event::Key(osk_shell_api::Key::Paste));
+    app.event(Event::Key(faraday_shell_api::Key::Paste));
     assert!(!asks_for_clipboard(&mut app));
 }

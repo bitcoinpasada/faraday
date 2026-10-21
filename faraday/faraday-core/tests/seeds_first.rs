@@ -10,7 +10,7 @@ use faraday_core::rstep::{CHECK, KIND, QUORUM};
 use faraday_core::seeds::{Focus, SLIDE_M, SLIDE_N, SeedsAction as S};
 use faraday_core::testkit;
 use faraday_core::{Action, Faraday, Screen};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 const MULTI_PATH: &str = "m/48'/1'/0'/2'";
 

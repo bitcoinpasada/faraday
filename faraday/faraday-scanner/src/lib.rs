@@ -338,15 +338,15 @@ fn read(job: &Job, mode: ReadMode, misses: &mut u32) -> (Option<Vec<u8>>, Option
 #[cfg(test)]
 mod tests {
     use super::*;
-    use osk_codec::qr::{self, Ecc, Payload, QUIET_ZONE};
+    use faraday_codec::qr::{self, Ecc, Payload, QUIET_ZONE};
 
     /// A token for the work these tests ask, counting nothing. Cheap.
     #[expect(
         clippy::disallowed_methods,
         reason = "a mint: faraday-scanner's tests, which cannot reach faraday-core's testkit"
     )]
-    fn compute() -> osk_crypto::work::Compute {
-        osk_crypto::work::Compute::new(|_| {})
+    fn compute() -> faraday_crypto::work::Compute {
+        faraday_crypto::work::Compute::new(|_| {})
     }
 
     fn frame(scale: usize) -> (usize, usize, Vec<u8>) {

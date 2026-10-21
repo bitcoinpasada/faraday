@@ -8,7 +8,7 @@
 use faraday_core::create::NewKind;
 use faraday_core::plan::{Answers, Preset};
 use faraday_core::{Action, Faraday, Screen, cstep, testkit};
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 fn frost_index() -> u8 {
     NewKind::ALL
@@ -138,8 +138,8 @@ fn made() -> (Faraday, usize) {
 /// [`made`] on the test network.
 fn made_on_testnet() -> (Faraday, usize) {
     let mut app = testkit::started();
-    app.press(Action::Network(osk_bip::keys::Network::Testnet));
-    assert_eq!(app.session.network(), osk_bip::keys::Network::Testnet);
+    app.press(Action::Network(faraday_bip::keys::Network::Testnet));
+    assert_eq!(app.session.network(), faraday_bip::keys::Network::Testnet);
     made_on(app)
 }
 
@@ -291,7 +291,9 @@ fn key_made_on_its_own(app: &mut Faraday) -> [u8; 4] {
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::Device.index()));
     app.press(Action::KNext);
-    app.event(Event::Entropy(osk_shell_api::EntropyBytes::new([0x6c; 32])));
+    app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
+        [0x6c; 32],
+    )));
     app.press(Action::KNext);
     app.press(Action::KLock);
     app.press(Action::KNext);
@@ -429,8 +431,8 @@ fn continue_throughout(app: &mut Faraday) -> usize {
 }
 
 /// The account step of a wallet key's path: its third.
-fn account_of_key(k: &osk_bip::policy::PolicyKey) -> u32 {
-    use osk_bip::bitcoin::bip32::ChildNumber;
+fn account_of_key(k: &faraday_bip::policy::PolicyKey) -> u32 {
+    use faraday_bip::bitcoin::bip32::ChildNumber;
     match k.path().and_then(|p| p.into_iter().nth(2).copied()) {
         Some(ChildNumber::Hardened { index }) => index,
         other => panic!("no hardened account step: {other:?}"),
@@ -440,24 +442,24 @@ fn account_of_key(k: &osk_bip::policy::PolicyKey) -> u32 {
 /// The master fingerprint of a test seed, worked out here.
 fn fp_of(word: &str) -> [u8; 4] {
     let c = testkit::compute();
-    use osk_bip::bip39::{Language, Mnemonic};
+    use faraday_bip::bip39::{Language, Mnemonic};
     let m = Mnemonic::parse(&c, Language::English, &testkit::test_words(word)).unwrap();
     let seed = m.to_seed(&c, b"").unwrap();
-    osk_bip::keys::MasterKey::from_seed(&c, &seed, testkit::NET)
+    faraday_bip::keys::MasterKey::from_seed(&c, &seed, testkit::NET)
         .fingerprint()
         .0
 }
 
 /// The P2WPKH address a test seed gives at `path`, derived here with
-/// osk-bip and rust-bitcoin, not through Faraday's wallet.
+/// faraday-bip and rust-bitcoin, not through Faraday's wallet.
 fn p2wpkh_at(word: &str, path: &str) -> String {
     let c = testkit::compute();
-    use osk_bip::bip39::{Language, Mnemonic};
-    use osk_bip::bitcoin::bip32::DerivationPath;
-    use osk_bip::bitcoin::{Address, CompressedPublicKey, KnownHrp};
+    use faraday_bip::bip39::{Language, Mnemonic};
+    use faraday_bip::bitcoin::bip32::DerivationPath;
+    use faraday_bip::bitcoin::{Address, CompressedPublicKey, KnownHrp};
     let m = Mnemonic::parse(&c, Language::English, &testkit::test_words(word)).unwrap();
     let seed = m.to_seed(&c, b"").unwrap();
-    let master = osk_bip::keys::MasterKey::from_seed(&c, &seed, testkit::NET);
+    let master = faraday_bip::keys::MasterKey::from_seed(&c, &seed, testkit::NET);
     let path: DerivationPath = path.parse().unwrap();
     let public = master.derive(&c, &path).to_xpub(&c).public_key;
     Address::p2wpkh(&CompressedPublicKey(public), KnownHrp::Testnets).to_string()

@@ -23,7 +23,7 @@ Three tiers, used through the rest of this file:
 
 - **Computes** — makes, derives, signs, encrypts or decrypts with a key,
   a seed or a passphrase, or turns user entropy into one.
-- **Hashes** — calls `osk-crypto`'s SHA-256 for an integrity check (a
+- **Hashes** — calls `faraday-crypto`'s SHA-256 for an integrity check (a
   file's checksum, a QR transfer's envelope) and never holds a private
   key or a passphrase.
 - **Carries** — holds or renders bytes that a *Computes* crate already
@@ -36,13 +36,13 @@ Three tiers, used through the rest of this file:
 
 | Crate | What it computes | Written here, or from a crate | Checked against |
 |---|---|---|---|
-| `osk-crypto` | The hash/KDF choke point every other crate calls through (`sha256`, `hmac_sha256`/`512`, `pbkdf2_hmac_sha256`/`512`, `blake2b`, `scrypt`); `Secret`, `Pinned` (mlock'd pages) and `Sealed`/`SessionKey` wrappers that hold or encrypt a secret in memory. No signing, no curve operations, no random number generator: entropy is handed in by the shell. | SHA-256, HMAC, PBKDF2: RustCrypto crates. **BLAKE2b and scrypt are written here** (one caller each, LND's `aezeed`) rather than taken as crates. | `core/osk-crypto/tests/primitives.rs`; BLAKE2b against RFC 7693's own vectors, scrypt against RFC 7914's, inline in `blake2b.rs`/`scrypt.rs`. |
-| `osk-bip` | BIP-32 keys (wraps `bitcoin::bip32`, so private material never gains `Debug`/`Clone`/a text form), BIP-39 mnemonics, BIP-44/49/84/86 accounts, SLIP-132, BIP-380 descriptor checksums, BIP-85 child mnemonics, SLIP-39 Shamir backup, BIP-327 MuSig2, BIP 445 FROST (with the trusted-dealer split), BIP 93 codex32, aezeed. | Keys/addresses: `bitcoin`'s own `bip32` (external, vetted). **BIP-39, SLIP-39, MuSig2, FROST and codex32 are written here** — no vetted `no_std` crate exists for them on this tree's pin, or (BIP-39) the explorer screens need intermediate values a library hides. | `tools/vectors/{bip32,bip39,bip85,bip93,bip129,bip327,bip328,bip352,bip387,bip390,bip392,bip445}/`; BIP-39 and seed derivation additionally cross-checked against the `bip39` crate as a dev-dependency (`osk-bip::crosscheck`). |
-| `osk-psbt` | PSBT parse/serialise, inspection (amounts, fee, verified change, warnings) from non-secret data only, signing (key derived from the PSBT's own origin data, never a guessed path; deterministic nonces; verifies its own signature before writing it; signs twice to check determinism), BIP-137/BIP-322 message signing, finalisation, and verification of signatures already on a transaction. | Signing itself: `osk-bip`'s keys, over `bitcoin`'s secp256k1. The PSBT format, inspection and verification logic: written here. | `tools/vectors/psbt/`, `tools/vectors/message/`; wallet fixtures built and checked in `core/osk-psbt/examples/wallet.rs` / `tests/wallet_fixtures.rs`; `docs/WALLETS.md` §8 additionally reproduces agreement against the Coldcard Q simulator and SeedSigner's libraries for the flows that should match. |
-| `osk-entropy` | Turns user-supplied dice, coin flips, hex, playing cards or camera noise into `RawEntropy` of the right size for a BIP-39 key, with the mistakes real hands make checked for and warned on; mixes two or more sources by XOR over their SHA-256 commitments. | Written here (bit/face accumulation and packing; no external entropy crate fits a fixed-size, erase-on-drop buffer). | Its own unit tests (no published vectors exist for "pack these dice as entropy" — it is deterministic bit-packing, not a named standard); exercised end to end through `faraday-core/tests/keygen.rs`. |
-| `osk-backup` | Two encrypted file formats: `.oskb` (a key's words, a master seed, a note or a recovery sheet) and KDBX 4. Both stretch the passphrase with Argon2id at a caller-chosen, file-carried `Cost`; neither draws its own randomness. | Argon2id, ChaCha20-Poly1305, the KDBX cipher stack: RustCrypto crates (`argon2`, `chacha20poly1305`, `chacha20`, `sha2`, `hmac`). The two file formats themselves: written here. | `tools/vectors/backup/`; `.oskb` additionally read by `tools/backup/decrypt.py` against two independent published libraries. |
+| `faraday-crypto` | The hash/KDF choke point every other crate calls through (`sha256`, `hmac_sha256`/`512`, `pbkdf2_hmac_sha256`/`512`, `blake2b`, `scrypt`); `Secret`, `Pinned` (mlock'd pages) and `Sealed`/`SessionKey` wrappers that hold or encrypt a secret in memory. No signing, no curve operations, no random number generator: entropy is handed in by the shell. | SHA-256, HMAC, PBKDF2: RustCrypto crates. **BLAKE2b and scrypt are written here** (one caller each, LND's `aezeed`) rather than taken as crates. | `core/faraday-crypto/tests/primitives.rs`; BLAKE2b against RFC 7693's own vectors, scrypt against RFC 7914's, inline in `blake2b.rs`/`scrypt.rs`. |
+| `faraday-bip` | BIP-32 keys (wraps `bitcoin::bip32`, so private material never gains `Debug`/`Clone`/a text form), BIP-39 mnemonics, BIP-44/49/84/86 accounts, SLIP-132, BIP-380 descriptor checksums, BIP-85 child mnemonics, SLIP-39 Shamir backup, BIP-327 MuSig2, BIP 445 FROST (with the trusted-dealer split), BIP 93 codex32, aezeed. | Keys/addresses: `bitcoin`'s own `bip32` (external, vetted). **BIP-39, SLIP-39, MuSig2, FROST and codex32 are written here** — no vetted `no_std` crate exists for them on this tree's pin, or (BIP-39) the explorer screens need intermediate values a library hides. | `tools/vectors/{bip32,bip39,bip85,bip93,bip129,bip327,bip328,bip352,bip387,bip390,bip392,bip445}/`; BIP-39 and seed derivation additionally cross-checked against the `bip39` crate as a dev-dependency (`faraday-bip::crosscheck`). |
+| `faraday-psbt` | PSBT parse/serialise, inspection (amounts, fee, verified change, warnings) from non-secret data only, signing (key derived from the PSBT's own origin data, never a guessed path; deterministic nonces; verifies its own signature before writing it; signs twice to check determinism), BIP-137/BIP-322 message signing, finalisation, and verification of signatures already on a transaction. | Signing itself: `faraday-bip`'s keys, over `bitcoin`'s secp256k1. The PSBT format, inspection and verification logic: written here. | `tools/vectors/psbt/`, `tools/vectors/message/`; wallet fixtures built and checked in `core/faraday-psbt/examples/wallet.rs` / `tests/wallet_fixtures.rs`; `docs/WALLETS.md` §8 additionally reproduces agreement against the Coldcard Q simulator and SeedSigner's libraries for the flows that should match. |
+| `faraday-entropy` | Turns user-supplied dice, coin flips, hex, playing cards or camera noise into `RawEntropy` of the right size for a BIP-39 key, with the mistakes real hands make checked for and warned on; mixes two or more sources by XOR over their SHA-256 commitments. | Written here (bit/face accumulation and packing; no external entropy crate fits a fixed-size, erase-on-drop buffer). | Its own unit tests (no published vectors exist for "pack these dice as entropy" — it is deterministic bit-packing, not a named standard); exercised end to end through `faraday-core/tests/keygen.rs`. |
+| `faraday-backup` | Two encrypted file formats: `.oskb` (a key's words, a master seed, a note or a recovery sheet) and KDBX 4. Both stretch the passphrase with Argon2id at a caller-chosen, file-carried `Cost`; neither draws its own randomness. | Argon2id, ChaCha20-Poly1305, the KDBX cipher stack: RustCrypto crates (`argon2`, `chacha20poly1305`, `chacha20`, `sha2`, `hmac`). The two file formats themselves: written here. | `tools/vectors/backup/`; `.oskb` additionally read by `tools/backup/decrypt.py` against two independent published libraries. |
 
-`osk-bip` also uses private keys: BIP-85 derives from one, MuSig2 and
+`faraday-bip` also uses private keys: BIP-85 derives from one, MuSig2 and
 FROST sign with one, a silent payments wallet holds its scan key, and
 the vanity grinder derives keys while it searches.
 
@@ -61,18 +61,18 @@ the vanity grinder derives keys while it searches.
 The highest-leverage single fact for an auditor: everything above marked
 "written here" rather than "from a crate". In one list:
 
-- BIP-39 mnemonics (`osk-bip::bip39`)
-- SLIP-39 Shamir backup (`osk-bip::slip39`)
-- BIP-327 MuSig2 (`osk-bip::musig`)
-- BIP 445 FROST, including the trusted-dealer split (`osk-bip::frost`)
-- BIP 93 codex32 (`osk-bip::codex32`)
+- BIP-39 mnemonics (`faraday-bip::bip39`)
+- SLIP-39 Shamir backup (`faraday-bip::slip39`)
+- BIP-327 MuSig2 (`faraday-bip::musig`)
+- BIP 445 FROST, including the trusted-dealer split (`faraday-bip::frost`)
+- BIP 93 codex32 (`faraday-bip::codex32`)
 - The PSBT format, inspection, signing orchestration and verification
-  logic (`osk-psbt`, over `osk-bip`'s keys and `bitcoin`'s secp256k1)
+  logic (`faraday-psbt`, over `faraday-bip`'s keys and `bitcoin`'s secp256k1)
 - Dice/coin/card/hex/camera entropy accumulation and packing
-  (`osk-entropy`)
-- BLAKE2b and scrypt, one caller each (`osk-crypto`)
+  (`faraday-entropy`)
+- BLAKE2b and scrypt, one caller each (`faraday-crypto`)
 - The `.oskb` and KDBX 4 file formats, and their HKDF-SHA256 construction
-  (`osk-backup`, `faraday-vault`)
+  (`faraday-backup`, `faraday-vault`)
 - The four-equal-slot vault container (`faraday-vault`)
 - OpenPGP v4 packet construction (`faraday-pgp`)
 - X.509/CMS structure, Authenticode signing, and the RSA RNG adapter
@@ -89,11 +89,11 @@ or file format.
 
 | Crate | What it does with the bytes |
 |---|---|
-| `osk-codec` | QR/UR encoding and decoding, classification, PNG. Calls `osk-crypto::sha256` only for SeedQR's own integrity check; never holds a private key. |
+| `faraday-codec` | QR/UR encoding and decoding, classification, PNG. Calls `faraday-crypto::sha256` only for SeedQR's own integrity check; never holds a private key. |
 | `faraday-qr` | BBQr, numbered text parts, the Faraday file envelope, the UR registry's key/wallet types. Calls `sha256` to check an envelope's declared hash against its data; computes no key material. |
-| `osk-ui` | Layout engine and renderer. Takes `osk-bip`/`osk-codec` types (a fingerprint, an address, a QR code) to draw; never computes one. |
-| `osk-shell-api` | The event/command contract between an app and its shell. No dependency on any crypto crate. |
-| `faraday-intake` | Reads every scan, paste and file first: whether it is a seed (SeedQR, words, checked through `osk-bip`) or another secret, and what a transfer becomes. Holds what it reads in `Zeroizing` buffers until it is handed on; computes no key. |
+| `faraday-draw` | Layout engine and renderer. Takes `faraday-bip`/`faraday-codec` types (a fingerprint, an address, a QR code) to draw; never computes one. |
+| `faraday-shell-api` | The event/command contract between an app and its shell. No dependency on any crypto crate. |
+| `faraday-intake` | Reads every scan, paste and file first: whether it is a seed (SeedQR, words, checked through `faraday-bip`) or another secret, and what a transfer becomes. Holds what it reads in `Zeroizing` buffers until it is handed on; computes no key. |
 
 ## 4. Crates with no cryptographic involvement
 
@@ -103,8 +103,8 @@ trait, the pipe protocol), `faraday-storage` (Inbox/Outbox, PDFs),
 `faraday-scanner` (camera frames), `faraday-strings` (the words on
 screen), every shell (`faraday-desktop`, `faraday-stick`,
 `faraday-snapshot`, `faraday-window`, `faraday-mediafoundation`, the
-Starter's, `opensigner-v4l2`, `opensigner-avfoundation`), and the dev
-tools (`faraday-testkit`, `faraday-argon2-bench`, `osk-fontbake`,
+Starter's, `faraday-v4l2`, `faraday-avfoundation`), and the dev
+tools (`faraday-testkit`, `faraday-argon2-bench`, `faraday-fontbake`,
 `costs-lint`). The Starter handles a BitLocker recovery password through
 Windows' own API and computes nothing with it.
 These matter to the trust model (`PLAN.md` §4 — privilege separation,
@@ -119,15 +119,15 @@ external, vetted crates (RustCrypto: sha2, hmac, pbkdf2, argon2,
 chacha20(poly1305); ed25519-dalek; rsa; bitcoin's secp256k1; rqrr)
         │
         ▼
-   osk-crypto            (the hash/KDF choke point; BLAKE2b, scrypt written here)
+   faraday-crypto            (the hash/KDF choke point; BLAKE2b, scrypt written here)
         │
    ┌────┴─────┐
    ▼          ▼
-osk-bip   osk-entropy     (BIP-32/39/44.., in-house BIP-39/SLIP-39/MuSig2/FROST/codex32)
+faraday-bip   faraday-entropy     (BIP-32/39/44.., in-house BIP-39/SLIP-39/MuSig2/FROST/codex32)
    │
    ├──────────┬───────────┬──────────┐
    ▼          ▼           ▼          ▼
-osk-psbt  osk-backup  osk-codec
+faraday-psbt  faraday-backup  faraday-codec
    │          │           │
    │      faraday-vault   │
    │      faraday-pgp     │     (Faraday's own: HKDF, OpenPGP, X.509/Authenticode, APK)
@@ -139,11 +139,11 @@ osk-psbt  osk-backup  osk-codec
               faraday-core               (flows and wording, and key use until F70)
                      │
                      ▼
-            osk-ui, every shell          (rendering, input, storage; zero cryptography)
+            faraday-draw, every shell          (rendering, input, storage; zero cryptography)
 ```
 
 A change below the first horizontal line can change what a key, a
-signature or a ciphertext *is*. A change in `osk-ui` or a shell can
+signature or a ciphertext *is*. A change in `faraday-draw` or a shell can
 change what the person sees and when, never the bytes underneath it.
 `faraday-core` is in between until F70: most of it is flows and wording,
 but a change to its key use can change which key signs.
@@ -167,20 +167,20 @@ makes it true.
 
 ## 7. Reading a change
 
-A diff under `core/osk-crypto`, `osk-bip`, `osk-psbt`, `osk-backup`,
-`osk-entropy`, or `faraday/faraday-vault`, `faraday-pgp`, `faraday-sb`,
+A diff under `core/faraday-crypto`, `faraday-bip`, `faraday-psbt`, `faraday-backup`,
+`faraday-entropy`, or `faraday/faraday-vault`, `faraday-pgp`, `faraday-sb`,
 `faraday-apk`, or to `faraday-core`'s key use (§1), can change
 cryptographic output and needs §1/§2's scrutiny:
 re-run the vectors named above, and for anything marked "written here",
 read the diff against the standard it implements, not just against its
 own tests.
 
-A diff under `osk-codec`/`faraday-qr` that stays inside existing
+A diff under `faraday-codec`/`faraday-qr` that stays inside existing
 functions needs only an integrity-check read (§3); a new function there
 that starts touching a key would move it into §1 and this file would be
 wrong until updated.
 
-A diff under `osk-ui`, a shell, anything in §4, or `faraday-core`
+A diff under `faraday-draw`, a shell, anything in §4, or `faraday-core`
 outside its key use changes a screen, a flow or a process boundary, never a
 cryptographic result, unless it changes what bytes get passed into a §1
 crate — which is itself worth noticing, since that is the one way a

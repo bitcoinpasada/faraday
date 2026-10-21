@@ -5,13 +5,13 @@
 //! rules; a declined prompt says so and nothing is written.
 
 use faraday_core::strings::EN;
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::api::{
     Bus, Computer, Disk, FaradayStick, Mode, Os, Payload, PayloadFile, Reason, StarterCommand,
     StarterEvent,
 };
 use faraday_starter::decide::Target;
 use faraday_starter::{Page, Starter, StarterAction};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 const GB: u64 = 1_000_000_000;
 

@@ -9,8 +9,8 @@
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, qstep};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 use faraday_vault::records::{Record, field, kind};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 const NAME: &str = "Grandmas attic";
 
@@ -161,7 +161,7 @@ const VAULT_PHRASE: &str = "test phrase";
 fn made_and_unlocked(app: &mut Faraday) {
     app.vaults.ms_per_unit = Some(180);
     for i in 0..8u8 {
-        app.event(Event::Entropy(osk_shell_api::EntropyBytes::new(
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
             [0x50 + i; 32],
         )));
     }

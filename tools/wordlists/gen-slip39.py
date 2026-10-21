@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Generate the embedded SLIP-39 wordlist for osk-bip.
+"""Generate the embedded SLIP-39 wordlist for faraday-bip.
 
 Downloads the 1024-word list published with SLIP-0039, checks it, and
-writes core/osk-bip/src/wordlists/slip39.rs. The module holds the words as
+writes core/faraday-bip/src/wordlists/slip39.rs. The module holds the words as
 published, the SHA-256 of the source file bytes (every word followed by a
 single "\\n", UTF-8) so a Rust test can rebuild and re-hash them, and the
 length of the longest word.
@@ -17,7 +17,7 @@ import urllib.request
 from pathlib import Path
 
 URL = "https://raw.githubusercontent.com/satoshilabs/slips/master/slip-0039/wordlist.txt"
-OUT = Path("core/osk-bip/src/wordlists/slip39.rs")
+OUT = Path("core/faraday-bip/src/wordlists/slip39.rs")
 
 
 def main() -> None:

@@ -2,18 +2,18 @@
 //! gets from the Blank templates page.
 
 use faraday_core::pdf;
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::api::{Reason, StarterCommand, StarterEvent};
 use faraday_starter::template::Copy;
 use faraday_starter::{Page, Starter, StarterAction, TemplateChoice};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// A token for the PDFs these tests make, counting nothing. Cheap.
 #[expect(
     clippy::disallowed_methods,
     reason = "a mint: the Starter's tests, which draw nothing"
 )]
-fn compute() -> osk_crypto::work::Compute {
-    osk_crypto::work::Compute::new(|_| {})
+fn compute() -> faraday_crypto::work::Compute {
+    faraday_crypto::work::Compute::new(|_| {})
 }
 
 fn starter() -> Starter {

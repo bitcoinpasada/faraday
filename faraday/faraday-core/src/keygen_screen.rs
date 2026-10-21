@@ -3,8 +3,8 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_bip::bip39::Language;
-use osk_entropy::{CameraNoise, CardDraws, CoinFlips, DiceProcedure, RANKS, SUITS};
+use faraday_bip::bip39::Language;
+use faraday_entropy::{CameraNoise, CardDraws, CoinFlips, DiceProcedure, RANKS, SUITS};
 
 use crate::drawing::{Scrolled, View};
 use crate::keygen::{
@@ -17,8 +17,8 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, flow, guide};
-use osk_ui::Color;
-use osk_ui::widgets::Icon;
+use faraday_draw::Color;
+use faraday_draw::widgets::Icon;
 
 const TITLES: [&str; kstep::COUNT] = [
     EN.keygen_start,
@@ -293,7 +293,7 @@ fn summary(k: &KeyGen, s: u8) -> String {
         kstep::KEY => match k.fingerprint.filter(|_| k.locked) {
             None => EN.keygen_not_locked_in.to_string(),
             Some(fp) => {
-                let fp = fp_text(osk_bip::keys::Fingerprint(fp));
+                let fp = fp_text(faraday_bip::keys::Fingerprint(fp));
                 match (k.asks_passphrase(), k.with_passphrase) {
                     (false, _) => fill(EN.keygen_locked_in, &[&fp.to_string()]),
                     (true, true) => fill(EN.keygen_passphrase_set, &[&fp.to_string()]),
@@ -320,7 +320,7 @@ fn summary(k: &KeyGen, s: u8) -> String {
             None => EN.keygen_not_made_yet.to_string(),
         },
         _ => match (k.fingerprint, k.done[usize::from(kstep::QUIZ)]) {
-            (Some(fp), true) => fp_text(osk_bip::keys::Fingerprint(fp)),
+            (Some(fp), true) => fp_text(faraday_bip::keys::Fingerprint(fp)),
             _ => match k.quiz.as_ref().map(|q| q.progress()) {
                 Some((d, n)) => fill(EN.keygen_of, &[&d.to_string(), &n.to_string()]),
                 None => EN.keygen_not_yet.to_string(),
@@ -403,7 +403,7 @@ fn long_row(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, value: &str) -> f3
 /// used.
 fn word_grid(
     ui: &mut Ui,
-    m: &osk_bip::bip39::Mnemonic,
+    m: &faraday_bip::bip39::Mnemonic,
     shown: bool,
     x: f32,
     y: f32,
@@ -535,7 +535,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
             x,
             cy,
             EN.keygen_fingerprint,
-            &fp_text(osk_bip::keys::Fingerprint(fp)),
+            &fp_text(faraday_bip::keys::Fingerprint(fp)),
             TEXT,
         );
     }
@@ -1119,7 +1119,7 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             for (s, ch) in SUITS.iter().enumerate() {
                 let taken = k
                     .rank
-                    .and_then(|r| osk_entropy::card_index(r, s as u8))
+                    .and_then(|r| faraday_entropy::card_index(r, s as u8))
                     .is_some_and(|i| k.cards.drawn(i));
                 let style = if k.rank.is_none() || taken {
                     Style::Disabled
@@ -1365,7 +1365,7 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let per = if coins {
         11
     } else {
-        osk_entropy::DICE_WORD_ROLLS
+        faraday_entropy::DICE_WORD_ROLLS
     };
     let checksum = k.words / 3;
     let code_of = |slot: usize, len: usize| -> String {
@@ -1482,8 +1482,8 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     ui.text(x, cy, 12.0, W::R, MUTED, crate::wordlist::PRESS_A_WORD);
     cy += 20.0;
     cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, EN.keygen_rolls_1_to_5) + 12.0;
-    let per = osk_entropy::DICE_WORD_ROLLS;
-    let faces = osk_entropy::DICE_WORD_FACES;
+    let per = faraday_entropy::DICE_WORD_ROLLS;
+    let faces = faraday_entropy::DICE_WORD_FACES;
     let rolls = k.dice.rolls();
     let live = k.live_words();
     let last = k.words - 1;
@@ -1656,7 +1656,7 @@ fn last_entry(k: &KeyGen) -> Option<String> {
             .last()
             .map(|h| if h { EN.create_heads } else { EN.create_tails }.to_string()),
         Source::Cards => k.cards.last().map(|i| {
-            let (r, s) = osk_entropy::card_parts(i);
+            let (r, s) = faraday_entropy::card_parts(i);
             format!("{}{}", RANKS[usize::from(r)], SUITS[usize::from(s)])
         }),
         Source::Hex => k.hex.last().map(|c| c.to_string()),
@@ -1776,8 +1776,8 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                 .join("  ");
             cy = stat(ui, x, cy, EN.keygen_faces, &counts, TEXT);
             if !k.procedure().direct() {
-                let high = st.chi_square > osk_entropy::DICE_CHI_SQUARE_LIMIT
-                    && n >= osk_entropy::DICE_SKEW_MIN;
+                let high = st.chi_square > faraday_entropy::DICE_CHI_SQUARE_LIMIT
+                    && n >= faraday_entropy::DICE_SKEW_MIN;
                 let judged = if high {
                     EN.create_stat_high
                 } else {
@@ -1878,7 +1878,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
 fn handed_line(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     match (k.handed, k.fingerprint) {
         (Some(word), Some(fp)) => {
-            let fp = fp_text(osk_bip::keys::Fingerprint(fp));
+            let fp = fp_text(faraday_bip::keys::Fingerprint(fp));
             let line = fill(EN.keygen_added_public_seed, &[word, &fp]);
             ui.wrap(x, y, w, 13.0, W::S, WARN, &line) + 6.0
         }
@@ -1898,7 +1898,7 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             x,
             cy,
             EN.keygen_fingerprint,
-            &fp_text(osk_bip::keys::Fingerprint(fp)),
+            &fp_text(faraday_bip::keys::Fingerprint(fp)),
             TEXT,
         );
     }
@@ -1928,7 +1928,7 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ui.stroke(cx, wy, cellw, 38.0, 8.0, INNER);
         ui.text_mid(cx + 10.0, wy, 38.0, 11.0, W::R, DIM, &(i + 1).to_string());
         let shown = if k.shown {
-            osk_bip::slip39::word(idx)
+            faraday_bip::slip39::word(idx)
         } else {
             "••••••"
         };
@@ -2001,7 +2001,7 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             x,
             cy,
             EN.keygen_fingerprint,
-            &fp_text(osk_bip::keys::Fingerprint(fp)),
+            &fp_text(faraday_bip::keys::Fingerprint(fp)),
             TEXT,
         );
     }
@@ -2056,7 +2056,7 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 x,
                 cy,
                 EN.keygen_fingerprint,
-                &fp_text(osk_bip::keys::Fingerprint(fp)),
+                &fp_text(faraday_bip::keys::Fingerprint(fp)),
                 TEXT,
             );
         }
@@ -2128,7 +2128,7 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Some(bw),
             48.0,
             if k.slip39 {
-                osk_bip::slip39::word(idx)
+                faraday_bip::slip39::word(idx)
             } else {
                 Language::English.word(idx)
             },

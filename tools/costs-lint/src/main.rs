@@ -1,5 +1,5 @@
 //! The costs lint (`docs/COMPUTE.md` §8): what the types cannot hold
-//! about the compute token (`osk_crypto::work::Compute`), checked over the
+//! about the compute token (`faraday_crypto::work::Compute`), checked over the
 //! sources. Run from the repository root; `just lint` does.
 //!
 //! It reads `core/*/src` and every crate's `src` under `faraday/`, the
@@ -140,7 +140,7 @@ const MINTS: &[(&str, &str, &str)] = &[
 
 /// The one place core's sources make a token outside their tests: the
 /// token that counts nothing is itself made with `new`.
-const CORE_MINTS: &[(&str, &str)] = &[("core/osk-crypto/src/work.rs", "Compute::unchecked")];
+const CORE_MINTS: &[(&str, &str)] = &[("core/faraday-crypto/src/work.rs", "Compute::unchecked")];
 
 /// The one field that holds a token: `View`'s, private, handed only to
 /// its accessors (`docs/COMPUTE.md` §4).
@@ -629,7 +629,7 @@ impl Source<'_> {
 fn counter_itself(file: &str, name: &str) -> bool {
     matches!(
         (file, name),
-        ("core/osk-crypto/src/work.rs", "Compute::count")
+        ("core/faraday-crypto/src/work.rs", "Compute::count")
             | ("faraday/faraday-core/src/work.rs", "count" | "core_count")
     )
 }

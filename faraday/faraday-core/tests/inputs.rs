@@ -9,7 +9,7 @@
 
 use faraday_core::strings::EN;
 use faraday_core::{Action, Faraday, Sheet, StorageEvent, testkit};
-use osk_shell_api::{App, EntropyBytes, Event};
+use faraday_shell_api::{App, EntropyBytes, Event};
 
 /// An app whose shell answered its first request for randomness.
 fn seeded() -> Faraday {

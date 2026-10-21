@@ -11,8 +11,8 @@ use faraday_qr::{Arrived, Assembler, Step, envelope};
     clippy::disallowed_methods,
     reason = "a mint: faraday-qr's tests, which cannot reach faraday-core's testkit"
 )]
-fn compute() -> osk_crypto::work::Compute {
-    osk_crypto::work::Compute::new(|_| {})
+fn compute() -> faraday_crypto::work::Compute {
+    faraday_crypto::work::Compute::new(|_| {})
 }
 
 fn vector(name: &str) -> std::path::PathBuf {
@@ -38,7 +38,7 @@ fn ten_bbqr_parts_are_the_psbt_in_any_order() {
     lines
         .find(|l| l.starts_with("3-OF-5, FIVE INPUTS"))
         .unwrap();
-    let whole = osk_bip::base64::decode(lines.next().unwrap().trim()).unwrap();
+    let whole = faraday_bip::base64::decode(lines.next().unwrap().trim()).unwrap();
     let parts: Vec<String> = (1..=10)
         .map(|n| code(&format!("wallets/multisig-6-psbt-bbqr-part-{n}-of-10.png")))
         .collect();

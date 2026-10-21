@@ -6,18 +6,18 @@
 //! BIP-352's sending side made to it, to the address or to a label, and
 //! not one made to someone else.
 
-use faraday_core::silent_check::Checked;
-use faraday_core::wallet::Kind;
-use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent};
-use osk_bip::bitcoin::key::TapTweak;
-use osk_bip::bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
-use osk_bip::bitcoin::{
+use faraday_bip::bitcoin::key::TapTweak;
+use faraday_bip::bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
+use faraday_bip::bitcoin::{
     Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness, absolute, consensus,
     transaction,
 };
-use osk_bip::silent::{self, Receiver, SendKey};
-use osk_bip::silent_wallet::SilentWallet;
-use osk_shell_api::{App, Event, Key};
+use faraday_bip::silent::{self, Receiver, SendKey};
+use faraday_bip::silent_wallet::SilentWallet;
+use faraday_core::silent_check::Checked;
+use faraday_core::wallet::Kind;
+use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent};
+use faraday_shell_api::{App, Event, Key};
 
 fn with_key() -> Faraday {
     let mut app = faraday_core::testkit::started();
@@ -35,7 +35,7 @@ fn the_address_is_bip352s_for_the_key_and_a_label_makes_another() {
     let mut app = with_key();
     app.press(Action::Silent);
     assert_eq!(app.screen, Screen::Silent);
-    let secp = osk_bip::bitcoin::secp256k1::Secp256k1::new();
+    let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::new();
     let r = Receiver::derive(&c, app.session.keys[0].master(), 0);
     let plain = r.address(&secp).unwrap().as_str().to_string();
     assert!(plain.starts_with("sp1"), "{plain}");
@@ -68,7 +68,7 @@ fn the_scan_key_leaves_only_through_the_secret_sheet() {
 fn payer() -> (SecretKey, ScriptBuf) {
     let secp = Secp256k1::new();
     let key = SecretKey::from_slice(&[0x11u8; 32]).unwrap();
-    let public = osk_bip::bitcoin::PublicKey::new(key.public_key(&secp));
+    let public = faraday_bip::bitcoin::PublicKey::new(key.public_key(&secp));
     let script = ScriptBuf::new_p2wpkh(&public.wpubkey_hash().unwrap());
     (key, script)
 }
@@ -126,7 +126,7 @@ fn payment(scan: &PublicKey, spend: &PublicKey) -> (Transaction, Transaction) {
         .map(|k| TxOut {
             value: Amount::from_sat(150_000),
             script_pubkey: ScriptBuf::new_p2tr_tweaked(
-                osk_bip::bitcoin::XOnlyPublicKey::from_slice(k)
+                faraday_bip::bitcoin::XOnlyPublicKey::from_slice(k)
                     .unwrap()
                     .dangerous_assume_tweaked(),
             ),

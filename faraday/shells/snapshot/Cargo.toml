@@ -12,14 +12,14 @@ publish = false
 faraday-core = { path = "../../faraday-core", features = ["testkit"] }
 faraday-storage = { path = "../../faraday-storage" }
 faraday-qr = { path = "../../faraday-qr" }
-osk-bip = { path = "../../../core/osk-bip" }
-osk-crypto = { path = "../../../core/osk-crypto" }
+faraday-bip = { path = "../../../core/faraday-bip" }
+faraday-crypto = { path = "../../../core/faraday-crypto" }
 faraday-vault = { path = "../../faraday-vault" }
 faraday-sb = { path = "../../faraday-sb" }
-osk-shell-api = { path = "../../../core/osk-shell-api" }
+faraday-shell-api = { path = "../../../core/faraday-shell-api" }
 png.workspace = true
-osk-codec = { path = "../../../core/osk-codec" }
-osk-selftest = { path = "../../../core/osk-selftest" }
+faraday-codec = { path = "../../../core/faraday-codec" }
+faraday-selftest = { path = "../../../core/faraday-selftest" }
 
 [lints]
 workspace = true

@@ -5,11 +5,11 @@
 
 mod common;
 
+use faraday_bip::keys::Network;
 use faraday_core::testkit;
 use faraday_core::wallet::{FileKind, Session, classify};
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
-use osk_bip::keys::Network;
-use osk_shell_api::App;
+use faraday_shell_api::App;
 
 #[test]
 fn home_has_no_network_target_on_mainnet() {
@@ -114,10 +114,10 @@ fn a_mainnet_psbt_is_refused_while_testnet_wallets_are_loaded() {
     let mut inner = testkit::unsigned(&kit("spending")).unwrap().into_inner();
     for (_, path) in inner.inputs[0].bip32_derivation.values_mut() {
         let mut steps: Vec<_> = path.into_iter().copied().collect();
-        steps[1] = osk_bip::bitcoin::bip32::ChildNumber::from_hardened_idx(0).unwrap();
+        steps[1] = faraday_bip::bitcoin::bip32::ChildNumber::from_hardened_idx(0).unwrap();
         *path = steps.into();
     }
-    let mainnet = osk_psbt::Psbt::from(inner);
+    let mainnet = faraday_psbt::Psbt::from(inner);
     let mut app = with_inbox(vec![
         ("spend.psbt", mainnet.to_bytes()),
         (

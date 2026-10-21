@@ -5,9 +5,9 @@
 use crate::in_progress::Going;
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_crypto::work::Compute;
-use osk_psbt::{Level, OutputKind};
-use osk_ui::widgets::Icon;
+use faraday_crypto::work::Compute;
+use faraday_draw::widgets::Icon;
+use faraday_psbt::{Level, OutputKind};
 
 use crate::drawing::{Scrolled, View};
 use crate::ui::pal::*;
@@ -184,7 +184,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         let (x, cw) = wide_page(app, full_w);
         ui.ox = 0.0;
         let right = if app.held {
-            x + cw - 38.0 - osk_ui::tokens::GAP
+            x + cw - 38.0 - faraday_draw::tokens::GAP
         } else {
             network_pill_left(app, ui, x + cw - 38.0)
         };
@@ -256,7 +256,7 @@ fn held_frame(app: &View, ui: &mut Ui, full_w: f32, full_h: f32, page: (f32, f32
         ui.hit(qx - 6.0, qy - 6.0, 40.0, 40.0, Action::Learn);
     }
     if app.screen != Screen::Home && app.sheet.is_none() {
-        crate::compact::wide_keyboard_button(app, ui, cw - 38.0 - osk_ui::tokens::GAP);
+        crate::compact::wide_keyboard_button(app, ui, cw - 38.0 - faraday_draw::tokens::GAP);
     }
     notices(app, ui, 0.0, cw, full_h);
     ui.ox = 0.0;
@@ -377,7 +377,7 @@ fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
     if let Some(t) = app.toast_text().map(str::to_string) {
         // It rises in, and fades as its time runs out.
         let (shown, rise) = app.toast_shown();
-        let a = |c: osk_ui::Color| c.with_alpha((f32::from(c.a) * shown) as u8);
+        let a = |c: faraday_draw::Color| c.with_alpha((f32::from(c.a) * shown) as u8);
         let ty = h - 64.0 + rise;
         let tw = ui.measure(14.0, W::R, &t) + 40.0;
         let tx = x + (cw - tw) / 2.0;
@@ -461,7 +461,7 @@ fn header_network_pill(app: &View, ui: &mut Ui, qx: f32) -> f32 {
     let label = network_name(net);
     let (h, qy, qh) = (28.0, 12.0, 28.0);
     let pw = ui.measure(12.0, W::S, label) + 24.0;
-    let px = qx - osk_ui::tokens::GAP - pw;
+    let px = qx - faraday_draw::tokens::GAP - pw;
     let py = qy + (qh - h) / 2.0;
     ui.fill(px, py, pw, h, h / 2.0, WARN.with_alpha(30));
     ui.stroke(px, py, pw, h, h / 2.0, WARN.with_alpha(110));
@@ -473,7 +473,7 @@ fn header_network_pill(app: &View, ui: &mut Ui, qx: f32) -> f32 {
 /// and the network pill when there is one, a gap between each.
 fn network_pill_left(app: &View, ui: &Ui, qx: f32) -> f32 {
     let net = app.session.network();
-    let gap = osk_ui::tokens::GAP;
+    let gap = faraday_draw::tokens::GAP;
     if net.is_mainnet() {
         return qx - gap;
     }
@@ -703,7 +703,14 @@ fn sidebar(app: &View, ui: &mut Ui, h: f32) {
                  total: usize,
                  cap: usize,
                  rows: &mut dyn Iterator<
-        Item = (String, String, bool, Action, Option<osk_ui::Color>, bool),
+        Item = (
+            String,
+            String,
+            bool,
+            Action,
+            Option<faraday_draw::Color>,
+            bool,
+        ),
     >,
                  more: Action| {
         if total == 0 {
@@ -1623,8 +1630,8 @@ fn start(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// The nonce check: each signature against its key and this
 /// transaction, each one made here recomputed from its key, and any nonce
 /// used twice. Returns its height.
-fn nonce_check(app: &View, ui: &mut Ui, psbt: &osk_psbt::Psbt, x: f32, y: f32, w: f32) -> f32 {
-    use osk_psbt::verify::Verdict;
+fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f32, w: f32) -> f32 {
+    use faraday_psbt::verify::Verdict;
     let Some(check) = app.nonce_check(psbt) else {
         return 0.0;
     };
@@ -3563,7 +3570,7 @@ fn card_actions(
 fn silent_wallet_card(
     app: &View,
     ui: &mut Ui,
-    r: &osk_bip::silent_wallet::SilentWallet,
+    r: &faraday_bip::silent_wallet::SilentWallet,
     ix: f32,
     iw: f32,
     y: f32,
@@ -3894,14 +3901,14 @@ const SPEND_BAR: f32 = 104.0;
 
 /// The first input's threshold view, when the spend is from a threshold
 /// wallet.
-fn threshold_of(s: &crate::SpendState) -> Option<&osk_psbt::ThresholdInput> {
+fn threshold_of(s: &crate::SpendState) -> Option<&faraday_psbt::ThresholdInput> {
     s.inspection
         .inputs
         .first()
         .and_then(|i| i.threshold.as_ref())
 }
 
-fn recipients(inspection: &osk_psbt::Inspection) -> Vec<&osk_psbt::OutputInfo> {
+fn recipients(inspection: &faraday_psbt::Inspection) -> Vec<&faraday_psbt::OutputInfo> {
     inspection
         .outputs
         .iter()
@@ -4167,7 +4174,7 @@ pub(crate) fn step_body(
             // for a segwit spend, not for a legacy one.
             if txid_known(&s.spend.psbt) {
                 let segwit = i.inputs.iter().all(|inp| {
-                    !matches!(inp.script_type, osk_psbt::ScriptKind::P2pkh)
+                    !matches!(inp.script_type, faraday_psbt::ScriptKind::P2pkh)
                         && !format!("{:?}", inp.script_type).contains("Sh")
                         || format!("{:?}", inp.script_type).contains("Wsh")
                 });
@@ -5160,7 +5167,7 @@ type ReviewRow = (
     String,
     String,
     String,
-    Option<(&'static str, osk_ui::Color)>,
+    Option<(&'static str, faraday_draw::Color)>,
 );
 
 #[allow(clippy::too_many_arguments)]
@@ -6353,7 +6360,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += rows as f32 * 26.0 + 16.0;
                 // SeedQR numbers the English list's words: another list's
                 // words have no SeedQR another signer would read right.
-                if forms.seedqr && lang != osk_bip::bip39::Language::English {
+                if forms.seedqr && lang != faraday_bip::bip39::Language::English {
                     cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.backup_seedqr_is_for) + 12.0;
                 } else if forms.seedqr {
                     // The SeedQR as a ruled grid to copy.
@@ -7161,7 +7168,14 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
-fn seed_grid(ui: &mut Ui, m: &osk_codec::qr::QrMatrix, x: f32, y: f32, w: f32, pin: usize) -> f32 {
+fn seed_grid(
+    ui: &mut Ui,
+    m: &faraday_codec::qr::QrMatrix,
+    x: f32,
+    y: f32,
+    w: f32,
+    pin: usize,
+) -> f32 {
     let n = m.size();
     let margin = 26.0;
     let cell = ((w - margin) / n as f32).floor().max(6.0);
@@ -7169,7 +7183,7 @@ fn seed_grid(ui: &mut Ui, m: &osk_codec::qr::QrMatrix, x: f32, y: f32, w: f32, p
     let gy = y + margin;
     let side = cell * n as f32;
     let pin = pin.min(n - 1);
-    ui.fill(gx, gy, side, side, 0.0, osk_ui::Color::WHITE);
+    ui.fill(gx, gy, side, side, 0.0, faraday_draw::Color::WHITE);
     ui.fill(
         gx,
         gy + pin as f32 * cell,
@@ -7182,9 +7196,9 @@ fn seed_grid(ui: &mut Ui, m: &osk_codec::qr::QrMatrix, x: f32, y: f32, w: f32, p
         for col in 0..n {
             if m.module(col, row) {
                 let c = if crate::backup::structural(col, row, n) {
-                    osk_ui::Color::rgb(0x8a, 0x94, 0x9e)
+                    faraday_draw::Color::rgb(0x8a, 0x94, 0x9e)
                 } else {
-                    osk_ui::Color::BLACK
+                    faraday_draw::Color::BLACK
                 };
                 ui.fill(
                     gx + col as f32 * cell,
@@ -7201,9 +7215,9 @@ fn seed_grid(ui: &mut Ui, m: &osk_codec::qr::QrMatrix, x: f32, y: f32, w: f32, p
     // The ruling: light every square, darker every five.
     for i in 0..=n {
         let c = if i % 5 == 0 {
-            osk_ui::Color::rgb(0x6f, 0x82, 0x91)
+            faraday_draw::Color::rgb(0x6f, 0x82, 0x91)
         } else {
-            osk_ui::Color::rgb(0xc8, 0xd0, 0xd6)
+            faraday_draw::Color::rgb(0xc8, 0xd0, 0xd6)
         };
         ui.fill(gx + i as f32 * cell, gy, 1.0, side, 0.0, c);
         ui.fill(gx, gy + i as f32 * cell, side, 1.0, 0.0, c);
@@ -7261,7 +7275,7 @@ fn backup_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
     let x = px + 22.0;
     let w = pw - 44.0;
     // The check is measured first, so the map stops above it.
-    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
     let mark = ui.hits.len();
     let ch = check_rows(app, ui, x, 0.0, w);
     ui.hits.truncate(mark);
@@ -7277,7 +7291,7 @@ fn backup_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
 }
 
 /// The colour of a line of [`crate::backup::Kept`].
-fn tone(t: crate::backup::Tone) -> osk_ui::Color {
+fn tone(t: crate::backup::Tone) -> faraday_draw::Color {
     use crate::backup::Tone;
     match t {
         Tone::Ok => OK,
@@ -7535,14 +7549,14 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     _ => None,
                 });
             let allowed = script
-                .map(osk_psbt::message::Format::for_script)
+                .map(faraday_psbt::message::Format::for_script)
                 .unwrap_or(&[]);
             let mut bx = x;
             for (label, is322) in [("BIP-322", true), ("BIP-137", false)] {
                 let f = if is322 {
-                    osk_psbt::message::Format::Bip322
+                    faraday_psbt::message::Format::Bip322
                 } else {
-                    osk_psbt::message::Format::Bip137
+                    faraday_psbt::message::Format::Bip137
                 };
                 let style = if !allowed.contains(&f) {
                     Style::Disabled
@@ -7675,7 +7689,7 @@ fn check_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Ok(f) => (
             fill(
                 EN.check_the_signature_is,
-                &[(if *f == osk_psbt::message::Format::Bip322 {
+                &[(if *f == faraday_psbt::message::Format::Bip322 {
                     "BIP-322"
                 } else {
                     "BIP-137"
@@ -7688,7 +7702,7 @@ fn check_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The verdict's card grows to its wrapped line.
     let (size, lx) = if compact { (14.0, 46.0) } else { (16.0, 54.0) };
     let line_h = if compact {
-        ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+        ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
         let lh = ui.wrap(x + lx, y, width - lx - 14.0, size, W::S, color, &line);
         ui.c.pop_clip();
         lh
@@ -8259,10 +8273,10 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 let (state, color) = match src {
                     Source::Empty => (EN.create_not_chosen.to_string(), DIM),
                     Source::Here(fp) => {
-                        let fpt = fp_text(osk_bip::keys::Fingerprint(*fp));
+                        let fpt = fp_text(faraday_bip::keys::Fingerprint(*fp));
                         let name = app
                             .session
-                            .key_label(osk_bip::keys::Fingerprint(*fp))
+                            .key_label(faraday_bip::keys::Fingerprint(*fp))
                             .unwrap_or("");
                         (fill(EN.create_loaded_here, &[&fpt.to_string(), name]), OK)
                     }
@@ -8950,7 +8964,7 @@ fn public_files(
     app: &View,
     i: usize,
 ) -> (Vec<FileRow<'static, String>>, Vec<FileRow<'static, String>>) {
-    use osk_bip::policy::{Template, Wrapper};
+    use faraday_bip::policy::{Template, Wrapper};
     let Some(wl) = app.session.wallets.get(i) else {
         return (Vec::new(), Vec::new());
     };
@@ -9573,7 +9587,7 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     } else {
         let here = app.seeds_here(s);
         for (k, fp) in here.iter().enumerate() {
-            let f = osk_bip::keys::Fingerprint(*fp);
+            let f = faraday_bip::keys::Fingerprint(*fp);
             let label = app.session.key_label(f).unwrap_or("");
             let line = if label.is_empty() || label.eq_ignore_ascii_case(&fp_text(f)) {
                 EN.restore_seeds_here.to_string()
@@ -11180,7 +11194,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
 type Buttons = Vec<(String, Style, Action)>;
 
 /// A line and its colour.
-type Note = Option<(String, osk_ui::Color)>;
+type Note = Option<(String, faraday_draw::Color)>;
 
 /// What an Inbox file offers on its card: the way it is used; the rest
 /// is behind its ⋮ (decision 61). A split sheet that does not add up yet says how
@@ -11346,11 +11360,11 @@ fn file_card(
     x: f32,
     y: f32,
     w: f32,
-    (icon, ink, edge): (Icon, osk_ui::Color, osk_ui::Color),
+    (icon, ink, edge): (Icon, faraday_draw::Color, faraday_draw::Color),
     name: &str,
     line: &str,
     row: crate::file_menu::Row,
-    note: Option<&(String, osk_ui::Color)>,
+    note: Option<&(String, faraday_draw::Color)>,
     buttons: &[(String, Style, Action)],
 ) -> f32 {
     let draw = |ui: &mut Ui| -> f32 {
@@ -11860,7 +11874,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                on: bool,
                name: &str,
                line: &str,
-               tag: (&str, osk_ui::Color),
+               tag: (&str, faraday_draw::Color),
                action: Option<Action>| {
         // No action: the stick holds the file already, drawn greyed.
         let held = action.is_none();
@@ -12131,7 +12145,7 @@ fn visit(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     on: bool,
                     name: &str,
                     line: &str,
-                    tag: (&str, osk_ui::Color),
+                    tag: (&str, faraday_draw::Color),
                     action: Option<Action>| {
         // A row scrolled out of the list's sight is passed over.
         if !ui.shows(ry, ROW) {
@@ -12521,7 +12535,7 @@ fn visit_inbox_line(item: &crate::Item) -> String {
 
 /// An Inbox file's tag on a visit's write list: public and sealed files
 /// are written as they are; the rest only past the secret sheet.
-fn visit_inbox_tag(item: &crate::Item) -> (&'static str, osk_ui::Color) {
+fn visit_inbox_tag(item: &crate::Item) -> (&'static str, faraday_draw::Color) {
     match item.copy_ack() {
         None if item.exposure() == crate::secrets::Exposure::Sealed => {
             (EN.visit_inbox_tag_sealed, OK)
@@ -12669,7 +12683,7 @@ fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let heading = match (app.entry.wanted, for_wallet) {
         (Some(fp), _) => fill(
             EN.entry_add_key,
-            &[&fp_text(osk_bip::keys::Fingerprint(fp)).to_string()],
+            &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
         ),
         (None, Some(name)) => fill(EN.entry_add_a_key_for, &[name]),
         (None, None) if app.entry.form != crate::forms::Form::Words => {
@@ -12748,7 +12762,7 @@ pub(crate) fn entry_words(
     // and, unless the chips are already shown, the way to them. Under the
     // word fields, or above the keyboard of a list typed on its own keys.
     let lang = app.entry.language();
-    let english = lang == osk_bip::bip39::Language::English;
+    let english = lang == faraday_bip::bip39::Language::English;
     let mut langs: Vec<(String, Style, Action)> = if english && !app.entry.languages {
         vec![(
             EN.entry_other_languages.to_string(),
@@ -12831,7 +12845,7 @@ pub(crate) struct Cells {
 pub(crate) fn typed_cells(
     ui: &mut Ui,
     (x, y, width): (f32, f32, f32),
-    lang: osk_bip::bip39::Language,
+    lang: faraday_bip::bip39::Language,
     typed: &str,
     cells: Cells,
 ) -> f32 {
@@ -12914,7 +12928,7 @@ pub(crate) fn typed_cells(
 /// it scrolls: `bottom`, where the content (including the footer) ends,
 /// measured from the top of the screen as if unscrolled, so the last
 /// scroll leaves the footer and its margin inside the window.
-fn entry_scrolled(app: &View, ui: &mut Ui, clip: osk_ui::Rect, h: f32, bottom: f32) {
+fn entry_scrolled(app: &View, ui: &mut Ui, clip: faraday_draw::Rect, h: f32, bottom: f32) {
     ui.c.pop_clip();
     app.content_h.set(bottom + app.list_offset + 24.0);
     ui.report_scroll(clip, app.content_h.get() - h);
@@ -12974,7 +12988,7 @@ fn keyed_words(
     width: f32,
     h: f32,
 ) -> f32 {
-    use osk_ui::widgets::keyboard;
+    use faraday_draw::widgets::keyboard;
     let lang = app.entry.language();
     let kind = w.keyboard();
     let mut y = y;
@@ -13018,7 +13032,7 @@ fn keyed_words(
     y += keyed_pills(ui, x, y, width, w, lang, true);
     // The keyboard, laid out in design units, its keys as tall as the
     // room above the status, the passphrase and the buttons allows.
-    let rows = osk_ui::widgets::keyboard::rows(kind) as f32;
+    let rows = faraday_draw::widgets::keyboard::rows(kind) as f32;
     let room = h - 82.0 - 8.0 - 40.0 - 12.0 - y;
     let kh = (room / rows).clamp(22.0, 36.0);
     word_keys(app.entry.shift, w, ui, x, y, width, kh)
@@ -13030,7 +13044,7 @@ fn keyed_words(
 pub(crate) fn keyed_cells(
     ui: &mut Ui,
     (x, y, width): (f32, f32, f32),
-    lang: osk_bip::bip39::Language,
+    lang: faraday_bip::bip39::Language,
     taken: &[u16],
     prefix: &str,
     cells: Cells,
@@ -13088,7 +13102,7 @@ pub(crate) fn keyed_pills(
     y: f32,
     width: f32,
     w: &crate::word_entry::WordEntry,
-    lang: osk_bip::bip39::Language,
+    lang: faraday_bip::bip39::Language,
     hint: bool,
 ) -> f32 {
     let mut y = y;
@@ -13136,13 +13150,13 @@ pub(crate) fn word_keys(
     width: f32,
     kh: f32,
 ) -> f32 {
-    use osk_ui::widgets::keyboard::{self, KeyInput, Modifiers};
+    use faraday_draw::widgets::keyboard::{self, KeyInput, Modifiers};
     let kind = w.keyboard();
     let rows = keyboard::rows(kind) as f32;
-    let area = osk_ui::geom::Rect::new(x as i32, y as i32, width as i32, (rows * kh) as i32);
-    let ctx = osk_ui::layout::LayoutCtx::new(
-        osk_ui::geom::Scale::new(160),
-        osk_ui::geom::SizeClass::Wide,
+    let area = faraday_draw::geom::Rect::new(x as i32, y as i32, width as i32, (rows * kh) as i32);
+    let ctx = faraday_draw::layout::LayoutCtx::new(
+        faraday_draw::geom::Scale::new(160),
+        faraday_draw::geom::SizeClass::Wide,
     );
     let mods = Modifiers {
         shift,
@@ -13213,16 +13227,16 @@ pub(crate) fn word_keys(
 /// count, and once it is a whole key, the checksum and fingerprint.
 pub(crate) fn keyed_status(
     app: &View,
-    lang: osk_bip::bip39::Language,
+    lang: faraday_bip::bip39::Language,
     taken: &[u16],
-) -> (String, osk_ui::Color) {
+) -> (String, faraday_draw::Color) {
     let n = taken.len();
     let count = || (fill(EN.keyed_status_words_2, &[&n.to_string()]), MUTED);
     if ![12, 15, 18, 21, 24].contains(&n) {
         return count();
     }
     // While typing goes on the key is not worked out: the count alone.
-    let added = match osk_bip::bip39::Mnemonic::from_indices(lang, taken) {
+    let added = match faraday_bip::bip39::Mnemonic::from_indices(lang, taken) {
         Err(e) => Err(crate::wallet::Refusal::Words(e.to_string()).text()),
         Ok(m) => match app.entry_probed(&m) {
             Some(r) => r,
@@ -13249,7 +13263,7 @@ fn entry_status(
     x: f32,
     y: f32,
     n: usize,
-    m: Option<Result<osk_bip::bip39::Mnemonic, String>>,
+    m: Option<Result<faraday_bip::bip39::Mnemonic, String>>,
 ) -> f32 {
     let mut y = y;
     // While typing goes on the key is not worked out: the count alone.
@@ -14404,7 +14418,7 @@ fn settings(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 132.0;
     }
     // The note at its foot, measured first: it wraps on a narrow column.
-    ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
     let note_h = institute_note(app, ui, x + 22.0, 0.0, width - 44.0);
     ui.c.pop_clip();
     let about_h = 210.0 + note_h + 14.0;
@@ -14528,7 +14542,7 @@ fn devices_buttons(app: &View) -> Vec<(&'static str, Style, Action)> {
 
 /// The tone a reminder is drawn in: the Bolt's line says its typing is
 /// encrypted, which is no warning.
-fn reminder_tone(line: &str) -> osk_ui::Color {
+fn reminder_tone(line: &str) -> faraday_draw::Color {
     if line == crate::strings::EN.devices_bolt_notice {
         MUTED
     } else {
@@ -14542,7 +14556,8 @@ fn reminder_tone(line: &str) -> osk_ui::Color {
 fn devices_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let s = &crate::strings::EN;
     let d = &app.devices;
-    let mut lines: Vec<(String, osk_ui::Color)> = d.held.iter().map(|c| (c.line(), TEXT)).collect();
+    let mut lines: Vec<(String, faraday_draw::Color)> =
+        d.held.iter().map(|c| (c.line(), TEXT)).collect();
     lines.extend(
         app.device_reminders()
             .into_iter()
@@ -14699,7 +14714,7 @@ fn kept_sections(
     app: &View,
     power_off: bool,
     then: String,
-) -> Vec<(&'static str, Vec<(String, osk_ui::Color)>)> {
+) -> Vec<(&'static str, Vec<(String, faraday_draw::Color)>)> {
     let kw = app.kept_wiped(power_off);
     vec![
         (
@@ -14721,9 +14736,9 @@ fn kept_sections(
 /// with its text.
 type SheetLine<'a> = (
     &'a str,
-    osk_ui::Color,
+    faraday_draw::Color,
     Option<(&'a str, &'a str)>,
-    Option<(&'a str, &'a osk_codec::qr::QrMatrix)>,
+    Option<(&'a str, &'a faraday_codec::qr::QrMatrix)>,
 );
 
 /// A sheet that says what a lock or a power-off does: its title, a line,
@@ -14732,9 +14747,9 @@ fn kept_sheet(
     ui: &mut Ui,
     w: f32,
     h: f32,
-    head: (Glyph, osk_ui::Color, &str),
+    head: (Glyph, faraday_draw::Color, &str),
     (line, line_tone, row, code): SheetLine<'_>,
-    sections: &[(&str, Vec<(String, osk_ui::Color)>)],
+    sections: &[(&str, Vec<(String, faraday_draw::Color)>)],
     actions: &[(&str, Style, Action)],
 ) {
     let (place, margin, pad) = if ui.compact {
@@ -15059,7 +15074,7 @@ fn viewfinder_over(
     sc: &crate::ScanState,
     read: bool,
 ) {
-    use osk_ui::tokens;
+    use faraday_draw::tokens;
     let tone = if read { VIEWFINDER_READ } else { VIEWFINDER };
     let arm = w.min(h) * tokens::VIEWFINDER_BRACKET_SHARE;
     let (st, inset) = (
@@ -15640,7 +15655,7 @@ fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         ],
     );
     if ui.compact {
-        let rows: Vec<(&str, String, osk_ui::Color)> =
+        let rows: Vec<(&str, String, faraday_draw::Color)> =
             rows.into_iter().map(|(k, v)| (k, v, TEXT)).collect();
         crate::compact::kv_sheet(
             ui,
@@ -15788,7 +15803,7 @@ fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// network, while wallets are loaded) disabled. A session whose network is
 /// fixed offers only the one in use.
 pub(crate) fn network_row_items(app: &View) -> Vec<(&'static str, Style, Action)> {
-    use osk_bip::keys::Network;
+    use faraday_bip::keys::Network;
     let now = app.session.network();
     let fixed = app.session.network_fixed();
     Network::ALL

@@ -51,7 +51,7 @@ the files and codes they write.
 | Sparrow, Keystone, SeedSigner, Jade, Passport | `ur:crypto-output`, `ur:crypto-account`, `ur:crypto-hdkey` | yes | `crypto-account` for a wsh cosigner key | Sparrow's multisig code, a Keystone/Cobo account code, SeedSigner's vector |
 | Every coordinator | PSBT: binary, base64, `ur:crypto-psbt`, `ur:psbt`, BBQr `P` | yes | binary, `crypto-psbt`, BBQr `P` | BlueWallet's sample, Core |
 | Coldcard, Sparrow | Finished transaction as hex (`-final.txn`) | yes | yes | Core |
-| SeedSigner, Krux, Jade, Coldcard Q | SeedQR, CompactSeedQR | yes | yes (backup grid) | SeedQR's specification vectors (`osk-codec`), `tests/import.rs` |
+| SeedSigner, Krux, Jade, Coldcard Q | SeedQR, CompactSeedQR | yes | yes (backup grid) | SeedQR's specification vectors (`faraday-codec`), `tests/import.rs` |
 | Trezor, Keystone | SLIP-39 shares | yes | yes | `tests/keygen_slip39.rs` |
 | Coldcard | Seed XOR, BIP-85 | yes | yes | `tests/forms.rs`, `tests/bip85.rs` |
 | Ledger, Trezor, BitBox02 | BIP-39 words | yes | — | — |
@@ -74,13 +74,13 @@ reach Faraday as keys inside the wallet files above, which work.
 - **Coldcard's account export read with the wrong fingerprint.** Each
   account object in the file carries an `xfp` that is the account key's
   own fingerprint; the master's is the file's top-level `xfp`
-  (Coldcard's `docs/generic-wallet-export.md`). `osk_bip::coldcard::parse`
+  (Coldcard's `docs/generic-wallet-export.md`). `faraday_bip::coldcard::parse`
   roots the key at the inner one, so the wallet never matched the seed
   that made it. Before that, Faraday's reader took the file's first
   `desc`, which is BIP-44's, and loaded a legacy wallet. Faraday read the
   file itself (`wallet::coldcard_export`): BIP-84 first, rooted at the
   master, and refused if its first address is not the one the file
-  states. Since 2026-10-20 that reader is `osk_bip::coldcard::read`
+  states. Since 2026-10-20 that reader is `faraday_bip::coldcard::read`
   (`parse` uses it, so OpenSigner's own scan of the file is fixed too),
   with `cosigner_keys` for Create's slots; `wallet::coldcard_export`
   only words its refusals.
@@ -113,7 +113,7 @@ wallets.
 6. ~~**Bitcoin Core before 29**~~ Written since 2026-10-20 (§5 I4), as
    a receive and a change request, under Public files' More options.
 7. ~~**BIP 129 records**~~ Read since 2026-10-20 (§5 I3), by Faraday
-   before `osk_bip::bsms`, which still refuses them: records with an
+   before `faraday_bip::bsms`, which still refuses them: records with an
    upper-case address or "No path restrictions". Neither is in BIP 129's
    own examples (its one "No path restrictions" example, Vector A, is
    over plain public keys); both are Sparrow's test records
@@ -162,11 +162,11 @@ converted Coldcard's flat fields unchecked until 2026-10-20. A key line or bare 
 descriptor reads as the single-key wallet its version names; as a
 cosigner key, `key_for` takes it.
 
-Where: `osk_bip::slip132` (`decode`, `key_line`, `plain_descriptor`,
+Where: `faraday_bip::slip132` (`decode`, `key_line`, `plain_descriptor`,
 `encode`; moved from `faraday-intake/src/slip132.rs` 2026-10-20, the
 refusal's sentence staying in `faraday_intake::wallet::mismatch_text`),
 called from `read_wallet_as_written` before `parse_any`,
-`create::read_keys`, Coldcard's files and `osk_bip::multisig_config`, which
+`create::read_keys`, Coldcard's files and `faraday_bip::multisig_config`, which
 since 2026-10-20 refuses a key whose version disagrees with its `Format:`
 itself (so a rebuilt backup config is checked too, `restore::readable`). Tests (`tests/interop.rs`): Casa's descriptor loads as
 `sh(wsh(sortedmulti(3,…)))`; Specter DIY's keystore fills a native SegWit
@@ -177,14 +177,14 @@ address.
 
 ### I2. A JSON reader; single-key JSON from Cobo/Keystone and Wasabi (§4 item 4; #46)
 
-`osk_bip::json` (`core/osk-bip/src/json.rs`, moved from `faraday-intake`
+`faraday_bip::json` (`core/faraday-bip/src/json.rs`, moved from `faraday-intake`
 2026-10-20): a value parser (depth ≤ 32, size ≤ 1 MiB, full string
 escapes including `\uXXXX`, a key named twice refused), no new crate,
 and a fuzz target `fuzz/fuzz_targets/json.rs`. Every reader of a JSON
 file uses it: since 2026-10-20 also the wallet `.json` and
 `listdescriptors` reader, the `"label"` a wallet `.json` names, and
 Coldcard's files, whose scanners (`json_string`, `json_object`,
-`osk_bip::coldcard`'s own) are gone.
+`faraday_bip::coldcard`'s own) are gone.
 
 Reads Cobo/Keystone `{"ExtPubKey","MasterFingerprint","AccountKeyPath"}`
 (`AccountKeyPath` may lack `m/`; the version is checked against the path
@@ -212,7 +212,7 @@ past the depth limit is refused.
 
 ### I3. BIP 129 records Faraday refuses (§4 item 7; #50)
 
-In `osk_bip::bsms::DescriptorRecord::parse` (since 2026-10-20; before
+In `faraday_bip::bsms::DescriptorRecord::parse` (since 2026-10-20; before
 that a tidy-up in `faraday-intake/src/wallet.rs` ran first): (a) the
 stated address is compared as its encoding writes it
 (`assume_checked().to_string()`), so an all upper-case bech32/bech32m
@@ -244,7 +244,7 @@ Writes `{stem}-bitcoin-core-before-29.json`: two `importdescriptors`
 requests, receive (`"internal":false`) and change (`"internal":true`),
 each from `Descriptor::into_single_descriptors()` with its own checksum,
 `"active":true`, `"range":[0,999]`, `"timestamp":0`. Not for MuSig2, FROST
-or silent payments. Written by `osk_bip::core_import::import_descriptors_pair`
+or silent payments. Written by `faraday_bip::core_import::import_descriptors_pair`
 (moved from `faraday-intake/src/core_before_29.rs` 2026-10-20). Tests: a fresh Public files list shows no row under
 More options until it is pressed; the file's two descriptors read back as
 the wallet; each checksum is Core's (shape of `core/listdescriptors.json`);
@@ -371,7 +371,7 @@ Keystone, Specter DIY and Coldcard sp keystores give one wallet rooted at
 
 ### I10. PSBT version 2 (§4 item 8; #49)
 
-`osk_psbt` and rust-bitcoin 0.32 read version 0 only, so Faraday converts.
+`faraday_psbt` and rust-bitcoin 0.32 read version 0 only, so Faraday converts.
 `faraday-intake/src/psbt_v2.rs`, on raw BIP-174 maps: v2 → v0 builds the
 unsigned transaction (globals `0x02` version, `0x03` fallback locktime,
 `0x04`/`0x05` counts; inputs `0x0e` txid, `0x0f` index, `0x10` sequence,
@@ -445,12 +445,12 @@ the key's Backup menu offers no SeedQR.
 
 ### Notes for upstream (the owner sends them)
 
-`osk_bip::slip132` multisig versions and a version/script check;
-`osk_bip::bsms` (#50); `osk_bip::coldcard::parse` rooting at the top-level
-`xfp`; `osk-psbt` reading and writing BIP-370; `osk_bip::silent` public
-`spscan`/`sp()` decoding; `osk_bip::core_import` before 29;
-`osk_bip::slip132` writing a key in the version that names its script
+`faraday_bip::slip132` multisig versions and a version/script check;
+`faraday_bip::bsms` (#50); `faraday_bip::coldcard::parse` rooting at the top-level
+`xfp`; `faraday-psbt` reading and writing BIP-370; `faraday_bip::silent` public
+`spscan`/`sp()` decoding; `faraday_bip::core_import` before 29;
+`faraday_bip::slip132` writing a key in the version that names its script
 (the Electrum file, §5 I6); a receive and a change `sortedmulti_a`
 descriptor read as one wallet, which `miniscript` cannot parse (§5 I4).
-`osk-psbt` matching a key by its account xpub's own fingerprint stays
+`faraday-psbt` matching a key by its account xpub's own fingerprint stays
 refused: BIP-174's fingerprint is the master key's.

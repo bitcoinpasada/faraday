@@ -5,7 +5,7 @@
 
 use faraday_core::testkit;
 use faraday_core::{Action, Faraday, StorageEvent};
-use osk_shell_api::{App, EntropyBytes, Event, Key};
+use faraday_shell_api::{App, EntropyBytes, Event, Key};
 
 fn kit_files(prefix: &str) -> Vec<(String, Vec<u8>)> {
     testkit::files()
@@ -49,7 +49,7 @@ fn our_nonce(app: &Faraday) -> Option<Vec<u8>> {
         .derive(&c, &"m/86'/1'/0'".parse().unwrap())
         .to_xpub(&c)
         .public_key;
-    osk_psbt::musig::pub_nonces(&s.spend.psbt.inner().inputs[0])
+    faraday_psbt::musig::pub_nonces(&s.spend.psbt.inner().inputs[0])
         .ok()?
         .into_iter()
         .find(|n| n.participant == ours)

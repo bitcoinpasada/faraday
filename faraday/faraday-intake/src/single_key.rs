@@ -12,13 +12,13 @@
 //! `GetKeyManagerByColdcardJson`). Both are read here as Wasabi reads
 //! them, and the file Faraday writes carries a version Wasabi parses.
 
+use faraday_bip::bitcoin::NetworkKind;
+use faraday_bip::bitcoin::bip32::ChildNumber;
+use faraday_bip::json::{self, Value};
+use faraday_bip::keys::ScriptType;
+use faraday_bip::policy::{Template, WalletPolicy};
+use faraday_bip::slip132::{self, Script};
 use faraday_strings::{EN, fill};
-use osk_bip::bitcoin::NetworkKind;
-use osk_bip::bitcoin::bip32::ChildNumber;
-use osk_bip::json::{self, Value};
-use osk_bip::keys::ScriptType;
-use osk_bip::policy::{Template, WalletPolicy};
-use osk_bip::slip132::{self, Script};
 
 /// The firmware version the Wasabi file Faraday writes states: the one
 /// Coldcard Mk4's file in BlueWallet's tests states. Wasabi parses it as a
@@ -151,7 +151,7 @@ pub(crate) fn path_h(p: &str) -> Option<String> {
 /// The wallet's single key, when Wasabi's file can carry it: a `wpkh`
 /// wallet whose key has an origin at exactly `84h/0h/0h` (an `xpub`) or
 /// `84h/1h/0h` (a `tpub`), the account Wasabi assumes.
-fn wasabi_key(policy: &WalletPolicy) -> Option<&osk_bip::policy::PolicyKey> {
+fn wasabi_key(policy: &WalletPolicy) -> Option<&faraday_bip::policy::PolicyKey> {
     if policy.template()
         != (Template::Single {
             script: ScriptType::NativeSegwit,

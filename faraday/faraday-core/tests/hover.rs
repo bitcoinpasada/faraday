@@ -4,7 +4,7 @@
 
 use faraday_core::ui::Theme;
 use faraday_core::{Action, Faraday, Screen};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 fn settings() -> Faraday {
     let mut app = Faraday::new();

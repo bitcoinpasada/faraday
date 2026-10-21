@@ -4,7 +4,7 @@
 
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, testkit};
-use osk_shell_api::{App, EntropyBytes, Event, Key};
+use faraday_shell_api::{App, EntropyBytes, Event, Key};
 
 fn type_text(app: &mut Faraday, text: &str) {
     for c in text.chars() {

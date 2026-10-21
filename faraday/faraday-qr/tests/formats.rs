@@ -1,10 +1,10 @@
 //! What Faraday writes reads back as what it was, and what does not hang
 //! together is refused, saying why.
 
+use faraday_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
+use faraday_bip::keys::{MasterKey, Network};
+use faraday_crypto::work::Compute;
 use faraday_qr::{Arrived, Assembler, Step, bbqr, registry, specter};
-use osk_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
-use osk_bip::keys::{MasterKey, Network};
-use osk_crypto::work::Compute;
 
 /// A token for the tests' key work (`docs/COMPUTE.md` §3), counting
 /// nothing: faraday-core's `testkit::compute` is out of this crate's
@@ -91,7 +91,8 @@ fn numbered_parts_read_back_and_say_what_is_missing() {
 fn bacon() -> (MasterKey, DerivationPath) {
     let c = compute();
     let words = vec!["bacon"; 24].join(" ");
-    let m = osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, &words).unwrap();
+    let m = faraday_bip::bip39::Mnemonic::parse(&c, faraday_bip::bip39::Language::English, &words)
+        .unwrap();
     let master = MasterKey::from_seed(&c, &m.to_seed(&c, b"").unwrap(), Network::Testnet);
     (master, "m/48'/1'/0'/2'".parse().unwrap())
 }
@@ -177,7 +178,7 @@ fn a_wallet_as_crypto_output_reads_as_its_descriptor() {
         format!("wsh(sortedmulti(1,[9a6a2580/48h/1h/0h/2h]{xpub}/<0;1>/*))")
     );
     // And it is a wallet Faraday reads.
-    assert!(osk_bip::policy::WalletPolicy::parse_any(&c, d.trim()).is_ok());
+    assert!(faraday_bip::policy::WalletPolicy::parse_any(&c, d.trim()).is_ok());
 }
 
 #[test]
@@ -214,11 +215,11 @@ fn a_key_as_ur_crypto_account_is_read_by_osk_codec_and_back_here() {
     let xpub = master.derive(&c, &path).to_xpub(&c);
     let comps: Vec<ChildNumber> = path.into_iter().copied().collect();
     let cbor = registry::account_cbor(master.fingerprint().0, &comps, &xpub, false);
-    let text = osk_codec::ur::encode_single("crypto-account", &cbor);
+    let text = faraday_codec::ur::encode_single("crypto-account", &cbor);
     // OpenSigner's own UR reader takes it, type and bytes intact.
-    let mut d = osk_codec::ur::Decoder::new();
+    let mut d = faraday_codec::ur::Decoder::new();
     assert_eq!(d.receive(&text), Ok(true));
-    let Some(osk_codec::ur::Message::Other { ur_type, cbor: got }) = d.message() else {
+    let Some(faraday_codec::ur::Message::Other { ur_type, cbor: got }) = d.message() else {
         panic!("not read");
     };
     assert_eq!(ur_type, "crypto-account");

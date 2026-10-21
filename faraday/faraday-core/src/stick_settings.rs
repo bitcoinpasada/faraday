@@ -133,7 +133,7 @@ impl Faraday {
             self.display(d);
             let mut i = before;
             while i < self.commands.len() {
-                if self.commands[i] == osk_shell_api::Command::RequestEntropy {
+                if self.commands[i] == faraday_shell_api::Command::RequestEntropy {
                     self.commands.remove(i);
                 } else {
                     i += 1;

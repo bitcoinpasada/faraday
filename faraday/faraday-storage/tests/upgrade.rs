@@ -12,8 +12,8 @@ use std::path::PathBuf;
 use faraday_boot::Boots;
 use faraday_core::upgrade::Step;
 use faraday_core::{Action, Faraday, Screen};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_storage::{Boxes, Dirs, boot_poll, serve_all};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 const RUNNING: &str = "6.6.84-faraday-0.2.0+4d0680b1a2b3";
 const MIB: usize = 1 << 20;

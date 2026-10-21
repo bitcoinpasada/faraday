@@ -5,7 +5,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_ui::widgets::Icon;
+use faraday_draw::widgets::Icon;
 
 use crate::drawing::View;
 use crate::ui::pal::*;
@@ -132,7 +132,7 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
             ui.stroke(px, py, pw, ph, ph / 2.0, WARN.with_alpha(110));
             ui.text_mid(px + 12.0, py, ph, 12.0, W::S, WARN, label);
         }
-        right = px - osk_ui::tokens::GAP;
+        right = px - faraday_draw::tokens::GAP;
     }
     // The keyboard, where the page types, and to bring it back once put
     // away from a field.
@@ -664,7 +664,7 @@ fn tiles(app: &View) -> Vec<Tile> {
 /// the wide Home (`crate::screens::home_lead_beside_tiles`), as one prompt row; a lead
 /// that would open or start over a flow whose tile is above it gives way
 /// to the next, or to none (`docs/FLOWS.md`, Flows in progress).
-fn prompts(app: &View) -> Vec<(Glyph, String, Option<Action>, osk_ui::Color)> {
+fn prompts(app: &View) -> Vec<(Glyph, String, Option<Action>, faraday_draw::Color)> {
     crate::screens::home_lead_beside_tiles(app)
         .map(|(icon, label, _sub, action, enabled)| {
             let tone = if enabled { ACCENT } else { WARN };
@@ -778,8 +778,8 @@ impl Faraday {
     /// Which of OpenSigner's keyboards: the path pad for a derivation
     /// path, else the passphrase keyboard, which types any printable
     /// character.
-    fn osk_kind(&self) -> osk_ui::widgets::keyboard::KeyboardKind {
-        use osk_ui::widgets::keyboard::KeyboardKind as K;
+    fn osk_kind(&self) -> faraday_draw::widgets::keyboard::KeyboardKind {
+        use faraday_draw::widgets::keyboard::KeyboardKind as K;
         match self.screen {
             Screen::Explore if self.sheet.is_none() => K::Path,
             _ => K::Passphrase,
@@ -846,7 +846,7 @@ impl Faraday {
         {
             *slot += over;
             self.dirty = true;
-            self.commands.push_back(osk_shell_api::Command::Draw);
+            self.commands.push_back(faraday_shell_api::Command::Draw);
         }
     }
 
@@ -887,8 +887,8 @@ impl Faraday {
     }
 
     pub(crate) fn osk_press(&mut self, p: OskPress) {
+        use faraday_shell_api::Key as K;
         use faraday_ui::keyboard::Typed;
-        use osk_shell_api::Key as K;
         match p {
             // Done is Enter, and puts the keyboard away, so the page's
             // pinned action shows again; another field brings it back.

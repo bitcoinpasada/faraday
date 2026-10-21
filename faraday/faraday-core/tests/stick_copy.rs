@@ -12,7 +12,7 @@ use faraday_core::wallet::FileKind;
 use faraday_core::{
     Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent, testkit,
 };
-use osk_shell_api::App;
+use faraday_shell_api::App;
 
 /// A stick: its id, and its files by name.
 struct Stick {

@@ -10,13 +10,13 @@
 //! same way. The sheet holds the real lists, each word with its number
 //! and the bits or dice that name it.
 
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::diceware::List;
 use faraday_core::keygen::{Way, kstep};
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::wordlist::{LISTS, WordList, WordListAction as WL};
 use faraday_core::{Action, Faraday, Screen, Sheet};
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_bip::diceware::List;
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
 
 /// A tall display, so that a whole New key card is on screen at once.
 fn shown() -> Faraday {
@@ -486,7 +486,7 @@ fn the_lists_are_the_real_lists_with_their_numbers_and_codes() {
         assert_eq!(bip.words()[i], Language::English.word(i as u16));
     }
     assert_eq!(bip.words()[0], "abandon");
-    // EFF: the dice shown for a word roll that word in osk-bip's list.
+    // EFF: the dice shown for a word roll that word in faraday-bip's list.
     for l in List::ALL {
         let eff = WordList::Eff(l);
         assert_eq!(eff.words(), l.words());

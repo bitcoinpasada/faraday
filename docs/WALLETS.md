@@ -8,15 +8,15 @@ miniscript, tree, MuSig2 and FROST wallet with recovery paths
 
 The Wallets tab sits beside the OpenSigner tab, which stays until it is
 robust enough to deprecate it. It does every piece of cryptography and
-every format with OpenSigner's library crates (`osk-psbt`, `osk-bip`), and
+every format with OpenSigner's library crates (`faraday-psbt`, `faraday-bip`), and
 extends its flows to every wallet kind OpenSigner can sign for.
 
 ## 1. Architecture, and staying downstream
 
 `faraday-core` names OpenSigner's `osk-*` items directly: a wallet, a key
 slot, a key that can sign, a reviewed transaction, a signature set are
-Wallets-tab types that wrap `osk-psbt`, `osk-bip`, `osk-codec` and
-`osk-crypto`. It also holds a capability table: for each wallet kind,
+Wallets-tab types that wrap `faraday-psbt`, `faraday-bip`, `faraday-codec` and
+`faraday-crypto`. It also holds a capability table: for each wallet kind,
 whether OpenSigner can build it, load it, sign for it, and in how many
 rounds; the shared steps of §3, each a declared group of fields, a
 summary line and a result, rendered by `faraday-ui` as step cards on
@@ -34,7 +34,7 @@ review. Its wording is in one strings file, as OpenSigner's is.
    connects to the vault through its existing interface (below), so no
    vault bridge inside OpenSigner is needed.
 2. **Where Faraday needs a variant of an upstream part** (the stick's
-   image boards, its shell, `osk-ui`), the variant is a copy under
+   image boards, its shell, `faraday-draw`), the variant is a copy under
    `faraday/` recording the upstream commit it was copied from.
    `docs/history/UPSTREAM.md` §4 says how upstream's changes to those originals
    are watched, so a fix upstream is seen and carried over deliberately.
@@ -51,14 +51,14 @@ review. Its wording is in one strings file, as OpenSigner's is.
    §16.138 (2026-10-04, made for forks like this one): code that defines
    bytes, or answers a question with no screen in it, is a `core/` crate, and
    `opensigner-core` holds only flows and wording. That move put the `.oskb`
-   format, the KDBX writer and the Argon2id `Cost` in **`osk-backup`**, the
+   format, the KDBX writer and the Argon2id `Cost` in **`faraday-backup`**, the
    kept-key blob in `osk-keep`, the signed-message text form and a
-   transaction with its previous outputs in `osk-psbt`, and address parsing
-   and a wallet's address search in `osk-bip`. The Wallets tab therefore
+   transaction with its previous outputs in `faraday-psbt`, and address parsing
+   and a wallet's address search in `faraday-bip`. The Wallets tab therefore
    depends on no app code. Still in the app, and moved into `core/` by
    Faraday (F65, listed in `docs/history/UPSTREAM.md`) when the Wallets tab needs
    them: the Tools calculators, the self-test's
-   vector set, and `inspect.rs`'s reading of key origins through `osk-ui`.
+   vector set, and `inspect.rs`'s reading of key origins through `faraday-draw`.
    Codex32 and SLIP-39 share handling and the MuSig2 session state are
    checked against the same rule before the Wallets tab uses them.
 6. **One check after every merge.** `just` runs upstream's own tests, then
@@ -158,20 +158,20 @@ is a list of them.
 
 ### 3.2 Wallet forms read
 
-Through `osk-codec` and `osk-bip`: descriptors, BIP-388 policies, the
+Through `faraday-codec` and `faraday-bip`: descriptors, BIP-388 policies, the
 Coldcard/Sparrow/Nunchuk/Specter multisig config (whole or partial), BSMS
 records, key lines in every form a keyholder may have (`73C5DA0A: xpub…`,
 `[73c5da0a/48h/0h/0h/2h]xpub…/<0;1>/*`, a bare xpub, flagged because it
 cannot be matched to a PSBT), Coldcard's JSON account export, SLIP-132
 keys, `ur:crypto-account`, `ur:crypto-hdkey` and `ur:crypto-output`
 (`docs/QR.md`). Sparrow's wallet `.json` is read here and not by
-OpenSigner; it is proposed upstream as an `osk-bip` reader. A
+OpenSigner; it is proposed upstream as a `faraday-bip` reader. A
 descriptor is kept exactly as it arrived, never re-emitted from its keys,
 so `multi()` stays `multi()`.
 
 ### 3.3 The review's checks
 
-From `osk-psbt`'s inspection, plus the Wallets tab's additions, which are
+From `faraday-psbt`'s inspection, plus the Wallets tab's additions, which are
 non-cryptographic and live in `faraday-core`:
 
 - **Change** is labelled only when it re-derives from the wallet's keys;
@@ -182,7 +182,7 @@ non-cryptographic and live in `faraday-core`:
   **amount unchecked**.
 - **A SegWit v0 input without its previous transaction, in a transaction
   with more than one input,** is refused, with no override
-  (`osk-psbt`'s `AmountUnverified`, a blocked warning). BIP-143 signs the
+  (`faraday-psbt`'s `AmountUnverified`, a blocked warning). BIP-143 signs the
   amount an input states, so two signing rounds over two different
   stated amounts give two valid signatures that pay the difference to
   the miner (the 2020 two-round attack). The fix is the previous

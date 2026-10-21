@@ -5,10 +5,10 @@
 //! derived when drawn. Nothing private is shown or kept.
 
 use crate::strings::EN;
-use osk_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
-use osk_bip::bitcoin::{Address, CompressedPublicKey, NetworkKind};
-use osk_bip::keys::ScriptType;
-use osk_crypto::work::Compute;
+use faraday_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
+use faraday_bip::bitcoin::{Address, CompressedPublicKey, NetworkKind};
+use faraday_bip::keys::ScriptType;
+use faraday_crypto::work::Compute;
 
 use crate::{Faraday, Screen};
 
@@ -45,7 +45,7 @@ type ReadingOf = (
     Option<[u8; 4]>,
     String,
     ScriptType,
-    osk_bip::keys::Network,
+    faraday_bip::keys::Network,
     bool,
 );
 
@@ -128,10 +128,10 @@ impl Faraday {
             .master();
         let xpub = master.derive(c, &path).to_xpub(c);
         let pk = CompressedPublicKey(xpub.public_key);
-        let net: osk_bip::bitcoin::Network = self.session.network().into();
+        let net: faraday_bip::bitcoin::Network = self.session.network().into();
         let kind = NetworkKind::from(net);
         let script = implied_script(&path).unwrap_or(e.script);
-        let secp = osk_bip::bitcoin::secp256k1::Secp256k1::verification_only();
+        let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::verification_only();
         let address = match script {
             ScriptType::NativeSegwit => Address::p2wpkh(&pk, net),
             ScriptType::NestedSegwit => Address::p2shwpkh(&pk, kind),
@@ -197,8 +197,8 @@ impl Faraday {
     }
 
     /// Typing into the path. Returns whether the key was taken.
-    pub(crate) fn explore_key(&mut self, key: osk_shell_api::Key) -> bool {
-        use osk_shell_api::Key as K;
+    pub(crate) fn explore_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
         if self.screen != Screen::Explore {
             return false;
         }

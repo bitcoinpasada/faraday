@@ -17,8 +17,8 @@ use faraday_files::proto::{self, Problem, Request, Response};
     clippy::disallowed_methods,
     reason = "a mint: faraday-disk's tests, which cannot reach faraday-core's testkit"
 )]
-fn compute() -> osk_crypto::work::Compute {
-    osk_crypto::work::Compute::new(|_| {})
+fn compute() -> faraday_crypto::work::Compute {
+    faraday_crypto::work::Compute::new(|_| {})
 }
 
 /// A 4 MiB FAT16 volume with this label, as `mkfs.fat` would make one:

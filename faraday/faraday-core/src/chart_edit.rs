@@ -13,7 +13,7 @@ use crate::secret_text::SecretText;
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::{Action, Faraday, Sheet};
-use osk_crypto::work::Compute;
+use faraday_crypto::work::Compute;
 
 /// What the chart's sheets hold between presses.
 #[derive(Default)]
@@ -620,7 +620,7 @@ impl Faraday {
             let words = key.words.as_ref()?;
             let m = crate::wallet::parse_words(&c, key.language, words).ok()?;
             let seed = m.to_seed(&c, self.chart_work.secret.as_bytes()).ok()?;
-            let made = osk_bip::keys::MasterKey::from_seed(&c, &seed, self.session.network());
+            let made = faraday_bip::keys::MasterKey::from_seed(&c, &seed, self.session.network());
             Some(made.fingerprint().0 == fp)
         });
         self.chart_work.secret.clear();
@@ -705,8 +705,8 @@ impl Faraday {
 
     /// Typing into the open sheet's field: a name, or a passphrase to be
     /// checked. Returns whether the key was taken.
-    pub(crate) fn chart_key(&mut self, key: osk_shell_api::Key) -> bool {
-        use osk_shell_api::Key as KeyIn;
+    pub(crate) fn chart_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as KeyIn;
         let Some((press, target)) = self.chart.filter(|_| self.sheet == Some(Sheet::Chart)) else {
             return false;
         };

@@ -11,7 +11,7 @@
 use faraday_core::pdf;
 use faraday_core::strings::fill;
 use faraday_core::strings::{EN, Strings};
-use osk_crypto::work::Compute;
+use faraday_crypto::work::Compute;
 
 use crate::api::{Computer, Os, RecoveryKey};
 use crate::macs;

@@ -12,7 +12,7 @@ def pre(s):
 
 out.append("# BIP-174 test vectors, extracted from")
 out.append("# https://raw.githubusercontent.com/bitcoin/bips/master/bip-0174.mediawiki")
-out.append("# by tools/vectors/psbt/extract.py. Documented in core/osk-psbt/README.md.")
+out.append("# by tools/vectors/psbt/extract.py. Documented in core/faraday-psbt/README.md.")
 out.append("#")
 out.append("# Format: blank-line separated records of `key: value` lines.")
 out.append("#   case: free text description")

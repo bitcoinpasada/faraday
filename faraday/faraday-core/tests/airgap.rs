@@ -7,13 +7,13 @@
 //! device never shows it. A released Faraday Desktop, which opens on
 //! testnet, shows it at start, before any key can be added (F61).
 
+use faraday_bip::keys::Network;
 use faraday_core::create::NewKind;
 use faraday_core::wallet::Session;
 use faraday_core::{
     Action, Faraday, Sheet, StickInfo, StorageCommand, StorageEvent, demo, testkit,
 };
-use osk_bip::keys::Network;
-use osk_shell_api::App;
+use faraday_shell_api::App;
 
 /// The words of a key that is not a public seed.
 const OTHER: &str = "abandon abandon abandon abandon abandon abandon \

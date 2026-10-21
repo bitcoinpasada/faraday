@@ -22,7 +22,7 @@ yanked = "deny"
 unmaintained = "all"
 ignore = [
     # RUSTSEC-2026-0192: ttf-parser is unmaintained. It is reached by
-    # `osk-fontbake`, the build tool that extracts glyph outlines into
+    # `faraday-fontbake`, the build tool that extracts glyph outlines into
     # the repository (`just fonts`), and by `winit` on the desktop. No
     # device binary links it, and it never reads an untrusted font: the
     # faces it opens are the ones committed here. Named by advisory id,

@@ -1,4 +1,4 @@
-//! `osk_codec::ur::Decoder`: the animated-QR receiver, which is fed one
+//! `faraday_codec::ur::Decoder`: the animated-QR receiver, which is fed one
 //! untrusted part per camera frame and keeps state across them.
 //!
 //! The input is offered twice: as a single part, and split on newlines
@@ -8,7 +8,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use osk_codec::ur::{self, Decoder};
+use faraday_codec::ur::{self, Decoder};
 
 fuzz_target!(|data: &[u8]| {
     let Ok(text) = core::str::from_utf8(data) else {

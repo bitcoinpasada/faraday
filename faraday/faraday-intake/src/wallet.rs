@@ -8,12 +8,12 @@
 //! which re-exports it.
 
 use crate::{caravan, electrum, single_key};
+use faraday_bip::json::{self, Value};
+use faraday_bip::keys::Network;
+use faraday_bip::policy::WalletPolicy;
+use faraday_bip::slip132::{self, Mismatch, Script};
+use faraday_crypto::work::Compute;
 use faraday_strings::{EN, fill};
-use osk_bip::json::{self, Value};
-use osk_bip::keys::Network;
-use osk_bip::policy::WalletPolicy;
-use osk_bip::slip132::{self, Mismatch, Script};
-use osk_crypto::work::Compute;
 
 /// What a network is called on screen.
 pub fn network_name(n: Network) -> &'static str {
@@ -95,16 +95,16 @@ impl Refusal {
 /// The network an extended key's version bytes name, as a session takes
 /// it: a test key is testnet unless the session is already on a test
 /// network.
-pub fn network_of_kind(kind: osk_bip::bitcoin::NetworkKind, current: Network) -> Network {
+pub fn network_of_kind(kind: faraday_bip::bitcoin::NetworkKind, current: Network) -> Network {
     match kind {
-        osk_bip::bitcoin::NetworkKind::Main => Network::Mainnet,
-        osk_bip::bitcoin::NetworkKind::Test if !current.is_mainnet() => current,
-        osk_bip::bitcoin::NetworkKind::Test => Network::Testnet,
+        faraday_bip::bitcoin::NetworkKind::Main => Network::Mainnet,
+        faraday_bip::bitcoin::NetworkKind::Test if !current.is_mainnet() => current,
+        faraday_bip::bitcoin::NetworkKind::Test => Network::Testnet,
     }
 }
 
 /// The network a key expression is on.
-pub fn network_of_key(key: &osk_bip::policy::PolicyKey, current: Network) -> Network {
+pub fn network_of_key(key: &faraday_bip::policy::PolicyKey, current: Network) -> Network {
     network_of_kind(key.xpub().network, current)
 }
 
@@ -133,12 +133,12 @@ pub fn policy_network(policy: &WalletPolicy, current: Network) -> Option<Network
 pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
     // A threshold record and a silent payments record are read whole:
     // their lines are their fields.
-    if osk_bip::threshold::ThresholdRecord::looks_like_record(text)
-        || osk_bip::silent_wallet::SilentWallet::looks_like_record(text)
+    if faraday_bip::threshold::ThresholdRecord::looks_like_record(text)
+        || faraday_bip::silent_wallet::SilentWallet::looks_like_record(text)
     {
         return WalletPolicy::parse_any(c, text).map_err(|e| Refusal::NotAWallet(e.to_string()));
     }
-    if osk_bip::coldcard::looks_like_export(text) {
+    if faraday_bip::coldcard::looks_like_export(text) {
         return coldcard_export(c, text);
     }
     let plain =
@@ -215,17 +215,17 @@ pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
     }
     // BIP 129's descriptor record: read whole, its first address checked
     // against the wallet it states.
-    if osk_bip::bsms::looks_like_record(text) && !osk_bip::bsms::is_signer_record(text) {
-        return osk_bip::bsms::DescriptorRecord::parse(c, text)
+    if faraday_bip::bsms::looks_like_record(text) && !faraday_bip::bsms::is_signer_record(text) {
+        return faraday_bip::bsms::DescriptorRecord::parse(c, text)
             .map(|r| r.policy)
             .map_err(|e| Refusal::NotAWallet(fill(EN.wallet_bsms, &[&format!("{e:?}")])));
     }
-    if osk_bip::multisig_config::looks_like_config(text) {
+    if faraday_bip::multisig_config::looks_like_config(text) {
         // A key whose SLIP-132 version names another script than the
         // file's `Format:` is refused as a key; the refusal names it.
-        return osk_bip::multisig_config::parse(c, text).map_err(|e| {
-            match osk_bip::multisig_config::slip132_mismatch(text) {
-                Some(m) if e == osk_bip::policy::Error::Key => {
+        return faraday_bip::multisig_config::parse(c, text).map_err(|e| {
+            match faraday_bip::multisig_config::slip132_mismatch(text) {
+                Some(m) if e == faraday_bip::policy::Error::Key => {
                     Refusal::NotAWallet(mismatch_text(&m))
                 }
                 _ => Refusal::NotAWallet(format!("{e:?}")),
@@ -299,7 +299,7 @@ fn multipath(c: &Compute, descs: &[String]) -> Option<WalletPolicy> {
     let mut plain = Vec::new();
     for d in descs {
         let d = without_label(d.trim());
-        if !osk_bip::descriptor::reads_as_descriptor(c, d) {
+        if !faraday_bip::descriptor::reads_as_descriptor(c, d) {
             return None;
         }
         plain.push(d.split('#').next().unwrap_or(d).to_string());
@@ -373,14 +373,14 @@ fn with_chains(d: &str) -> Option<String> {
     found.then_some(out)
 }
 
-/// Costs what `osk_bip::coldcard::read` costs: Coldcard's account
-/// export, which Nunchuk, Passport and Sparrow also write, read by `osk_bip::coldcard::read` (rooted at the top-level
+/// Costs what `faraday_bip::coldcard::read` costs: Coldcard's account
+/// export, which Nunchuk, Passport and Sparrow also write, read by `faraday_bip::coldcard::read` (rooted at the top-level
 /// `xfp`, the stated first address checked), its refusals in Faraday's
 /// own sentences.
 fn coldcard_export(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
-    use osk_bip::coldcard::ReadError;
+    use faraday_bip::coldcard::ReadError;
     let bad = |why: &str| Refusal::NotAWallet(fill(EN.wallet_coldcard_export, &[why]));
-    osk_bip::coldcard::read(c, text)
+    faraday_bip::coldcard::read(c, text)
         .map(|(policy, _)| policy)
         .map_err(|e| match e {
             ReadError::NoXfp => bad(EN.wallet_no_xfp),
@@ -388,7 +388,9 @@ fn coldcard_export(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
             ReadError::FirstAddress { account, first } => {
                 bad(&fill(EN.wallet_its_first_address, &[account, &first]))
             }
-            ReadError::NoDeriv(_) => Refusal::NotAWallet(osk_bip::policy::Error::Key.to_string()),
+            ReadError::NoDeriv(_) => {
+                Refusal::NotAWallet(faraday_bip::policy::Error::Key.to_string())
+            }
             ReadError::Policy(e) => Refusal::NotAWallet(e.to_string()),
         })
 }
@@ -408,7 +410,7 @@ pub fn script_name(s: Script) -> &'static str {
     }
 }
 
-/// The sentence a SLIP-132 refusal shows (`osk_bip::slip132`,
+/// The sentence a SLIP-132 refusal shows (`faraday_bip::slip132`,
 /// `docs/INTEROP.md` §5 I1): the key, shortened, and both types.
 pub fn mismatch_text(m: &Mismatch) -> String {
     let k = &m.key;

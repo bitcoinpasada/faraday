@@ -7,7 +7,7 @@ use faraday_core::keygen::{Group, Way};
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::vaults::vstep;
 use faraday_core::{Action, Faraday, OskPress, Screen};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 const W: u16 = 480;
 const H: u16 = 640;

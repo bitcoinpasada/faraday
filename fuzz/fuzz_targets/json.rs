@@ -1,4 +1,4 @@
-//! `osk_bip::json` over any bytes, then the Coldcard export reader that
+//! `faraday_bip::json` over any bytes, then the Coldcard export reader that
 //! reads with it: another wallet's file, whose every byte its writer
 //! chose. Text that reads as JSON is written back and read again, and
 //! must be the same value.
@@ -6,7 +6,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use osk_bip::json::{self, Value};
+use faraday_bip::json::{self, Value};
 
 /// The value written as JSON again.
 fn write(v: &Value) -> String {
@@ -36,7 +36,7 @@ fuzz_target!(|data: &[u8]| {
     if let Ok(v) = json::parse(text) {
         assert_eq!(json::parse(&write(&v)), Ok(v));
     }
-    if osk_bip::coldcard::looks_like_export(text) {
-        let _ = osk_bip::coldcard::parse(&osk_crypto::work::Compute::unchecked(), text);
+    if faraday_bip::coldcard::looks_like_export(text) {
+        let _ = faraday_bip::coldcard::parse(&faraday_crypto::work::Compute::unchecked(), text);
     }
 });

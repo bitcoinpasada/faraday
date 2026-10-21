@@ -3,7 +3,7 @@
 //! the private key leaves only through the vault or the secret sheet.
 
 use faraday_core::{Action, Faraday, Screen, Sheet};
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 /// LND's cipher seed with no passphrase, and the node id LND derives.
 const CIPHER_SEED: &str = "above judge emerge veteran reform crunch system all snap please \

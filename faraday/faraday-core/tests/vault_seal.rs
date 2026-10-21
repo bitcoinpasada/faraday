@@ -9,8 +9,8 @@ use faraday_core::strings::EN;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent, testkit};
+use faraday_shell_api::{App, EntropyBytes, Event, Key};
 use faraday_vault::records::kind;
-use osk_shell_api::{App, EntropyBytes, Event, Key};
 
 /// A device whose shell has not answered a request for randomness, the
 /// test vault in its Inbox.

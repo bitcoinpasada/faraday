@@ -31,7 +31,7 @@ loosens a check.
 
 ## 2. The token
 
-### 2.1 Type (`core/osk-crypto/src/work.rs`, beside `Work`)
+### 2.1 Type (`core/faraday-crypto/src/work.rs`, beside `Work`)
 
 ```rust
 pub struct Compute { count: fn(Work), _local: PhantomData<*const ()> }
@@ -58,11 +58,11 @@ impl Compute {
 ### 2.2 The token carries the counter
 
 It replaces S1's process-wide counter: `set_counter`, the `OnceLock` and
-the `count` feature go, and `osk-crypto` is `no_std` in every build.
+the `count` feature go, and `faraday-crypto` is `no_std` in every build.
 Core's `Work` gains the kinds counted at source from now on: `WordsParse`,
 `MasterKey`, `KeyDerive`, `Address`, `DescriptorParse`, `QrEncode`,
 `FileHash`. The pixel kinds (`Blur`, `FullCanvas`) are drawing's own work
-and are not gated: `osk_ui::Canvas` gets `set_counter(&mut self,
+and are not gated: `faraday_draw::Canvas` gets `set_counter(&mut self,
 fn(Work))`, set by Faraday on every canvas it receives. Faraday's own
 counting is unchanged (`faraday-core/src/work.rs`: `count`, `Counts`,
 `snapshot`, `since`, `KINDS`); its tokens carry `work::core_count`, which
@@ -78,23 +78,23 @@ finds them.
 
 | Kind | Roots |
 |---|---|
-| `WordsParse` | `osk_bip::bip39::Mnemonic::parse` |
-| `Kdf` | `osk_crypto::pbkdf2_hmac_sha256`, `pbkdf2_hmac_sha512`, `scrypt`; `osk_backup::argon2id`; `faraday-vault`'s Argon2id. Through these: `Mnemonic::to_seed`, `to_seed_unchecked`, SLIP-39 recovery, aezeed, kdbx write and verify |
+| `WordsParse` | `faraday_bip::bip39::Mnemonic::parse` |
+| `Kdf` | `faraday_crypto::pbkdf2_hmac_sha256`, `pbkdf2_hmac_sha512`, `scrypt`; `faraday_backup::argon2id`; `faraday-vault`'s Argon2id. Through these: `Mnemonic::to_seed`, `to_seed_unchecked`, SLIP-39 recovery, aezeed, kdbx write and verify |
 | `MasterKey` | `MasterKey::from_seed`, `from_seed_bytes`, `from_xpriv`, `decode`, `from_chain_code_and_key` (each works out the fingerprint, §5.1) |
 | `KeyDerive` | `MasterKey::xpub`, `derive`, `account_xpub`, `multisig_account_xpub`, `with_multisig_account_secret`; `DerivedKey::to_xpub`; through these BIP-85 and silent payments derivations |
 | `DescriptorParse` | `WalletPolicy::parse`, `from_parts`, `from_descriptor`, `parse_any`, `from_record`; through these the BSMS, Coldcard, multisig config and Core import readers, and `faraday_intake::wallet::read_wallet` |
 | `Address` | `WalletPolicy::script_at`, `script_at_with`, `address_at`, `find_address` |
-| `PsbtParse`, `PsbtInspect`, `Sign` | `osk_psbt::Psbt::parse_bytes`, `parse_base64`; `inspect`; `sign::sign`, `message::sign` |
-| `QrEncode` | `osk_codec::qr::encode`, `encode_bounded`; `seedqr::encode_seedqr`, `encode_compact` |
-| `QrDecode` | `osk_codec::decode::decode_luma` |
-| `FileHash` | new `osk_crypto::hash::sha256_whole(c, bytes)`; Faraday's whole-file hashes move to it (`apk.rs`, `transfer.rs`, `lib.rs`, `gpg.rs`, `Item::sha`) |
+| `PsbtParse`, `PsbtInspect`, `Sign` | `faraday_psbt::Psbt::parse_bytes`, `parse_base64`; `inspect`; `sign::sign`, `message::sign` |
+| `QrEncode` | `faraday_codec::qr::encode`, `encode_bounded`; `seedqr::encode_seedqr`, `encode_compact` |
+| `QrDecode` | `faraday_codec::decode::decode_luma` |
+| `FileHash` | new `faraday_crypto::hash::sha256_whole(c, bytes)`; Faraday's whole-file hashes move to it (`apk.rs`, `transfer.rs`, `lib.rs`, `gpg.rs`, `Item::sha`) |
 | Faraday's own | `plan::map`, `plan::check` (`PlanMap`); picture/pdf makers (`Picture`); `Wallet::script_at` (`WalletMatch`); `faraday_files::qr_in_png` (`PngDecode`); `Key` and `Wallet` kept accessors (`KeyDerive`, `Address`) |
 
 Not gated: `Canvas::frost`, `snapshot`, `snapshot_into`, `restore`,
 `blend_from` (pixel work, counted per frame by the budgets);
 `MasterKey::fingerprint`, `for_network`, `WalletPolicy::checksum`
 (lookups after §5); `to_descriptor`, `to_text`, `Display` (text from parts
-already parsed); `osk_crypto::hash::sha256` on small fixed inputs;
+already parsed); `faraday_crypto::hash::sha256` on small fixed inputs;
 `PolicyKey::parse` (inside gated parses); signature verification
 (`message::verify`, BSMS `KeyRecord::verify`, events only today; a
 `Verify` kind if a frame ever needs it).
@@ -123,10 +123,10 @@ drawing.
 
 **Keeping Faraday off `unchecked`.** Since U5 (F68) no crate in the
 normal dependency graph of a binary Faraday ships enables
-`osk-crypto/unchecked`: core's crates turn it on as dev-dependencies
+`faraday-crypto/unchecked`: core's crates turn it on as dev-dependencies
 only, and OpenSigner's app, which turned it on, is gone.
 `tools/lint-unchecked.sh`, in `just lint`, fails if `cargo tree -e
-features,normal -i osk-crypto` over the shipped binaries, on any target,
+features,normal -i faraday-crypto` over the shipped binaries, on any target,
 shows it. Beside that, `faraday/clippy.toml` disallows
 `Compute::unchecked` outright and `Compute::new` except under
 `#[expect(clippy::disallowed_methods, reason = "a mint: …")]` at the sites
@@ -163,7 +163,7 @@ would silence clippy; only the costs lint rejects it, as it rejects
 
 ## 5. U4 first: what core keeps
 
-### 5.1 `MasterKey` keeps its fingerprint (`core/osk-bip/src/keys.rs`)
+### 5.1 `MasterKey` keeps its fingerprint (`core/faraday-bip/src/keys.rs`)
 
 `hold()` works out `fingerprint` once from the blinded context;
 `for_network` copies it; `fingerprint()` returns it; `derive()` takes
@@ -171,7 +171,7 @@ would silence clippy; only the costs lint rejects it, as it rejects
 derivation, in both apps). Faraday drops `wallet::Key.fp`. No output
 changes; the BIP-32 vectors pass unchanged.
 
-### 5.2 `WalletPolicy` keeps its checksum (`core/osk-bip/src/policy.rs`)
+### 5.2 `WalletPolicy` keeps its checksum (`core/faraday-bip/src/policy.rs`)
 
 Eager: every constructor sets `checksum: [u8; 8]`; `checksum(&self) ->
 &str`. The derived `PartialEq` stays (the checksum is a function of the
@@ -202,9 +202,9 @@ Wallets it made already write `h`. Wallets imported with `'` now export
 `h` and show a different checksum; `osk-keep`'s names keyed by checksum
 are lost for those (OpenSigner's app is not shipped by Faraday; listed in
 UPSTREAM §3). Faraday's stored records were already `h`. Tests whose
-expectations change from `'` to `h`: `osk-bip` (`policy.rs` units,
+expectations change from `'` to `h`: `faraday-bip` (`policy.rs` units,
 `coldcard.rs`, `multisig_config.rs`, `tests/{descriptor,bsms,musig,
-recovery,silent}.rs`), `osk-psbt` (`tests/multisig.rs`, `musig.rs`,
+recovery,silent}.rs`), `faraday-psbt` (`tests/multisig.rs`, `musig.rs`,
 `common/builder.rs`), `opensigner-core` (`tests/{wallets,bsms,keep,names,
 backup_file,lightning,swap}.rs`); reading tests keep their `'` inputs.
 
@@ -227,7 +227,7 @@ change its own commit.
 | B6 | the rest (`explore_screen`, `silent_screen`, `vanity_screen`, `lightning_screen`, `wordlist_screen`, `file_menu`, `edit`, …) | A1 | ″ | Sonnet |
 | C0 | `Compute` and `unchecked`; `Faraday::compute`; `View`'s token; the mint sites; `opensigner-core`'s private helper; `faraday/clippy.toml` with the two mint entries; the global counter stays | A1 | B1–B6 | Opus |
 | C1 | Gate `WordsParse`, `Kdf`, `MasterKey`, `KeyDerive`; their counts move to `c.count` | B, C0 | — | Sonnet |
-| C2 | Gate `DescriptorParse`, `Address`, `WalletMatch`, `PlanMap`; `faraday-intake`'s miniscript call moves into `osk-bip` | C1 | D1 drafting | Sonnet |
+| C2 | Gate `DescriptorParse`, `Address`, `WalletMatch`, `PlanMap`; `faraday-intake`'s miniscript call moves into `faraday-bip` | C1 | D1 drafting | Sonnet |
 | C3 | Gate PSBT, QR, `PngDecode`, `Picture`, `FileHash`; the Starter's QR kept on its state; remove `set_counter`, the `OnceLock`, the `count` feature; `Canvas::set_counter`; drop the old memo forms | C2 | D1 drafting | Sonnet |
 | D1 | Costs lint (§8), compile_fail doctests (§9), full `faraday/clippy.toml` (§7), in `just lint` | C3 | — | Opus |
 | D2 | Remove the guard (§10) | D1 | D3 | Sonnet |
@@ -262,10 +262,10 @@ only by `#[expect]` at §3's sites), `Compute::unchecked`,
 `bitcoin::bip32::Xpriv::new_master`, `Xpriv::derive_priv`,
 `Xpriv::fingerprint`, `Xpub::from_priv`, `Xpub::derive_pub`,
 `secp256k1::PublicKey::from_secret_key` (`lightning.rs` moves to a gated
-`osk-bip` function), `bitcoin::psbt::Psbt::deserialize`.
+`faraday-bip` function), `bitcoin::psbt::Psbt::deserialize`.
 `disallowed-types`: `miniscript::Descriptor` (`testkit.rs` and `examples/`
 under `#[expect]`). Hashing engines are not listed (risk 5). Paths
-resolve through the `osk_bip::bitcoin`/`miniscript` re-exports.
+resolve through the `faraday_bip::bitcoin`/`miniscript` re-exports.
 
 A path that names nothing (mistyped, or moved in a dependency) does not
 fail `-D warnings`: clippy prints a warning about its configuration and
@@ -297,7 +297,7 @@ by `just lint`; walks `core/*/src` and `faraday/**/src`, skipping
 
 ## 9. compile_fail doctests
 
-`core/osk-crypto/src/work.rs`, on `Compute`, beside an example that
+`core/faraday-crypto/src/work.rs`, on `Compute`, beside an example that
 compiles: `c.clone()` (E0599), `Compute: Send` (E0277), `Compute:
 Default` (E0277). `faraday-core/src/drawing.rs`, on `View`:
 `v.compute()` on `&View` (E0596), `app.compute()` on `&Faraday`

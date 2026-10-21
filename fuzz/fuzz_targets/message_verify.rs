@@ -1,4 +1,4 @@
-//! `osk_psbt::message::verify`: a signed message as a wallet hands it
+//! `faraday_psbt::message::verify`: a signed message as a wallet hands it
 //! over, checked against an address the device already holds.
 //!
 //! The addresses are the four single-signature script types of the
@@ -12,11 +12,11 @@ use std::str::FromStr;
 use std::sync::OnceLock;
 
 use libfuzzer_sys::fuzz_target;
-use osk_bip::bip39::{Language, Mnemonic};
-use osk_bip::keys::{MasterKey, Network, ScriptType};
-use osk_crypto::work::Compute;
-use osk_psbt::bitcoin::Address;
-use osk_psbt::message;
+use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::keys::{MasterKey, Network, ScriptType};
+use faraday_crypto::work::Compute;
+use faraday_psbt::bitcoin::Address;
+use faraday_psbt::message;
 
 /// The first receive address of each script type of the test vector key.
 fn addresses() -> &'static [Address] {

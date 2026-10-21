@@ -3,8 +3,8 @@
 Upstream: `rqrr` 0.11.0, <https://github.com/WanzenBug/rqrr>, copied from
 the crates.io release. The version number stays upstream's. The root
 `Cargo.toml`'s workspace dependency is a path to this directory, so
-`osk-codec` reaches the copy in every build: this workspace's, the fuzz
-workspace's, and that of a project depending on `osk-codec` by git, which
+`faraday-codec` reaches the copy in every build: this workspace's, the fuzz
+workspace's, and that of a project depending on `faraday-codec` by git, which
 a `[patch.crates-io]` would not reach.
 
 Why the copy exists: security review 2026-09-11 item M5a. The QR decoder
@@ -52,7 +52,7 @@ Two further changes on the same path:
   that needed a crate outside the workspace lock file, and dropping them
   keeps the lock unchanged except for `rqrr`'s own source line. The
   `image` optional dependency behind the `img` feature stays in the
-  manifest and stays off: `osk-codec` takes the crate with
+  manifest and stays off: `faraday-codec` takes the crate with
   `default-features = false`.
 
 `Cargo.lock` and `Cargo.toml.orig` from the crates.io package are not
@@ -68,7 +68,7 @@ recency stamp per entry (`RegionTable` in `src/prepare.rs`).
 The eviction stays. A version 30 symbol at three pixels a module has
 thousands of black regions, so a table that refused the 252nd would stop
 finding capstones part-way down the frame and large symbols would not
-decode at all (`osk-codec`'s `large_codes_decode_too` covers this). As
+decode at all (`faraday-codec`'s `large_codes_decode_too` covers this). As
 upstream did, the entry with the oldest stamp is dropped, its pixels are
 repainted plain black so it can be found again under another index, and
 its index is reused. `get` stamps the entry it returns, as `LruCache::get`
@@ -130,14 +130,14 @@ next pass over this crate has somewhere to start.
 
 - `src/prepare.rs`, `prepare_from_greyscale` and `prepare_from_bitmap`:
   `w.checked_mul(h).expect("Image dimensions caused overflow")`.
-  `osk_codec::decode_luma` requires `luma.len() == width * height`
+  `faraday_codec::decode_luma` requires `luma.len() == width * height`
   before it calls either, so our caller cannot reach it.
 - `src/prepare.rs`, `without_preparation`: `assert!(buf.get_pixel(x, y) <
   2)`. It is reachable only through `prepare_from_bitmap`, whose own
   pixels come from a `bool`, or by a caller passing its own
-  `ImageBuffer`. `osk-codec` uses neither.
+  `ImageBuffer`. `faraday-codec` uses neither.
 - `src/prepare.rs`, `get_pixel_at_point`: `self.width() - 1` underflows
-  on a zero-width image. `osk_codec::decode_luma` rejects a frame whose
+  on a zero-width image. `faraday_codec::decode_luma` rejects a frame whose
   length is not `width * height`, and the only zero-width frame that
   passes that has no pixels to scan.
 

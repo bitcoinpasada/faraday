@@ -10,7 +10,7 @@
 #
 #   tools/scripts/threshold-regtest.sh setup <datadir>
 #   cp <datadir>/wallet-threshold-first.psbt tools/vectors/psbt/
-#   cargo run -p osk-psbt --example threshold -- tools/vectors/psbt
+#   cargo run -p faraday-psbt --example threshold -- tools/vectors/psbt
 #   tools/scripts/threshold-regtest.sh accept <datadir> \
 #       tools/vectors/psbt/wallet-threshold-signed.psbt
 #   tools/scripts/threshold-regtest.sh stop <datadir>

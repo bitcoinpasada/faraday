@@ -2,7 +2,7 @@
 
 | File | What it is |
 |---|---|
-| `bip174.txt` | BIP-174 test vectors, extracted by `extract.py`; documented in `core/osk-psbt/README.md` |
+| `bip174.txt` | BIP-174 test vectors, extracted by `extract.py`; documented in `core/faraday-psbt/README.md` |
 | `bip174-roles.txt` | The BIP-174 role vectors (creator, updater, signer, combiner, finalizer, extractor) |
 | `rfc6979.txt` | RFC-6979 deterministic-nonce vectors |
 | `demo-regtest.psbt` | The clean regtest spend the Sign review scripts and the QR fixtures use |
@@ -39,7 +39,7 @@
 
 The first two receive and change addresses of each, checked against
 Bitcoin Core v29.4.0 `deriveaddresses` on this machine on 2026-09-13 and
-against `miniscript` used directly (`core/osk-bip/tests/miniscript.rs`).
+against `miniscript` used directly (`core/faraday-bip/tests/miniscript.rs`).
 
 | Wallet | Chain | 0 | 1 |
 |---|---|---|---|
@@ -50,17 +50,17 @@ against `miniscript` used directly (`core/osk-bip/tests/miniscript.rs`).
 
 Core also accepted both descriptors' checksums, `#d9zz2z8e` for the
 `wsh` one and `#00m3rdde` for the `tr` one, which is a second reading of
-`osk_bip::descriptor`.
+`faraday_bip::descriptor`.
 
 ## The taproot recovery wallets' addresses
 
-`osk_bip::recovery` builds a recovery wallet from keys and delays. Its
+`faraday_bip::recovery` builds a recovery wallet from keys and delays. Its
 `wsh` answer for one key now and one key after 52 560 blocks is
 `wallet-liana.policy` character for character, so its addresses are the
 rows above. Its two taproot answers are new descriptors, and their first
 two receive and change addresses were checked against Bitcoin Core
 v31.1.0 `deriveaddresses` on this machine on 2026-09-18
-(`core/osk-bip/tests/recovery.rs`):
+(`core/faraday-bip/tests/recovery.rs`):
 
 - **key path**, one primary key and one recovery key after 52 560
   blocks, the primary on the key path —
@@ -107,7 +107,7 @@ addresses in the table above, which is a second reading of
 `WalletPolicy::script_at`.
 
 The wallet files are written by
-`cargo run -p osk-psbt --example wallet` (also `just psbt-fixtures`) and
+`cargo run -p faraday-psbt --example wallet` (also `just psbt-fixtures`) and
 checked byte for byte by the same test as the warning fixtures.
 `tools/scripts/wallet.txt` reads the policy, registers it and signs the
 transaction.
@@ -130,7 +130,7 @@ orders share its unsigned transaction.
 ```text
 tools/scripts/musig-regtest.sh setup <datadir>
 cp <datadir>/wallet-musig-*.p* tools/vectors/psbt/
-cargo run -p osk-psbt --example musig -- tools/vectors/psbt
+cargo run -p faraday-psbt --example musig -- tools/vectors/psbt
 # Core first: the device signed last, Core finishes.
 tools/scripts/musig-regtest.sh finish <datadir> \
     tools/vectors/psbt/wallet-musig-core-first-signed.psbt
@@ -139,7 +139,7 @@ tools/scripts/musig-regtest.sh answer <datadir> \
     tools/vectors/psbt/wallet-musig-device-first-nonce.psbt
 tools/scripts/musig-regtest.sh answer <datadir> <that call's psbt>
 # The second call's PSBT is wallet-musig-device-first-core.psbt.
-cargo run -p osk-psbt --example musig -- tools/vectors/psbt
+cargo run -p faraday-psbt --example musig -- tools/vectors/psbt
 tools/scripts/musig-regtest.sh accept <datadir> \
     tools/vectors/psbt/wallet-musig-device-first-signed.psbt
 tools/scripts/musig-regtest.sh stop <datadir>
@@ -177,10 +177,10 @@ txid; the witnesses differ, because the two runs aggregate different
 nonces, and so do the wtxids (`3c8a0c62…` and `ac92c1a4…`).
 
 The three PSBTs this device wrote are written by
-`cargo run -p osk-psbt --example musig -- tools/vectors/psbt`, that is
+`cargo run -p faraday-psbt --example musig -- tools/vectors/psbt`, that is
 `just psbt-fixtures`, under `Aux::Deterministic` and the example's fixed
 session seed, and are checked byte for byte by
-`core/osk-psbt/tests/musig.rs`, which also carries the rounds the whole
+`core/faraday-psbt/tests/musig.rs`, which also carries the rounds the whole
 way with a second signer played in the test, so that the aggregate
 signature this crate builds finalizes the input. The files are recorded
 as they came out of the run:
@@ -208,7 +208,7 @@ same way, since Core signs nothing here.
 ```text
 tools/scripts/threshold-regtest.sh setup <datadir>
 cp <datadir>/wallet-threshold-first.psbt tools/vectors/psbt/
-cargo run -p osk-psbt --example threshold -- tools/vectors/psbt
+cargo run -p faraday-psbt --example threshold -- tools/vectors/psbt
 tools/scripts/threshold-regtest.sh accept <datadir> \
     tools/vectors/psbt/wallet-threshold-signed.psbt
 tools/scripts/threshold-regtest.sh stop <datadir>
@@ -251,7 +251,7 @@ keys `wallet-2of3.policy` uses, at BIP 48's `2'` account on regtest —
 the wallet Add a wallet › Taproot multisig builds. Bitcoin Core 31.1
 imports `sortedmulti_a` as it stands: no rewriting to `multi_a` with the
 keys pre-sorted was needed, and the checksum Core computed for the
-descriptor, `#uygt73j8`, is the one `osk_bip::descriptor` computes.
+descriptor, `#uygt73j8`, is the one `faraday_bip::descriptor` computes.
 
 The run was on 2026-09-19, on a throwaway regtest node (Core v31.1.0
 from `~/.local/opt/bitcoin-31.1/bin`, no network), whose datadir was
@@ -262,7 +262,7 @@ transaction.
 ```text
 tools/scripts/tapmulti-regtest.sh setup <datadir>
 cp <datadir>/wallet-tapmulti-first.psbt tools/vectors/psbt/
-cargo run -p osk-psbt --example tapmulti -- tools/vectors/psbt
+cargo run -p faraday-psbt --example tapmulti -- tools/vectors/psbt
 tools/scripts/tapmulti-regtest.sh accept <datadir> \
     tools/vectors/psbt/wallet-tapmulti-signed.psbt
 tools/scripts/tapmulti-regtest.sh stop <datadir>
@@ -298,7 +298,7 @@ counted origins to count cosigners would read this wallet as four.
 The device signs with two of the three keys in one pass and finalizes
 the result itself, so what the Sign flow hands over is the finished
 transaction. The committed fixture is the step before that: the PSBT
-`osk_psbt::sign` writes, which is what a coordinator collecting
+`faraday_psbt::sign` writes, which is what a coordinator collecting
 signatures would be given.
 
 | File | SHA-256 |
@@ -308,15 +308,15 @@ signatures would be given.
 | `wallet-tapmulti-signed.psbt` | `8243e2304a995fc7832adc4ae5c1876fcac8ee94f95ad36e6f0b8eb62e747bcc` |
 
 The signed fixture is written by
-`cargo run -p osk-psbt --example tapmulti -- tools/vectors/psbt`, that is
+`cargo run -p faraday-psbt --example tapmulti -- tools/vectors/psbt`, that is
 `just psbt-fixtures`, and checked byte for byte by
-`core/osk-psbt/tests/tapmulti.rs`.
+`core/faraday-psbt/tests/tapmulti.rs`.
 
 ## The warning fixtures
 
-Written by `cargo run -p osk-psbt --example warnings`, that is
+Written by `cargo run -p faraday-psbt --example warnings`, that is
 `just psbt-fixtures`, and checked byte for byte by
-`core/osk-psbt/tests/fixtures.rs`. All but `warn-network-mismatch.psbt`
+`core/faraday-psbt/tests/fixtures.rs`. All but `warn-network-mismatch.psbt`
 are regtest spends of the "abandon … about" seed; addresses that are not
 ours belong to "zoo … wrong". Read them with the `abandon` key loaded on
 regtest.
@@ -345,7 +345,7 @@ regtest.
 
 The 2-of-3 regtest group of `docs/PLANNING.md` §16.103. Shares 0 and 1
 are the SHA-256 digests of `osk threshold fixture share 0` and
-`osk threshold fixture share 1` read as scalars; `osk_bip::frost::deal`
+`osk threshold fixture share 1` read as scalars; `faraday_bip::frost::deal`
 computes share 2 and the group key from them, so every byte follows from
 those two strings. The record is the group's public half and the three
 `.txt` files are its shares, each share's own 32 bytes carried as a
@@ -356,10 +356,10 @@ committed because the passes that load a share and sign with one need a
 share to load; no coin this group can spend exists, and nothing outside
 these vectors may use them.
 
-Written by `cargo run -p osk-psbt --example threshold`, that is
+Written by `cargo run -p faraday-psbt --example threshold`, that is
 `just psbt-fixtures`, and checked byte for byte by
-`core/osk-psbt/tests/fixtures.rs`. What the record states is checked by
-`core/osk-bip/tests/threshold.rs`: it round-trips, its shares lie on one
+`core/faraday-psbt/tests/fixtures.rs`. What the record states is checked by
+`core/faraday-bip/tests/threshold.rs`: it round-trips, its shares lie on one
 polynomial that gives its group key, any two of the share files rebuild
 it, and its first receive and change addresses are what `miniscript`
 derives from the record's own descriptor line.

@@ -12,8 +12,8 @@ use faraday_core::stick_settings::FILE;
 use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent};
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 use faraday_vault::records::kind;
-use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 fn display() -> Event {
     Event::Display(DisplayInfo {

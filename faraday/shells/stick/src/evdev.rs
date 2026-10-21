@@ -285,7 +285,7 @@ pub struct Device {
     pub node: PathBuf,
     /// What the device calls itself, for `--verbose`.
     pub name: String,
-    /// It sends [`Event::Key`](osk_shell_api::Event::Key).
+    /// It sends [`Event::Key`](faraday_shell_api::Event::Key).
     pub keyboard: bool,
     /// It moves the cursor with relative motion.
     pub mouse: bool,
@@ -867,7 +867,7 @@ mod tests {
             out,
             vec![
                 Wake::Pointer(crate::pointer::Motion::Move { dx: 12, dy: 0 }),
-                Wake::Key(osk_shell_api::Key::Char('b')),
+                Wake::Key(faraday_shell_api::Key::Char('b')),
                 Wake::Pointer(crate::pointer::Motion::Button(true)),
             ]
         );

@@ -1,13 +1,13 @@
 //! Media Foundation capture for the Windows shells (the desktop app and
 //! the Starter): list the cameras, start one, and hand back 8-bit luma
 //! frames with the colour beside them. The Windows twin of
-//! `opensigner-avfoundation`, with the same [`Frame`], [`Message`] and
+//! `faraday-avfoundation`, with the same [`Frame`], [`Message`] and
 //! [`MAX_FPS`].
 //!
 //! # Why this crate may use `unsafe`
 //!
 //! The workspace sets `unsafe_code = "forbid"`. This crate is one of the
-//! exceptions, with `opensigner-v4l2` and `opensigner-avfoundation`, and
+//! exceptions, with `faraday-v4l2` and `faraday-avfoundation`, and
 //! its `Cargo.toml` says so rather than inheriting the workspace lints.
 //! The reason is `docs/PLANNING.md` §16.33: each platform reaches its
 //! camera through the operating system's own interface with code we
@@ -51,13 +51,13 @@
 //! setting refuses this program the camera, the first message is
 //! [`Message::Unavailable`]; otherwise it is a [`Message::Frame`].
 
-// The NV12 conversion is opensigner-avfoundation's: the same buffer
+// The NV12 conversion is faraday-avfoundation's: the same buffer
 // layout on both systems.
-use opensigner_avfoundation::convert;
+use faraday_avfoundation::convert;
 
 /// Why a camera gave no frames, when it is clearly one of three things:
-/// the type `opensigner-avfoundation` has, shared by both crates.
-pub use opensigner_avfoundation::Failure;
+/// the type `faraday-avfoundation` has, shared by both crates.
+pub use faraday_avfoundation::Failure;
 
 /// `osk_mf_capture`'s `OSK_MF_NO_CAMERA`.
 const STATUS_NO_CAMERA: i32 = 1;
@@ -105,7 +105,7 @@ pub fn failure_of_status(status: i32) -> Option<Failure> {
 
 /// One captured frame: 8-bit luma, row-major, `width × height` bytes,
 /// and the NV12 chroma plane for it, which is exactly the payload of
-/// `osk_shell_api::Event::CameraFrame`.
+/// `faraday_shell_api::Event::CameraFrame`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Frame {
     /// Frame width in pixels.

@@ -17,8 +17,8 @@ use faraday_core::plan::{
 };
 use faraday_core::testkit;
 use faraday_core::{Action, BStage, Faraday, PlanPress, Screen, Sheet, bstep, cstep, qrow};
+use faraday_shell_api::{App, Event, Key};
 use faraday_vault::records::kind;
-use osk_shell_api::{App, Event, Key};
 
 const PHRASE: &str = "first vault phrase";
 const PHRASE_2: &str = "second vault phrase";
@@ -466,7 +466,7 @@ fn the_hold_on_the_key_stays_until_the_last_stick_is_written_and_a_lock_resumes_
     let c = testkit::compute();
     let mut shell = Shell::new();
     let (mut app, _, fp) = single_key(&mut shell, true);
-    let fp = osk_bip::keys::Fingerprint(fp);
+    let fp = faraday_bip::keys::Fingerprint(fp);
     assert!(app.key_held(&c, fp), "made here, its backup not done");
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -911,7 +911,7 @@ fn a_two_of_three_with_key_3_on_paper_asks_for_two_sticks_and_holds_key_3_until_
     app.press(Action::BNext(bstep::BLANK));
     // Key 3 is held until its copy is checked; Keys 1 and 2 until their
     // sticks are written.
-    let held = |app: &Faraday, k: usize| app.key_held(&c, osk_bip::keys::Fingerprint(fps[k]));
+    let held = |app: &Faraday, k: usize| app.key_held(&c, faraday_bip::keys::Fingerprint(fps[k]));
     assert!(held(&app, 2), "Key 3 waits for its copy");
     let key3 = app
         .session
@@ -1274,7 +1274,7 @@ fn the_kept_state_of_a_wallet_flow_holds_nothing_secret_and_a_state_that_does_no
         faraday_core::vaults::VaultAction::LoadChosen(0),
     ));
     assert!(
-        next.key_held(&c, osk_bip::keys::Fingerprint(fp)),
+        next.key_held(&c, faraday_bip::keys::Fingerprint(fp)),
         "fails closed: the key is held"
     );
     let _ = app;
@@ -1403,7 +1403,7 @@ fn seed_words_file(n: &str) -> bool {
 fn seed_txt(fp: [u8; 4]) -> String {
     format!(
         "seed-{}.txt",
-        faraday_core::wallet::fp_text(osk_bip::keys::Fingerprint(fp)).to_lowercase()
+        faraday_core::wallet::fp_text(faraday_bip::keys::Fingerprint(fp)).to_lowercase()
     )
 }
 
@@ -1525,7 +1525,7 @@ fn a_seed_kept_only_as_a_file_is_held_until_its_stick_is_written() {
     );
     app.press(Action::BNext(bstep::ENVELOPE));
     assert!(
-        app.key_held(&c, osk_bip::keys::Fingerprint(fp)),
+        app.key_held(&c, faraday_bip::keys::Fingerprint(fp)),
         "no vault holds it, and still it waits for its file's stick"
     );
     shell.flow(&mut app, F::WalletLock);
@@ -1591,7 +1591,7 @@ fn a_kept_state_cut_short_or_missing_its_wallet_part_still_holds_the_key() {
         ));
         (
             held_in_flow,
-            next.key_held(&c, osk_bip::keys::Fingerprint(fp)),
+            next.key_held(&c, faraday_bip::keys::Fingerprint(fp)),
         )
     };
     let with = |bytes: Vec<u8>| -> Vec<(String, Vec<u8>)> {
@@ -1908,7 +1908,8 @@ fn the_round_copies_a_lone_passphrase_from_a_key_record_that_stores_it() {
     let (app, v, fp) = lone_passphrase_round(|app, _, _| {
         let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
         let m =
-            osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, &words).unwrap();
+            faraday_bip::bip39::Mnemonic::parse(&c, faraday_bip::bip39::Language::English, &words)
+                .unwrap();
         let payload = faraday_vault::records::words_payload(&m);
         let (o, k) = app
             .vaults
@@ -2151,9 +2152,12 @@ fn a_key_in_a_slot_goes_into_no_vault_by_itself_and_a_passphrase_added_later_lea
     );
     // The record that remains is key b's, not key a's.
     let lang = app.session.keys.last().unwrap().language;
-    let b_words =
-        osk_bip::bip39::Mnemonic::parse(&c, lang, &testkit::test_words(testkit::TEST_SEEDS[1].0))
-            .unwrap();
+    let b_words = faraday_bip::bip39::Mnemonic::parse(
+        &c,
+        lang,
+        &testkit::test_words(testkit::TEST_SEEDS[1].0),
+    )
+    .unwrap();
     let (_, rec) = app.vaults.open[0].contents.of(kind::KEY).next().unwrap();
     assert_eq!(
         faraday_vault::records::words_of(rec).unwrap().indices(),
@@ -2298,7 +2302,8 @@ fn vault_with_key(label: &str, phrase: &str, seed: u8, n: usize) -> Vec<u8> {
         lanes: 1,
     };
     let words = testkit::test_words(testkit::TEST_SEEDS[n].0);
-    let m = osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, &words).unwrap();
+    let m = faraday_bip::bip39::Mnemonic::parse(&c, faraday_bip::bip39::Language::English, &words)
+        .unwrap();
     let contents = faraday_vault::Contents {
         records: vec![
             Record::new(records::kind::SLOT_LABEL).with(field::LABEL, label.as_bytes()),
@@ -2385,7 +2390,7 @@ fn held_after_lock(shell: &mut Shell, app: &mut Faraday, fp: [u8; 4]) -> bool {
         next.session.keys.iter().any(|k| k.fingerprint().0 == fp),
         "the key is loaded"
     );
-    next.key_held(&c, osk_bip::keys::Fingerprint(fp))
+    next.key_held(&c, faraday_bip::keys::Fingerprint(fp))
 }
 
 #[test]
@@ -3388,7 +3393,7 @@ fn a_seed_kept_as_a_file_at_a_place_is_released_once_that_stick_is_written() {
     no_paper_description(&mut app);
     app.press(Action::BChecklist);
     app.press(Action::BNext(bstep::ENVELOPE));
-    let fp = osk_bip::keys::Fingerprint(fp);
+    let fp = faraday_bip::keys::Fingerprint(fp);
     assert!(app.key_held(&c, fp), "held for Place 2's stick of files");
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(
@@ -3968,7 +3973,7 @@ fn back_ups_cards_after_the_lock_edit_the_flows_plan_with_its_refusals() {
         .position(|x| x.name == name)
         .expect("the wallet loaded from its vault");
     assert!(
-        app.key_held(&c, osk_bip::keys::Fingerprint(fp)),
+        app.key_held(&c, faraday_bip::keys::Fingerprint(fp)),
         "held, from the vault"
     );
     assert!(
@@ -4138,7 +4143,7 @@ fn the_flows_plan_card_has_one_continue_at_both_sizes() {
         let (mut app, _, _) = single_key_ready(&mut shell);
         shell.flow(&mut app, F::WalletLock);
         let mut app = restart(&mut shell, &mut app);
-        app.event(Event::Display(osk_shell_api::DisplayInfo {
+        app.event(Event::Display(faraday_shell_api::DisplayInfo {
             width: w,
             height: h,
             dpi,
@@ -4146,8 +4151,8 @@ fn the_flows_plan_card_has_one_continue_at_both_sizes() {
             inset_top: 0,
             buttons: 0,
             camera_fixed: false,
-            secure: osk_shell_api::SecureHardware::None,
-            boot: osk_shell_api::BootState::Unknown,
+            secure: faraday_shell_api::SecureHardware::None,
+            boot: faraday_shell_api::BootState::Unknown,
             memory_mib: None,
         }));
         shell.flow(&mut app, F::ChangePlan);
@@ -4480,7 +4485,7 @@ fn a_held_seed_is_never_left_on_no_stick_after_the_lock() {
             "no seed file on the plan"
         );
     }
-    let fp = osk_bip::keys::Fingerprint(fp);
+    let fp = faraday_bip::keys::Fingerprint(fp);
     write_sticks(&mut shell, &mut app, &["S1", "S2", "S3"]);
     assert_eq!(
         step(&app),
@@ -4770,7 +4775,7 @@ fn a_held_key_is_not_left_on_a_stale_file_after_the_lock() {
         "kept on the stick of files"
     );
     let held = &app.flow().unwrap().wallet.as_ref().unwrap().held;
-    let fp = faraday_core::wallet::fp_text(osk_bip::keys::Fingerprint(fp));
+    let fp = faraday_core::wallet::fp_text(faraday_bip::keys::Fingerprint(fp));
     assert!(
         held.iter().any(|h| h.eq_ignore_ascii_case(&fp)),
         "held until that stick is written"
@@ -5057,7 +5062,7 @@ fn the_done_landing_loads_the_vaults_keys_released() {
     shell.flow(&mut app, F::UnlockDone(0));
     app.vaults.ms_per_unit = Some(180);
     unlock(&mut app, PHRASE);
-    let fp = osk_bip::keys::Fingerprint(fp);
+    let fp = faraday_bip::keys::Fingerprint(fp);
     assert!(
         app.session.keys.iter().any(|k| k.fingerprint() == fp),
         "the key loaded from the vault"
@@ -5332,7 +5337,8 @@ fn another_open_vault_never_replaces_a_backup_past_its_lock() {
     shell.flow(&mut app, F::WalletLock);
     // A second vault, of another passphrase, with the same key and wallet.
     let words = testkit::test_words(testkit::TEST_SEEDS[1].0);
-    let m = osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, &words).unwrap();
+    let m = faraday_bip::bip39::Mnemonic::parse(&c, faraday_bip::bip39::Language::English, &words)
+        .unwrap();
     let contents = faraday_vault::Contents {
         records: vec![
             Record::new(records::kind::SLOT_LABEL).with(field::LABEL, b"Second"),

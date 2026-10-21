@@ -12,7 +12,7 @@
 //! Where `/sys` and `/dev` are is a parameter, so the tests can stand a
 //! directory tree and image files in for them.
 
-use osk_crypto::work::Compute;
+use faraday_crypto::work::Compute;
 use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Seek, SeekFrom};

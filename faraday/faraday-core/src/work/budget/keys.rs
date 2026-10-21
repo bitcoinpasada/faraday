@@ -6,7 +6,7 @@
 //! ([`crate::motion::TYPED_PAUSE_MS`]), and that pause is checked here
 //! too.
 
-use osk_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event, Key};
 
 use super::walk;
 use crate::vaults::VaultAction as V;

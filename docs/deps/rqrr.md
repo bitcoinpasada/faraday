@@ -1,7 +1,7 @@
 # rqrr
 
 **Purpose.** QR detection and decoding from camera luma frames
-(`osk-codec::decode`, `docs/PLANNING.md` §4.4: a shell decodes on a worker
+(`faraday-codec::decode`, `docs/PLANNING.md` §4.4: a shell decodes on a worker
 beside the core, which keeps the preview and the routing; §16.36).
 
 **Why this crate.** Pure Rust, no `unsafe`, the only maintained Rust QR
@@ -15,7 +15,7 @@ survive).
 **Cost.** Version 0.11 with `default-features = false` (no `image`), and
 since the trim below no dependencies at all: the copy in the tree
 compiles against `std` and nothing else. It needs `std`
-(`std::io::Write`, `std::error::Error`), so `osk-codec` enables it only
+(`std::io::Write`, `std::error::Error`), so `faraday-codec` enables it only
 behind its `decode` feature and is the one core crate that is not
 `no_std` in that configuration. Recorded as a deviation in
 `docs/PLANNING.md` §16.20; the Pi and desktop shells run with `std`, so
@@ -44,8 +44,8 @@ keeps the proc-macro crates, which `winit` needs.
 
 **Vendored.** Since 2026-09-11 the crate is a copy in the tree,
 `third_party/rqrr`, reached through a path in the root manifest's
-workspace dependency, so that a project depending on `osk-codec` by git
-reaches it too (§16.138). Fuzzing `osk_codec::decode_luma` found
+workspace dependency, so that a project depending on `faraday-codec` by git
+reaches it too (§16.138). Fuzzing `faraday_codec::decode_luma` found
 an `assert!` in `Perspective::map` that a camera frame reaches during
 grid detection (security review M5a); on the Pi, built with
 `panic = "abort"`, that is a sheet of paper that powers the device off,

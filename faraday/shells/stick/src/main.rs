@@ -49,9 +49,9 @@
 //! needs no event it did not already have and no screen is designed
 //! twice.
 //!
-//! What it is: the standard library, `osk-shell-api`, `faraday-core`,
+//! What it is: the standard library, `faraday-shell-api`, `faraday-core`,
 //! `faraday-scanner` for the decode and the frame reduction and, for the
-//! camera alone, `opensigner-v4l2`. No `mmap` of its own
+//! camera alone, `faraday-v4l2`. No `mmap` of its own
 //! (the standard library has none, and `write_all_at` on a framebuffer
 //! is one `pwrite` per frame), no `libc`, no `unsafe`, no logging. The
 //! device has no console and no SSH, so nothing is printed unless
@@ -70,7 +70,7 @@
 //! it, and the captured one to `faraday-scanner`, whose worker reads
 //! the codes in it and hands them back for the loop to send on as
 //! `Event::Scanned`. The
-//! `ioctl`, `mmap` and `poll` that needs live in `opensigner-v4l2`, the
+//! `ioctl`, `mmap` and `poll` that needs live in `faraday-v4l2`, the
 //! one crate in the workspace allowed to use `unsafe`, and the reason
 //! for the exception is in its crate documentation; this shell still
 //! has no `unsafe` of its own. `--no-camera` refuses, which is how the
@@ -137,12 +137,12 @@ use cursor::{Cursor, Pointed};
 use faraday_core::strings::{EN, fill};
 use faraday_core::{Faraday, Medium, SecureBootAtStart, StickInfo, StorageEvent};
 use faraday_scanner::{ReadMode, Scanner};
+use faraday_shell_api::{
+    App, BootState, Command, DisplayInfo, EntropyBytes, Event, Key, SecureHardware, TouchPhase,
+};
 use faraday_storage::{Boot, BootProcess, Boxes, Dirs, DiskProcess, serve_all, stick_info};
 use fb::{Depth, Geometry};
 use files::Files;
-use osk_shell_api::{
-    App, BootState, Command, DisplayInfo, EntropyBytes, Event, Key, SecureHardware, TouchPhase,
-};
 use pace::Pace;
 use panel::{Panel, lock};
 use present::Presenter;
@@ -1955,7 +1955,7 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         // act on and the person using the device cannot (§16.49). The
         // release image has no swap and no console, so on a card this
         // line is neither needed nor seen.
-        if osk_crypto::pin_failure_to_report() {
+        if faraday_crypto::pin_failure_to_report() {
             shell.say("the kernel would not lock secret pages into RAM (RLIMIT_MEMLOCK)");
         }
         shell.report(false);

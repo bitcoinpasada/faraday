@@ -2,7 +2,7 @@
 //! on or unread, and on the Pi or the desktop app, it says nothing.
 
 use faraday_core::{Action, Faraday, Medium, SecureBootAtStart};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 fn shown(mut app: Faraday) -> Vec<String> {
     app.event(Event::Display(DisplayInfo {
@@ -135,17 +135,19 @@ fn the_sheet_opens_at_its_top_every_time() {
             .map(|(w, _)| faraday_core::testkit::test_words(w))
             .collect();
         for i in 1..=20u8 {
-            let m =
-                osk_bip::bip39::Mnemonic::from_entropy(osk_bip::bip39::Language::English, &[i; 16])
-                    .unwrap();
-            let list = osk_bip::bip39::Language::English.words();
+            let m = faraday_bip::bip39::Mnemonic::from_entropy(
+                faraday_bip::bip39::Language::English,
+                &[i; 16],
+            )
+            .unwrap();
+            let list = faraday_bip::bip39::Language::English.words();
             let words: Vec<&str> = m.indices().iter().map(|&w| list[w as usize]).collect();
             seeds.push(words.join(" "));
         }
         for words in seeds {
             app.press(Action::Entry(None));
             for c in words.chars() {
-                app.event(Event::Key(osk_shell_api::Key::Char(c)));
+                app.event(Event::Key(faraday_shell_api::Key::Char(c)));
             }
             app.press(Action::EntryAdd);
         }
@@ -153,7 +155,7 @@ fn the_sheet_opens_at_its_top_every_time() {
         let _ = app.frame();
         // The page beneath is scrolled to its foot first.
         for _ in 0..30 {
-            app.event(Event::Key(osk_shell_api::Key::Down));
+            app.event(Event::Key(faraday_shell_api::Key::Down));
             app.settle();
             let _ = app.frame();
         }
@@ -161,7 +163,7 @@ fn the_sheet_opens_at_its_top_every_time() {
         assert!(in_view(&mut app), "first open at {w}x{h}");
         // Scrolled down inside the sheet, then closed and opened again.
         for _ in 0..30 {
-            app.event(Event::Key(osk_shell_api::Key::Down));
+            app.event(Event::Key(faraday_shell_api::Key::Down));
             app.settle();
             let _ = app.frame();
         }

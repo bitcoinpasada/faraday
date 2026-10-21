@@ -3,7 +3,7 @@
 **Purpose.** HMAC-SHA512 for BIP-32 master key derivation (through
 `bitcoin`), the BIP-39 seed (through `pbkdf2`), the session PIN hash,
 the sealed-value nonce prefix and every key derived from the session key
-(`osk_crypto::hmac_sha512`, `SessionKey::derive`).
+(`faraday_crypto::hmac_sha512`, `SessionKey::derive`).
 
 **Why this crate.** RustCrypto's generic HMAC over any `digest` hasher:
 ~200 lines, `no_std`, RFC 4231 vectors in its tests and in ours. Writing

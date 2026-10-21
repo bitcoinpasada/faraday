@@ -24,7 +24,7 @@ faraday-payload = { path = "../../faraday-payload" }
 faraday-fat = { path = "../../faraday-fat" }
 faraday-storage = { path = "../../faraday-storage" }
 faraday-window = { path = "../window" }
-osk-shell-api = { path = "../../../core/osk-shell-api" }
+faraday-shell-api = { path = "../../../core/faraday-shell-api" }
 winit.workspace = true
 # A Faraday stick's release string (`find_release`), as the stick's own
 # upgrade reads it.
@@ -86,7 +86,7 @@ faraday-payload = { path = "../../faraday-payload" }
 # `File`); on Windows the Win32 calls std does not make (src/windows/sys.rs
 # alone); on macOS receiving the descriptor authopen sends
 # (src/macos/mac.rs, `receive`). `deny`, not `forbid`, so those alone can allow it, as
-# osk-crypto's `pinned.rs` does; the other workspace lint is repeated by
+# faraday-crypto's `pinned.rs` does; the other workspace lint is repeated by
 # hand.
 unsafe_code = "deny"
 missing_docs = "warn"

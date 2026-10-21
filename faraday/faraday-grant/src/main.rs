@@ -21,7 +21,7 @@
 //! # Why this crate may use `unsafe`
 //!
 //! The workspace forbids `unsafe`; this binary is the second exception,
-//! after `opensigner-v4l2`, and its `Cargo.toml` says so. Changing a
+//! after `faraday-v4l2`, and its `Cargo.toml` says so. Changing a
 //! node's owner and mode, changing user and giving up capabilities are
 //! system calls `std` has no wrapper for. Every `unsafe` block is one call
 //! through `libc`, with plain integers or a buffer that outlives it.

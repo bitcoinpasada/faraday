@@ -12,10 +12,10 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_crypto::work::Compute;
+use faraday_crypto::work::Compute;
 use std::collections::VecDeque;
 
-use osk_shell_api::Command;
+use faraday_shell_api::Command;
 
 use crate::secrets::Exposure;
 use crate::wallet::{self, FileKind};
@@ -116,7 +116,7 @@ fn read_any(
         faraday_qr::Step::Done(arrived) => return Some(received(arrived)),
         faraday_qr::Step::NotMine => {}
     }
-    if osk_codec::ur::is_ur(text) {
+    if faraday_codec::ur::is_ur(text) {
         let message = match crate::ur_feed(&mut scan.decoder, text) {
             Ok(crate::UrFed::Whole(m)) => m,
             Ok(crate::UrFed::More { restarted }) => {
@@ -129,12 +129,12 @@ fn read_any(
             }
         };
         return Some(match message {
-            osk_codec::ur::Message::Psbt(p) => (None, "psbt", p),
-            osk_codec::ur::Message::Bytes(b) => match std::str::from_utf8(&b) {
+            faraday_codec::ur::Message::Psbt(p) => (None, "psbt", p),
+            faraday_codec::ur::Message::Bytes(b) => match std::str::from_utf8(&b) {
                 Ok(t) => received(faraday_qr::classify_text(t)),
                 Err(_) => (None, "bin", b),
             },
-            osk_codec::ur::Message::Other { ur_type, cbor } => {
+            faraday_codec::ur::Message::Other { ur_type, cbor } => {
                 match faraday_qr::registry::read(&ur_type, &cbor) {
                     Ok(Some(faraday_qr::registry::Read::Psbt(p))) => (None, "psbt", p),
                     Ok(Some(faraday_qr::registry::Read::Keys(t)))
@@ -286,7 +286,7 @@ impl Faraday {
             whole.extend_from_slice(ext.as_bytes());
             whole.push(0);
             whole.extend_from_slice(&data);
-            let d = osk_crypto::sha256_whole(&c, &whole);
+            let d = faraday_crypto::sha256_whole(&c, &whole);
             zeroize::Zeroize::zeroize(&mut whole);
             d
         };

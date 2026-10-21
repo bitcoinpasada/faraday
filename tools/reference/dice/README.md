@@ -1,6 +1,6 @@
 # The dice procedures other signers publish
 
-`docs/PLANNING.md` §16.115. Every procedure `osk_entropy::DiceProcedure`
+`docs/PLANNING.md` §16.115. Every procedure `faraday_entropy::DiceProcedure`
 offers is reproduced from the source named here, never from a summary.
 Each function below is quoted as the file holds it, so a later change to
 a source is visible as a change to this page rather than as a silent
@@ -79,7 +79,7 @@ $ echo -n 32461151351521144121541512665155412152342515356215 | python3 docs/roll
 b4b7bf155511dfa13688d93685fea50b2d56414be59fbde4658b84b42f355fa7
 ```
 
-which is the digest `core/osk-entropy`'s `dice_entropy_is_sha256_of_the_ascii_rolls`
+which is the digest `core/faraday-entropy`'s `dice_entropy_is_sha256_of_the_ascii_rolls`
 asserts, and `docs/rolls12.py` prints its first sixteen bytes and the
 twelve words `opensigner-core`'s `fifty_dice_rolls_by_physical_keys_create_the_expected_key`
 reaches.

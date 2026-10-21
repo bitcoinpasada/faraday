@@ -1,9 +1,9 @@
 //! The blank template follows its `copy:` line (`docs/NEW-WALLET.md`
 //! §14.7) and says to print at its true size on every page.
 
+use faraday_bip::keys::Network;
 use faraday_core::backup::{BlankCopy, sheet_blank};
 use faraday_core::pdf;
-use osk_bip::keys::Network;
 
 fn count(pdf: &[u8], s: &str) -> usize {
     pdf.windows(s.len()).filter(|w| *w == s.as_bytes()).count()

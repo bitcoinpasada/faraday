@@ -4,9 +4,9 @@
 //! (`tests/vectors/interop/README.md`). Faraday's own files against
 //! Bitcoin Core are `faraday/tools/core-check.py`.
 
+use faraday_bip::keys::Network;
+use faraday_bip::policy::WalletPolicy;
 use faraday_core::wallet::{FileKind, classify, read_wallet};
-use osk_bip::keys::Network;
-use osk_bip::policy::WalletPolicy;
 
 fn file(path: &str) -> String {
     let full = format!(
@@ -186,7 +186,7 @@ fn a_psbt_and_a_finished_transaction_from_bluewallet_are_named_as_such() {
 }
 
 fn scanned(text: &str) -> faraday_core::Item {
-    use osk_shell_api::{App, Event};
+    use faraday_shell_api::{App, Event};
     let mut app = faraday_core::Faraday::new();
     app.press(faraday_core::Action::Scan);
     app.event(Event::Scanned {
@@ -347,7 +347,7 @@ fn a_coldcard_file_with_no_account_for_the_kind_gives_no_key() {
 
 #[test]
 fn create_offers_a_coldcard_export_for_a_cosigners_slot_and_takes_its_multisig_key() {
-    use osk_shell_api::{App, Event, Key};
+    use faraday_shell_api::{App, Event, Key};
     let mut app = faraday_core::testkit::started();
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: vec![
@@ -612,7 +612,7 @@ fn a_single_key_file_whose_key_disagrees_with_its_path_is_refused() {
 fn json_nested_past_the_depth_limit_is_refused() {
     let c = faraday_core::testkit::compute();
     // The object is one level; the arrays inside it the rest.
-    let depth = osk_bip::json::MAX_DEPTH;
+    let depth = faraday_bip::json::MAX_DEPTH;
     let cobo = file("sparrow/cobo-singlesig-keystore-1.json");
     let body = cobo.trim().trim_start_matches('{').trim_end_matches('}');
     let deep = format!(
@@ -826,7 +826,7 @@ const ELECTRUM_ROW: u8 = 10;
 /// The requests of an `importdescriptors` file: each one's `desc` and
 /// `internal`, after checking the fields Core needs.
 fn import_requests(text: &str) -> Vec<(String, bool)> {
-    use osk_bip::json::{self, Value};
+    use faraday_bip::json::{self, Value};
     let v = json::parse(text).unwrap();
     v.as_array()
         .unwrap()
@@ -869,13 +869,13 @@ fn the_import_for_core_before_29_is_the_receive_and_change_descriptors_core_itse
     assert_eq!(name, "test-bitcoin-core-before-29.json");
     let requests = import_requests(text);
     let listed = |internal: bool| {
-        let v = osk_bip::json::parse(&core).unwrap();
+        let v = faraday_bip::json::parse(&core).unwrap();
         v.get("descriptors")
-            .and_then(osk_bip::json::Value::as_array)
+            .and_then(faraday_bip::json::Value::as_array)
             .unwrap()
             .iter()
-            .filter(|d| d.get("internal") == Some(&osk_bip::json::Value::Bool(internal)))
-            .filter_map(|d| d.get("desc").and_then(osk_bip::json::Value::as_str))
+            .filter(|d| d.get("internal") == Some(&faraday_bip::json::Value::Bool(internal)))
+            .filter_map(|d| d.get("desc").and_then(faraday_bip::json::Value::as_str))
             .find(|d| d.starts_with("wpkh("))
             .unwrap()
             .to_string()
@@ -915,7 +915,10 @@ fn the_two_descriptors_for_core_before_29_read_back_as_the_wallet_each_with_a_va
         );
         for (desc, _) in &requests {
             assert!(!desc.contains('<'), "{id}: {desc}");
-            assert!(osk_bip::descriptor::verify_checksum(desc), "{id}: {desc}");
+            assert!(
+                faraday_bip::descriptor::verify_checksum(desc),
+                "{id}: {desc}"
+            );
         }
         let own = read_wallet(&c, &d).unwrap().to_descriptor();
         for ((desc, _), chain) in requests.iter().zip(["0", "1"]) {
@@ -945,7 +948,7 @@ fn sparrows_electrum_singlesig_file_loads_as_its_nested_segwit_key() {
         .find(|t| t.starts_with("ypub"))
         .unwrap()
         .to_string();
-    let plain = osk_bip::slip132::decode(&ypub).unwrap().plain;
+    let plain = faraday_bip::slip132::decode(&ypub).unwrap().plain;
     assert_eq!(
         w.to_descriptor(),
         format!("sh(wpkh([ab543c67/49h/0h/0h]{plain}/<0;1>/*))")
@@ -977,7 +980,7 @@ fn blue_wallets_electrum_file_loads_as_its_native_segwit_key_at_its_root_fingerp
     let text = file("bluewallet/skeleton-electrum-hex-only.txt");
     let w = wallet("bluewallet/skeleton-electrum-hex-only.txt");
     let zpub = text.split('"').find(|t| t.starts_with("zpub")).unwrap();
-    let plain = osk_bip::slip132::decode(zpub).unwrap().plain;
+    let plain = faraday_bip::slip132::decode(zpub).unwrap().plain;
     assert_eq!(
         w.to_descriptor(),
         format!("wpkh([b616be56/84h/0h/0h]{plain}/<0;1>/*)")
@@ -1036,7 +1039,7 @@ fn an_electrum_file_holding_a_private_key_is_a_secret_and_its_origin_less_multis
     let keys: Vec<String> = text
         .split('"')
         .filter(|t| t.starts_with("Zpub"))
-        .map(|k| osk_bip::slip132::decode(k).unwrap().plain)
+        .map(|k| faraday_bip::slip132::decode(k).unwrap().plain)
         .collect();
     let mut theirs: Vec<String> = specter
         .keys()
@@ -1115,7 +1118,7 @@ fn a_psbt_electrum_builds_from_a_bare_zpub_is_not_signed_here() {
     use faraday_core::testkit::{self, Kit};
     let rooted = testkit::key(0, "m/84'/1'/0'");
     let account = rooted.split(']').nth(1).unwrap().to_string();
-    let own: osk_bip::bitcoin::bip32::Xpub = account.parse().unwrap();
+    let own: faraday_bip::bitcoin::bip32::Xpub = account.parse().unwrap();
     let kit_of = |descriptor: String| Kit {
         id: "spending",
         name: "Spending",

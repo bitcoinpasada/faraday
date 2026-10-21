@@ -1,6 +1,6 @@
 # The KDBX 4 format, as KeePass publishes it
 
-The two pages `core/osk-backup/src/kdbx.rs` and
+The two pages `core/faraday-backup/src/kdbx.rs` and
 `tools/backup/read-kdbx.py` were written against, copied here verbatim
 so that the writer can be read against the description it was built
 from, and so that a later change to the pages is visible as a change to

@@ -610,8 +610,8 @@ impl Faraday {
 
     /// Typing on the Tools page goes to Find a tool. Returns whether the
     /// key was taken.
-    pub(crate) fn catalog_key(&mut self, key: osk_shell_api::Key) -> bool {
-        use osk_shell_api::Key as K;
+    pub(crate) fn catalog_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
         if self.screen != Screen::Catalog {
             return false;
         }

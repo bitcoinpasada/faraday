@@ -1,13 +1,13 @@
 //! What a person sees and can do in the Starter (`docs/STARTER.md` §11):
 //! the shell's reports in, the frame's words and the Starter's commands out.
 
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 use faraday_starter::api::{
     Bus, Computer, DevImage, Disk, FaradayStick, InUse, Mode, Os, Payload, PayloadFile, Reason,
     Source, StarterCommand, StarterEvent, Volume,
 };
 use faraday_starter::decide::Target;
 use faraday_starter::{LearnId, Page, RestartTo, Sheet, Starter, StarterAction};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 const GB: u64 = 1_000_000_000;
 
@@ -782,7 +782,7 @@ fn transfer_is_the_desktop_apps_and_back_returns_to_home() {
         &mut starter,
         "Starting a Windows computer from the stick"
     ));
-    starter.event(Event::Key(osk_shell_api::Key::Escape));
+    starter.event(Event::Key(faraday_shell_api::Key::Escape));
     assert!(!starter.showing_held());
 }
 

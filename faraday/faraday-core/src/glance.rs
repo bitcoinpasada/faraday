@@ -17,8 +17,8 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_crypto::work::Compute;
-use osk_ui::{Color, tokens};
+use faraday_crypto::work::Compute;
+use faraday_draw::{Color, tokens};
 
 use crate::backup::Tone;
 use crate::drawing::View;
@@ -38,7 +38,7 @@ pub(crate) trait Reads {
     /// What loaded wallet `w`'s plan is for ([`Faraday::plan_shape_now`]).
     fn plan_shape(&self, w: usize) -> plan::Shape;
     /// The keys here that are held ([`Faraday::held_keys_now`]).
-    fn held_keys(&self) -> Vec<osk_bip::keys::Fingerprint>;
+    fn held_keys(&self) -> Vec<faraday_bip::keys::Fingerprint>;
     /// Every wallet known and where its backup is
     /// ([`Faraday::backups_now`]).
     fn backups(&self) -> Vec<crate::backups::Entry>;
@@ -115,7 +115,7 @@ impl Reads for Now<'_> {
     fn plan_shape(&self, w: usize) -> plan::Shape {
         self.app.plan_shape_now(w)
     }
-    fn held_keys(&self) -> Vec<osk_bip::keys::Fingerprint> {
+    fn held_keys(&self) -> Vec<faraday_bip::keys::Fingerprint> {
         self.app.held_keys_now(self.c)
     }
     fn backups(&self) -> Vec<crate::backups::Entry> {
@@ -1757,7 +1757,7 @@ fn check_boxes(ui: &mut Ui, x: f32, y: f32, w: f32, c: plan::Check, beside: bool
     let box_w = if side { col_w } else { w };
     // Each box's height, measured before it is drawn.
     let measure = |ui: &mut Ui, label: &str, value: &str| -> f32 {
-        ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+        ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
         let mut h = ui.wrap(
             0.0,
             0.0,

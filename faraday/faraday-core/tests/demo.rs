@@ -7,6 +7,7 @@
 
 mod common;
 
+use faraday_bip::keys::Network;
 use faraday_core::backup_flow::Kind;
 use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::create::NewKind;
@@ -18,9 +19,8 @@ use faraday_core::testkit::{self, Kit};
 use faraday_core::vanity::VanityAction as VA;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, bstep, cstep, demo, qstep};
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 use faraday_vault::records::kind;
-use osk_bip::keys::Network;
-use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 /// The demo's Learn page.
 const DEMO_PAGE: &str = "The demo and its public seeds";
@@ -791,7 +791,8 @@ fn opens_with(app: &mut Faraday, phrase: &str) -> bool {
 
 #[test]
 fn in_the_demo_a_vault_from_the_dice_opens_with_the_public_passphrase() {
-    let rolled = faraday_core::vaults::dice_words(ROLLS, osk_bip::diceware::List::Large).join("");
+    let rolled =
+        faraday_core::vaults::dice_words(ROLLS, faraday_bip::diceware::List::Large).join("");
     let mut app = app_on(true);
     make_vault(&mut app, None);
     assert!(!opens_with(&mut app, &rolled), "the rolled words open it");

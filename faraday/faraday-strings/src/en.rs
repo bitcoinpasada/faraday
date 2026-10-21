@@ -1429,7 +1429,7 @@ pub struct Strings {
     pub compact_about_this: &'static str,
     /// Text in `entry`. `{}`: `wl.name`.
     pub compact_for: &'static str,
-    /// Text in `entry`. `{}`: `fp_text(osk_bip::keys::Fingerprint(fp))`.
+    /// Text in `entry`. `{}`: `fp_text(faraday_bip::keys::Fingerprint(fp))`.
     pub compact_for_key: &'static str,
     /// Text in `entry`.
     pub compact_other_languages: &'static str,
@@ -2917,7 +2917,7 @@ pub struct Strings {
     pub keygen_the_two_passphrases: &'static str,
     /// Text in `keygen_lock`. `{}`: `self.new_keys + 1`.
     pub keygen_new_key_n: &'static str,
-    /// Text in `keygen_done`. `{}`: `crate::wallet::fp_text(osk_bip::keys:…`, `if k.slip39 { FEN.keygen_shares_inline } els…`.
+    /// Text in `keygen_done`. `{}`: `crate::wallet::fp_text(faraday_bip::keys:…`, `if k.slip39 { FEN.keygen_shares_inline } els…`.
     pub keygen_key_added_back: &'static str,
     /// Text in `keygen_done`.
     pub keygen_shares_inline: &'static str,
@@ -5175,7 +5175,7 @@ pub struct Strings {
     pub check_no_signed_message: &'static str,
     /// Text in `check_screen`. `{}`: `app.session.network().name()`.
     pub check_not_a_signed: &'static str,
-    /// Text in `check_screen`. `{}`: `if *f == osk_psbt::message::Format::B…`.
+    /// Text in `check_screen`. `{}`: `if *f == faraday_psbt::message::Format::B…`.
     pub check_the_signature_is: &'static str,
     /// Error in `check_screen`. `{}`: `e`.
     pub check_the_signature: &'static str,
@@ -5839,7 +5839,7 @@ pub struct Strings {
     pub entry_spend: &'static str,
     /// Text in `entry`.
     pub entry_wallets: &'static str,
-    /// Text in `entry`. `{}`: `fp_text(osk_bip::keys::Fingerprint(fp))`.
+    /// Text in `entry`. `{}`: `fp_text(faraday_bip::keys::Fingerprint(fp))`.
     pub entry_add_key: &'static str,
     /// Text in `entry`. `{}`: `name`.
     pub entry_add_a_key_for: &'static str,
@@ -6525,7 +6525,7 @@ pub struct Strings {
     pub silent_silent_payments_record: &'static str,
     /// Toast in `silent_act`.
     pub silent_no_vault_is: &'static str,
-    /// Text in `silent_act`. `{}`: `fp_text(osk_bip::keys::Fingerprint(fp))`.
+    /// Text in `silent_act`. `{}`: `fp_text(faraday_bip::keys::Fingerprint(fp))`.
     pub silent_silent_payments_scan: &'static str,
     /// Text in `silent_act`. `{}`: `title`.
     pub silent_is_in_the_vault: &'static str,
@@ -6535,7 +6535,7 @@ pub struct Strings {
     pub silent_whoever_has: &'static str,
     /// Toast in `silent_add_wallet`.
     pub silent_load_the_key: &'static str,
-    /// Text in `silent_add_wallet`. `{}`: `fp_text(osk_bip::keys::Fingerprint(fp))`.
+    /// Text in `silent_add_wallet`. `{}`: `fp_text(faraday_bip::keys::Fingerprint(fp))`.
     pub silent_silent_payments_n: &'static str,
     /// Text in `silent_add_wallet`.
     pub silent_silent_payments: &'static str,

@@ -1,6 +1,6 @@
 # chacha20poly1305
 
-**Purpose.** The AEAD behind `osk_crypto::Sealed` (`docs/PLANNING.md`
+**Purpose.** The AEAD behind `faraday_crypto::Sealed` (`docs/PLANNING.md`
 §5.1, §16.21): a loaded key's seed and words are encrypted in memory
 under the session key and decrypted only inside a closure.
 

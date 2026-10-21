@@ -1,0 +1,15 @@
+[package]
+name = "faraday-entropy"
+version = "0.1.0"
+description = "User-supplied entropy for OpenSignerKit: dice, coin flips and raw hex, with sanity checks; no_std, no alloc"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+faraday-crypto = { path = "../faraday-crypto" }
+zeroize.workspace = true
+
+[lints]
+workspace = true

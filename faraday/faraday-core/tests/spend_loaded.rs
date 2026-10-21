@@ -7,7 +7,7 @@ use faraday_core::family::{FamilyAction as F, Open, page};
 use faraday_core::testkit;
 use faraday_core::wallet::step;
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 fn kit(id: &str) -> testkit::Kit {
     testkit::kits().into_iter().find(|k| k.id == id).unwrap()

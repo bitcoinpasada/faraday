@@ -13,9 +13,9 @@
 //! map (batch B1b). Only places that keep a stick take part in the stick
 //! steps.
 
+use faraday_crypto::work::Compute;
 use faraday_vault::Record;
 use faraday_vault::records::kind as rkind;
-use osk_crypto::work::Compute;
 
 use crate::Faraday;
 use crate::flow;

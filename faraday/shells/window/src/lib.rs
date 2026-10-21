@@ -14,7 +14,7 @@ pub mod lens;
 pub mod pace;
 pub mod view;
 
-use osk_shell_api::{EntropyBytes, Event};
+use faraday_shell_api::{EntropyBytes, Event};
 
 /// Fresh entropy for the app, when the system has it.
 pub fn entropy() -> Option<Event> {

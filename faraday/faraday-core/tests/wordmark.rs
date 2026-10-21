@@ -3,8 +3,8 @@
 
 use faraday_core::ui::pal::{DIM, TEXT};
 use faraday_core::ui::{NameSuffix, Ui};
-use osk_shell_api::{BootState, DisplayInfo, SecureHardware};
-use osk_ui::canvas::Canvas;
+use faraday_draw::canvas::Canvas;
+use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
 
 /// The width of the name drawn with `suffix`, and how many pixels of the
 /// canvas to its right changed from the background.
@@ -24,7 +24,7 @@ fn drawn(suffix: NameSuffix) -> (f32, usize) {
     let mut hits = Vec::new();
     let width = {
         let mut ui = Ui::new(&mut canvas, 1.0, &mut hits, None);
-        ui.clear(osk_ui::Color::rgb(255, 255, 255));
+        ui.clear(faraday_draw::Color::rgb(255, 255, 255));
         ui.wordmark_named(10.0, 20.0, 40.0, TEXT, suffix)
     };
     let frame = canvas.frame();
@@ -43,7 +43,7 @@ fn drawn(suffix: NameSuffix) -> (f32, usize) {
         });
         let mut h2 = Vec::new();
         let mut ui = Ui::new(&mut c2, 1.0, &mut h2, None);
-        ui.clear(osk_ui::Color::rgb(255, 255, 255));
+        ui.clear(faraday_draw::Color::rgb(255, 255, 255));
         let w = ui.wordmark_named(10.0, 20.0, 40.0, TEXT, NameSuffix::None);
         (w, 10 + w as usize)
     };

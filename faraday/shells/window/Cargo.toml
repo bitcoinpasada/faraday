@@ -11,7 +11,7 @@ publish = false
 [dependencies]
 faraday-core = { path = "../../faraday-core" }
 faraday-scanner = { path = "../../faraday-scanner" }
-osk-shell-api = { path = "../../../core/osk-shell-api" }
+faraday-shell-api = { path = "../../../core/faraday-shell-api" }
 winit.workspace = true
 softbuffer.workspace = true
 getrandom.workspace = true
@@ -19,10 +19,10 @@ getrandom.workspace = true
 # The webcam, as upstream's desktop shell reads it (camera.rs is a copy
 # of opensigner/shells/desktop/src/camera.rs at c418768).
 [target.'cfg(target_os = "linux")'.dependencies]
-opensigner-v4l2 = { path = "../../../opensigner/shells/v4l2" }
+faraday-v4l2 = { path = "../../../faraday/shells/v4l2" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-opensigner-avfoundation = { path = "../../../opensigner/shells/avfoundation" }
+faraday-avfoundation = { path = "../../../faraday/shells/avfoundation" }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 faraday-mediafoundation = { path = "../mediafoundation" }

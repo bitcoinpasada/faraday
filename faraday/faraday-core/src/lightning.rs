@@ -1,18 +1,18 @@
 //! A Lightning node's key (`docs/OPENSIGNER-PARITY.md` plan C3): from a
 //! loaded key, read the way ldk-node reads a BIP-39 seed, or from an LND
-//! cipher seed (aezeed) typed here. The arithmetic is `osk-bip::aezeed`'s,
+//! cipher seed (aezeed) typed here. The arithmetic is `faraday-bip::aezeed`'s,
 //! as OpenSigner's own Lightning tool uses it. The node's public key is
 //! public; its private key is a secret, into the vault or out only
 //! through the secret sheet.
 
 use crate::strings::fill;
 use crate::strings::{EN, fill_secret};
+use faraday_bip::aezeed;
+use faraday_bip::bip39::Language;
+use faraday_crypto::Secret;
+use faraday_crypto::work::Compute;
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
-use osk_bip::aezeed;
-use osk_bip::bip39::Language;
-use osk_crypto::Secret;
-use osk_crypto::work::Compute;
 use zeroize::Zeroizing;
 
 use crate::{Faraday, Screen};
@@ -60,7 +60,7 @@ pub struct LightningState {
 /// that `key` is, its public key worked out from the private one.
 fn node_of(
     c: &Compute,
-    key: &osk_bip::keys::DerivedKey,
+    key: &faraday_bip::keys::DerivedKey,
     birthday: Option<(i32, u32, u32)>,
 ) -> Node {
     let public = key.to_xpub(c).public_key.serialize();
@@ -224,8 +224,8 @@ impl Faraday {
 
     /// Typing the aezeed and its passphrase. Returns whether the key was
     /// taken.
-    pub(crate) fn lightning_key(&mut self, key: osk_shell_api::Key) -> bool {
-        use osk_shell_api::Key as K;
+    pub(crate) fn lightning_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
         if self.screen != Screen::Lightning {
             return false;
         }

@@ -7,9 +7,9 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_bip::keys::Fingerprint;
-use osk_crypto::work::Compute;
-use osk_shell_api::Command;
+use faraday_bip::keys::Fingerprint;
+use faraday_crypto::work::Compute;
+use faraday_shell_api::Command;
 
 use crate::plan::{At, What};
 use crate::wallet::{Session, fp_text};

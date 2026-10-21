@@ -12,6 +12,7 @@
 mod common;
 
 use common::{files_at, put, vault_stick};
+use faraday_bip::keys::Fingerprint;
 use faraday_core::backup::{Kept, Tone};
 use faraday_core::board::{Thing, Zone};
 use faraday_core::seeds::SeedsAction as S;
@@ -19,9 +20,8 @@ use faraday_core::testkit;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, bstep};
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 use faraday_vault::records::kind;
-use osk_bip::keys::Fingerprint;
-use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 /// Test key 2: the test vault holds test key 1 only.
 const SEED: usize = 1;

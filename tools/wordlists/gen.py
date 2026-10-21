@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Generate the embedded BIP-39 wordlists and Mandarin readings for osk-bip.
+"""Generate the embedded BIP-39 wordlists and Mandarin readings for faraday-bip.
 
 Downloads the ten official wordlists from the BIP repository, verifies them,
-and writes one Rust module per language to core/osk-bip/src/wordlists/.
+and writes one Rust module per language to core/faraday-bip/src/wordlists/.
 Each module contains:
 
   SHA256          hex SHA-256 of the source file bytes. The script checks
@@ -28,7 +28,7 @@ Words whose NFC form differs from the stored form are written with \\u{}
 escapes so that editors which normalize on save cannot alter them.
 
 It also downloads the Unicode Han Database and writes
-core/osk-bip/src/wordlists/readings.rs: every Mandarin reading of every
+core/faraday-bip/src/wordlists/readings.rs: every Mandarin reading of every
 character in the two Chinese lists, in both the spellings the two Chinese
 keyboards type — Hanyu Pinyin and 注音 (bopomofo).
 
@@ -58,7 +58,7 @@ LANGUAGES = [
     "portuguese",
 ]
 BASE_URL = "https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/"
-OUT_DIR = Path("core/osk-bip/src/wordlists")
+OUT_DIR = Path("core/faraday-bip/src/wordlists")
 
 # The Unicode Han Database, from which every hanzi's Mandarin readings come.
 # Pinned by digest: a reading that changed under us would silently change

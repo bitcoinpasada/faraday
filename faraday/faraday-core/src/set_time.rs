@@ -5,7 +5,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_shell_api::Key as KeyIn;
+use faraday_shell_api::Key as KeyIn;
 
 use crate::vaults::TextBox;
 use crate::{Faraday, Screen, Sheet};

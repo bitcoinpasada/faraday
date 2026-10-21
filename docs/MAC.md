@@ -233,7 +233,7 @@ A new board, `faraday/image/boards/arm64-apple/`, beside
   image), `APPLE_DCP` and the GPU, the camera ISP, `EFIVAR_FS`, the
   vendor HID drivers.
 - **The app:** `aarch64-unknown-linux-musl`, static, built as the PC
-  stick's is. `osk-crypto`'s `pinned.rs` takes the page size from
+  stick's is. `faraday-crypto`'s `pinned.rs` takes the page size from
   `sysconf(_SC_PAGESIZE)` on Linux where it is a constant today, so a
   16K kernel pins whole pages. The stick shell's `cfg!(target_arch =
   "arm")` that means "the Pi" stays true only for 32-bit ARM; aarch64
@@ -465,7 +465,7 @@ is built or tested in this repository.
   arm64), macOS 11 or later, in `Faraday Desktop.app` with
   `NSCameraUsageDescription`. Ad-hoc signed, not notarized (owner, F13,
   for the reason F11 gives for Windows). Not released (F30).
-- Changes: the camera through `opensigner-avfoundation`, which the tree
+- Changes: the camera through `faraday-avfoundation`, which the tree
   carries; `memory_available_mib` from `sysctl hw.memsize` where it
   reads `/proc/meminfo`; folders opened with `open` where `xdg-open` is
   used; `HOME` as on Linux (`~/faraday-sticks`, `~/Downloads`). `faraday-grant`

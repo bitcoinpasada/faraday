@@ -11,8 +11,8 @@
 
 use std::time::Instant;
 
+use faraday_crypto::work::Compute;
 use faraday_vault::{Cost, Error, Header, SLOT_SIZES, derive};
-use osk_crypto::work::Compute;
 
 const PRESETS: [(&str, u32, u32); 4] = [
     ("Light", 64, 3),

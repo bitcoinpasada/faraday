@@ -2,8 +2,8 @@
 //! OpenSigner's codec (`docs/QR.md`): BBQr, numbered text parts, the
 //! Faraday file envelope and the UR registry's key and wallet types. UR
 //! itself (single and fountain-coded, `crypto-psbt` and `bytes`, and a
-//! single part of any type, `osk_codec::ur::encode_single`) stays
-//! `osk-codec`'s; [`send`] makes the codes a thing is sent as, in every
+//! single part of any type, `faraday_codec::ur::encode_single`) stays
+//! `faraday-codec`'s; [`send`] makes the codes a thing is sent as, in every
 //! format a Faraday app offers.
 //!
 //! [`Assembler`] takes each scanned text in turn and says what it was: a
@@ -163,7 +163,7 @@ pub fn transaction_hex(text: &str) -> Option<Vec<u8>> {
         .step_by(2)
         .map(|i| u8::from_str_radix(&t[i..i + 2], 16).ok())
         .collect::<Option<_>>()?;
-    osk_bip::bitcoin::consensus::deserialize::<osk_bip::bitcoin::Transaction>(&bytes)
+    faraday_bip::bitcoin::consensus::deserialize::<faraday_bip::bitcoin::Transaction>(&bytes)
         .ok()
         .map(|_| bytes)
 }

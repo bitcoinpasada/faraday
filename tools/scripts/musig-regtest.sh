@@ -9,7 +9,7 @@
 # nonce on it.
 #
 #   tools/scripts/musig-regtest.sh setup <datadir>
-#   cargo run -p osk-psbt --example musig -- tools/vectors/psbt
+#   cargo run -p faraday-psbt --example musig -- tools/vectors/psbt
 #   tools/scripts/musig-regtest.sh finish <datadir> <signed.psbt>
 #   tools/scripts/musig-regtest.sh answer <datadir> <nonce.psbt>
 #   tools/scripts/musig-regtest.sh accept <datadir> <signed.psbt>

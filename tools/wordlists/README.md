@@ -2,7 +2,7 @@
 
 `gen.py` downloads the ten official wordlists from
 `https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/<name>.txt`
-and writes one Rust module per language to `core/osk-bip/src/wordlists/`.
+and writes one Rust module per language to `core/faraday-bip/src/wordlists/`.
 The generated modules are committed; building the crates never touches the
 network.
 
@@ -26,7 +26,7 @@ reads it; `word` and `word_nfkd` are unchanged.
 The script also downloads the Unicode Han Database
 (`https://www.unicode.org/Public/16.0.0/ucd/Unihan.zip`, pinned by
 SHA-256 in the script) and writes
-`core/osk-bip/src/wordlists/readings.rs` from `kMandarin`, `kXHC1983`
+`core/faraday-bip/src/wordlists/readings.rs` from `kMandarin`, `kXHC1983`
 and `kTGHZ2013`: the readings two modern dictionaries list for each of
 the 2,821 characters in the union of the two Chinese lists. The Hanyu
 Da Zidian's historical readings (`kHanyuPinyin`) are left out: nobody
@@ -49,7 +49,7 @@ To regenerate, from the repository root:
 
     just wordlists        # or: python3 tools/wordlists/gen.py && cargo fmt --all
 
-Then run `just test`: `core/osk-bip/tests/wordlists.rs` re-hashes the
+Then run `just test`: `core/faraday-bip/tests/wordlists.rs` re-hashes the
 embedded words and compares against `SHA256`, `tests/crosscheck.rs`
 compares every word against the `bip39` crate, and `tests/readings.rs`
 checks the readings and the composed forms.

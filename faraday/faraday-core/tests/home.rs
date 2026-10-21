@@ -7,11 +7,11 @@
 //! went before.
 
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent};
-use osk_shell_api::{App, Command, DisplayInfo, Event, TouchPhase};
+use faraday_shell_api::{App, Command, DisplayInfo, Event, TouchPhase};
 
 fn shown() -> Faraday {
     let mut app = Faraday::new();
-    app.event(osk_shell_api::Event::Display(DisplayInfo {
+    app.event(faraday_shell_api::Event::Display(DisplayInfo {
         width: 1366,
         height: 768,
         dpi: 160,
@@ -19,8 +19,8 @@ fn shown() -> Faraday {
         inset_top: 0,
         buttons: 0,
         camera_fixed: false,
-        secure: osk_shell_api::SecureHardware::None,
-        boot: osk_shell_api::BootState::Unknown,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
         memory_mib: None,
     }));
     let _ = app.frame();
@@ -549,7 +549,7 @@ fn home_lead_rule_5_reads_what_the_vault_held_when_last_seen_open() {
     });
     app.press(Action::Vault(V::Open(0)));
     for c in faraday_core::testkit::VAULT_PASSPHRASES[0].chars() {
-        app.event(Event::Key(osk_shell_api::Key::Char(c)));
+        app.event(Event::Key(faraday_shell_api::Key::Char(c)));
     }
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
@@ -666,7 +666,7 @@ fn home_lead_rule_6_a_vault_changed_since_written_offers_to_write_it() {
         .unwrap();
     app.press(Action::Vault(V::Open(0)));
     for c in faraday_core::testkit::VAULT_PASSPHRASES[0].chars() {
-        app.event(Event::Key(osk_shell_api::Key::Char(c)));
+        app.event(Event::Key(faraday_shell_api::Key::Char(c)));
     }
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
@@ -749,8 +749,8 @@ fn the_small_home_offers_backups_once_a_wallet_is_known() {
             inset_top: 0,
             buttons: 0,
             camera_fixed: false,
-            secure: osk_shell_api::SecureHardware::None,
-            boot: osk_shell_api::BootState::Unknown,
+            secure: faraday_shell_api::SecureHardware::None,
+            boot: faraday_shell_api::BootState::Unknown,
             memory_mib: None,
         }));
         let _ = app.frame();

@@ -15,10 +15,10 @@
 //! The whole struct is zeroized on drop. This file is listed in
 //! `tools/lint-secrets.sh` and may hold no heap text.
 
-use osk_bip::bip39::{self, Language, Script, Typed};
-use osk_bip::kana;
-use osk_bip::slip39;
-use osk_ui::widgets::keyboard::{self, KeyMask, KeyboardKind};
+use faraday_bip::bip39::{self, Language, Script, Typed};
+use faraday_bip::kana;
+use faraday_bip::slip39;
+use faraday_draw::widgets::keyboard::{self, KeyMask, KeyboardKind};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// The list a word entry runs over: one of BIP-39's ten, or SLIP-39's
@@ -54,7 +54,7 @@ impl EntryList {
     /// How many words the list holds.
     pub fn word_count(self) -> u16 {
         match self {
-            EntryList::Bip39(_) => osk_bip::wordlists::WORDLIST_LEN as u16,
+            EntryList::Bip39(_) => faraday_bip::wordlists::WORDLIST_LEN as u16,
             EntryList::Slip39 => slip39::WORDLIST_LEN as u16,
         }
     }
@@ -134,7 +134,7 @@ const MAX_CANDIDATES: usize = 8;
 /// ten at the keyboard's key pitch, which is the largest tone group
 /// either Chinese list has (`docs/PLANNING.md` §16.44, §16.45).
 const MAX_CANDIDATES_HANZI: usize =
-    osk_ui::tokens::CANDIDATE_ROWS_HANZI * osk_ui::tokens::CANDIDATE_CELLS_HANZI;
+    faraday_draw::tokens::CANDIDATE_ROWS_HANZI * faraday_draw::tokens::CANDIDATE_CELLS_HANZI;
 
 /// A SLIP-39 share's two word counts, in the order a screen lists
 /// them: 20 words carry a 128-bit master secret, 33 a 256-bit one.
@@ -258,7 +258,7 @@ impl WordEntry {
     /// Any other count is 12.
     pub fn new(lang: Language, count: u8) -> Self {
         WordEntry {
-            count: if osk_entropy::WORD_COUNTS.contains(&count) {
+            count: if faraday_entropy::WORD_COUNTS.contains(&count) {
                 count
             } else {
                 12
@@ -626,7 +626,7 @@ fn last_word_mask(first_words: &[u16]) -> [u64; 32] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use osk_bip::bip39::Mnemonic;
+    use faraday_bip::bip39::Mnemonic;
 
     fn type_word(w: &mut WordEntry, word: &str) {
         for c in word.chars() {

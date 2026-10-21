@@ -8,11 +8,11 @@
 //!
 //! Nothing here is a secret. The scan private key a check needs is
 //! derived from the loaded key where the check runs and is dropped with
-//! the [`osk_bip::silent::Receiver`] that held it, so this file holds
+//! the [`faraday_bip::silent::Receiver`] that held it, so this file holds
 //! only a transaction, its previous outputs and the answer.
 
-use osk_bip::bitcoin::{Amount, ScriptBuf, Transaction, Txid};
-use osk_psbt::transaction::Spending;
+use faraday_bip::bitcoin::{Amount, ScriptBuf, Transaction, Txid};
+use faraday_psbt::transaction::Spending;
 
 /// One output of a checked transaction that pays this wallet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -2,11 +2,11 @@
 //! make and the file's name. The sheet is `faraday-core`'s own blank sheet
 //! with no wallet; nothing here holds or asks for a key or a seed.
 
+use faraday_bip::keys::Network;
 pub use faraday_core::backup::BlankCopy as Copy;
 use faraday_core::backup::sheet_blank;
 use faraday_core::pdf;
-use osk_bip::keys::Network;
-use osk_crypto::work::Compute;
+use faraday_crypto::work::Compute;
 
 use crate::api::Reason;
 

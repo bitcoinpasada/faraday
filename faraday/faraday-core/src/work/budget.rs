@@ -22,8 +22,8 @@ mod scaling;
 #[global_allocator]
 static ALLOC: faraday_alloc_count::Counting = faraday_alloc_count::Counting;
 
-use osk_crypto::work::Compute;
-use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
+use faraday_crypto::work::Compute;
+use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 use super::{Counts, KINDS, Work, since, snapshot};
 use crate::backup_flow::{BackupFlow, Kind, Plan, Step, Written};

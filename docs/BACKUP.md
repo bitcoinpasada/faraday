@@ -1,4 +1,4 @@
-# `osk-backup`: the file this device encrypts things into
+# `.oskb`: the file OpenSigner encrypts things into
 
 One container holds everything OpenSigner encrypts under a passphrase a
 person types: a key's words, a master seed, a note, a wallet's recovery
@@ -6,7 +6,7 @@ sheet. One spec, one reference decryptor
 (`tools/backup/decrypt.py`), one decrypt path to audit.
 
 This file is the format. The implementation is
-`core/osk-backup/src/oskb.rs`; where the two disagree,
+`core/faraday-backup/src/oskb.rs`; where the two disagree,
 this file is what a second implementation is written against, and the
 vectors under `tools/vectors/backup/` settle it.
 
@@ -162,7 +162,7 @@ The format is KeePass's own and is not restated here. It is specified at
 <https://keepass.info/help/kb/kdbx_4.html>; both pages are copied into
 `tools/reference/kdbx4/` with the date they were fetched and their
 SHA-256, and the implementation is
-`core/osk-backup/src/kdbx.rs`.
+`core/faraday-backup/src/kdbx.rs`.
 
 What this device puts in one:
 
@@ -189,13 +189,13 @@ them:
 | a note | the note's first line, or `Note` where it starts blank | empty | the note |
 | a recovery sheet | the wallet's name | empty | the descriptor and the sheet's note, under the headings the plain export uses |
 
-The Argon2id cost is the same one `osk-backup` is written at, so the two
+The Argon2id cost is the same one an `.oskb` file is written at, so the two
 forms of one export cost a guess the same, and a KeePass app pays what
-this device paid. Every file is offered as `opensigner.kdbx`, as an `osk-backup` file is offered one name, so a file says nothing about what it holds; the entry's title inside carries the fingerprint, the note's first line or the wallet's name.
+this device paid. Every file is offered as `opensigner.kdbx`, as an `.oskb` file is offered one name, so a file says nothing about what it holds; the entry's title inside carries the fingerprint, the note's first line or the wallet's name.
 
 Two things about the text. A KDBX document is XML, so the five markup
 characters are escaped and a control character XML has no representation
-for is dropped; an `osk-backup` file is the lossless form. And the inner
+for is dropped; an `.oskb` file is the lossless form. And the inner
 random stream is KeePass's process-memory protection, not part of the
 file's security, which is the passphrase, Argon2id, ChaCha20 and the
 HMACs.

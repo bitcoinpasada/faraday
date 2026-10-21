@@ -5,7 +5,7 @@
 //! never rises by itself, and its keys type what physical keys would.
 
 use faraday_core::{Action, Faraday, OskPress, Screen};
-use osk_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
 
 const W: u16 = 1280;
 const H: u16 = 800;

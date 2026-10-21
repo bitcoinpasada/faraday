@@ -6,7 +6,7 @@
 //! `&Faraday` and cannot. The token notes its work with this crate's
 //! counter ([`crate::work`]).
 
-use osk_crypto::work::Compute;
+use faraday_crypto::work::Compute;
 
 use crate::Faraday;
 

@@ -11,7 +11,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use osk_ui::widgets::Icon;
+use faraday_draw::widgets::Icon;
 
 use crate::Action;
 use crate::ui::Disclosure;
@@ -238,7 +238,7 @@ pub fn column_foot(
         };
         let body_h = if card.open {
             let mark = ui.hits.len();
-            ui.c.push_clip(osk_ui::Rect::new(0, 0, 0, 0));
+            ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
             let bh = draw_open(ui);
             ui.c.pop_clip();
             ui.hits.truncate(mark);
