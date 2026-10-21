@@ -24,4 +24,4 @@ Before you sign, read every output. Confirm that the destination address and amo
 
 When Faraday cannot confirm something, the review shows a warning under the transaction. A danger is in red: an input whose value cannot be checked, a signature type that does not cover the outputs, a fee out of all proportion to the amount. Change it cannot rebuild from a loaded wallet is marked Unverified.
 
-DO NOT SIGN PAST A WARNING YOU CANNOT EXPLAIN. Go back to your coordinator and find out why.
+A warning you cannot explain is a reason not to sign. Go back to your coordinator and find out why.

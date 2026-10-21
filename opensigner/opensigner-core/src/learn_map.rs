@@ -30,7 +30,6 @@ use osk_bip::policy::Template;
 pub(crate) enum Topic {
     StartHere,
     Words,
-    Devices,
     Transactions,
     Randomness,
     WhereRandomness,
@@ -60,10 +59,9 @@ pub(crate) enum Topic {
 impl Topic {
     /// Every topic. Order does not matter: a topic finds its page by
     /// identity, not by its place here.
-    const ALL: [Topic; 27] = [
+    const ALL: [Topic; 26] = [
         Topic::StartHere,
         Topic::Words,
-        Topic::Devices,
         Topic::Transactions,
         Topic::Randomness,
         Topic::WhereRandomness,
@@ -95,7 +93,6 @@ impl Topic {
         match self {
             Topic::StartHere => &s.learn.start_here,
             Topic::Words => &s.learn.words,
-            Topic::Devices => &s.learn.devices,
             Topic::Transactions => &s.learn.transactions,
             Topic::Randomness => &s.learn.randomness,
             Topic::WhereRandomness => &s.learn.where_randomness,
@@ -428,7 +425,7 @@ impl OpenSigner {
             // Two transactions compared is a check on what a signer
             // did, which is the page about nonces (§16.111).
             Screen::CompareTx => page(Topic::Nonces),
-            Screen::Settings | Screen::About | Screen::Tiers => page(Topic::Devices),
+            Screen::Settings | Screen::About | Screen::Tiers => page(Topic::AirGap),
             Screen::Sign => self.sign_target(),
             // A read transaction's own Signatures page is about the
             // same thing the signed one's is.

@@ -1628,7 +1628,7 @@ cards, keeping what each checked; none is deleted.
 
 `docs/WALLETS.md` §5 (the questions), `docs/NEW-WALLET.md` §5.2 (marked
 "Changed by BACKUP-FLOW §17"), `docs/DESIGN.md` §4.2's "Used for".
-`docs/learn/07-backups.md` is OpenSigner's page as forked: leave it, and say in the
+`docs/learn/06-backups.md` is OpenSigner's page as forked: leave it, and say in the
 report what in it no longer matches.
 
 ### 17.6 A share in a vault

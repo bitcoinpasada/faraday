@@ -110,7 +110,7 @@ A coin being created: an address and an amount.
 
 ## Passphrase
 
-Extra text added to the seed words that produces a different key. Nothing stores it unless you keep it in a vault.
+Extra text added to the seed words that produces a different key. Nothing stores it unless you keep it in a vault, which is best a different vault from its seed.
 
 ## Policy
 

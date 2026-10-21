@@ -37,3 +37,21 @@ fn the_backups_list_names_the_page_on_a_backup_plans_check_after_backups() {
     app.press(Action::LearnPage(1));
     assert_eq!(shown(&app), "A backup plan's check");
 }
+
+#[test]
+fn settings_names_where_keys_are_kept() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(faraday_core::Screen::Settings));
+    app.press(Action::Learn);
+    assert_eq!(app.sheet, Some(Sheet::Learn));
+    assert_eq!(shown(&app), "Where keys are kept");
+}
+
+#[test]
+fn the_vaults_screen_names_the_vaults_page() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(faraday_core::Screen::Vaults));
+    app.press(Action::Learn);
+    assert_eq!(app.sheet, Some(Sheet::Learn));
+    assert_eq!(shown(&app), "Vaults");
+}

@@ -28,21 +28,21 @@ Faraday reads and writes it. Add a key › Type a codex32 secret takes a string,
 
 Seed XOR splits a key into parts that are themselves ordinary seed phrases, and every part is needed. It has no threshold: two parts of a three-part split are worth nothing. In exchange it is simple enough to do with pencil and paper from the wordlist numbers, and any wallet can read a part. Seed XOR has its own page.
 
-## Encrypted backup
+## A vault
 
-An encrypted backup is a file or QR code holding your words under a passphrase you choose. It is not a split at all: it is one copy that can be stored where a readable copy could not be. Its weak point is the passphrase, which is now a second thing to keep and a second thing to lose. Encrypted backups has its own page.
+A vault is a file on a stick holding your words encrypted under a passphrase you choose. It is not a split at all: it is one copy that can be stored where a readable copy could not be. Its weak point is the passphrase, which is now a second thing to keep and a second thing to lose. Vaults has its own page.
 
 ## Which one
 
 If the problem is that a copy may be destroyed, more copies solve it, and no scheme on this page is needed. Two places, two copies.
 
-If the problem is that a copy may be found, a passphrase or an encrypted backup solves it with one extra secret to keep. A threshold scheme solves it with n places to keep instead of one, and m of them to visit before you can spend.
+If the problem is that a copy may be found, a passphrase or a vault solves it with one extra secret to keep. A threshold scheme solves it with n places to keep instead of one, and m of them to visit before you can spend.
 
 If the problem is that you want no single person or place to be able to act alone, a threshold over the backup is the wrong tool and a multisig or FROST wallet is the right one: those keep the coins under several keys all the time, rather than putting them back under one key whenever you spend.
 
 ## What this device reads today
 
-Faraday writes and reads Seed XOR parts, reads OpenSigner's encrypted backup into a vault, and reads and writes BIP-39 words as every wallet does.
+Faraday writes and reads Seed XOR parts, keeps words in vaults, reads an OpenSigner backup into a vault, and reads and writes BIP-39 words as every wallet does.
 
 It reads and writes SLIP-39 shares. Add a key › Type SLIP-39 shares loads the key a backup's shares hold, under its passphrase if it has one, groups and all. Add a key › Make SLIP-39 shares makes a new key and writes it as one group of shares: you choose how many shares there are and how many are needed, and Faraday shows every share in turn with the quiz.
 

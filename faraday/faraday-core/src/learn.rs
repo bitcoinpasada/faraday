@@ -9,7 +9,8 @@ use osk_learn::{EN, Page as LearnPage};
 use faraday_learn::known;
 pub use faraday_learn::{
     GUIDES, MAKERS, Maker, apk_key_page, backup_plan_check_page, demo_page, gpg_page,
-    guide_address, guide_id, maker, page, shares_page, time_page, upgrade_page,
+    guide_address, guide_id, keys_kept_page, maker, page, shares_page, time_page, upgrade_page,
+    vaults_page,
 };
 
 use crate::create::NewKind;
@@ -149,27 +150,38 @@ impl Faraday {
                     ]
                 }
             }
-            Screen::Backups => vec![&EN.backups, backup_plan_check_page(), &EN.encrypted_backups],
+            Screen::Backups => vec![&EN.backups, backup_plan_check_page(), vaults_page()],
             Screen::Restore => vec![&EN.backups, backup_plan_check_page(), &EN.inheritance],
             Screen::Message | Screen::CheckMessage => vec![&EN.message],
             Screen::Files | Screen::Visit => vec![&EN.air_gap, &EN.coordinators],
             // An APK signing key's page, and the form that makes one, name
             // the page about it (`docs/APK-SIGNING.md` §10).
+            // An OpenSigner backup being read into the vault names the
+            // page about OpenSigner's backups first.
+            Screen::VaultContents
+                if self
+                    .vaults
+                    .prompt
+                    .as_ref()
+                    .is_some_and(|p| matches!(p.purpose, crate::vaults::Purpose::Backup(_))) =>
+            {
+                vec![&EN.encrypted_backups, vaults_page(), &EN.passphrases]
+            }
             Screen::VaultContents if self.vaults.category == 6 => {
-                vec![apk_key_page(), &EN.encrypted_backups, &EN.passphrases]
+                vec![apk_key_page(), vaults_page(), &EN.passphrases]
             }
             Screen::VaultContents if self.vaults.category == 4 => {
-                vec![gpg_page(), &EN.encrypted_backups, &EN.passphrases]
+                vec![gpg_page(), vaults_page(), &EN.passphrases]
             }
             Screen::Vaults
             | Screen::CreateVault
             | Screen::Unlock
             | Screen::BackupFlow
             | Screen::VaultContents => {
-                vec![&EN.encrypted_backups, &EN.passphrases]
+                vec![vaults_page(), &EN.passphrases]
             }
-            Screen::Settings if self.online => vec![&EN.secure_element, &EN.glossary],
-            Screen::Settings => vec![&EN.secure_element, &EN.glossary, upgrade_page()],
+            Screen::Settings if self.online => vec![keys_kept_page(), &EN.glossary],
+            Screen::Settings => vec![keys_kept_page(), &EN.glossary, upgrade_page()],
             Screen::SetTime | Screen::Codes => vec![time_page()],
             // A stick can also be replaced from a computer, keeping its
             // data (`docs/STARTER.md` §4.4); a Pi card cannot yet (§3.3).

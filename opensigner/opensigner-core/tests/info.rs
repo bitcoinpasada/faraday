@@ -101,11 +101,11 @@ fn every_list_opens_the_page_for_what_it_holds() {
     info_and_back(&mut h, &EN.learn.tools);
 
     h.open_settings();
-    info_and_back(&mut h, &EN.learn.devices);
+    info_and_back(&mut h, &EN.learn.air_gap);
 
     h.tap(ids::SETTINGS_ABOUT_ROW);
     assert_eq!(h.app.screen(), ScreenKind::About);
-    info_and_back(&mut h, &EN.learn.devices);
+    info_and_back(&mut h, &EN.learn.air_gap);
 
     h.open_tile(TILE_SCAN);
     assert_eq!(h.app.screen(), ScreenKind::Scan);

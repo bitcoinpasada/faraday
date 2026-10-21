@@ -28,7 +28,7 @@ pub use sketch::{Sketch, is_marker};
 /// (`docs/learn/faraday/boot/*.md`) are `faraday-guides`' own table, not
 /// this one, except `replace-faraday`, which the stick's Upgrade screen
 /// shows directly ([`known`]).
-const OWN: [(&str, &str); 9] = [
+const OWN: [(&str, &str); 11] = [
     // Upgrading a stick from another stick (`PLAN.md` §5.5).
     (
         "upgrade-a-stick",
@@ -64,6 +64,16 @@ const OWN: [(&str, &str); 9] = [
     (
         "extra-copies",
         include_str!("../../../docs/learn/faraday/extra-copies.md"),
+    ),
+    // Where keys are kept: memory, vaults, the idle lock (F58).
+    (
+        "keys-kept",
+        include_str!("../../../docs/learn/faraday/keys-kept.md"),
+    ),
+    // Vaults (`docs/VAULT.md`, F62).
+    (
+        "vaults",
+        include_str!("../../../docs/learn/faraday/vaults.md"),
     ),
 ];
 
@@ -334,6 +344,16 @@ pub fn extra_copies_page() -> &'static LearnPage {
 /// "The demo and its public seeds".
 pub fn demo_page() -> &'static LearnPage {
     known("demo")
+}
+
+/// "Where keys are kept".
+pub fn keys_kept_page() -> &'static LearnPage {
+    known("keys-kept")
+}
+
+/// "Vaults".
+pub fn vaults_page() -> &'static LearnPage {
+    known("vaults")
 }
 
 /// "The APK signing key".

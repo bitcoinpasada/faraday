@@ -16,7 +16,7 @@ It is the cheapest arrangement to hold, to explain and to recover: seed words, a
 
 The wallet names n keys and requires m of them to sign. A 2-of-3 survives one stolen key and one lost backup. The script lists all n public keys, and spending reveals the script and puts m signatures on the chain, so anyone reading the block sees that it was a 2-of-3 and sees the three keys.
 
-Every coordinator supports this arrangement, and it has the most software behind it. It needs the wallet description as well as the keys: without it, the keys alone do not find the funds. The Multisig page covers this kind in full.
+Every coordinator supports this arrangement, and it has the most software behind it. It needs the wallet description as well as the keys. With every key, and the script type and path known, a lost description can be rebuilt, as Faraday's Restore does; with only enough seeds to sign, it cannot, and those seeds alone do not find the funds. The Multisig page covers this kind in full.
 
 ## Taproot multisig
 

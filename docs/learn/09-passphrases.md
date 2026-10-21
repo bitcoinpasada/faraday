@@ -16,7 +16,7 @@ The only sign that you typed it wrong is that the addresses are not the ones you
 
 Nothing stores the passphrase unless you keep it in a vault. It cannot be reset, recovered, or guessed. If you forget it, the seed words alone lead to a different, empty wallet.
 
-IF YOU LOSE YOUR PASSPHRASE, THE FUNDS UNDER IT ARE GONE FOREVER, BACKUP OR NO BACKUP.
+A lost passphrase loses the funds under it for good, whatever backup of the words there is.
 
 ## Rolling one with dice
 
@@ -34,6 +34,6 @@ A rolled passphrase is text like any other. Create a vault uses it as the vault'
 
 Write it down exactly, spaces and capitals included, and read it back before you use it for real. Keep it apart from the seed words, so that whoever finds one does not have both. That separation is the point of a passphrase: a stolen backup of the words alone is useless.
 
-A vault can keep a seed's passphrase with the seed, and unlocking the vault then loads the key the two give. Kept that way, the passphrase is behind the vault's passphrase rather than apart from the words. A seed kept in a vault without its passphrase loads with Load with a passphrase, which asks for it each time and stores nothing.
+A vault can keep a seed's passphrase with the seed, and unlocking the vault then loads the key the two give. Kept that way, the passphrase is behind the vault's passphrase rather than apart from the words, and whoever opens that vault has the key. A passphrase kept in a vault belongs in a different vault from its seed, at another place. Faraday's backup plan warns when a seed and its passphrase are at the same place. A seed kept in a vault without its passphrase loads with Load with a passphrase, which asks for it each time and stores nothing.
 
 Make sure that whoever is meant to inherit the funds can find both halves. See the Inheritance page.

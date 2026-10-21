@@ -29,7 +29,7 @@ pub struct Section {
 }
 
 /// How many pages there are.
-pub const PAGES: usize = 27;
+pub const PAGES: usize = 26;
 
 /// Every page, in one language.
 pub struct Learn {
@@ -41,9 +41,6 @@ pub struct Learn {
     /// "Words" (UX.md L1): what the words are, why 12 or 24,
     /// and that anyone holding them holds the coins.
     pub words: Page,
-    /// "Signer, wallet, node" (UX.md L2): the three jobs, what
-    /// this device does, and why it shows no balance.
-    pub devices: Page,
     /// "Transactions" (UX.md L3): inputs, outputs, change, fees
     /// and what the Sign screens list.
     pub transactions: Page,
@@ -57,8 +54,8 @@ pub struct Learn {
     /// "Backups" (UX.md L5, L6): paper and steel, what destroys
     /// them, where to keep them, the never list, and the quiz.
     pub backups: Page,
-    /// "Encrypted backups": what an encrypted backup is, what
-    /// its passphrase costs, and where it belongs beside a written one.
+    /// "Encrypted backups": what an OpenSigner backup is, and how
+    /// Faraday reads one into a vault.
     pub encrypted_backups: Page,
     /// "Seed XOR": what a part is, that every part is needed,
     /// that a part is itself a real key, and that XOR is not Shamir.
@@ -114,7 +111,7 @@ pub struct Learn {
     /// and the decoy property.
     pub frost: Page,
     /// "Backups in other forms": SLIP-39, Codex32, Seed XOR and
-    /// the encrypted backup, what each trades away, and what this
+    /// a vault, what each trades away, and what this
     /// device reads today.
     pub other_backups: Page,
     /// "Coordinator files": what a coordinator is, what crosses
@@ -133,7 +130,6 @@ impl Learn {
         [
             &self.start_here,
             &self.words,
-            &self.devices,
             &self.transactions,
             &self.randomness,
             &self.where_randomness,

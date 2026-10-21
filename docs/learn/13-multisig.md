@@ -10,7 +10,7 @@ One stolen key cannot spend. One destroyed backup cannot lose the funds. A singl
 
 ## What it costs
 
-Every key needs its own backup, so a 2-of-3 wallet means three sets of seed words in three places. On top of that, recovery needs the wallet description: which keys are in the wallet, the script type, and how many signatures are required. The seed words alone will not find the funds. If the description is lost, the funds are lost, even with all three keys in hand.
+Every key needs its own backup, so a 2-of-3 wallet means three sets of seed words in three places. On top of that, recovery needs the wallet description: which keys are in the wallet, the script type, the derivation path, and how many signatures are required. With every key in hand and the script type and path known, a lost description can be rebuilt; Faraday's Restore does this. With only a quorum of the seeds, two of the three, it cannot: the third key's xpub is in the description and nowhere else, so the addresses cannot be worked out and the funds cannot be found.
 
 More parts means more to keep, more to explain to an heir, and more ways to lock yourself out of your own arrangement.
 

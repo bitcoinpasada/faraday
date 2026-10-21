@@ -406,7 +406,7 @@ accept the vault the first filled. `tests/backup_stick.rs`: with two
 vault files waiting, a visit ticks one.
 
 **Docs.** `docs/WALLETS.md` §5, `docs/VAULT.md` (a vault per seed by
-default), `docs/learn/07-backups.md` only if it says "the vault" as one
+default), `docs/learn/06-backups.md` only if it says "the vault" as one
 — it is OpenSigner's page as forked, so leave it and note it in the report instead.
 
 ## 6. The wallet at a glance

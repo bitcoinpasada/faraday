@@ -82,85 +82,6 @@ pub static EN: Learn = Learn {
             },
         ],
     },
-    devices: Page {
-        title: "Bitcoin software",
-        sections: &[
-            Section {
-                heading: "Miners",
-                paragraphs: &[
-                    "Miner software uses specialized hardware for guessing random numbers to validate blocks and move the chain forward.",
-                ],
-            },
-            Section {
-                heading: "Nodes",
-                paragraphs: &[
-                    "Node software runs on normal computers. You can run it at home if you have 1 TB of free space. Nodes validate transactions and keep a copy of all blocks. When you want to see your balance or initiate a transaction, you must connect to a node, either your own or someone else's.",
-                ],
-            },
-            Section {
-                heading: "Hot Wallets",
-                paragraphs: &[
-                    "Wallet software runs everywhere on computers and mobile devices. Wallets connect to a node to check account balances and create transactions. Most wallets can also generate entropy and manage funds directly, in which case it is called a hot wallet. Hot wallets are not recommended for large amounts.",
-                ],
-            },
-            Section {
-                heading: "Read-only Wallets",
-                paragraphs: &[
-                    "Most wallet software has an option to add a \"read-only\" wallet. This requires putting in something called a public key. The public key is related to your seed words, but it cannot spend funds. Despite the name, since the public key allows checking balances, it should still be considered private information that you don't want to share.",
-                ],
-            },
-            Section {
-                heading: "Cold Wallets",
-                paragraphs: &[
-                    "Cold wallets generally refer to writing down your key or seed words offline, for example on paper or other archival media. Some people also include permanently offline devices or archival hardware (like a USB drive) in this category. In order to use a cold wallet, you need two separate pieces of software, typically on different devices: a coordinator and a signer.",
-                ],
-            },
-            Section {
-                heading: "Coordinators",
-                paragraphs: &[
-                    "The coordinator is the internet-connected side of the cold wallet. It does not contain the keys and cannot spend funds. Most coordinators are also read-only wallets. Not every read-only wallet software can function as a coordinator.",
-                ],
-            },
-            Section {
-                heading: "Signers",
-                paragraphs: &[
-                    "The signer is the offline side of the cold wallet, and it does contain the keys to spend funds. The most well known signers, often called hardware wallets, are small devices like Ledger and Trezor. Essentially any computer can be used as a signer, but sloppy usage will result in loss of funds.",
-                    "We recommend using OpenSigner on a permanently offline computer, such as an old Linux laptop or a Raspberry Pi with the WiFi module removed. You can also use OpenSigner on Android or GrapheneOS, although we do not recommend using your daily driver to store more than you're willing to lose. A phone whose bootloader is unlocked, or which is rooted, is not a signer: OpenSigner refuses to run on one.",
-                ],
-            },
-            Section {
-                heading: "Keys, Wallets, Coordinators and Signers in OpenSigner",
-                paragraphs: &[
-                    "OpenSigner uses four words in one fixed way, and its screens follow them.",
-                    "A **key** is a secret: seed words, with or without a passphrase. It has a page of its own under Keys, with what it is made of, its backup, and Forget.",
-                    "A **wallet** is public data that turns keys into addresses. It is either one key at a script type, which OpenSigner calls a single-sig wallet and lists for every key you load, or a policy over several keys, which is a multisig or MuSig2 wallet you load from a coordinator. A wallet has addresses and a descriptor, and the descriptor is what you give a coordinator. Home lists them, one row each.",
-                    "Every wallet row carries a mark. A key means this device holds the private key, so it can sign for that wallet. An eye means public keys only: you can derive and compare addresses, and never spend.",
-                    "A wallet can be loaded from a public key alone — a descriptor, an extended public key or a coordinator's export — and it carries the eye until one of its keys is a key you have loaded.",
-                    "OpenSigner holds wallets, but it is still not a wallet in the sense the rest of this page uses the word: it has no networking code, no balances and no transaction history.",
-                    "A **coordinator** is the internet-connected software that watches those addresses, shows balances and builds transactions. A **signer** is the offline software that holds the keys and signs what the coordinator built. OpenSigner is a signer.",
-                ],
-            },
-            Section {
-                heading: "What a row on Home is",
-                paragraphs: &[
-                    "Wallets lists every wallet you added and Keys lists every key you loaded. A key does not get a wallet by itself: you add a wallet that uses it and choose its script type, or you load a coordinator's description.",
-                    "The mark on the row says which kind it is. A key means this device holds a private key of that wallet and can sign for it. An eye means the wallet is public keys alone: addresses to derive and compare, nothing to spend.",
-                    "Tapping a row opens the wallet's page, and everything you do with that wallet is there: sign, addresses, check an address, export, the key or keys it is made of, and forget.",
-                ],
-            },
-            Section {
-                heading: "OpenSigner",
-                paragraphs: &[
-                    "OpenSigner needs at least one key. Create one, or load one from a backup you already have. A SeedQR loads a key in one scan; keep the code private and check for cameras before you show it.",
-                    "OpenSigner keeps the key in memory while the device is on and wipes it when the device is turned off, so after that the key exists only in your written backup. Keeping a key on the device is offered only on Android phones with a secure element, behind the device lock and a PIN of its own.",
-                    "On a phone, switching to another app does not lock OpenSigner: the auto-lock and auto-wipe timers run the same whether the app is in front of you or behind another one, and coming back after the auto-lock time is up shows the lock screen.",
-                    "OpenSigner is not a wallet and has no networking code whatsoever. It cannot connect to the internet or a Bitcoin node. You cannot use it to view balances or initiate transactions.",
-                    "To use OpenSigner, you must use a coordinator. The coordinator can communicate with OpenSigner either via QR codes or by putting files on the SD card. The coordinator will show your balances, addresses, and transfer destinations. You should verify the entire transaction on OpenSigner before signing.",
-                    "A Raspberry Pi or a laptop booted from a USB stick has no secure boot: nothing checks the software before it runs. Write the image yourself and compare its hash with the published build before you use it.",
-                ],
-            },
-        ],
-    },
     transactions: Page {
         title: "Transactions",
         sections: &[
@@ -318,12 +239,12 @@ pub static EN: Learn = Learn {
                 ],
             },
             Section {
-                heading: "NEVER",
+                heading: "Never",
                 paragraphs: &[
-                    "NEVER photograph your seed words.",
-                    "NEVER put them in cloud storage, a password manager, a notes app, a spreadsheet, or an email, not even \"temporarily\".",
-                    "NEVER type them into a website or into any software that asks for them.",
-                    "NEVER read them out to anyone, no matter who they say they are.",
+                    "Never photograph your seed words.",
+                    "Never put them in cloud storage, a password manager, a notes app, a spreadsheet or an email, not even for a moment. A Faraday vault is the exception: it is made to keep them, encrypted under its passphrase.",
+                    "Never type them into a website, or into any software that asks for them.",
+                    "Never read them out to anyone, whoever that person says they are.",
                 ],
             },
             Section {
@@ -342,75 +263,34 @@ pub static EN: Learn = Learn {
             Section {
                 heading: "What it is",
                 paragraphs: &[
-                    "An encrypted backup is something of yours locked under a passphrase you choose, as one small file or one QR code. OpenSigner writes it, and OpenSigner or the short script published with it reads it back. Nothing about it is this app's secret: the format is written down, and the two ciphers it uses are standard ones.",
-                    "It is a second copy, beside the words on paper or steel, that can be kept where a written copy cannot: on a memory card in a drawer, printed as a QR and posted to yourself, or kept by a family member who cannot read it.",
+                    "An OpenSigner backup is one small file, ending in .oskb, that OpenSigner writes: something locked under a passphrase chosen when it was made. Faraday does not write one. It reads one into a vault, where it is kept under the vault's passphrase from then on.",
                 ],
             },
             Section {
                 heading: "What it can hold",
                 paragraphs: &[
-                    "Four things. A key's seed words. A key's master seed, which is what a SLIP-39 or a Codex32 key is and which has no words. A note: anything you type on the device or read in from a plain text file, such as instructions for whoever comes after you. And a wallet's recovery sheet: its descriptor, what you call it, and a note — the document an heir is handed.",
-                    "Every export asks which form you want it in before it asks for the passphrase. An encrypted backup is a file that OpenSigner and its decrypt.py script open. A KDBX 4 file is one that a KeePass app opens. A note and a recovery sheet can also be exported as plain text, which any text editor opens and nothing locks; a key never can. Where an encrypted backup fits one QR code, the screen after it is made offers to show it as one.",
+                    "One of four things. A key's seed words. A key's master seed, which is what a SLIP-39 or a Codex32 key is and which has no words. A note. Or a wallet's recovery sheet: its descriptor, its name and a note.",
+                    "A key with a wallet passphrase is backed up as its words alone. The wallet passphrase is typed again when the key is loaded.",
                 ],
             },
             Section {
-                heading: "The KDBX form",
+                heading: "Reading one into a vault",
                 paragraphs: &[
-                    "KDBX 4 is the file format KeePass uses. Choose it and what you are exporting becomes a small password database that KeePassXC, KeePassDX, KeePassium, KeePass itself and anything else that reads the format will open, on a computer or a phone, with no copy of OpenSigner and no knowledge of this project. It is meant for the person who comes after you.",
-                    "What you get is one entry. A key's words become the entry's password, with the word count and the wordlist in its notes and the fingerprint as its title; a key with no words becomes its master seed as hex. A note becomes an entry's notes. A recovery sheet becomes an entry titled with the wallet's name, holding the descriptor and your note.",
-                    "The passphrase you type is the database's master password, and it is the only thing locking it: OpenSigner writes no key file. The Argon2id memory you chose in Settings is written into the file, so the KeePass app opening it pays the same cost per guess that OpenSigner would.",
-                    "Putting your words in a KeePass database makes them as safe as that database, which is as safe as the passphrase over it. That is the whole of it. Use a strong passphrase, and treat the file the way you would treat the words themselves.",
-                    "OpenSigner writes KDBX files and does not read them. A KDBX file cannot be scanned back into the device, and there is no QR for one: it is a few kilobytes, and the apps that read it read files. If you want a backup this device can take back, use the encrypted backup.",
+                    "Copy the file onto a stick and bring it in, so it is in the Inbox, and unlock the vault it is to go into. Import into the vault on the file in the Inbox, or Import with the file's name on the vault's Bitcoin keys or Notes, asks for the backup's passphrase.",
+                    "Words and a master seed become a key in the vault. A note becomes a note, and a recovery sheet becomes a recovery sheet. The file in the Inbox is not changed.",
+                    "A wrong passphrase opens nothing, and Faraday says that passphrase does not open this backup. There is no other way in: without the passphrase the file is a few hundred bytes that look random.",
                 ],
             },
             Section {
-                heading: "The passphrase is the backup",
+                heading: "The memory it needs",
                 paragraphs: &[
-                    "Whoever knows the passphrase and holds the file has your key. Whoever holds the file without the passphrase has a few hundred bytes that look random.",
-                    "A file that holds a key is the same 345 bytes whether it holds twelve words or twenty-four or a master seed, and every file is offered under the same name. Longer things — a note, a sheet — are padded up in steps of 256 bytes, so a file's size says roughly how much is in it and no more. A file on its own does not say which wallet it belongs to or how long the seed is; you learn what is inside it by opening it.",
-                    "Locking your words in a file makes the file as strong as its passphrase and no stronger. Whatever the container, the keys inside it are only as safe as the passphrase over them, so use a strong one.",
-                    "If you lose the passphrase, you cannot open the file either. There is no reset and no recovery: the words inside cannot be reached any other way. Write the passphrase down and keep it somewhere the file is not.",
+                    "The passphrase is stretched with Argon2id at the memory the file states in its header, 64 MiB, 256 MiB or 1 GiB, chosen when it was made. A computer that cannot spare that memory cannot open it, and Faraday says how much it needs.",
                 ],
             },
             Section {
-                heading: "What makes a good one",
+                heading: "Reading one without Faraday",
                 paragraphs: &[
-                    "Length is what counts. Four or five random words from a list beat a short phrase with symbols in it, and they are far easier to copy out correctly later. OpenSigner's dice passphrase tool under Tools rolls one for you.",
-                    "A passphrase you already use somewhere else is not a passphrase: it is in a breach list. So is a name, a date, or a line from a song.",
-                    "OpenSigner asks for at least eight characters and checks nothing beyond that. Eight characters is a minimum, not a recommendation.",
-                ],
-            },
-            Section {
-                heading: "How it is protected",
-                paragraphs: &[
-                    "Your passphrase is not the key. The file carries a random salt, and the key is derived from the passphrase and that salt with Argon2id, which is deliberately slow and memory-hungry: a machine guessing passphrases against your file pays for that memory and three passes over it on every guess.",
-                    "The words are then encrypted with XChaCha20-Poly1305, which also authenticates the file's own header. A file with a changed header, or a wrong passphrase, fails to open rather than opening to the wrong words.",
-                    "A weak passphrase stays weak. The slow derivation only raises the cost of each guess.",
-                ],
-            },
-            Section {
-                heading: "How much memory to pay",
-                paragraphs: &[
-                    "Settings has a Backup memory row: 64 MiB, 256 MiB or 1 GiB. More memory costs an attacker more per guess and costs you a longer wait each time you open the file. It also decides where the file can be opened: a device that cannot spare that much memory cannot open it at all, and says how much it needs.",
-                    "Every file states its own cost in its header, so any device with the memory opens any file whatever its own setting is. OpenSigner recommends 256 MiB on a device with at least a gigabyte of memory and 64 MiB below that, and the recommended row says so.",
-                ],
-            },
-            Section {
-                heading: "A key with a passphrase",
-                paragraphs: &[
-                    "If the key you are backing up has a wallet passphrase, the backup holds the words the passphrase is applied to, not the passphrase itself. Restoring gives you the words back; you type the wallet passphrase again as you always do. The result screen says so while it is on screen.",
-                ],
-            },
-            Section {
-                heading: "Reading one back",
-                paragraphs: &[
-                    "Scan the QR, or read the file in, and OpenSigner asks the passphrase. \"Read an encrypted backup\" is a row in three places: Load a key, Tools › Notes, and a wallet's Recovery sheet. Each opens the same scanner, with Read a file under it. Words and a master seed land in the flow that adds a key, so the key is yours again. A note opens as a document. A recovery sheet opens as a document too, and offers to register the wallet its descriptor names.",
-                ],
-            },
-            Section {
-                heading: "Reading one without OpenSigner",
-                paragraphs: &[
-                    "The screen after a backup is made states its format (\"OSKB 3\" or \"KDBX 4\"), its cipher, the key derivation with the passes and lanes it was made with, and what reads it. The OSKB format is written down in docs/BACKUP.md in OpenSigner's source repository, and tools/backup/decrypt.py in the same repository opens an OSKB file on any computer with Python. A KDBX 4 file needs neither: any KeePass app opens it.",
+                    "The OSKB format is written down in docs/BACKUP.md, in OpenSigner's source and in Faraday's, and tools/backup/decrypt.py in either opens a file on any computer with Python.",
                 ],
             },
         ],
@@ -471,7 +351,7 @@ pub static EN: Learn = Learn {
                 heading: "Forgetting it is loss",
                 paragraphs: &[
                     "Nothing stores the passphrase unless you keep it in a vault. It cannot be reset, recovered, or guessed. If you forget it, the seed words alone lead to a different, empty wallet.",
-                    "IF YOU LOSE YOUR PASSPHRASE, THE FUNDS UNDER IT ARE GONE FOREVER, BACKUP OR NO BACKUP.",
+                    "A lost passphrase loses the funds under it for good, whatever backup of the words there is.",
                 ],
             },
             Section {
@@ -488,7 +368,7 @@ pub static EN: Learn = Learn {
                 heading: "Storing it",
                 paragraphs: &[
                     "Write it down exactly, spaces and capitals included, and read it back before you use it for real. Keep it apart from the seed words, so that whoever finds one does not have both. That separation is the point of a passphrase: a stolen backup of the words alone is useless.",
-                    "A vault can keep a seed's passphrase with the seed, and unlocking the vault then loads the key the two give. Kept that way, the passphrase is behind the vault's passphrase rather than apart from the words. A seed kept in a vault without its passphrase loads with Load with a passphrase, which asks for it each time and stores nothing.",
+                    "A vault can keep a seed's passphrase with the seed, and unlocking the vault then loads the key the two give. Kept that way, the passphrase is behind the vault's passphrase rather than apart from the words, and whoever opens that vault has the key. A passphrase kept in a vault belongs in a different vault from its seed, at another place. Faraday's backup plan warns when a seed and its passphrase are at the same place. A seed kept in a vault without its passphrase loads with Load with a passphrase, which asks for it each time and stores nothing.",
                     "Make sure that whoever is meant to inherit the funds can find both halves. See the Inheritance page.",
                 ],
             },
@@ -527,7 +407,7 @@ pub static EN: Learn = Learn {
                 heading: "Warning cards",
                 paragraphs: &[
                     "When Faraday cannot confirm something, the review shows a warning under the transaction. A danger is in red: an input whose value cannot be checked, a signature type that does not cover the outputs, a fee out of all proportion to the amount. Change it cannot rebuild from a loaded wallet is marked Unverified.",
-                    "DO NOT SIGN PAST A WARNING YOU CANNOT EXPLAIN. Go back to your coordinator and find out why.",
+                    "A warning you cannot explain is a reason not to sign. Go back to your coordinator and find out why.",
                 ],
             },
         ],
@@ -624,7 +504,7 @@ pub static EN: Learn = Learn {
             Section {
                 heading: "What it costs",
                 paragraphs: &[
-                    "Every key needs its own backup, so a 2-of-3 wallet means three sets of seed words in three places. On top of that, recovery needs the wallet description: which keys are in the wallet, the script type, and how many signatures are required. The seed words alone will not find the funds. If the description is lost, the funds are lost, even with all three keys in hand.",
+                    "Every key needs its own backup, so a 2-of-3 wallet means three sets of seed words in three places. On top of that, recovery needs the wallet description: which keys are in the wallet, the script type, the derivation path, and how many signatures are required. With every key in hand and the script type and path known, a lost description can be rebuilt; Faraday's Restore does this. With only a quorum of the seeds, two of the three, it cannot: the third key's xpub is in the description and nowhere else, so the addresses cannot be worked out and the funds cannot be found.",
                     "More parts means more to keep, more to explain to an heir, and more ways to lock yourself out of your own arrangement.",
                 ],
             },
@@ -1073,7 +953,7 @@ pub static EN: Learn = Learn {
             Section {
                 heading: "Passphrase",
                 paragraphs: &[
-                    "Extra text added to the seed words that produces a different key. Nothing stores it unless you keep it in a vault.",
+                    "Extra text added to the seed words that produces a different key. Nothing stores it unless you keep it in a vault, which is best a different vault from its seed.",
                 ],
             },
             Section {
@@ -1240,7 +1120,7 @@ pub static EN: Learn = Learn {
                 heading: "Multisig",
                 paragraphs: &[
                     "The wallet names n keys and requires m of them to sign. A 2-of-3 survives one stolen key and one lost backup. The script lists all n public keys, and spending reveals the script and puts m signatures on the chain, so anyone reading the block sees that it was a 2-of-3 and sees the three keys.",
-                    "Every coordinator supports this arrangement, and it has the most software behind it. It needs the wallet description as well as the keys: without it, the keys alone do not find the funds. The Multisig page covers this kind in full.",
+                    "Every coordinator supports this arrangement, and it has the most software behind it. It needs the wallet description as well as the keys. With every key, and the script type and path known, a lost description can be rebuilt, as Faraday's Restore does; with only enough seeds to sign, it cannot, and those seeds alone do not find the funds. The Multisig page covers this kind in full.",
                 ],
             },
             Section {
@@ -1392,23 +1272,23 @@ pub static EN: Learn = Learn {
                 ],
             },
             Section {
-                heading: "Encrypted backup",
+                heading: "A vault",
                 paragraphs: &[
-                    "An encrypted backup is a file or QR code holding your words under a passphrase you choose. It is not a split at all: it is one copy that can be stored where a readable copy could not be. Its weak point is the passphrase, which is now a second thing to keep and a second thing to lose. Encrypted backups has its own page.",
+                    "A vault is a file on a stick holding your words encrypted under a passphrase you choose. It is not a split at all: it is one copy that can be stored where a readable copy could not be. Its weak point is the passphrase, which is now a second thing to keep and a second thing to lose. Vaults has its own page.",
                 ],
             },
             Section {
                 heading: "Which one",
                 paragraphs: &[
                     "If the problem is that a copy may be destroyed, more copies solve it, and no scheme on this page is needed. Two places, two copies.",
-                    "If the problem is that a copy may be found, a passphrase or an encrypted backup solves it with one extra secret to keep. A threshold scheme solves it with n places to keep instead of one, and m of them to visit before you can spend.",
+                    "If the problem is that a copy may be found, a passphrase or a vault solves it with one extra secret to keep. A threshold scheme solves it with n places to keep instead of one, and m of them to visit before you can spend.",
                     "If the problem is that you want no single person or place to be able to act alone, a threshold over the backup is the wrong tool and a multisig or FROST wallet is the right one: those keep the coins under several keys all the time, rather than putting them back under one key whenever you spend.",
                 ],
             },
             Section {
                 heading: "What this device reads today",
                 paragraphs: &[
-                    "Faraday writes and reads Seed XOR parts, reads OpenSigner's encrypted backup into a vault, and reads and writes BIP-39 words as every wallet does.",
+                    "Faraday writes and reads Seed XOR parts, keeps words in vaults, reads an OpenSigner backup into a vault, and reads and writes BIP-39 words as every wallet does.",
                     "It reads and writes SLIP-39 shares. Add a key › Type SLIP-39 shares loads the key a backup's shares hold, under its passphrase if it has one, groups and all. Add a key › Make SLIP-39 shares makes a new key and writes it as one group of shares: you choose how many shares there are and how many are needed, and Faraday shows every share in turn with the quiz.",
                     "A key made of BIP-39 words is not backed up as SLIP-39 shares, and never will be. What a set of shares gives back is the seed itself, and a BIP-39 key's seed is 64 bytes, which no SLIP-39 implementation will take.",
                     "It reads and writes Codex32. Add a key › Type a codex32 secret loads the key a string or its shares hold, and a backup's copies by hand write a key made of words as codex32 shares of its seed. A backup of a key made of BIP-39 words holds the 512-bit seed those words come to, which is 127 characters, and a wallet that expects words cannot read it back.",

@@ -16,15 +16,15 @@ Two copies in two places are far better than one perfect copy in one place. If o
 
 Somewhere you control, that a burglar does not search first, and that a person you trust can reach if you cannot. A bank deposit box, a safe at a family member's house, or a fireproof box hidden at home are all common choices, each with their own trade-offs. Think about who could reach it and who could not.
 
-## NEVER
+## Never
 
-NEVER photograph your seed words.
+Never photograph your seed words.
 
-NEVER put them in cloud storage, a password manager, a notes app, a spreadsheet, or an email, not even "temporarily".
+Never put them in cloud storage, a password manager, a notes app, a spreadsheet or an email, not even for a moment. A Faraday vault is the exception: it is made to keep them, encrypted under its passphrase.
 
-NEVER type them into a website or into any software that asks for them.
+Never type them into a website, or into any software that asks for them.
 
-NEVER read them out to anyone, no matter who they say they are.
+Never read them out to anyone, whoever that person says they are.
 
 ## Verify your backup
 
