@@ -20,15 +20,13 @@
 //! `%USERPROFILE%` on Windows)
 //! holds `BOOTSTICK`, the boot stick, which starts empty and to which
 //! the desktop never adds a file (owner, 2026-10-19: a person puts there
-//! the files to boot with; a folder the desktop's test kit filled before
-//! is moved aside once to `BOOTSTICK-old-N`), and one folder for each
-//! backup stick: `STICK-2`, `STICK-3` and on (the boot stick is Stick 1),
-//! made when a stick is first put in and empty (until 2026-10-11 the boot
-//! stick and the second were `TESTSTICK` and `BLANK`, renamed at the next
-//! start). The folders are made once, the first time; one renamed or
-//! removed later is not
-//! made again, and with no `BOOTSTICK` the app starts with no stick in,
-//! as it did before 2026-10-11. The boot
+//! the files to boot with), and one folder for each backup stick:
+//! `STICK-2`, `STICK-3` and on (the boot stick is Stick 1), made when a
+//! stick is first put in and empty. The app never moves, renames or
+//! removes anything in these folders, so they stay as a person left them
+//! across installs and new versions (owner, 2026-10-20). The boot stick
+//! is made once, the first time; renamed or removed later it is not made
+//! again, and the app starts with no stick in. The boot
 //! stick is plugged in when Faraday opens, as the device starts with the
 //! stick it booted from: its `faraday-settings.txt` is read and every
 //! other file on it is copied into memory for the boot import, and
@@ -613,53 +611,26 @@ fn desktop_app_for(release: bool) -> Faraday {
     app
 }
 
-/// The mark the desktop's own test kit left in a boot stick folder it
-/// filled, before 2026-10-19.
-const KIT_MARK_FILE: &str = ".faraday-testkit";
-
-/// Makes the two stick folders the first time. The boot stick starts
-/// empty and the desktop never adds to it: a person puts there the files
-/// to boot with (owner, 2026-10-19). A boot stick folder the desktop
-/// filled with its test kit before is moved aside once, so it starts
-/// empty too; nothing a person put there is touched. A folder renamed or
-/// removed is not made again: with no boot stick, the app starts with no
-/// stick in.
+/// Makes the stick folders the first time: `faraday-sticks`, an empty
+/// boot stick and an empty Stick 2. The boot stick starts empty and the
+/// desktop never adds to it: a person puts there the files to boot with
+/// (owner, 2026-10-19). Nothing in a folder is ever moved, renamed or
+/// removed here, so a person's sticks stay as they left them across
+/// installs and new versions (owner, 2026-10-20). A boot stick folder
+/// renamed or removed is not made again: the app then starts with no
+/// stick in. Stick 2 is a stick the app starts with, made if it is not
+/// there.
 fn prepare(dir: &Path) -> Result<(), String> {
-    let test = dir.join(BOOT);
-    let blank = dir.join("STICK-2");
+    let boot = dir.join(BOOT);
     let first_stick = dir.join(FIRST);
     // Made once: the mark says the folders have been made here.
     let made = dir.join(".faraday-sticks");
-    let first = !made.exists();
-    if first {
-        std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-        // The folders' names before 2026-10-11, taken over as they are.
-        for (old, new) in [("TESTSTICK", &test), ("BLANK", &blank)] {
-            let old = dir.join(old);
-            if old.is_dir() && !new.exists() {
-                std::fs::rename(&old, new).map_err(|e| format!("{}: {e}", old.display()))?;
-            }
-        }
+    if !made.exists() {
+        std::fs::create_dir_all(&boot).map_err(|e| format!("{}: {e}", boot.display()))?;
         std::fs::write(&made, "BOOTSTICK and STICK-2 made\n")
             .map_err(|e| format!("{}: {e}", made.display()))?;
     }
-    // Stick 2 is a stick the app starts with: made if it is not there.
-    std::fs::create_dir_all(&first_stick).map_err(|e| format!("{}: {e}", first_stick.display()))?;
-    if !first && !test.is_dir() {
-        return Ok(());
-    }
-    if test.join(KIT_MARK_FILE).exists() {
-        let aside = (1..)
-            .map(|n| dir.join(format!("{BOOT}-old-{n}")))
-            .find(|p| !p.exists())
-            .expect("a free name");
-        std::fs::rename(&test, &aside).map_err(|e| format!("{}: {e}", test.display()))?;
-        eprintln!(
-            "faraday: the test kit's boot stick folder is now {}; the boot stick starts empty",
-            aside.display()
-        );
-    }
-    std::fs::create_dir_all(&test).map_err(|e| format!("{}: {e}", test.display()))
+    std::fs::create_dir_all(&first_stick).map_err(|e| format!("{}: {e}", first_stick.display()))
 }
 
 /// The person's home folder: `HOME`, and on Windows `USERPROFILE` when
@@ -857,34 +828,49 @@ fn main() -> ExitCode {
 mod tests {
     use super::*;
 
-    /// The boot stick starts empty and the desktop adds nothing to it; a
-    /// folder the old test kit filled is moved aside, and a person's own
-    /// files are left where they are.
+    /// The boot stick starts empty and the desktop adds nothing to it;
+    /// what a person put in the stick folders, hidden files included, is
+    /// left byte for byte by every later start (owner, 2026-10-20).
     #[test]
-    fn the_boot_stick_starts_empty_and_keeps_a_persons_files() {
+    fn a_persons_stick_folders_stay_as_they_left_them() {
         let dir = std::env::temp_dir().join(format!("faraday-prepare-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         prepare(&dir).unwrap();
         let boot = dir.join(BOOT);
+        let two = dir.join(FIRST);
         assert_eq!(std::fs::read_dir(&boot).unwrap().count(), 0);
-        // A folder the old test kit filled goes aside; the boot stick is empty.
-        std::fs::write(boot.join(KIT_MARK_FILE), "faraday-testkit backup 1\n").unwrap();
-        std::fs::write(boot.join("savings.json"), "{}").unwrap();
+        assert_eq!(std::fs::read_dir(&two).unwrap().count(), 0);
+        let files = [
+            (boot.join("vault.ofv"), b"vault bytes".to_vec()),
+            (boot.join(".faraday-testkit"), b"an old mark".to_vec()),
+            (boot.join("spend.psbt"), b"psbt".to_vec()),
+            (two.join("SHA256SUMS"), b"sums".to_vec()),
+            (dir.join("STICK-3").join("notes.txt"), b"notes".to_vec()),
+        ];
+        for (path, bytes) in &files {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, bytes).unwrap();
+        }
+        let listing = |d: &Path| {
+            let mut names: Vec<_> = std::fs::read_dir(d)
+                .unwrap()
+                .map(|e| e.unwrap().file_name())
+                .collect();
+            names.sort();
+            names
+        };
+        let before: Vec<_> = [&dir, &boot, &two].iter().map(|d| listing(d)).collect();
         prepare(&dir).unwrap();
-        assert_eq!(std::fs::read_dir(&boot).unwrap().count(), 0);
-        assert!(
-            dir.join(format!("{BOOT}-old-1"))
-                .join("savings.json")
-                .exists()
-        );
-        // A person's own file stays, and nothing is added beside it.
-        std::fs::write(boot.join("spend.psbt"), "psbt").unwrap();
         prepare(&dir).unwrap();
-        let names: Vec<_> = std::fs::read_dir(&boot)
-            .unwrap()
-            .map(|e| e.unwrap().file_name())
-            .collect();
-        assert_eq!(names, vec![std::ffi::OsString::from("spend.psbt")]);
+        let after: Vec<_> = [&dir, &boot, &two].iter().map(|d| listing(d)).collect();
+        assert_eq!(before, after);
+        for (path, bytes) in &files {
+            assert_eq!(&std::fs::read(path).unwrap(), bytes, "{}", path.display());
+        }
+        // A boot stick removed is not made again.
+        std::fs::remove_dir_all(&boot).unwrap();
+        prepare(&dir).unwrap();
+        assert!(!boot.exists());
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
