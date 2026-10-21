@@ -420,6 +420,41 @@ Two items need more than the plan said:
 - **Renaming the strings** (A11). It touches every screen, so it comes
   after the split (phase 4), as planned.
 
+### 7.1 Phase 4: faraday-core's layout
+
+There is one rule a reader can predict: **an area's code is in its
+folder**. The folder's `mod.rs` holds the area's state and logic, its
+`screen.rs` draws it, and any further files hold its parts. `screens/`
+holds the frame and the screens that belong to no area folder. The code
+map in `lib.rs` has a table from every `Screen` variant to its file.
+
+| Now | After |
+|---|---|
+| `backup_flow`, `_screen`, `_steps`, `_wallet`, `_wallet_screen` | `backup_flow/{mod, screen, steps, wallet, wallet_screen}` |
+| `vaults`, `vault_screens`, `vault_load`, `vault_load_screen`, `vault_out` | `vault/{mod, screen, load, load_screen, out}` |
+| `seeds`, `seeds_screen`, `seed_read` | `seeds/{mod, screen, read}` |
+| `silent`, `silent_screen`, `silent_check` | `silent/{mod, screen, check}` |
+| `family`, `family_screen`, `family_text` | `family/{mod, screen, text}` |
+| `glance`, `glance_sheet` | `glance/{mod, sheet}` |
+| `plan`, `plan_cards` | `plan/{mod, cards}` |
+| `secureboot`, `secure_boot_state` | `secure_boot/{mod, state}` |
+| `stick_pills`, `stick_settings`, `stick_wipe` | `stick/{pills, settings, wipe}` |
+| `compact`, `compact_screens` | `compact/{mod, screen}` |
+| X and `X_screen`, for X in backups, bip85, board, boot_import, codes, explore, keygen, lightning, tools, transfer, upgrade, vanity, wordlist | `X/{mod, screen}` |
+| `backup` (a wallet's backup, in two parts) | `wallet_backup` |
+| `lib.rs`'s storage protocol, version, `Action`, QR view and receipt | `storage_api`, `version`, `action`, `qr_view`, `receipt` |
+| `lib.rs`'s `*State` structs | their area's `mod.rs`, or `state.rs` where there is no area |
+| `screens.rs` | `screens/mod.rs`: the `Screen` enum's dispatch, the sidebar, sheets and shared parts. Each inline screen goes to its area's `screen.rs`, or to `screens/<name>.rs` |
+
+The steps, each its own commit with `just` green and the literal and
+test-list checks unchanged:
+1. the folders;
+2. `lib.rs`'s parts;
+3. `screens.rs`;
+4. `act_inner` as a dispatch;
+5. the crate edges;
+6. the snapshot tours.
+
 ## 8. Order, checks and builds
 
 | Wave | Steps | Quiet tree needed | Builds after |
