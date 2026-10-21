@@ -3,11 +3,11 @@
 
     faraday/tools/qemu-check.py IMAGE OUT_DIR TESTKIT_DIR
 
-QEMU boots IMAGE the way tools/stick-qemu.py boots it (OVMF, the image
+QEMU boots IMAGE the way faraday/tools/stick-qemu.py boots it (OVMF, the image
 as a USB disk on xHCI), and the screen is saved as a PNG at each stage:
 the first screen, with the boot stick in; after the boot stick is pulled;
 with a test stick holding TESTKIT_DIR's files plugged in; and after that
-stick is pulled. The QMP helpers are upstream's, from tools/stick-qemu.py.
+stick is pulled. The QMP helpers are upstream's, from faraday/tools/stick-qemu.py.
 The test stick is made with mtools: Buildroot's own, from the stick
 build's host directory, or the system's.
 """
@@ -30,8 +30,8 @@ def load(name, path):
     return mod
 
 
-qemu = load("stick_qemu", os.path.join(ROOT, "tools/stick-qemu.py"))
-# The QMP helpers, which are upstream's, from tools/stick-qemu.py.
+qemu = load("stick_qemu", os.path.join(ROOT, "faraday/tools/stick-qemu.py"))
+# The QMP helpers, which are upstream's, from faraday/tools/stick-qemu.py.
 st = qemu
 
 BG = (0x11, 0x16, 0x1C)

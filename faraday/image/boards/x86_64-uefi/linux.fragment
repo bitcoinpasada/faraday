@@ -306,7 +306,7 @@ CONFIG_IOMMU_DEFAULT_DMA_STRICT=y
 
 # Paravirtualised guest support: KVM, Hyper-V, Xen and VMware. This is a
 # kernel for a laptop. It boots in QEMU as a plain emulated PC, which is
-# what tools/stick-qemu.py runs, and that is the same path a laptop takes.
+# what faraday/tools/stick-qemu.py runs, and that is the same path a laptop takes.
 # CONFIG_HYPERVISOR_GUEST is not set
 
 # ---- Faraday: no filesystem on a stick is parsed by the kernel ----
@@ -372,7 +372,7 @@ CONFIG_LEGACY_VSYSCALL_NONE=y
 # ---- drivers x86_64_defconfig brought in ----
 # virtio: a PCIe device can present virtio IDs, and VIRTIO_BLK is a block
 # device on a machine whose only storage is the stick. QEMU boots the
-# stick as a USB disk on xHCI and uses no virtio (tools/stick-qemu.py).
+# stick as a USB disk on xHCI and uses no virtio (faraday/tools/stick-qemu.py).
 # CONFIG_VIRTIO_MENU is not set
 # CONFIG_VIRTIO_BLK is not set
 # CONFIG_VIRTIO_CONSOLE is not set

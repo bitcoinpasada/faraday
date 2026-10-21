@@ -12,112 +12,70 @@
 //! Keys are typed, scanned or loaded from a vault for the session only;
 //! PSBTs and wallets move by stick or QR. Test wallets come in on a test
 //! stick (`testkit`, built only with the `testkit` feature).
+//!
+//! # Code map
+//!
+//! The `mod` lines below are grouped by area:
+//!
+//! - State and actions: `work`, `flow`, `inputs`, `file_menu`, `in_progress`.
+//! - Screens and drawing: `screens`, `drawing`, `vault_screens`, `keygen_screen`.
+//! - Secrets and keys: `keygen`, `seeds`, `seed_read`, `wallet`, `inbox`,
+//!   `create`, `bip85`, `forms`, `fresh`, `gpg`, `apk`, `secureboot`,
+//!   `lightning`, `silent`, `vanity`, `paper`, `quiz`, `secrets`,
+//!   `word_entry`, `vault_out`, `chart_edit`, `boot_import` and
+//!   `backup_flow_wallet`. These derive, hold or use a key, seed, words or
+//!   passphrase. A later step (F70, `faraday-keys`) moves key use out of
+//!   this crate.
+//! - Wallets and PSBTs: `plan`, `decode`, `family`, `explore`, `catalog`.
+//! - Backups and the backup flow: `backup_flow`, `backups`, `board`, `restore`.
+//! - Vaults: `vaults`, `vault_load`, `codes`.
+//! - Sticks, boot and files: `stick_settings`, `stick_wipe`, `upgrade`,
+//!   `secure_boot_state`, `names`.
+//! - Support: `wordlist`, `learn`, `tools`, `testkit`.
 
-pub mod backup;
-pub mod backup_flow;
-pub mod backup_flow_steps;
-pub mod backups;
-pub mod bip85;
-pub mod board;
-pub mod boot_import;
-pub mod catalog;
-pub mod chart_edit;
-pub mod codes;
+// State and actions: the app's state, its events and what a press does.
+mod compact;
 mod compute;
 pub mod copy_check;
-pub mod create;
-mod create_from;
-pub mod decode;
-pub mod demo;
-pub mod devices;
-mod drawing;
-#[doc(hidden)]
-pub use drawing::View;
-pub mod edid;
-pub mod explore;
-pub mod family;
+mod edit;
 pub mod file_menu;
-pub use file_menu::Unrenamed;
 pub mod flow;
-pub mod forms;
-mod fresh;
-pub mod glance;
-pub mod glance_sheet;
-pub mod gpg;
-pub mod grind;
 pub mod in_progress;
-pub mod inbox;
 pub mod inputs;
-pub mod keygen;
-pub mod learn;
-pub mod lightning;
 pub mod medium;
 pub mod memory;
-pub mod names;
-pub mod paper;
-pub mod pdf;
-pub mod picture;
-pub mod plan;
-pub mod quiz;
-pub mod restore;
-/// Text a person types that may be a secret (`faraday_intake`'s).
-pub use faraday_intake::secret_buf as secret_text;
-pub mod apk;
-pub mod secrets;
-pub mod secure_boot_state;
-mod stick_pills;
-pub use stick_pills::{BOOT_FOLDER, FIRST_BACKUP, Pill, SticksWanted, backup_folder};
-pub mod secureboot;
-pub mod seed_read;
-pub mod seeds;
+mod menu;
+mod motion;
 pub mod set_time;
-pub mod silent;
-pub mod silent_check;
-pub mod stick_settings;
-pub mod stick_wipe;
-/// Faraday's wording, in its own crate.
-pub use faraday_strings as strings;
-#[cfg(feature = "testkit")]
-pub mod testkit;
-pub mod tools;
-pub mod transfer;
+mod stick_pills;
 pub mod ui;
-pub mod upgrade;
-pub mod vanity;
-pub mod vault_load;
-pub mod vault_out;
-pub mod vaults;
 pub mod visit_taken;
-pub mod wallet;
-pub mod word_entry;
-pub mod wordlist;
 pub mod work;
 
+// Screens and drawing: what is drawn from the state.
 mod backup_flow_screen;
-mod backup_flow_wallet;
 mod backup_flow_wallet_screen;
 mod backups_screen;
 mod bip85_screen;
 mod board_screen;
 mod boot_import_screen;
 mod codes_screen;
-mod compact;
-mod edit;
-mod held;
-mod menu;
-mod plan_cards;
-pub use compact::OskPress;
-pub use medium::Medium;
-pub use screens::qr_code;
-pub use secure_boot_state::SecureBootAtStart;
 mod compact_screens;
+pub mod demo;
+pub mod devices;
+mod drawing;
+pub mod edid;
 mod explore_screen;
 mod family_screen;
 mod family_text;
+pub mod glance;
+pub mod glance_sheet;
 mod guide;
 mod keygen_screen;
 mod lightning_screen;
-mod motion;
+pub mod pdf;
+pub mod picture;
+mod plan_cards;
 mod scan_key;
 mod screens;
 mod seeds_screen;
@@ -129,6 +87,83 @@ mod vanity_screen;
 mod vault_load_screen;
 mod vault_screens;
 mod wordlist_screen;
+
+// Secrets and keys: derive, hold or use a key, seed, words or passphrase (F70 moves these to faraday-keys).
+pub mod apk;
+mod backup_flow_wallet;
+pub mod bip85;
+pub mod boot_import;
+pub mod chart_edit;
+pub mod create;
+mod create_from;
+pub mod forms;
+mod fresh;
+pub mod gpg;
+pub mod grind;
+pub mod inbox;
+pub mod keygen;
+pub mod lightning;
+pub mod paper;
+pub mod quiz;
+pub mod secrets;
+pub mod secureboot;
+pub mod seed_read;
+pub mod seeds;
+pub mod silent;
+pub mod vanity;
+pub mod vault_out;
+pub mod wallet;
+pub mod word_entry;
+
+// Wallets and PSBTs.
+pub mod catalog;
+pub mod decode;
+pub mod explore;
+pub mod family;
+pub mod plan;
+pub mod silent_check;
+
+// Backups and the backup flow.
+pub mod backup;
+pub mod backup_flow;
+pub mod backup_flow_steps;
+pub mod backups;
+pub mod board;
+mod held;
+pub mod restore;
+
+// Vaults.
+pub mod codes;
+pub mod vault_load;
+pub mod vaults;
+
+// Sticks, boot and files.
+pub mod names;
+pub mod secure_boot_state;
+pub mod stick_settings;
+pub mod stick_wipe;
+pub mod transfer;
+pub mod upgrade;
+
+// Support: word lists, the Learn pages, the tools page, test data.
+pub mod learn;
+#[cfg(feature = "testkit")]
+pub mod testkit;
+pub mod tools;
+pub mod wordlist;
+
+pub use compact::OskPress;
+#[doc(hidden)]
+pub use drawing::View;
+/// Text a person types that may be a secret (`faraday_intake`'s).
+pub use faraday_intake::secret_buf as secret_text;
+/// Faraday's wording, in its own crate.
+pub use faraday_strings as strings;
+pub use file_menu::Unrenamed;
+pub use medium::Medium;
+pub use screens::qr_code;
+pub use secure_boot_state::SecureBootAtStart;
+pub use stick_pills::{BOOT_FOLDER, FIRST_BACKUP, Pill, SticksWanted, backup_folder};
 
 use crate::strings::EN;
 use crate::strings::fill;

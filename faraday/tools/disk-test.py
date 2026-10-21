@@ -42,8 +42,8 @@ def load(name, path):
     return mod
 
 
-qemu = load("stick_qemu", os.path.join(ROOT, "tools/stick-qemu.py"))
-# The QMP helpers, which are upstream's, from tools/stick-qemu.py.
+qemu = load("stick_qemu", os.path.join(ROOT, "faraday/tools/stick-qemu.py"))
+# The QMP helpers, which are upstream's, from faraday/tools/stick-qemu.py.
 st = qemu
 check = load("qemu_check", os.path.join(ROOT, "faraday/tools/qemu-check.py"))
 

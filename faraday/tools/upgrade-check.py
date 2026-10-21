@@ -10,7 +10,7 @@ image, dev or release.
 
 1. The older stick gets a vault-sized file and a settings file on its
    data partition (mtools), and its data partition's SHA-256 is taken.
-2. QEMU boots the new image, the way tools/stick-qemu.py does, and the
+2. QEMU boots the new image, the way faraday/tools/stick-qemu.py does, and the
    older stick is plugged in once it is up, as a second USB stick.
 3. On the console, as root: the boot partitions are root's; root writes
    the upgrade marker the app would write (`/run/faraday-clean/upgrade`)
@@ -29,7 +29,7 @@ and mouse in QEMU is an external device to Faraday, held back until it
 types a code read off the screen (PLAN.md §4.6), so the harness cannot
 press anything; root on the dev console stands in for the app's marker
 and the app's requests. The QMP helpers and the machine are upstream's
-(tools/stick-qemu.py); mtools are Buildroot's, from
+(faraday/tools/stick-qemu.py); mtools are Buildroot's, from
 the stick build's host directory, or the system's.
 """
 
@@ -54,8 +54,8 @@ def load(name, path):
     return mod
 
 
-qemu = load("stick_qemu", os.path.join(ROOT, "tools/stick-qemu.py"))
-# The QMP helpers, which are upstream's, from tools/stick-qemu.py.
+qemu = load("stick_qemu", os.path.join(ROOT, "faraday/tools/stick-qemu.py"))
+# The QMP helpers, which are upstream's, from faraday/tools/stick-qemu.py.
 st = qemu
 
 MTOOLS = os.path.join(ROOT, "out/pi/x86_64-uefi-efi-framebuffer/output/host/bin")

@@ -61,6 +61,7 @@ stick_panel := "efi-framebuffer"
 # pills across the top of the window plug each stick in or pull it out.
 # The boot stick starts empty, and every session starts on testnet. The
 # stick image's app starts on mainnet.
+[group('build')]
 faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop" bin="faraday":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -106,6 +107,7 @@ faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop
 #   FARADAY_STARTER_PAYLOAD=out/payload/0.2.0/windows just faraday-windows-bin
 #   just faraday-windows-bin build out/windows out/build/run faraday-desktop faraday
 #   just faraday-windows-bin clippy out/windows out/build/run faraday-desktop faraday
+[group('build')]
 faraday-windows-bin what="build" out="out/windows" cache="out/build/run" package="faraday-starter-shell" bin="faraday-starter":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -137,6 +139,7 @@ faraday-windows-bin what="build" out="out/windows" cache="out/build/run" package
 # Waveshare panel (3:4), 5 a phone (9:16). Under Hyprland it opens on
 # the laptop's own screen (eDP), whose EDID gives the pixels per inch;
 # pass extra flags after the size, such as `--ppi 277` or `--aspect 9:19.5`.
+[group('dev')]
 faraday-panel inches="2.8" *flags="":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -151,6 +154,7 @@ faraday-panel inches="2.8" *flags="":
 # The test stick's files, all on testnet (every test wallet in each backup
 # form with its spends, the test keys in each form, the vault), after
 # checking every spend signs and finishes.
+[group('dev')]
 faraday-testkit out="out/testkit":
     cargo run -q -p faraday-testkit -- "{{out}}"
 
@@ -160,6 +164,7 @@ faraday-testkit out="out/testkit":
 # the Pi's Waveshare panel, 240x320 at 143 is the smallest the design
 # supports (docs/PLANNING.md §16.4) -- both `small` size class, so this
 # is where a card or a flow that only fits `wide` would show up.
+[group('test')]
 faraday-snapshots: faraday-testkit
     #!/usr/bin/env bash
     set -euo pipefail
@@ -180,6 +185,7 @@ faraday-snapshots: faraday-testkit
 # 1280x800, 1920x1080, 1024x768, 3840x2160) carry their own dpi; any other
 # size needs `WxH@DPI` spelled out (`just faraday-snap 320x480@213`), or
 # it renders at 160.
+[group('test')]
 faraday-snap size tour="": faraday-testkit
     #!/usr/bin/env bash
     set -euo pipefail
@@ -206,6 +212,7 @@ faraday-snap size tour="": faraday-testkit
 # for publishing is `just faraday-linux-bin` with the arguments
 # `out/linux out/build/run faraday-starter-shell faraday-starter`, in the glibc 2.31 container (`just faraday-linux-bin`'s
 # comment).
+[group('dev')]
 faraday-starter *args="":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -223,6 +230,7 @@ faraday-starter *args="":
 # out/snapshots/starter/WxH/, one named PNG each: `just faraday-starter-snap
 # 1280x800`. 480x640 and 240x320 carry their panels' dpi; any other size
 # renders at 160 unless spelled `WxH@DPI`.
+[group('test')]
 faraday-starter-snap size:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -237,6 +245,7 @@ faraday-starter-snap size:
 # Draws the Starter's menu icon again from the app's own mark
 # (faraday-starter's examples/icon.rs) into shells/starter/assets/. Run it when
 # the mark changes; the PNG is committed and the Starter embeds it.
+[group('build')]
 faraday-starter-icon:
     cargo run -q -p faraday-starter --example icon -- faraday/shells/starter/assets/icon.png
 
@@ -245,6 +254,7 @@ faraday-starter-icon:
 # signed with the db key and refuses an unsigned or altered one, for both
 # enrolment policies. Needs QEMU, OVMF's Secure Boot build, mtools and
 # systemd-boot; serial logs in out/sb-ovmf-check/.
+[group('test')]
 faraday-sb-ovmf out="out/sb-ovmf-check":
     python3 -B faraday/tools/sb-ovmf-check.py "{{out}}"
 
@@ -255,6 +265,7 @@ faraday-sb-ovmf out="out/sb-ovmf-check":
 # the dev console stands in for the app, which no input in QEMU can drive
 # (faraday/tools/upgrade-check.py says what is and is not exercised).
 # Needs QEMU, OVMF and mtools; console logs in out/upgrade-check/.
+[group('test')]
 faraday-upgrade-check old out="out/upgrade-check":
     python3 -B faraday/tools/upgrade-check.py out/stick/faraday-x86_64-uefi-dev.img "{{old}}" "{{out}}"
 
@@ -263,6 +274,7 @@ faraday-upgrade-check old out="out/upgrade-check":
 # faraday-grant and faraday-boot: what faraday/image/run-build.sh puts in
 # the image. The board's board.conf (faraday/image/boards/) names the
 # Rust target and the C compiler.
+[group('build')]
 faraday-stick-bin:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -296,6 +308,7 @@ faraday-stick-bin:
 #
 #   just faraday-stick-image              a test release
 #   just release=1 faraday-stick-image    a published release
+[group('build')]
 faraday-stick-image: faraday-stick-bin
     #!/usr/bin/env bash
     set -euo pipefail
@@ -327,6 +340,7 @@ faraday-stick-image: faraday-stick-bin
 #
 # The target may be a regular file holding a stick image, for testing.
 # Writes a stick's boot partition alone, for development.
+[group('dev')]
 faraday-stick-boot +args:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -350,6 +364,7 @@ faraday-stick-boot +args:
 #
 #   just faraday-pi-bin                  the owner's board (pi3)
 #   just board=pi02w faraday-pi-bin      the Zero 2 W
+[group('build')]
 faraday-pi-bin:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -384,6 +399,7 @@ faraday-pi-bin:
 #                                                  waveshare-28dpi)
 #   just board=B panel=P dev=0|1 faraday-pi-image any other combination
 #   just release=1 faraday-pi-image              a published release
+[group('build')]
 faraday-pi-image: faraday-pi-bin
     #!/usr/bin/env bash
     set -euo pipefail
@@ -418,6 +434,7 @@ faraday-pi-image: faraday-pi-bin
 #
 #   just faraday-release-stage 0.2.0
 #   just faraday-release-stage 0.2.0 --any-build --out DIR
+[group('release')]
 faraday-release-stage VERSION *args:
     faraday/tools/stage-release.sh {{VERSION}} {{args}}
 
@@ -432,5 +449,15 @@ faraday-release-stage VERSION *args:
 #
 #   just faraday-release-stage-starter 0.2.0
 #   just faraday-release-stage-starter 0.2.0 --out DIR
+[group('release')]
 faraday-release-stage-starter VERSION *args:
     faraday/tools/stage-release.sh {{VERSION}} --starter out/linux/faraday-starter --starter-windows out/windows/faraday-starter.exe {{args}}
+
+# The stick's disk process end to end (faraday/tools/disk-test.py): QEMU
+# boots the dev stick image, and the script plugs sticks in and out through
+# QMP and checks what is mounted, who owns each partition and which USB
+# devices are authorised. Needs `just dev=1 faraday-stick-image` first, and
+# QEMU, OVMF and mtools; screenshots go to out/stick/disk-test/.
+[group('test')]
+faraday-disk-test out="out/stick/disk-test": faraday-testkit
+    python3 -B faraday/tools/disk-test.py out/stick/faraday-x86_64-uefi-dev.img "{{out}}" out/testkit

@@ -1,11 +1,13 @@
 # The task runner. Everything runs locally; there is no hosted CI.
 
+[group('test')]
 default: test lint
 
 # Run every unit, integration and doc test in the workspace. nextest runs
 # the test binaries in parallel where `cargo test` runs them one after
 # another (docs/PLANNING.md §16.119); it does not run doc tests, so those
 # follow. `cargo install cargo-nextest --locked` puts it on a machine.
+[group('test')]
 test:
     cargo nextest run --workspace
     cargo test --workspace --doc
@@ -17,6 +19,7 @@ test:
 # §8), the check that no shipped binary compiles the token that counts
 # nothing (docs/COMPUTE.md §3), and the Starter's macOS code checked for
 # both Mac targets without a Mac (tools/check-macos.sh).
+[group('lint')]
 lint:
     python3 tools/clippy.py --workspace --all-targets
     # Advisories, licences, duplicates and sources, against deny.toml.
@@ -37,11 +40,13 @@ lint:
 # default `just`, because it is Python and the default recipe is Rust;
 # the reference and its curve library are vendored under
 # tools/reference/bip445/ and nothing is fetched.
+[group('dev')]
 threshold-reference:
     python3 tools/scripts/threshold-reference.py
 
 # Regenerate the embedded BIP-39 wordlists from the BIP repository and
 # the SLIP-39 list from the SLIPs repository (needs network).
+[group('dev')]
 wordlists:
     python3 tools/wordlists/gen.py
     python3 tools/wordlists/gen-slip39.py
@@ -49,17 +54,20 @@ wordlists:
 
 # Regenerate the embedded EFF diceware wordlists from the lists committed
 # under tools/vectors/eff/ (offline).
+[group('dev')]
 diceware:
     python3 tools/diceware/gen.py
     cargo fmt --all
 
 # Re-extract the glyph outlines from tools/fonts/ into core/faraday-draw (offline).
+[group('dev')]
 fonts:
     cargo run -p faraday-fontbake --release
     cargo fmt --all
 
 # Rewrite the one PSBT per policy warning, and the registered-wallet
 # policy and transaction, in tools/vectors/psbt/ (offline).
+[group('dev')]
 psbt-fixtures:
     cargo run -p faraday-psbt --release --example warnings -- tools/vectors/psbt
     cargo run -p faraday-psbt --release --example wallet -- tools/vectors/psbt
@@ -86,22 +94,36 @@ psbt-fixtures:
 fuzz_seconds := "60"
 
 # The fuzz targets, one per untrusted-input parser.
+[group('test')]
 fuzz-list:
     cd fuzz && cargo +nightly fuzz list
 
 # Run one target. SECONDS defaults to fuzz_seconds; give decode_luma and
 # psbt_parse longer, since they are the widest surfaces.
+[group('test')]
 fuzz TARGET seconds=fuzz_seconds:
     cd fuzz && cargo +nightly fuzz run {{TARGET}} -- -max_total_time={{seconds}}
 
+# The same, for Faraday's own targets in faraday/fuzz/ (fat, apk,
+# read_wallet; faraday/fuzz/README.md). Its own workspace, like fuzz/.
+[group('test')]
+fuzz-faraday-list:
+    cd faraday/fuzz && cargo +nightly fuzz list
+
+[group('test')]
+fuzz-faraday TARGET seconds=fuzz_seconds:
+    cd faraday/fuzz && cargo +nightly fuzz run {{TARGET}} -- -max_total_time={{seconds}}
+
 # The Learn pages as Markdown: docs/learn/ is where the text is edited,
 # en.rs is what the device reads; `lint` fails while the two differ.
+[group('dev')]
 learn-export:
     python3 tools/learn/sync.py export
 
+[group('dev')]
 learn-import:
     python3 tools/learn/sync.py import
     cargo fmt --all
 
 # Faraday's own recipes: faraday/faraday.just.
-import? 'faraday/faraday.just'
+import 'faraday/faraday.just'

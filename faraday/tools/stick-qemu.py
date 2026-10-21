@@ -8,9 +8,9 @@ FAT partition of a removable disk and runs it, which is the path the stick
 takes on real hardware; the keyboard and the mouse are USB devices. There
 is no virtio anything and no virtual hard disk.
 
-  tools/stick-qemu.py --image out/stick/faraday-x86_64-uefi.img
+  faraday/tools/stick-qemu.py --image out/stick/faraday-x86_64-uefi.img
         the image, display on VNC 127.0.0.1:5909
-  tools/stick-qemu.py --image out/stick/faraday-x86_64-uefi-dev.img
+  faraday/tools/stick-qemu.py --image out/stick/faraday-x86_64-uefi-dev.img
         the dev image, whose console is on stdio
 
 `--usb IMAGE` attaches a second USB disk at start, which is how a person
