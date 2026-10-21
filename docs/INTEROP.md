@@ -348,6 +348,49 @@ cases; a testkit PSBT to v2 and back is byte-identical; v2 and v0 of one
 transaction sign identically; the v2 output without the signature fields
 equals the input; `psbt_parse` fuzzing gains v2.
 
+### I11. A single private key: sweep it (owner, 2026-10-20)
+
+Reads a WIF private key (`dumpprivkey`; `K…`/`L…` compressed, `5…`
+uncompressed; `c…`/`9…` testnet), typed under Add a key › Other forms ›
+**Type a private key** or scanned, and a descriptor with a private key
+inside (`listdescriptors true`: `wpkh(L1…)`, `wpkh(xprv…/84h/0h/0h/0/*)`),
+which `classify` sends to the secret sheet. A Tools tile, **Sweep a
+private key** (found by "private key", "WIF", "sweep", "paper wallet"),
+opens Add a key on that form.
+
+A WIF loads as one key and a single-address wallet. A WIF names no
+script, so the key page shows its addresses — legacy, nested SegWit,
+native SegWit, Taproot; legacy only for an uncompressed key — and the
+wallet uses the one chosen there (native SegWit first). It offers the
+key's public description for an online wallet: the chosen script's
+descriptor (`wpkh(02…)`), and for Bitcoin Core `combo(02…)`, which covers
+legacy, nested and native SegWit at once; written as files and QR, never
+the private key. An xprv inside a descriptor loads as a key with its
+paths, as an xprv does today.
+
+The sweep: the online wallet imports the public description watch-only,
+finds the funds and builds a PSBT sending everything to a receive address
+of the person's seed wallet (Faraday shows one to copy or scan); Faraday's
+Spend review shows the inputs from the key's address and the output as
+that wallet's own address, worked out here; the person holds to sign. A
+key with no BIP-32 origin is matched in the PSBT by its public key (the
+PSBT carries no master fingerprint for it). A legacy input needs its full
+previous transaction in the PSBT, as Core and Sparrow put it.
+
+The key is never offered as words, SeedQR, shares or a FROST share; it
+may be kept in a vault as a single-key record, and is wiped at a lock
+otherwise. Strings: `keygen_type_private_key` "Type a private key",
+`catalog_sweep_key` "Sweep a private key", `key_single` "A single key",
+`wif_uncompressed` "Uncompressed key: legacy addresses only",
+`wif_not_a_key` "This is not a private key". Tests: BIP-32's and Core's
+published WIF ↔ key ↔ address vectors (compressed and uncompressed,
+main and test); the four addresses of a known key; `combo()`'s checksum
+as Core gives it; a Core PSBT spending a `wpkh` and a `pkh` output of the
+key (built from a test vector, previous transactions included) signs and
+finalises, and the review names the destination as the wallet's own; a
+`wpkh(L1…)` descriptor file goes to the secret sheet and loads the key;
+the key's Backup menu offers no SeedQR.
+
 ### Left out (owner, 2026-10-20)
 
 - **BIP-329 label files.** A label from the coordinator beside an output
