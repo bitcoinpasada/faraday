@@ -260,3 +260,330 @@ fn the_camera_preview_is_in_colour_when_the_camera_gives_colour() {
         "the preview is not in colour: {grey} then {colour}"
     );
 }
+
+/// The parts of a PSBT as a UR animation shows them, in order: the
+/// fragments first, then mixes of them; and how many fragments there are.
+fn ur_frames(psbt: &[u8], n: usize) -> (Vec<String>, usize) {
+    let mut e = osk_codec::ur::Encoder::psbt(psbt, 60).unwrap();
+    let count = e.fragment_count();
+    ((0..n).map(|_| e.next_part()).collect(), count)
+}
+
+fn state(app: &Faraday) -> String {
+    app.scan
+        .as_ref()
+        .map(|s| s.state_line().to_string())
+        .unwrap_or_default()
+}
+
+#[test]
+fn a_second_ur_animation_starts_again_instead_of_sticking() {
+    let first = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
+    let second = testkit::unsigned(&kit("taproot")).unwrap().to_bytes();
+    let (a, a_count) = ur_frames(&first, 40);
+    let (b, b_count) = ur_frames(&second, 40);
+    assert!(
+        a_count >= 4 && b_count >= 4,
+        "{a_count} and {b_count} parts"
+    );
+    let mut app = scanning(Vec::new());
+    scan(&mut app, &a[0]);
+    scan(&mut app, &a[1]);
+    // The second animation comes in the middle of the first.
+    scan(&mut app, &b[0]);
+    assert_eq!(note(&app), "A new QR started; reading it from the start");
+    scan(&mut app, &b[1]);
+    assert!(note(&app).starts_with("UR: 2 of"), "{}", note(&app));
+    // Shown in turn, each frame starts the other again; held alone, the
+    // second arrives whole.
+    scan(&mut app, &a[2]);
+    scan(&mut app, &b[2]);
+    for p in &b {
+        scan(&mut app, p);
+        if app.scan.is_none() {
+            break;
+        }
+    }
+    let item = app
+        .inbox
+        .last()
+        .expect("the second animation did not arrive");
+    assert_eq!(item.kind, FileKind::Psbt);
+    assert_eq!(item.bytes, second);
+    // Then the first, from its start, on the scanner opened again.
+    app.press(Action::Scan);
+    for p in &a {
+        scan(&mut app, p);
+        assert!(!note(&app).contains("Mismatch"), "{}", note(&app));
+        if app.scan.is_none() {
+            break;
+        }
+    }
+    assert_eq!(app.inbox.last().unwrap().bytes, first);
+}
+
+#[test]
+fn a_damaged_ur_part_leaves_the_animation_being_read() {
+    let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
+    let (a, count) = ur_frames(&psbt, 40);
+    let mut app = scanning(Vec::new());
+    scan(&mut app, &a[0]);
+    // The part's last byteword changed: its checksum fails.
+    let mut broken = a[1].clone();
+    broken.truncate(broken.len() - 4);
+    broken.push_str(if a[1].ends_with("able") {
+        "acid"
+    } else {
+        "able"
+    });
+    scan(&mut app, &broken);
+    assert_eq!(note(&app), "That QR is not a readable UR part");
+    scan(&mut app, &a[2]);
+    assert!(
+        note(&app).starts_with(&format!("UR: 2 of {count}")),
+        "{}",
+        note(&app)
+    );
+}
+
+#[test]
+fn ur_progress_names_the_missing_parts() {
+    let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
+    let (a, count) = ur_frames(&psbt, 40);
+    assert!(count >= 5, "{count} parts");
+    let mut app = scanning(Vec::new());
+    scan(&mut app, &a[1]);
+    scan(&mut app, &a[3]);
+    let said = note(&app);
+    assert!(
+        said.starts_with(&format!("UR: 2 of {count} · missing 1, 3, 5")),
+        "{said}"
+    );
+    // The bar inside the viewfinder follows the parts read.
+    let share = app.scan.as_ref().unwrap().parts_read().unwrap();
+    assert!((share - 2.0 / count as f32).abs() < 1e-6, "{share}");
+}
+
+fn paste(app: &mut Faraday, text: &str) {
+    app.press(Action::ScanPaste);
+    let asked = std::iter::from_fn(|| app.poll_command())
+        .any(|c| matches!(c, osk_shell_api::Command::RequestClipboard { .. }));
+    assert!(asked, "Paste did not ask the shell for the clipboard");
+    app.event(Event::Clipboard {
+        kind: osk_shell_api::FileKind::Text,
+        text: text.to_string(),
+    });
+}
+
+#[test]
+fn paste_reads_the_clipboard_as_a_scan_reads_a_qr() {
+    let mut app = scanning(Vec::new());
+    app.clipboard = true;
+    paste(&mut app, &kit("spending").descriptor);
+    let item = app.inbox.last().expect("the paste did not arrive");
+    assert_eq!(item.bytes, kit("spending").descriptor.as_bytes());
+}
+
+#[test]
+fn paste_takes_ur_parts_as_the_camera_does() {
+    let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
+    let (a, count) = ur_frames(&psbt, 40);
+    let mut app = scanning(Vec::new());
+    app.clipboard = true;
+    for p in &a[..count] {
+        paste(&mut app, p);
+    }
+    assert_eq!(app.inbox.last().expect("nothing arrived").bytes, psbt);
+}
+
+#[test]
+fn a_secret_is_never_pasted() {
+    let words = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    // Words with a bad checksum are words all the same.
+    let unchecked = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon";
+    let seedqr = "0000".repeat(11) + "0003";
+    let xprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+    let wif = "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn";
+    // BIP-93's first test vector.
+    let codex32 = "ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw";
+    for (secret, said) in [
+        (words, "seed's words"),
+        (unchecked, "seed's words"),
+        (seedqr.as_str(), "SeedQR"),
+        (xprv, "private key"),
+        (wif, "private key"),
+        (codex32, "share of a key"),
+    ] {
+        let mut app = scanning(Vec::new());
+        app.clipboard = true;
+        paste(&mut app, secret);
+        assert!(
+            note(&app).contains(said) && note(&app).contains("never pasted"),
+            "{secret}: {}",
+            note(&app)
+        );
+        assert!(app.inbox.is_empty(), "{secret} was filed");
+        assert!(app.session.keys.is_empty(), "{secret} loaded a key");
+        assert!(app.scan.is_some(), "{secret} closed the scanner");
+    }
+}
+
+#[test]
+fn paste_is_dimmed_where_the_shell_has_no_clipboard() {
+    let mut app = scanning(Vec::new());
+    assert!(app.scan_pastes());
+    app.press(Action::ScanPaste);
+    let asked = std::iter::from_fn(|| app.poll_command())
+        .any(|c| matches!(c, osk_shell_api::Command::RequestClipboard { .. }));
+    assert!(!asked, "a shell with no clipboard was asked for it");
+}
+
+#[test]
+fn a_seed_scanner_has_no_paste() {
+    let mut app = Faraday::new();
+    app.clipboard = true;
+    // No key loads before the self-test, which the display starts.
+    display(&mut app);
+    app.press(Action::ScanSeed);
+    assert!(app.scan.is_some(), "the seed scanner did not open");
+    assert!(!app.scan_pastes());
+}
+
+#[test]
+fn nothing_to_paste_shows_for_two_seconds() {
+    let mut app = scanning(Vec::new());
+    app.clipboard = true;
+    app.event(Event::Tick { now_ms: 1_000 });
+    app.press(Action::ScanPaste);
+    app.event(Event::ClipboardUnavailable {
+        kind: osk_shell_api::FileKind::Text,
+    });
+    assert_eq!(state(&app), "Nothing to paste");
+    app.event(Event::Tick { now_ms: 2_500 });
+    assert_eq!(state(&app), "Nothing to paste");
+    app.event(Event::Tick { now_ms: 3_100 });
+    assert_ne!(state(&app), "Nothing to paste");
+    // An empty clipboard is the same.
+    paste(&mut app, "  ");
+    assert_eq!(state(&app), "Nothing to paste");
+}
+
+fn frame(app: &mut Faraday) {
+    app.event(Event::CameraFrame {
+        width: 64,
+        height: 48,
+        luma: vec![120; 64 * 48],
+        chroma: None,
+    });
+}
+
+#[test]
+fn a_camera_that_sends_no_picture_is_said_to() {
+    let mut app = scanning(Vec::new());
+    app.event(Event::Tick { now_ms: 1_000 });
+    assert_eq!(state(&app), "Starting the camera");
+    app.event(Event::Tick { now_ms: 5_000 });
+    assert_eq!(state(&app), "Starting the camera");
+    app.event(Event::Tick { now_ms: 7_100 });
+    assert_eq!(state(&app), "The camera sends no picture");
+    assert!(app.scan_pastes(), "the scanner closed");
+    // A picture after all.
+    frame(&mut app);
+    assert_eq!(state(&app), "Hold the QR in front of the camera");
+}
+
+#[test]
+fn each_camera_failure_is_named_and_the_scanner_stays() {
+    use osk_shell_api::CameraFailure;
+    for (event, said) in [
+        (
+            Event::CameraFailed(CameraFailure::Refused),
+            "The camera was refused",
+        ),
+        (
+            Event::CameraFailed(CameraFailure::InUse),
+            "The camera is in use by another app",
+        ),
+        (
+            Event::CameraFailed(CameraFailure::NotFound),
+            "No camera found",
+        ),
+        (
+            Event::CameraUnavailable,
+            "No camera, or the camera was refused",
+        ),
+    ] {
+        let mut app = scanning(Vec::new());
+        app.event(event);
+        assert_eq!(state(&app), said);
+        assert!(app.scan_pastes(), "the scanner closed");
+        // Its other ways in still work.
+        app.clipboard = true;
+        paste(&mut app, &kit("spending").descriptor);
+        assert!(!app.inbox.is_empty(), "a paste after {said} did not arrive");
+    }
+}
+
+#[test]
+fn a_qr_seen_large_enough_that_never_reads_gets_a_hint() {
+    let hint = "Hold it square-on, in focus, with its white margin in the frame";
+    let mut app = scanning(Vec::new());
+    frame(&mut app);
+    app.event(Event::Tick { now_ms: 1_000 });
+    seen(&mut app, 60, false);
+    app.event(Event::Tick { now_ms: 3_000 });
+    seen(&mut app, 60, false);
+    assert_ne!(note(&app), hint);
+    app.event(Event::Tick { now_ms: 5_100 });
+    seen(&mut app, 60, false);
+    assert_eq!(note(&app), hint);
+    // A QR that reads starts the wait again.
+    let mut app = scanning(Vec::new());
+    frame(&mut app);
+    app.event(Event::Tick { now_ms: 1_000 });
+    seen(&mut app, 60, false);
+    app.event(Event::Tick { now_ms: 4_000 });
+    seen(&mut app, 60, true);
+    app.event(Event::Tick { now_ms: 5_100 });
+    seen(&mut app, 60, false);
+    assert_ne!(note(&app), hint);
+    // A QR too fine is said to be, not this.
+    let mut app = scanning(Vec::new());
+    frame(&mut app);
+    for t in [1_000, 3_000, 5_100, 7_000] {
+        app.event(Event::Tick { now_ms: t });
+        seen(&mut app, 14, false);
+    }
+    assert!(note(&app).contains("Too fine"), "{}", note(&app));
+}
+
+fn display(app: &mut Faraday) {
+    app.event(Event::Display(osk_shell_api::DisplayInfo {
+        width: 1366,
+        height: 768,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: osk_shell_api::SecureHardware::None,
+        boot: osk_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+}
+
+#[test]
+fn the_scanner_draws_its_state_over_the_picture() {
+    let mut app = Faraday::new();
+    display(&mut app);
+    app.press(Action::Scan);
+    let _ = app.frame();
+    frame(&mut app);
+    let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
+    let (a, _) = ur_frames(&psbt, 2);
+    scan(&mut app, &a[1]);
+    seen(&mut app, 60, true);
+    let _ = app.frame();
+    app.event(Event::CameraFailed(osk_shell_api::CameraFailure::InUse));
+    let _ = app.frame();
+}

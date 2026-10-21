@@ -1310,6 +1310,8 @@ pub enum Action {
     BPaperHide,
     /// Read with this camera, by its place in the shell's list.
     ScanCamera(u8),
+    /// The scanner's Paste: the clipboard's text, read as a QR.
+    ScanPaste,
     /// Open the Learn pages for the screen on show.
     Learn,
     /// The docked keyboard of a small panel.
@@ -1917,6 +1919,19 @@ pub struct ScanState {
     pub purpose: ScanPurpose,
     /// BBQr and numbered parts being put together.
     pub assembler: faraday_qr::Assembler,
+    /// When the sheet began waiting for the camera's first frame
+    /// (`now_ms` at the first tick it waited), until a frame comes.
+    pub waiting_since: Option<u64>,
+    /// Why the camera gives no picture, once that is known; cleared by
+    /// the next frame.
+    pub no_picture: Option<NoPicture>,
+    /// While "Nothing to paste" is the state line: until when, in
+    /// `now_ms`. Set by an empty paste, cleared by the tick past it.
+    pub nothing_to_paste: Option<u64>,
+    /// When a QR in view, large enough to read, was first seen and not
+    /// read (`now_ms`): reset by a read, by a QR too fine, and by the QR
+    /// leaving the view (`docs/QR.md` §8 item 8).
+    pub unread_since: Option<u64>,
 }
 
 impl ScanState {
@@ -1924,6 +1939,117 @@ impl ScanState {
     pub fn in_parts(&self) -> bool {
         self.assembler.busy() || self.decoder.progress().is_some()
     }
+
+    /// The share of a transfer in parts read so far, for the bar inside
+    /// the viewfinder; `None` when no transfer in parts is under way.
+    pub fn parts_read(&self) -> Option<f32> {
+        let (have, of) = self
+            .decoder
+            .progress()
+            .or_else(|| self.assembler.progress())?;
+        (of > 0).then(|| have as f32 / of as f32)
+    }
+
+    /// The state line inside the viewfinder: a passing line first, then
+    /// why the camera gives no picture, then the last thing said, then
+    /// what the camera is doing.
+    pub fn state_line(&self) -> &str {
+        if self.nothing_to_paste.is_some() {
+            return EN.pasted_nothing;
+        }
+        if let Some(why) = self.no_picture {
+            return why.line();
+        }
+        match (&self.note, &self.frame) {
+            (Some(note), _) => note,
+            (None, None) => EN.scan_starting_the_camera,
+            (None, Some(_)) => EN.scan_hold_the_code,
+        }
+    }
+}
+
+/// Why the scanner shows no picture (`docs/QR.md` §8 item 6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NoPicture {
+    /// The camera started and no frame came in [`osk_ui::tokens::NO_PICTURE_MS`].
+    Silent,
+    /// The shell answered `CameraUnavailable`, which says no more.
+    Unavailable,
+    /// The shell says the camera was refused.
+    Refused,
+    /// The shell says another program holds the camera.
+    InUse,
+    /// The shell says there is no camera.
+    NotFound,
+}
+
+impl NoPicture {
+    /// The line the viewfinder shows.
+    pub fn line(self) -> &'static str {
+        match self {
+            NoPicture::Silent => EN.scan_no_picture,
+            NoPicture::Unavailable => EN.event_no_camera_or,
+            NoPicture::Refused => EN.scan_camera_refused,
+            NoPicture::InUse => EN.scan_camera_in_use,
+            NoPicture::NotFound => EN.scan_no_camera_found,
+        }
+    }
+}
+
+/// Preview frames a QR the scanner found stays outlined, and counts as
+/// still in view, after the scanner last saw it.
+pub const SEEN_FRAMES: u32 = 10;
+
+/// What one UR part did to the decoder ([`ur_feed`]).
+pub(crate) enum UrFed {
+    /// The message is whole; the decoder is left empty.
+    Whole(osk_codec::ur::Message),
+    /// More parts are wanted. `restarted` when the part began another
+    /// message, which replaced the one being read.
+    More {
+        /// The part began another message.
+        restarted: bool,
+    },
+}
+
+/// One UR part into `decoder` (`docs/QR.md` §8 item 1). A part of
+/// another message starts that message in an empty decoder, which takes
+/// the old one's place; one no decoder reads is refused and leaves the
+/// message being read as it was. A message once whole is taken out, so
+/// the decoder is empty for the next. The refusal is the line to show.
+pub(crate) fn ur_feed(
+    decoder: &mut osk_codec::ur::Decoder,
+    text: &str,
+) -> Result<UrFed, &'static str> {
+    let restarted = match decoder.receive(text) {
+        Ok(_) => false,
+        Err(osk_codec::ur::Error::Mismatch) => {
+            let mut fresh = osk_codec::ur::Decoder::new();
+            if fresh.receive(text).is_err() {
+                return Err(EN.ur_feed_not_a_part);
+            }
+            *decoder = fresh;
+            true
+        }
+        Err(_) => return Err(EN.ur_feed_not_a_part),
+    };
+    if decoder.is_complete() {
+        return std::mem::take(decoder)
+            .into_message()
+            .map(UrFed::Whole)
+            .ok_or(EN.ur_feed_not_a_part);
+    }
+    Ok(UrFed::More { restarted })
+}
+
+/// The state line for a UR read in parts: that another message started,
+/// or how far this one is and which parts it still wants.
+pub(crate) fn ur_note(decoder: &osk_codec::ur::Decoder, restarted: bool) -> Option<String> {
+    if restarted {
+        return Some(EN.ur_feed_new_qr.to_string());
+    }
+    let (have, of) = decoder.progress()?;
+    Some(part_note("UR", have, of, &decoder.missing()))
 }
 
 impl Drop for ScanState {
@@ -2334,6 +2460,46 @@ fn secret_text(c: &Compute, text: &str) -> Option<&'static str> {
         faraday_intake::TextSecret::Words => EN.secret_text_those_are,
         faraday_intake::TextSecret::ExtendedPrivateKey => EN.secret_text_that_is,
     })
+}
+
+/// Costs a mnemonic's checksum (through `secret_text`), a codex32 and a
+/// SLIP-39 parse and a WIF's checksum. Why pasted text is refused for
+/// holding a secret (`docs/DESIGN.md` §4.10): a seed's words, checksum or
+/// not, a SeedQR's digits, an extended private key, a WIF private key, a
+/// codex32 string or a SLIP-39 share.
+fn pasted_secret(c: &Compute, text: &str) -> Option<&'static str> {
+    let t = text.trim();
+    let english = osk_bip::bip39::Language::English;
+    let words: Vec<&str> = t.split_whitespace().collect();
+    if matches!(words.len(), 12 | 15 | 18 | 21 | 24)
+        && words.iter().all(|w| {
+            english
+                .index_of(&zeroize::Zeroizing::new(w.to_lowercase()))
+                .is_some()
+        })
+    {
+        return Some(EN.pasted_words);
+    }
+    match faraday_intake::secret_text(c, t) {
+        Some(faraday_intake::TextSecret::Words) => return Some(EN.pasted_words),
+        Some(faraday_intake::TextSecret::ExtendedPrivateKey) => {
+            return Some(EN.pasted_private_key);
+        }
+        None => {}
+    }
+    if matches!(t.len(), 48 | 96) && t.bytes().all(|b| b.is_ascii_digit()) {
+        return Some(EN.pasted_seedqr);
+    }
+    if osk_bip::bitcoin::PrivateKey::from_wif(t).is_ok() {
+        return Some(EN.pasted_private_key);
+    }
+    let lower = zeroize::Zeroizing::new(t.to_lowercase());
+    if osk_bip::codex32::Codex32::parse(&lower).is_ok()
+        || osk_bip::slip39::Share::parse(&lower).is_ok()
+    {
+        return Some(EN.pasted_share);
+    }
+    None
 }
 
 /// Costs what `read_psbt` and `read_wallet` cost. What a code is when a
@@ -3795,6 +3961,10 @@ pub struct Faraday {
     /// ([`Faraday::stick_pills`]): the desktop app and the website demo.
     /// Never set on the device.
     pub shell_sticks: bool,
+    /// The shell answers `RequestClipboard` with the clipboard's text: the
+    /// desktop app. The scanner's Paste is dimmed where it is not set,
+    /// which is never on the device (`docs/QR.md` §8 item 5).
+    pub clipboard: bool,
     /// Pills pressed since the shell last asked: the folder names to
     /// insert or pull ([`Faraday::take_stick_toggles`]).
     pub(crate) stick_toggles: Vec<String>,
@@ -4022,6 +4192,7 @@ impl Faraday {
             online: false,
             held: false,
             shell_sticks: false,
+            clipboard: false,
             stick_toggles: Vec::new(),
             medium: Medium::Stick,
             secure_boot: SecureBootAtStart::Unknown,
@@ -4309,8 +4480,12 @@ impl Faraday {
                 module_tenths,
                 read,
             } => {
+                let now_ms = self.now_ms;
                 if let Some(s) = self.scan.as_mut() {
                     let now = s.frames;
+                    let away = s
+                        .seen
+                        .is_none_or(|(_, at)| now.wrapping_sub(at) > SEEN_FRAMES);
                     s.seen = Some((
                         Seen {
                             width,
@@ -4320,13 +4495,28 @@ impl Faraday {
                         },
                         now,
                     ));
-                    if !read && module_tenths < TOO_FINE_TENTHS {
+                    let fine = module_tenths < TOO_FINE_TENTHS;
+                    if !read && fine {
                         s.too_fine += 1;
                     } else {
                         s.too_fine = 0;
                     }
                     if s.too_fine >= TOO_FINE_PASSES {
                         s.note = Some(EN.storage_event_too_fine.to_string());
+                    }
+                    // Large enough and still not read after a while: the
+                    // picture is the problem (`docs/QR.md` §8 item 8).
+                    if read || fine {
+                        s.unread_since = None;
+                    } else {
+                        match s.unread_since {
+                            Some(since) if !away => {
+                                if now_ms.saturating_sub(since) >= osk_ui::tokens::POOR_PICTURE_MS {
+                                    s.note = Some(EN.scan_hold_it_square_on.to_string());
+                                }
+                            }
+                            _ => s.unread_since = Some(now_ms),
+                        }
                     }
                 }
             }
@@ -5496,6 +5686,7 @@ impl Faraday {
                 self.screen = Screen::Family;
             }
             Action::Osk(p) => self.osk_press(p),
+            Action::ScanPaste => self.scan_paste(),
             Action::ScanCamera(i) => {
                 if let Some((id, _)) = self.cameras.get(usize::from(i)) {
                     self.camera = Some(id.clone());
@@ -10385,48 +10576,42 @@ impl Faraday {
             faraday_qr::Step::NotMine => {}
         }
         if item.is_none() && osk_codec::ur::is_ur(&text) {
-            match scan.decoder.receive(&text) {
-                Ok(true) => match scan.decoder.message() {
-                    Some(osk_codec::ur::Message::Psbt(p)) => item = Some((None, "psbt", p.clone())),
-                    Some(osk_codec::ur::Message::Bytes(b)) => {
-                        item = Some(arrival(faraday_qr::classify_text(
-                            &String::from_utf8_lossy(b),
-                        )));
-                    }
-                    Some(osk_codec::ur::Message::Other { ur_type, cbor }) => {
-                        match faraday_qr::registry::read(ur_type, cbor) {
-                            Ok(Some(faraday_qr::registry::Read::Psbt(p))) => {
-                                item = Some((None, "psbt", p));
-                            }
-                            Ok(Some(faraday_qr::registry::Read::Keys(t)))
-                            | Ok(Some(faraday_qr::registry::Read::Descriptor(t))) => {
-                                item = Some((None, "txt", t.into_bytes()));
-                            }
-                            Ok(None) => {
-                                scan.note =
-                                    Some(fill(EN.read_code_ur_is_not, &[&ur_type.to_string()]));
-                            }
-                            Err(why) => scan.note = Some(why),
+            let message = match ur_feed(&mut scan.decoder, &text) {
+                Ok(UrFed::Whole(m)) => m,
+                Ok(UrFed::More { restarted }) => {
+                    scan.note = ur_note(&scan.decoder, restarted);
+                    return None;
+                }
+                Err(why) => {
+                    scan.note = Some(why.to_string());
+                    return None;
+                }
+            };
+            match message {
+                osk_codec::ur::Message::Psbt(p) => item = Some((None, "psbt", p)),
+                osk_codec::ur::Message::Bytes(b) => {
+                    item = Some(arrival(faraday_qr::classify_text(
+                        &String::from_utf8_lossy(&b),
+                    )));
+                }
+                osk_codec::ur::Message::Other { ur_type, cbor } => {
+                    match faraday_qr::registry::read(&ur_type, &cbor) {
+                        Ok(Some(faraday_qr::registry::Read::Psbt(p))) => {
+                            item = Some((None, "psbt", p));
                         }
-                        if item.is_none() {
-                            scan.decoder = osk_codec::ur::Decoder::new();
+                        Ok(Some(faraday_qr::registry::Read::Keys(t)))
+                        | Ok(Some(faraday_qr::registry::Read::Descriptor(t))) => {
+                            item = Some((None, "txt", t.into_bytes()));
+                        }
+                        Ok(None) => {
+                            scan.note = Some(fill(EN.read_code_ur_is_not, &[&ur_type]));
+                            return None;
+                        }
+                        Err(why) => {
+                            scan.note = Some(why);
                             return None;
                         }
                     }
-                    None => return None,
-                },
-                Ok(false) => {
-                    if let Some((have, of)) = scan.decoder.progress() {
-                        scan.note = Some(fill(
-                            EN.read_code_ur_part_of,
-                            &[&have.to_string(), &of.to_string()],
-                        ));
-                    }
-                    return None;
-                }
-                Err(e) => {
-                    scan.note = Some(fill(EN.read_code_not_a_part, &[&format!("{e:?}")]));
-                    return None;
                 }
             }
         }
@@ -10446,6 +10631,90 @@ impl Faraday {
             }
         };
         Some((named, ext, data))
+    }
+
+    /// The camera gives no picture, and the shell said so: the sheet stays
+    /// with the reason in its square and its other ways in live
+    /// (`docs/QR.md` §8 item 6).
+    fn camera_failed(&mut self, why: NoPicture) {
+        if let Some(s) = self.scan.as_mut() {
+            s.no_picture = Some(why);
+            s.waiting_since = None;
+        }
+        self.release_held_stick();
+    }
+
+    /// Whether the scanner on screen offers Paste: one that takes
+    /// anything, not a seed's or a TOTP code's (`docs/QR.md` §8 item 5).
+    pub fn scan_pastes(&self) -> bool {
+        self.sheet == Some(Sheet::Scan)
+            && self.scan.as_ref().is_some_and(|s| {
+                matches!(
+                    s.purpose,
+                    ScanPurpose::Files | ScanPurpose::Transfer | ScanPurpose::Intake
+                )
+            })
+    }
+
+    /// Paste on the scanner: the shell is asked for the clipboard's text,
+    /// where it has a clipboard.
+    fn scan_paste(&mut self) {
+        if self.clipboard && self.scan_pastes() {
+            self.commands.push_back(Command::RequestClipboard {
+                kind: osk_shell_api::FileKind::Text,
+            });
+        }
+    }
+
+    /// Costs what `pasted_secret` costs, then what a code read costs
+    /// (through `scanned`). The clipboard's text, asked for by Paste: a
+    /// secret is refused and named, anything else goes where a QR the
+    /// camera read goes, and nothing at all says so for a moment
+    /// (`docs/QR.md` §8 item 5).
+    fn pasted(&mut self, text: zeroize::Zeroizing<String>) {
+        if !self.scan_pastes() {
+            return;
+        }
+        let c = self.compute();
+        let until = self.now_ms + osk_ui::tokens::NOTE_FLASH_MS;
+        let t = text.trim();
+        if let Some(scan) = self.scan.as_mut() {
+            if t.is_empty() {
+                scan.nothing_to_paste = Some(until);
+                return;
+            }
+            scan.nothing_to_paste = None;
+            if let Some(why) = pasted_secret(&c, t) {
+                scan.note = Some(why.to_string());
+                return;
+            }
+        }
+        self.scanned(t.as_bytes().to_vec());
+    }
+
+    /// The scanner's clock, on each tick: the camera that sends no
+    /// picture, and "Nothing to paste" running out. Whether the sheet
+    /// changed.
+    fn scan_tick(&mut self, now_ms: u64) -> bool {
+        let Some(s) = self.scan.as_mut() else {
+            return false;
+        };
+        let mut changed = false;
+        if s.nothing_to_paste.is_some_and(|until| now_ms >= until) {
+            s.nothing_to_paste = None;
+            changed = true;
+        }
+        if self.sheet == Some(Sheet::Scan) && s.frame.is_none() && s.no_picture.is_none() {
+            match s.waiting_since {
+                None => s.waiting_since = Some(now_ms),
+                Some(since) if now_ms.saturating_sub(since) >= osk_ui::tokens::NO_PICTURE_MS => {
+                    s.no_picture = Some(NoPicture::Silent);
+                    changed = true;
+                }
+                Some(_) => {}
+            }
+        }
+        changed
     }
 
     /// Costs an address derivation (through `find_address`). What a scanned
@@ -13254,6 +13523,9 @@ impl App for Faraday {
                 | Event::Forward
                 | Event::Scanned { .. }
                 | Event::CameraUnavailable
+                | Event::CameraFailed(_)
+                | Event::Clipboard { .. }
+                | Event::ClipboardUnavailable { .. }
                 | Event::Display(_)
         );
         match event {
@@ -13459,6 +13731,10 @@ impl App for Faraday {
                     }
                 }
                 self.vanity_tick(now_ms);
+                if self.scan_tick(now_ms) {
+                    self.dirty = true;
+                    self.commands.push_back(Command::Draw);
+                }
                 self.zero_tick();
                 if let Some(q) = self.qr.as_mut()
                     && q.frames.len() > 1
@@ -13514,6 +13790,10 @@ impl App for Faraday {
                     s.frame = Some((width, height, luma));
                     s.chroma = chroma;
                     s.frames = s.frames.wrapping_add(1);
+                    s.waiting_since = None;
+                    if s.no_picture == Some(NoPicture::Silent) {
+                        s.no_picture = None;
+                    }
                 }
                 None => return,
             },
@@ -13521,12 +13801,15 @@ impl App for Faraday {
                 self.scanned(bytes);
                 self.release_held_stick();
             }
-            Event::CameraUnavailable => {
-                if self.scan.take().is_some() {
-                    self.sheet = None;
-                    self.toast(EN.event_no_camera_or);
-                }
-                self.release_held_stick();
+            Event::CameraUnavailable => self.camera_failed(NoPicture::Unavailable),
+            Event::CameraFailed(why) => self.camera_failed(match why {
+                osk_shell_api::CameraFailure::Refused => NoPicture::Refused,
+                osk_shell_api::CameraFailure::InUse => NoPicture::InUse,
+                osk_shell_api::CameraFailure::NotFound => NoPicture::NotFound,
+            }),
+            Event::Clipboard { text, .. } => self.pasted(zeroize::Zeroizing::new(text)),
+            Event::ClipboardUnavailable { .. } => {
+                self.pasted(zeroize::Zeroizing::new(String::new()))
             }
             _ => return,
         }

@@ -123,6 +123,14 @@ impl Assembler {
         Step::NotMine
     }
 
+    /// Parts read, of how many, of the transfer part-way through.
+    pub fn progress(&self) -> Option<(usize, usize)> {
+        self.bbqr
+            .as_ref()
+            .and_then(bbqr::Collector::progress)
+            .or_else(|| self.specter.as_ref().and_then(specter::Collector::progress))
+    }
+
     /// Whether a transfer is part-way through.
     pub fn busy(&self) -> bool {
         self.bbqr.is_some() || self.specter.is_some()

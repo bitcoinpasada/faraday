@@ -117,45 +117,36 @@ fn read_any(
         faraday_qr::Step::NotMine => {}
     }
     if osk_codec::ur::is_ur(text) {
-        return match scan.decoder.receive(text) {
-            Ok(true) => {
-                let got = match scan.decoder.message() {
-                    Some(osk_codec::ur::Message::Psbt(p)) => Some((None, "psbt", p.clone())),
-                    Some(osk_codec::ur::Message::Bytes(b)) => Some(match std::str::from_utf8(b) {
-                        Ok(t) => received(faraday_qr::classify_text(t)),
-                        Err(_) => (None, "bin", b.clone()),
-                    }),
-                    Some(osk_codec::ur::Message::Other { ur_type, cbor }) => {
-                        Some(match faraday_qr::registry::read(ur_type, cbor) {
-                            Ok(Some(faraday_qr::registry::Read::Psbt(p))) => (None, "psbt", p),
-                            Ok(Some(faraday_qr::registry::Read::Keys(t)))
-                            | Ok(Some(faraday_qr::registry::Read::Descriptor(t))) => {
-                                (None, "txt", t.into_bytes())
-                            }
-                            // A kind this build does not read is kept as
-                            // the CBOR it carried.
-                            _ => (None, "cbor", cbor.clone()),
-                        })
-                    }
-                    None => None,
-                };
-                scan.decoder = osk_codec::ur::Decoder::new();
-                got
+        let message = match crate::ur_feed(&mut scan.decoder, text) {
+            Ok(crate::UrFed::Whole(m)) => m,
+            Ok(crate::UrFed::More { restarted }) => {
+                scan.note = crate::ur_note(&scan.decoder, restarted);
+                return None;
             }
-            Ok(false) => {
-                if let Some((have, of)) = scan.decoder.progress() {
-                    scan.note = Some(fill(
-                        EN.transfer_ur_part_of,
-                        &[&have.to_string(), &of.to_string()],
-                    ));
-                }
-                None
-            }
-            Err(e) => {
-                scan.note = Some(fill(EN.transfer_not_a_part, &[&format!("{e:?}")]));
-                None
+            Err(why) => {
+                scan.note = Some(why.to_string());
+                return None;
             }
         };
+        return Some(match message {
+            osk_codec::ur::Message::Psbt(p) => (None, "psbt", p),
+            osk_codec::ur::Message::Bytes(b) => match std::str::from_utf8(&b) {
+                Ok(t) => received(faraday_qr::classify_text(t)),
+                Err(_) => (None, "bin", b),
+            },
+            osk_codec::ur::Message::Other { ur_type, cbor } => {
+                match faraday_qr::registry::read(&ur_type, &cbor) {
+                    Ok(Some(faraday_qr::registry::Read::Psbt(p))) => (None, "psbt", p),
+                    Ok(Some(faraday_qr::registry::Read::Keys(t)))
+                    | Ok(Some(faraday_qr::registry::Read::Descriptor(t))) => {
+                        (None, "txt", t.into_bytes())
+                    }
+                    // A kind this build does not read is kept as the
+                    // CBOR it carried.
+                    _ => (None, "cbor", cbor),
+                }
+            }
+        });
     }
     if wallet::read_psbt(c, bytes).is_some() {
         return Some((None, "psbt", bytes.to_vec()));

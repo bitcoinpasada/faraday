@@ -2,6 +2,7 @@
 
 **Status:** v0.2 · 2026-10-05 · partly built; §6 says what is and what is not.
 §7 (2026-10-14, F28) is specified, not scheduled; build only when the owner says.
+§8 (2026-10-21, tracker #181) is parity with Gauss's scanner.
 
 Faraday has one scanner and one QR sender, shared by the Wallets tab
 and the QR transfer tab. The sender's codes are made by `faraday-qr`'s
@@ -67,18 +68,18 @@ needs it and nothing here has it yet. `New` means neither does it as needed.
 
 | Feature | Faraday OS | OpenSigner | Faraday |
 |---|---|---|---|
-| Camera choice when there is more than one | yes | no (first `/dev/video*`) | Port |
-| Viewfinder with corner guides, and the found code outlined | preview only | square viewfinder | Port the outline |
-| Progress for multi-part codes: "4 of 10, missing 3, 7", kept across interruptions | count only | count only | Port |
+| Camera choice when there is more than one | yes | no (first `/dev/video*`) | Have on Linux and Windows; macOS §8 item 9 |
+| Viewfinder with corner guides, and the found code outlined | preview only | square viewfinder | Have: brackets, outline, state and parts inside (§8 item 4) |
+| Progress for multi-part codes: "4 of 10, missing 3, 7", kept across interruptions | count only | count only | Have, UR included (§8 item 7) |
 | Mirrored symbols | zbar | rqrr (`MirroredGrid`) | Have |
-| Inverted symbols (light on dark) | yes (tested) | no | Port |
-| Decode at full frame size; pace the loop by measured decode cost, never by shrinking frames | n/a | shell decodes each frame | Port the rule |
+| Inverted symbols (light on dark) | yes (tested) | no | Have on the stick and the Pi; desktop §8 item 2 |
+| Decode at full frame size; pace the loop by measured decode cost, never by shrinking frames | n/a | shell decodes each frame | Port the rule: §8 item 3 |
 | "Too fine for this camera" told apart from "bad picture", with the fix (use the animated form, or a file) | no | no | Port |
 | A code that is not what this screen wants is named, not refused generically ("that is a seed backup, not a transaction") | no | routing by kind | Port the wording |
 | A seed scanned where a transaction is expected is never placed in the box | no | yes | Have |
 | Camera constraints treated as wishes; a refused request retried with none | n/a | V4L2 format negotiation | Port the rule to V4L2 |
 | QR from a photograph or image file, many at once, stopping when a transfer completes | PNG import | no | Port: PNG only, decoded in the disk process (§4) |
-| Typed or pasted text as a way in | paste | Type, Paste | Have Type; no clipboard on the stick |
+| Typed or pasted text as a way in | paste | Type, Paste | Have Type; Paste on the desktop (§8 item 5); no clipboard on the stick |
 | Text files from a stick as a way in | yes | Read a file | Have, from the Inbox |
 
 ## 2. Routing
@@ -518,3 +519,92 @@ One batch, one review, one completion report.
   `docs/FLOWS.md` already names the actions (F28).
 - **Completion report:** each item with its tests and whether they
   pass; what was left out and why; the docs changed; the render names.
+
+## 8. Parity with Gauss (tracker #181)
+
+Compared on 2026-10-21 with Gauss's camera scanner. Items 1 and 4 to 8
+are the core's (`faraday-core`, `faraday-qr`, `osk-codec`,
+`osk-shell-api`, `osk-ui`'s tokens); items 2, 3 and 9 are the camera
+shells'. DESIGN §4.9 Scanner is the design they meet. No torch (DESIGN
+§4.9).
+
+1. **A part of another UR message starts that message again.** The UR
+   decoder answers a part of another message (another type, another part
+   count, another checksum) with `Mismatch`. That part goes to an empty
+   decoder. If the empty decoder reads it, it replaces the old one and the
+   state line says "A new QR started; reading it from the start". If it
+   does not (a damaged frame), the frame is dropped and the message being
+   read stays as it was. Once a message is whole, the decoder is left
+   empty, so the next animation read on the same sheet (What do you
+   have?) starts from nothing. Any other refusal says "That QR is not a
+   readable UR part". No error's Debug name reaches the screen. The
+   Files scanner and Transfer's Receive share this code (`ur_feed`).
+2. **White-on-black QRs on the desktop.** The window shell's `Lens`
+   offers every other frame inverted, as the stick does.
+3. **Resolution.** The desktop shells ask for about 1280×720, and the
+   scanner reads the full frame, paced by what a decode costs. The Pi
+   stays at 640×480.
+4. **Viewfinder.** Corner brackets over the camera's picture: white
+   (`pal::VIEWFINDER`) while looking, green (`pal::VIEWFINDER_READ`)
+   while a read QR is in view (the ten preview frames the outline lasts).
+   The outline round a found QR stays as it is: amber when found, green
+   when read. The state line and the parts bar are drawn inside the
+   picture, at its bottom, on a translucent dark band
+   (`pal::VIEWFINDER_BAND` at `VIEWFINDER_BAND_ALPHA`), in white. Nothing
+   is above the picture but the title. The state line shows "Starting the
+   camera" before the first frame, then "Hold the QR in front of the
+   camera", then the last thing said. The bar shows the parts read of a
+   UR, BBQr or numbered-parts transfer. Sizes: `VIEWFINDER_BRACKET_SHARE`
+   of the short side for an arm, `VIEWFINDER_BRACKET_STROKE`,
+   `VIEWFINDER_BRACKET_INSET`, `VIEWFINDER_BAND_PAD` and `BAR_HEIGHT`.
+5. **Paste.** A Paste button beside the scanner's other ways in, where
+   the scanner takes anything: Files, Transfer's Receive and What do you
+   have?. Seed scanners have none (a SeedQR, a key part, a wallet's key,
+   a copy check), and neither does the TOTP scanner. The button is dimmed
+   where the shell has no clipboard. `Faraday::clipboard` is set by a shell
+   that answers `RequestClipboard` with the clipboard's text (the desktop
+   app); it is never set on the stick or the Pi. A press asks
+   `RequestClipboard { kind: Text }`. Text holding a secret is refused
+   and named: a seed's words (12 to 24 English words, checksum or not),
+   a SeedQR's digits, an extended private key, a WIF private key, a
+   codex32 string or a SLIP-39 share. Other text goes where a QR read by
+   the camera goes (`scanned`), parts included, and is wiped once
+   routed. Empty text or `ClipboardUnavailable` puts "Nothing to paste"
+   on the state line for `NOTE_FLASH_MS` (2 s). The small panel has no
+   Paste: no shell there has a clipboard.
+6. **Camera failures.** If no frame arrives `NO_PICTURE_MS` (6 s) after
+   the sheet opens, the square says "The camera sends no picture". A
+   frame arriving later clears it. `osk-shell-api` gains
+   `Event::CameraFailed(CameraFailure)`, which a shell that knows why
+   sends in place of `CameraUnavailable`. Its kinds and lines are
+   `Refused` "The camera was refused", `InUse` "The camera is in use by
+   another app" and `NotFound` "No camera found". `CameraUnavailable`
+   still works and says "No camera, or the camera was refused". After a
+   failure the sheet stays open with the line in the square, the ways in
+   live and Cancel; it no longer closes with a toast. Faraday's scanner
+   has no Read a file: files come in from a stick through Files (open,
+   below).
+7. **UR progress names the missing parts.** "UR: 5 of 9 · missing 2,
+   7", the line BBQr's parts get (`part_note`): at most eight numbers,
+   then "…". The fountain decoder knows which fragments it has resolved.
+   `osk-codec`'s `Decoder::missing` lists the rest, numbered from 1,
+   which are the animation's first frames. A fragment resolved from
+   mixtures counts as read.
+8. **The picture is the problem.** A QR that the scanner sees (`QrSeen`)
+   at `TOO_FINE_TENTHS` or more for `POOR_PICTURE_MS` (4 s) without
+   reading, never out of view for more than ten preview frames, gets the
+   line "Hold it square-on, in focus, with its white margin in the
+   frame". A read, a pass too fine, or the QR out of view starts the wait
+   again. The scanner already reports all of this; nothing changes there.
+9. **macOS camera choice.** The window shell lists the AVFoundation
+   cameras, and choosing one reopens the camera on it.
+
+Open for the owner:
+
+- The camera's picture keeps its 4:3 shape. DESIGN §4.9 draws a square.
+- Read a file in the scanner. On the stick, a scanner opens only with no
+  stick attached, so the tile could only close the scanner and open
+  Files. It is not built.
+- Paste is on the desktop's scanner sheet. On the small panel there is no
+  Paste and no dimmed tile, for the room.
+- The waits: 6 s for no picture, 4 s for a QR seen and not read.

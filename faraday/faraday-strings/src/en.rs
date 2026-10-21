@@ -3614,10 +3614,23 @@ pub struct Strings {
     pub read_code_that_may: &'static str,
     /// Text in `read_code`. `{}`: `ur_type`.
     pub read_code_ur_is_not: &'static str,
-    /// Note in `read_code`. `{}`: `have`, `of`.
-    pub read_code_ur_part_of: &'static str,
-    /// Note in `read_code`. `{}`: `e`.
-    pub read_code_not_a_part: &'static str,
+    // ----- ur_feed (faraday-core/src/lib.rs) -----
+    /// Note in `ur_feed`: a part of another UR message started it again.
+    pub ur_feed_new_qr: &'static str,
+    /// Note in `ur_feed`: a part no decoder reads.
+    pub ur_feed_not_a_part: &'static str,
+    // ----- paste (faraday-core/src/lib.rs) -----
+    /// Note in `pasted`: the clipboard held a seed's words.
+    pub pasted_words: &'static str,
+    /// Note in `pasted`: the clipboard held a SeedQR's digits.
+    pub pasted_seedqr: &'static str,
+    /// Note in `pasted`: the clipboard held a private key.
+    pub pasted_private_key: &'static str,
+    /// Note in `pasted`: the clipboard held a codex32 string or a SLIP-39
+    /// share.
+    pub pasted_share: &'static str,
+    /// Line in `scan_sheet` for two seconds after Paste found no text.
+    pub pasted_nothing: &'static str,
     // ----- address_note (faraday-core/src/lib.rs) -----
     /// Text in `address_note`.
     pub address_note_that_address_fails: &'static str,
@@ -3751,7 +3764,7 @@ pub struct Strings {
     /// Error in `primary`. `{}`: `pos + 1`.
     pub primary_finish_step: &'static str,
     // ----- event (faraday-core/src/lib.rs) -----
-    /// Toast in `event`.
+    /// Line in `scan_sheet` after `CameraUnavailable`.
     pub event_no_camera_or: &'static str,
     // ----- lightning (faraday-core/src/lightning.rs) -----
     /// Error in `lightning_resolve`.
@@ -6088,6 +6101,18 @@ pub struct Strings {
     pub scan_done: &'static str,
     /// Text in `scan_sheet`.
     pub scan_cancel: &'static str,
+    /// Button in `scan_sheet`: the clipboard's text, read as a QR.
+    pub scan_paste: &'static str,
+    /// Line in `scan_sheet`: no frame came in the time allowed.
+    pub scan_no_picture: &'static str,
+    /// Line in `scan_sheet`: `CameraFailure::Refused`.
+    pub scan_camera_refused: &'static str,
+    /// Line in `scan_sheet`: `CameraFailure::InUse`.
+    pub scan_camera_in_use: &'static str,
+    /// Line in `scan_sheet`: `CameraFailure::NotFound`.
+    pub scan_no_camera_found: &'static str,
+    /// Note in `storage_event`: a QR seen large enough has not read.
+    pub scan_hold_it_square_on: &'static str,
     // ----- qr (faraday-core/src/screens.rs) -----
     /// Text in `qr_sheet`. `{}`: `q.subtitle`, `q.frame + 1`, `q.frames.len()`.
     pub qr_frame_of: &'static str,
@@ -6781,10 +6806,6 @@ pub struct Strings {
     /// Text in `body`.
     pub tools_keys_need_origins: &'static str,
     // ----- transfer (faraday-core/src/transfer.rs) -----
-    /// Note in `read_any`. `{}`: `have`, `of`.
-    pub transfer_ur_part_of: &'static str,
-    /// Note in `read_any`. `{}`: `e`.
-    pub transfer_not_a_part: &'static str,
     /// Text in `transfer_send`. `{}`: `self.medium.a()`.
     pub transfer_larger_than: &'static str,
     /// Text in `transfer_send`. `{}`: `base_name(&path)`.
@@ -10569,8 +10590,13 @@ pub static EN: Strings = Strings {
     read_code_that_is_a: "That is a SeedQR. Seeds go in through Add a key, not Files",
     read_code_that_may: "That may be a CompactSeedQR. Seeds go in through Add a key, not Files",
     read_code_ur_is_not: "ur:{} is not a kind this build reads",
-    read_code_ur_part_of: "UR: part {} of {}",
-    read_code_not_a_part: "Not a part of this code: {}",
+    ur_feed_new_qr: "A new QR started; reading it from the start",
+    ur_feed_not_a_part: "That QR is not a readable UR part",
+    pasted_words: "Those are a seed's words. A secret is never pasted",
+    pasted_seedqr: "That is a SeedQR. A secret is never pasted",
+    pasted_private_key: "That is a private key. A secret is never pasted",
+    pasted_share: "That is a share of a key. A secret is never pasted",
+    pasted_nothing: "Nothing to paste",
     address_note_that_address_fails: "That address fails its checksum: a character in it is wrong",
     address_note_that_address_is_not: "That address is not on {}",
     address_note_change: "change",
@@ -11734,11 +11760,17 @@ pub static EN: Strings = Strings {
     scan_scan_your_copy: "Scan your copy",
     scan_receive_into_downloads: "Receive into Downloads",
     scan_scan_a_qr_code: "Scan a QR code",
-    scan_hold_the_code: "Hold the code in front of the camera",
+    scan_hold_the_code: "Hold the QR in front of the camera",
     scan_starting_the_camera: "Starting the camera",
     scan_type_the_words: "Type the words instead",
     scan_done: "Done",
     scan_cancel: "Cancel",
+    scan_paste: "Paste",
+    scan_no_picture: "The camera sends no picture",
+    scan_camera_refused: "The camera was refused",
+    scan_camera_in_use: "The camera is in use by another app",
+    scan_no_camera_found: "No camera found",
+    scan_hold_it_square_on: "Hold it square-on, in focus, with its white margin in the frame",
     qr_frame_of: "{} · frame {} of {}",
     qr_secret_whoever_scans: "Secret · whoever scans this can use it",
     qr_public_safe_to_scan: "Public · safe to scan",
@@ -12074,8 +12106,6 @@ pub static EN: Strings = Strings {
     tools_wallet: "Wallet",
     tools_one_this_device: "one this device loads",
     tools_keys_need_origins: "keys need origins and both chains to load",
-    transfer_ur_part_of: "UR: part {} of {}",
-    transfer_not_a_part: "Not a part of this code: {}",
     transfer_larger_than: "Larger than 256 KiB: carry it on {}",
     transfer_is_empty: "{} is empty",
     transfer_saving: "Saving {}",

@@ -14877,8 +14877,10 @@ fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let typing = for_wallet.is_some() || (intake && app.may_load_keys());
     let type_row = if typing && ui.compact { 52.0 } else { 0.0 };
     let extra = rows + keys_h + type_row;
-    let side_h = side_h.min(h - 24.0 - 170.0 - extra).max(96.0);
-    let sh = side_h + 170.0 + extra;
+    // The title, then the picture: the state line is inside it.
+    let top = 56.0;
+    let side_h = side_h.min(h - 24.0 - top - 88.0 - extra).max(96.0);
+    let sh = side_h + top + 88.0 + extra;
     let (x, y) = sheet_box(ui, w, h, sw, sh);
     let x = x + pad - 32.0;
     let sw = sw - 2.0 * (pad - 32.0);
@@ -14892,33 +14894,31 @@ fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     let title = ui.fit(18.0, W::S, &title, sw - 64.0);
     ui.text(x + 32.0, y + 26.0, 18.0, W::S, TEXT, &title);
-    let line = sc
-        .note
-        .clone()
-        .unwrap_or_else(|| EN.scan_hold_the_code.to_string());
-    let line = ui.fit(12.0, W::R, &line, sw - 64.0);
-    ui.text(x + 32.0, y + 56.0, 12.0, W::R, MUTED, &line);
     for (k, key) in keys.iter().enumerate() {
         let key = ui.fit(13.0, W::M, key, sw - 64.0);
-        ui.text(x + 32.0, y + 82.0 + k as f32 * 20.0, 13.0, W::M, TEXT, &key);
+        ui.text(x + 32.0, y + top + k as f32 * 20.0, 13.0, W::M, TEXT, &key);
     }
     if let Some(t) = hint {
-        let ty = y + 82.0 + keys.len() as f32 * 20.0;
+        let ty = y + top + keys.len() as f32 * 20.0;
         ui.wrap(x + 32.0, ty, side_w, 12.0, W::R, TEXT, t);
     }
     let y = y + keys_h;
-    let rect = ui.rect(x + 32.0, y + 82.0, side_w, side_h);
-    ui.fill(x + 32.0, y + 82.0, side_w, side_h, 8.0, BG);
+    let (px, py) = (x + 32.0, y + top);
+    let rect = ui.rect(px, py, side_w, side_h);
+    ui.fill(px, py, side_w, side_h, 8.0, BG);
+    // A QR found and read, still in view: the brackets turn green.
+    let mut read_in_view = false;
     if let Some((fw, fh, luma)) = sc.frame.as_ref() {
         ui.c.luma(rect, *fw, *fh, luma, sc.chroma.as_deref());
         // The code the scanner last found, outlined where it is: green
         // once read, amber while it is found and not read.
         // Gone ten preview frames after the scanner stops seeing it.
         if let Some((seen, at)) = sc.seen
-            && sc.frames.wrapping_sub(at) <= 10
+            && sc.frames.wrapping_sub(at) <= crate::SEEN_FRAMES
             && seen.width > 0
             && seen.height > 0
         {
+            read_in_view = seen.read;
             // The preview fills its box and crops the longer side, as
             // `Canvas::luma` draws it: the same scale and crop here.
             let (fw, fh) = (f32::from(*fw), f32::from(*fh));
@@ -14940,17 +14940,16 @@ fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 ui.c.line(a.0, a.1, b.0, b.1, lw, color);
             }
         }
-    } else {
-        ui.text_mid(
-            x + 32.0 + side_w / 2.0 - 60.0,
-            y + 82.0,
-            side_h,
-            13.0,
-            W::R,
-            DIM,
-            EN.scan_starting_the_camera,
-        );
     }
+    viewfinder_over(ui, (px, py, side_w, side_h), sc, read_in_view);
+    // Paste, beside Type and Cancel, where the scanner takes anything:
+    // dimmed where the shell has no clipboard (`docs/QR.md` §8 item 5).
+    let paste = !ui.compact && app.scan_pastes();
+    let paste_w = if paste {
+        ui.measure(14.0, W::S, EN.scan_paste) + 32.0 + 12.0
+    } else {
+        0.0
+    };
     // Which camera, when there is more than one.
     if app.cameras.len() > 1 && ui.compact {
         let chosen = app.camera.as_deref();
@@ -14967,7 +14966,7 @@ fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 )
             })
             .collect();
-        button_rows(ui, x + 32.0, y + 82.0 + side_h + 12.0, sw - 64.0, &row);
+        button_rows(ui, x + 32.0, y + top + side_h + 12.0, sw - 64.0, &row);
     } else if app.cameras.len() > 1 {
         let chosen = app.camera.as_deref();
         let row: Vec<(String, Style, Action)> = app
@@ -14988,7 +14987,7 @@ fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             ui,
             x + 32.0,
             y - keys_h + sh - 32.0 - 44.0 + 6.0,
-            sw - 64.0 - 140.0 - typing,
+            sw - 64.0 - 140.0 - typing - paste_w,
             &row,
         );
     }
@@ -14999,6 +14998,7 @@ fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         None if typing => Some(Action::Family(crate::family::FamilyAction::TypeWords)),
         None => None,
     };
+    let mut left = x + sw - 32.0 - 120.0 - 12.0;
     if let Some(action) = type_instead {
         let label = EN.scan_type_the_words;
         if ui.compact {
@@ -15013,16 +15013,26 @@ fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             );
         } else {
             let bw = ui.measure(14.0, W::S, label) + 32.0;
-            ui.button(
-                x + sw - 32.0 - 120.0 - 12.0 - bw,
-                foot,
-                Some(bw),
-                44.0,
-                label,
-                Style::Secondary,
-                action,
-            );
+            left -= bw;
+            ui.button(left, foot, Some(bw), 44.0, label, Style::Secondary, action);
+            left -= 12.0;
         }
+    }
+    if paste {
+        let bw = paste_w - 12.0;
+        ui.button(
+            left - bw,
+            foot,
+            Some(bw),
+            44.0,
+            EN.scan_paste,
+            if app.clipboard {
+                Style::Secondary
+            } else {
+                Style::Disabled
+            },
+            Action::ScanPaste,
+        );
     }
     ui.button(
         x + sw - 32.0 - 120.0,
@@ -15037,6 +15047,82 @@ fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         },
         Action::Cancel,
     );
+}
+
+/// What is drawn over the camera's picture (`docs/QR.md` §8 item 4):
+/// the corner brackets, white while looking and green while a QR that
+/// read is in view, and at the bottom, on a translucent band, the state
+/// line and the bar of parts read.
+fn viewfinder_over(
+    ui: &mut Ui,
+    (x, y, w, h): (f32, f32, f32, f32),
+    sc: &crate::ScanState,
+    read: bool,
+) {
+    use osk_ui::tokens;
+    let tone = if read { VIEWFINDER_READ } else { VIEWFINDER };
+    let arm = w.min(h) * tokens::VIEWFINDER_BRACKET_SHARE;
+    let (st, inset) = (
+        tokens::VIEWFINDER_BRACKET_STROKE,
+        tokens::VIEWFINDER_BRACKET_INSET,
+    );
+    let (l, t) = (x + inset, y + inset);
+    let (r, b) = (x + w - inset, y + h - inset);
+    for (cx, right) in [(l, false), (r, true)] {
+        for (cy, bottom) in [(t, false), (b, true)] {
+            let ax = if right { cx - arm } else { cx };
+            let ay = if bottom { cy - st } else { cy };
+            ui.fill(ax, ay, arm, st, 0.0, tone);
+            let bx = if right { cx - st } else { cx };
+            let by = if bottom { cy - arm } else { cy };
+            ui.fill(bx, by, st, arm, 0.0, tone);
+        }
+    }
+    let size = tokens::VIEWFINDER_STATE_SIZE;
+    let pad = tokens::VIEWFINDER_BAND_PAD;
+    let line_h = ui.line(size, W::R);
+    let parts = sc.parts_read();
+    let bar = parts.map_or(0.0, |_| pad + tokens::BAR_HEIGHT);
+    let band_h = pad + line_h + bar + pad;
+    let band_y = y + h - band_h;
+    ui.fill(
+        x,
+        band_y,
+        w,
+        band_h,
+        0.0,
+        VIEWFINDER_BAND.with_alpha(tokens::VIEWFINDER_BAND_ALPHA),
+    );
+    let line = ui.fit(size, W::R, sc.state_line(), w - 2.0 * pad);
+    let lw = ui.measure(size, W::R, &line);
+    ui.text(
+        x + (w - lw) / 2.0,
+        band_y + pad,
+        size,
+        W::R,
+        VIEWFINDER,
+        &line,
+    );
+    if let Some(share) = parts {
+        let (bx, by, bw) = (x + pad, band_y + pad + line_h + pad, w - 2.0 * pad);
+        let r = tokens::BAR_HEIGHT / 2.0;
+        ui.fill(
+            bx,
+            by,
+            bw,
+            tokens::BAR_HEIGHT,
+            r,
+            VIEWFINDER.with_alpha(tokens::VIEWFINDER_TRACK_ALPHA),
+        );
+        ui.fill(
+            bx,
+            by,
+            bw * share.clamp(0.0, 1.0),
+            tokens::BAR_HEIGHT,
+            r,
+            VIEWFINDER,
+        );
+    }
 }
 
 fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {

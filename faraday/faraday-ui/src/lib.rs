@@ -91,6 +91,17 @@ pub mod pal {
     /// Refused.
     pub const ERR: Color = Color::rgb(0xef, 0x9b, 0x9b);
 
+    /// Over a camera's picture (`docs/QR.md` §8 item 4), whatever the
+    /// theme: none of these is in the themes' tables, since the picture
+    /// is the same in every theme. The corner brackets while looking,
+    /// and the words on the state line's band.
+    pub const VIEWFINDER: Color = Color::rgb(0xff, 0xff, 0xff);
+    /// The corner brackets while a QR that read is in view.
+    pub const VIEWFINDER_READ: Color = Color::rgb(0x4c, 0xd9, 0x7b);
+    /// The band under the state line, drawn at
+    /// `tokens::VIEWFINDER_BAND_ALPHA`.
+    pub const VIEWFINDER_BAND: Color = Color::rgb(0x05, 0x08, 0x0b);
+
     /// A chip's faint shadow on the board, at a low opacity. Not in the
     /// themes' tables: every theme draws it as it is.
     pub const SHADOW: Color = Color::rgb(0x0a, 0x10, 0x16);

@@ -157,6 +157,11 @@ pub struct Collector {
 }
 
 impl Collector {
+    /// Parts read, of how many; `None` before the first part.
+    pub fn progress(&self) -> Option<(usize, usize)> {
+        self.header.map(|(_, _, total)| (self.parts.len(), total))
+    }
+
     /// Takes one part.
     pub fn add(&mut self, text: &str) -> Result<Got, Error> {
         let text = text.trim();

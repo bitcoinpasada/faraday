@@ -34,6 +34,11 @@ pub enum Got {
 }
 
 impl Collector {
+    /// Parts read, of how many; `None` before the first part.
+    pub fn progress(&self) -> Option<(usize, usize)> {
+        (self.total != 0).then_some((self.parts.len(), self.total))
+    }
+
     /// Takes one part.
     pub fn add(&mut self, n: usize, m: usize, body: &str) -> Got {
         if self.total != 0 && self.total != m {
