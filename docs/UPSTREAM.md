@@ -88,6 +88,22 @@ Since the fork:
   wherever Faraday's own check was not run first (a rebuilt backup
   config, `restore::readable`). Stricter only: such a key is refused
   (`policy::Error::Key`; `multisig_config::slip132_mismatch` names it).
+- `core/osk-bip/src/coldcard.rs` (2026-10-20): one reader of Coldcard's
+  files. `read` (and `parse` on it) roots every key at the top-level
+  `xfp`, the master's, where `parse` took the `xfp` inside the account,
+  which is the account key's own and matches no seed; it checks the
+  account's stated `first` address against the wallet's, refuses an
+  account with a key and no `deriv` (or an empty one, which would claim
+  the account key is the master), and returns why (`ReadError`).
+  `cosigner_key` checks each key's SLIP-132 version against its field;
+  `cosigner_keys`, Faraday's list (the flat `p2wsh`, `p2sh_p2wsh`,
+  `p2wsh_p2sh` and `p2sh`, then `bip48_2`, `bip48_1`, `bip45`, `bip86`,
+  `bip84`, `bip49`, `bip44`), moved in from `faraday-core`'s
+  `create::coldcard_keys`, and `faraday-intake`'s own reader is gone.
+  Why: upstream's reader built a wallet no seed signs for. Changes for
+  OpenSigner's scan of a real Coldcard file: the wallet is the master's,
+  not refused or mis-rooted; nothing it read correctly before reads
+  differently (its tests' file repeats the master's `xfp` per account).
 
 ## 4. Watching upstream
 

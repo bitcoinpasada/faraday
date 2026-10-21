@@ -408,57 +408,23 @@ fn with_chains(d: &str) -> Option<String> {
 }
 
 /// Coldcard's account export, which Nunchuk, Passport and Sparrow also
-/// write: one object per single-sig account. The wallet is the first of
-/// BIP-84, BIP-86, BIP-49 and BIP-44 the file has, as OpenSigner chooses.
-///
-/// Each account's key is rooted at the file's top-level `xfp`, the
-/// master's (Coldcard's `docs/generic-wallet-export.md`); the `xfp`
-/// inside an account is that account key's own fingerprint, and a key
-/// origin written with it would match no seed. `osk_bip::coldcard::parse`
-/// takes the inner one, so the file is read here. Where the account
-/// states its first address, the wallet read must give the same one.
+/// write, read by `osk_bip::coldcard::read` (rooted at the top-level
+/// `xfp`, the stated first address checked), its refusals in Faraday's
+/// own sentences.
 fn coldcard_export(text: &str) -> Result<WalletPolicy, Refusal> {
+    use osk_bip::coldcard::ReadError;
     let bad = |why: &str| Refusal::NotAWallet(fill(EN.wallet_coldcard_export, &[why]));
-    let file = json::parse(text).map_err(|_| bad(EN.wallet_no_xfp))?;
-    let master = file
-        .find("xfp")
-        .and_then(Value::as_str)
-        .ok_or_else(|| bad(EN.wallet_no_xfp))?;
-    for (field, wrap) in [
-        ("bip84", "wpkh(K)"),
-        ("bip86", "tr(K)"),
-        ("bip49", "sh(wpkh(K))"),
-        ("bip44", "pkh(K)"),
-    ] {
-        let Some(account) = file.find(field) else {
-            continue;
-        };
-        let (Some(deriv), Some(xpub)) = (
-            account.get("deriv").and_then(Value::as_str),
-            account.get("xpub").and_then(Value::as_str),
-        ) else {
-            continue;
-        };
-        let path = deriv.trim_start_matches('m').trim_start_matches('/');
-        let key = format!("[{}/{path}]{xpub}/<0;1>/*", master.to_ascii_lowercase());
-        let policy = WalletPolicy::parse_any(&wrap.replace('K', &key))
-            .map_err(|e| Refusal::NotAWallet(e.to_string()))?;
-        if let Some(first) = account.get("first").and_then(Value::as_str) {
-            let found = osk_bip::keys::Network::ALL.iter().any(|&net| {
-                policy
-                    .address_at(net, false, 0)
-                    .is_ok_and(|a| a.to_string() == first)
-            });
-            if !found {
-                return Err(bad(&fill(
-                    EN.wallet_its_first_address,
-                    &[field, &first.to_string()],
-                )));
+    osk_bip::coldcard::read(text)
+        .map(|(policy, _)| policy)
+        .map_err(|e| match e {
+            ReadError::NoXfp => bad(EN.wallet_no_xfp),
+            ReadError::NoAccount => bad(EN.wallet_no_single_sig),
+            ReadError::FirstAddress { account, first } => {
+                bad(&fill(EN.wallet_its_first_address, &[account, &first]))
             }
-        }
-        return Ok(policy);
-    }
-    Err(bad(EN.wallet_no_single_sig))
+            ReadError::NoDeriv(_) => Refusal::NotAWallet(osk_bip::policy::Error::Key.to_string()),
+            ReadError::Policy(e) => Refusal::NotAWallet(e.to_string()),
+        })
 }
 
 /// What a script type is called in a refusal.

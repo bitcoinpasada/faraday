@@ -462,7 +462,8 @@ pub fn read_keys(text: &str) -> Vec<String> {
                 .into_iter()
                 .collect();
         }
-        return coldcard_keys(text);
+        // Coldcard's multisig key file or generic export.
+        return osk_bip::coldcard::cosigner_keys(text);
     }
     text.lines()
         .map(str::trim)
@@ -473,53 +474,6 @@ pub fn read_keys(text: &str) -> Vec<String> {
         })
         .map(|k| k.key_text())
         .collect()
-}
-
-/// The account keys in a Coldcard JSON file, each rooted at the file's
-/// top-level `xfp`, the master's. Coldcard writes the flat multisig keys
-/// in SLIP-132 form (`Zpub`, `Ypub`, `Vpub`, `Upub`), which a descriptor
-/// takes as `xpub` or `tpub` once the version agrees with the purpose in
-/// the key's path (`slip132::key_line`); a key that disagrees is left out.
-fn coldcard_keys(text: &str) -> Vec<String> {
-    use osk_bip::json::{self, Value};
-    let Ok(file) = json::parse(text) else {
-        return Vec::new();
-    };
-    let string = |v: &Value, name: &str| v.get(name).and_then(Value::as_str).map(String::from);
-    let Some(master) = file.find("xfp").and_then(Value::as_str) else {
-        return Vec::new();
-    };
-    let master = master.to_ascii_lowercase();
-    let key = |deriv: &str, xpub: &str| {
-        let path = deriv.trim_start_matches('m').trim_start_matches('/');
-        let line = slip132::key_line(&format!("[{master}/{path}]{xpub}"))?.ok()?;
-        PolicyKey::parse(&line.text).ok().map(|k| k.key_text())
-    };
-    let mut keys = Vec::new();
-    // The multisig key file: flat fields. Coldcard has written the nested
-    // one as `p2wsh_p2sh` and as `p2sh_p2wsh`.
-    for field in ["p2wsh", "p2sh_p2wsh", "p2wsh_p2sh", "p2sh"] {
-        // A field at the top level, not inside an account object.
-        if let (Some(d), Some(x)) = (
-            string(&file, &format!("{field}_deriv")),
-            string(&file, field),
-        ) && let Some(k) = key(&d, &x)
-        {
-            keys.push(k);
-        }
-    }
-    // The generic export: one object per account.
-    for field in [
-        "bip48_2", "bip48_1", "bip45", "bip86", "bip84", "bip49", "bip44",
-    ] {
-        if let Some(account) = file.find(field).filter(|v| matches!(v, Value::Object(_)))
-            && let (Some(d), Some(x)) = (string(account, "deriv"), string(account, "xpub"))
-            && let Some(k) = key(&d, &x)
-        {
-            keys.push(k);
-        }
-    }
-    keys
 }
 
 /// The key in a file for a slot of a `kind` wallet: of the keys the file

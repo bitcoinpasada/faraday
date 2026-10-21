@@ -77,11 +77,13 @@ reach Faraday as keys inside the wallet files above, which work.
   (Coldcard's `docs/generic-wallet-export.md`). `osk_bip::coldcard::parse`
   roots the key at the inner one, so the wallet never matched the seed
   that made it. Before that, Faraday's reader took the file's first
-  `desc`, which is BIP-44's, and loaded a legacy wallet. Faraday now reads
-  the file itself (`wallet::coldcard_export`): BIP-84 first, rooted at the
+  `desc`, which is BIP-44's, and loaded a legacy wallet. Faraday read the
+  file itself (`wallet::coldcard_export`): BIP-84 first, rooted at the
   master, and refused if its first address is not the one the file
-  states. The upstream function still has the fault; it is an upstream
-  ask.
+  states. Since 2026-10-20 that reader is `osk_bip::coldcard::read`
+  (`parse` uses it, so OpenSigner's own scan of the file is fixed too),
+  with `cosigner_keys` for Create's slots; `wallet::coldcard_export`
+  only words its refusals.
 
 ## 4. Not read or not written yet
 
@@ -124,7 +126,7 @@ wallets.
 ## 5. The batches that build §4 (F64, owner 2026-10-20)
 
 Every reader goes in `faraday-intake`, after the pattern of
-`wallet::coldcard_export` (§3), except where upstream's crates also read
+`caravan` and `electrum`, except where upstream's crates also read
 the format: since F65 Faraday changes `core/` itself, so such a reader goes
 in `core/` (the batches in `docs/UPSTREAM.md`), with every change listed
 there. What upstream might take is noted at the end, for the owner to send. New strings go in
