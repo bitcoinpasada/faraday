@@ -31,8 +31,39 @@ pub fn decode_luma(width: usize, height: usize, luma: &[u8]) -> Vec<Decoded> {
     osk_crypto::work::count(osk_crypto::work::Work::QrDecode);
     let mut image =
         rqrr::PreparedImage::prepare_from_greyscale(width, height, |x, y| luma[y * width + x]);
+    read(image.detect_grids())
+}
+
+/// The codes in a still picture of `width × height` luma pixels: those
+/// printed dark on light, or, when it holds none, those printed light on
+/// dark (a screenshot of a phone in dark mode). The picture is read once;
+/// a picture with no dark-on-light code is searched a second time,
+/// inverted. A camera frame is [`decode_luma`]'s, its shell inverting
+/// every other frame. Costs one or two thresholdings and searches of the
+/// picture: a third of a second for a 12-megapixel photograph on a
+/// desktop, seconds on a Pi.
+pub fn decode_picture(width: usize, height: usize, luma: &[u8]) -> Vec<Decoded> {
+    if width == 0 || height == 0 || luma.len() != width * height {
+        return Vec::new();
+    }
+    osk_crypto::work::count(osk_crypto::work::Work::QrDecode);
+    let mut image =
+        rqrr::PreparedImage::prepare_from_greyscale(width, height, |x, y| luma[y * width + x]);
+    let found = read(image.detect_grids());
+    drop(image);
+    if !found.is_empty() {
+        return found;
+    }
+    let mut inverse = rqrr::PreparedImage::prepare_from_greyscale(width, height, |x, y| {
+        255 - luma[y * width + x]
+    });
+    read(inverse.detect_grids())
+}
+
+/// Every grid the search found whose error correction holds, decoded.
+fn read<G: rqrr::BitGrid>(grids: Vec<rqrr::Grid<G>>) -> Vec<Decoded> {
     let mut out = Vec::new();
-    for grid in image.detect_grids() {
+    for grid in grids {
         let mut bytes = Vec::new();
         if grid.decode_to(&mut bytes).is_err() {
             continue;
