@@ -4,11 +4,11 @@
 //! account key in a file. Nothing secret leaves the session.
 
 use crate::strings::EN;
-use faraday_intake::slip132;
 use opensigner_core::strings::fill;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, MultisigScriptType, ScriptType};
 use osk_bip::policy::{PolicyKey, WalletPolicy};
+use osk_bip::slip132;
 
 /// The kinds a wallet can be created as.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -251,7 +251,7 @@ impl NewKind {
         let path: Vec<_> = a.path().into_iter().copied().collect();
         let cbor =
             faraday_qr::registry::account_cbor(a.master_fingerprint().0, &path, a.xpub(), false);
-        Some(faraday_qr::ur::single("crypto-account", &cbor))
+        Some(osk_codec::ur::encode_single("crypto-account", &cbor))
     }
 
     /// A key's BIP 129 key record, signed by the account key itself:
@@ -452,7 +452,7 @@ pub fn read_keys(text: &str) -> Vec<String> {
     if text.trim_start().starts_with('{') {
         // A single-key file (Cobo, Keystone, Coldcard's for Wasabi): its
         // one key.
-        if let Ok(v) = faraday_intake::json::parse(text)
+        if let Ok(v) = osk_bip::json::parse(text)
             && let Some(read) = faraday_intake::single_key::read(&v)
         {
             return read
@@ -462,7 +462,8 @@ pub fn read_keys(text: &str) -> Vec<String> {
                 .into_iter()
                 .collect();
         }
-        return coldcard_keys(text);
+        // Coldcard's multisig key file or generic export.
+        return osk_bip::coldcard::cosigner_keys(text);
     }
     text.lines()
         .map(str::trim)
@@ -473,56 +474,6 @@ pub fn read_keys(text: &str) -> Vec<String> {
         })
         .map(|k| k.key_text())
         .collect()
-}
-
-/// The account keys in a Coldcard JSON file, each rooted at the file's
-/// top-level `xfp`, the master's. Coldcard writes the flat multisig keys
-/// in SLIP-132 form (`Zpub`, `Ypub`, `Vpub`, `Upub`), which a descriptor
-/// takes as `xpub` or `tpub` once the version agrees with the purpose in
-/// the key's path (`slip132::key_line`); a key that disagrees is left out.
-fn coldcard_keys(text: &str) -> Vec<String> {
-    use crate::wallet::{json_object, json_string};
-    let Some(master) = json_string(text, "xfp") else {
-        return Vec::new();
-    };
-    let master = master.to_ascii_lowercase();
-    let key = |deriv: &str, xpub: &str| {
-        let path = deriv.trim_start_matches('m').trim_start_matches('/');
-        let line = slip132::key_line(&format!("[{master}/{path}]{xpub}"))?.ok()?;
-        PolicyKey::parse(&line.text).ok().map(|k| k.key_text())
-    };
-    let mut keys = Vec::new();
-    // The multisig key file: flat fields. Coldcard has written the nested
-    // one as `p2wsh_p2sh` and as `p2sh_p2wsh`.
-    for field in ["p2wsh", "p2sh_p2wsh", "p2wsh_p2sh", "p2sh"] {
-        let flat = text.find(&format!("\"{field}\"")).is_some_and(|at| {
-            // A field at the top level, not inside an account object.
-            text[..at].matches('{').count() == text[..at].matches('}').count() + 1
-        });
-        if !flat {
-            continue;
-        }
-        if let (Some(d), Some(x)) = (
-            json_string(text, &format!("{field}_deriv")),
-            json_string(text, field),
-        ) && let Some(k) = key(&d, &x)
-        {
-            keys.push(k);
-        }
-    }
-    // The generic export: one object per account.
-    for field in [
-        "bip48_2", "bip48_1", "bip45", "bip86", "bip84", "bip49", "bip44",
-    ] {
-        if let Some(account) = json_object(text, field)
-            && let (Some(d), Some(x)) =
-                (json_string(account, "deriv"), json_string(account, "xpub"))
-            && let Some(k) = key(&d, &x)
-        {
-            keys.push(k);
-        }
-    }
-    keys
 }
 
 /// The key in a file for a slot of a `kind` wallet: of the keys the file

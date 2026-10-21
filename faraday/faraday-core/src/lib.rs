@@ -8844,7 +8844,7 @@ impl Faraday {
                 }
             }
             9 => {
-                if let Some(c) = faraday_intake::core_before_29::file(w.policy()) {
+                if let Some(c) = osk_bip::core_import::import_descriptors_pair(w.policy()) {
                     files.push((
                         format!("{stem}-bitcoin-core-before-29.json"),
                         c.into_bytes(),
@@ -10748,9 +10748,7 @@ impl Faraday {
             .collect::<Vec<_>>()
             .join(" ");
         // A wallet .json carries its own name.
-        let name = wallet::json_string(&text, "label")
-            .filter(|l| text.trim_start().starts_with('{') && !l.trim().is_empty())
-            .unwrap_or(name);
+        let name = wallet::json_label(&text).unwrap_or(name);
         match self
             .session
             .add_wallet(&name, &text, &source, wallet::Origin::Named)
@@ -12624,7 +12622,7 @@ pub(crate) fn public_more_files(w: &wallet::Wallet) -> Vec<(u8, String)> {
     [
         (
             9,
-            faraday_intake::core_before_29::writes(p),
+            osk_bip::core_import::writes_pair(p),
             "bitcoin-core-before-29",
         ),
         (10, faraday_intake::electrum::writes(p), "electrum"),

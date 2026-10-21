@@ -198,7 +198,7 @@ fn a_key_as_ur_crypto_account_is_read_by_osk_codec_and_back_here() {
     let xpub = master.derive(&path).to_xpub();
     let comps: Vec<ChildNumber> = path.into_iter().copied().collect();
     let cbor = registry::account_cbor(master.fingerprint().0, &comps, &xpub, false);
-    let text = faraday_qr::ur::single("crypto-account", &cbor);
+    let text = osk_codec::ur::encode_single("crypto-account", &cbor);
     // OpenSigner's own UR reader takes it, type and bytes intact.
     let mut d = osk_codec::ur::Decoder::new();
     assert_eq!(d.receive(&text), Ok(true));

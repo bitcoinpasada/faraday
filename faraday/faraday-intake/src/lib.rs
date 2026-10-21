@@ -8,21 +8,18 @@
 //! Nothing here holds a word a person reads. Each answer is an enum, and
 //! the app that asked says it in its own strings; the one exception is
 //! [`wallet`], the description reader, and the readers of other
-//! wallets' files it calls ([`caravan`], [`electrum`], [`single_key`],
-//! [`slip132`]), whose refusals are Faraday's own lines (`faraday-strings`). [`json`]
-//! is the JSON those readers read; [`core_before_29`] writes Bitcoin
-//! Core's import file for Core before 29.
+//! wallets' files it calls ([`caravan`], [`electrum`], [`single_key`]),
+//! whose refusals are Faraday's own lines (`faraday-strings`), a SLIP-132
+//! key's among them (`osk_bip::slip132` reads the key); the JSON those
+//! readers read is `osk_bip::json`.
 //!
 //! [`secret_buf`] holds text a person types that may be a secret, wiped
 //! wherever it has been.
 
 pub mod caravan;
-pub mod core_before_29;
 pub mod electrum;
-pub mod json;
 pub mod secret_buf;
 pub mod single_key;
-pub mod slip132;
 pub mod wallet;
 
 use osk_bip::bip39::{Language, Mnemonic};

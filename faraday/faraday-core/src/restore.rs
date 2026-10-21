@@ -202,5 +202,34 @@ mod tests {
             a.to_descriptor(),
             multisig_config::parse(&full).unwrap().to_descriptor()
         );
+        assert!(readable(&rebuilt));
+    }
+
+    /// A rebuilt config is checked as any other: a key whose SLIP-132
+    /// version names another script than the file's (a single-key `zpub`
+    /// or a nested `Ypub` in a P2WSH wallet) does not read as a wallet.
+    #[test]
+    fn a_config_with_a_slip132_key_of_another_script_is_not_readable() {
+        use osk_bip::slip132::{Script, encode};
+        let xpub = |i: usize| {
+            [
+                "xpub6EeqK2JLwngrHJEQ4X4iqrySZV9qU3TgwMgf6NStLZa37AfNiHTtTE9ji1F9YQDLArJMLy8sw3Q2samVj5VQQjaaUHr5z2Hz57NWHJCfh31",
+                "xpub6EFjRTDekDh2sARTm1vbBFeVFb8srMNspMpgypVTSRnzabCbm5ch3oqiw5K9ah7mo9gLub8yU6ciBnrbFwtrXRJY93CThvb9oqVCK47dBEx",
+            ][i]
+        };
+        let config = |second: &str| {
+            format!(
+                "Policy: 2 of 2\nFormat: P2WSH\nDerivation: m/48'/0'/0'/2'\n9a6a2580: {}\n5d388376: {second}\n",
+                xpub(0)
+            )
+        };
+        assert!(readable(&config(xpub(1))));
+        let zpub_multi = encode(xpub(1), Script::NativeMultisig).unwrap();
+        assert!(zpub_multi.starts_with("Zpub"));
+        assert!(readable(&config(&zpub_multi)));
+        for script in [Script::NativeSegwit, Script::NestedMultisig] {
+            let other = encode(xpub(1), script).unwrap();
+            assert!(!readable(&config(&other)), "{other}");
+        }
     }
 }

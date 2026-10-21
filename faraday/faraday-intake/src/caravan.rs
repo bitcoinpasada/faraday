@@ -14,12 +14,12 @@
 //! `WalletPolicy` holds no key without one (BIP-388; upstream's
 //! `policy::check`).
 
-use crate::json::{self, Value};
-use crate::slip132::{self, Script};
 use crate::wallet::network_name;
 use faraday_strings::{EN, fill};
+use osk_bip::json::{self, Value};
 use osk_bip::keys::Network;
 use osk_bip::policy::{Template, WalletPolicy, Wrapper};
+use osk_bip::slip132::{self, Script};
 
 /// Whether JSON is a Caravan config: it has `extendedPublicKeys` and
 /// `quorum`.
@@ -98,7 +98,7 @@ pub fn descriptor(v: &Value) -> Result<String, String> {
         let line = format!("[{o}]{xpub}");
         let read = slip132::key_line(&line)
             .ok_or_else(|| bad(EN.wallet_caravan_keys))?
-            .map_err(|m| m.text())?;
+            .map_err(|m| crate::wallet::mismatch_text(&m))?;
         if let Some(named) = read.named
             && !slip132::agrees(Some(named), around)
         {
@@ -107,7 +107,7 @@ pub fn descriptor(v: &Value) -> Result<String, String> {
                 named,
                 around,
             };
-            return Err(m.text());
+            return Err(crate::wallet::mismatch_text(&m));
         }
         // The key's network against the file's.
         let key = read.text.rsplit(']').next().unwrap_or("");

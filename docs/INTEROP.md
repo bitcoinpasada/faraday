@@ -77,11 +77,13 @@ reach Faraday as keys inside the wallet files above, which work.
   (Coldcard's `docs/generic-wallet-export.md`). `osk_bip::coldcard::parse`
   roots the key at the inner one, so the wallet never matched the seed
   that made it. Before that, Faraday's reader took the file's first
-  `desc`, which is BIP-44's, and loaded a legacy wallet. Faraday now reads
-  the file itself (`wallet::coldcard_export`): BIP-84 first, rooted at the
+  `desc`, which is BIP-44's, and loaded a legacy wallet. Faraday read the
+  file itself (`wallet::coldcard_export`): BIP-84 first, rooted at the
   master, and refused if its first address is not the one the file
-  states. The upstream function still has the fault; it is an upstream
-  ask.
+  states. Since 2026-10-20 that reader is `osk_bip::coldcard::read`
+  (`parse` uses it, so OpenSigner's own scan of the file is fixed too),
+  with `cosigner_keys` for Create's slots; `wallet::coldcard_export`
+  only words its refusals.
 
 ## 4. Not read or not written yet
 
@@ -124,7 +126,7 @@ wallets.
 ## 5. The batches that build §4 (F64, owner 2026-10-20)
 
 Every reader goes in `faraday-intake`, after the pattern of
-`wallet::coldcard_export` (§3), except where upstream's crates also read
+`caravan` and `electrum`, except where upstream's crates also read
 the format: since F65 Faraday changes `core/` itself, so such a reader goes
 in `core/` (the batches in `docs/UPSTREAM.md`), with every change listed
 there. What upstream might take is noted at the end, for the owner to send. New strings go in
@@ -160,9 +162,13 @@ converted Coldcard's flat fields unchecked until 2026-10-20. A key line or bare 
 descriptor reads as the single-key wallet its version names; as a
 cosigner key, `key_for` takes it.
 
-Where: `faraday-intake/src/slip132.rs`, called from
-`read_wallet_as_written` before `parse_any`, `create::read_keys` and
-`coldcard_keys`. Tests (`tests/interop.rs`): Casa's descriptor loads as
+Where: `osk_bip::slip132` (`decode`, `key_line`, `plain_descriptor`,
+`encode`; moved from `faraday-intake/src/slip132.rs` 2026-10-20, the
+refusal's sentence staying in `faraday_intake::wallet::mismatch_text`),
+called from `read_wallet_as_written` before `parse_any`,
+`create::read_keys`, Coldcard's files and `osk_bip::multisig_config`, which
+since 2026-10-20 refuses a key whose version disagrees with its `Format:`
+itself (so a rebuilt backup config is checked too, `restore::readable`). Tests (`tests/interop.rs`): Casa's descriptor loads as
 `sh(wsh(sortedmulti(3,…)))`; Specter DIY's keystore fills a native SegWit
 slot; Keystone's singlesig keystore (upper-case fingerprint, `/1/*` only)
 reads as `<0;1>`; `wpkh(Zpub…)` and `wsh(multi(…Ypub…))` are refused; the
@@ -171,10 +177,14 @@ address.
 
 ### I2. A JSON reader; single-key JSON from Cobo/Keystone and Wasabi (§4 item 4; #46)
 
-`faraday-intake/src/json.rs`: a value parser (depth ≤ 32, size ≤ 1 MiB,
-full string escapes including `\uXXXX`), no new crate, and a fuzz target
-`faraday/fuzz/fuzz_targets/json.rs`. Every new reader uses it; the
-existing `json_string`/`json_object` stay for the files they read now.
+`osk_bip::json` (`core/osk-bip/src/json.rs`, moved from `faraday-intake`
+2026-10-20): a value parser (depth ≤ 32, size ≤ 1 MiB, full string
+escapes including `\uXXXX`, a key named twice refused), no new crate,
+and a fuzz target `fuzz/fuzz_targets/json.rs`. Every reader of a JSON
+file uses it: since 2026-10-20 also the wallet `.json` and
+`listdescriptors` reader, the `"label"` a wallet `.json` names, and
+Coldcard's files, whose scanners (`json_string`, `json_object`,
+`osk_bip::coldcard`'s own) are gone.
 
 Reads Cobo/Keystone `{"ExtPubKey","MasterFingerprint","AccountKeyPath"}`
 (`AccountKeyPath` may lack `m/`; the version is checked against the path
@@ -202,12 +212,15 @@ past the depth limit is refused.
 
 ### I3. BIP 129 records Faraday refuses (§4 item 7; #50)
 
-Before `DescriptorRecord::parse`, in `faraday-intake/src/wallet.rs`: (a) an
-address line that is all upper-case bech32/bech32m (`BC1…`, `TB1…`,
-`BCRT1…`) is lower-cased, and a base58 line is never touched; (b) a `/**`
+In `osk_bip::bsms::DescriptorRecord::parse` (since 2026-10-20; before
+that a tidy-up in `faraday-intake/src/wallet.rs` ran first): (a) the
+stated address is compared as its encoding writes it
+(`assume_checked().to_string()`), so an all upper-case bech32/bech32m
+address (`BC1…`, `TB1…`, `BCRT1…`) is the same address in lower case,
+and a base58 address in another case does not parse; (b) a `/**`
 template whose third line is exactly `No path restrictions` reads as
-`/0/*,/1/*`. The first-address check runs unchanged on the result. The tidy-up
-moves into `osk_bip::bsms` (batch U3). Not read: Sparrow's
+`/0/*,/1/*`. The network check and the first-address check are
+unchanged. Not read: Sparrow's
 fixed-path records (one address, not a wallet), a blank paths line
 (cannot be told from a cut-off file), encrypted records. Tests:
 `multisig-4.bsms` and `multisig-6.bsms` load with Sparrow's stated first
@@ -231,7 +244,8 @@ Writes `{stem}-bitcoin-core-before-29.json`: two `importdescriptors`
 requests, receive (`"internal":false`) and change (`"internal":true`),
 each from `Descriptor::into_single_descriptors()` with its own checksum,
 `"active":true`, `"range":[0,999]`, `"timestamp":0`. Not for MuSig2, FROST
-or silent payments. Tests: a fresh Public files list shows no row under
+or silent payments. Written by `osk_bip::core_import::import_descriptors_pair`
+(moved from `faraday-intake/src/core_before_29.rs` 2026-10-20). Tests: a fresh Public files list shows no row under
 More options until it is pressed; the file's two descriptors read back as
 the wallet; each checksum is Core's (shape of `core/listdescriptors.json`);
 `core-check.py` (not in `just`) gains a run against Core 28.x.

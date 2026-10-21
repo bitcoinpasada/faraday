@@ -21,11 +21,11 @@
 //! A file whose keystores hold an `xprv`, a `seed` or imported private
 //! keys is a secret ([`holds_secret`]); only its public keys are read.
 
-use crate::json::{self, Value};
 use crate::single_key::path_h;
-use crate::slip132::{self, Script};
 use faraday_strings::{EN, fill};
+use osk_bip::json::{self, Value};
 use osk_bip::policy::{Template, WalletPolicy, Wrapper};
+use osk_bip::slip132::{self, Script};
 
 /// The most keys a multisig script holds, and so the most keystores read.
 const MAX_KEYS: usize = 15;
@@ -136,7 +136,7 @@ fn key(k: &Value) -> Result<(slip132::KeyLine, bool), String> {
     };
     let read = slip132::key_line(&line)
         .ok_or_else(|| bad(EN.wallet_electrum_no_key))?
-        .map_err(|m| m.text())?;
+        .map_err(|m| crate::wallet::mismatch_text(&m))?;
     Ok((read, origin.is_some()))
 }
 
@@ -159,7 +159,10 @@ pub fn descriptor(v: &Value) -> Result<String, String> {
             Some(Script::NestedSegwit) => "sh(wpkh(K/<0;1>/*))",
             Some(Script::NativeSegwit) => "wpkh(K/<0;1>/*)",
             Some(other) => {
-                return Err(bad(&fill(EN.wallet_electrum_key_type, &[other.name()])));
+                return Err(bad(&fill(
+                    EN.wallet_electrum_key_type,
+                    &[crate::wallet::script_name(other)],
+                )));
             }
         };
         return Ok(wrap.replace('K', &read.text));
@@ -198,7 +201,10 @@ pub fn descriptor(v: &Value) -> Result<String, String> {
         Some(Script::NestedMultisig) => "sh(wsh(K))",
         Some(Script::NativeMultisig) => "wsh(K)",
         Some(other) => {
-            return Err(bad(&fill(EN.wallet_electrum_key_type, &[other.name()])));
+            return Err(bad(&fill(
+                EN.wallet_electrum_key_type,
+                &[crate::wallet::script_name(other)],
+            )));
         }
     };
     Ok(wrap.replace('K', &format!("sortedmulti({m},{})", keys.join(","))))

@@ -65,6 +65,70 @@ Since the fork:
   written `h` or an apostrophe (glossary). "Devices", "Encrypted
   backups" and "The secure element" are unchanged, waiting on the
   owner.
+- `core/osk-bip/src/json.rs`, `osk_bip::json` (2026-10-20): Faraday's
+  JSON reader (RFC 8259, every escape, at most 32 deep and 1 MiB, a key
+  named twice refused) moved in from `faraday-intake`, its fuzz target
+  into `fuzz/` as `json`. `osk_bip::coldcard` reads its file with it
+  instead of a scanner that took the first `"name"` anywhere in the
+  text and undid no escapes, and `core_import` writes the descriptor
+  with `json::quote`. Why: one JSON reader for every wallet file, in the
+  crate that reads the formats. Stricter only: text that is not JSON,
+  names a key twice or nests deeper than 32 is no Coldcard export.
+- `core/osk-bip/src/slip132.rs` (2026-10-20): one decoder,
+  `slip132::decode`, for SLIP-0132's ten public versions, multisig
+  `Ypub`/`Zpub`/`Upub`/`Vpub` included, saying which script a version
+  names (none for `xpub`/`tpub`, which are not Legacy); with it the
+  agreement check (`agrees`, `Mismatch { key, named, around }`),
+  `plain_descriptor`, `key_line` and `encode`, moved in from
+  `faraday-intake` (the refusal's sentence stays there). `decode_xpub`
+  keeps its contract on top of it. `multisig_config` and `coldcard` read
+  their keys with it instead of their own unchecked version tables. Why:
+  the two core readers converted a SLIP-132 key whatever script it
+  named, so a config with a `zpub` or a `Ypub` in a P2WSH wallet loaded
+  wherever Faraday's own check was not run first (a rebuilt backup
+  config, `restore::readable`). Stricter only: such a key is refused
+  (`policy::Error::Key`; `multisig_config::slip132_mismatch` names it).
+- `core/osk-bip/src/coldcard.rs` (2026-10-20): one reader of Coldcard's
+  files. `read` (and `parse` on it) roots every key at the top-level
+  `xfp`, the master's, where `parse` took the `xfp` inside the account,
+  which is the account key's own and matches no seed; it checks the
+  account's stated `first` address against the wallet's, refuses an
+  account with a key and no `deriv` (or an empty one, which would claim
+  the account key is the master), and returns why (`ReadError`).
+  `cosigner_key` checks each key's SLIP-132 version against its field;
+  `cosigner_keys`, Faraday's list (the flat `p2wsh`, `p2sh_p2wsh`,
+  `p2wsh_p2sh` and `p2sh`, then `bip48_2`, `bip48_1`, `bip45`, `bip86`,
+  `bip84`, `bip49`, `bip44`), moved in from `faraday-core`'s
+  `create::coldcard_keys`, and `faraday-intake`'s own reader is gone.
+  Why: upstream's reader built a wallet no seed signs for. Changes for
+  OpenSigner's scan of a real Coldcard file: the wallet is the master's,
+  not refused or mis-rooted; nothing it read correctly before reads
+  differently (its tests' file repeats the master's `xfp` per account).
+  Its test export's two `first` addresses were no key's; they are now
+  the keys' own.
+- `core/osk-bip/src/bsms.rs` (2026-10-20): `DescriptorRecord::parse`
+  compares the wallet's first address with the stated one as its
+  encoding writes it (`assume_checked().to_string()`; the network check
+  stays), so an all upper-case bech32 address, which BIP 173 has a
+  reader take, is read; and a `/**` template whose paths line is `No path
+  restrictions` reads as `/0/*,/1/*` (F64, the owner's decision; the
+  first-address check still decides). `faraday-intake`'s tidy-up before
+  the parser (`bsms_as_upstream_reads`) is gone. Why: Sparrow writes and
+  reads both. Accepts more than before only in these two owner-confirmed
+  cases; a base58 address in another case and every record Sparrow
+  refuses stay refused.
+- `core/osk-bip/src/core_import.rs` (2026-10-20):
+  `import_descriptors_pair`, with `pair_descriptors` and `writes_pair`,
+  writes Bitcoin Core's `importdescriptors` file for Core before 29 (a
+  receive and a change request, each with its own checksum, the string
+  written with `json::quote`), moved in from `faraday-intake`'s
+  `core_before_29`. Why: the format's writer beside the multipath one.
+  Same output as before.
+- `core/osk-codec/src/ur/mod.rs` (2026-10-20): `ur::encode_single(ur_type,
+  cbor)` is public (it was private, arguments the other way round), so
+  Faraday writes `ur:crypto-account` with it; `faraday-qr`'s copy of the
+  bytewords table and CRC-32 (`faraday-qr/src/ur.rs`) is gone. Why: one
+  copy of the alphabet and its checksum. Same output as before.
 - The count of costly work (2026-10-21; `docs/SPEED.md` §8, F65's
   compute token): `core/osk-crypto` gains `work` (`Work`,
   `set_counter`, `count`), empty unless its new `count` feature is on,

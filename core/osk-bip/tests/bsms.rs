@@ -184,17 +184,29 @@ fn a_bsms_wallet_is_the_same_wallet_as_its_coordinator_config_twin() {
     assert_eq!(from_bsms.to_text(), record);
 }
 
-/// A wallet whose descriptor carries a `/**` on every key but says it
-/// has no path restrictions, or the other way round, states two
-/// different wallets and is refused.
+/// A descriptor with no template that names derivation paths states
+/// two different wallets and is refused, as are paths other than the
+/// receive and change chains. A template (`/**` on every key) that says
+/// it has no path restrictions, which the BIP does not define, is read
+/// as the receive and change chains, as Sparrow writes and reads it: the
+/// owner's decision (`docs/DECISIONS.md` F64), where upstream refused it.
 #[test]
 fn a_descriptor_record_whose_paths_and_template_disagree_is_refused() {
     let text = records(4)
         .into_iter()
         .find(|t| t.contains("/0/*,/1/*"))
         .expect("a template record");
+    let read = DescriptorRecord::parse(&text).unwrap();
+    let unrestricted =
+        DescriptorRecord::parse(&text.replace("/0/*,/1/*", "No path restrictions")).unwrap();
+    assert_eq!(unrestricted, read);
+    let template = text.lines().nth(1).unwrap();
+    let untemplated = text.replace(template, &read.policy.to_descriptor());
+    assert!(
+        DescriptorRecord::parse(&untemplated.replace("/0/*,/1/*", "No path restrictions")).is_ok()
+    );
     assert_eq!(
-        DescriptorRecord::parse(&text.replace("/0/*,/1/*", "No path restrictions")),
+        DescriptorRecord::parse(&untemplated),
         Err(bsms::Error::Paths)
     );
     assert_eq!(
@@ -284,4 +296,84 @@ fn a_record_outside_the_bips_limits_is_refused() {
         .expect("an extended-key record");
     let long = text.replace("Signer 1 key", &"x".repeat(81));
     assert_eq!(SignerRecord::parse(&long), Err(bsms::Error::Description));
+}
+
+/// One of Sparrow's BIP 129 records (`faraday/faraday-core/tests/vectors/
+/// interop/sparrow/bsms/`, from Sparrow's own test suite).
+fn sparrow(n: u32) -> String {
+    let dir = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../faraday/faraday-core/tests/vectors/interop/sparrow/bsms"
+    );
+    std::fs::read_to_string(format!("{dir}/multisig-{n}.bsms")).unwrap()
+}
+
+/// Two records Sparrow writes and reads: an address all in upper case,
+/// which BIP 173 has a reader take as the same address, and a template
+/// whose paths line says `No path restrictions`, read as the receive and
+/// change chains (the owner's decision, `docs/DECISIONS.md` F64). Each is
+/// the wallet of the record written the BIP's way, at its first address.
+#[test]
+fn sparrows_upper_case_and_unrestricted_template_records_are_their_wallet() {
+    let four = sparrow(4);
+    let upper = four.lines().nth(3).unwrap().trim();
+    let plain = DescriptorRecord::parse(&four.replace(upper, &upper.to_lowercase())).unwrap();
+    for n in [4, 6] {
+        let r = DescriptorRecord::parse(&sparrow(n)).unwrap_or_else(|e| panic!("{n}: {e:?}"));
+        assert_eq!(r.policy, plain.policy, "{n}");
+        assert_eq!(r.paths, ["/0/*", "/1/*"], "{n}");
+        assert_eq!(
+            r.first_address,
+            "bc1qrgc6p3kylfztu06ysl752gwwuekhvtfh9vr7zg43jvu60mutamcsv948ej"
+        );
+        assert_eq!(r.to_text(), plain.to_text());
+    }
+    // "No path restrictions" beside a descriptor that is no template
+    // stays what the BIP defines.
+    let r = DescriptorRecord::parse(&sparrow(6)).unwrap();
+    let descriptor = r.policy.to_descriptor();
+    let untemplated = format!(
+        "BSMS 1.0\n{descriptor}\nNo path restrictions\n{}\n",
+        r.first_address
+    );
+    assert_eq!(
+        DescriptorRecord::parse(&untemplated).map(|r| r.paths),
+        Ok(Vec::new())
+    );
+}
+
+/// What Sparrow itself refuses stays refused, each for its reason.
+#[test]
+fn the_records_sparrow_refuses_are_refused() {
+    use bsms::Error::{Address, FirstAddress, Lines, Paths, Policy};
+    use osk_bip::policy::Error::Derivation;
+    for (n, why) in [
+        (5, Paths),
+        (7, Lines),
+        (9, Policy(Derivation)),
+        (11, Policy(Derivation)),
+        (13, Policy(Derivation)),
+        (14, Lines),
+        (15, FirstAddress),
+        (17, Address),
+    ] {
+        assert_eq!(DescriptorRecord::parse(&sparrow(n)), Err(why), "{n}");
+    }
+}
+
+/// A base58 address's case is part of it: one written in another case
+/// is not the record's address, and the record is refused.
+#[test]
+fn a_base58_address_in_another_case_is_refused() {
+    let text = sparrow(3);
+    let address = text.lines().nth(3).unwrap().trim();
+    assert!(!address.starts_with("bc1"), "{address}");
+    let r = DescriptorRecord::parse(&text).unwrap();
+    assert_eq!(r.first_address, address);
+    for changed in [address.to_uppercase(), address.to_lowercase()] {
+        assert!(
+            DescriptorRecord::parse(&text.replace(address, &changed)).is_err(),
+            "{changed}"
+        );
+    }
 }

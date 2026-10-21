@@ -37,8 +37,8 @@ doc = false
 bench = false
 
 [[bin]]
-name = "json"
-path = "fuzz_targets/json.rs"
+name = "read_wallet"
+path = "fuzz_targets/read_wallet.rs"
 test = false
 doc = false
 bench = false

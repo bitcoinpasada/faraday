@@ -1,0 +1,388 @@
+== bluewallet/caravan-multisig.json
+kind Text
+refused Not a wallet: Caravan config: xpub6ERj…1zd6sJ has no bip32Path or xfp; every key of a multisig wallet needs both
+rebuilt false
+== bluewallet/casa-descriptor.txt
+kind Wallet
+wallet sh(wsh(sortedmulti(3,[35282ae3]xpub6DRLRDFmCHQpBRHSivSwPeWFPPd8biU8LbrovwUtZ9uh48Djen32CAQWCuoQ1VVJ6L8fRyk9XuRnH1qbtjuJEFTvHQHeKWeyUsNk6oPUGxU/<0;1>/*,[1b373e31/49/0/5]xpub6CepEwSN4cye1ngNX2H4PZpPERM3uDRrq5sKsjpUJe7WwWTrZxGojiR4aB71BbeziStUVxGSa565ptAoqaW7dqF5DNo2ADCrJ6ck8gXjDkb/<0;1>/*,[0d7bb846/49/0/5]xpub6CDHZ3qe3Fc2nFcCCwzw5HpYHEKQNhbW84fYLkqF46LN4ymChY9z6X22Wwxg73CFrsHM647q6A7yVQs6jF62hNoB7fF2NybH4zeFFgTV45i/<0;1>/*,[faa45c74/49/0/5]xpub6CiMnr6Vjp8qpmu6yBgCfcZwn9WZh2Xhuy2Jb3w4dgEowaQP87NzLDGVuCPZHMLe7QcRiBNyAtqLyVzD1729oNGkjsDpNHkBvS8aHg41nVc/<0;1>/*,[0551354e/49/0/5]xpub6D6aKCuEVqRxau5NfwGpczD9aQJYne48SBMcrJGCcKaCS4zemqfCoNfUupbio7uneb8XFj558PkVLyT5smzsbK9ParYkKVD41jMmUdo2gXf/<0;1>/*)))
+first 3HJiAohE25FFBLPLZGVDwv7ZbSXVsSiZH7 Mainnet
+rebuilt true
+== bluewallet/cobo-crypto-account.txt
+kind Text
+refused Not a wallet: unsupported descriptor template
+rebuilt false
+== bluewallet/coldcardQ.json
+kind Wallet
+wallet wpkh([b68af6e4/84h/0h/0h]xpub6DMiK1d7crjcan79RD6ZSTGyNCKP8RS95eioBCKf7ReyZFpoxiW2qMvLCZdNC9WiMgwyMMcLwFTxir5C4bK5aRnXgh9pAM1fjjxC1HpE6Hf/<0;1>/*)
+first bc1q8tart7tv6da6ylqauf2fde23vwgpsakxznkf7c Mainnet
+key [b68af6e4/48h/0h/0h/2h]xpub6ENXu6jP3XgXCMgRq1Pb1bNXKjRZ7JnM8R17W8dH6GSmM4VokYExQX8mtSwnjqyxJ8qNdrT1Us8jNwz8Y9mvBkmLhzTzwKKYEtZFMszFScb
+key [b68af6e4/48h/0h/0h/1h]xpub6ENXu6jP3XgX9QDKy3eSUDpuskB3UahgifC5jtTzE9zeg4uhMjmSwep6rZBkhTsTgJ4r64YEpdKd311YBFQos7H55Sio5k9GEgRXBhYNZvm
+key [b68af6e4/45h]xpub69EKPNo9Jkd6v2h7xNKw5RdbFBoaHEcstXcRNfcQ2jg71iFpobCwcxfJjaV2ycGy218f2jM1znqs1SDkqMiR7fbyBVJwzacg2QarGt1gtJg
+key [b68af6e4/84h/0h/0h]xpub6DMiK1d7crjcan79RD6ZSTGyNCKP8RS95eioBCKf7ReyZFpoxiW2qMvLCZdNC9WiMgwyMMcLwFTxir5C4bK5aRnXgh9pAM1fjjxC1HpE6Hf
+key [b68af6e4/49h/0h/0h]xpub6CZgr8YBhenSU8wwYQTqS6HrsAK2x8qwQvQXLJw5YdJ63B2ZESXJvo3yHgbH4CqGR2N4oJUTirUCog8ixuMdm6CPUDDa6wotT6ocSJED1u2
+key [b68af6e4/44h/0h/0h]xpub6CMpeBXdEKC3kxA96LeyvJgxQfPbxXuJu91wVcLjYKMcSf1dMr9HEkNUydPTxM1SkmutnYjFikr27JUtUSqP9gq1299SP7eKrKFr9YjsrPE
+slot NativeSegwit [b68af6e4/84h/0h/0h]xpub6DMiK1d7crjcan79RD6ZSTGyNCKP8RS95eioBCKf7ReyZFpoxiW2qMvLCZdNC9WiMgwyMMcLwFTxir5C4bK5aRnXgh9pAM1fjjxC1HpE6Hf
+slot NestedSegwit [b68af6e4/49h/0h/0h]xpub6CZgr8YBhenSU8wwYQTqS6HrsAK2x8qwQvQXLJw5YdJ63B2ZESXJvo3yHgbH4CqGR2N4oJUTirUCog8ixuMdm6CPUDDa6wotT6ocSJED1u2
+slot Legacy [b68af6e4/44h/0h/0h]xpub6CMpeBXdEKC3kxA96LeyvJgxQfPbxXuJu91wVcLjYKMcSf1dMr9HEkNUydPTxM1SkmutnYjFikr27JUtUSqP9gq1299SP7eKrKFr9YjsrPE
+slot Multi [b68af6e4/48h/0h/0h/2h]xpub6ENXu6jP3XgXCMgRq1Pb1bNXKjRZ7JnM8R17W8dH6GSmM4VokYExQX8mtSwnjqyxJ8qNdrT1Us8jNwz8Y9mvBkmLhzTzwKKYEtZFMszFScb
+slot MultiNested [b68af6e4/48h/0h/0h/1h]xpub6ENXu6jP3XgX9QDKy3eSUDpuskB3UahgifC5jtTzE9zeg4uhMjmSwep6rZBkhTsTgJ4r64YEpdKd311YBFQos7H55Sio5k9GEgRXBhYNZvm
+slot MultiLegacy [b68af6e4/45h]xpub69EKPNo9Jkd6v2h7xNKw5RdbFBoaHEcstXcRNfcQ2jg71iFpobCwcxfJjaV2ycGy218f2jM1znqs1SDkqMiR7fbyBVJwzacg2QarGt1gtJg
+rebuilt true
+== bluewallet/coldcardmk4-descriptor.txt
+kind Wallet
+wallet wpkh([086ee178/84h/0h/0h]xpub6CqWTnie1ut9ZDD9xDeCn1VXk83VdAPSm8ZPfPNbb8w5z1e7jyy8zuX721uKj8u4GNxXqAevgEZjciUansnyz6ZhnSKyQWZwx2dpAxuCuDe/<0;1>/*)
+first bc1q5y4r767v5fzx74ez4nw36hjqrhr4ayeyut5px6 Mainnet
+rebuilt true
+== bluewallet/coldcardmk4-generic.json
+kind Wallet
+wallet wpkh([086ee178/84h/0h/0h]xpub6CqWTnie1ut9ZDD9xDeCn1VXk83VdAPSm8ZPfPNbb8w5z1e7jyy8zuX721uKj8u4GNxXqAevgEZjciUansnyz6ZhnSKyQWZwx2dpAxuCuDe/<0;1>/*)
+first bc1q5y4r767v5fzx74ez4nw36hjqrhr4ayeyut5px6 Mainnet
+key [086ee178/48'/0'/0'/2']xpub6FAiR9GaPmCUfYtaQCR8Q8GH3bz5h9AQX8wu7up4MUdRdpY63R1KM9jJM6AqFiRpHn5dN15ewLxomv2UZ34aXsSB4b2SpgasgwPYBTwSJW9
+key [086ee178/48'/0'/0'/1']xpub6FAiR9GaPmCUdaQsWZuFEAMHiQnucQWs3681hXX3HnFDRXaksPSpFXD7Fw1216kng1uRCU8J5ULsfyoepFcu6foFEfFHQC8cFJUMLvy8gLd
+key [086ee178/45']xpub67x6MAer9yqzxozdhCAd1LNV2m8c34Vahi8AfNjRu8tndg3BvTb2FpotopkC1w98q29nUnGZ1eq6vWCjGMjx5m62Jk1L2koGDjnR69C1HcK
+key [086ee178/84'/0'/0']xpub6CqWTnie1ut9ZDD9xDeCn1VXk83VdAPSm8ZPfPNbb8w5z1e7jyy8zuX721uKj8u4GNxXqAevgEZjciUansnyz6ZhnSKyQWZwx2dpAxuCuDe
+key [086ee178/49'/0'/0']xpub6CryNpp881kryGrBGvt2PB7gxCueY5bejof1qFcW1jMXPmcUByWeuhR2PAAhdTZe5viheDXkbvLY1jewwr7e1BMdBH1GiPnJU5A6JGHyV95
+key [086ee178/44'/0'/0']xpub6DNdnDgd2ULEUeRfpQhqJ8S9aqxZCWi9e4YijwPX1DsVfzPRPn2fk9jy72pn7rS2SAMWgfQK1JU3WsusseeConHH2LVjPEZkhxRBhFTdX69
+slot NativeSegwit [086ee178/84'/0'/0']xpub6CqWTnie1ut9ZDD9xDeCn1VXk83VdAPSm8ZPfPNbb8w5z1e7jyy8zuX721uKj8u4GNxXqAevgEZjciUansnyz6ZhnSKyQWZwx2dpAxuCuDe
+slot NestedSegwit [086ee178/49'/0'/0']xpub6CryNpp881kryGrBGvt2PB7gxCueY5bejof1qFcW1jMXPmcUByWeuhR2PAAhdTZe5viheDXkbvLY1jewwr7e1BMdBH1GiPnJU5A6JGHyV95
+slot Legacy [086ee178/44'/0'/0']xpub6DNdnDgd2ULEUeRfpQhqJ8S9aqxZCWi9e4YijwPX1DsVfzPRPn2fk9jy72pn7rS2SAMWgfQK1JU3WsusseeConHH2LVjPEZkhxRBhFTdX69
+slot Multi [086ee178/48'/0'/0'/2']xpub6FAiR9GaPmCUfYtaQCR8Q8GH3bz5h9AQX8wu7up4MUdRdpY63R1KM9jJM6AqFiRpHn5dN15ewLxomv2UZ34aXsSB4b2SpgasgwPYBTwSJW9
+slot MultiNested [086ee178/48'/0'/0'/1']xpub6FAiR9GaPmCUdaQsWZuFEAMHiQnucQWs3681hXX3HnFDRXaksPSpFXD7Fw1216kng1uRCU8J5ULsfyoepFcu6foFEfFHQC8cFJUMLvy8gLd
+slot MultiLegacy [086ee178/45']xpub67x6MAer9yqzxozdhCAd1LNV2m8c34Vahi8AfNjRu8tndg3BvTb2FpotopkC1w98q29nUnGZ1eq6vWCjGMjx5m62Jk1L2koGDjnR69C1HcK
+rebuilt true
+== bluewallet/coldcardmk4-wasabi.json
+kind Wallet
+wallet wpkh([086ee178/84h/0h/0h]xpub6CqWTnie1ut9ZDD9xDeCn1VXk83VdAPSm8ZPfPNbb8w5z1e7jyy8zuX721uKj8u4GNxXqAevgEZjciUansnyz6ZhnSKyQWZwx2dpAxuCuDe/<0;1>/*)
+first bc1q5y4r767v5fzx74ez4nw36hjqrhr4ayeyut5px6 Mainnet
+key [086ee178/84h/0h/0h]xpub6CqWTnie1ut9ZDD9xDeCn1VXk83VdAPSm8ZPfPNbb8w5z1e7jyy8zuX721uKj8u4GNxXqAevgEZjciUansnyz6ZhnSKyQWZwx2dpAxuCuDe
+slot NativeSegwit [086ee178/84h/0h/0h]xpub6CqWTnie1ut9ZDD9xDeCn1VXk83VdAPSm8ZPfPNbb8w5z1e7jyy8zuX721uKj8u4GNxXqAevgEZjciUansnyz6ZhnSKyQWZwx2dpAxuCuDe
+rebuilt true
+== bluewallet/fromsparrow-coldcard.txt
+kind Wallet
+wallet wsh(sortedmulti(2,[a3909080/48h/0h/0h/2h]xpub6EJoguJn6okK6ymxkU53BZgjf4kqrL19uvTwqVnPRaV8qYvx1RhGtyKZxLhzY4YLCYtvB6DsGk1uR3GFBMvwgc5qz19WAxm2nSXZcoyNftY/<0;1>/*,[7ab71df0/48h/0h/0h/2h]xpub6FL52qF9cn2nL7T8gv6gStR8GcezKF4LgY53VLbi5sqRjc4PpBuYFp3nfep884hkuF9dC7KZ11mkthE1NVzbX98QmoJQqBFxQbHnpJ5vQKB/<0;1>/*,[f11b9ff2/48h/0h/0h/2h]xpub6ERjK6ubp5p7UUByXGadKvHcqEUMxvWPr7DkzqHz7GnnZEqdR9ffE3Y1DffYqRjJzeGWL1st1qH4kEaZCzjVnJoZ2PJUcnThi48D71zd6sJ/<0;1>/*))
+first bc1qtysquqsjqjfqvhd6l2h470hdgwhcahs4nq2ca49cyxftwjnjt9ssh8emel Mainnet
+config name name
+rebuilt true
+== bluewallet/fromsparrow-electrum.json
+kind SecretWallet
+refused Not a wallet: Electrum file: Zpub74sR…sT968p has no root_fingerprint and derivation; every key of a multisig wallet needs both
+rebuilt false
+== bluewallet/fromsparrow-specter.json
+kind Wallet
+wallet wsh(sortedmulti(2,[a3909080/48h/0h/0h/2h]xpub6EJoguJn6okK6ymxkU53BZgjf4kqrL19uvTwqVnPRaV8qYvx1RhGtyKZxLhzY4YLCYtvB6DsGk1uR3GFBMvwgc5qz19WAxm2nSXZcoyNftY/<0;1>/*,[7ab71df0/48h/0h/0h/2h]xpub6FL52qF9cn2nL7T8gv6gStR8GcezKF4LgY53VLbi5sqRjc4PpBuYFp3nfep884hkuF9dC7KZ11mkthE1NVzbX98QmoJQqBFxQbHnpJ5vQKB/<0;1>/*,[f11b9ff2/48h/0h/0h/2h]xpub6ERjK6ubp5p7UUByXGadKvHcqEUMxvWPr7DkzqHz7GnnZEqdR9ffE3Y1DffYqRjJzeGWL1st1qH4kEaZCzjVnJoZ2PJUcnThi48D71zd6sJ/<0;1>/*))
+first bc1qtysquqsjqjfqvhd6l2h470hdgwhcahs4nq2ca49cyxftwjnjt9ssh8emel Mainnet
+label name
+rebuilt true
+== bluewallet/nunchuck-bsms.txt
+kind Wallet
+wallet wsh(sortedmulti(2,[3f5e4e09/48h/0h/0h]xpub6BtEVX9WezWA2EYa8Wf1rJTokXpF96Rmqr4JKoR3SbjGw1vCa3Qb91mKN1AqJnBzSpqy44tEMB27Khne6KBmNzurXigfis7F28X5dRLWGoY/<0;1>/*,[b96bc7c7/48h/0h/0h]xpub6CzCTuwFmAcBoxsfPLgiKfkJ2W3GbW1zxFKvCamZQ1J2XMobJR1gMNqP64pcFsy65ST4WcZtrCn99WXgLcWM6bqw6iFneAPTgJuLHggHD5S/<0;1>/*,[44437f41/48h/0h/0h]xpub6Cn4cYgRhXKnvNjE4ULP2mzWHFw4WtCyp1nBuE97SyZVTPwq5xWkKsTVe9c16XSTr6V9AKMDgizav7z69j4AREaMKoFzUDbdcZhVq5xaKMU/<0;1>/*))
+first bc1qjppd555998lvpgdew30kdrvu2qg90n5gg684khrc2u5g7kj8cnuqujvz3p Mainnet
+rebuilt true
+== bluewallet/nunchuk-export.json
+kind Wallet
+wallet wpkh([b68af6e4/84h/0h/0h]xpub6DMiK1d7crjcan79RD6ZSTGyNCKP8RS95eioBCKf7ReyZFpoxiW2qMvLCZdNC9WiMgwyMMcLwFTxir5C4bK5aRnXgh9pAM1fjjxC1HpE6Hf/<0;1>/*)
+first bc1q8tart7tv6da6ylqauf2fde23vwgpsakxznkf7c Mainnet
+key [b68af6e4/48h/0h/0h/2h]xpub6ENXu6jP3XgXCMgRq1Pb1bNXKjRZ7JnM8R17W8dH6GSmM4VokYExQX8mtSwnjqyxJ8qNdrT1Us8jNwz8Y9mvBkmLhzTzwKKYEtZFMszFScb
+key [b68af6e4/48h/0h/0h/1h]xpub6ENXu6jP3XgX9QDKy3eSUDpuskB3UahgifC5jtTzE9zeg4uhMjmSwep6rZBkhTsTgJ4r64YEpdKd311YBFQos7H55Sio5k9GEgRXBhYNZvm
+key [b68af6e4/45h]xpub69EKPNo9Jkd6v2h7xNKw5RdbFBoaHEcstXcRNfcQ2jg71iFpobCwcxfJjaV2ycGy218f2jM1znqs1SDkqMiR7fbyBVJwzacg2QarGt1gtJg
+key [b68af6e4/84h/0h/0h]xpub6DMiK1d7crjcan79RD6ZSTGyNCKP8RS95eioBCKf7ReyZFpoxiW2qMvLCZdNC9WiMgwyMMcLwFTxir5C4bK5aRnXgh9pAM1fjjxC1HpE6Hf
+key [b68af6e4/49h/0h/0h]xpub6CZgr8YBhenSU8wwYQTqS6HrsAK2x8qwQvQXLJw5YdJ63B2ZESXJvo3yHgbH4CqGR2N4oJUTirUCog8ixuMdm6CPUDDa6wotT6ocSJED1u2
+key [b68af6e4/44h/0h/0h]xpub6CMpeBXdEKC3kxA96LeyvJgxQfPbxXuJu91wVcLjYKMcSf1dMr9HEkNUydPTxM1SkmutnYjFikr27JUtUSqP9gq1299SP7eKrKFr9YjsrPE
+slot NativeSegwit [b68af6e4/84h/0h/0h]xpub6DMiK1d7crjcan79RD6ZSTGyNCKP8RS95eioBCKf7ReyZFpoxiW2qMvLCZdNC9WiMgwyMMcLwFTxir5C4bK5aRnXgh9pAM1fjjxC1HpE6Hf
+slot NestedSegwit [b68af6e4/49h/0h/0h]xpub6CZgr8YBhenSU8wwYQTqS6HrsAK2x8qwQvQXLJw5YdJ63B2ZESXJvo3yHgbH4CqGR2N4oJUTirUCog8ixuMdm6CPUDDa6wotT6ocSJED1u2
+slot Legacy [b68af6e4/44h/0h/0h]xpub6CMpeBXdEKC3kxA96LeyvJgxQfPbxXuJu91wVcLjYKMcSf1dMr9HEkNUydPTxM1SkmutnYjFikr27JUtUSqP9gq1299SP7eKrKFr9YjsrPE
+slot Multi [b68af6e4/48h/0h/0h/2h]xpub6ENXu6jP3XgXCMgRq1Pb1bNXKjRZ7JnM8R17W8dH6GSmM4VokYExQX8mtSwnjqyxJ8qNdrT1Us8jNwz8Y9mvBkmLhzTzwKKYEtZFMszFScb
+slot MultiNested [b68af6e4/48h/0h/0h/1h]xpub6ENXu6jP3XgX9QDKy3eSUDpuskB3UahgifC5jtTzE9zeg4uhMjmSwep6rZBkhTsTgJ4r64YEpdKd311YBFQos7H55Sio5k9GEgRXBhYNZvm
+slot MultiLegacy [b68af6e4/45h]xpub69EKPNo9Jkd6v2h7xNKw5RdbFBoaHEcstXcRNfcQ2jg71iFpobCwcxfJjaV2ycGy218f2jM1znqs1SDkqMiR7fbyBVJwzacg2QarGt1gtJg
+rebuilt true
+== bluewallet/quicklook-preview-sample.psbt
+kind Psbt
+refused Not a wallet: unsupported descriptor template
+rebuilt false
+== bluewallet/quicklook-preview-sample.txn
+kind Transaction
+refused Not a wallet: unsupported descriptor template
+rebuilt false
+== bluewallet/skeleton-cobo.txt
+kind Wallet
+wallet wpkh([5271c071/84h/0h/0h]xpub6Cx3zCunLUy4JP68knrisNg26pqCLqYVJChHsCfUnrxSgVGC9FTdhSvkvVnZmXnv11WHss4P8hUFwRAdpYhrTfGoX2EnBMUzBBShaoZavQQ/<0;1>/*)
+first bc1q9unqc738dxjg5mk8zqtz33zg59cahrj29s24lp Mainnet
+key [5271c071/84h/0h/0h]xpub6Cx3zCunLUy4JP68knrisNg26pqCLqYVJChHsCfUnrxSgVGC9FTdhSvkvVnZmXnv11WHss4P8hUFwRAdpYhrTfGoX2EnBMUzBBShaoZavQQ
+slot NativeSegwit [5271c071/84h/0h/0h]xpub6Cx3zCunLUy4JP68knrisNg26pqCLqYVJChHsCfUnrxSgVGC9FTdhSvkvVnZmXnv11WHss4P8hUFwRAdpYhrTfGoX2EnBMUzBBShaoZavQQ
+rebuilt true
+== bluewallet/skeleton-coldcard.txt
+kind Wallet
+wallet wpkh([168dd603/84h/0h/0h]xpub6CahGufxcAUBgswpsGkE1WruxFDCSV7TedVtW3c7VN8TRgyzzMPiVGuhp9Tmk8h3G1CPZtSisiVhFSttuXDQ3dAtCaB6zgGNhNXguhV65P7/<0;1>/*)
+first bc1qzqjwye4musmz56cg44ttnchj49zueh9yr0qsxt Mainnet
+label Coldcard Import 168DD603
+rebuilt true
+== bluewallet/skeleton-electrum-hex-only.txt
+kind Wallet
+wallet wpkh([b616be56/84h/0h/0h]xpub6CahGufxcAUBgswpsGkE1WruxFDCSV7TedVtW3c7VN8TRgyzzMPiVGuhp9Tmk8h3G1CPZtSisiVhFSttuXDQ3dAtCaB6zgGNhNXguhV65P7/<0;1>/*)
+first bc1qzqjwye4musmz56cg44ttnchj49zueh9yr0qsxt Mainnet
+label ColdcardImportB616BE56
+rebuilt true
+== bluewallet/skeleton-walletdescriptor.txt
+kind Wallet
+wallet wpkh([8cce63f8/84h/0h/0h]xpub6DMtgpVKvpRAU1Ka59X6Z3oEmkbziys6QeNbuz7Fpp8o5PRd8nhwc9ac1uvhCYTYA8mck3HM7ayXiyRrb79upSoPT45b9xVjFcSTFQ2n9ji/<0;1>/*)
+first bc1qls62awmkly7yqa633z7afqk8g5astu8gr6vq7w Mainnet
+key [8cce63f8/84h/0h/0h]xpub6DMtgpVKvpRAU1Ka59X6Z3oEmkbziys6QeNbuz7Fpp8o5PRd8nhwc9ac1uvhCYTYA8mck3HM7ayXiyRrb79upSoPT45b9xVjFcSTFQ2n9ji
+slot NativeSegwit [8cce63f8/84h/0h/0h]xpub6DMtgpVKvpRAU1Ka59X6Z3oEmkbziys6QeNbuz7Fpp8o5PRd8nhwc9ac1uvhCYTYA8mck3HM7ayXiyRrb79upSoPT45b9xVjFcSTFQ2n9ji
+rebuilt true
+== bluewallet/sparrow-crypto-output.txt
+kind Text
+refused Not a wallet: unsupported descriptor template
+rebuilt false
+== bluewallet/unchained.json
+kind Key
+refused Not a wallet: a .json file with no descriptor
+key [b68af6e4/48h/0h/0h/2h]xpub6ENXu6jP3XgXCMgRq1Pb1bNXKjRZ7JnM8R17W8dH6GSmM4VokYExQX8mtSwnjqyxJ8qNdrT1Us8jNwz8Y9mvBkmLhzTzwKKYEtZFMszFScb
+key [b68af6e4/48h/0h/0h/1h]xpub6ENXu6jP3XgX9QDKy3eSUDpuskB3UahgifC5jtTzE9zeg4uhMjmSwep6rZBkhTsTgJ4r64YEpdKd311YBFQos7H55Sio5k9GEgRXBhYNZvm
+key [b68af6e4/45h]xpub69EKPNo9Jkd6v2h7xNKw5RdbFBoaHEcstXcRNfcQ2jg71iFpobCwcxfJjaV2ycGy218f2jM1znqs1SDkqMiR7fbyBVJwzacg2QarGt1gtJg
+slot Multi [b68af6e4/48h/0h/0h/2h]xpub6ENXu6jP3XgXCMgRq1Pb1bNXKjRZ7JnM8R17W8dH6GSmM4VokYExQX8mtSwnjqyxJ8qNdrT1Us8jNwz8Y9mvBkmLhzTzwKKYEtZFMszFScb
+slot MultiNested [b68af6e4/48h/0h/0h/1h]xpub6ENXu6jP3XgX9QDKy3eSUDpuskB3UahgifC5jtTzE9zeg4uhMjmSwep6rZBkhTsTgJ4r64YEpdKd311YBFQos7H55Sio5k9GEgRXBhYNZvm
+slot MultiLegacy [b68af6e4/45h]xpub69EKPNo9Jkd6v2h7xNKw5RdbFBoaHEcstXcRNfcQ2jg71iFpobCwcxfJjaV2ycGy218f2jM1znqs1SDkqMiR7fbyBVJwzacg2QarGt1gtJg
+rebuilt false
+== core/listdescriptors.json
+kind Wallet
+wallet wpkh([ba11ec57/84h/1h/0h]tpubDCXLwpxz4uRtu2JV9x4UQ6FidwBYWegroRgjMJYm1Ejuny3ZfmG8KDs4JZVRmjsy92oBSnZPi2UmjiUur4dxHqdZvFMkJfJX5p21naHqw6o/<0;1>/*)
+first tb1qu3dn2tssv5yek9u2p3vhs88mag4gryh2yeddy3 Testnet
+rebuilt true
+== sparrow/bsms/multisig-1.bsms
+kind Wallet
+wallet wsh(sortedmulti(2,[8188029f/48h/0h/0h/2h]xpub6EMVvcTUbaABdaPLaVWE72CjcN72URa5pKK1knrKLz1hKaDwUkgddc3832a8MHEpLyuow7MfjMRomt2iMtwPH4pWrFLft4JsquHjeZfKsYp/<0;1>/*,[3bd5c9b0/48h/0h/0h/2h]xpub6EbTHAgvzZtVppjLPXia2prt6T2w7DD2VQ8gysgV6ECzmKkA6zt4WR3hX4bgciTDrnaneZoJbA19tYKBMrWuA89SbgYAdbMNWmtzrgLhqco/<0;1>/*))
+first bc1qfagqa83vrv9phj0886rlx6d68zzd7gejtr0ns8xxfeckve27397q6vq47w Mainnet
+rebuilt true
+== sparrow/bsms/multisig-10.bsms
+kind Text
+refused Not a wallet: BSMS: Policy(Derivation)
+rebuilt false
+== sparrow/bsms/multisig-11.bsms
+kind Text
+refused Not a wallet: BSMS: Policy(Derivation)
+rebuilt false
+== sparrow/bsms/multisig-12.bsms
+kind Text
+refused Not a wallet: BSMS: Policy(Derivation)
+rebuilt false
+== sparrow/bsms/multisig-13.bsms
+kind Text
+refused Not a wallet: BSMS: Policy(Derivation)
+rebuilt false
+== sparrow/bsms/multisig-14.bsms
+kind Text
+refused Not a wallet: BSMS: Lines
+rebuilt false
+== sparrow/bsms/multisig-15.bsms
+kind Text
+refused Not a wallet: BSMS: FirstAddress
+rebuilt false
+== sparrow/bsms/multisig-16.bsms
+kind Text
+refused Not a wallet: BSMS: Paths
+rebuilt false
+== sparrow/bsms/multisig-17.bsms
+kind Text
+refused Not a wallet: BSMS: Address
+rebuilt false
+== sparrow/bsms/multisig-2.bsms
+kind Wallet
+wallet wsh(sortedmulti(2,[1cf0bf7e/48h/0h/0h/2h]xpub6FL8FhxNNUVnG64YurPd16AfGyvFLhh7S2uSsDqR3Qfcm6o9jtcMYwh6DvmcBF9qozxNQmTCVvWtxLpKTnhVLN3Pgnu2D3pAoXYFgVyd8Yz/<0;1>/*,[4fc1dd4a/48h/0h/0h/2h]xpub6EebMbEps7ZcV3FYEnddRsvrFWDrt2tiPmCeM7pPXQEmphvq9ZfJ1LWFUDjf3vxCeBuPrfyGrMazWUsYsetrnHatQZVLJH7LsgCjtMqdzgj/<0;1>/*))
+first bc1qrgc6p3kylfztu06ysl752gwwuekhvtfh9vr7zg43jvu60mutamcsv948ej Mainnet
+rebuilt true
+== sparrow/bsms/multisig-3.bsms
+kind Wallet
+wallet sh(wsh(multi(2,[793cc70b/48h/0h/0h/1h]xpub6ErVmcYYHmavsMgxEcTZyzN5sqth1ZyRpFNJC26ij1wYGC2SBKYrgt9yariSbn7HLRoZUvhUhmPfsRTPrdhhGFscpPZzmch6UTdmRP1aZUj/<0;1>/*,[b3118e52/48h/0h/0h/1h]xpub6Du5Jn6eYZE96ccmAc1ZTFPzdnzrvqfG4mpamDun2qZYKywoiQJMCbS3kWWMr6U3XW6s125RLsaPABWgv2yA749ieaMe67FxkTjMsbcxCch/<0;1>/*,[842bd2ed/48h/0h/0h/1h]xpub6Ex81KopPkEt9hJiWHabYy8LNsSR4A7sUQoFBk9dR8XxHrr4p9HrYWN3NCf5uwfopHnQkCG7FYnZMztKbtRtbh6tzZC4xtHPbmVVxRSN7ic/<0;1>/*)))
+first 3GzMtFXahiu4TpGNGFc4bHMvAcvz5vVQrT Mainnet
+rebuilt true
+== sparrow/bsms/multisig-4.bsms
+kind Wallet
+wallet wsh(sortedmulti(2,[1cf0bf7e/48h/0h/0h/2h]xpub6FL8FhxNNUVnG64YurPd16AfGyvFLhh7S2uSsDqR3Qfcm6o9jtcMYwh6DvmcBF9qozxNQmTCVvWtxLpKTnhVLN3Pgnu2D3pAoXYFgVyd8Yz/<0;1>/*,[4fc1dd4a/48h/0h/0h/2h]xpub6EebMbEps7ZcV3FYEnddRsvrFWDrt2tiPmCeM7pPXQEmphvq9ZfJ1LWFUDjf3vxCeBuPrfyGrMazWUsYsetrnHatQZVLJH7LsgCjtMqdzgj/<0;1>/*))
+first bc1qrgc6p3kylfztu06ysl752gwwuekhvtfh9vr7zg43jvu60mutamcsv948ej Mainnet
+rebuilt true
+== sparrow/bsms/multisig-5.bsms
+kind Text
+refused Not a wallet: BSMS: Paths
+rebuilt false
+== sparrow/bsms/multisig-6.bsms
+kind Wallet
+wallet wsh(sortedmulti(2,[1cf0bf7e/48h/0h/0h/2h]xpub6FL8FhxNNUVnG64YurPd16AfGyvFLhh7S2uSsDqR3Qfcm6o9jtcMYwh6DvmcBF9qozxNQmTCVvWtxLpKTnhVLN3Pgnu2D3pAoXYFgVyd8Yz/<0;1>/*,[4fc1dd4a/48h/0h/0h/2h]xpub6EebMbEps7ZcV3FYEnddRsvrFWDrt2tiPmCeM7pPXQEmphvq9ZfJ1LWFUDjf3vxCeBuPrfyGrMazWUsYsetrnHatQZVLJH7LsgCjtMqdzgj/<0;1>/*))
+first bc1qrgc6p3kylfztu06ysl752gwwuekhvtfh9vr7zg43jvu60mutamcsv948ej Mainnet
+rebuilt true
+== sparrow/bsms/multisig-7.bsms
+kind Text
+refused Not a wallet: BSMS: Lines
+rebuilt false
+== sparrow/bsms/multisig-8.bsms
+kind Text
+refused Not a wallet: BSMS: Policy(Derivation)
+rebuilt false
+== sparrow/bsms/multisig-9.bsms
+kind Text
+refused Not a wallet: BSMS: Policy(Derivation)
+rebuilt false
+== sparrow/caravan-multisig-export-1.json
+kind Wallet
+wallet wsh(sortedmulti(2,[8188029f/48h/0h/0h/2h]xpub6EMVvcTUbaABdaPLaVWE72CjcN72URa5pKK1knrKLz1hKaDwUkgddc3832a8MHEpLyuow7MfjMRomt2iMtwPH4pWrFLft4JsquHjeZfKsYp/<0;1>/*,[a15e8133/48h/0h/0h/2h]xpub6EbTHAgvzZtVppjLPXia2prt6T2w7DD2VQ8gysgV6ECzmKkA6zt4WR3hX4bgciTDrnaneZoJbA19tYKBMrWuA89SbgYAdbMNWmtzrgLhqco/<0;1>/*,[d31cf7f9/48h/0h/0h/2h]xpub6Ea6qWGr6BWpCSyLo8ggypvXg1MwadiAGZxAHvrBUwvT2ki6pNVG61bg3YEdxkj7FRJ1cLFK7Vvqd9rcDvwCLX7VfEMfJJfdbA1NGsFazvz/<0;1>/*))
+first bc1qycv3tcefpavtj0nqrwgunel3e4rjquxz9wdgtm8xtmr9m80r2ylsw24vzc Mainnet
+rebuilt true
+== sparrow/caravan-multisig-export-2.json
+kind Text
+refused Not a wallet: Caravan config: the quorum does not match the keys listed
+rebuilt false
+== sparrow/caravan-multisig-export-3.json
+kind Text
+refused Not a wallet: Caravan config: the quorum does not match the keys listed
+rebuilt false
+== sparrow/cc-multisig-export-1.txt
+kind Wallet
+wallet wsh(sortedmulti(2,[0f056943/48h/0h/0h/2h]xpub6EfEGa5isJbQFSswM5Uptw5BSq2Td1ZDJr3QUNUcMySpC7itZ3ccypVHtLPnvMzKQ2qxrAgH49vhVxRcaQLFbixAVRR8RACrYTp88Uv9h8Z/<0;1>/*,[6ba6cfd0/48h/0h/0h/2h]xpub6FFEQVG6QR28giDuML74Y7EMPwqEiKftNjScLzg5WKM41bf6LMP2XspjBgNp28tvkNUZdokmTY4TcRbuGZBSMvNoUECrKW1y3TBPeQJVmAg/<0;1>/*,[747b698e/48h/0h/0h/2h]xpub6Eb6Z1xtmWRiWKgRpHf6dHiEagGd6FLiBXrnma1nFK4PGRYqSVqVyJaxna5Mb8etSP4ATKVAvKnXG1a9HZauoAawuSDJT5RgH2HqEVHZVHY/<0;1>/*,[7bb026be/48h/0h/0h/2h]xpub6FMGmJccz6dqLo9TMmXYPpZ7HUDm71RHHSTXqTUgkyP9TZmF2uexoB7qttEBtHaotopPwfAVfKfwmdEjCGabVpND1m7ix2AW2LxPuNfLZhi/<0;1>/*))
+first bc1qafdvz3k4sjwn5lmq44yk5tzag4tyfq72mcqq5nzrsqepmsynrt9st3z2k9 Mainnet
+config name CC-2-of-4
+rebuilt true
+== sparrow/cc-multisig-export-2.txt
+kind Wallet
+wallet sh(wsh(sortedmulti(2,[0f056943/48h/1h/0h/1h]tpubDF2rnouQaaYrUEy2JM1YD3RFzew4onawGM4X2Re67gguTf5CbHonBRiFGe3Xjz7DK88dxBFGf2i7K1hef3PM4cFKyUjcbJXddaY9F5tJBoP/<0;1>/*,[6ba6cfd0/48h/1h/0h/1h]tpubDFcrvj5n7gyatVbr8dHCUfHT4CGvL8hREBjtxc4ge7HZgqNuPhFimPRtVg6fRRwfXiQthV9EBjNbwbpgV2VoQeL1ZNXoAWXxP2L9vMtRjax/<0;1>/*,[747b698e/48h/1h/0h/1h]tpubDExj5FnaUnPAjjgzELoSiNRkuXJG8Cm1pbdiA4Hc5vkAZHphibeVcUp6mqH5LuNVKbtLVZxVSzyja5X26Cfmx6pzRH6gXBUJAH7MiqwNyuM/<0;1>/*,[7bb026be/48h/1h/0h/1h]tpubDFiuHYSJhNbHaGtB5skiuDLg12tRboh2uVZ6KGXxr8WVr28pLcS7F3gv8SsHFa2tm1jtx3VAuw56YfgRkdo6DXyfp51oygTKY3nJFT5jBMt/<0;1>/*)))
+first 2MzrH47gyB7r4a9MUvEGq4qSM5amPbe6DMS Testnet
+config name CC-2-of-4
+rebuilt true
+== sparrow/cc-multisig-export-missingkey.txt
+kind Share
+refused Not a wallet: Placeholder
+rebuilt false
+== sparrow/cc-multisig-export-multideriv.txt
+kind Wallet
+wallet wsh(sortedmulti(3,[06b57041/48h/0h/0h/2h]xpub6EfEGa5isJbQFSswM5Uptw5BSq2Td1ZDJr3QUNUcMySpC7itZ3ccypVHtLPnvMzKQ2qxrAgH49vhVxRcaQLFbixAVRR8RACrYTp88Uv9h8Z/<0;1>/*,[4b569672/48h/0h/0h/2h]xpub6FFEQVG6QR28giDuML74Y7EMPwqEiKftNjScLzg5WKM41bf6LMP2XspjBgNp28tvkNUZdokmTY4TcRbuGZBSMvNoUECrKW1y3TBPeQJVmAg/<0;1>/*,[ca9a2b19/47h/0h/0h/1h]xpub6Eb6Z1xtmWRiWKgRpHf6dHiEagGd6FLiBXrnma1nFK4PGRYqSVqVyJaxna5Mb8etSP4ATKVAvKnXG1a9HZauoAawuSDJT5RgH2HqEVHZVHY/<0;1>/*))
+first bc1qhkcnw08rcwhwr9lq6tfczd9jz5zrp7fcatxfq0wwfqafzhcfer3qm59y4m Mainnet
+config name el-CC-3-of-3-sb-2
+rebuilt true
+== sparrow/cc-multisig-export-nopolicy.txt
+kind Text
+refused Not a wallet: Placeholder
+rebuilt false
+== sparrow/cc-multisig-keystore-1.json
+kind Key
+refused Not a wallet: a .json file with no descriptor
+key [0f056943/48'/1'/0'/2']tpubDF2rnouQaaYrXF4noGTv6rQYmx87cQ4GrUdhpvXkhtChwQPbdGTi8GA88NUaSrwZBwNsTkC9bFkkC8vDyGBVVAQTZ2AS6gs68RQXtXcCvkP
+key [0f056943/48'/1'/0'/1']tpubDF2rnouQaaYrUEy2JM1YD3RFzew4onawGM4X2Re67gguTf5CbHonBRiFGe3Xjz7DK88dxBFGf2i7K1hef3PM4cFKyUjcbJXddaY9F5tJBoP
+key [0f056943/45']tpubD8NXmKsmWp3a3DXhbihAYbYLGaRNVdTnr6JoSxxfXYQcmwVtW2hv8QoDwng6JtEonmJoL3cNEwfd2cLXMpGezwZ2vL2dQ7259bueNKj9C8n
+slot Multi [0f056943/48'/1'/0'/2']tpubDF2rnouQaaYrXF4noGTv6rQYmx87cQ4GrUdhpvXkhtChwQPbdGTi8GA88NUaSrwZBwNsTkC9bFkkC8vDyGBVVAQTZ2AS6gs68RQXtXcCvkP
+slot MultiNested [0f056943/48'/1'/0'/1']tpubDF2rnouQaaYrUEy2JM1YD3RFzew4onawGM4X2Re67gguTf5CbHonBRiFGe3Xjz7DK88dxBFGf2i7K1hef3PM4cFKyUjcbJXddaY9F5tJBoP
+slot MultiLegacy [0f056943/45']tpubD8NXmKsmWp3a3DXhbihAYbYLGaRNVdTnr6JoSxxfXYQcmwVtW2hv8QoDwng6JtEonmJoL3cNEwfd2cLXMpGezwZ2vL2dQ7259bueNKj9C8n
+rebuilt false
+== sparrow/cc-multisig-keystore-2.json
+kind Key
+refused Not a wallet: a .json file with no descriptor
+key [6ba6cfd0/48'/1'/0'/2']tpubDFcrvj5n7gyaxWQkoX69k2Zij4vthiAwvN2uhYjDrE6wktKoQaE7gKVZRiTbYdrAYH1UFPGdzdtWJc6WfR2gFMq6XpxA12gCdQmoQNU9mgm
+key [6ba6cfd0/48'/1'/0'/1']tpubDFcrvj5n7gyatVbr8dHCUfHT4CGvL8hREBjtxc4ge7HZgqNuPhFimPRtVg6fRRwfXiQthV9EBjNbwbpgV2VoQeL1ZNXoAWXxP2L9vMtRjax
+key [6ba6cfd0/45']tpubD9429UXFGCTKJ9NdiNK4rC5ygqSUkginycYHccqSg5gkmyQ7PZRHNjk99M6a6Y3NY8ctEUUJvCu6iCCui8Ju3xrHRu3Ez1CKB4ZFoRZDdP9
+slot Multi [6ba6cfd0/48'/1'/0'/2']tpubDFcrvj5n7gyaxWQkoX69k2Zij4vthiAwvN2uhYjDrE6wktKoQaE7gKVZRiTbYdrAYH1UFPGdzdtWJc6WfR2gFMq6XpxA12gCdQmoQNU9mgm
+slot MultiNested [6ba6cfd0/48'/1'/0'/1']tpubDFcrvj5n7gyatVbr8dHCUfHT4CGvL8hREBjtxc4ge7HZgqNuPhFimPRtVg6fRRwfXiQthV9EBjNbwbpgV2VoQeL1ZNXoAWXxP2L9vMtRjax
+slot MultiLegacy [6ba6cfd0/45']tpubD9429UXFGCTKJ9NdiNK4rC5ygqSUkginycYHccqSg5gkmyQ7PZRHNjk99M6a6Y3NY8ctEUUJvCu6iCCui8Ju3xrHRu3Ez1CKB4ZFoRZDdP9
+rebuilt false
+== sparrow/cc-singlesig-keystore-1.json
+kind Wallet
+wallet wpkh([0f056943/84h/1h/123h]tpubDC7jGaaSE66VDB6VhEDFYQSCAyugXmfnMnrMVyHNzW9wryyTxvha7TmfAHd7GRXrr2TaAn2HXn9T8ep4gyNX1bzGiieqcTUNcu2poyntrET/<0;1>/*)
+first tb1qc58ys2dphtphg6yuugdf3d0kufmk0tye044g3l Testnet
+key [0f056943/84'/1'/123']tpubDC7jGaaSE66VDB6VhEDFYQSCAyugXmfnMnrMVyHNzW9wryyTxvha7TmfAHd7GRXrr2TaAn2HXn9T8ep4gyNX1bzGiieqcTUNcu2poyntrET
+key [0f056943/49'/1'/123']tpubDCDqt7XXvhAdy1MpSze5nMJA9x8DrdRaKALRRPasfxyHpiqWWEAr9cbDBQ9BcX7cB3up98Pk97U2QQ3xrvQsi5dNPmRYYhdcsKY9wwEY87T
+key [0f056943/44'/1'/123']tpubDCiHGUNYdRRGoSH22j8YnruUKgguCK1CC2NFQUf9PApeZh8ewAJJWGMUrhggDNK73iCTanWXv1RN5FYemUH8UrVUBjqDb8WF2VoKmDh9UTo
+slot NativeSegwit [0f056943/84'/1'/123']tpubDC7jGaaSE66VDB6VhEDFYQSCAyugXmfnMnrMVyHNzW9wryyTxvha7TmfAHd7GRXrr2TaAn2HXn9T8ep4gyNX1bzGiieqcTUNcu2poyntrET
+slot NestedSegwit [0f056943/49'/1'/123']tpubDCDqt7XXvhAdy1MpSze5nMJA9x8DrdRaKALRRPasfxyHpiqWWEAr9cbDBQ9BcX7cB3up98Pk97U2QQ3xrvQsi5dNPmRYYhdcsKY9wwEY87T
+slot Legacy [0f056943/44'/1'/123']tpubDCiHGUNYdRRGoSH22j8YnruUKgguCK1CC2NFQUf9PApeZh8ewAJJWGMUrhggDNK73iCTanWXv1RN5FYemUH8UrVUBjqDb8WF2VoKmDh9UTo
+rebuilt true
+== sparrow/cc-singlesig-sp-keystore-1.json
+kind Wallet
+wallet wpkh([0f056943/84h/1h/0h]tpubDC7jGaaSE66Pn4dgtbAAstde4bCyhSUs4r3P8WhMVvPByvcRrzrwqSvpF9Ghx83Z1LfVugGRrSBko5UEKELCz9HoMv5qKmGq3fqnnbS5E9r/<0;1>/*)
+first tb1qupyd58ndsh7lut0et0vtrq432jvu9jtdyws9n9 Testnet
+key [0f056943/86'/1'/0']tpubDCeEX49avtiXrBTv3JWTtco99Ka499jXdZHBRtm7va2gkMAui11ctZjqNAT9dLVNaEozt2C1kfTM88cnvZCXsWLJN2p4viGvsyGjtKVV7A1
+key [0f056943/84'/1'/0']tpubDC7jGaaSE66Pn4dgtbAAstde4bCyhSUs4r3P8WhMVvPByvcRrzrwqSvpF9Ghx83Z1LfVugGRrSBko5UEKELCz9HoMv5qKmGq3fqnnbS5E9r
+slot NativeSegwit [0f056943/84'/1'/0']tpubDC7jGaaSE66Pn4dgtbAAstde4bCyhSUs4r3P8WhMVvPByvcRrzrwqSvpF9Ghx83Z1LfVugGRrSBko5UEKELCz9HoMv5qKmGq3fqnnbS5E9r
+slot Taproot [0f056943/86'/1'/0']tpubDCeEX49avtiXrBTv3JWTtco99Ka499jXdZHBRtm7va2gkMAui11ctZjqNAT9dLVNaEozt2C1kfTM88cnvZCXsWLJN2p4viGvsyGjtKVV7A1
+slot MuSig [0f056943/86'/1'/0']tpubDCeEX49avtiXrBTv3JWTtco99Ka499jXdZHBRtm7va2gkMAui11ctZjqNAT9dLVNaEozt2C1kfTM88cnvZCXsWLJN2p4viGvsyGjtKVV7A1
+rebuilt true
+== sparrow/cobo-singlesig-keystore-1.json
+kind Wallet
+wallet wpkh([73c5da0a/84h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/<0;1>/*)
+first bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu Mainnet
+key [73c5da0a/84h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V
+slot NativeSegwit [73c5da0a/84h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V
+rebuilt true
+== sparrow/descriptor-labelled.txt
+kind Wallet
+wallet wpkh([a262308d/84h/0h/0h]xpub6DM7CYgaTMdMbhTcLTUWmNUE5WLXK5hx8ZMa4sRw8qYJPqtqKYiKnwsmT8A6AijDVAUZRivdBnXdR8QE7Y9vVnqvzPL3fXCmu1WtCRLdAoz/<0;1>/*)
+first bc1qg6stutzna28k472gr2hfnvvz63503qv8x2hsv9 Mainnet
+rebuilt true
+== sparrow/descriptor-multipath.txt
+kind Wallet
+wallet wpkh([a262308d/84h/0h/0h]xpub6DM7CYgaTMdMbhTcLTUWmNUE5WLXK5hx8ZMa4sRw8qYJPqtqKYiKnwsmT8A6AijDVAUZRivdBnXdR8QE7Y9vVnqvzPL3fXCmu1WtCRLdAoz/<0;1>/*)
+first bc1qg6stutzna28k472gr2hfnvvz63503qv8x2hsv9 Mainnet
+rebuilt true
+== sparrow/descriptor-receive-change1.txt
+kind Wallet
+wallet wpkh([a262308d/84h/0h/0h]xpub6DM7CYgaTMdMbhTcLTUWmNUE5WLXK5hx8ZMa4sRw8qYJPqtqKYiKnwsmT8A6AijDVAUZRivdBnXdR8QE7Y9vVnqvzPL3fXCmu1WtCRLdAoz/<0;1>/*)
+first bc1qg6stutzna28k472gr2hfnvvz63503qv8x2hsv9 Mainnet
+rebuilt true
+== sparrow/descriptor-receive-change2.txt
+kind Wallet
+wallet wpkh([a262308d/84h/0h/0h]xpub6DM7CYgaTMdMbhTcLTUWmNUE5WLXK5hx8ZMa4sRw8qYJPqtqKYiKnwsmT8A6AijDVAUZRivdBnXdR8QE7Y9vVnqvzPL3fXCmu1WtCRLdAoz/<0;1>/*)
+first bc1qg6stutzna28k472gr2hfnvvz63503qv8x2hsv9 Mainnet
+rebuilt true
+== sparrow/descriptor-receive.txt
+kind Wallet
+wallet wpkh([a262308d/84h/0h/0h]xpub6DM7CYgaTMdMbhTcLTUWmNUE5WLXK5hx8ZMa4sRw8qYJPqtqKYiKnwsmT8A6AijDVAUZRivdBnXdR8QE7Y9vVnqvzPL3fXCmu1WtCRLdAoz/<0;1>/*)
+first bc1qg6stutzna28k472gr2hfnvvz63503qv8x2hsv9 Mainnet
+rebuilt true
+== sparrow/electrum-multisig-wallet.json
+kind Wallet
+wallet sh(wsh(sortedmulti(2,[0f056943/48h/1h/0h/1h]tpubDF2rnouQaaYrUEy2JM1YD3RFzew4onawGM4X2Re67gguTf5CbHonBRiFGe3Xjz7DK88dxBFGf2i7K1hef3PM4cFKyUjcbJXddaY9F5tJBoP/<0;1>/*,[6ba6cfd0/48h/1h/0h/1h]tpubDFcrvj5n7gyatVbr8dHCUfHT4CGvL8hREBjtxc4ge7HZgqNuPhFimPRtVg6fRRwfXiQthV9EBjNbwbpgV2VoQeL1ZNXoAWXxP2L9vMtRjax/<0;1>/*,[747b698e/48h/1h/0h/1h]tpubDExj5FnaUnPAjjgzELoSiNRkuXJG8Cm1pbdiA4Hc5vkAZHphibeVcUp6mqH5LuNVKbtLVZxVSzyja5X26Cfmx6pzRH6gXBUJAH7MiqwNyuM/<0;1>/*,[7bb026be/48h/1h/0h/1h]tpubDFiuHYSJhNbHaGtB5skiuDLg12tRboh2uVZ6KGXxr8WVr28pLcS7F3gv8SsHFa2tm1jtx3VAuw56YfgRkdo6DXyfp51oygTKY3nJFT5jBMt/<0;1>/*)))
+first 2MzrH47gyB7r4a9MUvEGq4qSM5amPbe6DMS Testnet
+label Coldcard 6BA6CFD0
+rebuilt true
+== sparrow/electrum-singlesig-wallet.json
+kind Wallet
+wallet sh(wpkh([ab543c67/49h/0h/0h]xpub6FFEQVG6QR28chQzgSJ7Gjx5j5BGLkCMgZ9bc41YJCXfwYiCKUQdcwm4Fe1stvzRjosz5udMedYZFRL56AeZXCsiVmnVUysio4jkAKTukmN/<0;1>/*))
+first 3C36uuKHxSGtPbJ4xYvPXdqWVKpWvCuGWJ Mainnet
+label trezortest
+rebuilt true
+== sparrow/jade-keystore.txt
+kind Wallet
+wallet wpkh([73c5da0a/84h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/<0;1>/*)
+first bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu Mainnet
+rebuilt true
+== sparrow/keystone-singlesig-keystore-1.txt
+kind Wallet
+wallet wpkh([5271C071/84h/0h/0h]xpub6Cx3zCunLUy4JP68knrisNg26pqCLqYVJChHsCfUnrxSgVGC9FTdhSvkvVnZmXnv11WHss4P8hUFwRAdpYhrTfGoX2EnBMUzBBShaoZavQQ/<0;1>/*)
+first bc1q9unqc738dxjg5mk8zqtz33zg59cahrj29s24lp Mainnet
+rebuilt true
+== sparrow/keystone-singlesig-sp-keystore-1.txt
+kind Text
+refused Not a wallet: unsupported descriptor template
+rebuilt false
+== sparrow/specter-diy-export.txt
+kind Text
+refused Not a wallet: unsupported descriptor template
+rebuilt false
+== sparrow/specter-diy-keystore.txt
+kind Wallet
+wallet wpkh([b317ec86/84h/1h/0h]tpubDCKVXMvGq2YRczuCLcfcY8TaxHGjFTuhFrkRGpBk4DXmQeJXM3JAz8ijxTS59PZQBUtiq5wkstpzgvow7A25F4vDbmiAEy3rE4xHcR2XUUq/<0;1>/*)
+first tb1q685z47r72vmqxskvrgc6y6vln7rgwald3463el Testnet
+key [b317ec86/84h/1h/0h]tpubDCKVXMvGq2YRczuCLcfcY8TaxHGjFTuhFrkRGpBk4DXmQeJXM3JAz8ijxTS59PZQBUtiq5wkstpzgvow7A25F4vDbmiAEy3rE4xHcR2XUUq
+slot NativeSegwit [b317ec86/84h/1h/0h]tpubDCKVXMvGq2YRczuCLcfcY8TaxHGjFTuhFrkRGpBk4DXmQeJXM3JAz8ijxTS59PZQBUtiq5wkstpzgvow7A25F4vDbmiAEy3rE4xHcR2XUUq
+rebuilt true
+== sparrow/specter-diy-sp-keystore.txt
+kind Text
+refused Not a wallet: unsupported descriptor template
+rebuilt false
+== sparrow/specter-multisig-wallet.json
+kind Wallet
+wallet wsh(multi(3,[ca9a2b19/48h/0h/0h/2h]xpub6EhbRDNhmMX863W8RujJyAMw1vtM4MHXnsk14paK1ZBEH75k44gWqfaraXCrzg6w9pzC2yLc28vAdUfpB9ShuEB1HA9xMs6BjmRi4PKbt1K/<0;1>/*,[046b9450/48h/0h/0h/2h]xpub6Ej6a311KAYh6jUAnD4zHhgtgemM4DfMksQUNbAzXCQEkjKf5Ep2WLmMtJkmR4MHm8aEy648kzZo4cphwYhMpfwfYvHRQY4u2e4ijWzohwE/<0;1>/*,[747b698e/48h/0h/0h/2h]xpub6Eb6Z1xtmWRiWKgRpHf6dHiEagGd6FLiBXrnma1nFK4PGRYqSVqVyJaxna5Mb8etSP4ATKVAvKnXG1a9HZauoAawuSDJT5RgH2HqEVHZVHY/<0;1>/*,[7bb026be/48h/0h/0h/2h]xpub6FMGmJccz6dqLo9TMmXYPpZ7HUDm71RHHSTXqTUgkyP9TZmF2uexoB7qttEBtHaotopPwfAVfKfwmdEjCGabVpND1m7ix2AW2LxPuNfLZhi/<0;1>/*))
+first bc1qp2z49y5m7dfca5944adfs9fydwawjeunnu8250h5t5jy4pyfma0qquw47e Mainnet
+label specter-multisig
+rebuilt true
+== sparrow/specter-wallet.json
+kind Wallet
+wallet sh(wpkh([4df18faa/49h/0h/0h]xpub6BgwyseZdeGJj2vB3FPHSGPxR1LLkr8AsAJqedrgjwBXKXXVWkH31fhwtQXgrM7uMrWjLwXhuDhhenNAh5eBdUSjrHkrKfaXutcJdAfgQ8D/<0;1>/*))
+first 33c64CnvBKZUu5VDqYANEjFFCzvcFJUs11 Mainnet
+label specter-wallet
+rebuilt true

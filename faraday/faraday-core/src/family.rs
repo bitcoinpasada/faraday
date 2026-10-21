@@ -1362,10 +1362,7 @@ impl Faraday {
         let name = osk_bip::multisig_config::parse_named(&text)
             .ok()
             .and_then(|(_, n)| n)
-            .or_else(|| {
-                crate::wallet::json_string(&text, "label")
-                    .filter(|l| text.trim_start().starts_with('{') && !l.trim().is_empty())
-            })
+            .or_else(|| crate::wallet::json_label(&text))
             .unwrap_or_else(|| crate::file_stem(&item.name));
         let source = item.name.clone();
         match self
