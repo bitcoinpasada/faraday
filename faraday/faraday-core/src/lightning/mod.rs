@@ -9,10 +9,7 @@ pub(crate) mod screen;
 
 use crate::strings::fill;
 use crate::strings::{EN, fill_secret};
-use faraday_bip::aezeed;
 use faraday_bip::bip39::Language;
-use faraday_crypto::Secret;
-use faraday_crypto::work::Compute;
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
 use zeroize::Zeroizing;
@@ -29,14 +26,7 @@ pub enum NodeSource {
 }
 
 /// The node key, once found.
-pub struct Node {
-    /// The node's public key, compressed: its node id.
-    pub public: [u8; 33],
-    /// Its private key.
-    pub private: Zeroizing<[u8; 32]>,
-    /// The day an aezeed says it was made.
-    pub birthday: Option<(i32, u32, u32)>,
-}
+pub use faraday_keys::lightning::Node;
 
 /// What the Lightning screen holds.
 pub struct LightningState {
@@ -56,21 +46,6 @@ pub struct LightningState {
     pub shown: bool,
     /// Where it returns to.
     pub back: Screen,
-}
-
-/// Costs an elliptic-curve multiplication (through `to_xpub`): the node
-/// that `key` is, its public key worked out from the private one.
-fn node_of(
-    c: &Compute,
-    key: &faraday_bip::keys::DerivedKey,
-    birthday: Option<(i32, u32, u32)>,
-) -> Node {
-    let public = key.to_xpub(c).public_key.serialize();
-    Node {
-        public,
-        private: Zeroizing::new(key.secret_key().secret_bytes()),
-        birthday,
-    }
 }
 
 impl Faraday {
@@ -101,19 +76,16 @@ impl Faraday {
                 let key = self.session.keys.iter().find(|k| k.fingerprint().0 == fp);
                 match key.and_then(|k| Some((k, k.words.as_ref()?))) {
                     None => Err(EN.lightning_this_key.to_string()),
-                    Some((k, words)) => crate::wallet::parse_words(&c, k.language, words)
-                        .map_err(|e| e.to_string())
-                        .and_then(|m| {
-                            let p = k.passphrase.as_deref().map_or("", |p| p.as_str());
-                            m.to_seed(&c, p.as_bytes()).map_err(|e| e.to_string())
-                        })
-                        .map(|seed| node_of(&c, &aezeed::ldk_node_key(&c, &seed, net), None)),
+                    Some((k, words)) => {
+                        let p = k.passphrase.as_deref().map_or("", |p| p.as_str());
+                        faraday_keys::lightning::node_from_words(&c, k.language, words, p, net)
+                    }
                 }
             }
             Some(NodeSource::Aezeed) => {
-                let mut idx = [0u16; aezeed::NUM_WORDS];
+                let mut idx = [0u16; faraday_keys::lightning::AEZEED_WORDS];
                 let words: Vec<&str> = l.typed.split_whitespace().collect();
-                if words.len() != aezeed::NUM_WORDS {
+                if words.len() != faraday_keys::lightning::AEZEED_WORDS {
                     Err(fill(EN.lightning_an_aezeed, &[&words.len().to_string()]))
                 } else if let Some(k) = words
                     .iter()
@@ -124,17 +96,14 @@ impl Faraday {
                     for (slot, w) in idx.iter_mut().zip(&words) {
                         *slot = Language::English.index_of(w).unwrap_or(0);
                     }
-                    let r = aezeed::decode(&c, &idx, l.passphrase.as_bytes())
-                        .map_err(|e| fill(EN.lightning_not_an_aezeed, &[&format!("{e:?}")]))
-                        .map(|seed| {
-                            let birthday = aezeed::birthday_date(seed.birthday);
-                            let mut entropy = Secret::new([0u8; aezeed::ENTROPY_SIZE]);
-                            entropy
-                                .expose_mut()
-                                .copy_from_slice(seed.entropy().expose());
-                            node_of(&c, &aezeed::node_key(&c, &entropy, net), Some(birthday))
-                        });
-                    zeroize::Zeroize::zeroize(&mut idx);
+                    let r = faraday_keys::lightning::node_from_aezeed(
+                        &c,
+                        &idx,
+                        l.passphrase.as_bytes(),
+                        net,
+                    )
+                    .map_err(|e| fill(EN.lightning_not_an_aezeed, &[&e]));
+                    faraday_keys::lightning::wipe_words(&mut idx);
                     r
                 }
             }

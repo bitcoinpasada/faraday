@@ -494,9 +494,9 @@ impl Faraday {
                 if r.field(field::ROUND_TX) == Some(&tx[..])
                     && r.field(field::ROUND_USED).is_none()
                     && let Some(state) = r.field(field::ROUND_STATE)
-                    && let Ok(c) = faraday_psbt::threshold::Carry::parse(state)
+                    && let Some(section) = faraday_keys::carry::section_of(state)
                 {
-                    return Some(c.section);
+                    return Some(section);
                 }
             }
         }

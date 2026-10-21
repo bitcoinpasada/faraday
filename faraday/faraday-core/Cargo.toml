@@ -33,6 +33,7 @@ faraday-pgp = { path = "../faraday-pgp" }
 faraday-sb = { path = "../faraday-sb" }
 faraday-apk = { path = "../faraday-apk" }
 faraday-backup = { path = "../../core/faraday-backup" }
+faraday-keys = { path = "../faraday-keys" }
 zeroize = { workspace = true, features = ["alloc"] }
 
 [features]

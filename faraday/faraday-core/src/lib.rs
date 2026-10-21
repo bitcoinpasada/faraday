@@ -3067,7 +3067,7 @@ impl Faraday {
         // A carry file is the PSBT and the secret nonce of the share that
         // signs next.
         let (psbt, carry) = if item.kind == FileKind::Carry {
-            match faraday_psbt::threshold::Carry::parse(&item.bytes) {
+            match faraday_keys::carry::parse(&item.bytes) {
                 Ok(carry) => match faraday_psbt::Psbt::parse_bytes(&c, &carry.psbt) {
                     Ok(p) => (p, Some(carry.section)),
                     Err(_) => {
@@ -5852,23 +5852,24 @@ impl Faraday {
         if !self.makes_secrets() {
             return;
         }
-        let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::new();
         let (m, n) = match self.create.as_ref() {
             Some(c) => (c.m, c.n),
             None => return,
         };
         let dealt = self.create_shares().and_then(|keys| {
-            let mut chosen = Vec::new();
-            for (id, key) in keys.iter().enumerate() {
-                let mut got = None;
-                key.with_secret_share(&c, &mut |s| {
-                    let mut b = s.secret_bytes();
-                    got = faraday_bip::frost::SecShare::from_bytes(&b).ok();
-                    zeroize::Zeroize::zeroize(&mut b);
-                });
-                chosen.push((id as u32, got.ok_or(EN.create_deal_a_chosen)?));
-            }
-            faraday_bip::frost::deal(&secp, n, m, &chosen).map_err(|e| format!("{e:?}"))
+            let dealers: Vec<faraday_keys::frost::Dealer<'_>> = keys
+                .iter()
+                .map(|key| faraday_keys::frost::Dealer {
+                    language: key.language,
+                    words: key.words.as_ref().map(|w| w.as_str()),
+                })
+                .collect();
+            faraday_keys::frost::make_group(&c, &dealers, n, m, self.session.network()).map_err(
+                |e| match e {
+                    faraday_keys::frost::DealError::NoShare => EN.create_deal_a_chosen.to_string(),
+                    faraday_keys::frost::DealError::Refused(e) => e,
+                },
+            )
         });
         let dealt = match dealt {
             Ok(d) => d,
@@ -5879,10 +5880,6 @@ impl Faraday {
                 return;
             }
         };
-        let record = faraday_bip::threshold::ThresholdRecord::new(
-            dealt.info.clone(),
-            self.session.network().kind(),
-        );
         let name = fill(
             EN.create_deal_new_wallet,
             &[&(self.session.wallets.len() + 1).to_string()],
@@ -5890,7 +5887,7 @@ impl Faraday {
         let i = match self.session.add_wallet(
             &c,
             &name,
-            &record.to_text(),
+            &dealt.record,
             EN.create_deal_dealt_here,
             wallet::Origin::Statement,
         ) {
@@ -5902,29 +5899,12 @@ impl Faraday {
                 return;
             }
         };
-        for (id, share) in dealt.shares.iter().enumerate().skip(m) {
-            let mut bytes = share.secret_bytes();
-            let words = faraday_bip::bip39::Mnemonic::from_entropy(
-                faraday_bip::bip39::Language::English,
-                &bytes,
-            )
-            .map(|mn| {
-                zeroize::Zeroizing::new(
-                    mn.indices()
-                        .iter()
-                        .map(|w| faraday_bip::bip39::Language::English.word(*w))
-                        .collect::<Vec<_>>()
-                        .join(" "),
-                )
-            });
-            zeroize::Zeroize::zeroize(&mut bytes);
-            if let Ok(words) = words {
-                let label = fill(
-                    EN.create_deal_share_of,
-                    &[&(id + 1).to_string(), &name.to_string()],
-                );
-                let _ = self.session.add_words(&c, &words, &label, None);
-            }
+        for (id, words) in &dealt.words {
+            let label = fill(
+                EN.create_deal_share_of,
+                &[&(id + 1).to_string(), &name.to_string()],
+            );
+            let _ = self.session.add_words(&c, words, &label, None);
         }
         self.chart_work.moved_to(&self.session, i);
         self.wallet = i;
@@ -6225,9 +6205,8 @@ impl Faraday {
             Ok(fp) => (Ok(fp), true),
             // Loaded already with this passphrase: that key is the one.
             Err(wallet::Refusal::Duplicate(_)) => (
-                Session::default()
-                    .add_words_with(&c, &words, &pass, "", None)
-                    .map_err(|e| e.text()),
+                faraday_keys::identity::fingerprint_of_words(&c, &words, &pass)
+                    .map_err(|e| wallet::Refusal::Words(e).text()),
                 false,
             ),
             Err(e) => (Err(e.text()), false),
@@ -7235,7 +7214,7 @@ impl Faraday {
                 let m = self.message.as_ref().ok_or(EN.code_view_no_message)?;
                 let sig = m.signed.as_ref().ok_or(EN.code_view_the_message)?;
                 let text =
-                    faraday_psbt::message::signed_text(&sig.address, &sig.signature, &m.text);
+                    faraday_keys::message::signed_text(&sig.address, &sig.signature, &m.text);
                 let name = format!(
                     "message-{}.png",
                     &sig.address[sig.address.len().saturating_sub(6)..]
@@ -7437,9 +7416,9 @@ impl Faraday {
         let mut label = label;
         let mut for_wallet = None;
         if let Some(w) = self.entry.wallet {
-            let fp = Session::default()
-                .add_mnemonic(&c, &m, &self.entry.passphrase, "", None)
-                .ok();
+            let fp =
+                faraday_keys::identity::fingerprint_of_mnemonic(&c, &m, &self.entry.passphrase)
+                    .ok();
             if let Some(fp) = fp {
                 match self.wallet_key_found(w, fp) {
                     scan_key::Found::None => {
@@ -7471,9 +7450,9 @@ impl Faraday {
         // Restore takes a seed only into a slot it fills: with the
         // description known, one of its keys (`docs/history/NEW-WALLET.md` §12.1).
         if back == Some(Screen::Restore) {
-            let fp = Session::default()
-                .add_mnemonic(&c, &m, &self.entry.passphrase, "", None)
-                .ok();
+            let fp =
+                faraday_keys::identity::fingerprint_of_mnemonic(&c, &m, &self.entry.passphrase)
+                    .ok();
             if let Some(why) = fp.and_then(|fp| self.restore_refusal(fp)) {
                 if let Some(r) = self.restore.as_mut() {
                     r.error = Some(why);
@@ -7505,7 +7484,7 @@ impl Faraday {
             // you have? as it is (`docs/SCAN-TO-SIGN.md` §4).
             Err(wallet::Refusal::Duplicate(_)) if back == Some(Screen::Family) => {
                 if let Ok(fp) =
-                    Session::default().add_mnemonic(&c, &m, &self.entry.passphrase, "", None)
+                    faraday_keys::identity::fingerprint_of_mnemonic(&c, &m, &self.entry.passphrase)
                 {
                     self.seeds_took(fp, back);
                     self.entry = EntryState::default();
@@ -7976,9 +7955,7 @@ impl Faraday {
                 s.carry = None;
             }
             if let Some(section) = out.carry {
-                s.carry_out = Some(zeroize::Zeroizing::new(
-                    faraday_psbt::threshold::carry_bytes(&section, &psbt.to_bytes()),
-                ));
+                s.carry_out = Some(faraday_keys::carry::bytes(&section, &psbt.to_bytes()));
             }
             ours.unwrap_or(out.by)
         });

@@ -801,6 +801,7 @@ dependencies = [
  "faraday-files",
  "faraday-guides",
  "faraday-intake",
+ "faraday-keys",
  "faraday-learn",
  "faraday-pgp",
  "faraday-psbt",
@@ -915,6 +916,17 @@ dependencies = [
  "faraday-crypto",
  "faraday-qr",
  "faraday-strings",
+ "zeroize",
+]
+
+[[package]]
+name = "faraday-keys"
+version = "0.1.5"
+dependencies = [
+ "faraday-bip",
+ "faraday-crypto",
+ "faraday-psbt",
+ "serde_json",
  "zeroize",
 ]
 

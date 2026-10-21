@@ -13,7 +13,7 @@ use crate::grind::{Dial, Grind, Step};
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_bip::keys::{Fingerprint, ScriptType};
-use faraday_bip::vanity::{self as engine, Key, Method};
+use faraday_bip::vanity as engine;
 use zeroize::Zeroizing;
 
 use crate::create::NewKind;
@@ -246,36 +246,24 @@ impl Faraday {
             return false;
         };
         let g = &v.grind;
-        let outcome = match g.dial {
-            Dial::Account => engine::grind(
-                &c,
-                &Key::Master(key.master()),
-                &Method::Account,
-                g.script,
-                g.prefix.as_str(),
-                net,
-                g.cursor,
-                g.budget,
-            ),
-            Dial::Passphrase => {
-                let Some(words) = key.words.as_ref() else {
-                    return false;
-                };
-                let Ok(m) = crate::wallet::parse_words(&c, key.language, words) else {
-                    return false;
-                };
-                let base: &[u8] = key.passphrase.as_ref().map_or(&[], |p| p.as_bytes());
-                engine::grind(
-                    &c,
-                    &Key::Words(&m),
-                    &Method::Passphrase { base },
-                    g.script,
-                    g.prefix.as_str(),
-                    net,
-                    g.cursor,
-                    g.budget,
-                )
-            }
+        let dial = match g.dial {
+            Dial::Account => faraday_keys::vanity::Dial::Account(key.master()),
+            Dial::Passphrase => faraday_keys::vanity::Dial::Passphrase {
+                language: key.language,
+                words: key.words.as_ref().map(|w| w.as_str()),
+                base: key.passphrase.as_ref().map_or(&[], |p| p.as_bytes()),
+            },
+        };
+        let Some(outcome) = faraday_keys::vanity::grind(
+            &c,
+            dial,
+            g.script,
+            g.prefix.as_str(),
+            net,
+            g.cursor,
+            g.budget,
+        ) else {
+            return false;
         };
         let Some(v) = self.vanity.as_mut() else {
             return false;
@@ -351,15 +339,15 @@ impl Faraday {
         else {
             return;
         };
-        let text = match master.account_xpub(&c, script, account) {
+        let text = match faraday_keys::texts::single_account(&c, master, script, account) {
             Ok(a) => {
-                let shown = format!("{}", a.path())
+                let shown = format!("{}", a.path)
                     .trim_start_matches("m/")
                     .replace('\'', "h");
-                format!("[{}/{shown}]{}", a.master_fingerprint(), a.xpub())
+                format!("[{}/{shown}]{}", a.fingerprint, a.xpub)
             }
             Err(e) => {
-                self.toast(&e.to_string());
+                self.toast(&e);
                 return;
             }
         };

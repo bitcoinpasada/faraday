@@ -335,11 +335,14 @@ impl Faraday {
                 .map(|p| p.text.text.to_string())
                 .unwrap_or_default(),
         );
-        let Ok(seed) = m.to_seed(&c, passphrase.as_bytes()) else {
+        let Some(fp) = faraday_keys::fingerprint(
+            &c,
+            faraday_keys::Material::Words(&m),
+            &passphrase,
+            self.session.network(),
+        ) else {
             return;
         };
-        let fp = faraday_bip::keys::MasterKey::from_seed(&c, &seed, self.session.network())
-            .fingerprint();
         if !missing.contains(&fp.0) {
             let wallet = self
                 .session

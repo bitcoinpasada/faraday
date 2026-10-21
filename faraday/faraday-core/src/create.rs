@@ -196,7 +196,7 @@ impl NewKind {
         master: &MasterKey,
         account: u32,
     ) -> Result<String, String> {
-        let (xpub, fp, path) = match self {
+        let key = match self {
             NewKind::Threshold => return Err(EN.create_a_share_has.to_string()),
             NewKind::NativeSegwit
             | NewKind::Taproot
@@ -210,10 +210,7 @@ impl NewKind {
                     NewKind::NestedSegwit => ScriptType::NestedSegwit,
                     _ => ScriptType::Legacy,
                 };
-                let a = master
-                    .account_xpub(c, t, account)
-                    .map_err(|e| e.to_string())?;
-                (*a.xpub(), a.master_fingerprint(), a.path().clone())
+                faraday_keys::texts::single_account(c, master, t, account)?
             }
             NewKind::Multi | NewKind::MultiNested => {
                 let t = if self == NewKind::Multi {
@@ -221,24 +218,20 @@ impl NewKind {
                 } else {
                     MultisigScriptType::NestedSegwit
                 };
-                let a = master
-                    .multisig_account_xpub(c, t, account)
-                    .map_err(|e| e.to_string())?;
-                (*a.xpub(), a.master_fingerprint(), a.path().clone())
+                faraday_keys::texts::multisig_account(c, master, t, account)?
             }
             NewKind::MultiLegacy | NewKind::TapMulti => {
                 let path: faraday_bip::bitcoin::bip32::DerivationPath = self
                     .path_at(master.network(), account)
                     .parse()
                     .map_err(|e| format!("{e}"))?;
-                let d = master.derive(c, &path);
-                (d.to_xpub(c), master.fingerprint(), path)
+                faraday_keys::texts::account_at(c, master, &path)
             }
         };
-        let shown = format!("{path}")
+        let shown = format!("{}", key.path)
             .trim_start_matches("m/")
             .replace('\'', "h");
-        Ok(format!("[{fp}/{shown}]{xpub}"))
+        Ok(format!("[{}/{shown}]{}", key.fingerprint, key.xpub))
     }
 
     /// Costs a key derivation. A `wsh` multisig key as the
@@ -254,12 +247,15 @@ impl NewKind {
         if self != NewKind::Multi {
             return None;
         }
-        let a = master
-            .multisig_account_xpub(c, MultisigScriptType::NativeSegwit, account)
-            .ok()?;
-        let path: Vec<_> = a.path().into_iter().copied().collect();
-        let cbor =
-            faraday_qr::registry::account_cbor(a.master_fingerprint().0, &path, a.xpub(), false);
+        let a = faraday_keys::texts::multisig_account(
+            c,
+            master,
+            MultisigScriptType::NativeSegwit,
+            account,
+        )
+        .ok()?;
+        let path: Vec<_> = a.path.into_iter().copied().collect();
+        let cbor = faraday_qr::registry::account_cbor(a.fingerprint.0, &path, &a.xpub, false);
         Some(faraday_codec::ur::encode_single("crypto-account", &cbor))
     }
 
@@ -280,13 +276,7 @@ impl NewKind {
             NewKind::MultiNested => MultisigScriptType::NestedSegwit,
             _ => return None,
         };
-        let record = master
-            .with_multisig_account_secret(c, script, account, |secret, view| {
-                faraday_bip::bsms::signer_record(master.secp(), view, secret, "00", description)
-            })
-            .ok()?
-            .ok()?;
-        Some(record.to_text())
+        faraday_keys::texts::bsms_record(c, master, script, account, description)
     }
 
     /// The descriptor over these keys.
@@ -336,19 +326,15 @@ pub fn key_text_at(c: &Compute, master: &MasterKey, path: &str) -> Result<String
     let path = normal_path(path).ok_or_else(|| fill(EN.create_not_a_derivation, &[path]))?;
     let parsed: faraday_bip::bitcoin::bip32::DerivationPath =
         path.parse().map_err(|e| format!("{e}"))?;
-    let d = master.derive(c, &parsed);
+    let key = faraday_keys::texts::account_at(c, master, &parsed);
     let shown = path
         .trim_start_matches('m')
         .trim_start_matches('/')
         .replace('\'', "h");
     if shown.is_empty() {
-        return Ok(format!("[{}]{}", master.fingerprint(), d.to_xpub(c)));
+        return Ok(format!("[{}]{}", key.fingerprint, key.xpub));
     }
-    Ok(format!(
-        "[{}/{shown}]{}",
-        master.fingerprint(),
-        d.to_xpub(c)
-    ))
+    Ok(format!("[{}/{shown}]{}", key.fingerprint, key.xpub))
 }
 
 /// A derivation path as typed, `m/48'/0'/0'/2'`, `48h/0h/0h/2h` or with

@@ -1526,15 +1526,11 @@ impl crate::Faraday {
                                 return;
                             }
                             k.fingerprint = k.secret.as_ref().and_then(|s| {
-                                crate::wallet::Session::default()
-                                    .add_seed(&c, s, "")
-                                    .ok()
-                                    .map(|f| f.0)
+                                faraday_keys::identity::fingerprint_of_seed(&c, s).map(|f| f.0)
                             });
                         } else {
                             k.fingerprint = k.phrase().and_then(|w| {
-                                crate::wallet::Session::default()
-                                    .add_words_with(&c, &w, "", "", None)
+                                faraday_keys::identity::fingerprint_of_words(&c, &w, "")
                                     .ok()
                                     .map(|f| f.0)
                             });

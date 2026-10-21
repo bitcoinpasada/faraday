@@ -13,7 +13,7 @@ use faraday_bip::keys::{Fingerprint, MasterKey, Network, ScriptType};
 use faraday_bip::policy::{Template, WalletPolicy, Wrapper};
 use faraday_crypto::work::Compute;
 use faraday_psbt::verify::Verdict;
-use faraday_psbt::{Aux, Context, Inspection, KeyRef, Nonce, Psbt};
+use faraday_psbt::{Context, Inspection, KeyRef, Psbt};
 
 /// The network a session starts on, before a wallet or a PSBT says
 /// otherwise.
@@ -37,10 +37,7 @@ pub type WordsId = zeroize::Zeroizing<[u8; 32]>;
 /// hash of public data); what "this vault holds this key" compares,
 /// where the 4-byte fingerprint only finds a candidate (F65).
 pub fn master_id(c: &Compute, m: &MasterKey) -> [u8; 32] {
-    let x = m.xpub(c);
-    let mut bytes = x.public_key.serialize().to_vec();
-    bytes.extend_from_slice(x.chain_code.as_bytes());
-    crate::sha256_of(c, &bytes)
+    faraday_keys::identity::master_id(c, m)
 }
 
 /// Costs a hash; the words are parsed already. [`WordsId`] of `m`'s
@@ -234,28 +231,13 @@ impl Key {
         c: &Compute,
         take: &mut dyn FnMut(&faraday_bip::frost::SecShare),
     ) {
-        if let Some(share) = self
-            .words
-            .as_ref()
-            .and_then(|w| crate::wallet::parse_words(c, self.language, w).ok())
-            .and_then(|m| secret_share(&m))
-        {
-            take(&share);
-        }
+        faraday_keys::frost::with_secret_share(
+            c,
+            self.language,
+            self.words.as_ref().map(|w| w.as_str()),
+            take,
+        );
     }
-}
-
-/// The FROST share 24 words are, when they are 24 words.
-fn secret_share(m: &Mnemonic) -> Option<faraday_bip::frost::SecShare> {
-    if m.word_count() != 24 {
-        return None;
-    }
-    let entropy = m.entropy();
-    let mut bytes = [0u8; 32];
-    bytes.copy_from_slice(entropy.expose().as_bytes());
-    let share = faraday_bip::frost::SecShare::from_bytes(&bytes).ok();
-    zeroize::Zeroize::zeroize(&mut bytes);
-    share
 }
 
 /// What one signing pass did.
@@ -716,8 +698,7 @@ impl Session {
             }
             words.push_str(lang.word(i));
         }
-        let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::new();
-        let share = secret_share(mnemonic).map(|s| s.public_share(&secp));
+        let share = faraday_keys::frost::public_share(mnemonic);
         self.keys.push(Key::new(
             c,
             master,
@@ -1028,10 +1009,8 @@ impl Session {
 
     /// Costs a key derivation (through `from_master`).
     fn key_refs(&self, c: &Compute) -> Vec<KeyRef> {
-        self.keys
-            .iter()
-            .filter_map(|k| KeyRef::from_master(c, &k.master, 0).ok())
-            .collect()
+        let masters: Vec<&MasterKey> = self.keys.iter().map(|k| &k.master).collect();
+        faraday_keys::psbt::key_refs(c, &masters)
     }
 
     fn policies(&self) -> Vec<WalletPolicy> {
@@ -1049,7 +1028,7 @@ impl Session {
         let policies = self.policies();
         let ctx = context(self.network, &refs, &policies);
         let masters: Vec<&MasterKey> = self.keys.iter().map(|k| &k.master).collect();
-        let made = faraday_psbt::verify::deterministic(c, psbt, &masters);
+        let made = faraday_keys::psbt::recompute_signatures(c, psbt, &masters);
         let mut rows = Vec::new();
         for input in faraday_psbt::verify::verify_signatures(psbt, &ctx) {
             for sig in input.signatures {
@@ -1197,38 +1176,19 @@ impl Session {
         let masters: Vec<&MasterKey> = self.keys.iter().map(|k| &k.master).collect();
         // A share's scalar is rebuilt from its words only inside the call
         // the signer makes through its door.
-        let members: Vec<&Key> = self.keys.iter().filter(|k| k.share.is_some()).collect();
-        let doors: Vec<Box<faraday_psbt::ShareDoor<'_>>> = members
+        let holders: Vec<faraday_keys::psbt::ShareHolder<'_>> = self
+            .keys
             .iter()
-            .map(|key| -> Box<faraday_psbt::ShareDoor<'_>> {
-                Box::new(move |take: &mut dyn FnMut(&faraday_bip::frost::SecShare)| {
-                    key.with_secret_share(c, take);
-                })
-            })
-            .collect();
-        let share_keys: Vec<faraday_psbt::ShareKey> = members
-            .iter()
-            .zip(&doors)
-            .filter_map(|(key, door)| {
-                Some(faraday_psbt::ShareKey {
+            .filter_map(|key| {
+                Some(faraday_keys::psbt::ShareHolder {
                     pubshare: key.share?,
-                    open: door.as_ref(),
+                    language: key.language,
+                    words: key.words.as_ref().map(|w| w.as_str()),
                 })
             })
             .collect();
-        let result = faraday_psbt::sign(
-            c,
-            psbt,
-            &masters,
-            &selection,
-            &ctx,
-            false,
-            Nonce::default(),
-            Aux::default(),
-            musig,
-            seed,
-            &share_keys,
-            others,
+        let result = faraday_keys::psbt::sign(
+            c, psbt, &masters, &selection, &ctx, musig, seed, &holders, others,
         )
         .map_err(|e| e.to_string())?;
         let mut by: Vec<Fingerprint> = result.signed_inputs.iter().map(|s| s.fingerprint).collect();
@@ -1948,19 +1908,8 @@ impl Session {
                 faraday_bip::bitcoin::bip32::ChildNumber::from_normal_idx(index)
                     .map_err(|e| e.to_string())?,
             );
-        let derived = master.derive(c, &path);
-        faraday_psbt::message::sign(
-            c,
-            derived.secp(),
-            derived.secret_key(),
-            script,
-            self.network,
-            message,
-            format,
-            Nonce::default(),
-            Aux::default(),
-        )
-        .map_err(|e| format!("{e:?}"))
+        faraday_keys::message::sign(c, master, &path, script, self.network, message, format)
+            .map_err(|e| format!("{e:?}"))
     }
 
     /// Costs an address derivation (through `find_address`). Checks a

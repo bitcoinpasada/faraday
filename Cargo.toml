@@ -15,6 +15,7 @@ members = [
     "tools/fontbake",
     "tools/costs-lint",
     "faraday/faraday-core",
+    "faraday/faraday-keys",
     "faraday/faraday-starter",
     "faraday/faraday-ui",
     "faraday/faraday-storage",

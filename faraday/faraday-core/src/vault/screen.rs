@@ -2294,25 +2294,24 @@ fn record_id(r: &Record) -> Option<[u8; 32]> {
     Some(sha256::Hash::from_engine(engine).to_byte_array())
 }
 
-/// Costs a PBKDF2 for words and an elliptic-curve multiplication. A key
-/// record's master key, its passphrase applied.
-fn record_master(c: &Compute, app: &Faraday, r: &Record) -> Option<faraday_bip::keys::MasterKey> {
-    Some(match crate::wallet::record_words(c, r) {
-        Some(m) => {
-            let passphrase = r.text(field::KEY_PASSPHRASE).unwrap_or("");
-            let seed = m.to_seed(c, passphrase.as_bytes()).ok()?;
-            faraday_bip::keys::MasterKey::from_seed(c, &seed, app.session.network())
-        }
+/// Costs a parse of the words for a record that holds them. Runs `f` on
+/// what a key record is made from, its words (with the passphrase stored
+/// beside them) or its master seed.
+fn with_record_material<T>(
+    c: &Compute,
+    r: &Record,
+    f: impl FnOnce(faraday_keys::Material<'_>, &str) -> Option<T>,
+) -> Option<T> {
+    match crate::wallet::record_words(c, r) {
+        Some(m) => f(
+            faraday_keys::Material::Words(&m),
+            r.text(field::KEY_PASSPHRASE).unwrap_or(""),
+        ),
         None => {
             let seed = vault::seed_of(r)?;
-            let bytes = faraday_crypto::SeedBytes::new(&seed)?;
-            faraday_bip::keys::MasterKey::from_seed_bytes(
-                c,
-                &faraday_crypto::Secret::new(bytes),
-                app.session.network(),
-            )
+            f(faraday_keys::Material::Seed(&seed), "")
         }
-    })
+    }
 }
 
 /// Costs a PBKDF2 and two elliptic-curve multiplications the first
@@ -2330,9 +2329,11 @@ pub(crate) fn key_identity(c: &Compute, app: &Faraday, r: &Record) -> Option<(St
         return Some((fp.clone(), *mid));
     }
     // Kept by the key's id once worked out, by whoever asks first.
-    let master = record_master(c, app, r)?;
-    let fp = fp_text(master.fingerprint());
-    let mid = crate::wallet::master_id(c, &master);
+    let network = app.session.network();
+    let (fingerprint, mid) = with_record_material(c, r, |material, passphrase| {
+        faraday_keys::identity::identity(c, material, passphrase, network)
+    })?;
+    let fp = fp_text(fingerprint);
     let mut kept = app.vaults.fingerprints.borrow_mut();
     if kept.len() >= vault::FINGERPRINTS_KEPT {
         kept.remove(0);
@@ -2376,8 +2377,11 @@ pub(crate) fn record_is_policy_key(
         return kept.is_some_and(|b| b == want);
     }
     // Kept by the record's id and the path once worked out.
-    let got =
-        record_master(c, app, r).map(|master| account_bytes(&master.derive(c, path).to_xpub(c)));
+    let network = app.session.network();
+    let got = with_record_material(c, r, |material, passphrase| {
+        faraday_keys::identity::xpub_at(c, material, passphrase, network, path)
+    })
+    .map(|x| account_bytes(&x));
     let mut kept = app.vaults.accounts.borrow_mut();
     if kept.len() >= vault::ACCOUNTS_KEPT {
         kept.remove(0);

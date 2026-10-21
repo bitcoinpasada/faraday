@@ -1,0 +1,21 @@
+[package]
+name = "faraday-keys"
+version = "0.1.5"
+description = "Where Faraday's key material is used: signing, derivation, key texts, BIP-85, Lightning, silent payments, FROST dealing and identity (docs/KEYS.md)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+faraday-bip = { path = "../../core/faraday-bip" }
+faraday-psbt = { path = "../../core/faraday-psbt" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
+zeroize = { workspace = true, features = ["alloc"] }
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[lints]
+workspace = true

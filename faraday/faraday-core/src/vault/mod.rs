@@ -3510,12 +3510,15 @@ impl Faraday {
                 else {
                     continue;
                 };
-                let Ok(seed) = m.to_seed(c, p.as_bytes()) else {
+                let Some(got) = faraday_keys::fingerprint(
+                    c,
+                    faraday_keys::Material::Words(m),
+                    p,
+                    self.session.network(),
+                ) else {
                     continue;
                 };
-                let master =
-                    faraday_bip::keys::MasterKey::from_seed(c, &seed, self.session.network());
-                if master.fingerprint().0[..] == *fp {
+                if got.0[..] == *fp {
                     return Some(Zeroizing::new(p.to_string()));
                 }
             }

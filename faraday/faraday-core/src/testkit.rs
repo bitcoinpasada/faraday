@@ -591,7 +591,7 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
     let signed = one.sign_message(&c, i, 0, text, faraday_psbt::message::Format::Bip322)?;
     out.push((
         "spending-message.txt".to_string(),
-        faraday_psbt::message::signed_text(&signed.address, &signed.signature, text).into_bytes(),
+        faraday_keys::message::signed_text(&signed.address, &signed.signature, text).into_bytes(),
     ));
     Ok(out)
 }
@@ -888,24 +888,21 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
 /// computed. Its record is public and is the wallet's file.
 pub fn threshold_record() -> Result<faraday_bip::threshold::ThresholdRecord, String> {
     let c = compute();
-    let secp = Secp256k1::new();
-    let mut chosen = Vec::new();
-    for (id, (word, _)) in TEST_SEEDS.iter().take(2).enumerate() {
-        let mut session = session();
-        session
-            .add_words(&c, &test_words(word), "", None)
-            .map_err(|e| e.text())?;
-        let mut share = None;
-        session.keys[0].with_secret_share(&c, &mut |s| {
-            share = faraday_bip::frost::SecShare::from_bytes(&s.secret_bytes()).ok();
-        });
-        chosen.push((id as u32, share.ok_or("a test seed is not a share")?));
-    }
-    let dealt = faraday_bip::frost::deal(&secp, 3, 2, &chosen).map_err(|e| format!("{e:?}"))?;
-    Ok(faraday_bip::threshold::ThresholdRecord::new(
-        dealt.info,
-        NET.kind(),
-    ))
+    let words: Vec<String> = TEST_SEEDS
+        .iter()
+        .take(2)
+        .map(|(word, _)| test_words(word))
+        .collect();
+    let dealers: Vec<faraday_keys::frost::Dealer<'_>> = words
+        .iter()
+        .map(|w| faraday_keys::frost::Dealer {
+            language: faraday_bip::bip39::Language::English,
+            words: Some(w),
+        })
+        .collect();
+    let dealt =
+        faraday_keys::frost::make_group(&c, &dealers, 3, 2, NET).map_err(|e| format!("{e:?}"))?;
+    faraday_bip::threshold::ThresholdRecord::parse(&c, &dealt.record).map_err(|e| format!("{e:?}"))
 }
 
 /// The FROST test wallet as a kit, for its spend.
@@ -946,10 +943,7 @@ pub fn threshold_carry() -> Result<Vec<u8>, String> {
     let section = signed
         .carry
         .ok_or("the first location left no carry section")?;
-    Ok(faraday_psbt::threshold::carry_bytes(
-        &section,
-        &psbt.to_bytes(),
-    ))
+    Ok(faraday_keys::carry::bytes(&section, &psbt.to_bytes()).to_vec())
 }
 
 /// The backup test stick's vault passphrase.

@@ -169,7 +169,7 @@ impl Faraday {
             .keys
             .iter()
             .find(|k| Some(k.fingerprint().0) == s.key)?;
-        let r = Receiver::derive(c, key.master(), 0);
+        let r = faraday_keys::silent::receiver(c, key.master(), 0);
         if let Some(w) = self.silent_wallet()
             && w.spend != r.spend_public_key()
         {
@@ -224,13 +224,7 @@ impl Faraday {
             return Some(w.address());
         }
         let (r, _) = self.silent_receiver(c)?;
-        let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::new();
-        let a = if s.label == 0 {
-            r.address(&secp)
-        } else {
-            r.labelled_address(&secp, s.label)
-        };
-        a.ok().map(|t| t.as_str().to_string())
+        faraday_keys::silent::address(&r, s.label)
     }
 
     /// Costs what `silent_receiver` costs. The public record a coordinator
@@ -260,8 +254,7 @@ impl Faraday {
     /// `spscan1q…`.
     fn silent_scan_key(&self, c: &Compute) -> Option<Zeroizing<String>> {
         let (r, _) = self.silent_receiver(c)?;
-        let k = r.scan_key_text().ok()?;
-        Some(Zeroizing::new(k.as_str().to_string()))
+        faraday_keys::silent::scan_key(&r)
     }
 
     /// Costs what `silent_address`, `silent_record` and `of` cost. The QR
@@ -514,8 +507,7 @@ impl Faraday {
             .max(self.silent.as_ref().map_or(0, |s| s.labels));
         let labels: Vec<u32> = (0..=labels_out).collect();
         let scripts: Vec<&[u8]> = prevouts.iter().map(|s| s.as_bytes()).collect();
-        let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::new();
-        match faraday_bip::silent::find_payments(&secp, &receiver, tx, &scripts, &labels) {
+        match faraday_keys::silent::payments_in(&receiver, tx, &scripts, &labels) {
             Err(_) => Some(Checked::NoInputs),
             Ok(found) if found.is_empty() => Some(Checked::NotPaid),
             Ok(found) => Some(Checked::Paid(

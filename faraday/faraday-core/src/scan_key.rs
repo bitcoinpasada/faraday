@@ -12,15 +12,13 @@ use faraday_crypto::work::Compute;
 use faraday_shell_api::Command;
 
 use crate::plan::{At, What};
-use crate::wallet::{Session, fp_text};
+use crate::wallet::fp_text;
 use crate::{Action, Faraday, ScanPurpose, ScanState, Sheet};
 
 /// Costs what `add_words_with` costs. The key `words` make with `pass`,
 /// if they are BIP-39 words.
 pub(crate) fn key_of(c: &Compute, words: &str, pass: &str) -> Option<Fingerprint> {
-    Session::default()
-        .add_words_with(c, words, pass, "", None)
-        .ok()
+    faraday_keys::identity::fingerprint_of_words(c, words, pass).ok()
 }
 
 /// What a read or a choice found of a wallet's keys.

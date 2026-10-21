@@ -3,7 +3,6 @@
 
 use std::collections::BTreeSet;
 
-use crate::wallet::Session;
 use crate::{
     Action, Code, Column, Faraday, Screen, VisitBarAt, Writing, flow, forms, mstep, secret_text,
     visit_taken,
@@ -100,11 +99,8 @@ impl EntryState {
         }
         // Kept until an event forgets it: worked out once, by the frame
         // that asks first.
-        let r = {
-            Session::default()
-                .add_mnemonic(c, m, &self.passphrase, "", None)
-                .map_err(|e| e.text())
-        };
+        let r = faraday_keys::identity::fingerprint_of_mnemonic(c, m, &self.passphrase)
+            .map_err(|e| crate::wallet::Refusal::Words(e).text());
         *self.probe.borrow_mut() = Some(r.clone());
         r
     }
@@ -277,7 +273,7 @@ impl Faraday {
                     && let Some(sig) = m.signed.as_ref()
                 {
                     let text =
-                        faraday_psbt::message::signed_text(&sig.address, &sig.signature, &m.text);
+                        faraday_keys::message::signed_text(&sig.address, &sig.signature, &m.text);
                     if action == Action::MOut {
                         let name = format!(
                             "message-{}.txt",

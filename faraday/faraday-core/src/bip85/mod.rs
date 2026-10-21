@@ -178,39 +178,15 @@ impl Faraday {
             .find(|k| Some(k.fingerprint().0) == b.key)?
             .master();
         let i = b.index()?;
-        let text: Zeroizing<String> = match b.app {
-            Bip85App::Words => {
-                let m = bip85::child_mnemonic(c, master, Language::English, b.length, i).ok()?;
-                let words: Vec<&str> = m
-                    .indices()
-                    .iter()
-                    .map(|&w| Language::English.word(w))
-                    .collect();
-                Zeroizing::new(words.join(" "))
-            }
-            Bip85App::Wif => {
-                Zeroizing::new(bip85::child_wif(c, master, i).ok()?.as_str().to_string())
-            }
-            Bip85App::Xprv => {
-                Zeroizing::new(bip85::child_xprv(c, master, i).ok()?.as_str().to_string())
-            }
-            Bip85App::Hex => {
-                crate::secret_text::hex(bip85::child_hex(c, master, b.length, i).ok()?.as_bytes())
-            }
-            Bip85App::Base64 => Zeroizing::new(
-                bip85::child_password_base64(c, master, b.length, i)
-                    .ok()?
-                    .as_str()
-                    .to_string(),
-            ),
-            Bip85App::Base85 => Zeroizing::new(
-                bip85::child_password_base85(c, master, b.length, i)
-                    .ok()?
-                    .as_str()
-                    .to_string(),
-            ),
+        let app = match b.app {
+            Bip85App::Words => faraday_keys::bip85::App::Words(b.length),
+            Bip85App::Wif => faraday_keys::bip85::App::Wif,
+            Bip85App::Xprv => faraday_keys::bip85::App::Xprv,
+            Bip85App::Hex => faraday_keys::bip85::App::Hex(b.length),
+            Bip85App::Base64 => faraday_keys::bip85::App::Base64(b.length),
+            Bip85App::Base85 => faraday_keys::bip85::App::Base85(b.length),
         };
-        Some(text)
+        faraday_keys::bip85::child(c, master, app, i)
     }
 
     /// What the value is called where it is kept.

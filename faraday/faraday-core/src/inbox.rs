@@ -20,9 +20,8 @@ use crate::strings::fill;
 use std::collections::BTreeSet;
 
 use faraday_bip::bip39::{Language, Mnemonic};
-use faraday_bip::bitcoin::hashes::{Hash, sha256};
 use faraday_bip::codex32::Codex32;
-use faraday_bip::keys::{Fingerprint, MasterKey};
+use faraday_bip::keys::Fingerprint;
 use faraday_bip::slip39;
 use faraday_crypto::work::Compute;
 use zeroize::Zeroizing;
@@ -328,38 +327,20 @@ pub(crate) enum Secret {
 }
 
 impl Secret {
-    /// Costs a PBKDF2 and a master key. The master key, with `passphrase`
-    /// where the form takes one.
-    pub(crate) fn master(
+    /// Costs a PBKDF2 and a master key. The fingerprint of the master key,
+    /// with `passphrase` where the form takes one.
+    pub(crate) fn fingerprint(
         &self,
         c: &Compute,
         passphrase: &str,
         session: &Session,
-    ) -> Option<MasterKey> {
-        let network = session.network();
-        match self {
-            Secret::Words(m) => {
-                let seed = m.to_seed(c, passphrase.as_bytes()).ok()?;
-                Some(MasterKey::from_seed(c, &seed, network))
-            }
-            Secret::Slip39(shares) => {
-                let secret = slip39::recover(c, shares, passphrase.as_bytes()).ok()?;
-                let bytes = faraday_crypto::SeedBytes::new(secret.expose().as_bytes())?;
-                Some(MasterKey::from_seed_bytes(
-                    c,
-                    &faraday_crypto::Secret::new(bytes),
-                    network,
-                ))
-            }
-            Secret::Seed(s) => {
-                let bytes = faraday_crypto::SeedBytes::new(s)?;
-                Some(MasterKey::from_seed_bytes(
-                    c,
-                    &faraday_crypto::Secret::new(bytes),
-                    network,
-                ))
-            }
-        }
+    ) -> Option<Fingerprint> {
+        let material = match self {
+            Secret::Words(m) => faraday_keys::Material::Words(m),
+            Secret::Slip39(shares) => faraday_keys::Material::Slip39(shares),
+            Secret::Seed(s) => faraday_keys::Material::Seed(s),
+        };
+        faraday_keys::fingerprint(c, material, passphrase, session.network())
     }
 
     /// Costs what `add_words_with`, `recover` and `add_seed` cost. Adds the
@@ -415,10 +396,7 @@ impl Faraday {
         secret: &[u8],
         f: impl FnOnce() -> Option<Fingerprint>,
     ) -> Option<Fingerprint> {
-        let mut e = sha256::Hash::engine();
-        faraday_bip::bitcoin::hashes::HashEngine::input(&mut e, tag);
-        faraday_bip::bitcoin::hashes::HashEngine::input(&mut e, secret);
-        let id = sha256::Hash::from_engine(e).to_byte_array();
+        let id = faraday_keys::identity::secret_id(tag, secret);
         if let Some((_, fp)) = self.fp_memo.borrow().iter().find(|(k, _)| *k == id) {
             return Some(*fp);
         }
@@ -514,9 +492,11 @@ impl Faraday {
         };
         let material = Zeroizing::new(material);
         self.fingerprint_memo(tag, &material, || {
-            self.secret_in(c, items, source)?
-                .master(c, &self.source_passphrase(items, source), &self.session)
-                .map(|m| m.fingerprint())
+            self.secret_in(c, items, source)?.fingerprint(
+                c,
+                &self.source_passphrase(items, source),
+                &self.session,
+            )
         })
     }
 
@@ -1159,9 +1139,7 @@ impl Faraday {
         } else {
             let pass = p.passphrase.clone();
             match self.potential_seed(&c) {
-                Some((_, Some(secret))) => secret
-                    .master(&c, &pass, &self.session)
-                    .map(|m| m.fingerprint()),
+                Some((_, Some(secret))) => secret.fingerprint(&c, &pass, &self.session),
                 Some((seed, None)) => self
                     .session
                     .keys
@@ -1169,8 +1147,7 @@ impl Faraday {
                     .find(|k| k.fingerprint() == seed.fingerprint)
                     .and_then(|k| k.words.as_ref().map(|w| (w.clone(), k.language)))
                     .and_then(|(w, lang)| crate::wallet::parse_words(&c, lang, &w).ok())
-                    .and_then(|m| Secret::Words(m).master(&c, &pass, &self.session))
-                    .map(|m| m.fingerprint()),
+                    .and_then(|m| Secret::Words(m).fingerprint(&c, &pass, &self.session)),
                 None => None,
             }
         };
