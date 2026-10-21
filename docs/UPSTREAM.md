@@ -47,7 +47,8 @@ Carried before the fork (`HANDOFF.md`, Upstream, has the detail):
   upstream's enums do not have: `Key::Delete`, `Event::Wheel`,
   `ScrollEnd`, `Shift`, `Back`, `Forward`, `Hover` and `HoverEnd` (since
   0.1.1), and `Key::Home`, `End` and `SelectAll` (Ctrl+A) for the
-  Starter's fields (2026-10-13). Each is optional: a core that does not
+  Starter's fields (2026-10-13), and `Key::Paste` (Ctrl+V, Command+V on
+  macOS) for the scanner's Paste (2026-10-21; tracker #182). Each is optional: a core that does not
   know one ignores it, and a shell that has no such key never sends it.
 
 Since the fork:

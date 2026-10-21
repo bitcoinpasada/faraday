@@ -297,6 +297,12 @@ pub enum Key {
     /// shell reports as this rather than as a modifier of its own (as
     /// [`Key::BackTab`] is Tab with Shift held).
     SelectAll,
+    /// Paste: Ctrl+V (Command+V on macOS), which a shell reports as this
+    /// rather than as a modifier of its own. It does what a press of the
+    /// scanner's Paste does, and nothing where that is not shown; the
+    /// shell reads no clipboard until the core asks for it with
+    /// [`Command::RequestClipboard`].
+    Paste,
 }
 
 /// Why the camera gives no frames, in [`Event::CameraFailed`].
