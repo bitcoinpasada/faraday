@@ -30,7 +30,7 @@ impl View<'_> {
     pub fn backups(&self) -> Vec<Entry> {
         self.drawing
             .backups
-            .get_or_init(|| self.filled(|_c| self.app.backups_now()))
+            .get_or_init(|| self.filled(|c| self.app.backups_now(c)))
             .clone()
     }
 
@@ -74,7 +74,7 @@ impl View<'_> {
     pub fn wallet_stick_rows(&self) -> Vec<super::StickRow> {
         self.drawing
             .stick_rows
-            .get_or_init(|| self.filled(|_c| self.app.wallet_stick_rows_now()))
+            .get_or_init(|| self.filled(|c| self.app.wallet_stick_rows_now(c)))
             .clone()
     }
 
@@ -83,7 +83,7 @@ impl View<'_> {
     pub(crate) fn create_vaults(&self) -> Rc<CreateVaults> {
         self.drawing
             .create_vaults
-            .get_or_init(|| self.filled(|_c| self.app.create_vaults_now()))
+            .get_or_init(|| self.filled(|c| self.app.create_vaults_now(c)))
             .clone()
     }
 
@@ -92,7 +92,7 @@ impl View<'_> {
     pub(crate) fn board_view(&self) -> Option<Rc<BoardView>> {
         self.drawing
             .board
-            .get_or_init(|| self.filled(|_c| self.app.board_view_now()))
+            .get_or_init(|| self.filled(|c| self.app.board_view_now(c)))
             .clone()
     }
 
@@ -102,7 +102,7 @@ impl View<'_> {
         *self
             .drawing
             .import_count
-            .get_or_init(|| self.filled(|_c| self.app.import_count_now()))
+            .get_or_init(|| self.filled(|c| self.app.import_count_now(c)))
     }
 
     /// The keys here that are held ([`crate::Faraday::held_keys`]), once a
@@ -110,7 +110,7 @@ impl View<'_> {
     pub fn held_keys(&self) -> Vec<Fingerprint> {
         self.drawing
             .held
-            .get_or_init(|| self.filled(|_c| self.app.held_keys_now()))
+            .get_or_init(|| self.filled(|c| self.app.held_keys_now(c)))
             .clone()
     }
 
@@ -122,10 +122,93 @@ impl View<'_> {
             .inbox_found
             .get_or_init(|| {
                 self.inbox.found(&self.session, |items| {
-                    self.kept(|_c| work::keeping(|| self.app.found_in(items)))
+                    self.kept(|c| work::keeping(|| self.app.found_in(c, items)))
                 })
             })
             .clone()
+    }
+
+    /// Whether key `fp` is held ([`crate::Faraday::key_held`]), from the
+    /// memo's [`View::held_keys`].
+    pub fn key_held(&self, fp: Fingerprint) -> bool {
+        self.held_keys().contains(&fp)
+    }
+
+    /// The keys of loaded wallet `w` here that are held
+    /// ([`crate::Faraday::wallet_held`]), from the memo's held keys.
+    pub fn wallet_held(&self, w: usize) -> Vec<Fingerprint> {
+        self.kept(|c| self.app.wallet_held(c, w))
+    }
+
+    /// Whether a key of `wl` made here still waits for its backup
+    /// ([`crate::Faraday::receive_held`]), from the memo's held keys.
+    pub fn receive_held(&self, wl: &crate::wallet::Wallet) -> bool {
+        self.kept(|c| self.app.receive_held(c, wl))
+    }
+
+    /// An address of `wl` as every screen shows it, and whether it is held
+    /// back ([`crate::Faraday::receive_line`]), from the memo's held keys
+    /// and the wallet's kept address.
+    pub fn receive_line(
+        &self,
+        wl: &crate::wallet::Wallet,
+        change: bool,
+        index: u32,
+    ) -> (String, bool) {
+        self.kept(|c| self.app.receive_line(c, wl, change, index))
+    }
+
+    /// The line said in place of Make the checklist
+    /// ([`crate::Faraday::backup_kept_nowhere`]), from the memo.
+    pub fn backup_kept_nowhere(&self) -> Option<String> {
+        self.kept(|c| self.app.backup_kept_nowhere(c))
+    }
+
+    /// The wallet card's backup line ([`crate::Faraday::backup_line`]),
+    /// from the memo's [`View::backups`].
+    pub fn backup_line(&self, i: usize) -> String {
+        self.kept(|c| self.app.backup_line(c, i))
+    }
+
+    /// The wallet card's first button ([`crate::Faraday::spend_button`]),
+    /// from the memo's held keys.
+    pub fn spend_button(&self, w: usize) -> (String, crate::Action) {
+        self.kept(|c| self.app.spend_button(c, w))
+    }
+
+    /// Where the money moving from loaded wallet `w` goes
+    /// ([`crate::Faraday::moving_to`]), from the memo's held keys and the
+    /// wallet's kept address.
+    pub(crate) fn moving_to(&self, w: usize) -> Option<(String, String)> {
+        self.kept(|c| self.app.moving_to(c, w))
+    }
+
+    /// The first checklist item not done ([`crate::Faraday::backup_waiting`]),
+    /// from the memo's [`View::backup_items`] and [`View::backup_item_done`].
+    pub fn backup_waiting(&self) -> Option<u8> {
+        self.backup_items()
+            .into_iter()
+            .find(|&i| crate::bstep::item(i).is_some_and(|it| !self.backup_item_done(it)))
+    }
+
+    /// Whether Make a new wallet holds the idle lock
+    /// ([`crate::Faraday::lock_held`]), from the memo's answers on the
+    /// backup's checklist.
+    pub fn lock_held(&self) -> bool {
+        self.kept(|c| self.app.lock_held(c))
+    }
+
+    /// The wallet here, in the Inbox or loaded, whose key the potential
+    /// wallet's seed with its passphrase is
+    /// ([`crate::Faraday::potential_match`]), from the memo's
+    /// [`View::inbox_found`].
+    pub fn potential_match(&self) -> Option<String> {
+        let with = self.potential.as_ref()?.with?;
+        self.inbox_found()
+            .wallets
+            .into_iter()
+            .find(|w| w.keys.contains(&with))
+            .map(|w| w.name)
     }
 
     /// The flows in progress ([`crate::Faraday::flows_in_progress`]), once
@@ -133,7 +216,7 @@ impl View<'_> {
     pub fn flows_in_progress(&self) -> Rc<Vec<Row>> {
         self.drawing
             .flows
-            .get_or_init(|| self.filled(|_c| self.app.flows_in_progress_now()))
+            .get_or_init(|| self.filled(|c| self.app.flows_in_progress_now(c)))
             .clone()
     }
 
@@ -185,7 +268,7 @@ impl View<'_> {
             .as_ref()
             .is_some_and(|b| b.wallet == wi && b.answers == *a);
         if !own {
-            return self.app.backup_public_names_for_now(wi, a);
+            return self.filled(|c| self.app.backup_public_names_for_now(c, wi, a));
         }
         if let Some((_, names)) = self
             .drawing
@@ -196,7 +279,7 @@ impl View<'_> {
         {
             return names.clone();
         }
-        let names = self.filled(|_c| self.app.backup_public_names_for_now(wi, a));
+        let names = self.filled(|c| self.app.backup_public_names_for_now(c, wi, a));
         self.drawing
             .public_names
             .borrow_mut()
@@ -210,7 +293,7 @@ impl View<'_> {
         if let Some((_, done)) = self.drawing.done.borrow().iter().find(|(i, _)| *i == item) {
             return *done;
         }
-        let done = self.filled(|_c| self.app.backup_item_done_now(item));
+        let done = self.filled(|c| self.app.backup_item_done_now(c, item));
         self.drawing.done.borrow_mut().push((item, done));
         done
     }
@@ -220,7 +303,7 @@ impl View<'_> {
     pub fn vault_passphrase_seeds(&self) -> Rc<Vec<PassSeed>> {
         self.drawing
             .passphrase_seeds
-            .get_or_init(|| self.filled(|_c| self.app.vault_passphrase_seeds_now()))
+            .get_or_init(|| self.filled(|c| self.app.vault_passphrase_seeds_now(c)))
             .clone()
     }
 
@@ -229,7 +312,7 @@ impl View<'_> {
     pub fn vault_load_view(&self) -> Option<Rc<LoadView>> {
         self.drawing
             .load_sheet
-            .get_or_init(|| self.filled(|_c| self.app.vault_load_view_now()))
+            .get_or_init(|| self.filled(|c| self.app.vault_load_view_now(c)))
             .clone()
     }
 
@@ -238,7 +321,7 @@ impl View<'_> {
     pub fn unsaved(&self) -> (Vec<String>, Vec<String>) {
         self.drawing
             .unsaved
-            .get_or_init(|| self.filled(|_c| self.app.unsaved_now()))
+            .get_or_init(|| self.filled(|c| self.app.unsaved_now(c)))
             .clone()
     }
 
@@ -254,7 +337,7 @@ impl View<'_> {
         {
             return kept.clone();
         }
-        let out = self.filled(|_c| self.app.kept_wiped_now(power_off));
+        let out = self.filled(|c| self.app.kept_wiped_now(c, power_off));
         self.drawing
             .kept_wiped
             .borrow_mut()
@@ -274,7 +357,7 @@ impl View<'_> {
         {
             return kept.clone();
         }
-        let rows = self.filled(|_c| self.app.vault_rows_now(v));
+        let rows = self.filled(|c| self.app.vault_rows_now(c, v));
         self.drawing.vault_rows.borrow_mut().push((v, rows.clone()));
         rows
     }

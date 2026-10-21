@@ -166,6 +166,7 @@ fn locking_after_a_vault_backup_never_keeps_the_passphrase_in_the_clear() {
 /// on the chart, then checked there, typed wrong and then right.
 #[test]
 fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
+    let c = testkit::compute();
     use faraday_core::glance::{Backup, Press};
     use faraday_core::glance_sheet::{ChartAction as C, Target};
     use faraday_core::plan::{At, Edit, What};
@@ -173,15 +174,16 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
 
     let mut app = device();
     let m = Mnemonic::parse(
+        &c,
         Language::English,
         &testkit::test_words(testkit::TEST_SEEDS[0].0),
     )
     .unwrap();
     app.session
-        .add_mnemonic(&m, PASSPHRASE, "Key", None)
+        .add_mnemonic(&c, &m, PASSPHRASE, "Key", None)
         .unwrap();
     let text = NewKind::NativeSegwit
-        .key_text(app.session.keys[0].master())
+        .key_text(&c, app.session.keys[0].master())
         .unwrap();
     let w = app
         .session
@@ -225,7 +227,7 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
     );
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t.starts_with("Matches")), "{texts:?}");
-    let g = faraday_core::glance::of(&app, w).unwrap();
+    let g = faraday_core::glance::of(&c, &app, w).unwrap();
     let Backup::Plan { nodes, .. } = &g.backup else {
         panic!("no plan");
     };

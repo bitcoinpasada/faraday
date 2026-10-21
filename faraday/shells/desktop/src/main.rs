@@ -605,7 +605,8 @@ fn desktop_app_for(release: bool) -> Faraday {
     app.online = true;
     app.shell_sticks = true;
     app.session = faraday_core::wallet::Session::default();
-    app.session.set_demo();
+    let c = app.compute();
+    app.session.set_demo(&c);
     app.session
         .set_network(faraday_core::testkit::NET)
         .expect("a fresh session takes any network");
@@ -886,19 +887,20 @@ mod tests {
     /// demo that takes only public seeds (F20).
     #[test]
     fn the_desktop_opens_on_testnet_and_its_mainnet_is_the_demo() {
+        let c = faraday_core::testkit::compute();
         let mut app = desktop_app();
         assert_eq!(app.session.network(), faraday_core::testkit::NET);
         let other = "abandon abandon abandon abandon abandon abandon \
                      abandon abandon abandon abandon abandon about";
-        assert!(app.session.add_words(other, "", None).is_ok());
+        assert!(app.session.add_words(&c, other, "", None).is_ok());
         let mut app = desktop_app();
         app.press(faraday_core::Action::Network(
             osk_bip::keys::Network::Mainnet,
         ));
         assert!(app.session.network().is_mainnet());
-        assert!(app.session.add_words(other, "", None).is_err());
+        assert!(app.session.add_words(&c, other, "", None).is_err());
         let public = faraday_core::demo::words("zebra");
-        assert!(app.session.add_words(&public, "", None).is_ok());
+        assert!(app.session.add_words(&c, &public, "", None).is_ok());
         app.press(faraday_core::Action::Network(faraday_core::testkit::NET));
         assert_eq!(app.session.network(), faraday_core::testkit::NET);
         assert!(app.sheet.is_none());

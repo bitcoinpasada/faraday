@@ -27,6 +27,7 @@ fn musig_index() -> u8 {
 
 #[test]
 fn a_musig2_wallet_made_here_is_bip390s_over_the_taproot_accounts() {
+    let c = testkit::compute();
     let mut app = faraday_core::testkit::started();
     add_key(&mut app, "bacon");
     add_key(&mut app, "zebra");
@@ -35,9 +36,9 @@ fn a_musig2_wallet_made_here_is_bip390s_over_the_taproot_accounts() {
     app.press(Action::CNext(cstep::KIND));
     // Two keys: one fewer than Create starts with.
     app.press(Action::CN(-1));
-    let c = app.create.as_ref().unwrap();
-    assert_eq!(c.n, 2);
-    assert_eq!(c.m, c.n, "every key signs");
+    let cs = app.create.as_ref().unwrap();
+    assert_eq!(cs.n, 2);
+    assert_eq!(cs.m, cs.n, "every key signs");
     app.press(Action::CNext(cstep::QUORUM));
     for (slot, k) in [(0u8, 0usize), (1, 1)] {
         let fp = app.session.keys[k].fingerprint().0;
@@ -56,7 +57,7 @@ fn a_musig2_wallet_made_here_is_bip390s_over_the_taproot_accounts() {
     // Each key's Taproot account on the session's network.
     let account = |k: usize| {
         NewKind::Taproot
-            .key_text(app.session.keys[k].master())
+            .key_text(&c, app.session.keys[k].master())
             .unwrap()
     };
     let (a, b) = (account(0), account(1));
@@ -73,7 +74,11 @@ fn the_signatures_needed_follow_the_keys() {
     let n = app.create.as_ref().unwrap().n;
     app.press(Action::CN(1));
     app.press(Action::CM(-1));
-    let c = app.create.as_ref().unwrap();
-    assert_eq!(c.n, n + 1);
-    assert_eq!(c.m, n + 1, "MuSig2 needs every key; fewer cannot be chosen");
+    let cs = app.create.as_ref().unwrap();
+    assert_eq!(cs.n, n + 1);
+    assert_eq!(
+        cs.m,
+        n + 1,
+        "MuSig2 needs every key; fewer cannot be chosen"
+    );
 }

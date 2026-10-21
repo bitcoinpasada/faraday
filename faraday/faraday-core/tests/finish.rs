@@ -55,9 +55,10 @@ fn spending_finished() -> Faraday {
 
 #[test]
 fn every_signature_made_here_is_recomputed() {
+    let c = testkit::compute();
     let app = spending_finished();
     let s = app.spend.as_ref().unwrap();
-    let check = app.session.nonce_check(&s.spend.psbt);
+    let check = app.session.nonce_check(&c, &s.spend.psbt);
     assert!(!check.rows.is_empty());
     assert!(check.sound());
     assert!(
@@ -71,6 +72,7 @@ fn every_signature_made_here_is_recomputed() {
 
 #[test]
 fn a_signature_from_another_device_is_checked_but_not_recomputed() {
+    let c = testkit::compute();
     let k = kit("savings");
     let (unsigned, _) = testkit::spend_of(&k).unwrap();
     // Device A: test key 2 signs.
@@ -100,7 +102,7 @@ fn a_signature_from_another_device_is_checked_but_not_recomputed() {
     b.press(Action::Collect(at(&b, "from-a.psbt")));
     let s = b.spend.as_ref().unwrap();
     assert!(s.spend.finished.is_some(), "two of three did not finish it");
-    let check = b.session.nonce_check(&s.spend.psbt);
+    let check = b.session.nonce_check(&c, &s.spend.psbt);
     assert!(check.sound());
     let here = check
         .rows

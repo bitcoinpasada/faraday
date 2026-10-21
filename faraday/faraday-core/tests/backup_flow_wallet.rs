@@ -229,6 +229,7 @@ fn bring_in_all(shell: &mut Shell, app: &mut Faraday, disks: &[&str]) {
 /// Saves into the open vaults what the plan puts in each, by the
 /// checklist's vault items.
 fn save_vaults(app: &mut Faraday) {
+    let c = testkit::compute();
     let vaults: Vec<usize> = app
         .backup_items_now()
         .into_iter()
@@ -240,7 +241,7 @@ fn save_vaults(app: &mut Faraday) {
     for v in vaults {
         app.press(Action::BVaultSave(v as u8));
         assert!(
-            app.backup_item_done_now(Item::Vault(v)),
+            app.backup_item_done_now(&c, Item::Vault(v)),
             "Vault {} saved",
             v + 1
         );
@@ -310,6 +311,7 @@ fn single_key_with(
     made_here: bool,
     description_in_vault: bool,
 ) -> (Faraday, usize, [u8; 4]) {
+    let c = testkit::compute();
     sticks(shell, 3);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
@@ -380,7 +382,7 @@ fn single_key_with(
             "a new stick for the second copy"
         );
     }
-    assert!(!app.backup_item_done_now(Item::Vault(0)));
+    assert!(!app.backup_item_done_now(&c, Item::Vault(0)));
     save_vaults(&mut app);
     assert_eq!(
         app.vaults.open[0].contents.of(kind::KEY).count(),
@@ -394,7 +396,7 @@ fn single_key_with(
     );
     app.press(Action::BFilesMake);
     app.press(Action::BNext(bstep::ENVELOPE));
-    assert!(!app.backup_item_done_now(Item::Sticks));
+    assert!(!app.backup_item_done_now(&c, Item::Sticks));
     (app, w, fp)
 }
 
@@ -460,10 +462,11 @@ fn a_single_key_with_a_vault_on_two_sticks_and_the_descriptor_on_a_stick_of_file
 #[test]
 fn the_hold_on_the_key_stays_until_the_last_stick_is_written_and_a_lock_resumes_at_the_next_stick()
 {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     let (mut app, _, fp) = single_key(&mut shell, true);
     let fp = osk_bip::keys::Fingerprint(fp);
-    assert!(app.key_held(fp), "made here, its backup not done");
+    assert!(app.key_held(&c, fp), "made here, its backup not done");
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
     // The copies sealed say the backup is done; the flow holds the key.
@@ -478,7 +481,10 @@ fn the_hold_on_the_key_stays_until_the_last_stick_is_written_and_a_lock_resumes_
         app.session.keys.iter().any(|k| k.fingerprint() == fp),
         "the vault loaded the key"
     );
-    assert!(app.key_held(fp), "held while the sticks are not written");
+    assert!(
+        app.key_held(&c, fp),
+        "held while the sticks are not written"
+    );
     let pending = app.vaults.open[0].contents.of(kind::KEY).any(|(_, r)| {
         r.field(faraday_vault::records::field::KEY_FLAGS)
             .and_then(|f| f.first())
@@ -506,7 +512,7 @@ fn the_hold_on_the_key_stays_until_the_last_stick_is_written_and_a_lock_resumes_
     assert_eq!(step(&app), Step::Done);
     assert!(app.flow().unwrap().all_written());
     assert!(
-        app.held_keys_now().is_empty(),
+        app.held_keys_now(&c).is_empty(),
         "the hold is lifted once every stick is written"
     );
     no_visit(&shell);
@@ -830,6 +836,7 @@ fn new_key_at(app: &mut Faraday, slot: u8) -> [u8; 4] {
 #[test]
 fn a_two_of_three_with_key_3_on_paper_asks_for_two_sticks_and_holds_key_3_until_its_copy_is_checked()
  {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 2);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
@@ -897,7 +904,7 @@ fn a_two_of_three_with_key_3_on_paper_asks_for_two_sticks_and_holds_key_3_until_
     app.press(Action::BNext(bstep::BLANK));
     // Key 3 is held until its copy is checked; Keys 1 and 2 until their
     // sticks are written.
-    let held = |app: &Faraday, k: usize| app.key_held(osk_bip::keys::Fingerprint(fps[k]));
+    let held = |app: &Faraday, k: usize| app.key_held(&c, osk_bip::keys::Fingerprint(fps[k]));
     assert!(held(&app, 2), "Key 3 waits for its copy");
     let key3 = app
         .session
@@ -910,7 +917,7 @@ fn a_two_of_three_with_key_3_on_paper_asks_for_two_sticks_and_holds_key_3_until_
     app.press(Action::BCheck);
     faraday_core::testkit::type_words(&mut app, &words);
     assert!(
-        app.backup_item_done_now(Item::Copy(2)),
+        app.backup_item_done_now(&c, Item::Copy(2)),
         "the typed check matched"
     );
     app.press(Action::BNext(bstep::COPY + 2));
@@ -1067,6 +1074,7 @@ fn a_single_keys_one_place_reads_so_and_blocks_nothing() {
 
 #[test]
 fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 2);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
@@ -1104,7 +1112,7 @@ fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once() {
     app.press(Action::BOut(3));
     app.press(Action::BNext(bstep::ENVELOPE));
     assert!(
-        app.held_keys_now().is_empty(),
+        app.held_keys_now(&c).is_empty(),
         "a restored key signs at once"
     );
     shell.flow(&mut app, F::WalletLock);
@@ -1112,7 +1120,7 @@ fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once() {
     assert_eq!(step(&app), Step::Write);
     write_sticks(&mut shell, &mut app, &["S1", "S2"]);
     assert_eq!(step(&app), Step::Done);
-    assert!(app.held_keys_now().is_empty());
+    assert!(app.held_keys_now(&c).is_empty());
     no_visit(&shell);
 }
 
@@ -1213,6 +1221,7 @@ fn the_first_stick_put_back_for_the_second_place_is_refused_and_nothing_is_writt
 #[test]
 fn the_kept_state_of_a_wallet_flow_holds_nothing_secret_and_a_state_that_does_not_read_leaves_the_key_waiting()
  {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     let (mut app, _, fp) = single_key(&mut shell, true);
     let words = app
@@ -1256,7 +1265,7 @@ fn the_kept_state_of_a_wallet_flow_holds_nothing_secret_and_a_state_that_does_no
         faraday_core::vaults::VaultAction::LoadChosen(0),
     ));
     assert!(
-        next.key_held(osk_bip::keys::Fingerprint(fp)),
+        next.key_held(&c, osk_bip::keys::Fingerprint(fp)),
         "fails closed: the key is held"
     );
     let _ = app;
@@ -1264,6 +1273,7 @@ fn the_kept_state_of_a_wallet_flow_holds_nothing_secret_and_a_state_that_does_no
 
 #[test]
 fn the_done_card_unlocks_to_the_checklist_done_and_the_files_read_written_to() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     let (mut app, _, _) = single_key_ready(&mut shell);
     shell.flow(&mut app, F::WalletLock);
@@ -1290,7 +1300,7 @@ fn the_done_card_unlocks_to_the_checklist_done_and_the_files_read_written_to() {
     app.vaults.ms_per_unit = Some(180);
     unlock(&mut app, PHRASE);
     assert_eq!(app.screen, Screen::Backup, "{:?}", app.toast_text());
-    assert!(app.backup_item_done_now(Item::Sticks));
+    assert!(app.backup_item_done_now(&c, Item::Sticks));
     assert!(app.outbox.is_empty());
     // The description's files went with their stick's write, the item
     // that says so (`docs/BACKUP-FLOW.md` §19.12 item 6).
@@ -1413,6 +1423,7 @@ fn write_sticks(shell: &mut Shell, app: &mut Faraday, disks: &[&str]) {
 
 #[test]
 fn a_second_backup_of_the_same_wallet_in_the_same_power_on_writes_again() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     let (mut app, _, _) = single_key_ready(&mut shell);
     let mut d = Disk::empty("S4", "KEYSTICK");
@@ -1428,14 +1439,14 @@ fn a_second_backup_of_the_same_wallet_in_the_same_power_on_writes_again() {
     app.vaults.ms_per_unit = Some(180);
     unlock(&mut app, PHRASE);
     assert_eq!(app.screen, Screen::Backup);
-    assert!(app.backup_item_done_now(Item::Sticks));
+    assert!(app.backup_item_done_now(&c, Item::Sticks));
     app.press(Action::BPlan);
     board(&mut app, BoardPress::AddPlace);
     stick_also_at(&mut app, 2, 0);
     app.press(Action::BChecklist);
     app.press(Action::BNext(bstep::ENVELOPE));
     assert!(
-        !app.backup_item_done_now(Item::Sticks),
+        !app.backup_item_done_now(&c, Item::Sticks),
         "a place the plan names and no stick wrote is not done"
     );
     shell.flow(&mut app, F::WalletLock);
@@ -1481,6 +1492,7 @@ fn a_wallet_left_with_its_vaults_open_does_not_take_the_next_wallets_keys() {
 
 #[test]
 fn a_seed_kept_only_as_a_file_is_held_until_its_stick_is_written() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
@@ -1500,7 +1512,7 @@ fn a_seed_kept_only_as_a_file_is_held_until_its_stick_is_written() {
     assert_eq!(app.backup_items_now(), vec![bstep::ENVELOPE, bstep::STICKS]);
     app.press(Action::BNext(bstep::ENVELOPE));
     assert!(
-        app.key_held(osk_bip::keys::Fingerprint(fp)),
+        app.key_held(&c, osk_bip::keys::Fingerprint(fp)),
         "no vault holds it, and still it waits for its file's stick"
     );
     shell.flow(&mut app, F::WalletLock);
@@ -1537,6 +1549,7 @@ fn new_key_here(app: &mut Faraday) -> [u8; 4] {
 
 #[test]
 fn a_kept_state_cut_short_or_missing_its_wallet_part_still_holds_the_key() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     let (mut app, _, fp) = single_key(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
@@ -1563,7 +1576,10 @@ fn a_kept_state_cut_short_or_missing_its_wallet_part_still_holds_the_key() {
         next.press(Action::Vault(
             faraday_core::vaults::VaultAction::LoadChosen(0),
         ));
-        (held_in_flow, next.key_held(osk_bip::keys::Fingerprint(fp)))
+        (
+            held_in_flow,
+            next.key_held(&c, osk_bip::keys::Fingerprint(fp)),
+        )
     };
     let with = |bytes: Vec<u8>| -> Vec<(String, Vec<u8>)> {
         let mut k = kept.clone();
@@ -1615,6 +1631,7 @@ fn a_kept_state_cut_short_or_missing_its_wallet_part_still_holds_the_key() {
 
 #[test]
 fn a_vault_stays_with_its_own_salt_when_a_slot_turns_out_to_be_a_cosigners() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 3);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
@@ -1637,7 +1654,7 @@ fn a_vault_stays_with_its_own_salt_when_a_slot_turns_out_to_be_a_cosigners() {
     // Keys 1 and 3 are here; Key 2 is a cosigner's account key.
     let a = key_in(&mut app, 0);
     let b = key_in(&mut app, 1);
-    let c = key_in(&mut app, 2);
+    let k3 = key_in(&mut app, 2);
     let cosigner = {
         let kind = NewKind::Multi;
         let k = app
@@ -1646,13 +1663,13 @@ fn a_vault_stays_with_its_own_salt_when_a_slot_turns_out_to_be_a_cosigners() {
             .iter()
             .find(|k| k.fingerprint().0 == b)
             .unwrap();
-        kind.key_text(k.master()).unwrap()
+        kind.key_text(&c, k.master()).unwrap()
     };
     app.session.keys.retain(|k| k.fingerprint().0 != b);
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, a));
     app.create.as_mut().unwrap().slots[1] = faraday_core::create::Source::Cosigner(cosigner);
-    app.press(Action::CSlotHere(2, c));
+    app.press(Action::CSlotHere(2, k3));
     app.press(Action::CNext(cstep::KEYS));
     assert!(
         app.create.as_ref().unwrap().built.is_some(),
@@ -1872,10 +1889,12 @@ fn the_round_copies_a_lone_passphrase_from_another_vaults_passphrase_record() {
 /// open vault that stores it with the words.
 #[test]
 fn the_round_copies_a_lone_passphrase_from_a_key_record_that_stores_it() {
+    let c = testkit::compute();
     use faraday_vault::records::field;
     let (app, v, fp) = lone_passphrase_round(|app, _, _| {
         let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
-        let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, &words).unwrap();
+        let m =
+            osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, &words).unwrap();
         let payload = faraday_vault::records::words_payload(&m);
         let (o, k) = app
             .vaults
@@ -1966,6 +1985,7 @@ fn two_of_three_ready_with(shell: &mut Shell, passphrase: bool) -> Faraday {
 
 #[test]
 fn a_vault_preset_chosen_after_the_keys_goes_through_to_the_writes() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 2);
     let main = vault("Main", &[PHRASE], 0x41);
@@ -1991,7 +2011,7 @@ fn a_vault_preset_chosen_after_the_keys_goes_through_to_the_writes() {
     no_words(&mut app);
     app.press(Action::BChecklist);
     app.press(Action::BVaultSave(0));
-    assert!(app.backup_item_done_now(Item::Vault(0)));
+    assert!(app.backup_item_done_now(&c, Item::Vault(0)));
     app.press(Action::BOut(3));
     app.press(Action::BNext(bstep::ENVELOPE));
     shell.flow(&mut app, F::WalletLock);
@@ -2076,6 +2096,7 @@ fn the_setups_cards_and_the_plan_read_what_is_so_after_the_keys() {
 
 #[test]
 fn a_key_in_a_slot_goes_into_no_vault_by_itself_and_a_passphrase_added_later_leaves_one_record() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
@@ -2116,7 +2137,7 @@ fn a_key_in_a_slot_goes_into_no_vault_by_itself_and_a_passphrase_added_later_lea
     // The record that remains is key b's, not key a's.
     let lang = app.session.keys.last().unwrap().language;
     let b_words =
-        osk_bip::bip39::Mnemonic::parse(lang, &testkit::test_words(testkit::TEST_SEEDS[1].0))
+        osk_bip::bip39::Mnemonic::parse(&c, lang, &testkit::test_words(testkit::TEST_SEEDS[1].0))
             .unwrap();
     let (_, rec) = app.vaults.open[0].contents.of(kind::KEY).next().unwrap();
     assert_eq!(
@@ -2252,6 +2273,7 @@ fn back_on_a_card_before_the_keys_returns_to_make_a_new_wallet_and_a_refusal_say
 /// A vault file of one passphrase that already holds the key of
 /// `TEST_SEEDS[n]`.
 fn vault_with_key(label: &str, phrase: &str, seed: u8, n: usize) -> Vec<u8> {
+    let c = testkit::compute();
     use faraday_vault::Record;
     use faraday_vault::records::{self, field};
     let cost = faraday_vault::Cost {
@@ -2260,7 +2282,7 @@ fn vault_with_key(label: &str, phrase: &str, seed: u8, n: usize) -> Vec<u8> {
         lanes: 1,
     };
     let words = testkit::test_words(testkit::TEST_SEEDS[n].0);
-    let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, &words).unwrap();
+    let m = osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, &words).unwrap();
     let contents = faraday_vault::Contents {
         records: vec![
             Record::new(records::kind::SLOT_LABEL).with(field::LABEL, label.as_bytes()),
@@ -2268,6 +2290,7 @@ fn vault_with_key(label: &str, phrase: &str, seed: u8, n: usize) -> Vec<u8> {
         ],
     };
     faraday_vault::create(
+        &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
         &[phrase.as_bytes()],
@@ -2338,6 +2361,7 @@ fn a_key_held_for_its_sticks_stays_kept_on_one_and_is_held_until_every_stick_is_
 /// Locks, loads the first vault's keys in the process that follows, and
 /// says whether key `fp` is loaded and held.
 fn held_after_lock(shell: &mut Shell, app: &mut Faraday, fp: [u8; 4]) -> bool {
+    let c = testkit::compute();
     let mut next = shell.lock(app);
     assert!(next.backup_flows[0].waiting());
     load_first_vault(&mut next, PHRASE);
@@ -2345,7 +2369,7 @@ fn held_after_lock(shell: &mut Shell, app: &mut Faraday, fp: [u8; 4]) -> bool {
         next.session.keys.iter().any(|k| k.fingerprint().0 == fp),
         "the key is loaded"
     );
-    next.key_held(osk_bip::keys::Fingerprint(fp))
+    next.key_held(&c, osk_bip::keys::Fingerprint(fp))
 }
 
 #[test]
@@ -3114,6 +3138,7 @@ fn two_of_three_with_setup(shell: &mut Shell, count: usize) -> Faraday {
 
 #[test]
 fn a_plan_vault_with_none_set_up_offers_to_make_one_while_another_is_open() {
+    let c = testkit::compute();
     use faraday_core::vaults::VaultAction as V;
     let mut shell = Shell::new();
     let mut app = two_of_three_with_setup(&mut shell, 1);
@@ -3121,9 +3146,9 @@ fn a_plan_vault_with_none_set_up_offers_to_make_one_while_another_is_open() {
     app.press(Action::BChecklist);
     let items = app.backup_items_now();
     assert!(items.contains(&(bstep::VAULT + 1)), "{items:?}");
-    assert!(!app.backup_item_done_now(Item::Vault(1)));
+    assert!(!app.backup_item_done_now(&c, Item::Vault(1)));
     app.press(Action::BVaultSave(0));
-    assert!(app.backup_item_done_now(Item::Vault(0)));
+    assert!(app.backup_item_done_now(&c, Item::Vault(0)));
     app.press(Action::BStep(bstep::VAULT + 1));
     let make = Action::Vault(V::CreateFrom(Screen::Backup));
     let mut found = false;
@@ -3164,7 +3189,7 @@ fn a_plan_vault_with_none_set_up_offers_to_make_one_while_another_is_open() {
     }
     assert_eq!(app.vaults.open.len(), 2, "the new vault is open");
     app.press(Action::BVaultSave(1));
-    assert!(app.backup_item_done_now(Item::Vault(1)));
+    assert!(app.backup_item_done_now(&c, Item::Vault(1)));
 }
 
 #[test]
@@ -3330,6 +3355,7 @@ fn the_flows_plan_card_edits_the_map_the_cards_made() {
 /// of files is written, and released once it is.
 #[test]
 fn a_seed_kept_as_a_file_at_a_place_is_released_once_that_stick_is_written() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
@@ -3345,7 +3371,7 @@ fn a_seed_kept_as_a_file_at_a_place_is_released_once_that_stick_is_written() {
     app.press(Action::BChecklist);
     app.press(Action::BNext(bstep::ENVELOPE));
     let fp = osk_bip::keys::Fingerprint(fp);
-    assert!(app.key_held(fp), "held for Place 2's stick of files");
+    assert!(app.key_held(&c, fp), "held for Place 2's stick of files");
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(
         let_seed_files_out(&mut app),
@@ -3356,7 +3382,7 @@ fn a_seed_kept_as_a_file_at_a_place_is_released_once_that_stick_is_written() {
     assert_eq!(app.flow().unwrap().slots[0].target, Target::PlaceFiles(1));
     write_sticks(&mut shell, &mut app, &["S1"]);
     assert_eq!(step(&app), Step::Done);
-    assert!(!app.key_held(fp), "released once its stick is written");
+    assert!(!app.key_held(&c, fp), "released once its stick is written");
 }
 
 /// Each seed's file at a place of its own, all three let out: each
@@ -3434,6 +3460,7 @@ fn each_places_stick_of_files_takes_only_that_places_seed_file() {
 /// open and another share in the Inbox rebuilds the wallet.
 #[test]
 fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
+    let c = testkit::compute();
     use faraday_vault::records::field;
     let mut shell = Shell::new();
     sticks(&mut shell, 1);
@@ -3485,7 +3512,7 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
     let stem = faraday_core::file_stem(&app.session.wallets[w].name);
     app.press(Action::BChecklist);
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
-    assert!(!app.backup_item_done_now(Item::Vault(0)));
+    assert!(!app.backup_item_done_now(&c, Item::Vault(0)));
     app.press(Action::BVaultSave(0));
     let shares = |app: &Faraday| -> Vec<(String, Vec<u8>)> {
         app.vaults.open[0]
@@ -3500,20 +3527,20 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
             .collect()
     };
     assert_eq!(shares(&app), vec![(share(1), vec![2])]);
-    assert!(app.backup_item_done_now(Item::Vault(0)));
+    assert!(app.backup_item_done_now(&c, Item::Vault(0)));
     // Done only while the vault holds it; saved again, kept once.
     app.vaults.open[0]
         .contents
         .records
         .retain(|r| r.kind != kind::WALLET_SHARE);
     assert!(
-        !app.backup_item_done_now(Item::Vault(0)),
+        !app.backup_item_done_now(&c, Item::Vault(0)),
         "the share is part of the item"
     );
     app.press(Action::BVaultSave(0));
     app.press(Action::BVaultSave(0));
     assert_eq!(shares(&app).len(), 1);
-    assert!(app.backup_item_done_now(Item::Vault(0)));
+    assert!(app.backup_item_done_now(&c, Item::Vault(0)));
     app.press(Action::BNext(bstep::ENVELOPE));
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
@@ -3525,7 +3552,7 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
         app.flow().unwrap().live.problem
     );
     let sealed = ofv(&shell, "S1").expect("the vault's copy");
-    let (_, c) = faraday_vault::open(&sealed, PHRASE.as_bytes()).unwrap();
+    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE.as_bytes()).unwrap();
     assert_eq!(c.of(kind::WALLET_SHARE).count(), 1, "sealed with the share");
     // Restore: that vault open, Share 1 in the Inbox.
     let name = format!("{stem}-share-1-of-{n}.txt");
@@ -3564,6 +3591,7 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
 /// the share missing from its sealed copy.
 #[test]
 fn a_share_put_into_a_vault_after_the_lock_starts_the_round_and_is_sealed() {
+    let c = testkit::compute();
     use faraday_vault::records::field;
     let mut shell = Shell::new();
     sticks(&mut shell, 1);
@@ -3632,7 +3660,7 @@ fn a_share_put_into_a_vault_after_the_lock_starts_the_round_and_is_sealed() {
         app.flow().unwrap().live.problem
     );
     let sealed = ofv(&shell, "S1").expect("Vault 1 on S1");
-    let (_, c) = faraday_vault::open(&sealed, PHRASE.as_bytes()).unwrap();
+    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE.as_bytes()).unwrap();
     assert_eq!(
         c.of(kind::WALLET_SHARE).count(),
         1,
@@ -3722,6 +3750,7 @@ fn done_on_a_row_sheet_during_a_write_changes_nothing_and_the_write_counts_for_i
 /// shares stay, and each wallet's vault item sees only its own.
 #[test]
 fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
+    let c = testkit::compute();
     use faraday_vault::records::field;
     let mut shell = Shell::new();
     sticks(&mut shell, 1);
@@ -3758,13 +3787,13 @@ fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
         app.press(Action::BVaultSave(0));
     };
     share_two_in_vault(&mut app);
-    assert!(app.backup_item_done_now(Item::Vault(0)));
+    assert!(app.backup_item_done_now(&c, Item::Vault(0)));
     // Another wallet, of the same name.
     let name = app.session.wallets[a].name.clone();
     let keys: Vec<String> = (0..3)
         .map(|k| {
             NewKind::TapMulti
-                .key_text(app.session.keys[k].master())
+                .key_text(&c, app.session.keys[k].master())
                 .unwrap()
         })
         .collect();
@@ -3781,7 +3810,10 @@ fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
     app.press(Action::Backup(b));
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     share_two_in_vault(&mut app);
-    assert!(app.backup_item_done_now(Item::Vault(0)), "B's share saved");
+    assert!(
+        app.backup_item_done_now(&c, Item::Vault(0)),
+        "B's share saved"
+    );
     let shares = |app: &Faraday| -> Vec<(String, Vec<u8>)> {
         app.vaults.open[0]
             .contents
@@ -3807,16 +3839,16 @@ fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
                 .is_some_and(|p| p.checksum() == a_sum))
     });
     assert!(
-        app.backup_item_done_now(Item::Vault(0)),
+        app.backup_item_done_now(&c, Item::Vault(0)),
         "B sees its own share"
     );
     app.press(Action::Backup(a));
     assert!(
-        !app.backup_item_done_now(Item::Vault(0)),
+        !app.backup_item_done_now(&c, Item::Vault(0)),
         "A does not take B's"
     );
     app.press(Action::BVaultSave(0));
-    assert!(app.backup_item_done_now(Item::Vault(0)));
+    assert!(app.backup_item_done_now(&c, Item::Vault(0)));
     assert_eq!(shares(&app).len(), 2);
 }
 
@@ -3824,6 +3856,7 @@ fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
 /// the sealed copy on S1 keeps the key without its passphrase.
 #[test]
 fn a_passphrase_taken_out_of_a_vault_after_the_lock_starts_a_round_and_leaves_it() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
@@ -3878,7 +3911,7 @@ fn a_passphrase_taken_out_of_a_vault_after_the_lock_starts_a_round_and_leaves_it
         app.flow().unwrap().live.problem
     );
     let sealed = ofv(&shell, "S1").expect("Vault 1 on S1");
-    let (_, c) = faraday_vault::open(&sealed, PHRASE.as_bytes()).unwrap();
+    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE.as_bytes()).unwrap();
     let keys: Vec<bool> = c
         .of(kind::KEY)
         .map(|(_, r)| {
@@ -3894,6 +3927,7 @@ fn a_passphrase_taken_out_of_a_vault_after_the_lock_starts_a_round_and_leaves_it
 /// neither.
 #[test]
 fn back_ups_cards_after_the_lock_edit_the_flows_plan_with_its_refusals() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     let (mut app, w, fp) = single_key(&mut shell, true);
     let name = app.session.wallets[w].name.clone();
@@ -3911,11 +3945,11 @@ fn back_ups_cards_after_the_lock_edit_the_flows_plan_with_its_refusals() {
         .position(|x| x.name == name)
         .expect("the wallet loaded from its vault");
     assert!(
-        app.key_held(osk_bip::keys::Fingerprint(fp)),
+        app.key_held(&c, osk_bip::keys::Fingerprint(fp)),
         "held, from the vault"
     );
     assert!(
-        app.receive_held(&app.session.wallets[w]),
+        app.receive_held(&c, &app.session.wallets[w]),
         "no receive address"
     );
     app.press(Action::Backup(w));
@@ -4191,6 +4225,7 @@ fn apostrophes(text: &str) -> String {
 /// opens with the wallet loaded and its plan attached.
 #[test]
 fn a_vault_kept_with_apostrophes_opens_with_its_plan_attached() {
+    let c = testkit::compute();
     use faraday_vault::Record;
     use faraday_vault::records::field;
     let desc = apostrophes(&testkit::savings());
@@ -4225,6 +4260,7 @@ fn a_vault_kept_with_apostrophes_opens_with_its_plan_attached() {
         lanes: 1,
     };
     let file = faraday_vault::create(
+        &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
         &[PHRASE.as_bytes()],
@@ -4266,6 +4302,7 @@ fn a_vault_kept_with_apostrophes_opens_with_its_plan_attached() {
 /// before the flow is refused, and the sealed copy still holds it.
 #[test]
 fn a_key_an_existing_vault_held_before_the_flow_is_never_taken_out() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 1);
     let main = vault_with_key("Main", PHRASE, 0x41, 1);
@@ -4328,7 +4365,7 @@ fn a_key_an_existing_vault_held_before_the_flow_is_never_taken_out() {
         app.flow().unwrap().live.problem
     );
     let sealed = ofv(&shell, "S1").expect("Vault 1 on S1");
-    let (_, c) = faraday_vault::open(&sealed, PHRASE.as_bytes()).unwrap();
+    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE.as_bytes()).unwrap();
     assert_eq!(c.of(kind::KEY).count(), 1, "Key 1 stays");
 }
 
@@ -4336,12 +4373,13 @@ fn a_key_an_existing_vault_held_before_the_flow_is_never_taken_out() {
 /// of them after the lock is refused, and the key stays.
 #[test]
 fn a_key_another_wallet_in_the_vault_uses_is_never_taken_out() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     let (mut app, a, _) = single_key(&mut shell, false);
     // Another wallet of the same key, saved into the same vault.
     let k = app.session.keys.len() - 1;
     let text = NewKind::Taproot
-        .key_text(app.session.keys[k].master())
+        .key_text(&c, app.session.keys[k].master())
         .unwrap();
     let b = app
         .session
@@ -4387,6 +4425,7 @@ fn a_key_another_wallet_in_the_vault_uses_is_never_taken_out() {
 /// vault, and the key is released only once the sealed copies hold it.
 #[test]
 fn a_held_seed_is_never_left_on_no_stick_after_the_lock() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     let (mut app, _, fp) = single_key(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
@@ -4424,10 +4463,13 @@ fn a_held_seed_is_never_left_on_no_stick_after_the_lock() {
     );
     for d in ["S1", "S2"] {
         let sealed = ofv(&shell, d).expect("Vault 1's copy");
-        let (_, c) = faraday_vault::open(&sealed, PHRASE.as_bytes()).unwrap();
+        let (_, c) = faraday_vault::open(&c, &sealed, PHRASE.as_bytes()).unwrap();
         assert_eq!(c.of(kind::KEY).count(), 1, "{d} holds the key");
     }
-    assert!(!app.key_held(fp), "released once its copies are written");
+    assert!(
+        !app.key_held(&c, fp),
+        "released once its copies are written"
+    );
 }
 
 /// A vault that holds any record of another wallet keeps its key records:
@@ -4435,6 +4477,7 @@ fn a_held_seed_is_never_left_on_no_stick_after_the_lock() {
 /// the flow cannot tell from the words alone.
 #[test]
 fn a_key_is_never_taken_out_of_a_vault_another_wallets_record_is_in() {
+    let c = testkit::compute();
     use faraday_vault::Record;
     use faraday_vault::records::field;
     let mut shell = Shell::new();
@@ -4450,7 +4493,7 @@ fn a_key_is_never_taken_out_of_a_vault_another_wallets_record_is_in() {
     app.press(Action::EntryAdd);
     let k = app.session.keys.len() - 1;
     let text = NewKind::NativeSegwit
-        .key_text(app.session.keys[k].master())
+        .key_text(&c, app.session.keys[k].master())
         .unwrap();
     let hidden = format!("wpkh({text}/<0;1>/*)");
     app.vaults.open[0].contents.records.push(
@@ -4619,6 +4662,7 @@ fn names_on(shell: &Shell, d: &str) -> Vec<String> {
 /// Types back the copy of the key in Create's slot 0 on the checklist's
 /// copy item.
 fn type_back_the_copy(app: &mut Faraday) {
+    let c = testkit::compute();
     let k = app.session.keys.len() - 1;
     let key = &app.session.keys[k];
     let words = key.words.as_ref().unwrap().to_string();
@@ -4628,7 +4672,7 @@ fn type_back_the_copy(app: &mut Faraday) {
     app.press(Action::BCheck);
     faraday_core::testkit::type_words(app, &words);
     assert!(
-        app.backup_item_done_now(Item::Copy(0)),
+        app.backup_item_done_now(&c, Item::Copy(0)),
         "the copy is checked"
     );
 }
@@ -4976,6 +5020,7 @@ fn a_file_added_after_the_lock_is_refused_and_loads_no_wallet() {
 /// longer held once every stick holding it is written.
 #[test]
 fn the_done_landing_loads_the_vaults_keys_released() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     let (mut app, _, fp) = single_key(&mut shell, true);
     shell.flow(&mut app, F::WalletLock);
@@ -4991,7 +5036,7 @@ fn the_done_landing_loads_the_vaults_keys_released() {
         "the key loaded from the vault"
     );
     assert!(!app.session.wallets.is_empty(), "its wallet too");
-    assert!(!app.key_held(fp), "released");
+    assert!(!app.key_held(&c, fp), "released");
 }
 
 /// An edit after the lock that only moves a vault's sticks leaves every
@@ -5134,6 +5179,7 @@ fn a_written_stick_of_files_is_never_sent_back_after_the_lock() {
 /// passphrase.
 #[test]
 fn a_passphrase_taken_out_leaves_the_earlier_bare_record_alone() {
+    let c = testkit::compute();
     use faraday_vault::records::field;
     let mut shell = Shell::new();
     sticks(&mut shell, 1);
@@ -5199,7 +5245,7 @@ fn a_passphrase_taken_out_leaves_the_earlier_bare_record_alone() {
         app.flow().unwrap().live.problem
     );
     let sealed = ofv(&shell, "S1").expect("Vault 1 on S1");
-    let (_, c) = faraday_vault::open(&sealed, PHRASE.as_bytes()).unwrap();
+    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE.as_bytes()).unwrap();
     let keys: Vec<bool> = c
         .of(kind::KEY)
         .map(|(_, r)| r.field(field::KEY_PASSPHRASE).is_some())
@@ -5246,6 +5292,7 @@ fn files_and_words_stay_as_made_after_the_lock_with_a_vault_unlocked() {
 /// flow's plan, its vaults and its written marks stay as they were.
 #[test]
 fn another_open_vault_never_replaces_a_backup_past_its_lock() {
+    let c = testkit::compute();
     use faraday_core::glance::Press;
     use faraday_core::glance_sheet::ChartAction as C;
     use faraday_vault::Record;
@@ -5257,7 +5304,7 @@ fn another_open_vault_never_replaces_a_backup_past_its_lock() {
     shell.flow(&mut app, F::WalletLock);
     // A second vault, of another passphrase, with the same key and wallet.
     let words = testkit::test_words(testkit::TEST_SEEDS[1].0);
-    let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, &words).unwrap();
+    let m = osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, &words).unwrap();
     let contents = faraday_vault::Contents {
         records: vec![
             Record::new(records::kind::SLOT_LABEL).with(field::LABEL, b"Second"),
@@ -5273,6 +5320,7 @@ fn another_open_vault_never_replaces_a_backup_past_its_lock() {
         lanes: 1,
     };
     let second = faraday_vault::create(
+        &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
         &[PHRASE_2.as_bytes()],
@@ -5391,6 +5439,7 @@ fn back_up_again_after_done_adds_a_file_and_writes_it() {
 /// key, and nothing else of it.
 #[test]
 fn a_passphrase_alone_in_a_vault_is_saved_as_a_passphrase_record() {
+    let c = testkit::compute();
     use faraday_vault::records::field;
     let mut shell = Shell::new();
     sticks(&mut shell, 2);
@@ -5442,7 +5491,7 @@ fn a_passphrase_alone_in_a_vault_is_saved_as_a_passphrase_record() {
     let held = plan::holds_at(&m, At::Vault(1));
     assert!(held.contains(&What::PassphraseSealed(0)), "{held:?}");
     assert!(!held.contains(&What::Seed(0)), "{held:?}");
-    assert_eq!(app.backup_kept_nowhere(), None);
+    assert_eq!(app.backup_kept_nowhere(&c), None);
     app.press(Action::BChecklist);
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
     save_vaults(&mut app);

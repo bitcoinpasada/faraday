@@ -16,6 +16,7 @@
 use std::rc::Rc;
 
 use opensigner_core::strings::fill;
+use osk_crypto::work::Compute;
 
 use crate::backup_flow::{Kind, Step};
 use crate::drawing::View;
@@ -62,20 +63,20 @@ impl Faraday {
     /// The flows in progress, walking a backup's checklist (kept for the
     /// frame while one is drawn): in the order they were begun, what the
     /// sidebar's rows and the small Home's tiles show.
-    pub fn flows_in_progress(&self) -> Rc<Vec<Row>> {
+    pub fn flows_in_progress(&self, c: &Compute) -> Rc<Vec<Row>> {
         if self.drawing.is_on() {
             return crate::drawing::View::new(self).flows_in_progress();
         }
-        self.flows_in_progress_now()
+        self.flows_in_progress_now(c)
     }
 
     /// Works out [`Faraday::flows_in_progress`] from the state as it is.
-    pub fn flows_in_progress_now(&self) -> Rc<Vec<Row>> {
-        Rc::new(self.flows_in_progress_uncached())
+    pub fn flows_in_progress_now(&self, c: &Compute) -> Rc<Vec<Row>> {
+        Rc::new(self.flows_in_progress_uncached(c))
     }
 
     /// Works out [`Faraday::flows_in_progress`].
-    fn flows_in_progress_uncached(&self) -> Vec<Row> {
+    fn flows_in_progress_uncached(&self, c: &Compute) -> Vec<Row> {
         let mut begun = self.flows_begun_now();
         // In the order noted; one not noted yet (a flow kept across a
         // lock, before the first press) after them.
@@ -88,8 +89,8 @@ impl Faraday {
         begun.sort_by_key(at);
         begun
             .into_iter()
-            .filter(|&g| !self.flow_finished(g))
-            .filter_map(|g| self.flow_row(g))
+            .filter(|&g| !self.flow_finished(c, g))
+            .filter_map(|g| self.flow_row(c, g))
             .collect()
     }
 
@@ -158,14 +159,14 @@ impl Faraday {
     }
 
     /// Back up's checklist is made and every item on it done.
-    fn backup_finished(&self) -> bool {
+    fn backup_finished(&self, c: &Compute) -> bool {
         self.backup.as_ref().is_some_and(|b| {
             b.stage == BStage::Checklist
                 && self
                     .backup_items()
                     .into_iter()
                     .filter_map(bstep::item)
-                    .all(|it| self.backup_item_done(it))
+                    .all(|it| self.backup_item_done(c, it))
         })
     }
 
@@ -198,18 +199,18 @@ impl Faraday {
         None
     }
 
-    fn flow_finished(&self, g: Going) -> bool {
+    fn flow_finished(&self, c: &Compute, g: Going) -> bool {
         match g {
             Going::Create => {
                 self.create.as_ref().is_some_and(|c| c.built.is_some())
                     && self.backup_going() == Some(Going::Create)
-                    && self.backup_finished()
+                    && self.backup_finished(c)
             }
             Going::Restore => self
                 .restore
                 .as_ref()
                 .is_some_and(|r| r.done[crate::rstep::CHECK as usize]),
-            Going::Backup => self.backup_finished(),
+            Going::Backup => self.backup_finished(c),
             Going::Spend => self
                 .spend
                 .as_ref()
@@ -561,18 +562,19 @@ impl Faraday {
     /// Make a new wallet is under way and its keys are kept nowhere yet:
     /// begun, its backup not done, and no backup flow of it has made its
     /// vaults (`docs/NEW-WALLET.md` §18). The idle lock waits, a lock or
-    /// a power-off ends it, and the sidebar says so. Only lookups.
-    pub fn lock_held(&self) -> bool {
-        let Some(c) = self.create.as_ref() else {
+    /// a power-off ends it, and the sidebar says so. Costs what the
+    /// checklist's answers cost.
+    pub fn lock_held(&self, c: &Compute) -> bool {
+        let Some(cs) = self.create.as_ref() else {
             return false;
         };
-        let begun = c.built.is_some() || c.done.iter().any(|d| *d);
+        let begun = cs.built.is_some() || cs.done.iter().any(|d| *d);
         let kept = self.backup_flows.iter().any(|f| {
             f.kind == Kind::Wallet
                 && f.made
-                && f.wallet.as_ref().is_some_and(|w| w.owner == c.owner)
+                && f.wallet.as_ref().is_some_and(|w| w.owner == cs.owner)
         });
-        begun && !kept && !self.flow_finished(Going::Create)
+        begun && !kept && !self.flow_finished(c, Going::Create)
     }
 
     /// Takes backup flow `i` out of the list, and with it the vault form
@@ -605,12 +607,12 @@ impl Faraday {
     }
 
     /// Flow `g`'s row: its tab, its name and its open step.
-    fn flow_row(&self, g: Going) -> Option<Row> {
+    fn flow_row(&self, c: &Compute, g: Going) -> Option<Row> {
         let wallets = Screen::Start;
         let (tab, name, step) = match g {
             Going::Create => {
                 let step = match self.backup_going() {
-                    Some(Going::Create) if self.backup_begun() => self.backup_step()?,
+                    Some(Going::Create) if self.backup_begun() => self.backup_step(c)?,
                     _ => self.create_step()?,
                 };
                 (wallets, EN.sidebar_flow_create.to_string(), step)
@@ -628,7 +630,7 @@ impl Faraday {
             Going::Backup => (
                 wallets,
                 EN.sidebar_flow_backup.to_string(),
-                self.backup_step()?,
+                self.backup_step(c)?,
             ),
             Going::Spend => (
                 wallets,
@@ -691,7 +693,7 @@ impl Faraday {
 
     /// Back up's open card: a card of the plan, or an item of the
     /// checklist, else the first item not done.
-    fn backup_step(&self) -> Option<String> {
+    fn backup_step(&self, c: &Compute) -> Option<String> {
         let b = self.backup.as_ref()?;
         if b.stage == BStage::Plan {
             return Some(crate::plan_cards::q_title(
@@ -701,10 +703,10 @@ impl Faraday {
         let n = b.open.or_else(|| {
             self.backup_items()
                 .into_iter()
-                .find(|&n| bstep::item(n).is_some_and(|it| !self.backup_item_done(it)))
+                .find(|&n| bstep::item(n).is_some_and(|it| !self.backup_item_done(c, it)))
         });
         Some(match n {
-            Some(n) => crate::screens::item_title(self, n).0,
+            Some(n) => crate::screens::item_title(c, self, n).0,
             None => EN.app_done.to_string(),
         })
     }

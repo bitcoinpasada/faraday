@@ -1298,6 +1298,7 @@ fn no_preset_makes_more_than_one_place_per_key() {
 
 #[test]
 fn a_seed_file_at_a_place_has_that_places_stick_of_files_and_is_held_until_written() {
+    let c = faraday_core::testkit::compute();
     use faraday_core::{Action, bstep};
     use osk_bip::keys::Fingerprint;
     let mut app = passphrase_key();
@@ -1317,7 +1318,7 @@ fn a_seed_file_at_a_place_has_that_places_stick_of_files_and_is_held_until_writt
     // The file is made and written with its stick: no item of its own
     // (`docs/BACKUP-FLOW.md` §19.12 item 6).
     assert_eq!(app.backup_items_now(), vec![bstep::ENVELOPE, bstep::STICKS]);
-    let rows = app.wallet_stick_rows_now();
+    let rows = app.wallet_stick_rows_now(&c);
     assert_eq!(rows.len(), 1, "{rows:?}");
     assert_eq!(rows[0].0, "Files (Place 2)");
     let name = format!(
@@ -1327,7 +1328,7 @@ fn a_seed_file_at_a_place_has_that_places_stick_of_files_and_is_held_until_writt
     assert_eq!(rows[0].1, vec![name], "{rows:?}");
     app.press(Action::BNext(bstep::ENVELOPE));
     assert!(
-        app.key_held(Fingerprint(fp.0)),
+        app.key_held(&c, Fingerprint(fp.0)),
         "the key waits for its file's stick"
     );
 }

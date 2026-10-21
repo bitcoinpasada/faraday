@@ -402,7 +402,8 @@ fn a_stick_visit_leaves_the_seed_file_unticked() {
 }
 
 fn kept(app: &Faraday) -> Kept {
-    app.backup_kept().expect("no backup open")
+    let c = testkit::compute();
+    app.backup_kept(&c).expect("no backup open")
 }
 
 fn line(text: &str, tone: Tone) -> (String, Tone) {

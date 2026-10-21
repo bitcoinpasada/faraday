@@ -16,6 +16,7 @@ use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
 use opensigner_core::strings::fill;
 use osk_bip::bitcoin::hashes::{Hash, sha256};
+use osk_crypto::work::Compute;
 
 use crate::Faraday;
 use crate::backup_flow::Kind;
@@ -583,7 +584,7 @@ impl Faraday {
 
     /// The QR view of the selected key's certificate, with the name and
     /// label of its picture.
-    pub(crate) fn apk_code(&self) -> Result<crate::QrView, String> {
+    pub(crate) fn apk_code(&self, c: &Compute) -> Result<crate::QrView, String> {
         let (_, r) = self
             .apk_selected()
             .ok_or_else(|| EN.apk_no_key_is_selected.to_string())?;
@@ -598,8 +599,10 @@ impl Faraday {
             fill(EN.apk_sha_256_of, &[&s.fingerprint]),
             EN.apk_public_checks.to_string(),
         ];
-        Ok(crate::QrView::text(EN.apk_certificate, &pem::encode(cert))?
-            .public(&format!("{stem}.png"), lines))
+        Ok(
+            crate::QrView::text(c, EN.apk_certificate, &pem::encode(cert))?
+                .public(&format!("{stem}.png"), lines),
+        )
     }
 
     /// Opens the review of Inbox APK `name` for the key `fp`.

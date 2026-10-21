@@ -7,6 +7,7 @@
 use opensigner_core::tools::Tool;
 use osk_bip::compile::PolicyScript;
 use osk_codec::encodings::ReadAs;
+use osk_crypto::work::Compute;
 
 use crate::{Faraday, Screen};
 
@@ -64,12 +65,12 @@ impl Faraday {
 
     /// The loaded keys a policy may name by fingerprint: each one's
     /// multisig account key with both chains.
-    pub fn tools_keys(&self) -> Vec<(String, String)> {
+    pub fn tools_keys(&self, c: &Compute) -> Vec<(String, String)> {
         self.session
             .keys
             .iter()
             .filter_map(|k| {
-                let text = k.account_text(crate::create::NewKind::Multi, 0).ok()?;
+                let text = k.account_text(c, crate::create::NewKind::Multi, 0).ok()?;
                 Some((
                     crate::wallet::fp_text(k.fingerprint()),
                     format!("{text}/<0;1>/*"),

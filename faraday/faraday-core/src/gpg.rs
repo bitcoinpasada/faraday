@@ -11,6 +11,7 @@ use faraday_pgp::{Armor, Hash, Key, Reason, armor};
 use faraday_vault::Record;
 use faraday_vault::records::kind;
 use opensigner_core::strings::fill;
+use osk_crypto::work::Compute;
 use zeroize::{Zeroize, Zeroizing};
 
 use crate::backup_flow_steps::Built;
@@ -431,7 +432,7 @@ impl Faraday {
 
     /// The QR view of the selected key's certificate or its signature
     /// over an Inbox file, with the name and label of its picture.
-    pub(crate) fn gpg_code(&self, code: crate::Code) -> Result<crate::QrView, String> {
+    pub(crate) fn gpg_code(&self, c: &Compute, code: crate::Code) -> Result<crate::QrView, String> {
         use crate::Code;
         let (at, key) = self.gpg_selected().ok_or(EN.gpg_no_gpg_key_is_selected)?;
         let stem = file_stem(&key);
@@ -480,7 +481,7 @@ impl Faraday {
             }
             _ => return Err(EN.gpg_not_a_gpg_file.to_string()),
         };
-        Ok(crate::QrView::text(&title, &text)?.public(&name, lines))
+        Ok(crate::QrView::text(c, &title, &text)?.public(&name, lines))
     }
 
     /// Offers a revocation file through the secret sheet: whoever has it

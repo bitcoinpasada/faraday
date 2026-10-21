@@ -216,6 +216,7 @@ fn with_key() -> Faraday {
 
 #[test]
 fn the_silent_payments_record_and_address_read_back_from_code_and_picture() {
+    let c = testkit::compute();
     let mut app = with_key();
     let fp = faraday_core::wallet::fp_text(app.session.keys[0].fingerprint());
     app.press(Action::Silent);
@@ -228,7 +229,7 @@ fn the_silent_payments_record_and_address_read_back_from_code_and_picture() {
         &record,
     );
     // The address on show, from its own Show as QR.
-    let address = app.silent_address().unwrap();
+    let address = app.silent_address(&c).unwrap();
     app.press(Action::SQr(false));
     assert_eq!(shown(&app), address);
     let l = label(&app);
@@ -242,10 +243,12 @@ fn the_silent_payments_record_and_address_read_back_from_code_and_picture() {
 
 #[test]
 fn a_signed_message_reads_back_from_its_code_and_its_picture() {
+    let c = testkit::compute();
     let mut app = testkit::started();
     app.session = testkit::session();
     app.session
         .add_words(
+            &c,
             &testkit::test_words(testkit::TEST_SEEDS[0].0),
             "Bacon",
             None,

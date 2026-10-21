@@ -85,8 +85,10 @@ fn drawn(app: &mut Faraday) -> String {
 }
 
 fn fingerprint(word: &str) -> Fingerprint {
+    let c = testkit::compute();
     let mut s = testkit::session();
-    s.add_words(&testkit::test_words(word), "", None).unwrap()
+    s.add_words(&c, &testkit::test_words(word), "", None)
+        .unwrap()
 }
 
 /// The place of the key `word` makes among wallet `w`'s, from one.
@@ -102,7 +104,8 @@ fn key_number(app: &Faraday, w: usize, word: &str) -> usize {
 
 /// The camera reads these words' SeedQR.
 fn scan_seedqr(app: &mut Faraday, words: &str) {
-    let m = Mnemonic::parse(Language::English, words).unwrap();
+    let c = testkit::compute();
+    let m = Mnemonic::parse(&c, Language::English, words).unwrap();
     app.event(Event::Scanned {
         bytes: osk_codec::seedqr::to_digits(&m)
             .expose()
@@ -206,13 +209,14 @@ fn a_key_already_here_is_named_and_the_camera_stays_on() {
 
 #[test]
 fn a_seed_of_no_key_of_the_wallet_asks_its_passphrase_and_refuses_it_without_one() {
+    let c = testkit::compute();
     let (mut app, w) = on_savings();
     app.press(Action::ScanKey(w));
     scan_seedqr(&mut app, OTHER);
     assert!(!camera_on(&app));
     assert_eq!(app.sheet, Some(Sheet::SeedRead));
     let mut probe = testkit::session();
-    let fp = fp_text(probe.add_words(OTHER, "", None).unwrap());
+    let fp = fp_text(probe.add_words(&c, OTHER, "", None).unwrap());
     let line = format!("{fp} is not one of Savings's keys");
     let text = drawn(&mut app);
     assert!(text.contains(&line), "{text}");
@@ -239,6 +243,7 @@ fn with_two_keys_missing_the_first_match_leaves_the_camera_on_for_one_more() {
 
 #[test]
 fn the_words_typed_instead_load_any_missing_key_and_refuse_another_seed() {
+    let c = testkit::compute();
     let (mut app, w) = on_savings();
     app.press(Action::ScanKey(w));
     let _ = app.frame();
@@ -256,7 +261,7 @@ fn the_words_typed_instead_load_any_missing_key_and_refuse_another_seed() {
     app.press(Action::EntryAdd);
     assert_eq!(app.screen, Screen::Entry);
     let mut probe = testkit::session();
-    let fp = fp_text(probe.add_words(OTHER, "", None).unwrap());
+    let fp = fp_text(probe.add_words(&c, OTHER, "", None).unwrap());
     assert_eq!(
         app.entry.error.as_deref(),
         Some(format!("These words give {fp}, not a key of Savings").as_str())

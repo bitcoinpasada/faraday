@@ -53,6 +53,7 @@ fn type_text(app: &mut Faraday, text: &str) {
 
 #[test]
 fn a_wallet_in_several_files_is_one_wallet() {
+    let c = testkit::compute();
     let files = kit_files(|n| n.starts_with("savings-") && !n.contains("psbt"));
     let mut app = with_inbox(files);
     let wallet_files = app
@@ -64,7 +65,7 @@ fn a_wallet_in_several_files_is_one_wallet() {
         wallet_files > 1,
         "the test kit has Savings in several forms"
     );
-    let found = app.inbox_found_now();
+    let found = app.inbox_found_now(&c);
     let savings: Vec<_> = found.wallets.iter().filter(|w| w.keys.len() == 3).collect();
     assert_eq!(savings.len(), 1, "one Savings, however many files");
     assert_eq!(savings[0].files.len(), wallet_files);
@@ -74,21 +75,23 @@ fn a_wallet_in_several_files_is_one_wallet() {
 
 #[test]
 fn a_seed_in_several_backups_is_one_seed() {
+    let c = testkit::compute();
     let app = with_inbox(vec![
         ("bacon-words.txt".to_string(), words("bacon")),
         ("bacon-seedqr-words.txt".to_string(), words("bacon")),
     ]);
-    let found = app.inbox_found_now();
+    let found = app.inbox_found_now(&c);
     assert_eq!(found.seeds.len(), 1);
     assert_eq!(found.seeds[0].sources.len(), 2);
 }
 
 #[test]
 fn a_seed_its_wallet_names_loads_with_it_and_is_no_potential_wallet() {
+    let c = testkit::compute();
     let mut files = kit_files(|n| n == "spending-wallet.txt");
     files.push(("bacon-words.txt".to_string(), words("bacon")));
     let mut app = with_inbox(files);
-    let found = app.inbox_found_now();
+    let found = app.inbox_found_now(&c);
     assert!(found.potential().is_empty());
     assert_eq!(found.to_load().len(), 1);
     assert_eq!(found.to_load()[0].seeds_here, 1);
@@ -118,8 +121,9 @@ fn loading_a_seed_from_the_inbox_loads_the_wallet_that_names_it() {
 
 #[test]
 fn a_seed_no_wallet_names_waits_as_a_potential_wallet() {
+    let c = testkit::compute();
     let mut app = with_inbox(vec![("summer-words.txt".to_string(), words("summer"))]);
-    let found = app.inbox_found_now();
+    let found = app.inbox_found_now(&c);
     assert_eq!(found.potential().len(), 1);
     assert!(app.session.wallets.is_empty(), "nothing is a wallet yet");
     let fp = found.potential()[0].fingerprint;
@@ -135,8 +139,9 @@ fn a_seed_no_wallet_names_waits_as_a_potential_wallet() {
 
 #[test]
 fn a_passphrase_makes_the_potential_wallet_another_key() {
+    let c = testkit::compute();
     let mut app = with_inbox(vec![("summer-words.txt".to_string(), words("summer"))]);
-    let fp = app.inbox_found_now().potential()[0].fingerprint;
+    let fp = app.inbox_found_now(&c).potential()[0].fingerprint;
     app.press(Action::PotentialOpen(fp.0));
     app.press(Action::PotentialType);
     type_text(&mut app, "TREZOR");
@@ -157,13 +162,14 @@ fn a_passphrase_makes_the_potential_wallet_another_key() {
 
 #[test]
 fn codex32_strings_count_once_they_add_up() {
+    let c = testkit::compute();
     // BIP 93 vector 2: two shares of a 2-of-n.
     let one = with_inbox(vec![(
         "share-a.txt".to_string(),
         b"MS12NAMEA320ZYXWVUTSRQPNMLKJHGFEDCAXRPP870HKKQRM\n".to_vec(),
     )]);
     assert_eq!(one.inbox[0].kind, FileKind::SeedPart);
-    let found = one.inbox_found_now();
+    let found = one.inbox_found_now(&c);
     assert!(found.seeds.is_empty());
     assert_eq!(found.waiting.len(), 1, "one share of two waits");
 
@@ -177,13 +183,14 @@ fn codex32_strings_count_once_they_add_up() {
             b"MS12NAMECACDEFGHJKLMNPQRSTUVWXYZ023FTR2GDZMPY6PN\n".to_vec(),
         ),
     ]);
-    let found = two.inbox_found_now();
+    let found = two.inbox_found_now(&c);
     assert_eq!(found.seeds.len(), 1);
     assert!(matches!(found.seeds[0].sources[0], SeedSource::Codex32(_)));
 }
 
 #[test]
 fn slip39_shares_count_once_they_add_up() {
+    let c = testkit::compute();
     // SLIP-39 vector 4, 2 of 3.
     let app = with_inbox(vec![
         (
@@ -195,13 +202,14 @@ fn slip39_shares_count_once_they_add_up() {
             b"shadow pistol academic acid actress prayer class unknown daughter sweater depict flip twice unkind craft early superior advocate guest smoking\n".to_vec(),
         ),
     ]);
-    let found = app.inbox_found_now();
+    let found = app.inbox_found_now(&c);
     assert_eq!(found.seeds.len(), 1);
     assert!(matches!(found.seeds[0].sources[0], SeedSource::Slip39(_)));
 }
 
 #[test]
 fn a_sealed_backup_opens_with_its_passphrase() {
+    let c = testkit::compute();
     let files = kit_files(|n| n.ends_with(".oskb"));
     assert!(!files.is_empty());
     let mut app = with_inbox(files);
@@ -211,7 +219,7 @@ fn a_sealed_backup_opens_with_its_passphrase() {
         .position(|i| i.kind == FileKind::Backup)
         .unwrap();
     assert!(
-        app.inbox_found_now()
+        app.inbox_found_now(&c)
             .waiting
             .iter()
             .any(|q| q.backup == Some(k))
@@ -228,10 +236,11 @@ fn a_sealed_backup_opens_with_its_passphrase() {
 
 #[test]
 fn an_account_xpub_alone_becomes_a_watch_only_wallet_of_its_paths_kind() {
+    let c = testkit::compute();
     let files = kit_files(|n| n.starts_with("xpub-3-") && n.ends_with("-single.txt"));
     assert_eq!(files.len(), 1);
     let mut app = with_inbox(files);
-    let found = app.inbox_found_now();
+    let found = app.inbox_found_now(&c);
     assert_eq!(found.xpubs.len(), 1);
     assert_eq!(
         found.xpubs[0].kind,
@@ -253,17 +262,19 @@ fn an_account_xpub_alone_becomes_a_watch_only_wallet_of_its_paths_kind() {
 
 #[test]
 fn a_cosigners_multisig_xpub_is_not_a_wallet_on_its_own() {
+    let c = testkit::compute();
     let files = kit_files(|n| n.starts_with("xpub-3-") && n.ends_with("-multisig.txt"));
     let app = with_inbox(files);
-    assert!(app.inbox_found_now().xpubs.is_empty());
+    assert!(app.inbox_found_now(&c).xpubs.is_empty());
 }
 
 #[test]
 fn an_xpub_whose_seed_is_here_gives_way_to_the_seed() {
+    let c = testkit::compute();
     let mut files = kit_files(|n| n.starts_with("xpub-3-") && n.ends_with("-single.txt"));
     files.push(("summer-words.txt".to_string(), words("summer")));
     let app = with_inbox(files);
-    let found = app.inbox_found_now();
+    let found = app.inbox_found_now(&c);
     assert!(found.xpubs.is_empty());
     assert_eq!(found.potential().len(), 1);
 }

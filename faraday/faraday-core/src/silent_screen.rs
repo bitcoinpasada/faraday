@@ -70,7 +70,8 @@ fn summary(app: &View, s: &SilentState, k: u8) -> String {
             .map(|fp| fp_text(osk_bip::keys::Fingerprint(fp)))
             .unwrap_or_else(|| EN.silent_not_chosen.to_string()),
         sstep::ADDRESS => app
-            .silent_address()
+            .silent_shown()
+            .address
             .map(|a| crate::ui::short(&app.session.shown(&a)))
             .unwrap_or_default(),
         sstep::SCAN => EN.silent_a_secret_shows.to_string(),
@@ -114,10 +115,11 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
                 .collect();
             cy += button_rows(ui, x, cy, w, &row);
         }
-        sstep::ADDRESS if !app.silent_key_here() && s.wallet.is_some() => {
+        sstep::ADDRESS if !app.silent_shown().key_here && s.wallet.is_some() => {
             // The wallet's own address needs no key; labels do.
             let a = app
-                .silent_address()
+                .silent_shown()
+                .address
                 .map(|a| app.session.shown(&a))
                 .unwrap_or_default();
             cy += ui.wrap(x, cy, w, 14.0, W::M, TEXT, &a) + 14.0;
@@ -163,7 +165,8 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
             );
             cy += 52.0;
             let a = app
-                .silent_address()
+                .silent_shown()
+                .address
                 .map(|a| app.session.shown(&a))
                 .unwrap_or_default();
             cy += ui.wrap(x, cy, w, 14.0, W::M, TEXT, &a) + 14.0;

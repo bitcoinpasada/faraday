@@ -595,13 +595,12 @@ fn blank_sheet(f: &[(String, String)]) -> Result<Vec<u8>, String> {
 /// A SeedQR of `words` words from a fixed dummy seed: its fixed squares
 /// are the same as every other seed of that length.
 fn probe_matrix(words: usize) -> Result<QrMatrix, String> {
-    let sentence = if words == 24 {
-        format!("{} art", ["abandon"; 23].join(" "))
-    } else {
-        format!("{} about", ["abandon"; 11].join(" "))
-    };
-    let m = crate::wallet::parse_words(osk_bip::bip39::Language::English, &sentence)
-        .map_err(|e| e.to_string())?;
+    // All-zero entropy: "abandon" ×11 "about", or ×23 "art".
+    let entropy = [0u8; 32];
+    let len = if words == 24 { 32 } else { 16 };
+    let m =
+        osk_bip::bip39::Mnemonic::from_entropy(osk_bip::bip39::Language::English, &entropy[..len])
+            .map_err(|e| e.to_string())?;
     crate::work::count(crate::work::Work::QrEncode);
     osk_codec::seedqr::encode_seedqr(&m).map_err(|e| format!("{e:?}"))
 }

@@ -263,13 +263,14 @@ impl Faraday {
     /// wiped and the check closes. A word that differs is named; the
     /// words before it stay and typing resumes at it.
     pub(crate) fn copy_check_after(&mut self) {
+        let c = self.compute();
         let Some(b) = self.backup.as_ref() else {
             return;
         };
-        let Some(c) = b.check.as_ref() else {
+        let Some(chk) = b.check.as_ref() else {
             return;
         };
-        if c.taken() < c.count {
+        if chk.taken() < chk.count {
             return;
         }
         let Some(key) = self.session.keys.get(b.key) else {
@@ -279,11 +280,11 @@ impl Faraday {
         let seed = key
             .words
             .as_ref()
-            .and_then(|w| crate::wallet::parse_words(key.language, w.as_str()).ok());
+            .and_then(|w| crate::wallet::parse_words(&c, key.language, w.as_str()).ok());
         let Some(seed) = seed else {
             return;
         };
-        let mut typed = c.indices();
+        let mut typed = chk.indices();
         let found = backup::compare_words(&typed, seed.indices());
         let off_list = match found {
             CopyCheck::WrongWord(k) => typed.get(k - 1) == Some(&u16::MAX),

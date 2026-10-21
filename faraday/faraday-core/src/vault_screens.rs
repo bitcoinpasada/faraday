@@ -5,6 +5,7 @@
 use crate::strings::EN as FEN;
 use opensigner_core::strings::EN;
 use opensigner_core::strings::fill;
+use osk_crypto::work::Compute;
 use osk_ui::widgets::Icon;
 
 use crate::drawing::{Scrolled, View};
@@ -2269,23 +2270,28 @@ pub(crate) fn policy_shape(policy: osk_bip::policy::WalletPolicy) -> String {
 /// A key record's fingerprint, worked out once per key and kept. Four
 /// bytes: it finds a candidate; whether the record is a given key is
 /// [`record_is_key`]'s to say.
-pub(crate) fn key_fingerprint(app: &Faraday, r: &Record) -> Option<String> {
-    key_identity(app, r).map(|(fp, _)| fp)
+pub(crate) fn key_fingerprint(c: &Compute, app: &Faraday, r: &Record) -> Option<String> {
+    key_identity(c, app, r).map(|(fp, _)| fp)
 }
 
 /// Whether key record `r` holds session key `key`: the same master key,
 /// its passphrase applied, told by all 32 bytes of
 /// [`crate::wallet::master_id`] (F65), the fingerprint finding the
 /// candidate. Kept once worked out, as the fingerprint is.
-pub(crate) fn record_is_key(app: &Faraday, r: &Record, key: &crate::wallet::Key) -> bool {
-    key_identity(app, r)
+pub(crate) fn record_is_key(
+    c: &Compute,
+    app: &Faraday,
+    r: &Record,
+    key: &crate::wallet::Key,
+) -> bool {
+    key_identity(c, app, r)
         .is_some_and(|(fp, id)| fp == fp_text(key.fingerprint()) && id == key.master_id())
 }
 
 /// A key record's fingerprint and [`crate::wallet::master_id`], worked
 /// out once per key and kept. Costs a PBKDF2 and two elliptic-curve
 /// multiplications the first time.
-fn key_identity(app: &Faraday, r: &Record) -> Option<(String, [u8; 32])> {
+fn key_identity(c: &Compute, app: &Faraday, r: &Record) -> Option<(String, [u8; 32])> {
     use osk_bip::bitcoin::hashes::{Hash, sha256};
     // By the payload and the passphrase stored with it: the same words
     // with a passphrase are another key.
@@ -2308,17 +2314,17 @@ fn key_identity(app: &Faraday, r: &Record) -> Option<(String, [u8; 32])> {
     }
     // Kept by the key's id once worked out, by whoever asks first.
     let master = crate::work::keeping(|| -> Option<osk_bip::keys::MasterKey> {
-        crate::work::count(crate::work::Work::MasterKey);
         Some(match crate::wallet::record_words(r) {
             Some(m) => {
                 let passphrase = r.text(field::KEY_PASSPHRASE).unwrap_or("");
-                let seed = m.to_seed(passphrase.as_bytes()).ok()?;
-                osk_bip::keys::MasterKey::from_seed(&seed, app.session.network())
+                let seed = m.to_seed(c, passphrase.as_bytes()).ok()?;
+                osk_bip::keys::MasterKey::from_seed(c, &seed, app.session.network())
             }
             None => {
                 let seed = vaults::seed_of(r)?;
                 let bytes = osk_crypto::SeedBytes::new(&seed)?;
                 osk_bip::keys::MasterKey::from_seed_bytes(
+                    c,
                     &osk_crypto::Secret::new(bytes),
                     app.session.network(),
                 )
@@ -2326,7 +2332,7 @@ fn key_identity(app: &Faraday, r: &Record) -> Option<(String, [u8; 32])> {
         })
     })?;
     let fp = fp_text(master.fingerprint());
-    let mid = crate::work::keeping(|| crate::wallet::master_id(&master));
+    let mid = crate::work::keeping(|| crate::wallet::master_id(c, &master));
     app.vaults
         .fingerprints
         .borrow_mut()
@@ -3484,7 +3490,7 @@ fn detail(
             let up = crate::glance::Direction::BackupFirst;
             if let Some(g) = app
                 .vault_selected_index()
-                .and_then(|i| crate::glance::of_vault(app, app.vaults.current, i))
+                .and_then(|i| app.glance_of_vault(app.vaults.current, i))
             {
                 dy += if ui.compact {
                     crate::glance::draw_column(ui, &g, up, dx, dy, dw)
@@ -4263,7 +4269,7 @@ pub(crate) fn lock_ask(app: &View, ui: &mut Ui, w: f32, h: f32) {
         // §18).
         (
             FEN.lock_held_label,
-            if app.lock_ends_create() {
+            if app.lock_held() && !app.lock_for_flow {
                 FEN.lock_held_create.to_string()
             } else {
                 String::new()
@@ -4531,18 +4537,28 @@ pub(crate) fn vault_has_wallet(app: &Faraday, v: usize, w: &Wallet) -> bool {
 }
 
 /// Whether open vault `v` holds session key `key` ([`record_is_key`]).
-pub(crate) fn vault_has_key(app: &Faraday, v: usize, key: &crate::wallet::Key) -> bool {
-    vault_key(app, v, key).is_some()
+pub(crate) fn vault_has_key(
+    c: &Compute,
+    app: &Faraday,
+    v: usize,
+    key: &crate::wallet::Key,
+) -> bool {
+    vault_key(c, app, v, key).is_some()
 }
 
 /// Whether open vault `v` holds session key `key`, and if so whether its
 /// record keeps the BIP-39 passphrase: a record of the same master key,
 /// told by all 32 bytes of its id, not by its fingerprint alone (F65).
-pub(crate) fn vault_key(app: &Faraday, v: usize, key: &crate::wallet::Key) -> Option<bool> {
+pub(crate) fn vault_key(
+    c: &Compute,
+    app: &Faraday,
+    v: usize,
+    key: &crate::wallet::Key,
+) -> Option<bool> {
     let o = app.vaults.open.get(v)?;
     o.contents
         .of(kind::KEY)
-        .find(|(_, r)| record_is_key(app, r, key))
+        .find(|(_, r)| record_is_key(c, app, r, key))
         .map(|(_, r)| r.field(field::KEY_PASSPHRASE).is_some())
 }
 

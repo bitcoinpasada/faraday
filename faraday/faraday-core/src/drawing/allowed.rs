@@ -19,7 +19,7 @@ impl View<'_> {
     /// ([`crate::Faraday::bip85_value`]; [`Allowed::SecretShown`]). Costs a
     /// key derivation.
     pub fn bip85_shown(&self) -> Option<Zeroizing<String>> {
-        self.allowed(Allowed::SecretShown, |_c| self.app.bip85_value())
+        self.allowed(Allowed::SecretShown, |c| self.app.bip85_value(c))
     }
 
     /// A vault key record's words, read for this frame to be shown
@@ -34,8 +34,8 @@ impl View<'_> {
     /// ([`Allowed::SecretShown`]). Costs a parse of the words and a QR
     /// encoding.
     pub fn seedqr_shown(&self, lang: Language, words: &str, compact: bool) -> Option<QrMatrix> {
-        self.allowed(Allowed::SecretShown, |_c| {
-            let mn = crate::wallet::parse_words(lang, words).ok()?;
+        self.allowed(Allowed::SecretShown, |c| {
+            let mn = crate::wallet::parse_words(c, lang, words).ok()?;
             work::count(work::Work::QrEncode);
             if compact {
                 osk_codec::seedqr::encode_compact(&mn).ok()

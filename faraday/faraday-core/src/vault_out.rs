@@ -121,7 +121,9 @@ impl Faraday {
     /// Makes the selected wallet record's code and shows it: the QR view
     /// the Wallets page uses, several codes for a long descriptor.
     pub(crate) fn vault_wallet_qr(&mut self) {
-        if let Some(view) = self.with_vault_wallet(|app, i| app.code_view(Code::Descriptor(i))) {
+        let c = self.compute();
+        if let Some(view) = self.with_vault_wallet(|app, i| app.code_view(&c, Code::Descriptor(i)))
+        {
             self.open_qr(view);
         }
     }
@@ -132,6 +134,7 @@ impl Faraday {
     /// software files Back up makes, which are made now (QR pictures
     /// drawn), the descriptor alone ticked.
     pub(crate) fn vault_stick_save_open(&mut self) {
+        let c = self.compute();
         let Some(at) = self.vault_selected_index() else {
             return;
         };
@@ -142,7 +145,7 @@ impl Faraday {
             let Some(m) = crate::wallet::record_words(r) else {
                 return;
             };
-            let fp = crate::vault_screens::key_fingerprint(self, r).unwrap_or_default();
+            let fp = crate::vault_screens::key_fingerprint(&c, self, r).unwrap_or_default();
             let mut files = Vec::new();
             for (label, what, form) in [
                 (
@@ -244,6 +247,7 @@ impl Faraday {
     /// now from the record (a SeedQR drawn), as secrets let out
     /// unprotected. The popup closes.
     pub(crate) fn vault_stick_save_write(&mut self) {
+        let c = self.compute();
         let Some(save) = self.vaults.stick_save.take() else {
             return;
         };
@@ -256,7 +260,7 @@ impl Faraday {
             .and_then(|v| v.contents.records.get(save.record))
             .filter(|r| r.kind == kind::KEY)
             .and_then(|r| {
-                let fp = crate::vault_screens::key_fingerprint(self, r).unwrap_or_default();
+                let fp = crate::vault_screens::key_fingerprint(&c, self, r).unwrap_or_default();
                 crate::wallet::record_words(r).map(|m| (m, fp))
             });
         for f in save.files.into_iter().filter(|f| f.ticked) {
@@ -293,7 +297,7 @@ impl Faraday {
                         continue;
                     };
                     self.outbox.retain(|it| it.name != *name);
-                    let mut item = crate::Item::new(name, bytes.to_vec());
+                    let mut item = crate::Item::new(&c, name, bytes.to_vec());
                     item.secret = true;
                     self.outbox.push(item);
                     out.push(name.clone());

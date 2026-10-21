@@ -10,6 +10,7 @@ use osk_bip::bitcoin::consensus::encode::serialize_hex;
 use osk_bip::bitcoin::{Transaction, Txid};
 use osk_bip::keys::{Fingerprint, MasterKey, Network, ScriptType};
 use osk_bip::policy::{Template, WalletPolicy, Wrapper};
+use osk_crypto::work::Compute;
 use osk_psbt::verify::Verdict;
 use osk_psbt::{Aux, Context, Inspection, KeyRef, Nonce, Psbt};
 
@@ -34,8 +35,8 @@ pub type WordsId = zeroize::Zeroizing<[u8; 32]>;
 /// same on every network. Public (a hash of public data); what "this
 /// vault holds this key" compares, where the 4-byte fingerprint only
 /// finds a candidate (F65). Costs an elliptic-curve multiplication.
-pub fn master_id(m: &MasterKey) -> [u8; 32] {
-    let x = m.xpub();
+pub fn master_id(c: &Compute, m: &MasterKey) -> [u8; 32] {
+    let x = m.xpub(c);
     let mut bytes = x.public_key.serialize().to_vec();
     bytes.extend_from_slice(x.chain_code.as_bytes());
     crate::sha256_of(&bytes)
@@ -54,11 +55,14 @@ pub fn read_wallet(text: &str) -> Result<WalletPolicy, Refusal> {
     faraday_intake::wallet::read_wallet(text)
 }
 
-/// Parses seed words in `lang`: BIP-39's parser, counted
-/// ([`crate::work`]). Costs a word-list search per word and a hash.
-pub fn parse_words(lang: Language, text: &str) -> Result<Mnemonic, osk_bip::bip39::Error> {
-    crate::work::count(crate::work::Work::WordsParse);
-    Mnemonic::parse(lang, text)
+/// Parses seed words in `lang`: BIP-39's parser, counted through the
+/// token. Costs a word-list search per word and a hash.
+pub fn parse_words(
+    c: &Compute,
+    lang: Language,
+    text: &str,
+) -> Result<Mnemonic, osk_bip::bip39::Error> {
+    Mnemonic::parse(c, lang, text)
 }
 
 /// A vault key record's seed words, when it holds words: the vault's
@@ -111,6 +115,7 @@ impl Key {
     /// Makes a key; costs an elliptic-curve multiplication with the master
     /// private key, for its [`master_id`].
     pub fn new(
+        c: &Compute,
         master: MasterKey,
         label: String,
         words: Option<zeroize::Zeroizing<String>>,
@@ -118,8 +123,7 @@ impl Key {
         share: Option<osk_bip::bitcoin::secp256k1::PublicKey>,
         passphrase: Option<zeroize::Zeroizing<String>>,
     ) -> Key {
-        crate::work::count(crate::work::Work::MasterKey);
-        let master_id = master_id(&master);
+        let master_id = master_id(c, &master);
         Key {
             master,
             master_id,
@@ -138,11 +142,11 @@ impl Key {
     /// worked out the first time it is asked, by whoever asks, a frame
     /// included, and kept on the key until it is dropped. `None` for a key
     /// with no words. Costs a parse of the words the first time.
-    pub fn words_id(&self) -> Option<&[u8; 32]> {
+    pub fn words_id(&self, c: &Compute) -> Option<&[u8; 32]> {
         let words = self.words.as_ref()?;
         self.words_id
             .get_or_init(|| {
-                crate::work::keeping(|| Some(words_id(&parse_words(self.language, words).ok()?)))
+                crate::work::keeping(|| Some(words_id(&parse_words(c, self.language, words).ok()?)))
             })
             .as_deref()
     }
@@ -153,20 +157,21 @@ impl Key {
     /// the key, a lookup after. Costs a key derivation the first time.
     pub fn account_text(
         &self,
+        c: &Compute,
         kind: crate::create::NewKind,
         account: u32,
     ) -> Result<String, String> {
         self.public_text(PublicAsk::Account(kind, account), || {
-            kind.key_text_account(&self.master, account)
+            kind.key_text_account(c, &self.master, account)
         })
     }
 
     /// `[fingerprint/path]xpub` at `path` ([`crate::create::key_text_at`]),
     /// kept as [`Key::account_text`] is. Costs a key derivation the first
     /// time.
-    pub fn text_at(&self, path: &str) -> Result<String, String> {
+    pub fn text_at(&self, c: &Compute, path: &str) -> Result<String, String> {
         self.public_text(PublicAsk::Path(path.to_string()), || {
-            crate::create::key_text_at(&self.master, path)
+            crate::create::key_text_at(c, &self.master, path)
         })
     }
 
@@ -227,11 +232,11 @@ impl Key {
 
     /// Runs `take` on the secret share these words are, rebuilt for the
     /// call and wiped after it.
-    pub fn with_secret_share(&self, take: &mut dyn FnMut(&osk_bip::frost::SecShare)) {
+    pub fn with_secret_share(&self, c: &Compute, take: &mut dyn FnMut(&osk_bip::frost::SecShare)) {
         if let Some(share) = self
             .words
             .as_ref()
-            .and_then(|w| crate::wallet::parse_words(self.language, w).ok())
+            .and_then(|w| crate::wallet::parse_words(c, self.language, w).ok())
             .and_then(|m| secret_share(&m))
         {
             take(&share);
@@ -613,11 +618,12 @@ impl Session {
     /// when the key is meant for one.
     pub fn add_words(
         &mut self,
+        c: &Compute,
         words: &str,
         label: &str,
         wanted: Option<Fingerprint>,
     ) -> Result<Fingerprint, Refusal> {
-        self.add_words_with(words, "", label, wanted)
+        self.add_words_with(c, words, "", label, wanted)
     }
 
     /// Adds the key the words and a BIP-39 passphrase give. The same words
@@ -625,6 +631,7 @@ impl Session {
     /// the other lists in BIP-39's order.
     pub fn add_words_with(
         &mut self,
+        c: &Compute,
         words: &str,
         passphrase: &str,
         label: &str,
@@ -634,8 +641,8 @@ impl Session {
             zeroize::Zeroizing::new(words.split_whitespace().collect::<Vec<_>>().join(" "));
         let mut first = None;
         for lang in Language::ALL {
-            match crate::wallet::parse_words(lang, &normal) {
-                Ok(m) => return self.add_mnemonic(&m, passphrase, label, wanted),
+            match crate::wallet::parse_words(c, lang, &normal) {
+                Ok(m) => return self.add_mnemonic(c, &m, passphrase, label, wanted),
                 Err(e) => {
                     first.get_or_insert(e);
                 }
@@ -650,6 +657,7 @@ impl Session {
     /// words in its own list.
     pub fn add_mnemonic(
         &mut self,
+        c: &Compute,
         mnemonic: &Mnemonic,
         passphrase: &str,
         label: &str,
@@ -657,9 +665,9 @@ impl Session {
     ) -> Result<Fingerprint, Refusal> {
         let lang = mnemonic.language();
         let seed = mnemonic
-            .to_seed(passphrase.as_bytes())
+            .to_seed(c, passphrase.as_bytes())
             .map_err(|e| Refusal::Words(e.to_string()))?;
-        let master = MasterKey::from_seed(&seed, self.network);
+        let master = MasterKey::from_seed(c, &seed, self.network);
         let fp = master.fingerprint();
         if let Some(w) = wanted
             && w != fp
@@ -688,6 +696,7 @@ impl Session {
         let secp = osk_bip::bitcoin::secp256k1::Secp256k1::new();
         let share = secret_share(mnemonic).map(|s| s.public_share(&secp));
         self.keys.push(Key::new(
+            c,
             master,
             label,
             Some(words),
@@ -720,13 +729,13 @@ impl Session {
     /// comparison keep the real address), and New key adds the next
     /// public seed in place of the key it made ([`Session::next_handout`]).
     /// On a test network none of that applies.
-    pub fn set_demo(&mut self) {
+    pub fn set_demo(&mut self, c: &Compute) {
         self.demo = crate::demo::SEEDS
             .iter()
             .filter_map(|&w| {
                 let mut probe = Session::on(self.network);
                 probe
-                    .add_words(&crate::demo::words(w), "", None)
+                    .add_words(c, &crate::demo::words(w), "", None)
                     .ok()
                     .map(|fp| (w, fp))
             })
@@ -761,16 +770,22 @@ impl Session {
 
     /// Adds the key a master seed gives, as an `osk-backup` kind-2 backup
     /// carries one: there are no words to copy by hand.
-    pub fn add_seed(&mut self, seed: &[u8], label: &str) -> Result<Fingerprint, Refusal> {
+    pub fn add_seed(
+        &mut self,
+        c: &Compute,
+        seed: &[u8],
+        label: &str,
+    ) -> Result<Fingerprint, Refusal> {
         let bytes = osk_crypto::SeedBytes::new(seed)
             .ok_or_else(|| Refusal::Words(EN.wallet_a_master_seed.to_string()))?;
-        let master = MasterKey::from_seed_bytes(&osk_crypto::Secret::new(bytes), self.network);
+        let master = MasterKey::from_seed_bytes(c, &osk_crypto::Secret::new(bytes), self.network);
         let fp = master.fingerprint();
         self.allowed(fp)?;
         if self.keys.iter().any(|k| k.fingerprint() == fp) {
             return Err(Refusal::Duplicate(fp_text(fp)));
         }
         self.keys.push(Key::new(
+            c,
             master,
             if label.trim().is_empty() {
                 fp_text(fp)
@@ -984,10 +999,10 @@ impl Session {
         }
     }
 
-    fn key_refs(&self) -> Vec<KeyRef> {
+    fn key_refs(&self, c: &Compute) -> Vec<KeyRef> {
         self.keys
             .iter()
-            .filter_map(|k| KeyRef::from_master(&k.master, 0).ok())
+            .filter_map(|k| KeyRef::from_master(c, &k.master, 0).ok())
             .collect()
     }
 
@@ -1000,12 +1015,12 @@ impl Session {
     /// one a key held here made recomputed from that key (RFC 6979 or
     /// BIP-340 with no extra randomness), and any nonce used twice under
     /// one key. OpenSigner's own checks (`osk_psbt::verify`).
-    pub fn nonce_check(&self, psbt: &Psbt) -> NonceCheck {
-        let refs = self.key_refs();
+    pub fn nonce_check(&self, c: &Compute, psbt: &Psbt) -> NonceCheck {
+        let refs = self.key_refs(c);
         let policies = self.policies();
         let ctx = context(self.network, &refs, &policies);
         let masters: Vec<&MasterKey> = self.keys.iter().map(|k| &k.master).collect();
-        let made = osk_psbt::verify::deterministic(psbt, &masters);
+        let made = osk_psbt::verify::deterministic(c, psbt, &masters);
         let mut rows = Vec::new();
         for input in osk_psbt::verify::verify_signatures(psbt, &ctx) {
             for sig in input.signatures {
@@ -1050,18 +1065,19 @@ impl Session {
     }
 
     /// The inspection of `psbt` against this session's keys and wallets.
-    pub fn inspect(&self, psbt: &Psbt) -> Inspection {
-        self.inspect_with(psbt, None)
+    pub fn inspect(&self, c: &Compute, psbt: &Psbt) -> Inspection {
+        self.inspect_with(c, psbt, None)
     }
 
     /// The inspection, with the carry section a threshold spend arrived
     /// with.
     pub fn inspect_with(
         &self,
+        c: &Compute,
         psbt: &Psbt,
         carry: Option<&osk_psbt::threshold::CarrySection>,
     ) -> Inspection {
-        let refs = self.key_refs();
+        let refs = self.key_refs(c);
         let policies = self.policies();
         let shares = self.share_refs();
         let mut ctx = context(self.network, &refs, &policies);
@@ -1094,11 +1110,12 @@ impl Session {
     /// fingerprints that signed.
     pub fn sign(
         &self,
+        c: &Compute,
         psbt: &mut Psbt,
         seed: [u8; 32],
         musig: &mut Option<osk_psbt::MusigSession>,
     ) -> Result<Vec<Fingerprint>, String> {
-        self.sign_with(psbt, seed, musig, &[], None, None)
+        self.sign_with(c, psbt, seed, musig, &[], None, None)
             .map(|s| s.by)
     }
 
@@ -1108,8 +1125,10 @@ impl Session {
     /// location reads. `known` is the inspection of `psbt` with this
     /// session and `carry` when the caller keeps one current (the open
     /// spend's): it chooses the keys without inspecting again.
+    #[allow(clippy::too_many_arguments)]
     pub fn sign_with(
         &self,
+        c: &Compute,
         psbt: &mut Psbt,
         seed: [u8; 32],
         musig: &mut Option<osk_psbt::MusigSession>,
@@ -1117,7 +1136,7 @@ impl Session {
         carry: Option<&osk_psbt::threshold::CarrySection>,
         known: Option<&Inspection>,
     ) -> Result<Signed, String> {
-        let refs = self.key_refs();
+        let refs = self.key_refs(c);
         let policies = self.policies();
         let share_refs = self.share_refs();
         let mut ctx = context(self.network, &refs, &policies);
@@ -1152,7 +1171,7 @@ impl Session {
             .iter()
             .map(|key| -> Box<osk_psbt::ShareDoor<'_>> {
                 Box::new(move |take: &mut dyn FnMut(&osk_bip::frost::SecShare)| {
-                    key.with_secret_share(take);
+                    key.with_secret_share(c, take);
                 })
             })
             .collect();
@@ -1167,6 +1186,7 @@ impl Session {
             })
             .collect();
         let result = osk_psbt::sign(
+            c,
             psbt,
             &masters,
             &selection,
@@ -1547,16 +1567,16 @@ fn is_text(text: &str) -> bool {
 /// Whether a piece of text, a user ID or an armour header, is a seed's
 /// words, an extended private key or a share: the detectors that read a
 /// plain text file.
-fn text_may_be_secret(text: &str) -> bool {
-    faraday_intake::secret_text(text).is_some()
+fn text_may_be_secret(c: &Compute, text: &str) -> bool {
+    faraday_intake::secret_text(c, text).is_some()
         || crate::forms::typed_mnemonic(Language::English, &crate::forms::file_words(text)).is_ok()
         || crate::restore::is_share(text)
         || crate::inbox::part_of(text).is_some()
 }
 
 /// Says what a file holds.
-pub fn classify(name: &str, bytes: &[u8]) -> FileKind {
-    classify_read(name, bytes).kind
+pub fn classify(c: &Compute, name: &str, bytes: &[u8]) -> FileKind {
+    classify_read(c, name, bytes).kind
 }
 
 /// A file classified ([`classify_read`]), with what was read to tell:
@@ -1583,7 +1603,7 @@ impl From<FileKind> for Classified {
 /// [`classify`], keeping what it read to tell: a PSBT is parsed once and a
 /// wallet file read once when a file comes in. Costs what [`classify`]
 /// costs.
-pub fn classify_read(name: &str, bytes: &[u8]) -> Classified {
+pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
     if faraday_vault::read_header(bytes).is_ok() {
         return FileKind::Vault.into();
     }
@@ -1620,7 +1640,7 @@ pub fn classify_read(name: &str, bytes: &[u8]) -> Classified {
             return FileKind::Sheet.into();
         }
         if let Some(block) = faraday_pgp::read_public(bytes)
-            && !block.texts.iter().any(|t| text_may_be_secret(t))
+            && !block.texts.iter().any(|t| text_may_be_secret(c, t))
         {
             return FileKind::Gpg.into();
         }
@@ -1705,14 +1725,15 @@ impl Spend {
     /// Fingerprints with a valid signature on the first input; for a
     /// MuSig2 wallet, the participants whose partial signature is on it.
     /// Costs an inspection of the PSBT, but for MuSig2.
-    pub fn signers(&self, session: &Session) -> Vec<Fingerprint> {
-        self.signers_by(session, None)
+    pub fn signers(&self, c: &Compute, session: &Session) -> Vec<Fingerprint> {
+        self.signers_by(c, session, None)
     }
 
     /// [`Spend::signers`], read from `inspection` of this PSBT when one
     /// is given (the spend's kept one), else inspected now.
     pub fn signers_by(
         &self,
+        c: &Compute,
         session: &Session,
         inspection: Option<&Inspection>,
     ) -> Vec<Fingerprint> {
@@ -1749,7 +1770,7 @@ impl Spend {
         let inspection = match inspection {
             Some(i) => i,
             None => {
-                own = session.inspect(&self.psbt);
+                own = session.inspect(c, &self.psbt);
                 &own
             }
         };
@@ -1767,6 +1788,7 @@ impl Spend {
     /// merged. Returns the fingerprints it added.
     pub fn collect(
         &mut self,
+        c: &Compute,
         session: &Session,
         bytes: &[u8],
         source: &str,
@@ -1775,7 +1797,7 @@ impl Spend {
         if other.unsigned_tx().compute_txid() != self.txid {
             return Err(fill(EN.wallet_is_a_psbt_for, &[source]));
         }
-        let before = self.signers(session);
+        let before = self.signers(c, session);
         let mut merged = self.psbt.inner().clone();
         merged
             .combine(other.into_inner())
@@ -1783,7 +1805,7 @@ impl Spend {
         // `combine` keeps the fields it has no type for, MuSig2's among them.
         let merged = Psbt::from(merged);
         if session
-            .inspect(&merged)
+            .inspect(c, &merged)
             .present_signatures()
             .any(|s| s.verdict.is_invalid())
         {
@@ -1791,7 +1813,7 @@ impl Spend {
         }
         self.psbt = merged;
         let added: Vec<Fingerprint> = self
-            .signers(session)
+            .signers(c, session)
             .into_iter()
             .filter(|fp| !before.contains(fp))
             .collect();
@@ -1863,6 +1885,7 @@ impl Session {
     /// single-key wallet's receive chain.
     pub fn sign_message(
         &self,
+        c: &Compute,
         wallet: usize,
         index: u32,
         message: &str,
@@ -1890,7 +1913,7 @@ impl Session {
                 osk_bip::bitcoin::bip32::ChildNumber::from_normal_idx(index)
                     .map_err(|e| e.to_string())?,
             );
-        let derived = master.derive(&path);
+        let derived = master.derive(c, &path);
         osk_psbt::message::sign(
             derived.secp(),
             derived.secret_key(),

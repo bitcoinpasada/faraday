@@ -32,8 +32,9 @@ const ABANDON: &str =
 
 /// The master key of `words`, with no passphrase.
 fn master(words: &str) -> MasterKey {
-    let m = Mnemonic::parse(Language::English, words).expect("fixed mnemonic");
-    MasterKey::from_seed(&m.to_seed(b"").expect("empty passphrase"), NET)
+    let c = faraday_core::testkit::compute();
+    let m = Mnemonic::parse(&c, Language::English, words).expect("fixed mnemonic");
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("empty passphrase"), NET)
 }
 
 /// The master key of one word repeated 24 times.
@@ -44,11 +45,12 @@ fn repeated(word: &str) -> MasterKey {
 /// `wsh(sortedmulti(threshold, …))` over the BIP-48 P2WSH account of
 /// every master.
 fn multisig(masters: &[MasterKey], threshold: usize) -> WalletPolicy {
+    let c = faraday_core::testkit::compute();
     let keys: Vec<String> = masters
         .iter()
         .map(|m| {
             let a = m
-                .multisig_account_xpub(MultisigScriptType::NativeSegwit, 0)
+                .multisig_account_xpub(&c, MultisigScriptType::NativeSegwit, 0)
                 .expect("account");
             // The origin is written with `h` for hardened, as Sparrow and
             // Bitcoin Core write it; the checksum is over that text.
@@ -78,11 +80,12 @@ fn tx(previous_output: OutPoint, output: Vec<TxOut>) -> Transaction {
 }
 
 fn main() {
+    let c = faraday_core::testkit::compute();
     let words = ["bacon", "zebra", "summer"];
     let masters: Vec<MasterKey> = words.iter().map(|w| repeated(w)).collect();
     for (word, m) in words.iter().zip(&masters) {
         let a = m
-            .multisig_account_xpub(MultisigScriptType::NativeSegwit, 0)
+            .multisig_account_xpub(&c, MultisigScriptType::NativeSegwit, 0)
             .expect("account");
         println!("{word} {} {}", m.fingerprint(), a.xpub());
     }
@@ -111,7 +114,7 @@ fn main() {
 
     let abandon = master(ABANDON);
     let recipient = abandon
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .expect("account")
         .address(false, 0)
         .expect("address");

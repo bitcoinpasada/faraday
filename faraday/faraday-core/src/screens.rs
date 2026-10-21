@@ -5,6 +5,7 @@
 use crate::in_progress::Going;
 use crate::strings::EN;
 use opensigner_core::strings::fill;
+use osk_crypto::work::Compute;
 use osk_psbt::{Level, OutputKind};
 use osk_ui::widgets::Icon;
 
@@ -1624,20 +1625,8 @@ fn start(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// used twice. Returns its height.
 fn nonce_check(app: &View, ui: &mut Ui, psbt: &osk_psbt::Psbt, x: f32, y: f32, w: f32) -> f32 {
     use osk_psbt::verify::Verdict;
-    let Some(s) = app.spend.as_ref() else {
+    let Some(check) = app.nonce_check(psbt) else {
         return 0.0;
-    };
-    let bytes = psbt.to_bytes();
-    let check = {
-        let mut cache = s.nonce_check.borrow_mut();
-        match cache.as_ref() {
-            Some((b, c)) if *b == bytes => c.clone(),
-            _ => {
-                let c = std::rc::Rc::new(app.session.nonce_check(psbt));
-                *cache = Some((bytes, c.clone()));
-                c
-            }
-        }
     };
     let mut cy = y;
     let here = check.rows.iter().filter(|r| r.recomputed.is_some()).count();
@@ -3489,7 +3478,7 @@ fn wallets(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // its backup, where each thing is and what each place gives.
     ui.text(ix, cy, 13.0, W::S, MUTED, EN.wallets_at_a_glance);
     cy += 24.0;
-    if let Some(g) = crate::glance::of(app, app.wallet) {
+    if let Some(g) = app.glance_of(app.wallet) {
         cy += crate::glance::draw(ui, &g, crate::glance::Direction::WalletFirst, ix, cy, iw);
     }
     // Where the keys still missing may be.
@@ -5325,7 +5314,7 @@ pub(crate) fn ticked(labels: &[&str], on: &[bool]) -> String {
 }
 
 /// A checklist item's title and the line shown while it is closed.
-pub(crate) fn item_title(app: &Faraday, n: u8) -> (String, String) {
+pub(crate) fn item_title(c: &Compute, app: &Faraday, n: u8) -> (String, String) {
     use crate::plan::Item;
     let Some(b) = app.backup.as_ref() else {
         return (String::new(), String::new());
@@ -5337,7 +5326,7 @@ pub(crate) fn item_title(app: &Faraday, n: u8) -> (String, String) {
     let a = &b.answers;
     let (_, keys_n) = Session::quorum(wallet);
     let item = crate::bstep::item(n).unwrap_or(Item::Envelopes);
-    let done = app.backup_item_done(item);
+    let done = app.backup_item_done(c, item);
     match item {
         Item::Templates => {
             let k = crate::plan::templates_on(&shape, &app.plan_mapped(&shape, a)).max(1);
@@ -5382,7 +5371,7 @@ pub(crate) fn item_title(app: &Faraday, n: u8) -> (String, String) {
                     &[&(v + 1).to_string(), &names.join(", ").to_string()],
                 )
             };
-            let line = match app.backup_vault_fits(v) {
+            let line = match app.backup_vault_fits(c, v) {
                 Some(name) => fill(EN.item_title_in, &[&name.to_string()]),
                 None => EN.item_title_not_saved.to_string(),
             };
@@ -5425,13 +5414,13 @@ pub(crate) fn item_title(app: &Faraday, n: u8) -> (String, String) {
         ),
         Item::PublicFiles => (
             EN.item_title_the_public.to_string(),
-            app.wallet_item_written(&app.backup_public_names_for(b.wallet, a))
+            app.wallet_item_written(&app.backup_public_names_for(c, b.wallet, a))
                 .unwrap_or_else(|| ticked(&SOFTWARE_ROWS, &a.software)),
         ),
         Item::Sticks => {
             let (n, m) = app
                 .wallet_flow_of_backup()
-                .map_or((0, app.wallet_stick_rows().len()), |i| {
+                .map_or((0, app.wallet_stick_rows(c).len()), |i| {
                     app.backup_flows[i].written_of()
                 });
             (
@@ -5494,7 +5483,7 @@ fn backup_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         None
     };
-    let waiting_title = waiting.map(|n| item_title(app, n).0);
+    let waiting_title = waiting.map(|n| app.item_title(n).0);
     let ctx = crate::plan_cards::PlanCtx::backup(app);
     // Each item's done mark, and whether it is reachable (every item
     // before it done), in one pass (`Faraday::backup_reachable`, for a
@@ -5521,7 +5510,7 @@ fn backup_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .enumerate()
         .map(|(i, &k)| {
             if checklist {
-                let (title, summary) = item_title(app, k);
+                let (title, summary) = app.item_title(k);
                 let summary = match (&waiting_title, waiting) {
                     (Some(t), Some(n)) if n != k && !reachable[i] && !marks[i] => {
                         fill(EN.backup_after, &[&t.to_string()])
@@ -5782,7 +5771,7 @@ fn backup_done(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     ui.icon(x, cy, 24.0, Icon::Success, 13.0, OK);
     ui.text_mid(x + 32.0, cy, 24.0, 15.0, W::S, OK, EN.backup_done_backup);
     cy += 40.0;
-    if let Some(g) = glance::of(app, b.wallet) {
+    if let Some(g) = app.glance_of(b.wallet) {
         if let Backup::Plan { check, .. } = &g.backup {
             cy += glance::check_lines(ui, x, cy, w, *check, true, &glance::names_of(&g)) + 16.0;
         }
@@ -15782,7 +15771,7 @@ fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 .keys
                 .get(key)
                 .filter(|k| k.fingerprint() == fp)
-                .is_some_and(|k| crate::vault_screens::vault_has_key(app, v, k)),
+                .is_some_and(|k| app.vault_has_key(v, k)),
             _ => false,
         };
         (o.name.as_str(), held)

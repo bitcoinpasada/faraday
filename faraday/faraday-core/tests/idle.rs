@@ -215,8 +215,9 @@ fn creating() -> Faraday {
 
 #[test]
 fn make_a_new_wallet_holds_the_idle_lock_and_says_so() {
+    let c = testkit::compute();
     let mut app = creating();
-    assert!(app.lock_held());
+    assert!(app.lock_held(&c));
     tick(&mut app, 0);
     tick(&mut app, 25 * MIN);
     assert_eq!(app.sheet, None, "no warning");
@@ -231,13 +232,14 @@ fn make_a_new_wallet_holds_the_idle_lock_and_says_so() {
 
 #[test]
 fn once_make_a_new_wallet_ends_the_idle_lock_comes_back() {
+    let c = testkit::compute();
     let mut app = creating();
     app.press(Action::CancelFlow);
     if app.sheet == Some(Sheet::CancelFlow(faraday_core::in_progress::Going::Create)) {
         app.press(Action::CancelFlowNow);
     }
     assert!(app.create.is_none());
-    assert!(!app.lock_held());
+    assert!(!app.lock_held(&c));
     tick(&mut app, 0);
     assert!(tick(&mut app, 30 * MIN).contains(&Command::Exit));
     let t = app.drawn_texts();
@@ -246,6 +248,7 @@ fn once_make_a_new_wallet_ends_the_idle_lock_comes_back() {
 
 #[test]
 fn a_lock_while_held_says_it_ends_make_a_new_wallet_and_ends_it() {
+    let c = testkit::compute();
     let mut app = creating();
     app.press(Action::LockAsk);
     assert_eq!(app.sheet, Some(Sheet::LockAsk), "the lock asks first");
@@ -263,7 +266,7 @@ fn a_lock_while_held_says_it_ends_make_a_new_wallet_and_ends_it() {
     });
     assert!(next.create.is_none());
     assert!(
-        next.flows_in_progress_now().is_empty(),
+        next.flows_in_progress_now(&c).is_empty(),
         "nothing to come back to"
     );
 }

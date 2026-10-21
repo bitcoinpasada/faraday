@@ -148,13 +148,14 @@ fn a_key_the_quorum_needs_is_asked_for() {
 
 #[test]
 fn a_vaults_wallets_load_with_their_seeds_in_one_press() {
+    let c = testkit::compute();
     let mut app = device(vec![kit_file("vault.ofv")]);
     // Opened from a flow (the vault way), not the Vaults list: nothing
     // loads until `LoadWithKeys` is pressed, as today
     // (`docs/NEW-WALLET.md` §11.1a).
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     type_and_unlock(&mut app);
-    let together = app.vault_wallets_with_keys(0);
+    let together = app.vault_wallets_with_keys(&c, 0);
     assert!(
         together.iter().any(|w| w.name == "Spending"),
         "Spending and test key 1 are in the test vault together"
@@ -164,17 +165,18 @@ fn a_vaults_wallets_load_with_their_seeds_in_one_press() {
     app.press(Action::Vault(V::LoadWithKeys(0)));
     assert_eq!(app.session.keys.len(), 1, "test key 1 loads with them");
     assert_eq!(app.session.wallets.len(), together.len());
-    assert!(app.vault_wallets_with_keys(0).iter().all(|w| w.done));
+    assert!(app.vault_wallets_with_keys(&c, 0).iter().all(|w| w.done));
 }
 
 #[test]
 fn only_the_chosen_wallets_load_with_their_seeds() {
+    let c = testkit::compute();
     let mut app = device(vec![kit_file("vault.ofv")]);
     // Opened from a flow (the vault way), not the Vaults list: nothing
     // loads until chosen (`docs/NEW-WALLET.md` §11.1a).
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     type_and_unlock(&mut app);
-    let together = app.vault_wallets_with_keys(0);
+    let together = app.vault_wallets_with_keys(&c, 0);
     assert!(together.len() > 1);
     // Keep only the first.
     for w in &together[1..] {
@@ -265,6 +267,7 @@ fn a_vault_with_one_key_lists_keys_every_add_and_no_other_kind() {
 /// is locked: the vault as it is written to the stick, and the key's
 /// words.
 fn vault_holding_a_made_key() -> (Vec<(String, Vec<u8>)>, osk_bip::bip39::Mnemonic) {
+    let c = testkit::compute();
     use faraday_core::create::NewKind;
     use faraday_core::keygen::Way;
     use faraday_core::{StorageCommand, cstep};
@@ -288,7 +291,8 @@ fn vault_holding_a_made_key() -> (Vec<(String, Vec<u8>)>, osk_bip::bip39::Mnemon
     app.press(Action::KLock);
     app.press(Action::KNext);
     let words = app.session.keys[0].words.as_ref().unwrap().to_string();
-    let made = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, &words).unwrap();
+    let made =
+        osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, &words).unwrap();
     app.vaults.ms_per_unit = Some(180);
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
@@ -336,6 +340,7 @@ fn type_words(app: &mut Faraday, language: osk_bip::bip39::Language, m: &osk_bip
 
 #[test]
 fn a_key_whose_words_are_in_the_vault_reads_as_kept_there_and_another_does_not() {
+    let c = testkit::compute();
     use osk_bip::bip39::{Language, Mnemonic};
     let (vault, made) = vault_holding_a_made_key();
     let mut app = device(vault);
@@ -347,27 +352,31 @@ fn a_key_whose_words_are_in_the_vault_reads_as_kept_there_and_another_does_not()
     // other words is not the one it means.
     add_key(&mut app, 0);
     let other = app.session.keys[0].fingerprint();
-    assert!(!app.key_held(other), "a key of other words is held");
+    assert!(!app.key_held(&c, other), "a key of other words is held");
     // The same words typed are the key kept there.
     type_words(&mut app, Language::English, &made);
     assert_eq!(app.session.keys.len(), 2);
     let same = app.session.keys[1].fingerprint();
-    assert!(app.key_held(same), "the words in the vault read as kept");
-    assert!(!app.key_held(other));
+    assert!(
+        app.key_held(&c, same),
+        "the words in the vault read as kept"
+    );
+    assert!(!app.key_held(&c, other));
     // The same seed typed from another language's list reads as kept too.
     let es = Mnemonic::from_indices(Language::Spanish, made.indices()).unwrap();
     type_words(&mut app, Language::Spanish, &es);
     assert_eq!(app.session.keys.len(), 3, "{:?}", app.entry.error);
-    assert!(app.key_held(app.session.keys[2].fingerprint()));
+    assert!(app.key_held(&c, app.session.keys[2].fingerprint()));
 }
 
 // ---- Create's Keys card offers an open vault's keys (NEW-WALLET §16.1) ----
 
 /// The master fingerprint of `words` with no passphrase, worked out here.
 fn fp_of_words(words: &str) -> [u8; 4] {
-    let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, words).unwrap();
-    let seed = m.to_seed(b"").unwrap();
-    osk_bip::keys::MasterKey::from_seed(&seed, testkit::NET)
+    let c = testkit::compute();
+    let m = osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, words).unwrap();
+    let seed = m.to_seed(&c, b"").unwrap();
+    osk_bip::keys::MasterKey::from_seed(&c, &seed, testkit::NET)
         .fingerprint()
         .0
 }
@@ -438,6 +447,7 @@ fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
 
 #[test]
 fn a_threshold_kind_offers_only_a_vaults_shares() {
+    let c = testkit::compute();
     use faraday_core::create::NewKind;
     use faraday_vault::records::{self, field, kind};
     use faraday_vault::{Contents, Cost, Record};
@@ -454,7 +464,7 @@ fn a_threshold_kind_offers_only_a_vaults_shares() {
             "Twenty-four words",
         ),
     ] {
-        let m = Mnemonic::parse(Language::English, &words).unwrap();
+        let m = Mnemonic::parse(&c, Language::English, &words).unwrap();
         contents.records.push(
             Record::new(kind::KEY)
                 .with(field::KEY, &records::words_payload(&m))
@@ -467,6 +477,7 @@ fn a_threshold_kind_offers_only_a_vaults_shares() {
         lanes: 1,
     };
     let file = faraday_vault::create(
+        &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
         &[testkit::VAULT_PASSPHRASES[0].as_bytes()],

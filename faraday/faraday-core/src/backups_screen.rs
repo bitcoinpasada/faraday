@@ -10,6 +10,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::{Action, Faraday};
 use opensigner_core::strings::fill;
+use osk_crypto::work::Compute;
 
 /// A line's state colour.
 fn tone(t: Tone) -> osk_ui::Color {
@@ -45,8 +46,8 @@ fn card_h(e: &Entry) -> f32 {
 }
 
 /// Where the wide list scrolls to show wallet `at` at its top.
-pub(crate) fn offset_of(app: &Faraday, at: usize) -> f32 {
-    app.backups()
+pub(crate) fn offset_of(c: &Compute, app: &Faraday, at: usize) -> f32 {
+    app.backups(c)
         .iter()
         .take(at)
         .map(|e| card_h(e) + GAP)

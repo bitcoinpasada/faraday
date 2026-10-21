@@ -4,6 +4,17 @@ use alloc::vec::Vec;
 use super::records::{Contents, Fault, Record, field, kind};
 use super::*;
 
+/// A token for the tests' key work (`docs/COMPUTE.md` §3), counting
+/// nothing: faraday-core's `testkit::compute` is out of this crate's
+/// reach. Cheap.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a mint: faraday-vault's tests, which cannot reach faraday-core's testkit"
+)]
+fn compute() -> Compute {
+    Compute::new(|_| {})
+}
+
 /// The cheapest cost a reader accepts: what these tests are about is
 /// not the cost.
 const CHEAP: Cost = Cost {
@@ -46,7 +57,9 @@ fn hkdf_matches_rfc_5869() {
 /// number of passphrases.
 #[test]
 fn each_passphrase_opens_its_own_contents() {
+    let c = compute();
     let file = create(
+        &c,
         SMALL,
         CHEAP,
         &[b"first", b"second", b"third"],
@@ -56,10 +69,10 @@ fn each_passphrase_opens_its_own_contents() {
     .unwrap();
     assert_eq!(file.len(), 262_357);
     for (p, t) in [("first", "Email"), ("second", "Bank"), ("third", "Decoy")] {
-        let (_, c) = open(&file, p.as_bytes()).unwrap();
-        assert_eq!(title_of(&c), t);
+        let (_, got) = open(&c, &file, p.as_bytes()).unwrap();
+        assert_eq!(title_of(&got), t);
     }
-    assert_eq!(open(&file, b"fourth").err(), Some(Error::Passphrase));
+    assert_eq!(open(&c, &file, b"fourth").err(), Some(Error::Passphrase));
 }
 
 /// Sealing re-encrypts the open slot and leaves every other byte of the
@@ -67,7 +80,9 @@ fn each_passphrase_opens_its_own_contents() {
 /// that never knew of it.
 #[test]
 fn sealing_changes_only_the_open_slot() {
+    let c = compute();
     let file = create(
+        &c,
         SMALL,
         CHEAP,
         &[b"first", b"second"],
@@ -75,7 +90,7 @@ fn sealing_changes_only_the_open_slot() {
         &[9; 32],
     )
     .unwrap();
-    let (opened, _) = open(&file, b"first").unwrap();
+    let (opened, _) = open(&c, &file, b"first").unwrap();
     let sealed = opened
         .seal(&file, &entry("Email, changed", "a2"), &[3; NONCE_LEN])
         .unwrap();
@@ -90,26 +105,44 @@ fn sealing_changes_only_the_open_slot() {
     assert_eq!(changed.len(), 1);
     assert_eq!(file[..HEADER_LEN], sealed[..HEADER_LEN]);
     assert_eq!(
-        title_of(&open(&sealed, b"first").unwrap().1),
+        title_of(&open(&c, &sealed, b"first").unwrap().1),
         "Email, changed"
     );
-    assert_eq!(title_of(&open(&sealed, b"second").unwrap().1), "Bank");
+    assert_eq!(title_of(&open(&c, &sealed, b"second").unwrap().1), "Bank");
 }
 
 /// A changed header fails every slot rather than opening under other
 /// parameters.
 #[test]
 fn a_changed_header_opens_nothing() {
-    let mut file = create(SMALL, CHEAP, &[b"only"], &[entry("Email", "a")], &[1; 32]).unwrap();
+    let c = compute();
+    let mut file = create(
+        &c,
+        SMALL,
+        CHEAP,
+        &[b"only"],
+        &[entry("Email", "a")],
+        &[1; 32],
+    )
+    .unwrap();
     file[30] ^= 1;
-    assert_eq!(open(&file, b"only").err(), Some(Error::Passphrase));
+    assert_eq!(open(&c, &file, b"only").err(), Some(Error::Passphrase));
 }
 
 /// A cost outside §3's limits, or a slot size §2 does not list, is
 /// refused from the header alone.
 #[test]
 fn the_header_is_checked_before_any_work() {
-    let file = create(SMALL, CHEAP, &[b"only"], &[entry("Email", "a")], &[1; 32]).unwrap();
+    let c = compute();
+    let file = create(
+        &c,
+        SMALL,
+        CHEAP,
+        &[b"only"],
+        &[entry("Email", "a")],
+        &[1; 32],
+    )
+    .unwrap();
     let mut big = file.clone();
     big[5..9].copy_from_slice(&(MAX_MEMORY_KIB + 1).to_le_bytes());
     assert_eq!(read_header(&big).err(), Some(Error::Cost));
@@ -129,8 +162,10 @@ fn the_header_is_checked_before_any_work() {
 /// slot.
 #[test]
 fn create_refuses_what_it_cannot_keep() {
+    let c = compute();
     assert_eq!(
         create(
+            &c,
             SMALL,
             CHEAP,
             &[b"same", b"same"],
@@ -145,7 +180,7 @@ fn create_refuses_what_it_cannot_keep() {
         records: vec![note.clone(), note],
     };
     assert_eq!(
-        create(SMALL, CHEAP, &[b"p"], &[full], &[0; 32]).err(),
+        create(&c, SMALL, CHEAP, &[b"p"], &[full], &[0; 32]).err(),
         Some(Error::Full)
     );
 }
@@ -154,7 +189,9 @@ fn create_refuses_what_it_cannot_keep() {
 /// unknown type and a missing required field are refused.
 #[test]
 fn records_of_every_type_read_back() {
+    let c = compute();
     let words = osk_bip::bip39::Mnemonic::parse(
+        &c,
         osk_bip::bip39::Language::English,
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
     )
@@ -262,6 +299,7 @@ fn records_of_every_type_read_back() {
 /// (`docs/BACKUP-FLOW.md` §17.6).
 #[test]
 fn wallet_shares_seal_and_open_and_one_without_its_text_is_refused() {
+    let c = compute();
     let share = |n: u8, text: &str| {
         Record::new(kind::WALLET_SHARE)
             .with(field::SHARE, text.as_bytes())
@@ -270,14 +308,14 @@ fn wallet_shares_seal_and_open_and_one_without_its_text_is_refused() {
             .with(field::SHARE_OF, &[3])
             .with(field::SHARE_WALLET, b"wsh(sortedmulti(2,A,B,C))")
     };
-    let c = Contents {
+    let contents = Contents {
         records: vec![
             share(1, "wsh(sortedmulti(2,A,B))"),
             share(2, "wsh(sortedmulti(2,B,C))"),
         ],
     };
-    let file = create(SMALL, CHEAP, &[b"shares"], &[c], &[5; 32]).unwrap();
-    let (_, back) = open(&file, b"shares").unwrap();
+    let file = create(&c, SMALL, CHEAP, &[b"shares"], &[contents], &[5; 32]).unwrap();
+    let (_, back) = open(&c, &file, b"shares").unwrap();
     assert_eq!(back.of(kind::WALLET_SHARE).count(), 2);
     for (k, (_, r)) in back.of(kind::WALLET_SHARE).enumerate() {
         assert_eq!(r.text(field::SHARE_WALLET_NAME), Some("Savings"));
@@ -311,15 +349,16 @@ fn wallet_shares_seal_and_open_and_one_without_its_text_is_refused() {
 /// (`docs/BACKUP-FLOW.md` §19.12 item 4).
 #[test]
 fn a_passphrase_record_seals_and_opens_and_one_without_its_passphrase_is_refused() {
-    let c = Contents {
+    let c = compute();
+    let contents = Contents {
         records: vec![
             Record::new(kind::PASSPHRASE)
                 .with(field::PASSPHRASE_KEY, &[0x9a, 0x6a, 0x25, 0x80])
                 .with(field::PASSPHRASE, b"TREZOR"),
         ],
     };
-    let file = create(SMALL, CHEAP, &[b"apart"], &[c], &[6; 32]).unwrap();
-    let (_, back) = open(&file, b"apart").unwrap();
+    let file = create(&c, SMALL, CHEAP, &[b"apart"], &[contents], &[6; 32]).unwrap();
+    let (_, back) = open(&c, &file, b"apart").unwrap();
     let (_, r) = back.of(kind::PASSPHRASE).next().expect("the record");
     assert_eq!(
         r.field(field::PASSPHRASE_KEY),

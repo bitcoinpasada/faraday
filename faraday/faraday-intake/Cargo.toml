@@ -13,6 +13,8 @@ publish = false
 # needed to recognise bytes already read.
 osk-codec = { path = "../../core/osk-codec", default-features = false }
 osk-bip = { path = "../../core/osk-bip" }
+# The token key work takes (docs/COMPUTE.md §2).
+osk-crypto = { path = "../../core/osk-crypto" }
 # The Faraday file envelope, what a whole transfer arrived as, and CBOR.
 faraday-qr = { path = "../faraday-qr" }
 zeroize = { workspace = true, features = ["alloc"] }

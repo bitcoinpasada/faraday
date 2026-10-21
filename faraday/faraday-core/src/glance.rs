@@ -17,6 +17,7 @@
 
 use crate::strings::EN;
 use opensigner_core::strings::fill;
+use osk_crypto::work::Compute;
 use osk_ui::{Color, tokens};
 
 use crate::backup::Tone;
@@ -195,12 +196,13 @@ pub fn plan_of(app: &Faraday, w: usize) -> Option<(plan::Answers, Vec<String>)> 
 
 /// The chart of loaded wallet `w`; `None` for a silent payments wallet,
 /// which has no quorum or plan to draw.
-pub fn of(app: &Faraday, w: usize) -> Option<Glance> {
+pub fn of(c: &Compute, app: &Faraday, w: usize) -> Option<Glance> {
     let wallet = app.session.wallets.get(w)?;
     let plan = plan_of(app, w);
     let none = locked(app, wallet.checksum());
     let notes = app.plan_notes(wallet, None);
     build(
+        c,
         app,
         wallet,
         app.plan_shape(w),
@@ -216,7 +218,7 @@ pub fn of(app: &Faraday, w: usize) -> Option<Glance> {
 /// that vault's plan for it, whether or not the wallet is loaded: a seed
 /// the vault keeps counts as here. `None` for a record that is not a
 /// wallet, or a silent payments wallet.
-pub fn of_vault(app: &Faraday, v: usize, r: usize) -> Option<Glance> {
+pub fn of_vault(c: &Compute, app: &Faraday, v: usize, r: usize) -> Option<Glance> {
     use faraday_vault::records::{field, kind};
     let open = app.vaults.open.get(v)?;
     let rec = open
@@ -238,7 +240,7 @@ pub fn of_vault(app: &Faraday, v: usize, r: usize) -> Option<Glance> {
         .contents
         .of(kind::KEY)
         .filter_map(|(_, k)| {
-            let fp = crate::vault_screens::key_fingerprint(app, k)?;
+            let fp = crate::vault_screens::key_fingerprint(c, app, k)?;
             Some((fp, k.field(field::KEY_PASSPHRASE).is_some()))
         })
         .collect();
@@ -266,6 +268,7 @@ pub fn of_vault(app: &Faraday, v: usize, r: usize) -> Option<Glance> {
     let plan = app.plan_in_vault(v, &wallet, &shape);
     let notes = app.plan_notes(&wallet, Some(v));
     build(
+        c,
         app,
         &wallet,
         shape,
@@ -283,6 +286,7 @@ pub fn of_vault(app: &Faraday, v: usize, r: usize) -> Option<Glance> {
 /// drawing it keeps, which count as here.
 #[allow(clippy::too_many_arguments)]
 fn build(
+    c: &Compute,
     app: &Faraday,
     wallet: &crate::wallet::Wallet,
     shape: plan::Shape,
@@ -312,7 +316,7 @@ fn build(
     let passphrase_key = slots
         .iter()
         .any(|s| s.held_by.is_none() && s.fingerprint.is_some())
-        && !app.vault_passphrase_seeds().is_empty();
+        && !app.vault_passphrase_seeds(c).is_empty();
     let threshold = wallet.policy().record().is_some();
     // Each slot's seed in the plan: a share by its number, else by
     // fingerprint.
@@ -326,7 +330,7 @@ fn build(
     let slot_of: Vec<Option<usize>> = (0..shape.seeds.len())
         .map(|i| (0..slots.len()).find(|&n| seed_of(n, &slots[n]) == Some(i)))
         .collect();
-    let held_keys = app.held_keys();
+    let held_keys = app.held_keys(c);
     let keys: Vec<KeyNode> = slots
         .iter()
         .enumerate()
@@ -356,7 +360,7 @@ fn build(
             // A key an open vault holds loads from it, while short.
             let (action, way_in) = match slot
                 .fingerprint
-                .filter(|f| !held && !quorum_here && app.vault_key_for(*f).is_some())
+                .filter(|f| !held && !quorum_here && app.vault_key_for(c, *f).is_some())
             {
                 Some(f) => (
                     Some(Action::Vault(crate::vaults::VaultAction::LoadKeyOf(f.0))),
@@ -405,7 +409,7 @@ fn build(
     let charted = plan.as_ref().map(|(a, _)| (shape.clone(), a.clone()));
     let backup = match plan {
         Some((a, names)) => backup_nodes(
-            app, &sum, &shape, &a, &names, notes, &slot_of, &keys, any_here,
+            c, app, &sum, &shape, &a, &names, notes, &slot_of, &keys, any_here,
         ),
         None => none,
     };
@@ -456,6 +460,7 @@ fn locked(app: &Faraday, sum: &str) -> Backup {
 /// The plan's map as the chart's nodes, with its check.
 #[allow(clippy::too_many_arguments)]
 fn backup_nodes(
+    c: &Compute,
     app: &Faraday,
     sum: &str,
     shape: &plan::Shape,
@@ -535,7 +540,7 @@ fn backup_nodes(
         _ => label(what),
     };
     let lines = app
-        .backups()
+        .backups(c)
         .into_iter()
         .find(|e| e.sum == sum)
         .and_then(|e| e.lines)

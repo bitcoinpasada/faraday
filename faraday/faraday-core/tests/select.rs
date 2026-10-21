@@ -244,6 +244,7 @@ fn key_card() -> Faraday {
 
 #[test]
 fn an_edit_inside_the_passphrase_makes_the_key_of_the_words_with_the_edited_passphrase() {
+    let c = testkit::compute();
     let mut app = key_card();
     let phrase = app.keygen.as_ref().unwrap().phrase().unwrap();
     app.press(Action::KPassField(0));
@@ -257,7 +258,7 @@ fn an_edit_inside_the_passphrase_makes_the_key_of_the_words_with_the_edited_pass
     type_text(&mut app, "Ride the 8 bus");
     app.press(Action::KLock);
     let want = faraday_core::wallet::Session::default()
-        .add_words_with(&phrase, "Ride the 8 bus", "", None)
+        .add_words_with(&c, &phrase, "Ride the 8 bus", "", None)
         .unwrap()
         .0;
     let added: Vec<[u8; 4]> = app.session.keys.iter().map(|k| k.fingerprint().0).collect();

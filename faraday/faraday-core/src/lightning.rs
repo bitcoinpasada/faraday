@@ -84,6 +84,7 @@ impl Faraday {
 
     /// Finds the node key for the source chosen.
     fn lightning_resolve(&mut self) {
+        let c = self.compute();
         let net = self.session.network();
         let Some(l) = self.lightning.as_ref() else {
             return;
@@ -93,13 +94,13 @@ impl Faraday {
                 let key = self.session.keys.iter().find(|k| k.fingerprint().0 == fp);
                 match key.and_then(|k| Some((k, k.words.as_ref()?))) {
                     None => Err(EN.lightning_this_key.to_string()),
-                    Some((k, words)) => crate::wallet::parse_words(k.language, words)
+                    Some((k, words)) => crate::wallet::parse_words(&c, k.language, words)
                         .map_err(|e| e.to_string())
                         .and_then(|m| {
                             let p = k.passphrase.as_deref().map_or("", |p| p.as_str());
-                            m.to_seed(p.as_bytes()).map_err(|e| e.to_string())
+                            m.to_seed(&c, p.as_bytes()).map_err(|e| e.to_string())
                         })
-                        .map(|seed| node_of(&aezeed::ldk_node_key(&seed, net), None)),
+                        .map(|seed| node_of(&aezeed::ldk_node_key(&c, &seed, net), None)),
                 }
             }
             Some(NodeSource::Aezeed) => {
@@ -116,7 +117,7 @@ impl Faraday {
                     for (slot, w) in idx.iter_mut().zip(&words) {
                         *slot = Language::English.index_of(w).unwrap_or(0);
                     }
-                    let r = aezeed::decode(&idx, l.passphrase.as_bytes())
+                    let r = aezeed::decode(&c, &idx, l.passphrase.as_bytes())
                         .map_err(|e| fill(EN.lightning_not_an_aezeed, &[&format!("{e:?}")]))
                         .map(|seed| {
                             let birthday = aezeed::birthday_date(seed.birthday);
@@ -124,7 +125,7 @@ impl Faraday {
                             entropy
                                 .expose_mut()
                                 .copy_from_slice(seed.entropy().expose());
-                            node_of(&aezeed::node_key(&entropy, net), Some(birthday))
+                            node_of(&aezeed::node_key(&c, &entropy, net), Some(birthday))
                         });
                     zeroize::Zeroize::zeroize(&mut idx);
                     r

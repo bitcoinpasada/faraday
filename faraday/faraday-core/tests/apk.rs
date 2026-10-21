@@ -68,6 +68,7 @@ fn display(app: &mut Faraday) {
 const PASSPHRASE: &str = "apk test";
 
 fn vault_file() -> (String, Vec<u8>) {
+    let c = testkit::compute();
     let contents = faraday_vault::Contents {
         records: vec![faraday_vault::Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Keys")],
     };
@@ -77,6 +78,7 @@ fn vault_file() -> (String, Vec<u8>) {
         lanes: 1,
     };
     let bytes = faraday_vault::create(
+        &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
         &[PASSPHRASE.as_bytes()],
@@ -274,6 +276,7 @@ fn make_an_apk_key_in_the_flow_puts_a_record_in_every_vault_and_the_certificate_
 
 #[test]
 fn the_vault_sealed_and_opened_again_shows_the_same_name_fingerprint_and_package() {
+    let c = testkit::compute();
     use faraday_core::backup_flow_steps::FlowAction as F;
     let mut shell = Shell::new();
     let mut app = flow_to_make(&mut shell, true);
@@ -302,7 +305,7 @@ fn the_vault_sealed_and_opened_again_shows_the_same_name_fingerprint_and_package
         (i.name.clone(), i.bytes.clone())
     };
     assert!(!name.is_empty());
-    let (_, contents) = faraday_vault::open(&bytes, PASSPHRASE.as_bytes()).unwrap();
+    let (_, contents) = faraday_vault::open(&c, &bytes, PASSPHRASE.as_bytes()).unwrap();
     let r = contents.of(kind::APK_KEY).next().unwrap().1;
     assert_eq!(r.field(field::APK_CERT), Some(&cert[..]));
     assert_eq!(r.text(field::APK_PACKAGE), Some(FIXTURE));

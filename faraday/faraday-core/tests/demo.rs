@@ -56,10 +56,11 @@ fn tall(app: &mut Faraday) {
 /// demo has it (online, on mainnet, the public seeds set up), or as the
 /// stick has it.
 fn app_on(demo: bool) -> Faraday {
+    let c = testkit::compute();
     let mut app = common::process(vec![vault_file()], Vec::new(), Vec::new());
     if demo {
         app.online = true;
-        app.session.set_demo();
+        app.session.set_demo(&c);
     }
     common::keep_time(&mut app);
     tall(&mut app);
@@ -86,8 +87,9 @@ fn add_public(app: &mut Faraday, word: &str) -> [u8; 4] {
 
 /// A public seed's fingerprint.
 fn public_fp(word: &str) -> [u8; 4] {
+    let c = testkit::compute();
     let mut s = faraday_core::wallet::Session::default();
-    s.add_words(&demo::words(word), "", None).unwrap().0
+    s.add_words(&c, &demo::words(word), "", None).unwrap().0
 }
 
 /// A key loaded: bacon, typed in unless it is loaded already.
@@ -293,6 +295,7 @@ fn on_the_stick_seed_xor_and_codex32_shares_are_made() {
 
 #[test]
 fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished() {
+    let c = testkit::compute();
     let mut app = app_on(true);
     let fp = a_key(&mut app);
     app.press(Action::KeyWallet(fp, 1));
@@ -325,13 +328,13 @@ fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished()
     app.press(Action::BCheck);
     faraday_core::testkit::type_words(&mut app, &demo::words("bacon"));
     assert!(
-        app.backup_item_done_now(Item::Copy(0)),
+        app.backup_item_done_now(&c, Item::Copy(0)),
         "the copy did not check"
     );
     // The envelopes, then the writes, the last item.
     app.press(Action::BStep(bstep::ENVELOPE));
     app.press(Action::BNext(bstep::ENVELOPE));
-    assert!(app.backup_item_done_now(Item::Envelopes));
+    assert!(app.backup_item_done_now(&c, Item::Envelopes));
     for item in [
         Item::Templates,
         Item::Sheets,
@@ -339,7 +342,7 @@ fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished()
         Item::Envelopes,
     ] {
         if app.backup_items_now().contains(&item_step(item)) {
-            assert!(app.backup_item_done_now(item), "{item:?} is not done");
+            assert!(app.backup_item_done_now(&c, item), "{item:?} is not done");
         }
     }
     assert!(
@@ -412,6 +415,7 @@ fn bip85_value(app: &mut Faraday, a: u8) {
 
 #[test]
 fn in_the_demo_derive_with_bip85_shows_no_value_for_any_application() {
+    let c = testkit::compute();
     for a in 0..faraday_core::bip85::APPS.len() as u8 {
         let mut app = app_on(true);
         unlock(&mut app);
@@ -422,7 +426,7 @@ fn in_the_demo_derive_with_bip85_shows_no_value_for_any_application() {
             assert!(!offered(&mut app, p), "{p:?} offered for app {a}");
             app.press(p);
         }
-        assert!(app.bip85_value().is_none(), "a value for app {a}");
+        assert!(app.bip85_value(&c).is_none(), "a value for app {a}");
         assert!(app.bip85.as_ref().is_some_and(|b| !b.shown));
         assert_eq!(app.sheet, None, "no secret sheet");
         assert_eq!(
@@ -436,7 +440,7 @@ fn in_the_demo_derive_with_bip85_shows_no_value_for_any_application() {
     let mut app = app_on(false);
     bip85_value(&mut app, 0);
     assert!(offered(&mut app, Action::PShow));
-    assert!(app.bip85_value().is_some());
+    assert!(app.bip85_value(&c).is_some());
 }
 
 // ---------------------------------------------------------------------
@@ -668,8 +672,9 @@ fn new_key(app: &mut Faraday, way: Way, words: u8) -> String {
 }
 
 fn fingerprint(words: &str) -> [u8; 4] {
+    let c = testkit::compute();
     let mut s = faraday_core::wallet::Session::default();
-    s.add_words_with(words, "", "", None).unwrap().0
+    s.add_words_with(&c, words, "", "", None).unwrap().0
 }
 
 fn loaded(app: &Faraday) -> Vec<[u8; 4]> {
@@ -729,9 +734,12 @@ fn in_the_demo_new_key_from_every_source_adds_bacon_in_place_of_its_words() {
 
 #[test]
 fn in_the_demo_with_every_public_seed_loaded_lock_in_is_dimmed() {
+    let c = testkit::compute();
     let mut app = app_on(true);
     for w in demo::SEEDS {
-        app.session.add_words(&demo::words(w), "", None).unwrap();
+        app.session
+            .add_words(&c, &demo::words(w), "", None)
+            .unwrap();
     }
     new_key(&mut app, Way::Device, 12);
     assert!(!offered(&mut app, Action::KLock), "Lock in is offered");

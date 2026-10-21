@@ -8,6 +8,7 @@
 use crate::strings::EN;
 use opensigner_core::strings::fill;
 use osk_bip::keys::Fingerprint;
+use osk_crypto::work::Compute;
 use osk_shell_api::Command;
 
 use crate::plan::{At, What};
@@ -15,9 +16,9 @@ use crate::wallet::{Session, fp_text};
 use crate::{Faraday, Sheet};
 
 /// The key `words` make with `pass`, if they are BIP-39 words.
-pub(crate) fn key_of(words: &str, pass: &str) -> Option<Fingerprint> {
+pub(crate) fn key_of(c: &Compute, words: &str, pass: &str) -> Option<Fingerprint> {
     Session::default()
-        .add_words_with(words, pass, "", None)
+        .add_words_with(c, words, pass, "", None)
         .ok()
 }
 
@@ -96,11 +97,11 @@ impl Faraday {
     /// The keys the key scanner for wallet `w` takes, a line each:
     /// "Key 2 · 1A2B3C4D · Place 2", the place where the backup's plan
     /// keeps that seed.
-    pub(crate) fn wallet_key_lines(&self, w: usize) -> Vec<String> {
+    pub(crate) fn wallet_key_lines(&self, c: &Compute, w: usize) -> Vec<String> {
         let Some(wl) = self.session.wallets.get(w) else {
             return Vec::new();
         };
-        let glance = crate::glance::of(self, w);
+        let glance = crate::glance::of(c, self, w);
         let place = |n: usize| -> Option<String> {
             let g = glance.as_ref()?;
             let seed = g.keys.get(n)?.seed?;
@@ -140,7 +141,8 @@ impl Faraday {
 
     /// A seed's words read by wallet `w`'s key scanner.
     pub(crate) fn wallet_key_scanned(&mut self, w: usize, words: &str) {
-        let Some(fp) = key_of(words, "") else {
+        let c = self.compute();
+        let Some(fp) = key_of(&c, words, "") else {
             if let Some(scan) = self.scan.as_mut() {
                 scan.note = Some(EN.scan_key_not_a_seedqr.to_string());
             }
@@ -154,7 +156,7 @@ impl Faraday {
             }
             Found::Missing(n) => {
                 let label = self.wallet_key_label(w, fp);
-                match self.session.add_words_with(words, "", &label, None) {
+                match self.session.add_words_with(&c, words, "", &label, None) {
                     Ok(_) => self.wallet_key_added(w, n),
                     Err(e) => {
                         if let Some(scan) = self.scan.as_mut() {

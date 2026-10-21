@@ -24,6 +24,7 @@ use osk_bip::bitcoin::hashes::{Hash, sha256};
 use osk_bip::codex32::Codex32;
 use osk_bip::keys::{Fingerprint, MasterKey};
 use osk_bip::slip39;
+use osk_crypto::work::Compute;
 use zeroize::Zeroizing;
 
 use crate::create::NewKind;
@@ -328,18 +329,23 @@ pub(crate) enum Secret {
 
 impl Secret {
     /// The master key, with `passphrase` where the form takes one.
-    pub(crate) fn master(&self, passphrase: &str, session: &Session) -> Option<MasterKey> {
-        crate::work::count(crate::work::Work::MasterKey);
+    pub(crate) fn master(
+        &self,
+        c: &Compute,
+        passphrase: &str,
+        session: &Session,
+    ) -> Option<MasterKey> {
         let network = session.network();
         match self {
             Secret::Words(m) => {
-                let seed = m.to_seed(passphrase.as_bytes()).ok()?;
-                Some(MasterKey::from_seed(&seed, network))
+                let seed = m.to_seed(c, passphrase.as_bytes()).ok()?;
+                Some(MasterKey::from_seed(c, &seed, network))
             }
             Secret::Slip39(shares) => {
-                let secret = slip39::recover(shares, passphrase.as_bytes()).ok()?;
+                let secret = slip39::recover(c, shares, passphrase.as_bytes()).ok()?;
                 let bytes = osk_crypto::SeedBytes::new(secret.expose().as_bytes())?;
                 Some(MasterKey::from_seed_bytes(
+                    c,
                     &osk_crypto::Secret::new(bytes),
                     network,
                 ))
@@ -347,6 +353,7 @@ impl Secret {
             Secret::Seed(s) => {
                 let bytes = osk_crypto::SeedBytes::new(s)?;
                 Some(MasterKey::from_seed_bytes(
+                    c,
                     &osk_crypto::Secret::new(bytes),
                     network,
                 ))
@@ -358,18 +365,19 @@ impl Secret {
     /// one.
     pub(crate) fn add(
         &self,
+        c: &Compute,
         passphrase: &str,
         label: &str,
         session: &mut Session,
     ) -> Result<Fingerprint, Refusal> {
         match self {
-            Secret::Words(m) => session.add_words_with(&phrase(m), passphrase, label, None),
+            Secret::Words(m) => session.add_words_with(c, &phrase(m), passphrase, label, None),
             Secret::Slip39(shares) => {
-                let secret = slip39::recover(shares, passphrase.as_bytes())
+                let secret = slip39::recover(c, shares, passphrase.as_bytes())
                     .map_err(|e| Refusal::Words(format!("{e:?}")))?;
-                session.add_seed(secret.expose().as_bytes(), label)
+                session.add_seed(c, secret.expose().as_bytes(), label)
             }
-            Secret::Seed(s) => session.add_seed(s, label),
+            Secret::Seed(s) => session.add_seed(c, s, label),
         }
     }
 }
@@ -387,11 +395,11 @@ fn phrase(m: &Mnemonic) -> Zeroizing<String> {
 }
 
 /// The words a text file spells, in whichever BIP-39 list they are in.
-fn words_of(text: &str) -> Option<Mnemonic> {
+fn words_of(c: &Compute, text: &str) -> Option<Mnemonic> {
     let typed = forms::file_words(text);
     Language::ALL
         .into_iter()
-        .find_map(|lang| crate::wallet::parse_words(lang, &typed).ok())
+        .find_map(|lang| crate::wallet::parse_words(c, lang, &typed).ok())
 }
 
 pub(crate) use faraday_intake::{Part, part_of};
@@ -418,12 +426,17 @@ impl Faraday {
     }
 
     /// The secret a seed source gives.
-    pub(crate) fn inbox_secret(&self, source: &SeedSource) -> Option<Secret> {
-        self.secret_in(&self.inbox, source)
+    pub(crate) fn inbox_secret(&self, c: &Compute, source: &SeedSource) -> Option<Secret> {
+        self.secret_in(c, &self.inbox, source)
     }
 
     /// The secret a seed source among `items` gives.
-    pub(crate) fn secret_in(&self, items: &[Item], source: &SeedSource) -> Option<Secret> {
+    pub(crate) fn secret_in(
+        &self,
+        c: &Compute,
+        items: &[Item],
+        source: &SeedSource,
+    ) -> Option<Secret> {
         let text = |k: &usize| {
             items
                 .get(*k)
@@ -431,7 +444,7 @@ impl Faraday {
         };
         match source {
             SeedSource::Words(k) | SeedSource::WordsWith(k, _) => {
-                words_of(&text(k)?).map(Secret::Words)
+                words_of(c, &text(k)?).map(Secret::Words)
             }
             SeedSource::Slip39(ks) => {
                 let shares: Vec<slip39::Share> = ks
@@ -464,7 +477,12 @@ impl Faraday {
 
     /// The fingerprint a source's seed among `items` has with no
     /// passphrase.
-    fn source_fingerprint(&self, items: &[Item], source: &SeedSource) -> Option<Fingerprint> {
+    fn source_fingerprint(
+        &self,
+        c: &Compute,
+        items: &[Item],
+        source: &SeedSource,
+    ) -> Option<Fingerprint> {
         let tag: &[u8] = match source {
             SeedSource::Words(_) => b"words",
             SeedSource::WordsWith(..) => b"words+passphrase",
@@ -489,8 +507,8 @@ impl Faraday {
         };
         let material = Zeroizing::new(material);
         self.fingerprint_memo(tag, &material, || {
-            self.secret_in(items, source)?
-                .master(&self.source_passphrase(items, source), &self.session)
+            self.secret_in(c, items, source)?
+                .master(c, &self.source_passphrase(items, source), &self.session)
                 .map(|m| m.fingerprint())
         })
     }
@@ -526,23 +544,23 @@ impl Faraday {
     /// (a merge of any split sheets, every file looked at) except while
     /// drawing, where it is that the first time after a change and a
     /// comparison of the session after.
-    pub fn inbox_found(&self) -> Found {
+    pub fn inbox_found(&self, c: &Compute) -> Found {
         if self.drawing.is_on() {
             return crate::drawing::View::new(self).inbox_found();
         }
-        self.inbox_found_now()
+        self.inbox_found_now(c)
     }
 
     /// Works out [`Faraday::inbox_found`] from the state as it is: costs
     /// `found_in`.
-    pub fn inbox_found_now(&self) -> Found {
-        self.found_in(&self.inbox)
+    pub fn inbox_found_now(&self, c: &Compute) -> Found {
+        self.found_in(c, &self.inbox)
     }
 
     /// Everything `items` give, put together, with the session's own keys
     /// and wallets: the Inbox, or the files a boot import holds. Places in
     /// what it returns are places in `items`.
-    pub(crate) fn found_in(&self, items: &[Item]) -> Found {
+    pub(crate) fn found_in(&self, c: &Compute, items: &[Item]) -> Found {
         let mut found = Found::default();
 
         // Seeds: words files, then split seeds that add up, then the
@@ -585,7 +603,7 @@ impl Faraday {
             let mut with = false;
             for (p, name) in &passphrase_files {
                 let src = SeedSource::WordsWith(k, *p);
-                if let Some(fp) = self.source_fingerprint(items, &src)
+                if let Some(fp) = self.source_fingerprint(c, items, &src)
                     && fp_text(fp).eq_ignore_ascii_case(name)
                 {
                     add_seed(&mut found, fp, stem(&item.name), src, loaded_fp(fp));
@@ -596,7 +614,7 @@ impl Faraday {
                 continue;
             }
             let src = SeedSource::Words(k);
-            if let Some(fp) = self.source_fingerprint(items, &src) {
+            if let Some(fp) = self.source_fingerprint(c, items, &src) {
                 add_seed(&mut found, fp, stem(&item.name), src, loaded_fp(fp));
             }
         }
@@ -634,7 +652,7 @@ impl Faraday {
         for (_, ks, need) in slip {
             let src = SeedSource::Slip39(ks.clone());
             match (ks.len() >= usize::from(need))
-                .then(|| self.source_fingerprint(items, &src))
+                .then(|| self.source_fingerprint(c, items, &src))
                 .flatten()
             {
                 Some(fp) => add_seed(
@@ -656,7 +674,7 @@ impl Faraday {
         for (_, ks, need, secret) in codex {
             let src = SeedSource::Codex32(ks.clone());
             match (secret || ks.len() >= need)
-                .then(|| self.source_fingerprint(items, &src))
+                .then(|| self.source_fingerprint(c, items, &src))
                 .flatten()
             {
                 Some(fp) => add_seed(
@@ -902,7 +920,8 @@ impl Faraday {
         skip: &BTreeSet<String>,
         also: &dyn Fn(Fingerprint) -> bool,
     ) -> (usize, usize) {
-        let found = self.found_in(items);
+        let c = self.compute();
+        let found = self.found_in(&c, items);
         let chosen: Vec<FoundWallet> = found
             .to_load()
             .into_iter()
@@ -923,8 +942,11 @@ impl Faraday {
                     .first()
                     .map(|src| self.source_passphrase(items, src))
                     .unwrap_or_default();
-                if let Some(secret) = s.sources.first().and_then(|src| self.secret_in(items, src))
-                    && secret.add(&pass, &s.label, &mut self.session).is_ok()
+                if let Some(secret) = s
+                    .sources
+                    .first()
+                    .and_then(|src| self.secret_in(&c, items, src))
+                    && secret.add(&c, &pass, &s.label, &mut self.session).is_ok()
                 {
                     keys += 1;
                 }
@@ -957,7 +979,8 @@ impl Faraday {
     /// After seeds load on their own (Import and load, Add a key): the
     /// wallets in the Inbox that name them load too.
     pub(crate) fn inbox_load_named(&mut self) -> usize {
-        let found = self.inbox_found_now();
+        let c = self.compute();
+        let found = self.inbox_found_now(&c);
         let loaded: Vec<Fingerprint> = self.session.keys.iter().map(|k| k.fingerprint()).collect();
         let mut n = 0;
         for w in found.to_load() {
@@ -1039,7 +1062,8 @@ impl Faraday {
     /// Opens the sheet for making account xpub `i` of the Inbox a
     /// watch-only wallet.
     pub(crate) fn xpub_open(&mut self, i: usize) {
-        let Some(x) = self.inbox_found_now().xpubs.into_iter().nth(i) else {
+        let c = self.compute();
+        let Some(x) = self.inbox_found_now(&c).xpubs.into_iter().nth(i) else {
             return;
         };
         self.potential = Some(Potential {
@@ -1102,10 +1126,10 @@ impl Faraday {
     }
 
     /// The seed being made a wallet, as the Inbox or the session holds it.
-    fn potential_seed(&self) -> Option<(FoundSeed, Option<Secret>)> {
+    fn potential_seed(&self, c: &Compute) -> Option<(FoundSeed, Option<Secret>)> {
         let fp = self.potential.as_ref()?.fingerprint?;
         let seed = self
-            .inbox_found_now()
+            .inbox_found_now(c)
             .seeds
             .into_iter()
             .find(|s| s.fingerprint == fp)?;
@@ -1113,12 +1137,13 @@ impl Faraday {
             .sources
             .iter()
             .find(|s| **s != SeedSource::Loaded)
-            .and_then(|s| self.inbox_secret(s));
+            .and_then(|s| self.inbox_secret(c, s));
         Some((seed, secret))
     }
 
     /// Works out the fingerprint the typed passphrase gives.
     pub(crate) fn potential_refresh(&mut self) {
+        let c = self.compute();
         let Some(p) = self.potential.as_ref() else {
             return;
         };
@@ -1129,18 +1154,18 @@ impl Faraday {
             p.fingerprint
         } else {
             let pass = p.passphrase.clone();
-            match self.potential_seed() {
-                Some((_, Some(secret))) => {
-                    secret.master(&pass, &self.session).map(|m| m.fingerprint())
-                }
+            match self.potential_seed(&c) {
+                Some((_, Some(secret))) => secret
+                    .master(&c, &pass, &self.session)
+                    .map(|m| m.fingerprint()),
                 Some((seed, None)) => self
                     .session
                     .keys
                     .iter()
                     .find(|k| k.fingerprint() == seed.fingerprint)
                     .and_then(|k| k.words.as_ref().map(|w| (w.clone(), k.language)))
-                    .and_then(|(w, lang)| crate::wallet::parse_words(lang, &w).ok())
-                    .and_then(|m| Secret::Words(m).master(&pass, &self.session))
+                    .and_then(|(w, lang)| crate::wallet::parse_words(&c, lang, &w).ok())
+                    .and_then(|m| Secret::Words(m).master(&c, &pass, &self.session))
                     .map(|m| m.fingerprint()),
                 None => None,
             }
@@ -1152,9 +1177,9 @@ impl Faraday {
 
     /// The wallet here, in the Inbox or loaded, whose key the potential
     /// wallet's seed with its passphrase is.
-    pub fn potential_match(&self) -> Option<String> {
+    pub fn potential_match(&self, c: &Compute) -> Option<String> {
         let with = self.potential.as_ref()?.with?;
-        self.inbox_found()
+        self.inbox_found(c)
             .wallets
             .into_iter()
             .find(|w| w.keys.contains(&with))
@@ -1165,6 +1190,7 @@ impl Faraday {
     /// passphrase typed, if any; a wallet in the Inbox that names the key
     /// so made loads with it; else a single-key wallet of the kind chosen.
     pub(crate) fn potential_make(&mut self) {
+        let c = self.compute();
         // A watch-only wallet holds nothing secret: a stick may stay in.
         if self.potential.as_ref().is_some_and(|p| p.xpub.is_some()) {
             self.xpub_make();
@@ -1186,7 +1212,7 @@ impl Faraday {
         };
         let pass = p.passphrase.clone();
         let kind = p.kind;
-        let Some((seed, secret)) = self.potential_seed() else {
+        let Some((seed, secret)) = self.potential_seed(&c) else {
             return;
         };
         let label = if pass.is_empty() {
@@ -1203,8 +1229,8 @@ impl Faraday {
         // The key itself: already loaded with no passphrase, or added now.
         let added = match (&secret, pass.is_empty()) {
             (_, true) if seed.loaded => Ok(seed.fingerprint),
-            (Some(s), true) => s.add(&kept, &label, &mut self.session),
-            (Some(s), _) => s.add(&pass, &label, &mut self.session),
+            (Some(s), true) => s.add(&c, &kept, &label, &mut self.session),
+            (Some(s), _) => s.add(&c, &pass, &label, &mut self.session),
             (None, false) => {
                 let words = self
                     .session
@@ -1213,7 +1239,7 @@ impl Faraday {
                     .find(|k| k.fingerprint() == seed.fingerprint)
                     .and_then(|k| k.words.clone());
                 match words {
-                    Some(w) => self.session.add_words_with(&w, &pass, &label, None),
+                    Some(w) => self.session.add_words_with(&c, &w, &pass, &label, None),
                     None => Err(Refusal::Words(EN.inbox_this_seed_was.to_string())),
                 }
             }
@@ -1236,9 +1262,9 @@ impl Faraday {
             }
         };
         // A wallet here that names the key: it is the wallet.
-        if self.potential_match().is_some()
+        if self.potential_match(&c).is_some()
             || self
-                .inbox_found_now()
+                .inbox_found_now(&c)
                 .wallets
                 .iter()
                 .any(|w| w.keys.contains(&fp))
@@ -1253,7 +1279,7 @@ impl Faraday {
         let Some(key) = self.session.keys.iter().find(|k| k.fingerprint() == fp) else {
             return;
         };
-        let text = match key.account_text(kind, 0) {
+        let text = match key.account_text(&c, kind, 0) {
             Ok(t) => t,
             Err(e) => {
                 if let Some(p) = self.potential.as_mut() {
@@ -1289,6 +1315,7 @@ impl Faraday {
     /// seed load as a key, which is then a potential wallet or loads with
     /// its wallet; its recovery sheet loads as a wallet.
     fn backup_unseal(&mut self) {
+        let c = self.compute();
         let Some(p) = self.potential.as_ref() else {
             return;
         };
@@ -1300,16 +1327,16 @@ impl Faraday {
         };
         let label = stem(&item.name);
         use osk_backup::oskb::{Error, Opened};
-        let opened = osk_backup::oskb::open_payload(&item.bytes, p.passphrase.as_bytes());
+        let opened = osk_backup::oskb::open_payload(&c, &item.bytes, p.passphrase.as_bytes());
         let result: Result<String, String> = match opened {
             Ok(Opened::Words(m)) => self
                 .session
-                .add_words(&phrase(&m), &label, None)
+                .add_words(&c, &phrase(&m), &label, None)
                 .map(|fp| fill(EN.inbox_loaded_n, &[&fp_text(fp).to_string()]))
                 .map_err(|e| e.text()),
             Ok(Opened::Seed(s)) => self
                 .session
-                .add_seed(&s, &label)
+                .add_seed(&c, &s, &label)
                 .map(|fp| fill(EN.inbox_loaded_n, &[&fp_text(fp).to_string()]))
                 .map_err(|e| e.text()),
             Ok(Opened::Sheet(sheet)) => {

@@ -98,6 +98,7 @@ fn three_here() -> Faraday {
 
 /// Saves into the open vaults what the plan puts in each.
 fn save_vaults(app: &mut Faraday) {
+    let c = testkit::compute();
     let vaults: Vec<usize> = app
         .backup_items_now()
         .into_iter()
@@ -109,7 +110,7 @@ fn save_vaults(app: &mut Faraday) {
     for v in vaults {
         app.press(Action::BVaultSave(v as u8));
         assert!(
-            app.backup_item_done_now(Item::Vault(v)),
+            app.backup_item_done_now(&c, Item::Vault(v)),
             "Vault {} saved",
             v + 1
         );
@@ -276,6 +277,7 @@ fn a_second_vault_at_a_place_goes_on_a_second_stick() {
 /// written.
 #[test]
 fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_recognised() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 2);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
@@ -315,7 +317,7 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
         held(&m, At::Stick(0, 0)),
         vec![What::VaultStick(0), What::SeedFile(1)]
     );
-    assert_eq!(app.backup_kept_nowhere(), None);
+    assert_eq!(app.backup_kept_nowhere(&c), None);
     app.press(Action::BChecklist);
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
     // The files are no items of their own: they go with their sticks.
@@ -375,6 +377,7 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
 /// held until that stick is written (F31).
 #[test]
 fn a_seed_kept_nowhere_holds_the_plan() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
@@ -395,7 +398,7 @@ fn a_seed_kept_nowhere_holds_the_plan() {
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     no_words(&mut app);
     no_paper_description(&mut app);
-    assert!(app.backup_kept_nowhere().is_some(), "kept nowhere");
+    assert!(app.backup_kept_nowhere(&c).is_some(), "kept nowhere");
     app.press(Action::BChecklist);
     assert_eq!(
         app.backup.as_ref().unwrap().stage,
@@ -411,13 +414,13 @@ fn a_seed_kept_nowhere_holds_the_plan() {
         held(&the_map(&app), At::Stick(0, 0)),
         vec![What::SeedQrFile(0)]
     );
-    assert_eq!(app.backup_kept_nowhere(), None);
+    assert_eq!(app.backup_kept_nowhere(&c), None);
     app.press(Action::BChecklist);
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
     assert_eq!(app.backup_items_now(), vec![bstep::ENVELOPE, bstep::STICKS]);
     app.press(Action::BNext(bstep::ENVELOPE));
     assert!(
-        app.key_held(Fingerprint(fp)),
+        app.key_held(&c, Fingerprint(fp)),
         "every item but the write is done, and the key waits for its stick"
     );
     shell.flow(&mut app, F::WalletLock);
@@ -1115,6 +1118,7 @@ fn passphrase_key_on_the_board() -> Faraday {
 /// is kept there alone (§19.12 item 4).
 #[test]
 fn a_passphrase_beside_its_words_is_kept_with_a_warning_and_the_checklist_offered() {
+    let c = testkit::compute();
     let mut app = passphrase_key_on_the_board();
     let words = held(&the_map(&app), At::Place(0));
     assert!(words.contains(&What::Words(0)), "{words:?}");
@@ -1137,7 +1141,7 @@ fn a_passphrase_beside_its_words_is_kept_with_a_warning_and_the_checklist_offere
         &format!("Place 1 keeps {seed}'s words with its passphrase"),
     );
     let view = app
-        .board_marks()
+        .board_marks(&c)
         .into_iter()
         .filter(|(z, _)| *z == Zone::Paper(0))
         .map(|(_, t)| t)
@@ -1167,6 +1171,7 @@ fn a_passphrase_beside_its_words_is_kept_with_a_warning_and_the_checklist_offere
 /// the cards; its words put back on paper let it go.
 #[test]
 fn a_seed_kept_nowhere_on_the_board_holds_the_plan() {
+    let c = testkit::compute();
     let mut app = passphrase_key_on_the_board();
     for p in 0..backup_places(&app) {
         for w in held(&the_map(&app), At::Place(p)) {
@@ -1175,7 +1180,7 @@ fn a_seed_kept_nowhere_on_the_board_holds_the_plan() {
             }
         }
     }
-    assert!(app.backup_kept_nowhere().is_some());
+    assert!(app.backup_kept_nowhere(&c).is_some());
     let seed = backup_shape(&app).seeds[0].name.clone();
     expect_down(&mut app, &format!("Seed {seed} is kept nowhere"));
     app.press(Action::BQ(qstep::PLAN));
@@ -1416,6 +1421,7 @@ fn a_vault_that_holds_something_says_what_before_it_is_taken_off() {
 /// wallet's description (the spending kit, returned). Its backup open on
 /// the board.
 fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
+    let c = testkit::compute();
     use faraday_vault::records::{field, kind};
     sticks(shell, 1);
     // Vault "Main" on S1, holding another wallet's description.
@@ -1437,6 +1443,7 @@ fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
             ],
         }];
         faraday_vault::create(
+            &c,
             faraday_vault::SLOT_SIZES[0],
             cost,
             &[PHRASE.as_bytes()],

@@ -85,7 +85,8 @@ fn unlock_on_vaults(app: &mut Faraday, name: &str, phrase: &str) {
 }
 
 fn words(phrase: &str) -> Mnemonic {
-    Mnemonic::parse(Language::English, phrase).unwrap()
+    let c = testkit::compute();
+    Mnemonic::parse(&c, Language::English, phrase).unwrap()
 }
 
 fn test_key(n: usize) -> Record {
@@ -120,6 +121,7 @@ fn not_at_unlock(mut r: Record) -> Record {
 /// vault does not hold; and two keys in no wallet, the second set not to
 /// load at unlock.
 fn load_vault() -> Vec<u8> {
+    let c = testkit::compute();
     let slot = Contents {
         records: vec![
             Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Cellar"),
@@ -150,6 +152,7 @@ fn load_vault() -> Vec<u8> {
         lanes: 1,
     };
     faraday_vault::create(
+        &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
         &[PHRASE.as_bytes()],
@@ -160,7 +163,8 @@ fn load_vault() -> Vec<u8> {
 }
 
 fn view(app: &Faraday) -> Rc<LoadView> {
-    app.vault_load_view_now().expect("the Load sheet is up")
+    let c = testkit::compute();
+    app.vault_load_view_now(&c).expect("the Load sheet is up")
 }
 
 fn card<'a>(v: &'a LoadView, name: &str) -> &'a LoadCard {
@@ -551,16 +555,17 @@ fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
 /// The 2-of-3 over the three test keys, its third used with a BIP-39
 /// passphrase the vault does not keep.
 fn trio_with_passphrase() -> String {
+    let c = testkit::compute();
     use osk_bip::bitcoin::bip32::DerivationPath;
     use osk_bip::keys::MasterKey;
     let p = "m/48'/1'/0'/2'";
     let m = words(&testkit::test_words(testkit::TEST_SEEDS[2].0));
-    let master = MasterKey::from_seed(&m.to_seed(b"kept apart").unwrap(), testkit::NET);
+    let master = MasterKey::from_seed(&c, &m.to_seed(&c, b"kept apart").unwrap(), testkit::NET);
     let path: DerivationPath = p.parse().unwrap();
     let third = format!(
         "[{}/48h/1h/0h/2h]{}",
         master.fingerprint(),
-        master.derive(&path).to_xpub()
+        master.derive(&c, &path).to_xpub(&c)
     );
     format!(
         "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,{third}/<0;1>/*))",
@@ -572,6 +577,7 @@ fn trio_with_passphrase() -> String {
 /// A vault of the three test keys, the third kept without the
 /// passphrase Trio uses it with, Trio, and `extra`.
 fn trio_vault(extra: Vec<Record>) -> Vec<u8> {
+    let c = testkit::compute();
     let mut records = vec![
         Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Trio"),
         test_key(0),
@@ -586,6 +592,7 @@ fn trio_vault(extra: Vec<Record>) -> Vec<u8> {
         lanes: 1,
     };
     faraday_vault::create(
+        &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
         &[PHRASE.as_bytes()],
@@ -695,13 +702,14 @@ fn a_wrong_passphrase_loads_nothing_and_says_what_it_gave() {
 /// not of the wallet loads nothing whatever passphrase is typed.
 #[test]
 fn two_seeds_with_no_passphrase_are_listed_and_the_other_one_loads_nothing() {
+    let c = testkit::compute();
     let mut app = trio_loaded(vec![loose_key(
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
         "Loose A",
     )]);
     load_with_a_passphrase(&mut app);
     assert!(app.vaults.pass_seeds.as_ref().unwrap().picked.is_none());
-    let seeds = app.vault_passphrase_seeds_now();
+    let seeds = app.vault_passphrase_seeds_now(&c);
     assert_eq!(seeds.len(), 2);
     let _ = app.frame();
     let texts = app.drawn_texts();

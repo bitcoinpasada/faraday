@@ -117,7 +117,8 @@ fn press_offered(app: &mut Faraday, action: Action) {
 }
 
 fn done(app: &Faraday, item: Item) -> bool {
-    app.backup_item_done_now(item)
+    let c = testkit::compute();
+    app.backup_item_done_now(&c, item)
 }
 
 #[test]

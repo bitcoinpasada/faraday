@@ -84,6 +84,7 @@ fn open_codes_from_tools(app: &mut Faraday) {
 
 /// A minimal one-slot vault holding one entry with this field 6 value.
 fn entry_vault(passphrase: &str, label: &str, title: &str, totp: &[u8], seed: u8) -> Vec<u8> {
+    let c = testkit::compute();
     let main = Contents {
         records: vec![
             Record::new(kind::SLOT_LABEL).with(field::LABEL, label.as_bytes()),
@@ -98,6 +99,7 @@ fn entry_vault(passphrase: &str, label: &str, title: &str, totp: &[u8], seed: u8
         lanes: 1,
     };
     faraday_vault::create(
+        &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
         &[passphrase.as_bytes()],

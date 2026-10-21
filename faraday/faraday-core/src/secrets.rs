@@ -200,6 +200,7 @@ impl Faraday {
     /// into a vault as its key record, or as a file, its words or its
     /// SeedQR in the form picked on the step, after the warning.
     pub(crate) fn offer_seed(&mut self) {
+        let c = self.compute();
         use osk_bip::bip39::Language;
         let Some(b) = self.backup.as_ref() else {
             return;
@@ -213,7 +214,7 @@ impl Faraday {
         let Some(words) = key.words.as_ref() else {
             return;
         };
-        let Ok(m) = crate::wallet::parse_words(key.language, words) else {
+        let Ok(m) = crate::wallet::parse_words(&c, key.language, words) else {
             return;
         };
         let fp = key.fingerprint();
@@ -403,6 +404,7 @@ impl Faraday {
     /// The secret to the Outbox unprotected, once the person has said
     /// they understand what it gives away.
     pub(crate) fn secret_unprotected(&mut self) {
+        let c = self.compute();
         if !self.secret_ack {
             return;
         }
@@ -433,7 +435,7 @@ impl Faraday {
         }
         let name = out.name.clone();
         self.outbox.retain(|i| i.name != name);
-        let mut item = crate::Item::new(&name, out.bytes.to_vec());
+        let mut item = crate::Item::new(&c, &name, out.bytes.to_vec());
         item.secret = true;
         self.outbox.push(item);
         self.save_boxes();

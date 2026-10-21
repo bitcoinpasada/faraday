@@ -12,6 +12,7 @@
 use crate::strings::EN;
 use faraday_vault::records::{field, kind};
 use opensigner_core::strings::fill;
+use osk_crypto::work::Compute;
 
 use crate::backup::Tone;
 use crate::plan::{self, At, Tag, What};
@@ -272,6 +273,7 @@ impl Faraday {
     /// `wi` is the loaded wallet, which names the public files.
     pub(crate) fn backup_spots(
         &self,
+        c: &Compute,
         wallet: &Wallet,
         wi: Option<usize>,
         a: &plan::Answers,
@@ -283,7 +285,7 @@ impl Faraday {
             Some(self.session.keys.get(k)?.fingerprint().0)
         };
         let stem = file_stem(&wallet.name);
-        let public = wi.map_or_else(Vec::new, |wi| self.backup_public_names_for(wi, a));
+        let public = wi.map_or_else(Vec::new, |wi| self.backup_public_names_for(c, wi, a));
         // A place with what its sticks keep.
         self.plan_mapped(&shape, a)
             .places
@@ -354,13 +356,14 @@ impl Faraday {
     /// from its plan: when its checklist is made. What was checked is
     /// kept.
     pub(crate) fn backups_sync(&mut self) {
+        let c = self.compute();
         let Some(b) = self.backup.as_ref() else {
             return;
         };
         let Some(wallet) = self.session.wallets.get(b.wallet) else {
             return;
         };
-        let spots = self.backup_spots(wallet, Some(b.wallet), &b.answers);
+        let spots = self.backup_spots(&c, wallet, Some(b.wallet), &b.answers);
         let sum = wallet.checksum().to_string();
         let name = wallet.name.clone();
         let shown = b.shown;
@@ -461,16 +464,16 @@ impl Faraday {
     /// locked one, once each by descriptor checksum, in that order. Kept
     /// in the drawing memo while a frame is drawn (`docs/SPEED.md` §3.3).
     /// Reads each open vault's wallet records as it keeps them read.
-    pub fn backups(&self) -> Vec<Entry> {
+    pub fn backups(&self, c: &Compute) -> Vec<Entry> {
         if self.drawing.is_on() {
             return crate::drawing::View::new(self).backups();
         }
-        self.backups_now()
+        self.backups_now(c)
     }
 
     /// Works out [`Faraday::backups`], from each open vault's wallet
     /// records as it keeps them read ([`crate::vaults::VaultRecords`]).
-    pub fn backups_now(&self) -> Vec<Entry> {
+    pub fn backups_now(&self, c: &Compute) -> Vec<Entry> {
         let mut out: Vec<Entry> = Vec::new();
         let seen = |out: &[Entry], sum: &str| out.iter().any(|e| e.sum == sum);
         for (i, w) in self.session.wallets.iter().enumerate() {
@@ -479,7 +482,7 @@ impl Faraday {
                 continue;
             }
             out.push(Entry {
-                lines: self.backup_lines(w, Some(i), &sum),
+                lines: self.backup_lines(c, w, Some(i), &sum),
                 sum,
                 name: w.name.clone(),
                 shape: Session::shape(w),
@@ -501,7 +504,7 @@ impl Faraday {
                     crate::wallet::Origin::Vault,
                 );
                 out.push(Entry {
-                    lines: self.backup_lines(&w, None, &sum),
+                    lines: self.backup_lines(c, &w, None, &sum),
                     sum,
                     shape: Session::shape(&w),
                     name: w.name,
@@ -518,7 +521,7 @@ impl Faraday {
                     continue;
                 }
                 let lines = match self.backup_records.iter().find(|r| &r.sum == sum) {
-                    Some(r) => Some(self.record_lines(r, sum, &[])),
+                    Some(r) => Some(self.record_lines(c, r, sum, &[])),
                     None if s.planned.contains(sum) => Some(vec![Line {
                         place: EN.backups_plan.to_string(),
                         holds: String::new(),
@@ -544,7 +547,13 @@ impl Faraday {
 
     /// A wallet's map with what was seen of each place: from its record,
     /// else from the plan an open vault keeps for it; `None` with neither.
-    fn backup_lines(&self, w: &Wallet, wi: Option<usize>, sum: &str) -> Option<Vec<Line>> {
+    fn backup_lines(
+        &self,
+        c: &Compute,
+        w: &Wallet,
+        wi: Option<usize>,
+        sum: &str,
+    ) -> Option<Vec<Line>> {
         let shape = self.plan_shape_of(w);
         let kept = self.plan_load_of(w, &shape);
         // The places' names: the backup under way's, else the vault's.
@@ -553,22 +562,22 @@ impl Faraday {
             _ => kept.as_ref().map(|(_, n)| n.clone()).unwrap_or_default(),
         };
         if let Some(r) = self.backup_records.iter().find(|r| r.sum == sum) {
-            return Some(self.record_lines(r, sum, &names));
+            return Some(self.record_lines(c, r, sum, &names));
         }
         let (a, _) = kept?;
         let r = Record {
             sum: sum.to_string(),
             name: w.name.clone(),
-            spots: self.backup_spots(w, wi, &a),
+            spots: self.backup_spots(c, w, wi, &a),
             checks: Vec::new(),
             shown: false,
             answers: String::new(),
         };
-        Some(self.record_lines(&r, sum, &names))
+        Some(self.record_lines(c, &r, sum, &names))
     }
 
     /// A record's lines, each place named and given what was seen of it.
-    fn record_lines(&self, r: &Record, sum: &str, names: &[String]) -> Vec<Line> {
+    fn record_lines(&self, c: &Compute, r: &Record, sum: &str, names: &[String]) -> Vec<Line> {
         // One vault is "Vault"; several are numbered.
         let vaults = r
             .spots
@@ -602,7 +611,7 @@ impl Faraday {
                             (EN.backups_not_checked.to_string(), Tone::Warn)
                         }
                     }
-                    At::Vault(_) => self.vault_state(sum, &s.copies),
+                    At::Vault(_) => self.vault_state(c, sum, &s.copies),
                     At::Away => (EN.backups_not_here.to_string(), Tone::Dim),
                     _ if !s.secret.is_empty() && self.secret_out(&s.secret) => (
                         fill(EN.backups_unprotected, &[self.medium.for_box()]),
@@ -662,7 +671,7 @@ impl Faraday {
     /// The vault that holds the seeds `seeds`, or with none, wallet `sum`,
     /// and where its file stands: an open vault holding them, else a
     /// locked one remembered to.
-    pub(crate) fn vault_state(&self, sum: &str, seeds: &[[u8; 4]]) -> (String, Tone) {
+    pub(crate) fn vault_state(&self, c: &Compute, sum: &str, seeds: &[[u8; 4]]) -> (String, Tone) {
         let files = self.vault_files();
         let wanted: Vec<String> = seeds
             .iter()
@@ -682,7 +691,7 @@ impl Faraday {
                         .is_some_and(|k| {
                             o.contents
                                 .of(kind::KEY)
-                                .any(|(_, r)| crate::vault_screens::record_is_key(self, r, k))
+                                .any(|(_, r)| crate::vault_screens::record_is_key(c, self, r, k))
                         })
                 });
             }
@@ -737,11 +746,11 @@ impl Faraday {
 
     /// The wallet card's backup line (`docs/SIMPLIFY.md` §5.2): "Backup:
     /// paper ×2 checked · vault.ofv · for the stick", or "Not backed up".
-    pub fn backup_line(&self, i: usize) -> String {
+    pub fn backup_line(&self, c: &Compute, i: usize) -> String {
         let Some(sum) = self.session.wallets.get(i).map(|w| w.checksum()) else {
             return String::new();
         };
-        let entry = self.backups().into_iter().find(|e| e.sum == sum);
+        let entry = self.backups(c).into_iter().find(|e| e.sum == sum);
         let Some(lines) = entry.and_then(|e| e.lines) else {
             return EN.backups_not_backed.to_string();
         };

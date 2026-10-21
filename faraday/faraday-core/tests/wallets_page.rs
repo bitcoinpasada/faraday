@@ -28,10 +28,11 @@ fn shown() -> Faraday {
 
 /// A single-key wallet, its one key loaded here.
 fn with_single_key_wallet() -> Faraday {
+    let c = faraday_core::testkit::compute();
     let mut app = shown();
-    app.session.add_words(WORDS, "Seed", None).unwrap();
+    app.session.add_words(&c, WORDS, "Seed", None).unwrap();
     let text = faraday_core::create::NewKind::NativeSegwit
-        .key_text(app.session.keys[0].master())
+        .key_text(&c, app.session.keys[0].master())
         .unwrap();
     let d = format!("wpkh({text}/<0;1>/*)");
     app.session
@@ -45,11 +46,12 @@ fn with_single_key_wallet() -> Faraday {
 /// A watch-only single-key wallet: the key is not held here, so it
 /// cannot sign a message.
 fn with_watch_only_wallet() -> Faraday {
+    let c = faraday_core::testkit::compute();
     let mut app = shown();
     let mut elsewhere = faraday_core::wallet::Session::default();
-    elsewhere.add_words(WORDS, "Seed", None).unwrap();
+    elsewhere.add_words(&c, WORDS, "Seed", None).unwrap();
     let text = faraday_core::create::NewKind::NativeSegwit
-        .key_text(elsewhere.keys[0].master())
+        .key_text(&c, elsewhere.keys[0].master())
         .unwrap();
     let d = format!("wpkh({text}/<0;1>/*)");
     app.session

@@ -141,6 +141,7 @@ impl Parts {
 impl Faraday {
     /// The typed text as one more part. Returns the refusal, if any.
     pub(crate) fn form_add_part(&mut self) {
+        let c = self.compute();
         let form = self.entry.form;
         let text = zeroize::Zeroizing::new(self.entry.typed.trim().to_lowercase());
         let result: Result<(), String> = match form {
@@ -179,7 +180,7 @@ impl Faraday {
                     self.entry.parts.codex32.push(c);
                     Ok(())
                 }),
-            Form::Xor => crate::wallet::parse_words(Language::English, &text)
+            Form::Xor => crate::wallet::parse_words(&c, Language::English, &text)
                 .map_err(|e| fill(EN.forms_not_bip_39_words, &[&e.to_string()]))
                 .and_then(|m| {
                     let e = m.entropy();
@@ -235,6 +236,7 @@ impl Faraday {
     /// Add a key's Make the key and New key's Lock in for a form other
     /// than words both load through here (`docs/NEW-WALLET.md` §15.2).
     pub(crate) fn form_key(&mut self) -> Result<osk_bip::keys::Fingerprint, String> {
+        let c = self.compute();
         let form = self.entry.form;
         let label = match form {
             Form::Slip39 => EN.forms_slip_39_key,
@@ -242,15 +244,17 @@ impl Faraday {
             _ => EN.forms_seed_xor_key,
         };
         match form {
-            Form::Slip39 => {
-                slip39::recover(&self.entry.parts.slip39, self.entry.passphrase.as_bytes())
-                    .map_err(|e| fill(EN.forms_the_shares_do, &[&format!("{e:?}")]))
-                    .and_then(|secret| {
-                        self.session
-                            .add_seed(secret.expose().as_bytes(), label)
-                            .map_err(|e| e.text())
-                    })
-            }
+            Form::Slip39 => slip39::recover(
+                &c,
+                &self.entry.parts.slip39,
+                self.entry.passphrase.as_bytes(),
+            )
+            .map_err(|e| fill(EN.forms_the_shares_do, &[&format!("{e:?}")]))
+            .and_then(|secret| {
+                self.session
+                    .add_seed(&c, secret.expose().as_bytes(), label)
+                    .map_err(|e| e.text())
+            }),
             Form::Codex32 => {
                 let parts = &self.entry.parts.codex32;
                 let seed = match parts.iter().find(|c| c.is_secret()) {
@@ -260,7 +264,7 @@ impl Faraday {
                 seed.map_err(|e| fill(EN.forms_the_strings_do, &[&e.to_string()]))
                     .and_then(|seed| {
                         self.session
-                            .add_seed(seed.expose().bytes(), label)
+                            .add_seed(&c, seed.expose().bytes(), label)
                             .map_err(|e| e.text())
                     })
             }
@@ -282,7 +286,7 @@ impl Faraday {
                         .collect();
                     let phrase = zeroize::Zeroizing::new(words.join(" "));
                     self.session
-                        .add_words_with(&phrase, &self.entry.passphrase, label, None)
+                        .add_words_with(&c, &phrase, &self.entry.passphrase, label, None)
                         .map_err(|e| e.text())
                 }),
             // Words are loaded as words (`Faraday::typed_load`), never here.

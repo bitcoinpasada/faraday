@@ -14,6 +14,7 @@ use faraday_vault::records::{field, kind};
 use opensigner_core::strings::fill;
 use osk_bip::silent::Receiver;
 use osk_bip::silent_wallet::{MAX_LABELS, SilentWallet};
+use osk_crypto::work::Compute;
 use zeroize::Zeroizing;
 
 use crate::wallet::fp_text;
@@ -54,7 +55,30 @@ pub struct SilentState {
     pub check: Option<(String, opensigner_core::silent::Check)>,
     /// Where the flow returns to.
     pub back: Screen,
+    /// What the page shows of the key, kept by what it is derived from
+    /// ([`Faraday::silent_shown`]). Public: no key is kept.
+    pub(crate) shown: std::cell::RefCell<Option<(SilentShownOf, SilentShown)>>,
 }
+
+/// What the Silent page shows that is derived from its key: whether the
+/// wallet's key is loaded, and the address on show. Public.
+#[derive(Clone, Default)]
+pub struct SilentShown {
+    /// Whether the wallet's key is loaded ([`Faraday::silent_key_here`]).
+    pub key_here: bool,
+    /// The address on show ([`Faraday::silent_address`]).
+    pub address: Option<String>,
+}
+
+/// What [`SilentShown`] is derived from: the key, the label, the wallet,
+/// the loaded key's id and the network.
+pub(crate) type SilentShownOf = (
+    Option<[u8; 4]>,
+    u32,
+    Option<usize>,
+    Option<[u8; 32]>,
+    osk_bip::keys::Network,
+);
 
 impl Faraday {
     /// Opens the flow.
@@ -78,6 +102,7 @@ impl Faraday {
             wallet: key.and_then(|fp| self.silent_wallet_of(fp)),
             check: None,
             back: self.screen,
+            shown: Default::default(),
         });
         if let Some(i) = self.silent.as_ref().and_then(|s| s.wallet)
             && let Some(r) = self.session.wallets[i].policy().silent()
@@ -110,6 +135,7 @@ impl Faraday {
             wallet: Some(i),
             check: None,
             back: Screen::Wallets,
+            shown: Default::default(),
         });
         self.screen = Screen::Silent;
     }
@@ -133,14 +159,14 @@ impl Faraday {
     /// while that key is not loaded, or where it is not the key the
     /// wallet was written from (a fingerprint is four bytes; the wallet
     /// is the two points).
-    fn silent_receiver(&self) -> Option<(Receiver, [u8; 4])> {
+    fn silent_receiver(&self, c: &Compute) -> Option<(Receiver, [u8; 4])> {
         let s = self.silent.as_ref()?;
         let key = self
             .session
             .keys
             .iter()
             .find(|k| Some(k.fingerprint().0) == s.key)?;
-        let r = Receiver::derive(key.master(), 0);
+        let r = Receiver::derive(c, key.master(), 0);
         if let Some(w) = self.silent_wallet()
             && w.spend != r.spend_public_key()
         {
@@ -149,23 +175,52 @@ impl Faraday {
         Some((r, key.fingerprint().0))
     }
 
-    /// Whether the wallet's key is loaded, which labels, the scan key and
-    /// a check need.
-    pub fn silent_key_here(&self) -> bool {
-        self.silent_receiver().is_some()
+    /// What the page shows of its key ([`SilentShown`]), kept on the
+    /// flow's state by what it is derived from, by whoever asks first, a
+    /// frame included: a lookup after. Costs two key derivations and an
+    /// address the first time.
+    pub(crate) fn silent_shown(&self, c: &Compute) -> SilentShown {
+        let Some(s) = self.silent.as_ref() else {
+            return SilentShown::default();
+        };
+        let loaded = self
+            .session
+            .keys
+            .iter()
+            .find(|k| Some(k.fingerprint().0) == s.key)
+            .map(|k| k.master_id());
+        let of = (s.key, s.label, s.wallet, loaded, self.session.network());
+        if let Some((o, shown)) = s.shown.borrow().as_ref()
+            && *o == of
+        {
+            return shown.clone();
+        }
+        let shown = crate::work::keeping(|| SilentShown {
+            key_here: self.silent_key_here(c),
+            address: self.silent_address(c),
+        });
+        *s.shown.borrow_mut() = Some((of, shown.clone()));
+        shown
     }
 
-    /// The address on show: unlabelled, or with the chosen label. The
+    /// Whether the wallet's key is loaded, which labels, the scan key and
+    /// a check need: costs two key derivations.
+    pub fn silent_key_here(&self, c: &Compute) -> bool {
+        self.silent_receiver(c).is_some()
+    }
+
+    /// The address on show, unlabelled or with the chosen label: costs
+    /// two key derivations and an address, none for the wallet's own. The
     /// unlabelled one is the wallet's own, with or without its key; a
     /// labelled one needs the scan private key.
-    pub fn silent_address(&self) -> Option<String> {
+    pub fn silent_address(&self, c: &Compute) -> Option<String> {
         let s = self.silent.as_ref()?;
         if s.label == 0
             && let Some(w) = self.silent_wallet()
         {
             return Some(w.address());
         }
-        let (r, _) = self.silent_receiver()?;
+        let (r, _) = self.silent_receiver(c)?;
         let secp = osk_bip::bitcoin::secp256k1::Secp256k1::new();
         let a = if s.label == 0 {
             r.address(&secp)
@@ -177,12 +232,12 @@ impl Faraday {
 
     /// The public record a coordinator keeps: the network, the key's
     /// origin, the labels handed out and the address.
-    pub fn silent_record(&self) -> Option<String> {
+    pub fn silent_record(&self, c: &Compute) -> Option<String> {
         if let Some(w) = self.silent_wallet() {
             return Some(w.to_text());
         }
         let s = self.silent.as_ref()?;
-        let (r, fp) = self.silent_receiver()?;
+        let (r, fp) = self.silent_receiver(c)?;
         let secp = osk_bip::bitcoin::secp256k1::Secp256k1::new();
         Some(
             SilentWallet {
@@ -198,15 +253,15 @@ impl Faraday {
     }
 
     /// The scan key, BIP-392's `spscan1q…`.
-    fn silent_scan_key(&self) -> Option<Zeroizing<String>> {
-        let (r, _) = self.silent_receiver()?;
+    fn silent_scan_key(&self, c: &Compute) -> Option<Zeroizing<String>> {
+        let (r, _) = self.silent_receiver(c)?;
         let k = r.scan_key_text().ok()?;
         Some(Zeroizing::new(k.as_str().to_string()))
     }
 
     /// The QR view of the address on show (as it is, or as a `bitcoin:`
     /// link) or of the record, with the name and label of its picture.
-    pub(crate) fn silent_code(&self, code: crate::Code) -> Result<QrView, String> {
+    pub(crate) fn silent_code(&self, c: &Compute, code: crate::Code) -> Result<QrView, String> {
         let s = self.silent.as_ref().ok_or(EN.silent_silent_payments_is)?;
         let fp = fp_text(osk_bip::keys::Fingerprint(
             s.key.ok_or(EN.silent_choose_a_key)?,
@@ -216,7 +271,7 @@ impl Faraday {
             crate::Code::Silent(uri) => {
                 let a = self
                     .session
-                    .shown(&self.silent_address().ok_or(EN.silent_no_address_for)?);
+                    .shown(&self.silent_address(c).ok_or(EN.silent_no_address_for)?);
                 let mut name = format!("silent-{fp}");
                 if s.label > 0 {
                     lines.push(fill(EN.silent_label, &[&s.label.to_string()]));
@@ -234,7 +289,7 @@ impl Faraday {
                 (EN.silent_silent_payments_address, text, name)
             }
             _ => {
-                let text = self.silent_record().ok_or(EN.silent_no_record_for)?;
+                let text = self.silent_record(c).ok_or(EN.silent_no_record_for)?;
                 lines.push(EN.silent_public_watch.to_string());
                 (
                     EN.silent_silent_payments_record,
@@ -244,6 +299,7 @@ impl Faraday {
             }
         };
         Ok(QrView::of(
+            c,
             title,
             QrSource::Text(text),
             QrFormat::Ur,
@@ -254,19 +310,20 @@ impl Faraday {
 
     /// One press inside the flow.
     pub(crate) fn silent_act(&mut self, action: crate::Action) {
+        let c = self.compute();
         use crate::Action as A;
         match action {
             A::Silent => return self.silent_open(),
             A::SQr(uri) => {
-                if self.silent_address().is_some() {
-                    let view = self.silent_code(crate::Code::Silent(uri));
+                if self.silent_address(&c).is_some() {
+                    let view = self.silent_code(&c, crate::Code::Silent(uri));
                     self.open_qr(view);
                 }
                 return;
             }
             A::SRecord => {
                 let fp = self.silent.as_ref().and_then(|s| s.key);
-                if let (Some(text), Some(fp)) = (self.silent_record(), fp) {
+                if let (Some(text), Some(fp)) = (self.silent_record(&c), fp) {
                     let name = format!("silent-{}.txt", fp_text(osk_bip::keys::Fingerprint(fp)));
                     self.put_outbox(&name, text.into_bytes());
                     self.toast_out(&name);
@@ -277,7 +334,8 @@ impl Faraday {
                 if self.vaults.open.get(self.vaults.current).is_none() {
                     return self.toast(EN.silent_no_vault_is);
                 }
-                let (Some(key), Some((_, fp))) = (self.silent_scan_key(), self.silent_receiver())
+                let (Some(key), Some((_, fp))) =
+                    (self.silent_scan_key(&c), self.silent_receiver(&c))
                 else {
                     return;
                 };
@@ -293,7 +351,8 @@ impl Faraday {
                 return;
             }
             A::SScanOut => {
-                let (Some(key), Some((_, fp))) = (self.silent_scan_key(), self.silent_receiver())
+                let (Some(key), Some((_, fp))) =
+                    (self.silent_scan_key(&c), self.silent_receiver(&c))
                 else {
                     return;
                 };
@@ -363,7 +422,8 @@ impl Faraday {
     /// The key's silent payments wallet into the session's wallets: the
     /// two public keys, the key's origin and the labels handed out.
     fn silent_add_wallet(&mut self) {
-        let Some(text) = self.silent_record() else {
+        let c = self.compute();
+        let Some(text) = self.silent_record(&c) else {
             return self.toast(EN.silent_load_the_key);
         };
         let Some(fp) = self.silent.as_ref().and_then(|s| s.key) else {
@@ -393,6 +453,7 @@ impl Faraday {
     /// previous transaction Files has for it, and works the answer out
     /// once every previous output is known.
     fn silent_check(&mut self, k: usize) {
+        let c = self.compute();
         let Some(item) = self.inbox.get(k) else {
             return;
         };
@@ -408,7 +469,7 @@ impl Faraday {
                 break;
             }
         }
-        if let Some(answer) = self.silent_answer(&check) {
+        if let Some(answer) = self.silent_answer(&c, &check) {
             check.set_result(answer);
         }
         if let Some(s) = self.silent.as_mut() {
@@ -422,6 +483,7 @@ impl Faraday {
     /// looked for.
     fn silent_answer(
         &self,
+        c: &Compute,
         check: &opensigner_core::silent::Check,
     ) -> Option<opensigner_core::silent::Checked> {
         use opensigner_core::silent::{Checked, Paid};
@@ -434,7 +496,7 @@ impl Faraday {
                 return Some(Checked::Unsigned);
             }
         }
-        let Some((receiver, _)) = self.silent_receiver() else {
+        let Some((receiver, _)) = self.silent_receiver(c) else {
             return Some(Checked::KeyNotLoaded);
         };
         let labels_out = self

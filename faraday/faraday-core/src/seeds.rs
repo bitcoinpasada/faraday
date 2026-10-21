@@ -14,6 +14,7 @@ use crate::strings::EN;
 use crate::wallet::FileKind;
 use crate::{Faraday, Screen, family};
 use opensigner_core::strings::fill;
+use osk_crypto::work::Compute;
 
 /// The kinds a wallet of one key can be.
 pub const SINGLE: [NewKind; 4] = family::SINGLE;
@@ -457,7 +458,7 @@ impl Faraday {
     }
 
     /// The descriptor the piece describes now, or what it still lacks.
-    pub fn seeds_descriptor(&self, s: &SeedsState) -> Result<String, String> {
+    pub fn seeds_descriptor(&self, c: &Compute, s: &SeedsState) -> Result<String, String> {
         let net = self.session.network();
         let path = s.path(net);
         let path = create::normal_path(&path)
@@ -466,7 +467,7 @@ impl Faraday {
         let mut keys = Vec::new();
         for fp in self.seeds_here(s) {
             let key = self.session_key(fp).ok_or(EN.seeds_a_seed_is_no)?;
-            keys.push(key.text_at(&path)?);
+            keys.push(key.text_at(c, &path)?);
         }
         if keys.is_empty() {
             return Err(EN.seeds_no_seed_yet.to_string());
@@ -518,8 +519,8 @@ impl Faraday {
     /// whoever asks, a frame included, and kept on the state by the
     /// description and network it comes from, a lookup after (public).
     /// Costs a parse of the description and an address the first time.
-    pub fn seeds_address(&self, s: &SeedsState) -> Result<String, String> {
-        let d = self.seeds_descriptor(s)?;
+    pub fn seeds_address(&self, c: &Compute, s: &SeedsState) -> Result<String, String> {
+        let d = self.seeds_descriptor(c, s)?;
         let net = self.session.network();
         if let Some((.., a)) = self
             .seeds_addresses
@@ -632,6 +633,7 @@ impl Faraday {
 
     /// Loads a seed from an open vault into the flow.
     fn seeds_from_vault(&mut self, v: usize, record: usize) {
+        let c = self.compute();
         let Some(want) = self
             .vaults
             .open
@@ -641,7 +643,7 @@ impl Faraday {
                     .of(faraday_vault::records::kind::KEY)
                     .find(|(i, _)| *i == record)
             })
-            .and_then(|(_, r)| crate::vault_screens::key_fingerprint(self, r))
+            .and_then(|(_, r)| crate::vault_screens::key_fingerprint(&c, self, r))
         else {
             return;
         };
@@ -674,6 +676,7 @@ impl Faraday {
     /// Makes the wallet the piece describes and carries on: Restore to
     /// its Check card, the Spend tab to its next page.
     fn seeds_make(&mut self) {
+        let c = self.compute();
         if self.screen == Screen::Restore && self.restore.as_ref().is_some_and(|r| r.described) {
             self.restore_described_make();
             return;
@@ -681,7 +684,7 @@ impl Faraday {
         let Some(s) = self.seeds().cloned() else {
             return;
         };
-        let d = match self.seeds_descriptor(&s) {
+        let d = match self.seeds_descriptor(&c, &s) {
             Ok(d) => d,
             Err(e) => {
                 if let Some(s) = self.seeds_mut() {
@@ -790,11 +793,11 @@ impl Faraday {
 
 /// The keys open vaults hold that are not loaded: the vault, the record
 /// and the key's fingerprint as text.
-pub(crate) fn vault_seeds(app: &Faraday) -> Vec<(usize, usize, String)> {
+pub(crate) fn vault_seeds(c: &Compute, app: &Faraday) -> Vec<(usize, usize, String)> {
     let mut out = Vec::new();
     for (v, open) in app.vaults.open.iter().enumerate() {
         for (i, r) in open.contents.of(faraday_vault::records::kind::KEY) {
-            if let Some(fp) = crate::vault_screens::key_fingerprint(app, r)
+            if let Some(fp) = crate::vault_screens::key_fingerprint(c, app, r)
                 && !app
                     .session
                     .keys

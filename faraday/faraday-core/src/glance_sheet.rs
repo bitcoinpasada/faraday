@@ -20,6 +20,7 @@
 
 use crate::strings::EN;
 use opensigner_core::strings::fill;
+use osk_crypto::work::Compute;
 use osk_ui::widgets::Icon;
 use osk_ui::{Color, tokens};
 
@@ -188,16 +189,16 @@ fn row(label: impl Into<String>, sub: impl Into<String>, action: Option<Action>)
 }
 
 /// The chart a press was made on.
-fn chart(app: &Faraday, press: Press) -> Option<Glance> {
+fn chart(c: &Compute, app: &Faraday, press: Press) -> Option<Glance> {
     match press {
-        Press::Loaded(w) => glance::of(app, w),
-        Press::Vault(v, r) => glance::of_vault(app, v, r),
+        Press::Loaded(w) => glance::of(c, app, w),
+        Press::Vault(v, r) => glance::of_vault(c, app, v, r),
     }
 }
 
 /// Where backup node `n` of the chart of `press` is.
-pub(crate) fn node_at(app: &Faraday, press: Press, n: u8) -> Option<At> {
-    match chart(app, press)?.backup {
+pub(crate) fn node_at(c: &Compute, app: &Faraday, press: Press, n: u8) -> Option<At> {
+    match chart(c, app, press)?.backup {
         Backup::Plan { nodes, .. } => nodes.get(usize::from(n)).map(|x| x.at),
         _ => None,
     }
@@ -242,8 +243,8 @@ fn check_facts(before: plan::Check, after: plan::Check) -> Vec<(&'static str, St
 
 /// The sheet for `target` on the chart of `press`; `None` when it is no
 /// longer there.
-pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> {
-    let g = chart(app, press)?;
+pub(crate) fn view(c: &Compute, app: &Faraday, press: Press, target: Target) -> Option<View> {
+    let g = chart(c, app, press)?;
     let chart_do = |a: ChartAction| Some(Action::Chart(a));
     let doing = |s: Step| chart_do(ChartAction::Do(press, s));
     let open = |t: Target| chart_do(ChartAction::Open(press, t));
@@ -1303,7 +1304,7 @@ pub(crate) fn draw(app: &crate::drawing::View, ui: &mut Ui, w: f32, h: f32) {
     let Some((press, target)) = app.chart else {
         return;
     };
-    let Some(v) = view(app, press, target) else {
+    let Some(v) = app.glance_sheet(press, target) else {
         return;
     };
     let (place, margin, pad) = if ui.compact {
@@ -1447,12 +1448,13 @@ fn menu_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &Row) -> f32 {
 impl Faraday {
     /// What a press on the chart or its sheets does.
     pub(crate) fn chart_act(&mut self, a: ChartAction) {
+        let c = self.compute();
         match a {
             ChartAction::Open(press, target) => {
                 // A sheet that types or chooses starts from what is kept.
                 match target {
                     Target::Remove(n) => {
-                        let things = chart(self, press)
+                        let things = chart(&c, self, press)
                             .and_then(|g| match g.backup {
                                 Backup::Plan { nodes, .. } => {
                                     nodes.get(usize::from(n)).map(|x| x.whats.len())
@@ -1463,12 +1465,12 @@ impl Faraday {
                         self.chart_work.dest = vec![None; things];
                     }
                     Target::Holder(k) => {
-                        self.chart_work.text = chart(self, press)
+                        self.chart_work.text = chart(&c, self, press)
                             .and_then(|g| g.keys.get(usize::from(k)).and_then(|k| k.holder.clone()))
                             .unwrap_or_default();
                     }
                     Target::VaultName(n) => {
-                        self.chart_work.text = chart(self, press)
+                        self.chart_work.text = chart(&c, self, press)
                             .and_then(|g| match g.backup {
                                 Backup::Plan { nodes, .. } => {
                                     nodes.get(usize::from(n)).map(|x| x.name.clone())

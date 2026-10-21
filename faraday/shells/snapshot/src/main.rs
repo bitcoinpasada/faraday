@@ -96,6 +96,7 @@ use faraday_core::{
     Action, BootPart, Faraday, Medium, Screen, StickInfo, StorageCommand, StorageEvent, bstep,
     qrow, qstep,
 };
+use osk_crypto::work::Compute;
 use osk_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
 
 struct Tour {
@@ -623,11 +624,11 @@ fn pills_tour(t: &mut Tour) -> Result<(), String> {
 
 /// A released Faraday Desktop's first screen: testnet, behind the online
 /// warning (F61), then Home once it is acknowledged.
-fn start_warning_tour(t: &mut Tour) -> Result<(), String> {
+fn start_warning_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.app.online = true;
     t.app.shell_sticks = true;
     t.app.session = faraday_core::wallet::Session::default();
-    t.app.session.set_demo();
+    t.app.session.set_demo(c);
     t.app
         .session
         .set_network(testkit::NET)
@@ -640,10 +641,10 @@ fn start_warning_tour(t: &mut Tour) -> Result<(), String> {
 
 /// The demo's dimmed actions (`docs/DEMO.md` §7): BIP-85's Value card
 /// and the Lightning node key, on a public seed.
-fn demo_tour(t: &mut Tour) -> Result<(), String> {
+fn demo_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.app.online = true;
     t.app.session = faraday_core::wallet::Session::default();
-    t.app.session.set_demo();
+    t.app.session.set_demo(c);
     t.press(Action::Entry(None));
     type_text(t, &faraday_core::demo::words("bacon"));
     t.press(Action::EntryAdd);
@@ -687,6 +688,7 @@ fn osk_tour(t: &mut Tour) -> Result<(), String> {
 }
 
 fn run(
+    c: &Compute,
     size: (u16, u16),
     dpi: u16,
     kit: &Path,
@@ -725,8 +727,8 @@ fn run(
         Some("compact") => return compact_tour(&mut t),
         Some("seeds") => return seeds_tour(&mut t),
         Some("keys") => return keys_tour(&mut t),
-        Some("visit") => return visit_tour(&mut t),
-        Some("copy") => return copy_tour(&mut t),
+        Some("visit") => return visit_tour(c, &mut t),
+        Some("copy") => return copy_tour(c, &mut t),
         Some("scan") => return scan_tour(&mut t),
         Some("public") => return public_tour(&mut t),
         Some("seedfile") => return seedfile_tour(&mut t),
@@ -737,25 +739,25 @@ fn run(
         Some("board") => return board_tour(&mut t),
         Some("menu") => return menu_tour(&mut t),
         Some("inbox") => return inbox_tour(&mut t),
-        Some("transfer") => return transfer_tour(&mut t),
+        Some("transfer") => return transfer_tour(c, &mut t),
         Some("upgrade") => return upgrade_tour(&mut t),
-        Some("glance") => return glance_tour(&mut t),
-        Some("chartedit") => return chart_edit_tour(&mut t),
-        Some("fromvault") => return from_vault_tour(&mut t),
-        Some("first") => return first_tour(&mut t),
+        Some("glance") => return glance_tour(c, &mut t),
+        Some("chartedit") => return chart_edit_tour(c, &mut t),
+        Some("fromvault") => return from_vault_tour(c, &mut t),
+        Some("first") => return first_tour(c, &mut t),
         Some("restore") => return restore_tour(&mut t),
         Some("osk") => return osk_tour(&mut t),
         Some("flow") => return flow_tour(&mut t),
         Some("bootplace") => return boot_place_tour(&mut t),
-        Some("passseeds") => return pass_seeds_tour(&mut t),
+        Some("passseeds") => return pass_seeds_tour(c, &mut t),
         Some("power") => return power_tour(&mut t),
         Some("pills") => return pills_tour(&mut t),
         Some("walletflow") => return wallet_flow_tour(&mut t),
-        Some("demo") => return demo_tour(&mut t),
-        Some("startwarn") => return start_warning_tour(&mut t),
+        Some("demo") => return demo_tour(c, &mut t),
+        Some("startwarn") => return start_warning_tour(c, &mut t),
         Some("vaultshow") => return vault_show_tour(&mut t),
         Some("addkey") => return add_key_tour(&mut t),
-        Some("createfrom") => return create_from_tour(&mut t),
+        Some("createfrom") => return create_from_tour(c, &mut t),
         Some("inprogress") => return in_progress_tour(&mut t),
         Some("cancel") => return cancel_tour(&mut t),
         Some("std") => return standard_tour(&mut t),
@@ -1200,6 +1202,7 @@ fn run(
     });
     t.shot("scan-seedqr")?;
     let zebra = osk_bip::bip39::Mnemonic::parse(
+        c,
         osk_bip::bip39::Language::English,
         &testkit::test_words("zebra"),
     )
@@ -1309,7 +1312,7 @@ fn run(
     t.shot("backup-seed")?;
     // The copy scanned with its third word drawn wrong.
     t.press(Action::BScan);
-    let wrong = copy_digits(&t, Some(2))?;
+    let wrong = copy_digits(c, &t, Some(2))?;
     t.app.event(Event::Scanned { bytes: wrong });
     t.shot("backup-scan-wrong")?;
     t.press(Action::Cancel);
@@ -1430,7 +1433,7 @@ fn run(
     t.shot("create-keys-later")?;
     t.press(Action::CNext(2));
     t.shot("create-waiting")?;
-    if t.app.create_keys().is_ok() {
+    if t.app.create_keys(c).is_ok() {
         return Err("a wallet with a key to come could be made".into());
     }
     t.press(Action::Nav(Screen::Start));
@@ -1845,9 +1848,9 @@ fn run(
         }
     }
     t.pump();
-    let (_, main) = faraday_vault::open(&sealed, testkit::VAULT_PASSPHRASES[0].as_bytes())
+    let (_, main) = faraday_vault::open(c, &sealed, testkit::VAULT_PASSPHRASES[0].as_bytes())
         .map_err(|e| e.reason())?;
-    let (_, decoy) = faraday_vault::open(&sealed, testkit::VAULT_PASSPHRASES[1].as_bytes())
+    let (_, decoy) = faraday_vault::open(c, &sealed, testkit::VAULT_PASSPHRASES[1].as_bytes())
         .map_err(|e| e.reason())?;
     let slot = 65_536 + 40;
     let changed = (0..4)
@@ -1889,7 +1892,7 @@ fn run(
     t.press(Action::Nav(Screen::Backups));
     let at = t
         .app
-        .backups_now()
+        .backups_now(c)
         .iter()
         .position(|e| e.name == "Spending")
         .ok_or("Spending is not listed after the lock")?;
@@ -1962,7 +1965,7 @@ fn run(
             )
         })?;
     for p in [dice_phrase.as_str(), "second passphrase"] {
-        faraday_vault::open(&made, p.as_bytes()).map_err(|e| format!("{p}: {}", e.reason()))?;
+        faraday_vault::open(c, &made, p.as_bytes()).map_err(|e| format!("{p}: {}", e.reason()))?;
     }
     // Made: Unlock, the new vault picked, its passphrase asked once more.
     t.shot("create-vault-unlock")?;
@@ -1991,7 +1994,7 @@ fn run(
     t.shot("files-outbox-vault-open")?;
     println!("the vault just made opens on its first passphrase typed again");
     seeds_tour(&mut t)?;
-    boot_tour(&mut t)?;
+    boot_tour(c, &mut t)?;
     spend_tour(&mut t)?;
     // Tools: every flow, and Find a tool.
     t.press(Action::Nav(Screen::Catalog));
@@ -2052,7 +2055,7 @@ fn run(
     // Last, since nothing after it does anything: a self-test that failed.
     t.app.run_selftest_with(&[osk_selftest::Check {
         name: "BIP-39 vector (entropy → words → seed)",
-        run: || false,
+        run: |_| false,
     }]);
     t.shot("selftest-failed")?;
     Ok(())
@@ -2077,7 +2080,7 @@ fn test_key_1(t: &Tour) -> Result<[u8; 4], String> {
 /// leading with the vault's Unlock; the right passphrase loads the
 /// vault's wallets and keys. Then a wallet made here is saved into the
 /// vault.
-fn boot_tour(t: &mut Tour) -> Result<(), String> {
+fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::Sheet;
     use faraday_core::boot_import::ImportAction as I;
     t.press(Action::Lock);
@@ -2200,7 +2203,7 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::BChecklist);
     // The items before the vault's wait for it (`docs/NEW-WALLET.md`
     // §14.1): each copy by hand checked in turn, then the vault.
-    items_before(t, faraday_core::bstep::VAULT)?;
+    items_before(c, t, faraday_core::bstep::VAULT)?;
     if t.app.backup.as_ref().and_then(|b| b.open) != Some(faraday_core::bstep::VAULT) {
         t.press(Action::BStep(faraday_core::bstep::VAULT));
     }
@@ -2410,7 +2413,7 @@ fn upgrade_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-fn transfer_tour(t: &mut Tour) -> Result<(), String> {
+fn transfer_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let downloads = t.out.join("downloads");
     std::fs::create_dir_all(&downloads).map_err(|e| e.to_string())?;
     let put = |name: &str, bytes: &[u8]| -> Result<(), String> {
@@ -2435,7 +2438,7 @@ fn transfer_tour(t: &mut Tour) -> Result<(), String> {
     // for its warning (F20).
     t.app.online = true;
     t.app.session = faraday_core::wallet::Session::default();
-    t.app.session.set_demo();
+    t.app.session.set_demo(c);
     t.press(Action::Network(testkit::NET));
     t.shot("test-network")?;
     t.press(Action::AirgapUnderstood);
@@ -2865,7 +2868,7 @@ fn keys_tour(t: &mut Tour) -> Result<(), String> {
 /// unprotected secret: the Outbox list at its top and scrolled to its end
 /// by the wheel over it, then the stick's files at their end beside it.
 /// On a small panel the page scrolls as one.
-fn visit_tour(t: &mut Tour) -> Result<(), String> {
+fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::wallet::classify;
     let stem = "family-savings";
     let mut names: Vec<String> = [
@@ -2892,7 +2895,7 @@ fn visit_tour(t: &mut Tour) -> Result<(), String> {
         let bytes = vec![b'#'; 1800];
         t.app.outbox.push(faraday_core::Item {
             name: name.clone(),
-            kind: classify(name, &bytes),
+            kind: classify(c, name, &bytes),
             bytes,
             secret: false,
             picture: None,
@@ -3019,11 +3022,11 @@ fn inbox_tour(t: &mut Tour) -> Result<(), String> {
 
 /// The SeedQR digits of the seed the backup shows, as a camera reads
 /// them off the copy; with `wrong`, that word's number one off.
-fn copy_digits(t: &Tour, wrong: Option<usize>) -> Result<Vec<u8>, String> {
+fn copy_digits(c: &Compute, t: &Tour, wrong: Option<usize>) -> Result<Vec<u8>, String> {
     let b = t.app.backup.as_ref().ok_or("no backup")?;
     let key = t.app.session.keys.get(b.key).ok_or("no key")?;
     let words = key.words.as_deref().ok_or("no words")?;
-    let m = osk_bip::bip39::Mnemonic::parse(key.language, words.as_str())
+    let m = osk_bip::bip39::Mnemonic::parse(c, key.language, words.as_str())
         .map_err(|e| format!("{e}"))?;
     let mut digits = osk_codec::seedqr::to_digits(&m)
         .expose()
@@ -3053,9 +3056,9 @@ fn type_words(t: &mut Tour, count: Option<usize>) -> Result<(), String> {
 /// Does each checklist item before `target` in the checklist's order,
 /// as a person must (`docs/NEW-WALLET.md` §14.1): a copy by hand is
 /// checked by its words typed back, the envelopes by their Continue.
-fn items_before(t: &mut Tour, target: u8) -> Result<(), String> {
+fn items_before(c: &Compute, t: &mut Tour, target: u8) -> Result<(), String> {
     use faraday_core::bstep;
-    while let Some(n) = t.app.backup_waiting() {
+    while let Some(n) = t.app.backup_waiting(c) {
         if n == target {
             break;
         }
@@ -3067,7 +3070,7 @@ fn items_before(t: &mut Tour, target: u8) -> Result<(), String> {
             type_words(t, None)?;
         }
         t.press(Action::BNext(n));
-        if t.app.backup_waiting() == Some(n) {
+        if t.app.backup_waiting(c) == Some(n) {
             return Err(format!("checklist item {n} was not done in turn"));
         }
     }
@@ -3421,7 +3424,7 @@ fn public_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-fn copy_tour(t: &mut Tour) -> Result<(), String> {
+fn copy_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::board::{BoardPress, Thing, Zone};
     t.load_kit()?;
     t.press(Action::Backup(0));
@@ -3450,10 +3453,10 @@ fn copy_tour(t: &mut Tour) -> Result<(), String> {
     scroll_to(t, Action::BScan);
     t.shot("copy-camera")?;
     t.press(Action::BScan);
-    let wrong = copy_digits(t, Some(4))?;
+    let wrong = copy_digits(c, t, Some(4))?;
     t.app.event(Event::Scanned { bytes: wrong });
     t.shot("copy-scan-differs")?;
-    let right = copy_digits(t, None)?;
+    let right = copy_digits(c, t, None)?;
     t.app.event(Event::Scanned { bytes: right });
     scroll_to(t, Action::BScan);
     t.shot("copy-scan-matched")?;
@@ -4020,7 +4023,7 @@ fn open_a_vault(t: &mut Tour, phrase: &str) -> Result<(), String> {
 /// (`docs/NEW-WALLET.md` §9): the wallet, a key here, a cosigner's key, a
 /// place, a vault, a line inside a place; Where it is; and in the open
 /// vault's view, a place's.
-fn glance_tour(t: &mut Tour) -> Result<(), String> {
+fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
     use faraday_core::glance::Press;
     use faraday_core::glance_sheet::{ChartAction as C, Target};
@@ -4034,7 +4037,7 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     t.type_key(0);
     let one = {
         let text = NewKind::NativeSegwit
-            .key_text(t.app.session.keys[0].master())
+            .key_text(c, t.app.session.keys[0].master())
             .map_err(|e| e.to_string())?;
         t.app
             .session
@@ -4079,6 +4082,7 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     t.app
         .session
         .add_words_with(
+            c,
             &testkit::test_words(testkit::TEST_SEEDS[1].0),
             "glance",
             "Test key 2",
@@ -4088,6 +4092,7 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     let mut elsewhere = faraday_core::wallet::Session::default();
     elsewhere
         .add_words(
+            c,
             &testkit::test_words(testkit::TEST_SEEDS[2].0),
             "Test key 3",
             None,
@@ -4100,7 +4105,7 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
     ];
     let keys: Vec<String> = masters
         .iter()
-        .map(|m| NewKind::Multi.key_text(m))
+        .map(|m| NewKind::Multi.key_text(c, m))
         .collect::<Result<_, _>>()?;
     let two = t
         .app
@@ -4221,7 +4226,7 @@ fn glance_tour(t: &mut Tour) -> Result<(), String> {
 /// exposed, with what follows; the vault copied to a stick at a new
 /// place; and on a 2-of-3, the cosigner's holder typed and the card with
 /// it.
-fn chart_edit_tour(t: &mut Tour) -> Result<(), String> {
+fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
     use faraday_core::glance::{Backup, Press};
     use faraday_core::glance_sheet::{ChartAction as C, Target};
@@ -4237,7 +4242,7 @@ fn chart_edit_tour(t: &mut Tour) -> Result<(), String> {
     t.type_key(0);
     let one = {
         let text = NewKind::NativeSegwit
-            .key_text(t.app.session.keys[0].master())
+            .key_text(c, t.app.session.keys[0].master())
             .map_err(|e| e.to_string())?;
         t.app
             .session
@@ -4312,7 +4317,7 @@ fn chart_edit_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("chart-drop-ask")?;
     t.press(Action::Cancel);
     let node = |t: &Tour, at: At| -> Option<(u8, Vec<What>)> {
-        let g = faraday_core::glance::of(&t.app, one)?;
+        let g = faraday_core::glance::of(c, &t.app, one)?;
         let Backup::Plan { nodes, .. } = g.backup else {
             return None;
         };
@@ -4356,6 +4361,7 @@ fn chart_edit_tour(t: &mut Tour) -> Result<(), String> {
     let mut elsewhere = faraday_core::wallet::Session::default();
     elsewhere
         .add_words(
+            c,
             &testkit::test_words(testkit::TEST_SEEDS[2].0),
             "Test key 3",
             None,
@@ -4368,7 +4374,7 @@ fn chart_edit_tour(t: &mut Tour) -> Result<(), String> {
     ];
     let keys: Vec<String> = masters
         .iter()
-        .map(|m| NewKind::Multi.key_text(m))
+        .map(|m| NewKind::Multi.key_text(c, m))
         .collect::<Result<_, _>>()?;
     let two = t
         .app
@@ -4455,7 +4461,7 @@ fn vaultway_tour(t: &mut Tour) -> Result<(), String> {
 /// receive warning; Places with Vault 1's stick unticked; the vault item
 /// with no vault open, with one made and open, and saved into; the end of
 /// the backup with the checks strip and the chart.
-fn first_tour(t: &mut Tour) -> Result<(), String> {
+fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
     use faraday_core::plan::Preset;
     t.app.storage(StorageEvent::Memory {
@@ -4529,7 +4535,7 @@ fn first_tour(t: &mut Tour) -> Result<(), String> {
         .backup_items_now()
         .into_iter()
         .filter_map(bstep::item)
-        .all(|it| t.app.backup_item_done_now(it));
+        .all(|it| t.app.backup_item_done_now(c, it));
     if !done {
         return Err("the first tour's checklist is not done".to_string());
     }
@@ -4565,7 +4571,7 @@ fn themes_tour(t: &mut Tour) -> Result<(), String> {
 /// with one key here, its PSBT in Files, reaches Signers with Scan a key
 /// and Collect a signature; the card's Scan a key opens the key scanner,
 /// and a missing key's SeedQR makes the wallet able to spend.
-fn from_vault_tour(t: &mut Tour) -> Result<(), String> {
+fn from_vault_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::boot_import::ImportAction as I;
     use faraday_core::family::{FamilyAction as F, page};
     t.press(Action::Lock);
@@ -4654,11 +4660,11 @@ fn from_vault_tour(t: &mut Tour) -> Result<(), String> {
         .map(|(w, _)| testkit::test_words(w))
         .find(|w| {
             let mut s = testkit::session();
-            s.add_words(w, "", None)
+            s.add_words(c, w, "", None)
                 .is_ok_and(|fp| missing.contains(&fp.0))
         })
         .ok_or("no test seed is a missing key")?;
-    let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, &words)
+    let m = osk_bip::bip39::Mnemonic::parse(c, osk_bip::bip39::Language::English, &words)
         .map_err(|e| format!("{e:?}"))?;
     let digits = osk_codec::seedqr::to_digits(&m);
     t.app.event(Event::Scanned {
@@ -5131,7 +5137,7 @@ fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
 /// card with New wallet from this one, and Create filled from it: Kind
 /// with the Account stepper, then Keys with key 3 waiting for its xpub at
 /// account 1.
-fn create_from_tour(t: &mut Tour) -> Result<(), String> {
+fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
     use faraday_core::cstep;
     let vault = testkit::files()?
@@ -5150,7 +5156,7 @@ fn create_from_tour(t: &mut Tour) -> Result<(), String> {
     let (word, label) = testkit::TEST_SEEDS[1];
     t.app
         .session
-        .add_words(&testkit::test_words(word), label, None)
+        .add_words(c, &testkit::test_words(word), label, None)
         .map_err(|e| e.text())?;
     let multi = NewKind::ALL
         .iter()
@@ -5202,7 +5208,7 @@ fn create_from_tour(t: &mut Tour) -> Result<(), String> {
     for n in [0, 2] {
         let (word, label) = testkit::TEST_SEEDS[n];
         apart
-            .add_words(&testkit::test_words(word), label, None)
+            .add_words(c, &testkit::test_words(word), label, None)
             .map_err(|e| e.text())?;
     }
     let keys: Vec<String> = [
@@ -5211,7 +5217,7 @@ fn create_from_tour(t: &mut Tour) -> Result<(), String> {
         apart.keys[1].master(),
     ]
     .iter()
-    .map(|m| NewKind::Multi.key_text(m))
+    .map(|m| NewKind::Multi.key_text(c, m))
     .collect::<Result<_, _>>()?;
     let i = t
         .app
@@ -5311,13 +5317,13 @@ fn flow_made(t: &mut Tour, kind: faraday_core::backup_flow::Kind) -> Result<(), 
 /// its 2-of-3 uses it with, and a seed of no wallet (F62): the Load sheet,
 /// Seeds with no passphrase stored, a passphrase giving another key, and
 /// the right one.
-fn pass_seeds_tour(t: &mut Tour) -> Result<(), String> {
+fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::vaults::VaultAction as V;
     use faraday_vault::records::{self, field, kind};
     use faraday_vault::{Contents, Cost, Record};
     use osk_bip::bip39::{Language, Mnemonic};
     use osk_bip::bitcoin::bip32::DerivationPath;
-    let words = |p: &str| Mnemonic::parse(Language::English, p).map_err(|e| format!("{e:?}"));
+    let words = |p: &str| Mnemonic::parse(c, Language::English, p).map_err(|e| format!("{e:?}"));
     let key = |m: &Mnemonic, label: &str| {
         Record::new(kind::KEY)
             .with(field::KEY, &records::words_payload(m))
@@ -5325,15 +5331,17 @@ fn pass_seeds_tour(t: &mut Tour) -> Result<(), String> {
     };
     let p = "m/48'/1'/0'/2'";
     let third = words(&testkit::test_words(testkit::TEST_SEEDS[2].0))?;
-    let seed = third.to_seed(b"kept apart").map_err(|e| format!("{e:?}"))?;
-    let master = osk_bip::keys::MasterKey::from_seed(&seed, testkit::NET);
+    let seed = third
+        .to_seed(c, b"kept apart")
+        .map_err(|e| format!("{e:?}"))?;
+    let master = osk_bip::keys::MasterKey::from_seed(c, &seed, testkit::NET);
     let path: DerivationPath = p.parse().map_err(|e| format!("{e:?}"))?;
     let trio = format!(
         "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,[{}/48h/1h/0h/2h]{}/<0;1>/*))",
         testkit::key(0, p),
         testkit::key(1, p),
         master.fingerprint(),
-        master.derive(&path).to_xpub()
+        master.derive(c, &path).to_xpub(c)
     );
     let mut records = vec![Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Trio")];
     for n in 0..3 {
@@ -5355,6 +5363,7 @@ fn pass_seeds_tour(t: &mut Tour) -> Result<(), String> {
         lanes: 1,
     };
     let file = faraday_vault::create(
+        c,
         faraday_vault::SLOT_SIZES[0],
         cost,
         &[b"trio phrase".as_slice()],
@@ -5385,7 +5394,7 @@ fn pass_seeds_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("passseeds-load-sheet")?;
     let keys: Vec<usize> = t
         .app
-        .vault_load_view_now()
+        .vault_load_view_now(c)
         .ok_or("no Load sheet")?
         .keys
         .iter()
@@ -5401,7 +5410,7 @@ fn pass_seeds_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("passseeds-list")?;
     let pick = t
         .app
-        .vault_passphrase_seeds_now()
+        .vault_passphrase_seeds_now(c)
         .iter()
         .find(|s| s.line.ends_with(testkit::TEST_SEEDS[2].1))
         .map(|s| (s.vault, s.record))
@@ -5998,7 +6007,7 @@ fn main() -> ExitCode {
         clippy::disallowed_methods,
         reason = "a mint: the snapshot tool (docs/COMPUTE.md §3)"
     )]
-    let _compute = osk_crypto::work::Compute::new(|_| {});
+    let compute = osk_crypto::work::Compute::new(|_| {});
     let only = args.get(4).map(String::as_str);
     if only.is_some_and(|m| {
         ![
@@ -6052,6 +6061,7 @@ fn main() -> ExitCode {
         return ExitCode::from(2);
     }
     match run(
+        &compute,
         (w, h),
         dpi,
         Path::new(&args[2]),

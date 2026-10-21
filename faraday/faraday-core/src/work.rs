@@ -3,9 +3,12 @@
 //! not (`docs/SPEED.md` §3.3 and §7).
 //!
 //! Each costly function calls [`count`] on its first line; the core's
-//! own (a PSBT parsed, inspected or signed, a key stretched, a QR code
-//! read, a canvas blurred or copied) count themselves through
-//! `osk_crypto::work`, whose counter is this crate's ([`install`]). A
+//! own count themselves: seed words parsed, a key stretched, a master key
+//! made and a key derived through the token they take
+//! (`osk_crypto::work::Compute`, minted with [`core_count`]), and a PSBT
+//! parsed, inspected or signed, a QR code read, a canvas blurred or
+//! copied through `osk_crypto::work`'s process-wide counter, which is
+//! this crate's ([`install`]). A
 //! count is a thread-local add, about a nanosecond, always compiled: not
 //! a cargo feature and not `cfg(test)`, so faraday-core is built once. The counts
 //! are per thread so that tests running side by side in one process do
@@ -24,10 +27,12 @@ use std::cell::Cell;
 /// A kind of costly work.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Work {
-    /// A master key made from a seed (BIP-39's PBKDF2 or a seed's HMAC)
-    /// and its fingerprint (an elliptic-curve multiplication).
+    /// A master key made from a seed (an HMAC-SHA-512) or an `xprv`,
+    /// and its fingerprint (an elliptic-curve multiplication)
+    /// (`osk-bip`).
     MasterKey,
-    /// An account or child key derived from a master key.
+    /// An account or child key derived from a master key, or an extended
+    /// public key made from a private one (`osk-bip`).
     KeyDerive,
     /// A wallet's address derived.
     Address,
@@ -107,6 +112,9 @@ fn of_core(w: osk_crypto::work::Work) -> Work {
         C::QrDecode => Work::QrDecode,
         C::PngDecode => Work::PngDecode,
         C::Kdf => Work::Kdf,
+        C::WordsParse => Work::WordsParse,
+        C::MasterKey => Work::MasterKey,
+        C::KeyDerive => Work::KeyDerive,
         C::Blur => Work::Blur,
         C::FullCanvas => Work::FullCanvas,
     }

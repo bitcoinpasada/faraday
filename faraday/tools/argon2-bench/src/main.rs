@@ -12,6 +12,7 @@
 use std::time::Instant;
 
 use faraday_vault::{Cost, Error, Header, SLOT_SIZES, derive};
+use osk_crypto::work::Compute;
 
 const PRESETS: [(&str, u32, u32); 4] = [
     ("Light", 64, 3),
@@ -20,7 +21,13 @@ const PRESETS: [(&str, u32, u32); 4] = [
     ("Maximum", 2048, 2),
 ];
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a mint: a tool that draws nothing (docs/COMPUTE.md §3)"
+)]
 fn main() {
+    let compute = Compute::new(|_| {});
+    let c = &compute;
     let machine = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "This machine".to_string());
@@ -39,7 +46,7 @@ fn main() {
         let mut refused = None;
         for _ in 0..3 {
             let start = Instant::now();
-            match derive(&header, b"argon2-bench") {
+            match derive(c, &header, b"argon2-bench") {
                 Ok(_) => times.push(start.elapsed().as_secs_f64()),
                 Err(Error::Memory(m)) => {
                     refused = Some(format!("cannot allocate {m} MiB"));

@@ -87,6 +87,7 @@ fn sign(k: &Kit, seeds: &str, psbt: &Path, dir: &Path) -> Result<String, String>
 }
 
 fn run(args: &[String]) -> Result<(), String> {
+    let c = testkit::compute();
     match args.iter().map(String::as_str).collect::<Vec<_>>()[..] {
         ["kits"] => {
             for k in testkit::kits() {
@@ -119,7 +120,7 @@ fn run(args: &[String]) -> Result<(), String> {
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_default();
-            println!("{:?}", faraday_core::wallet::classify(&name, &bytes));
+            println!("{:?}", faraday_core::wallet::classify(&c, &name, &bytes));
             match faraday_core::wallet::read_wallet(&String::from_utf8_lossy(&bytes)) {
                 Ok(w) => {
                     println!("{}", w.to_descriptor_checksummed());

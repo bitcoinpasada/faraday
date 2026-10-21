@@ -66,9 +66,10 @@ fn add_key(app: &mut Faraday, n: usize) {
 
 /// Test key 1 typed in and a one-key wallet over it.
 fn one_key(app: &mut Faraday) -> usize {
+    let c = testkit::compute();
     add_key(app, 0);
     let text = faraday_core::create::NewKind::NativeSegwit
-        .key_text(app.session.keys[0].master())
+        .key_text(&c, app.session.keys[0].master())
         .unwrap();
     app.session
         .add_wallet(
@@ -137,7 +138,8 @@ fn planned(app: &mut Faraday, w: usize, preset: u8) {
 }
 
 fn chart(app: &Faraday, w: usize) -> Glance {
-    faraday_core::glance::of(app, w).expect("the wallet has a chart")
+    let c = testkit::compute();
+    faraday_core::glance::of(&c, app, w).expect("the wallet has a chart")
 }
 
 fn nodes(g: &Glance) -> Vec<BackupNode> {
@@ -640,6 +642,7 @@ fn a_plan_saved_before_the_chart_could_edit_it_still_loads() {
 
 #[test]
 fn in_an_open_vaults_view_a_change_is_kept_in_that_vault() {
+    let c = testkit::compute();
     let (mut app, w) = single_key_with_vault();
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(1)));
@@ -647,7 +650,7 @@ fn in_an_open_vaults_view_a_change_is_kept_in_that_vault() {
     let _ = app.frame();
     let r = app.vault_selected_index().expect("a wallet is chosen");
     let press = Press::Vault(0, r);
-    let vault_chart = |app: &Faraday| faraday_core::glance::of_vault(app, 0, r).unwrap();
+    let vault_chart = |app: &Faraday| faraday_core::glance::of_vault(&c, app, 0, r).unwrap();
     let at = nodes(&vault_chart(&app))
         .iter()
         .position(|n| n.name == "Place 1")

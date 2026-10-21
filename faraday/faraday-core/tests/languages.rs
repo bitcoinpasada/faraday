@@ -21,8 +21,9 @@ fn type_folded(app: &mut Faraday, m: &Mnemonic) {
 }
 
 fn fingerprint(m: &Mnemonic) -> [u8; 4] {
+    let c = faraday_core::testkit::compute();
     let mut probe = faraday_core::wallet::Session::default();
-    probe.add_mnemonic(m, "", "", None).unwrap().0
+    probe.add_mnemonic(&c, m, "", "", None).unwrap().0
 }
 
 #[test]

@@ -15,6 +15,7 @@ use faraday_vault::records::{self, field, kind};
 use faraday_vault::{self as fv, Contents, Cost, Header, Record};
 use opensigner_core::strings::fill;
 use osk_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
+use osk_crypto::work::Compute;
 use std::collections::BTreeSet;
 use zeroize::Zeroizing;
 
@@ -1196,15 +1197,15 @@ impl Faraday {
     /// and by name (`PLAN.md` §6.3: locking lists what was not saved).
     /// Kept in the drawing memo while a frame is drawn (`docs/SPEED.md`
     /// §3.3). Costs a parse of each key's words.
-    pub fn unsaved(&self) -> (Vec<String>, Vec<String>) {
+    pub fn unsaved(&self, c: &Compute) -> (Vec<String>, Vec<String>) {
         if self.drawing.is_on() {
             return crate::drawing::View::new(self).unsaved();
         }
-        self.unsaved_now()
+        self.unsaved_now(c)
     }
 
     /// Works out [`Faraday::unsaved`]. Costs a parse of each key's words.
-    pub fn unsaved_now(&self) -> (Vec<String>, Vec<String>) {
+    pub fn unsaved_now(&self, c: &Compute) -> (Vec<String>, Vec<String>) {
         let held_keys: Vec<&[u8]> = self
             .vaults
             .open
@@ -1233,7 +1234,7 @@ impl Faraday {
                 let payload = k
                     .words
                     .as_ref()
-                    .and_then(|w| crate::wallet::parse_words(k.language, w).ok())
+                    .and_then(|w| crate::wallet::parse_words(c, k.language, w).ok())
                     .map(|m| records::words_payload(&m));
                 !payload.is_some_and(|p| held_keys.contains(&p.as_slice()))
             })
@@ -1256,20 +1257,20 @@ impl Faraday {
     /// files For the stick are lost, not kept. Reads each seed's words and
     /// each open vault's wallets; kept for the frame while one is drawn
     /// (`docs/SPEED.md` §3.12).
-    pub fn kept_wiped(&self, power_off: bool) -> KeptWiped {
+    pub fn kept_wiped(&self, c: &Compute, power_off: bool) -> KeptWiped {
         if self.drawing.is_on() {
             return crate::drawing::View::new(self).kept_wiped(power_off);
         }
-        self.kept_wiped_now(power_off)
+        self.kept_wiped_now(c, power_off)
     }
 
     /// Reads each seed's words and each open vault's wallets: what
     /// [`Self::kept_wiped`] answers.
-    pub fn kept_wiped_now(&self, power_off: bool) -> KeptWiped {
+    pub fn kept_wiped_now(&self, c: &Compute, power_off: bool) -> KeptWiped {
         let mut out = KeptWiped::default();
         // Make a new wallet before its keys are kept anywhere ends with
         // the lock or the power-off (`docs/NEW-WALLET.md` §18).
-        if self.lock_held() {
+        if self.lock_held(c) {
             out.wiped.push((EN.lock_held_ends.to_string(), true));
         }
         if power_off {
@@ -1339,7 +1340,7 @@ impl Faraday {
             })
         };
         for k in &self.session.keys {
-            let vault = k.words_id().and_then(in_vault_key);
+            let vault = k.words_id(c).and_then(in_vault_key);
             let copy = self.seed_copy_checked(k.fingerprint().0);
             let (state, nowhere) = match (vault, copy) {
                 (Some(v), true) => (fill(EN.vaults_in_copy_checked, &[&v.to_string()]), false),
@@ -1519,6 +1520,7 @@ impl Faraday {
 
     /// Runs a vault action.
     pub(crate) fn vault_act(&mut self, a: VaultAction) {
+        let c = self.compute();
         use VaultAction as V;
         // A small panel's contents page changes to another page: it starts
         // at its top.
@@ -1597,7 +1599,7 @@ impl Faraday {
             }
             V::LoadKeyOf(fp) => {
                 let fp = osk_bip::keys::Fingerprint(fp);
-                if let Some((v, i)) = self.vault_key_for(fp) {
+                if let Some((v, i)) = self.vault_key_for(&c, fp) {
                     let (k, _) = self.vault_load_set(v, &BTreeSet::from([i]));
                     if k > 0 {
                         self.toast(&fill(
@@ -1613,7 +1615,7 @@ impl Faraday {
             V::LoadWithKeys(v) => {
                 let mut set = BTreeSet::new();
                 let open: Vec<VaultWallet> = self
-                    .vault_wallets_with_keys(v)
+                    .vault_wallets_with_keys(&c, v)
                     .into_iter()
                     .filter(|w| !w.done)
                     .collect();
@@ -1691,7 +1693,7 @@ impl Faraday {
                 }
             }
             V::ChooseAll(v) => {
-                let rows = self.vault_rows_now(v);
+                let rows = self.vault_rows_now(&c, v);
                 if let Some(o) = self.vaults.open.get_mut(v) {
                     let open: Vec<usize> = rows
                         .iter()
@@ -1939,7 +1941,7 @@ impl Faraday {
                 let Some(at) = self.vault_selected_index() else {
                     return;
                 };
-                if self.vault_key_wallet(self.vaults.current, at).is_some() {
+                if self.vault_key_wallet(&c, self.vaults.current, at).is_some() {
                     return;
                 }
                 if let Some(v) = self.vaults.open.get_mut(self.vaults.current)
@@ -2326,6 +2328,7 @@ impl Faraday {
     }
 
     fn vault_prompt_go(&mut self) {
+        let c = self.compute();
         let Some(p) = self.vaults.prompt.as_mut() else {
             return;
         };
@@ -2367,7 +2370,7 @@ impl Faraday {
                 let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
                 match self
                     .session
-                    .add_words_with(&words, &passphrase, &label, None)
+                    .add_words_with(&c, &words, &passphrase, &label, None)
                 {
                     Ok(fp) => {
                         self.vaults.prompt = None;
@@ -2391,6 +2394,7 @@ impl Faraday {
     /// Opens the backup the prompt names and keeps what it holds in the
     /// open vault.
     fn vault_open_backup(&mut self) {
+        let c = self.compute();
         let Some(p) = self.vaults.prompt.as_ref() else {
             return;
         };
@@ -2401,7 +2405,7 @@ impl Faraday {
             return;
         };
         let label = crate::stem(&item.name);
-        let opened = osk_backup::oskb::open_payload(&item.bytes, p.text.text.as_bytes());
+        let opened = osk_backup::oskb::open_payload(&c, &item.bytes, p.text.text.as_bytes());
         use osk_backup::oskb::Opened;
         let (record, category) = match opened {
             Ok(Opened::Words(m)) => (
@@ -2463,6 +2467,7 @@ impl Faraday {
     /// What a tick does for vaults: runs work whose frame has been drawn,
     /// finishes a measurement, and fires a hold. Returns whether to redraw.
     pub(crate) fn vault_tick(&mut self, now_ms: u64) -> bool {
+        let c = self.compute();
         let mut redraw = false;
         if let Some(t0) = self.vaults.measure_from.take() {
             self.vaults.ms_per_unit = Some(now_ms.saturating_sub(t0).max(1));
@@ -2484,7 +2489,7 @@ impl Faraday {
                         salt: [0; 32],
                     };
                     self.vaults.measure_from = Some(now_ms);
-                    let _ = fv::derive(&header, b"measure");
+                    let _ = fv::derive(&c, &header, b"measure");
                 }
                 Work::Unlock => self.vault_unlock(),
                 Work::Backup => self.vault_open_backup(),
@@ -2558,6 +2563,7 @@ impl Faraday {
     }
 
     fn vault_unlock_inner(&mut self) {
+        let c = self.compute();
         let files = self.vault_files();
         let Some(f) = files.get(self.vaults.pick) else {
             return;
@@ -2568,7 +2574,7 @@ impl Faraday {
         let name = f.name.clone();
         // Unlocked on the boot import's sheet: the unlock imports.
         let for_import = self.sheet == Some(crate::Sheet::Import) && self.import.is_some();
-        let result = fv::open(&bytes, self.vaults.passphrase.text.as_bytes());
+        let result = fv::open(&c, &bytes, self.vaults.passphrase.text.as_bytes());
         match result {
             Ok((opened, contents)) => {
                 self.vaults.passphrase.clear();
@@ -2743,16 +2749,16 @@ impl Faraday {
     /// Kept in the drawing memo while a frame is drawn (`docs/SPEED.md`
     /// §3.3). Reads its wallet records as it keeps them read
     /// ([`VaultRecords`]).
-    pub fn vault_rows(&self, v: usize) -> Vec<VaultRow> {
+    pub fn vault_rows(&self, c: &Compute, v: usize) -> Vec<VaultRow> {
         if self.drawing.is_on() {
             return crate::drawing::View::new(self).vault_rows(v);
         }
-        self.vault_rows_now(v)
+        self.vault_rows_now(c, v)
     }
 
     /// Works out [`Faraday::vault_rows`] from the wallet records as the
     /// vault keeps them read ([`VaultRecords`]).
-    pub fn vault_rows_now(&self, v: usize) -> Vec<VaultRow> {
+    pub fn vault_rows_now(&self, c: &Compute, v: usize) -> Vec<VaultRow> {
         let Some(open) = self.vaults.open.get(v) else {
             return Vec::new();
         };
@@ -2778,7 +2784,7 @@ impl Faraday {
             });
         }
         for (i, r) in open.contents.of(kind::KEY) {
-            let fp = crate::vault_screens::key_fingerprint(self, r).unwrap_or_default();
+            let fp = crate::vault_screens::key_fingerprint(c, self, r).unwrap_or_default();
             let loaded = self
                 .session
                 .keys
@@ -2801,13 +2807,17 @@ impl Faraday {
 
     /// Where the seed with master fingerprint `fp` is in the open vaults:
     /// the vault and its record.
-    pub fn vault_key_for(&self, fp: osk_bip::keys::Fingerprint) -> Option<(usize, usize)> {
+    pub fn vault_key_for(
+        &self,
+        c: &Compute,
+        fp: osk_bip::keys::Fingerprint,
+    ) -> Option<(usize, usize)> {
         let want = crate::wallet::fp_text(fp);
         self.vaults.open.iter().enumerate().find_map(|(v, open)| {
             open.contents
                 .of(kind::KEY)
                 .find(|(_, r)| {
-                    crate::vault_screens::key_fingerprint(self, r).as_deref() == Some(&want)
+                    crate::vault_screens::key_fingerprint(c, self, r).as_deref() == Some(&want)
                 })
                 .map(|(i, _)| (v, i))
         })
@@ -2815,16 +2825,16 @@ impl Faraday {
 
     /// The wallets open vault `v` holds together with some of their
     /// seeds, each with those seeds' records.
-    pub fn vault_wallets_with_keys(&self, v: usize) -> Vec<VaultWallet> {
+    pub fn vault_wallets_with_keys(&self, c: &Compute, v: usize) -> Vec<VaultWallet> {
         let Some(open) = self.vaults.open.get(v) else {
             return Vec::new();
         };
         let seeds: Vec<(usize, String)> = open
             .contents
             .of(kind::KEY)
-            .filter_map(|(i, r)| crate::vault_screens::key_fingerprint(self, r).map(|f| (i, f)))
+            .filter_map(|(i, r)| crate::vault_screens::key_fingerprint(c, self, r).map(|f| (i, f)))
             .collect();
-        let rows = self.vault_rows(v);
+        let rows = self.vault_rows(c, v);
         let loaded = |i: usize| rows.iter().any(|r| r.record == i && r.loaded);
         let mut out = Vec::new();
         for (i, r, d) in open.contents.described_of(kind::WALLET) {
@@ -2883,6 +2893,7 @@ impl Faraday {
     /// vault keeps where keys may load. Returns the wallet's place in the
     /// session.
     pub(crate) fn vault_load_wallet(&mut self, v: usize, r: usize) -> Option<usize> {
+        let c = self.compute();
         let open = self.vaults.open.get(v)?;
         open.contents
             .records
@@ -2900,7 +2911,7 @@ impl Faraday {
                 .map(crate::wallet::fp_text)
                 .collect();
             set.extend(open.contents.of(kind::KEY).filter_map(|(i, k)| {
-                crate::vault_screens::key_fingerprint(self, k)
+                crate::vault_screens::key_fingerprint(&c, self, k)
                     .filter(|f| fps.contains(f))
                     .map(|_| i)
             }));
@@ -2928,6 +2939,7 @@ impl Faraday {
     /// Loads the records `set` names of open vault `v`: its keys and
     /// wallets among them.
     pub(crate) fn vault_load_set(&mut self, v: usize, set: &BTreeSet<usize>) -> (usize, usize) {
+        let c = self.compute();
         let mut keys = 0;
         let mut wallets = 0;
         let Some(open) = self.vaults.open.get(v) else {
@@ -2946,7 +2958,7 @@ impl Faraday {
                 // Stored with the key, or kept alone in an open vault.
                 let pass = match r.text(field::KEY_PASSPHRASE) {
                     Some(p) => Zeroizing::new(p.to_string()),
-                    None => self.passphrase_kept_for(&m).unwrap_or_default(),
+                    None => self.passphrase_kept_for(&c, &m).unwrap_or_default(),
                 };
                 words.push((phrase_of(&m), label));
                 passphrases.push(pass);
@@ -2970,12 +2982,12 @@ impl Faraday {
             }
         }
         for ((w, label), p) in words.iter().zip(&passphrases) {
-            if self.session.add_words_with(w, p, label, None).is_ok() {
+            if self.session.add_words_with(&c, w, p, label, None).is_ok() {
                 keys += 1;
             }
         }
         for (seed, label) in &seeds {
-            if self.session.add_seed(seed, label).is_ok() {
+            if self.session.add_seed(&c, seed, label).is_ok() {
                 keys += 1;
             }
         }
@@ -2996,6 +3008,7 @@ impl Faraday {
     /// The selected entry as a KeePass database sealed under the prompt's
     /// passphrase, to the Outbox: sealed, so it goes as it is.
     fn vault_kdbx(&mut self) {
+        let c = self.compute();
         use osk_backup::kdbx;
         let Some(at) = self.vault_selected_index() else {
             return;
@@ -3054,6 +3067,7 @@ impl Faraday {
             secret: r.field(field::PASSWORD).unwrap_or(&[]),
         };
         match kdbx::write(
+            &c,
             &[item],
             passphrase.as_bytes(),
             osk_backup::DEVICE_PARAMS,
@@ -3106,6 +3120,7 @@ impl Faraday {
     }
 
     fn vault_load_selected(&mut self) {
+        let c = self.compute();
         let Some(at) = self.vault_selected_index() else {
             return;
         };
@@ -3126,12 +3141,12 @@ impl Faraday {
                         // vault (`docs/BACKUP-FLOW.md` §19.12 item 4).
                         let p = match r.text(field::KEY_PASSPHRASE) {
                             Some(p) => Zeroizing::new(p.to_string()),
-                            None => self.passphrase_kept_for(&m).unwrap_or_default(),
+                            None => self.passphrase_kept_for(&c, &m).unwrap_or_default(),
                         };
-                        self.session.add_mnemonic(&m, &p, &label, None)
+                        self.session.add_mnemonic(&c, &m, &p, &label, None)
                     }
                     None => match seed_of(r) {
-                        Some(seed) => self.session.add_seed(&seed, &label),
+                        Some(seed) => self.session.add_seed(&c, &seed, &label),
                         None => return,
                     },
                 };
@@ -3417,6 +3432,7 @@ impl Faraday {
     /// with it, found by the fingerprint the record names.
     pub(crate) fn passphrase_kept_for(
         &self,
+        c: &Compute,
         m: &osk_bip::bip39::Mnemonic,
     ) -> Option<Zeroizing<String>> {
         for open in &self.vaults.open {
@@ -3426,11 +3442,10 @@ impl Faraday {
                 else {
                     continue;
                 };
-                let Ok(seed) = m.to_seed(p.as_bytes()) else {
+                let Ok(seed) = m.to_seed(c, p.as_bytes()) else {
                     continue;
                 };
-                crate::work::count(crate::work::Work::MasterKey);
-                let master = osk_bip::keys::MasterKey::from_seed(&seed, self.session.network());
+                let master = osk_bip::keys::MasterKey::from_seed(c, &seed, self.session.network());
                 if master.fingerprint().0[..] == *fp {
                     return Some(Zeroizing::new(p.to_string()));
                 }
@@ -3447,19 +3462,20 @@ impl Faraday {
         k: usize,
         with_passphrase: bool,
     ) -> Option<(Record, String)> {
+        let c = self.compute();
         let key = self.session.keys.get(k)?;
         let Some(words) = key.words.as_ref() else {
             self.toast(EN.vaults_this_key_has);
             return None;
         };
-        let m = crate::wallet::parse_words(key.language, words).ok()?;
+        let m = crate::wallet::parse_words(&c, key.language, words).ok()?;
         // Made here and its backup not done: the vault says so, beside
         // the seed.
         // It loads at unlock (no flag says otherwise, F62).
         let mut record = Record::new(kind::KEY)
             .with(field::KEY, &records::words_payload(&m))
             .with(field::KEY_LABEL, key.label.as_bytes());
-        if self.key_held_stored(key.fingerprint()) {
+        if self.key_held_stored(&c, key.fingerprint()) {
             record.push(field::KEY_FLAGS, &[records::BACKUP_PENDING]);
         }
         // A BIP-39 passphrase is stored only when the person asks
@@ -3556,6 +3572,7 @@ impl Faraday {
     }
 
     fn vault_create(&mut self) {
+        let c = self.compute();
         // Everything random in a vault comes from fresh system entropy of
         // its own; a vault is never made before it has arrived.
         if self.pool.is_empty() {
@@ -3572,7 +3589,7 @@ impl Faraday {
         let Some(seed) = self.fresh(b"vault create") else {
             return;
         };
-        let Some(c) = self.vaults.create.as_ref() else {
+        let Some(form) = self.vaults.create.as_ref() else {
             return;
         };
         let cost = Cost {
@@ -3581,15 +3598,19 @@ impl Faraday {
             lanes: 1,
         };
         let first_phrase = Zeroizing::new(
-            c.phrases
+            form.phrases
                 .first()
                 .map(|(a, _)| a.text.to_string())
                 .unwrap_or_default(),
         );
-        let phrases: Vec<&[u8]> = c.phrases.iter().map(|(a, _)| a.text.as_bytes()).collect();
+        let phrases: Vec<&[u8]> = form
+            .phrases
+            .iter()
+            .map(|(a, _)| a.text.as_bytes())
+            .collect();
         // Every slot starts with the vault's name: a slot opened under
         // pressure says nothing of the others (`docs/VAULT.md` §9, F57).
-        let label = match c.name.text.trim() {
+        let label = match form.name.text.trim() {
             "" => EN.vaults_vault,
             typed => {
                 // A slot's label holds 64 bytes (`docs/VAULT.md` §7).
@@ -3606,10 +3627,10 @@ impl Faraday {
                 records: vec![Record::new(kind::SLOT_LABEL).with(field::LABEL, label.as_bytes())],
             })
             .collect();
-        let made = fv::create(c.slot, cost, &phrases, &contents, &seed);
+        let made = fv::create(&c, form.slot, cost, &phrases, &contents, &seed);
         match made {
             Ok(file) => {
-                let name = self.free_vault_name(&vault_stem(&c.name.text));
+                let name = self.free_vault_name(&vault_stem(&form.name.text));
                 self.put_outbox(&name, file);
                 // Made inside a backup flow: unlocked at once with the
                 // passphrase just typed twice, never leaving the flow.
@@ -4330,6 +4351,7 @@ impl Faraday {
     /// unlock, after every change made on a vault screen, and as the
     /// session seals.
     pub(crate) fn vault_summaries_refresh(&mut self) {
+        let c = self.compute();
         let seen = self.clock_now();
         let mut fresh = Vec::new();
         for v in &self.vaults.open {
@@ -4351,7 +4373,7 @@ impl Faraday {
             let keys = v
                 .contents
                 .of(kind::KEY)
-                .filter_map(|(_, r)| crate::vault_screens::key_fingerprint(self, r))
+                .filter_map(|(_, r)| crate::vault_screens::key_fingerprint(&c, self, r))
                 .collect();
             let sum_of = |i: usize| v.contents.described(i).map(|d| d.checksum.clone());
             let sums = v

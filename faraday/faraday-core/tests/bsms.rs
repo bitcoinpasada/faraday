@@ -33,6 +33,7 @@ fn with_inbox(files: Vec<(&str, String)>) -> Faraday {
 
 #[test]
 fn the_bips_descriptor_record_loads_as_its_wallet() {
+    let c = faraday_core::testkit::compute();
     let mut app = with_inbox(vec![("savings-bsms.txt", DESCRIPTOR.to_string())]);
     assert_eq!(app.inbox[0].kind, FileKind::Wallet);
     app.press(Action::LoadWallet(0));
@@ -47,18 +48,20 @@ fn the_bips_descriptor_record_loads_as_its_wallet() {
         "bc1qrgc6p3kylfztu06ysl752gwwuekhvtfh9vr7zg43jvu60mutamcsv948ej",
         "bc1qhs4u273g4azq7kqqpe6vh5wfhasfmrq7nheyzsnq77humd7rwtkqagvakf",
     );
-    assert_ne!(classify("x.txt", wrong.as_bytes()), FileKind::Wallet);
+    assert_ne!(classify(&c, "x.txt", wrong.as_bytes()), FileKind::Wallet);
 }
 
 #[test]
 fn the_bips_key_record_is_a_cosigners_key_only_with_its_signature() {
-    assert_eq!(classify("k.txt", SIGNER_1.as_bytes()), FileKind::Key);
+    let c = faraday_core::testkit::compute();
+    assert_eq!(classify(&c, "k.txt", SIGNER_1.as_bytes()), FileKind::Key);
     let forged = SIGNER_1.replace("Signer 1 key", "Signer 9 key");
-    assert_ne!(classify("k.txt", forged.as_bytes()), FileKind::Key);
+    assert_ne!(classify(&c, "k.txt", forged.as_bytes()), FileKind::Key);
 }
 
 #[test]
 fn faradays_own_records_read_back() {
+    let c = faraday_core::testkit::compute();
     let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(None));
     for c in faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[0].0).chars() {
@@ -80,7 +83,7 @@ fn faradays_own_records_read_back() {
     assert_eq!(record.kind, FileKind::Key);
     let key = faraday_core::create::read_key(std::str::from_utf8(&record.bytes).unwrap()).unwrap();
     let plain = faraday_core::create::NewKind::Multi
-        .key_text(app.session.keys[0].master())
+        .key_text(&c, app.session.keys[0].master())
         .unwrap();
     assert_eq!(key.replace('\'', "h"), plain.replace('\'', "h"));
 }

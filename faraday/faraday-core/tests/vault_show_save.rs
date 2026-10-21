@@ -107,7 +107,8 @@ fn fp() -> String {
 
 /// What SeedQR's own encoder writes for test key 1, as a camera reads it.
 fn seedqr_digits() -> Vec<u8> {
-    let m = Mnemonic::parse(Language::English, &words()).unwrap();
+    let c = testkit::compute();
+    let m = Mnemonic::parse(&c, Language::English, &words()).unwrap();
     let mx = osk_codec::seedqr::encode_seedqr(&m).unwrap();
     let (w, h, px) = mx.to_luma(4, osk_codec::qr::QUIET_ZONE);
     let found = osk_codec::decode_luma(w, h, &px);

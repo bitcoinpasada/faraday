@@ -123,20 +123,23 @@ fn a_words_file_with_a_note_line_is_copied_and_loads_on_pulling_the_stick() {
 
 #[test]
 fn words_numbered_one_to_a_line_are_read_as_the_words() {
+    let c = faraday_core::testkit::compute();
     let numbered: String = faraday_core::testkit::test_words("bacon")
         .split(' ')
         .enumerate()
         .map(|(i, w)| format!("{}. {w}\n", i + 1))
         .collect();
     assert_eq!(
-        faraday_core::wallet::classify("words.txt", numbered.as_bytes()),
+        faraday_core::wallet::classify(&c, "words.txt", numbered.as_bytes()),
         FileKind::Words
     );
 }
 
 /// Test key 1's SeedQR digits: each word's index as four digits.
 fn seedqr_digits() -> Vec<u8> {
+    let c = faraday_core::testkit::compute();
     let m = osk_bip::bip39::Mnemonic::parse(
+        &c,
         osk_bip::bip39::Language::English,
         &faraday_core::testkit::test_words("bacon"),
     )

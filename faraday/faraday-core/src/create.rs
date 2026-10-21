@@ -9,6 +9,7 @@ use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, MultisigScriptType, ScriptType};
 use osk_bip::policy::{PolicyKey, WalletPolicy};
 use osk_bip::slip132;
+use osk_crypto::work::Compute;
 
 /// The kinds a wallet can be created as.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -174,8 +175,8 @@ impl NewKind {
 
     /// `[fingerprint/path]xpub` of a master key, at this kind's path.
     /// Costs a key derivation.
-    pub fn key_text(self, master: &MasterKey) -> Result<String, String> {
-        self.key_text_account(master, 0)
+    pub fn key_text(self, c: &Compute, master: &MasterKey) -> Result<String, String> {
+        self.key_text_account(c, master, 0)
     }
 
     /// Whether the kind's path has an account to choose: every kind but
@@ -187,8 +188,12 @@ impl NewKind {
     /// `[fingerprint/path]xpub` of a master key, at this kind's path with
     /// account `account` in place of 0 (`docs/NEW-WALLET.md` §16.2).
     /// Costs a key derivation.
-    pub fn key_text_account(self, master: &MasterKey, account: u32) -> Result<String, String> {
-        crate::work::count(crate::work::Work::KeyDerive);
+    pub fn key_text_account(
+        self,
+        c: &Compute,
+        master: &MasterKey,
+        account: u32,
+    ) -> Result<String, String> {
         let (xpub, fp, path) = match self {
             NewKind::Threshold => return Err(EN.create_a_share_has.to_string()),
             NewKind::NativeSegwit
@@ -203,7 +208,9 @@ impl NewKind {
                     NewKind::NestedSegwit => ScriptType::NestedSegwit,
                     _ => ScriptType::Legacy,
                 };
-                let a = master.account_xpub(t, account).map_err(|e| e.to_string())?;
+                let a = master
+                    .account_xpub(c, t, account)
+                    .map_err(|e| e.to_string())?;
                 (*a.xpub(), a.master_fingerprint(), a.path().clone())
             }
             NewKind::Multi | NewKind::MultiNested => {
@@ -213,7 +220,7 @@ impl NewKind {
                     MultisigScriptType::NestedSegwit
                 };
                 let a = master
-                    .multisig_account_xpub(t, account)
+                    .multisig_account_xpub(c, t, account)
                     .map_err(|e| e.to_string())?;
                 (*a.xpub(), a.master_fingerprint(), a.path().clone())
             }
@@ -222,8 +229,8 @@ impl NewKind {
                     .path_at(master.network(), account)
                     .parse()
                     .map_err(|e| format!("{e}"))?;
-                let d = master.derive(&path);
-                (d.to_xpub(), master.fingerprint(), path)
+                let d = master.derive(c, &path);
+                (d.to_xpub(c), master.fingerprint(), path)
             }
         };
         let shown = format!("{path}")
@@ -234,19 +241,18 @@ impl NewKind {
 
     /// A `wsh` multisig key as the `ur:crypto-account` SeedSigner shows
     /// for one; `None` for any other kind. Costs a key derivation.
-    pub fn account_ur(self, master: &MasterKey) -> Option<String> {
-        self.account_ur_at(master, 0)
+    pub fn account_ur(self, c: &Compute, master: &MasterKey) -> Option<String> {
+        self.account_ur_at(c, master, 0)
     }
 
     /// [`NewKind::account_ur`] at account `account`. Costs a key
     /// derivation.
-    pub fn account_ur_at(self, master: &MasterKey, account: u32) -> Option<String> {
-        crate::work::count(crate::work::Work::KeyDerive);
+    pub fn account_ur_at(self, c: &Compute, master: &MasterKey, account: u32) -> Option<String> {
         if self != NewKind::Multi {
             return None;
         }
         let a = master
-            .multisig_account_xpub(MultisigScriptType::NativeSegwit, account)
+            .multisig_account_xpub(c, MultisigScriptType::NativeSegwit, account)
             .ok()?;
         let path: Vec<_> = a.path().into_iter().copied().collect();
         let cbor =
@@ -261,18 +267,18 @@ impl NewKind {
     /// signature.
     pub fn bsms_record(
         self,
+        c: &Compute,
         master: &MasterKey,
         account: u32,
         description: &str,
     ) -> Option<String> {
-        crate::work::count(crate::work::Work::KeyDerive);
         let script = match self {
             NewKind::Multi => MultisigScriptType::NativeSegwit,
             NewKind::MultiNested => MultisigScriptType::NestedSegwit,
             _ => return None,
         };
         let record = master
-            .with_multisig_account_secret(script, account, |secret, view| {
+            .with_multisig_account_secret(c, script, account, |secret, view| {
                 osk_bip::bsms::signer_record(master.secp(), view, secret, "00", description)
             })
             .ok()?
@@ -323,20 +329,23 @@ pub fn account_of(policy: &WalletPolicy) -> u32 {
 /// `[fingerprint/path]xpub` of a master key at `path`, written
 /// `m/48'/0'/0'/2'` or `48h/0h/0h/2h`: what [`NewKind::key_text`] gives
 /// at a kind's own path, at any other.
-pub fn key_text_at(master: &MasterKey, path: &str) -> Result<String, String> {
-    crate::work::count(crate::work::Work::KeyDerive);
+pub fn key_text_at(c: &Compute, master: &MasterKey, path: &str) -> Result<String, String> {
     let path = normal_path(path).ok_or_else(|| fill(EN.create_not_a_derivation, &[path]))?;
     let parsed: osk_bip::bitcoin::bip32::DerivationPath =
         path.parse().map_err(|e| format!("{e}"))?;
-    let d = master.derive(&parsed);
+    let d = master.derive(c, &parsed);
     let shown = path
         .trim_start_matches('m')
         .trim_start_matches('/')
         .replace('\'', "h");
     if shown.is_empty() {
-        return Ok(format!("[{}]{}", master.fingerprint(), d.to_xpub()));
+        return Ok(format!("[{}]{}", master.fingerprint(), d.to_xpub(c)));
     }
-    Ok(format!("[{}/{shown}]{}", master.fingerprint(), d.to_xpub()))
+    Ok(format!(
+        "[{}/{shown}]{}",
+        master.fingerprint(),
+        d.to_xpub(c)
+    ))
 }
 
 /// A derivation path as typed, `m/48'/0'/0'/2'`, `48h/0h/0h/2h` or with

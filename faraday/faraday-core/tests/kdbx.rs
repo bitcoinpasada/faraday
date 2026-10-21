@@ -23,6 +23,7 @@ fn settle(app: &mut Faraday, from: u64) {
 
 #[test]
 fn an_entry_exported_for_keepass_is_sealed_under_its_passphrase() {
+    let c = testkit::compute();
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
@@ -86,6 +87,10 @@ fn an_entry_exported_for_keepass_is_sealed_under_its_passphrase() {
         .find(|i| i.name.ends_with(".kdbx"))
         .expect("no KeePass file");
     assert_eq!(file.kind.exposure(), Exposure::Sealed);
-    assert!(osk_backup::kdbx::verify(&file.bytes, b"keepass passphrase"));
-    assert!(!osk_backup::kdbx::verify(&file.bytes, b"another"));
+    assert!(osk_backup::kdbx::verify(
+        &c,
+        &file.bytes,
+        b"keepass passphrase"
+    ));
+    assert!(!osk_backup::kdbx::verify(&c, &file.bytes, b"another"));
 }

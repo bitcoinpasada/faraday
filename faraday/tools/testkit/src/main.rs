@@ -21,9 +21,10 @@ use std::process::ExitCode;
 use faraday_core::testkit::{self, SPEND_TXID};
 use faraday_core::wallet::Spend;
 use osk_bip::bitcoin::absolute::LockTime;
+use osk_crypto::work::Compute;
 use osk_psbt::Psbt;
 
-fn run(out: &Path) -> Result<(), String> {
+fn run(c: &Compute, out: &Path) -> Result<(), String> {
     let (unsigned, cosigned) = testkit::spend()?;
     println!("spend txid {}", unsigned.unsigned_tx().compute_txid());
     // The flow the screens run: the test wallet, sign here, collect the
@@ -31,7 +32,7 @@ fn run(out: &Path) -> Result<(), String> {
     let mut session = testkit::session();
     let (word, label) = testkit::TEST_SEEDS[0];
     session
-        .add_words(&testkit::test_words(word), label, None)
+        .add_words(c, &testkit::test_words(word), label, None)
         .map_err(|e| e.text())?;
     session
         .add_wallet(
@@ -41,7 +42,7 @@ fn run(out: &Path) -> Result<(), String> {
             faraday_core::wallet::Origin::Named,
         )
         .map_err(|e| e.text())?;
-    let inspection = session.inspect(&unsigned);
+    let inspection = session.inspect(c, &unsigned);
     println!(
         "fee {} sat, {:?} sat/vB, warnings {:?}",
         inspection.fee.to_sat(),
@@ -52,15 +53,15 @@ fn run(out: &Path) -> Result<(), String> {
         println!("  output {} {} {:?}", o.address, o.amount.to_sat(), o.kind);
     }
     let mut flow = Spend::new(unsigned.clone(), "unsigned.psbt");
-    let here = session.sign(&mut flow.psbt, [0; 32], &mut None)?;
+    let here = session.sign(c, &mut flow.psbt, [0; 32], &mut None)?;
     println!(
         "signed here with {here:?}; signers now {:?}",
-        flow.signers(&session)
+        flow.signers(c, &session)
     );
-    let added = flow.collect(&session, &cosigned.to_bytes(), "cosigner-5d388376.psbt")?;
+    let added = flow.collect(c, &session, &cosigned.to_bytes(), "cosigner-5d388376.psbt")?;
     println!(
         "collected {added:?}; signers now {:?}",
-        flow.signers(&session)
+        flow.signers(c, &session)
     );
     flow.finish()?;
     let tx = flow.finished.as_ref().expect("finished");
@@ -70,7 +71,7 @@ fn run(out: &Path) -> Result<(), String> {
     // A copy for another transaction must be refused.
     let mut other = unsigned.inner().clone();
     other.unsigned_tx.lock_time = LockTime::from_consensus(1);
-    let refused = flow.collect(&session, &Psbt::from(other).to_bytes(), "other.psbt");
+    let refused = flow.collect(c, &session, &Psbt::from(other).to_bytes(), "other.psbt");
     println!("another transaction: {refused:?}");
     if refused.is_ok() {
         return Err("a PSBT for another transaction was merged".into());
@@ -85,7 +86,7 @@ fn run(out: &Path) -> Result<(), String> {
         let (u, cosigned) = testkit::spend_of(&kit)?;
         let mut all = testkit::session();
         for (word, label) in testkit::TEST_SEEDS {
-            all.add_words(&testkit::test_words(word), label, None)
+            all.add_words(c, &testkit::test_words(word), label, None)
                 .map_err(|e| e.text())?;
         }
         all.add_wallet(
@@ -96,9 +97,9 @@ fn run(out: &Path) -> Result<(), String> {
         )
         .map_err(|e| e.text())?;
         let mut flow = Spend::new(u.clone(), "x");
-        let inspection = all.inspect(&u);
+        let inspection = all.inspect(c, &u);
         let by = all
-            .sign(&mut flow.psbt, [0; 32], &mut None)
+            .sign(c, &mut flow.psbt, [0; 32], &mut None)
             .map_err(|e| format!("{}: {e}", kit.id))?;
         let done = flow.finish();
         println!(
@@ -133,7 +134,7 @@ fn run(out: &Path) -> Result<(), String> {
     let mut second = testkit::session();
     let (word, label) = testkit::TEST_SEEDS[1];
     second
-        .add_words(&testkit::test_words(word), label, None)
+        .add_words(c, &testkit::test_words(word), label, None)
         .map_err(|e| e.text())?;
     second
         .add_wallet(
@@ -145,7 +146,7 @@ fn run(out: &Path) -> Result<(), String> {
         .map_err(|e| e.text())?;
     let mut flow = Spend::new(testkit::recovery(&kit)?, "x");
     let by = second
-        .sign(&mut flow.psbt, [0; 32], &mut None)
+        .sign(c, &mut flow.psbt, [0; 32], &mut None)
         .map_err(|e| format!("recovery: {e}"))?;
     flow.finish()
         .map_err(|e| format!("recovery did not finish: {e}"))?;
@@ -159,7 +160,7 @@ fn run(out: &Path) -> Result<(), String> {
     let (mu, nonce_files, partial_files) = testkit::musig_rounds()?;
     let mut s1 = testkit::session();
     let (word, label) = testkit::TEST_SEEDS[0];
-    s1.add_words(&testkit::test_words(word), label, None)
+    s1.add_words(c, &testkit::test_words(word), label, None)
         .map_err(|e| e.text())?;
     s1.add_wallet(
         "MuSig2",
@@ -170,14 +171,19 @@ fn run(out: &Path) -> Result<(), String> {
     .map_err(|e| e.text())?;
     let mut flow = Spend::new(mu, "musig-unsigned.psbt");
     for (fp, copy) in &nonce_files {
-        flow.collect(&s1, &copy.to_bytes(), &format!("musig-nonce-{fp}.psbt"))?;
+        flow.collect(c, &s1, &copy.to_bytes(), &format!("musig-nonce-{fp}.psbt"))?;
     }
-    s1.sign(&mut flow.psbt, [3; 32], &mut None)
+    s1.sign(c, &mut flow.psbt, [3; 32], &mut None)
         .map_err(|e| format!("musig round 2: {e}"))?;
     for (fp, copy) in &partial_files {
-        flow.collect(&s1, &copy.to_bytes(), &format!("musig-partial-{fp}.psbt"))?;
+        flow.collect(
+            c,
+            &s1,
+            &copy.to_bytes(),
+            &format!("musig-partial-{fp}.psbt"),
+        )?;
     }
-    s1.sign(&mut flow.psbt, [3; 32], &mut None)
+    s1.sign(c, &mut flow.psbt, [3; 32], &mut None)
         .map_err(|e| format!("musig aggregate: {e}"))?;
     flow.finish()
         .map_err(|e| format!("musig did not finish: {e}"))?;
@@ -192,7 +198,7 @@ fn run(out: &Path) -> Result<(), String> {
     let mut second = testkit::session();
     let (word, label) = testkit::TEST_SEEDS[1];
     second
-        .add_words(&testkit::test_words(word), label, None)
+        .add_words(c, &testkit::test_words(word), label, None)
         .map_err(|e| e.text())?;
     second
         .add_wallet(
@@ -202,12 +208,13 @@ fn run(out: &Path) -> Result<(), String> {
             faraday_core::wallet::Origin::Named,
         )
         .map_err(|e| e.text())?;
-    let seen = second.inspect_with(&psbt, Some(&carry.section));
+    let seen = second.inspect_with(c, &psbt, Some(&carry.section));
     if !seen.outputs.iter().any(|o| o.is_ours()) || seen.threshold.is_none() {
         return Err("the threshold spend's change or wallet was not recognised".into());
     }
     let mut flow = Spend::new(psbt, "threshold-partly-signed.osk");
     second.sign_with(
+        c,
         &mut flow.psbt,
         [6; 32],
         &mut None,
@@ -251,9 +258,11 @@ fn run_backup(out: &Path) -> Result<(), String> {
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    // The test stick's files are made as the tests make theirs.
+    let compute = testkit::compute();
     let result = match args.as_slice() {
         [flag, out] if flag == "--backup" => run_backup(Path::new(out)),
-        [out] => run(Path::new(out)),
+        [out] => run(&compute, Path::new(out)),
         _ => {
             eprintln!("usage: faraday-testkit [--backup] OUT_DIR");
             return ExitCode::from(2);

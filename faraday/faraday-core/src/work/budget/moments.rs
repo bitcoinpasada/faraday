@@ -61,10 +61,11 @@ const STARTUP: Table = &[
 
 #[test]
 fn startup_to_home_does_its_fixed_work() {
+    let c = crate::testkit::compute();
     // The self-test's own work (`osk_selftest`), known vectors run at the
     // first Display: whatever it is, the start does it once.
     let before = snapshot();
-    assert!(osk_selftest::run().is_ok());
+    assert!(osk_selftest::run(&c).is_ok());
     let selftest = since(&before);
     // The test stick's files, made (signed, some of them) before the
     // count starts.
@@ -137,6 +138,11 @@ const UNLOCK: Table = &[
         "the vault seed's words' hash and its master key's id, each kept",
     ),
     (
+        Work::KeyDerive,
+        1,
+        "the vault seed's master key's xpub, for its id (key_identity), kept",
+    ),
+    (
         Work::DescriptorParse,
         13,
         "each of the vault's 12 wallet records read once and kept (VaultRecords), and its kept wallet text once (read_kept)",
@@ -168,6 +174,11 @@ const LOAD: Table = &[
         Work::FileHash,
         1,
         "the loaded key's id (wallet::master_id), kept on the key",
+    ),
+    (
+        Work::KeyDerive,
+        1,
+        "the loaded key's master xpub, for its id (wallet::master_id), kept on the key",
     ),
     (
         Work::Address,
@@ -214,10 +225,13 @@ fn unlock_to_the_load_sheet_and_load_do_their_fixed_work() {
 /// Savings and its unsigned spend in the Inbox, with the two test seeds
 /// that sign it.
 fn with_spend() -> Faraday {
+    let c = crate::testkit::compute();
     let mut app = testkit::started();
     let _ = app.session.set_network(testkit::NET);
     for (word, l) in &testkit::TEST_SEEDS[..2] {
-        let _ = app.session.add_words(&testkit::test_words(word), l, None);
+        let _ = app
+            .session
+            .add_words(&c, &testkit::test_words(word), l, None);
     }
     let kits = testkit::kits();
     let kit = kits.iter().find(|k| k.id == "savings").expect("Savings");
@@ -251,6 +265,11 @@ const OPEN: Table = &[
         "inspected once, kept on the spend until the PSBT or the session changes (SpendState::inspected)",
     ),
     (
+        Work::KeyDerive,
+        12,
+        "the inspection's context: each of the two seeds' six account xpubs (KeyRef::from_master)",
+    ),
+    (
         Work::WalletMatch,
         1,
         "Savings derives its script at the input's place once, then keeps it (Wallet::script_at)",
@@ -272,6 +291,11 @@ const SIGN: Table = &[
         Work::PsbtParse,
         1,
         "the signed PSBT put For the stick, parsed once as it comes into the Outbox",
+    ),
+    (
+        Work::KeyDerive,
+        44,
+        "three contexts of the two seeds' six account xpubs each (36): the signing's, the signed PSBT's inspection and the nonce check's (kept on the spend); each seed's key derived and checked against the input's key as it signs (4); each signature's key derived again to recompute its nonce (4)",
     ),
     (
         Work::DescriptorParse,

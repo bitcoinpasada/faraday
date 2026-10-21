@@ -126,7 +126,8 @@ fn scan(app: &mut Faraday, bytes: Vec<u8>) {
 
 /// A seed's SeedQR, as the camera reads it.
 fn seedqr(words: &str) -> Vec<u8> {
-    let m = Mnemonic::parse(Language::English, words).unwrap();
+    let c = testkit::compute();
+    let m = Mnemonic::parse(&c, Language::English, words).unwrap();
     osk_codec::seedqr::to_digits(&m)
         .expose()
         .as_bytes()
@@ -199,6 +200,7 @@ fn after_lock(mut app: Faraday) -> Faraday {
 /// The vault as far as the wallet: the tab, What do you have?'s vault,
 /// the passphrase, Unlock, Load.
 fn unlock_on_tab(app: &mut Faraday) {
+    let c = testkit::compute();
     app.press(Action::Nav(Screen::Family));
     app.press(Action::Family(F::Next(page::MAP)));
     app.press(Action::Family(F::Next(page::SAFE)));
@@ -210,7 +212,7 @@ fn unlock_on_tab(app: &mut Faraday) {
     settle(app);
     // Unlocked: everything is ticked, nothing loaded until Load.
     assert!(app.session.keys.is_empty(), "the unlock loaded before Load");
-    assert!(app.vault_rows_now(0).iter().all(|r| r.chosen));
+    assert!(app.vault_rows_now(&c, 0).iter().all(|r| r.chosen));
     app.press(Action::Vault(
         faraday_core::vaults::VaultAction::LoadChosen(0),
     ));

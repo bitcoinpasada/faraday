@@ -12,9 +12,10 @@ use faraday_core::wallet::{classify, read_wallet, same_wallet};
 
 /// What Faraday makes of one file, a line per question.
 fn outcome(path: &str, bytes: &[u8]) -> String {
+    let c = faraday_core::testkit::compute();
     let text = String::from_utf8_lossy(bytes);
     let mut out = format!("== {path}\n");
-    out.push_str(&format!("kind {:?}\n", classify(path, bytes)));
+    out.push_str(&format!("kind {:?}\n", classify(&c, path, bytes)));
     match read_wallet(&text) {
         Ok(p) => {
             out.push_str(&format!("wallet {}\n", same_wallet(&p)));

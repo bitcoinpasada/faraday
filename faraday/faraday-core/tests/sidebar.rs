@@ -17,6 +17,7 @@ fn with(seeds: u8, wallets: usize) -> Faraday {
 /// `with`, at a chosen panel height, for a test that wants more room
 /// than the panel's own 768 to fit its counts.
 fn with_height(seeds: u8, wallets: usize, height: u16) -> Faraday {
+    let c = testkit::compute();
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
@@ -38,12 +39,12 @@ fn with_height(seeds: u8, wallets: usize, height: u16) -> Faraday {
             .map(|&w| Language::English.words()[usize::from(w)])
             .collect();
         app.session
-            .add_words(&words.join(" "), &format!("Seed {i}"), None)
+            .add_words(&c, &words.join(" "), &format!("Seed {i}"), None)
             .unwrap();
     }
     let text = (wallets > 0).then(|| {
         faraday_core::create::NewKind::NativeSegwit
-            .key_text(app.session.keys[0].master())
+            .key_text(&c, app.session.keys[0].master())
             .unwrap()
     });
     for a in 0..wallets {
@@ -89,10 +90,11 @@ fn the_sidebar_has_no_spend_row() {
 /// Each of the four stages of the session strip in turn.
 #[test]
 fn the_session_strip_names_the_current_stage() {
+    let c = testkit::compute();
     let mut app = with(0, 0);
     assert_eq!(app.session_stage(), "Open");
     app.session
-        .add_words("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "k", None)
+        .add_words(&c, "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "k", None)
         .unwrap();
     assert_eq!(app.session_stage(), "Work");
     app.outbox.clear();
@@ -199,10 +201,11 @@ fn many_show_their_first_rows_and_how_many_more() {
 
 #[test]
 fn a_wallet_the_seeds_here_sign_for_stays_in_view_among_many() {
+    let c = testkit::compute();
     let mut app = with(2, 0);
     let text_of = |app: &Faraday, k: usize, a: usize| {
         faraday_core::create::NewKind::NativeSegwit
-            .key_text(app.session.keys[k].master())
+            .key_text(&c, app.session.keys[k].master())
             .unwrap()
             .replace("/0h]", &format!("/{a}h]"))
     };
@@ -237,10 +240,11 @@ fn a_wallet_the_seeds_here_sign_for_stays_in_view_among_many() {
 /// without it are another key, listed apart.
 #[test]
 fn a_key_with_a_passphrase_says_so() {
+    let c = testkit::compute();
     let mut app = with(1, 0);
     let words = app.session.keys[0].words.as_deref().unwrap().to_string();
     app.session
-        .add_words_with(&words, "TREZOR", "Seed 0", None)
+        .add_words_with(&c, &words, "TREZOR", "Seed 0", None)
         .unwrap();
     let _ = app.frame();
     let texts = app.drawn_texts();

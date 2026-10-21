@@ -497,6 +497,7 @@ fn gpg_at(home: &Path, now: u64, args: &[&str]) -> Option<(bool, String)> {
 /// `gpg --import` from taking it until it is removed by hand.
 #[test]
 fn the_revocation_is_exported_through_the_secret_sheet_as_a_rev_file() {
+    let c = testkit::compute();
     let mut app = unlocked();
     keep_the_time(&mut app);
     make_key(&mut app, "Release");
@@ -529,7 +530,7 @@ fn the_revocation_is_exported_through_the_secret_sheet_as_a_rev_file() {
         "\n:-----BEGIN PGP PUBLIC KEY BLOCK-----\nComment: This is a revocation certificate\n"
     ));
     // Never public: not a file Select all takes, and no code or picture.
-    assert_ne!(classify("x.rev", text.as_bytes()), FileKind::Gpg);
+    assert_ne!(classify(&c, "x.rev", text.as_bytes()), FileKind::Gpg);
     assert!(item.exposure() == faraday_core::secrets::Exposure::Secret);
 
     // GnuPG: refuses until the colon is removed, accepts after.
@@ -1154,6 +1155,7 @@ fn a_renewed_key_is_valid_in_gnupg_again() {
 /// block whose Comment holds a seed are not public (F22, F32).
 #[test]
 fn a_rev_file_a_guarded_block_and_a_comment_with_a_seed_are_not_public() {
+    let c = testkit::compute();
     let k = faraday_pgp::Key {
         primary_seed: [0x11; 32],
         created: 1_780_000_000,
@@ -1164,16 +1166,16 @@ fn a_rev_file_a_guarded_block_and_a_comment_with_a_seed_are_not_public() {
     };
     let cert = k.certificate(1_780_000_000);
     let public = armor(Armor::PublicKey, &cert);
-    assert_eq!(classify("k.asc", public.as_bytes()), FileKind::Gpg);
+    assert_eq!(classify(&c, "k.asc", public.as_bytes()), FileKind::Gpg);
     let rev = k.revocation_file(&k.revocation(1_780_000_100, faraday_pgp::Reason::Unspecified, ""));
-    assert_ne!(classify("k.rev", rev.as_bytes()), FileKind::Gpg);
+    assert_ne!(classify(&c, "k.rev", rev.as_bytes()), FileKind::Gpg);
     assert_ne!(
-        classify("k.asc", format!(":{public}").as_bytes()),
+        classify(&c, "k.asc", format!(":{public}").as_bytes()),
         FileKind::Gpg
     );
     let words = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
     let with_words = armor_with(Armor::PublicKey, &cert, Some(words));
-    assert_ne!(classify("k.asc", with_words.as_bytes()), FileKind::Gpg);
+    assert_ne!(classify(&c, "k.asc", with_words.as_bytes()), FileKind::Gpg);
     let with_xprv = armor_with(
         Armor::PublicKey,
         &cert,
@@ -1181,12 +1183,12 @@ fn a_rev_file_a_guarded_block_and_a_comment_with_a_seed_are_not_public() {
             "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi",
         ),
     );
-    assert_ne!(classify("k.asc", with_xprv.as_bytes()), FileKind::Gpg);
+    assert_ne!(classify(&c, "k.asc", with_xprv.as_bytes()), FileKind::Gpg);
     // A user ID with a seed.
     let mut k2 = k;
     k2.user_ids = vec![words.to_string()];
     let seeded = armor(Armor::PublicKey, &k2.certificate(1_780_000_000));
-    assert_ne!(classify("k.asc", seeded.as_bytes()), FileKind::Gpg);
+    assert_ne!(classify(&c, "k.asc", seeded.as_bytes()), FileKind::Gpg);
 }
 
 /// What the app last asked the shell to keep across a lock.

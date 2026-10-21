@@ -72,9 +72,10 @@ fn add_key(app: &mut Faraday, n: usize) {
 
 /// Test key 1 typed in and a one-key wallet over it. Returns its index.
 fn one_key(app: &mut Faraday) -> usize {
+    let c = testkit::compute();
     add_key(app, 0);
     let text = faraday_core::create::NewKind::NativeSegwit
-        .key_text(app.session.keys[0].master())
+        .key_text(&c, app.session.keys[0].master())
         .unwrap();
     app.session
         .add_wallet(
@@ -115,7 +116,8 @@ fn planned(app: &mut Faraday, w: usize, preset: u8) {
 }
 
 fn chart(app: &Faraday, w: usize) -> Glance {
-    faraday_core::glance::of(app, w).expect("the wallet has a chart")
+    let c = testkit::compute();
+    faraday_core::glance::of(&c, app, w).expect("the wallet has a chart")
 }
 
 fn nodes(g: &Glance) -> Vec<BackupNode> {

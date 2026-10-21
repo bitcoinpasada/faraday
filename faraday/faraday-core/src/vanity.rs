@@ -232,6 +232,7 @@ impl Faraday {
     /// One tick of a search under way: a budget of candidates, the rate
     /// measured, the find kept. Returns whether to draw.
     pub(crate) fn vanity_tick(&mut self, now_ms: u64) -> bool {
+        let c = self.compute();
         if self.screen != Screen::Vanity || !self.vanity.as_ref().is_some_and(|v| v.running) {
             return false;
         }
@@ -245,6 +246,7 @@ impl Faraday {
         let g = &v.grind;
         let outcome = match g.dial {
             Dial::Account => engine::grind(
+                &c,
                 &Key::Master(key.master()),
                 &Method::Account,
                 g.script,
@@ -257,11 +259,12 @@ impl Faraday {
                 let Some(words) = key.words.as_ref() else {
                     return false;
                 };
-                let Ok(m) = crate::wallet::parse_words(key.language, words) else {
+                let Ok(m) = crate::wallet::parse_words(&c, key.language, words) else {
                     return false;
                 };
                 let base: &[u8] = key.passphrase.as_ref().map_or(&[], |p| p.as_bytes());
                 engine::grind(
+                    &c,
                     &Key::Words(&m),
                     &Method::Passphrase { base },
                     g.script,
@@ -295,6 +298,7 @@ impl Faraday {
     /// wallet. The passphrase is a secret, kept with the key in the
     /// session; saving it to a vault is the vault's own choice.
     fn vanity_use(&mut self) {
+        let c = self.compute();
         let Some(key) = self.vanity_key() else {
             return;
         };
@@ -318,10 +322,11 @@ impl Faraday {
                     .map_or(String::new(), |p| p.to_string());
                 let passphrase = Zeroizing::new(format!("{base}{}", find.suffix.as_str()));
                 let lang = key.language;
-                let Ok(m) = crate::wallet::parse_words(lang, &words) else {
+                let Ok(m) = crate::wallet::parse_words(&c, lang, &words) else {
                     return;
                 };
                 match self.session.add_mnemonic(
+                    &c,
                     &m,
                     &passphrase,
                     &fill(EN.vanity_vanity_passphrase, &[&label.to_string()]),
@@ -344,7 +349,7 @@ impl Faraday {
         else {
             return;
         };
-        let text = match master.account_xpub(script, account) {
+        let text = match master.account_xpub(&c, script, account) {
             Ok(a) => {
                 let shown = format!("{}", a.path())
                     .trim_start_matches("m/")

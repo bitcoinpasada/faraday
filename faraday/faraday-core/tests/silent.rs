@@ -31,17 +31,18 @@ fn with_key() -> Faraday {
 
 #[test]
 fn the_address_is_bip352s_for_the_key_and_a_label_makes_another() {
+    let c = faraday_core::testkit::compute();
     let mut app = with_key();
     app.press(Action::Silent);
     assert_eq!(app.screen, Screen::Silent);
     let secp = osk_bip::bitcoin::secp256k1::Secp256k1::new();
-    let r = Receiver::derive(app.session.keys[0].master(), 0);
+    let r = Receiver::derive(&c, app.session.keys[0].master(), 0);
     let plain = r.address(&secp).unwrap().as_str().to_string();
     assert!(plain.starts_with("sp1"), "{plain}");
-    assert_eq!(app.silent_address().as_deref(), Some(plain.as_str()));
+    assert_eq!(app.silent_address(&c).as_deref(), Some(plain.as_str()));
     app.press(Action::SLabel(1));
     let one = r.labelled_address(&secp, 1).unwrap().as_str().to_string();
-    assert_eq!(app.silent_address().as_deref(), Some(one.as_str()));
+    assert_eq!(app.silent_address(&c).as_deref(), Some(one.as_str()));
     assert_ne!(one, plain);
     // The record lists the label handed out and reads back.
     app.press(Action::SRecord);
@@ -169,6 +170,7 @@ fn checked(app: &Faraday) -> Option<Checked> {
 
 #[test]
 fn the_key_s_silent_payments_wallet_is_among_the_wallets_and_keeps_its_labels() {
+    let c = faraday_core::testkit::compute();
     let mut app = with_key();
     app.press(Action::Silent);
     app.press(Action::SAddWallet);
@@ -176,7 +178,7 @@ fn the_key_s_silent_payments_wallet_is_among_the_wallets_and_keeps_its_labels() 
     let w = &app.session.wallets[0];
     assert_eq!(Kind::of(w.policy()), Kind::Silent);
     let secp = Secp256k1::new();
-    let r = Receiver::derive(app.session.keys[0].master(), 0);
+    let r = Receiver::derive(&c, app.session.keys[0].master(), 0);
     let plain = r.address(&secp).unwrap().as_str().to_string();
     assert_eq!(w.policy().silent().unwrap().address(), plain);
     // Its one key is here.
@@ -193,33 +195,35 @@ fn the_key_s_silent_payments_wallet_is_among_the_wallets_and_keeps_its_labels() 
     assert!(app.offers(Action::SWallet(0)));
     app.press(Action::SWallet(0));
     assert_eq!(app.screen, Screen::Silent);
-    assert_eq!(app.silent_address().as_deref(), Some(plain.as_str()));
+    assert_eq!(app.silent_address(&c).as_deref(), Some(plain.as_str()));
 }
 
 #[test]
 fn a_record_read_from_files_is_a_wallet_whose_address_needs_no_key() {
+    let c = faraday_core::testkit::compute();
     let mut keyed = with_key();
     keyed.press(Action::Silent);
-    let record = keyed.silent_record().unwrap();
-    let address = keyed.silent_address().unwrap();
+    let record = keyed.silent_record(&c).unwrap();
+    let address = keyed.silent_address(&c).unwrap();
     let mut app = faraday_core::testkit::started();
     files(&mut app, &[("silent-1.txt", record.into_bytes())]);
     app.press(Action::LoadWallet(0));
     assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
     assert_eq!(Kind::of(app.session.wallets[0].policy()), Kind::Silent);
     app.press(Action::SWallet(0));
-    assert_eq!(app.silent_address().as_deref(), Some(address.as_str()));
-    assert!(!app.silent_key_here());
+    assert_eq!(app.silent_address(&c).as_deref(), Some(address.as_str()));
+    assert!(!app.silent_key_here(&c));
     // A label needs the scan private key, which is the key's.
     app.press(Action::SLabel(1));
-    assert_eq!(app.silent_address(), None);
+    assert_eq!(app.silent_address(&c), None);
 }
 
 #[test]
 fn a_payment_to_this_wallet_is_found_and_one_to_another_is_not() {
+    let c = faraday_core::testkit::compute();
     let mut app = with_key();
     let secp = Secp256k1::new();
-    let r = Receiver::derive(app.session.keys[0].master(), 0);
+    let r = Receiver::derive(&c, app.session.keys[0].master(), 0);
     let scan = r.scan_public_key(&secp);
     let (paid, funding_tx) = payment(&scan, &r.spend_public_key());
     // Someone else's address: the same scan key, another spend key.
@@ -253,9 +257,10 @@ fn a_payment_to_this_wallet_is_found_and_one_to_another_is_not() {
 
 #[test]
 fn a_payment_to_a_label_names_the_label_and_one_missing_its_funding_waits() {
+    let c = faraday_core::testkit::compute();
     let mut app = with_key();
     let secp = Secp256k1::new();
-    let r = Receiver::derive(app.session.keys[0].master(), 0);
+    let r = Receiver::derive(&c, app.session.keys[0].master(), 0);
     let scan = r.scan_public_key(&secp);
     let (paid, funding_tx) = payment(&scan, &r.labelled_spend_key(&secp, 2).unwrap());
     files(&mut app, &[("payment.txn", consensus::serialize(&paid))]);
@@ -284,13 +289,14 @@ fn a_payment_to_a_label_names_the_label_and_one_missing_its_funding_waits() {
 
 #[test]
 fn a_silent_payments_wallet_saved_into_a_vault_reads_back_as_itself() {
+    let c = faraday_core::testkit::compute();
     use faraday_core::testkit;
     use faraday_core::vaults::VaultAction as V;
     use faraday_vault::records::{field, kind};
     let mut keyed = with_key();
     keyed.press(Action::Silent);
     keyed.press(Action::SLabel(1));
-    let record = keyed.silent_record().unwrap();
+    let record = keyed.silent_record(&c).unwrap();
     let mut app = testkit::started();
     files(
         &mut app,

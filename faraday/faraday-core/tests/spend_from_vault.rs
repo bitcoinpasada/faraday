@@ -232,7 +232,8 @@ fn who_signs() -> (Faraday, usize) {
 
 /// The camera reads these words' SeedQR.
 fn scan_seedqr(app: &mut Faraday, words: &str) {
-    let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, words).unwrap();
+    let c = testkit::compute();
+    let m = osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, words).unwrap();
     app.event(Event::Scanned {
         bytes: osk_codec::seedqr::to_digits(&m)
             .expose()
@@ -261,13 +262,14 @@ fn scan_a_key_on_who_signs_reaches_can_spend_and_the_buttons_go() {
 
 #[test]
 fn a_key_scanned_with_no_name_shows_its_fingerprint_once() {
+    let c = testkit::compute();
     let (mut app, w) = who_signs();
     app.press(Action::ScanKey(w));
     scan_seedqr(&mut app, &testkit::test_words("zebra"));
     let fp = {
         let mut s = testkit::session();
         faraday_core::wallet::fp_text(
-            s.add_words(&testkit::test_words("zebra"), "", None)
+            s.add_words(&c, &testkit::test_words("zebra"), "", None)
                 .unwrap(),
         )
     };

@@ -15,6 +15,7 @@ use opensigner_core::strings::EN;
 use opensigner_core::strings::fill;
 use osk_bip::bip39::Language;
 use osk_bip::bip85;
+use osk_crypto::work::Compute;
 use zeroize::Zeroizing;
 
 use crate::wallet::fp_text;
@@ -136,8 +137,7 @@ impl Faraday {
 
     /// The value the flow derives, as text: the child words, the WIF, the
     /// xprv, the hex or the password.
-    pub fn bip85_value(&self) -> Option<Zeroizing<String>> {
-        crate::work::count(crate::work::Work::KeyDerive);
+    pub fn bip85_value(&self, c: &Compute) -> Option<Zeroizing<String>> {
         // The demo derives no BIP-85 output (`docs/DEMO.md` §4).
         if !self.makes_secrets() {
             return None;
@@ -152,7 +152,7 @@ impl Faraday {
         let i = b.index()?;
         let text: Zeroizing<String> = match b.app {
             Bip85App::Words => {
-                let m = bip85::child_mnemonic(master, Language::English, b.length, i).ok()?;
+                let m = bip85::child_mnemonic(c, master, Language::English, b.length, i).ok()?;
                 let words: Vec<&str> = m
                     .indices()
                     .iter()
@@ -160,21 +160,23 @@ impl Faraday {
                     .collect();
                 Zeroizing::new(words.join(" "))
             }
-            Bip85App::Wif => Zeroizing::new(bip85::child_wif(master, i).ok()?.as_str().to_string()),
+            Bip85App::Wif => {
+                Zeroizing::new(bip85::child_wif(c, master, i).ok()?.as_str().to_string())
+            }
             Bip85App::Xprv => {
-                Zeroizing::new(bip85::child_xprv(master, i).ok()?.as_str().to_string())
+                Zeroizing::new(bip85::child_xprv(c, master, i).ok()?.as_str().to_string())
             }
             Bip85App::Hex => {
-                crate::secret_text::hex(bip85::child_hex(master, b.length, i).ok()?.as_bytes())
+                crate::secret_text::hex(bip85::child_hex(c, master, b.length, i).ok()?.as_bytes())
             }
             Bip85App::Base64 => Zeroizing::new(
-                bip85::child_password_base64(master, b.length, i)
+                bip85::child_password_base64(c, master, b.length, i)
                     .ok()?
                     .as_str()
                     .to_string(),
             ),
             Bip85App::Base85 => Zeroizing::new(
-                bip85::child_password_base85(master, b.length, i)
+                bip85::child_password_base85(c, master, b.length, i)
                     .ok()?
                     .as_str()
                     .to_string(),
@@ -205,11 +207,12 @@ impl Faraday {
     /// The value into the open vault: a password as an entry, child words
     /// as a key, anything else as a note.
     pub(crate) fn bip85_to_vault(&mut self) {
+        let c = self.compute();
         if self.vaults.open.get(self.vaults.current).is_none() {
             self.toast(FEN.bip85_no_vault_is_open);
             return;
         }
-        let (Some(value), Some(b)) = (self.bip85_value(), self.bip85.as_ref()) else {
+        let (Some(value), Some(b)) = (self.bip85_value(&c), self.bip85.as_ref()) else {
             return;
         };
         let title = self.bip85_title();
@@ -220,7 +223,7 @@ impl Faraday {
                 .with(field::PASSWORD, value.as_bytes())
                 .with(field::NOTES, path.as_bytes()),
             Bip85App::Words => {
-                let Ok(m) = crate::wallet::parse_words(Language::English, &value) else {
+                let Ok(m) = crate::wallet::parse_words(&c, Language::English, &value) else {
                     return;
                 };
                 Record::new(kind::KEY)
@@ -240,15 +243,16 @@ impl Faraday {
 
     /// Child words load as a key of this session.
     pub(crate) fn bip85_load(&mut self) {
+        let c = self.compute();
         if !self.may_load_keys() {
             self.toast(&fill(FEN.bip85_remove_the_first, &[self.medium.noun()]));
             return;
         }
-        let Some(value) = self.bip85_value() else {
+        let Some(value) = self.bip85_value(&c) else {
             return;
         };
         let title = self.bip85_title();
-        match self.session.add_words(&value, &title, None) {
+        match self.session.add_words(&c, &value, &title, None) {
             Ok(fp) => self.toast(&fill(FEN.bip85_key_added, &[&fp_text(fp).to_string()])),
             Err(e) => self.toast(&e.text()),
         }
@@ -256,7 +260,8 @@ impl Faraday {
 
     /// The value out unprotected, through the secret sheet.
     pub(crate) fn bip85_out(&mut self) {
-        let (Some(value), Some(b)) = (self.bip85_value(), self.bip85.as_ref()) else {
+        let c = self.compute();
+        let (Some(value), Some(b)) = (self.bip85_value(&c), self.bip85.as_ref()) else {
             return;
         };
         let fp = b

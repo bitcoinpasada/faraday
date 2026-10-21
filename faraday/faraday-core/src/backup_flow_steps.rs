@@ -1502,6 +1502,7 @@ impl Faraday {
         bytes: Vec<u8>,
         label: &str,
     ) -> String {
+        let c = self.compute();
         let salt = fv::read_header(&bytes).map(|h| h.salt).ok();
         // A different vault already under that name keeps its name.
         let clash = self.inbox.iter().any(|it| {
@@ -1520,7 +1521,7 @@ impl Faraday {
                 && !(it.kind == FileKind::Vault
                     && fv::read_header(&it.bytes).ok().map(|h| h.salt) == salt)
         });
-        self.inbox.push(Item::new(&own, bytes));
+        self.inbox.push(Item::new(&c, &own, bytes));
         self.save_boxes();
         own
     }
@@ -2513,6 +2514,7 @@ impl Faraday {
     /// its key is loaded, against the digits of the key's words, which are
     /// written out for the comparison and dropped.
     pub(crate) fn flow_qr_answer(&mut self, name: &str, read: Option<(Vec<u8>, Vec<Vec<u8>>)>) {
+        let c = self.compute();
         use crate::backup_flow::ReadBack;
         let Some(i) = self.fi() else {
             return;
@@ -2541,7 +2543,7 @@ impl Faraday {
                     .find(|&k| crate::wallet::fp_text(self.session.keys[k].fingerprint()) == fp);
                 let reads = match (key, codes.as_slice()) {
                     (_, []) => false,
-                    (Some(k), [one]) => self.seedqr_reads_as(k, one).unwrap_or(true),
+                    (Some(k), [one]) => self.seedqr_reads_as(&c, k, one).unwrap_or(true),
                     (Some(_), _) => false,
                     (None, _) => true,
                 };
@@ -2672,6 +2674,7 @@ impl Faraday {
     /// Every stick is written: the sealed vaults leave For the stick and
     /// are in Files as the sticks now hold them (the visit does the same).
     fn flow_finish(&mut self, i: usize) {
+        let c = self.compute();
         let used = self.backup_flows[i].plan.used_vaults();
         let seals: Vec<Sealed> = self.backup_flows[i]
             .sealing
@@ -2693,7 +2696,8 @@ impl Faraday {
                                 && fv::read_header(&it.bytes).is_ok_and(|o| o.salt == h.salt))
                     });
                 }
-                self.inbox.push(Item::new(&item.name, item.bytes.clone()));
+                self.inbox
+                    .push(Item::new(&c, &item.name, item.bytes.clone()));
             }
         }
         // Nothing the flow made waits For the stick: the public files it

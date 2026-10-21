@@ -74,8 +74,9 @@ fn type_seed_with(app: &mut Faraday, words: &str, pass: &str) {
 /// The open slot's Scan a SeedQR, reading these words' SeedQR: the sheet
 /// asks how it loads.
 fn scan_seed(app: &mut Faraday, words: &str) {
+    let c = testkit::compute();
     app.press(Action::RSlotScan);
-    let m = Mnemonic::parse(Language::English, words).unwrap();
+    let m = Mnemonic::parse(&c, Language::English, words).unwrap();
     app.event(Event::Scanned {
         bytes: osk_codec::seedqr::to_digits(&m)
             .expose()
@@ -608,12 +609,13 @@ fn with_vaults_back_up_this_wallet_resumes_at_the_plan_with_its_vaults() {
 /// key signs at once (F6).
 #[test]
 fn with_vaults_spend_from_this_wallet_opens_at_once() {
+    let c = testkit::compute();
     let (_shell, mut app, w) = two_vaults_done();
     assert!(
-        app.held_keys_now().is_empty(),
+        app.held_keys_now(&c).is_empty(),
         "a restored key signs at once"
     );
-    let (label, action) = app.spend_button(w);
+    let (label, action) = app.spend_button(&c, w);
     assert_eq!(label, "Spend from this wallet");
     app.press(action);
     assert_eq!(app.screen, Screen::Family);

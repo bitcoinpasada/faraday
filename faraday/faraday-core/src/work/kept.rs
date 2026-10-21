@@ -16,6 +16,7 @@ fn shape_of(descriptor: &str) -> String {
 
 #[test]
 fn a_wallet_record_changed_in_an_open_vault_shows_as_it_now_is() {
+    let c = crate::testkit::compute();
     use faraday_vault::records::field;
     let (mut app, _) = heavy();
     unlock_test_vault(&mut app);
@@ -23,7 +24,7 @@ fn a_wallet_record_changed_in_an_open_vault_shows_as_it_now_is() {
     let _ = app.frame();
     let v = app.vaults.current;
     let row = app
-        .vault_rows_now(v)
+        .vault_rows_now(&c, v)
         .into_iter()
         .find(|r| !r.seed)
         .expect("the test vault keeps a wallet");
@@ -34,7 +35,7 @@ fn a_wallet_record_changed_in_an_open_vault_shows_as_it_now_is() {
     app.vaults.open[v].contents.records[row.record].set(field::WALLET, other.descriptor.as_bytes());
     let _ = app.frame();
     let now = app
-        .vault_rows_now(v)
+        .vault_rows_now(&c, v)
         .into_iter()
         .find(|r| r.record == row.record)
         .expect("the record is listed");
@@ -104,12 +105,14 @@ fn a_wallets_address_follows_its_network_and_its_policy() {
 
 #[test]
 fn a_vault_holds_a_seed_typed_from_any_list_and_never_another_seed() {
+    let c = crate::testkit::compute();
     use osk_bip::bip39::{Language, Mnemonic};
     let (mut app, _) = heavy();
     unlock_test_vault(&mut app);
     let v = app.vaults.current;
     let words = |i: usize| {
         Mnemonic::parse(
+            &c,
             Language::English,
             &testkit::test_words(testkit::TEST_SEEDS[i].0),
         )
@@ -121,12 +124,12 @@ fn a_vault_holds_a_seed_typed_from_any_list_and_never_another_seed() {
     let other = words(1);
     for (m, holds) in [(spanish, true), (other, false), (kept, true)] {
         app.session
-            .add_mnemonic(&m, "", "", None)
+            .add_mnemonic(&c, &m, "", "", None)
             .expect("the seed loads");
         let k = app.session.keys.len() - 1;
         let _ = app.frame();
         assert_eq!(
-            app.vault_holds_seed(v, k, false),
+            app.vault_holds_seed(&c, v, k, false),
             holds,
             "{:?}: the vault holds this seed",
             m.language()
@@ -141,6 +144,7 @@ fn a_vault_holds_a_seed_typed_from_any_list_and_never_another_seed() {
 /// other seed's, as a collision would leave it.
 #[test]
 fn a_seed_whose_fingerprint_finds_a_record_of_another_seed_is_not_kept_there() {
+    let c = crate::testkit::compute();
     use crate::vault_screens::{key_fingerprint, vault_has_key};
     use crate::wallet::fp_text;
     use faraday_vault::records::kind;
@@ -150,6 +154,7 @@ fn a_seed_whose_fingerprint_finds_a_record_of_another_seed_is_not_kept_there() {
     let v = app.vaults.current;
     let words = |i: usize| {
         Mnemonic::parse(
+            &c,
             Language::English,
             &testkit::test_words(testkit::TEST_SEEDS[i].0),
         )
@@ -157,23 +162,23 @@ fn a_seed_whose_fingerprint_finds_a_record_of_another_seed_is_not_kept_there() {
     };
     let kept = app
         .session
-        .add_mnemonic(&words(0), "", "", None)
+        .add_mnemonic(&c, &words(0), "", "", None)
         .expect("key 1");
     let other = app
         .session
-        .add_mnemonic(&words(1), "", "", None)
+        .add_mnemonic(&c, &words(1), "", "", None)
         .expect("key 2");
     let (k1, k2) = (app.session.keys.len() - 2, app.session.keys.len() - 1);
     assert!(
-        vault_has_key(&app, v, &app.session.keys[k1]),
+        vault_has_key(&c, &app, v, &app.session.keys[k1]),
         "the vault keeps key 1"
     );
-    assert!(!vault_has_key(&app, v, &app.session.keys[k2]));
+    assert!(!vault_has_key(&c, &app, v, &app.session.keys[k2]));
     // The vault's record of key 1 now looks up as key 2's fingerprint.
     let record_fp = app.vaults.open[v]
         .contents
         .of(kind::KEY)
-        .find_map(|(_, r)| key_fingerprint(&app, r))
+        .find_map(|(_, r)| key_fingerprint(&c, &app, r))
         .expect("the vault's key record");
     assert_eq!(record_fp, fp_text(kept));
     for e in app.vaults.fingerprints.borrow_mut().iter_mut() {
@@ -182,13 +187,14 @@ fn a_seed_whose_fingerprint_finds_a_record_of_another_seed_is_not_kept_there() {
         }
     }
     assert!(
-        !vault_has_key(&app, v, &app.session.keys[k2]),
+        !vault_has_key(&c, &app, v, &app.session.keys[k2]),
         "a fingerprint alone does not make another seed kept"
     );
 }
 
 #[test]
 fn a_psbt_waiting_in_files_is_offered_on_its_wallets_card_once_the_wallet_loads() {
+    let c = crate::testkit::compute();
     use crate::StorageEvent;
     let kits = testkit::kits();
     let savings = kits.iter().find(|k| k.id == "savings").expect("Savings");
@@ -216,7 +222,7 @@ fn a_psbt_waiting_in_files_is_offered_on_its_wallets_card_once_the_wallet_loads(
     let _ = app.frame();
     assert_eq!(app.psbt_for(w), Some(0), "the PSBT is Savings'");
     assert_ne!(
-        app.spend_button(w).0,
+        app.spend_button(&c, w).0,
         crate::strings::EN.family_spend_from_this,
         "Savings' card offers to sign the PSBT in Files"
     );
@@ -224,6 +230,7 @@ fn a_psbt_waiting_in_files_is_offered_on_its_wallets_card_once_the_wallet_loads(
 
 #[test]
 fn a_spend_opened_before_its_seeds_were_loaded_signs_with_them_once_they_are() {
+    let c = crate::testkit::compute();
     use crate::StorageEvent;
     let kits = testkit::kits();
     let savings = kits.iter().find(|k| k.id == "savings").expect("Savings");
@@ -251,7 +258,9 @@ fn a_spend_opened_before_its_seeds_were_loaded_signs_with_them_once_they_are() {
         "no seed of the spend is here yet"
     );
     for (word, l) in &testkit::TEST_SEEDS[..2] {
-        let _ = app.session.add_words(&testkit::test_words(word), l, None);
+        let _ = app
+            .session
+            .add_words(&c, &testkit::test_words(word), l, None);
     }
     app.press(Action::SignHere);
     let _ = app.frame();
@@ -267,23 +276,27 @@ fn a_spend_opened_before_its_seeds_were_loaded_signs_with_them_once_they_are() {
 
 /// What the state keeps of what the Inbox gives, as a frame asks for it.
 fn kept_found(app: &crate::Faraday) -> crate::inbox::Found {
-    app.inbox.found(&app.session, |items| app.found_in(items))
+    let c = crate::testkit::compute();
+    app.inbox
+        .found(&app.session, |items| app.found_in(&c, items))
 }
 
 /// [`kept_found`]'s fresh counterpart.
 fn found_fresh(app: &crate::Faraday) -> String {
-    format!("{:?}", app.found_in(&app.inbox))
+    let c = crate::testkit::compute();
+    format!("{:?}", app.found_in(&c, &app.inbox))
 }
 
 /// The first file on the test stick of wallet `id` that reads as a
 /// wallet.
 fn wallet_file(id: &str) -> (String, Vec<u8>) {
+    let c = crate::testkit::compute();
     testkit::files()
         .expect("the test stick's files")
         .into_iter()
         .find(|(n, b)| {
             n.starts_with(&format!("{id}-"))
-                && crate::Item::new(n, b.clone()).kind == crate::wallet::FileKind::Wallet
+                && crate::Item::new(&c, n, b.clone()).kind == crate::wallet::FileKind::Wallet
         })
         .expect("a wallet file")
 }
@@ -294,6 +307,7 @@ fn wallet_file(id: &str) -> (String, Vec<u8>) {
 /// follows (`inbox::InboxFiles`).
 #[test]
 fn what_the_inbox_gives_follows_the_files_and_the_session() {
+    let c = crate::testkit::compute();
     use crate::Item;
     let kits = testkit::kits();
     let (one, two) = (&kits[0], &kits[1]);
@@ -326,15 +340,15 @@ fn what_the_inbox_gives_follows_the_files_and_the_session() {
     step(&mut app, "nothing in the Inbox", false);
 
     // The files: added, renamed, replaced, removed.
-    app.inbox.push(Item::new(&n1, b1.clone()));
+    app.inbox.push(Item::new(&c, &n1, b1.clone()));
     step(&mut app, "a wallet file added", true);
     assert_eq!(kept_found(&app).wallets.len(), 1);
     app.inbox[0].name = "renamed-wallet.txt".to_string();
     step(&mut app, "the file renamed", true);
     assert_eq!(kept_found(&app).wallets[0].name, "Renamed");
-    app.inbox[0] = Item::new(&n2, b2.clone());
+    app.inbox[0] = Item::new(&c, &n2, b2.clone());
     step(&mut app, "the file replaced by another wallet's", true);
-    app.inbox.push(Item::new(&n1, b1.clone()));
+    app.inbox.push(Item::new(&c, &n1, b1.clone()));
     step(&mut app, "the first wallet's file added again", true);
     assert_eq!(kept_found(&app).wallets.len(), 2);
     app.inbox.remove(0);
@@ -364,19 +378,20 @@ fn what_the_inbox_gives_follows_the_files_and_the_session() {
     // key's label is its seed's name.
     let (word, l) = &testkit::TEST_SEEDS[0];
     app.inbox.push(Item::new(
+        &c,
         "words.txt",
         format!("{}\n", testkit::test_words(word)).into_bytes(),
     ));
     step(&mut app, "a seed file added", true);
     assert!(!kept_found(&app).seeds[0].loaded);
     app.session
-        .add_words(&testkit::test_words(word), l, None)
+        .add_words(&c, &testkit::test_words(word), l, None)
         .expect("the seed loads");
     step(&mut app, "the seed loaded", true);
     assert!(kept_found(&app).seeds[0].loaded);
     let (word, l) = &testkit::TEST_SEEDS[1];
     app.session
-        .add_words(&testkit::test_words(word), l, None)
+        .add_words(&c, &testkit::test_words(word), l, None)
         .expect("the seed loads");
     step(&mut app, "another key loaded", true);
     assert_eq!(kept_found(&app).seeds.len(), 2);

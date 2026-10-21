@@ -13,6 +13,7 @@ use std::rc::Rc;
 use faraday_vault::records::{self, kind};
 use opensigner_core::strings::fill;
 use osk_bip::keys::Fingerprint;
+use osk_crypto::work::Compute;
 
 use crate::create::{self, FromWallet, NewKind, Source};
 use crate::strings::EN;
@@ -62,20 +63,20 @@ fn fp_bytes(text: &str) -> Option<[u8; 4]> {
 impl Faraday {
     /// Works out [`crate::drawing::View::create_vaults`]. Costs a read of each vault
     /// file's header and a hash of each open vault's key records.
-    pub(crate) fn create_vaults_now(&self) -> Rc<CreateVaults> {
-        Rc::new(self.create_vaults_uncached())
+    pub(crate) fn create_vaults_now(&self, c: &Compute) -> Rc<CreateVaults> {
+        Rc::new(self.create_vaults_uncached(c))
     }
 
     /// Works out [`crate::drawing::View::create_vaults`] (see
     /// [`Faraday::create_vaults_now`]).
-    fn create_vaults_uncached(&self) -> CreateVaults {
+    fn create_vaults_uncached(&self, c: &Compute) -> CreateVaults {
         let mut out = CreateVaults::default();
         for (v, open) in self.vaults.open.iter().enumerate() {
             let mut keys = Vec::new();
             for (i, r) in open.contents.of(kind::KEY) {
                 // The fingerprint the unlock worked out; the record's own
                 // label.
-                let Some(text) = crate::vault_screens::key_fingerprint(self, r) else {
+                let Some(text) = crate::vault_screens::key_fingerprint(c, self, r) else {
                     continue;
                 };
                 let Some(fp) = fp_bytes(&text) else {
@@ -116,13 +117,14 @@ impl Faraday {
     /// slot `slot` with it. The vault stays open and unchanged. Costs the
     /// key's seed and master key.
     pub(crate) fn create_slot_vault(&mut self, slot: u8, v: usize, r: usize) {
+        let c = self.compute();
         if !self.may_load_keys() {
             return;
         }
-        let Some(c) = self.create.as_ref() else {
+        let Some(cs) = self.create.as_ref() else {
             return;
         };
-        if c.built.is_some() || usize::from(slot) >= c.slots.len() {
+        if cs.built.is_some() || usize::from(slot) >= cs.slots.len() {
             return;
         }
         let Some(rec) = self
@@ -134,7 +136,7 @@ impl Faraday {
         else {
             return;
         };
-        let want = crate::vault_screens::key_fingerprint(self, rec).and_then(|t| fp_bytes(&t));
+        let want = crate::vault_screens::key_fingerprint(&c, self, rec).and_then(|t| fp_bytes(&t));
         let before = self.session.keys.len();
         self.vault_load_set(v, &BTreeSet::from([r]));
         let fp = if self.session.keys.len() > before {
@@ -192,6 +194,7 @@ impl Faraday {
     /// wallet has in an open vault is loaded from there. The wallet is
     /// not changed.
     pub(crate) fn create_from_wallet(&mut self, i: usize) {
+        let c = self.compute();
         let Some(w) = self.session.wallets.get(i) else {
             return;
         };
@@ -217,7 +220,7 @@ impl Faraday {
             let held = match fp {
                 Some(fp) if here(self, *fp) => true,
                 Some(fp) if self.may_load_keys() => {
-                    if let Some((v, r)) = self.vault_key_for(Fingerprint(*fp)) {
+                    if let Some((v, r)) = self.vault_key_for(&c, Fingerprint(*fp)) {
                         self.vault_load_set(v, &BTreeSet::from([r]));
                     }
                     here(self, *fp)

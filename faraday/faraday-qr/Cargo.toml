@@ -19,6 +19,8 @@ osk-codec = { path = "../../core/osk-codec", default-features = false }
 
 [dev-dependencies]
 faraday-files = { path = "../faraday-files" }
+# The token the tests' key work takes (docs/COMPUTE.md §2).
+osk-crypto = { path = "../../core/osk-crypto" }
 osk-codec = { path = "../../core/osk-codec" }
 
 [lints]

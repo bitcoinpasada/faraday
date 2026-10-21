@@ -18,9 +18,10 @@ fn file(path: &str) -> String {
 
 /// The wallet Files loads from the file, which it must call a wallet.
 fn wallet(path: &str) -> WalletPolicy {
+    let c = faraday_core::testkit::compute();
     let text = file(path);
     assert_eq!(
-        classify(path, text.as_bytes()),
+        classify(&c, path, text.as_bytes()),
         FileKind::Wallet,
         "{path} is not a wallet in Files"
     );
@@ -173,11 +174,12 @@ fn multipath_descriptors_from_sparrow_load() {
 
 #[test]
 fn a_psbt_and_a_finished_transaction_from_bluewallet_are_named_as_such() {
+    let c = faraday_core::testkit::compute();
     let root = format!("{}/tests/vectors/interop", env!("CARGO_MANIFEST_DIR"));
     let psbt = std::fs::read(format!("{root}/bluewallet/quicklook-preview-sample.psbt")).unwrap();
-    assert_eq!(classify("sample.psbt", &psbt), FileKind::Psbt);
+    assert_eq!(classify(&c, "sample.psbt", &psbt), FileKind::Psbt);
     let txn = std::fs::read(format!("{root}/bluewallet/quicklook-preview-sample.txn")).unwrap();
-    assert_eq!(classify("sample.txn", &txn), FileKind::Transaction);
+    assert_eq!(classify(&c, "sample.txn", &txn), FileKind::Transaction);
 }
 
 fn scanned(text: &str) -> faraday_core::Item {
@@ -986,10 +988,11 @@ fn an_electrum_file_of_bip_84s_account_has_bip_84s_first_address_however_its_ori
 
 #[test]
 fn an_electrum_file_holding_a_private_key_is_a_secret_and_its_origin_less_multisig_is_refused() {
+    let c = faraday_core::testkit::compute();
     use faraday_core::secrets::Exposure;
     let path = "bluewallet/fromsparrow-electrum.json";
     let text = file(path);
-    let kind = classify(path, text.as_bytes());
+    let kind = classify(&c, path, text.as_bytes());
     assert_eq!(kind, FileKind::SecretWallet);
     assert_eq!(kind.exposure(), Exposure::Secret);
     // Its keystores name no fingerprint or derivation: a multisig wallet
@@ -1030,6 +1033,7 @@ fn an_encrypted_electrum_file_is_refused_as_encrypted() {
 
 #[test]
 fn faradays_electrum_file_reads_back_as_the_same_wallet_with_slip_132_keys_and_no_private_key() {
+    let c = faraday_core::testkit::compute();
     for (id, prefix) in [
         ("spending", "vpub"),
         ("nested", "upub"),
@@ -1049,7 +1053,11 @@ fn faradays_electrum_file_reads_back_as_the_same_wallet_with_slip_132_keys_and_n
             "{id}: {text}"
         );
         assert!(text.contains("\"xprv\": null"), "{id}");
-        assert_eq!(classify(name, text.as_bytes()), FileKind::Wallet, "{id}");
+        assert_eq!(
+            classify(&c, name, text.as_bytes()),
+            FileKind::Wallet,
+            "{id}"
+        );
         let back = read_wallet(text).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
         let own = read_wallet(&d).unwrap();
         assert!(same(&back, &own), "{id}");
@@ -1067,6 +1075,7 @@ fn faradays_electrum_file_reads_back_as_the_same_wallet_with_slip_132_keys_and_n
 
 #[test]
 fn a_psbt_electrum_builds_from_a_bare_zpub_is_not_signed_here() {
+    let c = faraday_core::testkit::compute();
     // Electrum given an account key alone puts that key's own fingerprint
     // in the PSBT, where the seed's master fingerprint belongs: no key
     // here matches it, and nothing is signed. The same spend with the
@@ -1086,6 +1095,7 @@ fn a_psbt_electrum_builds_from_a_bare_zpub_is_not_signed_here() {
         let mut session = testkit::session();
         session
             .add_words(
+                &c,
                 &testkit::test_words(testkit::TEST_SEEDS[0].0),
                 "Test key 1",
                 None,
@@ -1099,7 +1109,9 @@ fn a_psbt_electrum_builds_from_a_bare_zpub_is_not_signed_here() {
                 faraday_core::wallet::Origin::Named,
             )
             .unwrap();
-        session.sign(psbt, [0; 32], &mut None).unwrap_or_default()
+        session
+            .sign(&c, psbt, [0; 32], &mut None)
+            .unwrap_or_default()
     };
     let mut bare = testkit::unsigned(&kit_of(format!(
         "wpkh([{}]{account}/<0;1>/*)",

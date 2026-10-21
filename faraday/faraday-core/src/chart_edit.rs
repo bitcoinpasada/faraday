@@ -13,6 +13,7 @@ use crate::secret_text::SecretText;
 use crate::strings::EN;
 use crate::{Action, Faraday, Sheet};
 use opensigner_core::strings::fill;
+use osk_crypto::work::Compute;
 
 /// What the chart's sheets hold between presses.
 #[derive(Default)]
@@ -195,6 +196,7 @@ impl Faraday {
     /// Asks for `edit` on the chart of `press`: the sheet shows the check
     /// before and after, and Confirm makes it.
     pub(crate) fn chart_ask(&mut self, press: Press, edit: Edit) {
+        let c = self.compute();
         let Some(w) = self.press_wallet(press) else {
             return;
         };
@@ -232,7 +234,7 @@ impl Faraday {
             }
             _ => {}
         }
-        let title = self.edit_title(press, w, edit, &names);
+        let title = self.edit_title(&c, press, w, edit, &names);
         self.chart_work.ask = Some(Ask {
             press,
             edit,
@@ -249,10 +251,17 @@ impl Faraday {
     }
 
     /// What an edit does, in words: "Move Key 1 words to Place 3".
-    fn edit_title(&self, press: Press, w: usize, edit: Edit, names: &[String]) -> String {
+    fn edit_title(
+        &self,
+        c: &Compute,
+        press: Press,
+        w: usize,
+        edit: Edit,
+        names: &[String],
+    ) -> String {
         let g = match press {
-            Press::Loaded(_) => glance::of(self, w),
-            Press::Vault(v, r) => glance::of_vault(self, v, r),
+            Press::Loaded(_) => glance::of(c, self, w),
+            Press::Vault(v, r) => glance::of_vault(c, self, v, r),
         };
         let place = |p: usize| {
             let places = g.as_ref().map_or(0, |g| match &g.backup {
@@ -418,6 +427,7 @@ impl Faraday {
     /// item, a file, a sheet, the stick visit for a vault's stick, a
     /// passphrase shown to be copied.
     fn chart_then(&mut self, press: Press, w: usize, edit: Edit) {
+        let c = self.compute();
         use crate::glance_sheet::{ChartAction as C, Step};
         let item = |it: plan::Item| {
             Action::Chart(C::Do(Press::Loaded(w), Step::Item(crate::bstep::of(it))))
@@ -433,8 +443,8 @@ impl Faraday {
             (At::Place(_), What::Passphrase(i)) => {
                 // The new line, and its key: the passphrase shown to copy.
                 let g = match press {
-                    Press::Loaded(_) => glance::of(self, w),
-                    Press::Vault(v, r) => glance::of_vault(self, v, r),
+                    Press::Loaded(_) => glance::of(&c, self, w),
+                    Press::Vault(v, r) => glance::of_vault(&c, self, v, r),
                 };
                 let Some(g) = g else {
                     return;
@@ -466,7 +476,8 @@ impl Faraday {
     /// Marks the thing at line `line` of backup node `n` (or every thing
     /// in node `n`) `mark`, in the vault, and shows what follows.
     pub(crate) fn chart_mark(&mut self, press: Press, n: u8, line: Option<u8>, mark: Mark) {
-        let Some(things) = self.chart_things(press, n, line) else {
+        let c = self.compute();
+        let Some(things) = self.chart_things(&c, press, n, line) else {
             return;
         };
         let kept = self.chart_notes_change(press, &|notes: &mut Vec<Note>| {
@@ -484,7 +495,8 @@ impl Faraday {
 
     /// Every thing in backup node `n`, checked here today.
     pub(crate) fn chart_checked(&mut self, press: Press, n: u8) {
-        let Some(things) = self.chart_things(press, n, None) else {
+        let c = self.compute();
+        let Some(things) = self.chart_things(&c, press, n, None) else {
             return;
         };
         let today = self.today();
@@ -501,7 +513,8 @@ impl Faraday {
 
     /// Key `k` of the chart, its holder's backup confirmed today.
     pub(crate) fn chart_key_checked(&mut self, press: Press, k: u8) {
-        let Some(fp) = self.chart_key_fp(press, k) else {
+        let c = self.compute();
+        let Some(fp) = self.chart_key_fp(&c, press, k) else {
             return;
         };
         let today = self.today();
@@ -516,13 +529,14 @@ impl Faraday {
     /// The name typed on the open sheet kept: a key's holder, or a
     /// vault's name. An empty name takes the note away.
     pub(crate) fn chart_save_name(&mut self, press: Press) {
+        let c = self.compute();
         let Some((_, target)) = self.chart else {
             return;
         };
         let name = self.chart_work.text.trim().to_string();
         let done = match target {
             Target::Holder(k) => {
-                let Some(fp) = self.chart_key_fp(press, k) else {
+                let Some(fp) = self.chart_key_fp(&c, press, k) else {
                     return;
                 };
                 self.chart_notes_change(press, &|notes: &mut Vec<Note>| {
@@ -533,7 +547,7 @@ impl Faraday {
                 })
             }
             Target::VaultName(n) => {
-                let Some(At::Vault(v)) = crate::glance_sheet::node_at(self, press, n) else {
+                let Some(At::Vault(v)) = crate::glance_sheet::node_at(&c, self, press, n) else {
                     return;
                 };
                 self.chart_notes_change(press, &|notes: &mut Vec<Note>| {
@@ -559,10 +573,11 @@ impl Faraday {
     /// is wiped at once, and only the result is kept, as the date the
     /// passphrase line was checked when it matched.
     pub(crate) fn chart_pass_try(&mut self, press: Press) {
+        let c = self.compute();
         let Some((_, Target::PassCheck(k, n, j))) = self.chart else {
             return;
         };
-        let fp = self.chart_key_fp(press, k);
+        let fp = self.chart_key_fp(&c, press, k);
         let matched = fp.and_then(|fp| {
             let key = self
                 .session
@@ -570,16 +585,15 @@ impl Faraday {
                 .iter()
                 .find(|key| key.fingerprint().0 == fp)?;
             let words = key.words.as_ref()?;
-            let m = crate::wallet::parse_words(key.language, words).ok()?;
-            let seed = m.to_seed(self.chart_work.secret.as_bytes()).ok()?;
-            crate::work::count(crate::work::Work::MasterKey);
-            let made = osk_bip::keys::MasterKey::from_seed(&seed, self.session.network());
+            let m = crate::wallet::parse_words(&c, key.language, words).ok()?;
+            let seed = m.to_seed(&c, self.chart_work.secret.as_bytes()).ok()?;
+            let made = osk_bip::keys::MasterKey::from_seed(&c, &seed, self.session.network());
             Some(made.fingerprint().0 == fp)
         });
         self.chart_work.secret.clear();
         let matched = matched.unwrap_or(false);
         self.chart_work.result = Some(matched);
-        if matched && let Some(things) = self.chart_things(press, n, Some(j)) {
+        if matched && let Some(things) = self.chart_things(&c, press, n, Some(j)) {
             let today = self.today();
             self.chart_notes_change(press, &|notes: &mut Vec<Note>| {
                 for &(at, what) in &things {
@@ -593,10 +607,16 @@ impl Faraday {
 
     /// What is at line `line` of backup node `n` on the chart of `press`,
     /// or every thing in the node.
-    fn chart_things(&self, press: Press, n: u8, line: Option<u8>) -> Option<Vec<(At, What)>> {
+    fn chart_things(
+        &self,
+        c: &Compute,
+        press: Press,
+        n: u8,
+        line: Option<u8>,
+    ) -> Option<Vec<(At, What)>> {
         let g = match press {
-            Press::Loaded(w) => glance::of(self, w),
-            Press::Vault(v, r) => glance::of_vault(self, v, r),
+            Press::Loaded(w) => glance::of(c, self, w),
+            Press::Vault(v, r) => glance::of_vault(c, self, v, r),
         }?;
         let glance::Backup::Plan { nodes, .. } = &g.backup else {
             return None;
@@ -609,10 +629,10 @@ impl Faraday {
     }
 
     /// The master fingerprint of key `k` of the chart of `press`.
-    fn chart_key_fp(&self, press: Press, k: u8) -> Option<[u8; 4]> {
+    fn chart_key_fp(&self, c: &Compute, press: Press, k: u8) -> Option<[u8; 4]> {
         let g = match press {
-            Press::Loaded(w) => glance::of(self, w),
-            Press::Vault(v, r) => glance::of_vault(self, v, r),
+            Press::Loaded(w) => glance::of(c, self, w),
+            Press::Vault(v, r) => glance::of_vault(c, self, v, r),
         }?;
         g.keys.get(usize::from(k))?.fp
     }
@@ -650,13 +670,13 @@ impl Faraday {
 
     /// Where the money moving from loaded wallet `w` goes: the new
     /// wallet's name and its first receive address.
-    pub(crate) fn moving_to(&self, w: usize) -> Option<(String, String)> {
+    pub(crate) fn moving_to(&self, c: &Compute, w: usize) -> Option<(String, String)> {
         if self.moving_from() != Some(w) {
             return None;
         }
         let to = self.chart_work.moving_to.as_ref()?;
         let nw = self.session.wallets.iter().find(|x| x.checksum() == *to)?;
-        Some((nw.name.clone(), self.receive_line(nw, false, 0).0))
+        Some((nw.name.clone(), self.receive_line(c, nw, false, 0).0))
     }
 
     /// Typing into the open sheet's field: a name, or a passphrase to be
@@ -726,7 +746,8 @@ impl Faraday {
     /// place by its number, never by the name the vault keeps for it, and
     /// what it holds.
     pub(crate) fn envelopes_out(&mut self, w: usize) {
-        let Some(g) = glance::of(self, w) else {
+        let c = self.compute();
+        let Some(g) = glance::of(&c, self, w) else {
             return;
         };
         let glance::Backup::Plan { nodes, .. } = &g.backup else {

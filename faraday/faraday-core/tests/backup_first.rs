@@ -118,6 +118,7 @@ fn checklist(app: &mut Faraday, p: Preset) {
 
 /// The copy by hand of the key's seed, checked by its words typed back.
 fn check_the_copy(app: &mut Faraday, fp: Fingerprint) {
+    let c = testkit::compute();
     let key = app
         .session
         .keys
@@ -128,7 +129,7 @@ fn check_the_copy(app: &mut Faraday, fp: Fingerprint) {
     app.press(Action::BCheck);
     testkit::type_words(app, &words);
     assert!(
-        app.backup_item_done_now(Item::Copy(0)),
+        app.backup_item_done_now(&c, Item::Copy(0)),
         "the copy did not check"
     );
 }
@@ -154,6 +155,7 @@ fn kit_of(app: &Faraday, w: usize) -> Kit {
 
 #[test]
 fn a_key_from_new_key_cannot_sign_until_its_wallets_checklist_is_complete_and_can_after() {
+    let c = testkit::compute();
     // The key's wallet, made once to build a spend of it.
     let mut first = device(Vec::new(), 768);
     let (w, fp) = made_here(&mut first);
@@ -162,8 +164,8 @@ fn a_key_from_new_key_cannot_sign_until_its_wallets_checklist_is_complete_and_ca
     let mut app = device(vec![("spend.psbt".to_string(), psbt.to_bytes())], 768);
     let (w, again) = made_here(&mut app);
     assert_eq!(again, fp, "the same flips made another key");
-    assert!(app.key_held(fp));
-    assert_eq!(app.spend_button(w).0, "Finish the backup first");
+    assert!(app.key_held(&c, fp));
+    assert_eq!(app.spend_button(&c, w).0, "Finish the backup first");
     // Signing is refused, and Who signs says why.
     let at = app
         .inbox
@@ -189,10 +191,10 @@ fn a_key_from_new_key_cannot_sign_until_its_wallets_checklist_is_complete_and_ca
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     check_the_copy(&mut app, fp);
-    assert!(app.key_held(fp), "held before the envelopes");
+    assert!(app.key_held(&c, fp), "held before the envelopes");
     the_envelopes(&mut app);
-    assert!(!app.key_held(fp), "still held with the checklist done");
-    assert_ne!(app.spend_button(w).0, "Finish the backup first");
+    assert!(!app.key_held(&c, fp), "still held with the checklist done");
+    assert_ne!(app.spend_button(&c, w).0, "Finish the backup first");
     app.press(Action::StartSpend(at));
     app.press(Action::SignHere);
     assert!(
@@ -204,6 +206,7 @@ fn a_key_from_new_key_cannot_sign_until_its_wallets_checklist_is_complete_and_ca
 
 #[test]
 fn a_restored_key_signs_at_once() {
+    let c = testkit::compute();
     let k = testkit::kits()
         .into_iter()
         .find(|k| k.id == "spending")
@@ -222,8 +225,8 @@ fn a_restored_key_signs_at_once() {
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     app.press(Action::EntryAdd);
     let fp = app.session.keys[0].fingerprint();
-    assert!(!app.key_held(fp));
-    assert_ne!(app.spend_button(0).0, "Finish the backup first");
+    assert!(!app.key_held(&c, fp));
+    assert_ne!(app.spend_button(&c, 0).0, "Finish the backup first");
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
     app.press(Action::SignHere);
     assert!(app.spend.as_ref().unwrap().spend.finished.is_some());
@@ -259,6 +262,7 @@ fn unlock(app: &mut Faraday) {
 
 #[test]
 fn after_a_lock_and_an_unlock_from_the_vault_the_held_key_is_still_held() {
+    let c = testkit::compute();
     let mut app = device(vec![kit_file("vault.ofv")], 768);
     let (_, fp) = made_here(&mut app);
     checklist(&mut app, Preset::PaperVault);
@@ -268,8 +272,8 @@ fn after_a_lock_and_an_unlock_from_the_vault_the_held_key_is_still_held() {
     unlock(&mut app);
     app.press(Action::Nav(Screen::Backup));
     app.press(Action::BVaultSave(0));
-    assert!(app.backup_item_done_now(Item::Vault(0)));
-    assert!(app.key_held(fp), "the checklist is not done");
+    assert!(app.backup_item_done_now(&c, Item::Vault(0)));
+    assert!(app.key_held(&c, fp), "the checklist is not done");
     let vault: Vec<_> = locked(&mut app)
         .into_iter()
         .filter(|(n, _)| n == "vault.ofv")
@@ -282,7 +286,7 @@ fn after_a_lock_and_an_unlock_from_the_vault_the_held_key_is_still_held() {
         next.session.keys.iter().any(|k| k.fingerprint() == fp),
         "the key did not load"
     );
-    assert!(next.key_held(fp), "the key signs after a lock");
+    assert!(next.key_held(&c, fp), "the key signs after a lock");
 }
 
 #[test]
@@ -319,6 +323,7 @@ fn draws_an_address(app: &mut Faraday, w: usize) -> bool {
 
 #[test]
 fn a_key_made_here_shows_no_receive_address_until_its_backup_is_done() {
+    let c = testkit::compute();
     let mut app = device(Vec::new(), 2400);
     let (w, fp) = made_here(&mut app);
     // Create's address check.
@@ -330,8 +335,11 @@ fn a_key_made_here_shows_no_receive_address_until_its_backup_is_done() {
     assert!(!draws_an_address(&mut app, w), "the card");
     // Every address line and the chart's move target.
     let wl = &app.session.wallets[w];
-    for (c, i) in [(false, 0), (false, 7), (true, 3)] {
-        assert_eq!(app.receive_line(wl, c, i), (WARNING.to_string(), true));
+    for (change, i) in [(false, 0), (false, 7), (true, 3)] {
+        assert_eq!(
+            app.receive_line(&c, wl, change, i),
+            (WARNING.to_string(), true)
+        );
     }
     app.press(Action::Backup(w));
     backup_as(&mut app, Preset::Paper);
@@ -344,11 +352,12 @@ fn a_key_made_here_shows_no_receive_address_until_its_backup_is_done() {
     app.press(Action::OpenWallet(w));
     assert!(draws_an_address(&mut app, w), "after the backup");
     let wl = &app.session.wallets[w];
-    assert!(!app.receive_line(wl, false, 0).1);
+    assert!(!app.receive_line(&c, wl, false, 0).1);
 }
 
 #[test]
 fn the_press_that_completes_the_last_item_shows_the_receive_address_on_the_next_frame() {
+    let c = testkit::compute();
     let mut app = device(Vec::new(), 2400);
     let (w, fp) = made_here(&mut app);
     app.press(Action::Backup(w));
@@ -360,13 +369,13 @@ fn the_press_that_completes_the_last_item_shows_the_receive_address_on_the_next_
     check_the_copy(&mut app, fp);
     // The checklist is on show with its last item waiting, drawn.
     let _ = app.drawn_texts();
-    assert!(app.receive_held(&app.session.wallets[w]));
+    assert!(app.receive_held(&c, &app.session.wallets[w]));
     app.press(Action::BStep(bstep::ENVELOPE));
     app.press(Action::BNext(bstep::ENVELOPE));
     // No frame has been drawn since the press: the key is already
     // released, and the address is not held back.
-    assert!(!app.key_held(fp));
-    assert!(!app.receive_held(&app.session.wallets[w]));
+    assert!(!app.key_held(&c, fp));
+    assert!(!app.receive_held(&c, &app.session.wallets[w]));
     app.press(Action::OpenWallet(w));
     assert!(!app.drawn_texts().iter().any(|t| t == WARNING));
     assert!(draws_an_address(&mut app, w));
@@ -429,6 +438,7 @@ fn with_every_item_done_the_done_card_shows_the_three_checks_above_the_chart() {
 
 #[test]
 fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
+    let c = testkit::compute();
     let mut app = device(Vec::new(), 2400);
     let (_, fp) = made_here(&mut app);
     app.press(Action::CBackup);
@@ -478,8 +488,8 @@ fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
     assert!(!app.offers(make));
     assert!(!app.offers(Action::BNext(bstep::VAULT)));
     app.press(Action::BVaultSave(0));
-    assert!(app.backup_item_done_now(Item::Vault(0)));
-    assert!(app.key_held(fp), "the rest of the checklist waits");
+    assert!(app.backup_item_done_now(&c, Item::Vault(0)));
+    assert!(app.key_held(&c, fp), "the rest of the checklist waits");
     let _ = app.frame();
     assert!(app.offers(Action::BNext(bstep::VAULT)), "Continue");
     assert!(!app.offers(Action::BVaultSave(0)));
@@ -489,6 +499,7 @@ fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
 
 #[test]
 fn changing_to_paper_only_after_the_vault_keeps_its_copy_on_the_map_and_the_hold() {
+    let c = testkit::compute();
     let mut app = device(vec![kit_file("vault.ofv")], 2400);
     let (_, fp) = made_here(&mut app);
     checklist(&mut app, Preset::PaperVault);
@@ -496,7 +507,7 @@ fn changing_to_paper_only_after_the_vault_keeps_its_copy_on_the_map_and_the_hold
     unlock(&mut app);
     app.press(Action::Nav(Screen::Backup));
     app.press(Action::BVaultSave(0));
-    assert!(app.backup_item_done_now(Item::Vault(0)));
+    assert!(app.backup_item_done_now(&c, Item::Vault(0)));
     // Paper only, part way: the vault taken off on the board, by its ×
     // and Take off, as a person does it (§19.21).
     app.press(Action::BPlan);
@@ -518,9 +529,9 @@ fn changing_to_paper_only_after_the_vault_keeps_its_copy_on_the_map_and_the_hold
     let line = format!("vault.ofv holds seed {}", fp_text(fp));
     let shown = app.drawn_texts().join(" ");
     assert!(shown.contains(&line), "{shown}");
-    assert!(app.key_held(fp), "the paper items are not done");
+    assert!(app.key_held(&c, fp), "the paper items are not done");
     the_envelopes(&mut app);
-    assert!(!app.key_held(fp));
+    assert!(!app.key_held(&c, fp));
 }
 
 #[test]

@@ -28,7 +28,9 @@ fn fp(n: usize) -> String {
 
 /// Test seed `n`'s SeedQR: each word's index as four digits.
 fn seed_seedqr(n: usize) -> Vec<u8> {
+    let c = testkit::compute();
     let m = osk_bip::bip39::Mnemonic::parse(
+        &c,
         osk_bip::bip39::Language::English,
         &testkit::test_words(testkit::TEST_SEEDS[n].0),
     )
@@ -161,6 +163,7 @@ fn unlocked_elsewhere() -> Faraday {
 
 /// A second vault, of its own salt: one slot with one entry.
 fn spare_vault() -> Vec<u8> {
+    let c = testkit::compute();
     use faraday_vault::records::{field, kind};
     use faraday_vault::{Contents, Cost, Record};
     let slot = Contents {
@@ -177,6 +180,7 @@ fn spare_vault() -> Vec<u8> {
         lanes: 1,
     };
     faraday_vault::create(
+        &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
         &[b"spare".as_slice()],
@@ -219,11 +223,12 @@ fn key_fps(app: &Faraday) -> Vec<String> {
 
 #[test]
 fn the_boot_stick_is_copied_into_memory_and_nothing_is_in_files_until_import() {
+    let c = testkit::compute();
     let mut app = booted();
     assert_eq!(app.screen, Screen::Home);
     assert_eq!(app.sheet, Some(Sheet::Import));
     assert!(app.inbox.is_empty(), "{:?}", inbox_names(&app));
-    let c = app.import_count_now().unwrap();
+    let c = app.import_count_now(&c).unwrap();
     assert_eq!((c.copied, c.not_read, c.vaults), (7, 0, 1));
     let _ = app.frame();
     assert!(app.offers(Action::Import(I::Later)));
@@ -863,9 +868,11 @@ const CODEX32_SHARES: [&str; 2] = [
 
 /// The fingerprint test seed 3's words make with `passphrase`.
 fn fp_with(passphrase: &str) -> String {
+    let c = testkit::compute();
     let mut probe = faraday_core::wallet::Session::default();
     let fp = probe
         .add_words_with(
+            &c,
             &testkit::test_words(testkit::TEST_SEEDS[2].0),
             passphrase,
             "",
@@ -953,6 +960,7 @@ fn every_kind_of_seed_file_imported_with_the_stick_in_loads_at_the_pull() {
 /// A vault holding a master seed, as a SLIP-39 or codex32 key is kept
 /// (BIP 93 vector 1's master seed), its key loading at unlock.
 fn seed_vault() -> Vec<u8> {
+    let c = testkit::compute();
     use faraday_vault::records::{field, kind};
     use faraday_vault::{Contents, Cost, Record};
     let seed = osk_bip::codex32::Codex32::parse(CODEX32_SECRET)
@@ -977,6 +985,7 @@ fn seed_vault() -> Vec<u8> {
         lanes: 1,
     };
     faraday_vault::create(
+        &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
         &[b"seeds".as_slice()],

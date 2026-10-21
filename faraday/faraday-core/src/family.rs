@@ -20,6 +20,7 @@
 use crate::strings::EN;
 use opensigner_core::strings::fill;
 use osk_bip::keys::Fingerprint;
+use osk_crypto::work::Compute;
 use osk_shell_api::Command;
 
 use crate::create::NewKind;
@@ -320,10 +321,10 @@ impl Faraday {
     /// finish the backup first while a key made here waits for it (§14.3),
     /// else carry on this wallet's spend, sign its PSBT in Files, or spend
     /// from it.
-    pub fn spend_button(&self, w: usize) -> (String, Action) {
+    pub fn spend_button(&self, c: &Compute, w: usize) -> (String, Action) {
         // A key made here signs once its backup is done
         // (`docs/NEW-WALLET.md` §14.3).
-        if !self.wallet_held(w).is_empty() {
+        if !self.wallet_held(c, w).is_empty() {
             return (
                 EN.family_finish_the_backup.to_string(),
                 Action::BackupFirst(w),
@@ -497,6 +498,7 @@ impl Faraday {
 
     /// Runs one of the tab's actions.
     pub(crate) fn family_act(&mut self, a: FamilyAction) {
+        let c = self.compute();
         use FamilyAction as F;
         if !matches!(a, F::More(_) | F::Unsure | F::MoreAddresses | F::Scan) {
             self.family.error = None;
@@ -625,7 +627,7 @@ impl Faraday {
             F::MoreAddresses => self.family.addresses = (self.family.addresses + 5).min(47),
             F::QrTx => {
                 if let Some(hex) = self.spend.as_ref().and_then(|s| s.spend.finished_hex()) {
-                    self.open_qr(QrView::text(EN.family_finished_transaction, &hex));
+                    self.open_qr(QrView::text(&c, EN.family_finished_transaction, &hex));
                 }
             }
             F::SpendFrom(i) => {
@@ -712,6 +714,7 @@ impl Faraday {
     /// of every file in Files. Several wallet files wait for the person
     /// to choose.
     fn family_auto_wallet(&mut self) {
+        let c = self.compute();
         if !self.session.wallets.is_empty() {
             return;
         }
@@ -720,7 +723,7 @@ impl Faraday {
             Some(Route::Vault) => {
                 if self.vaults.open.is_empty()
                     || !(0..self.vaults.open.len())
-                        .all(|v| self.vault_rows_now(v).iter().all(|r| r.seed))
+                        .all(|v| self.vault_rows_now(&c, v).iter().all(|r| r.seed))
                 {
                     return;
                 }
@@ -920,7 +923,8 @@ impl Faraday {
     /// passphrase. Else the passphrase sheet asks how it loads, and the
     /// camera comes back on after.
     pub(crate) fn family_intake_seed(&mut self, words: &str) {
-        let Some(fp) = key_of(words, "") else {
+        let c = self.compute();
+        let Some(fp) = key_of(&c, words, "") else {
             if let Some(scan) = self.scan.as_mut() {
                 scan.note = Some(EN.family_not_a_seedqr.to_string());
             }
@@ -936,7 +940,7 @@ impl Faraday {
         let note = match self.wallet_key_found(w, fp) {
             Found::Missing(_) => {
                 let label = self.wallet_key_label(w, fp);
-                match self.session.add_words_with(words, "", &label, None) {
+                match self.session.add_words_with(&c, words, "", &label, None) {
                     Ok(_) => {
                         self.family_came(Came::Seed(fp.0));
                         self.refresh_spend();
@@ -1174,12 +1178,13 @@ impl Faraday {
     /// The wallet of several keys made again as `kind`, in place of the
     /// one made before, under the same name.
     fn family_seeds_kind(&mut self, kind: NewKind) {
+        let c = self.compute();
         let Some(w) = self.family_wallet() else {
             return;
         };
         self.family.seeds.kind = kind;
         let s = self.family.seeds.clone();
-        let d = match self.seeds_descriptor(&s) {
+        let d = match self.seeds_descriptor(&c, &s) {
             Ok(d) => d,
             Err(e) => {
                 self.family.error = Some(e);
@@ -1227,6 +1232,7 @@ impl Faraday {
         words: &str,
         pass: &str,
     ) -> Option<Fingerprint> {
+        let c = self.compute();
         let label = self
             .session
             .key_label(plain)
@@ -1238,9 +1244,9 @@ impl Faraday {
                 }
             })
             .unwrap_or_default();
-        let fp = match self.session.add_words_with(words, pass, &label, None) {
+        let fp = match self.session.add_words_with(&c, words, pass, &label, None) {
             Ok(fp) => fp,
-            Err(crate::wallet::Refusal::Duplicate(_)) => key_of(words, pass)?,
+            Err(crate::wallet::Refusal::Duplicate(_)) => key_of(&c, words, pass)?,
             Err(e) => {
                 self.toast(&e.text());
                 return None;
@@ -1307,10 +1313,11 @@ impl Faraday {
     /// The wallet the last key typed opens as `kind`, in place of the one
     /// it opened before.
     fn family_words_kind(&mut self, kind: NewKind) {
+        let c = self.compute();
         let Some(key) = self.family_words_key() else {
             return;
         };
-        let text = match key.account_text(kind, 0) {
+        let text = match key.account_text(&c, kind, 0) {
             Ok(t) => t,
             Err(e) => {
                 self.family.error = Some(e);

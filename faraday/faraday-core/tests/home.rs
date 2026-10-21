@@ -647,6 +647,7 @@ fn home_lead_rule_4_a_receipt_with_nothing_loaded_shows_what_was_written() {
 /// writing it, and the tap opens Files, where the visit is.
 #[test]
 fn home_lead_rule_6_a_vault_changed_since_written_offers_to_write_it() {
+    let c = faraday_core::testkit::compute();
     use faraday_core::vaults::VaultAction as V;
     let vault = faraday_core::testkit::test_vault().unwrap();
     let mut app = with_inbox(vec![("vault.ofv", vault)]);
@@ -656,6 +657,7 @@ fn home_lead_rule_6_a_vault_changed_since_written_offers_to_write_it() {
     // A key the test vault does not hold, to save into it.
     app.session
         .add_words(
+            &c,
             "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon \
              abandon about",
             "k",

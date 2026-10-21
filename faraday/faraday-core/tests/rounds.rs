@@ -42,11 +42,12 @@ fn device(seeded: bool) -> Faraday {
 
 /// This device's public nonce on the spend, if one is there.
 fn our_nonce(app: &Faraday) -> Option<Vec<u8>> {
+    let c = testkit::compute();
     let s = app.spend.as_ref()?;
     let ours = app.session.keys[0]
         .master()
-        .derive(&"m/86'/1'/0'".parse().unwrap())
-        .to_xpub()
+        .derive(&c, &"m/86'/1'/0'".parse().unwrap())
+        .to_xpub(&c)
         .public_key;
     osk_psbt::musig::pub_nonces(&s.spend.psbt.inner().inputs[0])
         .ok()?

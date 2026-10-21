@@ -168,12 +168,14 @@ fn read_off(matrix: &osk_codec::qr::QrMatrix) -> Vec<u8> {
 }
 
 fn standard(words: &str) -> Vec<u8> {
-    let m = Mnemonic::parse(Language::English, words).unwrap();
+    let c = testkit::compute();
+    let m = Mnemonic::parse(&c, Language::English, words).unwrap();
     read_off(&osk_codec::seedqr::encode_seedqr(&m).unwrap())
 }
 
 fn compact(words: &str) -> Vec<u8> {
-    let m = Mnemonic::parse(Language::English, words).unwrap();
+    let c = testkit::compute();
+    let m = Mnemonic::parse(&c, Language::English, words).unwrap();
     read_off(&osk_codec::seedqr::encode_compact(&m).unwrap())
 }
 
@@ -190,7 +192,8 @@ fn note(app: &Faraday) -> String {
 }
 
 fn seeds_done(app: &Faraday) -> bool {
-    app.backup_item_done_now(Item::Copy(0))
+    let c = testkit::compute();
+    app.backup_item_done_now(&c, Item::Copy(0))
 }
 
 fn shown(app: &mut Faraday, want: &str) -> bool {
@@ -609,6 +612,7 @@ fn escape_closes_the_scanner_with_its_camera() {
 
 #[test]
 fn each_seed_is_checked_by_its_own_forms() {
+    let c = testkit::compute();
     let mut app = shown_on(1366, 768, 160);
     cameras(&mut app);
     for n in 0..2 {
@@ -658,7 +662,7 @@ fn each_seed_is_checked_by_its_own_forms() {
     app.press(Action::BCheck);
     let typed = words_of(&app, seeds[0]);
     testkit::type_words(&mut app, &typed);
-    assert!(app.backup_item_done_now(Item::Copy(seeds[0])));
+    assert!(app.backup_item_done_now(&c, Item::Copy(seeds[0])));
     app.press(Action::BNext(first));
     // The SeedQR seed: scanned.
     if app.backup.as_ref().unwrap().open != Some(second) {
@@ -666,11 +670,11 @@ fn each_seed_is_checked_by_its_own_forms() {
     }
     assert!(offered(&mut app, Action::BScan));
     assert!(!app.offers(Action::BCheck));
-    assert!(!app.backup_item_done_now(Item::Copy(seeds[1])));
+    assert!(!app.backup_item_done_now(&c, Item::Copy(seeds[1])));
     app.press(Action::BScan);
     let drawn = standard(&words_of(&app, seeds[1]));
     scan(&mut app, drawn);
-    assert!(app.backup_item_done_now(Item::Copy(seeds[1])));
+    assert!(app.backup_item_done_now(&c, Item::Copy(seeds[1])));
 }
 
 #[test]

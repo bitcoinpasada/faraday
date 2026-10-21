@@ -12,6 +12,7 @@ use opensigner_core::strings::fill;
 use osk_bip::bip39::Mnemonic;
 use osk_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
 use osk_bip::codex32::{self, Codex32};
+use osk_crypto::work::Compute;
 use osk_entropy::SeedXor;
 use zeroize::Zeroizing;
 
@@ -48,10 +49,10 @@ fn spread(draw: &[u8; 32], what: &[u8], len: usize) -> Zeroizing<Vec<u8>> {
 
 impl Faraday {
     /// The mnemonic of the key the backup shows, and its passphrase.
-    fn paper_key(&self) -> Option<(Mnemonic, Zeroizing<String>, [u8; 4])> {
+    fn paper_key(&self, c: &Compute) -> Option<(Mnemonic, Zeroizing<String>, [u8; 4])> {
         let b = self.backup.as_ref()?;
         let k = self.session.keys.get(b.key)?;
-        let m = crate::wallet::parse_words(k.language, k.words.as_ref()?).ok()?;
+        let m = crate::wallet::parse_words(c, k.language, k.words.as_ref()?).ok()?;
         let p = Zeroizing::new(
             k.passphrase
                 .as_deref()
@@ -63,11 +64,12 @@ impl Faraday {
 
     /// Splits the key's words into `parts` Seed XOR parts.
     pub(crate) fn paper_xor(&mut self, parts: u8) {
+        let c = self.compute();
         // Fresh parts are a new secret: none in the demo.
         if !self.makes_secrets() {
             return;
         }
-        let Some((m, _, _)) = self.paper_key() else {
+        let Some((m, _, _)) = self.paper_key(&c) else {
             return self.toast(EN.paper_this_key_has_no);
         };
         let Some(draw) = self.fresh(b"seed xor") else {
@@ -113,13 +115,14 @@ impl Faraday {
 
     /// codex32 shares of the key's BIP-32 seed, `k` of `n`.
     pub(crate) fn paper_codex32(&mut self, k: u8, n: u8) {
+        let c = self.compute();
         if k >= 2 && !self.makes_secrets() {
             return;
         }
-        let Some((m, passphrase, fp)) = self.paper_key() else {
+        let Some((m, passphrase, fp)) = self.paper_key(&c) else {
             return self.toast(EN.paper_this_key_has);
         };
-        let Ok(seed) = m.to_seed(passphrase.as_bytes()) else {
+        let Ok(seed) = m.to_seed(&c, passphrase.as_bytes()) else {
             return;
         };
         let Some(draw) = self.fresh(b"codex32") else {

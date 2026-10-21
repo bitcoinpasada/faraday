@@ -123,12 +123,13 @@ fn write_stick(shell: &mut Shell, app: &mut Faraday, d: &str) {
 /// The checklist made and done, Lock and write past each seed's warning,
 /// and each stick of the write step written on S1, S2 … in turn.
 fn lock_and_write(shell: &mut Shell, app: &mut Faraday) -> Faraday {
+    let c = testkit::compute();
     app.press(Action::BChecklist);
     assert_eq!(
         app.backup.as_ref().unwrap().stage,
         BStage::Checklist,
         "{:?}",
-        app.backup_kept_nowhere()
+        app.backup_kept_nowhere(&c)
     );
     app.press(Action::BNext(bstep::ENVELOPE));
     shell.flow(app, F::WalletLock);
@@ -190,7 +191,8 @@ fn copied_in(files: &[(String, Vec<u8>)]) -> Faraday {
 /// The seed the Inbox finds whose key is `fp`, made a wallet of the first
 /// kind (Native SegWit) on its sheet: its first address.
 fn seed_made_wallet(app: &mut Faraday, fp: [u8; 4]) -> String {
-    let found = app.inbox_found_now();
+    let c = testkit::compute();
+    let found = app.inbox_found_now(&c);
     assert!(
         found.seeds.iter().any(|s| s.fingerprint.0 == fp),
         "the seed {:02x?} is found: {:?}",
@@ -215,13 +217,17 @@ fn described_wallet(app: &mut Faraday) -> String {
 
 /// The fingerprint of test seed `n` with `pass`.
 fn fp_of(n: usize, pass: &str) -> [u8; 4] {
+    let c = testkit::compute();
     let m = Mnemonic::parse(
+        &c,
         Language::English,
         &testkit::test_words(testkit::TEST_SEEDS[n].0),
     )
     .unwrap();
-    let seed = m.to_seed(pass.as_bytes()).unwrap();
-    MasterKey::from_seed(&seed, testkit::NET).fingerprint().0
+    let seed = m.to_seed(&c, pass.as_bytes()).unwrap();
+    MasterKey::from_seed(&c, &seed, testkit::NET)
+        .fingerprint()
+        .0
 }
 
 // ---- restored from one place: the seed's forms ----
@@ -263,6 +269,7 @@ fn a_seedqr_picture_restores_the_wallet() {
 /// passphrase, and the wallet.
 #[test]
 fn a_passphrase_file_beside_the_words_restores_the_key_with_its_passphrase() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 2);
     let (mut app, address, fps) = made(&[2], PASS);
@@ -284,7 +291,7 @@ fn a_passphrase_file_beside_the_words_restores_the_key_with_its_passphrase() {
     let alone = copied_in(&on(&shell, &["S1"]));
     assert!(
         alone
-            .inbox_found_now()
+            .inbox_found_now(&c)
             .seeds
             .iter()
             .all(|s| s.fingerprint.0 != fps[0])
@@ -509,6 +516,7 @@ fn sha_hex(bytes: &[u8]) -> String {
 /// words, the passphrase, nor the SHA-256 of any of them or of the files.
 #[test]
 fn after_a_seedqr_is_written_and_read_back_the_kept_state_holds_nothing_of_the_seed() {
+    let c = testkit::compute();
     let mut shell = Shell::new();
     sticks(&mut shell, 3);
     let (mut app, _, _) = made(&[2], PASS);
@@ -520,7 +528,7 @@ fn after_a_seedqr_is_written_and_read_back_the_kept_state_holds_nothing_of_the_s
     let mut app = lock_and_write(&mut shell, &mut app);
     shell.pump(&mut app);
     let words = testkit::test_words(testkit::TEST_SEEDS[2].0);
-    let m = Mnemonic::parse(Language::English, &words).unwrap();
+    let m = Mnemonic::parse(&c, Language::English, &words).unwrap();
     let digits = osk_codec::seedqr::to_digits(&m)
         .expose()
         .as_bytes()
@@ -614,6 +622,7 @@ fn a_passphrase_dropped_in_a_vault_without_its_seed_is_a_record_of_its_own() {
 
 /// A vault file holding the records given, under `phrase`.
 fn vault_with(records: Vec<faraday_vault::Record>, phrase: &str, salt: u8) -> Vec<u8> {
+    let c = testkit::compute();
     let cost = faraday_vault::Cost {
         memory_kib: faraday_vault::MIN_MEMORY_KIB,
         passes: 1,
@@ -625,6 +634,7 @@ fn vault_with(records: Vec<faraday_vault::Record>, phrase: &str, salt: u8) -> Ve
         faraday_vault::Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Main"),
     );
     faraday_vault::create(
+        &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
         &[phrase.as_bytes()],
@@ -657,7 +667,8 @@ fn unlock_file(app: &mut Faraday, name: &str, phrase: &str) {
 /// passphrase; with only the words' vault open, the words alone.
 #[test]
 fn a_key_loads_with_its_passphrase_kept_in_another_open_vault() {
-    let words = Mnemonic::parse(Language::English, &testkit::test_words("summer")).unwrap();
+    let c = testkit::compute();
+    let words = Mnemonic::parse(&c, Language::English, &testkit::test_words("summer")).unwrap();
     let key = faraday_vault::Record::new(kind::KEY)
         .with(field::KEY, &faraday_vault::records::words_payload(&words));
     let with = fp_of(2, PASS);

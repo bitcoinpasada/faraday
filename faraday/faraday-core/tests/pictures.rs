@@ -282,6 +282,7 @@ fn checklist_for(name: &str, descriptor: &str) -> (Faraday, usize) {
 /// public file is named by: the item is done once they are there, and
 /// not once the picture it names is gone.
 fn public_item_lists_the_pictures_written(name: &str, descriptor: &str, parts: bool) {
+    let c = testkit::compute();
     let (mut app, w) = checklist_for(name, descriptor);
     let pictures: Vec<String> = app
         .public_pictures(w, 8)
@@ -302,12 +303,12 @@ fn public_item_lists_the_pictures_written(name: &str, descriptor: &str, parts: b
     want.sort();
     assert_eq!(have, want);
     assert!(app.backup_items_now().contains(&bstep::PUBLIC));
-    assert!(app.backup_item_done_now(Item::PublicFiles));
+    assert!(app.backup_item_done_now(&c, Item::PublicFiles));
     // Taking the descriptor's picture (its first part, past one code) off
     // the stick makes the item not done again.
     let one = pictures.first().unwrap().clone();
     app.outbox.retain(|i| i.name != one);
-    assert!(!app.backup_item_done_now(Item::PublicFiles));
+    assert!(!app.backup_item_done_now(&c, Item::PublicFiles));
 }
 
 #[test]

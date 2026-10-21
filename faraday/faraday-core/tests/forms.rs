@@ -106,6 +106,7 @@ fn two_codex32_shares_make_the_key_typed_in_capitals() {
 
 #[test]
 fn seed_xor_parts_combine_into_the_seeds_words() {
+    let c = faraday_core::testkit::compute();
     // tools/vectors/xor/12-words-2-parts.txt.
     let mut app = adding(3);
     typed(
@@ -124,6 +125,7 @@ fn seed_xor_parts_combine_into_the_seeds_words() {
     let mut probe = faraday_core::wallet::Session::default();
     let want = probe
         .add_words_with(
+            &c,
             "city apple they mesh stadium raw cabin material ecology put royal public",
             "",
             "",
@@ -307,13 +309,14 @@ fn choosing_18_then_typing_18_words_adds_an_18_word_key() {
 
 #[test]
 fn the_status_line_follows_the_words_and_the_passphrase_as_they_change() {
+    let c = faraday_core::testkit::compute();
     use faraday_core::wallet::{Session, fp_text};
     let bacon = faraday_core::testkit::test_words("bacon");
     let zebra = faraday_core::testkit::test_words("zebra");
     let fp = |words: &str, pass: &str| {
         fp_text(
             Session::default()
-                .add_words_with(words, pass, "", None)
+                .add_words_with(&c, words, pass, "", None)
                 .unwrap(),
         )
         .to_string()

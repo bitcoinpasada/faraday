@@ -11,6 +11,7 @@ use crate::strings::EN;
 use faraday_vault::records::{self, Record, field, kind};
 use opensigner_core::strings::fill;
 use osk_bip::keys::Fingerprint;
+use osk_crypto::work::Compute;
 
 use crate::wallet::{self, fp_text};
 use crate::{Action, BStage, Faraday, Screen, bstep, plan};
@@ -19,8 +20,8 @@ use crate::{Action, BStage, Faraday, Screen, bstep, plan};
 /// from whichever list: told by the SHA-256 of each one's entropy
 /// ([`wallet::WordsId`]), all 32 bytes, both kept once worked out, so
 /// nothing parses the words again and two seeds never pass for one.
-fn same_words(app: &Faraday, r: &Record, key: &wallet::Key) -> bool {
-    key.words_id()
+fn same_words(c: &Compute, app: &Faraday, r: &Record, key: &wallet::Key) -> bool {
+    key.words_id(c)
         .is_some_and(|id| app.record_words_id(r).is_some_and(|x| *x == *id))
 }
 
@@ -34,12 +35,18 @@ fn pending(r: &Record) -> bool {
 impl Faraday {
     /// Whether open vault `o` holds session key `k`'s seed: a key record
     /// of its words, and with `with_pass`, with its passphrase too.
-    pub(crate) fn vault_holds_seed(&self, o: usize, k: usize, with_pass: bool) -> bool {
+    pub(crate) fn vault_holds_seed(
+        &self,
+        c: &Compute,
+        o: usize,
+        k: usize,
+        with_pass: bool,
+    ) -> bool {
         let (Some(open), Some(key)) = (self.vaults.open.get(o), self.session.keys.get(k)) else {
             return false;
         };
         open.contents.of(kind::KEY).any(|(_, r)| {
-            same_words(self, r, key)
+            same_words(c, self, r, key)
                 && (!with_pass
                     || r.text(field::KEY_PASSPHRASE)
                         .is_some_and(|p| key.passphrase.as_ref().is_some_and(|q| q.as_str() == p)))
@@ -57,17 +64,17 @@ impl Faraday {
     /// says so, or kept back by a wallet's backup flow until its last
     /// stick is written (`docs/BACKUP-FLOW.md` §10.2), with their backup
     /// not done.
-    pub fn held_keys(&self) -> Vec<Fingerprint> {
+    pub fn held_keys(&self, c: &Compute) -> Vec<Fingerprint> {
         if self.drawing.is_on() {
             return crate::drawing::View::new(self).held_keys();
         }
-        self.held_keys_now()
+        self.held_keys_now(c)
     }
 
     /// Works out [`Faraday::held_keys`] from the state as it is.
-    pub fn held_keys_now(&self) -> Vec<Fingerprint> {
+    pub fn held_keys_now(&self, c: &Compute) -> Vec<Fingerprint> {
         let flow = self.flow_held();
-        let mut out = self.held_keys_stored_with(&flow);
+        let mut out = self.held_keys_stored_with(c, &flow);
         for fp in flow {
             if !out.contains(&fp) {
                 out.push(fp);
@@ -100,13 +107,13 @@ impl Faraday {
     /// [`Faraday::held_keys`] without the keys a flow holds back: what a
     /// vault's key record and a plan's `held` lines say. The flow's own
     /// hold is in its state, not in the copies on the sticks.
-    pub(crate) fn held_keys_stored(&self) -> Vec<Fingerprint> {
-        self.held_keys_stored_with(&self.flow_held())
+    pub(crate) fn held_keys_stored(&self, c: &Compute) -> Vec<Fingerprint> {
+        self.held_keys_stored_with(c, &self.flow_held())
     }
 
     /// [`Faraday::held_keys_stored`] given what [`Faraday::flow_held`]
     /// returns, so a caller that has it does not work it out again.
-    fn held_keys_stored_with(&self, flow: &[Fingerprint]) -> Vec<Fingerprint> {
+    fn held_keys_stored_with(&self, c: &Compute, flow: &[Fingerprint]) -> Vec<Fingerprint> {
         let mut out: Vec<Fingerprint> = self
             .made_here
             .iter()
@@ -135,7 +142,12 @@ impl Faraday {
                 }
             }
             for (_, r) in open.contents.of(kind::KEY).filter(|(_, r)| pending(r)) {
-                for k in self.session.keys.iter().filter(|k| same_words(self, r, k)) {
+                for k in self
+                    .session
+                    .keys
+                    .iter()
+                    .filter(|k| same_words(c, self, r, k))
+                {
                     add(k.fingerprint());
                 }
             }
@@ -144,26 +156,26 @@ impl Faraday {
     }
 
     /// Whether key `fp` is held.
-    pub fn key_held(&self, fp: Fingerprint) -> bool {
-        self.held_keys().contains(&fp)
+    pub fn key_held(&self, c: &Compute, fp: Fingerprint) -> bool {
+        self.held_keys(c).contains(&fp)
     }
 
     /// Whether key `fp` is held and a copy of it should say so: the
     /// hold a flow keeps is not written to a stick.
-    pub(crate) fn key_held_stored(&self, fp: Fingerprint) -> bool {
-        self.held_keys_stored().contains(&fp)
+    pub(crate) fn key_held_stored(&self, c: &Compute, fp: Fingerprint) -> bool {
+        self.held_keys_stored(c).contains(&fp)
     }
 
     /// The keys of loaded wallet `w` here that are held.
-    pub fn wallet_held(&self, w: usize) -> Vec<Fingerprint> {
-        self.wallet_held_in(w, self.held_keys())
+    pub fn wallet_held(&self, c: &Compute, w: usize) -> Vec<Fingerprint> {
+        self.wallet_held_in(w, self.held_keys(c))
     }
 
     /// Whether a key of `wl` made here still waits for its backup: none of
     /// the wallet's receive addresses is shown, nor any code of one
     /// (`docs/DECISIONS.md` F31).
-    pub fn receive_held(&self, wl: &wallet::Wallet) -> bool {
-        let held = self.held_keys();
+    pub fn receive_held(&self, c: &Compute, wl: &wallet::Wallet) -> bool {
+        let held = self.held_keys(c);
         if held.is_empty() {
             return false;
         }
@@ -179,8 +191,14 @@ impl Faraday {
     /// it is held back: then the text is "Back up before you receive"
     /// and is drawn in `WARN`. This is the one way a receive address
     /// reaches the screen or a code.
-    pub fn receive_line(&self, wl: &wallet::Wallet, change: bool, index: u32) -> (String, bool) {
-        if self.receive_held(wl) {
+    pub fn receive_line(
+        &self,
+        c: &Compute,
+        wl: &wallet::Wallet,
+        change: bool,
+        index: u32,
+    ) -> (String, bool) {
+        if self.receive_held(c, wl) {
             return (crate::glance::RECEIVE_WARNING.to_string(), true);
         }
         (
@@ -191,8 +209,8 @@ impl Faraday {
 
     /// [`Faraday::wallet_held`] as a copy of the plan says it: without the
     /// keys a flow holds back.
-    pub(crate) fn wallet_held_stored(&self, w: usize) -> Vec<Fingerprint> {
-        self.wallet_held_in(w, self.held_keys_stored())
+    pub(crate) fn wallet_held_stored(&self, c: &Compute, w: usize) -> Vec<Fingerprint> {
+        self.wallet_held_in(w, self.held_keys_stored(c))
     }
 
     fn wallet_held_in(&self, w: usize, held: Vec<Fingerprint>) -> Vec<Fingerprint> {
@@ -209,11 +227,11 @@ impl Faraday {
 
     /// The seeds of the wallet being backed up that are held, by place
     /// among its seeds.
-    pub(crate) fn backup_held_seeds(&self) -> Vec<usize> {
+    pub(crate) fn backup_held_seeds(&self, c: &Compute) -> Vec<usize> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };
-        let held = self.held_keys();
+        let held = self.held_keys(c);
         self.backup_seed_list(b.wallet)
             .iter()
             .enumerate()
@@ -226,20 +244,21 @@ impl Faraday {
 
     /// The line said in place of Make the checklist, when the plan keeps
     /// no copy of a key made here, or of its passphrase.
-    pub fn backup_kept_nowhere(&self) -> Option<String> {
+    pub fn backup_kept_nowhere(&self, c: &Compute) -> Option<String> {
         let b = self.backup.as_ref()?;
         let shape = self.plan_shape(b.wallet);
         plan::kept_nowhere_on(
             &shape,
             &self.plan_mapped(&shape, &b.answers),
-            &self.backup_held_seeds(),
+            &self.backup_held_seeds(c),
         )
     }
 
     /// Before an open vault is sealed: every held key's record in it says
     /// so, and the held keys are remembered here once the vault is gone.
     pub(crate) fn held_sweep(&mut self) {
-        let held = self.held_keys_stored();
+        let c = self.compute();
+        let held = self.held_keys_stored(&c);
         self.made_here = held.clone();
         let keys: Vec<usize> = (0..self.session.keys.len())
             .filter(|&k| held.contains(&self.session.keys[k].fingerprint()))
@@ -251,7 +270,7 @@ impl Faraday {
                 let marks: Vec<usize> = self.vaults.open[v]
                     .contents
                     .of(kind::KEY)
-                    .filter(|(_, r)| same_words(self, r, key) && !pending(r))
+                    .filter(|(_, r)| same_words(&c, self, r, key) && !pending(r))
                     .map(|(i, _)| i)
                     .collect();
                 for i in marks {
@@ -274,6 +293,7 @@ impl Faraday {
     /// the held keys whose seed and passphrase the plan keeps are held no
     /// more, here and in every open vault.
     pub(crate) fn backup_settle(&mut self) {
+        let c = self.compute();
         let Some(b) = self.backup.as_ref() else {
             return;
         };
@@ -287,7 +307,7 @@ impl Faraday {
         let all = items
             .iter()
             .filter(|&&n| n != bstep::STICKS)
-            .all(|&n| bstep::item(n).is_some_and(|it| self.backup_item_done_now(it)));
+            .all(|&n| bstep::item(n).is_some_and(|it| self.backup_item_done_now(&c, it)));
         if !all {
             return;
         }
@@ -298,7 +318,7 @@ impl Faraday {
         // A seed kept on any stick, a vault's or a file's, waits for it.
         let in_vault = |i: usize| mapped.seed_on_stick(i);
         let released: Vec<(Fingerprint, usize)> = self
-            .backup_held_seeds()
+            .backup_held_seeds(&c)
             .into_iter()
             .filter(|&i| !(writes && in_vault(i)))
             .filter(|&i| plan::kept_nowhere_on(&shape, &mapped, &[i]).is_none())
@@ -333,6 +353,7 @@ impl Faraday {
     /// Takes the mark "backup pending" off session key `k`'s record in every
     /// open vault, and key `fp`'s `held` line off every plan they keep.
     pub(crate) fn held_clear_marks(&mut self, fp: Fingerprint, k: usize) {
+        let c = self.compute();
         let text = fp_text(fp);
         for v in 0..self.vaults.open.len() {
             let mut changed = false;
@@ -342,7 +363,7 @@ impl Faraday {
             let marks: Vec<usize> = self.vaults.open[v]
                 .contents
                 .of(kind::KEY)
-                .filter(|(_, r)| same_words(self, r, key) && pending(r))
+                .filter(|(_, r)| same_words(&c, self, r, key) && pending(r))
                 .map(|(i, _)| i)
                 .collect();
             for i in marks {
@@ -411,20 +432,20 @@ impl Faraday {
 
     /// Whether checklist item `n` may open: it is on the checklist and
     /// every item before it is done.
-    pub(crate) fn backup_reachable(&self, n: u8) -> bool {
+    pub(crate) fn backup_reachable(&self, c: &Compute, n: u8) -> bool {
         let items = self.backup_items_now();
         items.contains(&n)
             && items
                 .iter()
                 .take_while(|&&i| i != n)
-                .all(|&i| bstep::item(i).is_some_and(|it| self.backup_item_done_now(it)))
+                .all(|&i| bstep::item(i).is_some_and(|it| self.backup_item_done_now(c, it)))
     }
 
     /// The first item not done, which the later items wait for.
-    pub fn backup_waiting(&self) -> Option<u8> {
+    pub fn backup_waiting(&self, c: &Compute) -> Option<u8> {
         self.backup_items()
             .into_iter()
-            .find(|&i| bstep::item(i).is_some_and(|it| !self.backup_item_done(it)))
+            .find(|&i| bstep::item(i).is_some_and(|it| !self.backup_item_done(c, it)))
     }
 
     /// The first vault the plan makes whose stick no place keeps.
@@ -456,6 +477,7 @@ impl Faraday {
     /// to load at unlock or not, as the vault item says. Costs a parse of
     /// the vault's wallet records.
     fn backup_vault_load_set(&mut self, v: usize) {
+        let c = self.compute();
         let Some(b) = self.backup.as_ref() else {
             return;
         };
@@ -471,7 +493,7 @@ impl Faraday {
         let Some(cur) = self.backup_vault_target(v) else {
             return;
         };
-        if self.backup_vault_taken(v, cur) {
+        if self.backup_vault_taken(&c, v, cur) {
             return;
         }
         let Some(open) = self.vaults.open.get_mut(cur) else {
@@ -499,12 +521,13 @@ impl Faraday {
     /// keeps it there, and the wallet where the plan puts it there; then
     /// the plan beside them.
     pub(crate) fn backup_vault_save(&mut self, v: usize) {
+        let c = self.compute();
         use crate::vault_screens::vault_has_wallet;
         use crate::vaults::VaultAction as V;
         let Some(cur) = self.backup_vault_target(v) else {
             return;
         };
-        if self.backup_vault_taken(v, cur) {
+        if self.backup_vault_taken(&c, v, cur) {
             return;
         }
         self.vaults.current = cur;
@@ -515,7 +538,7 @@ impl Faraday {
             .as_ref()
             .is_some_and(|b| !b.before.iter().any(|(s, _)| *s == salt))
         {
-            let held = self.vault_tokens(cur);
+            let held = self.vault_tokens(&c, cur);
             if let Some(b) = self.backup.as_mut() {
                 b.before.push((salt, held));
             }
@@ -527,7 +550,7 @@ impl Faraday {
         let wallet_too = b.answers.wallet_in_vault(v);
         let (own, _) = self.backup_vault_seeds(v);
         for (k, with) in own {
-            if !self.vault_holds_seed(cur, k, with) {
+            if !self.vault_holds_seed(&c, cur, k, with) {
                 self.vault_act(if with {
                     V::SaveKeyWithPassphrase(k)
                 } else {
@@ -612,6 +635,7 @@ impl Faraday {
     /// On Change the plan: the vaults the checklist has filled, by name,
     /// with the seeds each holds.
     pub(crate) fn backup_prior(&mut self) {
+        let c = self.compute();
         let Some(b) = self.backup.as_ref() else {
             return;
         };
@@ -621,7 +645,7 @@ impl Faraday {
         let shape = self.plan_shape_now(b.wallet);
         let mut prior = Vec::new();
         for v in b.answers.vaults_made(&shape) {
-            let Some(name) = self.backup_vault_fits(v) else {
+            let Some(name) = self.backup_vault_fits(&c, v) else {
                 continue;
             };
             let seeds = b
@@ -640,6 +664,7 @@ impl Faraday {
     /// On Make the checklist: what the last checklist put in a vault that
     /// the new plan has no vault for stays on the map as what it is.
     pub(crate) fn backup_extras(&mut self) {
+        let c = self.compute();
         let Some(b) = self.backup.as_ref() else {
             return;
         };
@@ -648,7 +673,7 @@ impl Faraday {
             .answers
             .vaults_made(&shape)
             .into_iter()
-            .filter_map(|v| self.backup_vault_fits(v))
+            .filter_map(|v| self.backup_vault_fits(&c, v))
             .collect();
         let mut extras = b.extras.clone();
         for (name, seeds) in &b.prior {

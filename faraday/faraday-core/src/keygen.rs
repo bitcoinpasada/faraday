@@ -28,6 +28,7 @@ use opensigner_core::strings::EN;
 pub use osk_entropy::{MIX_SOURCES, SOURCE_ROWS, Source};
 
 use osk_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
+use osk_crypto::work::Compute;
 
 use crate::forms::Form;
 use crate::{Screen, flow};
@@ -566,7 +567,7 @@ impl KeyGen {
     /// Deals the master secret into `slip_m` of `slip_n` shares, with
     /// `random` for the split's own randomness (a fresh draw from the
     /// system's generator).
-    pub fn deal(&mut self, random: [u8; 32]) -> Result<(), String> {
+    pub fn deal(&mut self, c: &Compute, random: [u8; 32]) -> Result<(), String> {
         use osk_bip::slip39;
         let Some(secret) = self.secret.as_ref() else {
             return Err(FEN.keygen_no_secret_yet.to_string());
@@ -595,7 +596,7 @@ impl KeyGen {
             count: self.slip_n,
         }];
         let n = slip39::split(
-            secret, b"", identifier, true, 1, 1, &groups, &mut fill, &mut out,
+            c, secret, b"", identifier, true, 1, 1, &groups, &mut fill, &mut out,
         )
         .map_err(|e| {
             opensigner_core::strings::fill(FEN.keygen_the_shares_could, &[&format!("{e:?}")])
@@ -1283,6 +1284,7 @@ impl crate::Faraday {
     /// A SeedQR read while the flow waits on Scan a SeedQR: the camera
     /// closes and Key opens with its words. Returns whether it took them.
     pub(crate) fn keygen_scanned(&mut self, words: &str) -> bool {
+        let c = self.compute();
         if self.screen != Screen::KeyGen {
             return false;
         }
@@ -1293,7 +1295,7 @@ impl crate::Faraday {
         else {
             return false;
         };
-        let Ok(m) = crate::wallet::parse_words(Language::English, words) else {
+        let Ok(m) = crate::wallet::parse_words(&c, Language::English, words) else {
             return false;
         };
         k.mnemonic = Some(m);
@@ -1351,6 +1353,7 @@ impl crate::Faraday {
 
     /// One press inside the flow.
     pub(crate) fn keygen_act(&mut self, action: crate::Action) {
+        let c = self.compute();
         use crate::Action as A;
         if let A::KeyGen(slot) = action {
             self.keygen_open(slot);
@@ -1526,20 +1529,20 @@ impl crate::Faraday {
                     }
                     if k.finish_entry() {
                         if k.slip39 {
-                            if let Err(e) = draw.map_or(Ok(()), |r| k.deal(r)) {
+                            if let Err(e) = draw.map_or(Ok(()), |r| k.deal(&c, r)) {
                                 k.note = Some(e);
                                 return;
                             }
                             k.fingerprint = k.secret.as_ref().and_then(|s| {
                                 crate::wallet::Session::default()
-                                    .add_seed(s, "")
+                                    .add_seed(&c, s, "")
                                     .ok()
                                     .map(|f| f.0)
                             });
                         } else {
                             k.fingerprint = k.phrase().and_then(|w| {
                                 crate::wallet::Session::default()
-                                    .add_words_with(&w, "", "", None)
+                                    .add_words_with(&c, &w, "", "", None)
                                     .ok()
                                     .map(|f| f.0)
                             });
@@ -1685,6 +1688,7 @@ impl crate::Faraday {
     /// the flow. BIP-39 words, added at Lock in already: leaves the flow
     /// (**Done**).
     fn keygen_add(&mut self) {
+        let c = self.compute();
         // No key is accepted before the self-test has passed.
         if !self.selftest_passed() {
             return;
@@ -1714,12 +1718,12 @@ impl crate::Faraday {
         let handed = self.session.next_handout().map(|(w, _)| w);
         let added = if let Some(word) = handed {
             self.session
-                .add_words(&crate::demo::words(word), &label, None)
+                .add_words(&c, &crate::demo::words(word), &label, None)
         } else {
             match k.secret.as_ref() {
                 Some(s) => {
                     let s = s.clone();
-                    self.session.add_seed(&s, &label)
+                    self.session.add_seed(&c, &s, &label)
                 }
                 None => return,
             }
@@ -1755,6 +1759,7 @@ impl crate::Faraday {
     /// a slot it fills the slot, and on a single-key Create it makes the
     /// wallet too (`docs/NEW-WALLET.md` §3.3).
     fn keygen_lock(&mut self) {
+        let c = self.compute();
         if !self.selftest_passed() || self.demo_refuses(crate::Action::KLock) {
             return;
         }
@@ -1789,9 +1794,9 @@ impl crate::Faraday {
         let label = fill(FEN.keygen_new_key_n, &[&(self.new_keys + 1).to_string()]);
         let added = if let Some(word) = handed {
             self.session
-                .add_words(&crate::demo::words(word), &label, None)
+                .add_words(&c, &crate::demo::words(word), &label, None)
         } else {
-            self.session.add_words_with(&words, &pass, &label, None)
+            self.session.add_words_with(&c, &words, &pass, &label, None)
         };
         let fp = match added {
             Ok(fp) => fp,
@@ -1820,7 +1825,7 @@ impl crate::Faraday {
             .keys
             .iter()
             .find(|key| key.fingerprint() == fp)
-            .and_then(|key| key.account_text(kind, account).ok());
+            .and_then(|key| key.account_text(&c, kind, account).ok());
         if let Some(k) = self.keygen.as_mut() {
             k.locked = true;
             k.with_passphrase = !pass.is_empty();
@@ -1878,6 +1883,7 @@ impl crate::Faraday {
     /// Seed XOR), with the passphrase typed on the Key card, not marked
     /// made here; for a Create slot it fills the slot (§15.2).
     fn keygen_lock_typed(&mut self) {
+        let c = self.compute();
         if !self.may_load_keys() {
             return;
         }
@@ -1942,7 +1948,7 @@ impl crate::Faraday {
             .keys
             .iter()
             .find(|key| key.fingerprint() == fp)
-            .and_then(|key| key.account_text(kind, account).ok());
+            .and_then(|key| key.account_text(&c, kind, account).ok());
         // What was typed goes; the Key card keeps the words to show.
         self.entry = crate::EntryState::default();
         if let Some(k) = self.keygen.as_mut() {

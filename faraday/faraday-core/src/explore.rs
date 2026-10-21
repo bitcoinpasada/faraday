@@ -10,6 +10,7 @@ use opensigner_core::strings::EN;
 use osk_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
 use osk_bip::bitcoin::{Address, CompressedPublicKey, NetworkKind};
 use osk_bip::keys::ScriptType;
+use osk_crypto::work::Compute;
 
 use crate::{Faraday, Screen};
 
@@ -95,7 +96,7 @@ impl Faraday {
     /// it is asked with these key, path and script, by whoever asks, a
     /// frame included, and kept on Explore's state, a lookup after. Costs
     /// a key derivation the first time.
-    pub fn explore_reading(&self) -> Option<std::rc::Rc<Reading>> {
+    pub fn explore_reading(&self, c: &Compute) -> Option<std::rc::Rc<Reading>> {
         let e = self.explore.as_ref()?;
         let of: ReadingOf = (
             e.key,
@@ -112,14 +113,13 @@ impl Faraday {
         {
             return r.clone();
         }
-        let r = crate::work::keeping(|| self.explore_reading_now().map(std::rc::Rc::new));
+        let r = crate::work::keeping(|| self.explore_reading_now(c).map(std::rc::Rc::new));
         *e.reading.borrow_mut() = Some((of, r.clone()));
         r
     }
 
     /// Works out [`Faraday::explore_reading`]. Costs a key derivation.
-    fn explore_reading_now(&self) -> Option<Reading> {
-        crate::work::count(crate::work::Work::KeyDerive);
+    fn explore_reading_now(&self, c: &Compute) -> Option<Reading> {
         let e = self.explore.as_ref()?;
         let path = self.explore_path().ok()?;
         let master = &self
@@ -128,7 +128,7 @@ impl Faraday {
             .iter()
             .find(|k| Some(k.fingerprint().0) == e.key)?
             .master();
-        let xpub = master.derive(&path).to_xpub();
+        let xpub = master.derive(c, &path).to_xpub(c);
         let pk = CompressedPublicKey(xpub.public_key);
         let net: osk_bip::bitcoin::Network = self.session.network().into();
         let kind = NetworkKind::from(net);

@@ -4,6 +4,18 @@
 use faraday_qr::{Arrived, Assembler, Step, bbqr, registry, specter};
 use osk_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
 use osk_bip::keys::{MasterKey, Network};
+use osk_crypto::work::Compute;
+
+/// A token for the tests' key work (`docs/COMPUTE.md` §3), counting
+/// nothing: faraday-core's `testkit::compute` is out of this crate's
+/// reach. Cheap.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a mint: faraday-qr's tests, which cannot reach faraday-core's testkit"
+)]
+fn compute() -> Compute {
+    Compute::new(|_| {})
+}
 
 fn feed_all(parts: &[String]) -> Step {
     let mut a = Assembler::default();
@@ -77,16 +89,18 @@ fn numbered_parts_read_back_and_say_what_is_missing() {
 
 /// Test key 1 (bacon ×24) at BIP-48's native multisig account on testnet.
 fn bacon() -> (MasterKey, DerivationPath) {
+    let c = compute();
     let words = vec!["bacon"; 24].join(" ");
-    let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, &words).unwrap();
-    let master = MasterKey::from_seed(&m.to_seed(b"").unwrap(), Network::Testnet);
+    let m = osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, &words).unwrap();
+    let master = MasterKey::from_seed(&c, &m.to_seed(&c, b"").unwrap(), Network::Testnet);
     (master, "m/48'/1'/0'/2'".parse().unwrap())
 }
 
 #[test]
 fn a_key_written_as_crypto_account_reads_back_as_its_key_line() {
+    let c = compute();
     let (master, path) = bacon();
-    let xpub = master.derive(&path).to_xpub();
+    let xpub = master.derive(&c, &path).to_xpub(&c);
     let comps: Vec<ChildNumber> = path.into_iter().copied().collect();
     let cbor = registry::account_cbor(master.fingerprint().0, &comps, &xpub, false);
     let Some(registry::Read::Keys(text)) = registry::read("crypto-account", &cbor).unwrap() else {
@@ -100,8 +114,9 @@ fn a_key_written_as_crypto_account_reads_back_as_its_key_line() {
 #[test]
 fn a_wallet_as_crypto_output_reads_as_its_descriptor() {
     use faraday_qr::cbor::{bytes, head};
+    let c = compute();
     let (master, path) = bacon();
-    let xpub = master.derive(&path).to_xpub();
+    let xpub = master.derive(&c, &path).to_xpub(&c);
     // wsh(sortedmulti(1, key/0/*)) as Sparrow writes it: tags 308, 401,
     // 407, and the key a tagged hdkey with origin and children.
     let uint = |n: u64| head(0, n);
@@ -194,8 +209,9 @@ fn a_finished_transaction_in_hex_is_known_as_one() {
 
 #[test]
 fn a_key_as_ur_crypto_account_is_read_by_osk_codec_and_back_here() {
+    let c = compute();
     let (master, path) = bacon();
-    let xpub = master.derive(&path).to_xpub();
+    let xpub = master.derive(&c, &path).to_xpub(&c);
     let comps: Vec<ChildNumber> = path.into_iter().copied().collect();
     let cbor = registry::account_cbor(master.fingerprint().0, &comps, &xpub, false);
     let text = osk_codec::ur::encode_single("crypto-account", &cbor);

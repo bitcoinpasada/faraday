@@ -139,9 +139,10 @@ fn backed_up(copies: usize) -> Faraday {
 
 /// The Backups screen's lines for the one wallet listed.
 fn lines(app: &mut Faraday) -> Vec<Line> {
+    let c = testkit::compute();
     app.press(Action::Nav(Screen::Backups));
     let _ = app.frame();
-    let all = app.backups_now();
+    let all = app.backups_now(&c);
     assert_eq!(all.len(), 1, "one wallet listed: {all:?}");
     all[0].lines.clone().expect("the wallet has a plan")
 }

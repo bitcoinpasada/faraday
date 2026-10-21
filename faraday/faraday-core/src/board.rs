@@ -18,6 +18,7 @@
 use std::rc::Rc;
 
 use opensigner_core::strings::fill;
+use osk_crypto::work::Compute;
 
 use crate::Faraday;
 use crate::plan::{self, Answers, At, Edit, Shape, Spot, What, form};
@@ -957,21 +958,21 @@ impl Faraday {
     /// this frame draws it, kept in the drawing memo while a frame is
     /// drawn (`docs/SPEED.md` §3.3). Drawing reads it; nothing decides
     /// from it.
-    pub(crate) fn board_view(&self) -> Option<Rc<BoardView>> {
+    pub(crate) fn board_view(&self, c: &Compute) -> Option<Rc<BoardView>> {
         if self.drawing.is_on() {
             return crate::drawing::View::new(self).board_view();
         }
-        self.board_view_now()
+        self.board_view_now(c)
     }
 
     /// Works out the plan's map, its checks and each place's line of
     /// fact: the board, for [`Faraday::board_view`].
-    pub(crate) fn board_view_now(&self) -> Option<Rc<BoardView>> {
-        self.board_view_uncached().map(Rc::new)
+    pub(crate) fn board_view_now(&self, c: &Compute) -> Option<Rc<BoardView>> {
+        self.board_view_uncached(c).map(Rc::new)
     }
 
     /// Works out [`Faraday::board_view`] (see [`Faraday::board_view_now`]).
-    fn board_view_uncached(&self) -> Option<BoardView> {
+    fn board_view_uncached(&self, c: &Compute) -> Option<BoardView> {
         let of = self.board_of()?;
         let state = self.board_state()?;
         let locked = self.board_locked().is_some();
@@ -1208,7 +1209,7 @@ impl Faraday {
                             let head = chip(Zone::Files(p, s), Thing::Vault(v), &held, Some(p));
                             let mut inside =
                                 zone(Zone::Vault(p, s, v), At::Vault(v), Some(p), false);
-                            inside.chips.extend(self.board_before(&shape, &a, v));
+                            inside.chips.extend(self.board_before(c, &shape, &a, v));
                             (head, inside)
                         });
                         // A vault not made yet is made in the checklist
@@ -1395,8 +1396,8 @@ impl Faraday {
     /// Works out the board: the placed chips the plan's checks name, each
     /// by its zone, the chips drawn with the warning mark
     /// (`docs/BACKUP-FLOW.md` §19.5).
-    pub fn board_marks(&self) -> Vec<(Zone, Thing)> {
-        let Some(v) = self.board_view() else {
+    pub fn board_marks(&self, c: &Compute) -> Vec<(Zone, Thing)> {
+        let Some(v) = self.board_view(c) else {
             return Vec::new();
         };
         let mut zones: Vec<&ZoneView> = Vec::new();
@@ -1424,7 +1425,7 @@ impl Faraday {
     /// worked out): what existing vault `v` held before this backup, as
     /// dimmed chips that take no press (`docs/BACKUP-FLOW.md` §19.12
     /// item 7), less what the plan keeps there now.
-    fn board_before(&self, shape: &Shape, a: &Answers, v: usize) -> Vec<ChipView> {
+    fn board_before(&self, c: &Compute, shape: &Shape, a: &Answers, v: usize) -> Vec<ChipView> {
         // The open vault set up for `v`, what it held before as this
         // backup or flow saw it first, and the wallet's checksum.
         let (o, before, sum) = match self.board_of() {
@@ -1461,7 +1462,7 @@ impl Faraday {
         let tokens = before
             .iter()
             .find(|(s, _)| *s == salt)
-            .map_or_else(|| self.vault_tokens(o), |(_, t)| t.clone());
+            .map_or_else(|| self.vault_tokens(c, o), |(_, t)| t.clone());
         let held = plan::holds_at(&plan::stored_map(shape, a), At::Vault(v));
         let seed_of = |fp: &str| {
             shape

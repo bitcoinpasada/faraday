@@ -715,6 +715,7 @@ name = "faraday-argon2-bench"
 version = "0.1.5"
 dependencies = [
  "faraday-vault",
+ "osk-crypto",
 ]
 
 [[package]]
@@ -815,6 +816,7 @@ dependencies = [
  "faraday-strings",
  "osk-bip",
  "osk-codec",
+ "osk-crypto",
  "zeroize",
 ]
 
@@ -860,6 +862,7 @@ dependencies = [
  "miniz_oxide 0.8.9",
  "osk-bip",
  "osk-codec",
+ "osk-crypto",
 ]
 
 [[package]]
@@ -979,6 +982,7 @@ version = "0.1.5"
 dependencies = [
  "faraday-core",
  "osk-bip",
+ "osk-crypto",
  "osk-psbt",
 ]
 

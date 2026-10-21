@@ -10,6 +10,7 @@
 
 use crate::strings::EN;
 use opensigner_core::strings::fill;
+use osk_crypto::work::Compute;
 use std::collections::BTreeSet;
 
 use crate::inbox::SeedSource;
@@ -318,13 +319,14 @@ impl Faraday {
     /// A file the import asked for, read: held here, a vault too, until
     /// the person chooses.
     fn import_read(&mut self, name: &str, bytes: Vec<u8>) {
+        let c = self.compute();
         let Some(imp) = self.import.as_mut() else {
             return;
         };
         let Some(f) = imp.waiting(name) else {
             return;
         };
-        let item = Item::new(name, bytes);
+        let item = Item::new(&c, name, bytes);
         imp.files[f].state = if item.kind == FileKind::Vault {
             Staged::Vault
         } else {
@@ -336,6 +338,7 @@ impl Faraday {
     /// The codes a picture the import asked for holds: each becomes an
     /// item remembered as coming from it, a SeedQR as its words.
     fn import_codes(&mut self, name: &str, payloads: Vec<Vec<u8>>) {
+        let c = self.compute();
         let Some(f) = self.import.as_ref().and_then(|i| i.waiting(name)) else {
             return;
         };
@@ -352,13 +355,14 @@ impl Faraday {
             if let Some(words) = crate::seedqr_words(&p) {
                 zeroize::Zeroize::zeroize(&mut p);
                 got.push(Item::new(
+                    &c,
                     &format!("{stem}-words.txt"),
                     words.as_bytes().to_vec(),
                 ));
                 continue;
             }
             if let Some((named, ext, data)) = self.read_code(zeroize::Zeroizing::new(p)) {
-                let item = Item::new(&named.unwrap_or_else(|| format!("{stem}.{ext}")), data);
+                let item = Item::new(&c, &named.unwrap_or_else(|| format!("{stem}.{ext}")), data);
                 if item.kind == FileKind::Other {
                     note = Some(EN.boot_import_not_a_psbt.into());
                 } else {
@@ -462,17 +466,17 @@ impl Faraday {
     /// Kept in the drawing memo while a frame is drawn (`docs/SPEED.md`
     /// §3.3). Costs a read of every file it brought that may describe a
     /// wallet or a seed.
-    pub fn import_count(&self) -> Option<ImportCount> {
+    pub fn import_count(&self, c: &Compute) -> Option<ImportCount> {
         if self.drawing.is_on() {
             return crate::drawing::View::new(self).import_count();
         }
-        self.import_count_now()
+        self.import_count_now(c)
     }
 
     /// Works out [`Faraday::import_count`].
-    pub fn import_count_now(&self) -> Option<ImportCount> {
+    pub fn import_count_now(&self, c: &Compute) -> Option<ImportCount> {
         let imp = self.import.as_ref()?;
-        let found = self.found_in(&imp.items);
+        let found = self.found_in(c, &imp.items);
         let mut c = ImportCount::default();
         let mut known: BTreeSet<usize> = BTreeSet::new();
         for w in found.to_load() {

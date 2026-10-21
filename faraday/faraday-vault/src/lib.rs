@@ -36,6 +36,7 @@ use chacha20::cipher::{KeyIvInit, StreamCipher};
 use chacha20poly1305::aead::inout::InOutBuf;
 use chacha20poly1305::{AeadInOut, KeyInit, Tag, XChaCha20Poly1305, XNonce};
 use hmac::{Hmac, KeyInit as HmacInit, Mac};
+use osk_crypto::work::{Compute, Work};
 use osk_crypto::{Secret, Zeroize};
 use sha2::Sha256;
 use zeroize::Zeroizing;
@@ -220,20 +221,26 @@ fn check_cost(cost: &Cost) -> Result<(), Error> {
 /// A slot key: HKDF-SHA256 of the stretched passphrase. Wiped on drop.
 pub struct SlotKey(Secret<[u8; 32]>);
 
-/// Derives the slot key a passphrase gives under `header` (§3): Argon2id
-/// at the header's cost, then HKDF-SHA256 with an empty salt and the
-/// slot info.
-pub fn derive(header: &Header, passphrase: &[u8]) -> Result<SlotKey, Error> {
-    let k = stretch(&header.cost, passphrase, &header.salt)?;
+/// Derives the slot key a passphrase gives under `header` (§3): costs an
+/// Argon2id at the header's cost, then HKDF-SHA256 with an empty salt and
+/// the slot info.
+pub fn derive(c: &Compute, header: &Header, passphrase: &[u8]) -> Result<SlotKey, Error> {
+    let k = stretch(c, &header.cost, passphrase, &header.salt)?;
     Ok(SlotKey(hkdf_sha256(k.expose(), SLOT_INFO)))
 }
 
-/// Argon2id(passphrase, salt) at `cost`, 32 bytes, with the working
-/// memory asked for so that a cost this machine cannot meet is an error.
-fn stretch(cost: &Cost, passphrase: &[u8], salt: &[u8]) -> Result<Secret<[u8; 32]>, Error> {
+/// Argon2id(passphrase, salt) at `cost`, 32 bytes: costs
+/// `cost.memory_kib` of memory filled `cost.passes` times, asked for so
+/// that a cost this machine cannot meet is an error.
+fn stretch(
+    c: &Compute,
+    cost: &Cost,
+    passphrase: &[u8],
+    salt: &[u8],
+) -> Result<Secret<[u8; 32]>, Error> {
+    c.count(Work::Kdf);
     let params =
         Params::new(cost.memory_kib, cost.passes, cost.lanes, Some(32)).map_err(|_| Error::Cost)?;
-    osk_crypto::work::count(osk_crypto::work::Work::Kdf);
     let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params.clone());
     let blocks = params.block_count();
     let mut memory: Vec<Block> = Vec::new();
@@ -382,9 +389,9 @@ impl Opened {
 
 /// Opens the slot `passphrase` opens (§4): derives the key once, tries
 /// all four slots, and parses the one that opens.
-pub fn open(file: &[u8], passphrase: &[u8]) -> Result<(Opened, Contents), Error> {
+pub fn open(c: &Compute, file: &[u8], passphrase: &[u8]) -> Result<(Opened, Contents), Error> {
     let header = read_header(file)?;
-    let key = derive(&header, passphrase)?;
+    let key = derive(c, &header, passphrase)?;
     open_with(file, &header, key)
 }
 
@@ -423,6 +430,7 @@ pub fn open_with(file: &[u8], header: &Header, key: SlotKey) -> Result<(Opened, 
 /// (the salt, which slots the passphrases take, the nonces and the
 /// unused slots) is drawn from a ChaCha20 keystream keyed by `seed`.
 pub fn create(
+    c: &Compute,
     slot_len: u32,
     cost: Cost,
     passphrases: &[&[u8]],
@@ -487,7 +495,7 @@ pub fn create(
     file.resize(len, 0);
     draw(&mut file[HEADER_LEN..]);
     for (k, passphrase) in passphrases.iter().enumerate() {
-        let key = derive(&header, passphrase)?;
+        let key = derive(c, &header, passphrase)?;
         let mut nonce = [0u8; NONCE_LEN];
         draw(&mut nonce);
         encrypt_slot(&mut file, &key, order[k], &nonce, &mut plains[k]);

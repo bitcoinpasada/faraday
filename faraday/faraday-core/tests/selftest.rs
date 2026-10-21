@@ -47,7 +47,7 @@ fn a_failed_check_blocks_everything_but_exit() {
     app.press(Action::Nav(Screen::Settings));
     app.run_selftest_with(&[osk_selftest::Check {
         name: "Injected failure",
-        run: || false,
+        run: |_| false,
     }]);
     assert_eq!(app.selftest(), Some(Err("Injected failure")));
     let _ = app.frame();

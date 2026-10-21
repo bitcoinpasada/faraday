@@ -27,7 +27,7 @@ pub(crate) fn more_ways(
     unlock: bool,
     labels: &mut Vec<(String, Style, Action)>,
 ) {
-    for (v, r, fp) in seeds::vault_seeds(app) {
+    for (v, r, fp) in app.vault_seeds() {
         let name = &app.vaults.open[v].name;
         labels.push((
             fill(EN.seeds_load_from, &[&fp.to_string(), &name.to_string()]),

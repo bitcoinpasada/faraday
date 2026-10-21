@@ -311,6 +311,7 @@ fn type_text(app: &mut Faraday, text: &str) {
 
 #[test]
 fn a_key_made_on_its_own_takes_a_passphrase_in_a_single_key_slot() {
+    let c = testkit::compute();
     let mut app = testkit::started();
     let first = key_made_on_its_own(&mut app);
     let words = app.session.keys[0].words.clone().expect("words");
@@ -327,7 +328,7 @@ fn a_key_made_on_its_own_takes_a_passphrase_in_a_single_key_slot() {
     type_text(&mut app, "Ride the 7 bus");
     app.press(Action::CPassLock);
     let with = faraday_core::wallet::Session::default()
-        .add_words_with(&words, "Ride the 7 bus", "", None)
+        .add_words_with(&c, &words, "Ride the 7 bus", "", None)
         .unwrap()
         .0;
     assert_ne!(with, first);
@@ -356,13 +357,14 @@ fn a_key_made_on_its_own_takes_a_passphrase_in_a_single_key_slot() {
 
 #[test]
 fn a_slot_whose_key_has_a_passphrase_offers_no_add_a_passphrase() {
+    let c = testkit::compute();
     let mut app = testkit::started();
     add_key(&mut app, "bacon");
     let plain = app.session.keys[0].fingerprint().0;
     let words = testkit::test_words("bacon");
     let with = app
         .session
-        .add_words_with(&words, "Ride the 7 bus", "with", None)
+        .add_words_with(&c, &words, "Ride the 7 bus", "with", None)
         .unwrap()
         .0;
     app.press(Action::CreateWallet);
@@ -437,10 +439,11 @@ fn account_of_key(k: &osk_bip::policy::PolicyKey) -> u32 {
 
 /// The master fingerprint of a test seed, worked out here.
 fn fp_of(word: &str) -> [u8; 4] {
+    let c = testkit::compute();
     use osk_bip::bip39::{Language, Mnemonic};
-    let m = Mnemonic::parse(Language::English, &testkit::test_words(word)).unwrap();
-    let seed = m.to_seed(b"").unwrap();
-    osk_bip::keys::MasterKey::from_seed(&seed, testkit::NET)
+    let m = Mnemonic::parse(&c, Language::English, &testkit::test_words(word)).unwrap();
+    let seed = m.to_seed(&c, b"").unwrap();
+    osk_bip::keys::MasterKey::from_seed(&c, &seed, testkit::NET)
         .fingerprint()
         .0
 }
@@ -448,14 +451,15 @@ fn fp_of(word: &str) -> [u8; 4] {
 /// The P2WPKH address a test seed gives at `path`, derived here with
 /// osk-bip and rust-bitcoin, not through Faraday's wallet.
 fn p2wpkh_at(word: &str, path: &str) -> String {
+    let c = testkit::compute();
     use osk_bip::bip39::{Language, Mnemonic};
     use osk_bip::bitcoin::bip32::DerivationPath;
     use osk_bip::bitcoin::{Address, CompressedPublicKey, KnownHrp};
-    let m = Mnemonic::parse(Language::English, &testkit::test_words(word)).unwrap();
-    let seed = m.to_seed(b"").unwrap();
-    let master = osk_bip::keys::MasterKey::from_seed(&seed, testkit::NET);
+    let m = Mnemonic::parse(&c, Language::English, &testkit::test_words(word)).unwrap();
+    let seed = m.to_seed(&c, b"").unwrap();
+    let master = osk_bip::keys::MasterKey::from_seed(&c, &seed, testkit::NET);
     let path: DerivationPath = path.parse().unwrap();
-    let public = master.derive(&path).to_xpub().public_key;
+    let public = master.derive(&c, &path).to_xpub(&c).public_key;
     Address::p2wpkh(&CompressedPublicKey(public), KnownHrp::Testnets).to_string()
 }
 

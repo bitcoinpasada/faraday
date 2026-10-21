@@ -108,7 +108,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     // The chart, as its own page.
     if app.glance
-        && let Some(g) = crate::glance::of(app, app.wallet)
+        && let Some(g) = app.glance_of(app.wallet)
     {
         cy += crate::glance::draw_column(ui, &g, crate::glance::Direction::WalletFirst, x, cy, iw);
         finish(app, ui, x0, cw, h, cy - top + 8.0);
@@ -259,7 +259,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The wallet at a glance, as its own page: its keys and its backup.
     let quorum_here =
         slots.iter().filter(|s| s.held_by.is_some()).count() >= crate::wallet::needed(wlt);
-    if let Some(g) = crate::glance::of(app, app.wallet) {
+    if let Some(g) = app.glance_of(app.wallet) {
         let sub = format!(
             "{} {} · {}",
             g.keys.len(),

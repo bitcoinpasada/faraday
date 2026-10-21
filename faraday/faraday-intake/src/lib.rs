@@ -25,6 +25,7 @@ pub mod wallet;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::codex32::Codex32;
 use osk_bip::slip39;
+use osk_crypto::work::Compute;
 use zeroize::Zeroizing;
 
 /// The room a seed phrase is built in, bytes: more than 24 words of the
@@ -63,7 +64,7 @@ pub fn seedqr_words(payload: &[u8]) -> Option<Zeroizing<String>> {
 
 /// The seed a code holds: a SeedQR, a CompactSeedQR, or a seed's words in
 /// English, as words; `None` for anything else.
-pub fn seed_in_code(payload: &[u8]) -> Option<Zeroizing<String>> {
+pub fn seed_in_code(c: &Compute, payload: &[u8]) -> Option<Zeroizing<String>> {
     if let Some(words) = seedqr_words(payload) {
         return Some(words);
     }
@@ -77,7 +78,7 @@ pub fn seed_in_code(payload: &[u8]) -> Option<Zeroizing<String>> {
     }
     let words = out.split(' ').count();
     (matches!(words, 12 | 15 | 18 | 21 | 24)
-        && Mnemonic::parse(Language::English, out.as_str()).is_ok())
+        && Mnemonic::parse(c, Language::English, out.as_str()).is_ok())
     .then_some(out)
 }
 
@@ -92,10 +93,10 @@ pub enum TextSecret {
 
 /// Whether scanned text is a secret, and which: a seed's words or an
 /// extended private key, with or without its origin.
-pub fn secret_text(text: &str) -> Option<TextSecret> {
+pub fn secret_text(c: &Compute, text: &str) -> Option<TextSecret> {
     let t = text.trim();
     let words = t.split_whitespace().count();
-    if matches!(words, 12 | 15 | 18 | 21 | 24) && Mnemonic::parse(Language::English, t).is_ok() {
+    if matches!(words, 12 | 15 | 18 | 21 | 24) && Mnemonic::parse(c, Language::English, t).is_ok() {
         return Some(TextSecret::Words);
     }
     let key = t.split(']').next_back().unwrap_or(t);

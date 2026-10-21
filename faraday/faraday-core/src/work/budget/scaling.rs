@@ -17,6 +17,7 @@ use crate::{Action, Faraday, Screen, StorageEvent, testkit};
 /// and the first `wallets` test wallets loaded (Savings first), with the
 /// first two test seeds; Savings' spend open when `spend` is.
 fn session(copies: usize, wallets: usize, spend: bool) -> Faraday {
+    let c = crate::testkit::compute();
     let base = testkit::files().expect("the test stick's files");
     let mut inbox = Vec::new();
     for c in 0..copies {
@@ -35,7 +36,9 @@ fn session(copies: usize, wallets: usize, spend: bool) -> Faraday {
     });
     let _ = app.session.set_network(testkit::NET);
     for (word, l) in &testkit::TEST_SEEDS[..2] {
-        let _ = app.session.add_words(&testkit::test_words(word), l, None);
+        let _ = app
+            .session
+            .add_words(&c, &testkit::test_words(word), l, None);
     }
     let mut kits = testkit::kits();
     kits.sort_by_key(|k| k.id != "savings");

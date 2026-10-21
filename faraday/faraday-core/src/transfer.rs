@@ -210,6 +210,7 @@ impl Faraday {
 
     /// A file the shell read for Send: shown as codes.
     pub(crate) fn transfer_read(&mut self, path: String, mut bytes: Vec<u8>) {
+        let c = self.compute();
         if self.transfer.reading.as_deref() != Some(path.as_str()) || !self.online {
             zeroize::Zeroize::zeroize(&mut bytes);
             return;
@@ -220,11 +221,11 @@ impl Faraday {
             return self.transfer_send(path, MAX_SEND + 1);
         }
         let name = base_name(&path).to_string();
-        let kind = wallet::classify(&name, &bytes);
+        let kind = wallet::classify(&c, &name, &bytes);
         let secret = kind.exposure() == Exposure::Secret;
         let source = qr_source(&name, &bytes, kind);
         zeroize::Zeroize::zeroize(&mut bytes);
-        let view = QrView::of(&name, source, QrFormat::Ur, QR_PARTS[1]).map(|mut v| {
+        let view = QrView::of(&c, &name, source, QrFormat::Ur, QR_PARTS[1]).map(|mut v| {
             v.secret |= secret;
             v
         });
@@ -275,6 +276,7 @@ impl Faraday {
     /// One code read on Receive. A whole file goes to the shell to save
     /// in Downloads; the camera stays on for the next.
     pub(crate) fn transfer_scanned(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
+        let c = self.compute();
         let Some(scan) = self.scan.as_mut() else {
             return;
         };
@@ -311,9 +313,9 @@ impl Faraday {
         };
         // A secret the device let out past its secret sheet is saved as
         // asked, and said to be one.
-        let secret = wallet::classify(&name, &data).exposure() == Exposure::Secret
-            || crate::seed_in_code(&bytes).is_some()
-            || crate::secret_text(&String::from_utf8_lossy(&data)).is_some();
+        let secret = wallet::classify(&c, &name, &data).exposure() == Exposure::Secret
+            || crate::seed_in_code(&c, &bytes).is_some()
+            || crate::secret_text(&c, &String::from_utf8_lossy(&data)).is_some();
         if let Some(scan) = self.scan.as_mut() {
             scan.note = Some(fill(EN.transfer_saving, &[&name.to_string()]));
         }

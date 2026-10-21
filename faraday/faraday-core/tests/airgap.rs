@@ -21,18 +21,22 @@ const OTHER: &str = "abandon abandon abandon abandon abandon abandon \
 
 /// BIP-84's account 0 for [`OTHER`] on `network`, as a wallet.
 fn wallet_on(network: Network) -> String {
+    let c = testkit::compute();
     let mut s = Session::on(network);
-    s.add_words(OTHER, "", None).unwrap();
-    let key = NewKind::NativeSegwit.key_text(s.keys[0].master()).unwrap();
+    s.add_words(&c, OTHER, "", None).unwrap();
+    let key = NewKind::NativeSegwit
+        .key_text(&c, s.keys[0].master())
+        .unwrap();
     format!("wpkh({key}/<0;1>/*)")
 }
 
 /// The desktop's app: online, on mainnet as the demo.
 fn desktop() -> Faraday {
+    let c = testkit::compute();
     let mut app = testkit::started();
     app.online = true;
     app.session = Session::default();
-    app.session.set_demo();
+    app.session.set_demo(&c);
     app
 }
 
@@ -103,26 +107,28 @@ fn a_test_wallet_loaded_on_the_desktop_brings_the_warning_up() {
 
 #[test]
 fn mainnet_on_the_desktop_takes_only_public_seeds() {
+    let c = testkit::compute();
     let mut app = desktop();
     assert!(
         app.session
-            .add_words(&demo::words("trap"), "", None)
+            .add_words(&c, &demo::words("trap"), "", None)
             .is_ok()
     );
-    assert!(app.session.add_words(OTHER, "", None).is_err());
+    assert!(app.session.add_words(&c, OTHER, "", None).is_err());
     // A test network takes any seed, and mainnet is refused while that
     // key is loaded.
     to_testnet(&mut app);
-    assert!(app.session.add_words(OTHER, "", None).is_ok());
+    assert!(app.session.add_words(&c, OTHER, "", None).is_ok());
     app.press(Action::Network(Network::Mainnet));
     assert_eq!(app.session.network(), Network::Testnet);
 }
 
 #[test]
 fn a_mainnet_wallet_is_refused_on_a_test_network_holding_another_key() {
+    let c = testkit::compute();
     let mut app = desktop();
     to_testnet(&mut app);
-    app.session.add_words(OTHER, "", None).unwrap();
+    app.session.add_words(&c, OTHER, "", None).unwrap();
     load_wallet(&mut app, &wallet_on(Network::Mainnet));
     assert_eq!(app.session.network(), Network::Testnet);
     assert!(app.session.wallets.is_empty());
@@ -154,12 +160,13 @@ fn a_fixed_network_stays_on_mainnet_whatever_is_loaded() {
 
 #[test]
 fn the_device_goes_to_a_test_network_without_the_warning() {
+    let c = testkit::compute();
     let mut app = testkit::started();
     app.press(Action::Network(Network::Testnet));
     let _ = app.frame();
     assert_eq!(app.session.network(), Network::Testnet);
     assert_eq!(app.sheet, None);
-    assert!(app.session.add_words(OTHER, "", None).is_ok());
+    assert!(app.session.add_words(&c, OTHER, "", None).is_ok());
 }
 
 #[test]
@@ -189,6 +196,7 @@ fn released_desktop() -> Faraday {
 
 #[test]
 fn the_released_desktop_warns_at_start_before_any_key_can_be_added() {
+    let c = testkit::compute();
     let mut app = released_desktop();
     let _ = app.frame();
     assert_eq!(app.sheet, Some(Sheet::NotAirgapped));
@@ -203,7 +211,7 @@ fn the_released_desktop_warns_at_start_before_any_key_can_be_added() {
     assert_eq!(app.sheet, None);
     assert_eq!(app.session.network(), Network::Testnet);
     assert!(app.offers(Action::Scan));
-    assert!(app.session.add_words(OTHER, "", None).is_ok());
+    assert!(app.session.add_words(&c, OTHER, "", None).is_ok());
 }
 
 #[test]

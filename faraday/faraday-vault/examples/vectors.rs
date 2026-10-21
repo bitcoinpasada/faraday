@@ -13,6 +13,17 @@
 
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{Contents, Cost, MIN_MEMORY_KIB, Record, SLOT_SIZES};
+use osk_crypto::work::Compute;
+
+/// A token for the vectors' key work (`docs/COMPUTE.md` §3), counting
+/// nothing. Cheap.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a mint: a tool that draws nothing, and its test (docs/COMPUTE.md §3)"
+)]
+pub fn compute() -> Compute {
+    Compute::new(|_| {})
+}
 
 /// The cost the vectors are written at.
 pub const COST: Cost = Cost {
@@ -31,7 +42,9 @@ pub const THREE: (&str, &[&str]) = (
 
 /// One record of every type, labelled `label`.
 pub fn contents(label: &str) -> Contents {
+    let c = compute();
     let words = osk_bip::bip39::Mnemonic::parse(
+        &c,
         osk_bip::bip39::Language::English,
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
     )
@@ -99,9 +112,10 @@ pub const LABELS: [&str; 3] = ["Main", "Second", "Decoy"];
 
 /// A vault's bytes.
 pub fn vault(passphrases: &[&str], labels: &[&str], seed: u8) -> Vec<u8> {
+    let c = compute();
     let p: Vec<&[u8]> = passphrases.iter().map(|s| s.as_bytes()).collect();
-    let c: Vec<Contents> = labels.iter().map(|l| contents(l)).collect();
-    faraday_vault::create(SLOT_SIZES[0], COST, &p, &c, &[seed; 32]).expect("the vectors")
+    let all: Vec<Contents> = labels.iter().map(|l| contents(l)).collect();
+    faraday_vault::create(&c, SLOT_SIZES[0], COST, &p, &all, &[seed; 32]).expect("the vectors")
 }
 
 /// Both vectors, as (file name, bytes).

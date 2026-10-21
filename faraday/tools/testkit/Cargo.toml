@@ -12,6 +12,8 @@ publish = false
 faraday-core = { path = "../../faraday-core", features = ["testkit"] }
 osk-psbt = { path = "../../../core/osk-psbt" }
 osk-bip = { path = "../../../core/osk-bip" }
+# The token key work takes (docs/COMPUTE.md §2).
+osk-crypto = { path = "../../../core/osk-crypto" }
 
 [lints]
 workspace = true

@@ -25,13 +25,14 @@ fn the_committed_vectors_are_what_this_build_writes() {
 
 #[test]
 fn each_passphrase_opens_its_slot_of_the_vectors() {
+    let c = vectors::compute();
     let three = committed(vectors::THREE.0);
     for (p, label) in vectors::THREE.1.iter().zip(vectors::LABELS) {
-        let (_, c) = faraday_vault::open(&three, p.as_bytes()).expect("opens");
-        assert_eq!(c.records.len(), 13);
-        assert_eq!(c.records[0].text(field::LABEL), Some(label));
+        let (_, got) = faraday_vault::open(&c, &three, p.as_bytes()).expect("opens");
+        assert_eq!(got.records.len(), 13);
+        assert_eq!(got.records[0].text(field::LABEL), Some(label));
     }
     let one = committed(vectors::ONE.0);
-    assert!(faraday_vault::open(&one, vectors::ONE.1[0].as_bytes()).is_ok());
-    assert!(faraday_vault::open(&one, b"first passphrase").is_err());
+    assert!(faraday_vault::open(&c, &one, vectors::ONE.1[0].as_bytes()).is_ok());
+    assert!(faraday_vault::open(&c, &one, b"first passphrase").is_err());
 }

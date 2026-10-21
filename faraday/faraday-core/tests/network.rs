@@ -132,6 +132,7 @@ fn a_mainnet_psbt_is_refused_while_testnet_wallets_are_loaded() {
 
 #[test]
 fn every_wallet_form_on_the_test_stick_loads_its_wallet() {
+    let c = testkit::compute();
     let files = testkit::files().unwrap();
     let mut wallets: Vec<(String, String)> = testkit::kits()
         .into_iter()
@@ -163,7 +164,7 @@ fn every_wallet_form_on_the_test_stick_loads_its_wallet() {
             let Some((_, bytes)) = files.iter().find(|(n, _)| *n == name) else {
                 continue;
             };
-            assert_eq!(classify(&name, bytes), FileKind::Wallet, "{name}");
+            assert_eq!(classify(&c, &name, bytes), FileKind::Wallet, "{name}");
             let mut s = Session::default();
             s.add_wallet(
                 id,
@@ -182,10 +183,13 @@ fn every_wallet_form_on_the_test_stick_loads_its_wallet() {
 
 #[test]
 fn every_seed_form_and_xpub_on_the_test_stick_is_its_key() {
+    let c = testkit::compute();
     let files = testkit::files().unwrap();
     for (n, (word, _)) in testkit::TEST_SEEDS.iter().enumerate() {
         let mut s = testkit::session();
-        let fp = s.add_words(&testkit::test_words(word), "", None).unwrap();
+        let fp = s
+            .add_words(&c, &testkit::test_words(word), "", None)
+            .unwrap();
         let stem = format!("seed-{}-{}", n + 1, faraday_core::wallet::fp_text(fp));
         let xpub_stem = format!("xpub-{}-{}", n + 1, faraday_core::wallet::fp_text(fp));
         let get = |suffix: &str| {
@@ -200,7 +204,7 @@ fn every_seed_form_and_xpub_on_the_test_stick_is_its_key() {
         assert!(words.contains(&testkit::test_words(word)));
         // The backup is an OpenSigner backup.
         assert_eq!(
-            classify(&format!("{stem}.oskb"), &get(".oskb")),
+            classify(&c, &format!("{stem}.oskb"), &get(".oskb")),
             FileKind::Backup
         );
         // Each account xpub is a cosigner's with this key's fingerprint,
@@ -212,7 +216,7 @@ fn every_seed_form_and_xpub_on_the_test_stick_is_its_key() {
                 .find(|(n, _)| *n == name)
                 .map(|(_, b)| b.clone())
                 .unwrap_or_else(|| panic!("no {name}"));
-            assert_eq!(classify(&name, &bytes), FileKind::Key, "{name}");
+            assert_eq!(classify(&c, &name, &bytes), FileKind::Key, "{name}");
             let text = String::from_utf8(bytes).unwrap();
             assert!(text.contains(&format!("[{}/", faraday_core::wallet::fp_text(fp))));
             assert!(text.contains("]tpub"), "{name}");
@@ -225,8 +229,9 @@ const ABANDON: &str = "abandon abandon abandon abandon abandon abandon abandon a
 
 #[test]
 fn a_key_reads_the_same_fingerprint_on_the_wallets_page_on_either_network() {
+    let c = testkit::compute();
     let mut app = testkit::started();
-    app.session.add_words(ABANDON, "Seed", None).unwrap();
+    app.session.add_words(&c, ABANDON, "Seed", None).unwrap();
     app.press(Action::Nav(Screen::Wallets));
     assert!(common::has(&mut app, "73c5da0a · Seed"));
 

@@ -112,6 +112,7 @@ fn the_shared_seed_signs_for_the_wallet_the_transaction_spends_from() {
 
 #[test]
 fn a_vault_with_both_wallets_loads_the_shared_seed_once() {
+    let c = testkit::compute();
     let mut app = faraday_core::testkit::started();
     // Unlocking runs on the tick after a drawn frame: a display to draw on.
     app.event(Event::Display(osk_shell_api::DisplayInfo {
@@ -147,7 +148,7 @@ fn a_vault_with_both_wallets_loads_the_shared_seed_once() {
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    let together = app.vault_wallets_with_keys(0);
+    let together = app.vault_wallets_with_keys(&c, 0);
     let sharing: Vec<_> = together
         .iter()
         .filter(|w| w.name == "Spending" || w.name == "Savings")

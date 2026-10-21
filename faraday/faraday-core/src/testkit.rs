@@ -85,16 +85,22 @@ pub struct Kit {
 }
 
 fn master(word: &str) -> MasterKey {
-    let m = Mnemonic::parse(Language::English, &test_words(word)).expect("test words");
-    MasterKey::from_seed(&m.to_seed(b"").expect("seed"), NET)
+    let c = compute();
+    let m = Mnemonic::parse(&c, Language::English, &test_words(word)).expect("test words");
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("seed"), NET)
 }
 
 /// `[fingerprint/path]tpub` for test seed `n` at `path`.
 pub fn key(n: usize, path: &str) -> String {
+    let c = compute();
     let m = master(TEST_SEEDS[n].0);
     let p: DerivationPath = path.parse().expect("path");
     let shown = path.trim_start_matches("m/").replace('\'', "h");
-    format!("[{}/{shown}]{}", m.fingerprint(), m.derive(&p).to_xpub())
+    format!(
+        "[{}/{shown}]{}",
+        m.fingerprint(),
+        m.derive(&c, &p).to_xpub(&c)
+    )
 }
 
 /// The test wallet: a 2-of-3 native SegWit multisig over the three test
@@ -116,14 +122,15 @@ pub fn savings() -> String {
 /// made from the seeds 01…01 to 05…05 (64 bytes each), with its checksum:
 /// for the backup's shares, which a 3-of-5 can leave up to two keys off.
 pub fn three_of_five() -> String {
+    let c = compute();
     let p: DerivationPath = "m/48'/1'/0'/2'".parse().expect("path");
     let keys: Vec<String> = (1u8..=5)
         .map(|b| {
-            let m = MasterKey::from_seed(&osk_crypto::Secret::new([b; 64]), NET);
+            let m = MasterKey::from_seed(&c, &osk_crypto::Secret::new([b; 64]), NET);
             format!(
                 "[{}/48h/1h/0h/2h]{}/<0;1>/*",
                 m.fingerprint(),
-                m.derive(&p).to_xpub()
+                m.derive(&c, &p).to_xpub(&c)
             )
         })
         .collect();
@@ -351,6 +358,7 @@ pub fn unsigned(kit: &Kit) -> Result<Psbt, String> {
 /// The unsigned spend of a test wallet and, when it has a cosigner, the
 /// same transaction signed by that test key alone.
 pub fn spend_of(kit: &Kit) -> Result<(Psbt, Option<(String, Psbt)>), String> {
+    let c = compute();
     let psbt = unsigned(kit)?;
     let Some(n) = kit.cosigner else {
         return Ok((psbt, None));
@@ -358,7 +366,7 @@ pub fn spend_of(kit: &Kit) -> Result<(Psbt, Option<(String, Psbt)>), String> {
     let mut session = session();
     let (word, label) = TEST_SEEDS[n];
     let fp = session
-        .add_words(&test_words(word), label, None)
+        .add_words(&c, &test_words(word), label, None)
         .map_err(|e| e.text())?;
     session
         .add_wallet(
@@ -369,7 +377,7 @@ pub fn spend_of(kit: &Kit) -> Result<(Psbt, Option<(String, Psbt)>), String> {
         )
         .map_err(|e| e.text())?;
     let mut signed = psbt.clone();
-    let by = session.sign(&mut signed, [0; 32], &mut None)?;
+    let by = session.sign(&c, &mut signed, [0; 32], &mut None)?;
     if by.is_empty() {
         return Err(format!("{}: the cosigner did not sign", kit.id));
     }
@@ -385,6 +393,7 @@ pub fn spend() -> Result<(Psbt, Psbt), String> {
 
 /// The files of the test stick, by name.
 pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
+    let c = compute();
     let mut out = Vec::new();
     for kit in kits() {
         out.push((
@@ -508,8 +517,8 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
         let fp = crate::wallet::fp_text(master(word).fingerprint());
         let stem = format!("seed-{}-{fp}", n + 1);
         let xpub_stem = format!("xpub-{}-{fp}", n + 1);
-        let m =
-            Mnemonic::parse(Language::English, &test_words(word)).map_err(|e| format!("{e:?}"))?;
+        let m = Mnemonic::parse(&c, Language::English, &test_words(word))
+            .map_err(|e| format!("{e:?}"))?;
         out.push((
             format!("{stem}-words.txt"),
             format!(
@@ -543,7 +552,7 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
     // BIP-322.
     let mut one = session();
     let (word, label) = TEST_SEEDS[0];
-    one.add_words(&test_words(word), label, None)
+    one.add_words(&c, &test_words(word), label, None)
         .map_err(|e| e.text())?;
     let spending = kits()
         .into_iter()
@@ -558,7 +567,7 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
         )
         .map_err(|e| e.text())?;
     let text = "Faraday test message: this address belongs to test key 1.";
-    let signed = one.sign_message(i, 0, text, osk_psbt::message::Format::Bip322)?;
+    let signed = one.sign_message(&c, i, 0, text, osk_psbt::message::Format::Bip322)?;
     out.push((
         "spending-message.txt".to_string(),
         osk_psbt::message::signed_text(&signed.address, &signed.signature, text).into_bytes(),
@@ -596,8 +605,9 @@ pub fn musig_policy() -> Result<WalletPolicy, String> {
 }
 
 fn taproot_account(n: usize) -> osk_bip::bitcoin::bip32::Xpub {
+    let c = compute();
     *master(TEST_SEEDS[n].0)
-        .account_xpub(osk_bip::keys::ScriptType::Taproot, 0)
+        .account_xpub(&c, osk_bip::keys::ScriptType::Taproot, 0)
         .expect("account")
         .xpub()
 }
@@ -740,13 +750,14 @@ fn key_path_sighash(psbt: &Psbt) -> Result<[u8; 32], String> {
 /// so the partials made here fit the app's.
 #[allow(clippy::type_complexity)]
 pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>), String> {
+    let c = compute();
     let unsigned = musig_unsigned()?;
     let policy = musig_policy()?;
     let secp = osk_bip::bitcoin::secp256k1::Secp256k1::new();
     // What the inspector establishes: output key and tweaks.
     let mut session = session();
     session
-        .add_words(&test_words(TEST_SEEDS[0].0), TEST_SEEDS[0].1, None)
+        .add_words(&c, &test_words(TEST_SEEDS[0].0), TEST_SEEDS[0].1, None)
         .map_err(|e| e.text())?;
     session
         .add_wallet(
@@ -756,7 +767,7 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
             crate::wallet::Origin::Named,
         )
         .map_err(|e| e.text())?;
-    let established = session.inspect(&unsigned).inputs[0]
+    let established = session.inspect(&c, &unsigned).inputs[0]
         .musig
         .clone()
         .ok_or("no MuSig2 input")?;
@@ -768,7 +779,7 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
     for n in [1usize, 2] {
         let m = master(TEST_SEEDS[n].0);
         let sk = *m
-            .derive(&"m/86'/1'/0'".parse().map_err(|e| format!("{e}"))?)
+            .derive(&c, &"m/86'/1'/0'".parse().map_err(|e| format!("{e}"))?)
             .secret_key();
         let pk = taproot_account(n).public_key;
         let (sec, pubn) = osk_bip::musig::nonce_gen(
@@ -800,8 +811,8 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
     // Test key 1 signs last, twice with different seeds: the same bytes.
     let mut device = with_nonces.clone();
     let mut again = with_nonces.clone();
-    session.sign(&mut device, [7; 32], &mut None)?;
-    session.sign(&mut again, [9; 32], &mut None)?;
+    session.sign(&c, &mut device, [7; 32], &mut None)?;
+    session.sign(&c, &mut again, [9; 32], &mut None)?;
     if device.to_bytes() != again.to_bytes() {
         return Err("the last signer's MuSig2 pass depends on the session seed".into());
     }
@@ -850,15 +861,16 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
 /// words as shares 1 and 2 (`docs/PLANNING.md` §16.103); share 3 is
 /// computed. Its record is public and is the wallet's file.
 pub fn threshold_record() -> Result<osk_bip::threshold::ThresholdRecord, String> {
+    let c = compute();
     let secp = Secp256k1::new();
     let mut chosen = Vec::new();
     for (id, (word, _)) in TEST_SEEDS.iter().take(2).enumerate() {
         let mut session = session();
         session
-            .add_words(&test_words(word), "", None)
+            .add_words(&c, &test_words(word), "", None)
             .map_err(|e| e.text())?;
         let mut share = None;
-        session.keys[0].with_secret_share(&mut |s| {
+        session.keys[0].with_secret_share(&c, &mut |s| {
             share = osk_bip::frost::SecShare::from_bytes(&s.secret_bytes()).ok();
         });
         chosen.push((id as u32, share.ok_or("a test seed is not a share")?));
@@ -889,9 +901,10 @@ pub fn threshold_unsigned() -> Result<Psbt, String> {
 /// The first location's pass on the FROST spend: test key 1 signs as
 /// share 1 and chooses share 2; the carry file it leaves for share 2.
 pub fn threshold_carry() -> Result<Vec<u8>, String> {
+    let c = compute();
     let mut session = session();
     session
-        .add_words(&test_words(TEST_SEEDS[0].0), TEST_SEEDS[0].1, None)
+        .add_words(&c, &test_words(TEST_SEEDS[0].0), TEST_SEEDS[0].1, None)
         .map_err(|e| e.text())?;
     session
         .add_wallet(
@@ -902,7 +915,7 @@ pub fn threshold_carry() -> Result<Vec<u8>, String> {
         )
         .map_err(|e| e.text())?;
     let mut psbt = threshold_unsigned()?;
-    let signed = session.sign_with(&mut psbt, [5; 32], &mut None, &[1], None, None)?;
+    let signed = session.sign_with(&c, &mut psbt, [5; 32], &mut None, &[1], None, None)?;
     let section = signed
         .carry
         .ok_or("the first location left no carry section")?;
@@ -967,14 +980,15 @@ pub fn backup_files() -> Result<Vec<(String, Vec<u8>)>, String> {
 /// The backup test stick's vault: the three test seeds, loaded at
 /// unlock, under one passphrase at the Light cost.
 fn seeds_vault() -> Result<Vec<u8>, String> {
+    let c = compute();
     use faraday_vault::records::{self, field, kind};
     use faraday_vault::{Contents, Cost, Record};
     let mut main = Contents {
         records: vec![Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Test seeds")],
     };
     for (word, label) in TEST_SEEDS {
-        let m =
-            Mnemonic::parse(Language::English, &test_words(word)).map_err(|e| format!("{e:?}"))?;
+        let m = Mnemonic::parse(&c, Language::English, &test_words(word))
+            .map_err(|e| format!("{e:?}"))?;
         main.records.push(
             Record::new(kind::KEY)
                 .with(field::KEY, &records::words_payload(&m))
@@ -987,6 +1001,7 @@ fn seeds_vault() -> Result<Vec<u8>, String> {
         lanes: 1,
     };
     faraday_vault::create(
+        &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
         &[BACKUP_VAULT_PASSPHRASE.as_bytes()],
@@ -1005,9 +1020,10 @@ pub const VAULT_PASSPHRASES: [&str; 2] = ["test vault", "decoy"];
 /// unlock), every test wallet, an entry and a note; the second opens a
 /// slot with one entry. Everything is a dummy.
 pub fn test_vault() -> Result<Vec<u8>, String> {
+    let c = compute();
     use faraday_vault::records::{self, field, kind};
     use faraday_vault::{Contents, Cost, Record};
-    let m = Mnemonic::parse(Language::English, &test_words(TEST_SEEDS[0].0))
+    let m = Mnemonic::parse(&c, Language::English, &test_words(TEST_SEEDS[0].0))
         .map_err(|e| format!("{e:?}"))?;
     let mut wallets: Vec<(String, String)> = kits()
         .into_iter()
@@ -1057,6 +1073,7 @@ pub fn test_vault() -> Result<Vec<u8>, String> {
         lanes: 1,
     };
     faraday_vault::create(
+        &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
         &[
@@ -1084,13 +1101,15 @@ pub const BACKUP_PASSPHRASE: &str = "backup";
 /// Test key `n`'s words as an OpenSigner encrypted backup, at Argon2id's
 /// smallest cost: a dummy.
 pub fn test_backup(n: usize) -> Result<Vec<u8>, String> {
-    let m = Mnemonic::parse(Language::English, &test_words(TEST_SEEDS[n].0))
+    let c = compute();
+    let m = Mnemonic::parse(&c, Language::English, &test_words(TEST_SEEDS[n].0))
         .map_err(|e| format!("{e:?}"))?;
     let mut seed = [0u8; osk_backup::oskb::SEED_LEN];
     for (i, b) in seed.iter_mut().enumerate() {
         *b = i as u8;
     }
     osk_backup::oskb::seal(
+        &c,
         &m,
         BACKUP_PASSPHRASE.as_bytes(),
         osk_backup::MIN_PARAMS,

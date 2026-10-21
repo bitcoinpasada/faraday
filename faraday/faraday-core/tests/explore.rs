@@ -19,11 +19,12 @@ fn exploring() -> Faraday {
 
 #[test]
 fn bip84_and_bip86s_first_addresses() {
+    let c = faraday_core::testkit::compute();
     let mut app = exploring();
-    let r = app.explore_reading().unwrap();
+    let r = app.explore_reading(&c).unwrap();
     assert_eq!(r.address, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
     app.press(Action::XPreset(1));
-    let r = app.explore_reading().unwrap();
+    let r = app.explore_reading(&c).unwrap();
     assert_eq!(
         r.address,
         "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr"
@@ -31,12 +32,13 @@ fn bip84_and_bip86s_first_addresses() {
     // The next index along.
     app.press(Action::XPreset(0));
     app.press(Action::XIndex(1));
-    let r = app.explore_reading().unwrap();
+    let r = app.explore_reading(&c).unwrap();
     assert_eq!(r.address, "bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g");
 }
 
 #[test]
 fn a_path_typed_wrongly_is_named() {
+    let c = faraday_core::testkit::compute();
     let mut app = exploring();
     for _ in 0..20 {
         app.event(Event::Key(Key::Backspace));
@@ -45,5 +47,5 @@ fn a_path_typed_wrongly_is_named() {
         app.event(Event::Key(Key::Char(c)));
     }
     assert!(app.explore_path().is_err());
-    assert!(app.explore_reading().is_none());
+    assert!(app.explore_reading(&c).is_none());
 }

@@ -125,6 +125,7 @@ fn ticked(boxes: &[TextBox], title: &str, number: usize) -> bool {
 
 #[test]
 fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the_next_frame() {
+    let c = faraday_core::testkit::compute();
     // A vault made on an earlier power-on, holding seed 2 and the wallet.
     let mut shell = Shell::new();
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
@@ -160,7 +161,7 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     make_vault(&mut app, "first vault phrase");
     assert_eq!(app.screen, Screen::Backup);
     app.press(Action::BVaultSave(0));
-    assert!(app.backup_item_done_now(Item::Vault(0)));
+    assert!(app.backup_item_done_now(&c, Item::Vault(0)));
     app.press(Action::BNext(bstep::VAULT));
     let seed2 = app.backup_seed_list_now(w)[1].0.clone();
     let title = format!("Vault 2 · {seed2}");
@@ -207,5 +208,5 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     assert!(ticked(&boxes, &title, number), "{boxes:?}");
     assert!(boxes.iter().any(|(t, _)| *t == into), "{boxes:?}");
     assert!(app.offers(Action::BNext(bstep::VAULT + 1)), "Continue");
-    assert!(app.backup_item_done_now(Item::Vault(1)));
+    assert!(app.backup_item_done_now(&c, Item::Vault(1)));
 }

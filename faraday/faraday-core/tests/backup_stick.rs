@@ -39,6 +39,7 @@ fn taproot_multisig() -> String {
 
 #[test]
 fn the_stick_holds_the_backup_and_no_seed_outside_the_vault() {
+    let c = testkit::compute();
     let n = names();
     for want in [
         "taproot-multisig-descriptor.txt",
@@ -53,7 +54,7 @@ fn the_stick_holds_the_backup_and_no_seed_outside_the_vault() {
         assert!(n.iter().any(|x| x == want), "no {want}");
     }
     for (name, bytes) in testkit::backup_files().unwrap() {
-        let kind = faraday_core::wallet::classify(&name, &bytes);
+        let kind = faraday_core::wallet::classify(&c, &name, &bytes);
         assert_ne!(kind, FileKind::Words, "{name} holds a seed in the clear");
     }
 }
@@ -263,6 +264,7 @@ fn the_lock_sheet_lists_a_seed_in_memory_only_as_nowhere_else() {
 
 #[test]
 fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
+    let c = testkit::compute();
     use faraday_core::bstep;
     let mut app = testkit::started();
     // The shell's randomness, which a lock seals the vault with.
@@ -291,7 +293,7 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     app.press(Action::BCheck);
     testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     assert!(
-        app.backup_item_done_now(faraday_core::plan::Item::Copy(0)),
+        app.backup_item_done_now(&c, faraday_core::plan::Item::Copy(0)),
         "the copy was not checked"
     );
     // The test vault, which holds the seed; the wallet saved into it.
