@@ -362,7 +362,7 @@ fn draw_compact(app: &View, ui: &mut Ui, w: f32, h: f32, kb: bool, y0: f32) {
 }
 
 /// "Remove the stick" and the toast, centred in `cw` from `x`, at the foot.
-fn notices(app: &Faraday, ui: &mut Ui, x: f32, cw: f32, h: f32) {
+fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
     if app.not_now && !app.sticks.is_empty() && app.sheet.is_none() {
         let msg = &fill(EN.notices_remove_the, &[app.medium.noun()]);
         let bw = ui.measure(14.0, W::S, msg) + 40.0;
@@ -391,7 +391,7 @@ fn notices(app: &Faraday, ui: &mut Ui, x: f32, cw: f32, h: f32) {
 
 /// A screen's walk-through in Guided mode, under its title. Returns the
 /// height it took: nothing in Steps only.
-pub(crate) fn guide_text(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
+pub(crate) fn guide_text(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
     if !app.guided {
         return 0.0;
     }
@@ -439,7 +439,7 @@ pub(crate) fn sign_readiness(app: &Faraday, w: &crate::wallet::Wallet) -> u8 {
 }
 
 /// The word after the wordmark: the desktop app's, none on the device.
-pub(crate) fn name_suffix(app: &Faraday) -> NameSuffix {
+pub(crate) fn name_suffix(app: &View) -> NameSuffix {
     if app.online {
         NameSuffix::Desktop
     } else {
@@ -451,7 +451,7 @@ pub(crate) fn name_suffix(app: &Faraday) -> NameSuffix {
 /// the ? (at `qx`, where the ? is or would be), centred on it, a token
 /// gap to its left. A badge, off mainnet only: it opens nothing. Returns
 /// where the next thing in the row ends, a gap to its left.
-fn header_network_pill(app: &Faraday, ui: &mut Ui, qx: f32) -> f32 {
+fn header_network_pill(app: &View, ui: &mut Ui, qx: f32) -> f32 {
     let net = app.session.network();
     let left = network_pill_left(app, ui, qx);
     if net.is_mainnet() {
@@ -470,7 +470,7 @@ fn header_network_pill(app: &Faraday, ui: &mut Ui, qx: f32) -> f32 {
 
 /// Where the top-right row's next item ends, left of the ? (at `qx`)
 /// and the network pill when there is one, a gap between each.
-fn network_pill_left(app: &Faraday, ui: &Ui, qx: f32) -> f32 {
+fn network_pill_left(app: &View, ui: &Ui, qx: f32) -> f32 {
     let net = app.session.network();
     let gap = osk_ui::tokens::GAP;
     if net.is_mainnet() {
@@ -483,7 +483,7 @@ fn network_pill_left(app: &Faraday, ui: &Ui, qx: f32) -> f32 {
 /// The wide layout's page area: its left edge and width, the screen
 /// centred beside the sidebar on a wide display (or, held, centred in
 /// the window), as the frame draws it.
-fn wide_page(app: &Faraday, full_w: f32) -> (f32, f32) {
+fn wide_page(app: &View, full_w: f32) -> (f32, f32) {
     if app.held {
         let cw = full_w.min(MAX_W - SIDEBAR_W);
         ((full_w - cw) / 2.0, cw)
@@ -520,7 +520,7 @@ fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
     ui.hit(x, y, w, FLOW_ROW, action);
 }
 
-fn sidebar(app: &Faraday, ui: &mut Ui, h: f32) {
+fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     ui.fill(0.0, 0.0, SIDEBAR_W, h, 0.0, SIDEBAR);
     ui.fill(SIDEBAR_W - 1.0, 0.0, 1.0, h, 0.0, LINE);
     ui.mark(22.0, 20.0, 28.0, 32.0);
@@ -959,7 +959,7 @@ fn make_a_new_wallet() -> Lead {
 /// whose tile is above it (`docs/FLOWS.md`, Flows in progress); none
 /// when every one would. `enabled` is false for a prompt with no target
 /// of its own (pull the stick first).
-pub(crate) fn home_lead_beside_tiles(app: &Faraday) -> Option<Lead> {
+pub(crate) fn home_lead_beside_tiles(app: &View) -> Option<Lead> {
     let shown = app.flows_in_progress();
     home_jobs(app)
         .into_iter()
@@ -974,13 +974,13 @@ pub(crate) type Lead = (Glyph, String, String, Action, bool);
 
 /// Something under way or waiting (§1.2's rules 1 to 6), which leads
 /// Home above its four ways in; none when nothing is.
-fn home_job(app: &Faraday) -> Option<Lead> {
+fn home_job(app: &View) -> Option<Lead> {
     home_jobs(app).into_iter().next().map(|(_, lead)| lead)
 }
 
 /// Every lead §1.2's rules 1 to 6 give, in their order, each with the
 /// flow it opens or starts over, when it is one that can be in progress.
-fn home_jobs(app: &Faraday) -> Vec<(Option<Going>, Lead)> {
+fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
     use crate::vaults::VaultAction as V;
     let mut v = Vec::new();
     // Rule 1: a spend under way; of a wallet loaded, as its card says it
@@ -1145,7 +1145,7 @@ fn home_jobs(app: &Faraday) -> Vec<(Option<Going>, Lead)> {
 
 /// The wallet card's backup line (`docs/SIMPLIFY.md` §5.2) for loaded
 /// wallet `i`, which opens Backups on it. Returns the height it took.
-pub(crate) fn backup_line(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) -> f32 {
+pub(crate) fn backup_line(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) -> f32 {
     let line = app.backup_line(i);
     let action = Action::BackupsOf(i);
     let tone = if ui.is_pressed(action) {
@@ -1170,7 +1170,7 @@ pub(crate) fn backup_line(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, i:
 /// then, where they apply, Stick visit (a stick attached, nothing held)
 /// and Backups (a wallet known). With no vault in Files or open, Vaults
 /// is Create a vault: the list would have nothing else on it.
-pub(crate) fn home_ways(app: &Faraday) -> Vec<(Glyph, &'static str, String, Action)> {
+pub(crate) fn home_ways(app: &View) -> Vec<(Glyph, &'static str, String, Action)> {
     use crate::vaults::VaultAction as V;
     let vault_files = app.vault_files().len();
     let open = app.vaults.open.len();
@@ -1238,7 +1238,7 @@ pub(crate) fn home_ways(app: &Faraday) -> Vec<(Glyph, &'static str, String, Acti
     t
 }
 
-fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn home(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let x = x0 + 56.0;
     let width = cw - 112.0;
     let mut y = 44.0;
@@ -1346,7 +1346,7 @@ fn home(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 // Wallets: the start page
 // ---------------------------------------------------------------------
 
-fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn start(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let compact = ui.compact;
     let (x, width) = if compact {
         (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
@@ -1622,7 +1622,7 @@ fn start(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// The nonce check: each signature against its key and this
 /// transaction, each one made here recomputed from its key, and any nonce
 /// used twice. Returns its height.
-fn nonce_check(app: &Faraday, ui: &mut Ui, psbt: &osk_psbt::Psbt, x: f32, y: f32, w: f32) -> f32 {
+fn nonce_check(app: &View, ui: &mut Ui, psbt: &osk_psbt::Psbt, x: f32, y: f32, w: f32) -> f32 {
     use osk_psbt::verify::Verdict;
     let Some(s) = app.spend.as_ref() else {
         return 0.0;
@@ -1758,7 +1758,7 @@ fn nonce_check(app: &Faraday, ui: &mut Ui, psbt: &osk_psbt::Psbt, x: f32, y: f32
 /// seeds here that are their keys; seeds no wallet names, each a potential
 /// wallet; and backups short of parts or sealed. Nothing when it gives
 /// nothing to load. Returns its height.
-fn inbox_panel(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if ui.compact {
         return inbox_panel_compact(app, ui, x, y, w);
     }
@@ -2038,7 +2038,7 @@ fn inbox_panel(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// another.
 #[allow(clippy::too_many_arguments)]
 fn potential_compact(
-    app: &Faraday,
+    app: &View,
     p: &crate::inbox::Potential,
     ui: &mut Ui,
     w: f32,
@@ -2190,7 +2190,7 @@ fn potential_compact(
     });
 }
 
-fn potential_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(p) = app.potential.as_ref() else {
         return;
     };
@@ -2426,7 +2426,7 @@ fn potential_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 
 /// Tools: every flow by group, three tiles to a row, each with its
 /// standards; Find a tool narrows them as it is typed.
-fn catalog_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn catalog_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::catalog::{GROUPS, TILES, matches};
     // A small panel has the name in its bar, Find across the panel, and a
     // tile a row.
@@ -2562,7 +2562,7 @@ pub(crate) fn decode_back(back: Screen) -> &'static str {
     }
 }
 
-fn decode_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn decode_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::decode::btc;
     let Some(d) = app.decode.as_ref() else {
         return;
@@ -2812,7 +2812,7 @@ fn decode_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// vault holds one, since its row loads it. Returns its height.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn missing_keys_line(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     slots: &[crate::wallet::Slot],
     back: Screen,
@@ -2884,7 +2884,7 @@ pub(crate) fn missing_keys_line(
 /// The loaded wallets, two to a row, at most `rows` rows: each with its
 /// shape and whether the seeds here sign for it. Returns its height.
 pub(crate) fn wallet_rows(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -3039,7 +3039,7 @@ pub(crate) const FROM_KEY: &str = EN.app_make_a_wallet_from;
 /// The Wallets card with keys loaded and no wallet: each key, the one
 /// picked when there are several, and the ways on to a wallet. Returns
 /// the height used.
-pub(crate) fn loose_card(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+pub(crate) fn loose_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let (loose, picked) = app.loose_keys();
     let Some(picked) = picked else {
         return 0.0;
@@ -3092,7 +3092,7 @@ pub(crate) fn loose_card(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> 
     cy - y
 }
 
-fn wallets(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn wallets(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         crate::compact_screens::wallet_card(app, ui, x0, cw, h);
         return;
@@ -3573,7 +3573,7 @@ fn card_actions(
 /// handed out, then its page. It has nothing to sign: sending to and from
 /// silent payments waits on upstream.
 fn silent_wallet_card(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     r: &osk_bip::silent_wallet::SilentWallet,
     ix: f32,
@@ -3749,7 +3749,7 @@ fn spend(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         cancel: app.cancel_offered().is_some(),
     };
     let (next, again) = {
-        let app_ref: &Faraday = app;
+        let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             step_body(app_ref, ui, steps[i], x, y, w, wallet_idx, needed)
         };
@@ -3769,7 +3769,7 @@ fn spend(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// Where a signing stands: the signatures there, how many are missing,
 /// the line that says what is left, and the main button's label.
-fn spend_status(app: &Faraday, needed: usize) -> (usize, usize, String, String) {
+fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
     let s = app.spend.as_ref().expect("spend");
     let i = &s.inspection;
     // A threshold spend counts partial signatures and signs as shares.
@@ -3861,7 +3861,7 @@ fn spend_status(app: &Faraday, needed: usize) -> (usize, usize, String, String) 
 /// The foot of Sign a transaction on a small panel: the signatures, what
 /// is left, and the main button. Returns its height.
 fn spend_bar(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     x0: f32,
     cw: f32,
@@ -3917,7 +3917,7 @@ fn recipients(inspection: &osk_psbt::Inspection) -> Vec<&osk_psbt::OutputInfo> {
         .collect()
 }
 
-pub(crate) fn step_summary(app: &Faraday, n: u8, wallet: Option<usize>, needed: usize) -> String {
+pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usize) -> String {
     let s = app.spend.as_ref().expect("spend");
     let i = &s.inspection;
     let reached = s.done[n as usize] || s.open == Some(n);
@@ -4006,7 +4006,7 @@ pub(crate) fn step_summary(app: &Faraday, n: u8, wallet: Option<usize>, needed: 
 /// Draws a step's body with its top-left at (x, y). Returns its height.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn step_body(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     n: u8,
     x: f32,
@@ -5170,7 +5170,7 @@ type ReviewRow = (
 
 #[allow(clippy::too_many_arguments)]
 fn spend_panel(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     px: f32,
     pw: f32,
@@ -5656,7 +5656,7 @@ fn backup_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// by `plan_cards`; on The plan, after the map, what holds the way on or
 /// Make the checklist. Returns its height.
 fn plan_body(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     ctx: Option<&crate::plan_cards::PlanCtx>,
     q: u8,
@@ -5725,7 +5725,7 @@ pub(crate) fn held_item(
 }
 
 /// Back up's map ([`crate::plan_cards::map_rows`]). Returns its height.
-fn map_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, boxed: bool) -> f32 {
+fn map_rows(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, boxed: bool) -> f32 {
     crate::plan_cards::PlanCtx::backup(app).map_or(0.0, |c| {
         crate::plan_cards::map_rows(app, ui, &c, x, y, w, boxed)
     })
@@ -5733,7 +5733,7 @@ fn map_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, boxed: bool) -> 
 
 /// Back up's check ([`crate::plan_cards::check_rows`]). Returns its
 /// height.
-fn check_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn check_rows(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     crate::plan_cards::PlanCtx::backup(app)
         .map_or(0.0, |c| crate::plan_cards::check_rows(app, ui, &c, x, y, w))
 }
@@ -5741,7 +5741,7 @@ fn check_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// The loaded wallets, one row each, under the backup's wallet chip at
 /// (x, y): a press on one starts its backup, a press beside the list
 /// closes it.
-fn wallet_pick(app: &Faraday, ui: &mut Ui, x: f32, y: f32, chip_w: f32, right: f32) {
+fn wallet_pick(app: &View, ui: &mut Ui, x: f32, y: f32, chip_w: f32, right: f32) {
     let current = app.backup.as_ref().map_or(0, |b| b.wallet);
     let lw = 340.0_f32.max(chip_w).min(right - x);
     let rh = 44.0;
@@ -5773,7 +5773,7 @@ fn wallet_pick(app: &Faraday, ui: &mut Ui, x: f32, y: f32, chip_w: f32, right: f
 /// wallet's chart of the plan just completed, what waits for the stick,
 /// and Write to a stick, Open the wallet, Change the plan. Returns its
 /// height.
-fn backup_done(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn backup_done(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::glance::{self, Backup, Direction};
     let Some(b) = app.backup.as_ref() else {
         return 0.0;
@@ -5811,7 +5811,7 @@ fn backup_done(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// The backup's last card, in Guided only (`docs/BACKUP-FLOW.md` §19.19
 /// item 7): copies made outside the plan, and the Learn page on them.
 /// Returns its height; nothing in Steps only.
-pub(crate) fn extra_copies(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+pub(crate) fn extra_copies(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if !app.guided {
         return 0.0;
     }
@@ -6078,7 +6078,7 @@ pub(crate) fn stepper(
 /// question and the checklist's Shares card both draw it. Returns the
 /// height used.
 pub(crate) fn shares_card(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -6524,7 +6524,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
 /// check while it is open (`docs/NEW-WALLET.md` §14.7): the word being
 /// typed, the words taken masked, and how the last comparison went.
 /// Returns its height.
-fn copy_check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(b) = app.backup.as_ref() else {
         return 0.0;
     };
@@ -6614,7 +6614,7 @@ fn copy_check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// A checklist item's next action (`docs/NEW-WALLET.md` §14.1): its own
 /// until it is done, then Continue. A vault item: Make a vault (or the
 /// way to one), then Save into the open vault, then Continue.
-fn item_action(app: &Faraday, n: u8) -> (String, Action) {
+fn item_action(app: &View, n: u8) -> (String, Action) {
     use crate::bstep;
     use crate::plan::Item;
     let item = bstep::item(n).unwrap_or(Item::Envelopes);
@@ -6689,7 +6689,7 @@ fn item_action(app: &Faraday, n: u8) -> (String, Action) {
 
 /// The item's next action as its foot button. Returns whether it was
 /// drawn in the column (on a small panel it is pinned instead).
-fn item_next(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> bool {
+fn item_next(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> bool {
     let (label, action) = item_action(app, n);
     // While the typed check is open it compares on the last word: the
     // foot's Check my copy would do nothing, so it is not drawn.
@@ -6703,7 +6703,7 @@ fn item_next(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> bool 
 /// The checklist's Write to sticks: what the lock keeps and wipes, then a
 /// row for each stick by place, ticked once written, its files under it.
 /// Its one button is the foot's. Returns the height used.
-fn sticks_item(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn sticks_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let written = app.wallet_sticks_done();
     if !written {
@@ -6768,7 +6768,7 @@ fn sticks_item(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// each, marked once the vault holds it; with the open vault holding
 /// another vault's seed, that. Its one button is the foot's. Returns its
 /// height.
-fn vault_item(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 {
+fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 {
     use crate::vault_screens::vault_has_wallet;
     let Some(b) = app.backup.as_ref() else {
         return 0.0;
@@ -6857,7 +6857,7 @@ fn vault_item(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f
 /// The seeds' files, on their checklist item: a row per seed here,
 /// marked once its file is made. The foot's Make it makes the next one.
 /// Returns the height used.
-fn seed_files(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn seed_files(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(b) = app.backup.as_ref() else {
         return 0.0;
     };
@@ -6893,7 +6893,7 @@ fn seed_files(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy + 4.0 - y
 }
 
-fn paper_section(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::paper::PaperForm;
     let Some(b) = app.backup.as_ref() else {
         return 0.0;
@@ -7056,7 +7056,7 @@ fn seed_grid(ui: &mut Ui, m: &osk_codec::qr::QrMatrix, x: f32, y: f32, w: f32, p
 /// The backup's side panel: the map, its boxes listing what each holds,
 /// in the checklist each line marked by its item's state; the check at
 /// its foot.
-fn backup_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32) {
+fn backup_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
     if app.backup.is_none() {
         return;
     }
@@ -7095,7 +7095,7 @@ fn tone(t: crate::backup::Tone) -> osk_ui::Color {
 /// then "Keys" and a row per key, its fingerprint and its lines. The
 /// backup's side panel and the small panel's seeds page draw it. Returns
 /// its height.
-fn kept_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn kept_rows(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(kept) = app.backup_kept() else {
         return 0.0;
     };
@@ -7191,7 +7191,7 @@ fn message_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let scroll = m.scroll;
     let (next, again) = {
-        let app_ref: &Faraday = app;
+        let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             message_body(app_ref, ui, i as u8, x, y, w)
         };
@@ -7200,7 +7200,7 @@ fn message_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     app.scroll(Scrolled::Message, next, again);
 }
 
-fn message_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
+fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     use crate::mstep;
     let m = app.message.as_ref().expect("message");
     let mut cy = y;
@@ -7430,7 +7430,7 @@ fn message_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f3
     cy - y
 }
 
-fn check_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn check_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // A small panel has the way back and the name in its bar, and one
     // column that scrolls: each value under its name.
     let compact = ui.compact;
@@ -7696,7 +7696,7 @@ fn create_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let scroll = c.scroll;
     let (next, again) = {
-        let app_ref: &Faraday = app;
+        let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             create_body(app_ref, ui, steps[i], x, y, w)
         };
@@ -7717,7 +7717,7 @@ fn vaults_answer_line(ask: crate::VaultAsk) -> String {
 
 /// The closed line of Make a new wallet's cards before Keys: what the
 /// person answered and what the setup has done.
-fn create_flow_summary(app: &Faraday, k: u8) -> String {
+fn create_flow_summary(app: &View, k: u8) -> String {
     use crate::cstep;
     let Some(c) = app.create.as_ref() else {
         return String::new();
@@ -7751,7 +7751,7 @@ fn create_flow_summary(app: &Faraday, k: u8) -> String {
 }
 
 /// The closed line of Restore's card of vaults: the answer.
-fn create_flow_summary_restore(app: &Faraday, k: u8) -> String {
+fn create_flow_summary_restore(app: &View, k: u8) -> String {
     let Some(r) = app.restore.as_ref() else {
         return String::new();
     };
@@ -7837,7 +7837,7 @@ pub(crate) fn kind_rows(
 /// under a label, as Create's Check and Restore's show them, with the
 /// warning while a key made here waits for its backup. Returns the
 /// height used.
-pub(crate) fn first_addresses(app: &Faraday, ui: &mut Ui, i: usize, x: f32, y: f32, w: f32) -> f32 {
+pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32, w: f32) -> f32 {
     let Some(wl) = app.session.wallets.get(i) else {
         return 0.0;
     };
@@ -7874,7 +7874,7 @@ pub(crate) fn first_addresses(app: &Faraday, ui: &mut Ui, i: usize, x: f32, y: f
 /// key in another slot is not offered (§2.2). Returns the height used.
 #[allow(clippy::too_many_arguments)]
 fn create_vault_rows(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     vaults: &crate::create_from::CreateVaults,
     slot: usize,
@@ -7931,7 +7931,7 @@ fn create_vault_rows(
     cy - y
 }
 
-fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
+fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     use crate::create::Source;
     use crate::cstep;
     let c = app.create.as_ref().expect("create");
@@ -8404,7 +8404,7 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
 
 /// Where a file a flow made stands: For the stick, with its place in
 /// the list for Remove; or written, by the receipt. `None` when neither.
-fn made_place(app: &Faraday, file: &str) -> Option<(String, Option<usize>)> {
+fn made_place(app: &View, file: &str) -> Option<(String, Option<usize>)> {
     if let Some(k) = app.outbox.iter().position(|i| i.name == file) {
         return Some((app.medium.for_box().to_string(), Some(k)));
     }
@@ -8417,7 +8417,7 @@ fn made_place(app: &Faraday, file: &str) -> Option<(String, Option<usize>)> {
 /// A file a flow made, as one line: its name, where it is, and Remove
 /// while it waits For the stick. Nothing when it is neither waiting nor
 /// written. Returns its height.
-fn made_line(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, file: &str) -> f32 {
+fn made_line(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, file: &str) -> f32 {
     let Some((state, k)) = made_place(app, file) else {
         return 0.0;
     };
@@ -8447,7 +8447,7 @@ fn made_line(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, file: &str) -> 
 /// written, by the receipt, with `make` to make it again; or not made,
 /// with `make`. `remove` takes it off For the stick.
 fn made_state<'a>(
-    app: &Faraday,
+    app: &View,
     file: &str,
     remove: Option<Action>,
     make: (&'a str, Action),
@@ -8754,7 +8754,7 @@ fn path_row(ui: &mut Ui, x: f32, y: f32, w: f32, path: &str, change: bool) -> f3
 /// Caravan config, the Wasabi file. Each has its own button, and Show as
 /// QR and PNG beside the ones a wallet or a person reads from a code.
 fn public_files(
-    app: &Faraday,
+    app: &View,
     i: usize,
 ) -> (Vec<FileRow<'static, String>>, Vec<FileRow<'static, String>>) {
     use osk_bip::policy::{Template, Wrapper};
@@ -8891,7 +8891,7 @@ fn public_files(
 /// then a ghost More options, or, once it is pressed, the files under
 /// it (F64).
 fn public_rows_for(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -9030,7 +9030,7 @@ fn restore_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let scroll = r.scroll;
     let (next, again) = {
-        let app_ref: &Faraday = app;
+        let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             restore_body(app_ref, ui, steps[i], x, y, w)
         };
@@ -9041,7 +9041,7 @@ fn restore_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// Restore's slots: how many are filled (a seed here, a cosigner's
 /// xpub, or Not here), of how many.
-fn restore_filled(app: &Faraday) -> (usize, usize) {
+fn restore_filled(app: &View) -> (usize, usize) {
     let Some(r) = app.restore.as_ref() else {
         return (0, 0);
     };
@@ -9068,7 +9068,7 @@ fn restore_filled(app: &Faraday) -> (usize, usize) {
 }
 
 /// The wallet description's file names in Files, by place.
-fn description_files(app: &Faraday) -> Vec<(usize, &str)> {
+fn description_files<'a>(app: &'a View<'_>) -> Vec<(usize, &'a str)> {
     app.inbox
         .iter()
         .enumerate()
@@ -9077,7 +9077,7 @@ fn description_files(app: &Faraday) -> Vec<(usize, &str)> {
         .collect()
 }
 
-fn restore_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
+fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     use crate::rstep;
     let r = app.restore.as_ref().expect("restore");
     let mut cy = y;
@@ -9208,7 +9208,7 @@ fn restore_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f3
 /// description, the shares of a split one), the stick and the vaults,
 /// or the wallet from its seeds alone: **I have the seed** for a single
 /// key, which most backups of one are, **I do not have it** for several.
-fn restore_description(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let r = app.restore.as_ref().expect("restore");
     let mut cy = y;
     let files = description_files(app);
@@ -9305,7 +9305,7 @@ fn restore_description(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
 /// scanned, from an open vault or already loaded, or a cosigner's xpub;
 /// a key of the description can be Not here. **Make the wallet** once
 /// every slot is filled.
-fn restore_seeds(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::seeds::{Focus, SeedsAction as S};
     let r = app.restore.as_ref().expect("restore");
     let Some(s) = r.seeds.as_ref() else {
@@ -9456,7 +9456,7 @@ fn restore_seeds(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// used.
 #[allow(clippy::too_many_arguments)]
 fn restore_open_slot(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     r: &crate::RestoreState,
     here: &[[u8; 4]],
@@ -9495,7 +9495,7 @@ fn restore_open_slot(
 
 /// Where a wallet's description comes back from besides the camera and
 /// Files: the files of a stick, or a vault.
-fn restore_sources(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::vaults::VaultAction as V;
     use faraday_vault::records::{field, kind};
     if ui.compact {
@@ -9591,7 +9591,7 @@ fn restore_sources(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 /// [`restore_sources`] on a small panel: each source's name over its
 /// buttons, and what stands in the way under them.
-fn restore_sources_compact(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::vaults::VaultAction as V;
     use faraday_vault::records::{field, kind};
     let mut cy = y;
@@ -9719,7 +9719,7 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
 
 /// Add to vault, for an Inbox file a vault keeps; nothing while no vault
 /// is open (F60: the vault's own row unlocks it). Returns the width used.
-fn add_to_vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, k: usize, style: Style) -> f32 {
+fn add_to_vault(app: &View, ui: &mut Ui, x: f32, y: f32, k: usize, style: Style) -> f32 {
     if app.vault_way(Screen::Files).is_some() {
         return 0.0;
     }
@@ -9729,7 +9729,7 @@ fn add_to_vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, k: usize, style: Sty
 
 /// Restore the wallet, on a share of a split backup: the shares in the
 /// Inbox put together, or how many keys are still missing.
-fn restore_shares_button(app: &Faraday, ui: &mut Ui, x: f32, y: f32) -> f32 {
+fn restore_shares_button(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
     let texts: Vec<String> = app
         .inbox
         .iter()
@@ -9766,7 +9766,7 @@ fn restore_shares_button(app: &Faraday, ui: &mut Ui, x: f32, y: f32) -> f32 {
     }
 }
 
-fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn files(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         return files_compact(app, ui, x0, cw, h);
     }
@@ -10274,7 +10274,7 @@ fn receipt_rows(ui: &mut Ui, r: &crate::Receipt, tz_min: i16, x: f32, y: f32, w:
 /// An open vault's seeds and wallets, each ticked to load or not, with
 /// Select all and a Load button that counts what it loads. What loaded
 /// stays listed, marked Loaded.
-pub(crate) fn vault_panel(app: &Faraday, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32) -> f32 {
+pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32) -> f32 {
     if ui.compact {
         return vault_panel_compact(app, ui, v, x, y, w);
     }
@@ -10536,7 +10536,7 @@ pub(crate) fn vault_panel(app: &Faraday, ui: &mut Ui, v: usize, x: f32, y: f32, 
 
 /// [`inbox_panel`] on a small panel: one column, each row's line under
 /// its name and its button under that, measured before its card is drawn.
-fn inbox_panel_compact(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::compact_screens::measured;
     let found = app.inbox_found();
     let wallets = found.to_load();
@@ -10765,7 +10765,7 @@ fn inbox_panel_compact(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
 
 /// [`vault_panel`] on a small panel: one column of the vault's wallets
 /// and seeds, each name over what it is, measured before its card.
-fn vault_panel_compact(app: &Faraday, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32) -> f32 {
+fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32) -> f32 {
     use crate::compact_screens::measured;
     use crate::vaults::VaultAction as V;
     let Some(open) = app.vaults.open.get(v) else {
@@ -10992,7 +10992,7 @@ type Note = Option<(String, osk_ui::Color)>;
 /// What an Inbox file offers on its card: the way it is used; the rest
 /// is behind its ⋮ (decision 61). A split sheet that does not add up yet says how
 /// many keys are in hand instead of offering a button.
-fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note) {
+fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
     let mut out: Vec<(String, Style, Action)> = Vec::new();
     let mut note = None;
     // What goes into a vault shows only while one is open (F60); the
@@ -11148,7 +11148,7 @@ fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note)
 /// its height.
 #[allow(clippy::too_many_arguments)]
 fn file_card(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -11204,7 +11204,7 @@ fn file_card(
 /// [`files`] on a small panel: one scrolled column of what is loaded from
 /// open vaults and the Inbox, then the Inbox, then the Outbox by who may
 /// read it, then the stick.
-fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
     use crate::compact_screens::{about, finish};
     use crate::secrets::Exposure;
@@ -11448,7 +11448,7 @@ fn files_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// [`visit`] on a small panel: one scrolled column. The sticks, what is
 /// left to do, then what to write and what to import, each a list with
 /// its buttons under it.
-fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
     use crate::compact_screens::{about, finish};
     let (x, w) = (x0 + M, cw - 2.0 * M);
@@ -11798,7 +11798,7 @@ fn visit_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     finish(app, ui, x0, cw, h, y - top + 16.0);
 }
 
-fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn visit(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         return visit_compact(app, ui, x0, cw, h);
     }
@@ -12280,7 +12280,7 @@ fn visit(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// Whether everything Select all chooses on a visit's write list is
 /// chosen: the settings, every Outbox file but an unprotected secret, and
 /// every public or sealed Inbox file listed.
-fn visit_all_out(app: &Faraday) -> bool {
+fn visit_all_out(app: &View) -> bool {
     app.visit_settings_on()
         && app
             .outbox
@@ -12298,7 +12298,7 @@ fn visit_all_out(app: &Faraday) -> bool {
 
 /// How many files a visit's Write writes: the settings, the Outbox files
 /// and the Inbox files chosen.
-fn visit_write_count(app: &Faraday) -> usize {
+fn visit_write_count(app: &View) -> usize {
     let out = app
         .outbox
         .iter()
@@ -12366,7 +12366,7 @@ fn visit_unselect_all(ui: &mut Ui, right: f32, y: f32) {
 /// them shown of `all_h`, scrolled by `shift`.
 #[allow(clippy::too_many_arguments)]
 fn visit_list_bar(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     column: crate::Column,
     card: (f32, f32),
@@ -12410,7 +12410,7 @@ fn visit_list_bar(
 
 /// What pulling the stick does next: the keys an Import and load copied
 /// in load, or the vault it brought asks for its passphrase.
-fn pull_line(app: &Faraday) -> String {
+fn pull_line(app: &View) -> String {
     // Only words copied in for Import and load are keys waiting to load.
     let n = app
         .inbox
@@ -12438,7 +12438,7 @@ fn pull_line(app: &Faraday) -> String {
 // ---------------------------------------------------------------------
 
 /// The one word the typed prefix can complete to, if there is one.
-fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         crate::compact_screens::entry(app, ui, x0, cw, h);
         return;
@@ -12542,7 +12542,7 @@ fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// page, whose row of lists offers Other forms too. Returns where the
 /// next row starts.
 pub(crate) fn entry_words(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -12721,7 +12721,7 @@ pub(crate) fn typed_cells(
 /// it scrolls: `bottom`, where the content (including the footer) ends,
 /// measured from the top of the screen as if unscrolled, so the last
 /// scroll leaves the footer and its margin inside the window.
-fn entry_scrolled(app: &Faraday, ui: &mut Ui, clip: osk_ui::Rect, h: f32, bottom: f32) {
+fn entry_scrolled(app: &View, ui: &mut Ui, clip: osk_ui::Rect, h: f32, bottom: f32) {
     ui.c.pop_clip();
     app.content_h.set(bottom + app.list_offset + 24.0);
     ui.report_scroll(clip, app.content_h.get() - h);
@@ -12731,7 +12731,7 @@ fn entry_scrolled(app: &Faraday, ui: &mut Ui, clip: osk_ui::Rect, h: f32, bottom
 /// chips, the chosen one primary, with "Words" before them when
 /// `labelled`. Returns its height and the gap under it.
 pub(crate) fn word_count_row(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -12773,7 +12773,7 @@ pub(crate) fn word_count_row(
 /// with every key that leads nowhere disabled, and the status. Returns
 /// where the next row starts.
 fn keyed_words(
-    app: &Faraday,
+    app: &View,
     w: &opensigner_core::load::LoadWizard,
     ui: &mut Ui,
     x: f32,
@@ -13019,7 +13019,7 @@ pub(crate) fn word_keys(
 /// The words typed on a list's own keyboard, as a status line: the
 /// count, and once it is a whole key, the checksum and fingerprint.
 pub(crate) fn keyed_status(
-    app: &Faraday,
+    app: &View,
     lang: osk_bip::bip39::Language,
     taken: &[u16],
 ) -> (String, osk_ui::Color) {
@@ -13029,7 +13029,7 @@ pub(crate) fn keyed_status(
     }
     let added = osk_bip::bip39::Mnemonic::from_indices(lang, taken)
         .map_err(|e| crate::wallet::Refusal::Words(e.to_string()).text())
-        .and_then(|m| app.entry.probed(&m));
+        .and_then(|m| app.entry_probed(&m));
     match added {
         Ok(fp) => (
             fill(
@@ -13045,7 +13045,7 @@ pub(crate) fn keyed_status(
 /// The count of words and, when they are a whole key, its checksum and
 /// fingerprint; then the last refusal. Returns where the next row starts.
 fn entry_status(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -13057,7 +13057,7 @@ fn entry_status(
         Some(made) => {
             let added = made
                 .map_err(|e| crate::wallet::Refusal::Words(e).text())
-                .and_then(|m| app.entry.probed(&m));
+                .and_then(|m| app.entry_probed(&m));
             match added {
                 Ok(fp) => (
                     fill(
@@ -13083,7 +13083,7 @@ fn entry_status(
 /// The passphrase field, the way in from a stick, and the Add key ·
 /// Clear · Make a new key row. Returns the bottom of the row, so the
 /// page that scrolls to fit it (`entry`) knows how tall its content is.
-fn entry_finish(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> f32 {
+fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> f32 {
     // An optional BIP-39 passphrase: the same words with another
     // passphrase are another key.
     ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, EN.entry_finish_bip_39);
@@ -13152,7 +13152,7 @@ fn entry_finish(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) 
 }
 
 /// Whether any of a key's words is typed on Add a key.
-pub(crate) fn entry_typed(app: &Faraday) -> bool {
+pub(crate) fn entry_typed(app: &View) -> bool {
     match app.entry.keys.as_deref() {
         Some(w) => w.committed_indices().next().is_some() || !w.prefix().is_empty(),
         None => !app.entry.typed.trim().is_empty(),
@@ -13161,7 +13161,7 @@ pub(crate) fn entry_typed(app: &Faraday) -> bool {
 
 /// Add a key's Scan a SeedQR: for a wallet's missing key, that wallet's
 /// key scanner; else the SeedQR scanner.
-pub(crate) fn entry_scan(app: &Faraday) -> Action {
+pub(crate) fn entry_scan(app: &View) -> Action {
     match app.entry.wallet {
         Some(w) if w < app.session.wallets.len() => Action::ScanKey(w),
         _ => Action::ScanSeed,
@@ -13170,7 +13170,7 @@ pub(crate) fn entry_scan(app: &Faraday) -> Action {
 
 /// Add a key's way in from a stick: a key file on it is copied in on the
 /// stick visit and loads when the stick is pulled.
-pub(crate) fn entry_stick(app: &Faraday, ui: &mut Ui, x: f32, y: f32) {
+pub(crate) fn entry_stick(app: &View, ui: &mut Ui, x: f32, y: f32) {
     if app.sticks.is_empty() {
         ui.icon(x - 2.0, y + 8.0, 20.0, app.medium.icon(), 12.0, DIM);
         ui.text_mid(
@@ -13205,7 +13205,7 @@ pub(crate) fn entry_stick(app: &Faraday, ui: &mut Ui, x: f32, y: f32) {
 /// (Key asks it), no way in from a stick, and Continue in place of Make
 /// the key, under what is above it.
 pub(crate) fn entry_form(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -13449,7 +13449,7 @@ fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
 
 /// Settings' Time section (`docs/TOTP.md` §2): Now, the time zone and
 /// Set the time. Returns its height.
-fn time_section(app: &Faraday, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
+fn time_section(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
     // What reads the clock, under the title (`docs/TOTP.md` §2.1).
     let what = crate::compact_screens::measured(ui, |ui| {
         ui.wrap(
@@ -13505,7 +13505,7 @@ const TIME_FOR: &str = EN.app_for_totp_codes;
 
 /// `Screen::SetTime` (`docs/TOTP.md` §3): the Enter screen that sets the
 /// time by hand.
-fn set_time_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn set_time_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         return set_time_compact(app, ui, x0, cw, h);
     }
@@ -13599,7 +13599,7 @@ fn set_time_screen(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 }
 
 /// [`set_time_screen`] on a small panel.
-fn set_time_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
+fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
     let (x, w) = (x0 + crate::compact::M, cw - 2.0 * crate::compact::M);
     let top = 12.0 - app.list_offset;
     let mut y = top;
@@ -13654,7 +13654,7 @@ fn set_time_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
 
 /// [`settings`] on a small panel: the same sections, one column, each
 /// row of choices wrapping to the panel.
-fn settings_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, w) = (x0 + crate::compact::M, cw - 2.0 * crate::compact::M);
     let top = 12.0 - app.list_offset;
     let mut y = top;
@@ -13918,7 +13918,7 @@ fn settings_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// name is a link that opens the site in this computer's browser; the
 /// stick and the Pi have no browser and no network, and show it as text.
 /// Returns its height.
-fn institute_note(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn institute_note(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     const SITE: &str = "nakamotoinstitute.org";
     let note = fill(EN.institute_note_visit, &[SITE]);
     if !app.online {
@@ -13958,7 +13958,7 @@ fn institute_note(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy + line_h - y
 }
 
-fn settings(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn settings(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         return settings_compact(app, ui, x0, cw, h);
     }
@@ -14308,7 +14308,7 @@ fn selftest_failed(ui: &mut Ui, w: f32, h: f32, check: &str) {
 
 /// The device check's buttons: Check again, then Continue anyway (asked
 /// once), or Power off on a virtual machine, which has no way on.
-fn devices_buttons(app: &Faraday) -> Vec<(&'static str, Style, Action)> {
+fn devices_buttons(app: &View) -> Vec<(&'static str, Style, Action)> {
     let s = &crate::strings::EN;
     let d = &app.devices;
     // Reminders alone: go on from them, or not.
@@ -14358,7 +14358,7 @@ fn reminder_tone(line: &str) -> osk_ui::Color {
 /// What is attached that can capture the screen or the keys
 /// (`docs/STARTER.md` §3.1a): a line for each, and what holds them;
 /// before a secret, the reminders due under them (F24).
-fn devices_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+fn devices_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let s = &crate::strings::EN;
     let d = &app.devices;
     let mut lines: Vec<(String, osk_ui::Color)> = d.held.iter().map(|c| (c.line(), TEXT)).collect();
@@ -14439,7 +14439,7 @@ fn devices_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 /// Something that loads a key or turns the camera on was pressed with a
 /// stick attached: what it was, and the stick. It closes, and what was pressed carries on, when
 /// the stick is pulled.
-fn pull_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+fn pull_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let what = app
         .pull
         .and_then(|a| app.pull_what(a))
@@ -14515,7 +14515,7 @@ fn pull_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 /// stick; then Wiped from memory, each seed and wallet with where else it
 /// is, "nowhere else" alone in the danger tone; then Then.
 fn kept_sections(
-    app: &Faraday,
+    app: &View,
     power_off: bool,
     then: String,
 ) -> Vec<(&'static str, Vec<(String, osk_ui::Color)>)> {
@@ -14605,7 +14605,7 @@ fn kept_sheet(
     });
 }
 
-fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let label = app
         .sticks
         .first()
@@ -14647,7 +14647,7 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 
 /// Writing what is For the stick from a session that held a secret: the
 /// lock comes first, and this says what it keeps and wipes.
-fn write_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+fn write_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let then = fill(EN.write_out_lock_plug, &[app.medium.a()]);
     let title = fill(EN.write_out_write_to, &[app.medium.a()]);
     kept_sheet(
@@ -14664,7 +14664,7 @@ fn write_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
-fn scan_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(sc) = app.scan.as_ref() else { return };
     let pad = if ui.compact { 16.0 } else { 32.0 };
     let side_w = if ui.compact {
@@ -14858,7 +14858,7 @@ fn scan_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
-fn qr_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(q) = app.qr.as_ref() else { return };
     if ui.compact {
         qr_sheet_compact(app, q, ui, w, h);
@@ -15009,7 +15009,7 @@ fn qr_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 /// for one code of public content. The format line gives way to the code
 /// (DESIGN §4.9): with it, a PSBT's frame is one pixel a module at
 /// 240x320, or its buttons go under Done.
-fn qr_sheet_compact(app: &Faraday, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) {
+fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) {
     let text = matches!(
         q.source,
         crate::QrSource::Text(_) | crate::QrSource::Key(..)
@@ -15134,7 +15134,7 @@ fn qr_sheet_compact(app: &Faraday, q: &crate::QrView, ui: &mut Ui, w: f32, h: f3
 
 /// A new input device (`PLAN.md` §4.6): its name as it gives it, the
 /// code a keyboard must type, and the person's choice.
-fn new_input_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(d) = app.inputs.first() else { return };
     if ui.compact {
         let what = match (d.keyboard, d.pointer) {
@@ -15273,7 +15273,7 @@ fn clock_text(ms: u64) -> String {
 
 /// The idle lock coming: how long without input, when it locks, what it
 /// wipes, seals and keeps, and when the machine powers off after it.
-fn idle_warn_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if app.idle_lock_at().is_none() {
         return;
     }
@@ -15407,7 +15407,7 @@ fn idle_warn_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 
 /// The lock screen after a lock for idleness: what waits in the Outbox,
 /// which keeps the machine from powering off.
-fn locked_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let shown = app.outbox.len().min(5);
     if ui.compact {
         crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
@@ -15504,7 +15504,7 @@ fn locked_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 /// primary, and any not reachable from here (between mainnet and a test
 /// network, while wallets are loaded) disabled. A session whose network is
 /// fixed offers only the one in use.
-pub(crate) fn network_row_items(app: &Faraday) -> Vec<(&'static str, Style, Action)> {
+pub(crate) fn network_row_items(app: &View) -> Vec<(&'static str, Style, Action)> {
     use osk_bip::keys::Network;
     let now = app.session.network();
     let fixed = app.session.network_fixed();
@@ -15529,7 +15529,7 @@ pub(crate) fn network_row_items(app: &Faraday) -> Vec<(&'static str, Style, Acti
 /// "Wallets loaded", muted, after the Network row's buttons when one of
 /// them is disabled: the reason a network can't be chosen, as the old
 /// sheet said it.
-pub(crate) fn network_row_note(app: &Faraday) -> Option<&'static str> {
+pub(crate) fn network_row_note(app: &View) -> Option<&'static str> {
     network_row_items(app)
         .iter()
         .any(|(_, style, _)| *style == Style::Disabled)
@@ -15546,7 +15546,7 @@ const NOT_AIRGAPPED: [&str; 3] = [
 /// The online app going to a test network, or found on one: it is for
 /// testing only, and this computer is not air-gapped (F20). Cancel only
 /// when the network was asked for from Network.
-fn not_airgapped_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+fn not_airgapped_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let asked = app.test_asked.is_some();
     let mut buttons = Vec::new();
     if asked {
@@ -15600,7 +15600,7 @@ fn not_airgapped_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     }
 }
 
-fn power_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+fn power_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let restart = app.offers_restart();
     let line = if app.secure_boot_reminder() {
         EN.power_secure_boot_off
@@ -15767,7 +15767,7 @@ fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 
 /// Where a secret goes: the open vault, or, once the person has said they
 /// understand what it gives away, the Outbox unprotected.
-fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(out) = app.secret_out.as_ref() else {
         return;
     };

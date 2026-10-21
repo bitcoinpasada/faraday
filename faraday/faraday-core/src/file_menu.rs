@@ -22,6 +22,7 @@ use osk_ui::tokens;
 use osk_ui::widgets::Icon;
 
 use crate::compact::{buttons, scroll_sheet};
+use crate::drawing::View;
 use crate::menu::{self, Line, Step};
 use crate::strings::EN;
 use crate::ui::pal::*;
@@ -647,7 +648,7 @@ impl Faraday {
 }
 
 /// A row's ⋮ at (x, y), `h` high: opens its menu. Returns its width.
-pub(crate) fn dots(app: &Faraday, ui: &mut Ui, x: f32, y: f32, h: f32, row: Row) -> f32 {
+pub(crate) fn dots(app: &View, ui: &mut Ui, x: f32, y: f32, h: f32, row: Row) -> f32 {
     menu::button(
         ui,
         x,
@@ -659,7 +660,7 @@ pub(crate) fn dots(app: &Faraday, ui: &mut Ui, x: f32, y: f32, h: f32, row: Row)
 }
 
 /// The open ⋮ menu, as every ⋮ menu is drawn ([`menu::draw`]).
-pub(crate) fn menu_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn menu_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(m) = app.files_menu.menu.as_ref() else {
         return;
     };
@@ -709,7 +710,7 @@ fn head(ui: &mut Ui, x: f32, y: f32, iw: f32, title: &str) -> f32 {
 /// The Rename popup: the name before its extension in a field, the
 /// extension fixed after it, the line that says why a name cannot be
 /// used, and **Rename** and **Cancel**.
-pub(crate) fn rename_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn rename_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(r) = app.files_menu.renaming.as_ref() else {
         return;
     };
@@ -782,7 +783,7 @@ pub(crate) fn rename_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 
 /// The Details sheet: the name, the kind line, the size in bytes and the
 /// SHA-256 in groups of eight; nothing to press but **Close**.
-pub(crate) fn details_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn details_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(d) = app.files_menu.details.as_ref() else {
         return;
     };

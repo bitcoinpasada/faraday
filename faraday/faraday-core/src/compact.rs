@@ -75,7 +75,7 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
 
 /// The bar: a way back on the left, the page's name, and the ? when the
 /// page has something in Learn. Returns its height.
-pub(crate) fn bar(app: &Faraday, ui: &mut Ui, w: f32, back: (&str, Action), name: &str) -> f32 {
+pub(crate) fn bar(app: &View, ui: &mut Ui, w: f32, back: (&str, Action), name: &str) -> f32 {
     ui.fill(0.0, 0.0, w, BAR_H, 0.0, SIDEBAR);
     ui.fill(0.0, BAR_H - 1.0, w, 1.0, 0.0, LINE);
     let (label, action) = back;
@@ -98,7 +98,7 @@ pub(crate) fn bar(app: &Faraday, ui: &mut Ui, w: f32, back: (&str, Action), name
 
 /// A step flow's bar, which the flow draws: the ? and the keyboard at its
 /// right end, over whatever of its name runs that far.
-pub(crate) fn flow_bar_tools(app: &Faraday, ui: &mut Ui, w: f32) {
+pub(crate) fn flow_bar_tools(app: &View, ui: &mut Ui, w: f32) {
     let right = tools(app, ui, -w);
     if right < w - M {
         ui.fill(right, 0.0, w - right, BAR_H - 1.0, 0.0, SIDEBAR);
@@ -109,7 +109,7 @@ pub(crate) fn flow_bar_tools(app: &Faraday, ui: &mut Ui, w: f32) {
 /// The ? when the page has something in Learn, and the keyboard where
 /// the page types, at the bar's right end. Returns where they begin.
 /// A negative `w` measures without drawing.
-fn tools(app: &Faraday, ui: &mut Ui, w: f32) -> f32 {
+fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
     let draw = w > 0.0;
     let w = w.abs();
     let mut right = if app.learn_pages().is_empty() {
@@ -189,7 +189,7 @@ fn tools(app: &Faraday, ui: &mut Ui, w: f32) -> f32 {
 /// The wide layout's keyboard button, in the top-right row its right
 /// edge at `right`, beside the network and the ?: on a page where typing
 /// goes somewhere, it brings the docked keyboard up and puts it away.
-pub(crate) fn wide_keyboard_button(app: &Faraday, ui: &mut Ui, right: f32) {
+pub(crate) fn wide_keyboard_button(app: &View, ui: &mut Ui, right: f32) {
     if !app.osk_wanted() {
         return;
     }
@@ -291,7 +291,7 @@ pub(crate) fn page(app: &View, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
 const FAB_ROOM: f32 = M + 40.0 + 8.0;
 
 /// Home: what is loaded, then a button for each place the sidebar goes.
-pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // Scan floats over the foot in a strip of its own: the scrollable
     // list is clipped above it, so no tile's hit area ever falls under
     // it, at any scroll position, not only at the bottom.
@@ -559,7 +559,7 @@ pub(crate) fn home(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 /// whether it can be pressed now.
 type Tile = (crate::ui::Glyph, &'static str, String, Action, bool);
 
-fn tiles(app: &Faraday) -> Vec<Tile> {
+fn tiles(app: &View) -> Vec<Tile> {
     let wallets = app.session.wallets.len();
     let vault_files = app.vault_files().len();
     let open = app.vaults.open.len();
@@ -664,7 +664,7 @@ fn tiles(app: &Faraday) -> Vec<Tile> {
 /// the wide Home (`crate::screens::home_lead_beside_tiles`), as one prompt row; a lead
 /// that would open or start over a flow whose tile is above it gives way
 /// to the next, or to none (`docs/FLOWS.md`, Flows in progress).
-fn prompts(app: &Faraday) -> Vec<(Glyph, String, Option<Action>, osk_ui::Color)> {
+fn prompts(app: &View) -> Vec<(Glyph, String, Option<Action>, osk_ui::Color)> {
     crate::screens::home_lead_beside_tiles(app)
         .map(|(icon, label, _sub, action, enabled)| {
             let tone = if enabled { ACCENT } else { WARN };
@@ -917,7 +917,7 @@ impl Faraday {
 
 /// The keyboard, across the foot of the panel from `y`, or in the wide
 /// layout across the page area from `x`, `w` wide (`faraday-ui`'s).
-pub(crate) fn keyboard(app: &Faraday, ui: &mut Ui, x: f32, w: f32, y: f32) {
+pub(crate) fn keyboard(app: &View, ui: &mut Ui, x: f32, w: f32, y: f32) {
     faraday_ui::keyboard::keyboard(
         ui,
         x,

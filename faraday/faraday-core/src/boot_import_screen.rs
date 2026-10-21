@@ -3,24 +3,25 @@
 //! Import, each vault it brought in turn with its passphrase field, once
 //! the stick is out, and Cancel.
 
+use crate::drawing::View;
 use crate::strings::EN;
 use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
 
+use crate::Action;
 use crate::boot_import::{ImportAction as I, ImportCount, ImportVault, ImportView};
 use crate::compact::{buttons, scroll_sheet, sheet_head};
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui, W};
 use crate::vault_screens::{secret_box, stick_banner, stick_field};
 use crate::vaults::{Focus, VaultAction as V, Work};
-use crate::{Action, Faraday};
 
 fn ia(a: I) -> Action {
     Action::Import(a)
 }
 
 /// The sheet over Home.
-pub(crate) fn draw(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(imp) = app.import.as_ref() else {
         return;
     };
@@ -62,7 +63,7 @@ fn head(ui: &mut Ui, x: f32, y: f32, w: f32, icon: Glyph, title: &str) -> f32 {
 /// checkbox, Later and Import. Returns its height.
 #[allow(clippy::too_many_arguments)]
 fn picker(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -116,7 +117,7 @@ fn picker(
 /// stick is out, Cancel and Unlock. Returns its height.
 #[allow(clippy::too_many_arguments)]
 fn unlock(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -169,7 +170,7 @@ fn unlock(
 
 /// The passphrase field under vault file `file`, and what the unlock
 /// says: that it is under way, or why it failed. Returns its height.
-fn passphrase(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, file: usize) -> f32 {
+fn passphrase(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, file: usize) -> f32 {
     let mut cy = y;
     if app.may_load_keys() {
         secret_box(
@@ -199,7 +200,7 @@ fn passphrase(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, file: usize) -
 /// The field alone, for a small panel with its keyboard up: over it, the
 /// vault's name, or that the unlock is under way, or why it failed.
 /// Returns its height.
-fn typing(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, title: &str, file: usize) -> f32 {
+fn typing(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, title: &str, file: usize) -> f32 {
     let mut cy = y;
     let (line, tone) = if app.vaults.working == Some(Work::Unlock) {
         (unlocking(app, file), ACCENT)
@@ -225,7 +226,7 @@ fn typing(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, title: &str, file:
 }
 
 /// "Unlocking · 2 s": the unlock of vault file `file` under way.
-fn unlocking(app: &Faraday, file: usize) -> String {
+fn unlocking(app: &View, file: usize) -> String {
     let time = app
         .vault_files()
         .get(file)

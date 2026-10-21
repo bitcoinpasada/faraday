@@ -2,15 +2,16 @@
 //! the vault holds with the seeds of it there, the Keys card, Unselect all
 //! or Select all over them, Not now and Load ticked at its foot.
 
+use crate::drawing::View;
 use crate::strings::EN;
 use osk_ui::widgets::Icon;
 
+use crate::Action;
 use crate::compact::{buttons, scroll_sheet, sheet_head};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::vault_load::{LoadCard, LoadSeed, LoadView};
 use crate::vaults::VaultAction as V;
-use crate::{Action, Faraday};
 
 fn va(a: V) -> Action {
     Action::Vault(a)
@@ -22,7 +23,7 @@ const PAD: f32 = 12.0;
 const BESIDE: f32 = 28.0;
 
 /// The sheet, over the screen the unlock left.
-pub(crate) fn draw(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(view) = app.vault_load_view() else {
         return;
     };
@@ -179,7 +180,7 @@ fn keys_card(ui: &mut Ui, x: f32, y: f32, w: f32, keys: &[LoadSeed]) -> f32 {
 /// **Seeds with no passphrase stored** (F62): the seeds the open vaults
 /// keep without a passphrase, each with its vault; a seed picked, its
 /// passphrase field, what the last try gave, and Load.
-pub(crate) fn pass_seeds(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(p) = app.vaults.pass_seeds.as_ref() else {
         return;
     };

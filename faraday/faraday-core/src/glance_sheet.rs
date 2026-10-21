@@ -1299,7 +1299,7 @@ fn tone_color(t: crate::backup::Tone) -> Color {
 
 /// The sheet over the chart. On a small panel it is the page itself, and
 /// Back returns to the chart.
-pub(crate) fn draw(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn draw(app: &crate::drawing::View, ui: &mut Ui, w: f32, h: f32) {
     let Some((press, target)) = app.chart else {
         return;
     };

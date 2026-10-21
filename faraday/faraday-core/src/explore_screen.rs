@@ -1,15 +1,16 @@
 //! The Explore screen: a loaded key's public side at a path.
 
+use crate::drawing::View;
 use crate::strings::EN;
 use osk_bip::keys::ScriptType;
 
+use crate::Action;
 use crate::explore::PRESETS;
 use crate::screens::{button_rows, guide_text, title};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
-use crate::{Action, Faraday};
 
-pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(e) = app.explore.as_ref() else {
         return;
     };
@@ -140,7 +141,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// The way back, the title and what explains the page, as the desktop
 /// draws them. Returns where the page goes on.
-fn header(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32, guide: &str) -> f32 {
+fn header(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32, guide: &str) -> f32 {
     let Some(e) = app.explore.as_ref() else {
         return y;
     };

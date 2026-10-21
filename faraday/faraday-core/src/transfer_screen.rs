@@ -1,11 +1,12 @@
 //! Transfer, in the online app: Send (Downloads, newest first, each file
 //! pressed shown as codes) and Receive (the camera, and what it saved).
 
+use crate::Action;
+use crate::drawing::View;
 use crate::screens::{section_label, title};
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
-use crate::{Action, Faraday};
 use opensigner_core::strings::fill;
 
 /// A row of the Downloads list.
@@ -22,7 +23,7 @@ fn size_text(bytes: u64) -> String {
     }
 }
 
-pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let compact = ui.compact;
     let (x, w) = if compact {
         (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
@@ -55,7 +56,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// Send: the folder, why the last file was not sent, and its files.
 /// Returns its height.
-fn send(app: &Faraday, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let t = &app.transfer;
     let mut y = y0;
     section_label(ui, x, y, EN.transfer_send);
@@ -110,7 +111,7 @@ fn send(app: &Faraday, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 
 /// Receive: the camera, the folder, and what was saved this session,
 /// newest first. Returns its height.
-fn receive(app: &Faraday, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+fn receive(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let t = &app.transfer;
     let mut y = y0;
     section_label(ui, x, y, EN.transfer_receive);

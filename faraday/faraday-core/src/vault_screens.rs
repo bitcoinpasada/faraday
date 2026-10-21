@@ -243,7 +243,7 @@ fn secret_with(
 /// the same hold as its words. The code is the one the press made
 /// ([`Faraday::vault_seedqr_press`]); drawing makes none. Returns the
 /// height.
-fn seedqr_box(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn seedqr_box(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let action = va(V::ShowSeedQr);
     let held = ui.is_pressed(action);
     let code = app
@@ -287,7 +287,7 @@ fn seedqr_box(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// "Hold to delete from vault", filling while it is held.
-fn hold_delete(app: &Faraday, ui: &mut Ui, x: f32, y: f32) -> f32 {
+fn hold_delete(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
     hold_button(
         app,
         ui,
@@ -301,7 +301,7 @@ fn hold_delete(app: &Faraday, ui: &mut Ui, x: f32, y: f32) -> f32 {
 
 /// A button that acts when held, filling while it is held.
 pub(crate) fn hold_button(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -315,7 +315,7 @@ pub(crate) fn hold_button(
 /// [`hold_button`] no wider than `room`: a long label is cut to fit.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn hold_button_in(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -345,7 +345,7 @@ pub(crate) fn hold_button_in(
 // The list
 // ---------------------------------------------------------------------
 
-pub(crate) fn list(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         return list_compact(app, ui, x0, cw, h);
     }
@@ -504,7 +504,7 @@ pub(crate) fn list(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 // Unlock
 // ---------------------------------------------------------------------
 
-pub(crate) fn unlock(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         return unlock_compact(app, ui, x0, cw, h);
     }
@@ -652,7 +652,7 @@ pub(crate) fn unlock(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// The third line of a vault's row: where it is, its size and cost while
 /// open; once locked, what it held when last seen open, or that unlocking
 /// shows it.
-fn list_line(app: &Faraday, f: &vaults::VaultFile, where_: &str) -> String {
+fn list_line(app: &View, f: &vaults::VaultFile, where_: &str) -> String {
     let line = if f.open.is_some() {
         format!(
             "{where_} · {} · {}",
@@ -690,7 +690,7 @@ fn two_lines(ui: &mut Ui, s: &str, w: f32) -> (String, String) {
 const ONCE_MORE: &str = FEN.vault_type_the_passphrase;
 
 /// Whether Unlock has the vault just made picked.
-fn just_made_picked(app: &Faraday) -> bool {
+fn just_made_picked(app: &View) -> bool {
     app.vaults.just_made.as_ref().is_some_and(|n| {
         app.vault_files()
             .get(app.vaults.pick)
@@ -700,7 +700,7 @@ fn just_made_picked(app: &Faraday) -> bool {
 
 /// Where Unlock's way back goes: the boot import's sheet when it was
 /// opened from there, else the vault list.
-pub(crate) fn unlock_back(app: &Faraday) -> (&'static str, Action) {
+pub(crate) fn unlock_back(app: &View) -> (&'static str, Action) {
     match app.vaults.back_to {
         Some(Screen::Home) if app.import.is_some() => (FEN.vault_import, crate::boot_import::OPEN),
         // Unlocking for another flow: back to it.
@@ -712,7 +712,7 @@ pub(crate) fn unlock_back(app: &Faraday) -> (&'static str, Action) {
 /// [`list`] on a small panel: Create a vault, then each vault as a card
 /// with its buttons under what it says. The way back to a flow that made
 /// one is the bar's.
-fn list_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
     use crate::compact_screens::{about, finish};
     let (x, w) = (x0 + M, cw - 2.0 * M);
@@ -862,7 +862,7 @@ fn list_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// [`unlock`] on a small panel: the vaults, the passphrase, Unlock, each
 /// the panel's width.
-fn unlock_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
     use crate::compact_screens::{about, finish};
     let (x, w) = (x0 + M, cw - 2.0 * M);
@@ -1082,7 +1082,7 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let scroll = c.scroll;
     let (next, again) = {
-        let app_ref: &Faraday = app;
+        let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             create_body(app_ref, ui, steps[i], x, y, w)
         };
@@ -1106,7 +1106,7 @@ fn create_guide(k: u8) -> String {
 
 /// The summary line of each step, by `vstep`, and of the panel's
 /// choices.
-fn create_summaries(app: &Faraday) -> [String; vstep::COUNT] {
+fn create_summaries(app: &View) -> [String; vstep::COUNT] {
     let Some(c) = app.vaults.create.as_ref() else {
         return Default::default();
     };
@@ -1178,7 +1178,7 @@ fn create_summaries(app: &Faraday) -> [String; vstep::COUNT] {
     ]
 }
 
-fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
+fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     let Some(c) = app.vaults.create.as_ref() else {
         return 0.0;
     };
@@ -1727,7 +1727,7 @@ fn create_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
 /// Rolling dice for a passphrase: the rolls typed, the words they make,
 /// and the strength so far. Returns its height.
 fn dice_panel(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -1905,7 +1905,7 @@ fn dice_panel(
 }
 
 fn create_panel(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     px: f32,
     pw: f32,
@@ -1955,7 +1955,7 @@ fn create_panel(
 /// What Create vault will make: warnings about its cost, the file, its
 /// size, memory and unlock time, and the passphrases' strength. Returns
 /// its height.
-fn create_summary(app: &Faraday, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let Some(c) = app.vaults.create.as_ref() else {
         return 0.0;
     };
@@ -2071,7 +2071,7 @@ fn create_summary(app: &Faraday, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 
 /// Create vault, or how long creating takes while it works. Returns its
 /// height.
-fn create_button(app: &Faraday, ui: &mut Ui, x: f32, by: f32, w: f32) -> f32 {
+fn create_button(app: &View, ui: &mut Ui, x: f32, by: f32, w: f32) -> f32 {
     let (_, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
     if app.vaults.working == Some(vaults::Work::Create) {
         ui.text_mid(
@@ -2111,10 +2111,12 @@ fn create_button(app: &Faraday, ui: &mut Ui, x: f32, by: f32, w: f32) -> f32 {
 // ---------------------------------------------------------------------
 
 /// An item's title, its line, and whether the title is data.
-fn item_heading(app: &Faraday, r: &Record) -> (String, String, bool) {
+fn item_heading(app: &View, r: &Record) -> (String, String, bool) {
     match r.kind {
         kind::KEY => {
-            let fp = key_fingerprint(app, r).unwrap_or_else(|| FEN.vault_key.to_string());
+            let fp = app
+                .vault_key_fingerprint(r)
+                .unwrap_or_else(|| FEN.vault_key.to_string());
             let words = app
                 .record_word_count(r)
                 .map(|n| fill(FEN.vault_words_n, &[&n.to_string()]))
@@ -2341,7 +2343,7 @@ fn words_text(m: &osk_bip::bip39::Mnemonic) -> String {
         .join(" ")
 }
 
-pub(crate) fn contents(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         return contents_compact(app, ui, x0, cw, h);
     }
@@ -2663,7 +2665,7 @@ fn add_label(k: usize) -> Option<&'static str> {
 /// The kinds the contents list: those the slot holds something of, and
 /// the one shown when it was chosen; each with its place in `CATEGORIES`,
 /// label and count.
-fn listed_kinds(app: &Faraday, v: &vaults::OpenVault) -> Vec<(usize, &'static str, usize)> {
+fn listed_kinds(app: &View, v: &vaults::OpenVault) -> Vec<(usize, &'static str, usize)> {
     CATEGORIES
         .iter()
         .enumerate()
@@ -2682,7 +2684,7 @@ fn listed_kinds(app: &Faraday, v: &vaults::OpenVault) -> Vec<(usize, &'static st
 
 /// Whether the contents show an empty vault's next steps: nothing in it,
 /// and nothing chosen or under way.
-fn shows_empty(app: &Faraday, v: &vaults::OpenVault) -> bool {
+fn shows_empty(app: &View, v: &vaults::OpenVault) -> bool {
     let held = CATEGORIES
         .iter()
         .any(|(_, kinds)| v.contents.records.iter().any(|r| kinds.contains(&r.kind)));
@@ -2690,7 +2692,7 @@ fn shows_empty(app: &Faraday, v: &vaults::OpenVault) -> bool {
 }
 
 /// An empty vault's next steps: every way to add, then writing it out.
-fn empty_buttons(app: &Faraday) -> Vec<(String, Style, Action)> {
+fn empty_buttons(app: &View) -> Vec<(String, Style, Action)> {
     let mut out: Vec<(String, Style, Action)> = (0..CATEGORIES.len())
         .filter(|&k| app.category_listed(k))
         .filter_map(|k| add_full(k).map(|a| (a.to_string(), Style::Secondary, va(V::AddKind(k)))))
@@ -2734,7 +2736,7 @@ fn add_short(k: usize) -> Option<&'static str> {
 
 /// A row for each kind to add at (x, y), w wide and `row` tall, the Add
 /// icon in the accent colour before its label. Returns their height.
-fn add_rows(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, row: f32) -> f32 {
+fn add_rows(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, row: f32) -> f32 {
     let mut cy = y;
     for k in (0..CATEGORIES.len()).filter(|&k| app.category_listed(k)) {
         let Some(add) = add_short(k) else {
@@ -2772,7 +2774,7 @@ pub(crate) fn contents_detail(app: &Faraday) -> bool {
 /// [`contents`] on a small panel: the vault, its kinds and the items of
 /// the kind chosen, as a list; a chosen item, or what is being added or
 /// made, as a page of its own that the bar goes back from.
-fn contents_compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
     use crate::compact_screens::{about, finish, row};
     use crate::screens::wrap_buttons;
@@ -2992,7 +2994,7 @@ fn code_badge(ui: &mut Ui, x: f32, y: f32, label: &str) {
 /// entry, or the form a scanned setup code filled in. Always a new
 /// entry — editing one happens on Vault contents, where its row leads.
 /// Returns the height it took.
-pub(crate) fn codes_form(app: &Faraday, ui: &mut Ui, dx: f32, dy: f32, dw: f32) -> f32 {
+pub(crate) fn codes_form(app: &View, ui: &mut Ui, dx: f32, dy: f32, dw: f32) -> f32 {
     let top = dy;
     let mut dy = dy;
     let Some(form) = &app.vaults.form else {
@@ -3052,7 +3054,7 @@ pub(crate) fn codes_form(app: &Faraday, ui: &mut Ui, dx: f32, dy: f32, dw: f32) 
 /// Secure Boot's images, or the item. Returns where it ends.
 #[allow(clippy::too_many_arguments)]
 fn detail(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     v: &vaults::OpenVault,
     items: &[&Record],
@@ -3396,12 +3398,10 @@ fn detail(
     let mut breaks: Vec<usize> = Vec::new();
     match r.kind {
         kind::KEY => {
-            let fp = key_fingerprint(app, r).unwrap_or_default();
+            let fp = app.vault_key_fingerprint(r).unwrap_or_default();
             field_row(ui, &mut dy, FEN.vault_fingerprint, &fp, true);
             // Read from the record once for the frame: a secret shown.
-            let m = crate::work::allowed(crate::work::Allowed::SecretShown, || {
-                crate::wallet::record_words(r)
-            });
+            let m = app.record_words_shown(r);
             if let Some(m) = &m {
                 hold_row(ui, &mut dy, FEN.vault_words, &words_text(m), true);
                 if m.language() == osk_bip::bip39::Language::English {
@@ -3824,7 +3824,7 @@ fn detail(
 /// every one is. A key unlocked from a stick has no row. Returns the
 /// height.
 fn backup_row(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     kind_: crate::backup_flow::Kind,
     r: &Record,
@@ -3875,7 +3875,7 @@ fn backup_row(
 /// signatures will carry, with **Set the time**; then the hold that signs
 /// and Cancel. With the clock not known the time says so and the hold is
 /// disabled. Hashes a file the page has not hashed yet.
-pub(crate) fn gpg_sign_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let chosen = app.gpg_chosen();
     let who = app.gpg_user_id().unwrap_or_default();
     let title = fill(FEN.vault_sign_with, &[&who]);
@@ -3999,7 +3999,7 @@ pub(crate) fn gpg_sign_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 /// Save to a stick's popup (`docs/BACKUP-FLOW.md` §19.7): for a key,
 /// the line that says what the stick gives whoever finds it, first; then
 /// each form with its files' names, ticked or not; Save and Cancel.
-pub(crate) fn stick_save_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn stick_save_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(s) = app.vaults.stick_save.as_ref() else {
         return;
     };
@@ -4065,7 +4065,7 @@ pub(crate) fn stick_save_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 /// The session's keys or wallets that are not yet in this vault, each
 /// with Save.
 fn save_panel(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     v: &vaults::OpenVault,
     dx: f32,
@@ -4091,7 +4091,7 @@ fn save_panel(
         let held: Vec<String> = v
             .contents
             .of(kind::KEY)
-            .filter_map(|(_, r)| key_fingerprint(app, r))
+            .filter_map(|(_, r)| app.vault_key_fingerprint(r))
             .collect();
         for (k, key) in app.session.keys.iter().enumerate() {
             let fp = fp_text(key.fingerprint());
@@ -4214,7 +4214,7 @@ fn save_panel(
 /// Lock, asked for while a vault is open: what is sealed into the Outbox
 /// and what is in the session but in no open vault. With no seed to seal
 /// with, what is not sealed, and a lock that loses it.
-pub(crate) fn lock_ask(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn lock_ask(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let waits = app.seal_waits();
     let (icon, tone, sub, sealed_label, lock) = if waits {
         (
@@ -4378,7 +4378,7 @@ pub(crate) fn years_row(
 
 /// GnuPG's reasons for a revocation, in its menu's order. Returns the
 /// row's height.
-fn reasons_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn reasons_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let items: Vec<(&str, Style, Action)> = [
         FEN.vault_reason_0,
         FEN.vault_reason_1,
@@ -4402,7 +4402,7 @@ fn reasons_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// The Inbox's EFI images, each to sign or check with the selected db key;
 /// or, once one is chosen to sign, its SHA-256 to compare with the build
 /// record before the hold that signs it (`PLAN.md` §8).
-fn images_panel(app: &Faraday, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
+fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
     if let Some(k) = app.vaults.sb_sign
         && let Some(item) = app.inbox.get(k)
     {
@@ -4571,7 +4571,7 @@ fn apk_row(ui: &mut Ui, dx: f32, dy: f32, dw: f32, label: &str, value: &str, mon
 /// Sign an APK: which APK, then the review; or which key, where Files
 /// offered an APK several keys fit.
 fn apk_sign_panel(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     items: &[&Record],
     sel: usize,
@@ -4664,7 +4664,7 @@ fn apk_sign_panel(
 /// "Sign this APK?": what the file is, the second build typed, and the
 /// hold, which does nothing until the second build matches.
 fn apk_review(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     review: &crate::apk::Review,
     dx: f32,

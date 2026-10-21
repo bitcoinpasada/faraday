@@ -2,12 +2,13 @@
 //! Labels and values only; what the upgrade is and how Secure Boot goes
 //! through it are on its Learn page.
 
+use crate::drawing::View;
 use crate::screens::title;
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::upgrade::{Fit, Step, UpgradeState, version};
-use crate::{Action, BootPart, Faraday, Screen};
+use crate::{Action, BootPart, Screen};
 use opensigner_core::strings::fill;
 
 /// A row of the list of sticks to upgrade.
@@ -21,7 +22,7 @@ fn disk(part: &BootPart) -> &str {
         .map_or(part.id.as_str(), |(_, d)| d.split('#').next().unwrap_or(d))
 }
 
-pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let compact = ui.compact;
     let (x, w) = if compact {
         (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
@@ -100,15 +101,7 @@ fn value_row(
 }
 
 /// Step 1: the stick Faraday started from. Returns its height.
-fn source(
-    app: &Faraday,
-    ui: &mut Ui,
-    u: &UpgradeState,
-    step: Step,
-    x: f32,
-    y0: f32,
-    w: f32,
-) -> f32 {
+fn source(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
     let label = fill(EN.upgrade_insert_the, &[app.medium.noun()]);
     y += heading(
@@ -142,15 +135,7 @@ fn source(
 
 /// Step 2: the stick to upgrade, its version and the one to be written,
 /// and Upgrade. Returns its height.
-fn target(
-    app: &Faraday,
-    ui: &mut Ui,
-    u: &UpgradeState,
-    step: Step,
-    x: f32,
-    y0: f32,
-    w: f32,
-) -> f32 {
+fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
     let label = fill(EN.upgrade_remove_it_insert, &[app.medium.noun()]);
     y += heading(
@@ -271,7 +256,7 @@ fn target(
 }
 
 /// Step 3: written, and the stick out. Returns its height.
-fn done(app: &Faraday, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32, w: f32) -> f32 {
+fn done(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
     y += heading(ui, x, y, w, 3, EN.upgrade_done, (step == Step::Done, false));
     let Some((id, release)) = &u.done else {

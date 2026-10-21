@@ -10,7 +10,7 @@ use crate::screens::{button_rows, next_button};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::fp_text;
-use crate::{Action, Faraday, flow};
+use crate::{Action, flow};
 
 const TITLES: [&str; pstep::COUNT] = [
     EN.bip85_key,
@@ -75,7 +75,7 @@ fn length_label(b: &Bip85State) -> Option<String> {
     }
 }
 
-fn summary(app: &Faraday, b: &Bip85State, s: u8) -> String {
+fn summary(app: &View, b: &Bip85State, s: u8) -> String {
     match s {
         pstep::KEY => match b.key {
             Some(fp) => {

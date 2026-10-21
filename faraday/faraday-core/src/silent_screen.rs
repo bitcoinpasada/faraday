@@ -8,7 +8,7 @@ use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::fp_text;
-use crate::{Action, Code, Faraday, flow};
+use crate::{Action, Code, flow};
 use opensigner_core::strings::fill;
 
 const TITLES: [&str; sstep::COUNT] = [
@@ -51,7 +51,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let scroll = s.scroll;
     let (next, again) = {
-        let app_ref: &Faraday = app;
+        let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             match app_ref.silent.as_ref() {
                 Some(s) => card(app_ref, s, ui, i as u8, x, y, w),
@@ -63,7 +63,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     app.scroll(Scrolled::Silent, next, again);
 }
 
-fn summary(app: &Faraday, s: &SilentState, k: u8) -> String {
+fn summary(app: &View, s: &SilentState, k: u8) -> String {
     match k {
         sstep::KEY => s
             .key
@@ -91,7 +91,7 @@ fn guide(k: u8) -> String {
     }
 }
 
-fn card(app: &Faraday, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32) -> f32 {
+fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     match k {
         sstep::KEY => {
@@ -265,7 +265,7 @@ fn checked_text(r: &opensigner_core::silent::Checked) -> (String, osk_ui::Color)
 
 /// Check a payment: the transactions in Files to check, and what the one
 /// checked came to, output by output.
-fn check_card(app: &Faraday, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn check_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use opensigner_core::silent::Checked;
     let mut cy = y;
     if let Some((name, check)) = s.check.as_ref() {

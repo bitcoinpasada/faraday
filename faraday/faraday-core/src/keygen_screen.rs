@@ -17,7 +17,7 @@ use crate::screens::{
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::fp_text;
-use crate::{Action, Faraday, flow, guide};
+use crate::{Action, flow, guide};
 use osk_ui::Color;
 use osk_ui::widgets::Icon;
 
@@ -85,7 +85,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let scroll = k.scroll;
     let (next, again) = {
-        let app_ref: &Faraday = app;
+        let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             match app_ref.keygen.as_ref() {
                 Some(k) => card_body(app_ref, k, ui, steps[i], x, y, w),
@@ -173,7 +173,7 @@ fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 /// The Words card for a key typed: Add a key's form, drawn by Add a
 /// key's own code, then Continue to Key (`docs/NEW-WALLET.md` §15.2).
-fn typed(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn typed(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // The room a list's own keyboard is sized to: the card grows to it.
     let room = y + 2000.0;
     let words = app.entry.form == crate::forms::Form::Words;
@@ -330,7 +330,7 @@ fn summary(k: &KeyGen, s: u8) -> String {
     }
 }
 
-fn card_body(app: &Faraday, k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
+fn card_body(app: &View, k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
     match s {
         kstep::START | kstep::LENGTH | kstep::SOURCE | kstep::ENTER | kstep::TYPED if k.locked => {
             read_only(k, ui, s, x, y, w)
@@ -432,7 +432,7 @@ fn word_grid(
 /// The Key card (`docs/NEW-WALLET.md` §3.3): the words, a passphrase
 /// for a Create slot, and Lock in; once locked in, the fingerprint and
 /// what the key makes, and Continue.
-fn key_card(app: &Faraday, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     // A key typed in a form other than words has no words to show: the
     // parts typed, until it is locked in (§15.2).

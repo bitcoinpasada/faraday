@@ -79,7 +79,7 @@ impl View<'_> {
     }
 
     /// What Create's Keys card offers from the vaults
-    /// ([`crate::Faraday::create_vaults`]), once a frame.
+    /// ([`View::create_vaults`]), once a frame.
     pub(crate) fn create_vaults(&self) -> Rc<CreateVaults> {
         self.drawing
             .create_vaults

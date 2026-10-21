@@ -18,6 +18,7 @@ use std::rc::Rc;
 use opensigner_core::strings::fill;
 
 use crate::backup_flow::{Kind, Step};
+use crate::drawing::View;
 use crate::family::{CardId, Open};
 use crate::plan::At;
 use crate::strings::EN;
@@ -733,7 +734,7 @@ impl Faraday {
 
 /// The Cancel sheet over flow `g` (F51): its question, the one line of
 /// what is lost, then **Cancel the flow** and **Keep going**. Reads only.
-pub(crate) fn cancel_sheet(app: &Faraday, ui: &mut crate::ui::Ui, g: Going, w: f32, h: f32) {
+pub(crate) fn cancel_sheet(app: &View, ui: &mut crate::ui::Ui, g: Going, w: f32, h: f32) {
     use crate::Action;
     use crate::compact::{buttons, scroll_sheet};
     use crate::ui::pal::*;

@@ -7,6 +7,7 @@
 //! review's warnings are not here; they are the inspector's own words, as
 //! Wallets shows them.
 
+use crate::drawing::View;
 use crate::family::{CardId, Route, page};
 use crate::strings::EN;
 use crate::wallet::{Kind, step};
@@ -114,7 +115,7 @@ pub fn title(app: &Faraday, id: CardId) -> String {
 }
 
 /// A card's lead: what to do on it, always shown while it is open.
-pub fn lead(app: &Faraday, id: CardId) -> String {
+pub fn lead(app: &View, id: CardId) -> String {
     let s: &str = match id {
         CardId::Page(page::MAP) => EN.family_six_stops_three,
         CardId::Page(page::SAFE) if app.online => {
@@ -174,7 +175,7 @@ pub fn lead(app: &Faraday, id: CardId) -> String {
 }
 
 /// The spend's wallet needs more keys than are here.
-fn signers_missing(app: &Faraday) -> bool {
+fn signers_missing(app: &View) -> bool {
     let Some(s) = app.spend.as_ref() else {
         return false;
     };
@@ -188,7 +189,7 @@ fn signers_missing(app: &Faraday) -> bool {
 }
 
 /// A card's More about this, as separate paragraphs.
-pub fn more(app: &Faraday, id: CardId) -> Vec<String> {
+pub fn more(app: &View, id: CardId) -> Vec<String> {
     let m = app.medium;
     let fixed: &[&str] = match id {
         CardId::Page(page::MAP) => {

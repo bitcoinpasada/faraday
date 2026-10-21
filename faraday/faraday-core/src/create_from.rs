@@ -60,24 +60,13 @@ fn fp_bytes(text: &str) -> Option<[u8; 4]> {
 }
 
 impl Faraday {
-    /// What the Keys card offers from the vaults, kept in the drawing
-    /// memo while a frame is drawn (`docs/SPEED.md` §3.3). Costs a read
-    /// of each vault file's header and a hash of each open vault's key
-    /// records; the fingerprints are the ones worked out at unlock.
-    pub(crate) fn create_vaults(&self) -> Rc<CreateVaults> {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).create_vaults();
-        }
-        self.create_vaults_now()
-    }
-
-    /// Works out [`Faraday::create_vaults`]. Costs a read of each vault
+    /// Works out [`crate::drawing::View::create_vaults`]. Costs a read of each vault
     /// file's header and a hash of each open vault's key records.
     pub(crate) fn create_vaults_now(&self) -> Rc<CreateVaults> {
         Rc::new(self.create_vaults_uncached())
     }
 
-    /// Works out [`Faraday::create_vaults`] (see
+    /// Works out [`crate::drawing::View::create_vaults`] (see
     /// [`Faraday::create_vaults_now`]).
     fn create_vaults_uncached(&self) -> CreateVaults {
         let mut out = CreateVaults::default();
