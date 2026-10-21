@@ -2558,21 +2558,25 @@ worked out inside a screen file. Finding the code that touches a secret
 meant reading the whole crate, and nothing stopped a new file from
 joining it.
 
-**Decision** (owner, 2026-10-21; the spec is `docs/STRUCTURE-PASS.md`
-§5).
+**Decision** (owner, 2026-10-21; the spec is `docs/KEYS.md`).
 
 - A new crate, `faraday-keys`, owns all key material in memory and does
   every operation on it: a seed, its words and its BIP-39 passphrase, a
   private key or anything derived from one, a TOTP secret, a GPG, APK or
   Secure Boot private key, a FROST or MuSig secret nonce, a silent
-  payment scan key, and the open vault's KEY and PASSPHRASE records with
-  the slot key that saves them.
+  payment scan key, and the whole open vault (every decrypted record,
+  passwords and notes included) with the slot key that saves it
+  (owner, 2026-10-21, `docs/KEYS.md` §9).
 - faraday-core holds handles and the values kept from a key
   (fingerprints, xpubs, the words id, shares); drawing reads those and
   never a secret.
-- Words and passphrases leave faraday-keys only through a named reveal:
-  show the seed, copy it by hand, SeedQR, an unprotected secret to the
-  Outbox. A new reason is a new variant, seen in review.
+- Key material leaves faraday-keys only through a named reveal, from a
+  closed list of eleven (owner, 2026-10-21, `docs/KEYS.md` §9): words
+  shown, the typed passphrase shown, SeedQR, a copy-by-hand check, paper
+  forms (Seed XOR, codex32, SLIP-39), a BIP-85 child, a Lightning node
+  key, GPG paperkey, a vault password or TOTP code, an unprotected file
+  to the Outbox, and the backup flow writing words or a SeedQR picture
+  to a stick. A new reason is a new variant, seen in review.
 - Transient secret input (a typed word or passphrase, a camera frame,
   scanned or pasted text) stays where it arrives, under lint-secrets'
   rules, and is handed to faraday-keys at the earliest point. The

@@ -31,6 +31,7 @@ Where to look for what. Each document's header says what kind it is:
 | How do scrolling and motion work? | `docs/MOTION.md` |
 | Why is a dependency there? | `docs/deps/<crate>.md`; the policy is DECISIONS F71 |
 | Which tool or lint does what? | `tools/README.md` |
+| How will secrets be confined to one crate? | `docs/KEYS.md` |
 | What is planned and not built? | `docs/NOSTR.md`, `docs/LARGE-FILES.md`, `docs/MULTIVENDOR.md`, `docs/STRUCTURE-PASS.md`; the board holds the rest |
 | How do I submit an audit? | `docs/AUDIT-SUBMISSIONS.md` |
 | How do I report a security problem? | `SECURITY.md` |
@@ -61,6 +62,7 @@ Where to look for what. Each document's header says what kind it is:
 - `docs/DEMO.md`: The demo, and Faraday Desktop for developers. Built; DM4 is in the website's repository.
 - `docs/FLOWS.md`: Flows. Draft; the code is the record where it differs.
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested; the batches that build §4 are in §5.
+- `docs/KEYS.md`: The key boundary: faraday-keys. Not started.
 - `docs/LARGE-FILES.md`: Large files on a stick visit. Not built.
 - `docs/MAC.md`: Faraday on Macs. Partly built; a Mac is needed for the rest.
 - `docs/MULTIVENDOR.md`: Two implementations of every cryptographic step. Proposal; not scheduled.
