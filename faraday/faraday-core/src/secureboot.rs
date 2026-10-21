@@ -103,6 +103,7 @@ pub fn is_image(name: &str) -> bool {
 
 /// An image's SHA-256, in groups of four for comparing by eye.
 pub fn image_sha256(bytes: &[u8]) -> String {
+    crate::work::count(crate::work::Work::FileHash);
     let h = sha256::Hash::hash(bytes).to_byte_array();
     h.chunks(2)
         .map(|c| format!("{:02x}{:02x}", c[0], c[1]))

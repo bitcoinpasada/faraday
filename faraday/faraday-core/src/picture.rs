@@ -133,6 +133,7 @@ pub fn draw(code: &QrMatrix, title: &str, lines: &[String]) -> Canvas {
 
 /// A drawn picture as an eight-bit greyscale PNG file.
 pub fn png(canvas: &Canvas) -> Vec<u8> {
+    crate::work::count(crate::work::Work::Picture);
     let frame = canvas.frame();
     // Opaque pixels, so the premultiplied bytes are the colour; the
     // picture is black on white, and its grey is the colour's luma.

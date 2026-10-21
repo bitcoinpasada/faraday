@@ -457,8 +457,23 @@ impl Faraday {
     }
 
     /// Every wallet known: loaded, in an open vault, or remembered of a
-    /// locked one, once each by descriptor checksum, in that order.
+    /// locked one, once each by descriptor checksum, in that order. Kept
+    /// in the drawing memo while a frame is drawn (`docs/SPEED.md` §3.3).
+    /// Costs a parse of each open vault's wallet records.
     pub fn backups(&self) -> Vec<Entry> {
+        if self.drawing.is_on() {
+            return self
+                .drawing
+                .backups
+                .get_or_init(|| self.backups_now())
+                .clone();
+        }
+        self.backups_now()
+    }
+
+    /// Works out [`Faraday::backups`]. Costs a parse of each open vault's
+    /// wallet records.
+    fn backups_now(&self) -> Vec<Entry> {
         let mut out: Vec<Entry> = Vec::new();
         let seen = |out: &[Entry], sum: &str| out.iter().any(|e| e.sum == sum);
         for (i, w) in self.session.wallets.iter().enumerate() {

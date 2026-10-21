@@ -17,7 +17,7 @@ use crate::{Action, BStage, Faraday, Screen, bstep, plan};
 
 /// Whether vault key record `r` holds the words of session key `key`.
 fn same_words(r: &Record, key: &wallet::Key) -> bool {
-    records::words_of(r).is_some_and(|m| key.words_are(m.indices()))
+    crate::wallet::record_words(r).is_some_and(|m| key.words_are(m.indices()))
 }
 
 /// Whether vault key record `r` says its key's backup is pending.

@@ -190,6 +190,7 @@ pub(crate) enum Secret {
 impl Secret {
     /// The master key, with `passphrase` where the form takes one.
     pub(crate) fn master(&self, passphrase: &str, session: &Session) -> Option<MasterKey> {
+        crate::work::count(crate::work::Work::MasterKey);
         let network = session.network();
         match self {
             Secret::Words(m) => {
@@ -251,7 +252,7 @@ fn words_of(text: &str) -> Option<Mnemonic> {
     let typed = forms::file_words(text);
     Language::ALL
         .into_iter()
-        .find_map(|lang| Mnemonic::parse(lang, &typed).ok())
+        .find_map(|lang| crate::wallet::parse_words(lang, &typed).ok())
 }
 
 pub(crate) use faraday_intake::{Part, part_of};
@@ -376,8 +377,17 @@ impl Faraday {
         Zeroizing::new(line.to_string())
     }
 
-    /// Everything the Inbox gives, put together.
+    /// Everything the Inbox gives, put together. Kept in the drawing memo
+    /// while a frame is drawn (`docs/SPEED.md` §3.3). Costs a read of
+    /// every Inbox file that may describe a wallet or a seed.
     pub fn inbox_found(&self) -> Found {
+        if self.drawing.is_on() {
+            return self
+                .drawing
+                .inbox_found
+                .get_or_init(|| self.found_in(&self.inbox))
+                .clone();
+        }
         self.found_in(&self.inbox)
     }
 
@@ -979,7 +989,7 @@ impl Faraday {
                     .iter()
                     .find(|k| k.fingerprint() == seed.fingerprint)
                     .and_then(|k| k.words.as_ref().map(|w| (w.clone(), k.language)))
-                    .and_then(|(w, lang)| Mnemonic::parse(lang, &w).ok())
+                    .and_then(|(w, lang)| crate::wallet::parse_words(lang, &w).ok())
                     .and_then(|m| Secret::Words(m).master(&pass, &self.session))
                     .map(|m| m.fingerprint()),
                 None => None,

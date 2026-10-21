@@ -288,6 +288,7 @@ impl Faraday {
             whole.extend_from_slice(ext.as_bytes());
             whole.push(0);
             whole.extend_from_slice(&data);
+            crate::work::count(crate::work::Work::FileHash);
             let d = sha256::Hash::hash(&whole).to_byte_array();
             zeroize::Zeroize::zeroize(&mut whole);
             d

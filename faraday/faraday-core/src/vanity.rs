@@ -10,7 +10,6 @@
 use crate::strings::EN;
 use opensigner_core::strings::fill;
 use opensigner_core::vanity::{Dial, Grind, Step};
-use osk_bip::bip39::Mnemonic;
 use osk_bip::keys::{Fingerprint, ScriptType};
 use osk_bip::vanity::{self as engine, Key, Method};
 use zeroize::Zeroizing;
@@ -258,7 +257,7 @@ impl Faraday {
                 let Some(words) = key.words.as_ref() else {
                     return false;
                 };
-                let Ok(m) = Mnemonic::parse(key.language, words) else {
+                let Ok(m) = crate::wallet::parse_words(key.language, words) else {
                     return false;
                 };
                 let base: &[u8] = key.passphrase.as_ref().map_or(&[], |p| p.as_bytes());
@@ -319,7 +318,7 @@ impl Faraday {
                     .map_or(String::new(), |p| p.to_string());
                 let passphrase = Zeroizing::new(format!("{base}{}", find.suffix.as_str()));
                 let lang = key.language;
-                let Ok(m) = Mnemonic::parse(lang, &words) else {
+                let Ok(m) = crate::wallet::parse_words(lang, &words) else {
                     return;
                 };
                 match self.session.add_mnemonic(

@@ -1293,7 +1293,7 @@ impl crate::Faraday {
         else {
             return false;
         };
-        let Ok(m) = Mnemonic::parse(Language::English, words) else {
+        let Ok(m) = crate::wallet::parse_words(Language::English, words) else {
             return false;
         };
         k.mnemonic = Some(m);

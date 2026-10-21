@@ -3,7 +3,9 @@
 //! A frame asks the backup's checklist the same questions many times: the
 //! items, whether each is done, the plan's shape, the seeds, the held keys
 //! and the public file names, a stick's among them, the wallets an open
-//! vault holds, what a lock keeps and wipes, and the sticks to write.
+//! vault holds, what a lock keeps and wipes, and the sticks to write;
+//! and for every screen, what the Inbox gives, every wallet known with
+//! its backup, and each open vault's rows.
 //! While [`crate::Faraday::render`] runs the answers are kept here;
 //! nothing is kept outside it. Only drawing reads
 //! them: a decision (a press gated, a hold released) computes from the
@@ -69,6 +71,14 @@ pub(crate) struct Drawing {
     /// The seeds open vaults keep without a passphrase
     /// ([`crate::Faraday::vault_passphrase_seeds`], F62).
     pub passphrase_seeds: OnceCell<std::rc::Rc<Vec<crate::vault_load::PassSeed>>>,
+    /// Every wallet known and where its backup is
+    /// ([`crate::Faraday::backups`]).
+    pub backups: OnceCell<Vec<crate::backups::Entry>>,
+    /// The keys and wallets each open vault holds, by its place among
+    /// the open vaults ([`crate::Faraday::vault_rows`]).
+    pub vault_rows: RefCell<Vec<(usize, Vec<crate::vaults::VaultRow>)>>,
+    /// Everything the Inbox gives ([`crate::Faraday::inbox_found`]).
+    pub inbox_found: OnceCell<crate::inbox::Found>,
 }
 
 impl Drawing {

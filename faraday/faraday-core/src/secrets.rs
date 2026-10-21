@@ -197,7 +197,7 @@ impl Faraday {
     /// into a vault as its key record, or as a file, its words or its
     /// SeedQR in the form picked on the step, after the warning.
     pub(crate) fn offer_seed(&mut self) {
-        use osk_bip::bip39::{Language, Mnemonic};
+        use osk_bip::bip39::Language;
         let Some(b) = self.backup.as_ref() else {
             return;
         };
@@ -210,7 +210,7 @@ impl Faraday {
         let Some(words) = key.words.as_ref() else {
             return;
         };
-        let Ok(m) = Mnemonic::parse(key.language, words) else {
+        let Ok(m) = crate::wallet::parse_words(key.language, words) else {
             return;
         };
         let fp = key.fingerprint();
@@ -235,6 +235,7 @@ impl Faraday {
             .position(|(_, i)| *i == Some(k))
             .is_none_or(|i| self.copy_forms(b, i).seedqr);
         if key.language == Language::English && seedqr {
+            crate::work::count(crate::work::Work::QrEncode);
             let matrix = if compact {
                 osk_codec::seedqr::encode_compact(&m)
             } else {

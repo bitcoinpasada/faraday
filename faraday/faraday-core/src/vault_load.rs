@@ -208,7 +208,9 @@ impl Faraday {
         let mut out = Vec::new();
         for (v, open) in self.vaults.open.iter().enumerate() {
             for (i, r) in open.contents.of(kind::KEY) {
-                if r.field(field::KEY_PASSPHRASE).is_some() || records::words_of(r).is_none() {
+                if r.field(field::KEY_PASSPHRASE).is_some()
+                    || crate::wallet::record_words(r).is_none()
+                {
                     continue;
                 }
                 let Some(fp) = crate::vault_screens::key_fingerprint(self, r) else {
@@ -318,7 +320,7 @@ impl Faraday {
         else {
             return;
         };
-        let Some(m) = records::words_of(rec) else {
+        let Some(m) = crate::wallet::record_words(rec) else {
             return;
         };
         let label = rec.text(field::KEY_LABEL).unwrap_or("").to_string();
@@ -332,6 +334,7 @@ impl Faraday {
         let Ok(seed) = m.to_seed(passphrase.as_bytes()) else {
             return;
         };
+        crate::work::count(crate::work::Work::MasterKey);
         let fp = osk_bip::keys::MasterKey::from_seed(&seed, self.session.network()).fingerprint();
         if !missing.contains(&fp.0) {
             let wallet = self
@@ -445,7 +448,9 @@ impl Faraday {
                 W {
                     record: i,
                     name,
-                    kind: crate::vault_screens::wallet_shape(r).unwrap_or_default(),
+                    kind: policy
+                        .map(crate::vault_screens::policy_shape)
+                        .unwrap_or_default(),
                     fps,
                     loaded,
                 }

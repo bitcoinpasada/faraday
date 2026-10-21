@@ -527,6 +527,7 @@ impl Faraday {
     pub fn seeds_address(&self, s: &SeedsState) -> Result<String, String> {
         let d = self.seeds_descriptor(s)?;
         let p = crate::wallet::read_wallet(&d).map_err(|e| e.text())?;
+        crate::work::count(crate::work::Work::Address);
         p.address_at(self.session.network(), false, 0)
             .map(|a| a.to_string())
             .map_err(|e| e.to_string())

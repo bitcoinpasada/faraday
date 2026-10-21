@@ -6387,7 +6387,8 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     })
                     .collect();
                     cy += wrap_buttons(ui, x, cy, w, 34.0, &items) + 6.0;
-                    if let Ok(mn) = osk_bip::bip39::Mnemonic::parse(lang, words) {
+                    if let Ok(mn) = crate::wallet::parse_words(lang, words) {
+                        crate::work::count(crate::work::Work::QrEncode);
                         let matrix = if b.compact {
                             osk_codec::seedqr::encode_compact(&mn)
                         } else {
@@ -14544,6 +14545,7 @@ fn kept_sheet(
         if !code.is_empty() {
             // The same size the Starter's restart sheet draws its code.
             let side = if ui.compact { 104.0f32 } else { 160.0 }.min(iw);
+            crate::work::count(crate::work::Work::QrEncode);
             if let Ok(m) = osk_codec::qr::encode(
                 osk_codec::qr::Payload::Bytes(code.as_bytes()),
                 osk_codec::qr::Ecc::Medium,

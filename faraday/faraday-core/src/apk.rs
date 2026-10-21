@@ -289,6 +289,7 @@ pub fn compare_second(typed: &str, sha: &[u8; 32]) -> Second {
 }
 
 fn sha_of(bytes: &[u8]) -> [u8; 32] {
+    crate::work::count(crate::work::Work::FileHash);
     sha256::Hash::hash(bytes).to_byte_array()
 }
 

@@ -78,6 +78,7 @@ impl Faraday {
 
     /// What the path gives for the chosen key.
     pub fn explore_reading(&self) -> Option<Reading> {
+        crate::work::count(crate::work::Work::KeyDerive);
         let e = self.explore.as_ref()?;
         let path = self.explore_path().ok()?;
         let master = &self
