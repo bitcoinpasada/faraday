@@ -4,10 +4,34 @@ PSBT (BIP-174, version 0) parsing, inspection, policy warnings, signing and
 finalization. `no_std` + `alloc`, no `unsafe`. Dependencies: `bitcoin` and
 `faraday-bip`.
 
+## Written here, checked against, secrets
+
+Written in this crate rather than taken from another: the PSBT inspection
+and verification logic (`inspect`, `verify`, `classify`), signing
+orchestration (`sign`), finalization (`finalize`), BIP-137 and BIP-322
+message signing (`message`), the MuSig2 and threshold signing rounds over
+`faraday-bip`'s arithmetic (`musig`, `threshold`) and the carry file. PSBT
+parsing and secp256k1 are `bitcoin`'s.
+
+Checked against: `tools/vectors/psbt/` (BIP-174 vectors, RFC 6979,
+Bitcoin Core's regtest PSBTs for MuSig2, taproot multisig and the threshold
+wallet), read by `tests/all/vectors.rs`, `fixtures.rs`, `wallet_fixtures.rs`,
+`musig.rs`, `tapmulti.rs` and `threshold.rs`; `tools/vectors/message/`
+(`tests/all/message.rs`); `tools/scripts/threshold-reference.py` against BIP
+445's reference.
+
+`unsafe`: none (the workspace forbids it).
+
+Secrets are wiped in `sign.rs`, `message.rs` and `verify.rs`
+(`non_secure_erase` on the `Keypair` and its tweaked copy) and in
+`threshold.rs` (`CarrySection` and `CarryEntry` implement `Zeroize`). The
+MuSig2 session's nonces wipe in `musig.rs`. Derived keys are
+`faraday_bip::keys::DerivedKey`.
+
 ## What is inspected
 
 `inspect(&psbt, &Context { network, keys })` returns an `Inspection` with
-everything the Sign screens need (`docs/UX.md` §7.3), without a private
+everything the Sign screens need, without a private
 key:
 
 | Field | Contents |
@@ -79,7 +103,7 @@ bytes, and BIP-44/49/84/86/48 paths whose coin type is not the context's.
   fingerprint, and refuses (`KeyMismatch`) if the derived key is not the
   key named or is not in the script;
 - ECDSA nonces are RFC 6979 (libsecp256k1); Schnorr is BIP-340 with zero
-  aux-rand (`docs/PLANNING.md` §16.14);
+  aux-rand;
 - signs twice and refuses (`Nondeterministic`) unless the bytes match;
   verifies every signature against the public key before writing it
   (`VerifyFailed` otherwise); returns the bytes per input for comparison
@@ -130,7 +154,7 @@ input finalizes as any key-path spend.
 ### The three ways a participant is handled, and the session
 
 `sign` decides per input and per participant this device holds, in this
-order (`docs/PLANNING.md` §16.100):
+order:
 
 1. **Round 2** — the input carries this participant's public nonce and
    the session holds its secret nonce for this transaction: BIP-327's
@@ -180,7 +204,7 @@ script-path MuSig2 spend and is refused: `tr(musig())` has no tree.
 A threshold wallet is a FROST group whose one key is a plain key: to a
 coordinator it is `tr(XPUB/<0;1>/*)` over the group key's synthetic
 extended public key, and the chain sees a single-signature taproot
-spend. `docs/PLANNING.md` §16.103 is the design; `faraday_bip::frost` is BIP
+spend. `faraday_bip::frost` is BIP
 445's arithmetic and `faraday_bip::threshold` is the group record.
 
 ### The `osk` records
