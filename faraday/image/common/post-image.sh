@@ -1,5 +1,6 @@
 #!/bin/sh
-# Assemble images/opensigner-pi.img from what Buildroot built.
+# Assemble the board's image (images/faraday-pi.img or
+# images/faraday-x86_64-uefi.img) from what Buildroot built.
 #
 # genimage does the work; this only points it at our static configuration and
 # gives it an empty rootpath, since every file in the image is already built.
@@ -19,7 +20,7 @@ trap 'chmod -R u+w "${WORK_DIR}"; find "${WORK_DIR}" -mindepth 1 -delete; rmdir 
 # The only thing on the second partition: a note about what it is for.
 mkdir -p "${BINARIES_DIR}/exchange"
 cat > "${BINARIES_DIR}/exchange/README.txt" <<'NOTE'
-OpenSigner file exchange partition.
+Faraday file exchange partition.
 
 Put a file here from a computer and the device will find it: Sign ->
 Read a file offers the newest .psbt on this partition, and the scanner's

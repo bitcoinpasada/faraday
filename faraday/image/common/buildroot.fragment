@@ -15,7 +15,7 @@ BR2_REPRODUCIBLE=y
 BR2_CCACHE=y
 BR2_CCACHE_DIR="/ccache"
 
-BR2_TARGET_GENERIC_HOSTNAME="opensigner"
+BR2_TARGET_GENERIC_HOSTNAME="faraday"
 BR2_TARGET_GENERIC_ISSUE=""
 # No account can be logged into, and no getty offers the chance. Root is
 # locked outright: with root login off, Buildroot writes "*" into the
@@ -39,10 +39,10 @@ BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_DEVTMPFS=y
 BR2_LINUX_KERNEL=y
 
 # ---- our packages ----
-# The app, Faraday's binary `faraday`, installed as /usr/bin/opensigner-pi,
+# The app, Faraday's binary `faraday`, installed as /usr/bin/faraday,
 # the name the inittab starts.
-BR2_PACKAGE_OPENSIGNER_PI=y
-BR2_PACKAGE_OPENSIGNER_PI_BINARY="/binary/faraday"
+BR2_PACKAGE_FARADAY=y
+BR2_PACKAGE_FARADAY_BINARY="/binary/faraday"
 
 # ---- userspace ----
 # musl, and only static libraries. BusyBox is the one package Buildroot

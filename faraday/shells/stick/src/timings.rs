@@ -67,7 +67,7 @@ impl Timings {
             touches: 0,
             next: INTERVAL,
             header: format!(
-                "opensigner-pi {version} panel {width}x{height} \
+                "faraday {version} panel {width}x{height} \
                  columns: bucket count mean_ms worst_ms"
             ),
             headed: false,

@@ -130,7 +130,7 @@ the shell at start; nothing in the core looks at the architecture, so the
 snapshot shell renders either wording at any size and the desktop app
 stays "stick". The stick shell says SD card in its Pi build (armv7) or
 when the image recorded the exchange partition on `/dev/mmcblk0`
-(`/etc/opensigner/exchange`); the snapshot shell takes `--sd-card`.
+(`/etc/faraday/exchange`); the snapshot shell takes `--sd-card`.
 Every string naming the medium takes its words from `Medium`: the noun
 ("stick" / "SD card"), the plural, the article form ("a stick" / "an SD
 card"), the sentence-start forms ("Stick" / "SD card", "A stick" / "An SD

@@ -9,7 +9,7 @@
 # kernel has no USB storage.
 #
 # Mounting is root's and stays here in init. The app runs as the
-# unprivileged `opensigner` user and never mounts anything; what it sees
+# unprivileged `faraday` user and never mounts anything; what it sees
 # is a directory that is there or is not.
 #
 # There is no uevent helper and no `mdev -d`: /sys is read once a second
@@ -30,7 +30,7 @@
 # EXCHANGE line there. `LABEL=OSKDATA` is the only form this is started
 # for; the label is what the partition is recognised by, whichever node
 # it comes back as.
-label="$(sed -n 's/^LABEL=//p' /etc/opensigner/exchange | head -n 1)"
+label="$(sed -n 's/^LABEL=//p' /etc/faraday/exchange | head -n 1)"
 
 # The label the image gives its own boot partition
 # (boards/x86_64-uefi/genimage.cfg). That partition is the firmware's and
@@ -52,7 +52,7 @@ opts=flush,noexec,nosuid,nodev,uid=200,gid=200,umask=077
 # report carries and what its console prints, and nothing here is written
 # to a medium.
 say() {
-    echo "opensigner: $*" > /dev/kmsg 2>/dev/null || true
+    echo "faraday: $*" > /dev/kmsg 2>/dev/null || true
 }
 
 # The disk a partition belongs to: sdb1 is on sdb. /sys/class/block/sdb1

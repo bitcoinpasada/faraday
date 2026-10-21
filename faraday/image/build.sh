@@ -45,7 +45,7 @@ DEV="${DEV:-0}"
 # from rcS and the shell's own inventory after it. A laptop has no serial
 # port to watch a boot on, so this file is how a machine that did not come
 # up says what it found.
-BOOT_REPORT=opensigner-boot.txt
+BOOT_REPORT=faraday-boot-report.txt
 
 image=/image
 external=$image/external
@@ -213,7 +213,7 @@ EOF
 
 # ---- the disk process, the grant helper (PLAN.md §4.3) and the boot
 # copier (§5.5), beside the app in /usr/bin. The app itself is the
-# opensigner-pi package's.
+# faraday package's.
 mkdir -p "$gen/overlay/usr/bin"
 for b in faraday-disk faraday-grant faraday-boot; do
     if ! cmp -s "/binary/$b" "$gen/overlay/usr/bin/$b"; then
@@ -221,10 +221,10 @@ for b in faraday-disk faraday-grant faraday-boot; do
     fi
 done
 
-# ---- /etc/opensigner/args: what the inittab hands the shell, so one
+# ---- /etc/faraday/args: what the inittab hands the shell, so one
 # binary serves every panel and every laptop. No value may contain a space;
 # the file is word-split by the shell that starts the app.
-mkdir -p "$gen/overlay/etc/opensigner"
+mkdir -p "$gen/overlay/etc/faraday"
 args=""
 if [ -n "${FB:-}" ]; then
     args="$args --fb ${FB}"
@@ -241,23 +241,23 @@ fi
 if [ "$DEV" = 1 ]; then
     args="$args --verbose --timings --boot-report /mnt/microsd/$BOOT_REPORT"
 fi
-echo "${args# }" | install_gen "$gen/overlay/etc/opensigner/args"
+echo "${args# }" | install_gen "$gen/overlay/etc/faraday/args"
 
-# ---- /etc/opensigner/boot-report: the name of the file rcS writes the
+# ---- /etc/faraday/boot-report: the name of the file rcS writes the
 # kernel log to on the exchange partition, and the shell then appends its
 # own inventory to. The file exists only in the dev variant, and its
 # absence is what tells rcS in a release image to write nothing.
 if [ "$DEV" = 1 ]; then
-    echo "$BOOT_REPORT" | install_gen "$gen/overlay/etc/opensigner/boot-report"
+    echo "$BOOT_REPORT" | install_gen "$gen/overlay/etc/faraday/boot-report"
 else
-    find "$gen/overlay/etc/opensigner" -name boot-report -delete
+    find "$gen/overlay/etc/faraday" -name boot-report -delete
 fi
 
-# ---- /etc/opensigner/exchange: which partition rcS mounts at
+# ---- /etc/faraday/exchange: which partition rcS mounts at
 # /mnt/microsd. A card has one place it can be, so the Pi names the node;
 # a stick can come up as sda or sdb, so it names the label instead and rcS
 # asks findfs which node that is.
-echo "$board_exchange" | install_gen "$gen/overlay/etc/opensigner/exchange"
+echo "$board_exchange" | install_gen "$gen/overlay/etc/faraday/exchange"
 
 # ---- the dev variant's inittab, which is the release one plus a getty on
 # the board's console tty. The tty is the board's — ttyAMA0 on a Pi,
@@ -318,7 +318,7 @@ kernel_fragments+=("$gen/localversion.fragment")
 if [ "$board_cmdline" != file ]; then
     kernel_fragments+=("$gen/cmdline.fragment")
 fi
-# The generated overlay last: it carries /etc/opensigner/args and nothing
+# The generated overlay last: it carries /etc/faraday/args and nothing
 # a part could want to override.
 overlays+=("$gen/overlay")
 
@@ -371,18 +371,52 @@ fi
 # unpacked, once per tree. A tree unpacked before that hook existed still
 # carries the original defconfig, and Buildroot would build its modules
 # into the kernel (PLANNING.md 16.93). Unpack it again.
+#
+# The defconfig looked at is the one the hook rewrote: the file Buildroot
+# names, under the kernel's own architecture, as Buildroot itself works
+# it out. A search of arch/ by file name finds others of the same name —
+# arch/um/configs/x86_64_defconfig, user-mode Linux's, has twelve `=m`
+# lines — and found that one first, so every stick build unpacked and
+# built its kernel again.
 linux_dir="$(ls -d /output/build/linux-* 2>/dev/null | grep -v linux-headers | head -1 || true)"
 if [ -n "$linux_dir" ] && [ -d "$linux_dir/arch" ]; then
-    defconfig_name="$(sed -n 's/^BR2_LINUX_KERNEL_DEFCONFIG="\(.*\)"$/\1/p' \
-        /output/.config)_defconfig"
-    defconfig_path="$(find "$linux_dir/arch" -name "$defconfig_name" \
-        -print -quit)"
-    if [ -n "$defconfig_path" ] \
+    linux_vars="$(make -s --no-print-directory -C /output \
+        VARS='LINUX_ARCH_PATH LINUX_KCONFIG_DEFCONFIG' printvars)"
+    arch_path="$(printf '%s\n' "$linux_vars" | sed -n 's/^LINUX_ARCH_PATH=//p')"
+    defconfig_name="$(printf '%s\n' "$linux_vars" | sed -n 's/^LINUX_KCONFIG_DEFCONFIG=//p')"
+    [ -n "$arch_path" ] && [ -n "$defconfig_name" ] || {
+        echo "Buildroot did not say where the kernel's defconfig is:" >&2
+        printf '%s\n' "$linux_vars" >&2
+        exit 1
+    }
+    defconfig_path="$arch_path/configs/$defconfig_name"
+    if [ -f "$defconfig_path" ] \
             && grep -q '^CONFIG_[A-Za-z0-9_]*=m$' "$defconfig_path"; then
         echo "==> the unpacked kernel tree still has the defconfig's modules"
         make -C /output linux-dirclean
     fi
 fi
+
+# A build tree from before the image's names were Faraday's (2026-10-21):
+# the app was /usr/bin/opensigner-pi from the opensigner-pi package, its
+# arguments were in /etc/opensigner, and the image was opensigner-*.img.
+# Buildroot never takes a file out of the target tree once a package or
+# an overlay has put it there, so the old names go here, once. The users
+# need nothing: Buildroot writes them into a copy of the target tree for
+# each root filesystem it makes.
+old_names=(
+    "$gen/overlay/etc/opensigner"
+    /output/target/etc/opensigner
+    /output/target/usr/bin/opensigner-pi
+    /output/target/usr/sbin/opensigner-usb-watch
+    /output/build/opensigner-pi-prebuilt
+)
+for old in "${old_names[@]}" /output/images/opensigner-*.img; do
+    if [ -e "$old" ]; then
+        echo "==> removing $old, the name before Faraday's"
+        find "$old" -delete
+    fi
+done
 
 # ---- the kernel tarball is the one the board pinned.
 #
@@ -421,7 +455,7 @@ echo "    $kernel_tarball sha256 $got"
 # of file copies, and the rootfs and the kernel's initramfs re-link
 # follow from them.
 echo "==> reinstalling the generated files and the shell binary"
-reinstall=(opensigner-pi-reinstall)
+reinstall=(faraday-reinstall)
 if [ "$board_firmware" = rpi ]; then
     reinstall+=(rpi-firmware-reinstall)
 fi
@@ -449,14 +483,14 @@ echo "==> checking the shell binary in the image"
 work="$(mktemp -d)"
 trap 'chmod -R u+w "$work"; find "$work" -mindepth 1 -delete; rmdir "$work"' EXIT
 gzip -dc /output/images/rootfs.cpio.gz \
-    | (cd "$work" && cpio --quiet -idm usr/bin/opensigner-pi)
+    | (cd "$work" && cpio --quiet -idm usr/bin/faraday)
 # The toolchain installs the same objcopy under more than one name; any
 # of them reads the target's ELF, so take the first.
 objcopy="$(ls /output/host/bin/*-objcopy | head -1)"
 text_hash() {
     "$objcopy" -O binary --only-section=.text "$1" /dev/stdout | sha256sum | cut -d' ' -f1
 }
-in_image="$(text_hash "$work/usr/bin/opensigner-pi")"
+in_image="$(text_hash "$work/usr/bin/faraday")"
 on_host="$(text_hash /binary/faraday)"
 if [ "$in_image" != "$on_host" ]; then
     echo "the image carries a different app than /binary/faraday:" >&2

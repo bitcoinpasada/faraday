@@ -9,8 +9,8 @@
 #
 # ttyS0 comes last, and the last console= named is the one userspace gets
 # as /dev/console: that is the port QEMU gives the machine, it is where
-# the dev getty runs (board.conf's CONSOLE_TTY), and it is how
-# tools/stick-test.py knows the shell has started.
+# the dev getty runs (board.conf's CONSOLE_TTY), and it is what
+# faraday/tools' QEMU checks read.
 console=tty0
 console=ttyS0,115200
 

@@ -306,7 +306,7 @@ CONFIG_IOMMU_DEFAULT_DMA_STRICT=y
 
 # Paravirtualised guest support: KVM, Hyper-V, Xen and VMware. This is a
 # kernel for a laptop. It boots in QEMU as a plain emulated PC, which is
-# what tools/stick-test.py runs, and that is the same path a laptop takes.
+# what tools/stick-qemu.py runs, and that is the same path a laptop takes.
 # CONFIG_HYPERVISOR_GUEST is not set
 
 # ---- Faraday: no filesystem on a stick is parsed by the kernel ----

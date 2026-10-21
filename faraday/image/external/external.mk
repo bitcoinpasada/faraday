@@ -1,7 +1,7 @@
-include $(sort $(wildcard $(BR2_EXTERNAL_OPENSIGNER_PI_PATH)/package/*/*.mk))
+include $(sort $(wildcard $(BR2_EXTERNAL_FARADAY_PATH)/package/*/*.mk))
 
 # The boot logo. build.sh generates a PPM the size of the panel this image
-# is for, with the OpenSigner mark in the middle of a black field, into
+# is for, with Faraday's mark in the middle of a black field, into
 # $(BASE_DIR)/gen. The kernel compiles its logo from
 # drivers/video/logo/logo_linux_clut224.ppm, so the way to change it is to
 # replace that file in the unpacked source, which is what this hook does.
@@ -11,16 +11,16 @@ include $(sort $(wildcard $(BR2_EXTERNAL_OPENSIGNER_PI_PATH)/package/*/*.mk))
 # It runs at post-patch, once per unpacked kernel tree. A regenerated logo
 # in an existing build tree therefore needs the tree unpacked again:
 # `make linux-dirclean` in that variant's output directory.
-OPENSIGNER_BOOT_LOGO = $(BASE_DIR)/gen/logo.ppm
+FARADAY_IMAGE_BOOT_LOGO = $(BASE_DIR)/gen/logo.ppm
 
-define OPENSIGNER_INSTALL_BOOT_LOGO
-	$(Q)if [ -f $(OPENSIGNER_BOOT_LOGO) ]; then \
-		cp $(OPENSIGNER_BOOT_LOGO) \
+define FARADAY_IMAGE_INSTALL_BOOT_LOGO
+	$(Q)if [ -f $(FARADAY_IMAGE_BOOT_LOGO) ]; then \
+		cp $(FARADAY_IMAGE_BOOT_LOGO) \
 			$(@D)/drivers/video/logo/logo_linux_clut224.ppm ; \
 	fi
 endef
 
-LINUX_POST_PATCH_HOOKS += OPENSIGNER_INSTALL_BOOT_LOGO
+LINUX_POST_PATCH_HOOKS += FARADAY_IMAGE_INSTALL_BOOT_LOGO
 
 # The board's defconfig, with every module dropped.
 #
@@ -43,19 +43,19 @@ LINUX_POST_PATCH_HOOKS += OPENSIGNER_INSTALL_BOOT_LOGO
 # the kconfig step (pkg-kconfig.mk orders .stamp_dotconfig after
 # linux-patch). A tree unpacked by an older build still has the original
 # defconfig; build.sh notices and runs `linux-dirclean`.
-OPENSIGNER_KERNEL_DEFCONFIG = \
+FARADAY_IMAGE_KERNEL_DEFCONFIG = \
 	$(LINUX_ARCH_PATH)/configs/$(LINUX_KCONFIG_DEFCONFIG)
 
-define OPENSIGNER_DROP_KERNEL_MODULES
-	$(Q)if [ -f $(OPENSIGNER_KERNEL_DEFCONFIG) ]; then \
+define FARADAY_IMAGE_DROP_KERNEL_MODULES
+	$(Q)if [ -f $(FARADAY_IMAGE_KERNEL_DEFCONFIG) ]; then \
 		sed -i -e '/^CONFIG_[A-Za-z0-9_]*=m$$/d' \
 		       -e 's/^CONFIG_MODULES=y$$/# CONFIG_MODULES is not set/' \
-			$(OPENSIGNER_KERNEL_DEFCONFIG) ; \
+			$(FARADAY_IMAGE_KERNEL_DEFCONFIG) ; \
 		grep -q '^# CONFIG_MODULES is not set$$' \
-			$(OPENSIGNER_KERNEL_DEFCONFIG) \
+			$(FARADAY_IMAGE_KERNEL_DEFCONFIG) \
 			|| echo '# CONFIG_MODULES is not set' \
-				>> $(OPENSIGNER_KERNEL_DEFCONFIG) ; \
+				>> $(FARADAY_IMAGE_KERNEL_DEFCONFIG) ; \
 	fi
 endef
 
-LINUX_POST_PATCH_HOOKS += OPENSIGNER_DROP_KERNEL_MODULES
+LINUX_POST_PATCH_HOOKS += FARADAY_IMAGE_DROP_KERNEL_MODULES

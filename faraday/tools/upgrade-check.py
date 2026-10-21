@@ -29,7 +29,7 @@ and mouse in QEMU is an external device to Faraday, held back until it
 types a code read off the screen (PLAN.md §4.6), so the harness cannot
 press anything; root on the dev console stands in for the app's marker
 and the app's requests. The QMP helpers and the machine are upstream's
-(tools/stick-test.py, tools/stick-qemu.py); mtools are Buildroot's, from
+(tools/stick-qemu.py); mtools are Buildroot's, from
 the stick build's host directory, or the system's.
 """
 
@@ -55,7 +55,8 @@ def load(name, path):
 
 
 qemu = load("stick_qemu", os.path.join(ROOT, "tools/stick-qemu.py"))
-st = load("stick_test", os.path.join(ROOT, "tools/stick-test.py"))
+# The QMP helpers, which are upstream's, from tools/stick-qemu.py.
+st = qemu
 
 MTOOLS = os.path.join(ROOT, "out/pi/x86_64-uefi-efi-framebuffer/output/host/bin")
 PIPES = "/run/faraday-boot/requests /run/faraday-boot/responses"
@@ -262,7 +263,7 @@ def main():
         con.login(180)
         version = con.run("cat /proc/version")
         print(f"running: {version}")
-        check(con.run("pidof opensigner-pi") != "", "the new stick runs the app")
+        check(con.run("pidof faraday") != "", "the new stick runs the app")
         check(running is not None and f"Linux version {running} " in version,
               "the running kernel is the new image's release")
         monitor = st.Qmp(qmp_path)
@@ -338,7 +339,7 @@ def main():
         print(f"upgraded stick runs: {version}")
         check(running is not None and f"Linux version {running} " in version,
               "the upgraded stick boots the new release")
-        app = con.run("pidof opensigner-pi")
+        app = con.run("pidof faraday")
         check(app != "", "the upgraded stick runs the app")
         # The app's first screen: drawn over the console's black, and
         # still. With QEMU's keyboard plugged in it is the sheet asking

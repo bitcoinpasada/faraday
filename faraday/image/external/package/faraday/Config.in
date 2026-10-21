@@ -1,7 +1,7 @@
-config BR2_PACKAGE_OPENSIGNER_PI
-	bool "opensigner-pi"
+config BR2_PACKAGE_FARADAY
+	bool "faraday"
 	help
-	  Install the prebuilt app as /usr/bin/opensigner-pi, the name the
+	  Install the prebuilt app as /usr/bin/faraday, the name the
 	  inittab starts.
 
 	  The binary is not built here: `just faraday-pi-bin` (or
@@ -9,9 +9,9 @@ config BR2_PACKAGE_OPENSIGNER_PI
 	  static executable and the image build mounts it into the
 	  container. Buildroot never sees the Rust toolchain.
 
-if BR2_PACKAGE_OPENSIGNER_PI
+if BR2_PACKAGE_FARADAY
 
-config BR2_PACKAGE_OPENSIGNER_PI_BINARY
+config BR2_PACKAGE_FARADAY_BINARY
 	string "path to the prebuilt binary"
 	default "/binary/faraday"
 	help

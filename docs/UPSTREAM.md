@@ -216,6 +216,24 @@ Since the fork:
   before but for the build ID and one fix: the Pi 3's `cmdline.txt` is
   Faraday's pi3 one (with `loglevel=5`); the overlay's copy over a
   symlink had written pi02w's into it.
+- The images' OpenSigner names, Faraday's (2026-10-21): the app is
+  `/usr/bin/faraday` (was `/usr/bin/opensigner-pi`), from the Buildroot
+  package `faraday` in the external tree `FARADAY` (was `opensigner-pi`
+  in `OPENSIGNER_PI`); it runs as the user and group `faraday` (was
+  `opensigner`, uid and gid 200 as before) with its arguments in
+  `/etc/faraday/` (was `/etc/opensigner/`); the hostname is `faraday`,
+  the stick's density key `faraday.dpi=` (was `opensigner.dpi=`), the
+  dev boot report `faraday-boot-report.txt` (was `opensigner-boot.txt`),
+  the Pi card's exchange note says "Faraday file exchange partition",
+  and Buildroot's images are `faraday-pi.img` and
+  `faraday-x86_64-uefi.img`. `tools/stick-test.py`, which checked
+  OpenSigner's Home and orange action bar, is removed; the QMP helpers
+  Faraday's QEMU checks used from it are in `tools/stick-qemu.py`. And
+  `build.sh` finds the defconfig it checks for modules where
+  `external.mk` rewrote it, under the kernel's own architecture: its
+  search of `arch/` found user-mode Linux's `x86_64_defconfig` first,
+  so every stick build unpacked and built the kernel again. Why: the
+  images are Faraday's; nothing reads these names off an older stick.
 - `opensigner/shells/avfoundation/src/convert.rs` (2026-10-21, U1): the
   NV12 conversion is public (`opensigner_avfoundation::convert`), and
   `faraday-mediafoundation` uses it instead of its own copy. Why: one

@@ -10,8 +10,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use faraday_core::{RESTART_CODE, RESTART_COMPUTER_CODE};
 
-const APP: &str = "/bin/setpriv --nnp /usr/bin/setuidgid opensigner /usr/bin/opensigner-pi \
-                   $(cat /etc/opensigner/args)";
+const APP: &str = "/bin/setpriv --nnp /usr/bin/setuidgid faraday /usr/bin/faraday \
+                   $(cat /etc/faraday/args)";
 
 fn image(file: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../image");
@@ -23,7 +23,7 @@ fn image(file: &str) -> String {
 fn app_line(inittab: &str) -> String {
     let line = inittab
         .lines()
-        .find(|l| l.contains("opensigner-pi"))
+        .find(|l| l.contains("/usr/bin/faraday "))
         .expect("a line that runs the app");
     let start = line.find("sh -c '").expect("a shell command") + "sh -c '".len();
     line[start..line.rfind('\'').expect("a closing quote")].to_string()

@@ -36,7 +36,7 @@ done
 # while it is clean and removes it when it is not, and the upgrade marker
 # beside it while it upgrades a stick (§5.5); faraday-grant reads both.
 mkdir -p /run/faraday-clean
-chown opensigner:opensigner /run/faraday-clean
+chown faraday:faraday /run/faraday-clean
 chmod 0755 /run/faraday-clean
 
 # The disk process's two pipes: requests from the app's shell, answers to
@@ -44,7 +44,7 @@ chmod 0755 /run/faraday-clean
 # else can.
 mkdir -p /run/faraday-disk
 mkfifo -m 0660 /run/faraday-disk/requests /run/faraday-disk/responses
-chown ofdisk:opensigner /run/faraday-disk /run/faraday-disk/requests \
+chown ofdisk:faraday /run/faraday-disk /run/faraday-disk/requests \
     /run/faraday-disk/responses
 chmod 0750 /run/faraday-disk
 
@@ -53,7 +53,7 @@ chmod 0750 /run/faraday-disk
 # them; the app asks for the source to be read and a partition written.
 mkdir -p /run/faraday-boot
 mkfifo -m 0660 /run/faraday-boot/requests /run/faraday-boot/responses
-chown ofboot:opensigner /run/faraday-boot /run/faraday-boot/requests \
+chown ofboot:faraday /run/faraday-boot /run/faraday-boot/requests \
     /run/faraday-boot/responses
 chmod 0750 /run/faraday-boot
 

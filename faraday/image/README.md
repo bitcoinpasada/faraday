@@ -1,7 +1,7 @@
 # The device images
 
 An image that boots a machine straight into Faraday's app (installed as
-`/usr/bin/opensigner-pi`, the name the inittab starts). There is no
+`/usr/bin/faraday`, the name the inittab starts). There is no
 shell, no login, no network and no writable root: the firmware loads a
 kernel with the whole root filesystem inside it, `init` runs one program,
 and when that program exits the machine powers off. The kernel holds the
@@ -71,7 +71,7 @@ architecture.
 | `dev/` | — | the dev variant's part of this board: which console the probe lines go to | — | — |
 | `rootfs-overlay/` | inittab, rcS, mdev.conf | — | — | — |
 | `inittab.in` | — | — | — | the release inittab plus a getty on `@TTY@` |
-| `users.table` | the `opensigner` account | — | — | — |
+| `users.table` | the `faraday` account | — | — | — |
 | `board.conf` / `panel.conf` | — | the toolchain, the DTBs, the firmware, the exchange partition, the console tty | what the shell must be told about the display | — |
 
 `build.sh` walks common, board, panel, dev, `boards/<board>/dev` in that
@@ -91,7 +91,7 @@ the tree holds a path.
 |---|---|---|
 | Raspberry Pi 3B / 3B+ | `boards/pi3` | tested — the owner's device |
 | Raspberry Pi Zero 2 W | `boards/pi02w` | untested — nobody has booted it |
-| x86_64 PC with UEFI firmware | `boards/x86_64-uefi` | untested on hardware — booted in QEMU with OVMF by `tools/stick-test.py` |
+| x86_64 PC with UEFI firmware | `boards/x86_64-uefi` | untested on hardware — booted in QEMU with OVMF by `faraday/tools/qemu-check.py` |
 
 The Zero 2 W has the same BCM2710 as the 3B+, so it takes the same Rust
 target, the same kernel and the same drivers; only the device trees
@@ -152,7 +152,7 @@ A directory under `panels/` with four files:
 - `panel.conf` — `NAME`, and then only what is true of this display:
   `WIDTH` and `HEIGHT`, `DPI`, `TOUCH_NAME` and `TOUCH_GRID`, `FB`,
   `LOGO_WIDTH` and `LOGO_HEIGHT`. Each becomes a flag in
-  `/etc/opensigner/args`, which the inittab passes to the shell, and the
+  `/etc/faraday/args`, which the inittab passes to the shell, and the
   size pair also sets the size of the boot logo. No value may contain a
   space: the args file is word-split by the shell that starts the app.
 
@@ -212,8 +212,8 @@ is the point of it and useless when the question is why the panel is blank.
 | Kernel | The board's, **with its defconfig's `=m` lines dropped**, plus the `linux.fragment`s: for `pi3`, the Raspberry Pi 6.1 tree at the commit Buildroot 2024.02 pins and its `bcm2709` configuration; for `x86_64-uefi`, mainline 6.6.84 from kernel.org and `x86_64_defconfig`. Each board's `buildroot.fragment` carries the tarball's sha256 and `build.sh` checks it |
 | C library | musl, static only. BusyBox is the one package Buildroot builds for the target, so there is no shared library in the image at all |
 | Firmware | On a Pi, `rpi-firmware`, the `PI_X` variant, so `start_x.elf` and `fixup_x.dat` are on the card. On the stick, none: the machine's own firmware runs the kernel, and no blob of any kind is in the image |
-| Root filesystem | An initramfs (cpio) linked into the kernel image. BusyBox `init`, one shell, `mdev`, `setpriv`, `setuidgid`, `poweroff`, `findfs` on the stick, and `/usr/bin/opensigner-pi`. No `/lib/*.so` |
-| The binary | Built on the host by `just faraday-pi-bin` with the board's toolchain, as a static executable, and installed by `package/opensigner-pi`. Buildroot never builds Rust |
+| Root filesystem | An initramfs (cpio) linked into the kernel image. BusyBox `init`, one shell, `mdev`, `setpriv`, `setuidgid`, `poweroff`, `findfs` on the stick, and `/usr/bin/faraday`. No `/lib/*.so` |
+| The binary | Built on the host by `just faraday-pi-bin` with the board's toolchain, as a static executable, and installed by `package/faraday`. Buildroot never builds Rust |
 | Overlays | For `waveshare-28dpi`, Waveshare's own `28DPI-DTBO` pack, downloaded at a pinned sha256 |
 
 ### The kernel is the defconfig with its modules dropped
@@ -251,7 +251,7 @@ subsystem above it went out — fails the same way, rather than turning up
 as a black panel on the owner's desk.
 
 The lists are per part because the devices differ. `common/` holds what no
-OpenSigner image builds and what every one needs; a board holds what that
+Faraday image builds and what every one needs; a board holds what that
 machine does not have and does not work without. `HID`, `SCSI` and
 `USB_STORAGE` are in the Pi's forbidden list and in the stick's required
 list, which is the whole reason these are files in board directories
@@ -261,16 +261,16 @@ be settled by whichever ran last.
 
 ### The shell binary is reinstalled on every build
 
-`package/opensigner-pi` installs a file it did not build, so once Buildroot
+`package/faraday` installs a file it did not build, so once Buildroot
 has stamped it installed it never copies it again: an image rebuilt after
 `just faraday-pi-bin` would carry the previous binary. `build.sh` therefore runs
-`make opensigner-pi-reinstall` before every build, and `rpi-firmware-
+`make faraday-reinstall` before every build, and `rpi-firmware-
 reinstall` with it, for the same reason — that package copies the assembled
 `config.txt` and `cmdline.txt` onto the boot partition. Both are a handful
 of file copies; the rootfs and the kernel's initramfs re-link follow.
 
 After the build, `build.sh` checks that it worked: it pulls
-`usr/bin/opensigner-pi` out of the rootfs cpio and compares the bytes of
+`usr/bin/faraday` out of the rootfs cpio and compares the bytes of
 its `.text` with the binary `just faraday-pi-bin` produced. The two files are not
 identical — Buildroot strips the installed copy — but the code must be. A
 stale binary fails the build.
@@ -280,9 +280,9 @@ stale binary fails the build.
 The framebuffer console takes the display a second or two after power, well
 before the app has a frame, and paints the kernel's logo on it.
 `common/make-logo.py` generates that logo at the panel's exact size:
-`common/mark.txt` is the OpenSigner mark as a pixel grid, scaled by a whole
-number to about a third of the panel's width and centred on black, with the
-word OPENSIGNER under it in a 5 × 7 pixel font the script holds. The kernel
+`common/faraday-mark.txt` is Faraday's mark as a pixel grid, scaled by a
+whole number to about a quarter of the logo's width and centred on black,
+with the word FARADAY under it in a 5 × 7 pixel font the script holds. The kernel
 draws its logo at the top left and does not scale it, so a full-panel image
 is how a mark is centred.
 
@@ -303,17 +303,17 @@ unpacked kernel tree, so a changed mark in an existing build tree needs
 Init is root; the app is not. The inittab's app line is
 
 ```
-::wait:/bin/sh -c 'exec /bin/setpriv --nnp /usr/bin/setuidgid opensigner /usr/bin/opensigner-pi $(cat /etc/opensigner/args)'
+::wait:/bin/sh -c 'while /bin/setpriv --nnp /usr/bin/setuidgid faraday /usr/bin/faraday $(cat /etc/faraday/args); ...'
 ```
 
 `setpriv --nnp` sets `no_new_privs`, so nothing the app execs can gain
-privileges. `setuidgid opensigner` sets the group, drops the
+privileges. `setuidgid faraday` sets the group, drops the
 supplementary groups and sets the uid, then execs. BusyBox's `setpriv`
 cannot do that part: 1.36 accepts only `--dump`, `--nnp`,
 `--inh-caps` and `--ambient-caps`, and has no `--reuid`, `--regid` or
 `--clear-groups`.
 
-`opensigner` is uid and gid 200, from `common/users.table`
+`faraday` is uid and gid 200, from `common/users.table`
 (`BR2_ROOTFS_USERS_TABLES`). Its password is `*`, its home is `/` and
 its shell is `/bin/false`, so it cannot be logged into even on the dev
 variant's serial console.
@@ -322,9 +322,9 @@ What that account can reach, and nothing else:
 
 | Node | Owner | Mode | Why |
 |---|---|---|---|
-| `/dev/fb0` | `root:opensigner` | 0660 | the panel, written once per frame |
-| `/dev/input/event*` | `opensigner:opensigner` | 0640 | the touch controller, read only |
-| `/dev/video*` | `root:opensigner` | 0660 | the camera; V4L2 queues buffers through it |
+| `/dev/fb0` | `root:faraday` | 0660 | the panel, written once per frame |
+| `/dev/input/event*` | `faraday:faraday` | 0640 | the touch controller, read only |
+| `/dev/video*` | `root:faraday` | 0660 | the camera; V4L2 queues buffers through it |
 | `/dev/random`, `/dev/urandom` | `root:root` | 0444 | the session's entropy |
 | `/dev/null`, `/dev/zero`, `/dev/full`, `/dev/tty` | `root:root` | 0666 | what any program expects |
 | `/mnt/microsd` | mounted `uid=200,gid=200,umask=077` | — | the file channel; init still mounts it as root |
@@ -451,7 +451,7 @@ same bytes:
    the stick is `sda` on one machine and `sdb` on the next.
 
 Every other USB disk is read too, and only its FAT partitions.
-`/usr/sbin/opensigner-usb-watch`, which `rcS` starts after that first
+`/usr/sbin/faraday-usb-watch`, which `rcS` starts after that first
 mount, reads `/sys/class/block/*/partition` once a second, asks `blkid`
 once what a partition it has not seen is, and mounts a `vfat` at
 `/mnt/usb/<name>` with the options the exchange partition gets, where
@@ -471,7 +471,7 @@ stays is read once, when it appears, and not every second — a stick's
 light shows every read. The QEMU test puts both sticks back into the
 ports they came from and counts block reads while nothing happens.
 Nothing else on the boot medium is mounted, and no partition labelled
-`OSKBOOT` is mounted on any medium: that is an OpenSigner stick's EFI
+`OSKBOOT` is mounted on any medium: that is a Faraday stick's EFI
 system partition, which holds the kernel and is the firmware's. Each mount and unmount
 is one line in the kernel log. The watcher runs only where the board's
 `EXCHANGE` is a label, which is the stick: a Pi's card is fixed and its
@@ -543,7 +543,7 @@ boot, at `/mnt/usb/<label>`.
 Build the dev variant (`just dev=1 faraday-stick-image`) and boot that. It puts
 the kernel console on the screen as well as on `ttyS0`, so the boot is
 visible on a machine with no serial port, and it writes
-`opensigner-boot.txt` to the stick's `OSKDATA` partition on every boot:
+`faraday-boot-report.txt` to the stick's `OSKDATA` partition on every boot:
 the kernel log, then the panel the shell chose and every input and
 capture device it found with what it made of each. Plug the stick into
 any computer and read that file. It is what to send with a report of a
@@ -569,28 +569,12 @@ beyond loopback on either end. With the dev image
 (`out/stick/faraday-x86_64-uefi-dev.img`) the kernel console and the
 shell's `--verbose` output are on the terminal.
 
-`tools/stick-test.py --image out/stick/faraday-x86_64-uefi.img` (with
-`--dev` for the dev image) boots the same image headless and checks
-without a person what a person would check:
-
-1. the screen settles on something that is not black and carries the
-   action bar's orange, so a working screen is up and not a panic or a
-   blank framebuffer;
-2. the action bar and then Esc reach Home, and a click on Home's first
-   row opens it — a pointer landing on a 48 dp row and not just
-   somewhere;
-3. Esc goes back, to a frame identical to the one it left.
-
-Where to click is read off the frame rather than computed from the
-layout: the centre of the accent-coloured pixels is inside the primary
-button, and the topmost band of the surface colour to the right of the
-sidebar is the first row of the list. A test that recomputed the layout
-would pass on a screen nobody could use.
-
-It writes a screendump per step under `out/stick/test/` (and
-`out/stick/test-dev/` for the dev variant), as a PPM and a PNG, and
-prints their paths, because a frame that changed is not the same as a
-frame that changed correctly.
+`faraday/tools/qemu-check.py IMAGE OUT_DIR TESTKIT_DIR` boots the same
+image headless and saves the screen as a PNG under `OUT_DIR` at each
+stage: the first screen, with the boot stick in; after the boot stick is
+pulled; with a test stick holding `TESTKIT_DIR`'s files plugged in; and
+after that stick is pulled. It checks nothing on its own: the frames are
+for a person to look at.
 
 A webcam cannot be emulated: QEMU has no UVC device, so the scanner in a
 QEMU run finds no `/dev/video*` and offers the file path instead. To try
@@ -707,7 +691,7 @@ not:
   `0x7F216` in `config.txt`. The two values differ only in the colour order
   the firmware hands the framebuffer; this image ships the one that matches
   what the shell writes.
-- **Panel right, touch dead.** Check `/etc/opensigner/args`: `--touch-name`
+- **Panel right, touch dead.** Check `/etc/faraday/args`: `--touch-name`
   must be a substring of what the controller calls itself and
   `--touch-grid` its reported range. On the Waveshare panel the Goodix
   controller answers on the bit-banged i2c bus the `waveshare-touch-28dpi`
@@ -743,10 +727,10 @@ no login, nothing listening.
 
 - **No shell login.** The inittab has no getty and BusyBox is built without
   `login`, `getty`, `su` and `passwd`. The root password is locked, and so is
-  the `opensigner` account's. The dev variant undoes all four for root,
+  the `faraday` account's. The dev variant undoes all four for root,
   which is why it is not a signing image.
 - **No root for the app.** Init is the only thing on the device that runs
-  as root, and it runs three lines: `rcS`, the app as `opensigner`, and
+  as root, and it runs three lines: `rcS`, the app as `faraday`, and
   `poweroff -f`.
 - **No network stack at all.** `CONFIG_NET` is compiled out, so there is no
   socket layer, no IPv4 or IPv6, no netfilter, no wireless or Bluetooth

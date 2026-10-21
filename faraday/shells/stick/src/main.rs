@@ -18,7 +18,7 @@
 //! devices the machine has, and nothing else.
 //!
 //! ```text
-//! opensigner-pi [--fb PATH] [--input [KIND:]PATH]... [--camera PATH] [--no-camera]
+//! faraday [--fb PATH] [--input [KIND:]PATH]... [--camera PATH] [--no-camera]
 //!               [--files DIR] [--size WxH] [--depth 16|24|32] [--dpi N]
 //!               [--pointer-speed F] [--touch-name NAME] [--touch-grid WxH]
 //!               [--boot-report PATH] [--frames N] [--verbose] [--timings]
@@ -26,9 +26,9 @@
 //!
 //! Two machines run it. On the Raspberry Pi it is given the flags that
 //! describe the soldered-on panel and nothing else: the image writes them
-//! into `/etc/opensigner/args` from the panel directory's `panel.conf` and
+//! into `/etc/faraday/args` from the panel directory's `panel.conf` and
 //! the inittab passes them on, so one binary serves every panel. On a
-//! laptop booted from the OpenSigner stick it is given no flags at all:
+//! laptop booted from the stick it is given no flags at all:
 //! the firmware's framebuffer says how large it is, the kernel command
 //! line says how dense it is, and the keyboard, the touchpad and the mouse
 //! are found under `/dev/input`.
@@ -252,7 +252,7 @@ const DEFAULT_DPI: u16 = 160;
 
 /// The kernel command line key the stick sets to say what the screen's
 /// density is.
-const CMDLINE_DPI: &str = "opensigner.dpi=";
+const CMDLINE_DPI: &str = "faraday.dpi=";
 
 /// The file the kernel command line is read from.
 const CMDLINE: &str = "/proc/cmdline";
@@ -269,7 +269,7 @@ const USB_MOUNTS: &str = "/mnt/usb";
 
 /// Which partition the image mounts at [`DEFAULT_FILES`], as it wrote it:
 /// `/dev/mmcblk0p2` on a Raspberry Pi, `LABEL=OSKDATA` on the PC image.
-const EXCHANGE: &str = "/etc/opensigner/exchange";
+const EXCHANGE: &str = "/etc/faraday/exchange";
 
 /// What the removable medium is called on this machine: an SD card on
 /// the Pi, which has no USB storage, and a stick everywhere else (an SD
@@ -524,7 +524,7 @@ fn input_device(value: &str) -> Result<evdev::Device, String> {
 /// The density to report to the core: `--dpi` first, then whatever the
 /// kernel command line says, then 160.
 ///
-/// The stick H2 builds puts `opensigner.dpi=N` on the command line, since
+/// The stick image puts `faraday.dpi=N` on the command line, since
 /// a firmware framebuffer says how many pixels it has and never how large
 /// they are. Nothing on a laptop can be asked, so a person who finds the
 /// text small edits one boot entry.
@@ -581,7 +581,7 @@ fn boot_report(
     dpi: u16,
     devices: &[evdev::Device],
 ) -> Result<(), String> {
-    let mut out = String::from("\n== opensigner-pi ==\n");
+    let mut out = String::from("\n== faraday ==\n");
     out.push_str(&format!(
         "panel {}x{} {}bpp stride {} dpi {}\n",
         geometry.width,
@@ -2000,7 +2000,7 @@ fn main() -> ExitCode {
         Ok(a) => a,
         Err(e) => {
             if std::env::args().any(|a| a == "--verbose") {
-                eprintln!("opensigner-pi: {e}");
+                eprintln!("faraday: {e}");
             }
             return ExitCode::from(2);
         }
@@ -2010,7 +2010,7 @@ fn main() -> ExitCode {
         Ok(exit) => ExitCode::from(exit.status()),
         Err(e) => {
             if verbose {
-                eprintln!("opensigner-pi: {e}");
+                eprintln!("faraday: {e}");
             }
             ExitCode::FAILURE
         }

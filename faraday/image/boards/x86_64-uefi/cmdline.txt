@@ -1,6 +1,6 @@
-# Faraday: upstream's board command line (opensigner.dpi=160) with
-# freed and allocated memory zeroed by the kernel (PLAN.md §4.2), so a
-# locked process's memory cannot outlive it.
+# Faraday: upstream's board command line, its opensigner.dpi=160 named
+# faraday.dpi=160, with freed and allocated memory zeroed by the kernel
+# (PLAN.md §4.2), so a locked process's memory cannot outlive it.
 #
 # usbcore.authorized_default=2 authorises only devices on hard-wired
 # internal ports; every other USB device waits for faraday-grant, which
@@ -17,6 +17,6 @@
 # stub reads only that word, and without it prints its own lines on the
 # screen before the kernel starts. The release image names no console, so
 # the higher level prints nothing anywhere; the dev variant removes it.
-opensigner.dpi=160 init_on_free=1 init_on_alloc=1 usbcore.authorized_default=2
+faraday.dpi=160 init_on_free=1 init_on_alloc=1 usbcore.authorized_default=2
 fbcon=logo-pos:center
 loglevel=5

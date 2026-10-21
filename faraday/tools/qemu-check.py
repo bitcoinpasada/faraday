@@ -7,7 +7,7 @@ QEMU boots IMAGE the way tools/stick-qemu.py boots it (OVMF, the image
 as a USB disk on xHCI), and the screen is saved as a PNG at each stage:
 the first screen, with the boot stick in; after the boot stick is pulled;
 with a test stick holding TESTKIT_DIR's files plugged in; and after that
-stick is pulled. The QMP helpers are upstream's, from tools/stick-test.py.
+stick is pulled. The QMP helpers are upstream's, from tools/stick-qemu.py.
 The test stick is made with mtools: Buildroot's own, from the stick
 build's host directory, or the system's.
 """
@@ -31,7 +31,8 @@ def load(name, path):
 
 
 qemu = load("stick_qemu", os.path.join(ROOT, "tools/stick-qemu.py"))
-st = load("stick_test", os.path.join(ROOT, "tools/stick-test.py"))
+# The QMP helpers, which are upstream's, from tools/stick-qemu.py.
+st = qemu
 
 BG = (0x11, 0x16, 0x1C)
 MTOOLS = os.path.join(ROOT, "out/pi/x86_64-uefi-efi-framebuffer/output/host/bin")

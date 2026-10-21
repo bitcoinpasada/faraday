@@ -1608,7 +1608,7 @@ as a copy of the chosen profile into the boot partition image before
 it is written (`faraday-fat` edits the in-memory image); the writer
 reads back what it wrote. A profile holds the firmware lines (timings,
 overlays, pins) and the shell's three facts that `panel.conf` bakes
-into `/etc/opensigner/args` today (dpi, touch controller name, touch
+into `/etc/faraday/args` today (dpi, touch controller name, touch
 grid), which move to the kernel command line the firmware passes
 (`faraday.dpi=`, `faraday.touch=`, `faraday.touch_grid=`), so one image
 serves every panel. A card made from the plain image (without the Starter

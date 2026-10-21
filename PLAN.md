@@ -866,7 +866,7 @@ found. **Generate with dice** fills both passphrase fields directly.
   positioned at fractional pixels.
 - **Scale:** a display-scale setting saved on the boot stick, with a
   first-boot guess from the resolution, replacing the fixed
-  `opensigner.dpi=160` (OpenSigner §15 item 54). Layouts fill the screen
+  `faraday.dpi=160` (OpenSigner §15 item 54). Layouts fill the screen
   with a capped form column, instead of a fixed 960×640 frame.
 - **Palette:** Faraday OS's approved palette (`#11161c` background, `#83d8ef`
   accent), dark and light, as tokens.

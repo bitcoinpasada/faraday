@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Boot the OpenSigner stick image in QEMU, the way a laptop boots it.
+"""Boot the Faraday stick image in QEMU, the way a laptop boots it.
 
 The point of the arrangement below is that nothing is virtualised that a
 laptop would not have. OVMF is the firmware; the image is a USB disk on an
@@ -17,18 +17,24 @@ is no virtio anything and no virtual hard disk.
 tries the file channel with a stick that is not the boot stick. Any raw
 disk image with a FAT partition on it will do.
 
-`tools/stick-test.py` imports `command` from here so that the machine the
-test proves is the machine the owner looks at.
+faraday/tools' QEMU checks (qemu-check.py, disk-test.py,
+upgrade-check.py) import `command` and the QMP helpers below from here,
+so that the machine they check is the machine the owner looks at.
 
 VNC listens on the loopback address only. The way to see it from another
 machine is an SSH tunnel to this one; the image README says how.
 """
 
 import argparse
+import json
 import os
 import shutil
+import socket
+import struct
 import subprocess
 import sys
+import time
+import zlib
 
 # OVMF as the distribution installs it: the firmware code, which is
 # read-only, and a variable store, which every machine needs its own
@@ -98,6 +104,205 @@ def command(image, *, vars_fd, serial, qmp=None, vnc=None, kvm=True,
     if qmp is not None:
         argv += ["-qmp", f"unix:{qmp},server,nowait"]
     return argv
+
+
+# ---- driving the machine over QMP, for faraday/tools' QEMU checks ----
+
+# The largest step a USB mouse can report in one packet: QEMU's usb-mouse
+# packs each axis into a signed byte, so a longer move is several packets.
+MOUSE_STEP = 120
+
+
+class Qmp:
+    """The QEMU monitor, over its unix socket."""
+
+    def __init__(self, path, timeout=60.0):
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                self.sock.connect(path)
+                break
+            except OSError:
+                if time.monotonic() > deadline:
+                    raise
+                time.sleep(0.1)
+        self.sock.settimeout(timeout)
+        self.buf = b""
+        self.read()                       # the greeting
+        self.command("qmp_capabilities")
+
+    def read(self):
+        """The next JSON object, skipping the asynchronous events."""
+        while True:
+            while b"\n" in self.buf:
+                line, self.buf = self.buf.split(b"\n", 1)
+                if not line.strip():
+                    continue
+                message = json.loads(line)
+                if "event" in message:
+                    continue
+                return message
+            chunk = self.sock.recv(65536)
+            if not chunk:
+                raise EOFError("the QEMU monitor closed")
+            self.buf += chunk
+
+    def command(self, name, **arguments):
+        request = {"execute": name}
+        if arguments:
+            request["arguments"] = arguments
+        self.sock.sendall(json.dumps(request).encode() + b"\n")
+        reply = self.read()
+        if "error" in reply:
+            raise RuntimeError(f"{name}: {reply['error']['desc']}")
+        return reply.get("return")
+
+    def send_input(self, *events):
+        self.command("input-send-event", events=list(events))
+
+    def move(self, dx, dy):
+        """Move the pointer, in packets a USB mouse could have sent."""
+        while dx or dy:
+            step_x = max(-MOUSE_STEP, min(MOUSE_STEP, dx))
+            step_y = max(-MOUSE_STEP, min(MOUSE_STEP, dy))
+            events = []
+            if step_x:
+                events.append({"type": "rel",
+                               "data": {"axis": "x", "value": step_x}})
+            if step_y:
+                events.append({"type": "rel",
+                               "data": {"axis": "y", "value": step_y}})
+            self.send_input(*events)
+            dx -= step_x
+            dy -= step_y
+            time.sleep(0.02)
+
+    def move_to(self, x, y, width, height):
+        """Put the pointer at an absolute place.
+
+        A USB mouse reports movement and not position, so there is no such
+        thing; what there is, is a cursor that clamps at the edges of the
+        display. Far enough up and left is 0,0 whatever the cursor did
+        before, and the move after that starts from somewhere known.
+        """
+        self.move(-width, -height)
+        self.move(x, y)
+
+    def click(self):
+        self.send_input({"type": "btn",
+                         "data": {"down": True, "button": "left"}})
+        time.sleep(0.08)
+        self.send_input({"type": "btn",
+                         "data": {"down": False, "button": "left"}})
+
+    def key(self, name):
+        self.send_input({"type": "key",
+                         "data": {"down": True,
+                                  "key": {"type": "qcode", "data": name}}})
+        time.sleep(0.05)
+        self.send_input({"type": "key",
+                         "data": {"down": False,
+                                  "key": {"type": "qcode", "data": name}}})
+
+    def screendump(self, path):
+        # The old file goes first. QEMU truncates and rewrites in place,
+        # and the wait below is for a file that is there and parses — so
+        # with the previous dump still in place it can be satisfied by
+        # that one, and the caller compares a frame against itself.
+        if os.path.exists(path):
+            os.unlink(path)
+        self.command("screendump", filename=os.path.abspath(path))
+        # screendump returns before the file is closed on some builds.
+        deadline = time.monotonic() + 10.0
+        while time.monotonic() < deadline:
+            if os.path.exists(path) and os.path.getsize(path) > 0:
+                try:
+                    return read_ppm(path)
+                except ValueError:
+                    pass
+            time.sleep(0.1)
+        raise RuntimeError(f"{path}: no screendump was written")
+
+
+def read_ppm(path):
+    """A binary PPM as (width, height, pixel bytes)."""
+    with open(path, "rb") as f:
+        data = f.read()
+    fields = []
+    i = 0
+    while len(fields) < 4:
+        while i < len(data) and data[i : i + 1].isspace():
+            i += 1
+        if data[i : i + 1] == b"#":
+            while i < len(data) and data[i] != 0x0A:
+                i += 1
+            continue
+        start = i
+        while i < len(data) and not data[i : i + 1].isspace():
+            i += 1
+        if i >= len(data):
+            raise ValueError("truncated PPM header")
+        fields.append(data[start:i])
+    if fields[0] != b"P6":
+        raise ValueError(f"not a binary PPM: {fields[0]!r}")
+    width, height = int(fields[1]), int(fields[2])
+    pixels = data[i + 1 :]
+    if len(pixels) < width * height * 3:
+        raise ValueError("truncated PPM")
+    return width, height, pixels[: width * height * 3]
+
+
+def write_png(path, width, height, pixels):
+    """The same frame as a PNG, so that it can simply be opened.
+
+    QEMU writes PPM and nothing else. A PPM is fine to compare and
+    awkward to look at, and the point of keeping these frames is that
+    somebody looks at them.
+    """
+    raw = b"".join(b"\x00" + pixels[y * width * 3 : (y + 1) * width * 3]
+                   for y in range(height))
+
+    def chunk(kind, data):
+        body = kind + data
+        return (struct.pack(">I", len(data)) + body
+                + struct.pack(">I", zlib.crc32(body)))
+
+    header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    with open(path, "wb") as f:
+        f.write(b"\x89PNG\r\n\x1a\n")
+        f.write(chunk(b"IHDR", header))
+        f.write(chunk(b"IDAT", zlib.compress(raw, 6)))
+        f.write(chunk(b"IEND", b""))
+
+
+def differs(a, b):
+    """How many of two frames' pixels differ, as a fraction."""
+    if len(a) != len(b):
+        return 1.0
+    changed = sum(1 for i in range(0, len(a), 3)
+                  if a[i : i + 3] != b[i : i + 3])
+    return changed / (len(a) / 3)
+
+
+def plug_in(monitor, path):
+    """Attach a disk image as a second USB stick, while the machine runs."""
+    monitor.command("blockdev-add", driver="raw", **{"node-name": "plugged"},
+                    file={"driver": "file", "filename": os.path.abspath(path)})
+    monitor.command("device_add", driver="usb-storage", bus="xhci.0",
+                    drive="plugged", id="plugged-dev")
+
+
+def unplug(monitor):
+    """Pull that stick out again, as a person does without warning."""
+    monitor.command("device_del", id="plugged-dev")
+
+
+def pull_boot_stick(monitor):
+    """Pull the stick the machine booted from. The kernel and the root
+    filesystem are in memory, so the app keeps running; only the exchange
+    partition goes."""
+    monitor.command("device_del", id="stick-dev")
 
 
 def main():

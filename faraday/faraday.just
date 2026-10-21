@@ -310,7 +310,7 @@ faraday-stick-image: faraday-stick-bin
         "{{stick_board}}" "{{stick_panel}}" "{{dev}}" "{{buildroot_tag}}" \
         "{{buildroot_commit}}"
     mkdir -p out/stick
-    cp "out/pi/$variant/output/images/opensigner-x86_64-uefi.img" "out/stick/$name.img"
+    cp "out/pi/$variant/output/images/faraday-x86_64-uefi.img" "out/stick/$name.img"
     cp "out/pi/$variant/output/images/esp.vfat" "out/stick/$name-boot.vfat"
     ls -l "out/stick/$name.img" "out/stick/$name-boot.vfat"
 
@@ -398,7 +398,7 @@ faraday-pi-image: faraday-pi-bin
         "{{board}}" "{{panel}}" "{{dev}}" "{{buildroot_tag}}" \
         "{{buildroot_commit}}"
     mkdir -p out/pi
-    cp "out/pi/$variant/output/images/opensigner-pi.img" "out/pi/$name.img"
+    cp "out/pi/$variant/output/images/faraday-pi.img" "out/pi/$name.img"
     ls -l "out/pi/$name.img"
 
 

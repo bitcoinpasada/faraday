@@ -71,7 +71,7 @@ const MAX_ENTRIES: usize = 64;
 /// wrote it: a node, or `LABEL=OSKDATA` for a medium whose node name is
 /// not fixed. It is the only place the device records what the file
 /// channel is called.
-const EXCHANGE: &str = "/etc/opensigner/exchange";
+const EXCHANGE: &str = "/etc/faraday/exchange";
 
 /// Where init mounts every other FAT partition it finds on a USB disk,
 /// one directory per partition, named by the partition's label or by its
