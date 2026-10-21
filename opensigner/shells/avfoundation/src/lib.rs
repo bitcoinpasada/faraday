@@ -42,7 +42,7 @@
 //! use opensigner_avfoundation::{Camera, Message};
 //!
 //! let (tx, rx) = sync_channel(2);
-//! let camera = Camera::start(tx);
+//! let camera = Camera::start(None, tx);
 //! // ... rx.try_recv() for frames, until:
 //! drop(camera);
 //! # }
@@ -74,7 +74,7 @@ pub struct Frame {
 impl Frame {
     /// Copies a buffer's two planes into a frame: the `stride` the
     /// device lays each one's rows out at is honoured, and a frame wider
-    /// than 800 pixels is shrunk by an integer factor.
+    /// than 1280 pixels is shrunk by an integer factor.
     ///
     /// `chroma` is plane 1 and its own bytes per row; the bi-planar
     /// video-range format the session asks for lays it out as the
@@ -106,6 +106,15 @@ impl Frame {
     }
 }
 
+/// A video capture device, as the scan sheet offers it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Device {
+    /// The name macOS shows for it.
+    pub name: String,
+    /// Its unique ID, which names it to `Camera::start`.
+    pub id: String,
+}
+
 /// What a running `Camera` sends.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Message {
@@ -124,17 +133,17 @@ pub enum Message {
 pub const MAX_FPS: u8 = 10;
 
 #[cfg(target_os = "macos")]
-pub use macos::Camera;
+pub use macos::{Camera, devices};
 
 #[cfg(target_os = "macos")]
 mod macos {
-    use std::ffi::c_void;
+    use std::ffi::{CStr, CString, c_char, c_void};
     use std::sync::Mutex;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::mpsc::SyncSender;
     use std::time::{Duration, Instant};
 
-    use crate::{Frame, MAX_FPS, Message};
+    use crate::{Device, Frame, MAX_FPS, Message};
 
     /// The C ABI of `src/camera.m`, which declares the same two
     /// signatures in its header comment.
@@ -152,16 +161,67 @@ mod macos {
     /// ```
     type StateFn = unsafe extern "C" fn(*mut c_void, i32);
 
+    /// ```c
+    /// typedef void (*osk_avf_device_fn)(void *ctx, const char *id,
+    ///                                   const char *name);
+    /// ```
+    type DeviceFn = unsafe extern "C" fn(*mut c_void, *const c_char, *const c_char);
+
     unsafe extern "C" {
         /// ```c
-        /// void *osk_avf_start(void *ctx, osk_avf_frame_fn on_frame,
-        ///                     osk_avf_state_fn on_state);
+        /// void osk_avf_list(void *ctx, osk_avf_device_fn on_device);
         /// ```
-        fn osk_avf_start(ctx: *mut c_void, on_frame: FrameFn, on_state: StateFn) -> *mut c_void;
+        fn osk_avf_list(ctx: *mut c_void, on_device: DeviceFn);
+        /// ```c
+        /// void *osk_avf_start(void *ctx, osk_avf_frame_fn on_frame,
+        ///                     osk_avf_state_fn on_state, const char *device);
+        /// ```
+        fn osk_avf_start(
+            ctx: *mut c_void,
+            on_frame: FrameFn,
+            on_state: StateFn,
+            device: *const c_char,
+        ) -> *mut c_void;
         /// ```c
         /// void osk_avf_stop(void *handle);
         /// ```
         fn osk_avf_stop(handle: *mut c_void);
+    }
+
+    /// The cameras this machine has, in the system's order. Asks the
+    /// system, so it is not free. Empty when there is none.
+    #[must_use]
+    pub fn devices() -> Vec<Device> {
+        let mut out: Vec<Device> = Vec::new();
+        // SAFETY: `ctx` points at `out`, which lives across the call, and
+        // `osk_avf_list` makes every `on_device` call on this thread
+        // before it returns. `on_device` has the signature
+        // `src/camera.m` declares.
+        unsafe { osk_avf_list((&raw mut out).cast::<c_void>(), on_device) };
+        out
+    }
+
+    /// Called by `osk_avf_list` once for each device.
+    ///
+    /// # Safety
+    ///
+    /// `ctx` is the `Vec<Device>` given to `osk_avf_list`, and `id` and
+    /// `name` are null or NUL-terminated strings, readable for the
+    /// duration of the call. `src/camera.m` guarantees all three.
+    unsafe extern "C" fn on_device(ctx: *mut c_void, id: *const c_char, name: *const c_char) {
+        if ctx.is_null() || id.is_null() || name.is_null() {
+            return;
+        }
+        // SAFETY: `ctx` is `devices`' `out`, borrowed by nothing else
+        // while `osk_avf_list` runs, and this is called on that thread.
+        let out = unsafe { &mut *ctx.cast::<Vec<Device>>() };
+        // SAFETY: both strings are NUL-terminated and live until this
+        // returns; they are copied before it does.
+        let (id, name) = unsafe { (CStr::from_ptr(id), CStr::from_ptr(name)) };
+        out.push(Device {
+            name: name.to_string_lossy().into_owned(),
+            id: id.to_string_lossy().into_owned(),
+        });
     }
 
     /// What the callbacks are handed as `ctx`. It lives in a `Box` the
@@ -289,14 +349,20 @@ mod macos {
     }
 
     impl Camera {
-        /// Starts the camera, asking for permission the first time.
+        /// Starts the camera, asking for permission the first time. It
+        /// opens the camera whose unique ID is `device` ([`devices`]
+        /// lists them), or the system's default for `None`; an ID no
+        /// camera has any more is [`Message::Unavailable`].
         ///
         /// Returns as soon as the request is made: the answer, and any
         /// failure, arrives on `tx` as [`Message::Unavailable`]. A
         /// channel of two is right — one frame being decoded and one
         /// waiting.
         #[must_use]
-        pub fn start(tx: SyncSender<Message>) -> Camera {
+        pub fn start(device: Option<&str>, tx: SyncSender<Message>) -> Camera {
+            // An ID with a NUL in it names no camera: the empty ID, which
+            // no camera has, so the session reports it unavailable.
+            let device = device.map(|d| CString::new(d).unwrap_or_default());
             let ctx = Box::into_raw(Box::new(Shared {
                 tx,
                 next: Mutex::new(Instant::now()),
@@ -306,7 +372,14 @@ mod macos {
             // session, since `Drop` stops the session before freeing it.
             // The two callbacks are `extern "C"` with the signatures
             // `src/camera.m` declares.
-            let handle = unsafe { osk_avf_start(ctx.cast::<c_void>(), on_frame, on_state) };
+            let handle = unsafe {
+                osk_avf_start(
+                    ctx.cast::<c_void>(),
+                    on_frame,
+                    on_state,
+                    device.as_ref().map_or(std::ptr::null(), |d| d.as_ptr()),
+                )
+            };
             Camera { handle, ctx }
         }
     }
@@ -356,28 +429,28 @@ mod tests {
         assert_eq!(frame.chroma, None);
     }
 
-    /// A 1280 × 720 plane, which is what a Mac's built-in camera offers,
-    /// comes back halved: 1280 needs a factor of two to reach 800.
+    /// A 2560 × 1440 plane comes back halved: 2560 needs a factor of two
+    /// to reach 1280.
     #[test]
     fn wide_planes_are_halved() {
         // Rows of a constant value, so the block average of any 2 × 2 is
         // the average of two neighbouring row values.
-        let (width, height, stride) = (1280usize, 720usize, 1408usize);
+        let (width, height, stride) = (2560usize, 1440usize, 2688usize);
         let mut plane = vec![0u8; stride * height];
         for y in 0..height {
             let value = (y % 256) as u8;
             plane[y * stride..y * stride + width].fill(value);
         }
         let frame = Frame::from_plane(&plane, width, height, stride, None).expect("long enough");
-        assert_eq!(frame.width, 640);
-        assert_eq!(frame.height, 360);
-        assert_eq!(frame.luma.len(), 640 * 360);
+        assert_eq!(frame.width, 1280);
+        assert_eq!(frame.height, 720);
+        assert_eq!(frame.luma.len(), 1280 * 720);
         // Output row 0 averages rows 0 and 1, row 3 averages 6 and 7.
         assert_eq!(frame.luma[0], 0);
-        assert_eq!(frame.luma[3 * 640], 6);
+        assert_eq!(frame.luma[3 * 1280], 6);
         // The chroma is halved with it: 640 x 360 pairs become
         // 320 x 180, each the average of a 2 x 2 block of pairs.
-        let (cw, ch, uv_stride) = (640usize, 360usize, 1408usize);
+        let (cw, ch, uv_stride) = (1280usize, 720usize, 2688usize);
         let mut uv = vec![0u8; uv_stride * ch];
         for y in 0..ch {
             for x in 0..cw {
@@ -389,7 +462,7 @@ mod tests {
         let frame =
             Frame::from_plane(&plane, width, height, stride, Some((&uv, uv_stride))).expect("long");
         let chroma = frame.chroma.expect("the plane was given");
-        assert_eq!(chroma.len(), 320 * 180 * 2);
+        assert_eq!(chroma.len(), 640 * 360 * 2);
         // Output pair 0 averages rows 0 and 1 and columns 0 and 1.
         assert_eq!((chroma[0], chroma[1]), (0, 0));
         assert_eq!((chroma[2], chroma[3]), (0, 2));

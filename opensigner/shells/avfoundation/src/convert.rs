@@ -15,8 +15,10 @@
 
 /// The widest frame we hand the core. Above this a frame is shrunk by an
 /// integer factor: `rqrr` needs no more than about 640 pixels across to
-/// find a code, and a laptop's built-in camera offers 1280 × 720 and more.
-pub const MAX_WIDTH: usize = 800;
+/// find a code in a reduced copy, but a dense one needs the camera's own
+/// pixels, and the desktop shells ask for 1280 × 720, which passes
+/// whole. Faraday raised this from 800 to 1280.
+pub const MAX_WIDTH: usize = 1280;
 
 /// Copies plane 0 (Y) out of an NV12 buffer into a packed `width ×
 /// height` buffer. One byte per pixel, so a row is `width` bytes of the

@@ -94,6 +94,14 @@ impl Size {
         width: 640,
         height: 480,
     };
+
+    /// 1280 × 720: what the desktop shell asks for, so that a dense code
+    /// has pixels enough to read. A camera without that mode gives the
+    /// nearest one it has, and the shell takes what it gets.
+    pub const HD: Size = Size {
+        width: 1280,
+        height: 720,
+    };
 }
 
 /// One captured frame: 8-bit luma, row-major, `width × height` bytes,
@@ -206,7 +214,7 @@ impl Camera {
     /// The formats are asked for colour first - `YUYV`, `NV12`, `YU12`,
     /// then `GREY` - and the first the driver grants is used. A driver
     /// is free to adjust the size, and whatever it returns is what the
-    /// frames will be; a mode much wider than 800 pixels is shrunk by an
+    /// frames will be; a mode much wider than 1280 pixels is shrunk by an
     /// integer factor before the frame leaves this crate.
     pub fn open(path: &Path, want: Size) -> io::Result<Camera> {
         let file = open_rw(path)?;
@@ -323,7 +331,7 @@ impl Camera {
     }
 
     /// Luma and, where the format has it, chroma out of one dequeued
-    /// buffer, both shrunk to at most 800 pixels across.
+    /// buffer, both shrunk to at most 1280 pixels across.
     fn convert(&self, bytes: &[u8]) -> Option<Frame> {
         let luma = convert::luma(bytes, self.width, self.height, self.stride, self.step)?;
         let chroma = convert::chroma(self.format, bytes, self.width, self.height, self.stride)

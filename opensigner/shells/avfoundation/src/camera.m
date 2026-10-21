@@ -11,9 +11,17 @@
 //                                      uint32_t stride, const uint8_t *uv,
 //                                      uint32_t uv_stride);
 //     typedef void (*osk_avf_state_fn)(void *ctx, int32_t ok);
+//     typedef void (*osk_avf_device_fn)(void *ctx, const char *id,
+//                                       const char *name);
+//     void  osk_avf_list(void *ctx, osk_avf_device_fn on_device);
 //     void *osk_avf_start(void *ctx, osk_avf_frame_fn on_frame,
-//                         osk_avf_state_fn on_state);
+//                         osk_avf_state_fn on_state, const char *device);
 //     void  osk_avf_stop(void *handle);
+//
+// `device` is a unique ID `osk_avf_list` gave, or NULL for the system's
+// default camera. An ID that no camera has any more is one
+// on_state(ctx, 0). The session asks for 1280 x 720 and takes 640 x 480,
+// or the camera's own default, when the camera has no such mode.
 //
 // Threads. `osk_avf_start` returns at once. When the permission is
 // already decided it calls `on_state` on the calling thread before it
@@ -40,15 +48,18 @@ typedef void (*osk_avf_frame_fn)(void *ctx, const uint8_t *y, uint32_t width,
                                  uint32_t height, uint32_t stride,
                                  const uint8_t *uv, uint32_t uv_stride);
 typedef void (*osk_avf_state_fn)(void *ctx, int32_t ok);
+typedef void (*osk_avf_device_fn)(void *ctx, const char *id, const char *name);
 
+void osk_avf_list(void *ctx, osk_avf_device_fn on_device);
 void *osk_avf_start(void *ctx, osk_avf_frame_fn on_frame,
-                    osk_avf_state_fn on_state);
+                    osk_avf_state_fn on_state, const char *device);
 void osk_avf_stop(void *handle);
 
 @interface OskAvfCapture : NSObject <AVCaptureVideoDataOutputSampleBufferDelegate>
 - (instancetype)initWithCtx:(void *)ctx
                       frame:(osk_avf_frame_fn)onFrame
-                      state:(osk_avf_state_fn)onState;
+                      state:(osk_avf_state_fn)onState
+                     device:(NSString *)device;
 - (void)configureAndStart;
 - (void)reportUnavailable;
 - (void)shutdown;
@@ -60,13 +71,15 @@ void osk_avf_stop(void *handle);
     void *_ctx;
     osk_avf_frame_fn _onFrame;
     osk_avf_state_fn _onState;
+    NSString *_deviceID;
     AVCaptureSession *_session;
     dispatch_queue_t _queue;
 }
 
 - (instancetype)initWithCtx:(void *)ctx
                       frame:(osk_avf_frame_fn)onFrame
-                      state:(osk_avf_state_fn)onState {
+                      state:(osk_avf_state_fn)onState
+                     device:(NSString *)device {
     self = [super init];
     if (self != nil) {
         _lock = [[NSLock alloc] init];
@@ -74,6 +87,7 @@ void osk_avf_stop(void *handle);
         _ctx = ctx;
         _onFrame = onFrame;
         _onState = onState;
+        _deviceID = device;
         _session = nil;
         _queue = dispatch_queue_create("app.opensigner.camera",
                                        DISPATCH_QUEUE_SERIAL);
@@ -106,7 +120,9 @@ void osk_avf_stop(void *handle);
     }
     int32_t ok = 0;
     AVCaptureDevice *device =
-        [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+        _deviceID != nil
+            ? [AVCaptureDevice deviceWithUniqueID:_deviceID]
+            : [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
     if (device != nil) {
         NSError *error = nil;
         AVCaptureDeviceInput *input =
@@ -120,7 +136,9 @@ void osk_avf_stop(void *handle);
         };
         output.alwaysDiscardsLateVideoFrames = YES;
         [session beginConfiguration];
-        if ([session canSetSessionPreset:AVCaptureSessionPreset640x480]) {
+        if ([session canSetSessionPreset:AVCaptureSessionPreset1280x720]) {
+            session.sessionPreset = AVCaptureSessionPreset1280x720;
+        } else if ([session canSetSessionPreset:AVCaptureSessionPreset640x480]) {
             session.sessionPreset = AVCaptureSessionPreset640x480;
         }
         if (input != nil && [session canAddInput:input] &&
@@ -195,14 +213,37 @@ void osk_avf_stop(void *handle);
 
 @end
 
+// Calls on_device once for each video camera, in the system's order, with
+// its unique ID and its name, both valid for the call only. The strings
+// are UTF-8. `devicesWithMediaType:` is deprecated for the discovery
+// session, which names the device types one by one; the cameras of a
+// Mac and its external ones are all it is wanted for.
+void osk_avf_list(void *ctx, osk_avf_device_fn on_device) {
+    if (on_device == NULL) {
+        return;
+    }
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    NSArray<AVCaptureDevice *> *devices =
+        [AVCaptureDevice devicesWithMediaType:AVMediaTypeVideo];
+#pragma clang diagnostic pop
+    for (AVCaptureDevice *device in devices) {
+        on_device(ctx, [device.uniqueID UTF8String],
+                  [device.localizedName UTF8String]);
+    }
+}
+
 // Asks for permission if it has not been asked for, then starts. Denied,
 // restricted, or no device is one on_state(ctx, 0). The handle is always
 // valid and must always be passed to osk_avf_stop.
 void *osk_avf_start(void *ctx, osk_avf_frame_fn on_frame,
-                    osk_avf_state_fn on_state) {
+                    osk_avf_state_fn on_state, const char *device) {
+    NSString *deviceID =
+        device != NULL ? [NSString stringWithUTF8String:device] : nil;
     OskAvfCapture *capture = [[OskAvfCapture alloc] initWithCtx:ctx
                                                           frame:on_frame
-                                                          state:on_state];
+                                                          state:on_state
+                                                         device:deviceID];
     AVAuthorizationStatus status =
         [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
     if (status == AVAuthorizationStatusAuthorized) {

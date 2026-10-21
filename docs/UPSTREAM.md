@@ -374,6 +374,19 @@ Since the fork:
   through), which Faraday's costs lint (`tools/costs-lint`) checks. Why:
   `CLAUDE.md`'s rule that a costly function says so first, made a check.
   Doc comments only; nothing compiled changes.
+- Cameras at 1280 x 720 and AVFoundation's camera choice (2026-10-21;
+  tracker #181 items 3 and 9): `opensigner-v4l2` gains `Size::HD`
+  (1280 x 720) and `opensigner-avfoundation` asks its session for
+  1280 x 720 first, then 640 x 480; both crates' `convert::MAX_WIDTH`
+  (the width above which a frame is shrunk by an integer factor, which
+  `faraday-mediafoundation` shares) rises from 800 to 1280, so a
+  1280 x 720 frame leaves whole and a 1296 x 972 or wider one is still
+  shrunk. `opensigner-avfoundation` gains `devices()` (the video
+  devices' unique IDs and names, through `osk_avf_list` in `camera.m`)
+  and `Camera::start` takes the unique ID of the device to open, `None`
+  for the default; `osk_avf_start` takes the same ID as a C string.
+  Why: a dense QR code needs the camera's own pixels, and the window
+  shell's macOS scan sheet could not choose a camera. Not run on a Mac.
 
 ## 4. Watching upstream
 
