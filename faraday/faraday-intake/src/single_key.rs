@@ -124,7 +124,7 @@ fn hex4(s: &str) -> Option<[u8; 4]> {
 
 /// A derivation path as an origin writes it, `84h/0h/0h`, from `m/84'/0'/0'`,
 /// `84'/0'/0'` or `84h/0h/0h`; `None` for anything else, or no step.
-fn path_h(p: &str) -> Option<String> {
+pub(crate) fn path_h(p: &str) -> Option<String> {
     let p = p.trim();
     let p = p
         .strip_prefix("m/")

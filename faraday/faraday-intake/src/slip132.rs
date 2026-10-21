@@ -162,6 +162,33 @@ pub fn decode(key: &str) -> Option<Key> {
     })
 }
 
+/// `plain`, an `xpub` or `tpub`, in the SLIP-132 version that names
+/// `script` on its network: `zpub`/`vpub` for native SegWit, `ypub`/`upub`
+/// nested, `Zpub`/`Vpub` native multisig, `Ypub`/`Upub` nested multisig;
+/// as it is for any other type, which SLIP-132 does not name. `None` for
+/// a key that is neither. Costs a base58 decode and encode.
+pub fn encode(plain: &str, script: Script) -> Option<String> {
+    use osk_bip::bitcoin::base58;
+    let mut bytes = base58::decode_check(plain.trim()).ok()?;
+    if bytes.len() != 78 {
+        return None;
+    }
+    let test = match &bytes[..4] {
+        v if *v == VERSIONS[0].0 => false,
+        v if *v == VERSIONS[5].0 => true,
+        _ => return None,
+    };
+    let base = if test { 5 } else { 0 };
+    let Some(at) = VERSIONS[base..base + 5]
+        .iter()
+        .position(|(_, named)| *named == Some(script))
+    else {
+        return Some(plain.trim().to_string());
+    };
+    bytes[..4].copy_from_slice(&VERSIONS[base + at].0);
+    Some(base58::encode_check(&bytes))
+}
+
 /// A key whose version names one script type where another is.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Mismatch {

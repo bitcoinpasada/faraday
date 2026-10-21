@@ -42,9 +42,11 @@ impl FileKind {
     pub fn exposure(self) -> Exposure {
         match self {
             FileKind::Vault | FileKind::Backup | FileKind::Kdbx => Exposure::Sealed,
-            FileKind::Carry | FileKind::Entries | FileKind::Words | FileKind::SeedPart => {
-                Exposure::Secret
-            }
+            FileKind::Carry
+            | FileKind::Entries
+            | FileKind::Words
+            | FileKind::SeedPart
+            | FileKind::SecretWallet => Exposure::Secret,
             _ => Exposure::Public,
         }
     }
@@ -57,6 +59,7 @@ impl FileKind {
             self,
             FileKind::Words
                 | FileKind::SeedPart
+                | FileKind::SecretWallet
                 | FileKind::Carry
                 | FileKind::Entries
                 | FileKind::Text

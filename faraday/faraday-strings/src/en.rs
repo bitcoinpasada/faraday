@@ -5313,8 +5313,6 @@ pub struct Strings {
     pub public_files_bip_129: &'static str,
     /// Text in `public_files`.
     pub public_files_bitcoin: &'static str,
-    /// Text in `public_files`.
-    pub public_files_importdescriptors: &'static str,
     /// Text in `public_files`. `{}`: `fp`.
     pub public_files_key: &'static str,
     /// Text in `public_files`.
@@ -5331,9 +5329,22 @@ pub struct Strings {
     pub public_files_wasabi: &'static str,
     /// Text in `public_files`: who reads the Wasabi file.
     pub public_files_wasabi_wallet: &'static str,
+    /// Text in `public_files`: the row of Bitcoin Core's import file
+    /// for Core before 29.
+    pub public_files_core_before_29: &'static str,
+    /// Text in `public_files`: who reads either of Bitcoin Core's import
+    /// files.
+    pub public_files_bitcoin_core: &'static str,
+    /// Text in `public_files`: the Electrum wallet file's row.
+    pub public_files_electrum: &'static str,
+    /// Text in `public_files`: who reads the Electrum wallet file.
+    pub public_files_electrum_watch_only: &'static str,
     // ----- public_rows_for (faraday-core/src/screens.rs) -----
     /// Text in `public_rows_for`.
     pub public_rows_for_make: &'static str,
+    /// Text in `public_rows_for`: the ghost button the files few people
+    /// need are under (F64).
+    pub public_rows_for_more_options: &'static str,
     // ----- restore (faraday-core/src/screens.rs) -----
     /// Text in `restore_screen`. `{}`: `s.m`, `s.n`.
     pub restore_of: &'static str,
@@ -5455,6 +5466,9 @@ pub struct Strings {
     pub kind_name_text: &'static str,
     /// Text in `kind_name`.
     pub kind_name_gpg: &'static str,
+    /// Text in `kind_name`: another wallet's file that holds a private
+    /// key or a seed beside its public keys.
+    pub kind_name_secret_wallet: &'static str,
     /// Text in `kind_name`.
     pub kind_name_file: &'static str,
     // ----- add_to_vault (faraday-core/src/screens.rs) -----
@@ -7890,6 +7904,30 @@ pub struct Strings {
     /// Text in `caravan::descriptor`. `{}`: the key, shortened; the
     /// network it is on; the network the file names.
     pub wallet_caravan_key_network: &'static str,
+    /// Error in `electrum::descriptor`. `{}`: why.
+    pub wallet_electrum: &'static str,
+    /// Error in `read_wallet`: an Electrum file encrypted, whole or its
+    /// keystores.
+    pub wallet_electrum_encrypted: &'static str,
+    /// Text in `electrum::descriptor`.
+    pub wallet_electrum_fingerprint: &'static str,
+    /// Text in `electrum::descriptor`. `{}`: the keystore's `type`.
+    pub wallet_electrum_keystore_type: &'static str,
+    /// Text in `electrum::descriptor`.
+    pub wallet_electrum_no_key: &'static str,
+    /// Text in `electrum::descriptor`.
+    pub wallet_electrum_derivation: &'static str,
+    /// Text in `electrum::descriptor`. `{}`: the script type a key's
+    /// version names.
+    pub wallet_electrum_key_type: &'static str,
+    /// Text in `electrum::descriptor`. `{}`: the file's `wallet_type`.
+    pub wallet_electrum_wallet_type: &'static str,
+    /// Text in `electrum::descriptor`.
+    pub wallet_electrum_quorum: &'static str,
+    /// Text in `electrum::descriptor`. `{}`: the key, shortened.
+    pub wallet_electrum_no_origin: &'static str,
+    /// Text in `electrum::descriptor`.
+    pub wallet_electrum_mixed: &'static str,
     /// Error in `read_wallet`. `{}`: `json::MAX_DEPTH`.
     pub wallet_json_too_deep: &'static str,
     /// Error in `read_wallet`.
@@ -11155,8 +11193,7 @@ pub static EN: Strings = Strings {
     public_files_a_pdf: "A PDF to print",
     public_files_bsms_descriptor: "BSMS descriptor record",
     public_files_bip_129: "BIP 129: Coldcard, Sparrow, Nunchuk",
-    public_files_bitcoin: "Bitcoin Core import",
-    public_files_importdescriptors: "importdescriptors, watch-only",
+    public_files_bitcoin: "Core 29 or later",
     public_files_key: "Key {}",
     public_files_for_the: "For the cosigners",
     public_files_key_bsms: "Key {}, BSMS",
@@ -11165,7 +11202,12 @@ pub static EN: Strings = Strings {
     public_files_caravan_unchained: "Caravan, Unchained",
     public_files_wasabi: "Wasabi file",
     public_files_wasabi_wallet: "Wasabi Wallet",
+    public_files_core_before_29: "Core before 29",
+    public_files_bitcoin_core: "Bitcoin Core, watch-only",
+    public_files_electrum: "Electrum wallet file",
+    public_files_electrum_watch_only: "Electrum, watch-only",
     public_rows_for_make: "Make the file",
+    public_rows_for_more_options: "More options",
     restore_of: "{} of {}",
     restore_none: "None",
     restore_of_filled: "{} of {} filled",
@@ -11223,6 +11265,7 @@ pub static EN: Strings = Strings {
     kind_name_part_of_a: "Part of a seed: SLIP-39 or codex32",
     kind_name_text: "Text",
     kind_name_gpg: "GPG",
+    kind_name_secret_wallet: "Wallet file with a private key",
     kind_name_file: "File",
     add_to_vault_add_to: "Add to vault",
     restore_shares_button_restore: "Restore the wallet · {} shares",
@@ -12400,6 +12443,17 @@ pub static EN: Strings = Strings {
     wallet_caravan_xfp: "an xfp is not 8 hex digits",
     wallet_caravan_no_origin: "{} has no bip32Path or xfp; every key of a multisig wallet needs both",
     wallet_caravan_key_network: "{} is a {} key; the file says {}",
+    wallet_electrum: "Electrum file: {}",
+    wallet_electrum_encrypted: "This Electrum file is encrypted",
+    wallet_electrum_fingerprint: "a root_fingerprint or ckcc_xfp is not a fingerprint",
+    wallet_electrum_keystore_type: "keystore type {} is not read",
+    wallet_electrum_no_key: "a keystore has no xpub",
+    wallet_electrum_derivation: "a derivation is not a derivation path",
+    wallet_electrum_key_type: "a key is a {} key, which this wallet_type does not hold",
+    wallet_electrum_wallet_type: "wallet_type {} is not read",
+    wallet_electrum_quorum: "wallet_type does not match the keystores",
+    wallet_electrum_no_origin: "{} has no root_fingerprint and derivation; every key of a multisig wallet needs both",
+    wallet_electrum_mixed: "its keys name more than one script type",
     wallet_json_too_deep: "JSON nested more than {} levels deep",
     wallet_json_too_large: "JSON longer than 1 MiB",
     wallet_collect: "Collect {}{} {}",

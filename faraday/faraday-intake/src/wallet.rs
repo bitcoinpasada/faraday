@@ -1,13 +1,13 @@
 //! The wallet description reader the device uses: a descriptor, a BIP-388 policy,
 //! a threshold or silent payments record, a BIP 129 record, a multisig
 //! config, a Coldcard export, a wallet `.json`, Bitcoin Core's
-//! `listdescriptors`, a single-key file or a Caravan config, each read as
-//! the one wallet it describes. A text it
+//! `listdescriptors`, a single-key file, a Caravan config or an Electrum
+//! wallet file, each read as the one wallet it describes. A text it
 //! does not read is a [`Refusal`], whose line is Faraday's own
 //! (`faraday-strings`). Moved here from `faraday-core`'s `wallet` module,
 //! which re-exports it.
 
-use crate::{caravan, json, single_key, slip132};
+use crate::{caravan, electrum, json, single_key, slip132};
 use faraday_strings::{EN, fill};
 use osk_bip::keys::Network;
 use osk_bip::policy::WalletPolicy;
@@ -116,8 +116,8 @@ pub fn policy_network(policy: &WalletPolicy, current: Network) -> Option<Network
         .map(|k| network_of_kind(k.xpub().network, current))
 }
 
-/// Reads a wallet from text: a descriptor, a BIP-388 policy, or a
-/// threshold record. Comment lines (`#`) and blank lines are skipped.
+/// Reads a wallet from text: a descriptor, a BIP-388 policy, a
+/// threshold record, or another wallet's file (module doc). Comment lines (`#`) and blank lines are skipped.
 ///
 /// One wallet has one checksum (`docs/DECISIONS.md` F35): every hardened
 /// step is kept written `h`, however the text wrote it, so a wallet read
@@ -154,8 +154,11 @@ fn read_wallet_as_written(text: &str) -> Result<WalletPolicy, Refusal> {
         return coldcard_export(text);
     }
     let plain = |d: &str| slip132::plain_descriptor(d).map_err(|m| Refusal::NotAWallet(m.text()));
-    // A single-key file (Cobo, Keystone, Coldcard's for Wasabi) or a
-    // Caravan config, read as JSON. JSON too deep or too long is refused;
+    if electrum::encrypted_whole(text) {
+        return Err(Refusal::NotAWallet(EN.wallet_electrum_encrypted.into()));
+    }
+    // A single-key file (Cobo, Keystone, Coldcard's for Wasabi), a
+    // Caravan config or an Electrum wallet file, read as JSON. JSON too deep or too long is refused;
     // other text that is not quite JSON goes on to the readers below.
     if text
         .trim_start_matches('\u{feff}')
@@ -177,6 +180,11 @@ fn read_wallet_as_written(text: &str) -> Result<WalletPolicy, Refusal> {
                 }
                 if caravan::looks_like(&v) {
                     let d = caravan::descriptor(&v).map_err(Refusal::NotAWallet)?;
+                    return WalletPolicy::parse_any(&d)
+                        .map_err(|e| Refusal::NotAWallet(e.to_string()));
+                }
+                if electrum::looks_like(&v) {
+                    let d = electrum::descriptor(&v).map_err(Refusal::NotAWallet)?;
                     return WalletPolicy::parse_any(&d)
                         .map_err(|e| Refusal::NotAWallet(e.to_string()));
                 }
@@ -254,6 +262,17 @@ fn read_wallet_as_written(text: &str) -> Result<WalletPolicy, Refusal> {
         .collect::<Result<Vec<String>, _>>()?;
     WalletPolicy::parse_any(&lines.concat())
         .or_else(|e| multipath(&lines).ok_or_else(|| Refusal::NotAWallet(e.to_string())))
+}
+
+/// Whether text is another wallet's file that holds a secret beside its
+/// public keys: an Electrum wallet file with an `xprv`, a `seed` or
+/// imported private keys ([`electrum::holds_secret`]). Costs a JSON parse
+/// of a text that starts as JSON and names `wallet_type`.
+pub fn holds_secret(text: &str) -> bool {
+    let t = text.trim_start_matches('\u{feff}').trim_start();
+    t.starts_with('{')
+        && t.contains("\"wallet_type\"")
+        && json::parse(t).is_ok_and(|v| electrum::looks_like(&v) && electrum::holds_secret(&v))
 }
 
 /// A multisig config's SLIP-132 keys checked against the wallet read from

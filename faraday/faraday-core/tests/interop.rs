@@ -767,3 +767,328 @@ fn faradays_caravan_file_reads_back_with_the_same_first_address() {
         assert!(public_out(&kit(id), CARAVAN_ROW).is_empty(), "{id}");
     }
 }
+
+// Bitcoin Core before 29 (`docs/INTEROP.md` §5 I4).
+
+/// Public files' row for Bitcoin Core before 29.
+const CORE_BEFORE_29_ROW: u8 = 9;
+/// Public files' Electrum row.
+const ELECTRUM_ROW: u8 = 10;
+
+/// The requests of an `importdescriptors` file: each one's `desc` and
+/// `internal`, after checking the fields Core needs.
+fn import_requests(text: &str) -> Vec<(String, bool)> {
+    use faraday_intake::json::{self, Value};
+    let v = json::parse(text).unwrap();
+    v.as_array()
+        .unwrap()
+        .iter()
+        .map(|r| {
+            assert_eq!(r.get("active"), Some(&Value::Bool(true)), "{text}");
+            assert_eq!(r.get("timestamp").and_then(Value::as_u64), Some(0));
+            let range: Vec<u64> = r
+                .get("range")
+                .and_then(Value::as_array)
+                .unwrap()
+                .iter()
+                .filter_map(Value::as_u64)
+                .collect();
+            assert_eq!(range, [0, 999]);
+            let internal = match r.get("internal") {
+                Some(Value::Bool(b)) => *b,
+                other => panic!("internal: {other:?}"),
+            };
+            (
+                r.get("desc").and_then(Value::as_str).unwrap().to_string(),
+                internal,
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn the_import_for_core_before_29_is_the_receive_and_change_descriptors_core_itself_lists() {
+    // Core 31's `listdescriptors` reads as its BIP-84 wallet; the file for
+    // Core before 29 holds the two descriptors Core listed for it,
+    // checksums and all.
+    let core = file("core/listdescriptors.json");
+    let w = read_wallet(&core).unwrap();
+    let out = public_out(&w.to_descriptor_checksummed(), CORE_BEFORE_29_ROW);
+    let [(name, text)] = &out[..] else {
+        panic!("{out:?}")
+    };
+    assert_eq!(name, "test-bitcoin-core-before-29.json");
+    let requests = import_requests(text);
+    let listed = |internal: bool| {
+        let v = faraday_intake::json::parse(&core).unwrap();
+        v.get("descriptors")
+            .and_then(faraday_intake::json::Value::as_array)
+            .unwrap()
+            .iter()
+            .filter(|d| d.get("internal") == Some(&faraday_intake::json::Value::Bool(internal)))
+            .filter_map(|d| d.get("desc").and_then(faraday_intake::json::Value::as_str))
+            .find(|d| d.starts_with("wpkh("))
+            .unwrap()
+            .to_string()
+    };
+    assert_eq!(
+        requests,
+        [(listed(false), false), (listed(true), true)],
+        "{text}"
+    );
+}
+
+#[test]
+fn the_two_descriptors_for_core_before_29_read_back_as_the_wallet_each_with_a_valid_checksum() {
+    for id in [
+        "savings",
+        "spending",
+        "taproot",
+        "nested",
+        "legacy",
+        "vault-nested",
+        "vault-legacy",
+        "taproot-multisig",
+        "inheritance",
+        "tree",
+    ] {
+        let d = kit(id);
+        let out = public_out(&d, CORE_BEFORE_29_ROW);
+        let [(_, text)] = &out[..] else {
+            panic!("{id}: {out:?}")
+        };
+        let requests = import_requests(text);
+        assert_eq!(
+            requests.iter().map(|(_, i)| *i).collect::<Vec<_>>(),
+            [false, true],
+            "{id}"
+        );
+        for (desc, _) in &requests {
+            assert!(!desc.contains('<'), "{id}: {desc}");
+            assert!(osk_bip::descriptor::verify_checksum(desc), "{id}: {desc}");
+        }
+        let own = read_wallet(&d).unwrap().to_descriptor();
+        for ((desc, _), chain) in requests.iter().zip(["0", "1"]) {
+            assert_eq!(
+                desc.split('#').next().unwrap(),
+                own.replace("<0;1>", chain),
+                "{id}"
+            );
+        }
+        // Read back as a receive and a change descriptor: `miniscript`,
+        // which reads such a pair here, has no `sortedmulti_a`.
+        if id != "taproot-multisig" {
+            let both = format!("{}\n{}", requests[0].0, requests[1].0);
+            let back = read_wallet(&both).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
+            assert!(same(&back, &read_wallet(&d).unwrap()), "{id}");
+        }
+    }
+}
+
+// Electrum wallet files (`docs/INTEROP.md` §5 I6).
+
+#[test]
+fn sparrows_electrum_singlesig_file_loads_as_its_nested_segwit_key() {
+    let w = wallet("sparrow/electrum-singlesig-wallet.json");
+    let ypub = file("sparrow/electrum-singlesig-wallet.json")
+        .split('"')
+        .find(|t| t.starts_with("ypub"))
+        .unwrap()
+        .to_string();
+    let plain = faraday_intake::slip132::decode(&ypub).unwrap().plain;
+    assert_eq!(
+        w.to_descriptor(),
+        format!("sh(wpkh([ab543c67/49h/0h/0h]{plain}/<0;1>/*))")
+    );
+}
+
+#[test]
+fn sparrows_electrum_multisig_file_is_the_coldcards_own_setup_file_its_fingerprints_little_endian()
+{
+    // Four Coldcards, each named in the file by `ckcc_xfp`, a decimal
+    // read little-endian: 1130956047 is 0F056943, the Coldcard that wrote
+    // the setup file of the same wallet.
+    let electrum = wallet("sparrow/electrum-multisig-wallet.json");
+    let coldcard = wallet("sparrow/cc-multisig-export-2.txt");
+    let d = electrum.to_descriptor();
+    assert!(d.starts_with("sh(wsh(sortedmulti(2,"), "{d}");
+    for fp in ["0f056943", "6ba6cfd0", "747b698e", "7bb026be"] {
+        assert!(d.contains(&format!("[{fp}/48h/1h/0h/1h]")), "{fp}: {d}");
+    }
+    assert!(same(&electrum, &coldcard));
+    assert_eq!(
+        first(&electrum, Network::Testnet),
+        first(&coldcard, Network::Testnet)
+    );
+}
+
+#[test]
+fn blue_wallets_electrum_file_loads_as_its_native_segwit_key_at_its_root_fingerprint() {
+    let text = file("bluewallet/skeleton-electrum-hex-only.txt");
+    let w = wallet("bluewallet/skeleton-electrum-hex-only.txt");
+    let zpub = text.split('"').find(|t| t.starts_with("zpub")).unwrap();
+    let plain = faraday_intake::slip132::decode(zpub).unwrap().plain;
+    assert_eq!(
+        w.to_descriptor(),
+        format!("wpkh([b616be56/84h/0h/0h]{plain}/<0;1>/*)")
+    );
+}
+
+/// An Electrum file around BIP-84's published account key, with `origin`
+/// as the keystore's fingerprint fields.
+fn electrum_bip84(origin: &str) -> String {
+    format!(
+        "{{\"keystore\": {{\"type\": \"bip32\", \"xpub\": \"{BIP84_ZPUB}\"{origin}}}, \"wallet_type\": \"standard\", \"use_encryption\": false, \"seed_version\": 17}}"
+    )
+}
+
+#[test]
+fn an_electrum_file_of_bip_84s_account_has_bip_84s_first_address_however_its_origin_is_written() {
+    // 73c5da0a, BIP-84's master fingerprint, as `root_fingerprint` and
+    // as Coldcard's little-endian `ckcc_xfp`.
+    let derivation = ", \"derivation\": \"m/84'/0'/0'\"";
+    let le = u32::from_le_bytes([0x73, 0xc5, 0xda, 0x0a]);
+    for origin in [
+        format!("{derivation}, \"root_fingerprint\": \"73c5da0a\""),
+        format!("{derivation}, \"ckcc_xfp\": {le}"),
+    ] {
+        let w = read_wallet(&electrum_bip84(&origin)).unwrap();
+        assert!(
+            w.to_descriptor()
+                .starts_with("wpkh([73c5da0a/84h/0h/0h]xpub")
+        );
+        assert_eq!(first(&w, Network::Mainnet), BIP84_FIRST);
+    }
+    // With neither, a single key loads with no origin, at the same
+    // address: upstream holds a single key without one.
+    let bare = read_wallet(&electrum_bip84("")).unwrap();
+    assert!(bare.keys()[0].fingerprint().is_none());
+    assert_eq!(first(&bare, Network::Mainnet), BIP84_FIRST);
+}
+
+#[test]
+fn an_electrum_file_holding_a_private_key_is_a_secret_and_its_origin_less_multisig_is_refused() {
+    use faraday_core::secrets::Exposure;
+    let path = "bluewallet/fromsparrow-electrum.json";
+    let text = file(path);
+    let kind = classify(path, text.as_bytes());
+    assert_eq!(kind, FileKind::SecretWallet);
+    assert_eq!(kind.exposure(), Exposure::Secret);
+    // Its keystores name no fingerprint or derivation: a multisig wallet
+    // here holds no key without its origin, and the first is named.
+    let e = read_wallet(&text).expect_err("no origins");
+    assert!(e.text().contains("Zpub74sR"), "{}", e.text());
+    assert!(!e.text().contains("prv"), "{}", e.text());
+    // Its public keys are the keys of the same wallet's Specter file.
+    let specter = wallet("bluewallet/fromsparrow-specter.json");
+    let keys: Vec<String> = text
+        .split('"')
+        .filter(|t| t.starts_with("Zpub"))
+        .map(|k| faraday_intake::slip132::decode(k).unwrap().plain)
+        .collect();
+    let mut theirs: Vec<String> = specter
+        .keys()
+        .iter()
+        .map(|k| k.xpub().to_string())
+        .collect();
+    let mut ours = keys.clone();
+    theirs.sort();
+    ours.sort();
+    assert_eq!(ours, theirs);
+}
+
+#[test]
+fn an_encrypted_electrum_file_is_refused_as_encrypted() {
+    let text = file("sparrow/electrum-singlesig-wallet.json");
+    for encrypted in [
+        text.replace("\"use_encryption\": false", "\"use_encryption\": true"),
+        // Electrum's whole-file encryption: base64 of its `BIE1` envelope.
+        "QklFMQOm0k8xWLe5KvvT1W9t3w3JY0oYxVqVZ6a0r7c9Qw==".to_string(),
+    ] {
+        let e = read_wallet(&encrypted).expect_err("encrypted");
+        assert_eq!(e.text(), "Not a wallet: This Electrum file is encrypted");
+    }
+}
+
+#[test]
+fn faradays_electrum_file_reads_back_as_the_same_wallet_with_slip_132_keys_and_no_private_key() {
+    for (id, prefix) in [
+        ("spending", "vpub"),
+        ("nested", "upub"),
+        ("legacy", "tpub"),
+        ("savings", "Vpub"),
+        ("vault-nested", "Upub"),
+        ("vault-legacy", "tpub"),
+    ] {
+        let d = kit(id);
+        let out = public_out(&d, ELECTRUM_ROW);
+        let [(name, text)] = &out[..] else {
+            panic!("{id}: {out:?}")
+        };
+        assert_eq!(name, "test-electrum.json");
+        assert!(
+            text.contains(&format!("\"xpub\": \"{prefix}")),
+            "{id}: {text}"
+        );
+        assert!(text.contains("\"xprv\": null"), "{id}");
+        assert_eq!(classify(name, text.as_bytes()), FileKind::Wallet, "{id}");
+        let back = read_wallet(text).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
+        let own = read_wallet(&d).unwrap();
+        assert!(same(&back, &own), "{id}");
+        assert_eq!(
+            first(&back, Network::Testnet),
+            first(&own, Network::Testnet),
+            "{id}"
+        );
+    }
+    // Not Taproot, miniscript or an unsorted multisig.
+    for id in ["taproot", "taproot-multisig", "inheritance", "tree"] {
+        assert!(public_out(&kit(id), ELECTRUM_ROW).is_empty(), "{id}");
+    }
+}
+
+#[test]
+fn a_psbt_electrum_builds_from_a_bare_zpub_is_not_signed_here() {
+    // Electrum given an account key alone puts that key's own fingerprint
+    // in the PSBT, where the seed's master fingerprint belongs: no key
+    // here matches it, and nothing is signed. The same spend with the
+    // key's origin signs.
+    use faraday_core::testkit::{self, Kit};
+    let rooted = testkit::key(0, "m/84'/1'/0'");
+    let account = rooted.split(']').nth(1).unwrap().to_string();
+    let own: osk_bip::bitcoin::bip32::Xpub = account.parse().unwrap();
+    let kit_of = |descriptor: String| Kit {
+        id: "spending",
+        name: "Spending",
+        descriptor,
+        cosigner: None,
+        fee: 1_410,
+    };
+    let sign = |psbt: &mut _| {
+        let mut session = testkit::session();
+        session
+            .add_words(
+                &testkit::test_words(testkit::TEST_SEEDS[0].0),
+                "Test key 1",
+                None,
+            )
+            .unwrap();
+        session
+            .add_wallet(
+                "Spending",
+                &format!("wpkh({rooted}/<0;1>/*)"),
+                "Test wallet",
+                faraday_core::wallet::Origin::Named,
+            )
+            .unwrap();
+        session.sign(psbt, [0; 32], &mut None).unwrap_or_default()
+    };
+    let mut bare = testkit::unsigned(&kit_of(format!(
+        "wpkh([{}]{account}/<0;1>/*)",
+        own.fingerprint()
+    )))
+    .unwrap();
+    assert!(sign(&mut bare).is_empty());
+    let mut with_origin = testkit::unsigned(&kit_of(format!("wpkh({rooted}/<0;1>/*)"))).unwrap();
+    assert_eq!(sign(&mut with_origin).len(), 1);
+}

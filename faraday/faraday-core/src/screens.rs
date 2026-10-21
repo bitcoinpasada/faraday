@@ -8792,15 +8792,20 @@ fn path_row(ui: &mut Ui, x: f32, y: f32, w: f32, path: &str, change: bool) -> f3
 }
 
 /// Wallet `i`'s public files, as the backup's public step offers them:
-/// the descriptor, the wallet file, the multisig config, the backup
-/// sheet, the BSMS record, Bitcoin Core's import, each key held here
-/// with its BSMS record, for the cosigners, then the Caravan config and
-/// the Wasabi file where the wallet has one. Each has its own button, and Show as QR and PNG beside the
-/// ones a wallet or a person reads from a code.
-fn public_files(app: &Faraday, i: usize) -> Vec<FileRow<'static, String>> {
+/// first the descriptor, the wallet file, the multisig config, the
+/// backup sheet, the BSMS record, Bitcoin Core's import for Core 29 or
+/// later, and each key held here with its BSMS record, for the
+/// cosigners; then the files under More options (F64), where the wallet
+/// has each: Bitcoin Core before 29, the Electrum wallet file, the
+/// Caravan config, the Wasabi file. Each has its own button, and Show as
+/// QR and PNG beside the ones a wallet or a person reads from a code.
+fn public_files(
+    app: &Faraday,
+    i: usize,
+) -> (Vec<FileRow<'static, String>>, Vec<FileRow<'static, String>>) {
     use osk_bip::policy::{Template, Wrapper};
     let Some(wl) = app.session.wallets.get(i) else {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     };
     let stem = crate::file_stem(&wl.name);
     let codes = |show: Action, png: Action| vec![(EN.public_files_show_as, show), ("PNG", png)];
@@ -8862,7 +8867,7 @@ fn public_files(app: &Faraday, i: usize) -> Vec<FileRow<'static, String>> {
     if wl.policy().silent().is_none() {
         rows.push((
             EN.public_files_bitcoin.to_string(),
-            EN.public_files_importdescriptors,
+            EN.public_files_bitcoin_core,
             format!("{stem}-bitcoin-core.json"),
             Action::PublicOut(i, 7),
             Vec::new(),
@@ -8901,33 +8906,36 @@ fn public_files(app: &Faraday, i: usize) -> Vec<FileRow<'static, String>> {
             ));
         }
     }
-    // I4: under More options
-    if faraday_intake::caravan::writes(wl.policy()) {
-        rows.push((
-            EN.public_files_caravan.to_string(),
-            EN.public_files_caravan_unchained,
-            format!("{stem}-caravan.json"),
-            Action::PublicOut(i, 11),
-            Vec::new(),
-        ));
-    }
-    // I4: under More options
-    if faraday_intake::single_key::wasabi_writes(wl.policy()) {
-        rows.push((
-            EN.public_files_wasabi.to_string(),
-            EN.public_files_wasabi_wallet,
-            format!("{stem}-wasabi.json"),
-            Action::PublicOut(i, 13),
-            Vec::new(),
-        ));
-    }
-    rows
+    let more = crate::public_more_files(wl)
+        .into_iter()
+        .map(|(what, file)| {
+            let (name, detail) = match what {
+                9 => (EN.public_files_core_before_29, EN.public_files_bitcoin_core),
+                10 => (
+                    EN.public_files_electrum,
+                    EN.public_files_electrum_watch_only,
+                ),
+                11 => (EN.public_files_caravan, EN.public_files_caravan_unchained),
+                _ => (EN.public_files_wasabi, EN.public_files_wasabi_wallet),
+            };
+            (
+                name.to_string(),
+                detail,
+                file,
+                Action::PublicOut(i, what),
+                Vec::new(),
+            )
+        })
+        .collect();
+    (rows, more)
 }
 
 /// Draws [`public_files`] of wallet `i` on the backup's checklist, each
 /// marked once its file is in the Outbox: only the files `only`
 /// names (as `public_out` numbers them) and the keys for the cosigners,
-/// the codes beside them only where the plan's form has QR pictures.
+/// the codes beside them only where the plan's form has QR pictures;
+/// then a ghost More options, or, once it is pressed, the files under
+/// it (F64).
 fn public_rows_for(
     app: &Faraday,
     ui: &mut Ui,
@@ -8942,14 +8950,19 @@ fn public_rows_for(
         .as_ref()
         .is_none_or(|b| only.is_none() || b.answers.form[crate::plan::form::QR]);
     let mut cy = y;
-    for (name, detail, file, action, extra) in &public_files(app, i) {
-        let wanted = match (only, action) {
+    let (primary, more) = public_files(app, i);
+    let open = app
+        .backup
+        .as_ref()
+        .is_some_and(|b| b.wallet == i && b.public_more);
+    let shown = primary
+        .iter()
+        .filter(|(_, _, _, action, _)| match (only, action) {
             (Some(o), Action::PublicOut(_, what)) => o.contains(what),
             _ => true,
-        };
-        if !wanted {
-            continue;
-        }
+        })
+        .chain(more.iter().filter(|_| open));
+    for (name, detail, file, action, extra) in shown {
         let extra: &[(&str, Action)] = if qr { extra } else { &[] };
         // Made For the stick with the checklist: Remove while it waits.
         let remove = match action {
@@ -8958,6 +8971,19 @@ fn public_rows_for(
         };
         let (state, button) = made_state(app, file, remove, (EN.public_rows_for_make, *action));
         cy += file_row(ui, x, cy, w, name, detail, state.as_deref(), button, extra);
+    }
+    if !open && !more.is_empty() {
+        cy += 8.0;
+        ui.button(
+            x,
+            cy,
+            None,
+            36.0,
+            EN.public_rows_for_more_options,
+            Style::Ghost,
+            Action::PublicMore(i),
+        );
+        cy += 44.0;
     }
     cy - y
 }
@@ -9720,6 +9746,7 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
     match kind {
         FileKind::Psbt => "PSBT",
         FileKind::Wallet => EN.kind_name_wallet_descriptor,
+        FileKind::SecretWallet => EN.kind_name_secret_wallet,
         FileKind::Transaction => EN.kind_name_finished,
         FileKind::Sheet => EN.kind_name_sheet_for,
         FileKind::Message => EN.kind_name_signed_message,
@@ -9979,7 +10006,7 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     Action::StartSpend(k),
                 ) + 8.0;
             }
-            FileKind::Wallet => {
+            FileKind::Wallet | FileKind::SecretWallet => {
                 bx += ui.button(
                     bx,
                     iy + 64.0,
@@ -11083,7 +11110,7 @@ fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note)
             };
             out.push((EN.inbox_actions_sign.into(), style, Action::StartSpend(k)));
         }
-        FileKind::Wallet => {
+        FileKind::Wallet | FileKind::SecretWallet => {
             out.push((
                 EN.inbox_actions_load_the.into(),
                 Style::Primary,

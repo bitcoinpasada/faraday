@@ -968,6 +968,9 @@ pub enum Action {
     /// Remove from For the stick the files [`Action::PublicOut`] makes
     /// for the same wallet and number.
     PublicRemove(usize, u8),
+    /// Show the public files of wallet n that are under More options
+    /// (F64), until the item is left.
+    PublicMore(usize),
     /// The account key in wallet n's slot k, held here, to the Outbox
     /// for the cosigners.
     WalletKeyOut(usize, u8),
@@ -1665,7 +1668,7 @@ impl Item {
         }
         match self.holds() {
             FileKind::Words | FileKind::SeedPart => Some(secrets::Ack::Seed),
-            FileKind::Carry | FileKind::Entries => Some(secrets::Ack::Any),
+            FileKind::Carry | FileKind::Entries | FileKind::SecretWallet => Some(secrets::Ack::Any),
             FileKind::Text | FileKind::Other => Some(secrets::Ack::Unknown),
             _ => None,
         }
@@ -2423,6 +2426,9 @@ pub struct BackupState {
     pub naming: Option<usize>,
     /// The open item of the checklist, by [`bstep`].
     pub open: Option<u8>,
+    /// The public files item shows its files under More options (F64):
+    /// pressed, or one of them already For the stick when it opened.
+    pub public_more: bool,
     /// The envelopes closed as done: the one item nothing else marks.
     pub envelopes: bool,
     /// The blank templates were printed from Faraday Starter: the item is
@@ -5702,6 +5708,13 @@ impl Faraday {
                 self.save_boxes();
             }
             Action::PublicOut(i, what) => self.public_out(i, what),
+            Action::PublicMore(i) => {
+                if let Some(b) = self.backup.as_mut()
+                    && b.wallet == i
+                {
+                    b.public_more = true;
+                }
+            }
             Action::PublicRemove(i, what) => self.public_remove(i, what),
             Action::WalletKeyOut(i, k) => self.wallet_key_out(i, k),
             Action::WalletKeyBsms(i, k) => self.wallet_key_bsms(i, k),
@@ -7494,8 +7507,19 @@ impl Faraday {
                 let w = self.backup.as_ref()?.wallet;
                 self.backup_seed_list(w).get(i)?.1
             });
+        // More options opens closed, unless a file under it is already
+        // For the stick.
+        let more = n == Some(bstep::PUBLIC)
+            && self.backup.as_ref().is_some_and(|b| {
+                self.session.wallets.get(b.wallet).is_some_and(|w| {
+                    public_more_files(w)
+                        .iter()
+                        .any(|(_, f)| self.outbox.iter().any(|i| i.name == *f))
+                })
+            });
         if let Some(b) = self.backup.as_mut() {
             b.open = n;
+            b.public_more = more;
             b.scroll.follow = true;
             b.check = None;
             if let Some(k) = key
@@ -8422,9 +8446,10 @@ impl Faraday {
     /// template, 1 the descriptor, 2 the multisig config, 3 the backup
     /// sheet, 4 the split shares, 5 the wallet .json, 6 the BIP 129
     /// descriptor record, 7 Bitcoin Core's `importdescriptors` file, 8 the
-    /// descriptor's code as a labelled picture, 11 the Caravan config, 13
-    /// the Wasabi file (9 onward are under More options, `docs/INTEROP.md`
-    /// §5 I4).
+    /// descriptor's code as a labelled picture; under More options
+    /// ([`public_more_files`]), 9 Bitcoin Core's import for Core before
+    /// 29, 10 the Electrum wallet file, 11 the Caravan config, 13 the
+    /// Wasabi file (`docs/INTEROP.md` §5 I4; 12 is Specter DIY's, I8).
     pub(crate) fn public_out(&mut self, wallet: usize, what: u8) {
         let files = self.public_made(wallet, what);
         let names: Vec<String> = files.iter().map(|(n, _)| n.clone()).collect();
@@ -8629,6 +8654,19 @@ impl Faraday {
             8 => {
                 for p in self.public_pictures(wallet, 8) {
                     files.push((p.name.clone(), p.png()));
+                }
+            }
+            9 => {
+                if let Some(c) = faraday_intake::core_before_29::file(w.policy()) {
+                    files.push((
+                        format!("{stem}-bitcoin-core-before-29.json"),
+                        c.into_bytes(),
+                    ));
+                }
+            }
+            10 => {
+                if let Some(c) = faraday_intake::electrum::file(w.policy()) {
+                    files.push((format!("{stem}-electrum.json"), c.into_bytes()));
                 }
             }
             11 => {
@@ -12337,6 +12375,30 @@ pub fn file_stem(name: &str) -> String {
         .chars()
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
         .collect()
+}
+
+/// The public files of wallet `w` that are under Public files' More
+/// options (F64, `docs/INTEROP.md` §5 I4), as [`Faraday::public_out`]
+/// numbers them, each with its file's name: Bitcoin Core before 29, the
+/// Electrum wallet file, the Caravan config and the Wasabi file, where
+/// the wallet has each.
+pub(crate) fn public_more_files(w: &wallet::Wallet) -> Vec<(u8, String)> {
+    let stem = file_stem(&w.name);
+    let p = w.policy();
+    [
+        (
+            9,
+            faraday_intake::core_before_29::writes(p),
+            "bitcoin-core-before-29",
+        ),
+        (10, faraday_intake::electrum::writes(p), "electrum"),
+        (11, faraday_intake::caravan::writes(p), "caravan"),
+        (13, faraday_intake::single_key::wasabi_writes(p), "wasabi"),
+    ]
+    .into_iter()
+    .filter(|(_, writes, _)| *writes)
+    .map(|(what, _, file)| (what, format!("{stem}-{file}.json")))
+    .collect()
 }
 
 /// The name a result file takes from the PSBT it came from: the stem,

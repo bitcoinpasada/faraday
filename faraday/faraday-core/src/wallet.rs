@@ -1197,6 +1197,11 @@ pub enum FileKind {
     Psbt,
     /// A wallet description.
     Wallet,
+    /// Another wallet's file that holds a private key or a seed beside its
+    /// public keys (an Electrum wallet file with an `xprv` or a `seed`,
+    /// `docs/INTEROP.md` §5 I6): a secret. It loads as the wallet its
+    /// public keys describe; nothing secret in it is read.
+    SecretWallet,
     /// A finished transaction, as hex.
     Transaction,
     /// A sheet to print on the desktop app.
@@ -1343,6 +1348,9 @@ pub fn classify(name: &str, bytes: &[u8]) -> FileKind {
         }
         if crate::restore::is_share(text) {
             return FileKind::Share;
+        }
+        if faraday_intake::wallet::holds_secret(text) {
+            return FileKind::SecretWallet;
         }
         if read_wallet(text).is_ok() {
             return FileKind::Wallet;
