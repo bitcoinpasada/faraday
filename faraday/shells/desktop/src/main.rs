@@ -68,6 +68,7 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant};
 
 use faraday_core::strings::{EN, fill};
@@ -86,7 +87,8 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 
-/// How often the attached folders are looked at again.
+/// How often the Downloads folder and the cameras are looked at again,
+/// on a thread of their own ([`watch_listing`]); and the sticks.
 const RESCAN: Duration = Duration::from_millis(700);
 /// A frame or an event slower than this is reported in a test build.
 const SLOW: Duration = Duration::from_millis(50);
@@ -151,8 +153,16 @@ struct Shell {
     panel: Option<Panel>,
     /// Where PDFs are saved, and the Downloads folder Transfer uses.
     host: Host,
+    /// What [`watch_listing`] reads: the Downloads folder and the
+    /// cameras, sent when either changed.
+    listing: Receiver<Listing>,
+    /// The newest of what [`watch_listing`] sent; a fresh app is given it
+    /// again.
+    latest: Option<Listing>,
     /// The Downloads folder as last listed to the app.
     listed: Option<StorageEvent>,
+    /// The cameras as last listed to the app.
+    cameras: Option<Vec<(String, String)>>,
     /// Open on Transfer once the window is up.
     open_transfer: bool,
     size: (u32, u32),
@@ -169,6 +179,7 @@ struct Shell {
     scale: f64,
     /// The ticks and the frames' pace (`faraday-window`).
     pace: Pacer,
+    /// When the sticks, the clock and the memory are next looked at.
     next_scan: Instant,
     /// When a slow frame or event was last printed.
     last_slow: Option<Instant>,
@@ -313,22 +324,38 @@ impl Shell {
         let tick = self.pace.tick();
         self.send(event_loop, tick);
         self.rescan(event_loop, true);
+        // The new app has been told nothing yet: give it the newest
+        // listing again, without waiting for the next change.
         self.listed = None;
+        self.cameras = None;
         self.relist();
     }
 
-    /// Tells the app what Downloads holds, when that changed.
+    /// Tells the app what Downloads holds and which cameras there are,
+    /// when that changed: the newest of what [`watch_listing`] read, or
+    /// the last one again for a fresh app. A lookup; the reading is done
+    /// on that thread.
     fn relist(&mut self) {
-        let now = self.host.files();
-        if self.listed.as_ref() == Some(&now) {
-            return;
+        if let Some(now) = self.listing.try_iter().last() {
+            self.latest = Some(now);
         }
-        if let Some(app) = self.app.as_mut() {
-            app.storage(now.clone());
-            self.listed = Some(now);
-            if let Some(w) = self.window() {
-                w.request_redraw();
-            }
+        let Some(now) = self.latest.clone() else {
+            return;
+        };
+        let Some(app) = self.app.as_mut() else { return };
+        let mut changed = false;
+        if self.listed.as_ref() != Some(&now.files) {
+            app.storage(now.files.clone());
+            self.listed = Some(now.files);
+            changed = true;
+        }
+        if self.cameras.as_ref() != Some(&now.cameras) {
+            app.storage(StorageEvent::Cameras(now.cameras.clone()));
+            self.cameras = Some(now.cameras);
+            changed = true;
+        }
+        if changed && let Some(w) = self.window() {
+            w.request_redraw();
         }
     }
 
@@ -369,9 +396,6 @@ impl Shell {
             if let Some(available_mib) = faraday_storage::memory_available_mib() {
                 app.storage(StorageEvent::Memory { available_mib });
             }
-            // Which cameras there are, so a screen can offer the camera
-            // or do without it.
-            app.storage(StorageEvent::Cameras(camera::list()));
             for line in serve_with(app, &mut self.boxes, Some(&self.host), &mut self.dirs) {
                 eprintln!("{line}");
             }
@@ -567,9 +591,9 @@ impl ApplicationHandler for Shell {
             let refresh = view::refresh(self.window());
             self.pace.ticked_at(now, refresh);
         }
+        self.relist();
         if now >= self.next_scan {
             self.rescan(event_loop, false);
-            self.relist();
             self.next_scan = now + RESCAN;
         }
         event_loop.set_control_flow(ControlFlow::WaitUntil(self.pace.next_tick));
@@ -580,6 +604,49 @@ impl ApplicationHandler for Shell {
         self.view = None;
         self.app = None;
     }
+}
+
+/// What Transfer lists of this computer: the Downloads folder and the
+/// cameras.
+#[derive(Clone, PartialEq)]
+struct Listing {
+    files: StorageEvent,
+    cameras: Vec<(String, String)>,
+}
+
+/// Whether `now` is to be sent: it differs from the last one sent (the
+/// first always is). A lookup.
+fn is_new(last: &mut Option<Listing>, now: &Listing) -> bool {
+    if last.as_ref() == Some(now) {
+        return false;
+    }
+    *last = Some(now.clone());
+    true
+}
+
+/// Costs a directory listing with each file's metadata and a camera
+/// enumeration (Media Foundation's on Windows) every [`RESCAN`], on a
+/// thread of its own so the window's thread never waits on either; sends
+/// the listing when it changed, the first at once.
+fn watch_listing(downloads: PathBuf, opens: bool, out: Sender<Listing>) {
+    std::thread::spawn(move || {
+        let host = Host {
+            print: PathBuf::new(),
+            downloads,
+            opens,
+        };
+        let mut last = None;
+        loop {
+            let now = Listing {
+                files: host.files(),
+                cameras: camera::list(),
+            };
+            if is_new(&mut last, &now) && out.send(now).is_err() {
+                return;
+            }
+            std::thread::sleep(RESCAN);
+        }
+    });
 }
 
 /// A fresh app as the desktop runs it: the online Faraday, which turns
@@ -794,14 +861,20 @@ fn main() -> ExitCode {
     let app = desktop_app();
     let pace = Pacer::new(timings);
     let next_scan = pace.epoch;
+    let opens = faraday_storage::can_open_folders();
+    let (sender, listing) = channel();
+    watch_listing(downloads.clone(), opens, sender);
     let mut shell = Shell {
         panel,
         host: Host {
             print: print_dir,
             downloads,
-            opens: faraday_storage::can_open_folders(),
+            opens,
         },
+        listing,
+        latest: None,
         listed: None,
+        cameras: None,
         open_transfer,
         sticks_dir,
         size,
@@ -885,6 +958,21 @@ mod tests {
     /// The desktop opens on testnet, which takes any seed, with no
     /// warning to acknowledge; mainnet, chosen from Network, is still the
     /// demo that takes only public seeds (F20).
+    /// The listing thread tells the window only of a change.
+    #[test]
+    fn a_listing_is_sent_only_when_it_changed() {
+        let mut last = None;
+        let mut now = Listing {
+            files: StorageEvent::Cameras(Vec::new()),
+            cameras: Vec::new(),
+        };
+        assert!(is_new(&mut last, &now));
+        assert!(!is_new(&mut last, &now));
+        now.cameras.push(("0".into(), "Webcam".into()));
+        assert!(is_new(&mut last, &now));
+        assert!(!is_new(&mut last, &now));
+    }
+
     #[test]
     fn the_desktop_opens_on_testnet_and_its_mainnet_is_the_demo() {
         let c = faraday_core::testkit::compute();

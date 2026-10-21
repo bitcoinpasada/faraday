@@ -1152,5 +1152,6 @@ read-only through `&Starter`, so no `View` of its own is needed yet. If
 the Starter grows a value worked out from its state (an offer list, a
 checklist) that becomes costly, it is kept on the state as §3.3 says,
 and the budget test names it. The desktop app's shell reads the
-Downloads folder and the cameras on its window's thread the same way the
-Starter did; moving that read to a thread is its own change.
+Downloads folder and the cameras on a thread of its own (`watch_listing`
+in `faraday/shells/desktop/src/main.rs`), as the Starter does; the window's
+thread takes the newest listing, a lookup. Done.
