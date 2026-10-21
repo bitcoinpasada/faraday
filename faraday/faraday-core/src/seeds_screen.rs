@@ -3,14 +3,15 @@
 //! not here, the kind, the path and the first address. Restore's seeds
 //! card and the Spend tab's What do you have? draw it.
 
+use crate::Action;
 use crate::create::NewKind;
+use crate::drawing::View;
 use crate::screens::{buttons_and_next, stepper, wrap_buttons};
 use crate::seeds::{self, Focus, SeedsAction as S, SeedsState};
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W, grouped};
 use crate::wallet::FileKind;
-use crate::{Action, Faraday};
 use opensigner_core::strings::fill;
 
 fn sa(a: S) -> Action {
@@ -21,7 +22,7 @@ fn sa(a: S) -> Action {
 /// open vault holds, Unlock for a vault in Files (`unlock`, and back to
 /// this step), a key already loaded and not in `here`.
 pub(crate) fn more_ways(
-    app: &Faraday,
+    app: &View,
     here: &[[u8; 4]],
     unlock: bool,
     labels: &mut Vec<(String, Style, Action)>,
@@ -110,7 +111,7 @@ pub(crate) fn quorum(ui: &mut Ui, s: &SeedsState, x: f32, y: f32, w: f32) -> f32
 /// the key files in Files. Returns the height used.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn cosigner(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     s: &SeedsState,
     k: usize,
@@ -198,7 +199,7 @@ pub(crate) fn cosigner(
 /// to the seeds. Returns the height used.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn shape(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     s: &SeedsState,
     back: bool,

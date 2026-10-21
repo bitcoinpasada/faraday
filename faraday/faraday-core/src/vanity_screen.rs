@@ -10,7 +10,7 @@ use crate::screens::next_button;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W, grouped, thousands};
 use crate::vanity::{VanityAction as V, VanityState, dial_name, fp, script_name, vstep};
-use crate::{Action, Faraday, flow};
+use crate::{Action, flow};
 
 const TITLES: [&str; vstep::COUNT] = [
     EN.vanity_key,
@@ -57,7 +57,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let scroll = v.scroll;
     let (next, again) = {
-        let app_ref: &Faraday = app;
+        let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             match app_ref.vanity.as_ref() {
                 Some(v) => card(app_ref, v, ui, i as u8, x, y, w),
@@ -79,7 +79,7 @@ fn guide(s: u8) -> &'static str {
     }
 }
 
-fn summary(app: &Faraday, v: &VanityState, s: u8) -> String {
+fn summary(app: &View, v: &VanityState, s: u8) -> String {
     let net = app.session.network();
     match s {
         vstep::KEY => v.key.map(fp).unwrap_or_else(|| EN.vanity_not_chosen.into()),
@@ -97,7 +97,7 @@ fn summary(app: &Faraday, v: &VanityState, s: u8) -> String {
     }
 }
 
-fn card(app: &Faraday, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
+fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
     let net = app.session.network();
     let mut cy = y;
     match s {

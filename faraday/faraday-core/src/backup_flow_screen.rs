@@ -76,7 +76,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let scroll = f.live.scroll;
     let (next, again) = {
-        let app_ref: &Faraday = app;
+        let app_ref: &View = app;
         let f = app_ref.flow().unwrap();
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             body(app_ref, f, ui, steps[i], x, y, w)
@@ -121,7 +121,7 @@ pub(crate) fn card_title(app: &Faraday, f: &BackupFlow, s: Step) -> String {
     }
 }
 
-fn card(app: &Faraday, f: &BackupFlow, s: Step) -> flow::Card {
+fn card(app: &View, f: &BackupFlow, s: Step) -> flow::Card {
     let open = f.live.open == Some(s.n());
     let (n, m) = f.written_of();
     let summary = match s {
@@ -194,7 +194,7 @@ fn card(app: &Faraday, f: &BackupFlow, s: Step) -> flow::Card {
     }
 }
 
-fn body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, s: Step, x: f32, y: f32, w: f32) -> f32 {
+fn body(app: &View, f: &BackupFlow, ui: &mut Ui, s: Step, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     cy += match s {
         Step::Where => where_body(app, f, ui, x, cy, w),
@@ -230,7 +230,7 @@ fn body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, s: Step, x: f32, y: f32, w: 
 
 // ---- 1: where it will be kept ----
 
-fn where_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if f.kind.is_wallet() {
         return crate::backup_flow_wallet_screen::where_body(app, f, ui, x, y, w);
     }
@@ -405,7 +405,7 @@ fn line(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str, color: osk_ui::Color) -
 }
 
 /// The medium's icon and a line centred, as Insert is.
-fn insert(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
+fn insert(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
     ui.icon(
         x + (w - 44.0) / 2.0,
         y,
@@ -429,13 +429,13 @@ fn cap(s: &str) -> String {
         .unwrap_or_default()
 }
 
-fn read_time(app: &Faraday, at: Option<u64>) -> String {
+fn read_time(app: &View, at: Option<u64>) -> String {
     at.map(|t| vaults::time_of_day(vaults::local_secs(t, app.tz_min)))
         .unwrap_or_default()
 }
 
 fn slot_rows(
-    app: &Faraday,
+    app: &View,
     f: &BackupFlow,
     ui: &mut Ui,
     x: f32,
@@ -480,7 +480,7 @@ fn slot_rows(
 
 // ---- 2: bring in the sticks ----
 
-fn sticks_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn sticks_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     if !app.clean_now() {
         cy += btn(
@@ -502,7 +502,7 @@ fn sticks_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f3
 }
 
 /// The card for the stick being asked for or read, at step 2 or 6.
-fn stick_card(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let m = app.medium.noun();
     // The stick the flow wants now, as the pills edge it (§18).
@@ -665,7 +665,7 @@ fn stick_card(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32
 
 /// The hold, and **Use another stick** beside it, or under it where the row
 /// is too narrow. Returns the height.
-fn hold_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, other: &str) -> f32 {
+fn hold_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, other: &str) -> f32 {
     let bw = hold_button_in(app, ui, x, y, w, label, fa(F::Hold), ACCENT);
     let ow = ui.measure(14.0, W::S, other) + 32.0;
     if bw + 10.0 + ow <= w {
@@ -694,15 +694,7 @@ fn hold_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, oth
 }
 
 /// The files a stick will hold: a row each.
-fn files_rows(
-    app: &Faraday,
-    f: &BackupFlow,
-    ui: &mut Ui,
-    x: f32,
-    y: f32,
-    w: f32,
-    slot: usize,
-) -> f32 {
+fn files_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32, slot: usize) -> f32 {
     let _ = app;
     let mut cy = y;
     for v in f.vaults_of(slot) {
@@ -722,7 +714,7 @@ fn files_rows(
 
 /// A stick read: which vault, which place.
 fn bind_card(
-    app: &Faraday,
+    app: &View,
     f: &BackupFlow,
     r: &crate::backup_flow::Reading,
     ui: &mut Ui,
@@ -871,7 +863,7 @@ fn bind_card(
 
 // ---- 3: the vaults ----
 
-fn vaults_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     if !app.may_load_keys() {
         let pull = fill(FEN.backup_flow_pull_to_unlock, &[app.medium.noun()]);
@@ -1013,7 +1005,7 @@ fn vaults_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f3
 
 // ---- 4: make the key ----
 
-fn make_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if f.kind.is_wallet() {
         return crate::backup_flow_wallet_screen::make_body(app, f, ui, x, y, w);
     }
@@ -1129,7 +1121,7 @@ fn make_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32)
 
 /// What was made, as the kind's page shows it: names, the public value, and
 /// the public file For the stick with its code and picture (§4.2).
-fn result_rows(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::backup_flow::Kind;
     let mut cy = y;
     let Some(sub) = &f.subject else {
@@ -1231,7 +1223,7 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, value: &str, mono: bool
 
 // ---- 5: lock ----
 
-fn lock_body(app: &Faraday, _f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn lock_body(app: &View, _f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let kw = app.kept_wiped(false);
     for (title, lines) in [
@@ -1276,7 +1268,7 @@ fn lock_body(app: &Faraday, _f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32
 
 // ---- 6: write ----
 
-fn write_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn write_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     cy += slot_rows(app, f, ui, x, cy, w, true);
     cy += stick_card(app, f, ui, x, cy, w);
@@ -1285,7 +1277,7 @@ fn write_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32
 
 // ---- 7: done ----
 
-fn done_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn done_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     if !f.all_written() {
         return 0.0;

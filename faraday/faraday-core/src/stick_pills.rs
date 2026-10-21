@@ -17,6 +17,7 @@
 //! §18).
 
 use crate::backup_flow::{Purpose, Step};
+use crate::drawing::View;
 use crate::medium::Medium;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -113,7 +114,7 @@ const SMALL: Size = Size {
     side: 8.0,
 };
 
-fn size(app: &Faraday) -> &'static Size {
+fn size(app: &View) -> &'static Size {
     if app.is_compact() { &SMALL } else { &WIDE }
 }
 
@@ -540,7 +541,7 @@ fn layout(pills: &[Pill], ui: &Ui, z: &Size, avail: f32) -> Layout {
 
 /// How tall the strip of pills across a window `window_w` wide is, in
 /// design units; 0 where there are none.
-pub(crate) fn strip_h(app: &Faraday, ui: &Ui, window_w: f32) -> f32 {
+pub(crate) fn strip_h(app: &View, ui: &Ui, window_w: f32) -> f32 {
     let pills = app.stick_pills();
     if pills.is_empty() {
         return 0.0;
@@ -564,7 +565,7 @@ pub(crate) fn page_drop(strip: f32) -> f32 {
 /// Draws the pills across the top of the window, over the page and any
 /// sheet, and offers each as a press where the shell's sticks are its
 /// own (the desktop app, the demo).
-pub(crate) fn draw(app: &Faraday, ui: &mut Ui, window_w: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, window_w: f32) {
     let pills = app.stick_pills();
     if pills.is_empty() {
         return;

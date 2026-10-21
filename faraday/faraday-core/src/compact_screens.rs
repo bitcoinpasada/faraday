@@ -2,6 +2,7 @@
 //! desktop's layout has columns side by side that a 268 dp panel has no
 //! room for. Each is a single scrolled column under the page's bar.
 
+use crate::drawing::View;
 use crate::strings::EN;
 use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
@@ -11,7 +12,7 @@ use crate::screens::missing_keys_line;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
 use crate::wallet::{Session, fp_text};
-use crate::{Action, Faraday, Screen};
+use crate::{Action, Screen};
 
 pub(crate) use faraday_ui::parts::measured;
 
@@ -92,7 +93,7 @@ pub(crate) fn heading(ui: &mut Ui, x: f32, y: f32, s: &str) -> f32 {
 /// One wallet's card, as its own page: what it is, how many signatures
 /// can be made here, its keys and what each needs, its first address,
 /// and what can be done with it.
-pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, iw) = (x0 + M, cw - 2.0 * M);
     let top = -app.list_offset;
     let mut cy = top + 12.0;
@@ -349,7 +350,7 @@ pub(crate) fn wallet_card(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) 
 /// A silent payments wallet's card on a small panel.
 #[allow(clippy::too_many_arguments)]
 fn silent_card(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     r: &osk_bip::silent_wallet::SilentWallet,
     x: f32,
@@ -449,7 +450,7 @@ pub(crate) fn about(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
 }
 
 /// Reports how tall the page is, so it scrolls.
-pub(crate) fn finish(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32, content: f32) {
+pub(crate) fn finish(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32, content: f32) {
     app.content_h.set(content);
     let view = ui.rect(x0, 0.0, cw, h);
     ui.report_scroll(view, content - h);
@@ -497,7 +498,7 @@ fn pass_field(
 /// can be, and OpenSigner's word keyboard on the first screenful; the
 /// words taken, the passphrase and the buttons under them. The other
 /// forms type on the docked keyboard.
-pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::forms::Form;
     let (x, iw) = (x0 + M, cw - 2.0 * M);
     let top = -app.list_offset;
@@ -605,7 +606,7 @@ pub(crate) fn entry(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// typed (`docs/NEW-WALLET.md` §15.2). `page`: on Add a key's own page,
 /// whose row of lists offers Other forms too. Returns where the next row
 /// starts.
-pub(crate) fn entry_words(app: &Faraday, ui: &mut Ui, x: f32, y: f32, iw: f32, page: bool) -> f32 {
+pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page: bool) -> f32 {
     let mut y = y;
     let lang = app.entry.language();
     let english = lang == osk_bip::bip39::Language::English;
@@ -772,7 +773,7 @@ pub(crate) fn keyed_taken(
 /// §15.2): no passphrase (Key asks it), no way in from a stick, Continue
 /// in place of Make the key. Returns where the next row starts.
 pub(crate) fn entry_form(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     x: f32,
     y: f32,

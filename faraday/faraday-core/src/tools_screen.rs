@@ -1,5 +1,6 @@
 //! The Tools screen: OpenSigner's calculators, one at a time.
 
+use crate::drawing::View;
 use crate::strings::EN;
 use opensigner_core::strings::fill;
 use opensigner_core::tools::Tool;
@@ -9,11 +10,11 @@ use osk_bip::hashes::hashes;
 use osk_bip::slip132::{KeyReading, key_facts};
 use osk_codec::encodings::{ReadAs, read as encoding_of, read_input};
 
+use crate::Action;
 use crate::screens::{button_rows, guide_text, title};
 use crate::tools::{UNITS, tool_name};
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
-use crate::{Action, Faraday};
 
 fn hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
@@ -21,7 +22,7 @@ fn hex(b: &[u8]) -> String {
 
 const GUIDE: &str = EN.tools_calculators_each;
 
-pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if app.tools.is_none() {
         return;
     }
@@ -43,7 +44,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// The way back, the title and what explains the page, as the desktop
 /// draws them. Returns where the page goes on.
-fn header(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
+fn header(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
     let Some(t) = app.tools.as_ref() else {
         return y;
     };
@@ -66,7 +67,7 @@ fn header(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
 
 /// The calculators, the field and what it works out. Returns where it
 /// ends.
-fn body(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
+fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
     let Some(t) = app.tools.as_ref() else {
         return y;
     };

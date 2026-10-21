@@ -19,6 +19,7 @@
 //! The words wait in memory, never drawn, until a choice loads them or
 //! the sheet closes, which wipes them.
 
+use crate::drawing::View;
 use crate::strings::EN;
 use opensigner_core::strings::fill;
 use osk_bip::keys::Fingerprint;
@@ -431,7 +432,7 @@ impl Faraday {
 
 /// The sheet: the key the seed makes without a passphrase and with the
 /// one typed, and the way it loads.
-pub(crate) fn sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(s) = app.seed_read.as_ref() else {
         return;
     };

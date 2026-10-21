@@ -2,19 +2,20 @@
 //! TOTP secret, across every open vault, each with its code or why it
 //! has none.
 
+use crate::Action;
 use crate::codes::{CodeKind, CodeRow, codes_rows, va};
+use crate::drawing::View;
 use crate::screens::title;
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::vaults::VaultAction as V;
-use crate::{Action, Faraday};
 use opensigner_core::strings::fill;
 
 /// The value row at the top: local time with seconds under its label and
 /// the zone, and Set the time (§5.3). The zone is in the label, so the
 /// time itself is never cut short on a narrow panel.
-fn now_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn now_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let label = fill(
         EN.codes_now_utc,
         &[&crate::vaults::tz_offset_text(app.tz_min).to_string()],
@@ -100,7 +101,7 @@ fn code_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &CodeRow) -> f32 {
 }
 
 /// `Screen::Codes`, desktop layout.
-pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         return compact(app, ui, x0, cw, h);
     }
@@ -153,7 +154,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// [`draw`] on a small panel: one column, Now first, then a row per
 /// entry with the account line dropped when there is no room, the bar
 /// still under each row (§5.4).
-fn compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let x = x0 + crate::compact::M;
     let w = cw - 2.0 * crate::compact::M;
     let mut y = 8.0;

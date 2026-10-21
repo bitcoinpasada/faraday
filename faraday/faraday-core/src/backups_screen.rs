@@ -3,6 +3,7 @@
 
 use crate::backup::Tone;
 use crate::backups::{Entry, Line};
+use crate::drawing::View;
 use crate::screens::title;
 use crate::strings::EN;
 use crate::ui::pal::*;
@@ -53,7 +54,7 @@ pub(crate) fn offset_of(app: &Faraday, at: usize) -> f32 {
         + if at > 0 { HEAD } else { 0.0 }
 }
 
-pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let entries = app.backups();
     if ui.compact {
         return compact(app, ui, x0, cw, h, &entries);
@@ -120,7 +121,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// A wallet's Back up, or Continue the backup for one left part way
 /// (`docs/NEW-WALLET.md` §12.3).
-fn back_up_label(app: &Faraday, i: usize) -> &'static str {
+fn back_up_label(app: &View, i: usize) -> &'static str {
     if app.wallet_backup_unfinished(i) {
         EN.backup_flow_continue
     } else {
@@ -157,7 +158,7 @@ fn wide_row(ui: &mut Ui, x: f32, y: f32, w: f32, l: &Line) {
 }
 
 /// The small panel: one wallet a page, the pages turned at the foot.
-fn compact(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32, entries: &[Entry]) {
+fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32, entries: &[Entry]) {
     use crate::compact::M;
     let (x, w) = (x0 + M, cw - 2.0 * M);
     let top = 12.0 - app.list_offset;

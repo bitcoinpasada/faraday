@@ -9,14 +9,15 @@
 use osk_ui::tokens;
 use osk_ui::widgets::Icon;
 
+use crate::Action;
 use crate::board::{
     BoardPress, BoardView, CardView, Chip, ChipView, Entry, MenuRow, Thing, Zone, takes,
 };
+use crate::drawing::View;
 use crate::menu::{measure, outline};
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui, W};
-use crate::{Action, Faraday};
 
 /// What one frame of the board knows while it draws.
 struct Frame {
@@ -1449,7 +1450,7 @@ fn list(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f
 
 /// What one frame of the board knows while it draws: the chip held, as
 /// the board on screen holds it.
-fn frame(app: &Faraday, ui: &Ui, v: &BoardView) -> Option<Frame> {
+fn frame(app: &View, ui: &Ui, v: &BoardView) -> Option<Frame> {
     let st = app.board_state()?;
     let (f, ox, oy) = (ui.f.max(0.1), ui.ox, ui.oy);
     Some(Frame {
@@ -1468,7 +1469,7 @@ fn frame(app: &Faraday, ui: &Ui, v: &BoardView) -> Option<Frame> {
 /// The list as a sheet, opened by **Add** in the narrow column
 /// (`docs/BACKUP-FLOW.md` §19.12 item 3): a press on a chip closes it
 /// with the chip selected.
-pub(crate) fn list_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn list_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(v) = app.board_view() else {
         return;
     };
@@ -1502,7 +1503,7 @@ pub(crate) fn list_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 /// before (`docs/BACKUP-FLOW.md` §19.5): its title, the line naming what
 /// there makes the description, **Keep it** and **Take it off**. It
 /// reads what the drop worked out.
-pub(crate) fn sees_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn sees_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(sees) = app.board_state().and_then(|st| st.sees.clone()) else {
         return;
     };
@@ -1548,7 +1549,7 @@ pub(crate) fn sees_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 /// (`docs/BACKUP-FLOW.md` §19.19 item 4): each place holds a part; where
 /// the whole is still kept, **Take it off every place**; **Keep it**. It
 /// reads what the press worked out.
-pub(crate) fn partials_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn partials_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some((line, off)) = app.board_state().and_then(|st| st.partials.clone()) else {
         return;
     };
@@ -1621,7 +1622,7 @@ fn read_only_buttons(v: &crate::board::BoardView) -> Vec<(&'static str, Style, A
 /// is the right-hand column ([`list_panel`]); in the narrow column a
 /// place's parts stand one under another, under **Add**, which opens the
 /// list as a sheet (§19.12 item 3). Returns its height.
-pub(crate) fn board(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+pub(crate) fn board(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(v) = app.board_view() else {
         return 0.0;
     };
@@ -1743,7 +1744,7 @@ fn view_of(v: &BoardView, c: Chip) -> Option<ChipView> {
 /// when the board is not shown (`docs/BACKUP-FLOW.md` §19.14, the
 /// owner's layout): the list, scrolling on its own; a placed chip dragged onto it is taken off. Over the whole
 /// screen, last, the chip being dragged.
-pub(crate) fn list_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32) {
+pub(crate) fn list_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
     let Some(v) = app.board_view() else {
         return;
     };
@@ -1838,7 +1839,7 @@ pub(crate) fn list_panel(app: &Faraday, ui: &mut Ui, px: f32, pw: f32, h: f32) {
 /// menu is drawn ([`crate::menu::draw`]): Add to… under the add glyph, a
 /// placed chip's menu under the chip's own glyph. It reads what the press
 /// that opened it worked out.
-pub(crate) fn menu_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn menu_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(menu) = app.board_state().and_then(|st| st.menu.clone()) else {
         return;
     };

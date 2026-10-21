@@ -6,12 +6,13 @@
 //! (Back up) and `backup_flow_wallet.rs` (the flow); both edit the map as
 //! `plan.rs` says.
 
+use crate::drawing::View;
 use crate::plan::{self, At};
 use crate::screens::{SOFTWARE_ROWS, held_item, next_button, section_label, ticked};
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Ui, W};
-use crate::{Action, Faraday, PlanPress, qrow, qstep};
+use crate::{Action, PlanPress, qrow, qstep};
 use opensigner_core::strings::fill;
 
 /// The plan a set of cards draws, and whose it is.
@@ -40,7 +41,7 @@ pub(crate) struct PlanCtx {
 
 impl PlanCtx {
     /// Back up's plan.
-    pub(crate) fn backup(app: &Faraday) -> Option<PlanCtx> {
+    pub(crate) fn backup(app: &View) -> Option<PlanCtx> {
         let b = app.backup.as_ref()?;
         let shape = app.plan_shape(b.wallet);
         let a = b.answers.clone();
@@ -61,7 +62,7 @@ impl PlanCtx {
     }
 
     /// Wallet flow `i`'s plan, drawn in the flow.
-    pub(crate) fn flow(app: &Faraday, i: usize) -> Option<PlanCtx> {
+    pub(crate) fn flow(app: &View, i: usize) -> Option<PlanCtx> {
         let f = app.backup_flows.get(i)?;
         let wf = f.wallet.as_ref()?;
         let a = wf.answers.clone();
@@ -154,7 +155,7 @@ pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> String {
 /// The warning over The plan's way on, which does not hold it: a vault
 /// that exists already whose stick no place keeps
 /// (`docs/BACKUP-FLOW.md` §19.16 item 3, §19.5).
-pub(crate) fn stickless_line(app: &Faraday, ctx: &PlanCtx) -> Option<String> {
+pub(crate) fn stickless_line(app: &View, ctx: &PlanCtx) -> Option<String> {
     let v = ctx.answers.stickless(&ctx.shape)?;
     Some(fill(
         EN.plan_vault_s_needs,
@@ -167,7 +168,7 @@ pub(crate) fn stickless_line(app: &Faraday, ctx: &PlanCtx) -> Option<String> {
 /// (`kept_nowhere`, the caller's). A vault's stick at no place is a
 /// warning only ([`stickless_line`], `docs/BACKUP-FLOW.md` §19.16).
 pub(crate) fn held_line(
-    _app: &Faraday,
+    _app: &View,
     ctx: &PlanCtx,
     kept_nowhere: Option<String>,
 ) -> Option<String> {
@@ -183,15 +184,7 @@ pub(crate) fn held_line(
 /// The open card of a plan (`docs/BACKUP-FLOW.md` §17.1): its lists, then
 /// Continue to the card after it. The plan's own card draws the map and
 /// its checks and leaves the way on to the caller. Returns its height.
-pub(crate) fn body(
-    app: &Faraday,
-    ui: &mut Ui,
-    ctx: &PlanCtx,
-    q: u8,
-    x: f32,
-    y: f32,
-    w: f32,
-) -> f32 {
+pub(crate) fn body(app: &View, ui: &mut Ui, ctx: &PlanCtx, q: u8, x: f32, y: f32, w: f32) -> f32 {
     let a = &ctx.answers;
     let on = ctx.enabled;
     let act = |p: PlanPress| ctx.act(p);
@@ -249,7 +242,7 @@ pub(crate) fn body(
 /// item's state. `boxed` draws each as a box, as the side panel does; not
 /// boxed, the checks follow. Returns its height.
 pub(crate) fn map_rows(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     ctx: &PlanCtx,
     x: f32,
@@ -347,7 +340,7 @@ pub(crate) fn map_rows(
 
 /// The check under the map: its three lines, each with its value, and
 /// why "Any one place lost" reads No. Returns its height.
-pub(crate) fn check_rows(app: &Faraday, ui: &mut Ui, ctx: &PlanCtx, x: f32, y: f32, w: f32) -> f32 {
+pub(crate) fn check_rows(app: &View, ui: &mut Ui, ctx: &PlanCtx, x: f32, y: f32, w: f32) -> f32 {
     let c = ctx.mapped.check(&ctx.shape, &ctx.answers);
     let name = |p: usize| ctx.name(p);
     let mut h = crate::glance::check_lines(ui, x, y, w, c, false, &name);

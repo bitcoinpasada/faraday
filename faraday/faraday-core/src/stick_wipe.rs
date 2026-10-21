@@ -15,6 +15,7 @@
 //! its controller writes a block's new bytes elsewhere in the chip and
 //! may keep the old ones until it reuses the place.
 
+use crate::drawing::View;
 use crate::strings::EN;
 use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
@@ -400,7 +401,7 @@ impl Faraday {
 }
 
 /// The sheet: what to delete, what it does, and what it does not reach.
-pub(crate) fn delete_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(d) = app.delete_ask.as_ref() else {
         return;
     };
@@ -624,7 +625,7 @@ pub(crate) fn delete_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 }
 
 /// The sheet while zeroing: how far, how long left, and Stop.
-pub(crate) fn zeroing_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn zeroing_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(z) = app.zeroing.as_ref() else {
         return;
     };

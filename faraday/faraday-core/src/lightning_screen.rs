@@ -1,14 +1,15 @@
 //! The Lightning node key screen.
 
+use crate::Action;
+use crate::drawing::View;
 use crate::lightning::NodeSource;
 use crate::screens::{button_rows, guide_text, title};
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
-use crate::{Action, Faraday};
 use opensigner_core::strings::fill;
 
-pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if app.lightning.is_none() {
         return;
     }
@@ -41,7 +42,7 @@ pub(crate) fn draw(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// The way back, the title and what explains the page, as the desktop
 /// draws them. Returns where the page goes on.
-fn header(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32, guide: &str) -> f32 {
+fn header(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32, guide: &str) -> f32 {
     let Some(l) = app.lightning.as_ref() else {
         return y;
     };
@@ -66,7 +67,7 @@ fn header(app: &Faraday, ui: &mut Ui, x: f32, mut y: f32, width: f32, guide: &st
 /// values go; `below` is how far a value sits under its name. Returns
 /// where it ends.
 fn body(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     x: f32,
     mut y: f32,

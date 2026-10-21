@@ -5,13 +5,14 @@
 //! how many, and the two of their setup. Drawing only; what a press does
 //! is `backup_flow_steps.rs` and `backup_flow_wallet.rs`.
 
+use crate::Action;
 use crate::backup_flow::{BackupFlow, Step};
 use crate::backup_flow_steps::FlowAction as F;
+use crate::drawing::View;
 use crate::screens::stepper;
 use crate::strings::{EN as FEN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
-use crate::{Action, Faraday};
 
 fn fa(a: F) -> Action {
     Action::Flow(a)
@@ -25,14 +26,7 @@ fn fa(a: F) -> Action {
 /// stick is written nothing takes a press. Under The plan, each vault
 /// whose stick is not read yet is New or Existing, then what holds the
 /// way on, or Continue.
-pub(crate) fn where_body(
-    app: &Faraday,
-    f: &BackupFlow,
-    ui: &mut Ui,
-    x: f32,
-    y: f32,
-    w: f32,
-) -> f32 {
+pub(crate) fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::plan_cards::{self as cards, PlanCtx};
     let Some(ctx) = PlanCtx::flow(app, app.flow_index_of(f)) else {
         return 0.0;
@@ -160,7 +154,7 @@ fn card_head(
 
 /// The Make card of a wallet's flow: the keys are made in Make a new
 /// wallet, not here.
-pub(crate) fn make_body(app: &Faraday, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+pub(crate) fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     if f.made {
         let name = f.subject.as_ref().map_or(String::new(), |s| s.name.clone());
@@ -356,7 +350,7 @@ fn count_card(
 }
 
 /// Make a new wallet's question of vaults.
-pub(crate) fn create_where(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
+pub(crate) fn create_where(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
     let c = app.create.as_ref()?;
     Some(ask_card(
         ui,
@@ -369,7 +363,7 @@ pub(crate) fn create_where(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -
 }
 
 /// Make a new wallet's count of vaults.
-pub(crate) fn create_count(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
+pub(crate) fn create_count(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
     let c = app.create.as_ref()?;
     Some(count_card(
         ui,
@@ -382,7 +376,7 @@ pub(crate) fn create_count(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -
 }
 
 /// Restore's question of vaults.
-pub(crate) fn restore_where(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
+pub(crate) fn restore_where(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
     let r = app.restore.as_ref()?;
     Some(ask_card(
         ui,
@@ -395,7 +389,7 @@ pub(crate) fn restore_where(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) 
 }
 
 /// Restore's count of vaults.
-pub(crate) fn restore_count(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
+pub(crate) fn restore_count(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
     let r = app.restore.as_ref()?;
     Some(count_card(
         ui,
@@ -410,7 +404,7 @@ pub(crate) fn restore_count(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) 
 /// Make a new wallet's Bring in the sticks and Vaults cards: where the
 /// flow stands, and **Change**, which opens the flow on that card.
 pub(crate) fn create_flow_card(
-    app: &Faraday,
+    app: &View,
     ui: &mut Ui,
     step: Step,
     x: f32,

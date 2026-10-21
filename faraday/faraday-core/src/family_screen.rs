@@ -95,7 +95,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let scroll = app.family.scroll;
     let (next, again) = {
-        let app_ref: &Faraday = app;
+        let app_ref: &View = app;
         let mut draw_body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             body(app_ref, ui, ids[i], x, y, w)
         };
@@ -106,7 +106,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// The tab with something loaded already: each wallet and what it needs
 /// next, seeds no wallet uses, and the walk-through one press away.
-fn loaded(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
+fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
     let x = x0 + 48.0;
     let w = (cw - 96.0).min(980.0);
     let scrolled = app.family.scroll.y;
@@ -555,7 +555,7 @@ fn next_row(
     76.0
 }
 
-fn done(app: &Faraday, id: CardId) -> bool {
+fn done(app: &View, id: CardId) -> bool {
     match id {
         CardId::Page(p) => app.family_page_done(p),
         CardId::Step(n) => app.spend.as_ref().is_some_and(|s| s.done[n as usize]),
@@ -563,7 +563,7 @@ fn done(app: &Faraday, id: CardId) -> bool {
     }
 }
 
-fn summary(app: &Faraday, id: CardId) -> String {
+fn summary(app: &View, id: CardId) -> String {
     let s = match id {
         CardId::Page(page::MAP) => EN.family_six_stops,
         CardId::Page(page::SAFE) if app.online => EN.family_desktop_copy,
@@ -617,7 +617,7 @@ fn summary(app: &Faraday, id: CardId) -> String {
     s.to_string()
 }
 
-fn body(app: &Faraday, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
+fn body(app: &View, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     cy += match id {
         CardId::Page(page::MAP) => map(app, ui, x, cy, w),
@@ -675,7 +675,7 @@ fn body(app: &Faraday, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
-fn threshold(app: &Faraday) -> bool {
+fn threshold(app: &View) -> bool {
     app.spend
         .as_ref()
         .and_then(|s| s.wallet)
@@ -684,7 +684,7 @@ fn threshold(app: &Faraday) -> bool {
 }
 
 /// More about this: a quiet button, and the paragraphs while it is open.
-fn more(app: &Faraday, ui: &mut Ui, id: CardId, paras: &[String], x: f32, y: f32, w: f32) -> f32 {
+fn more(app: &View, ui: &mut Ui, id: CardId, paras: &[String], x: f32, y: f32, w: f32) -> f32 {
     let bit = more_bit(id);
     let shown = app.family.more & (1 << u32::from(bit)) != 0;
     let mut cy = y + 4.0;
@@ -710,7 +710,7 @@ fn more(app: &Faraday, ui: &mut Ui, id: CardId, paras: &[String], x: f32, y: f32
     cy - y
 }
 
-fn map(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn map(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let stops = text::map(app.medium);
     for (k, (place, head, line)) in stops.iter().enumerate() {
@@ -749,7 +749,7 @@ fn map(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// What do you have? (`docs/SCAN-TO-SIGN.md` §4): a vault when one is
 /// found, the two ways in, what came in, the next question, and the
 /// wallet once it is worked out.
-fn holding(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     // A vault, only when one is found.
     let files = app.vault_files();
@@ -928,7 +928,7 @@ fn wallet_once(w: &crate::wallet::Wallet) -> String {
 
 /// What came in, a line each, newest last: the seeds still loaded and
 /// the files still in Files.
-fn came_rows(app: &Faraday) -> Vec<String> {
+fn came_rows(app: &View) -> Vec<String> {
     let mut sheets = 0;
     let mut texts: Vec<String> = Vec::new();
     let mut rows = Vec::new();
@@ -1007,7 +1007,7 @@ fn came_rows(app: &Faraday) -> Vec<String> {
 }
 
 /// The next question, by what came in (`docs/SCAN-TO-SIGN.md` §4.3).
-fn question(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn question(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let may = app.may_load_keys();
     let typing = if may {
@@ -1070,7 +1070,7 @@ fn question(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// The vault route: the vaults, the stick, the passphrase, Unlock.
-fn vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let files = app.vault_files();
     // Open already: its seeds and wallets, all ticked at first, load
@@ -1224,7 +1224,7 @@ fn vault(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// A stick visit from this tab, or what stops one.
-fn stick_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) -> f32 {
+fn stick_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) -> f32 {
     let open = app.holds_secret() || !app.vaults.open.is_empty();
     let (style, note) = match (app.sticks.is_empty(), open) {
         (true, _) => (
@@ -1258,7 +1258,7 @@ fn stick_row(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) ->
 
 /// What opened: the wallet to spend from, its keys here, and its first
 /// address; a choice when several are loaded and none is chosen.
-fn opened(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn opened(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let chosen = app.family_wallet();
     if app.session.wallets.is_empty() {
@@ -1357,7 +1357,7 @@ fn opened(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 /// The shortcut over a card's first page: the PSBT made in Sparrow
 /// already, scanned at once, which goes to its Check.
-fn shortcut(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn shortcut(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if app.spend.is_some() {
         return 0.0;
     }
@@ -1390,7 +1390,7 @@ pub const SHORTCUT: &str = EN.family_i_have_the_psbt;
 
 /// Load the wallet in Sparrow, from the wallet's card: the shortcut, the
 /// wallet QR, its first address, It is loaded.
-fn loaded_in_sparrow(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn loaded_in_sparrow(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let Some(i) = app.family_wallet() else {
         return 0.0;
@@ -1427,7 +1427,7 @@ fn loaded_in_sparrow(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
 /// Check the money: the wallet as a QR code, and its addresses. For a
 /// wallet worked out from seeds alone, the ways tried, the way tried
 /// now, and No money shows for the next (`docs/SCAN-TO-SIGN.md` §5).
-fn check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let Some(i) = app.family_wallet() else {
         return 0.0;
@@ -1562,7 +1562,7 @@ fn check(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// Bring the transaction: scan it, copy it in, or one already in Files.
-fn bring(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     // From the wallet's card this is Write the payment's own: Scan the
     // PSBT is the shortcut here.
@@ -1673,7 +1673,7 @@ fn bring(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
-fn first_step(app: &Faraday) -> u8 {
+fn first_step(app: &View) -> u8 {
     app.spend
         .as_ref()
         .and_then(|s| s.steps.iter().copied().find(|&n| !s.done[n as usize]))
@@ -1684,7 +1684,7 @@ fn first_step(app: &Faraday) -> u8 {
 /// here, and while that is short of what the spend needs, Scan a key,
 /// the vaults to unlock and Collect a signature (`docs/SCAN-TO-SIGN.md`
 /// §3).
-fn signers(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let Some(s) = app.spend.as_ref() else {
         return 0.0;
@@ -1876,7 +1876,7 @@ fn signers(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// Put everything away: lock, write what waits, power off.
-fn away(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn away(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     for it in &app.outbox {
         ui.icon(x, cy + 6.0, 20.0, Icon::File, 11.0, MUTED);

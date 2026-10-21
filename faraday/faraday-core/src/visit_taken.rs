@@ -6,6 +6,7 @@
 //! under another vault's name never is, and the settings file is
 //! Faraday's own and not listed. With nothing taken there is no sheet.
 
+use crate::drawing::View;
 use crate::strings::EN;
 use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
@@ -221,7 +222,7 @@ impl Faraday {
 
 /// The Already on the stick sheet: a row per taken file, then Replace,
 /// Keep both and Cancel.
-pub(crate) fn taken_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+pub(crate) fn taken_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let title = fill(EN.visit_taken_already, &[app.medium.on_the()]);
     let rows: Vec<String> = app.visit.taken.iter().map(Taken::line).collect();
     let place = if ui.compact {
