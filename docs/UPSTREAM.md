@@ -335,6 +335,28 @@ Since the fork:
   `Compute::unchecked()`. Why: a screen that parses a description or
   derives an address while drawing does not compile. Nothing computed
   changes.
+- The token taken by PSBTs, QR codes and whole-file hashes, and the
+  process-wide counter removed (2026-10-21; `docs/COMPUTE.md` C3):
+  `osk-crypto`'s `Work` gains `QrEncode` and `FileHash`; new
+  `osk_crypto::sha256_whole(c, bytes)` counts `FileHash` (the plain
+  `sha256` stays for small fixed inputs). `osk-psbt`'s
+  `Psbt::parse_bytes` and `parse_base64` take the token and count
+  `PsbtParse` once the magic bytes match, as before; `message::sign`
+  takes it and counts `Sign`, and `sign::sign` counts `Sign` through it.
+  `osk-codec`'s `qr::encode` and `encode_bounded` count `QrEncode` once
+  each; `seedqr::encode_seedqr` and `encode_compact` take the token for
+  the code they make; `decode::decode_luma` and `decode_picture` count
+  `QrDecode` through it once the image's size holds. `work::set_counter`,
+  its `OnceLock`, the global `work::count` and the `count` feature are
+  gone, so `osk-crypto` is `no_std` in every build. `osk_ui::Canvas`
+  notes its own pixel work (`frost`, `snapshot`, `snapshot_into`,
+  `restore`, `blend_from`) with a counter its owner sets
+  (`Canvas::set_counter(fn(Work))`), none until one is set. Core's tests
+  and `fuzz/` (`psbt_parse`, `decode_luma`, `json`) use
+  `Compute::unchecked()`; `osk-ui`'s tests take `osk-crypto/unchecked` as
+  a dev-dependency. Why: every core count now goes through a token the
+  caller holds, and a frame's pixel work through the canvas it draws on.
+  Nothing computed changes.
 
 ## 4. Watching upstream
 

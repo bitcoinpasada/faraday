@@ -132,6 +132,7 @@ fn pass(
     let share = &dealt.shares[holding as usize];
     let pubshare = share.public_share(&secp);
     let mut psbt = osk_psbt::Psbt::parse_base64(
+        &c,
         core::str::from_utf8(bytes)
             .expect("the PSBT is base64 text")
             .trim(),
@@ -201,7 +202,7 @@ pub fn transcript(dir: &std::path::Path) -> String {
     let secp = Secp256k1::new();
     let file = carry_file(dir);
     let carry = osk_psbt::threshold::Carry::parse(&file).expect("the carry file");
-    let psbt = osk_psbt::Psbt::parse_bytes(&carry.psbt).expect("the carried PSBT");
+    let psbt = osk_psbt::Psbt::parse_bytes(&c, &carry.psbt).expect("the carried PSBT");
     let wallets = [policy()];
     let shares = [share_ref(SECOND_SHARE)];
     let ctx = osk_psbt::Context {

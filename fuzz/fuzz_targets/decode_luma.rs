@@ -23,5 +23,6 @@ fuzz_target!(|data: &[u8]| {
     let mut frame = vec![0u8; width * height];
     let n = rest.len().min(frame.len());
     frame[..n].copy_from_slice(&rest[..n]);
-    let _ = osk_codec::decode_luma(width, height, &frame);
+    let c = osk_crypto::work::Compute::unchecked();
+    let _ = osk_codec::decode_luma(&c, width, height, &frame);
 });

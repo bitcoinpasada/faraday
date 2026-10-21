@@ -9,6 +9,7 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 
+use osk_crypto::work::Work;
 use osk_shell_api::{DisplayInfo, Frame};
 use tiny_skia::{
     FillRule, Mask, Paint, PathBuilder, Pixmap, PremultipliedColorU8, Stroke, Transform,
@@ -56,6 +57,10 @@ pub struct Canvas {
     /// sheet was drawn over it, not the whole canvas.
     kept: Option<(usize, usize)>,
     damage: Option<Rect>,
+    /// Notes the canvas's own costly work, a blur or a whole copy, for
+    /// the application that budgets it ([`Canvas::set_counter`]); notes
+    /// nothing until one is set.
+    counter: fn(Work),
 }
 
 /// One thing a frame drew and the box its visible ink covers.
@@ -103,7 +108,16 @@ impl Canvas {
             lines: 0,
             kept: None,
             damage: None,
+            counter: |_| {},
         }
+    }
+
+    /// Has the canvas note its own costly work, a blur
+    /// ([`Work::Blur`]) or a whole copy ([`Work::FullCanvas`]), with `f`:
+    /// the pixel work a frame does, which takes no token
+    /// (`docs/COMPUTE.md` §2.2). Cheap.
+    pub fn set_counter(&mut self, f: fn(Work)) {
+        self.counter = f;
     }
 
     /// Notes that the pixels of `r` may have been written.
@@ -383,7 +397,7 @@ impl Canvas {
     /// it is meant to be done once and kept ([`Canvas::snapshot`],
     /// [`Canvas::restore`]).
     pub fn frost(&mut self, scale: u32, radius: u32, tint: Color) {
-        osk_crypto::work::count(osk_crypto::work::Work::Blur);
+        (self.counter)(Work::Blur);
         self.damaged(self.bounds());
         let (w, h) = (self.pixmap.width() as usize, self.pixmap.height() as usize);
         let s = scale.max(1) as usize;
@@ -502,7 +516,7 @@ impl Canvas {
     /// are copied only where something was drawn since: kept pixels
     /// are not changed in place.
     pub fn restore(&mut self, pixels: &[u8]) {
-        osk_crypto::work::count(osk_crypto::work::Work::FullCanvas);
+        (self.counter)(Work::FullCanvas);
         if pixels.len() != self.pixmap.data().len() {
             return;
         }
@@ -527,13 +541,13 @@ impl Canvas {
 
     /// A copy of every pixel, for [`Canvas::blend_from`] to fade from.
     pub fn snapshot(&self) -> Vec<u8> {
-        osk_crypto::work::count(osk_crypto::work::Work::FullCanvas);
+        (self.counter)(Work::FullCanvas);
         self.pixmap.data().to_vec()
     }
 
     /// The same copy into `into`, reusing its room.
     pub fn snapshot_into(&self, into: &mut Vec<u8>) {
-        osk_crypto::work::count(osk_crypto::work::Work::FullCanvas);
+        (self.counter)(Work::FullCanvas);
         into.clear();
         into.extend_from_slice(self.pixmap.data());
     }
@@ -542,7 +556,7 @@ impl Canvas {
     /// of this canvas, to what is drawn now: a cross-fade. A snapshot of
     /// another size leaves the canvas as it is.
     pub fn blend_from(&mut self, before: &[u8], t: f32) {
-        osk_crypto::work::count(osk_crypto::work::Work::FullCanvas);
+        (self.counter)(Work::FullCanvas);
         if before.len() != self.pixmap.data().len() {
             return;
         }

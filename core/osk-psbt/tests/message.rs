@@ -73,6 +73,7 @@ fn key_of(
 /// the same message with the same key produces the same bytes.
 #[test]
 fn bip137_vectors() {
+    let c = Compute::unchecked();
     let recs = records("tools/vectors/message/bip137.txt");
     assert_eq!(recs.len(), 14);
     for rec in &recs {
@@ -123,6 +124,7 @@ fn bip137_vectors() {
             Nonce::LowR
         };
         let signed = message::sign(
+            &c,
             &secp(),
             &secret,
             script,
@@ -182,6 +184,7 @@ fn bip322_transaction_vectors() {
 /// than called invalid.
 #[test]
 fn bip322_simple_vectors() {
+    let c = Compute::unchecked();
     let vectors = vectors_json("tools/vectors/message/bip322-basic.json");
     let cases = vectors["simple"].as_array().expect("simple");
     assert_eq!(cases.len(), 4);
@@ -229,6 +232,7 @@ fn bip322_simple_vectors() {
         let wif = case["private_keys"][0].as_str().expect("private key");
         let secret = PrivateKey::from_wif(wif).expect("wif").inner;
         let signed = message::sign(
+            &c,
             &secp(),
             &secret,
             script,
@@ -310,6 +314,7 @@ fn sign_then_verify_round_trip() {
             for format in Format::for_script(script) {
                 for nonce in [Nonce::LowR, Nonce::First] {
                     let signed = message::sign(
+                        &c,
                         derived.secp(),
                         derived.secret_key(),
                         script,
@@ -344,8 +349,10 @@ fn sign_then_verify_round_trip() {
 /// A signature does not verify for an address it was not made for.
 #[test]
 fn a_signature_belongs_to_one_address() {
+    let c = Compute::unchecked();
     let secret = PrivateKey::from_wif(BIP322_KEY).expect("wif").inner;
     let signed = message::sign(
+        &c,
         &secp(),
         &secret,
         ScriptType::NativeSegwit,

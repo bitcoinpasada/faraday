@@ -22,19 +22,22 @@ fn bip174_round_trips_and_rejections() {
         match rec.get("expect") {
             "invalid" => {
                 assert!(
-                    Psbt::parse_bytes(&bytes).is_err(),
+                    Psbt::parse_bytes(&c, &bytes).is_err(),
                     "accepted invalid: {case}"
                 );
-                assert!(Psbt::parse_base64(b64).is_err(), "accepted invalid: {case}");
+                assert!(
+                    Psbt::parse_base64(&c, b64).is_err(),
+                    "accepted invalid: {case}"
+                );
                 invalid += 1;
             }
             expect => {
-                let psbt = Psbt::parse_bytes(&bytes).unwrap_or_else(|e| panic!("{case}: {e}"));
+                let psbt = Psbt::parse_bytes(&c, &bytes).unwrap_or_else(|e| panic!("{case}: {e}"));
                 assert_eq!(psbt.to_bytes(), bytes, "binary round trip: {case}");
                 assert_eq!(psbt.to_base64(), b64, "base64 round trip: {case}");
-                let from_text = Psbt::parse_base64(b64).unwrap();
+                let from_text = Psbt::parse_base64(&c, b64).unwrap();
                 assert_eq!(from_text, psbt);
-                assert_eq!(Psbt::parse_base64(&psbt.to_base64()).unwrap(), psbt);
+                assert_eq!(Psbt::parse_base64(&c, &psbt.to_base64()).unwrap(), psbt);
                 if expect == "signer-fails" {
                     let ctx = Context {
                         network: Network::Testnet,
@@ -70,19 +73,20 @@ fn bip174_round_trips_and_rejections() {
 /// vector is compared after parsing.
 #[test]
 fn bip174_role_vectors_round_trip() {
+    let c = Compute::unchecked();
     let recs = records("tools/vectors/psbt/bip174-roles.txt");
     let mut n = 0;
     for rec in recs.iter().filter(|r| r.opt("hex").is_some()) {
         let case = rec.get("case");
         let bytes = unhex(rec.get("hex"));
-        let psbt = Psbt::parse_bytes(&bytes).unwrap_or_else(|e| panic!("{case}: {e}"));
+        let psbt = Psbt::parse_bytes(&c, &bytes).unwrap_or_else(|e| panic!("{case}: {e}"));
         assert_eq!(
-            Psbt::parse_base64(rec.get("base64")).unwrap(),
+            Psbt::parse_base64(&c, rec.get("base64")).unwrap(),
             psbt,
             "{case}"
         );
         let again = psbt.to_bytes();
-        assert_eq!(Psbt::parse_bytes(&again).unwrap(), psbt, "{case}");
+        assert_eq!(Psbt::parse_bytes(&c, &again).unwrap(), psbt, "{case}");
         if case == "role combiner" {
             assert_ne!(again, bytes, "unsorted vector, see doc comment");
         } else {
@@ -96,15 +100,19 @@ fn bip174_role_vectors_round_trip() {
 
 #[test]
 fn parse_errors() {
-    assert_eq!(Psbt::parse_bytes(b"psbt"), Err(Error::NotPsbt));
-    assert_eq!(Psbt::parse_bytes(b"\x02\x00\x00\x00"), Err(Error::NotPsbt));
-    assert_eq!(Psbt::parse_base64("cHNidP8*"), Err(Error::Base64));
+    let c = Compute::unchecked();
+    assert_eq!(Psbt::parse_bytes(&c, b"psbt"), Err(Error::NotPsbt));
+    assert_eq!(
+        Psbt::parse_bytes(&c, b"\x02\x00\x00\x00"),
+        Err(Error::NotPsbt)
+    );
+    assert_eq!(Psbt::parse_base64(&c, "cHNidP8*"), Err(Error::Base64));
     assert!(matches!(
-        Psbt::parse_base64("cHNidP8="),
+        Psbt::parse_base64(&c, "cHNidP8="),
         Err(Error::Parse(_))
     ));
     // Trailing newline and surrounding whitespace are fine.
     let ok = "cHNidP8BAAoAAAAAAAAAAAAAAA==\n";
-    assert!(Psbt::parse_base64(ok).is_ok());
-    assert!(Psbt::parse_base64(&format!("  {ok}\n")).is_ok());
+    assert!(Psbt::parse_base64(&c, ok).is_ok());
+    assert!(Psbt::parse_base64(&c, &format!("  {ok}\n")).is_ok());
 }

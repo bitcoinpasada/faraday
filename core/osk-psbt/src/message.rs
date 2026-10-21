@@ -63,6 +63,7 @@ use bitcoin::{
     Txid, Witness, absolute, consensus, transaction,
 };
 use osk_bip::keys::{Network, ScriptType};
+use osk_crypto::work::{Compute, Work};
 
 use crate::base64;
 use crate::sign::{Aux, Nonce};
@@ -139,8 +140,8 @@ const P2PKH_BASE: u8 = 31;
 const P2SH_P2WPKH_BASE: u8 = 35;
 const P2WPKH_BASE: u8 = 39;
 
-/// Signs `message` for the address `secret` has of `script` on
-/// `network`, with the RFC 6979 nonce `nonce` names and, for a taproot
+/// Costs a signature and the key's address: signs `message` for the
+/// address `secret` has of `script` on `network`, with the RFC 6979 nonce `nonce` names and, for a taproot
 /// BIP-322 signature, the auxiliary randomness `aux` carries.
 ///
 /// The address is derived here from the key that signs it, so the
@@ -153,6 +154,7 @@ const P2WPKH_BASE: u8 = 39;
 /// runs in an unblinded context.
 #[allow(clippy::too_many_arguments)]
 pub fn sign(
+    c: &Compute,
     secp: &Secp256k1<All>,
     secret: &SecretKey,
     script: ScriptType,
@@ -162,7 +164,7 @@ pub fn sign(
     nonce: Nonce,
     aux: Aux,
 ) -> Result<Signed, Error> {
-    osk_crypto::work::count(osk_crypto::work::Work::Sign);
+    c.count(Work::Sign);
     if !Format::for_script(script).contains(&format) {
         return Err(Error::UnsupportedFormat);
     }

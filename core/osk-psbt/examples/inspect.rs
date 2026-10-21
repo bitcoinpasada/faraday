@@ -92,14 +92,15 @@ fn parse_args() -> Result<Args, String> {
 }
 
 fn load_psbt(arg: &str) -> Result<Psbt, String> {
+    let c = Compute::unchecked();
     if let Ok(bytes) = std::fs::read(arg) {
         if bytes.starts_with(b"psbt\xff") {
-            return Psbt::parse_bytes(&bytes).map_err(|e| e.to_string());
+            return Psbt::parse_bytes(&c, &bytes).map_err(|e| e.to_string());
         }
         let text = String::from_utf8(bytes).map_err(|_| "file is neither binary PSBT nor text")?;
-        return Psbt::parse_base64(&text).map_err(|e| e.to_string());
+        return Psbt::parse_base64(&c, &text).map_err(|e| e.to_string());
     }
-    Psbt::parse_base64(arg).map_err(|e| e.to_string())
+    Psbt::parse_base64(&c, arg).map_err(|e| e.to_string())
 }
 
 fn master_from(words: &str, passphrase: &str, network: Network) -> Result<MasterKey, String> {

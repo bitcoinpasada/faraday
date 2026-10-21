@@ -3,9 +3,17 @@ use sha2::{Digest, Sha256, Sha512};
 
 use crate::work::{Compute, Work};
 
-/// SHA-256 of `data`.
+/// SHA-256 of `data`: for small, fixed inputs (a key, a checksum's
+/// bytes). A whole file is hashed with [`sha256_whole`].
 pub fn sha256(data: &[u8]) -> [u8; 32] {
     Sha256::digest(data).into()
+}
+
+/// Costs a SHA-256 pass over every byte: the SHA-256 of a whole file or
+/// transaction, `bytes`, counted as [`Work::FileHash`].
+pub fn sha256_whole(c: &Compute, bytes: &[u8]) -> [u8; 32] {
+    c.count(Work::FileHash);
+    Sha256::digest(bytes).into()
 }
 
 /// HMAC-SHA-512 of `msg` under `key`. Any key length is accepted, as

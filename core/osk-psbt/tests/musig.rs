@@ -41,8 +41,9 @@ fn vectors() -> PathBuf {
 }
 
 fn fixture(name: &str) -> Psbt {
+    let c = Compute::unchecked();
     let text = std::fs::read_to_string(vectors().join(name)).expect("the fixture");
-    Psbt::parse_base64(text.trim()).expect("a PSBT")
+    Psbt::parse_base64(&c, text.trim()).expect("a PSBT")
 }
 
 fn core_policy() -> WalletPolicy {
@@ -277,8 +278,9 @@ fn an_unregistered_musig_wallet_is_blocked() {
 /// byte, which is what carrying them in the `unknown` maps is for.
 #[test]
 fn the_fields_survive_a_round_trip() {
+    let c = Compute::unchecked();
     let signed = fixture(example::CORE_FIRST_SIGNED_NAME);
-    let again = Psbt::parse_bytes(&signed.to_bytes()).unwrap();
+    let again = Psbt::parse_bytes(&c, &signed.to_bytes()).unwrap();
     assert_eq!(signed.to_bytes(), again.to_bytes());
     let input = &again.inner().inputs[0];
     assert_eq!(osk_psbt::musig::pub_nonces(input).unwrap().len(), 2);
@@ -852,7 +854,7 @@ fn the_device_goes_first_and_finishes_when_the_transaction_returns() {
     // A second pass over the same PSBT draws no nonce and makes no
     // second partial signature: the secret nonce it would need is gone,
     // and BIP-327 says a participant signs once.
-    let mut again = Psbt::parse_bytes(&psbt.to_bytes()).unwrap();
+    let mut again = Psbt::parse_bytes(&c, &psbt.to_bytes()).unwrap();
     {
         let view = session.as_ref().unwrap().view();
         let ctx = context_with(&keys, &wallets, Some(&view));

@@ -79,7 +79,7 @@ pub fn core_first_signed(dir: &Path) -> Psbt {
     let master = abandon();
     let policy = policy(dir);
     let text = std::fs::read_to_string(dir.join(CORE_FIRST_NAME)).expect("Core's round-1 PSBT");
-    let mut psbt = Psbt::parse_base64(text.trim()).expect("a PSBT");
+    let mut psbt = Psbt::parse_base64(&c, text.trim()).expect("a PSBT");
     let keys = [KeyRef::from_master(&c, &master, 0).expect("accounts")];
     let wallets = [policy];
     let ctx = Context {
@@ -122,7 +122,7 @@ pub fn device_first_nonce(dir: &Path) -> (Psbt, Option<MusigSession>) {
     let master = abandon();
     let policy = policy(dir);
     let text = std::fs::read_to_string(dir.join(DEVICE_FIRST_NAME)).expect("the funded PSBT");
-    let mut psbt = Psbt::parse_base64(text.trim()).expect("a PSBT");
+    let mut psbt = Psbt::parse_base64(&c, text.trim()).expect("a PSBT");
     let keys = [KeyRef::from_master(&c, &master, 0).expect("accounts")];
     let wallets = [policy];
     let ctx = Context {
@@ -163,7 +163,7 @@ pub fn device_first_signed(dir: &Path) -> Psbt {
     let (_, mut session) = device_first_nonce(dir);
     let text = std::fs::read_to_string(dir.join(DEVICE_FIRST_CORE_NAME))
         .expect("Core's answer to the device's nonce");
-    let mut psbt = Psbt::parse_base64(text.trim()).expect("a PSBT");
+    let mut psbt = Psbt::parse_base64(&c, text.trim()).expect("a PSBT");
     let keys = [KeyRef::from_master(&c, &master, 0).expect("accounts")];
     let wallets = [policy];
     let view = session.as_ref().map(|s: &MusigSession| s.view());

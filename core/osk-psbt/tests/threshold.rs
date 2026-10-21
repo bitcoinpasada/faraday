@@ -27,8 +27,9 @@ fn dir() -> PathBuf {
 }
 
 fn funded() -> Psbt {
+    let c = Compute::unchecked();
     let text = std::fs::read_to_string(dir().join(fixture::FIRST_NAME)).expect("the funded PSBT");
-    Psbt::parse_base64(text.trim()).expect("a PSBT")
+    Psbt::parse_base64(&c, text.trim()).expect("a PSBT")
 }
 
 /// One location's pass: which share it holds, which others it chooses,
@@ -118,6 +119,7 @@ fn policy() -> WalletPolicy {
 /// the carry file, the finished transaction, and the witness a node
 /// would see.
 fn route(first: u32, second: u32) -> (Vec<u8>, Psbt) {
+    let c = Compute::unchecked();
     let dealt = fixture::dealt();
     let policy = policy();
     let mut psbt = funded();
@@ -130,7 +132,7 @@ fn route(first: u32, second: u32) -> (Vec<u8>, Psbt) {
     drop(section);
 
     let carry = Carry::parse(&file).expect("the carry file");
-    let mut psbt = Psbt::parse_bytes(&carry.psbt).expect("the carried PSBT");
+    let mut psbt = Psbt::parse_bytes(&c, &carry.psbt).expect("the carried PSBT");
     let result = pass(
         &mut psbt,
         &dealt,
@@ -187,6 +189,7 @@ fn the_two_orders_give_the_same_group_and_a_valid_signature() {
 
 #[test]
 fn three_of_three_signs_at_three_locations() {
+    let c = Compute::unchecked();
     let secp = Secp256k1::new();
     // A 3-of-3 over the fixture scalars: a different group, a different
     // wallet, and a spend of its own first address.
@@ -216,7 +219,7 @@ fn three_of_three_signs_at_three_locations() {
     // partial signature; the last one aggregates.
     for (n, holding) in [1u32, 2].into_iter().enumerate() {
         let carry = Carry::parse(&file).expect("the carry file");
-        let mut psbt = Psbt::parse_bytes(&carry.psbt).expect("the carried PSBT");
+        let mut psbt = Psbt::parse_bytes(&c, &carry.psbt).expect("the carried PSBT");
         let result = pass(
             &mut psbt,
             &dealt,
@@ -303,11 +306,12 @@ fn spend_of(record: &ThresholdRecord, policy: &WalletPolicy) -> Psbt {
             ),
         ),
     );
-    Psbt::parse_bytes(&inner.serialize()).expect("a PSBT")
+    Psbt::parse_bytes(&c, &inner.serialize()).expect("a PSBT")
 }
 
 #[test]
 fn a_tampered_carry_file_is_refused_because_the_nonce_is_not_its_record() {
+    let c = Compute::unchecked();
     let dealt = fixture::dealt();
     let policy = policy();
     let (file, _) = route(0, 1);
@@ -318,7 +322,7 @@ fn a_tampered_carry_file_is_refused_because_the_nonce_is_not_its_record() {
     let at = 4 + 1 + 1 + 66 + 1 + 4 + 33 + 32;
     tampered[at] ^= 0x01;
     let carry = Carry::parse(&tampered).expect("still a carry file");
-    let psbt = Psbt::parse_bytes(&carry.psbt).expect("the carried PSBT");
+    let psbt = Psbt::parse_bytes(&c, &carry.psbt).expect("the carried PSBT");
     assert_eq!(
         review(&psbt, &dealt, &policy, 1, Some(&carry.section)),
         vec![WarningKind::ThresholdRefused(
@@ -329,18 +333,19 @@ fn a_tampered_carry_file_is_refused_because_the_nonce_is_not_its_record() {
 
 #[test]
 fn reading_the_same_carry_file_twice_gives_the_identical_signature() {
+    let c = Compute::unchecked();
     let dealt = fixture::dealt();
     let policy = policy();
     let (file, _) = route(0, 1);
     let once = {
         let carry = Carry::parse(&file).expect("the carry file");
-        let mut psbt = Psbt::parse_bytes(&carry.psbt).expect("the carried PSBT");
+        let mut psbt = Psbt::parse_bytes(&c, &carry.psbt).expect("the carried PSBT");
         pass(&mut psbt, &dealt, &policy, 1, &[], Some(&carry.section)).expect("second location");
         psbt
     };
     let twice = {
         let carry = Carry::parse(&file).expect("the carry file");
-        let mut psbt = Psbt::parse_bytes(&carry.psbt).expect("the carried PSBT");
+        let mut psbt = Psbt::parse_bytes(&c, &carry.psbt).expect("the carried PSBT");
         pass(&mut psbt, &dealt, &policy, 1, &[], Some(&carry.section)).expect("second location");
         psbt
     };
@@ -371,11 +376,12 @@ fn another_signer_set_under_one_seed_draws_a_new_nonce() {
 
 #[test]
 fn a_substituted_nonce_breaks_the_first_share_s_partial_signature() {
+    let c = Compute::unchecked();
     let dealt = fixture::dealt();
     let policy = policy();
     let (file, _) = route(0, 1);
     let carry = Carry::parse(&file).expect("the carry file");
-    let mut psbt = Psbt::parse_bytes(&carry.psbt).expect("the carried PSBT");
+    let mut psbt = Psbt::parse_bytes(&c, &carry.psbt).expect("the carried PSBT");
     // Share 0's public nonce replaced by share 1's, which is a point on
     // the curve and a nonce nobody signed under.
     let secp = Secp256k1::new();
@@ -401,11 +407,12 @@ fn a_substituted_nonce_breaks_the_first_share_s_partial_signature() {
 
 #[test]
 fn a_file_for_another_signer_set_is_refused() {
+    let c = Compute::unchecked();
     let dealt = fixture::dealt();
     let policy = policy();
     let (file, _) = route(0, 1);
     let carry = Carry::parse(&file).expect("the carry file");
-    let psbt = Psbt::parse_bytes(&carry.psbt).expect("the carried PSBT");
+    let psbt = Psbt::parse_bytes(&c, &carry.psbt).expect("the carried PSBT");
     let secp = Secp256k1::new();
     let mut section = CarrySection::new(vec![
         dealt.shares[0].public_share(&secp),
@@ -430,11 +437,12 @@ fn a_file_for_another_signer_set_is_refused() {
 
 #[test]
 fn a_file_for_another_transaction_is_refused() {
+    let c = Compute::unchecked();
     let dealt = fixture::dealt();
     let policy = policy();
     let (file, _) = route(0, 1);
     let carry = Carry::parse(&file).expect("the carry file");
-    let psbt = Psbt::parse_bytes(&carry.psbt).expect("the carried PSBT");
+    let psbt = Psbt::parse_bytes(&c, &carry.psbt).expect("the carried PSBT");
     let mut section = CarrySection::new(carry.section.signers.clone());
     for entry in &carry.section.entries {
         let mut sighash = entry.sighash;
@@ -457,11 +465,12 @@ fn a_file_for_another_transaction_is_refused() {
 
 #[test]
 fn a_file_for_another_share_is_refused() {
+    let c = Compute::unchecked();
     let dealt = fixture::dealt();
     let policy = policy();
     let (file, _) = route(0, 1);
     let carry = Carry::parse(&file).expect("the carry file");
-    let psbt = Psbt::parse_bytes(&carry.psbt).expect("the carried PSBT");
+    let psbt = Psbt::parse_bytes(&c, &carry.psbt).expect("the carried PSBT");
     // Share 2 is not one of the signers this transaction names.
     assert_eq!(
         review(&psbt, &dealt, &policy, 2, Some(&carry.section)),
@@ -476,11 +485,12 @@ fn a_file_for_another_share_is_refused() {
 
 #[test]
 fn nonces_with_no_file_and_a_file_with_no_nonces_are_both_refused() {
+    let c = Compute::unchecked();
     let dealt = fixture::dealt();
     let policy = policy();
     let (file, _) = route(0, 1);
     let carry = Carry::parse(&file).expect("the carry file");
-    let psbt = Psbt::parse_bytes(&carry.psbt).expect("the carried PSBT");
+    let psbt = Psbt::parse_bytes(&c, &carry.psbt).expect("the carried PSBT");
     assert_eq!(
         review(&psbt, &dealt, &policy, 1, None),
         vec![WarningKind::ThresholdRefused(
@@ -530,7 +540,7 @@ fn a_threshold_input_of_an_unregistered_group_is_blocked() {
     };
     let (file, _) = route(0, 1);
     let carry = Carry::parse(&file).expect("the carry file");
-    let psbt = Psbt::parse_bytes(&carry.psbt).expect("the carried PSBT");
+    let psbt = Psbt::parse_bytes(&c, &carry.psbt).expect("the carried PSBT");
     let blocked: Vec<WarningKind> = inspect(&c, &psbt, &ctx)
         .warnings
         .iter()

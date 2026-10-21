@@ -95,8 +95,9 @@ pub fn policy() -> WalletPolicy {
 
 /// Core's funded spend, read from the committed fixture.
 pub fn first(dir: &Path) -> Psbt {
+    let c = Compute::unchecked();
     let text = std::fs::read_to_string(dir.join(FIRST_NAME)).expect("Core's funded PSBT");
-    Psbt::parse_base64(text.trim()).expect("a PSBT")
+    Psbt::parse_base64(&c, text.trim()).expect("a PSBT")
 }
 
 /// Core's spend signed by the keys `holders` names. `sign` writes one

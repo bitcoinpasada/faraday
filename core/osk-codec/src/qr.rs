@@ -20,6 +20,7 @@
 use alloc::vec::Vec;
 use core::fmt;
 
+use osk_crypto::work::{Compute, Work};
 use zeroize::{Zeroize, Zeroizing};
 
 /// Largest side of a QR code in modules (version 40).
@@ -189,13 +190,28 @@ impl Drop for QrMatrix {
     }
 }
 
-/// Encodes `payload` at level `ecc` in the smallest version that fits.
-pub fn encode(payload: Payload<'_>, ecc: Ecc) -> Result<QrMatrix, Error> {
-    encode_bounded(payload, ecc, 40)
+/// Costs a QR encoding (the codewords, the error correction and eight
+/// masks scored): encodes `payload` at level `ecc` in the smallest
+/// version that fits.
+pub fn encode(c: &Compute, payload: Payload<'_>, ecc: Ecc) -> Result<QrMatrix, Error> {
+    c.count(Work::QrEncode);
+    encode_up_to(payload, ecc, 40)
 }
 
-/// [`encode`] restricted to versions up to `max_version` (1–40).
-pub fn encode_bounded(payload: Payload<'_>, ecc: Ecc, max_version: u8) -> Result<QrMatrix, Error> {
+/// Costs a QR encoding: [`encode`] restricted to versions up to
+/// `max_version` (1–40).
+pub fn encode_bounded(
+    c: &Compute,
+    payload: Payload<'_>,
+    ecc: Ecc,
+    max_version: u8,
+) -> Result<QrMatrix, Error> {
+    c.count(Work::QrEncode);
+    encode_up_to(payload, ecc, max_version)
+}
+
+/// [`encode_bounded`] uncounted.
+fn encode_up_to(payload: Payload<'_>, ecc: Ecc, max_version: u8) -> Result<QrMatrix, Error> {
     let max_version = max_version.clamp(1, 40);
     let (mode, count, data_bits) = segment_bits(payload)?;
     // Smallest version whose data capacity holds the segment.
@@ -882,18 +898,27 @@ mod tests {
 
     #[test]
     fn seedqr_sizes_follow_the_specification() {
+        let c = Compute::unchecked();
         // 48 digits → 25×25 (version 2), 96 → 29×29; 16 bytes → 21×21,
         // 32 bytes → 25×25, all at level L (SeedQR README).
         let d48 = [b'1'; 48];
-        assert_eq!(encode(Payload::Numeric(&d48), Ecc::Low).unwrap().size(), 25);
-        let d96 = [b'7'; 96];
-        assert_eq!(encode(Payload::Numeric(&d96), Ecc::Low).unwrap().size(), 29);
         assert_eq!(
-            encode(Payload::Bytes(&[0u8; 16]), Ecc::Low).unwrap().size(),
+            encode(&c, Payload::Numeric(&d48), Ecc::Low).unwrap().size(),
+            25
+        );
+        let d96 = [b'7'; 96];
+        assert_eq!(
+            encode(&c, Payload::Numeric(&d96), Ecc::Low).unwrap().size(),
+            29
+        );
+        assert_eq!(
+            encode(&c, Payload::Bytes(&[0u8; 16]), Ecc::Low)
+                .unwrap()
+                .size(),
             21
         );
         assert_eq!(
-            encode(Payload::Bytes(&[0xffu8; 32]), Ecc::Low)
+            encode(&c, Payload::Bytes(&[0xffu8; 32]), Ecc::Low)
                 .unwrap()
                 .size(),
             25
@@ -902,10 +927,11 @@ mod tests {
 
     #[test]
     fn known_answer_version_1() {
+        let c = Compute::unchecked();
         // "HELLO WORLD" alphanumeric at level Q: the canonical example
         // (ISO/IEC 18004 annex I): version 1, 21 modules, and the format
         // information for level Q with the chosen mask reads back.
-        let qr = encode(Payload::Alphanumeric(b"HELLO WORLD"), Ecc::Quartile).unwrap();
+        let qr = encode(&c, Payload::Alphanumeric(b"HELLO WORLD"), Ecc::Quartile).unwrap();
         assert_eq!(qr.size(), 21);
         assert_eq!(qr.version(), 1);
         // Finder patterns in three corners, dark module next to the
@@ -920,26 +946,31 @@ mod tests {
 
     #[test]
     fn rejects_bad_characters_and_oversize() {
+        let c = Compute::unchecked();
         assert_eq!(
-            err(encode(Payload::Numeric(b"12a"), Ecc::Low)),
+            err(encode(&c, Payload::Numeric(b"12a"), Ecc::Low)),
             Error::BadCharacter
         );
         assert_eq!(
-            err(encode(Payload::Alphanumeric(b"abc"), Ecc::Low)),
+            err(encode(&c, Payload::Alphanumeric(b"abc"), Ecc::Low)),
             Error::BadCharacter
         );
         let big = alloc::vec![0u8; 2954];
-        assert_eq!(err(encode(Payload::Bytes(&big), Ecc::Low)), Error::TooLong);
-        assert!(encode(Payload::Bytes(&big[..2953]), Ecc::Low).is_ok());
         assert_eq!(
-            err(encode_bounded(Payload::Bytes(&big[..100]), Ecc::Low, 1)),
+            err(encode(&c, Payload::Bytes(&big), Ecc::Low)),
+            Error::TooLong
+        );
+        assert!(encode(&c, Payload::Bytes(&big[..2953]), Ecc::Low).is_ok());
+        assert_eq!(
+            err(encode_bounded(&c, Payload::Bytes(&big[..100]), Ecc::Low, 1)),
             Error::TooLong
         );
     }
 
     #[test]
     fn luma_render_has_a_quiet_zone() {
-        let qr = encode(Payload::Bytes(b"x"), Ecc::Low).unwrap();
+        let c = Compute::unchecked();
+        let qr = encode(&c, Payload::Bytes(b"x"), Ecc::Low).unwrap();
         let (w, h, px) = qr.to_luma(2, QUIET_ZONE);
         assert_eq!((w, h), (58, 58));
         assert!(px[..w * 8].iter().all(|&p| p == 255), "top border light");

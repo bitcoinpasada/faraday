@@ -279,7 +279,7 @@ fn bip174_signer_finalizer_extractor() {
     let master = MasterKey::from_xpriv(&c, tprv).unwrap();
     let fp = master.fingerprint();
 
-    let mut psbt = Psbt::parse_bytes(&unhex(get("updater-sighash-all").get("hex"))).unwrap();
+    let mut psbt = Psbt::parse_bytes(&c, &unhex(get("updater-sighash-all").get("hex"))).unwrap();
     let keys = [KeyRef::from_master(&c, &master, 0).unwrap()];
     let ctx = Context {
         network: Network::Testnet,
@@ -355,8 +355,8 @@ fn bip174_signer_finalizer_extractor() {
     // The same PSBT with the p2sh-p2wsh input already final, which is
     // how the finalizer vector leaves it. A final input is signed by
     // nobody, so the amount it states is nobody's business any more.
-    let finalizer = Psbt::parse_bytes(&unhex(get("finalizer").get("hex"))).unwrap();
-    let mut psbt = Psbt::parse_bytes(&unhex(get("updater-sighash-all").get("hex"))).unwrap();
+    let finalizer = Psbt::parse_bytes(&c, &unhex(get("finalizer").get("hex"))).unwrap();
+    let mut psbt = Psbt::parse_bytes(&c, &unhex(get("updater-sighash-all").get("hex"))).unwrap();
     psbt.inner_mut().inputs[1] = finalizer.inner().inputs[1].clone();
 
     let r = sign(
@@ -377,7 +377,7 @@ fn bip174_signer_finalizer_extractor() {
     assert_eq!(r.signed_inputs.len(), 2, "both keys of the one open input");
     assert!(r.complete);
     // Both signatures are the bytes Bitcoin Core produced for that input.
-    let combiner = Psbt::parse_bytes(&unhex(get("combiner").get("hex"))).unwrap();
+    let combiner = Psbt::parse_bytes(&c, &unhex(get("combiner").get("hex"))).unwrap();
     assert_eq!(
         psbt.inner().inputs[0].partial_sigs,
         combiner.inner().inputs[0].partial_sigs,
@@ -425,8 +425,8 @@ fn bip174_under_low_r() {
         carry: None,
     };
 
-    let finalizer = Psbt::parse_bytes(&unhex(get("finalizer").get("hex"))).unwrap();
-    let mut psbt = Psbt::parse_bytes(&unhex(get("updater-sighash-all").get("hex"))).unwrap();
+    let finalizer = Psbt::parse_bytes(&c, &unhex(get("finalizer").get("hex"))).unwrap();
+    let mut psbt = Psbt::parse_bytes(&c, &unhex(get("updater-sighash-all").get("hex"))).unwrap();
     psbt.inner_mut().inputs[1] = finalizer.inner().inputs[1].clone();
     let unsigned = psbt.clone();
     sign(
@@ -444,7 +444,7 @@ fn bip174_under_low_r() {
         &[],
     )
     .unwrap();
-    let combiner = Psbt::parse_bytes(&unhex(get("combiner").get("hex"))).unwrap();
+    let combiner = Psbt::parse_bytes(&c, &unhex(get("combiner").get("hex"))).unwrap();
 
     let secp = Secp256k1::new();
     let (mut same, mut ground) = (0, 0);

@@ -14,11 +14,6 @@ repository.workspace = true
 # Android, neither of which may link `libc`. The desktop and Pi shells
 # turn it on through their dependency on this crate.
 pin-pages = ["dep:libc"]
-# The costly functions count themselves with a counter the application
-# installs (`work`), for an application that budgets its work per frame.
-# Needs `std` for the process-wide counter; off by default, so the crate
-# stays `no_std`. Faraday's app core turns it on.
-count = []
 # `work::Compute::unchecked`, a token that counts nothing, for code with
 # no drawing guarantee to keep: OpenSigner's app, core's tests, fuzz
 # targets and tools (docs/COMPUTE.md §3). Faraday mints with

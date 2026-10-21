@@ -38,7 +38,8 @@ const MUSIG_POLICY: &str = include_str!("../../../tools/vectors/psbt/wallet-musi
 const THRESHOLD: &str = include_str!("../../../tools/vectors/psbt/wallet-threshold-signed.psbt");
 
 fn read(text: &str) -> Psbt {
-    Psbt::parse_base64(text.trim()).expect("a committed fixture")
+    let c = Compute::unchecked();
+    Psbt::parse_base64(&c, text.trim()).expect("a committed fixture")
 }
 
 fn ctx<'a>(keys: &'a [KeyRef], wallets: &'a [WalletPolicy]) -> Context<'a> {
@@ -491,7 +492,7 @@ fn two_transactions_are_compared_on_what_they_decode_to() {
     b.change = Some(29_000);
     let unsigned = single_sig(&abandon, &b);
 
-    let again = Psbt::parse_bytes(&unsigned.to_bytes()).expect("a round trip");
+    let again = Psbt::parse_bytes(&c, &unsigned.to_bytes()).expect("a round trip");
     assert!(compare(&unsigned, &again).same());
 
     let mut richer = unsigned.clone();

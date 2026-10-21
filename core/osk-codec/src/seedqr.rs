@@ -22,6 +22,7 @@ use core::fmt;
 
 use osk_bip::bip39::{self, Entropy, Language, MAX_WORDS, Mnemonic};
 use osk_crypto::Secret;
+use osk_crypto::work::Compute;
 use zeroize::Zeroize;
 
 use crate::qr::{self, Ecc, Payload, QrMatrix};
@@ -140,16 +141,17 @@ pub fn from_entropy(bytes: &[u8], lang: Language) -> Result<Mnemonic, Error> {
     Mnemonic::from_entropy(lang, bytes).map_err(Error::Mnemonic)
 }
 
-/// The SeedQR of `m`: numeric mode, level L, as the specification says.
-pub fn encode_seedqr(m: &Mnemonic) -> Result<QrMatrix, Error> {
+/// Costs a QR encoding: the SeedQR of `m`, numeric mode, level L, as
+/// the specification says.
+pub fn encode_seedqr(c: &Compute, m: &Mnemonic) -> Result<QrMatrix, Error> {
     let digits = to_digits(m);
-    qr::encode(Payload::Numeric(digits.expose().as_bytes()), Ecc::Low).map_err(Error::Qr)
+    qr::encode(c, Payload::Numeric(digits.expose().as_bytes()), Ecc::Low).map_err(Error::Qr)
 }
 
-/// The CompactSeedQR of `m`: byte mode, level L.
-pub fn encode_compact(m: &Mnemonic) -> Result<QrMatrix, Error> {
+/// Costs a QR encoding: the CompactSeedQR of `m`, byte mode, level L.
+pub fn encode_compact(c: &Compute, m: &Mnemonic) -> Result<QrMatrix, Error> {
     let entropy = to_entropy(m);
-    qr::encode(Payload::Bytes(entropy.expose().as_bytes()), Ecc::Low).map_err(Error::Qr)
+    qr::encode(c, Payload::Bytes(entropy.expose().as_bytes()), Ecc::Low).map_err(Error::Qr)
 }
 
 #[cfg(test)]
@@ -237,8 +239,8 @@ mod tests {
             } else {
                 (29, 25)
             };
-            assert_eq!(encode_seedqr(&m).unwrap().size(), std_size);
-            assert_eq!(encode_compact(&m).unwrap().size(), compact_size);
+            assert_eq!(encode_seedqr(&c, &m).unwrap().size(), std_size);
+            assert_eq!(encode_compact(&c, &m).unwrap().size(), compact_size);
         }
     }
 

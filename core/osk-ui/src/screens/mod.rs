@@ -715,6 +715,7 @@ mod tests {
     use crate::layout::{Layout, LayoutCtx, solve};
     use crate::widgets::keyboard::KeyboardKind;
     use crate::widgets::{HitTarget, Icon, Tone, WarningLevel};
+    use osk_crypto::work::Compute;
 
     /// The four reference sizes: the smallest supported
     /// panel, the 2.8" reference panel, a phone, and the desktop window.
@@ -777,7 +778,8 @@ mod tests {
     }
 
     fn code() -> Rc<osk_codec::qr::QrMatrix> {
-        Rc::new(encode(Payload::Bytes(ADDRESS.as_bytes()), Ecc::Low).expect("fits"))
+        let c = Compute::unchecked();
+        Rc::new(encode(&c, Payload::Bytes(ADDRESS.as_bytes()), Ecc::Low).expect("fits"))
     }
 
     fn words_of(n: usize) -> Vec<String> {

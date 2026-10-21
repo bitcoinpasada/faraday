@@ -8,6 +8,8 @@
 
 use alloc::vec::Vec;
 
+use osk_crypto::work::{Compute, Work};
+
 use crate::classify::{PayloadKind, classify};
 
 /// One QR code found in a frame.
@@ -20,21 +22,23 @@ pub struct Decoded {
     pub kind: PayloadKind,
 }
 
-/// Finds and decodes every QR code in an 8-bit luma image of
+/// Costs a thresholding and a search of the image, counted once its
+/// size holds: finds and decodes every QR code in an 8-bit luma image of
 /// `width × height` pixels (row-major, one byte per pixel). Codes whose
 /// error correction fails are skipped. A frame with the wrong number of
 /// bytes yields nothing.
-pub fn decode_luma(width: usize, height: usize, luma: &[u8]) -> Vec<Decoded> {
+pub fn decode_luma(c: &Compute, width: usize, height: usize, luma: &[u8]) -> Vec<Decoded> {
     if width == 0 || height == 0 || luma.len() != width * height {
         return Vec::new();
     }
-    osk_crypto::work::count(osk_crypto::work::Work::QrDecode);
+    c.count(Work::QrDecode);
     let mut image =
         rqrr::PreparedImage::prepare_from_greyscale(width, height, |x, y| luma[y * width + x]);
     read(image.detect_grids())
 }
 
-/// The codes in a still picture of `width × height` luma pixels: those
+/// Costs one or two thresholdings and searches of the picture (below):
+/// the codes in a still picture of `width × height` luma pixels, those
 /// printed dark on light, or, when it holds none, those printed light on
 /// dark (a screenshot of a phone in dark mode). The picture is read once;
 /// a picture with no dark-on-light code is searched a second time,
@@ -42,11 +46,11 @@ pub fn decode_luma(width: usize, height: usize, luma: &[u8]) -> Vec<Decoded> {
 /// every other frame. Costs one or two thresholdings and searches of the
 /// picture: a third of a second for a 12-megapixel photograph on a
 /// desktop, seconds on a Pi.
-pub fn decode_picture(width: usize, height: usize, luma: &[u8]) -> Vec<Decoded> {
+pub fn decode_picture(c: &Compute, width: usize, height: usize, luma: &[u8]) -> Vec<Decoded> {
     if width == 0 || height == 0 || luma.len() != width * height {
         return Vec::new();
     }
-    osk_crypto::work::count(osk_crypto::work::Work::QrDecode);
+    c.count(Work::QrDecode);
     let mut image =
         rqrr::PreparedImage::prepare_from_greyscale(width, height, |x, y| luma[y * width + x]);
     let found = read(image.detect_grids());
@@ -80,9 +84,10 @@ mod tests {
     use crate::qr::{self, Ecc, Payload, QUIET_ZONE};
 
     fn round_trip(payload: Payload<'_>, expect: &[u8]) -> PayloadKind {
-        let m = qr::encode(payload, Ecc::Low).unwrap();
+        let c = Compute::unchecked();
+        let m = qr::encode(&c, payload, Ecc::Low).unwrap();
         let (w, h, px) = m.to_luma(4, QUIET_ZONE);
-        let found = decode_luma(w, h, &px);
+        let found = decode_luma(&c, w, h, &px);
         assert_eq!(found.len(), 1, "one code in the frame");
         assert_eq!(found[0].bytes, expect);
         found[0].kind.clone()
@@ -123,19 +128,21 @@ mod tests {
 
     #[test]
     fn large_codes_decode_too() {
+        let c = Compute::unchecked();
         let big: Vec<u8> = (0..2000u32).map(|i| b'a' + (i % 26) as u8).collect();
-        let m = qr::encode(Payload::Bytes(&big), Ecc::Low).unwrap();
+        let m = qr::encode(&c, Payload::Bytes(&big), Ecc::Low).unwrap();
         assert!(m.version() >= 30);
         let (w, h, px) = m.to_luma(3, QUIET_ZONE);
-        let found = decode_luma(w, h, &px);
+        let found = decode_luma(&c, w, h, &px);
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].bytes, big);
     }
 
     #[test]
     fn empty_or_wrong_sized_frames_yield_nothing() {
-        assert!(decode_luma(0, 0, &[]).is_empty());
-        assert!(decode_luma(10, 10, &[0; 50]).is_empty());
-        assert!(decode_luma(64, 64, &[128; 64 * 64]).is_empty());
+        let c = Compute::unchecked();
+        assert!(decode_luma(&c, 0, 0, &[]).is_empty());
+        assert!(decode_luma(&c, 10, 10, &[0; 50]).is_empty());
+        assert!(decode_luma(&c, 64, 64, &[128; 64 * 64]).is_empty());
     }
 }

@@ -1,6 +1,7 @@
 //! A raw transaction wrapped in a PSBT, so that it is inspected the way
 //! a PSBT is.
 
+use osk_crypto::work::Compute;
 use osk_psbt::Psbt;
 use osk_psbt::transaction::wrap_raw;
 
@@ -12,12 +13,13 @@ const GENESIS: &str = "010000000100000000000000000000000000000000000000000000000
 /// carries it with its signature data taken off.
 #[test]
 fn a_raw_transaction_is_wrapped_and_keeps_its_id() {
+    let c = Compute::unchecked();
     let (wrapper, txid) = wrap_raw(GENESIS.as_bytes()).expect("a transaction");
     assert_eq!(
         format!("{txid}"),
         "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"
     );
-    let psbt = Psbt::parse_bytes(&wrapper).expect("a PSBT");
+    let psbt = Psbt::parse_bytes(&c, &wrapper).expect("a PSBT");
     let tx = psbt.unsigned_tx();
     assert_eq!(tx.input.len(), 1);
     assert!(tx.input[0].script_sig.is_empty());

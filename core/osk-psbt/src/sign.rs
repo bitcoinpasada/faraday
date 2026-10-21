@@ -35,7 +35,7 @@ use bitcoin::{PublicKey, ScriptBuf, TxOut, ecdsa, taproot};
 use miniscript::{ExtParams, Miniscript, SigType, Tap, ToPublicKey};
 use osk_bip::keys::{Fingerprint, MasterKey};
 use osk_crypto::Zeroize;
-use osk_crypto::work::Compute;
+use osk_crypto::work::{Compute, Work};
 
 use crate::classify::{Classified, ScriptKind, classify};
 use crate::context::Context;
@@ -236,7 +236,7 @@ pub fn sign(
     shares: &[ShareKey],
     others: &[u32],
 ) -> Result<SignResult, Error> {
-    osk_crypto::work::count(osk_crypto::work::Work::Sign);
+    c.count(Work::Sign);
     let inspection = inspect(c, psbt, ctx);
     if inspection.has_blocked() {
         return Err(Error::Blocked(inspection.blocked()));

@@ -4238,7 +4238,9 @@ mod tests {
     #[test]
     fn a_qr_fits_whole_modules_and_a_secret_one_is_blank_until_held() {
         use osk_codec::qr::{Ecc, Payload, encode};
-        let m = Rc::new(encode(Payload::Bytes(b"hello"), Ecc::Low).unwrap());
+        use osk_crypto::work::Compute;
+        let c = Compute::unchecked();
+        let m = Rc::new(encode(&c, Payload::Bytes(b"hello"), Ecc::Low).unwrap());
         assert_eq!(m.size(), 21);
         let w = Widget::qr(m.clone());
         // 21 + 8 quiet = 29 modules: 300 px gives 10 px per module, centred.

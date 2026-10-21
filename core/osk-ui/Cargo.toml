@@ -27,6 +27,9 @@ osk-crypto = { path = "../osk-crypto" }
 [dev-dependencies]
 # The wordlists, which the candidate tests take their longest words from.
 osk-bip = { path = "../osk-bip" }
+# The token that counts nothing, for the tests that make a QR code
+# (docs/COMPUTE.md §3).
+osk-crypto = { path = "../osk-crypto", features = ["unchecked"] }
 
 [lints]
 workspace = true

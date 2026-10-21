@@ -6,6 +6,7 @@ use core::fmt;
 
 use bitcoin::Transaction;
 use osk_bip::keys::Fingerprint;
+use osk_crypto::work::{Compute, Work};
 
 use crate::base64;
 use crate::inspect::WarningKind;
@@ -23,12 +24,14 @@ pub struct Psbt {
 }
 
 impl Psbt {
-    /// Parses the binary encoding (`psbt\xff` magic first).
-    pub fn parse_bytes(bytes: &[u8]) -> Result<Self, Error> {
+    /// Costs a decode of the whole PSBT, counted once its magic bytes
+    /// match (bytes without them cost a comparison): parses the binary
+    /// encoding (`psbt\xff` magic first).
+    pub fn parse_bytes(c: &Compute, bytes: &[u8]) -> Result<Self, Error> {
         if bytes.len() < MAGIC.len() || &bytes[..MAGIC.len()] != MAGIC {
             return Err(Error::NotPsbt);
         }
-        osk_crypto::work::count(osk_crypto::work::Work::PsbtParse);
+        c.count(Work::PsbtParse);
         let inner = bitcoin::Psbt::deserialize(bytes).map_err(|e| Error::Parse(e.to_string()))?;
         if inner.version != 0 {
             return Err(Error::UnsupportedVersion(inner.version));
@@ -36,10 +39,11 @@ impl Psbt {
         Ok(Self { inner })
     }
 
-    /// Parses the base64 text encoding. Surrounding whitespace is ignored.
-    pub fn parse_base64(text: &str) -> Result<Self, Error> {
+    /// Costs a base64 decode and what [`Psbt::parse_bytes`] costs: parses
+    /// the base64 text encoding. Surrounding whitespace is ignored.
+    pub fn parse_base64(c: &Compute, text: &str) -> Result<Self, Error> {
         let bytes = base64::decode(text).map_err(|_| Error::Base64)?;
-        Self::parse_bytes(&bytes)
+        Self::parse_bytes(c, &bytes)
     }
 
     /// The binary encoding.

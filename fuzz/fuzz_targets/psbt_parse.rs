@@ -59,11 +59,12 @@ fn run(psbt: &Psbt) {
 }
 
 fuzz_target!(|data: &[u8]| {
-    if let Ok(psbt) = Psbt::parse_bytes(data) {
+    let c = Compute::unchecked();
+    if let Ok(psbt) = Psbt::parse_bytes(&c, data) {
         run(&psbt);
     }
     if let Ok(text) = core::str::from_utf8(data)
-        && let Ok(psbt) = Psbt::parse_base64(text)
+        && let Ok(psbt) = Psbt::parse_base64(&c, text)
     {
         run(&psbt);
     }

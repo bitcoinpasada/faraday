@@ -25,14 +25,11 @@
 //!   small enough that a crate would cost more than it saves
 //!   (`docs/PLANNING.md` §16.116).
 //!
-//! - [`work`]: a count of the core's costly work by kind (a PSBT parsed,
-//!   inspected or signed, a key stretched, a canvas blurred or copied
-//!   whole), kept by an application that installs a counter; empty
-//!   unless the `count` feature is on. With it, [`work::Compute`], the
-//!   token a costly function takes (`docs/COMPUTE.md` §2).
+//! - [`work`]: [`work::Compute`], the token a costly function takes,
+//!   which carries the counter the application notes that work with
+//!   (`docs/COMPUTE.md` §2), and the kinds of work ([`work::Work`]).
 //!
-//! The crate is `no_std` (but for the `count` feature, which needs
-//! `std` for its process-wide counter) and allocates for one reason
+//! The crate is `no_std` and allocates for one reason
 //! only: to give a long-lived secret whole pages of its own, so that
 //! they can be pinned (§16.49). Nothing else here takes an allocation. It has no random number
 //! generator: entropy is handed in by the shell through the session key.
@@ -43,8 +40,6 @@
 #![no_std]
 
 extern crate alloc;
-#[cfg(feature = "count")]
-extern crate std;
 
 mod blake2b;
 mod hash;
@@ -55,7 +50,9 @@ mod secret;
 pub mod work;
 
 pub use blake2b::{MAX_OUT as BLAKE2B_MAX_OUT, blake2b};
-pub use hash::{hmac_sha256, hmac_sha512, pbkdf2_hmac_sha256, pbkdf2_hmac_sha512, sha256};
+pub use hash::{
+    hmac_sha256, hmac_sha512, pbkdf2_hmac_sha256, pbkdf2_hmac_sha512, sha256, sha256_whole,
+};
 pub use pinned::{Pinned, pin_failure_to_report};
 pub use scrypt::{Error as ScryptError, scrypt};
 pub use sealed::{
