@@ -202,7 +202,7 @@ fn the_built_wallet_is_the_wallet_the_policy_names() {
         h.app
             .texts()
             .iter()
-            .any(|t| t.contains(&policy().checksum())),
+            .any(|t| t.contains(policy().checksum())),
         "the export is the fixture's descriptor: {:?}",
         h.app.texts()
     );
@@ -270,7 +270,7 @@ fn a_musig_wallet_is_its_keys_in_sorted_order() {
             h.app
                 .texts()
                 .iter()
-                .any(|t| t.contains(&sorted_musig_wallet().checksum())),
+                .any(|t| t.contains(sorted_musig_wallet().checksum())),
             "the same wallet whichever order, gathered {order:?}: {:?}",
             h.app.texts()
         );
@@ -1332,7 +1332,7 @@ fn a_multisig_from_a_key_opens_its_keys_with_the_key_checked() {
         h.app
             .texts()
             .iter()
-            .any(|t| t.contains(&policy().checksum())),
+            .any(|t| t.contains(policy().checksum())),
         "the fixture's wallet: {:?}",
         h.app.texts()
     );

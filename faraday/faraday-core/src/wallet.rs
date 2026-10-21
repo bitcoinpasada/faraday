@@ -76,9 +76,6 @@ pub struct Key {
     /// [`master_id`] of the master key, worked out once when the key is
     /// made; the same on every network.
     master_id: [u8; 32],
-    /// The master key's fingerprint, worked out once when the key is made.
-    /// Public, and the same on every network.
-    fp: Fingerprint,
     /// What the person called it.
     pub label: String,
     /// The words it was loaded from, for the backup's copy-by-hand step.
@@ -112,7 +109,7 @@ enum PublicAsk {
 
 impl Key {
     /// Makes a key; costs an elliptic-curve multiplication with the master
-    /// private key, for its fingerprint.
+    /// private key, for its [`master_id`].
     pub fn new(
         master: MasterKey,
         label: String,
@@ -122,12 +119,10 @@ impl Key {
         passphrase: Option<zeroize::Zeroizing<String>>,
     ) -> Key {
         crate::work::count(crate::work::Work::MasterKey);
-        let fp = master.fingerprint();
         let master_id = master_id(&master);
         Key {
             master,
             master_id,
-            fp,
             label,
             words,
             language,
@@ -203,9 +198,9 @@ impl Key {
         self.master_id
     }
 
-    /// The master key's fingerprint; a lookup, kept when the key was made.
+    /// The master key's fingerprint; a lookup, kept by the master key.
     pub fn fingerprint(&self) -> Fingerprint {
-        self.fp
+        self.master.fingerprint()
     }
 
     /// Moves the master key to `network`; the fingerprint is the same on
@@ -273,9 +268,6 @@ pub struct Wallet {
     pub name: String,
     /// The policy, as it was read.
     policy: WalletPolicy,
-    /// The policy's descriptor checksum, written out once when the policy
-    /// is set.
-    checksum: String,
     /// Where it came from: "Test wallet" or the file's name.
     pub source: String,
     /// What [`Wallet::source`] is: every caller that adds a wallet
@@ -295,13 +287,11 @@ pub struct Wallet {
 }
 
 impl Wallet {
-    /// Makes a wallet; writes the policy's descriptor out, for its checksum.
+    /// Makes a wallet.
     pub fn new(name: String, policy: WalletPolicy, source: String, origin: Origin) -> Wallet {
-        let checksum = policy.checksum();
         Wallet {
             name,
             policy,
-            checksum,
             source,
             origin,
             addresses: std::cell::RefCell::new(Vec::new()),
@@ -371,16 +361,14 @@ impl Wallet {
         &self.policy
     }
 
-    /// The policy's descriptor checksum; a lookup, kept when the policy
-    /// was set.
+    /// The policy's descriptor checksum; a lookup, kept by the policy.
     pub fn checksum(&self) -> &str {
-        &self.checksum
+        self.policy.checksum()
     }
 
-    /// Replaces the policy; writes the descriptor out again, for its
-    /// checksum.
+    /// Replaces the policy, dropping the addresses and scripts kept from
+    /// the one before.
     pub fn set_policy(&mut self, policy: WalletPolicy) {
-        self.checksum = policy.checksum();
         self.policy = policy;
         self.addresses.borrow_mut().clear();
         self.scripts.borrow_mut().clear();
@@ -1053,7 +1041,11 @@ impl Session {
         InspectInputs {
             network: self.network,
             keys: self.keys.iter().map(Key::master_id).collect(),
-            wallets: self.wallets.iter().map(|w| w.checksum.clone()).collect(),
+            wallets: self
+                .wallets
+                .iter()
+                .map(|w| w.checksum().to_string())
+                .collect(),
         }
     }
 
@@ -1441,11 +1433,12 @@ pub fn needed(wallet: &Wallet) -> usize {
         .unwrap_or(1)
 }
 
-/// A wallet's descriptor in one form, so that the same wallet read from a
-/// descriptor, a wallet .json or a multisig config compares equal: they
-/// write a hardened step as `h` or as `'`.
+/// A wallet's descriptor, the form the same wallet read from a
+/// descriptor, a wallet .json or a multisig config compares equal in:
+/// the policy writes every hardened step `h` however the file wrote it
+/// (F66). Writes the descriptor out.
 pub fn same_wallet(policy: &WalletPolicy) -> String {
-    policy.to_descriptor().replace('\'', "h")
+    policy.to_descriptor()
 }
 
 /// What a file holds, as far as this build is concerned.

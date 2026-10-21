@@ -156,11 +156,18 @@ fn a_miniscript_wallet_reads_the_same_from_both_forms() {
         let descriptor = policy.to_descriptor_checksummed();
         assert_eq!(WalletPolicy::parse_any(&descriptor).unwrap(), policy);
         // The checksum this crate computes is the one `miniscript`
-        // writes for the same descriptor.
+        // computes for the same descriptor.
+        assert_eq!(
+            osk_bip::miniscript::descriptor::checksum::desc_checksum(&policy.to_descriptor())
+                .expect("a descriptor"),
+            policy.checksum()
+        );
+        // `miniscript` writes a hardened step `'`, with the checksum of
+        // that text: it is the same wallet.
         let theirs = Descriptor::<DescriptorPublicKey>::from_str(&policy.to_descriptor())
             .expect("a descriptor")
             .to_string();
-        assert_eq!(theirs, descriptor);
+        assert_eq!(WalletPolicy::parse_any(&theirs).unwrap(), policy);
     }
 }
 

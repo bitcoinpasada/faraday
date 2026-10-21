@@ -7693,7 +7693,7 @@ impl OpenSigner {
         // A coordinator config's `Name:` line, or an export's own name,
         // is the wallet's name from the moment it is in use.
         if let Some(name) = self.inspect.as_ref().and_then(|d| d.name.clone()) {
-            self.names.set_checksum_name(&policy.checksum(), &name);
+            self.names.set_checksum_name(policy.checksum(), &name);
         }
         let wallet = match self.wallets.iter().position(|w| *w == policy) {
             Some(i) => i,
@@ -7789,7 +7789,7 @@ impl OpenSigner {
                     return;
                 };
                 let checksum = p.checksum();
-                self.names.set_checksum_name(&checksum, name);
+                self.names.set_checksum_name(checksum, name);
             }
         }
         self.sync_kept();
@@ -9072,12 +9072,12 @@ impl OpenSigner {
     pub(crate) fn wallet_is_kept(&self, wallet: usize) -> bool {
         self.wallets
             .get(wallet)
-            .is_some_and(|p| !self.wallets_not_kept.contains(&p.checksum()))
+            .is_some_and(|p| !self.wallets_not_kept.iter().any(|c| c == p.checksum()))
     }
 
     /// Puts `wallet` in the record or takes it out, and rewrites it.
     fn set_wallet_kept(&mut self, wallet: usize, kept: bool) {
-        let Some(checksum) = self.wallets.get(wallet).map(WalletPolicy::checksum) else {
+        let Some(checksum) = self.wallets.get(wallet).map(|p| String::from(p.checksum())) else {
             return;
         };
         self.wallets_not_kept.retain(|c| *c != checksum);
@@ -9787,7 +9787,7 @@ impl OpenSigner {
         let what = match policy {
             Some(policy) => match self.names.policy_name(policy) {
                 Some(name) => String::from(name),
-                None => policy.checksum(),
+                None => String::from(policy.checksum()),
             },
             None => String::new(),
         };
@@ -14197,7 +14197,7 @@ impl OpenSigner {
     /// The key a wallet's sheet note is kept under this session.
     fn sheet_key(&self, wallet: WalletRef) -> Option<String> {
         match wallet {
-            WalletRef::Policy(i) => Some(self.wallets.get(i)?.checksum()),
+            WalletRef::Policy(i) => Some(String::from(self.wallets.get(i)?.checksum())),
             _ => None,
         }
     }

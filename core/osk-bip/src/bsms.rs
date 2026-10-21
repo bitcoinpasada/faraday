@@ -142,6 +142,10 @@ pub struct SignerRecord {
     pub description: String,
     /// The signature over the first four lines, base64.
     pub signature: String,
+    /// The key line the signature is over: a received record's third
+    /// line as it came (its hardened steps written `'` or `h`), a record
+    /// made here [`key`](Self::key)'s own text, written `h`.
+    key_line: String,
 }
 
 impl SignerRecord {
@@ -166,6 +170,7 @@ impl SignerRecord {
             key,
             description: String::from(description),
             signature: String::from(lines[4].trim()),
+            key_line: String::from(lines[2].trim()),
         })
     }
 
@@ -174,14 +179,21 @@ impl SignerRecord {
         format!("{}\n{}", self.signed_text(), self.signature)
     }
 
+    /// The key line as the record writes it, which is what the
+    /// signature is over ([`signed_text`](Self::signed_text)).
+    pub fn key_line(&self) -> &str {
+        &self.key_line
+    }
+
     /// The four lines the signature is over: everything but the
-    /// signature itself, with no trailing newline.
+    /// signature itself, with no trailing newline. The key line is the
+    /// one the record was read with or made with, never written out
+    /// again, so a received record verifies over what its signer
+    /// signed.
     pub fn signed_text(&self) -> String {
         format!(
             "{VERSION}\n{}\n{}\n{}",
-            self.token,
-            self.key.key_text(),
-            self.description
+            self.token, self.key_line, self.description
         )
     }
 
@@ -262,6 +274,7 @@ pub fn signer_record<C: Signing + Verification>(
     let key = PolicyKey::parse(&origin).map_err(|_| Error::Key)?;
     let mut record = SignerRecord {
         token: String::from(token),
+        key_line: key.key_text(),
         key,
         description: String::from(description),
         signature: String::new(),

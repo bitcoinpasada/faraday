@@ -141,7 +141,7 @@ fn the_musig_wallet_exports_its_descriptor_and_its_policy() {
     assert_eq!(h.app.screen(), ScreenKind::Export);
     let texts = h.app.texts();
     assert!(
-        texts.iter().any(|t| t.contains(&policy().checksum())),
+        texts.iter().any(|t| t.contains(policy().checksum())),
         "the descriptor row names its checksum: {texts:?}"
     );
     assert!(

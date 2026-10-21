@@ -86,7 +86,7 @@ fn a_named_wallet_reads_by_its_name_and_its_shape() {
     h.set_network(3);
     assert_eq!(h.app.network(), Network::Regtest);
     use_wallet(&mut h, POLICY.as_bytes());
-    let checksum = policy().checksum();
+    let checksum = policy().checksum().to_string();
 
     name_it(&mut h, "Savings");
     let texts = h.app.texts();

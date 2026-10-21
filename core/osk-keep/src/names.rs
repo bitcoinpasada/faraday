@@ -52,7 +52,7 @@ impl WalletNames {
 
     /// The name of `policy`.
     pub fn policy_name(&self, policy: &WalletPolicy) -> Option<&str> {
-        self.by_checksum(&policy.checksum())
+        self.by_checksum(policy.checksum())
     }
 
     /// The name kept under a checksum.
@@ -74,7 +74,7 @@ impl WalletNames {
 
     /// Names `policy`; an empty name clears it.
     pub fn set_policy_name(&mut self, policy: &WalletPolicy, name: &str) {
-        self.set_checksum_name(&policy.checksum(), name);
+        self.set_checksum_name(policy.checksum(), name);
     }
 
     /// The same, under a checksum already computed.

@@ -238,7 +238,7 @@ fn the_threshold_wallet_exports_its_descriptor_and_its_record() {
     assert_eq!(h.app.screen(), ScreenKind::Export);
     let policy = WalletPolicy::parse_any(RECORD).expect("the record");
     assert!(
-        h.app.texts().iter().any(|t| t.contains(&policy.checksum())),
+        h.app.texts().iter().any(|t| t.contains(policy.checksum())),
         "the descriptor row names its checksum: {:?}",
         h.app.texts()
     );

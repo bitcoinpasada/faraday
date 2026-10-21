@@ -16,7 +16,7 @@
 //! .unwrap();
 //! assert_eq!(
 //!     policy.to_descriptor(),
-//!     "pkh([d34db33f/44'/0'/0']xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL/<0;1>/*)"
+//!     "pkh([d34db33f/44h/0h/0h]xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL/<0;1>/*)"
 //! );
 //! ```
 //!
@@ -184,7 +184,8 @@ pub enum MiniscriptKind {
 }
 
 /// Where a key came from: the master it descends from and the path down
-/// to the xpub, as the descriptor writes them between brackets.
+/// to the xpub, as the descriptor writes them between brackets, with
+/// every hardened step written `h` however it was read.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Origin {
     text: String,
@@ -268,6 +269,10 @@ pub struct WalletPolicy {
     /// The silent payments record, for [`Template::Silent`] and no
     /// other template, which is likewise the text it is written as.
     silent: Option<SilentWallet>,
+    /// The BIP-380 checksum of [`to_descriptor`](Self::to_descriptor),
+    /// worked out once when the policy is made. A function of the fields
+    /// above, so the derived `PartialEq` is unchanged by it.
+    checksum: [u8; 8],
 }
 
 impl WalletPolicy {
@@ -317,7 +322,9 @@ impl WalletPolicy {
             sorted_a: None,
             record: None,
             silent: None,
-        })
+            checksum: [0; 8],
+        }
+        .sealed())
     }
 
     /// Reads a plain multipath descriptor as a policy, so that a
@@ -350,7 +357,9 @@ impl WalletPolicy {
             sorted_a: None,
             record: None,
             silent: None,
-        })
+            checksum: [0; 8],
+        }
+        .sealed())
     }
 
     /// Reads any of the three forms: a threshold wallet's record, the
@@ -386,7 +395,9 @@ impl WalletPolicy {
             sorted_a: None,
             record: None,
             silent: None,
-        })
+            checksum: [0; 8],
+        }
+        .sealed())
     }
 
     /// The threshold wallet a group record states: one key, which is the
@@ -413,7 +424,9 @@ impl WalletPolicy {
             sorted_a: None,
             record: Some(record),
             silent: None,
+            checksum: [0; 8],
         }
+        .sealed()
     }
 
     /// The group record, for a threshold wallet and for nothing else.
@@ -432,7 +445,9 @@ impl WalletPolicy {
             sorted_a: None,
             record: None,
             silent: Some(silent),
+            checksum: [0; 8],
         }
+        .sealed()
     }
 
     /// That record, for a silent payments wallet and for nothing else.
@@ -614,8 +629,9 @@ impl WalletPolicy {
         if let Some(script) = &self.script {
             let text = alloc::format!("{script}");
             // `miniscript` writes the checksum; this crate's callers ask
-            // for it separately.
-            let text = String::from(text.split('#').next().unwrap_or(&text));
+            // for it separately. It writes a hardened step `'`, which in
+            // a descriptor is only ever that marker: kept and written `h`.
+            let text = text.split('#').next().unwrap_or(&text).replace('\'', "h");
             // A sorted leaf is held as its `multi_a` twin and written
             // back as what it is.
             if self.sorted_a.is_some() {
@@ -662,15 +678,23 @@ impl WalletPolicy {
     pub fn to_descriptor_checksummed(&self) -> String {
         let mut desc = self.to_descriptor();
         desc.push('#');
-        desc.push_str(&self.checksum());
+        desc.push_str(self.checksum());
         desc
     }
 
-    /// The eight-character checksum of that descriptor.
-    pub fn checksum(&self) -> String {
+    /// The eight-character checksum of that descriptor; a lookup, worked
+    /// out when the policy was made.
+    pub fn checksum(&self) -> &str {
+        core::str::from_utf8(&self.checksum).expect("the checksum alphabet is ASCII")
+    }
+
+    /// The policy with its checksum worked out (writes the descriptor
+    /// out and hashes it): every constructor ends here.
+    fn sealed(mut self) -> Self {
         let desc = self.to_descriptor();
-        let sum = descriptor_checksum(&desc).expect("descriptor uses only charset characters");
-        String::from_utf8_lossy(&sum).into_owned()
+        self.checksum =
+            descriptor_checksum(&desc).expect("descriptor uses only charset characters");
+        self
     }
 
     /// The script the policy pays to at `change`/`index`.
@@ -1042,7 +1066,9 @@ fn parse_miniscript(text: &str) -> Result<WalletPolicy, Error> {
         sorted_a,
         record: None,
         silent: None,
-    })
+        checksum: [0; 8],
+    }
+    .sealed())
 }
 
 /// The internal key of a `tr()`, as the descriptor writes it.
@@ -1088,7 +1114,7 @@ fn wallet_key(key: &DescriptorPublicKey) -> Result<PolicyKey, Error> {
             text.push_str(&alloc::format!("{byte:02x}"));
         }
         for step in path {
-            text.push_str(&alloc::format!("/{step}"));
+            text.push_str(&alloc::format!("/{step:#}"));
         }
         Origin {
             text,
@@ -1270,7 +1296,8 @@ fn parse_key(text: &str) -> Result<PolicyKey, Error> {
     };
     Ok(PolicyKey {
         origin: Some(Origin {
-            text: String::from(origin),
+            // Read with `'` or `h`, kept and written `h`.
+            text: origin.replace('\'', "h"),
             fingerprint: Fingerprint(bytes),
             path,
         }),
@@ -1457,13 +1484,15 @@ mod tests {
         ];
         for (template, keys, descriptor) in CASES {
             let policy = WalletPolicy::from_parts(template, keys).expect(template);
-            assert_eq!(&policy.to_descriptor(), descriptor);
+            // The BIP writes a hardened step `'`; the policy writes `h`.
+            let written = descriptor.replace('\'', "h");
+            assert_eq!(policy.to_descriptor(), written);
             assert_eq!(&policy.template_text(), template);
             // The descriptor read back is the same policy, so both forms
             // of the same wallet show the same review.
             let from_descriptor = WalletPolicy::from_descriptor(descriptor).expect(descriptor);
             assert_eq!(from_descriptor.keys(), policy.keys());
-            assert_eq!(from_descriptor.to_descriptor(), *descriptor);
+            assert_eq!(from_descriptor.to_descriptor(), written);
         }
     }
 
@@ -1536,7 +1565,7 @@ mod tests {
         assert_eq!(policy.template_text(), "tr(musig(@0,@1)/**)");
         assert_eq!(
             policy.to_descriptor(),
-            alloc::format!("tr(musig({MUSIG_A},{MUSIG_B})/<0;1>/*)")
+            alloc::format!("tr(musig({MUSIG_A},{MUSIG_B})/<0;1>/*)").replace('\'', "h")
         );
         assert_eq!(policy.script_type(), ScriptType::Taproot);
         assert_eq!(policy.quorum(), None);
@@ -1718,16 +1747,52 @@ mod tests {
     }
 
     /// The two-part form and the descriptor form of one wallet are one
-    /// policy, and the policy is written back the way it arrived.
+    /// policy, and the policy is written back as it arrived, every
+    /// hardened step `h`.
     #[test]
     fn both_forms_are_the_same_wallet() {
         let text = "wsh(sortedmulti(2,@0/**,@1/**))\n\
             [6738736c/48'/0'/0'/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw\n\
             [b2b1f0cf/48'/0'/0'/2']xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7";
         let policy = WalletPolicy::parse_any(text).unwrap();
-        assert_eq!(policy.to_text(), text);
+        assert_eq!(policy.to_text(), text.replace('\'', "h"));
         assert_eq!(policy.quorum(), Some((2, 2)));
         let descriptor = policy.to_descriptor_checksummed();
         assert_eq!(WalletPolicy::parse_any(&descriptor).unwrap(), policy);
+    }
+
+    /// One wallet written with `'`, with `h`, or with both is one wallet:
+    /// the same text and the same checksum, the checksum of its `h` form.
+    #[test]
+    fn a_hardened_step_written_either_way_is_the_same_wallet() {
+        const H: &str = "wsh(sortedmulti(2,[6738736c/48h/0h/0h/2h]xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw/<0;1>/*,[b2b1f0cf/48h/0h/0h/2h]xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7/<0;1>/*))";
+        const APOSTROPHE: &str = "wsh(sortedmulti(2,[6738736c/48'/0'/0'/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw/<0;1>/*,[b2b1f0cf/48'/0'/0'/2']xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7/<0;1>/*))";
+        const MIXED: &str = "wsh(sortedmulti(2,[6738736c/48h/0'/0h/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw/<0;1>/*,[b2b1f0cf/48'/0h/0'/2h]xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7/<0;1>/*))";
+        let sum = descriptor_checksum(H).expect("a descriptor");
+        let sum = core::str::from_utf8(&sum).unwrap();
+        // The same keys in a miniscript wallet, which `miniscript` reads.
+        let tree = |text: &str| {
+            let (a, b) = text
+                .strip_prefix("wsh(sortedmulti(2,")
+                .and_then(|t| t.strip_suffix("))"))
+                .and_then(|t| t.split_once(",["))
+                .unwrap();
+            alloc::format!("wsh(or_d(pk({a}),and_v(v:pkh([{b}),older(144))))")
+        };
+        let text_h = WalletPolicy::from_descriptor(H).unwrap().to_text();
+        assert!(!text_h.contains('\''));
+        let tree_h = tree(H);
+        let tree_sum = descriptor_checksum(&tree_h).expect("a descriptor");
+        let tree_sum = core::str::from_utf8(&tree_sum).unwrap();
+        for text in [H, APOSTROPHE, MIXED] {
+            let policy = WalletPolicy::from_descriptor(text).unwrap();
+            assert_eq!(policy.to_descriptor(), H, "{text}");
+            assert_eq!(policy.checksum(), sum);
+            assert_eq!(policy.to_text(), text_h);
+            assert_eq!(WalletPolicy::parse_any(&policy.to_text()).unwrap(), policy);
+            let policy = WalletPolicy::from_descriptor(&tree(text)).unwrap();
+            assert_eq!(policy.to_descriptor(), tree_h, "{text}");
+            assert_eq!(policy.checksum(), tree_sum);
+        }
     }
 }

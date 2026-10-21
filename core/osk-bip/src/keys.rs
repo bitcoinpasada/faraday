@@ -490,6 +490,8 @@ pub struct MasterKey {
     /// key, so that a context is only ever blinded for the key it
     /// operates on.
     secp: Secp256k1<All>,
+    /// The master fingerprint, worked out once when the key was made.
+    fingerprint: Fingerprint,
 }
 
 impl MasterKey {
@@ -499,12 +501,16 @@ impl MasterKey {
     }
 
     /// Wraps `xpriv` on a pinned page and erases it where it stood, so
-    /// that the only copy is the pinned one.
+    /// that the only copy is the pinned one. Works out the fingerprint
+    /// once (an elliptic-curve multiplication), in the blinded context.
     fn hold(xpriv: &mut Xpriv, network: Network) -> Self {
+        let secp = blinded_context(xpriv);
+        let fingerprint = xpriv.fingerprint(&secp).into();
         let held = MasterKey {
             xpriv: Pinned::new(XprivCell(*xpriv)),
             network,
-            secp: blinded_context(xpriv),
+            secp,
+            fingerprint,
         };
         erase(xpriv);
         held
@@ -638,6 +644,7 @@ impl MasterKey {
             xpriv: Pinned::new(XprivCell(xpriv)),
             network,
             secp: self.secp.clone(),
+            fingerprint: self.fingerprint,
         };
         // `Xpriv` is `Copy`: this frame's copy goes no further.
         erase(&mut xpriv);
@@ -647,7 +654,7 @@ impl MasterKey {
     /// The master fingerprint, e.g. `73c5da0a` for the "abandon … about"
     /// mnemonic.
     pub fn fingerprint(&self) -> Fingerprint {
-        self.xpriv().fingerprint(&self.secp).into()
+        self.fingerprint
     }
 
     /// The master extended public key (depth 0).
@@ -671,7 +678,7 @@ impl MasterKey {
             .expect("child derivation yields a valid key");
         let derived = DerivedKey {
             xpriv,
-            master_fingerprint: self.xpriv().fingerprint(&self.secp).into(),
+            master_fingerprint: self.fingerprint,
             path: path.clone(),
             // Cloning copies the blinded context as it stands, so the
             // child runs in a context blinded like its parent's.

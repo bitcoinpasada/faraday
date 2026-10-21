@@ -431,7 +431,7 @@ fn the_wallet_export_offers_the_descriptor_and_the_policy() {
         h.app
             .texts()
             .iter()
-            .any(|t| t.contains(&policy().checksum())),
+            .any(|t| t.contains(policy().checksum())),
         "the descriptor is shown with its checksum: {:?}",
         h.app.texts()
     );
@@ -469,7 +469,7 @@ fn a_coordinators_text_config_loads_the_same_wallet_as_the_policy() {
         h.app
             .texts()
             .iter()
-            .any(|t| t.contains(&policy().checksum())),
+            .any(|t| t.contains(policy().checksum())),
         "the same wallet as the policy fixture: {:?}",
         h.app.texts()
     );

@@ -11,8 +11,8 @@
 //! ```
 //! use osk_bip::recovery::{Form, Path, Recovery, RecoveryPolicy};
 //!
-//! let primary = "[73c5da0a/48'/1'/0'/2']tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ";
-//! let recovery = "[3f635a63/48'/1'/0'/2']tpubDFPtPArj4GzBEFHohegg1Xatrc1Fi9oSox5LzuSRX91miwQxuUrEpBxpvDRsmZYJKYFhgdK3UStsjC8JKXfUbMinjFqiEM4uNwzVaCaHpys";
+//! let primary = "[73c5da0a/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ";
+//! let recovery = "[3f635a63/48h/1h/0h/2h]tpubDFPtPArj4GzBEFHohegg1Xatrc1Fi9oSox5LzuSRX91miwQxuUrEpBxpvDRsmZYJKYFhgdK3UStsjC8JKXfUbMinjFqiEM4uNwzVaCaHpys";
 //! let wanted = RecoveryPolicy {
 //!     primary: Path::single(primary),
 //!     recovery: vec![Recovery {
@@ -522,8 +522,10 @@ fn read_recovery(policy: &Semantic<DescriptorPublicKey>) -> Option<(u32, Path)> 
 }
 
 /// A descriptor key as the wallet writes it: `[fingerprint/path]xpub`
-/// with the multipath suffix taken off.
+/// with the multipath suffix taken off, every hardened step written `h`
+/// (`miniscript` writes `'`, which in a key expression is only ever
+/// that marker).
 fn key_text(key: &DescriptorPublicKey) -> Option<String> {
     let text = alloc::format!("{key}");
-    Some(String::from(text.strip_suffix(DESCRIPTOR_SUFFIX)?))
+    Some(text.strip_suffix(DESCRIPTOR_SUFFIX)?.replace('\'', "h"))
 }

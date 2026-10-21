@@ -289,12 +289,16 @@ fn the_committed_policy_is_the_wallet_core_imported() {
         FUNDED,
         "the address Core funded"
     );
-    assert!(
+    // Core was given the descriptor with its hardened steps written
+    // `'`; its checksum holds over that text, which is this wallet.
+    let as_core_had_it = committed
+        .to_descriptor()
+        .replace("h/", "'/")
+        .replace("h]", "']");
+    assert_eq!(
+        WalletPolicy::parse_any(&format!("{as_core_had_it}#{CHECKSUM}"))
+            .expect("the checksum Bitcoin Core computed for the same descriptor"),
         committed
-            .to_descriptor_checksummed()
-            .ends_with(&format!("#{CHECKSUM}")),
-        "the checksum Bitcoin Core computed for the same descriptor: {}",
-        committed.to_descriptor_checksummed()
     );
 }
 

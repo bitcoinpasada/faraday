@@ -19,11 +19,11 @@ const LIANA: &str = include_str!("../../../tools/vectors/psbt/wallet-liana.polic
 const TREE: &str = include_str!("../../../tools/vectors/psbt/wallet-tree.policy");
 
 /// Five keys from the fixtures, used here as the parts a person picks.
-const A: &str = "[73c5da0a/48'/1'/0'/2']tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ";
-const B: &str = "[3f635a63/48'/1'/0'/2']tpubDFPtPArj4GzBEFHohegg1Xatrc1Fi9oSox5LzuSRX91miwQxuUrEpBxpvDRsmZYJKYFhgdK3UStsjC8JKXfUbMinjFqiEM4uNwzVaCaHpys";
-const C: &str = "[73c5da0a/86'/1'/0']tpubDDfvzhdVV4unsoKt5aE6dcsNsfeWbTgmLZPi8LQDYU2xixrYemMfWJ3BaVneH3u7DBQePdTwhpybaKRU95pi6PMUtLPBJLVQRpzEnjfjZzX";
-const D: &str = "[3f635a63/86'/1'/0']tpubDD4uFqwcQxcgHEhBFmoFbcLtEfSXw6bmLSeKeJHaqDtiXsvGRD6zCJ26HUxWp6ca6GAtNj6C3jyCGBAw2M9sW1bjiK1gFw6dckb6bKn8B3m";
-const E: &str = "[b8688df1/86'/1'/0']tpubDDHnNFFb1gf8qGYVejVx4GwzQPwcphirPssHFMWFcL9iajxm1wWd5ye22T7UQrVPjwwifJaCJGBAphuu8oePzYTCN7eZgm1KnyfNDmcfnsu";
+const A: &str = "[73c5da0a/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ";
+const B: &str = "[3f635a63/48h/1h/0h/2h]tpubDFPtPArj4GzBEFHohegg1Xatrc1Fi9oSox5LzuSRX91miwQxuUrEpBxpvDRsmZYJKYFhgdK3UStsjC8JKXfUbMinjFqiEM4uNwzVaCaHpys";
+const C: &str = "[73c5da0a/86h/1h/0h]tpubDDfvzhdVV4unsoKt5aE6dcsNsfeWbTgmLZPi8LQDYU2xixrYemMfWJ3BaVneH3u7DBQePdTwhpybaKRU95pi6PMUtLPBJLVQRpzEnjfjZzX";
+const D: &str = "[3f635a63/86h/1h/0h]tpubDD4uFqwcQxcgHEhBFmoFbcLtEfSXw6bmLSeKeJHaqDtiXsvGRD6zCJ26HUxWp6ca6GAtNj6C3jyCGBAw2M9sW1bjiK1gFw6dckb6bKn8B3m";
+const E: &str = "[b8688df1/86h/1h/0h]tpubDDHnNFFb1gf8qGYVejVx4GwzQPwcphirPssHFMWFcL9iajxm1wWd5ye22T7UQrVPjwwifJaCJGBAphuu8oePzYTCN7eZgm1KnyfNDmcfnsu";
 
 fn recovery(delay: u32, path: Path) -> Recovery {
     Recovery { delay, path }

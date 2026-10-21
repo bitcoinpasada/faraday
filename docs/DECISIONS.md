@@ -2338,3 +2338,26 @@ the costly functions, upstream's included.
 - Faraday's strings stay in `faraday-strings`.
 - `docs/PLANNING.md` stays upstream's planning record and is not edited
   for Faraday's decisions.
+
+### F66 Hardened steps are written `h` (2026-10-20)
+
+**Why.** A wallet read with `'` and the same wallet read with `h` were
+two texts with two checksums. Faraday kept one by parsing every wallet a
+second time with `'` replaced (`faraday_intake::wallet::hardened_h`),
+and a wallet that reached a policy any other way kept whatever it was
+written with. Moving the checksum into the policy (`docs/COMPUTE.md`
+§5.2) needs the policy itself to have one text.
+
+**Decision** (owner, 2026-10-20; the spec is `docs/COMPUTE.md` §5.3,
+which also specifies the compute token this prepares for).
+
+- Reading is unchanged: a hardened step written `'` or `h`, mixed or
+  not, is read.
+- What `WalletPolicy` keeps and writes is `h`: a key's origin, and a
+  miniscript wallet's descriptor. A wallet written either way has one
+  text and one checksum, the checksum of its `h` form.
+- A format whose readers need `'` gets it at its own writer: Coldcard's
+  multisig config (`Derivation:`), Caravan's `bip32Path`, Electrum's
+  `derivation`.
+- A received BSMS key record keeps its key line as it came, and its
+  signature is checked over that line; a record made here writes `h`.
