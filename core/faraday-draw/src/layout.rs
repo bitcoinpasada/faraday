@@ -29,15 +29,6 @@ impl LayoutCtx {
         }
     }
 
-    /// The same context with the insets the shell reported, in dp.
-    pub fn with_insets(self, top_dp: f32, bottom_dp: f32) -> Self {
-        LayoutCtx {
-            inset_top_dp: top_dp,
-            inset_bottom_dp: bottom_dp,
-            ..self
-        }
-    }
-
     /// dp to whole pixels.
     pub fn px(&self, dp: f32) -> i32 {
         self.scale.px(Dp(dp))

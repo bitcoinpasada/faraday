@@ -54,14 +54,6 @@ impl Font {
         Font::new(Family::Icon, size_dp)
     }
 
-    /// The same font at another size.
-    pub const fn with_size(self, size_dp: f32) -> Self {
-        Font {
-            family: self.family,
-            size: Dp(size_dp),
-        }
-    }
-
     /// The face and pixel size this font resolves to on a display.
     ///
     /// Text takes the scale's type factor, which grows the ramp with the

@@ -93,11 +93,6 @@ impl Scale {
     pub fn px_f(self, dp: Dp) -> f32 {
         dp.0 * self.factor()
     }
-
-    /// Converts a dp length to whole pixels (alias for [`Scale::px`]).
-    pub fn dp_to_px(self, dp: Dp) -> i32 {
-        self.px(dp)
-    }
 }
 
 fn round(v: f32) -> i32 {
@@ -293,26 +288,6 @@ impl Edges {
             bottom: dp,
         }
     }
-
-    /// Horizontal and vertical lengths.
-    pub const fn symmetric(horizontal: f32, vertical: f32) -> Self {
-        Edges {
-            left: horizontal,
-            top: vertical,
-            right: horizontal,
-            bottom: vertical,
-        }
-    }
-
-    /// Converts to pixels.
-    pub fn to_px(self, scale: Scale) -> PxEdges {
-        PxEdges {
-            left: scale.px(Dp(self.left)),
-            top: scale.px(Dp(self.top)),
-            right: scale.px(Dp(self.right)),
-            bottom: scale.px(Dp(self.bottom)),
-        }
-    }
 }
 
 /// Four edge lengths in pixels.
@@ -329,11 +304,6 @@ pub struct PxEdges {
 }
 
 impl PxEdges {
-    /// Left plus right.
-    pub fn horizontal(&self) -> i32 {
-        self.left + self.right
-    }
-
     /// Top plus bottom.
     pub fn vertical(&self) -> i32 {
         self.top + self.bottom

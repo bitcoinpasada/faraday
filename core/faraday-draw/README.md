@@ -67,12 +67,8 @@ dp corner radius, a 56 dp app bar and status line, 56 dp list rows, 72 dp
 menu rows (52 dp on `small`, where five rows and the app bar share 358
 dp) and a 52 dp bottom action and text field. A value that varies with
 the class is a `const fn name(class)` rather than three constants:
-`menu_row`, `stacked_row`, `pager_row`, `touch_floor`, `key_height`,
-`candidates`, `words_per_page`, `qr_side`, `tile_icon`, `hub_columns`.
-The `wide` width caps are constants: a form or list column 480 dp
-(`COLUMN_MAX_WIDTH`), a button 160–320 dp (`BUTTON_MIN_WIDTH`,
-`BUTTON_MAX_WIDTH`), a QR 240 dp (`qr_side`) and a keyboard 720 dp
-(`KEYBOARD_MAX_WIDTH`).
+`menu_row`, `stacked_row`, `value_row`, `key_height`, `candidates`
+and `qr_side`.
 
 `tools/lint-tokens.sh`, which `just lint` runs, fails the build when a
 file under `widgets/` writes a layout number of its own instead of naming
@@ -84,9 +80,7 @@ The ramp — and only the ramp — is scaled by the size class:
 applies it, so a screen keeps writing `tokens::BODY` and gets 16 dp on a
 panel, 17.6 dp on a phone and 20.8 dp in a desktop window. Lengths do not
 scale: a touch target is 48 dp everywhere and the grid is 8 dp
-everywhere. `tokens::touch_floor` is the least height of a chip or a
-candidate cell — 44 dp on `small` and `mobile`, 32 dp on `wide`, where a
-pointer does the aiming.
+everywhere.
 
 ## Size classes
 

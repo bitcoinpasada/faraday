@@ -122,13 +122,13 @@ Theme: background `#000000`, surface `#1C1C1E`, raised surface
 `#3A3A3C`, accent `#FF9F0A`, text `#FCFCFC`, muted `#98989E`, divider
 `#2C2C2E`, success `#30D158`, caution `#FFD60A`, danger `#FF453A`, info
 `#409CFF`. A pressed surface is drawn from its own resting fill: a
-neutral one mixed `PRESSED_TINT` towards the accent, an accent one
-mixed `PRESSED_MIX` towards white. A control drawn on the background
+neutral one mixed 35 % towards the accent, an accent one
+mixed 35 % towards white. A control drawn on the background
 itself — a Text button, the app bar's icon buttons and its eye while a
 reveal runs — has no fill of its own to tint, so it takes the raised
-surface mixed `PRESSED_TINT` towards the accent (§16.132). The look outlasts the lift by
-`PRESS_LINGER_MS` in two steps — full strength for the first
-`PRESS_LINGER_FULL_MS`, both mixes halved for the rest (§16.124).
+surface mixed 35 % towards the accent (§16.132). The look outlasts the lift by
+200 ms in two steps — full strength for the first 100 ms, both mixes
+halved for the rest (§16.124).
 Faces: Noto Sans and Noto Sans SemiBold for text — their SemiCondensed
 cuts on `small`, the same letters with the same line height, so a row's
 label fits between its icon and its chevron (§16.130) — Iosevka for data, and

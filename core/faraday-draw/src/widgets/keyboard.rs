@@ -1,14 +1,9 @@
 //! On-screen keyboard geometry.
 //!
 //! One function, [`keys`], produces the key rectangles for a keyboard kind
-//! inside a rectangle; drawing and hit-testing both use it, so they cannot
-//! disagree. Key height comes from the height the screen offers: a letter
-//! key takes about a twelfth of it, between 36 and 56 dp, except on
-//! `Small`, where the panel is short and the key stays 40 dp. The PIN,
-//! dice and coin pads are capped at [`PAD_MAX_WIDTH`] and take their
-//! height from their width, so their cells stay near square. Key width is
-//! whatever the columns divide the width into (about 27 dp of pitch on a
-//! 2.8" panel).
+//! inside a rectangle; drawing uses it, so the keys it draws are the
+//! keys it reports. Key width is whatever the columns divide the width
+//! into (about 27 dp of pitch on a 2.8" panel).
 //!
 //! Anti-observation defaults: no popup previews, no press highlight that
 //! persists after release. A key is drawn identically before, during and
@@ -16,7 +11,7 @@
 
 use alloc::vec::Vec;
 
-use crate::geom::{Rect, SizeClass};
+use crate::geom::Rect;
 use crate::layout::LayoutCtx;
 use crate::tokens;
 
@@ -417,12 +412,6 @@ pub fn keycaps(kind: KeyboardKind) -> impl Iterator<Item = char> {
     kana.chain(jamo).chain(pinyin).chain(zhuyin).chain(cards)
 }
 
-/// Builds a mask from the letters in `s`.
-pub fn mask_of(s: &str) -> KeyMask {
-    s.chars()
-        .fold(0, |m, c| m | letter_bit(c.to_ascii_lowercase()))
-}
-
 /// Number of rows a keyboard kind has (for height measurement).
 pub fn rows(kind: KeyboardKind) -> usize {
     match kind {
@@ -439,151 +428,6 @@ pub fn rows(kind: KeyboardKind) -> usize {
         KeyboardKind::Jamo => 3,
         KeyboardKind::Pinyin | KeyboardKind::Zhuyin => 4,
     }
-}
-
-/// Preferred key height in dp for a size class and kind, before the
-/// offered space is taken into account. This is what `Small` keeps: the
-/// 2.8" panel is short, and 40 dp letter keys are right for it.
-pub fn preferred_key_height(kind: KeyboardKind, class: SizeClass) -> f32 {
-    match (kind, class) {
-        (KeyboardKind::Pin, SizeClass::Small) => tokens::PIN_KEY_HEIGHT_SMALL,
-        // The dice and coin pads are the screen's whole lower half, as
-        // on the reference panel: six large faces, or two large sides.
-        (KeyboardKind::Dice, SizeClass::Small) => tokens::DICE_KEY_HEIGHT_SMALL,
-        (KeyboardKind::Coin | KeyboardKind::Binary, SizeClass::Small) => {
-            tokens::COIN_KEY_HEIGHT_SMALL
-        }
-        // The 五十音 is five rows of ten, and a short panel has the
-        // height for that only at a shorter key. The card pad is three
-        // rows of seven under a field and its caption line, which a
-        // short panel has the height for at the same key. The pinyin and
-        // 注音 keyboards are four rows over the two-row one-character
-        // strip, which is the same height problem, so they take the same
-        // key.
-        (
-            KeyboardKind::Kana | KeyboardKind::Cards | KeyboardKind::Pinyin | KeyboardKind::Zhuyin,
-            SizeClass::Small,
-        ) => tokens::KEY_HEIGHT_GRID,
-        (KeyboardKind::Pin | KeyboardKind::Dice, _) => tokens::PAD_KEY_HEIGHT,
-        (KeyboardKind::Coin | KeyboardKind::Binary, _) => tokens::COIN_KEY_HEIGHT,
-        // A letter key: the class's own height on `Small`, which is
-        // what the short panel keeps, and the floor elsewhere, from
-        // which `key_height` grows it towards `tokens::KEY_MAX_HEIGHT`.
-        (_, SizeClass::Small) => tokens::key_height(SizeClass::Small),
-        _ => tokens::touch_floor(SizeClass::Small),
-    }
-}
-
-/// Smallest acceptable key height in dp ([`tokens::KEY_MIN_HEIGHT`]).
-pub const MIN_KEY_HEIGHT: f32 = tokens::KEY_MIN_HEIGHT;
-
-/// Smallest key height in dp for `kind` on `class`: the 五十音's five
-/// rows, and the reading keyboards' four over a two-row strip, squeeze
-/// further on a short panel than a three-row keyboard does, so that the
-/// field and its candidates keep their places above them.
-pub fn min_key_height(kind: KeyboardKind, class: SizeClass) -> f32 {
-    match (kind, class) {
-        (
-            KeyboardKind::Kana | KeyboardKind::Cards | KeyboardKind::Pinyin | KeyboardKind::Zhuyin,
-            SizeClass::Small,
-        ) => tokens::KEY_MIN_HEIGHT_GRID,
-        // A one-row pad of two large keys has no rows to give up: its
-        // least height is the height it is drawn at, or a screen that
-        // squeezes its keyboard would leave a 28 dp strip where the pad
-        // should be.
-        (KeyboardKind::Coin | KeyboardKind::Binary, _) => preferred_key_height(kind, class),
-        _ => MIN_KEY_HEIGHT,
-    }
-}
-
-/// Largest letter-key height in dp ([`tokens::KEY_MAX_HEIGHT`]).
-pub const MAX_KEY_HEIGHT: f32 = tokens::KEY_MAX_HEIGHT;
-
-/// Share of the height a screen offers that one letter-key row takes
-/// ([`tokens::KEY_HEIGHT_FRACTION`]). Three rows plus the reserve come to
-/// about a quarter of a phone screen, which is what a system keyboard
-/// uses.
-pub const KEY_HEIGHT_FRACTION: f32 = tokens::KEY_HEIGHT_FRACTION;
-
-/// Largest width in dp a PIN, dice or coin pad takes
-/// ([`tokens::PAD_MAX_WIDTH`]).
-pub const PAD_MAX_WIDTH: f32 = tokens::PAD_MAX_WIDTH;
-
-/// Largest key height in dp for a pad
-/// ([`tokens::PAD_MAX_KEY_HEIGHT`]).
-pub const MAX_PAD_KEY_HEIGHT: f32 = tokens::PAD_MAX_KEY_HEIGHT;
-
-/// Widest a PIN cell may be against its height
-/// ([`tokens::PAD_KEY_ASPECT`]).
-const PIN_ASPECT: f32 = tokens::PAD_KEY_ASPECT;
-
-/// Columns a pad divides its width into.
-fn pad_columns(kind: KeyboardKind) -> f32 {
-    match kind {
-        KeyboardKind::Pin => tokens::PIN_PAD_COLUMNS,
-        _ => tokens::PAD_COLUMNS,
-    }
-}
-
-/// Whether `kind` is a pad whose height follows from its width.
-fn is_pad(kind: KeyboardKind) -> bool {
-    matches!(kind, KeyboardKind::Pin | KeyboardKind::Dice)
-}
-
-/// Largest key height in dp `kind` may take when the keyboard is
-/// `width_dp` wide. This is the ceiling [`height`] applies to whatever
-/// height it is offered; [`key_height`] is what a screen asks for.
-pub fn max_key_height(kind: KeyboardKind, class: SizeClass, width_dp: f32) -> f32 {
-    if class == SizeClass::Small {
-        return preferred_key_height(kind, class);
-    }
-    if is_pad(kind) {
-        let cell = width_dp.min(PAD_MAX_WIDTH) / pad_columns(kind);
-        let aspect = if kind == KeyboardKind::Pin {
-            PIN_ASPECT
-        } else {
-            1.0
-        };
-        return (cell / aspect).clamp(MIN_KEY_HEIGHT, MAX_PAD_KEY_HEIGHT);
-    }
-    if matches!(kind, KeyboardKind::Coin | KeyboardKind::Binary) {
-        return preferred_key_height(kind, class);
-    }
-    MAX_KEY_HEIGHT
-}
-
-/// The key height in dp a screen should ask for: a share of the height
-/// it has under the app bar, clamped to the class's range.
-pub fn key_height(kind: KeyboardKind, class: SizeClass, width_dp: f32, offered_h_dp: f32) -> f32 {
-    let ceiling = max_key_height(kind, class, width_dp);
-    if class == SizeClass::Small
-        || is_pad(kind)
-        || matches!(kind, KeyboardKind::Coin | KeyboardKind::Binary)
-    {
-        return ceiling;
-    }
-    (offered_h_dp * KEY_HEIGHT_FRACTION).clamp(MIN_KEY_HEIGHT, ceiling)
-}
-
-/// The least and greatest height in dp the node that holds `kind` should
-/// be given, [`BOTTOM_RESERVE`] included.
-///
-/// [`height`] takes the reserve off the top of whatever it is offered,
-/// so a cap of `rows × key height` alone leaves every key
-/// `BOTTOM_RESERVE / rows` dp short. Every screen asks for its bounds
-/// here so that arithmetic lives in one place.
-pub fn node_heights(
-    kind: KeyboardKind,
-    class: SizeClass,
-    inset_bottom_dp: f32,
-    width_dp: f32,
-    offered_h_dp: f32,
-    min_key_dp: f32,
-) -> (f32, f32) {
-    let n = rows(kind) as f32;
-    let max_key = key_height(kind, class, width_dp, offered_h_dp).max(min_key_dp);
-    let reserve = tokens::key_bottom_reserve(inset_bottom_dp);
-    (n * min_key_dp + reserve, n * max_key + reserve)
 }
 
 /// Gap between key cells in dp. Zero: keys tile the keyboard area with no
@@ -603,25 +447,6 @@ pub const KEY_FACE_INSET_Y: f32 = tokens::KEY_FACE_INSET_Y;
 /// far above the bottom edge of the screen, while their hit rectangles
 /// reach it.
 pub const KEY_BOTTOM_INSET: f32 = tokens::KEY_BOTTOM_INSET;
-
-/// Height in dp the keyboard region takes on top of its rows, so that
-/// the bottom row keeps a full-height face and still reaches the screen
-/// edge with its hit rectangle.
-pub const BOTTOM_RESERVE: f32 = tokens::KEY_BOTTOM_RESERVE;
-
-/// Intrinsic height in pixels for `kind` when offered `max` pixels. The
-/// ceiling comes from the offered width (see [`max_key_height`]); the
-/// screen's own cap, from [`node_heights`], decides the rest.
-pub fn height(kind: KeyboardKind, ctx: &LayoutCtx, max: crate::geom::Size) -> i32 {
-    let n = rows(kind) as i32;
-    let reserve = ctx.px(tokens::key_bottom_reserve(ctx.inset_bottom_dp));
-    let width_dp = max.w as f32 / ctx.scale.factor();
-    let ceiling = ctx.px(max_key_height(kind, ctx.class, width_dp));
-    let min = ctx.px(MIN_KEY_HEIGHT);
-    let fits = ((max.h - reserve) / n).max(0);
-    let key_h = fits.min(ceiling).max(min);
-    key_h * n + reserve
-}
 
 /// Deterministic permutation of the digits 0–9 for `seed` (xorshift32 +
 /// Fisher–Yates). The same seed always gives the same order.
@@ -1039,82 +864,10 @@ fn round(v: f32) -> i32 {
     (v + 0.5) as i32
 }
 
-/// The enabled key under `(x, y)`, if any.
-pub fn key_at(caps: &[KeyCap], x: i32, y: i32) -> Option<KeyInput> {
-    caps.iter()
-        .find(|k| k.enabled && k.rect.contains(x, y))
-        .map(|k| k.input)
-}
-
-/// Whether a physical-keyboard character is acceptable input for `kind`.
-pub fn accepts_char(kind: KeyboardKind, c: char) -> Option<char> {
-    match kind {
-        KeyboardKind::Bip39 => c.is_ascii_alphabetic().then(|| c.to_ascii_lowercase()),
-        // A PIN pad takes the keyboard's digits as well as touch
-        // (§16.99): a laptop booted from the stick has a keyboard, and
-        // the shuffle still guards a touched entry.
-        KeyboardKind::Pin => c.is_ascii_digit().then_some(c),
-        KeyboardKind::Hex => c.is_ascii_hexdigit().then(|| c.to_ascii_uppercase()),
-        KeyboardKind::Passphrase => (c.is_ascii_graphic() || c == ' ').then_some(c),
-        KeyboardKind::Dice => ('1'..='6').contains(&c).then_some(c),
-        KeyboardKind::Binary => matches!(c, '0' | '1').then_some(c),
-        KeyboardKind::Coin => match c.to_ascii_uppercase() {
-            'H' => Some('H'),
-            'T' => Some('T'),
-            _ => None,
-        },
-        // The ranks in either case, and the four suit glyphs. `10` is
-        // typed as `T`, which is what the key shows.
-        KeyboardKind::Cards => {
-            let upper = c.to_ascii_uppercase();
-            if CARD_RANK_ROWS.iter().any(|r| r.contains(upper)) {
-                Some(upper)
-            } else {
-                CARD_SUITS.contains(&c).then_some(c)
-            }
-        }
-        // An address is ASCII letters and digits, in either case; which
-        // of them can follow what has been typed is the mask's business
-        // and not this one's.
-        KeyboardKind::Address => c.is_ascii_alphanumeric().then_some(c),
-        // A codex32 string is written in one case and read in either,
-        // so the keys type lower case whichever case is pressed.
-        KeyboardKind::Codex32 => c.is_ascii_alphanumeric().then(|| c.to_ascii_lowercase()),
-        // `'` is the other common hardened marker; it types as `h`.
-        KeyboardKind::Path => match c {
-            '0'..='9' | '/' => Some(c),
-            'h' | 'H' | '\'' => Some('h'),
-            _ => None,
-        },
-        // Hiragana and the two voicing marks, in either the standalone
-        // or the combining form. No romanisation: a kana keyboard types
-        // kana.
-        KeyboardKind::Kana => match c {
-            '\u{3041}'..='\u{3096}' | DAKUTEN_KEY | HANDAKUTEN_KEY | SMALL_KEY => Some(c),
-            '\u{3099}' => Some(DAKUTEN_KEY),
-            '\u{309A}' => Some(HANDAKUTEN_KEY),
-            _ => None,
-        },
-        // The Hangul compatibility jamo, which is what the keys carry.
-        KeyboardKind::Jamo => ('\u{3131}'..='\u{3163}').contains(&c).then_some(c),
-        // Latin letters spell the syllable and a digit gives the tone.
-        KeyboardKind::Pinyin => match c {
-            'a'..='z' | 'A'..='Z' => Some(c.to_ascii_lowercase()),
-            '1'..='5' => Some(c),
-            _ => None,
-        },
-        // Bopomofo and the four tone marks. No romanisation.
-        KeyboardKind::Zhuyin => match c {
-            '\u{3105}'..='\u{3129}' => Some(c),
-            _ => ZHUYIN_MARKS.contains(&c).then_some(c),
-        },
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geom::Scale;
+    use crate::geom::{Scale, SizeClass};
 
     fn ctx(class: SizeClass) -> LayoutCtx {
         LayoutCtx::new(Scale::IDENTITY, class)
@@ -1127,7 +880,10 @@ mod tests {
             KeyboardKind::Bip39,
             area,
             &ctx(SizeClass::Mobile),
-            mask_of("abc"),
+            ["a", "b", "c"]
+                .iter()
+                .flat_map(|w| w.chars())
+                .fold(0, |m, c| m | key_bit(KeyboardKind::Bip39, c)),
             None,
             Modifiers::default(),
         );
@@ -1142,11 +898,6 @@ mod tests {
             caps.iter()
                 .any(|k| k.input == KeyInput::Backspace && k.enabled)
         );
-        // A disabled key does not hit.
-        let q = find('q').rect.center();
-        assert_eq!(key_at(&caps, q.x, q.y), None);
-        let a = find('a').rect.center();
-        assert_eq!(key_at(&caps, a.x, a.y), Some(KeyInput::Char('a')));
     }
 
     /// A word is taken by a tap on its candidate, so the five keyboards
@@ -1356,60 +1107,6 @@ mod tests {
             assert!(seen.contains(&(b as char)), "missing {:?}", b as char);
         }
         assert_eq!(seen.len(), 95);
-    }
-
-    #[test]
-    fn physical_keys_are_filtered_per_kind() {
-        assert_eq!(accepts_char(KeyboardKind::Bip39, 'Q'), Some('q'));
-        assert_eq!(accepts_char(KeyboardKind::Bip39, '1'), None);
-        assert_eq!(accepts_char(KeyboardKind::Pin, '7'), Some('7'));
-        assert_eq!(accepts_char(KeyboardKind::Pin, 'a'), None);
-        assert_eq!(accepts_char(KeyboardKind::Hex, 'b'), Some('B'));
-        assert_eq!(accepts_char(KeyboardKind::Hex, 'g'), None);
-        assert_eq!(accepts_char(KeyboardKind::Passphrase, ' '), Some(' '));
-        assert_eq!(accepts_char(KeyboardKind::Passphrase, 'é'), None);
-        assert_eq!(accepts_char(KeyboardKind::Dice, '6'), Some('6'));
-        assert_eq!(accepts_char(KeyboardKind::Dice, '0'), None);
-        assert_eq!(accepts_char(KeyboardKind::Dice, '7'), None);
-        assert_eq!(accepts_char(KeyboardKind::Coin, 'h'), Some('H'));
-        assert_eq!(accepts_char(KeyboardKind::Coin, 'T'), Some('T'));
-        assert_eq!(accepts_char(KeyboardKind::Coin, 'x'), None);
-        assert_eq!(accepts_char(KeyboardKind::Path, '7'), Some('7'));
-        assert_eq!(accepts_char(KeyboardKind::Path, '/'), Some('/'));
-        assert_eq!(accepts_char(KeyboardKind::Path, '\''), Some('h'));
-        assert_eq!(accepts_char(KeyboardKind::Path, 'H'), Some('h'));
-        assert_eq!(accepts_char(KeyboardKind::Path, 'm'), None);
-        // The kana keyboard takes kana and the voicing marks in either
-        // form, and no romanisation.
-        assert_eq!(
-            accepts_char(KeyboardKind::Kana, '\u{3042}'),
-            Some('\u{3042}')
-        );
-        assert_eq!(
-            accepts_char(KeyboardKind::Kana, '\u{3063}'),
-            Some('\u{3063}')
-        );
-        assert_eq!(
-            accepts_char(KeyboardKind::Kana, '\u{3099}'),
-            Some(DAKUTEN_KEY)
-        );
-        assert_eq!(accepts_char(KeyboardKind::Kana, 'a'), None);
-        assert_eq!(
-            accepts_char(KeyboardKind::Kana, '\u{30A2}'),
-            None,
-            "katakana"
-        );
-        // The jamo keyboard takes compatibility jamo only.
-        assert_eq!(
-            accepts_char(KeyboardKind::Jamo, '\u{3131}'),
-            Some('\u{3131}')
-        );
-        assert_eq!(
-            accepts_char(KeyboardKind::Jamo, '\u{AC00}'),
-            None,
-            "a syllable"
-        );
-        assert_eq!(accepts_char(KeyboardKind::Jamo, 'r'), None);
     }
 
     /// The kana keyboard is the 五十音: ten columns of five, with the
@@ -1709,9 +1406,6 @@ mod tests {
                 .unwrap()
                 .enabled
         );
-        assert_eq!(key_at(&caps, 5, 5), Some(KeyInput::Char('1')));
-        assert_eq!(key_at(&caps, 395, 5), Some(KeyInput::Backspace));
-        assert_eq!(key_at(&caps, 395, 95), Some(KeyInput::Done));
         let coin = keys(
             KeyboardKind::Coin,
             area,

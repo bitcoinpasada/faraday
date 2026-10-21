@@ -10,8 +10,6 @@ publish = false
 
 [dependencies]
 faraday-shell-api = { path = "../faraday-shell-api" }
-# The QR quiet zone (`tokens::QR_QUIET_ZONE`); the decoder and its `std` stay out.
-faraday-codec = { path = "../faraday-codec", default-features = false }
 tiny-skia.workspace = true
 # The count of costly work (`faraday_crypto::work`): a canvas blurred or
 # copied whole.

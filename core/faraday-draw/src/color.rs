@@ -24,8 +24,6 @@ impl Color {
         Color { r, g, b, a }
     }
 
-    /// Fully transparent.
-    pub const TRANSPARENT: Color = Color::rgba(0, 0, 0, 0);
     /// White.
     pub const WHITE: Color = Color::rgb(255, 255, 255);
     /// Black.

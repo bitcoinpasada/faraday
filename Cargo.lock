@@ -854,7 +854,6 @@ dependencies = [
 name = "faraday-draw"
 version = "0.1.0"
 dependencies = [
- "faraday-codec",
  "faraday-crypto",
  "faraday-shell-api",
  "tiny-skia 0.12.0",

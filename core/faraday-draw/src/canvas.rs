@@ -241,15 +241,6 @@ impl Canvas {
         }
     }
 
-    /// Every string drawn since the last [`Canvas::clear`] whose ink ran
-    /// past the left or right edge of the clip it was drawn in: a label
-    /// cut off at its row's edge. Text above or below its clip — a row
-    /// scrolled out of its viewport — is not counted; that is scrolling,
-    /// not cutting.
-    pub fn cut_texts(&self) -> &[String] {
-        &self.cut
-    }
-
     fn paint(color: Color) -> Paint<'static> {
         let mut paint = Paint::default();
         paint.set_color(color.to_skia());
@@ -691,11 +682,6 @@ impl Canvas {
         self.draw_path(&path, &Self::paint(color), None);
     }
 
-    /// Strokes a rectangle outline `width` pixels thick, inside the rect.
-    pub fn stroke_rect(&mut self, rect: Rect, width: f32, color: Color) {
-        self.stroke_rounded_rect(rect, 0.0, width, color);
-    }
-
     /// Strokes a rounded rectangle outline `width` pixels thick, inside
     /// the rect.
     pub fn stroke_rounded_rect(&mut self, rect: Rect, radius: f32, width: f32, color: Color) {
@@ -754,51 +740,6 @@ impl Canvas {
         }
         let Some(path) = pb.finish() else { return };
         self.draw_path(&path, &Self::paint(color), None);
-    }
-
-    /// Strokes an arc of a circle, starting at twelve o'clock and
-    /// sweeping clockwise over `fraction` of a whole turn.
-    ///
-    /// The eye's ring (`docs/DESIGN.md` §4.10) is the one caller: it
-    /// empties as the reveal runs. No trigonometry is available without
-    /// `std`, so the arc is a polyline whose points come from rotating
-    /// one radius vector.
-    pub fn stroke_arc(
-        &mut self,
-        cx: f32,
-        cy: f32,
-        radius: f32,
-        width: f32,
-        fraction: f32,
-        color: Color,
-    ) {
-        /// Segments a whole turn is drawn in.
-        const SEGMENTS: usize = 72;
-        /// Degrees in a whole turn.
-        const TURN_DEG: f32 = 360.0;
-        let fraction = fraction.clamp(0.0, 1.0);
-        if fraction <= 0.0 || radius <= 0.0 || color.a == 0 {
-            return;
-        }
-        let steps = ((fraction * SEGMENTS as f32) as usize).clamp(1, SEGMENTS);
-        let mut pb = PathBuilder::new();
-        for i in 0..=steps {
-            let deg = fraction * TURN_DEG * (i as f32 / steps as f32);
-            let mut p = tiny_skia::Point::from_xy(0.0, -radius);
-            Transform::from_rotate(deg).map_point(&mut p);
-            let (x, y) = (cx + p.x, cy + p.y);
-            if i == 0 {
-                pb.move_to(x, y);
-            } else {
-                pb.line_to(x, y);
-            }
-        }
-        let Some(path) = pb.finish() else { return };
-        let stroke = Stroke {
-            width,
-            ..Stroke::default()
-        };
-        self.draw_path(&path, &Self::paint(color), Some(&stroke));
     }
 
     /// Fills `path`, or strokes it with `stroke`, inside the clip.
@@ -982,19 +923,6 @@ impl Canvas {
         );
         self.damaged(inked);
         self.note_ink(|| InkKind::Icon(icon), Some(inked));
-    }
-
-    /// Draws one line of text aligned within `rect` (vertically centred).
-    pub fn text_in(&mut self, rect: Rect, s: &str, font: Font, color: Color, align: TextAlign) {
-        let face = font.sized(self.scale);
-        let w = text::width(&face, s);
-        let x = match align {
-            TextAlign::Start => rect.x,
-            TextAlign::Center => rect.x + (rect.w - w) / 2,
-            TextAlign::End => rect.right() - w,
-        };
-        let y = rect.y + (rect.h - face.line_height()) / 2;
-        self.text_with_face(&face, x, y, s, color);
     }
 
     /// Draws `s` word-wrapped inside `rect`, top-aligned, clipped to the
