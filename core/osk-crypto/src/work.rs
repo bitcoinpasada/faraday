@@ -9,6 +9,14 @@
 //! for the process ([`set_counter`]) and keeps the counts itself: per
 //! thread, beside its own kinds, so that a test can say that drawing a
 //! frame twice did none it should not.
+//!
+//! [`Compute`] is the token a costly function will take
+//! (`docs/COMPUTE.md` §2): an application mints one where it may do
+//! costly work, and code that cannot reach one cannot call work that
+//! needs it. Until the costly functions take it (batches C1 to C3) the
+//! process-wide counter above stays.
+
+use core::marker::PhantomData;
 
 /// A kind of costly work the core does.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -58,4 +66,73 @@ pub fn count(w: Work) {
     }
     #[cfg(not(feature = "count"))]
     let _ = w;
+}
+
+/// The token a costly function takes: proof that its caller may do
+/// costly work, carrying the counter that work is noted with
+/// (`docs/COMPUTE.md` §2.1).
+///
+/// It is not `Clone`, `Copy`, `Default`, `Send` or `Sync`, so a token is
+/// minted where it is used and cannot be kept in a `static`.
+///
+/// ```
+/// use osk_crypto::work::{Compute, Work};
+/// let c = Compute::new(|_| {});
+/// c.count(Work::Kdf);
+/// ```
+///
+/// It cannot be copied,
+///
+/// ```compile_fail,E0599
+/// use osk_crypto::work::Compute;
+/// let c = Compute::new(|_| {});
+/// let d = c.clone();
+/// ```
+///
+/// sent to another thread,
+///
+/// ```compile_fail,E0277
+/// use osk_crypto::work::Compute;
+/// fn send<T: Send>() {}
+/// send::<Compute>();
+/// ```
+///
+/// or made from nothing:
+///
+/// ```compile_fail,E0277
+/// use osk_crypto::work::Compute;
+/// let c: Compute = Default::default();
+/// ```
+pub struct Compute {
+    count: fn(Work),
+    // A raw pointer is neither `Send` nor `Sync`, so neither is the token.
+    _local: PhantomData<*const ()>,
+}
+
+impl Compute {
+    /// A mint, noting work with `count`. An application calls this at
+    /// its entry points only (`docs/COMPUTE.md` §3). Cheap.
+    #[must_use]
+    pub fn new(count: fn(Work)) -> Compute {
+        Compute {
+            count,
+            _local: PhantomData,
+        }
+    }
+
+    /// A token that counts nothing, for OpenSigner's app, core's tests,
+    /// fuzz targets and tools: code with no drawing guarantee to keep.
+    /// Cheap.
+    #[cfg(feature = "unchecked")]
+    #[must_use]
+    pub fn unchecked() -> Compute {
+        Compute::new(|_| {})
+    }
+
+    /// Notes one piece of work of kind `w`: a call through the pointer.
+    /// Cheap.
+    #[inline]
+    pub fn count(&self, w: Work) {
+        (self.count)(w);
+    }
 }

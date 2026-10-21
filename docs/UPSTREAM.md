@@ -201,3 +201,14 @@ what matters, security fixes first, as a commit per upstream change
 naming upstream's commit, and move §1's sync point. Notes once meant for
 upstream (`local/for-upstream/`) are optional: they may still be sent,
 and nothing waits on them.
+- `core/osk-crypto/src/work.rs` (2026-10-21; `docs/COMPUTE.md` C0):
+  `Compute`, the token costly work will take: not `Clone`, `Copy`,
+  `Default`, `Send` or `Sync`; minted by `Compute::new(count)` at an
+  application's entry points, or by `Compute::unchecked()` behind the new
+  `unchecked` feature. Nothing takes it yet. Why: a screen that does
+  costly work while drawing will not compile (C1-C3).
+- `opensigner/opensigner-core` (2026-10-21; C0): enables
+  `osk-crypto/unchecked` and has a crate-private `unchecked()` helper,
+  never re-exported, for OpenSigner's own app, which makes no drawing
+  claim. Faraday's crates are kept off it by `faraday/clippy.toml` and,
+  from D1, the costs lint.

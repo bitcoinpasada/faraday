@@ -19,6 +19,12 @@ pin-pages = ["dep:libc"]
 # Needs `std` for the process-wide counter; off by default, so the crate
 # stays `no_std`. Faraday's app core turns it on.
 count = []
+# `work::Compute::unchecked`, a token that counts nothing, for code with
+# no drawing guarantee to keep: OpenSigner's app, core's tests, fuzz
+# targets and tools (docs/COMPUTE.md §3). Faraday mints with
+# `Compute::new` at its entry points; `faraday/clippy.toml` refuses
+# `unchecked` there.
+unchecked = []
 
 [dependencies]
 zeroize.workspace = true
