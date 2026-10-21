@@ -3,7 +3,7 @@
 //! **+** card, the software place, the list beside them, the check lines
 //! under them, a placed chip's form toggles and the chip being dragged,
 //! and the sheet over a drop that lets a place see the balance. It reads
-//! the board as the frame's memo has it ([`Faraday::board_view`]) and the
+//! the board as the frame's memo has it ([`Faraday::board_view_now`]) and the
 //! chip held; it works nothing out but where things go.
 
 use osk_ui::tokens;

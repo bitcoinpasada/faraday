@@ -164,6 +164,7 @@ fn on(shell: &Shell, disks: &[&str]) -> Vec<(String, Vec<u8>)> {
 /// stick as a visit copies them: a text file as it is, a picture as the
 /// disk process reads its codes.
 fn copied_in(files: &[(String, Vec<u8>)]) -> Faraday {
+    let c = faraday_core::testkit::compute();
     let mut app = testkit::started();
     let text: Vec<(String, Vec<u8>)> = files
         .iter()
@@ -179,7 +180,7 @@ fn copied_in(files: &[(String, Vec<u8>)]) -> Faraday {
         files.iter().filter(|(n, _)| n.ends_with(".png")).collect();
     pictures.sort_by(|a, b| a.0.cmp(&b.0));
     for (name, bytes) in pictures {
-        let payloads = faraday_files::qr_in_png(bytes).unwrap_or_default();
+        let payloads = faraday_files::qr_in_png(&c, bytes).unwrap_or_default();
         assert!(!payloads.is_empty(), "{name} holds a code");
         app.storage(StorageEvent::QrRead {
             name: name.clone(),

@@ -100,7 +100,7 @@ impl View<'_> {
     /// The QR code of public text `text` ([`crate::Faraday::public_qr`]),
     /// kept by its text. Costs a QR encoding the first time.
     pub fn public_qr(&self, text: &str) -> Option<Rc<QrMatrix>> {
-        self.kept(|_c| self.app.public_qr(text))
+        self.kept(|c| self.app.public_qr(c, text))
     }
 
     /// Wallet description `text` read ([`crate::Faraday::read_kept`]),
@@ -217,6 +217,68 @@ impl View<'_> {
         self.kept(|c| self.app.record_word_count(c, r))
     }
 
+    /// The files GPG's sheet signs ([`crate::Faraday::gpg_chosen`]), each
+    /// file's hash kept by the file. Costs a hash of each file the first
+    /// time.
+    pub(crate) fn gpg_chosen(&self) -> Vec<GpgFile> {
+        self.kept(|c| self.app.gpg_chosen(c))
+    }
+
+    /// File `item`'s SHA-256 ([`crate::Item::hash`]): the one taken when
+    /// it came in. Costs a hash of the file when none was taken.
+    pub(crate) fn item_hash(&self, item: &crate::Item) -> [u8; 32] {
+        self.kept(|c| item.hash(c))
+    }
+
+    /// The session strip's stage ([`crate::Faraday::session_stage`]),
+    /// from each vault file's hash taken when it came in. Costs a hash of
+    /// a file whose hash was not taken.
+    pub fn session_stage(&self) -> &'static str {
+        self.kept(|c| self.app.session_stage(c))
+    }
+
+    /// The first vault changed since it was written
+    /// ([`crate::Faraday::vault_changed`]), from each vault file's hash
+    /// taken when it came in. Costs a hash of a file whose hash was not
+    /// taken.
+    pub fn vault_changed(&self) -> Option<String> {
+        self.kept(|c| self.app.vault_changed(c))
+    }
+
+    /// Where vault file `f` stands against the last write
+    /// ([`crate::Faraday::currency`]), from its hash taken when it came
+    /// in. Costs a hash of a file whose hash was not taken.
+    pub fn currency(&self, f: &crate::vaults::VaultFile) -> Option<crate::vaults::Currency> {
+        self.kept(|c| self.app.currency(c, f))
+    }
+
+    /// What APK `name` in Files reads as ([`crate::Faraday::apk_info`]),
+    /// kept by the hash taken when it came in. Costs a read of the APK
+    /// the first time.
+    pub fn apk_info(&self, name: &str) -> Option<faraday_apk::Info> {
+        self.kept(|c| self.app.apk_info(c, name))
+    }
+
+    /// The APKs in Files of package `package`
+    /// ([`crate::Faraday::apk_listed`]), each read as it is kept. Costs a
+    /// read of each APK the first time.
+    pub fn apk_listed(&self, package: &str) -> Vec<crate::apk::Listed> {
+        self.kept(|c| self.app.apk_listed(c, package))
+    }
+
+    /// The row Files shows for APK `k` ([`crate::Faraday::apk_files_row`]),
+    /// from the APK as it is kept. Costs a read of the APK the first time.
+    pub fn apk_files_row(&self, k: usize) -> crate::apk::Row {
+        self.kept(|c| self.app.apk_files_row(c, k))
+    }
+
+    /// The label of the flow's copy of vault `salt`'s files
+    /// ([`crate::Faraday::flow_files_copy_label`]), from the hashes kept
+    /// on the flow. Costs a hash of a file not hashed yet.
+    pub(crate) fn flow_files_copy_label(&self, salt: &[u8; 32]) -> String {
+        self.kept(|c| self.app.flow_files_copy_label(c, salt))
+    }
+
     /// The Seeds tool's address ([`crate::Faraday::seeds_address`]), kept
     /// by what it is derived from. Costs an address derivation the first
     /// time.
@@ -228,7 +290,7 @@ impl View<'_> {
     /// each file's hash kept by the file. Costs a hash of each file the
     /// first time.
     pub fn gpg_files(&self) -> Vec<GpgFile> {
-        self.kept(|_c| self.app.gpg_files())
+        self.kept(|c| self.app.gpg_files(c))
     }
 
     /// Where the seed of wallet slot `slot` is in the open vaults
@@ -467,5 +529,17 @@ impl crate::glance::Reads for View<'_> {
     }
     fn wallet_stick_rows(&self) -> Vec<super::StickRow> {
         View::wallet_stick_rows(self)
+    }
+    fn backup_items(&self) -> Vec<u8> {
+        View::backup_items(self)
+    }
+    fn backup_seed_list(&self, w: usize) -> Vec<(String, Option<usize>)> {
+        View::backup_seed_list(self, w)
+    }
+    fn address_shown(&self, wl: &Wallet, change: bool, index: u32) -> String {
+        View::address_shown(self, wl, change, index)
+    }
+    fn psbt_for(&self, w: usize) -> Option<usize> {
+        View::psbt_for(self, w)
     }
 }

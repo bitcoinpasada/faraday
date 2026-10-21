@@ -101,8 +101,9 @@ fn noise(len: usize) -> Vec<u8> {
 
 /// What a camera reads off one code.
 fn read(m: &osk_codec::qr::QrMatrix) -> Vec<u8> {
+    let c = crate::testkit::compute();
     let png = osk_codec::png::qr_png(m, 3);
-    let mut read = faraday_files::qr_in_png(&png).expect("a picture");
+    let mut read = faraday_files::qr_in_png(&c, &png).expect("a picture");
     assert_eq!(read.len(), 1, "one code a frame");
     read.remove(0)
 }

@@ -15,9 +15,11 @@ fn template() -> Template {
 
 #[test]
 fn the_pdf_lands_in_downloads_and_a_second_save_is_named_two() {
+    // A token from an app of its own: what a press on the sheet holds.
+    let c = faraday_core::Faraday::new().compute();
     let dir = std::env::temp_dir().join(format!("faraday-template-test-{}", std::process::id()));
     let t = template();
-    let pdf = t.pdf().expect("a PDF");
+    let pdf = t.pdf(&c).expect("a PDF");
     let first = faraday_storage::save_download(&dir, &t.file_name(), &pdf).unwrap();
     let second = faraday_storage::save_download(&dir, &t.file_name(), &pdf).unwrap();
     assert_eq!(
@@ -34,8 +36,10 @@ fn the_pdf_lands_in_downloads_and_a_second_save_is_named_two() {
 
 #[test]
 fn print_writes_the_same_pdf_to_the_temporary_folder() {
+    // A token from an app of its own: what a press on the sheet holds.
+    let c = faraday_core::Faraday::new().compute();
     let t = template();
-    let pdf = t.pdf().expect("a PDF");
+    let pdf = t.pdf(&c).expect("a PDF");
     let path = write_temp(&t.file_name(), &pdf).unwrap();
     assert!(path.starts_with(std::env::temp_dir()));
     assert_eq!(std::fs::read(&path).unwrap(), pdf);

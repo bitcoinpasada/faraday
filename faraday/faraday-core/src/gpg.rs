@@ -135,13 +135,16 @@ fn revoked_at(r: &Record) -> Option<u32> {
 }
 
 /// SHA-256 of a file, as the signing page shows and ticks it.
-pub fn sha256(bytes: &[u8]) -> [u8; 32] {
-    crate::sha256_of(bytes)
+pub fn sha256(c: &Compute, bytes: &[u8]) -> [u8; 32] {
+    crate::sha256_of(c, bytes)
 }
 
 /// [`sha256`] in lower-case hex.
-pub fn sha256_hex(bytes: &[u8]) -> String {
-    sha256(bytes).iter().map(|b| format!("{b:02x}")).collect()
+pub fn sha256_hex(c: &Compute, bytes: &[u8]) -> String {
+    sha256(c, bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 /// A Unix time as a date, `YYYY-MM-DD`.
@@ -462,7 +465,7 @@ impl Faraday {
                 let now = self.clock()?;
                 usable(&key, self.gpg_record(at).and_then(revoked_at), now)?;
                 let item = self
-                    .gpg_files()
+                    .gpg_files(c)
                     .into_iter()
                     .find(|f| f.hash[..8] == prefix)
                     .and_then(|f| self.inbox.get(f.index))
@@ -613,7 +616,7 @@ impl Faraday {
     /// The Inbox files a GPG key can sign, each with its hash and, when
     /// small, its text: a `.asc` file is a signature already, not
     /// something to sign again.
-    pub(crate) fn gpg_files(&self) -> Vec<GpgFile> {
+    pub(crate) fn gpg_files(&self, c: &Compute) -> Vec<GpgFile> {
         let mut seen = self.vaults.sign_seen.borrow_mut();
         let mut out = Vec::new();
         let mut keep = Vec::new();
@@ -625,7 +628,7 @@ impl Faraday {
             let (hash, text) = match seen.iter().find(|s| s.name == it.name && s.probe == probe) {
                 Some(s) => (s.hash, s.text.clone()),
                 // Kept on the state (`sign_seen`) once worked out.
-                None => crate::work::keeping(|| (it.hash(), small_text(&it.bytes))),
+                None => crate::work::keeping(|| (it.hash(c), small_text(&it.bytes))),
             };
             keep.push(Seen {
                 name: it.name.clone(),
@@ -648,8 +651,8 @@ impl Faraday {
     /// The code of the selected key's signature over the Inbox file
     /// called `name`: it names the file by its hash, as the signing
     /// page's buttons do.
-    pub fn signature_code(&self, name: &str) -> Option<crate::Code> {
-        let f = self.gpg_files().into_iter().find(|f| f.name == name)?;
+    pub fn signature_code(&self, c: &Compute, name: &str) -> Option<crate::Code> {
+        let f = self.gpg_files(c).into_iter().find(|f| f.name == name)?;
         Some(crate::Code::GpgSignature(f.hash[..8].try_into().ok()?))
     }
 
@@ -665,7 +668,8 @@ impl Faraday {
     /// The signing page's ticks at their default: the only signable file
     /// ticked, or none of several.
     pub(crate) fn gpg_default_ticks(&mut self) {
-        let files = self.gpg_files();
+        let c = self.compute();
+        let files = self.gpg_files(&c);
         self.vaults.sign_ticked = match files.as_slice() {
             [one] => vec![(one.name.clone(), one.hash)],
             _ => Vec::new(),
@@ -674,7 +678,8 @@ impl Faraday {
 
     /// Ticks or unticks the listed file at `k`.
     pub(crate) fn gpg_tick(&mut self, k: usize) {
-        let Some(f) = self.gpg_files().into_iter().nth(k) else {
+        let c = self.compute();
+        let Some(f) = self.gpg_files(&c).into_iter().nth(k) else {
             return;
         };
         let tick = (f.name, f.hash);
@@ -688,7 +693,8 @@ impl Faraday {
 
     /// Ticks every listed file, or none when every one is ticked.
     pub(crate) fn gpg_tick_all(&mut self) {
-        let files = self.gpg_files();
+        let c = self.compute();
+        let files = self.gpg_files(&c);
         if files.iter().all(|f| self.gpg_ticked(f)) {
             self.vaults.sign_ticked.clear();
         } else {
@@ -731,8 +737,8 @@ impl Faraday {
 
     /// The listed files ticked to sign, as Sign's sheet lists them.
     /// Hashes a file the page has not hashed yet.
-    pub(crate) fn gpg_chosen(&self) -> Vec<GpgFile> {
-        self.gpg_files()
+    pub(crate) fn gpg_chosen(&self, c: &Compute) -> Vec<GpgFile> {
+        self.gpg_files(c)
             .into_iter()
             .filter(|f| self.gpg_ticked(f))
             .collect()
@@ -742,10 +748,11 @@ impl Faraday {
     /// when a listed file is ticked. Signs nothing and asks nothing: the
     /// sheet shows the time the signatures will carry (F63).
     pub(crate) fn gpg_sign_sheet_open(&mut self) {
+        let c = self.compute();
         if !self.vaults.signing || self.vaults.sign_key != self.gpg_fingerprint() {
             return;
         }
-        if self.gpg_chosen().is_empty() {
+        if self.gpg_chosen(&c).is_empty() {
             return;
         }
         self.sheet = Some(crate::Sheet::GpgSign);
@@ -769,6 +776,7 @@ impl Faraday {
     /// those ticked is not signed. A signature is not written over a file
     /// of that name. One toast says how many were written.
     pub(crate) fn gpg_sign_ticked(&mut self) {
+        let c = self.compute();
         if self.selected_waits().is_some() {
             return;
         }
@@ -794,7 +802,7 @@ impl Faraday {
             let found = self
                 .inbox
                 .iter()
-                .position(|i| i.name == name && crate::sha256_of(&i.bytes) == hash);
+                .position(|i| i.name == name && crate::sha256_of(&c, &i.bytes) == hash);
             let Some(k) = found else {
                 changed += 1;
                 failure.get_or_insert_with(|| fill(EN.gpg_changed, &[&name.to_string()]));

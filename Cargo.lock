@@ -880,6 +880,7 @@ name = "faraday-scanner"
 version = "0.1.5"
 dependencies = [
  "osk-codec",
+ "osk-crypto",
  "osk-ui",
  "rqrr",
  "zeroize",
@@ -912,6 +913,7 @@ dependencies = [
  "faraday-ui",
  "osk-bip",
  "osk-codec",
+ "osk-crypto",
  "osk-learn",
  "osk-shell-api",
  "osk-ui",

@@ -66,6 +66,7 @@ impl Faraday {
     /// record's code, kept while the press is held (`docs/SPEED.md`
     /// §3.3: drawing makes no code). Any other press drops one kept.
     pub(crate) fn vault_seedqr_press(&mut self, pressed: Option<Action>) {
+        let c = self.compute();
         self.vaults.seedqr = None;
         if pressed != Some(Action::Vault(VaultAction::ShowSeedQr)) {
             return;
@@ -79,8 +80,7 @@ impl Faraday {
         if m.language() != osk_bip::bip39::Language::English {
             return;
         }
-        crate::work::count(crate::work::Work::QrEncode);
-        if let Ok(mx) = osk_codec::seedqr::encode_seedqr(&m) {
+        if let Ok(mx) = osk_codec::seedqr::encode_seedqr(&c, &m) {
             self.vaults.seedqr = Some((at, mx));
         }
     }
@@ -292,7 +292,7 @@ impl Faraday {
                         v.push(b'\n');
                         Some(v)
                     } else {
-                        crate::backup_flow_wallet::seedqr_png(m, fp)
+                        crate::backup_flow_wallet::seedqr_png(&c, m, fp)
                     };
                     let Some(bytes) = bytes else {
                         continue;

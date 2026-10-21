@@ -39,7 +39,8 @@ fn photo(w: usize, h: usize) -> Vec<u8> {
 
 /// A picture of one code holding `text`.
 fn code(text: &str) -> Vec<u8> {
-    let m = qr::encode(Payload::Bytes(text.as_bytes()), Ecc::Low).expect("a code");
+    let c = crate::testkit::compute();
+    let m = qr::encode(&c, Payload::Bytes(text.as_bytes()), Ecc::Low).expect("a code");
     let (w, h, px) = m.to_luma(4, QUIET_ZONE);
     osk_codec::png::grey_png(w, h, &px)
 }

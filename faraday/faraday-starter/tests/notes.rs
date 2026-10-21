@@ -7,6 +7,15 @@ use faraday_starter::notes::Notes;
 use faraday_starter::{Page, Starter, StarterAction};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
+/// A token for the PDFs these tests make, counting nothing. Cheap.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a mint: the Starter's tests, which draw nothing"
+)]
+fn compute() -> osk_crypto::work::Compute {
+    osk_crypto::work::Compute::new(|_| {})
+}
+
 const NOT_FOUND: &str = "If the Secure Boot setting cannot be found: exit the BIOS without saving \
                          changes. Windows starts as before.";
 const NOT_FOUND_LINUX: &str = "If the Secure Boot setting cannot be found: exit the BIOS without \
@@ -139,6 +148,7 @@ fn a_dell_s_page_shows_its_three_things_before_the_restart() {
 
 #[test]
 fn a_dell_s_sheet_has_the_three_things_and_the_steps_in_order() {
+    let c = compute();
     let notes = Notes::for_computer(&dell()).expect("notes");
     assert_eq!(notes.title, "Start this computer from the stick");
     assert_eq!(
@@ -165,7 +175,7 @@ fn a_dell_s_sheet_has_the_three_things_and_the_steps_in_order() {
     let (name, pdf) = printed(&mut s);
     assert_eq!(name, "faraday-start-from-the-stick.pdf");
     assert!(pdf.starts_with(b"%PDF-"));
-    assert_eq!(pdf, notes.pdf());
+    assert_eq!(pdf, notes.pdf(&c));
     for t in [
         "Start this computer from the stick",
         "Boot menu key",
@@ -303,7 +313,8 @@ fn a_viewer_that_does_not_open_says_why_until_the_next_print() {
 
 #[test]
 fn the_sheet_names_no_path_user_or_computer() {
-    let pdf = Notes::for_computer(&dell()).expect("notes").pdf();
+    let c = compute();
+    let pdf = Notes::for_computer(&dell()).expect("notes").pdf(&c);
     for word in [
         b"/Info".as_slice(),
         b"/Producer",

@@ -11,6 +11,7 @@
 use faraday_core::pdf;
 use faraday_core::strings::fill;
 use faraday_core::strings::{EN, Strings};
+use osk_crypto::work::Compute;
 
 use crate::api::{Computer, Os, RecoveryKey};
 use crate::macs;
@@ -251,8 +252,8 @@ impl Notes {
     /// Writes the sheet as a PDF (`faraday-core`'s writer): the title,
     /// the rows, a line to write on for a value not known, the lines to
     /// circle the keys that worked, and the steps. Writing a PDF.
-    pub fn pdf(&self) -> Vec<u8> {
-        self.sheet(None)
+    pub fn pdf(&self, c: &Compute) -> Vec<u8> {
+        self.sheet(c, None)
     }
 
     /// The same sheet with the system drive's BitLocker recovery key
@@ -260,11 +261,11 @@ impl Notes {
     /// line. Nothing else of BitLocker. The rows' copy of the key is
     /// wiped once the PDF is written; the PDF is the caller's to wipe.
     /// Writing a PDF.
-    pub fn pdf_with_key(&self, key: &RecoveryKey) -> Vec<u8> {
-        self.sheet(Some(key))
+    pub fn pdf_with_key(&self, c: &Compute, key: &RecoveryKey) -> Vec<u8> {
+        self.sheet(c, Some(key))
     }
 
-    fn sheet(&self, key: Option<&RecoveryKey>) -> Vec<u8> {
+    fn sheet(&self, c: &Compute, key: Option<&RecoveryKey>) -> Vec<u8> {
         use zeroize::Zeroize;
         let mut rows: Vec<(String, Option<String>)> = self
             .rows
@@ -298,7 +299,7 @@ impl Notes {
                 )
             })
             .collect();
-        let out = pdf::notes(self.title, &rows, &steps);
+        let out = pdf::notes(c, self.title, &rows, &steps);
         for (label, value) in &mut rows {
             label.zeroize();
             value.zeroize();

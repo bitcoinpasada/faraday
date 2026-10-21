@@ -20,6 +20,8 @@ osk-bip = { path = "../../core/osk-bip" }
 # turns on the held app's guide pages and firmware sketches, which the
 # Starter shows and the desktop app, the stick and the Pi do not.
 faraday-core = { path = "../faraday-core", features = ["guides"] }
+# The token the notes' and the template's PDFs take (docs/COMPUTE.md §2).
+osk-crypto = { path = "../../core/osk-crypto" }
 # Faraday's drawing.
 faraday-ui = { path = "../faraday-ui" }
 # Faraday's own Learn pages.

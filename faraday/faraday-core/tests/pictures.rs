@@ -29,7 +29,8 @@ fn visiting() -> Faraday {
 /// The picture `name` read from the stick, as the disk process reads a
 /// PNG, and handed to the app.
 fn scan(app: &mut Faraday, name: &str, png: &[u8]) {
-    let payloads = faraday_files::qr_in_png(png).expect("a PNG");
+    let c = faraday_core::testkit::compute();
+    let payloads = faraday_files::qr_in_png(&c, png).expect("a PNG");
     assert!(!payloads.is_empty(), "{name}: no code read");
     app.storage(StorageEvent::QrRead {
         name: name.to_string(),
@@ -132,8 +133,9 @@ fn a_single_key_descriptor_picture_scans_back_as_the_wallet() {
 
 #[test]
 fn the_descriptor_picture_is_labelled_with_the_wallet_and_its_checksum() {
+    let c = faraday_core::testkit::compute();
     let (app, w) = holding("Savings", &testkit::savings());
-    let pictures = app.public_pictures(w, 8);
+    let pictures = app.public_pictures(&c, w, 8);
     assert_eq!(pictures.len(), 1);
     let text = label(&pictures[0]);
     let sum = checksum(&testkit::savings());
@@ -147,6 +149,7 @@ fn the_descriptor_picture_is_labelled_with_the_wallet_and_its_checksum() {
 
 #[test]
 fn a_descriptor_past_one_code_goes_as_parts_that_assemble_to_it() {
+    let c = faraday_core::testkit::compute();
     // A 2-of-15: three seeds at five accounts each.
     let keys: Vec<String> = (0..5)
         .flat_map(|a| (0..3).map(move |n| testkit::key(n, &format!("m/48'/1'/{a}'/2'"))))
@@ -155,7 +158,7 @@ fn a_descriptor_past_one_code_goes_as_parts_that_assemble_to_it() {
     let descriptor = format!("wsh(sortedmulti(2,{}))", keys.join(","));
     let (app, w) = holding("Big", &descriptor);
     let want = app.session.wallets[w].policy().to_descriptor_checksummed();
-    let pictures = app.public_pictures(w, 8);
+    let pictures = app.public_pictures(&c, w, 8);
     let k = pictures.len();
     assert!(k > 1, "one code");
     for (j, p) in pictures.iter().enumerate() {
@@ -168,7 +171,7 @@ fn a_descriptor_past_one_code_goes_as_parts_that_assemble_to_it() {
     }
     let mut reader = visiting();
     for p in &pictures {
-        scan(&mut reader, &p.name, &p.png());
+        scan(&mut reader, &p.name, &p.png(&c));
     }
     let item = reader
         .inbox
@@ -222,8 +225,9 @@ fn shares_rebuild(id: &str) {
 
 #[test]
 fn a_share_picture_names_what_it_holds_and_leaves_off() {
+    let c = faraday_core::testkit::compute();
     let (app, w) = holding("Savings", &testkit::savings());
-    let pictures = app.public_pictures(w, 4);
+    let pictures = app.public_pictures(&c, w, 4);
     assert_eq!(pictures.len(), 3);
     let fps: Vec<String> = app.session.wallets[w]
         .policy()
@@ -291,7 +295,7 @@ fn public_item_lists_the_pictures_written(name: &str, descriptor: &str, parts: b
     let c = testkit::compute();
     let (mut app, w) = checklist_for(name, descriptor);
     let pictures: Vec<String> = app
-        .public_pictures(w, 8)
+        .public_pictures(&c, w, 8)
         .into_iter()
         .map(|p| p.name)
         .collect();

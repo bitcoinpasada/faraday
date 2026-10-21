@@ -509,6 +509,7 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
     for id in ["savings", "spending", "nested"] {
         if let Some(kit) = kits().into_iter().find(|k| k.id == id) {
             let m = osk_codec::qr::encode(
+                &c,
                 osk_codec::qr::Payload::Bytes(kit.descriptor.as_bytes()),
                 osk_codec::qr::Ecc::Medium,
             )
@@ -532,9 +533,9 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
             )
             .into_bytes(),
         ));
-        let qr = osk_codec::seedqr::encode_seedqr(&m).map_err(|e| format!("{e:?}"))?;
+        let qr = osk_codec::seedqr::encode_seedqr(&c, &m).map_err(|e| format!("{e:?}"))?;
         out.push((format!("{stem}-seedqr.png"), osk_codec::png::qr_png(&qr, 8)));
-        let qr = osk_codec::seedqr::encode_compact(&m).map_err(|e| format!("{e:?}"))?;
+        let qr = osk_codec::seedqr::encode_compact(&c, &m).map_err(|e| format!("{e:?}"))?;
         out.push((
             format!("{stem}-compactseedqr.png"),
             osk_codec::png::qr_png(&qr, 8),

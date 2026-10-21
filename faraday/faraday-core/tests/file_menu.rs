@@ -312,13 +312,14 @@ fn a_vault_deleted_from_the_stick_takes_a_hold() {
 
 #[test]
 fn details_shows_the_sha_256_of_the_bytes() {
+    let c = faraday_core::testkit::compute();
     let bytes = b"what the file holds";
     let mut app = process(Vec::new(), vec![file("note.txt", bytes)], Vec::new());
     app.press(Action::Nav(Screen::Files));
     menu_of(&mut app, Row::Out(0));
     choose(&mut app, "Details");
     assert_eq!(app.sheet, Some(Sheet::Details));
-    let sha = faraday_core::file_menu::sha_groups(&faraday_core::file_menu::sha256(bytes));
+    let sha = faraday_core::file_menu::sha_groups(&faraday_core::file_menu::sha256(&c, bytes));
     let texts = app.drawn_texts();
     for line in &sha {
         assert!(texts.contains(line), "{line} in {texts:?}");

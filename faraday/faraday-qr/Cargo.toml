@@ -16,11 +16,11 @@ miniz_oxide = { version = "0.8", default-features = false, features = ["with-all
 # The QR sender (send.rs): QR and UR encoding. The decoder (`decode`) is
 # not needed to make codes.
 osk-codec = { path = "../../core/osk-codec", default-features = false }
+# The token a QR code made takes (docs/COMPUTE.md §2).
+osk-crypto = { path = "../../core/osk-crypto" }
 
 [dev-dependencies]
 faraday-files = { path = "../faraday-files" }
-# The token the tests' key work takes (docs/COMPUTE.md §2).
-osk-crypto = { path = "../../core/osk-crypto" }
 osk-codec = { path = "../../core/osk-codec" }
 
 [lints]

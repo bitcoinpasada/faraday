@@ -17,6 +17,7 @@
 //! kind line, the size in bytes and the SHA-256 in groups of eight.
 
 use crate::strings::fill;
+use osk_crypto::work::Compute;
 use osk_shell_api::Key as KeyIn;
 use osk_ui::tokens;
 use osk_ui::widgets::Icon;
@@ -167,9 +168,9 @@ pub fn sha_groups(sha: &[u8; 32]) -> [String; 2] {
     [line(&sha[..16]), line(&sha[16..])]
 }
 
-/// A file's SHA-256: hashes every byte.
-pub fn sha256(bytes: &[u8]) -> [u8; 32] {
-    crate::sha256_of(bytes)
+/// Costs a SHA-256 pass over every byte: a file's SHA-256.
+pub fn sha256(c: &Compute, bytes: &[u8]) -> [u8; 32] {
+    crate::sha256_of(c, bytes)
 }
 
 impl Faraday {
@@ -282,6 +283,7 @@ impl Faraday {
 
     /// A press about a file row's ⋮.
     pub(crate) fn file_act(&mut self, p: FilePress) {
+        let c = self.compute();
         // A choice in the menu leaves it.
         if matches!(
             p,
@@ -325,8 +327,8 @@ impl Faraday {
                 // Faraday's own copies are hashed here; a file on the
                 // stick is read for it by the shell.
                 let (sha, stick) = match row {
-                    Row::In(k) => (self.inbox.get(k).map(|i| Ok(sha256(&i.bytes))), None),
-                    Row::Out(k) => (self.outbox.get(k).map(|i| Ok(sha256(&i.bytes))), None),
+                    Row::In(k) => (self.inbox.get(k).map(|i| Ok(sha256(&c, &i.bytes))), None),
+                    Row::Out(k) => (self.outbox.get(k).map(|i| Ok(sha256(&c, &i.bytes))), None),
                     Row::Stick(_) => {
                         let id = self.sticks.get(self.visit.stick).map(|s| s.id.clone());
                         if let Some(id) = &id {

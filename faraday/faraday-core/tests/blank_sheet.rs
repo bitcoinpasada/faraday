@@ -10,7 +10,8 @@ fn count(pdf: &[u8], s: &str) -> usize {
 }
 
 fn make(copy: BlankCopy) -> Vec<u8> {
-    pdf::sheet(&sheet_blank(24, copy, None, Network::Mainnet, 2)).expect("a PDF")
+    let c = faraday_core::testkit::compute();
+    pdf::sheet(&c, &sheet_blank(24, copy, None, Network::Mainnet, 2)).expect("a PDF")
 }
 
 #[test]
@@ -29,6 +30,7 @@ fn seedqr_only_has_the_grid_and_no_word_lines() {
 
 #[test]
 fn both_has_both_and_so_does_a_file_without_a_copy_line() {
+    let c = faraday_core::testkit::compute();
     let p = make(BlankCopy::Both);
     assert_eq!((count(&p, "(24) Tj"), count(&p, "(25) Tj")), (1, 2));
     let text = sheet_blank(24, BlankCopy::Both, None, Network::Mainnet, 2);
@@ -37,7 +39,7 @@ fn both_has_both_and_so_does_a_file_without_a_copy_line() {
         .filter(|l| !l.starts_with("copy:"))
         .map(|l| format!("{l}\n"))
         .collect();
-    assert_eq!(pdf::sheet(&without).unwrap(), p);
+    assert_eq!(pdf::sheet(&c, &without).unwrap(), p);
 }
 
 #[test]

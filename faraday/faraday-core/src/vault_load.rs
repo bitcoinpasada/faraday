@@ -194,20 +194,14 @@ impl Faraday {
     /// vault and line. Kept in the drawing memo while a frame is drawn
     /// (`docs/SPEED.md` §3.3); a press works it out afresh. Costs a parse
     /// of each open vault's wallet records.
-    pub fn vault_passphrase_seeds(&self, c: &Compute) -> Rc<Vec<PassSeed>> {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).vault_passphrase_seeds();
-        }
-        self.vault_passphrase_seeds_now(c)
-    }
-
-    /// Works out [`Faraday::vault_passphrase_seeds`]. Costs a parse of
+    ///
+    /// Works out [`crate::drawing::View::vault_passphrase_seeds`]. Costs a parse of
     /// each open vault's wallet records.
     pub fn vault_passphrase_seeds_now(&self, c: &Compute) -> Rc<Vec<PassSeed>> {
         Rc::new(self.vault_passphrase_seeds_uncached(c))
     }
 
-    /// Works out [`Faraday::vault_passphrase_seeds`].
+    /// Works out [`Faraday::vault_passphrase_seeds_now`].
     fn vault_passphrase_seeds_uncached(&self, c: &Compute) -> Vec<PassSeed> {
         let mut out = Vec::new();
         for (v, open) in self.vaults.open.iter().enumerate() {
@@ -383,14 +377,8 @@ impl Faraday {
     /// drawn (`docs/SPEED.md` §3.3). Reads the vault's wallet records as
     /// it keeps them read; the key fingerprints are the ones the unlock
     /// worked out.
-    pub fn vault_load_view(&self, c: &Compute) -> Option<Rc<LoadView>> {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).vault_load_view();
-        }
-        self.vault_load_view_now(c)
-    }
-
-    /// Works out [`Faraday::vault_load_view`] from the state as it is.
+    ///
+    /// Works out [`crate::drawing::View::vault_load_view`] from the state as it is.
     pub fn vault_load_view_now(&self, c: &Compute) -> Option<Rc<LoadView>> {
         let s = self.vaults.load.as_ref()?;
         let v = self.load_sheet_vault()?;

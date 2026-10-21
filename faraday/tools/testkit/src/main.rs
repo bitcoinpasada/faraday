@@ -198,7 +198,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
     // key 2, at the second location, reads the carry file and finishes.
     let file = testkit::threshold_carry()?;
     let carry = osk_psbt::threshold::Carry::parse(&file).map_err(|e| e.reason().to_string())?;
-    let psbt = osk_psbt::Psbt::parse_bytes(&carry.psbt).map_err(|e| e.to_string())?;
+    let psbt = osk_psbt::Psbt::parse_bytes(c, &carry.psbt).map_err(|e| e.to_string())?;
     let mut second = testkit::session();
     let (word, label) = testkit::TEST_SEEDS[1];
     second

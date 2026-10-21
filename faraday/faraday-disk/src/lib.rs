@@ -12,6 +12,7 @@
 //! Where `/sys` and `/dev` are is a parameter, so the tests can stand a
 //! directory tree and image files in for them.
 
+use osk_crypto::work::Compute;
 use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Seek, SeekFrom};
@@ -379,7 +380,7 @@ impl Disks {
     }
 
     /// Answers one request.
-    pub fn handle(&mut self, req: Request) -> Response {
+    pub fn handle(&mut self, c: &Compute, req: Request) -> Response {
         let answer = match req {
             Request::List => return Response::Sticks(self.list()),
             Request::Read { stick, name } => self
@@ -453,7 +454,7 @@ impl Disks {
             }
             Request::ReadQr { stick, name } => self
                 .place(&stick)
-                .and_then(|mut p| faraday_files::read_qr_png(&mut p as &mut dyn Place, &name))
+                .and_then(|mut p| faraday_files::read_qr_png(c, &mut p as &mut dyn Place, &name))
                 .map(|(bytes, codes)| Response::Qr { bytes, codes }),
         };
         answer.unwrap_or_else(Response::Failed)

@@ -466,14 +466,8 @@ impl Faraday {
     /// Kept in the drawing memo while a frame is drawn (`docs/SPEED.md`
     /// §3.3). Costs a read of every file it brought that may describe a
     /// wallet or a seed.
-    pub fn import_count(&self, c: &Compute) -> Option<ImportCount> {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).import_count();
-        }
-        self.import_count_now(c)
-    }
-
-    /// Works out [`Faraday::import_count`].
+    ///
+    /// Works out [`crate::drawing::View::import_count`].
     pub fn import_count_now(&self, c: &Compute) -> Option<ImportCount> {
         let imp = self.import.as_ref()?;
         let found = self.found_in(c, &imp.items);

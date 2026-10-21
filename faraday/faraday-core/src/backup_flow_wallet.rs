@@ -444,7 +444,7 @@ impl Faraday {
         };
         let stem = file_stem(&wl.name);
         let in_outbox = |n: &str| self.outbox.iter().any(|i| i.name == n);
-        let mut public: Vec<String> = self.backup_public_names_for(c, w, &b.answers);
+        let mut public: Vec<String> = self.backup_public_names_for_now(c, w, &b.answers);
         let split = b.answers.split && crate::backup::splits(wl);
         if split {
             public.extend(
@@ -461,10 +461,10 @@ impl Faraday {
         // Only this wallet's own seeds: `{stem}-{fp}-words.txt` and its kin
         // for a fingerprint of the wallet's seeds, exactly.
         // and only for a seed the plan keeps as a file now.
-        let shape = self.plan_shape(w);
+        let shape = self.plan_shape_now(w);
         let kept = self.plan_mapped(c, &shape, &b.answers).seeds_as_files();
         let fps: Vec<String> = self
-            .backup_seed_list(w)
+            .backup_seed_list_now(w)
             .into_iter()
             .enumerate()
             .filter(|(s, (_, k))| k.is_some() && kept.contains(s))
@@ -491,7 +491,7 @@ impl Faraday {
         let Some(b) = self.backup.as_ref().filter(|b| b.wallet == w) else {
             return out;
         };
-        let shape = self.plan_shape(w);
+        let shape = self.plan_shape_now(w);
         let mapped = self.plan_mapped(c, &shape, &b.answers);
         // The public files go to an online computer only where the plan
         // needs them there; files kept at a place go on its own stick.
@@ -512,7 +512,7 @@ impl Faraday {
                     .into_iter()
                     .flat_map(|at| plan::holds_at(boxes, at))
                     .filter(|what| plan::is_file(*what))
-                    .flat_map(|what| self.stick_file_names(w, &shape, &b.answers, what))
+                    .flat_map(|what| self.stick_file_names_now(w, &shape, &b.answers, what))
                     .collect(),
             };
             for n in names.drain(..) {
@@ -532,19 +532,7 @@ impl Faraday {
     /// `{wallet}-descriptor.txt` or its pictures; a share's
     /// `{wallet}-share-{j}-of-{n}.txt` or its pictures; the software's own
     /// files. Kept for the frame while one is drawn.
-    pub(crate) fn stick_file_names(
-        &self,
-        w: usize,
-        shape: &plan::Shape,
-        a: &plan::Answers,
-        what: plan::What,
-    ) -> Vec<String> {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).stick_file_names(w, shape, a, what);
-        }
-        self.stick_file_names_now(w, shape, a, what)
-    }
-
+    ///
     pub(crate) fn stick_file_names_now(
         &self,
         w: usize,
@@ -645,7 +633,7 @@ impl Faraday {
                         && let Some(wl) = self.session.wallets.get(w)
                     {
                         let text = wl.policy().to_descriptor_checksummed();
-                        expect.extend(pictures_expect(&names, &text));
+                        expect.extend(pictures_expect(&c, &names, &text));
                     }
                     let made = self.public_made(w, if f == plan::form::TEXT { 1 } else { 8 });
                     self.put_made(made, &names);
@@ -660,7 +648,7 @@ impl Faraday {
                             .get(j)
                             .and_then(|row| crate::backup::split_share(wl, row))
                         {
-                            expect.extend(pictures_expect(&names, &text));
+                            expect.extend(pictures_expect(&c, &names, &text));
                         }
                     }
                     let made = self.public_made(w, 4);
@@ -731,7 +719,7 @@ impl Faraday {
                     return None;
                 }
                 let m = crate::wallet::parse_words(c, key.language, key.words.as_deref()?).ok()?;
-                seedqr_png(&m, &fp_text(key.fingerprint()))
+                seedqr_png(c, &m, &fp_text(key.fingerprint()))
             }
             _ => None,
         }
@@ -1184,7 +1172,7 @@ impl Faraday {
         };
         let list = self
             .wallet_flow_wallet(i)
-            .map(|w| self.backup_seed_list(w))
+            .map(|w| self.backup_seed_list_now(w))
             .unwrap_or_default();
         let mut out: Vec<usize> = f
             .plan
@@ -1706,14 +1694,8 @@ impl Faraday {
     /// flow, or from the plan's own while no flow has locked yet. Works out
     /// each stick's files; kept for the frame while one is drawn
     /// (`docs/SPEED.md` §3.12).
-    pub fn wallet_stick_rows(&self, c: &Compute) -> Vec<(String, Vec<String>, Option<String>)> {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).wallet_stick_rows();
-        }
-        self.wallet_stick_rows_now(c)
-    }
-
-    /// Works out each stick's files: what [`Self::wallet_stick_rows`]
+    ///
+    /// Works out each stick's files: what [`crate::drawing::View::wallet_stick_rows`]
     /// answers.
     pub fn wallet_stick_rows_now(&self, c: &Compute) -> Vec<crate::drawing::StickRow> {
         let Some(b) = self.backup.as_ref() else {
@@ -1723,7 +1705,7 @@ impl Faraday {
             return Vec::new();
         };
         let m = self.medium.noun();
-        let shape = self.plan_shape(b.wallet);
+        let shape = self.plan_shape_now(b.wallet);
         let own = || {
             BackupFlow::new_wallet_on(
                 c,
@@ -1790,7 +1772,7 @@ impl Faraday {
     /// the card that names the stick.
     pub fn wallet_public_on(&self, c: &Compute) -> Option<PublicOn> {
         let b = self.backup.as_ref()?;
-        let shape = self.plan_shape(b.wallet);
+        let shape = self.plan_shape_now(b.wallet);
         Some(
             crate::backup_flow::plan_of_on(&b.answers, &self.plan_mapped(c, &shape, &b.answers))
                 .public_on,
@@ -2378,21 +2360,21 @@ pub(crate) fn sealed_marks(
 /// `None` for words of another list than English, which SeedQR does not
 /// number.
 pub(crate) fn seedqr_png(
+    c: &Compute,
     m: &osk_bip::bip39::Mnemonic,
     fp: &str,
 ) -> Option<zeroize::Zeroizing<Vec<u8>>> {
     if m.language() != osk_bip::bip39::Language::English {
         return None;
     }
-    crate::work::count(crate::work::Work::QrEncode);
-    let mx = osk_codec::seedqr::encode_seedqr(m).ok()?;
+    let mx = osk_codec::seedqr::encode_seedqr(c, m).ok()?;
     let title = fill(EN.secrets_seed, &[fp]);
     let lines = [fill(
         EN.secrets_words_secret,
         &[&m.word_count().to_string()],
     )];
     Some(zeroize::Zeroizing::new(crate::picture::labelled_png(
-        &mx, &title, &lines,
+        c, &mx, &title, &lines,
     )))
 }
 
@@ -2426,12 +2408,21 @@ pub(crate) fn seed_stick_file_of(fps: &[String], name: &str) -> bool {
 /// Splits `text` into its codes' parts: each of the pictures `names`
 /// (as [`crate::picture_names`] names them for `text`) with the SHA-256 of
 /// what its codes hold ([`crate::picture_payloads`]).
-fn pictures_expect(names: &[String], text: &str) -> Vec<(String, crate::backup_flow::ReadBack)> {
+fn pictures_expect(
+    c: &Compute,
+    names: &[String],
+    text: &str,
+) -> Vec<(String, crate::backup_flow::ReadBack)> {
     names
         .iter()
         .cloned()
         .zip(crate::picture_payloads(text))
-        .map(|(n, p)| (n, crate::backup_flow::ReadBack::Codes(crate::sha256_of(&p))))
+        .map(|(n, p)| {
+            (
+                n,
+                crate::backup_flow::ReadBack::Codes(crate::sha256_of(c, &p)),
+            )
+        })
         .collect()
 }
 
@@ -2655,7 +2646,7 @@ impl Faraday {
         let Some(b) = self.backup.as_ref() else {
             return false;
         };
-        let shape = self.plan_shape(b.wallet);
+        let shape = self.plan_shape_now(b.wallet);
         let mapped = self.plan_mapped(c, &shape, &b.answers);
         let now = BackupFlow::new_wallet_on(c, shape, b.answers.clone(), "", &mapped);
         now.slots.iter().all(|n| {
@@ -2671,7 +2662,7 @@ impl Faraday {
         let b = self.backup.as_ref()?;
         let stem = file_stem(&self.session.wallets.get(b.wallet)?.name);
         let fps: Vec<String> = self
-            .backup_seed_list(b.wallet)
+            .backup_seed_list_now(b.wallet)
             .into_iter()
             .filter(|(_, k)| k.is_some())
             .map(|(n, _)| n)

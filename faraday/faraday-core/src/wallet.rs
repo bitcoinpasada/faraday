@@ -39,13 +39,13 @@ pub fn master_id(c: &Compute, m: &MasterKey) -> [u8; 32] {
     let x = m.xpub(c);
     let mut bytes = x.public_key.serialize().to_vec();
     bytes.extend_from_slice(x.chain_code.as_bytes());
-    crate::sha256_of(&bytes)
+    crate::sha256_of(c, &bytes)
 }
 
 /// [`WordsId`] of `m`'s words. Costs a hash; the words are parsed already.
-pub fn words_id(m: &Mnemonic) -> WordsId {
+pub fn words_id(c: &Compute, m: &Mnemonic) -> WordsId {
     let entropy = m.entropy();
-    zeroize::Zeroizing::new(crate::sha256_of(entropy.expose().as_bytes()))
+    zeroize::Zeroizing::new(crate::sha256_of(c, entropy.expose().as_bytes()))
 }
 
 /// Costs a parse of the description and its keys: reads a wallet
@@ -146,7 +146,9 @@ impl Key {
         let words = self.words.as_ref()?;
         self.words_id
             .get_or_init(|| {
-                crate::work::keeping(|| Some(words_id(&parse_words(c, self.language, words).ok()?)))
+                crate::work::keeping(|| {
+                    Some(words_id(c, &parse_words(c, self.language, words).ok()?))
+                })
             })
             .as_deref()
     }
@@ -1567,12 +1569,12 @@ pub fn collect_line(missing: usize, collected: usize) -> String {
 }
 
 /// Reads a PSBT from a file's bytes, binary or base64.
-pub fn read_psbt(bytes: &[u8]) -> Option<Psbt> {
-    if let Ok(p) = Psbt::parse_bytes(bytes) {
+pub fn read_psbt(c: &Compute, bytes: &[u8]) -> Option<Psbt> {
+    if let Ok(p) = Psbt::parse_bytes(c, bytes) {
         return Some(p);
     }
     let text = std::str::from_utf8(bytes).ok()?;
-    Psbt::parse_base64(text.trim()).ok()
+    Psbt::parse_base64(c, text.trim()).ok()
 }
 
 /// The most a plain text file may hold to be kept as a note.
@@ -1652,7 +1654,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
     if osk_psbt::threshold::Carry::looks_like_carry(bytes) {
         return FileKind::Carry.into();
     }
-    if let Some(p) = read_psbt(bytes) {
+    if let Some(p) = read_psbt(c, bytes) {
         return Classified {
             kind: FileKind::Psbt,
             psbt: Some(PsbtSeen::of(&p)),
@@ -1817,7 +1819,7 @@ impl Spend {
         bytes: &[u8],
         source: &str,
     ) -> Result<Vec<Fingerprint>, String> {
-        let other = read_psbt(bytes).ok_or(EN.wallet_not_a_psbt)?;
+        let other = read_psbt(c, bytes).ok_or(EN.wallet_not_a_psbt)?;
         if other.unsigned_tx().compute_txid() != self.txid {
             return Err(fill(EN.wallet_is_a_psbt_for, &[source]));
         }
@@ -1939,6 +1941,7 @@ impl Session {
             );
         let derived = master.derive(c, &path);
         osk_psbt::message::sign(
+            c,
             derived.secp(),
             derived.secret_key(),
             script,

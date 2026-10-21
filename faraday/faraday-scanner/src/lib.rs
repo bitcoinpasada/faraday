@@ -315,8 +315,18 @@ mod tests {
     use super::*;
     use osk_codec::qr::{self, Ecc, Payload, QUIET_ZONE};
 
+    /// A token for the work these tests ask, counting nothing. Cheap.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a mint: faraday-scanner's tests, which cannot reach faraday-core's testkit"
+    )]
+    fn compute() -> osk_crypto::work::Compute {
+        osk_crypto::work::Compute::new(|_| {})
+    }
+
     fn frame(scale: usize) -> (usize, usize, Vec<u8>) {
-        let m = qr::encode(Payload::Bytes(b"faraday scanner"), Ecc::Low).unwrap();
+        let c = compute();
+        let m = qr::encode(&c, Payload::Bytes(b"faraday scanner"), Ecc::Low).unwrap();
         m.to_luma(scale, QUIET_ZONE)
     }
 

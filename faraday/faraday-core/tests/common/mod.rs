@@ -343,7 +343,9 @@ impl Shell {
                     let sha = self
                         .disk(&stick)
                         .file(&name)
-                        .map(|b| faraday_core::file_menu::sha256(b))
+                        .map(|b| {
+                            faraday_core::file_menu::sha256(&faraday_core::testkit::compute(), b)
+                        })
                         .ok_or_else(|| "gone".to_string());
                     app.storage(StorageEvent::Hashed { stick, name, sha });
                 }
@@ -366,7 +368,8 @@ impl Shell {
                             *n -= 1;
                             Vec::new()
                         }
-                        None => faraday_files::qr_in_png(&bytes).unwrap_or_default(),
+                        None => faraday_files::qr_in_png(&faraday_core::testkit::compute(), &bytes)
+                            .unwrap_or_default(),
                     };
                     app.storage(StorageEvent::QrRead {
                         name,

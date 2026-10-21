@@ -677,17 +677,6 @@ impl Faraday {
             .position(|w| w.checksum() == *from)
     }
 
-    /// Where the money moving from loaded wallet `w` goes: the new
-    /// wallet's name and its first receive address.
-    pub(crate) fn moving_to(&self, c: &Compute, w: usize) -> Option<(String, String)> {
-        if self.moving_from() != Some(w) {
-            return None;
-        }
-        let to = self.chart_work.moving_to.as_ref()?;
-        let nw = self.session.wallets.iter().find(|x| x.checksum() == *to)?;
-        Some((nw.name.clone(), self.receive_line(c, nw, false, 0).0))
-    }
-
     /// Typing into the open sheet's field: a name, or a passphrase to be
     /// checked. Returns whether the key was taken.
     pub(crate) fn chart_key(&mut self, key: osk_shell_api::Key) -> bool {
@@ -780,11 +769,27 @@ impl Faraday {
                 text.push_str(&format!("thing: {label}\n"));
             }
         }
-        let Ok(pdf) = crate::pdf::sheet(&text) else {
+        let Ok(pdf) = crate::pdf::sheet(&c, &text) else {
             return;
         };
         let name = format!("{}-envelopes.pdf", crate::file_stem(&g.name));
         self.put_outbox(&name, pdf);
         self.toast_out(&name);
     }
+}
+
+/// Where the money moving from loaded wallet `w` goes: the new wallet's
+/// name and its first receive address, read through `r`
+/// ([`glance::Reads`]).
+pub(crate) fn moving_to_on(r: &impl glance::Reads, w: usize) -> Option<(String, String)> {
+    let app = r.app();
+    if app.moving_from() != Some(w) {
+        return None;
+    }
+    let to = app.chart_work.moving_to.as_ref()?;
+    let nw = app.session.wallets.iter().find(|x| x.checksum() == *to)?;
+    Some((
+        nw.name.clone(),
+        crate::held::receive_line_on(r, nw, false, 0).0,
+    ))
 }

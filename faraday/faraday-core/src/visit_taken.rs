@@ -155,6 +155,7 @@ impl Faraday {
     /// Writes the settings file when its row is on, and every chosen
     /// file; a taken file over the old one when `replace`.
     pub(crate) fn visit_write(&mut self, replace: bool) {
+        let c = self.compute();
         if self.sheet == Some(Sheet::Taken) {
             self.sheet = None;
         }
@@ -193,7 +194,7 @@ impl Faraday {
             // session unlocked or wrote it: a copy from Files that it did
             // not could be older than what the stick holds.
             let over = if is_vault(&name, &bytes) {
-                !from_inbox || self.vault_is_this_sessions(&bytes)
+                !from_inbox || self.vault_is_this_sessions(&c, &bytes)
             } else {
                 replace && taken.contains(&name)
             };
@@ -202,7 +203,7 @@ impl Faraday {
         // What this write sends, for its receipt.
         let sent: Vec<(String, [u8; 32])> = sends
             .iter()
-            .map(|(n, b, _)| (n.clone(), sha256_of(b)))
+            .map(|(n, b, _)| (n.clone(), sha256_of(&c, b)))
             .collect();
         for (name, bytes, replace) in sends {
             let renamed = self.files_menu.renamed.contains(&name);

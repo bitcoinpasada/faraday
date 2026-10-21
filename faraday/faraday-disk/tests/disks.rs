@@ -11,6 +11,16 @@ use std::path::{Path, PathBuf};
 use faraday_disk::Disks;
 use faraday_files::proto::{self, Problem, Request, Response};
 
+/// A token for the reads these tests ask, counting nothing: the disk
+/// process draws nothing. Cheap.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a mint: faraday-disk's tests, which cannot reach faraday-core's testkit"
+)]
+fn compute() -> osk_crypto::work::Compute {
+    osk_crypto::work::Compute::new(|_| {})
+}
+
 /// A 4 MiB FAT16 volume with this label, as `mkfs.fat` would make one:
 /// 512-byte sectors and clusters, two FATs, a 512-entry root.
 fn fat16(label: &str) -> Vec<u8> {
@@ -152,6 +162,7 @@ fn sticks(r: Response) -> Vec<faraday_files::proto::Stick> {
 
 #[test]
 fn only_handed_out_fat_partitions_are_listed_and_never_the_boot_one() {
+    let c = compute();
     let m = Machine::new("list");
     // The boot stick: its boot partition, readable here to show it is
     // refused anyway, and its data partition.
@@ -180,7 +191,7 @@ fn only_handed_out_fat_partitions_are_listed_and_never_the_boot_one() {
     m.disk("sdc", 8, &[("", fat16("LATE"), false)]);
 
     let mut d = Disks::new(&m.sys(), &m.dev());
-    let list = sticks(d.handle(Request::List));
+    let list = sticks(d.handle(&c, Request::List));
     let shown: Vec<(&str, &str, bool)> = list
         .iter()
         .map(|s| (s.id.as_str(), s.label.as_str(), s.boot))
@@ -199,20 +210,27 @@ fn only_handed_out_fat_partitions_are_listed_and_never_the_boot_one() {
     assert_eq!(list[2].problem, Some(Problem::NotFat));
     assert!(list[2].files.is_empty());
     assert!(list[3].files.is_empty());
-    let closed = d.handle(Request::Read {
-        stick: "sdc1@sdc#8".into(),
-        name: "anything".into(),
-    });
+    let closed = d.handle(
+        &c,
+        Request::Read {
+            stick: "sdc1@sdc#8".into(),
+            name: "anything".into(),
+        },
+    );
     assert!(matches!(closed, Response::Failed(_)));
-    let refused = d.handle(Request::Read {
-        stick: "sda1@sda#3".into(),
-        name: "anything".into(),
-    });
+    let refused = d.handle(
+        &c,
+        Request::Read {
+            stick: "sda1@sda#3".into(),
+            name: "anything".into(),
+        },
+    );
     assert!(matches!(refused, Response::Failed(_)));
 }
 
 #[test]
 fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
+    let c = compute();
     let m = Machine::new("write");
     m.disk("sdb", 7, &[("", fat16("TESTSTICK"), true)]);
     let mut d = Disks::new(&m.sys(), &m.dev());
@@ -225,30 +243,36 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
         bytes: bytes.to_vec(),
     };
     assert_eq!(
-        d.handle(w("savings-signed.psbt", b"psbt bytes")),
+        d.handle(&c, w("savings-signed.psbt", b"psbt bytes")),
         Response::Written("savings-signed.psbt".into())
     );
     // The same name again is a new file beside it.
     assert_eq!(
-        d.handle(w("savings-signed.psbt", b"other")),
+        d.handle(&c, w("savings-signed.psbt", b"other")),
         Response::Written("savings-signed-2.psbt".into())
     );
     // Replace, chosen by the person, goes over the old one.
     assert_eq!(
-        d.handle(Request::Write {
-            stick: id.clone(),
-            name: "savings-signed-2.psbt".into(),
-            replace: true,
-            renamed: false,
-            bytes: b"replaced".to_vec(),
-        }),
+        d.handle(
+            &c,
+            Request::Write {
+                stick: id.clone(),
+                name: "savings-signed-2.psbt".into(),
+                replace: true,
+                renamed: false,
+                bytes: b"replaced".to_vec(),
+            }
+        ),
         Response::Written("savings-signed-2.psbt".into())
     );
     assert_eq!(
-        d.handle(Request::Read {
-            stick: id.clone(),
-            name: "savings-signed-2.psbt".into()
-        }),
+        d.handle(
+            &c,
+            Request::Read {
+                stick: id.clone(),
+                name: "savings-signed-2.psbt".into()
+            }
+        ),
         Response::Bytes(b"replaced".to_vec())
     );
     let mut vault = vec![7u8; 53 + 4 * (65_536 + 40)];
@@ -256,34 +280,40 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
     vault[17..21].copy_from_slice(&65_536u32.to_le_bytes());
     vault[21..53].fill(1);
     assert_eq!(
-        d.handle(w("vault.ofv", &vault)),
+        d.handle(&c, w("vault.ofv", &vault)),
         Response::Written("vault.ofv".into())
     );
     vault[100] = 9;
     // Over the same vault only where the app says its session wrote it.
     assert!(matches!(
-        d.handle(w("vault.ofv", &vault)),
+        d.handle(&c, w("vault.ofv", &vault)),
         Response::Failed(_)
     ));
     assert_eq!(
-        d.handle(Request::Write {
-            stick: id.clone(),
-            name: "vault.ofv".into(),
-            replace: true,
-            renamed: false,
-            bytes: vault.clone(),
-        }),
+        d.handle(
+            &c,
+            Request::Write {
+                stick: id.clone(),
+                name: "vault.ofv".into(),
+                replace: true,
+                renamed: false,
+                bytes: vault.clone(),
+            }
+        ),
         Response::Written("vault.ofv".into())
     );
     assert_eq!(
-        d.handle(Request::Read {
-            stick: id.clone(),
-            name: "vault.ofv".into()
-        }),
+        d.handle(
+            &c,
+            Request::Read {
+                stick: id.clone(),
+                name: "vault.ofv".into()
+            }
+        ),
         Response::Bytes(vault.clone())
     );
     // The listing shows what was written, and nothing hidden.
-    let list = sticks(d.handle(Request::List));
+    let list = sticks(d.handle(&c, Request::List));
     let names: Vec<&str> = list[0].files.iter().map(|(n, _)| n.as_str()).collect();
     assert_eq!(
         names,
@@ -296,17 +326,21 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
 
 #[test]
 fn a_stick_put_back_is_another_stick() {
+    let c = compute();
     let m = Machine::new("again");
     m.disk("sdb", 7, &[("", fat16("TESTSTICK"), true)]);
     let mut d = Disks::new(&m.sys(), &m.dev());
-    assert_eq!(sticks(d.handle(Request::List))[0].id, "sdb1@sdb#7");
+    assert_eq!(sticks(d.handle(&c, Request::List))[0].id, "sdb1@sdb#7");
     m.disk("sdb", 9, &[("", fat16("TESTSTICK"), true)]);
-    let gone = d.handle(Request::Read {
-        stick: "sdb1@sdb#7".into(),
-        name: "x".into(),
-    });
+    let gone = d.handle(
+        &c,
+        Request::Read {
+            stick: "sdb1@sdb#7".into(),
+            name: "x".into(),
+        },
+    );
     assert_eq!(gone, Response::Failed("the stick is gone".into()));
-    assert_eq!(sticks(d.handle(Request::List))[0].id, "sdb1@sdb#9");
+    assert_eq!(sticks(d.handle(&c, Request::List))[0].id, "sdb1@sdb#9");
 }
 
 #[test]
@@ -360,6 +394,7 @@ fn the_binary_answers_over_its_pipes_and_serves_the_next_shell() {
 
 #[test]
 fn the_pis_own_card_is_the_boot_medium_and_its_first_partition_is_never_listed() {
+    let c = compute();
     let m = Machine::new("pi");
     m.disk(
         "mmcblk0",
@@ -370,7 +405,7 @@ fn the_pis_own_card_is_the_boot_medium_and_its_first_partition_is_never_listed()
         ],
     );
     let mut d = Disks::new(&m.sys(), &m.dev());
-    let list = sticks(d.handle(Request::List));
+    let list = sticks(d.handle(&c, Request::List));
     assert_eq!(list.len(), 1);
     assert_eq!(list[0].id, "mmcblk0p2@mmcblk0#1");
     assert!(list[0].boot);
@@ -378,6 +413,7 @@ fn the_pis_own_card_is_the_boot_medium_and_its_first_partition_is_never_listed()
 
 #[test]
 fn an_exfat_stick_a_locked_card_and_a_bare_disk_are_listed_with_their_problem() {
+    let c = compute();
     let m = Machine::new("problems");
     // The factory format of most large sticks: not FAT as Faraday reads it.
     m.disk("sdb", 4, &[("", exfat(), true)]);
@@ -393,7 +429,7 @@ fn an_exfat_stick_a_locked_card_and_a_bare_disk_are_listed_with_their_problem() 
     // A card reader with nothing in it has no size and is not a stick.
     m.bare("sdg", 9, Vec::new(), 0);
     let mut d = Disks::new(&m.sys(), &m.dev());
-    let list = sticks(d.handle(Request::List));
+    let list = sticks(d.handle(&c, Request::List));
     let shown: Vec<(&str, Option<Problem>)> =
         list.iter().map(|s| (s.label.as_str(), s.problem)).collect();
     assert_eq!(
@@ -412,10 +448,11 @@ fn an_exfat_stick_a_locked_card_and_a_bare_disk_are_listed_with_their_problem() 
 
 #[test]
 fn a_stick_not_handed_out_yet_is_listed_as_waiting_not_as_unusable() {
+    let c = compute();
     let m = Machine::new("closed");
     m.disk("sdb", 4, &[("", exfat(), false)]);
     let mut d = Disks::new(&m.sys(), &m.dev());
-    let list = sticks(d.handle(Request::List));
+    let list = sticks(d.handle(&c, Request::List));
     // Not handed out: nothing can be read or written, and it says so
     // instead of waiting to be read.
     assert_eq!(list.len(), 1);

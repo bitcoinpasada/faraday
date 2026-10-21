@@ -12,7 +12,7 @@ use osk_codec::qr::QrMatrix;
 use zeroize::Zeroizing;
 
 use super::View;
-use crate::work::{self, Allowed};
+use crate::work::Allowed;
 
 impl View<'_> {
     /// The BIP-85 child shown, derived for this frame and wiped with it
@@ -36,11 +36,10 @@ impl View<'_> {
     pub fn seedqr_shown(&self, lang: Language, words: &str, compact: bool) -> Option<QrMatrix> {
         self.allowed(Allowed::SecretShown, |c| {
             let mn = crate::wallet::parse_words(c, lang, words).ok()?;
-            work::count(work::Work::QrEncode);
             if compact {
-                osk_codec::seedqr::encode_compact(&mn).ok()
+                osk_codec::seedqr::encode_compact(c, &mn).ok()
             } else {
-                osk_codec::seedqr::encode_seedqr(&mn).ok()
+                osk_codec::seedqr::encode_seedqr(c, &mn).ok()
             }
         })
     }

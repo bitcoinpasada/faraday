@@ -347,7 +347,7 @@ impl Faraday {
             Some(self.session.keys.get(k)?.fingerprint().0)
         };
         let stem = file_stem(&wallet.name);
-        let public = wi.map_or_else(Vec::new, |wi| self.backup_public_names_for(c, wi, a));
+        let public = wi.map_or_else(Vec::new, |wi| self.backup_public_names_for_now(c, wi, a));
         // A place with what its sticks keep.
         self.plan_mapped(c, &shape, a)
             .places
@@ -562,14 +562,8 @@ impl Faraday {
     /// locked one, once each by descriptor checksum, in that order. Kept
     /// in the drawing memo while a frame is drawn (`docs/SPEED.md` §3.3).
     /// Reads each open vault's wallet records as it keeps them read.
-    pub fn backups(&self, c: &Compute) -> Vec<Entry> {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).backups();
-        }
-        self.backups_now(c)
-    }
-
-    /// Works out [`Faraday::backups`], from each open vault's wallet
+    ///
+    /// Works out [`crate::drawing::View::backups`], from each open vault's wallet
     /// records as it keeps them read ([`crate::vaults::VaultRecords`]).
     pub fn backups_now(&self, c: &Compute) -> Vec<Entry> {
         let mut out: Vec<Entry> = Vec::new();
@@ -860,7 +854,7 @@ impl Faraday {
                 (EN.backups_not_saved_yet.to_string(), Tone::Warn)
             };
         };
-        let (state, tone) = match self.currency(f) {
+        let (state, tone) = match self.currency(c, f) {
             Some(Currency::Current(label)) => {
                 let time = self
                     .receipt
@@ -876,13 +870,20 @@ impl Faraday {
         (format!("{} · {state}", f.name), tone)
     }
 
-    /// The wallet card's backup line (`docs/SIMPLIFY.md` §5.2): "Backup:
-    /// paper ×2 checked · vault.ofv · for the stick", or "Not backed up".
+    /// Costs what [`Faraday::backups_now`] costs: the wallet card's backup
+    /// line, for a decision ([`Faraday::backup_line_in`]).
     pub fn backup_line(&self, c: &Compute, i: usize) -> String {
+        self.backup_line_in(i, self.backups_now(c))
+    }
+
+    /// The wallet card's backup line (`docs/SIMPLIFY.md` §5.2): "Backup:
+    /// paper ×2 checked · vault.ofv · for the stick", or "Not backed up",
+    /// from `backups`, every wallet known and where its backup is. Cheap.
+    pub(crate) fn backup_line_in(&self, i: usize, backups: Vec<Entry>) -> String {
         let Some(sum) = self.session.wallets.get(i).map(|w| w.checksum()) else {
             return String::new();
         };
-        let entry = self.backups(c).into_iter().find(|e| e.sum == sum);
+        let entry = backups.into_iter().find(|e| e.sum == sum);
         let Some(lines) = entry.and_then(|e| e.lines) else {
             return EN.backups_not_backed.to_string();
         };

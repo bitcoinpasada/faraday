@@ -544,14 +544,8 @@ impl Faraday {
     /// (a merge of any split sheets, every file looked at) except while
     /// drawing, where it is that the first time after a change and a
     /// comparison of the session after.
-    pub fn inbox_found(&self, c: &Compute) -> Found {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).inbox_found();
-        }
-        self.inbox_found_now(c)
-    }
-
-    /// Works out [`Faraday::inbox_found`] from the state as it is: costs
+    ///
+    /// Works out [`crate::drawing::View::inbox_found`] from the state as it is: costs
     /// `found_in`.
     pub fn inbox_found_now(&self, c: &Compute) -> Found {
         self.found_in(c, &self.inbox)
@@ -1180,7 +1174,7 @@ impl Faraday {
     /// wallet's seed with its passphrase is.
     pub fn potential_match(&self, c: &Compute) -> Option<String> {
         let with = self.potential.as_ref()?.with?;
-        self.inbox_found(c)
+        self.inbox_found_now(c)
             .wallets
             .into_iter()
             .find(|w| w.keys.contains(&with))

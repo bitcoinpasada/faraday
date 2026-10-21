@@ -7,6 +7,15 @@
 use faraday_files::qr_in_png;
 use osk_codec::qr::{self, Ecc, Payload, QUIET_ZONE};
 
+/// A token for the work these tests ask, counting nothing. Cheap.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a mint: faraday-files' tests, which cannot reach faraday-core's testkit"
+)]
+fn compute() -> osk_crypto::work::Compute {
+    osk_crypto::work::Compute::new(|_| {})
+}
+
 /// CRC-32 as PNG chunks carry it.
 fn crc32(bytes: &[u8]) -> u32 {
     let mut c = !0u32;
@@ -53,9 +62,10 @@ fn claims(w: u32, h: u32) -> Vec<u8> {
 
 #[test]
 fn a_picture_larger_than_the_limit_is_refused_from_its_header() {
+    let c = compute();
     for (w, h) in [(4097, 4096), (4096, 4097), (65_535, 65_535), (100_000, 200)] {
         assert_eq!(
-            qr_in_png(&claims(w, h)),
+            qr_in_png(&c, &claims(w, h)),
             Err("the image is too large".to_string()),
             "{w} × {h}"
         );
@@ -64,8 +74,9 @@ fn a_picture_larger_than_the_limit_is_refused_from_its_header() {
 
 #[test]
 fn a_picture_at_the_limit_is_decoded() {
+    let c = compute();
     // Its pixels are read, and the few bytes there are run out.
-    let got = qr_in_png(&claims(4096, 4096));
+    let got = qr_in_png(&c, &claims(4096, 4096));
     assert!(
         matches!(&got, Err(e) if e != "the image is too large"),
         "{got:?}"
@@ -75,7 +86,8 @@ fn a_picture_at_the_limit_is_decoded() {
 /// A picture of one code holding `payload`, four pixels a module, dark
 /// on light or, `light`, light on dark.
 fn code_png(payload: &[u8], light: bool) -> Vec<u8> {
-    let m = qr::encode(Payload::Bytes(payload), Ecc::Low).expect("a code");
+    let c = compute();
+    let m = qr::encode(&c, Payload::Bytes(payload), Ecc::Low).expect("a code");
     let (w, h, mut px) = m.to_luma(4, QUIET_ZONE);
     if light {
         for p in &mut px {
@@ -87,10 +99,11 @@ fn code_png(payload: &[u8], light: bool) -> Vec<u8> {
 
 #[test]
 fn a_code_is_read_dark_on_light_and_light_on_dark() {
+    let c = compute();
     let payload = b"xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz";
     for light in [false, true] {
         assert_eq!(
-            qr_in_png(&code_png(payload, light)),
+            qr_in_png(&c, &code_png(payload, light)),
             Ok(vec![payload.to_vec()]),
             "light on dark: {light}"
         );

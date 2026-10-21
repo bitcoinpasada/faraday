@@ -2,13 +2,12 @@
 //! that drawing a frame twice, or moving the pointer, did none it should
 //! not (`docs/SPEED.md` §3.3 and §7).
 //!
-//! Each costly function calls [`count`] on its first line; the core's
-//! own count themselves: seed words parsed, a key stretched, a master key
-//! made and a key derived through the token they take
-//! (`osk_crypto::work::Compute`, minted with [`core_count`]), and a PSBT
-//! parsed, inspected or signed, a QR code read, a canvas blurred or
-//! copied through `osk_crypto::work`'s process-wide counter, which is
-//! this crate's ([`install`]). A
+//! Each costly function counts itself on its first line. The core's
+//! count through the token they take (`osk_crypto::work::Compute`, which
+//! this crate mints with [`core_count`]); a canvas notes its pixel work
+//! with the counter this crate sets on it (`osk_ui::Canvas::set_counter`);
+//! this crate's own kinds call [`count`], in functions that take the
+//! token as their gate. A
 //! count is a thread-local add, about a nanosecond, always compiled: not
 //! a cargo feature and not `cfg(test)`, so faraday-core is built once. The counts
 //! are per thread so that tests running side by side in one process do
@@ -110,6 +109,8 @@ fn of_core(w: osk_crypto::work::Work) -> Work {
         C::PsbtInspect => Work::PsbtInspect,
         C::Sign => Work::Sign,
         C::QrDecode => Work::QrDecode,
+        C::QrEncode => Work::QrEncode,
+        C::FileHash => Work::FileHash,
         C::PngDecode => Work::PngDecode,
         C::Kdf => Work::Kdf,
         C::WordsParse => Work::WordsParse,
@@ -122,15 +123,10 @@ fn of_core(w: osk_crypto::work::Work) -> Work {
     }
 }
 
-/// The counter the core's costly functions call (`osk_crypto::work`).
+/// The counter the core's costly functions call through the token, and
+/// a canvas with its pixel work (`osk_crypto::work`). Costs an add.
 pub(crate) fn core_count(w: osk_crypto::work::Work) {
     count(of_core(w));
-}
-
-/// Has the core count its costly work here, for the process: once, at
-/// the app's start and at the first count a test takes. A lookup after.
-pub(crate) fn install() {
-    osk_crypto::work::set_counter(core_count);
 }
 
 thread_local! {
@@ -291,7 +287,6 @@ impl Counts {
 
 /// The counts so far on this thread.
 pub fn snapshot() -> Counts {
-    install();
     COUNTS.with(|c| {
         let mut out = Counts::default();
         for (o, cell) in out.0.iter_mut().zip(c.iter()) {

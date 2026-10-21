@@ -161,7 +161,7 @@ impl Faraday {
     /// from the plan's map ([`Faraday::plan_mapped`]: once a frame while
     /// drawing).
     pub(crate) fn copy_forms(&self, c: &Compute, b: &BackupState, i: usize) -> CopyForms {
-        let shape = self.plan_shape(b.wallet);
+        let shape = self.plan_shape_now(b.wallet);
         plan::copy_forms_on(&self.plan_mapped(c, &shape, &b.answers), i)
     }
 
@@ -205,7 +205,7 @@ impl Faraday {
             return false;
         };
         let at = self
-            .backup_seed_list(b.wallet)
+            .backup_seed_list_now(b.wallet)
             .iter()
             .enumerate()
             .find_map(|(i, (_, k))| {

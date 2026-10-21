@@ -4470,7 +4470,7 @@ fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
         ui.text(dx, dy, 12.0, W::R, MUTED, "SHA-256");
         dy += 20.0;
         // Taken when the image came in (`Item::sha`).
-        let hash = crate::secureboot::image_sha256(&item.hash());
+        let hash = crate::secureboot::image_sha256(&app.item_hash(item));
         dy += ui.wrap(dx, dy, dw, 15.0, W::M, TEXT, &hash) + 14.0;
         dy += ui.wrap(dx, dy, dw, 13.0, W::R, MUTED, EN.vault_compare_it_with) + 16.0;
         let hw = hold_button(

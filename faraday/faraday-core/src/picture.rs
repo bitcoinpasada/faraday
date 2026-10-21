@@ -13,6 +13,7 @@
 //! picture's width.
 
 use osk_codec::qr::{QUIET_ZONE, QrMatrix};
+use osk_crypto::work::Compute;
 use osk_shell_api::{BootState, DisplayInfo, SecureHardware};
 use osk_ui::tokens;
 use osk_ui::{Canvas, Color, Dp, Font, Rect, Scale, SizeClass, TextAlign};
@@ -35,9 +36,9 @@ const MAX_HEIGHT: u16 = 1600;
 /// `code` with `title` and then each of `lines` under it, as a PNG
 /// file. The pixels drawn are wiped before this returns, so a secret's
 /// code leaves only the file.
-pub fn labelled_png(code: &QrMatrix, title: &str, lines: &[String]) -> Vec<u8> {
+pub fn labelled_png(c: &Compute, code: &QrMatrix, title: &str, lines: &[String]) -> Vec<u8> {
     let mut canvas = draw(code, title, lines);
-    let bytes = png(&canvas);
+    let bytes = png(c, &canvas);
     canvas.clear(Color::WHITE);
     bytes
 }
@@ -131,8 +132,9 @@ pub fn draw(code: &QrMatrix, title: &str, lines: &[String]) -> Canvas {
     canvas
 }
 
-/// A drawn picture as an eight-bit greyscale PNG file.
-pub fn png(canvas: &Canvas) -> Vec<u8> {
+/// Costs a PNG encoding of every pixel: a drawn picture as an eight-bit
+/// greyscale PNG file.
+pub fn png(_c: &Compute, canvas: &Canvas) -> Vec<u8> {
     crate::work::count(crate::work::Work::Picture);
     let frame = canvas.frame();
     // Opaque pixels, so the premultiplied bytes are the colour; the
@@ -162,8 +164,8 @@ pub struct Labelled {
 
 impl Labelled {
     /// The picture as a PNG file.
-    pub fn png(&self) -> Vec<u8> {
-        labelled_png(&self.code, &self.title, &self.lines)
+    pub fn png(&self, c: &Compute) -> Vec<u8> {
+        labelled_png(c, &self.code, &self.title, &self.lines)
     }
 
     /// The picture drawn, its text recorded.

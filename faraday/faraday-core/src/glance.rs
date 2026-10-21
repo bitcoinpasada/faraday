@@ -88,6 +88,15 @@ pub(crate) trait Reads {
     /// The sticks the wallet being backed up is written to
     /// ([`Faraday::wallet_stick_rows_now`]).
     fn wallet_stick_rows(&self) -> Vec<crate::drawing::StickRow>;
+    /// The backup's checklist ([`Faraday::backup_items_now`]).
+    fn backup_items(&self) -> Vec<u8>;
+    /// Wallet `w`'s seeds ([`Faraday::backup_seed_list_now`]).
+    fn backup_seed_list(&self, w: usize) -> Vec<(String, Option<usize>)>;
+    /// An address of `wl` as the screen shows it
+    /// ([`crate::wallet::Session::address_shown`]), kept on the wallet.
+    fn address_shown(&self, wl: &crate::wallet::Wallet, change: bool, index: u32) -> String;
+    /// The Inbox PSBT loaded wallet `w` spends from ([`Faraday::psbt_for`]).
+    fn psbt_for(&self, w: usize) -> Option<usize>;
 }
 
 /// The app as a decision reads it: every answer worked out from the
@@ -165,6 +174,18 @@ impl Reads for Now<'_> {
     }
     fn wallet_stick_rows(&self) -> Vec<crate::drawing::StickRow> {
         self.app.wallet_stick_rows_now(self.c)
+    }
+    fn backup_items(&self) -> Vec<u8> {
+        self.app.backup_items_now(self.c)
+    }
+    fn backup_seed_list(&self, w: usize) -> Vec<(String, Option<usize>)> {
+        self.app.backup_seed_list_now(w)
+    }
+    fn address_shown(&self, wl: &crate::wallet::Wallet, change: bool, index: u32) -> String {
+        self.app.session.address_shown(self.c, wl, change, index)
+    }
+    fn psbt_for(&self, w: usize) -> Option<usize> {
+        self.app.psbt_for(self.c, w)
     }
 }
 

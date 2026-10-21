@@ -90,13 +90,17 @@ fn pump(app: &mut Faraday, sticks: &[&Stick]) -> Vec<(String, String, Vec<u8>)> 
                 let s = sticks.iter().find(|s| s.id == stick).expect("a stick");
                 // The disk process's own reader, on the stick's files.
                 let (bytes, payloads) = match &s.dir {
-                    Some(dir) => {
-                        faraday_files::read_qr_png(&mut faraday_files::Dir(dir.clone()), &name)
-                            .expect("read")
-                    }
+                    Some(dir) => faraday_files::read_qr_png(
+                        &faraday_core::testkit::compute(),
+                        &mut faraday_files::Dir(dir.clone()),
+                        &name,
+                    )
+                    .expect("read"),
                     None => {
                         let bytes = s.files[&name].clone();
-                        let codes = faraday_files::qr_in_png(&bytes).unwrap_or_default();
+                        let codes =
+                            faraday_files::qr_in_png(&faraday_core::testkit::compute(), &bytes)
+                                .unwrap_or_default();
                         (bytes, codes)
                     }
                 };

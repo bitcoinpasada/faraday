@@ -93,11 +93,11 @@ fn the_sidebar_has_no_spend_row() {
 fn the_session_strip_names_the_current_stage() {
     let c = testkit::compute();
     let mut app = with(0, 0);
-    assert_eq!(app.session_stage(), "Open");
+    assert_eq!(app.session_stage(&c), "Open");
     app.session
         .add_words(&c, "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "k", None)
         .unwrap();
-    assert_eq!(app.session_stage(), "Work");
+    assert_eq!(app.session_stage(&c), "Work");
     app.outbox.clear();
     app.session.keys.clear();
     app.outbox.push(faraday_core::Item {
@@ -110,7 +110,7 @@ fn the_session_strip_names_the_current_stage() {
         wallet: None,
         psbt: None,
     });
-    assert_eq!(app.session_stage(), "Write out");
+    assert_eq!(app.session_stage(&c), "Write out");
     app.storage(faraday_core::StorageEvent::Sticks(vec![
         faraday_core::StickInfo {
             serial: None,
@@ -120,7 +120,7 @@ fn the_session_strip_names_the_current_stage() {
             files: Vec::new(),
         },
     ]));
-    assert_eq!(app.session_stage(), "Bring in");
+    assert_eq!(app.session_stage(&c), "Bring in");
 }
 
 /// Write out also when nothing waits For the stick but a vault has
@@ -128,6 +128,7 @@ fn the_session_strip_names_the_current_stage() {
 /// opened, and a key saved into it.
 #[test]
 fn the_session_strip_reads_write_out_for_a_vault_changed_since_written() {
+    let c = faraday_core::testkit::compute();
     use faraday_core::vaults::VaultAction as V;
     let mut app = with(1, 0);
     app.storage(faraday_core::StorageEvent::Restored {
@@ -155,11 +156,11 @@ fn the_session_strip_reads_write_out_for_a_vault_changed_since_written() {
         app.event(Event::Tick { now_ms: t * 1000 });
     }
     assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
-    assert_eq!(app.session_stage(), "Work", "open and unchanged");
+    assert_eq!(app.session_stage(&c), "Work", "open and unchanged");
     app.press(Action::Vault(V::AddKind(0)));
     app.press(Action::Vault(V::SaveKey(0)));
     assert!(app.outbox.is_empty());
-    assert_eq!(app.session_stage(), "Write out");
+    assert_eq!(app.session_stage(&c), "Write out");
 }
 
 #[test]

@@ -7,6 +7,15 @@ use faraday_starter::template::Copy;
 use faraday_starter::{Page, Starter, StarterAction, TemplateChoice};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
+/// A token for the PDFs these tests make, counting nothing. Cheap.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a mint: the Starter's tests, which draw nothing"
+)]
+fn compute() -> osk_crypto::work::Compute {
+    osk_crypto::work::Compute::new(|_| {})
+}
+
 fn starter() -> Starter {
     let mut s = Starter::new();
     s.event(Event::Display(DisplayInfo {
@@ -83,7 +92,7 @@ fn each_choice_of_words_and_copy_saves_its_pdf_under_its_name() {
             !sheet.contains("name:") && !sheet.contains("shape:"),
             "{sheet}"
         );
-        assert_eq!(bytes, &pdf::sheet(&sheet).expect("a PDF"));
+        assert_eq!(bytes, &pdf::sheet(&compute(), &sheet).expect("a PDF"));
         assert!(bytes.starts_with(b"%PDF"));
     }
 }

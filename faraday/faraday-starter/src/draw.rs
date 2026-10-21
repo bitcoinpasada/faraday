@@ -1514,7 +1514,7 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y += 16.0;
     y += label(ui, x, y, S.starter_on_a_phone);
     let side = if ui.compact { 150.0 } else { 180.0 };
-    y + phone_code(ui, x, y, w, side, &guide.address())
+    y + phone_code(starter, ui, x, y, w, side, &guide.address())
 }
 
 /// The Start page on a Mac (§3.4, `docs/MAC.md` §3.1–§3.2): the Mac's
@@ -1566,7 +1566,7 @@ fn mac_start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32, mac: macs:
     y += 16.0;
     y += label(ui, x, y, S.starter_on_a_phone);
     let side = if ui.compact { 150.0 } else { 180.0 };
-    y + phone_code(ui, x, y, w, side, &guide.address())
+    y + phone_code(starter, ui, x, y, w, side, &guide.address())
 }
 
 /// What to write down before the restart (§3.4, F47): the three rows,
@@ -1731,17 +1731,24 @@ fn note_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: C
     vh + 40.0
 }
 
-/// The guide's address as a QR code, with the address under it. Returns
-/// its height.
-fn phone_code(ui: &mut Ui, x: f32, y: f32, w: f32, side: f32, address: &str) -> f32 {
+/// The guide's address as a QR code, with the address under it: the
+/// code made when the computer was reported ([`Starter::phone_code`]).
+/// Returns its height.
+#[allow(clippy::too_many_arguments)]
+fn phone_code(
+    starter: &Starter,
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    side: f32,
+    address: &str,
+) -> f32 {
     let side = side.min(w);
-    let Ok(m) = osk_codec::qr::encode(
-        osk_codec::qr::Payload::Bytes(address.as_bytes()),
-        osk_codec::qr::Ecc::Medium,
-    ) else {
+    let Some(m) = starter.phone_code(address) else {
         return 0.0;
     };
-    qr_code(ui, &m, x, y, side);
+    qr_code(ui, m, x, y, side);
     let th = ui.wrap(x, y + side + 10.0, w, 12.0, W::M, MUTED, address);
     side + 10.0 + th + 8.0
 }
@@ -1786,7 +1793,7 @@ fn restart_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32, to: RestartTo) 
         }
         // Small enough on a small panel that the sheet's buttons fit.
         let side = if ui.compact { 104.0 } else { 160.0 };
-        y += phone_code(ui, x, y, iw, side, &address) + 8.0;
+        y += phone_code(starter, ui, x, y, iw, side, &address) + 8.0;
         y + buttons(
             ui,
             x,

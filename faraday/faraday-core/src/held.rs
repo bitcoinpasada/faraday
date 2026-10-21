@@ -13,6 +13,7 @@ use faraday_vault::records::{self, Record, field, kind};
 use osk_bip::keys::Fingerprint;
 use osk_crypto::work::Compute;
 
+use crate::glance::{Now, Reads};
 use crate::wallet::{self, fp_text};
 use crate::{Action, BStage, Faraday, Screen, bstep, plan};
 
@@ -64,14 +65,8 @@ impl Faraday {
     /// says so, or kept back by a wallet's backup flow until its last
     /// stick is written (`docs/BACKUP-FLOW.md` §10.2), with their backup
     /// not done.
-    pub fn held_keys(&self, c: &Compute) -> Vec<Fingerprint> {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).held_keys();
-        }
-        self.held_keys_now(c)
-    }
-
-    /// Works out [`Faraday::held_keys`] from the state as it is.
+    ///
+    /// Works out [`crate::drawing::View::held_keys`] from the state as it is.
     pub fn held_keys_now(&self, c: &Compute) -> Vec<Fingerprint> {
         let flow = self.flow_held();
         let mut out = self.held_keys_stored_with(c, &flow);
@@ -104,7 +99,7 @@ impl Faraday {
         out
     }
 
-    /// [`Faraday::held_keys`] without the keys a flow holds back: what a
+    /// [`Faraday::held_keys_now`] without the keys a flow holds back: what a
     /// vault's key record and a plan's `held` lines say. The flow's own
     /// hold is in its state, not in the copies on the sticks.
     pub(crate) fn held_keys_stored(&self, c: &Compute) -> Vec<Fingerprint> {
@@ -157,7 +152,7 @@ impl Faraday {
 
     /// Whether key `fp` is held.
     pub fn key_held(&self, c: &Compute, fp: Fingerprint) -> bool {
-        self.held_keys(c).contains(&fp)
+        self.held_keys_now(c).contains(&fp)
     }
 
     /// Whether key `fp` is held and a copy of it should say so: the
@@ -166,31 +161,20 @@ impl Faraday {
         self.held_keys_stored(c).contains(&fp)
     }
 
-    /// The keys of loaded wallet `w` here that are held.
+    /// The keys of loaded wallet `w` here that are held, for a decision
+    /// ([`wallet_held_on`]).
     pub fn wallet_held(&self, c: &Compute, w: usize) -> Vec<Fingerprint> {
-        self.wallet_held_in(w, self.held_keys(c))
+        wallet_held_on(&Now { app: self, c }, w)
     }
 
-    /// Whether a key of `wl` made here still waits for its backup: none of
-    /// the wallet's receive addresses is shown, nor any code of one
-    /// (`docs/DECISIONS.md` F31).
+    /// Whether a key of `wl` made here still waits for its backup, for a
+    /// decision ([`receive_held_on`]).
     pub fn receive_held(&self, c: &Compute, wl: &wallet::Wallet) -> bool {
-        let held = self.held_keys(c);
-        if held.is_empty() {
-            return false;
-        }
-        let cs = wl.checksum();
-        self.session
-            .wallets
-            .iter()
-            .position(|w| w.checksum() == cs)
-            .is_some_and(|i| !self.wallet_held_in(i, held).is_empty())
+        receive_held_on(&Now { app: self, c }, wl)
     }
 
-    /// An address of `wl` as every screen shows it, in groups, and whether
-    /// it is held back: then the text is "Back up before you receive"
-    /// and is drawn in `WARN`. This is the one way a receive address
-    /// reaches the screen or a code.
+    /// An address of `wl` as every screen shows it, and whether it is
+    /// held back, for a decision ([`receive_line_on`]).
     pub fn receive_line(
         &self,
         c: &Compute,
@@ -198,13 +182,7 @@ impl Faraday {
         change: bool,
         index: u32,
     ) -> (String, bool) {
-        if self.receive_held(c, wl) {
-            return (crate::glance::RECEIVE_WARNING.to_string(), true);
-        }
-        (
-            crate::ui::grouped(&self.session.address_shown(c, wl, change, index)),
-            false,
-        )
+        receive_line_on(&Now { app: self, c }, wl, change, index)
     }
 
     /// [`Faraday::wallet_held`] as a copy of the plan says it: without the
@@ -228,30 +206,13 @@ impl Faraday {
     /// The seeds of the wallet being backed up that are held, by place
     /// among its seeds.
     pub(crate) fn backup_held_seeds(&self, c: &Compute) -> Vec<usize> {
-        let Some(b) = self.backup.as_ref() else {
-            return Vec::new();
-        };
-        let held = self.held_keys(c);
-        self.backup_seed_list(b.wallet)
-            .iter()
-            .enumerate()
-            .filter_map(|(i, (_, k))| {
-                let key = self.session.keys.get((*k)?)?;
-                held.contains(&key.fingerprint()).then_some(i)
-            })
-            .collect()
+        backup_held_seeds_on(&Now { app: self, c })
     }
 
-    /// The line said in place of Make the checklist, when the plan keeps
-    /// no copy of a key made here, or of its passphrase.
+    /// The line said in place of Make the checklist, for a decision
+    /// ([`backup_kept_nowhere_on`]).
     pub fn backup_kept_nowhere(&self, c: &Compute) -> Option<String> {
-        let b = self.backup.as_ref()?;
-        let shape = self.plan_shape(b.wallet);
-        plan::kept_nowhere_on(
-            &shape,
-            &self.plan_mapped(c, &shape, &b.answers),
-            &self.backup_held_seeds(c),
-        )
+        backup_kept_nowhere_on(&Now { app: self, c })
     }
 
     /// Before an open vault is sealed: every held key's record in it says
@@ -443,15 +404,15 @@ impl Faraday {
 
     /// The first item not done, which the later items wait for.
     pub fn backup_waiting(&self, c: &Compute) -> Option<u8> {
-        self.backup_items(c)
+        self.backup_items_now(c)
             .into_iter()
-            .find(|&i| bstep::item(i).is_some_and(|it| !self.backup_item_done(c, it)))
+            .find(|&i| bstep::item(i).is_some_and(|it| !self.backup_item_done_now(c, it)))
     }
 
     /// The first vault the plan makes whose stick no place keeps.
     pub fn backup_stickless(&self) -> Option<usize> {
         let b = self.backup.as_ref()?;
-        let shape = self.plan_shape(b.wallet);
+        let shape = self.plan_shape_now(b.wallet);
         b.answers.stickless(&shape)
     }
 
@@ -692,4 +653,77 @@ impl Faraday {
             b.prior.clear();
         }
     }
+}
+
+/// The keys of loaded wallet `w` here that are held, read through `r`
+/// ([`Reads`]).
+pub(crate) fn wallet_held_on(r: &impl Reads, w: usize) -> Vec<Fingerprint> {
+    r.app().wallet_held_in(w, r.held_keys())
+}
+
+/// Whether a key of `wl` made here still waits for its backup: none of
+/// the wallet's receive addresses is shown, nor any code of one
+/// (`docs/DECISIONS.md` F31). Read through `r` ([`Reads`]).
+pub(crate) fn receive_held_on(r: &impl Reads, wl: &wallet::Wallet) -> bool {
+    let app = r.app();
+    let held = r.held_keys();
+    if held.is_empty() {
+        return false;
+    }
+    let cs = wl.checksum();
+    app.session
+        .wallets
+        .iter()
+        .position(|w| w.checksum() == cs)
+        .is_some_and(|i| !app.wallet_held_in(i, held).is_empty())
+}
+
+/// An address of `wl` as every screen shows it, in groups, and whether
+/// it is held back: then the text is "Back up before you receive" and is
+/// drawn in `WARN`. This is the one way a receive address reaches the
+/// screen or a code. Read through `r` ([`Reads`]).
+pub(crate) fn receive_line_on(
+    r: &impl Reads,
+    wl: &wallet::Wallet,
+    change: bool,
+    index: u32,
+) -> (String, bool) {
+    if receive_held_on(r, wl) {
+        return (crate::glance::RECEIVE_WARNING.to_string(), true);
+    }
+    (
+        crate::ui::grouped(&r.address_shown(wl, change, index)),
+        false,
+    )
+}
+
+/// The backup's seeds, by their place in the plan, whose keys here are
+/// held. Read through `r` ([`Reads`]).
+pub(crate) fn backup_held_seeds_on(r: &impl Reads) -> Vec<usize> {
+    let app = r.app();
+    let Some(b) = app.backup.as_ref() else {
+        return Vec::new();
+    };
+    let held = r.held_keys();
+    r.backup_seed_list(b.wallet)
+        .iter()
+        .enumerate()
+        .filter_map(|(i, (_, k))| {
+            let key = app.session.keys.get((*k)?)?;
+            held.contains(&key.fingerprint()).then_some(i)
+        })
+        .collect()
+}
+
+/// The line said in place of Make the checklist, when the plan keeps no
+/// copy of a key made here, or of its passphrase. Read through `r`
+/// ([`Reads`]).
+pub(crate) fn backup_kept_nowhere_on(r: &impl Reads) -> Option<String> {
+    let b = r.app().backup.as_ref()?;
+    let shape = r.plan_shape(b.wallet);
+    plan::kept_nowhere_on(
+        &shape,
+        &r.plan_mapped(&shape, &b.answers),
+        &backup_held_seeds_on(r),
+    )
 }

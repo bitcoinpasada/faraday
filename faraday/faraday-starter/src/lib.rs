@@ -505,6 +505,10 @@ pub struct Starter {
 
     /// This computer.
     pub computer: Computer,
+    /// The QR codes of the guide pages the Start page and the restart
+    /// sheet put on a phone, by address: made when this computer is
+    /// reported ([`Starter::phone_codes_make`]), so drawing makes none.
+    phone_codes: Vec<(String, osk_codec::qr::QrMatrix)>,
     /// The disks attached, with the versions read through the elevated
     /// copy this session in place of the shell's unread ones.
     pub disks: Vec<Disk>,
@@ -606,7 +610,7 @@ impl Starter {
         let mut held = Faraday::new();
         held.online = true;
         held.held = true;
-        Starter {
+        let mut s = Starter {
             canvas: None,
             f: 1.0,
             w: 0.0,
@@ -620,6 +624,7 @@ impl Starter {
             out: VecDeque::new(),
             dirty: true,
             computer: Computer::default(),
+            phone_codes: Vec::new(),
             disks: Vec::new(),
             shell_disks: Vec::new(),
             versions: Vec::new(),
@@ -659,7 +664,44 @@ impl Starter {
             seen: Vec::new(),
             held,
             showing: false,
+        };
+        s.phone_codes_make();
+        s
+    }
+
+    /// Costs a QR encoding per guide address not made yet: the codes of
+    /// the guide pages the Start page and the restart sheet show for this
+    /// computer (its own guide, and the Mac guide a Mac's Start page
+    /// names), made with the held app's token and kept until the computer
+    /// changes ([`Starter::phone_code`]).
+    fn phone_codes_make(&mut self) {
+        let want = [
+            LearnId::for_computer(&self.computer).address(),
+            LearnId::MacIntel.address(),
+        ];
+        self.phone_codes.retain(|(a, _)| want.contains(a));
+        let c = self.held.compute();
+        for address in want {
+            if self.phone_codes.iter().any(|(a, _)| *a == address) {
+                continue;
+            }
+            if let Ok(m) = osk_codec::qr::encode(
+                &c,
+                osk_codec::qr::Payload::Bytes(address.as_bytes()),
+                osk_codec::qr::Ecc::Medium,
+            ) {
+                self.phone_codes.push((address, m));
+            }
         }
+    }
+
+    /// The QR code of guide `address`, made when the computer was
+    /// reported ([`Starter::phone_codes_make`]). A lookup.
+    pub(crate) fn phone_code(&self, address: &str) -> Option<&osk_codec::qr::QrMatrix> {
+        self.phone_codes
+            .iter()
+            .find(|(a, _)| a == address)
+            .map(|(_, m)| m)
     }
 
     /// The facts Home's checklist is read from.
@@ -767,11 +809,12 @@ impl Starter {
     /// key when one is given, which is dropped (and wiped) once the PDF
     /// is made.
     fn print_notes(&mut self, key: Option<api::RecoveryKey>) {
+        let c = self.held.compute();
         if let Some(notes) = notes::Notes::for_computer(&self.computer) {
             self.notes_open_failed = None;
             let pdf = match &key {
-                Some(k) => notes.pdf_with_key(k),
-                None => notes.pdf(),
+                Some(k) => notes.pdf_with_key(&c, k),
+                None => notes.pdf(&c),
             };
             self.out.push_back(StarterCommand::PrintNotes {
                 name: notes::FILE_NAME.to_string(),
@@ -1024,7 +1067,10 @@ impl Starter {
     /// payload, a write's progress.
     pub fn starter_event(&mut self, event: StarterEvent) {
         match event {
-            StarterEvent::Computer(c) => self.computer = c,
+            StarterEvent::Computer(c) => {
+                self.computer = c;
+                self.phone_codes_make();
+            }
             StarterEvent::Disks(d) => {
                 for disk in &d {
                     if !self.seen.contains(&disk.id) {
@@ -1245,6 +1291,7 @@ impl Starter {
     }
 
     fn act(&mut self, action: StarterAction) {
+        let c = self.held.compute();
         // While the sheet is up, only its own buttons.
         if self.sheet.is_some()
             && !matches!(
@@ -1462,7 +1509,7 @@ impl Starter {
                 self.template.saved = None;
             }
             StarterAction::PrintTemplate if self.page == Page::Templates => {
-                if let Ok(pdf) = self.template.pdf() {
+                if let Ok(pdf) = self.template.pdf(&c) {
                     self.template.open_failed = None;
                     self.out.push_back(StarterCommand::PrintTemplate {
                         name: self.template.file_name(),
@@ -1472,7 +1519,7 @@ impl Starter {
             }
             StarterAction::SaveTemplate if self.page == Page::Templates => {
                 if !self.template.saving
-                    && let Ok(pdf) = self.template.pdf()
+                    && let Ok(pdf) = self.template.pdf(&c)
                 {
                     self.template.saving = true;
                     self.template.saved = None;

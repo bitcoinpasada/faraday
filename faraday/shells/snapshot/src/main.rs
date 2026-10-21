@@ -206,7 +206,8 @@ impl Tour {
                     self.app.storage(ev);
                 }
                 StorageCommand::ReadQr { stick, name } => {
-                    let ev = match faraday_storage::read_qr_png(&stick, &name) {
+                    let ev = match faraday_storage::read_qr_png(&self.app.compute(), &stick, &name)
+                    {
                         Ok((bytes, payloads)) => StorageEvent::QrRead {
                             name,
                             bytes,
@@ -405,14 +406,14 @@ impl Tour {
     }
 
     /// The codes a camera would read off the frame now.
-    fn decode(&mut self) -> Vec<String> {
+    fn decode(&mut self, c: &Compute) -> Vec<String> {
         let f = self.app.frame();
         let luma: Vec<u8> = f
             .rgba
             .chunks_exact(4)
             .map(|p| ((u32::from(p[0]) * 3 + u32::from(p[1]) * 6 + u32::from(p[2])) / 10) as u8)
             .collect();
-        osk_codec::decode::decode_luma(usize::from(f.width), usize::from(f.height), &luma)
+        osk_codec::decode::decode_luma(c, usize::from(f.width), usize::from(f.height), &luma)
             .into_iter()
             .map(|d| String::from_utf8_lossy(&d.bytes).into_owned())
             .collect()
@@ -1458,7 +1459,7 @@ fn run(
     t.press(Action::QrWallet(0));
     t.shot("qr-wallet")?;
     // The code on screen is the descriptor, as a camera reads it.
-    let read = t.decode();
+    let read = t.decode(c);
     let want = t.app.session.wallets[0]
         .policy()
         .to_descriptor_checksummed();

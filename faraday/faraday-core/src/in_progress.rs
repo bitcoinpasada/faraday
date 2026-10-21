@@ -21,6 +21,7 @@ use osk_crypto::work::Compute;
 use crate::backup_flow::{Kind, Step};
 use crate::drawing::View;
 use crate::family::{CardId, Open};
+use crate::glance::{Now, Reads};
 use crate::plan::At;
 use crate::strings::EN;
 use crate::{BStage, Faraday, Screen, bstep};
@@ -63,19 +64,13 @@ impl Faraday {
     /// The flows in progress, walking a backup's checklist (kept for the
     /// frame while one is drawn): in the order they were begun, what the
     /// sidebar's rows and the small Home's tiles show.
-    pub fn flows_in_progress(&self, c: &Compute) -> Rc<Vec<Row>> {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).flows_in_progress();
-        }
-        self.flows_in_progress_now(c)
-    }
-
-    /// Works out [`Faraday::flows_in_progress`] from the state as it is.
+    ///
+    /// Works out [`crate::drawing::View::flows_in_progress`] from the state as it is.
     pub fn flows_in_progress_now(&self, c: &Compute) -> Rc<Vec<Row>> {
         Rc::new(self.flows_in_progress_uncached(c))
     }
 
-    /// Works out [`Faraday::flows_in_progress`].
+    /// Works out [`Faraday::flows_in_progress_now`].
     fn flows_in_progress_uncached(&self, c: &Compute) -> Vec<Row> {
         let mut begun = self.flows_begun_now();
         // In the order noted; one not noted yet (a flow kept across a
@@ -158,18 +153,6 @@ impl Faraday {
         })
     }
 
-    /// Back up's checklist is made and every item on it done.
-    fn backup_finished(&self, c: &Compute) -> bool {
-        self.backup.as_ref().is_some_and(|b| {
-            b.stage == BStage::Checklist
-                && self
-                    .backup_items(c)
-                    .into_iter()
-                    .filter_map(bstep::item)
-                    .all(|it| self.backup_item_done(c, it))
-        })
-    }
-
     /// Which row Back up is part of: Make a new wallet's when it backs up
     /// the wallet just made there, else its own.
     fn backup_going(&self) -> Option<Going> {
@@ -200,28 +183,7 @@ impl Faraday {
     }
 
     fn flow_finished(&self, c: &Compute, g: Going) -> bool {
-        match g {
-            Going::Create => {
-                self.create.as_ref().is_some_and(|c| c.built.is_some())
-                    && self.backup_going() == Some(Going::Create)
-                    && self.backup_finished(c)
-            }
-            Going::Restore => self
-                .restore
-                .as_ref()
-                .is_some_and(|r| r.done[crate::rstep::CHECK as usize]),
-            Going::Backup => self.backup_finished(c),
-            Going::Spend => self
-                .spend
-                .as_ref()
-                .is_some_and(|s| s.out_tx || s.out_signed),
-            Going::Message => self.message.as_ref().is_some_and(|m| m.signed.is_some()),
-            Going::Vault => false,
-            Going::Flow(i) => self
-                .backup_flows
-                .get(i)
-                .is_none_or(|f| f.step == Step::Done),
-        }
+        flow_finished_on(&Now { app: self, c }, g)
     }
 
     /// The flow now on screen, when it is one that can be in progress.
@@ -565,16 +527,7 @@ impl Faraday {
     /// a power-off ends it, and the sidebar says so. Costs what the
     /// checklist's answers cost.
     pub fn lock_held(&self, c: &Compute) -> bool {
-        let Some(cs) = self.create.as_ref() else {
-            return false;
-        };
-        let begun = cs.built.is_some() || cs.done.iter().any(|d| *d);
-        let kept = self.backup_flows.iter().any(|f| {
-            f.kind == Kind::Wallet
-                && f.made
-                && f.wallet.as_ref().is_some_and(|w| w.owner == cs.owner)
-        });
-        begun && !kept && !self.flow_finished(c, Going::Create)
+        lock_held_on(&Now { app: self, c })
     }
 
     /// Takes backup flow `i` out of the list, and with it the vault form
@@ -701,9 +654,9 @@ impl Faraday {
             ));
         }
         let n = b.open.or_else(|| {
-            self.backup_items(c)
+            self.backup_items_now(c)
                 .into_iter()
-                .find(|&n| bstep::item(n).is_some_and(|it| !self.backup_item_done(c, it)))
+                .find(|&n| bstep::item(n).is_some_and(|it| !self.backup_item_done_now(c, it)))
         });
         Some(match n {
             Some(n) => crate::screens::item_title_now(c, self, n).0,
@@ -779,4 +732,50 @@ pub(crate) fn cancel_sheet(app: &View, ui: &mut crate::ui::Ui, g: Going, w: f32,
         );
         cy - y
     });
+}
+
+/// [`Faraday::lock_held`] read through `r` ([`Reads`]).
+pub(crate) fn lock_held_on(r: &impl Reads) -> bool {
+    let app = r.app();
+    let Some(cs) = app.create.as_ref() else {
+        return false;
+    };
+    let begun = cs.built.is_some() || cs.done.iter().any(|d| *d);
+    let kept = app.backup_flows.iter().any(|f| {
+        f.kind == Kind::Wallet && f.made && f.wallet.as_ref().is_some_and(|w| w.owner == cs.owner)
+    });
+    begun && !kept && !flow_finished_on(r, Going::Create)
+}
+
+/// Whether flow `g` is finished, read through `r` ([`Reads`]).
+fn flow_finished_on(r: &impl Reads, g: Going) -> bool {
+    let app = r.app();
+    match g {
+        Going::Create => {
+            app.create.as_ref().is_some_and(|c| c.built.is_some())
+                && app.backup_going() == Some(Going::Create)
+                && backup_finished_on(r)
+        }
+        Going::Restore => app
+            .restore
+            .as_ref()
+            .is_some_and(|x| x.done[crate::rstep::CHECK as usize]),
+        Going::Backup => backup_finished_on(r),
+        Going::Spend => app.spend.as_ref().is_some_and(|s| s.out_tx || s.out_signed),
+        Going::Message => app.message.as_ref().is_some_and(|m| m.signed.is_some()),
+        Going::Vault => false,
+        Going::Flow(i) => app.backup_flows.get(i).is_none_or(|f| f.step == Step::Done),
+    }
+}
+
+/// Back up's checklist is made and every item on it done, read through
+/// `r` ([`Reads`]).
+fn backup_finished_on(r: &impl Reads) -> bool {
+    r.app().backup.as_ref().is_some_and(|b| {
+        b.stage == BStage::Checklist
+            && r.backup_items()
+                .into_iter()
+                .filter_map(bstep::item)
+                .all(|it| r.backup_item_done(it))
+    })
 }

@@ -19,6 +19,8 @@ zeroize = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
 osk-codec = { path = "../../core/osk-codec" }
+# The token the tests' QR codes take (docs/COMPUTE.md §2).
+osk-crypto = { path = "../../core/osk-crypto" }
 
 [lints]
 workspace = true

@@ -22,6 +22,15 @@ use faraday_starter::notes::Notes;
 use faraday_starter::{LearnId, Starter, StarterAction};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
+/// A token for the PDFs these snapshots make, counting nothing. Cheap.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a mint: the Starter's snapshots, which draw nothing"
+)]
+fn compute() -> osk_crypto::work::Compute {
+    osk_crypto::work::Compute::new(|_| {})
+}
+
 const GB: u64 = 1_000_000_000;
 
 fn payload() -> Payload {
@@ -326,7 +335,7 @@ fn bitlocker_shots(s: &Snap) -> Result<(), String> {
     ] {
         let notes = Notes::for_computer(&c).ok_or("notes")?;
         let path = s.out.join(format!("{name}.pdf"));
-        std::fs::write(&path, notes.pdf_with_key(&key))
+        std::fs::write(&path, notes.pdf_with_key(&compute(), &key))
             .map_err(|e| format!("{}: {e}", path.display()))?;
         println!("{}", path.display());
     }
@@ -657,7 +666,8 @@ fn run(s: &Snap) -> Result<(), String> {
     ] {
         let notes = faraday_starter::notes::Notes::for_computer(&c).ok_or("no notes")?;
         let path = s.out.join(format!("{name}.pdf"));
-        std::fs::write(&path, notes.pdf()).map_err(|e| format!("{}: {e}", path.display()))?;
+        std::fs::write(&path, notes.pdf(&compute()))
+            .map_err(|e| format!("{}: {e}", path.display()))?;
         println!("{}", path.display());
     }
 

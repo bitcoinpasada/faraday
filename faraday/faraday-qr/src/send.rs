@@ -10,6 +10,7 @@
 //! desktop app and the stick make the same codes.
 
 use osk_codec::qr::{Ecc, Payload, QrMatrix, encode, encode_bounded};
+use osk_crypto::work::Compute;
 
 /// What a QR view shows.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -115,32 +116,34 @@ pub type Frames = (Made, Vec<QrMatrix>);
 
 /// `source` written as `format`, `part` bytes a frame when animated: one
 /// code where it fits, as `docs/QR.md` says for each.
-pub fn frames(source: &Source, format: Format, part: usize) -> Result<Frames, Error> {
+pub fn frames(c: &Compute, source: &Source, format: Format, part: usize) -> Result<Frames, Error> {
     Ok(match (source, format) {
         (Source::Psbt(bytes), Format::Ur) => {
             let single = osk_codec::ur::encode_psbt(bytes).to_ascii_uppercase();
-            if let Ok(m) = encode_bounded(Payload::Alphanumeric(single.as_bytes()), Ecc::Low, 20) {
+            if let Ok(m) = encode_bounded(c, Payload::Alphanumeric(single.as_bytes()), Ecc::Low, 20)
+            {
                 (Made::UrPsbtOne, vec![m])
             } else {
-                ur_psbt_frames(bytes, part)?
+                ur_psbt_frames(c, bytes, part)?
             }
         }
-        (Source::Psbt(bytes), Format::Bbqr | Format::Parts) => bbqr_frames('P', bytes, part)?,
+        (Source::Psbt(bytes), Format::Bbqr | Format::Parts) => bbqr_frames(c, 'P', bytes, part)?,
         (Source::Text(text), Format::Parts) | (Source::Key(text, _), Format::Parts) => {
-            parts_frames(text, part)?
+            parts_frames(c, text, part)?
         }
         (Source::Text(text), Format::Ur) => {
-            if let Ok(m) = encode_bounded(Payload::Bytes(text.as_bytes()), Ecc::Medium, 25) {
+            if let Ok(m) = encode_bounded(c, Payload::Bytes(text.as_bytes()), Ecc::Medium, 25) {
                 (Made::TextOne, vec![m])
             } else {
-                ur_bytes_frames(text.as_bytes(), false, part)?
+                ur_bytes_frames(c, text.as_bytes(), false, part)?
             }
         }
         (Source::Text(text), Format::Bbqr) | (Source::Key(text, _), Format::Bbqr) => {
-            bbqr_frames('U', text.as_bytes(), part)?
+            bbqr_frames(c, 'U', text.as_bytes(), part)?
         }
         (Source::Key(_, Some(ur)), Format::Ur) => {
             let m = encode_bounded(
+                c,
                 Payload::Alphanumeric(ur.to_ascii_uppercase().as_bytes()),
                 Ecc::Low,
                 20,
@@ -149,15 +152,15 @@ pub fn frames(source: &Source, format: Format, part: usize) -> Result<Frames, Er
             (Made::UrAccount, vec![m])
         }
         (Source::Key(text, None), Format::Ur) => {
-            let m = encode_bounded(Payload::Bytes(text.as_bytes()), Ecc::Medium, 25)
+            let m = encode_bounded(c, Payload::Bytes(text.as_bytes()), Ecc::Medium, 25)
                 .map_err(code_error)?;
             (Made::KeyOne, vec![m])
         }
         (Source::File(name, data), f) => {
             let env = envelope(name, data)?;
             match f {
-                Format::Ur => ur_bytes_frames(&env, true, part)?,
-                Format::Bbqr | Format::Parts => bbqr_frames('J', &env, part)?,
+                Format::Ur => ur_bytes_frames(c, &env, true, part)?,
+                Format::Bbqr | Format::Parts => bbqr_frames(c, 'J', &env, part)?,
             }
         }
     })
@@ -166,20 +169,25 @@ pub fn frames(source: &Source, format: Format, part: usize) -> Result<Frames, Er
 /// `source` as frames shown in turn even where one code would hold it:
 /// for a scanner that reads an animated code better than a dense one.
 /// BBQr and numbered parts are split by `part` either way.
-pub fn animated_frames(source: &Source, format: Format, part: usize) -> Result<Frames, Error> {
+pub fn animated_frames(
+    c: &Compute,
+    source: &Source,
+    format: Format,
+    part: usize,
+) -> Result<Frames, Error> {
     match (source, format) {
-        (Source::Psbt(bytes), Format::Ur) => ur_psbt_frames(bytes, part),
+        (Source::Psbt(bytes), Format::Ur) => ur_psbt_frames(c, bytes, part),
         (Source::Text(text), Format::Ur) | (Source::Key(text, None), Format::Ur) => {
-            ur_bytes_animated(text.as_bytes(), false, part)
+            ur_bytes_animated(c, text.as_bytes(), false, part)
         }
         (Source::File(name, data), Format::Ur) => {
-            ur_bytes_animated(&envelope(name, data)?, true, part)
+            ur_bytes_animated(c, &envelope(name, data)?, true, part)
         }
         (Source::Text(text), Format::Parts) | (Source::Key(text, _), Format::Parts) => {
             let parts = crate::specter::encode(text, part);
-            numbered(parts)
+            numbered(c, parts)
         }
-        _ => frames(source, format, part),
+        _ => frames(c, source, format, part),
     }
 }
 
@@ -187,13 +195,13 @@ pub fn animated_frames(source: &Source, format: Format, part: usize) -> Result<F
 /// bound a single code keeps to (version 20 at low error correction for
 /// a UR or a BBQr part, version 25 at medium for text): for a screen
 /// whose Animated switch is off. `None` where it takes more than one.
-pub fn one_code(source: &Source, format: Format) -> Option<Frames> {
+pub fn one_code(c: &Compute, source: &Source, format: Format) -> Option<Frames> {
     match (source, format) {
-        (_, Format::Ur) => frames(source, Format::Ur, PARTS[1])
+        (_, Format::Ur) => frames(c, source, Format::Ur, PARTS[1])
             .ok()
             .filter(|(_, f)| f.len() == 1),
         (Source::Text(text), Format::Parts) | (Source::Key(text, _), Format::Parts) => {
-            encode_bounded(Payload::Bytes(text.as_bytes()), Ecc::Medium, 25)
+            encode_bounded(c, Payload::Bytes(text.as_bytes()), Ecc::Medium, 25)
                 .ok()
                 .map(|m| (Made::PartsOne, vec![m]))
         }
@@ -205,7 +213,7 @@ pub fn one_code(source: &Source, format: Format) -> Option<Frames> {
             };
             let mut parts = crate::bbqr::encode(t, &data, data.len().div_ceil(5).max(1) * 5)?;
             let part = parts.pop().filter(|_| parts.is_empty())?;
-            encode_bounded(Payload::Alphanumeric(part.as_bytes()), Ecc::Low, 20)
+            encode_bounded(c, Payload::Alphanumeric(part.as_bytes()), Ecc::Low, 20)
                 .ok()
                 .map(|m| (Made::BbqrOne(t), vec![m]))
         }
@@ -216,8 +224,9 @@ fn envelope(name: &str, data: &[u8]) -> Result<Vec<u8>, Error> {
     crate::envelope::pack(&envelope_name(name), data, "file").map_err(Error::Envelope)
 }
 
-fn ur_psbt_frames(bytes: &[u8], part: usize) -> Result<Frames, Error> {
+fn ur_psbt_frames(c: &Compute, bytes: &[u8], part: usize) -> Result<Frames, Error> {
     let frames = animated(
+        c,
         osk_codec::ur::Encoder::psbt(bytes, part).map_err(code_error)?,
         bytes.len(),
         part,
@@ -227,19 +236,19 @@ fn ur_psbt_frames(bytes: &[u8], part: usize) -> Result<Frames, Error> {
 
 /// Specter's numbered parts, `part` characters of text a frame, one code
 /// each; a text that fits one frame is one code with no number.
-pub fn parts_frames(text: &str, part: usize) -> Result<Frames, Error> {
+pub fn parts_frames(c: &Compute, text: &str, part: usize) -> Result<Frames, Error> {
     let parts = if text.chars().count() <= part {
         vec![text.to_string()]
     } else {
         crate::specter::encode(text, part)
     };
-    numbered(parts)
+    numbered(c, parts)
 }
 
-fn numbered(parts: Vec<String>) -> Result<Frames, Error> {
+fn numbered(c: &Compute, parts: Vec<String>) -> Result<Frames, Error> {
     let frames = parts
         .iter()
-        .map(|p| encode(Payload::Bytes(p.as_bytes()), Ecc::Low).map_err(code_error))
+        .map(|p| encode(c, Payload::Bytes(p.as_bytes()), Ecc::Low).map_err(code_error))
         .collect::<Result<Vec<_>, _>>()?;
     let made = if frames.len() == 1 {
         Made::PartsOne
@@ -250,11 +259,11 @@ fn numbered(parts: Vec<String>) -> Result<Frames, Error> {
 }
 
 /// BBQr parts in encoding `2`, one code each.
-pub fn bbqr_frames(t: char, data: &[u8], part: usize) -> Result<Frames, Error> {
+pub fn bbqr_frames(c: &Compute, t: char, data: &[u8], part: usize) -> Result<Frames, Error> {
     let parts = crate::bbqr::encode(t, data, part).ok_or(Error::TooLargeForBbqr)?;
     let frames = parts
         .iter()
-        .map(|p| encode(Payload::Alphanumeric(p.as_bytes()), Ecc::Low).map_err(code_error))
+        .map(|p| encode(c, Payload::Alphanumeric(p.as_bytes()), Ecc::Low).map_err(code_error))
         .collect::<Result<Vec<_>, _>>()?;
     let made = if frames.len() == 1 {
         Made::BbqrOne(t)
@@ -265,16 +274,17 @@ pub fn bbqr_frames(t: char, data: &[u8], part: usize) -> Result<Frames, Error> {
 }
 
 /// Bytes as `ur:bytes`: one code when it fits, else animated.
-pub fn ur_bytes_frames(data: &[u8], file: bool, part: usize) -> Result<Frames, Error> {
+pub fn ur_bytes_frames(c: &Compute, data: &[u8], file: bool, part: usize) -> Result<Frames, Error> {
     let single = osk_codec::ur::encode_bytes(data).to_ascii_uppercase();
-    if let Ok(m) = encode_bounded(Payload::Alphanumeric(single.as_bytes()), Ecc::Low, 20) {
+    if let Ok(m) = encode_bounded(c, Payload::Alphanumeric(single.as_bytes()), Ecc::Low, 20) {
         return Ok((Made::UrBytesOne { file }, vec![m]));
     }
-    ur_bytes_animated(data, file, part)
+    ur_bytes_animated(c, data, file, part)
 }
 
-fn ur_bytes_animated(data: &[u8], file: bool, part: usize) -> Result<Frames, Error> {
+fn ur_bytes_animated(c: &Compute, data: &[u8], file: bool, part: usize) -> Result<Frames, Error> {
     let frames = animated(
+        c,
         osk_codec::ur::Encoder::bytes(data, part).map_err(code_error)?,
         data.len(),
         part,
@@ -312,6 +322,7 @@ pub fn envelope_name(name: &str) -> String {
 /// The frames of a fountain-coded UR: twice the fragments it takes, so a
 /// scanner that misses a few still completes on the first pass.
 pub fn animated(
+    c: &Compute,
     mut enc: osk_codec::ur::Encoder,
     len: usize,
     frag: usize,
@@ -320,7 +331,7 @@ pub fn animated(
     (0..count)
         .map(|_| {
             let part = enc.next_part().to_ascii_uppercase();
-            encode(Payload::Alphanumeric(part.as_bytes()), Ecc::Low).map_err(code_error)
+            encode(c, Payload::Alphanumeric(part.as_bytes()), Ecc::Low).map_err(code_error)
         })
         .collect()
 }

@@ -613,7 +613,7 @@ impl VaultRecords {
                         .flatten();
                     (
                         m.as_ref().map(|m| m.word_count()),
-                        m.as_ref().map(crate::wallet::words_id),
+                        m.as_ref().map(|m| crate::wallet::words_id(c, m)),
                     )
                 })
                 .unzip();
@@ -761,7 +761,7 @@ impl Faraday {
                 .words_id(c, i)
                 .map(|id| zeroize::Zeroizing::new(*id));
         }
-        crate::wallet::record_words(r).map(|m| crate::wallet::words_id(&m))
+        crate::wallet::record_words(r).map(|m| crate::wallet::words_id(c, &m))
     }
 
     /// The wallet description record `r` holds, as its open vault keeps
@@ -1235,14 +1235,8 @@ impl Faraday {
     /// and by name (`PLAN.md` §6.3: locking lists what was not saved).
     /// Kept in the drawing memo while a frame is drawn (`docs/SPEED.md`
     /// §3.3). Costs a parse of each key's words.
-    pub fn unsaved(&self, c: &Compute) -> (Vec<String>, Vec<String>) {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).unsaved();
-        }
-        self.unsaved_now(c)
-    }
-
-    /// Works out [`Faraday::unsaved`]. Costs a parse of each key's words.
+    ///
+    /// Works out [`crate::drawing::View::unsaved`]. Costs a parse of each key's words.
     pub fn unsaved_now(&self, c: &Compute) -> (Vec<String>, Vec<String>) {
         let held_keys: Vec<&[u8]> = self
             .vaults
@@ -1295,15 +1289,9 @@ impl Faraday {
     /// files For the stick are lost, not kept. Reads each seed's words and
     /// each open vault's wallets; kept for the frame while one is drawn
     /// (`docs/SPEED.md` §3.12).
-    pub fn kept_wiped(&self, c: &Compute, power_off: bool) -> KeptWiped {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).kept_wiped(power_off);
-        }
-        self.kept_wiped_now(c, power_off)
-    }
-
+    ///
     /// Reads each seed's words and each open vault's wallets: what
-    /// [`Self::kept_wiped`] answers.
+    /// [`crate::drawing::View::kept_wiped`] answers.
     pub fn kept_wiped_now(&self, c: &Compute, power_off: bool) -> KeptWiped {
         let mut out = KeptWiped::default();
         // Make a new wallet before its keys are kept anywhere ends with
@@ -1322,7 +1310,7 @@ impl Faraday {
                 .map(|v| v.label())
                 .or_else(|| self.vault_summary(&f).map(|s| s.name.clone()))
                 .unwrap_or_else(|| f.name.clone());
-            let currency = self.currency(&f);
+            let currency = self.currency(c, &f);
             let state = currency
                 .as_ref()
                 .map_or_else(|| self.medium.from_box().to_string(), Currency::line);
@@ -2790,14 +2778,8 @@ impl Faraday {
     /// Kept in the drawing memo while a frame is drawn (`docs/SPEED.md`
     /// §3.3). Reads its wallet records as it keeps them read
     /// ([`VaultRecords`]).
-    pub fn vault_rows(&self, c: &Compute, v: usize) -> Vec<VaultRow> {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).vault_rows(v);
-        }
-        self.vault_rows_now(c, v)
-    }
-
-    /// Works out [`Faraday::vault_rows`] from the wallet records as the
+    ///
+    /// Works out [`crate::drawing::View::vault_rows`] from the wallet records as the
     /// vault keeps them read ([`VaultRecords`]).
     pub fn vault_rows_now(&self, c: &Compute, v: usize) -> Vec<VaultRow> {
         let Some(open) = self.vaults.open.get(v) else {
@@ -2909,7 +2891,7 @@ impl Faraday {
             .of(kind::KEY)
             .filter_map(|(i, r)| crate::vault_screens::key_fingerprint(c, self, r).map(|f| (i, f)))
             .collect();
-        let rows = self.vault_rows(c, v);
+        let rows = self.vault_rows_now(c, v);
         let loaded = |i: usize| rows.iter().any(|r| r.record == i && r.loaded);
         let mut out = Vec::new();
         for (i, r, d) in open.contents.described_of(c, kind::WALLET) {
@@ -4525,7 +4507,7 @@ impl Faraday {
     /// (`docs/SIMPLIFY.md` §3.5). A vault copied in from a stick,
     /// unchanged, that no receipt names is current on the stick it came
     /// from when that is known, else unchanged.
-    pub fn currency(&self, f: &VaultFile) -> Option<Currency> {
+    pub fn currency(&self, c: &Compute, f: &VaultFile) -> Option<Currency> {
         let changed = f
             .open
             .and_then(|o| self.vaults.open.get(o))
@@ -4541,7 +4523,7 @@ impl Faraday {
                 let same = boxes
                     .iter()
                     .find(|i| i.name == f.name)
-                    .is_some_and(|i| r.holds(&i.name, &i.hash()));
+                    .is_some_and(|i| r.holds(&i.name, &i.hash(c)));
                 Some(if same && !changed {
                     Currency::Current(r.label.clone())
                 } else {
@@ -4562,7 +4544,7 @@ impl Faraday {
                     .inbox
                     .iter()
                     .find(|i| i.name == f.name)
-                    .map(crate::Item::hash);
+                    .map(|i| i.hash(c));
                 Some(
                     self.vault_from
                         .iter()
@@ -4577,9 +4559,9 @@ impl Faraday {
 
     /// The first vault changed since it was written, by the name it goes
     /// by: Home's lead rule 6 and the session strip's Write out.
-    pub fn vault_changed(&self) -> Option<String> {
+    pub fn vault_changed(&self, c: &Compute) -> Option<String> {
         self.vault_files().iter().find_map(|f| {
-            (self.currency(f) == Some(Currency::Changed)).then(|| {
+            (self.currency(c, f) == Some(Currency::Changed)).then(|| {
                 f.open
                     .and_then(|o| self.vaults.open.get(o))
                     .map(|v| v.label())

@@ -688,7 +688,7 @@ pub(crate) struct Entry {
 }
 
 /// The board as one frame draws it: worked out once per frame
-/// ([`Faraday::board_view`]).
+/// ([`Faraday::board_view_now`]).
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct BoardView {
     /// The wallet's shape: which zones take the chip held.
@@ -856,7 +856,7 @@ impl Faraday {
             return Some((wf.shape.clone(), wf.answers.clone()));
         }
         let b = self.backup.as_ref()?;
-        Some((self.plan_shape(b.wallet), b.answers.clone()))
+        Some((self.plan_shape_now(b.wallet), b.answers.clone()))
     }
 
     /// The flow whose plan the board on screen edits past its lock, where
@@ -958,20 +958,14 @@ impl Faraday {
     /// this frame draws it, kept in the drawing memo while a frame is
     /// drawn (`docs/SPEED.md` §3.3). Drawing reads it; nothing decides
     /// from it.
-    pub(crate) fn board_view(&self, c: &Compute) -> Option<Rc<BoardView>> {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).board_view();
-        }
-        self.board_view_now(c)
-    }
-
+    ///
     /// Works out the plan's map, its checks and each place's line of
-    /// fact: the board, for [`Faraday::board_view`].
+    /// fact: the board, for [`crate::drawing::View::board_view`].
     pub(crate) fn board_view_now(&self, c: &Compute) -> Option<Rc<BoardView>> {
         self.board_view_uncached(c).map(Rc::new)
     }
 
-    /// Works out [`Faraday::board_view`] (see [`Faraday::board_view_now`]).
+    /// Works out [`Faraday::board_view_now`] (see [`Faraday::board_view_now`]).
     fn board_view_uncached(&self, c: &Compute) -> Option<BoardView> {
         let of = self.board_of()?;
         let state = self.board_state()?;
@@ -1397,7 +1391,7 @@ impl Faraday {
     /// by its zone, the chips drawn with the warning mark
     /// (`docs/BACKUP-FLOW.md` §19.5).
     pub fn board_marks(&self, c: &Compute) -> Vec<(Zone, Thing)> {
-        let Some(v) = self.board_view(c) else {
+        let Some(v) = self.board_view_now(c) else {
             return Vec::new();
         };
         let mut zones: Vec<&ZoneView> = Vec::new();

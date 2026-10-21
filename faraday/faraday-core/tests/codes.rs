@@ -18,7 +18,8 @@ use osk_ui::canvas::InkKind;
 
 /// The one code in a PNG, as text.
 fn read_png(png: &[u8]) -> String {
-    let payloads = faraday_files::qr_in_png(png).expect("a PNG");
+    let c = faraday_core::testkit::compute();
+    let payloads = faraday_files::qr_in_png(&c, png).expect("a PNG");
     assert_eq!(payloads.len(), 1, "one code");
     String::from_utf8(payloads[0].clone()).expect("text")
 }
@@ -143,6 +144,7 @@ fn making() -> (Faraday, String) {
 /// A picture read on a stick visit, as the cosigner's Faraday reads it:
 /// the key it holds.
 fn key_scanned(name: &str, png: &[u8]) -> String {
+    let c = faraday_core::testkit::compute();
     let mut app = testkit::started();
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         serial: None,
@@ -155,7 +157,7 @@ fn key_scanned(name: &str, png: &[u8]) -> String {
     app.storage(StorageEvent::QrRead {
         name: name.to_string(),
         bytes: png.to_vec(),
-        payloads: faraday_files::qr_in_png(png).expect("a PNG"),
+        payloads: faraday_files::qr_in_png(&c, png).expect("a PNG"),
     });
     let item = app
         .inbox
@@ -382,6 +384,7 @@ fn a_gpg_public_key_reads_back_from_its_code_and_its_picture() {
 
 #[test]
 fn a_gpg_signature_reads_back_from_its_code_and_its_picture() {
+    let c = faraday_core::testkit::compute();
     let mut app = with_gpg_key();
     app.press(Action::Vault(V::GpgSignPick));
     let k = app
@@ -395,7 +398,7 @@ fn a_gpg_signature_reads_back_from_its_code_and_its_picture() {
     app.press(Action::Vault(V::GpgSign));
     app.press(Action::Vault(V::GpgHoldSign));
     let want = text(&outbox(&app, "SHA256SUMS.asc"));
-    let code = app.signature_code("SHA256SUMS").unwrap();
+    let code = app.signature_code(&c, "SHA256SUMS").unwrap();
     reads_back(&mut app, code, "SHA256SUMS.asc.png", &want);
 }
 

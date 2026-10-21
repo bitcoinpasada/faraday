@@ -6,6 +6,15 @@ use std::path::Path;
 
 use faraday_qr::{Arrived, Assembler, Step, envelope};
 
+/// A token for the work these tests ask, counting nothing. Cheap.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a mint: faraday-qr's tests, which cannot reach faraday-core's testkit"
+)]
+fn compute() -> osk_crypto::work::Compute {
+    osk_crypto::work::Compute::new(|_| {})
+}
+
 fn vector(name: &str) -> std::path::PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/vectors")
@@ -14,8 +23,9 @@ fn vector(name: &str) -> std::path::PathBuf {
 
 /// The one code in a PNG, as text.
 fn code(png: &str) -> String {
+    let c = compute();
     let bytes = std::fs::read(vector(png)).unwrap();
-    let mut codes = faraday_files::qr_in_png(&bytes).unwrap();
+    let mut codes = faraday_files::qr_in_png(&c, &bytes).unwrap();
     assert_eq!(codes.len(), 1, "{png}");
     String::from_utf8(codes.remove(0)).unwrap()
 }

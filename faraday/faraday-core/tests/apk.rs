@@ -366,7 +366,8 @@ fn ready(package: &str, apks: &[(&str, Vec<u8>)]) -> Faraday {
 }
 
 fn listed(app: &Faraday, package: &str) -> Vec<(String, Option<String>)> {
-    app.apk_listed(package)
+    let c = faraday_core::testkit::compute();
+    app.apk_listed(&c, package)
         .into_iter()
         .map(|l| (l.name, l.why.map(|w| w.text())))
         .collect()

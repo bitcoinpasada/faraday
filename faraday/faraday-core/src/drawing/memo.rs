@@ -5,9 +5,6 @@
 //! one decisions use; the memo is emptied when the frame ends. Each fill
 //! runs in [`work::filling`], the guard's exception for the memo, and is
 //! handed the view's token (`View::filled`).
-//!
-//! The old `Faraday` forms ask these while a frame is drawn, so a screen
-//! still drawn from `&Faraday` shares the one memo, until C3 removes them.
 
 use std::rc::Rc;
 
@@ -26,7 +23,7 @@ use crate::{plan, work};
 
 impl View<'_> {
     /// Every wallet known and where its backup is
-    /// ([`crate::Faraday::backups`]), once a frame.
+    /// ([`crate::Faraday::backups_now`]), once a frame.
     pub fn backups(&self) -> Vec<Entry> {
         self.drawing
             .backups
@@ -34,43 +31,8 @@ impl View<'_> {
             .clone()
     }
 
-    /// The files a stick of the backup's own answers holds for `what`
-    /// ([`crate::Faraday::stick_file_names`]), once a frame each; for
-    /// other answers worked out on each ask.
-    pub(crate) fn stick_file_names(
-        &self,
-        w: usize,
-        shape: &plan::Shape,
-        a: &plan::Answers,
-        what: plan::What,
-    ) -> Vec<String> {
-        // Kept for the frame only for the backup's own answers.
-        let own = self
-            .backup
-            .as_ref()
-            .is_some_and(|b| b.wallet == w && b.answers == *a);
-        if !own {
-            return self.app.stick_file_names_now(w, shape, a, what);
-        }
-        if let Some((_, _, names)) = self
-            .drawing
-            .stick_names
-            .borrow()
-            .iter()
-            .find(|(k, x, _)| *k == w && *x == what)
-        {
-            return names.clone();
-        }
-        let names = self.filled(|_c| self.app.stick_file_names_now(w, shape, a, what));
-        self.drawing
-            .stick_names
-            .borrow_mut()
-            .push((w, what, names.clone()));
-        names
-    }
-
     /// The sticks the wallet being backed up is written to
-    /// ([`crate::Faraday::wallet_stick_rows`]), once a frame.
+    /// ([`crate::Faraday::wallet_stick_rows_now`]), once a frame.
     pub fn wallet_stick_rows(&self) -> Vec<super::StickRow> {
         self.drawing
             .stick_rows
@@ -88,7 +50,7 @@ impl View<'_> {
     }
 
     /// The backup board as the frame draws it
-    /// ([`crate::Faraday::board_view`]), once a frame.
+    /// ([`crate::Faraday::board_view_now`]), once a frame.
     pub(crate) fn board_view(&self) -> Option<Rc<BoardView>> {
         self.drawing
             .board
@@ -97,7 +59,7 @@ impl View<'_> {
     }
 
     /// What the boot stick brought, counted
-    /// ([`crate::Faraday::import_count`]), once a frame.
+    /// ([`crate::Faraday::import_count_now`]), once a frame.
     pub fn import_count(&self) -> Option<ImportCount> {
         *self
             .drawing
@@ -105,7 +67,7 @@ impl View<'_> {
             .get_or_init(|| self.filled(|c| self.app.import_count_now(c)))
     }
 
-    /// The keys here that are held ([`crate::Faraday::held_keys`]), once a
+    /// The keys here that are held ([`crate::Faraday::held_keys_now`]), once a
     /// frame.
     pub fn held_keys(&self) -> Vec<Fingerprint> {
         self.drawing
@@ -114,7 +76,7 @@ impl View<'_> {
             .clone()
     }
 
-    /// Everything the Inbox gives ([`crate::Faraday::inbox_found`]), once a
+    /// Everything the Inbox gives ([`crate::Faraday::inbox_found_now`]), once a
     /// frame: the Inbox's kept copy ([`crate::inbox::InboxFiles`]), worked
     /// out again only when the files or the session changed.
     pub fn inbox_found(&self) -> Found {
@@ -137,13 +99,13 @@ impl View<'_> {
     /// The keys of loaded wallet `w` here that are held
     /// ([`crate::Faraday::wallet_held`]), from the memo's held keys.
     pub fn wallet_held(&self, w: usize) -> Vec<Fingerprint> {
-        self.kept(|c| self.app.wallet_held(c, w))
+        crate::held::wallet_held_on(self, w)
     }
 
     /// Whether a key of `wl` made here still waits for its backup
     /// ([`crate::Faraday::receive_held`]), from the memo's held keys.
     pub fn receive_held(&self, wl: &crate::wallet::Wallet) -> bool {
-        self.kept(|c| self.app.receive_held(c, wl))
+        crate::held::receive_held_on(self, wl)
     }
 
     /// An address of `wl` as every screen shows it, and whether it is held
@@ -155,32 +117,32 @@ impl View<'_> {
         change: bool,
         index: u32,
     ) -> (String, bool) {
-        self.kept(|c| self.app.receive_line(c, wl, change, index))
+        crate::held::receive_line_on(self, wl, change, index)
     }
 
     /// The line said in place of Make the checklist
     /// ([`crate::Faraday::backup_kept_nowhere`]), from the memo.
     pub fn backup_kept_nowhere(&self) -> Option<String> {
-        self.kept(|c| self.app.backup_kept_nowhere(c))
+        crate::held::backup_kept_nowhere_on(self)
     }
 
     /// The wallet card's backup line ([`crate::Faraday::backup_line`]),
     /// from the memo's [`View::backups`].
     pub fn backup_line(&self, i: usize) -> String {
-        self.kept(|c| self.app.backup_line(c, i))
+        self.app.backup_line_in(i, self.backups())
     }
 
     /// The wallet card's first button ([`crate::Faraday::spend_button`]),
     /// from the memo's held keys.
     pub fn spend_button(&self, w: usize) -> (String, crate::Action) {
-        self.kept(|c| self.app.spend_button(c, w))
+        crate::family::spend_button_on(self, w)
     }
 
     /// Where the money moving from loaded wallet `w` goes
     /// ([`crate::Faraday::moving_to`]), from the memo's held keys and the
     /// wallet's kept address.
     pub(crate) fn moving_to(&self, w: usize) -> Option<(String, String)> {
-        self.kept(|c| self.app.moving_to(c, w))
+        crate::chart_edit::moving_to_on(self, w)
     }
 
     /// The first checklist item not done ([`crate::Faraday::backup_waiting`]),
@@ -195,7 +157,7 @@ impl View<'_> {
     /// ([`crate::Faraday::lock_held`]), from the memo's answers on the
     /// backup's checklist.
     pub fn lock_held(&self) -> bool {
-        self.kept(|c| self.app.lock_held(c))
+        crate::in_progress::lock_held_on(self)
     }
 
     /// The wallet here, in the Inbox or loaded, whose key the potential
@@ -211,7 +173,7 @@ impl View<'_> {
             .map(|w| w.name)
     }
 
-    /// The flows in progress ([`crate::Faraday::flows_in_progress`]), once
+    /// The flows in progress ([`crate::Faraday::flows_in_progress_now`]), once
     /// a frame.
     pub fn flows_in_progress(&self) -> Rc<Vec<Row>> {
         self.drawing
@@ -220,7 +182,7 @@ impl View<'_> {
             .clone()
     }
 
-    /// Wallet `w`'s seeds ([`crate::Faraday::backup_seed_list`]), once a
+    /// Wallet `w`'s seeds ([`crate::Faraday::backup_seed_list_now`]), once a
     /// frame each.
     pub fn backup_seed_list(&self, w: usize) -> Vec<(String, Option<usize>)> {
         if let Some((_, list)) = self
@@ -237,7 +199,7 @@ impl View<'_> {
         list
     }
 
-    /// What wallet `w`'s plan is for ([`crate::Faraday::plan_shape`]),
+    /// What wallet `w`'s plan is for ([`crate::Faraday::plan_shape_now`]),
     /// once a frame each.
     pub fn plan_shape(&self, w: usize) -> plan::Shape {
         if let Some((_, shape)) = self.drawing.shapes.borrow().iter().find(|(k, _)| *k == w) {
@@ -248,7 +210,7 @@ impl View<'_> {
         shape
     }
 
-    /// The backup's checklist ([`crate::Faraday::backup_items`]), once a
+    /// The backup's checklist ([`crate::Faraday::backup_items_now`]), once a
     /// frame.
     pub fn backup_items(&self) -> Vec<u8> {
         self.drawing
@@ -258,7 +220,7 @@ impl View<'_> {
     }
 
     /// The public files of loaded wallet `wi` under answers `a`
-    /// ([`crate::Faraday::backup_public_names_for`]): once a frame for the
+    /// ([`crate::Faraday::backup_public_names_for_now`]): once a frame for the
     /// backup's own answers, on each ask for others.
     pub(crate) fn backup_public_names_for(&self, wi: usize, a: &plan::Answers) -> Vec<String> {
         // Kept only for the backup's own answers: another caller's
@@ -288,7 +250,7 @@ impl View<'_> {
     }
 
     /// Whether a checklist item is done
-    /// ([`crate::Faraday::backup_item_done`]), once a frame each.
+    /// ([`crate::Faraday::backup_item_done_now`]), once a frame each.
     pub fn backup_item_done(&self, item: plan::Item) -> bool {
         if let Some((_, done)) = self.drawing.done.borrow().iter().find(|(i, _)| *i == item) {
             return *done;
@@ -299,7 +261,7 @@ impl View<'_> {
     }
 
     /// The seeds open vaults keep without a passphrase
-    /// ([`crate::Faraday::vault_passphrase_seeds`]), once a frame.
+    /// ([`crate::Faraday::vault_passphrase_seeds_now`]), once a frame.
     pub fn vault_passphrase_seeds(&self) -> Rc<Vec<PassSeed>> {
         self.drawing
             .passphrase_seeds
@@ -307,7 +269,7 @@ impl View<'_> {
             .clone()
     }
 
-    /// The Load sheet an unlock shows ([`crate::Faraday::vault_load_view`]),
+    /// The Load sheet an unlock shows ([`crate::Faraday::vault_load_view_now`]),
     /// once a frame.
     pub fn vault_load_view(&self) -> Option<Rc<LoadView>> {
         self.drawing
@@ -317,7 +279,7 @@ impl View<'_> {
     }
 
     /// The session's keys and wallets no open vault holds
-    /// ([`crate::Faraday::unsaved`]), once a frame.
+    /// ([`crate::Faraday::unsaved_now`]), once a frame.
     pub fn unsaved(&self) -> (Vec<String>, Vec<String>) {
         self.drawing
             .unsaved
@@ -325,7 +287,7 @@ impl View<'_> {
             .clone()
     }
 
-    /// What a lock keeps and wipes ([`crate::Faraday::kept_wiped`]), once a
+    /// What a lock keeps and wipes ([`crate::Faraday::kept_wiped_now`]), once a
     /// frame for each `power_off`.
     pub fn kept_wiped(&self, power_off: bool) -> KeptWiped {
         if let Some((_, kept)) = self
@@ -346,7 +308,7 @@ impl View<'_> {
     }
 
     /// The keys and wallets open vault `v` holds
-    /// ([`crate::Faraday::vault_rows`]), once a frame each.
+    /// ([`crate::Faraday::vault_rows_now`]), once a frame each.
     pub fn vault_rows(&self, v: usize) -> Vec<VaultRow> {
         if let Some((_, kept)) = self
             .drawing

@@ -23,6 +23,8 @@ use std::fs;
 use std::io::Write as _;
 use std::path::PathBuf;
 
+use osk_crypto::work::{Compute, Work};
+
 /// The largest file read from a stick. A PSBT or a wallet is kilobytes; a
 /// vault with four 4 MiB slots is the largest thing Faraday writes.
 pub const MAX_READ: u64 = 18 * 1024 * 1024;
@@ -613,27 +615,28 @@ pub fn write_file(
 /// still read, with no codes: it is copied as a file.
 pub type Picture = (Vec<u8>, Vec<Vec<u8>>);
 
-/// A PNG on a stick, read: its bytes and its QR codes ([`Picture`]).
-pub fn read_qr_png(place: &mut dyn Place, name: &str) -> Result<Picture, String> {
+/// Costs a read of the file and [`qr_in_png`]: a PNG on a stick, read,
+/// its bytes and its QR codes ([`Picture`]).
+pub fn read_qr_png(c: &Compute, place: &mut dyn Place, name: &str) -> Result<Picture, String> {
     let bytes = read(place, name)?;
-    let codes = qr_in_png(&bytes).unwrap_or_default();
+    let codes = qr_in_png(c, &bytes).unwrap_or_default();
     Ok((bytes, codes))
 }
 
-/// A picture's bytes as the disk process answers them
-/// ([`proto::Response::Qr`]): the bytes as they are, and its QR codes,
-/// none when they cannot be read. Costs [`qr_in_png`].
-pub fn picture_answer(bytes: Vec<u8>) -> proto::Response {
-    let codes = qr_in_png(&bytes).unwrap_or_default();
+/// Costs [`qr_in_png`]: a picture's bytes as the disk process answers
+/// them ([`proto::Response::Qr`]), the bytes as they are, and its QR
+/// codes, none when they cannot be read.
+pub fn picture_answer(c: &Compute, bytes: Vec<u8>) -> proto::Response {
+    let codes = qr_in_png(c, &bytes).unwrap_or_default();
     proto::Response::Qr { bytes, codes }
 }
 
-/// The QR codes in a PNG's bytes, dark on light or light on dark. Costs
-/// a PNG decode and [`osk_codec::decode::decode_picture`]: a third of a
-/// second for a 12-megapixel photograph, seconds on a Pi, so a shell
-/// reads pictures off its own thread.
-pub fn qr_in_png(bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
-    osk_crypto::work::count(osk_crypto::work::Work::PngDecode);
+/// Costs a PNG decode and [`osk_codec::decode::decode_picture`]: a
+/// third of a second for a 12-megapixel photograph, seconds on a Pi, so
+/// a shell reads pictures off its own thread. The QR codes in a PNG's
+/// bytes, dark on light or light on dark.
+pub fn qr_in_png(c: &Compute, bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
+    c.count(Work::PngDecode);
     let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
     decoder.set_transformations(png::Transformations::normalize_to_color8());
     let mut reader = decoder.read_info().map_err(|e| e.to_string())?;
@@ -672,7 +675,7 @@ pub fn qr_in_png(bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
         return Err("the image's pixels do not add up".into());
     }
     // A code printed light on dark is read too.
-    Ok(osk_codec::decode::decode_picture(w, h, &luma)
+    Ok(osk_codec::decode::decode_picture(c, w, h, &luma)
         .into_iter()
         .map(|d| d.bytes)
         .collect())

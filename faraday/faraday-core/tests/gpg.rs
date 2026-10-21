@@ -710,10 +710,11 @@ fn a_signature_verifies_in_gnupg() {
 /// IDs and creation date, and its signing subkey.
 #[test]
 fn the_page_shows_the_bytes_and_the_key_it_signs_with() {
+    let c = faraday_core::testkit::compute();
     let mut app = signing();
     let page = drawn(&mut app);
     for (name, bytes) in release_files() {
-        let hash = gpg::sha256_hex(&bytes);
+        let hash = gpg::sha256_hex(&c, &bytes);
         assert!(page.contains(&hash), "{name}'s SHA-256 on the page");
         assert!(page.contains(&name.replace(' ', "")), "{name}");
     }
@@ -747,6 +748,7 @@ fn signing_takes_a_hold() {
 /// and the hold signs nothing.
 #[test]
 fn a_stick_visit_that_replaces_a_ticked_file_drops_its_tick() {
+    let c = faraday_core::testkit::compute();
     let mut app = signing();
     let k = listed(&app, "SHA256SUMS");
     app.press(Action::Vault(V::GpgTick(k)));
@@ -781,7 +783,7 @@ fn a_stick_visit_that_replaces_a_ticked_file_drops_its_tick() {
     );
     // The page shows it unticked, with the new hash.
     let page = drawn(&mut app);
-    assert!(page.contains(&gpg::sha256_hex(&changed.1)), "{page}");
+    assert!(page.contains(&gpg::sha256_hex(&c, &changed.1)), "{page}");
     // Nothing is ticked now: Sign opens no sheet.
     app.press(Action::Vault(V::GpgSign));
     assert_eq!(app.sheet, None);
@@ -849,6 +851,7 @@ fn a_signed_file_is_marked_and_an_asc_in_the_inbox_is_not_listed() {
 /// it.
 #[test]
 fn with_one_file_it_starts_ticked() {
+    let c = faraday_core::testkit::compute();
     let mut app = Faraday::new();
     display(&mut app);
     let vault = testkit::files()
@@ -882,7 +885,7 @@ fn with_one_file_it_starts_ticked() {
     app.press(Action::Vault(V::GpgSignPick));
     assert_eq!(
         app.vaults.sign_ticked,
-        vec![("SHA256SUMS".to_string(), gpg::sha256(b"hello"))]
+        vec![("SHA256SUMS".to_string(), gpg::sha256(&c, b"hello"))]
     );
     sign(&mut app);
     assert!(
@@ -974,8 +977,9 @@ fn an_expired_a_revoked_and_a_future_key_sign_nothing() {
 /// button signs.
 #[test]
 fn the_signature_code_follows_the_file_not_its_place() {
+    let c = faraday_core::testkit::compute();
     let mut app = signing();
-    let code = app.signature_code("SHA256SUMS").unwrap();
+    let code = app.signature_code(&c, "SHA256SUMS").unwrap();
     app.inbox.insert(
         0,
         Item {
@@ -999,7 +1003,7 @@ fn the_signature_code_follows_the_file_not_its_place() {
         &key.sign(&release_files()[0].1, now, Hash::Sha512),
     );
     let png = osk_codec::png::qr_png(&q.frames[0], 4);
-    let payloads = faraday_files::qr_in_png(&png).unwrap();
+    let payloads = faraday_files::qr_in_png(&c, &png).unwrap();
     assert_eq!(
         String::from_utf8(payloads[0].clone()).unwrap().trim(),
         want.trim()
@@ -1218,6 +1222,7 @@ fn boxes_kept(app: &mut Faraday) -> Option<StorageEvent> {
 /// again, and the GPG key's Sign a file lists both.
 #[test]
 fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
+    let c = faraday_core::testkit::compute();
     let mut app = Faraday::new();
     display(&mut app);
     app.storage(StorageEvent::Memory {
@@ -1318,7 +1323,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
             page.contains(&format!("{name}·{}B", bytes.len())),
             "{name} is not offered: {page}"
         );
-        assert!(app.signature_code(name).is_some(), "{name}");
+        assert!(app.signature_code(&c, name).is_some(), "{name}");
     }
     signs_both(&mut app, &files);
 }

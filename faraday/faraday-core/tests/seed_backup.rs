@@ -192,7 +192,8 @@ fn seed_file(app: &mut Faraday, form: u8) -> (String, Vec<u8>) {
 
 /// The fingerprint Add a key's scanner loads from a SeedQR picture.
 fn scanned(png: &[u8]) -> Fingerprint {
-    let payloads = faraday_files::qr_in_png(png).expect("a PNG");
+    let c = faraday_core::testkit::compute();
+    let payloads = faraday_files::qr_in_png(&c, png).expect("a PNG");
     assert_eq!(payloads.len(), 1, "one code in the picture");
     let mut app = device(Vec::new());
     app.press(Action::ScanSeed);
@@ -344,6 +345,7 @@ fn the_seedqr_picture_scans_back_as_the_same_key_standard_and_compact() {
 
 #[test]
 fn no_file_holds_the_passphrase() {
+    let c = faraday_core::testkit::compute();
     let mut app = device(Vec::new());
     let fp = backing_up_as(&mut app, true, true);
     let mut files = vec![seed_file(&mut app, 0), seed_file(&mut app, 1)];
@@ -352,7 +354,7 @@ fn no_file_holds_the_passphrase() {
     for (name, bytes) in &files {
         let mut read = vec![bytes.clone()];
         if name.ends_with(".png") {
-            read.extend(faraday_files::qr_in_png(bytes).expect("a PNG"));
+            read.extend(faraday_files::qr_in_png(&c, bytes).expect("a PNG"));
         }
         for b in read {
             assert!(

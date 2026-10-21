@@ -1660,7 +1660,7 @@ impl Item {
     fn new(c: &Compute, name: &str, bytes: Vec<u8>) -> Item {
         let wallet::Classified { kind, psbt, wallet } = wallet::classify_read(c, name, &bytes);
         let sha = matches!(kind, FileKind::Apk | FileKind::Vault | FileKind::EfiImage)
-            .then(|| sha256_of(&bytes));
+            .then(|| sha256_of(c, &bytes));
         Item {
             name: name.to_string(),
             bytes,
@@ -1687,8 +1687,8 @@ impl Item {
     /// SHA-256 of its bytes: the one taken when it came in ([`Item::sha`],
     /// an APK's, a vault's or an EFI image's), a lookup. Any other file
     /// is hashed now.
-    pub fn hash(&self) -> [u8; 32] {
-        self.sha.unwrap_or_else(|| sha256_of(&self.bytes))
+    pub fn hash(&self, c: &Compute) -> [u8; 32] {
+        self.sha.unwrap_or_else(|| sha256_of(c, &self.bytes))
     }
 
     /// What it holds: a picture's codes, or the file itself.
@@ -2098,8 +2098,8 @@ impl QrView {
         format: QrFormat,
         part: usize,
     ) -> Result<QrView, String> {
-        crate::work::count(crate::work::Work::QrEncode);
-        let (made, frames) = faraday_qr::send::frames(&source, format, part).map_err(send_error)?;
+        let (made, frames) =
+            faraday_qr::send::frames(c, &source, format, part).map_err(send_error)?;
         let sub = made_line(made);
         let secret = match &source {
             QrSource::File(name, data) => {
@@ -2154,14 +2154,14 @@ impl QrView {
 
     /// The code on show as a labelled picture, its file's name and
     /// bytes, when it offers one.
-    pub fn png(&self) -> Option<(String, Vec<u8>)> {
+    pub fn png(&self, c: &Compute) -> Option<(String, Vec<u8>)> {
         if !self.offers_png() {
             return None;
         }
         let code = self.frames.first()?;
         Some((
             self.png_name.clone(),
-            picture::labelled_png(code, &self.title, &self.label),
+            picture::labelled_png(c, code, &self.title, &self.label),
         ))
     }
 }
@@ -2176,13 +2176,17 @@ impl Faraday {
     /// included, and kept on the state by its text, a lookup after
     /// (`docs/SPEED.md` §2 rule 1: what is kept is public). Costs a QR
     /// encoding the first time.
-    pub(crate) fn public_qr(&self, text: &str) -> Option<std::rc::Rc<osk_codec::qr::QrMatrix>> {
+    pub(crate) fn public_qr(
+        &self,
+        c: &Compute,
+        text: &str,
+    ) -> Option<std::rc::Rc<osk_codec::qr::QrMatrix>> {
         if let Some((_, m)) = self.public_qrs.borrow().iter().find(|(t, _)| t == text) {
             return m.clone();
         }
         let m = crate::work::keeping(|| {
-            crate::work::count(crate::work::Work::QrEncode);
             osk_codec::qr::encode(
+                c,
                 osk_codec::qr::Payload::Bytes(text.as_bytes()),
                 osk_codec::qr::Ecc::Medium,
             )
@@ -2203,13 +2207,15 @@ impl Faraday {
 /// a descriptor on screen), else the BBQr parts the QR view makes, one
 /// code each, which a scanner that assembles parts takes one after the
 /// other.
-pub(crate) fn picture_codes(text: &str) -> Result<Vec<osk_codec::qr::QrMatrix>, String> {
-    crate::work::count(crate::work::Work::QrEncode);
+pub(crate) fn picture_codes(
+    c: &Compute,
+    text: &str,
+) -> Result<Vec<osk_codec::qr::QrMatrix>, String> {
     use osk_codec::qr::{Ecc, Payload, encode_bounded};
-    if let Ok(m) = encode_bounded(Payload::Bytes(text.as_bytes()), Ecc::Medium, 25) {
+    if let Ok(m) = encode_bounded(c, Payload::Bytes(text.as_bytes()), Ecc::Medium, 25) {
         return Ok(vec![m]);
     }
-    faraday_qr::send::bbqr_frames('U', text.as_bytes(), QR_PARTS[1])
+    faraday_qr::send::bbqr_frames(c, 'U', text.as_bytes(), QR_PARTS[1])
         .map(|(_, frames)| frames)
         .map_err(send_error)
 }
@@ -2304,7 +2310,7 @@ fn secret_text(c: &Compute, text: &str) -> Option<&'static str> {
 /// What a code is when a SeedQR was wanted and something else came.
 fn what_instead_of_a_seed(c: &Compute, text: &str) -> Option<&'static str> {
     let t = text.trim();
-    if wallet::read_psbt(t.as_bytes()).is_some()
+    if wallet::read_psbt(c, t.as_bytes()).is_some()
         || t.to_ascii_lowercase().starts_with("ur:crypto-psbt")
     {
         return Some(EN.what_instead_of_a_seed_that_is_a);
@@ -3282,11 +3288,10 @@ impl Receipt {
     }
 }
 
-/// SHA-256 of `bytes`.
-pub(crate) fn sha256_of(bytes: &[u8]) -> [u8; 32] {
-    crate::work::count(crate::work::Work::FileHash);
-    use osk_bip::bitcoin::hashes::{Hash, sha256};
-    sha256::Hash::hash(bytes).to_byte_array()
+/// Costs a SHA-256 pass over every byte: the SHA-256 of `bytes`, a
+/// whole file's or an id's, by `osk_crypto::sha256_whole`.
+pub(crate) fn sha256_of(c: &Compute, bytes: &[u8]) -> [u8; 32] {
+    osk_crypto::sha256_whole(c, bytes)
 }
 
 /// Where a stick visit column's scrollbar was drawn, in pixels: the
@@ -3439,7 +3444,7 @@ pub struct Faraday {
     /// power-off.
     pub backup_records: Vec<backups::Record>,
     /// The wallet the Backups screen is on, by its place in
-    /// [`Faraday::backups`].
+    /// [`Faraday::backups_now`].
     pub backups_at: usize,
     /// What the last stick visit wrote, this power-on (§4.3).
     pub receipt: Option<Receipt>,
@@ -3781,8 +3786,6 @@ impl Default for Faraday {
 impl Faraday {
     /// A fresh app: no keys, empty boxes, Home.
     pub fn new() -> Self {
-        // The core counts its costly work with this crate's counter.
-        work::install();
         Faraday {
             canvas: None,
             f: 1.0,
@@ -4660,6 +4663,7 @@ impl Faraday {
 
     /// A stick arrived, or one held back is taken now.
     fn stick_arrived(&mut self) {
+        let c = self.compute();
         // A stick arrived. Only a clean process takes it; any other locks
         // first (`PLAN.md` §5.4). No passphrase field takes typing while
         // it is attached.
@@ -4688,7 +4692,7 @@ impl Faraday {
             // The upgrade reads boot partitions; the data partitions the
             // disk process lists stay where they are, unvisited.
         } else {
-            self.visit.out = self.visit_default_out();
+            self.visit.out = self.visit_default_out(&c);
             self.visit.inn = self.visit_default_in();
             if self.sheet == Some(Sheet::Import) {
                 self.sheet = None;
@@ -4895,18 +4899,18 @@ impl Faraday {
     /// or the Inbox, since a receipt and a flow's sticks are kept across a
     /// lock and a hash of a seed's words or a passphrase is derived from
     /// it. Hashes each file there that is a secret.
-    pub(crate) fn hash_to_keep(&self, hash: [u8; 32]) -> [u8; 32] {
-        let secret = self
-            .outbox
-            .iter()
-            .chain(self.inbox.iter())
-            .any(|i| i.exposure() == secrets::Exposure::Secret && sha256_of(&i.bytes) == hash);
+    pub(crate) fn hash_to_keep(&self, c: &Compute, hash: [u8; 32]) -> [u8; 32] {
+        let secret =
+            self.outbox.iter().chain(self.inbox.iter()).any(|i| {
+                i.exposure() == secrets::Exposure::Secret && sha256_of(c, &i.bytes) == hash
+            });
         if secret { [0; 32] } else { hash }
     }
 
     /// A write's answer onto the receipt: the first answer of a write
     /// replaces the last receipt with a new one (`docs/SIMPLIFY.md` §4.3).
     fn receipt_add(&mut self, name: &str, failure: Option<String>) {
+        let c = self.compute();
         let now = self.clock_now();
         let Some((label, stick, sent, started)) = self.visit.writing.as_mut() else {
             return;
@@ -4929,7 +4933,7 @@ impl Faraday {
         if sent.is_empty() {
             self.visit.writing = None;
         }
-        let hash = self.hash_to_keep(hash);
+        let hash = self.hash_to_keep(&c, hash);
         if let Some(r) = self.receipt.as_mut() {
             r.files.push(ReceiptFile {
                 name,
@@ -4967,9 +4971,10 @@ impl Faraday {
     /// Remembers that vault file `name`, these bytes, was read from the
     /// stick labelled `label`.
     pub(crate) fn vault_read_from(&mut self, name: &str, bytes: &[u8], label: &str) {
+        let c = self.compute();
         self.vault_from.retain(|(n, ..)| n != name);
         self.vault_from
-            .push((name.to_string(), sha256_of(bytes), label.to_string()));
+            .push((name.to_string(), sha256_of(&c, bytes), label.to_string()));
     }
 
     /// What a visit ticks to come in (`docs/SIMPLIFY.md` §4.6): every file
@@ -5011,7 +5016,7 @@ impl Faraday {
     /// waiting, one vault for this stick (`docs/NEW-WALLET.md` §5.3): the
     /// first the last write did not write. The rest wait for the next
     /// stick.
-    fn visit_default_out(&self) -> std::collections::BTreeSet<String> {
+    fn visit_default_out(&self, c: &Compute) -> std::collections::BTreeSet<String> {
         let mut out = self.visit_all_out();
         let vaults: Vec<&Item> = self
             .outbox
@@ -5022,7 +5027,7 @@ impl Faraday {
             let written = |i: &Item| {
                 self.receipt
                     .as_ref()
-                    .is_some_and(|r| r.holds(&i.name, &i.hash()))
+                    .is_some_and(|r| r.holds(&i.name, &i.hash(c)))
             };
             let one = vaults
                 .iter()
@@ -5139,8 +5144,8 @@ impl Faraday {
         // signs next.
         let (psbt, carry) = if item.kind == FileKind::Carry {
             match osk_psbt::threshold::Carry::parse(&item.bytes) {
-                Ok(c) => match osk_psbt::Psbt::parse_bytes(&c.psbt) {
-                    Ok(p) => (p, Some(c.section)),
+                Ok(carry) => match osk_psbt::Psbt::parse_bytes(&c, &carry.psbt) {
+                    Ok(p) => (p, Some(carry.section)),
                     Err(_) => {
                         self.toast(EN.start_spend_the_carry);
                         return;
@@ -5152,7 +5157,7 @@ impl Faraday {
                 }
             }
         } else {
-            let Some(psbt) = wallet::read_psbt(&item.bytes) else {
+            let Some(psbt) = wallet::read_psbt(&c, &item.bytes) else {
                 self.toast(EN.start_spend_not_a_psbt);
                 return;
             };
@@ -5310,10 +5315,10 @@ impl Faraday {
     /// still asks to bring it in, because the lock sheet is what asks to
     /// lock it; `Write out` is files For the stick, or a vault changed
     /// since it was written (§3.5), with no stick attached.
-    pub fn session_stage(&self) -> &'static str {
+    pub fn session_stage(&self, c: &Compute) -> &'static str {
         if !self.sticks.is_empty() || self.import.is_some() {
             EN.session_stage_bring
-        } else if !self.outbox.is_empty() || self.vault_changed().is_some() {
+        } else if !self.outbox.is_empty() || self.vault_changed(c).is_some() {
             EN.session_stage_write
         } else if self.holds_secret() || !self.session.wallets.is_empty() {
             EN.session_stage_work
@@ -5589,7 +5594,7 @@ impl Faraday {
                 self.glance = false;
                 self.renaming = None;
                 if s == Screen::Visit {
-                    self.visit.out = self.visit_default_out();
+                    self.visit.out = self.visit_default_out(&c);
                     self.visit.inn = self.visit_default_in();
                     self.visit.from_inbox.clear();
                     self.visit.out_offset = 0.0;
@@ -6470,7 +6475,7 @@ impl Faraday {
                             self.inbox
                                 .iter()
                                 .find(|i| i.psbt().is_some_and(|p| p.txid == txid))
-                                .and_then(|i| wallet::read_psbt(&i.bytes))
+                                .and_then(|i| wallet::read_psbt(&c, &i.bytes))
                         });
                     let prevouts = psbt.map(|p| decode::prevouts_of(&p)).unwrap_or_default();
                     let decoded = decode::decode(&c, &tx, &prevouts, &self.session, &item.name);
@@ -7522,14 +7527,8 @@ impl Faraday {
     /// Wallet `w`'s seeds, in its order, as the plan and the panel list
     /// them: a name each (its fingerprint, or a share not here by number)
     /// and the session key that holds it, when its words are here.
-    pub fn backup_seed_list(&self, w: usize) -> Vec<(String, Option<usize>)> {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).backup_seed_list(w);
-        }
-        self.backup_seed_list_now(w)
-    }
-
-    /// Works out [`Faraday::backup_seed_list`] from the state as it is.
+    ///
+    /// Works out [`crate::drawing::View::backup_seed_list`] from the state as it is.
     pub fn backup_seed_list_now(&self, w: usize) -> Vec<(String, Option<usize>)> {
         match self.session.wallets.get(w) {
             Some(wallet) => self.backup_seed_list_of(wallet),
@@ -7537,7 +7536,7 @@ impl Faraday {
         }
     }
 
-    /// [`Faraday::backup_seed_list`] for a wallet that need not be loaded.
+    /// [`Faraday::backup_seed_list_now`] for a wallet that need not be loaded.
     pub(crate) fn backup_seed_list_of(
         &self,
         wallet: &wallet::Wallet,
@@ -7584,15 +7583,6 @@ impl Faraday {
                 (fp_text(fp), key)
             })
             .collect()
-    }
-
-    /// What wallet `w`'s plan is for: its quorum, its seeds and whether
-    /// its description splits. Searches the session's keys; kept for the frame while one is drawn.
-    pub fn plan_shape(&self, w: usize) -> plan::Shape {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).plan_shape(w);
-        }
-        self.plan_shape_now(w)
     }
 
     /// Wallet description `text` read ([`wallet::read_wallet`]): the first
@@ -7735,7 +7725,10 @@ impl Faraday {
         m
     }
 
-    /// Works out [`Faraday::plan_shape`] from the state as it is.
+    /// What wallet `w`'s plan is for: its quorum, its seeds and whether
+    /// its description splits. Searches the session's keys; kept for the frame while one is drawn.
+    ///
+    /// Works out [`crate::drawing::View::plan_shape`] from the state as it is.
     pub fn plan_shape_now(&self, w: usize) -> plan::Shape {
         let Some(wallet) = self.session.wallets.get(w) else {
             return plan::Shape {
@@ -7749,7 +7742,7 @@ impl Faraday {
         self.plan_shape_of(wallet)
     }
 
-    /// [`Faraday::plan_shape`] for a wallet that need not be loaded.
+    /// [`Faraday::plan_shape_now`] for a wallet that need not be loaded.
     pub(crate) fn plan_shape_of(&self, wallet: &wallet::Wallet) -> plan::Shape {
         let (m, n) = Session::quorum(wallet);
         let seeds: Vec<plan::Seed> = self
@@ -7787,25 +7780,19 @@ impl Faraday {
         // The board replaces the cards from Places to Where the
         // description goes (`docs/BACKUP-FLOW.md` §19.1); the software and
         // The plan stay. Start from is gone (§19.21 item 1).
-        let shape = self.plan_shape(b.wallet);
+        let shape = self.plan_shape_now(b.wallet);
         plan_cards_on(&self.plan_mapped(c, &shape, &b.answers))
     }
 
     /// The backup's checklist, by [`bstep`]: only what the plan needs. Works out the plan's shape
     /// (kept for the frame while one is drawn).
-    pub fn backup_items(&self, c: &Compute) -> Vec<u8> {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).backup_items();
-        }
-        self.backup_items_now(c)
-    }
-
-    /// Works out [`Faraday::backup_items`] from the state as it is.
+    ///
+    /// Works out [`crate::drawing::View::backup_items`] from the state as it is.
     pub fn backup_items_now(&self, c: &Compute) -> Vec<u8> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };
-        let shape = self.plan_shape(b.wallet);
+        let shape = self.plan_shape_now(b.wallet);
         plan::checklist_on(&shape, &b.answers, &self.plan_mapped(c, &shape, &b.answers))
             .into_iter()
             .map(bstep::of)
@@ -7916,24 +7903,13 @@ impl Faraday {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };
-        self.backup_public_names_for(c, b.wallet, &b.answers)
+        self.backup_public_names_for_now(c, b.wallet, &b.answers)
     }
 
     /// [`Faraday::backup_public_names`] for loaded wallet `wi` under
     /// answers `a`.
-    pub(crate) fn backup_public_names_for(
-        &self,
-        c: &Compute,
-        wi: usize,
-        a: &plan::Answers,
-    ) -> Vec<String> {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).backup_public_names_for(wi, a);
-        }
-        self.backup_public_names_for_now(c, wi, a)
-    }
-
-    /// Works out [`Faraday::backup_public_names_for`] from the state as it
+    ///
+    /// Works out [`crate::drawing::View::backup_public_names_for`] from the state as it
     /// is.
     pub(crate) fn backup_public_names_for_now(
         &self,
@@ -8027,14 +8003,8 @@ impl Faraday {
     /// outbox, so kept for the frame while one is drawn): its file For
     /// the stick or written, its seeds or the wallet in the open vault, the copy
     /// matched, the descriptor shown; the envelopes alone by a press.
-    pub fn backup_item_done(&self, c: &Compute, item: plan::Item) -> bool {
-        if self.drawing.is_on() {
-            return crate::drawing::View::new(self).backup_item_done(item);
-        }
-        self.backup_item_done_now(c, item)
-    }
-
-    /// Works out [`Faraday::backup_item_done`] from the state as it is.
+    ///
+    /// Works out [`crate::drawing::View::backup_item_done`] from the state as it is.
     pub fn backup_item_done_now(&self, c: &Compute, item: plan::Item) -> bool {
         let Some(b) = self.backup.as_ref() else {
             return false;
@@ -8049,7 +8019,7 @@ impl Faraday {
                 || self.receipt.as_ref().is_some_and(|r| r.wrote(name))
                 || self.wallet_wrote(name)
         };
-        let seeds = self.backup_seed_list(b.wallet);
+        let seeds = self.backup_seed_list_now(b.wallet);
         let here: Vec<(usize, &wallet::Key)> = seeds
             .iter()
             .enumerate()
@@ -8108,8 +8078,8 @@ impl Faraday {
         let Some(b) = self.backup.as_ref() else {
             return (Vec::new(), Vec::new());
         };
-        let shape = self.plan_shape(b.wallet);
-        let list = self.backup_seed_list(b.wallet);
+        let shape = self.plan_shape_now(b.wallet);
+        let list = self.backup_seed_list_now(b.wallet);
         let fp = |i: usize| {
             let k = list.get(i)?.1?;
             Some(self.session.keys.get(k)?.fingerprint())
@@ -8138,8 +8108,8 @@ impl Faraday {
         let Some(b) = self.backup.as_ref() else {
             return (Vec::new(), Vec::new());
         };
-        let shape = self.plan_shape(b.wallet);
-        let list = self.backup_seed_list(b.wallet);
+        let shape = self.plan_shape_now(b.wallet);
+        let list = self.backup_seed_list_now(b.wallet);
         let own = b.answers.vault_seeds(&shape, v);
         let mut others: Vec<usize> = b
             .answers
@@ -8247,8 +8217,8 @@ impl Faraday {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };
-        let shape = self.plan_shape(b.wallet);
-        let list = self.backup_seed_list(b.wallet);
+        let shape = self.plan_shape_now(b.wallet);
+        let list = self.backup_seed_list_now(b.wallet);
         self.plan_mapped(c, &shape, &b.answers)
             .vault_passphrases(v)
             .into_iter()
@@ -8285,7 +8255,7 @@ impl Faraday {
         let Some(w) = self.session.wallets.get(b.wallet) else {
             return Vec::new();
         };
-        let shape = self.plan_shape(b.wallet);
+        let shape = self.plan_shape_now(b.wallet);
         let (m, n) = Session::quorum(w);
         let plan = backup::split_plan(n, m, b.answers.omit);
         self.plan_mapped(c, &shape, &b.answers)
@@ -8664,7 +8634,7 @@ impl Faraday {
     /// [`Faraday::public_out`] numbers them): for 8, the descriptor's
     /// code, in parts past one code; for 4, each split share's code, one
     /// beside each share's sheet and text. None for any other file.
-    pub fn public_pictures(&self, wallet: usize, what: u8) -> Vec<picture::Labelled> {
+    pub fn public_pictures(&self, c: &Compute, wallet: usize, what: u8) -> Vec<picture::Labelled> {
         let Some(w) = self.session.wallets.get(wallet) else {
             return Vec::new();
         };
@@ -8686,7 +8656,7 @@ impl Faraday {
         // Each code of `text` as a picture: `name` when there is one,
         // `name{part}j-of-k` for each part when there are more.
         let pictures = |name: &str, part: &str, text: &str, lines: Vec<String>| {
-            let codes = picture_codes(text).unwrap_or_default();
+            let codes = picture_codes(c, text).unwrap_or_default();
             let k = codes.len();
             let names = picture_names(name, part, text);
             codes
@@ -8877,7 +8847,7 @@ impl Faraday {
                                 };
                                 self.code_view(&c, code)
                                     .ok()
-                                    .and_then(|v| v.png())
+                                    .and_then(|v| v.png(&c))
                                     .into_iter()
                                     .collect()
                             }
@@ -8975,14 +8945,14 @@ impl Faraday {
                 }
             }
             3 if !bytes => files.push((format!("{stem}-backup.pdf"), Vec::new())),
-            3 => match pdf::sheet(&backup::sheet_wallet(&c, &self.session, w)) {
+            3 => match pdf::sheet(&c, &backup::sheet_wallet(&c, &self.session, w)) {
                 Ok(p) => files.push((format!("{stem}-backup.pdf"), p)),
                 Err(e) => self.toast(&fill(EN.public_made_no_pdf, &[&e.to_string()])),
             },
             4 => {
                 let (m, n) = Session::quorum(w);
                 let plan = backup::split_plan(n, m, omit);
-                let pictures = self.public_pictures(wallet, 4);
+                let pictures = self.public_pictures(&c, wallet, 4);
                 for (i, row) in plan.iter().enumerate() {
                     if let Some(share) = backup::split_share(w, row) {
                         // The sheet to print beside each file.
@@ -8990,7 +8960,7 @@ impl Faraday {
                         if !bytes {
                             files.push((pdf_name, Vec::new()));
                         } else if let Ok(pdf) =
-                            pdf::sheet(&backup::sheet_share(w, i + 1, plan.len(), &share))
+                            pdf::sheet(&c, &backup::sheet_share(w, i + 1, plan.len(), &share))
                         {
                             files.push((pdf_name, pdf));
                         }
@@ -9005,14 +8975,15 @@ impl Faraday {
                                 .strip_prefix(share.as_str())
                                 .is_some_and(|rest| rest == ".png" || rest.starts_with("-part-"))
                         }) {
-                            files.push((p.name.clone(), if bytes { p.png() } else { Vec::new() }));
+                            files
+                                .push((p.name.clone(), if bytes { p.png(&c) } else { Vec::new() }));
                         }
                     }
                 }
             }
             8 => {
-                for p in self.public_pictures(wallet, 8) {
-                    files.push((p.name.clone(), if bytes { p.png() } else { Vec::new() }));
+                for p in self.public_pictures(&c, wallet, 8) {
+                    files.push((p.name.clone(), if bytes { p.png(&c) } else { Vec::new() }));
                 }
             }
             9 => {
@@ -9946,10 +9917,11 @@ impl Faraday {
     }
 
     fn make_pdf(&mut self, name: &str, bytes: &[u8]) {
+        let c = self.compute();
         if !self.online {
             return;
         }
-        match pdf::sheet(&String::from_utf8_lossy(bytes)) {
+        match pdf::sheet(&c, &String::from_utf8_lossy(bytes)) {
             Ok(pdf) => self.storage_out.push_back(StorageCommand::Print {
                 name: fill(EN.make_pdf_pdf, &[&stem(name).to_string()]),
                 bytes: pdf,
@@ -10363,7 +10335,7 @@ impl Faraday {
         }
         let (named, ext, data) = match item {
             Some(i) => i,
-            None if wallet::read_psbt(&bytes).is_some() => (None, "psbt", bytes.to_vec()),
+            None if wallet::read_psbt(&c, &bytes).is_some() => (None, "psbt", bytes.to_vec()),
             None => {
                 // An address is checked against the loaded wallets, not
                 // filed.
@@ -10454,11 +10426,12 @@ impl Faraday {
     /// A view's code as a labelled picture to the Outbox, when it is one
     /// code of public content.
     fn code_png(&mut self, view: Result<&QrView, &String>) {
+        let c = self.compute();
         let v = match view {
             Ok(v) => v,
             Err(e) => return self.toast(&fill(EN.code_png_cannot_make, &[&e.to_string()])),
         };
-        match v.png() {
+        match v.png(&c) {
             Some((name, bytes)) => {
                 self.put_outbox(&name, bytes);
                 self.toast_out(&name);
@@ -12382,7 +12355,7 @@ impl Faraday {
         // Costly work from here on panics in debug and test builds unless
         // the drawing memo is filling a cell (`docs/SPEED.md` §3.3).
         let _frame = work::Frame::begin();
-        self.drawing.start();
+        self.drawing.clear();
         self.render_frame();
         self.drawing.clear();
     }
@@ -13507,7 +13480,11 @@ impl Faraday {
         self.f = f;
         self.w = f32::from(d.width) / f;
         self.h = f32::from(d.height) / f;
-        self.canvas = Some(Canvas::new(&scaled));
+        let mut canvas = Canvas::new(&scaled);
+        // The canvas notes its pixel work, a blur or a whole copy, with
+        // this crate's counter (`docs/COMPUTE.md` §2.2).
+        canvas.set_counter(work::core_count);
+        self.canvas = Some(canvas);
         self.fresh_ask();
     }
 }

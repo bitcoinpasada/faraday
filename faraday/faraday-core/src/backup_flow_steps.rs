@@ -7,6 +7,7 @@
 use faraday_vault as fv;
 use faraday_vault::Record;
 use faraday_vault::records::kind;
+use osk_crypto::work::Compute;
 
 use crate::backup_flow::{
     BackupFlow, Bound, Confirm, Kind, Pick, Problem, Purpose, Reading, Sealed, Step, Subject,
@@ -977,6 +978,7 @@ impl Faraday {
     }
 
     pub(crate) fn flow_read_answer(&mut self, name: &str, bytes: Option<Vec<u8>>) {
+        let c = self.compute();
         let Some(i) = self.fi() else {
             return;
         };
@@ -991,7 +993,7 @@ impl Faraday {
                 VaultRead {
                     name: name.to_string(),
                     len: bytes.len(),
-                    sha: sha256_of(&bytes),
+                    sha: sha256_of(&c, &bytes),
                     salt: h.salt,
                 },
                 bytes,
@@ -1111,6 +1113,7 @@ impl Faraday {
     /// Settles each vault the stick keeps that is not decided: by what the
     /// plan already knows of it, or by a question.
     fn flow_decide(&mut self, i: usize) {
+        let c = self.compute();
         let slot = {
             let Some(r) = self.backup_flows[i].live.reading.as_ref() else {
                 return;
@@ -1156,7 +1159,7 @@ impl Faraday {
                 };
                 if let Pick::Over(name) = &pick
                     && let Some(theirs) = files.iter().find(|f| &f.name == name)
-                    && self.flow_files_differ(&theirs.salt, &theirs.sha)
+                    && self.flow_files_differ(&c, &theirs.salt, &theirs.sha)
                 {
                     let f = &self.backup_flows[i];
                     if f.step == Step::Write {
@@ -1206,23 +1209,23 @@ impl Faraday {
 
     /// Whether Files holds a copy of the vault of this salt whose bytes are
     /// not these (§4.2's copy that differs).
-    fn flow_files_differ(&self, salt: &[u8; 32], sha: &[u8; 32]) -> bool {
+    fn flow_files_differ(&self, c: &Compute, salt: &[u8; 32], sha: &[u8; 32]) -> bool {
         self.inbox.iter().chain(self.outbox.iter()).any(|it| {
             it.kind == FileKind::Vault
                 && fv::read_header(&it.bytes).is_ok_and(|h| &h.salt == salt)
-                && &it.hash() != sha
+                && &it.hash(c) != sha
         })
     }
 
     /// How the copy of the vault in Files is called for the question:
     /// the stick it came from, else its file name.
-    pub(crate) fn flow_files_copy_label(&self, salt: &[u8; 32]) -> String {
+    pub(crate) fn flow_files_copy_label(&self, c: &Compute, salt: &[u8; 32]) -> String {
         let Some(it) = self.inbox.iter().chain(self.outbox.iter()).find(|it| {
             it.kind == FileKind::Vault && fv::read_header(&it.bytes).is_ok_and(|h| &h.salt == salt)
         }) else {
             return String::new();
         };
-        let hash = it.hash();
+        let hash = it.hash(c);
         self.vault_from
             .iter()
             .find(|(n, h, _)| n == &it.name || *h == hash)
@@ -1233,6 +1236,7 @@ impl Faraday {
     /// this stick's, which replaces the one in Files, or the one in Files,
     /// in which case this stick's copy is written over only after a hold.
     fn flow_use_copy(&mut self, i: usize, this: bool) {
+        let c = self.compute();
         // The copy to unlock is chosen at step 2 and step 3 only.
         if self.backup_flows[i].step == Step::Write {
             return;
@@ -1256,7 +1260,7 @@ impl Faraday {
                 // The sticks already bound with another copy of this vault
                 // are declined: each is written over only after a hold.
                 if let Ok(h) = fv::read_header(&bytes) {
-                    let sha = sha256_of(&bytes);
+                    let sha = sha256_of(&c, &bytes);
                     for s in &mut self.backup_flows[i].slots {
                         if let Some(b) = s.bound.as_mut()
                             && b.vaults.iter().any(|r| r.salt == h.salt && r.sha != sha)
@@ -1280,6 +1284,7 @@ impl Faraday {
     }
 
     fn flow_pick_file(&mut self, i: usize, v: usize, k: usize) {
+        let c = self.compute();
         let Some(r) = self.backup_flows[i].live.reading.as_ref() else {
             return;
         };
@@ -1304,7 +1309,7 @@ impl Faraday {
             vp.existing = true;
         }
         // The same vault in Files with other bytes: which copy is asked.
-        if self.flow_files_differ(&salt, &sha) {
+        if self.flow_files_differ(&c, &salt, &sha) {
             if let Some(r) = self.backup_flows[i].live.reading.as_mut() {
                 r.picks.retain(|(x, _)| *x != v);
                 r.differs = Some((v, name));
@@ -1879,6 +1884,7 @@ impl Faraday {
     /// Makes the key once and saves it into every vault of the plan, in
     /// one action (§4.4).
     pub(crate) fn flow_make_work(&mut self) {
+        let c = self.compute();
         let Some(i) = self.fi() else {
             return;
         };
@@ -1932,7 +1938,7 @@ impl Faraday {
         // written in the flow to the stick of the place the plan names.
         let mut public: Vec<String> = Vec::new();
         for (name, bytes) in built.outbox {
-            let sha = sha256_of(&bytes);
+            let sha = sha256_of(&c, &bytes);
             if kind_ == Kind::Gpg {
                 self.gpg_put_public(&name, bytes);
             } else {
@@ -1941,7 +1947,7 @@ impl Faraday {
             if self
                 .outbox
                 .iter()
-                .any(|it| it.name == name && sha256_of(&it.bytes) == sha)
+                .any(|it| it.name == name && sha256_of(&c, &it.bytes) == sha)
             {
                 public.push(name);
             }
@@ -2077,10 +2083,11 @@ impl Faraday {
     /// A vault that does not hold the key is not recorded: a copy of it is
     /// not a backup of the key.
     pub(crate) fn flow_sealed(&mut self, o: usize, name: &str, bytes: &[u8]) {
+        let c = self.compute();
         let Some(salt) = self.vaults.open.get(o).map(|v| v.header().salt) else {
             return;
         };
-        let sha = sha256_of(bytes);
+        let sha = sha256_of(&c, bytes);
         let holds: Vec<bool> = self
             .backup_flows
             .iter()
@@ -2360,7 +2367,7 @@ impl Faraday {
                 self.outbox
                     .iter()
                     .chain(self.inbox.iter())
-                    .find(|it| it.name == s.name && sha256_of(&it.bytes) == s.sha)
+                    .find(|it| it.name == s.name && sha256_of(&c, &it.bytes) == s.sha)
             });
             match item {
                 Some(it) if it.exposure() != crate::secrets::Exposure::Secret => {
@@ -2410,7 +2417,7 @@ impl Faraday {
         }
         let pending: Vec<(String, [u8; 32])> = sends
             .iter()
-            .map(|(n, b, _)| (n.clone(), sha256_of(b)))
+            .map(|(n, b, _)| (n.clone(), sha256_of(&c, b)))
             .collect();
         let plain: Vec<String> = sends
             .iter()
@@ -2540,7 +2547,7 @@ impl Faraday {
             .and_then(|wf| wf.readback.iter().find(|(n, _)| *n == meant))
             .map(|(_, b)| b.clone());
         let good = match (want, read) {
-            (Some(ReadBack::Codes(h)), Some((_, codes))) => sha256_of(&codes.concat()) == h,
+            (Some(ReadBack::Codes(h)), Some((_, codes))) => sha256_of(&c, &codes.concat()) == h,
             (Some(ReadBack::Seed(fp)), Some((bytes, codes))) => {
                 let made = self
                     .outbox
@@ -2572,6 +2579,7 @@ impl Faraday {
     /// over what was written when `over`; a second time, the stick's write
     /// does not count and the card says so.
     fn flow_write_again(&mut self, i: usize, meant: &str, sent: &str, over: bool) {
+        let c = self.compute();
         let Some(w) = self.backup_flows[i].live.writing.as_ref() else {
             return;
         };
@@ -2586,7 +2594,7 @@ impl Faraday {
             return self.flow_refuse(i, Problem::NoReadBack(meant.to_string()));
         };
         let stick = w.id.clone();
-        let sha = sha256_of(&bytes);
+        let sha = sha256_of(&c, &bytes);
         if let Some(w) = self.backup_flows[i].live.writing.as_mut() {
             w.retried.push(meant.to_string());
             w.pending.push((sent.to_string(), sha));
@@ -2636,10 +2644,11 @@ impl Faraday {
         serial: Option<u32>,
         done: Vec<(String, [u8; 32])>,
     ) {
+        let c = self.compute();
         let time = self.clock_now();
         let done: Vec<(String, [u8; 32])> = done
             .into_iter()
-            .map(|(n, h)| (n, self.hash_to_keep(h)))
+            .map(|(n, h)| (n, self.hash_to_keep(&c, h)))
             .collect();
         let Some(s) = self.backup_flows[i].slots.get_mut(slot) else {
             return;
@@ -2694,7 +2703,7 @@ impl Faraday {
             if let Some(k) = self
                 .outbox
                 .iter()
-                .position(|it| it.name == s.name && sha256_of(&it.bytes) == s.sha)
+                .position(|it| it.name == s.name && sha256_of(&c, &it.bytes) == s.sha)
             {
                 let item = self.outbox.remove(k);
                 if let Ok(h) = fv::read_header(&item.bytes) {

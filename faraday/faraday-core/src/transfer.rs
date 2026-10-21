@@ -12,6 +12,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use osk_crypto::work::Compute;
 use std::collections::VecDeque;
 
 use osk_shell_api::Command;
@@ -82,11 +83,15 @@ fn received(a: faraday_qr::Arrived) -> (Option<String>, &'static str, Vec<u8>) {
 
 /// What one code read on Receive did: still a part, a whole file, or
 /// nothing worth keeping (said in the note).
-fn read_any(scan: &mut ScanState, bytes: &[u8]) -> Option<(Option<String>, &'static str, Vec<u8>)> {
+fn read_any(
+    c: &Compute,
+    scan: &mut ScanState,
+    bytes: &[u8],
+) -> Option<(Option<String>, &'static str, Vec<u8>)> {
     scan.reads += 1;
     let Ok(raw) = std::str::from_utf8(bytes) else {
         // Bytes that are not text: a PSBT, or kept as they are.
-        return Some(if wallet::read_psbt(bytes).is_some() {
+        return Some(if wallet::read_psbt(c, bytes).is_some() {
             (None, "psbt", bytes.to_vec())
         } else {
             (None, "bin", bytes.to_vec())
@@ -151,7 +156,7 @@ fn read_any(scan: &mut ScanState, bytes: &[u8]) -> Option<(Option<String>, &'sta
             }
         };
     }
-    if wallet::read_psbt(bytes).is_some() {
+    if wallet::read_psbt(c, bytes).is_some() {
         return Some((None, "psbt", bytes.to_vec()));
     }
     Some(received(faraday_qr::classify_text(text)))
@@ -280,18 +285,16 @@ impl Faraday {
         let Some(scan) = self.scan.as_mut() else {
             return;
         };
-        let Some((named, ext, data)) = read_any(scan, &bytes) else {
+        let Some((named, ext, data)) = read_any(&c, scan, &bytes) else {
             return;
         };
         let digest = {
-            use osk_bip::bitcoin::hashes::{Hash, sha256};
             let mut whole = named.clone().unwrap_or_default().into_bytes();
             whole.push(0);
             whole.extend_from_slice(ext.as_bytes());
             whole.push(0);
             whole.extend_from_slice(&data);
-            crate::work::count(crate::work::Work::FileHash);
-            let d = sha256::Hash::hash(&whole).to_byte_array();
+            let d = osk_crypto::sha256_whole(&c, &whole);
             zeroize::Zeroize::zeroize(&mut whole);
             d
         };

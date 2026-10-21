@@ -31,6 +31,7 @@ macro_rules! say {
     }};
 }
 
+use osk_crypto::work::Compute;
 use std::fs::{File, OpenOptions};
 use std::path::Path;
 use std::process::ExitCode;
@@ -64,14 +65,14 @@ fn answer_to(now: &Now, talk: u64, seq: u32, mut answer: Response) -> std::io::R
 fn pictures(now: Now) -> Sender<(u64, u32, Vec<u8>)> {
     let (jobs, asked) = mpsc::channel::<(u64, u32, Vec<u8>)>();
     std::thread::spawn(move || {
-        // The thread's token, for the pictures it reads once reading
-        // takes one (docs/COMPUTE.md §3, C3). The process draws nothing,
-        // so it counts nothing.
+        // The thread's token, for the pictures it reads
+        // (docs/COMPUTE.md §3). The process draws nothing, so it counts
+        // nothing.
         #[expect(
             clippy::disallowed_methods,
             reason = "a mint: the disk process's pictures thread, which draws nothing (docs/COMPUTE.md §3)"
         )]
-        let _compute = osk_crypto::work::Compute::new(|_| {});
+        let c = osk_crypto::work::Compute::new(|_| {});
         for (talk, seq, mut bytes) in asked {
             let current = now
                 .lock()
@@ -82,7 +83,7 @@ fn pictures(now: Now) -> Sender<(u64, u32, Vec<u8>)> {
                 zeroize::Zeroize::zeroize(&mut bytes);
                 continue;
             }
-            let answer = faraday_files::picture_answer(bytes);
+            let answer = faraday_files::picture_answer(&c, bytes);
             if let Err(e) = answer_to(&now, talk, seq, answer) {
                 say!("faraday-disk: {e}");
             }
@@ -92,6 +93,7 @@ fn pictures(now: Now) -> Sender<(u64, u32, Vec<u8>)> {
 }
 
 fn serve(
+    c: &Compute,
     disks: &mut Disks,
     requests: &Path,
     responses: &Path,
@@ -102,13 +104,14 @@ fn serve(
     let mut rx = File::open(requests)?;
     let tx = OpenOptions::new().write(true).open(responses)?;
     *now.lock().unwrap_or_else(PoisonError::into_inner) = Some((talk, tx));
-    let served = serve_on(disks, &mut rx, talk, now, pictures);
+    let served = serve_on(c, disks, &mut rx, talk, now, pictures);
     // Whatever a picture still being read finds, this shell has gone.
     *now.lock().unwrap_or_else(PoisonError::into_inner) = None;
     served
 }
 
 fn serve_on(
+    c: &Compute,
     disks: &mut Disks,
     rx: &mut File,
     talk: u64,
@@ -125,7 +128,7 @@ fn serve_on(
             // The picture's bytes are read here; its codes on the
             // pictures' thread, which answers.
             Ok(Request::ReadQr { stick, name }) => {
-                match disks.handle(Request::Read { stick, name }) {
+                match disks.handle(c, Request::Read { stick, name }) {
                     Response::Bytes(bytes) => {
                         if let Err(mpsc::SendError((_, _, mut bytes))) =
                             pictures.send((talk, seq, bytes))
@@ -140,7 +143,7 @@ fn serve_on(
                 }
             }
             Ok(req) => {
-                let answer = disks.handle(req);
+                let answer = disks.handle(c, req);
                 // A listing that changed is said on the console, for a
                 // machine being brought up.
                 if let Response::Sticks(s) = &answer {
@@ -167,6 +170,14 @@ fn serve_on(
 }
 
 fn main() -> ExitCode {
+    // The serving loop's token, for the pictures a read hands back with
+    // their codes (docs/COMPUTE.md §3). The process draws nothing, so it
+    // counts nothing.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a mint: the disk process, which draws nothing (docs/COMPUTE.md §3)"
+    )]
+    let c = Compute::new(|_| {});
     let args: Vec<String> = std::env::args().collect();
     if args.get(1).map(String::as_str) == Some("--list") {
         let (sys, dev) = match args.len() {
@@ -195,6 +206,7 @@ fn main() -> ExitCode {
     loop {
         talk += 1;
         if let Err(e) = serve(
+            &c,
             &mut disks,
             Path::new(&args[1]),
             Path::new(&args[2]),

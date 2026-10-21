@@ -322,33 +322,41 @@ impl Faraday {
     /// else carry on this wallet's spend, sign its PSBT in Files, or spend
     /// from it.
     pub fn spend_button(&self, c: &Compute, w: usize) -> (String, Action) {
-        // A key made here signs once its backup is done
-        // (`docs/NEW-WALLET.md` §14.3).
-        if !self.wallet_held(c, w).is_empty() {
-            return (
-                EN.family_finish_the_backup.to_string(),
-                Action::BackupFirst(w),
-            );
-        }
-        if let Some(s) = self.spend.as_ref().filter(|s| s.wallet == Some(w)) {
-            return (
-                fill(
-                    EN.family_carry_on_the,
-                    &[
-                        &s.signers.len().to_string(),
-                        &self.spend_needed().to_string(),
-                    ],
-                ),
-                self.carry_on(),
-            );
-        }
-        let label = match self.psbt_for(c, w) {
-            Some(_) => fill(EN.family_sign_the_psbt, &[self.medium.noun()]),
-            None => EN.family_spend_from_this.to_string(),
-        };
-        (label, Action::Family(FamilyAction::SpendFrom(w)))
+        spend_button_on(&crate::glance::Now { app: self, c }, w)
     }
+}
 
+/// [`Faraday::spend_button`] read through `r` ([`crate::glance::Reads`]).
+pub(crate) fn spend_button_on(r: &impl crate::glance::Reads, w: usize) -> (String, Action) {
+    let app = r.app();
+    // A key made here signs once its backup is done
+    // (`docs/NEW-WALLET.md` §14.3).
+    if !crate::held::wallet_held_on(r, w).is_empty() {
+        return (
+            EN.family_finish_the_backup.to_string(),
+            Action::BackupFirst(w),
+        );
+    }
+    if let Some(s) = app.spend.as_ref().filter(|s| s.wallet == Some(w)) {
+        return (
+            fill(
+                EN.family_carry_on_the,
+                &[
+                    &s.signers.len().to_string(),
+                    &app.spend_needed().to_string(),
+                ],
+            ),
+            app.carry_on(),
+        );
+    }
+    let label = match r.psbt_for(w) {
+        Some(_) => fill(EN.family_sign_the_psbt, &[app.medium.noun()]),
+        None => EN.family_spend_from_this.to_string(),
+    };
+    (label, Action::Family(FamilyAction::SpendFrom(w)))
+}
+
+impl Faraday {
     /// The wallet chosen to spend from, by its place in the session.
     pub fn family_wallet(&self) -> Option<usize> {
         let name = self.family.wallet.as_deref()?;

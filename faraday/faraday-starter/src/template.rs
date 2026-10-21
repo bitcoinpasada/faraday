@@ -6,6 +6,7 @@ pub use faraday_core::backup::BlankCopy as Copy;
 use faraday_core::backup::sheet_blank;
 use faraday_core::pdf;
 use osk_bip::keys::Network;
+use osk_crypto::work::Compute;
 
 use crate::api::Reason;
 
@@ -56,8 +57,8 @@ impl Template {
     }
 
     /// The PDF of [`Template::sheet`].
-    pub fn pdf(&self) -> Result<Vec<u8>, String> {
-        pdf::sheet(&self.sheet())
+    pub fn pdf(&self, c: &Compute) -> Result<Vec<u8>, String> {
+        pdf::sheet(c, &self.sheet())
     }
 
     /// The file's name.

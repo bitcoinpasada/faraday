@@ -15,7 +15,6 @@ use crate::strings::fill;
 use faraday_apk::{Apk, Info, Refusal, Slice, key, pem, sign};
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
-use osk_bip::bitcoin::hashes::{Hash, sha256};
 use osk_crypto::work::Compute;
 
 use crate::Faraday;
@@ -289,16 +288,16 @@ pub fn compare_second(typed: &str, sha: &[u8; 32]) -> Second {
     }
 }
 
-fn sha_of(bytes: &[u8]) -> [u8; 32] {
-    crate::work::count(crate::work::Work::FileHash);
-    sha256::Hash::hash(bytes).to_byte_array()
+/// Costs a SHA-256 pass over the whole file: the APK's SHA-256.
+fn sha_of(c: &Compute, bytes: &[u8]) -> [u8; 32] {
+    osk_crypto::sha256_whole(c, bytes)
 }
 
 impl Faraday {
     /// What APK `item` reads as, remembered while it stays as it is.
-    fn apk_read(&self, item: &crate::Item) -> Result<Info, Refusal> {
+    fn apk_read(&self, c: &Compute, item: &crate::Item) -> Result<Info, Refusal> {
         // Read once per file, by the SHA-256 taken when it came in.
-        let sha = item.sha.unwrap_or_else(|| sha_of(&item.bytes));
+        let sha = item.sha.unwrap_or_else(|| sha_of(c, &item.bytes));
         let mut cache = self.vaults.apk.listed.borrow_mut();
         if let Some(e) = cache.iter().find(|e| e.sha == sha) {
             return e.result.clone();
@@ -312,20 +311,20 @@ impl Faraday {
     }
 
     /// What the Inbox APK `name` states of itself, when it reads.
-    pub fn apk_info(&self, name: &str) -> Option<Info> {
+    pub fn apk_info(&self, c: &Compute, name: &str) -> Option<Info> {
         let item = self.inbox.iter().find(|i| i.name == name)?;
-        self.apk_read(item).ok()
+        self.apk_read(c, item).ok()
     }
 
     /// The APKs in Files, newest first, each with why it cannot be signed
     /// with a key for `package` (`docs/APK-SIGNING.md` §4.4).
-    pub fn apk_listed(&self, package: &str) -> Vec<Listed> {
+    pub fn apk_listed(&self, c: &Compute, package: &str) -> Vec<Listed> {
         let mut out = Vec::new();
         for (k, item) in self.inbox.iter().enumerate().rev() {
             if item.kind != crate::FileKind::Apk {
                 continue;
             }
-            let (info, why) = match self.apk_read(item) {
+            let (info, why) = match self.apk_read(c, item) {
                 Ok(info) => {
                     let why = if info.package != package {
                         Some(Why::Other(info.package.clone()))
@@ -401,7 +400,7 @@ impl Faraday {
     /// an open vault's, or its bytes are what the last write of this
     /// session put on a stick. A copy of any other
     /// vault never goes over a vault of the same size on a stick.
-    pub(crate) fn vault_is_this_sessions(&self, bytes: &[u8]) -> bool {
+    pub(crate) fn vault_is_this_sessions(&self, c: &Compute, bytes: &[u8]) -> bool {
         let Ok(h) = faraday_vault::read_header(bytes) else {
             return false;
         };
@@ -411,7 +410,7 @@ impl Faraday {
         // Only a write of this session's own visit counts: the flow's
         // sealings do not, so that a later ordinary visit never writes the
         // flow's bytes over a newer copy on another stick.
-        let hash = sha_of(bytes);
+        let hash = sha_of(c, bytes);
         self.receipt
             .as_ref()
             .is_some_and(|r| !r.by_flow && r.holds_hash(&hash))
@@ -420,14 +419,14 @@ impl Faraday {
     /// What an APK's row in Files offers (`docs/APK-SIGNING.md` §4.1): to
     /// sign, when an open vault holds a key for its package; a note of why
     /// not otherwise; and Unlock or Make a vault, where none is open.
-    pub fn apk_files_row(&self, k: usize) -> Row {
+    pub fn apk_files_row(&self, c: &Compute, k: usize) -> Row {
         if !self.apk_signing {
             return Row::None;
         }
         let Some(item) = self.inbox.get(k) else {
             return Row::None;
         };
-        let info = match self.apk_read(item) {
+        let info = match self.apk_read(c, item) {
             Ok(i) => i,
             Err(Refusal::AlreadySigned) => return Row::Note(Why::AlreadySigned.text()),
             Err(Refusal::NotAligned) => return Row::Note(Why::NotAligned.text()),
@@ -479,11 +478,12 @@ impl Faraday {
     /// Files' Sign with APK key: with one key of an open vault for the
     /// APK's package, its review; with several, which key.
     pub(crate) fn apk_from_files(&mut self, k: usize) {
+        let c = self.compute();
         let Some(item) = self.inbox.get(k) else {
             return;
         };
         let name = item.name.clone();
-        let Ok(info) = self.apk_read(item) else {
+        let Ok(info) = self.apk_read(&c, item) else {
             return;
         };
         let keys = self.apk_keys_for(&info.package);
@@ -607,10 +607,11 @@ impl Faraday {
 
     /// Opens the review of Inbox APK `name` for the key `fp`.
     pub(crate) fn apk_open_review(&mut self, name: &str, fp: [u8; 32]) {
+        let c = self.compute();
         let Some(item) = self.inbox.iter().find(|i| i.name == name) else {
             return;
         };
-        let sha = sha_of(&item.bytes);
+        let sha = sha_of(&c, &item.bytes);
         self.vaults.apk.review = Some(Review {
             name: name.to_string(),
             key: fp,
@@ -632,6 +633,7 @@ impl Faraday {
     /// Signs the APK under review: the hold completed. Everything is
     /// checked again here, and nothing is written when anything fails.
     pub(crate) fn apk_sign(&mut self) {
+        let c = self.compute();
         let Some(review) = self.vaults.apk.review.clone() else {
             return;
         };
@@ -659,7 +661,7 @@ impl Faraday {
             return;
         };
         // The bytes signed are the bytes reviewed.
-        if sha_of(&item.bytes) != review.sha {
+        if sha_of(&c, &item.bytes) != review.sha {
             self.toast(EN.apk_changed_since_review);
             self.vaults.apk.review = None;
             return;

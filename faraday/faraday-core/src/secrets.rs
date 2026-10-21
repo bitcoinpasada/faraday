@@ -239,17 +239,16 @@ impl Faraday {
             .position(|(_, i)| *i == Some(k))
             .is_none_or(|i| self.copy_forms(&c, b, i).seedqr);
         if key.language == Language::English && seedqr {
-            crate::work::count(crate::work::Work::QrEncode);
             let matrix = if compact {
-                osk_codec::seedqr::encode_compact(&m)
+                osk_codec::seedqr::encode_compact(&c, &m)
             } else {
-                osk_codec::seedqr::encode_seedqr(&m)
+                osk_codec::seedqr::encode_seedqr(&c, &m)
             };
             if let Ok(mx) = matrix {
                 let title = fill(EN.secrets_seed, &[&fps.to_string()]);
                 let line = fill(EN.secrets_words_secret, &[&m.word_count().to_string()]);
                 let png =
-                    zeroize::Zeroizing::new(crate::picture::labelled_png(&mx, &title, &[line]));
+                    zeroize::Zeroizing::new(crate::picture::labelled_png(&c, &mx, &title, &[line]));
                 let (label, name) = if compact {
                     (
                         EN.secrets_compact_seedqr,

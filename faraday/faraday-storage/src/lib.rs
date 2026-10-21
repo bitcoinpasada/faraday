@@ -52,9 +52,15 @@ pub fn finish_vault_writes(stick: &Path) {
     faraday_files::finish_vault_writes(&mut Dir(stick.to_path_buf()));
 }
 
-/// A PNG in a stick directory: its bytes and its QR codes.
-pub fn read_qr_png(stick: &str, name: &str) -> Result<faraday_files::Picture, String> {
-    faraday_files::read_qr_png(&mut dir(stick), name)
+/// Costs a read of the file and a PNG decode and QR search
+/// (`faraday_files::qr_in_png`): a PNG in a stick directory, its bytes
+/// and its QR codes.
+pub fn read_qr_png(
+    c: &osk_crypto::work::Compute,
+    stick: &str,
+    name: &str,
+) -> Result<faraday_files::Picture, String> {
+    faraday_files::read_qr_png(c, &mut dir(stick), name)
 }
 
 /// Where the sticks' files are: folders, or the disk process.
@@ -264,16 +270,16 @@ impl Pictures {
             let (jobs, asked) = std::sync::mpsc::channel::<(String, String)>();
             let (read, done) = std::sync::mpsc::channel();
             std::thread::spawn(move || {
-                // The thread's token, for the pictures it reads once
-                // reading takes one (docs/COMPUTE.md §3, C3). It draws
-                // nothing, so it counts nothing.
+                // The thread's token, for the pictures it reads
+                // (docs/COMPUTE.md §3). It draws nothing, so it counts
+                // nothing.
                 #[expect(
                     clippy::disallowed_methods,
                     reason = "a mint: the pictures' thread, which draws nothing (docs/COMPUTE.md §3)"
                 )]
-                let _compute = osk_crypto::work::Compute::new(|_| {});
+                let c = osk_crypto::work::Compute::new(|_| {});
                 for (stick, name) in asked {
-                    let picture = read_qr_png(&stick, &name);
+                    let picture = read_qr_png(&c, &stick, &name);
                     if read.send((stick, name, picture)).is_err() {
                         return;
                     }
@@ -859,7 +865,7 @@ fn serve_queued(
             // here, and only the hash goes to the app.
             StorageCommand::Hash { stick, name } => {
                 let sha = sticks.read(&stick, &name).map(|mut bytes| {
-                    let sha = faraday_core::file_menu::sha256(&bytes);
+                    let sha = faraday_core::file_menu::sha256(&app.compute(), &bytes);
                     zeroize::Zeroize::zeroize(&mut bytes);
                     sha
                 });

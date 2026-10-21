@@ -13,6 +13,15 @@ use faraday_starter::notes::Notes;
 use faraday_starter::{Page, Starter, StarterAction};
 use osk_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
+/// A token for the PDFs these tests make, counting nothing. Cheap.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a mint: the Starter's tests, which draw nothing"
+)]
+fn compute() -> osk_crypto::work::Compute {
+    osk_crypto::work::Compute::new(|_| {})
+}
+
 const KEY: &str = "205568-492019-108251-336446-650375-210331-584155-047520";
 const SUSPEND: &str = "Temporarily suspend BitLocker";
 const RESUME: &str = "Resume BitLocker";
@@ -257,6 +266,7 @@ fn with_bitlocker_off_not_read_or_not_on_windows_none_of_it_shows() {
 
 #[test]
 fn the_sheet_carries_the_key_only_when_ticked() {
+    let c = compute();
     let mut s = start_page(Os::Windows, drive(Protection::On, None));
     assert!(!s.include_key);
     // Unticked, as it starts: the sheet at once, without the key.
@@ -284,7 +294,7 @@ fn the_sheet_carries_the_key_only_when_ticked() {
     assert!(pdf_has(pdf, "650375-210331-584155-047520"));
     // The rest of the sheet as without it.
     let notes = Notes::for_computer(&dell(Os::Windows)).expect("notes");
-    assert_eq!(*pdf, notes.pdf_with_key(&key()));
+    assert_eq!(*pdf, notes.pdf_with_key(&c, &key()));
     assert!(pdf_has(pdf, "Boot menu key"));
     // The key is never on the page itself.
     let all = texts(&mut s).join(" ");
@@ -309,9 +319,10 @@ fn a_key_that_cannot_be_read_says_why_and_prints_nothing() {
 
 #[test]
 fn the_key_s_sheet_names_nothing_else_no_path_no_computer_and_holds_no_qr_code() {
+    let c = compute();
     let pdf = Notes::for_computer(&dell(Os::Windows))
         .expect("notes")
-        .pdf_with_key(&key());
+        .pdf_with_key(&c, &key());
     for word in [
         b"/Info".as_slice(),
         b"/Producer",

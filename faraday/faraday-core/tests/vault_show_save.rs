@@ -109,15 +109,16 @@ fn fp() -> String {
 fn seedqr_digits() -> Vec<u8> {
     let c = testkit::compute();
     let m = Mnemonic::parse(&c, Language::English, &words()).unwrap();
-    let mx = osk_codec::seedqr::encode_seedqr(&m).unwrap();
+    let mx = osk_codec::seedqr::encode_seedqr(&c, &m).unwrap();
     let (w, h, px) = mx.to_luma(4, osk_codec::qr::QUIET_ZONE);
-    let found = osk_codec::decode_luma(w, h, &px);
+    let found = osk_codec::decode_luma(&c, w, h, &px);
     assert_eq!(found.len(), 1);
     found[0].bytes.clone()
 }
 
 /// The codes a camera reads off the screen drawn now.
 fn on_screen(app: &mut Faraday) -> Vec<Vec<u8>> {
+    let c = faraday_core::testkit::compute();
     // Drawn afresh, as the shell draws after an event.
     app.settle();
     let f = app.frame();
@@ -126,7 +127,7 @@ fn on_screen(app: &mut Faraday) -> Vec<Vec<u8>> {
         .chunks_exact(4)
         .map(|p| ((u32::from(p[0]) * 3 + u32::from(p[1]) * 6 + u32::from(p[2])) / 10) as u8)
         .collect();
-    osk_codec::decode_luma(usize::from(f.width), usize::from(f.height), &luma)
+    osk_codec::decode_luma(&c, usize::from(f.width), usize::from(f.height), &luma)
         .into_iter()
         .map(|d| d.bytes)
         .collect()
@@ -138,7 +139,8 @@ fn touch(app: &mut Faraday, (x, y): (u16, u16), phase: TouchPhase) {
 
 /// The one code in a PNG.
 fn read_png(png: &[u8]) -> Vec<u8> {
-    let payloads = faraday_files::qr_in_png(png).expect("a PNG");
+    let c = faraday_core::testkit::compute();
+    let payloads = faraday_files::qr_in_png(&c, png).expect("a PNG");
     assert_eq!(payloads.len(), 1, "one code");
     payloads[0].clone()
 }

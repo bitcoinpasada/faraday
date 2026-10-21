@@ -8,6 +8,7 @@
 use crate::strings::EN;
 use crate::strings::fill;
 use osk_codec::qr::{Ecc, Payload, QrMatrix, encode};
+use osk_crypto::work::Compute;
 
 use crate::backup::structural_fixed;
 
@@ -154,8 +155,9 @@ impl Page {
     }
 }
 
-/// The finished document.
-fn document(pages: Vec<Page>) -> Vec<u8> {
+/// Costs the document written out, its pages compressed: the finished
+/// document.
+fn document(_c: &Compute, pages: Vec<Page>) -> Vec<u8> {
     crate::work::count(crate::work::Work::Picture);
     let mut out: Vec<u8> = b"%PDF-1.4\n%\xE2\xE3\xCF\xD3\n".to_vec();
     let mut offsets: Vec<usize> = Vec::new();
@@ -226,6 +228,7 @@ fn document(pages: Vec<Page>) -> Vec<u8> {
 /// carries no information beyond its page (no title, author, producer
 /// or dates).
 pub fn notes(
+    c: &Compute,
     title: &str,
     rows: &[(String, Option<String>)],
     steps: &[(String, Vec<String>)],
@@ -263,7 +266,7 @@ pub fn notes(
         }
         y += 14.0;
     }
-    document(vec![p])
+    document(c, vec![p])
 }
 
 /// The fields of a sheet file, in order.
@@ -285,18 +288,18 @@ fn get<'a>(f: &'a [(String, String)], key: &str) -> Option<&'a str> {
 }
 
 /// The PDF of a sheet file.
-pub fn sheet(text: &str) -> Result<Vec<u8>, String> {
+pub fn sheet(c: &Compute, text: &str) -> Result<Vec<u8>, String> {
     let f = fields(text)?;
     match get(&f, "kind") {
-        Some("wallet") => Ok(wallet_sheet(&f)),
-        Some("blank") => blank_sheet(&f),
-        Some("share") => Ok(share_sheet(&f)),
-        Some("envelopes") => Ok(envelopes_sheet(&f)),
+        Some("wallet") => Ok(wallet_sheet(c, &f)),
+        Some("blank") => blank_sheet(c, &f),
+        Some("share") => Ok(share_sheet(c, &f)),
+        Some("envelopes") => Ok(envelopes_sheet(c, &f)),
         other => Err(fill(EN.pdf_a_sheet_of_kind, &[&format!("{other:?}")])),
     }
 }
 
-fn wallet_sheet(f: &[(String, String)]) -> Vec<u8> {
+fn wallet_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
     let mut p = Page::default();
     let name = get(f, "name").unwrap_or(EN.pdf_wallet);
     let mut y = MARGIN;
@@ -314,7 +317,7 @@ fn wallet_sheet(f: &[(String, String)]) -> Vec<u8> {
     y += 28.0;
     let descriptor = get(f, "descriptor").unwrap_or("");
     let qr_side = 190.0;
-    if let Ok(m) = encode(Payload::Bytes(descriptor.as_bytes()), Ecc::Medium) {
+    if let Ok(m) = encode(c, Payload::Bytes(descriptor.as_bytes()), Ecc::Medium) {
         p.qr(&m, PAGE_W - MARGIN - qr_side, y, qr_side);
     }
     p.text(MARGIN, y, 10.0, Font::Bold, EN.pdf_descriptor);
@@ -361,12 +364,12 @@ fn wallet_sheet(f: &[(String, String)]) -> Vec<u8> {
         Font::Sans,
         EN.pdf_made_by_faraday_check,
     );
-    document(vec![p])
+    document(c, vec![p])
 }
 
 /// What goes in each place's envelope: a heading per place, its things
 /// under it, a line to tick each.
-fn envelopes_sheet(f: &[(String, String)]) -> Vec<u8> {
+fn envelopes_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
     let mut p = Page::default();
     let name = get(f, "name").unwrap_or(EN.pdf_wallet);
     let mut y = MARGIN;
@@ -395,12 +398,12 @@ fn envelopes_sheet(f: &[(String, String)]) -> Vec<u8> {
             _ => {}
         }
     }
-    document(vec![p])
+    document(c, vec![p])
 }
 
 /// One sheet of a split backup: what it is, how many rebuild the wallet,
 /// and its lines as text and as a QR code to scan.
-fn share_sheet(f: &[(String, String)]) -> Vec<u8> {
+fn share_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
     let mut p = Page::default();
     let name = get(f, "name").unwrap_or(EN.pdf_wallet);
     let part = get(f, "part").unwrap_or("");
@@ -431,7 +434,7 @@ fn share_sheet(f: &[(String, String)]) -> Vec<u8> {
         .collect();
     let text = lines.join("\n");
     let qr_side = 210.0;
-    if let Ok(m) = encode(Payload::Bytes(text.as_bytes()), Ecc::Medium) {
+    if let Ok(m) = encode(c, Payload::Bytes(text.as_bytes()), Ecc::Medium) {
         p.qr(&m, PAGE_W - MARGIN - qr_side, y, qr_side);
     }
     for line in &lines {
@@ -451,10 +454,10 @@ fn share_sheet(f: &[(String, String)]) -> Vec<u8> {
         Font::Sans,
         EN.pdf_made_by_faraday,
     );
-    document(vec![p])
+    document(c, vec![p])
 }
 
-fn blank_sheet(f: &[(String, String)]) -> Result<Vec<u8>, String> {
+fn blank_sheet(c: &Compute, f: &[(String, String)]) -> Result<Vec<u8>, String> {
     let words: usize = get(f, "words").and_then(|w| w.parse().ok()).unwrap_or(24);
     if words != 12 && words != 24 {
         return Err(EN.pdf_the_template_is.into());
@@ -519,7 +522,7 @@ fn blank_sheet(f: &[(String, String)]) -> Result<Vec<u8>, String> {
     // The SeedQR grid: its fixed squares printed black, the rest ruled
     // for filling in by hand.
     let n = if words == 24 { 29 } else { 25 };
-    let probe = probe_matrix(words)?;
+    let probe = probe_matrix(c, words)?;
     let side = (PAGE_H - MARGIN - 40.0 - y)
         .min(PAGE_W - 2.0 * MARGIN - 40.0)
         .min(380.0);
@@ -589,18 +592,17 @@ fn blank_sheet(f: &[(String, String)]) -> Result<Vec<u8>, String> {
         q.line(MARGIN + 238.0, y + 34.0, right, y + 34.0, 0.5, 0.55);
         y += 56.0;
     }
-    Ok(document(vec![p, q]))
+    Ok(document(c, vec![p, q]))
 }
 
 /// A SeedQR of `words` words from a fixed dummy seed: its fixed squares
 /// are the same as every other seed of that length.
-fn probe_matrix(words: usize) -> Result<QrMatrix, String> {
+fn probe_matrix(c: &Compute, words: usize) -> Result<QrMatrix, String> {
     // All-zero entropy: "abandon" ×11 "about", or ×23 "art".
     let entropy = [0u8; 32];
     let len = if words == 24 { 32 } else { 16 };
     let m =
         osk_bip::bip39::Mnemonic::from_entropy(osk_bip::bip39::Language::English, &entropy[..len])
             .map_err(|e| e.to_string())?;
-    crate::work::count(crate::work::Work::QrEncode);
-    osk_codec::seedqr::encode_seedqr(&m).map_err(|e| format!("{e:?}"))
+    osk_codec::seedqr::encode_seedqr(c, &m).map_err(|e| format!("{e:?}"))
 }

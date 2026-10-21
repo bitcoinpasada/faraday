@@ -163,8 +163,9 @@ const BOTH: (bool, bool) = (true, true);
 /// What a camera reads off a drawn code: the code drawn as pixels by the
 /// repository's encoder, read back by its decoder.
 fn read_off(matrix: &osk_codec::qr::QrMatrix) -> Vec<u8> {
+    let c = faraday_core::testkit::compute();
     let (w, h, px) = matrix.to_luma(4, osk_codec::qr::QUIET_ZONE);
-    let found = osk_codec::decode_luma(w, h, &px);
+    let found = osk_codec::decode_luma(&c, w, h, &px);
     assert_eq!(found.len(), 1, "one code in the frame");
     found[0].bytes.clone()
 }
@@ -172,13 +173,13 @@ fn read_off(matrix: &osk_codec::qr::QrMatrix) -> Vec<u8> {
 fn standard(words: &str) -> Vec<u8> {
     let c = testkit::compute();
     let m = Mnemonic::parse(&c, Language::English, words).unwrap();
-    read_off(&osk_codec::seedqr::encode_seedqr(&m).unwrap())
+    read_off(&osk_codec::seedqr::encode_seedqr(&c, &m).unwrap())
 }
 
 fn compact(words: &str) -> Vec<u8> {
     let c = testkit::compute();
     let m = Mnemonic::parse(&c, Language::English, words).unwrap();
-    read_off(&osk_codec::seedqr::encode_compact(&m).unwrap())
+    read_off(&osk_codec::seedqr::encode_compact(&c, &m).unwrap())
 }
 
 fn scan(app: &mut Faraday, bytes: Vec<u8>) {
@@ -546,6 +547,7 @@ fn a_drawn_compact_seedqr_of_the_seed_matches() {
 
 #[test]
 fn a_copy_with_one_word_wrong_names_that_word_and_stays_open() {
+    let c = faraday_core::testkit::compute();
     let mut app = backing_up(ATTACK, true, SEEDQR_ONLY);
     app.press(Action::BScan);
     // Word 5, "network" (1190), copied as 1191: its checksum no longer
@@ -553,6 +555,7 @@ fn a_copy_with_one_word_wrong_names_that_word_and_stays_open() {
     let mut digits = ATTACK_DIGITS.as_bytes().to_vec();
     digits[4 * 4 + 3] = b'1';
     let m = osk_codec::qr::encode(
+        &c,
         osk_codec::qr::Payload::Numeric(&digits),
         osk_codec::qr::Ecc::Low,
     )
