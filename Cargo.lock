@@ -773,6 +773,7 @@ version = "0.1.5"
 dependencies = [
  "faraday-fat",
  "faraday-files",
+ "osk-crypto",
  "zeroize",
 ]
 
@@ -892,6 +893,7 @@ dependencies = [
  "faraday-vault",
  "osk-bip",
  "osk-codec",
+ "osk-crypto",
  "osk-selftest",
  "osk-shell-api",
  "png",
@@ -958,6 +960,7 @@ dependencies = [
  "faraday-files",
  "faraday-qr",
  "osk-codec",
+ "osk-crypto",
  "osk-shell-api",
  "zeroize",
 ]

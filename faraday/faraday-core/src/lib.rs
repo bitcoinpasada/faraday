@@ -23,6 +23,7 @@ pub mod boot_import;
 pub mod catalog;
 pub mod chart_edit;
 pub mod codes;
+mod compute;
 pub mod copy_check;
 pub mod create;
 mod create_from;

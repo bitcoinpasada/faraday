@@ -11,6 +11,7 @@ publish = false
 [dependencies]
 faraday-fat = { path = "../faraday-fat" }
 faraday-files = { path = "../faraday-files" }
+osk-crypto = { path = "../../core/osk-crypto" }
 zeroize = { workspace = true, features = ["alloc"] }
 
 [lints]

@@ -41,6 +41,16 @@ pub const TEST_SEEDS: [(&str, &str); 3] = [
     ("summer", "Test key 3"),
 ];
 
+/// A token for a test's costly work, counted as the app counts it
+/// (`docs/COMPUTE.md` §3). Cheap.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a mint: Faraday's tests (docs/COMPUTE.md §3)"
+)]
+pub fn compute() -> osk_crypto::work::Compute {
+    osk_crypto::work::Compute::new(crate::work::core_count)
+}
+
 /// The words of a test seed.
 pub fn test_words(word: &str) -> String {
     vec![word; 24].join(" ")

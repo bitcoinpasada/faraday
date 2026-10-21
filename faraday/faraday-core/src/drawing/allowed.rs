@@ -4,7 +4,7 @@
 //! [`Allowed::SecretShown`]: a secret the person opened to see or copy,
 //! drawn from its source each frame because nothing secret is kept, not
 //! even for a frame. A new exception is a new method here, which the
-//! owner decides.
+//! owner decides. Each is handed the view's token (`View::allowed`).
 
 use faraday_vault::Record;
 use osk_bip::bip39::{Language, Mnemonic};
@@ -19,14 +19,14 @@ impl View<'_> {
     /// ([`crate::Faraday::bip85_value`]; [`Allowed::SecretShown`]). Costs a
     /// key derivation.
     pub fn bip85_shown(&self) -> Option<Zeroizing<String>> {
-        work::allowed(Allowed::SecretShown, || self.app.bip85_value())
+        self.allowed(Allowed::SecretShown, |_c| self.app.bip85_value())
     }
 
     /// A vault key record's words, read for this frame to be shown
     /// ([`crate::wallet::record_words`]; [`Allowed::SecretShown`]). Costs
     /// a parse of the words.
     pub fn record_words_shown(&self, r: &Record) -> Option<Mnemonic> {
-        work::allowed(Allowed::SecretShown, || crate::wallet::record_words(r))
+        self.allowed(Allowed::SecretShown, |_c| crate::wallet::record_words(r))
     }
 
     /// A seed's SeedQR grid on the backup's copy page, Compact or
@@ -34,7 +34,7 @@ impl View<'_> {
     /// ([`Allowed::SecretShown`]). Costs a parse of the words and a QR
     /// encoding.
     pub fn seedqr_shown(&self, lang: Language, words: &str, compact: bool) -> Option<QrMatrix> {
-        work::allowed(Allowed::SecretShown, || {
+        self.allowed(Allowed::SecretShown, |_c| {
             let mn = crate::wallet::parse_words(lang, words).ok()?;
             work::count(work::Work::QrEncode);
             if compact {

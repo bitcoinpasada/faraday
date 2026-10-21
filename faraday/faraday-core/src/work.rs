@@ -113,7 +113,7 @@ fn of_core(w: osk_crypto::work::Work) -> Work {
 }
 
 /// The counter the core's costly functions call (`osk_crypto::work`).
-fn core_count(w: osk_crypto::work::Work) {
+pub(crate) fn core_count(w: osk_crypto::work::Work) {
     count(of_core(w));
 }
 

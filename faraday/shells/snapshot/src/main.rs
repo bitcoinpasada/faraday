@@ -5991,6 +5991,14 @@ fn main() -> ExitCode {
         }
         None => 160,
     };
+    // The tool's token, for the costly work it does outside the app's
+    // events once that work takes one (docs/COMPUTE.md §3). A tool makes
+    // no drawing claim, so it counts nothing.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a mint: the snapshot tool (docs/COMPUTE.md §3)"
+    )]
+    let _compute = osk_crypto::work::Compute::new(|_| {});
     let only = args.get(4).map(String::as_str);
     if only.is_some_and(|m| {
         ![

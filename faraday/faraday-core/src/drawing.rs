@@ -20,15 +20,18 @@
 //! Drawing reads the app through a [`View`] (`docs/COMPUTE.md` §4): the
 //! memo's fills, the kept values and the owner's exceptions are its
 //! accessors in `drawing/` (`memo.rs`, `kept.rs`, `allowed.rs`), and what
-//! a pass writes is noted in its [`After`] for `render` to apply.
+//! a pass writes is noted in its [`After`] for `render` to apply. The
+//! view holds the one token drawing can reach, private, and its
+//! accessors alone hand it to the work they do.
 //! Decisions use each memo answer's `_now` form on [`Faraday`].
 
 use std::cell::{Cell, OnceCell, RefCell};
 use std::ops::Deref;
 
 use osk_bip::keys::Fingerprint;
+use osk_crypto::work::Compute;
 
-use crate::{Faraday, flow, plan};
+use crate::{Faraday, flow, plan, work};
 
 mod allowed;
 mod kept;
@@ -127,8 +130,9 @@ impl Drawing {
 #[doc(hidden)]
 pub struct View<'a> {
     app: &'a Faraday,
-    // TODO(C0): `fill: Compute`, the token the accessors in `drawing/`
-    // hand to the work they fill (docs/COMPUTE.md §4, batch C0).
+    /// The token the accessors in `drawing/` hand to the work they fill,
+    /// keep or are allowed; private, so no screen can name it.
+    fill: Compute,
     after: RefCell<After>,
 }
 
@@ -141,12 +145,36 @@ impl Deref for View<'_> {
 }
 
 impl<'a> View<'a> {
-    /// The view one drawing pass reads. Cheap.
+    /// The view one drawing pass reads, with its token. Cheap.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a mint: View's token for its memo fills, kept values and Allowed entries (docs/COMPUTE.md §3)"
+    )]
     pub(crate) fn new(app: &'a Faraday) -> Self {
         View {
             app,
+            fill: Compute::new(work::core_count),
             after: RefCell::new(After::default()),
         }
+    }
+
+    /// A memo fill (`memo.rs`): `f` given the token, in
+    /// [`work::filling`]. Costs what `f` costs.
+    fn filled<T>(&self, f: impl FnOnce(&Compute) -> T) -> T {
+        work::filling(|| f(&self.fill))
+    }
+
+    /// A kept value reached while drawing (`kept.rs`): `f` given the
+    /// token. The value's own accessor marks its first working out
+    /// ([`work::keeping`]). Costs what `f` costs.
+    fn kept<T>(&self, f: impl FnOnce(&Compute) -> T) -> T {
+        f(&self.fill)
+    }
+
+    /// One of the owner's exceptions (`allowed.rs`): `f` given the
+    /// token, in [`work::allowed`]. Costs what `f` costs.
+    fn allowed<T>(&self, why: work::Allowed, f: impl FnOnce(&Compute) -> T) -> T {
+        work::allowed(why, || f(&self.fill))
     }
 
     /// What the pass noted for after it. Cheap.

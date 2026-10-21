@@ -3,7 +3,8 @@
 //! (`docs/SPEED.md` §3.3, `docs/COMPUTE.md` §4). Each is the answer of the
 //! [`Faraday`] method of the same name, worked out by its `_now` form, the
 //! one decisions use; the memo is emptied when the frame ends. Each fill
-//! runs in [`work::filling`], the guard's exception for the memo.
+//! runs in [`work::filling`], the guard's exception for the memo, and is
+//! handed the view's token (`View::filled`).
 //!
 //! The old `Faraday` forms ask these while a frame is drawn, so a screen
 //! still drawn from `&Faraday` shares the one memo, until C3 removes them.
@@ -29,7 +30,7 @@ impl View<'_> {
     pub fn backups(&self) -> Vec<Entry> {
         self.drawing
             .backups
-            .get_or_init(|| work::filling(|| self.app.backups_now()))
+            .get_or_init(|| self.filled(|_c| self.app.backups_now()))
             .clone()
     }
 
@@ -60,7 +61,7 @@ impl View<'_> {
         {
             return names.clone();
         }
-        let names = work::filling(|| self.app.stick_file_names_now(w, shape, a, what));
+        let names = self.filled(|_c| self.app.stick_file_names_now(w, shape, a, what));
         self.drawing
             .stick_names
             .borrow_mut()
@@ -73,7 +74,7 @@ impl View<'_> {
     pub fn wallet_stick_rows(&self) -> Vec<super::StickRow> {
         self.drawing
             .stick_rows
-            .get_or_init(|| work::filling(|| self.app.wallet_stick_rows_now()))
+            .get_or_init(|| self.filled(|_c| self.app.wallet_stick_rows_now()))
             .clone()
     }
 
@@ -82,7 +83,7 @@ impl View<'_> {
     pub(crate) fn create_vaults(&self) -> Rc<CreateVaults> {
         self.drawing
             .create_vaults
-            .get_or_init(|| work::filling(|| self.app.create_vaults_now()))
+            .get_or_init(|| self.filled(|_c| self.app.create_vaults_now()))
             .clone()
     }
 
@@ -91,7 +92,7 @@ impl View<'_> {
     pub(crate) fn board_view(&self) -> Option<Rc<BoardView>> {
         self.drawing
             .board
-            .get_or_init(|| work::filling(|| self.app.board_view_now()))
+            .get_or_init(|| self.filled(|_c| self.app.board_view_now()))
             .clone()
     }
 
@@ -101,7 +102,7 @@ impl View<'_> {
         *self
             .drawing
             .import_count
-            .get_or_init(|| work::filling(|| self.app.import_count_now()))
+            .get_or_init(|| self.filled(|_c| self.app.import_count_now()))
     }
 
     /// The keys here that are held ([`crate::Faraday::held_keys`]), once a
@@ -109,7 +110,7 @@ impl View<'_> {
     pub fn held_keys(&self) -> Vec<Fingerprint> {
         self.drawing
             .held
-            .get_or_init(|| work::filling(|| self.app.held_keys_now()))
+            .get_or_init(|| self.filled(|_c| self.app.held_keys_now()))
             .clone()
     }
 
@@ -121,7 +122,7 @@ impl View<'_> {
             .inbox_found
             .get_or_init(|| {
                 self.inbox.found(&self.session, |items| {
-                    work::keeping(|| self.app.found_in(items))
+                    self.kept(|_c| work::keeping(|| self.app.found_in(items)))
                 })
             })
             .clone()
@@ -132,7 +133,7 @@ impl View<'_> {
     pub fn flows_in_progress(&self) -> Rc<Vec<Row>> {
         self.drawing
             .flows
-            .get_or_init(|| work::filling(|| self.app.flows_in_progress_now()))
+            .get_or_init(|| self.filled(|_c| self.app.flows_in_progress_now()))
             .clone()
     }
 
@@ -148,7 +149,7 @@ impl View<'_> {
         {
             return list.clone();
         }
-        let list = work::filling(|| self.app.backup_seed_list_now(w));
+        let list = self.filled(|_c| self.app.backup_seed_list_now(w));
         self.drawing.seed_lists.borrow_mut().push((w, list.clone()));
         list
     }
@@ -159,7 +160,7 @@ impl View<'_> {
         if let Some((_, shape)) = self.drawing.shapes.borrow().iter().find(|(k, _)| *k == w) {
             return shape.clone();
         }
-        let shape = work::filling(|| self.app.plan_shape_now(w));
+        let shape = self.filled(|_c| self.app.plan_shape_now(w));
         self.drawing.shapes.borrow_mut().push((w, shape.clone()));
         shape
     }
@@ -169,7 +170,7 @@ impl View<'_> {
     pub fn backup_items(&self) -> Vec<u8> {
         self.drawing
             .items
-            .get_or_init(|| work::filling(|| self.app.backup_items_now()))
+            .get_or_init(|| self.filled(|_c| self.app.backup_items_now()))
             .clone()
     }
 
@@ -195,7 +196,7 @@ impl View<'_> {
         {
             return names.clone();
         }
-        let names = work::filling(|| self.app.backup_public_names_for_now(wi, a));
+        let names = self.filled(|_c| self.app.backup_public_names_for_now(wi, a));
         self.drawing
             .public_names
             .borrow_mut()
@@ -209,7 +210,7 @@ impl View<'_> {
         if let Some((_, done)) = self.drawing.done.borrow().iter().find(|(i, _)| *i == item) {
             return *done;
         }
-        let done = work::filling(|| self.app.backup_item_done_now(item));
+        let done = self.filled(|_c| self.app.backup_item_done_now(item));
         self.drawing.done.borrow_mut().push((item, done));
         done
     }
@@ -219,7 +220,7 @@ impl View<'_> {
     pub fn vault_passphrase_seeds(&self) -> Rc<Vec<PassSeed>> {
         self.drawing
             .passphrase_seeds
-            .get_or_init(|| work::filling(|| self.app.vault_passphrase_seeds_now()))
+            .get_or_init(|| self.filled(|_c| self.app.vault_passphrase_seeds_now()))
             .clone()
     }
 
@@ -228,7 +229,7 @@ impl View<'_> {
     pub fn vault_load_view(&self) -> Option<Rc<LoadView>> {
         self.drawing
             .load_sheet
-            .get_or_init(|| work::filling(|| self.app.vault_load_view_now()))
+            .get_or_init(|| self.filled(|_c| self.app.vault_load_view_now()))
             .clone()
     }
 
@@ -237,7 +238,7 @@ impl View<'_> {
     pub fn unsaved(&self) -> (Vec<String>, Vec<String>) {
         self.drawing
             .unsaved
-            .get_or_init(|| work::filling(|| self.app.unsaved_now()))
+            .get_or_init(|| self.filled(|_c| self.app.unsaved_now()))
             .clone()
     }
 
@@ -253,7 +254,7 @@ impl View<'_> {
         {
             return kept.clone();
         }
-        let out = work::filling(|| self.app.kept_wiped_now(power_off));
+        let out = self.filled(|_c| self.app.kept_wiped_now(power_off));
         self.drawing
             .kept_wiped
             .borrow_mut()
@@ -273,7 +274,7 @@ impl View<'_> {
         {
             return kept.clone();
         }
-        let rows = work::filling(|| self.app.vault_rows_now(v));
+        let rows = self.filled(|_c| self.app.vault_rows_now(v));
         self.drawing.vault_rows.borrow_mut().push((v, rows.clone()));
         rows
     }
