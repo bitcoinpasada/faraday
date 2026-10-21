@@ -56,7 +56,7 @@ impl Template {
         sheet_blank(self.words, self.copy, None, Network::Mainnet, self.places)
     }
 
-    /// The PDF of [`Template::sheet`].
+    /// Costs what `sheet` costs. The PDF of [`Template::sheet`].
     pub fn pdf(&self, c: &Compute) -> Result<Vec<u8>, String> {
         pdf::sheet(c, &self.sheet())
     }

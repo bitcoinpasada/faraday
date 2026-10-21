@@ -134,12 +134,13 @@ fn revoked_at(r: &Record) -> Option<u32> {
     u32_of(r, f::REVOKED)
 }
 
-/// SHA-256 of a file, as the signing page shows and ticks it.
+/// Costs a hash of a whole file (through `sha256_of`). SHA-256 of a
+/// file, as the signing page shows and ticks it.
 pub fn sha256(c: &Compute, bytes: &[u8]) -> [u8; 32] {
     crate::sha256_of(c, bytes)
 }
 
-/// [`sha256`] in lower-case hex.
+/// Costs what `sha256` costs. [`sha256`] in lower-case hex.
 pub fn sha256_hex(c: &Compute, bytes: &[u8]) -> String {
     sha256(c, bytes)
         .iter()
@@ -433,8 +434,9 @@ impl Faraday {
         }
     }
 
-    /// The QR view of the selected key's certificate or its signature
-    /// over an Inbox file, with the name and label of its picture.
+    /// Costs what `gpg_files` and `text` cost. The QR view of the selected
+    /// key's certificate or its signature over an Inbox file, with the name
+    /// and label of its picture.
     pub(crate) fn gpg_code(&self, c: &Compute, code: crate::Code) -> Result<crate::QrView, String> {
         use crate::Code;
         let (at, key) = self.gpg_selected().ok_or(EN.gpg_no_gpg_key_is_selected)?;
@@ -613,9 +615,9 @@ impl Faraday {
         }
     }
 
-    /// The Inbox files a GPG key can sign, each with its hash and, when
-    /// small, its text: a `.asc` file is a signature already, not
-    /// something to sign again.
+    /// Costs a hash of a whole file (through `hash`). The Inbox files a GPG
+    /// key can sign, each with its hash and, when small, its text: a `.asc`
+    /// file is a signature already, not something to sign again.
     pub(crate) fn gpg_files(&self, c: &Compute) -> Vec<GpgFile> {
         let mut seen = self.vaults.sign_seen.borrow_mut();
         let mut out = Vec::new();
@@ -648,9 +650,9 @@ impl Faraday {
         out
     }
 
-    /// The code of the selected key's signature over the Inbox file
-    /// called `name`: it names the file by its hash, as the signing
-    /// page's buttons do.
+    /// Costs a hash of a whole file (through `gpg_files`). The code of the
+    /// selected key's signature over the Inbox file called `name`: it names
+    /// the file by its hash, as the signing page's buttons do.
     pub fn signature_code(&self, c: &Compute, name: &str) -> Option<crate::Code> {
         let f = self.gpg_files(c).into_iter().find(|f| f.name == name)?;
         Some(crate::Code::GpgSignature(f.hash[..8].try_into().ok()?))
@@ -735,8 +737,9 @@ impl Faraday {
         Some(String::from_utf8_lossy(&id.bytes).into_owned())
     }
 
-    /// The listed files ticked to sign, as Sign's sheet lists them.
-    /// Hashes a file the page has not hashed yet.
+    /// Costs a hash of a whole file (through `gpg_files`). The listed files
+    /// ticked to sign, as Sign's sheet lists them. Hashes a file the page
+    /// has not hashed yet.
     pub(crate) fn gpg_chosen(&self, c: &Compute) -> Vec<GpgFile> {
         self.gpg_files(c)
             .into_iter()

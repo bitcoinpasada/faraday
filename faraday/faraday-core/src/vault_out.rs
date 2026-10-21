@@ -74,7 +74,7 @@ impl Faraday {
         let Some((at, r)) = self.vault_record_of(kind::KEY) else {
             return;
         };
-        let Some(m) = crate::wallet::record_words(r) else {
+        let Some(m) = crate::wallet::record_words(&c, r) else {
             return;
         };
         if m.language() != osk_bip::bip39::Language::English {
@@ -143,7 +143,7 @@ impl Faraday {
             let Some((_, r)) = self.vault_record_of(kind::KEY) else {
                 return;
             };
-            let Some(m) = crate::wallet::record_words(r) else {
+            let Some(m) = crate::wallet::record_words(&c, r) else {
                 return;
             };
             let fp = crate::vault_screens::key_fingerprint(&c, self, r).unwrap_or_default();
@@ -262,7 +262,7 @@ impl Faraday {
             .filter(|r| r.kind == kind::KEY)
             .and_then(|r| {
                 let fp = crate::vault_screens::key_fingerprint(&c, self, r).unwrap_or_default();
-                crate::wallet::record_words(r).map(|m| (m, fp))
+                crate::wallet::record_words(&c, r).map(|m| (m, fp))
             });
         for f in save.files.into_iter().filter(|f| f.ticked) {
             match f.what {

@@ -328,7 +328,8 @@ pub(crate) enum Secret {
 }
 
 impl Secret {
-    /// The master key, with `passphrase` where the form takes one.
+    /// Costs a PBKDF2 and a master key. The master key, with `passphrase`
+    /// where the form takes one.
     pub(crate) fn master(
         &self,
         c: &Compute,
@@ -361,8 +362,8 @@ impl Secret {
         }
     }
 
-    /// Adds the key to the session, with `passphrase` where the form takes
-    /// one.
+    /// Costs what `add_words_with`, `recover` and `add_seed` cost. Adds the
+    /// key to the session, with `passphrase` where the form takes one.
     pub(crate) fn add(
         &self,
         c: &Compute,
@@ -394,7 +395,8 @@ fn phrase(m: &Mnemonic) -> Zeroizing<String> {
     )
 }
 
-/// The words a text file spells, in whichever BIP-39 list they are in.
+/// Costs what `parse_words` costs. The words a text file spells, in
+/// whichever BIP-39 list they are in.
 fn words_of(c: &Compute, text: &str) -> Option<Mnemonic> {
     let typed = forms::file_words(text);
     Language::ALL
@@ -421,16 +423,21 @@ impl Faraday {
             return Some(*fp);
         }
         let fp = crate::work::keeping(f)?;
-        self.fp_memo.borrow_mut().push((id, fp));
+        let mut kept = self.fp_memo.borrow_mut();
+        if kept.len() >= crate::FP_MEMO_KEPT {
+            kept.remove(0);
+        }
+        kept.push((id, fp));
         Some(fp)
     }
 
-    /// The secret a seed source gives.
+    /// Costs what `secret_in` costs. The secret a seed source gives.
     pub(crate) fn inbox_secret(&self, c: &Compute, source: &SeedSource) -> Option<Secret> {
         self.secret_in(c, &self.inbox, source)
     }
 
-    /// The secret a seed source among `items` gives.
+    /// Costs what `words_of` costs. The secret a seed source among `items`
+    /// gives.
     pub(crate) fn secret_in(
         &self,
         c: &Compute,
@@ -475,8 +482,8 @@ impl Faraday {
         }
     }
 
-    /// The fingerprint a source's seed among `items` has with no
-    /// passphrase.
+    /// Costs what `secret_in` and `master` cost. The fingerprint a source's
+    /// seed among `items` has with no passphrase.
     fn source_fingerprint(
         &self,
         c: &Compute,
@@ -534,16 +541,16 @@ impl Faraday {
         Zeroizing::new(line.to_string())
     }
 
-    /// Everything the Inbox gives, put together. While a frame is drawn
-    /// it is the kept copy ([`InboxFiles`]), worked out again only when
-    /// the files or the session's keys and wallets change, and once a
-    /// frame in the drawing memo (`docs/SPEED.md` §3.3); a decision
-    /// (a press, a load) works it out from the state as it is. Each
-    /// wallet file is read when it came in ([`crate::Item::wallet`]) and
-    /// each seed's fingerprint is kept once worked out; costs `found_in`
-    /// (a merge of any split sheets, every file looked at) except while
-    /// drawing, where it is that the first time after a change and a
-    /// comparison of the session after.
+    /// Costs what `found_in` costs. Everything the Inbox gives, put
+    /// together. While a frame is drawn it is the kept copy
+    /// ([`InboxFiles`]), worked out again only when the files or the
+    /// session's keys and wallets change, and once a frame in the drawing
+    /// memo (`docs/SPEED.md` §3.3); a decision (a press, a load) works it
+    /// out from the state as it is. Each wallet file is read when it came
+    /// in ([`crate::Item::wallet`]) and each seed's fingerprint is kept
+    /// once worked out; costs `found_in` (a merge of any split sheets,
+    /// every file looked at) except while drawing, where it is that the
+    /// first time after a change and a comparison of the session after.
     ///
     /// Works out [`crate::drawing::View::inbox_found`] from the state as it is: costs
     /// `found_in`.
@@ -551,9 +558,10 @@ impl Faraday {
         self.found_in(c, &self.inbox)
     }
 
-    /// Everything `items` give, put together, with the session's own keys
-    /// and wallets: the Inbox, or the files a boot import holds. Places in
-    /// what it returns are places in `items`.
+    /// Costs what `source_fingerprint`, `config_name_kept` and `read_kept`
+    /// cost. Everything `items` give, put together, with the session's own
+    /// keys and wallets: the Inbox, or the files a boot import holds.
+    /// Places in what it returns are places in `items`.
     pub(crate) fn found_in(&self, c: &Compute, items: &[Item]) -> Found {
         let mut found = Found::default();
 
@@ -1120,7 +1128,8 @@ impl Faraday {
         self.sheet = Some(crate::Sheet::Potential);
     }
 
-    /// The seed being made a wallet, as the Inbox or the session holds it.
+    /// Costs what `inbox_found_now` and `inbox_secret` cost. The seed being
+    /// made a wallet, as the Inbox or the session holds it.
     fn potential_seed(&self, c: &Compute) -> Option<(FoundSeed, Option<Secret>)> {
         let fp = self.potential.as_ref()?.fingerprint?;
         let seed = self
@@ -1170,8 +1179,9 @@ impl Faraday {
         }
     }
 
-    /// The wallet here, in the Inbox or loaded, whose key the potential
-    /// wallet's seed with its passphrase is.
+    /// Costs what `inbox_found_now` costs. The wallet here, in the Inbox or
+    /// loaded, whose key the potential wallet's seed with its passphrase
+    /// is.
     pub fn potential_match(&self, c: &Compute) -> Option<String> {
         let with = self.potential.as_ref()?.with?;
         self.inbox_found_now(c)

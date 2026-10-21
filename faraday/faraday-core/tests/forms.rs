@@ -28,6 +28,10 @@ fn adding(form: u8) -> Faraday {
     app
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the test's own reading of the key, apart from the app's (docs/COMPUTE.md §7)"
+)]
 fn fingerprint_of(xprv: &str) -> [u8; 4] {
     let x = Xpriv::from_str(xprv).unwrap();
     x.fingerprint(&Secp256k1::new()).to_bytes()
@@ -325,9 +329,16 @@ fn the_status_line_follows_the_words_and_the_passphrase_as_they_change() {
     app.press(Action::Entry(None));
     typed(&mut app, &bacon);
     let _ = app.frame();
+    assert!(
+        !app.drawn_texts().join(" ").contains(&fp(&bacon, "")),
+        "no key is shown while typing goes on"
+    );
+    faraday_core::testkit::pause(&mut app);
+    let _ = app.frame();
     assert!(app.drawn_texts().join(" ").contains(&fp(&bacon, "")));
     app.press(Action::EntryPassphrase);
     typed(&mut app, "Ride the 7 bus");
+    faraday_core::testkit::pause(&mut app);
     let _ = app.frame();
     assert!(
         app.drawn_texts()
@@ -337,6 +348,7 @@ fn the_status_line_follows_the_words_and_the_passphrase_as_they_change() {
     app.press(Action::EntryPassphrase);
     app.press(Action::EntryClear);
     typed(&mut app, &zebra);
+    faraday_core::testkit::pause(&mut app);
     let _ = app.frame();
     let text = app.drawn_texts().join(" ");
     assert!(text.contains(&fp(&zebra, "Ride the 7 bus")), "{text}");

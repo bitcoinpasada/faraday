@@ -1,0 +1,17 @@
+[package]
+name = "faraday-alloc-count"
+version = "0.1.5"
+description = "A global allocator that counts each thread's allocations, for faraday-core's frame budgets; tests only"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[lints.rust]
+# Not `workspace = true`: an allocator is `unsafe` to implement
+# (`GlobalAlloc`), so this crate denies `unsafe_code` and allows it on
+# that one impl, as osk-crypto's `pinned.rs` does; the other workspace
+# lint is repeated by hand.
+unsafe_code = "deny"
+missing_docs = "warn"

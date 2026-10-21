@@ -379,7 +379,7 @@ impl Disks {
         Ok(Fat(Self::volume(&f).map_err(|e| e.text())?))
     }
 
-    /// Answers one request.
+    /// Costs what `read_qr_png` costs. Answers one request.
     pub fn handle(&mut self, c: &Compute, req: Request) -> Response {
         let answer = match req {
             Request::List => return Response::Sticks(self.list()),

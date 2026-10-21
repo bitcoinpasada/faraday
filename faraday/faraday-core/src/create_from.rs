@@ -61,13 +61,15 @@ fn fp_bytes(text: &str) -> Option<[u8; 4]> {
 }
 
 impl Faraday {
-    /// Works out [`crate::drawing::View::create_vaults`]. Costs a read of each vault
-    /// file's header and a hash of each open vault's key records.
+    /// Costs a read of each vault file's header and a hash of each open
+    /// vault's key records. Works out
+    /// [`crate::drawing::View::create_vaults`].
     pub(crate) fn create_vaults_now(&self, c: &Compute) -> Rc<CreateVaults> {
         Rc::new(self.create_vaults_uncached(c))
     }
 
-    /// Works out [`crate::drawing::View::create_vaults`] (see
+    /// Costs what `key_fingerprint` costs. Works out
+    /// [`crate::drawing::View::create_vaults`] (see
     /// [`Faraday::create_vaults_now`]).
     fn create_vaults_uncached(&self, c: &Compute) -> CreateVaults {
         let mut out = CreateVaults::default();
@@ -90,7 +92,7 @@ impl Faraday {
                     record: i,
                     fp,
                     line: key_line(Fingerprint(fp), label),
-                    share: crate::wallet::record_words(r).is_some_and(|m| m.word_count() == 24),
+                    share: crate::wallet::record_words(c, r).is_some_and(|m| m.word_count() == 24),
                 });
             }
             if !keys.is_empty() {

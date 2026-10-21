@@ -48,7 +48,8 @@ fn spread(draw: &[u8; 32], what: &[u8], len: usize) -> Zeroizing<Vec<u8>> {
 }
 
 impl Faraday {
-    /// The mnemonic of the key the backup shows, and its passphrase.
+    /// Costs what `parse_words` costs. The mnemonic of the key the backup
+    /// shows, and its passphrase.
     fn paper_key(&self, c: &Compute) -> Option<(Mnemonic, Zeroizing<String>, [u8; 4])> {
         let b = self.backup.as_ref()?;
         let k = self.session.keys.get(b.key)?;

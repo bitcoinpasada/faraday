@@ -90,10 +90,10 @@ impl Faraday {
         parse_path(&t).map_err(|p| p.message(&EN))
     }
 
-    /// What the path gives for the chosen key: worked out the first time
-    /// it is asked with these key, path and script, by whoever asks, a
-    /// frame included, and kept on Explore's state, a lookup after. Costs
-    /// a key derivation the first time.
+    /// Costs a key derivation the first time. What the path gives for the
+    /// chosen key: worked out the first time it is asked with these key,
+    /// path and script, by whoever asks, a frame included, and kept on
+    /// Explore's state, a lookup after.
     pub fn explore_reading(&self, c: &Compute) -> Option<std::rc::Rc<Reading>> {
         let e = self.explore.as_ref()?;
         let of: ReadingOf = (
@@ -116,7 +116,7 @@ impl Faraday {
         r
     }
 
-    /// Works out [`Faraday::explore_reading`]. Costs a key derivation.
+    /// Costs a key derivation. Works out [`Faraday::explore_reading`].
     fn explore_reading_now(&self, c: &Compute) -> Option<Reading> {
         let e = self.explore.as_ref()?;
         let path = self.explore_path().ok()?;

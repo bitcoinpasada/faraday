@@ -173,8 +173,8 @@ impl NewKind {
         steps.join("/")
     }
 
-    /// `[fingerprint/path]xpub` of a master key, at this kind's path.
-    /// Costs a key derivation.
+    /// Costs a key derivation. `[fingerprint/path]xpub` of a master key, at
+    /// this kind's path.
     pub fn key_text(self, c: &Compute, master: &MasterKey) -> Result<String, String> {
         self.key_text_account(c, master, 0)
     }
@@ -185,9 +185,9 @@ impl NewKind {
         !matches!(self, NewKind::MultiLegacy | NewKind::Threshold)
     }
 
-    /// `[fingerprint/path]xpub` of a master key, at this kind's path with
-    /// account `account` in place of 0 (`docs/NEW-WALLET.md` §16.2).
-    /// Costs a key derivation.
+    /// Costs a key derivation. `[fingerprint/path]xpub` of a master key, at
+    /// this kind's path with account `account` in place of 0
+    /// (`docs/NEW-WALLET.md` §16.2).
     pub fn key_text_account(
         self,
         c: &Compute,
@@ -239,14 +239,15 @@ impl NewKind {
         Ok(format!("[{fp}/{shown}]{xpub}"))
     }
 
-    /// A `wsh` multisig key as the `ur:crypto-account` SeedSigner shows
-    /// for one; `None` for any other kind. Costs a key derivation.
+    /// Costs a key derivation. A `wsh` multisig key as the
+    /// `ur:crypto-account` SeedSigner shows for one; `None` for any other
+    /// kind.
     pub fn account_ur(self, c: &Compute, master: &MasterKey) -> Option<String> {
         self.account_ur_at(c, master, 0)
     }
 
-    /// [`NewKind::account_ur`] at account `account`. Costs a key
-    /// derivation.
+    /// Costs a key derivation. [`NewKind::account_ur`] at account
+    /// `account`.
     pub fn account_ur_at(self, c: &Compute, master: &MasterKey, account: u32) -> Option<String> {
         if self != NewKind::Multi {
             return None;
@@ -260,11 +261,11 @@ impl NewKind {
         Some(osk_codec::ur::encode_single("crypto-account", &cbor))
     }
 
-    /// A key's BIP 129 key record, signed by the account key itself:
-    /// what Coldcard, Sparrow, Nunchuk and Keystone take from a signer.
-    /// For the multisig kinds BIP 129 covers (`wsh` and `sh(wsh)`), at
-    /// account `account` of the kind's path. Costs a key derivation and a
-    /// signature.
+    /// Costs a key derivation and a signature. A key's BIP 129 key record,
+    /// signed by the account key itself: what Coldcard, Sparrow, Nunchuk
+    /// and Keystone take from a signer. For the multisig kinds BIP 129
+    /// covers (`wsh` and `sh(wsh)`), at account `account` of the kind's
+    /// path.
     pub fn bsms_record(
         self,
         c: &Compute,
@@ -326,9 +327,9 @@ pub fn account_of(policy: &WalletPolicy) -> u32 {
         })
 }
 
-/// `[fingerprint/path]xpub` of a master key at `path`, written
-/// `m/48'/0'/0'/2'` or `48h/0h/0h/2h`: what [`NewKind::key_text`] gives
-/// at a kind's own path, at any other.
+/// Costs what `derive` and `to_xpub` cost. `[fingerprint/path]xpub` of
+/// a master key at `path`, written `m/48'/0'/0'/2'` or `48h/0h/0h/2h`:
+/// what [`NewKind::key_text`] gives at a kind's own path, at any other.
 pub fn key_text_at(c: &Compute, master: &MasterKey, path: &str) -> Result<String, String> {
     let path = normal_path(path).ok_or_else(|| fill(EN.create_not_a_derivation, &[path]))?;
     let parsed: osk_bip::bitcoin::bip32::DerivationPath =
@@ -542,7 +543,8 @@ fn named_agrees(kind: NewKind, text: &str) -> bool {
         .all(|k| slip132::agrees(k.named, around))
 }
 
-/// Builds and reads back the wallet a creation describes.
+/// Costs a parse of the description (through `parse_any`). Builds and
+/// reads back the wallet a creation describes.
 pub fn build(
     c: &Compute,
     kind: NewKind,

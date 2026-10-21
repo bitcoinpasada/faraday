@@ -114,8 +114,9 @@ fn code_error<E: core::fmt::Debug>(e: E) -> Error {
 /// more than one.
 pub type Frames = (Made, Vec<QrMatrix>);
 
-/// `source` written as `format`, `part` bytes a frame when animated: one
-/// code where it fits, as `docs/QR.md` says for each.
+/// Costs a QR encoding. `source` written as `format`, `part` bytes a
+/// frame when animated: one code where it fits, as `docs/QR.md` says
+/// for each.
 pub fn frames(c: &Compute, source: &Source, format: Format, part: usize) -> Result<Frames, Error> {
     Ok(match (source, format) {
         (Source::Psbt(bytes), Format::Ur) => {
@@ -166,9 +167,10 @@ pub fn frames(c: &Compute, source: &Source, format: Format, part: usize) -> Resu
     })
 }
 
-/// `source` as frames shown in turn even where one code would hold it:
-/// for a scanner that reads an animated code better than a dense one.
-/// BBQr and numbered parts are split by `part` either way.
+/// Costs a QR encoding. `source` as frames shown in turn even where one
+/// code would hold it: for a scanner that reads an animated code better
+/// than a dense one. BBQr and numbered parts are split by `part` either
+/// way.
 pub fn animated_frames(
     c: &Compute,
     source: &Source,
@@ -191,6 +193,7 @@ pub fn animated_frames(
     }
 }
 
+/// Costs a QR encoding (through `frames` and `encode_bounded`).
 /// `source` as one code in `format`, where one code holds it at the
 /// bound a single code keeps to (version 20 at low error correction for
 /// a UR or a BBQr part, version 25 at medium for text): for a screen
@@ -224,6 +227,7 @@ fn envelope(name: &str, data: &[u8]) -> Result<Vec<u8>, Error> {
     crate::envelope::pack(&envelope_name(name), data, "file").map_err(Error::Envelope)
 }
 
+/// Costs a QR encoding (through `animated`).
 fn ur_psbt_frames(c: &Compute, bytes: &[u8], part: usize) -> Result<Frames, Error> {
     let frames = animated(
         c,
@@ -234,8 +238,9 @@ fn ur_psbt_frames(c: &Compute, bytes: &[u8], part: usize) -> Result<Frames, Erro
     Ok((Made::UrPsbtFrames(frames.len()), frames))
 }
 
-/// Specter's numbered parts, `part` characters of text a frame, one code
-/// each; a text that fits one frame is one code with no number.
+/// Costs a QR encoding (through `numbered`). Specter's numbered parts,
+/// `part` characters of text a frame, one code each; a text that fits
+/// one frame is one code with no number.
 pub fn parts_frames(c: &Compute, text: &str, part: usize) -> Result<Frames, Error> {
     let parts = if text.chars().count() <= part {
         vec![text.to_string()]
@@ -245,6 +250,7 @@ pub fn parts_frames(c: &Compute, text: &str, part: usize) -> Result<Frames, Erro
     numbered(c, parts)
 }
 
+/// Costs a QR encoding (through `encode`).
 fn numbered(c: &Compute, parts: Vec<String>) -> Result<Frames, Error> {
     let frames = parts
         .iter()
@@ -258,7 +264,8 @@ fn numbered(c: &Compute, parts: Vec<String>) -> Result<Frames, Error> {
     Ok((made, frames))
 }
 
-/// BBQr parts in encoding `2`, one code each.
+/// Costs a QR encoding (through `encode`). BBQr parts in encoding `2`,
+/// one code each.
 pub fn bbqr_frames(c: &Compute, t: char, data: &[u8], part: usize) -> Result<Frames, Error> {
     let parts = crate::bbqr::encode(t, data, part).ok_or(Error::TooLargeForBbqr)?;
     let frames = parts
@@ -273,7 +280,9 @@ pub fn bbqr_frames(c: &Compute, t: char, data: &[u8], part: usize) -> Result<Fra
     Ok((made, frames))
 }
 
-/// Bytes as `ur:bytes`: one code when it fits, else animated.
+/// Costs a QR encoding (through `encode_bounded` and
+/// `ur_bytes_animated`). Bytes as `ur:bytes`: one code when it fits,
+/// else animated.
 pub fn ur_bytes_frames(c: &Compute, data: &[u8], file: bool, part: usize) -> Result<Frames, Error> {
     let single = osk_codec::ur::encode_bytes(data).to_ascii_uppercase();
     if let Ok(m) = encode_bounded(c, Payload::Alphanumeric(single.as_bytes()), Ecc::Low, 20) {
@@ -282,6 +291,7 @@ pub fn ur_bytes_frames(c: &Compute, data: &[u8], file: bool, part: usize) -> Res
     ur_bytes_animated(c, data, file, part)
 }
 
+/// Costs a QR encoding (through `animated`).
 fn ur_bytes_animated(c: &Compute, data: &[u8], file: bool, part: usize) -> Result<Frames, Error> {
     let frames = animated(
         c,
@@ -319,8 +329,9 @@ pub fn envelope_name(name: &str) -> String {
     n
 }
 
-/// The frames of a fountain-coded UR: twice the fragments it takes, so a
-/// scanner that misses a few still completes on the first pass.
+/// Costs a QR encoding (through `encode`). The frames of a
+/// fountain-coded UR: twice the fragments it takes, so a scanner that
+/// misses a few still completes on the first pass.
 pub fn animated(
     c: &Compute,
     mut enc: osk_codec::ur::Encoder,

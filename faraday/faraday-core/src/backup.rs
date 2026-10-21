@@ -209,9 +209,10 @@ pub fn sheet_share(wallet: &Wallet, part: usize, of: usize, share: &str) -> Stri
     out
 }
 
-/// The sheet file for a wallet's backup page: everything on it is public.
-/// The desktop app turns it into a PDF; the format is lines of
-/// `field: value` after a first line naming it.
+/// Costs an address derivation (through `address`). The sheet file for
+/// a wallet's backup page: everything on it is public. The desktop app
+/// turns it into a PDF; the format is lines of `field: value` after a
+/// first line naming it.
 pub fn sheet_wallet(c: &Compute, session: &Session, wallet: &Wallet) -> String {
     let mut out = String::from("faraday-sheet 1\nkind: wallet\n");
     out.push_str(&format!("network: {}\n", session.network().name()));

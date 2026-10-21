@@ -297,8 +297,9 @@ impl Faraday {
         }
     }
 
-    /// Each seed of wallet `w` as text, without its passphrase: the
-    /// fingerprint of the same words alone.
+    /// Costs what `parse_words` and `key_fingerprint` cost. Each seed of
+    /// wallet `w` as text, without its passphrase: the fingerprint of the
+    /// same words alone.
     pub(crate) fn wallet_seed_bases(&self, c: &Compute, w: usize) -> Vec<String> {
         use faraday_vault::Record;
         use faraday_vault::records::{self, field, kind as rkind};
@@ -432,8 +433,9 @@ impl Faraday {
 
     // ---- the checklist's Write to sticks ----
 
-    /// The names of the files the checklist made for wallet `w`, apart:
-    /// the public files and sheets, and the seed files (secrets let out
+    /// Costs what `backup_public_names_for_now` and `plan_mapped` cost. The
+    /// names of the files the checklist made for wallet `w`, apart: the
+    /// public files and sheets, and the seed files (secrets let out
     /// unprotected). Only those in the Outbox.
     pub(crate) fn wallet_out_files(&self, c: &Compute, w: usize) -> (Vec<String>, Vec<String>) {
         let Some(b) = self.backup.as_ref().filter(|b| b.wallet == w) else {
@@ -479,12 +481,12 @@ impl Faraday {
         (public, seed_files)
     }
 
-    /// The files each stick of `flow` will hold for wallet `w`, by slot:
-    /// the public files and sheets to the stick that carries them; the
-    /// seed files the plan keeps on the stick of files to it; and to each
-    /// stick at a place the files the plan keeps on it, beside its vault
-    /// when it carries one (`docs/BACKUP-FLOW.md` §19.4), with no warning
-    /// where they meet.
+    /// Costs what `wallet_out_files` and `plan_mapped` cost. The files each
+    /// stick of `flow` will hold for wallet `w`, by slot: the public files
+    /// and sheets to the stick that carries them; the seed files the plan
+    /// keeps on the stick of files to it; and to each stick at a place the
+    /// files the plan keeps on it, beside its vault when it carries one
+    /// (`docs/BACKUP-FLOW.md` §19.4), with no warning where they meet.
     fn wallet_slot_files(&self, c: &Compute, w: usize, flow: &BackupFlow) -> Vec<Vec<String>> {
         let mut out: Vec<Vec<String>> = vec![Vec::new(); flow.slots.len()];
         let (public, seeds) = self.wallet_out_files(c, w);
@@ -670,9 +672,10 @@ impl Faraday {
         expect
     }
 
-    /// Writes out the digits session key `k`'s SeedQR holds, to say whether
-    /// `payload` is them: what its picture must read as (English words
-    /// only, as the picture is made). `None` where the words are not here.
+    /// Costs what `parse_words` costs. Writes out the digits session key
+    /// `k`'s SeedQR holds, to say whether `payload` is them: what its
+    /// picture must read as (English words only, as the picture is made).
+    /// `None` where the words are not here.
     pub(crate) fn seedqr_reads_as(&self, c: &Compute, k: usize, payload: &[u8]) -> Option<bool> {
         use osk_bip::bip39::Language;
         let key = self.session.keys.get(k)?;
@@ -693,10 +696,11 @@ impl Faraday {
         }
     }
 
-    /// Makes a SeedQR and its picture for the picture: the bytes of seed
-    /// form `what` of session key `k`, for its file on a stick; the words,
-    /// one line; the SeedQR as a labelled picture (English words only);
-    /// the passphrase, one line.
+    /// Costs what `parse_words` and `seedqr_png` cost. Makes a SeedQR and
+    /// its picture for the picture: the bytes of seed form `what` of
+    /// session key `k`, for its file on a stick; the words, one line; the
+    /// SeedQR as a labelled picture (English words only); the passphrase,
+    /// one line.
     fn seed_stick_bytes(
         &self,
         c: &Compute,
@@ -725,11 +729,11 @@ impl Faraday {
         }
     }
 
-    /// The first seed Back up's plan keeps as a file on a stick at a place
-    /// whose warning the person has not been through
-    /// ([`crate::plan::Answers::seeds_on_stick_files`]): the gate **Lock
-    /// and write** passes only once there is none. Computes from the state
-    /// as it is.
+    /// Costs what `plan_mapped` costs. The first seed Back up's plan keeps
+    /// as a file on a stick at a place whose warning the person has not
+    /// been through ([`crate::plan::Answers::seeds_on_stick_files`]): the
+    /// gate **Lock and write** passes only once there is none. Computes
+    /// from the state as it is.
     pub fn backup_stick_seed_unwarned(&self, c: &Compute) -> Option<usize> {
         let b = self.backup.as_ref()?;
         let shape = self.plan_shape_now(b.wallet);
@@ -1006,8 +1010,9 @@ impl Faraday {
         self.flow_act(crate::backup_flow_steps::FlowAction::LockWrite);
     }
 
-    /// The open vault that holds what the plan puts in plan vault `v`: the
-    /// vault the flow knows, else the one that fits.
+    /// Costs what `backup_open_fits` costs. The open vault that holds what
+    /// the plan puts in plan vault `v`: the vault the flow knows, else the
+    /// one that fits.
     fn wallet_vault_open(
         &self,
         c: &Compute,
@@ -1189,9 +1194,10 @@ impl Faraday {
             .collect()
     }
 
-    /// Share `j` of the wallet with checksum `cs` as a type 13 record
-    /// (`docs/BACKUP-FLOW.md` §17.6), made from its description: the
-    /// wallet loaded, or its description in an open vault or Files.
+    /// Costs what `read_wallet` and `add_wallet` cost. Share `j` of the
+    /// wallet with checksum `cs` as a type 13 record (`docs/BACKUP-FLOW.md`
+    /// §17.6), made from its description: the wallet loaded, or its
+    /// description in an open vault or Files.
     fn wallet_share_record(
         &self,
         c: &Compute,
@@ -1689,11 +1695,12 @@ impl Faraday {
 
     // ---- what the checklist and the visit say of the writes ----
 
-    /// The sticks the wallet being backed up will be written to, by place,
-    /// each with the files it will hold and whether it is written: from the
-    /// flow, or from the plan's own while no flow has locked yet. Works out
-    /// each stick's files; kept for the frame while one is drawn
-    /// (`docs/SPEED.md` §3.12).
+    /// Costs what `new_wallet_on`, `plan_mapped`, `wallet_sticks_done` and
+    /// the rest it calls cost. The sticks the wallet being backed up will
+    /// be written to, by place, each with the files it will hold and
+    /// whether it is written: from the flow, or from the plan's own while
+    /// no flow has locked yet. Works out each stick's files; kept for the
+    /// frame while one is drawn (`docs/SPEED.md` §3.12).
     ///
     /// Works out each stick's files: what [`crate::drawing::View::wallet_stick_rows`]
     /// answers.
@@ -1768,8 +1775,8 @@ impl Faraday {
         Some(fill(EN.backup_flow_written_to, &[&label]))
     }
 
-    /// The `PublicOn` the wallet's plan carries its public files on, for
-    /// the card that names the stick.
+    /// Costs what `plan_mapped` costs. The `PublicOn` the wallet's plan
+    /// carries its public files on, for the card that names the stick.
     pub fn wallet_public_on(&self, c: &Compute) -> Option<PublicOn> {
         let b = self.backup.as_ref()?;
         let shape = self.plan_shape_now(b.wallet);
@@ -1909,11 +1916,12 @@ impl Faraday {
         }
     }
 
-    /// What a vault record is, as the flow keeps what a vault held before
-    /// it: `k{fp}` a key's record of its words alone, `p{fp}` one with its
-    /// passphrase, `a{fp}` a key's passphrase kept alone (type 14), `w{sum}` a wallet's
-    /// description, `s{sum}:{n}` a wallet's share (`docs/BACKUP-FLOW.md`
-    /// §17). Never a secret.
+    /// Costs what `record_described` and `key_fingerprint` cost. What a
+    /// vault record is, as the flow keeps what a vault held before it:
+    /// `k{fp}` a key's record of its words alone, `p{fp}` one with its
+    /// passphrase, `a{fp}` a key's passphrase kept alone (type 14),
+    /// `w{sum}` a wallet's description, `s{sum}:{n}` a wallet's share
+    /// (`docs/BACKUP-FLOW.md` §17). Never a secret.
     pub(crate) fn record_tokens(&self, c: &Compute, r: &faraday_vault::Record) -> Vec<String> {
         use faraday_vault::records::{field, kind as rkind};
         // As an open vault keeps it read; a copy is read now.
@@ -1951,7 +1959,8 @@ impl Faraday {
         }
     }
 
-    /// Everything open vault `o` holds, as [`Faraday::record_tokens`].
+    /// Costs what `record_tokens` costs. Everything open vault `o` holds,
+    /// as [`Faraday::record_tokens`].
     pub(crate) fn vault_tokens(&self, c: &Compute, o: usize) -> Vec<String> {
         let mut out: Vec<String> = self
             .vaults
@@ -1970,9 +1979,9 @@ impl Faraday {
         out
     }
 
-    /// The keys, by fingerprint, that a record in open vault `o` of a
-    /// wallet other than the one with checksum `cs` names: its
-    /// description, or its plan.
+    /// Costs what `described` costs. The keys, by fingerprint, that a
+    /// record in open vault `o` of a wallet other than the one with
+    /// checksum `cs` names: its description, or its plan.
     pub(crate) fn vault_others(&self, c: &Compute, o: usize, cs: &str) -> Vec<String> {
         let mut out: Vec<String> = Vec::new();
         let Some(v) = self.vaults.open.get(o) else {
@@ -1998,10 +2007,11 @@ impl Faraday {
         out
     }
 
-    /// Why an edit after the lock would take out of a vault what this flow
-    /// did not put there (`docs/BACKUP-FLOW.md` §17): a key, a passphrase,
-    /// a description or a share the vault held before the flow, or a key
-    /// another wallet's record in it names. The toast's line, or `None`.
+    /// Costs what `sealed_marks` costs. Why an edit after the lock would
+    /// take out of a vault what this flow did not put there
+    /// (`docs/BACKUP-FLOW.md` §17): a key, a passphrase, a description or a
+    /// share the vault held before the flow, or a key another wallet's
+    /// record in it names. The toast's line, or `None`.
     fn flow_takes_out_foreign(&self, c: &Compute, trial: &BackupFlow) -> Option<String> {
         let wf = trial.wallet.as_ref()?;
         let cs = wf.checksum.clone().unwrap_or_default();
@@ -2077,12 +2087,13 @@ impl Faraday {
         None
     }
 
-    /// Whether plan `new` changes, from `old`, anything §17.8 keeps as made
-    /// after the lock: words or a SeedQR by hand, a passphrase on paper, a
-    /// seed's file, the sheet or a share on paper, the description's or a
-    /// share's files, the software or the form, a stick's files, or Whole
-    /// / In shares and the keys left off while any of the description is
-    /// on paper or in a file.
+    /// Costs a map of the plan (through `place_map` and `map`). Whether
+    /// plan `new` changes, from `old`, anything §17.8 keeps as made after
+    /// the lock: words or a SeedQR by hand, a passphrase on paper, a seed's
+    /// file, the sheet or a share on paper, the description's or a share's
+    /// files, the software or the form, a stick's files, or Whole / In
+    /// shares and the keys left off while any of the description is on
+    /// paper or in a file.
     fn flow_changes_files(&self, c: &Compute, old: &BackupFlow, new: &BackupFlow) -> bool {
         let (Some(a), Some(b)) = (old.wallet.as_ref(), new.wallet.as_ref()) else {
             return false;
@@ -2320,8 +2331,9 @@ const PASS_ALONE_MARK: usize = 5_000_000;
 /// of another wallet at all.
 const OTHER_WALLET: &str = "*";
 
-/// What vault `v` of the plan holds: its seeds, the wallet description where
-/// the plan puts it there, and each passphrase the plan puts in with its
+/// Costs what `vault_shares` and `vault_passphrases` cost. What vault
+/// `v` of the plan holds: its seeds, the wallet description where the
+/// plan puts it there, and each passphrase the plan puts in with its
 /// seed. A plan changed after the lock that asks for more is a round.
 pub(crate) fn sealed_marks(
     c: &Compute,
@@ -2355,10 +2367,10 @@ pub(crate) fn sealed_marks(
     marks
 }
 
-/// Makes a SeedQR and draws it as a labelled picture: seed `m`'s code,
-/// titled with its fingerprint `fp`, for its `seedqr-{fp}.png` on a stick.
-/// `None` for words of another list than English, which SeedQR does not
-/// number.
+/// Costs what `encode_seedqr` and `labelled_png` cost. Makes a SeedQR
+/// and draws it as a labelled picture: seed `m`'s code, titled with its
+/// fingerprint `fp`, for its `seedqr-{fp}.png` on a stick. `None` for
+/// words of another list than English, which SeedQR does not number.
 pub(crate) fn seedqr_png(
     c: &Compute,
     m: &osk_bip::bip39::Mnemonic,
@@ -2405,8 +2417,9 @@ pub(crate) fn seed_stick_file_of(fps: &[String], name: &str) -> bool {
     })
 }
 
-/// Splits `text` into its codes' parts: each of the pictures `names`
-/// (as [`crate::picture_names`] names them for `text`) with the SHA-256 of
+/// Costs a hash of a whole file (through `sha256_of`). Splits `text`
+/// into its codes' parts: each of the pictures `names` (as
+/// [`crate::picture_names`] names them for `text`) with the SHA-256 of
 /// what its codes hold ([`crate::picture_payloads`]).
 fn pictures_expect(
     c: &Compute,
@@ -2463,11 +2476,12 @@ pub(crate) fn seed_file_of(stem: &str, fps: &[String], name: &str) -> bool {
 }
 
 impl BackupFlow {
-    /// A plan changed after the keys were made: a vault that now holds
-    /// more than it was sealed with is as one added (the round puts it in
-    /// and its sticks are written again), and a vault the plan has and the
-    /// flow has not made starts the round. With `advance`, a flow that has
-    /// not reached the writes goes on to the lock.
+    /// Costs what `sealed_marks` costs. A plan changed after the keys were
+    /// made: a vault that now holds more than it was sealed with is as one
+    /// added (the round puts it in and its sticks are written again), and a
+    /// vault the plan has and the flow has not made starts the round. With
+    /// `advance`, a flow that has not reached the writes goes on to the
+    /// lock.
     pub(crate) fn made_plan_changed(&mut self, c: &Compute, advance: bool) {
         let f = self;
         let stale: Vec<usize> = match f.wallet.as_ref() {
@@ -2561,10 +2575,11 @@ impl BackupFlow {
         seed_file_of(&file_stem(&w.name), fps, name) || seed_stick_file_of(fps, name)
     }
 
-    /// Whether `name` is a seed's file the plan keeps on the stick of slot
-    /// `slot`: the stick of files takes the seeds kept there; a stick at a
-    /// place the seeds' files the plan keeps on that stick, beside its
-    /// vault or not (`docs/BACKUP-FLOW.md` §17.2, §19.4).
+    /// Costs a map of the plan (through `map`). Whether `name` is a seed's
+    /// file the plan keeps on the stick of slot `slot`: the stick of files
+    /// takes the seeds kept there; a stick at a place the seeds' files the
+    /// plan keeps on that stick, beside its vault or not
+    /// (`docs/BACKUP-FLOW.md` §17.2, §19.4).
     pub fn seed_file_ok_for(&self, c: &Compute, slot: usize, name: &str) -> bool {
         let Some(w) = self.wallet.as_ref() else {
             return false;
@@ -2598,8 +2613,9 @@ impl BackupFlow {
             })
     }
 
-    /// Whether `name` is a seed's file of the wallet this flow is for that
-    /// the plan keeps: on the stick of files, or on a stick at a place.
+    /// Costs what `seeds_as_files` and `map` cost. Whether `name` is a
+    /// seed's file of the wallet this flow is for that the plan keeps: on
+    /// the stick of files, or on a stick at a place.
     pub fn seed_file_ok(&self, c: &Compute, name: &str) -> bool {
         let Some(w) = self.wallet.as_ref() else {
             return false;
@@ -2633,8 +2649,9 @@ impl BackupFlow {
 }
 
 impl Faraday {
-    /// The checklist's writes are done: the flow wrote every stick the plan
-    /// as it is now names, so a plan changed since is not done.
+    /// Costs what `plan_mapped` and `new_wallet_on` cost. The checklist's
+    /// writes are done: the flow wrote every stick the plan as it is now
+    /// names, so a plan changed since is not done.
     pub(crate) fn wallet_sticks_done(&self, c: &Compute) -> bool {
         let Some(i) = self.wallet_flow_of_backup() else {
             return false;

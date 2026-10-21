@@ -33,9 +33,9 @@ const DPI: u16 = 256;
 /// ramp the label is measured at.
 const MAX_HEIGHT: u16 = 1600;
 
-/// `code` with `title` and then each of `lines` under it, as a PNG
-/// file. The pixels drawn are wiped before this returns, so a secret's
-/// code leaves only the file.
+/// Costs what `png` costs. `code` with `title` and then each of `lines`
+/// under it, as a PNG file. The pixels drawn are wiped before this
+/// returns, so a secret's code leaves only the file.
 pub fn labelled_png(c: &Compute, code: &QrMatrix, title: &str, lines: &[String]) -> Vec<u8> {
     let mut canvas = draw(code, title, lines);
     let bytes = png(c, &canvas);
@@ -163,7 +163,7 @@ pub struct Labelled {
 }
 
 impl Labelled {
-    /// The picture as a PNG file.
+    /// Costs what `labelled_png` costs. The picture as a PNG file.
     pub fn png(&self, c: &Compute) -> Vec<u8> {
         labelled_png(c, &self.code, &self.title, &self.lines)
     }

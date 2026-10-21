@@ -81,8 +81,9 @@ fn received(a: faraday_qr::Arrived) -> (Option<String>, &'static str, Vec<u8>) {
     }
 }
 
-/// What one code read on Receive did: still a part, a whole file, or
-/// nothing worth keeping (said in the note).
+/// Costs a PSBT parse (through `read_psbt`). What one code read on
+/// Receive did: still a part, a whole file, or nothing worth keeping
+/// (said in the note).
 fn read_any(
     c: &Compute,
     scan: &mut ScanState,

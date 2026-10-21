@@ -13217,12 +13217,18 @@ pub(crate) fn keyed_status(
     taken: &[u16],
 ) -> (String, osk_ui::Color) {
     let n = taken.len();
+    let count = || (fill(EN.keyed_status_words_2, &[&n.to_string()]), MUTED);
     if ![12, 15, 18, 21, 24].contains(&n) {
-        return (fill(EN.keyed_status_words_2, &[&n.to_string()]), MUTED);
+        return count();
     }
-    let added = osk_bip::bip39::Mnemonic::from_indices(lang, taken)
-        .map_err(|e| crate::wallet::Refusal::Words(e.to_string()).text())
-        .and_then(|m| app.entry_probed(&m));
+    // While typing goes on the key is not worked out: the count alone.
+    let added = match osk_bip::bip39::Mnemonic::from_indices(lang, taken) {
+        Err(e) => Err(crate::wallet::Refusal::Words(e.to_string()).text()),
+        Ok(m) => match app.entry_probed(&m) {
+            Some(r) => r,
+            None => return count(),
+        },
+    };
     match added {
         Ok(fp) => (
             fill(
@@ -13246,22 +13252,20 @@ fn entry_status(
     m: Option<Result<osk_bip::bip39::Mnemonic, String>>,
 ) -> f32 {
     let mut y = y;
-    let status = match m {
-        Some(made) => {
-            let added = made
-                .map_err(|e| crate::wallet::Refusal::Words(e).text())
-                .and_then(|m| app.entry_probed(&m));
-            match added {
-                Ok(fp) => (
-                    fill(
-                        EN.entry_status_words_checksum,
-                        &[&n.to_string(), &fp_text(fp).to_string()],
-                    ),
-                    OK,
-                ),
-                Err(e) => (e, ERR),
-            }
-        }
+    // While typing goes on the key is not worked out: the count alone.
+    let added = m.and_then(|made| match made {
+        Err(e) => Some(Err(crate::wallet::Refusal::Words(e).text())),
+        Ok(m) => app.entry_probed(&m),
+    });
+    let status = match added {
+        Some(Ok(fp)) => (
+            fill(
+                EN.entry_status_words_checksum,
+                &[&n.to_string(), &fp_text(fp).to_string()],
+            ),
+            OK,
+        ),
+        Some(Err(e)) => (e, ERR),
         None => (fill(EN.entry_status_words, &[&n.to_string()]), MUTED),
     };
     ui.text(x, y, 14.0, W::S, status.1, &status.0);

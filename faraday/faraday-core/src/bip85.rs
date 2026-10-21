@@ -162,8 +162,9 @@ impl Faraday {
         self.screen = Screen::Bip85;
     }
 
-    /// The value the flow derives, as text: the child words, the WIF, the
-    /// xprv, the hex or the password.
+    /// Costs what `child_mnemonic`, `child_wif`, `child_xprv` and the rest
+    /// it calls cost. The value the flow derives, as text: the child words,
+    /// the WIF, the xprv, the hex or the password.
     pub fn bip85_value(&self, c: &Compute) -> Option<Zeroizing<String>> {
         // The demo derives no BIP-85 output (`docs/DEMO.md` §4).
         if !self.makes_secrets() {

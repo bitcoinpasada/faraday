@@ -1207,8 +1207,9 @@ impl Faraday {
         self.flow_picks_done(i);
     }
 
-    /// Whether Files holds a copy of the vault of this salt whose bytes are
-    /// not these (§4.2's copy that differs).
+    /// Costs a hash of a whole file (through `hash`). Whether Files holds a
+    /// copy of the vault of this salt whose bytes are not these (§4.2's
+    /// copy that differs).
     fn flow_files_differ(&self, c: &Compute, salt: &[u8; 32], sha: &[u8; 32]) -> bool {
         self.inbox.iter().chain(self.outbox.iter()).any(|it| {
             it.kind == FileKind::Vault
@@ -1217,8 +1218,9 @@ impl Faraday {
         })
     }
 
-    /// How the copy of the vault in Files is called for the question:
-    /// the stick it came from, else its file name.
+    /// Costs a hash of a whole file (through `hash`). How the copy of the
+    /// vault in Files is called for the question: the stick it came from,
+    /// else its file name.
     pub(crate) fn flow_files_copy_label(&self, c: &Compute, salt: &[u8; 32]) -> String {
         let Some(it) = self.inbox.iter().chain(self.outbox.iter()).find(|it| {
             it.kind == FileKind::Vault && fv::read_header(&it.bytes).is_ok_and(|h| &h.salt == salt)

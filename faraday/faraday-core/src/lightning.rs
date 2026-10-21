@@ -12,6 +12,7 @@ use faraday_vault::records::{field, kind};
 use osk_bip::aezeed;
 use osk_bip::bip39::Language;
 use osk_crypto::Secret;
+use osk_crypto::work::Compute;
 use zeroize::Zeroizing;
 
 use crate::{Faraday, Screen};
@@ -55,10 +56,14 @@ pub struct LightningState {
     pub back: Screen,
 }
 
-fn node_of(key: &osk_bip::keys::DerivedKey, birthday: Option<(i32, u32, u32)>) -> Node {
-    let public =
-        osk_bip::bitcoin::secp256k1::PublicKey::from_secret_key(key.secp(), key.secret_key())
-            .serialize();
+/// Costs an elliptic-curve multiplication (through `to_xpub`): the node
+/// that `key` is, its public key worked out from the private one.
+fn node_of(
+    c: &Compute,
+    key: &osk_bip::keys::DerivedKey,
+    birthday: Option<(i32, u32, u32)>,
+) -> Node {
+    let public = key.to_xpub(c).public_key.serialize();
     Node {
         public,
         private: Zeroizing::new(key.secret_key().secret_bytes()),
@@ -100,7 +105,7 @@ impl Faraday {
                             let p = k.passphrase.as_deref().map_or("", |p| p.as_str());
                             m.to_seed(&c, p.as_bytes()).map_err(|e| e.to_string())
                         })
-                        .map(|seed| node_of(&aezeed::ldk_node_key(&c, &seed, net), None)),
+                        .map(|seed| node_of(&c, &aezeed::ldk_node_key(&c, &seed, net), None)),
                 }
             }
             Some(NodeSource::Aezeed) => {
@@ -125,7 +130,7 @@ impl Faraday {
                             entropy
                                 .expose_mut()
                                 .copy_from_slice(seed.entropy().expose());
-                            node_of(&aezeed::node_key(&c, &entropy, net), Some(birthday))
+                            node_of(&c, &aezeed::node_key(&c, &entropy, net), Some(birthday))
                         });
                     zeroize::Zeroize::zeroize(&mut idx);
                     r

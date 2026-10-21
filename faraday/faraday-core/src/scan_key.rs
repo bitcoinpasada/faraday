@@ -15,7 +15,8 @@ use crate::plan::{At, What};
 use crate::wallet::{Session, fp_text};
 use crate::{Faraday, Sheet};
 
-/// The key `words` make with `pass`, if they are BIP-39 words.
+/// Costs what `add_words_with` costs. The key `words` make with `pass`,
+/// if they are BIP-39 words.
 pub(crate) fn key_of(c: &Compute, words: &str, pass: &str) -> Option<Fingerprint> {
     Session::default()
         .add_words_with(c, words, pass, "", None)
@@ -68,8 +69,8 @@ impl Faraday {
         }
     }
 
-    /// The name a key of wallet `w` loads under: who holds it, as the
-    /// backup's plan keeps it, else none.
+    /// Costs what `plan_notes` costs. The name a key of wallet `w` loads
+    /// under: who holds it, as the backup's plan keeps it, else none.
     pub(crate) fn wallet_key_label(&self, c: &Compute, w: usize, fp: Fingerprint) -> String {
         let Some(wl) = self.session.wallets.get(w) else {
             return String::new();
@@ -94,9 +95,9 @@ impl Faraday {
         fill(EN.scan_key_is_not_one, &[&fp_text(fp).to_string(), name])
     }
 
-    /// The keys the key scanner for wallet `w` takes, a line each:
-    /// "Key 2 · 1A2B3C4D · Place 2", the place where the backup's plan
-    /// keeps that seed.
+    /// Costs what `of_now` costs. The keys the key scanner for wallet `w`
+    /// takes, a line each: "Key 2 · 1A2B3C4D · Place 2", the place where
+    /// the backup's plan keeps that seed.
     pub(crate) fn wallet_key_lines(&self, c: &Compute, w: usize) -> Vec<String> {
         let Some(wl) = self.session.wallets.get(w) else {
             return Vec::new();

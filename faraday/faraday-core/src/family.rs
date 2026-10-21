@@ -286,11 +286,11 @@ impl Faraday {
             && (!self.session.keys.is_empty() || !self.session.wallets.is_empty())
     }
 
-    /// The PSBT in Files that spends from wallet `w`: of several, the
-    /// one with the fewest signatures, so a cosigner's signed copy never
-    /// stands in for the transaction.
-    /// Reads what each file said when it came in ([`crate::Item::psbt`])
-    /// and the scripts each wallet keeps: lookups once kept.
+    /// Costs what `spends_from` costs. The PSBT in Files that spends from
+    /// wallet `w`: of several, the one with the fewest signatures, so a
+    /// cosigner's signed copy never stands in for the transaction. Reads
+    /// what each file said when it came in ([`crate::Item::psbt`]) and the
+    /// scripts each wallet keeps: lookups once kept.
     pub fn psbt_for(&self, c: &Compute, w: usize) -> Option<usize> {
         self.inbox
             .iter()
@@ -317,10 +317,11 @@ impl Faraday {
         }
     }
 
-    /// The wallet card's first button (`docs/NEW-WALLET.md` §11.2):
-    /// finish the backup first while a key made here waits for it (§14.3),
-    /// else carry on this wallet's spend, sign its PSBT in Files, or spend
-    /// from it.
+    /// Costs what `wallet_held_on` and the Inbox's PSBTs cost (through
+    /// `spend_button_on`). The wallet card's first button
+    /// (`docs/NEW-WALLET.md` §11.2): finish the backup first while a key
+    /// made here waits for it (§14.3), else carry on this wallet's spend,
+    /// sign its PSBT in Files, or spend from it.
     pub fn spend_button(&self, c: &Compute, w: usize) -> (String, Action) {
         spend_button_on(&crate::glance::Now { app: self, c }, w)
     }

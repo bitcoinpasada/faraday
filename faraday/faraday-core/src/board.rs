@@ -954,10 +954,10 @@ impl Faraday {
         }
     }
 
-    /// Works out the plan's map and its checks, once a frame: the board as
-    /// this frame draws it, kept in the drawing memo while a frame is
-    /// drawn (`docs/SPEED.md` §3.3). Drawing reads it; nothing decides
-    /// from it.
+    /// Costs what `board_view_uncached` costs. Works out the plan's map and
+    /// its checks, once a frame: the board as this frame draws it, kept in
+    /// the drawing memo while a frame is drawn (`docs/SPEED.md` §3.3).
+    /// Drawing reads it; nothing decides from it.
     ///
     /// Works out the plan's map, its checks and each place's line of
     /// fact: the board, for [`crate::drawing::View::board_view`].
@@ -965,7 +965,8 @@ impl Faraday {
         self.board_view_uncached(c).map(Rc::new)
     }
 
-    /// Works out [`Faraday::board_view_now`] (see [`Faraday::board_view_now`]).
+    /// Costs what `plan_mapped`, `check` and `board_before` cost. Works out
+    /// [`Faraday::board_view_now`] (see [`Faraday::board_view_now`]).
     fn board_view_uncached(&self, c: &Compute) -> Option<BoardView> {
         let of = self.board_of()?;
         let state = self.board_state()?;
@@ -1387,9 +1388,9 @@ impl Faraday {
         })
     }
 
-    /// Works out the board: the placed chips the plan's checks name, each
-    /// by its zone, the chips drawn with the warning mark
-    /// (`docs/BACKUP-FLOW.md` §19.5).
+    /// Costs what `board_view_now` costs. Works out the board: the placed
+    /// chips the plan's checks name, each by its zone, the chips drawn with
+    /// the warning mark (`docs/BACKUP-FLOW.md` §19.5).
     pub fn board_marks(&self, c: &Compute) -> Vec<(Zone, Thing)> {
         let Some(v) = self.board_view_now(c) else {
             return Vec::new();
@@ -1415,10 +1416,11 @@ impl Faraday {
             .collect()
     }
 
-    /// Reads the open vault's records (a key's fingerprint is kept once
-    /// worked out): what existing vault `v` held before this backup, as
-    /// dimmed chips that take no press (`docs/BACKUP-FLOW.md` §19.12
-    /// item 7), less what the plan keeps there now.
+    /// Costs what `vault_tokens` costs. Reads the open vault's records (a
+    /// key's fingerprint is kept once worked out): what existing vault `v`
+    /// held before this backup, as dimmed chips that take no press
+    /// (`docs/BACKUP-FLOW.md` §19.12 item 7), less what the plan keeps
+    /// there now.
     fn board_before(&self, c: &Compute, shape: &Shape, a: &Answers, v: usize) -> Vec<ChipView> {
         // The open vault set up for `v`, what it held before as this
         // backup or flow saw it first, and the wallet's checksum.

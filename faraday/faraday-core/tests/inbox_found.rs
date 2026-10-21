@@ -145,6 +145,11 @@ fn a_passphrase_makes_the_potential_wallet_another_key() {
     app.press(Action::PotentialOpen(fp.0));
     app.press(Action::PotentialType);
     type_text(&mut app, "TREZOR");
+    assert!(
+        app.potential.as_ref().unwrap().with.is_none(),
+        "no key is shown while typing goes on"
+    );
+    testkit::pause(&mut app);
     let with = app.potential.as_ref().unwrap().with.unwrap();
     assert_ne!(with, fp, "a passphrase gives another fingerprint");
     app.press(Action::PotentialKind(1));

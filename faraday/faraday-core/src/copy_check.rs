@@ -174,16 +174,16 @@ impl Faraday {
         }
     }
 
-    /// The forms of the copies of seed `i` the backup's map keeps, read
-    /// from the plan's map ([`Faraday::plan_mapped`]: once a frame while
-    /// drawing).
+    /// Costs what `plan_mapped` costs. The forms of the copies of seed `i`
+    /// the backup's map keeps, read from the plan's map
+    /// ([`Faraday::plan_mapped`]: once a frame while drawing).
     pub(crate) fn copy_forms(&self, c: &Compute, b: &BackupState, i: usize) -> CopyForms {
         let shape = self.plan_shape_now(b.wallet);
         plan::copy_forms_on(&self.plan_mapped(c, &shape, &b.answers), i)
     }
 
-    /// What checking seed `i`'s copies asks for with the cameras listed
-    /// now.
+    /// Costs what `copy_forms` costs. What checking seed `i`'s copies asks
+    /// for with the cameras listed now.
     pub(crate) fn copy_checks(
         &self,
         c: &Compute,
@@ -195,9 +195,10 @@ impl Faraday {
             .checks(!self.cameras.is_empty(), key.language == Language::English)
     }
 
-    /// Whether every check seed `i`'s copy item asks for has matched in
-    /// this backup. A scan of the drawn grid also stands for the words of
-    /// a seed with no copy of its words.
+    /// Costs what `copy_checks` and `copy_forms` cost. Whether every check
+    /// seed `i`'s copy item asks for has matched in this backup. A scan of
+    /// the drawn grid also stands for the words of a seed with no copy of
+    /// its words.
     pub(crate) fn copy_checked(
         &self,
         c: &Compute,
@@ -215,8 +216,9 @@ impl Faraday {
             && (!checks.scan || has(CopyForm::SeedQr))
     }
 
-    /// Whether seed `fp`'s copy item is done in the backup under way; a
-    /// seed the backup has no item for is checked by any match.
+    /// Costs what `copy_checked` costs. Whether seed `fp`'s copy item is
+    /// done in the backup under way; a seed the backup has no item for is
+    /// checked by any match.
     pub(crate) fn seed_copy_checked(&self, c: &Compute, fp: [u8; 4]) -> bool {
         let Some(b) = self.backup.as_ref() else {
             return false;

@@ -22,6 +22,10 @@ use crate::backup_flow::Kind;
 use crate::backup_flow_steps::Built;
 use crate::vaults::TextBox;
 
+/// The most APKs kept read ([`ApkState`]'s reads); the next one drops
+/// the oldest.
+pub(crate) const APK_READS_KEPT: usize = 32;
+
 /// The longest a name For the stick is, in bytes of UTF-8
 /// (`docs/LARGE-FILES.md` §9).
 pub const NAME_MAX: usize = 230;
@@ -40,7 +44,7 @@ pub struct ApkState {
     pub review: Option<Review>,
     /// The second build's SHA-256, as typed.
     pub second: TextBox,
-    /// What an APK read as, by name, size and a check of its ends.
+    /// What an APK read as, by its SHA-256, at most [`APK_READS_KEPT`].
     listed: RefCell<Vec<Read>>,
 }
 
@@ -294,7 +298,8 @@ fn sha_of(c: &Compute, bytes: &[u8]) -> [u8; 32] {
 }
 
 impl Faraday {
-    /// What APK `item` reads as, remembered while it stays as it is.
+    /// Costs a hash of a whole file (through `sha_of`). What APK `item`
+    /// reads as, remembered while it stays as it is.
     fn apk_read(&self, c: &Compute, item: &crate::Item) -> Result<Info, Refusal> {
         // Read once per file, by the SHA-256 taken when it came in.
         let sha = item.sha.unwrap_or_else(|| sha_of(c, &item.bytes));
@@ -303,6 +308,9 @@ impl Faraday {
             return e.result.clone();
         }
         let result = Apk::read(&mut Slice(&item.bytes)).map(|a| a.info);
+        if cache.len() >= APK_READS_KEPT {
+            cache.remove(0);
+        }
         cache.push(Read {
             sha,
             result: result.clone(),
@@ -310,14 +318,16 @@ impl Faraday {
         result
     }
 
-    /// What the Inbox APK `name` states of itself, when it reads.
+    /// Costs a hash of a whole file (through `apk_read`). What the Inbox
+    /// APK `name` states of itself, when it reads.
     pub fn apk_info(&self, c: &Compute, name: &str) -> Option<Info> {
         let item = self.inbox.iter().find(|i| i.name == name)?;
         self.apk_read(c, item).ok()
     }
 
-    /// The APKs in Files, newest first, each with why it cannot be signed
-    /// with a key for `package` (`docs/APK-SIGNING.md` §4.4).
+    /// Costs a hash of a whole file (through `apk_read`). The APKs in
+    /// Files, newest first, each with why it cannot be signed with a key
+    /// for `package` (`docs/APK-SIGNING.md` §4.4).
     pub fn apk_listed(&self, c: &Compute, package: &str) -> Vec<Listed> {
         let mut out = Vec::new();
         for (k, item) in self.inbox.iter().enumerate().rev() {
@@ -396,10 +406,11 @@ impl Faraday {
         None
     }
 
-    /// A vault in Files that this session unlocked or wrote: its salt is
-    /// an open vault's, or its bytes are what the last write of this
-    /// session put on a stick. A copy of any other
-    /// vault never goes over a vault of the same size on a stick.
+    /// Costs a hash of a whole file (through `sha_of`). A vault in Files
+    /// that this session unlocked or wrote: its salt is an open vault's, or
+    /// its bytes are what the last write of this session put on a stick. A
+    /// copy of any other vault never goes over a vault of the same size on
+    /// a stick.
     pub(crate) fn vault_is_this_sessions(&self, c: &Compute, bytes: &[u8]) -> bool {
         let Ok(h) = faraday_vault::read_header(bytes) else {
             return false;
@@ -416,9 +427,10 @@ impl Faraday {
             .is_some_and(|r| !r.by_flow && r.holds_hash(&hash))
     }
 
-    /// What an APK's row in Files offers (`docs/APK-SIGNING.md` §4.1): to
-    /// sign, when an open vault holds a key for its package; a note of why
-    /// not otherwise; and Unlock or Make a vault, where none is open.
+    /// Costs a hash of a whole file (through `apk_read`). What an APK's row
+    /// in Files offers (`docs/APK-SIGNING.md` §4.1): to sign, when an open
+    /// vault holds a key for its package; a note of why not otherwise; and
+    /// Unlock or Make a vault, where none is open.
     pub fn apk_files_row(&self, c: &Compute, k: usize) -> Row {
         if !self.apk_signing {
             return Row::None;
@@ -582,8 +594,8 @@ impl Faraday {
         self.toast_out(&name);
     }
 
-    /// The QR view of the selected key's certificate, with the name and
-    /// label of its picture.
+    /// Costs what `text` costs. The QR view of the selected key's
+    /// certificate, with the name and label of its picture.
     pub(crate) fn apk_code(&self, c: &Compute) -> Result<crate::QrView, String> {
         let (_, r) = self
             .apk_selected()
@@ -688,5 +700,13 @@ impl Faraday {
         self.vaults.focus = None;
         self.vaults.apk.signing = true;
         self.toast_out(&out_name);
+    }
+}
+
+impl ApkState {
+    /// How many APKs are kept read, for the test that bounds the caches.
+    #[cfg(test)]
+    pub(crate) fn kept(&self) -> usize {
+        self.listed.borrow().len()
     }
 }

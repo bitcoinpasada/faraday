@@ -1,15 +1,26 @@
 //! A frame drawn again with nothing changed, and a pointer moved over a
 //! screen, do no costly work beyond each screen's named budget
-//! (`docs/SPEED.md` §3.3 and §7). The session is the heaviest the app
-//! reaches: a 2-of-3 whose three keys were made here, its backup on the
-//! checklist, the test vault open with every wallet it keeps loaded, a
-//! GPG key's backup flow under way, a spend open, and the test stick's
-//! files in the Inbox.
+//! (`docs/SPEED.md` §3.3 and §7), and a frame makes no more allocations
+//! and draws no more lines of text than each screen's measured count and
+//! a small margin. The session is the heaviest the app reaches: a 2-of-3
+//! whose three keys were made here, its backup on the checklist, the test
+//! vault open with every wallet it keeps loaded, a GPG key's backup flow
+//! under way, a spend open, and the test stick's files in the Inbox. It
+//! runs on a desktop and on the Pi's panel, whose compact screens are
+//! drawn by other code.
 
+mod accessors;
+mod caches;
 mod idle;
+mod keys;
 mod moments;
 mod presses;
 mod scaling;
+
+/// The test binary's allocator, counting each thread's allocations for
+/// the frame budgets below.
+#[global_allocator]
+static ALLOC: faraday_alloc_count::Counting = faraday_alloc_count::Counting;
 
 use osk_crypto::work::Compute;
 use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
@@ -53,8 +64,121 @@ fn budget(screen: &str, kind: Work) -> u64 {
     of(screen).or_else(|| of("*")).unwrap_or(0)
 }
 
+/// What a frame of each screen of the walk allocates and the lines of
+/// text it draws, measured on this code (2026-10-21), on the desktop:
+/// (screen, allocations, lines). A frame allowed [`MARGIN_PCT`] more of
+/// either passes; more than that is work no one marked, and fails. A
+/// change that draws more on purpose measures again and writes the new
+/// counts here, with why.
+const FRAME_COSTS: &[(&str, u64, u64)] = &[
+    ("Create", 381, 63),
+    ("Backup board", 4918, 118),
+    ("Backup checklist", 2364, 92),
+    ("Load sheet", 1046, 26),
+    ("GPG key flow", 924, 63),
+    ("GPG Sign a file", 4969, 93),
+    ("GPG sign sheet", 511, 9),
+    ("Spend", 878, 95),
+    ("Home", 1256, 48),
+    ("Wallets", 2117, 93),
+    ("Files", 5434, 82),
+    ("Vaults", 521, 43),
+    ("Vault contents", 4971, 94),
+    ("Backups", 1213, 77),
+    ("Spend tab", 976, 68),
+    ("Settings", 1118, 69),
+    ("Tools", 457, 33),
+    ("Power sheet", 2674, 23),
+    ("Learn sheet", 71, 28),
+    ("Scan sheet", 35, 4),
+    ("Wallet chart", 2739, 110),
+    ("Backup reopened", 1329, 82),
+    ("Create, new", 445, 66),
+];
+
+/// [`FRAME_COSTS`] on the Pi's panel, its compact screens.
+const FRAME_COSTS_PI: &[(&str, u64, u64)] = &[
+    ("Create", 129, 20),
+    ("Backup board", 1367, 22),
+    ("Backup checklist", 1715, 15),
+    ("Load sheet", 1037, 15),
+    ("GPG key flow", 384, 20),
+    ("GPG Sign a file", 4524, 17),
+    ("GPG sign sheet", 540, 9),
+    ("Spend", 252, 22),
+    ("Home", 1087, 17),
+    ("Wallets", 1012, 13),
+    ("Files", 5768, 18),
+    ("Vaults", 143, 12),
+    ("Vault contents", 4524, 17),
+    ("Backups", 696, 23),
+    ("Spend tab", 630, 18),
+    ("Settings", 966, 17),
+    ("Tools", 51, 4),
+    ("Power sheet", 2701, 8),
+    ("Learn sheet", 133, 14),
+    ("Scan sheet", 53, 4),
+    ("Wallet chart", 1240, 13),
+    ("Backup reopened", 660, 21),
+    ("Create, new", 172, 17),
+];
+
+/// How far over its measured counts a frame may go, in percent of them,
+/// and at least [`MARGIN_MIN`]: room for a list one row longer or a
+/// label one word longer, not for a screen that does something new.
+const MARGIN_PCT: u64 = 10;
+
+/// The least margin, for a screen whose counts are small.
+const MARGIN_MIN: u64 = 8;
+
+/// The most `measured` may become.
+fn with_margin(measured: u64) -> u64 {
+    measured + (measured * MARGIN_PCT / 100).max(MARGIN_MIN)
+}
+
 /// The clock: October 2026.
 const CLOCK: u64 = 1_791_482_652;
+
+/// A panel a session is drawn on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct Panel {
+    /// Pixels across.
+    pub width: u16,
+    /// Pixels down.
+    pub height: u16,
+    /// Dots per inch, from which the app picks its size class.
+    pub dpi: u16,
+}
+
+/// A desktop window.
+pub(super) const DESKTOP: Panel = Panel {
+    width: 1366,
+    height: 768,
+    dpi: 160,
+};
+
+/// The Pi's 2.8-inch panel, portrait: its compact screens.
+pub(super) const PI: Panel = Panel {
+    width: 480,
+    height: 640,
+    dpi: 286,
+};
+
+/// `panel` given to the app as its display.
+pub(super) fn show(app: &mut Faraday, panel: Panel) {
+    app.event(Event::Display(DisplayInfo {
+        width: panel.width,
+        height: panel.height,
+        dpi: panel.dpi,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+}
 
 fn type_text(app: &mut Faraday, text: &str) {
     for c in text.chars() {
@@ -92,22 +216,16 @@ fn key_made_here(app: &mut Faraday, slot: u8, seed: usize) {
     assert_eq!(app.screen, Screen::Create, "slot {slot}: back on Create");
 }
 
-/// The heaviest session: see the module's comment. Returns the app and
-/// the 2-of-3's index.
+/// The heaviest session on a desktop: see the module's comment. Returns
+/// the app and the 2-of-3's index.
 pub(super) fn heavy() -> (Faraday, usize) {
+    heavy_on(DESKTOP)
+}
+
+/// The heaviest session on `panel`.
+pub(super) fn heavy_on(panel: Panel) -> (Faraday, usize) {
     let mut app = Faraday::new();
-    app.event(Event::Display(DisplayInfo {
-        width: 1366,
-        height: 768,
-        dpi: 160,
-        inset_bottom: 0,
-        inset_top: 0,
-        buttons: 0,
-        camera_fixed: false,
-        secure: SecureHardware::None,
-        boot: BootState::Unknown,
-        memory_mib: None,
-    }));
+    show(&mut app, panel);
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
     }
@@ -187,14 +305,26 @@ pub(super) fn unlock_test_vault(app: &mut Faraday) {
 /// The work of one frame of the screen as it stands, drawn again with
 /// nothing changed: the frame before it warms what is kept.
 fn frame_work(app: &mut Faraday) -> Counts {
+    frame_costs(app).0
+}
+
+/// [`frame_work`], with the allocations the frame made and the lines of
+/// text it drew.
+fn frame_costs(app: &mut Faraday) -> (Counts, u64, u64) {
+    let lines = |app: &Faraday| app.canvas.as_ref().map_or(0, |c| c.lines_drawn());
     app.settle();
     let _ = app.frame();
     app.dirty = true;
     let _ = app.frame();
     let before = snapshot();
+    let (allocs, drawn) = (faraday_alloc_count::allocations(), lines(app));
     app.dirty = true;
     let _ = app.frame();
-    since(&before)
+    (
+        since(&before),
+        faraday_alloc_count::allocations() - allocs,
+        lines(app) - drawn,
+    )
 }
 
 /// The work of moving the pointer over the screen, the events alone.
@@ -207,16 +337,52 @@ fn hover_work(app: &mut Faraday) -> Counts {
     since(&before)
 }
 
-/// Each screen's counts, and the failures against [`BUDGETS`].
+/// Each screen's counts, and the failures against [`BUDGETS`] and the
+/// frame costs.
 struct Report {
+    /// The frame costs measured, against.
+    costs: &'static [(&'static str, u64, u64)],
     lines: Vec<String>,
+    /// Each screen's allocations and lines, as [`FRAME_COSTS`] writes
+    /// them.
+    measured: Vec<String>,
     failures: Vec<String>,
 }
 
 impl Report {
+    fn new(costs: &'static [(&'static str, u64, u64)]) -> Self {
+        Report {
+            costs,
+            lines: Vec::new(),
+            measured: Vec::new(),
+            failures: Vec::new(),
+        }
+    }
+
     fn check(&mut self, app: &mut Faraday, name: &str) {
-        let frame = frame_work(app);
+        let (frame, allocs, drawn) = frame_costs(app);
         let hover = hover_work(app);
+        self.measured
+            .push(format!("    (\"{name}\", {allocs}, {drawn}),"));
+        match self.costs.iter().find(|(n, ..)| *n == name) {
+            None => self.failures.push(format!(
+                "{name}: no measured frame costs (allocations {allocs}, lines {drawn})"
+            )),
+            Some(&(_, a, l)) => {
+                if allocs > with_margin(a) {
+                    self.failures.push(format!(
+                        "{name}: a frame made {allocs} allocations, measured {a} (most {}): a frame did work no one marked",
+                        with_margin(a)
+                    ));
+                }
+                if drawn > with_margin(l) {
+                    self.failures.push(format!(
+                        "{name}: a frame drew {drawn} lines of text, measured {l} (most {}): a frame drew what no one marked",
+                        with_margin(l)
+                    ));
+                }
+            }
+        }
         let mut line = format!("{name} ({:?}, {:?}):", app.screen, app.sheet);
         for &k in &KINDS {
             let n = frame.of(k);
@@ -243,11 +409,20 @@ impl Report {
     }
 }
 
-/// The heavy session walked through every screen the budget covers:
-/// `stop` is called at each, with its name, on the app as it stands
-/// there. Returns the app at the end and the 2-of-3's index.
+/// The heavy session walked through every screen the budget covers on
+/// a desktop: `stop` is called at each, with its name, on the app as it
+/// stands there. Returns the app at the end and the 2-of-3's index.
 pub(super) fn walk(c: &Compute, stop: &mut dyn FnMut(&mut Faraday, &str)) -> (Faraday, usize) {
-    let (mut app, w) = heavy();
+    walk_on(c, DESKTOP, stop)
+}
+
+/// [`walk`] on `panel`.
+pub(super) fn walk_on(
+    c: &Compute,
+    panel: Panel,
+    stop: &mut dyn FnMut(&mut Faraday, &str),
+) -> (Faraday, usize) {
+    let (mut app, w) = heavy_on(panel);
     stop(&mut app, "Create");
 
     // The backup: the board, then the checklist.
@@ -382,23 +557,32 @@ pub(super) const MAIN: [(&str, Screen); 9] = [
     ("Tools", Screen::Tools),
 ];
 
-#[test]
-fn a_frame_drawn_again_and_a_pointer_move_do_no_costly_work_beyond_the_budget() {
+/// The walk on `panel`, each screen checked against the budgets and
+/// `costs`.
+fn budgets_hold_on(panel: Panel, costs: &'static [(&'static str, u64, u64)]) {
     let c = crate::testkit::compute();
     let start = snapshot();
-    let mut r = Report {
-        lines: Vec::new(),
-        failures: Vec::new(),
-    };
-    let _ = walk(&c, &mut |app, name| r.check(app, name));
+    let mut r = Report::new(costs);
+    let _ = walk_on(&c, panel, &mut |app, name| r.check(app, name));
     assert!(
         since(&start).of(Work::MasterKey) >= 3,
         "the three keys made here were counted"
     );
     assert!(
         r.failures.is_empty(),
-        "{}\n\nEach screen's frame:\n{}",
+        "{}\n\nEach screen's frame:\n{}\n\nEach screen's allocations and lines:\n{}",
         r.failures.join("\n"),
-        r.lines.join("\n")
+        r.lines.join("\n"),
+        r.measured.join("\n")
     );
+}
+
+#[test]
+fn a_frame_drawn_again_and_a_pointer_move_do_no_costly_work_beyond_the_budget() {
+    budgets_hold_on(DESKTOP, FRAME_COSTS);
+}
+
+#[test]
+fn on_the_pis_panel_a_frame_drawn_again_and_a_pointer_move_do_no_costly_work_beyond_the_budget() {
+    budgets_hold_on(PI, FRAME_COSTS_PI);
 }

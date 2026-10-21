@@ -26,7 +26,7 @@ impl View<'_> {
     /// ([`crate::wallet::record_words`]; [`Allowed::SecretShown`]). Costs
     /// a parse of the words.
     pub fn record_words_shown(&self, r: &Record) -> Option<Mnemonic> {
-        self.allowed(Allowed::SecretShown, |_c| crate::wallet::record_words(r))
+        self.allowed(Allowed::SecretShown, |c| crate::wallet::record_words(c, r))
     }
 
     /// A seed's SeedQR grid on the backup's copy page, Compact or

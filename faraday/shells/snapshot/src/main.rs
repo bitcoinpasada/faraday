@@ -405,7 +405,8 @@ impl Tour {
         self.pump();
     }
 
-    /// The codes a camera would read off the frame now.
+    /// Costs a QR search (through `decode_luma`). The codes a camera would
+    /// read off the frame now.
     fn decode(&mut self, c: &Compute) -> Vec<String> {
         let f = self.app.frame();
         let luma: Vec<u8> = f
@@ -623,8 +624,9 @@ fn pills_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("pills-five-vaults")
 }
 
-/// A released Faraday Desktop's first screen: testnet, behind the online
-/// warning (F61), then Home once it is acknowledged.
+/// Costs what `set_demo` costs. A released Faraday Desktop's first
+/// screen: testnet, behind the online warning (F61), then Home once it
+/// is acknowledged.
 fn start_warning_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.app.online = true;
     t.app.shell_sticks = true;
@@ -640,8 +642,9 @@ fn start_warning_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("desktop-start-home")
 }
 
-/// The demo's dimmed actions (`docs/DEMO.md` §7): BIP-85's Value card
-/// and the Lightning node key, on a public seed.
+/// Costs what `set_demo` costs. The demo's dimmed actions
+/// (`docs/DEMO.md` §7): BIP-85's Value card and the Lightning node key,
+/// on a public seed.
 fn demo_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.app.online = true;
     t.app.session = faraday_core::wallet::Session::default();
@@ -688,6 +691,8 @@ fn osk_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("osk-tools-keyboard")
 }
 
+/// Costs what `visit_tour`, `copy_tour`, `public_tour` and the rest it
+/// calls cost.
 fn run(
     c: &Compute,
     size: (u16, u16),
@@ -2074,13 +2079,14 @@ fn test_key_1(t: &Tour) -> Result<[u8; 4], String> {
         .ok_or_else(|| "test key 1 is not loaded".to_string())
 }
 
-/// A fresh session at boot: the boot stick's files are copied into
-/// memory and the sheet lists them, each ticked (F60); pulling the stick
-/// leaves the sheet as it was. Import brings them in and puts the vault's
-/// passphrase on the sheet. A wrong passphrase stays; Later leaves Home
-/// leading with the vault's Unlock; the right passphrase loads the
-/// vault's wallets and keys. Then a wallet made here is saved into the
-/// vault.
+/// Costs what `vault_place`, `keep_vault`, `vault_off` and the rest it
+/// calls cost. A fresh session at boot: the boot stick's files are
+/// copied into memory and the sheet lists them, each ticked (F60);
+/// pulling the stick leaves the sheet as it was. Import brings them in
+/// and puts the vault's passphrase on the sheet. A wrong passphrase
+/// stays; Later leaves Home leading with the vault's Unlock; the right
+/// passphrase loads the vault's wallets and keys. Then a wallet made
+/// here is saved into the vault.
 fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::Sheet;
     use faraday_core::boot_import::ImportAction as I;
@@ -2414,6 +2420,7 @@ fn upgrade_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// Costs what `set_demo` costs.
 fn transfer_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let downloads = t.out.join("downloads");
     std::fs::create_dir_all(&downloads).map_err(|e| e.to_string())?;
@@ -2865,10 +2872,11 @@ fn keys_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-/// Stick visit with a wallet backup's 20 files in the Outbox and an
-/// unprotected secret: the Outbox list at its top and scrolled to its end
-/// by the wheel over it, then the stick's files at their end beside it.
-/// On a small panel the page scrolls as one.
+/// Costs what `classify` costs. Stick visit with a wallet backup's 20
+/// files in the Outbox and an unprotected secret: the Outbox list at
+/// its top and scrolled to its end by the wheel over it, then the
+/// stick's files at their end beside it. On a small panel the page
+/// scrolls as one.
 fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::wallet::classify;
     let stem = "family-savings";
@@ -3021,8 +3029,9 @@ fn inbox_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-/// The SeedQR digits of the seed the backup shows, as a camera reads
-/// them off the copy; with `wrong`, that word's number one off.
+/// Costs what `parse` costs. The SeedQR digits of the seed the backup
+/// shows, as a camera reads them off the copy; with `wrong`, that
+/// word's number one off.
 fn copy_digits(c: &Compute, t: &Tour, wrong: Option<usize>) -> Result<Vec<u8>, String> {
     let b = t.app.backup.as_ref().ok_or("no backup")?;
     let key = t.app.session.keys.get(b.key).ok_or("no key")?;
@@ -3054,9 +3063,10 @@ fn type_words(t: &mut Tour, count: Option<usize>) -> Result<(), String> {
     Ok(())
 }
 
-/// Does each checklist item before `target` in the checklist's order,
-/// as a person must (`docs/NEW-WALLET.md` §14.1): a copy by hand is
-/// checked by its words typed back, the envelopes by their Continue.
+/// Costs what `backup_waiting` costs. Does each checklist item before
+/// `target` in the checklist's order, as a person must
+/// (`docs/NEW-WALLET.md` §14.1): a copy by hand is checked by its words
+/// typed back, the envelopes by their Continue.
 fn items_before(c: &Compute, t: &mut Tour, target: u8) -> Result<(), String> {
     use faraday_core::bstep;
     while let Some(n) = t.app.backup_waiting(c) {
@@ -3078,7 +3088,8 @@ fn items_before(c: &Compute, t: &mut Tour, target: u8) -> Result<(), String> {
     Ok(())
 }
 
-/// The plan the board on screen edits, its map.
+/// Costs a map of the plan (through `map`). The plan the board on
+/// screen edits, its map.
 fn bmap(c: &Compute, t: &Tour) -> Vec<Spot> {
     t.app
         .board_plan()
@@ -3102,19 +3113,22 @@ fn boff(t: &mut Tour, z: Zone, th: Thing) {
     t.press(Action::Board(BP::Off(z, th)));
 }
 
-/// The stick at place `p` that carries vault `v`.
+/// Costs a map of the plan (through `bmap`). The stick at place `p`
+/// that carries vault `v`.
 fn vault_stick(c: &Compute, t: &Tour, p: usize, v: usize) -> Option<usize> {
     let m = bmap(c, t);
     (0..fplan::sticks_at(&m, p)).find(|&s| fplan::stick_vault(&m, p, s) == Some(v))
 }
 
-/// The first place that keeps vault `v`'s stick.
+/// Costs a map of the plan (through `vault_stick`). The first place
+/// that keeps vault `v`'s stick.
 fn vault_place(c: &Compute, t: &Tour, v: usize) -> Option<usize> {
     let places = t.app.board_plan().map_or(0, |(_, a)| a.places);
     (0..places).find(|&p| vault_stick(c, t, p, v).is_some())
 }
 
-/// Vault `v` kept at place `p`, holding exactly `seeds`, on the board.
+/// Costs a map of the plan (through `vault_stick` and `bmap`). Vault
+/// `v` kept at place `p`, holding exactly `seeds`, on the board.
 fn keep_vault(c: &Compute, t: &mut Tour, p: usize, v: usize, seeds: &[usize]) {
     if vault_stick(c, t, p, v).is_none() {
         bput(t, Thing::Vault(v), Zone::Card(p));
@@ -3136,7 +3150,8 @@ fn keep_vault(c: &Compute, t: &mut Tour, p: usize, v: usize, seeds: &[usize]) {
     }
 }
 
-/// Vault `v`'s stick taken off every place.
+/// Costs a map of the plan (through `vault_stick`). Vault `v`'s stick
+/// taken off every place.
 fn vault_off(c: &Compute, t: &mut Tour, v: usize) {
     let places = t.app.board_plan().map_or(0, |(_, a)| a.places);
     for p in 0..places {
@@ -3146,7 +3161,8 @@ fn vault_off(c: &Compute, t: &mut Tour, v: usize) {
     }
 }
 
-/// Every seed's words and SeedQR taken off every place's paper.
+/// Costs a map of the plan (through `bmap`). Every seed's words and
+/// SeedQR taken off every place's paper.
 fn words_off(c: &Compute, t: &mut Tour) {
     let places = t.app.board_plan().map_or(0, |(_, a)| a.places);
     for p in 0..places {
@@ -3160,8 +3176,9 @@ fn words_off(c: &Compute, t: &mut Tour) {
     }
 }
 
-/// Where `th` dropped on place `p`'s stick of files goes: its first stick
-/// with no vault, or **+ stick**.
+/// Costs a map of the plan (through `bmap`). Where `th` dropped on
+/// place `p`'s stick of files goes: its first stick with no vault, or
+/// **+ stick**.
 fn files_zone(c: &Compute, t: &Tour, p: usize) -> Zone {
     let m = bmap(c, t);
     (0..fplan::sticks_at(&m, p))
@@ -3169,6 +3186,7 @@ fn files_zone(c: &Compute, t: &Tour, p: usize) -> Zone {
         .map_or(Zone::NewStick(p), |s| Zone::Files(p, s))
 }
 
+/// Costs a map of the plan (through `vault_place` and `vault_stick`).
 /// The whole description sealed in vault `v`, at the first place that
 /// keeps its stick.
 fn description_into_vault(c: &Compute, t: &mut Tour, v: usize) {
@@ -3179,13 +3197,15 @@ fn description_into_vault(c: &Compute, t: &mut Tour, v: usize) {
     }
 }
 
-/// The whole description as a file on place `p`'s stick of files.
+/// Costs a map of the plan (through `files_zone`). The whole
+/// description as a file on place `p`'s stick of files.
 fn description_file_at(c: &Compute, t: &mut Tour, p: usize) {
     let z = files_zone(c, t, p);
     bput(t, Thing::Whole, z);
 }
 
-/// Every seed here as a words file at place `p`.
+/// Costs a map of the plan (through `files_zone`). Every seed here as a
+/// words file at place `p`.
 fn seed_files_at(c: &Compute, t: &mut Tour, p: usize) {
     for i in bshape(t).map(|s| s.here()).unwrap_or_default() {
         let z = files_zone(c, t, p);
@@ -3193,7 +3213,8 @@ fn seed_files_at(c: &Compute, t: &mut Tour, p: usize) {
     }
 }
 
-/// Seed `i`'s passphrase sealed with it in each vault that holds it.
+/// Costs a map of the plan. Seed `i`'s passphrase sealed with it in
+/// each vault that holds it.
 fn pass_into_vault(c: &Compute, t: &mut Tour, i: usize) {
     let vaults: Vec<usize> = bmap(c, t)
         .iter()
@@ -3211,8 +3232,8 @@ fn pass_into_vault(c: &Compute, t: &mut Tour, i: usize) {
     }
 }
 
-/// The description in shares on paper, each place with its own share in
-/// place of the whole sheet.
+/// Costs a map of the plan (through `bmap`). The description in shares
+/// on paper, each place with its own share in place of the whole sheet.
 fn shares_on_paper(c: &Compute, t: &mut Tour) {
     let Some((shape, a)) = t.app.board_plan() else {
         return;
@@ -3259,13 +3280,14 @@ fn scroll_to(t: &mut Tour, action: Action) {
     }
 }
 
-/// The backup's copy item checking the copy: with no camera, the typed
-/// check; with one, Scan my copy, a copy with a word wrong on the sheet,
-/// and the match back on the step.
-/// Public files as codes and pictures: a signed message, Silent
-/// payments, Create's keys and the backup's public files item for a
-/// 2-of-3 made here, the QR sheet with its PNG, the backup's public files
-/// item for Savings, and a GPG key made in the test vault.
+/// Costs what `description_file_at` and `flow_at_make` cost. The
+/// backup's copy item checking the copy: with no camera, the typed
+/// check; with one, Scan my copy, a copy with a word wrong on the
+/// sheet, and the match back on the step. Public files as codes and
+/// pictures: a signed message, Silent payments, Create's keys and the
+/// backup's public files item for a 2-of-3 made here, the QR sheet with
+/// its PNG, the backup's public files item for Savings, and a GPG key
+/// made in the test vault.
 fn public_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::Code;
     t.load_kit()?;
@@ -3425,6 +3447,7 @@ fn public_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// Costs what `copy_digits` costs.
 fn copy_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::board::{BoardPress, Thing, Zone};
     t.load_kit()?;
@@ -3464,11 +3487,12 @@ fn copy_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-/// The backup's checklist offering a seed into a vault or as a file:
-/// with no vault open, the step and the secret sheet; with the test
-/// vault open, a seed it holds and one it does not, and the sheet; then
-/// the seed's SeedQR, Standard and Compact, put in the Outbox past the
-/// warning and written beside the screens.
+/// Costs a map of the plan (through `seed_files_at`). The backup's
+/// checklist offering a seed into a vault or as a file: with no vault
+/// open, the step and the secret sheet; with the test vault open, a
+/// seed it holds and one it does not, and the sheet; then the seed's
+/// SeedQR, Standard and Compact, put in the Outbox past the warning and
+/// written beside the screens.
 fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     t.press(Action::Entry(None));
@@ -3563,11 +3587,12 @@ fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-/// Where each seed is kept, on the backup's panel (the seeds page on a
-/// small panel): Savings with test key 1 here, its words put in the
-/// Outbox unprotected and no vault; then, with the test vault open,
-/// Spending, whose one key and wallet the vault holds, its copy typed
-/// back and matched.
+/// Costs a map of the plan (through `seed_files_at`). Where each seed
+/// is kept, on the backup's panel (the seeds page on a small panel):
+/// Savings with test key 1 here, its words put in the Outbox
+/// unprotected and no vault; then, with the test vault open, Spending,
+/// whose one key and wallet the vault holds, its copy typed back and
+/// matched.
 fn kept_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     t.press(Action::Backup(0));
@@ -3709,6 +3734,7 @@ fn again_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// Costs what `shares_on_paper`, `add_wallet` and `vault_stick` cost.
 /// The backup's plan: for Spending (one key, test key 1 here), the
 /// presets, the seeds and the places with the map beside them; for
 /// Savings (2-of-3, one seed here), the seeds and the places, with the
@@ -3816,10 +3842,12 @@ fn plan_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// Costs a map of the plan (through `vault_place` and `vault_stick`).
 /// The backup board (`docs/BACKUP-FLOW.md` §19) for Savings, its three
-/// keys typed in: the board on Paper and vault, Seed 1 selected with the
-/// zones that take it edged, its words on Place 1's paper with their
-/// forms open, a share on paper and in Vault 1, and the software place.
+/// keys typed in: the board on Paper and vault, Seed 1 selected with
+/// the zones that take it edged, its words on Place 1's paper with
+/// their forms open, a share on paper and in Vault 1, and the software
+/// place.
 fn board_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::board::{BoardPress as B, Chip, Thing, Zone};
     let was = t.app.theme;
@@ -4017,14 +4045,15 @@ fn open_a_vault(t: &mut Tour, phrase: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// The Wallets card at a glance: a one-key wallet with no plan, then with
-/// Paper and vault; a 2-of-3 with test keys 1 and 2 here, key 2 with a
-/// passphrase, and test key 3 a cosigner, with Paper and vault and key
-/// 2's passphrase in its vault too. On a small panel, each card's At a
-/// glance row and the chart's page. The sheets a press on the chart opens
-/// (`docs/NEW-WALLET.md` §9): the wallet, a key here, a cosigner's key, a
-/// place, a vault, a line inside a place; Where it is; and in the open
-/// vault's view, a place's.
+/// Costs what `key_text`, `add_wallet`, `add_words_with` and the rest
+/// it calls cost. The Wallets card at a glance: a one-key wallet with
+/// no plan, then with Paper and vault; a 2-of-3 with test keys 1 and 2
+/// here, key 2 with a passphrase, and test key 3 a cosigner, with Paper
+/// and vault and key 2's passphrase in its vault too. On a small panel,
+/// each card's At a glance row and the chart's page. The sheets a press
+/// on the chart opens (`docs/NEW-WALLET.md` §9): the wallet, a key
+/// here, a cosigner's key, a place, a vault, a line inside a place;
+/// Where it is; and in the open vault's view, a place's.
 fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
     use faraday_core::glance::Press;
@@ -4222,14 +4251,15 @@ fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-/// The chart's changes (`docs/NEW-WALLET.md` §9.5–§9.7), on a one-key
-/// wallet with a vault open and the Paper and vault plan made with it:
-/// the vault's stick moved to Place 1, asked with the check before and
-/// after, and the chart once moved; the words at Place 2 destroyed,
-/// asked, a line made worse; a line marked lost and a place marked
-/// exposed, with what follows; the vault copied to a stick at a new
-/// place; and on a 2-of-3, the cosigner's holder typed and the card with
-/// it.
+/// Costs what `key_text`, `add_wallet`, `of_now` and the rest it calls
+/// cost. The chart's changes (`docs/NEW-WALLET.md` §9.5–§9.7), on a
+/// one-key wallet with a vault open and the Paper and vault plan made
+/// with it: the vault's stick moved to Place 1, asked with the check
+/// before and after, and the chart once moved; the words at Place 2
+/// destroyed, asked, a line made worse; a line marked lost and a place
+/// marked exposed, with what follows; the vault copied to a stick at a
+/// new place; and on a 2-of-3, the cosigner's holder typed and the card
+/// with it.
 fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
     use faraday_core::glance::{Backup, Press};
@@ -4462,11 +4492,13 @@ fn vaultway_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-/// The backup before spending (`docs/NEW-WALLET.md` §14): a single-key
-/// wallet made here, its card with Finish the backup first and the
-/// receive warning; Places with Vault 1's stick unticked; the vault item
-/// with no vault open, with one made and open, and saved into; the end of
-/// the backup with the checks strip and the chart.
+/// Costs what `vault_place`, `backup_items_now` and
+/// `backup_item_done_now` cost. The backup before spending
+/// (`docs/NEW-WALLET.md` §14): a single-key wallet made here, its card
+/// with Finish the backup first and the receive warning; Places with
+/// Vault 1's stick unticked; the vault item with no vault open, with
+/// one made and open, and saved into; the end of the backup with the
+/// checks strip and the chart.
 fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
     use faraday_core::plan::Preset;
@@ -4570,13 +4602,14 @@ fn themes_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-/// From the vault to a spend (`docs/NEW-WALLET.md` §11): the boot
-/// stick's vault unlocked after the pull lands on Wallets with a toast;
-/// a wallet's card leads with Spend from this wallet, which opens the
-/// Spend tab on Load the wallet in Sparrow with the shortcut; a 2-of-3
-/// with one key here, its PSBT in Files, reaches Signers with Scan a key
-/// and Collect a signature; the card's Scan a key opens the key scanner,
-/// and a missing key's SeedQR makes the wallet able to spend.
+/// Costs what `psbt_for`, `add_words` and `parse` cost. From the vault
+/// to a spend (`docs/NEW-WALLET.md` §11): the boot stick's vault
+/// unlocked after the pull lands on Wallets with a toast; a wallet's
+/// card leads with Spend from this wallet, which opens the Spend tab on
+/// Load the wallet in Sparrow with the shortcut; a 2-of-3 with one key
+/// here, its PSBT in Files, reaches Signers with Scan a key and Collect
+/// a signature; the card's Scan a key opens the key scanner, and a
+/// missing key's SeedQR makes the wallet able to spend.
 fn from_vault_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::boot_import::ImportAction as I;
     use faraday_core::family::{FamilyAction as F, page};
@@ -5136,13 +5169,14 @@ fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("vault-wallet-save")
 }
 
-/// Keys from a vault on Create's Keys card, and New wallet from this one
-/// (`docs/NEW-WALLET.md` §16): a 2-of-3's Keys with the test vault locked,
-/// then unlocked from there with test key 1 offered under its name; a
-/// 2-of-3 over the vault's key, test key 2 here and test key 3's xpub, its
-/// card with New wallet from this one, and Create filled from it: Kind
-/// with the Account stepper, then Keys with key 3 waiting for its xpub at
-/// account 1.
+/// Costs what `add_words`, `key_text` and `add_wallet` cost. Keys from
+/// a vault on Create's Keys card, and New wallet from this one
+/// (`docs/NEW-WALLET.md` §16): a 2-of-3's Keys with the test vault
+/// locked, then unlocked from there with test key 1 offered under its
+/// name; a 2-of-3 over the vault's key, test key 2 here and test key
+/// 3's xpub, its card with New wallet from this one, and Create filled
+/// from it: Kind with the Account stepper, then Keys with key 3 waiting
+/// for its xpub at account 1.
 fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
     use faraday_core::cstep;
@@ -5263,9 +5297,9 @@ fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("create-path-kind-account")
 }
 
-/// A flow standing on Make over the vault open now, as a person has it after
-/// the sticks and the vaults: the tours that are not about the flow start
-/// from here.
+/// Costs what `with_plan` costs. A flow standing on Make over the vault
+/// open now, as a person has it after the sticks and the vaults: the
+/// tours that are not about the flow start from here.
 fn flow_at_make(c: &Compute, t: &mut Tour, kind: faraday_core::backup_flow::Kind) {
     use faraday_core::backup_flow::{BackupFlow, Plan, Step};
     use faraday_core::backup_flow_steps::FlowAction as F;
@@ -5317,13 +5351,14 @@ fn flow_made(t: &mut Tour, kind: faraday_core::backup_flow::Kind) -> Result<(), 
     Ok(())
 }
 
-/// The backup flow's Bring in the sticks with the boot stick taken for
-/// Place 1 (`docs/BACKUP-FLOW.md` §18): it is Stick 1, the Boot stick,
-/// and the next stick is Stick 2.
-/// A vault of the three test keys, the third kept without the passphrase
-/// its 2-of-3 uses it with, and a seed of no wallet (F62): the Load sheet,
-/// Seeds with no passphrase stored, a passphrase giving another key, and
-/// the right one.
+/// Costs what `parse`, `to_seed`, `from_seed` and the rest it calls
+/// cost. The backup flow's Bring in the sticks with the boot stick
+/// taken for Place 1 (`docs/BACKUP-FLOW.md` §18): it is Stick 1, the
+/// Boot stick, and the next stick is Stick 2. A vault of the three test
+/// keys, the third kept without the passphrase its 2-of-3 uses it with,
+/// and a seed of no wallet (F62): the Load sheet, Seeds with no
+/// passphrase stored, a passphrase giving another key, and the right
+/// one.
 fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::vaults::VaultAction as V;
     use faraday_vault::records::{self, field, kind};
@@ -5811,10 +5846,11 @@ fn flow_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-/// A wallet's backup flow: Make a new wallet asks whether vaults are part
-/// of the backup and how many, brings in each vault's stick, opens or makes
-/// the vaults, makes the key; Back up's plan offers the vaults; the
-/// checklist ends in Write to sticks; one lock, each stick by place, done.
+/// Costs a map of the plan. A wallet's backup flow: Make a new wallet
+/// asks whether vaults are part of the backup and how many, brings in
+/// each vault's stick, opens or makes the vaults, makes the key; Back
+/// up's plan offers the vaults; the checklist ends in Write to sticks;
+/// one lock, each stick by place, done.
 fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::backup_flow_steps::FlowAction as F;
     use faraday_core::cstep;

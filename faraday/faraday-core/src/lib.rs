@@ -1613,6 +1613,28 @@ pub struct DecodeState {
     pub show_hex: bool,
 }
 
+/// The most QR codes of public text kept ([`Faraday::public_qr`]); the
+/// next one empties the list.
+pub(crate) const PUBLIC_QRS_KEPT: usize = 8;
+/// The most wallet descriptions kept read by their text
+/// ([`Faraday::read_kept`]); the next one drops the oldest.
+pub(crate) const TEXTS_READ_KEPT: usize = 32;
+/// The most multisig configs' names kept ([`Faraday::config_name_kept`]);
+/// the next one drops the oldest.
+pub(crate) const CONFIG_NAMES_KEPT: usize = 16;
+/// The most descriptions kept parsed as Create builds them
+/// ([`Faraday::parsed_kept`]); the next one drops the oldest.
+pub(crate) const TEXTS_PARSED_KEPT: usize = 32;
+/// The most plans kept mapped ([`Faraday::plan_mapped`]): the backup's,
+/// a flow's, a chart's; the next one drops the oldest.
+pub(crate) const PLANS_MAPPED_KEPT: usize = 8;
+/// The most seeds' fingerprints kept by a hash of the secret
+/// ([`Faraday::fp_memo`]); the next one drops the oldest.
+pub(crate) const FP_MEMO_KEPT: usize = 64;
+/// The most first addresses of the Seeds tool's descriptions kept
+/// ([`Faraday::seeds_address`]); the next one empties the list.
+pub(crate) const SEEDS_ADDRESSES_KEPT: usize = 16;
+
 /// A file in the Inbox or the Outbox.
 #[derive(Debug, Clone)]
 pub struct Item {
@@ -1657,9 +1679,9 @@ impl Drop for Item {
 }
 
 impl Item {
-    /// The file as it came in, classified, with what it describes read
-    /// once. Costs a classification, a parse of a wallet file's
-    /// description and a hash of an APK, a vault or an EFI image.
+    /// Costs a classification, a parse of a wallet file's description and a
+    /// hash of an APK, a vault or an EFI image. The file as it came in,
+    /// classified, with what it describes read once.
     fn new(c: &Compute, name: &str, bytes: Vec<u8>) -> Item {
         let wallet::Classified { kind, psbt, wallet } = wallet::classify_read(c, name, &bytes);
         let sha = matches!(kind, FileKind::Apk | FileKind::Vault | FileKind::EfiImage)
@@ -1687,9 +1709,9 @@ impl Item {
         self.wallet.as_ref()
     }
 
-    /// SHA-256 of its bytes: the one taken when it came in ([`Item::sha`],
-    /// an APK's, a vault's or an EFI image's), a lookup. Any other file
-    /// is hashed now.
+    /// Costs a hash of a whole file (through `sha256_of`). SHA-256 of its
+    /// bytes: the one taken when it came in ([`Item::sha`], an APK's, a
+    /// vault's or an EFI image's), a lookup. Any other file is hashed now.
     pub fn hash(&self, c: &Compute) -> [u8; 32] {
         self.sha.unwrap_or_else(|| sha256_of(c, &self.bytes))
     }
@@ -2069,7 +2091,8 @@ fn send_error(e: faraday_qr::send::Error) -> String {
 }
 
 impl QrView {
-    /// A PSBT as `ur:crypto-psbt`: one code when it fits, else animated.
+    /// Costs what `of` costs. A PSBT as `ur:crypto-psbt`: one code when it
+    /// fits, else animated.
     pub fn psbt(c: &Compute, title: &str, bytes: &[u8]) -> Result<QrView, String> {
         QrView::of(
             c,
@@ -2080,8 +2103,8 @@ impl QrView {
         )
     }
 
-    /// Text as one code while it fits version 25 at medium error
-    /// correction (the rule for a descriptor), and as animated
+    /// Costs what `of` costs. Text as one code while it fits version 25 at
+    /// medium error correction (the rule for a descriptor), and as animated
     /// `ur:bytes` when it does not.
     pub fn text(c: &Compute, title: &str, text: &str) -> Result<QrView, String> {
         QrView::of(
@@ -2093,7 +2116,8 @@ impl QrView {
         )
     }
 
-    /// `source` written as `format`, `part` bytes a frame when animated.
+    /// Costs what `frames` and `classify` cost. `source` written as
+    /// `format`, `part` bytes a frame when animated.
     pub fn of(
         c: &Compute,
         title: &str,
@@ -2127,7 +2151,8 @@ impl QrView {
         })
     }
 
-    /// The same source in another format or part size.
+    /// Costs what `of` costs. The same source in another format or part
+    /// size.
     pub fn redo(&self, c: &Compute, format: QrFormat, part: usize) -> Result<QrView, String> {
         let secret = self.secret;
         QrView::of(c, &self.title, self.source.clone(), format, part).map(|mut v| {
@@ -2155,8 +2180,8 @@ impl QrView {
         self.public && !self.secret && self.frames.len() == 1 && !self.png_name.is_empty()
     }
 
-    /// The code on show as a labelled picture, its file's name and
-    /// bytes, when it offers one.
+    /// Costs what `labelled_png` costs. The code on show as a labelled
+    /// picture, its file's name and bytes, when it offers one.
     pub fn png(&self, c: &Compute) -> Option<(String, Vec<u8>)> {
         if !self.offers_png() {
             return None;
@@ -2174,11 +2199,11 @@ impl QrView {
 type KeptAddress = (String, osk_bip::keys::Network, Result<String, String>);
 
 impl Faraday {
-    /// The QR code of `text`, public text a screen shows (a guide's
-    /// address): made the first time it is asked, by whoever asks, a frame
-    /// included, and kept on the state by its text, a lookup after
-    /// (`docs/SPEED.md` §2 rule 1: what is kept is public). Costs a QR
-    /// encoding the first time.
+    /// Costs a QR encoding the first time. The QR code of `text`, public
+    /// text a screen shows (a guide's address): made the first time it is
+    /// asked, by whoever asks, a frame included, and kept on the state by
+    /// its text, a lookup after (`docs/SPEED.md` §2 rule 1: what is kept is
+    /// public).
     pub(crate) fn public_qr(
         &self,
         c: &Compute,
@@ -2197,7 +2222,7 @@ impl Faraday {
             .map(std::rc::Rc::new)
         });
         let mut kept = self.public_qrs.borrow_mut();
-        if kept.len() >= 8 {
+        if kept.len() >= PUBLIC_QRS_KEPT {
             kept.clear();
         }
         kept.push((text.to_string(), m.clone()));
@@ -2205,6 +2230,7 @@ impl Faraday {
     }
 }
 
+/// Costs a QR encoding (through `encode_bounded` and `bbqr_frames`).
 /// Text as pictures keep it: one static code while it fits version 25
 /// at medium error correction (the bound `docs/WALLETS.md` §5 sets for
 /// a descriptor on screen), else the BBQr parts the QR view makes, one
@@ -2301,8 +2327,8 @@ fn part_note(what: &str, have: usize, total: usize, missing: &[usize]) -> String
     )
 }
 
-/// Why scanned text is refused for holding a secret: a seed's words or a
-/// private key.
+/// Costs what `secret_text` costs. Why scanned text is refused for
+/// holding a secret: a seed's words or a private key.
 fn secret_text(c: &Compute, text: &str) -> Option<&'static str> {
     faraday_intake::secret_text(c, text).map(|s| match s {
         faraday_intake::TextSecret::Words => EN.secret_text_those_are,
@@ -2310,7 +2336,8 @@ fn secret_text(c: &Compute, text: &str) -> Option<&'static str> {
     })
 }
 
-/// What a code is when a SeedQR was wanted and something else came.
+/// Costs what `read_psbt` and `read_wallet` cost. What a code is when a
+/// SeedQR was wanted and something else came.
 fn what_instead_of_a_seed(c: &Compute, text: &str) -> Option<&'static str> {
     let t = text.trim();
     if wallet::read_psbt(c, t.as_bytes()).is_some()
@@ -2401,12 +2428,12 @@ impl EntryState {
         forms::LANGUAGES[usize::from(self.language_at) % forms::LANGUAGES.len()]
     }
 
-    /// The key words `m` make with the passphrase typed, or why they make
-    /// none, for the status line. Costs a PBKDF2 and an elliptic-curve
-    /// multiplication when nothing is kept, the first frame after an
-    /// event; then it is a lookup until [`EntryState::forget_probe`].
-    /// `m` must be the words typed now. Decisions (Add, Continue, Lock in)
-    /// load the words themselves and never read this.
+    /// Costs a PBKDF2 and an elliptic-curve multiplication when nothing is
+    /// kept, the first frame after an event; then it is a lookup until
+    /// [`EntryState::forget_probe`]. The key words `m` make with the
+    /// passphrase typed, or why they make none, for the status line. `m`
+    /// must be the words typed now. Decisions (Add, Continue, Lock in) load
+    /// the words themselves and never read this.
     pub(crate) fn probed(
         &self,
         c: &Compute,
@@ -2430,6 +2457,11 @@ impl EntryState {
     /// the words, list or passphrase.
     pub(crate) fn forget_probe(&self) {
         self.probe.borrow_mut().take();
+    }
+
+    /// The status line's key as kept, if it is: a lookup.
+    pub(crate) fn probe_kept(&self) -> Option<Result<osk_bip::keys::Fingerprint, String>> {
+        self.probe.borrow().clone()
     }
 }
 
@@ -3035,10 +3067,10 @@ impl PlanPress {
     }
 }
 
-/// The cards of a plan after Start from, in order (`docs/BACKUP-FLOW.md`
-/// §17.1, §19.1): the board, the software where the description goes
-/// into software or as files, and The plan. Back up's and a wallet flow's
-/// alike (§19.12 item 1).
+/// Costs what `of` costs. The cards of a plan after Start from, in
+/// order (`docs/BACKUP-FLOW.md` §17.1, §19.1): the board, the software
+/// where the description goes into software or as files, and The plan.
+/// Back up's and a wallet flow's alike (§19.12 item 1).
 pub fn plan_cards(c: &Compute, shape: &plan::Shape, a: &plan::Answers) -> Vec<u8> {
     plan_cards_on(&plan::Mapped::of(c, shape, a))
 }
@@ -3053,9 +3085,10 @@ pub(crate) fn plan_cards_on(m: &plan::Mapped) -> Vec<u8> {
     v
 }
 
-/// Whether record `r` is a wallet share (type 13) of the wallet with
-/// checksum `cs`, told by its field 5, never by its name; with `j`, share
-/// `j` (field 3, from 1) of it (`docs/BACKUP-FLOW.md` §17.6).
+/// Costs what `read_wallet` costs. Whether record `r` is a wallet share
+/// (type 13) of the wallet with checksum `cs`, told by its field 5,
+/// never by its name; with `j`, share `j` (field 3, from 1) of it
+/// (`docs/BACKUP-FLOW.md` §17.6).
 pub(crate) fn share_record_is(
     c: &Compute,
     r: &faraday_vault::Record,
@@ -3675,6 +3708,10 @@ pub struct Faraday {
     /// A seed from the Inbox being made a wallet, or a sealed backup
     /// being opened.
     pub potential: Option<inbox::Potential>,
+    /// When a passphrase was last typed on a sheet that shows the key it
+    /// makes (the potential wallet's, a seed read's), until the key is
+    /// worked out once typing has paused ([`motion::TYPED_PAUSE_MS`]).
+    typed_at: Option<u64>,
     /// A seed the camera read, waiting on [`Sheet::SeedRead`].
     pub seed_read: Option<seed_read::SeedRead>,
     /// What [`Sheet::Delete`] is choosing.
@@ -3956,6 +3993,7 @@ impl Faraday {
             fp_memo: Default::default(),
             inbox_skip: BTreeSet::new(),
             potential: None,
+            typed_at: None,
             seed_read: None,
             delete_ask: None,
             files_menu: Default::default(),
@@ -4912,11 +4950,12 @@ impl Faraday {
         self.save_boxes();
     }
 
-    /// What a write's record keeps of a file written with this SHA-256:
-    /// the hash, or nothing (all zeros) for a secret waiting in the Outbox
-    /// or the Inbox, since a receipt and a flow's sticks are kept across a
-    /// lock and a hash of a seed's words or a passphrase is derived from
-    /// it. Hashes each file there that is a secret.
+    /// Costs a hash of a whole file (through `sha256_of`). What a write's
+    /// record keeps of a file written with this SHA-256: the hash, or
+    /// nothing (all zeros) for a secret waiting in the Outbox or the Inbox,
+    /// since a receipt and a flow's sticks are kept across a lock and a
+    /// hash of a seed's words or a passphrase is derived from it. Hashes
+    /// each file there that is a secret.
     pub(crate) fn hash_to_keep(&self, c: &Compute, hash: [u8; 32]) -> [u8; 32] {
         let secret =
             self.outbox.iter().chain(self.inbox.iter()).any(|i| {
@@ -5030,6 +5069,7 @@ impl Faraday {
             .collect()
     }
 
+    /// Costs a hash of a whole file (through `hash`).
     /// [`Faraday::visit_all_out`], but with more than one vault file
     /// waiting, one vault for this stick (`docs/NEW-WALLET.md` §5.3): the
     /// first the last write did not write. The rest wait for the next
@@ -5086,8 +5126,9 @@ impl Faraday {
         }
     }
 
-    /// A lock now would end Make a new wallet: its keys are kept nowhere
-    /// yet and the lock is the person's own, not a flow's step.
+    /// Costs what `lock_held` costs. A lock now would end Make a new
+    /// wallet: its keys are kept nowhere yet and the lock is the person's
+    /// own, not a flow's step.
     pub(crate) fn lock_ends_create(&self, c: &Compute) -> bool {
         self.lock_held(c) && !self.lock_for_flow
     }
@@ -5328,11 +5369,12 @@ impl Faraday {
         self.put_outbox(&name, bytes);
     }
 
-    /// The session strip's stage, computed, never stored: where the
-    /// person is in the lock cycle now. A stick attached while working
-    /// still asks to bring it in, because the lock sheet is what asks to
-    /// lock it; `Write out` is files For the stick, or a vault changed
-    /// since it was written (§3.5), with no stick attached.
+    /// Costs a hash of a whole file (through `vault_changed`). The session
+    /// strip's stage, computed, never stored: where the person is in the
+    /// lock cycle now. A stick attached while working still asks to bring
+    /// it in, because the lock sheet is what asks to lock it; `Write out`
+    /// is files For the stick, or a vault changed since it was written
+    /// (§3.5), with no stick attached.
     pub fn session_stage(&self, c: &Compute) -> &'static str {
         if !self.sticks.is_empty() || self.import.is_some() {
             EN.session_stage_bring
@@ -7427,10 +7469,11 @@ impl Faraday {
             .collect()
     }
 
-    /// Where the wallet being backed up and each of its keys are kept, as
-    /// the small panel's copy page lists them: in which open vault, whether the copy by hand was
-    /// checked, whether a file of it is in the Outbox unprotected, or not
-    /// here at all.
+    /// Costs what `vault_has_wallet`, `vault_key` and `seed_copy_checked`
+    /// cost. Where the wallet being backed up and each of its keys are
+    /// kept, as the small panel's copy page lists them: in which open
+    /// vault, whether the copy by hand was checked, whether a file of it is
+    /// in the Outbox unprotected, or not here at all.
     pub fn backup_kept(&self, c: &Compute) -> Option<backup::Kept> {
         use crate::vault_screens::{vault_has_wallet, vault_key};
         use backup::{KeptSeed, Tone};
@@ -7609,11 +7652,11 @@ impl Faraday {
             .collect()
     }
 
-    /// Wallet description `text` read ([`wallet::read_wallet`]): the first
-    /// time it is asked, by whoever asks, a frame included, and kept on the
-    /// state by its text, a lookup after. For a description no Inbox file
-    /// or vault record keeps read: split sheets put together, a threshold
-    /// wallet's descriptor. Costs a parse the first time.
+    /// Costs a parse the first time. Wallet description `text` read
+    /// ([`wallet::read_wallet`]): the first time it is asked, by whoever
+    /// asks, a frame included, and kept on the state by its text, a lookup
+    /// after. For a description no Inbox file or vault record keeps read:
+    /// split sheets put together, a threshold wallet's descriptor.
     pub(crate) fn read_kept(
         &self,
         c: &Compute,
@@ -7624,7 +7667,7 @@ impl Faraday {
         }
         let p = crate::work::keeping(|| wallet::read_wallet(c, text).ok());
         let mut kept = self.texts_read.borrow_mut();
-        if kept.len() >= 32 {
+        if kept.len() >= TEXTS_READ_KEPT {
             kept.remove(0);
         }
         kept.push((text.to_string(), p.clone()));
@@ -7645,7 +7688,7 @@ impl Faraday {
                 .and_then(|(_, n)| n)
         });
         let mut kept = self.config_names.borrow_mut();
-        if kept.len() >= 16 {
+        if kept.len() >= CONFIG_NAMES_KEPT {
             kept.remove(0);
         }
         kept.push((text.to_string(), n.clone()));
@@ -7669,7 +7712,7 @@ impl Faraday {
             osk_bip::policy::WalletPolicy::parse_any(c, text).map_err(|e| e.to_string())
         });
         let mut kept = self.texts_parsed.borrow_mut();
-        if kept.len() >= 32 {
+        if kept.len() >= TEXTS_PARSED_KEPT {
             let _ = kept.remove(0);
         }
         kept.push((text.to_string(), p.clone()));
@@ -7712,14 +7755,14 @@ impl Faraday {
         check
     }
 
-    /// The plan of `shape` under answers `a`, mapped with its check, for
-    /// every helper that reads the plan's map (`docs/SPEED.md` §3.3):
-    /// mapped the first time these shape and answers are asked, by
-    /// whoever asks, a frame included, and kept on the state by them
-    /// ([`Faraday::plans_mapped`]), a lookup after. A frame and a press
-    /// read the same map, and it is the map of the state as it is: a
-    /// change to the answers or the shape is another key. Costs a map of
-    /// the plan and its check the first time.
+    /// Costs a map of the plan and its check the first time. The plan of
+    /// `shape` under answers `a`, mapped with its check, for every helper
+    /// that reads the plan's map (`docs/SPEED.md` §3.3): mapped the first
+    /// time these shape and answers are asked, by whoever asks, a frame
+    /// included, and kept on the state by them ([`Faraday::plans_mapped`]),
+    /// a lookup after. A frame and a press read the same map, and it is the
+    /// map of the state as it is: a change to the answers or the shape is
+    /// another key.
     pub(crate) fn plan_mapped(
         &self,
         c: &Compute,
@@ -7742,7 +7785,7 @@ impl Faraday {
         let mut kept = self.plans_mapped.borrow_mut();
         // The plans a session shows at once: the backup's, a flow's, a
         // chart's; an answer changed makes another, and the oldest goes.
-        if kept.len() >= 8 {
+        if kept.len() >= PLANS_MAPPED_KEPT {
             kept.remove(0);
         }
         kept.push((shape.clone(), a.clone(), m.clone()));
@@ -7794,9 +7837,9 @@ impl Faraday {
         }
     }
 
-    /// The cards of the backup's plan, in order (`docs/BACKUP-FLOW.md`
-    /// §17.1): the board, the software where the description goes into
-    /// software or as files, and The plan.
+    /// Costs what `plan_mapped` costs. The cards of the backup's plan, in
+    /// order (`docs/BACKUP-FLOW.md` §17.1): the board, the software where
+    /// the description goes into software or as files, and The plan.
     pub fn backup_questions(&self, c: &Compute) -> Vec<u8> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
@@ -7808,7 +7851,8 @@ impl Faraday {
         plan_cards_on(&self.plan_mapped(c, &shape, &b.answers))
     }
 
-    /// The backup's checklist, by [`bstep`]: only what the plan needs. Works out the plan's shape
+    /// Costs what `plan_mapped` costs. The backup's checklist, by
+    /// [`bstep`]: only what the plan needs. Works out the plan's shape
     /// (kept for the frame while one is drawn).
     ///
     /// Works out [`crate::drawing::View::backup_items`] from the state as it is.
@@ -7924,9 +7968,9 @@ impl Faraday {
         v
     }
 
-    /// The files [`Faraday::backup_public`] makes, in the form chosen: the
-    /// text, the labelled picture, or both; a file with no picture as its
-    /// text.
+    /// Costs what `backup_public_names_for_now` costs. The files
+    /// [`Faraday::backup_public`] makes, in the form chosen: the text, the
+    /// labelled picture, or both; a file with no picture as its text.
     fn backup_public_names(&self, c: &Compute) -> Vec<String> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
@@ -7934,6 +7978,7 @@ impl Faraday {
         self.backup_public_names_for_now(c, b.wallet, &b.answers)
     }
 
+    /// Costs what `account_key_names` costs.
     /// [`Faraday::backup_public_names`] for loaded wallet `wi` under
     /// answers `a`.
     ///
@@ -7987,8 +8032,9 @@ impl Faraday {
         out
     }
 
-    /// The names of the account key files of wallet `wi`, without making
-    /// them: the checklist asks for them on every frame.
+    /// Costs what `wallet_key` costs. The names of the account key files of
+    /// wallet `wi`, without making them: the checklist asks for them on
+    /// every frame.
     pub(crate) fn account_key_names(&self, c: &Compute, wi: usize) -> Vec<String> {
         let mut out = Vec::new();
         for slot in self.wallet_keys_here(wi) {
@@ -8007,8 +8053,9 @@ impl Faraday {
         out
     }
 
-    /// The account key files of the keys of wallet `wi` held here: the key
-    /// as `[fingerprint/path]xpub`, and its signed BIP 129 record where the
+    /// Costs what `wallet_key` and `wallet_key_record` cost. The account
+    /// key files of the keys of wallet `wi` held here: the key as
+    /// `[fingerprint/path]xpub`, and its signed BIP 129 record where the
     /// kind has one. A cosigner's key not loaded here has neither; its
     /// account key is in the descriptor.
     pub(crate) fn account_key_files(&self, c: &Compute, wi: usize) -> Vec<(String, Vec<u8>)> {
@@ -8027,10 +8074,12 @@ impl Faraday {
         out
     }
 
-    /// Whether a checklist item is done, by what it does (it names files and may read the
-    /// outbox, so kept for the frame while one is drawn): its file For
-    /// the stick or written, its seeds or the wallet in the open vault, the copy
-    /// matched, the descriptor shown; the envelopes alone by a press.
+    /// Costs what `copy_checked`, `backup_vault_fits`,
+    /// `backup_public_names` and the rest it calls cost. Whether a
+    /// checklist item is done, by what it does (it names files and may read
+    /// the outbox, so kept for the frame while one is drawn): its file For
+    /// the stick or written, its seeds or the wallet in the open vault, the
+    /// copy matched, the descriptor shown; the envelopes alone by a press.
     ///
     /// Works out [`crate::drawing::View::backup_item_done`] from the state as it is.
     pub fn backup_item_done_now(&self, c: &Compute, item: plan::Item) -> bool {
@@ -8167,8 +8216,9 @@ impl Faraday {
         (own, others)
     }
 
-    /// Whether open vault `o` holds a seed the plan puts into another
-    /// vault and not vault `v`: it is not offered for vault `v`.
+    /// Costs what `vault_holds_seed` costs. Whether open vault `o` holds a
+    /// seed the plan puts into another vault and not vault `v`: it is not
+    /// offered for vault `v`.
     pub fn backup_vault_taken(&self, c: &Compute, v: usize, o: usize) -> bool {
         let (_, others) = self.backup_vault_seeds(v);
         others
@@ -8176,11 +8226,12 @@ impl Faraday {
             .any(|&k| self.vault_holds_seed(c, o, k, false))
     }
 
-    /// The open vault that does the plan's vault `v`: it holds every seed
-    /// the plan puts into `v`, the wallet where the plan puts it there, and
-    /// no seed only another vault is to hold. A vault set up before the
-    /// keys is the plan's vault of its number; no other plan vault takes
-    /// it. Its place among the open vaults.
+    /// Costs what `backup_vault_wanted` and `backup_open_fits` cost. The
+    /// open vault that does the plan's vault `v`: it holds every seed the
+    /// plan puts into `v`, the wallet where the plan puts it there, and no
+    /// seed only another vault is to hold. A vault set up before the keys
+    /// is the plan's vault of its number; no other plan vault takes it. Its
+    /// place among the open vaults.
     pub(crate) fn backup_vault_open(&self, c: &Compute, v: usize) -> Option<usize> {
         self.backup_vault_wanted(c, v)?;
         if let Some(o) = self.backup_vault_set_up(v) {
@@ -8233,7 +8284,8 @@ impl Faraday {
         (!self.backup_vaults_set_up_but(v).contains(&cur)).then_some(cur)
     }
 
-    /// Whether the plan puts anything in vault `v`.
+    /// Costs what `backup_vault_shares` and `backup_vault_passphrases`
+    /// cost. Whether the plan puts anything in vault `v`.
     fn backup_vault_wanted(&self, c: &Compute, v: usize) -> Option<()> {
         let b = self.backup.as_ref()?;
         self.session.wallets.get(b.wallet)?;
@@ -8244,9 +8296,9 @@ impl Faraday {
             .then_some(())
     }
 
-    /// The session keys whose passphrase the plan keeps alone in vault
-    /// `v`, as a passphrase record (`docs/BACKUP-FLOW.md` §19.12 item 4):
-    /// a key with a passphrase only.
+    /// Costs what `plan_mapped` costs. The session keys whose passphrase
+    /// the plan keeps alone in vault `v`, as a passphrase record
+    /// (`docs/BACKUP-FLOW.md` §19.12 item 4): a key with a passphrase only.
     pub(crate) fn backup_vault_passphrases(&self, c: &Compute, v: usize) -> Vec<usize> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
@@ -8280,8 +8332,9 @@ impl Faraday {
         })
     }
 
-    /// The shares the plan keeps in vault `v`, each with its text and how
-    /// many shares there are (`docs/BACKUP-FLOW.md` §17.6).
+    /// Costs what `plan_mapped` costs. The shares the plan keeps in vault
+    /// `v`, each with its text and how many shares there are
+    /// (`docs/BACKUP-FLOW.md` §17.6).
     pub(crate) fn backup_vault_shares(&self, c: &Compute, v: usize) -> Vec<(usize, String, usize)> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
@@ -8299,8 +8352,9 @@ impl Faraday {
             .collect()
     }
 
-    /// Whether open vault `o` holds share `j` of the wallet with checksum
-    /// `cs` (type 13, told by its field 5 and field 3), with this text.
+    /// Costs what `share_record_is` costs. Whether open vault `o` holds
+    /// share `j` of the wallet with checksum `cs` (type 13, told by its
+    /// field 5 and field 3), with this text.
     pub(crate) fn vault_holds_share(
         &self,
         c: &Compute,
@@ -8318,8 +8372,10 @@ impl Faraday {
         })
     }
 
-    /// Whether open vault `o` holds what the plan puts in vault `v` and no
-    /// seed only another vault is to hold.
+    /// Costs what `backup_vault_wanted`, `vault_holds_seed`,
+    /// `vault_has_wallet` and the rest it calls cost. Whether open vault
+    /// `o` holds what the plan puts in vault `v` and no seed only another
+    /// vault is to hold.
     pub(crate) fn backup_open_fits(&self, c: &Compute, v: usize, o: usize) -> bool {
         use crate::vault_screens::vault_has_wallet;
         let Some(b) = self.backup.as_ref() else {
@@ -8350,11 +8406,12 @@ impl Faraday {
                 .all(|&k| self.vault_holds_passphrase(o, k))
     }
 
-    /// The vault that does the plan's vault `v`: an open vault, or one
-    /// locked since this power-on by what it was seen to hold, that holds
-    /// every seed the plan puts into `v` (with its passphrase where the
-    /// plan puts it there), the wallet where the plan puts it there, and
-    /// no seed only another vault is to hold. Its name.
+    /// Costs what `backup_vault_shares`, `backup_vault_passphrases` and
+    /// `backup_vault_open` cost. The vault that does the plan's vault `v`:
+    /// an open vault, or one locked since this power-on by what it was seen
+    /// to hold, that holds every seed the plan puts into `v` (with its
+    /// passphrase where the plan puts it there), the wallet where the plan
+    /// puts it there, and no seed only another vault is to hold. Its name.
     pub(crate) fn backup_vault_fits(&self, c: &Compute, v: usize) -> Option<String> {
         let b = self.backup.as_ref()?;
         let w = self.session.wallets.get(b.wallet)?;
@@ -8417,9 +8474,9 @@ impl Faraday {
         }
     }
 
-    /// The plan an open vault keeps for wallet `w` (record type 11): its
-    /// answers and the places' names. None when no open vault has one,
-    /// or it is not for a wallet of this shape.
+    /// Costs what `plan_load_of` costs. The plan an open vault keeps for
+    /// wallet `w` (record type 11): its answers and the places' names. None
+    /// when no open vault has one, or it is not for a wallet of this shape.
     fn plan_load(
         &self,
         c: &Compute,
@@ -8429,7 +8486,8 @@ impl Faraday {
         self.plan_load_of(c, self.session.wallets.get(w)?, shape)
     }
 
-    /// [`Faraday::plan_load`] for a wallet that need not be loaded.
+    /// Costs what `plan_in_vault` costs. [`Faraday::plan_load`] for a
+    /// wallet that need not be loaded.
     pub(crate) fn plan_load_of(
         &self,
         c: &Compute,
@@ -8439,8 +8497,9 @@ impl Faraday {
         (0..self.vaults.open.len()).find_map(|v| self.plan_in_vault(c, v, wallet, shape))
     }
 
-    /// The plan open vault `v` keeps for `wallet` (its type 11 record),
-    /// read against `shape`, with the places' names.
+    /// Costs what `described_of` costs. The plan open vault `v` keeps for
+    /// `wallet` (its type 11 record), read against `shape`, with the
+    /// places' names.
     pub(crate) fn plan_in_vault(
         &self,
         c: &Compute,
@@ -8506,7 +8565,8 @@ impl Faraday {
         }
     }
 
-    /// The open vault that keeps a plan (record type 11) for `wallet`.
+    /// Costs what `described_of` costs. The open vault that keeps a plan
+    /// (record type 11) for `wallet`.
     pub(crate) fn plan_vault_of(&self, c: &Compute, wallet: &wallet::Wallet) -> Option<usize> {
         use faraday_vault::records::kind;
         let want = wallet::same_wallet(wallet.policy());
@@ -8664,10 +8724,11 @@ impl Faraday {
         self.public_out(wallet, what);
     }
 
-    /// The labelled pictures among a wallet's public files `what` (as
-    /// [`Faraday::public_out`] numbers them): for 8, the descriptor's
-    /// code, in parts past one code; for 4, each split share's code, one
-    /// beside each share's sheet and text. None for any other file.
+    /// Costs a QR encoding (through `picture_codes`). The labelled pictures
+    /// among a wallet's public files `what` (as [`Faraday::public_out`]
+    /// numbers them): for 8, the descriptor's code, in parts past one code;
+    /// for 4, each split share's code, one beside each share's sheet and
+    /// text. None for any other file.
     pub fn public_pictures(&self, c: &Compute, wallet: usize, what: u8) -> Vec<picture::Labelled> {
         let Some(w) = self.session.wallets.get(wallet) else {
             return Vec::new();
@@ -9064,10 +9125,10 @@ impl Faraday {
         }
     }
 
-    /// The account key in slot `slot` of wallet `i`, when this session
-    /// holds its seed: for the cosigners of a wallet of more than one
-    /// key. `None` for a threshold or silent payments wallet, whose
-    /// slots are not account keys.
+    /// Costs what `account_text` costs. The account key in slot `slot` of
+    /// wallet `i`, when this session holds its seed: for the cosigners of a
+    /// wallet of more than one key. `None` for a threshold or silent
+    /// payments wallet, whose slots are not account keys.
     pub fn wallet_key(&self, c: &Compute, i: usize, slot: u8) -> Result<WalletKey<'_>, String> {
         let w = self
             .session
@@ -9147,8 +9208,9 @@ impl Faraday {
             .then_some(fp)
     }
 
-    /// A wallet key's BIP 129 key record, signed by the key: for a `wsh`
-    /// or `sh(wsh)` multisig key at Create's own account.
+    /// Costs what `wallet_key` and `bsms_record` cost. A wallet key's BIP
+    /// 129 key record, signed by the key: for a `wsh` or `sh(wsh)` multisig
+    /// key at Create's own account.
     fn wallet_key_record(
         &self,
         c: &Compute,
@@ -9207,8 +9269,8 @@ impl Faraday {
         })
     }
 
-    /// The account key expression for a slot held here, with its
-    /// fingerprint, for the cosigners.
+    /// Costs what `account_text` costs. The account key expression for a
+    /// slot held here, with its fingerprint, for the cosigners.
     fn create_key_text(&self, c: &Compute, slot: u8) -> Result<(String, String), String> {
         let cs = self.create.as_ref().ok_or(EN.create_key_text_nothing)?;
         let Some(create::Source::Here(fp)) = cs.slots.get(slot as usize) else {
@@ -9226,8 +9288,9 @@ impl Faraday {
         ))
     }
 
-    /// A slot's key as `ur:crypto-account`, for a `wsh` multisig, the one
-    /// script that type writes a cosigner's key under.
+    /// Costs a key derivation (through `account_ur_at`). A slot's key as
+    /// `ur:crypto-account`, for a `wsh` multisig, the one script that type
+    /// writes a cosigner's key under.
     fn create_key_account(&self, c: &Compute, slot: u8) -> Option<String> {
         let cs = self.create.as_ref()?;
         let Some(create::Source::Here(fp)) = cs.slots.get(slot as usize) else {
@@ -9241,8 +9304,9 @@ impl Faraday {
         cs.kind.account_ur_at(c, key.master(), cs.account)
     }
 
-    /// A slot's key as a signed BIP 129 key record, with its
-    /// fingerprint: for a `wsh` or `sh(wsh)` multisig only.
+    /// Costs a key derivation (through `bsms_record`). A slot's key as a
+    /// signed BIP 129 key record, with its fingerprint: for a `wsh` or
+    /// `sh(wsh)` multisig only.
     fn create_key_bsms(&self, c: &Compute, slot: u8) -> Option<(String, String)> {
         let cs = self.create.as_ref()?;
         let Some(create::Source::Here(fp)) = cs.slots.get(slot as usize) else {
@@ -9259,7 +9323,8 @@ impl Faraday {
             .map(|r| (fpt, r))
     }
 
-    /// The key texts of a creation's slots, or why they are not ready.
+    /// Costs what `account_text` costs. The key texts of a creation's
+    /// slots, or why they are not ready.
     pub fn create_keys(&self, c: &Compute) -> Result<Vec<String>, String> {
         let cs = self.create.as_ref().ok_or(EN.create_keys_nothing)?;
         if cs.kind.threshold() {
@@ -9849,9 +9914,10 @@ impl Faraday {
         }
     }
 
-    /// The texts of the shares chosen on the restore screen, and those
-    /// kept in the open vaults, each vault share's wallet read as a
-    /// description no record keeps ([`Faraday::read_kept`]).
+    /// Costs what `read_kept` costs. The texts of the shares chosen on the
+    /// restore screen, and those kept in the open vaults, each vault
+    /// share's wallet read as a description no record keeps
+    /// ([`Faraday::read_kept`]).
     pub fn restore_share_texts(&self, c: &Compute) -> Vec<String> {
         let Some(r) = self.restore.as_ref() else {
             return Vec::new();
@@ -10385,10 +10451,10 @@ impl Faraday {
         Some((named, ext, data))
     }
 
-    /// What a scanned address is to the loaded wallets: one of a
-    /// wallet's first hundred on either chain, or none of them (`docs/QR.md`
-    /// §2: "Is this address mine?"). `None` when the text is not an
-    /// address.
+    /// Costs an address derivation (through `find_address`). What a scanned
+    /// address is to the loaded wallets: one of a wallet's first hundred on
+    /// either chain, or none of them (`docs/QR.md` §2: "Is this address
+    /// mine?"). `None` when the text is not an address.
     fn address_note(&self, c: &Compute, text: &str) -> Option<String> {
         let t = text.trim();
         let t = t.strip_prefix("bitcoin:").unwrap_or(t);
@@ -10477,8 +10543,9 @@ impl Faraday {
         }
     }
 
-    /// The QR view of a public file a flow makes: its code, and the name
-    /// and label of its picture.
+    /// Costs what `text`, `wallet_file_text`, `create_key_text` and the
+    /// rest it calls cost. The QR view of a public file a flow makes: its
+    /// code, and the name and label of its picture.
     pub fn code_view(&self, c: &Compute, code: Code) -> Result<QrView, String> {
         let wallet = |i: usize| {
             self.session
@@ -10687,8 +10754,9 @@ impl Faraday {
         lines
     }
 
-    /// A wallet's public text file `what` (as [`Faraday::public_out`]
-    /// numbers them): 2 the multisig config, 6 the BIP 129 record.
+    /// Costs an address derivation (through `address_at`). A wallet's
+    /// public text file `what` (as [`Faraday::public_out`] numbers them): 2
+    /// the multisig config, 6 the BIP 129 record.
     fn wallet_file_text(&self, c: &Compute, wallet: usize, what: u8) -> Option<String> {
         let w = self.session.wallets.get(wallet)?;
         match what {
@@ -11607,6 +11675,51 @@ impl Faraday {
         }
     }
 
+    /// The potential wallet's passphrase changed: with none, the seed's
+    /// own fingerprint, a lookup; with one, the key it makes is worked
+    /// out once typing pauses ([`Faraday::typed_tick`]), and none is
+    /// shown until then.
+    fn potential_typed(&mut self) {
+        let Some(p) = self.potential.as_mut() else {
+            return;
+        };
+        if p.passphrase.is_empty() || p.backup.is_some() || p.xpub.is_some() {
+            self.typed_at = None;
+            self.potential_refresh();
+            return;
+        }
+        p.with = None;
+        self.typed_at = Some(self.now_ms);
+    }
+
+    /// Works out the key a passphrase typed makes, once typing has paused
+    /// for [`motion::TYPED_PAUSE_MS`]: the potential wallet's, or the
+    /// seed read's; or lets the next frame work out the key the words
+    /// typed into Add a key make ([`EntryState::probed`]). Returns whether
+    /// there is something new to show.
+    fn typed_tick(&mut self, now_ms: u64) -> bool {
+        let Some(at) = self.typed_at else {
+            return false;
+        };
+        if now_ms < at + motion::TYPED_PAUSE_MS {
+            return false;
+        }
+        self.typed_at = None;
+        match self.sheet {
+            Some(Sheet::Potential) => self.potential_refresh(),
+            Some(Sheet::SeedRead) => self.seed_read_typed(),
+            _ => return self.entry_typing_here(),
+        }
+        true
+    }
+
+    /// Whether typing has not paused since the last character
+    /// ([`motion::TYPED_PAUSE_MS`]): a key the typing makes is not worked
+    /// out yet.
+    pub(crate) fn typing_now(&self) -> bool {
+        self.typed_at.is_some()
+    }
+
     /// Typing into the potential wallet's sheet. Returns whether the key
     /// was taken.
     fn potential_key(&mut self, key: KeyIn) -> bool {
@@ -11628,7 +11741,7 @@ impl Faraday {
                     p.passphrase.push(c);
                     p.error = None;
                 }
-                self.potential_refresh();
+                self.potential_typed();
             }
             KeyIn::Backspace => {
                 if let Some(p) = self.potential.as_mut()
@@ -11637,7 +11750,7 @@ impl Faraday {
                     p.passphrase.pop();
                     p.error = None;
                 }
-                self.potential_refresh();
+                self.potential_typed();
             }
             _ => {}
         }
@@ -12694,8 +12807,16 @@ impl Faraday {
     /// screens, such as the snapshot tool.
     pub fn press(&mut self, action: Action) {
         // An action may change the words typed: the status line's key is
-        // worked out again.
+        // worked out again, once typing pauses when the action is a
+        // character from the on-screen keyboard.
         self.entry.forget_probe();
+        if matches!(
+            action,
+            Action::EntryKey(_) | Action::EntryKeyBack | Action::EntryCandidate(_)
+        ) && self.entry_typing_here()
+        {
+            self.typed_at = Some(self.now_ms);
+        }
         self.note_secrets();
         self.press_in(action);
         // A script does not wait for frames: what a person's press leaves
@@ -13120,6 +13241,11 @@ impl App for Faraday {
                 | Event::KeyUp(_)
         ) {
             self.entry.forget_probe();
+            // A character typed into the words or the passphrase: the key
+            // they make is worked out once typing pauses.
+            if matches!(event, Event::Key(_)) && self.entry_typing_here() {
+                self.typed_at = Some(self.now_ms);
+            }
         }
         // Whether the event can complete a checklist item: pointer
         // moves, scrolls, hovers, camera frames and ticks cannot
@@ -13321,6 +13447,10 @@ impl App for Faraday {
                     self.commands.push_back(Command::Draw);
                 }
                 if self.seed_tick() {
+                    self.dirty = true;
+                    self.commands.push_back(Command::Draw);
+                }
+                if self.typed_tick(now_ms) {
                     self.dirty = true;
                     self.commands.push_back(Command::Draw);
                 }

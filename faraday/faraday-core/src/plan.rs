@@ -264,10 +264,10 @@ impl Answers {
         a
     }
 
-    /// The board's start (`docs/BACKUP-FLOW.md` §19.6): one empty place,
-    /// nothing kept; the seeds not here on their own devices, as every
-    /// plan has them. The rest of the answers are the wallet's defaults,
-    /// which a preset reads.
+    /// Costs a map of the plan (through `map`). The board's start
+    /// (`docs/BACKUP-FLOW.md` §19.6): one empty place, nothing kept; the
+    /// seeds not here on their own devices, as every plan has them. The
+    /// rest of the answers are the wallet's defaults, which a preset reads.
     pub fn empty(c: &Compute, shape: &Shape) -> Answers {
         let mut a = Answers::defaults(shape);
         let away: Vec<Spot> = map(c, shape, &a)
@@ -489,15 +489,15 @@ impl Answers {
         }
     }
 
-    /// The seeds the plan keeps as a file on the stick of files of a plan
-    /// saved before the places kept files (`At::Files`), which the
-    /// checklist's seed files item makes.
+    /// Costs what `of` costs. The seeds the plan keeps as a file on the
+    /// stick of files of a plan saved before the places kept files
+    /// (`At::Files`), which the checklist's seed files item makes.
     pub fn seeds_as_files(&self, c: &Compute, shape: &Shape) -> Vec<usize> {
         Mapped::of(c, shape, self).seeds_as_files()
     }
 
-    /// The seeds the plan keeps as a file on a stick at a place: see
-    /// [`Mapped::seeds_on_stick_files`].
+    /// Costs what `of` costs. The seeds the plan keeps as a file on a stick
+    /// at a place: see [`Mapped::seeds_on_stick_files`].
     pub fn seeds_on_stick_files(&self, c: &Compute, shape: &Shape) -> Vec<usize> {
         Mapped::of(c, shape, self).seeds_on_stick_files(shape)
     }
@@ -541,10 +541,10 @@ impl Mapped {
 }
 
 impl Answers {
-    /// Whether the plan keeps seed `i` on a stick: in a vault, or as a
-    /// file (its words, its SeedQR picture, or its passphrase's file) on
-    /// the stick of files or a stick at a place. Such a seed is held until
-    /// that stick is written (F6, F31).
+    /// Costs what `of` costs. Whether the plan keeps seed `i` on a stick:
+    /// in a vault, or as a file (its words, its SeedQR picture, or its
+    /// passphrase's file) on the stick of files or a stick at a place. Such
+    /// a seed is held until that stick is written (F6, F31).
     pub fn seed_on_stick(&self, c: &Compute, shape: &Shape, i: usize) -> bool {
         Mapped::of(c, shape, self).seed_on_stick(i)
     }
@@ -567,14 +567,16 @@ impl Mapped {
 }
 
 impl Answers {
-    /// The places that keep a stick of files: a stick with no vault on
-    /// it, holding a seed's file, the description's files, a share's or
-    /// the software's (`docs/BACKUP-FLOW.md` §17.2, §19.4).
+    /// Costs what `of` costs. The places that keep a stick of files: a
+    /// stick with no vault on it, holding a seed's file, the description's
+    /// files, a share's or the software's (`docs/BACKUP-FLOW.md` §17.2,
+    /// §19.4).
     pub fn file_places(&self, c: &Compute, shape: &Shape) -> Vec<usize> {
         Mapped::of(c, shape, self).file_places()
     }
 
-    /// The files the stick `s` at place `p` keeps, in order.
+    /// Costs what `of` costs. The files the stick `s` at place `p` keeps,
+    /// in order.
     pub fn stick_files(&self, c: &Compute, shape: &Shape, p: usize, s: usize) -> Vec<What> {
         Mapped::of(c, shape, self).stick_files(p, s)
     }
@@ -2229,10 +2231,11 @@ impl Alone {
     }
 }
 
-/// What spot `at` gives whoever finds it alone: what it holds, and each
-/// vault whose stick it keeps, read with that vault's passphrase. The
-/// check's "One place found" lines are the most any spot gives.
-/// A place is read with its sticks; a stick alone, as itself.
+/// Costs what `of` costs. What spot `at` gives whoever finds it alone:
+/// what it holds, and each vault whose stick it keeps, read with that
+/// vault's passphrase. The check's "One place found" lines are the most
+/// any spot gives. A place is read with its sticks; a stick alone, as
+/// itself.
 pub fn alone(c: &Compute, shape: &Shape, a: &Answers, at: At) -> Alone {
     alone_on(shape, a, &Mapped::of(c, shape, a), at)
 }
@@ -2321,10 +2324,10 @@ impl Reach {
     }
 }
 
-/// What place `p` brings to a spend: `None` when it keeps no seed, or no
-/// set of places adds up to a spend. Every other place counts with its
-/// vaults read. Costs a map of the plan and a search over the places,
-/// at most the quorum deep.
+/// Costs a map of the plan and a search over the places, at most the
+/// quorum deep. What place `p` brings to a spend: `None` when it keeps
+/// no seed, or no set of places adds up to a spend. Every other place
+/// counts with its vaults read.
 pub fn reach(c: &Compute, shape: &Shape, a: &Answers, p: usize) -> Option<Reach> {
     reach_on(shape, &Mapped::of(c, shape, a), p)
 }
@@ -2528,14 +2531,14 @@ fn check_of(shape: &Shape, a: &Answers, boxes: &[Spot]) -> Check {
     }
 }
 
-/// The place that holds every secret of the wallet: every seed of the
-/// wallet, loaded here or not, in any form (words, SeedQR, a seed file on
-/// the place's stick of files, a vault whose stick is there; a seed file
-/// on the stick of files, and a seed kept on its own device, are at no
-/// place), and every passphrase of those seeds (on paper there, or in a
-/// vault whose stick is there). It is also the place that holds a seed
-/// with its own passphrase, whatever else is elsewhere
-/// (`docs/BACKUP-FLOW.md` §10.3).
+/// Costs what `of` costs. The place that holds every secret of the
+/// wallet: every seed of the wallet, loaded here or not, in any form
+/// (words, SeedQR, a seed file on the place's stick of files, a vault
+/// whose stick is there; a seed file on the stick of files, and a seed
+/// kept on its own device, are at no place), and every passphrase of
+/// those seeds (on paper there, or in a vault whose stick is there). It
+/// is also the place that holds a seed with its own passphrase,
+/// whatever else is elsewhere (`docs/BACKUP-FLOW.md` §10.3).
 pub fn all_at_one_place(c: &Compute, shape: &Shape, a: &Answers) -> Option<usize> {
     all_at_one_place_on(shape, &Mapped::of(c, shape, a))
 }
@@ -2677,10 +2680,10 @@ fn pass_spots(boxes: &[Spot], i: usize) -> Vec<At> {
         .collect()
 }
 
-/// Why "Any one place lost" reads No, as a line under the check: the
-/// first spot whose loss leaves too little, and the seed or passphrase
-/// kept only there. `name` names a place, `noun` is the medium ("stick").
-/// None when the check does not read No.
+/// Costs what `of` costs. Why "Any one place lost" reads No, as a line
+/// under the check: the first spot whose loss leaves too little, and
+/// the seed or passphrase kept only there. `name` names a place, `noun`
+/// is the medium ("stick"). None when the check does not read No.
 pub fn lost_why(
     c: &Compute,
     shape: &Shape,
@@ -2805,12 +2808,12 @@ fn name_at(at: At, name: &dyn Fn(usize) -> String, noun: &str) -> String {
     }
 }
 
-/// The first of `seeds` (made here) the plan keeps no copy of, or whose
-/// passphrase it keeps nowhere: the line said in place of Make the
-/// checklist (`docs/NEW-WALLET.md` §14.4).
-/// A copy on a stick counts as kept: a seed's file or SeedQR picture, its
-/// passphrase's file, a vault on a stick (F31: the hold lasts until that
-/// stick is written).
+/// Costs what `of` costs. The first of `seeds` (made here) the plan
+/// keeps no copy of, or whose passphrase it keeps nowhere: the line
+/// said in place of Make the checklist (`docs/NEW-WALLET.md` §14.4). A
+/// copy on a stick counts as kept: a seed's file or SeedQR picture, its
+/// passphrase's file, a vault on a stick (F31: the hold lasts until
+/// that stick is written).
 pub fn kept_nowhere(c: &Compute, shape: &Shape, a: &Answers, seeds: &[usize]) -> Option<String> {
     kept_nowhere_on(shape, &Mapped::of(c, shape, a), seeds)
 }
@@ -2835,11 +2838,11 @@ pub fn kept_nowhere_on(shape: &Shape, m: &Mapped, seeds: &[usize]) -> Option<Str
     None
 }
 
-/// Whether the plan needs the stick of public files that goes to an
-/// online computer (`docs/BACKUP-FLOW.md` §10.2): sheets or shares on
-/// paper to print, the description as files on the stick of files, or the
-/// software given its text form. Files kept at a place go on a stick
-/// there instead (§17.2, §19.4).
+/// Costs what `of` costs. Whether the plan needs the stick of public
+/// files that goes to an online computer (`docs/BACKUP-FLOW.md` §10.2):
+/// sheets or shares on paper to print, the description as files on the
+/// stick of files, or the software given its text form. Files kept at a
+/// place go on a stick there instead (§17.2, §19.4).
 pub fn public_stick(c: &Compute, shape: &Shape, a: &Answers) -> bool {
     public_stick_on(a, &Mapped::of(c, shape, a))
 }
@@ -3010,9 +3013,10 @@ impl CopyForms {
     }
 }
 
-/// The forms of seed `i`'s copies at the places of the plan's map: the
-/// map's `Words(i)` and `SeedQr(i)`, whether from the seeds question or
-/// from the board's placed chips and the chart's edits. Builds the map.
+/// Costs what `of` costs. The forms of seed `i`'s copies at the places
+/// of the plan's map: the map's `Words(i)` and `SeedQr(i)`, whether
+/// from the seeds question or from the board's placed chips and the
+/// chart's edits. Builds the map.
 pub fn copy_forms(c: &Compute, shape: &Shape, a: &Answers, i: usize) -> CopyForms {
     copy_forms_on(&Mapped::of(c, shape, a), i)
 }
@@ -3032,8 +3036,8 @@ pub fn copy_forms_on(m: &Mapped, i: usize) -> CopyForms {
     }
 }
 
-/// How many blank templates the plan prints: one per paper copy of a
-/// seed, in every place.
+/// Costs what `of` costs. How many blank templates the plan prints: one
+/// per paper copy of a seed, in every place.
 pub fn templates(c: &Compute, shape: &Shape, a: &Answers) -> usize {
     templates_on(shape, &Mapped::of(c, shape, a))
 }
@@ -3181,8 +3185,8 @@ pub fn by_place(boxes: &[Spot]) -> Vec<Spot> {
     out
 }
 
-/// The map as places keep it: [`map`] with each place's sticks folded
-/// into it ([`by_place`]).
+/// Costs a map of the plan (through `map`). The map as places keep it:
+/// [`map`] with each place's sticks folded into it ([`by_place`]).
 pub fn place_map(c: &Compute, shape: &Shape, a: &Answers) -> Vec<Spot> {
     by_place(&map(c, shape, a))
 }
@@ -3564,31 +3568,35 @@ impl Answers {
         shape.vault_rows().max(named)
     }
 
-    /// What row `row` of place `p`'s card holds: the seeds, by place among
-    /// the wallet's; `None` while it is not ticked. A vault's row is
-    /// ticked while the place keeps its stick, and holds the vault's
-    /// seeds.
+    /// Costs what `of` costs. What row `row` of place `p`'s card holds: the
+    /// seeds, by place among the wallet's; `None` while it is not ticked. A
+    /// vault's row is ticked while the place keeps its stick, and holds the
+    /// vault's seeds.
     pub fn row_seeds(&self, c: &Compute, shape: &Shape, p: usize, row: Row) -> Option<Vec<usize>> {
         Mapped::of(c, shape, self).row_seeds(shape, p, row)
     }
 
-    /// The shares vault `v` keeps (`docs/BACKUP-FLOW.md` §17.6).
+    /// Costs what `of` costs. The shares vault `v` keeps
+    /// (`docs/BACKUP-FLOW.md` §17.6).
     pub fn vault_shares(&self, c: &Compute, shape: &Shape, v: usize) -> Vec<usize> {
         Mapped::of(c, shape, self).vault_shares(v)
     }
 
-    /// The seeds whose passphrase vault `v` keeps alone, without the seed:
-    /// each a passphrase record (`docs/BACKUP-FLOW.md` §19.12 item 4).
+    /// Costs what `of` costs. The seeds whose passphrase vault `v` keeps
+    /// alone, without the seed: each a passphrase record
+    /// (`docs/BACKUP-FLOW.md` §19.12 item 4).
     pub fn vault_passphrases(&self, c: &Compute, shape: &Shape, v: usize) -> Vec<usize> {
         Mapped::of(c, shape, self).vault_passphrases(v)
     }
 
-    /// The seeds vault `v` keeps with their passphrase.
+    /// Costs what `of` costs. The seeds vault `v` keeps with their
+    /// passphrase.
     pub fn vault_pass(&self, c: &Compute, shape: &Shape, v: usize) -> Vec<usize> {
         Mapped::of(c, shape, self).vault_pass(v)
     }
 
-    /// The places other than `p` that keep vault `v`'s stick.
+    /// Costs what `of` costs. The places other than `p` that keep vault
+    /// `v`'s stick.
     pub fn stick_elsewhere(&self, c: &Compute, shape: &Shape, v: usize, p: usize) -> Vec<usize> {
         Mapped::of(c, shape, self).stick_elsewhere(v, p)
     }
@@ -3838,13 +3846,14 @@ impl Answers {
         self.split = split;
     }
 
-    /// The shares place `p` keeps, in any form: on paper, as files, or in
-    /// a vault whose stick it keeps.
+    /// Costs what `of` costs. The shares place `p` keeps, in any form: on
+    /// paper, as files, or in a vault whose stick it keeps.
     pub fn shares_here(&self, c: &Compute, shape: &Shape, p: usize) -> Vec<usize> {
         Mapped::of(c, shape, self).shares_here(p)
     }
 
-    /// Whether place `p` keeps the description in form `form`.
+    /// Costs what `of` costs. Whether place `p` keeps the description in
+    /// form `form`.
     pub fn form_at(&self, c: &Compute, shape: &Shape, p: usize, form: Form) -> bool {
         Mapped::of(c, shape, self).form_at(p, form)
     }
@@ -3874,9 +3883,10 @@ impl Answers {
         }
     }
 
-    /// Ticks or unticks form `form` at place `p`. Whole, the form holds
-    /// the description; in shares, every share ticked there, or with none
-    /// ticked the share the place would keep.
+    /// Costs what `form_at` and `shares_here` cost. Ticks or unticks form
+    /// `form` at place `p`. Whole, the form holds the description; in
+    /// shares, every share ticked there, or with none ticked the share the
+    /// place would keep.
     pub fn toggle_form(&mut self, c: &Compute, shape: &Shape, p: usize, form: Form) {
         let on = !self.form_at(c, shape, p, form);
         let shares = self.split && shape.splits;
@@ -3935,8 +3945,9 @@ impl Answers {
         });
     }
 
-    /// Ticks or unticks share `j` at place `p`: in every form ticked
-    /// there, or on paper while none is.
+    /// Costs what `shares_here` and `form_at` cost. Ticks or unticks share
+    /// `j` at place `p`: in every form ticked there, or on paper while none
+    /// is.
     pub fn toggle_share(&mut self, c: &Compute, shape: &Shape, p: usize, j: usize) {
         if j >= shape.keys {
             return;
@@ -3974,26 +3985,29 @@ impl Answers {
         });
     }
 
-    /// What a plan saved before the cards keeps on the stick of files
-    /// (`At::Files`), in its order.
+    /// Costs what `of` costs. What a plan saved before the cards keeps on
+    /// the stick of files (`At::Files`), in its order.
     pub fn old_files(&self, c: &Compute, shape: &Shape) -> Vec<What> {
         Mapped::of(c, shape, self).old_files()
     }
 
-    /// The `k`th thing of [`Answers::old_files`] off the map; the stick
-    /// of files goes with the last.
+    /// Costs what `old_files` costs. The `k`th thing of
+    /// [`Answers::old_files`] off the map; the stick of files goes with the
+    /// last.
     pub fn drop_old_file(&mut self, c: &Compute, shape: &Shape, k: usize) {
         if let Some(&w) = self.old_files(c, shape).get(k) {
             self.edit_map(shape, |m| without(&m, At::Files, w));
         }
     }
 
-    /// Whether the description goes into watch-only software.
+    /// Costs what `of` costs. Whether the description goes into watch-only
+    /// software.
     pub fn software_on(&self, c: &Compute, shape: &Shape) -> bool {
         Mapped::of(c, shape, self).software_on()
     }
 
-    /// Into watch-only software, ticked or unticked.
+    /// Costs what `software_on` costs. Into watch-only software, ticked or
+    /// unticked.
     pub fn toggle_software(&mut self, c: &Compute, shape: &Shape) {
         let on = !self.software_on(c, shape);
         self.edit_map(shape, |m| {
@@ -4005,8 +4019,9 @@ impl Answers {
         });
     }
 
-    /// The software and the files' form are asked: the description goes
-    /// into watch-only software, or as files somewhere.
+    /// Costs what `of` costs. The software and the files' form are asked:
+    /// the description goes into watch-only software, or as files
+    /// somewhere.
     pub fn asks_software(&self, c: &Compute, shape: &Shape) -> bool {
         Mapped::of(c, shape, self).asks_software()
     }
@@ -4245,8 +4260,9 @@ fn without_all(boxes: &[Spot], gone: &[(At, What)]) -> Vec<Spot> {
     out
 }
 
-/// What follows on the plan `a` from the things `marks` lists: the lost
-/// ones gone, the exposed ones in one finder's hands.
+/// Costs what `of` costs. What follows on the plan `a` from the things
+/// `marks` lists: the lost ones gone, the exposed ones in one finder's
+/// hands.
 pub fn follows(c: &Compute, shape: &Shape, a: &Answers, marks: &[(At, What, Mark)]) -> Follows {
     follows_on(shape, a, &Mapped::of(c, shape, a), marks)
 }
@@ -4396,14 +4412,15 @@ fn seed_keys(boxes: &[Spot], p: usize) -> u64 {
     })
 }
 
-/// Works out which share goes where (`docs/BACKUP-FLOW.md` §19.19 item
-/// 3): tries the ways of handing one share to each place, as many keys
-/// left off as can be (from `M − 1` down to 1), and keeps the first in a
-/// fixed order where every group of places that holds enough seeds to
-/// spend, and every group of `M` places, rebuilds the description, and no
-/// place that cannot spend sees the balance alone; failing that, the
-/// first where the groups rebuild. Every group of places is tried for
-/// each way: a search, bounded by a step budget, once, on the press.
+/// Costs a map of the plan (through `place_map`). Works out which share
+/// goes where (`docs/BACKUP-FLOW.md` §19.19 item 3): tries the ways of
+/// handing one share to each place, as many keys left off as can be
+/// (from `M − 1` down to 1), and keeps the first in a fixed order where
+/// every group of places that holds enough seeds to spend, and every
+/// group of `M` places, rebuilds the description, and no place that
+/// cannot spend sees the balance alone; failing that, the first where
+/// the groups rebuild. Every group of places is tried for each way: a
+/// search, bounded by a step budget, once, on the press.
 pub fn hand_out(c: &Compute, shape: &Shape, a: &Answers) -> HandOut {
     let boxes = place_map(c, shape, a);
     let places = places_of(&boxes).max(1);
@@ -4515,9 +4532,9 @@ fn search(
     false
 }
 
-/// Whether everything the plan keeps, anywhere, puts the description
-/// back together (`docs/BACKUP-FLOW.md` §19.19 item 5): the whole of it,
-/// or shares and seeds that hold every key.
+/// Costs what `of` costs. Whether everything the plan keeps, anywhere,
+/// puts the description back together (`docs/BACKUP-FLOW.md` §19.19
+/// item 5): the whole of it, or shares and seeds that hold every key.
 pub fn description_kept(c: &Compute, shape: &Shape, a: &Answers) -> bool {
     description_kept_on(shape, a, &Mapped::of(c, shape, a))
 }
@@ -4531,8 +4548,8 @@ pub fn description_kept_on(shape: &Shape, a: &Answers, m: &Mapped) -> bool {
     have.wallet_ok(shape, a)
 }
 
-/// The shares the plan keeps, each with how many places, vaults and the
-/// software keep it, in share order.
+/// Costs what `of` costs. The shares the plan keeps, each with how many
+/// places, vaults and the software keep it, in share order.
 pub fn shares_kept(c: &Compute, shape: &Shape, a: &Answers) -> Vec<(usize, usize)> {
     shares_kept_on(shape, &Mapped::of(c, shape, a))
 }
@@ -4557,6 +4574,8 @@ pub fn shares_kept_on(shape: &Shape, m: &Mapped) -> Vec<(usize, usize)> {
 }
 
 impl Answers {
+    /// Costs a map of the plan (through `hand_out`).
+    ///
     /// **Add partial descriptions to this backup** (`docs/BACKUP-FLOW.md`
     /// §19.19 item 1): any share kept taken off, then one share of the
     /// description on each place's paper, handed out by [`hand_out`], the
@@ -4599,8 +4618,8 @@ impl Answers {
         });
     }
 
-    /// The places that keep the whole description, on paper or on a stick
-    /// there.
+    /// Costs what `of` costs. The places that keep the whole description,
+    /// on paper or on a stick there.
     pub fn whole_at(&self, c: &Compute, shape: &Shape) -> Vec<usize> {
         Mapped::of(c, shape, self).whole_at()
     }

@@ -518,11 +518,11 @@ impl Faraday {
         Ok(d)
     }
 
-    /// The first receive address of the wallet the piece describes:
-    /// worked out the first time it is asked for this description, by
-    /// whoever asks, a frame included, and kept on the state by the
-    /// description and network it comes from, a lookup after (public).
-    /// Costs a parse of the description and an address the first time.
+    /// Costs a parse of the description and an address the first time. The
+    /// first receive address of the wallet the piece describes: worked out
+    /// the first time it is asked for this description, by whoever asks, a
+    /// frame included, and kept on the state by the description and network
+    /// it comes from, a lookup after (public).
     pub fn seeds_address(&self, c: &Compute, s: &SeedsState) -> Result<String, String> {
         let d = self.seeds_descriptor(c, s)?;
         let net = self.session.network();
@@ -541,7 +541,7 @@ impl Faraday {
                 .map_err(|e| e.to_string())
         });
         let mut kept = self.seeds_addresses.borrow_mut();
-        if kept.len() >= 16 {
+        if kept.len() >= crate::SEEDS_ADDRESSES_KEPT {
             kept.clear();
         }
         kept.push((d, net, a.clone()));
@@ -797,8 +797,9 @@ impl Faraday {
     }
 }
 
-/// The keys open vaults hold that are not loaded: the vault, the record
-/// and the key's fingerprint as text.
+/// Costs what `key_fingerprint` costs. The keys open vaults hold that
+/// are not loaded: the vault, the record and the key's fingerprint as
+/// text.
 pub(crate) fn vault_seeds(c: &Compute, app: &Faraday) -> Vec<(usize, usize, String)> {
     let mut out = Vec::new();
     for (v, open) in app.vaults.open.iter().enumerate() {

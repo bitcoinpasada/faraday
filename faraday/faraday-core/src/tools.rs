@@ -132,8 +132,8 @@ impl Faraday {
         self.screen = Screen::Tools;
     }
 
-    /// The loaded keys a policy may name by fingerprint: each one's
-    /// multisig account key with both chains.
+    /// Costs what `account_text` costs. The loaded keys a policy may name
+    /// by fingerprint: each one's multisig account key with both chains.
     pub fn tools_keys(&self, c: &Compute) -> Vec<(String, String)> {
         self.session
             .keys

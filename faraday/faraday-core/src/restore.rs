@@ -149,7 +149,8 @@ pub fn merge(texts: &[String]) -> Result<Merged, String> {
     })
 }
 
-/// Whether the rebuilt text reads as a wallet.
+/// Costs what `parse` and `read_wallet` cost. Whether the rebuilt text
+/// reads as a wallet.
 pub fn readable(c: &Compute, whole: &str) -> bool {
     multisig_config::parse(c, whole).is_ok() || crate::wallet::read_wallet(c, whole).is_ok()
 }

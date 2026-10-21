@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The Starter's macOS code, checked without a Mac (HANDOFF item 73, A3a):
-# clippy with warnings as errors over faraday-starter-shell and its tests, for
-# both Mac targets, aarch64-apple-darwin and x86_64-apple-darwin.
+# clippy with warnings as errors (tools/clippy.py, which also fails on a
+# warning about clippy's configuration) over faraday-starter-shell and
+# its tests, for both Mac targets, aarch64-apple-darwin and x86_64-apple-darwin.
 #
 # Why no Mac is needed: a check type-checks and lints Rust for the target
 # from the target's standard library, which rustup installs as it does any
@@ -60,5 +61,5 @@ for t in "${targets[@]}"; do
     var=${t//-/_}
     echo "check-macos: $t"
     env "CC_$var=$cc" "AR_$var=$ar" CARGO_TARGET_DIR="$dir" \
-        cargo clippy -p faraday-starter-shell --all-targets --target "$t" -- -D warnings
+        python3 tools/clippy.py -p faraday-starter-shell --all-targets --target "$t"
 done

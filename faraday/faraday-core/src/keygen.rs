@@ -562,9 +562,9 @@ impl KeyGen {
         self.shares.get(at).map(|s| s.indices())
     }
 
-    /// Deals the master secret into `slip_m` of `slip_n` shares, with
-    /// `random` for the split's own randomness (a fresh draw from the
-    /// system's generator).
+    /// Costs a PBKDF2 (through `split`). Deals the master secret into
+    /// `slip_m` of `slip_n` shares, with `random` for the split's own
+    /// randomness (a fresh draw from the system's generator).
     pub fn deal(&mut self, c: &Compute, random: [u8; 32]) -> Result<(), String> {
         use osk_bip::slip39;
         let Some(secret) = self.secret.as_ref() else {

@@ -2,11 +2,12 @@
 //! costly work beyond its named budget, the press and the frames after
 //! it together (`docs/SPEED.md` §8). A press that needs a costly answer
 //! works it out once; drawing what it opened works out nothing it could
-//! have kept.
+//! have kept. On a desktop and on the Pi's panel, whose compact screens
+//! offer their own presses.
 
 use osk_shell_api::{App, Event};
 
-use super::{MAIN, walk};
+use super::{DESKTOP, MAIN, PI, Panel, walk_on};
 use crate::work::{Counts, KINDS, Work, since, snapshot};
 use crate::{Action, Faraday, Screen};
 
@@ -136,11 +137,13 @@ fn press_work(app: &mut Faraday, a: Action) -> Counts {
     since(&before)
 }
 
-#[test]
-fn every_press_a_main_screen_offers_does_no_costly_work_beyond_its_budget() {
+/// Every press each main screen offers on `panel`, against the budgets;
+/// at least `least` of them, so that a walk that reached fewer screens
+/// fails rather than passes on less.
+fn presses_hold_on(panel: Panel, least: usize) {
     let c = crate::testkit::compute();
     // Each screen of the walk drawn, as a person reaches it.
-    let (mut app, _) = walk(&c, &mut |app, _| {
+    let (mut app, _) = walk_on(&c, panel, &mut |app, _| {
         app.settle();
         let _ = app.frame();
     });
@@ -188,7 +191,7 @@ fn every_press_a_main_screen_offers_does_no_costly_work_beyond_its_budget() {
         }
     }
     assert!(
-        pressed > 100,
+        pressed >= least,
         "{pressed} presses: the screens offered fewer than expected"
     );
     assert!(
@@ -197,4 +200,15 @@ fn every_press_a_main_screen_offers_does_no_costly_work_beyond_its_budget() {
         failures.join("\n"),
         lines.join("\n")
     );
+}
+
+#[test]
+fn every_press_a_main_screen_offers_does_no_costly_work_beyond_its_budget() {
+    presses_hold_on(DESKTOP, 100);
+}
+
+#[test]
+fn on_the_pis_panel_every_press_a_main_screen_offers_does_no_costly_work_beyond_its_budget() {
+    // A compact screen offers fewer presses: one column, its menu folded.
+    presses_hold_on(PI, 30);
 }

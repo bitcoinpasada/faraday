@@ -155,10 +155,10 @@ impl Faraday {
         self.session.wallets.get(i)?.policy().silent()
     }
 
-    /// The scan and spend keys, derived from the loaded key: `None`
-    /// while that key is not loaded, or where it is not the key the
-    /// wallet was written from (a fingerprint is four bytes; the wallet
-    /// is the two points).
+    /// Costs what `derive` costs. The scan and spend keys, derived from the
+    /// loaded key: `None` while that key is not loaded, or where it is not
+    /// the key the wallet was written from (a fingerprint is four bytes;
+    /// the wallet is the two points).
     fn silent_receiver(&self, c: &Compute) -> Option<(Receiver, [u8; 4])> {
         let s = self.silent.as_ref()?;
         let key = self
@@ -175,10 +175,10 @@ impl Faraday {
         Some((r, key.fingerprint().0))
     }
 
-    /// What the page shows of its key ([`SilentShown`]), kept on the
-    /// flow's state by what it is derived from, by whoever asks first, a
-    /// frame included: a lookup after. Costs two key derivations and an
-    /// address the first time.
+    /// Costs two key derivations and an address the first time. What the
+    /// page shows of its key ([`SilentShown`]), kept on the flow's state by
+    /// what it is derived from, by whoever asks first, a frame included: a
+    /// lookup after.
     pub(crate) fn silent_shown(&self, c: &Compute) -> SilentShown {
         let Some(s) = self.silent.as_ref() else {
             return SilentShown::default();
@@ -203,14 +203,14 @@ impl Faraday {
         shown
     }
 
-    /// Whether the wallet's key is loaded, which labels, the scan key and
-    /// a check need: costs two key derivations.
+    /// Costs two key derivations: whether the wallet's key is loaded, which
+    /// labels, the scan key and a check need.
     pub fn silent_key_here(&self, c: &Compute) -> bool {
         self.silent_receiver(c).is_some()
     }
 
-    /// The address on show, unlabelled or with the chosen label: costs
-    /// two key derivations and an address, none for the wallet's own. The
+    /// Costs two key derivations and an address, none for the wallet's own:
+    /// the address on show, unlabelled or with the chosen label. The
     /// unlabelled one is the wallet's own, with or without its key; a
     /// labelled one needs the scan private key.
     pub fn silent_address(&self, c: &Compute) -> Option<String> {
@@ -230,8 +230,9 @@ impl Faraday {
         a.ok().map(|t| t.as_str().to_string())
     }
 
-    /// The public record a coordinator keeps: the network, the key's
-    /// origin, the labels handed out and the address.
+    /// Costs what `silent_receiver` costs. The public record a coordinator
+    /// keeps: the network, the key's origin, the labels handed out and the
+    /// address.
     pub fn silent_record(&self, c: &Compute) -> Option<String> {
         if let Some(w) = self.silent_wallet() {
             return Some(w.to_text());
@@ -252,15 +253,17 @@ impl Faraday {
         )
     }
 
-    /// The scan key, BIP-392's `spscan1q…`.
+    /// Costs what `silent_receiver` costs. The scan key, BIP-392's
+    /// `spscan1q…`.
     fn silent_scan_key(&self, c: &Compute) -> Option<Zeroizing<String>> {
         let (r, _) = self.silent_receiver(c)?;
         let k = r.scan_key_text().ok()?;
         Some(Zeroizing::new(k.as_str().to_string()))
     }
 
-    /// The QR view of the address on show (as it is, or as a `bitcoin:`
-    /// link) or of the record, with the name and label of its picture.
+    /// Costs what `silent_address`, `silent_record` and `of` cost. The QR
+    /// view of the address on show (as it is, or as a `bitcoin:` link) or
+    /// of the record, with the name and label of its picture.
     pub(crate) fn silent_code(&self, c: &Compute, code: crate::Code) -> Result<QrView, String> {
         let s = self.silent.as_ref().ok_or(EN.silent_silent_payments_is)?;
         let fp = fp_text(osk_bip::keys::Fingerprint(
@@ -478,10 +481,10 @@ impl Faraday {
         }
     }
 
-    /// What a check of `check` comes to, or `None` while a previous
-    /// transaction is still missing. As OpenSigner works it out: an
-    /// unsigned input is no answer, and the change label is always
-    /// looked for.
+    /// Costs what `silent_receiver` costs. What a check of `check` comes
+    /// to, or `None` while a previous transaction is still missing. As
+    /// OpenSigner works it out: an unsigned input is no answer, and the
+    /// change label is always looked for.
     fn silent_answer(
         &self,
         c: &Compute,

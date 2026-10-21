@@ -84,10 +84,15 @@ impl View<'_> {
     }
 
     /// The key the words typed on Load a key make, for its status line
-    /// (`EntryState::probed`), kept until an event forgets it. Costs a
-    /// PBKDF2 and an elliptic-curve multiplication the first time.
-    pub fn entry_probed(&self, m: &Mnemonic) -> Result<Fingerprint, String> {
-        self.kept(|c| self.entry.probed(c, m))
+    /// (`EntryState::probed`), kept until an event forgets it; `None`
+    /// while typing goes on, before it is worked out
+    /// ([`crate::Faraday::typing_now`]). Costs a PBKDF2 and an
+    /// elliptic-curve multiplication the first time after typing pauses.
+    pub fn entry_probed(&self, m: &Mnemonic) -> Option<Result<Fingerprint, String>> {
+        if self.typing_now() {
+            return self.entry.probe_kept();
+        }
+        Some(self.kept(|c| self.entry.probed(c, m)))
     }
 
     /// Explore's reading ([`crate::Faraday::explore_reading`]), kept by
@@ -222,12 +227,6 @@ impl View<'_> {
     /// time.
     pub(crate) fn gpg_chosen(&self) -> Vec<GpgFile> {
         self.kept(|c| self.app.gpg_chosen(c))
-    }
-
-    /// File `item`'s SHA-256 ([`crate::Item::hash`]): the one taken when
-    /// it came in. Costs a hash of the file when none was taken.
-    pub(crate) fn item_hash(&self, item: &crate::Item) -> [u8; 32] {
-        self.kept(|c| item.hash(c))
     }
 
     /// The session strip's stage ([`crate::Faraday::session_stage`]),

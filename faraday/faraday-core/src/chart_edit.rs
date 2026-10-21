@@ -72,9 +72,10 @@ pub struct Ask {
 }
 
 impl Faraday {
-    /// The notes the plan's record keeps for `wallet` (§9.5): in open
-    /// vault `v`, or in whichever open vault keeps its plan. None kept,
-    /// or no vault open: none.
+    /// Costs what `plan_vault_of` and `described_of` cost. The notes the
+    /// plan's record keeps for `wallet` (§9.5): in open vault `v`, or in
+    /// whichever open vault keeps its plan. None kept, or no vault open:
+    /// none.
     pub(crate) fn plan_notes(
         &self,
         c: &Compute,
@@ -119,9 +120,9 @@ impl Faraday {
         }
     }
 
-    /// The open vault a chart's notes and plan are kept in: the vault
-    /// drawing it, else the one keeping the wallet's plan, else the
-    /// current one.
+    /// Costs what `plan_vault_of` costs. The open vault a chart's notes and
+    /// plan are kept in: the vault drawing it, else the one keeping the
+    /// wallet's plan, else the current one.
     fn notes_vault(&self, c: &Compute, press: Press, w: usize) -> Option<usize> {
         if let Press::Vault(v, _) = press {
             return Some(v);
@@ -277,7 +278,8 @@ impl Faraday {
         self.sheet_scroll = (0.0, None);
     }
 
-    /// What an edit does, in words: "Move Key 1 words to Place 3".
+    /// Costs what `of_now` and `of_vault_now` cost. What an edit does, in
+    /// words: "Move Key 1 words to Place 3".
     fn edit_title(
         &self,
         c: &Compute,
@@ -424,8 +426,9 @@ impl Faraday {
         self.chart_then(ask.press, w, ask.edit);
     }
 
-    /// The lines of work a later plan dropped that open vault `v`'s record
-    /// keeps for `wallet` ("vault.ofv holds seed 9A6A2580").
+    /// Costs what `described_of` costs. The lines of work a later plan
+    /// dropped that open vault `v`'s record keeps for `wallet` ("vault.ofv
+    /// holds seed 9A6A2580").
     fn plan_extras(&self, c: &Compute, wallet: &crate::wallet::Wallet, v: usize) -> Vec<String> {
         use faraday_vault::records::{field, kind};
         let want = crate::wallet::same_wallet(wallet.policy());
@@ -635,8 +638,9 @@ impl Faraday {
         }
     }
 
-    /// What is at line `line` of backup node `n` on the chart of `press`,
-    /// or every thing in the node.
+    /// Costs what `of_now` and `of_vault_now` cost. What is at line `line`
+    /// of backup node `n` on the chart of `press`, or every thing in the
+    /// node.
     fn chart_things(
         &self,
         c: &Compute,
@@ -658,7 +662,8 @@ impl Faraday {
         })
     }
 
-    /// The master fingerprint of key `k` of the chart of `press`.
+    /// Costs what `of_now` and `of_vault_now` cost. The master fingerprint
+    /// of key `k` of the chart of `press`.
     fn chart_key_fp(&self, c: &Compute, press: Press, k: u8) -> Option<[u8; 4]> {
         let g = match press {
             Press::Loaded(w) => glance::of_now(c, self, w),

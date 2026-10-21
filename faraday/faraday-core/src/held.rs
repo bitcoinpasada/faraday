@@ -17,8 +17,9 @@ use crate::glance::{Now, Reads};
 use crate::wallet::{self, fp_text};
 use crate::{Action, BStage, Faraday, Screen, bstep, plan};
 
-/// Whether vault key record `r` holds the words of session key `key`,
-/// from whichever list: told by the SHA-256 of each one's entropy
+/// Costs what `words_id` and `record_words_id` cost. Whether vault key
+/// record `r` holds the words of session key `key`, from whichever
+/// list: told by the SHA-256 of each one's entropy
 /// ([`wallet::WordsId`]), all 32 bytes, both kept once worked out, so
 /// nothing parses the words again and two seeds never pass for one.
 fn same_words(c: &Compute, app: &Faraday, r: &Record, key: &wallet::Key) -> bool {
@@ -34,8 +35,9 @@ fn pending(r: &Record) -> bool {
 }
 
 impl Faraday {
-    /// Whether open vault `o` holds session key `k`'s seed: a key record
-    /// of its words, and with `with_pass`, with its passphrase too.
+    /// Costs what `same_words` costs. Whether open vault `o` holds session
+    /// key `k`'s seed: a key record of its words, and with `with_pass`,
+    /// with its passphrase too.
     pub(crate) fn vault_holds_seed(
         &self,
         c: &Compute,
@@ -61,10 +63,10 @@ impl Faraday {
         }
     }
 
-    /// The keys here that are held: made here, or loaded from a vault that
-    /// says so, or kept back by a wallet's backup flow until its last
-    /// stick is written (`docs/BACKUP-FLOW.md` §10.2), with their backup
-    /// not done.
+    /// Costs what `held_keys_stored_with` costs. The keys here that are
+    /// held: made here, or loaded from a vault that says so, or kept back
+    /// by a wallet's backup flow until its last stick is written
+    /// (`docs/BACKUP-FLOW.md` §10.2), with their backup not done.
     ///
     /// Works out [`crate::drawing::View::held_keys`] from the state as it is.
     pub fn held_keys_now(&self, c: &Compute) -> Vec<Fingerprint> {
@@ -99,15 +101,17 @@ impl Faraday {
         out
     }
 
-    /// [`Faraday::held_keys_now`] without the keys a flow holds back: what a
-    /// vault's key record and a plan's `held` lines say. The flow's own
-    /// hold is in its state, not in the copies on the sticks.
+    /// Costs what `held_keys_stored_with` costs. [`Faraday::held_keys_now`]
+    /// without the keys a flow holds back: what a vault's key record and a
+    /// plan's `held` lines say. The flow's own hold is in its state, not in
+    /// the copies on the sticks.
     pub(crate) fn held_keys_stored(&self, c: &Compute) -> Vec<Fingerprint> {
         self.held_keys_stored_with(c, &self.flow_held())
     }
 
-    /// [`Faraday::held_keys_stored`] given what [`Faraday::flow_held`]
-    /// returns, so a caller that has it does not work it out again.
+    /// Costs what `same_words` costs. [`Faraday::held_keys_stored`] given
+    /// what [`Faraday::flow_held`] returns, so a caller that has it does
+    /// not work it out again.
     fn held_keys_stored_with(&self, c: &Compute, flow: &[Fingerprint]) -> Vec<Fingerprint> {
         let mut out: Vec<Fingerprint> = self
             .made_here
@@ -150,31 +154,34 @@ impl Faraday {
         out
     }
 
-    /// Whether key `fp` is held.
+    /// Costs what `held_keys_now` costs. Whether key `fp` is held.
     pub fn key_held(&self, c: &Compute, fp: Fingerprint) -> bool {
         self.held_keys_now(c).contains(&fp)
     }
 
-    /// Whether key `fp` is held and a copy of it should say so: the
-    /// hold a flow keeps is not written to a stick.
+    /// Costs what `held_keys_stored` costs. Whether key `fp` is held and a
+    /// copy of it should say so: the hold a flow keeps is not written to a
+    /// stick.
     pub(crate) fn key_held_stored(&self, c: &Compute, fp: Fingerprint) -> bool {
         self.held_keys_stored(c).contains(&fp)
     }
 
-    /// The keys of loaded wallet `w` here that are held, for a decision
-    /// ([`wallet_held_on`]).
+    /// Costs what `wallet_held_on` costs. The keys of loaded wallet `w`
+    /// here that are held, for a decision ([`wallet_held_on`]).
     pub fn wallet_held(&self, c: &Compute, w: usize) -> Vec<Fingerprint> {
         wallet_held_on(&Now { app: self, c }, w)
     }
 
-    /// Whether a key of `wl` made here still waits for its backup, for a
-    /// decision ([`receive_held_on`]).
+    /// Costs what `receive_held_on` costs. Whether a key of `wl` made here
+    /// still waits for its backup, for a decision ([`receive_held_on`]).
     pub fn receive_held(&self, c: &Compute, wl: &wallet::Wallet) -> bool {
         receive_held_on(&Now { app: self, c }, wl)
     }
 
-    /// An address of `wl` as every screen shows it, and whether it is
-    /// held back, for a decision ([`receive_line_on`]).
+    /// Costs what `receive_line_on` costs: an address derivation the first
+    /// time, and the held keys. An address of `wl` as every screen shows
+    /// it, and whether it is held back, for a decision
+    /// ([`receive_line_on`]).
     pub fn receive_line(
         &self,
         c: &Compute,
@@ -185,8 +192,8 @@ impl Faraday {
         receive_line_on(&Now { app: self, c }, wl, change, index)
     }
 
-    /// [`Faraday::wallet_held`] as a copy of the plan says it: without the
-    /// keys a flow holds back.
+    /// Costs what `held_keys_stored` costs. [`Faraday::wallet_held`] as a
+    /// copy of the plan says it: without the keys a flow holds back.
     pub(crate) fn wallet_held_stored(&self, c: &Compute, w: usize) -> Vec<Fingerprint> {
         self.wallet_held_in(w, self.held_keys_stored(c))
     }
@@ -203,14 +210,14 @@ impl Faraday {
             .collect()
     }
 
-    /// The seeds of the wallet being backed up that are held, by place
-    /// among its seeds.
+    /// Costs what `backup_held_seeds_on` costs. The seeds of the wallet
+    /// being backed up that are held, by place among its seeds.
     pub(crate) fn backup_held_seeds(&self, c: &Compute) -> Vec<usize> {
         backup_held_seeds_on(&Now { app: self, c })
     }
 
-    /// The line said in place of Make the checklist, for a decision
-    /// ([`backup_kept_nowhere_on`]).
+    /// Costs what `backup_kept_nowhere_on` costs. The line said in place of
+    /// Make the checklist, for a decision ([`backup_kept_nowhere_on`]).
     pub fn backup_kept_nowhere(&self, c: &Compute) -> Option<String> {
         backup_kept_nowhere_on(&Now { app: self, c })
     }
@@ -391,6 +398,7 @@ impl Faraday {
         }
     }
 
+    /// Costs what `backup_items_now` and `backup_item_done_now` cost.
     /// Whether checklist item `n` may open: it is on the checklist and
     /// every item before it is done.
     pub(crate) fn backup_reachable(&self, c: &Compute, n: u8) -> bool {
@@ -402,7 +410,8 @@ impl Faraday {
                 .all(|&i| bstep::item(i).is_some_and(|it| self.backup_item_done_now(c, it)))
     }
 
-    /// The first item not done, which the later items wait for.
+    /// Costs what `backup_items_now` and `backup_item_done_now` cost. The
+    /// first item not done, which the later items wait for.
     pub fn backup_waiting(&self, c: &Compute) -> Option<u8> {
         self.backup_items_now(c)
             .into_iter()

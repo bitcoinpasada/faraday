@@ -24,6 +24,8 @@ use osk_bip::bitcoin::absolute::LockTime;
 use osk_crypto::work::Compute;
 use osk_psbt::Psbt;
 
+/// Costs what `add_words`, `add_wallet`, `inspect` and the rest it
+/// calls cost.
 fn run(c: &Compute, out: &Path) -> Result<(), String> {
     let (unsigned, cosigned) = testkit::spend()?;
     println!("spend txid {}", unsigned.unsigned_tx().compute_txid());

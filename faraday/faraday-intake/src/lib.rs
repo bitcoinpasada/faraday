@@ -62,8 +62,9 @@ pub fn seedqr_words(payload: &[u8]) -> Option<Zeroizing<String>> {
     Some(out)
 }
 
-/// The seed a code holds: a SeedQR, a CompactSeedQR, or a seed's words in
-/// English, as words; `None` for anything else.
+/// Costs what `parse` costs. The seed a code holds: a SeedQR, a
+/// CompactSeedQR, or a seed's words in English, as words; `None` for
+/// anything else.
 pub fn seed_in_code(c: &Compute, payload: &[u8]) -> Option<Zeroizing<String>> {
     if let Some(words) = seedqr_words(payload) {
         return Some(words);
@@ -91,8 +92,9 @@ pub enum TextSecret {
     ExtendedPrivateKey,
 }
 
-/// Whether scanned text is a secret, and which: a seed's words or an
-/// extended private key, with or without its origin.
+/// Costs what `parse` costs. Whether scanned text is a secret, and
+/// which: a seed's words or an extended private key, with or without
+/// its origin.
 pub fn secret_text(c: &Compute, text: &str) -> Option<TextSecret> {
     let t = text.trim();
     let words = t.split_whitespace().count();

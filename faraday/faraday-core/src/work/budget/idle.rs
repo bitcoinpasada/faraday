@@ -2,11 +2,12 @@
 //! layout scale, scrolled to its top and to its end, 120 ticks of the
 //! clock with nothing moving draw nothing. At a scale that is not whole
 //! an offset rounded to whole pixels may land past the page's end; the
-//! page must not clamp it back and draw again for ever.
+//! page must not clamp it back and draw again for ever. The same on the
+//! Pi's panel, whose compact screens scroll by their own code.
 
 use osk_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware};
 
-use super::walk;
+use super::{PI, walk, walk_on};
 use crate::Faraday;
 
 /// The layout scales a shell gives: a desktop at 100 % to 300 %.
@@ -103,6 +104,28 @@ fn a_page_at_rest_asks_for_no_frame_at_any_scale_at_its_top_or_its_end() {
             }
         }
         show(app, 1.0);
+        app.settle();
+        let _ = app.frame();
+    });
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn on_the_pis_panel_a_page_at_rest_asks_for_no_frame_at_its_top_or_its_end() {
+    let c = crate::testkit::compute();
+    let mut failures = Vec::new();
+    let _ = walk_on(&c, PI, &mut |app, name| {
+        if !PAGES.contains(&name) {
+            return;
+        }
+        for (end, offset) in [("top", 0.0), ("end", 1.0e6)] {
+            let (drawn, at) = idle_at(app, offset);
+            if drawn > 0 {
+                failures.push(format!(
+                    "{name} on the Pi's panel, at its {end}: {drawn} of 120 idle ticks asked for a frame (offset {at:?})"
+                ));
+            }
+        }
         app.settle();
         let _ = app.frame();
     });

@@ -442,6 +442,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "costs-lint"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "cpubits"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -701,6 +710,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "faraday-alloc-count"
+version = "0.1.5"
+
+[[package]]
 name = "faraday-apk"
 version = "0.1.5"
 dependencies = [
@@ -729,6 +742,7 @@ dependencies = [
 name = "faraday-core"
 version = "0.1.5"
 dependencies = [
+ "faraday-alloc-count",
  "faraday-apk",
  "faraday-core",
  "faraday-files",

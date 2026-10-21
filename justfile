@@ -10,13 +10,15 @@ test:
     cargo nextest run --workspace
     cargo test --workspace --doc
 
-# Clippy with warnings as errors, formatting check, the secret-hygiene
-# lint, the user-facing-strings lint, the design-token lint, the check
-# that no shipped binary compiles the token that counts nothing
-# (docs/COMPUTE.md §3), and the Starter's macOS code checked for both Mac
-# targets without a Mac (tools/check-macos.sh).
+# Clippy with warnings as errors, and failing on a warning about its own
+# configuration (tools/clippy.py), formatting check, the secret-hygiene
+# lint, the user-facing-strings lint, the design-token lint, the costs
+# lint (who takes, mints and keeps the compute token, docs/COMPUTE.md
+# §8), the check that no shipped binary compiles the token that counts
+# nothing (docs/COMPUTE.md §3), and the Starter's macOS code checked for
+# both Mac targets without a Mac (tools/check-macos.sh).
 lint:
-    cargo clippy --workspace --all-targets -- -D warnings
+    python3 tools/clippy.py --workspace --all-targets
     # Advisories, licences, duplicates and sources, against deny.toml.
     # `cargo install --locked cargo-deny` puts it on a machine (README,
     # "Faraday Desktop, for developers").
@@ -25,6 +27,7 @@ lint:
     tools/lint-secrets.sh
     tools/lint-strings.sh
     tools/lint-tokens.sh
+    cargo run -q -p costs-lint
     tools/lint-unchecked.sh
     tools/check-macos.sh
     python3 tools/learn/sync.py check

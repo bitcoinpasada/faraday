@@ -113,9 +113,10 @@ fn locktime_text(n: u32) -> String {
     }
 }
 
-/// Takes `tx` apart. `prevouts` are the outputs its inputs spend, in
-/// order, where the source states them; the session marks the outputs
-/// that come back to a loaded wallet.
+/// Costs an address derivation (through `find_address`). Takes `tx`
+/// apart. `prevouts` are the outputs its inputs spend, in order, where
+/// the source states them; the session marks the outputs that come back
+/// to a loaded wallet.
 pub fn decode(
     c: &Compute,
     tx: &Transaction,

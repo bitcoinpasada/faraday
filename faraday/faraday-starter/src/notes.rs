@@ -249,22 +249,24 @@ impl Notes {
         }
     }
 
-    /// Writes the sheet as a PDF (`faraday-core`'s writer): the title,
-    /// the rows, a line to write on for a value not known, the lines to
-    /// circle the keys that worked, and the steps. Writing a PDF.
+    /// Costs what `sheet` costs. Writes the sheet as a PDF
+    /// (`faraday-core`'s writer): the title, the rows, a line to write on
+    /// for a value not known, the lines to circle the keys that worked, and
+    /// the steps. Writing a PDF.
     pub fn pdf(&self, c: &Compute) -> Vec<u8> {
         self.sheet(c, None)
     }
 
-    /// The same sheet with the system drive's BitLocker recovery key
-    /// after the rows (F49): its drive and its eight groups, four to a
-    /// line. Nothing else of BitLocker. The rows' copy of the key is
-    /// wiped once the PDF is written; the PDF is the caller's to wipe.
-    /// Writing a PDF.
+    /// Costs what `sheet` costs. The same sheet with the system drive's
+    /// BitLocker recovery key after the rows (F49): its drive and its eight
+    /// groups, four to a line. Nothing else of BitLocker. The rows' copy of
+    /// the key is wiped once the PDF is written; the PDF is the caller's to
+    /// wipe. Writing a PDF.
     pub fn pdf_with_key(&self, c: &Compute, key: &RecoveryKey) -> Vec<u8> {
         self.sheet(c, Some(key))
     }
 
+    /// Costs a picture drawn (through `notes`).
     fn sheet(&self, c: &Compute, key: Option<&RecoveryKey>) -> Vec<u8> {
         use zeroize::Zeroize;
         let mut rows: Vec<(String, Option<String>)> = self

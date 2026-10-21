@@ -172,6 +172,10 @@ fn main() {
 
 /// The witness script of a `wsh` wallet at `change`/`index`, from the
 /// wallet's own descriptor.
+#[expect(
+    clippy::disallowed_types,
+    reason = "a coordinator's own reading of the wallet, for the demo's transaction (docs/COMPUTE.md §7)"
+)]
 fn witness_script(policy: &WalletPolicy, change: bool, index: u32) -> ScriptBuf {
     use osk_bip::miniscript::descriptor::{Descriptor, DescriptorPublicKey};
     let descriptor: Descriptor<DescriptorPublicKey> =

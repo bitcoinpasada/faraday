@@ -61,16 +61,18 @@ pub struct Row {
 }
 
 impl Faraday {
-    /// The flows in progress, walking a backup's checklist (kept for the
-    /// frame while one is drawn): in the order they were begun, what the
-    /// sidebar's rows and the small Home's tiles show.
+    /// Costs what `flows_in_progress_uncached` costs. The flows in
+    /// progress, walking a backup's checklist (kept for the frame while one
+    /// is drawn): in the order they were begun, what the sidebar's rows and
+    /// the small Home's tiles show.
     ///
     /// Works out [`crate::drawing::View::flows_in_progress`] from the state as it is.
     pub fn flows_in_progress_now(&self, c: &Compute) -> Rc<Vec<Row>> {
         Rc::new(self.flows_in_progress_uncached(c))
     }
 
-    /// Works out [`Faraday::flows_in_progress_now`].
+    /// Costs what `flow_finished` and `flow_row` cost. Works out
+    /// [`Faraday::flows_in_progress_now`].
     fn flows_in_progress_uncached(&self, c: &Compute) -> Vec<Row> {
         let mut begun = self.flows_begun_now();
         // In the order noted; one not noted yet (a flow kept across a
@@ -182,6 +184,7 @@ impl Faraday {
         None
     }
 
+    /// Costs what `flow_finished_on` costs: whether flow `g` is finished.
     fn flow_finished(&self, c: &Compute, g: Going) -> bool {
         flow_finished_on(&Now { app: self, c }, g)
     }
@@ -521,11 +524,11 @@ impl Faraday {
         Some(home)
     }
 
-    /// Make a new wallet is under way and its keys are kept nowhere yet:
-    /// begun, its backup not done, and no backup flow of it has made its
-    /// vaults (`docs/NEW-WALLET.md` §18). The idle lock waits, a lock or
-    /// a power-off ends it, and the sidebar says so. Costs what the
-    /// checklist's answers cost.
+    /// Costs what the checklist's answers cost. Make a new wallet is under
+    /// way and its keys are kept nowhere yet: begun, its backup not done,
+    /// and no backup flow of it has made its vaults (`docs/NEW-WALLET.md`
+    /// §18). The idle lock waits, a lock or a power-off ends it, and the
+    /// sidebar says so.
     pub fn lock_held(&self, c: &Compute) -> bool {
         lock_held_on(&Now { app: self, c })
     }
@@ -559,7 +562,8 @@ impl Faraday {
         }
     }
 
-    /// Flow `g`'s row: its tab, its name and its open step.
+    /// Costs what `backup_step` costs. Flow `g`'s row: its tab, its name
+    /// and its open step.
     fn flow_row(&self, c: &Compute, g: Going) -> Option<Row> {
         let wallets = Screen::Start;
         let (tab, name, step) = match g {
@@ -644,8 +648,9 @@ impl Faraday {
         })
     }
 
-    /// Back up's open card: a card of the plan, or an item of the
-    /// checklist, else the first item not done.
+    /// Costs what `backup_items_now`, `backup_item_done_now` and
+    /// `item_title_now` cost. Back up's open card: a card of the plan, or
+    /// an item of the checklist, else the first item not done.
     fn backup_step(&self, c: &Compute) -> Option<String> {
         let b = self.backup.as_ref()?;
         if b.stage == BStage::Plan {

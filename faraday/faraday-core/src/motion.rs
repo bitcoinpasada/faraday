@@ -138,6 +138,10 @@ pub const SWITCH_MS: u64 = 160;
 pub const DISCLOSE_MS: u64 = 180;
 /// How long a toast takes to rise in, and to fade out at its end.
 pub const TOAST_MS: u64 = 160;
+/// How long typing a passphrase may pause before the key it makes is
+/// worked out and shown (a PBKDF2 each time), so that typing does that
+/// work once rather than at every character (`docs/SPEED.md` §3.5).
+pub const TYPED_PAUSE_MS: u64 = 400;
 
 /// Ease-out cubic: fast at first, settling at the end, `t` from 0 to 1.
 pub fn ease_out(t: f32) -> f32 {

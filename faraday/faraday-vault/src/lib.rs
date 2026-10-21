@@ -221,17 +221,17 @@ fn check_cost(cost: &Cost) -> Result<(), Error> {
 /// A slot key: HKDF-SHA256 of the stretched passphrase. Wiped on drop.
 pub struct SlotKey(Secret<[u8; 32]>);
 
-/// Derives the slot key a passphrase gives under `header` (§3): costs an
-/// Argon2id at the header's cost, then HKDF-SHA256 with an empty salt and
-/// the slot info.
+/// Costs an Argon2id at the header's cost, then HKDF-SHA256 with an
+/// empty salt and the slot info: derives the slot key a passphrase
+/// gives under `header` (§3).
 pub fn derive(c: &Compute, header: &Header, passphrase: &[u8]) -> Result<SlotKey, Error> {
     let k = stretch(c, &header.cost, passphrase, &header.salt)?;
     Ok(SlotKey(hkdf_sha256(k.expose(), SLOT_INFO)))
 }
 
-/// Argon2id(passphrase, salt) at `cost`, 32 bytes: costs
-/// `cost.memory_kib` of memory filled `cost.passes` times, asked for so
-/// that a cost this machine cannot meet is an error.
+/// Costs an Argon2id run: `cost.memory_kib` of memory filled
+/// `cost.passes` times, asked for so that a cost this machine cannot
+/// meet is an error. Argon2id(passphrase, salt) at `cost`, 32 bytes.
 fn stretch(
     c: &Compute,
     cost: &Cost,
@@ -387,8 +387,9 @@ impl Opened {
     }
 }
 
-/// Opens the slot `passphrase` opens (§4): derives the key once, tries
-/// all four slots, and parses the one that opens.
+/// Costs what `derive` costs. Opens the slot `passphrase` opens (§4):
+/// derives the key once, tries all four slots, and parses the one that
+/// opens.
 pub fn open(c: &Compute, file: &[u8], passphrase: &[u8]) -> Result<(Opened, Contents), Error> {
     let header = read_header(file)?;
     let key = derive(c, &header, passphrase)?;
@@ -425,10 +426,11 @@ pub fn open_with(file: &[u8], header: &Header, key: SlotKey) -> Result<(Opened, 
     ))
 }
 
-/// Makes a vault (§8): one to four passphrases, each with the contents of
-/// its own slot, at `cost` with slots of `slot_len`. Everything random
-/// (the salt, which slots the passphrases take, the nonces and the
-/// unused slots) is drawn from a ChaCha20 keystream keyed by `seed`.
+/// Costs what `derive` costs. Makes a vault (§8): one to four
+/// passphrases, each with the contents of its own slot, at `cost` with
+/// slots of `slot_len`. Everything random (the salt, which slots the
+/// passphrases take, the nonces and the unused slots) is drawn from a
+/// ChaCha20 keystream keyed by `seed`.
 pub fn create(
     c: &Compute,
     slot_len: u32,

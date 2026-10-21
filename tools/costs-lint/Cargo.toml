@@ -1,0 +1,25 @@
+[package]
+name = "costs-lint"
+version = "0.1.0"
+description = "The costs lint (docs/COMPUTE.md §8): who takes, mints and keeps the compute token; never runs on a device"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "costs-lint"
+path = "src/main.rs"
+
+[dependencies]
+# Rust's own syntax, read as the compiler reads it. Already in the lock
+# file (2.x, through the derive macros); `full` reads function bodies,
+# `visit` walks them, and proc-macro2's `span-locations` gives each
+# finding its line. No crate enters the graph.
+syn = { version = "2", default-features = false, features = ["full", "visit", "parsing", "printing"] }
+proc-macro2 = { version = "1", default-features = false, features = ["span-locations"] }
+quote = { version = "1", default-features = false }
+
+[lints]
+workspace = true

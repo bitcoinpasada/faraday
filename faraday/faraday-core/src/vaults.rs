@@ -574,6 +574,13 @@ pub struct VaultRecords {
     read: std::cell::OnceCell<Read>,
 }
 
+/// The most key records' fingerprints kept ([`Vaults::fingerprints`]),
+/// far more than open vaults hold; the next one drops the oldest.
+pub(crate) const FINGERPRINTS_KEPT: usize = 256;
+/// The most key records' account keys kept ([`Vaults::accounts`]); the
+/// next one drops the oldest.
+pub(crate) const ACCOUNTS_KEPT: usize = 256;
+
 /// What [`VaultRecords`] keeps read of its records, by record place.
 #[derive(Clone)]
 struct Read {
@@ -597,9 +604,9 @@ impl VaultRecords {
         }
     }
 
-    /// Reads the wallet descriptions the records hold, unless they are
-    /// read already. Costs a parse of each description the first time
-    /// after a change, a lookup after.
+    /// Costs a parse of each description the first time after a change, a
+    /// lookup after. Reads the wallet descriptions the records hold, unless
+    /// they are read already.
     pub fn warm(&self, c: &Compute) {
         self.read.get_or_init(|| {
             // Each key record's words, parsed once for both.
@@ -609,7 +616,7 @@ impl VaultRecords {
                 .iter()
                 .map(|r| {
                     let m = (r.kind == kind::KEY)
-                        .then(|| crate::wallet::record_words(r))
+                        .then(|| crate::wallet::record_words(c, r))
                         .flatten();
                     (
                         m.as_ref().map(|m| m.word_count()),
@@ -621,7 +628,8 @@ impl VaultRecords {
         });
     }
 
-    /// What [`VaultRecords::warm`] keeps, with the key records' words read.
+    /// Costs what `read_wallet` costs. What [`VaultRecords::warm`] keeps,
+    /// with the key records' words read.
     fn read_with(
         &self,
         c: &Compute,
@@ -649,35 +657,36 @@ impl VaultRecords {
         }
     }
 
-    /// Key record `i`'s words' [`crate::wallet::WordsId`]; `None` for
-    /// another record or one holding a seed rather than words. A lookup
-    /// once the records are read.
+    /// Costs what `warm` costs. Key record `i`'s words'
+    /// [`crate::wallet::WordsId`]; `None` for another record or one holding
+    /// a seed rather than words. A lookup once the records are read.
     pub fn words_id(&self, c: &Compute, i: usize) -> Option<&[u8; 32]> {
         self.warm(c);
         self.read.get()?.words_ids.get(i)?.as_deref()
     }
 
-    /// How many words key record `i`'s seed has; `None` for another
-    /// record, or a key record holding a seed rather than words. A lookup
-    /// once the records are read.
+    /// Costs what `warm` costs. How many words key record `i`'s seed has;
+    /// `None` for another record, or a key record holding a seed rather
+    /// than words. A lookup once the records are read.
     pub fn word_count(&self, c: &Compute, i: usize) -> Option<usize> {
         self.warm(c);
         *self.read.get()?.words.get(i)?
     }
 
-    /// The wallet description record `i` holds, read: a wallet record's
-    /// wallet, a plan's, a wallet share's; `None` for another record or
-    /// one whose description does not read. A lookup once the records
-    /// are read ([`VaultRecords::warm`]); the first ask after a change
-    /// parses them.
+    /// Costs what `warm` costs. The wallet description record `i` holds,
+    /// read: a wallet record's wallet, a plan's, a wallet share's; `None`
+    /// for another record or one whose description does not read. A lookup
+    /// once the records are read ([`VaultRecords::warm`]); the first ask
+    /// after a change parses them.
     pub fn described(&self, c: &Compute, i: usize) -> Option<&Described> {
         self.warm(c);
         self.read.get()?.described.get(i)?.as_ref()
     }
 
-    /// The wallet description record `r` holds, read, when `r` is one of
-    /// these records itself (told by where it is, not by what it says);
-    /// `None` for a copy. A search of the records' places.
+    /// Costs what `described` costs. The wallet description record `r`
+    /// holds, read, when `r` is one of these records itself (told by where
+    /// it is, not by what it says); `None` for a copy. A search of the
+    /// records' places.
     pub fn described_rec(&self, c: &Compute, r: &Record) -> Option<&Described> {
         self.described(c, self.place_of(r)?)
     }
@@ -691,8 +700,8 @@ impl VaultRecords {
             .position(|x| std::ptr::eq(x, r))
     }
 
-    /// Each record of kind `k` with the wallet description it holds, read
-    /// (see [`VaultRecords::described`]).
+    /// Costs what `described` costs. Each record of kind `k` with the
+    /// wallet description it holds, read (see [`VaultRecords::described`]).
     pub fn described_of(
         &self,
         c: &Compute,
@@ -727,9 +736,10 @@ impl From<Contents> for VaultRecords {
 }
 
 impl Faraday {
-    /// How many words key record `r`'s seed has, as its open vault keeps
-    /// it read ([`VaultRecords::word_count`]); a record that is no open
-    /// vault's own (a copy) is read afresh, which costs a parse.
+    /// Costs what `word_count` costs. How many words key record `r`'s seed
+    /// has, as its open vault keeps it read ([`VaultRecords::word_count`]);
+    /// a record that is no open vault's own (a copy) is read afresh, which
+    /// costs a parse.
     pub(crate) fn record_word_count(&self, c: &Compute, r: &Record) -> Option<usize> {
         if let Some((o, i)) = self
             .vaults
@@ -739,12 +749,13 @@ impl Faraday {
         {
             return o.contents.word_count(c, i);
         }
-        crate::wallet::record_words(r).map(|m| m.word_count())
+        crate::wallet::record_words(c, r).map(|m| m.word_count())
     }
 
-    /// Key record `r`'s words' [`crate::wallet::WordsId`], as its open
-    /// vault keeps it ([`VaultRecords::words_id`]); a record that is no
-    /// open vault's own (a copy) is read afresh, which costs a parse.
+    /// Costs what `words_id` costs. Key record `r`'s words'
+    /// [`crate::wallet::WordsId`], as its open vault keeps it
+    /// ([`VaultRecords::words_id`]); a record that is no open vault's own
+    /// (a copy) is read afresh, which costs a parse.
     pub(crate) fn record_words_id(
         &self,
         c: &Compute,
@@ -761,13 +772,14 @@ impl Faraday {
                 .words_id(c, i)
                 .map(|id| zeroize::Zeroizing::new(*id));
         }
-        crate::wallet::record_words(r).map(|m| crate::wallet::words_id(c, &m))
+        crate::wallet::record_words(c, r).map(|m| crate::wallet::words_id(c, &m))
     }
 
-    /// The wallet description record `r` holds, as its open vault keeps
-    /// it read ([`VaultRecords`]); a record that is no open vault's own
-    /// (a copy) is read as a description no record keeps
-    /// ([`Faraday::read_kept`]), which costs a parse the first time.
+    /// Costs what `described_rec` and `read_kept` cost. The wallet
+    /// description record `r` holds, as its open vault keeps it read
+    /// ([`VaultRecords`]); a record that is no open vault's own (a copy) is
+    /// read as a description no record keeps ([`Faraday::read_kept`]),
+    /// which costs a parse the first time.
     pub(crate) fn record_described(
         &self,
         c: &Compute,
@@ -1231,10 +1243,10 @@ impl Faraday {
         self.session.holds_secret() || !self.vaults.open.is_empty()
     }
 
-    /// The session's keys and wallets that no open vault holds, by label
-    /// and by name (`PLAN.md` §6.3: locking lists what was not saved).
-    /// Kept in the drawing memo while a frame is drawn (`docs/SPEED.md`
-    /// §3.3). Costs a parse of each key's words.
+    /// Costs a parse of each key's words. The session's keys and wallets
+    /// that no open vault holds, by label and by name (`PLAN.md` §6.3:
+    /// locking lists what was not saved). Kept in the drawing memo while a
+    /// frame is drawn (`docs/SPEED.md` §3.3).
     ///
     /// Works out [`crate::drawing::View::unsaved`]. Costs a parse of each key's words.
     pub fn unsaved_now(&self, c: &Compute) -> (Vec<String>, Vec<String>) {
@@ -1282,10 +1294,11 @@ impl Faraday {
         (keys, wallets)
     }
 
-    /// What a lock, a write-out or a power-off keeps and what it wipes
-    /// (`docs/SIMPLIFY.md` §4.5): each vault with its currency, the files
-    /// For the stick, and each seed and wallet in memory with where else
-    /// it is. At `power_off` a vault not written as it stands and the
+    /// Costs what `lock_held`, `currency`, `words_id` and the rest it calls
+    /// cost. What a lock, a write-out or a power-off keeps and what it
+    /// wipes (`docs/SIMPLIFY.md` §4.5): each vault with its currency, the
+    /// files For the stick, and each seed and wallet in memory with where
+    /// else it is. At `power_off` a vault not written as it stands and the
     /// files For the stick are lost, not kept. Reads each seed's words and
     /// each open vault's wallets; kept for the frame while one is drawn
     /// (`docs/SPEED.md` §3.12).
@@ -2392,7 +2405,7 @@ impl Faraday {
                 else {
                     return;
                 };
-                let Some(m) = crate::wallet::record_words(r) else {
+                let Some(m) = crate::wallet::record_words(&c, r) else {
                     return;
                 };
                 let words = phrase_of(&m);
@@ -2773,11 +2786,11 @@ impl Faraday {
         self.toast(&fill(EN.vaults_loaded_from, &[&what.to_string(), from]));
     }
 
-    /// The keys and wallets open vault `v` holds, each with whether the
-    /// session has it already and whether it is chosen for the next load.
-    /// Kept in the drawing memo while a frame is drawn (`docs/SPEED.md`
-    /// §3.3). Reads its wallet records as it keeps them read
-    /// ([`VaultRecords`]).
+    /// Costs what `described` and `key_fingerprint` cost. The keys and
+    /// wallets open vault `v` holds, each with whether the session has it
+    /// already and whether it is chosen for the next load. Kept in the
+    /// drawing memo while a frame is drawn (`docs/SPEED.md` §3.3). Reads
+    /// its wallet records as it keeps them read ([`VaultRecords`]).
     ///
     /// Works out [`crate::drawing::View::vault_rows`] from the wallet records as the
     /// vault keeps them read ([`VaultRecords`]).
@@ -2828,13 +2841,13 @@ impl Faraday {
         rows
     }
 
-    /// Where the seed of wallet slot `slot` is in the open vaults: the
-    /// vault and its record. A record is that slot's seed when its key at
-    /// the descriptor's path is the descriptor's key; the fingerprint
+    /// Costs a PBKDF2 and two elliptic-curve multiplications per key
+    /// record, and a PBKDF2 and a key derivation per candidate, the first
+    /// time. Where the seed of wallet slot `slot` is in the open vaults:
+    /// the vault and its record. A record is that slot's seed when its key
+    /// at the descriptor's path is the descriptor's key; the fingerprint
     /// only finds the candidate (F65). A slot with no descriptor key (a
-    /// silent payments wallet's, a share) is found by fingerprint. Costs
-    /// a PBKDF2 and two elliptic-curve multiplications per key record,
-    /// and a PBKDF2 and a key derivation per candidate, the first time.
+    /// silent payments wallet's, a share) is found by fingerprint.
     pub fn vault_key_for(&self, c: &Compute, slot: &crate::wallet::Slot) -> Option<(usize, usize)> {
         let want = crate::wallet::fp_text(slot.fingerprint?);
         self.vaults.open.iter().enumerate().find_map(|(v, open)| {
@@ -2850,9 +2863,9 @@ impl Faraday {
         })
     }
 
-    /// The slot [`SlotOf`] `at` names, with master fingerprint `fp`;
-    /// `None` when that wallet or slot is gone or names another key.
-    /// Costs a read of the wallet's keys.
+    /// Costs a read of the wallet's keys. The slot [`SlotOf`] `at` names,
+    /// with master fingerprint `fp`; `None` when that wallet or slot is
+    /// gone or names another key.
     pub(crate) fn slot_of(
         &self,
         c: &Compute,
@@ -2880,7 +2893,8 @@ impl Faraday {
         (slot.fingerprint == Some(fp)).then_some(slot)
     }
 
-    /// The wallets open vault `v` holds together with some of their
+    /// Costs what `key_fingerprint`, `vault_rows_now` and `described_of`
+    /// cost. The wallets open vault `v` holds together with some of their
     /// seeds, each with those seeds' records.
     pub fn vault_wallets_with_keys(&self, c: &Compute, v: usize) -> Vec<VaultWallet> {
         let Some(open) = self.vaults.open.get(v) else {
@@ -3011,7 +3025,7 @@ impl Faraday {
                 continue;
             }
             let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
-            if let Some(m) = crate::wallet::record_words(r) {
+            if let Some(m) = crate::wallet::record_words(&c, r) {
                 // Stored with the key, or kept alone in an open vault.
                 let pass = match r.text(field::KEY_PASSPHRASE) {
                     Some(p) => Zeroizing::new(p.to_string()),
@@ -3192,7 +3206,7 @@ impl Faraday {
         match r.kind {
             kind::KEY => {
                 let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
-                let added = match crate::wallet::record_words(r) {
+                let added = match crate::wallet::record_words(&c, r) {
                     Some(m) => {
                         // Stored with the key, or kept alone in an open
                         // vault (`docs/BACKUP-FLOW.md` §19.12 item 4).
@@ -4503,10 +4517,10 @@ impl Faraday {
         }
     }
 
-    /// Where vault file `f` stands against the last write
-    /// (`docs/SIMPLIFY.md` §3.5). A vault copied in from a stick,
-    /// unchanged, that no receipt names is current on the stick it came
-    /// from when that is known, else unchanged.
+    /// Costs a hash of a whole file (through `hash`). Where vault file `f`
+    /// stands against the last write (`docs/SIMPLIFY.md` §3.5). A vault
+    /// copied in from a stick, unchanged, that no receipt names is current
+    /// on the stick it came from when that is known, else unchanged.
     pub fn currency(&self, c: &Compute, f: &VaultFile) -> Option<Currency> {
         let changed = f
             .open
@@ -4557,8 +4571,9 @@ impl Faraday {
         }
     }
 
-    /// The first vault changed since it was written, by the name it goes
-    /// by: Home's lead rule 6 and the session strip's Write out.
+    /// Costs a hash of a whole file (through `currency`). The first vault
+    /// changed since it was written, by the name it goes by: Home's lead
+    /// rule 6 and the session strip's Write out.
     pub fn vault_changed(&self, c: &Compute) -> Option<String> {
         self.vault_files().iter().find_map(|f| {
             (self.currency(c, f) == Some(Currency::Changed)).then(|| {

@@ -221,12 +221,12 @@ fn document(_c: &Compute, pages: Vec<Page>) -> Vec<u8> {
     out
 }
 
-/// A notes sheet (`docs/STARTER.md` §3.4, F47): what a person takes to
-/// a computer's BIOS, on one page. `rows` are labels and values, a value
-/// not known printed as a line to write on; `steps` are numbered, each
-/// with its lines under it. Holds nothing secret, and the document
-/// carries no information beyond its page (no title, author, producer
-/// or dates).
+/// Costs a picture drawn (through `document`). A notes sheet
+/// (`docs/STARTER.md` §3.4, F47): what a person takes to a computer's
+/// BIOS, on one page. `rows` are labels and values, a value not known
+/// printed as a line to write on; `steps` are numbered, each with its
+/// lines under it. Holds nothing secret, and the document carries no
+/// information beyond its page (no title, author, producer or dates).
 pub fn notes(
     c: &Compute,
     title: &str,
@@ -287,7 +287,7 @@ fn get<'a>(f: &'a [(String, String)], key: &str) -> Option<&'a str> {
     f.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str())
 }
 
-/// The PDF of a sheet file.
+/// Costs a QR encoding and a picture drawn. The PDF of a sheet file.
 pub fn sheet(c: &Compute, text: &str) -> Result<Vec<u8>, String> {
     let f = fields(text)?;
     match get(&f, "kind") {
@@ -299,6 +299,8 @@ pub fn sheet(c: &Compute, text: &str) -> Result<Vec<u8>, String> {
     }
 }
 
+/// Costs a QR encoding and a picture drawn (through `encode` and
+/// `document`).
 fn wallet_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
     let mut p = Page::default();
     let name = get(f, "name").unwrap_or(EN.pdf_wallet);
@@ -367,8 +369,9 @@ fn wallet_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
     document(c, vec![p])
 }
 
-/// What goes in each place's envelope: a heading per place, its things
-/// under it, a line to tick each.
+/// Costs a picture drawn (through `document`). What goes in each
+/// place's envelope: a heading per place, its things under it, a line
+/// to tick each.
 fn envelopes_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
     let mut p = Page::default();
     let name = get(f, "name").unwrap_or(EN.pdf_wallet);
@@ -401,8 +404,9 @@ fn envelopes_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
     document(c, vec![p])
 }
 
-/// One sheet of a split backup: what it is, how many rebuild the wallet,
-/// and its lines as text and as a QR code to scan.
+/// Costs a QR encoding and a picture drawn (through `encode` and
+/// `document`). One sheet of a split backup: what it is, how many
+/// rebuild the wallet, and its lines as text and as a QR code to scan.
 fn share_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
     let mut p = Page::default();
     let name = get(f, "name").unwrap_or(EN.pdf_wallet);
@@ -457,6 +461,8 @@ fn share_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
     document(c, vec![p])
 }
 
+/// Costs a QR encoding and a picture drawn (through `probe_matrix` and
+/// `document`).
 fn blank_sheet(c: &Compute, f: &[(String, String)]) -> Result<Vec<u8>, String> {
     let words: usize = get(f, "words").and_then(|w| w.parse().ok()).unwrap_or(24);
     if words != 12 && words != 24 {
@@ -595,8 +601,9 @@ fn blank_sheet(c: &Compute, f: &[(String, String)]) -> Result<Vec<u8>, String> {
     Ok(document(c, vec![p, q]))
 }
 
-/// A SeedQR of `words` words from a fixed dummy seed: its fixed squares
-/// are the same as every other seed of that length.
+/// Costs a QR encoding (through `encode_seedqr`). A SeedQR of `words`
+/// words from a fixed dummy seed: its fixed squares are the same as
+/// every other seed of that length.
 fn probe_matrix(c: &Compute, words: usize) -> Result<QrMatrix, String> {
     // All-zero entropy: "abandon" ×11 "about", or ×23 "art".
     let entropy = [0u8; 32];

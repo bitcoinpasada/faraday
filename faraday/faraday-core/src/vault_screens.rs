@@ -2255,17 +2255,18 @@ pub(crate) fn policy_shape(policy: osk_bip::policy::WalletPolicy) -> String {
     ))
 }
 
-/// A key record's fingerprint, worked out once per key and kept. Four
-/// bytes: it finds a candidate; whether the record is a given key is
-/// [`record_is_key`]'s to say.
+/// Costs what `key_identity` costs. A key record's fingerprint, worked
+/// out once per key and kept. Four bytes: it finds a candidate; whether
+/// the record is a given key is [`record_is_key`]'s to say.
 pub(crate) fn key_fingerprint(c: &Compute, app: &Faraday, r: &Record) -> Option<String> {
     key_identity(c, app, r).map(|(fp, _)| fp)
 }
 
-/// Whether key record `r` holds session key `key`: the same master key,
-/// its passphrase applied, told by all 32 bytes of
-/// [`crate::wallet::master_id`] (F65), the fingerprint finding the
-/// candidate. Kept once worked out, as the fingerprint is.
+/// Costs what `key_identity` costs. Whether key record `r` holds
+/// session key `key`: the same master key, its passphrase applied, told
+/// by all 32 bytes of [`crate::wallet::master_id`] (F65), the
+/// fingerprint finding the candidate. Kept once worked out, as the
+/// fingerprint is.
 pub(crate) fn record_is_key(
     c: &Compute,
     app: &Faraday,
@@ -2293,10 +2294,10 @@ fn record_id(r: &Record) -> Option<[u8; 32]> {
     Some(sha256::Hash::from_engine(engine).to_byte_array())
 }
 
-/// A key record's master key, its passphrase applied. Costs a PBKDF2
-/// for words and an elliptic-curve multiplication.
+/// Costs a PBKDF2 for words and an elliptic-curve multiplication. A key
+/// record's master key, its passphrase applied.
 fn record_master(c: &Compute, app: &Faraday, r: &Record) -> Option<osk_bip::keys::MasterKey> {
-    Some(match crate::wallet::record_words(r) {
+    Some(match crate::wallet::record_words(c, r) {
         Some(m) => {
             let passphrase = r.text(field::KEY_PASSPHRASE).unwrap_or("");
             let seed = m.to_seed(c, passphrase.as_bytes()).ok()?;
@@ -2314,9 +2315,9 @@ fn record_master(c: &Compute, app: &Faraday, r: &Record) -> Option<osk_bip::keys
     })
 }
 
-/// A key record's fingerprint and [`crate::wallet::master_id`], worked
-/// out once per key and kept. Costs a PBKDF2 and two elliptic-curve
-/// multiplications the first time.
+/// Costs a PBKDF2 and two elliptic-curve multiplications the first
+/// time. A key record's fingerprint and [`crate::wallet::master_id`],
+/// worked out once per key and kept.
 pub(crate) fn key_identity(c: &Compute, app: &Faraday, r: &Record) -> Option<(String, [u8; 32])> {
     let id = record_id(r)?;
     if let Some((_, fp, mid)) = app
@@ -2332,20 +2333,22 @@ pub(crate) fn key_identity(c: &Compute, app: &Faraday, r: &Record) -> Option<(St
     let master = crate::work::keeping(|| record_master(c, app, r))?;
     let fp = fp_text(master.fingerprint());
     let mid = crate::work::keeping(|| crate::wallet::master_id(c, &master));
-    app.vaults
-        .fingerprints
-        .borrow_mut()
-        .push((id, fp.clone(), mid));
+    let mut kept = app.vaults.fingerprints.borrow_mut();
+    if kept.len() >= vaults::FINGERPRINTS_KEPT {
+        kept.remove(0);
+    }
+    kept.push((id, fp.clone(), mid));
     Some((fp, mid))
 }
 
-/// Whether key record `r` is the key a wallet's descriptor names as
-/// `key`: its master fingerprint the descriptor's, and its account key at
-/// the descriptor's path the descriptor's own, public key and chain code
-/// both, where the fingerprint alone only finds a candidate (F65). A key
-/// with no origin is never confirmed. The account key is worked out once
-/// per record and path and kept. Costs a PBKDF2 and a key derivation the
-/// first time for a record whose fingerprint matches.
+/// Costs a PBKDF2 and a key derivation the first time for a record
+/// whose fingerprint matches. Whether key record `r` is the key a
+/// wallet's descriptor names as `key`: its master fingerprint the
+/// descriptor's, and its account key at the descriptor's path the
+/// descriptor's own, public key and chain code both, where the
+/// fingerprint alone only finds a candidate (F65). A key with no origin
+/// is never confirmed. The account key is worked out once per record
+/// and path and kept.
 pub(crate) fn record_is_policy_key(
     c: &Compute,
     app: &Faraday,
@@ -2377,7 +2380,11 @@ pub(crate) fn record_is_policy_key(
         let master = record_master(c, app, r)?;
         Some(account_bytes(&master.derive(c, path).to_xpub(c)))
     });
-    app.vaults.accounts.borrow_mut().push((id, at, got));
+    let mut kept = app.vaults.accounts.borrow_mut();
+    if kept.len() >= vaults::ACCOUNTS_KEPT {
+        kept.remove(0);
+    }
+    kept.push((id, at, got));
     got.is_some_and(|b| b == want)
 }
 
@@ -4469,8 +4476,11 @@ fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
         dy += 40.0;
         ui.text(dx, dy, 12.0, W::R, MUTED, "SHA-256");
         dy += 20.0;
-        // Taken when the image came in (`Item::sha`).
-        let hash = crate::secureboot::image_sha256(&app.item_hash(item));
+        // Taken when the image came in (`Item::sha`): a lookup.
+        let hash = item
+            .sha
+            .map(|s| crate::secureboot::image_sha256(&s))
+            .unwrap_or_default();
         dy += ui.wrap(dx, dy, dw, 15.0, W::M, TEXT, &hash) + 14.0;
         dy += ui.wrap(dx, dy, dw, 13.0, W::R, MUTED, EN.vault_compare_it_with) + 16.0;
         let hw = hold_button(
@@ -4570,9 +4580,10 @@ fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
     dy + 56.0
 }
 
-/// Whether open vault `v` holds a wallet with the same descriptor, as
-/// [`crate::wallet::same_wallet`] compares them: from its wallet records
-/// as the vault keeps them read ([`crate::vaults::VaultRecords`]).
+/// Costs what `described_of` costs. Whether open vault `v` holds a
+/// wallet with the same descriptor, as [`crate::wallet::same_wallet`]
+/// compares them: from its wallet records as the vault keeps them read
+/// ([`crate::vaults::VaultRecords`]).
 pub(crate) fn vault_has_wallet(c: &Compute, app: &Faraday, v: usize, w: &Wallet) -> bool {
     let want = crate::wallet::same_wallet(w.policy());
     app.vaults.open.get(v).is_some_and(|o| {
@@ -4582,7 +4593,8 @@ pub(crate) fn vault_has_wallet(c: &Compute, app: &Faraday, v: usize, w: &Wallet)
     })
 }
 
-/// Whether open vault `v` holds session key `key` ([`record_is_key`]).
+/// Costs what `vault_key` costs. Whether open vault `v` holds session
+/// key `key` ([`record_is_key`]).
 pub(crate) fn vault_has_key(
     c: &Compute,
     app: &Faraday,
@@ -4592,9 +4604,10 @@ pub(crate) fn vault_has_key(
     vault_key(c, app, v, key).is_some()
 }
 
-/// Whether open vault `v` holds session key `key`, and if so whether its
-/// record keeps the BIP-39 passphrase: a record of the same master key,
-/// told by all 32 bytes of its id, not by its fingerprint alone (F65).
+/// Costs what `record_is_key` costs. Whether open vault `v` holds
+/// session key `key`, and if so whether its record keeps the BIP-39
+/// passphrase: a record of the same master key, told by all 32 bytes of
+/// its id, not by its fingerprint alone (F65).
 pub(crate) fn vault_key(
     c: &Compute,
     app: &Faraday,

@@ -331,8 +331,9 @@ impl Record {
 }
 
 impl Faraday {
-    /// The map of wallet `wallet` under answers `a`, as a record keeps it.
-    /// `wi` is the loaded wallet, which names the public files.
+    /// Costs what `backup_public_names_for_now` and `plan_mapped` cost. The
+    /// map of wallet `wallet` under answers `a`, as a record keeps it. `wi`
+    /// is the loaded wallet, which names the public files.
     pub(crate) fn backup_spots(
         &self,
         c: &Compute,
@@ -558,9 +559,10 @@ impl Faraday {
             .unwrap_or_default()
     }
 
+    /// Costs what `backup_lines`, `described_of` and `record_lines` cost.
     /// Every wallet known: loaded, in an open vault, or remembered of a
-    /// locked one, once each by descriptor checksum, in that order. Kept
-    /// in the drawing memo while a frame is drawn (`docs/SPEED.md` §3.3).
+    /// locked one, once each by descriptor checksum, in that order. Kept in
+    /// the drawing memo while a frame is drawn (`docs/SPEED.md` §3.3).
     /// Reads each open vault's wallet records as it keeps them read.
     ///
     /// Works out [`crate::drawing::View::backups`], from each open vault's wallet
@@ -637,8 +639,9 @@ impl Faraday {
         out
     }
 
-    /// A wallet's map with what was seen of each place: from its record,
-    /// else from the plan an open vault keeps for it; `None` with neither.
+    /// Costs what `plan_load_of`, `record_lines` and `backup_spots` cost. A
+    /// wallet's map with what was seen of each place: from its record, else
+    /// from the plan an open vault keeps for it; `None` with neither.
     fn backup_lines(
         &self,
         c: &Compute,
@@ -670,7 +673,8 @@ impl Faraday {
         Some(self.record_lines(c, &r, &names))
     }
 
-    /// A record's lines, each place named and given what was seen of it.
+    /// Costs what `vault_state` costs. A record's lines, each place named
+    /// and given what was seen of it.
     fn record_lines(&self, c: &Compute, r: &Record, names: &[String]) -> Vec<Line> {
         // One vault is "Vault"; several are numbered.
         let vaults = r
@@ -762,12 +766,13 @@ impl Faraday {
         (EN.backups_not_made.to_string(), Tone::Warn)
     }
 
-    /// The vault that holds the seeds `seeds` of record `r`, or with
-    /// none, its wallet, and where its file stands: an open vault holding
-    /// them, else a locked one remembered to. A seed is kept in a vault
-    /// when it is that very key, told by all 32 bytes of its master id
-    /// (F65): an open vault's record against the session's key, a locked
-    /// vault's summary against the id the session or the record keeps.
+    /// Costs what `record_is_key`, `described_of` and `currency` cost. The
+    /// vault that holds the seeds `seeds` of record `r`, or with none, its
+    /// wallet, and where its file stands: an open vault holding them, else
+    /// a locked one remembered to. A seed is kept in a vault when it is
+    /// that very key, told by all 32 bytes of its master id (F65): an open
+    /// vault's record against the session's key, a locked vault's summary
+    /// against the id the session or the record keeps.
     pub(crate) fn vault_state(&self, c: &Compute, r: &Record, seeds: &[[u8; 4]]) -> (String, Tone) {
         let sum = r.sum.as_str();
         let files = self.vault_files();

@@ -528,16 +528,17 @@ impl Plan {
     }
 }
 
-/// The flow's plan for a wallet, from the map its answers draw
-/// (`docs/BACKUP-FLOW.md` §2, §10.2, §19.4): a place for each place of the
-/// map, keeping a stick for each stick there that carries a vault (a vault
-/// named once per stick of it, so a place may keep one vault on two
-/// sticks); a vault for each vault number the map names (numbered as the
-/// answers number them, a number no map uses left empty); a place's stick
-/// of files for each stick there that carries files and no vault; the
-/// stick of files where the map keeps seeds or the wallet as files; and
-/// the stick that carries the public files and sheets. Every stick of the
-/// map is one stick of the flow ([`stick_target`]).
+/// Costs what `of` costs. The flow's plan for a wallet, from the map
+/// its answers draw (`docs/BACKUP-FLOW.md` §2, §10.2, §19.4): a place
+/// for each place of the map, keeping a stick for each stick there that
+/// carries a vault (a vault named once per stick of it, so a place may
+/// keep one vault on two sticks); a vault for each vault number the map
+/// names (numbered as the answers number them, a number no map uses
+/// left empty); a place's stick of files for each stick there that
+/// carries files and no vault; the stick of files where the map keeps
+/// seeds or the wallet as files; and the stick that carries the public
+/// files and sheets. Every stick of the map is one stick of the flow
+/// ([`stick_target`]).
 pub fn plan_of(c: &Compute, shape: &crate::plan::Shape, a: &crate::plan::Answers) -> Plan {
     plan_of_on(a, &crate::plan::Mapped::of(c, shape, a))
 }
@@ -947,13 +948,14 @@ pub struct Again {
 }
 
 impl BackupFlow {
-    /// A new flow at step 1 with `kind`'s own plan.
+    /// Costs what `with_plan` costs. A new flow at step 1 with `kind`'s own
+    /// plan.
     pub fn new(c: &Compute, kind: Kind) -> BackupFlow {
         BackupFlow::with_plan(c, kind, Plan::key_default())
     }
 
-    /// A new flow at step 1 with this plan. Batch B1b makes a wallet's
-    /// from its map.
+    /// Costs what `sync_slots` costs. A new flow at step 1 with this plan.
+    /// Batch B1b makes a wallet's from its map.
     pub fn with_plan(c: &Compute, kind: Kind, plan: Plan) -> BackupFlow {
         let mut f = BackupFlow {
             kind,
@@ -976,7 +978,8 @@ impl BackupFlow {
         f
     }
 
-    /// A new flow for a wallet, at step 1, with the plan its answers draw.
+    /// Costs what `plan_of` and `with_wallet` cost. A new flow for a
+    /// wallet, at step 1, with the plan its answers draw.
     pub fn new_wallet(
         c: &Compute,
         shape: crate::plan::Shape,
@@ -987,8 +990,8 @@ impl BackupFlow {
         BackupFlow::with_wallet(c, plan, shape, answers, name)
     }
 
-    /// [`BackupFlow::new_wallet`] on the plan's map `m` of `shape` and
-    /// `answers`, mapped already.
+    /// Costs what `with_wallet` costs. [`BackupFlow::new_wallet`] on the
+    /// plan's map `m` of `shape` and `answers`, mapped already.
     pub fn new_wallet_on(
         c: &Compute,
         shape: crate::plan::Shape,
@@ -1000,9 +1003,10 @@ impl BackupFlow {
         BackupFlow::with_wallet(c, plan, shape, answers, name)
     }
 
-    /// A new flow that sets up `count` vaults for a wallet whose keys are
-    /// not made yet: it starts at step 2, with a stick for each vault, and
-    /// asks nothing about places, paper or which key goes where.
+    /// Costs what `with_wallet` costs. A new flow that sets up `count`
+    /// vaults for a wallet whose keys are not made yet: it starts at step
+    /// 2, with a stick for each vault, and asks nothing about places, paper
+    /// or which key goes where.
     pub fn new_setup(
         c: &Compute,
         mut shape: crate::plan::Shape,
@@ -1019,6 +1023,7 @@ impl BackupFlow {
         f
     }
 
+    /// Costs what `with_plan` costs.
     fn with_wallet(
         c: &Compute,
         plan: Plan,
@@ -1083,11 +1088,11 @@ impl BackupFlow {
         self.made_in = self.made_in.iter().filter_map(|&v| to(v)).collect();
     }
 
-    /// The plan follows the wallet's answers again, keeping what the flow
-    /// knows of each vault (which file it is, its salt) and which places
-    /// keep their vaults on one stick. A wallet not made yet has the plan
-    /// of its setup (a vault at a place each), which its answers do not
-    /// draw.
+    /// Costs what `of` and `wallet_replan_on` cost. The plan follows the
+    /// wallet's answers again, keeping what the flow knows of each vault
+    /// (which file it is, its salt) and which places keep their vaults on
+    /// one stick. A wallet not made yet has the plan of its setup (a vault
+    /// at a place each), which its answers do not draw.
     pub(crate) fn wallet_replan(&mut self, c: &Compute) {
         let Some(w) = self.wallet.as_ref() else {
             return;
@@ -1096,8 +1101,8 @@ impl BackupFlow {
         self.wallet_replan_on(c, &m);
     }
 
-    /// [`BackupFlow::wallet_replan`] on its plan's map `m`, mapped
-    /// already.
+    /// Costs what `sync_slots` costs. [`BackupFlow::wallet_replan`] on its
+    /// plan's map `m`, mapped already.
     pub(crate) fn wallet_replan_on(&mut self, c: &Compute, m: &crate::plan::Mapped) {
         let Some(w) = self.wallet.as_ref() else {
             return;
@@ -1173,9 +1178,9 @@ impl BackupFlow {
         }
     }
 
-    /// The setup has another number of vaults: the last ones go, or new
-    /// ones are added after the others, and every stick and vault already
-    /// read or opened stays as it is.
+    /// Costs what `sync_slots` costs. The setup has another number of
+    /// vaults: the last ones go, or new ones are added after the others,
+    /// and every stick and vault already read or opened stays as it is.
     pub(crate) fn resize_setup(&mut self, c: &Compute, count: usize) {
         self.plan.places.truncate(count);
         self.plan.vaults.truncate(count);
@@ -1254,10 +1259,10 @@ impl BackupFlow {
         }
     }
 
-    /// The slots follow the plan: a stick per place that keeps one (or per
-    /// vault of a place that keeps several apart), in order, then the
-    /// extras. A place that left takes its slot, and its public files go
-    /// to the first stick.
+    /// Costs what `seed_file_ok` costs. The slots follow the plan: a stick
+    /// per place that keeps one (or per vault of a place that keeps several
+    /// apart), in order, then the extras. A place that left takes its slot,
+    /// and its public files go to the first stick.
     pub(crate) fn sync_slots(&mut self, c: &Compute) {
         if self.plan.public_at >= self.plan.places.len() {
             self.plan.public_at = 0;
@@ -1661,10 +1666,11 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
     out.into_bytes()
 }
 
-/// Read back what [`encode`] kept, and how many flows were dropped: a
-/// state of another version, one that does not read, or one whose parts do
-/// not agree (an index out of range, a stick that the plan does not name,
-/// a step past the key with nothing sealed) is dropped whole.
+/// Costs what `valid` costs. Read back what [`encode`] kept, and how
+/// many flows were dropped: a state of another version, one that does
+/// not read, or one whose parts do not agree (an index out of range, a
+/// stick that the plan does not name, a step past the key with nothing
+/// sealed) is dropped whole.
 pub fn decode(c: &Compute, bytes: &[u8]) -> (Vec<BackupFlow>, usize) {
     use crate::apk::hex_array;
     let text = String::from_utf8_lossy(bytes);
@@ -2104,9 +2110,9 @@ impl WalletFlow {
 }
 
 impl BackupFlow {
-    /// Whether what was read back agrees with itself, and brings the slots
-    /// to the plan. A flow past the key must have made it and sealed a copy
-    /// of each vault.
+    /// Costs what `sync_slots` costs. Whether what was read back agrees
+    /// with itself, and brings the slots to the plan. A flow past the key
+    /// must have made it and sealed a copy of each vault.
     fn valid(&mut self, c: &Compute) -> bool {
         // A made wallet flow with no wallet part, or none that names the
         // wallet, is not one: its gate entry holds its keys instead.

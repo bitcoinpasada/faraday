@@ -162,9 +162,11 @@ fn fp_of(text: &str) -> Option<Fingerprint> {
 }
 
 impl Faraday {
-    /// The first wallet of open vault `v` that key record `r` is a seed
-    /// of, by name: such a key loads with it and has no Load at unlock of
-    /// its own (F62). Reads the wallet records as the vault keeps them read ([`crate::vaults::VaultRecords`]).
+    /// Costs what `key_fingerprint` and `described_of` cost. The first
+    /// wallet of open vault `v` that key record `r` is a seed of, by name:
+    /// such a key loads with it and has no Load at unlock of its own (F62).
+    /// Reads the wallet records as the vault keeps them read
+    /// ([`crate::vaults::VaultRecords`]).
     pub(crate) fn vault_key_wallet(&self, c: &Compute, v: usize, r: usize) -> Option<String> {
         let open = self.vaults.open.get(v)?;
         let rec = open
@@ -188,12 +190,12 @@ impl Faraday {
             })
     }
 
-    /// The seeds open vaults keep as words without a BIP-39 passphrase,
-    /// not loaded, in no wallet of their vault: ones a wallet short of a
-    /// key may use with a passphrase never stored (F62), each with its
-    /// vault and line. Kept in the drawing memo while a frame is drawn
-    /// (`docs/SPEED.md` §3.3); a press works it out afresh. Costs a parse
-    /// of each open vault's wallet records.
+    /// Costs a parse of each open vault's wallet records. The seeds open
+    /// vaults keep as words without a BIP-39 passphrase, not loaded, in no
+    /// wallet of their vault: ones a wallet short of a key may use with a
+    /// passphrase never stored (F62), each with its vault and line. Kept in
+    /// the drawing memo while a frame is drawn (`docs/SPEED.md` §3.3); a
+    /// press works it out afresh.
     ///
     /// Works out [`crate::drawing::View::vault_passphrase_seeds`]. Costs a parse of
     /// each open vault's wallet records.
@@ -201,7 +203,8 @@ impl Faraday {
         Rc::new(self.vault_passphrase_seeds_uncached(c))
     }
 
-    /// Works out [`Faraday::vault_passphrase_seeds_now`].
+    /// Costs what `word_count`, `key_fingerprint` and `vault_key_wallet`
+    /// cost. Works out [`Faraday::vault_passphrase_seeds_now`].
     fn vault_passphrase_seeds_uncached(&self, c: &Compute) -> Vec<PassSeed> {
         let mut out = Vec::new();
         for (v, open) in self.vaults.open.iter().enumerate() {
@@ -321,7 +324,7 @@ impl Faraday {
         else {
             return;
         };
-        let Some(m) = crate::wallet::record_words(rec) else {
+        let Some(m) = crate::wallet::record_words(&c, rec) else {
             return;
         };
         let label = rec.text(field::KEY_LABEL).unwrap_or("").to_string();
@@ -373,10 +376,10 @@ impl Faraday {
         self.vaults.open.iter().position(|o| o.name == s.name)
     }
 
-    /// What the sheet shows, kept in the drawing memo while a frame is
-    /// drawn (`docs/SPEED.md` §3.3). Reads the vault's wallet records as
-    /// it keeps them read; the key fingerprints are the ones the unlock
-    /// worked out.
+    /// Costs what `load_view_of` costs. What the sheet shows, kept in the
+    /// drawing memo while a frame is drawn (`docs/SPEED.md` §3.3). Reads
+    /// the vault's wallet records as it keeps them read; the key
+    /// fingerprints are the ones the unlock worked out.
     ///
     /// Works out [`crate::drawing::View::vault_load_view`] from the state as it is.
     pub fn vault_load_view_now(&self, c: &Compute) -> Option<Rc<LoadView>> {
@@ -385,7 +388,9 @@ impl Faraday {
         Some(Rc::new(self.load_view_of(c, v, &s.ticked)))
     }
 
-    /// Works out the sheet for open vault `v` with `ticked`, from the wallet records as the vault keeps them read ([`crate::vaults::VaultRecords`]).
+    /// Costs what `key_fingerprint` and `described` cost. Works out the
+    /// sheet for open vault `v` with `ticked`, from the wallet records as
+    /// the vault keeps them read ([`crate::vaults::VaultRecords`]).
     fn load_view_of(&self, c: &Compute, v: usize, ticked: &BTreeSet<usize>) -> LoadView {
         let Some(open) = self.vaults.open.get(v) else {
             return LoadView::default();

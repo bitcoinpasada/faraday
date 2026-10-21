@@ -1,12 +1,41 @@
 # Clippy's settings for Faraday's crates. Clippy reads the nearest
 # clippy.toml above each crate's manifest, so this governs every crate
 # under faraday/ and none in core/ or opensigner/ (docs/COMPUTE.md §3, §7).
+#
+# Third-party paths only: what Faraday's own crates and core's could hold
+# is held by the token's types and by the costs lint (tools/costs-lint).
+# Each path names the crate that defines it (`bitcoin`, `secp256k1`,
+# `miniscript`), which Faraday reaches through `osk_bip`'s re-exports.
+# `just lint` fails when clippy prints a warning about this file, such as
+# a path that names nothing (tools/lint-clippy-config.py).
 
 # A token for costly work (`osk_crypto::work::Compute`) is minted only at
 # the entry points docs/COMPUTE.md §3 lists, each under
 # `#[expect(clippy::disallowed_methods, reason = "a mint: …")]`; the
-# token that counts nothing is never Faraday's.
+# token that counts nothing is never Faraday's. `unchecked` exists only
+# under osk-crypto's `unchecked` feature, which no crate clippy checks
+# here turns on, so the path names nothing in them: `allow-invalid` keeps
+# that from being a warning, and the entry still holds wherever the
+# feature is on. The costs lint rejects `unchecked` under faraday/ in
+# any case (docs/COMPUTE.md §8).
 disallowed-methods = [
     { path = "osk_crypto::work::Compute::new", reason = "a mint: only at docs/COMPUTE.md §3's sites, under #[expect]" },
-    { path = "osk_crypto::work::Compute::unchecked", reason = "counts nothing: core's tests and the fuzz targets only (docs/COMPUTE.md §3)" },
+    { path = "osk_crypto::work::Compute::unchecked", reason = "counts nothing: core's tests and the fuzz targets only (docs/COMPUTE.md §3)", allow-invalid = true },
+    # Key work done outside osk-bip's gated functions counts nothing and
+    # takes no token (docs/COMPUTE.md §7).
+    { path = "bitcoin::bip32::Xpriv::new_master", reason = "a master key: osk_bip::keys::MasterKey::from_seed, which takes the token" },
+    { path = "bitcoin::bip32::Xpriv::derive_priv", reason = "a key derivation: osk_bip::keys::MasterKey::derive, which takes the token" },
+    { path = "bitcoin::bip32::Xpriv::fingerprint", reason = "an elliptic-curve multiplication: MasterKey::fingerprint keeps it" },
+    { path = "bitcoin::bip32::Xpub::from_priv", reason = "an elliptic-curve multiplication: MasterKey::xpub or DerivedKey::to_xpub, which take the token" },
+    { path = "bitcoin::bip32::Xpub::derive_pub", reason = "a key derivation: a wallet's addresses through osk_bip::policy::WalletPolicy, which takes the token" },
+    { path = "secp256k1::PublicKey::from_secret_key", reason = "an elliptic-curve multiplication: DerivedKey::to_xpub, which takes the token" },
+    { path = "bitcoin::psbt::Psbt::deserialize", reason = "a PSBT parse: osk_psbt::Psbt::parse_bytes, which takes the token" },
+]
+
+# A descriptor read by miniscript directly is a parse that counts
+# nothing: wallets are read through osk_bip::policy::WalletPolicy, which
+# takes the token. The test kit and the examples build coordinators'
+# transactions with it, under #[expect].
+disallowed-types = [
+    { path = "miniscript::Descriptor", reason = "a descriptor parse: osk_bip::policy::WalletPolicy, which takes the token" },
 ]

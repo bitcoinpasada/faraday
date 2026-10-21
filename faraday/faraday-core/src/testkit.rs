@@ -23,7 +23,6 @@ use osk_bip::bitcoin::{
     Address, Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness,
 };
 use osk_bip::keys::{MasterKey, Network};
-use osk_bip::miniscript::descriptor::{DefiniteDescriptorKey, Descriptor, DescriptorPublicKey};
 use osk_bip::miniscript::psbt::PsbtExt;
 use osk_bip::policy::WalletPolicy;
 use osk_psbt::Psbt;
@@ -239,11 +238,20 @@ pub fn kits() -> Vec<Kit> {
 /// `sortedmulti_a` is written as the `multi_a` over its keys in the order
 /// the sorted script puts them at this index, since `miniscript` has no
 /// sorted form of it.
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "a coordinator's own reading of the wallet, for the test kit's transactions (docs/COMPUTE.md §7)"
+)]
 fn definite(
     policy: &WalletPolicy,
     change: bool,
     index: u32,
-) -> Result<Descriptor<DefiniteDescriptorKey>, String> {
+) -> Result<
+    osk_bip::miniscript::Descriptor<osk_bip::miniscript::descriptor::DefiniteDescriptorKey>,
+    String,
+> {
+    use osk_bip::miniscript::descriptor::{Descriptor, DescriptorPublicKey};
     let text = policy.to_descriptor();
     if text.contains("sortedmulti_a(") {
         let secp = Secp256k1::verification_only();
@@ -1187,6 +1195,15 @@ pub fn started() -> crate::Faraday {
         memory_mib: None,
     }));
     app
+}
+
+/// Typing pauses: one tick of the clock past the pause after which the
+/// key a passphrase or words typed make is worked out and shown
+/// ([`crate::motion::TYPED_PAUSE_MS`]).
+pub fn pause(app: &mut crate::Faraday) {
+    use osk_shell_api::{App, Event};
+    let now = app.now_ms() + crate::motion::TYPED_PAUSE_MS;
+    app.event(Event::Tick { now_ms: now });
 }
 
 /// The board on screen (Back up's plan, or a wallet flow's own) made into

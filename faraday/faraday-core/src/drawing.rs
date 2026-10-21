@@ -111,6 +111,64 @@ impl Drawing {
 /// It derefs to [`Faraday`], never to `&mut Faraday`: what a pass writes
 /// (a scroll clamped, another frame asked for) it notes in its [`After`],
 /// which `render` applies once the pass is drawn.
+///
+/// What the types hold (`docs/COMPUTE.md` §9). Each example that must
+/// not compile sits beside one that must, differing in the one thing
+/// refused: rustdoc here does not check the error code a `compile_fail`
+/// example names, so the compiling twin is what shows the refusal is the
+/// one meant and not a typo.
+///
+/// Event code holding the app to change it mints a token and does
+/// costly work with it:
+///
+/// ```
+/// use faraday_core::Faraday;
+/// use osk_bip::policy::WalletPolicy;
+/// fn event(app: &mut Faraday, text: &str) {
+///     let c = app.compute();
+///     let _ = WalletPolicy::parse(&c, text);
+/// }
+/// ```
+///
+/// Drawing holds the view, which mints nothing:
+///
+/// ```compile_fail,E0596
+/// fn draw(v: &faraday_core::View<'_>) {
+///     let c = v.compute();
+/// }
+/// ```
+///
+/// nor does the app read only:
+///
+/// ```compile_fail,E0596
+/// fn draw(app: &faraday_core::Faraday) {
+///     let c = app.compute();
+/// }
+/// ```
+///
+/// Costly work takes a token, so a call without one does not compile:
+///
+/// ```compile_fail,E0061
+/// fn draw(_v: &faraday_core::View<'_>, text: &str) {
+///     let _ = osk_bip::policy::WalletPolicy::parse(text);
+/// }
+/// ```
+///
+/// The view's own token is private to its accessors in `drawing/`,
+///
+/// ```compile_fail,E0616
+/// fn draw(v: &faraday_core::View<'_>) {
+///     let c = &v.fill;
+/// }
+/// ```
+///
+/// while the state it derefs to is read as it is:
+///
+/// ```
+/// fn draw(v: &faraday_core::View<'_>) -> faraday_core::Screen {
+///     v.screen
+/// }
+/// ```
 #[doc(hidden)]
 pub struct View<'a> {
     app: &'a Faraday,

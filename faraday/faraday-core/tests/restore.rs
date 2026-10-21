@@ -98,6 +98,8 @@ fn sheet_passphrase(app: &mut Faraday, first: &str, again: &str) {
     type_text(app, first);
     app.press(Action::SeedRead(Choice::Field(1)));
     type_text(app, again);
+    // The key the passphrase makes shows once typing pauses.
+    testkit::pause(app);
 }
 
 /// The open slot's Type the words, with these words.

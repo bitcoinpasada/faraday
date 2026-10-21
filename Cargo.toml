@@ -14,6 +14,7 @@ members = [
     "opensigner/shells/v4l2",
     "opensigner/shells/avfoundation",
     "tools/fontbake",
+    "tools/costs-lint",
     "faraday/faraday-core",
     "faraday/faraday-starter",
     "faraday/faraday-ui",
@@ -42,6 +43,7 @@ members = [
     "faraday/shells/snapshot",
     "faraday/tools/testkit",
     "faraday/tools/argon2-bench",
+    "faraday/tools/alloc-count",
 ]
 # The fuzz targets are their own workspace: `cargo fuzz` builds them on
 # nightly with sanitizer flags, and nothing about that build belongs in

@@ -462,10 +462,10 @@ impl Faraday {
             .is_some_and(|i| self.sticks.iter().any(|s| s.id == i.stick))
     }
 
-    /// What the boot stick brought, counted for the sheet's first line.
-    /// Kept in the drawing memo while a frame is drawn (`docs/SPEED.md`
-    /// §3.3). Costs a read of every file it brought that may describe a
-    /// wallet or a seed.
+    /// Costs a read of every file it brought that may describe a wallet or
+    /// a seed. What the boot stick brought, counted for the sheet's first
+    /// line. Kept in the drawing memo while a frame is drawn
+    /// (`docs/SPEED.md` §3.3).
     ///
     /// Works out [`crate::drawing::View::import_count`].
     pub fn import_count_now(&self, c: &Compute) -> Option<ImportCount> {

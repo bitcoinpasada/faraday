@@ -92,6 +92,7 @@ fn pictures(now: Now) -> Sender<(u64, u32, Vec<u8>)> {
     jobs
 }
 
+/// Costs what `serve_on` costs.
 fn serve(
     c: &Compute,
     disks: &mut Disks,
@@ -110,6 +111,7 @@ fn serve(
     served
 }
 
+/// Costs what `handle` costs.
 fn serve_on(
     c: &Compute,
     disks: &mut Disks,

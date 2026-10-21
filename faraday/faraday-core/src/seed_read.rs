@@ -96,9 +96,9 @@ pub struct SeedRead {
     /// Opened by the Spend tab, and what for.
     pub family: Option<ForFamily>,
     /// The key the passphrase typed twice makes ([`SeedRead::with_key`]):
-    /// worked out when the typing that changes the fields is taken
-    /// (`Faraday::seed_read_key`, the only way they change), never while
-    /// drawing. A fingerprint: public.
+    /// worked out once typing that changes the fields has paused
+    /// (`Faraday::seed_read_typed`), never while drawing, and none while
+    /// the person types. A fingerprint: public.
     with: Option<Fingerprint>,
 }
 
@@ -110,12 +110,12 @@ impl SeedRead {
 
     /// The key the passphrase typed makes, once it is typed twice alike:
     /// worked out when it was typed. A lookup.
-    fn with_key(&self) -> Option<Fingerprint> {
+    pub(crate) fn with_key(&self) -> Option<Fingerprint> {
         self.with
     }
 
-    /// Works out [`SeedRead::with_key`] from the fields as they are. Costs
-    /// a PBKDF2 and an elliptic-curve multiplication once they match.
+    /// Costs a PBKDF2 and an elliptic-curve multiplication once they match.
+    /// Works out [`SeedRead::with_key`] from the fields as they are.
     fn with_key_now(&self, c: &Compute) -> Option<Fingerprint> {
         self.pass_ready()
             .then(|| key_of(c, &self.words, &self.pass))
@@ -405,7 +405,6 @@ impl Faraday {
     /// Keys typed into the sheet's passphrase fields. Returns whether they
     /// took the key.
     pub(crate) fn seed_read_key(&mut self, key: KeyIn) -> bool {
-        let c = self.compute();
         if self.sheet != Some(Sheet::SeedRead) {
             return false;
         }
@@ -434,9 +433,22 @@ impl Faraday {
             }
             _ => return false,
         }
-        s.with = s.with_key_now(&c);
+        // The key the two fields make is worked out once typing pauses
+        // (`Faraday::typed_tick`); none is shown until then.
+        s.with = None;
         s.error = None;
+        self.typed_at = s.pass_ready().then_some(self.now_ms);
         true
+    }
+
+    /// Works out the key the passphrase typed twice makes, typing having
+    /// paused. Costs a PBKDF2 and an elliptic-curve multiplication when
+    /// the two fields match.
+    pub(crate) fn seed_read_typed(&mut self) {
+        let c = self.compute();
+        if let Some(s) = self.seed_read.as_mut() {
+            s.with = s.with_key_now(&c);
+        }
     }
 }
 
