@@ -1,5 +1,4 @@
-//! What a signature already on a PSBT is checked for
-//! (`docs/PLANNING.md` §16.111).
+//! What a signature already on a PSBT is checked for.
 //!
 //! Nothing here signs. [`verify_signatures`] reads every signature a
 //! transaction carries — the partial-signature fields and the ones

@@ -1,4 +1,4 @@
-//! The wallet at a glance (`docs/NEW-WALLET.md` §6): a loaded wallet's
+//! The wallet at a glance (`docs/history/NEW-WALLET.md` §6): a loaded wallet's
 //! card charts its keys and its backup, where each thing is and what each
 //! place gives whoever finds it. A cosigner's key is shown and nothing of
 //! this backup holds its seed; with no plan the card offers Back up; the

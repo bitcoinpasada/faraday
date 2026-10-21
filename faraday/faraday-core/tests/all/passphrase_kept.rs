@@ -1,6 +1,6 @@
 //! A BIP-39 passphrase is never kept in the clear: not in what the
 //! device asks the shell to keep, and not in a file queued for the
-//! stick (`docs/NEW-WALLET.md` §3.3, the passphrase wording batch).
+//! stick (`docs/history/NEW-WALLET.md` §3.3, the passphrase wording batch).
 
 use crate::common::type_text;
 use faraday_core::create::NewKind;

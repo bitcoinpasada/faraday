@@ -1,8 +1,8 @@
 //! The other forms a key comes in, beside BIP-39 words, as Add a key
-//! takes them (`docs/OPENSIGNER-PARITY.md` plan B2): SLIP-39 shares,
+//! takes them: SLIP-39 shares,
 //! codex32 strings (BIP 93) and Seed XOR parts. Each is typed one at a
 //! time, collected, and put together by `faraday-bip` or `faraday-entropy`, the
-//! crates OpenSigner's own Load reads them with. A SLIP-39 or codex32 key
+//! crates that read them. A SLIP-39 or codex32 key
 //! is a master seed and has no words; a Seed XOR key is BIP-39 words again.
 
 use crate::strings::EN;
@@ -234,7 +234,7 @@ impl Faraday {
     /// Puts the parts typed together and loads the key they make, with
     /// the passphrase typed (not for codex32); what is wrong otherwise.
     /// Add a key's Make the key and New key's Lock in for a form other
-    /// than words both load through here (`docs/NEW-WALLET.md` §15.2).
+    /// than words both load through here (`docs/history/NEW-WALLET.md` §15.2).
     pub(crate) fn form_key(&mut self) -> Result<faraday_bip::keys::Fingerprint, String> {
         let c = self.compute();
         let form = self.entry.form;
@@ -441,7 +441,7 @@ pub fn take_typed(w: &mut crate::word_entry::WordEntry, lang: Language) {
 }
 
 /// What a key did in the word entry that the screen it is on acts on
-/// (`docs/NEW-WALLET.md` §14.7 item 2).
+/// (`docs/history/NEW-WALLET.md` §14.7 item 2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum WordKey {
     /// A word, or part of one, was typed or taken back.

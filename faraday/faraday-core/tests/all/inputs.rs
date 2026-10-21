@@ -1,5 +1,5 @@
 //! A new input device is believed only once a person at the screen says
-//! so (`PLAN.md` §4.6): a keyboard by typing the code shown, a pointer by
+//! so (`docs/history/PLAN.md` §4.6): a keyboard by typing the code shown, a pointer by
 //! input already believed; ignored devices, and keyboards that keep
 //! guessing the code, stay out until unplugged, and after three such
 //! keyboards new ones get no code until Faraday starts again. The code is

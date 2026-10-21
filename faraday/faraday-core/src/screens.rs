@@ -643,7 +643,7 @@ fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     // fit shows its first rows and how many more, which opens the whole
     // list; each row opens what it names.
     // The pill under Lock while the idle lock waits for a new wallet's
-    // backup (`docs/NEW-WALLET.md` §18) takes its room from the list.
+    // backup (`docs/history/NEW-WALLET.md` §18) takes its room from the list.
     let held = app.lock_held();
     let foot = h - 172.0 - if held { LOCK_PILL_H + 8.0 } else { 0.0 };
     let seeds = app.session.keys.len();
@@ -933,7 +933,7 @@ fn sidebar(app: &View, ui: &mut Ui, h: f32) {
 pub(crate) const LOCK_PILL_H: f32 = 24.0;
 
 /// "Auto-lock off until backup complete" as an outlined pill at (x, y),
-/// `w` wide at most (`docs/NEW-WALLET.md` §18). Returns its height.
+/// `w` wide at most (`docs/history/NEW-WALLET.md` §18). Returns its height.
 pub(crate) fn lock_held_pill(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let (size, pad) = (11.0, 8.0);
     let text = ui.fit(size, W::R, EN.lock_held_pill, w - 2.0 * pad);
@@ -992,7 +992,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
     use crate::vaults::VaultAction as V;
     let mut v = Vec::new();
     // Rule 1: a spend under way; of a wallet loaded, as its card says it
-    // (`docs/NEW-WALLET.md` §11.2).
+    // (`docs/history/NEW-WALLET.md` §11.2).
     if let Some(s) = app.spend.as_ref()
         && let Some(w) = s.wallet.and_then(|w| app.session.wallets.get(w))
     {
@@ -1151,7 +1151,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
     v
 }
 
-/// The wallet card's backup line (`docs/SIMPLIFY.md` §5.2) for loaded
+/// The wallet card's backup line (`docs/history/SIMPLIFY.md` §5.2) for loaded
 /// wallet `i`, which opens Backups on it. Returns the height it took.
 pub(crate) fn backup_line(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) -> f32 {
     let line = app.backup_line(i);
@@ -1411,7 +1411,7 @@ fn start(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Wallets loaded: the list and the wallet card carry every job
     // (Sign a transaction, Back up, Show wallet QR, Sign a message) and
     // Tools has the rest; Add a key stays under the list.
-    // `docs/SIMPLIFY.md` §1.3.
+    // `docs/history/SIMPLIFY.md` §1.3.
     // Spend from a backup stays offered with wallets loaded: it is the
     // way back into a spend left for another tab, which lights Wallets.
     if !empty {
@@ -1530,7 +1530,7 @@ fn start(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if empty {
         let gap = 16.0;
-        // Four ways in (`docs/SIMPLIFY.md` §6.2): Create, Load or
+        // Four ways in (`docs/history/SIMPLIFY.md` §6.2): Create, Load or
         // restore, Spend from a backup, and Add a key.
         let tw = (width - 3.0 * gap) / 4.0;
         let ways = [
@@ -3344,7 +3344,7 @@ fn wallets(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Style::Ghost,
                 Action::Rename,
             );
-            // Create filled from this wallet (`docs/NEW-WALLET.md`
+            // Create filled from this wallet (`docs/history/NEW-WALLET.md`
             // §16.2), beside Rename where it fits before the source's
             // pill, so the foot keeps its one row; else in the foot.
             let bx = ix + nw + 14.0 + rw + 6.0;
@@ -3387,7 +3387,7 @@ fn wallets(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     // Actions: the first along the foot, Remove from session at the
     // end; a row more above when they do not fit the card's width.
-    // The first: from the vault to a spend (`docs/NEW-WALLET.md` §11.2).
+    // The first: from the vault to a spend (`docs/history/NEW-WALLET.md` §11.2).
     let (spend_label, spend_action) = app.spend_button(app.wallet);
     let mut items: Vec<(&str, Style, Action)> = vec![(&spend_label, Style::Primary, spend_action)];
     items.push((
@@ -3395,7 +3395,7 @@ fn wallets(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Style::Secondary,
         Action::QrWallet(app.wallet),
     ));
-    // A backup left part way is offered as such (`docs/NEW-WALLET.md`
+    // A backup left part way is offered as such (`docs/history/NEW-WALLET.md`
     // §12.3).
     let back_up = if app.wallet_backup_unfinished(app.wallet) {
         EN.backup_flow_continue
@@ -3480,7 +3480,7 @@ fn wallets(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     cy += 66.0;
 
-    // The wallet at a glance (`docs/NEW-WALLET.md` §6): its keys and
+    // The wallet at a glance (`docs/history/NEW-WALLET.md` §6): its keys and
     // its backup, where each thing is and what each place gives.
     ui.text(ix, cy, 13.0, W::S, MUTED, EN.wallets_at_a_glance);
     cy += 24.0;
@@ -5506,7 +5506,7 @@ fn backup_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         app.backup_questions()
     };
-    // The items after one not done wait for it (`docs/NEW-WALLET.md`
+    // The items after one not done wait for it (`docs/history/NEW-WALLET.md`
     // §14.1): each says which.
     let waiting = if checklist {
         app.backup_waiting()
@@ -5790,7 +5790,7 @@ fn wallet_pick(app: &View, ui: &mut Ui, x: f32, y: f32, chip_w: f32, right: f32)
 }
 
 /// Under the backup's cards once every one is done
-/// (`docs/NEW-WALLET.md` §14.6): the plan's three checks as a strip, the
+/// (`docs/history/NEW-WALLET.md` §14.6): the plan's three checks as a strip, the
 /// wallet's chart of the plan just completed, what waits for the stick,
 /// and Write to a stick, Open the wallet, Change the plan. Returns its
 /// height.
@@ -5858,7 +5858,7 @@ pub(crate) fn extra_copies(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
 /// wraps onto further lines, its chip growing to hold them. Used where
 /// `button_rows`'s "a long label is cut" must not hold — the Learn
 /// sheet's tabs, whose first row names a label the spec gives in full
-/// (`docs/SIMPLIFY.md` §6.2).
+/// (`docs/history/SIMPLIFY.md` §6.2).
 pub(crate) fn learn_tabs(
     ui: &mut Ui,
     x: f32,
@@ -6298,7 +6298,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             let words = key.words.as_ref().map(|z| z.as_str()).unwrap_or("");
             let list: Vec<&str> = words.split_whitespace().collect();
             // The seed's copies and the forms they take: the grid is drawn
-            // for a SeedQR copy only (`docs/NEW-WALLET.md` §14.7).
+            // for a SeedQR copy only (`docs/history/NEW-WALLET.md` §14.7).
             let forms = app.copy_forms(b, usize::from(n - bstep::COPY));
             let bw = ui.button(
                 x,
@@ -6546,7 +6546,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
 /// The key's other paper forms: a Seed XOR split and codex32 shares,
 /// shown to copy by hand like the words.
 /// The copy of the seed checked: what scanning it found, and the typed
-/// check while it is open (`docs/NEW-WALLET.md` §14.7): the word being
+/// check while it is open (`docs/history/NEW-WALLET.md` §14.7): the word being
 /// typed, the words taken masked, and how the last comparison went.
 /// Returns its height.
 fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
@@ -6704,7 +6704,7 @@ fn word_check(ui: &mut Ui, x: f32, y: f32, w: f32, c: &crate::copy_check::WordCh
     cy
 }
 
-/// A passphrase on paper's item (`docs/NEW-WALLET.md` §14.7 item 5):
+/// A passphrase on paper's item (`docs/history/NEW-WALLET.md` §14.7 item 5):
 /// Show the passphrase, and the passphrase while shown and no check is
 /// open; then the check. Returns its height.
 fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
@@ -6760,7 +6760,7 @@ fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
-/// A checklist item's next action (`docs/NEW-WALLET.md` §14.1): its own
+/// A checklist item's next action (`docs/history/NEW-WALLET.md` §14.1): its own
 /// until it is done, then Continue. A vault item: Make a vault (or the
 /// way to one), then Save into the open vault, then Continue.
 fn item_action(app: &View, n: u8) -> (String, Action) {
@@ -6787,7 +6787,7 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
             Action::Flow(crate::backup_flow_steps::FlowAction::WalletLock),
         ),
         // The words typed back first; then, for a SeedQR copy, the scan
-        // (`docs/NEW-WALLET.md` §14.7 item 1).
+        // (`docs/history/NEW-WALLET.md` §14.7 item 1).
         Item::Copy(i) => {
             use crate::plan::CopyForm;
             let words_left = app.session.keys.get(b.key).is_none_or(|k| {
@@ -6842,7 +6842,7 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
 }
 
 /// Whether seed `i`'s copy item offers Keep the words only
-/// (`docs/NEW-WALLET.md` §14.7 item 3): the seed has a SeedQR copy and
+/// (`docs/history/NEW-WALLET.md` §14.7 item 3): the seed has a SeedQR copy and
 /// the item is not done.
 fn keep_words_offered(app: &View, i: usize) -> bool {
     app.backup.as_ref().is_some_and(|b| {
@@ -6851,7 +6851,7 @@ fn keep_words_offered(app: &View, i: usize) -> bool {
 }
 
 /// A copy item's foot: its next action, and after three scans without a
-/// match Keep the words only beside it (`docs/NEW-WALLET.md` §14.7 item
+/// match Keep the words only beside it (`docs/history/NEW-WALLET.md` §14.7 item
 /// 3). Returns the height used in the column.
 fn copy_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> f32 {
     let i = usize::from(n - crate::bstep::COPY);
@@ -7836,7 +7836,7 @@ fn create_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     create_flow_summary(app, k)
                 }
                 // A wallet made from another, or at another account than
-                // 0, says its account (`docs/NEW-WALLET.md` §16.2, §17).
+                // 0, says its account (`docs/history/NEW-WALLET.md` §16.2, §17).
                 cstep::KIND if (c.from.is_some() || c.account != 0) && c.kind.has_account() => {
                     fill(
                         EN.create_at_account,
@@ -8050,7 +8050,7 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
     };
     let mut cy = y;
     // So that a multisig's three rows do not read as one address per
-    // key (`docs/NEW-WALLET.md` §2.4).
+    // key (`docs/history/NEW-WALLET.md` §2.4).
     section_label(ui, x, cy, EN.first_addresses_the);
     cy += 24.0;
     if app.receive_held(wl) {
@@ -8077,7 +8077,7 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
 
 /// Under a Keys slot's session keys, each open vault's keys not loaded,
 /// under the vault's name, and an Unlock button for each locked vault
-/// (`docs/NEW-WALLET.md` §16.1). A threshold kind lists only shares; a
+/// (`docs/history/NEW-WALLET.md` §16.1). A threshold kind lists only shares; a
 /// key in another slot is not offered (§2.2). Returns the height used.
 #[allow(clippy::too_many_arguments)]
 fn create_vault_rows(
@@ -8159,7 +8159,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             );
             cy += 6.0;
             // The account its keys are used at, for every kind whose
-            // path has one (`docs/NEW-WALLET.md` §16.2, §17).
+            // path has one (`docs/history/NEW-WALLET.md` §16.2, §17).
             if c.kind.has_account() {
                 stepper(
                     ui,
@@ -8249,7 +8249,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             // Continue once every slot is filled.
             let first_empty = c.slots.iter().position(|s| *s == Source::Empty);
             // The open vaults' keys and the locked vaults, from the
-            // drawing memo (`docs/NEW-WALLET.md` §16.1).
+            // drawing memo (`docs/history/NEW-WALLET.md` §16.1).
             let vaults = app.create_vaults();
             for (slot, src) in c.slots.iter().enumerate() {
                 let label = format!(
@@ -8263,7 +8263,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 );
                 ui.text(x, cy + 4.0, 13.0, W::S, TEXT, &label);
                 // A key locked in with a passphrase here says so
-                // (`docs/NEW-WALLET.md` §3.6).
+                // (`docs/history/NEW-WALLET.md` §3.6).
                 if let Source::Here(fp) = src
                     && c.pass_locked.contains(fp)
                 {
@@ -8302,7 +8302,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += 28.0;
                 if !locked {
                     // A key chosen for one slot is offered in no other
-                    // (`docs/NEW-WALLET.md` §2.2): clearing the slot
+                    // (`docs/history/NEW-WALLET.md` §2.2): clearing the slot
                     // offers it again.
                     let used_elsewhere_here = |fp: [u8; 4]| {
                         c.slots
@@ -8493,7 +8493,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             }
             // While a slot is empty, the foot button opens New key for
             // it; once every slot is filled it reads Continue
-            // (`docs/NEW-WALLET.md` §2.3).
+            // (`docs/history/NEW-WALLET.md` §2.3).
             let (label, action) = match first_empty {
                 Some(slot) if !locked => (
                     fill(
@@ -8581,7 +8581,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     Action::CBackup,
                 );
                 cy += 48.0;
-                // Made to move a wallet's money to (`docs/NEW-WALLET.md`
+                // Made to move a wallet's money to (`docs/history/NEW-WALLET.md`
                 // §9.6): the spend of every coin from the old wallet.
                 if let Some(old) = app.moving_from() {
                     let label = fill(
@@ -8848,7 +8848,7 @@ pub(crate) fn pass_field(
 /// What a BIP-39 passphrase field 40 tall and `w` wide at (x, y) shows:
 /// a dot for each character typed, with the selection and the caret
 /// while `on`, or the **No passphrase** pill while it is empty
-/// (`docs/NEW-WALLET.md` §13.4).
+/// (`docs/history/NEW-WALLET.md` §13.4).
 pub(crate) fn dots_field(
     ui: &mut Ui,
     x: f32,
@@ -8926,7 +8926,7 @@ pub(crate) fn descriptor_row(
 
 /// Check's Path row: the made wallet's derivation paths, worked out when
 /// it was made, with **Change** back to Kind's Account while the wallet
-/// can be taken back (`docs/NEW-WALLET.md` §17). Nothing when there is no
+/// can be taken back (`docs/history/NEW-WALLET.md` §17). Nothing when there is no
 /// path. Returns its height.
 fn path_row(ui: &mut Ui, x: f32, y: f32, w: f32, path: &str, change: bool) -> f32 {
     if path.is_empty() {
@@ -9383,7 +9383,7 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         }
         _ => {
             // Restore ends on a choice, none of them the one to take
-            // (`docs/NEW-WALLET.md` §12.3).
+            // (`docs/history/NEW-WALLET.md` §12.3).
             if let Some(i) = r.wallet.filter(|_| r.done[rstep::SEEDS as usize]) {
                 let (spend, spend_action) = app.spend_button(i);
                 let mut items = vec![
@@ -9911,7 +9911,7 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
         FileKind::Carry => EN.kind_name_threshold,
         FileKind::Vault => EN.kind_name_vault_locked,
         FileKind::Entries => EN.kind_name_entries_for,
-        FileKind::Backup => EN.kind_name_opensigner,
+        FileKind::Backup => EN.kind_name_oskb,
         FileKind::Kdbx => EN.kind_name_keepass_database,
         FileKind::Pdf => EN.kind_name_pdf_to_print,
         FileKind::EfiImage => EN.kind_name_efi_image,
@@ -12696,7 +12696,7 @@ fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 48.0;
     // The words form is the one everyday way in; the other three are
     // behind Other forms, or already shown when a Tools tile opened one
-    // of them (`docs/SIMPLIFY.md` §2.4).
+    // of them (`docs/history/SIMPLIFY.md` §2.4).
     if app.entry.other_forms {
         let forms: Vec<(String, Style, Action)> = crate::forms::Form::ALL
             .iter()
@@ -12745,7 +12745,7 @@ fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// status under them: the word count, the word fields or a list's own
 /// keyboard, the words the letters can still become, and the count and
 /// checksum. Add a key draws it, and so does New key's Words card for a
-/// key typed (`docs/NEW-WALLET.md` §15.2). `page`: on Add a key's own
+/// key typed (`docs/history/NEW-WALLET.md` §15.2). `page`: on Add a key's own
 /// page, whose row of lists offers Other forms too. Returns where the
 /// next row starts.
 pub(crate) fn entry_words(
@@ -12974,7 +12974,7 @@ pub(crate) fn word_count_row(
     44.0
 }
 
-/// Words typed on a list's own on-screen keyboard, through OpenSigner's
+/// Words typed on a list's own on-screen keyboard, through the
 /// word entry: the words taken so far in a grid, the keys typed for the
 /// next one, the words they can be as pills to take one, the keyboard
 /// with every key that leads nowhere disabled, and the status. Returns
@@ -13139,7 +13139,7 @@ pub(crate) fn keyed_pills(
     y - top
 }
 
-/// The word keyboard: OpenSigner's, for the list being typed, every key
+/// The word keyboard, for the list being typed, every key
 /// that leads to no word off. Returns where the next row starts.
 pub(crate) fn word_keys(
     shift: bool,
@@ -13412,7 +13412,7 @@ pub(crate) fn entry_stick(app: &View, ui: &mut Ui, x: f32, y: f32) {
 /// (`entry`) knows how tall its content is.
 ///
 /// New key's Words card for a key typed in another form draws it too,
-/// with `flow` its Continue (`docs/NEW-WALLET.md` §15.2): no passphrase
+/// with `flow` its Continue (`docs/history/NEW-WALLET.md` §15.2): no passphrase
 /// (Key asks it), no way in from a stick, and Continue in place of Make
 /// the key, under what is above it.
 pub(crate) fn entry_form(
@@ -14170,7 +14170,7 @@ fn settings(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut y = top;
     title(ui, x, y, EN.settings_settings);
     y += 64.0;
-    // Devices kept out until unplugged (`PLAN.md` §4.6) take a line.
+    // Devices kept out until unplugged (`docs/history/PLAN.md` §4.6) take a line.
     let ignored_h = if app.ignored_inputs.is_empty() {
         0.0
     } else {
@@ -14401,7 +14401,7 @@ fn settings(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ) + 8.0;
     }
     y += 132.0;
-    // Upgrading another stick from this one (`PLAN.md` §5.5): never in the
+    // Upgrading another stick from this one (`docs/history/PLAN.md` §5.5): never in the
     // online app, which has no boot partition to copy.
     if !app.online {
         ui.card(x, y, width, 112.0, LINE);
@@ -15410,7 +15410,7 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
     });
 }
 
-/// A new input device (`PLAN.md` §4.6): its name as it gives it, the
+/// A new input device (`docs/history/PLAN.md` §4.6): its name as it gives it, the
 /// code a keyboard must type, and the person's choice.
 fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(d) = app.inputs.first() else { return };
@@ -15938,7 +15938,7 @@ fn power_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
-/// OpenSigner's Learn pages for the screen under the sheet: a tab for
+/// The Learn pages for the screen under the sheet: a tab for
 /// each, the page's sections, scrolled by the wheel or the arrow keys.
 fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let compact = ui.compact;
@@ -15963,7 +15963,7 @@ fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         Style::Secondary,
         Action::Cancel,
     );
-    // The sheet's first row (`docs/SIMPLIFY.md` §6.2): a direct way to
+    // The sheet's first row (`docs/history/SIMPLIFY.md` §6.2): a direct way to
     // the Spend tab, except from the Spend tab itself and in a held app
     // (`Faraday::held`), which has none.
     let mut tabs: Vec<(String, Style, Action)> = Vec::new();

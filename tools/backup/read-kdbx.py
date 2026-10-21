@@ -2,7 +2,7 @@
 """Open a KDBX 4 database Faraday wrote and print what is in it.
 
 Faraday writes KDBX 4 so that an heir opens an export in a KeePass
-app with no knowledge of this project (`docs/PLANNING.md` §16.112). This
+app with no knowledge of this project. This
 script is the check that it really is KDBX: it opens the file the way
 another implementation would and prints every entry's title, notes and
 password.

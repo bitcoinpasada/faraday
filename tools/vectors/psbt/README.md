@@ -115,8 +115,7 @@ transaction.
 ## The MuSig2 wallet, and what Bitcoin Core 31.1 checked
 
 Bitcoin Core 31.1 signs `musig()` descriptor wallets and is the only
-counterpart that speaks BIP-373's fields today (`docs/PLANNING.md`
-§16.100). On 2026-09-17, on a throwaway regtest node (Core v31.1.0 on
+counterpart that speaks BIP-373's fields today. On 2026-09-17, on a throwaway regtest node (Core v31.1.0 on
 this machine, no network), a two-key `musig()` wallet was built with Core
 holding the second key, funded, and spent in both orders: Core's nonce
 first with the device signing last and no session, and the device's nonce
@@ -343,7 +342,7 @@ regtest.
 
 ## The threshold wallet
 
-The 2-of-3 regtest group of `docs/PLANNING.md` §16.103. Shares 0 and 1
+The 2-of-3 regtest group. Shares 0 and 1
 are the SHA-256 digests of `osk threshold fixture share 0` and
 `osk threshold fixture share 1` read as scalars; `faraday_bip::frost::deal`
 computes share 2 and the group key from them, so every byte follows from

@@ -31,7 +31,7 @@ BR2_LINUX_KERNEL_DTS_SUPPORT=y
 
 # ---- firmware ----
 # PI_X is the camera variant: start_x.elf and fixup_x.dat, which config.txt
-# selects and start_x=1 turns on (PLANNING.md 16.33).
+# selects and start_x=1 turns on.
 BR2_PACKAGE_RPI_FIRMWARE=y
 BR2_PACKAGE_RPI_FIRMWARE_BOOTCODE_BIN=y
 BR2_PACKAGE_RPI_FIRMWARE_VARIANT_PI_X=y

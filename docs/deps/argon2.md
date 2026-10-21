@@ -1,8 +1,7 @@
 # argon2
 
 **Purpose.** Argon2id, the memory-hard half of the key that decrypts a
-key kept on the device (OpenSigner's kept-key blob, PLANNING §15 item
-32; the code is deleted, F68). The storage key is
+key kept on the device (the kept-key blob; the code is deleted, F68). The storage key is
 `HMAC-SHA256(Argon2id(pin, salt_pin), secure_element_mac)`; Argon2id is
 what makes each of the few thousand possible PINs cost 64 MiB and three
 passes rather than one hash.

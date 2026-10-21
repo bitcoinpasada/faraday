@@ -5,7 +5,7 @@ default: test lint
 
 # Run every unit, integration and doc test in the workspace. nextest runs
 # the test binaries in parallel where `cargo test` runs them one after
-# another (docs/PLANNING.md §16.119); it does not run doc tests, so those
+# another; it does not run doc tests, so those
 # follow. `cargo install cargo-nextest --locked` puts it on a machine.
 [group('test')]
 test:
@@ -36,7 +36,7 @@ lint:
     python3 tools/learn/sync.py check
 
 # BIP 445's reference implementation as the second share of the
-# threshold fixture spend (docs/PLANNING.md §16.103). Not part of the
+# threshold fixture spend. Not part of the
 # default `just`, because it is Python and the default recipe is Rust;
 # the reference and its curve library are vendored under
 # tools/reference/bip445/ and nothing is fetched.
@@ -75,7 +75,7 @@ psbt-fixtures:
     cargo run -p faraday-psbt --release --example threshold -- tools/vectors/psbt
     cargo run -p faraday-psbt --release --example tapmulti -- tools/vectors/psbt
 
-# --- Fuzzing (fuzz/, docs/PLANNING.md §12) --------------------------------
+# --- Fuzzing (fuzz/) --------------------------------
 #
 # Local only: no hosted CI runs this, and no release depends on it. It
 # needs a nightly toolchain and cargo-fuzz, both at user level:

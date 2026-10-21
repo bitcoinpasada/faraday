@@ -1,5 +1,5 @@
-//! What a signature already on a transaction is checked for
-//! (`docs/PLANNING.md` §16.111): every signature the committed fixtures
+//! What a signature already on a transaction is checked for:
+//! every signature the committed fixtures
 //! carry verifies, a finalized witness is read back and verifies, one
 //! byte changed is invalid, two signatures under one nonce are found, a
 //! signature this device made is recognised as the rule that made it,

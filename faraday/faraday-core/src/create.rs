@@ -31,8 +31,7 @@ pub enum NewKind {
     MultiLegacy,
     /// `tr(NUMS, sortedmulti_a)`, at m/48'/0'/0'/3' (coin type 1 on a test network).
     TapMulti,
-    /// FROST: any m of n shares sign one Taproot key, dealt here
-    /// (`docs/PLANNING.md` §16.103).
+    /// FROST: any m of n shares sign one Taproot key, dealt here.
     Threshold,
     /// MuSig2: every key signs one Taproot key together,
     /// `tr(musig(…)/<0;1>/*)` over the keys' Taproot accounts (BIP-327,
@@ -137,8 +136,7 @@ impl NewKind {
     }
 
     /// The most keys a wallet of this kind has: five shares for FROST,
-    /// as OpenSigner deals (`docs/PLANNING.md` §16.103), fifteen keys
-    /// for a multisig.
+    /// fifteen keys for a multisig.
     pub fn max_keys(self) -> usize {
         if self.threshold() { 5 } else { 15 }
     }
@@ -187,7 +185,7 @@ impl NewKind {
 
     /// Costs a key derivation. `[fingerprint/path]xpub` of a master key, at
     /// this kind's path with account `account` in place of 0
-    /// (`docs/NEW-WALLET.md` §16.2).
+    /// (`docs/history/NEW-WALLET.md` §16.2).
     pub fn key_text_account(
         self,
         c: &Compute,
@@ -384,7 +382,7 @@ pub enum Source {
 }
 
 /// What a creation started from a loaded wallet keeps of that wallet
-/// (`docs/NEW-WALLET.md` §16.2): its name, kind and account, and, by
+/// (`docs/history/NEW-WALLET.md` §16.2): its name, kind and account, and, by
 /// slot, the cosigners' keys it has only as xpubs.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FromWallet {
@@ -555,7 +553,7 @@ pub fn build(
 }
 
 /// A wallet's derivation paths as Make a new wallet's Check shows them
-/// (`docs/NEW-WALLET.md` §17): the one path when every key has it, else
+/// (`docs/history/NEW-WALLET.md` §17): the one path when every key has it, else
 /// each key's fingerprint and path. A key that came with no origin
 /// reads as such.
 pub fn paths_text(policy: &WalletPolicy) -> String {

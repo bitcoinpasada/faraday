@@ -58,7 +58,7 @@ if [ "$head" != "$commit" ]; then
 fi
 "${DOCKER:-docker}" build -t faraday-image "$image"
 # /binary holds the app (faraday) and the disk process, the grant helper
-# (PLAN.md §4.3) and the boot copier (§5.5) beside it.
+# (docs/history/PLAN.md §4.3) and the boot copier (§5.5) beside it.
 in_container() {
     "${DOCKER:-docker}" run --rm \
         -e BOARD="$board" -e PANEL="$panel" -e DEV="$dev" \
@@ -110,7 +110,7 @@ in_container /image/build.sh
 printf '%s\n' "$kernel_source" > "$source_stamp"
 
 # The PC's kernel carries its release string uncompressed in the bzImage
-# setup code, which is what the upgrade reads (PLAN.md §5.5).
+# setup code, which is what the upgrade reads (docs/history/PLAN.md §5.5).
 kernel="$root/out/pi/$variant/output/images/bzImage"
 if [ -f "$kernel" ] && ! grep -qaF -- "$localversion " "$kernel"; then
     echo "$kernel does not carry the release string $localversion" >&2

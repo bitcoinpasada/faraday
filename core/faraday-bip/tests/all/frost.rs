@@ -1,5 +1,5 @@
 //! BIP 445 FROST signing against the published vectors, and the trusted
-//! dealer of `docs/PLANNING.md` §16.103 against those vectors' key
+//! dealer against those vectors' key
 //! material and against RFC 9591's Appendix F.5 numbers.
 //!
 //! The six files under `tools/vectors/bip445/` are the reference

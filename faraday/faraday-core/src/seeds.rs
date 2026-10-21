@@ -106,7 +106,7 @@ pub struct SeedsState {
     pub error: Option<String>,
     /// The kind was chosen first (Restore's Kind card): the number of
     /// keys stays within it, and each slot is a seed or a cosigner's
-    /// box (`docs/NEW-WALLET.md` §12.1).
+    /// box (`docs/history/NEW-WALLET.md` §12.1).
     pub fixed: bool,
 }
 

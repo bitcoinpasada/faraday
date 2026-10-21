@@ -3,7 +3,7 @@
 
     faraday/tools/upgrade-check.py NEW_DEV_IMAGE OLD_IMAGE OUT_DIR
 
-PLAN.md §5.5's test, as far as this harness reaches. NEW_DEV_IMAGE is a
+docs/history/PLAN.md §5.5's test, as far as this harness reaches. NEW_DEV_IMAGE is a
 dev stick image (`just dev=1 faraday-stick-image`): its serial console
 has a root login, which is the only way in. OLD_IMAGE is an older stick
 image, dev or release.
@@ -26,7 +26,7 @@ image, dev or release.
 
 What it does not exercise: the app's Upgrade screen. Every USB keyboard
 and mouse in QEMU is an external device to Faraday, held back until it
-types a code read off the screen (PLAN.md §4.6), so the harness cannot
+types a code read off the screen (docs/history/PLAN.md §4.6), so the harness cannot
 press anything; root on the dev console stands in for the app's marker
 and the app's requests. The QMP helpers and the machine are upstream's
 (faraday/tools/stick-qemu.py); mtools are Buildroot's, from
@@ -343,7 +343,7 @@ def main():
         check(app != "", "the upgraded stick runs the app")
         # The app's first screen: drawn over the console's black, and
         # still. With QEMU's keyboard plugged in it is the sheet asking
-        # for that keyboard's code (PLAN.md §4.6).
+        # for that keyboard's code (docs/history/PLAN.md §4.6).
         monitor = st.Qmp(qmp_path)
         scratch = os.path.join(work, "screen.ppm")
         w, h, px = settle(monitor, scratch, 90)

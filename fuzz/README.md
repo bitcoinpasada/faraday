@@ -2,7 +2,7 @@
 
 Twelve `cargo fuzz` targets, one per parser that reads something the device
 did not write: a camera frame, a scanned payload, a PSBT from a
-coordinator, a file on storage. `docs/PLANNING.md` §12 asks for them;
+coordinator, a file on storage.
 the 2026-09-11 security review item M5 is why they exist now. The Pi
 shell is the only process on the board and is built with
 `panic = "abort"`, so a panic in any of these is a poweroff in the middle
@@ -87,9 +87,9 @@ never reach the interesting part: `decode_luma` needs
 from the first two bytes (1 to 256 each) and pads or truncates the rest
 to fit.
 
-`settings_read` (OpenSigner's settings file) and `keep_open` (its kept-key
-blob, `osk-keep`) went with the code they read when Faraday dropped
-OpenSigner's app (`docs/DECISIONS.md` F68); the record below is kept as
+`settings_read` (the deleted app's settings file) and `keep_open` (its kept-key
+blob, `osk-keep`) went with the code they read when Faraday deleted
+that app (`docs/DECISIONS.md` F68); the record below is kept as
 it was run.
 
 ## 2026-09-11: what was run and what it found
@@ -137,8 +137,8 @@ root manifest and from this crate's own `Cargo.toml`. `map` returns
 `Option<Point>` and every caller — the fitness functions, the timing and
 alignment scans, the bit sampler, `detect_grids` itself — rejects the
 candidate grid instead of asserting, so a degenerate frame yields no grid
-the way a frame with no code in it does. `third_party/rqrr/OPENSIGNER.md`
-has the detail, `docs/PLANNING.md` §16.59 the decision. Both artifacts
+the way a frame with no code in it does. `third_party/rqrr/PATCHES.md`
+has the detail. Both artifacts
 run clean, and the two are kept as regression inputs.
 
 ### The kept-key blob's Argon2 cost is the blob's own word
@@ -146,7 +146,7 @@ run clean, and the two are kept as regression inputs.
 `artifacts/keep_open/argon2-cost-unclamped.bin` (4 bytes) and
 `argon2-cost-stall.bin` (8 bytes).
 
-`opensigner_core::keep::stretch` (`src/keep.rs:406-430`) builds
+`keep::stretch` in the deleted app's core crate (`src/keep.rs:406-430`) builds
 `Params::new(header.cost.memory_kib, header.cost.passes,
 header.cost.lanes, …)` from the blob and then allocates
 `vec![Block::default(); params.block_count()]`. Both numbers come from

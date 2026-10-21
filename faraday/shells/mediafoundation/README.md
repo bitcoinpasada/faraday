@@ -23,7 +23,7 @@ luma with the UV plane as the preview's colour. The Windows twin of
   Windows build cross-compiles from Linux).
 
 This crate is one of the exceptions to the workspace's
-`unsafe_code = "forbid"`, for the reason in `docs/PLANNING.md` §16.33:
+`unsafe_code = "forbid"`, for this reason:
 reaching the operating system's camera has no safe form in `std`, and a
 binding crate would be more code than this and less readable. Every
 `unsafe` block carries a `// SAFETY:` comment and the public API is

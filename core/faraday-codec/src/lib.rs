@@ -1,5 +1,4 @@
-//! QR payloads (`docs/PLANNING.md` §4.1, §7, §8.2 #2,
-//! §8.4 #1/#12/#16; `docs/UX.md` §4 "Scan routing"):
+//! QR payloads:
 //!
 //! - [`png`]: a QR code as a PNG file, for a public code saved as a
 //!   picture.
@@ -14,8 +13,8 @@
 //!   multi-part, over an in-house fountain codec (§16.61).
 //! - [`decode`] (feature `decode`, on by default): QR detection and
 //!   decoding from an 8-bit luma frame through `rqrr`. This is the one
-//!   place in the core that needs `std`, recorded as a deviation in
-//!   `docs/PLANNING.md` §16.20 and `docs/deps/rqrr.md`.
+//!   place in the core that needs `std`, recorded in
+//!   `docs/deps/rqrr.md`.
 //!
 //! Secrets: SeedQR payloads live in fixed buffers inside [`Secret`]
 //! wrappers, the encoder's scratch space zeroizes, and the resulting

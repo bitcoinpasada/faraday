@@ -1,7 +1,7 @@
-//! A Lightning node's key (`docs/OPENSIGNER-PARITY.md` plan C3): from a
+//! A Lightning node's key: from a
 //! loaded key, read the way ldk-node reads a BIP-39 seed, or from an LND
 //! cipher seed (aezeed) typed here. The arithmetic is `faraday-bip::aezeed`'s,
-//! as OpenSigner's own Lightning tool uses it. The node's public key is
+//! as the Lightning tool uses it. The node's public key is
 //! public; its private key is a secret, into the vault or out only
 //! through the secret sheet.
 

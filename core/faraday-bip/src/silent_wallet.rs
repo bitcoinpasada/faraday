@@ -1,5 +1,5 @@
 //! The record of a silent payments wallet: what the device keeps and
-//! what its review states (`docs/PLANNING.md` §16.113).
+//! what its review states.
 //!
 //! ```text
 //! osk-silent 1

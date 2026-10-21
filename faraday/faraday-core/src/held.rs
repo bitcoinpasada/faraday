@@ -1,4 +1,4 @@
-//! The backup comes before spending (`docs/NEW-WALLET.md` §14,
+//! The backup comes before spending (`docs/history/NEW-WALLET.md` §14,
 //! `docs/DECISIONS.md` F6): a key made here signs nothing until a backup
 //! checklist that keeps its seed, and its passphrase, is complete.
 //!

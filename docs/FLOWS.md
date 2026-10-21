@@ -9,7 +9,7 @@ person would do. Where a flow cannot go on (no vault open, no file in
 Files, a stick still attached), it says what is missing and offers the way
 to get it.
 
-`PLAN.md` holds the decisions; `docs/VAULT.md` the vault format;
+`docs/history/PLAN.md` holds the decisions; `docs/VAULT.md` the vault format;
 `docs/QR.md` the scanner.
 
 ## Decisions this pass made
@@ -23,7 +23,7 @@ to get it.
    entries file **Import into a vault**, a vault file **Unlock**, a
    received file **Show as QR**. Both halves are emptied at power-off.
    The halves are named by direction (owner, 2026-10-10;
-   `docs/SIMPLIFY.md` §4.1): **From the stick** and **For the stick**
+   `docs/history/SIMPLIFY.md` §4.1): **From the stick** and **For the stick**
    ("From the SD card", "For the SD card" on the Pi), on Files, the stick
    visit, the sheets and every button; no screen says "Inbox" or
    "Outbox", which remain the code's names only.
@@ -72,7 +72,7 @@ to get it.
    spend these coins"), and never holds the BIP-39 passphrase. A seed's
    SeedQR never goes through the QR sheet's **PNG for the stick**, which
    is for public content. Make a new wallet ends in the same doors
-   (2026-10-10, `docs/SIMPLIFY.md` §2.3): its last card, **Back up**,
+   (2026-10-10, `docs/history/SIMPLIFY.md` §2.3): its last card, **Back up**,
    offers the plan's presets and opens the backup on the wallet just
    made, whose checklist puts the seeds and the wallet into a vault,
    lists the public files (descriptor, wallet file, multisig config,
@@ -146,7 +146,7 @@ to get it.
     action dimmed.
 
 11. **Home is the Start section, one lead and at most two secondaries**
-    (owner, 2026-10-10; `docs/SIMPLIFY.md` §1 and §1.2). The three status
+    (owner, 2026-10-10; `docs/history/SIMPLIFY.md` §1 and §1.2). The three status
     cards (Session, Files, Sticks) are gone from Home: the sidebar's
     status block already carries them. Start is one full-width lead tile,
     the first job that applies (a spend under way, a PSBT in Files, an
@@ -157,54 +157,54 @@ to get it.
     leave room). Add a key is not on Home: it is reached from Wallets'
     empty state and from Tools.
 12. **Wallets with something loaded is the list and the card alone**
-    (owner, 2026-10-10; `docs/SIMPLIFY.md` §1.3). "What do you have?" and
+    (owner, 2026-10-10; `docs/history/SIMPLIFY.md` §1.3). "What do you have?" and
     "What do you want to do?" are gone from the Wallets start page: every
     job they offered (Sign a transaction, Back up, Show wallet QR, Sign a
     message) is reached from the wallet card, opened from a wallet's row,
     and from Tools.
 13. **Learn joins the sidebar, after Tools** (owner, 2026-10-10;
-    `docs/SIMPLIFY.md` §1.4). The small panel's Home grid carries it in
+    `docs/history/SIMPLIFY.md` §1.4). The small panel's Home grid carries it in
     Add a key's old place.
 14. **The network chooser moves to Settings** (owner, 2026-10-10;
-    `docs/SIMPLIFY.md` §1.5). Home's network pill, and the sidebar's own
+    `docs/history/SIMPLIFY.md` §1.5). Home's network pill, and the sidebar's own
     badge, are off-mainnet badges that open nothing; choosing a network
     is a Settings row.
-15. **The session strip** (owner, 2026-10-10; `docs/SIMPLIFY.md` §1.6).
+15. **The session strip** (owner, 2026-10-10; `docs/history/SIMPLIFY.md` §1.6).
     The sidebar (and the small Home's status card) carries one line,
     **Bring in · Open · Work · Write out**, the current stage in the
     accent, computed from what is attached, loaded and waiting; tapping
     it opens Files. **Write out** is files For the stick, or a vault
     changed since it was written (decision 26), with no stick attached.
 16. **A step card with a default opens closed** (owner, 2026-10-10;
-    `docs/SIMPLIFY.md` §2.1). Make a new wallet, New key and Sign a
+    `docs/history/SIMPLIFY.md` §2.1). Make a new wallet, New key and Sign a
     transaction open on the first card without one; a closed default
     card shows **Change** in place of the chevron.
 17. **Make a new wallet shows two kinds** (owner, 2026-10-10;
-    `docs/SIMPLIFY.md` §2.2). Kind offers Single key and Multisig, both
+    `docs/history/SIMPLIFY.md` §2.2). Kind offers Single key and Multisig, both
     native SegWit; the other eight kinds are behind **More kinds**.
-18. **Add a key opens on words** (owner, 2026-10-10; `docs/SIMPLIFY.md`
-    §2.4; replaced 2026-10-19 by F44, `docs/NEW-WALLET.md` §15: Add a
+18. **Add a key opens on words** (owner, 2026-10-10; `docs/history/SIMPLIFY.md`
+    §2.4; replaced 2026-10-19 by F44, `docs/history/NEW-WALLET.md` §15: Add a
     key is New key's flow, opening on Start, with Type the words one of
     its choices). SLIP-39 shares, codex32 and Seed XOR are behind **Other
     forms**, unless a Tools tile for one of them opened the screen.
 19. **Sign a transaction reviews the transaction before Check** (owner,
-    2026-10-10; `docs/SIMPLIFY.md` §2.5). The Transaction card comes
+    2026-10-10; `docs/history/SIMPLIFY.md` §2.5). The Transaction card comes
     before Check, carries the txid as one of its rows, and Check stays
     closed once a wallet has been checked this power-on.
 20. **Make a new wallet ends in the backup plan** (owner, 2026-10-10;
-    `docs/SIMPLIFY.md` §2.3). The cards are Kind · Quorum · Keys · Check
+    `docs/history/SIMPLIFY.md` §2.3). The cards are Kind · Quorum · Keys · Check
     · Back up. Keys' Continue makes the wallet; Check shows the
     descriptor as a summary row that opens its code with the whole text
     under it; Back up is the plan's three presets, each opening the
     backup on the new wallet with that preset, its chip "Then: Wallets",
     its way back the wallet's card. The vault, public-files and paper
     cards are gone: they are the checklist's items. Since F55
-    (`docs/NEW-WALLET.md` §17, 2026-10-20) Kind carries an **Account**
+    (`docs/history/NEW-WALLET.md` §17, 2026-10-20) Kind carries an **Account**
     − n + stepper for every kind whose path has one, starting at 0, and
     Check shows a **Path** row under the descriptor, with **Change**
     that takes the made wallet back and opens Kind on its Account.
 21. **Create a vault offers two sizes** (owner, 2026-10-10;
-    `docs/SIMPLIFY.md` §3.1 and §3.2). Its cards are Size and Name and
+    `docs/history/SIMPLIFY.md` §3.1 and §3.2). Its cards are Size and Name and
     passphrases; Size is **PCs only** (512 MiB) or **PCs and a Raspberry
     Pi** (64 MiB, the default), both 3 passes, so the flow opens on Name
     and passphrases. **Customise** opens the three cards it stands for
@@ -212,7 +212,7 @@ to get it.
     Name field's caption says the name is what it holds, for anyone who
     sees the stick.
 22. **A new vault is opened once more, then shows its next steps**
-    (owner, 2026-10-10; `docs/SIMPLIFY.md` §3.3). This replaces decision
+    (owner, 2026-10-10; `docs/history/SIMPLIFY.md` §3.3). This replaces decision
     2: **Create vault** always goes to Unlock with the new vault picked,
     under "Type the passphrase once more to open it"; unlocked, it opens
     on Vault contents, which says "Nothing in it yet" with every add
@@ -220,13 +220,13 @@ to get it.
     Vault contents lists only the kinds a slot holds something of, then
     a row per add action.
 23. **A locked vault says what it held** (owner, 2026-10-10;
-    `docs/SIMPLIFY.md` §3.4, `docs/VAULT.md` §11). What a vault held when
+    `docs/history/SIMPLIFY.md` §3.4, `docs/VAULT.md` §11). What a vault held when
     last seen open is kept across a lock until power-off: its Vaults row
     goes by its name and Home's lead is "Unlock {name}", both with the
     line "Savings 2 of 3 · key 9a6a2580 · 12 entries · seen 14:02"; with
     nothing remembered, "Unlock to see what it holds".
 24. **For the stick fills itself** (owner, 2026-10-10;
-    `docs/SIMPLIFY.md` §4.2). A public file a flow makes goes For the
+    `docs/history/SIMPLIFY.md` §4.2). A public file a flow makes goes For the
     stick the moment it is made: the signed PSBT and the finished
     transaction at Finish, the PSBT with this pass's signatures while
     more are needed, the backup checklist's template, sheet or shares
@@ -237,7 +237,7 @@ to get it.
     file out: where **To the Outbox** stood, the row reads "For the
     stick" with **Remove**, and after a Remove the button makes it again.
     The secret sheet stays the one way a secret goes For the stick.
-25. **A write leaves a receipt** (owner, 2026-10-10; `docs/SIMPLIFY.md`
+25. **A write leaves a receipt** (owner, 2026-10-10; `docs/history/SIMPLIFY.md`
     §4.3). When a stick visit's write is answered, what it sent leaves
     For the stick and becomes the receipt, shown under For the stick as
     "Written to {label} at {time}" with a row per file, "verified" or why
@@ -246,7 +246,7 @@ to get it.
     Files as the stick now holds it. With nothing loaded, Home leads with
     "Written to {label}" and the file names, opening Files; a backup
     checklist item counts a file on the receipt as done.
-26. **A vault's currency** (owner, 2026-10-10; `docs/SIMPLIFY.md` §3.5).
+26. **A vault's currency** (owner, 2026-10-10; `docs/history/SIMPLIFY.md` §3.5).
     Each vault file reads one of three states, computed from the
     receipt: "Never written" (sealed For the stick, on no receipt), "On
     {label} · current" (the receipt wrote the bytes it has now),
@@ -257,7 +257,7 @@ to get it.
     Home lead with "Write {name} to a stick" and the session strip read
     Write out.
 27. **The boot sheet is a picker** (owner, 2026-10-10;
-    `docs/SIMPLIFY.md` §4.4; changed 2026-10-20 by F60). With the stick in
+    `docs/history/SIMPLIFY.md` §4.4; changed 2026-10-20 by F60). With the stick in
     or out, the sheet reads "Read from {label}", one line of counts ("1
     vault · 2 PSBTs · 4 other files") and every vault and file read, each
     with a checkbox, all ticked, a seed's file too, under **Unselect all**
@@ -273,7 +273,7 @@ to get it.
     before a choice changes nothing; with only the settings file there is
     no sheet.
 28. **The lock, write-out and power-off sheets lead with what is kept**
-    (owner, 2026-10-10; `docs/SIMPLIFY.md` §4.5). Each lists **Kept**
+    (owner, 2026-10-10; `docs/history/SIMPLIFY.md` §4.5). Each lists **Kept**
     first: one line per vault with its currency, and one for the files
     For the stick; then **Wiped from memory**: one line per seed (a key
     with no name of its own as "Seed {fingerprint}") and wallet, with
@@ -284,7 +284,7 @@ to get it.
     are under Wiped from memory, in the danger tone. The lock sheet's
     title stays.
 29. **Everything comes in by default** (owner, 2026-10-10;
-    `docs/SIMPLIFY.md` §4.6). A stick visit ticks every file it can read
+    `docs/history/SIMPLIFY.md` §4.6). A stick visit ticks every file it can read
     to come in, but a seed's by its name (words, SeedQR, BIP-85), one over
     18 MiB, and one already From the stick by name and size (F26,
     specified, not built: over 64 MiB it asks first, whole or only for
@@ -293,26 +293,26 @@ to get it.
     all** on the visit's right column is gone; **Unselect all** takes its
     place while anything is ticked.
 30. **The visit says where it goes next** (owner, 2026-10-10;
-    `docs/SIMPLIFY.md` §4.7). The stick visit's title carries the chip
+    `docs/history/SIMPLIFY.md` §4.7). The stick visit's title carries the chip
     "Then: Unlock" when a vault was sealed for it (For the stick, or on
     the last write's receipt), "Then: {flow}" when the stick came in
     during one, else "Then: Home"; pulling the stick goes there.
 31. **Backups: where each wallet's backup is** (owner, 2026-10-10;
-    `docs/SIMPLIFY.md` §5). A Backups screen lists every wallet known
+    `docs/history/SIMPLIFY.md` §5). A Backups screen lists every wallet known
     and its backup map, each place with what this device saw of it; the
     wallet card carries the same as one line, and Home's second tile is
     Backups once a wallet is known (below, "Backups"). A paper place is
     checked only once a check of that copy matched here: one check, one
     copy.
 32. **Light is the default theme** (owner, 2026-10-10;
-    `docs/NEW-WALLET.md` §1.1). A device with no settings saved starts
+    `docs/history/NEW-WALLET.md` §1.1). A device with no settings saved starts
     in `Theme::Light`, not Tokyo Night.
 33. **No bar for a test network** (owner, 2026-10-10;
-    `docs/NEW-WALLET.md` §1.2). The 4-point `WARN` fill along the top on
+    `docs/history/NEW-WALLET.md` §1.2). The 4-point `WARN` fill along the top on
     a test network is gone, in the main area and in the sidebar; the
     pill alone marks it.
 34. **Make a new wallet and New key open on their first step** (owner,
-    2026-10-10; `docs/NEW-WALLET.md` §2.1, reversing decision 16 for
+    2026-10-10; `docs/history/NEW-WALLET.md` §2.1, reversing decision 16 for
     these two flows only; Sign, Back up and Create a vault keep it).
     Create opens with Kind open, whatever opened it — Wallets, Home, or
     a Tools tile with its kind already ticked; Kind's Continue closes it
@@ -323,21 +323,21 @@ to get it.
     Continue opens the entry card as now. A card with a default and not
     open still shows its value and **Change**.
 35. **A key in one slot is offered in no other** (owner, 2026-10-10;
-    `docs/NEW-WALLET.md` §2.2). On the Keys card, a key loaded here
+    `docs/history/NEW-WALLET.md` §2.2). On the Keys card, a key loaded here
     that fills one slot, or a cosigner's file whose key fills one slot,
     is not offered for any other slot; clearing the slot offers it
     again.
 36. **The Keys card's foot button opens the next empty slot** (owner,
-    2026-10-10; `docs/NEW-WALLET.md` §2.3). While a slot is empty, the
+    2026-10-10; `docs/history/NEW-WALLET.md` §2.3). While a slot is empty, the
     button at the foot of Keys reads **New key for Key N** (**Share N**
     on a threshold wallet), N the first empty slot, and opens New key
     for it; once no slot is empty it reads **Continue**, as now.
 37. **Check names whose addresses they are** (owner, 2026-10-10;
-    `docs/NEW-WALLET.md` §2.4). On Create's Check, a section label **The
+    `docs/history/NEW-WALLET.md` §2.4). On Create's Check, a section label **The
     wallet's first addresses** sits above the address rows, so that a
     multisig's three rows do not read as one address per key.
 38. **New key: the check on the entry card, Lock in, then back up**
-    (owner, 2026-10-10; `docs/NEW-WALLET.md` §3.1–§3.5, decisions 4–6).
+    (owner, 2026-10-10; `docs/history/NEW-WALLET.md` §3.1–§3.5, decisions 4–6).
     New key's BIP-39 cards are Length · Randomness · *entry* · **Key**
     for a Create slot, and Length · Randomness · *entry* · Key · Words ·
     Quiz on its own (Tools, Seeds); SLIP-39 shares keep Length ·
@@ -364,7 +364,7 @@ to get it.
     passphrase is a seed with a passphrase to Back up's plan, which asks
     where it goes.
 39. **A passphrase for a key chosen in Create** (owner, 2026-10-10;
-    `docs/NEW-WALLET.md` §3.6). On the Keys card, a slot filled by a
+    `docs/history/NEW-WALLET.md` §3.6). On the Keys card, a slot filled by a
     key loaded here from BIP-39 words with no passphrase has **Add a
     passphrase** (beside Show xpub QR on a multisig, on the slot's own
     row on a single key). It opens **Passphrase**, **Passphrase again**
@@ -375,7 +375,7 @@ to get it.
     share, and a key from SLIP-39, codex32 or a bare seed have no such
     button.
 40. **Back up leads with the whole wallet sheet; shares come second**
-    (owner, 2026-10-10; `docs/NEW-WALLET.md` §4, decision 8). On the
+    (owner, 2026-10-10; `docs/history/NEW-WALLET.md` §4, decision 8). On the
     plan's Places question a multisig's **Each place keeps** lists **The
     whole wallet sheet**, ticked by default, then **Its own share**,
     with **What is a share?** beside it opening Learn on *Shares of a
@@ -385,7 +385,7 @@ to get it.
     checklist's Shares card has the same slider in place of its number
     buttons. The page is listed among a multisig backup's Learn pages.
 41. **Back up puts one seed in each vault** (owner, 2026-10-10;
-    `docs/NEW-WALLET.md` §5, decision 9). The seeds' row reads **Into
+    `docs/history/NEW-WALLET.md` §5, decision 9). The seeds' row reads **Into
     vaults**; under it a section per vault, **Vault 1**, **Vault 2** …,
     each a multi-choice of the seeds here, vault *v* holding the *v*th
     seed by default; a seed may be ticked into more than one. Places
@@ -398,7 +398,7 @@ to get it.
     vault item is gone. A stick visit with several vault files waiting
     ticks one. Plans saved with one vault still load as one vault.
 42. **An open vault shows each wallet the other way up** (owner,
-    2026-10-10; `docs/NEW-WALLET.md` §7.2, decision 11). Vault contents
+    2026-10-10; `docs/history/NEW-WALLET.md` §7.2, decision 11). Vault contents
     unlocked opens on Wallets where the vault holds one. A wallet's item
     shows the plan's three check lines, then the wallet's chart (DESIGN
     §4.16) read from the backup up: the places, vaults, files and
@@ -414,7 +414,7 @@ to get it.
     backup plan in this vault". On a small panel the item's page stacks
     the same nodes in that order, with no lines.
 43. **From the vault to a spend** (owner, 2026-10-10;
-    `docs/NEW-WALLET.md` §11, decision 13). The boot sheet's Unlock that
+    `docs/history/NEW-WALLET.md` §11, decision 13). The boot sheet's Unlock that
     loads wallets lands on Wallets, on the first loaded wallet with a key
     here (else the first loaded), with the toast "Savings loaded from
     vault.ofv" or "12 wallets loaded from vault.ofv" (the stick's label
@@ -436,7 +436,7 @@ to get it.
     signatures (decision 57). On a small panel the card's spend button sits
     under the signatures box, and the shortcut is its line and **Scan
     it**.
-44. **The chart's sheets** (owner, 2026-10-10; `docs/NEW-WALLET.md`
+44. **The chart's sheets** (owner, 2026-10-10; `docs/history/NEW-WALLET.md`
     §9.1–§9.4, decision 12, first of two batches). A press on a node of
     the chart, on the card or in an open vault, or on a line of what a
     backup node holds, opens a sheet (DESIGN §4.16): its title, what it
@@ -456,7 +456,7 @@ to get it.
     another backup of this seed**: **By hand** (the checklist's copy, with
     Seed XOR and codex32), **Into Vault n**, **As a file**, each where the
     plan has that item; **Check a copy of this seed**: a row for each check
-    its copies ask for (`docs/NEW-WALLET.md` §14.7): **Type my copy**
+    its copies ask for (`docs/history/NEW-WALLET.md` §14.7): **Type my copy**
     for a words copy, which opens the typed check at the checklist's
     copy item, and **Scan my copy** for a SeedQR copy with a camera,
     which leaves the chart under the camera. A key
@@ -478,7 +478,7 @@ to get it.
     plan, marks and dates, lost and exposed, and a holder's name came
     with the second batch (decision 49).
 45. **The backup comes before spending** (owner, 2026-10-10;
-    `docs/NEW-WALLET.md` §14, `docs/DECISIONS.md` F6). Back up's
+    `docs/history/NEW-WALLET.md` §14, `docs/DECISIONS.md` F6). Back up's
     checklist: an item's foot button is its next action (a vault item's
     **Make a vault** or the way to one, then one **Save into {vault}**
     that saves every seed, passphrase and the description the plan puts
@@ -497,14 +497,14 @@ to get it.
     the wallet card and the open vault lead with the plan's three checks
     as a strip above the chart.
 46. **The Vaults list's Unlock loads too** (owner, 2026-10-10;
-    `docs/NEW-WALLET.md` §11.1a). Reversing decision 43's own rule for
+    `docs/history/NEW-WALLET.md` §11.1a). Reversing decision 43's own rule for
     it: an Unlock from the Vaults list loads the wallets the vault
     holds, with their keys where the vault holds them, and lands on
     Wallets with the same toast and wallet chosen as the boot sheet's
     Unlock (decision 43). A vault that holds no wallet lands where it
     does today; an unlock begun from inside a flow still returns to it.
 47. **Mouse back and forward, selecting text, the default count**
-    (owner, 2026-10-10; `docs/NEW-WALLET.md` §13). On the desktop the
+    (owner, 2026-10-10; `docs/history/NEW-WALLET.md` §13). On the desktop the
     mouse's back button does what the screen's back link does (Escape
     where there is none, a sheet's Cancel over a sheet), and its forward
     button opens again the screen back left, as it was left, until
@@ -521,7 +521,7 @@ to get it.
     at its start, with the caret after it while focused; a vault's
     passphrase field has none.
 48. **Restore: what it is, then its description or its seeds** (owner,
-    2026-10-10; `docs/NEW-WALLET.md` §12). Restore opens on **Kind**
+    2026-10-10; `docs/history/NEW-WALLET.md` §12). Restore opens on **Kind**
     (Single key · native SegWit ticked, Multisig · native SegWit, More
     kinds), with the shortcut **I have the wallet description: Scan it**
     and **From Files** above it; then **Quorum** for a multisig (M of N
@@ -543,7 +543,7 @@ to get it.
     is filled; Check shows the descriptor row and the first addresses;
     Done offers **Back up this wallet**, the wallet card's spend button
     (**Spend from this wallet**) and **Wallets**. A restored key is not
-    held for its backup (decision 45). Since `docs/NEW-WALLET.md` §12.3
+    held for its backup (decision 45). Since `docs/history/NEW-WALLET.md` §12.3
     (2026-10-19) Restore ends on Done whatever the vault question's
     answer, its choices all secondary: **Spend from this wallet**,
     **Back up this wallet**, **Another wallet from these seeds** (New
@@ -552,7 +552,7 @@ to get it.
     them, and until a plan is made the wallet's card and Backups read
     **Continue the backup**.
 49. **The chart changes the plan** (owner, 2026-10-10;
-    `docs/NEW-WALLET.md` §9.5–§9.7, §9's second batch). A change to
+    `docs/history/NEW-WALLET.md` §9.5–§9.7, §9's second batch). A change to
     where something is kept is asked on a sheet first: its title says
     the change ("Move Vault 1 stick to Place 1"), the plan's three check
     lines read before → after, a line made worse in `WARN`, and
@@ -606,7 +606,7 @@ to get it.
     has changed since it was written.
 50. **Home's four ways in; Back goes where a flow was opened from**
     (owner, 2026-10-11). Home's Start is a lead tile, full width, only
-    while something is under way or waiting (`docs/SIMPLIFY.md` §1.2
+    while something is under way or waiting (`docs/history/SIMPLIFY.md` §1.2
     rules 1 to 6), then half-width tiles, two to a row: **Make a new
     wallet** (Create), **Restore an existing wallet** (Restore), **Spend
     from a backup, step by step** (the Spend tab) and **Vaults**, which
@@ -775,7 +775,7 @@ to get it.
     visit page is never shown, and after Back up's checklist nothing
     waits For the stick.
 60. **Add a key is New key, opening on Start** (owner, 2026-10-19;
-    `docs/NEW-WALLET.md` §15, `docs/DECISIONS.md` F44; replaces
+    `docs/history/NEW-WALLET.md` §15, `docs/DECISIONS.md` F44; replaces
     decision 18). New key's first card is **Start**: **Make a new key**
     (ticked), **Type the words**, **Scan a SeedQR**, and under **Other
     forms** (closed) **Make SLIP-39 shares**, **Type SLIP-39 shares**,
@@ -1141,7 +1141,7 @@ title, and the unlock goes back to the flow.
   skipped with the reason → choose the vault → import → Entries list.
 - **Edit** → the same form → back to the item.
 - **Hold to delete from vault** → gone; the next item selected.
-- A Bitcoin key or wallet → **Open in Wallets**, **Open in OpenSigner** (a key), or **Don't load at unlock** / **Load at unlock** (F62: a wallet's, and a key's in no wallet of the vault; a key in one reads "Loads with {wallet}").
+- A Bitcoin key or wallet → **Open in Wallets** or **Don't load at unlock** / **Load at unlock** (F62: a wallet's, and a key's in no wallet of the vault; a key in one reads "Loads with {wallet}").
 - A GPG key → **Export public key** with **Show as QR** and **PNG** on its
   row; **Export the kept revocation** and **Make a revocation** (the
   secret sheet, no code or picture); **Sign a file**, whose list shows
@@ -1290,7 +1290,7 @@ guarantees for this file's rule:
 - **Creating a wallet ends in Backup and Save**, never on the descriptor
   alone.
 - **Create's Keys card offers the open vaults' keys** (owner,
-  2026-10-19; F45; `docs/NEW-WALLET.md` §16.1). Under each slot's
+  2026-10-19; F45; `docs/history/NEW-WALLET.md` §16.1). Under each slot's
   session keys, each open vault's keys not loaded, under the vault's
   name (a threshold kind: only its 24-word shares; a key in another slot
   is not offered); a press loads that one key as Load into session does
@@ -1298,7 +1298,7 @@ guarantees for this file's rule:
   is read is one **Unlock {vault}** button, coming back to the Keys card
   with the vault open and nothing loaded.
 - **New wallet from this one** (owner, 2026-10-19; F45;
-  `docs/NEW-WALLET.md` §16.2). A wallet's card offers it beside
+  `docs/history/NEW-WALLET.md` §16.2). A wallet's card offers it beside
   Rename (on a small panel, in its list of buttons) for every kind
   Create makes but a threshold wallet. It
   opens Create filled from the wallet: Kind and Quorum closed with their
@@ -1409,7 +1409,7 @@ guarantees for this file's rule:
   down, wallets, keys in no wallet, then its buttons, and scrolls when
   taller than the screen.
 - **The wallet's card shows it at a glance** (owner, 2026-10-10;
-  `docs/NEW-WALLET.md` §6). Its Keys list becomes **At a glance**, a
+  `docs/history/NEW-WALLET.md` §6). Its Keys list becomes **At a glance**, a
   structure chart (DESIGN §4.16): the wallet (name, shape, checksum);
   its keys, numbered as before, each with its fingerprint, label and
   where it is ("Can sign here", "Can sign · passphrase", "Cosigner ·
@@ -1446,7 +1446,7 @@ guarantees for this file's rule:
 
 ## Spend tab
 
-Spend left the sidebar and the small Home grid (`docs/SIMPLIFY.md`
+Spend left the sidebar and the small Home grid (`docs/history/SIMPLIFY.md`
 §6.2, 2026-10-10); it is reached from the Wallets empty state's
 **Spend from a backup, step by step**, the Learn sheet's first row
 **Spending, step by step**, Home's lead when a spend is under way, and
@@ -1479,14 +1479,6 @@ loads and the camera comes back, a description opens the wallet, split
 sheets rebuild it, an xpub fills a cosigner's box, a SLIP-39 share or a
 codex32 string goes to Add a key's form for it, and a PSBT waits for
 Bring the transaction here.
-
-## OpenSigner tab (kept for now)
-
-OpenSigner's own screens and flows, unchanged. From a vault, **Open in
-OpenSigner** on a Bitcoin key runs OpenSigner's load flow with the key
-already supplied, ending on its key page. Its encrypted-backup export
-offers **Import into a vault**; its PSBTs and public exports go For the
-stick ("Insert a stick to write it").
 
 ## GPG
 
@@ -1706,7 +1698,7 @@ offers Type and Read a file.
 power-off times (30 and 60 minutes at first, F58), reduce motion, light or dark, ignored devices, **Time**
 (decision 56) and About (version, build hash). They are kept across a
 lock in RAM, and across a power-off in `faraday-settings.txt` on the
-boot stick, read at boot before the passphrase (`PLAN.md` §5.2). Never
+boot stick, read at boot before the passphrase (`docs/history/PLAN.md` §5.2). Never
 for an idle time, the signed-amount memory's seal and the network are
 not read from the file.
 
@@ -1892,9 +1884,8 @@ Ruled out (owner, 2026-10-16): **Restart into the BIOS**, the computer
 restarting straight into its firmware screen by the UEFI variable
 `OsIndications`, as Faraday Starter does on Windows from the person's
 own system. The stick writes no firmware variable: README (Stateless,
-"no access to its firmware variables"), PLAN.md ("Faraday never writes
-EFI variables"), upstream's PLANNING ("The stick changes nothing about
-the machine it is plugged into"), `EFIVAR_FS` in the x86_64-uefi
+"no access to its firmware variables"), docs/history/PLAN.md ("Faraday never writes
+EFI variables"), `EFIVAR_FS` in the x86_64-uefi
 board's `kernel.forbidden`, and the Learn pages that cite it. It would
 also need a privileged helper for the write. The BIOS key row does the
 same job and writes nothing.

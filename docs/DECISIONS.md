@@ -69,14 +69,15 @@ about `core/` as about anything else, is written here.
 | [F62](#f62-unlocking-a-vault-asks-what-to-load-2026-10-20) | Unlocking a vault asks what to load | 2026-10-20 | Active | vault |
 | [F63](#f63-sign-a-file-signs-from-a-sheet-that-shows-the-time-2026-10-20) | Sign a file signs from a sheet that shows the time | 2026-10-20 | Active | signing |
 | [F64](#f64-other-wallets-formats-the-less-common-under-more-options-2026-10-20) | Other wallets' formats, the less common under More options | 2026-10-20 | Active | wallets |
-| [F65](#f65-opensigners-code-taken-in-house-a-soft-fork-2026-10-20) | OpenSigner's code taken in house: a soft fork | 2026-10-20 | Replaced by F72 | repository |
+| [F65](#f65-upstreams-code-taken-in-house-a-soft-fork-2026-10-20) | Upstream's code taken in house: a soft fork | 2026-10-20 | Replaced by F72 | repository |
 | [F66](#f66-hardened-steps-are-written-h-2026-10-20) | Hardened steps are written `h` | 2026-10-20 | Active | wallets |
 | [F67](#f67-the-sticks-partitions-and-files-have-faradays-names-2026-10-21) | The stick's partitions and files have Faraday's names | 2026-10-21 | Active | stick |
-| [F68](#f68-one-strings-file-opensigners-app-removed-2026-10-21) | One strings file; OpenSigner's app removed | 2026-10-21 | Active | repository |
+| [F68](#f68-one-strings-file-the-upstream-app-removed-2026-10-21) | One strings file; the upstream app removed | 2026-10-21 | Active | repository |
 | [F69](#f69-costly-work-takes-a-token-drawing-cannot-mint-one-2026-10-21) | Costly work takes a token; drawing cannot mint one | 2026-10-21 | Active | speed |
 | [F70](#f70-one-crate-holds-every-key-faraday-keys-2026-10-21) | One crate holds every key: faraday-keys | 2026-10-21 | Active | keys |
 | [F71](#f71-dependencies-what-cargo-vet-says-is-true-2026-10-21) | Dependencies: what cargo-vet says is true | 2026-10-21 | Active | dependencies |
-| [F72](#f72-opensigners-code-becomes-faradays-a-hard-fork-2026-10-21) | OpenSigner's code becomes Faraday's: a hard fork | 2026-10-21 | Active | repository |
+| [F72](#f72-faradays-code-is-its-own-a-hard-fork-2026-10-21) | Faraday's code is its own: a hard fork | 2026-10-21 | Amended by F73 | repository |
+| [F73](#f73-the-upstream-project-is-named-only-in-license-2026-10-21) | The upstream project is named only in LICENSE | 2026-10-21 | Active | repository |
 
 ### F1 The boot import, and one line of fact on its sheet (2026-10-08)
 
@@ -93,7 +94,7 @@ the rest.
 
 **What it does** (`faraday-core/src/boot_import.rs`, its sheet in
 `boot_import_screen.rs`; README, "Starting a session: the boot import";
-`PLAN.md` §5.4). The first look at the boot stick in a power-on (the
+`docs/history/PLAN.md` §5.4). The first look at the boot stick in a power-on (the
 condition the settings file is read under) copies every file: vaults
 into the Inbox, where the vault screens unlock them, the rest into a
 holding area beside it, a PNG as what its codes hold. `Sheet::Import`
@@ -112,9 +113,7 @@ the QR codes** button is gone.
 **The owner's decision: one line of fact on a working sheet.** The sheet
 carries, above its buttons, "Files not chosen are wiped from memory. To
 bring one in later, insert the stick again." It says what the button
-does and what follows from it, in plain statement, which PLANNING
-§16.46 allows anywhere; it is not an explanation of why, which PLANNING
-§16.37 keeps in Learn.
+does and what follows from it, in plain statement, which is allowed anywhere; it is not an explanation of why, which Learn keeps.
 
 ### F2 Faraday upgrades another Faraday stick, and never signs inside the upgrade (2026-10-08)
 
@@ -127,7 +126,7 @@ them to guess at the passphrase offline, delete them, and plant files. The
 owner's ask: Faraday copies itself onto a stick that already holds
 Faraday and a data partition, and the data partition is not touched.
 
-**What it does** (`PLAN.md` §5.5; built for the PC
+**What it does** (`docs/history/PLAN.md` §5.5; built for the PC
 2026-10-09, the Pi to follow). Settings →
 **Upgrade a Faraday stick**, in the clean state: the stick Faraday
 started from is read, then its boot partition is written raw over the
@@ -143,7 +142,7 @@ publishes an upgrade marker.
 **The owner's decisions.**
 
 - *The exception to "no boot partition is handed out" is small.* That
-  rule (`PLAN.md` §4.3) is there so a Faraday compromised while
+  rule (`docs/history/PLAN.md` §4.3) is there so a Faraday compromised while
   running cannot plant itself on a stick. Here the app never supplies
   the bytes; a source stick that was tampered with already controls the
   machine it booted; and without Secure Boot any computer the stick is
@@ -167,9 +166,9 @@ has with the release string found on each, for the screen's versions,
 and forgets the source when the flow ends; its pipe carries no file and
 has a 4 KiB frame limit. A target that already carries the running
 release is not written; a newer one is warned about and can be. The
-Learn page is Faraday's own, outside OpenSigner's set
+Learn page is Faraday's own, outside the set the app was forked with
 (`docs/learn/faraday/`). The QEMU test drives the copier from the dev
-console, since no input in QEMU reaches the app (`PLAN.md`
+console, since no input in QEMU reaches the app (`docs/history/PLAN.md`
 §4.6).
 
 ### F3 A multi-choice list beside Choice, for the backup's plan (2026-10-09)
@@ -189,11 +188,11 @@ never dimmed for it. Several lists may share a page, each under its own
 label, where they answer one question (the software and its form). On a
 small panel the plan asks one question per page, as every step flow
 pages there. It is built in Faraday's core (`Ui::multi_list`); `osk-ui`
-gets a component when an OpenSigner screen needs one.
+gets a component when a screen needs one.
 
 ### F4 On the Pi, "SD card" where the app says "stick" (2026-10-09)
 
-**Why.** The Pi has no USB storage (PLAN.md §3), so every medium it sees
+**Why.** The Pi has no USB storage (docs/history/PLAN.md §3), so every medium it sees
 is an SD card, yet the app called it a stick on every screen: Home's
 status line, Stick visit, the Pull and Lock sheets, the vault screens,
 the boot import, the family guide.
@@ -220,11 +219,10 @@ for a stick or card". Code names and file names are unchanged
 
 The medium's glyph follows it: `Icon::Drive` on the PC, `Icon::SdCard` on
 the Pi, Font Awesome 6 Free Solid `sd-card` (U+F7C2) added back to the
-icon face after PLANNING §16.91 removed `MicroSd` as unused. `osk-ui` is
-shared with upstream OpenSigner: the new variant, its place in `Icon::ALL`, its
+icon face after an earlier change removed `MicroSd` as unused. The new variant, its place in `Icon::ALL`, its
 code point and name in `core/osk-ui/src/widgets/icon.rs`, the
 `tools/fontbake` entry and the rebaked `core/osk-ui/assets/icon.outl` are
-an upstream change, offered to OpenSigner with this one.
+this decision's change to `osk-ui`.
 
 Not settled here: the family guide's "Start from the SD card" card still
 walks through a PC's boot menu, which a Pi does not have; its steps for a
@@ -295,7 +293,7 @@ already selected", and for a vault item, "make ONE button that saves
 everything they indicated they wanted saved in the vault into the
 vault; do not allow continue until they've done that".
 
-**What it does** (`docs/NEW-WALLET.md` §14; `faraday-core/src/held.rs`;
+**What it does** (`docs/history/NEW-WALLET.md` §14; `faraday-core/src/held.rs`;
 `docs/WALLETS.md` §5, "The backup before the spend").
 
 - *Which keys.* A key is made here when its words came from New key, or
@@ -335,7 +333,7 @@ checklist that keeps it is completed with that vault open.
 ### F7 TOTP codes, and a clock the person can set (2026-10-11)
 
 **Why.** A vault entry holds a TOTP secret, scanned, typed or imported,
-but Faraday showed only the secret (`PLAN.md` §6.4: "it does not
+but Faraday showed only the secret (`docs/history/PLAN.md` §6.4: "it does not
 generate TOTP codes"). The owner's ask: "a TOTP viewer inside Faraday,
 so we can scan TOTP QR codes or load the keystring and see the codes",
 with the time set by hand, and a time zone in `faraday-settings.txt`
@@ -430,10 +428,10 @@ whatever the choice; neither alone brings the sheet, so the everyday
 vault write-back is not asked about.
 
 The vault's add rows carry `Icon::Add`, Font Awesome 6 Free Solid
-`plus` (U+F067). `osk-ui` is shared with upstream OpenSigner, so, as
+`plus` (U+F067). As
 with F4's `SdCard`, the variant, its place in `Icon::ALL`, its code
 point and name, the `tools/fontbake` entry and the rebaked
-`core/osk-ui/assets/icon.outl` are an upstream change.
+`core/osk-ui/assets/icon.outl` are a change to `osk-ui`.
 
 ### F10 The name as a wordmark (2026-10-11)
 
@@ -843,7 +841,7 @@ them as plain text, and text may be a secret. They are public.
 - A file that is nothing but one ASCII-armored OpenPGP block of type
   `PGP PUBLIC KEY BLOCK` or `PGP SIGNATURE`, whose packets are all public
   kinds, is a public file: written as it is, ticked by Select all, kept
-  across a lock (`PLAN.md` §4.4).
+  across a lock (`docs/history/PLAN.md` §4.4).
 - *Amended 2026-10-14 (F32).* `faraday-pgp` reads every packet to its
   exact end, not only its tag: a public key or subkey is a version-4
   public key with nothing after its last field, a user ID is UTF-8, a
@@ -1072,7 +1070,7 @@ means large files in the memory a vault unlock also needs.
 - The Pi does the same by SD card visit; Faraday Desktop has the same
   behaviour, with the computer's memory now, and no refusal where the
   system gives no figure.
-- Specified, not built. Until batch L1, `README.md`, `PLAN.md` and
+- Specified, not built. Until batch L1, `README.md`, `docs/history/PLAN.md` and
   `docs/FLOWS.md` give today's 18 MiB.
 
 ### F27 Nostr keys from the seed, by BIP-85 application 128002' (2026-10-14)
@@ -1083,8 +1081,7 @@ means large files in the memory a vault unlock also needs.
 identity. BIP-85 2.1.0 (2026-08-02) adds application 128002', which
 derives Nostr keys from a Bitcoin seed at
 `m/83696968'/128002'/{identity}'/{account}'`, so a seed Faraday already
-backs up can back up Nostr keys too. OpenSigner lists the application
-as open (`docs/PLANNING.md` §16.114).
+backs up can back up Nostr keys too.
 
 **Decision** (owner, 2026-10-14, revised the same day after a review;
 the spec is `docs/NOSTR.md`).
@@ -1187,8 +1184,7 @@ authenticator app, which takes it by scanning.
   with no PNG and no Outbox file. F27's line on Entry QRs names it.
 - BIP-85 shows no code of any output; no SeedQR of child words.
 - Every screen touched is Faraday's own (`faraday-core`), the same on
-  the stick, the Pi and Faraday Desktop. OpenSigner's files and
-  strings are not edited.
+  the stick, the Pi and Faraday Desktop. No file of the app Faraday was forked with is edited.
 - Specified, not scheduled: it is built when the owner says, as one
   batch (`docs/QR.md` §7.4, Q1).
 
@@ -1200,7 +1196,7 @@ grid, though the presets copy the words alone. With no camera the
 words' four-digit numbers were typed back, compared digit by digit as
 they were typed, with the seed allowed on screen above the field.
 
-**Decision** (owner, 2026-10-14; the spec is `docs/NEW-WALLET.md`
+**Decision** (owner, 2026-10-14; the spec is `docs/history/NEW-WALLET.md`
 §14.7).
 
 - A words copy is checked by typing the whole seed back as words, with
@@ -1400,7 +1396,7 @@ FAT volume serial, which sticks written from one image can share.
   (replaced by F58 for Make a new wallet: no idle lock until its keys
   are sealed),
   and every receive address of a wallet holding such a key, and any code
-  of one, is not shown until the backup is done (`docs/NEW-WALLET.md`
+  of one, is not shown until the backup is done (`docs/history/NEW-WALLET.md`
   §14.3, F28).
 
 ### F32 GPG follows GnuPG's behaviour (2026-10-14)
@@ -1586,7 +1582,7 @@ recovery key onto a phone is irresponsible.
   (keeping keys, their deletion, their unlock); F17 whole; F21 whole;
   F28's exception for the BitLocker key (the exceptions are SeedQR and
   the TOTP secret); STARTER D7, D16, D17, D18 and D19; COMPANION D5,
-  and D4 for BitLocker keys. `docs/BITLOCKER-ACCEPTANCE.md` is
+  and D4 for BitLocker keys. `docs/history/BITLOCKER-ACCEPTANCE.md` is
   superseded (its header says what remains).
 - *No Resume* (owner, 2026-10-14: decided). The suspension is removed
   entirely; no release keeps Resume BitLocker or reads the 0.1.2
@@ -1849,15 +1845,15 @@ below.
 - One count moves the cursor by the whole-number scale the arrow is
   already drawn at, times `--pointer-speed`: a dense screen crosses like
   the desktop it is scaled to. A touchpad the same.
-- Still no acceleration. This replaces upstream's "one device unit is
-  one pixel" (PLANNING §16.94) on the stick.
+- Still no acceleration. This replaces the earlier "one device unit is
+  one pixel" on the stick.
 ### F44 Add a key is the New key flow (2026-10-19)
 
 **Why.** Add a key offered only boxes for words held; New key in Create
 offered the length, the randomness and the rest. Two screens for one
 job had drifted apart.
 
-**Decision** (owner, 2026-10-19; `docs/NEW-WALLET.md` §15).
+**Decision** (owner, 2026-10-19; `docs/history/NEW-WALLET.md` §15).
 
 - Add a key and New key are one flow, opening on **Start**: Make a new
   key, Type the words, Scan a SeedQR, and Other forms (SLIP-39 made or
@@ -1873,7 +1869,7 @@ job had drifted apart.
 Create would offer it, and no wallet could be made from the keys of one
 already held.
 
-**Decision** (owner, 2026-10-19; `docs/NEW-WALLET.md` §16; tracker
+**Decision** (owner, 2026-10-19; `docs/history/NEW-WALLET.md` §16; tracker
 #149, #131 folded in).
 
 - The Keys card lists each open vault's keys under its name; a press
@@ -2109,7 +2105,7 @@ unlocked and updated as before.
 wallet, and its account could be chosen only for a wallet made from
 another (F45).
 
-**Decision** (owner, 2026-10-20; `docs/NEW-WALLET.md` §17). Check shows
+**Decision** (owner, 2026-10-20; `docs/history/NEW-WALLET.md` §17). Check shows
 the made wallet's path under the descriptor. Only the account changes,
 the rest of the path stays the kind's standard one. Kind's **Account**
 stepper is offered for every kind whose path has an account, starting at
@@ -2153,7 +2149,7 @@ person who wants them neutral renames them.
 **Why.** An idle lock during Make a new wallet wiped the keys made so
 far and left a flow with nothing to come back to.
 
-**Decision** (owner, 2026-10-20; `docs/NEW-WALLET.md` §18). From Make a
+**Decision** (owner, 2026-10-20; `docs/history/NEW-WALLET.md` §18). From Make a
 new wallet begun until its keys are sealed into their vaults (the
 backup flow's Lock and write), or its backup is done when no stick is
 written, the idle lock does not come, and the sidebar says "Auto-lock
@@ -2406,35 +2402,33 @@ people use.
   (F65); the first-address check still decides.
 - The Back up plan's software question is unchanged.
 
-### F65 OpenSigner's code taken in house: a soft fork (2026-10-20)
+### F65 Upstream's code taken in house: a soft fork (2026-10-20)
 
 *Replaced by F72 (2026-10-21), a hard fork. Its rule on cryptographic
 changes and its caution carry over.*
 
-**Why.** Faraday never edited `core/` or `opensigner/`, so every gap in
+**Why.** Faraday never edited `core/` or the upstream camera folder, so every gap in
 them was wrapped in Faraday's own code or waited on a note to
-OpenSigner: a BIP 129 tidy-up before upstream's parser, SLIP-132 read a
+the upstream project: a BIP 129 tidy-up before upstream's parser, SLIP-132 read a
 second time, a PSBT version 2 converter, the constant-time patch and the
-other carried changes. OpenSigner's development has slowed (no upstream
+other carried changes. Upstream's development has slowed (no upstream
 commit since 2026-10-10), and the speed work needs a compute token on
 the costly functions, upstream's included.
 
-**Decision** (owner, 2026-10-20; `docs/history/UPSTREAM.md`).
+**Decision** (owner, 2026-10-20).
 
-- Faraday maintains `core/` and `opensigner/` as a soft fork from
+- Faraday maintains `core/` and the upstream camera folder as a soft fork from
   upstream's `d26b84e`. It changes them where it needs to, fixing a gap
   at its source rather than wrapping it.
-- Each change there is its own commit with what and why, listed in
-  `docs/history/UPSTREAM.md` §3 the same day; a cryptographic change is tested
+- Each change there is its own commit with what and why; a cryptographic change is tested
   against published vectors or another implementation first.
-- OpenSigner's new commits are read when there is reason to and ported
+- Upstream's new commits are read when there is reason to and ported
   as commits naming theirs, security fixes first. Notes for upstream
   become optional.
-- OpenSigner's licence and notices stay; the README says Faraday began
-  as a fork and that `core/` is now Faraday's to review.
-- **The fork keeps OpenSigner's caution.** Owning the code is for fixing
+- Upstream's licence and notices stay in `LICENSE`.
+- **The fork keeps upstream's caution.** Owning the code is for fixing
   gaps, speed and correctness, never for loosening a check. What
-  OpenSigner refuses stays refused: a key without an origin in a
+  upstream refused stays refused: a key without an origin in a
   multisig (BIP-388), a guessed path, an input that could mean two
   things, anything a standard leaves undefined. Faraday follows the
   BIPs strictly and refuses what it cannot verify rather than assume;
@@ -2442,8 +2436,6 @@ the costly functions, upstream's included.
   does, with the first-address check kept) is a decision for the owner,
   recorded here.
 - Faraday's strings stay in `faraday-strings`.
-- `docs/PLANNING.md` stays upstream's planning record and is not edited
-  for Faraday's decisions.
 
 ### F66 Hardened steps are written `h` (2026-10-20)
 
@@ -2470,9 +2462,9 @@ which also specifies the compute token this prepares for, F69).
 
 ### F67 The stick's partitions and files have Faraday's names (2026-10-21)
 
-**Why.** A Faraday stick's partitions were still OpenSigner's: `OSKBOOT`
-and `OSKDATA`, with GPT UUIDs that spell "OpenSignerKit", and the stick
-shell kept `opensigner-settings.txt` and `opensigner-timings.txt` on the
+**Why.** A Faraday stick's partitions were still upstream's: `OSKBOOT`
+and `OSKDATA`, with GPT UUIDs that spell the upstream project's name, and the stick
+shell kept upstream's settings and timings files on the
 data partition.
 
 **Decision** (owner, 2026-10-21).
@@ -2484,7 +2476,7 @@ data partition.
   `…000001`, `FARADAYDATA` `…000002` (`genimage.cfg`, `stick-boot.sh`,
   the Starter's `gpt.rs`).
 - The stick shell's files are `faraday-settings.txt` and
-  `faraday-timings.txt`. Faraday writes no file under an `opensigner-`
+  `faraday-timings.txt`. Faraday writes no file under an upstream
   name.
 - No compatibility with sticks made before: a stick with the old names
   or UUIDs is not a Faraday stick. The Starter's keep data refuses it as
@@ -2492,9 +2484,9 @@ data partition.
   a new stick by hand. The device treats its partitions as any other
   stick's, and Upgrade a Faraday stick does not offer it.
 
-### F68 One strings file; OpenSigner's app removed (2026-10-21)
+### F68 One strings file; the upstream app removed (2026-10-21)
 
-**Why.** Faraday never ran OpenSigner's app, `opensigner-core`: of its
+**Why.** Faraday never ran the upstream app's core crate: of its
 50,500 lines it used a few types and 68 of its 1,058 strings. Keeping it
 meant two strings files, with every new string placed by whose screen it
 first appeared on, 28,700 lines of tests for screens Faraday does not
@@ -2505,18 +2497,18 @@ Faraday binary (`docs/COMPUTE.md` §3).
 
 - What Faraday used moved into Faraday's crates with its tests, its
   behaviour unchanged: into `faraday-core`, the word entry for a list's
-  own keyboard (`word_entry.rs`, the typing step of OpenSigner's Load
+  own keyboard (`word_entry.rs`, the typing step of the upstream app's Load
   wizard and nothing else of it), the backup quiz (`quiz.rs`), the
   vanity grinder's state (`grind.rs`), the silent payment check
   (`silent_check.rs`), the calculators' list (`tools.rs`), BIP-85's
   applications (`bip85.rs`) and Explore's path parser (`explore.rs`);
   into `faraday-scanner`, the camera frame's chroma reduction beside the
   luma one it already had, which the stick's camera now uses.
-- The rest of `opensigner-core` is deleted with its tests, and
+- The rest of that crate is deleted with its tests, and
   `core/osk-keep` (the kept-key blob, which only that app used) with it,
-  as are the fuzz targets for OpenSigner's settings file and the kept-key
-  blob. `opensigner/` keeps the two camera crates Faraday's shells use.
-- One strings file: `faraday/faraday-strings/src/en.rs`. The OpenSigner
+  as are the fuzz targets for the upstream app's settings file and the kept-key
+  blob. The upstream camera folder keeps the two camera crates Faraday's shells use.
+- One strings file: `faraday/faraday-strings/src/en.rs`. The upstream
   strings Faraday shows moved there with their names and their text
   unchanged; the rest are deleted. The Learn pages and the self-test's
   check names stay the two exceptions (CLAUDE.md).
@@ -2596,13 +2588,13 @@ joining it.
 **Why.** `supply-chain/audits.toml` held no audit, 223 crates were
 exempted, 23 locked crates (curve25519-dalek, ed25519-dalek, rsa,
 crypto-bigint, sha1 and miniscript among them) were in neither list, and
-`cargo vet` ran in no recipe. Upstream's PLANNING §10.1 promised crypto
+`cargo vet` ran in no recipe. The upstream project promised crypto
 crates "pinned, vendored, cargo vet audit record for each". The six
 imported audit sets cover almost nothing of Faraday's tree (pruning
 removes 3 exemptions), and reading all of it is about five million
 lines, most of it the desktop window stack.
 
-**Decision** (owner, 2026-10-21; replaces PLANNING §10.1 for Faraday;
+**Decision** (owner, 2026-10-21; replaces that promise for Faraday;
 the spec is `docs/STRUCTURE-PASS.md` §6).
 
 - `cargo vet --locked` runs in `just lint` against the committed
@@ -2627,13 +2619,15 @@ the spec is `docs/STRUCTURE-PASS.md` §6).
   cargo-vet treats it as first-party
   (`audit-as-crates-io = false`).
 
-### F72 OpenSigner's code becomes Faraday's: a hard fork (2026-10-21)
+### F72 Faraday's code is its own: a hard fork (2026-10-21)
 
-**Why.** Faraday no longer follows OpenSigner. F65's soft fork kept
+*Amended by F73 (2026-10-21): no provenance file and no fork text; the upstream project is named only in LICENSE.*
+
+**Why.** Faraday no longer follows upstream. F65's soft fork kept
 upstream's names, an `upstream` remote and a change list, all for
 porting both ways, and nothing will now be ported. Eleven crates named
-`osk-*`, a folder named `opensigner/` and descriptions "for
-OpenSignerKit" told a reader the code was someone else's when it is
+`osk-*`, a folder named for upstream and descriptions "for
+the upstream kit" told a reader the code was someone else's when it is
 Faraday's to answer for.
 
 **Decision** (owner, 2026-10-21; the spec is `docs/STRUCTURE-PASS.md`
@@ -2646,11 +2640,11 @@ Faraday's to answer for.
   keeps the libraries that hold no flow and no wording.
 - The camera crates move to `faraday/shells/v4l2` and
   `faraday/shells/avfoundation` as `faraday-v4l2` and
-  `faraday-avfoundation`, and `opensigner/` is deleted.
+  `faraday-avfoundation`, and the upstream folder is deleted.
 - Formats keep their bytes: the `OSKB`, `OSKC` and `OSKO` magics, the
   `.oskb` and `.osk` extensions, every domain-separation and nonce tag
   (`osk-sealed-v1`, `OpenSigner/musig-rand` and the rest), the
-  `osk-threshold` and `osk-silent` headers, and "OpenSigner backup" as
+  `osk-threshold` and `osk-silent` headers, and ".oskb backup" as
   the name of that file. The rename's check is that the source's string
   literals are unchanged except the paths, internal names and Learn text
   the spec lists.
@@ -2658,13 +2652,38 @@ Faraday's to answer for.
   database.
 - Before the rename, the provenance is frozen: the full base hash,
   upstream's URL, the tree hash of the forked code, the per-crate
-  diffstat and F65's change list, kept in `docs/history/UPSTREAM.md`.
-  Then the `upstream` remote and `local/for-upstream/` are removed.
+  diffstat and F65's change list, in a file of its own (removed by F73;
+  it stays in git history at `5b44b33d`). Then the `upstream` remote and
+  `local/for-upstream/` are removed.
 - F65's per-change rule ends. Its lasting rules apply to the whole
   repository and move into CLAUDE.md: a cryptographic change is tested
   against published vectors or another implementation, and owning the
   code never loosens a check.
-- OpenSigner's MIT notice stays. The README says Faraday began as a fork
-  of OpenSignerKit at `d26b84e`.
+- The upstream project's MIT notice stays in `LICENSE`.
 - Learn pages say Faraday where they mean this app; a page about
   something Faraday does not have is dropped.
+
+### F73 The upstream project is named only in LICENSE (2026-10-21)
+
+**Why.** After the hard fork (F72), the docs, comments and strings still
+named the project Faraday was forked from. Four documents existed only
+because of it: its planning record, its screen and feature notes, and a
+parity table. A fifth recorded the provenance. Faraday is its own
+project.
+
+**Decision** (owner, 2026-10-21).
+
+- The upstream project's name appears in `LICENSE` only, where its MIT
+  notice requires it.
+- No document records where the code came from. The provenance file,
+  the upstream planning documents and the parity table are deleted. The
+  record is git history: commit `5b44b33d` holds the provenance file,
+  with the base commit and the auditor's diff.
+- The files Faraday imports from that project are ".oskb backups", in
+  the docs, the Learn pages and the app's strings. The format and its
+  tags keep their bytes, so every such file still opens.
+- Bytes that contain the name stay as they are: the MuSig2 and FROST
+  nonce tags, an example's OP_RETURN, and test-vector data. Changing them
+  would change signatures and vectors.
+- Code comments and current docs drop a provenance clause rather than
+  rename it. The records (`docs/history/` and this file) say "upstream".

@@ -1,7 +1,7 @@
-//! Tools: the six calculators OpenSigner had, hashes, encodings, a
+//! Tools: the six calculators: hashes, encodings, a
 //! descriptor's checksum, an extended key in every spelling, an amount in
-//! every unit and the miniscript compiler, with Faraday's screen over them
-//! (`docs/OPENSIGNER-PARITY.md` plan C4). Nothing here is a secret: an
+//! every unit and the miniscript compiler, with Faraday's screen over them.
+//! Nothing here is a secret: an
 //! extended private key is refused. What the open calculator works out
 //! of what is typed is kept on its state by what it is worked out from
 //! ([`Faraday::tools_reading`]), so a frame drawn again works out
@@ -14,8 +14,7 @@ use faraday_crypto::work::Compute;
 
 use crate::{Faraday, Screen};
 
-/// The calculators, in the order Tools lists them. Taken from OpenSigner's
-/// app (`opensigner-core/src/tools.rs` at upstream `d26b84e`, F68).
+/// The calculators, in the order Tools lists them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tool {
     /// SHA-256, SHA-256d and HASH160 of what is typed.
@@ -97,7 +96,7 @@ struct KeptReading {
     reading: std::rc::Rc<Reading>,
 }
 
-/// A calculator's name, as OpenSigner writes it.
+/// A calculator's name.
 pub fn tool_name(t: Tool) -> &'static str {
     match t {
         Tool::Hashes => EN.tools_hashes,

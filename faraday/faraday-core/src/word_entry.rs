@@ -3,15 +3,8 @@
 //! word allows, the words a prefix can still become, the readings of the
 //! two Chinese lists and their tones, and BIP-39's last-word filter.
 //!
-//! Taken from OpenSigner's Load wizard (`opensigner-core/src/load.rs` at
-//! upstream `d26b84e`) when Faraday dropped OpenSigner's app
-//! (`docs/DECISIONS.md` F68): the typing step alone, which is all Add a
-//! key and Check my copy used of it. Its other sources (SLIP-39 shares,
-//! codex32, word numbers, hex), its checksum result and its passphrase
-//! and confirmation steps went with the app.
-//!
 //! Everything secret is inline and fixed-size: word indices are `u16`
-//! (`docs/PLANNING.md` §16.2) and the prefix is a fixed array of keys.
+//! and the prefix is a fixed array of keys.
 //! The whole struct is zeroized on drop. This file is listed in
 //! `tools/lint-secrets.sh` and may hold no heap text.
 
@@ -22,7 +15,7 @@ use faraday_draw::widgets::keyboard::{self, KeyMask, KeyboardKind};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// The list a word entry runs over: one of BIP-39's ten, or SLIP-39's
-/// own 1024 words (`docs/PLANNING.md` §16.107 rule 7). The prefix
+/// own 1024 words. The prefix
 /// search, the candidate strip, the keyboard mask and the quiz's decoys
 /// are written once over this.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -132,7 +125,7 @@ const MAX_CANDIDATES: usize = 8;
 
 /// Most it lists on a list whose words are one character: two rows of
 /// ten at the keyboard's key pitch, which is the largest tone group
-/// either Chinese list has (`docs/PLANNING.md` §16.44, §16.45).
+/// either Chinese list has.
 const MAX_CANDIDATES_HANZI: usize =
     faraday_draw::tokens::CANDIDATE_ROWS_HANZI * faraday_draw::tokens::CANDIDATE_CELLS_HANZI;
 
@@ -394,7 +387,7 @@ impl WordEntry {
     /// pressed yet. A syllable without a tone leaves far too many
     /// characters to choose between, so the strip stays empty until the
     /// reading is complete — and an incomplete reading is not an error,
-    /// so the screen says nothing either (`docs/PLANNING.md` §16.43).
+    /// so the screen says nothing either.
     pub fn awaiting_tone(&self) -> bool {
         let kind = self.keyboard();
         reads(kind) && Reading::of(kind, self.prefix.as_chars()).tone.is_none()
@@ -527,7 +520,7 @@ impl WordEntry {
 
     /// Types one key. Ignored when no candidate word continues with it.
     /// Nothing a key does commits a word: a word is taken by a tap on
-    /// its candidate (`docs/PLANNING.md` §16.118).
+    /// its candidate.
     pub fn type_char(&mut self, c: char) -> bool {
         let kind = self.keyboard();
         let c = if matches!(kind, KeyboardKind::Bip39 | KeyboardKind::Pinyin) {
@@ -561,8 +554,8 @@ impl WordEntry {
     }
 
     /// Deletes the last key typed. On an empty field it steps back to
-    /// the previous word, which returns to the field for editing
-    /// (`docs/PLANNING.md` §4.6): the screen shows one word and nothing
+    /// the previous word, which returns to the field for editing:
+    /// the screen shows one word and nothing
     /// else, so the way back to the one before it is the backspace.
     pub fn backspace(&mut self) {
         if self.prefix.pop().is_some() {
@@ -735,7 +728,7 @@ mod tests {
     }
 
     /// A word typed out in full is the one candidate left and stays in
-    /// the strip until it is tapped (`docs/PLANNING.md` §16.118).
+    /// the strip until it is tapped.
     #[test]
     fn a_fully_typed_word_is_taken_by_a_tap_and_by_nothing_else() {
         let mut w = WordEntry::new(Language::English, 12);

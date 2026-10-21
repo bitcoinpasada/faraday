@@ -5,9 +5,9 @@
 //!
 //! - [`Secret`]: hold a value that must be wiped from memory when it is no
 //!   longer needed, and make accidental leaks (formatting, cloning,
-//!   serialising) impossible by construction. See `docs/PLANNING.md` §5.
+//!   serialising) impossible by construction.
 //! - [`Pinned`]: hold a long-lived secret on pages of its own that the
-//!   kernel is asked not to write to swap (§5.5, §16.49). Its five small
+//!   kernel is asked not to write to swap. Its five small
 //!   `unsafe` blocks — the page-aligned allocation, its release, the two
 //!   dereferences and the `mlock`/`munlock` pair — are the crate's
 //!   audited `unsafe` and the only `unsafe` in the core. The syscalls
@@ -22,8 +22,7 @@
 //!   the choice of implementation (RustCrypto today, for the first
 //!   five) is confined to this crate. The last two are written here:
 //!   BLAKE2b and scrypt each have one caller, LND's aezeed, and each is
-//!   small enough that a crate would cost more than it saves
-//!   (`docs/PLANNING.md` §16.116).
+//!   small enough that a crate would cost more than it saves.
 //!
 //! - [`work`]: [`work::Compute`], the token a costly function takes,
 //!   which carries the counter the application notes that work with
@@ -31,11 +30,10 @@
 //!
 //! The crate is `no_std` and allocates for one reason
 //! only: to give a long-lived secret whole pages of its own, so that
-//! they can be pinned (§16.49). Nothing else here takes an allocation. It has no random number
+//! they can be pinned. Nothing else here takes an allocation. It has no random number
 //! generator: entropy is handed in by the shell through the session key.
 //! Signing and curve operations are deliberately absent for now; they
-//! arrive with the `secp256k1` decision recorded in `docs/PLANNING.md`
-//! §16.1.
+//! arrive with the `secp256k1` decision.
 
 #![no_std]
 

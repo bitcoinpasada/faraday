@@ -14,7 +14,7 @@ CONFIG_DMADEVICES=y
 CONFIG_DMA_BCM2835=y
 CONFIG_DMA_BCM2708=y
 
-# ---- camera, legacy stack (PLANNING.md 16.33) ----
+# ---- camera, legacy stack ----
 # start_x.elf runs the camera in the GPU; bcm2835-camera talks to it over
 # VCHIQ/MMAL and publishes the sensor as a plain V4L2 device, which is what
 # faraday-v4l2 opens. This supports the OV5647 and the IMX219; the v3
@@ -95,7 +95,7 @@ CONFIG_MMC_BCM2835_MMC=y
 CONFIG_MMC_BCM2835_DMA=y
 # CONFIG_MMC_SDHCI_IPROC is not set
 
-# ---- USB: a webcam and nothing else (PLANNING.md 16.93) ----
+# ---- USB: a webcam and nothing else ----
 # brcm,bcm2708-usb is the board's host controller. It is kept on purpose,
 # with the USB video class on top, so a plain USB webcam appears as a
 # /dev/video* the shell can open — it takes the first one. Everything
@@ -113,8 +113,8 @@ CONFIG_USB_VIDEO_CLASS=y
 # CONFIG_HIDRAW is not set
 # CONFIG_USB_HIDDEV is not set
 
-# ---- what this board does not have (PLANNING.md 16.93) ----
-# The common fragment holds what no OpenSigner image builds. These four
+# ---- what this board does not have ----
+# The common fragment holds what no Faraday image builds. These four
 # are the Pi's own, and the stick board turns three of them on: a laptop's
 # keyboard and touchpad are HIDs and it boots from a USB disk.
 
@@ -141,7 +141,7 @@ CONFIG_USB_VIDEO_CLASS=y
 # without it. CONFIG_STAGING, because the legacy camera lives there.
 
 # ---- Faraday: no filesystem on the card is parsed by the kernel ----
-# (PLAN.md §4.2.) faraday-disk reads the card's data partition, unprivileged,
+# (docs/history/PLAN.md §4.2.) faraday-disk reads the card's data partition, unprivileged,
 # with its own FAT code; common/linux.fragment turns vfat on for upstream's
 # mount, and these lines turn it off again. MBR partitions stay, so the
 # card's partitions are their own nodes and the whole card is never handed
@@ -155,11 +155,11 @@ CONFIG_USB_VIDEO_CLASS=y
 # CONFIG_UDF_FS is not set
 CONFIG_PARTITION_ADVANCED=y
 CONFIG_MSDOS_PARTITION=y
-# USB is kept for a webcam (PLAN.md §4.6): no printer, no traffic monitor.
+# USB is kept for a webcam (docs/history/PLAN.md §4.6): no printer, no traffic monitor.
 # CONFIG_USB_PRINTER is not set
 # CONFIG_USB_MON is not set
 
-# ---- Faraday: no core dumps (PLAN.md §5.3) ----
+# ---- Faraday: no core dumps (docs/history/PLAN.md §5.3) ----
 # A crashing app would write its memory, keys included, to a file. The
 # core limit is 0 by default; this takes the feature out of the kernel so
 # nothing in userspace can raise it. The prompt needs EXPERT.

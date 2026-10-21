@@ -1,5 +1,5 @@
 //! New input devices must show a person is at the screen before they are
-//! believed (`PLAN.md` §4.6, layer 3).
+//! believed (`docs/history/PLAN.md` §4.6, layer 3).
 //!
 //! The shell trusts the machine's own keyboard, touchpad and touch panel.
 //! Any other device's input is held back by the shell and reported here
@@ -77,7 +77,7 @@ impl Faraday {
             letters: 0,
         });
         // The boot import waits for it: which pointer and keyboard are
-        // believed is the first thing settled (`PLAN.md` §4.6).
+        // believed is the first thing settled (`docs/history/PLAN.md` §4.6).
         if self.sheet == Some(Sheet::Import) {
             self.import_under_input = true;
             self.sheet = None;

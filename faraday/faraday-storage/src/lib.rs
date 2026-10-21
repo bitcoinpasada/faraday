@@ -3,7 +3,7 @@
 //! A stick is a directory: a mounted FAT partition on the device, a plain
 //! folder on a desktop. Each shell finds its sticks its own way and hands
 //! the directories here; this crate lists them, reads a file the app asked
-//! for, writes one as `PLAN.md` §4.3 says (a new file, read back and
+//! for, writes one as `docs/history/PLAN.md` §4.3 says (a new file, read back and
 //! compared, then renamed into place, never over a file already there),
 //! and keeps the Inbox and Outbox where the next process finds them.
 
@@ -101,7 +101,7 @@ pub trait Sticks {
     -> Result<(), faraday_files::Unrenamed>;
 }
 
-/// The boot copier (`PLAN.md` §5.5), as a shell reaches it: the process
+/// The boot copier (`docs/history/PLAN.md` §5.5), as a shell reaches it: the process
 /// over its pipes on the device, or the copier itself in a test.
 pub trait Boot {
     /// The boot partitions it has now.
@@ -702,7 +702,7 @@ pub fn serve_with(
 }
 
 /// [`serve_with`], and the boot copier's requests answered by `boot`
-/// (`PLAN.md` §5.5); without one they are refused.
+/// (`docs/history/PLAN.md` §5.5); without one they are refused.
 pub fn serve_all(
     app: &mut Faraday,
     boxes: &mut Boxes,
@@ -994,7 +994,7 @@ fn serve_queued(
     }
 }
 
-/// The disk process, from the shell's side (`PLAN.md` §4.3): requests go
+/// The disk process, from the shell's side (`docs/history/PLAN.md` §4.3): requests go
 /// down one FIFO and answers come up the other. A thread reads the
 /// answers, so a disk process that never answers costs a timeout rather
 /// than the shell; an answer that comes after its timeout is known by its

@@ -132,7 +132,7 @@ public values work; only the actions in the table are disabled.
   with dice**, whose words the demo's public passphrase replaces (§5.2),
   Unlock, Vault
   contents, entries, notes, TOTP codes, KeePass export, Open an
-  OpenSigner backup, the stick visit and Files.
+  .oskb backup, the stick visit and Files.
 - **Vanity address** on the account dial; **Lightning node key**'s node
   id from a loaded public seed; **Silent payments**' address, labels,
   record and Check a payment.

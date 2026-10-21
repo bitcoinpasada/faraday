@@ -1,4 +1,4 @@
-//! GPG keys in a vault (`PLAN.md` §7, F32): making one, and what it makes —
+//! GPG keys in a vault (`docs/history/PLAN.md` §7, F32): making one, and what it makes —
 //! the public certificate, detached signatures over Inbox files, a
 //! revocation certificate kept with the key, a renewed expiry, and the
 //! paperkey text. The packets are `faraday-pgp`'s; the key lives in an open

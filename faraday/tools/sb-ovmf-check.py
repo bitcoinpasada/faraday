@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Secure Boot, end to end in real UEFI firmware (PLAN.md §8, the test).
+"""Secure Boot, end to end in real UEFI firmware (docs/history/PLAN.md §8, the test).
 
     faraday/tools/sb-ovmf-check.py OUT_DIR [IMAGE.efi]
 

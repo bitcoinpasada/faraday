@@ -14,9 +14,6 @@ use zeroize::Zeroizing;
 
 /// Fills a template's `{}` placeholders from `args`, in order. A
 /// placeholder with no argument is dropped; a spare argument is ignored.
-///
-/// OpenSigner's own (`opensigner-core`'s `strings` module at upstream
-/// commit `d26b84e`).
 pub fn fill(template: &str, args: &[&str]) -> String {
     let mut out = String::with_capacity(template.len() + 16);
     let mut rest = template;

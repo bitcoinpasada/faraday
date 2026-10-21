@@ -3,7 +3,7 @@
 //!
 //! Everything an application declares is in dp; everything the layout engine
 //! produces and the canvas draws is in whole pixels. One [`Scale`] per
-//! session converts between them (`docs/PLANNING.md` §4.3).
+//! session converts between them.
 
 use faraday_shell_api::DisplayInfo;
 
@@ -110,7 +110,7 @@ fn round(v: f32) -> i32 {
     }
 }
 
-/// Screen size class, derived from physical size (UX.md §2).
+/// Screen size class, derived from physical size.
 ///
 /// Size classes swap component variants (2- vs 3-column hub, compact vs
 /// full keyboard); they never reorder steps or hide information.

@@ -20,9 +20,8 @@ Signing Nostr events is not part of this spec; it is a later item.
   token; labels, not prose, on working screens (the explanations are
   §9's Learn page); tests for user-facing behaviour only; `just` once at
   the end of the batch; no `rm`; no commits; no agents.
-- Nothing in `core/` or `opensigner/` changes. OpenSigner lists the
-  Nostr application as open (`docs/PLANNING.md` §16.114); an edit there
-  would be drift.
+- Nothing in `core/` changes: the BIP-85 application list there stays
+  as it is.
 - On screen the nsec is handled as BIP-85's WIF and extended private
   key are today (§4.4). Unlike them it has no **Out unprotected**: the
   ncryptsec (§6) is the only form in which it leaves the device, apart
@@ -129,8 +128,8 @@ pieces are enough, about twenty lines:
 
 Every intermediate (the derived private key, the 64 bytes, the 32-byte
 secret, a `SecretKey` through `non_secure_erase`) is zeroized before
-the function returns, as `faraday-bip`'s own BIP-85 code does. When
-OpenSigner adds the application, Faraday moves to its function and
+the function returns, as `faraday-bip`'s own BIP-85 code does. If `core/`
+gains the application, `faraday-core` moves to its function and
 `nostr.rs` keeps only the encodings.
 
 ### 2.4 Reading the encodings
@@ -172,11 +171,11 @@ Desktop, on every network) or the session is the demo
 (`Session::demo`, which the demo website runs): §7.
 
 - **The BIP-85 screen** (`Screen::Bip85`): Nostr is the seventh row of
-  the Application card, after OpenSigner's six.
-  `faraday_core::bip85::Bip85App` is OpenSigner's and is not extended:
+  the Application card, after the six `core/` lists.
+  `faraday_core::bip85::Bip85App` is not extended:
   `bip85.rs` gets its own `App` (`Os(Bip85App)` or `Nostr`), and the
-  list is OpenSigner's six, then Nostr where §7 allows it. The name is
-  Faraday's string, the others stay OpenSigner's.
+  list is those six, then Nostr where §7 allows it. The name is
+  a string in Faraday's strings file, as the others are.
 - **The Tools tile** (`catalog.rs`): **Nostr key**, in Keys and seeds
   after Child seeds and passwords, its line "Derived from a key here"
   (the existing `catalog_derived_from`), its tags `BIP-85`, `NIP-19`,
@@ -462,7 +461,7 @@ cannot make; `0x00` would be untrue of most keys.
 
 | Need | Where it comes from | Cost |
 |---|---|---|
-| scrypt | `faraday_crypto::scrypt`, written in the tree for LND's aezeed (`docs/PLANNING.md` §16.116) | None. No `scrypt` crate is in `Cargo.lock`. |
+| scrypt | `faraday_crypto::scrypt`, written in the tree for LND's aezeed | None. No `scrypt` crate is in `Cargo.lock`. |
 | XChaCha20-Poly1305 | `chacha20poly1305` 0.11, already used by `faraday-crypto`, `faraday-backup`, `faraday-vault` and others (`docs/deps/chacha20poly1305.md`) | None new: `faraday-core` adds it as a workspace dependency. |
 | Bech32 | `bitcoin`'s re-export of `bech32` 0.11 | None. |
 | NFKC | not needed (printable ASCII only) | `unicode-normalization` is in the graph only as `faraday-bip`'s dev-dependency; not added. |
@@ -515,7 +514,7 @@ on (Faraday Desktop's mainnet and the demo website):
 
 - the **Nostr key** tile is not in Tools, and Find a tool does not
   find it;
-- the BIP-85 Application card lists OpenSigner's six only;
+- the BIP-85 Application card lists the six only;
 - a Nostr entry in a vault opened there is an ordinary Entry: its page
   adds no Show as QR, PNG, Export encrypted or Path row. §5.3 still
   holds: it is not exported for KeePass.
@@ -530,8 +529,7 @@ files.
 
 ## 8. Strings
 
-In `faraday/faraday-strings/src/en.rs`, Faraday's file; none in
-OpenSigner's. The implementer adds them; the values are the labels in
+In `faraday/faraday-strings/src/en.rs`, Faraday's file. The implementer adds them; the values are the labels in
 this spec.
 
 | Key | Value |
@@ -610,9 +608,8 @@ User-facing behaviour and published vectors (`CLAUDE.md`).
 
 ### 10.1 Vectors
 
-`tools/vectors/bip85/` is OpenSigner's (`core/faraday-bip/tests/all/bip85.rs`
-reads it) and is not changed: its extractor skips Nostr, and adding it
-there would be drift from OpenSigner's copy (`docs/history/UPSTREAM.md`). Faraday's are a new folder, `tools/vectors/nostr/`,
+`tools/vectors/bip85/` (`core/faraday-bip/tests/all/bip85.rs`
+reads it) is not changed: its extractor skips Nostr. The Nostr vectors are a new folder, `tools/vectors/nostr/`,
 as `tools/vectors/vault/` is Faraday's:
 
 - `extract.py` reads `../bip85/bip-0085.mediawiki`'s Nostr section (its

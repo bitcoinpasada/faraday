@@ -5,8 +5,7 @@
 //!
 //! The workspace sets `unsafe_code = "forbid"`. This crate and
 //! `faraday-v4l2` are the two exceptions, and their `Cargo.toml`s say
-//! so rather than inheriting the workspace lints. The reason is
-//! `docs/PLANNING.md` §16.33:
+//! so rather than inheriting the workspace lints. The reason:
 //!
 //! > **macOS uses AVFoundation from one small Objective-C file** (about
 //! > a hundred lines: a capture session, the default video device, a

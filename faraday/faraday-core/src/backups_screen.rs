@@ -1,4 +1,4 @@
-//! The Backups screen (`docs/SIMPLIFY.md` §5.1): drawing only. What it
+//! The Backups screen (`docs/history/SIMPLIFY.md` §5.1): drawing only. What it
 //! lists is `backups.rs`.
 
 use crate::backup::Tone;
@@ -123,7 +123,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 }
 
 /// A wallet's Back up, or Continue the backup for one left part way
-/// (`docs/NEW-WALLET.md` §12.3).
+/// (`docs/history/NEW-WALLET.md` §12.3).
 fn back_up_label(app: &View, i: usize) -> &'static str {
     if app.wallet_backup_unfinished(i) {
         EN.backup_flow_continue

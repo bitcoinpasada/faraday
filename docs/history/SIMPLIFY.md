@@ -288,7 +288,7 @@ in its cards" paragraph.
 
 **Replaced** (owner, 2026-10-19; F44): Add a key is New key's flow,
 opening on a Start card where Type the words is one choice and the
-other forms are behind Other forms (`docs/NEW-WALLET.md` §15). The Add
+other forms are behind Other forms (`docs/history/NEW-WALLET.md` §15). The Add
 a key screen below stays for a key asked for by name.
 
 **What.** The four form chips (BIP-39 words, SLIP-39 shares, codex32,
@@ -444,7 +444,7 @@ vault's wallet and key; after power-off (a fresh `Faraday` with no kept
 state) it does not.
 
 **Docs.** `docs/VAULT.md` gains a section "What the app remembers of a
-locked vault", stating the trade-off (decision 4). `PLAN.md` §5.2 or
+locked vault", stating the trade-off (decision 4). `docs/history/PLAN.md` §5.2 or
 wherever the kept state is listed.
 
 ### 3.5 A vault's currency
@@ -584,7 +584,7 @@ with one vault, with two, with none and files, with settings only; a
 right passphrase imports the wallets and closes; a wrong one stays;
 Not now leaves Home leading with Unlock.
 
-**Docs.** `README.md` "Starting a session: the boot import", `PLAN.md`
+**Docs.** `README.md` "Starting a session: the boot import", `docs/history/PLAN.md`
 §5.4, `docs/FLOWS.md` Session.
 
 ### 4.5 The lock, write-out and power-off sheets lead with what is kept

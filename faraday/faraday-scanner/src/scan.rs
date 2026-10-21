@@ -1,5 +1,4 @@
-//! The preview's reduction, luma and chroma, copied from
-//! `opensigner/opensigner-core/src/scan.rs` at upstream commit `d26b84e`.
+//! The preview's reduction, luma and chroma.
 //! The scanner reads the reduced luma; the stick's camera reduces each
 //! frame with these before the core sees it.
 

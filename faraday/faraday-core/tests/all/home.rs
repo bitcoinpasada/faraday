@@ -92,7 +92,7 @@ fn scan_on_home_starts_the_camera() {
 }
 
 /// Add a key is reached from Wallets' empty state and from Tools now,
-/// not from Home (`docs/SIMPLIFY.md` §1.2): Home's lead, with nothing
+/// not from Home (`docs/history/SIMPLIFY.md` §1.2): Home's lead, with nothing
 /// loaded, is Make a new wallet instead.
 #[test]
 fn home_does_not_offer_add_a_key_directly() {
@@ -293,7 +293,7 @@ fn with_a_key_loaded_a_stick_plugged_in_while_scanning_waits_then_asks_to_lock()
 }
 
 // ---------------------------------------------------------------------
-// §1.1 and §1.2 (`docs/SIMPLIFY.md`): Home is the Start section, a
+// §1.1 and §1.2 (`docs/history/SIMPLIFY.md`): Home is the Start section, a
 // lead tile when something is under way, then the four ways in.
 // ---------------------------------------------------------------------
 
@@ -709,7 +709,7 @@ fn with_a_wallet() -> Faraday {
 
 /// Backups joins Home's tiles once a wallet is known, and opens the
 /// Backups screen; a stick attached with nothing held adds Stick visit
-/// beside it (`docs/SIMPLIFY.md` §1.2, §5).
+/// beside it (`docs/history/SIMPLIFY.md` §1.2, §5).
 #[test]
 fn home_offers_backups_once_a_wallet_is_known() {
     let mut app = with_a_wallet();

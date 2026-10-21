@@ -250,7 +250,7 @@ image's SHA-256.
   wait by the same rule: none of the three can be made again from seed
   words. Built (batch B1a): the wait is the flow's, so nothing counts but its
   own writes; a write made on the stick visit does not. This follows the
-  rule `docs/NEW-WALLET.md` §14.3 sets for a Bitcoin key made here, for
+  rule `docs/history/NEW-WALLET.md` §14.3 sets for a Bitcoin key made here, for
   the same reason, and asks for two copies because this key, once lost,
   cannot be replaced: a key whose only copy is in memory is gone at
   power-off, and one whose only copy is one stick is gone with it.
@@ -330,7 +330,7 @@ public, as F22 reads an armored public key.
 **Getting the APK in.** A stick visit, as for `BOOTX64.EFI`. On the Pi,
 which has no USB, an SD card visit: the unsigned APK is put on an SD
 card's exchange partition on another computer, and the card is put in
-the Pi after boot (`PLAN.md` §3). A code cannot carry it: Faraday's file
+the Pi after boot (`docs/history/PLAN.md` §3). A code cannot carry it: Faraday's file
 envelope stops at 256 KiB and the APK is megabytes. Any size comes in:
 up to 64 MiB as any file, and a larger one after the choice between the
 whole file and only what signing needs (`docs/LARGE-FILES.md` §3). A
@@ -413,7 +413,7 @@ tail, which the rule counts as it was read.
 
 ## 5. What Faraday reads of an APK
 
-Untrusted input (`PLAN.md` §4.4), bounded and fuzzed
+Untrusted input (`docs/history/PLAN.md` §4.4), bounded and fuzzed
 (`faraday/fuzz/fuzz_targets/apk.rs`). Faraday reads:
 
 - **The ZIP's end.** The end of central directory record, searched

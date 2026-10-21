@@ -753,7 +753,7 @@ rows' **Blank templates**, each row opening its Choice:
 - **Words**: **12** · **24**, 24 chosen;
 - **Copy**: **Words** · **SeedQR** · **Both**, Words chosen: the word
   lines, the SeedQR grid, or both on one sheet, as the backup's `copy:`
-  line has them (`docs/NEW-WALLET.md` §14.7);
+  line has them (`docs/history/NEW-WALLET.md` §14.7);
 - **Places**: a count to fill in by hand, 2 filled in, one or more, no
   upper bound;
 - **Print** (primary) → the sheet made by `faraday-core`'s
@@ -794,7 +794,7 @@ checks the partition table is unchanged afterwards: GPT with the disk
 UUID `46617261-6461-792D-5374-69636B000000` and exactly two partitions,
 `FARADAYBOOT` (an EFI system partition, `…000001`) and `FARADAYDATA`
 (`…000002`). A stick made before 2026-10-21, whose partitions are
-OpenSigner's `OSKBOOT` and `OSKDATA` with UUIDs spelling "OpenSignerKit",
+`OSKBOOT` and `OSKDATA`,
 is refused as any other disk is, and nothing is relabelled: its files are
 moved to a new stick by hand (owner, 2026-10-21; `docs/DECISIONS.md`
 F67). The source is
@@ -893,7 +893,7 @@ The rule, by name alone: a name beginning with a dot, or one of
 `System Volume Information`, `$RECYCLE.BIN`, `RECYCLER`, `desktop.ini`
 and `Thumbs.db` compared ignoring case, is the computer's own. It is
 never listed, never read and never counted: not in the first look at
-the boot stick (`PLAN.md` §5.4), not on a visit, not in the Inbox, and
+the boot stick (`docs/history/PLAN.md` §5.4), not on a visit, not in the Inbox, and
 a read that names one is refused. Folders are never entered in any
 case. The hidden and system attributes are not trusted alone, either
 way: Windows marks its own files with them, but a file is ignored for
@@ -1212,7 +1212,7 @@ sheet open when the Starter exits.
   the guard, the page, the states, the key, **BitLocker first**).
 - **Learn:** `docs/learn/faraday/boot/bitlocker.md` and its entry in
   `faraday-guides`; the lines §6.7 lists.
-- **Docs:** `docs/BITLOCKER-ACCEPTANCE.md` is superseded (its header
+- **Docs:** `docs/history/BITLOCKER-ACCEPTANCE.md` is superseded (its header
   says what remains). `tools/winvm/` stays: it is how the Windows
   Starter is tried, and a Windows with BitLocker on is the computer the
   guide is checked on.
@@ -1640,11 +1640,11 @@ building.
 The first and, for now, only screen is the 2.8 inch panel (§12, D1);
 the next profile comes with the next screen tried. A USB webcam works
 on every Pi, because the Pi's USB already allows cameras
-(PLAN.md §3); a camera module works on the legacy camera stack, which
+(docs/history/PLAN.md §3); a camera module works on the legacy camera stack, which
 reads Camera Module v1 and v2, not v3. The Starter's Pi card page says
 which. HDMI with no touch needs a USB keyboard and mouse, which the Pi
 forbids today (§12, D2). *Replace Faraday, keep data* for a Pi card
-follows when the Pi has its upgrade (PLAN.md §5.5).
+follows when the Pi has its upgrade (docs/history/PLAN.md §5.5).
 
 ## 10. Security
 
@@ -1781,7 +1781,7 @@ what moved.
   attached. Superseded by F33.
 - **D19 Acceptance for Windows Home:** on a Home computer of the
   owner's, with the owner, after Pro passes in a virtual machine.
-  Superseded by F33 (`docs/BITLOCKER-ACCEPTANCE.md`'s header).
+  Superseded by F33 (`docs/history/BITLOCKER-ACCEPTANCE.md`'s header).
 - **D20 The desktop app on Windows:** yes, from batch C, carried by
   the Windows Starter and offered by its Install (§2, §3.5). Built in
   C1: the payload has a folder per system, each Starter offers only its

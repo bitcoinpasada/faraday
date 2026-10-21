@@ -9,7 +9,7 @@
 //! The workspace sets `unsafe_code = "forbid"`. This crate is one of the
 //! exceptions, with `faraday-v4l2` and `faraday-avfoundation`, and
 //! its `Cargo.toml` says so rather than inheriting the workspace lints.
-//! The reason is `docs/PLANNING.md` §16.33: each platform reaches its
+//! The reason: each platform reaches its
 //! camera through the operating system's own interface with code we
 //! write and can read, and on Windows that is Media Foundation, "the same
 //! one-small-file pattern" as AVFoundation on macOS.

@@ -1,4 +1,4 @@
-//! Upgrading a Faraday stick (`PLAN.md` §5.5), with the shell and the
+//! Upgrading a Faraday stick (`docs/history/PLAN.md` §5.5), with the shell and the
 //! boot copier stood in for: what the app asks for, and what it shows and
 //! refuses given each answer. The copier itself is tested on image files
 //! in `faraday-boot`, and the two together in `faraday-storage`.
@@ -426,7 +426,7 @@ fn the_upgrade_s_learn_page_takes_secure_boot_through_a_spare_stick() {
         .find(|s| s.heading == "With Secure Boot")
         .expect("a Secure Boot section");
     assert!(secure.paragraphs.iter().any(|p| p.starts_with("4. ")));
-    // It is Faraday's alone: OpenSigner's Learn has no such page.
+    // It is Faraday's own page.
     assert!(
         faraday_learn::pages::EN
             .pages()

@@ -8,7 +8,7 @@ once built, `docs/FLOWS.md` and the code are the record.
 The problem it solves: a vault entry already holds a TOTP secret (record
 type 6, field 6, `docs/VAULT.md` §7), scanned from a setup QR, typed, or
 imported from the Inbox, but Faraday shows only the secret, never the
-code (`PLAN.md` §6.4: "it does not generate TOTP codes"). A code is
+code (`docs/history/PLAN.md` §6.4: "it does not generate TOTP codes"). A code is
 HMAC over the Unix time in 30-second steps, so it is right only when the
 clock is. The Pi has no real-time clock and starts at 1970. The stick reads
 the PC's hardware clock as UTC, and a PC that runs Windows keeps that
@@ -150,7 +150,7 @@ the minutes are 00, 15, 30 or 45, and the value is in range; anything
 else is skipped as an unknown value is now. The file is untrusted
 (`stick_settings.rs` header): a wrong zone gives wrong local times and
 wrong codes, never a less protected session, so it may be read from the
-file. The stick-settings comment and `HANDOFF.md` item 62's key list
+file. The stick-settings comment and `docs/history/HANDOFF.md` item 62's key list
 name it.
 
 A stick file written before this change has no `tz` line. The zone stays
@@ -439,12 +439,12 @@ Batch 1:
   and press Set as the phone's minute changes; the time zone is a fixed
   offset, changed by hand at daylight saving; Faraday never changes the
   computer's own clock. Plain statements, as `CLAUDE.md` asks.
-- `HANDOFF.md` item 62's key list gains `tz`.
+- `docs/history/HANDOFF.md` item 62's key list gains `tz`.
 - Snapshot: `settings-time`, and `set-time` with the clock not known.
 
 Batch 2:
 
-- `PLAN.md` §6.4: "Faraday stores entries; it does not generate TOTP
+- `docs/history/PLAN.md` §6.4: "Faraday stores entries; it does not generate TOTP
   codes" becomes the codes screen and the Code row, and names this file.
 - `docs/VAULT.md` §7, type 6 field 6: "an `otpauth://` URI (a bare key
   is stored as one, `docs/TOTP.md` §4.3)".

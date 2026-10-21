@@ -246,7 +246,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     cy += box_h + 16.0;
 
     // The first thing to do with it, on the first screen: from the vault
-    // to a spend (`docs/NEW-WALLET.md` §11.2).
+    // to a spend (`docs/history/NEW-WALLET.md` §11.2).
     let (spend_label, spend_action) = app.spend_button(app.wallet);
     cy += stack(
         ui,
@@ -323,7 +323,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Action::Backup(app.wallet),
         ),
     ];
-    // Create filled from this wallet (`docs/NEW-WALLET.md` §16.2).
+    // Create filled from this wallet (`docs/history/NEW-WALLET.md` §16.2).
     if crate::create::NewKind::of(wlt.policy()).is_some_and(|k| !k.threshold()) {
         buttons.push((
             EN.wallets_new_wallet_from,
@@ -499,7 +499,7 @@ fn pass_field(
 }
 
 /// Add a key on a small panel. Words: what is being typed, the words it
-/// can be, and OpenSigner's word keyboard on the first screenful; the
+/// can be, and the word keyboard on the first screenful; the
 /// words taken, the passphrase and the buttons under them. The other
 /// forms type on the docked keyboard.
 pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -605,9 +605,9 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 }
 
 /// Add a key's words form on a small panel: the word being typed, the
-/// words it can be, OpenSigner's word keyboard, the words taken and the
+/// words it can be, the word keyboard, the words taken and the
 /// lists. Add a key draws it, and so does New key's Words card for a key
-/// typed (`docs/NEW-WALLET.md` §15.2). `page`: on Add a key's own page,
+/// typed (`docs/history/NEW-WALLET.md` §15.2). `page`: on Add a key's own page,
 /// whose row of lists offers Other forms too. Returns where the next row
 /// starts.
 pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page: bool) -> f32 {
@@ -773,7 +773,7 @@ pub(crate) fn keyed_taken(
 
 /// Add a key in another form: one share, string or part typed at a time
 /// on the docked keyboard. New key's Words card for a key typed in that
-/// form draws it too, with `flow` its Continue (`docs/NEW-WALLET.md`
+/// form draws it too, with `flow` its Continue (`docs/history/NEW-WALLET.md`
 /// §15.2): no passphrase (Key asks it), no way in from a stick, Continue
 /// in place of Make the key. Returns where the next row starts.
 pub(crate) fn entry_form(

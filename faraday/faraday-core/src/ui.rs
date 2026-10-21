@@ -128,7 +128,7 @@ impl CoreUi for Ui<'_> {
     }
 
     /// An empty BIP-39 passphrase field's content
-    /// (`docs/NEW-WALLET.md` §13.4): the **No passphrase** pill at the
+    /// (`docs/history/NEW-WALLET.md` §13.4): the **No passphrase** pill at the
     /// start of the box `h` tall at (x, y), and the caret after it while
     /// the field is focused.
     fn no_passphrase(&mut self, x: f32, y: f32, h: f32, focused: bool) {

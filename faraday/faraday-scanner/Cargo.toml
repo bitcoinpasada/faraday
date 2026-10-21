@@ -8,7 +8,7 @@ rust-version.workspace = true
 repository.workspace = true
 publish = false
 
-# The decode policy is OpenSigner's scan reduction, copied into
+# The decode policy is the scan reduction in
 # `src/scan.rs`; the preview's size is `faraday-draw`'s token. The detector
 # is the workspace's vendored `rqrr`, read directly so that a pass can say
 # where a code was and how fine it is.

@@ -18,7 +18,7 @@
 # Turning modules off does not by itself drop the drivers a defconfig
 # builds as modules. Kconfig turns a `=m` into `=y` when CONFIG_MODULES
 # is off, so this line alone built all 1203 of the bcm2709 defconfig's
-# modules into the kernel (PLANNING.md 16.93). What drops them is
+# modules into the kernel. What drops them is
 # external.mk's post-patch hook, which deletes every `=m` line from the
 # defconfig before Buildroot reads it. This line stays because the rule
 # is still one image and no modules.
@@ -154,7 +154,7 @@ CONFIG_NLS_ISO8859_1=y
 
 # The device signs offline. With no socket layer there is no interface to
 # configure, no stack to reach and no driver that could carry a seed off
-# the board. PLANNING.md 11.2 and the security review's model both say
+# the board. The security review's model says
 # this kernel has no network stack; this is the line that makes it true.
 # CONFIG_NET is not set
 
@@ -234,7 +234,7 @@ CONFIG_NLS_ISO8859_1=y
 # CONFIG_HIBERNATION is not set
 
 # ---- kernel memory: zeroed, checked, and harder to lay out ----
-# (PLANNING.md 16.140, from the Faraday fork's review of this tree.)
+#
 #
 # Every page and every slab object is zeroed when it is handed out and
 # again when it is freed. The app erases its own secrets; this covers the

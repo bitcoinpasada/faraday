@@ -100,7 +100,7 @@ unset NAME WIDTH HEIGHT DPI TOUCH_NAME TOUCH_GRID FB LOGO_WIDTH LOGO_HEIGHT
 # A soldered-on panel knows its size and its density and the shell is told
 # both; a firmware framebuffer reports its size in sysfs and no firmware
 # reports a density, so a panel that gives no WIDTH says nothing and the
-# shell reads sysfs and the kernel command line (PLANNING.md 16.94).
+# shell reads sysfs and the kernel command line.
 if [ -n "${WIDTH:-}" ] || [ -n "${HEIGHT:-}" ]; then
     for v in WIDTH HEIGHT; do
         [ -n "${!v:-}" ] || { echo "$panel_dir/panel.conf has WIDTH or HEIGHT but not both" >&2; exit 1; }
@@ -211,7 +211,7 @@ CONFIG_LOCALVERSION="${FARADAY_LOCALVERSION:?}"
 # CONFIG_LOCALVERSION_AUTO is not set
 EOF
 
-# ---- the disk process, the grant helper (PLAN.md §4.3) and the boot
+# ---- the disk process, the grant helper (docs/history/PLAN.md §4.3) and the boot
 # copier (§5.5), beside the app in /usr/bin. The app itself is the
 # faraday package's.
 mkdir -p "$gen/overlay/usr/bin"
@@ -370,7 +370,7 @@ fi
 # external.mk drops the defconfig's `=m` lines when the kernel tree is
 # unpacked, once per tree. A tree unpacked before that hook existed still
 # carries the original defconfig, and Buildroot would build its modules
-# into the kernel (PLANNING.md 16.93). Unpack it again.
+# into the kernel. Unpack it again.
 #
 # The defconfig looked at is the one the hook rewrote: the file Buildroot
 # names, under the kernel's own architecture, as Buildroot itself works

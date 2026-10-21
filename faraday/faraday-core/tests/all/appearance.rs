@@ -81,7 +81,7 @@ fn the_choice_is_kept_across_a_lock() {
 fn reduce_motion_is_kept_across_a_lock() {
     let mut app = shown();
     // Settings carries a Network card and a Time card now
-    // (`docs/SIMPLIFY.md` §1.5, `docs/TOTP.md` §2), which push Motion
+    // (`docs/history/SIMPLIFY.md` §1.5, `docs/TOTP.md` §2), which push Motion
     // below the fold on this panel's height.
     app.list_offset = 345.0;
     let _ = app.frame();

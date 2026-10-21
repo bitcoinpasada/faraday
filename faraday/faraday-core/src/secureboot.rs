@@ -1,4 +1,4 @@
-//! Secure Boot keys in a vault (`PLAN.md` §8): making an owner's PK, KEK
+//! Secure Boot keys in a vault (`docs/history/PLAN.md` §8): making an owner's PK, KEK
 //! and db, the enrolment files, signing `BOOTX64.EFI` from the Inbox, and
 //! checking an image's signature. The cryptography is `faraday-sb`'s; the
 //! keys live in an open vault as a type-8 record (`docs/VAULT.md` §7) and

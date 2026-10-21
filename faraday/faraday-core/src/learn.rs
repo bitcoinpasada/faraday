@@ -157,8 +157,8 @@ impl Faraday {
             Screen::Files | Screen::Visit => vec![&EN.air_gap, &EN.coordinators],
             // An APK signing key's page, and the form that makes one, name
             // the page about it (`docs/APK-SIGNING.md` §10).
-            // An OpenSigner backup being read into the vault names the
-            // page about OpenSigner's backups first.
+            // An .oskb backup being read into the vault names the
+            // page about encrypted backups first.
             Screen::VaultContents
                 if self
                     .vaults

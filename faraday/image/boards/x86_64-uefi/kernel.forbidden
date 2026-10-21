@@ -17,7 +17,7 @@ NVME_CORE               the layer BLK_DEV_NVME sits on, named so a driver cannot
 MMC                     the laptop's eMMC and its SD card reader, which are a disk and a card this device does not read
 SCSI_LOWLEVEL           the SAS, iSCSI, fibre-channel and RAID controllers a disk can be behind; the USB stick is behind none of them
 
-# Faraday (PLAN.md §4.2): no filesystem on a stick is parsed by the kernel.
+# Faraday (docs/history/PLAN.md §4.2): no filesystem on a stick is parsed by the kernel.
 FAT_FS        a stick's FAT is read by faraday-disk, unprivileged, never by the kernel
 VFAT_FS       as FAT_FS
 MSDOS_FS      as FAT_FS
@@ -27,16 +27,16 @@ ISO9660_FS    as EXFAT_FS
 UDF_FS        as EXFAT_FS
 HFSPLUS_FS    as EXFAT_FS
 
-# Faraday (PLAN.md §4.6): USB drivers for storage, HID, video and hubs only.
+# Faraday (docs/history/PLAN.md §4.6): USB drivers for storage, HID, video and hubs only.
 USB_PRINTER   a printer interface has nothing to bind to here
 USB_MON       the USB traffic monitor would show every key a USB keyboard sends
 USB_SERIAL    a serial adapter is a way in, not a device this signs with
 USB_ACM       as USB_SERIAL
 
-# Faraday (PLAN.md §5.3): no process's memory is ever written to a file.
+# Faraday (docs/history/PLAN.md §5.3): no process's memory is ever written to a file.
 COREDUMP      a crash would write the app's memory, keys included, to a file
 
-# Upstream hardening (docs/PLANNING.md §16.140), at 96e2144.
+# Upstream hardening, at 96e2144.
 IA32_EMULATION          the whole 32-bit system call table; the shell is a static 64-bit binary
 MODIFY_LDT_SYSCALL      16-bit segments, for Wine and DOSEMU
 X86_16BIT               as MODIFY_LDT_SYSCALL
@@ -75,6 +75,6 @@ ACPI_TABLE_UPGRADE      replacing ACPI tables at boot, which nothing here needs
 EFI_CUSTOM_SSDT_OVERLAYS as ACPI_TABLE_UPGRADE
 EFI_RUNTIME_MAP         the EFI memory map in sysfs, which exists for kexec
 
-# Faraday (PLAN.md §5.5): the release string is the Faraday version and
+# Faraday (docs/history/PLAN.md §5.5): the release string is the Faraday version and
 # commit run-build.sh puts in CONFIG_LOCALVERSION, which the upgrade reads.
 LOCALVERSION_AUTO  a suffix from the kernel tree's own version control, which would make the release string depend on where the tree was unpacked

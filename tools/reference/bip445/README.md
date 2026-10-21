@@ -3,7 +3,7 @@
 The FROST signing reference and the pure-Python curve library it needs,
 copied unchanged so that `tools/scripts/threshold-reference.py` can play
 the second share of a fixture spend and check this tree's partial
-signatures against another implementation (`docs/PLANNING.md` §16.103).
+signatures against another implementation.
 
 Nothing here is built or run by `just`: it is Python, and the default
 recipe stays Rust. `just threshold-reference` runs the check.

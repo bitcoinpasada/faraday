@@ -104,7 +104,7 @@ impl Faraday {
     /// Whether wallet `w`'s backup was left part way: its vaults set up
     /// before its keys, its plan not made yet. Back up resumes it at the
     /// plan, and the wallet's card and Backups offer it until it is done
-    /// (`docs/NEW-WALLET.md` §12.3).
+    /// (`docs/history/NEW-WALLET.md` §12.3).
     pub fn wallet_backup_unfinished(&self, w: usize) -> bool {
         self.session
             .wallets

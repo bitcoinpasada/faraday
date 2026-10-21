@@ -1,6 +1,6 @@
 // AVFoundation capture for the macOS shell: a capture session, the
 // default video device, a bi-planar 4:2:0 output, and a delegate that
-// hands both planes to a C callback (docs/PLANNING.md §16.33). Plane 0
+// hands both planes to a C callback. Plane 0
 // is the luma the core decodes; plane 1 is already the interleaved
 // chroma the core draws the preview in colour from.
 //

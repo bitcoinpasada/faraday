@@ -1,14 +1,10 @@
-//! The backup quiz (UX.md D5, D6, K1; `docs/PLANNING.md` §8.2 #7): every
+//! The backup quiz: every
 //! word of a mnemonic, in random order, each chosen from four candidates.
 //! Key generation runs it after the words are shown.
 //!
-//! Taken from OpenSigner's app (`opensigner-core/src/quiz.rs` at
-//! upstream `d26b84e`) when Faraday dropped that app (`docs/DECISIONS.md`
-//! F68), unchanged but for where the word lists come from.
-//!
 //! The words come from a list rather than from a language: BIP-39's
 //! words or a SLIP-39 share's, which is the same question over a
-//! different list (`docs/PLANNING.md` §16.107).
+//! different list.
 //!
 //! The order and the decoys come from a small deterministic generator
 //! (xorshift64*) seeded from the tick clock and a hash of the word

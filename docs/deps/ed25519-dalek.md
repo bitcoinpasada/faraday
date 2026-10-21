@@ -1,11 +1,10 @@
 # ed25519-dalek
 
 **Purpose.** Ed25519 signatures for Faraday's GPG keys
-(`faraday/faraday-pgp`, `PLAN.md` §7): the certification primary key and
+(`faraday/faraday-pgp`, `docs/history/PLAN.md` §7): the certification primary key and
 the signing subkey are Ed25519, and every self-signature, detached
 signature and revocation certificate Faraday writes is one Ed25519
-signature over an OpenPGP digest. Faraday-only: OpenSigner's own graph
-does not use it.
+signature over an OpenPGP digest.
 
 **Why this crate.** It is the Ed25519 implementation the Rust ecosystem
 reviews and uses most, by the dalek-cryptography maintainers, constant
@@ -24,5 +23,4 @@ signatures does not need), `std` and `rand_core`; Faraday's keys come from
 a vault's seeds, never from an RNG inside the crate.
 
 **Reopen when** OpenPGP v6 keys (RFC 9580) are wanted, which take Ed25519
-the same way but would let SHA-1 go; or when an Ed25519 implementation
-enters OpenSigner's own graph and one copy should serve both.
+the same way but would let SHA-1 go.

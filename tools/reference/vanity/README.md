@@ -1,6 +1,6 @@
 # EntropyLab's vanity counter
 
-`docs/PLANNING.md` §16.117. The counter this device appends to a
+The counter this device appends to a
 passphrase is EntropyLab's, so that a find here and a find there are the
 same find. The alphabet, the odometer order and the two vectors below
 are read from the source named here, never from a summary.

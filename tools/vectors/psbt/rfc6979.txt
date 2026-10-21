@@ -1,4 +1,4 @@
-# RFC 6979 deterministic-nonce cross-check vectors for secp256k1 (docs/PLANNING.md 8.4 #8).
+# RFC 6979 deterministic-nonce cross-check vectors for secp256k1.
 # Same record format as bip174.txt. Two independent sources:
 #
 # 1. python-ecdsa, src/ecdsa/test_pyecdsa.py, class RFC6979 (test_SECP256k1_3 / _5):

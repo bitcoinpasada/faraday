@@ -439,7 +439,7 @@ fn keep_data_over_a_disk_that_is_not_a_faraday_stick_writes_nothing() {
 #[test]
 fn keep_data_over_a_stick_with_the_old_partition_table_writes_nothing() {
     // A stick made before the partitions were renamed: OSKBOOT and
-    // OSKDATA, and the UUIDs that spell "OpenSignerKit".
+    // OSKDATA, and the UUIDs of that layout.
     let old = [
         "4F70656E-5369-676E-6572-4B6974000000",
         "4F70656E-5369-676E-6572-4B6974000001",

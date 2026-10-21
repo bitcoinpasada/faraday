@@ -28,7 +28,7 @@ LINUX_POST_PATCH_HOOKS += FARADAY_IMAGE_INSTALL_BOOT_LOGO
 # defconfig has 1203 `=m` lines, so `# CONFIG_MODULES is not set` in
 # common/linux.fragment did not drop those drivers: it built every one of
 # them into the kernel — the whole network stack, Bluetooth, sound, DRM,
-# USB gadget, DVB, infrared, IIO and six filesystems (PLANNING.md 16.93).
+# USB gadget, DVB, infrared, IIO and six filesystems.
 #
 # The rule is that no option is built in because a defconfig listed it as
 # a module, so this hook rewrites the defconfig in the unpacked tree

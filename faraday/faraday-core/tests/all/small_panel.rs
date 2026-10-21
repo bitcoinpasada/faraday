@@ -112,7 +112,7 @@ fn home_offers_every_place_without_a_sidebar() {
     assert_eq!(app.screen, Screen::Home, "the bar goes back to Home");
 }
 
-/// Spend left the small Home grid (`docs/SIMPLIFY.md` §6.2): the
+/// Spend left the small Home grid (`docs/history/SIMPLIFY.md` §6.2): the
 /// Wallets empty state and the Learn sheet reach it instead.
 #[test]
 fn homes_grid_has_no_spend_tile() {
@@ -126,7 +126,7 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     tap(&mut app, Action::Nav(Screen::Start));
     tap(&mut app, Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
-    // Create opens on Kind (`docs/NEW-WALLET.md` §2.1); single key is
+    // Create opens on Kind (`docs/history/NEW-WALLET.md` §2.1); single key is
     // the default, so Continue reaches Keys straight away.
     tap(&mut app, Action::CNext(faraday_core::cstep::KIND));
     tap(&mut app, Action::CVaults(false));
@@ -135,7 +135,7 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     assert_eq!(app.screen, Screen::KeyGen);
     // New key opens on Start, Make a new key ticked; its Continue opens
     // Length, whose Continue (12 words, the default) opens Randomness
-    // (`docs/NEW-WALLET.md` §15.3).
+    // (`docs/history/NEW-WALLET.md` §15.3).
     tap(&mut app, Action::KNext);
     assert_eq!(
         app.keygen.as_ref().and_then(|k| k.open),
@@ -158,7 +158,7 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     }
     // The entry card's Continue opens Key; Lock in adds the key and,
     // a single key being the whole wallet, makes it; Continue returns to
-    // Create on Back up (`docs/NEW-WALLET.md` §3.3, §3.4).
+    // Create on Back up (`docs/history/NEW-WALLET.md` §3.3, §3.4).
     tap(&mut app, Action::KNext);
     tap(&mut app, Action::KLock);
     tap(&mut app, Action::KNext);
@@ -207,7 +207,7 @@ fn a_passphrase_field_brings_the_keyboard_and_stays_above_it() {
 #[test]
 fn a_step_s_walk_through_opens_and_closes_on_a_tap_in_steps_only_too() {
     let mut app = panel();
-    // A first start is Guided (`docs/SIMPLIFY.md` §6.1); Steps only is a
+    // A first start is Guided (`docs/history/SIMPLIFY.md` §6.1); Steps only is a
     // choice, and this walk-through opens on a tap there too.
     assert!(app.guided, "Guided is the first start");
     app.press(Action::Guided(false));
@@ -278,7 +278,7 @@ fn forward_in_view(mut app: Faraday, h: u16) {
     tap(&mut app, Action::Nav(Screen::Home));
     tap(&mut app, Action::Nav(Screen::Start));
     tap(&mut app, Action::CreateWallet);
-    // Create opens on Kind (`docs/NEW-WALLET.md` §2.1): it is already
+    // Create opens on Kind (`docs/history/NEW-WALLET.md` §2.1): it is already
     // open, nothing to tap to reach it.
     // Taproot (kind 1) is behind More kinds now; the two always-shown
     // rows are Single key (0) and Multisig (4).
@@ -294,7 +294,7 @@ fn forward_in_view(mut app: Faraday, h: u16) {
 
 /// Create opens on Kind; its own Continue, with the single-key default,
 /// closes it as done and opens Keys, whose head then carries Kind with
-/// Change (`docs/NEW-WALLET.md` §2.1).
+/// Change (`docs/history/NEW-WALLET.md` §2.1).
 #[test]
 fn kind_is_offered_on_the_keys_page_and_opens() {
     let mut app = panel();
@@ -391,7 +391,7 @@ fn scan_never_covers_a_tile() {
 /// A flow's page title is the card's name alone, never a count next to
 /// it that could be read as one of the card's own values; the step
 /// count is its own muted "Step N of M" text beside the title
-/// (`DESIGN.md` §4.1, `SIMPLIFY.md` §2.6).
+/// (`DESIGN.md` §4.1, `docs/history/SIMPLIFY.md` §2.6).
 #[test]
 fn a_flow_s_page_title_carries_no_count() {
     let mut app = panel();
@@ -399,7 +399,7 @@ fn a_flow_s_page_title_carries_no_count() {
     tap(&mut app, Action::Vault(V::Create));
     let texts = app.drawn_texts();
     // Create a vault is two cards, and opens on the second: the size
-    // has its default (`docs/SIMPLIFY.md` §3.1). The title wraps onto
+    // has its default (`docs/history/SIMPLIFY.md` §3.1). The title wraps onto
     // its own line or lines, with no count joined onto it.
     assert!(
         texts.iter().any(|t| t == "Name and" || t == "passphrases"),

@@ -1,5 +1,4 @@
-// Media Foundation capture for the Windows shells (docs/PLANNING.md
-// §16.33, docs/STARTER.md §8): the video capture devices, one opened as
+// Media Foundation capture for the Windows shells: the video capture devices, one opened as
 // a source reader that gives NV12 near 1280 x 720, and synchronous reads
 // whose Y and UV planes go to a C callback. Plane Y is the luma the core
 // decodes; plane UV is already the interleaved chroma the core draws the

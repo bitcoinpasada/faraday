@@ -1,10 +1,9 @@
-//! User-supplied entropy (`docs/PLANNING.md` §2.2 "weak entropy", §8.1
-//! #1, #2, #6): dice rolls, coin flips and raw hex, accumulated in fixed
+//! User-supplied entropy: dice rolls, coin flips and raw hex, accumulated in fixed
 //! buffers that are erased on drop, turned into the 128, 160, 192, 224
 //! or 256 bits of [`RawEntropy`] a BIP-39 key of 12, 15, 18, 21 or 24
 //! words takes, and checked for the mistakes real hands make.
 //!
-//! Conventions (`docs/PLANNING.md` §16.17):
+//! Conventions:
 //!
 //! - **Dice** ([`DiceRolls`], [`DiceProcedure`]): three published
 //!   procedures read the same rolls (§16.115). The default is the
@@ -267,8 +266,8 @@ impl Warnings {
 
 // ----- dice -----
 
-/// How rolls of a six-sided die become a key
-/// (`docs/PLANNING.md` §16.115). Each is another signer's published
+/// How rolls of a six-sided die become a key.
+/// Each is another signer's published
 /// procedure, reproduced so that a key made there is the same key here.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiceProcedure {
@@ -536,7 +535,7 @@ impl DiceRolls {
         }
     }
 
-    // ----- the other published procedures (`docs/PLANNING.md` §16.115)
+    // ----- the other published procedures
 
     /// Adds a roll under `procedure`. Returns `false` for a face the
     /// procedure rerolls, for a value that is not 1–6, or when full.
@@ -1008,8 +1007,7 @@ impl RawHex {
     }
 }
 
-/// Most parts a Seed XOR split or combine takes
-/// (`docs/PLANNING.md` §8.2 item 14).
+/// Most parts a Seed XOR split or combine takes.
 pub const MAX_XOR_PARTS: usize = 4;
 
 /// Fewest parts a Seed XOR has: one part alone is the seed itself.

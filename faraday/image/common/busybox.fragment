@@ -1,4 +1,4 @@
-# BusyBox for the OpenSigner image, on top of Buildroot's default config.
+# BusyBox for the Faraday image, on top of Buildroot's default config.
 #
 # The image needs init, a shell to run one start-up script, mdev, mount and
 # poweroff. Everything below is either one of those, kept on, or an applet
@@ -15,7 +15,7 @@ CONFIG_FEATURE_MDEV_CONF=y
 CONFIG_HALT=y
 CONFIG_POWEROFF=y
 
-# The app runs as the unprivileged `opensigner` user (security review
+# The app runs as the unprivileged `faraday` user (security review
 # 2026-09-11, M8), and init is the only thing on the device that is root.
 # `setuidgid USER PROG` is what drops to it: it sets the group, drops the
 # supplementary groups and sets the uid, then execs. BusyBox's `setpriv`

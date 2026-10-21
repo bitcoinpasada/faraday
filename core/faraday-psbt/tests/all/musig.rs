@@ -716,7 +716,7 @@ fn the_review_names_the_musig_wallet() {
 }
 
 // ---------------------------------------------------------------------
-// The device first, with the session (docs/PLANNING.md §16.100)
+// The device first, with the session
 // ---------------------------------------------------------------------
 
 /// A context with the session this device holds, which is what decides

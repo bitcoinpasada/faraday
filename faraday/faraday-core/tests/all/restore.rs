@@ -1,4 +1,4 @@
-//! Restore a wallet made elsewhere (`docs/NEW-WALLET.md` §12): what kind
+//! Restore a wallet made elsewhere (`docs/history/NEW-WALLET.md` §12): what kind
 //! it is, its quorum, its description or none, then a slot per key for its
 //! seed, with a passphrase if it has one, or a cosigner's xpub; the
 //! wallet, its first addresses, and the backup or a spend after.
@@ -508,7 +508,7 @@ fn a_description_read_first_then_a_vault_resumes_the_backup_with_the_vault() {
 }
 
 /// Done offers the four ways on, each doing what it says
-/// (`docs/NEW-WALLET.md` §12.3).
+/// (`docs/history/NEW-WALLET.md` §12.3).
 #[test]
 fn done_offers_a_spend_the_backup_another_wallet_and_wallets() {
     let mut app = two_of_three_from_seeds();
@@ -682,7 +682,7 @@ fn single_key_at_check(shell: &mut crate::common::Shell, count: usize) -> (Farad
 }
 
 /// Restore ends on Done, whatever the question of vaults was answered
-/// (`docs/NEW-WALLET.md` §12.3).
+/// (`docs/history/NEW-WALLET.md` §12.3).
 #[test]
 fn it_matches_opens_done_with_no_vaults() {
     let mut shell = crate::common::Shell::new();

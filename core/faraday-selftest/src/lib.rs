@@ -1,5 +1,4 @@
-//! Start-up self-test (`docs/PLANNING.md` §8.5 #5, §12, §16.139; UX.md
-//! §7.1 A3): a small fixed set of published vectors, run before any key
+//! Start-up self-test: a small fixed set of published vectors, run before any key
 //! is accepted. Each check calls the function the product itself calls:
 //! BIP-39 words and seed (PBKDF2-HMAC-SHA512), BIP-32 derivation, a
 //! BIP-84 address, ECDSA and BIP-340 signing, and the two other KDFs,

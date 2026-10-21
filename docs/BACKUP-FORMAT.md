@@ -1,6 +1,6 @@
-# `.oskb`: the file OpenSigner encrypts things into
+# `.oskb`: the file Faraday encrypts things into
 
-One container holds everything OpenSigner encrypts under a passphrase a
+One container holds everything Faraday encrypts under a passphrase a
 person types: a key's words, a master seed, a note, a wallet's recovery
 sheet. One spec, one reference decryptor
 (`tools/backup/decrypt.py`), one decrypt path to audit.
@@ -10,11 +10,8 @@ This file is the format. The implementation is
 this file is what a second implementation is written against, and the
 vectors under `tools/vectors/backup/` settle it.
 
-The history and the decisions behind it are `docs/PLANNING.md` §16.78
-(version 1), §16.96 (version 2) and §16.112 (version 3).
-
 The same things also leave the device in a second form, KDBX 4, for a
-reader that is a KeePass app rather than OpenSigner. That form is
+reader that is a KeePass app rather than Faraday. That form is
 written and never read, and has its own section below.
 
 ## The file
@@ -128,13 +125,13 @@ The header states the cost, so any device with the memory opens any
 file. The device writes the memory the person chose in Settings ›
 Backup memory — 64 MiB, 256 MiB or 1 GiB — with three passes and one
 lane, which is what every Argon2id in this app uses. The kept-key blob
-(`docs/PLANNING.md` §6) keeps its own 64 MiB: that cost is paid on every
+keeps its own 64 MiB: that cost is paid on every
 unlock, not once per file.
 
 A reader checks the stated cost before it allocates anything or runs a
 single pass, because the header is only associated data: a changed cost
 can do no more than fail the tag, and by then the memory has been taken
-and the passes run. OpenSigner refuses a file above 4 GiB outright,
+and the passes run. Faraday refuses a file above 4 GiB outright,
 attempts the allocation below that, and says "Needs *n* MiB" where the
 allocation fails. Passes must be 1 to 3 and lanes 1.
 
@@ -153,8 +150,7 @@ recorded beside each one.
 ## KDBX 4, the other form
 
 The same things leave the device as a KDBX 4 database for a person whose
-reader is a KeePass app rather than OpenSigner (`docs/PLANNING.md`
-§16.112 rule 3). It is written and never read: nothing on the device
+reader is a KeePass app rather than Faraday. It is written and never read: nothing on the device
 opens a KDBX file.
 
 The format is KeePass's own and is not restated here. It is specified at
@@ -175,7 +171,7 @@ What this device puts in one:
 | composite key | the passphrase alone; no key file |
 | authentication | the header's SHA-256 and HMAC-SHA-256, then the HMAC block stream over the ciphertext |
 | inner random stream | ChaCha20, with a 64-byte key |
-| document | one group named `OpenSigner`, one entry per item |
+| document | one group named `Faraday`, one entry per item |
 | attachments | none |
 
 An entry carries a Title, a Notes and a Password field, the last marked
@@ -191,7 +187,7 @@ them:
 
 The Argon2id cost is the same one an `.oskb` file is written at, so the two
 forms of one export cost a guess the same, and a KeePass app pays what
-this device paid. Every file is offered as `opensigner.kdbx`, as an `.oskb` file is offered one name, so a file says nothing about what it holds; the entry's title inside carries the fingerprint, the note's first line or the wallet's name.
+this device paid. The entry's title inside carries the fingerprint, the note's first line or the wallet's name.
 
 Two things about the text. A KDBX document is XML, so the five markup
 characters are escaped and a control character XML has no representation

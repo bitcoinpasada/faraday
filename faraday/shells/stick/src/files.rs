@@ -1,4 +1,4 @@
-//! The file channel (`docs/PLANNING.md` §16.16): every directory a FAT
+//! The file channel: every directory a FAT
 //! partition is mounted at, read one file at a time and written one file
 //! at a time.
 //!
@@ -19,7 +19,7 @@
 //! on two sticks are two names; when one is, it is the file's own name.
 //!
 //! The exchange partition holds the settings the app keeps
-//! (`docs/PLANNING.md` §6) and, on a dev medium, the timings `--timings`
+//! and, on a dev medium, the timings `--timings`
 //! records, both under names of this shell's choosing. They are the
 //! device's files rather than the user's, so "Read a file" never offers
 //! them, and they are never written to a plugged-in stick.
@@ -43,7 +43,7 @@ const MAX_BYTES: u64 = 4 * 1024 * 1024;
 /// meant to sign, so it is never offered.
 const NOTE: &str = "README.txt";
 
-/// The settings the app keeps (`docs/PLANNING.md` §6). It is the
+/// The settings the app keeps. It is the
 /// device's own file, not one anyone meant to sign, so it is never
 /// offered either.
 pub const SETTINGS: &str = "faraday-settings.txt";
@@ -51,7 +51,7 @@ pub const SETTINGS: &str = "faraday-settings.txt";
 /// Where the settings are written before being renamed into place.
 const SETTINGS_TEMP: &str = "faraday-settings.tmp";
 
-/// What `--timings` writes on a dev card (`docs/PLANNING.md` §16.35).
+/// What `--timings` writes on a dev card.
 /// It is the device's own file too, so it is never offered.
 pub const TIMINGS: &str = "faraday-timings.txt";
 

@@ -5,7 +5,7 @@
 //! answer of its own, hashed with what it is for, and the pool is topped
 //! up. A signing pass that opens a MuSig2 or FROST round takes
 //! [`Faraday::sign_seed`]: the session's seed with a count of the passes,
-//! as OpenSigner's `musig_seed` draws it, so that no two passes of a
+//! so that no two passes of a
 //! process draw the same nonce. A vault's seal nonce and a new keyboard's
 //! code are drawn from the seed too (`vaults.rs`, `inputs.rs`). The seed
 //! is a [`Seed`] held as an `Option`: until the shell's first answer there

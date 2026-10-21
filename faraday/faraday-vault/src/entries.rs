@@ -1,4 +1,4 @@
-//! Entries from text (`PLAN.md` §6.4): an Inbox text file of
+//! Entries from text (`docs/history/PLAN.md` §6.4): an Inbox text file of
 //! `otpauth://` URIs and `field: value` lines, or a TOTP setup code read
 //! by the camera. CSV and KeePass are not read.
 //!

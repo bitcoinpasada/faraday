@@ -1,6 +1,6 @@
 # Clippy's settings for Faraday's crates. Clippy reads the nearest
 # clippy.toml above each crate's manifest, so this governs every crate
-# under faraday/ and none in core/ or opensigner/ (docs/COMPUTE.md §3, §7).
+# under faraday/ and none in core/ (docs/COMPUTE.md §3, §7).
 #
 # Third-party paths only: what Faraday's own crates and core's could hold
 # is held by the token's types and by the costs lint (tools/costs-lint).

@@ -1,10 +1,9 @@
 //! What this device encrypts under a passphrase the person types: a
 //! key's words, a master seed, a note, or a wallet's recovery sheet,
-//! each as one self-describing byte string (`docs/PLANNING.md` §16.71
-//! decision 4, §16.112 rule 1).
+//! each as one self-describing byte string.
 //!
-//! The format is `faraday-backup`. `docs/BACKUP.md` writes it down byte for
-//! byte; what follows is the summary the code is read against.
+//! The format is `faraday-backup`. `docs/BACKUP-FORMAT.md` writes it down byte
+//! for byte; what follows is the summary the code is read against.
 //!
 //! ```text
 //!  0   magic "OSKB", 4 bytes
@@ -311,7 +310,7 @@ pub fn seal_sheet(
 /// A [`KIND_SHEET`] payload: the descriptor, the name and the note,
 /// each a little-endian `u16` length and that many bytes, in that
 /// order. The blob's notes record holds a kept sheet as these same
-/// bytes (`docs/PLANNING.md` §16.112 pass E3), so one encoder writes
+/// bytes, so one encoder writes
 /// both and [`payload_of`] reads both.
 pub fn sheet_payload(descriptor: &[u8], name: &[u8], note: &[u8]) -> Option<Zeroizing<Vec<u8>>> {
     let total = 6 + descriptor.len() + name.len() + note.len();

@@ -13,7 +13,7 @@
 //!   [`PartialSig`] and [`Tweak`] are that module's types, and the tweak
 //!   context `(Q, gacc, tacc)` is an [`AggregateKey`].
 //! - [`deal`], [`recover_share`] and [`recover_info`] are the trusted
-//!   dealer of `docs/PLANNING.md` §16.103: `t` shares chosen freely fix
+//!   dealer: `t` shares chosen freely fix
 //!   the polynomial, the other `n - t` shares and the group key follow,
 //!   and any `t` shares rebuild a lost share or the public record. The
 //!   group secret is never returned and never computed: the group key

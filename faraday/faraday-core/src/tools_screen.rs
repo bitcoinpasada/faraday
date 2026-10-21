@@ -1,4 +1,4 @@
-//! The Tools screen: OpenSigner's calculators, one at a time.
+//! The Tools screen: the calculators, one at a time.
 
 use crate::drawing::View;
 use crate::strings::EN;

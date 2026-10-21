@@ -1,6 +1,5 @@
 //! Vanity address grinding: the counter that turns a key's own dials
-//! until its first address begins with the characters a person chose
-//! (`docs/PLANNING.md` §16.117, `docs/FEATURES.md` §8.1 row 19).
+//! until its first address begins with the characters a person chose.
 //!
 //! Two dials, and nothing else:
 //!

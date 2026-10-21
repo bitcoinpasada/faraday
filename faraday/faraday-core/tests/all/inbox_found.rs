@@ -2,7 +2,7 @@
 //! wallet; a seed that comes in several backups is one seed; a seed a
 //! wallet names loads with it; a seed no wallet names is a potential
 //! wallet, made one with a passphrase or without; split seeds (SLIP-39,
-//! codex32) count once they add up; a sealed OpenSigner backup opens with
+//! codex32) count once they add up; a sealed .oskb backup opens with
 //! its passphrase.
 
 use crate::common::type_text;

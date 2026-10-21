@@ -221,8 +221,7 @@ is the point of it and useless when the question is why the panel is blank.
 A board defconfig is a general-purpose kernel for a general-purpose
 computer, and `bcm2709` has 1203 `=m` lines. Kconfig turns a `=m` into a
 `=y` when `CONFIG_MODULES` is off, so `# CONFIG_MODULES is not set` on its
-own did not drop those drivers — it built every one of them in
-(`docs/PLANNING.md` §16.93).
+own did not drop those drivers — it built every one of them in.
 
 `external/external.mk` therefore deletes every `=m` line from the
 defconfig in the unpacked kernel tree, at `post-patch`, before Buildroot
@@ -456,7 +455,7 @@ GPT names are their FAT labels, `FARADAYBOOT` and `FARADAYDATA`:
 No partition labelled `FARADAYBOOT` is handed to the app on any
 medium: that is a Faraday stick's EFI system partition, which holds the
 kernel and is the firmware's. `faraday-grant` keeps it root's and
-`faraday-disk` refuses it by its FAT label (`PLAN.md` §4.3).
+`faraday-disk` refuses it by its FAT label (`docs/history/PLAN.md` §4.3).
 
 ## The USB stick on a laptop
 
@@ -473,8 +472,7 @@ kernel and is the firmware's. `faraday-grant` keeps it root's and
   is the firmware's own menu — usually Security, then Secure Boot — and
   the wording differs by vendor; the machine's manual is the reference.
   Signing releases with a key the owner holds, so that a person can
-  enrol one key instead of a hash per release, is `docs/PLANNING.md` §15
-  item 52.
+  enrol one key instead of a hash per release, is not built.
 - **The boot menu.** Most firmware offers one on F12, F9, Esc or
   Option-at-power; pick the USB disk. Changing the permanent boot order
   is not necessary and not advised.

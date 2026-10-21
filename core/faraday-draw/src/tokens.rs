@@ -319,7 +319,7 @@ pub const fn touch_floor(class: SizeClass) -> f32 {
 ///
 /// On the panel the field is as tall as a letter key, which is what
 /// leaves the entry group room for two rows of candidates over three
-/// rows of keys (`docs/PLANNING.md` §16.118 rule 4).
+/// rows of keys.
 pub const fn field(class: SizeClass) -> f32 {
     match class {
         SizeClass::Small => key_height(SizeClass::Small),
@@ -445,7 +445,7 @@ pub const KANA_COLUMNS: usize = 10;
 /// the strip is ten keys wide, so a cell at the keyboard's own key pitch
 /// is a target the design already accepts: 24 px, 4.3 mm, on the 240 px
 /// panel and 6.5 mm on a phone. Two rows of ten hold the largest tone
-/// group there is (`yi4`, 20 characters, `docs/PLANNING.md` §16.44), so
+/// group there is (`yi4`, 20 characters), so
 /// nobody pages.
 pub const CANDIDATE_CELLS_HANZI: usize = 10;
 
@@ -470,7 +470,7 @@ pub const fn candidate_cell(class: SizeClass, one_char: bool) -> f32 {
 
 /// Height in dp of a spelled list's candidate cell on `small`: the
 /// floor of the key range, so that two rows of candidates and three
-/// rows of keys share the 358 dp panel (`docs/PLANNING.md` §16.118).
+/// rows of keys share the 358 dp panel.
 pub const CANDIDATE_CELL_SMALL: f32 = KEY_MIN_HEIGHT;
 
 /// Height in dp of a one-character candidate cell on `small`.
@@ -607,8 +607,8 @@ pub const fn word_mono_with_index(class: SizeClass) -> f32 {
     }
 }
 
-/// Monospace size in dp of a words panel carrying the steel rows of
-/// `docs/PLANNING.md` §8.2 item 6: the wordlist number, the four
+/// Monospace size in dp of a words panel carrying the steel rows:
+/// the wordlist number, the four
 /// punched letters and the word. Fourteen characters more a row than a
 /// word alone, which on a 268 dp panel is the largest size that still
 /// fits inside the panel's own padding.
@@ -668,8 +668,8 @@ pub const fn qr_side(class: SizeClass) -> f32 {
 /// Modules of light margin around a code, as the QR standard requires.
 pub const QR_QUIET_ZONE: usize = faraday_codec::qr::QUIET_ZONE;
 
-/// Modules of a transcription grid between two thick guide lines
-/// (`docs/PLANNING.md` §8.2 item 5a). Five is what the community's
+/// Modules of a transcription grid between two thick guide lines.
+/// Five is what the community's
 /// SeedQR transcription templates use, and what a person counts without
 /// losing their place.
 pub const QR_GRID_BAND: usize = 5;
@@ -1171,12 +1171,12 @@ pub const QR_GRID_LINE_MIX: f32 = 0.55;
 
 /// How far towards white a pressed accent surface is mixed — the primary
 /// button, ✓, a selected candidate cell, a selected chip, the danger
-/// button from its own red (`docs/PLANNING.md` §16.124 rule 2).
+/// button from its own red.
 pub const PRESSED_MIX: f32 = 0.35;
 
 /// How far towards the accent a pressed neutral surface is mixed from its
 /// own resting fill: a key, a candidate cell, a row, an unselected chip,
-/// a tile, a secondary button (`docs/PLANNING.md` §16.124 rule 1).
+/// a tile, a secondary button.
 pub const PRESSED_TINT: f32 = 0.35;
 
 /// Diameter in dp of the eye's ring inside its 48 dp target
@@ -1207,10 +1207,10 @@ pub const POOR_PICTURE_MS: u64 = 4000;
 pub const REVEAL_FLASH_MS: u64 = 500;
 /// Milliseconds a key, a cell, a row or a button keeps its pressed look
 /// after the finger lifts, so the person sees what they hit once their
-/// finger is off it (`docs/PLANNING.md` §16.120, §16.124 rule 3).
+/// finger is off it.
 pub const PRESS_LINGER_MS: u64 = 200;
 /// Milliseconds of that window the look keeps its full strength; for the
-/// rest of it both mixes are halved (`docs/PLANNING.md` §16.124 rule 3).
+/// rest of it both mixes are halved.
 pub const PRESS_LINGER_FULL_MS: u64 = 100;
 /// Seconds the app bar's eye keeps a secret on screen
 /// (`docs/DESIGN.md` §4.10: "The eye in the app bar shows it for 30 s").

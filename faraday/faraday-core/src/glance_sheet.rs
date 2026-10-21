@@ -1,4 +1,4 @@
-//! Acting on the chart (`docs/NEW-WALLET.md` §9): a press on a node of
+//! Acting on the chart (`docs/history/NEW-WALLET.md` §9): a press on a node of
 //! the wallet at a glance, or on a line inside one, opens a sheet for it:
 //! what it is, where it is, what this device saw of it, when it was last
 //! checked here, and its actions. Each action leads into the flow that
@@ -265,7 +265,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
     };
     let holds = |f: &dyn Fn(What) -> bool| nodes.iter().any(|n| n.whats.iter().any(|w| f(*w)));
     // What checking a copy of seed `s`, with fingerprint `fp`, in the
-    // `forms` it takes asks for (`docs/NEW-WALLET.md` §14.7): the rows a
+    // `forms` it takes asks for (`docs/history/NEW-WALLET.md` §14.7): the rows a
     // key or a line offers, one per check.
     let check_rows = |forms: plan::CopyForms, s: usize, fp: [u8; 4]| {
         let english = app
@@ -758,7 +758,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 };
                 facts.push((EN.glance_sheet_marked, m.to_string(), ERR));
             }
-            // A SeedQR drawn in part (`docs/NEW-WALLET.md` §14.7 item 3):
+            // A SeedQR drawn in part (`docs/history/NEW-WALLET.md` §14.7 item 3):
             // nothing to check or copy; I destroyed this copy takes it off.
             if mark == Some(Mark::Part) {
                 let mut v = View::new(Icon::Keys, label);

@@ -906,7 +906,7 @@ pub enum Style {
 }
 
 /// Where the caret and the selection are in the field typing goes to
-/// (`docs/NEW-WALLET.md` §13.2), in characters from the field's start.
+/// (`docs/history/NEW-WALLET.md` §13.2), in characters from the field's start.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Edit<A> {
     /// The field they are in, by the action that focuses it. In any
@@ -1415,7 +1415,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         );
     }
 
-    /// One line of typing (`docs/NEW-WALLET.md` §13.2): `text`, dots
+    /// One line of typing (`docs/history/NEW-WALLET.md` §13.2): `text`, dots
     /// already for a masked field, from x in the middle of a box `h`
     /// tall at y, at most `room` wide. While `focused`, what is selected
     /// is drawn behind it and the caret at its place, and the part in

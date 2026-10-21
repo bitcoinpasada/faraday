@@ -2,7 +2,7 @@
 //! BIP-44/49/84/86 accounts and addresses, SLIP-132 and BIP-380
 //! descriptor checksums, and BIP-85 child mnemonics.
 //!
-//! Design (see `docs/PLANNING.md` §16.1 and §16.2):
+//! Design:
 //!
 //! - **Word indices, not text.** A committed mnemonic word is a `u16` in
 //!   `0..2048`. [`bip39::Mnemonic`] is a fixed-size, stack-allocated,

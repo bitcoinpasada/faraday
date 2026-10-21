@@ -13,8 +13,7 @@ guard was removed in D2, once the types and the lint enforced everything
 it checked (§10).
 
 Before the token, two values move into core: the fingerprint and the
-checksum (§5). This follows `docs/history/UPSTREAM.md` and F65: each core change
-is its own commit, listed in UPSTREAM §3 the same day. Nothing here
+checksum (§5). Each core change is its own commit. Nothing here
 loosens a check.
 
 ## 1. The guarantee
@@ -38,7 +37,7 @@ pub struct Compute { count: fn(Work), _local: PhantomData<*const ()> }
 impl Compute {
     /// A mint. An application calls this at its entry points only.
     pub fn new(count: fn(Work)) -> Compute;
-    /// A token that counts nothing, for OpenSigner's app, core's tests,
+    /// A token that counts nothing, for core's tests,
     /// fuzz targets and tools.
     #[cfg(feature = "unchecked")]
     pub fn unchecked() -> Compute;
@@ -124,7 +123,7 @@ drawing.
 **Keeping Faraday off `unchecked`.** Since U5 (F68) no crate in the
 normal dependency graph of a binary Faraday ships enables
 `faraday-crypto/unchecked`: core's crates turn it on as dev-dependencies
-only, and OpenSigner's app, which turned it on, is gone.
+only.
 `tools/lint-unchecked.sh`, in `just lint`, fails if `cargo tree -e
 features,normal -i faraday-crypto` over the shipped binaries, on any target,
 shows it. Beside that, `faraday/clippy.toml` disallows
@@ -249,7 +248,7 @@ Built (2026-10-21):
 - **D2.** The debug guard removed (§10); the token, the costs lint, the
   doctests and the budget tests hold the rule.
 - **D3.** These docs: `docs/SPEED.md` §3.1 to §3.3, §8, §9; CLAUDE.md;
-  DECISIONS F66 and F69; `docs/history/UPSTREAM.md` §3. Found: §3, §7, §9 and
+  DECISIONS F66 and F69. Found: §3, §7, §9 and
   §12 corrected to what D1 built.
 
 ## 7. `faraday/clippy.toml`
@@ -327,7 +326,7 @@ everything parse-once keeps.
 `docs/SPEED.md` §3.1–§3.2 (core keeps fingerprint and checksum), §3.3
 ("The guard" becomes "The token"), §8.2 (new sources); CLAUDE.md's
 "Drawing reads" bullet (the token replaces the guard sentence);
-`docs/history/UPSTREAM.md` §3 per core commit; `docs/DECISIONS.md` F66 (`h`, and
+`docs/DECISIONS.md` F66 (`h`, and
 the token).
 
 ## 12. Risks
@@ -335,10 +334,10 @@ the token).
 1. Merge conflicts: ~700 call sites, mostly tests; C1–C3 in sequence, B in
    parallel by disjoint files.
 2. BSMS verification (§5.3), gated by the BIP-129 vectors.
-3. Checksums of `'`-written wallets change in OpenSigner's app (§5.4);
+3. Checksums of `'`-written wallets change (§5.4);
    formats needing `'` convert at their writer.
-4. `unchecked` was compiled into Faraday until U5 (F68), when
-   OpenSigner's app went; `tools/lint-unchecked.sh` keeps it out.
+4. `unchecked` was compiled into Faraday until U5 (F68);
+   `tools/lint-unchecked.sh` keeps it out.
 5. Residual: a new whole-file hash written with `bitcoin::hashes` in a
    screen is not caught (the guard did not catch it either).
 6. `View` grows to ~37 thin accessors in `drawing/`, each saying what it

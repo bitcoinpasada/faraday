@@ -116,7 +116,7 @@ impl Machine {
         }
     }
 
-    /// The app's upgrade marker (`PLAN.md` §5.5).
+    /// The app's upgrade marker (`docs/history/PLAN.md` §5.5).
     fn upgrading(&self, on: bool) {
         let m = self.root.join("run/upgrade");
         if on {

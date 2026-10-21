@@ -1,5 +1,4 @@
-//! Pictures as PNG files: a QR code (`docs/PLANNING.md` §16.134 rule
-//! 5), black modules on white, the four-module quiet zone round them,
+//! Pictures as PNG files: a QR code, black modules on white, the four-module quiet zone round them,
 //! each module a square of whole pixels; and any greyscale picture, such
 //! as a code drawn with a label under it.
 //!

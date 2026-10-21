@@ -1,6 +1,6 @@
 //! An address as a person types or scans it: whether the text so far
 //! can still become an address on a network, and what the finished text
-//! is (`docs/UX.md` §7.4, G1).
+//! is.
 //!
 //! Where an address is looked for is [`crate::account::AccountXpub::find_address`]
 //! for a key's own accounts and [`crate::policy::WalletPolicy::find_address`]

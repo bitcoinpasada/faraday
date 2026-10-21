@@ -8,7 +8,7 @@ conversation; nothing below is built yet.
 Faraday is an offline key appliance that boots from a USB stick on an
 x86-64 UEFI PC, or from its card on a Raspberry Pi, and runs entirely
 from RAM. It is a fork of
-OpenSignerKit / OpenSigner and keeps OpenSigner's trust model: one Rust
+upstream and keeps upstream's trust model: one Rust
 binary on a kernel that contains what the device needs and nothing else,
 no network stack, no shell, no login, bit-identical builds. It takes
 the name of Faraday OS, an earlier offline desktop project, which is
@@ -19,8 +19,8 @@ transfer, its USB policy, its palette), it says Faraday OS.
 The vault format is specified separately in [`docs/VAULT.md`](docs/VAULT.md),
 the scanner in [`docs/QR.md`](docs/QR.md), and every flow and where it
 leaves the person in [`docs/FLOWS.md`](docs/FLOWS.md).
-OpenSigner's own planning, design and UX documents (`docs/PLANNING.md`,
-`docs/DESIGN.md`, `docs/UX.md`) remain the reference for everything this
+Upstream's own planning, design and UX documents (`PLANNING.md`,
+`docs/DESIGN.md`, `UX.md`) remain the reference for everything this
 file does not change.
 
 ---
@@ -30,11 +30,11 @@ file does not change.
 | Area | Jobs |
 |---|---|
 | Vaults | Create a vault with one to four passphrases, each opening its own slot; unlock after the boot stick is removed; hold Bitcoin keys, wallets, notes and recovery sheets, entries (passwords and TOTP secrets), GPG keys and Secure Boot keys; seal and write back. |
-| Wallets tab | Wallet creation, restore, backup and spending flows, run on OpenSigner's library crates for every piece of cryptography, extended to every wallet kind OpenSigner signs for, with wallet reassembly at the centre: keys and wallets in open vaults load into it, other keys and signatures arrive by QR or file. Design: `docs/WALLETS.md`. |
+| Wallets tab | Wallet creation, restore, backup and spending flows, run on upstream's library crates for every piece of cryptography, extended to every wallet kind upstream signs for, with wallet reassembly at the centre: keys and wallets in open vaults load into it, other keys and signatures arrive by QR or file. Design: `docs/WALLETS.md`. |
 | GPG | Create an Ed25519 certification key with an Ed25519 signing subkey, export the public certificate, make detached signatures, make a revocation certificate, renew expiry, write a paperkey backup. |
 | Secure Boot | Generate PK, KEK and db keys and certificates, write enrolment files, sign and check `BOOTX64.EFI`. |
 | QR | One scanner and one sender for the Wallets tab and the QR transfer tab: the union of Faraday OS's file transfer (fountain-coded `ur:bytes`, BBQr, the `faraday-file-v1` envelope) and the Wallets tab's scanner (wallet URs, raw transactions, diagnostics, routing). Feature list and state: `docs/QR.md`. |
-| Passphrases | EFF dice tool, reused from OpenSigner. |
+| Passphrases | EFF dice tool, reused from upstream. |
 | Settings | Keyboard layout, display scale, idle lock, power off. |
 
 **Not in Faraday:** a desktop, a file manager, other applications,
@@ -50,33 +50,33 @@ management. Public and sealed files go as they are; a secret, or text
 Faraday cannot tell about, only past the secret sheet's warning, one
 file at a time.
 
-## 2. Relationship to OpenSigner
+## 2. Relationship to upstream
 
-- This repository is a full clone of `maxmoney21m/opensignerkit` with its
+- This repository is a full clone of upstream with its
   history. The original is the git remote `upstream`; upstream changes
   are merged, not copied.
-- **Since F65 Faraday maintains `core/` and `opensigner/` itself**, a soft
-  fork (`docs/UPSTREAM.md`, which lists every change). Faraday uses the
+- **Since F65 Faraday maintains `core/` and `upstream/` itself**, a soft
+  fork (`UPSTREAM.md`, which lists every change). Faraday uses the
   `osk-*` crates as a library; the Wallets tab (`docs/WALLETS.md`) replaces
-  OpenSigner's app. A change to `core/` or `opensigner/` never loosens a
-  check OpenSigner makes.
+  upstream's app. A change to `core/` or `upstream/` never loosens a
+  check upstream makes.
 - Where Faraday needs a variant of an upstream part (the image boards,
   the stick shell, `osk-ui` as `faraday-ui`), it is a copy under
-  `faraday/` recording the upstream commit it came from; `docs/UPSTREAM.md`
+  `faraday/` recording the upstream commit it came from; `UPSTREAM.md`
   §4 says how upstream is watched.
-- `faraday-core` names OpenSigner's `osk-*` types directly, so an upstream
+- `faraday-core` names upstream's `osk-*` types directly, so an upstream
   change that breaks Faraday breaks there and nowhere else (`docs/WALLETS.md` §1).
-- Changes that would help OpenSigner too (a key held outside the core,
+- Changes that would help upstream too (a key held outside the core,
   Secure Boot signing of the stick, runtime display density) are offered
   upstream.
 
 ## 3. Platforms
 
-Two boards from OpenSigner's image tree, one application.
+Two boards from upstream's image tree, one application.
 
 **PC: `x86_64-uefi`, booted from a USB stick.** The owner has confirmed the
-unmodified OpenSigner stick boots on their laptop. The stick is
-OpenSigner's layout: an EFI system partition holding one file,
+unmodified upstream stick boots on their laptop. The stick is
+Upstream's layout: an EFI system partition holding one file,
 `EFI/BOOT/BOOTX64.EFI`, which is the kernel with the whole root
 filesystem inside it, and a data partition (FAT16 as made). The firmware
 loads the entire system into RAM; the stick is removed before any vault
@@ -89,20 +89,20 @@ as the PC treats its boot stick: it is removed after boot, before any
 vault is unlocked, and it or any other SD card can be put back for a
 stick visit (§5.4) to save a vault or move files. The card is the Pi's
 only storage. It has two partitions: the boot partition, labelled
-`FARADAYBOOT` (OpenSigner's Pi image leaves it unlabelled) so the grant
+`FARADAYBOOT` (Upstream's Pi image leaves it unlabelled) so the grant
 helper refuses it, and an empty FAT partition for exchanging files. SD
 partitions are handed out by the same grant helper as USB partitions,
 under the same rules (§4.3). Whether the Pi 3's slot reports removal and
 insertion reliably is tested on hardware before the flows rely on it.
 
-The Pi board keeps what OpenSigner's Pi board forbids (decided
+The Pi board keeps what upstream's Pi board forbids (decided
 2026-10-08): no `USB_STORAGE` or `SCSI`, so no USB sticks, and no `HID`,
 so no USB keyboard or mouse. The touch panel is the whole input device,
 and the USB ports carry a camera and nothing else. The Pi drives the
 panel only, not HDMI.
 
 On a PC, SD cards are read through USB card readers. The x86 kernel keeps
-`MMC` forbidden, as OpenSigner has it, because `MMC` is also how many
+`MMC` forbidden, as upstream has it, because `MMC` is also how many
 laptops attach their internal eMMC disk.
 
 Differences a person sees on the Pi:
@@ -110,7 +110,7 @@ Differences a person sees on the Pi:
 - The 2.8" panel is the `small` class, so every flow is paged (§9.1).
 - The Pi 3 has no verified boot. Secure Boot keys can be made and PC
   images signed on a Pi, but nothing signs or checks the Pi's own boot;
-  Faraday opens on OpenSigner's existing statement that only a card
+  Faraday opens on upstream's existing statement that only a card
   the person flashed should be used.
 - RAM is 1 GB on a Pi 3, which bounds the Argon2id cost of any vault it
   creates or opens (`docs/VAULT.md` §3.1).
@@ -131,7 +131,7 @@ and are not Faraday targets.
 | BusyBox init (PID 1) | root | full; idle after boot | no |
 | `faraday-grant` | own user | `CAP_CHOWN` only | `/sys` attributes, nothing read from a stick |
 | `faraday-disk` | `ofdisk` (uid 201) | none | FAT16 and FAT32 filesystems on USB and SD partitions; PNG and JPEG files, read for QR codes |
-| `faraday` (the app) | `opensigner` (uid 200) | none | camera frames (QR), input events, file contents passed by the disk process, vault files |
+| `faraday` (the app) | the app's own user (uid 200) | none | camera frames (QR), input events, file contents passed by the disk process, vault files |
 | `faraday-boot` (§5.5) | `ofboot` (uid 203) | none | `/sys` attributes; `/proc/version`; a boot partition's release string, bounded; reads no FAT |
 
 `rcS` runs once as root at boot: it mounts `proc` and `sysfs`, starts
@@ -139,14 +139,14 @@ and are not Faraday targets.
 copier, and mounts no storage; init then starts the app loop. Four root
 processes remain after boot, and none reads input: init, waiting to run
 `poweroff -f` when the app loop ends; the app loop's shell (`inittab`),
-which starts the app as `opensigner` with no new privileges and starts
+which starts the app as its own user with no new privileges and starts
 it again when it exits for a lock; and the two restart loops (`rcS`),
 which start `faraday-disk` as `ofdisk` and `faraday-boot` as `ofboot`
 the same way and again a second after either ends.
 
 ### 4.2 The kernel
 
-OpenSigner's x86 and Pi configurations, with these changes on both, each
+Upstream's x86 and Pi configurations, with these changes on both, each
 enforced by the board's `kernel.forbidden` and `kernel.required` lists
 (the Pi's further changes are in §3):
 
@@ -166,7 +166,7 @@ enforced by the board's `kernel.forbidden` and `kernel.required` lists
   only on the Pi (§3, §4.6).
 - `RTC_HCTOSYS` is not needed: Faraday displays no time.
 - **Hardening** from Faraday's review, taken upstream as
-  `docs/PLANNING.md` §16.140 and carried into Faraday's board copies:
+  `PLANNING.md` §16.140 and carried into Faraday's board copies:
   memory zeroed on allocation and free by default, heap and copy
   hardening, stopping on corruption and on an oops, Yama (`ptrace_scope`
   3) and Lockdown forced to confidentiality; io_uring, AIO, System V
@@ -183,7 +183,7 @@ Device nodes the kernel creates for a new disk belong to root. Exactly one
 privileged action happens per partition:
 
 1. `faraday-grant` polls `/sys/class/block` (no netlink, no uevent
-   helper, as OpenSigner does).
+   helper, as upstream does).
 2. A new partition is considered only if its disk is on the USB bus, or
    is an SD card on the Pi, and it is a partition node, never a
    whole-disk node.
@@ -194,7 +194,7 @@ privileged action happens per partition:
    fixed layout. The boot partition stays root's and is never handed to
    the disk process. The disk process checks again: it refuses any
    partition whose FAT label is `FARADAYBOOT`, whatever its GPT name.
-   A stick made before 2026-10-21 has OpenSigner's names, `OSKBOOT` and
+   A stick made before 2026-10-21 has upstream's names, `OSKBOOT` and
    `OSKDATA`, and is not a Faraday stick to any of this: its partitions
    are handed out and read like any other stick's, and keep data refuses
    it (owner, 2026-10-21; `docs/DECISIONS.md` F67). While the app
@@ -234,7 +234,7 @@ file (the app already treats file contents as hostile) and can read the
 Outbox (public) and sealed vaults (ciphertext). It never holds a secret.
 
 The boot partition is never handed out, so the running system cannot
-rewrite its own kernel. OpenSigner has the same property by never mounting
+rewrite its own kernel. Upstream has the same property by never mounting
 it. The one exception is upgrading a stick (§5.5, built for the PC): while
 the app is in that flow, a partition named `FARADAYBOOT` goes to
 `faraday-boot`, never to the disk process, and only for a raw copy of
@@ -248,8 +248,8 @@ stick's GPT UUIDs spell "Faraday-Stick" in ASCII hex: the disk
 
 ### 4.4 Untrusted input, the complete list
 
-Camera frames (OpenSigner's vendored `rqrr`, fuzzed), file contents read
-from sticks (PSBTs and other OpenSigner inputs, entry import text, the
+Camera frames (Upstream's vendored `rqrr`, fuzzed), file contents read
+from sticks (PSBTs and other upstream inputs, entry import text, the
 boot stick's settings file, §5.2), the armor and packet headers of a
 stick file that looks like an armored OpenPGP block (`faraday-pgp`,
 fuzzed; no packet's contents are read),
@@ -267,8 +267,8 @@ bounded, §5.5).
 A malicious Faraday binary: it could hide a secret in the ciphertext
 or the random-looking empty slots it writes. The defence is the binary
 itself: reproducible builds checked by independent builders, as
-OpenSigner requires. Firmware, hardware implants and cold-boot attacks on
-RAM are out of scope, as they are for OpenSigner and Faraday.
+Upstream requires. Firmware, hardware implants and cold-boot attacks on
+RAM are out of scope, as they are for upstream and Faraday.
 
 ### 4.6 USB devices and input
 
@@ -294,7 +294,7 @@ uses three layers instead, and the last is what stops an imitation.
    has only that interface authorised; its HID interfaces never are.** A
    device that re-enumerates is a new device and is decided again.
 3. **New input must prove a person is at the screen.** The shell reads
-   each input device separately (OpenSigner's evdev code already does), so
+   each input device separately (Upstream's evdev code already does), so
    the app knows which device every key and click came from. Trusted
    without asking: the laptop's built-in keyboard (PS/2 or a hard-wired
    USB port), its touchpad, and the Pi's touch panel. Any other keyboard,
@@ -325,7 +325,7 @@ devices are listed in Settings until they are unplugged.
 
 **No removable storage (USB, or SD on the Pi) is accessible while any
 secret is in memory.** A secret
-is an unlocked vault slot, a key loaded in OpenSigner, a GPG or Secure
+is an unlocked vault slot, a key loaded in upstream, a GPG or Secure
 Boot private key, or a passphrase being typed. The app is in the *clean
 state* only after a fresh start with none of these; only then does it
 publish the clean marker that `faraday-grant` checks
@@ -524,7 +524,7 @@ codes hold, and its holding area is wiped unless imported, so copying
 from the boot stick takes Import or a later visit.
 
 **File-based PSBT signing.** Visit: pick the PSBT into the Inbox. Remove.
-Unlock. Sign in OpenSigner; Save puts the signed PSBT in the Outbox. Lock.
+Unlock. Sign in upstream; Save puts the signed PSBT in the Outbox. Lock.
 Visit: the Outbox is written. QR signing needs no stick.
 
 ### 5.5 Upgrading a stick
@@ -630,8 +630,8 @@ crosses it: requests List, ReadSource, Write { target } and Forget;
 answers Parts (id, size, release or none, source), Source (id, release,
 size), Written (id, release), Pulled, Forgotten and Failed (reason).
 Strings are at most 120 bytes and a listing at most 16 partitions. The
-FIFOs are `/run/faraday-boot/requests` and `responses`, `ofboot:opensigner`
-0660 in a 0750 directory. The stick shell opens them the first time the
+FIFOs are `/run/faraday-boot/requests` and `responses`, owned by `ofboot` and the app's group,
+mode 0660 in a 0750 directory. The stick shell opens them the first time the
 app asks, polls the listing while the upgrade is on screen, and draws
 the screen before a read or a write, which take seconds.
 
@@ -719,12 +719,12 @@ show only while held. Each kind has its own Add action; each item has its
 actions (open in the Wallets tab, export a public key, sign a file) and **Hold
 to delete from vault**.
 
-### 6.2 The OpenSigner and Wallets tabs
+### 6.2 The upstream and Wallets tabs
 
-The **OpenSigner tab** stays until the Wallets tab is robust enough to
-deprecate it. It needs no change to OpenSigner: faraday-core acts as
+The **upstream tab** stays until the Wallets tab is robust enough to
+deprecate it. It needs no change to upstream: faraday-core acts as
 its shell, opens a vault key in it by sending the key as a scanned payload
-(`Event::Scanned`, which runs OpenSigner's own load flow), and imports a
+(`Event::Scanned`, which runs upstream's own load flow), and imports a
 key it exports as an `.oskb` encrypted backup into a vault. Its PSBTs and
 other public results go to the Outbox through `Command::WriteFile`; its
 plain note export is refused there, since nothing decrypted leaves.
@@ -747,7 +747,7 @@ The tab, its architecture, wallet reassembly and every flow are in
   that key.
 - A MuSig2 or FROST round that must survive a lock is sealed into the vault,
   bound to its transaction (`docs/WALLETS.md` §4.2).
-- `.oskb` encrypted backups from OpenSigner devices import into a vault.
+- `.oskb` encrypted backups from upstream devices import into a vault.
 
 ### 6.4 Entries
 
@@ -757,7 +757,7 @@ for every entry with a secret, in every open vault, from the device's own
 clock (`docs/TOTP.md`). Entries arrive by typing, by scanning a QR code
 with the camera (TOTP setup codes are QR), or from an Inbox text file of
 `otpauth://` URIs and `field: value` lines. CSV and KeePass import are not
-supported. Passwords are shown only in OpenSigner's hold-to-reveal secret
+supported. Passwords are shown only in upstream's hold-to-reveal secret
 panel; there is no clipboard.
 
 ## 7. GPG (write-only subset)
@@ -802,7 +802,7 @@ Version-4 fingerprints need SHA-1, which is used for fingerprints only.
   (efivarfs is not in the kernel).
 - Sign `BOOTX64.EFI` (Authenticode, SHA-256) from the Inbox. The first
   signing of an image requires its SHA-256 to match a build record whose
-  fingerprint the person checked independently; OpenSigner's builds are
+  fingerprint the person checked independently; upstream's builds are
   bit-identical, so the record is reproducible. The signed file goes to
   the Outbox and is copied onto the boot partition on another computer —
   the running system cannot write its own boot partition (§4.3), and the
@@ -811,9 +811,9 @@ Version-4 fingerprints need SHA-1, which is used for fingerprints only.
   one holding vaults; the vault stick is then upgraded from the spare
   (§5.5).
 - Check an existing signature against the db certificate in a vault.
-- Test: `tools/stick-qemu.py` extended to enrol generated keys in OVMF,
+- Test: `faraday/tools/stick-qemu.py` extended to enrol generated keys in OVMF,
   boot the signed image, and confirm an unsigned or altered image is
-  refused. This is OpenSigner's §15 item 52. Built 2026-10-07 as
+  refused. This is upstream's §15 item 52. Built 2026-10-07 as
   `faraday/tools/sb-ovmf-check.py` (`just faraday-sb-ovmf`), over
   systemd-boot rather than the stick: for each policy, OVMF in Setup
   Mode takes the three `.auth` updates (systemd-boot writes them, as a
@@ -839,16 +839,16 @@ the declaration:
   cards lists each choice as it is made ("Your choices"), with "Will
   create" and the primary action at its foot. The summary is the review;
   there is no separate confirm screen. Actions that cannot be undone keep
-  OpenSigner's hold. (Settled on the prototype, 2026-10-04: showing every
+  upstream's hold. (Settled on the prototype, 2026-10-04: showing every
   group open at once was too crowded.)
 - **`small` and `mobile`**: one group per page, ending on the summary as a
   review page.
 
 Content, wording and validation are identical in both. A layout changes
-placement, never content, as OpenSigner's design rule has it. One-line
+placement, never content, as upstream's design rule has it. One-line
 field hints are allowed on every class.
 
-Desktop forms add what OpenSigner's components lack: text fields with a
+Desktop forms add what upstream's components lack: text fields with a
 caret, selection and Tab order; passphrase pairs with a live match check
 and show/hide; segmented choices, dropdowns and an "Advanced" disclosure
 on `wide` only; a destination picker built from the Outbox and visited
@@ -872,7 +872,7 @@ found. **Generate with dice** fills both passphrase fields directly.
   positioned at fractional pixels.
 - **Scale:** a display-scale setting saved on the boot stick, with a
   first-boot guess from the resolution, replacing the fixed
-  `faraday.dpi=160` (OpenSigner §15 item 54). Layouts fill the screen
+  `faraday.dpi=160` (Upstream §15 item 54). Layouts fill the screen
   with a capped form column, instead of a fixed 960×640 frame.
 - **Palette:** Faraday OS's approved palette (`#11161c` background, `#83d8ef`
   accent), dark and light, as tokens.
@@ -909,12 +909,12 @@ other tab.
 | `faraday/faraday-grant` | The `CAP_CHOWN` helper. The only new crate with `unsafe` (ownership and capabilities). |
 | `faraday/faraday-boot` | The boot copier (§5.5): copies the running Faraday's boot partition raw onto another stick's, over its own pipe; reads no FAT. |
 
-New dependencies, each needing a note in `docs/deps/` under OpenSigner's
+New dependencies, each needing a note in `docs/deps/` under upstream's
 policy: an Ed25519 implementation (`ed25519-dalek`), `sha1`, `hkdf`,
 `rsa`, the RustCrypto DER, X.509 and CMS crates, `miniz_oxide` in the app
 (BBQr `Z`), and a PNG and a JPEG decoder plus `rqrr` in the disk process
 only (QR from images). FAT is in-house
-(§12 item 5). Expected cost: roughly 15–25 crates on top of OpenSigner's
+(§12 item 5). Expected cost: roughly 15–25 crates on top of upstream's
 device graph, to be measured with `cargo tree` once a prototype exists.
 
 ## 11. Order of work
@@ -974,17 +974,17 @@ device graph, to be measured with `cargo tree` once a prototype exists.
 7. **BBQr `Z`:** read, with the decompressed size bounded; never written
    (`docs/QR.md` §4).
 8. **No seccomp filter on the grant helper** (owner, 2026-10-05). Linux
-   builds seccomp filters only with `NET`, which OpenSigner's
+   builds seccomp filters only with `NET`, which upstream's
    `kernel.forbidden` excludes for a reason this plan keeps. A filter
    could not stop the one call that matters, `chown` on any path, and
    Landlock cannot either: it has no right for changing ownership, and its
    rules cannot tell a stick's node from an input device's under `/dev`.
    Instead the helper's input is made as small as it can be: `/sys`
-   alone, nothing read from a stick (§4.3). The kernel stays OpenSigner's.
+   alone, nothing read from a stick (§4.3). The kernel stays upstream's.
 
 ## 13. Open questions
 
 1. **The Pi Zero 2 W.** Wi-Fi and Bluetooth hardware on the board, which
-   OpenSigner notes must be disabled in the kernel or removed. (Decided
+   upstream notes must be disabled in the kernel or removed. (Decided
    2026-10-08: the Pi is the `pi3` board with the Waveshare 2.8" panel,
    with no HDMI and no USB keyboard, mouse or storage, §3.)

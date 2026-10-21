@@ -162,7 +162,7 @@ faraday-testkit out="out/testkit":
 # out/snapshots/faraday/WxH/. Desktop sizes first (160 dpi, the
 # default), then the two small-panel references: 480x640 at 286 dpi is
 # the Pi's Waveshare panel, 240x320 at 143 is the smallest the design
-# supports (docs/PLANNING.md §16.4) -- both `small` size class, so this
+# supports -- both `small` size class, so this
 # is where a card or a flow that only fits `wide` would show up.
 [group('test')]
 faraday-snapshots: faraday-testkit
@@ -258,7 +258,7 @@ faraday-starter-icon:
 faraday-sb-ovmf out="out/sb-ovmf-check":
     python3 -B faraday/tools/sb-ovmf-check.py "{{out}}"
 
-# Upgrading a stick in QEMU (PLAN.md §5.5): the dev stick image boots, an
+# Upgrading a stick in QEMU (docs/history/PLAN.md §5.5): the dev stick image boots, an
 # older stick image (OLD) is plugged in, and the boot copier writes the
 # new boot partition over the older stick's; then the upgraded stick boots
 # the new release, its data partition byte for byte what it was. Root on
@@ -327,7 +327,7 @@ faraday-stick-image: faraday-stick-bin
     cp "out/pi/$variant/output/images/esp.vfat" "out/stick/$name-boot.vfat"
     ls -l "out/stick/$name.img" "out/stick/$name-boot.vfat"
 
-# For development, not offered to users (PLAN.md §5.5): writes the stick
+# For development, not offered to users (docs/history/PLAN.md §5.5): writes the stick
 # image's boot partition over the partition named FARADAYBOOT on a Faraday
 # stick, leaving its data partition, vaults and settings as they are.
 # Refuses a disk that is not removable on USB, has anything mounted, or

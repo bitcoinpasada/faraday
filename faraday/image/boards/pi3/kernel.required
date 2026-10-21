@@ -12,5 +12,5 @@ PINCTRL_BCM2835           the pin multiplexing every other on-SoC driver depends
 VIDEO_BCM2835             the legacy camera: the GPU runs the sensor and this publishes it as V4L2
 BCM2835_VCHIQ_MMAL        the transport VIDEO_BCM2835 talks to the GPU over
 
-# Faraday (PLAN.md §4.3).
+# Faraday (docs/history/PLAN.md §4.3).
 MSDOS_PARTITION           the card's partitions as their own nodes, so the whole card is never handed out

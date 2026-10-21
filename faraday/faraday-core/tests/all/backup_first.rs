@@ -1,4 +1,4 @@
-//! The backup comes before spending (`docs/NEW-WALLET.md` §14): a key
+//! The backup comes before spending (`docs/history/NEW-WALLET.md` §14): a key
 //! made here signs nothing until its wallet's backup checklist is
 //! complete, while a key restored from words signs at once; the hold
 //! survives a lock, in the vault beside the seed; the wallet's address is

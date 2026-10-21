@@ -48,17 +48,12 @@ and after differs by exactly these three lines:
 │   └── bitcoin v0.32.102 (*)
 ```
 
-Measured while OpenSigner's app existed (deleted, F68); the
-`opensigner-*` rows are its graphs. Command:
+Command:
 `cargo tree -p <root> -e normal --prefix none | sed 's/ (.*//' | sort -u | wc -l`:
 
 | Graph | Before | After |
 |---|--:|--:|
 | `faraday-bip` | 34 | 35 |
-| `opensigner-core` | 51 | 52 |
-| `opensigner-ffi` | 54 | 55 |
-| `opensigner-pi` | 55 | 56 |
-| `opensigner-desktop` | 128 | 129 |
 
 **What it is not used for.** Signing. A miniscript or taproot script-path
 input is read, its change is verified, and signing it returns

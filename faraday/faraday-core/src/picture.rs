@@ -6,7 +6,7 @@
 //! whole pixels, and written as eight-bit greyscale so that the edges of
 //! the text keep their shades ([`faraday_codec::png::grey_png`]). Encoding a
 //! picture here is allowed: only decoding stays in the disk process
-//! (`PLAN.md` §12 item 6).
+//! (`docs/history/PLAN.md` §12 item 6).
 //!
 //! Whoever calls it decides what the code holds and what the label
 //! says; the label is plain statements, one a line, each wrapped to the

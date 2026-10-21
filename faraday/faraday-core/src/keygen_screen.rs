@@ -1,5 +1,5 @@
 //! The New key screen: the step-card column over [`crate::keygen`]. The
-//! options and their names are OpenSigner's; this file only lays them out.
+//! this file only lays the options out.
 
 use crate::strings::EN;
 use crate::strings::fill;
@@ -69,7 +69,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         back: Some((back_label, Action::Nav(k.back))),
         // Add a key wherever the flow opens on Start; New key for a Create
         // slot, and from Add a key's own Make a new key
-        // (`docs/NEW-WALLET.md` §15.3).
+        // (`docs/history/NEW-WALLET.md` §15.3).
         heading: if k.slot.is_some() || k.back == crate::Screen::Entry {
             EN.keygen_new_key
         } else {
@@ -109,7 +109,7 @@ fn title_of(k: &KeyGen, s: u8) -> String {
     }
 }
 
-/// The Start card (`docs/NEW-WALLET.md` §15.1): Make a new key, Type the
+/// The Start card (`docs/history/NEW-WALLET.md` §15.1): Make a new key, Type the
 /// words, Scan a SeedQR, and under Other forms the other four; a
 /// threshold wallet's slot offers the first two only.
 fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
@@ -171,7 +171,7 @@ fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// The Words card for a key typed: Add a key's form, drawn by Add a
-/// key's own code, then Continue to Key (`docs/NEW-WALLET.md` §15.2).
+/// key's own code, then Continue to Key (`docs/history/NEW-WALLET.md` §15.2).
 fn typed(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // The room a list's own keyboard is sized to: the card grows to it.
     let room = y + 2000.0;
@@ -347,7 +347,7 @@ fn card_body(app: &View, k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
 }
 
 /// A card before Key once the key is locked in: what was chosen and
-/// entered, to read, with nothing to press (`docs/NEW-WALLET.md` §3.3).
+/// entered, to read, with nothing to press (`docs/history/NEW-WALLET.md` §3.3).
 fn read_only(k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     match s {
@@ -428,7 +428,7 @@ fn word_grid(
     words.len().div_ceil(cols) as f32 * 46.0 + 8.0
 }
 
-/// The Key card (`docs/NEW-WALLET.md` §3.3): the words, a passphrase
+/// The Key card (`docs/history/NEW-WALLET.md` §3.3): the words, a passphrase
 /// for a Create slot, and Lock in; once locked in, the fingerprint and
 /// what the key makes, and Continue.
 fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
@@ -691,7 +691,7 @@ fn length_counts(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Style::Disabled
         } else if usize::from(n) == k.words {
             // The default shows chosen from the start, as any choice
-            // shows its value (`docs/NEW-WALLET.md` §13.3).
+            // shows its value (`docs/history/NEW-WALLET.md` §13.3).
             Style::Primary
         } else {
             Style::Secondary
@@ -1198,7 +1198,7 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         _ => {}
     }
     // Words for a Create slot are shown and checked again by Back up
-    // (`docs/NEW-WALLET.md` §3.2).
+    // (`docs/history/NEW-WALLET.md` §3.2).
     if !k.slip39 && k.reveals() && k.slot.is_some() {
         cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, EN.keygen_no_need_to_write) + 10.0;
     }
@@ -1320,7 +1320,7 @@ fn typed_box(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     ui.fill(x, y, w, 40.0, 8.0, BG);
     ui.stroke(x, y, w, 40.0, 8.0, ACCENT);
     // A press in the box places the caret, a drag selects rolls, and
-    // what is deleted there leaves the key (`docs/NEW-WALLET.md` §13.2).
+    // what is deleted there leaves the key (`docs/history/NEW-WALLET.md` §13.2).
     ui.typed(
         x + 12.0,
         y,
@@ -1691,7 +1691,7 @@ fn stat(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str, tone: Color) -> f
     y + 26.0
 }
 
-/// A stat row whose value is a pill (`docs/NEW-WALLET.md` §3.3), such as
+/// A stat row whose value is a pill (`docs/history/NEW-WALLET.md` §3.3), such as
 /// the locked Key card's Passphrase: "Set" or "Not set", never bare
 /// text, since bare text reads as the passphrase itself.
 fn stat_pill(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str) -> f32 {
@@ -2039,7 +2039,7 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
-/// OpenSigner's backup quiz: each word asked in a random order, picked
+/// The backup quiz: each word asked in a random order, picked
 /// from four.
 fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::quiz::QuizState;
@@ -2204,7 +2204,7 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy + 24.0 - y
 }
 
-/// A face's name in a run, as OpenSigner writes it: "ones" to "sixes".
+/// A face's name in a run: "ones" to "sixes".
 fn face_name(face: u8) -> &'static str {
     match face {
         1 => EN.create_face_1,

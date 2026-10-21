@@ -1,7 +1,5 @@
 //! BIP-85: child seeds, keys, bytes and passwords derived from a loaded
-//! key (`docs/OPENSIGNER-PARITY.md` plan B4). The applications and their
-//! names are OpenSigner's ([`Bip85App`], taken from its app at upstream
-//! `d26b84e`, F68), and every derivation is `faraday-bip`'s. Each result is a secret: it goes into
+//! key. The applications are [`Bip85App`], and every derivation is `faraday-bip`'s. Each result is a secret: it goes into
 //! the open vault by default (a password as an entry, child words as a
 //! key, anything else as a note), loads as a key, or leaves unprotected
 //! only through the secret sheet (`docs/FLOWS.md` decision 6). The value
@@ -48,10 +46,10 @@ impl Bip85App {
     ];
 }
 
-/// The applications, in OpenSigner's order.
+/// The applications, in the order they are listed.
 pub const APPS: [Bip85App; 6] = Bip85App::ALL;
 
-/// An application's name, as OpenSigner writes it.
+/// An application's name.
 pub fn app_name(app: Bip85App) -> &'static str {
     match app {
         Bip85App::Words => EN.bip85_app_words,

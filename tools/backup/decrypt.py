@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Decrypt an OpenSigner encrypted backup (`.oskb`, versions 2 and 3).
+"""Decrypt an .oskb encrypted backup (versions 2 and 3).
 
 The format is documented in
-`docs/BACKUP.md` and `core/faraday-backup/src/oskb.rs` and is not this app's
+`docs/BACKUP-FORMAT.md` and `core/faraday-backup/src/oskb.rs` and is not this app's
 secret: these ninety lines and two published libraries read it. A person
-who has the file and the passphrase needs neither OpenSigner nor Faraday to get their
+who has the file and the passphrase needs no app to get their
 words back.
 
 Usage:
@@ -29,7 +29,7 @@ wordlists are read out of this repository's own copies
 SHA-256 of the published file recorded beside it, so nothing is
 downloaded and a tampered list is caught.
 
-The layout is written down byte for byte in `docs/BACKUP.md`. In short,
+The layout is written down byte for byte in `docs/BACKUP-FORMAT.md`. In short,
 all little-endian:
 
      0   magic "OSKB", 4 bytes
@@ -306,7 +306,7 @@ def words_of_payload(payload: bytes) -> tuple[str, list[str]]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Decrypt an OpenSigner encrypted backup.")
+    parser = argparse.ArgumentParser(description="Decrypt an .oskb encrypted backup.")
     parser.add_argument("backup", type=Path, help="the .oskb file")
     parser.add_argument(
         "--passphrase",

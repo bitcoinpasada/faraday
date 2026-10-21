@@ -1,6 +1,6 @@
-//! The Learn pages that came from OpenSigner, edited as
+//! The Learn pages, edited as
 //! `docs/learn/NN-name.md` (`tools/learn/sync.py`): what a person needs to know to hold and use a key,
-//! as titled sections of paragraphs (`docs/PLANNING.md` §16.139).
+//! as titled sections of paragraphs.
 //!
 //! The text is plain data with no screen in it: a page is a title and
 //! its sections, and [`Learn::pages`] lists them in reading order. Which
@@ -32,46 +32,46 @@ pub const PAGES: usize = 25;
 
 /// Every page, in one language.
 pub struct Learn {
-    /// "Start here" (UX.md §7.1, job A4): the four things a
+    /// "Start here": the four things a
     /// person with only this app needs before they hold a key. It is
     /// the screen a device with nothing loaded opens on until it has
     /// been left once, and the first page of Learn afterwards.
     pub start_here: Page,
-    /// "Words" (UX.md L1): what the words are, why 12 or 24,
+    /// "Words": what the words are, why 12 or 24,
     /// and that anyone holding them holds the coins.
     pub words: Page,
-    /// "Transactions" (UX.md L3): inputs, outputs, change, fees
+    /// "Transactions": inputs, outputs, change, fees
     /// and what the Sign screens list.
     pub transactions: Page,
-    /// "Randomness" (UX.md L4): why dice or coins, what a
+    /// "Randomness": why dice or coins, what a
     /// computer's randomness is, and what can be checked.
     pub randomness: Page,
     /// "Where randomness comes from": one section per entropy
     /// source the Create wizard offers, stating what each one asks you
     /// to trust.
     pub where_randomness: Page,
-    /// "Backups" (UX.md L5, L6): paper and steel, what destroys
+    /// "Backups": paper and steel, what destroys
     /// them, where to keep them, the never list, and the quiz.
     pub backups: Page,
-    /// "Encrypted backups": what an OpenSigner backup is, and how
+    /// "Encrypted backups": what an .oskb backup is, and how
     /// Faraday reads one into a vault.
     pub encrypted_backups: Page,
     /// "Seed XOR": what a part is, that every part is needed,
     /// that a part is itself a real key, and that XOR is not Shamir.
     pub seed_xor: Page,
-    /// "Passphrases" (UX.md L7): what one adds, that it makes a
+    /// "Passphrases": what one adds, that it makes a
     /// different key, that forgetting it is loss.
     pub passphrases: Page,
-    /// "Verifying" (UX.md L10): why to check addresses and
+    /// "Verifying": why to check addresses and
     /// change, and what the danger cards mean.
     pub verifying: Page,
-    /// "The air gap" (UX.md L12): what moves in and out, and
+    /// "The air gap": what moves in and out, and
     /// what the gap does and does not protect against.
     pub air_gap: Page,
-    /// "Mistakes and scams" (UX.md L14): the five a person
+    /// "Mistakes and scams": the five a person
     /// meets first, one paragraph each.
     pub scams: Page,
-    /// "Multisig" (UX.md L9): what m-of-n is, what it buys,
+    /// "Multisig": what m-of-n is, what it buys,
     /// what it costs, when it is the wrong answer, and how this device
     /// joins one.
     pub multisig: Page,
@@ -79,10 +79,10 @@ pub struct Learn {
     /// `older` and `after` mean, when a timelock starts counting, and
     /// who chooses which path a transaction uses.
     pub spend_paths: Page,
-    /// "Xpubs and privacy" (UX.md L11): what an account key
+    /// "Xpubs and privacy": what an account key
     /// shows, what it cannot do, and who should have one.
     pub xpubs: Page,
-    /// "Inheritance" (UX.md L15): what an heir needs, what to
+    /// "Inheritance": what an heir needs, what to
     /// leave, what not to leave, and where the passphrase fits.
     pub inheritance: Page,
     /// "Nonces": what the one-time secret in a signature is,
@@ -92,7 +92,7 @@ pub struct Learn {
     /// "Signing a message": what a message signature is, what
     /// it proves, what it does not, and how one is checked here.
     pub message: Page,
-    /// "Glossary" (UX.md L17): the terms the screens use, one
+    /// "Glossary": the terms the screens use, one
     /// line each, in alphabetical order.
     pub glossary: Page,
     /// "Tools": what each of the standalone calculators is for.

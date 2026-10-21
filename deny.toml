@@ -1,4 +1,4 @@
-# cargo-deny (docs/PLANNING.md §5.4, §10.1): what the dependency graph is
+# cargo-deny: what the dependency graph is
 # allowed to contain. Run locally, like everything else here:
 #
 #     cargo deny check

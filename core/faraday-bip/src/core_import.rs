@@ -1,4 +1,4 @@
-//! Bitcoin Core's `importdescriptors` file (`docs/PLANNING.md` §16.114).
+//! Bitcoin Core's `importdescriptors` file.
 //!
 //! A wallet is registered with Core by handing `importdescriptors` an
 //! array of requests. One multipath descriptor covers both chains, so
@@ -19,8 +19,7 @@
 //!
 //! Core before 29 takes no multipath descriptor, so
 //! [`import_descriptors_pair`] writes the receive and the change
-//! descriptor as two requests (Faraday's since the fork,
-//! `docs/history/UPSTREAM.md` §3).
+//! descriptor as two requests.
 
 use alloc::string::String;
 use core::fmt::Write;

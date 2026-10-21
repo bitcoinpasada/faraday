@@ -424,7 +424,7 @@ it; the page stays open and the signed rows show Signed.
 ## 7. Docs and tour
 
 - Batch A: `docs/FLOWS.md` (Home's tiles, the wallet card, Add a key,
-  Who signs, Sign a file), `docs/NEW-WALLET.md` §6 and §11 (the bar and
+  Who signs, Sign a file), `docs/history/NEW-WALLET.md` §6 and §11 (the bar and
   the nodes; mark the changed lines "changed by SCAN-TO-SIGN §2"),
   `docs/DESIGN.md` only if a component's description changes (the
   pill is an existing chip), `docs/learn/` where it names the tiles.

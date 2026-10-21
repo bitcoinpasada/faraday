@@ -1,4 +1,4 @@
-//! What Faraday writes, judged by GnuPG and paperkey (`PLAN.md` §7):
+//! What Faraday writes, judged by GnuPG and paperkey (`docs/history/PLAN.md` §7):
 //! `gpg` imports the certificate with both keys and the user ID, verifies
 //! detached signatures over SHA-256 and SHA-512 and rejects one over
 //! other data, takes the revocation certificate, sees a key as expired

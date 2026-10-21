@@ -4,74 +4,59 @@
 `faraday/faraday-core`, for spending, creating, backing up, restoring,
 messages and the camera — every single-key, multisig, Taproot multisig,
 miniscript, tree, MuSig2 and FROST wallet with recovery paths
-(`HANDOFF.md`, work queue).
+(`docs/history/HANDOFF.md`, work queue).
 
-The Wallets tab sits beside the OpenSigner tab, which stays until it is
-robust enough to deprecate it. It does every piece of cryptography and
-every format with OpenSigner's library crates (`faraday-psbt`, `faraday-bip`), and
-extends its flows to every wallet kind OpenSigner can sign for.
+The Wallets tab does every piece of cryptography and
+every format with `core/`'s library crates (`faraday-psbt`, `faraday-bip`), and
+extends its flows to every wallet kind they can sign for.
 
-## 1. Architecture, and staying downstream
+## 1. Architecture
 
-`faraday-core` names OpenSigner's `osk-*` items directly: a wallet, a key
+`faraday-core` names `core/`'s items directly: a wallet, a key
 slot, a key that can sign, a reviewed transaction, a signature set are
 Wallets-tab types that wrap `faraday-psbt`, `faraday-bip`, `faraday-codec` and
 `faraday-crypto`. It also holds a capability table: for each wallet kind,
-whether OpenSigner can build it, load it, sign for it, and in how many
+whether `core/` can build it, load it, sign for it, and in how many
 rounds; the shared steps of §3, each a declared group of fields, a
 summary line and a result, rendered by `faraday-ui` as step cards on
-`wide` and pages on `small` (`PLAN.md` §9.1); and flows as ordered lists
+`wide` and pages on `small` (`docs/history/PLAN.md` §9.1); and flows as ordered lists
 of steps per wallet kind (§4–§6), the reassembly model (§2), and the
 Wallets tab's own non-cryptographic logic: the split-backup plan, the
 two-round amount memory, the descriptor QR plan, the plain-sentence
-review. Its wording is in one strings file, as OpenSigner's is.
+review. Its wording is in the one strings file.
 
-**Rules that keep Faraday downstream of OpenSigner:**
+**Rules for the Wallets tab and `core/`:**
 
-1. **Since F65 Faraday maintains `core/` and `opensigner/` itself**
-   (`docs/history/UPSTREAM.md` lists every change; none loosens a check). The
-   Wallets tab runs no OpenSigner app code.
-2. **Where Faraday needs a variant of an upstream part** (the stick's
-   image boards, its shell, `faraday-draw`), the variant is a copy under
-   `faraday/` recording the upstream commit it was copied from.
-   `docs/history/UPSTREAM.md` §4 says how upstream's changes to those originals
-   are watched, so a fix upstream is seen and carried over deliberately.
-3. **`faraday-core` names upstream types directly**, so if OpenSigner
-   renames or changes something the Wallets tab uses, `faraday-core`
-   stops compiling, and its errors are the complete list of what to
-   adapt.
-4. **A new OpenSigner scheme is a row, not a rewrite.** When upstream adds a
+1. **Faraday maintains `core/` itself** (F65; no change loosens a
+   check). The Wallets tab runs no app code from anywhere else.
+2. **A variant of a `core/` part is a change to it**, not a copy: a
+   thing is fixed at its source (`CLAUDE.md`).
+3. **`faraday-core` names `core/` types directly**, so if something the
+   Wallets tab uses is renamed or changed, `faraday-core` stops
+   compiling, and its errors are the complete list of what to adapt.
+4. **A new scheme is a row, not a rewrite.** When `core/` gains a
    wallet kind or a signing protocol (PSBT version 2, anti-exfil, the MuSig2
    fallback tree), the capability table gains a row and an adapter, and
    the flows gain one assembled from existing steps, plus a new step
    only where the protocol has a round no other scheme has.
-5. **Shared logic lives in `core/`.** OpenSigner's rule since
-   §16.138 (2026-10-04, made for forks like this one): code that defines
-   bytes, or answers a question with no screen in it, is a `core/` crate, and
-   OpenSigner's app (`opensigner-core`, deleted under F68) held only flows
-   and wording. That move put the `.oskb` format, the KDBX writer and the
+5. **Shared logic lives in `core/`.** Code that defines
+   bytes, or answers a question with no screen in it, is a `core/` crate.
+   That put the `.oskb` format, the KDBX writer and the
    Argon2id `Cost` in **`faraday-backup`**, the signed-message text form and a
    transaction with its previous outputs in `faraday-psbt`, and address parsing
    and a wallet's address search in `faraday-bip`. The Wallets tab therefore
-   depends on no app code. Still in the app, and moved into `core/` by
-   Faraday (F65, listed in `docs/history/UPSTREAM.md`) when the Wallets tab needs
+   depends on no app code. Moved into `core/` when the Wallets tab needs
    them: the Tools calculators, the self-test's
    vector set, and `inspect.rs`'s reading of key origins through `faraday-draw`.
    Codex32 and SLIP-39 share handling and the MuSig2 session state are
    checked against the same rule before the Wallets tab uses them.
-6. **One check after every merge.** `just` runs upstream's own tests, then
+6. **One check after every merge.** `just` runs `core/`'s tests, then
    the Wallets tab's flow tests, then the conformance corpus (§8).
 
-**The OpenSigner tab stays** beside the Wallets tab until the Wallets tab is
-robust enough to deprecate it (decided 2026-10-04). The vault link needs
-no change to it: a vault key is opened in it by handing OpenSigner the key as a scanned
-payload (`Event::Scanned`), which runs OpenSigner's own load flow, and a key
-leaves it as an `.oskb` encrypted backup, which imports into a vault.
-
-**What the Wallets tab lacks at first, and when it comes back.** OpenSigner's other
-screens (the key explorer, vanity addresses, silent payments, the Lightning
-node key, SLIP-39 and codex32 backup screens, Learn) are not part of the
-Wallets tab on day one; the OpenSigner tab keeps them meanwhile, and they
+**What the Wallets tab lacks at first, and when it comes back.** The key
+explorer, vanity addresses, silent payments, the Lightning
+node key, SLIP-39 and codex32 backup screens and Learn are not part of the
+Wallets tab on day one; they
 return as Wallets-tab tools in the order of §9.
 
 ## 2. Reassembling a wallet
@@ -92,7 +77,7 @@ SeedSigner and a Coldcard. The Wallets tab's central object is therefore a
 - what is still needed, as one line ("Add 1 more key or collect 1 more
   signature").
 - its first and primary button, from the vault to a spend
-  (`docs/NEW-WALLET.md` §11.2, 2026-10-10): **Spend from this wallet**,
+  (`docs/history/NEW-WALLET.md` §11.2, 2026-10-10): **Spend from this wallet**,
   which opens the Spend tab on it at **Load the wallet in Sparrow**;
   **Sign the PSBT from the stick** with a PSBT for this wallet in Files,
   which opens its review; **Carry on the spend · Signatures 1 of 2**
@@ -100,7 +85,7 @@ SeedSigner and a Coldcard. The Wallets tab's central object is therefore a
   was;
 - its other buttons: **Rename** and **New wallet from this one** beside
   its name (any kind Create makes but a threshold wallet;
-  `docs/NEW-WALLET.md` §16.2, 2026-10-19; in the foot when a long name
+  `docs/history/NEW-WALLET.md` §16.2, 2026-10-19; in the foot when a long name
   leaves no room, and in the button list on a small panel), then along
   the foot **Show wallet QR**, **Back up**, **Sign a message** where
   the wallet can, and **Remove from session** at the end. New wallet
@@ -111,11 +96,11 @@ SeedSigner and a Coldcard. The Wallets tab's central object is therefore a
 
 | Starting from | What happens |
 |---|---|
-| **A vault holding a wallet and one of its keys** | At unlock the wallet loads into the Wallets tab with its key attached. The card opens at "1 of 2 signatures possible here." Nothing to do. The boot sheet's Unlock lands on Wallets with "Savings loaded from vault.ofv", the first wallet loaded that can sign here selected (`docs/NEW-WALLET.md` §11.1). |
+| **A vault holding a wallet and one of its keys** | At unlock the wallet loads into the Wallets tab with its key attached. The card opens at "1 of 2 signatures possible here." Nothing to do. The boot sheet's Unlock lands on Wallets with "Savings loaded from vault.ofv", the first wallet loaded that can sign here selected (`docs/history/NEW-WALLET.md` §11.1). |
 | **A key with no wallet** (from a vault, or added on its own) | Listed under **Keys without a wallet**. With no wallet loaded the card offers **Make a wallet from this key** (Restore's Seeds card with the key in its slot: single key, native SegWit, account 0), **Add another key** (the same on a 2-of-2 multisig) and **Load or restore a wallet**; with wallets loaded the key's row carries **Make a wallet from this key**. |
 | **A wallet description arriving** (scan, file, Files; any form in §3.2) | The Wallets tab derives each vault key's account key at the descriptor's paths and compares, attaches every match, and marks the rest watch-only. "This wallet uses 73c5da0a from Main" says which matched. **Save the wallet to a vault** is offered. |
 | **Pieces of a description** (split sheets, key lines, a partial config, SeedSigner exports one at a time) | The card exists from the first piece, with the quorum unknown or stated, and lists fingerprints in hand and still missing. It completes when the last piece arrives. Overlapping pieces deduplicate. |
-| **Seed words alone** (one list or several, perhaps a line like "2 of 3", no description) | Restore (`docs/NEW-WALLET.md` §12): **Kind** (one key: native SegWit ticked; several: Multisig · native SegWit; More kinds for the rest), **Quorum** for a multisig (M of N on two sliders, 2 of 3 to start; tap, drag or the arrow keys), **Description** › **I do not have it** (**I have the seed** for a single key), then **Keys**: a slot per key. The first empty slot takes its seed through **Type the words** (Add a key, which returns here, with its BIP-39 passphrase), **Scan a SeedQR**, a seed from an open vault or a key already loaded, each of the last three asking on a sheet whether it has a passphrase (typed twice; `docs/FLOWS.md` decision 52); on a multisig a slot can take **Its xpub** instead (Scan, a key file in Files, or typed: `xpub`, `zpub`, `Zpub`, `tpub`, with or without origin). **Make the wallet** builds the descriptor Create a wallet writes (`create.rs`) over the seeds' keys at the kind's standard path, loads it with the seeds in their slots, and opens Check: the descriptor and the first addresses. Done offers **Back up this wallet**, **Spend from this wallet** and **Wallets**. The Spend tab's words route keeps the older piece (`seeds.rs`), with the kind and path chosen after the seeds. |
+| **Seed words alone** (one list or several, perhaps a line like "2 of 3", no description) | Restore (`docs/history/NEW-WALLET.md` §12): **Kind** (one key: native SegWit ticked; several: Multisig · native SegWit; More kinds for the rest), **Quorum** for a multisig (M of N on two sliders, 2 of 3 to start; tap, drag or the arrow keys), **Description** › **I do not have it** (**I have the seed** for a single key), then **Keys**: a slot per key. The first empty slot takes its seed through **Type the words** (Add a key, which returns here, with its BIP-39 passphrase), **Scan a SeedQR**, a seed from an open vault or a key already loaded, each of the last three asking on a sheet whether it has a passphrase (typed twice; `docs/FLOWS.md` decision 52); on a multisig a slot can take **Its xpub** instead (Scan, a key file in Files, or typed: `xpub`, `zpub`, `Zpub`, `tpub`, with or without origin). **Make the wallet** builds the descriptor Create a wallet writes (`create.rs`) over the seeds' keys at the kind's standard path, loads it with the seeds in their slots, and opens Check: the descriptor and the first addresses. Done offers **Back up this wallet**, **Spend from this wallet** and **Wallets**. The Spend tab's words route keeps the older piece (`seeds.rs`), with the kind and path chosen after the seeds. |
 | **A description first, then its seeds** | Restore's Kind offers **I have the wallet description: Scan it** and **From Files**. A description read there, or on Description, fills Kind, Quorum and the cosigners' keys and opens Seeds, a slot per key of the description. Each seed entered (with the slot's passphrase, if any) is matched to its keys: a match reads "Key 2 of the wallet"; any other seed, or the right words with the wrong passphrase, reads "Not a key of this wallet: check the words or the passphrase" and is not loaded. A key whose seed is elsewhere is marked **Not here**. |
 | **A transaction arriving first** | The Wallets tab reads its key origins and finds the wallet it belongs to among loaded wallets, then among vault keys. "This transaction spends from Savings; you can sign with 73c5da0a." With no wallet known, it can still sign from the PSBT's own key origins, but change cannot be verified, and the review says so and offers **Load the wallet**. |
 
@@ -162,8 +147,7 @@ records, key lines in every form a keyholder may have (`73C5DA0A: xpub…`,
 `[73c5da0a/48h/0h/0h/2h]xpub…/<0;1>/*`, a bare xpub, flagged because it
 cannot be matched to a PSBT), Coldcard's JSON account export, SLIP-132
 keys, `ur:crypto-account`, `ur:crypto-hdkey` and `ur:crypto-output`
-(`docs/QR.md`). Sparrow's wallet `.json` is read here and not by
-OpenSigner; it is proposed upstream as a `faraday-bip` reader. A
+(`docs/QR.md`). Sparrow's wallet `.json` is read here. A
 descriptor is kept exactly as it arrived, never re-emitted from its keys,
 so `multi()` stays `multi()`.
 
@@ -198,8 +182,8 @@ non-cryptographic and live in `faraday-core`:
   read from Files, each kept only if it hashes to an outpoint being
   spent. It opens itself when the transaction needs it.
 - **Anything other than `SIGHASH_ALL`** stops, and those inputs are refused.
-- Fee, dust, network, unknown paths and the deterministic nonce check, as
-  OpenSigner already shows them.
+- Fee, dust, network, unknown paths and the deterministic nonce check
+  are shown.
 
 ## 4. Spending
 
@@ -209,7 +193,7 @@ open at entry only the first time a wallet (by descriptor checksum) is
 checked this power-on; once Continue has been pressed on it (here, on
 Create's own Check, or "Yes, my money shows" on the Spend tab), it stays closed
 and done across a lock and the next process, open again only in a fresh
-one with no kept state (`docs/SIMPLIFY.md` §2.5). Everything before the
+one with no kept state (`docs/history/SIMPLIFY.md` §2.5). Everything before the
 signers is watch-only, so any reason to stop is found before a key is
 used. In Faraday the keys are usually already loaded from a vault, so
 the signers step shows them rather than asking for them, and asks only
@@ -247,15 +231,13 @@ visit. Two ways through, both offered:
   cosigners, never a replay. The flow says this before it seals.
 
 Every pass that may open a round draws its nonces from a seed of its own
-(`Faraday::sign_seed`, the session's seed with a count of the passes, as
-OpenSigner's `musig_seed` draws it), a session whose nonces have all
+(`Faraday::sign_seed`, the session's seed with a count of the passes), a session whose nonces have all
 signed is dropped, and a pass is refused until the shell has answered
 the first request for randomness (2026-10-10, after the audit found the
 process's one seed reused: a nonce shared again was the nonce shared
 before).
 
-This replaces OpenSigner's FROST carry file, which today holds the bound
-secret nonce unencrypted, with the vault's encryption.
+The vault's encryption holds the bound secret nonce.
 
 ## 5. Creating and backing up
 
@@ -264,26 +246,26 @@ secret nonce unencrypted, with the vault's encryption.
 | Single-sig | Kind (script type) → Keys (from a vault, new, typed, scanned) → Check → Back up |
 | Multisig, Taproot multisig | Kind → Quorum → Keys → Check → Back up |
 | MuSig2 | Kind → Keys (N of N; every key's account key) → Check → Back up |
-| FROST | Kind → Quorum → Keys, whose Continue **deals** (on this device, as OpenSigner does) → Check → Back up |
+| FROST | Kind → Quorum → Keys, whose Continue **deals** (on this device) → Check → Back up |
 | Recovery | Kind → Primary keys → **Recovery paths** (up to three, each with keys and a timelock) → Check → Back up |
 
 Create's cards are Kind · Quorum · Keys · Check · Back up (2026-10-10,
-`docs/SIMPLIFY.md` §2.3). Create opens with Kind open, whatever opened
+`docs/history/SIMPLIFY.md` §2.3). Create opens with Kind open, whatever opened
 it — Wallets, Home, or a Tools tile with its kind already ticked
-(2026-10-10, `docs/NEW-WALLET.md` §2.1, reversing `SIMPLIFY.md` §2.1 for
+(2026-10-10, `docs/history/NEW-WALLET.md` §2.1, reversing `docs/history/SIMPLIFY.md` §2.1 for
 this flow only); Kind's Continue closes it as done and opens the next
 card. Keys' Continue makes the wallet and opens Check; there is no card
 of its own for the descriptor. On the Keys card, a key chosen for one
 slot — loaded here, or a cosigner's file — is not offered for any other
-slot, until the slot is cleared (`docs/NEW-WALLET.md` §2.2); its foot
+slot, until the slot is cleared (`docs/history/NEW-WALLET.md` §2.2); its foot
 button reads **New key for Key N** (**Share N** on a threshold wallet)
 while a slot is still empty, N the first one, and opens New key for it,
-else **Continue** (`docs/NEW-WALLET.md` §2.3). Check shows the
+else **Continue** (`docs/history/NEW-WALLET.md` §2.3). Check shows the
 descriptor as a summary row ("2 of 3 · native SegWit multisig ·
 9a6a2580, cf0e9805, 048ab54e · #qf45pmyh"), which opens the wallet's code
 with the descriptor's whole text under it, then the first addresses
 under the section label **The wallet's first addresses**
-(`docs/NEW-WALLET.md` §2.4), so a multisig's three rows do not read as
+(`docs/history/NEW-WALLET.md` §2.4), so a multisig's three rows do not read as
 one per key. **Back up** is the plan's three presets; each opens Back
 up a wallet on the wallet just made with that preset applied, its chip
 "Then: Wallets", its way back the wallet's card. The seeds and the
@@ -291,7 +273,7 @@ wallet into a vault, the paper and the public files are the checklist's
 items below, not cards of Create.
 
 New key opened from a Create slot ends on its **Key** card
-(2026-10-10, `docs/NEW-WALLET.md` §3): the randomness check is on the
+(2026-10-10, `docs/history/NEW-WALLET.md` §3): the randomness check is on the
 entry card once the last entry is in, and Key shows the words, an
 optional **Passphrase** typed twice, and **Lock in**, which adds the
 key and fills the slot. On a single-key wallet Lock in also makes the
@@ -305,7 +287,7 @@ without a passphrase has **Add a passphrase**, which locks in the key
 those words and a passphrase make in its place.
 
 Keys from a vault and a wallet from another (2026-10-19,
-`docs/NEW-WALLET.md` §16, F45). Under each slot's session keys the Keys
+`docs/history/NEW-WALLET.md` §16, F45). Under each slot's session keys the Keys
 card lists every open vault's keys not loaded, under the vault's name
 (only 24-word shares for a threshold kind); a press loads that key and
 fills the slot. A locked vault whose file is read is one **Unlock
@@ -442,11 +424,11 @@ items the plan needs, each done by what it does, never by a tap. An
 item's foot button is its own next action until it is done, and only
 then **Continue**; an item not done cannot be passed, and the items
 after it open once it is done, each saying "After: {item}" meanwhile
-(2026-10-10, `docs/NEW-WALLET.md` §14.1). Opened
-from an action on the wallet's chart (2026-10-10, `docs/NEW-WALLET.md`
+(2026-10-10, `docs/history/NEW-WALLET.md` §14.1). Opened
+from an action on the wallet's chart (2026-10-10, `docs/history/NEW-WALLET.md`
 §9) it opens at that item with the plan the chart shows, and makes
 nothing For the stick: each item's own **Make it** does. A change made on the chart (a
-move, another copy, a thing destroyed, a place removed; `docs/NEW-WALLET.md`
+move, another copy, a thing destroyed, a place removed; `docs/history/NEW-WALLET.md`
 §9.7) is an edit of the map, as the plan's cards make: the checklist is
 the map's, and **Change the plan** opens the cards on it, nothing
 replaced (2026-10-15, F35).
@@ -465,7 +447,7 @@ replaced (2026-10-15, F35).
    numbers, and the SeedQR grid only when the plan copies the seed as a
    SeedQR, behind hold-to-reveal, never a printer, no line for a BIP-39
    passphrase. Its button, **Check my copy**, checks each form the
-   seed's copies have (F29, `docs/NEW-WALLET.md` §14.7; built, except
+   seed's copies have (F29, `docs/history/NEW-WALLET.md` §14.7; built, except
    Keep the words only and the grid drawn in part): a words copy by typing the whole seed back as words (or
    their four-digit numbers, or four-letter prefixes) with the seed
    not on screen, compared once the last word is in and the first word
@@ -512,7 +494,7 @@ replaced (2026-10-15, F35).
    Bitcoin Core's import), with each key whose seed is here
    (`xpub-{fp}.txt` and its BIP 129 record) for the cosigners. The
    files the plan chose are made For the stick the moment the checklist
-   is made (2026-10-10, `docs/SIMPLIFY.md` §4.2); each row reads "For the
+   is made (2026-10-10, `docs/history/SIMPLIFY.md` §4.2); each row reads "For the
    stick" with **Remove**, or "Written to {label}" once a visit wrote
    it, and **Make the file** where it is neither. Done when each chosen
    file is For the stick or on the receipt.
@@ -542,14 +524,14 @@ what it is ("vault.ofv holds seed 9A6A2580"). With every item done,
 "Backup done", then the plan's three checks as a strip, each value
 large in its colour, the wallet's chart of the plan (wallet first),
 **Open the wallet**, **Change the plan** (2026-10-10,
-`docs/NEW-WALLET.md` §14.6; the done card offers no **Write to a stick**
+`docs/history/NEW-WALLET.md` §14.6; the done card offers no **Write to a stick**
 and nothing waits For the stick after it, F31). On the side panel each line of the map carries its
 item's state, a dot in OK once done. The small panel's copy page keeps
 the per-seed lines of `Faraday::backup_kept` (in which vault, copy
 checked, a file for the stick unprotected, not here).
 
 **The backup before the spend** (owner, 2026-10-10;
-`docs/DECISIONS.md` F6, `docs/NEW-WALLET.md` §14). A key made here
+`docs/DECISIONS.md` F6, `docs/history/NEW-WALLET.md` §14). A key made here
 (New key's words, or a passphrase added in Create) signs nothing until
 a checklist that keeps its seed and passphrase is complete: the
 wallet's card reads **Finish the backup first** (its checklist, or its
@@ -578,7 +560,7 @@ least safe of the three.
 
 ### The Backups screen
 
-**Backups** (`docs/SIMPLIFY.md` §5, `docs/FLOWS.md` "Backups") lists
+**Backups** (`docs/history/SIMPLIFY.md` §5, `docs/FLOWS.md` "Backups") lists
 every wallet the app knows, once each by descriptor checksum: loaded,
 in an open vault, or remembered of a locked one. Under each, the map as
 the plan draws it, a row per place with what it holds, its tag and what
@@ -615,7 +597,7 @@ A switch beside each flow's title chooses **Steps only** or **Guided** (called F
 progress carries over between them. The choice is one setting for every
 flow, kept with the others; Steps only is on the left, and Guided is
 where a first start is, on a device that has never had a setting saved
-(`docs/SIMPLIFY.md` §6.1, 2026-10-10; reverses the 2026-10-07 default
+(`docs/history/SIMPLIFY.md` §6.1, 2026-10-10; reverses the 2026-10-07 default
 for a first start only).
 
 This is the **Spend** tab (`docs/FAMILY.md`, built
@@ -631,7 +613,7 @@ mine?**, the address table, exports (descriptor, BIP-388 policy, BSMS, Core
 BIP-85 (hidden until turned on: children of one seed are not
 independent signers, and none are offered as one), and **Just show me**
 (a 3-of-5 test wallet from five repeated-word seeds, marked as a
-test). From OpenSigner, in §9's order: the key explorer, silent payments
+test). Then, in §9's order: the key explorer, silent payments
 (receive and check), codex32, SLIP-39 and Seed XOR backups, the Lightning
 node key, Learn.
 
@@ -645,7 +627,7 @@ node key, Learn.
   and first address.
 - **Flow tests** drive each flow through its steps for every kind in the
   capability table, from every entry point of §2.
-- **Upstream's own tests** run first, unchanged.
+- **`core/`'s own tests** run first, unchanged.
 - Agreement checks against the Coldcard Q simulator and SeedSigner's
   libraries are reproduced for the flows that produce the same outputs.
 
@@ -660,13 +642,12 @@ node key, Learn.
 4. Guided mode.
 5. Taproot multisig, miniscript and Taproot tree, recovery.
 6. MuSig2 and FROST, with §4.2.
-7. Messages; the Wallets tab's tools; then OpenSigner's tools.
+7. Messages; the Wallets tab's tools; then the other tools.
 
 ## 10. Decided 2026-10-04
 
-1. **The OpenSigner tab stays** beside the Wallets tab until the Wallets tab is robust
-   enough to deprecate it (§1).
-2. **Shared logic upstream**: done by OpenSigner's §16.138 for the file
+1. **The tab beside the Wallets tab** was deleted with its app (F68).
+2. **Shared logic in `core/`**: done for the file
    formats, the kept-key blob, messages, addresses and transactions (§1,
    rule 5).
 3. **Signed-amount memory** is sealed into the open vault by default, and

@@ -1,4 +1,4 @@
-# Options no OpenSigner image builds, whatever it runs on. A symbol here
+# Options no Faraday image builds, whatever it runs on. A symbol here
 # takes everything under it: NET alone removes INET, IPV6, netfilter, the
 # wireless and Bluetooth stacks and every network driver.
 #
@@ -54,7 +54,7 @@ EEPROM_93CX6   as EEPROM_AT24
 NVMEM_SYSFS    the sysfs faces of the nvmem providers, which are writable
 KGDB           a kernel debugger on the serial port of a device that signs; it also selects MAGIC_SYSRQ
 
-# Hardening (PLANNING.md 16.140): interfaces any process can reach that
+# Hardening: interfaces any process can reach that
 # nothing in the image uses, and two allocator and crash behaviours.
 SLAB_MERGE_DEFAULT  caches of different types merged into one, which is what lets one object be placed beside another
 IO_URING            a large share of recent kernel privilege escalations, and nothing here submits a ring

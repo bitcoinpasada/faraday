@@ -27,8 +27,8 @@
 //! code, and the key handed to a pinned page is erased where it stood, but
 //! copies made on the stack inside `bitcoin` during derivation, and the
 //! HMAC state inside `Xpriv::new_master`, are outside our reach. This is
-//! the interim discipline until `Sealed<T>` from `docs/PLANNING.md` §5.1
-//! exists.
+//! the interim discipline until a `Sealed<T>` for
+//! these exists.
 //!
 //! # One context per key
 //!
@@ -329,7 +329,7 @@ pub const XPRIV_ASCII_MAX: usize = 112;
 
 /// An extended private key in its base58check text form, in a fixed
 /// buffer that zeroizes on drop. The explorer shows it while a hold
-/// button is held (`docs/PLANNING.md` §4.6); nothing else reads it.
+/// button is held; nothing else reads it.
 pub struct XprivAscii {
     buf: [u8; XPRIV_ASCII_MAX],
     len: u8,

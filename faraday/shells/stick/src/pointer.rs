@@ -9,7 +9,7 @@
 //! `BTN_FORWARD`) are the core's
 //! [`Event::Back`](faraday_shell_api::Event::Back) and
 //! [`Event::Forward`](faraday_shell_api::Event::Forward), on the press
-//! (`docs/NEW-WALLET.md` §13.1). Every screen therefore works with a mouse for the same reason
+//! (`docs/history/NEW-WALLET.md` §13.1). Every screen therefore works with a mouse for the same reason
 //! it works with a finger, and nothing in the core knows the difference.
 //!
 //! No acceleration: one device count moves the cursor by the arrow's scale

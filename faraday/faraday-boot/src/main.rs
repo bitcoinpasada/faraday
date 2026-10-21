@@ -1,4 +1,4 @@
-//! The boot copier (`PLAN.md` §5.5), as the image runs it: as `ofboot`,
+//! The boot copier (`docs/history/PLAN.md` §5.5), as the image runs it: as `ofboot`,
 //! with no privilege, over the two FIFOs `rcS` makes.
 //!
 //! ```text

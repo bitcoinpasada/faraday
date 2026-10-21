@@ -15,7 +15,7 @@ use faraday_crypto::work::Compute;
 /// account xpubs it can derive addresses from.
 ///
 /// Change and input ownership are verified by re-deriving from these
-/// xpubs (`docs/PLANNING.md` §8.4 #3), so only paths below a listed
+/// xpubs, so only paths below a listed
 /// account can be verified. The multisig accounts are BIP-48's two,
 /// which let a multisig change output be checked before any wallet
 /// policy is registered; the cosigners still come from the PSBT's own
@@ -133,8 +133,7 @@ pub(crate) struct Derived {
 /// public share and nothing else.
 ///
 /// A share derives nothing and has no master fingerprint, so what names
-/// it on an input is the public share the group's record lists
-/// (`docs/PLANNING.md` §16.103).
+/// it on an input is the public share the group's record lists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ShareRef {
     /// `secshare · G`, which is the entry the record carries for it.
@@ -155,13 +154,12 @@ pub struct Context<'a> {
     /// them is verified by re-deriving its script; with none registered,
     /// a multisig change output can only be claimed.
     pub wallets: &'a [WalletPolicy],
-    /// What the open MuSig2 session holds, when one is open
-    /// (`docs/PLANNING.md` §16.100). It decides whether a public nonce
+    /// What the open MuSig2 session holds, when one is open.
+    /// It decides whether a public nonce
     /// of this device's already on an input can still be signed under or
     /// has to be replaced.
     pub musig_session: Option<&'a crate::musig::MusigSessionView>,
-    /// The loaded shares of threshold wallets (`docs/PLANNING.md`
-    /// §16.103). A share is named on an input by its public share, so
+    /// The loaded shares of threshold wallets. A share is named on an input by its public share, so
     /// this is all the inspector needs to know it holds one.
     pub shares: &'a [ShareRef],
     /// The carry file's secret section, when the transaction arrived as

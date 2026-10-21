@@ -1,5 +1,4 @@
-//! The core ↔ shell contract (`docs/PLANNING.md` §4.2,
-//! amended by §16.3 and §16.4).
+//! The core ↔ shell contract.
 //!
 //! A shell is deliberately dumb. It owns a display and some input devices,
 //! and it talks to the core through exactly three calls on [`App`]:
@@ -17,7 +16,7 @@
 //! - After every event the shell calls [`App::poll_command`] until it
 //!   returns `None`, and acts on each command in order.
 //! - The frame is painted when it is read, from the layout the last event
-//!   solved, not when the event lands (`docs/PLANNING.md` §16.119 rule 5).
+//!   solved, not when the event lands.
 //!   A shell that reads the frame once per frame it draws paints once per
 //!   drawn frame rather than once per event.
 //! - [`Command::Draw`] means "read [`App::frame`] and blit it now". The
@@ -29,7 +28,7 @@
 //!   or mnemonic word. It sees pixels, files the user chose, and, in later
 //!   milestones, opaque storage blobs.
 //!
-//! File channel (`docs/PLANNING.md` §7, §16.16): the core asks with
+//! File channel: the core asks with
 //! [`Command::RequestFile`] and the shell answers with exactly one
 //! [`Event::File`], [`Event::FileUnavailable`], [`Event::FileCancelled`]
 //! or [`Event::FileList`] per
@@ -53,7 +52,7 @@
 //! as a save that did not happen. The shell never reads a file the core
 //! did not ask for and never writes one the user did not trigger (§5.3).
 //!
-//! Clipboard channel (`docs/PLANNING.md` §16.88): the core asks with
+//! Clipboard channel: the core asks with
 //! [`Command::RequestClipboard`] and the shell answers with exactly one
 //! [`Event::Clipboard`] or [`Event::ClipboardUnavailable`] per request,
 //! in order. The three ways of not answering with text — nothing on the
@@ -113,7 +112,7 @@
 //! never puts a key, a seed or a session in them, because the core never
 //! puts one there.
 //!
-//! Kept-secret channel (§5.1, §6; `docs/PLANNING.md` §15 items 32 and 9):
+//! Kept-secret channel:
 //! a Tier B shell can keep one opaque blob for the core and can compute
 //! an HMAC inside its secure element. The core asks with
 //! [`Command::SecureMac`], [`Command::StoreSecret`],
@@ -225,7 +224,7 @@ pub struct DisplayInfo {
     pub boot: BootState,
     /// How much memory the device has, in MiB, where the shell can say.
     /// It decides which Argon2id memory cost the app recommends for an
-    /// encrypted backup (`docs/PLANNING.md` §16.112): the recommendation
+    /// encrypted backup: the recommendation
     /// follows the device's memory, and a shell that reports `None`
     /// gets the cost that opens anywhere. Nothing else reads it, and it
     /// is not a limit: the person may choose any of the offered costs.

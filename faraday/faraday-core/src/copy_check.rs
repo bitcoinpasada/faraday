@@ -1,4 +1,4 @@
-//! A copy of a seed by hand is checked by its form (`docs/NEW-WALLET.md`
+//! A copy of a seed by hand is checked by its form (`docs/history/NEW-WALLET.md`
 //! §14.7): the words are typed back, a SeedQR is scanned. This is the
 //! typed check, which types through the word entry Add a key uses
 //! ([`crate::forms::word_key`]), and the rules for which checks a copy
@@ -383,7 +383,7 @@ impl Faraday {
 }
 
 /// The scans without a match after which **Keep the words only** moves
-/// to the item's foot (`docs/NEW-WALLET.md` §14.7 item 3).
+/// to the item's foot (`docs/history/NEW-WALLET.md` §14.7 item 3).
 pub const MISSES: u8 = 3;
 
 impl BackupState {

@@ -243,7 +243,7 @@ pub struct FamilyState {
     /// keys they make (`seeds.rs`).
     pub seeds: crate::seeds::SeedsState,
     /// Entered on a wallet already open, by Spend from this wallet
-    /// (`docs/NEW-WALLET.md` §11.2): the column starts at Load the
+    /// (`docs/history/NEW-WALLET.md` §11.2): the column starts at Load the
     /// wallet in Sparrow, and Write the payment brings the PSBT itself.
     pub from_card: bool,
     /// Opened from Home or from Wallets: Back goes there.
@@ -319,7 +319,7 @@ impl Faraday {
 
     /// Costs what `wallet_held_on` and the Inbox's PSBTs cost (through
     /// `spend_button_on`). The wallet card's first button
-    /// (`docs/NEW-WALLET.md` §11.2): finish the backup first while a key
+    /// (`docs/history/NEW-WALLET.md` §11.2): finish the backup first while a key
     /// made here waits for it (§14.3), else carry on this wallet's spend,
     /// sign its PSBT in Files, or spend from it.
     pub fn spend_button(&self, c: &Compute, w: usize) -> (String, Action) {
@@ -331,7 +331,7 @@ impl Faraday {
 pub(crate) fn spend_button_on(r: &impl crate::glance::Reads, w: usize) -> (String, Action) {
     let app = r.app();
     // A key made here signs once its backup is done
-    // (`docs/NEW-WALLET.md` §14.3).
+    // (`docs/history/NEW-WALLET.md` §14.3).
     if !crate::held::wallet_held_on(r, w).is_empty() {
         return (
             EN.family_finish_the_backup.to_string(),

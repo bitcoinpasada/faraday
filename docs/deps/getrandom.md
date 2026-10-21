@@ -1,7 +1,6 @@
 # getrandom
 
-**Purpose.** The desktop shell's answer to `Command::RequestEntropy`
-(`docs/PLANNING.md` §5.2, §16.21): 32 bytes from the operating system's
+**Purpose.** The desktop shell's answer to `Command::RequestEntropy`: 32 bytes from the operating system's
 random number generator, consumed into the core's session key.
 
 **Shell only.** The core has no random number generator by design (§4.2:

@@ -1,5 +1,5 @@
-//! Other paper forms of a key held here, beside its words
-//! (`docs/OPENSIGNER-PARITY.md` plan B2): a Seed XOR split of its words
+//! Other paper forms of a key held here, beside its words:
+//! a Seed XOR split of its words
 //! into parts that are each BIP-39 words, every part needed; and codex32
 //! shares of its BIP-32 seed (BIP 93), any `k` of `n` enough. The
 //! arithmetic is `faraday-entropy`'s and `faraday-bip`'s; the randomness is fresh

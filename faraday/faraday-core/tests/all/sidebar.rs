@@ -80,7 +80,7 @@ fn the_sidebar_offers_learn_and_opens_the_learn_sheet() {
     assert_eq!(app.sheet, Some(Sheet::Learn));
 }
 
-/// Spend left the sidebar (`docs/SIMPLIFY.md` §6.2): the Wallets empty
+/// Spend left the sidebar (`docs/history/SIMPLIFY.md` §6.2): the Wallets empty
 /// state and the Learn sheet are its ways in now.
 #[test]
 fn the_sidebar_has_no_spend_row() {

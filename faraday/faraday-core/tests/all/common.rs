@@ -203,7 +203,7 @@ impl Shell {
                 break;
             };
             // A stick is read and written only by a clean process
-            // (`PLAN.md` §5.3): the marker is checked on every request.
+            // (`docs/history/PLAN.md` §5.3): the marker is checked on every request.
             if matches!(
                 c,
                 StorageCommand::Read { .. }

@@ -1,4 +1,4 @@
-//! In-memory sealing (`docs/PLANNING.md` §5.1, §5.2, §16.21).
+//! In-memory sealing.
 //!
 //! A [`Sealed<T>`] is `T` encrypted under a [`SessionKey`] with
 //! ChaCha20-Poly1305. The plaintext exists only inside
@@ -83,8 +83,8 @@ impl core::fmt::Display for SealError {
 
 impl core::error::Error for SealError {}
 
-/// The key every [`Sealed`] value of a session is encrypted under
-/// (`docs/PLANNING.md` §5.2). Created from 32 bytes of shell entropy, or
+/// The key every [`Sealed`] value of a session is encrypted under.
+/// Created from 32 bytes of shell entropy, or
 /// weakly from whatever the application has before that; rotated with
 /// fresh entropy on lock. Zeroized on drop, never printed, cloned or
 /// compared.
@@ -226,7 +226,7 @@ impl ZeroizeOnDrop for SessionKey {}
 /// Implemented for the 64-byte BIP-39 seed and for [`MnemonicBytes`].
 /// Sealing is generic over this trait rather than over `AsRef<[u8]>` so
 /// that the plaintext buffer inside [`Sealed::with`] has a size known at
-/// compile time and lives on the stack (`docs/PLANNING.md` §5.3).
+/// compile time and lives on the stack.
 pub trait SealedBytes: Zeroize + Sized {
     /// The fixed-size byte form, `[u8; N]`.
     type Bytes: AsRef<[u8]> + AsMut<[u8]> + Zeroize;
@@ -255,8 +255,8 @@ impl SealedBytes for [u8; 64] {
 pub const MAX_SEED_LEN: usize = 64;
 
 /// A BIP-32 seed and its length: 64 bytes from BIP-39 words, or the 16
-/// or 32 bytes of a SLIP-39 master secret, which is the seed itself
-/// (`docs/PLANNING.md` §16.107). One sealed type carries both, so a
+/// or 32 bytes of a SLIP-39 master secret, which is the seed itself.
+/// One sealed type carries both, so a
 /// loaded key has one seed door whatever it was made from. Zeroized on
 /// drop.
 pub struct SeedBytes {
@@ -328,8 +328,7 @@ impl Drop for SeedBytes {
 impl ZeroizeOnDrop for SeedBytes {}
 
 /// A mnemonic in sealable form: up to 24 word indices, the word count and
-/// a language tag the application assigns (`docs/PLANNING.md` §16.2:
-/// words are `u16` indices, never text). Zeroized on drop.
+/// a language tag the application assigns. Zeroized on drop.
 pub struct MnemonicBytes {
     /// Word indices, `0..2048`; only the first `len` are meaningful.
     pub words: [u16; MAX_MNEMONIC_WORDS],

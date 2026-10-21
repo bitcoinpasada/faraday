@@ -6,7 +6,7 @@
 //! nothing: the BIP-322 transactions are never broadcastable, because
 //! `to_spend` spends an output that cannot exist.
 //!
-//! Which format goes with which address (`docs/PLANNING.md` §9):
+//! Which format goes with which address:
 //!
 //! | Address | Formats |
 //! |---|---|

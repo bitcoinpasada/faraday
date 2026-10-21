@@ -1,4 +1,4 @@
-//! The ? on a screen opens OpenSigner's Learn pages for what is on it: a
+//! The ? on a screen opens the Learn pages for what is on it: a
 //! multisig being created opens Multisig, a new key opens Randomness, and
 //! another tab shows the next page.
 

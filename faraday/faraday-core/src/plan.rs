@@ -178,7 +178,7 @@ pub struct Answers {
     pub pass: Vec<Vec<bool>>,
     /// Keys left off each share.
     pub omit: usize,
-    /// The map as edited on the wallet's chart (`docs/NEW-WALLET.md`
+    /// The map as edited on the wallet's chart (`docs/history/NEW-WALLET.md`
     /// §9.7): from the first edit there, the plan itself, which the rest
     /// of the answers no longer spread by rule. `None` while the answers
     /// draw it.
@@ -192,7 +192,7 @@ pub struct Answers {
     /// the plan, so a plan customised once reopens customisable.
     pub custom: bool,
     /// The SeedQR copies dropped for the words that stay on the map,
-    /// drawn in part (`docs/NEW-WALLET.md` §14.7 item 3), as (place,
+    /// drawn in part (`docs/history/NEW-WALLET.md` §14.7 item 3), as (place,
     /// seed): each a secret at its place for "One place found", never a
     /// copy that rebuilds, until I destroyed this copy takes it off.
     pub part: Vec<(usize, usize)>,
@@ -941,7 +941,7 @@ impl Answers {
             return;
         }
         // An answer changed replaces the map edited on the chart: asked
-        // before the questions open (`docs/NEW-WALLET.md` §9.7). The
+        // before the questions open (`docs/history/NEW-WALLET.md` §9.7). The
         // software and the form are no part of the map.
         if !matches!(q, Question::Software | Question::Form) {
             self.map = None;
@@ -1278,7 +1278,7 @@ impl Answers {
                     *a.pass.get_mut(i)? = flags(row)?;
                 }
                 // A key made here whose backup is pending: read by the
-                // caller (`docs/NEW-WALLET.md` §14.3), not an answer.
+                // caller (`docs/history/NEW-WALLET.md` §14.3), not an answer.
                 "held" => continue,
                 // The access layers' count and routes, written only by test
                 // builds before the layers were withdrawn (F38, F46): read
@@ -2810,7 +2810,7 @@ fn name_at(at: At, name: &dyn Fn(usize) -> String, noun: &str) -> String {
 
 /// Costs what `of` costs. The first of `seeds` (made here) the plan
 /// keeps no copy of, or whose passphrase it keeps nowhere: the line
-/// said in place of Make the checklist (`docs/NEW-WALLET.md` §14.4). A
+/// said in place of Make the checklist (`docs/history/NEW-WALLET.md` §14.4). A
 /// copy on a stick counts as kept: a seed's file or SeedQR picture, its
 /// passphrase's file, a vault on a stick (F31: the hold lasts until
 /// that stick is written).
@@ -2881,7 +2881,7 @@ pub enum Item {
     /// Copy seed `i` by hand and check it.
     Copy(usize),
     /// Write seed `i`'s passphrase on paper and check it
-    /// (`docs/NEW-WALLET.md` §14.7 item 5).
+    /// (`docs/history/NEW-WALLET.md` §14.7 item 5).
     Passphrase(usize),
     /// Make vault `v` and save into it its seeds, and the wallet where
     /// the plan puts it there.
@@ -2976,12 +2976,12 @@ pub enum CopyForm {
     /// The SeedQR, checked by scanning the drawn grid.
     SeedQr,
     /// The passphrase on paper, checked by typing it back
-    /// (`docs/NEW-WALLET.md` §14.7 item 5): not a copy of the seed.
+    /// (`docs/history/NEW-WALLET.md` §14.7 item 5): not a copy of the seed.
     Passphrase,
 }
 
 /// The forms seed `i`'s copies by hand take on the map: the words, a
-/// SeedQR, or both (`docs/NEW-WALLET.md` §14.7).
+/// SeedQR, or both (`docs/history/NEW-WALLET.md` §14.7).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct CopyForms {
     /// A copy of the words at a place.
@@ -2990,7 +2990,7 @@ pub struct CopyForms {
     pub seedqr: bool,
 }
 
-/// What checking seed `i`'s copies asks for (`docs/NEW-WALLET.md` §14.7
+/// What checking seed `i`'s copies asks for (`docs/history/NEW-WALLET.md` §14.7
 /// item 1).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct CopyChecks {
@@ -3059,7 +3059,7 @@ pub fn templates_on(shape: &Shape, m: &Mapped) -> usize {
         .sum()
 }
 
-/// **Keep the words only** for seed `i` (`docs/NEW-WALLET.md` §14.7 item
+/// **Keep the words only** for seed `i` (`docs/history/NEW-WALLET.md` §14.7 item
 /// 3): each place's SeedQR of the seed becomes its words, not added where
 /// the place keeps them already, and stays on the map drawn in part
 /// ([`Answers::part`]): the device cannot tell how much of the grid was
@@ -3105,7 +3105,7 @@ pub fn keep_words(shape: &Shape, a: &Answers, i: usize) -> Answers {
 }
 
 // ---------------------------------------------------------------------
-// Edits on the chart (`docs/NEW-WALLET.md` §9.7)
+// Edits on the chart (`docs/history/NEW-WALLET.md` §9.7)
 // ---------------------------------------------------------------------
 
 /// A change to where things are kept, made on the wallet's chart. Each
@@ -4083,7 +4083,7 @@ pub enum Mark {
     /// Exposed: someone has seen it, or has it.
     Exposed,
     /// A SeedQR drawn in part and dropped for the words
-    /// (`docs/NEW-WALLET.md` §14.7 item 3): kept by the plan's answers
+    /// (`docs/history/NEW-WALLET.md` §14.7 item 3): kept by the plan's answers
     /// ([`Answers::part`]), not as a note.
     Part,
 }

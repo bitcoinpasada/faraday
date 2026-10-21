@@ -1,8 +1,6 @@
-//! Faraday's stick shell: a copy of upstream's `opensigner/shells/pi` at
-//! c418768 (which Faraday no longer carries, `docs/history/UPSTREAM.md` §3) that
-//! hosts `faraday-core` instead of OpenSigner. What
-//! differs from the original: the app (`Faraday`), sticks reported to
-//! it by the disk process over its two FIFOs (`PLAN.md` §4.3), or from
+//! Faraday's stick shell: it
+//! hosts `faraday-core`. The app (`Faraday`), sticks reported to
+//! it by the disk process over its two FIFOs (`docs/history/PLAN.md` §4.3), or from
 //! `/proc/mounts` where there is no disk process, with their files read
 //! and written through `faraday-storage`; the clean marker
 //! `faraday-grant` checks, published while the app is clean (§5.1), and
@@ -10,10 +8,9 @@
 //! boot copier asked over its own two FIFOs (§5.5); the Inbox and Outbox kept in `/run/faraday`
 //! across a lock, exit code 75 when the app locks (the inittab's loop
 //! starts a fresh process), and a doubled density guess for a panel
-//! 2,800 pixels wide or more. The rest is upstream's, as it describes
-//! below.
+//! 2,800 pixels wide or more.
 //!
-//! The framebuffer shell (`docs/PLANNING.md` §4.1, §14 phase 4, §16.94):
+//! The framebuffer shell:
 //! a single static binary that owns a framebuffer and whatever input
 //! devices the machine has, and nothing else.
 //!
@@ -186,7 +183,7 @@ enum Wake {
     InputEnded(u32),
     /// The capture thread has queued a frame.
     Frame,
-    /// What a device not yet believed sent, held back (`PLAN.md` §4.6).
+    /// What a device not yet believed sent, held back (`docs/history/PLAN.md` §4.6).
     Held(u32, HeldInput),
     /// The panic chord, Super and S, closed (`true`) or opened again
     /// (`keyboard.rs`).
@@ -303,17 +300,17 @@ const USB_DEVICES: &str = "/sys/bus/usb/devices";
 /// How often the mounts are looked at again.
 const STICK_SCAN: Duration = Duration::from_millis(700);
 
-/// The disk process's FIFOs, which `rcS` makes (`PLAN.md` §4.3). Where
+/// The disk process's FIFOs, which `rcS` makes (`docs/history/PLAN.md` §4.3). Where
 /// they are missing, sticks are read from the mounts.
 const DISK_REQUESTS: &str = "/run/faraday-disk/requests";
 const DISK_RESPONSES: &str = "/run/faraday-disk/responses";
 
-/// The clean marker (`PLAN.md` §5.1): present exactly while the app is in
+/// The clean marker (`docs/history/PLAN.md` §5.1): present exactly while the app is in
 /// the clean state. `faraday-grant` hands a partition out only while it
 /// is there, and takes every one back when it goes.
 const CLEAN_MARKER: &str = "/run/faraday-clean/clean";
 
-/// The upgrade marker (`PLAN.md` §5.5): present while the app is clean
+/// The upgrade marker (`docs/history/PLAN.md` §5.5): present while the app is clean
 /// and upgrading a stick. `faraday-grant` hands a boot partition to the
 /// boot copier only while it is there beside the clean marker.
 const UPGRADE_MARKER: &str = "/run/faraday-clean/upgrade";
@@ -1989,8 +1986,7 @@ fn main() -> ExitCode {
 
 /// This machine's total memory in MiB, read from `/proc/meminfo`, or
 /// `None` where the file is not there or does not say. The core uses it
-/// only to recommend an Argon2id memory cost for an encrypted backup
-/// (`docs/PLANNING.md` §16.112).
+/// only to recommend an Argon2id memory cost for an encrypted backup.
 fn total_memory_mib() -> Option<u32> {
     let text = std::fs::read_to_string("/proc/meminfo").ok()?;
     let line = text.lines().find(|l| l.starts_with("MemTotal:"))?;

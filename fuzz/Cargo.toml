@@ -1,4 +1,4 @@
-# The fuzz targets (`docs/PLANNING.md` §12, security review M5). This is
+# The fuzz targets. This is
 # its own workspace, excluded from the root one, so that a nightly
 # `cargo fuzz` build with sanitizer flags never shares a target directory
 # or a resolved lock file with the pinned 1.97.0 workspace build.

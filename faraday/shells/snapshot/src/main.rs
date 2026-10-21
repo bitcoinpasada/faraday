@@ -56,7 +56,7 @@
 //! step with the boot copier's answers given by hand: the source read, an
 //! older stick, a newer one beside it, one too small, one pulled during
 //! the write, and one written; with `glance`, the Wallets card's chart
-//! at a glance (`docs/NEW-WALLET.md` §6): a one-key wallet with no plan,
+//! at a glance (`docs/history/NEW-WALLET.md` §6): a one-key wallet with no plan,
 //! then with Paper and vault, and a 2-of-3 with two keys here, the second
 //! with a passphrase, and a cosigner, with Paper and vault and the
 //! passphrase in the vault too; on a small panel the card's At a glance
@@ -1415,7 +1415,7 @@ fn run(
     t.sticks(false);
     t.load_kit()?;
     t.press(Action::CreateWallet);
-    // Create opens on Kind (`docs/NEW-WALLET.md` §2.1): single key is
+    // Create opens on Kind (`docs/history/NEW-WALLET.md` §2.1): single key is
     // the default, ticked to Multisig instead.
     t.press(Action::CKind(4));
     t.shot("create-kind")?;
@@ -1551,7 +1551,7 @@ fn run(
     t.shot("unlock")?;
     t.press(Action::Vault(V::Unlock));
     t.tick();
-    // Unlocked from the Vaults list (`docs/NEW-WALLET.md` §11.1a): its
+    // Unlocked from the Vaults list (`docs/history/NEW-WALLET.md` §11.1a): its
     // Load sheet (F62), every card ticked; Load ticked lands on Wallets.
     if t.app.sheet != Some(faraday_core::Sheet::UnlockLoad) || !t.app.session.keys.is_empty() {
         return Err("the unlock did not ask what to load".into());
@@ -1614,7 +1614,7 @@ fn run(
         ));
     }
     t.shot("vault-entries-imported")?;
-    // Test key 2 from an OpenSigner backup.
+    // Test key 2 from an .oskb backup.
     t.press(Action::Vault(V::Category(0)));
     let backup = t
         .app
@@ -2210,7 +2210,7 @@ fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     description_into_vault(c, t, 0);
     description_file_at(c, t, 0);
     t.press(Action::BChecklist);
-    // The items before the vault's wait for it (`docs/NEW-WALLET.md`
+    // The items before the vault's wait for it (`docs/history/NEW-WALLET.md`
     // §14.1): each copy by hand checked in turn, then the vault.
     items_before(c, t, faraday_core::bstep::VAULT)?;
     if t.app.backup.as_ref().and_then(|b| b.open) != Some(faraday_core::bstep::VAULT) {
@@ -2225,7 +2225,7 @@ fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let wallets = count(t, kind::WALLET);
     t.shot("create-backup-vault")?;
     // One Save into the vault saves all the plan puts there
-    // (`docs/NEW-WALLET.md` §14.1): the two new keys and the wallet;
+    // (`docs/history/NEW-WALLET.md` §14.1): the two new keys and the wallet;
     // test key 1 was there already. The plan record the checklist wrote
     // is kept as it is, one of it: nothing in it changed.
     t.press(Action::BVaultSave(0));
@@ -2294,7 +2294,7 @@ fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         "xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V",
     );
     t.shot("tools-convert")?;
-    // Restore begins with the kind of wallet (`docs/NEW-WALLET.md` §12).
+    // Restore begins with the kind of wallet (`docs/history/NEW-WALLET.md` §12).
     t.press(Action::Lock);
     t.press(Action::Nav(Screen::Start));
     t.shot("start-empty")?;
@@ -2315,7 +2315,7 @@ fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
 /// directory: the list newest first, a PSBT sent as codes, a file over
 /// 256 KiB refused, and Receive saving a descriptor and a seed's words
 /// that a device sent, each said as saved, the words as a secret.
-/// Upgrade a Faraday stick (`PLAN.md` §5.5), the boot copier's answers
+/// Upgrade a Faraday stick (`docs/history/PLAN.md` §5.5), the boot copier's answers
 /// given by hand.
 fn upgrade_tour(t: &mut Tour) -> Result<(), String> {
     const RUNNING: &str = "6.6.84-faraday-0.2.0+4d0680b1a2b3";
@@ -2534,7 +2534,7 @@ fn scan_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("scan-after-pull")
 }
 
-/// Add a key, which is New key opening on Start (`docs/NEW-WALLET.md`
+/// Add a key, which is New key opening on Start (`docs/history/NEW-WALLET.md`
 /// §15): the Start card, its Other forms, the Words card typed, the Key
 /// card for words typed, locked in; then the codex32 tile's Words card.
 fn add_key_tour(t: &mut Tour) -> Result<(), String> {
@@ -2595,7 +2595,7 @@ fn compact_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Home));
     t.press(Action::CreateWallet);
     // Create opens on Kind, single key the default
-    // (`docs/NEW-WALLET.md` §2.1).
+    // (`docs/history/NEW-WALLET.md` §2.1).
     t.shot("create-kind")?;
     t.press(Action::CNext(cstep::KIND));
     t.shot("create-keys")?;
@@ -2616,13 +2616,13 @@ fn compact_tour(t: &mut Tour) -> Result<(), String> {
         }
     }
     // The randomness check is on the entry card once the last roll is
-    // in; its Continue opens Key (`docs/NEW-WALLET.md` §3.2).
+    // in; its Continue opens Key (`docs/history/NEW-WALLET.md` §3.2).
     t.shot("keygen-rolls-done")?;
     t.press(Action::KNext);
     t.shot("keygen-key")?;
     t.press(Action::KPassField(0));
     // Focused and empty: the No passphrase pill, the caret after it
-    // (`docs/NEW-WALLET.md` §13.4).
+    // (`docs/history/NEW-WALLET.md` §13.4).
     t.shot("keygen-key-passphrase-empty")?;
     type_text(t, "Ride the 7 bus");
     t.shot("keygen-key-passphrase")?;
@@ -2664,7 +2664,7 @@ fn compact_tour(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-/// Restore a wallet made elsewhere (`docs/NEW-WALLET.md` §12): Kind with
+/// Restore a wallet made elsewhere (`docs/history/NEW-WALLET.md` §12): Kind with
 /// the description shortcut (Scan it, From Files), Quorum at 2 of 3,
 /// Savings' description from Files, then Seeds with test key 1 matched
 /// to its key and a seed of no test wallet refused, the other two keys
@@ -3067,7 +3067,7 @@ fn type_words(t: &mut Tour, count: Option<usize>) -> Result<(), String> {
 
 /// Costs what `backup_waiting` costs. Does each checklist item before
 /// `target` in the checklist's order, as a person must
-/// (`docs/NEW-WALLET.md` §14.1): a copy by hand is checked by its words
+/// (`docs/history/NEW-WALLET.md` §14.1): a copy by hand is checked by its words
 /// typed back, the envelopes by their Continue.
 fn items_before(c: &Compute, t: &mut Tour, target: u8) -> Result<(), String> {
     use faraday_core::bstep;
@@ -4053,7 +4053,7 @@ fn open_a_vault(t: &mut Tour, phrase: &str) -> Result<(), String> {
 /// here, key 2 with a passphrase, and test key 3 a cosigner, with Paper
 /// and vault and key 2's passphrase in its vault too. On a small panel,
 /// each card's At a glance row and the chart's page. The sheets a press
-/// on the chart opens (`docs/NEW-WALLET.md` §9): the wallet, a key
+/// on the chart opens (`docs/history/NEW-WALLET.md` §9): the wallet, a key
 /// here, a cosigner's key, a place, a vault, a line inside a place;
 /// Where it is; and in the open vault's view, a place's.
 fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
@@ -4254,7 +4254,7 @@ fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
 }
 
 /// Costs what `key_text`, `add_wallet`, `of_now` and the rest it calls
-/// cost. The chart's changes (`docs/NEW-WALLET.md` §9.5–§9.7), on a
+/// cost. The chart's changes (`docs/history/NEW-WALLET.md` §9.5–§9.7), on a
 /// one-key wallet with a vault open and the Paper and vault plan made
 /// with it: the vault's stick moved to Place 1, asked with the check
 /// before and after, and the chart once moved; the words at Place 2
@@ -4496,7 +4496,7 @@ fn vaultway_tour(t: &mut Tour) -> Result<(), String> {
 
 /// Costs what `vault_place`, `backup_items_now` and
 /// `backup_item_done_now` cost. The backup before spending
-/// (`docs/NEW-WALLET.md` §14): a single-key wallet made here, its card
+/// (`docs/history/NEW-WALLET.md` §14): a single-key wallet made here, its card
 /// with Finish the backup first and the receive warning; Places with
 /// Vault 1's stick unticked; the vault item with no vault open, with
 /// one made and open, and saved into; the end of the backup with the
@@ -4605,7 +4605,7 @@ fn themes_tour(t: &mut Tour) -> Result<(), String> {
 }
 
 /// Costs what `psbt_for`, `add_words` and `parse` cost. From the vault
-/// to a spend (`docs/NEW-WALLET.md` §11): the boot stick's vault
+/// to a spend (`docs/history/NEW-WALLET.md` §11): the boot stick's vault
 /// unlocked after the pull lands on Wallets with a toast; a wallet's
 /// card leads with Spend from this wallet, which opens the Spend tab on
 /// Load the wallet in Sparrow with the shortcut; a 2-of-3 with one key
@@ -4897,7 +4897,7 @@ fn dice_key(t: &mut Tour, slot: u8) -> Result<(), String> {
         }
     }
     // The randomness check, shown on the entry card once the last roll
-    // is in (`docs/NEW-WALLET.md` §3.2), before Continue moves on.
+    // is in (`docs/history/NEW-WALLET.md` §3.2), before Continue moves on.
     t.shot("keygen-rolls-done")?;
     t.press(Action::KNext);
     t.shot("keygen-slot-key")?;
@@ -5012,7 +5012,7 @@ fn rolled_words(t: &mut Tour) -> Result<(), String> {
     t.shot("keygen-bitbox-made")?;
     // On its own, New key goes from Key to Words and the Quiz, the key
     // added at Lock in and the Quiz's Done leaving the flow
-    // (`docs/NEW-WALLET.md` §3.4).
+    // (`docs/history/NEW-WALLET.md` §3.4).
     t.press(Action::KStep(kstep::KEY));
     t.shot("keygen-key-own")?;
     t.press(Action::KLock);
@@ -5173,7 +5173,7 @@ fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
 
 /// Costs what `add_words`, `key_text` and `add_wallet` cost. Keys from
 /// a vault on Create's Keys card, and New wallet from this one
-/// (`docs/NEW-WALLET.md` §16): a 2-of-3's Keys with the test vault
+/// (`docs/history/NEW-WALLET.md` §16): a 2-of-3's Keys with the test vault
 /// locked, then unlocked from there with test key 1 offered under its
 /// name; a 2-of-3 over the vault's key, test key 2 here and test key
 /// 3's xpub, its card with New wallet from this one, and Create filled
@@ -5284,7 +5284,7 @@ fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("create-from-keys")?;
     down(t, Action::CSlotClear(2), "create-from-keys-down")?;
     // A fresh single-key wallet: Check's Path, and Change back to Kind's
-    // Account (`docs/NEW-WALLET.md` §17).
+    // Account (`docs/history/NEW-WALLET.md` §17).
     t.press(Action::CreateOver);
     t.press(Action::CNext(cstep::KIND));
     t.press(Action::CVaults(false));

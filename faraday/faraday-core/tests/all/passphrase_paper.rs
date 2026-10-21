@@ -1,5 +1,5 @@
 //! A passphrase the plan keeps on paper is its own checklist item, right
-//! after its seed's copy (`docs/NEW-WALLET.md` §14.7 item 5): typed back
+//! after its seed's copy (`docs/history/NEW-WALLET.md` §14.7 item 5): typed back
 //! with the passphrase hidden and compared whole; the right passphrase
 //! completes it, a wrong one does not. A plan with no passphrase on paper
 //! has no such item.

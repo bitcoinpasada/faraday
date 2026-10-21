@@ -3,7 +3,7 @@
 //! key extends the selection; Backspace then removes what is selected and
 //! a typed character replaces it. In a passphrase's dots, and in New
 //! key's box of rolls, a selection is by position, and the key made is
-//! the one of what is left (`docs/NEW-WALLET.md` §13.2). A wallet's new
+//! the one of what is left (`docs/history/NEW-WALLET.md` §13.2). A wallet's new
 //! name is typed without a stray caret character in it.
 
 use crate::common::type_text;

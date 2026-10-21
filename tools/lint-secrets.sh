@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Secret-hygiene lint for the core crates and the secret state in
-# faraday/ (docs/PLANNING.md §5.3, docs/DECISIONS.md F68).
+# faraday/.
 #
 # Rules, applied to every file under core/*/src/ and to the three files
 # moved from the app that was deleted (MOVED below):

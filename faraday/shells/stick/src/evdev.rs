@@ -302,7 +302,7 @@ pub struct Device {
     pub abs_single: bool,
     /// Part of the machine: the built-in keyboard and touchpad, anything
     /// on a hard-wired USB port, the named touch panel. Any other device's
-    /// input is held back until a person says it is theirs (`PLAN.md`
+    /// input is held back until a person says it is theirs (`docs/history/PLAN.md`
     /// §4.6).
     pub trusted: bool,
     /// A HID touchscreen's axis ranges, from its report descriptor

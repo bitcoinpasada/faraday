@@ -1,6 +1,6 @@
 //! AEZ v5 against the vectors the reference implementation publishes,
 //! vendored under `tools/reference/aezeed/aez-testdata/` with their
-//! digests (`docs/PLANNING.md` §16.116).
+//! digests.
 //!
 //! Four files, four layers: `Extract` turns a key of any length into
 //! the three subkeys, `AEZ-hash` turns the nonce and the associated

@@ -75,7 +75,7 @@ fn a_missing_key_in_an_open_vault_loads_from_the_wallet_card() {
     let mut app = device(vec![kit_file("spending-wallet.txt"), kit_file("vault.ofv")]);
     // Opened from a flow (the vault way), not the Vaults list: it shows
     // what it holds without loading it until asked, as today
-    // (`docs/NEW-WALLET.md` §11.1a).
+    // (`docs/history/NEW-WALLET.md` §11.1a).
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     type_and_unlock(&mut app);
     assert!(app.session.keys.is_empty(), "unlocking loads nothing");
@@ -152,7 +152,7 @@ fn a_vaults_wallets_load_with_their_seeds_in_one_press() {
     let mut app = device(vec![kit_file("vault.ofv")]);
     // Opened from a flow (the vault way), not the Vaults list: nothing
     // loads until `LoadWithKeys` is pressed, as today
-    // (`docs/NEW-WALLET.md` §11.1a).
+    // (`docs/history/NEW-WALLET.md` §11.1a).
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     type_and_unlock(&mut app);
     let together = app.vault_wallets_with_keys(&c, 0);
@@ -173,7 +173,7 @@ fn only_the_chosen_wallets_load_with_their_seeds() {
     let c = testkit::compute();
     let mut app = device(vec![kit_file("vault.ofv")]);
     // Opened from a flow (the vault way), not the Vaults list: nothing
-    // loads until chosen (`docs/NEW-WALLET.md` §11.1a).
+    // loads until chosen (`docs/history/NEW-WALLET.md` §11.1a).
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     type_and_unlock(&mut app);
     let together = app.vault_wallets_with_keys(&c, 0);
@@ -188,7 +188,7 @@ fn only_the_chosen_wallets_load_with_their_seeds() {
 }
 
 // ---------------------------------------------------------------------
-// §3.3 (`docs/SIMPLIFY.md`): Vault contents lists the kinds it holds,
+// §3.3 (`docs/history/SIMPLIFY.md`): Vault contents lists the kinds it holds,
 // then Add….
 // ---------------------------------------------------------------------
 

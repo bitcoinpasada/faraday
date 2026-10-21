@@ -1,4 +1,4 @@
-//! The vault screens (`PLAN.md` §6.1, the prototype's Vaults, Unlock,
+//! The vault screens (`docs/history/PLAN.md` §6.1, the prototype's Vaults, Unlock,
 //! Create a vault and Vault contents): drawing only. What a press does is
 //! `vaults.rs`.
 
@@ -2492,7 +2492,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
 
     // Three columns: kinds, items, the item. A wallet's chart takes the
-    // room the other two give up (`docs/NEW-WALLET.md` §7.2).
+    // room the other two give up (`docs/history/NEW-WALLET.md` §7.2).
     let chart_shown = app
         .vault_selected_index()
         .and_then(|i| v.contents.records.get(i))
@@ -3540,7 +3540,7 @@ fn detail(
             }
         }
         kind::WALLET => {
-            // The wallet's chart the other way up (`docs/NEW-WALLET.md`
+            // The wallet's chart the other way up (`docs/history/NEW-WALLET.md`
             // §7.2): where each seed is kept, its keys, the wallet.
             let up = crate::glance::Direction::BackupFirst;
             if let Some(g) = app
@@ -4320,7 +4320,7 @@ pub(crate) fn lock_ask(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 format!("{} · {}", wallets.len(), wallets.join(", "))
             },
         ),
-        // Make a new wallet ends with this lock (`docs/NEW-WALLET.md`
+        // Make a new wallet ends with this lock (`docs/history/NEW-WALLET.md`
         // §18).
         (
             EN.lock_held_label,
@@ -4458,7 +4458,7 @@ fn reasons_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 /// The Inbox's EFI images, each to sign or check with the selected db key;
 /// or, once one is chosen to sign, its SHA-256 to compare with the build
-/// record before the hold that signs it (`PLAN.md` §8).
+/// record before the hold that signs it (`docs/history/PLAN.md` §8).
 fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
     if let Some(k) = app.vaults.sb_sign
         && let Some(item) = app.inbox.get(k)

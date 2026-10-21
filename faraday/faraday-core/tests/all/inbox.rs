@@ -201,7 +201,7 @@ fn files_restores_a_wallet_from_its_shares() {
 }
 
 // ---------------------------------------------------------------------
-// §4.1 (`docs/SIMPLIFY.md`): the two halves of Files are named by
+// §4.1 (`docs/history/SIMPLIFY.md`): the two halves of Files are named by
 // direction, From the stick and For the stick, wherever a person reads
 // them.
 // ---------------------------------------------------------------------

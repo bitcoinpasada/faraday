@@ -6,7 +6,7 @@
 # is here is the shape of the system: an initramfs, BusyBox, one program,
 # and nothing that could talk to a network or log anyone in.
 
-# Two builders must get the same bytes (PLANNING.md 11.1).
+# Two builders must get the same bytes.
 BR2_REPRODUCIBLE=y
 
 # One compiler cache for every variant, mounted at /ccache. Building a

@@ -1,5 +1,5 @@
 //! The Backups screen and the wallet card's backup line
-//! (`docs/SIMPLIFY.md` §5): every wallet known, its backup map a line per
+//! (`docs/history/SIMPLIFY.md` §5): every wallet known, its backup map a line per
 //! place, each place with what this device saw of it. A paper place
 //! reads checked only once a copy of it was checked here; the vault line
 //! is sealed and names the stick once a visit wrote it; a wallet with no

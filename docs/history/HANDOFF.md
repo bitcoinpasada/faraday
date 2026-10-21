@@ -1,14 +1,13 @@
 # Faraday — handoff
 
 **As of 2026-10-08.** For a session starting cold, human or agent. Read this,
-then `PLAN.md`, then the docs it names.
+then `docs/history/PLAN.md`, then the docs it names.
 
 ## What this is
 
-Faraday is an offline key appliance: a fork of OpenSignerKit /
-OpenSigner that boots from a USB stick on an x86-64 PC (or its card on a
+Faraday is an offline key appliance: a fork of upstream that boots from a USB stick on an x86-64 PC (or its card on a
 Raspberry Pi), runs from RAM, and adds vaults, a Wallets tab, GPG, Secure Boot
-and QR transfer to OpenSigner. It was called openfaraday until
+and QR transfer to upstream. It was called openfaraday until
 2026-10-04, when the owner renamed it Faraday and deprecated Faraday OS,
 an earlier offline desktop project. A first build exists (below).
 
@@ -17,11 +16,11 @@ an earlier offline desktop project. A first build exists (below).
 Two passes since the section below, each specified in its own file and
 built batch by batch, every batch committed with `just` green:
 
-- `docs/SIMPLIFY.md` (§1–§6): Home and Wallets, flows opening on the
+- `docs/history/SIMPLIFY.md` (§1–§6): Home and Wallets, flows opening on the
   first step that needs the person, Create ending in the backup plan,
   vaults remembered across a lock, From the stick / For the stick,
   Backups, Guided by default.
-- `docs/NEW-WALLET.md` (every section, `c065232` to `3be049a`, 2060
+- `docs/history/NEW-WALLET.md` (every section, `c065232` to `3be049a`, 2060
   tests): light theme by default; Create and New key open on step 1;
   New key's randomness check on the entry card and lock-in with an
   optional passphrase; the backup plan's whole sheet first, shares with
@@ -77,7 +76,7 @@ build has it.
 
 Decided 2026-10-08: the Pi image has no USB keyboard, mouse or storage
 and no HDMI; the touch panel is its input and its card its storage
-(`PLAN.md` §3, which now says so).
+(`docs/history/PLAN.md` §3, which now says so).
 
 To build:
 
@@ -91,35 +90,35 @@ kernel console prints over the app, so test sticks are release images.
 
 The owner's standing requests: secrets leave only sealed in a vault
 unless a warning is acknowledged (`docs/FLOWS.md` decision 6, item 27);
-New key's options and cryptography come from OpenSigner, with Faraday's
+New key's options and cryptography come from upstream, with Faraday's
 interface over them (items 24, 29); a ? on every screen opens
-OpenSigner's Learn pages (item 26); `docs/OPENSIGNER-PARITY.md` is the
-plan for the rest of OpenSigner. Of that plan (§3) only signing silent
+Upstream's Learn pages (item 26); the upstream-parity plan is the
+plan for the rest of upstream. Of that plan (§3) only signing silent
 payment outputs is left, which waits on upstream (BIP-375).
 
 ## Where things are
 
 | File | What |
 |---|---|
-| `PLAN.md` | The plan: scope, platforms, trust model and processes, the stick rule and lock cycle, vaults, tabs, GPG, Secure Boot, interface, crates, order of work, decisions, open questions. |
+| `docs/history/PLAN.md` | The plan: scope, platforms, trust model and processes, the stick rule and lock cycle, vaults, tabs, GPG, Secure Boot, interface, crates, order of work, decisions, open questions. |
 | `docs/VAULT.md` | The vault file format: four equal slots, hidden-slot rules, Argon2id cost guidance, record types, write-back. |
-| `docs/QR.md` | Scanner and QR sender requirements: the union of Faraday OS's file transfer and the Wallets tab's scanner, built on OpenSigner's codec. |
+| `docs/QR.md` | Scanner and QR sender requirements: the union of Faraday OS's file transfer and the Wallets tab's scanner, built on upstream's codec. |
 | `docs/FLOWS.md` | Every flow and where it leaves the person; five decisions made to remove dead ends. |
 | `docs/MULTIVENDOR.md` | Proposal: a second, independent implementation of each cryptographic step, and how it would show. Not built. |
 | `docs/MOTION.md` | Smooth scrolling (glide, momentum, rubber band), hover, motion, shadows, frosted sheets, light mode and reduce motion: decisions, measurements, design, what was built (item 49). |
-| `docs/OPENSIGNER-PARITY.md` | Every OpenSigner crate and app feature, whether Faraday has it, and the plan for the rest. |
+| the upstream-parity plan | Every upstream crate and app feature, whether Faraday has it, and the plan for the rest. |
 | `docs/AUDIT.md` | Every crate that computes cryptography, what is written here versus taken from a crate, and what each is checked against. |
 | `docs/FAMILY.md` | The Spend tab: family mode through Faraday's vault, page by page, with its text. |
-| `docs/WALLETS.md` | The Wallets tab: flows on OpenSigner's `osk-*` crates, wallet reassembly, shared steps, per-scheme flows, staying downstream. |
+| `docs/WALLETS.md` | The Wallets tab: flows on upstream's `osk-*` crates, wallet reassembly, shared steps, per-scheme flows, staying downstream. |
 | `design/prototype/project/` | Source of the interface prototype (a Design canvas artifact, `canvas.json` plus one `.dc.html` per screen). Published at https://claude.ai/artifact/Qnw1jLVVWjBzKDNofgjRES (private to the owner). |
 | `faraday/faraday-core/examples/wallet_2of3_demo.rs` | Derives the 2-of-3 the Wallets screens show (the dummy seeds bacon, zebra, summer) and the unsigned spend's txid, with osk-bip. |
-| `docs/PLANNING.md`, `DESIGN.md`, `UX.md`, `FEATURES.md`, `BACKUP.md` | Upstream OpenSigner's own documents, unchanged. |
+| `PLANNING.md`, `DESIGN.md`, `UX.md`, `FEATURES.md`, `BACKUP.md` | Upstream's own documents, unchanged. |
 | `CLAUDE.md` | Upstream's working rules. They apply here: agents do not commit; use `trash`, not `rm`; `just` is the check. |
 
 ## Git state
 
 - The repository was restarted with fresh history (origin is
-  `bitcoinpasada/faraday`); upstream `maxmoney21m/opensignerkit` is the
+  `bitcoinpasada/faraday`); upstream is the
   remote `upstream` again (re-added 2026-10-07), with no shared history.
   Upstream files are synced by applying `git diff <last> upstream/main`
   (`git apply --3way`, then `git reset` to leave the index alone; pass
@@ -127,7 +126,7 @@ payment outputs is left, which waits on upstream (BIP-375).
   synced to `d26b84e` (§16.141, MuSig2 nonce hardening from Faraday's
   audit) on 2026-10-10, without upstream's `CLAUDE.md` change; before
   that `96e2144` (§16.140), `fa1ae03` (§16.139) and `c418768`.
-  `docs/PLANNING.md` is upstream's copy, unedited; Faraday's decisions
+  `PLANNING.md` is upstream's copy, unedited; Faraday's decisions
   are `docs/DECISIONS.md` (F1 onward). `CLAUDE.md` is Faraday's own:
   upstream changes to it are merged by hand (at `d26b84e`, its rewording
   taken; its release rule and `osk-implementer` routing not).
@@ -136,11 +135,11 @@ payment outputs is left, which waits on upstream (BIP-375).
 
 ## Upstream
 
-Since 2026-10-20 Faraday maintains `core/` and `opensigner/` itself, a
-soft fork (F65); `docs/UPSTREAM.md` is the record of the fork point and
+Since 2026-10-20 Faraday maintains `core/` and `upstream/` itself, a
+soft fork (F65); `UPSTREAM.md` is the record of the fork point and
 every change. What follows is the history before that.
 
-The OpenSigner developer made §16.138 for forks like this one: code that
+The upstream developer made §16.138 for forks like this one: code that
 defines bytes or answers a question without a screen lives in `core/`
 crates. New since the design started: `osk-backup` (the `.oskb` format, the
 KDBX writer, Argon2id `Cost`), `osk-keep` (the kept-key blob), and moves
@@ -171,7 +170,7 @@ is dropped here when upstream has it):
   it take a signing context. `silent.rs`'s two ECDH steps go through
   `secp256k1::ecdh`. `osk-psbt`'s `sign_threshold` blinds its context
   from the seed, and `inspect.rs` checks a carried nonce in a signing
-  context. Callers changed with it: `opensigner-core`'s `load.rs` and
+  context. Callers changed with it: `the upstream app`'s `load.rs` and
   `threshold.rs`, `core/osk-bip/tests/frost.rs` and `threshold.rs`.
   No result changes: the BIP-327, FROST and BIP-352 vectors pass as
   they were.
@@ -180,7 +179,7 @@ is dropped here when upstream has it):
   eight-bit greyscale PNG, beside `qr_png`, with `tests/png.rs`), and
   `core/osk-ui`'s `Icon::SdCard` and `Icon::Add` (their place in
   `Icon::ALL`, the `tools/fontbake` entries, the rebaked `icon.outl`).
-  Both only add. OpenSigner's Learn page on backups no longer differs:
+  Both only add. Upstream's Learn page on backups no longer differs:
   its four sections about Faraday's plan check are Faraday's own page,
   `docs/learn/faraday/backup-plan-check.md`.
 - `docs/learn/06-where-randomness.md` and `osk-learn`'s `en.rs`: one
@@ -204,10 +203,10 @@ is dropped here when upstream has it):
 
 ## Decisions so far (all in the docs)
 
-- Trust model kept from OpenSigner; since F65 Faraday changes `core/` and
-  `opensigner/` itself (`docs/UPSTREAM.md` lists each change, none loosens
+- Trust model kept from upstream; since F65 Faraday changes `core/` and
+  `upstream/` itself (`UPSTREAM.md` lists each change, none loosens
   a check); variants of upstream parts are copies under `faraday/`; `faraday-core` names
-  OpenSigner's `osk-*` types directly, with no separate adapter crate.
+  upstream's `osk-*` types directly, with no separate adapter crate.
 - USB "option B": no filesystem in the kernel; a `CAP_CHOWN`-only helper
   hands USB/SD partitions (never whole disks, never `OSKBOOT`) to an
   unprivileged FAT16/FAT32 process; at runtime the only root processes are
@@ -224,13 +223,13 @@ is dropped here when upstream has it):
   names, write-back replaces.
 - QR: PNG/JPEG decoded only in the disk process; BBQr `Z` read, never
   written.
-- Wallets tab beside the OpenSigner tab (which stays until the Wallets tab is robust);
+- Wallets tab beside the upstream tab (which stays until the Wallets tab is robust);
   Windows-compatible Secure Boot policy; step-card forms on `wide`, pages
   on `small`; Faraday OS's palette, Inter and JetBrains Mono.
 
 ## Open questions
 
-`PLAN.md` §13: whether the Pi Zero 2 W is worth it. (Which Pis is
+`docs/history/PLAN.md` §13: whether the Pi Zero 2 W is worth it. (Which Pis is
 decided: the Pi 3 with its panel, no HDMI, no USB input or storage.)
 Create a vault's unlock-cost choices (`faraday-core/src/vaults.rs`) still
 list the Pi 5, 4 and Zero 2 W as places a vault may be opened; whether
@@ -267,7 +266,7 @@ DOCKER=podman; just faraday-stick-image`), which the recipes and
   (`Faraday::storage` / `poll_storage`).
 - `faraday/faraday-storage`: sticks as directories; read; write with
   read-back; Inbox and Outbox across a lock; PDFs on an online shell.
-- `faraday/shells/stick`: copy of `opensigner/shells/pi` at c418768,
+- `faraday/shells/stick`: copy of `upstream/shells/pi` at c418768,
   patched: sticks from `/proc/mounts`, `/run/faraday`, exit 75 on lock,
   HiDPI guess. `faraday/image/` overlays upstream's image tree (inittab
   app loop, `init_on_free=1 init_on_alloc=1`).
@@ -288,7 +287,7 @@ DOCKER=podman; just faraday-stick-image`), which the recipes and
 
 The auto-continue job reads this list and takes the first item not
 marked done. Owner's direction (2026-10-04): wallet-reassembly flows across
-every scheme OpenSigner signs for, with plain written guidance for each
+every scheme upstream signs for, with plain written guidance for each
 flow; always build the USB image as well as the Linux test app; get as far
 as possible before the next build.
 
@@ -309,7 +308,7 @@ as possible before the next build.
    (which path, its timelock, whether the inputs have aged enough, from
    the PSBT's sequences), and test kits for a recovery-path spend.
 3c. [x] The Wallets start page (owner: "users can get into any flow
-   OpenSigner supports"): "What are you holding?" as the tab's
+   upstream supports"): "What are you holding?" as the tab's
    first screen, every flow one press away, grouped by what the person
    has (a PSBT, a wallet description, a seed, nothing yet) and what they
    want (sign, create, back up, restore, check, message). Every flow is
@@ -322,7 +321,7 @@ as possible before the next build.
    shown in Guided and hidden in Full (`docs/WALLETS.md` §6). Plain,
    specific sentences.
 5. [x] Messages: sign (BIP-322, BIP-137) and check a signed message (step cards; the test stick carries a signed message).
-6. [x] MuSig2 and FROST. MuSig2: the Nonces step, signing last or first with the session kept until lock, partials collected and aggregated; the test stick carries each round's copies. FROST (`docs/PLANNING.md` §16.103, upstream's `osk-bip::frost`, `osk-psbt::threshold`): a 24-word key is a share wherever a loaded record lists its public share; Create › Threshold · FROST deals from chosen loaded keys (up to five shares), loads the computed shares so the backup can copy their words, and the record goes out with the descriptor; a spend's first location chooses the other shares under Signers, signs, and puts the carry file (`.osk`) in the Outbox; the next location opens it from Files, signs, and finishes. The test stick carries the Threshold record (test keys 1 and 2 are shares 1 and 2), its spend and test key 1's carry file.
+6. [x] MuSig2 and FROST. MuSig2: the Nonces step, signing last or first with the session kept until lock, partials collected and aggregated; the test stick carries each round's copies. FROST (`PLANNING.md` §16.103, upstream's `osk-bip::frost`, `osk-psbt::threshold`): a 24-word key is a share wherever a loaded record lists its public share; Create › Threshold · FROST deals from chosen loaded keys (up to five shares), loads the computed shares so the backup can copy their words, and the record goes out with the descriptor; a spend's first location chooses the other shares under Signers, signs, and puts the carry file (`.osk`) in the Outbox; the next location opens it from Files, signs, and finishes. The test stick carries the Threshold record (test keys 1 and 2 are shares 1 and 2), its spend and test key 1's carry file.
 7. [x] Creating a wallet and its backup (backup — blank template, seeds by hand with the SeedQR grid and Check my copy, descriptor QR, descriptor, wallet .json (Specter's form, which Sparrow imports) and multisig config files, split shares, envelope, PDFs on the desktop app; creating — every single-key and multisig kind, keys here, new keys, cosigner account keys from files, a slot left for a cosigner's key to come (the creation waits under Nothing yet), each key held here out as a file or QR; naming — Rename on the wallet card, a .json's label; restoring — from a descriptor, a multisig config, a wallet .json, or any quorum of split shares, then the seeds typed back with the slot check; a SeedQR or CompactSeedQR scanned into Add a key; PNG QR codes on a stick read into Files, JPEG not read: it needs a decoder crate, the owner's call) (`docs/WALLETS.md` §5;
    "Backing up: two parts, kept differently"), as step
    cards like Create vault:
@@ -393,7 +392,7 @@ as possible before the next build.
 13. [x] Build with the vaults (2026-10-05 07:26): `just faraday-stick-image`,
     `just faraday-linux-bin`, `just faraday-snapshots`, qemu-check.
 
-14. [x] GPG (`PLAN.md` §7), 2026-10-05: `faraday/faraday-pgp` writes v4
+14. [x] GPG (`docs/history/PLAN.md` §7), 2026-10-05: `faraday/faraday-pgp` writes v4
     packets for an Ed25519 certification key with an Ed25519 signing
     subkey (self-signatures, the subkey's back-signature, detached
     signatures over SHA-256/512, revocation, armour, paperkey lines).
@@ -406,7 +405,7 @@ as possible before the next build.
     key is a type-7 record. The shells report the system clock
     (`StorageEvent::Clock`) for creation times. New dependencies
     `ed25519-dalek` 3 and `sha1` 0.11, notes in `docs/deps/`.
-15. [x] Secure Boot (`PLAN.md` §8), 2026-10-05: `faraday/faraday-sb` makes
+15. [x] Secure Boot (`docs/history/PLAN.md` §8), 2026-10-05: `faraday/faraday-sb` makes
     PK, KEK and db as RSA-2048 keys with self-signed certificates and an
     owner GUID, signature lists and `.auth` updates (PK by PK, KEK by PK,
     db by KEK) under the Windows-compatible policy (Microsoft KEK CA 2011,
@@ -420,7 +419,7 @@ as possible before the next build.
     Type-8 record. New dependencies `rsa` 0.10.0-rc.18 (pinned) and
     `rand_core` 0.10, notes in `docs/deps/`. Not done: the OVMF test that
     enrols the keys, boots a signed image and refuses an altered one
-    (`PLAN.md` §8 Test), and a build record to compare the image hash with
+    (`docs/history/PLAN.md` §8 Test), and a build record to compare the image hash with
     (the screen asks the person to compare it). The tests that call
     outside tools find them on PATH or as `FARADAY_PAPERKEY`,
     `FARADAY_SBVERIFY`, `FARADAY_EFI`; this session used `apt download
@@ -496,7 +495,7 @@ as possible before the next build.
 18. [x] Desktop app built after item 17 (2026-10-05): `out/linux/faraday`,
     sha256 `550ea193…`. No stick image (owner's instruction).
 
-19. [x] Idle timers (`PLAN.md` §12.3), 2026-10-05: lock after 5 minutes
+19. [x] Idle timers (`docs/history/PLAN.md` §12.3), 2026-10-05: lock after 5 minutes
     without input (touch, key, scroll), when a key, vault, wallet or spend
     would be wiped; power off after 10 minutes, counted across that lock
     (the locking process keeps its idle time in the `idle` kept entry),
@@ -507,7 +506,7 @@ as possible before the next build.
     10/30/60 min or Never, kept with the settings. Tests:
     `faraday-core/tests/idle.rs`.
 
-20. [x] The disk process (`PLAN.md` §4.3), 2026-10-05. Crates:
+20. [x] The disk process (`docs/history/PLAN.md` §4.3), 2026-10-05. Crates:
     `faraday-fat` (FAT16/32, root directory only; FAT32 known from the
     boot sector as Linux knows it, so mtools' small FAT32 sticks read;
     judged by mkfs.fat, fsck.fat and mtools via `FARADAY_FATTOOLS`, plus
@@ -529,7 +528,7 @@ as possible before the next build.
     Found on the way: `eprintln!` panics once rcS's console is gone (the
     helpers use a `say!` that never panics); kmsg rate-limits userspace.
     Open:
-    - Decided (owner, 2026-10-05; `PLAN.md` §12 decision 8): no seccomp
+    - Decided (owner, 2026-10-05; `docs/history/PLAN.md` §12 decision 8): no seccomp
       filter, no NET, no Landlock. The grant helper decides from `/sys`
       alone (GPT name `OSKBOOT`, or the Pi card's `mmcblk0p1`) and reads
       nothing from a stick; the disk process refuses a FAT labelled
@@ -537,7 +536,7 @@ as possible before the next build.
     - JPEG QR decided against (owner, 2026-10-05): PNG only.
     - The release stick image has not been rebuilt with this.
 
-21. [x] USB devices and new input (`PLAN.md` §4.6), 2026-10-05.
+21. [x] USB devices and new input (`docs/history/PLAN.md` §4.6), 2026-10-05.
     Layer 1: `USB_PRINTER`, `USB_MON`, `USB_SERIAL`, `USB_ACM` forbidden.
     Layer 2: `usbcore.authorized_default=2`; rcS sets every root hub's
     `interface_authorized_default` to 0; `faraday-grant` authorises other
@@ -586,20 +585,20 @@ as possible before the next build.
 24. [x] New key, 2026-10-05 (`faraday-core/src/keygen.rs`,
     `keygen_screen.rs`, `tests/keygen.rs`): a five-card flow (Length,
     Randomness, Entries, Check, Words) opened from a Create slot's New key
-    and from Add a key's Make a new key. The options come from OpenSigner
-    itself, not a copy: `opensigner_core::create::{SOURCE_ROWS,
-    MIX_SOURCES}`, `load::COUNTS` (12, 24, 15, 18, 21) and OpenSigner's
+    and from Add a key's Make a new key. The options come from upstream
+    itself, not a copy: `upstream::create::{SOURCE_ROWS,
+    MIX_SOURCES}`, `load::COUNTS` (12, 24, 15, 18, 21) and upstream's
     strings for every source and procedure name; every cryptographic step
-    is `osk-entropy`'s and `osk-bip`'s, as OpenSigner's own wizard calls
+    is `osk-entropy`'s and `osk-bip`'s, as upstream's own wizard calls
     them (dice under the three procedures with the BitBox last-word choice,
     coins, cards, hex, camera noise, a mix of two or more, this device's
     generator). Sources the person makes are listed first as recommended;
-    this device's generator carries OpenSigner's "trusts this device" and
+    this device's generator carries upstream's "trusts this device" and
     "Trust: this device's software · Not checkable". The device source asks
     the shell for 32 fresh bytes (`RequestEntropy`) when its card opens,
     and the bytes go to the key alone. The old New key (the session's
     bytes hashed with a counter, always 24 words, no choice) is gone.
-    `faraday-core` now depends on `opensigner-core` for those lists and
+    `faraday-core` now depends on `the upstream app` for those lists and
     strings, which `docs/WALLETS.md` rule 5 would have moved into `core/`;
     the ask upstream is to move `SOURCE_ROWS`, `MIX_SOURCES` and `COUNTS`
     into `osk-entropy`. Still drawn from the session's bytes and a counter:
@@ -613,8 +612,8 @@ as possible before the next build.
     over the app.
 
 26. [x] Learn on every screen, 2026-10-06 (`faraday-core/src/learn.rs`,
-    `tests/learn.rs`): a ? at the top right opens OpenSigner's own Learn
-    pages for the screen, read from `opensigner_core::strings::EN` (no
+    `tests/learn.rs`): a ? at the top right opens upstream's own Learn
+    pages for the screen, read from `upstream::strings::EN` (no
     copy), by wallet kind on the wallet, Spend and Create screens; tabs
     for each page, scrolled by wheel or arrow keys.
 27. [x] Public and secret exports, 2026-10-06 (`faraday-core/src/
@@ -629,12 +628,12 @@ as possible before the next build.
     vault once used. Create's cards after Check: Secrets into a vault,
     Public files (each to the Outbox, with key files and the descriptor
     QR), Paper backup.
-28. [x] `docs/OPENSIGNER-PARITY.md`, 2026-10-06: every OpenSigner crate and
+28. [x] the upstream-parity plan, 2026-10-06: every upstream crate and
     app feature, whether Faraday has it, and the plan for the rest.
 
-29. [x] 2026-10-06: New key's Quiz card (OpenSigner's `Quiz`, every word
+29. [x] 2026-10-06: New key's Quiz card (Upstream's `Quiz`, every word
     from four, skip asks twice); BIP-85 (`faraday-core/src/bip85.rs`,
-    `bip85_screen.rs`, `tests/bip85.rs`: OpenSigner's six applications,
+    `bip85_screen.rs`, `tests/bip85.rs`: Upstream's six applications,
     child words load as a key, passwords into the vault as entries, other
     values as notes, out only through the secret sheet); fresh shell bytes
     for vault, GPG and Secure Boot keys (`fresh.rs`); Create's Keys row
@@ -661,7 +660,7 @@ as possible before the next build.
     for KeePass as a sealed KDBX 4 file (`tests/kdbx.rs`).
 
 33. [x] 2026-10-06: Tools (`tools.rs`, `tools_screen.rs`, `tests/tools.rs`):
-    OpenSigner's six calculators with Faraday's screen.
+    upstream's six calculators with Faraday's screen.
 
 34. [x] 2026-10-06: other paper forms in the backup's seeds step
     (`paper.rs`, `tests/paper.rs`): a held key's words as 2 or 3 Seed XOR
@@ -683,7 +682,7 @@ as possible before the next build.
       desktop), listed as "PDF to print"; the tour writes both beside its
       shots.
     - **The scanner.** `faraday/faraday-scanner` is a copy of
-      `opensigner/shells/scanner` at c418768 that also reports what each
+      `upstream/shells/scanner` at c418768 that also reports what each
       pass saw; the stick and desktop shells use it. The scan sheet
       outlines the code found (green once read, amber while not), says
       "Too fine for this camera" after three passes of a code under 2.5
@@ -752,7 +751,7 @@ as possible before the next build.
       "Remove the stick" banner names how many are waiting
       (`visit.load_after`, `sticks_changed`). Tests: `tests/import.rs`.
     - **Vault file format, discussed with the owner (2026-10-06): kept
-      `.ofv`.** It already reuses OpenSigner's own Argon2id and
+      `.ofv`.** It already reuses upstream's own Argon2id and
       XChaCha20-Poly1305 (`osk-backup`'s `Cost`); the only custom part is
       the four-equal-slot container, which exists so a locked vault does
       not say how many passphrases it has — a property KDBX, a
@@ -760,7 +759,7 @@ as possible before the next build.
       answers "not locked into Faraday". No code changed.
     - **Create vault's Passphrases step: the dice tool was long-list-only,
       with no strength guidance and no way to see what was typed.** Now
-      offers all three EFF lists (`osk_bip::diceware::List::ALL`, OpenSigner's
+      offers all three EFF lists (`osk_bip::diceware::List::ALL`, upstream's
       own `dice_list_*` strings), rolls and bits scale to whichever list is
       chosen, switching lists clears rolls already thrown (`vaults.dice`
       is now `(usize, TextBox, List)`), the live count turns green at 77
@@ -946,8 +945,8 @@ as possible before the next build.
     - Parity C4: vanity addresses, a tile on the Wallets page
       (`vanity.rs`, `vanity_screen.rs`, `tests/vanity.rs`, the snapshot
       tour's `spend` mode ends with one).
-    - A message for the OpenSigner developer listing what Faraday still
-      takes from `opensigner-core` was given to the owner to send.
+    - A message for the upstream developer listing what Faraday still
+      takes from `the upstream app` was given to the owner to send.
 
 44. [x] 2026-10-06, the owner's notes from testing on the test laptop:
     1. Vaults after Create a vault offered "Open it now" / "Leave it
@@ -993,7 +992,7 @@ as possible before the next build.
     `files-outbox-vault-open`. Not built.
 
 45. [x] 2026-10-06, owner: "no trace left for a malicious stick". Audit
-    of what a lock wipes and keeps is `PLAN.md` §5.3.
+    of what a lock wipes and keeps is `docs/history/PLAN.md` §5.3.
     - Lock drops secret-bearing files from the Inbox before the boxes
       are saved for the next process: seed words files, FROST carry
       files, entries files and every plain text file (wider than first
@@ -1015,7 +1014,7 @@ as possible before the next build.
     1. Idle: warning sheet with countdown at 5 min (`Sheet::IdleWarn`,
        what the lock wipes, seals, keeps, then power-off), lock at 10,
        power off at 20 counted across the lock with a countdown on the
-       Locked sheet; Settings offers 20. `PLAN.md` §12 decision 3,
+       Locked sheet; Settings offers 20. `docs/history/PLAN.md` §12 decision 3,
        `tests/idle.rs`.
     2. Selecting a field: a second click on a text field, or a drag
        across it, selects all of it; Backspace empties it, a character
@@ -1050,7 +1049,7 @@ as possible before the next build.
         several, Load wallet with keys / Load N wallets with keys
         (`VaultAction::LoadWithKeys`, `vault_wallets_with_keys`); the
         one-by-one list folds behind Each seed and wallet.
-    11. Finish ends with the nonce check (`Session::nonce_check`: OpenSigner's
+    11. Finish ends with the nonce check (`Session::nonce_check`: Upstream's
         `verify_signatures`, `deterministic`, `repeated_nonces`; each
         signature valid or not, recomputed when made here, "signed
         elsewhere" otherwise, a repeated nonce called out), Show the raw
@@ -1066,14 +1065,14 @@ as possible before the next build.
         A `tr(NUMS, sortedmulti_a)` wallet's addresses commit to an
         unspendable internal key, so no key-path signature can spend
         them. It needs a new wallet shape, `tr(musig(all),
-        sortedmulti_a(k, …))`, which OpenSigner's policies do not have
+        sortedmulti_a(k, …))`, which upstream's policies do not have
         (only `tr(musig(…))`, all of n); an upstream ask, then a Create
         kind. Waiting on the owner.
 
 47. [x] 2026-10-06, owner:
     - `docs/MULTIVENDOR.md`: the proposal to compute each cryptographic
       result twice (a second, independent implementation), with what
-      OpenSigner is made of, candidates, what can be checked, where it
+      upstream is made of, candidates, what can be checked, where it
       runs, costs and a staged recommendation. Not built; to discuss.
     - Shared keys: one seed in several wallets fills its place in each,
       loads once, survives removing one wallet, and signs for whichever
@@ -1116,7 +1115,7 @@ as possible before the next build.
     - New key as SLIP-39 shares (`KeyGen::slip39`, `deal`): 20 or 33
       words, m of n in one group, extendable, iteration exponent 1, the
       split's randomness one fresh system draw stretched with SHA-256;
-      each share shown, then quizzed (OpenSigner's quiz over the SLIP-39
+      each share shown, then quizzed (Upstream's quiz over the SLIP-39
       list); the key loads from the master secret. The Length card lists
       what shares reveal (`SLIP39_FACTS`). Also from Tools. `tests/keygen_slip39.rs`.
     - Tools (`catalog.rs`, `Screen::Catalog`, in the sidebar): every flow
@@ -1176,9 +1175,9 @@ as possible before the next build.
     `osk_learn::EN`, and the Tools calculators from `osk_bip`,
     `osk_codec`; BitBox's last word is upstream's (item 50).
     Add a key offers all ten BIP-39 lists: Japanese, Korean and both
-    Chinese lists are typed on OpenSigner's kana, jamo, pinyin and 注音
+    Chinese lists are typed on upstream's kana, jamo, pinyin and 注音
     keyboards (`osk_ui::widgets::keyboard`), drawn by Faraday, through
-    OpenSigner's own word entry (`opensigner_core::load::LoadWizard`,
+    upstream's own word entry (`upstream::load::LoadWizard`,
     `forms::word_typer`): keys that lead to no word are off, the words
     the keys can be are pills, a press takes one. Pinyin also takes the
     computer's keyboard (letters, then the tone 1 to 5). The keys shrink
@@ -1187,7 +1186,7 @@ as possible before the next build.
 53. [x] 2026-10-07, owner: the start-up self-test (`osk_selftest`, the
     eight checks: BIP-39 English and Japanese, BIP-32, a BIP-84 address,
     ECDSA, BIP-340, scrypt, Argon2id) runs when the display first
-    arrives, before any input, as OpenSigner runs it. No key is
+    arrives, before any input, as upstream runs it. No key is
     accepted until it has passed (`Faraday::may_load_keys`, and New
     key's add). A failure replaces every screen with one naming the
     check, whose only control is Exit; every other press and key does
@@ -1204,7 +1203,7 @@ as possible before the next build.
     key, the `sp1…` address and the labels handed out, and opens its
     page, the Silent payments flow, where a label shown is a label
     handed out on the record. A new card, Check a payment, reads a
-    transaction from Files (raw or a finalized PSBT, OpenSigner's
+    transaction from Files (raw or a finalized PSBT, upstream's
     `silent::Check`), takes the transactions it spends from out of Files,
     and names the outputs that pay the wallet, to the address or a
     label, or says none does, or that it is unsigned, or that its key is
@@ -1212,7 +1211,7 @@ as possible before the next build.
     the key. Sending is not built. `tests/silent.rs`.
 
 55. [x] 2026-10-07, owner: the Secure Boot test in real firmware,
-    `faraday/tools/sb-ovmf-check.py` (`just faraday-sb-ovmf`, PLAN.md §8):
+    `faraday/tools/sb-ovmf-check.py` (`just faraday-sb-ovmf`, docs/history/PLAN.md §8):
     `faraday-sb` makes test keys from a fixed seed and signs systemd-boot
     with the db key (`faraday-sb/examples/ovmf_kit.rs`); OVMF in QEMU,
     in Setup Mode, takes the `.auth` updates (systemd-boot's
@@ -1246,7 +1245,7 @@ as possible before the next build.
     `tests/appearance.rs`.
 
 58. [x] 2026-10-07, owner: the boot logo shows two marks again:
-    Faraday's on the left, OpenSigner's key (upstream's `mark.txt`) on the
+    Faraday's on the left, upstream's key (upstream's `mark.txt`) on the
     right, each over its name (`faraday/image/overlay/common/make-logo.py`).
     Faraday's mark is the owner's choice D, the keyhole shield, in blue
     (`faraday-mark.txt`; the other candidates and the sheet the owner chose
@@ -1301,10 +1300,10 @@ as possible before the next build.
       small panel (`KeyGen::typing`), typed on desktop.
     - Wallets start page as one column of rows; a wallet's card is its
       own page (`compact_screens::wallet_card`), silent wallets too.
-    - Add a key: every list (English too) on OpenSigner's word keyboard;
+    - Add a key: every list (English too) on upstream's word keyboard;
       space, Tab, Enter and Add key take a word typed whole on a USB
       keyboard (`forms::take_typed`); a scanned SeedQR still adds.
-    - Docked keyboard: OpenSigner's `KeyboardKind::Passphrase` (Path on
+    - Docked keyboard: Upstream's `KeyboardKind::Passphrase` (Path on
       Explore) at the panel's foot whenever a focused field takes typing
       (vault passphrases, BIP-39 passphrase, rename, message, SLIP-39/
       codex32, vanity prefix, the potential sheet); offered from the bar
@@ -1472,7 +1471,7 @@ as possible before the next build.
     11. Vaults are named in Create's last step, now "Name and
         passphrases"; the file is `vaults::vault_stem` + `.ofv`,
         numbered when taken, `vault.ofv` when left empty (`docs/VAULT.md`
-        §6, `PLAN.md` §12.1 reversed). `tests/vault_name.rs`.
+        §6, `docs/history/PLAN.md` §12.1 reversed). `tests/vault_name.rs`.
     12. A vault in the Outbox is no longer offered as a QR code (no vault
         fits the envelope's 256 KiB; `qr_fits`), so the "Cannot make a
         code" toast is gone.
@@ -1490,7 +1489,7 @@ as possible before the next build.
 
 62. [x] 2026-10-07, owner: **settings on the stick.** Settings survive a
     lock (the `kept` set in `/run/faraday`, `memory.rs` `kept` and
-    `restore_kept`) but not a power-off; `PLAN.md` §5.2 lists settings
+    `restore_kept`) but not a power-off; `docs/history/PLAN.md` §5.2 lists settings
     in the Outbox and nothing writes them. Build that.
     1. **The file.** `faraday-settings.txt` on a stick's data partition,
        plain text, because the theme and scale are wanted on the
@@ -1512,7 +1511,7 @@ as possible before the next build.
        that brings the boot stick's `.ofv` files into the Inbox
        (`lib.rs`, "The boot stick's vaults come into the Inbox by
        themselves"), and applied before the passphrase prompt. The file
-       is untrusted input (`PLAN.md` §4.4 gains a line): over 4 KiB or
+       is untrusted input (`docs/history/PLAN.md` §4.4 gains a line): over 4 KiB or
        a first line other than `faraday-settings 1` and it is ignored
        whole; otherwise each line is taken only if its key is known and
        its value is one Settings itself offers (`scale` 50 to 300,
@@ -1532,7 +1531,7 @@ as possible before the next build.
        renamed over the old one.
     5. Desktop shell: the same, with the test stick's folder as the
        boot stick. The test kit writes no settings file.
-    6. Docs: `PLAN.md` §5.2 (settings are this file, not an Outbox
+    6. Docs: `docs/history/PLAN.md` §5.2 (settings are this file, not an Outbox
        item) and §4.4, `docs/FLOWS.md`'s Settings line and the stick
        visit, and the README's "Stateless" list once built (it now says
        settings are lost at power-off).
@@ -1562,7 +1561,7 @@ as possible before the next build.
     `out/pi/x86_64-uefi-efi-framebuffer/output/build/linux-custom/.config`)
     against the Kernel Self Protection Project's list. The findings, with
     a reason for each option, were written up for upstream.
-    **The owner gave that file to the OpenSigner developer** and is
+    **The owner gave that file to the upstream developer** and is
     waiting for upstream's changes. Most of it is upstream's x86 fragment,
     which Faraday's is a copy of.
     - **Order.** When upstream's changes land, merge them (`git log
@@ -1608,7 +1607,7 @@ as possible before the next build.
          `kernel.kptr_restrict=2`; mount `/proc` with
          `hidepid=invisible`; mount `/proc`, `/sys` and `/run` with
          `nosuid,nodev,noexec`, and `/dev` with `nosuid,noexec`.
-    - **Tests:** the existing QEMU checks (`tools/stick-qemu.py`,
+    - **Tests:** the existing QEMU checks (`faraday/tools/stick-qemu.py`,
       `disk-test.py`, `sb-ovmf-check.py`) and one boot on the test laptop
       (keyboard, touchpad, webcam, stick, power-off). The Pi boards'
       `.config` gets the same audit at their first build.
@@ -1622,7 +1621,7 @@ as possible before the next build.
       kernel sees is USB (and the Pi's card), and that nothing but the
       listed USB classes has a driver (`VIRTIO_BLK`, `BLK_DEV_SR`).
     - **Progress (2026-10-07, late session).** Upstream took most of this
-      as §16.140 (`96e2144`; read `docs/PLANNING.md` §16.140 for what it
+      as §16.140 (`96e2144`; read `PLANNING.md` §16.140 for what it
       took, what it corrected in the note, and what it left).
       1. Done: upstream synced to `96e2144` (Git state).
       2. Done: carried into Faraday's copies. Upstream's x86 board
@@ -1654,7 +1653,7 @@ as possible before the next build.
          tree has: no keyboard layout setting, no QR transfer tab, no
          `tools/build/linux` (so `just faraday-linux-bin` does not run),
          and no shared history with upstream.
-    - Found while drafting the README, fixed 2026-10-08: `PLAN.md` §4.1
+    - Found while drafting the README, fixed 2026-10-08: `docs/history/PLAN.md` §4.1
       now names all three root processes (init, the app loop's shell in
       `inittab`, the disk process's restart loop in `rcS`; none reads
       input), and §3 now matches `boards/pi3/kernel.forbidden`: the
@@ -1691,7 +1690,7 @@ as possible before the next build.
        and exits for `poweroff -f`, from any screen; an unbelieved
        keyboard's chord is held back like its keys. Super never types.
        Shown beside Power off in Settings (device only), and in the
-       README and `PLAN.md` §5.3.
+       README and `docs/history/PLAN.md` §5.3.
     6. Zeroize audit. Found and fixed: typed secrets (`EntryState`'s
        words and passphrase, `TextBox`, Tools, Lightning, the backup
        check, New key's entries, the potential-wallet passphrase) were
@@ -1717,7 +1716,7 @@ as possible before the next build.
        upstream and apart from the interface, and why); panic key,
        desktop warning, touchscreen, disk-process wiping.
     The Pi HDMI / USB keyboard / USB storage question: decided
-    2026-10-08, none of them (`PLAN.md` §3); the Pi board stays as built.
+    2026-10-08, none of them (`docs/history/PLAN.md` §3); the Pi board stays as built.
 65. [x] 2026-10-08, owner's batch (Add a key, stick popup, seeds-first restore):
     1. Add a key moves on to the next word once the letters typed spell
        a word and no other word on the list starts with them, by the
@@ -2028,7 +2027,7 @@ as possible before the next build.
     the stick and the project stay Faraday. Downloads
     `Faraday-Starter-X.Y.Z-Linux.tar.gz` / `-Windows.exe`. **Strings**:
     Faraday's strings live in `faraday/faraday-core/src/strings/en.rs`,
-    never in OpenSigner's file, which is again identical to upstream's
+    never in upstream's file, which is again identical to upstream's
     (2a355c3, 810271d; CLAUDE.md's rule changed); the lint scans
     Faraday's screens. **F14**: maker pages several families at once,
     none naming a model. **Device checks** (STARTER §3.1a, 766fc36): warn only
@@ -2078,7 +2077,7 @@ as possible before the next build.
     no prompt; Uninstall while suspended offered Resume with Secure Boot
     on and gave Control Panel's line with it off, removing the marker
     and the Run value and leaving the suspension as said. The first
-    check of `docs/BITLOCKER-ACCEPTANCE.md` passed too: the shell reads
+    check of `docs/history/BITLOCKER-ACCEPTANCE.md` passed too: the shell reads
     `Some(1)` protected and `Some(5)` suspended, and `GetSuspendCount`
     answers 0 (until resumed); the two recordings are in
     `faraday/shells/starter/tests/windows/vm-on.wmi` and `vm-suspended.wmi`
@@ -2716,11 +2715,11 @@ as possible before the next build.
 
     1. **A crate, `faraday/shells/mediafoundation`
        (`faraday-mediafoundation`)**, the Windows twin of
-       `opensigner/shells/avfoundation`: the same public API (`Camera`,
+       `upstream/shells/avfoundation`: the same public API (`Camera`,
        `Frame`, `Message`, the same calls and frame shape: 8-bit luma
        plus NV12-order chroma, at most 800 px wide, `MAX_FPS` 10), one
        small C file `src/camera.c` behind a C ABI of a few functions,
-       as `docs/PLANNING.md` §16.33 planned ("Media Foundation, the
+       as `PLANNING.md` §16.33 planned ("Media Foundation, the
        same one-small-file pattern"). The C file: `MFStartup`;
        `MFEnumDeviceSources` for video capture devices; the first, or
        the one chosen by its symbolic link; an `IMFSourceReader` with
@@ -2823,7 +2822,7 @@ as possible before the next build.
     L1–L6 are §20.8 (2026-10-19).
 
 80. [x] 2026-10-16, owner: **Restore ends on a choice**
-    (`docs/NEW-WALLET.md` §12.3; tracker issue 134). A restored wallet
+    (`docs/history/NEW-WALLET.md` §12.3; tracker issue 134). A restored wallet
     landed in the backup flow; Restore now ends on Done every time, with
     Spend from this wallet, Back up this wallet, Wallets, and later
     another wallet from the same seeds (issue 131). Vaults set up before
@@ -2852,7 +2851,7 @@ as possible before the next build.
     BIP-85 and the like run in `press` only, not on a tap.
 
 82. [x] 2026-10-19, owner: **Add a key is the New key flow**
-    (`docs/NEW-WALLET.md` §15, F44; tracker #132). New key opens on a
+    (`docs/history/NEW-WALLET.md` §15, F44; tracker #132). New key opens on a
     Start card: Make a new key, Type the words, Scan a SeedQR, Other
     forms; Add a key on the Wallets page and its Tools tile open it.
     Built 2026-10-19 (`keygen.rs` START and TYPED cards, `Start`;
@@ -2862,7 +2861,7 @@ as possible before the next build.
     `forms.rs` `form_key`; the snapshot tool's `addkey` tour), 5d4b097.
 
 83. [x] 2026-10-19, owner: **keys from a vault in Create; a new wallet
-    from one you have** (`docs/NEW-WALLET.md` §16, F45; tracker #149,
+    from one you have** (`docs/history/NEW-WALLET.md` §16, F45; tracker #149,
     #131 folded in). Built 2026-10-19 (§16.1, §16.2; §16.3 with
     item 80): `create_from.rs`, Create's Keys and Kind cards, the
     wallet card's **New wallet from this one**; tests in
@@ -2936,16 +2935,16 @@ as possible before the next build.
     on a worker, slow presses draw a frame first, rows out of view not
     drawn, ui.fit in one pass) and S3 (Files' found panel kept).
 
-94. [x] 2026-10-20/21, owner: **OpenSigner taken in house** (F65,
-    docs/UPSTREAM.md): docs (U0, b4f8758c); the Learn pages name Faraday
+94. [x] 2026-10-20/21, owner: **upstream taken in house** (F65,
+    UPSTREAM.md): docs (U0, b4f8758c); the Learn pages name Faraday
     (f4c05ff0); one JSON, SLIP-132, Coldcard, BSMS, Core-before-29 and
     UR reader in core (U2, U3: 73e0cc73–8973918b); MasterKey keeps its
     fingerprint, WalletPolicy its checksum, hardened steps written h
-    (U4, F66: fc5c3c9c–7f656572); OpenSigner code Faraday never builds
+    (U4, F66: fc5c3c9c–7f656572); upstream code Faraday never builds
     removed and the image tree moved to faraday/image (U1, e7e91f01;
     fixes the Pi 3 card's missing loglevel=5); the images' names,
     partitions FARADAYBOOT/FARADAYDATA with Faraday's GPT ids (F67) and
-    the Cobalt boot logo; opensigner-core and osk-keep removed, what
+    the Cobalt boot logo; the upstream app and osk-keep removed, what
     Faraday used moved into faraday-core, one strings file (U5, F68).
 
 95. [x] 2026-10-21, owner: **costly work takes a token** (docs/COMPUTE.md,
@@ -2970,7 +2969,7 @@ as possible before the next build.
 3. Item 60, step 10: the Pi image on the Pi 3 and panel, when the owner
    has it in hand.
 4. Later, or waiting on others:
-   - Signing silent payment outputs (`docs/OPENSIGNER-PARITY.md` §3),
+   - Signing silent payment outputs (the upstream-parity plan §3),
      waiting on upstream's BIP-375 work.
    - A wipe-on-free allocator for what item 64's zeroize audit left
      (transient copies while drawing and inside upstream crates); it

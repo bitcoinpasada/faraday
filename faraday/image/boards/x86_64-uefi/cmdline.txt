@@ -1,10 +1,9 @@
-# Faraday: upstream's board command line, its opensigner.dpi=160 named
-# faraday.dpi=160, with freed and allocated memory zeroed by the kernel
-# (PLAN.md §4.2), so a locked process's memory cannot outlive it.
+# Faraday: the board command line, with faraday.dpi=160 and freed and allocated memory zeroed by the kernel
+# (docs/history/PLAN.md §4.2), so a locked process's memory cannot outlive it.
 #
 # usbcore.authorized_default=2 authorises only devices on hard-wired
 # internal ports; every other USB device waits for faraday-grant, which
-# authorises its interfaces one class at a time (PLAN.md §4.6).
+# authorises its interfaces one class at a time (docs/history/PLAN.md §4.6).
 #
 # fbcon=logo-pos:center: a PC's boot logo is a 320 x 320 square (its
 # panel's size is not known when the image is built), which the kernel

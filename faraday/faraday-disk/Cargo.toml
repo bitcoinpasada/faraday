@@ -1,7 +1,7 @@
 [package]
 name = "faraday-disk"
 version = "0.1.5"
-description = "The disk process (PLAN.md §4.3): unprivileged, it reads and writes the FAT partitions faraday-grant hands it and answers the app's shell over a pipe"
+description = "The disk process (docs/history/PLAN.md §4.3): unprivileged, it reads and writes the FAT partitions faraday-grant hands it and answers the app's shell over a pipe"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true

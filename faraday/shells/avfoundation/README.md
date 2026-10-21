@@ -17,8 +17,7 @@ handed to the core as 8-bit luma. The macOS twin of `faraday-v4l2`.
   CoreMedia, CoreVideo and Foundation, on macOS only.
 
 This crate and `faraday-v4l2` are the two exceptions to the
-workspace's `unsafe_code = "forbid"`, for the reason in
-`docs/PLANNING.md` §16.33: reaching the operating system's camera has no
+workspace's `unsafe_code = "forbid"`, for this reason: reaching the operating system's camera has no
 safe form in `std`, and a binding crate would be more code than this and
 less readable. Every `unsafe` block carries a `// SAFETY:` comment and
 the public API is entirely safe.

@@ -1,7 +1,7 @@
 //! Words typed from another BIP-39 list: each word typed as its ASCII
 //! fold (`ábaco` as `abaco`), the key the one that list's words give, not
 //! the English words of the same entropy. Japanese, Korean and both
-//! Chinese lists are typed on keyboards of their own, OpenSigner's, and
+//! Chinese lists are typed on keyboards of their own, and
 //! a word is taken by pressing it among those the keys can be.
 
 use faraday_bip::bip39::{Language, Mnemonic};

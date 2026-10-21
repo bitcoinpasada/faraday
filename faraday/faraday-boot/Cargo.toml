@@ -1,7 +1,7 @@
 [package]
 name = "faraday-boot"
 version = "0.1.5"
-description = "The boot copier (PLAN.md §5.5): unprivileged, it reads the boot partition of the stick Faraday started from raw into memory, accepts it only if it carries the running kernel's release string, and writes it raw over another Faraday stick's boot partition, reading back and comparing; it reads no FAT"
+description = "The boot copier (docs/history/PLAN.md §5.5): unprivileged, it reads the boot partition of the stick Faraday started from raw into memory, accepts it only if it carries the running kernel's release string, and writes it raw over another Faraday stick's boot partition, reading back and comparing; it reads no FAT"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true

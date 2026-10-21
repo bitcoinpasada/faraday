@@ -1,5 +1,5 @@
-//! Every Learn page: those that came from OpenSigner ([`pages`]) and
-//! Faraday's own, which OpenSigner does not have: read from
+//! Every Learn page: those in [`pages`] and
+//! Faraday's own: read from
 //! `docs/learn/faraday/` when Faraday is built, so the desktop app, the
 //! stick and the Starter carry the same text. Nothing
 //! here names a screen of any app: each app maps its own screens to
@@ -23,8 +23,8 @@ pub use pages::{Page, Section};
 
 pub use sketch::{Sketch, is_marker};
 
-/// Faraday's own pages, which OpenSigner does not have, each by its id.
-/// They are edited as `docs/learn/faraday/<id>.md`, beside OpenSigner's
+/// Faraday's own pages, each by its id.
+/// They are edited as `docs/learn/faraday/<id>.md`, beside the other
 /// pages but outside the set `tools/learn/sync.py` keeps in step with
 /// `pages::EN`, and read from those files when Faraday is built, so
 /// the desktop app, the stick and the Starter carry the same text. The
@@ -33,12 +33,12 @@ pub use sketch::{Sketch, is_marker};
 /// this one, except `replace-faraday`, which the stick's Upgrade screen
 /// shows directly ([`known`]).
 const OWN: [(&str, &str); 11] = [
-    // Upgrading a stick from another stick (`PLAN.md` §5.5).
+    // Upgrading a stick from another stick (`docs/history/PLAN.md` §5.5).
     (
         "upgrade-a-stick",
         include_str!("../../../docs/learn/faraday/upgrade-a-stick.md"),
     ),
-    // A multisig backup's shares (`docs/NEW-WALLET.md` §4.2).
+    // A multisig backup's shares (`docs/history/NEW-WALLET.md` §4.2).
     (
         "shares",
         include_str!("../../../docs/learn/faraday/shares.md"),

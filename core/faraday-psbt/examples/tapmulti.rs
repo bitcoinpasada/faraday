@@ -62,7 +62,7 @@ pub fn master(words: &str) -> MasterKey {
 
 /// BIP 48's script-multisig account: `48'/1'/0'/2'` on regtest. BIP 48
 /// names no script type for taproot, so a taproot multisig reads its
-/// cosigners at the same `2'` account (`docs/PLANNING.md` §16.106).
+/// cosigners at the same `2'` account.
 pub fn account_path() -> DerivationPath {
     let h = |i| ChildNumber::from_hardened_idx(i).expect("a hardened index");
     DerivationPath::from(vec![h(48), h(NET.coin_type()), h(0), h(2)])

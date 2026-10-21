@@ -107,7 +107,7 @@ miniscript = { version = "12.0", default-features = false, features = ["no-std",
 # built with `panic = "abort"`, a printed sheet held in front of the
 # camera powers the device off. The copy returns `None` there and every
 # caller rejects the candidate grid; it is also trimmed of `lru`, `g2p`
-# and the proc-macro behind it. `third_party/rqrr/OPENSIGNER.md` records
+# and the proc-macro behind it. `third_party/rqrr/PATCHES.md` records
 # what was changed.
 #
 # It is a path dependency rather than a `[patch.crates-io]` because Cargo
@@ -157,7 +157,7 @@ unicode-normalization = "0.1"
 unsafe_code = "forbid"
 missing_docs = "warn"
 
-# Build hardening for release binaries (docs/PLANNING.md §5.4).
+# Build hardening for release binaries.
 # The dev profile keeps its defaults on purpose: `cargo test` needs
 # `panic = "unwind"` so that `#[should_panic]` tests and test isolation work.
 # Dependencies are optimized even in dev builds so that PBKDF2-heavy tests

@@ -1,4 +1,4 @@
-//! From the vault to a spend (`docs/NEW-WALLET.md` §11): the boot
+//! From the vault to a spend (`docs/history/NEW-WALLET.md` §11): the boot
 //! stick's vault unlocked after the pull lands on Wallets with the
 //! wallet that signs here and a toast; the card's first button opens the
 //! Spend tab on the first page the wallet still needs; a PSBT made in

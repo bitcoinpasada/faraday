@@ -67,7 +67,7 @@ kernel inside the sealed start-up file (§4.2).
 
 The README carries this as an exact list of model identifiers (§7).
 A USB keyboard or mouse on any Mac goes through the stick's approval
-code, as on a PC (`PLAN.md` §4.6).
+code, as on a PC (`docs/history/PLAN.md` §4.6).
 
 ## 2. Security
 
@@ -78,11 +78,11 @@ code, as on a PC (`PLAN.md` §4.6).
 | No network or radios | no drivers | same image | no Wi-Fi or Bluetooth driver built |
 | The computer's own disk invisible | no NVMe or SATA driver | same image | Apple's NVMe driver not built (`kernel.forbidden`) |
 | Device DMA confined | Intel/AMD IOMMU, strict | same image | Apple's DART IOMMUs, strict |
-| Storage rule, disk process, USB authorisation, input trust | `PLAN.md` §4–§5 | same code | same code; the built-in keyboard trusted by its bus (§4.1) |
+| Storage rule, disk process, USB authorisation, input trust | `docs/history/PLAN.md` §4–§5 | same code | same code; the built-in keyboard trusted by its bus (§4.1) |
 | What runs before Faraday's kernel | the firmware | the firmware | Apple's boot ROM and iBoot, then the sealed start-up file (§4.2) |
-| The stick's kernel checked before it runs | only with Secure Boot on and the owner's key enrolled (`PLAN.md` §8, STARTER §7.7) | never: Mac firmware takes no custom keys, and a T2 Mac must be set to No Security | when the owner chose their own key at setup (§4.4) |
+| The stick's kernel checked before it runs | only with Secure Boot on and the owner's key enrolled (`docs/history/PLAN.md` §8, STARTER §7.7) | never: Mac firmware takes no custom keys, and a T2 Mac must be set to No Security | when the owner chose their own key at setup (§4.4) |
 | Changed on the computer | Secure Boot off while used | T2: Startup Security lowered while used | a separate start-up volume, sealed per OS; macOS keeps Full Security |
-| Firmware and other processors | out of scope (`PLAN.md` §4.5) | same | same: Apple's processors run Apple-signed firmware loaded before Faraday |
+| Firmware and other processors | out of scope (`docs/history/PLAN.md` §4.5) | same | same: Apple's processors run Apple-signed firmware loaded before Faraday |
 
 ### 2.2 Requirements on every Apple Silicon start
 
@@ -326,9 +326,9 @@ nobody holds a key that would start Faraday on every set-up Mac.
   into could replace its Faraday.
 - **My own key.** U-Boot with `EFI_SECURE_BOOT` and its variables
   preseeded: the person's PK, KEK and db (the `.esl` files Faraday's
-  Secure Boot writes, `PLAN.md` §8), and an empty dbx. Only a
+  Secure Boot writes, `docs/history/PLAN.md` §8), and an empty dbx. Only a
   `BOOTAA64.EFI` signed with their db key starts; every release is
-  signed by them through the spare stick, as on a PC (`PLAN.md` §8,
+  signed by them through the spare stick, as on a PC (`docs/history/PLAN.md` §8,
   §5.5). `faraday-macboot` writes the variables into a reserved,
   fixed-size region of the U-Boot payload in U-Boot's own preseed
   format; no compiler runs at setup. Changing or revoking the key is a
@@ -435,12 +435,12 @@ and the Learn page says what it found. Setting up again later repeats
 Plug the stick into a working Type-C port, hold the power button,
 choose Faraday. The Mac starts Apple's code, then the sealed file, then
 the stick's Faraday, and from there it is Faraday as on a PC: the stick
-is pulled out before a vault is opened (`PLAN.md` §5). Power off at
+is pulled out before a vault is opened (`docs/history/PLAN.md` §5). Power off at
 exit through the SMC.
 
 ### 4.8 Upgrades
 
-The stick's own upgrade (`PLAN.md` §5.5) works unchanged: it copies the
+The stick's own upgrade (`docs/history/PLAN.md` §5.5) works unchanged: it copies the
 running Faraday's boot partition, and only to a stick of the same kind,
 since it requires the running kernel's release string. The Starter's
 *Replace Faraday, keep data* refuses to write one kind's boot partition
@@ -449,7 +449,7 @@ over the other's: it reads which EFI file the stick's FARADAYBOOT holds
 
 With my own key, every release's `BOOTAA64.EFI` is signed by the owner
 before the vault stick starts it. `faraday-sb` already signs any PE32+
-whatever its machine type; the first-signing build record (`PLAN.md`
+whatever its machine type; the first-signing build record (`docs/history/PLAN.md`
 §8) gains the arm64 image.
 
 ## 5. The desktop app on macOS

@@ -1,6 +1,5 @@
 //! The `osk` PSBT records of a threshold spend, and the carry file that
-//! takes a secret nonce from one location to the next
-//! (`docs/PLANNING.md` §16.103 items 3 and 4).
+//! takes a secret nonce from one location to the next.
 //!
 //! Two BIP-174 proprietary records, both in an input's `proprietary`
 //! map under the identifier `osk`:

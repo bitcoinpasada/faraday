@@ -1,10 +1,8 @@
-//! QR detection and decoding from a camera frame (`docs/PLANNING.md`
-//! §4.4: the shell decodes on a worker beside the core, which keeps the
-//! preview and the routing; §16.36).
+//! QR detection and decoding from a camera frame.
 //!
 //! Backed by `rqrr` (`docs/deps/rqrr.md`), which needs `std`; this module
 //! is behind the crate's `decode` feature and is the only `std` code in
-//! the core (`docs/PLANNING.md` §16.20).
+//! the core.
 
 use alloc::vec::Vec;
 

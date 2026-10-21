@@ -1,4 +1,4 @@
-# OpenSigner: the firmware configuration, assembled by build.sh from this
+# Faraday: the firmware configuration, assembled by build.sh from this
 # header, the board's part and the panel's part.
 #
 # The GPU firmware reads this file before the ARM cores start. It picks the

@@ -1,6 +1,5 @@
 //! The vanity grinder against EntropyLab, which is the other
-//! implementation of the same counter (`tools/reference/vanity/README.md`,
-//! `docs/PLANNING.md` §16.117).
+//! implementation of the same counter (`tools/reference/vanity/README.md`).
 //!
 //! The two vectors are EntropyLab's own output, from running its
 //! `vanity-wasm` once over BIP-39's zero-entropy words: the passphrase

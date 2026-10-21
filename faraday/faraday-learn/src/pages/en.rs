@@ -263,7 +263,7 @@ pub static EN: Learn = Learn {
             Section {
                 heading: "What it is",
                 paragraphs: &[
-                    "An OpenSigner backup is one small file, ending in .oskb, that OpenSigner writes: something locked under a passphrase chosen when it was made. Faraday does not write one. It reads one into a vault, where it is kept under the vault's passphrase from then on.",
+                    "An .oskb backup is one small file: something locked under a passphrase chosen when it was made. Faraday does not write one. It reads one into a vault, where it is kept under the vault's passphrase from then on.",
                 ],
             },
             Section {
@@ -290,7 +290,7 @@ pub static EN: Learn = Learn {
             Section {
                 heading: "Reading one without Faraday",
                 paragraphs: &[
-                    "The OSKB format is written down in docs/BACKUP.md, in OpenSigner's source and in Faraday's, and tools/backup/decrypt.py in either opens a file on any computer with Python.",
+                    "The OSKB format is written down in docs/BACKUP-FORMAT.md and in Faraday's source, and tools/backup/decrypt.py opens a file on any computer with Python.",
                 ],
             },
         ],
@@ -1249,7 +1249,7 @@ pub static EN: Learn = Learn {
             Section {
                 heading: "What this device reads today",
                 paragraphs: &[
-                    "Faraday writes and reads Seed XOR parts, keeps words in vaults, reads an OpenSigner backup into a vault, and reads and writes BIP-39 words as every wallet does.",
+                    "Faraday writes and reads Seed XOR parts, keeps words in vaults, reads an .oskb backup into a vault, and reads and writes BIP-39 words as every wallet does.",
                     "It reads and writes SLIP-39 shares. Add a key › Type SLIP-39 shares loads the key a backup's shares hold, under its passphrase if it has one, groups and all. Add a key › Make SLIP-39 shares makes a new key and writes it as one group of shares: you choose how many shares there are and how many are needed, and Faraday shows every share in turn with the quiz.",
                     "A key made of BIP-39 words is not backed up as SLIP-39 shares, and never will be. What a set of shares gives back is the seed itself, and a BIP-39 key's seed is 64 bytes, which no SLIP-39 implementation will take.",
                     "It reads and writes Codex32. Add a key › Type a codex32 secret loads the key a string or its shares hold, and a backup's copies by hand write a key made of words as codex32 shares of its seed. A backup of a key made of BIP-39 words holds the 512-bit seed those words come to, which is 127 characters, and a wallet that expects words cannot read it back.",

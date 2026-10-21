@@ -3,7 +3,7 @@
 //! asks for no frames to blink anything. A press in a field puts the
 //! caret where it lands and typing goes in there; the arrow keys move
 //! it; Backspace takes the character before it and Delete the one after
-//! (`docs/NEW-WALLET.md` §13.2).
+//! (`docs/history/NEW-WALLET.md` §13.2).
 
 use faraday_core::{Action, Faraday, Screen, testkit};
 use faraday_shell_api::{App, Command, Event, Key, TouchPhase};

@@ -38,7 +38,7 @@ Because the files were not taken from a published source, the test that
 read them did not trust either the files or `faraday_entropy::SeedXor`
 alone: it packed the word indices itself, checked the BIP-39 checksum
 itself, XORed the parts with a plain byte fold, and compared all three
-answers. That test was OpenSigner's app's and went with it (F68); until
+answers. That test went with the deleted app (F68); until
 it is restored beside `SeedXor`, no test reads these files.
 `seed_xor_parts_combine_into_the_seeds_words`
 (`faraday/faraday-core/tests/all/forms.rs`) uses the 12-word example's words.

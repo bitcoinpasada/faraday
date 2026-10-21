@@ -1,4 +1,4 @@
-//! OpenSigner's calculators on Faraday's Tools screen: what is typed
+//! The calculators on Faraday's Tools screen: what is typed
 //! reaches the calculator, and the answers are the published ones.
 
 use faraday_bip::hashes::hashes;

@@ -1,6 +1,6 @@
 # LND's aezeed, AEZ v5, and the two Lightning node keys
 
-`docs/PLANNING.md` §16.116. `faraday_bip::aezeed` and `faraday_bip::aez` are
+`faraday_bip::aezeed` and `faraday_bip::aez` are
 written from the sources named here, never from a summary. Each file
 read is listed with the commit it was read at and its SHA-256, so a
 later change to a source shows up as a change to this page.

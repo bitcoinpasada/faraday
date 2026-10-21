@@ -1,9 +1,9 @@
 //! Silent payments (BIP-352), the receiving side: a loaded key's
 //! `sp1…` address and its labelled ones, the public record a coordinator
 //! keeps, the scan key a scanner needs, and a silent payments wallet among
-//! the session's wallets, with a check of whether a transaction pays it
-//! (`docs/OPENSIGNER-PARITY.md` plan C2, upstream §16.113). Every computation is `faraday-bip::silent`'s and
-//! `silent_wallet`'s, as OpenSigner's own wallet uses them. The address
+//! the session's wallets, with a check of whether a transaction pays it.
+//! Every computation is `faraday-bip::silent`'s and
+//! `silent_wallet`'s. The address
 //! and the record are public; the scan key shows every payment to the
 //! address, so it is a secret: into the vault, or out only through the
 //! secret sheet. Nothing here is kept; the keys are derived when used.
@@ -485,7 +485,7 @@ impl Faraday {
 
     /// Costs what `silent_receiver` costs. What a check of `check` comes
     /// to, or `None` while a previous transaction is still missing. As
-    /// OpenSigner works it out: an unsigned input is no answer, and the
+    /// An unsigned input is no answer, and the
     /// change label is always looked for.
     fn silent_answer(
         &self,

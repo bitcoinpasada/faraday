@@ -9,7 +9,7 @@ the caller supplies.
 
 - `oskb`: the .oskb format (version 3): a key's words, a master seed, a note
   or a wallet's recovery sheet, sealed with XChaCha20-Poly1305 and padded to
-  a multiple of 256 bytes. `docs/BACKUP.md` writes it byte for byte.
+  a multiple of 256 bytes. `docs/BACKUP-FORMAT.md` writes it byte for byte.
 - `kdbx`: a KDBX 4 database that a KeePass app opens with the same
   passphrase (ChaCha20 body, HMAC-SHA-256 block stream).
 

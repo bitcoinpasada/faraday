@@ -1,8 +1,8 @@
 //! Make a new wallet opens on Kind, whatever opened it
-//! (`docs/NEW-WALLET.md` §2.1, reversing `SIMPLIFY.md` §2.1 for this
+//! (`docs/history/NEW-WALLET.md` §2.1, reversing `docs/history/SIMPLIFY.md` §2.1 for this
 //! flow): Kind defaults to single key, Multisig is the other everyday
 //! choice, and the other eight kinds are behind More kinds. It ends in
-//! the backup plan (`SIMPLIFY.md` §2.3): Keys' Continue makes the
+//! the backup plan (`docs/history/SIMPLIFY.md` §2.3): Keys' Continue makes the
 //! wallet, Check follows, and Back up offers the plan's presets.
 
 use crate::common::{add_key, type_text};

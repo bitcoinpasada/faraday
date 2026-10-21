@@ -15,7 +15,7 @@ faraday-crypto = { path = "../../core/faraday-crypto" }
 zeroize = { workspace = true, features = ["alloc"] }
 
 # The boot copier's pipe and, for the tests, the copier itself
-# (`PLAN.md` §5.5). Unix only: other targets have no device nodes.
+# (`docs/history/PLAN.md` §5.5). Unix only: other targets have no device nodes.
 [target.'cfg(unix)'.dependencies]
 faraday-boot = { path = "../faraday-boot" }
 

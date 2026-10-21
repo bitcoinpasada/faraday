@@ -1,7 +1,7 @@
 # Win32_EncryptableVolume's answers, in the form
 # faraday_starter_shell::windows::bitlocker::Recorded reads, recorded with
 # `Faraday Starter.exe --record-bitlocker` in the Windows 11 Pro test
-# virtual machine (docs/BITLOCKER-ACCEPTANCE.md). The volumes and the
+# virtual machine (docs/history/BITLOCKER-ACCEPTANCE.md). The volumes and the
 # protector ID are that machine's own; no recovery password is recorded.
 #
 # BitLocker on: the system drive C: protected, and a removable FAT

@@ -884,7 +884,7 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
 }
 
 /// The FROST test wallet: 2 of 3, dealt here from test keys 1 and 2's
-/// words as shares 1 and 2 (`docs/PLANNING.md` §16.103); share 3 is
+/// words as shares 1 and 2; share 3 is
 /// computed. Its record is public and is the wallet's file.
 pub fn threshold_record() -> Result<faraday_bip::threshold::ThresholdRecord, String> {
     let c = compute();
@@ -1119,7 +1119,7 @@ pub fn test_vault() -> Result<Vec<u8>, String> {
 }
 
 /// A text file of entries for a vault: a TOTP setup URI and an entry in
-/// `field: value` lines (`PLAN.md` §6.4).
+/// `field: value` lines (`docs/history/PLAN.md` §6.4).
 pub const ENTRIES_FILE: &str = "otpauth://totp/Example%20Git:octo?secret=JBSWY3DPEHPK3PXP&issuer=Example%20Git\n\
 \n\
 title: Router admin\n\
@@ -1127,10 +1127,10 @@ username: admin\n\
 password: router-password\n\
 url: http://192.168.1.1\n";
 
-/// The passphrase of the test stick's OpenSigner backup.
+/// The passphrase of the test stick's .oskb backup.
 pub const BACKUP_PASSPHRASE: &str = "backup";
 
-/// Test key `n`'s words as an OpenSigner encrypted backup, at Argon2id's
+/// Test key `n`'s words as an .oskb encrypted backup, at Argon2id's
 /// smallest cost: a dummy.
 pub fn test_backup(n: usize) -> Result<Vec<u8>, String> {
     let c = compute();
@@ -1376,7 +1376,7 @@ pub fn type_words(app: &mut crate::Faraday, words: &str) {
 
 /// Checks every passphrase the backup's checklist keeps on paper, as a
 /// person with a right copy does: its item opened, Check my copy, the
-/// key's own passphrase typed back and Enter (`docs/NEW-WALLET.md`
+/// key's own passphrase typed back and Enter (`docs/history/NEW-WALLET.md`
 /// §14.7 item 5).
 pub fn type_passphrases(app: &mut crate::Faraday) {
     use crate::{Action, bstep};

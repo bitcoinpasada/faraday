@@ -1,9 +1,9 @@
 //! Faraday's app: the screens, the Wallets tab's session, the Inbox and the
-//! Outbox, and the stick rule (`PLAN.md` §5).
+//! Outbox, and the stick rule (`docs/history/PLAN.md` §5).
 //!
 //! It is an [`faraday_shell_api::App`], so the shells drive it with events and
-//! read its frame, as they drive OpenSigner. Removable storage is the one
-//! thing upstream's interface has no event for, so this crate adds a
+//! read its frame. Removable storage is the one
+//! thing that interface has no event for, so this crate adds a
 //! second channel beside it: the shell reports the sticks it sees and the
 //! files read from them through [`Faraday::storage`], and takes the
 //! reads and writes this app asks for from
@@ -268,7 +268,7 @@ pub const IDLE_OFF_MIN: u16 = 60;
 pub const IDLE_WARN_MS: u64 = 5 * 60_000;
 
 /// The exit code that asks the app loop for a fresh process
-/// (`PLAN.md` §5.3).
+/// (`docs/history/PLAN.md` §5.3).
 pub const RESTART_CODE: u8 = 75;
 
 /// The exit code that asks init to restart the computer instead of
@@ -293,7 +293,7 @@ pub struct StickInfo {
 }
 
 /// A boot partition the boot copier has, while the app upgrades a stick
-/// (`PLAN.md` §5.5).
+/// (`docs/history/PLAN.md` §5.5).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BootPart {
     /// The copier's name for it; the app hands this back unchanged.
@@ -419,7 +419,7 @@ pub enum StorageEvent {
     },
     /// A picture on a stick: the QR codes the disk process read from it,
     /// and its bytes as they are. The app keeps and writes the bytes and
-    /// never decodes them (`PLAN.md` §12 item 6).
+    /// never decodes them (`docs/history/PLAN.md` §12 item 6).
     QrRead {
         /// The image's name.
         name: String,
@@ -450,7 +450,7 @@ pub enum StorageEvent {
         reason: String,
     },
     /// An input device the shell holds back until a person says it is
-    /// theirs (`PLAN.md` §4.6).
+    /// theirs (`docs/history/PLAN.md` §4.6).
     NewInput {
         /// The shell's number for it.
         id: u32,
@@ -701,7 +701,7 @@ pub enum StorageCommand {
     /// Open nakamotoinstitute.org in this computer's browser.
     OpenInstitute,
     /// Have the boot copier read the boot partition that holds the
-    /// running Faraday (`PLAN.md` §5.5).
+    /// running Faraday (`docs/history/PLAN.md` §5.5).
     BootRead,
     /// Have the boot copier write the source over this boot partition,
     /// read back and compare. The app names the partition; it never hands
@@ -713,7 +713,7 @@ pub enum StorageCommand {
     /// The upgrade has ended: the copier drops the source.
     BootForget,
     /// Keep the Inbox and Outbox where the next process finds them. They
-    /// hold nothing secret (`PLAN.md` §5.2).
+    /// hold nothing secret (`docs/history/PLAN.md` §5.2).
     SaveBoxes {
         /// Inbox files.
         inbox: Vec<(String, Vec<u8>)>,
@@ -759,7 +759,7 @@ pub enum Screen {
     SetTime,
     /// The vaults the Inbox and Outbox hold.
     Vaults,
-    /// Every wallet known and where its backup is (`docs/SIMPLIFY.md`
+    /// Every wallet known and where its backup is (`docs/history/SIMPLIFY.md`
     /// §5.1).
     Backups,
     /// Making a vault.
@@ -774,7 +774,7 @@ pub enum Screen {
     Explore,
     /// A Lightning node's key.
     Lightning,
-    /// OpenSigner's calculators.
+    /// The calculators.
     Tools,
     /// Unlocking one slot of a vault.
     Unlock,
@@ -842,10 +842,10 @@ pub enum Action {
     /// Open Backups on loaded wallet `i`.
     BackupsOf(usize),
     /// Open Back up a wallet on loaded wallet `i` at its checklist, from
-    /// the plan its chart shows (`docs/NEW-WALLET.md` §6.2). Nothing is
+    /// the plan its chart shows (`docs/history/NEW-WALLET.md` §6.2). Nothing is
     /// made For the stick by opening it: each item offers what it makes.
     BackupChecklist(usize),
-    /// Finish the backup first (`docs/NEW-WALLET.md` §14.3): wallet `i`'s
+    /// Finish the backup first (`docs/history/NEW-WALLET.md` §14.3): wallet `i`'s
     /// checklist, or its plan when none is made.
     BackupFirst(usize),
     /// Open, or close, the wallet's chart as its own page on a small
@@ -855,7 +855,7 @@ pub enum Action {
     /// stick, `n` Stick `n`. The shell inserts the stick or pulls it.
     StickPill(u8),
     /// A press on the wallet's chart or one of its sheets
-    /// (`docs/NEW-WALLET.md` §9).
+    /// (`docs/history/NEW-WALLET.md` §9).
     Chart(glance_sheet::ChartAction),
     /// A press in the backup flow (`docs/BACKUP-FLOW.md`).
     Flow(backup_flow_steps::FlowAction),
@@ -1163,7 +1163,7 @@ pub enum Action {
     /// Clear the typed digits.
     BCheckClear,
     /// Keep the words only: the open copy item's SeedQR copies become
-    /// copies of the words (`docs/NEW-WALLET.md` §14.7 item 3).
+    /// copies of the words (`docs/history/NEW-WALLET.md` §14.7 item 3).
     BKeepWords,
     /// Vault `v`'s item: save into the open vault, in one press,
     /// everything the plan puts in that vault: its seeds, each passphrase
@@ -1237,15 +1237,15 @@ pub enum Action {
     // NEW-WALLET §16 (F45): keys from a vault in Create; a new wallet
     // from one held.
     /// Fill slot s with key record r of open vault v, loading that key
-    /// (`docs/NEW-WALLET.md` §16.1).
+    /// (`docs/history/NEW-WALLET.md` §16.1).
     CSlotVault(u8, usize, usize),
-    /// Kind's Account stepper (`docs/NEW-WALLET.md` §16.2, §17).
+    /// Kind's Account stepper (`docs/history/NEW-WALLET.md` §16.2, §17).
     CAccount(i8),
     /// Check's Path row **Change**: the made wallet taken back, Kind
-    /// open on its Account (`docs/NEW-WALLET.md` §17).
+    /// open on its Account (`docs/history/NEW-WALLET.md` §17).
     CPathChange,
     /// A wallet card's **New wallet from this one**: Create filled from
-    /// wallet i (`docs/NEW-WALLET.md` §16.2).
+    /// wallet i (`docs/history/NEW-WALLET.md` §16.2).
     NewWalletFrom(usize),
     /// The secret on its way out into the open vault.
     SecretVault,
@@ -1357,10 +1357,10 @@ pub enum Action {
     /// clear its tick if it is ticked already.
     LearnStep(u32),
     /// The Learn sheet's first row, **Spending, step by step**: closes
-    /// the sheet and opens the Spend tab (`docs/SIMPLIFY.md` §6.2).
+    /// the sheet and opens the Spend tab (`docs/history/SIMPLIFY.md` §6.2).
     LearnSpend,
     /// **What is a share?** beside the backup plan's In shares: the
-    /// Learn sheet on the page about shares (`docs/NEW-WALLET.md` §4.2).
+    /// Learn sheet on the page about shares (`docs/history/NEW-WALLET.md` §4.2).
     LearnShares,
     /// The Learn page on extra copies, from the backup's last card
     /// (`docs/BACKUP-FLOW.md` §19.19 item 7).
@@ -1368,7 +1368,7 @@ pub enum Action {
     /// The word-list sheet, or a link to it.
     WordList(wordlist::WordListAction),
     /// Make a new key, for this Create slot or for the session; for the
-    /// session it is Add a key, opening on Start (`docs/NEW-WALLET.md`
+    /// session it is Add a key, opening on Start (`docs/history/NEW-WALLET.md`
     /// §15.3).
     KeyGen(Option<u8>),
     /// Open or close a new-key card.
@@ -1492,7 +1492,7 @@ pub enum Action {
     /// seeds and the cosigners' xpubs at the kind's standard path.
     RSeeds,
     /// Restore's Kind, by its place in `NewKind::ALL`
-    /// (`docs/NEW-WALLET.md` §12.1).
+    /// (`docs/history/NEW-WALLET.md` §12.1).
     RKind(u8),
     /// Restore's Kind card shows every kind.
     RMoreKinds,
@@ -1539,7 +1539,7 @@ pub enum Action {
     InboxChoose(usize),
     /// Make the seed with this fingerprint a wallet.
     PotentialOpen([u8; 4]),
-    /// Open the OpenSigner backup in this Inbox file with its passphrase.
+    /// Open the .oskb backup in this Inbox file with its passphrase.
     BackupOpen(usize),
     /// Make the Inbox's account xpub n a watch-only wallet.
     XpubOpen(usize),
@@ -1603,7 +1603,7 @@ pub fn stick_kind(name: &str) -> Option<&'static str> {
         "ofv" => Some(EN.stick_kind_vault),
         "efi" => Some(EN.stick_kind_efi_image),
         "osk" => Some(EN.stick_kind_threshold),
-        "oskb" => Some(EN.stick_kind_opensigner),
+        "oskb" => Some(EN.stick_kind_oskb),
         "png" => Some(EN.stick_kind_qr_codes),
         _ => Some(EN.stick_kind_file),
     }
@@ -1806,7 +1806,7 @@ pub enum Sheet {
     Locked,
     /// A new input device, waiting to be believed or ignored.
     NewInput,
-    /// OpenSigner's Learn pages for the screen on show.
+    /// The Learn pages for the screen on show.
     Learn,
     /// A word list, every word with its number, over the screen it was
     /// opened from.
@@ -1829,7 +1829,7 @@ pub enum Sheet {
     /// carries on once the stick is pulled ([`Faraday::pull`]).
     Pull,
     /// A node or a line of the wallet's chart: what it is, where, and its
-    /// actions (`docs/NEW-WALLET.md` §9).
+    /// actions (`docs/history/NEW-WALLET.md` §9).
     Chart,
     /// The backup board's list, opened by **Add** in the narrow column
     /// (`docs/BACKUP-FLOW.md` §19.12 item 3).
@@ -2181,7 +2181,7 @@ pub enum Code {
     /// That key's signed BIP 129 key record.
     WalletKeyBsms(usize, u8),
     /// The account key in wallet n's slot k, held elsewhere, as the
-    /// wallet's descriptor writes it (`docs/NEW-WALLET.md` §9.3).
+    /// wallet's descriptor writes it (`docs/history/NEW-WALLET.md` §9.3).
     CosignerKey(usize, u8),
     /// The silent payments address on show: as it is, or as a
     /// `bitcoin:` link.
@@ -2592,7 +2592,7 @@ pub struct EntryState {
     pub languages: bool,
     /// The chips for SLIP-39, codex32 and Seed XOR are shown: pressed
     /// directly, or set already by a Tools tile for one of those forms
-    /// (`docs/SIMPLIFY.md` §2.4).
+    /// (`docs/history/SIMPLIFY.md` §2.4).
     pub other_forms: bool,
     /// How many words were chosen, 0 until one is: 12 boxes.
     pub word_count: u8,
@@ -2803,7 +2803,7 @@ pub struct BackupState {
     /// The grid row pinned for copying.
     pub pin: usize,
     /// The typed check of a copy of the words, while it is open
-    /// (`docs/NEW-WALLET.md` §14.7 item 2).
+    /// (`docs/history/NEW-WALLET.md` §14.7 item 2).
     pub check: Option<copy_check::WordCheck>,
     /// What scanning the copy of the seed on screen found.
     pub scanned: Option<backup::CopyCheck>,
@@ -2813,7 +2813,7 @@ pub struct BackupState {
     pub checked: Vec<([u8; 4], plan::CopyForm)>,
     /// The scans of each seed's SeedQR copy without a match in this
     /// backup, by fingerprint: each opening of the camera on the copy
-    /// that closed without one (`docs/NEW-WALLET.md` §14.7 item 3). Goes
+    /// that closed without one (`docs/history/NEW-WALLET.md` §14.7 item 3). Goes
     /// with a lock, which drops the backup.
     pub misses: Vec<([u8; 4], u8)>,
     /// Template word count.
@@ -2943,7 +2943,7 @@ pub struct CreateState {
     pub more_kinds: bool,
     /// New keys made for this wallet.
     pub made: u32,
-    /// The slot whose passphrase fields are open (`docs/NEW-WALLET.md`
+    /// The slot whose passphrase fields are open (`docs/history/NEW-WALLET.md`
     /// §3.6).
     pub pass_slot: Option<u8>,
     /// The passphrase typed there.
@@ -2962,14 +2962,14 @@ pub struct CreateState {
     pub vaults: VaultAsk,
     /// The number the wallet's backup flow is tied to (`Faraday::owner_seq`).
     pub owner: u64,
-    /// The account every key is used at (`docs/NEW-WALLET.md` §16.2): 0
+    /// The account every key is used at (`docs/history/NEW-WALLET.md` §16.2): 0
     /// unless the creation was started from a wallet.
     pub account: u32,
     /// The wallet the creation was started from, by **New wallet from
     /// this one**.
     pub from: Option<create::FromWallet>,
     /// The made wallet's derivation paths as Check shows them, worked out
-    /// once when it is made (`docs/NEW-WALLET.md` §17).
+    /// once when it is made (`docs/history/NEW-WALLET.md` §17).
     pub path: String,
     /// The made wallet was added to the session by this creation, not
     /// found there already: taking it back removes it.
@@ -3023,7 +3023,7 @@ pub mod cstep {
     pub const COUNT: usize = 9;
 }
 
-/// Restoring a wallet: the cards' state (`docs/NEW-WALLET.md` §12).
+/// Restoring a wallet: the cards' state (`docs/history/NEW-WALLET.md` §12).
 #[derive(Default)]
 pub struct RestoreState {
     /// The open card.
@@ -3125,7 +3125,7 @@ impl RestoreState {
 /// What Restore says of a seed that is not one of the description's keys.
 pub const NOT_A_KEY: &str = EN.app_not_a_key_of_this;
 
-/// The restore cards, in order (`docs/NEW-WALLET.md` §12.1).
+/// The restore cards, in order (`docs/history/NEW-WALLET.md` §12.1).
 pub mod rstep {
     /// What kind of wallet.
     pub const KIND: u8 = 0;
@@ -3408,7 +3408,7 @@ pub struct VisitState {
 /// SHA-256, and whether an answer has started its receipt.
 pub type Writing = (String, String, Vec<(String, [u8; 32])>, bool);
 
-/// What the last stick visit wrote (`docs/SIMPLIFY.md` §4.3): kept on
+/// What the last stick visit wrote (`docs/history/SIMPLIFY.md` §4.3): kept on
 /// [`Faraday`], across a lock in the kept state, gone at power-off, and
 /// replaced by the next write. Nothing on it is written again.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -3591,7 +3591,7 @@ pub struct Faraday {
     /// Reduce motion: nothing slides, glides, coasts or stretches.
     pub reduce_motion: bool,
     /// Minutes without input before the session locks; 0 for never
-    /// (`PLAN.md` §12.3).
+    /// (`docs/history/PLAN.md` §12.3).
     pub idle_lock_min: u16,
     /// How long each frame of an animated code stays up, in ms.
     pub qr_frame_ms: u64,
@@ -3613,7 +3613,7 @@ pub struct Faraday {
     idle_locking: Option<u64>,
     /// The lock asked for last is a step of a backup flow (bringing in
     /// the setup's sticks, Lock and write), not the person's own Lock:
-    /// it keeps Make a new wallet (`docs/NEW-WALLET.md` §18). Set by
+    /// it keeps Make a new wallet (`docs/history/NEW-WALLET.md` §18). Set by
     /// every way a lock is asked for.
     pub(crate) lock_for_flow: bool,
     /// The idle countdown's whole seconds last drawn, so a tick redraws
@@ -3623,12 +3623,12 @@ pub struct Faraday {
     /// its text says, fixed while it is up.
     pub(crate) idle_warn_min: u64,
     /// A secret has been held or typed in this process. Only a fresh
-    /// process is clean (`PLAN.md` §5.1).
+    /// process is clean (`docs/history/PLAN.md` §5.1).
     tainted: bool,
     /// A stick arrived while the camera was on: held back, and taken as
     /// arriving once the camera is off.
     stick_held: bool,
-    /// New input devices waiting to be believed (`PLAN.md` §4.6).
+    /// New input devices waiting to be believed (`docs/history/PLAN.md` §4.6).
     pub inputs: Vec<inputs::NewInput>,
     /// Devices kept out until unplugged, by id and name.
     pub ignored_inputs: Vec<(u32, String)>,
@@ -3646,7 +3646,7 @@ pub struct Faraday {
     /// New keys made this session, which number their labels.
     new_keys: u32,
     /// The keys made here whose backup is not yet done, by fingerprint
-    /// (`docs/NEW-WALLET.md` §14.3): they sign nothing until it is. Never
+    /// (`docs/history/NEW-WALLET.md` §14.3): they sign nothing until it is. Never
     /// a secret; kept in a vault beside the seed and in the plan record.
     made_here: Vec<faraday_bip::keys::Fingerprint>,
     /// What a frame works out once (`docs/SPEED.md` §3.3): on only while
@@ -3694,7 +3694,7 @@ pub struct Faraday {
     /// (`docs/WALLETS.md` §4).
     pub checked_wallets: Vec<String>,
     /// What this power-on saw of each wallet's backup, by descriptor
-    /// checksum (`docs/SIMPLIFY.md` §5): kept across a lock, gone at
+    /// checksum (`docs/history/SIMPLIFY.md` §5): kept across a lock, gone at
     /// power-off.
     pub backup_records: Vec<backups::Record>,
     /// The wallet the Backups screen is on, by its place in
@@ -3802,7 +3802,7 @@ pub struct Faraday {
     /// **Where it is**.
     pub chart_focus: Option<(glance::Press, usize)>,
     /// What the chart's sheets hold between presses: a change asked for,
-    /// a name or a passphrase typed (`docs/NEW-WALLET.md` §9.5–§9.7).
+    /// a name or a passphrase typed (`docs/history/NEW-WALLET.md` §9.5–§9.7).
     pub chart_work: chart_edit::Work,
     /// The height a scrolled page last drew to, design units: how far its
     /// scroll may go.
@@ -3886,7 +3886,7 @@ pub struct Faraday {
     /// The chosen wallet's new name, while it is typed.
     pub renaming: Option<String>,
     /// Where the caret and the selection are in the field typing goes
-    /// to (`docs/NEW-WALLET.md` §13.2).
+    /// to (`docs/history/NEW-WALLET.md` §13.2).
     pub(crate) edit: ui::Edit,
     /// An edit inside a field is being typed through the field's own
     /// keys.
@@ -3898,7 +3898,7 @@ pub struct Faraday {
     /// The screen's back link, as the last frame drew it.
     back_link: Option<Action>,
     /// Screens left by the mouse's back button, the last left last
-    /// (`docs/NEW-WALLET.md` §13.1).
+    /// (`docs/history/NEW-WALLET.md` §13.1).
     forward: Vec<Screen>,
     /// The screen the last back or forward button landed on.
     landed: Option<Screen>,
@@ -4139,7 +4139,7 @@ impl Faraday {
             import: None,
             stick_settings: None,
             // A device that has never had a setting saved opens Guided;
-            // Steps only is a choice (`docs/SIMPLIFY.md` §6.1). A saved
+            // Steps only is a choice (`docs/history/SIMPLIFY.md` §6.1). A saved
             // value, from the kept state or the boot stick's settings
             // file, overwrites this before the person sees a screen.
             guided: true,
@@ -4637,7 +4637,7 @@ impl Faraday {
     /// vault passphrase, a prompt's line. A secret sheet for an Inbox file
     /// on its way to another stick does not count: it holds a copy of
     /// what the Inbox already holds, and the stick it goes to must stay
-    /// open (`PLAN.md` §5.4).
+    /// open (`docs/history/PLAN.md` §5.4).
     fn secret_typed(&self) -> bool {
         self.keygen.is_some()
             || self.secret_out.as_ref().is_some_and(|o| !o.to_visit)
@@ -4667,7 +4667,7 @@ impl Faraday {
         }
     }
 
-    /// The clean state of `PLAN.md` §5.1: this process has never held or
+    /// The clean state of `docs/history/PLAN.md` §5.1: this process has never held or
     /// typed a secret. Only then may a stick be handed to the disk
     /// process; the shell publishes it for `faraday-grant`, and a lock is
     /// the way back to it.
@@ -4767,7 +4767,7 @@ impl Faraday {
         .then(|| u64::from(self.idle_off_min) * 60_000)
     }
 
-    /// The idle timers (`PLAN.md` §12.3). Returns whether the screen
+    /// The idle timers (`docs/history/PLAN.md` §12.3). Returns whether the screen
     /// changed.
     fn idle_tick(&mut self, now_ms: u64) -> bool {
         let c = self.compute();
@@ -4776,7 +4776,7 @@ impl Faraday {
         let min = 60_000u64;
         // The warning, with its countdown, before the lock.
         // Make a new wallet before its keys are kept anywhere: no idle
-        // lock at all (`docs/NEW-WALLET.md` §18).
+        // lock at all (`docs/history/NEW-WALLET.md` §18).
         let held = self.lock_held(&c);
         if let Some((warn, lock)) = self.idle_lock_at()
             && idle >= warn
@@ -4936,7 +4936,7 @@ impl Faraday {
             return;
         }
         // A stick arriving while the camera is on is held back, and
-        // arrives when the camera is off (`PLAN.md` §5.4): then a clean
+        // arrives when the camera is off (`docs/history/PLAN.md` §5.4): then a clean
         // process visits it and any other asks to lock first. The
         // scanner is never replaced with its camera still on.
         if self.camera_on() {
@@ -4950,7 +4950,7 @@ impl Faraday {
     fn stick_arrived(&mut self) {
         let c = self.compute();
         // A stick arrived. Only a clean process takes it; any other locks
-        // first (`PLAN.md` §5.4). No passphrase field takes typing while
+        // first (`docs/history/PLAN.md` §5.4). No passphrase field takes typing while
         // it is attached.
         if matches!(
             self.vaults.focus,
@@ -5194,7 +5194,7 @@ impl Faraday {
     }
 
     /// A write's answer onto the receipt: the first answer of a write
-    /// replaces the last receipt with a new one (`docs/SIMPLIFY.md` §4.3).
+    /// replaces the last receipt with a new one (`docs/history/SIMPLIFY.md` §4.3).
     fn receipt_add(&mut self, name: &str, failure: Option<String>) {
         let c = self.compute();
         let now = self.clock_now();
@@ -5243,7 +5243,7 @@ impl Faraday {
         })
     }
 
-    /// The stick visit's chip (`docs/SIMPLIFY.md` §4.7): where pulling
+    /// The stick visit's chip (`docs/history/SIMPLIFY.md` §4.7): where pulling
     /// the stick goes. Back to the flow the stick came in during, Unlock
     /// when a vault was sealed for the visit, else Home.
     pub fn visit_then(&self) -> String {
@@ -5263,7 +5263,7 @@ impl Faraday {
             .push((name.to_string(), sha256_of(&c, bytes), label.to_string()));
     }
 
-    /// What a visit ticks to come in (`docs/SIMPLIFY.md` §4.6): every file
+    /// What a visit ticks to come in (`docs/history/SIMPLIFY.md` §4.6): every file
     /// on the stick shown that Faraday reads, but a seed's by its name
     /// (which comes in through its own tick), one over 18 MiB, and one
     /// From the stick already by name and size.
@@ -5300,7 +5300,7 @@ impl Faraday {
 
     /// Costs a hash of a whole file (through `hash`).
     /// [`Faraday::visit_all_out`], but with more than one vault file
-    /// waiting, one vault for this stick (`docs/NEW-WALLET.md` §5.3): the
+    /// waiting, one vault for this stick (`docs/history/NEW-WALLET.md` §5.3): the
     /// first the last write did not write. The rest wait for the next
     /// stick.
     fn visit_default_out(&self, c: &Compute) -> std::collections::BTreeSet<String> {
@@ -5339,7 +5339,7 @@ impl Faraday {
     /// Lock asked for: by the person (`for_flow` false), or by a step of
     /// a backup flow. Asks first when a vault is open with something
     /// not in it, a seal waits, or the lock would end Make a new wallet
-    /// (`docs/NEW-WALLET.md` §18); else locks.
+    /// (`docs/history/NEW-WALLET.md` §18); else locks.
     pub(crate) fn lock_ask(&mut self, for_flow: bool) {
         let c = self.compute();
         self.lock_for_flow = for_flow;
@@ -5388,7 +5388,7 @@ impl Faraday {
         let c = self.compute();
         // A lock before Make a new wallet's keys are kept anywhere ends
         // it, as its Cancel does: nothing is left to come back to
-        // (`docs/NEW-WALLET.md` §18).
+        // (`docs/history/NEW-WALLET.md` §18).
         if self.lock_ends_create(&c) {
             self.create_drop();
         }
@@ -5399,7 +5399,7 @@ impl Faraday {
         self.import = None;
         self.import_load_after.clear();
         // Nothing secret copied in outlives the process that read it
-        // (`PLAN.md` §5.3): the next process is clean, and these would be
+        // (`docs/history/PLAN.md` §5.3): the next process is clean, and these would be
         // in its memory and in `/run/faraday`. They are still on the stick
         // they came from.
         // A picture goes as what its codes hold, and as Other when none
@@ -5901,7 +5901,7 @@ impl Faraday {
                     self.entry.wanted = wanted;
                     self.entry.back = back;
                     // A small panel has no keyboard of its own: every
-                    // list's words go on OpenSigner's word keyboard.
+                    // list's words go on the word keyboard.
                     if self.compact {
                         self.entry.keys = Some(forms::word_typer(self.entry.language()));
                     }
@@ -6481,7 +6481,7 @@ impl Faraday {
             Action::BChecklist => {
                 // A plan that keeps no copy of a key made here, or leaves
                 // a vault's stick at no place, is not made into a
-                // checklist (`docs/NEW-WALLET.md` §14.2, §14.4).
+                // checklist (`docs/history/NEW-WALLET.md` §14.2, §14.4).
                 // A backup past its lock keeps its plan until its writes
                 // are done (`docs/BACKUP-FLOW.md` §17.8).
                 if self.backup_locked_flow().is_some() {
@@ -6538,7 +6538,7 @@ impl Faraday {
             Action::BStep(n) => {
                 let open = self.backup.as_ref().and_then(|b| b.open);
                 // An item opens once every item before it is done
-                // (`docs/NEW-WALLET.md` §14.1).
+                // (`docs/history/NEW-WALLET.md` §14.1).
                 if open == Some(n) {
                     self.backup_item_open(None);
                 } else if self.backup_reachable(&c, n) {
@@ -6914,7 +6914,7 @@ impl Faraday {
             }
             Action::CreateWallet | Action::CreateOver => {
                 // Create opens with Kind open, whatever opened it
-                // (`docs/NEW-WALLET.md` §2.1); Back goes where it was
+                // (`docs/history/NEW-WALLET.md` §2.1); Back goes where it was
                 // opened from, Home or Wallets.
                 // Where the keys will be kept is done only once the person
                 // has pressed its own Continue, whatever is ticked to begin
@@ -6993,7 +6993,7 @@ impl Faraday {
                 {
                     // Ticks the kind, whether chosen by hand on an open
                     // Kind card or by a Tools tile opening Create with
-                    // its kind already ticked (`docs/NEW-WALLET.md`
+                    // its kind already ticked (`docs/history/NEW-WALLET.md`
                     // §2.1): either way Kind stays open until its own
                     // Continue closes it.
                     c.kind = create::NewKind::ALL[i as usize % create::NewKind::ALL.len()];
@@ -7264,7 +7264,7 @@ impl Faraday {
                 self.screen = Screen::Restore;
             }
             // The seeds wait for the question of vaults and for the
-            // setup it asked for (`docs/NEW-WALLET.md` §12.3 item 4).
+            // setup it asked for (`docs/history/NEW-WALLET.md` §12.3 item 4).
             Action::RStep(k)
                 if k == rstep::SEEDS
                     && self.restore.as_ref().is_some_and(|r| {
@@ -8830,7 +8830,7 @@ impl Faraday {
         };
         let shape = self.plan_shape_now(wi);
         // The keys made here with their backup pending, by fingerprint
-        // (`docs/NEW-WALLET.md` §14.3).
+        // (`docs/history/NEW-WALLET.md` §14.3).
         let mut text = answers.to_text();
         for fp in self.wallet_held_stored(&c, wi) {
             text.push_str(&format!("held {}\n", fp_text(fp)));
@@ -9774,7 +9774,7 @@ impl Faraday {
     }
 
     /// A seed for Restore's open slot, loaded: matched to the
-    /// description's keys or put in the slot (`docs/NEW-WALLET.md`
+    /// description's keys or put in the slot (`docs/history/NEW-WALLET.md`
     /// §12.1).
     pub(crate) fn restore_took(&mut self, fp: faraday_bip::keys::Fingerprint) {
         if let Some(why) = self.restore_refusal(fp) {
@@ -9951,7 +9951,7 @@ impl Faraday {
 
     /// Whether the key in a Create slot can take a passphrase there: one
     /// loaded here from BIP-39 words without one, on a wallet that is not
-    /// a threshold wallet (`docs/NEW-WALLET.md` §3.6).
+    /// a threshold wallet (`docs/history/NEW-WALLET.md` §3.6).
     pub fn create_pass_offered(&self, slot: usize) -> bool {
         let Some(c) = self.create.as_ref() else {
             return false;
@@ -9971,7 +9971,7 @@ impl Faraday {
 
     /// Lock in under a Create slot: adds the key the slot's words and the
     /// passphrase typed make, and puts it in the slot in place of the
-    /// first, which stays loaded (`docs/NEW-WALLET.md` §3.6).
+    /// first, which stays loaded (`docs/history/NEW-WALLET.md` §3.6).
     fn create_pass_lock(&mut self) {
         let c = self.compute();
         if !self.selftest_passed() {
@@ -10024,7 +10024,7 @@ impl Faraday {
             Err(e) => (Err(e.text()), false),
         };
         // The passphrase exists nowhere else: the key is made here
-        // (`docs/NEW-WALLET.md` §14.3).
+        // (`docs/history/NEW-WALLET.md` §14.3).
         if new && let Ok(fp) = &added {
             self.mark_made_here(*fp);
         }
@@ -10096,7 +10096,7 @@ impl Faraday {
         };
         let descriptor = c.kind.descriptor(c.m, &keys);
         // A wallet made from another is named after it, with the account
-        // (`docs/NEW-WALLET.md` §16.2).
+        // (`docs/history/NEW-WALLET.md` §16.2).
         let name = match c.from.as_ref() {
             Some(f) => f.name_at(c.kind, c.account),
             None => fill(
@@ -10234,7 +10234,7 @@ impl Faraday {
                     r.done[rstep::CHECK as usize] = false;
                     // On to the next card not done: the question of vaults
                     // when it is not answered yet, before the seeds
-                    // (`docs/NEW-WALLET.md` §12.3 item 4).
+                    // (`docs/history/NEW-WALLET.md` §12.3 item 4).
                     r.next(rstep::DESCRIPTION);
                 }
             }
@@ -10509,7 +10509,7 @@ impl Faraday {
         // status line's probe: it is worked out again for these.
         self.entry.forget_probe();
         // New key's Scan a SeedQR: its Key card takes the words and asks
-        // the passphrase there (`docs/NEW-WALLET.md` §15.2).
+        // the passphrase there (`docs/history/NEW-WALLET.md` §15.2).
         if self.keygen_scanned(words) {
             return;
         }
@@ -11165,7 +11165,7 @@ impl Faraday {
     /// already loaded refused as a duplicate); `said` says so; then what
     /// the screen it returns to, `back`, does with it (`seeds_took`).
     /// Add a key's Add and New key's Lock in for a key typed both load
-    /// through here (`docs/NEW-WALLET.md` §15.2).
+    /// through here (`docs/history/NEW-WALLET.md` §15.2).
     pub(crate) fn typed_load(
         &mut self,
         m: &faraday_bip::bip39::Mnemonic,
@@ -11183,7 +11183,7 @@ impl Faraday {
     }
 
     /// Whether Add a key's form takes the keys typed: on Add a key, or on
-    /// New key's Words card for a key typed (`docs/NEW-WALLET.md` §15.2).
+    /// New key's Words card for a key typed (`docs/history/NEW-WALLET.md` §15.2).
     pub(crate) fn entry_typing_here(&self) -> bool {
         self.screen == Screen::Entry
             || (self.screen == Screen::KeyGen
@@ -11260,7 +11260,7 @@ impl Faraday {
             }
         }
         // Restore takes a seed only into a slot it fills: with the
-        // description known, one of its keys (`docs/NEW-WALLET.md` §12.1).
+        // description known, one of its keys (`docs/history/NEW-WALLET.md` §12.1).
         if back == Some(Screen::Restore) {
             let fp = Session::default()
                 .add_mnemonic(&c, &m, &self.entry.passphrase, "", None)
@@ -11637,7 +11637,7 @@ impl Faraday {
     fn sign_here(&mut self) {
         let c = self.compute();
         // A key made here signs nothing until its backup is done
-        // (`docs/NEW-WALLET.md` §14.3).
+        // (`docs/history/NEW-WALLET.md` §14.3).
         let held = self.held_keys_now(&c);
         let waiting: Vec<String> = self
             .spend
@@ -12733,7 +12733,7 @@ impl Faraday {
                 {
                     // On a field: the caret where it was pressed, a
                     // second press selecting all of it, a drag what it
-                    // went over (`docs/NEW-WALLET.md` §13.2).
+                    // went over (`docs/history/NEW-WALLET.md` §13.2).
                     let double = self
                         .last_tap
                         .is_some_and(|(l, t)| l == a && self.now_ms.saturating_sub(t) <= 450);

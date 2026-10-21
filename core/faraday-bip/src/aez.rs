@@ -1,5 +1,5 @@
 //! AEZ v5, the wide-block robust AEAD LND's aezeed enciphers a cipher
-//! seed with (`docs/PLANNING.md` §16.116).
+//! seed with.
 //!
 //! This is a port of the AEZ v5 reference code as Yawning Angel's Go
 //! implementation holds it, which is what LND itself calls; the file

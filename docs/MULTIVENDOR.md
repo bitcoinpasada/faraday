@@ -6,7 +6,7 @@ options and a recommendation.
 
 ## 1. The idea
 
-Every cryptographic result Faraday shows or acts on comes from OpenSigner's
+Every cryptographic result Faraday shows or acts on comes from Faraday's
 code. The owner's idea: compute each result a second time with an
 independent implementation, written by other people, in another language
 where possible, and show next to the result which implementations produced
@@ -14,14 +14,14 @@ it and whether they agree. A bug in one implementation, or a tampered
 dependency, then shows as a disagreement instead of a wrong address, a
 wrong key or a wrong signature.
 
-## 2. What OpenSigner is made of
+## 2. What Faraday is made of
 
-OpenSigner is partly its own Rust and partly libraries. Which part a
+Faraday is partly its own Rust and partly libraries. Which part a
 result comes from decides what a second implementation has to differ from.
 
 | Part | Where it comes from |
 |---|---|
-| BIP-39 words to seed, BIP-85, SLIP-39, codex32 (BIP-93), Seed XOR, aezeed, MuSig2 (BIP-327, 328, 390), FROST (BIP-445), silent payments (BIP-352), the descriptor and wallet-policy layer | OpenSigner's own Rust, in `faraday-bip` |
+| BIP-39 words to seed, BIP-85, SLIP-39, codex32 (BIP-93), Seed XOR, aezeed, MuSig2 (BIP-327, 328, 390), FROST (BIP-445), silent payments (BIP-352), the descriptor and wallet-policy layer | Faraday's own Rust, in `faraday-bip` |
 | Transactions, PSBT (BIP-174, 370), BIP-32 derivation, sighash (BIP-143, 341), addresses, script | `rust-bitcoin` 0.32 |
 | Descriptors and miniscript parsing and satisfaction | `rust-miniscript` 12 |
 | ECDSA and Schnorr signing and verifying, all curve arithmetic | `rust-secp256k1`, which wraps Bitcoin Core's C library `libsecp256k1` |
@@ -29,7 +29,7 @@ result comes from decides what a second implementation has to differ from.
 
 Most "other" Bitcoin libraries also call `libsecp256k1`: libwally,
 python-bitcoinlib, python-bitcointx, and embit when its C binding is
-present. A second implementation that uses it agrees with OpenSigner on the
+present. A second implementation that uses it agrees with Faraday on the
 curve by construction and checks only the layers above. Real independence
 at the curve needs one of the implementations that do their own arithmetic.
 
@@ -72,7 +72,7 @@ codes, and the screens.
 
 ## 5. Where the second implementation runs
 
-**A. At build time, in `just`.** A differential test runs OpenSigner and
+**A. At build time, in `just`.** A differential test runs Faraday and
 the Python references side by side over many random inputs and every
 published vector: words, paths, descriptors, transactions, signatures.
 It adds nothing to the stick, costs nothing at run time, and catches most
@@ -105,7 +105,7 @@ stops what depends on it: no export, no signing, no loading of the wallet.
   reproducible build, pinned and hashed like everything else.
 - **Secrets in a second language.** Python cannot reliably wipe a seed:
   strings are immutable and copied by the runtime. The lock cycle still
-  ends the process and the kernel zeroes its memory (`PLAN.md` §5.3), but
+  ends the process and the kernel zeroes its memory (`docs/history/PLAN.md` §5.3), but
   between locks the seed would sit in a second process's heap. This is the
   cost of option C, and the reason to keep it separate from B.
 - **Speed.** Pure-Python curve arithmetic takes tens of milliseconds an

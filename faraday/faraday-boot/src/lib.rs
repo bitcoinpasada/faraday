@@ -1,4 +1,4 @@
-//! The boot copier's work (`PLAN.md` §5.5): find the boot partitions it
+//! The boot copier's work (`docs/history/PLAN.md` §5.5): find the boot partitions it
 //! has been handed, read the one that holds the running Faraday, and
 //! write it over another.
 //!
@@ -267,7 +267,7 @@ impl Boots {
             };
             // A partition named FARADAYBOOT, the first, on a USB disk. The
             // Pi's own card (`mmcblk0p1`, no names) comes later
-            // (`PLAN.md` §5.5).
+            // (`docs/history/PLAN.md` §5.5).
             if !dir.to_string_lossy().contains("/usb")
                 || number(&dir) != Some(1)
                 || partname(&dir).as_deref() != Some(BOOT)

@@ -1,4 +1,4 @@
-//! The pipe between the app's shell and the disk process (`PLAN.md`
+//! The pipe between the app's shell and the disk process (`docs/history/PLAN.md`
 //! §4.3): one request, one response, each a frame.
 //!
 //! A frame is a 4-byte little-endian length, a 4-byte sequence number

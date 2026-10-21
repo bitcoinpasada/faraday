@@ -1,7 +1,7 @@
 [package]
 name = "faraday-learn"
 version = "0.1.5"
-description = "Every Learn page: those that came from OpenSigner (docs/learn) and Faraday's own (docs/learn/faraday), and the website's guides, by id"
+description = "Every Learn page: those in docs/learn and Faraday's own in docs/learn/faraday, and the website's guides, by id"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true

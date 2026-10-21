@@ -1,4 +1,4 @@
-//! Faraday's on-screen keyboard: OpenSigner's key layouts
+//! Faraday's on-screen keyboard: the key layouts
 //! (`faraday_draw::widgets::keyboard`) drawn as Faraday's buttons, across the
 //! foot of a small panel or a strip of the wide layout. A press is the
 //! key a physical keyboard would send. The desktop app types with it on

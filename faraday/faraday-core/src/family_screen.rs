@@ -1567,7 +1567,7 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // From the wallet's card this is Write the payment's own: Scan the
     // PSBT is the shortcut here.
     let card = app.family.from_card;
-    // The money moving to a new wallet (`docs/NEW-WALLET.md` §9.6): every
+    // The money moving to a new wallet (`docs/history/NEW-WALLET.md` §9.6): every
     // coin, to its first address.
     if card && let Some((name, address)) = app.family_wallet().and_then(|i| app.moving_to(i)) {
         let head = fill(EN.family_every_coin_to, &[&name.to_string()]);
@@ -1719,7 +1719,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     cy += 36.0;
                 }
                 // Made here, its backup not done: it waits
-                // (`docs/NEW-WALLET.md` §14.3).
+                // (`docs/history/NEW-WALLET.md` §14.3).
                 let waits =
                     slot.held_by.is_some() && slot.fingerprint.is_some_and(|f| app.key_held(f));
                 let in_vault = slot
@@ -1821,7 +1821,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .filter(|fp| app.session.key_label(**fp).is_some())
         .count();
     // Fewer keys here than sign: bring one here, or collect a signature
-    // from whoever holds one (`docs/NEW-WALLET.md` §11.2). A wallet whose
+    // from whoever holds one (`docs/history/NEW-WALLET.md` §11.2). A wallet whose
     // paths differ keeps them until the spend is signed, since a count
     // of keys does not settle which path signs.
     let paths = wallet

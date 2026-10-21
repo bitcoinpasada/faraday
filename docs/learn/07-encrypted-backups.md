@@ -2,7 +2,7 @@
 
 ## What it is
 
-An OpenSigner backup is one small file, ending in .oskb, that OpenSigner writes: something locked under a passphrase chosen when it was made. Faraday does not write one. It reads one into a vault, where it is kept under the vault's passphrase from then on.
+An .oskb backup is one small file: something locked under a passphrase chosen when it was made. Faraday does not write one. It reads one into a vault, where it is kept under the vault's passphrase from then on.
 
 ## What it can hold
 
@@ -24,4 +24,4 @@ The passphrase is stretched with Argon2id at the memory the file states in its h
 
 ## Reading one without Faraday
 
-The OSKB format is written down in docs/BACKUP.md, in OpenSigner's source and in Faraday's, and tools/backup/decrypt.py in either opens a file on any computer with Python.
+The OSKB format is written down in docs/BACKUP-FORMAT.md and in Faraday's source, and tools/backup/decrypt.py opens a file on any computer with Python.

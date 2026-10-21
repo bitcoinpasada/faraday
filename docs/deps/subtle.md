@@ -1,7 +1,6 @@
 # subtle
 
-**Purpose.** Constant-time equality for `Secret<T>` (`docs/PLANNING.md`
-§5.1), which is how the session PIN hash and the two PIN entries are
+**Purpose.** Constant-time equality for `Secret<T>`, which is how the session PIN hash and the two PIN entries are
 compared without a timing side channel.
 
 **Why this crate.** `ConstantTimeEq` over byte slices with the same

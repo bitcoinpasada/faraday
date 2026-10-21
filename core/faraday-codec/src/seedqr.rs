@@ -11,7 +11,7 @@
 //! Neither format carries the wordlist language: the specification
 //! assumes English, and a SeedQR made from another list decodes to the
 //! same indices. The Load wizard therefore still asks the language after
-//! a scan (`docs/UX.md` §7.2), and [`from_digits`] / [`from_entropy`]
+//! a scan, and [`from_digits`] / [`from_entropy`]
 //! take it as a parameter.
 //!
 //! Payloads are secrets: the digit buffer is a fixed array inside a

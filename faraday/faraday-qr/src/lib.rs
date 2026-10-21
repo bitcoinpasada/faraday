@@ -1,5 +1,5 @@
 //! What Faraday's scanner reads and its QR sender writes beyond
-//! OpenSigner's codec (`docs/QR.md`): BBQr, numbered text parts, the
+//! the codec (`docs/QR.md`): BBQr, numbered text parts, the
 //! Faraday file envelope and the UR registry's key and wallet types. UR
 //! itself (single and fountain-coded, `crypto-psbt` and `bytes`, and a
 //! single part of any type, `faraday_codec::ur::encode_single`) stays

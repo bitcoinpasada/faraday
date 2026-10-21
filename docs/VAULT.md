@@ -1,6 +1,6 @@
 # The Faraday vault
 
-**Status:** v0.1 · 2026-10-04 · built 2026-10-05 in `faraday/faraday-vault` (format, create, open, seal, records), with the vectors in `tools/vectors/vault/` and the reference reader `tools/vault/open.py`, which opens both vectors. Not built yet: §3.1's Raspberry Pi timings, and the writer of record type 9 (`HANDOFF.md` item 12 says why). Types 7 and 8 are written by `faraday-pgp` and `faraday-sb` through the app. Type 12 (`docs/APK-SIGNING.md`, F25) is written by `faraday-core/src/apk.rs` and read by `open.py`, with `--field TYPE.FIELD --out FILE`; the receipt of a write keeps the stick's FAT volume serial (§6).
+**Status:** v0.1 · 2026-10-04 · built 2026-10-05 in `faraday/faraday-vault` (format, create, open, seal, records), with the vectors in `tools/vectors/vault/` and the reference reader `tools/vault/open.py`, which opens both vectors. Not built yet: §3.1's Raspberry Pi timings, and the writer of record type 9 (`docs/history/HANDOFF.md` item 12 says why). Types 7 and 8 are written by `faraday-pgp` and `faraday-sb` through the app. Type 12 (`docs/APK-SIGNING.md`, F25) is written by `faraday-core/src/apk.rs` and read by `open.py`, with `--field TYPE.FIELD --out FILE`; the receipt of a write keeps the stick's FAT volume serial (§6).
 
 A vault is one file holding four equal slots. Each passphrase opens one
 slot. A slot no passphrase opens is indistinguishable from one that holds
@@ -9,11 +9,11 @@ the format; where an implementation and this file disagree, this file is
 what a second implementation is written against, and the vectors under
 `tools/vectors/vault/` settle it.
 
-The cryptography is OpenSigner's `.oskb` format (`docs/BACKUP.md`),
+The cryptography is the `.oskb` format (`docs/BACKUP-FORMAT.md`),
 whose crate `core/faraday-backup` also provides the Argon2id `Cost` type:
 Argon2id version 1.3 and XChaCha20-Poly1305. The slot structure follows the duress
-record of OpenSigner's kept-key blob, which was random bytes under a random
-key when no duress PIN was set (`docs/history/UPSTREAM.md`).
+record of the kept-key blob, which was random bytes under a random
+key when no duress PIN was set.
 
 ## 1. The file
 
@@ -111,7 +111,7 @@ dice's words. Every figure that includes the cost's bits is written with
 bits are not measured, and the form says so (`vaults::cost_bits`,
 `Vaults::phrase_bits`).
 
-**Two sizes, then Customise** (owner, 2026-10-10; `docs/SIMPLIFY.md`
+**Two sizes, then Customise** (owner, 2026-10-10; `docs/history/SIMPLIFY.md`
 §3.1). The Create form's first card is **Size**, two rows: **PCs only**
 (Medium, 512 MiB, 3 passes) and **PCs and a Raspberry Pi** (Light, 64
 MiB, 3 passes), the second chosen by default, each with its unlock time
@@ -170,7 +170,7 @@ operating system, or in the reference reader on a desktop, the margin
 is whatever that system leaves free.
 
 Two cautions are not settled by the table and are measured before
-release: OpenSigner's Pi 3 image is 32-bit, where one allocation of 1 GiB
+release: the Pi 3 image is 32-bit, where one allocation of 1 GiB
 or more may fail even with the memory free; and the time column below is
 empty until measured.
 
@@ -228,7 +228,7 @@ This computer has 1.5 GiB free." It does not attempt the derivation.
 Several vaults may be open at once, each with one open slot.
 
 A backup plan puts one seed in each vault by default, each vault on its
-own stick at its own place (2026-10-10, `docs/NEW-WALLET.md` §5,
+own stick at its own place (2026-10-10, `docs/history/NEW-WALLET.md` §5,
 `docs/WALLETS.md` §5): a vault per seed, so no place and no passphrase
 reaches more than one key unless the person ticks more seeds into one.
 
@@ -250,7 +250,7 @@ Sealing writes the vault back to memory as a file:
   unused slot from one that another passphrase opens, so it never
   rewrites, re-randomises or clears one.
 
-Sealing happens on every lock (`PLAN.md` §5.3), and for one vault alone
+Sealing happens on every lock (`docs/history/PLAN.md` §5.3), and for one vault alone
 when a backup's vault item locks it to make the next vault ("Lock it and
 make a new vault"); that vault closes and the rest stay open. The sealed
 file goes For the stick (Files' half that a stick visit writes). With
@@ -262,8 +262,8 @@ last write did not write, so each vault goes to its own stick.
 A vault is named when it is made (owner, 2026-10-07, reversing the
 fixed name of 2026-10-04): its file is that name, letters, digits,
 hyphens and underscores, spaces made hyphens, with `.ofv`; left empty it
-is `vault.ofv`. A name taken already becomes `name-2.ofv`, as OpenSigner
-names its backups. A name can say what a vault holds to anyone who sees
+is `vault.ofv`. A name taken already becomes `name-2.ofv`, as
+backup files are named. A name can say what a vault holds to anyone who sees
 the stick; leaving it empty keeps the old rule. The name is not the
 vault's identity. A vault is known by its salt and its size, and
 writing back replaces the previous copy; no older copy is kept. On a
@@ -288,7 +288,7 @@ stick visit:
 
 Once written and matched, the vault leaves For the stick and stays in
 Files as the stick now holds it, and the visit's receipt keeps the
-SHA-256 of the bytes written (owner, 2026-10-10; `docs/SIMPLIFY.md`
+SHA-256 of the bytes written (owner, 2026-10-10; `docs/history/SIMPLIFY.md`
 §4.3) and the stick's label and FAT volume serial. The backup flow
 (`docs/BACKUP-FLOW.md`, F31) does not tell sticks apart by the serial,
 which sticks written from one image can share; it refuses a second copy
@@ -326,7 +326,7 @@ exactly where its last field does, refuses the slot.
 | Type | Record | Fields |
 |---|---|---|
 | 1 | Slot label | 1 label (≤ 64 bytes). At most one per slot. |
-| 2 | Bitcoin key | 1 key: an `.oskb` kind-1 (34 bytes) or kind-2 (65 bytes) payload; 2 label; 3 flags (`u8`: bit 0 not loaded at unlock, so the Load sheet an unlock shows starts it unticked, `docs/DECISIONS.md` F62; absent, or bit 0 clear, it starts ticked; bit 1 made in Faraday with its backup not done, so it signs nothing until it is, `docs/NEW-WALLET.md` §14.3); 4 BIP-39 passphrase, present only when the person chose to store it |
+| 2 | Bitcoin key | 1 key: an `.oskb` kind-1 (34 bytes) or kind-2 (65 bytes) payload; 2 label; 3 flags (`u8`: bit 0 not loaded at unlock, so the Load sheet an unlock shows starts it unticked, `docs/DECISIONS.md` F62; absent, or bit 0 clear, it starts ticked; bit 1 made in Faraday with its backup not done, so it signs nothing until it is, `docs/history/NEW-WALLET.md` §14.3); 4 BIP-39 passphrase, present only when the person chose to store it |
 | 3 | Wallet | 1 BIP-388 text, or the descriptor for a wallet whose key has no origin; 2 name; 3 flags (`u8`: bit 0 not loaded at unlock, as a key's; absent, it loads; F62, and a build before F62 refuses a slot whose wallet holds it) |
 | 4 | Note | 1 the note, as `.oskb` kind 3 |
 | 5 | Recovery sheet | 1 the sheet, as `.oskb` kind 4 |
@@ -335,7 +335,7 @@ exactly where its last field does, refuses the slot.
 | 8 | Secure Boot keys | 1 owner GUID (16 bytes); 2 PK private key, PKCS#8 DER; 3 PK certificate, DER; 4 KEK key; 5 KEK certificate; 6 db key; 7 db certificate |
 | 9 | Pending signing round | 1 scheme (`u8`: 1 MuSig2, 2 FROST); 2 SHA-256 of the unsigned transaction it is bound to; 3 the key's fingerprint; 4 the round's secret state, as `faraday-psbt` serialises it; 5 used (`u8`), set when round 2 signs. Written by the flow in `docs/WALLETS.md` §4.2 and, for FROST, by the carry's secret sheet (`docs/FLOWS.md` decision 6), with the carry file as field 4; Faraday removes the record once its round has signed, so it is gone at the next seal |
 | 10 | Signed amounts | 1 SHA-256 of an unsigned transaction; 2 the amount each input stated, `u64` per input in order (repeatable per record: one record per transaction). Written by `docs/WALLETS.md` §3.3 when that setting is on; the oldest records are dropped first when the slot is full |
-| 11 | Backup plan | 1 the wallet, as a type 3 record's field 1 holds it; 2 the plan's answers, a line each (`name value`: `seeds`, `places`, `split`, `wallet`, `software`, `form`, `omit`, `vault v` the seeds vault *v* holds, `sticks v` the places that keep its stick, `pass i`, and `held {fp}` for each key of the wallet made in Faraday whose backup is not done, a fingerprint and never a secret, `docs/NEW-WALLET.md` §14.3, and once the map is edited on the chart a `spot` line per spot, `spot place0 w0 sheet stick0` (where, then what it holds in codes: `w`/`q`/`p` a seed's words, SeedQR or passphrase, `sheet`, `share`, `stick` a vault's stick, `seed`/`seedp` a seed in a vault without or with its passphrase, `vpass` a passphrase alone in a vault (a type 14 record), `wallet`, `file`), read back as the plan in place of the answers' rule, `docs/NEW-WALLET.md` §9.7; `preset k` the preset the plan started from and `custom 1` once the board was opened by Customize backup (`docs/BACKUP-FLOW.md` §19.6); the `layers` and `route` lines, and a `vpw` code in a `spot` line, that test builds wrote while the access layers were in (withdrawn 2026-10-19, `docs/DECISIONS.md` F38) are read past, never refused; a plan written before 2026-10-10 has one `sticks` line with no number and no `vault` line, and reads as one vault holding every seed here; one with no `spot` line is drawn from its answers); 3 a place's name (≤ 128 bytes, repeatable: one per place, in order, empty for "Place n"); 4 what one place, a vault, a stick of files, the software or the seeds on their own devices hold, a line (repeatable), a place named by number only ("Place n": the place's name is field 3's alone, and is never written here), and what a vault holds that a later plan dropped ("vault.ofv holds seed 9A6A2580"); a record written before 2026-10-10 may still name the place here instead of by number, and reading it into the kept summary (§11) replaces that name with its place number; 5 a note on a thing of the map, a line (repeatable, `docs/NEW-WALLET.md` §9.5): `checked place0 w0 2026-10-10`, `keychecked 9a6a2580 2026-10-10` (the date a key's holder confirmed its backup), `lost place0 w0`, `exposed place0 w0`, `holder 9a6a2580 Alice's Coldcard`, `vaultname 0 Cold storage`; never a secret, and never copied into the summary a lock keeps (§11). 6 retired: an access layer's name, written only by test builds while the access layers were in (withdrawn 2026-10-19, `docs/DECISIONS.md` F38); still allowed (≤ 128 bytes, repeatable) so a slot that holds one opens, and read by nothing. Written when the backup's checklist is made with a vault open (`docs/WALLETS.md` §5), and when the plan is changed or a note made on the wallet's chart, over the record this slot kept for the same wallet; the next backup of that wallet starts from it. The only place a place's name, a key's holder, a vault's name, a date checked and a mark are kept |
+| 11 | Backup plan | 1 the wallet, as a type 3 record's field 1 holds it; 2 the plan's answers, a line each (`name value`: `seeds`, `places`, `split`, `wallet`, `software`, `form`, `omit`, `vault v` the seeds vault *v* holds, `sticks v` the places that keep its stick, `pass i`, and `held {fp}` for each key of the wallet made in Faraday whose backup is not done, a fingerprint and never a secret, `docs/history/NEW-WALLET.md` §14.3, and once the map is edited on the chart a `spot` line per spot, `spot place0 w0 sheet stick0` (where, then what it holds in codes: `w`/`q`/`p` a seed's words, SeedQR or passphrase, `sheet`, `share`, `stick` a vault's stick, `seed`/`seedp` a seed in a vault without or with its passphrase, `vpass` a passphrase alone in a vault (a type 14 record), `wallet`, `file`), read back as the plan in place of the answers' rule, `docs/history/NEW-WALLET.md` §9.7; `preset k` the preset the plan started from and `custom 1` once the board was opened by Customize backup (`docs/BACKUP-FLOW.md` §19.6); the `layers` and `route` lines, and a `vpw` code in a `spot` line, that test builds wrote while the access layers were in (withdrawn 2026-10-19, `docs/DECISIONS.md` F38) are read past, never refused; a plan written before 2026-10-10 has one `sticks` line with no number and no `vault` line, and reads as one vault holding every seed here; one with no `spot` line is drawn from its answers); 3 a place's name (≤ 128 bytes, repeatable: one per place, in order, empty for "Place n"); 4 what one place, a vault, a stick of files, the software or the seeds on their own devices hold, a line (repeatable), a place named by number only ("Place n": the place's name is field 3's alone, and is never written here), and what a vault holds that a later plan dropped ("vault.ofv holds seed 9A6A2580"); a record written before 2026-10-10 may still name the place here instead of by number, and reading it into the kept summary (§11) replaces that name with its place number; 5 a note on a thing of the map, a line (repeatable, `docs/history/NEW-WALLET.md` §9.5): `checked place0 w0 2026-10-10`, `keychecked 9a6a2580 2026-10-10` (the date a key's holder confirmed its backup), `lost place0 w0`, `exposed place0 w0`, `holder 9a6a2580 Alice's Coldcard`, `vaultname 0 Cold storage`; never a secret, and never copied into the summary a lock keeps (§11). 6 retired: an access layer's name, written only by test builds while the access layers were in (withdrawn 2026-10-19, `docs/DECISIONS.md` F38); still allowed (≤ 128 bytes, repeatable) so a slot that holds one opens, and read by nothing. Written when the backup's checklist is made with a vault open (`docs/WALLETS.md` §5), and when the plan is changed or a note made on the wallet's chart, over the record this slot kept for the same wallet; the next backup of that wallet starts from it. The only place a place's name, a key's holder, a vault's name, a date checked and a mark are kept |
 | 12 | APK signing key | 1 the private key, RSA, PKCS#8 DER; 2 its self-signed certificate, DER, whose common name is the key's name and whose SHA-256 is its fingerprint; 3 the Android package it signs for, text (≤ 255 bytes). Written by Make an APK key (`docs/APK-SIGNING.md` §3); of field 1 only signatures leave the slot, inside signed APKs, unless the person writes it out with `open.py --field 12.1` (§10) |
 | 13 | Wallet share | 1 the share: a part of a multisig wallet's description with some keys left off, as the share's `.txt` file holds it (`docs/BACKUP-FLOW.md` §17.6); 2 the wallet's name; 3 which share, `u8`, from 1; 4 how many shares, `u8`; 5 the wallet, as a type 11 record's field 1 holds it, by which a share is told from another wallet's of the same name. Repeatable per slot, one record per share and wallet. Written by the backup checklist's vault item when the plan keeps a share in that vault; a build before 2026-10-15 refuses a slot that holds one |
 | 14 | Passphrase | 1 the fingerprint of the key it is the BIP-39 passphrase of, the key's words with this passphrase (4 bytes); 2 the passphrase. Both required; at most one record per key and slot. Written by the backup checklist's vault item when the plan keeps a seed's passphrase in a vault that does not hold the seed (`docs/BACKUP-FLOW.md` §19.12 item 4, `What::PassphraseSealed`); a vault that holds the seed keeps the passphrase in the key record's field 4 instead. Loading a key record with no field 4 from any open vault uses the passphrase a type 14 record in an open vault keeps for it, found by the fingerprint its words make with it. A build before F37 refuses a slot that holds one |
@@ -344,7 +344,7 @@ An open slot's view shows each type 3 wallet with the type 11 plan this
 slot keeps for it, as a chart read from the backup up: the places,
 vaults, files and software of the plan, the wallet's keys under them (a
 key whose type 2 record is in this slot reads "In this vault"), the
-wallet at the foot (`docs/NEW-WALLET.md` §7.2). A wallet with no type 11
+wallet at the foot (`docs/history/NEW-WALLET.md` §7.2). A wallet with no type 11
 record here reads "No backup plan in this vault". Each node opens its
 sheet (§9); its actions load the wallet, and its seeds this slot keeps,
 first. Opening one writes nothing into the slot.
@@ -410,7 +410,7 @@ cannot alter its contents.
 
 `tools/vault/open.py` opens a vault with a passphrase and prints the
 records of the slot it opens, over the standard library and either
-`argon2-cffi` with `pynacl` or `cryptography` 44 or newer, as OpenSigner's
+`argon2-cffi` with `pynacl` or `cryptography` 44 or newer, as
 `tools/backup/decrypt.py` does. A vault therefore opens without
 Faraday. It writes nothing, except with `--field TYPE.FIELD --out
 FILE` (`docs/APK-SIGNING.md` §3, §7): then it prints nothing of the
@@ -423,7 +423,7 @@ implementations in the tests: a 64 KiB vault with one passphrase, and a
 
 ## 11. What the app remembers of a locked vault
 
-(owner, 2026-10-10; `docs/SIMPLIFY.md` §3.4, decision 4.) While a slot
+(owner, 2026-10-10; `docs/history/SIMPLIFY.md` §3.4, decision 4.) While a slot
 is open, the app keeps a summary of it: the file's name and salt, the
 slot's name, its wallets (name, shape and descriptor checksum), its keys
 (each key's fingerprint and its 32-byte master id, the SHA-256 of the
@@ -432,7 +432,7 @@ master public key and chain code with the passphrase applied,
 its backup maps' lines (record type 11, field 4), the checksums of the
 wallets it keeps a plan for, and the time it was last open by this
 computer's clock. The Backups screen lists a locked vault's wallets
-from it (`docs/SIMPLIFY.md` §5), and its vault line says a seed is kept
+from it (`docs/history/SIMPLIFY.md` §5), and its vault line says a seed is kept
 in a locked vault only when the seed's master id, the session key's or
 the one the backup's record kept, is the summary's for that key: the
 fingerprint finds the candidate, the id says it is that seed (F65). A

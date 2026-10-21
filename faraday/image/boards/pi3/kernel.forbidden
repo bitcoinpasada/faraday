@@ -10,7 +10,7 @@ USB_STORAGE    the only storage is the card the firmware booted from
 SCSI           only USB storage would have wanted it
 BCM_VCIO       /dev/vcio is the firmware mailbox from userspace, which is how vcgencmd burns the SoC's OTP
 
-# Faraday (PLAN.md §4.2, §4.6).
+# Faraday (docs/history/PLAN.md §4.2, §4.6).
 FAT_FS        the card's FAT is read by faraday-disk, unprivileged, never by the kernel
 VFAT_FS       as FAT_FS
 MSDOS_FS      as FAT_FS
@@ -19,5 +19,5 @@ ISO9660_FS    as EXFAT_FS
 USB_PRINTER   a printer interface has nothing to bind to here
 USB_MON       the USB traffic monitor has nothing to show anyone on a device that signs
 
-# Faraday (PLAN.md §5.3): no process's memory is ever written to a file.
+# Faraday (docs/history/PLAN.md §5.3): no process's memory is ever written to a file.
 COREDUMP      a crash would write the app's memory, keys included, to a file

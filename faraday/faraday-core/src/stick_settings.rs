@@ -1,9 +1,9 @@
-//! Settings on the stick (`PLAN.md` §5.2): `faraday-settings.txt` on a
+//! Settings on the stick (`docs/history/PLAN.md` §5.2): `faraday-settings.txt` on a
 //! stick's data partition, so the settings outlive a power-off.
 //!
 //! The file is plain text, because the theme and scale are wanted on the
 //! passphrase screen and so cannot be inside a vault. It is read once, at
-//! boot, from the boot stick, and is untrusted input (`PLAN.md` §4.4): a
+//! boot, from the boot stick, and is untrusted input (`docs/history/PLAN.md` §4.4): a
 //! line is taken only when its key is known and its value is one Settings
 //! itself offers, and nothing read from it makes a fresh boot less
 //! protected than the defaults. **Never** for the idle times, the

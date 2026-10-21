@@ -1,17 +1,15 @@
 # What is cryptography, and where it lives
 
 **Status:** written 2026-10-06; corrected 2026-10-21 where it had become
-false. `core/` is Faraday's code: a fork of OpenSignerKit at
-`d26b84e92f4e960071fd4a8279112bf6d7f0d34c` (F65; F72 makes it a hard
-fork), with Faraday's changes listed in `docs/history/UPSTREAM.md`. This file is
+false. `core/` is Faraday's code. This file is
 rewritten when the key boundary (F70) is built. One row per
 crate that touches a key, a seed, a signature, a cipher or a passphrase,
 saying what it computes, whether that is written in this tree or taken
 from a crate, and what it is checked against. For someone deciding what
 to read to audit this device, or how far a change reaches.
 
-Upstream's §16.138 (`docs/WALLETS.md` §1 rule 5) says code that defines
-bytes, or answers a question with no screen in it, is a `core/` crate.
+Code that defines bytes, or answers a question with no screen in it, is a
+`core/` crate (`docs/WALLETS.md` §1 rule 5).
 For cryptography Faraday's app crate does not hold to that today:
 `faraday-core` derives keys from seeds and calls the signing functions
 itself (its row in §1). F70 moves that into one crate, `faraday-keys`;
@@ -32,7 +30,7 @@ Three tiers, used through the rest of this file:
 
 ## 1. Crates that compute cryptography
 
-### `core/` (OpenSigner's code as forked; changes listed in `docs/history/UPSTREAM.md`)
+### `core/`
 
 | Crate | What it computes | Written here, or from a crate | Checked against |
 |---|---|---|---|
@@ -107,7 +105,7 @@ Starter's, `faraday-v4l2`, `faraday-avfoundation`), and the dev
 tools (`faraday-testkit`, `faraday-argon2-bench`, `faraday-fontbake`,
 `costs-lint`). The Starter handles a BitLocker recovery password through
 Windows' own API and computes nothing with it.
-These matter to the trust model (`PLAN.md` §4 — privilege separation,
+These matter to the trust model (`docs/history/PLAN.md` §4 — privilege separation,
 untrusted input, the stick rule) but never see a key, a seed or a
 passphrase; that is a property of the process boundaries in §4, not of
 anything in this file.

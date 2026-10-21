@@ -405,7 +405,7 @@ vault files waiting, a visit ticks one.
 
 **Docs.** `docs/WALLETS.md` §5, `docs/VAULT.md` (a vault per seed by
 default), `docs/learn/06-backups.md` only if it says "the vault" as one
-— it is OpenSigner's page as forked, so leave it and note it in the report instead.
+— it is upstream's page as forked, so leave it and note it in the report instead.
 
 ## 6. The wallet at a glance
 
@@ -1163,7 +1163,7 @@ returns which of the two the seed has.
   typing rules (`forms::typed_index`, `forms::typed_candidates`,
   `forms::completion`; Tab, Space, and a word taken by itself once its
   letters are whole and only one word starts so), and for a list typed
-  on an on-screen keyboard and on the small panel, OpenSigner's word
+  on an on-screen keyboard and on the small panel, upstream's word
   entry (`forms::word_typer`, `word_keys`, the candidate pills). The
   key handling of Add a key's words (`lib.rs`, the Latin branch and the
   `LoadWizard` branch of the Entry keys) and the drawing of its word

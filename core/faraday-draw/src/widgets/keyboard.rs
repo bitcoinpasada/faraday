@@ -1,4 +1,4 @@
-//! On-screen keyboard geometry (`docs/PLANNING.md` §4.5).
+//! On-screen keyboard geometry.
 //!
 //! One function, [`keys`], produces the key rectangles for a keyboard kind
 //! inside a rectangle; drawing and hit-testing both use it, so they cannot
@@ -33,7 +33,7 @@ pub enum KeyboardKind {
     /// Printable ASCII with shift and a symbol layer.
     Passphrase,
     /// The dice pad: six large keys `1`–`6` in two rows and a backspace
-    /// spanning both rows (UX.md §6 "dice pad").
+    /// spanning both rows.
     Dice,
     /// The coin pad: `Heads`, `Tails` and a backspace in one row of tall
     /// keys. Heads is [`KeyInput::Char`]`('H')`, tails `'T'`.
@@ -46,7 +46,7 @@ pub enum KeyboardKind {
     /// suit-then-rank; the pad does not care which comes first.
     Cards,
     /// The derivation-path keyboard: digits, `/`, `h` (hardened),
-    /// backspace and ✓, in three rows (UX.md H4).
+    /// backspace and ✓, in three rows.
     Path,
     /// The address keyboard (`docs/DESIGN.md` §4.3): the bech32
     /// alphabet on the QWERTY positions, and a shift that swaps it for
@@ -164,8 +164,8 @@ const fn k(c: char) -> Option<KeyInput> {
 /// ten columns of the consonant groups あかさたなはまやらわ. The 五十音
 /// leaves five cells empty — や at い and え, わ at い, う and え — and
 /// they carry ゛, ゜ and 小; ん takes the わ column's え cell and the
-/// backspace the bottom-right one, where the archaic を would sit
-/// (`docs/PLANNING.md` §16.118). Four keys for five cells leaves one
+/// backspace the bottom-right one, where the archaic を would sit.
+/// Four keys for five cells leaves one
 /// empty, and an empty cell is a cell: nothing is drawn there and a tap
 /// on it does nothing.
 const KANA_GRID: [[Option<KeyInput>; 10]; 5] = [
@@ -295,14 +295,13 @@ pub const ALL_KEYS: KeyMask = !(DONE_DISABLED | DONE_ABSENT);
 /// Mask bit that disables the ✓ key of the dice, coin, hex, PIN and
 /// path pads, where ✓ means "continue" and is live only once what has
 /// been entered is usable. The other kinds ignore it, and the five that
-/// type a wordlist have no ✓ at all (`docs/PLANNING.md` §16.118).
+/// type a wordlist have no ✓ at all.
 pub const DONE_DISABLED: KeyMask = 1 << 63;
 
 /// Mask bit that leaves the digit pad's ✓ cell empty: no key drawn and
 /// no target, the digits and the backspace where the PIN pad has them.
 /// Word numbers' pad carries it, because a word is taken by a tap on its
-/// candidate and the pad has nothing to confirm (`docs/PLANNING.md`
-/// §16.132 rule 1). The other kinds ignore it; no kind numbers a key at
+/// candidate and the pad has nothing to confirm. The other kinds ignore it; no kind numbers a key at
 /// this bit.
 pub const DONE_ABSENT: KeyMask = 1 << 62;
 
@@ -337,8 +336,7 @@ pub fn key_bit(kind: KeyboardKind, c: char) -> KeyMask {
             };
         }
         // The digit pad numbers its keys by the digit itself, so a mask
-        // can dim the digits that cannot lead where the screen is going
-        // (`docs/PLANNING.md` §16.125 rule 2).
+        // can dim the digits that cannot lead where the screen is going.
         KeyboardKind::Pin => {
             return if c.is_ascii_digit() {
                 1 << (c as u32 - '0' as u32)
@@ -461,7 +459,7 @@ pub fn preferred_key_height(kind: KeyboardKind, class: SizeClass) -> f32 {
         // short panel has the height for at the same key. The pinyin and
         // 注音 keyboards are four rows over the two-row one-character
         // strip, which is the same height problem, so they take the same
-        // key (docs/PLANNING.md §16.121).
+        // key.
         (
             KeyboardKind::Kana | KeyboardKind::Cards | KeyboardKind::Pinyin | KeyboardKind::Zhuyin,
             SizeClass::Small,
@@ -590,7 +588,7 @@ pub fn node_heights(
 
 /// Gap between key cells in dp. Zero: keys tile the keyboard area with no
 /// dead zones, and each one paints a face inset by [`KEY_FACE_INSET`], so
-/// the visible gaps between keys are still tappable (UX.md §6).
+/// the visible gaps between keys are still tappable.
 pub const KEY_GAP: f32 = tokens::KEY_GAP;
 
 /// Inset in dp from a key's cell to its visible face, left and right.
@@ -603,7 +601,7 @@ pub const KEY_FACE_INSET_Y: f32 = tokens::KEY_FACE_INSET_Y;
 
 /// Inset in dp under the bottom row's faces: the visible keys sit this
 /// far above the bottom edge of the screen, while their hit rectangles
-/// reach it (UX.md §6).
+/// reach it.
 pub const KEY_BOTTOM_INSET: f32 = tokens::KEY_BOTTOM_INSET;
 
 /// Height in dp the keyboard region takes on top of its rows, so that
@@ -1134,7 +1132,7 @@ mod tests {
             Modifiers::default(),
         );
         // Twenty-six letters and the backspace: no ✓ on a wordlist
-        // keyboard (`docs/PLANNING.md` §16.118).
+        // keyboard.
         assert_eq!(caps.len(), 26 + 1);
         assert_eq!(caps[caps.len() - 1].input, KeyInput::Backspace);
         let find = |c: char| caps.iter().find(|k| k.input == KeyInput::Char(c)).unwrap();
@@ -1153,7 +1151,7 @@ mod tests {
 
     /// A word is taken by a tap on its candidate, so the five keyboards
     /// that type a wordlist carry no ✓ and their backspace holds the
-    /// bottom-right cell (`docs/PLANNING.md` §16.118).
+    /// bottom-right cell.
     #[test]
     fn a_wordlist_keyboard_has_no_check_and_ends_in_the_backspace() {
         for kind in [
@@ -1260,7 +1258,7 @@ mod tests {
 
     /// The hit rectangles cover the whole keyboard region with no gaps
     /// and no overlaps, so every pixel of it, out to the screen edges,
-    /// belongs to exactly one key (UX.md §6).
+    /// belongs to exactly one key.
     #[test]
     fn hit_rects_tile_the_region_out_to_its_edges() {
         for kind in [

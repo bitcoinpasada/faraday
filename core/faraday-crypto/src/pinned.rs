@@ -1,5 +1,4 @@
-//! Secret storage the kernel is asked not to write to swap
-//! (`docs/PLANNING.md` §5.4, §5.5, §16.49).
+//! Secret storage the kernel is asked not to write to swap.
 //!
 //! A page that holds a seed can be written to swap in the clear, where it
 //! survives a power-off. [`Pinned<T>`] puts `T` on pages of its own and

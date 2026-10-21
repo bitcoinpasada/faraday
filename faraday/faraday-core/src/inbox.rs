@@ -6,7 +6,7 @@
 //! record, a multisig config, Bitcoin Core's import file, or split sheets
 //! that add up. A seed comes as words in a text file (a SeedQR or
 //! CompactSeedQR picture read at a stick visit arrives as one), as SLIP-39
-//! shares or codex32 strings that add up, or out of an OpenSigner backup
+//! shares or codex32 strings that add up, or out of an .oskb backup
 //! opened with its passphrase. A seed whose fingerprint names a key of a
 //! wallet here loads with that wallet; a seed no wallet names is a
 //! potential wallet: the person adds a BIP-39 passphrase or does not, and
@@ -111,7 +111,7 @@ pub struct FoundWallet {
 pub struct Waiting {
     /// What it is and what it lacks.
     pub line: String,
-    /// The OpenSigner backup to open, by Inbox place.
+    /// The .oskb backup to open, by Inbox place.
     pub backup: Option<usize>,
 }
 
@@ -707,7 +707,7 @@ impl Faraday {
         for (k, item) in items.iter().enumerate() {
             if item.kind == FileKind::Backup {
                 found.waiting.push(Waiting {
-                    line: fill(EN.inbox_opensigner_backup, &[&item.name.to_string()]),
+                    line: fill(EN.inbox_oskb_backup, &[&item.name.to_string()]),
                     backup: Some(k),
                 });
             }
@@ -1033,7 +1033,7 @@ pub struct Potential {
     pub with: Option<Fingerprint>,
     /// The last refusal.
     pub error: Option<String>,
-    /// An OpenSigner backup being opened instead, by Inbox place.
+    /// An .oskb backup being opened instead, by Inbox place.
     pub backup: Option<usize>,
     /// An account xpub becoming a watch-only wallet instead, with whether
     /// its path fixes the kind.
@@ -1118,7 +1118,7 @@ impl Faraday {
         }
     }
 
-    /// Opens the sheet for an OpenSigner backup's passphrase.
+    /// Opens the sheet for an .oskb backup's passphrase.
     pub(crate) fn backup_open(&mut self, k: usize) {
         self.potential = Some(Potential {
             backup: Some(k),
@@ -1317,7 +1317,7 @@ impl Faraday {
         }
     }
 
-    /// Opens an OpenSigner backup with the passphrase typed: its words or
+    /// Opens an .oskb backup with the passphrase typed: its words or
     /// seed load as a key, which is then a potential wallet or loads with
     /// its wallet; its recovery sheet loads as a wallet.
     fn backup_unseal(&mut self) {

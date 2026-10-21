@@ -1,4 +1,4 @@
-//! The disk process (`PLAN.md` §4.3), as the image runs it: as `ofdisk`,
+//! The disk process (`docs/history/PLAN.md` §4.3), as the image runs it: as `ofdisk`,
 //! with no privilege, over the two FIFOs `rcS` makes.
 //!
 //! ```text

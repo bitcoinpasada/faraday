@@ -111,7 +111,7 @@ wallets, flows and open vault records.
 ### 3.1 The fingerprint is kept on the key (issue 120)
 
 Built first in Faraday (a `fp` field on `wallet::Key`), then moved into
-core (`docs/COMPUTE.md` §5.1, `docs/history/UPSTREAM.md` §3). `MasterKey`
+core (`docs/COMPUTE.md` §5.1). `MasterKey`
 (`core/faraday-bip/src/keys.rs`) works out its fingerprint once, when the
 key is made, from the blinded context; `for_network` copies it,
 `fingerprint()` returns it, and `derive()` takes the master fingerprint
@@ -134,7 +134,7 @@ and blinded), thousands of times a second on the checklist.
 ### 3.2 The descriptor checksum is kept on the wallet (issue 121)
 
 Built first in Faraday (a `checksum` field on `wallet::Wallet`), then
-moved into core (`docs/COMPUTE.md` §5.2, `docs/history/UPSTREAM.md` §3).
+moved into core (`docs/COMPUTE.md` §5.2).
 `WalletPolicy` (`core/faraday-bip/src/policy.rs`) sets its checksum in every
 constructor, and `checksum(&self) -> &str` is a lookup. A policy has one
 text: hardened steps are kept and written `h` whichever way they were
@@ -304,7 +304,7 @@ The comparison stops at the first different word, as `==` on the
 indices does today; it runs inside the process on secrets the process
 already holds, so its timing tells nothing new.
 
-`Language::index_of` is not changed (it is upstream's, and with this
+`Language::index_of` is not changed (with this
 change nothing hot calls it).
 
 ### 3.8 The glyph cache: measure first (issue 127)
@@ -318,8 +318,7 @@ measurement.
 If a screen clears the cache on every frame: the cache evicts the least
 recently used glyphs until the new one fits, in place of clearing
 everything, and `CACHE_BUDGET` becomes 1 MB. That is a change to
-`core/faraday-draw`, upstream's, and is listed in HANDOFF's "Where Faraday's
-upstream files differ from upstream". If no screen clears it every frame,
+`core/faraday-draw`. If no screen clears it every frame,
 nothing changes and the issue is closed with the numbers.
 
 ### 3.9 The web demo (issue 128, built in the website's own repository)
@@ -329,7 +328,7 @@ In the website's `web/index.html`, `pointermove` (both
 `call` that does not force `watch`: the state is read at most every
 150 ms, as `watch` already does when not forced, and at once after any
 other call. `draw` still runs whenever `faraday_dirty` says. The
-website's `HANDOFF.md` takes the item; the website is rebuilt and
+website's own handoff file takes the item; the website is rebuilt and
 published by its own flow.
 
 ### 3.10 `--timings` shows events and storage (issue 129)
@@ -738,8 +737,7 @@ every row, seen or not. A later batch.
 
 ### 8.2 New counted kinds
 
-Counted at their source, the core's through `faraday_crypto::work` (F65,
-`docs/history/UPSTREAM.md` §3). S1 counted them behind a `count` feature and a
+Counted at their source, the core's through `faraday_crypto::work` (F65). S1 counted them behind a `count` feature and a
 process-wide counter the app installed; since COMPUTE C3 the count
 goes through the token the caller holds (`c.count(kind)`), the feature
 and the counter are gone, and Faraday's tokens carry

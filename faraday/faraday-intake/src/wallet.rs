@@ -286,7 +286,7 @@ pub fn holds_secret(text: &str) -> bool {
 ///   `/1/*` (Sparrow's older export, Bitcoin Core's `listdescriptors`,
 ///   which lists one pair per kind: the wallet is the multisig or
 ///   miniscript one if there is one, else BIP-84's, 86's, 49's, 44's,
-///   the order OpenSigner prefers);
+///   in that order);
 /// - a receive descriptor alone, `/0/*` (Jade's export), or a change
 ///   descriptor alone, `/1/*` (Keystone's);
 /// - one descriptor whose keys carry no derivation (Specter Desktop's

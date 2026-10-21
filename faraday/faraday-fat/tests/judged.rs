@@ -1,4 +1,4 @@
-//! FAT as other implementations see it (`PLAN.md` §12.5): volumes made by
+//! FAT as other implementations see it (`docs/history/PLAN.md` §12.5): volumes made by
 //! `mkfs.fat`, files put there by mtools and read here, files written
 //! here and read by mtools, and every volume written here passed by
 //! `fsck.fat -n`.

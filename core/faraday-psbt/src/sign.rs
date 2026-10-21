@@ -5,7 +5,7 @@
 //! never from a guessed path, and checked against the public key the PSBT
 //! names and against the script being spent before any signature is made.
 //!
-//! Nonces (`docs/PLANNING.md` §8.4 #7, §16.14, §16.38): ECDSA uses
+//! Nonces: ECDSA uses
 //! libsecp256k1's RFC 6979 nonce function, either stopping at the first
 //! nonce or retrying for a low `r` ([`Nonce`]). Schnorr signs under
 //! BIP-340 with the auxiliary randomness [`Aux`] carries: all-zero, so
@@ -190,7 +190,7 @@ pub struct SignResult {
     /// Every input now has enough signatures to finalize.
     pub complete: bool,
     /// What the pass did for the threshold wallet it spent, when it
-    /// spent one (`docs/PLANNING.md` §16.103).
+    /// spent one.
     pub threshold: Option<ThresholdOutcome>,
 }
 
@@ -781,7 +781,7 @@ struct MusigPass {
 }
 
 /// Costs a key derivation (through `derive` and `to_xpub`). Signing a
-/// BIP-373 MuSig2 input (`docs/PLANNING.md` §16.100).
+/// BIP-373 MuSig2 input.
 ///
 /// Each participant this device holds and the caller selected is handled
 /// one of three ways, decided from the input as it arrived so that two
@@ -1157,7 +1157,7 @@ fn hex33(key: &secp256k1::PublicKey) -> alloc::string::String {
 }
 
 // ---------------------------------------------------------------------
-// Threshold signing (docs/PLANNING.md §16.103)
+// Threshold signing
 // ---------------------------------------------------------------------
 
 /// The tag one `NonceGen` call's `rand` is hashed under, so that one
@@ -1228,7 +1228,7 @@ struct ThresholdPass {
     partial_sigs: usize,
 }
 
-/// Signing a threshold input (`docs/PLANNING.md` §16.103).
+/// Signing a threshold input.
 ///
 /// Either the input carries no nonce and this is the first location, in
 /// which case the signer set is this share plus the `others` the caller

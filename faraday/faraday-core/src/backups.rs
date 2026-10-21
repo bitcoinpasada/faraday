@@ -1,4 +1,4 @@
-//! The Backups screen's content (`docs/SIMPLIFY.md` §5): every wallet the
+//! The Backups screen's content (`docs/history/SIMPLIFY.md` §5): every wallet the
 //! app knows, once each by descriptor checksum, and under each the backup
 //! map as the plan draws it, each place with what this device saw of it.
 //!
@@ -882,7 +882,7 @@ impl Faraday {
         self.backup_line_in(i, self.backups_now(c))
     }
 
-    /// The wallet card's backup line (`docs/SIMPLIFY.md` §5.2): "Backup:
+    /// The wallet card's backup line (`docs/history/SIMPLIFY.md` §5.2): "Backup:
     /// paper ×2 checked · vault.ofv · for the stick", or "Not backed up",
     /// from `backups`, every wallet known and where its backup is. Cheap.
     pub(crate) fn backup_line_in(&self, i: usize, backups: Vec<Entry>) -> String {

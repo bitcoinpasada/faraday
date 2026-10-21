@@ -4,7 +4,7 @@ Each vector is an `.oskb` file: a `.hex` with the bytes on a single
 line and a `.oskb` with the same bytes as a file, which is what the
 snapshot scripts hand the scanner and what a person would hold. The test
 asserts each pair is equal, so neither can drift from the other. The
-format is `docs/BACKUP.md`.
+format is `docs/BACKUP-FORMAT.md`.
 
 `backup-12-english` and `backup-24-japanese` are version 2, which this
 build still opens and no longer writes. Both are 123 bytes: a version-2
@@ -61,7 +61,7 @@ whose password is the same twelve English words and whose notes are
 same Argon2id cost as the others, from 140 bytes of seed — the master
 seed, the encryption IV, the Argon2id salt and the inner random
 stream's key — counted up from `00` to `8b`. What is in one is
-`docs/BACKUP.md`.
+`docs/BACKUP-FORMAT.md`.
 
 There is no `.hex` beside it: a KDBX file is never scanned, and 1955
 bytes do not fit a QR.

@@ -10,7 +10,7 @@ records; the Nostr key's part is not.
 One guided flow makes and backs up every kind of secret Faraday keeps
 in a vault: an APK signing key (`docs/APK-SIGNING.md`), a GPG key, a set
 of Secure Boot keys, a Nostr key (`docs/NOSTR.md`), and the keys of a
-Bitcoin wallet with its backup plan (`docs/NEW-WALLET.md`). The person
+Bitcoin wallet with its backup plan (`docs/history/NEW-WALLET.md`). The person
 first says where the key will be kept; Faraday reads every stick that
 plan uses while nothing secret is open; the vaults are unlocked or made;
 the key is made straight into them; one lock seals them; and each stick
@@ -19,7 +19,7 @@ first step to the last, and it never shows the stick visit page.
 
 **Why a document of its own.** Four of the five kinds are not wallets,
 and the Bitcoin wallet's plan uses the same steps around its own
-checklist. The flow is written here once; `docs/NEW-WALLET.md` §14.8,
+checklist. The flow is written here once; `docs/history/NEW-WALLET.md` §14.8,
 `docs/APK-SIGNING.md` §3 and §4, `docs/NOSTR.md` §5 and
 `docs/FLOWS.md` decision 59 say where each kind enters it.
 
@@ -29,8 +29,8 @@ checklist. The flow is written here once; `docs/NEW-WALLET.md` §14.8,
   prose, on working screens; tests for user-facing behaviour only;
   `just` once at the end of the batch; no `rm`; no commits; no agents.
 - Every string in `faraday/faraday-strings/src/en.rs` with the prefix
-  `backup_flow_` (§12), the one strings file (F68); a change to `core/` or `opensigner/` is listed in `docs/history/UPSTREAM.md` (F65).
-- A stick is handed only to a clean process (`PLAN.md` §5.3 and §5.4).
+  `backup_flow_` (§12), the one strings file (F68).
+- A stick is handed only to a clean process (`docs/history/PLAN.md` §5.3 and §5.4).
   Nothing in this flow opens a secret in a process that holds a stick,
   or hands a stick to a process that holds a secret. A change that would
   need either stops and asks the owner.
@@ -193,7 +193,7 @@ step 6 instead (§4.6), since they hold no vault the key goes into.
 
 - **A clean process first.** With anything secret open when step 2
   begins, its card's foot is **Lock and bring in the sticks**: the lock
-  of `PLAN.md` §5.3, the flow's state kept.
+  of `docs/history/PLAN.md` §5.3, the flow's state kept.
 - **One place at a time, by the plan**: "Insert the stick for Vault 1
   (Place 1)". Two sticks in: "One stick at a time".
 - **Already read this session.** A stick seen this session (the boot
@@ -289,7 +289,7 @@ sheet's sections, **Kept** then **Wiped from memory** (decision 28), and
 **Lock and write**. Every open vault is sealed For the stick and
 everything secret wiped; the app starts again clean, on step 6. A plan
 with no stick skips steps 5 and 6. For a wallet of Make a new wallet,
-the idle lock waits until this step (`docs/NEW-WALLET.md` §18, F58).
+the idle lock waits until this step (`docs/history/NEW-WALLET.md` §18, F58).
 
 ### 4.6 Write each stick by place
 
@@ -1060,7 +1060,7 @@ flow's place with `Screen::BackupFlow` kept, so no other screen shows.
    `NotFat`, or `ReadOnly` when the kernel's `ro` flag of the partition
    or its disk is set. The stick shell sends `StorageEvent::StickProblem`
    for each, and the flow shows it at step 2 with what to do. The privilege
-   split is as `PLAN.md` has it: only the disk process opens a node, and
+   split is as `docs/history/PLAN.md` has it: only the disk process opens a node, and
    the app only sees the answer. Room is asked with `StickSpace`; a new
    vault's length is counted at the default slot's file (a larger slot
    chosen at step 3 is checked by the write).
@@ -1625,9 +1625,9 @@ cards, keeping what each checked; none is deleted.
 
 ### 17.5 Docs
 
-`docs/WALLETS.md` §5 (the questions), `docs/NEW-WALLET.md` §5.2 (marked
+`docs/WALLETS.md` §5 (the questions), `docs/history/NEW-WALLET.md` §5.2 (marked
 "Changed by BACKUP-FLOW §17"), `docs/DESIGN.md` §4.2's "Used for".
-`docs/learn/06-backups.md` is OpenSigner's page as forked: leave it, and say in the
+`docs/learn/06-backups.md` is not part of this batch: leave it, and say in the
 report what in it no longer matches.
 
 ### 17.6 A share in a vault

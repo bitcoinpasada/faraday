@@ -1,4 +1,4 @@
-//! What a scanned or loaded payload is (`docs/UX.md` §4 "Scan routing").
+//! What a scanned or loaded payload is.
 //!
 //! [`classify`] looks at the bytes only; it parses nothing it does not
 //! need to. Order matters where formats overlap: a 48-digit string is a
@@ -34,8 +34,7 @@ pub enum PayloadKind {
     },
     /// A PSBT, binary (`psbt\xff`) or base64.
     Psbt,
-    /// A partly signed threshold transaction: the `OSKC` carry file of
-    /// `docs/PLANNING.md` §16.103, which is a PSBT with the secret nonce
+    /// A partly signed threshold transaction: the `OSKC` carry file, which is a PSBT with the secret nonce
     /// of every signer still to sign bound to it. Routed into Sign as a
     /// PSBT is.
     ThresholdCarry,
@@ -51,8 +50,7 @@ pub enum PayloadKind {
     /// A silent payment address (BIP-352), on its own or as the `sp`
     /// parameter of a BIP-321 URI. It is not an address a wallet's
     /// chain of addresses can be searched for, so it is routed to
-    /// Check an address and shown there as what it is
-    /// (`docs/PLANNING.md` §16.113).
+    /// Check an address and shown there as what it is.
     SilentAddress,
     /// An output descriptor: a known function with parentheses.
     Descriptor {
@@ -76,7 +74,7 @@ pub enum PayloadKind {
     BsmsDescriptor,
     /// A codex32 string (BIP 93): `ms1`, a threshold, an identifier, a
     /// share index, a payload and a checksum, which is a master seed or
-    /// one share of a split of one (`docs/PLANNING.md` §16.109 rule 3).
+    /// one share of a split of one.
     Codex32,
     /// 12–24 words all from one BIP-39 list, whitespace-separated.
     Bip39Words {

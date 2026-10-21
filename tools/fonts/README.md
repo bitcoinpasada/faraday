@@ -1,8 +1,7 @@
 # Vendored fonts
 
 Source files for the glyph outlines that `faraday-draw` embeds. They are inputs
-to `tools/fontbake` only; no font file and no TTF parser ships on a device
-(`docs/PLANNING.md` §4.3).
+to `tools/fontbake` only; no font file and no TTF parser ships on a device.
 
 | File | Family | Use |
 |---|---|---|

@@ -1,5 +1,5 @@
 //! The step-card column every flow is drawn with, the way Create vault
-//! is in the prototype (`PLAN.md` §9.1): one card open at a time, the
+//! is in the prototype (`docs/history/PLAN.md` §9.1): one card open at a time, the
 //! others closed to a line that says what was chosen, and the column
 //! scrolled so the open card is in view. A card is a flat section on the
 //! page divided from the next by a rule, with no fill and no box
@@ -429,7 +429,7 @@ fn paged(
             // The title says where the page is; tapping it closes the
             // card, which leaves the list of steps, any of which opens.
             // The step count sits beside it, muted, so it is never read
-            // as a value next to the card's own numbers (`SIMPLIFY.md`
+            // as a value next to the card's own numbers (`docs/history/SIMPLIFY.md`
             // §2.6).
             let card = &cards[i];
             let count = fill(

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# The Bitcoin Core round trip behind the taproot-multisig fixtures
-# (docs/PLANNING.md §16.106, tools/vectors/psbt/README.md).
+# The Bitcoin Core round trip behind the taproot-multisig fixtures.
 #
 # A taproot multisig is BIP 387's `tr(H,sortedmulti_a(k,…))`: every key
 # is in one leaf and the internal key is the NUMS point, so nothing but

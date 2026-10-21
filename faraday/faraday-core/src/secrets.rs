@@ -53,7 +53,7 @@ impl FileKind {
 
     /// A file of this kind may hold a secret: the secret kinds, and text
     /// or a file Faraday does not read, which it cannot tell. A lock drops
-    /// these from the Inbox (`PLAN.md` §5.3).
+    /// these from the Inbox (`docs/history/PLAN.md` §5.3).
     pub fn may_be_secret(self) -> bool {
         matches!(
             self,
@@ -232,7 +232,7 @@ impl Faraday {
         }];
         // SeedQR numbers the English list's words only, and a SeedQR
         // picture is offered only where the plan copies the seed as a
-        // SeedQR (`docs/NEW-WALLET.md` §14.7).
+        // SeedQR (`docs/history/NEW-WALLET.md` §14.7).
         let seedqr = self
             .backup_seed_list_now(b.wallet)
             .iter()

@@ -246,7 +246,7 @@ fn a_checked_wallet_has_check_closed_on_its_next_spend_and_after_a_lock() {
 }
 
 /// Finishing a spend puts both results For the stick with no further
-/// press (`docs/SIMPLIFY.md` §4.2): the signed PSBT and the finished
+/// press (`docs/history/SIMPLIFY.md` §4.2): the signed PSBT and the finished
 /// transaction. Each card offers Remove in their place, and the primary
 /// opens Files, where the visit writes them.
 #[test]

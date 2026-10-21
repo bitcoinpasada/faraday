@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# The Bitcoin Core round trip behind the threshold-wallet fixtures
-# (docs/PLANNING.md §16.103, tools/vectors/psbt/README.md).
+# The Bitcoin Core round trip behind the threshold-wallet fixtures.
 #
 # A threshold wallet is a single-signature taproot wallet to everything
 # outside the device: `tr(XPUB/<0;1>/*)` over the group key's synthetic

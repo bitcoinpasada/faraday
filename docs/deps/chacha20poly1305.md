@@ -1,7 +1,6 @@
 # chacha20poly1305
 
-**Purpose.** The AEAD behind `faraday_crypto::Sealed` (`docs/PLANNING.md`
-§5.1, §16.21): a loaded key's seed and words are encrypted in memory
+**Purpose.** The AEAD behind `faraday_crypto::Sealed`: a loaded key's seed and words are encrypted in memory
 under the session key and decrypted only inside a closure.
 
 **Why this crate.** RustCrypto's ChaCha20-Poly1305 (RFC 8439): pure Rust,
@@ -21,7 +20,7 @@ nonce comes from the session key's counter, which is the point of §16.21.
 No `unsafe` outside the optional SIMD paths, which are gated on target
 features and absent from the Pi and generic builds.
 
-**Reopen when** the crate count in `docs/PLANNING.md` §10.1 forces a
+**Reopen when** the crate count forces a
 choice between this and an in-house implementation (~300 lines, but
 constant-time review is the cost), or if a platform's hardware AEAD is
 worth the shell-side plumbing.

@@ -185,7 +185,7 @@ const ICONS: &[u32] = &[
 /// The mono face: Iosevka's default Regular cut, SIL OFL 1.1
 /// (`tools/fonts/OFL.txt`). It advances 0.5 em and tells 0 from O and 1
 /// from l from I, which is what everything read character by character
-/// needs (`docs/PLANNING.md` §16.126).
+/// needs.
 const IOSEVKA_VERSION: &str = "34.8.1";
 
 /// The Regular TTF, unpacked from the archive into `tools/fonts/iosevka/`

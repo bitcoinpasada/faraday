@@ -392,7 +392,7 @@ fn files_texts(app: &mut Faraday) -> Vec<String> {
     app.drawn_texts()
 }
 
-/// A write leaves a receipt (`docs/SIMPLIFY.md` §4.3): Files lists it
+/// A write leaves a receipt (`docs/history/SIMPLIFY.md` §4.3): Files lists it
 /// under For the stick with the file names, the files written leave the
 /// list that waits, and it is still there after the lock that follows,
 /// in the next process, where Home leads with it. A fresh process, after

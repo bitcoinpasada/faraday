@@ -4,7 +4,7 @@
 //! A controller reports multitouch (`ABS_MT_POSITION_X`,
 //! `ABS_MT_POSITION_Y`, `ABS_MT_TRACKING_ID`) and single touch (`ABS_X`,
 //! `ABS_Y`, `BTN_TOUCH`); both are handled, and only the first contact is
-//! used, because nothing in OpenSigner is a gesture. Which devices are
+//! used, because nothing in Faraday is a gesture. Which devices are
 //! read, and why, is `evdev.rs`.
 //!
 //! Coordinates: a controller reports in a grid of its own, which need not

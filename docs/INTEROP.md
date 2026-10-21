@@ -81,7 +81,7 @@ reach Faraday as keys inside the wallet files above, which work.
   file itself (`wallet::coldcard_export`): BIP-84 first, rooted at the
   master, and refused if its first address is not the one the file
   states. Since 2026-10-20 that reader is `faraday_bip::coldcard::read`
-  (`parse` uses it, so OpenSigner's own scan of the file is fixed too),
+  (`parse` uses it),
   with `cosigner_keys` for Create's slots; `wallet::coldcard_export`
   only words its refusals.
 
@@ -98,7 +98,7 @@ wallets.
    or path.
 2. ~~**Caravan and Unchained wallet configs**~~ Read and written since
    2026-10-20 (§5 I5). A key whose `bip32Path` is `Unknown` or which has
-   no `xfp` is refused: upstream's `WalletPolicy` holds no multisig key
+   no `xfp` is refused: `WalletPolicy` holds no multisig key
    without an origin (BIP-388), so BlueWallet's Caravan file, whose third
    key has no path, does not load as written.
 3. ~~**Electrum.**~~ Electrum wallet files read and written since
@@ -126,10 +126,8 @@ wallets.
 ## 5. The batches that build §4 (F64, owner 2026-10-20)
 
 Every reader goes in `faraday-intake`, after the pattern of
-`caravan` and `electrum`, except where upstream's crates also read
-the format: since F65 Faraday changes `core/` itself, so such a reader goes
-in `core/` (the batches in `docs/history/UPSTREAM.md`), with every change listed
-there. What upstream might take is noted at the end, for the owner to send. New strings go in
+`caravan` and `electrum`, except where `core/`'s crates also read
+the format: such a reader goes in `core/`. New strings go in
 `faraday/faraday-strings/src/en.rs`. New vectors go under
 `faraday/faraday-core/tests/vectors/interop/<source>/`, with their source
 and licence in that folder's README. Reading needs no choice: every format
@@ -312,7 +310,7 @@ is the same wallet; the bare-zpub PSBT is refused. Optional, not in
 
 Built 2026-10-20 (`faraday-intake/src/electrum.rs`). A keystore without
 fingerprint and derivation is read origin-less only for one key, which
-upstream's policy holds; a multisig one is refused with a line naming the
+the wallet policy holds; a multisig one is refused with a line naming the
 key, as Caravan's is (I5), so `fromsparrow-electrum.json` (no origins) is
 refused and its three keys are checked against `fromsparrow-specter.json`'s.
 A secret file is `FileKind::SecretWallet`: the secret sheet's kind, which
@@ -365,7 +363,7 @@ refused ("This sp() descriptor names no key origin"); with the key
 loaded, a record whose keys are not the ones it derives is refused.
 Writes the descriptor under a silent payments wallet's Export › More
 options, through the secret sheet. Where: a public `spscan` decoder in
-`faraday-intake` (upstream's `decode_v0` is private). Tests: Sparrow's
+`faraday-intake` (`decode_v0` is private). Tests: Sparrow's
 Keystone, Specter DIY and Coldcard sp keystores give one wallet rooted at
 0f056943; BIP-392's and BIP-352's keys round-trip.
 
@@ -443,7 +441,7 @@ the key's Backup menu offers no SeedQR.
   the Cobo/Keystone single-key writer, and a longer Back up software
   question (its `software` field is five bits).
 
-### Notes for upstream (the owner sends them)
+### What these batches change in `core/`
 
 `faraday_bip::slip132` multisig versions and a version/script check;
 `faraday_bip::bsms` (#50); `faraday_bip::coldcard::parse` rooting at the top-level

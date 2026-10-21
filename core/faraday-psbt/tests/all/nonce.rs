@@ -1,5 +1,4 @@
-//! Nonce validation in deterministic mode (`docs/PLANNING.md` §8.4 #8,
-//! §16.38): signing twice gives identical bytes under either nonce
+//! Nonce validation in deterministic mode: signing twice gives identical bytes under either nonce
 //! setting, low R gives the shortest form of every signature, the
 //! RFC 6979 nonces libsecp256k1 produces match vectors from two other
 //! implementations, and the Schnorr setting decides whether a taproot

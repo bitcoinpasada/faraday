@@ -252,7 +252,7 @@ fn the_record_this_device_writes_parses_back_and_verifies() {
         &account,
         derived.secret_key(),
         bsms::NO_ENCRYPTION,
-        "OpenSigner key",
+        "Faraday key",
     )
     .expect("a record for this account");
 

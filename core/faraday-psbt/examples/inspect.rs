@@ -1,5 +1,5 @@
 //! PSBT inspector and signer at the terminal, in the order the Sign wizard
-//! shows things (`docs/UX.md` §7.3): summary, outputs, inputs and
+//! shows things: summary, outputs, inputs and
 //! warnings; then, with `--sign`, per-input signature status and the
 //! signed PSBT or the final transaction.
 //!

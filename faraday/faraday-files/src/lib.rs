@@ -1,4 +1,4 @@
-//! A stick's files as Faraday reads and writes them (`PLAN.md` §4.3,
+//! A stick's files as Faraday reads and writes them (`docs/history/PLAN.md` §4.3,
 //! `docs/VAULT.md` §6), the same rules whatever holds them:
 //!
 //! - a [`Dir`], a folder: the desktop app's sticks;

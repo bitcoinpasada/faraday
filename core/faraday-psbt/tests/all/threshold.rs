@@ -1,4 +1,4 @@
-//! The threshold spend through the crate (`docs/PLANNING.md` §16.103):
+//! The threshold spend through the crate:
 //! the two locations in both orders, three locations for a 3-of-3, the
 //! finished transaction, and every refusal by the name it carries.
 

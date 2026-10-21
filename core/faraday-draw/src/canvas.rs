@@ -40,7 +40,7 @@ pub struct Canvas {
     scratch: Vec<u8>,
     /// The strings drawn since the last [`Canvas::clear`] that ran past
     /// the side of their clip, so that some of their ink is not on the
-    /// panel (`docs/PLANNING.md` §16.133 rule 3).
+    /// panel.
     cut: Vec<String>,
     /// Where each string and icon drawn since the last [`Canvas::clear`]
     /// left its ink, while [`Canvas::record_ink`] has it on: what the

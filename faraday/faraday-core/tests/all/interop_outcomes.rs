@@ -1,5 +1,5 @@
 //! Every file under `tests/vectors/interop/` gives what it gave when its
-//! readers moved into `core/` (`docs/history/UPSTREAM.md` §3, 2026-10-20): the
+//! readers moved into `core/` (2026-10-20): the
 //! same kind in Files, the same wallet with the same first address or the
 //! same refusal, the same keys for Create's slots, the same name. The
 //! outcomes are `tests/vectors/interop/outcomes.txt`; a reader that

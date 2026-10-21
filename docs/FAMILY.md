@@ -23,7 +23,7 @@ control the job needs on the page that needs it. Creating wallets and
 backing up are out of scope.
 
 Faraday's own parts: the vault, the stick rule and the lock cycle
-(`PLAN.md` §5, `docs/FLOWS.md`).
+(`docs/history/PLAN.md` §5, `docs/FLOWS.md`).
 
 ## 1. Rules
 
@@ -52,7 +52,7 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
 ## 2. Where it sits
 
 - `Screen::Family`. Not in the sidebar or the small Home grid
-  (`docs/SIMPLIFY.md` §6.2, 2026-10-10): reached from the Wallets empty
+  (`docs/history/SIMPLIFY.md` §6.2, 2026-10-10): reached from the Wallets empty
   state's fourth way in, **Spend from a backup, step by step** ("A
   stick, words, or paper"); the Learn sheet's first row, **Spending,
   step by step**; Home's lead when a spend started in it is under
@@ -453,7 +453,7 @@ writing it back is safe and optional.)*
 | Route and page kept across a lock; after Unlock, Family opens if it was open | `memory.rs` `kept()` / `restore_kept()` |
 | The words route's single-key wallet from the loaded key | `wallet.rs`, the descriptor Create builds for a single key |
 
-Nothing upstream is edited; no new dependency.
+No file in `core/` is edited; no new dependency.
 
 **Tests** (`tests/all/family.rs`, user-facing behaviour, on the test kit):
 - Vault route end to end: the test stick's `vault.ofv` and passphrase
@@ -502,7 +502,7 @@ The snapshot tour gains the Family pages at one size.
 - **Send it** adds **Show the finished transaction as QR** to Wallets'
   Finish step.
 
-## 7. From a wallet already open (2026-10-10, `docs/NEW-WALLET.md` §11)
+## 7. From a wallet already open (2026-10-10, `docs/history/NEW-WALLET.md` §11)
 
 A wallet card's **Spend from this wallet** (and **Sign the PSBT from
 the stick**, **Carry on the spend**; the Loaded view's **Spend from

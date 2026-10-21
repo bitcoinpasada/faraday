@@ -1,6 +1,6 @@
 //! Find and read QR-Codes
 //!
-//! Vendored into this repository; `OPENSIGNER.md` beside `Cargo.toml`
+//! Vendored into this repository; `PATCHES.md` beside `Cargo.toml`
 //! records what was changed and why. This crate reads camera frames, so
 //! it holds no `unsafe` and is forbidden from gaining any.
 //!

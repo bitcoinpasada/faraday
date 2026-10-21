@@ -8,79 +8,78 @@ Faraday has one scanner and one QR sender, shared by the Wallets tab
 and the QR transfer tab. The sender's codes are made by `faraday-qr`'s
 `send` module;
 each app writes the line under them in its own words. The target is the union of what Faraday OS's QR
-transfer does and what the Wallets tab needs, built on what OpenSigner
-already has. This file lists every feature, where it comes from, and its
+transfer does and what the Wallets tab needs. This file lists every feature, where it comes from, and its
 state.
 
 Sources read for this file: Faraday OS's `docs/gpg-qr-workflows.md` and
 `lib/faraday/qr_*.py`, `qr-transfer-gui.py` and `ur/` (the Foundation
-Devices UR reference, vendored); OpenSigner's `faraday-codec`
+Devices UR reference, vendored); `faraday-codec`
 (`classify.rs`, `ur/`).
 
 ## 1. Where each piece stands
 
-`Have` means OpenSigner already does it. `Port` means the Wallets tab
+`Have` means Faraday already does it. `Port` means the Wallets tab
 needs it and nothing here has it yet. `New` means neither does it as needed.
 
 ### Transports
 
-| Feature | Faraday OS | OpenSigner | Faraday |
-|---|---|---|---|
-| BC-UR single part | yes | yes | Have |
-| BC-UR multi-part, fountain mixtures written (rateless) | yes | yes | Have |
-| BC-UR mixtures decoded, so a scan can start late or miss frames | yes | yes | Have |
-| Bytewords and CRC checked against BCR-2020-012 vectors | yes | yes | Have |
-| BBQr read: file types `P` (PSBT), `T` (transaction), `U` (text), `J` (JSON) | J only | no | Port |
-| BBQr encodings `2` (base32), `H` (hex), `Z` (DEFLATE + base32) | yes | no | Port: read all three, write `2` only (§4) |
-| BBQr write | J | no | Port |
-| Specter numbered text parts (`pNofM`), written for SeedSigner, chunk size chosen so no frame reads as a PSBT | no | no | Port |
-| Bounds: frame length, part count, total size, unresolved equations | yes | partly | Port Faraday OS's limits (§3) |
+| Feature | Faraday OS | Faraday |
+|---|---|---|
+| BC-UR single part | yes | Have |
+| BC-UR multi-part, fountain mixtures written (rateless) | yes | Have |
+| BC-UR mixtures decoded, so a scan can start late or miss frames | yes | Have |
+| Bytewords and CRC checked against BCR-2020-012 vectors | yes | Have |
+| BBQr read: file types `P` (PSBT), `T` (transaction), `U` (text), `J` (JSON) | J only | Port |
+| BBQr encodings `2` (base32), `H` (hex), `Z` (DEFLATE + base32) | yes | Port: read all three, write `2` only (§4) |
+| BBQr write | J | Port |
+| Specter numbered text parts (`pNofM`), written for SeedSigner, chunk size chosen so no frame reads as a PSBT | no | Port |
+| Bounds: frame length, part count, total size, unresolved equations | yes | Port Faraday OS's limits (§3) |
 
 ### Payloads read
 
-| Payload | Faraday OS | OpenSigner | Faraday |
-|---|---|---|---|
-| PSBT (binary, base64, `ur:crypto-psbt`) | no | yes | Have |
-| `ur:psbt` (the newer registry name) | no | no | Port |
-| Raw transaction hex | no | no | Port |
-| `ur:bytes` | yes | yes | Have |
-| `ur:crypto-account` (SeedSigner's key export) | no | no | Port |
-| `ur:crypto-output` (read, never written: it cannot express `<0;1>`) | no | no | Port, read only |
-| `ur:crypto-hdkey` | no | no | Port |
-| `ur:crypto-seed` | no | no | Refuse, with the reason |
-| Descriptor, xpub and SLIP-132, Coldcard JSON, multisig config, BSMS, codex32, SeedQR, CompactSeedQR, words, address, silent payment address | no | yes | Have |
-| Faraday file envelope (`faraday-file-v1`: name, kind, size, SHA-256, data) | yes | no | Port |
-| `otpauth://` URI (a TOTP secret, for an entry) | no | no | New |
+| Payload | Faraday OS | Faraday |
+|---|---|---|
+| PSBT (binary, base64, `ur:crypto-psbt`) | no | Have |
+| `ur:psbt` (the newer registry name) | no | Port |
+| Raw transaction hex | no | Port |
+| `ur:bytes` | yes | Have |
+| `ur:crypto-account` (SeedSigner's key export) | no | Port |
+| `ur:crypto-output` (read, never written: it cannot express `<0;1>`) | no | Port, read only |
+| `ur:crypto-hdkey` | no | Port |
+| `ur:crypto-seed` | no | Refuse, with the reason |
+| Descriptor, xpub and SLIP-132, Coldcard JSON, multisig config, BSMS, codex32, SeedQR, CompactSeedQR, words, address, silent payment address | no | Have |
+| Faraday file envelope (`faraday-file-v1`: name, kind, size, SHA-256, data) | yes | Port |
+| `otpauth://` URI (a TOTP secret, for an entry) | no | New |
 
 ### Sending
 
-| Feature | Faraday OS | OpenSigner | Faraday |
-|---|---|---|---|
-| Animated UR for a transaction by default, BBQr one choice away | no | UR only | Port |
-| Descriptor: one code while it fits at version ≤ 25 and ECL M or better, otherwise animated | no | yes (its own rule) | Have |
-| `ur:crypto-account` byte-identical to SeedSigner's for the same key | no | no | Port |
-| Address codes: the address exactly as printed, not a `bitcoin:` URI, not upper-cased | no | yes | Have |
-| Any file up to 256 KiB, in the Faraday envelope, as `ur:bytes` (default) or BBQr `J` | yes | no | Port: any Outbox file within the limit |
-| Frame rate (default 2 per second) and part size settings | yes | partly | Port |
-| Public codes hidden while a secret code is on screen; public codes labelled safe to scan | no | partly (secret panels) | Port |
+| Feature | Faraday OS | Faraday |
+|---|---|---|
+| Animated UR for a transaction by default, BBQr one choice away | no | Port |
+| Descriptor: one code while it fits at version ≤ 25 and ECL M or better, otherwise animated | no | Have |
+| `ur:crypto-account` byte-identical to SeedSigner's for the same key | no | Port |
+| Address codes: the address exactly as printed, not a `bitcoin:` URI, not upper-cased | no | Have |
+| Any file up to 256 KiB, in the Faraday envelope, as `ur:bytes` (default) or BBQr `J` | yes | Port: any Outbox file within the limit |
+| Frame rate (default 2 per second) and part size settings | yes | Port |
+| Public codes hidden while a secret code is on screen; public codes labelled safe to scan | no | Port |
 
 ### The scanner itself
 
-| Feature | Faraday OS | OpenSigner | Faraday |
-|---|---|---|---|
-| Camera choice when there is more than one | yes | no (first `/dev/video*`) | Have on Linux and Windows; macOS §8 item 9 |
-| Viewfinder with corner guides, and the found code outlined | preview only | square viewfinder | Have: brackets, outline, state and parts inside (§8 item 4) |
-| Progress for multi-part codes: "4 of 10, missing 3, 7", kept across interruptions | count only | count only | Have, UR included (§8 item 7) |
-| Mirrored symbols | zbar | rqrr (`MirroredGrid`) | Have |
-| Inverted symbols (light on dark) | yes (tested) | no | Have on the stick and the Pi; desktop §8 item 2 |
-| Decode at full frame size; pace the loop by measured decode cost, never by shrinking frames | n/a | shell decodes each frame | Port the rule: §8 item 3 |
-| "Too fine for this camera" told apart from "bad picture", with the fix (use the animated form, or a file) | no | no | Port |
-| A code that is not what this screen wants is named, not refused generically ("that is a seed backup, not a transaction") | no | routing by kind | Port the wording |
-| A seed scanned where a transaction is expected is never placed in the box | no | yes | Have |
-| Camera constraints treated as wishes; a refused request retried with none | n/a | V4L2 format negotiation | Port the rule to V4L2 |
-| QR from a photograph or image file, many at once, stopping when a transfer completes | PNG import | no | Port: PNG only, decoded in the disk process (§4) |
-| Typed or pasted text as a way in | paste | Type, Paste | Have Type; Paste on the desktop (§8 item 5); no clipboard on the stick |
-| Text files from a stick as a way in | yes | Read a file | Have, from the Inbox |
+| Feature | Faraday OS | Faraday |
+|---|---|---|
+| Camera choice when there is more than one | yes | Have on Linux and Windows; macOS §8 item 9 |
+| Viewfinder with corner guides, and the found code outlined | preview only | Have: brackets, outline, state and parts inside (§8 item 4) |
+| Progress for multi-part codes: "4 of 10, missing 3, 7", kept across interruptions | count only | Have, UR included (§8 item 7) |
+| Mirrored symbols | zbar | Have |
+| Inverted symbols (light on dark) | yes (tested) | Have on the stick and the Pi; desktop §8 item 2 |
+| Decode at full frame size; pace the loop by measured decode cost, never by shrinking frames | n/a | Port the rule: §8 item 3 |
+| "Too fine for this camera" told apart from "bad picture", with the fix (use the animated form, or a file) | no | Port |
+| A code that is not what this screen wants is named, not refused generically ("that is a seed backup, not a transaction") | no | Port the wording |
+| A seed scanned where a transaction is expected is never placed in the box | no | Have |
+| Camera constraints treated as wishes; a refused request retried with none | n/a | Port the rule to V4L2 |
+| QR from a photograph or image file, many at once, stopping when a transfer completes | PNG import | Port: PNG only, decoded in the disk process (§4) |
+| Typed or pasted text as a way in | paste | Have Type; Paste on the desktop (§8 item 5); no clipboard on the stick |
+| Text files from a stick as a way in | yes | Have, from the Inbox |
 
 ## 2. Routing
 
@@ -90,7 +89,7 @@ classifies everything, and names a wrong arrival instead of refusing it
 generically. The QR transfer tab's **Receive** and Home's **Scan** want
 anything. Every scanner opens only with no stick attached, as Add a key
 does: a frame may picture a seed. A stick plugged in while the camera is
-on is held back until it is off (`PLAN.md` §5.4).
+on is held back until it is off (`docs/history/PLAN.md` §5.4).
 
 | Arrived | Goes to |
 |---|---|
@@ -119,12 +118,12 @@ intact, not who sent it.
 1. **QR from images: PNG only, in the disk process only.** (JPEG was
    dropped on 2026-10-05: it needs a decoder crate.) An image
    file on a stick is never decoded by the app. `faraday-disk`
-   (`PLAN.md` §4.3), which is unprivileged and holds no secret, decodes the
+   (`docs/history/PLAN.md` §4.3), which is unprivileged and holds no secret, decodes the
    image and the QR codes in it and passes the app the decoded text,
    each code arriving exactly as a camera scan would, and beside it the
    picture's bytes as they are (2026-10-08). The app keeps those bytes as
    an Inbox file, to be written to another stick as the same `.png`
-   (`PLAN.md` §5.4), with the exposure of what the codes held; it never
+   (`docs/history/PLAN.md` §5.4), with the exposure of what the codes held; it never
    parses them. A picture whose codes cannot be read still comes in, as
    one with no code read. Several images at
    once are read in turn, one at a time off the shell's own thread (the
@@ -251,9 +250,9 @@ decision 6); progress in parts kept when the camera is closed and opened
 again; an image's codes read in turn stop once a transfer in parts comes
 together.
 
-Built 2026-10-06, the rest of §1's scanner: `faraday/faraday-scanner`, a
-copy of `opensigner/shells/scanner` at c418768 that the stick and desktop
-shells now use, reports what each pass saw of a code (its corners, its
+Built 2026-10-06, the rest of §1's scanner: `faraday/faraday-scanner`, the
+scanner that the stick and desktop
+shells use, reports what each pass saw of a code (its corners, its
 module size, whether it read); the scan sheet outlines the code, green once
 read and amber while not, gone ten preview frames after the scanner stops
 seeing it, and three passes in a row that find a code under 2.5 pixels a
@@ -262,7 +261,7 @@ The stick shell lists its cameras from sysfs (each video4linux node with
 index 0) when the camera opens, the sheet offers the choice when there is
 more than one, and the shell reopens on the one chosen. These travel on
 Faraday's own storage channel (`StorageEvent::Cameras`, `QrSeen`, and
-`Faraday::take_camera`), so no upstream API changed. A cosigner's key
+`Faraday::take_camera`), so no shared API changed. A cosigner's key
 scanned while Create waits fills the waiting slot.
 
 Built 2026-10-09, the desktop app's **Transfer** (`docs/FLOWS.md`, QR
@@ -292,11 +291,7 @@ its spec. Where the build and this section differ once built,
 The owner's ask: "offer QR codes wherever it would be convenient for
 users inside Faraday". Every screen named here is Faraday's own, in
 `faraday-core`, drawn the same on the stick, the Pi and Faraday
-Desktop. None is OpenSigner's: the OpenSigner tab's screens (FLOWS,
-"OpenSigner tab (kept for now)") are upstream's and unchanged, and its
-own Address screen already shows an address as a QR. Nothing in
-`opensigner/` or `core/` changes, and no string goes into OpenSigner's
-`strings/en.rs`.
+Desktop. Nothing in `core/` changes.
 
 ### 7.1 What is decided
 
@@ -330,7 +325,7 @@ rule's reach is written down):
 | 6 | Vault contents, an entry | TOTP secret, its `otpauth://` URI | Secret | No | **Hold to show as QR**: the QR sheet marked Secret; no PNG, no file | An authenticator app takes it by scanning; its only other way in is typing a 32-character key. Faraday already reads the same URI in (§2) |
 | 7 | The signing steps' **Addresses · Compare** | Receive 0/0, 0/1, change 1/0 | Public | No | No | Shown mid-transaction to compare with the online wallet, not to receive |
 | 8 | Any screen | A change address | Public | No | No | Nobody pays to a change address |
-| 9 | Make a new key | Its first address | Public | No | No | A key made here receives nothing until its backup is done (`docs/NEW-WALLET.md` §14.3); the card shows "Back up before you receive" instead |
+| 9 | Make a new key | Its first address | Public | No | No | A key made here receives nothing until its backup is done (`docs/history/NEW-WALLET.md` §14.3); the card shows "Back up before you receive" instead |
 | 10 | Vault contents, a wallet (record type 3) | Descriptor | Public | No | No | **Open in Wallets** is one press, and has **Show as QR** and **PNG** |
 | 11 | Key rows, Compare, wallet cards, a key's vault page | Fingerprint | Public | No | No | Eight characters, read by eye |
 | 12 | A GPG key's vault page | Fingerprint, subkey, user IDs | Public | No | No | The certificate's code carries them |
@@ -432,8 +427,7 @@ vault action, `VaultAction::TotpQr`, fired by the hold, builds the view
 with a new `QrView::secret(title, text)` (a `QrView::text` with
 `secret` set) and opens it with `open_qr`.
 
-**Strings**, in `faraday/faraday-strings/src/en.rs` (Faraday's; none in
-OpenSigner's file):
+**Strings**, in `faraday/faraday-strings/src/en.rs` (Faraday's):
 
 | Key | Text |
 |---|---|
@@ -471,7 +465,7 @@ One batch, one review, one completion report.
 
 - **Rules for the implementing agent.** `CLAUDE.md` applies in full: builds and tests on the build machine; every dimension a token; labels, not prose;
   tests for user-facing behaviour only; `just` once at the end; no
-  `rm`; no commits; no agents. Nothing in `opensigner/` or `core/`.
+  `rm`; no commits; no agents. Nothing in `core/`.
 - **Code.** `lib.rs` (the variants, their `code_view` arms,
   `QrView::secret`, `lock_now` dropping the view); `screens.rs`
   (`first_addresses`, the wallet card's first receive address); `compact_screens.rs` (the small panel's

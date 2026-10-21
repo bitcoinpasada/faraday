@@ -4,11 +4,8 @@ These are the current rules for anyone, human or agent, changing this
 repository. They are versioned here so that when one changes, this file
 changes and nothing else has to be kept in step.
 
-- The design system is `docs/DESIGN.md`. OpenSigner's decisions and open
-  questions are `docs/PLANNING.md` §15 and §16. PLANNING.md is about
-  10,000 lines; read the section you need.
+- The design system is `docs/DESIGN.md`.
 - Faraday's decisions are `docs/DECISIONS.md`, numbered F1 onward.
-  `docs/PLANNING.md` is upstream's copy and is not edited here.
 - A screen is one of DESIGN §5's sixteen screens, built from the §4
   components. The Starter's screens are `docs/STARTER.md` §3, built from
   the same components, drawn with Faraday's own look (`faraday-ui`).
@@ -37,12 +34,11 @@ changes and nothing else has to be kept in step.
   vectors and other implementations. A test never states a design rule, a
   token's value, a library's or the language's own behaviour, or a
   comparison of a screen's geometry against the design document.
-- `core/` is Faraday's own code (a hard fork of OpenSignerKit, F72;
-  `docs/history/UPSTREAM.md` records where it came from): fix a thing at
+- `core/` is Faraday's own code: fix a thing at
   its source rather than wrap it. A cryptographic change, anywhere in the
   repository, is tested against published vectors or another
-  implementation. Owning the code never loosens it: what OpenSigner
-  refused stays refused (a multisig key without an origin, a guessed
+  implementation. Owning the code never loosens it: what the code
+  refuses stays refused (a multisig key without an origin, a guessed
   path, an ambiguous input); refuse what cannot be verified rather than
   assume; accepting more than a standard requires is the owner's
   decision, recorded in DECISIONS.

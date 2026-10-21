@@ -1,5 +1,5 @@
 //! LND's aezeed cipher seed, read; and the two Lightning node keys —
-//! LND's own and ldk-node's (`docs/PLANNING.md` §16.116).
+//! LND's own and ldk-node's.
 //!
 //! An aezeed is twenty-four words over the BIP-39 English list, which
 //! is not a BIP-39 mnemonic: the words carry no BIP-39 checksum and the

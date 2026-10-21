@@ -240,7 +240,7 @@ fn after_a_lock_the_boot_stick_is_not_read_again() {
 #[test]
 fn a_fresh_app_opens_guided() {
     // No kept state and no stick settings file: a device that has never
-    // had a setting saved (`docs/SIMPLIFY.md` §6.1).
+    // had a setting saved (`docs/history/SIMPLIFY.md` §6.1).
     let app = defaults();
     assert!(app.guided);
     let booted = booted(None);

@@ -21,7 +21,7 @@
 //! between them produce — the root aggregate, the aggregate derived at
 //! the sub-path, or the taproot output key. What this crate writes is
 //! the output key in compressed form, which is what Bitcoin Core 31.1
-//! writes and reads (`docs/PLANNING.md` §16.100).
+//! writes and reads.
 
 use alloc::vec::Vec;
 use core::fmt;
@@ -245,7 +245,7 @@ pub fn write_input_participants(input: &mut Input, participants: &Participants) 
 }
 
 // ---------------------------------------------------------------------
-// The session (docs/PLANNING.md §16.100)
+// The session
 // ---------------------------------------------------------------------
 
 /// The tag the `rand'` of one [`nonce_gen`](faraday_bip::musig::nonce_gen)

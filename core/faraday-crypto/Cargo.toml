@@ -37,7 +37,7 @@ chacha20poly1305.workspace = true
 libc = { workspace = true, optional = true }
 
 [lints.rust]
-# PLANNING.md §5.4 allows audited unsafe here for mlock and zeroize.
+# Audited unsafe is allowed here for mlock and zeroize.
 # `deny` rather than `forbid` so that `pinned.rs` — the page-aligned
 # allocation, its release, the two dereferences of the pointer to it and
 # the `mlock`/`munlock` pair, and nothing else in the workspace core —

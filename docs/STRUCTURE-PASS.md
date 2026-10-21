@@ -26,11 +26,11 @@ owner can answer.
    exist (`faraday/faraday-ui`, `faraday/faraday-learn`). §3.1.
 2. **A blanket `osk-` → `faraday-` rename would change bytes on disk and
    on the wire.** Domain-separation tags, magics and file extensions
-   contain `osk`, `OSK` or `OpenSigner`. §3.2 lists them and says how the
+   contain `osk` or `OSK`. §3.2 lists them and says how the
    rename avoids them.
 3. **Provenance has to be frozen before the rename, not after.** Once
    every crate and every `use` line is renamed, `git diff d26b84e HEAD
-   -- core/` no longer shows Faraday's changes to OpenSigner's code. The
+   -- core/` no longer shows Faraday's changes to the forked code. The
    per-crate diffstat and the auditor's diff are produced on the last
    commit before the rename. §3.3.
 4. **AUDIT.md is written once, at the end.** The plan rewrote it in
@@ -66,8 +66,8 @@ owner can answer.
   docs then carry no `local/` file names, tracker numbers or private
   repository names.
 - `docs/AUDIT.md`: only its false statements are corrected. One base
-  hash replaces the two it gives. `osk-keep` and `opensigner-core` come
-  out. faraday-core's key use is stated, with the files that do it.
+  hash replaces the two it gives. `osk-keep` and the deleted app crate
+  come out. faraday-core's key use is stated, with the files that do it.
   faraday-apk gets a row. The full rewrite comes in Wave C (§5.6).
 - Broken doc paths are left for phase 2, where the moves and
   `lint-docs.sh` fix them in one commit. Fixing them now and then moving
@@ -88,12 +88,12 @@ Order within the phase:
    icon and keyboard widgets. Faraday uses `Color`, `Rect`, `Canvas`,
    `SizeClass`, `tokens`, `widgets` (Icon and the keyboard), `geom`,
    `text`, `layout` and `fonts`. Move
-   `LayoutCtx` and `Icon` out of `widgets`. This is a soft-fork change,
-   listed in UPSTREAM.md §3. Retargeting `lint-tokens.sh` stays in
+   `LayoutCtx` and `Icon` out of `widgets`. This is a change to `core/`.
+   Retargeting `lint-tokens.sh` stays in
    phase 3, because it brings a backlog of literals.
 2. Freeze the provenance (§3.3).
 3. Rename (§3.1, with §3.2's guard), move the camera shells and delete
-   `opensigner/`.
+   the old camera folder.
 4. Make the descriptions, the `repository` keys, the `lib.rs`
    overviews, the Learn pages and the board Faraday's (§3.4).
 
@@ -112,8 +112,8 @@ Order within the phase:
 | osk-ui | **faraday-draw** (proposed) | collides with faraday-ui; §9 Q1 |
 | osk-learn | **merged into faraday-learn** (proposed) | collides; §9 Q2 |
 | osk-fontbake (`tools/fontbake`) | faraday-fontbake | |
-| opensigner-v4l2 | faraday-v4l2, `faraday/shells/v4l2` | next to faraday-mediafoundation |
-| opensigner-avfoundation | faraday-avfoundation, `faraday/shells/avfoundation` | |
+| the old v4l2 crate | faraday-v4l2, `faraday/shells/v4l2` | next to faraday-mediafoundation |
+| the old avfoundation crate | faraday-avfoundation, `faraday/shells/avfoundation` | |
 
 `core/` keeps the libraries that hold no flow and no wording, whatever
 their name. CLAUDE.md's paths follow in the same commit:
@@ -141,7 +141,7 @@ derivation or a file a person already holds:
   - `OpenSigner/threshold-rand`, `OpenSigner/threshold-blind`;
   - `osk-kdbx-uuid`.
 - **Text formats:** the `osk-threshold` and `osk-silent` headers.
-- **Names of the external format in the strings:** "OpenSigner backup"
+- **Names of the external format in the strings:** ".oskb backup"
   and ".oskb". That is what the file is called.
 
 These are expected to change, and nothing else is:
@@ -158,42 +158,33 @@ These are expected to change, and nothing else is:
 The check for the rename commit: the sorted list of string literals in
 every `src/` is the same before and after, except the lines above.
 A script kept with the pass writes that list. The baseline
-at 3bd25c2d holds 56,000 literals, 88 of which name osk or OpenSigner.
+at 3bd25c2d holds 56,000 literals, 88 of which name osk or the old project.
 The step's report includes the diff. The vectors and the vault and
 backup tests catch the rest.
 
 ### 3.3 Provenance, frozen before the rename
 
-This is done on the commit just before the rename, and it becomes
-`docs/history/UPSTREAM.md`:
-
-- the full base hash `d26b84e…` and upstream's URL;
-- the git tree hash of `core/` and `opensigner/` at the base, so the
-  base can be checked even if upstream's repository goes away (this
-  repository's published history holds no upstream commit);
-- the per-crate diffstat against the base, and the auditor's diff
-  command, which works up to this commit;
-- §3's change list as it stands. From F72 on, Faraday's own history is
-  the record.
-
-Then the `upstream` remote and `local/for-upstream/` are removed.
+This was done on the commit just before the rename: the base hash and
+the per-crate diffstat against it were written down, and the `upstream`
+remote and `local/for-upstream/` were then removed. From F72 on,
+Faraday's own history is the record; the written-down provenance is no
+longer kept.
 
 ### 3.4 Made Faraday's
 
 - Each crate's `description` and the first line of each `lib.rs` say
   "Faraday's …" and name the fork point once.
 - The root `repository` key is Faraday's.
-- The `opensigner-core` mentions are fixed.
-- The README says Faraday began as a fork at `d26b84e`. OpenSigner's
-  MIT notice stays.
+- The mentions of the deleted app's core crate are fixed.
+- The MIT notice stays in `LICENSE`.
 - **Learn pages:**
-  - Some pages describe OpenSigner's own app. The secure-element page,
+  - Some pages describe the earlier app. The secure-element page,
     for example, covers keeping keys on an Android phone, which Faraday
     has no counterpart for.
   - A page Faraday never shows is dropped.
   - A page Faraday shows says Faraday where it means this app, and
-    "an OpenSigner backup" only for the file format.
-- **KDBX:** files written by the KDBX writer name OpenSigner as their
+    "an .oskb backup" only for the file format.
+- **KDBX:** files written by the KDBX writer name Faraday as their
   generator and database name. §9 Q3.
 - **CLAUDE.md:** F65's per-change rule ends. Its two lasting rules move
   into CLAUDE.md for the whole repository: crypto changes are tested
@@ -221,12 +212,11 @@ The plan's phases 1 and 2 stand, with these changes:
       are.
     - faraday-intake's vector tests are still to do (phase 6).
 - **`lint-docs.sh`:**
-  - It skips `docs/history/` for path resolution. PLANNING alone names
-    about 70 paths from upstream's layout.
+  - It skips `docs/history/` for path resolution.
   - It checks the status header everywhere.
   - Its first run lands in the same commit as the moves.
 - **The status header:** this file's header is the form. Kind is
-  Reference, Spec, Upstream or History.
+  Reference, Spec or History.
 
 ## 5. The key boundary (F70)
 
@@ -390,7 +380,7 @@ compiler reported it dead:
 
 Each is deleted, or kept with the reason written at the function.
 `musig`'s three may be API kept on purpose; they are checked against
-upstream's tests before they go.
+their tests before they go.
 
 Two items need more than the plan said:
 - **Retargeting lint-tokens at Faraday's screens.** The backlog was
@@ -451,7 +441,7 @@ Answered 2026-10-21: the owner took the recommendation on all seven.
    - (a) Merge osk-learn into faraday-learn: one Learn crate, with the
      pages Faraday never shows dropped. Recommended.
    - (b) Rename osk-learn to `faraday-learn-pages` and keep both.
-3. **Visible bytes that say OpenSigner.** These are the KDBX file's
+3. **Visible bytes that name the old project.** These are the KDBX file's
    `Generator` and `DatabaseName`, plus the stick's watch thread name.
    Change them to Faraday? KeePass shows the database name and ignores
    the generator. Recommended: yes. The tags and magics in §3.2 never

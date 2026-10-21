@@ -4,7 +4,7 @@
 //! - the seeds, copied by hand from the screen: words with their BIP-39
 //!   indices, and the SeedQR drawn as a ruled grid. A copy of the words is
 //!   checked by typing the words back, and a SeedQR by scanning the drawn
-//!   grid, each compared by [`compare_words`] (`docs/NEW-WALLET.md`
+//!   grid, each compared by [`compare_words`] (`docs/history/NEW-WALLET.md`
 //!   §14.7). Never a printer.
 //!   After the copy by hand, a further copy: into the open vault as the
 //!   key record Vaults saves, or as a file only through the secret sheet
@@ -248,7 +248,7 @@ pub fn sheet_wallet(c: &Compute, session: &Session, wallet: &Wallet) -> String {
 }
 
 /// What the blank template has to copy a seed onto: the word lines, the
-/// SeedQR grid, or both (`docs/NEW-WALLET.md` §14.7).
+/// SeedQR grid, or both (`docs/history/NEW-WALLET.md` §14.7).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BlankCopy {
     /// The word lines.

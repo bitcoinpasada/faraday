@@ -1,4 +1,4 @@
-//! Add a key in the other forms OpenSigner reads: SLIP-39 shares, codex32
+//! Add a key in the other forms Faraday reads: SLIP-39 shares, codex32
 //! strings and Seed XOR parts, each typed one at a time, against the
 //! published vectors (SLIP-39's own, BIP 93's) and the repository's Seed
 //! XOR vector. In every form typed word by word, a word moves on to the

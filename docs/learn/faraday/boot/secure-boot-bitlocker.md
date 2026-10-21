@@ -22,4 +22,4 @@ If Windows starts while Secure Boot is still off, it asks for the drive's 48-dig
 
 ## Where this comes from
 
-Microsoft: "BitLocker overview", "BitLocker countermeasures" and "Secure the Windows boot process" (learn.microsoft.com, Windows security); "Secure boot" (learn.microsoft.com, Windows hardware design). All read 2026-10-12. The drivers the stick's kernel lacks: kernel.forbidden in the Faraday image's x86_64-uefi board (ATA, BLK_DEV_NVME, NVME_CORE, MMC, EFIVAR_FS) and OpenSigner's common kernel.forbidden (NET, WLAN, BT), in Faraday's repository.
+Microsoft: "BitLocker overview", "BitLocker countermeasures" and "Secure the Windows boot process" (learn.microsoft.com, Windows security); "Secure boot" (learn.microsoft.com, Windows hardware design). All read 2026-10-12. The drivers the stick's kernel lacks: kernel.forbidden in the Faraday image's x86_64-uefi board (ATA, BLK_DEV_NVME, NVME_CORE, MMC, EFIVAR_FS) and the image's common kernel.forbidden (NET, WLAN, BT), in Faraday's repository.

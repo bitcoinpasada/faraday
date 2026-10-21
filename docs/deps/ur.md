@@ -2,7 +2,7 @@
 
 **Purpose.** BC-UR (BCR-2020-005) encoding and decoding of animated QR
 payloads: `ur:crypto-psbt` in and out of the Sign flow and the scanner
-(`faraday_codec::ur`, `docs/PLANNING.md` §7, §8.4 #1/#12, §16.20, §16.61).
+(`faraday_codec::ur`).
 
 **This is not a dependency page any more.** The `ur` 0.5.2 crate is gone
 from the workspace. `core/faraday-codec/src/ur/` is the whole transport,
@@ -24,16 +24,6 @@ uses) with `bitcoin-internals` and `bitcoin-consensus-encoding` behind
 it, `crc`, `crc-catalog`, `minicbor`, `rand_xoshiro` and `rand_core`.
 `minicbor`'s derive macro also kept `syn`, `quote`, `proc-macro2` and
 `unicode-ident` in every device graph after `rqrr` stopped needing them.
-Measured while OpenSigner's app existed (deleted, F68); the
-`opensigner-*` rows are its graphs. Command:
-`cargo tree -p <root> -e normal --prefix none | sed 's/ (.*//' | sort -u | wc -l`:
-
-| Graph | Before | After |
-|---|--:|--:|
-| `opensigner-core` | 60 | 51 |
-| `opensigner-ffi` | 63 | 54 |
-| `opensigner-pi` | 64 | 55 |
-| `opensigner-desktop` | 137 | 128 |
 
 `bitcoin_hashes` was there to SHA-256 eight bytes of fountain seed;
 `faraday-crypto` already had SHA-256. `crc` and `crc-catalog` were there for

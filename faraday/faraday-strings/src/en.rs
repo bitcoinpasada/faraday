@@ -1,7 +1,5 @@
 //! Faraday's English wording: every string Faraday's screens, the stick's
-//! device check and the Starter show, in one file (F68). The strings
-//! Faraday took from OpenSigner's own file keep their names and their
-//! text. Same house style as upstream's.
+//! device check and the Starter show, in one file (F68).
 
 /// Every string Faraday shows, grouped by screen.
 pub struct Strings {
@@ -1159,7 +1157,7 @@ pub struct Strings {
     /// Text in `TILES`.
     pub catalog_vaults_and: &'static str,
     /// Text in `TILES`.
-    pub catalog_open_an_opensigner: &'static str,
+    pub catalog_open_an_oskb: &'static str,
     /// Text in `TILES`.
     pub catalog_an_oskb_with: &'static str,
     /// Text in `TILES`.
@@ -2836,7 +2834,7 @@ pub struct Strings {
     /// Text in `found_in`. `{}`: `ks.len()`, `need`.
     pub inbox_codex32_shares_inline: &'static str,
     /// Text in `found_in`. `{}`: `item.name`.
-    pub inbox_opensigner_backup: &'static str,
+    pub inbox_oskb_backup: &'static str,
     /// Text in `found_in`.
     pub inbox_restored_wallet: &'static str,
     /// Text in `found_in`. `{}`: `m.have.len()`, `m.n`.
@@ -2932,21 +2930,21 @@ pub struct Strings {
     pub keygen_make_a_new_wallet: &'static str,
     /// Text in `draw`.
     pub keygen_add_a_key: &'static str,
-    /// New key's Start card (`docs/NEW-WALLET.md` §15.1).
+    /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
     pub keygen_start: &'static str,
-    /// New key's Start card (`docs/NEW-WALLET.md` §15.1).
+    /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
     pub keygen_make_a_new_key: &'static str,
-    /// New key's Start card (`docs/NEW-WALLET.md` §15.1).
+    /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
     pub keygen_type_the_words: &'static str,
-    /// New key's Start card (`docs/NEW-WALLET.md` §15.1).
+    /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
     pub keygen_scan_a_seedqr: &'static str,
-    /// New key's Start card (`docs/NEW-WALLET.md` §15.1).
+    /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
     pub keygen_make_slip_39_shares: &'static str,
-    /// New key's Start card (`docs/NEW-WALLET.md` §15.1).
+    /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
     pub keygen_type_slip_39_shares: &'static str,
-    /// New key's Start card (`docs/NEW-WALLET.md` §15.1).
+    /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
     pub keygen_type_a_codex32: &'static str,
-    /// New key's Start card (`docs/NEW-WALLET.md` §15.1).
+    /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
     pub keygen_type_seed_xor: &'static str,
     /// Text in `draw`.
     pub keygen_tools: &'static str,
@@ -3265,7 +3263,7 @@ pub struct Strings {
     /// Text in `stick_kind`.
     pub stick_kind_threshold: &'static str,
     /// Text in `stick_kind`.
-    pub stick_kind_opensigner: &'static str,
+    pub stick_kind_oskb: &'static str,
     /// Text in `stick_kind`.
     pub stick_kind_qr_codes: &'static str,
     /// Text in `stick_kind`.
@@ -5258,7 +5256,7 @@ pub struct Strings {
     /// another. `{}`: the kind's or the wallet's name, the account.
     pub create_at_account: &'static str,
     /// Label in `create_body`: Check's row of the made wallet's
-    /// derivation paths (`docs/NEW-WALLET.md` §17).
+    /// derivation paths (`docs/history/NEW-WALLET.md` §17).
     pub create_path: &'static str,
     /// Button in `create_body`: Check's Path row, back to Kind's Account.
     pub create_path_change: &'static str,
@@ -5495,7 +5493,7 @@ pub struct Strings {
     /// Text in `kind_name`.
     pub kind_name_entries_for: &'static str,
     /// Text in `kind_name`.
-    pub kind_name_opensigner: &'static str,
+    pub kind_name_oskb: &'static str,
     /// Text in `kind_name`.
     pub kind_name_keepass_database: &'static str,
     /// Text in `kind_name`.
@@ -7801,7 +7799,7 @@ pub struct Strings {
     /// no randomness.
     pub vaults_changes_not_sealed: &'static str,
     /// The pill under Lock while Make a new wallet's keys are kept
-    /// nowhere yet (`docs/NEW-WALLET.md` §18).
+    /// nowhere yet (`docs/history/NEW-WALLET.md` §18).
     pub lock_held_pill: &'static str,
     /// The lock and power sheets' wiped line then: the flow ends.
     pub lock_held_ends: &'static str,
@@ -8694,7 +8692,7 @@ pub struct Strings {
     /// The Delete files sheet's button when a vault is chosen: a hold
     /// (`docs/FLOWS.md` decision 4). `{}`: the count, "file" or "files".
     pub stick_wipe_hold_delete: &'static str,
-    // ----- Taken from OpenSigner's strings file with its wording unchanged (F68): New key's sources, checks and dice lists, the self-test, BIP-85's applications, Tools' calculators, Explore's path -----
+    // ----- New key's sources, checks and dice lists, the self-test, BIP-85's applications, Tools' calculators, Explore's path -----
     /// Row that declines a passphrase.
     pub passphrase_none: &'static str,
     /// Button that discards the entries.
@@ -9397,7 +9395,7 @@ pub static EN: Strings = Strings {
     catalog_keepass_export: "KeePass export",
     catalog_a_vault_entry: "A vault entry as a sealed database",
     catalog_vaults_and: "Vaults and other keys",
-    catalog_open_an_opensigner: "Open an OpenSigner backup",
+    catalog_open_an_oskb: "Open an .oskb backup",
     catalog_an_oskb_with: "An .oskb with its passphrase",
     catalog_hashes: "Hashes",
     catalog_sha_256_sha: "SHA-256, SHA-256d and HASH160",
@@ -10225,7 +10223,7 @@ pub static EN: Strings = Strings {
     inbox_slip_39_shares: "SLIP-39 shares · {} of {} in Files",
     inbox_codex32_seed: "codex32 seed",
     inbox_codex32_shares_inline: "codex32 shares · {} of {} in Files",
-    inbox_opensigner_backup: "{} · OpenSigner backup, sealed",
+    inbox_oskb_backup: "{} · .oskb backup, sealed",
     inbox_restored_wallet: "Restored wallet",
     inbox_split_sheets_of: "Split sheets · {} of {} keys in hand",
     inbox_split_sheets: "Split sheets · {}",
@@ -10328,7 +10326,7 @@ pub static EN: Strings = Strings {
     keygen_the_threshold: "The threshold of shares rebuilds the whole seed on one device, and that device holds all of it while it signs.",
     keygen_the_split_s: "The split's own randomness comes from the device that deals it, here this device's system generator. A dealer with weak randomness gives the seed away in its shares.",
     keygen_a_share_cannot: "A share cannot be checked on its own against the seed; a wrong or mixed-up share shows only when the threshold is put together, by a 4-byte digest.",
-    keygen_shares_restore: "Shares restore only in software that reads SLIP-39, such as Trezor's and OpenSigner's; a wallet that reads only BIP-39 words cannot.",
+    keygen_shares_restore: "Shares restore only in software that reads SLIP-39, such as Trezor's; a wallet that reads only BIP-39 words cannot.",
     keygen_a_share_is_20: "A share is 20 words for a 128-bit seed, the strength of 12 BIP-39 words, or 33 words for 256 bits.",
     keygen_bip_39_words: "BIP-39 words",
     keygen_slip_39_shares: "SLIP-39 shares",
@@ -10436,7 +10434,7 @@ pub static EN: Strings = Strings {
     stick_kind_vault: "Vault",
     stick_kind_efi_image: "EFI image",
     stick_kind_threshold: "Threshold spend, part-signed",
-    stick_kind_opensigner: "OpenSigner backup",
+    stick_kind_oskb: ".oskb backup",
     stick_kind_qr_codes: "QR codes in a PNG",
     stick_kind_file: "File",
     stick_keys_keys_load: "Keys load only with no {} attached",
@@ -11480,7 +11478,7 @@ pub static EN: Strings = Strings {
     kind_name_threshold: "Threshold spend, part-signed",
     kind_name_vault_locked: "Vault, locked",
     kind_name_entries_for: "Entries for a vault",
-    kind_name_opensigner: "OpenSigner backup, encrypted",
+    kind_name_oskb: ".oskb backup, encrypted",
     kind_name_keepass_database: "KeePass database, encrypted",
     kind_name_pdf_to_print: "PDF to print",
     kind_name_efi_image: "EFI image",

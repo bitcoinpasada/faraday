@@ -750,7 +750,7 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
 #[test]
 fn a_vault_imported_then_unlocked_on_vaults_loads_its_own_wallets() {
     let mut app = unlocked_elsewhere();
-    // Unlocked through the list, not the sheet (`docs/NEW-WALLET.md`
+    // Unlocked through the list, not the sheet (`docs/history/NEW-WALLET.md`
     // §11.1a): its Load sheet; Load ticked lands on Wallets, with the
     // vault's own wallets and keys loaded; the import, its one vault
     // open, is over.

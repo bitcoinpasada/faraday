@@ -3,8 +3,8 @@
 //!
 //! It is here for one caller: AEZ's `Extract` step hashes a key that is
 //! not already 48 bytes into 48 bytes with BLAKE2b, and LND's aezeed
-//! hands AEZ a 32-byte scrypt key, so every aezeed decode runs it
-//! (`docs/PLANNING.md` §16.116). RFC 7693's compression function is
+//! hands AEZ a 32-byte scrypt key, so every aezeed decode runs it.
+//! RFC 7693's compression function is
 //! twelve rounds of a four-word mixing step over a 128-byte block; the
 //! whole of it is below.
 

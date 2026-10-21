@@ -1,9 +1,9 @@
 //! The two encrypted file formats Faraday writes, apart from any
-//! screen that asks for them (`docs/PLANNING.md` §16.138):
+//! screen that asks for them:
 //!
 //! - [`oskb`]: `faraday-backup`, Faraday's own format for a key's words,
 //!   a master seed, a note or a wallet's recovery sheet under a
-//!   passphrase. `docs/BACKUP.md` writes it down byte for byte, the
+//!   passphrase. `docs/BACKUP-FORMAT.md` writes it down byte for byte, the
 //!   vectors in `tools/vectors/backup/` pin it, and
 //!   `tools/backup/decrypt.py` reads it with two published libraries.
 //! - [`kdbx`]: a KDBX 4 database a KeePass app opens with the same
@@ -52,7 +52,7 @@ pub const DEVICE_PARAMS: Cost = Cost {
 };
 
 /// Argon2id's own minimum: the cost tests write at, where what they are
-/// about is not the cost (`docs/PLANNING.md` §16.119 rule 3). A file
+/// about is not the cost. A file
 /// written at it is as easy to guess as Argon2id allows.
 pub const MIN_PARAMS: Cost = Cost {
     memory_kib: Params::MIN_M_COST,

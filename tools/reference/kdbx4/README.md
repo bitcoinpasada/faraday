@@ -4,8 +4,7 @@ The two pages `core/faraday-backup/src/kdbx.rs` and
 `tools/backup/read-kdbx.py` were written against, copied here verbatim
 so that the writer can be read against the description it was built
 from, and so that a later change to the pages is visible as a change to
-these files rather than as a silent difference of opinion
-(`docs/PLANNING.md` §16.112 pass E2).
+these files rather than as a silent difference of opinion.
 
 Nothing here is built, run or parsed. They are HTML pages for a person
 to read.

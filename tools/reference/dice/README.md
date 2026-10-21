@@ -1,6 +1,6 @@
 # The dice procedures other signers publish
 
-`docs/PLANNING.md` §16.115. Every procedure `faraday_entropy::DiceProcedure`
+Every procedure `faraday_entropy::DiceProcedure`
 offers is reproduced from the source named here, never from a summary.
 Each function below is quoted as the file holds it, so a later change to
 a source is visible as a change to this page rather than as a silent

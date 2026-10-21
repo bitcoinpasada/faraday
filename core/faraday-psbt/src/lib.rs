@@ -5,15 +5,14 @@
 //! Everything else works from non-secret data:
 //!
 //! - [`Psbt`]: parse and serialise (binary and base64).
-//! - [`inspect`]: a complete structured view for the Sign screens
-//!   (`docs/UX.md` §7.3): amounts, fee, recipients, verified change,
+//! - [`inspect`]: a complete structured view for the Sign screens:
+//!   amounts, fee, recipients, verified change,
 //!   participating keys, multisig quorum, ranked warnings. Needs only the
 //!   loaded keys' fingerprints and account xpubs ([`Context`], [`KeyRef`]).
 //! - [`sign`]: derives each input's key from the PSBT's own key-origin
 //!   data (never a guessed path), signs with the deterministic nonce
 //!   [`Nonce`] names, verifies every signature before writing it, and
-//!   checks determinism by signing twice (`docs/PLANNING.md` §8.4 #7,
-//!   #8, #10).
+//!   checks determinism by signing twice.
 //! - [`message`]: signs and checks a signed message, BIP-137 or BIP-322
 //!   "simple", which is the one flow here that has no PSBT in it at all.
 //! - [`finalize`]: builds the final scriptSig/witness for the supported

@@ -389,7 +389,7 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
 
 /// A single-key wallet made in Create from a key whose New key was given
 /// a passphrase: its plan asks where the passphrase goes
-/// (`docs/NEW-WALLET.md` §3.5), on each place's card.
+/// (`docs/history/NEW-WALLET.md` §3.5), on each place's card.
 #[test]
 fn a_single_key_create_with_a_passphrase_asks_where_the_passphrase_goes() {
     use faraday_core::Action;
@@ -443,7 +443,7 @@ fn passphrase_key() -> Faraday {
 }
 
 // ---------------------------------------------------------------------
-// `docs/NEW-WALLET.md` §4: the plan leads with the whole wallet sheet;
+// `docs/history/NEW-WALLET.md` §4: the plan leads with the whole wallet sheet;
 // shares come second, with a Learn page and a slider.
 // ---------------------------------------------------------------------
 
@@ -744,7 +744,7 @@ fn a_plan_saved_with_one_vault_still_loads() {
 }
 
 /// A single key whose words are unticked keeps its only copy in Vault 1,
-/// and Vault 1's stick still has a place (`docs/NEW-WALLET.md` §14.2);
+/// and Vault 1's stick still has a place (`docs/history/NEW-WALLET.md` §14.2);
 /// with one place for two vaults, both sticks go there.
 #[test]
 fn the_single_key_with_words_unticked_places_vault_1s_stick() {
@@ -1347,7 +1347,7 @@ fn a_seed_file_at_a_place_has_that_places_stick_of_files_and_is_held_until_writt
     app.press(Action::BChecklist);
     // The file is made and written with its stick: no item of its own
     // (`docs/BACKUP-FLOW.md` §19.12 item 6). The passphrase on paper has
-    // its own (`docs/NEW-WALLET.md` §14.7 item 5).
+    // its own (`docs/history/NEW-WALLET.md` §14.7 item 5).
     assert_eq!(
         app.backup_items_now(&c),
         vec![bstep::PASSPHRASE, bstep::ENVELOPE, bstep::STICKS]

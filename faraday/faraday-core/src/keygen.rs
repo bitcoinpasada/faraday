@@ -1,11 +1,11 @@
 //! Making a new key: the randomness, the word count, and the words
 //! (`docs/FLOWS.md`, New key).
 //!
-//! The options are OpenSigner's, taken from its Create wizard: the sources
+//! The options: the sources
 //! and their order ([`SOURCE_ROWS`]), what a mix may combine
 //! ([`MIX_SOURCES`]), the word counts and their names, and the dice
 //! procedures' names. Every cryptographic step is `faraday-entropy`'s and `faraday-bip`'s,
-//! the crates OpenSigner's wizard itself calls: the rolls, flips, draws,
+//! the crates it calls: the rolls, flips, draws,
 //! digits and frames accumulate in their fixed buffers, the procedures
 //! hash or spell them, the sanity checks are theirs, a mix combines their
 //! commitments, the checksum leaves the last word, and a [`Mnemonic`]
@@ -31,10 +31,10 @@ use faraday_crypto::work::Compute;
 use crate::forms::Form;
 use crate::{Screen, flow};
 
-/// The word counts on offer, in OpenSigner's order.
+/// The word counts on offer.
 pub const COUNTS: [u8; 5] = faraday_entropy::WORD_COUNTS;
 
-/// A source's name, as OpenSigner writes it.
+/// A source's name.
 pub fn source_name(s: Source) -> &'static str {
     match s {
         Source::Dice => EN.create_source_dice,
@@ -48,12 +48,11 @@ pub fn source_name(s: Source) -> &'static str {
     }
 }
 
-/// A dice procedure's name, as OpenSigner writes it.
+/// A dice procedure's name.
 pub fn procedure_name(p: DiceProcedure) -> &'static str {
     match p {
         DiceProcedure::Hashed => EN.dice_procedure_hashed,
         DiceProcedure::SixAsZero => EN.dice_procedure_six_as_zero,
-        // OpenSigner's name less its "(BitBox)".
         DiceProcedure::Words => EN.keygen_words_chosen,
     }
 }
@@ -158,7 +157,7 @@ impl Way {
 /// The cards of the flow, in order.
 pub mod kstep {
     /// How the key comes in: made here, typed, or scanned
-    /// (`docs/NEW-WALLET.md` §15.1).
+    /// (`docs/history/NEW-WALLET.md` §15.1).
     pub const START: u8 = 0;
     /// 12 or 24 words.
     pub const LENGTH: u8 = 1;
@@ -169,23 +168,23 @@ pub mod kstep {
     pub const ENTER: u8 = 3;
     /// The words, a passphrase for a Create slot or a key typed, and Lock
     /// in, which adds the key; then its fingerprint and what it makes
-    /// (`docs/NEW-WALLET.md` §3.3, §15.2). Not for SLIP-39 shares made
+    /// (`docs/history/NEW-WALLET.md` §3.3, §15.2). Not for SLIP-39 shares made
     /// here.
     pub const KEY: u8 = 4;
     /// Counts, statistics and cautions: SLIP-39 shares only.
     pub const CHECK: u8 = 5;
     /// The words.
     pub const WORDS: u8 = 6;
-    /// OpenSigner's backup quiz over them.
+    /// The backup quiz over them.
     pub const QUIZ: u8 = 7;
     /// The words, shares, codex32 strings or Seed XOR parts typed: Add a
-    /// key's form, drawn by the same code (`docs/NEW-WALLET.md` §15.2).
+    /// key's form, drawn by the same code (`docs/history/NEW-WALLET.md` §15.2).
     pub const TYPED: u8 = 8;
     /// How many cards.
     pub const COUNT: usize = 9;
 }
 
-/// The choices on the Start card (`docs/NEW-WALLET.md` §15.1).
+/// The choices on the Start card (`docs/history/NEW-WALLET.md` §15.1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Start {
     /// Make a new key from randomness, as BIP-39 words.
@@ -313,7 +312,7 @@ pub struct KeyGen {
     pub shown: bool,
     /// The key's fingerprint, once the words are made.
     pub fingerprint: Option<[u8; 4]>,
-    /// OpenSigner's backup quiz, once the words have been shown.
+    /// The backup quiz, once the words have been shown.
     pub quiz: Option<crate::quiz::Quiz>,
     /// The person asked to skip the quiz; a second press skips it.
     pub skip_ask: bool,
@@ -327,8 +326,7 @@ pub struct KeyGen {
     /// The Create slot the key fills, if it was made for one.
     pub slot: Option<u8>,
     /// The key is made as SLIP-39 shares rather than BIP-39 words: the
-    /// entropy is the master secret, written only as shares
-    /// (`docs/PLANNING.md` §16.107 rule 4, as OpenSigner's own wizard).
+    /// entropy is the master secret, written only as shares.
     pub slip39: bool,
     /// Shares needed to restore.
     pub slip_m: u8,
@@ -362,7 +360,7 @@ pub struct KeyGen {
     /// Which of the two passphrase fields typing goes to, if either.
     pub focus: Option<u8>,
     /// The key is added: nothing about it changes after this
-    /// (`docs/NEW-WALLET.md` §3.4).
+    /// (`docs/history/NEW-WALLET.md` §3.4).
     pub locked: bool,
     /// It was locked in with a passphrase.
     pub with_passphrase: bool,
@@ -372,7 +370,7 @@ pub struct KeyGen {
     /// The key as `[fingerprint/path]xpub` at the kind's path, once
     /// locked in: the Create kind's for a slot, native SegWit on its own.
     pub key_text: Option<String>,
-    /// The Start card's choice (`docs/NEW-WALLET.md` §15.1).
+    /// The Start card's choice (`docs/history/NEW-WALLET.md` §15.1).
     pub start: Start,
     /// The choice the cards after Start were opened for: a different
     /// one chosen with Change starts them over.
@@ -397,8 +395,8 @@ impl KeyGen {
     pub fn new(slot: Option<u8>, back: Screen, only_24: bool) -> KeyGen {
         KeyGen {
             // New key opens on Start, Make a new key ticked
-            // (`docs/NEW-WALLET.md` §15.3); its Continue opens Length
-            // (§2.1, reversing `SIMPLIFY.md` §2.1 for this flow). Length
+            // (`docs/history/NEW-WALLET.md` §15.3); its Continue opens Length
+            // (§2.1, reversing `docs/history/SIMPLIFY.md` §2.1 for this flow). Length
             // and Randomness still carry defaults and show Change once
             // closed (`DESIGN.md` §4.14), but nothing is done until its
             // own Continue is pressed.
@@ -475,7 +473,7 @@ impl KeyGen {
         }
     }
 
-    /// The cards this flow shows, in order (`docs/NEW-WALLET.md` §3.1):
+    /// The cards this flow shows, in order (`docs/history/NEW-WALLET.md` §3.1):
     /// BIP-39 words for a Create slot end on Key, since Back up shows
     /// and checks the words; on their own they go on to Words and the
     /// Quiz. SLIP-39 shares keep their Check card and add the key at the
@@ -1201,7 +1199,7 @@ impl crate::Faraday {
         // app's; it comes back when the flow ends.
         k.entry_kept = std::mem::take(&mut self.entry);
         // Add a key's Make a new key chose already: Start is closed on it
-        // and Length is open, as before Start was (`docs/NEW-WALLET.md`
+        // and Length is open, as before Start was (`docs/history/NEW-WALLET.md`
         // §15.3).
         if back == Screen::Entry {
             k.done[usize::from(kstep::START)] = true;
@@ -1253,7 +1251,7 @@ impl crate::Faraday {
                 e.form = f;
             }
             // A small panel has no keyboard of its own: the words go on
-            // OpenSigner's word keyboard, as on Add a key.
+            // the word keyboard, as on Add a key.
             if compact && e.form == Form::Words {
                 e.keys = Some(crate::forms::word_typer(e.language()));
             }
@@ -1385,7 +1383,7 @@ impl crate::Faraday {
             return;
         };
         // After lock-in nothing about the key changes: the cards before
-        // Key open to be read, and take no input (`docs/NEW-WALLET.md`
+        // Key open to be read, and take no input (`docs/history/NEW-WALLET.md`
         // §3.3).
         let inputs_closed = k.locked
             && match action {
@@ -1751,7 +1749,7 @@ impl crate::Faraday {
     /// Lock in, on the Key card: adds the key the words make, with the
     /// passphrase typed for a Create slot, under the self-test gate. For
     /// a slot it fills the slot, and on a single-key Create it makes the
-    /// wallet too (`docs/NEW-WALLET.md` §3.3).
+    /// wallet too (`docs/history/NEW-WALLET.md` §3.3).
     fn keygen_lock(&mut self) {
         let c = self.compute();
         if !self.selftest_passed() || self.demo_refuses(crate::Action::KLock) {
@@ -1801,7 +1799,7 @@ impl crate::Faraday {
                 return;
             }
         };
-        // Made here: it signs once its backup is done (`docs/NEW-WALLET.md`
+        // Made here: it signs once its backup is done (`docs/history/NEW-WALLET.md`
         // §14.3).
         self.mark_made_here(fp);
         self.new_keys += 1;
@@ -1838,7 +1836,7 @@ impl crate::Faraday {
 
     /// A key locked in for Create slot `slot`, if any, fills it; on a
     /// single-key Create it makes the wallet too, as Keys' Continue
-    /// would, and Check is what the Key card shows (`docs/NEW-WALLET.md`
+    /// would, and Check is what the Key card shows (`docs/history/NEW-WALLET.md`
     /// §3.3). `made`: the key was made here, not typed.
     fn keygen_fill(&mut self, slot: Option<u8>, fp: faraday_bip::keys::Fingerprint, made: bool) {
         let Some(slot) = slot else {
@@ -1961,7 +1959,7 @@ impl crate::Faraday {
     }
 
     /// The Key card's Continue, once locked in: back to Create for a
-    /// slot, else on to Words (`docs/NEW-WALLET.md` §3.4).
+    /// slot, else on to Words (`docs/history/NEW-WALLET.md` §3.4).
     fn keygen_continue(&mut self) {
         let Some(k) = self.keygen.as_mut() else {
             return;

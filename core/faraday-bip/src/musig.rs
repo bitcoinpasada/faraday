@@ -410,8 +410,7 @@ pub fn aggregate_xpub(pubkeys: &[PublicKey], network: Network) -> Result<Xpub, E
 ///
 /// BIP-328 gives a MuSig2 aggregate key this form so that a wallet can
 /// derive addresses from it; a FROST group key is a plain key in the
-/// same position and takes the same construction
-/// (`docs/PLANNING.md` §16.103).
+/// same position and takes the same construction.
 pub fn synthetic_xpub(public_key: PublicKey, network: NetworkKind) -> Xpub {
     Xpub {
         network,

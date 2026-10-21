@@ -1,4 +1,4 @@
-//! Changing the backup on the wallet's chart (`docs/NEW-WALLET.md`
+//! Changing the backup on the wallet's chart (`docs/history/NEW-WALLET.md`
 //! §9.5–§9.7): a thing moved, copied, added, destroyed or a place
 //! removed, each shown first as the check's three lines before and after
 //! and made only once confirmed; from the first such change the map is
@@ -32,7 +32,7 @@ pub struct Work {
     /// A passphrase is shown, to be copied.
     pub reveal: bool,
     /// The wallet whose money is moving to a new wallet, by checksum
-    /// (`docs/NEW-WALLET.md` §9.6).
+    /// (`docs/history/NEW-WALLET.md` §9.6).
     pub moving: Option<String>,
     /// The new wallet it moves to, once Create has made it, by checksum.
     pub moving_to: Option<String>,
@@ -231,7 +231,7 @@ impl Faraday {
         let mut after = answers.clone();
         match edit {
             // A SeedQR drawn in part is the plan's answers' alone, not its
-            // map's (`docs/NEW-WALLET.md` §14.7 item 3): destroyed, it goes
+            // map's (`docs/history/NEW-WALLET.md` §14.7 item 3): destroyed, it goes
             // from them, and the plan stays what it was.
             Edit::Drop(at @ At::Place(p), What::SeedQr(i))
                 if plan::is_part(&answers, at, What::SeedQr(i))

@@ -1,4 +1,4 @@
-//! `read_public_armor` (`PLAN.md` §4.4, F22, F32): a file that is one
+//! `read_public_armor` (`docs/history/PLAN.md` §4.4, F22, F32): a file that is one
 //! armoured block of public OpenPGP packets, each read to its exact end,
 //! reads as a public key or a signature, and anything else does not.
 

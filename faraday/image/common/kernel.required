@@ -1,6 +1,6 @@
 # Faraday: upstream's common/kernel.required at 96e2144 without VFAT_FS,
-# which PLAN.md §4.2 forbids: no stick is mounted.
-# What every OpenSigner image needs to come up and be used, whatever it
+# which docs/history/PLAN.md §4.2 forbids: no stick is mounted.
+# What every Faraday image needs to come up and be used, whatever it
 # runs on. A driver that quietly loses a dependency — because the
 # subsystem above it went out — fails here rather than on the owner's desk.
 
@@ -13,7 +13,7 @@ INPUT_EVDEV          /dev/input/eventN, which is how the shell reads touches, ke
 VIDEO_DEV            /dev/video0, the V4L2 node the scanner opens
 USB_VIDEO_CLASS      a USB webcam is a camera every one of these devices supports
 
-# Hardening (PLANNING.md 16.140). The options only one architecture has
+# Hardening. The options only one architecture has
 # are in that board's list.
 INIT_ON_ALLOC_DEFAULT_ON              every page and slab object is zeroed when it is handed out
 INIT_ON_FREE_DEFAULT_ON               and when it is freed, so a kernel copy of a secret does not outlive its use

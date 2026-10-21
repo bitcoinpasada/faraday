@@ -10,7 +10,7 @@
 //! There is no layout file and no XKB: a device with no package manager
 //! has one layout, and a person who needs another types the words with
 //! the on-screen keyboard, which is the input every screen is designed
-//! for. The physical keyboard is an accelerator (`docs/UX.md` §2).
+//! for. The physical keyboard is an accelerator.
 //!
 //! Caps Lock is ignored — only Shift changes a letter's case — and the
 //! kernel's auto-repeat (`EV_KEY` value 2) repeats Backspace, Tab and

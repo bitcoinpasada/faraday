@@ -6,7 +6,7 @@ nowhere else. The Linux desktop shell depends on that crate under
 on it directly. No core crate depends on `libc`, and no release binary
 of a core crate carries it.
 
-**Why it is needed.** `docs/PLANNING.md` §16.33 decided that no platform
+**Why it is needed.** no platform
 gets a camera library: each shell captures through the operating
 system's own interface with code we write and can read. On Linux that
 interface is V4L2, which is `ioctl`, `mmap` and `poll` on a

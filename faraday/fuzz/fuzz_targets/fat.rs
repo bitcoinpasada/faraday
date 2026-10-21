@@ -1,5 +1,5 @@
 //! `faraday-fat` over a partition's bytes: the boot sector, the FATs and
-//! the root directory are all the stick's to choose (`PLAN.md` §4.4).
+//! the root directory are all the stick's to choose (`docs/history/PLAN.md` §4.4).
 //! Every file listed is read, and a file is created, renamed and deleted,
 //! so the write paths walk the same untrusted structures.
 

@@ -1,5 +1,5 @@
 //! What Faraday's Secure Boot files are, judged by other tools
-//! (`PLAN.md` §8): `openssl` reads the certificates and verifies the
+//! (`docs/history/PLAN.md` §8): `openssl` reads the certificates and verifies the
 //! PKCS #7 signature in each `.auth` update; `sbverify` (sbsigntool)
 //! verifies a signed image against the db certificate; and Faraday's own
 //! check tells a signed image from an altered one and from one signed by

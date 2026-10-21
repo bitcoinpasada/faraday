@@ -1,7 +1,7 @@
 [package]
 name = "faraday-stick"
 version = "0.1.5"
-description = "Faraday on the stick's framebuffer: a copy of opensigner/shells/pi (upstream c418768) that hosts faraday-core and reports sticks"
+description = "Faraday on the stick's framebuffer: hosts faraday-core and reports sticks"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true

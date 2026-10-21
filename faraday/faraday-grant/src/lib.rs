@@ -1,4 +1,4 @@
-//! What the grant helper decides (`PLAN.md` §4.3, §5.1): which partition
+//! What the grant helper decides (`docs/history/PLAN.md` §4.3, §5.1): which partition
 //! nodes go to the disk process, which stay root's, and when they come
 //! back.
 //!
@@ -9,8 +9,8 @@
 //! 2. The boot partition is kept back, so the running system never gets
 //!    to rewrite its own kernel: a partition whose GPT name is `FARADAYBOOT`,
 //!    or the first partition of the Pi's own card. Both are known from
-//!    `/sys`; nothing is read from a stick (`PLAN.md` §12, decision 8).
-//!    The one exception is upgrading a stick (`PLAN.md` §5.5): while the
+//!    `/sys`; nothing is read from a stick (`docs/history/PLAN.md` §12, decision 8).
+//!    The one exception is upgrading a stick (`docs/history/PLAN.md` §5.5): while the
 //!    app publishes its upgrade marker beside the clean marker, a
 //!    partition named `FARADAYBOOT` is handed to the boot copier, mode
 //!    `0600`, and never to the disk process. The Pi's own card is not,
@@ -21,7 +21,7 @@
 //!    back, and is decided again when the marker returns; when either
 //!    marker goes, every boot partition handed to the copier is.
 //!
-//! It also applies the USB device policy (`PLAN.md` §4.6, layer 2). The
+//! It also applies the USB device policy (`docs/history/PLAN.md` §4.6, layer 2). The
 //! kernel authorises only devices on hard-wired ports by itself
 //! (`usbcore.authorized_default=2`), and `rcS` sets every root hub to
 //! authorise no interface by default. Here each other device is
@@ -66,7 +66,7 @@ pub trait Owner {
 }
 
 /// The USB interface classes that are authorised: mass storage, HID,
-/// video and hub. Nothing else has a driver either (`PLAN.md` §4.6).
+/// video and hub. Nothing else has a driver either (`docs/history/PLAN.md` §4.6).
 const STORAGE: u8 = 0x08;
 const ALLOWED: [u8; 4] = [STORAGE, 0x03, 0x0e, 0x09];
 
@@ -91,7 +91,7 @@ fn is_boot(name: &str, dir: &Path) -> bool {
 
 /// Whether a boot partition may go to the boot copier while the app is
 /// upgrading a stick: one named `FARADAYBOOT`. The Pi's own card's first
-/// partition is not, until the Pi's upgrade is built (`PLAN.md` §5.5).
+/// partition is not, until the Pi's upgrade is built (`docs/history/PLAN.md` §5.5).
 fn is_upgradable(name: &str) -> bool {
     name != PI_BOOT
 }

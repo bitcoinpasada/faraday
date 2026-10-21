@@ -2,8 +2,8 @@
 //!
 //! The tree already has PBKDF2-HMAC-SHA-256, which is the whole of
 //! scrypt's outer structure; what is left is Salsa20/8, `BlockMix` and
-//! `ROMix`, some sixty lines between them
-//! (`docs/PLANNING.md` §16.116). One caller: LND's aezeed, which
+//! `ROMix`, some sixty lines between them.
+//! One caller: LND's aezeed, which
 //! stretches the passphrase with `N = 32768`, `r = 8`, `p = 1` into the
 //! 32-byte AEZ key.
 //!

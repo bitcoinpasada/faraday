@@ -1,4 +1,4 @@
-//! The structured inspection behind the Sign screens (`docs/UX.md` §7.3):
+//! The structured inspection behind the Sign screens:
 //! summary, outputs with verified change, inputs, and ranked warnings.
 //!
 //! Inspection needs no private key. Ownership is verified by re-deriving
@@ -473,7 +473,7 @@ pub struct Inspection {
     /// Ranked warnings, blocks first, then dangers.
     pub warnings: Vec<Warning>,
     /// Every signature the transaction already carries, checked against
-    /// the key it is under (`docs/PLANNING.md` §16.111 rule 1).
+    /// the key it is under.
     pub signatures: Vec<crate::verify::InputSignatures>,
     /// Keys whose signatures share a nonce (rule 2).
     pub nonce_reuse: Vec<crate::verify::NonceReuse>,
@@ -1541,8 +1541,8 @@ fn sighash_kind(input: &Input, kind: ScriptKind, spk: Option<&bitcoin::Script>) 
     }
 }
 
-/// Costs what `output_claims` costs. Change detection
-/// (`docs/PLANNING.md` §8.4 #3): verified only when a stated origin
+/// Costs what `output_claims` costs. Change detection:
+/// verified only when a stated origin
 /// names a loaded key and re-deriving it reproduces the output script
 /// exactly.
 ///
@@ -1728,8 +1728,8 @@ fn output_claims<C: Verification>(
     kind
 }
 
-/// Multisig change the device can check with no wallet registered
-/// (`docs/PLANNING.md` §16.47): the output carries the script it pays to,
+/// Multisig change the device can check with no wallet registered:
+/// the output carries the script it pays to,
 /// the scriptPubKey commits to that script, and one of the script's keys
 /// is this key at the stated BIP-48 path.
 ///
@@ -2281,7 +2281,7 @@ fn musig_output<C: Verification>(
 }
 
 // ---------------------------------------------------------------------
-// Threshold inputs (docs/PLANNING.md §16.103)
+// Threshold inputs
 // ---------------------------------------------------------------------
 
 /// Which of §16.103's ways one share this device holds is handled in

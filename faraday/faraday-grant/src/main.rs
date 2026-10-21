@@ -1,5 +1,5 @@
 //! The grant helper, as `rcS` starts it: as root, once, in the
-//! background (`PLAN.md` §4.3).
+//! background (`docs/history/PLAN.md` §4.3).
 //!
 //! ```text
 //! faraday-grant
@@ -9,7 +9,7 @@
 //! bounding set and the ambient set emptied while it is still root, its
 //! own user and group (`ofgrant`, 202) with no supplementary groups,
 //! `CAP_CHOWN` the only capability it keeps, and no-new-privileges set.
-//! It has no seccomp filter (`PLAN.md` §12, decision 8): its only input
+//! It has no seccomp filter (`docs/history/PLAN.md` §12, decision 8): its only input
 //! is `/sys`, and it reads nothing from a stick.
 //!
 //! Then it looks at `/sys` twice a second for as long as the machine is
@@ -48,7 +48,7 @@ use faraday_grant::{Grant, Owner};
 const GRANT_ID: u32 = 202;
 /// The disk process's account.
 const DISK_ID: u32 = 201;
-/// The boot copier's account (`PLAN.md` §5.5).
+/// The boot copier's account (`docs/history/PLAN.md` §5.5).
 const BOOT_ID: u32 = 203;
 /// Where the app publishes that it is clean.
 const MARKER: &str = "/run/faraday-clean/clean";

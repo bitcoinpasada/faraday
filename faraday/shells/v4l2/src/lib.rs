@@ -12,7 +12,7 @@
 //!
 //! The workspace sets `unsafe_code = "forbid"`. This crate is the one
 //! exception, and its `Cargo.toml` says so rather than inheriting the
-//! workspace lints. The reason is `docs/PLANNING.md` §16.33:
+//! workspace lints. The reason:
 //!
 //! > **Linux desktop and the Pi share one V4L2 module.** Raw `ioctl`s
 //! > through `libc` (already in the dependency graph): query

@@ -88,7 +88,7 @@ fn backing_up(app: &mut Faraday, with: bool) -> Fingerprint {
 
 /// [`backing_up`], the seed also copied as a SeedQR on paper when
 /// `seedqr`: a SeedQR picture is offered only for a SeedQR copy
-/// (`docs/NEW-WALLET.md` §14.7).
+/// (`docs/history/NEW-WALLET.md` §14.7).
 fn backing_up_as(app: &mut Faraday, with: bool, seedqr: bool) -> Fingerprint {
     let c = faraday_core::testkit::compute();
     app.press(Action::Entry(None));

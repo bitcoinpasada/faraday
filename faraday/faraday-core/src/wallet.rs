@@ -100,7 +100,7 @@ pub struct Key {
     /// The BIP-39 list those words are from.
     pub language: Language,
     /// The public share these words are as a FROST share: 24 words'
-    /// 32 bytes read as the share's scalar (`docs/PLANNING.md` §16.103).
+    /// 32 bytes read as the share's scalar.
     /// Every 24-word key has one; it signs as a share only for a loaded
     /// threshold record that lists it.
     pub share: Option<faraday_bip::bitcoin::secp256k1::PublicKey>,
@@ -644,7 +644,7 @@ impl Session {
     }
 
     /// Whether any secret is held: the stick rule's test
-    /// (`PLAN.md` §5.1).
+    /// (`docs/history/PLAN.md` §5.1).
     pub fn holds_secret(&self) -> bool {
         !self.keys.is_empty()
     }
@@ -1061,8 +1061,8 @@ impl Session {
     /// the end of a spend: every signature the PSBT carries checked against
     /// its key and this transaction, each one a key held here made
     /// recomputed from that key (RFC 6979 or BIP-340 with no extra
-    /// randomness), and any nonce used twice under one key. OpenSigner's
-    /// own checks (`faraday_psbt::verify`).
+    /// randomness), and any nonce used twice under one key
+    /// (`faraday_psbt::verify`).
     pub fn nonce_check(&self, c: &Compute, psbt: &Psbt) -> NonceCheck {
         let refs = self.key_refs(c);
         let policies = self.policies();
@@ -1539,13 +1539,12 @@ pub enum FileKind {
     Vault,
     /// Entries for a vault: `otpauth://` URIs and `field: value` lines.
     Entries,
-    /// An OpenSigner encrypted backup (`.oskb`).
+    /// An encrypted backup (`.oskb`).
     Backup,
     /// An EFI image to sign or check for Secure Boot.
     EfiImage,
     /// A threshold spend part-signed at another location: the PSBT with
-    /// the secret nonce the next share signs with (`docs/PLANNING.md`
-    /// §16.103 item 4).
+    /// the secret nonce the next share signs with.
     Carry,
     /// A KeePass database, sealed under its passphrase.
     Kdbx,

@@ -3,7 +3,7 @@
 # `just faraday-stick-image` leaves beside the .img) over the partition
 # named FARADAYBOOT on a Faraday stick, and nothing else: the data partition,
 # with its vaults and settings file, keeps its bytes. For development
-# only (PLAN.md §5.5); it puts the whole stick on the build computer.
+# only (docs/history/PLAN.md §5.5); it puts the whole stick on the build computer.
 #
 #   stick-boot.sh [--dry-run] <boot.vfat> <target>
 #

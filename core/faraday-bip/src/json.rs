@@ -10,7 +10,7 @@
 //! The quotation mark is written `'\u{22}'` and `b'\x22'` here, so that
 //! `tools/lint-strings.sh` does not read it as the start of a string.
 //!
-//! Faraday's since the fork (`docs/history/UPSTREAM.md` §3): it replaced the
+//! It replaced the
 //! scanners [`crate::coldcard`] and Faraday's readers used, which took
 //! the first `"key"` anywhere in the text and undid no escapes.
 

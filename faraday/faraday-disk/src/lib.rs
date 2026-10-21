@@ -1,10 +1,10 @@
-//! The disk process's work (`PLAN.md` §4.3): find the partitions it has
+//! The disk process's work (`docs/history/PLAN.md` §4.3): find the partitions it has
 //! been handed, and answer one request about them.
 //!
 //! A partition is handed out by `faraday-grant` making its device node
 //! this process's, mode `0600`. A USB or SD partition this process cannot
 //! open was not handed out: it is listed with no files, so the app knows
-//! a stick is there and asks to lock (`PLAN.md` §5.4). Nothing here mounts anything: the
+//! a stick is there and asks to lock (`docs/history/PLAN.md` §5.4). Nothing here mounts anything: the
 //! filesystem is read by `faraday-fat`. A partition named or labelled
 //! `FARADAYBOOT` is never touched, even if it could be opened: the grant
 //! helper keeps it back, and this is the second lock on the same door.

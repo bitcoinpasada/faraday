@@ -6,7 +6,7 @@
 //! fills it, and leaving the screen forgets everything. The randomness
 //! check is on the entry card, Lock in adds the key, with a passphrase
 //! for a Create slot, and a Create slot's flow ends there
-//! (`docs/NEW-WALLET.md` §3). Add a key is the same flow opening on
+//! (`docs/history/NEW-WALLET.md` §3). Add a key is the same flow opening on
 //! Start, where words already held are typed or scanned and loaded as
 //! Add a key loads them (§15).
 
@@ -44,7 +44,7 @@ fn pass_quiz(app: &mut Faraday) {
 
 /// The app on Add a key, with New key opened from there and carried past
 /// Length and Randomness to the entries, each on its default
-/// (`docs/NEW-WALLET.md` §2.1: New key opens on Length, not the entries).
+/// (`docs/history/NEW-WALLET.md` §2.1: New key opens on Length, not the entries).
 fn opened() -> Faraday {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(None));
@@ -231,7 +231,7 @@ fn shares_offer_nothing_as_checkable_by_hand_and_no_words_chosen_by_rolls() {
 }
 
 #[test]
-fn every_length_opensigner_offers_can_be_chosen() {
+fn every_length_on_offer_can_be_chosen() {
     for n in [12u8, 15, 18, 21, 24] {
         let mut app = opened();
         app.press(Action::KWords(n));
@@ -398,7 +398,7 @@ fn this_devices_key_is_its_generators_fresh_answer_hashed_and_nothing_else() {
     let answer = [0x5au8; 32];
     let a = device_key(answer);
     let b = device_key(answer);
-    // OpenSigner's definition: SHA-256 of the 32 bytes, truncated.
+    // The definition: SHA-256 of the 32 bytes, truncated.
     let hash = sha256::Hash::hash(&answer).to_byte_array();
     let expected = Mnemonic::from_entropy(Language::English, &hash[..16]).unwrap();
     assert_eq!(added(&a), vec![fingerprint(&expected)]);
@@ -520,7 +520,7 @@ fn fresh_new_key_opens_on_length_and_two_continues_reach_the_entries() {
     assert_eq!(
         k.open,
         Some(kstep::LENGTH),
-        "New key opens on Length (`docs/NEW-WALLET.md` §2.1)"
+        "New key opens on Length (`docs/history/NEW-WALLET.md` §2.1)"
     );
     let words = k.words as u8;
     let way = k.way();
@@ -926,7 +926,7 @@ fn an_empty_key_card_passphrase_field_says_no_passphrase_until_a_character_is_ty
 }
 
 // ---------------------------------------------------------------------
-// Add a key is New key, opening on Start (`docs/NEW-WALLET.md` §15)
+// Add a key is New key, opening on Start (`docs/history/NEW-WALLET.md` §15)
 // ---------------------------------------------------------------------
 
 use faraday_core::keygen::{Start, kstep};

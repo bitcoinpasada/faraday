@@ -541,7 +541,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     ui.icon(px, y, pw, Icon::Power, 15.0, MUTED);
     ui.hit(px, y, pw, 44.0, Action::PowerAsk);
     y += 44.0 + 16.0;
-    // The idle lock waits for a new wallet's backup (`docs/NEW-WALLET.md`
+    // The idle lock waits for a new wallet's backup (`docs/history/NEW-WALLET.md`
     // §18).
     if app.lock_held() {
         y += crate::screens::lock_held_pill(ui, M, y - 8.0, inner) + 8.0;
@@ -564,7 +564,7 @@ fn tiles(app: &View) -> Vec<Tile> {
     let vault_files = app.vault_files().len();
     let open = app.vaults.open.len();
     // In two columns: wallets and keys first (every wallet flow,
-    // including spending: `docs/SIMPLIFY.md` §6.2 moves Spend to the
+    // including spending: `docs/history/SIMPLIFY.md` §6.2 moves Spend to the
     // Wallets empty state and the Learn sheet), then the ways in and
     // out, then what is used now and then.
     let mut t: Vec<Tile> = vec![
@@ -676,7 +676,7 @@ fn prompts(app: &View) -> Vec<(Glyph, String, Option<Action>, faraday_draw::Colo
 
 pub use faraday_ui::keyboard::OskPress;
 
-/// The docked keyboard: OpenSigner's own, at the foot of a small panel
+/// The docked keyboard, at the foot of a small panel
 /// while something on the page takes typing. A press is the key a
 /// physical keyboard would send.
 #[derive(Debug, Default)]
@@ -775,7 +775,7 @@ impl Faraday {
         self.osk_auto() || self.osk_offered()
     }
 
-    /// Which of OpenSigner's keyboards: the path pad for a derivation
+    /// Which of the keyboards: the path pad for a derivation
     /// path, else the passphrase keyboard, which types any printable
     /// character.
     fn osk_kind(&self) -> faraday_draw::widgets::keyboard::KeyboardKind {

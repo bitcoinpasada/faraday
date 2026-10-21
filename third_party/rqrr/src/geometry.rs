@@ -52,7 +52,7 @@ impl Perspective {
     ///
     /// Upstream asserted the two bounds here instead of returning, and a
     /// camera frame with a near-degenerate capstone group reaches that
-    /// assertion. See `OPENSIGNER.md`.
+    /// assertion. See `PATCHES.md`.
     pub fn map(&self, u: f64, v: f64) -> Option<Point> {
         let den = self.0[6] * u + self.0[7] * v + 1.0f64;
         let x = ((self.0[0] * u + self.0[1] * v + self.0[2]) / den).round();

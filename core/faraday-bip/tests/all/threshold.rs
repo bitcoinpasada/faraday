@@ -1,4 +1,4 @@
-//! A threshold wallet's group record (`docs/PLANNING.md` §16.103): what
+//! A threshold wallet's group record: what
 //! it states, what it refuses, and where the wallet it makes pays.
 //!
 //! The fixture is the committed 2-of-3 regtest group,

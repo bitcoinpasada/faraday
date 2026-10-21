@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """BIP 445's reference implementation as the second share of the
-fixture spend (docs/PLANNING.md §16.103).
+fixture spend.
 
 The fixture writer records one signing session in
 `tools/vectors/psbt/wallet-threshold-transcript.json`: the group, the

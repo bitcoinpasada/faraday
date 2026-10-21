@@ -5,7 +5,7 @@
 # on the panel.
 console=serial0,115200
 
-# Faraday: freed and allocated memory zeroed by the kernel (PLAN.md §4.2),
+# Faraday: freed and allocated memory zeroed by the kernel (docs/history/PLAN.md §4.2),
 # and only hard-wired USB devices authorised without faraday-grant (§4.6).
 init_on_free=1
 init_on_alloc=1

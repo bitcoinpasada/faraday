@@ -1,4 +1,4 @@
-//! The boot import (`PLAN.md` §5.4; F60): the first look at the boot
+//! The boot import (`docs/history/PLAN.md` §5.4; F60): the first look at the boot
 //! stick in a power-on copies every file on it into memory, and the sheet
 //! lists each with a checkbox, every one ticked. **Import** brings in what
 //! is ticked: the files From the stick, their wallets and keys through the
@@ -269,7 +269,7 @@ impl Faraday {
         self.after_visit = None;
         self.screen = Screen::Home;
         // A device waiting to be believed is asked about first
-        // (`PLAN.md` §4.6), and the online app's start warning is
+        // (`docs/history/PLAN.md` §4.6), and the online app's start warning is
         // acknowledged first (F61); this sheet comes up after.
         if matches!(self.sheet, Some(Sheet::NewInput | Sheet::NotAirgapped)) {
             self.import_under_input = true;

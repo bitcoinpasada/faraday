@@ -1,10 +1,8 @@
 //! The check that says whether a transaction pays a silent payments
-//! wallet (`docs/PLANNING.md` §16.113): the transaction being read, its
+//! wallet: the transaction being read, its
 //! previous outputs as far as they are known, and the answer.
 //!
-//! Taken from OpenSigner's app (`opensigner-core/src/silent.rs` at
-//! upstream `d26b84e`) when Faraday dropped that app (`docs/DECISIONS.md`
-//! F68), unchanged; Faraday's flow over it is [`crate::silent`].
+//! Faraday's flow over it is [`crate::silent`].
 //!
 //! Nothing here is a secret. The scan private key a check needs is
 //! derived from the loaded key where the check runs and is dropped with

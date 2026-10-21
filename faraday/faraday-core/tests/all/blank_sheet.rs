@@ -1,4 +1,4 @@
-//! The blank template follows its `copy:` line (`docs/NEW-WALLET.md`
+//! The blank template follows its `copy:` line (`docs/history/NEW-WALLET.md`
 //! §14.7) and says to print at its true size on every page.
 
 use faraday_bip::keys::Network;

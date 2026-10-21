@@ -1,8 +1,8 @@
-//! Vanity addresses (`docs/OPENSIGNER-PARITY.md` C4): a loaded key's
+//! Vanity addresses: a loaded key's
 //! first address made to begin with characters the person chose, by
 //! turning one of the key's two dials, the account index or a suffix on
-//! its BIP-39 passphrase. The engine is upstream's (`faraday_bip::vanity`)
-//! and so is the state between frames (`crate::grind::Grind`):
+//! its BIP-39 passphrase. The engine is `faraday_bip::vanity`
+//! and the state between frames is `crate::grind::Grind`:
 //! every tick tests a budget of candidates and comes back, so the screen
 //! stays live and Stop lands. A find is a fact about the key, the same on
 //! any device that turns the same dial.
@@ -69,7 +69,7 @@ pub struct VanityState {
     pub scroll: flow::Scroll,
     /// The key, by fingerprint.
     pub key: Option<[u8; 4]>,
-    /// The search, upstream's own state.
+    /// The search state.
     pub grind: Grind,
     /// A search is under way.
     pub running: bool,

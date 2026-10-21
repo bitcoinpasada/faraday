@@ -90,7 +90,7 @@ fn an_open_vault_is_locked_or_looked_into_from_the_list_and_the_sidebar() {
     assert!(app.offers(Action::Vault(V::Open(0))), "its contents");
     assert!(app.offers(Action::LockAsk), "and Lock");
     // The sidebar's Vaults row carries "1 open" and opens Vaults, from
-    // where its contents are reached (`docs/SIMPLIFY.md` §1.6, revised).
+    // where its contents are reached (`docs/history/SIMPLIFY.md` §1.6, revised).
     app.press(Action::Nav(Screen::Home));
     let _ = app.frame();
     assert!(app.offers(Action::Nav(Screen::Vaults)));

@@ -150,7 +150,7 @@ pub enum Template {
     MuSig,
     /// `tr(XPUB/<0;1>/*)` over the synthetic extended public key of a
     /// FROST group key, which the wallet's record states along with the
-    /// public share of every participant (`docs/PLANNING.md` §16.103).
+    /// public share of every participant.
     /// Any `threshold` of `participants` shares sign, and the chain sees
     /// one key and one signature.
     Threshold {
@@ -879,7 +879,7 @@ impl WalletPolicy {
     /// leaf of a participant to read an address off, and this is `None`
     /// for every MuSig2 policy. What names the address in a transaction
     /// is BIP-373's participant-public-keys field, which the PSBT reader
-    /// does not have yet (`docs/PLANNING.md` §16.70).
+    /// does not have yet.
     ///
     /// A threshold wallet does have one: the chain and the index are
     /// steps of the group key's own synthetic extended public key, which

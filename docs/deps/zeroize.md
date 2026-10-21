@@ -1,7 +1,6 @@
 # zeroize
 
-**Purpose.** Wiping secrets when they are dropped (`docs/PLANNING.md`
-§5.1, §5.3): `Secret<T>`, `Sealed<T>`, `SessionKey`, `Mnemonic`, the
+**Purpose.** Wiping secrets when they are dropped: `Secret<T>`, `Sealed<T>`, `SessionKey`, `Mnemonic`, the
 wizards' typed state and every `Zeroizing` buffer in the core. It is also
 the single dependency of `faraday-shell-api`, where `EntropyBytes` wipes the
 32 bytes a shell answered a session's entropy request with (security

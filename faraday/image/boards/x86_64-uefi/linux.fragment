@@ -1,8 +1,8 @@
-# Kernel configuration for a PC booted from an OpenSigner USB stick.
+# Kernel configuration for a PC booted from a USB stick.
 #
 # The starting point is x86_64_defconfig with its `=m` lines deleted and
-# CONFIG_MODULES turned off in the unpacked tree (external/external.mk,
-# PLANNING.md 16.93), then common/linux.fragment. What is left to say is
+# CONFIG_MODULES turned off in the unpacked tree (external/external.mk),
+# then common/linux.fragment. What is left to say is
 # here, with a reason per line: this is a laptop, so it has firmware that
 # runs an EFI application, a framebuffer that is already on, a keyboard, a
 # touchpad, USB ports and a disk to boot from — none of which the Pi has
@@ -40,7 +40,7 @@ CONFIG_ACPI=y
 # devices.
 CONFIG_PCI=y
 # PCIEPORTBUS is the PCIe port service driver: hotplug, power management,
-# AER and the rest. Nothing here is hot-plugged (PLANNING.md 16.94) and
+# AER and the rest. Nothing here is hot-plugged and
 # the controllers are found by enumeration without it.
 # CONFIG_PCIEPORTBUS is not set
 
@@ -68,7 +68,7 @@ CONFIG_FB_EFI=y
 # A laptop has a keyboard and a touchpad behind the i8042 controller, or a
 # touchpad on an i2c bus, or both; and a USB port that a keyboard, a mouse
 # or a touchscreen may be plugged into. The shell classifies whatever it
-# finds from sysfs and reads it through evdev (PLANNING.md 16.94).
+# finds from sysfs and reads it through evdev.
 CONFIG_INPUT=y
 CONFIG_INPUT_EVDEV=y
 
@@ -219,8 +219,8 @@ CONFIG_USB_STORAGE=y
 # A plain USB webcam appears as a /dev/video* and the shell — which takes
 # the first one — scans with it. The media filter is on with cameras the
 # only type selected, because with it off every media type defaults to y
-# and DVB_CORE, which has no prompt, cannot be turned off at all
-# (PLANNING.md 16.93). A camera on a MIPI CSI-2 lane, which is what most
+# and DVB_CORE, which has no prompt, cannot be turned off at all.
+# A camera on a MIPI CSI-2 lane, which is what most
 # laptop webcams made after 2020 are, needs a per-platform driver and
 # userspace this image does not have; the README says so.
 CONFIG_MEDIA_SUPPORT=y
@@ -289,7 +289,7 @@ CONFIG_IOMMU_DEFAULT_DMA_STRICT=y
 # this image has no such file and no firmware blob of any kind, so the
 # loader finds nothing and the CPU runs the microcode its own flash
 # holds. MICROCODE_LATE_LOADING, which is a prompt and is off, is the
-# other half. PLANNING.md 16.95 records shipping a blob as a decision to
+# other half. Shipping a blob is a decision to
 # revisit: the other side of it is a CPU running with known errata
 # unpatched.
 
@@ -310,7 +310,7 @@ CONFIG_IOMMU_DEFAULT_DMA_STRICT=y
 # CONFIG_HYPERVISOR_GUEST is not set
 
 # ---- Faraday: no filesystem on a stick is parsed by the kernel ----
-# (PLAN.md §4.2.) The stick's partitions are read by faraday-disk, an
+# (docs/history/PLAN.md §4.2.) The stick's partitions are read by faraday-disk, an
 # unprivileged process with its own FAT code, never mounted. This board
 # fragment comes after common/linux.fragment, which turns vfat on for
 # upstream's exchange partition; these lines turn it, and every other
@@ -331,20 +331,20 @@ CONFIG_EFI_PARTITION=y
 CONFIG_MSDOS_PARTITION=y
 
 # ---- Faraday: USB drivers for storage, HID, video and hubs only ----
-# (PLAN.md §4.6.) A printer and the USB traffic monitor have no place on a
+# (docs/history/PLAN.md §4.6.) A printer and the USB traffic monitor have no place on a
 # device that signs: usbmon would show every key a USB keyboard sends.
 # CONFIG_USB_PRINTER is not set
 # CONFIG_USB_MON is not set
 # CONFIG_USB_SERIAL is not set
 # CONFIG_USB_ACM is not set
 
-# ---- Faraday: no core dumps (PLAN.md §5.3) ----
+# ---- Faraday: no core dumps (docs/history/PLAN.md §5.3) ----
 # A crashing app would write its memory, keys included, to a file. The
 # core limit is 0 by default; this takes the feature out of the kernel so
 # nothing in userspace can raise it. The prompt needs EXPERT, set above.
 # CONFIG_COREDUMP is not set
 
-# ---- hardening only x86 has (PLANNING.md 16.140) ----
+# ---- hardening only x86 has ----
 # Kernel heap caches split by call site, list corruption checks, and a
 # random offset for the kernel stack on every system call, on by default
 # rather than on request. The Pi's kernel has none of the three.

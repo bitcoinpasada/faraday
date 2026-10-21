@@ -1,4 +1,4 @@
-//! The mouse's back and forward buttons (`docs/NEW-WALLET.md` §13.1):
+//! The mouse's back and forward buttons (`docs/history/NEW-WALLET.md` §13.1):
 //! back does what the screen's back link does, or Escape where there is
 //! none; forward opens again the screen back left, as it was left, until
 //! something else is opened. A screen that keeps nothing when it is left

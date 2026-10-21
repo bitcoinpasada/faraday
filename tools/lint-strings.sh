@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# User-facing-strings lint (UX.md §6; docs/DECISIONS.md F68).
+# User-facing-strings lint.
 #
 # Every word a user can read lives in one strings file, so that a second
 # language is one more static and a wording change is a change to one
@@ -124,7 +124,7 @@ for file in "$FARADAY_STRINGS"; do
         status=1
     else
         # Every string in en.rs is tidy: not empty, no double or edge spaces,
-        # and none of the filler UX.md §6 forbids. The literals are what sits
+        # and none of the filler that Faraday's strings rules forbid. The literals are what sits
         # between the quotes of a `name: "…"` line; a `\"` inside one is
         # notation and left alone.
         untidy=$(

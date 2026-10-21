@@ -1,4 +1,4 @@
-//! The Wallets page with wallets loaded (`docs/SIMPLIFY.md` §1.3): the
+//! The Wallets page with wallets loaded (`docs/history/SIMPLIFY.md` §1.3): the
 //! start page is the list and Add a key; every other job (Sign a
 //! transaction, Back up, Show wallet QR, Sign a message) is reached
 //! from the wallet card.
@@ -94,7 +94,7 @@ fn the_wallet_card_offers_its_jobs() {
 #[test]
 fn another_wallets_psbt_in_files_leaves_the_card_on_spend_from_this_wallet() {
     // The test kit's PSBT spends from a test-network wallet, not this one
-    // (`docs/NEW-WALLET.md` §11.2: only its own PSBT turns the button).
+    // (`docs/history/NEW-WALLET.md` §11.2: only its own PSBT turns the button).
     let kit = faraday_core::testkit::kits()
         .into_iter()
         .find(|k| k.id == "spending")

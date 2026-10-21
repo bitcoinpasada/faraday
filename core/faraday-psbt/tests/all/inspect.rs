@@ -1,5 +1,5 @@
 //! Change detection and the policy warnings, each built from a hostile or
-//! unusual PSBT (`docs/PLANNING.md` §12, "hostile coordinator").
+//! unusual PSBT.
 
 use crate::common::builder::{Build, single_sig, sorted_multisig};
 use crate::common::{ABANDON, LEGAL, ZOO, master};

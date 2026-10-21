@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# The Bitcoin Core round trip behind the MuSig2 fixtures
-# (docs/PLANNING.md §16.100, tools/vectors/psbt/README.md).
+# The Bitcoin Core round trip behind the MuSig2 fixtures.
 #
 # Core 31.1 is the only counterpart that speaks BIP-373's fields today.
 # This script builds a two-key regtest `musig()` wallet with Core holding

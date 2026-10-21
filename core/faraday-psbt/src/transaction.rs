@@ -4,7 +4,7 @@
 //! the source states them.
 //!
 //! A check that needs every previous output — whether a transaction
-//! pays a silent payments wallet (`docs/PLANNING.md` §16.113) — is
+//! pays a silent payments wallet — is
 //! handed the previous transactions one at a time
 //! ([`Spending::add_previous`]) until none is missing.
 

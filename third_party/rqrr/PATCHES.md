@@ -8,10 +8,10 @@ workspace's, and that of a project depending on `faraday-codec` by git, which
 a `[patch.crates-io]` would not reach.
 
 Why the copy exists: security review 2026-09-11 item M5a. The QR decoder
-reads camera frames, which nobody controls, and `opensigner-pi` is built
+reads camera frames, which nobody controls, and the Pi shell is built
 with `panic = "abort"` and is the only process on the board, so a panic
 inside grid detection powers the device off while a person is signing.
-OpenSigner's crate-reduction plan (§5) wants the crate in the tree anyway:
+Faraday's crate-reduction plan wants the crate in the tree anyway:
 trimmed of `lru` and `g2p` it takes twelve crates and about 100,000 lines
 off the device dependency graphs.
 
@@ -150,5 +150,4 @@ through `tiny-skia`.
 
 What that section asked for and this copy still does not have: zeroizing
 scratch buffers. The prepared image, the corrected data stream and the
-decoded payload are ordinary allocations, and `docs/PLANNING.md` §16.20
-records that as an accepted gap.
+decoded payload are ordinary allocations. That is an accepted gap.

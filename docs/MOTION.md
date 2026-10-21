@@ -74,7 +74,7 @@ Causes, in order of how much they are felt:
 ### 3.1 Shell API (`core/faraday-shell-api`)
 
 New variants only; `Event::Scroll` keeps its meaning (move the content
-by `dy` pixels now), so upstream's cores and shells are unaffected
+by `dy` pixels now), so the other cores and shells are unaffected
 beyond ignoring the new events.
 
 - `Event::Wheel { x, y, dy }`: a wheel turned. `dy` is pixels the
@@ -264,7 +264,7 @@ extent; a motion left from another screen or sheet is stopped.
   at 1920×1080: skip cards wholly outside the viewport, and cache an open
   card's measured height instead of measuring it by drawing it.
 - Later, for slow boards only: scroll by copying the rows that stay
-  (`Canvas::shift`, as upstream does) and redraw the exposed strip, and
+  (`Canvas::shift`) and redraw the exposed strip, and
   convert and write only the rows that changed.
 
 ### 3.5 Visual polish
@@ -533,7 +533,7 @@ Phase 1 — scrolling that is smooth with no change in feel elsewhere:
       the pixel-equality test (`canvas::draw_path`). Backup at
       1920×1080: 11 ms → 3.9 ms a frame.
 - [x] 1.2 Shell API: `Wheel`, `ScrollEnd`, `Hover`, `HoverEnd` (§3.1);
-      upstream's `faraday-draw` takes `Wheel` as `Scroll` and ignores the rest.
+      a shell that does not use them has `faraday-draw` take `Wheel` as `Scroll` and ignore the rest.
 - [x] 1.3 `motion.rs`: `scroll_slot()`, pixel-rigid offsets, pan, wheel
       glide, keys through the glide, ticks while moving (§3.3). Each
       scrolled screen reports its viewport and extent with
@@ -653,8 +653,7 @@ Same harness and machine as §2, release profile.
   tiny-skia; a sheet's dim paid it every frame before this work. It is
   blended in `Canvas::fill_rect` now (6 ms), and the dim itself is baked
   into the kept frosted copy, so a sheet's frames pay neither.
-- `faraday-draw` at opt-level 3 in release changed none of these numbers, as
-  upstream found (`Cargo.toml`), so the profile is as it was.
+- `faraday-draw` at opt-level 3 in release changed none of these numbers (`Cargo.toml`), so the profile is as it was.
 - The frame a sheet opens on costs two frames at 1080p, once.
   Frosting by a coarser reduction would be cheaper still.
 - Not measured here: the framebuffer write on the stick (`--timings`

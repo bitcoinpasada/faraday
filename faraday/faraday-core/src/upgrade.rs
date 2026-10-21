@@ -1,4 +1,4 @@
-//! Upgrading a Faraday stick (`PLAN.md` §5.5): the boot partition of the
+//! Upgrading a Faraday stick (`docs/history/PLAN.md` §5.5): the boot partition of the
 //! stick Faraday started from, written raw over another Faraday stick's,
 //! whose data partition is not touched.
 //!

@@ -27,7 +27,7 @@
 //! contract already has for it.
 //!
 //! On the legacy camera stack (`start_x=1`, the firmware's `start_x.elf`
-//! and the kernel's `bcm2835` driver, `docs/PLANNING.md` §16.33) the
+//! and the kernel's `bcm2835` driver) the
 //! OV5647 and the IMX219 appear as a plain `/dev/video0`, which is what
 //! the search finds.
 

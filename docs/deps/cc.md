@@ -27,7 +27,7 @@ already runs it (`Cargo.lock`: `cc` 1.4.5). Naming it in
 `[workspace.dependencies]` adds no crate to the graph; it makes the
 existing one usable by our own build script.
 
-**Why it is needed.** `docs/PLANNING.md` §16.33 decided that no platform
+**Why it is needed.** no platform
 gets a camera library: each shell captures through the operating
 system's own interface with code we write and can read. On macOS that
 interface is AVFoundation, which is Objective-C. Rust cannot call it

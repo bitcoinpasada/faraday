@@ -1,5 +1,4 @@
-//! The group record of a threshold wallet (`docs/PLANNING.md` §16.103
-//! item 2): what a FROST group publishes about itself, as one text form.
+//! The group record of a threshold wallet: what a FROST group publishes about itself, as one text form.
 //!
 //! ```text
 //! osk-threshold 1

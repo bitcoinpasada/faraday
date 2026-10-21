@@ -57,9 +57,9 @@ pub enum Go {
     VaultCategory(usize),
     /// TOTP codes for the entries in open vaults (`docs/TOTP.md` §5).
     Codes,
-    /// Open an OpenSigner backup in the Inbox.
+    /// Open an .oskb backup in the Inbox.
     OpenBackup,
-    /// One of OpenSigner's calculators, by place in `Tool::ALL`.
+    /// One of the calculators, by place in `Tool::ALL`.
     Calculator(u8),
     /// Scan a QR code into Files.
     Scan,
@@ -328,7 +328,7 @@ pub const TILES: &[Tile] = &[
     },
     Tile {
         group: EN.catalog_vaults_and,
-        name: EN.catalog_open_an_opensigner,
+        name: EN.catalog_open_an_oskb,
         line: EN.catalog_an_oskb_with,
         tags: &[".oskb"],
         go: Go::OpenBackup,
@@ -513,7 +513,7 @@ impl Faraday {
             Go::NewKey => self.act(Action::KeyGen(None)),
             Go::NewShares => self.act(Action::KeyGenSlip39),
             // Add a key is New key opening on Start; a tile for one form
-            // opens it with that choice made (`docs/NEW-WALLET.md` §15.3).
+            // opens it with that choice made (`docs/history/NEW-WALLET.md` §15.3).
             Go::AddKey(Form::Words) => self.act(Action::KeyGen(None)),
             Go::AddKey(form) => self.keygen_open_on(crate::keygen::Start::typing(form)),
             Go::SeedQr => {

@@ -1,4 +1,4 @@
-//! The icon set (UX.md §6).
+//! The icon set.
 //!
 //! Every icon the application draws is a variant of [`Icon`]. Each maps to
 //! one code point in the baked icon face, which `tools/fontbake`

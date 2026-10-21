@@ -1,5 +1,5 @@
 //! The caret and the selection in the field typing goes to, and the
-//! mouse's back and forward buttons (`docs/NEW-WALLET.md` §13.1, §13.2).
+//! mouse's back and forward buttons (`docs/history/NEW-WALLET.md` §13.1, §13.2).
 //!
 //! An edit inside a field, rather than at its end, is made with the
 //! field's own keys: the characters after the edit are taken off with

@@ -1,5 +1,5 @@
 //! The KDBX 4 database this device writes so that a KeePass app opens
-//! what it exported (`docs/PLANNING.md` §16.112 rule 3, pass E2).
+//! what it exported.
 //!
 //! This is a writer. Nothing here reads a KDBX file someone else made:
 //! the only reader is [`verify`], which checks the authentication on
@@ -9,7 +9,7 @@
 //! <https://keepass.info/help/kb/kdbx.html> and
 //! <https://keepass.info/help/kb/kdbx_4.html>; both pages are in
 //! `tools/reference/kdbx4/` with the date they were fetched and their
-//! SHA-256. `docs/BACKUP.md` writes down what this module puts in one.
+//! SHA-256. `docs/BACKUP-FORMAT.md` writes down what this module puts in one.
 //! The version written is 4.0, because 4.1 adds only XML elements this
 //! writer has no use for and 4.0 is what every KDBX 4 reader takes.
 //!

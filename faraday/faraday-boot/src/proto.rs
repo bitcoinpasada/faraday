@@ -1,4 +1,4 @@
-//! The pipe between the app's shell and the boot copier (`PLAN.md`
+//! The pipe between the app's shell and the boot copier (`docs/history/PLAN.md`
 //! §5.5): one request, one response, each a frame.
 //!
 //! The framing is the disk process's (`faraday-files::proto`): a 4-byte

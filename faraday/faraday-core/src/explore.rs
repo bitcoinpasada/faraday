@@ -1,6 +1,5 @@
-//! Explore: a loaded key's public side at any path (`docs/OPENSIGNER-
-//! PARITY.md` plan C1). The path is read by OpenSigner's own parser and
-//! its purpose names the script, as OpenSigner's Explore does; the
+//! Explore: a loaded key's public side at any path. The path is read by
+//! the derivation-path parser and its purpose names the script; the
 //! extended public key, the public key and the address at the path are
 //! derived when drawn. Nothing private is shown or kept.
 

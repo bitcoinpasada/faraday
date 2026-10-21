@@ -767,7 +767,7 @@ fn a_described_wallets_check_has_no_no_money_shows() {
 }
 
 /// The Spend tab left the sidebar and the small Home grid
-/// (`docs/SIMPLIFY.md` §6.2); it is still reached from the Wallets empty
+/// (`docs/history/SIMPLIFY.md` §6.2); it is still reached from the Wallets empty
 /// state's fourth way in.
 #[test]
 fn the_spend_tab_opens_from_the_wallets_empty_state() {

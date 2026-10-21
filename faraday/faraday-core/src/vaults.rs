@@ -1,4 +1,4 @@
-//! Vaults in the app (`docs/VAULT.md`, `PLAN.md` §5.3 and §6.1): the
+//! Vaults in the app (`docs/VAULT.md`, `docs/history/PLAN.md` §5.3 and §6.1): the
 //! vaults the Inbox and Outbox hold, unlocking one slot of one, its
 //! contents by kind, creating a vault, and sealing what changed when the
 //! session locks.
@@ -34,7 +34,7 @@ pub const PRESETS: [(&str, u32, u32); 5] = [
 /// The place after the presets that stands for a custom cost.
 pub const CUSTOM: usize = PRESETS.len();
 
-/// Create a vault's two sizes (`docs/SIMPLIFY.md` §3.1): the label, the
+/// Create a vault's two sizes (`docs/history/SIMPLIFY.md` §3.1): the label, the
 /// preset it takes, and the machines it is for besides this one, in
 /// `MACHINES` order. The second is the default.
 pub const SIZES: [(&str, usize, [bool; 5]); 2] = [
@@ -1244,7 +1244,7 @@ impl Faraday {
     }
 
     /// Costs a parse of each key's words. The session's keys and wallets
-    /// that no open vault holds, by label and by name (`PLAN.md` §6.3:
+    /// that no open vault holds, by label and by name (`docs/history/PLAN.md` §6.3:
     /// locking lists what was not saved). Kept in the drawing memo while a
     /// frame is drawn (`docs/SPEED.md` §3.3).
     ///
@@ -1296,7 +1296,7 @@ impl Faraday {
 
     /// Costs what `lock_held`, `currency`, `words_id` and the rest it calls
     /// cost. What a lock, a write-out or a power-off keeps and what it
-    /// wipes (`docs/SIMPLIFY.md` §4.5): each vault with its currency, the
+    /// wipes (`docs/history/SIMPLIFY.md` §4.5): each vault with its currency, the
     /// files For the stick, and each seed and wallet in memory with where
     /// else it is. At `power_off` a vault not written as it stands and the
     /// files For the stick are lost, not kept. Reads each seed's words and
@@ -1308,7 +1308,7 @@ impl Faraday {
     pub fn kept_wiped_now(&self, c: &Compute, power_off: bool) -> KeptWiped {
         let mut out = KeptWiped::default();
         // Make a new wallet before its keys are kept anywhere ends with
-        // the lock or the power-off (`docs/NEW-WALLET.md` §18).
+        // the lock or the power-off (`docs/history/NEW-WALLET.md` §18).
         if self.lock_held(c) {
             out.wiped.push((EN.lock_held_ends.to_string(), true));
         }
@@ -2712,7 +2712,7 @@ impl Faraday {
                     self.screen = Screen::Family;
                     self.family_unlocked(v);
                 } else if back.is_none() && !made {
-                    // The Vaults list's Unlock (`docs/NEW-WALLET.md`
+                    // The Vaults list's Unlock (`docs/history/NEW-WALLET.md`
                     // §11.1a, F62): Files, where it landed before F62
                     // when it loaded no wallet, with the vault's Load
                     // sheet over it; a wallet loaded lands on Wallets as
@@ -2753,7 +2753,7 @@ impl Faraday {
     }
 
     /// After an unlock's Load sheet that loaded wallets
-    /// (`docs/NEW-WALLET.md` §11.1, §11.1a, F62: the boot sheet's Unlock or
+    /// (`docs/history/NEW-WALLET.md` §11.1, §11.1a, F62: the boot sheet's Unlock or
     /// the Vaults list's): Wallets, on
     /// the first loaded that can sign here, else the first loaded, and a
     /// toast naming what loaded from where. One that loaded none stays
@@ -3560,7 +3560,7 @@ impl Faraday {
             record.push(field::KEY_FLAGS, &[records::BACKUP_PENDING]);
         }
         // A BIP-39 passphrase is stored only when the person asks
-        // (`PLAN.md` §6.3).
+        // (`docs/history/PLAN.md` §6.3).
         if with_passphrase && let Some(p) = key.passphrase.as_ref() {
             record.push(field::KEY_PASSPHRASE, p.as_bytes());
         }
@@ -3757,7 +3757,7 @@ impl Faraday {
             .unwrap_or_else(|| format!("{stem}-100.ofv"))
     }
 
-    /// Seals every open vault with changes into the Outbox (`PLAN.md`
+    /// Seals every open vault with changes into the Outbox (`docs/history/PLAN.md`
     /// §5.3). A vault nobody changed is not rewritten: a slot's bytes
     /// change only when there is something to keep, which is all a second
     /// copy can compare (`docs/VAULT.md` §9). Before the session's seed
@@ -3783,7 +3783,7 @@ impl Faraday {
     /// seed has not arrived.
     fn vault_sealed(&mut self, i: usize) -> Option<(String, Vec<u8>)> {
         // A held key's record says so before the vault goes
-        // (`docs/NEW-WALLET.md` §14.3).
+        // (`docs/history/NEW-WALLET.md` §14.3).
         self.held_sweep();
         // The signed-amount memory goes into every open vault that lacks
         // part of it, the oldest records leaving first when the slot is
@@ -4115,7 +4115,7 @@ pub struct KeptWiped {
     pub wiped: Vec<(String, bool)>,
 }
 
-/// A vault file's currency (`docs/SIMPLIFY.md` §3.5), computed from the
+/// A vault file's currency (`docs/history/SIMPLIFY.md` §3.5), computed from the
 /// receipt's hashes, never stored.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Currency {
@@ -4527,7 +4527,7 @@ impl Faraday {
     }
 
     /// Costs a hash of a whole file (through `hash`). Where vault file `f`
-    /// stands against the last write (`docs/SIMPLIFY.md` §3.5). A vault
+    /// stands against the last write (`docs/history/SIMPLIFY.md` §3.5). A vault
     /// copied in from a stick, unchanged, that no receipt names is current
     /// on the stick it came from when that is known, else unchanged.
     pub fn currency(&self, c: &Compute, f: &VaultFile) -> Option<Currency> {

@@ -23,7 +23,7 @@ to APKs. `docs/APK-SIGNING.md` is the first user.
   prose, on working screens; tests for user-facing behaviour only;
   `just` once at the end of a batch; no `rm`; no commits; no agents.
 - Batches in §12's order; one review and one completion report each.
-- The privilege split of `PLAN.md` §4.3 stays as it is: the disk process
+- The privilege split of `docs/history/PLAN.md` §4.3 stays as it is: the disk process
   reads and writes FAT and nothing else; the app decides what a file is
   and hashes what it signs. The disk process still treats the app as
   hostile: no request lets the app rename or remove a file other than
@@ -231,7 +231,7 @@ Everything it keeps comes from that one pass:
   serial, §8);
 - an OpenPGP SHA-256 state and an OpenPGP SHA-512 state over the file's
   bytes, as a binary signature (type `0x00`) hashes them before its
-  trailer. Faraday makes no text-mode signature. Both of `PLAN.md` §7's
+  trailer. Faraday makes no text-mode signature. Both of `docs/history/PLAN.md` §7's
   hashes run, so Sign a file still asks which. The file's SHA-256 shown
   anywhere is a copy of the SHA-256 state, finished: the hash a person
   compares and the hash GPG signs are one computation;
@@ -265,7 +265,7 @@ each other, as a file copied in replaces one of its name today. "Already
 in by name and size" compares the entry's kept size.
 
 **Across a lock** it holds hashes and no bytes of the file, so a lock
-keeps it, as it keeps public files (`PLAN.md` §5.3), and its name stays
+keeps it, as it keeps public files (`docs/history/PLAN.md` §5.3), and its name stays
 as the names of public files do. It is kept in `/run/faraday/signing/`
 (§4.2), one file per entry: a magic `FSOE`, a version byte, then each
 field with its length. The hash states are kept whole: each one's
@@ -446,7 +446,7 @@ in memory, against a stick's 10 to 30 MB/s.
 
 ## 9. Untrusted input
 
-Bounds that hold whatever the file's size (`PLAN.md` §4.4):
+Bounds that hold whatever the file's size (`docs/history/PLAN.md` §4.4):
 
 - the end record searched in the last 65,557 bytes;
 - a central directory over 16 MiB is "Not an APK" (that is more than
@@ -559,6 +559,6 @@ an APK up to the current 18 MiB.
 
 APK batch 2 (the release) can land after APK batch 1 and does not wait
 for L1 or L2, so long as the release APK stays under 18 MiB until L1 is
-built. Until L1, `README.md`, `PLAN.md` and `docs/FLOWS.md` give
+built. Until L1, `README.md`, `docs/history/PLAN.md` and `docs/FLOWS.md` give
 today's 18 MiB and mark this spec's behaviour as not built; L1's
 completion report changes them.
