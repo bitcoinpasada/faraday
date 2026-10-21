@@ -1,6 +1,9 @@
 # The Spend tab
 
-**Status:** v0.3 · 2026-10-11 (page 3 and the guessed Check,
+**Kind:** Reference
+**Status:** Built
+
+V0.3 · 2026-10-11 (page 3 and the guessed Check,
 `docs/SCAN-TO-SIGN.md` §4 and §5) · built: `faraday-core/src/family.rs`
 (state and logic), `family_screen.rs`, `family_text.rs`,
 `tests/all/family.rs`, and the snapshot tool's `spend` tour

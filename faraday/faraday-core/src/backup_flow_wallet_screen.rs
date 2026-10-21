@@ -20,7 +20,7 @@ fn fa(a: F) -> Action {
 
 /// The plan (the card is "The plan"): where the wallet's keys will be
 /// kept, asked place by place with Back up's own cards
-/// (`docs/BACKUP-FLOW.md` §17), drawn by the same code: Places, a card
+/// (`docs/BACKUP-FLOW.md` §15), drawn by the same code: Places, a card
 /// per place with its rows' sheets, the wallet description, where it
 /// goes, the software, and The plan, the map with its checks. While a
 /// stick is written nothing takes a press. Under The plan, each vault
@@ -252,7 +252,7 @@ fn ask_card(
         FEN.backup_flow_use_vaults_question,
     ) + 6.0;
     // A vault on a stick is read before the keys only: after them the
-    // lock a new stick needs would wipe them (`docs/BACKUP-FLOW.md` §19.21
+    // lock a new stick needs would wipe them (`docs/BACKUP-FLOW.md` §17.21
     // item 5).
     cy += ui.wrap(
         x,

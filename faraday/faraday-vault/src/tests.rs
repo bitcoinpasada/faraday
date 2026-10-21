@@ -296,7 +296,7 @@ fn records_of_every_type_read_back() {
 
 /// Two wallet shares (type 13) in one slot seal and open with every
 /// field; a share without its text refuses the slot
-/// (`docs/BACKUP-FLOW.md` §17.6).
+/// (`docs/BACKUP-FLOW.md` §15.6).
 #[test]
 fn wallet_shares_seal_and_open_and_one_without_its_text_is_refused() {
     let c = compute();
@@ -346,7 +346,7 @@ fn wallet_shares_seal_and_open_and_one_without_its_text_is_refused() {
 /// A passphrase kept on its own (type 14) seals and opens with the
 /// fingerprint of its key and the passphrase; one without its passphrase,
 /// or with a fingerprint of another length, refuses the slot
-/// (`docs/BACKUP-FLOW.md` §19.12 item 4).
+/// (`docs/BACKUP-FLOW.md` §17.12 item 4).
 #[test]
 fn a_passphrase_record_seals_and_opens_and_one_without_its_passphrase_is_refused() {
     let c = compute();

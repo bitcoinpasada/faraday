@@ -1,6 +1,9 @@
 # The Wallets tab
 
-**Status:** built 2026-10-05: every flow in §4 and §5 is in
+**Kind:** Reference
+**Status:** Built
+
+Built 2026-10-05: every flow in §4 and §5 is in
 `faraday/faraday-core`, for spending, creating, backing up, restoring,
 messages and the camera — every single-key, multisig, Taproot multisig,
 miniscript, tree, MuSig2 and FROST wallet with recovery paths
@@ -313,8 +316,8 @@ starts the backup again on that wallet. The plan's logic is `plan.rs`,
 tested on its own; nothing is marked done that was not.
 
 **1. Presets, then the plan by place** (2026-10-15, F35,
-`docs/BACKUP-FLOW.md` §17). *Narrowed by F53 (2026-10-20,
-`docs/BACKUP-FLOW.md` §19.21): a backup starts from The standard way
+`docs/BACKUP-FLOW.md` §15). *Narrowed by F53 (2026-10-20,
+`docs/BACKUP-FLOW.md` §17.21): a backup starts from The standard way
 only, on the board; Paper only, Paper and vault, and Paper, vault and
 watch-only software are offered nowhere, and vaults and the software
 are added on the board.* The flow opened on three presets, one tap
@@ -409,7 +412,7 @@ split's, by trying each place lost and each place found:
 - **One place found: can spend**: Yes, **Only with the vault's
   passphrase** (the place keeps a vault's stick and that vault holds
   what is missing), or No. Seeds alone count: the description is public
-  (`docs/BACKUP-FLOW.md` §19.22).
+  (`docs/BACKUP-FLOW.md` §17.22).
 - **One place found: sees the balance**: the same three values; the
   whole description, or a one-key wallet's seed, shows it.
 

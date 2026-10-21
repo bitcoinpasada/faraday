@@ -38,7 +38,7 @@ pub enum SeedSource {
     Words(usize),
     /// A text file of BIP-39 words, with its BIP-39 passphrase in a file
     /// of its own, `passphrase-{fingerprint}.txt`, the fingerprint the
-    /// words make with it (`docs/BACKUP-FLOW.md` §19.12 items 5 and 6).
+    /// words make with it (`docs/BACKUP-FLOW.md` §17.12 items 5 and 6).
     WordsWith(usize, usize),
     /// SLIP-39 shares that add up, by Inbox place.
     Slip39(Vec<usize>),
@@ -587,7 +587,7 @@ impl Faraday {
         let loaded_fp = |fp: Fingerprint| self.session.keys.iter().any(|k| k.fingerprint() == fp);
         // A passphrase file a stick keeps beside a seed's words, named by
         // the fingerprint the words make with it (`docs/BACKUP-FLOW.md`
-        // §19.12 item 6): the words with it are that key, and the words
+        // §17.12 item 6): the words with it are that key, and the words
         // alone no seed of their own.
         let passphrase_files: Vec<(usize, String)> = items
             .iter()

@@ -5,7 +5,7 @@
 pub struct Strings {
     /// Power-off sheet's first line on a PC stick that started with Secure Boot off or unread.
     pub power_secure_boot_off: &'static str,
-    // ----- A vault's key and wallet, shown and saved (docs/BACKUP-FLOW.md §19.7), faraday-core -----
+    // ----- A vault's key and wallet, shown and saved (docs/BACKUP-FLOW.md §17.7), faraday-core -----
     /// A key record's SeedQR, shown only while held.
     pub vault_show_seedqr: &'static str,
     /// A vault record's button and the popup's title: its files to the
@@ -5205,7 +5205,7 @@ pub struct Strings {
     /// Text in `create_screen`.
     pub create_not_made_yet: &'static str,
     /// Create's Back up card's line while it is closed: where Back up
-    /// opens (`docs/BACKUP-FLOW.md` §19.21 item 2).
+    /// opens (`docs/BACKUP-FLOW.md` §17.21 item 2).
     pub create_opens_on_standard: &'static str,
     /// Text in `create_screen`.
     pub create_home: &'static str,
@@ -5295,7 +5295,7 @@ pub struct Strings {
     /// Text in `create_body`. `{}`: `app.session.wallets[old].name`.
     pub create_move_the_money: &'static str,
     /// Create's Back up step's one button: Back up on the wallet just made
-    /// (`docs/BACKUP-FLOW.md` §19.21 item 2).
+    /// (`docs/BACKUP-FLOW.md` §17.21 item 2).
     pub create_back_up_this: &'static str,
     /// Line in `create_body`.
     pub create_make_the_wallet: &'static str,
@@ -8231,7 +8231,7 @@ pub struct Strings {
     /// number.
     pub backup_flow_for_public: &'static str,
     /// A backup stick's pill: the medium's word and its number, from 2
-    /// ("Stick 2", "Card 2"; `docs/BACKUP-FLOW.md` §18).
+    /// ("Stick 2", "Card 2"; `docs/BACKUP-FLOW.md` §16).
     pub backup_flow_pill: &'static str,
     /// The boot pill on the Pi, Card 1.
     pub backup_flow_pill_boot_card: &'static str,
@@ -8270,7 +8270,7 @@ pub struct Strings {
     /// A write that did not read back.
     pub backup_flow_not_checked: &'static str,
     /// A file written to a stick did not read back, twice
-    /// (`docs/BACKUP-FLOW.md` §19.12 item 10): the file, the stick.
+    /// (`docs/BACKUP-FLOW.md` §17.12 item 10): the file, the stick.
     pub backup_flow_no_read_back: &'static str,
     /// A stick's written copy was deleted or the stick wiped.
     pub backup_flow_first_gone_toast: &'static str,
@@ -8409,7 +8409,7 @@ pub struct Strings {
     pub backup_flow_card_use_vaults: &'static str,
     /// The question on that card.
     pub backup_flow_use_vaults_question: &'static str,
-    /// The muted line under that question (`docs/BACKUP-FLOW.md` §19.21
+    /// The muted line under that question (`docs/BACKUP-FLOW.md` §17.21
     /// item 5).
     pub backup_flow_vaults_on_sticks: &'static str,
     /// The card that asks how many vaults.
@@ -8437,7 +8437,7 @@ pub struct Strings {
     pub backup_flow_no_description: &'static str,
     /// Toast: a change would leave a key held back kept on no stick.
     pub backup_flow_held_stays: &'static str,
-    /// The backup board's card (`docs/BACKUP-FLOW.md` §19): its title.
+    /// The backup board's card (`docs/BACKUP-FLOW.md` §17): its title.
     pub board_title: &'static str,
     /// The board's card closed: how many places. `{}`: the count.
     pub board_places: &'static str,
@@ -8451,7 +8451,7 @@ pub struct Strings {
     /// `{}`: its number at the place, from 1.
     pub board_sd_card: &'static str,
     /// The files box's header inside a stick box: the files kept on the
-    /// stick outside any vault (`docs/BACKUP-FLOW.md` §19.17).
+    /// stick outside any vault (`docs/BACKUP-FLOW.md` §17.17).
     pub board_files_not_sealed: &'static str,
     /// A place card's paper zone.
     pub board_paper: &'static str,
@@ -8473,7 +8473,7 @@ pub struct Strings {
     /// The list's group of vaults.
     pub board_vaults: &'static str,
     /// The list's button that adds a vault, always a new one, made in the
-    /// checklist (`docs/BACKUP-FLOW.md` §19.21 item 4).
+    /// checklist (`docs/BACKUP-FLOW.md` §17.21 item 4).
     pub board_add_vault: &'static str,
     /// A cosigner's seed in the list: its key is not here.
     pub board_not_here: &'static str,
@@ -8506,21 +8506,21 @@ pub struct Strings {
     /// Takes a vault that holds something off the plan.
     pub board_take_off: &'static str,
     /// The narrow column's button that opens the board's list as a sheet
-    /// (`docs/BACKUP-FLOW.md` §19.12 item 3).
+    /// (`docs/BACKUP-FLOW.md` §17.12 item 3).
     pub board_add: &'static str,
     /// The board's row after the last place that adds a place
-    /// (`docs/BACKUP-FLOW.md` §19.15).
+    /// (`docs/BACKUP-FLOW.md` §17.15).
     pub board_add_place: &'static str,
     /// A vault box's header band. `{}`: the vault, "Vault 1".
     pub board_sealed: &'static str,
     /// A vault box's header band while the vault is not made yet: it is
-    /// made in the checklist (`docs/BACKUP-FLOW.md` §19.21 item 6). `{}`:
+    /// made in the checklist (`docs/BACKUP-FLOW.md` §17.21 item 6). `{}`:
     /// the vault.
     pub board_sealed_made: &'static str,
     /// The same, where that does not fit the band. `{}`: the vault.
     pub board_sealed_new: &'static str,
     /// The ⋮ menu of a chip in the list, and its title: where it can be
-    /// placed (`docs/BACKUP-FLOW.md` §19.20).
+    /// placed (`docs/BACKUP-FLOW.md` §17.20).
     pub board_menu_add: &'static str,
     /// A placed chip's ⋮ menu: the item moved to another box.
     pub board_menu_move: &'static str,
@@ -8536,15 +8536,15 @@ pub struct Strings {
     pub board_menu_cancel: &'static str,
     /// The board's right-hand column, and the narrow column's button in
     /// place of Add, while the board is read-only: opens it for changes
-    /// (`docs/BACKUP-FLOW.md` §19.6).
+    /// (`docs/BACKUP-FLOW.md` §17.6).
     pub board_customize: &'static str,
     /// The read-only board's button that adds the software place, with the
-    /// description Scanned in (`docs/BACKUP-FLOW.md` §19.21 item 3).
+    /// description Scanned in (`docs/BACKUP-FLOW.md` §17.21 item 3).
     pub board_add_watch_only: &'static str,
     /// The same button while the software place is on the board: takes it
     /// off.
     pub board_take_off_watch: &'static str,
-    /// A place's spend tag (`docs/BACKUP-FLOW.md` §19.22): its seeds alone sign.
+    /// A place's spend tag (`docs/BACKUP-FLOW.md` §17.22): its seeds alone sign.
     pub board_spend_alone: &'static str,
     /// Its seeds sign alone, with the vault's passphrase.
     pub board_spend_alone_vault: &'static str,
@@ -8573,7 +8573,7 @@ pub struct Strings {
     /// As `board_spend_line`, counting the seeds in its vaults.
     pub board_spend_line_vault: &'static str,
     /// The sheet over a drop that lets a place see the balance
-    /// (`docs/BACKUP-FLOW.md` §19.5). `{}`: the place.
+    /// (`docs/BACKUP-FLOW.md` §17.5). `{}`: the place.
     pub board_sees_title: &'static str,
     /// Its line: the place keeps the whole description.
     pub board_sees_whole: &'static str,
@@ -8597,7 +8597,7 @@ pub struct Strings {
     /// Undoes the drop.
     pub board_take_it_off: &'static str,
     /// Under the list's Wallet description: hands a share to every place
-    /// (`docs/BACKUP-FLOW.md` §19.19 item 1).
+    /// (`docs/BACKUP-FLOW.md` §17.19 item 1).
     pub board_partials_add: &'static str,
     /// The same button while they are on: takes every share off.
     pub board_partials_remove: &'static str,
@@ -8626,7 +8626,7 @@ pub struct Strings {
     /// A warning: a place keeps no seed. `{}`: the place.
     pub board_no_seed: &'static str,
     /// The backup's last card, in Guided only (`docs/BACKUP-FLOW.md`
-    /// §19.19 item 7).
+    /// §17.19 item 7).
     pub backup_extra_copies: &'static str,
     /// The Learn link under it.
     pub backup_extra_copies_link: &'static str,

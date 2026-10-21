@@ -377,7 +377,7 @@ pub enum VaultAction {
     /// made, to the vault's list.
     ItemBack,
     /// Held to show the selected key's SeedQR (`docs/BACKUP-FLOW.md`
-    /// §19.7); does nothing when released.
+    /// §17.7); does nothing when released.
     ShowSeedQr,
     /// The selected wallet's descriptor as the Wallets page shows it.
     WalletQr,
@@ -3216,7 +3216,7 @@ impl Faraday {
                 let added = match crate::wallet::record_words(&c, r) {
                     Some(m) => {
                         // Stored with the key, or kept alone in an open
-                        // vault (`docs/BACKUP-FLOW.md` §19.12 item 4).
+                        // vault (`docs/BACKUP-FLOW.md` §17.12 item 4).
                         let p = match r.text(field::KEY_PASSPHRASE) {
                             Some(p) => Zeroizing::new(p.to_string()),
                             None => self.passphrase_kept_for(&c, &m).unwrap_or_default(),
@@ -3508,7 +3508,7 @@ impl Faraday {
 
     /// Costs a BIP-39 seed and a master key per passphrase record tried:
     /// the passphrase an open vault keeps alone (a type 14 record,
-    /// `docs/BACKUP-FLOW.md` §19.12 item 4) for the key the words `m` make
+    /// `docs/BACKUP-FLOW.md` §17.12 item 4) for the key the words `m` make
     /// with it, found by the fingerprint the record names.
     pub(crate) fn passphrase_kept_for(
         &self,

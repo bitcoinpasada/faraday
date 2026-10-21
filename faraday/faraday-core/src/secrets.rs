@@ -92,7 +92,7 @@ pub struct SecretOut {
     /// warning it is ticked on the visit, and goes nowhere else.
     pub to_visit: bool,
     /// The warning **Lock and write** asks for before it makes a seed's
-    /// files on a stick (`docs/BACKUP-FLOW.md` §19.12 item 6), for the
+    /// files on a stick (`docs/BACKUP-FLOW.md` §17.12 item 6), for the
     /// seed of this fingerprint (as text): past it, the seed is let out
     /// and the lock goes on. Such a sheet holds no bytes.
     pub to_lock: Option<String>,

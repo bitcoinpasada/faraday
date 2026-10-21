@@ -176,7 +176,7 @@ impl Medium {
     }
 
     /// Its glyph: the USB stick, or the SD card (`docs/BACKUP-FLOW.md`
-    /// §19.17).
+    /// §17.17).
     pub const fn icon(self) -> Glyph {
         match self {
             Medium::Stick => Glyph::Stick,

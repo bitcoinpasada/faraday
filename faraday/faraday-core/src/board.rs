@@ -1,4 +1,4 @@
-//! The backup board (`docs/BACKUP-FLOW.md` §19, F37): Back up's plan as a
+//! The backup board (`docs/BACKUP-FLOW.md` §17, F37): Back up's plan as a
 //! card for each place, each divided into where a thing can be there (a
 //! stick, the vault on a stick, paper), and beside the cards a list of
 //! everything the backup can keep. A thing is dragged, or tapped and
@@ -55,7 +55,7 @@ pub enum Zone {
     /// Place `p`'s **+ stick** row: a new stick for what is dropped.
     NewStick(usize),
     /// Empty stick `k` at place `p`, added by a press on **+ stick**: the
-    /// board's, not the plan's (`docs/BACKUP-FLOW.md` §19.16 item 1). A
+    /// board's, not the plan's (`docs/BACKUP-FLOW.md` §17.16 item 1). A
     /// drop on it is a drop on **+ stick**.
     Empty(usize, usize),
     /// Place `p`'s card as a whole: where a vault's stick goes.
@@ -98,7 +98,7 @@ pub enum BoardPress {
     /// The × on a placed chip: taken off.
     Off(Zone, Thing),
     /// A form's toggle on a placed chip turned on or off, by its place
-    /// among the zone's forms (`docs/BACKUP-FLOW.md` §19.3).
+    /// among the zone's forms (`docs/BACKUP-FLOW.md` §17.3).
     Form(Zone, Thing, u8),
     /// The chip held is let go.
     LetGo,
@@ -119,18 +119,18 @@ pub enum BoardPress {
     /// all it carries, its vault's stick and its files.
     RemoveStick(usize, usize),
     /// The × on an empty stick at place `p`: one of its empty sticks
-    /// taken off (`docs/BACKUP-FLOW.md` §19.16 item 1).
+    /// taken off (`docs/BACKUP-FLOW.md` §17.16 item 1).
     RemoveEmpty(usize),
     /// **Add**, at the top of the narrow column: the list as a sheet
-    /// (`docs/BACKUP-FLOW.md` §19.12 item 3).
+    /// (`docs/BACKUP-FLOW.md` §17.12 item 3).
     OpenList,
     /// **Customize backup**: the board, read-only until now, opened for
-    /// changes, and the list shown (`docs/BACKUP-FLOW.md` §19.6).
+    /// changes, and the list shown (`docs/BACKUP-FLOW.md` §17.6).
     Customize,
     /// **Add watch-only software** on the read-only board: the software
     /// place, with the description Scanned in; **Take off watch-only
     /// software** while it is there. The board stays read-only
-    /// (`docs/BACKUP-FLOW.md` §19.21 item 3).
+    /// (`docs/BACKUP-FLOW.md` §17.21 item 3).
     Software,
     /// **Keep it**, on the sheet over a drop that let a place see the
     /// balance (§19.5): the drop stands.
@@ -138,14 +138,14 @@ pub enum BoardPress {
     /// **Take it off**, on that sheet: the drop undone.
     SeesUndo,
     /// **Add partial descriptions to this backup**, or **Remove partial
-    /// descriptions** while they are on (`docs/BACKUP-FLOW.md` §19.19).
+    /// descriptions** while they are on (`docs/BACKUP-FLOW.md` §17.19).
     Partials,
     /// **Take it off every place**, on the sheet after adding them: the
     /// whole description off every place.
     PartialsWholeOff,
     /// **Keep it**, on that sheet.
     PartialsKeep,
-    /// The ⋮ on a chip: its menu opened (`docs/BACKUP-FLOW.md` §19.20).
+    /// The ⋮ on a chip: its menu opened (`docs/BACKUP-FLOW.md` §17.20).
     Menu(Chip),
     /// **Move to…** or **Copy to…** in a placed chip's menu: the boxes it
     /// can go to.
@@ -158,7 +158,7 @@ pub enum BoardPress {
 }
 
 /// What a chip's ⋮ menu does with the box chosen (`docs/BACKUP-FLOW.md`
-/// §19.20).
+/// §17.20).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Verb {
     /// **Add to…**: a list chip placed, as a drop from the list.
@@ -180,7 +180,7 @@ pub enum MenuRow {
 }
 
 /// A chip's ⋮ menu while it is open: worked out on the press that opened
-/// it (`docs/BACKUP-FLOW.md` §19.20), and read by the drawing.
+/// it (`docs/BACKUP-FLOW.md` §17.20), and read by the drawing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Menu {
     /// The chip whose ⋮ opened it.
@@ -240,16 +240,16 @@ pub struct BoardState {
     /// The vault whose × asked first, it holding something.
     pub removing: Option<usize>,
     /// The empty sticks each place has, by place, added by a press on
-    /// **+ stick** (`docs/BACKUP-FLOW.md` §19.16 item 1): never on the
+    /// **+ stick** (`docs/BACKUP-FLOW.md` §17.16 item 1): never on the
     /// map, and gone when the board is left.
     pub empty: Vec<usize>,
     /// The drop that let a place see the balance, asked about on a sheet
-    /// (`docs/BACKUP-FLOW.md` §19.5).
+    /// (`docs/BACKUP-FLOW.md` §17.5).
     pub sees: Option<Sees>,
     /// The sheet after partial descriptions are added (§19.19 item 4):
     /// its line, and whether **Take it off every place** is offered.
     pub partials: Option<(String, bool)>,
-    /// The chip's ⋮ menu that is open (`docs/BACKUP-FLOW.md` §19.20).
+    /// The chip's ⋮ menu that is open (`docs/BACKUP-FLOW.md` §17.20).
     pub menu: Option<Menu>,
     /// The chip whose ⋮ the keyboard is on: Tab and Shift+Tab move it,
     /// Enter or Space opens its menu.
@@ -258,7 +258,7 @@ pub struct BoardState {
 
 /// A drop that let a place see the balance it could not before: the
 /// plan as it was, and the sheet's title and line, worked out at the
-/// drop (`docs/BACKUP-FLOW.md` §19.5).
+/// drop (`docs/BACKUP-FLOW.md` §17.5).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Sees {
     /// The plan before the drop, for **Take it off**.
@@ -299,7 +299,7 @@ fn kind(z: Zone) -> Option<Kind> {
 }
 
 /// The forms `t` takes in a zone of kind `k`, the first the one a drop
-/// places (`docs/BACKUP-FLOW.md` §19.3).
+/// places (`docs/BACKUP-FLOW.md` §17.3).
 fn forms_in(k: Kind, t: Thing) -> Vec<What> {
     match (k, t) {
         (Kind::Paper, Thing::Seed(i)) => vec![What::Words(i), What::SeedQr(i)],
@@ -411,7 +411,7 @@ pub fn target(z: Zone, t: Thing) -> Zone {
     }
 }
 
-/// Whether zone `z` takes `t` (`docs/BACKUP-FLOW.md` §19.3): a seed of a
+/// Whether zone `z` takes `t` (`docs/BACKUP-FLOW.md` §17.3): a seed of a
 /// key here, its passphrase, the description and its shares where the
 /// zone has a form for them; a vault's stick on a place. After the lock
 /// (`locked`) paper and files take nothing, and a vault and its sticks
@@ -542,7 +542,7 @@ fn moved(m: Vec<Spot>, from: Zone, t: Thing, to: Zone) -> Vec<Spot> {
 }
 
 /// The map `m` with form `k` of the chip of `t` at `z` turned on or off;
-/// the last form on stays on (`docs/BACKUP-FLOW.md` §19.3).
+/// the last form on stays on (`docs/BACKUP-FLOW.md` §17.3).
 fn form_toggled(m: Vec<Spot>, z: Zone, t: Thing, k: usize) -> Vec<Spot> {
     let (Some(at), Some(kd)) = (at_of(&m, z), kind(z)) else {
         return m;
@@ -593,7 +593,7 @@ pub(crate) struct ChipView {
     /// chip while the board takes changes (§19.3); empty when read-only
     /// or where it has one form only.
     pub forms: Vec<(String, bool)>,
-    /// A check names it (`docs/BACKUP-FLOW.md` §19.5).
+    /// A check names it (`docs/BACKUP-FLOW.md` §17.5).
     pub warn: bool,
     /// Drawn at every place that keeps its vault's stick.
     pub link: bool,
@@ -601,12 +601,12 @@ pub(crate) struct ChipView {
     /// (§19.12 item 7).
     pub fixed: bool,
     /// Drawn dim but still picked up: a vault kept at no place, out of
-    /// the plan (`docs/BACKUP-FLOW.md` §19.16 item 3).
+    /// the plan (`docs/BACKUP-FLOW.md` §17.16 item 3).
     pub faint: bool,
     /// Its × is drawn: it can be taken off here.
     pub off: bool,
     /// Its ⋮ is drawn: it can be placed, moved or copied by its menu
-    /// (`docs/BACKUP-FLOW.md` §19.20).
+    /// (`docs/BACKUP-FLOW.md` §17.20).
     pub menu: bool,
 }
 
@@ -651,7 +651,7 @@ pub(crate) struct CardView {
     pub paper: ZoneView,
     /// Its header's tags, each with how it reads: whether it sees the
     /// balance, then how near it brings a spend, where it keeps a seed
-    /// (`docs/BACKUP-FLOW.md` §19.22).
+    /// (`docs/BACKUP-FLOW.md` §17.22).
     pub facts: Vec<(String, plan::AloneKind)>,
 }
 
@@ -713,7 +713,7 @@ pub(crate) struct BoardView {
     /// Partial descriptions are on.
     pub partials: bool,
     /// Another place may be added: fewer than one per key
-    /// (`docs/BACKUP-FLOW.md` §19.19).
+    /// (`docs/BACKUP-FLOW.md` §17.19).
     pub room: bool,
     /// The vaults.
     pub vaults: Vec<Entry>,
@@ -921,7 +921,7 @@ impl Faraday {
     /// Whether plan vault `v` of the board on screen is made: on Back up,
     /// a vault set up for it or the open vault the plan saves into
     /// ([`Faraday::backup_vault_target`]); in a wallet flow's own plan, one
-    /// of the vaults set up before the keys (`docs/BACKUP-FLOW.md` §19.21
+    /// of the vaults set up before the keys (`docs/BACKUP-FLOW.md` §17.21
     /// item 6).
     fn board_vault_made(&self, shape: &Shape, v: usize) -> bool {
         match self.board_of() {
@@ -973,7 +973,7 @@ impl Faraday {
         let locked = self.board_locked().is_some();
         let (shape, a) = self.board_plan()?;
         // The map in full: a vault kept at no place is on the list
-        // (`docs/BACKUP-FLOW.md` §19.16 item 3).
+        // (`docs/BACKUP-FLOW.md` §17.16 item 3).
         let m = plan::stored_map(&shape, &a);
         // The plan's map and its check, once for every line below.
         let mapped = self.plan_mapped(c, &shape, &a);
@@ -988,7 +988,7 @@ impl Faraday {
                 .map_or_else(String::new, |s| s.name.clone())
         };
         let name_of = |t: Thing| -> String { self.board_thing_name(&shape, t) };
-        // The checks (`docs/BACKUP-FLOW.md` §19.5): each a line, and the
+        // The checks (`docs/BACKUP-FLOW.md` §17.5): each a line, and the
         // chips each names marked.
         let place_name = |p: usize| self.board_place_name(p);
         let mut warnings: Vec<String> = Vec::new();
@@ -1069,7 +1069,7 @@ impl Faraday {
                 );
             }
         }
-        // The description and the places (`docs/BACKUP-FLOW.md` §19.19
+        // The description and the places (`docs/BACKUP-FLOW.md` §17.19
         // item 5): what cannot put it back together, a place that sees
         // the balance from its share and seeds, a place with no seed.
         if !plan::description_kept_on(&shape, &a, &mapped) {
@@ -1208,7 +1208,7 @@ impl Faraday {
                             (head, inside)
                         });
                         // A vault not made yet is made in the checklist
-                        // (`docs/BACKUP-FLOW.md` §19.21 item 6).
+                        // (`docs/BACKUP-FLOW.md` §17.21 item 6).
                         let (sealed, sealed_short) = match (&vault, plan::stick_vault(&m, p, s)) {
                             (Some((head, _)), Some(v)) if !self.board_vault_made(&shape, v) => (
                                 fill(EN.board_sealed_made, &[&head.name]),
@@ -1390,7 +1390,7 @@ impl Faraday {
 
     /// Costs what `board_view_now` costs. Works out the board: the placed
     /// chips the plan's checks name, each by its zone, the chips drawn with
-    /// the warning mark (`docs/BACKUP-FLOW.md` §19.5).
+    /// the warning mark (`docs/BACKUP-FLOW.md` §17.5).
     pub fn board_marks(&self, c: &Compute) -> Vec<(Zone, Thing)> {
         let Some(v) = self.board_view_now(c) else {
             return Vec::new();
@@ -1419,7 +1419,7 @@ impl Faraday {
     /// Costs what `vault_tokens` costs. Reads the open vault's records (a
     /// key's fingerprint is kept once worked out): what existing vault `v`
     /// held before this backup, as dimmed chips that take no press
-    /// (`docs/BACKUP-FLOW.md` §19.12 item 7), less what the plan keeps
+    /// (`docs/BACKUP-FLOW.md` §17.12 item 7), less what the plan keeps
     /// there now.
     fn board_before(&self, c: &Compute, shape: &Shape, a: &Answers, v: usize) -> Vec<ChipView> {
         // The open vault set up for `v`, what it held before as this
@@ -1589,7 +1589,7 @@ impl Faraday {
         takes(&shape, target(z, t), t, self.board_locked().is_some())
     }
 
-    /// A press on the board (`docs/BACKUP-FLOW.md` §19.2, §19.3).
+    /// A press on the board (`docs/BACKUP-FLOW.md` §17.2, §17.3).
     pub(crate) fn board_act(&mut self, press: BoardPress) {
         let c = self.compute();
         let Some(state) = self.board_state().cloned() else {
@@ -1603,7 +1603,7 @@ impl Faraday {
             }
         };
         // Until Customize backup the board shows the placement and takes
-        // no change (`docs/BACKUP-FLOW.md` §19.6).
+        // no change (`docs/BACKUP-FLOW.md` §17.6).
         let custom = self.board_plan().is_some_and(|(_, a)| a.custom);
         if !custom
             && !matches!(
@@ -1621,7 +1621,7 @@ impl Faraday {
             return;
         }
         // A press on anything but the open menu closes it first: its
-        // **Take off** is the chip's × (`docs/BACKUP-FLOW.md` §19.20).
+        // **Take off** is the chip's × (`docs/BACKUP-FLOW.md` §17.20).
         let in_menu = matches!(
             press,
             BoardPress::Menu(_)
@@ -1830,7 +1830,7 @@ impl Faraday {
             BoardPress::LetGo => set(self, None),
             BoardPress::AddPlace => {
                 set(self, None);
-                // At most one place per key (`docs/BACKUP-FLOW.md` §19.19);
+                // At most one place per key (`docs/BACKUP-FLOW.md` §17.19);
                 // a plan saved with more keeps them.
                 self.board_change(&|a, shape| {
                     if a.places < crate::qstep::MAX_PLACES.min(plan::max_places(shape)) {
@@ -1940,7 +1940,7 @@ impl Faraday {
         }
     }
 
-    /// The chip's ⋮ menu opened (`docs/BACKUP-FLOW.md` §19.20): a list
+    /// The chip's ⋮ menu opened (`docs/BACKUP-FLOW.md` §17.20): a list
     /// chip's Add to…, a placed chip's Move to…, Copy to… and Take off,
     /// worked out here, on the press, as the plan is (a map read). `keys`:
     /// opened by Enter or Space, the arrows' choice drawn.
@@ -2029,7 +2029,7 @@ impl Faraday {
     /// stick's files, each stick's vault, its empty sticks and **New
     /// stick**; then the software place. Only a box that takes the item
     /// in some form ([`takes`]), and not one that keeps it already
-    /// (`docs/BACKUP-FLOW.md` §19.20 item 2).
+    /// (`docs/BACKUP-FLOW.md` §17.20 item 2).
     fn board_menu_boxes(&self, c: Chip) -> Vec<MenuRow> {
         let Some((shape, a)) = self.board_plan() else {
             return Vec::new();
@@ -2137,7 +2137,7 @@ impl Faraday {
         rows
     }
 
-    /// A key on the board (`docs/BACKUP-FLOW.md` §19.20 item 5): while a
+    /// A key on the board (`docs/BACKUP-FLOW.md` §17.20 item 5): while a
     /// chip's menu is open, the arrows move, Enter or Space chooses and
     /// Escape closes it back to its ⋮ (from Move to… or Copy to…, back to
     /// the first level); else Tab and Shift+Tab move among the ⋮s on
@@ -2297,7 +2297,7 @@ impl Faraday {
     /// After a drop: where it brought a place keeping two seeds or more
     /// nearer a spend (§19.22), or let a place see the balance it could
     /// not see before, the sheet that says so, with the plan as it was for
-    /// **Take it off** (`docs/BACKUP-FLOW.md` §19.5). Computes from the
+    /// **Take it off** (`docs/BACKUP-FLOW.md` §17.5). Computes from the
     /// state as it is: the check of each place before and after, a map
     /// worked out each.
     fn board_sees_ask(&mut self, was: Answers) {
@@ -2375,7 +2375,7 @@ impl Faraday {
 
     /// While partial descriptions are on, a place added or taken off has
     /// them handed out again, every place one (`docs/BACKUP-FLOW.md`
-    /// §19.19 item 1). Works out the hand-out, a search.
+    /// §17.19 item 1). Works out the hand-out, a search.
     fn board_partials_refresh(&mut self) {
         let c = self.compute();
         if self.board_locked().is_some() || !self.board_plan().is_some_and(|(_, a)| a.partials_on())
@@ -2430,7 +2430,7 @@ impl Faraday {
     }
 
     /// The board's empty sticks go when it is left: its card closed or
-    /// another screen opened (`docs/BACKUP-FLOW.md` §19.16 item 1). They
+    /// another screen opened (`docs/BACKUP-FLOW.md` §17.16 item 1). They
     /// hold nothing, so nothing is lost. Costs a lookup.
     pub(crate) fn board_tidy(&mut self) {
         let shown = self.board_shown().then(|| self.board_of()).flatten();
@@ -2553,7 +2553,7 @@ impl Faraday {
 }
 
 /// The line on the sheet over a drop that let a place see the balance
-/// (`docs/BACKUP-FLOW.md` §19.5): what kept there, `held`, makes the
+/// (`docs/BACKUP-FLOW.md` §17.5): what kept there, `held`, makes the
 /// description. The whole description; else its shares there, with the
 /// seeds there whose keys those shares left off.
 fn sees_line(shape: &Shape, a: &Answers, held: &[What]) -> String {
@@ -2635,7 +2635,7 @@ fn sees_line(shape: &Shape, a: &Answers, held: &[What]) -> String {
 }
 
 /// The line under the board when nothing kept puts the description back
-/// together (`docs/BACKUP-FLOW.md` §19.19 item 5): what is kept, and what
+/// together (`docs/BACKUP-FLOW.md` §17.19 item 5): what is kept, and what
 /// would complete it.
 fn description_line(shape: &Shape, m: &plan::Mapped) -> String {
     let kept = plan::shares_kept_on(shape, m);

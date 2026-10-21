@@ -18,8 +18,8 @@ read, and only this page is kept.
 
 | File read | SHA-256 |
 |---|---|
-| `docs/rolls.py` (Coldcard) | `4348a520e57df665e0ab57baa369a95ace0f9b5fba355b3f22b0b9b2c2e6cd30` |
-| `docs/rolls12.py` (Coldcard) | `533daff58437cdc9a482d16cd181ba9b0fe6f86a6839b792343d39b496034c85` |
+| docs/rolls.py (Coldcard) | `4348a520e57df665e0ab57baa369a95ace0f9b5fba355b3f22b0b9b2c2e6cd30` |
+| docs/rolls12.py (Coldcard) | `533daff58437cdc9a482d16cd181ba9b0fe6f86a6839b792343d39b496034c85` |
 | `src/seedsigner/helpers/mnemonic_generation.py` (SeedSigner) | `1da00ac502a88ae77733681fd19f0fb61df03ebdee759b9ac78798fe9399c8fc` |
 | `src/js/app.js` (EntropyLab) | `5080326e9aef1d1ab31751cd6a2b984dc12fe26c935022f9a6bbfe331a4403c2` |
 | `src/rust/bitbox02-rust/src/workflow/mnemonic.rs` (BitBox02) | `b6ff60a3963c61c99f4c79cff4817068050ee3c5c4ddca76ec1c14af4d84aad9` |
@@ -31,7 +31,7 @@ truncated to the strength. This is what this device has always done
 (§16.17); the three sources below are byte-identical to it and to each
 other.
 
-Coldcard, `docs/rolls.py`, which its documentation publishes at
+Coldcard, docs/rolls.py, which its documentation publishes at
 <https://coldcardwallet.com/docs/rolls.py>:
 
 ```python
@@ -42,7 +42,7 @@ def main():
     h = sha256(r.encode()).digest()
 ```
 
-`docs/rolls12.py` is the same file truncated to sixteen bytes.
+docs/rolls12.py is the same file truncated to sixteen bytes.
 
 SeedSigner, `src/seedsigner/helpers/mnemonic_generation.py`:
 
@@ -80,7 +80,7 @@ b4b7bf155511dfa13688d93685fea50b2d56414be59fbde4658b84b42f355fa7
 ```
 
 which is the digest `core/faraday-entropy`'s `dice_entropy_is_sha256_of_the_ascii_rolls`
-asserts, and `docs/rolls12.py` prints its first sixteen bytes.
+asserts, and docs/rolls12.py prints its first sixteen bytes.
 
 ## 2. Six as zero, hashed — `DiceProcedure::SixAsZero`
 

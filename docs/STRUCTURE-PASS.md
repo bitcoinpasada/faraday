@@ -63,7 +63,7 @@ owner can answer.
 
 - Personal information and private references come out of the tracked
   docs with a normal commit, the lines the review listed. The tracked
-  docs then carry no `local/` file names, tracker numbers or private
+  docs then carry no private-folder file names, tracker numbers or private
   repository names.
 - `docs/AUDIT.md`: only its false statements are corrected. One base
   hash replaces the two it gives. `osk-keep` and the deleted app crate
@@ -117,8 +117,8 @@ Order within the phase:
 
 `core/` keeps the libraries that hold no flow and no wording, whatever
 their name. CLAUDE.md's paths follow in the same commit:
-`core/osk-ui/src/tokens.rs`, `core/osk-learn/src/en.rs` and
-`core/osk-selftest`.
+core/osk-ui/src/tokens.rs, core/osk-learn/src/en.rs and
+core/osk-selftest.
 
 Outside the repository, anything that depends on these crates by path
 breaks at the rename and is changed the same day.
@@ -145,8 +145,8 @@ derivation or a file a person already holds:
   and ".oskb". That is what the file is called.
 
 These are expected to change, and nothing else is:
-- source paths that tools read: `core/osk-crypto/src/work.rs` in
-  costs-lint, and `core/osk-ui/assets` and `core/osk-ui/src/fonts/generated.rs`
+- source paths that tools read: core/osk-crypto/src/work.rs in
+  costs-lint, and core/osk-ui/assets and core/osk-ui/src/fonts/generated.rs
   in fontbake;
 - the internal thread names (`osk-pi-watch-{}`, `osk-pi-fb-{}-{tag}`)
   and layout ids (`osk-home-receiver`, `osk-passphrase-keyboard`,
@@ -166,7 +166,7 @@ backup tests catch the rest.
 
 This was done on the commit just before the rename: the base hash and
 the per-crate diffstat against it were written down, and the `upstream`
-remote and `local/for-upstream/` were then removed. From F72 on,
+remote and the private for-upstream folder were then removed. From F72 on,
 Faraday's own history is the record; the written-down provenance is no
 longer kept.
 
@@ -217,6 +217,24 @@ The plan's phases 1 and 2 stand, with these changes:
   - Its first run lands in the same commit as the moves.
 - **The status header:** this file's header is the form. Kind is
   Reference, Spec or History.
+
+Phases 1 and 2 were done 2026-10-21:
+- **Navigation:**
+  - `docs/README.md`, the index from question to document;
+  - the DECISIONS index and its status lines;
+  - READMEs for `tools/`, the five crypto crates, `design/` and `faraday/build/`;
+  - faraday-core's code map.
+- **Layout:**
+  - `docs/SECURITY-MODEL.md`;
+  - the finished docs and the build logs moved to `docs/history/`;
+  - `BACKUP-FORMAT.md` and rqrr's `PATCHES.md`;
+  - the justfile's groups and fuzz recipe;
+  - the stale worktrees pruned.
+- **Lint:** a status header on every doc, and `tools/lint-docs.sh` in `just lint`.
+
+F73 then removed the upstream planning documents and the provenance
+file (§3.3) and every mention of the upstream project outside
+`LICENSE`.
 
 ## 5. The key boundary (F70)
 

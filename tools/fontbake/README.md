@@ -78,7 +78,7 @@ Output: one `core/faraday-draw/assets/<face>.outl` per face and
 ## Where the CJK fonts come from
 
 The four Noto Sans CJK region subsets are 23 MB together and are not
-committed. The baker downloads each into `tools/fonts/cjk/` when the file
+committed. The baker downloads each into tools/fonts/cjk/ when the file
 is missing, checks it against the SHA-256 pinned in `CJK_SOURCES` in
 `main.rs`, and aborts on a mismatch. The digests are also in
 `tools/fonts/README.md` with the licence. This is the only network access

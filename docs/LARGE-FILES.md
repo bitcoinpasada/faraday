@@ -1,6 +1,9 @@
 # Large files on a stick visit
 
-**Status:** spec v0.2 · 2026-10-14 · drafted from the owner's decision
+**Kind:** Spec
+**Status:** Not built
+
+Spec v0.2 · 2026-10-14 · drafted from the owner's decision
 (`docs/DECISIONS.md` F26), with a security review's fifteen findings
 applied the same day. Not built.
 

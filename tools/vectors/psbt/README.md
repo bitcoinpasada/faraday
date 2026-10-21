@@ -109,7 +109,7 @@ addresses in the table above, which is a second reading of
 The wallet files are written by
 `cargo run -p faraday-psbt --example wallet` (also `just psbt-fixtures`) and
 checked byte for byte by the same test as the warning fixtures.
-`tools/scripts/wallet.txt` reads the policy, registers it and signs the
+tools/scripts/wallet.txt reads the policy, registers it and signs the
 transaction.
 
 ## The MuSig2 wallet, and what Bitcoin Core 31.1 checked

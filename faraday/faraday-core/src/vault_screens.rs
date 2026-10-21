@@ -4057,7 +4057,7 @@ pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     });
 }
 
-/// Save to a stick's popup (`docs/BACKUP-FLOW.md` §19.7): for a key,
+/// Save to a stick's popup (`docs/BACKUP-FLOW.md` §17.7): for a key,
 /// the line that says what the stick gives whoever finds it, first; then
 /// each form with its files' names, ticked or not; Save and Cancel.
 pub(crate) fn stick_save_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {

@@ -418,7 +418,7 @@ fn this_computer_gives_what_it_has_free_and_can_be_unticked() {
 
 /// A vault added with + new vault reads "made in the checklist" on the
 /// board until the checklist has made it, and "sealed" once it has
-/// (`docs/BACKUP-FLOW.md` §19.21 item 6).
+/// (`docs/BACKUP-FLOW.md` §17.21 item 6).
 #[test]
 fn a_new_vault_reads_made_in_the_checklist_until_the_checklist_makes_it() {
     let band = |app: &mut Faraday| -> String {

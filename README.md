@@ -6,6 +6,8 @@ RAM, and keeps nothing when it powers off. It holds Bitcoin keys,
 wallets, passwords, GPG keys and Secure Boot keys in encrypted vaults and
 signs with them on a machine that has no network.
 
+Every document, and which one answers which question: `docs/README.md`.
+
 > **Use at your own risk.** Faraday is not reviewed. 0.1.5 is a
 > pre-release: no one outside the project has reviewed its code, its
 > cryptography or its builds, and no second builder has reproduced it.
@@ -564,7 +566,7 @@ formats.
 ## Repository rules
 
 - No GitHub Actions or hosted CI. Everything builds and tests locally.
-- Nothing under `local/` is committed; use it for private notes.
+- Nothing private is committed.
 
 ## License
 

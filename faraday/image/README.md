@@ -532,7 +532,7 @@ machine that does not work. The release image writes nothing.
 
 ```
 just faraday-stick-image  # or: just dev=1 faraday-stick-image
-tools/stick-qemu.py --image out/stick/faraday-x86_64-uefi.img --vnc 9 --serial stdio
+faraday/tools/stick-qemu.py --image out/stick/faraday-x86_64-uefi.img --vnc 9 --serial stdio
 ```
 
 `stick-qemu.py` gives the machine no display of its own and puts it on VNC,
@@ -558,7 +558,7 @@ for a person to look at.
 A webcam cannot be emulated: QEMU has no UVC device, so the scanner in a
 QEMU run finds no `/dev/video*` and offers the file path instead. To try
 it, pass a real webcam through to the guest. Find its ids with `lsusb`
-and add one device to the command `tools/stick-qemu.py` builds:
+and add one device to the command `faraday/tools/stick-qemu.py` builds:
 
 ```
 -device usb-host,vendorid=0x046d,productid=0x0825,bus=xhci.0
@@ -691,7 +691,7 @@ On the stick, the same three things go wrong in their own ways:
   machine's boot menu is the other.
 - **The screen stays black after the firmware's logo.** The framebuffer
   hand-over did not take. Build `just dev=1 faraday-stick-image` and read `ttyS0`
-  — or run the dev image under `tools/stick-qemu.py`, where the
+  — or run the dev image under `faraday/tools/stick-qemu.py`, where the
   console is the terminal.
 - **The screen is right and nothing responds.** No input device was
   classified. `--verbose` in the dev variant lists every

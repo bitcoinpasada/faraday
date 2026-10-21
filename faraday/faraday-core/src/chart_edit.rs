@@ -387,7 +387,7 @@ impl Faraday {
         self.screen = screen;
         // A backup past its lock: the change goes through its flow, with
         // its refusals, and is kept only where the flow takes it
-        // (`docs/BACKUP-FLOW.md` §17.8).
+        // (`docs/BACKUP-FLOW.md` §15.8).
         if let Some(i) = self.backup_locked_flow() {
             let before = self.backup_flows[i]
                 .wallet

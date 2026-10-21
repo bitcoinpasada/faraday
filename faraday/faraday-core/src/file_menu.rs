@@ -562,7 +562,7 @@ impl Faraday {
         }
     }
 
-    /// A key for a file's ⋮ (`docs/BACKUP-FLOW.md` §19.20 item 5, as the
+    /// A key for a file's ⋮ (`docs/BACKUP-FLOW.md` §17.20 item 5, as the
     /// board's): in an open menu the arrows move, Enter or Space chooses
     /// and Escape closes it back to its ⋮; in the Rename popup typing
     /// goes to its field, Enter renames and Escape closes; on Files and

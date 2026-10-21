@@ -1,12 +1,15 @@
 # Speed in long flows
 
-**Status: 2026-10-16, batches A and B built and checked by the owner on
-the slow laptop's stick; C next, after BACKUP-FLOW §19's F batches; D
+**Kind:** Spec
+**Status:** In progress (batches C to E)
+
+2026-10-16, batches A and B built and checked by the owner on
+the slow laptop's stick; C next, after BACKUP-FLOW §17's F batches; D
 measured at the stick's high-density sizes before it is decided (§6); E
 in the website's own repository.
 §7 is a standing rule (owner). §8: the speed audit's batch S1
 (2026-10-21); §11: batch E of 2026-10-21, the stick's panel and the
-Starter. Tracker issue 119 and its sub-issues 120–130.**
+Starter. Tracker issue 119 and its sub-issues 120–130.
 
 The owner's report: on a slow laptop Faraday became very slow in the
 later stages of setting up a multisig wallet, the backups especially,
@@ -492,14 +495,14 @@ glyphs would pass the budget (estimated from the area, not measured).
 Batch D waits for that measurement at the stick's full-screen sizes on
 high-density panels.
 
-Timed per §7 after BACKUP-FLOW §19's F2a (the board in Back up), same
+Timed per §7 after BACKUP-FLOW §17's F2a (the board in Back up), same
 session and conditions, medians in ms: the board open 5.1 (1366×768) and
 14.1 (2560×1600 scale 2); a chip selected 5.3 and 14.3; a chip dragged,
 each touch move and its frame, 6.7 and 15.2; a chip's forms open 5.6 and
 14.7. The checklist's rows as after B. After F2b (the list in the right-hand
 column, the boxes): the board's rows within 1 ms of F2a's; the narrow
 column at 800×600, a frame 2.0, a scroll step and frame 2.0, the Add
-sheet 1.7. After BACKUP-FLOW §20's L2 (the access layers' lines under
+sheet 1.7. After the access layers' L2 (their lines under
 the board), on the build machine, a 2-of-3 with three keys here and a
 vault open, the board on Paper and vault at 1366×768, medians of 30 in
 ms over three runs each: a frame 4.07 to 4.39 before and 3.97 to 4.36
@@ -566,7 +569,7 @@ parsed three records, now one. Every earlier stage drew
 cheap, so the vault 2 card's frame moved within the spread; the sticks
 card's frame dropped by about 0.5 ms at 1366×768 and 1 ms at 2560×1600.
 
-The layer view of the board (BACKUP-FLOW §20) had not reached main on
+The layer view of the board (since removed) had not reached main on
 the day, so the board is timed in its All view only.
 
 Frames over 16 ms: none in this session at either size, the heaviest

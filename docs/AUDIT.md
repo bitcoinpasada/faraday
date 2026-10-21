@@ -1,6 +1,9 @@
 # What is cryptography, and where it lives
 
-**Status:** written 2026-10-06; corrected 2026-10-21 where it had become
+**Kind:** Reference
+**Status:** Built; rewritten when the key boundary (F70) is built
+
+Written 2026-10-06; corrected 2026-10-21 where it had become
 false. `core/` is Faraday's code. This file is
 rewritten when the key boundary (F70) is built. One row per
 crate that touches a key, a seed, a signature, a cipher or a passphrase,

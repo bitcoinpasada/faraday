@@ -1,6 +1,9 @@
 # Compute: costly work takes a token
 
-**Status:** 2026-10-21 · built (U4 to D3, 2026-10-21); owner approved the
+**Kind:** Reference
+**Status:** Built
+
+2026-10-21 · built (U4 to D3, 2026-10-21); owner approved the
 approach 2026-10-20 (F69)
 
 Every costly function in `core/` and in Faraday's crates takes a

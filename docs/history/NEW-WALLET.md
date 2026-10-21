@@ -1,6 +1,9 @@
 # Making a wallet, second pass
 
-**Status:** built 2026-10-10, every section, `c065232` to `3be049a`;
+**Kind:** History
+**Status:** Built 2026-10-10; the backup part is now `docs/BACKUP-FLOW.md`
+
+**As written:** built 2026-10-10, every section, `c065232` to `3be049a`;
 spec v0.1 · 2026-10-10 · decided by the owner from a walk
 through Create a wallet, New key and Back up a wallet on the built app
 (single key, then a 2-of-3). Where the build and this file differ once

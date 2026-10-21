@@ -63,7 +63,7 @@ const OWN: [(&str, &str); 11] = [
         "backup-plan-check",
         include_str!("../../../docs/learn/faraday/backup-plan-check.md"),
     ),
-    // Copies made outside the backup plan (`docs/BACKUP-FLOW.md` §19.19
+    // Copies made outside the backup plan (`docs/BACKUP-FLOW.md` §17.19
     // item 7).
     (
         "extra-copies",

@@ -3,7 +3,7 @@
 //! pull, one pill for each stick a backup flow needs, and what the flow
 //! asks for at each step. On a device (the PC stick, the Pi) the flow's
 //! sticks alone, lit only for the stick recognised, with no press; the
-//! card's "Mark it as Stick 2" and "This is Stick 2" (BACKUP-FLOW §18).
+//! card's "Mark it as Stick 2" and "This is Stick 2" (BACKUP-FLOW §16).
 //! On every shell the boot stick is Stick 1 and a backup's sticks are
 //! numbered from 2.
 
@@ -229,7 +229,7 @@ fn with_the_boot_stick_and_stick_2_in_a_backup_flow_reads_stick_2_and_does_not_a
     );
 }
 
-// ---- on a device: the PC stick and the Pi (docs/BACKUP-FLOW.md §18) ----
+// ---- on a device: the PC stick and the Pi (docs/BACKUP-FLOW.md §16) ----
 
 /// A device with the clock kept: its sticks are real, put in by hand.
 fn device() -> Faraday {

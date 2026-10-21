@@ -771,7 +771,7 @@ pub fn make_released(app: &mut Faraday, kind: Kind, fields: &[&str]) -> Option<S
 
 /// Past **Lock and write**'s secret sheet for each seed the plan keeps as
 /// a file on a stick: the line ticked and the seed let out, once per seed
-/// (`docs/BACKUP-FLOW.md` §19.12 item 6). Returns how many sheets it
+/// (`docs/BACKUP-FLOW.md` §17.12 item 6). Returns how many sheets it
 /// went through.
 pub fn let_seed_files_out(app: &mut Faraday) -> usize {
     let mut n = 0;
@@ -786,13 +786,13 @@ pub fn let_seed_files_out(app: &mut Faraday) -> usize {
     n
 }
 
-// ---- the backup board (`docs/BACKUP-FLOW.md` §19) ----
+// ---- the backup board (`docs/BACKUP-FLOW.md` §17) ----
 
 use faraday_core::board::{BoardPress, Chip, Thing, Zone};
 use faraday_core::plan::{self, At, Spot, What};
 
 /// A press on Back up's board, after **Customize backup** where the board
-/// is still read-only (`docs/BACKUP-FLOW.md` §19.6).
+/// is still read-only (`docs/BACKUP-FLOW.md` §17.6).
 pub fn board(app: &mut Faraday, p: BoardPress) {
     if app.board_plan().is_some_and(|(_, a)| !a.custom) {
         app.press(Action::Board(BoardPress::Customize));
@@ -1030,7 +1030,7 @@ pub fn description_file_at(app: &mut Faraday, p: usize) {
 }
 
 /// A second place on Back up's plan, as a plan saved before plans kept
-/// at most one place per key has it (`docs/BACKUP-FLOW.md` §19.19): the
+/// at most one place per key has it (`docs/BACKUP-FLOW.md` §17.19): the
 /// board offers no **+ place** past one per key, and a plan that has more
 /// keeps them. The flows these tests drive write any number of places.
 pub fn second_place(app: &mut Faraday) {
@@ -1044,7 +1044,7 @@ pub fn second_place(app: &mut Faraday) {
 
 /// Back up's plan as preset `k` (by [`plan::Preset::ALL`]) filled it over
 /// two places for a single key, as a plan saved before plans kept at most
-/// one place per key has it (`docs/BACKUP-FLOW.md` §19.19), customised.
+/// one place per key has it (`docs/BACKUP-FLOW.md` §17.19), customised.
 pub fn preset_two_places(app: &mut Faraday, k: u8) {
     let w = app.backup.as_ref().expect("Back up").wallet;
     let shape = app.plan_shape_now(w);
@@ -1127,7 +1127,7 @@ fn spot_of(app: &Faraday, p: usize, w: What) -> Option<(Zone, Thing, u8)> {
 
 /// A row of §17's place cards set as its sheet's Done set it, made on the
 /// board of the plan on screen: at place `p`, `row` kept for exactly
-/// `seeds` (`docs/BACKUP-FLOW.md` §17.1). For a vault, its stick kept at
+/// `seeds` (`docs/BACKUP-FLOW.md` §15.1). For a vault, its stick kept at
 /// the place and the vault holding exactly `seeds`.
 pub fn keep_row(app: &mut Faraday, p: usize, row: plan::Row, seeds: &[usize]) {
     use plan::Row;

@@ -1,5 +1,8 @@
 # Decisions
 
+**Kind:** Record
+**Status:** Kept as written; indexed at the top
+
 Faraday's own decisions, numbered F1 onward, newest last. A new decision,
 about `core/` as about anything else, is written here.
 
@@ -220,8 +223,8 @@ for a stick or card". Code names and file names are unchanged
 The medium's glyph follows it: `Icon::Drive` on the PC, `Icon::SdCard` on
 the Pi, Font Awesome 6 Free Solid `sd-card` (U+F7C2) added back to the
 icon face after an earlier change removed `MicroSd` as unused. The new variant, its place in `Icon::ALL`, its
-code point and name in `core/osk-ui/src/widgets/icon.rs`, the
-`tools/fontbake` entry and the rebaked `core/osk-ui/assets/icon.outl` are
+code point and name in `core/faraday-draw/src/widgets/icon.rs`, the
+`tools/fontbake` entry and the rebaked `core/faraday-draw/assets/icon.outl` are
 this decision's change to `osk-ui`.
 
 Not settled here: the family guide's "Start from the SD card" card still
@@ -431,7 +434,7 @@ The vault's add rows carry `Icon::Add`, Font Awesome 6 Free Solid
 `plus` (U+F067). As
 with F4's `SdCard`, the variant, its place in `Icon::ALL`, its code
 point and name, the `tools/fontbake` entry and the rebaked
-`core/osk-ui/assets/icon.outl` are a change to `osk-ui`.
+`core/faraday-draw/assets/icon.outl` are a change to `osk-ui`.
 
 ### F10 The name as a wordmark (2026-10-11)
 
@@ -534,7 +537,7 @@ D12 to D21) and §13 lists what moved.
   camera module the Windows Starter needs serves both.
 - One Pi screen for now, the 2.8 inch panel; panel profiles and other
   sizes wait for a second screen.
-- `tools/flash-stick` was removed, in batch L, when the Starter wrote a
+- tools/flash-stick was removed, in batch L, when the Starter wrote a
   developer's own image (`--image`); the window and its launcher were a
   stopgap.
 
@@ -613,7 +616,7 @@ that may sync it. An app that also checked balances or broadcast would
 need the network, and the owner does not want Faraday to become an
 online wallet.
 
-**Decision** (owner, 2026-10-12; the spec is `docs/COMPANION.md`).
+**Decision** (owner, 2026-10-12; the spec is docs/COMPANION.md).
 
 - An Android app, **Faraday Companion**, offline only. Its manifest
   asks for the camera and no network permission, which anyone can
@@ -639,7 +642,7 @@ online wallet.
   APK key the owner generates and keeps. Not registered with Google's
   developer verification, for the pseudonym; the install route on a
   phone that asks is documented. No iPhone app in phase 1. Every point
-  is `docs/COMPANION.md` §12, D1–D10.
+  is docs/COMPANION.md §12, D1–D10.
 
 ### F16 The hub app is Faraday Starter; the desktop app is Faraday Desktop (2026-10-12)
 
@@ -1005,7 +1008,7 @@ answers).
 - A file that is exactly one PEM `CERTIFICATE` block is public, as F22
   made an armored OpenPGP public key.
 - COMPANION D7 is replaced; COMPANION §2, §3, §4.8, §8 and §10 batch C
-  follow. The certificate is committed as `faraday/companion-cert.pem`
+  follow. The certificate is committed as faraday/companion-cert.pem
   once the key is made, as `faraday/release-key.asc` is.
 
 ### F26 Files of any size on a stick visit, imported whole or only for signing (2026-10-14)
@@ -1386,7 +1389,7 @@ FAT volume serial, which sticks written from one image can share.
 - F25's two sticks of different FAT serials are replaced by this flow.
 - Built: batch B1a (everything but the Bitcoin wallet) for the APK key,
   GPG keys and the Secure Boot keys, and batch B1b for the Bitcoin
-  wallet and Restore, with the choices `docs/BACKUP-FLOW.md` §16
+  wallet and Restore, with the choices `docs/history/BACKUP-FLOW-LOG.md`
   records; B1b leaves out the two choices for a key kept only on paper
   before an extra round (the owner's decision is asked for there) and
   the Nostr key's part.
@@ -1412,7 +1415,7 @@ possible, and where its behaviour is in doubt, check it with the real
 **Decision** (owner, 2026-10-14). Each behaviour below was checked with
 GnuPG 2.4.8 in a throwaway `GNUPGHOME`, with `--faked-system-time` for
 every time; the tests in `faraday/faraday-pgp/tests/gnupg.rs` and
-`faraday/faraday-core/tests/gpg.rs` run `gpg` itself and fail where it is
+`faraday/faraday-core/tests/all/gpg.rs` run `gpg` itself and fail where it is
 missing, unless `FARADAY_SKIP_GNUPG=1`.
 
 - *Revocation certificate kept with the key.* GnuPG 2.1 and later write
@@ -1506,7 +1509,7 @@ recovery-key machinery beside it, ensures that. Offering to copy a
 recovery key onto a phone is irresponsible.
 
 **Decision** (owner, 2026-10-14; the spec is `docs/STARTER.md` §6,
-`docs/COMPANION.md` §4.6 and §4.7, `docs/STARTER.md` §7.5).
+docs/COMPANION.md §4.6 and §4.7, `docs/STARTER.md` §7.5).
 
 - *Removed from Faraday Starter:* the BitLocker page and Home's
   BitLocker item (**Back up the BitLocker recovery key**, its note and
@@ -1612,7 +1615,7 @@ released in it.
 
 - *Dropped:* the app, `faraday-companion`, `faraday-companion-ffi`, the
   Android shell with its fastlane metadata, the container that built
-  its APK, its two lints, `docs/COMPANION.md`, its strings, its Learn
+  its APK, its two lints, docs/COMPANION.md, its strings, its Learn
   page, the APK build in `faraday.just` and `stage-release.sh
   --companion`, and what in `faraday-intake` only it used (the secret
   classifier). The wordmark's COMPANION suffix goes with them.
@@ -1639,7 +1642,7 @@ deposit box. Asked by kind, they had to work out each place's contents
 from several lists.
 
 **Decision** (owner, 2026-10-15; the spec is `docs/BACKUP-FLOW.md`
-§17).
+§15).
 
 - The plan's cards are: Start from (the presets); the number of places;
   a card per place; the wallet description, whole or in shares with
@@ -1657,14 +1660,14 @@ from several lists.
   as that place's.
 - What goes into a vault is the person's choice, a share included
   (owner, 2026-10-15): a share is kept in a vault as a new record, type
-  13 (VAULT §7, BACKUP-FLOW §17.6).
+  13 (VAULT §7, BACKUP-FLOW §15.6).
 - One wallet, one checksum (owner, 2026-10-15): every wallet Faraday
   reads is kept with its hardened steps written `h`, as Faraday writes
   them when it makes a wallet, whether it came with `h` or `'` (BIP-380
   allows both, and the checksum covers the text). So a wallet rebuilt
   from shares, read from a multisig config or typed in shows the same
   descriptor and checksum as when it was made.
-- Specified, not built: BACKUP-FLOW §17.
+- Specified, not built: BACKUP-FLOW §15.
 
 ### F36 Numbered stick pills on every device (2026-10-15)
 
@@ -1672,7 +1675,7 @@ from several lists.
 holding a stick cannot tell from the stick which of the backup's sticks
 it is, and Faraday Desktop's pills existed only on the desktop.
 
-**Decision** (owner, 2026-10-15; the spec is `docs/BACKUP-FLOW.md` §18).
+**Decision** (owner, 2026-10-15; the spec is `docs/BACKUP-FLOW.md` §16).
 
 - The numbered pills are drawn on the PC stick and the Pi too, while a
   backup uses sticks: a pill per stick, lit only when the stick in is
@@ -1694,7 +1697,7 @@ it is, and Faraday Desktop's pills existed only on the desktop.
 the owner found confusing; a person thinks of a backup as things put in
 places, and wants to see it that way.
 
-**Decision** (owner, 2026-10-15; the spec is `docs/BACKUP-FLOW.md` §19).
+**Decision** (owner, 2026-10-15; the spec is `docs/BACKUP-FLOW.md` §17).
 
 - A card for each place, its name at the top; in each, its sticks (each
   with a vault on it or not, and files), its paper; beside the cards a
@@ -1726,18 +1729,18 @@ places, and wants to see it that way.
 - A vault the plan makes with no stick, or holding nothing, still holds
   Make the checklist beside a seed kept nowhere (owner, 2026-10-16).
 - Built: F1, the model (2026-10-16); F2, the board (F2a in Back up,
-  F2b in the guided flow and a narrow window, with BACKUP-FLOW §19.14's
+  F2b in the guided flow and a narrow window, with BACKUP-FLOW §17.14's
   boxes and layout; 2026-10-16). F3 not built.
 
 ### F38 Access layers (2026-10-16)
 
-*Withdrawn (owner, 2026-10-19): the access layers were removed from Faraday; a backup is planned on the board from The standard way (`docs/BACKUP-FLOW.md` §19.6).*
+*Withdrawn (owner, 2026-10-19): the access layers were removed from Faraday; a backup is planned on the board from The standard way (`docs/BACKUP-FLOW.md` §17.6).*
 
 **Why.** A backup may serve several access layers, each reaching the
 wallet by its own route with its own knowledge; arranging places by
 hand so that each layer can spend and no stranger can is hard.
 
-**Decision** (owner, 2026-10-16; the spec is `docs/BACKUP-FLOW.md` §20).
+**Decision** (owner, 2026-10-16; the spec was BACKUP-FLOW's access-layers section, since removed).
 
 - An access layer is a list of what it is able to spend with: places,
   and the vault passphrases and passphrases known to it.
@@ -1784,7 +1787,7 @@ page looked busy.
 - Applies across the app: Create, New key, Restore, Back up, the
   checklist and every flow drawn with step cards; and to the right-hand
   column, divided from the page by the same rule.
-- Built with BACKUP-FLOW §19.15 (F2c, 2026-10-16).
+- Built with BACKUP-FLOW §17.15 (F2c, 2026-10-16).
 
 
 ### F40 The plan is what the places keep (2026-10-16)
@@ -1794,7 +1797,7 @@ had been removed still stood in The plan with what it held, and
 held Make the checklist, until its chip was taken off the list; and
 **+ stick** did nothing when pressed.
 
-**Decision** (owner, 2026-10-16; `docs/BACKUP-FLOW.md` §19.16).
+**Decision** (owner, 2026-10-16; `docs/BACKUP-FLOW.md` §17.16).
 
 - The plan is what the places keep. A vault no place keeps a stick of
   stays on the board's list, with what it holds, and is left out of The
@@ -1881,12 +1884,12 @@ already held.
 
 ### F46 Access layers: layers first, a paper route for every layer (2026-10-19)
 
-*Withdrawn (owner, 2026-10-19): the access layers were removed from Faraday; a backup is planned on the board from The standard way (`docs/BACKUP-FLOW.md` §19.6).*
+*Withdrawn (owner, 2026-10-19): the access layers were removed from Faraday; a backup is planned on the board from The standard way (`docs/BACKUP-FLOW.md` §17.6).*
 
 **Why.** The owner wants the backup's layers to choose the wallet, and
 every layer able to get in on paper when sticks fail.
 
-**Decision** (owner, 2026-10-19; `docs/BACKUP-FLOW.md` §20.12).
+**Decision** (owner, 2026-10-19; BACKUP-FLOW's access-layers section, since removed).
 
 - The layers and the backup's parts come first; Faraday suggests the
   wallet's shape (single key, single key with a passphrase, 2 of 3,
@@ -1902,7 +1905,7 @@ every layer able to get in on paper when sticks fail.
   the person makes or picks every key with Create's existing ways
   (New key's dice and the rest, a loaded key, a vault's key); Faraday
   only places each key's seed (owner, 2026-10-19;
-  `docs/BACKUP-FLOW.md` §20.13).
+  BACKUP-FLOW's access-layers section, since removed).
 
 ### F47 Three things to write down before the restart, and a sheet to print (2026-10-19)
 
@@ -2051,7 +2054,7 @@ returns to the flow.
 and handing a multisig description out as shares one by one is a puzzle
 a person should not have to solve.
 
-**Decision** (owner, 2026-10-19; `docs/BACKUP-FLOW.md` §19.19). A plan
+**Decision** (owner, 2026-10-19; `docs/BACKUP-FLOW.md` §17.19). A plan
 has at most N places, N the wallet's keys; a single key has one place,
 or two when its seed has a passphrase (the second place holds the
 passphrase alone; owner, 2026-10-19). A multisig's cap stays N.
@@ -2071,7 +2074,7 @@ vault presets chose how many vaults a wallet has and where their sticks
 go, which only the person can say. A choice of four before the board
 asked a question the board answers better.
 
-**Decision** (owner, 2026-10-20; `docs/BACKUP-FLOW.md` §19.21). A backup
+**Decision** (owner, 2026-10-20; `docs/BACKUP-FLOW.md` §17.21). A backup
 starts from The standard way only, on the read-only board, with two
 buttons: **Add watch-only software** and **Customize backup**. Create's
 Back up step has one button, **Back up this wallet**. The standard way
@@ -2120,7 +2123,7 @@ where it stood when the wallet was made.
 and gave no warning, because a spend was counted only where the
 description could be rebuilt too. The description is public.
 
-**Decision** (owner, 2026-10-20; `docs/BACKUP-FLOW.md` §19.22). A place
+**Decision** (owner, 2026-10-20; `docs/BACKUP-FLOW.md` §17.22). A place
 spends when it keeps the quorum's seeds, description or not. Every
 place that keeps a seed carries a second tag beside its balance tag:
 "Can spend alone", "Can spend alone with the vault's passphrase",
@@ -2505,7 +2508,7 @@ Faraday binary (`docs/COMPUTE.md` §3).
   into `faraday-scanner`, the camera frame's chroma reduction beside the
   luma one it already had, which the stick's camera now uses.
 - The rest of that crate is deleted with its tests, and
-  `core/osk-keep` (the kept-key blob, which only that app used) with it,
+  core/osk-keep (the kept-key blob, which only that app used) with it,
   as are the fuzz targets for the upstream app's settings file and the kept-key
   blob. The upstream camera folder keeps the two camera crates Faraday's shells use.
 - One strings file: `faraday/faraday-strings/src/en.rs`. The upstream
@@ -2654,7 +2657,7 @@ Faraday's to answer for.
   upstream's URL, the tree hash of the forked code, the per-crate
   diffstat and F65's change list, in a file of its own (removed by F73;
   it stays in git history at `5b44b33d`). Then the `upstream` remote and
-  `local/for-upstream/` are removed.
+  the private for-upstream folder are removed.
 - F65's per-change rule ends. Its lasting rules apply to the whole
   repository and move into CLAUDE.md: a cryptographic change is tested
   against published vectors or another implementation, and owning the

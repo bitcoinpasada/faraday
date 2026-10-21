@@ -1,5 +1,8 @@
 # Faraday — handoff
 
+**Kind:** History
+**Status:** Superseded; the current docs are listed in `docs/README.md`
+
 **As of 2026-10-08.** For a session starting cold, human or agent. Read this,
 then `docs/history/PLAN.md`, then the docs it names.
 

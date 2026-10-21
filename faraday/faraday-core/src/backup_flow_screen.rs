@@ -49,7 +49,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let steps = steps_of(f);
     let cards: Vec<flow::Card> = steps.iter().map(|&s| card(app, f, s)).collect();
     // While the plan card's board is shown on `wide`, its list is a
-    // right-hand column, as on Back up (`docs/BACKUP-FLOW.md` §19.14).
+    // right-hand column, as on Back up (`docs/BACKUP-FLOW.md` §17.14).
     let panel_w = if !ui.compact && app.board_shown() {
         crate::screens::side_panel_w(cw)
     } else {
@@ -1305,7 +1305,7 @@ fn done_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
         cy += ui.wrap(x, cy, w, 12.0, W::M, MUTED, &files.join(", ")) + 8.0;
     }
     cy += 8.0;
-    // In Guided, extra copies (`docs/BACKUP-FLOW.md` §19.19 item 7).
+    // In Guided, extra copies (`docs/BACKUP-FLOW.md` §17.19 item 7).
     if f.wallet.is_some() {
         cy += crate::screens::extra_copies(app, ui, x, cy, w);
     }

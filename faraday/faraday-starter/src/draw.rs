@@ -1062,7 +1062,7 @@ fn disks(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         let d = o.disk;
         // A stick's glyph for a USB disk, the SD card's for the
         // computer's reader, the drive's for anything else
-        // (`docs/BACKUP-FLOW.md` §19.17 item 4).
+        // (`docs/BACKUP-FLOW.md` §17.17 item 4).
         let icon: Glyph = match d.bus {
             crate::api::Bus::Usb => Glyph::Stick,
             crate::api::Bus::SdReader => Icon::SdCard.into(),

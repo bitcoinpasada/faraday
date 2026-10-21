@@ -1,5 +1,5 @@
 //! A vault's key and wallet, shown and saved (`docs/BACKUP-FLOW.md`
-//! §19.7): a key's SeedQR shows only while it is held and reads, as a
+//! §17.7): a key's SeedQR shows only while it is held and reads, as a
 //! camera reads the screen, as the seed's SeedQR; Save to a stick says
 //! what the stick gives whoever finds it before anything else, and writes
 //! the forms ticked, under the names Back up gives them on a stick; a

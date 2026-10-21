@@ -86,7 +86,7 @@ fn in_outbox(app: &Faraday, name: &str) -> bool {
 /// its column.
 fn press_offered(app: &mut Faraday, action: Action) {
     // Make the checklist is on The plan card (`docs/BACKUP-FLOW.md`
-    // §17.1): a person opens it first.
+    // §15.1): a person opens it first.
     if action == Action::BChecklist
         && app
             .backup

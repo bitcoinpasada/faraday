@@ -250,7 +250,7 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
 
 /// Back up's plan as preset `k` (by `Preset::ALL`) fills it over two
 /// places for a single key: as a plan saved before plans kept at most one
-/// place per key has it (`docs/BACKUP-FLOW.md` §19.19).
+/// place per key has it (`docs/BACKUP-FLOW.md` §17.19).
 fn preset_saved(app: &mut Faraday, k: u8) {
     let w = app.backup.as_ref().unwrap().wallet;
     let shape = app.plan_shape_now(w);

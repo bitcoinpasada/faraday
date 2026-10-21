@@ -1,6 +1,9 @@
 # Simplifying the everyday flows
 
-**Status:** spec v0.2 · 2026-10-10 · v0.2 records the orchestrator's
+**Kind:** History
+**Status:** Built 2026-10-10; the current flows are in `docs/FLOWS.md`
+
+**As written:** spec v0.2 · 2026-10-10 · v0.2 records the orchestrator's
 rulings from handing out §1: later batches own the Home pieces they
 introduce, and "checked" is defined in §2.5 · decided by the owner from a
 user-perspective review of the built app (the snapshot tour at 1280×800

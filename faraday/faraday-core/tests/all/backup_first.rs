@@ -585,7 +585,7 @@ fn a_plan_with_the_seed_unticked_everywhere_offers_no_make_the_checklist() {
 
 /// The backup's last card, in Guided, says extra copies are made outside
 /// the plan and links the Learn page on them; Steps only shows neither
-/// (`docs/BACKUP-FLOW.md` §19.19 item 7).
+/// (`docs/BACKUP-FLOW.md` §17.19 item 7).
 #[test]
 fn the_done_card_says_extra_copies_are_made_outside_the_plan_in_guided_only() {
     let c = faraday_core::testkit::compute();

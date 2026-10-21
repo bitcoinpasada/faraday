@@ -1,6 +1,9 @@
 # Flows
 
-**Status:** draft v0.1 · 2026-10-04 · every flow, where it starts, and
+**Kind:** Spec
+**Status:** Draft; the code is the record where it differs
+
+Draft v0.1 · 2026-10-04 · every flow, where it starts, and
 where it leaves the person. Not built.
 
 The rule this file checks: **no flow ends on a dead end.** Each one
@@ -804,7 +807,7 @@ to get it.
     F54; tracker #162). Every file row, in Files and on the stick visit,
     keeps the one action it is for as a visible button and puts the rest
     behind a ⋮ at its right end, as the backup board's chips do
-    (`docs/BACKUP-FLOW.md` §19.20: a popup under the ⋮, the sheet on the
+    (`docs/BACKUP-FLOW.md` §17.20: a popup under the ⋮, the sheet on the
     small panel, keyboard reachable, a press outside closes it).
     1. **Files, both columns.** The visible button is the row's main
        action, as today: Sign, Unlock or Contents, Load the wallet, Load
@@ -1314,7 +1317,7 @@ guarantees for this file's rule:
   needs** (owner, 2026-10-09, proposal A; `docs/WALLETS.md` §5). The
   plan opens on The standard way, on the board, with **Add watch-only
   software** and **Customize backup** (F53, `docs/BACKUP-FLOW.md`
-  §19.21; the three presets Paper only, Paper and vault, and Paper,
+  §17.21; the three presets Paper only, Paper and vault, and Paper,
   vault and watch-only software are withdrawn). Before F53 the presets
   filled the plan's questions, each a multi-choice
   list (DESIGN §4.2): where the seeds go, the places (how many, share or

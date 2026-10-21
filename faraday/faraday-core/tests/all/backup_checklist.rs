@@ -83,7 +83,7 @@ fn one_key(app: &mut Faraday) -> usize {
 /// its column.
 fn press_offered(app: &mut Faraday, action: Action) {
     // Make the checklist is on The plan card (`docs/BACKUP-FLOW.md`
-    // §17.1): a person opens it first.
+    // §15.1): a person opens it first.
     if action == Action::BChecklist
         && app
             .backup
@@ -234,7 +234,7 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
     app.press(Action::Backup(w));
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVaultSoftware);
     // Start from goes on to the board itself; a place's name is typed
-    // on its card there (`docs/BACKUP-FLOW.md` §19.12 item 2).
+    // on its card there (`docs/BACKUP-FLOW.md` §17.12 item 2).
     if app.backup.as_ref().unwrap().q != Some(qstep::BOARD) {
         press_offered(&mut app, Action::BQ(qstep::BOARD));
     }
@@ -326,7 +326,7 @@ fn the_blank_template_has_a_line_per_place_and_no_name() {
     unlock(&mut app);
     app.press(Action::Backup(w));
     // Paper only over two places, as a plan saved before one place per
-    // key (`docs/BACKUP-FLOW.md` §19.19): the seed's words at each.
+    // key (`docs/BACKUP-FLOW.md` §17.19): the seed's words at each.
     crate::common::preset_two_places(&mut app, 1);
     assert_eq!(app.backup.as_ref().unwrap().answers.places, 2);
     app.press(Action::BName(1));

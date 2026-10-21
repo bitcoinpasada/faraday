@@ -1029,7 +1029,7 @@ pub const BOARD_BOX_MIN: f32 = 160.0;
 /// dragged.
 pub const BOARD_CARD_MAX: f32 = 280.0;
 /// The gap in dp between two places on the board, one under another
-/// (`docs/BACKUP-FLOW.md` §19.15).
+/// (`docs/BACKUP-FLOW.md` §17.15).
 pub const BOARD_PLACE_GAP: f32 = 2.0 * GRID + GAP_SMALL;
 /// Width in dp of a place's left stripe, in its edge's colour.
 pub const BOARD_PLACE_STRIPE: f32 = 5.0;
@@ -1073,7 +1073,7 @@ pub const BOARD_MARK_STROKE: f32 = 1.5;
 /// round the chip held.
 pub const BOARD_EDGE: f32 = 2.0;
 /// Width in dp of a chip's ⋮ menu, a popup under the ⋮
-/// (`docs/BACKUP-FLOW.md` §19.20); the board's sheets on `wide` are twice
+/// (`docs/BACKUP-FLOW.md` §17.20); the board's sheets on `wide` are twice
 /// it.
 pub const BOARD_POPUP_WIDTH: f32 = 220.0;
 /// Diameter in dp of each of the three dots of a chip's ⋮.

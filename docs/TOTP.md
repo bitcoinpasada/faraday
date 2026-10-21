@@ -1,6 +1,9 @@
 # TOTP codes and the time
 
-**Status:** built 2026-10-11: batch 1 (the clock) `9a6f4a3`, batch 2
+**Kind:** Reference
+**Status:** Built
+
+Built 2026-10-11: batch 1 (the clock) `9a6f4a3`, batch 2
 (the codes) in the commit after it; spec v0.1 · 2026-10-11 · decided by
 the owner (`docs/DECISIONS.md` F7). Where the build and this file differ
 once built, `docs/FLOWS.md` and the code are the record.

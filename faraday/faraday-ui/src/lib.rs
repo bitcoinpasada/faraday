@@ -106,7 +106,7 @@ pub mod pal {
     /// themes' tables: every theme draws it as it is.
     pub const SHADOW: Color = Color::rgb(0x0a, 0x10, 0x16);
 
-    // The backup board's boxes (`docs/BACKUP-FLOW.md` §19.15): one hue
+    // The backup board's boxes (`docs/BACKUP-FLOW.md` §17.15): one hue
     // per kind of box, pale fills and strong edges, each theme its own.
     /// A place on the backup board: its fill, a pale green (`docs/DESIGN.md` §4.17).
     pub const PLACE_FILL: Color = Color::rgb(0x1e, 0x2e, 0x30);
@@ -135,7 +135,7 @@ pub mod pal {
     /// "Paper", its glyph: 4.5:1 or more on paper's fill.
     pub const PAPER_TEXT: Color = Color::rgb(0xc8, 0xa8, 0x60);
     /// The files box inside a stick box on the board (`docs/BACKUP-FLOW.md`
-    /// §19.17): the files kept on the stick outside any vault, a pale blue.
+    /// §17.17): the files kept on the stick outside any vault, a pale blue.
     pub const FILES_FILL: Color = Color::rgb(0x2e, 0x40, 0x55);
     /// The files box's edge: 3:1 or more against the stick round it.
     pub const FILES_EDGE: Color = Color::rgb(0x53, 0x8c, 0xcd);
@@ -980,7 +980,7 @@ impl<A> FieldAt<A> {
 pub enum Glyph {
     /// One of the icon face's.
     Icon(Icon),
-    /// A USB stick (`docs/BACKUP-FLOW.md` §19.17): Faraday's own drawing.
+    /// A USB stick (`docs/BACKUP-FLOW.md` §17.17): Faraday's own drawing.
     Stick,
 }
 

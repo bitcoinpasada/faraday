@@ -1141,7 +1141,7 @@ pub enum Action {
     BAnswer(u8, u8),
     /// Start or stop typing place n's name (only with a vault open).
     BName(u8),
-    /// A press on the backup board (`docs/BACKUP-FLOW.md` §19).
+    /// A press on the backup board (`docs/BACKUP-FLOW.md` §17).
     Board(board::BoardPress),
     /// The plan made: on to the checklist, the plan saved into the open
     /// vault.
@@ -1363,7 +1363,7 @@ pub enum Action {
     /// Learn sheet on the page about shares (`docs/history/NEW-WALLET.md` §4.2).
     LearnShares,
     /// The Learn page on extra copies, from the backup's last card
-    /// (`docs/BACKUP-FLOW.md` §19.19 item 7).
+    /// (`docs/BACKUP-FLOW.md` §17.19 item 7).
     LearnExtraCopies,
     /// The word-list sheet, or a link to it.
     WordList(wordlist::WordListAction),
@@ -1473,7 +1473,7 @@ pub enum Action {
     CreateOver,
     /// Create's Back up card's **Back up this wallet**: Back up on the
     /// wallet just made, the board open on The standard way
-    /// (`docs/BACKUP-FLOW.md` §19.21 item 2).
+    /// (`docs/BACKUP-FLOW.md` §17.21 item 2).
     CBackup,
     /// Start restoring a wallet.
     RestoreWallet,
@@ -1832,16 +1832,16 @@ pub enum Sheet {
     /// actions (`docs/history/NEW-WALLET.md` §9).
     Chart,
     /// The backup board's list, opened by **Add** in the narrow column
-    /// (`docs/BACKUP-FLOW.md` §19.12 item 3).
+    /// (`docs/BACKUP-FLOW.md` §17.12 item 3).
     BoardList,
     /// A drop let a place see the balance it could not before
-    /// (`docs/BACKUP-FLOW.md` §19.5): **Keep it** or **Take it off**.
+    /// (`docs/BACKUP-FLOW.md` §17.5): **Keep it** or **Take it off**.
     BoardSees,
-    /// Partial descriptions added (`docs/BACKUP-FLOW.md` §19.19 item 4):
+    /// Partial descriptions added (`docs/BACKUP-FLOW.md` §17.19 item 4):
     /// **Take it off every place** or **Keep it**.
     BoardPartials,
     /// A chip's ⋮ menu on the backup board (`docs/BACKUP-FLOW.md`
-    /// §19.20): a popup under the ⋮ on `wide`, a sheet on the small panel.
+    /// §17.20): a popup under the ⋮ on `wide`, a sheet on the small panel.
     BoardMenu,
     /// A seed the camera read, asking how it loads: with no passphrase
     /// or with one (`seed_read`).
@@ -1859,7 +1859,7 @@ pub enum Sheet {
     /// (`devices`).
     Devices,
     /// A vault record's Save to a stick: its files, to tick, and Save
-    /// (`docs/BACKUP-FLOW.md` §19.7).
+    /// (`docs/BACKUP-FLOW.md` §17.7).
     VaultSave,
     /// Cancel pressed in a flow whose ending loses something: what is
     /// lost, **Cancel the flow** and **Keep going** (F51).
@@ -2831,7 +2831,7 @@ pub struct BackupState {
     /// vault.
     pub from_vault: bool,
     /// The board's chip held, by a tap or a drag
-    /// (`docs/BACKUP-FLOW.md` §19.2).
+    /// (`docs/BACKUP-FLOW.md` §17.2).
     pub board: board::BoardState,
     /// Work done that a later plan dropped, as what it is ("vault.ofv
     /// holds seed 9A6A2580"): the copy exists until it is destroyed.
@@ -2841,12 +2841,12 @@ pub struct BackupState {
     pub prior: Vec<(String, Vec<String>)>,
     /// What each vault held, by its salt, before this backup first saved
     /// into it ([`Faraday::vault_tokens`]): the flow's round never takes
-    /// it out (`docs/BACKUP-FLOW.md` §17). Never a secret.
+    /// it out (`docs/BACKUP-FLOW.md` §15). Never a secret.
     pub before: Vec<([u8; 32], Vec<String>)>,
     /// The seeds, by fingerprint as text, whose files on a stick the
     /// person has let out unprotected past the secret sheet's warning:
     /// **Lock and write** makes a seed's file only once it is here
-    /// (`docs/BACKUP-FLOW.md` §19.12 item 6). Never a secret.
+    /// (`docs/BACKUP-FLOW.md` §17.12 item 6). Never a secret.
     pub files_warned: Vec<String>,
     /// The plan's vaults, by number, whose record of the wallet is set
     /// not to load at unlock: the vault item's **Load at unlock** turned
@@ -3229,20 +3229,20 @@ pub enum BStage {
 }
 
 /// The cards of the backup's plan, in order (`docs/BACKUP-FLOW.md`
-/// §17.1).
+/// §15.1).
 pub mod qstep {
     /// The watch-only software and the files' form.
     pub const SOFTWARE: u8 = 4;
     /// The plan: the map, approved with Make the checklist.
     pub const PLAN: u8 = 6;
     /// The board: the places, what each keeps, and the list of what the
-    /// backup can keep (`docs/BACKUP-FLOW.md` §19).
+    /// backup can keep (`docs/BACKUP-FLOW.md` §17).
     pub const BOARD: u8 = 8;
     /// The most places a plan has.
     pub const MAX_PLACES: usize = 240;
 }
 
-/// A press on a plan's cards (`docs/BACKUP-FLOW.md` §17.1), the same on
+/// A press on a plan's cards (`docs/BACKUP-FLOW.md` §15.1), the same on
 /// Back up and in a wallet flow's own plan card: Back up gives each its
 /// own [`Action`], the flow its [`backup_flow_steps::FlowAction::Plan`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -3270,7 +3270,7 @@ impl PlanPress {
 }
 
 /// Costs what `of` costs. The cards of a plan after Start from, in
-/// order (`docs/BACKUP-FLOW.md` §17.1, §19.1): the board, the software
+/// order (`docs/BACKUP-FLOW.md` §15.1, §17.1): the board, the software
 /// where the description goes into software or as files, and The plan.
 /// Back up's and a wallet flow's alike (§19.12 item 1).
 pub fn plan_cards(c: &Compute, shape: &plan::Shape, a: &plan::Answers) -> Vec<u8> {
@@ -3290,7 +3290,7 @@ pub(crate) fn plan_cards_on(m: &plan::Mapped) -> Vec<u8> {
 /// Costs what `read_wallet` costs. Whether record `r` is a wallet share
 /// (type 13) of the wallet with checksum `cs`, told by its field 5,
 /// never by its name; with `j`, share `j` (field 3, from 1) of it
-/// (`docs/BACKUP-FLOW.md` §17.6).
+/// (`docs/BACKUP-FLOW.md` §15.6).
 pub(crate) fn share_record_is(
     c: &Compute,
     r: &faraday_vault::Record,
@@ -3790,7 +3790,7 @@ pub struct Faraday {
     /// from From the stick's (`list_offset`).
     pub files_out_offset: f32,
     /// How far the backup board's list column is scrolled, in design
-    /// units (`docs/BACKUP-FLOW.md` §19.14).
+    /// units (`docs/BACKUP-FLOW.md` §17.14).
     pub board_list_offset: f32,
     /// Design units scrolled past in Vault contents' item, on a desktop.
     pub vault_item_offset: f32,
@@ -5666,7 +5666,7 @@ impl Faraday {
             return;
         }
         // A chip held on the backup board is let go by a press anywhere
-        // else (`docs/BACKUP-FLOW.md` §19.2).
+        // else (`docs/BACKUP-FLOW.md` §17.2).
         if !matches!(action, Action::Board(_)) {
             self.board_let_go();
         }
@@ -6254,7 +6254,7 @@ impl Faraday {
             Action::DevicesContinue => self.device_continue(),
             Action::DevicesUnderstood => self.device_understood(),
             // The ⋮ menu's way out is its own: back to the Add sheet it
-            // came from (`docs/BACKUP-FLOW.md` §19.20).
+            // came from (`docs/BACKUP-FLOW.md` §17.20).
             Action::Cancel if self.sheet == Some(Sheet::BoardMenu) => {
                 self.board_act(board::BoardPress::MenuClose);
             }
@@ -6385,7 +6385,7 @@ impl Faraday {
                     // The plan this wallet's last backup saved into an
                     // open vault, as it was; else the board open on The
                     // standard way, read-only until Customize backup
-                    // (`docs/BACKUP-FLOW.md` §19.6).
+                    // (`docs/BACKUP-FLOW.md` §17.6).
                     let (answers, names, q) = match self.plan_load(&c, i, &shape) {
                         Some((a, names)) => (a, names, None),
                         None => (
@@ -6462,7 +6462,7 @@ impl Faraday {
                     } else {
                         // The field holds the name shown, "Place 1" until
                         // one is typed, so the press selects all of it
-                        // (`docs/BACKUP-FLOW.md` §19.18).
+                        // (`docs/BACKUP-FLOW.md` §17.18).
                         if b.names[p].trim().is_empty() {
                             b.names[p] = fill(EN.place_name_place, &[&(p + 1).to_string()]);
                         }
@@ -6483,12 +6483,12 @@ impl Faraday {
                 // a vault's stick at no place, is not made into a
                 // checklist (`docs/history/NEW-WALLET.md` §14.2, §14.4).
                 // A backup past its lock keeps its plan until its writes
-                // are done (`docs/BACKUP-FLOW.md` §17.8).
+                // are done (`docs/BACKUP-FLOW.md` §15.8).
                 if self.backup_locked_flow().is_some() {
                     return self.toast(EN.backup_flow_past_lock);
                 }
                 // A vault's stick at no place is a warning only
-                // (`docs/BACKUP-FLOW.md` §19.16 item 3).
+                // (`docs/BACKUP-FLOW.md` §17.16 item 3).
                 if self.backup_kept_nowhere(&c).is_some()
                     || self
                         .backup
@@ -6516,7 +6516,7 @@ impl Faraday {
             }
             Action::BPlan => {
                 // The cards show the map as it is, a chart's edits
-                // included (`docs/BACKUP-FLOW.md` §17.2): nothing is
+                // included (`docs/BACKUP-FLOW.md` §15.2): nothing is
                 // replaced, so nothing is asked.
                 // What the checklist has put in vaults so far, should the
                 // new plan drop it.
@@ -6524,7 +6524,7 @@ impl Faraday {
                 if let Some(b) = self.backup.as_mut() {
                     b.stage = BStage::Plan;
                     // On the board, the first card, at the top: as a new
-                    // plan opens (`docs/BACKUP-FLOW.md` §19.21 item 11).
+                    // plan opens (`docs/BACKUP-FLOW.md` §17.21 item 11).
                     b.q = Some(qstep::BOARD);
                     b.check = None;
                     b.scroll = flow::Scroll::default();
@@ -8066,14 +8066,14 @@ impl Faraday {
     }
 
     /// Costs what `plan_mapped` costs. The cards of the backup's plan, in
-    /// order (`docs/BACKUP-FLOW.md` §17.1): the board, the software where
+    /// order (`docs/BACKUP-FLOW.md` §15.1): the board, the software where
     /// the description goes into software or as files, and The plan.
     pub fn backup_questions(&self, c: &Compute) -> Vec<u8> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };
         // The board replaces the cards from Places to Where the
-        // description goes (`docs/BACKUP-FLOW.md` §19.1); the software and
+        // description goes (`docs/BACKUP-FLOW.md` §17.1); the software and
         // The plan stay. Start from is gone (§19.21 item 1).
         let shape = self.plan_shape_now(b.wallet);
         plan_cards_on(&self.plan_mapped(c, &shape, &b.answers))
@@ -8526,7 +8526,7 @@ impl Faraday {
 
     /// Costs what `plan_mapped` costs. The session keys whose passphrase
     /// the plan keeps alone in vault `v`, as a passphrase record
-    /// (`docs/BACKUP-FLOW.md` §19.12 item 4): a key with a passphrase only.
+    /// (`docs/BACKUP-FLOW.md` §17.12 item 4): a key with a passphrase only.
     pub(crate) fn backup_vault_passphrases(&self, c: &Compute, v: usize) -> Vec<usize> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
@@ -8562,7 +8562,7 @@ impl Faraday {
 
     /// Costs what `plan_mapped` costs. The shares the plan keeps in vault
     /// `v`, each with its text and how many shares there are
-    /// (`docs/BACKUP-FLOW.md` §17.6).
+    /// (`docs/BACKUP-FLOW.md` §15.6).
     pub(crate) fn backup_vault_shares(&self, c: &Compute, v: usize) -> Vec<(usize, String, usize)> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
@@ -8781,7 +8781,7 @@ impl Faraday {
         self.plan_store(v, wi, &answers, &names, &extras, None);
         // And in each other open vault the wallet's flow keeps, so that
         // every vault holds the plan with its places' names
-        // (`docs/BACKUP-FLOW.md` §17.7).
+        // (`docs/BACKUP-FLOW.md` §15.7).
         if let Some(i) = self.wallet_flow_of_backup() {
             let others: Vec<usize> = (0..self.backup_flows[i].plan.vaults.len())
                 .filter_map(|pv| self.flow_open_index(i, pv))
@@ -10159,7 +10159,7 @@ impl Faraday {
             .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
             .collect();
         // The shares kept in every open vault (`docs/BACKUP-FLOW.md`
-        // §17.6), each where it agrees with the shares in hand.
+        // §15.6), each where it agrees with the shares in hand.
         use faraday_vault::records::{field, kind};
         // One wallet's shares, told by field 5, never by name: the first
         // that merges with what is in hand.
@@ -12267,7 +12267,7 @@ impl Faraday {
             return;
         }
         // A place's name is typed on Back up's plan, and on a wallet
-        // flow's plan card before its lock (`docs/BACKUP-FLOW.md` §17.7).
+        // flow's plan card before its lock (`docs/BACKUP-FLOW.md` §15.7).
         let naming_in_flow = self.screen == Screen::BackupFlow
             && self.backup.as_ref().is_some_and(|b| b.naming.is_some());
         if (self.screen == Screen::Backup || naming_in_flow)

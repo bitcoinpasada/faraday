@@ -327,7 +327,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
     let key_of_seed = |s: usize| g.keys.iter().position(|k| k.seed == Some(s));
     // Change the plan: the plan's cards show the map as it is, the
     // chart's edits included, so nothing is replaced and nothing is asked
-    // (`docs/BACKUP-FLOW.md` §17.2).
+    // (`docs/BACKUP-FLOW.md` §15.2).
     let change_plan = || doing(Step::Plan);
     let marks: Vec<(At, What, Mark)> = nodes
         .iter()
@@ -812,7 +812,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 // A passphrase record in a vault: nothing to do from here.
                 What::PassphraseSealed(_) => {}
                 // A file at a place is made and written with its stick
-                // (`docs/BACKUP-FLOW.md` §19.12 item 6); a seed's file on
+                // (`docs/BACKUP-FLOW.md` §17.12 item 6); a seed's file on
                 // the stick of files of a plan saved before, by the seed
                 // files item.
                 What::SeedFile(_)

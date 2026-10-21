@@ -1,6 +1,9 @@
 # The APK signing key
 
-**Status:** spec v0.4 · 2026-10-14 · decided by the owner
+**Kind:** Spec
+**Status:** Built; batch 2 as far as the key allows
+
+Spec v0.4 · 2026-10-14 · decided by the owner
 (`docs/DECISIONS.md` F25; §12 records the answers), revised after an
 adversarial review the same day. Batch 1 (§11) is built, with the changes
 the build made (§13); its wait for two copies is now the shared backup
@@ -16,7 +19,7 @@ built and tested with the switch on, and comes back when it is turned on.
 written for the Companion's APK key. **Sign an APK** stays, for the APK
 of any app: the name and the package start empty, and the release
 carries no APK. Where this text names the Companion, its APK, its
-container, `docs/COMPANION.md` or `faraday/companion-cert.pem`, that is
+container, docs/COMPANION.md or faraday/companion-cert.pem, that is
 history: §9 and batch 2 of §11 are not built and have no tool left to
 build them with, and F34 says how the Companion comes back.
 
@@ -686,12 +689,12 @@ release was, with the key in it:
    signed APK goes out.
 4. `faraday/tools/stage-release.sh` gains `--companion FILE`: it runs
    `apksigner verify --print-certs`, refuses an APK whose certificate is
-   not `faraday/companion-cert.pem`'s, and adds the APK and its line to
+   not faraday/companion-cert.pem's, and adds the APK and its line to
    `SHA256SUMS`.
 5. A second visit in the same session signs `SHA256SUMS` with the
    release key, as before.
 
-`faraday/companion-cert.pem` is the certificate, committed once the key
+faraday/companion-cert.pem is the certificate, committed once the key
 is made, as `faraday/release-key.asc` is. README's "Verifying a
 release" gains a paragraph: the APK is signed with an APK key made in
 Faraday whose private part has never left a Faraday vault; its
@@ -743,12 +746,12 @@ computer goes online again. Working screens carry none of this
   step 1, the staging script's step 4 (`--companion`), the fastlane
   metadata. Left until the certificate exists: the README paragraph and
   `AllowedAPKSigningKeys`, both TODOs named in
-  `faraday/shells/android/fastlane/README.md`. Step 2, the second build,
+  faraday/shells/android/fastlane/README.md. Step 2, the second build,
   is `just companion-release-apk` run from the tag on another computer.
 - **The owner**, between them: the key made on the stick of a published
   release that has batch 1, in the vault the owner chooses (§3, §12),
   that vault written to two sticks, and the certificate committed as
-  `faraday/companion-cert.pem` (§12; dropped with batch 2).
+  faraday/companion-cert.pem (§12; dropped with batch 2).
 
 Batch 1 signs APKs up to today's 18 MiB read; any size comes with
 `docs/LARGE-FILES.md`'s batches L1 and L2, after batch 1. Batch 2 does
@@ -783,7 +786,7 @@ not wait for them while the release APK stays under 18 MiB.
 ## 13. What batch 1's build changed or chose
 
 Items 4 to 6 below describe batch 1's placeholder for the backup; batch B1a
-replaced it with the shared flow (`docs/BACKUP-FLOW.md` §16), which keeps the
+replaced it with the shared flow (`docs/BACKUP-FLOW.md`; `docs/history/BACKUP-FLOW-LOG.md` has its build), which keeps the
 certificate and the signing as items 1 to 3 and 7 to 9 say.
 
 Where this document was wrong or silent, the build followed the closest

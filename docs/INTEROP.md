@@ -1,6 +1,9 @@
 # Interoperability with other wallets
 
-**Status:** v0.3 · 2026-10-20 · what was tested, what passed, what
+**Kind:** Spec
+**Status:** Tested; the batches that build §4 are in §5
+
+V0.3 · 2026-10-20 · what was tested, what passed, what
 Faraday does not read or write yet, and the batches that build §4 (§5,
 F64).
 
@@ -74,7 +77,7 @@ reach Faraday as keys inside the wallet files above, which work.
 - **Coldcard's account export read with the wrong fingerprint.** Each
   account object in the file carries an `xfp` that is the account key's
   own fingerprint; the master's is the file's top-level `xfp`
-  (Coldcard's `docs/generic-wallet-export.md`). `faraday_bip::coldcard::parse`
+  (Coldcard's docs/generic-wallet-export.md). `faraday_bip::coldcard::parse`
   roots the key at the inner one, so the wallet never matched the seed
   that made it. Before that, Faraday's reader took the file's first
   `desc`, which is BIP-44's, and loaded a legacy wallet. Faraday read the
@@ -245,7 +248,7 @@ each from `Descriptor::into_single_descriptors()` with its own checksum,
 or silent payments. Written by `faraday_bip::core_import::import_descriptors_pair`
 (moved from `faraday-intake/src/core_before_29.rs` 2026-10-20). Tests: a fresh Public files list shows no row under
 More options until it is pressed; the file's two descriptors read back as
-the wallet; each checksum is Core's (shape of `core/listdescriptors.json`);
+the wallet; each checksum is Core's (shape of `faraday/faraday-core/tests/vectors/interop/core/listdescriptors.json`);
 `core-check.py` (not in `just`) gains a run against Core 28.x.
 
 Built 2026-10-20. The rows read **Core 29 or later** and **Core before
@@ -305,7 +308,7 @@ multisig (2-of-4 `sh(wsh)`, `ckcc_xfp` fingerprints) files; BlueWallet's
 Electrum skeletons; `fromsparrow-electrum.json` (holds an `xprv`) is
 secret and its wallet equals `fromsparrow-specter.json`'s; write then read
 is the same wallet; the bare-zpub PSBT is refused. Optional, not in
-`just`: `faraday/tools/electrum-check.py` compares addresses with
+`just`: faraday/tools/electrum-check.py compares addresses with
 `electrum --offline`.
 
 Built 2026-10-20 (`faraday-intake/src/electrum.rs`). A keystore without

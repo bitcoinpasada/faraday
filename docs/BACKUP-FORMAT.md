@@ -1,8 +1,12 @@
-# `.oskb`: the file Faraday encrypts things into
+# `.oskb`: the encrypted backup Faraday reads
 
-One container holds everything Faraday encrypts under a passphrase a
-person types: a key's words, a master seed, a note, a wallet's recovery
-sheet. One spec, one reference decryptor
+**Kind:** Reference
+**Status:** Built
+
+An `.oskb` file holds one thing encrypted under a passphrase a person
+types: a key's words, a master seed, a note or a wallet's recovery
+sheet. Faraday reads one into a vault and writes none; its own encrypted
+file is the vault (`docs/VAULT.md`). One spec, one reference decryptor
 (`tools/backup/decrypt.py`), one decrypt path to audit.
 
 This file is the format. The implementation is

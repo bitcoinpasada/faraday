@@ -1,4 +1,4 @@
-//! The backup board (`docs/BACKUP-FLOW.md` §19, F37) and its model:
+//! The backup board (`docs/BACKUP-FLOW.md` §17, F37) and its model:
 //! sticks at a place (`At::Stick`), each with at most one vault and files
 //! beside it; a vault one vault wherever its sticks are; the files made
 //! and written with their stick, under their own names; a seed kept
@@ -1004,7 +1004,7 @@ fn the_board_starts_with_one_empty_place_and_plus_and_x_add_and_remove_places() 
 
 /// Seed A dragged onto Place 1's paper keeps its words there; its toggles
 /// on the chip add the SeedQR, and the last form on stays on
-/// (`docs/BACKUP-FLOW.md` §19.3); the map holds both.
+/// (`docs/BACKUP-FLOW.md` §17.3); the map holds both.
 #[test]
 fn seed_a_dragged_onto_paper_keeps_its_words_and_its_forms_add_the_seedqr() {
     let mut app = three_on_an_empty_board();
@@ -1258,7 +1258,7 @@ fn a_cosigners_seed_is_dim_and_does_not_move() {
     assert_eq!(the_map(&app), before);
 }
 
-/// Partial descriptions by one button (`docs/BACKUP-FLOW.md` §19.19):
+/// Partial descriptions by one button (`docs/BACKUP-FLOW.md` §17.19):
 /// no share is offered by itself; the button hands one to every place
 /// and the sheet says the whole is still kept at every place; Take it off
 /// every place leaves the shares alone, and the plan survives any one
@@ -1315,7 +1315,7 @@ fn partial_descriptions_are_added_by_one_button_and_follow_the_places() {
 }
 
 /// A single key's one place: "Any one place lost" reads "No: a single
-/// place", muted, not as a warning (`docs/BACKUP-FLOW.md` §19.19).
+/// place", muted, not as a warning (`docs/BACKUP-FLOW.md` §17.19).
 #[test]
 fn a_single_keys_one_place_reads_no_a_single_place() {
     let mut app = testkit::started();
@@ -1539,7 +1539,7 @@ fn an_existing_vaults_contents_are_drawn_dimmed_and_take_no_press() {
 // ---- F2b: the guided flow's board, the narrow column, the boxes ----
 
 /// The plan the guided flow's plan card edits: its board opened there,
-/// before the lock, as a person opens it (`docs/BACKUP-FLOW.md` §19.12
+/// before the lock, as a person opens it (`docs/BACKUP-FLOW.md` §17.12
 /// item 1).
 fn open_flow_board(shell: &mut Shell, app: &mut Faraday) {
     let i = app.backup_flows.len() - 1;
@@ -1598,7 +1598,7 @@ fn a_plan_made_on_the_flows_board_is_the_map_back_up_makes() {
 
 /// After the lock, on the guided flow's board, paper and a stick's files
 /// take nothing and say §17.8's line; a vault still changes, and the
-/// change is a round of the vault (`docs/BACKUP-FLOW.md` §19.12 item 8).
+/// change is a round of the vault (`docs/BACKUP-FLOW.md` §17.12 item 8).
 #[test]
 fn after_the_lock_the_flows_board_keeps_paper_and_files_and_changes_vaults() {
     let mut shell = Shell::new();
@@ -1653,7 +1653,7 @@ fn narrow(app: &mut Faraday) {
     app.settle();
 }
 
-/// A narrow window (`docs/BACKUP-FLOW.md` §19.12 item 3, §19.20 item 4):
+/// A narrow window (`docs/BACKUP-FLOW.md` §17.12 item 3, §19.20 item 4):
 /// the place cards stand in one column; **Add** opens the list as a
 /// sheet, each item with its ⋮; a tap on a chip there opens its Add to…
 /// as its ⋮ does, and a box chosen places it: the map a drag makes on
@@ -1706,7 +1706,7 @@ fn a_narrow_window_places_from_the_add_sheets_menu_as_a_drag_does_on_wide() {
 }
 
 /// What is sealed in a vault and what is only a file on its stick are
-/// told apart as a person reads them (`docs/BACKUP-FLOW.md` §19.14,
+/// told apart as a person reads them (`docs/BACKUP-FLOW.md` §17.14,
 /// §19.15, §19.17): under the stick's head "Stick 1", the files box
 /// headed "Files · not sealed" with Seed B's words file and SeedQR
 /// picture in it, and under it, apart from it, the vault box headed
@@ -1790,7 +1790,7 @@ fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes()
 }
 
 /// On `wide` the board reads a place to a row (`docs/BACKUP-FLOW.md`
-/// §19.15 item 1): under Place 1's header, its two stick boxes, **+
+/// §17.15 item 1): under Place 1's header, its two stick boxes, **+
 /// stick** and Paper stand side by side, left to right, on one row; Place
 /// 2 is under Place 1, its own row under its own header.
 #[test]
@@ -1886,7 +1886,7 @@ fn ink_light(app: &mut Faraday, text: &str) -> u32 {
 /// The plan and the checklist do not change. A file dropped on it is kept
 /// on a stick of the plan there; its × takes an empty stick away; a
 /// place removed takes its empty sticks with it (`docs/BACKUP-FLOW.md`
-/// §19.16 item 1, §19.17 item 1).
+/// §17.16 item 1, §19.17 item 1).
 #[test]
 fn a_press_on_plus_stick_adds_an_empty_stick_that_the_plan_does_not_see() {
     let c = faraday_core::testkit::compute();
@@ -1963,7 +1963,7 @@ fn a_press_on_plus_stick_adds_an_empty_stick_that_the_plan_does_not_see() {
 /// of The plan and the checklist, still on the list, drawn dim, with what
 /// they hold; a seed kept only in one of them is kept nowhere; dragged
 /// back onto a place, a vault returns with what it held
-/// (`docs/BACKUP-FLOW.md` §19.16 item 3).
+/// (`docs/BACKUP-FLOW.md` §17.16 item 3).
 #[test]
 fn a_vault_kept_at_no_place_is_out_of_the_plan_and_comes_back_with_what_it_held() {
     let c = faraday_core::testkit::compute();
@@ -2027,7 +2027,7 @@ fn a_vault_kept_at_no_place_is_out_of_the_plan_and_comes_back_with_what_it_held(
 /// "Vault 1's stick needs a place" under the board, and Make the
 /// checklist is still offered; its × takes the warning away and leaves
 /// its chip on the list, and dragged onto a place it is in The plan again
-/// (`docs/BACKUP-FLOW.md` §19.16 item 3).
+/// (`docs/BACKUP-FLOW.md` §17.16 item 3).
 #[test]
 fn a_vault_that_exists_at_no_place_is_a_warning_only() {
     let mut shell = Shell::new();
@@ -2068,7 +2068,7 @@ fn a_vault_that_exists_at_no_place_is_a_warning_only() {
 /// A drop on the files box of a stick that carries a vault keeps the
 /// thing on the stick as a file, not in the vault; a stick with no vault
 /// takes a drop on its files box the same; a new stick has its files box,
-/// empty (`docs/BACKUP-FLOW.md` §19.17).
+/// empty (`docs/BACKUP-FLOW.md` §17.17).
 #[test]
 fn a_drop_on_a_sticks_files_box_keeps_a_file_beside_its_vault() {
     let mut app = three_on_an_empty_board();
@@ -2100,7 +2100,7 @@ fn a_drop_on_a_sticks_files_box_keeps_a_file_beside_its_vault() {
 }
 
 /// A press on a place's name selects the whole of it: one key typed gives
-/// a name of that one character (`docs/BACKUP-FLOW.md` §19.18).
+/// a name of that one character (`docs/BACKUP-FLOW.md` §17.18).
 #[test]
 fn a_press_on_a_places_name_selects_it_and_the_first_key_replaces_it() {
     let mut shell = Shell::new();
@@ -2160,7 +2160,7 @@ fn paper(app: &Faraday, p: usize) -> Vec<What> {
 }
 
 /// A fresh Back up on a 2-of-3 opens on the board, The standard way
-/// placed (`docs/BACKUP-FLOW.md` §19.6, §19.21): three places, each its
+/// placed (`docs/BACKUP-FLOW.md` §17.6, §17.21): three places, each its
 /// seed's words and the whole description, no SeedQR, no vault, no stick;
 /// no Start from, and the read-only board's two buttons.
 #[test]
@@ -2259,7 +2259,7 @@ fn the_board_is_read_only_until_customize_backup() {
 /// **Add watch-only software** on the read-only board adds the software
 /// place with the description Scanned in, the board staying read-only;
 /// it then reads **Take off watch-only software** and takes it off again
-/// (`docs/BACKUP-FLOW.md` §19.21 item 3). The plan saved with it reads
+/// (`docs/BACKUP-FLOW.md` §17.21 item 3). The plan saved with it reads
 /// back as it was.
 #[test]
 fn another_preset_replaces_the_standard_way_in_both_states() {
@@ -2423,7 +2423,7 @@ fn menu_board() -> Faraday {
 /// the vault on it, a new stick there; then Place 2's), and none that
 /// does not (the software place's Scanned in). A box chosen places the
 /// seed as a drop there does, and the menu closes
-/// (`docs/BACKUP-FLOW.md` §19.20 items 2 and 6).
+/// (`docs/BACKUP-FLOW.md` §17.20 items 2 and 6).
 #[test]
 fn add_to_on_a_seed_lists_the_boxes_that_take_it_by_place_and_places_it_as_a_drop() {
     let mut dropped = menu_board();
@@ -2652,7 +2652,7 @@ fn vault_band(app: &mut Faraday, title: &str) -> String {
 
 /// A vault added on the board with **+ new vault** is made in the
 /// checklist, and its box says so until it is (`docs/BACKUP-FLOW.md`
-/// §19.21 items 4 and 6).
+/// §17.21 items 4 and 6).
 #[test]
 fn a_vault_added_with_new_vault_reads_made_in_the_checklist() {
     let mut app = fresh_three();
@@ -2674,7 +2674,7 @@ fn a_vault_added_with_new_vault_reads_made_in_the_checklist() {
 }
 
 /// A vault set up before the keys is made already: its box reads
-/// "· sealed" (`docs/BACKUP-FLOW.md` §19.21 item 6).
+/// "· sealed" (`docs/BACKUP-FLOW.md` §17.21 item 6).
 #[test]
 fn a_vault_set_up_before_the_keys_reads_sealed() {
     let mut shell = Shell::new();
@@ -2706,7 +2706,7 @@ fn a_vault_set_up_before_the_keys_reads_sealed() {
 
 /// A plan saved from Paper and vault, before the presets were withdrawn,
 /// reopens as it was saved and customisable; one from The standard way
-/// keeps its read-only state (`docs/BACKUP-FLOW.md` §19.21 item 7).
+/// keeps its read-only state (`docs/BACKUP-FLOW.md` §17.21 item 7).
 #[test]
 fn a_plan_saved_from_paper_and_vault_reopens_unchanged_and_customisable() {
     let c = faraday_core::testkit::compute();
@@ -2730,7 +2730,7 @@ fn a_plan_saved_from_paper_and_vault_reopens_unchanged_and_customisable() {
 /// Change the plan, from the checklist, opens the board as it was left;
 /// Customize backup, the words off and the SeedQR on, then Make the
 /// checklist, gives a checklist that copies the SeedQR and no words
-/// (`docs/BACKUP-FLOW.md` §19.21 item 11).
+/// (`docs/BACKUP-FLOW.md` §17.21 item 11).
 #[test]
 fn change_the_plan_from_the_checklist_shows_the_board() {
     let c = faraday_core::testkit::compute();
@@ -2758,7 +2758,7 @@ fn change_the_plan_from_the_checklist_shows_the_board() {
 
 /// A new plan keeps each seed's words on paper and no SeedQR, a single key
 /// and a 2-of-3 alike; Customize backup and the SeedQR's toggle add it
-/// (`docs/BACKUP-FLOW.md` §19.21 item 12).
+/// (`docs/BACKUP-FLOW.md` §17.21 item 12).
 #[test]
 fn a_new_plan_keeps_the_words_and_no_seedqr() {
     let c = faraday_core::testkit::compute();

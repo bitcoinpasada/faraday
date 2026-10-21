@@ -26,7 +26,7 @@ in an `i32`. A frame with a near-degenerate capstone group drives the
 denominator towards zero and the coordinate past the bounds, and the
 assertion — an `assert!`, so release builds too — fires during grid
 detection, before any payload is read. The minimized frames are
-`fuzz/artifacts/decode_luma/rqrr-perspective-map.bin` and
+`fuzz/corpus/decode_luma/rqrr-perspective-map.bin` and
 `rqrr-perspective-map-negative.bin`. The vendored version returns `None`
 for a coordinate out of range or not a number, and every caller treats
 that as "no such cell":

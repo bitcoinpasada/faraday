@@ -1,6 +1,9 @@
 # QR transfer and scanning
 
-**Status:** v0.2 · 2026-10-05 · partly built; §6 says what is and what is not.
+**Kind:** Spec
+**Status:** Partly built; §6 says what; §7 not scheduled
+
+V0.2 · 2026-10-05 · partly built; §6 says what is and what is not.
 §7 (2026-10-14, F28) is specified, not scheduled; build only when the owner says.
 §8 (2026-10-21, tracker #181) is parity with Gauss's scanner.
 
@@ -11,7 +14,7 @@ each app writes the line under them in its own words. The target is the union of
 transfer does and what the Wallets tab needs. This file lists every feature, where it comes from, and its
 state.
 
-Sources read for this file: Faraday OS's `docs/gpg-qr-workflows.md` and
+Sources read for this file: Faraday OS's docs/gpg-qr-workflows.md and
 `lib/faraday/qr_*.py`, `qr-transfer-gui.py` and `ur/` (the Foundation
 Devices UR reference, vendored); `faraday-codec`
 (`classify.rs`, `ur/`).

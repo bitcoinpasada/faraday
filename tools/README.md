@@ -19,6 +19,7 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/lint-secrets.sh` | lint | `just lint` | secret-hygiene lint (below) |
 | `tools/lint-strings.sh` | lint | `just lint` | user-facing-strings lint (below) |
 | `tools/lint-tokens.sh` | lint | `just lint` | design-token lint (below) |
+| `tools/lint-docs.sh` | lint | `just lint` | documentation lint (below) |
 | `tools/lint-unchecked.sh` | lint | `just lint` | no shipped binary compiles `Compute::unchecked` (below) |
 | `tools/check-macos.sh` | lint | `just lint` | clippy over the Starter's macOS code for both Mac targets, without a Mac |
 | `tools/costs-lint/` | lint | `just lint` (`cargo run -p costs-lint`) | who takes, mints and keeps the compute token (below) |
@@ -56,6 +57,7 @@ in `justfile` and `faraday/faraday.just`.
 - `lint-secrets.sh`: in `core/*/src` and a named list of secret-holding files, no printing or logging macros, no `Debug` derive on secret type names, and no heap text (`String`, `to_string`, `format!`) in the files that hold secrets. A new file that touches secrets is added to `SECRET_FILES`.
 - `lint-strings.sh`: no wording literal in screen code; every user-facing string is in `faraday-strings/src/en.rs`, which is also checked for untidy strings. Learn pages and self-test names are outside it.
 - `lint-tokens.sh`: no layout number written in `core/faraday-draw/src/widgets/`; each is a name in `tokens.rs`.
+- `lint-docs.sh`: every document under `docs/` and the root `README.md` has a Kind and a Status in its first 12 lines; every backticked repository path in a tracked `.md` file exists; nothing outside `CLAUDE.md` cites the private folder.
 - `cargo run -p costs-lint`: a function taking `&Compute` has "Costs " first in its doc; `Compute::new` is minted only where listed; no `Compute` is stored except in `View`; drawing reaches the token only through `View`'s accessors (`docs/COMPUTE.md` §8).
 - `lint-unchecked.sh`: the `unchecked` feature of `faraday-crypto` is off in the dependency graph of every shipped binary (`docs/COMPUTE.md` §3).
 - `check-macos.sh`: clippy for `aarch64-apple-darwin` and `x86_64-apple-darwin` over the Starter's shell.

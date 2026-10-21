@@ -1,6 +1,9 @@
 # The Nostr key
 
-**Status:** spec v0.2 · 2026-10-14 · decided by the owner
+**Kind:** Spec
+**Status:** Not scheduled
+
+Spec v0.2 · 2026-10-14 · decided by the owner
 (`docs/DECISIONS.md` F27; §12 records the answers). Not built, and not
 scheduled: it is built only when the owner says so.
 
@@ -66,9 +69,9 @@ Signing Nostr events is not part of this spec; it is a later item.
 - A file holding an nsec is a secret kind with no code (§6.6). It is in
   N1.
 - The reading rules for `nsec`, `npub` and `ncryptsec` text are
-  `faraday/faraday-intake/src/nostr.rs`, which the device reads
+  faraday/faraday-intake/src/nostr.rs, which the device reads
   (§2.4). The derivation and NIP-49 are
-  `faraday/faraday-core/src/nostr.rs`, over `faraday-bip`'s public key
+  faraday/faraday-core/src/nostr.rs, over `faraday-bip`'s public key
   derivation and `faraday-crypto`'s HMAC and scrypt; Bech32 is `bitcoin`'s.
   No new crate enters the graph (§2.3, §6.4).
 
@@ -115,7 +118,7 @@ pieces are enough, about twenty lines:
 - `faraday_crypto::hmac_sha512(b"bip-entropy-from-k", k)`;
 - `faraday_bip::bitcoin::secp256k1::SecretKey::from_slice` for step 4.
 
-`faraday/faraday-core/src/nostr.rs` holds:
+faraday/faraday-core/src/nostr.rs holds:
 
 - `pub fn derive(master: &MasterKey, identity: u32, account: u32) ->
   Result<NostrKey, Error>`, with `Error::Reserved` for 0,
@@ -134,7 +137,7 @@ gains the application, `faraday-core` moves to its function and
 
 ### 2.4 Reading the encodings
 
-`faraday/faraday-intake/src/nostr.rs` decides what reads as each kind,
+faraday/faraday-intake/src/nostr.rs decides what reads as each kind,
 for the vault page (§5.1), Files (§6.5, §6.6) and KeePass export (§5.3). Faraday never takes a looser reading.
 
 A string reads as an **nsec** when, with surrounding white space
@@ -574,7 +577,7 @@ this spec.
 
 ## 9. Learn page
 
-One page, `docs/learn/faraday/nostr.md`, id `nostr` in
+One page, docs/learn/faraday/nostr.md, id `nostr` in
 `faraday-learn`'s `OWN`, opened from the Nostr tile's info and the
 BIP-85 screen with Nostr chosen. Outline, a heading each:
 
@@ -609,7 +612,7 @@ User-facing behaviour and published vectors (`CLAUDE.md`).
 ### 10.1 Vectors
 
 `tools/vectors/bip85/` (`core/faraday-bip/tests/all/bip85.rs`
-reads it) is not changed: its extractor skips Nostr. The Nostr vectors are a new folder, `tools/vectors/nostr/`,
+reads it) is not changed: its extractor skips Nostr. The Nostr vectors are a new folder, tools/vectors/nostr/,
 as `tools/vectors/vault/` is Faraday's:
 
 - `extract.py` reads `../bip85/bip-0085.mediawiki`'s Nostr section (its
@@ -626,7 +629,7 @@ as `tools/vectors/vault/` is Faraday's:
 
 ### 10.2 Faraday's tests
 
-In `faraday/faraday-core/tests/nostr.rs`, unless named otherwise:
+In faraday/faraday-core/tests/nostr.rs, unless named otherwise:
 
 - every BIP vector (all three) through `faraday_core::nostr::derive`
   from the BIP's master key gives the BIP's nsec and `npub.py`'s npub;

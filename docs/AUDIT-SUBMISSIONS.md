@@ -1,6 +1,9 @@
 # Audits: the request, the submission and the record
 
-**Status:** planned with the owner on 2026-10-13 (DECISIONS F19).
+**Kind:** Spec
+**Status:** Built; §8 lists what is not
+
+Planned with the owner on 2026-10-13 (DECISIONS F19).
 `SECURITY.md` and the issue form (`.github/ISSUE_TEMPLATE/audit.yml`)
 are built; §8 lists what is not. The process lives here. `SECURITY.md`
 and the issue form follow it. The website's Audits page shows it, and

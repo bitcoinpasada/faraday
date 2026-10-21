@@ -1,4 +1,4 @@
-//! A ⋮ menu, wherever one is (`docs/BACKUP-FLOW.md` §19.20 item 5,
+//! A ⋮ menu, wherever one is (`docs/BACKUP-FLOW.md` §17.20 item 5,
 //! `docs/FLOWS.md` decision 61): on `wide` a popup under the ⋮ (above it
 //! where it does not fit below), on the small panel a sheet with its way
 //! out at its foot; its title, then its rows, each place's name over the

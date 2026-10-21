@@ -1,6 +1,9 @@
 # Faraday on Macs
 
-**Status:** spec v0.1 · 2026-10-12 · decided by the owner in discussion
+**Kind:** Spec
+**Status:** Partly built; a Mac is needed for the rest
+
+Spec v0.1 · 2026-10-12 · decided by the owner in discussion
 (`docs/DECISIONS.md` F13; every decision in §9 taken). Not built. The
 owner picked up the Mac work on 2026-10-13 with the Starter, Faraday
 Starter: batch A3 is split so its part that needs no Mac goes first
@@ -203,7 +206,7 @@ through a USB ancestor not.
 
 ### 4.1 The stick image
 
-A new board, `faraday/image/boards/arm64-apple/`, beside
+A new board, faraday/image/boards/arm64-apple/, beside
 `x86_64-uefi`, with the same parts (`linux.fragment`,
 `kernel.required`, `kernel.forbidden`, `cmdline.txt`, `genimage.cfg`,
 `board.conf`, `buildroot.fragment`).
@@ -266,7 +269,7 @@ volume (the `coih` field), so a changed byte fails to start, and
 changing it takes the owner's credentials in recovery with the power
 button held.
 
-- `faraday/faraday-macboot`: a crate with no I/O that builds the file
+- faraday/faraday-macboot: a crate with no I/O that builds the file
   from the release's template and a key choice (§4.4), reads a file
   back (which key it trusts, which release), and gives its SHA-256. The
   Starter and Faraday both use it, so the hash a Faraday shows for an
@@ -480,7 +483,7 @@ is built or tested in this repository.
 
 ## 6. The Starter on macOS, and what changes in STARTER.md
 
-Folded into `docs/STARTER.md` on 2026-10-13 (its §13 lists each). The
+Folded into `docs/STARTER.md` on 2026-10-13 (`docs/history/STARTER-LOG.md` lists each). The
 app is now Faraday Starter (F16), so its files below are
 `Faraday-Starter-X.Y.Z-macOS.zip` and `Faraday Starter.app`, installed
 at `~/Applications/Faraday Starter.app`. One change from this list:

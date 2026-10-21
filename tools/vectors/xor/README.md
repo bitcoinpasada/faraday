@@ -14,7 +14,7 @@ English mnemonic that entropy encodes.
 
 ## Where these numbers come from
 
-Coldcard publishes worked examples in the `docs/seed-xor.md` of its
+Coldcard publishes worked examples in the docs/seed-xor.md of its
 firmware repository. This build box has no network access and no copy of
 that file, so the examples here are not Coldcard's: they are constructed
 from the definition of Seed XOR, with values chosen so that anyone can

@@ -44,7 +44,7 @@ fn flow_place_of(app: &Faraday, v: usize) -> usize {
 }
 
 /// At place `p` of the flow's plan, row `row` kept for exactly `seeds`,
-/// made on the flow's own board (`docs/BACKUP-FLOW.md` §19.12 item 1).
+/// made on the flow's own board (`docs/BACKUP-FLOW.md` §17.12 item 1).
 fn flow_keep(shell: &mut Shell, app: &mut Faraday, p: usize, row: Row, seeds: &[usize]) {
     assert!(
         matches!(app.board_of(), Some(faraday_core::board::BoardOf::Flow(_))),
@@ -54,7 +54,7 @@ fn flow_keep(shell: &mut Shell, app: &mut Faraday, p: usize, row: Row, seeds: &[
     shell.pump(app);
 }
 
-/// A press on the flow's own board (`docs/BACKUP-FLOW.md` §19.12 item 1).
+/// A press on the flow's own board (`docs/BACKUP-FLOW.md` §17.12 item 1).
 fn flow_board(shell: &mut Shell, app: &mut Faraday, press: BoardPress) {
     assert!(
         matches!(app.board_of(), Some(faraday_core::board::BoardOf::Flow(_))),
@@ -358,7 +358,7 @@ fn single_key_with(
     app.press(Action::BChecklist);
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
     // The description's files at Place 2 are made and written with that
-    // place's stick: no item of their own (`docs/BACKUP-FLOW.md` §19.12
+    // place's stick: no item of their own (`docs/BACKUP-FLOW.md` §17.12
     // item 6).
     assert_eq!(
         app.backup_items_now(&c),
@@ -603,7 +603,7 @@ fn a_plan_may_have_any_number_of_places_and_one_place_says_so() {
         assert_eq!(a.places, n, "no cap on places");
     }
     // A single key's one place keeps every secret: by the nature of a
-    // single place, no warning (`docs/BACKUP-FLOW.md` §19.19).
+    // single place, no warning (`docs/BACKUP-FLOW.md` §17.19).
     a.set_places(&shape, 1);
     assert_eq!(plan::all_at_one_place(&c, &shape, &a), Some(0));
     assert_eq!(plan::check(&c, &shape, &a).one_place, None);
@@ -619,7 +619,7 @@ fn the_flow_follows_its_places_and_none_past_one_per_key() {
     let mut shell = Shell::new();
     let (mut app, _, _) = single_key_ready(&mut shell);
     // Back up's board: no place past one per key (`docs/BACKUP-FLOW.md`
-    // §19.19); a place taken off, and the flow follows it.
+    // §17.19); a place taken off, and the flow follows it.
     app.press(Action::BPlan);
     assert_eq!(backup_places(&app), 2, "a plan saved with two");
     board(&mut app, BoardPress::AddPlace);
@@ -1013,7 +1013,7 @@ fn a_multisig_with_one_seed_here_is_not_all_at_one_place() {
 #[test]
 fn a_single_keys_passphrase_has_a_place_of_its_own_and_sits_at_the_one_place_without_it() {
     // Two places for a single key with a passphrase (`docs/BACKUP-FLOW.md`
-    // §19.19): every preset keeps the passphrase alone at Place 2.
+    // §17.19): every preset keeps the passphrase alone at Place 2.
     let shape = shape_with(true, 1);
     for preset in Preset::ALL {
         let a = Answers::preset(&shape, preset);
@@ -1064,7 +1064,7 @@ fn a_single_keys_one_place_reads_so_and_blocks_nothing() {
     }
     assert_eq!(app.backup_flows.last().unwrap().plan.places.len(), 1);
     // A single key's one place: "No: a single place", no warning
-    // (`docs/BACKUP-FLOW.md` §19.19).
+    // (`docs/BACKUP-FLOW.md` §17.19).
     expect_part(&mut app, "No: a single place");
     assert!(!has_part(&mut app, "Separate places are strongly"));
     app.press(Action::BQ(faraday_core::qstep::PLAN));
@@ -1310,7 +1310,7 @@ fn the_done_card_unlocks_to_the_checklist_done_and_the_files_read_written_to() {
     assert!(app.backup_item_done_now(&c, Item::Sticks));
     assert!(app.outbox.is_empty());
     // The description's files went with their stick's write, the item
-    // that says so (`docs/BACKUP-FLOW.md` §19.12 item 6).
+    // that says so (`docs/BACKUP-FLOW.md` §17.12 item 6).
     expect_part(&mut app, "3 of 3 written");
     assert!(!offered(&mut app, Action::WriteAsk), "no Write to a stick");
 }
@@ -1333,7 +1333,7 @@ fn a_seed_let_out_unprotected_is_written_to_the_stick_of_files_and_to_no_other()
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     // Over two places, as a plan saved before one place per key
-    // (`docs/BACKUP-FLOW.md` §19.19).
+    // (`docs/BACKUP-FLOW.md` §17.19).
     preset_two_places(&mut app, 2);
     // The seed in Vault 1 and as a file at Place 2; nothing else.
     no_words(&mut app);
@@ -1353,7 +1353,7 @@ fn a_seed_let_out_unprotected_is_written_to_the_stick_of_files_and_to_no_other()
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     // The seed's file is made at the lock and written with its stick: no
-    // item of its own (`docs/BACKUP-FLOW.md` §19.12 item 6).
+    // item of its own (`docs/BACKUP-FLOW.md` §17.12 item 6).
     assert!(!app.backup_items_now(&c).contains(&bstep::FILES));
     app.press(Action::BNext(bstep::ENVELOPE));
     shell.flow(&mut app, F::WalletLock);
@@ -1390,14 +1390,14 @@ fn a_seed_let_out_unprotected_is_written_to_the_stick_of_files_and_to_no_other()
 }
 
 /// Whether `n` is a seed's words file: as a stick at a place keeps it
-/// (`docs/BACKUP-FLOW.md` §19.12 item 6), or as the stick of files of a
+/// (`docs/BACKUP-FLOW.md` §17.12 item 6), or as the stick of files of a
 /// plan saved before keeps it.
 fn seed_words_file(n: &str) -> bool {
     (n.starts_with("seed-") && n.ends_with(".txt")) || n.ends_with("-words.txt")
 }
 
 /// The name a seed's words file is written as on a stick
-/// (`docs/BACKUP-FLOW.md` §19.12 item 6).
+/// (`docs/BACKUP-FLOW.md` §17.12 item 6).
 fn seed_txt(fp: [u8; 4]) -> String {
     format!(
         "seed-{}.txt",
@@ -1516,7 +1516,7 @@ fn a_seed_kept_only_as_a_file_is_held_until_its_stick_is_written() {
     no_paper_description(&mut app);
     app.press(Action::BChecklist);
     // Its file is made and written with its stick (`docs/BACKUP-FLOW.md`
-    // §19.12 item 6).
+    // §17.12 item 6).
     assert_eq!(
         app.backup_items_now(&c),
         vec![bstep::ENVELOPE, bstep::STICKS]
@@ -2096,7 +2096,7 @@ fn the_setups_cards_and_the_plan_read_what_is_so_after_the_keys() {
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     // Over two places, as a plan saved before one place per key
-    // (`docs/BACKUP-FLOW.md` §19.19).
+    // (`docs/BACKUP-FLOW.md` §17.19).
     preset_two_places(&mut app, 1);
     let places = backup_places(&app);
     assert!(places > 1);
@@ -2973,7 +2973,7 @@ fn back_ups_plan_offers_the_open_vaults_and_a_vault_at_two_places_writes_both_co
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     // Over two places, as a plan saved before one place per key
-    // (`docs/BACKUP-FLOW.md` §19.19).
+    // (`docs/BACKUP-FLOW.md` §17.19).
     preset_two_places(&mut app, 2);
     // The plan offers both open vaults, though there is one key: a chip
     // each in the board's list.
@@ -3332,7 +3332,7 @@ fn a_wallet_made_without_the_question_continued_does_not_read_it_as_done() {
     assert!(!app.create_card_done(cstep::HOW_MANY));
 }
 
-// ---- the review of the plan by place (`docs/BACKUP-FLOW.md` §17) ----
+// ---- the review of the plan by place (`docs/BACKUP-FLOW.md` §15) ----
 
 /// The guided flow's own plan card, Back up's cards, edits the map the
 /// cards made: what they put elsewhere stays.
@@ -3438,7 +3438,7 @@ fn each_places_stick_of_files_takes_only_that_places_seed_file() {
         .collect();
     app.press(Action::BChecklist);
     // The files are made at the lock and written with their sticks
-    // (`docs/BACKUP-FLOW.md` §19.12 item 6).
+    // (`docs/BACKUP-FLOW.md` §17.12 item 6).
     assert_eq!(
         app.backup_items_now(&c),
         vec![bstep::ENVELOPE, bstep::STICKS]
@@ -3479,7 +3479,7 @@ fn each_places_stick_of_files_takes_only_that_places_seed_file() {
     no_visit(&shell);
 }
 
-/// A share kept in a vault (`docs/BACKUP-FLOW.md` §17.6): Save into the
+/// A share kept in a vault (`docs/BACKUP-FLOW.md` §15.6): Save into the
 /// vault puts it there as a type 13 record, the item is done only then,
 /// the sealed vault holds it after the lock, and Restore with that vault
 /// open and another share in the Inbox rebuilds the wallet.
@@ -3611,7 +3611,7 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
 }
 
 /// A share put into a vault after the lock, from Change the plan, changes
-/// what the vault holds (`docs/BACKUP-FLOW.md` §10.2, §17.6): the vault
+/// what the vault holds (`docs/BACKUP-FLOW.md` §10.2, §15.6): the vault
 /// goes back to be filled and written, and the flow does not finish with
 /// the share missing from its sealed copy.
 #[test]
@@ -3694,7 +3694,7 @@ fn a_share_put_into_a_vault_after_the_lock_starts_the_round_and_is_sealed() {
     no_visit(&shell);
 }
 
-// ---- the second review (`docs/BACKUP-FLOW.md` §17.6, §17.7) ----
+// ---- the second review (`docs/BACKUP-FLOW.md` §15.6, §15.7) ----
 
 /// A single key whose Vault 1 is on one stick, at Place 2, with the
 /// description's files at Place 2 too: made, saved, stopped on the
@@ -3716,7 +3716,7 @@ fn single_key_one_stick(shell: &mut Shell) -> Faraday {
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     // Over two places, as a plan saved before one place per key
-    // (`docs/BACKUP-FLOW.md` §19.19).
+    // (`docs/BACKUP-FLOW.md` §17.19).
     preset_two_places(&mut app, 2);
     no_words(&mut app);
     no_paper_description(&mut app);
@@ -4064,7 +4064,7 @@ fn the_flows_slider_sets_its_keys_left_off_and_the_vault_takes_the_share_it_impl
     // Change the plan opens the board (§19.21 item 11).
     shell.flow(&mut app, F::ChangePlan);
     // The keys left off set as the checklist's slider sets them; the
-    // board has no stepper (`docs/BACKUP-FLOW.md` §19.19).
+    // board has no stepper (`docs/BACKUP-FLOW.md` §17.19).
     let omit = Action::Flow(F::Plan(PlanPress::Omit(0)));
     shell.press(&mut app, omit);
     assert_eq!(app.flow().unwrap().wallet.as_ref().unwrap().answers.omit, 0);
@@ -5127,7 +5127,7 @@ fn a_written_stick_of_files_is_never_sent_back_after_the_lock() {
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     // Over two places, as a plan saved before one place per key
-    // (`docs/BACKUP-FLOW.md` §19.19).
+    // (`docs/BACKUP-FLOW.md` §17.19).
     preset_two_places(&mut app, 2);
     // Vault 1 at both places, the description in it and as files at
     // Place 1, nothing else.
@@ -5466,7 +5466,7 @@ fn back_up_again_after_done_adds_a_file_and_writes_it() {
 
 /// A single key with a passphrase and two vaults set up before it: the
 /// seed's words in Vault 1, its passphrase alone in Vault 2
-/// (`docs/BACKUP-FLOW.md` §19.12 item 4). Vault 1's item saves the key
+/// (`docs/BACKUP-FLOW.md` §17.12 item 4). Vault 1's item saves the key
 /// record of the words alone; Vault 2's a passphrase record naming the
 /// key, and nothing else of it.
 #[test]
@@ -5616,7 +5616,7 @@ fn a_sticks_files_written_show_on_the_sticks_card_on_the_next_frame() {
 
 /// The vault question, in Make a new wallet and in Restore, says under it
 /// that vaults already on sticks are brought in there, not later
-/// (`docs/BACKUP-FLOW.md` §19.21 item 5).
+/// (`docs/BACKUP-FLOW.md` §17.21 item 5).
 #[test]
 fn the_vault_question_says_vaults_on_sticks_are_brought_in_here() {
     const LINE: &str = "Vaults already on sticks are brought in here, not later.";
@@ -5637,7 +5637,7 @@ fn the_vault_question_says_vaults_on_sticks_are_brought_in_here() {
 }
 
 /// Change the plan, from a wallet flow's cards, opens the flow's own
-/// board, as it was left (`docs/BACKUP-FLOW.md` §19.21 item 11).
+/// board, as it was left (`docs/BACKUP-FLOW.md` §17.21 item 11).
 #[test]
 fn change_the_plan_from_a_wallet_flow_opens_its_board() {
     let c = faraday_core::testkit::compute();

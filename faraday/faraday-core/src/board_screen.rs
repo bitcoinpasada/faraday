@@ -1,5 +1,5 @@
 //! The backup board drawn (`docs/DESIGN.md` §4.17,
-//! `docs/BACKUP-FLOW.md` §19): the place cards with their zones, the
+//! `docs/BACKUP-FLOW.md` §17): the place cards with their zones, the
 //! **+** card, the software place, the list beside them, the check lines
 //! under them, a placed chip's form toggles and the chip being dragged,
 //! and the sheet over a drop that lets a place see the balance. It reads
@@ -144,12 +144,12 @@ fn marks_w(cv: &ChipView) -> f32 {
 
 /// The width of a chip's ⋮ part at its right end, from its rule: the ⋮
 /// and its padding, a press target as the × is (`docs/BACKUP-FLOW.md`
-/// §19.20 item 1).
+/// §17.20 item 1).
 fn menu_w() -> f32 {
     tokens::BOARD_MARK + 2.0 * tokens::BOARD_PAD
 }
 
-/// A chip's ⋮ part at (x, y), `h` tall (`docs/BACKUP-FLOW.md` §19.20):
+/// A chip's ⋮ part at (x, y), `h` tall (`docs/BACKUP-FLOW.md` §17.20):
 /// a thin rule, then the three dots in `color`; a press opens the chip's
 /// menu, and never drags or selects it. Edged in the accent while the
 /// keyboard is on it (on a vault's band, in `VAULT_ON`). `hits`: it
@@ -271,7 +271,7 @@ fn toggles_w(ui: &Ui, cv: &ChipView) -> f32 {
 }
 
 /// A chip's form toggles drawn from (x, y), a line `line_h` tall
-/// (`docs/BACKUP-FLOW.md` §19.3): each its name in a pill, ticked where
+/// (`docs/BACKUP-FLOW.md` §17.3): each its name in a pill, ticked where
 /// the form is kept; a press turns it on or off. `hits`: they take
 /// presses.
 fn toggles(ui: &mut Ui, cv: &ChipView, x: f32, y: f32, line_h: f32, hits: bool) {
@@ -701,7 +701,7 @@ fn add_stick(ui: &mut Ui, fr: &Frame, p: usize, r: Box4) {
     }
 }
 
-/// Where a place's parts go (`docs/BACKUP-FLOW.md` §19.15 item 1): each
+/// Where a place's parts go (`docs/BACKUP-FLOW.md` §17.15 item 1): each
 /// stick box, **+ stick** where the place has it, and Paper (or Scanned
 /// in), and the height they take.
 struct Row {
@@ -911,7 +911,7 @@ fn place_box(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32) -> (f32, f32) {
     (x + stripe, w - stripe - e)
 }
 
-/// Place `cv` at (x, y), `w` wide (`docs/BACKUP-FLOW.md` §19.15): its
+/// Place `cv` at (x, y), `w` wide (`docs/BACKUP-FLOW.md` §17.15): its
 /// header band, then its sticks, **+ stick** and Paper. Returns its
 /// height.
 fn place(ui: &mut Ui, fr: &mut Frame, v: &BoardView, cv: &CardView, x: f32, y: f32, w: f32) -> f32 {
@@ -1395,7 +1395,7 @@ fn list(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f
     }
     if v.splits {
         // One button hands a share to every place, or takes them all off
-        // (`docs/BACKUP-FLOW.md` §19.19 item 1).
+        // (`docs/BACKUP-FLOW.md` §17.19 item 1).
         let label = if v.partials {
             EN.board_partials_remove
         } else {
@@ -1471,7 +1471,7 @@ fn frame(app: &View, ui: &Ui, v: &BoardView) -> Option<Frame> {
 }
 
 /// The list as a sheet, opened by **Add** in the narrow column
-/// (`docs/BACKUP-FLOW.md` §19.12 item 3): a press on a chip closes it
+/// (`docs/BACKUP-FLOW.md` §17.12 item 3): a press on a chip closes it
 /// with the chip selected.
 pub(crate) fn list_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(v) = app.board_view() else {
@@ -1504,7 +1504,7 @@ pub(crate) fn list_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 
 /// The sheet over a drop that brought a place nearer a spend (§19.22),
 /// with the warning mark, or let a place see the balance it could not
-/// before (`docs/BACKUP-FLOW.md` §19.5): its title, the line naming what
+/// before (`docs/BACKUP-FLOW.md` §17.5): its title, the line naming what
 /// there makes the description, **Keep it** and **Take it off**. It
 /// reads what the drop worked out.
 pub(crate) fn sees_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
@@ -1550,7 +1550,7 @@ pub(crate) fn sees_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 }
 
 /// The sheet after partial descriptions are added
-/// (`docs/BACKUP-FLOW.md` §19.19 item 4): each place holds a part; where
+/// (`docs/BACKUP-FLOW.md` §17.19 item 4): each place holds a part; where
 /// the whole is still kept, **Take it off every place**; **Keep it**. It
 /// reads what the press worked out.
 pub(crate) fn partials_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
@@ -1598,7 +1598,7 @@ pub(crate) fn partials_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// The read-only board's two buttons, in the list's place (the narrow
 /// column's Add): **Add watch-only software**, or **Take off watch-only
 /// software** while the software place is there, then **Customize
-/// backup** (`docs/BACKUP-FLOW.md` §19.21 item 3).
+/// backup** (`docs/BACKUP-FLOW.md` §17.21 item 3).
 fn read_only_buttons(v: &crate::board::BoardView) -> Vec<(&'static str, Style, Action)> {
     let software = if v.software.is_some() {
         EN.board_take_off_watch
@@ -1619,7 +1619,7 @@ fn read_only_buttons(v: &crate::board::BoardView) -> Vec<(&'static str, Style, A
     ]
 }
 
-/// The board on a plan card (`docs/BACKUP-FLOW.md` §19.15): the places
+/// The board on a plan card (`docs/BACKUP-FLOW.md` §17.15): the places
 /// one under another, each a row the column's width, **+ place** after
 /// them, the software place last, the plan's three checks and the check
 /// lines under them; over them a placed chip's forms. On `wide` the list
@@ -1745,7 +1745,7 @@ fn view_of(v: &BoardView, c: Chip) -> Option<ChipView> {
 }
 
 /// The board's right-hand column on `wide`, where Back up's map panel is
-/// when the board is not shown (`docs/BACKUP-FLOW.md` §19.14, the
+/// when the board is not shown (`docs/BACKUP-FLOW.md` §17.14, the
 /// owner's layout): the list, scrolling on its own; a placed chip dragged onto it is taken off. Over the whole
 /// screen, last, the chip being dragged.
 pub(crate) fn list_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
@@ -1839,7 +1839,7 @@ pub(crate) fn list_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
     }
 }
 
-/// A chip's ⋮ menu (`docs/BACKUP-FLOW.md` §19.20 item 5), as every ⋮
+/// A chip's ⋮ menu (`docs/BACKUP-FLOW.md` §17.20 item 5), as every ⋮
 /// menu is drawn ([`crate::menu::draw`]): Add to… under the add glyph, a
 /// placed chip's menu under the chip's own glyph. It reads what the press
 /// that opened it worked out.

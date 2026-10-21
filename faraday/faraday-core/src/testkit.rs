@@ -1219,7 +1219,7 @@ pub fn pause(app: &mut crate::Faraday) {
 
 /// The board on screen (Back up's plan, or a wallet flow's own) made into
 /// the plan `preset` builds, by the presses a person makes now that the
-/// presets are not offered (`docs/BACKUP-FLOW.md` §19.21 item 9, F53):
+/// presets are not offered (`docs/BACKUP-FLOW.md` §17.21 item 9, F53):
 /// **Add watch-only software**, **Customize backup**, a SeedQR's toggle
 /// on paper, **+ new vault** for each vault not set up before the keys,
 /// and the ⋮ menu's **Add to…** for each vault's stick and for what each

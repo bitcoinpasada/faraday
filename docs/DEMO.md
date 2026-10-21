@@ -1,6 +1,9 @@
 # The demo, and Faraday Desktop for developers
 
-**Status:** spec v0.1 · 2026-10-14 · the owner's decision of 2026-10-14
+**Kind:** Spec
+**Status:** Built; DM4 is in the website's repository
+
+Spec v0.1 · 2026-10-14 · the owner's decision of 2026-10-14
 (`docs/DECISIONS.md` F30), with every question answered (§13).
 Batches DM1, DM2 and DM3 built 2026-10-15 (owner: before 0.1.3); DM4,
 the website's, waits in its own repository.

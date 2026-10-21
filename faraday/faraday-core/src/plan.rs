@@ -63,13 +63,13 @@ pub mod form {
 }
 
 /// The plans a backup once started from, kept as plan builders
-/// (`docs/BACKUP-FLOW.md` §19.21, F53): The standard way is the plan a new
+/// (`docs/BACKUP-FLOW.md` §17.21, F53): The standard way is the plan a new
 /// backup opens on; the others are offered nowhere, and are what a saved
 /// plan's `preset` line and the tests' plans by presses
 /// (`testkit::backup_as`) name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Preset {
-    /// The standard way (`docs/BACKUP-FLOW.md` §19.6, §19.21 item 12):
+    /// The standard way (`docs/BACKUP-FLOW.md` §17.6, §17.21 item 12):
     /// paper at one place for a single key, at a place per seed for a
     /// multisig, each holding its seed's words and the whole description;
     /// no SeedQR, no vault, no stick. The board opens on it for a new
@@ -222,7 +222,7 @@ impl Default for Answers {
 
 impl Answers {
     /// The wallet's defaults: one key, paper words, one place (the most a
-    /// single key has, `docs/BACKUP-FLOW.md` §19.19), the sheet there, the descriptor as a QR picture; a multisig, a
+    /// single key has, `docs/BACKUP-FLOW.md` §17.19), the sheet there, the descriptor as a QR picture; a multisig, a
     /// place per seed, each with its seed and the whole wallet sheet; no
     /// seed here, no seed on paper. Should the seeds go into vaults, a
     /// vault per seed here, vault `v` holding the `v`th.
@@ -265,7 +265,7 @@ impl Answers {
     }
 
     /// Costs a map of the plan (through `map`). The board's start
-    /// (`docs/BACKUP-FLOW.md` §19.6): one empty place, nothing kept; the
+    /// (`docs/BACKUP-FLOW.md` §17.6): one empty place, nothing kept; the
     /// seeds not here on their own devices, as every plan has them. The
     /// rest of the answers are the wallet's defaults, which a preset reads.
     pub fn empty(c: &Compute, shape: &Shape) -> Answers {
@@ -355,7 +355,7 @@ impl Answers {
     /// The answers a preset fills in, from the wallet's defaults.
     pub fn preset(shape: &Shape, preset: Preset) -> Answers {
         // A place per key, one for a single key; its passphrase's place is
-        // added below, up to two (`docs/BACKUP-FLOW.md` §19.19).
+        // added below, up to two (`docs/BACKUP-FLOW.md` §17.19).
         let base = if shape.multi() { shape.seeds.len() } else { 1 };
         Answers::preset_at(shape, preset, base)
     }
@@ -372,7 +372,7 @@ impl Answers {
         }
         a.bare.clear();
         // The words on paper and no SeedQR, The standard way too: a SeedQR
-        // is added on the board (`docs/BACKUP-FLOW.md` §19.21 item 12).
+        // is added on the board (`docs/BACKUP-FLOW.md` §17.21 item 12).
         if !matches!(preset, Preset::Paper | Preset::Standard) {
             a.seeds[seeds::VAULT] = !shape.watch_only();
             a.wallet[wallet::VAULT] = true;
@@ -521,7 +521,7 @@ impl Mapped {
     /// The seeds the plan keeps as a file on a stick at a place (their
     /// words, their SeedQR picture or their passphrase's file), in order:
     /// each made only past the secret sheet's warning that a seed's file
-    /// on a stick is not protected (`docs/BACKUP-FLOW.md` §19.12 item 6).
+    /// on a stick is not protected (`docs/BACKUP-FLOW.md` §17.12 item 6).
     pub fn seeds_on_stick_files(&self, shape: &Shape) -> Vec<usize> {
         let mut out: Vec<usize> = self
             .map
@@ -569,7 +569,7 @@ impl Mapped {
 impl Answers {
     /// Costs what `of` costs. The places that keep a stick of files: a
     /// stick with no vault on it, holding a seed's file, the description's
-    /// files, a share's or the software's (`docs/BACKUP-FLOW.md` §17.2,
+    /// files, a share's or the software's (`docs/BACKUP-FLOW.md` §15.2,
     /// §19.4).
     pub fn file_places(&self, c: &Compute, shape: &Shape) -> Vec<usize> {
         Mapped::of(c, shape, self).file_places()
@@ -705,7 +705,7 @@ impl Answers {
     pub fn vaults_made(&self, shape: &Shape) -> Vec<usize> {
         if let Some(m) = &self.map {
             // A vault no place keeps a stick of is out of the plan
-            // (`docs/BACKUP-FLOW.md` §19.16 item 3).
+            // (`docs/BACKUP-FLOW.md` §17.16 item 3).
             let kept = kept_vaults(m);
             return m
                 .iter()
@@ -755,7 +755,7 @@ impl Answers {
 
     /// The first vault whose stick no place keeps that exists already
     /// (set up before the keys): a warning, "Vault n's stick needs a
-    /// place" (`docs/BACKUP-FLOW.md` §19.16 item 3). On a map edited on
+    /// place" (`docs/BACKUP-FLOW.md` §17.16 item 3). On a map edited on
     /// the board it is out of the plan; a vault the board made has no
     /// warning at no place.
     pub fn stickless(&self, shape: &Shape) -> Option<usize> {
@@ -934,7 +934,7 @@ impl Answers {
     /// Ticks or unticks a row of a question; a passphrase row that would
     /// share a place with its words stays unticked.
     pub fn toggle(&mut self, shape: &Shape, q: Question, row: usize) {
-        // With the map the plan (`docs/BACKUP-FLOW.md` §17.2), it is edited
+        // With the map the plan (`docs/BACKUP-FLOW.md` §15.2), it is edited
         // on the plan's cards alone: of the questions, only the software
         // and its form, which are no part of the map, are answered here.
         if self.map.is_some() && !matches!(q, Question::Software | Question::Form) {
@@ -991,7 +991,7 @@ impl Answers {
 
     /// The description's files and the shares' on the map take form `f`
     /// as the Software card's form answer now says (`docs/BACKUP-FLOW.md`
-    /// §19.3): turned on, each such file gains its form `f` on the same
+    /// §17.3): turned on, each such file gains its form `f` on the same
     /// stick; turned off, each loses it where it keeps another form. The
     /// form answer asks for every file at once until the board asks file
     /// by file.
@@ -1079,7 +1079,7 @@ impl Answers {
     /// places are the map's; the lists by place follow their count. A
     /// vault's stick or a file `m` gives a place itself goes on a stick
     /// there, as a plan saved before the sticks reads
-    /// (`docs/BACKUP-FLOW.md` §19.4).
+    /// (`docs/BACKUP-FLOW.md` §17.4).
     pub fn set_map(&mut self, m: Vec<Spot>) {
         let m = tidy_sticks(m);
         let places = m
@@ -1163,7 +1163,7 @@ pub fn what_code(w: What) -> String {
 }
 
 /// [`what_code`] read back. A plan saved before the forms
-/// (`docs/BACKUP-FLOW.md` §19.3) wrote `walletfile` and `sharefile1`,
+/// (`docs/BACKUP-FLOW.md` §17.3) wrote `walletfile` and `sharefile1`,
 /// which [`Answers::from_text`] reads as every form its `form` answers
 /// had on; read alone (a note on the chart), each is its QR picture, the
 /// form those answers start with.
@@ -1288,7 +1288,7 @@ impl Answers {
                 // never refused, and no longer written. A plan from Paper
                 // only, Paper and vault, or Paper, vault and watch-only
                 // software reopens as it was, customisable
-                // (`docs/BACKUP-FLOW.md` §19.21 item 7).
+                // (`docs/BACKUP-FLOW.md` §17.21 item 7).
                 "preset" => {
                     if value != "0" {
                         a.custom = true;
@@ -1362,7 +1362,7 @@ impl Answers {
                 }
                 // The description's or a share's files saved before the
                 // forms: every form the `form` answers had on
-                // (`docs/BACKUP-FLOW.md` §19.3).
+                // (`docs/BACKUP-FLOW.md` §17.3).
                 let whats: Vec<What> = match part {
                     "walletfile" => a.file_forms().into_iter().map(What::WalletFile).collect(),
                     _ if part.starts_with("sharefile") => {
@@ -1501,7 +1501,7 @@ pub enum Question {
 pub enum At {
     /// A place, by number from zero: what it keeps on paper.
     Place(usize),
-    /// Stick `s` (from zero) at place `p` (`docs/BACKUP-FLOW.md` §19.4):
+    /// Stick `s` (from zero) at place `p` (`docs/BACKUP-FLOW.md` §17.4):
     /// at most one vault's stick, and any of the stick forms beside it.
     Stick(usize, usize),
     /// Vault `v`, by number from zero.
@@ -1535,12 +1535,12 @@ pub enum What {
     SeedPassphrase(usize),
     /// Seed `i`'s passphrase alone in a vault that does not hold the seed:
     /// a passphrase record (`docs/VAULT.md` §7 type 14,
-    /// `docs/BACKUP-FLOW.md` §19.12 item 4).
+    /// `docs/BACKUP-FLOW.md` §17.12 item 4).
     PassphraseSealed(usize),
     /// The wallet description.
     Wallet,
     /// Seed `i`'s words as a text file: on the stick of files, or on a
-    /// stick at a place (`docs/BACKUP-FLOW.md` §19.3).
+    /// stick at a place (`docs/BACKUP-FLOW.md` §17.3).
     SeedFile(usize),
     /// Seed `i`'s SeedQR as a picture, on a stick at a place.
     SeedQrFile(usize),
@@ -1643,7 +1643,7 @@ pub fn form_name(f: usize) -> &'static str {
 
 /// Costs a map of the plan: the map as stored ([`stored_map`]) without a
 /// vault no place keeps a stick of, which stays on the board's list and
-/// out of the plan (`docs/BACKUP-FLOW.md` §19.16 item 3). The checks, the
+/// out of the plan (`docs/BACKUP-FLOW.md` §17.16 item 3). The checks, the
 /// checklist and the flows read this one.
 pub fn map(_c: &Compute, shape: &Shape, a: &Answers) -> Vec<Spot> {
     crate::work::count(crate::work::Work::PlanMap);
@@ -2011,7 +2011,7 @@ pub struct Check {
     /// block.
     pub one_place: Option<usize>,
     /// The plan has a single place: "Any one place lost" is No by the
-    /// nature of it, and reads so, muted (`docs/BACKUP-FLOW.md` §19.19).
+    /// nature of it, and reads so, muted (`docs/BACKUP-FLOW.md` §17.19).
     pub single: bool,
     /// A single key with no passphrase: a passphrase kept at another
     /// place than the seed is recommended.
@@ -2081,7 +2081,7 @@ impl Have {
 
     /// The description, whole or from shares that together hold every key;
     /// a seed kept beside a share gives its own key, the one a share left
-    /// off (`docs/BACKUP-FLOW.md` §19.5).
+    /// off (`docs/BACKUP-FLOW.md` §17.5).
     fn wallet_ok(&self, shape: &Shape, a: &Answers) -> bool {
         if self.wallet {
             return true;
@@ -2214,7 +2214,7 @@ impl Alone {
     }
 
     /// The balance alone, as a place's header tag reads it beside its
-    /// spend tag ([`Reach::tag`], `docs/BACKUP-FLOW.md` §19.22).
+    /// spend tag ([`Reach::tag`], `docs/BACKUP-FLOW.md` §17.22).
     pub fn balance_tag(self) -> (&'static str, AloneKind) {
         match self.balance {
             Found::Yes => (EN.plan_sees_the_balance_2, AloneKind::SeesBalance),
@@ -2282,7 +2282,7 @@ pub fn is_part(a: &Answers, at: At, what: What) -> bool {
 
 /// How near place `p` brings a spend, counting seeds alone: the
 /// description is public, so it is never what stands in the way
-/// (`docs/BACKUP-FLOW.md` §19.22).
+/// (`docs/BACKUP-FLOW.md` §17.22).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Reach {
     /// The fewest other places that, with this one, hold enough seeds to
@@ -2905,7 +2905,7 @@ pub enum Item {
 
 /// Costs a map of the plan: the checklist, only what the plan needs, in
 /// the order to do it. A stick's files are no item of their own: they are
-/// made and written with their stick (`docs/BACKUP-FLOW.md` §19.12 item
+/// made and written with their stick (`docs/BACKUP-FLOW.md` §17.12 item
 /// 6).
 pub fn checklist(c: &Compute, shape: &Shape, a: &Answers) -> Vec<Item> {
     checklist_on(shape, a, &Mapped::of(c, shape, a))
@@ -3138,7 +3138,7 @@ pub fn places_of(boxes: &[Spot]) -> usize {
 }
 
 /// Whether `w` is kept on a stick rather than on paper: a vault's stick,
-/// or a file (`docs/BACKUP-FLOW.md` §19.3).
+/// or a file (`docs/BACKUP-FLOW.md` §17.3).
 pub fn on_stick(w: What) -> bool {
     matches!(w, What::VaultStick(_)) || is_file(w)
 }
@@ -3192,7 +3192,7 @@ pub fn place_map(c: &Compute, shape: &Shape, a: &Answers) -> Vec<Spot> {
 }
 
 /// The map `boxes` with its sticks in order (`docs/BACKUP-FLOW.md`
-/// §19.4): a vault's stick or a file held by a place itself, as a plan
+/// §17.4): a vault's stick or a file held by a place itself, as a plan
 /// saved before the sticks keeps them, goes on a stick there, each vault
 /// on a stick of its own in vault order and the files on a stick of files
 /// after them; a stick that holds nothing goes; each place's sticks are
@@ -3280,7 +3280,7 @@ fn stick_for(boxes: &[Spot], p: usize, w: What) -> Option<usize> {
 /// form added to a stick goes to its place; a vault's stick added to a
 /// stick that carries another vault goes on a new stick there.
 pub fn with_added(boxes: &[Spot], at: At, what: What) -> Vec<Spot> {
-    // A passphrase in a vault (`docs/BACKUP-FLOW.md` §19.12 item 4): with
+    // A passphrase in a vault (`docs/BACKUP-FLOW.md` §17.12 item 4): with
     // its seed, in the key record; without it, a passphrase record. A seed
     // added where its passphrase is alone takes it into its record.
     if let At::Vault(_) = at {
@@ -3382,7 +3382,7 @@ fn ensure_place(boxes: &mut Vec<Spot>, p: usize) {
 }
 
 /// The map `boxes` with vault `v`'s stick put at place `p` as the board
-/// drops it (`docs/BACKUP-FLOW.md` §19.2, §19.12 item 7): on the place's
+/// drops it (`docs/BACKUP-FLOW.md` §17.2, §17.12 item 7): on the place's
 /// first stick with no vault, or on a new stick when every stick there
 /// carries one, its own included; so a place that keeps the vault already
 /// gets a second stick of it.
@@ -3448,7 +3448,7 @@ pub fn edited(boxes: &[Spot], edit: Edit, dest: &[(What, Option<usize>)]) -> Vec
 }
 
 // ---------------------------------------------------------------------
-// The plan by place (`docs/BACKUP-FLOW.md` §17)
+// The plan by place (`docs/BACKUP-FLOW.md` §15)
 // ---------------------------------------------------------------------
 
 /// A row of a place's card: what the place keeps.
@@ -3504,7 +3504,7 @@ impl Row {
 }
 
 /// A form the wallet description takes at a place
-/// (`docs/BACKUP-FLOW.md` §17.1, Where the description goes).
+/// (`docs/BACKUP-FLOW.md` §15.1, Where the description goes).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Form {
     /// The sheet, or the shares, on paper.
@@ -3539,7 +3539,7 @@ impl Form {
 
 impl Answers {
     /// The map the cards edit: from the first answer on a card after the
-    /// presets, the plan itself (`docs/BACKUP-FLOW.md` §17.2).
+    /// presets, the plan itself (`docs/BACKUP-FLOW.md` §15.2).
     pub fn ensure_map(&mut self, shape: &Shape) {
         if self.map.is_none() {
             let m = stored_map(shape, self);
@@ -3577,14 +3577,14 @@ impl Answers {
     }
 
     /// Costs what `of` costs. The shares vault `v` keeps
-    /// (`docs/BACKUP-FLOW.md` §17.6).
+    /// (`docs/BACKUP-FLOW.md` §15.6).
     pub fn vault_shares(&self, c: &Compute, shape: &Shape, v: usize) -> Vec<usize> {
         Mapped::of(c, shape, self).vault_shares(v)
     }
 
     /// Costs what `of` costs. The seeds whose passphrase vault `v` keeps
     /// alone, without the seed: each a passphrase record
-    /// (`docs/BACKUP-FLOW.md` §19.12 item 4).
+    /// (`docs/BACKUP-FLOW.md` §17.12 item 4).
     pub fn vault_passphrases(&self, c: &Compute, shape: &Shape, v: usize) -> Vec<usize> {
         Mapped::of(c, shape, self).vault_passphrases(v)
     }
@@ -3706,14 +3706,14 @@ impl Answers {
     /// Vault `v`'s stick dropped on place `p` as the board drops it
     /// ([`with_vault_stick`]): on the place's first stick with no vault,
     /// else a new stick, so a place may keep two sticks of one vault
-    /// (`docs/BACKUP-FLOW.md` §19.12 item 7). The vault is made where the
+    /// (`docs/BACKUP-FLOW.md` §17.12 item 7). The vault is made where the
     /// plan has none yet.
     pub fn add_vault_stick(&mut self, shape: &Shape, p: usize, v: usize) {
         self.edit_map(shape, |m| with_vault_stick(&with_vault(m, v), p, v));
     }
 
     /// Vault `v` taken off the plan, every stick of it with it
-    /// (`docs/BACKUP-FLOW.md` §19.12 item 7): a stick that carried only
+    /// (`docs/BACKUP-FLOW.md` §17.12 item 7): a stick that carried only
     /// the vault goes, one with files beside it stays a stick of files.
     pub fn remove_vault(&mut self, shape: &Shape, v: usize) {
         self.edit_map(shape, |m| {
@@ -3731,7 +3731,7 @@ impl Answers {
     /// or goes.
     pub fn empty_vault(&self) -> Option<usize> {
         let m = self.map.as_ref()?;
-        // Only a vault kept at a place (`docs/BACKUP-FLOW.md` §19.16
+        // Only a vault kept at a place (`docs/BACKUP-FLOW.md` §17.16
         // item 3): one just added by **+ vault** holds nothing back.
         let kept = kept_vaults(m);
         m.iter().find_map(|s| match s.at {
@@ -3761,7 +3761,7 @@ impl Answers {
 
     /// Place `p` removed with what it held, its sticks with it
     /// (`Edit::RemovePlace` with no destination); the places after it
-    /// move down one. One place stays (`docs/BACKUP-FLOW.md` §19.1).
+    /// move down one. One place stays (`docs/BACKUP-FLOW.md` §17.1).
     pub fn remove_place(&mut self, shape: &Shape, p: usize) {
         self.ensure_map(shape);
         let n = self.map.as_deref().map_or(0, places_of);
@@ -3771,7 +3771,7 @@ impl Answers {
     }
 
     /// A vault more, holding nothing and kept at no place yet: the board's
-    /// **+ vault** (`docs/BACKUP-FLOW.md` §19.1). Its number is the one
+    /// **+ vault** (`docs/BACKUP-FLOW.md` §17.1). Its number is the one
     /// after the plan's last vault and the vaults set up before the keys.
     pub fn add_vault(&mut self, shape: &Shape) -> usize {
         let named = stored_map(shape, self)
@@ -3859,7 +3859,7 @@ impl Answers {
     }
 
     /// The forms the description's files take where Where the
-    /// description goes adds them (`docs/BACKUP-FLOW.md` §19.3): each the
+    /// description goes adds them (`docs/BACKUP-FLOW.md` §17.3): each the
     /// `form` answers have on, the QR picture when none is.
     fn file_forms(&self) -> Vec<usize> {
         let on: Vec<usize> = [form::QR, form::TEXT]
@@ -4361,7 +4361,7 @@ pub fn follows_on(
     }
 }
 
-/// The most places a plan for `shape` has (`docs/BACKUP-FLOW.md` §19.19):
+/// The most places a plan for `shape` has (`docs/BACKUP-FLOW.md` §17.19):
 /// one per key of the wallet, one for a single key, two for a single key
 /// whose seed has a passphrase (the second place is for the passphrase
 /// alone; owner, 2026-10-19). Fewer are allowed.
@@ -4372,7 +4372,7 @@ pub fn max_places(shape: &Shape) -> usize {
 }
 
 /// How the description's shares are handed out to a plan's places
-/// (`docs/BACKUP-FLOW.md` §19.19 items 2 and 3).
+/// (`docs/BACKUP-FLOW.md` §17.19 items 2 and 3).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HandOut {
     /// The keys each share leaves off.
@@ -4413,7 +4413,7 @@ fn seed_keys(boxes: &[Spot], p: usize) -> u64 {
 }
 
 /// Costs a map of the plan (through `place_map`). Works out which share
-/// goes where (`docs/BACKUP-FLOW.md` §19.19 item 3): tries the ways of
+/// goes where (`docs/BACKUP-FLOW.md` §17.19 item 3): tries the ways of
 /// handing one share to each place, as many keys left off as can be
 /// (from `M − 1` down to 1), and keeps the first in a fixed order where
 /// every group of places that holds enough seeds to spend, and every
@@ -4533,7 +4533,7 @@ fn search(
 }
 
 /// Costs what `of` costs. Whether everything the plan keeps, anywhere,
-/// puts the description back together (`docs/BACKUP-FLOW.md` §19.19
+/// puts the description back together (`docs/BACKUP-FLOW.md` §17.19
 /// item 5): the whole of it, or shares and seeds that hold every key.
 pub fn description_kept(c: &Compute, shape: &Shape, a: &Answers) -> bool {
     description_kept_on(shape, a, &Mapped::of(c, shape, a))
@@ -4577,7 +4577,7 @@ impl Answers {
     /// Costs a map of the plan (through `hand_out`).
     ///
     /// **Add partial descriptions to this backup** (`docs/BACKUP-FLOW.md`
-    /// §19.19 item 1): any share kept taken off, then one share of the
+    /// §17.19 item 1): any share kept taken off, then one share of the
     /// description on each place's paper, handed out by [`hand_out`], the
     /// keys left off each as it found. The whole description stays where
     /// it is. Works out the hand-out, a search.
@@ -4604,7 +4604,7 @@ impl Answers {
     }
 
     /// The whole description taken off every place, on paper and on its
-    /// sticks (`docs/BACKUP-FLOW.md` §19.19 item 4): vaults and the
+    /// sticks (`docs/BACKUP-FLOW.md` §17.19 item 4): vaults and the
     /// software keep theirs.
     pub fn whole_off_places(&mut self, shape: &Shape) {
         self.edit_map(shape, |mut m| {

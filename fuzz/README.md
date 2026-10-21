@@ -165,7 +165,7 @@ hanging rather than "that is not a blob this build wrote".
 and the lanes are each between the `argon2` crate's minimum and
 `DEVICE_PARAMS`, so a file that asks for work this build would not have
 done is not a file this build reads. Both artifacts run clean, and both
-headers are a unit test in `core/osk-keep/src/lib.rs`.
+headers are a unit test in core/osk-keep/src/lib.rs.
 
 ### The re-run
 

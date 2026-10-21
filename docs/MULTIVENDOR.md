@@ -1,6 +1,9 @@
 # Two implementations of every cryptographic step
 
-Status: proposal, 2026-10-06. Nothing here is built. The owner will decide
+**Kind:** Spec
+**Status:** Proposal; not scheduled
+
+Proposal, 2026-10-06. Nothing here is built. The owner will decide
 the implementation later; this records the question, what is known, the
 options and a recommendation.
 

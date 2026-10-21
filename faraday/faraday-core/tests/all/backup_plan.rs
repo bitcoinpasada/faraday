@@ -333,7 +333,7 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
     }
     // The software takes the description's text too: the public files
     // item. (The description as files at a place is written with that
-    // place's stick, no item of its own: `docs/BACKUP-FLOW.md` §19.12
+    // place's stick, no item of its own: `docs/BACKUP-FLOW.md` §17.12
     // item 6.)
     app.press(Action::BAnswer(qrow::FORM, form::TEXT as u8));
     // Nothing by hand or into a vault, so the item is open to reach.
@@ -493,7 +493,7 @@ fn places_of(name: &str) -> faraday_core::Faraday {
 
 /// A multisig's plan keeps the whole wallet sheet in each place; the
 /// board's list offers **Add partial descriptions to this backup** and no
-/// share by itself (`docs/BACKUP-FLOW.md` §19.19 item 1).
+/// share by itself (`docs/BACKUP-FLOW.md` §17.19 item 1).
 #[test]
 fn a_fresh_multisig_plan_keeps_the_whole_sheet_in_each_place() {
     use faraday_core::Action;
@@ -523,7 +523,7 @@ fn a_fresh_multisig_plan_keeps_the_whole_sheet_in_each_place() {
 /// A 3-of-5 over five places, partial descriptions added: each share
 /// leaves 2 keys off, any 3 places rebuild the description, and no place
 /// sees the balance once the whole is off every place
-/// (`docs/BACKUP-FLOW.md` §19.19 items 2 and 6). The checklist's Shares
+/// (`docs/BACKUP-FLOW.md` §17.19 items 2 and 6). The checklist's Shares
 /// card still sets the keys left off.
 #[test]
 fn a_three_of_five_over_five_places_leaves_two_keys_off_each_share() {
@@ -799,7 +799,7 @@ fn a_plan_that_does_not_survive_a_place_lost_says_why() {
 }
 
 /// A vault the board made, left with no stick place, is out of The plan
-/// and holds nothing back (`docs/BACKUP-FLOW.md` §19.16 item 3): Make the
+/// and holds nothing back (`docs/BACKUP-FLOW.md` §17.16 item 3): Make the
 /// checklist is offered with no line about it, and the checklist makes
 /// no vault; its stick kept at a place again, it is in the plan again.
 #[test]
@@ -836,7 +836,7 @@ fn a_vault_with_no_stick_place_is_out_of_the_plan() {
 }
 
 // ---------------------------------------------------------------------
-// `docs/BACKUP-FLOW.md` §17: the plan asked place by place
+// `docs/BACKUP-FLOW.md` §15: the plan asked place by place
 // ---------------------------------------------------------------------
 
 /// Whether the plan offers `action` anywhere down its column, scrolled
@@ -883,7 +883,7 @@ fn open_board(app: &mut Faraday) {
     if app.backup.as_ref().unwrap().q != Some(qstep::BOARD) {
         app.press(Action::BQ(qstep::BOARD));
     }
-    // Opened for changes (`docs/BACKUP-FLOW.md` §19.6).
+    // Opened for changes (`docs/BACKUP-FLOW.md` §17.6).
     app.press(Action::Board(faraday_core::board::BoardPress::Customize));
     let _ = app.frame();
 }
@@ -1075,7 +1075,7 @@ fn a_vault_with_no_seed_keeps_its_stick_and_holds_the_plan_until_it_holds_someth
 
 /// A seed's words and SeedQR put where its passphrase is kept are kept
 /// there, the passphrase too, and the board says so: nothing is refused
-/// for being unwise (`docs/BACKUP-FLOW.md` §19.5).
+/// for being unwise (`docs/BACKUP-FLOW.md` §17.5).
 #[test]
 fn words_cannot_be_ticked_where_the_passphrase_is_kept() {
     use faraday_core::Action;
@@ -1177,7 +1177,7 @@ fn a_vault_kept_at_two_places_is_one_vault_with_two_sticks() {
 
 /// A passphrase put where its words are is kept there, with the board's
 /// warning line naming the place: nothing is refused for being unwise
-/// (`docs/BACKUP-FLOW.md` §19.5).
+/// (`docs/BACKUP-FLOW.md` §17.5).
 #[test]
 fn a_passphrase_cannot_be_ticked_where_its_words_are() {
     let c = faraday_core::testkit::compute();
@@ -1206,7 +1206,7 @@ fn a_passphrase_cannot_be_ticked_where_its_words_are() {
 /// places rebuilding the description; Take it off every place leaves the
 /// description in shares alone and any 2 still rebuild it; Remove partial
 /// descriptions takes every share off; the hand-out is the same on every
-/// run (`docs/BACKUP-FLOW.md` §19.19 item 6).
+/// run (`docs/BACKUP-FLOW.md` §17.19 item 6).
 #[test]
 fn in_shares_a_share_on_paper_at_a_place_is_on_the_map_there() {
     let c = faraday_core::testkit::compute();
@@ -1300,7 +1300,7 @@ fn rebuilds_at(shape: &Shape, a: &Answers, group: &[usize]) -> bool {
 }
 
 /// No preset makes more places than one per key, and the board offers no
-/// **+ place** at that many (`docs/BACKUP-FLOW.md` §19.19).
+/// **+ place** at that many (`docs/BACKUP-FLOW.md` §17.19).
 #[test]
 fn no_preset_makes_more_than_one_place_per_key() {
     use faraday_core::Action;
@@ -1346,7 +1346,7 @@ fn a_seed_file_at_a_place_has_that_places_stick_of_files_and_is_held_until_writt
     assert_eq!(held(&app, At::Place(1)), vec![What::SeedFile(0)]);
     app.press(Action::BChecklist);
     // The file is made and written with its stick: no item of its own
-    // (`docs/BACKUP-FLOW.md` §19.12 item 6). The passphrase on paper has
+    // (`docs/BACKUP-FLOW.md` §17.12 item 6). The passphrase on paper has
     // its own (`docs/history/NEW-WALLET.md` §14.7 item 5).
     assert_eq!(
         app.backup_items_now(&c),
@@ -1432,7 +1432,7 @@ fn make_the_checklist_is_on_the_plan_card_alone_and_the_checklist_is_the_maps() 
 /// passphrase alone: the standard way makes it, + place is hidden at 2 for
 /// that key and at 1 for a key without a passphrase, and a multisig whose
 /// seeds have passphrases still caps at its keys (`docs/BACKUP-FLOW.md`
-/// §19.19).
+/// §17.19).
 #[test]
 fn a_single_key_with_a_passphrase_has_a_second_place_for_it() {
     use faraday_core::Action;

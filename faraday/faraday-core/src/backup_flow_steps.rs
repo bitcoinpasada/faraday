@@ -23,7 +23,7 @@ pub enum FlowAction {
     /// Open a card, or close it.
     Open(u8),
     /// A press on a wallet's plan cards, as Back up's
-    /// (`docs/BACKUP-FLOW.md` §17).
+    /// (`docs/BACKUP-FLOW.md` §15).
     Plan(crate::PlanPress),
     /// Leave the flow, keeping its state.
     Back,
@@ -403,7 +403,7 @@ impl Faraday {
                 f.live.open = Some(Step::Where.n());
                 f.live.scroll.follow = true;
                 // A wallet's plan opens on its board (`docs/BACKUP-FLOW.md`
-                // §19.21 item 11).
+                // §17.21 item 11).
                 if f.kind.is_wallet() {
                     f.live.plan_q = Some(crate::qstep::BOARD);
                 }
@@ -635,7 +635,7 @@ impl Faraday {
     fn flow_together(&mut self, i: usize, p: usize) {
         let c = self.compute();
         // A wallet's sticks are its map's, a vault on each
-        // (`docs/BACKUP-FLOW.md` §19.4).
+        // (`docs/BACKUP-FLOW.md` §17.4).
         if self.backup_flows[i].kind.is_wallet() {
             return;
         }
@@ -2251,7 +2251,7 @@ impl Faraday {
             };
             // A vault file by its SHA-256; a file beside it, which is not
             // read, by its name in the listing (a stick of files holds no
-            // vault, `docs/BACKUP-FLOW.md` §19.4).
+            // vault, `docs/BACKUP-FLOW.md` §17.4).
             let holds = r
                 .files
                 .iter()
@@ -2387,7 +2387,7 @@ impl Faraday {
         // The seeds' files a wallet's plan keeps, let out unprotected,
         // go to the stick the plan keeps them on and to no other: the stick
         // of files, or a stick at a place, beside its vault or not
-        // (`docs/BACKUP-FLOW.md` §19.4).
+        // (`docs/BACKUP-FLOW.md` §17.4).
         let files_stick = f
             .slots
             .get(slot)
@@ -2466,7 +2466,7 @@ impl Faraday {
 
     /// A write was answered; `Ok` with the name it was written as, or the
     /// reason it was not. A picture written is read back for its codes
-    /// (`docs/BACKUP-FLOW.md` §19.12 item 10); a file that did not read
+    /// (`docs/BACKUP-FLOW.md` §17.12 item 10); a file that did not read
     /// back is written again once, and a second time refuses the stick.
     pub(crate) fn flow_write_answer(&mut self, name: &str, answer: Result<String, String>) {
         let Some(i) = self.fi() else {

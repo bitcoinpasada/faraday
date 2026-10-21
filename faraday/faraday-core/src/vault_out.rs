@@ -1,5 +1,5 @@
 //! A vault's key and wallet, shown and saved (`docs/BACKUP-FLOW.md`
-//! §19.7): a key record's SeedQR behind the hold that shows its words,
+//! §17.7): a key record's SeedQR behind the hold that shows its words,
 //! a wallet record's descriptor as the Wallets page shows it, and Save to
 //! a stick for either, so that the picture and text forms need not be
 //! kept in the vault. Nothing here is stored in the vault: what is made

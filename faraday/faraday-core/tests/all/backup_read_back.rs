@@ -1,5 +1,5 @@
 //! Every form the backup board keeps comes back (`docs/BACKUP-FLOW.md`
-//! §19.12 items 4, 5 and 10): a wallet backed up with one form at one
+//! §17.12 items 4, 5 and 10): a wallet backed up with one form at one
 //! place is restored from what that place's stick holds alone, with the
 //! passphrase and the other shares from where the plan put them; a file
 //! written to a stick is read back at once and written again once when it

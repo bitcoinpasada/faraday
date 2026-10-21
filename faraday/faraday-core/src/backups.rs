@@ -387,7 +387,7 @@ impl Faraday {
                         }
                         // The stick of files of a plan saved before keeps
                         // the checklist's seed files; a stick at a place
-                        // its own (`docs/BACKUP-FLOW.md` §19.12 item 6).
+                        // its own (`docs/BACKUP-FLOW.md` §17.12 item 6).
                         What::SeedFile(i) if spot.at == At::Files => {
                             if let Some(fp) = fp_of(i) {
                                 let fps =

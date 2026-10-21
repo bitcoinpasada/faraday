@@ -119,7 +119,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         ui.in_sheet = true;
         ui.offset = app.sheet_offset;
         // A chip's ⋮ menu is a popup on `wide`: the board stays in view
-        // under it, undimmed (`docs/BACKUP-FLOW.md` §19.20).
+        // under it, undimmed (`docs/BACKUP-FLOW.md` §17.20).
         if matches!(sheet, Sheet::BoardMenu | Sheet::FileMenu) && !app.is_compact() {
             ui.still();
         } else {
@@ -5639,7 +5639,7 @@ fn backup_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let mut foot = |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 {
             if !checklist {
                 // Make the checklist is on The plan card alone
-                // (`docs/BACKUP-FLOW.md` §17.1).
+                // (`docs/BACKUP-FLOW.md` §15.1).
                 return 0.0;
             }
             if all_done {
@@ -5659,7 +5659,7 @@ fn backup_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     app.scroll(Scrolled::Backup, next, again);
     // While the board is shown its list is the right-hand column, the
-    // map's place (`docs/BACKUP-FLOW.md` §19.14).
+    // map's place (`docs/BACKUP-FLOW.md` §17.14).
     if !compact && app.board_shown() {
         crate::board_screen::list_panel(app, ui, x0 + cw - panel_w, panel_w, h);
     } else if !compact {
@@ -5671,7 +5671,7 @@ fn backup_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
 }
 
-/// The open card of Back up's plan (`docs/BACKUP-FLOW.md` §17.1), drawn
+/// The open card of Back up's plan (`docs/BACKUP-FLOW.md` §15.1), drawn
 /// by `plan_cards`; on The plan, after the map, what holds the way on or
 /// Make the checklist. Returns its height.
 fn plan_body(
@@ -5687,7 +5687,7 @@ fn plan_body(
         return 0.0;
     };
     // On `wide` the board takes the section's whole width, under its
-    // number as well as its title (`docs/BACKUP-FLOW.md` §19.15).
+    // number as well as its title (`docs/BACKUP-FLOW.md` §17.15).
     let (bx, bw) = if q == crate::qstep::BOARD && !ui.compact {
         (
             x - crate::flow::BODY_INDENT,
@@ -5738,7 +5738,7 @@ pub(crate) fn held_item(
         (At::Software, _) if has(Item::ShowDescriptor) => Item::ShowDescriptor,
         (At::Files, What::SeedFile(_)) => Item::SeedFiles,
         // A file at a place is made and written with its stick
-        // (`docs/BACKUP-FLOW.md` §19.12 item 6).
+        // (`docs/BACKUP-FLOW.md` §17.12 item 6).
         (At::Place(_) | At::Stick(..), w) if crate::plan::is_file(w) => Item::Sticks,
         _ => Item::PublicFiles,
     };
@@ -5829,7 +5829,7 @@ fn backup_done(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
-/// The backup's last card, in Guided only (`docs/BACKUP-FLOW.md` §19.19
+/// The backup's last card, in Guided only (`docs/BACKUP-FLOW.md` §17.19
 /// item 7): copies made outside the plan, and the Learn page on them.
 /// Returns its height; nothing in Steps only.
 pub(crate) fn extra_copies(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
@@ -6126,7 +6126,7 @@ pub(crate) fn shares_card(
 /// each: the slider `slider` from 0 to the most the quorum allows, each
 /// share with its keys (`fp` names key `j`), and what the split audit
 /// finds. Back up's, from the wallet loaded, and a wallet flow's, from
-/// its shape (`docs/BACKUP-FLOW.md` §17.7). Returns the height used.
+/// its shape (`docs/BACKUP-FLOW.md` §15.7). Returns the height used.
 pub(crate) fn shares_table(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
@@ -8569,7 +8569,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         _ => {
             // Back up this wallet: Back up on the wallet just made, the
             // board open on The standard way (`docs/BACKUP-FLOW.md`
-            // §19.21 item 2).
+            // §17.21 item 2).
             if c.built.is_some() {
                 ui.button(
                     x,

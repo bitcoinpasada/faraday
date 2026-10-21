@@ -34,14 +34,14 @@
 //! backup on the presets and its public files, then a one-key wallet
 //! restored from test key 2, its checklist saving it into the test vault,
 //! and the wallet chip's list of the two; with `plan`, the backup's plan
-//! by place (`docs/BACKUP-FLOW.md` §17): the presets, the places, each
+//! by place (`docs/BACKUP-FLOW.md` §15): the presets, the places, each
 //! place's card, a vault's sheet, where the description goes and The
 //! plan for a one-key wallet; for Savings (2-of-3) the description whole
 //! and in shares, the page What is a share? opens, the checklist part
 //! done, the blank template written beside the screens as `outbox-*`; a
 //! 3-of-5's shares on the description card and the checklist; and a
 //! vault's sheet with two seeds; with `board`, the backup board
-//! (`docs/BACKUP-FLOW.md` §19) for Savings with its three keys here: on
+//! (`docs/BACKUP-FLOW.md` §17) for Savings with its three keys here: on
 //! Paper and vault, a seed selected with the zones that take it edged,
 //! a placed seed's forms open, a share placed with the keys left off,
 //! and the software place; with `inbox`, Stick visit offering the Inbox's
@@ -76,7 +76,7 @@
 //! first stick with the vault choice, the place confirmed, two empty sticks
 //! read alike and the hold, Vaults, Make, the Lock card, each stick
 //! written and Done; with `vaultshow`, the test vault's key with its
-//! SeedQR held (`docs/BACKUP-FLOW.md` §19.7), its Save to a stick, and a
+//! SeedQR held (`docs/BACKUP-FLOW.md` §17.7), its Save to a stick, and a
 //! wallet's Save to a stick.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
@@ -125,7 +125,7 @@ type Files = Vec<(String, Vec<u8>)>;
 impl Tour {
     /// Back up's plan made into the plan preset `p` once placed, by the
     /// presses a person makes now (`testkit::backup_as`,
-    /// `docs/BACKUP-FLOW.md` §19.21).
+    /// `docs/BACKUP-FLOW.md` §17.21).
     fn backup_as(&mut self, p: faraday_core::plan::Preset) {
         testkit::backup_as(&mut self.app, p);
         self.pump();
@@ -314,7 +314,7 @@ impl Tour {
     fn press(&mut self, a: Action) {
         use faraday_core::board::BoardPress as B;
         // The tours that edit a board press Customize backup first
-        // (`docs/BACKUP-FLOW.md` §19.6), and keep a drop the sheet asks
+        // (`docs/BACKUP-FLOW.md` §17.6), and keep a drop the sheet asks
         // about (§19.5); the std tour shows both itself.
         if let Action::Board(p) = a
             && !matches!(p, B::Customize | B::Software | B::SeesKeep | B::SeesUndo)
@@ -3756,7 +3756,7 @@ fn plan_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     };
     let spending = find(t, "Spending")?;
     let savings = find(t, "Savings")?;
-    // The board (`docs/BACKUP-FLOW.md` §19): a one-key wallet on Paper
+    // The board (`docs/BACKUP-FLOW.md` §17): a one-key wallet on Paper
     // and vault, its board, Vault 1 held with the places that take it
     // edged, and The plan.
     t.press(Action::Backup(spending));
@@ -3845,7 +3845,7 @@ fn plan_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
 }
 
 /// Costs a map of the plan (through `vault_place` and `vault_stick`).
-/// The backup board (`docs/BACKUP-FLOW.md` §19) for Savings, its three
+/// The backup board (`docs/BACKUP-FLOW.md` §17) for Savings, its three
 /// keys typed in: the board on Paper and vault, Seed 1 selected with
 /// the zones that take it edged, its words on Place 1's paper with
 /// their forms open, a share on paper and in Vault 1, and the software
@@ -3948,7 +3948,7 @@ fn board_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-/// The ⋮ menu on the backup board (`docs/BACKUP-FLOW.md` §19.20) for
+/// The ⋮ menu on the backup board (`docs/BACKUP-FLOW.md` §17.20) for
 /// Savings, its three keys typed in, on Paper and vault, customised: on
 /// `wide` a list chip's Add to…, a placed chip's menu and its Move to…,
 /// and the menu opened by the keys; in the narrow column the Add sheet
@@ -5107,7 +5107,7 @@ fn type_text(t: &mut Tour, text: &str) {
 }
 
 /// The test vault's key and wallet shown and saved (`docs/BACKUP-FLOW.md`
-/// §19.7): the key with its SeedQR held, its Save to a stick, and the
+/// §17.7): the key with its SeedQR held, its Save to a stick, and the
 /// Spending wallet's Save to a stick.
 fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_shell_api::TouchPhase;
@@ -5355,7 +5355,7 @@ fn flow_made(t: &mut Tour, kind: faraday_core::backup_flow::Kind) -> Result<(), 
 
 /// Costs what `parse`, `to_seed`, `from_seed` and the rest it calls
 /// cost. The backup flow's Bring in the sticks with the boot stick
-/// taken for Place 1 (`docs/BACKUP-FLOW.md` §18): it is Stick 1, the
+/// taken for Place 1 (`docs/BACKUP-FLOW.md` §16): it is Stick 1, the
 /// Boot stick, and the next stick is Stick 2. A vault of the three test
 /// keys, the third kept without the passphrase its 2-of-3 uses it with,
 /// and a seed of no wallet (F62): the Load sheet, Seeds with no
@@ -5607,7 +5607,7 @@ fn cancel_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("cancel-5-wallets")
 }
 
-/// The standard way on the board (`docs/BACKUP-FLOW.md` §19.6, §19.3,
+/// The standard way on the board (`docs/BACKUP-FLOW.md` §17.6, §17.3,
 /// §19.5, §19.21): Make a new wallet opening on Kind; its Back up step
 /// with Back up this wallet; a single key's Back up open on the board
 /// read-only; a 2-of-3's the same, then with Add watch-only software
@@ -5675,7 +5675,7 @@ fn standard_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("std-5-sees-sheet")
 }
 
-/// Partial descriptions by one button (`docs/BACKUP-FLOW.md` §19.19): a
+/// Partial descriptions by one button (`docs/BACKUP-FLOW.md` §17.19): a
 /// 2-of-3's board customised; the sheet after adding them; the board with
 /// a share at each place and the whole taken off every place; the board
 /// after Remove partial descriptions, its warning under it.
@@ -5954,7 +5954,7 @@ fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.pump();
     t.shot("wallet-flow-9-write")?;
     // Change the plan in the flow: the board, drawn in the flow on the
-    // flow's own plan (`docs/BACKUP-FLOW.md` §19.12 item 1): The plan,
+    // flow's own plan (`docs/BACKUP-FLOW.md` §17.12 item 1): The plan,
     // then the board after the lock, Seed 1 selected, a vault's stick
     // also at another place.
     t.press(Action::Flow(F::ChangePlan));

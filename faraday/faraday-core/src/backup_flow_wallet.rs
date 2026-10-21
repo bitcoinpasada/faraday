@@ -217,7 +217,7 @@ impl Faraday {
         with_vaults.vaults = count;
         // The flow's plan takes changes from the start: its vaults were
         // set up before the keys, which no preset places
-        // (`docs/BACKUP-FLOW.md` §19.6).
+        // (`docs/BACKUP-FLOW.md` §17.6).
         let mut answers = plan::Answers::defaults(&with_vaults);
         answers.custom = true;
         let mut f = BackupFlow::new_setup(&c, shape, answers, count);
@@ -486,7 +486,7 @@ impl Faraday {
     /// and sheets to the stick that carries them; the seed files the plan
     /// keeps on the stick of files to it; and to each stick at a place the
     /// files the plan keeps on it, beside its vault when it carries one
-    /// (`docs/BACKUP-FLOW.md` §19.4), with no warning where they meet.
+    /// (`docs/BACKUP-FLOW.md` §17.4), with no warning where they meet.
     fn wallet_slot_files(&self, c: &Compute, w: usize, flow: &BackupFlow) -> Vec<Vec<String>> {
         let mut out: Vec<Vec<String>> = vec![Vec::new(); flow.slots.len()];
         let (public, seeds) = self.wallet_out_files(c, w);
@@ -528,7 +528,7 @@ impl Faraday {
 
     /// Splits a long text into its QR parts and makes a share's text to
     /// name them: the names file `what` of wallet `w` is written as on a
-    /// stick under answers `a` (`docs/BACKUP-FLOW.md` §19.12 item 6), a
+    /// stick under answers `a` (`docs/BACKUP-FLOW.md` §17.12 item 6), a
     /// seed's `seed-{fingerprint}.txt`, `seedqr-{fingerprint}.png`,
     /// `passphrase-{fingerprint}.txt`; the description's
     /// `{wallet}-descriptor.txt` or its pictures; a share's
@@ -582,7 +582,7 @@ impl Faraday {
     /// plan keeps on a stick at a place, For the stick, while the keys are
     /// loaded: at **Lock and write**, since a stick's files are written
     /// with it and are no checklist item of their own
-    /// (`docs/BACKUP-FLOW.md` §19.12 item 6). A seed's files go out as
+    /// (`docs/BACKUP-FLOW.md` §17.12 item 6). A seed's files go out as
     /// secrets let out unprotected. Returns, for each picture made, its
     /// name and the SHA-256 of what its codes must read as, which the
     /// write step reads it back against (§19.12 item 10): a SeedQR by its
@@ -860,7 +860,7 @@ impl Faraday {
         // A seed's file on a stick is made only past the warning that it
         // is not protected, as the seed files item made one: nothing is
         // made or written until the person has said so for each seed
-        // (`docs/BACKUP-FLOW.md` §19.12 item 6).
+        // (`docs/BACKUP-FLOW.md` §17.12 item 6).
         if let Some(i) = self.backup_stick_seed_unwarned(&c) {
             return self.offer_stick_seed(i);
         }
@@ -975,7 +975,7 @@ impl Faraday {
             }
         }
         // A stick's files are made now, with the keys still loaded, and
-        // written with their stick (`docs/BACKUP-FLOW.md` §19.12 item 6).
+        // written with their stick (`docs/BACKUP-FLOW.md` §17.12 item 6).
         let readback = self.wallet_stick_files_make(w);
         if let Some(wf) = self.backup_flows[i].wallet.as_mut() {
             wf.readback = readback;
@@ -1123,7 +1123,7 @@ impl Faraday {
                     return false;
                 };
                 // A stick may carry a vault and files beside it
-                // (`docs/BACKUP-FLOW.md` §19.4): either holds the seed.
+                // (`docs/BACKUP-FLOW.md` §17.4): either holds the seed.
                 wr.files.iter().any(|(n, _)| f.is_seed_file(s, n))
                     || f.vaults_of(k).iter().any(|&v| sealed_with(v))
             })
@@ -1196,7 +1196,7 @@ impl Faraday {
 
     /// Costs what `read_wallet` and `add_wallet` cost. Share `j` of the
     /// wallet with checksum `cs` as a type 13 record (`docs/BACKUP-FLOW.md`
-    /// §17.6), made from its description: the wallet loaded, or its
+    /// §15.6), made from its description: the wallet loaded, or its
     /// description in an open vault or Files.
     fn wallet_share_record(
         &self,
@@ -1536,7 +1536,7 @@ impl Faraday {
                 }
             }
             // Each passphrase the plan keeps alone in the vault, a type 14
-            // record (`docs/BACKUP-FLOW.md` §19.12 item 4): from an open
+            // record (`docs/BACKUP-FLOW.md` §17.12 item 4): from an open
             // vault's record of it, or its key's record that stores it;
             // one of this wallet's seeds' the plan no longer keeps here
             // goes.
@@ -1882,7 +1882,7 @@ impl Faraday {
     }
 
     /// A press on the flow's plan cards, Back up's cards drawn in the flow
-    /// (`docs/BACKUP-FLOW.md` §17.7): the card open, the next card, the
+    /// (`docs/BACKUP-FLOW.md` §15.7): the card open, the next card, the
     /// software, or the keys left off each share. The board's own presses
     /// are `board.rs`'s (§19.12 item 1).
     pub(crate) fn flow_plan_press(&mut self, i: usize, press: crate::PlanPress) {
@@ -1921,7 +1921,7 @@ impl Faraday {
     /// `k{fp}` a key's record of its words alone, `p{fp}` one with its
     /// passphrase, `a{fp}` a key's passphrase kept alone (type 14),
     /// `w{sum}` a wallet's description, `s{sum}:{n}` a wallet's share
-    /// (`docs/BACKUP-FLOW.md` §17). Never a secret.
+    /// (`docs/BACKUP-FLOW.md` §15). Never a secret.
     pub(crate) fn record_tokens(&self, c: &Compute, r: &faraday_vault::Record) -> Vec<String> {
         use faraday_vault::records::{field, kind as rkind};
         // As an open vault keeps it read; a copy is read now.
@@ -2009,7 +2009,7 @@ impl Faraday {
 
     /// Costs what `sealed_marks` costs. Why an edit after the lock would
     /// take out of a vault what this flow did not put there
-    /// (`docs/BACKUP-FLOW.md` §17): a key, a passphrase, a description or a
+    /// (`docs/BACKUP-FLOW.md` §15): a key, a passphrase, a description or a
     /// share the vault held before the flow, or a key another wallet's
     /// record in it names. The toast's line, or `None`.
     fn flow_takes_out_foreign(&self, c: &Compute, trial: &BackupFlow) -> Option<String> {
@@ -2325,7 +2325,7 @@ const SHARE_MARK: usize = 3_000_000;
 /// a share: `OMIT_MARK + omit`.
 const OMIT_MARK: usize = 4_000_000;
 /// The sealed mark of seed `s`'s passphrase kept alone in the vault, a
-/// passphrase record (`docs/BACKUP-FLOW.md` §19.12 item 4): this plus `s`.
+/// passphrase record (`docs/BACKUP-FLOW.md` §17.12 item 4): this plus `s`.
 const PASS_ALONE_MARK: usize = 5_000_000;
 /// In a vault's list of keys other wallets name: the vault holds a record
 /// of another wallet at all.
@@ -2345,7 +2345,7 @@ pub(crate) fn sealed_marks(
     if wf.answers.wallet_in_vault(v) {
         marks.push(WALLET_MARK);
     }
-    // Each share the vault keeps (`docs/BACKUP-FLOW.md` §17.6): one added
+    // Each share the vault keeps (`docs/BACKUP-FLOW.md` §15.6): one added
     // after the lock is a change of what the vault holds (§10.2).
     let shares = wf.answers.vault_shares(c, &wf.shape, v);
     for &j in &shares {
@@ -2391,7 +2391,7 @@ pub(crate) fn seedqr_png(
 }
 
 /// The name seed form `what` of the seed with fingerprint `fp` is written
-/// as on a stick (`docs/BACKUP-FLOW.md` §19.12 item 6): `seed-{fp}.txt`,
+/// as on a stick (`docs/BACKUP-FLOW.md` §17.12 item 6): `seed-{fp}.txt`,
 /// `seedqr-{fp}.png`, `passphrase-{fp}.txt`, the fingerprint in lower case.
 pub(crate) fn seed_stick_name(what: plan::What, fp: &str) -> Option<String> {
     let fp = fp.to_lowercase();
@@ -2456,7 +2456,7 @@ pub(crate) fn software_files(stem: &str, what: &[u8]) -> Vec<String> {
 
 /// The stick at a place on the map `boxes` that the flow's stick for
 /// `target` is, as a list of none or one ([`crate::backup_flow::target_stick`],
-/// `docs/BACKUP-FLOW.md` §19.4): each stick of the map is one stick of the
+/// `docs/BACKUP-FLOW.md` §17.4): each stick of the map is one stick of the
 /// flow.
 pub(crate) fn target_sticks(boxes: &[plan::Spot], target: Target) -> Vec<plan::At> {
     crate::backup_flow::target_stick(boxes, target)
@@ -2552,7 +2552,7 @@ impl BackupFlow {
         // A stick counts for the seed's files only where it is given one
         // of them (its words, its SeedQR, its passphrase), never from the
         // plan alone: a stick of files, or a vault's stick with files
-        // beside the vault (`docs/BACKUP-FLOW.md` §19.4).
+        // beside the vault (`docs/BACKUP-FLOW.md` §17.4).
         out.extend(
             (0..self.slots.len())
                 .filter(|&k| self.slots[k].files.iter().any(|n| self.is_seed_file(s, n))),
@@ -2579,7 +2579,7 @@ impl BackupFlow {
     /// file the plan keeps on the stick of slot `slot`: the stick of files
     /// takes the seeds kept there; a stick at a place the seeds' files the
     /// plan keeps on that stick, beside its vault or not
-    /// (`docs/BACKUP-FLOW.md` §17.2, §19.4).
+    /// (`docs/BACKUP-FLOW.md` §15.2, §17.4).
     pub fn seed_file_ok_for(&self, c: &Compute, slot: usize, name: &str) -> bool {
         let Some(w) = self.wallet.as_ref() else {
             return false;

@@ -1,4 +1,4 @@
-//! How near a place brings a spend (`docs/BACKUP-FLOW.md` §19.22, F56):
+//! How near a place brings a spend (`docs/BACKUP-FLOW.md` §17.22, F56):
 //! seeds alone spend, the description being public; every place that
 //! keeps a seed says how many more places it needs; a drop that brings a
 //! place keeping two seeds or more nearer a spend asks on a sheet, with

@@ -1,4 +1,4 @@
-//! A wallet's plan (`docs/BACKUP-FLOW.md` §17, §19): its cards, drawn by
+//! A wallet's plan (`docs/BACKUP-FLOW.md` §15, §17): its cards, drawn by
 //! one code for Back up's plan and for a wallet flow's own plan card, so
 //! that there is one way to edit a plan. The places and what each keeps
 //! are one card, the board (§19, `board.rs`, `board_screen.rs`), on both
@@ -116,7 +116,7 @@ impl PlanCtx {
     }
 }
 
-/// A plan card's title (`docs/BACKUP-FLOW.md` §17.1): a place's card is
+/// A plan card's title (`docs/BACKUP-FLOW.md` §15.1): a place's card is
 /// titled with the place's name.
 pub(crate) fn title(_ctx: &PlanCtx, q: u8) -> String {
     q_title(q)
@@ -158,7 +158,7 @@ pub(crate) fn summary(ctx: &PlanCtx, q: u8) -> String {
 
 /// The warning over The plan's way on, which does not hold it: a vault
 /// that exists already whose stick no place keeps
-/// (`docs/BACKUP-FLOW.md` §19.16 item 3, §19.5).
+/// (`docs/BACKUP-FLOW.md` §17.16 item 3, §19.5).
 pub(crate) fn stickless_line(app: &View, ctx: &PlanCtx) -> Option<String> {
     let v = ctx.answers.stickless(&ctx.shape)?;
     Some(fill(
@@ -170,7 +170,7 @@ pub(crate) fn stickless_line(app: &View, ctx: &PlanCtx) -> Option<String> {
 /// What holds The plan's way on (`docs/history/NEW-WALLET.md` §14.2, §14.4): a
 /// vault that holds nothing, a key made here kept nowhere
 /// (`kept_nowhere`, the caller's). A vault's stick at no place is a
-/// warning only ([`stickless_line`], `docs/BACKUP-FLOW.md` §19.16).
+/// warning only ([`stickless_line`], `docs/BACKUP-FLOW.md` §17.16).
 pub(crate) fn held_line(
     _app: &View,
     ctx: &PlanCtx,
@@ -185,7 +185,7 @@ pub(crate) fn held_line(
     kept_nowhere
 }
 
-/// The open card of a plan (`docs/BACKUP-FLOW.md` §17.1): its lists, then
+/// The open card of a plan (`docs/BACKUP-FLOW.md` §15.1): its lists, then
 /// Continue to the card after it. The plan's own card draws the map and
 /// its checks and leaves the way on to the caller. Returns its height.
 pub(crate) fn body(app: &View, ui: &mut Ui, ctx: &PlanCtx, q: u8, x: f32, y: f32, w: f32) -> f32 {
@@ -201,7 +201,7 @@ pub(crate) fn body(app: &View, ui: &mut Ui, ctx: &PlanCtx, q: u8, x: f32, y: f32
         if held {
             cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.plan_a_key_made_here) + 12.0;
         }
-        // The board (`docs/BACKUP-FLOW.md` §19), then Continue.
+        // The board (`docs/BACKUP-FLOW.md` §17), then Continue.
         cy += crate::board_screen::board(app, ui, x, cy, w);
     } else {
         match q {

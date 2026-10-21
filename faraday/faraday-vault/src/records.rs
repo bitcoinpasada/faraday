@@ -51,10 +51,10 @@ pub mod kind {
     /// package it signs for (`docs/APK-SIGNING.md` §3).
     pub const APK_KEY: u8 = 12;
     /// A share of a multisig wallet's description, some keys left off
-    /// (`docs/BACKUP-FLOW.md` §17.6).
+    /// (`docs/BACKUP-FLOW.md` §15.6).
     pub const WALLET_SHARE: u8 = 13;
     /// A key's BIP-39 passphrase kept without the key's words, in a vault
-    /// that does not hold them (`docs/BACKUP-FLOW.md` §19.12 item 4).
+    /// that does not hold them (`docs/BACKUP-FLOW.md` §17.12 item 4).
     pub const PASSPHRASE: u8 = 14;
 }
 

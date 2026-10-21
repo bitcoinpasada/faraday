@@ -14,7 +14,7 @@
 //! the backup flow's, while a flow on screen uses sticks: the boot pill,
 //! then a pill per stick in the flow's order, lit only while the stick in reads as that one, and
 //! no press, since a real stick is put in by hand (`docs/BACKUP-FLOW.md`
-//! §18).
+//! §16).
 
 use crate::backup_flow::{Purpose, Step};
 use crate::drawing::View;

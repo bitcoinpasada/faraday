@@ -411,7 +411,7 @@ fn changing_the_plan_after_an_edit_opens_the_cards_with_the_edit_kept() {
     let edited = app.backup.as_ref().unwrap().answers.map.clone();
     assert!(edited.is_some());
     // The plan's cards show the map as it is: nothing is replaced, so
-    // nothing is asked (`docs/BACKUP-FLOW.md` §17.2).
+    // nothing is asked (`docs/BACKUP-FLOW.md` §15.2).
     // The chart's Change the plan goes straight to the plan.
     open(&mut app, press, Target::Wallet);
     let go = Action::Chart(C::Do(press, Step::Plan));
@@ -667,7 +667,7 @@ fn in_an_open_vaults_view_a_change_is_kept_in_that_vault() {
 
 /// Back up's plan as preset `k` (by `Preset::ALL`) fills it over a place
 /// per key, two for a single key: as a plan saved before plans kept at
-/// most one place per key has it (`docs/BACKUP-FLOW.md` §19.19).
+/// most one place per key has it (`docs/BACKUP-FLOW.md` §17.19).
 fn preset_saved(app: &mut Faraday, k: u8) {
     let w = app.backup.as_ref().unwrap().wallet;
     let shape = app.plan_shape_now(w);

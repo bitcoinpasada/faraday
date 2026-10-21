@@ -256,11 +256,11 @@ pub enum Target {
     /// The stick of files (a wallet's seed files).
     Files,
     /// The stick of files a place keeps: a wallet's seed files and public
-    /// files kept there (`docs/BACKUP-FLOW.md` §17.2). Named after step 2
+    /// files kept there (`docs/BACKUP-FLOW.md` §15.2). Named after step 2
     /// and written at step 6 in its place's turn, as the stick of files is.
     PlaceFiles(usize),
     /// A further stick at place `p` like an earlier one there
-    /// (`docs/BACKUP-FLOW.md` §19.4, §19.12 item 7): another stick of
+    /// (`docs/BACKUP-FLOW.md` §17.4, §17.12 item 7): another stick of
     /// vault `v` (`Some(v)`), or another stick of files (`None`), the
     /// `n`th of its kind there counting from 0 (so `n` ≥ 1; the first is
     /// [`Target::PlaceVault`] or [`Target::PlaceFiles`]). A wallet's map
@@ -399,7 +399,7 @@ pub struct Plan {
     /// The plan names a stick of public files of its own.
     pub public: bool,
     /// The places that keep a stick of files of their own
-    /// (`docs/BACKUP-FLOW.md` §17.2).
+    /// (`docs/BACKUP-FLOW.md` §15.2).
     pub place_files: Vec<usize>,
     /// Which stick carries the public files.
     pub public_on: PublicOn,
@@ -471,7 +471,7 @@ impl Plan {
                 out.push(Target::Place(p));
             } else if let Some(vs) = self.places.get(p) {
                 // A vault named twice at a place is kept there on two
-                // sticks (a wallet's map, `docs/BACKUP-FLOW.md` §19.12
+                // sticks (a wallet's map, `docs/BACKUP-FLOW.md` §17.12
                 // item 7).
                 for (k, &v) in vs.iter().enumerate() {
                     let n = vs[..k].iter().filter(|&&u| u == v).count();
@@ -529,7 +529,7 @@ impl Plan {
 }
 
 /// Costs what `of` costs. The flow's plan for a wallet, from the map
-/// its answers draw (`docs/BACKUP-FLOW.md` §2, §10.2, §19.4): a place
+/// its answers draw (`docs/BACKUP-FLOW.md` §2, §10.2, §17.4): a place
 /// for each place of the map, keeping a stick for each stick there that
 /// carries a vault (a vault named once per stick of it, so a place may
 /// keep one vault on two sticks); a vault for each vault number the map
@@ -585,7 +585,7 @@ pub fn plan_of_on(a: &crate::plan::Answers, m: &crate::plan::Mapped) -> Plan {
     let public_any = crate::plan::public_stick_on(a, m);
     // The stick of public files is read on an online computer: a plain
     // seed file never shares it by default, however the plan keeps the
-    // description (`docs/BACKUP-FLOW.md` §16, a default the owner may
+    // description (`docs/history/BACKUP-FLOW-LOG.md` §16, a default the owner may
     // change). Public files beside an encrypted vault copy are allowed.
     let (public_on, public_at) = match with_wallet {
         Some(p) if public_any => (PublicOn::Place, p),
@@ -605,7 +605,7 @@ pub fn plan_of_on(a: &crate::plan::Answers, m: &crate::plan::Mapped) -> Plan {
 }
 
 /// The flow's stick for stick `s` at place `p` of a wallet's map
-/// `sticks` (`docs/BACKUP-FLOW.md` §19.4), as [`plan_of`] names it: the
+/// `sticks` (`docs/BACKUP-FLOW.md` §17.4), as [`plan_of`] names it: the
 /// place's only stick with a vault, [`Target::Place`]; else its vault's
 /// first stick there, [`Target::PlaceVault`], and a later one
 /// [`Target::Another`]; a stick with no vault, the place's first stick of
@@ -703,7 +703,7 @@ pub enum Problem {
     /// The copy did not check.
     NotChecked,
     /// This file, written again once, still did not read back as it was
-    /// meant (`docs/BACKUP-FLOW.md` §19.12 item 10).
+    /// meant (`docs/BACKUP-FLOW.md` §17.12 item 10).
     NoReadBack(String),
     /// Pulled before the copy was checked.
     Pulled,
@@ -823,10 +823,10 @@ pub struct Live {
     /// Two sticks are in.
     pub crowd: bool,
     /// A wallet's plan card open, by [`crate::qstep`]
-    /// (`docs/BACKUP-FLOW.md` §17).
+    /// (`docs/BACKUP-FLOW.md` §15).
     pub plan_q: Option<u8>,
     /// The board of the plan card: the chip held and how
-    /// (`docs/BACKUP-FLOW.md` §19.12 item 1).
+    /// (`docs/BACKUP-FLOW.md` §17.12 item 1).
     pub board: crate::board::BoardState,
 }
 
@@ -889,14 +889,14 @@ pub struct WalletFlow {
     /// the vault's salt: `k{fp}` a key's record of its words alone,
     /// `p{fp}` one with its passphrase, `w{sum}` a
     /// wallet's description, `s{sum}:{n}` a wallet's share. The round
-    /// takes none of it out (`docs/BACKUP-FLOW.md` §17). Never a secret.
+    /// takes none of it out (`docs/BACKUP-FLOW.md` §15). Never a secret.
     pub before: Vec<([u8; 32], Vec<String>)>,
     /// The keys, by fingerprint, another wallet's record in each vault
     /// names, by the vault's salt: the round takes none of them out.
     pub others: Vec<([u8; 32], Vec<String>)>,
     /// At the lock the plan kept the description, a sheet or a share, on
     /// paper or as files: whole or in shares, and the keys left off each
-    /// share, are fixed from then on (`docs/BACKUP-FLOW.md` §17).
+    /// share, are fixed from then on (`docs/BACKUP-FLOW.md` §15).
     pub pieces: bool,
     /// Each seed's fingerprint without its passphrase, as text, for the
     /// round to find a record of the same words; empty where unknown.
@@ -913,7 +913,7 @@ pub struct WalletFlow {
     /// secret, so the setup is picked up where it was.
     pub again: Option<Again>,
     /// Each picture the write step puts on a stick, by its name, with what
-    /// it is read back against (`docs/BACKUP-FLOW.md` §19.12 item 10).
+    /// it is read back against (`docs/BACKUP-FLOW.md` §17.12 item 10).
     /// Made at the lock, where the pictures are. Nothing in it is derived
     /// from a seed or a passphrase: a SeedQR is named by its key's
     /// fingerprint only.

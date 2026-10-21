@@ -1,5 +1,8 @@
 # BitLocker guard: acceptance runs
 
+**Kind:** History
+**Status:** Superseded by `docs/DECISIONS.md` F33; the Starter has no BitLocker step
+
 **Superseded** by `docs/DECISIONS.md` F33 (owner, 2026-10-14): the
 Starter has no BitLocker step, so there is no guard to accept, and runs
 1 to 4, 6 and 8 test code that batch F33a removes (`docs/STARTER.md`

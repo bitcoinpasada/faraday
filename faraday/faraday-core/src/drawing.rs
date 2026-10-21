@@ -61,7 +61,7 @@ pub(crate) struct Drawing {
     /// `backup_public_names_for` per wallet, for the backup's own answers.
     pub public_names: RefCell<Vec<(usize, Vec<String>)>>,
     /// The backup board as the frame draws it
-    /// ([`crate::Faraday::board_view_now`], `docs/BACKUP-FLOW.md` §19).
+    /// ([`crate::Faraday::board_view_now`], `docs/BACKUP-FLOW.md` §17).
     pub board: OnceCell<Option<std::rc::Rc<crate::board::BoardView>>>,
     /// What Create's Keys card offers from the vaults
     /// ([`View::create_vaults`], `docs/history/NEW-WALLET.md` §16.1).

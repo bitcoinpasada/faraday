@@ -28,7 +28,7 @@ impl Faraday {
     pub(crate) fn typing_target(&self) -> Option<Action> {
         use vaults::Focus as F;
         // A place's name on Back up's plan or a flow's plan card
-        // (`docs/BACKUP-FLOW.md` §19.18).
+        // (`docs/BACKUP-FLOW.md` §17.18).
         if (self.screen == Screen::Backup
             || (self.screen == Screen::BackupFlow && self.vaults.focus.is_none()))
             && let Some(p) = self.backup.as_ref().and_then(|b| b.naming)

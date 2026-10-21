@@ -1,8 +1,11 @@
 # Faraday — plan
 
+**Kind:** History
+**Status:** Superseded; the current docs are listed in `docs/README.md`
+
 (Formerly openfaraday; renamed 2026-10-04.)
 
-**Status:** draft v0.1 · 2026-10-04 · decisions agreed with the owner in
+**As written:** draft v0.1 · 2026-10-04 · decisions agreed with the owner in
 conversation; nothing below is built yet.
 
 Faraday is an offline key appliance that boots from a USB stick on an
