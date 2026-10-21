@@ -76,9 +76,6 @@ pub struct Key {
     /// [`master_id`] of the master key, worked out once when the key is
     /// made; the same on every network.
     master_id: [u8; 32],
-    /// The master key's fingerprint, worked out once when the key is made.
-    /// Public, and the same on every network.
-    fp: Fingerprint,
     /// What the person called it.
     pub label: String,
     /// The words it was loaded from, for the backup's copy-by-hand step.
@@ -112,7 +109,7 @@ enum PublicAsk {
 
 impl Key {
     /// Makes a key; costs an elliptic-curve multiplication with the master
-    /// private key, for its fingerprint.
+    /// private key, for its [`master_id`].
     pub fn new(
         master: MasterKey,
         label: String,
@@ -122,12 +119,10 @@ impl Key {
         passphrase: Option<zeroize::Zeroizing<String>>,
     ) -> Key {
         crate::work::count(crate::work::Work::MasterKey);
-        let fp = master.fingerprint();
         let master_id = master_id(&master);
         Key {
             master,
             master_id,
-            fp,
             label,
             words,
             language,
@@ -203,9 +198,9 @@ impl Key {
         self.master_id
     }
 
-    /// The master key's fingerprint; a lookup, kept when the key was made.
+    /// The master key's fingerprint; a lookup, kept by the master key.
     pub fn fingerprint(&self) -> Fingerprint {
-        self.fp
+        self.master.fingerprint()
     }
 
     /// Moves the master key to `network`; the fingerprint is the same on

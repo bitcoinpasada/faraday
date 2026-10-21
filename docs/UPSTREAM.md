@@ -143,6 +143,14 @@ Since the fork:
   `osk-ui`'s `Canvas::frost` (blurred) and `snapshot`, `snapshot_into`,
   `restore`, `blend_from` (a whole canvas copied), with `osk-ui` now
   depending on `osk-crypto`. Nothing computed changes.
+- `core/osk-bip/src/keys.rs` (2026-10-21; `docs/COMPUTE.md` §5.1):
+  `MasterKey` keeps its fingerprint, worked out once when the key is
+  made, in its blinded context; `for_network` copies it, `fingerprint()`
+  returns it, and `derive()` takes the derived key's master fingerprint
+  from it. Why: one elliptic-curve multiplication saved per fingerprint
+  asked and per derivation, in both apps; Faraday's `wallet::Key` no
+  longer keeps its own copy. Same output as before; the BIP-32 vectors
+  pass unchanged.
 
 ## 4. Watching upstream
 
