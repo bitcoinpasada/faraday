@@ -2295,6 +2295,12 @@ people use.
   refused, never converted silently.
 - **PSBT version 2** is read, shown, signed and returned in version 2;
   it offers no choice.
+- **BIP 129 records** (owner, confirmed 2026-10-20): an all-upper-case
+  bech32 first address is read, as BIP 173 requires of a reader; and a
+  `/**` template with "No path restrictions", which BIP 129 does not
+  define, is read as `/0/*,/1/*` because Sparrow writes and reads it so.
+  This is the one place Faraday accepts more than a standard requires
+  (F65); the first-address check still decides.
 - The Back up plan's software question is unchanged.
 
 ### F65 OpenSigner's code taken in house: a soft fork (2026-10-20)
