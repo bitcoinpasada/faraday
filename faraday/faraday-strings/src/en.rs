@@ -7839,6 +7839,20 @@ pub struct Strings {
     pub wallet_its_first_address: &'static str,
     /// Error in `coldcard_export`.
     pub wallet_no_single_sig: &'static str,
+    /// Error in `slip132::Mismatch::text`. `{}`: the key, shortened; the
+    /// script type its version names; the script type around it.
+    pub wallet_slip132_mismatch: &'static str,
+    /// Text in `slip132::Script::name`.
+    pub wallet_slip132_native_multisig: &'static str,
+    /// Text in `slip132::Script::name`.
+    pub wallet_slip132_nested_multisig: &'static str,
+    /// Text in `slip132::Script::name`.
+    pub wallet_slip132_legacy_multisig: &'static str,
+    /// Text in `slip132::Script::name`.
+    pub wallet_slip132_silent_payments: &'static str,
+    /// Text in `slip132::Script::name`: a descriptor of no type a
+    /// SLIP-132 version names.
+    pub wallet_slip132_other: &'static str,
     /// Text in `collect_line`. `{}`: `missing`, `if collected == 0 { "" } else { " mor…`, `if missing == 1 { EN.wallet_signature…`.
     pub wallet_collect: &'static str,
     /// Text in `collect_line`, after a space.
@@ -12321,6 +12335,12 @@ pub static EN: Strings = Strings {
     wallet_no_xfp: "no xfp",
     wallet_its_first_address: "its first {} address is not {}",
     wallet_no_single_sig: "no single-sig account",
+    wallet_slip132_mismatch: "{} is a {} key; this wallet is {}",
+    wallet_slip132_native_multisig: "native SegWit multisig",
+    wallet_slip132_nested_multisig: "nested SegWit multisig",
+    wallet_slip132_legacy_multisig: "legacy multisig",
+    wallet_slip132_silent_payments: "silent payments",
+    wallet_slip132_other: "another script type",
     wallet_collect: "Collect {}{} {}",
     wallet_more: "more",
     wallet_signature: "signature",

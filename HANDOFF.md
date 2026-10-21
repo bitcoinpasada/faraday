@@ -1261,7 +1261,8 @@ as possible before the next build.
     logo centred. Create's key slots take Coldcard's, Passport's and
     Unchained's cosigner key files and the generic export's BIP-48 and
     BIP-45 accounts (`create::read_keys`, `key_for`: the account the
-    kind needs, SLIP-132 keys made `xpub`/`tpub` by `wallet::plain_xpub`);
+    kind needs, SLIP-132 keys made `xpub`/`tpub`, since 2026-10-20 only where the
+    version agrees with the path, by `faraday_intake::slip132`);
     the slot offers any file with such a key. A wallet reads from a
     receive and a change descriptor (one per line, or Core's
     `listdescriptors`, multisig first, else BIP-84, 86, 49, 44), a receive

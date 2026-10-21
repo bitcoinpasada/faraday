@@ -43,7 +43,7 @@ the files and codes they write.
 | Bitcoin Core | PSBT in, finished transaction or signed PSBT out | yes | yes | Core, end to end |
 | Sparrow, Liana, Nunchuk, BlueWallet, Keeper | Descriptor with `<0;1>` | yes | yes | Sparrow's and Coldcard Mk4's files |
 | Coldcard, Sparrow, Electrum, Nunchuk, BlueWallet, Keystone, Jade, Keeper | Coldcard multisig setup `.txt` (one derivation, or one per key) | yes | yes | Coldcard's, Sparrow's and Electrum's files |
-| Nunchuk, Sparrow, Coldcard, Keeper | BIP 129 descriptor record | yes, first address checked | yes | Nunchuk's and Sparrow's records |
+| Nunchuk, Sparrow, Coldcard, Keeper | BIP 129 descriptor record, also with an upper-case bech32 address or `No path restrictions` (§5 I3) | yes, first address checked | yes | Nunchuk's and Sparrow's records |
 | Nunchuk, Coldcard | BIP 129 signer record (a cosigner's key) | yes, signature checked | yes | `tests/bsms.rs` |
 | Coldcard, Passport, Nunchuk, Sparrow | Coldcard's generic account export `.json`, as a single-sig wallet | yes (BIP-84, else 86, 49, 44), `first` checked | — | Coldcard Mk4, Coldcard Q, Nunchuk, Sparrow |
 | Sparrow, Specter | Specter Desktop wallet `.json` with a `<0;1>` descriptor | yes | yes | Faraday's own read back; not against Specter |
@@ -58,6 +58,8 @@ the files and codes they write.
 | Sparrow, Bitcoin Core | A receive and a change descriptor, one per line or in `listdescriptors` | yes, as `<0;1>` | — | Sparrow's files; Core's `listdescriptors`, first address against Core's |
 | Jade, Keystone | A receive descriptor alone (`/0/*`) | yes, as `<0;1>` | — | Jade's file, BIP-84's published address |
 | Specter Desktop, Sparrow | Wallet `.json` whose keys carry no derivation | yes, as `<0;1>` | — | Specter's files; Sparrow's Specter and Coldcard exports of one wallet read as one |
+| Keystone | A change descriptor alone (`/1/*`) | yes, as `<0;1>` | — | Keystone's file |
+| Casa, Specter DIY, BlueWallet, Keystone, Electrum | SLIP-132 keys (`ypub`, `zpub`, `Ypub`, `Zpub`, `upub`, `vpub`, `Upub`, `Vpub`) in a descriptor, on a key line or bare, checked against the script or path (§5 I1) | yes; a `zpub`/`vpub` or `ypub`/`upub` alone as its single-key wallet | — | Casa's descriptor, Specter DIY's keystore, Keystone's, BIP-84's account as a zpub at its published first address |
 
 Ledger, Trezor and BitBox02 sign over USB through a coordinator; they
 reach Faraday as keys inside the wallet files above, which work.
@@ -84,10 +86,9 @@ and descriptors that are not multipath (§2's last four rows).
 In the order they would matter to a person bringing files from those
 wallets.
 
-1. **SLIP-132 keys** (`zpub`, `Zpub`, `vpub`, `Ypub`) in a plain key
-   file or inside a descriptor: Specter DIY's and BlueWallet's cosigner
-   exports, Casa's descriptor, Keystone's export, Electrum's keys.
-   Coldcard's JSON key files, which write them, are read.
+1. ~~**SLIP-132 keys**~~ Read since 2026-10-20 (§5 I1): in a
+   descriptor, on a key line and bare, each checked against its script
+   or path.
 2. **Caravan and Unchained wallet configs** (`extendedPublicKeys`,
    `quorum`, `addressType`): neither read nor written.
 3. **Electrum.** Electrum takes no descriptor, BIP 129 record or Specter
@@ -102,8 +103,9 @@ wallets.
    load.
 6. **Bitcoin Core before 29** takes no multipath descriptor; Faraday's
    import file is one multipath request.
-7. **BIP 129 records** with an upper-case address or "No path
-   restrictions" are refused by `osk_bip::bsms`. Neither is in BIP 129's
+7. ~~**BIP 129 records**~~ Read since 2026-10-20 (§5 I3), by Faraday
+   before `osk_bip::bsms`, which still refuses them: records with an
+   upper-case address or "No path restrictions". Neither is in BIP 129's
    own examples (its one "No path restrictions" example, Vector A, is
    over plain public keys); both are Sparrow's test records
    `multisig-4.bsms` and `multisig-6.bsms`, which Sparrow accepts.
@@ -145,8 +147,8 @@ around the key, and in a key file with the purpose in its path: 84′ →
 `z`/`v`; 49′ → `y`/`u`; 48′/…/2′ → `Z`/`V`; 48′/…/1′ → `Y`/`U`; 44′, 45′,
 86′ and 352′ → `x`/`t` only. A key that disagrees is refused
 (`wallet_slip132_mismatch`, "{} is a {} key; this wallet is {}"); nothing
-is converted silently. This replaces `wallet::plain_xpub`, which converts
-Coldcard's flat fields unchecked today. A key line or bare key with no
+is converted silently. This replaced `wallet::plain_xpub`, which
+converted Coldcard's flat fields unchecked until 2026-10-20. A key line or bare key with no
 descriptor reads as the single-key wallet its version names; as a
 cosigner key, `key_for` takes it.
 

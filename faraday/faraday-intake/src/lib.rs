@@ -14,6 +14,7 @@
 //! wherever it has been.
 
 pub mod secret_buf;
+pub mod slip132;
 pub mod wallet;
 
 use osk_bip::bip39::{Language, Mnemonic};

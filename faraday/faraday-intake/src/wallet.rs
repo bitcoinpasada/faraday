@@ -6,6 +6,7 @@
 //! (`faraday-strings`). Moved here from `faraday-core`'s `wallet` module,
 //! which re-exports it.
 
+use crate::slip132;
 use faraday_strings::{EN, fill};
 use osk_bip::keys::Network;
 use osk_bip::policy::WalletPolicy;
@@ -151,44 +152,120 @@ fn read_wallet_as_written(text: &str) -> Result<WalletPolicy, Refusal> {
     if osk_bip::coldcard::looks_like_export(text) {
         return coldcard_export(text);
     }
+    let plain = |d: &str| slip132::plain_descriptor(d).map_err(|m| Refusal::NotAWallet(m.text()));
     // A wallet .json (Specter Desktop's, which Sparrow also writes and
     // reads) or Bitcoin Core's `listdescriptors`: the descriptor fields.
     if text.trim_start().starts_with('{') {
         let d = json_string(text, "descriptor")
             .or_else(|| json_string(text, "desc"))
             .ok_or_else(|| Refusal::NotAWallet(EN.wallet_a_json_file.into()))?;
-        return WalletPolicy::parse_any(&d).or_else(|e| {
+        return WalletPolicy::parse_any(&plain(&d)?).or_else(|e| {
             let mut all = json_strings(text, "descriptor");
             all.extend(json_strings(text, "desc"));
+            let all = all
+                .iter()
+                .map(|d| plain(d.as_str()))
+                .collect::<Result<Vec<_>, _>>()?;
             multipath(&all).ok_or_else(|| Refusal::NotAWallet(e.to_string()))
         });
     }
-    let body: String = text
-        .lines()
-        .map(str::trim)
-        .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        .collect::<Vec<_>>()
-        .join("");
     // BIP 129's descriptor record: read whole, its first address checked
     // against the wallet it states.
     if osk_bip::bsms::looks_like_record(text) && !osk_bip::bsms::is_signer_record(text) {
-        return osk_bip::bsms::DescriptorRecord::parse(text)
+        return osk_bip::bsms::DescriptorRecord::parse(&bsms_as_upstream_reads(text))
             .map(|r| r.policy)
             .map_err(|e| Refusal::NotAWallet(fill(EN.wallet_bsms, &[&format!("{e:?}")])));
     }
     if osk_bip::multisig_config::looks_like_config(text) {
-        return osk_bip::multisig_config::parse(text)
-            .map_err(|e| Refusal::NotAWallet(format!("{e:?}")));
+        let policy = osk_bip::multisig_config::parse(text)
+            .map_err(|e| Refusal::NotAWallet(format!("{e:?}")))?;
+        return config_keys_agree(text, &policy).map(|()| policy);
     }
-    WalletPolicy::parse_any(&body).or_else(|e| {
-        let lines: Vec<String> = text
-            .lines()
-            .map(str::trim)
-            .filter(|l| !l.is_empty() && !l.starts_with('#'))
-            .map(String::from)
-            .collect();
-        multipath(&lines).ok_or_else(|| Refusal::NotAWallet(e.to_string()))
-    })
+    let written: Vec<&str> = text
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .collect();
+    // One key alone, `[fingerprint/path]vpub…` (Specter DIY) or the key
+    // bare, whose version names a single-key script: that wallet. A key
+    // whose version names none (`xpub`, `Zpub`) is no wallet on its own.
+    if let [line] = written[..]
+        && let Some(read) = slip132::key_line(line)
+    {
+        let k = read.map_err(|m| Refusal::NotAWallet(m.text()))?;
+        let wrap = match k.named {
+            Some(slip132::Script::NativeSegwit) => Some("wpkh(K/<0;1>/*)"),
+            Some(slip132::Script::NestedSegwit) => Some("sh(wpkh(K/<0;1>/*))"),
+            _ => None,
+        };
+        if let Some(wrap) = wrap {
+            return WalletPolicy::parse_any(&wrap.replace('K', &k.text))
+                .map_err(|e| Refusal::NotAWallet(e.to_string()));
+        }
+    }
+    let lines = written
+        .iter()
+        .map(|l| match slip132::key_line(l) {
+            Some(read) => read
+                .map(|k| k.text)
+                .map_err(|m| Refusal::NotAWallet(m.text())),
+            None => plain(l),
+        })
+        .collect::<Result<Vec<String>, _>>()?;
+    WalletPolicy::parse_any(&lines.concat())
+        .or_else(|e| multipath(&lines).ok_or_else(|| Refusal::NotAWallet(e.to_string())))
+}
+
+/// A multisig config's SLIP-132 keys checked against the wallet read from
+/// it (`osk_bip::multisig_config` takes them without asking): each
+/// version's script type must be the wallet's. Costs a base58 decode per
+/// line that names such a key.
+fn config_keys_agree(text: &str, policy: &WalletPolicy) -> Result<(), Refusal> {
+    let around = slip132::Script::of_descriptor(&policy.to_descriptor());
+    for line in text.lines() {
+        let Some((_, value)) = line.split_once(':') else {
+            continue;
+        };
+        if !slip132::mentions(value) {
+            continue;
+        }
+        if let Some(slip132::Key {
+            named: Some(named), ..
+        }) = slip132::decode(value)
+            && !slip132::agrees(Some(named), around)
+        {
+            let m = slip132::Mismatch {
+                key: value.trim().to_string(),
+                named,
+                around,
+            };
+            return Err(Refusal::NotAWallet(m.text()));
+        }
+    }
+    Ok(())
+}
+
+/// A BIP 129 descriptor record in the form `osk_bip::bsms` reads, for two
+/// that Sparrow writes and accepts and it refuses (`docs/INTEROP.md` §5
+/// I3): an address line all in upper case, bech32 or bech32m (`BC1…`,
+/// `TB1…`, `BCRT1…`), is lower-cased, as bech32 allows; a template (`/**`)
+/// whose paths line is `No path restrictions` reads as `/0/*,/1/*`. A
+/// base58 address is never touched: its case is part of it. The first
+/// address is checked on the result as on any record.
+fn bsms_as_upstream_reads(text: &str) -> String {
+    let mut lines: Vec<String> = text.lines().map(String::from).collect();
+    if let [_, descriptor, paths, address, ..] = &mut lines[..] {
+        if paths.trim() == osk_bip::bsms::NO_PATH_RESTRICTIONS && descriptor.contains("/**") {
+            *paths = String::from("/0/*,/1/*");
+        }
+        let a = address.trim();
+        if ["BC1", "TB1", "BCRT1"].iter().any(|p| a.starts_with(p))
+            && !a.bytes().any(|b| b.is_ascii_lowercase())
+        {
+            *address = a.to_ascii_lowercase();
+        }
+    }
+    lines.join("\n")
 }
 
 /// Descriptors other wallets write that are not one multipath
@@ -199,7 +276,8 @@ fn read_wallet_as_written(text: &str) -> Result<WalletPolicy, Refusal> {
 ///   which lists one pair per kind: the wallet is the multisig or
 ///   miniscript one if there is one, else BIP-84's, 86's, 49's, 44's,
 ///   the order OpenSigner prefers);
-/// - a receive descriptor alone, `/0/*` (Jade's and Keystone's export);
+/// - a receive descriptor alone, `/0/*` (Jade's export), or a change
+///   descriptor alone, `/1/*` (Keystone's);
 /// - one descriptor whose keys carry no derivation (Specter Desktop's
 ///   wallet .json, and the one Sparrow writes for Specter);
 /// - any of these after a label, `Receive: wpkh(…)` (Sparrow).
@@ -221,6 +299,14 @@ fn multipath(descs: &[String]) -> Option<WalletPolicy> {
         .filter(|d| plain.len() == 1 || plain.contains(&d.replace("/0/*", "/1/*")))
         .map(|d| d.replace("/0/*", "/<0;1>/*"))
         .collect();
+    // A change descriptor alone (Keystone's export): the same wallet.
+    if let [only] = &plain[..]
+        && wallets.is_empty()
+        && only.contains("/1/*")
+        && !only.contains("/0/*")
+    {
+        wallets.push(only.replace("/1/*", "/<0;1>/*"));
+    }
     if plain.len() == 1 && wallets.is_empty() {
         wallets.extend(with_chains(&plain[0]));
     }

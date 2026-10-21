@@ -277,8 +277,9 @@ pub fn default_m(n: usize) -> usize {
 
 /// A cosigner's account key as typed, pasted or scanned: `[fingerprint/
 /// path]xpub` or the xpub alone, in any of its SLIP-132 forms (`zpub`,
-/// `Zpub`, `tpub`, `Vpub`, …), with or without a `/<0;1>/*` tail.
-/// Returns it as a descriptor writes it.
+/// `Zpub`, `tpub`, `Vpub`, …) whose script type agrees with the purpose
+/// in its path (`slip132::key_line`), with or without a `/<0;1>/*` tail.
+/// Returns it as a descriptor writes it. Costs a base58 decode.
 pub fn cosigner_key(text: &str) -> Option<String> {
     let t: String = text.chars().filter(|c| !c.is_whitespace()).collect();
     let t = t.split_once("/<").map_or(t.as_str(), |(a, _)| a);
@@ -286,19 +287,8 @@ pub fn cosigner_key(text: &str) -> Option<String> {
         .strip_suffix("/0/*")
         .or_else(|| t.strip_suffix("/*"))
         .unwrap_or(t);
-    let (origin, xpub) = match t.strip_prefix('[') {
-        Some(rest) => {
-            let (o, x) = rest.split_once(']')?;
-            (Some(o), x)
-        }
-        None => (None, t),
-    };
-    let plain = crate::wallet::plain_xpub(xpub)?;
-    let text = match origin {
-        Some(o) => format!("[{o}]{plain}"),
-        None => plain,
-    };
-    osk_bip::policy::PolicyKey::parse(&text)
+    let line = faraday_intake::slip132::key_line(t)?.ok()?;
+    osk_bip::policy::PolicyKey::parse(&line.text)
         .ok()
         .map(|k| k.key_text())
 }

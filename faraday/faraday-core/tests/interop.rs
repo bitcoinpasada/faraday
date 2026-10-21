@@ -390,3 +390,143 @@ fn create_offers_a_coldcard_export_for_a_cosigners_slot_and_takes_its_multisig_k
         other => panic!("slot 2 is {other:?}"),
     }
 }
+
+// SLIP-132 keys (`docs/INTEROP.md` §5 I1).
+
+/// BIP-84's published account key for the `abandon … about` seed, which
+/// SLIP-0132 writes as a zpub; BIP-84's first receive address for it.
+const BIP84_ZPUB: &str = "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs";
+const BIP84_FIRST: &str = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu";
+
+/// The keys a descriptor lists, as written: what follows each `]`.
+fn written_keys(text: &str) -> Vec<String> {
+    text.split(']')
+        .skip(1)
+        .map(|k| k.split('/').next().unwrap().to_string())
+        .collect()
+}
+
+#[test]
+fn casas_descriptor_of_ypubs_loads_as_its_nested_segwit_multisig() {
+    let w = wallet("bluewallet/casa-descriptor.txt");
+    assert!(
+        w.to_descriptor().starts_with("sh(wsh(sortedmulti(3,")
+            || w.to_text().starts_with("sh(wsh(sortedmulti(3,"),
+        "{}",
+        w.to_descriptor()
+    );
+    assert_eq!(w.keys().len(), 5);
+    assert_eq!(w.quorum().map(|(m, _)| m), Some(3));
+    assert!(w.address_at(Network::Mainnet, false, 0).is_ok());
+}
+
+#[test]
+fn specter_diys_keystore_fills_a_native_segwit_slot_and_no_multisig_one() {
+    let text = file("sparrow/specter-diy-keystore.txt");
+    let key = key_for(NewKind::NativeSegwit, &text).unwrap();
+    assert!(
+        key.starts_with("[b317ec86/84h/1h/0h]tpub") || key.starts_with("[b317ec86/84'/1'/0']tpub"),
+        "{key}"
+    );
+    assert!(key_for(NewKind::Multi, &text).is_none());
+    assert!(key_for(NewKind::NestedSegwit, &text).is_none());
+    // On its own the key is the testnet BIP-84 wallet it names.
+    let w = wallet("sparrow/specter-diy-keystore.txt");
+    assert!(w.to_descriptor().starts_with("wpkh([b317ec86/84"));
+    assert!(w.address_at(Network::Testnet, false, 0).is_ok());
+}
+
+#[test]
+fn keystones_change_descriptor_with_an_upper_case_fingerprint_reads_as_its_wallet() {
+    let w = wallet("sparrow/keystone-singlesig-keystore-1.txt");
+    let d = w.to_descriptor().to_lowercase();
+    assert!(d.starts_with("wpkh([5271c071/84"), "{d}");
+    assert!(d.contains("/<0;1>/*"), "{d}");
+    assert!(w.address_at(Network::Mainnet, false, 0).is_ok());
+    assert!(w.address_at(Network::Mainnet, true, 0).is_ok());
+}
+
+#[test]
+fn bip_84s_account_as_a_zpub_has_bip_84s_first_address() {
+    let bare = read_wallet(BIP84_ZPUB).unwrap();
+    assert_eq!(first(&bare, Network::Mainnet), BIP84_FIRST);
+    let rooted = read_wallet(&format!("[73c5da0a/84h/0h/0h]{BIP84_ZPUB}")).unwrap();
+    assert_eq!(first(&rooted, Network::Mainnet), BIP84_FIRST);
+    // The same account as Jade writes it, in xpub form.
+    assert!(same(&rooted, &wallet("sparrow/jade-keystore.txt")));
+    let described =
+        read_wallet(&format!("wpkh([73c5da0a/84h/0h/0h]{BIP84_ZPUB}/<0;1>/*)")).unwrap();
+    assert!(same(&described, &rooted));
+}
+
+#[test]
+fn a_slip132_key_whose_version_disagrees_with_its_script_or_path_is_refused() {
+    let unchained = file("bluewallet/unchained.json");
+    let zpub = unchained
+        .split('"')
+        .find(|t| t.starts_with("Zpub"))
+        .unwrap();
+    let casa = written_keys(&file("bluewallet/casa-descriptor.txt"));
+    let (y1, y2) = (&casa[0], &casa[1]);
+    for (text, key) in [
+        (format!("wpkh([b68af6e4/48h/0h/0h/2h]{zpub}/<0;1>/*)"), zpub),
+        (
+            format!("wsh(multi(2,[35282ae3]{y1}/<0;1>/*,[1b373e31]{y2}/<0;1>/*))"),
+            y1.as_str(),
+        ),
+        (format!("tr({BIP84_ZPUB}/<0;1>/*)"), BIP84_ZPUB),
+        (
+            format!("sh(wpkh([73c5da0a/84h/0h/0h]{BIP84_ZPUB}/<0;1>/*))"),
+            BIP84_ZPUB,
+        ),
+        // A zpub on a BIP-49 path.
+        (format!("[73c5da0a/49h/0h/0h]{BIP84_ZPUB}"), BIP84_ZPUB),
+    ] {
+        // Refused by name: the refusal names the key it will not take.
+        let e = read_wallet(&text).expect_err(&text);
+        assert!(e.text().contains(&key[..8]), "{text}: {}", e.text());
+    }
+    // A key file whose zpub sits on another purpose's path gives no key.
+    let moved = file("sparrow/specter-diy-keystore.txt").replace("/84h/", "/49h/");
+    assert!(read_keys(&moved).is_empty());
+    assert!(key_for(NewKind::NestedSegwit, &moved).is_none());
+}
+
+// BIP 129 records Sparrow writes (`docs/INTEROP.md` §5 I3).
+
+#[test]
+fn sparrows_bsms_records_in_upper_case_or_without_path_restrictions_load_at_their_first_address() {
+    for path in [
+        "sparrow/bsms/multisig-4.bsms",
+        "sparrow/bsms/multisig-6.bsms",
+    ] {
+        let w = wallet(path);
+        assert!(
+            w.to_descriptor().starts_with("wsh(sortedmulti(2,"),
+            "{path}"
+        );
+        let stated = file(path).lines().nth(3).unwrap().trim().to_string();
+        assert_eq!(first(&w, Network::Mainnet), stated.to_lowercase(), "{path}");
+    }
+}
+
+#[test]
+fn bsms_records_sparrow_refuses_stay_refused() {
+    for n in [5, 7, 9, 11, 13, 14, 15, 17] {
+        let path = format!("sparrow/bsms/multisig-{n}.bsms");
+        assert!(read_wallet(&file(&path)).is_err(), "{path}");
+    }
+}
+
+#[test]
+fn a_bsms_records_base58_address_with_its_case_changed_is_refused() {
+    let text = file("sparrow/bsms/multisig-3.bsms");
+    let address = text.lines().nth(3).unwrap().trim();
+    assert!(read_wallet(&text).is_ok());
+    for changed in [address.to_uppercase(), address.to_lowercase()] {
+        assert!(
+            read_wallet(&text.replace(address, &changed)).is_err(),
+            "{changed}"
+        );
+    }
+}
