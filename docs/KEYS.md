@@ -56,9 +56,11 @@ references are from that commit.
   (`faraday-storage`'s `Boxes::Dir`). That is by design, and stays.
 
 Found along the way, and fixed in step 0 below:
-1. **Outbox gate bypasses.** Three sites skip `secrets::secret_unprotected`
-   and push a secret `Item` to the Outbox directly: `vault/out.rs:303`,
-   `backup_flow/wallet.rs:621` and `memory.rs:380`.
+1. **Outbox gate bypasses.** Two sites skip `secrets::secret_unprotected`
+   and push a secret `Item` to the Outbox directly: `vault/out.rs:303`
+   and `backup_flow/wallet.rs:621`. (A third, `memory.rs:380`, only
+   restores the secret flag on items already in the Outbox when the boxes
+   are loaded.)
 2. **Plain `String` copies of secrets:**
    - the words in `glance/sheet.rs:1267` and `vault/screen.rs`
      (`words_text`);
@@ -159,7 +161,8 @@ checks, and a timed late-flow session for steps 2 and 3 (SPEED §7).
 
 0. **Hygiene (in faraday-core, before the crate).**
    - Fix §1's five findings:
-     - the three Outbox bypasses go through one function;
+     - every secret reaches the Outbox through one function,
+       `Faraday::outbox_secret` (done);
      - the plain copies become `Zeroizing`, or borrow;
      - `Item`'s `Debug` prints names and sizes only;
      - the GPG seeds are wiped;

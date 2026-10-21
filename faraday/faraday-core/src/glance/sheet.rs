@@ -156,6 +156,9 @@ pub(crate) struct View {
     pub title: String,
     pub facts: Vec<(&'static str, String, Color)>,
     pub lines: Vec<(String, Color)>,
+    /// Lines that are a secret shown (a passphrase), wiped on drop,
+    /// drawn after `lines`.
+    pub secret_lines: Vec<(zeroize::Zeroizing<String>, Color)>,
     pub groups: Vec<(String, Vec<Row>)>,
     /// A field: its label, what it shows, and whether that is a hint.
     pub field: Option<(&'static str, String, bool)>,
@@ -172,6 +175,7 @@ impl View {
             title: title.into(),
             facts: Vec::new(),
             lines: Vec::new(),
+            secret_lines: Vec::new(),
             groups: Vec::new(),
             field: None,
             go: None,
@@ -1266,7 +1270,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     .and_then(|x| x.passphrase.as_ref())
             });
             match (shown, app.chart_work.reveal) {
-                (Some(p), true) => v.lines.push((p.to_string(), TEXT)),
+                (Some(p), true) => v.secret_lines.push((p.clone(), TEXT)),
                 (Some(_), false) => v.groups.push((
                     String::new(),
                     vec![row(
@@ -1344,6 +1348,9 @@ pub(crate) fn draw(app: &crate::drawing::View, ui: &mut Ui, w: f32, h: f32) {
             cy += crate::compact::kv(ui, x, cy, iw, label, value, *tone);
         }
         for (line, tone) in &v.lines {
+            cy += ui.wrap(x, cy, iw, tokens::LABEL, W::S, *tone, line) + tokens::GAP_SMALL;
+        }
+        for (line, tone) in &v.secret_lines {
             cy += ui.wrap(x, cy, iw, tokens::LABEL, W::S, *tone, line) + tokens::GAP_SMALL;
         }
         if let Some((label, text, hint)) = &v.field {

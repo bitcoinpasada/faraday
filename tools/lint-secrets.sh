@@ -2,15 +2,17 @@
 # Secret-hygiene lint for the core crates and the secret state in
 # faraday/.
 #
-# Rules, applied to every file under core/*/src/ and to the three files
-# moved from the app that was deleted (MOVED below):
+# Rules 1 and 2 are applied to every file under core/*/src/ and to every
+# file under faraday/faraday-core/src/; rule 3 only to the secret files
+# listed below:
 #   1. No output or logging macros: println!, eprintln!, print!, eprint!,
 #      dbg!, log::, tracing::. Tests that need to print live under tests/
 #      (integration tests), or use assert! only.
 #   2. No `#[derive(... Debug ...)]` on a type named Secret, Sealed,
 #      SessionKey, Mnemonic, MnemonicBytes, Seed, Entropy, MasterKey,
-#      DerivedKey, PinEntry or Session (checked on the item that follows
-#      the derive).
+#      DerivedKey, PinEntry, Session, Key or Item (checked on the item
+#      that follows the derive). Types of those names that hold no secret
+#      are excepted one by one in ALLOWED below.
 # Applied to the files that handle secret material, currently
 # core/faraday-crypto/src/sealed.rs (the session key and sealed values),
 # core/faraday-bip/src/bip39.rs (mnemonics, entropy, seeds),
@@ -62,10 +64,8 @@ report() {
     fi
 }
 
-MOVED="faraday/faraday-core/src/word_entry.rs faraday/faraday-core/src/quiz.rs faraday/faraday-core/src/grind.rs"
-
 src_files() {
-    { find core -path '*/src/*' -name '*.rs'; printf '%s\n' $MOVED; } | sort
+    { find core -path '*/src/*' -name '*.rs'; find faraday/faraday-core/src -name '*.rs'; } | sort
 }
 
 # Rule 1: output and logging macros.
@@ -74,14 +74,29 @@ report "output/logging macro in core source (rule 1)" \
 
 # Rule 2: Debug derives on secret types. Pair each derive with the item that
 # follows it (skipping other attributes and doc comments).
+#
+# These types carry the name of a secret type and hold none; each is
+# public data, and the exception is that file and name alone:
+#   slip132.rs Key         an extended public key, decoded
+#   fonts/mod.rs Key       a glyph cache key (family, size, code point)
+#   shell-api Key          a physical keyboard key
+#   backup_flow Sealed     the hash and name of a sealed vault file
+#   plan Seed              a seed as the plan sees it: name and flags
+#   plan Item              one line of the checklist
+ALLOWED="core/faraday-bip/src/slip132.rs:Key core/faraday-draw/src/fonts/mod.rs:Key core/faraday-shell-api/src/lib.rs:Key faraday/faraday-core/src/backup_flow/mod.rs:Sealed faraday/faraday-core/src/plan/mod.rs:Seed faraday/faraday-core/src/plan/mod.rs:Item"
 rule2() {
     for f in $(src_files); do
-        awk -v file="$f" '
+        awk -v file="$f" -v allowed="$ALLOWED" '
             /#\[derive\(/ { derive = $0; derive_line = NR; next }
             derive != "" && /^[[:space:]]*(#\[|\/\/)/ { next }
             derive != "" {
-                if (derive ~ /Debug/ && $0 ~ /(^|[^A-Za-z0-9_])(struct|enum)[[:space:]]+(Secret|Sealed|SessionKey|Mnemonic|MnemonicBytes|Seed|Entropy|MasterKey|DerivedKey|PinEntry|Session)([^A-Za-z0-9_]|$)/) {
-                    printf "%s:%d: %s\n", file, derive_line, derive
+                if (derive ~ /Debug/ && $0 ~ /(^|[^A-Za-z0-9_])(struct|enum)[[:space:]]+(Secret|Sealed|SessionKey|Mnemonic|MnemonicBytes|Seed|Entropy|MasterKey|DerivedKey|PinEntry|Session|Key|Item)([^A-Za-z0-9_]|$)/) {
+                    line = $0
+                    sub(/^.*(struct|enum)[[:space:]]+/, "", line)
+                    sub(/[^A-Za-z0-9_].*$/, "", line)
+                    if (index(" " allowed " ", " " file ":" line " ") == 0) {
+                        printf "%s:%d: %s\n", file, derive_line, derive
+                    }
                 }
                 derive = ""
             }

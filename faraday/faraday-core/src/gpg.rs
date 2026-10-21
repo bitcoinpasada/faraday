@@ -12,7 +12,7 @@ use faraday_crypto::work::Compute;
 use faraday_pgp::{Armor, Hash, Key, Reason, armor};
 use faraday_vault::Record;
 use faraday_vault::records::kind;
-use zeroize::{Zeroize, Zeroizing};
+use zeroize::Zeroizing;
 
 use crate::backup_flow::steps::Built;
 use crate::{Faraday, Item};
@@ -52,7 +52,7 @@ fn u32_of(r: &Record, n: u8) -> Option<u32> {
     Some(u32::from_le_bytes(r.field(n)?.try_into().ok()?))
 }
 
-/// The key a type-7 record holds. `None` for a record without a signing
+/// The key a type-7 record holds, its seeds wiped when it drops. `None` for a record without a signing
 /// subkey (field 3 is optional in the format, `docs/VAULT.md` §7): it is
 /// kept and shown by its user ID alone, and signs nothing.
 pub fn key_of(r: &Record) -> Option<Key> {
@@ -886,9 +886,7 @@ pub fn shown(r: &Record, tz_min: i16) -> Option<Shown> {
 /// The paperkey text of a type-7 record: secret, made only to be shown,
 /// wiped when dropped.
 pub fn paperkey(r: &Record) -> Option<Zeroizing<String>> {
-    let mut key = key_of(r)?;
-    let text = key.paperkey();
-    key.primary_seed.zeroize();
-    key.subkey_seed.zeroize();
-    Some(text)
+    // The key wipes its seeds when it drops.
+    let key = key_of(r)?;
+    Some(key.paperkey())
 }

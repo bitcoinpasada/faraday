@@ -2395,13 +2395,18 @@ fn account_bytes(x: &faraday_bip::bitcoin::bip32::Xpub) -> [u8; 65] {
     out
 }
 
-fn words_text(m: &faraday_bip::bip39::Mnemonic) -> String {
+fn words_text(m: &faraday_bip::bip39::Mnemonic) -> zeroize::Zeroizing<String> {
     let lang = m.language();
-    m.indices()
-        .iter()
-        .map(|i| lang.word(*i))
-        .collect::<Vec<_>>()
-        .join(" ")
+    // Sized first, so that no copy is left behind by a reallocation.
+    let size: usize = m.indices().iter().map(|i| lang.word(*i).len() + 1).sum();
+    let mut text = zeroize::Zeroizing::new(String::with_capacity(size));
+    for (k, i) in m.indices().iter().enumerate() {
+        if k > 0 {
+            text.push(' ');
+        }
+        text.push_str(lang.word(*i));
+    }
+    text
 }
 
 pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {

@@ -68,6 +68,18 @@ impl FileKind {
     }
 }
 
+/// Why a secret file goes to the Outbox, named after the key boundary's
+/// reveal list (docs/KEYS.md §9).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum OutReason {
+    /// A file the person let out unprotected.
+    Unprotected,
+    /// The backup flow writing a key's words or SeedQR picture to a stick.
+    StickBackup,
+    /// A vault key's words or SeedQR picture saved to a stick.
+    VaultStick,
+}
+
 /// A secret on its way out, waiting for the person to say where.
 pub struct SecretOut {
     /// The file name it would go out under.
@@ -400,6 +412,16 @@ impl Faraday {
         }
     }
 
+    /// The one way a secret file enters the Outbox: marks the item
+    /// secret and puts it there. Cheap. The reason names which of the
+    /// key boundary's reveals this is (docs/KEYS.md); it changes nothing
+    /// the person sees.
+    pub(crate) fn outbox_secret(&mut self, why: OutReason, mut item: crate::Item) {
+        let _ = why;
+        item.secret = true;
+        self.outbox.push(item);
+    }
+
     /// The secret to the Outbox unprotected, once the person has said
     /// they understand what it gives away.
     pub(crate) fn secret_unprotected(&mut self) {
@@ -434,9 +456,8 @@ impl Faraday {
         }
         let name = out.name.clone();
         self.outbox.retain(|i| i.name != name);
-        let mut item = crate::Item::new(&c, &name, out.bytes.to_vec());
-        item.secret = true;
-        self.outbox.push(item);
+        let item = crate::Item::new(&c, &name, out.bytes.to_vec());
+        self.outbox_secret(OutReason::Unprotected, item);
         self.save_boxes();
         self.toast(&fill(
             EN.secrets_waits_unprotected,

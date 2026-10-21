@@ -30,7 +30,7 @@ use alloc::vec::Vec;
 use ed25519_dalek::{Signer, SigningKey};
 use sha1::Sha1;
 use sha2::{Digest, Sha256, Sha512};
-use zeroize::{Zeroize, Zeroizing};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 /// The EdDSALegacy public-key algorithm.
 const EDDSA: u8 = 22;
@@ -154,26 +154,24 @@ before importing and publishing this revocation certificate.
 
 /// One key: the primary that certifies, the subkey that signs, and what
 /// the self-signatures state. The seeds are secret and wiped on drop.
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct Key {
     /// The primary key's Ed25519 seed.
     pub primary_seed: [u8; 32],
     /// When the primary key was made, Unix seconds.
+    #[zeroize(skip)]
     pub created: u32,
     /// The signing subkey's Ed25519 seed.
     pub subkey_seed: [u8; 32],
     /// When the subkey was made, Unix seconds.
+    #[zeroize(skip)]
     pub subkey_created: u32,
     /// The user IDs, the first one primary.
+    #[zeroize(skip)]
     pub user_ids: Vec<String>,
     /// Seconds after creation that the key expires; 0 for never.
+    #[zeroize(skip)]
     pub expiry: u32,
-}
-
-impl Drop for Key {
-    fn drop(&mut self) {
-        self.primary_seed.zeroize();
-        self.subkey_seed.zeroize();
-    }
 }
 
 /// An MPI: its length in bits, then the bytes, leading zeros dropped.

@@ -3,7 +3,7 @@
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Glyph, Style, Ui, W};
+use crate::ui::{CoreUi, Glyph, Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, Screen};
 use faraday_draw::widgets::Icon;
@@ -84,13 +84,13 @@ fn potential_compact(
             cy += ui.wrap(x, cy, iw, 13.0, W::S, TEXT, label) + 6.0;
             if app.may_load_keys() {
                 let shown = if p.shown {
-                    p.passphrase.to_string()
+                    zeroize::Zeroizing::new(p.passphrase.to_string())
                 } else {
-                    "•".repeat(p.passphrase.chars().count().min(48))
+                    zeroize::Zeroizing::new("•".repeat(p.passphrase.chars().count().min(48)))
                 };
                 ui.fill(x, cy, iw, 44.0, 8.0, BG);
                 ui.stroke(x, cy, iw, 44.0, 8.0, if p.typing { ACCENT } else { BORDER });
-                let shown = ui.fit(14.0, W::M, &shown, iw - 60.0);
+                let shown = ui.fit_secret(14.0, W::M, &shown, iw - 60.0);
                 let tw = ui.text_mid(x + 12.0, cy, 44.0, 14.0, W::M, TEXT, &shown);
                 if p.typing {
                     ui.caret(x + 13.0 + tw, cy + 13.0, 18.0);
@@ -255,9 +255,9 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         cy += 24.0;
         if app.may_load_keys() {
             let shown = if p.shown {
-                p.passphrase.to_string()
+                zeroize::Zeroizing::new(p.passphrase.to_string())
             } else {
-                "•".repeat(p.passphrase.chars().count().min(48))
+                zeroize::Zeroizing::new("•".repeat(p.passphrase.chars().count().min(48)))
             };
             ui.fill(ix, cy, iw, 40.0, 8.0, BG);
             ui.stroke(
@@ -268,7 +268,7 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 8.0,
                 if p.typing { ACCENT } else { BORDER },
             );
-            let shown = ui.fit(14.0, W::M, &shown, iw - 60.0);
+            let shown = ui.fit_secret(14.0, W::M, &shown, iw - 60.0);
             let tw = ui.text_mid(ix + 12.0, cy, 40.0, 14.0, W::M, TEXT, &shown);
             if p.typing {
                 ui.caret(ix + 13.0 + tw, cy + 11.0, 18.0);

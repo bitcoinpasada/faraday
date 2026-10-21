@@ -435,7 +435,7 @@ pub(crate) const FP_MEMO_KEPT: usize = 64;
 pub(crate) const SEEDS_ADDRESSES_KEPT: usize = 16;
 
 /// A file in the Inbox or the Outbox.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Item {
     /// Its name.
     pub name: String,
@@ -467,6 +467,18 @@ pub struct Item {
     /// wallet it spends from is found from it
     /// ([`wallet::Session::spends_from`]), so it follows the wallets.
     pub psbt: Option<wallet::PsbtSeen>,
+}
+
+/// Prints the name, the byte count and the `secret` flag, never the bytes:
+/// a file can be a secret.
+impl std::fmt::Debug for Item {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(stringify!(Item))
+            .field("name", &self.name)
+            .field("len", &self.bytes.len())
+            .field("secret", &self.secret)
+            .finish_non_exhaustive()
+    }
 }
 
 /// An Inbox or Outbox file may be a seed or a share written in the clear:

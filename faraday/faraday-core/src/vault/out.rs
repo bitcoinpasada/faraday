@@ -299,9 +299,8 @@ impl Faraday {
                         continue;
                     };
                     self.outbox.retain(|it| it.name != *name);
-                    let mut item = crate::Item::new(&c, name, bytes.to_vec());
-                    item.secret = true;
-                    self.outbox.push(item);
+                    let item = crate::Item::new(&c, name, bytes.to_vec());
+                    self.outbox_secret(crate::secrets::OutReason::VaultStick, item);
                     out.push(name.clone());
                 }
             }
