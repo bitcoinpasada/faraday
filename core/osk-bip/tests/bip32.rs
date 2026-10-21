@@ -14,6 +14,7 @@ use common::unhex;
 use osk_bip::keys::{ImportError, MasterKey, Network};
 use osk_bip::xkey::{self, Error};
 use osk_crypto::Secret;
+use osk_crypto::work::Compute;
 
 struct Vector {
     seed: &'static str,
@@ -134,13 +135,19 @@ const VECTORS: &[Vector] = &[
 /// Shorter seeds are handled by deriving the master through rust-bitcoin
 /// directly and checking our wrapper agrees wherever the seed is 64 bytes.
 fn master_from_hex(seed_hex: &str) -> Option<MasterKey> {
+    let c = Compute::unchecked();
     let seed = unhex(seed_hex);
     let bytes: [u8; 64] = seed.try_into().ok()?;
-    Some(MasterKey::from_seed(&Secret::new(bytes), Network::Mainnet))
+    Some(MasterKey::from_seed(
+        &c,
+        &Secret::new(bytes),
+        Network::Mainnet,
+    ))
 }
 
 #[test]
 fn vectors_1_to_4_through_master_key() {
+    let c = Compute::unchecked();
     let mut checked = 0;
     for v in VECTORS {
         let Some(master) = master_from_hex(v.seed) else {
@@ -148,11 +155,11 @@ fn vectors_1_to_4_through_master_key() {
         };
         for &(path, xpub, xprv) in v.chain {
             let path = DerivationPath::from_str(path).unwrap();
-            let derived = master.derive(&path);
+            let derived = master.derive(&c, &path);
             let expected_pub = Xpub::from_str(xpub).unwrap();
             let expected_prv = Xpriv::from_str(xprv).unwrap();
-            assert_eq!(derived.to_xpub(), expected_pub, "{path}");
-            assert_eq!(derived.to_xpub().to_string(), xpub);
+            assert_eq!(derived.to_xpub(&c), expected_pub, "{path}");
+            assert_eq!(derived.to_xpub(&c).to_string(), xpub);
             assert_eq!(*derived.secret_key(), expected_prv.private_key, "{path}");
             assert_eq!(derived.path(), &path);
             assert_eq!(derived.master_fingerprint(), master.fingerprint());
@@ -161,7 +168,7 @@ fn vectors_1_to_4_through_master_key() {
                 &expected_pub.fingerprint().to_bytes()
             );
             if path.is_empty() {
-                assert_eq!(master.xpub(), expected_pub);
+                assert_eq!(master.xpub(&c), expected_pub);
             }
             checked += 1;
         }
@@ -172,13 +179,17 @@ fn vectors_1_to_4_through_master_key() {
 
 #[test]
 fn hardened_marker_spellings_are_equivalent() {
+    let c = Compute::unchecked();
     let a = DerivationPath::from_str("m/84'/0'/0'").unwrap();
     let b = DerivationPath::from_str("m/84h/0h/0h").unwrap();
-    let c = DerivationPath::from_str("84h/0h/0h").unwrap();
+    let d = DerivationPath::from_str("84h/0h/0h").unwrap();
     assert_eq!(a, b);
-    assert_eq!(a, c);
+    assert_eq!(a, d);
     let master = master_from_hex(VECTORS[1].seed).unwrap();
-    assert_eq!(master.derive(&a).to_xpub(), master.derive(&c).to_xpub());
+    assert_eq!(
+        master.derive(&c, &a).to_xpub(&c),
+        master.derive(&c, &d).to_xpub(&c)
+    );
     assert!(DerivationPath::from_str("m/84x").is_err());
     assert!(DerivationPath::from_str("m/2147483648").is_err());
 }
@@ -195,6 +206,7 @@ const INVALID: &str = include_str!("../../../tools/vectors/bip32/invalid-keys.tx
 /// why the text is decoded here.
 #[test]
 fn vector_5_invalid_keys_are_rejected() {
+    let c = Compute::unchecked();
     let mut checked = 0;
     for line in INVALID.lines() {
         let (key, why) = line.split_once(' ').expect("key then reason");
@@ -222,7 +234,7 @@ fn vector_5_invalid_keys_are_rejected() {
         };
         assert!(expected, "{why}: {err}");
         // Whatever the reason, no import path takes the key.
-        assert!(MasterKey::decode(key).is_err(), "{why}");
+        assert!(MasterKey::decode(&c, key).is_err(), "{why}");
         assert!(osk_bip::slip132::decode_xpub(key).is_err(), "{why}");
         checked += 1;
     }
@@ -233,14 +245,15 @@ fn vector_5_invalid_keys_are_rejected() {
 /// and derive the same children as the key built from the seed.
 #[test]
 fn vector_master_keys_import_and_derive() {
+    let c = Compute::unchecked();
     let mut checked = 0;
     for v in VECTORS {
         let (_, _, master_xprv) = v.chain[0];
-        let master = MasterKey::decode(master_xprv).expect("a published master key imports");
+        let master = MasterKey::decode(&c, master_xprv).expect("a published master key imports");
         for &(path, xpub, xprv) in v.chain {
             let path = DerivationPath::from_str(path).unwrap();
-            let derived = master.derive(&path);
-            assert_eq!(derived.to_xpub().to_string(), xpub, "{path}");
+            let derived = master.derive(&c, &path);
+            assert_eq!(derived.to_xpub(&c).to_string(), xpub, "{path}");
             assert_eq!(derived.xpriv_ascii().as_str(), xprv, "{path}");
             checked += 1;
         }
@@ -256,18 +269,19 @@ fn vector_master_keys_import_and_derive() {
 /// check against another implementation.
 #[test]
 fn blinding_a_key_changes_nothing_it_produces() {
+    let c = Compute::unchecked();
     let seed = unhex(VECTORS[0].seed);
     let bytes: [u8; 64] = std::array::from_fn(|i| seed[i % seed.len()]);
-    let a = MasterKey::from_seed(&Secret::new(bytes), Network::Mainnet).blinded(&[0x11; 32]);
-    let b = MasterKey::from_seed(&Secret::new(bytes), Network::Mainnet).blinded(&[0xee; 32]);
+    let a = MasterKey::from_seed(&c, &Secret::new(bytes), Network::Mainnet).blinded(&[0x11; 32]);
+    let b = MasterKey::from_seed(&c, &Secret::new(bytes), Network::Mainnet).blinded(&[0xee; 32]);
 
     assert_eq!(a.fingerprint(), b.fingerprint());
-    assert_eq!(a.xpub().to_string(), b.xpub().to_string());
+    assert_eq!(a.xpub(&c).to_string(), b.xpub(&c).to_string());
     assert_eq!(a.xpriv_ascii().as_str(), b.xpriv_ascii().as_str());
 
     let path = DerivationPath::from_str("m/84h/0h/0h/0/0").unwrap();
-    let (da, db) = (a.derive(&path), b.derive(&path));
-    assert_eq!(da.to_xpub().to_string(), db.to_xpub().to_string());
+    let (da, db) = (a.derive(&c, &path), b.derive(&c, &path));
+    assert_eq!(da.to_xpub(&c).to_string(), db.to_xpub(&c).to_string());
 
     let msg = bitcoin::secp256k1::Message::from_digest([0x7c; 32]);
     let sig_a = a.secp().sign_ecdsa(&msg, da.secret_key());
@@ -275,12 +289,12 @@ fn blinding_a_key_changes_nothing_it_produces() {
     assert_eq!(sig_a.serialize_der()[..], sig_b.serialize_der()[..]);
 
     // And again after the session hands down a new blind mid-life.
-    let mut c = MasterKey::from_seed(&Secret::new(bytes), Network::Mainnet);
-    c.reblind(&[0x5a; 32]);
-    assert_eq!(c.fingerprint(), a.fingerprint());
-    let dc = c.derive(&path);
+    let mut k = MasterKey::from_seed(&c, &Secret::new(bytes), Network::Mainnet);
+    k.reblind(&[0x5a; 32]);
+    assert_eq!(k.fingerprint(), a.fingerprint());
+    let dc = k.derive(&c, &path);
     assert_eq!(
-        c.secp().sign_ecdsa(&msg, dc.secret_key()).serialize_der()[..],
+        k.secp().sign_ecdsa(&msg, dc.secret_key()).serialize_der()[..],
         sig_a.serialize_der()[..]
     );
 }
@@ -289,7 +303,11 @@ fn blinding_a_key_changes_nothing_it_produces() {
 /// refused with the master-key reason rather than a decoding one.
 #[test]
 fn a_child_key_is_not_a_master_key() {
+    let c = Compute::unchecked();
     let child = VECTORS[0].chain[1].2;
     assert!(xkey::decode_xpriv(child).is_ok());
-    assert_eq!(MasterKey::decode(child).err(), Some(ImportError::NotMaster));
+    assert_eq!(
+        MasterKey::decode(&c, child).err(),
+        Some(ImportError::NotMaster)
+    );
 }

@@ -12,6 +12,7 @@ use opensigner_core::quiz::QuizState;
 use opensigner_core::{QuizView, ScreenKind, strings};
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{Fingerprint, MasterKey, Network};
+use osk_crypto::work::Compute;
 use osk_entropy::{CoinFlips, DiceRolls, Strength};
 use osk_shell_api::{BootState, Event, Key, SecureHardware, TouchPhase};
 
@@ -28,8 +29,9 @@ fn words_of(entropy: &[u8]) -> Vec<&'static str> {
 }
 
 fn fingerprint_of(entropy: &[u8]) -> Fingerprint {
+    let c = Compute::unchecked();
     let m = Mnemonic::from_entropy(Language::English, entropy).unwrap();
-    MasterKey::from_seed(&m.to_seed(b"").unwrap(), Network::Mainnet).fingerprint()
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").unwrap(), Network::Mainnet).fingerprint()
 }
 
 /// Home → Create → source `source` → 12 words → English → entry step.
@@ -1125,6 +1127,7 @@ fn the_two_hashing_procedures_take_the_same_rolls_to_their_own_keys() {
 /// again and says so. The checksum takes the last word's low bits.
 #[test]
 fn the_dice_name_every_word_and_the_checksum_completes_the_last() {
+    let c = Compute::unchecked();
     let mut h = Harness::new(PANEL);
     to_procedure(&mut h);
     h.choose(
@@ -1151,9 +1154,12 @@ fn the_dice_name_every_word_and_the_checksum_completes_the_last() {
     assert_eq!(h.app.create_step(), Some(Step::Sanity));
     h.tap(ids::CREATE_CONTINUE);
     finish_create(&mut h, &BITBOX_WORDS);
-    let expected = Mnemonic::parse(Language::English, &BITBOX_WORDS.join(" ")).unwrap();
+    let expected = Mnemonic::parse(&c, Language::English, &BITBOX_WORDS.join(" ")).unwrap();
     assert_eq!(
         h.app.fingerprints(),
-        vec![MasterKey::from_seed(&expected.to_seed(b"").unwrap(), Network::Mainnet).fingerprint()]
+        vec![
+            MasterKey::from_seed(&c, &expected.to_seed(&c, b"").unwrap(), Network::Mainnet)
+                .fingerprint()
+        ]
     );
 }

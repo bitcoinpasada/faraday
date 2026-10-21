@@ -19,6 +19,7 @@
 
 use osk_bip::bip39::{Language, MAX_PASSPHRASE_BYTES, MAX_WORDS, Mnemonic};
 use osk_bip::keys::{ChildNumber, DerivationPath, MasterKey, Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_crypto::{Zeroize, ZeroizeOnDrop};
 
 pub use crate::finish::MASK_MS;
@@ -412,7 +413,13 @@ impl Explore {
 
     /// Sets the typed words and derives their master key for `network`
     /// under the current passphrase. Invalid words leave nothing.
-    pub fn set_typed(&mut self, indices: &[u16], lang: Language, network: Network) -> bool {
+    pub fn set_typed(
+        &mut self,
+        c: &Compute,
+        indices: &[u16],
+        lang: Language,
+        network: Network,
+    ) -> bool {
         if Mnemonic::from_indices(lang, indices).is_err() {
             return false;
         }
@@ -420,7 +427,7 @@ impl Explore {
         self.words[..indices.len()].copy_from_slice(indices);
         self.word_count = indices.len() as u8;
         self.lang = lang;
-        self.rebuild(network);
+        self.rebuild(c, network);
         self.source = Source::Typed;
         self.picked = self.source;
         true
@@ -459,11 +466,11 @@ impl Explore {
     }
 
     /// Rebuilds the typed words' master key for `network`.
-    pub fn rebuild(&mut self, network: Network) {
+    pub fn rebuild(&mut self, c: &Compute, network: Network) {
         let blind = self.blind;
         self.master = self.typed_mnemonic().and_then(|m| {
-            m.to_seed(self.passphrase_bytes()).ok().map(|seed| {
-                let master = MasterKey::from_seed(&seed, network);
+            m.to_seed(c, self.passphrase_bytes()).ok().map(|seed| {
+                let master = MasterKey::from_seed(c, &seed, network);
                 match &blind {
                     Some(b) => master.blinded(b),
                     None => master,
@@ -580,24 +587,30 @@ impl Explore {
 
     /// Appends a printable ASCII character at `now_ms` and rebuilds the
     /// key for `network`.
-    pub fn passphrase_push(&mut self, c: char, now_ms: u64, network: Network) -> bool {
+    pub fn passphrase_push(
+        &mut self,
+        c: &Compute,
+        ch: char,
+        now_ms: u64,
+        network: Network,
+    ) -> bool {
         let n = usize::from(self.passphrase_len);
-        if !c.is_ascii() || !(0x20..=0x7E).contains(&(c as u32)) || n >= MAX_PASSPHRASE_BYTES {
+        if !ch.is_ascii() || !(0x20..=0x7E).contains(&(ch as u32)) || n >= MAX_PASSPHRASE_BYTES {
             return false;
         }
-        self.passphrase[n] = c as u8;
+        self.passphrase[n] = ch as u8;
         self.passphrase_len += 1;
         self.typed_at = now_ms;
-        self.rebuild(network);
+        self.rebuild(c, network);
         true
     }
 
     /// Deletes the last passphrase character and rebuilds the key.
-    pub fn passphrase_pop(&mut self, network: Network) {
+    pub fn passphrase_pop(&mut self, c: &Compute, network: Network) {
         if self.passphrase_len > 0 {
             self.passphrase_len -= 1;
             self.passphrase[usize::from(self.passphrase_len)] = 0;
-            self.rebuild(network);
+            self.rebuild(c, network);
         }
     }
 
@@ -820,17 +833,18 @@ mod tests {
 
     #[test]
     fn typed_words_build_a_key_and_zeroize() {
+        let c = Compute::unchecked();
         let mut e = Explore::new(Network::Mainnet);
         assert_eq!(e.source(), Source::None);
-        assert!(!e.set_typed(&[0; 12], Language::English, Network::Mainnet));
-        assert!(e.set_typed(&abandon(), Language::English, Network::Mainnet));
+        assert!(!e.set_typed(&c, &[0; 12], Language::English, Network::Mainnet));
+        assert!(e.set_typed(&c, &abandon(), Language::English, Network::Mainnet));
         assert_eq!(e.source(), Source::Typed);
         assert!(e.has_input());
         assert_eq!(
             e.typed_master().unwrap().fingerprint().to_hex(),
             *b"73c5da0a"
         );
-        assert!(e.passphrase_push('T', 100, Network::Mainnet));
+        assert!(e.passphrase_push(&c, 'T', 100, Network::Mainnet));
         assert_eq!(e.passphrase_visible_char(200), None, "not on that screen");
         e.go(Step::Passphrase);
         assert_eq!(e.passphrase_visible_char(200), Some('T'));
@@ -839,7 +853,7 @@ mod tests {
             e.typed_master().unwrap().fingerprint().to_hex(),
             *b"73c5da0a"
         );
-        e.passphrase_pop(Network::Mainnet);
+        e.passphrase_pop(&c, Network::Mainnet);
         assert_eq!(
             e.typed_master().unwrap().fingerprint().to_hex(),
             *b"73c5da0a"
@@ -855,6 +869,7 @@ mod tests {
     /// opened it; the key menu asks before it drops typed words.
     #[test]
     fn back_walks_out_one_menu_at_a_time() {
+        let c = Compute::unchecked();
         let mut e = Explore::new(Network::Mainnet);
         for (step, menu) in [
             (Step::Chooser, Step::Keys),
@@ -877,7 +892,7 @@ mod tests {
         assert!(!e.back(), "the key menu is the way out of the area");
 
         // Typed words are not dropped silently.
-        assert!(e.set_typed(&abandon(), Language::English, Network::Mainnet));
+        assert!(e.set_typed(&c, &abandon(), Language::English, Network::Mainnet));
         assert!(e.back());
         assert_eq!(e.step(), Step::Discard);
         assert!(!e.back(), "keeping them leaves the area on the next step");

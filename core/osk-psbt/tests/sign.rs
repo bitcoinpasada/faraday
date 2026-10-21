@@ -12,6 +12,7 @@ use bitcoin::{Amount, ScriptBuf, Transaction};
 use common::builder::{Build, single_sig};
 use common::{ABANDON, ZOO, master};
 use osk_bip::keys::{Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_psbt::{
     Aux, Context, Error, KeyRef, Nonce, OutputKind, Psbt, ScriptKind, SigKind, WarningKind,
     finalize, inspect, sign,
@@ -20,8 +21,9 @@ use osk_psbt::{
 const NET: Network = Network::Regtest;
 
 fn foreign_script() -> ScriptBuf {
+    let c = Compute::unchecked();
     master(ZOO, NET)
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .unwrap()
         .address(false, 0)
         .unwrap()
@@ -82,9 +84,10 @@ fn independent_sighash(psbt: &Psbt, script_type: ScriptType) -> Message {
 
 #[test]
 fn sign_verify_finalize_every_script_type() {
+    let c = Compute::unchecked();
     let secp = Secp256k1::new();
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let ctx = Context {
         network: NET,
         keys: &keys,
@@ -125,6 +128,7 @@ fn sign_verify_finalize_every_script_type() {
         assert!(!insp.is_self_transfer);
 
         let result = sign(
+            &c,
             &mut psbt,
             &[&abandon],
             &[abandon.fingerprint()],
@@ -218,6 +222,7 @@ fn sign_verify_finalize_every_script_type() {
         // sign", and a forced attempt touches nothing.
         assert_eq!(
             sign(
+                &c,
                 &mut psbt,
                 &[&abandon],
                 &[abandon.fingerprint()],
@@ -233,6 +238,7 @@ fn sign_verify_finalize_every_script_type() {
             Err(Error::Danger(vec![WarningKind::NoParticipatingKey]))
         );
         let again = sign(
+            &c,
             &mut psbt,
             &[&abandon],
             &[abandon.fingerprint()],
@@ -252,9 +258,10 @@ fn sign_verify_finalize_every_script_type() {
 
 #[test]
 fn signing_needs_a_matching_master_key() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let zoo = master(ZOO, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let ctx = Context {
         network: NET,
         keys: &keys,
@@ -266,6 +273,7 @@ fn signing_needs_a_matching_master_key() {
     let mut psbt = build(ScriptType::NativeSegwit);
     assert_eq!(
         sign(
+            &c,
             &mut psbt,
             &[&zoo],
             &[abandon.fingerprint()],
@@ -282,6 +290,7 @@ fn signing_needs_a_matching_master_key() {
     );
     // Selecting a key that is loaded but not named by any input signs nothing.
     let r = sign(
+        &c,
         &mut psbt,
         &[&zoo],
         &[zoo.fingerprint()],
@@ -301,9 +310,10 @@ fn signing_needs_a_matching_master_key() {
 
 #[test]
 fn key_origin_that_does_not_match_the_derived_key_is_refused() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let zoo = master(ZOO, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let ctx = Context {
         network: NET,
         keys: &keys,
@@ -324,6 +334,7 @@ fn key_origin_that_does_not_match_the_derived_key_is_refused() {
     assert!(!insp.inputs[0].is_ours);
     assert_eq!(
         sign(
+            &c,
             &mut psbt,
             &[&abandon],
             &[abandon.fingerprint()],
@@ -346,8 +357,9 @@ fn key_origin_that_does_not_match_the_derived_key_is_refused() {
 /// spent, has nothing this device can sign, and says so.
 #[test]
 fn a_taproot_tree_with_no_way_into_it_is_refused() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let ctx = Context {
         network: NET,
         keys: &keys,
@@ -365,6 +377,7 @@ fn a_taproot_tree_with_no_way_into_it_is_refused() {
     assert_eq!(insp.inputs[0].script_type, ScriptKind::P2trScript);
     assert_eq!(
         sign(
+            &c,
             &mut psbt,
             &[&abandon],
             &[abandon.fingerprint()],

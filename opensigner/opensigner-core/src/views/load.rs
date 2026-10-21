@@ -475,6 +475,7 @@ impl OpenSigner {
     /// the share was refused. A refusal states the codec's own reason,
     /// which names the share that does not fit.
     fn share_step(&self, c: &Chrome<'_>, w: &LoadWizard) -> Node {
+        let compute = crate::unchecked();
         let s = self.strings();
         if let Some(refusal) = w.share_error() {
             let reason = match refusal {
@@ -524,7 +525,7 @@ impl OpenSigner {
                 title: s.load_share_accepted_title,
                 icon: Icon::Success,
                 tone: Tone::Success,
-                result: if w.shares_enough() {
+                result: if w.shares_enough(&compute) {
                     s.load_share_enough
                 } else {
                     s.load_share_more

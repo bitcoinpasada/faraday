@@ -10,6 +10,7 @@ mod common;
 use common::{XorShift, sentence};
 
 use osk_bip::bip39::{Language, Mnemonic};
+use osk_crypto::work::Compute;
 
 const SAMPLES: usize = 200;
 const SEED_SAMPLES: usize = 8;
@@ -43,6 +44,7 @@ fn wordlists_match_bip39_crate() {
 
 #[test]
 fn mnemonics_and_seeds_match_bip39_crate() {
+    let c = Compute::unchecked();
     let mut rng = XorShift::new(0x5EED_0000_0000_0001);
     let mut checked = 0usize;
     let mut seeds = 0usize;
@@ -71,7 +73,7 @@ fn mnemonics_and_seeds_match_bip39_crate() {
                 // Round trips through our parser and their normalized parser.
                 let text = sentence(lang, ours.indices());
                 assert_eq!(
-                    Mnemonic::parse(lang, &text).unwrap().indices(),
+                    Mnemonic::parse(&c, lang, &text).unwrap().indices(),
                     ours.indices()
                 );
                 // Not compared with their `to_entropy_array`: it re-detects the
@@ -82,7 +84,7 @@ fn mnemonics_and_seeds_match_bip39_crate() {
 
                 if sample < SEED_SAMPLES {
                     for passphrase in ["", "abc"] {
-                        let our_seed = ours.to_seed(passphrase.as_bytes()).unwrap();
+                        let our_seed = ours.to_seed(&c, passphrase.as_bytes()).unwrap();
                         let ref_seed = reference.to_seed_normalized(passphrase);
                         assert_eq!(
                             our_seed.expose(),

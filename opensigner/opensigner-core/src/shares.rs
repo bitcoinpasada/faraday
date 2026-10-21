@@ -17,6 +17,7 @@
 //! what the screen shows.
 
 use osk_bip::slip39::{self, GroupSpec, Share};
+use osk_crypto::work::Compute;
 use osk_crypto::{Zeroize, ZeroizeOnDrop};
 
 use crate::ids::{self, Id};
@@ -688,7 +689,7 @@ impl SharePlan {
     /// Every random byte the codec draws comes from the values gathered
     /// on the screens, one value per draw, in the order the codec asks
     /// for them; it is never asked for more than they hold.
-    pub fn split(&mut self, identifier: u16) -> bool {
+    pub fn split(&mut self, c: &Compute, identifier: u16) -> bool {
         let groups = self.groups();
         let len = self.value_len();
         if len == 0 || groups == 0 {
@@ -744,6 +745,7 @@ impl SharePlan {
                 taken += 1;
             };
             slip39::split(
+                c,
                 &secret[..usize::from(*secret_len)],
                 &passphrase[..usize::from(*passphrase_len)],
                 identifier,

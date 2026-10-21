@@ -12,13 +12,15 @@ use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::descriptor::verify_checksum;
 use osk_bip::keys::{Error, Fingerprint, MasterKey, Network, ScriptType};
 use osk_bip::slip132;
+use osk_crypto::work::Compute;
 
 const ABANDON: &str =
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 
 fn master(network: Network) -> MasterKey {
-    let m = Mnemonic::parse(Language::English, ABANDON).unwrap();
-    MasterKey::from_seed(&m.to_seed(b"").unwrap(), network)
+    let c = Compute::unchecked();
+    let m = Mnemonic::parse(&c, Language::English, ABANDON).unwrap();
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").unwrap(), network)
 }
 
 fn addr(s: &str, network: Network) -> Address {
@@ -47,6 +49,7 @@ fn check_addresses(account: &AccountXpub, receive: &[&str], change: &[&str]) {
 /// Decodes a SLIP-132 private key by swapping in the xprv/tprv version
 /// bytes, and checks it against a derived key.
 fn assert_slip132_xprv(s: &str, derived: &osk_bip::keys::DerivedKey, kind: NetworkKind) {
+    let c = Compute::unchecked();
     let mut bytes = base58::decode_check(s).unwrap();
     assert_eq!(bytes.len(), 78);
     let plain: [u8; 4] = match kind {
@@ -57,22 +60,23 @@ fn assert_slip132_xprv(s: &str, derived: &osk_bip::keys::DerivedKey, kind: Netwo
     let xprv = Xpriv::decode(&bytes).unwrap();
     assert_eq!(xprv.private_key, *derived.secret_key());
     let secp = bitcoin::secp256k1::Secp256k1::new();
-    assert_eq!(Xpub::from_priv(&secp, &xprv), derived.to_xpub());
+    assert_eq!(Xpub::from_priv(&secp, &xprv), derived.to_xpub(&c));
 }
 
 #[test]
 fn master_fingerprint() {
+    let c = Compute::unchecked();
     let m = master(Network::Mainnet);
     assert_eq!(m.fingerprint(), Fingerprint([0x73, 0xc5, 0xda, 0x0a]));
     assert_eq!(m.fingerprint().to_hex(), *b"73c5da0a");
     assert_eq!(m.fingerprint().to_string(), "73c5da0a");
     // Independently through rust-bitcoin.
     let secp = bitcoin::secp256k1::Secp256k1::new();
-    let mn = Mnemonic::parse(Language::English, ABANDON).unwrap();
-    let seed = mn.to_seed(b"").unwrap();
+    let mn = Mnemonic::parse(&c, Language::English, ABANDON).unwrap();
+    let seed = mn.to_seed(&c, b"").unwrap();
     let xprv = Xpriv::new_master(NetworkKind::Main, seed.expose()).unwrap();
     assert_eq!(xprv.fingerprint(&secp).to_bytes(), m.fingerprint().0);
-    assert_eq!(m.xpub().fingerprint().to_bytes(), m.fingerprint().0);
+    assert_eq!(m.xpub(&c).fingerprint().to_bytes(), m.fingerprint().0);
     // The fingerprint does not depend on the network.
     assert_eq!(master(Network::Testnet).fingerprint(), m.fingerprint());
     assert_eq!(master(Network::Signet).fingerprint(), m.fingerprint());
@@ -84,8 +88,9 @@ fn master_fingerprint() {
 
 #[test]
 fn bip44_legacy_mainnet() {
+    let c = Compute::unchecked();
     let m = master(Network::Mainnet);
-    let account = m.account_xpub(ScriptType::Legacy, 0).unwrap();
+    let account = m.account_xpub(&c, ScriptType::Legacy, 0).unwrap();
     assert_eq!(
         account.path(),
         &DerivationPath::from_str("m/44h/0h/0h").unwrap()
@@ -105,8 +110,9 @@ fn bip44_legacy_mainnet() {
 
 #[test]
 fn bip49_nested_segwit_testnet() {
+    let c = Compute::unchecked();
     let m = master(Network::Testnet);
-    let account = m.account_xpub(ScriptType::NestedSegwit, 0).unwrap();
+    let account = m.account_xpub(&c, ScriptType::NestedSegwit, 0).unwrap();
     assert_eq!(
         account.path(),
         &DerivationPath::from_str("m/49h/1h/0h").unwrap()
@@ -122,11 +128,11 @@ fn bip49_nested_segwit_testnet() {
     assert_eq!(decoded.to_string(), account.xpub_string());
 
     let uprv = "uprv91G7gZkzehuMVxDJTYE6tLivdF8e4rvzSu1LFfKw3b2Qx1Aj8vpoFnHdfUZ3hmi9jsvPifmZ24RTN2KhwB8BfMLTVqaBReibyaFFcTP1s9n";
-    assert_slip132_xprv(uprv, &m.derive(account.path()), NetworkKind::Test);
+    assert_slip132_xprv(uprv, &m.derive(&c, account.path()), NetworkKind::Test);
     let root = "uprv8tXDerPXZ1QsVNjUJWTurs9kA1KGfKUAts74GCkcXtU8GwnH33GDRbNJpEqTvipfCyycARtQJhmdfWf8oKt41X9LL1zeD2pLsWmxEk3VAwd";
     assert_slip132_xprv(
         root,
-        &m.derive(&DerivationPath::master()),
+        &m.derive(&c, &DerivationPath::master()),
         NetworkKind::Test,
     );
 
@@ -141,7 +147,7 @@ fn bip49_nested_segwit_testnet() {
     // Signet and regtest share testnet's key encoding; regtest addresses
     // differ only for bech32.
     let signet = master(Network::Signet)
-        .account_xpub(ScriptType::NestedSegwit, 0)
+        .account_xpub(&c, ScriptType::NestedSegwit, 0)
         .unwrap();
     assert_eq!(signet.xpub_string(), account.xpub_string());
     assert_eq!(
@@ -152,8 +158,9 @@ fn bip49_nested_segwit_testnet() {
 
 #[test]
 fn bip84_native_segwit_mainnet() {
+    let c = Compute::unchecked();
     let m = master(Network::Mainnet);
-    let account = m.account_xpub(ScriptType::NativeSegwit, 0).unwrap();
+    let account = m.account_xpub(&c, ScriptType::NativeSegwit, 0).unwrap();
     assert_eq!(
         account.path(),
         &DerivationPath::from_str("m/84h/0h/0h").unwrap()
@@ -176,16 +183,16 @@ fn bip84_native_segwit_mainnet() {
     assert_eq!(decoded.encode(), account.xpub().encode());
 
     let zprv = "zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEvBRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE";
-    assert_slip132_xprv(zprv, &m.derive(account.path()), NetworkKind::Main);
+    assert_slip132_xprv(zprv, &m.derive(&c, account.path()), NetworkKind::Main);
     let root_zprv = "zprvAWgYBBk7JR8Gjrh4UJQ2uJdG1r3WNRRfURiABBE3RvMXYSrRJL62XuezvGdPvG6GFBZduosCc1YP5wixPox7zhZLfiUm8aunE96BBa4Kei5";
     assert_slip132_xprv(
         root_zprv,
-        &m.derive(&DerivationPath::master()),
+        &m.derive(&c, &DerivationPath::master()),
         NetworkKind::Main,
     );
     let root_zpub = "zpub6jftahH18ngZxLmXaKw3GSZzZsszmt9WqedkyZdezFtWRFBZqsQH5hyUmb4pCEeZGmVfQuP5bedXTB8is6fTv19U1GQRyQUKQGUTzyHACMF";
     assert_eq!(
-        slip132::encode_xpub(&m.xpub(), ScriptType::NativeSegwit),
+        slip132::encode_xpub(&m.xpub(&c), ScriptType::NativeSegwit),
         root_zpub
     );
 
@@ -195,12 +202,12 @@ fn bip84_native_segwit_mainnet() {
 
     // Testnet variants use vpub / tb1q; regtest uses bcrt1q.
     let t = master(Network::Testnet)
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .unwrap();
     assert!(t.slip132_string().starts_with("vpub"));
     assert!(t.address(false, 0).unwrap().to_string().starts_with("tb1q"));
     let r = master(Network::Regtest)
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .unwrap();
     assert_eq!(r.xpub_string(), t.xpub_string());
     assert!(
@@ -213,8 +220,9 @@ fn bip84_native_segwit_mainnet() {
 
 #[test]
 fn bip86_taproot_mainnet() {
+    let c = Compute::unchecked();
     let m = master(Network::Mainnet);
-    let account = m.account_xpub(ScriptType::Taproot, 0).unwrap();
+    let account = m.account_xpub(&c, ScriptType::Taproot, 0).unwrap();
     assert_eq!(
         account.path(),
         &DerivationPath::from_str("m/86h/0h/0h").unwrap()
@@ -229,10 +237,10 @@ fn bip86_taproot_mainnet() {
     let xprv = "xprv9xgqHN7yz9MwCkxsBPN5qetuNdQSUttZNKw1dcYTV4mkaAFiBVGQziHs3NRSWMkCzvgjEe3n9xV8oYywvM8at9yRqyaZVz6TYYhX98VjsUk";
     assert_eq!(
         Xpriv::from_str(xprv).unwrap().private_key,
-        *m.derive(account.path()).secret_key()
+        *m.derive(&c, account.path()).secret_key()
     );
     let root = "xpub661MyMwAqRbcFkPHucMnrGNzDwb6teAX1RbKQmqtEF8kK3Z7LZ59qafCjB9eCRLiTVG3uxBxgKvRgbubRhqSKXnGGb1aoaqLrpMBDrVxga8";
-    assert_eq!(m.xpub().to_string(), root);
+    assert_eq!(m.xpub(&c).to_string(), root);
 
     check_addresses(
         &account,
@@ -253,17 +261,19 @@ fn bip86_taproot_mainnet() {
 
 #[test]
 fn other_accounts_and_index_limits() {
+    let c = Compute::unchecked();
     let m = master(Network::Mainnet);
-    let a0 = m.account_xpub(ScriptType::NativeSegwit, 0).unwrap();
-    let a1 = m.account_xpub(ScriptType::NativeSegwit, 1).unwrap();
+    let a0 = m.account_xpub(&c, ScriptType::NativeSegwit, 0).unwrap();
+    let a1 = m.account_xpub(&c, ScriptType::NativeSegwit, 1).unwrap();
     assert_ne!(a0.xpub(), a1.xpub());
     assert_eq!(a1.path(), &DerivationPath::from_str("m/84h/0h/1h").unwrap());
     assert!(
-        m.account_xpub(ScriptType::NativeSegwit, 0x7fff_ffff)
+        m.account_xpub(&c, ScriptType::NativeSegwit, 0x7fff_ffff)
             .is_ok()
     );
     assert_eq!(
-        m.account_xpub(ScriptType::NativeSegwit, 0x8000_0000).err(),
+        m.account_xpub(&c, ScriptType::NativeSegwit, 0x8000_0000)
+            .err(),
         Some(Error::IndexOutOfRange)
     );
     assert!(a0.address(false, 0x7fff_ffff).is_ok());
@@ -279,8 +289,9 @@ fn other_accounts_and_index_limits() {
 
 #[test]
 fn find_address_scans_both_chains() {
+    let c = Compute::unchecked();
     let m = master(Network::Mainnet);
-    let account = m.account_xpub(ScriptType::NativeSegwit, 0).unwrap();
+    let account = m.account_xpub(&c, ScriptType::NativeSegwit, 0).unwrap();
     let receive1 = addr(
         "bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g",
         Network::Mainnet,
@@ -299,12 +310,12 @@ fn find_address_scans_both_chains() {
     assert_eq!(account.find_address(&deep, 37), Some((true, 37)));
 
     // Wrong account, wrong script type, wrong network: not found.
-    let other = m.account_xpub(ScriptType::NativeSegwit, 1).unwrap();
+    let other = m.account_xpub(&c, ScriptType::NativeSegwit, 1).unwrap();
     assert_eq!(other.find_address(&receive1, 50), None);
-    let taproot = m.account_xpub(ScriptType::Taproot, 0).unwrap();
+    let taproot = m.account_xpub(&c, ScriptType::Taproot, 0).unwrap();
     assert_eq!(taproot.find_address(&receive1, 50), None);
     let testnet = master(Network::Testnet)
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .unwrap();
     assert_eq!(testnet.find_address(&receive1, 50), None);
     // An unrelated address.
@@ -319,10 +330,11 @@ fn find_address_scans_both_chains() {
 
 #[test]
 fn slip132_round_trip_all_types_and_networks() {
+    let c = Compute::unchecked();
     for network in Network::ALL {
         let m = master(network);
         for script_type in ScriptType::ALL {
-            let account = m.account_xpub(script_type, 3).unwrap();
+            let account = m.account_xpub(&c, script_type, 3).unwrap();
             let s = account.slip132_string();
             let prefix = &s[..4];
             let expected_prefix = match (script_type, network.is_mainnet()) {
@@ -357,6 +369,7 @@ fn slip132_round_trip_all_types_and_networks() {
 
 #[test]
 fn slip132_decode_errors() {
+    let c = Compute::unchecked();
     use slip132::Error as E;
     assert_eq!(
         slip132::decode_xpub("not base58 0OIl").err(),
@@ -368,14 +381,14 @@ fn slip132_decode_errors() {
     assert_eq!(slip132::decode_xpub(&short).err(), Some(E::Length(3)));
     // Valid length, unknown version (a private key's version bytes).
     let m = master(Network::Mainnet);
-    let mut bytes = m.xpub().encode();
+    let mut bytes = m.xpub(&c).encode();
     bytes[..4].copy_from_slice(&[0x04, 0x88, 0xad, 0xe4]);
     assert_eq!(
         slip132::decode_xpub(&base58::encode_check(&bytes)).err(),
         Some(E::UnknownVersion([0x04, 0x88, 0xad, 0xe4]))
     );
     // Right version, corrupt key.
-    let mut bytes = m.xpub().encode();
+    let mut bytes = m.xpub(&c).encode();
     bytes[45] = 0x04;
     assert!(matches!(
         slip132::decode_xpub(&base58::encode_check(&bytes)),
@@ -394,13 +407,14 @@ fn coin_types_and_purposes_decide_the_path() {
 
 #[test]
 fn passphrase_changes_everything() {
-    let mn = Mnemonic::parse(Language::English, ABANDON).unwrap();
-    let a = MasterKey::from_seed(&mn.to_seed(b"").unwrap(), Network::Mainnet);
-    let b = MasterKey::from_seed(&mn.to_seed(b"TREZOR").unwrap(), Network::Mainnet);
+    let c = Compute::unchecked();
+    let mn = Mnemonic::parse(&c, Language::English, ABANDON).unwrap();
+    let a = MasterKey::from_seed(&c, &mn.to_seed(&c, b"").unwrap(), Network::Mainnet);
+    let b = MasterKey::from_seed(&c, &mn.to_seed(&c, b"TREZOR").unwrap(), Network::Mainnet);
     assert_ne!(a.fingerprint(), b.fingerprint());
     assert_ne!(
-        a.account_xpub(ScriptType::Taproot, 0).unwrap().xpub(),
-        b.account_xpub(ScriptType::Taproot, 0).unwrap().xpub()
+        a.account_xpub(&c, ScriptType::Taproot, 0).unwrap().xpub(),
+        b.account_xpub(&c, ScriptType::Taproot, 0).unwrap().xpub()
     );
 }
 

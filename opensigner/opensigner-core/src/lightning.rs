@@ -17,6 +17,7 @@
 use osk_bip::aezeed::{self, ENTROPY_SIZE, NUM_WORDS};
 use osk_bip::bip39::MAX_PASSPHRASE_BYTES;
 use osk_bip::keys::Network;
+use osk_crypto::work::Compute;
 use osk_crypto::{Secret, Zeroize, ZeroizeOnDrop};
 
 pub use crate::finish::MASK_MS;
@@ -236,15 +237,15 @@ impl Lightning {
 
     /// Reads the cipher seed and derives LND's node key, at whatever the
     /// passphrase field holds. Called once, when ✓ leaves the entry.
-    pub fn resolve_aezeed(&mut self, network: Network) {
+    pub fn resolve_aezeed(&mut self, c: &Compute, network: Network) {
         if !self.has_words {
             return;
         }
         let passphrase = &self.passphrase[..usize::from(self.passphrase_len)];
-        self.answer = Some(match aezeed::decode(&self.words, passphrase) {
+        self.answer = Some(match aezeed::decode(c, &self.words, passphrase) {
             Err(e) => Answer::Refused(e),
             Ok(seed) => {
-                let key = aezeed::node_key(seed.entropy(), network);
+                let key = aezeed::node_key(c, seed.entropy(), network);
                 let mut entropy = Secret::new([0u8; ENTROPY_SIZE]);
                 entropy
                     .expose_mut()
@@ -268,13 +269,13 @@ impl Lightning {
     }
 
     /// ldk-node's node secret from a loaded key's 64-byte BIP-39 seed.
-    pub fn resolve_loaded(&mut self, seed: &[u8], network: Network) {
+    pub fn resolve_loaded(&mut self, c: &Compute, seed: &[u8], network: Network) {
         if seed.len() != 64 {
             return;
         }
         let mut bytes = Secret::new([0u8; 64]);
         bytes.expose_mut().copy_from_slice(seed);
-        let key = aezeed::ldk_node_key(&bytes, network);
+        let key = aezeed::ldk_node_key(c, &bytes, network);
         self.answer = Some(Answer::Node(Node {
             public: osk_bip::bitcoin::secp256k1::PublicKey::from_secret_key(
                 key.secp(),

@@ -14,6 +14,7 @@ use std::process::ExitCode;
 
 use osk_bip::bip39::{Language, Mnemonic, last_word_candidates};
 use osk_bip::keys::{MasterKey, Network, ScriptType};
+use osk_crypto::work::Compute;
 use unicode_normalization::UnicodeNormalization;
 
 const USAGE: &str = "\
@@ -115,6 +116,7 @@ fn sentence(m: &Mnemonic) -> String {
 }
 
 fn run(args: Args) -> Result<(), String> {
+    let c = Compute::unchecked();
     let mnemonic = match &args.source {
         Source::LastWord(text) => {
             let text = nfkd(text);
@@ -133,7 +135,7 @@ fn run(args: Args) -> Result<(), String> {
             let text = nfkd(text);
             let words: Vec<&str> = text.split_whitespace().collect();
             let lang = detect_language(&words).ok_or("no wordlist contains every word")?;
-            let m = Mnemonic::parse(lang, &text).map_err(|e| e.to_string())?;
+            let m = Mnemonic::parse(&c, lang, &text).map_err(|e| e.to_string())?;
             println!("{} words, language {}", m.word_count(), lang.name());
             m
         }
@@ -152,9 +154,9 @@ fn run(args: Args) -> Result<(), String> {
     };
 
     let seed = mnemonic
-        .to_seed(args.passphrase.as_bytes())
+        .to_seed(&c, args.passphrase.as_bytes())
         .map_err(|e| e.to_string())?;
-    let master = MasterKey::from_seed(&seed, args.network);
+    let master = MasterKey::from_seed(&c, &seed, args.network);
     println!("network: {}", args.network);
     println!(
         "passphrase: {}",
@@ -168,7 +170,7 @@ fn run(args: Args) -> Result<(), String> {
 
     for script_type in ScriptType::ALL {
         let account = master
-            .account_xpub(script_type, 0)
+            .account_xpub(&c, script_type, 0)
             .map_err(|e| e.to_string())?;
         println!();
         println!("== {} (BIP-{}) ==", script_type, script_type.purpose());

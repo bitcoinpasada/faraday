@@ -12,6 +12,7 @@ use common::{Element, Harness, PANEL, SECURE_PHONE};
 use opensigner_core::strings::EN;
 use opensigner_core::{ScreenKind, ids};
 use osk_bip::keys::{Fingerprint, MasterKey};
+use osk_crypto::work::Compute;
 use serde_json::Value;
 
 const VECTORS: &str = include_str!("../../../tools/vectors/slip39/vectors.json");
@@ -50,7 +51,8 @@ fn alloc_format(number: &str) -> String {
 
 /// The master fingerprint of a vector's root key.
 fn root_fingerprint(xprv: &str) -> Fingerprint {
-    MasterKey::decode(xprv)
+    let c = Compute::unchecked();
+    MasterKey::decode(&c, xprv)
         .expect("a master xprv")
         .fingerprint()
 }

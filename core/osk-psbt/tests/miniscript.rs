@@ -4,6 +4,7 @@
 use osk_bip::keys::{MasterKey, Network};
 use osk_bip::policy::WalletPolicy;
 use osk_bip::spend::{Lock, SpendPath};
+use osk_crypto::work::Compute;
 use osk_psbt::{
     Aux, Context, KeyRef, Nonce, OutputKind, Psbt, ScriptKind, SigKind, SpendRoute, WarningKind,
     Wrapper, finalize, inspect, sign,
@@ -32,9 +33,10 @@ fn path(keys: &[usize], locks: &[Lock]) -> SpendPath {
 }
 
 fn master(words: &str) -> MasterKey {
-    let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, words)
+    let c = Compute::unchecked();
+    let m = osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, words)
         .expect("fixed mnemonic");
-    MasterKey::from_seed(&m.to_seed(b"").expect("empty passphrase"), NET)
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("empty passphrase"), NET)
 }
 
 /// The change of a miniscript wallet is verified the same way a
@@ -43,9 +45,10 @@ fn master(words: &str) -> MasterKey {
 /// nothing to re-derive from, so the same output is only claimed.
 #[test]
 fn the_change_of_a_miniscript_wallet_is_verified_while_it_is_in_use() {
+    let c = Compute::unchecked();
     let psbt = Psbt::parse_base64(LIANA_PSBT.trim()).expect("the fixture transaction");
     let policy = WalletPolicy::parse_any(LIANA_POLICY).expect("the fixture wallet");
-    let keys = [KeyRef::from_master(&master(ABANDON), 0).expect("accounts")];
+    let keys = [KeyRef::from_master(&c, &master(ABANDON), 0).expect("accounts")];
 
     let wallets = [policy];
     let insp = inspect(
@@ -91,10 +94,11 @@ fn the_change_of_a_miniscript_wallet_is_verified_while_it_is_in_use() {
 /// waited for, so the transaction comes out whole.
 #[test]
 fn the_liana_spend_completes_with_the_first_key_alone() {
+    let c = Compute::unchecked();
     let mut psbt = Psbt::parse_base64(LIANA_PSBT.trim()).expect("the fixture transaction");
     let policy = WalletPolicy::parse_any(LIANA_POLICY).expect("the fixture wallet");
     let abandon = master(ABANDON);
-    let keys = [KeyRef::from_master(&abandon, 0).expect("accounts")];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).expect("accounts")];
     let wallets = [policy];
     let ctx = Context {
         network: NET,
@@ -119,6 +123,7 @@ fn the_liana_spend_completes_with_the_first_key_alone() {
     );
 
     let result = sign(
+        &c,
         &mut psbt,
         &[&abandon],
         &[abandon.fingerprint()],
@@ -148,12 +153,13 @@ fn the_liana_spend_completes_with_the_first_key_alone() {
 /// recovery key is loaded.
 #[test]
 fn the_liana_recovery_spend_waits_for_the_recovery_key() {
+    let c = Compute::unchecked();
     let policy = WalletPolicy::parse_any(LIANA_POLICY).expect("the fixture wallet");
     let (abandon, zoo) = (master(ABANDON), master(ZOO));
     let wallets = [policy];
 
     let mut psbt = Psbt::parse_base64(LIANA_RECOVERY_PSBT.trim()).expect("the fixture transaction");
-    let alone = [KeyRef::from_master(&abandon, 0).expect("accounts")];
+    let alone = [KeyRef::from_master(&c, &abandon, 0).expect("accounts")];
     let ctx = Context {
         network: NET,
         keys: &alone,
@@ -178,6 +184,7 @@ fn the_liana_recovery_spend_waits_for_the_recovery_key() {
     // No key of ours is in the path, which is the danger the review
     // raises; signing past it writes nothing and leaves the PSBT whole.
     let result = sign(
+        &c,
         &mut psbt,
         &[&abandon],
         &[abandon.fingerprint()],
@@ -195,8 +202,8 @@ fn the_liana_recovery_spend_waits_for_the_recovery_key() {
     assert!(!result.complete);
 
     let both = [
-        KeyRef::from_master(&abandon, 0).expect("accounts"),
-        KeyRef::from_master(&zoo, 0).expect("accounts"),
+        KeyRef::from_master(&c, &abandon, 0).expect("accounts"),
+        KeyRef::from_master(&c, &zoo, 0).expect("accounts"),
     ];
     let ctx = Context {
         network: NET,
@@ -207,6 +214,7 @@ fn the_liana_recovery_spend_waits_for_the_recovery_key() {
         carry: None,
     };
     let result = sign(
+        &c,
         &mut psbt,
         &[&abandon, &zoo],
         &[abandon.fingerprint(), zoo.fingerprint()],
@@ -234,6 +242,7 @@ fn the_liana_recovery_spend_waits_for_the_recovery_key() {
 /// refuse the transaction.
 #[test]
 fn a_recovery_spend_below_its_timelock_stays_partial() {
+    let c = Compute::unchecked();
     let policy = WalletPolicy::parse_any(LIANA_POLICY).expect("the fixture wallet");
     let (abandon, zoo) = (master(ABANDON), master(ZOO));
     let wallets = [policy];
@@ -241,8 +250,8 @@ fn a_recovery_spend_below_its_timelock_stays_partial() {
     psbt.inner_mut().unsigned_tx.input[0].sequence = bitcoin::Sequence::from_height(52_559);
 
     let keys = [
-        KeyRef::from_master(&abandon, 0).expect("accounts"),
-        KeyRef::from_master(&zoo, 0).expect("accounts"),
+        KeyRef::from_master(&c, &abandon, 0).expect("accounts"),
+        KeyRef::from_master(&c, &zoo, 0).expect("accounts"),
     ];
     let ctx = Context {
         network: NET,
@@ -264,6 +273,7 @@ fn a_recovery_spend_below_its_timelock_stays_partial() {
     );
 
     let result = sign(
+        &c,
         &mut psbt,
         &[&abandon, &zoo],
         &[abandon.fingerprint(), zoo.fingerprint()],
@@ -286,10 +296,11 @@ fn a_recovery_spend_below_its_timelock_stays_partial() {
 /// internal key tweaked by the tree, in `tap_key_sig`.
 #[test]
 fn the_tree_key_path_spend_signs_with_the_internal_key() {
+    let c = Compute::unchecked();
     let mut psbt = Psbt::parse_base64(TREE_KEYPATH_PSBT.trim()).expect("the fixture transaction");
     let policy = WalletPolicy::parse_any(TREE_POLICY).expect("the fixture wallet");
     let abandon = master(ABANDON);
-    let keys = [KeyRef::from_master(&abandon, 0).expect("accounts")];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).expect("accounts")];
     let wallets = [policy];
     let ctx = Context {
         network: NET,
@@ -305,6 +316,7 @@ fn the_tree_key_path_spend_signs_with_the_internal_key() {
     assert_eq!(insp.inputs[0].spend_route, Some(SpendRoute::KeyPath));
 
     let result = sign(
+        &c,
         &mut psbt,
         &[&abandon],
         &[abandon.fingerprint()],
@@ -339,10 +351,11 @@ fn the_tree_key_path_spend_signs_with_the_internal_key() {
 /// the leaf is.
 #[test]
 fn the_tree_leaf_spend_signs_under_the_leaf_hash() {
+    let c = Compute::unchecked();
     let mut psbt = Psbt::parse_base64(TREE_PSBT.trim()).expect("the fixture transaction");
     let policy = WalletPolicy::parse_any(TREE_POLICY).expect("the fixture wallet");
     let legal = master(LEGAL);
-    let keys = [KeyRef::from_master(&legal, 0).expect("accounts")];
+    let keys = [KeyRef::from_master(&c, &legal, 0).expect("accounts")];
     let wallets = [policy];
     let ctx = Context {
         network: NET,
@@ -368,6 +381,7 @@ fn the_tree_leaf_spend_signs_under_the_leaf_hash() {
         .expect("the leaf the coordinator chose");
 
     let result = sign(
+        &c,
         &mut psbt,
         &[&legal],
         &[legal.fingerprint()],

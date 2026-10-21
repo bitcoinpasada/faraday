@@ -14,6 +14,7 @@ use std::sync::OnceLock;
 
 use libfuzzer_sys::fuzz_target;
 use osk_backup::Cost;
+use osk_crypto::work::Compute;
 use osk_crypto::{MnemonicBytes, SealedBytes};
 use osk_keep::notes::KeptNotes;
 use osk_keep::{Kept, KeptKeys, KeptSecret};
@@ -32,7 +33,8 @@ fn template() -> &'static [u8] {
     static BLOB: OnceLock<Vec<u8>> = OnceLock::new();
     BLOB.get_or_init(|| {
         let header = osk_keep::new_header(CHEAP, &[7u8; 32]);
-        let guess = osk_keep::challenge(&header, b"1234").expect("cheap parameters");
+        let guess =
+            osk_keep::challenge(&Compute::unchecked(), &header, b"1234").expect("cheap parameters");
         let mut keys = KeptKeys::new();
         keys.push(Kept {
             secret: KeptSecret::Words(MnemonicBytes::from_bytes(
@@ -69,8 +71,9 @@ fuzz_target!(|data: &[u8]| {
     let m = data.len().min(32);
     mac[..m].copy_from_slice(&data[..m]);
 
+    let c = Compute::unchecked();
     for pin in [&b""[..], b"1234", data] {
-        if let Some(guess) = osk_keep::challenge(&header, pin) {
+        if let Some(guess) = osk_keep::challenge(&c, &header, pin) {
             let _ = guess.challenge();
             let _ = osk_keep::open(&blob, &mac, &guess);
         }

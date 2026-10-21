@@ -27,6 +27,7 @@ use std::process::ExitCode;
 
 use osk_bip::keys::{Fingerprint, MasterKey, Network};
 use osk_bip::policy::WalletPolicy;
+use osk_crypto::work::Compute;
 use osk_psbt::{Aux, Context, KeyRef, MusigSession, Nonce, Psbt, sign};
 
 const ABANDON: &str =
@@ -58,9 +59,10 @@ pub const SESSION_SEED: [u8; 32] = [0x4d; 32];
 
 /// The "abandon … about" key on regtest, which is `@0` of the wallet.
 pub fn abandon() -> MasterKey {
-    let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, ABANDON)
+    let c = Compute::unchecked();
+    let m = osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, ABANDON)
         .expect("fixed mnemonic");
-    MasterKey::from_seed(&m.to_seed(b"").expect("empty passphrase"), NET)
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("empty passphrase"), NET)
 }
 
 /// The registered wallet, read from the committed policy file.
@@ -72,11 +74,12 @@ pub fn policy(dir: &Path) -> WalletPolicy {
 /// Core's round-1 PSBT, signed by this device: its public nonce and its
 /// partial signature, and nothing else.
 pub fn core_first_signed(dir: &Path) -> Psbt {
+    let c = Compute::unchecked();
     let master = abandon();
     let policy = policy(dir);
     let text = std::fs::read_to_string(dir.join(CORE_FIRST_NAME)).expect("Core's round-1 PSBT");
     let mut psbt = Psbt::parse_base64(text.trim()).expect("a PSBT");
-    let keys = [KeyRef::from_master(&master, 0).expect("accounts")];
+    let keys = [KeyRef::from_master(&c, &master, 0).expect("accounts")];
     let wallets = [policy];
     let ctx = Context {
         network: NET,
@@ -88,6 +91,7 @@ pub fn core_first_signed(dir: &Path) -> Psbt {
     };
     let selection = [master.fingerprint()];
     let out = sign(
+        &c,
         &mut psbt,
         &[&master],
         &selection,
@@ -113,11 +117,12 @@ pub fn core_first_signed(dir: &Path) -> Psbt {
 /// The device's round 1 over the funded PSBT: the PSBT with its public
 /// nonce on it, and the session holding the secret.
 pub fn device_first_nonce(dir: &Path) -> (Psbt, Option<MusigSession>) {
+    let c = Compute::unchecked();
     let master = abandon();
     let policy = policy(dir);
     let text = std::fs::read_to_string(dir.join(DEVICE_FIRST_NAME)).expect("the funded PSBT");
     let mut psbt = Psbt::parse_base64(text.trim()).expect("a PSBT");
-    let keys = [KeyRef::from_master(&master, 0).expect("accounts")];
+    let keys = [KeyRef::from_master(&c, &master, 0).expect("accounts")];
     let wallets = [policy];
     let ctx = Context {
         network: NET,
@@ -129,6 +134,7 @@ pub fn device_first_nonce(dir: &Path) -> (Psbt, Option<MusigSession>) {
     };
     let mut session = None;
     let out = sign(
+        &c,
         &mut psbt,
         &[&master],
         &[master.fingerprint()],
@@ -150,13 +156,14 @@ pub fn device_first_nonce(dir: &Path) -> (Psbt, Option<MusigSession>) {
 /// The device's round 2 over Core's answer, with the session round 1
 /// opened: the partial signature, the aggregate and the final input.
 pub fn device_first_signed(dir: &Path) -> Psbt {
+    let c = Compute::unchecked();
     let master = abandon();
     let policy = policy(dir);
     let (_, mut session) = device_first_nonce(dir);
     let text = std::fs::read_to_string(dir.join(DEVICE_FIRST_CORE_NAME))
         .expect("Core's answer to the device's nonce");
     let mut psbt = Psbt::parse_base64(text.trim()).expect("a PSBT");
-    let keys = [KeyRef::from_master(&master, 0).expect("accounts")];
+    let keys = [KeyRef::from_master(&c, &master, 0).expect("accounts")];
     let wallets = [policy];
     let view = session.as_ref().map(|s: &MusigSession| s.view());
     let ctx = Context {
@@ -168,6 +175,7 @@ pub fn device_first_signed(dir: &Path) -> Psbt {
         carry: None,
     };
     let out = sign(
+        &c,
         &mut psbt,
         &[&master],
         &[master.fingerprint()],

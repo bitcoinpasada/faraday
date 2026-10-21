@@ -8,6 +8,7 @@ use opensigner_core::{AssuranceTier, BuildInfo, OpenSigner, ScreenKind};
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{Fingerprint, MasterKey, Network, ScriptType};
 use osk_codec::qr::Ecc;
+use osk_crypto::work::Compute;
 use osk_shell_api::{
     App, BootState, Command, DisplayInfo, EntropyBytes, Event, Key, SecureHardware, TouchPhase,
 };
@@ -904,6 +905,7 @@ pub const TILE_LEARN: usize = 4;
 pub const TILE_SETTINGS: usize = 5;
 
 pub fn expected_fingerprint(passphrase: &[u8], network: Network) -> Fingerprint {
+    let c = Compute::unchecked();
     let m = Mnemonic::from_entropy(Language::English, &[0u8; 16]).unwrap();
-    MasterKey::from_seed(&m.to_seed(passphrase).unwrap(), network).fingerprint()
+    MasterKey::from_seed(&c, &m.to_seed(&c, passphrase).unwrap(), network).fingerprint()
 }

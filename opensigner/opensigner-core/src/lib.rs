@@ -59,6 +59,7 @@ use osk_bip::keys::{
 use osk_bip::policy::{PolicyKey, Template, WalletPolicy};
 use osk_bip::threshold::MAX_PARTICIPANTS as THRESHOLD_MAX_SHARES;
 use osk_codec::{PayloadKind, classify, seedqr, ur};
+use osk_crypto::work::Compute;
 use osk_crypto::{MnemonicBytes, SealedBytes, Secret, SeedBytes};
 use osk_psbt::{Inspection, KeyRef, ShareKey};
 use osk_shell_api::{
@@ -80,10 +81,6 @@ use zeroize::{Zeroize, Zeroizing};
 /// has no drawing memo and makes no drawing claim, so it mints where it
 /// needs one. Crate-private and never re-exported: the pub API takes its
 /// tokens from callers. Cheap.
-#[expect(
-    dead_code,
-    reason = "no costly function takes a token until docs/COMPUTE.md's C1"
-)]
 fn unchecked() -> osk_crypto::work::Compute {
     osk_crypto::work::Compute::unchecked()
 }
@@ -3269,6 +3266,7 @@ impl OpenSigner {
     /// on the receive or change chain, on the current network.
     pub fn addresses(
         &self,
+        c: &Compute,
         key: usize,
         script: ScriptType,
         change: bool,
@@ -3277,7 +3275,7 @@ impl OpenSigner {
         let Some(master) = self.keys.get(key).and_then(|k| k.master.as_ref()) else {
             return Vec::new();
         };
-        let Ok(account) = master.account_xpub(script, 0) else {
+        let Ok(account) = master.account_xpub(c, script, 0) else {
             return Vec::new();
         };
         (0..count)
@@ -3808,6 +3806,7 @@ impl OpenSigner {
     /// Runs before the tool is drawn: a loaded key's node secret is
     /// derived once, and kept beside the screen.
     fn prepare_lightning(&mut self) {
+        let c = crate::unchecked();
         let network = self.network;
         let source = self.lightning.as_ref().map(lightning::Lightning::source);
         if let Some(lightning::Source::Loaded(i)) = source
@@ -3827,7 +3826,7 @@ impl OpenSigner {
             });
             if let Some((true, mut bytes)) = seed {
                 if let Some(flow) = self.lightning.as_mut() {
-                    flow.resolve_loaded(&bytes, network);
+                    flow.resolve_loaded(&c, &bytes, network);
                 }
                 bytes.zeroize();
             }
@@ -4031,6 +4030,7 @@ impl OpenSigner {
     /// One tick of a running grind: a budget of candidates, and what
     /// they took. `true` when the screen has something new to draw.
     fn vanity_tick(&mut self) -> bool {
+        let c = crate::unchecked();
         let Screen::Vanity(key) = self.screen else {
             return false;
         };
@@ -4048,6 +4048,7 @@ impl OpenSigner {
             vanity::Dial::Passphrase => self.keys.get(key).and_then(|k| {
                 k.mnemonic(self.session.key(), |m| {
                     osk_bip::vanity::grind(
+                        &c,
                         &osk_bip::vanity::Key::Words(m),
                         &osk_bip::vanity::Method::Passphrase { base: b"" },
                         script,
@@ -4064,6 +4065,7 @@ impl OpenSigner {
                     .and_then(|k| k.master.as_ref())
                     .map(|master| {
                         osk_bip::vanity::grind(
+                            &c,
                             &osk_bip::vanity::Key::Master(master),
                             &osk_bip::vanity::Method::Account,
                             script,
@@ -4095,6 +4097,7 @@ impl OpenSigner {
     /// exactly as "Open with passphrase" does, and the account dial
     /// adds the single-sig wallet at the account it found.
     fn vanity_use(&mut self, key: usize) {
+        let c = crate::unchecked();
         let Some(g) = self.vanity.take() else {
             return;
         };
@@ -4107,9 +4110,9 @@ impl OpenSigner {
                 let verified = self.keys.get(key).is_some_and(|k| k.backup_verified);
                 let network = self.network;
                 let opened = self.key_mnemonic(key).and_then(|mnemonic| {
-                    let seed = mnemonic.to_seed(find.suffix.as_bytes()).ok()?;
+                    let seed = mnemonic.to_seed(&c, find.suffix.as_bytes()).ok()?;
                     let seed = SeedBytes::new(seed.expose()).map(Secret::new)?;
-                    let master = MasterKey::from_seed_bytes(&seed, network);
+                    let master = MasterKey::from_seed_bytes(&c, &seed, network);
                     Some(LoadedKey::new(seed, master, Some(mnemonic), true, verified).derived())
                 });
                 let Some(opened) = opened else {
@@ -4124,7 +4127,7 @@ impl OpenSigner {
                     .keys
                     .get(key)
                     .and_then(|k| k.master.as_ref())
-                    .and_then(|master| master.account_xpub(script, account).ok())
+                    .and_then(|master| master.account_xpub(&c, script, account).ok())
                     .map(|a| build::account_key(a.master_fingerprint(), a.path(), a.xpub()));
                 let Some(key_text) = key_text else {
                     return;
@@ -4170,12 +4173,13 @@ impl OpenSigner {
     /// key's, unsealed for the call, or PBKDF2 of the typed words and
     /// passphrase, computed now and dropped after.
     pub(crate) fn explore_with_seed<R>(&self, f: impl FnOnce(&[u8]) -> R) -> Option<R> {
+        let c = crate::unchecked();
         match self.explore.source() {
             Source::None => None,
             Source::Loaded(i) => self.keys.get(i)?.seed(self.session.key(), f),
             Source::Typed => {
                 let m = self.explore.typed_mnemonic()?;
-                let seed = m.to_seed(self.explore.passphrase_bytes()).ok()?;
+                let seed = m.to_seed(&c, self.explore.passphrase_bytes()).ok()?;
                 Some(f(seed.expose().as_slice()))
             }
         }
@@ -4188,6 +4192,7 @@ impl OpenSigner {
     /// Derives what the Explore path and encodings sections show, if the
     /// cache does not hold it already.
     fn prepare_explore(&mut self) {
+        let c = crate::unchecked();
         // Typed words build a master key of their own, outside the
         // loaded keys the session blinds on the way in, so the blind is
         // handed to the workspace here: this runs on every frame the
@@ -4208,14 +4213,14 @@ impl OpenSigner {
         {
             return;
         }
-        let master_xpub = master.xpub();
+        let master_xpub = master.xpub(&c);
         let children = path.as_ref();
         let mut levels = Vec::with_capacity(children.len());
         let mut leaf = master_xpub;
         for depth in 1..=children.len() {
             let sub = DerivationPath::from(&children[..depth]);
-            let derived = master.derive(&sub);
-            leaf = derived.to_xpub();
+            let derived = master.derive(&c, &sub);
+            leaf = derived.to_xpub(&c);
             levels.push(ExploreLevel {
                 xpub: alloc::format!("{leaf}"),
             });
@@ -4232,7 +4237,7 @@ impl OpenSigner {
         let account_xpub = if account_depth == children.len() {
             leaf
         } else {
-            master.derive(&account_path).to_xpub()
+            master.derive(&c, &account_path).to_xpub(&c)
         };
         let account_slip132 = implied
             .filter(|s| matches!(s, ScriptType::NestedSegwit | ScriptType::NativeSegwit))
@@ -4283,12 +4288,14 @@ impl OpenSigner {
     /// the device's own default uses: what Convert key's "Use a loaded
     /// key" row feeds the field.
     fn account_xpub_of(&self, key: usize) -> Option<String> {
+        let c = crate::unchecked();
         let master = self.keys.get(key)?.master.as_ref()?;
-        let account = master.account_xpub(ScriptType::NativeSegwit, 0).ok()?;
+        let account = master.account_xpub(&c, ScriptType::NativeSegwit, 0).ok()?;
         Some(alloc::format!("{}", account.xpub()))
     }
 
     pub(crate) fn policy_key_expressions(&self) -> Vec<(String, String)> {
+        let c = crate::unchecked();
         let script = self.calc.script();
         self.keys
             .iter()
@@ -4298,6 +4305,7 @@ impl OpenSigner {
                     osk_bip::compile::PolicyScript::Segwit => {
                         let a = master
                             .multisig_account_xpub(
+                                &c,
                                 osk_bip::keys::MultisigScriptType::NativeSegwit,
                                 0,
                             )
@@ -4305,7 +4313,7 @@ impl OpenSigner {
                         build::account_key(a.master_fingerprint(), a.path(), a.xpub())
                     }
                     osk_bip::compile::PolicyScript::Taproot => {
-                        let a = master.account_xpub(ScriptType::Taproot, 0).ok()?;
+                        let a = master.account_xpub(&c, ScriptType::Taproot, 0).ok()?;
                         build::account_key(a.master_fingerprint(), a.path(), a.xpub())
                     }
                 };
@@ -4334,12 +4342,13 @@ impl OpenSigner {
     /// The account xpub of `key` for `script`, from the cache, deriving
     /// and caching it on first use.
     fn account(&mut self, key: usize, script: ScriptType) -> Option<AccountXpub> {
+        let c = crate::unchecked();
         let k = self.keys.get(key)?;
         let fp = k.fingerprint;
         if let Some(a) = self.cached_account(fp, script) {
             return Some(a.clone());
         }
-        let account = k.master.as_ref()?.account_xpub(script, 0).ok()?;
+        let account = k.master.as_ref()?.account_xpub(&c, script, 0).ok()?;
         self.cache.push(CachedAccount {
             fingerprint: fp,
             script,
@@ -4368,6 +4377,7 @@ impl OpenSigner {
     }
 
     fn key_refs(&mut self) -> Vec<KeyRef> {
+        let c = crate::unchecked();
         let mut refs = Vec::with_capacity(self.keys.len());
         for i in 0..self.keys.len() {
             let accounts: Vec<AccountXpub> = ScriptType::ALL
@@ -4380,7 +4390,7 @@ impl OpenSigner {
                 .map(|m| {
                     MultisigScriptType::ALL
                         .iter()
-                        .filter_map(|s| m.multisig_account_xpub(*s, 0).ok())
+                        .filter_map(|s| m.multisig_account_xpub(&c, *s, 0).ok())
                         .collect()
                 })
                 .unwrap_or_default();
@@ -4446,6 +4456,7 @@ impl OpenSigner {
     /// Derives the addresses of Explore's typed words, the way a loaded
     /// key's are derived.
     fn prepare_typed_addresses(&mut self) {
+        let c = crate::unchecked();
         let Some(master) = self.explore.typed_master() else {
             return;
         };
@@ -4460,7 +4471,7 @@ impl OpenSigner {
             .iter()
             .any(|c| c.fingerprint == fp && c.script == script)
         {
-            let Ok(account) = master.account_xpub(script, 0) else {
+            let Ok(account) = master.account_xpub(&c, script, 0) else {
                 return;
             };
             self.cache.push(CachedAccount {
@@ -4477,6 +4488,7 @@ impl OpenSigner {
     /// Derives what the key detail screen is about to show, if it is not
     /// cached yet.
     fn prepare_detail(&mut self, key: usize) {
+        let c = crate::unchecked();
         let Some(k) = self.keys.get(key) else {
             return;
         };
@@ -4491,7 +4503,7 @@ impl OpenSigner {
             .iter()
             .any(|c| c.fingerprint == fp && c.script == script)
         {
-            let Some(Ok(account)) = k.master.as_ref().map(|m| m.account_xpub(script, 0)) else {
+            let Some(Ok(account)) = k.master.as_ref().map(|m| m.account_xpub(&c, script, 0)) else {
                 return;
             };
             self.cache.push(CachedAccount {
@@ -4771,12 +4783,13 @@ impl OpenSigner {
     /// load, read and re-inspection, because that check is the one the
     /// inspection cannot make: it has no key.
     fn check_transaction_signatures(&mut self, reading: bool) {
+        let c = crate::unchecked();
         let OpenSigner {
             sign, decode, keys, ..
         } = self;
         let masters: Vec<&MasterKey> = keys.iter().filter_map(|k| k.master.as_ref()).collect();
         let flow = if reading { decode } else { sign };
-        flow.check(&masters);
+        flow.check(&c, &masters);
     }
 
     /// Puts the transaction back where it was and inspects it again with
@@ -4833,6 +4846,7 @@ impl OpenSigner {
     /// One step toward Home: the previous wizard step, or the previous
     /// screen.
     fn back(&mut self) {
+        let c = crate::unchecked();
         // The session is over; there is nowhere to go back to.
         if self.screen == Screen::Ended {
             return;
@@ -4893,7 +4907,7 @@ impl OpenSigner {
             && w.step() == create::Step::Count
         {
             let mut load = LoadWizard::new();
-            load.tap(ids::LOAD_SOURCE_XOR, self.network);
+            load.tap(&c, ids::LOAD_SOURCE_XOR, self.network);
             self.wizard = Some(Wizard::Load(load));
             self.ui.set_scroll(ids::SCROLL, 0);
             return;
@@ -5471,20 +5485,21 @@ impl OpenSigner {
     /// or its account at the chosen script type for a single-sig one,
     /// with the origin it derives under.
     fn build_key_of(&self, key: usize, w: &WalletWizard) -> Option<build::PolicyKey> {
+        let c = crate::unchecked();
         let master = self.keys.get(key)?.master.as_ref()?;
         let kind = w.account_kind();
         let text = match w.kind() {
             build::WalletKind::Single => {
-                let account = master.account_xpub(w.script(), 0).ok()?;
+                let account = master.account_xpub(&c, w.script(), 0).ok()?;
                 build::account_key_h(account.master_fingerprint(), account.path(), account.xpub())
             }
             _ => match kind.multisig() {
                 Some(script) => {
-                    let account = master.multisig_account_xpub(script, 0).ok()?;
+                    let account = master.multisig_account_xpub(&c, script, 0).ok()?;
                     build::account_key(account.master_fingerprint(), account.path(), account.xpub())
                 }
                 None => {
-                    let account = master.account_xpub(ScriptType::Taproot, 0).ok()?;
+                    let account = master.account_xpub(&c, ScriptType::Taproot, 0).ok()?;
                     build::account_key(account.master_fingerprint(), account.path(), account.xpub())
                 }
             },
@@ -5958,6 +5973,7 @@ impl OpenSigner {
     /// A tap inside a Backup's share gatherer, which draws the Create
     /// wizard's own screens.
     fn tap_share_gather(&mut self, id: Id, network: Network) {
+        let c = crate::unchecked();
         let now = self.now_ms;
         let class = self.class();
         let pane = self.words_pane_dp();
@@ -5982,7 +5998,7 @@ impl OpenSigner {
             return;
         }
         let per_page = views::words::per_page(class, pane, g.language());
-        g.tap(id, network, now, per_page);
+        g.tap(&c, id, network, now, per_page);
         let ready = g.step() == create::Step::Words;
         self.sync_create();
         if ready {
@@ -5996,6 +6012,7 @@ impl OpenSigner {
     /// A tap inside a Backup's codex32 gatherer, which draws the Create
     /// wizard's own screens.
     fn tap_codex32_gather(&mut self, id: Id, network: Network) {
+        let c = crate::unchecked();
         let now = self.now_ms;
         let class = self.class();
         let pane = self.words_pane_dp();
@@ -6020,7 +6037,7 @@ impl OpenSigner {
             return;
         }
         let per_page = views::words::per_page(class, pane, g.language());
-        g.tap(id, network, now, per_page);
+        g.tap(&c, id, network, now, per_page);
         let ready = g.step() == create::Step::Words;
         self.sync_create();
         if ready {
@@ -6198,6 +6215,7 @@ impl OpenSigner {
     /// with how many backups this session has made, so that two backups
     /// of one key are two backups.
     fn make_shares(&mut self) {
+        let c = crate::unchecked();
         let mut seed = [0u8; 16];
         seed[..4].copy_from_slice(&self.session.scramble_seed().unwrap_or(0).to_le_bytes());
         seed[4..12].copy_from_slice(&self.now_ms.to_le_bytes());
@@ -6205,7 +6223,7 @@ impl OpenSigner {
         let digest = osk_crypto::sha256(&seed);
         let identifier = u16::from_be_bytes([digest[0], digest[1]]) & 0x7fff;
         self.share_backups = self.share_backups.wrapping_add(1);
-        if !self.shares.split(identifier) {
+        if !self.shares.split(&c, identifier) {
             self.cancel_wizard();
             return;
         }
@@ -6279,9 +6297,10 @@ impl OpenSigner {
     /// computed from the master fingerprint of the seed and never asked
     /// for (§16.109 rule 4).
     fn codex32_identifier(&self, seed: &[u8]) -> [u8; 4] {
+        let c = crate::unchecked();
         let network = self.network;
         let print = osk_crypto::SeedBytes::new(seed).map(|bytes| {
-            osk_bip::keys::MasterKey::from_seed_bytes(&osk_crypto::Secret::new(bytes), network)
+            osk_bip::keys::MasterKey::from_seed_bytes(&c, &osk_crypto::Secret::new(bytes), network)
                 .fingerprint()
         });
         osk_bip::codex32::identifier_for(print.map_or([0; 4], |f| *f.as_bytes()))
@@ -6459,11 +6478,12 @@ impl OpenSigner {
     /// The last string has been shown, and the Result behind it where
     /// the flow has one: Create goes on to Confirm, Backup closes.
     fn codex32_finished(&mut self) {
+        let c = crate::unchecked();
         let verified = self.codex32.verified();
         let network = self.network;
         match &mut self.wizard {
             Some(Wizard::Create(w)) => {
-                if !w.codex32_made(verified, network) {
+                if !w.codex32_made(&c, verified, network) {
                     self.cancel_wizard();
                     return;
                 }
@@ -7244,6 +7264,7 @@ impl OpenSigner {
     /// address the screen names. A key that cannot derive that address
     /// signs nothing and the hold leaves the screen as it was.
     fn sign_message(&mut self) {
+        let c = crate::unchecked();
         let Some(flow) = self.message.as_ref() else {
             return;
         };
@@ -7259,7 +7280,7 @@ impl OpenSigner {
             .and_then(|master| {
                 let path = master.account_path(script, 0).ok()?;
                 let zero = osk_bip::keys::ChildNumber::from_normal_idx(0).ok()?;
-                let derived = master.derive(&path.extend([zero, zero]));
+                let derived = master.derive(&c, &path.extend([zero, zero]));
                 osk_psbt::message::sign(
                     master.secp(),
                     derived.secret_key(),
@@ -7617,6 +7638,7 @@ impl OpenSigner {
     /// A key of a master this device does not hold, or one this device
     /// holds the public key of alone, states nothing to compare with.
     fn claimed_key_swap(&self, policy: &WalletPolicy) -> Option<Swap> {
+        let c = crate::unchecked();
         let [key] = policy.keys() else {
             return None;
         };
@@ -7628,7 +7650,7 @@ impl OpenSigner {
             .find(|k| k.fingerprint == fingerprint)?
             .master
             .as_ref()?;
-        let mine = master.derive(path).to_xpub();
+        let mine = master.derive(&c, path).to_xpub(&c);
         let claimed = key.xpub();
         if mine.public_key == claimed.public_key && mine.chain_code == claimed.chain_code {
             return None;
@@ -7999,6 +8021,7 @@ impl OpenSigner {
     /// are open only for this call, and both typings are wiped by
     /// [`BackupFlow::set_backup`].
     fn make_backup(&mut self) {
+        let c = crate::unchecked();
         let cost = self.export_cost();
         if self.form_is_kdbx() {
             let made = self.make_kdbx_backup(cost);
@@ -8015,7 +8038,7 @@ impl OpenSigner {
         let made = match self.keys.get(b.key()).filter(|k| k.has_mnemonic()) {
             Some(_) => self
                 .backup_words(b, |m| {
-                    osk_backup::oskb::seal(m, b.pass_bytes(), cost, &seed)
+                    osk_backup::oskb::seal(&c, m, b.pass_bytes(), cost, &seed)
                 })
                 .flatten(),
             None => self
@@ -8023,7 +8046,7 @@ impl OpenSigner {
                 .get(b.key())
                 .and_then(|k| {
                     k.seed(self.session.key(), |bytes| {
-                        osk_backup::oskb::seal_seed(bytes, b.pass_bytes(), cost, &seed)
+                        osk_backup::oskb::seal_seed(&c, bytes, b.pass_bytes(), cost, &seed)
                     })
                 })
                 .flatten(),
@@ -8035,6 +8058,7 @@ impl OpenSigner {
     /// fingerprint, the words or the master seed in the Password field,
     /// what they are in the Notes (§16.112 pass E2).
     fn make_kdbx_backup(&mut self, cost: osk_backup::Cost) -> Option<Vec<u8>> {
+        let c = crate::unchecked();
         let seed = self.kdbx_seed();
         let s = self.strings();
         let Some(Wizard::Backup(b)) = &self.wizard else {
@@ -8060,6 +8084,7 @@ impl OpenSigner {
                         words.extend_from_slice(m.language().word(index).as_bytes());
                     }
                     osk_backup::kdbx::write(
+                        &c,
                         &[osk_backup::kdbx::Item {
                             title: title.as_bytes(),
                             notes: notes.as_bytes(),
@@ -8079,6 +8104,7 @@ impl OpenSigner {
                 hex.extend_from_slice(alloc::format!("{byte:02x}").as_bytes());
             }
             osk_backup::kdbx::write(
+                &c,
                 &[osk_backup::kdbx::Item {
                     title: title.as_bytes(),
                     notes: notes.as_bytes(),
@@ -8113,6 +8139,7 @@ impl OpenSigner {
     /// own: the shutter and the mixed result's reference rows belong to
     /// the app, the rest to the wizard.
     fn tap_gather(&mut self, id: Id, network: Network) {
+        let c = crate::unchecked();
         let now = self.now_ms;
         let class = self.class();
         let pane = self.words_pane_dp();
@@ -8137,7 +8164,7 @@ impl OpenSigner {
             return;
         }
         let per_page = views::words::per_page(class, pane, g.language());
-        g.tap(id, network, now, per_page);
+        g.tap(&c, id, network, now, per_page);
         // The gatherer's words are the part: it never shows them.
         let ready = g.step() == create::Step::Words;
         self.sync_create();
@@ -8226,6 +8253,7 @@ impl OpenSigner {
     /// the key back. Nothing is stored: the parts live in the flow and
     /// leaving it zeroizes them.
     fn make_split(&mut self, network: Network) {
+        let c = crate::unchecked();
         let Some(Wizard::Backup(b)) = &self.wizard else {
             return;
         };
@@ -8259,8 +8287,8 @@ impl OpenSigner {
                 let mut prints = [Fingerprint([0u8; 4]); osk_entropy::MAX_XOR_PARTS];
                 for (i, print) in prints.iter_mut().enumerate().take(count) {
                     let part = Mnemonic::from_entropy(lang, &parts[i][..len]).ok()?;
-                    let seed = part.to_seed(b"").ok()?;
-                    *print = MasterKey::from_seed(&seed, network).fingerprint();
+                    let seed = part.to_seed(&c, b"").ok()?;
+                    *print = MasterKey::from_seed(&c, &seed, network).fingerprint();
                 }
                 Some((parts, prints, len))
             })
@@ -8348,6 +8376,7 @@ impl OpenSigner {
     /// ✓ on the scanner's passphrase entry: the Argon2id and the open.
     /// A tag that does not verify keeps the entry and says so.
     fn open_scanned_backup(&mut self) {
+        let c = crate::unchecked();
         let Some(s) = self.scan.as_ref() else {
             return;
         };
@@ -8355,7 +8384,7 @@ impl OpenSigner {
             return;
         }
         let network = self.network;
-        match osk_backup::oskb::open_payload(s.backup(), s.backup_pass()) {
+        match osk_backup::oskb::open_payload(&c, s.backup(), s.backup_pass()) {
             Ok(osk_backup::oskb::Opened::Words(m)) => {
                 self.load_scanned(&m);
                 self.mask_deadline = None;
@@ -8363,17 +8392,18 @@ impl OpenSigner {
             // A master seed is a key read from its secret, the way a
             // SLIP-39 or a codex32 key is: the wizard opens at its
             // confirmation with the key already built.
-            Ok(osk_backup::oskb::Opened::Seed(seed)) => match LoadWizard::from_seed(&seed, network)
-            {
-                Some(wizard) => {
-                    self.words_to_wizard(wizard);
-                    self.mask_deadline = None;
+            Ok(osk_backup::oskb::Opened::Seed(seed)) => {
+                match LoadWizard::from_seed(&c, &seed, network) {
+                    Some(wizard) => {
+                        self.words_to_wizard(wizard);
+                        self.mask_deadline = None;
+                    }
+                    None => {
+                        let reason = String::from(self.strings().scan_reason_backup);
+                        self.scan_failed(reason);
+                    }
                 }
-                None => {
-                    let reason = String::from(self.strings().scan_reason_backup);
-                    self.scan_failed(reason);
-                }
-            },
+            }
             Ok(osk_backup::oskb::Opened::Note(text)) => {
                 self.mask_deadline = None;
                 self.note_opened(&text);
@@ -8882,8 +8912,9 @@ impl OpenSigner {
     /// The right PIN was entered: master keys are rebuilt from the sealed
     /// seeds.
     fn unlock(&mut self) {
+        let c = crate::unchecked();
         let OpenSigner { keys, session, .. } = self;
-        keys.retain_mut(|k| k.unlock(session.key()));
+        keys.retain_mut(|k| k.unlock(&c, session.key()));
         self.ui.set_scroll(ids::SCROLL, 0);
     }
 
@@ -8993,6 +9024,7 @@ impl OpenSigner {
     }
 
     fn set_network(&mut self, network: Network) {
+        let c = crate::unchecked();
         if network == self.network {
             return;
         }
@@ -9006,7 +9038,7 @@ impl OpenSigner {
             k.network = network;
         }
         self.cache.clear();
-        self.explore.rebuild(network);
+        self.explore.rebuild(&c, network);
         self.explore_cache = None;
     }
 
@@ -9152,6 +9184,7 @@ impl OpenSigner {
     /// The Hold was held: a fresh header, the session PIN stretched
     /// against it, and the tag for that PIN's challenge.
     fn start_keeping(&mut self, key: usize) {
+        let c = crate::unchecked();
         if !self.keep_offered(key) {
             return;
         }
@@ -9159,7 +9192,7 @@ impl OpenSigner {
         let header = osk_keep::new_header(self.keep_cost(), &seed);
         let guess = self
             .session
-            .with_pin(|pin| osk_keep::challenge(&header, pin))
+            .with_pin(|pin| osk_keep::challenge(&c, &header, pin))
             .flatten();
         let Some(guess) = guess else {
             return;
@@ -9218,6 +9251,7 @@ impl OpenSigner {
     /// The shell answered [`Command::LoadSecret`]. A blob this build
     /// cannot read is no blob at all.
     fn secret_blob(&mut self, blob: Option<Vec<u8>>) {
+        let c = crate::unchecked();
         let step = self.keep.step;
         if !matches!(step, Some(keep::Step::Opening | keep::Step::Duress)) {
             return;
@@ -9236,7 +9270,10 @@ impl OpenSigner {
         let header = osk_keep::header(&blob).expect("checked above");
         // The element authenticates a challenge derived from the PIN on
         // the pad, so its answer is worth nothing for any other PIN.
-        let Some(guess) = self.keep.with_pin(|pin| osk_keep::challenge(&header, pin)) else {
+        let Some(guess) = self
+            .keep
+            .with_pin(|pin| osk_keep::challenge(&c, &header, pin))
+        else {
             self.keep_failed();
             return;
         };
@@ -9447,6 +9484,7 @@ impl OpenSigner {
     /// their seed, the master key and the backup flag. The PIN that
     /// opened them becomes the session PIN. `false` when nothing loaded.
     fn load_kept(&mut self, keys: osk_keep::KeptKeys) -> bool {
+        let c = crate::unchecked();
         // The PIN that opened the blob becomes the session PIN, and it
         // is sealed or not held at all, so it is set before anything is
         // loaded: a session key that cannot seal it loads nothing.
@@ -9471,7 +9509,7 @@ impl OpenSigner {
                     else {
                         continue;
                     };
-                    let Ok(seed) = mnemonic.to_seed(b"") else {
+                    let Ok(seed) = mnemonic.to_seed(&c, b"") else {
                         continue;
                     };
                     let Some(seed) = SeedBytes::new(seed.expose()) else {
@@ -9490,7 +9528,7 @@ impl OpenSigner {
                     (Secret::new(seed), None, *codex32)
                 }
             };
-            let master = MasterKey::from_seed_bytes(&seed, self.network);
+            let master = MasterKey::from_seed_bytes(&c, &seed, self.network);
             let key = LoadedKey::new(seed, master, mnemonic, false, kept.backup_verified);
             let mut key = if codex32 { key.codex32() } else { key };
             if self.keys.iter().any(|k| k.fingerprint == key.fingerprint) {
@@ -9508,12 +9546,13 @@ impl OpenSigner {
     /// Runs the self-test. On failure the blocking screen replaces
     /// everything until Exit.
     fn run_selftest(&mut self) {
+        let c = crate::unchecked();
         #[cfg(test)]
         if self.fail_selftest {
             self.selftest = Some(Err("injected failure"));
             return;
         }
-        self.selftest = Some(osk_selftest::run());
+        self.selftest = Some(osk_selftest::run(&c));
     }
 
     // ----- input -----
@@ -10395,11 +10434,15 @@ impl OpenSigner {
     /// The account view a key's Export shows, derived once (§16.110
     /// rule 1).
     fn derive_account(&self, key: usize, account: Account) -> Option<AccountView> {
+        let c = crate::unchecked();
         let master = self.keys.get(key)?.master.as_ref()?;
         match account {
-            Account::Single(script) => master.account_xpub(script, 0).ok().map(AccountView::Single),
+            Account::Single(script) => master
+                .account_xpub(&c, script, 0)
+                .ok()
+                .map(AccountView::Single),
             Account::Multi(script) => master
-                .multisig_account_xpub(script, 0)
+                .multisig_account_xpub(&c, script, 0)
                 .ok()
                 .map(AccountView::Multi),
         }
@@ -10493,6 +10536,7 @@ impl OpenSigner {
     /// refuses a secret that is not the account's, so a record that
     /// comes back is a record that key signed.
     fn write_signer_record(&mut self, key: usize, account: Account) {
+        let c = crate::unchecked();
         self.bsms.record = None;
         let Account::Multi(script) = account else {
             return;
@@ -10503,7 +10547,7 @@ impl OpenSigner {
             return;
         };
         self.bsms.record = master
-            .with_multisig_account_secret(script, 0, |secret, view| {
+            .with_multisig_account_secret(&c, script, 0, |secret, view| {
                 bsms::signer_record(master.secp(), view, secret, &token, &description)
                     .ok()
                     .map(|r| r.to_text())
@@ -11740,6 +11784,7 @@ impl OpenSigner {
     }
 
     fn tap_wizard(&mut self, id: Id) {
+        let c = crate::unchecked();
         let network = self.network;
         let now = self.now_ms;
         let class = self.class();
@@ -11802,7 +11847,8 @@ impl OpenSigner {
             && w.checksum_ok()
         {
             if let Some(m) = w.mnemonic() {
-                self.explore.set_typed(m.indices(), m.language(), network);
+                self.explore
+                    .set_typed(&c, m.indices(), m.language(), network);
             }
             self.cancel_wizard();
             return;
@@ -11855,7 +11901,7 @@ impl OpenSigner {
             return;
         };
         match w {
-            Wizard::Load(w) => w.tap(id, network),
+            Wizard::Load(w) => w.tap(&c, id, network),
             Wizard::Build(_) => {
                 self.tap_build(id);
                 return;
@@ -11881,7 +11927,7 @@ impl OpenSigner {
                 }
                 let per_page = views::words::per_page(class, pane, w.language());
                 let before = (w.step(), w.xor_parts());
-                w.tap(id, network, now, per_page);
+                w.tap(&c, id, network, now, per_page);
                 // A random value of a SLIP-39 split is gathered on this
                 // wizard's own screens and taken where its words would
                 // be, which it never shows.
@@ -11971,6 +12017,7 @@ impl OpenSigner {
     /// card turns into a hold: adding a wallet that differs by one key
     /// from a wallet in use (§2.7).
     fn hold(&mut self, id: Id) {
+        let c = crate::unchecked();
         if id == ids::SIGN_HOLD {
             if self.screen == Screen::Sign {
                 let aux = self.schnorr_aux();
@@ -12009,7 +12056,7 @@ impl OpenSigner {
                         })
                     })
                     .collect();
-                sign.sign(&masters, &share_keys, *nonce, aux, musig_session, seed);
+                sign.sign(&c, &masters, &share_keys, *nonce, aux, musig_session, seed);
                 drop(share_keys);
                 drop(doors);
                 // A session whose every nonce has signed is over, and
@@ -12126,12 +12173,13 @@ impl OpenSigner {
     /// ✓ would add (§16.67). An empty passphrase derives nothing: it is
     /// the key that is already loaded.
     fn build_open_passphrase(&mut self, key: usize) {
+        let c = crate::unchecked();
         let Some(mnemonic) = self.key_mnemonic(key) else {
             return;
         };
         let network = self.network;
         if let Some(f) = self.open_finish.as_mut() {
-            f.build(&Material::Words(&mnemonic), network);
+            f.build(&c, &Material::Words(&mnemonic), network);
         }
     }
 
@@ -12148,19 +12196,22 @@ impl OpenSigner {
     /// The master fingerprint of the BIP-85 child the word count and
     /// index now hold name.
     fn child_fingerprint(&self, key: usize) -> Option<Fingerprint> {
-        let c = self.child.as_ref()?;
-        let index = c.index_value()?;
+        let c = crate::unchecked();
+        let state = self.child.as_ref()?;
+        let index = state.index_value()?;
         let k = self.keys.get(key)?;
         let master = k.master.as_ref()?;
-        let child = osk_bip::bip85::child_mnemonic(master, k.language, c.words, index).ok()?;
-        let seed = child.to_seed(b"").ok()?;
-        Some(MasterKey::from_seed(&seed, self.network).fingerprint())
+        let child =
+            osk_bip::bip85::child_mnemonic(&c, master, k.language, state.words, index).ok()?;
+        let seed = child.to_seed(&c, b"").ok()?;
+        Some(MasterKey::from_seed(&c, &seed, self.network).fingerprint())
     }
 
     /// ✓ on "Open passphrase": the key of the parent's words and the
     /// passphrase typed here. An empty passphrase is the parent's own
     /// key, so ✓ does nothing until something is typed.
     fn open_passphrase_done(&mut self, key: usize) {
+        let c = crate::unchecked();
         if !self
             .open_finish
             .as_ref()
@@ -12176,7 +12227,7 @@ impl OpenSigner {
         let Some(f) = self.open_finish.as_mut() else {
             return;
         };
-        if !f.build(&Material::Words(&mnemonic), network) {
+        if !f.build(&c, &Material::Words(&mnemonic), network) {
             return;
         }
         let Some(opened) = f.take_key(Some(mnemonic), verified) else {
@@ -12222,30 +12273,31 @@ impl OpenSigner {
     /// ✓ on the child's index: the child mnemonic of the parent's
     /// master, loaded as a key of its own.
     fn open_child_done(&mut self, key: usize) {
-        let Some(c) = self.child.as_ref() else {
+        let c = crate::unchecked();
+        let Some(state) = self.child.as_ref() else {
             return;
         };
-        if c.step != ChildStep::Index {
+        if state.step != ChildStep::Index {
             return;
         }
-        let (words, Some(index)) = (c.words, c.index_value()) else {
+        let (words, Some(index)) = (state.words, state.index_value()) else {
             return;
         };
         let network = self.network;
         let child = self.keys.get(key).and_then(|k| {
             let master = k.master.as_ref()?;
-            osk_bip::bip85::child_mnemonic(master, k.language, words, index).ok()
+            osk_bip::bip85::child_mnemonic(&c, master, k.language, words, index).ok()
         });
         let Some(child) = child else {
             return;
         };
-        let Ok(seed) = child.to_seed(b"") else {
+        let Ok(seed) = child.to_seed(&c, b"") else {
             return;
         };
         let Some(seed) = SeedBytes::new(seed.expose()).map(Secret::new) else {
             return;
         };
-        let master = MasterKey::from_seed_bytes(&seed, network);
+        let master = MasterKey::from_seed_bytes(&c, &seed, network);
         let opened = LoadedKey::new(seed, master, Some(child), false, false).derived();
         // The same check as the passphrase's: a child made from a
         // wallet's row is that wallet's key or it is nothing.
@@ -12298,6 +12350,7 @@ impl OpenSigner {
     }
 
     fn keyboard(&mut self, id: Id, input: KeyInput) {
+        let c = crate::unchecked();
         if id == ids::KEEP_DURESS_KEYBOARD && self.screen == Screen::DuressPin {
             self.duress_input(input);
             return;
@@ -12382,7 +12435,7 @@ impl OpenSigner {
             }
             if resolve {
                 if let Some(flow) = self.lightning.as_mut() {
-                    flow.resolve_aezeed(network);
+                    flow.resolve_aezeed(&c, network);
                 }
                 self.ui.set_scroll(ids::SCROLL, 0);
             }
@@ -12402,10 +12455,10 @@ impl OpenSigner {
                 (true, KeyInput::Done) => {
                     e.apply();
                 }
-                (false, KeyInput::Char(c)) => {
-                    e.passphrase_push(c, now, network);
+                (false, KeyInput::Char(ch)) => {
+                    e.passphrase_push(&c, ch, now, network);
                 }
-                (false, KeyInput::Backspace) => e.passphrase_pop(network),
+                (false, KeyInput::Backspace) => e.passphrase_pop(&c, network),
                 (false, KeyInput::Done) => e.go(explore::Step::Keys),
                 (_, KeyInput::Shift | KeyInput::Symbols) => {}
             }
@@ -12778,18 +12831,18 @@ impl OpenSigner {
         };
         self.mask_deadline = match w {
             Wizard::Load(w) => {
-                w.key(id, input, network, now);
+                w.key(&c, id, input, network, now);
                 w.mask_deadline()
             }
             Wizard::Create(w) => {
-                w.key(id, input, network, now);
+                w.key(&c, id, input, network, now);
                 let deadline = w.mask_deadline();
                 self.sync_create();
                 deadline
             }
             Wizard::Backup(b) => match b.gather_mut() {
                 Some(g) => {
-                    g.key(id, input, network, now);
+                    g.key(&c, id, input, network, now);
                     let deadline = g.mask_deadline();
                     self.sync_create();
                     deadline
@@ -13594,8 +13647,9 @@ impl OpenSigner {
 
     /// One dealt key, loaded the way a key read from words is.
     fn add_dealt_key(&mut self, m: &Mnemonic) {
+        let c = crate::unchecked();
         let network = self.network;
-        let Some(key) = crate::finish::key_from_words(m, network) else {
+        let Some(key) = crate::finish::key_from_words(&c, m, network) else {
             return;
         };
         if self.keys.iter().any(|k| k.fingerprint == key.fingerprint) {
@@ -14300,9 +14354,11 @@ impl OpenSigner {
         cost: osk_backup::Cost,
         seed: &[u8; osk_backup::kdbx::SEED_LEN],
     ) -> Option<Vec<u8>> {
+        let c = crate::unchecked();
         let s = self.strings();
         let title = note_title(self.note.text(), s.kdbx_note_title);
         osk_backup::kdbx::write(
+            &c,
             &[osk_backup::kdbx::Item {
                 title: title.as_bytes(),
                 notes: self.note.bytes(),
@@ -14323,6 +14379,7 @@ impl OpenSigner {
         cost: osk_backup::Cost,
         seed: &[u8; osk_backup::kdbx::SEED_LEN],
     ) -> Option<Vec<u8>> {
+        let c = crate::unchecked();
         let s = self.strings();
         let title = self.wallet_name(wallet).unwrap_or_default();
         let notes = alloc::format!(
@@ -14333,6 +14390,7 @@ impl OpenSigner {
             self.sheet_note_text(wallet),
         );
         osk_backup::kdbx::write(
+            &c,
             &[osk_backup::kdbx::Item {
                 title: title.as_bytes(),
                 notes: notes.as_bytes(),
@@ -14425,6 +14483,7 @@ impl OpenSigner {
 
     /// The repeat matched: seal what the form was asked for.
     fn seal_now(&mut self) {
+        let c = crate::unchecked();
         let cost = self.export_cost();
         let Some((what, form)) = self.form else {
             return;
@@ -14448,10 +14507,15 @@ impl OpenSigner {
         }
         let seed = self.backup_seed();
         let sealed = match (what, form) {
-            (FormFor::Note, _) => {
-                osk_backup::oskb::seal_note(self.note.bytes(), self.seal_pass.expose(), cost, &seed)
-            }
+            (FormFor::Note, _) => osk_backup::oskb::seal_note(
+                &c,
+                self.note.bytes(),
+                self.seal_pass.expose(),
+                cost,
+                &seed,
+            ),
             (FormFor::Sheet(wallet), _) => osk_backup::oskb::seal_sheet(
+                &c,
                 self.sheet_descriptor(wallet).unwrap_or_default().as_bytes(),
                 self.wallet_name(wallet).unwrap_or_default().as_bytes(),
                 self.sheet_note_text(wallet).as_bytes(),
@@ -14566,13 +14630,14 @@ impl OpenSigner {
     /// key it was built on. `None` where that key is not loaded, which
     /// is what leaves the labels and the check without an answer.
     fn silent_receiver(&self, wallet: usize) -> Option<(usize, osk_bip::silent::Receiver)> {
+        let c = crate::unchecked();
         let record = self.silent_of(wallet)?;
         let (i, key) =
             self.keys.iter().enumerate().find(|(_, k)| {
                 k.fingerprint == record.fingerprint && k.network == record.network
             })?;
         let master = key.master.as_ref()?;
-        let receiver = osk_bip::silent::Receiver::derive(master, record.account);
+        let receiver = osk_bip::silent::Receiver::derive(&c, master, record.account);
         // The key must be the one the record was written from: a
         // fingerprint is four bytes, and the wallet is the two points.
         if receiver.spend_public_key() != record.spend {
@@ -14633,6 +14698,7 @@ impl OpenSigner {
     /// is chosen: the two public keys BIP-352 derives, the origin of
     /// the key they came from, and no labels yet.
     pub(crate) fn silent_built(&self) -> Option<osk_bip::silent_wallet::SilentWallet> {
+        let c = crate::unchecked();
         let Some(Wizard::Build(w)) = &self.wizard else {
             return None;
         };
@@ -14642,7 +14708,7 @@ impl OpenSigner {
         let which = w.keys().first().and_then(build::BuiltKey::loaded)?;
         let key = self.keys.get(which)?;
         let master = key.master.as_ref()?;
-        let receiver = osk_bip::silent::Receiver::derive(master, 0);
+        let receiver = osk_bip::silent::Receiver::derive(&c, master, 0);
         Some(osk_bip::silent_wallet::SilentWallet {
             network: key.network,
             fingerprint: key.fingerprint,

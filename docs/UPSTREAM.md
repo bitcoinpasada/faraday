@@ -212,27 +212,25 @@ Since the fork:
   package) is Faraday's, with what `faraday/image/overlay` laid over it
   now in place; `run-build.sh` builds from it directly, and `build.sh`
   takes the FAT serials, the kernel's release string and the helper
-  binaries from it rather than from an edited copy. The app keeps the
-  name the inittab starts, `/usr/bin/opensigner-pi`, which the
-  `opensigner-pi` package installs from Faraday's `faraday` binary. Same
-  image as before but for the build ID and one fix: the Pi 3's
-  `cmdline.txt` is Faraday's pi3 one (with `loglevel=5`); the overlay's
-  copy over a symlink had written pi02w's into it.
+  binaries from it rather than from an edited copy. Same image as
+  before but for the build ID and one fix: the Pi 3's `cmdline.txt` is
+  Faraday's pi3 one (with `loglevel=5`); the overlay's copy over a
+  symlink had written pi02w's into it.
 - `opensigner/shells/avfoundation/src/convert.rs` (2026-10-21, U1): the
   NV12 conversion is public (`opensigner_avfoundation::convert`), and
   `faraday-mediafoundation` uses it instead of its own copy. Why: one
   copy. Same output as before.
-
-## 4. Watching upstream
-
-When there is reason to (a release, a security advisory, or every few
-weeks), fetch `upstream` and read `git log d26b84e..upstream/main`. Port
-what matters, security fixes first, as a commit per upstream change
-naming upstream's commit, and move §1's sync point. Changes to what §3
-lists as removed (OpenSigner's own shells, their tools and recipes) are
-not ported. Notes once meant for
-upstream (`local/for-upstream/`) are optional: they may still be sent,
-and nothing waits on them.
+- `docs/learn/*.md`, `osk-learn`'s `en.rs` and `lib.rs` (2026-10-21, the
+  owner's Learn review): "Devices" removed (`Learn::devices`, `PAGES` 26,
+  the pages after it renumbered; OpenSigner's Settings, About and Tiers
+  name the air gap instead); "Encrypted backups" describes only reading
+  an OpenSigner backup into a vault; backups (the never list in sentence
+  case, a Faraday vault the exception for a password manager),
+  passphrases and verifying (no all-capitals lines; a passphrase in a
+  different vault from its seed), multisig and kinds of wallets (a lost
+  description rebuilt from every key, not from a quorum), backups in
+  other forms (a vault in place of the encrypted backup) and the
+  glossary's Passphrase.
 - `core/osk-crypto/src/work.rs` (2026-10-21; `docs/COMPUTE.md` C0):
   `Compute`, the token costly work will take: not `Clone`, `Copy`,
   `Default`, `Send` or `Sync`; minted by `Compute::new(count)` at an
@@ -244,3 +242,44 @@ and nothing waits on them.
   never re-exported, for OpenSigner's own app, which makes no drawing
   claim. Faraday's crates are kept off it by `faraday/clippy.toml` and,
   from D1, the costs lint.
+- The token taken by key work (2026-10-21; `docs/COMPUTE.md` C1): seed
+  words parsed, a key stretched, a master key made and a key derived take
+  `c: &Compute` first and count through it. `osk-crypto`'s `Work` gains
+  `WordsParse`, `MasterKey` and `KeyDerive`; `pbkdf2_hmac_sha256`,
+  `pbkdf2_hmac_sha512` and `scrypt` count `Kdf` through the token
+  (`scrypt` now before its parameters are checked), as do `osk-backup`'s
+  `argon2id`; `osk-bip`'s `Mnemonic::parse` counts `WordsParse`;
+  `MasterKey::from_seed`, `from_seed_bytes`, `from_xpriv`, `decode` and
+  `from_chain_code_and_key` count `MasterKey`; `MasterKey::xpub`,
+  `derive`, `account_xpub`, `multisig_account_xpub`,
+  `with_multisig_account_secret` and `DerivedKey::to_xpub` count
+  `KeyDerive`, the account views once each (they derive through
+  uncounted private helpers). Their callers take the token too:
+  `Mnemonic::to_seed` and `to_seed_unchecked`; SLIP-39's `recover`,
+  `split`, `encrypt`, `decrypt`; aezeed's `decode`, `decode_at_cost`,
+  `node_key`, `ldk_node_key`; BIP-85's `child_*`; `silent::Receiver::derive`;
+  `vanity::grind`; `osk-backup`'s `oskb::seal*`, `open`, `open_payload`
+  and `kdbx::write`, `verify`; `osk-keep`'s `challenge`; `osk-psbt`'s
+  `KeyRef::from_master`, `sign::sign`, `verify::deterministic`;
+  `osk-selftest`'s `run` and `run_checks` (a `Check` is
+  `fn(&Compute) -> bool`). Core's tests, examples and `fuzz/` use
+  `Compute::unchecked()`, with `osk-crypto/unchecked` in each crate's
+  dev-dependencies. Why: a screen that does this work while drawing will
+  not compile. Nothing computed changes.
+- `opensigner/opensigner-core` (2026-10-21; C1): the pub API that does
+  key work takes its caller's token (the load, create, finish, explore,
+  lightning, shares and sign wizards' presses and keys, `addresses`,
+  `key_from_words`); the app mints with its crate-private `unchecked()`
+  where it needs one, whose `#[expect(dead_code)]` goes. A local `c` that
+  clashed with the token is renamed. Same behaviour.
+
+## 4. Watching upstream
+
+When there is reason to (a release, a security advisory, or every few
+weeks), fetch `upstream` and read `git log d26b84e..upstream/main`. Port
+what matters, security fixes first, as a commit per upstream change
+naming upstream's commit, and move §1's sync point. Changes to what §3
+lists as removed (OpenSigner's own shells, their tools and recipes) are
+not ported. Notes once meant for
+upstream (`local/for-upstream/`) are optional: they may still be sent,
+and nothing waits on them.

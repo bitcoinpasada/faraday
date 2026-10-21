@@ -14,6 +14,7 @@ use std::sync::OnceLock;
 use libfuzzer_sys::fuzz_target;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_psbt::bitcoin::Address;
 use osk_psbt::message;
 
@@ -23,14 +24,18 @@ fn addresses() -> &'static [Address] {
     ADDRESSES.get_or_init(|| {
         let words = "abandon abandon abandon abandon abandon abandon abandon abandon abandon \
                      abandon abandon about";
-        let m = Mnemonic::parse(Language::English, words).expect("test vector mnemonic");
-        let master =
-            MasterKey::from_seed(&m.to_seed(b"").expect("ascii passphrase"), Network::Mainnet);
+        let c = Compute::unchecked();
+        let m = Mnemonic::parse(&c, Language::English, words).expect("test vector mnemonic");
+        let master = MasterKey::from_seed(
+            &c,
+            &m.to_seed(&c, b"").expect("ascii passphrase"),
+            Network::Mainnet,
+        );
         let mut out: Vec<Address> = ScriptType::ALL
             .iter()
             .map(|&script_type| {
                 master
-                    .account_xpub(script_type, 0)
+                    .account_xpub(&c, script_type, 0)
                     .expect("test vector account")
                     .address(false, 0)
                     .expect("test vector address")

@@ -8,6 +8,7 @@ use std::str::FromStr;
 
 use common::{hex, master, records, unhex};
 use osk_bip::keys::{MasterKey, Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_psbt::bitcoin::PrivateKey;
 use osk_psbt::bitcoin::address::{Address, NetworkUnchecked};
 use osk_psbt::bitcoin::bip32::DerivationPath;
@@ -55,6 +56,7 @@ fn key_of(
     path: Option<&str>,
     network: Network,
 ) -> Option<(SecretKey, bool)> {
+    let c = Compute::unchecked();
     if let Some(wif) = wif {
         let key = PrivateKey::from_wif(wif).expect("wif");
         return Some((key.inner, key.compressed));
@@ -62,7 +64,7 @@ fn key_of(
     let words = words?;
     let path = DerivationPath::from_str(path?).expect("path");
     let master: MasterKey = master(words, network);
-    let derived = master.derive(&path);
+    let derived = master.derive(&c, &path);
     Some((*derived.secret_key(), true))
 }
 
@@ -286,6 +288,7 @@ fn bip322_error_vectors() {
 /// every format that type has, and an address that is not the first.
 #[test]
 fn sign_then_verify_round_trip() {
+    let c = Compute::unchecked();
     let master = master(common::ABANDON, Network::Mainnet);
     let text = "Two lines,\nthe second one indented\n  like this.";
     for script in ScriptType::ALL {
@@ -297,9 +300,9 @@ fn sign_then_verify_round_trip() {
                     osk_psbt::bitcoin::bip32::ChildNumber::from_normal_idx(0).unwrap(),
                     osk_psbt::bitcoin::bip32::ChildNumber::from_normal_idx(index).unwrap(),
                 ]);
-            let derived = master.derive(&path);
+            let derived = master.derive(&c, &path);
             let expected = master
-                .account_xpub(script, 0)
+                .account_xpub(&c, script, 0)
                 .expect("account")
                 .address(false, index)
                 .expect("address")

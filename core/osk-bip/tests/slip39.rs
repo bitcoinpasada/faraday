@@ -13,6 +13,7 @@ use osk_bip::bitcoin::Network;
 use osk_bip::bitcoin::bip32::Xpriv;
 use osk_bip::slip39::{self, GroupSpec, Share, recover};
 use osk_crypto::sha256;
+use osk_crypto::work::Compute;
 use serde_json::Value;
 
 const VECTORS: &str = include_str!("../../../tools/vectors/slip39/vectors.json");
@@ -50,11 +51,12 @@ fn vectors() -> Vec<Vector> {
 
 /// The master secret behind a case's mnemonics, or the refusal.
 fn combine(mnemonics: &[String]) -> Result<Vec<u8>, slip39::Error> {
+    let c = Compute::unchecked();
     let mut shares = Vec::new();
     for m in mnemonics {
         shares.push(Share::parse(m)?);
     }
-    let secret = recover(&shares, PASSPHRASE)?;
+    let secret = recover(&c, &shares, PASSPHRASE)?;
     Ok(secret.expose().as_bytes().to_vec())
 }
 
@@ -92,12 +94,13 @@ fn a_recovered_master_secret_is_the_bip32_seed_the_vector_states() {
 /// nothing but SLIP-39's own derivation opens what Trezor shows.
 #[test]
 fn the_master_secret_is_not_bip39_entropy() {
+    let c = Compute::unchecked();
     let v = &vectors()[0];
     let secret = combine(&v.mnemonics).unwrap();
     let as_bip39 =
         osk_bip::bip39::Mnemonic::from_entropy(osk_bip::bip39::Language::English, &secret)
             .unwrap()
-            .to_seed(PASSPHRASE)
+            .to_seed(&c, PASSPHRASE)
             .unwrap();
     let other = Xpriv::new_master(Network::Bitcoin, as_bip39.expose()).unwrap();
     assert_ne!(other.to_string(), v.xprv);
@@ -143,9 +146,11 @@ impl Stream {
 }
 
 fn split_to_shares(secret: &[u8], group_threshold: u8, groups: &[GroupSpec]) -> Vec<Share> {
+    let c = Compute::unchecked();
     let mut stream = Stream(7);
     let mut out: Vec<Share> = (0..64).map(|_| Share::default()).collect();
     let n = slip39::split(
+        &c,
         secret,
         PASSPHRASE,
         0x1234,
@@ -163,6 +168,7 @@ fn split_to_shares(secret: &[u8], group_threshold: u8, groups: &[GroupSpec]) -> 
 
 #[test]
 fn a_split_recombines_from_every_threshold_subset() {
+    let c = Compute::unchecked();
     for secret in [
         unhex("bb54aac4b89dc868ba37d9cc21b2cece"),
         unhex("989baf9dcaad5b10ca33dfd8cc75e42477025dce88ae83e75a230086a0e00e92"),
@@ -177,9 +183,9 @@ fn a_split_recombines_from_every_threshold_subset() {
         let mut subsets = 0;
         for a in 0..5 {
             for b in a + 1..5 {
-                for c in b + 1..5 {
-                    let chosen = [shares[a].clone(), shares[b].clone(), shares[c].clone()];
-                    let got = recover(&chosen, PASSPHRASE).unwrap();
+                for k in b + 1..5 {
+                    let chosen = [shares[a].clone(), shares[b].clone(), shares[k].clone()];
+                    let got = recover(&c, &chosen, PASSPHRASE).unwrap();
                     assert_eq!(got.expose().as_bytes(), &secret[..]);
                     subsets += 1;
                 }
@@ -190,7 +196,7 @@ fn a_split_recombines_from_every_threshold_subset() {
         // Two of the five are not enough: the set is short a share.
         let two = [shares[0].clone(), shares[1].clone()];
         assert_eq!(
-            recover(&two, PASSPHRASE).err(),
+            recover(&c, &two, PASSPHRASE).err(),
             Some(slip39::Error::WrongMemberCount {
                 group_index: 0,
                 needed: 3,
@@ -202,6 +208,7 @@ fn a_split_recombines_from_every_threshold_subset() {
 
 #[test]
 fn a_two_level_split_needs_a_threshold_of_groups_and_of_members() {
+    let c = Compute::unchecked();
     let secret = unhex("bb54aac4b89dc868ba37d9cc21b2cece");
     let groups = [
         GroupSpec {
@@ -230,17 +237,17 @@ fn a_two_level_split_needs_a_threshold_of_groups_and_of_members() {
 
     let mut chosen = by_group(0);
     chosen.extend(by_group(1).into_iter().take(2));
-    let got = recover(&chosen, PASSPHRASE).unwrap();
+    let got = recover(&c, &chosen, PASSPHRASE).unwrap();
     assert_eq!(got.expose().as_bytes(), &secret[..]);
 
     let mut chosen = by_group(1).into_iter().take(2).collect::<Vec<_>>();
     chosen.extend(by_group(2).into_iter().take(3));
-    let got = recover(&chosen, PASSPHRASE).unwrap();
+    let got = recover(&c, &chosen, PASSPHRASE).unwrap();
     assert_eq!(got.expose().as_bytes(), &secret[..]);
 
     // One group is not enough when two must be present.
     assert_eq!(
-        recover(&by_group(0), PASSPHRASE).err(),
+        recover(&c, &by_group(0), PASSPHRASE).err(),
         Some(slip39::Error::WrongGroupCount {
             needed: 2,
             given: 1,
@@ -250,10 +257,12 @@ fn a_two_level_split_needs_a_threshold_of_groups_and_of_members() {
 
 #[test]
 fn an_extendable_split_recovers_the_same_secret() {
+    let c = Compute::unchecked();
     let secret = unhex("bb54aac4b89dc868ba37d9cc21b2cece");
     let mut stream = Stream(19);
     let mut out: Vec<Share> = (0..8).map(|_| Share::default()).collect();
     let n = slip39::split(
+        &c,
         &secret,
         PASSPHRASE,
         0x0abc,
@@ -270,20 +279,22 @@ fn an_extendable_split_recovers_the_same_secret() {
     .unwrap();
     out.truncate(n);
     assert!(out.iter().all(Share::is_extendable));
-    let got = recover(&out[..2], PASSPHRASE).unwrap();
+    let got = recover(&c, &out[..2], PASSPHRASE).unwrap();
     assert_eq!(got.expose().as_bytes(), &secret[..]);
 }
 
 #[test]
 fn a_different_passphrase_gives_a_different_master_secret() {
+    let c = Compute::unchecked();
     let v = &vectors()[0];
     let share = Share::parse(&v.mnemonics[0]).unwrap();
-    let other = recover(&[share], b"").unwrap();
+    let other = recover(&c, &[share], b"").unwrap();
     assert_ne!(hex(other.expose().as_bytes()), v.master_secret);
 }
 
 #[test]
 fn shares_of_two_backups_do_not_combine() {
+    let c = Compute::unchecked();
     let secret = unhex("bb54aac4b89dc868ba37d9cc21b2cece");
     let groups = [GroupSpec {
         threshold: 2,
@@ -294,6 +305,7 @@ fn shares_of_two_backups_do_not_combine() {
     let mut stream = Stream(200);
     let mut theirs: Vec<Share> = (0..8).map(|_| Share::default()).collect();
     let n = slip39::split(
+        &c,
         &secret,
         PASSPHRASE,
         0x1234,
@@ -309,7 +321,7 @@ fn shares_of_two_backups_do_not_combine() {
 
     let mixed = [mine[0].clone(), theirs[1].clone()];
     assert_eq!(
-        recover(&mixed, PASSPHRASE).err(),
+        recover(&c, &mixed, PASSPHRASE).err(),
         Some(slip39::Error::BadDigest)
     );
 }

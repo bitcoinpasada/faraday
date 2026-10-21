@@ -8,6 +8,7 @@ use common::{ABANDON, Harness, PANEL, PHONE};
 use opensigner_core::{ExportFormat, ScreenKind, ids, strings};
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, MultisigScriptType, Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_shell_api::{Command, Event, FileKind};
 
 /// The accounts the Choice offers, in its order.
@@ -23,8 +24,9 @@ const MAINNET: usize = 0;
 const REGTEST: usize = 3;
 
 fn master(network: Network) -> MasterKey {
-    let m = Mnemonic::parse(Language::English, &ABANDON.join(" ")).expect("the test words");
-    MasterKey::from_seed(&m.to_seed(b"").expect("a seed"), network)
+    let c = Compute::unchecked();
+    let m = Mnemonic::parse(&c, Language::English, &ABANDON.join(" ")).expect("the test words");
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("a seed"), network)
 }
 
 /// `[73c5da0a/84h/0h/0h]xpub…`: what a coordinator is handed.
@@ -43,6 +45,7 @@ fn origin(
 
 /// The account key of row `row` of the Choice, derived here.
 fn expected(network: Network, row: usize) -> String {
+    let c = Compute::unchecked();
     let m = master(network);
     match row {
         NESTED_MULTISIG | SEGWIT_MULTISIG => {
@@ -50,12 +53,12 @@ fn expected(network: Network, row: usize) -> String {
                 NESTED_MULTISIG => MultisigScriptType::NestedSegwit,
                 _ => MultisigScriptType::NativeSegwit,
             };
-            let a = m.multisig_account_xpub(script, 0).expect("the account");
+            let a = m.multisig_account_xpub(&c, script, 0).expect("the account");
             origin(a.master_fingerprint(), a.path(), a.xpub())
         }
         _ => {
             let script = ScriptType::ALL[row];
-            let a = m.account_xpub(script, 0).expect("the account");
+            let a = m.account_xpub(&c, script, 0).expect("the account");
             origin(a.master_fingerprint(), a.path(), a.xpub())
         }
     }

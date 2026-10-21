@@ -13,6 +13,7 @@
 use osk_bip::bip39::{MAX_PASSPHRASE_BYTES, Mnemonic};
 use osk_bip::keys::{Fingerprint, MasterKey, Network};
 use osk_bip::slip39::{self, Share};
+use osk_crypto::work::Compute;
 use osk_crypto::{Secret, SeedBytes, Zeroize, ZeroizeOnDrop};
 use osk_ui::widgets::keyboard::KeyInput;
 
@@ -70,18 +71,20 @@ impl Material<'_> {
     /// `passphrase`. `typed` is the passphrase the shares are being
     /// written under, which only a secret on its way into shares uses.
     fn seed(&self, passphrase: &[u8], typed: &[u8]) -> Option<Secret<SeedBytes>> {
+        let c = crate::unchecked();
         match self {
             Material::Words(m) => {
-                let seed = m.to_seed(passphrase).ok()?;
+                let seed = m.to_seed(&c, passphrase).ok()?;
                 Some(Secret::new(SeedBytes::new(seed.expose())?))
             }
             Material::Seed(seed) => Some(Secret::new(SeedBytes::new(seed)?)),
             Material::Shares(shares) => {
-                let secret = slip39::recover(shares, passphrase).ok()?;
+                let secret = slip39::recover(&c, shares, passphrase).ok()?;
                 Some(Secret::new(SeedBytes::new(secret.expose().as_bytes())?))
             }
             Material::Secret(ms) => {
                 let encrypted = slip39::encrypt(
+                    &c,
                     ms,
                     typed,
                     IDENTIFIER_UNSALTED,
@@ -90,6 +93,7 @@ impl Material<'_> {
                 )
                 .ok()?;
                 let secret = slip39::decrypt(
+                    &c,
                     encrypted.expose().as_bytes(),
                     passphrase,
                     IDENTIFIER_UNSALTED,
@@ -218,6 +222,7 @@ impl Finish {
     /// changes. `material` is what the key is built from.
     pub fn tap(
         &mut self,
+        c: &Compute,
         step: FinishStep,
         id: Id,
         material: &Material<'_>,
@@ -238,7 +243,8 @@ impl Finish {
                 } else if self.offer_add {
                     Some(FinishStep::Passphrase)
                 } else {
-                    self.build(material, network).then_some(FinishStep::Confirm)
+                    self.build(c, material, network)
+                        .then_some(FinishStep::Confirm)
                 }
             }
             FinishStep::PassphraseConfirm => {
@@ -257,7 +263,7 @@ impl Finish {
                     if !self.which_passphrase {
                         self.clear_passphrase();
                         self.offer_add = false;
-                        if !self.build(material, network) {
+                        if !self.build(c, material, network) {
                             return None;
                         }
                     }
@@ -283,6 +289,7 @@ impl Finish {
     /// Returns the step to show next, if it changes.
     pub fn key(
         &mut self,
+        c: &Compute,
         step: FinishStep,
         input: KeyInput,
         material: &Material<'_>,
@@ -302,7 +309,7 @@ impl Finish {
                 None
             }
             KeyInput::Done => {
-                if !self.build(material, network) {
+                if !self.build(c, material, network) {
                     return None;
                 }
                 Some(if self.has_passphrase() {
@@ -451,21 +458,21 @@ impl Finish {
     /// Derives the seed(s) and master key for `network`: without the
     /// passphrase (always, for the "recognise, don't re-type" comparison)
     /// and with it when one was typed.
-    pub fn build(&mut self, material: &Material<'_>, network: Network) -> bool {
+    pub fn build(&mut self, c: &Compute, material: &Material<'_>, network: Network) -> bool {
         let typed_len = self.passphrase_len();
         // One encryption, one decryption per fingerprint, on the step
         // that asks for them and not on every frame that draws them.
         let Some(plain_seed) = material.seed(b"", &self.passphrase[..typed_len]) else {
             return false;
         };
-        let plain_master = MasterKey::from_seed_bytes(&plain_seed, network);
+        let plain_master = MasterKey::from_seed_bytes(c, &plain_seed, network);
         let plain = plain_master.fingerprint();
         let built = if self.passphrase_len > 0 {
             let typed = &self.passphrase[..typed_len];
             let Some(seed) = material.seed(typed, typed) else {
                 return false;
             };
-            let master = MasterKey::from_seed_bytes(&seed, network);
+            let master = MasterKey::from_seed_bytes(c, &seed, network);
             Built {
                 plain,
                 with_passphrase: Some(master.fingerprint()),
@@ -524,9 +531,9 @@ impl Finish {
 
 /// The key `m` states on `network`, with no passphrase: what a FROST
 /// deal's computed member becomes on its way into Keys.
-pub fn key_from_words(m: &Mnemonic, network: Network) -> Option<LoadedKey> {
+pub fn key_from_words(c: &Compute, m: &Mnemonic, network: Network) -> Option<LoadedKey> {
     let seed = Material::Words(m).seed(b"", b"")?;
-    let master = MasterKey::from_seed_bytes(&seed, network);
+    let master = MasterKey::from_seed_bytes(c, &seed, network);
     let words = Mnemonic::from_indices(m.language(), m.indices()).ok()?;
     Some(LoadedKey::new(seed, master, Some(words), false, false))
 }
@@ -555,10 +562,12 @@ mod tests {
 
     #[test]
     fn skip_builds_and_confirms_the_plain_key() {
+        let c = Compute::unchecked();
         let mut f = Finish::new();
         let m = abandon();
         assert_eq!(
             f.tap(
+                &c,
                 FinishStep::PassphraseOffer,
                 ids::LOAD_SKIP,
                 &Material::Words(&m),
@@ -569,6 +578,7 @@ mod tests {
         );
         assert_eq!(
             f.tap(
+                &c,
                 FinishStep::PassphraseOffer,
                 ids::LOAD_PASS_CONTINUE,
                 &Material::Words(&m),
@@ -633,10 +643,12 @@ mod tests {
 
     #[test]
     fn a_passphrase_goes_through_the_comparison() {
+        let c = Compute::unchecked();
         let mut f = Finish::new();
         let m = abandon();
         assert_eq!(
             f.tap(
+                &c,
                 FinishStep::PassphraseOffer,
                 ids::LOAD_ADD_PASSPHRASE,
                 &Material::Words(&m),
@@ -648,6 +660,7 @@ mod tests {
         assert!(f.offer_add());
         assert_eq!(
             f.tap(
+                &c,
                 FinishStep::PassphraseOffer,
                 ids::LOAD_PASS_CONTINUE,
                 &Material::Words(&m),
@@ -655,11 +668,12 @@ mod tests {
             ),
             Some(FinishStep::Passphrase)
         );
-        for c in "TREZOR".chars() {
+        for ch in "TREZOR".chars() {
             assert_eq!(
                 f.key(
+                    &c,
                     FinishStep::Passphrase,
-                    KeyInput::Char(c),
+                    KeyInput::Char(ch),
                     &Material::Words(&m),
                     Network::Mainnet,
                     0
@@ -669,6 +683,7 @@ mod tests {
         }
         assert_eq!(
             f.key(
+                &c,
                 FinishStep::Passphrase,
                 KeyInput::Done,
                 &Material::Words(&m),
@@ -682,6 +697,7 @@ mod tests {
         assert!(f.which_passphrase(), "the passphrase key is the default");
         assert_eq!(
             f.tap(
+                &c,
                 FinishStep::PassphraseConfirm,
                 ids::LOAD_WHICH_CONTINUE,
                 &Material::Words(&m),
@@ -711,30 +727,35 @@ mod tests {
     /// that is added: the plain fingerprint drops the passphrase.
     #[test]
     fn choosing_the_plain_key_drops_the_passphrase() {
+        let c = Compute::unchecked();
         let mut f = Finish::new();
         let m = abandon();
         f.tap(
+            &c,
             FinishStep::PassphraseOffer,
             ids::LOAD_ADD_PASSPHRASE,
             &Material::Words(&m),
             Network::Mainnet,
         );
         f.tap(
+            &c,
             FinishStep::PassphraseOffer,
             ids::LOAD_PASS_CONTINUE,
             &Material::Words(&m),
             Network::Mainnet,
         );
-        for c in "TREZOR".chars() {
+        for ch in "TREZOR".chars() {
             f.key(
+                &c,
                 FinishStep::Passphrase,
-                KeyInput::Char(c),
+                KeyInput::Char(ch),
                 &Material::Words(&m),
                 Network::Mainnet,
                 0,
             );
         }
         f.key(
+            &c,
             FinishStep::Passphrase,
             KeyInput::Done,
             &Material::Words(&m),
@@ -744,6 +765,7 @@ mod tests {
         assert_ne!(f.fingerprint().unwrap().to_hex(), *b"73c5da0a");
         assert_eq!(
             f.tap(
+                &c,
                 FinishStep::PassphraseConfirm,
                 ids::LOAD_WHICH_PLAIN,
                 &Material::Words(&m),
@@ -754,6 +776,7 @@ mod tests {
         assert!(!f.which_passphrase());
         assert_eq!(
             f.tap(
+                &c,
                 FinishStep::PassphraseConfirm,
                 ids::LOAD_WHICH_CONTINUE,
                 &Material::Words(&m),

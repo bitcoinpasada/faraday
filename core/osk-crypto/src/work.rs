@@ -1,20 +1,21 @@
 //! A count of the costly work the core does, by kind, for an application
 //! that budgets it.
 //!
-//! Each costly function in the core calls [`count`] on its first line: a
-//! PSBT parsed, inspected or signed, a QR code read from pixels, a key
-//! stretched, a canvas blurred or copied whole. With the `count` feature
+//! Each costly function in the core counts itself on its first line.
+//! A PSBT parsed, inspected or signed, a QR code read from pixels and a
+//! canvas blurred or copied whole call [`count`]. With the `count` feature
 //! off (the default, and every `no_std` build) [`count`] is empty and
 //! compiles to nothing. With it on, the application installs one counter
 //! for the process ([`set_counter`]) and keeps the counts itself: per
 //! thread, beside its own kinds, so that a test can say that drawing a
 //! frame twice did none it should not.
 //!
-//! [`Compute`] is the token a costly function will take
-//! (`docs/COMPUTE.md` §2): an application mints one where it may do
-//! costly work, and code that cannot reach one cannot call work that
-//! needs it. Until the costly functions take it (batches C1 to C3) the
-//! process-wide counter above stays.
+//! [`Compute`] is the token a costly function takes (`docs/COMPUTE.md`
+//! §2): an application mints one where it may do costly work, and code
+//! that cannot reach one cannot call work that needs it. Seed words
+//! parsed, a key stretched, a master key made and a key derived take it
+//! and count through it; until the rest take it (batches C2 and C3) the
+//! process-wide counter above stays for them.
 
 use core::marker::PhantomData;
 
@@ -35,6 +36,15 @@ pub enum Work {
     PngDecode,
     /// A key stretched: PBKDF2, scrypt or Argon2.
     Kdf,
+    /// Seed words parsed: each word looked up in its list and the
+    /// checksum hashed.
+    WordsParse,
+    /// A master key made (an HMAC-SHA-512 of the seed) and its
+    /// fingerprint worked out (an elliptic-curve multiplication).
+    MasterKey,
+    /// A child key derived from a master key, or an extended public key
+    /// made from a private one: elliptic-curve multiplications.
+    KeyDerive,
     /// A canvas reduced and blurred (a sheet's frosted backdrop).
     Blur,
     /// A whole canvas copied: a snapshot taken, restored or blended.

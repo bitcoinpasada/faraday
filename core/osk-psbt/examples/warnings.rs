@@ -23,6 +23,7 @@ use bitcoin::psbt::PsbtSighashType;
 use bitcoin::sighash::EcdsaSighashType;
 use bitcoin::{Amount, ScriptBuf, TapNodeHash};
 use osk_bip::keys::{MasterKey, Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_psbt::Psbt;
 
 #[path = "../tests/common/builder.rs"]
@@ -48,15 +49,17 @@ pub struct Fixture {
 }
 
 fn master(words: &str, network: Network) -> MasterKey {
-    let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, words)
+    let c = Compute::unchecked();
+    let m = osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, words)
         .expect("fixed mnemonic");
-    MasterKey::from_seed(&m.to_seed(b"").expect("empty passphrase"), network)
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("empty passphrase"), network)
 }
 
 /// An address of the "zoo" seed: not ours, and stable.
 fn theirs(index: u32, network: Network) -> ScriptBuf {
+    let c = Compute::unchecked();
     master(ZOO, network)
-        .account_xpub(SEGWIT, 0)
+        .account_xpub(&c, SEGWIT, 0)
         .expect("account")
         .address(false, index)
         .expect("address")

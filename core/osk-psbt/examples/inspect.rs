@@ -17,6 +17,7 @@ use std::process::ExitCode;
 use bitcoin::consensus::encode::serialize_hex;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{Fingerprint, MasterKey, Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_psbt::{
     Aux, Context, Inspection, KeyRef, Nonce, OutputKind, Psbt, finalize, inspect, sign,
 };
@@ -102,11 +103,12 @@ fn load_psbt(arg: &str) -> Result<Psbt, String> {
 }
 
 fn master_from(words: &str, passphrase: &str, network: Network) -> Result<MasterKey, String> {
-    let m = Mnemonic::parse(Language::English, words).map_err(|e| e.to_string())?;
+    let c = Compute::unchecked();
+    let m = Mnemonic::parse(&c, Language::English, words).map_err(|e| e.to_string())?;
     let seed = m
-        .to_seed(passphrase.as_bytes())
+        .to_seed(&c, passphrase.as_bytes())
         .map_err(|e| e.to_string())?;
-    Ok(MasterKey::from_seed(&seed, network))
+    Ok(MasterKey::from_seed(&c, &seed, network))
 }
 
 fn btc(a: bitcoin::Amount) -> String {
@@ -256,6 +258,7 @@ fn print_inspection(insp: &Inspection, ctx: &Context) {
 }
 
 fn run(a: Args) -> Result<(), String> {
+    let c = Compute::unchecked();
     if let Some(path) = &a.make {
         let master = master_from(ABANDON, "", a.network)?;
         let other = master_from(
@@ -264,7 +267,7 @@ fn run(a: Args) -> Result<(), String> {
             a.network,
         )?;
         let recipient = other
-            .account_xpub(ScriptType::NativeSegwit, 0)
+            .account_xpub(&c, ScriptType::NativeSegwit, 0)
             .map_err(|e| e.to_string())?
             .address(false, 0)
             .map_err(|e| e.to_string())?
@@ -289,7 +292,7 @@ fn run(a: Args) -> Result<(), String> {
         None => None,
     };
     let keys: Vec<KeyRef> = match &master {
-        Some(m) => vec![KeyRef::from_master(m, 0).map_err(|e| e.to_string())?],
+        Some(m) => vec![KeyRef::from_master(&c, m, 0).map_err(|e| e.to_string())?],
         None => Vec::new(),
     };
     let ctx = Context {
@@ -312,6 +315,7 @@ fn run(a: Args) -> Result<(), String> {
     let fp: Fingerprint = master.fingerprint();
     println!("\n== Signing with {fp} ==");
     let result = sign(
+        &c,
         &mut psbt,
         &[master],
         &[fp],

@@ -18,6 +18,7 @@ use bitcoin::{
 };
 use osk_bip::keys::{MasterKey, Network, ScriptType};
 use osk_bip::policy::WalletPolicy;
+use osk_crypto::work::Compute;
 use osk_psbt::Psbt;
 
 /// A funding transaction with one output to `script_pubkey`.
@@ -75,7 +76,8 @@ fn origin(
     change: bool,
     index: u32,
 ) -> (PublicKey, KeySource) {
-    let account = master.account_xpub(script_type, 0).unwrap();
+    let c = Compute::unchecked();
+    let account = master.account_xpub(&c, script_type, 0).unwrap();
     let leaf = [
         ChildNumber::from_normal_idx(u32::from(change)).unwrap(),
         ChildNumber::from_normal_idx(index).unwrap(),
@@ -93,7 +95,8 @@ fn origin(
 
 /// A single-signature spend of a fake funding output at `…/0/0`.
 pub fn single_sig(master: &MasterKey, b: &Build) -> Psbt {
-    let account = master.account_xpub(b.script_type, 0).unwrap();
+    let c = Compute::unchecked();
+    let account = master.account_xpub(&c, b.script_type, 0).unwrap();
     let receive = account.address(false, 0).unwrap().script_pubkey();
     let funding = funding_tx(receive.clone(), b.input_value);
     let (pk, source) = origin(master, b.script_type, false, 0);
@@ -172,6 +175,7 @@ pub fn bip48_path(network: Network) -> DerivationPath {
 /// p2wsh account of every master, the way a coordinator would hand it to
 /// the signer.
 pub fn multisig_policy(masters: &[&MasterKey], m: usize, network: Network) -> WalletPolicy {
+    let c = Compute::unchecked();
     let path = bip48_path(network);
     let mut text = format!("wsh(sortedmulti({m}");
     for i in 0..masters.len() {
@@ -179,7 +183,7 @@ pub fn multisig_policy(masters: &[&MasterKey], m: usize, network: Network) -> Wa
     }
     text.push_str("))");
     for master in masters {
-        let xpub = master.derive(&path).to_xpub();
+        let xpub = master.derive(&c, &path).to_xpub(&c);
         text.push_str(&format!("\n[{}/{path:#}]{xpub}", master.fingerprint()));
     }
     WalletPolicy::parse(&text).expect("policy built from test keys")
@@ -187,9 +191,10 @@ pub fn multisig_policy(masters: &[&MasterKey], m: usize, network: Network) -> Wa
 
 /// The `sortedmulti(m, …)` witness script of `masters` at `path`.
 pub fn sorted_multi_script(masters: &[&MasterKey], m: usize, path: &DerivationPath) -> ScriptBuf {
+    let c = Compute::unchecked();
     let mut keys: Vec<PublicKey> = masters
         .iter()
-        .map(|master| PublicKey::new(master.derive(path).to_xpub().public_key))
+        .map(|master| PublicKey::new(master.derive(&c, path).to_xpub(&c).public_key))
         .collect();
     keys.sort_by_key(|pk| pk.to_bytes());
     let mut b = Builder::new().push_int(m as i64);
@@ -236,6 +241,7 @@ pub fn sorted_multisig_change(
     recipients: &[(ScriptBuf, u64)],
     change: u64,
 ) -> Psbt {
+    let c = Compute::unchecked();
     let mut psbt = sorted_multisig(masters, m, network, input_value, recipients);
     let policy = multisig_policy(masters, m, network);
     let leaf = [
@@ -250,9 +256,9 @@ pub fn sorted_multisig_change(
     });
     let mut out = bitcoin::psbt::Output::default();
     for master in masters {
-        let derived = master.derive(&path);
+        let derived = master.derive(&c, &path);
         out.bip32_derivation.insert(
-            derived.to_xpub().public_key,
+            derived.to_xpub(&c).public_key,
             (master.fingerprint().into(), path.clone()),
         );
     }
@@ -269,6 +275,7 @@ pub fn sorted_multisig(
     input_value: u64,
     recipients: &[(ScriptBuf, u64)],
 ) -> Psbt {
+    let c = Compute::unchecked();
     let leaf = [
         ChildNumber::from_normal_idx(0).unwrap(),
         ChildNumber::from_normal_idx(0).unwrap(),
@@ -277,9 +284,9 @@ pub fn sorted_multisig(
     let mut keys: Vec<(PublicKey, KeySource)> = masters
         .iter()
         .map(|master| {
-            let derived = master.derive(&path);
+            let derived = master.derive(&c, &path);
             (
-                PublicKey::new(derived.to_xpub().public_key),
+                PublicKey::new(derived.to_xpub(&c).public_key),
                 (master.fingerprint().into(), path.clone()),
             )
         })

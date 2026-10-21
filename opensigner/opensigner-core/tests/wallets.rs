@@ -8,6 +8,7 @@ use common::{ABANDON, Harness, PANEL};
 use opensigner_core::verify::AddressResult;
 use opensigner_core::{ScreenKind, ids, strings};
 use osk_bip::keys::ScriptType;
+use osk_crypto::work::Compute;
 use osk_shell_api::{Event, FileKind, Key};
 use osk_ui::widgets::Icon;
 
@@ -173,12 +174,13 @@ fn a_policy_with_a_key_of_this_device_carries_the_key_glyph() {
 /// carry is now one tap inside Wallets, and derives the same run.
 #[test]
 fn a_single_sig_wallet_lists_the_addresses_of_its_key() {
+    let c = Compute::unchecked();
     let mut h = Harness::new(PANEL);
     h.start_load(&ABANDON);
     h.finish_load(None);
     let expected = h
         .app
-        .addresses(0, osk_bip::keys::ScriptType::NativeSegwit, false, 3)[0..3]
+        .addresses(&c, 0, osk_bip::keys::ScriptType::NativeSegwit, false, 3)[0..3]
         .to_vec();
     h.open_single_sig(0);
     assert_eq!(h.app.screen(), ScreenKind::Wallet);

@@ -17,6 +17,7 @@ use opensigner_core::shares::Step as ShareStep;
 use opensigner_core::strings::EN;
 use opensigner_core::{ScreenKind, ids};
 use osk_bip::slip39::{self, Share};
+use osk_crypto::work::Compute;
 use osk_entropy::{DiceRolls, Strength};
 use osk_shell_api::Key;
 
@@ -296,6 +297,7 @@ fn a_passphrase_names_both_keys_and_writes_the_shares_under_it() {
 /// what decides whether the key comes back.
 #[test]
 fn a_backup_in_groups_is_written_group_by_group() {
+    let c = Compute::unchecked();
     let mut h = Harness::new(PHONE);
     start(&mut h, DEVICE, 1);
     assert_eq!(h.app.create_step(), Some(Step::PassphraseOffer));
@@ -394,7 +396,7 @@ fn a_backup_in_groups_is_written_group_by_group() {
     assert_eq!(by_group(1).next().unwrap().member_threshold(), 2);
     assert_eq!(by_group(2).next().unwrap().member_threshold(), 3);
     let set: Vec<Share> = by_group(0).chain(by_group(1).take(2)).cloned().collect();
-    let secret = slip39::recover(&set, b"").expect("the codec reads its own shares");
+    let secret = slip39::recover(&c, &set, b"").expect("the codec reads its own shares");
     assert_eq!(secret.expose().as_bytes().len(), 32);
     // Every share of a split is a share of its own.
     for (i, a) in all.iter().enumerate() {

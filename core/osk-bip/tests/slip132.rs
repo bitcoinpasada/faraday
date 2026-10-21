@@ -10,13 +10,15 @@ use osk_bip::keys::{MasterKey, MultisigScriptType, Network, ScriptType};
 use osk_bip::slip132::{
     self, Error, Mismatch, Script, decode, decode_xpub, encode, key_line, plain_descriptor,
 };
+use osk_crypto::work::Compute;
 
 const ABANDON: &str =
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 
 fn master(network: Network) -> MasterKey {
-    let m = Mnemonic::parse(Language::English, ABANDON).unwrap();
-    MasterKey::from_seed(&m.to_seed(b"").unwrap(), network)
+    let c = Compute::unchecked();
+    let m = Mnemonic::parse(&c, Language::English, ABANDON).unwrap();
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").unwrap(), network)
 }
 
 /// SLIP-0132's test vectors for `abandon … about`, account 0.
@@ -30,10 +32,11 @@ const YPUB_MULTI: &str = "Ypub6jUbbRukkGPp4DgJDD4HL2NKkSZ1UPk111mg59XtJRQZHvJ6Xq
 
 #[test]
 fn every_version_decodes_to_the_account_key_it_names() {
+    let c = Compute::unchecked();
     let m = master(Network::Mainnet);
-    let account = |script| m.account_xpub(script, 0).unwrap().xpub().to_string();
+    let account = |script| m.account_xpub(&c, script, 0).unwrap().xpub().to_string();
     let multisig = |script| {
-        m.multisig_account_xpub(script, 0)
+        m.multisig_account_xpub(&c, script, 0)
             .unwrap()
             .xpub()
             .to_string()
@@ -82,9 +85,10 @@ fn every_version_decodes_to_the_account_key_it_names() {
 
 #[test]
 fn the_test_network_versions_decode_to_tpub() {
+    let c = Compute::unchecked();
     let m = master(Network::Testnet);
     let tpub = m
-        .multisig_account_xpub(MultisigScriptType::NativeSegwit, 0)
+        .multisig_account_xpub(&c, MultisigScriptType::NativeSegwit, 0)
         .unwrap()
         .xpub()
         .to_string();

@@ -34,6 +34,7 @@ use core::str::FromStr;
 use osk_backup::Cost;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_psbt::bitcoin::bip32::{DerivationPath, Xpriv};
 use osk_psbt::bitcoin::hashes::{Hash, sha256d};
 use osk_psbt::bitcoin::secp256k1::{All, Keypair, Message, Secp256k1, XOnlyPublicKey};
@@ -44,8 +45,8 @@ use osk_psbt::bitcoin::{NetworkKind, PrivateKey};
 pub struct Check {
     /// Shown as `Self-test failed: <name>`.
     pub name: &'static str,
-    /// The check.
-    pub run: fn() -> bool,
+    /// The check, given the caller's token for its key work.
+    pub run: fn(&Compute) -> bool,
 }
 
 /// The checks, in the order they run.
@@ -96,16 +97,18 @@ fn secp() -> Secp256k1<All> {
 /// name of the first that failed.
 pub type Outcome = Result<usize, &'static str>;
 
-/// Runs [`CHECKS`].
-pub fn run() -> Outcome {
-    run_checks(&CHECKS)
+/// Runs [`CHECKS`]: costs three PBKDF2s, an scrypt and an Argon2id at
+/// small costs, a few key derivations and two signatures.
+pub fn run(c: &Compute) -> Outcome {
+    run_checks(c, &CHECKS)
 }
 
-/// Runs `checks` in order and stops at the first failure.
-pub fn run_checks(checks: &[Check]) -> Outcome {
-    for c in checks {
-        if !(c.run)() {
-            return Err(c.name);
+/// Runs `checks` in order and stops at the first failure: costs what
+/// the checks cost.
+pub fn run_checks(c: &Compute, checks: &[Check]) -> Outcome {
+    for check in checks {
+        if !(check.run)(c) {
+            return Err(check.name);
         }
     }
     Ok(checks.len())
@@ -119,7 +122,7 @@ const BIP39_MNEMONIC: &str =
 const BIP39_SEED: &str = "c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04";
 const BIP39_PASSPHRASE: &[u8] = b"TREZOR";
 
-fn bip39_vector() -> bool {
+fn bip39_vector(c: &Compute) -> bool {
     let Some(entropy) = unhex(BIP39_ENTROPY) else {
         return false;
     };
@@ -134,7 +137,7 @@ fn bip39_vector() -> bool {
     if words.join(" ") != BIP39_MNEMONIC {
         return false;
     }
-    let Ok(seed) = m.to_seed(BIP39_PASSPHRASE) else {
+    let Ok(seed) = m.to_seed(c, BIP39_PASSPHRASE) else {
         return false;
     };
     unhex(BIP39_SEED).as_deref() == Some(&seed.expose()[..])
@@ -156,7 +159,7 @@ const BIP39_JP_PASSPHRASE_NFKD: &str = "e383a1e383bce38388e383abe382abe38299e383
     e381afe3829ae381afe38299e3818fe38299e3829de38299e381a1e381a1e38299e58d81e4babae58d81e889b2";
 const BIP39_JP_SEED: &str = "a262d6fb6122ecf45be09c50492b31f92e9beb7d9a845987a02cefda57a15f9c467a17872029a9e92299b5cbdf306e3a0ee620245cbd508959b6cb7ca637bd55";
 
-fn bip39_japanese_vector() -> bool {
+fn bip39_japanese_vector(c: &Compute) -> bool {
     let Some(entropy) = unhex(BIP39_JP_ENTROPY) else {
         return false;
     };
@@ -174,7 +177,7 @@ fn bip39_japanese_vector() -> bool {
     let Some(passphrase) = unhex(BIP39_JP_PASSPHRASE_NFKD) else {
         return false;
     };
-    let Ok(seed) = m.to_seed_unchecked(&passphrase) else {
+    let Ok(seed) = m.to_seed_unchecked(c, &passphrase) else {
         return false;
     };
     unhex(BIP39_JP_SEED).as_deref() == Some(&seed.expose()[..])
@@ -186,35 +189,35 @@ const BIP32_SEED: &str = "000102030405060708090a0b0c0d0e0f";
 const BIP32_PATH: &str = "m/0h/1/2h";
 const BIP32_XPUB: &str = "xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5";
 
-fn bip32_vector() -> bool {
+fn bip32_vector(c: &Compute) -> bool {
     let Some(seed) = unhex(BIP32_SEED) else {
         return false;
     };
     let Ok(xpriv) = Xpriv::new_master(NetworkKind::Main, &seed) else {
         return false;
     };
-    let Ok(master) = MasterKey::from_xpriv(xpriv) else {
+    let Ok(master) = MasterKey::from_xpriv(c, xpriv) else {
         return false;
     };
     let Ok(path) = DerivationPath::from_str(BIP32_PATH) else {
         return false;
     };
-    master.derive(&path).to_xpub().to_string() == BIP32_XPUB
+    master.derive(c, &path).to_xpub(c).to_string() == BIP32_XPUB
 }
 
 // ----- BIP-84: first receive address of the "abandon … about" seed -----
 
 const BIP84_ADDRESS: &str = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu";
 
-fn bip84_address() -> bool {
-    let Ok(m) = Mnemonic::parse(Language::English, BIP39_MNEMONIC) else {
+fn bip84_address(c: &Compute) -> bool {
+    let Ok(m) = Mnemonic::parse(c, Language::English, BIP39_MNEMONIC) else {
         return false;
     };
-    let Ok(seed) = m.to_seed(b"") else {
+    let Ok(seed) = m.to_seed(c, b"") else {
         return false;
     };
-    let master = MasterKey::from_seed(&seed, Network::Mainnet);
-    let Ok(account) = master.account_xpub(ScriptType::NativeSegwit, 0) else {
+    let master = MasterKey::from_seed(c, &seed, Network::Mainnet);
+    let Ok(account) = master.account_xpub(c, ScriptType::NativeSegwit, 0) else {
         return false;
     };
     account
@@ -228,7 +231,7 @@ const ECDSA_WIF: &str = "Kwr371tjA9u2rFSMZjTNun2PXXP3WPZu2afRHTcta6KxEUdm1vEw";
 const ECDSA_MESSAGE: &[u8] = b"Very deterministic message";
 const ECDSA_DER: &str = "304402205dbbddda71772d95ce91cd2d14b592cfbc1dd0aabd6a394b6c2d377bbe59d31d022014ddda21494a4e221f0824f0b8b924c43fa43c0ad57dccdaa11f81a6bd4582f6";
 
-fn ecdsa_vector() -> bool {
+fn ecdsa_vector(_c: &Compute) -> bool {
     let Ok(key) = PrivateKey::from_wif(ECDSA_WIF) else {
         return false;
     };
@@ -258,7 +261,7 @@ const SCHNORR_MESSAGE: &str = "243f6a8885a308d313198a2e03707344a4093822299f31d00
 const SCHNORR_SIG: &str = "6896bd60eeae296db48a229ff71dfe071bde413e6d43f917dc8dcf8c78de3341\
     8906d11ac976abccb20b091292bff4ea897efcb639ea871cfa95f6de339e4b0a";
 
-fn schnorr_vector() -> bool {
+fn schnorr_vector(_c: &Compute) -> bool {
     let (Some(secret), Some(public), Some(aux), Some(message), Some(expected)) = (
         unhex(SCHNORR_SECRET),
         unhex(SCHNORR_PUBLIC),
@@ -298,9 +301,9 @@ fn schnorr_vector() -> bool {
 const SCRYPT_KEY: &str = "77d6576238657b203b19ca42c18a0497f16b4844e3074ae8dfdffa3fede2144\
     2fcd0069ded0948f8326a753a0fc81f17e8d3e0fb2e0d3628cf35e20c38d18906";
 
-fn scrypt_vector() -> bool {
+fn scrypt_vector(c: &Compute) -> bool {
     let mut out = [0u8; 64];
-    if osk_crypto::scrypt(b"", b"", 16, 1, 1, &mut out).is_err() {
+    if osk_crypto::scrypt(c, b"", b"", 16, 1, 1, &mut out).is_err() {
         return false;
     }
     unhex(SCRYPT_KEY).as_deref() == Some(&out[..])
@@ -322,8 +325,8 @@ const ARGON2ID_PASSWORD: &[u8] = b"password";
 const ARGON2ID_SALT: &[u8] = b"somesaltsomesalt";
 const ARGON2ID_KEY: &str = "cab746b4621993fdc91ec50787980b414a90a692f0bc68dfe19f9c25b3cba9ec";
 
-fn argon2id_vector() -> bool {
-    let Ok(key) = osk_backup::argon2id(&ARGON2ID_COST, ARGON2ID_PASSWORD, ARGON2ID_SALT) else {
+fn argon2id_vector(c: &Compute) -> bool {
+    let Ok(key) = osk_backup::argon2id(c, &ARGON2ID_COST, ARGON2ID_PASSWORD, ARGON2ID_SALT) else {
         return false;
     };
     unhex(ARGON2ID_KEY).as_deref() == Some(&key.expose()[..])
@@ -349,18 +352,19 @@ mod tests {
 
     #[test]
     fn every_check_passes_on_its_own() {
-        for c in &CHECKS {
-            assert!((c.run)(), "{}", c.name);
+        let c = Compute::unchecked();
+        for check in &CHECKS {
+            assert!((check.run)(&c), "{}", check.name);
         }
-        assert_eq!(run(), Ok(CHECKS.len()));
+        assert_eq!(run(&c), Ok(CHECKS.len()));
     }
 
     #[test]
     fn the_first_failure_is_named() {
-        fn ok() -> bool {
+        fn ok(_c: &Compute) -> bool {
             true
         }
-        fn bad() -> bool {
+        fn bad(_c: &Compute) -> bool {
             false
         }
         let checks = [
@@ -374,7 +378,8 @@ mod tests {
                 run: bad,
             },
         ];
-        assert_eq!(run_checks(&checks), Err("b"));
-        assert_eq!(run_checks(&checks[..1]), Ok(1));
+        let c = Compute::unchecked();
+        assert_eq!(run_checks(&c, &checks), Err("b"));
+        assert_eq!(run_checks(&c, &checks[..1]), Ok(1));
     }
 }

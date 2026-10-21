@@ -18,6 +18,7 @@ use common::builder::{
 };
 use common::{ABANDON, LEGAL, ZOO, master, records, unhex};
 use osk_bip::keys::{MasterKey, Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_psbt::{
     Aux, Context, Error, KeyRef, Level, Nonce, OutputKind, Psbt, ScriptKind, WarningKind, Wrapper,
     finalize, inspect, is_complete, sign,
@@ -27,12 +28,13 @@ const NET: Network = Network::Regtest;
 
 #[test]
 fn two_of_three_sortedmulti() {
+    let c = Compute::unchecked();
     let secp = Secp256k1::new();
     let abandon = master(ABANDON, NET);
     let zoo = master(ZOO, NET);
     let legal = master(LEGAL, NET);
     let recipient = legal
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .unwrap()
         .address(false, 3)
         .unwrap()
@@ -48,8 +50,8 @@ fn two_of_three_sortedmulti() {
 
     // Two of the three keys are loaded.
     let keys = [
-        KeyRef::from_master(&abandon, 0).unwrap(),
-        KeyRef::from_master(&zoo, 0).unwrap(),
+        KeyRef::from_master(&c, &abandon, 0).unwrap(),
+        KeyRef::from_master(&c, &zoo, 0).unwrap(),
     ];
     let ctx = Context {
         network: NET,
@@ -97,6 +99,7 @@ fn two_of_three_sortedmulti() {
 
     // First signature: not complete.
     let r = sign(
+        &c,
         &mut psbt,
         &[&abandon, &zoo],
         &[abandon.fingerprint()],
@@ -130,6 +133,7 @@ fn two_of_three_sortedmulti() {
 
     // Second signature: complete.
     let r = sign(
+        &c,
         &mut psbt,
         &[&abandon, &zoo],
         &[zoo.fingerprint()],
@@ -178,7 +182,7 @@ fn two_of_three_sortedmulti() {
     }
 
     // The third key alone cannot complete a fresh copy.
-    let keys = [KeyRef::from_master(&legal, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &legal, 0).unwrap()];
     let ctx = Context {
         network: NET,
         keys: &keys,
@@ -189,6 +193,7 @@ fn two_of_three_sortedmulti() {
     };
     let mut fresh = unsigned.clone();
     let r = sign(
+        &c,
         &mut fresh,
         &[&legal],
         &[legal.fingerprint()],
@@ -208,6 +213,7 @@ fn two_of_three_sortedmulti() {
 
 #[test]
 fn multisig_participation_by_fingerprint_only() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let zoo = master(ZOO, NET);
     let legal = master(LEGAL, NET);
@@ -224,7 +230,7 @@ fn multisig_participation_by_fingerprint_only() {
         "letter advice cage absurd amount doctor acoustic avoid letter advice cage above",
         NET,
     );
-    let keys = [KeyRef::from_master(&other, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &other, 0).unwrap()];
     let insp = inspect(
         &psbt,
         &Context {
@@ -259,6 +265,7 @@ fn multisig_participation_by_fingerprint_only() {
 /// bytes.
 #[test]
 fn bip174_signer_finalizer_extractor() {
+    let c = Compute::unchecked();
     let recs = records("tools/vectors/psbt/bip174-roles.txt");
     let get = |name: &str| {
         let rec = recs
@@ -268,11 +275,11 @@ fn bip174_signer_finalizer_extractor() {
         rec.clone()
     };
     let tprv = Xpriv::from_str(recs[0].get("master-tprv")).unwrap();
-    let master = MasterKey::from_xpriv(tprv).unwrap();
+    let master = MasterKey::from_xpriv(&c, tprv).unwrap();
     let fp = master.fingerprint();
 
     let mut psbt = Psbt::parse_bytes(&unhex(get("updater-sighash-all").get("hex"))).unwrap();
-    let keys = [KeyRef::from_master(&master, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &master, 0).unwrap()];
     let ctx = Context {
         network: Network::Testnet,
         keys: &keys,
@@ -320,6 +327,7 @@ fn bip174_signer_finalizer_extractor() {
     for force in [false, true] {
         assert_eq!(
             sign(
+                &c,
                 &mut psbt,
                 &[&master],
                 &[fp],
@@ -351,6 +359,7 @@ fn bip174_signer_finalizer_extractor() {
     psbt.inner_mut().inputs[1] = finalizer.inner().inputs[1].clone();
 
     let r = sign(
+        &c,
         &mut psbt,
         &[&master],
         &[fp],
@@ -394,6 +403,7 @@ fn bip174_signer_finalizer_extractor() {
 /// and extracts a valid transaction.
 #[test]
 fn bip174_under_low_r() {
+    let c = Compute::unchecked();
     let recs = records("tools/vectors/psbt/bip174-roles.txt");
     let get = |name: &str| {
         recs.iter()
@@ -402,9 +412,9 @@ fn bip174_under_low_r() {
             .clone()
     };
     let tprv = Xpriv::from_str(recs[0].get("master-tprv")).unwrap();
-    let master = MasterKey::from_xpriv(tprv).unwrap();
+    let master = MasterKey::from_xpriv(&c, tprv).unwrap();
     let fp = master.fingerprint();
-    let keys = [KeyRef::from_master(&master, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &master, 0).unwrap()];
     let ctx = Context {
         network: Network::Testnet,
         keys: &keys,
@@ -419,6 +429,7 @@ fn bip174_under_low_r() {
     psbt.inner_mut().inputs[1] = finalizer.inner().inputs[1].clone();
     let unsigned = psbt.clone();
     sign(
+        &c,
         &mut psbt,
         &[&master],
         &[fp],
@@ -484,11 +495,12 @@ fn sighash_of(psbt: &Psbt, index: usize) -> Message {
 /// signed pays somewhere else than it says.
 #[test]
 fn change_of_a_registered_wallet() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let zoo = master(ZOO, NET);
     let legal = master(LEGAL, NET);
     let recipient = legal
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .unwrap()
         .address(false, 3)
         .unwrap()
@@ -501,7 +513,7 @@ fn change_of_a_registered_wallet() {
         &[(recipient, 60_000)],
         39_000,
     );
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
 
     // Nothing registered: the change output is a claim the device cannot
     // check, so it counts as a payment to others.
@@ -588,11 +600,12 @@ fn change_of_a_registered_wallet() {
 /// to others whatever it claims.
 #[test]
 fn bip48_change_is_ours_before_a_wallet_is_registered() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let zoo = master(ZOO, NET);
     let legal = master(LEGAL, NET);
     let recipient = legal
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .unwrap()
         .address(false, 3)
         .unwrap()
@@ -605,7 +618,7 @@ fn bip48_change_is_ours_before_a_wallet_is_registered() {
         &[(recipient.clone(), 60_000)],
         39_000,
     );
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let insp = inspect(
         &psbt,
         &Context {

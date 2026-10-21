@@ -15,6 +15,7 @@ use opensigner_core::quiz::QuizState;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, Network};
 use osk_bip::{hangul, kana};
+use osk_crypto::work::Compute;
 use osk_entropy::{DiceRolls, Strength};
 use osk_shell_api::{App, Key};
 use osk_ui::widgets::keyboard::{self, KeyInput, KeyboardKind, SMALL_KEY};
@@ -118,6 +119,7 @@ fn first_japanese_vector() -> (Vec<String>, String, String) {
 /// the key it makes is the key the published vector's seed makes.
 #[test]
 fn a_japanese_vector_types_on_the_kana_grid_and_makes_its_key() {
+    let c = Compute::unchecked();
     let (words, _, seed_hex) = first_japanese_vector();
     assert_eq!(words.len(), 12);
     let mut h = Harness::new(PANEL);
@@ -141,19 +143,19 @@ fn a_japanese_vector_types_on_the_kana_grid_and_makes_its_key() {
         .iter()
         .map(|w| Language::Japanese.word_nfkd(index_of(w)))
         .collect();
-    let m = Mnemonic::parse(Language::Japanese, &nfkd.join(" ")).expect("a valid mnemonic");
+    let m = Mnemonic::parse(&c, Language::Japanese, &nfkd.join(" ")).expect("a valid mnemonic");
     let seed = m
-        .to_seed_unchecked(&unhex(JP_PASSPHRASE_NFKD))
+        .to_seed_unchecked(&c, &unhex(JP_PASSPHRASE_NFKD))
         .expect("a seed");
     assert_eq!(hex(&seed.expose()[..]), seed_hex);
 
     // Finish the load with no passphrase; the key the wizard adds is the
     // one those same words make on their own.
     h.finish_load(None);
-    let plain = m.to_seed(b"").expect("a seed");
+    let plain = m.to_seed(&c, b"").expect("a seed");
     assert_eq!(
         h.app.fingerprints(),
-        vec![MasterKey::from_seed(&plain, Network::Mainnet).fingerprint()]
+        vec![MasterKey::from_seed(&c, &plain, Network::Mainnet).fingerprint()]
     );
 }
 
@@ -274,6 +276,7 @@ const RANDOM_50: &str = "32461151351521144121541512665155412152342515356215";
 /// the quiz offers and takes them in that form.
 #[test]
 fn a_korean_key_is_created_read_and_quizzed() {
+    let c = Compute::unchecked();
     let mut h = Harness::new(PANEL);
     h.open_create();
     h.choose(
@@ -347,7 +350,8 @@ fn a_korean_key_is_created_read_and_quizzed() {
     assert_eq!(
         h.app.fingerprints(),
         vec![
-            MasterKey::from_seed(&m.to_seed(b"").expect("a seed"), Network::Mainnet).fingerprint()
+            MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("a seed"), Network::Mainnet)
+                .fingerprint()
         ]
     );
 }
@@ -450,6 +454,7 @@ fn type_hanzi(h: &mut Harness, lang: Language, idx: u16) {
 /// twelve indices are the same twelve words in either script.
 #[test]
 fn the_two_chinese_lists_type_by_reading_and_reach_the_checksum() {
+    let c = Compute::unchecked();
     for lang in [Language::ChineseSimplified, Language::ChineseTraditional] {
         let m = Mnemonic::from_entropy(lang, &[0x42u8; 16]).expect("a mnemonic");
         let indices: Vec<u16> = m.indices().to_vec();
@@ -464,7 +469,7 @@ fn the_two_chinese_lists_type_by_reading_and_reach_the_checksum() {
         assert_eq!(
             h.app.fingerprints(),
             vec![
-                MasterKey::from_seed(&m.to_seed(b"").expect("a seed"), Network::Mainnet)
+                MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("a seed"), Network::Mainnet)
                     .fingerprint()
             ],
             "{lang:?}"
@@ -766,6 +771,7 @@ fn the_chinese_rows_take_in_load_create_and_explore() {
 /// characters, and the quiz offers and takes them.
 #[test]
 fn a_traditional_key_is_created_read_and_quizzed() {
+    let c = Compute::unchecked();
     let lang = Language::ChineseTraditional;
     let mut h = Harness::new(PHONE);
     h.open_create();
@@ -826,7 +832,8 @@ fn a_traditional_key_is_created_read_and_quizzed() {
     assert_eq!(
         h.app.fingerprints(),
         vec![
-            MasterKey::from_seed(&m.to_seed(b"").expect("a seed"), Network::Mainnet).fingerprint()
+            MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("a seed"), Network::Mainnet)
+                .fingerprint()
         ]
     );
 }
@@ -931,6 +938,7 @@ fn a_key_clears_a_selected_candidate() {
 /// one.
 #[test]
 fn a_mnemonic_taken_from_the_strip_makes_its_key_on_both_classes() {
+    let c = Compute::unchecked();
     for display in [PANEL, PHONE] {
         for lang in [Language::English, Language::ChineseSimplified] {
             let m = Mnemonic::from_entropy(lang, &[0x42u8; 16]).expect("a mnemonic");
@@ -949,8 +957,12 @@ fn a_mnemonic_taken_from_the_strip_makes_its_key_on_both_classes() {
             assert_eq!(
                 h.app.fingerprints(),
                 vec![
-                    MasterKey::from_seed(&m.to_seed(b"").expect("a seed"), Network::Mainnet)
-                        .fingerprint()
+                    MasterKey::from_seed(
+                        &c,
+                        &m.to_seed(&c, b"").expect("a seed"),
+                        Network::Mainnet
+                    )
+                    .fingerprint()
                 ],
                 "{lang:?}"
             );

@@ -29,6 +29,7 @@ use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, W
 use osk_bip::keys::Fingerprint;
 use osk_bip::miniscript::descriptor::{DefiniteDescriptorKey, Descriptor, DescriptorPublicKey};
 use osk_bip::miniscript::psbt::PsbtExt;
+use osk_crypto::work::Compute;
 
 const ABANDON: &str =
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -67,9 +68,10 @@ pub const LIANA_TEMPLATE: &str = "wsh(or_d(pk(@0/**),and_v(v:pkh(@1/**),older(52
 pub const TREE_TEMPLATE: &str = "tr(@0/**,{and_v(v:pk(@1/**),older(4320)),pk(@2/**)})";
 
 fn master(words: &str) -> MasterKey {
-    let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, words)
+    let c = Compute::unchecked();
+    let m = osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, words)
         .expect("fixed mnemonic");
-    MasterKey::from_seed(&m.to_seed(b"").expect("empty passphrase"), NET)
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("empty passphrase"), NET)
 }
 
 /// The 2-of-3 wallet: the loaded key and two fixed cosigners.
@@ -81,6 +83,7 @@ pub fn policy() -> WalletPolicy {
 /// The Liana-shaped wallet over the loaded key and "zoo … wrong", both
 /// at the BIP-48 path a `wsh` script's keys are written at.
 pub fn liana_policy() -> WalletPolicy {
+    let c = Compute::unchecked();
     let path = bip48_path(NET);
     let keys: Vec<String> = [master(ABANDON), master(ZOO)]
         .iter()
@@ -88,7 +91,7 @@ pub fn liana_policy() -> WalletPolicy {
             format!(
                 "[{}/{path:#}]{}",
                 m.fingerprint(),
-                m.derive(&path).to_xpub()
+                m.derive(&c, &path).to_xpub(&c)
             )
         })
         .collect();
@@ -99,10 +102,11 @@ pub fn liana_policy() -> WalletPolicy {
 /// The taproot tree wallet over all three keys, at the BIP-86 account
 /// each of them pays taproot from.
 pub fn tree_policy() -> WalletPolicy {
+    let c = Compute::unchecked();
     let keys: Vec<String> = [master(ABANDON), master(ZOO), master(LEGAL)]
         .iter()
         .map(|m| {
-            let a = m.account_xpub(ScriptType::Taproot, 0).expect("account");
+            let a = m.account_xpub(&c, ScriptType::Taproot, 0).expect("account");
             let path = a.path();
             format!("[{}/{path:#}]{}", a.master_fingerprint(), a.xpub())
         })
@@ -118,9 +122,10 @@ pub fn tree_policy() -> WalletPolicy {
 /// and both key origins a coordinator fills in, which is what lets the
 /// review say whose the input is; signing it is another pass.
 pub fn liana_psbt() -> Psbt {
+    let c = Compute::unchecked();
     let policy = liana_policy();
     let theirs = master(ZOO)
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .expect("account")
         .address(false, 0)
         .expect("address")
@@ -216,11 +221,12 @@ fn wallet_spend(
     theirs: u64,
     change: u64,
 ) -> bitcoin::Psbt {
+    let c = Compute::unchecked();
     let spend = definite(policy, false, 0);
     let back = definite(policy, true, 0);
     let funding = funding_tx(spend.script_pubkey(), 100_000);
     let elsewhere = master(ZOO)
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .expect("account")
         .address(false, 0)
         .expect("address")
@@ -339,9 +345,10 @@ pub fn tree_keypath_psbt() -> Psbt {
 /// A spend of that wallet: 100 000 sat in, 60 000 to someone else,
 /// 39 000 back to the wallet's own change address, 1 000 fee.
 pub fn psbt() -> Psbt {
+    let c = Compute::unchecked();
     let (abandon, zoo, legal) = (master(ABANDON), master(ZOO), master(LEGAL));
     let theirs = master(ZOO)
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .expect("account")
         .address(false, 0)
         .expect("address")

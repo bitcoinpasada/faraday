@@ -10,6 +10,7 @@ use bitcoin::{Amount, ScriptBuf};
 use common::builder::{Build, single_sig, sorted_multisig};
 use common::{ABANDON, LEGAL, ZOO, master};
 use osk_bip::keys::{Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_psbt::{
     ABSURD_FEE_RATE_SAT_VB, Aux, Context, Error, HIGH_FEE_CAUTION_PCT, HIGH_FEE_DANGER_ABS,
     Inspection, KeyRef, Level, LocktimeKind, Nonce, OutputKind, Psbt, Warning, WarningKind,
@@ -19,8 +20,9 @@ use osk_psbt::{
 const NET: Network = Network::Regtest;
 
 fn foreign_script() -> ScriptBuf {
+    let c = Compute::unchecked();
     master(ZOO, NET)
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .unwrap()
         .address(false, 0)
         .unwrap()
@@ -38,8 +40,9 @@ fn has(insp: &Inspection, level: Level, kind: &WarningKind) -> bool {
 }
 
 fn inspect_with_abandon(psbt: &Psbt) -> Inspection {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     inspect(
         psbt,
         &Context {
@@ -108,6 +111,7 @@ fn verified_change_for_every_script_type() {
 
 #[test]
 fn spoofed_change_blocks_signing() {
+    let c = Compute::unchecked();
     for script_type in ScriptType::ALL {
         let mut psbt = basic(script_type);
         // Keep the origin claim, redirect the script to someone else.
@@ -126,7 +130,7 @@ fn spoofed_change_blocks_signing() {
         assert_eq!(insp.change_total, Amount::ZERO);
         // Signing is refused, and no override changes that.
         let abandon = master(ABANDON, NET);
-        let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+        let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
         let ctx = Context {
             network: NET,
             keys: &keys,
@@ -137,6 +141,7 @@ fn spoofed_change_blocks_signing() {
         };
         for force in [false, true] {
             let err = sign(
+                &c,
                 &mut psbt,
                 &[&abandon],
                 &[abandon.fingerprint()],
@@ -188,10 +193,11 @@ fn foreign_fingerprint_is_unverified_change() {
 
 #[test]
 fn change_under_an_unloaded_account_is_unverified() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let mut psbt = basic(ScriptType::NativeSegwit);
     // Only account 1 loaded: the change path is under account 0.
-    let keys = [KeyRef::from_master(&abandon, 1).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 1).unwrap()];
     let insp = inspect(
         &psbt,
         &Context {
@@ -208,6 +214,7 @@ fn change_under_an_unloaded_account_is_unverified() {
     assert_eq!(insp.participating_keys, vec![abandon.fingerprint()]);
     // The signer still checks the key for real.
     let r = sign(
+        &c,
         &mut psbt,
         &[&abandon],
         &[abandon.fingerprint()],
@@ -366,6 +373,7 @@ fn unusual_sighash() {
 
 #[test]
 fn network_mismatch() {
+    let c = Compute::unchecked();
     // Keys and PSBT for mainnet, checked in a testnet context: the paths
     // say coin type 0 and the loaded accounts are mainnet.
     let mainnet = master(ABANDON, Network::Mainnet);
@@ -373,7 +381,7 @@ fn network_mismatch() {
     b.recipients.push((foreign_script(), 60_000));
     b.change = Some(39_000);
     let psbt = single_sig(&mainnet, &b);
-    let keys = [KeyRef::from_master(&mainnet, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &mainnet, 0).unwrap()];
     let insp = inspect(
         &psbt,
         &Context {
@@ -402,7 +410,7 @@ fn network_mismatch() {
     assert!(insp.outputs[1].address.starts_with("bc1q"));
     // A testnet key with a PSBT whose paths use coin type 0.
     let testnet = master(ABANDON, Network::Testnet);
-    let keys = [KeyRef::from_master(&testnet, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &testnet, 0).unwrap()];
     let insp = inspect(
         &psbt,
         &Context {
@@ -419,6 +427,7 @@ fn network_mismatch() {
 
 #[test]
 fn address_reuse() {
+    let c = Compute::unchecked();
     let mut b = Build::new(ScriptType::NativeSegwit, NET);
     b.recipients.push((foreign_script(), 30_000));
     b.recipients.push((foreign_script(), 30_000));
@@ -430,7 +439,7 @@ fn address_reuse() {
     // Paying back to the input's own address.
     let abandon = master(ABANDON, NET);
     let receive = abandon
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .unwrap()
         .address(false, 0)
         .unwrap()
@@ -446,8 +455,9 @@ fn address_reuse() {
 
 #[test]
 fn no_participating_key() {
+    let c = Compute::unchecked();
     let zoo = master(ZOO, NET);
-    let keys = [KeyRef::from_master(&zoo, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &zoo, 0).unwrap()];
     let ctx = Context {
         network: NET,
         keys: &keys,
@@ -463,6 +473,7 @@ fn no_participating_key() {
     assert!(has(&insp, Level::Danger, &WarningKind::NoParticipatingKey));
     assert_eq!(
         sign(
+            &c,
             &mut psbt,
             &[&zoo],
             &[zoo.fingerprint()],
@@ -478,6 +489,7 @@ fn no_participating_key() {
         Err(Error::Danger(vec![WarningKind::NoParticipatingKey]))
     );
     let r = sign(
+        &c,
         &mut psbt,
         &[&zoo],
         &[zoo.fingerprint()],
@@ -540,6 +552,7 @@ fn locktime_rbf_and_non_standard_output() {
 
 #[test]
 fn missing_and_lying_utxo() {
+    let c = Compute::unchecked();
     let mut psbt = basic(ScriptType::NativeSegwit);
     psbt.inner_mut().inputs[0].witness_utxo = None;
     psbt.inner_mut().inputs[0].non_witness_utxo = None;
@@ -556,7 +569,7 @@ fn missing_and_lying_utxo() {
     let insp = inspect_with_abandon(&psbt);
     assert!(has(&insp, Level::Blocked, &WarningKind::UtxoMismatch));
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let ctx = Context {
         network: NET,
         keys: &keys,
@@ -567,6 +580,7 @@ fn missing_and_lying_utxo() {
     };
     assert!(matches!(
         sign(
+            &c,
             &mut psbt,
             &[&abandon],
             &[abandon.fingerprint()],
@@ -592,8 +606,9 @@ fn missing_and_lying_utxo() {
 /// input carrying its transaction does not unblock the other.
 #[test]
 fn segwit_v0_inputs_without_their_previous_transaction_block_a_transaction_of_two() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let ctx = insp_ctx(&keys);
     for script_type in [ScriptType::NestedSegwit, ScriptType::NativeSegwit] {
         for missing in [&[0, 1][..], &[0][..], &[1][..]] {
@@ -613,6 +628,7 @@ fn segwit_v0_inputs_without_their_previous_transaction_block_a_transaction_of_tw
             );
             for force in [false, true] {
                 let err = sign(
+                    &c,
                     &mut psbt,
                     &[&abandon],
                     &[abandon.fingerprint()],
@@ -651,9 +667,10 @@ fn segwit_v0_inputs_without_their_previous_transaction_block_a_transaction_of_tw
 /// witness_utxo to fall back on and reports no amount at all.
 #[test]
 fn a_single_input_transaction_is_signed_without_its_previous_transaction() {
+    let c = Compute::unchecked();
     let secp = Secp256k1::verification_only();
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let ctx = insp_ctx(&keys);
     for script_type in ScriptType::ALL {
         let mut psbt = basic(script_type);
@@ -668,6 +685,7 @@ fn a_single_input_transaction_is_signed_without_its_previous_transaction() {
         assert_eq!(insp.inputs[0].amount, Some(Amount::from_sat(100_000)));
         let unsigned = psbt.unsigned_tx().clone();
         let r = sign(
+            &c,
             &mut psbt,
             &[&abandon],
             &[abandon.fingerprint()],
@@ -725,10 +743,11 @@ fn a_single_input_transaction_is_signed_without_its_previous_transaction() {
 /// the builder does.
 #[test]
 fn a_p2wsh_input_without_its_previous_transaction_is_blocked() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let zoo = master(ZOO, NET);
     let legal = master(LEGAL, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let ctx = insp_ctx(&keys);
     let cosigners = [&abandon, &zoo, &legal];
     let mut psbt = sorted_multisig(&cosigners, 2, NET, 100_000, &[(foreign_script(), 148_000)]);
@@ -745,6 +764,7 @@ fn a_p2wsh_input_without_its_previous_transaction_is_blocked() {
     assert!(has(&insp, Level::Blocked, &WarningKind::AmountUnverified));
     assert_eq!(
         sign(
+            &c,
             &mut psbt,
             &[&abandon],
             &[abandon.fingerprint()],
@@ -763,6 +783,7 @@ fn a_p2wsh_input_without_its_previous_transaction_is_blocked() {
 
 #[test]
 fn mixed_script_types_is_info() {
+    let c = Compute::unchecked();
     // Two PSBTs cannot be merged simply; emulate by adding a second input
     // of another type to a native-segwit spend.
     let abandon = master(ABANDON, NET);
@@ -779,7 +800,7 @@ fn mixed_script_types_is_info() {
     assert!(has(&insp, Level::Info, &WarningKind::MixedScriptTypes));
     assert_eq!(insp.total_in, Amount::from_sat(200_000));
     assert!(insp.inputs.iter().all(|i| i.is_ours));
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let ctx = Context {
         network: NET,
         keys: &keys,
@@ -789,6 +810,7 @@ fn mixed_script_types_is_info() {
         carry: None,
     };
     let r = sign(
+        &c,
         &mut psbt,
         &[&abandon],
         &[abandon.fingerprint()],

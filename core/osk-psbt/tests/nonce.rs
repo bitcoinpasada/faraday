@@ -15,13 +15,15 @@ use bitcoin::{PrivateKey, ScriptBuf};
 use common::builder::{Build, single_sig};
 use common::{ABANDON, ZOO, master, records, unhex};
 use osk_bip::keys::{Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_psbt::{Aux, Context, KeyRef, Nonce, SigKind, sign};
 
 const NET: Network = Network::Regtest;
 
 fn foreign_script() -> ScriptBuf {
+    let c = Compute::unchecked();
     master(ZOO, NET)
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .unwrap()
         .address(false, 1)
         .unwrap()
@@ -30,8 +32,9 @@ fn foreign_script() -> ScriptBuf {
 
 #[test]
 fn signing_twice_is_byte_identical() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let ctx = Context {
         network: NET,
         keys: &keys,
@@ -50,6 +53,7 @@ fn signing_twice_is_byte_identical() {
             for _ in 0..2 {
                 let mut psbt = unsigned.clone();
                 let r = sign(
+                    &c,
                     &mut psbt,
                     &[&abandon],
                     &[abandon.fingerprint()],
@@ -75,6 +79,7 @@ fn signing_twice_is_byte_identical() {
             let again = master(ABANDON, NET);
             let mut psbt = unsigned.clone();
             let r = sign(
+                &c,
                 &mut psbt,
                 &[&again],
                 &[again.fingerprint()],
@@ -102,8 +107,9 @@ fn signing_twice_is_byte_identical() {
 /// Electrum sees.
 #[test]
 fn low_r_gives_the_shortest_signature() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let ctx = Context {
         network: NET,
         keys: &keys,
@@ -122,6 +128,7 @@ fn low_r_gives_the_shortest_signature() {
             b.change = Some(29_000);
             let mut psbt = single_sig(&abandon, &b);
             let r = sign(
+                &c,
                 &mut psbt,
                 &[&abandon],
                 &[abandon.fingerprint()],
@@ -209,8 +216,9 @@ fn rfc6979_cross_implementation_vectors() {
 /// and with the deterministic setting the two are the same bytes.
 #[test]
 fn fresh_auxiliary_randomness_changes_a_taproot_signature() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let ctx = Context {
         network: NET,
         keys: &keys,
@@ -227,6 +235,7 @@ fn fresh_auxiliary_randomness_changes_a_taproot_signature() {
     let signatures = |aux| {
         let mut psbt = unsigned.clone();
         let r = sign(
+            &c,
             &mut psbt,
             &[&abandon],
             &[abandon.fingerprint()],

@@ -23,6 +23,7 @@ use alloc::vec::Vec;
 use osk_bip::keys::{Fingerprint, MasterKey, Network};
 use osk_bip::policy::WalletPolicy;
 use osk_codec::qr::{Ecc, Payload, QrMatrix};
+use osk_crypto::work::Compute;
 use osk_psbt::bitcoin::Txid;
 use osk_psbt::bitcoin::consensus::encode::serialize;
 use osk_psbt::threshold::{CARRY_NAME, Carry, CarrySection, carry_bytes};
@@ -399,13 +400,13 @@ impl SignFlow {
     /// whenever a transaction is loaded, read or inspected again; the
     /// master keys are borrowed for the call and nothing of them is
     /// kept.
-    pub fn check(&mut self, masters: &[&MasterKey]) {
+    pub fn check(&mut self, c: &Compute, masters: &[&MasterKey]) {
         self.determinism.clear();
         self.checked_warnings.clear();
         let Some(psbt) = self.psbt.as_ref() else {
             return;
         };
-        self.determinism = osk_psbt::verify::deterministic(psbt, masters);
+        self.determinism = osk_psbt::verify::deterministic(c, psbt, masters);
         for d in &self.determinism {
             if d.mode.is_none() {
                 self.checked_warnings.push(Warning {
@@ -983,8 +984,10 @@ impl SignFlow {
     /// overridden — [`SignFlow::can_sign`] is false while one stands. On
     /// success the flow is at the result step; on failure it stays at
     /// Confirm with the error set.
+    #[allow(clippy::too_many_arguments)]
     pub fn sign(
         &mut self,
+        c: &Compute,
         masters: &[&MasterKey],
         shares: &[ShareKey],
         nonce: osk_psbt::Nonce,
@@ -1009,6 +1012,7 @@ impl SignFlow {
         };
         let force = self.acknowledged;
         let result = match osk_psbt::sign(
+            c,
             psbt,
             masters,
             &self.selected,
@@ -1042,7 +1046,7 @@ impl SignFlow {
             carry: self.carry.as_ref(),
         };
         self.signatures = osk_psbt::verify::verify_signatures(psbt, &ctx);
-        self.determinism = osk_psbt::verify::deterministic(psbt, masters);
+        self.determinism = osk_psbt::verify::deterministic(c, psbt, masters);
         drop(view);
 
         let (complete, txid, bytes, name_hint) = if result.complete {

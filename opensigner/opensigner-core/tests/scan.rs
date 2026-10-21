@@ -17,6 +17,7 @@ use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, Network, ScriptType};
 use osk_codec::qr::{Ecc, Payload, QUIET_ZONE, QrMatrix};
 use osk_codec::{PayloadKind, seedqr, ur};
+use osk_crypto::work::Compute;
 use osk_psbt::Psbt;
 use osk_shell_api::{
     App, BootState, Command, DisplayInfo, Event, FileKind, SecureHardware, TouchPhase,
@@ -25,7 +26,8 @@ use osk_shell_api::{
 const DEMO: &[u8] = include_bytes!("../../../tools/vectors/psbt/demo-regtest.psbt");
 
 fn mnemonic() -> Mnemonic {
-    Mnemonic::parse(Language::English, &ABANDON.join(" ")).unwrap()
+    let c = Compute::unchecked();
+    Mnemonic::parse(&c, Language::English, &ABANDON.join(" ")).unwrap()
 }
 
 fn demo_psbt_bytes() -> Vec<u8> {
@@ -196,9 +198,10 @@ fn psbt_frame_opens_the_sign_summary() {
 
 #[test]
 fn address_frame_opens_verify_with_the_result() {
+    let c = Compute::unchecked();
     let mut h = Harness::new(PANEL);
     h.load_key();
-    let ours = h.app.addresses(0, ScriptType::Taproot, true, 8)[7].clone();
+    let ours = h.app.addresses(&c, 0, ScriptType::Taproot, true, 8)[7].clone();
     h.open_scan();
     h.frame(frame_bytes(ours.as_bytes()));
     assert_eq!(h.app.screen(), ScreenKind::Verify);
@@ -214,9 +217,9 @@ fn address_frame_opens_verify_with_the_result() {
     );
     // Another seed's address: valid but not ours.
     let other = Mnemonic::from_entropy(Language::English, &[7u8; 16]).unwrap();
-    let master = MasterKey::from_seed(&other.to_seed(b"").unwrap(), Network::Mainnet);
+    let master = MasterKey::from_seed(&c, &other.to_seed(&c, b"").unwrap(), Network::Mainnet);
     let theirs = master
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .unwrap()
         .address(false, 0)
         .unwrap()
@@ -226,8 +229,8 @@ fn address_frame_opens_verify_with_the_result() {
     h.frame(frame_bytes(theirs.as_bytes()));
     assert_eq!(h.app.verify_result(), Some(&AddressResult::NotFound));
     // Our own first signet address, while the setting is mainnet.
-    let signet = MasterKey::from_seed(&mnemonic().to_seed(b"").unwrap(), Network::Signet)
-        .account_xpub(ScriptType::NativeSegwit, 0)
+    let signet = MasterKey::from_seed(&c, &mnemonic().to_seed(&c, b"").unwrap(), Network::Signet)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .unwrap()
         .address(false, 0)
         .unwrap()
@@ -240,9 +243,10 @@ fn address_frame_opens_verify_with_the_result() {
 
 #[test]
 fn typed_address_is_checked() {
+    let c = Compute::unchecked();
     let mut h = Harness::new(PHONE);
     h.load_key();
-    let ours = h.app.addresses(0, ScriptType::NativeSegwit, false, 1)[0].clone();
+    let ours = h.app.addresses(&c, 0, ScriptType::NativeSegwit, false, 1)[0].clone();
     h.open_single_sig(0);
     h.tap(ids::WALLET_CHECK);
     assert_eq!(h.app.screen(), ScreenKind::Scan);
@@ -287,6 +291,7 @@ fn typed_address_is_checked() {
 
 #[test]
 fn descriptor_and_xpub_frames_open_the_wallet_or_the_document() {
+    let c = Compute::unchecked();
     let s = &strings::EN;
     let says = |h: &Harness, want: &str, screen: &str| {
         let texts = h.app.texts();
@@ -297,8 +302,10 @@ fn descriptor_and_xpub_frames_open_the_wallet_or_the_document() {
     };
     let mut h = Harness::new(PANEL);
     h.load_key();
-    let master = MasterKey::from_seed(&mnemonic().to_seed(b"").unwrap(), Network::Mainnet);
-    let account = master.account_xpub(ScriptType::NativeSegwit, 0).unwrap();
+    let master = MasterKey::from_seed(&c, &mnemonic().to_seed(&c, b"").unwrap(), Network::Mainnet);
+    let account = master
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
+        .unwrap();
     h.open_scan();
     h.frame(frame_bytes(account.descriptor().as_bytes()));
     assert_eq!(h.app.screen(), ScreenKind::Inspect);
@@ -361,9 +368,13 @@ fn descriptor_and_xpub_frames_open_the_wallet_or_the_document() {
     h.frame(frame_bytes(bad.as_bytes()));
     says(&h, s.inspect_checksum_bad, "a tampered descriptor");
     h.tap(ids::BACK);
-    let other = MasterKey::from_seed(&mnemonic().to_seed(b"other").unwrap(), Network::Mainnet)
-        .account_xpub(ScriptType::NativeSegwit, 0)
-        .unwrap();
+    let other = MasterKey::from_seed(
+        &c,
+        &mnemonic().to_seed(&c, b"other").unwrap(),
+        Network::Mainnet,
+    )
+    .account_xpub(&c, ScriptType::NativeSegwit, 0)
+    .unwrap();
     h.open_scan();
     h.frame(frame_bytes(other.xpub_string().as_bytes()));
     h.tap(ids::BACK);

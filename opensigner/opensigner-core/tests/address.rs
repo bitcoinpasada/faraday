@@ -12,6 +12,7 @@ use common::{ABANDON, Harness, PANEL};
 use opensigner_core::verify::AddressResult;
 use opensigner_core::{ScreenKind, ids};
 use osk_bip::keys::{Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_ui::widgets::keyboard::KeyInput;
 
 /// A loaded key, and the address field of Verify open over its wallet.
@@ -49,9 +50,10 @@ fn tap_address(h: &mut Harness, address: &str) {
 /// answers for it.
 #[test]
 fn a_bech32_address_is_typed_on_the_layer_the_field_opens_with() {
+    let c = Compute::unchecked();
     let mut h = typing(0);
     assert_eq!(h.app.network(), Network::Mainnet);
-    let address = h.app.addresses(0, ScriptType::NativeSegwit, false, 1)[0].clone();
+    let address = h.app.addresses(&c, 0, ScriptType::NativeSegwit, false, 1)[0].clone();
     assert!(address.starts_with("bc1q"), "{address}");
     tap_address(&mut h, &address);
     h.pad(ids::VERIFY_KEYBOARD, KeyInput::Done);
@@ -71,9 +73,10 @@ fn a_bech32_address_is_typed_on_the_layer_the_field_opens_with() {
 /// first character switches to, and ✓ answers for it.
 #[test]
 fn a_base58_address_is_typed_on_the_shift_layer() {
+    let c = Compute::unchecked();
     let mut h = typing(3);
     assert_eq!(h.app.network(), Network::Regtest);
-    let address = h.app.addresses(0, ScriptType::Legacy, false, 1)[0].clone();
+    let address = h.app.addresses(&c, 0, ScriptType::Legacy, false, 1)[0].clone();
     let first = address.chars().next().expect("an address");
     assert!(matches!(first, 'm' | 'n' | '2'), "{address}");
     tap_address(&mut h, &address);

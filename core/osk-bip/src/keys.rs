@@ -11,10 +11,11 @@
 //! use osk_bip::keys::{MasterKey, Network, ScriptType};
 //!
 //! let m = Mnemonic::from_entropy(Language::English, &[0u8; 16]).unwrap();
-//! let seed = m.to_seed(b"").unwrap();
-//! let master = MasterKey::from_seed(&seed, Network::Mainnet);
+//! let c = osk_crypto::work::Compute::unchecked();
+//! let seed = m.to_seed(&c, b"").unwrap();
+//! let master = MasterKey::from_seed(&c, &seed, Network::Mainnet);
 //! assert_eq!(master.fingerprint().to_hex(), *b"73c5da0a");
-//! let account = master.account_xpub(ScriptType::NativeSegwit, 0).unwrap();
+//! let account = master.account_xpub(&c, ScriptType::NativeSegwit, 0).unwrap();
 //! assert_eq!(account.path().len(), 3);
 //! ```
 //!
@@ -45,6 +46,7 @@ use core::fmt;
 use bitcoin::NetworkKind;
 use bitcoin::bip32::Xpriv;
 use bitcoin::secp256k1::{All, Secp256k1};
+use osk_crypto::work::{Compute, Work};
 use osk_crypto::{Pinned, Secret, SeedBytes, Zeroize, hmac_sha512};
 
 pub use bitcoin::bip32::{ChildNumber, DerivationPath, Xpub};
@@ -543,25 +545,30 @@ impl MasterKey {
         self
     }
 
-    /// Derives the master key from a BIP-39 (or other) 64-byte seed.
-    pub fn from_seed(seed: &Secret<[u8; 64]>, network: Network) -> Self {
+    /// Costs an HMAC-SHA512 and an elliptic-curve multiplication for the
+    /// fingerprint: the master key of a BIP-39 (or other) 64-byte seed.
+    pub fn from_seed(c: &Compute, seed: &Secret<[u8; 64]>, network: Network) -> Self {
+        c.count(Work::MasterKey);
         // `new_master` fails only if HMAC-SHA512 yields a key of zero or at
         // least the curve order, probability about 2^-128.
         let mut xpriv = Xpriv::new_master(network, seed.expose()).expect("seed yields a valid key");
         Self::hold(&mut xpriv, network)
     }
 
-    /// Derives the master key from a seed of the length it was made at:
-    /// 64 bytes from BIP-39 words, 16 or 32 from a SLIP-39 master
-    /// secret, which is the BIP-32 seed itself.
-    pub fn from_seed_bytes(seed: &Secret<SeedBytes>, network: Network) -> Self {
+    /// Costs an HMAC-SHA512 and an elliptic-curve multiplication for the
+    /// fingerprint: the master key of a seed of the length it was made at
+    /// (64 bytes from BIP-39 words, 16 or 32 from a SLIP-39 master
+    /// secret, which is the BIP-32 seed itself).
+    pub fn from_seed_bytes(c: &Compute, seed: &Secret<SeedBytes>, network: Network) -> Self {
+        c.count(Work::MasterKey);
         let mut xpriv =
             Xpriv::new_master(network, seed.expose().as_bytes()).expect("seed yields a valid key");
         Self::hold(&mut xpriv, network)
     }
 
-    /// Wraps an existing master extended private key (`xprv`/`tprv` at
-    /// depth 0). The network comes from the key's version bytes: mainnet
+    /// Costs an elliptic-curve multiplication for the fingerprint: wraps
+    /// an existing master extended private key (`xprv`/`tprv` at depth
+    /// 0). The network comes from the key's version bytes: mainnet
     /// for `xprv`, testnet for the test version shared by testnet, signet
     /// and regtest; use [`for_network`](Self::for_network) to relabel.
     ///
@@ -569,7 +576,14 @@ impl MasterKey {
     /// (BIP-174) and for keys already in memory. A key that arrives as
     /// text goes through [`decode`](Self::decode), which applies every
     /// BIP-32 vector-5 rule before `bitcoin` sees the bytes.
-    pub fn from_xpriv(mut xpriv: Xpriv) -> Result<Self, Error> {
+    pub fn from_xpriv(c: &Compute, xpriv: Xpriv) -> Result<Self, Error> {
+        c.count(Work::MasterKey);
+        Self::held_master(xpriv)
+    }
+
+    /// [`from_xpriv`](Self::from_xpriv) uncounted, for
+    /// [`decode`](Self::decode), which counts itself once.
+    fn held_master(mut xpriv: Xpriv) -> Result<Self, Error> {
         let root_child = ChildNumber::from_normal_idx(0).expect("0 is a valid index");
         if xpriv.depth != 0
             || xpriv.parent_fingerprint != bitcoin::bip32::Fingerprint::default()
@@ -585,17 +599,20 @@ impl MasterKey {
         Ok(Self::hold(&mut xpriv, network))
     }
 
-    /// A depth-0 extended private key built from a chain code and a
-    /// private key, which is what BIP-85's application 32' derives: the
-    /// child number, the depth and the parent fingerprint are zero.
+    /// Costs an elliptic-curve multiplication for the fingerprint: a
+    /// depth-0 extended private key built from a chain code and a private
+    /// key, which is what BIP-85's application 32' derives. The child
+    /// number, the depth and the parent fingerprint are zero.
     ///
     /// `None` where the 32 bytes are not a valid secret key, which BIP-32
     /// puts below 1 in 2¹²⁷ and which BIP-85 says to hard fail on.
     pub fn from_chain_code_and_key(
+        c: &Compute,
         chain_code: &[u8; 32],
         key: &[u8; 32],
         network: Network,
     ) -> Option<Self> {
+        c.count(Work::MasterKey);
         let mut secret = SecretKey::from_slice(key).ok()?;
         let mut xpriv = Xpriv {
             network: network.kind(),
@@ -610,17 +627,19 @@ impl MasterKey {
         Some(held)
     }
 
-    /// Imports a master extended private key written as text
+    /// Costs a base58 check and an elliptic-curve multiplication for the
+    /// fingerprint: imports a master extended private key written as text
     /// (`xprv…`/`tprv…`), by the strict rules of [`crate::xkey`].
     ///
     /// This is the only way an `xprv` typed, pasted or scanned by a
     /// person becomes a key: `bitcoin`'s own decoders accept seven of the
     /// sixteen serialisations BIP-32 test vector 5 rejects.
-    pub fn decode(text: &str) -> Result<Self, ImportError> {
+    pub fn decode(c: &Compute, text: &str) -> Result<Self, ImportError> {
+        c.count(Work::MasterKey);
         let mut xpriv = crate::xkey::decode_xpriv(text).map_err(ImportError::Decode)?;
         // `Xpriv` is `Copy`, so handing it on leaves this frame's copy
         // behind; it is erased whichever way the import went.
-        let key = Self::from_xpriv(xpriv).map_err(|_| ImportError::NotMaster);
+        let key = Self::held_master(xpriv).map_err(|_| ImportError::NotMaster);
         erase(&mut xpriv);
         key
     }
@@ -657,8 +676,10 @@ impl MasterKey {
         self.fingerprint
     }
 
-    /// The master extended public key (depth 0).
-    pub fn xpub(&self) -> Xpub {
+    /// The master extended public key (depth 0): costs an
+    /// elliptic-curve multiplication.
+    pub fn xpub(&self, c: &Compute) -> Xpub {
+        c.count(Work::KeyDerive);
         Xpub::from_priv(&self.secp, self.xpriv())
     }
 
@@ -668,9 +689,17 @@ impl MasterKey {
         XprivAscii::of(self.xpriv())
     }
 
-    /// Derives the private child at `path` (relative to the master, so
-    /// `m/84h/0h/0h` and `84h/0h/0h` parse to the same thing).
-    pub fn derive(&self, path: &DerivationPath) -> DerivedKey {
+    /// Costs an elliptic-curve multiplication per step: the private child
+    /// at `path` (relative to the master, so `m/84h/0h/0h` and
+    /// `84h/0h/0h` parse to the same thing).
+    pub fn derive(&self, c: &Compute, path: &DerivationPath) -> DerivedKey {
+        c.count(Work::KeyDerive);
+        self.derived(path)
+    }
+
+    /// [`derive`](Self::derive) uncounted, for the account views here,
+    /// which count themselves once.
+    fn derived(&self, path: &DerivationPath) -> DerivedKey {
         // Fails only on the 2^-128 event that a child key is invalid.
         let mut xpriv = self
             .xpriv()
@@ -730,18 +759,21 @@ impl MasterKey {
         ))
     }
 
-    /// The non-secret account view of a BIP-48 multisig account: the
-    /// account xpub and its origin. Addresses need the other cosigners,
-    /// so this carries no address or descriptor of its own.
+    /// Costs a four-step derivation and an elliptic-curve multiplication
+    /// for the xpub: the non-secret account view of a BIP-48 multisig
+    /// account, the account xpub and its origin. Addresses need the other
+    /// cosigners, so this carries no address or descriptor of its own.
     pub fn multisig_account_xpub(
         &self,
+        c: &Compute,
         script_type: MultisigScriptType,
         account: u32,
     ) -> Result<MultisigAccountXpub, Error> {
+        c.count(Work::KeyDerive);
         let path = self.multisig_account_path(script_type, account)?;
-        let derived = self.derive(&path);
+        let derived = self.derived(&path);
         Ok(MultisigAccountXpub::new(
-            derived.to_xpub(),
+            derived.xpub_of(),
             derived.master_fingerprint,
             path,
             script_type,
@@ -749,9 +781,10 @@ impl MasterKey {
         ))
     }
 
-    /// Hands `f` the private key of the BIP-48 account node itself,
-    /// with the non-secret view of the same node, for the length of one
-    /// call.
+    /// Costs a four-step derivation, an elliptic-curve multiplication for
+    /// the xpub and what `f` costs: hands `f` the private key of the
+    /// BIP-48 account node itself, with the non-secret view of the same
+    /// node, for the length of one call.
     ///
     /// The account node's own key is what BIP 129's key record is
     /// signed with ([`crate::bsms::signer_record`]), and it is the only
@@ -760,14 +793,16 @@ impl MasterKey {
     /// `f`; copying the secret out of `f` would defeat that.
     pub fn with_multisig_account_secret<T>(
         &self,
+        c: &Compute,
         script_type: MultisigScriptType,
         account: u32,
         f: impl FnOnce(&SecretKey, &MultisigAccountXpub) -> T,
     ) -> Result<T, Error> {
+        c.count(Work::KeyDerive);
         let path = self.multisig_account_path(script_type, account)?;
-        let derived = self.derive(&path);
+        let derived = self.derived(&path);
         let view = MultisigAccountXpub::new(
-            derived.to_xpub(),
+            derived.xpub_of(),
             derived.master_fingerprint,
             path,
             script_type,
@@ -776,18 +811,21 @@ impl MasterKey {
         Ok(f(derived.secret_key(), &view))
     }
 
-    /// The non-secret account view for `script_type` and `account`: the
-    /// account xpub plus everything needed to build addresses and a
-    /// descriptor. `account` must be below 2³¹.
+    /// Costs a three-step derivation and an elliptic-curve multiplication
+    /// for the xpub: the non-secret account view for `script_type` and
+    /// `account`, the account xpub plus everything needed to build
+    /// addresses and a descriptor. `account` must be below 2³¹.
     pub fn account_xpub(
         &self,
+        c: &Compute,
         script_type: ScriptType,
         account: u32,
     ) -> Result<AccountXpub, Error> {
+        c.count(Work::KeyDerive);
         let path = self.account_path(script_type, account)?;
-        let derived = self.derive(&path);
+        let derived = self.derived(&path);
         Ok(AccountXpub::new(
-            derived.to_xpub(),
+            derived.xpub_of(),
             derived.master_fingerprint,
             path,
             script_type,
@@ -832,8 +870,16 @@ impl DerivedKey {
         self.xpriv.fingerprint(&self.secp).into()
     }
 
-    /// The matching extended public key.
-    pub fn to_xpub(&self) -> Xpub {
+    /// The matching extended public key: costs an elliptic-curve
+    /// multiplication.
+    pub fn to_xpub(&self, c: &Compute) -> Xpub {
+        c.count(Work::KeyDerive);
+        self.xpub_of()
+    }
+
+    /// [`to_xpub`](Self::to_xpub) uncounted, for the account views,
+    /// which count themselves once.
+    fn xpub_of(&self) -> Xpub {
         Xpub::from_priv(&self.secp, &self.xpriv)
     }
 
@@ -865,13 +911,14 @@ mod tests {
 
     #[test]
     fn xpriv_text_matches_rust_bitcoin_and_zeroizes() {
+        let c = Compute::unchecked();
         let m = Mnemonic::from_entropy(Language::English, &[0u8; 16]).unwrap();
-        let master = MasterKey::from_seed(&m.to_seed(b"").unwrap(), Network::Mainnet);
+        let master = MasterKey::from_seed(&c, &m.to_seed(&c, b"").unwrap(), Network::Mainnet);
         let text = master.xpriv_ascii();
         assert!(text.as_str().starts_with("xprv9s21ZrQH143K"));
         assert_eq!(text.as_str().len(), 111);
         let path: DerivationPath = "m/84h/0h/0h".parse().unwrap();
-        let child = master.derive(&path).xpriv_ascii();
+        let child = master.derive(&c, &path).xpriv_ascii();
         assert!(child.as_str().starts_with("xprv9"));
         assert_ne!(child.as_str(), text.as_str());
         let mut copy = XprivAscii::of(master.xpriv());

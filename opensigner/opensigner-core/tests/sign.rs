@@ -11,6 +11,7 @@ use opensigner_core::sign::{Stage, Step};
 use opensigner_core::{ScreenKind, strings};
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, Network};
+use osk_crypto::work::Compute;
 use osk_psbt::bitcoin::consensus::encode::serialize_hex;
 use osk_psbt::{Aux, Context, KeyRef, Nonce, Psbt, WarningKind};
 use osk_shell_api::{
@@ -38,8 +39,9 @@ const AMOUNT_UNVERIFIED: &[u8] =
     include_bytes!("../../../tools/vectors/psbt/warn-amount-unverified.psbt");
 
 fn master() -> MasterKey {
-    let m = Mnemonic::parse(Language::English, &ABANDON.join(" ")).unwrap();
-    MasterKey::from_seed(&m.to_seed(b"").unwrap(), Network::Regtest)
+    let c = Compute::unchecked();
+    let m = Mnemonic::parse(&c, Language::English, &ABANDON.join(" ")).unwrap();
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").unwrap(), Network::Regtest)
 }
 
 fn demo_psbt() -> Psbt {
@@ -262,6 +264,7 @@ fn a_review_that_cannot_go_on_says_what_to_change() {
 
 #[test]
 fn the_full_path_writes_the_final_transaction_osk_psbt_produces() {
+    let c = Compute::unchecked();
     let mut h = Harness::new(PANEL);
     h.sign_with(DEMO);
     let insp = h.app.sign_inspection().expect("inspected");
@@ -285,7 +288,7 @@ fn the_full_path_writes_the_final_transaction_osk_psbt_produces() {
 
     // The same thing, straight through osk-psbt.
     let master = master();
-    let keys = [KeyRef::from_master(&master, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &master, 0).unwrap()];
     let ctx = Context {
         network: Network::Regtest,
         keys: &keys,
@@ -296,6 +299,7 @@ fn the_full_path_writes_the_final_transaction_osk_psbt_produces() {
     };
     let mut psbt = demo_psbt();
     let r = osk_psbt::sign(
+        &c,
         &mut psbt,
         &[&master],
         &[master.fingerprint()],
@@ -1069,19 +1073,22 @@ const TWO_OF_THREE_POLICY: &str = include_str!("../../../tools/vectors/psbt/wall
 const ZOO: &str = "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong";
 
 fn master_of(words: &str) -> MasterKey {
-    let m = Mnemonic::parse(Language::English, words).unwrap();
-    MasterKey::from_seed(&m.to_seed(b"").unwrap(), Network::Regtest)
+    let c = Compute::unchecked();
+    let m = Mnemonic::parse(&c, Language::English, words).unwrap();
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").unwrap(), Network::Regtest)
 }
 
 /// The 2-of-3 transaction with the cosigner's signature on it, which is
 /// what a coordinator hands this device when the other signer went
 /// first.
 fn cosigner_signed() -> Psbt {
+    let c = Compute::unchecked();
     let zoo = master_of(ZOO);
-    let keys = [KeyRef::from_master(&zoo, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &zoo, 0).unwrap()];
     let wallets = [osk_bip::policy::WalletPolicy::parse(TWO_OF_THREE_POLICY).unwrap()];
     let mut psbt = Psbt::parse_base64(TWO_OF_THREE.trim()).unwrap();
     osk_psbt::sign(
+        &c,
         &mut psbt,
         &[&zoo],
         &[zoo.fingerprint()],

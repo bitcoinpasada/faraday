@@ -150,6 +150,7 @@ use argon2::Params;
 use chacha20poly1305::aead::inout::InOutBuf;
 use chacha20poly1305::{AeadInOut, KeyInit, Tag, XChaCha20Poly1305, XNonce};
 use hmac::{Hmac, Mac};
+use osk_crypto::work::Compute;
 use osk_crypto::{MAX_MNEMONIC_WORDS, MnemonicBytes, SealedBytes, Secret, SeedBytes, Zeroize};
 use sha2::{Sha256, Sha512};
 
@@ -822,8 +823,8 @@ impl Drop for Guess {
 /// Stretches `pin` under the blob's parameters and derives the
 /// challenge for `header.salt_se`. `None` when the Argon2 parameters in
 /// the header are not usable.
-pub fn challenge(header: &Header, pin: &[u8]) -> Option<Guess> {
-    let stretched = stretch(header, pin)?;
+pub fn challenge(c: &Compute, header: &Header, pin: &[u8]) -> Option<Guess> {
+    let stretched = stretch(c, header, pin)?;
     let mut hmac =
         Hmac::<Sha256>::new_from_slice(stretched.expose()).expect("HMAC accepts any key length");
     hmac.update(&header.salt_se);
@@ -844,8 +845,8 @@ fn kek(guess: &Guess, mac: &[u8; 32]) -> Secret<[u8; 32]> {
 
 /// `Argon2id(pin, salt_pin)` at the blob's cost
 /// ([`osk_backup::argon2id`]).
-fn stretch(header: &Header, pin: &[u8]) -> Option<Secret<[u8; 32]>> {
-    osk_backup::argon2id(&header.cost, pin, &header.salt_pin).ok()
+fn stretch(c: &Compute, header: &Header, pin: &[u8]) -> Option<Secret<[u8; 32]>> {
+    osk_backup::argon2id(c, &header.cost, pin, &header.salt_pin).ok()
 }
 
 /// The keys record's plaintext: the kind, the count and every slot.

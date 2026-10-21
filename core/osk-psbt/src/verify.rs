@@ -36,6 +36,7 @@ use bitcoin::sighash::{EcdsaSighashType, SighashCache, TapSighashType};
 use bitcoin::taproot::{LeafVersion, TapLeafHash};
 use bitcoin::{PublicKey, Script, ScriptBuf, Sequence, TxOut, Witness, ecdsa, taproot};
 use osk_bip::keys::{Fingerprint, MasterKey};
+use osk_crypto::work::Compute;
 
 use crate::classify::{Classified, classify};
 use crate::context::Context;
@@ -962,12 +963,12 @@ pub fn repeated_nonces(psbt: &Psbt, ctx: &Context) -> Vec<NonceReuse> {
 ///
 /// The key is derived from the PSBT's own origin data, the way
 /// [`crate::sign`] derives it, and lives only inside this call.
-pub fn deterministic(psbt: &Psbt, keys: &[&MasterKey]) -> Vec<Determinism> {
+pub fn deterministic(c: &Compute, psbt: &Psbt, keys: &[&MasterKey]) -> Vec<Determinism> {
     let mut out = Vec::new();
     for index in 0..psbt.inner().inputs.len() {
-        let c = classify(psbt.inner(), index);
+        let cl = classify(psbt.inner(), index);
         let input = &psbt.inner().inputs[index];
-        let restored = restore(psbt, index, &c);
+        let restored = restore(psbt, index, &cl);
         for (pk, sig) in &input.partial_sigs {
             let Some((fp, path)) = input.bip32_derivation.get(&pk.inner) else {
                 continue;
@@ -985,7 +986,7 @@ pub fn deterministic(psbt: &Psbt, keys: &[&MasterKey]) -> Vec<Determinism> {
                 input: index,
                 key: SigKey::Ecdsa(*pk),
                 fingerprint: master.fingerprint(),
-                mode: ecdsa_mode(master, path, &msg, &pk.inner, &sig.signature),
+                mode: ecdsa_mode(c, master, path, &msg, &pk.inner, &sig.signature),
             });
         }
         if let Some(sig) = input.tap_key_sig {
@@ -1001,14 +1002,14 @@ pub fn deterministic(psbt: &Psbt, keys: &[&MasterKey]) -> Vec<Determinism> {
             else {
                 continue;
             };
-            let Some(msg) = taproot_message(&restored, &c, index, None, sig.sighash_type) else {
+            let Some(msg) = taproot_message(&restored, &cl, index, None, sig.sighash_type) else {
                 continue;
             };
             out.push(Determinism {
                 input: index,
-                key: key_path_key(&c, input),
+                key: key_path_key(&cl, input),
                 fingerprint: master.fingerprint(),
-                mode: schnorr_mode(master, path, &msg, Some(input.tap_merkle_root), &sig),
+                mode: schnorr_mode(c, master, path, &msg, Some(input.tap_merkle_root), &sig),
             });
         }
         for ((xonly, leaf), sig) in &input.tap_script_sigs {
@@ -1021,7 +1022,7 @@ pub fn deterministic(psbt: &Psbt, keys: &[&MasterKey]) -> Vec<Determinism> {
             else {
                 continue;
             };
-            let Some(msg) = taproot_message(&restored, &c, index, Some(*leaf), sig.sighash_type)
+            let Some(msg) = taproot_message(&restored, &cl, index, Some(*leaf), sig.sighash_type)
             else {
                 continue;
             };
@@ -1029,7 +1030,7 @@ pub fn deterministic(psbt: &Psbt, keys: &[&MasterKey]) -> Vec<Determinism> {
                 input: index,
                 key: SigKey::Schnorr(*xonly),
                 fingerprint: master.fingerprint(),
-                mode: schnorr_mode(master, path, &msg, None, sig),
+                mode: schnorr_mode(c, master, path, &msg, None, sig),
             });
         }
     }
@@ -1038,6 +1039,7 @@ pub fn deterministic(psbt: &Psbt, keys: &[&MasterKey]) -> Vec<Determinism> {
 
 /// Which RFC 6979 rule reproduces an ECDSA signature, if either does.
 fn ecdsa_mode(
+    c: &Compute,
     master: &MasterKey,
     path: &bitcoin::bip32::DerivationPath,
     msg: &Message,
@@ -1045,8 +1047,8 @@ fn ecdsa_mode(
     sig: &secp256k1::ecdsa::Signature,
 ) -> Option<NonceMode> {
     let secp = master.secp();
-    let derived = master.derive(path);
-    if derived.to_xpub().public_key != *pk {
+    let derived = master.derive(c, path);
+    if derived.to_xpub(c).public_key != *pk {
         return None;
     }
     let der = sig.serialize_der();
@@ -1066,6 +1068,7 @@ fn ecdsa_mode(
 /// `Some(None)` for a key-only wallet — and `None` for a script path,
 /// which signs under the key itself.
 fn schnorr_mode(
+    c: &Compute,
     master: &MasterKey,
     path: &bitcoin::bip32::DerivationPath,
     msg: &Message,
@@ -1073,7 +1076,7 @@ fn schnorr_mode(
     sig: &taproot::Signature,
 ) -> Option<NonceMode> {
     let secp = master.secp();
-    let derived = master.derive(path);
+    let derived = master.derive(c, path);
     let mut keypair = Keypair::from_secret_key(secp, derived.secret_key());
     let mut signing = match tweak {
         Some(root) => keypair.tap_tweak(secp, root).to_keypair(),

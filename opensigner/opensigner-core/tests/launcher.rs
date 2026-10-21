@@ -11,6 +11,7 @@ use common::{
 };
 use opensigner_core::{ScreenKind, ids, strings};
 use osk_bip::keys::{Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_shell_api::Key;
 use osk_ui::widgets::Icon;
 
@@ -349,8 +350,9 @@ fn the_same_descriptor_twice_is_one_row() {
 /// wallet away and leaves the key.
 #[test]
 fn a_single_sig_wallet_page_carries_its_rows() {
+    let c = Compute::unchecked();
     let mut h = loaded(PANEL);
-    let expected = h.app.addresses(0, ScriptType::NativeSegwit, false, 3);
+    let expected = h.app.addresses(&c, 0, ScriptType::NativeSegwit, false, 3);
     h.add_single_sig(0, 2);
     for row in [
         ids::WALLET_SIGN,

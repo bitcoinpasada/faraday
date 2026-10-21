@@ -64,6 +64,7 @@ use argon2::Params;
 use chacha20::ChaCha20;
 use chacha20::cipher::{KeyIvInit, StreamCipher};
 use hmac::{Hmac, KeyInit, Mac};
+use osk_crypto::work::Compute;
 use osk_crypto::{Secret, Zeroize};
 use sha2::{Digest, Sha256, Sha512};
 use zeroize::Zeroizing;
@@ -160,6 +161,7 @@ pub struct Item<'a> {
 /// a salt reused across two passphrases costs an attacker one Argon2id
 /// run for both.
 pub fn write(
+    c: &Compute,
     items: &[Item<'_>],
     passphrase: &[u8],
     cost: Cost,
@@ -182,7 +184,7 @@ pub fn write(
     let inner_key = &seed[MASTER_SEED_LEN + IV_LEN + KDF_SALT_LEN..];
 
     let header = header(master_seed, iv, kdf_salt, cost)?;
-    let keys = keys(master_seed, kdf_salt, passphrase, cost)?;
+    let keys = keys(c, master_seed, kdf_salt, passphrase, cost)?;
 
     let mut body: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::new());
     inner_header(inner_key, &mut body);
@@ -211,7 +213,7 @@ pub fn write(
 /// the header, runs the key derivation the header states and verifies
 /// the authentication. It parses no XML and returns nothing from the
 /// file.
-pub fn verify(bytes: &[u8], passphrase: &[u8]) -> bool {
+pub fn verify(c: &Compute, bytes: &[u8], passphrase: &[u8]) -> bool {
     let Some((header_len, master_seed, kdf_salt, cost)) = read_header(bytes) else {
         return false;
     };
@@ -222,7 +224,7 @@ pub fn verify(bytes: &[u8], passphrase: &[u8]) -> bool {
     if Sha256::digest(header).as_slice() != &bytes[header_len..header_len + HASH_LEN] {
         return false;
     }
-    let Some(keys) = keys(&master_seed, &kdf_salt, passphrase, cost) else {
+    let Some(keys) = keys(c, &master_seed, &kdf_salt, passphrase, cost) else {
         return false;
     };
     let stated = &bytes[header_len + HASH_LEN..header_len + 2 * HASH_LEN];
@@ -254,11 +256,17 @@ struct Keys {
 }
 
 /// The keys of a file with this master seed, salt, passphrase and cost.
-fn keys(master_seed: &[u8], kdf_salt: &[u8], passphrase: &[u8], cost: Cost) -> Option<Keys> {
+fn keys(
+    c: &Compute,
+    master_seed: &[u8],
+    kdf_salt: &[u8],
+    passphrase: &[u8],
+    cost: Cost,
+) -> Option<Keys> {
     // R, the composite key: the SHA-256 of the concatenated components,
     // and the one component is the SHA-256 of the passphrase.
     let mut composite = Secret::new(<[u8; 32]>::from(Sha256::digest(Sha256::digest(passphrase))));
-    let transformed = stretch(&composite, kdf_salt, cost);
+    let transformed = stretch(c, &composite, kdf_salt, cost);
     composite.zeroize();
     let mut transformed = transformed?;
 
@@ -281,11 +289,16 @@ fn keys(master_seed: &[u8], kdf_salt: &[u8], passphrase: &[u8], cost: Cost) -> O
 
 /// `Argon2id(composite, salt)`, 32 bytes, at `cost`: [`argon2id`],
 /// refused above [`MAX_MEMORY_KIB`].
-fn stretch(composite: &Secret<[u8; 32]>, salt: &[u8], cost: Cost) -> Option<Secret<[u8; 32]>> {
+fn stretch(
+    c: &Compute,
+    composite: &Secret<[u8; 32]>,
+    salt: &[u8],
+    cost: Cost,
+) -> Option<Secret<[u8; 32]>> {
     if cost.memory_kib > MAX_MEMORY_KIB {
         return None;
     }
-    argon2id(&cost, composite.expose(), salt).ok()
+    argon2id(c, &cost, composite.expose(), salt).ok()
 }
 
 /// `SHA-512(i ‖ base)`: the key block `i`'s HMAC is computed under, and
@@ -678,7 +691,9 @@ mod tests {
     }
 
     fn one() -> Vec<u8> {
+        let c = Compute::unchecked();
         write(
+            &c,
             &[Item {
                 title: b"73c5da0a",
                 notes: b"12 words, English",
@@ -696,39 +711,46 @@ mod tests {
     /// with it.
     #[test]
     fn a_written_database_verifies_under_its_passphrase() {
+        let c = Compute::unchecked();
         let bytes = one();
-        assert!(verify(&bytes, b"correct horse"));
-        assert!(!verify(&bytes, b"correct hors"));
+        assert!(verify(&c, &bytes, b"correct horse"));
+        assert!(!verify(&c, &bytes, b"correct hors"));
     }
 
     /// One byte changed anywhere in the file — the header, its hash,
     /// its HMAC, a block's HMAC, the ciphertext — fails the check.
     #[test]
     fn one_changed_byte_anywhere_fails() {
+        let c = Compute::unchecked();
         let bytes = one();
         for at in 0..bytes.len() {
             let mut flipped = bytes.clone();
             flipped[at] ^= 1;
-            assert!(!verify(&flipped, b"correct horse"), "a changed byte passed");
+            assert!(
+                !verify(&c, &flipped, b"correct horse"),
+                "a changed byte passed"
+            );
         }
         let mut short = bytes.clone();
         short.pop();
-        assert!(!verify(&short, b"correct horse"));
+        assert!(!verify(&c, &short, b"correct horse"));
         let mut long = bytes;
         long.push(0);
-        assert!(!verify(&long, b"correct horse"));
+        assert!(!verify(&c, &long, b"correct horse"));
     }
 
     /// The cost the person chose is what the file's KDF parameters
     /// state, so a KeePass app opening it pays what this device paid.
     #[test]
     fn the_file_states_the_cost_it_was_written_at() {
+        let c = Compute::unchecked();
         let cost = Cost {
             memory_kib: 64,
             passes: 2,
             lanes: 1,
         };
         let bytes = write(
+            &c,
             &[Item {
                 title: b"a",
                 notes: b"b",
@@ -740,6 +762,6 @@ mod tests {
         )
         .expect("a database");
         assert_eq!(cost_of(&bytes), Some(cost));
-        assert!(verify(&bytes, b"correct horse"));
+        assert!(verify(&c, &bytes, b"correct horse"));
     }
 }

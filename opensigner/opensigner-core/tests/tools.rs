@@ -6,6 +6,7 @@ mod common;
 use common::{ABANDON, Harness, PANEL, PHONE, TINY};
 use opensigner_core::tools::{self, Tool};
 use opensigner_core::{ScreenKind, ids, strings};
+use osk_crypto::work::Compute;
 use osk_psbt::Psbt;
 use osk_shell_api::{Event, FileKind};
 use osk_ui::components::{Denomination, denominated};
@@ -517,6 +518,7 @@ fn two_transactions_are_read_one_after_the_other_and_compared() {
 /// shown as one QR while it is short, exported as a file, and forgotten.
 #[test]
 fn a_note_is_typed_shown_exported_and_forgotten() {
+    let c = Compute::unchecked();
     let note = "Keys in the safe. Words with the notary.";
     let mut h = Harness::new(PANEL);
     open_tools(&mut h);
@@ -585,7 +587,7 @@ fn a_note_is_typed_shown_exported_and_forgotten() {
             _ => None,
         })
         .expect("the note was written");
-    match osk_backup::oskb::open_payload(&bytes, b"a long enough one")
+    match osk_backup::oskb::open_payload(&c, &bytes, b"a long enough one")
         .expect("the passphrase opens it")
     {
         osk_backup::oskb::Opened::Note(text) => {

@@ -16,6 +16,7 @@ use opensigner_core::{ScreenKind, ids, strings};
 use osk_backup::DEVICE_PARAMS;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{Fingerprint, MasterKey, Network};
+use osk_crypto::work::Compute;
 use osk_shell_api::{Command, Event, FileKind, Key};
 
 /// The 12-word version-2 vector, which this build still opens.
@@ -44,7 +45,8 @@ fn vector_seed() -> [u8; osk_backup::oskb::SEED_LEN] {
 }
 
 fn fingerprint_of(m: &Mnemonic, network: Network) -> Fingerprint {
-    MasterKey::from_seed(&m.to_seed(b"").expect("a seed"), network).fingerprint()
+    let c = Compute::unchecked();
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("a seed"), network).fingerprint()
 }
 
 impl Harness {
@@ -212,10 +214,11 @@ fn a_backup_with_a_non_zero_pad_is_refused() {
 /// wordlist come back out of the backup, not out of a guess.
 #[test]
 fn a_24_word_japanese_key_comes_back_whole() {
+    let c = Compute::unchecked();
     let m = Mnemonic::from_entropy(Language::Japanese, &[0x42; 32]).expect("a key");
     let seed = vector_seed();
-    let bytes =
-        osk_backup::oskb::seal(&m, PASSPHRASE.as_bytes(), DEVICE_PARAMS, &seed).expect("a backup");
+    let bytes = osk_backup::oskb::seal(&c, &m, PASSPHRASE.as_bytes(), DEVICE_PARAMS, &seed)
+        .expect("a backup");
 
     let mut h = Harness::new(PANEL);
     let expected = fingerprint_of(&m, h.app.network());
@@ -361,9 +364,11 @@ fn the_backup_shows_as_one_code() {
 /// scanner with the memory it asks for.
 #[test]
 fn a_file_asking_for_more_memory_than_the_device_has_says_how_much() {
+    let c = Compute::unchecked();
     let m = Mnemonic::from_entropy(Language::English, &[1u8; 32]).expect("a key");
-    let mut huge = osk_backup::oskb::seal(&m, PASSPHRASE.as_bytes(), DEVICE_PARAMS, &vector_seed())
-        .expect("a backup");
+    let mut huge =
+        osk_backup::oskb::seal(&c, &m, PASSPHRASE.as_bytes(), DEVICE_PARAMS, &vector_seed())
+            .expect("a backup");
     huge[5..9].copy_from_slice(&(64u32 * 1024 * 1024).to_le_bytes());
     let mut h = Harness::new(PANEL);
     h.scan_backup(&huge);
@@ -380,12 +385,13 @@ fn a_file_asking_for_more_memory_than_the_device_has_says_how_much() {
 /// is not zero, sealed by hand so its tag verifies: what a file someone
 /// edited the format of would look like.
 fn reseal_with_pad(m: &Mnemonic, passphrase: &[u8]) -> Vec<u8> {
+    let c = Compute::unchecked();
     use argon2::{Algorithm, Argon2, Block, Params, Version};
     use chacha20poly1305::aead::inout::InOutBuf;
     use chacha20poly1305::{AeadInOut, KeyInit, XChaCha20Poly1305, XNonce};
 
     let mut bytes =
-        osk_backup::oskb::seal(m, passphrase, DEVICE_PARAMS, &vector_seed()).expect("a backup");
+        osk_backup::oskb::seal(&c, m, passphrase, DEVICE_PARAMS, &vector_seed()).expect("a backup");
     let plain_len = bytes.len() - osk_backup::oskb::HEADER_LEN - 24 - 16;
     let mut plain = vec![0u8; plain_len];
     plain[0] = osk_backup::oskb::KIND_WORDS;
@@ -465,8 +471,10 @@ fn tempfile() -> Temp {
 /// 2).
 #[test]
 fn a_note_read_back_under_its_passphrase_shows_the_same_text() {
+    let c = Compute::unchecked();
     let note = "The third key is with the notary.";
     let bytes = osk_backup::oskb::seal_note(
+        &c,
         note.as_bytes(),
         PASSPHRASE.as_bytes(),
         DEVICE_PARAMS,
@@ -500,8 +508,10 @@ fn a_note_read_back_under_its_passphrase_shows_the_same_text() {
 /// document and offers to register the wallet its descriptor names.
 #[test]
 fn a_sheet_round_trips_and_offers_the_wallet() {
+    let c = Compute::unchecked();
     const DESCRIPTOR: &str = "wpkh([73c5da0a/84'/0'/0']xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/<0;1>/*)";
     let bytes = osk_backup::oskb::seal_sheet(
+        &c,
         DESCRIPTOR.as_bytes(),
         b"Cold storage",
         b"The words are with the notary.",
@@ -678,9 +688,11 @@ fn a_sealed_result_states_its_cipher_and_key_derivation() {
 /// file opens with "Add this wallet" (`docs/PLANNING.md` §16.134 rule 3).
 #[test]
 fn a_sealed_sheet_is_read_from_notes_and_from_a_recovery_sheet() {
+    let c = Compute::unchecked();
     const DESCRIPTOR: &str = "wpkh([73c5da0a/84'/0'/0']xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/<0;1>/*)";
     let s = &strings::EN;
     let sheet = osk_backup::oskb::seal_sheet(
+        &c,
         DESCRIPTOR.as_bytes(),
         b"Cold storage",
         b"The words are with the notary.",
@@ -791,6 +803,7 @@ impl Harness {
 /// under the passphrase typed for it and opens in a KeePass reader.
 #[test]
 fn every_export_leaves_as_a_kdbx_database() {
+    let c = Compute::unchecked();
     let mut h = Harness::new(PANEL);
     h.start_load(&ABANDON);
     h.finish_load(None);
@@ -804,7 +817,7 @@ fn every_export_leaves_as_a_kdbx_database() {
     h.tap(ids::BACKUP_SAVE);
     let (name, bytes) = h.written();
     assert!(
-        osk_backup::kdbx::verify(&bytes, PASSPHRASE.as_bytes()),
+        osk_backup::kdbx::verify(&c, &bytes, PASSPHRASE.as_bytes()),
         "it authenticates"
     );
     assert_eq!(
@@ -820,6 +833,7 @@ fn every_export_leaves_as_a_kdbx_database() {
 
     // A key with no words: its master seed, as hex.
     let seed_backup = osk_backup::oskb::seal_seed(
+        &c,
         &[0x42u8; 32],
         PASSPHRASE.as_bytes(),
         DEVICE_PARAMS,
@@ -838,7 +852,7 @@ fn every_export_leaves_as_a_kdbx_database() {
     h.tap(ids::BACKUP_SAVE);
     let (_, bytes) = h.written();
     assert!(
-        osk_backup::kdbx::verify(&bytes, PASSPHRASE.as_bytes()),
+        osk_backup::kdbx::verify(&c, &bytes, PASSPHRASE.as_bytes()),
         "it authenticates"
     );
     if let Some(printed) = read_kdbx_with_script(&bytes, PASSPHRASE) {
@@ -871,7 +885,7 @@ fn every_export_leaves_as_a_kdbx_database() {
     h.tap(ids::SEAL_SAVE);
     let (name, bytes) = h.written();
     assert!(
-        osk_backup::kdbx::verify(&bytes, PASSPHRASE.as_bytes()),
+        osk_backup::kdbx::verify(&c, &bytes, PASSPHRASE.as_bytes()),
         "it authenticates"
     );
     assert_eq!(name, strings::EN.kdbx_file_name);
@@ -897,7 +911,7 @@ fn every_export_leaves_as_a_kdbx_database() {
     h.tap(ids::SEAL_SAVE);
     let (_, bytes) = h.written();
     assert!(
-        osk_backup::kdbx::verify(&bytes, PASSPHRASE.as_bytes()),
+        osk_backup::kdbx::verify(&c, &bytes, PASSPHRASE.as_bytes()),
         "it authenticates"
     );
     if let Some(printed) = read_kdbx_with_script(&bytes, PASSPHRASE) {
@@ -910,12 +924,14 @@ fn every_export_leaves_as_a_kdbx_database() {
 /// this device paid.
 #[test]
 fn a_kdbx_file_states_the_memory_the_person_chose() {
+    let c = Compute::unchecked();
     let cost = osk_backup::Cost {
         memory_kib: opensigner_core::BACKUP_MEMORY[1],
         passes: DEVICE_PARAMS.passes,
         lanes: DEVICE_PARAMS.lanes,
     };
     let bytes = osk_backup::kdbx::write(
+        &c,
         &[osk_backup::kdbx::Item {
             title: b"73c5da0a",
             notes: b"12 words, English",
@@ -927,7 +943,7 @@ fn a_kdbx_file_states_the_memory_the_person_chose() {
     )
     .expect("a database");
     assert_eq!(osk_backup::kdbx::cost_of(&bytes), Some(cost));
-    assert!(osk_backup::kdbx::verify(&bytes, PASSPHRASE.as_bytes()));
+    assert!(osk_backup::kdbx::verify(&c, &bytes, PASSPHRASE.as_bytes()));
 }
 
 /// Runs `tools/backup/read-kdbx.py` over `bytes` and returns what it

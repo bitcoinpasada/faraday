@@ -315,11 +315,13 @@ fn fold_precomposed(word: &str) -> Option<osk_bip::bip39::Typed> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use osk_crypto::work::Compute;
 
     const XPUB: &str = "xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz";
 
     #[test]
     fn routing_table() {
+        let c = Compute::unchecked();
         let digits48 = [b'0'; 48];
         assert_eq!(classify(&digits48), PayloadKind::SeedQr { words: 12 });
         let digits96 = [b'1'; 96];
@@ -366,11 +368,12 @@ mod tests {
         // is real.
         let m = osk_bip::bip39::Mnemonic::from_entropy(Language::English, &[0u8; 16]).unwrap();
         let master = osk_bip::keys::MasterKey::from_seed(
-            &m.to_seed(b"").unwrap(),
+            &c,
+            &m.to_seed(&c, b"").unwrap(),
             osk_bip::keys::Network::Signet,
         );
         let signet = master
-            .account_xpub(osk_bip::keys::ScriptType::NativeSegwit, 0)
+            .account_xpub(&c, osk_bip::keys::ScriptType::NativeSegwit, 0)
             .unwrap()
             .address(false, 0)
             .unwrap();

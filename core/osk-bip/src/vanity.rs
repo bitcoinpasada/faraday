@@ -36,6 +36,7 @@
 use bitcoin::bip32::{ChildNumber, DerivationPath, Xpriv};
 use bitcoin::secp256k1::{All, PublicKey, Secp256k1, SecretKey};
 use bitcoin::{Address, CompressedPublicKey, XOnlyPublicKey};
+use osk_crypto::work::Compute;
 
 use crate::bip39::Mnemonic;
 use crate::keys::{MasterKey, Network, ScriptType};
@@ -337,7 +338,9 @@ pub fn counter_text(counter: u64) -> Option<Counter> {
 ///
 /// A dial the key cannot turn — the passphrase dial without words, the
 /// account dial without a master — tests nothing.
+#[allow(clippy::too_many_arguments)]
 pub fn grind(
+    c: &Compute,
     key: &Key<'_>,
     method: &Method<'_>,
     script: ScriptType,
@@ -351,17 +354,19 @@ pub fn grind(
     }
     match (key, method) {
         (Key::Words(words), Method::Passphrase { base }) => {
-            grind_passphrase(words, base, script, prefix, network, from, budget)
+            grind_passphrase(c, words, base, script, prefix, network, from, budget)
         }
         (Key::Master(master), Method::Account) => {
-            grind_account(master, script, prefix, network, from, budget)
+            grind_account(c, master, script, prefix, network, from, budget)
         }
         _ => Outcome::none(),
     }
 }
 
 /// The passphrase dial: one PBKDF2 per candidate.
+#[allow(clippy::too_many_arguments)]
 fn grind_passphrase(
+    c: &Compute,
     words: &Mnemonic,
     base: &[u8],
     script: ScriptType,
@@ -384,7 +389,7 @@ fn grind_passphrase(
         }
         passphrase[..base.len()].copy_from_slice(base);
         passphrase[base.len()..len].copy_from_slice(suffix.as_bytes());
-        let seed = words.to_seed_unchecked(&passphrase[..len]);
+        let seed = words.to_seed_unchecked(c, &passphrase[..len]);
         {
             use osk_crypto::Zeroize;
             passphrase.zeroize();
@@ -415,6 +420,7 @@ fn grind_passphrase(
 /// The account dial: one hardened derivation per candidate, from the
 /// `purpose'/coin'` node, which is derived once.
 fn grind_account(
+    c: &Compute,
     master: &MasterKey,
     script: ScriptType,
     prefix: &str,
@@ -427,14 +433,14 @@ fn grind_account(
     let head = DerivationPath::from(
         [hardened(script.purpose()), hardened(network.coin_type())].as_slice(),
     );
-    let node = master.derive(&head);
+    let node = master.derive(c, &head);
     let mut parent = Xpriv {
         network: network.kind(),
         depth: 2,
         parent_fingerprint: Default::default(),
         child_number: hardened(network.coin_type()),
         private_key: *node.secret_key(),
-        chain_code: node.to_xpub().chain_code,
+        chain_code: node.to_xpub(c).chain_code,
     };
     let mut tested = 0;
     let mut outcome = Outcome::none();

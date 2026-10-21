@@ -36,6 +36,7 @@ use bitcoin::hashes::{Hash, hash160};
 use bitcoin::secp256k1::{All, Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
 use bitcoin::{Amount, Transaction};
 use osk_crypto::Zeroize;
+use osk_crypto::work::Compute;
 
 use crate::keys::{Fingerprint, MasterKey, Network};
 use crate::musig::{add_mod_order, negate_mod_order, tagged_hash};
@@ -385,10 +386,10 @@ fn path(network: Network, account: u32, change: u32) -> DerivationPath {
 
 impl Receiver {
     /// The wallet at BIP-352's paths under `master`, for `account`.
-    pub fn derive(master: &MasterKey, account: u32) -> Receiver {
+    pub fn derive(c: &Compute, master: &MasterKey, account: u32) -> Receiver {
         let network = master.network();
-        let scan = master.derive(&scan_path(network, account));
-        let spend = master.derive(&spend_path(network, account));
+        let scan = master.derive(c, &scan_path(network, account));
+        let spend = master.derive(c, &spend_path(network, account));
         Receiver {
             scan: *scan.secret_key(),
             spend: spend.secret_key().public_key(master.secp()),

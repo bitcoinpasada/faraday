@@ -9,6 +9,7 @@ use common::{ABANDON, Harness, PANEL};
 use opensigner_core::{ScreenKind, ids, strings};
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_ui::widgets::keyboard::KeyInput;
 
 /// The dials, in the order the Choice lists them.
@@ -30,7 +31,8 @@ fn device() -> Harness {
 }
 
 fn words() -> Mnemonic {
-    Mnemonic::parse(Language::English, &ABANDON.join(" ")).expect("the test words")
+    let c = Compute::unchecked();
+    Mnemonic::parse(&c, Language::English, &ABANDON.join(" ")).expect("the test words")
 }
 
 /// The key's page › Vanity address › dial › Continue › SegWit ›
@@ -61,8 +63,9 @@ fn grind(h: &mut Harness, dial: usize) {
 /// The address the found key or wallet pays to first, which is what the
 /// person asked for.
 fn first_address(h: &Harness, key: usize) -> String {
+    let c = Compute::unchecked();
     h.app
-        .addresses(key, ScriptType::NativeSegwit, false, 1)
+        .addresses(&c, key, ScriptType::NativeSegwit, false, 1)
         .first()
         .cloned()
         .expect("an address")
@@ -116,6 +119,7 @@ fn the_keyboard_refuses_a_character_no_address_of_the_kind_carries() {
 
 #[test]
 fn the_passphrase_dial_finds_an_address_and_use_it_opens_that_key() {
+    let c = Compute::unchecked();
     let mut h = device();
     grind(&mut h, PASSPHRASE);
     h.tap(ids::VANITY_USE);
@@ -131,6 +135,7 @@ fn the_passphrase_dial_finds_an_address_and_use_it_opens_that_key() {
     // named, and nothing else: the same fingerprint the engine's own
     // counter reaches.
     let find = osk_bip::vanity::grind(
+        &c,
         &osk_bip::vanity::Key::Words(&words()),
         &osk_bip::vanity::Method::Passphrase { base: b"" },
         ScriptType::NativeSegwit,
@@ -141,13 +146,14 @@ fn the_passphrase_dial_finds_an_address_and_use_it_opens_that_key() {
     )
     .find
     .expect("a find");
-    let seed = words().to_seed(find.suffix.as_bytes()).expect("a seed");
-    let expected = MasterKey::from_seed(&seed, Network::Mainnet).fingerprint();
+    let seed = words().to_seed(&c, find.suffix.as_bytes()).expect("a seed");
+    let expected = MasterKey::from_seed(&c, &seed, Network::Mainnet).fingerprint();
     assert_eq!(h.app.fingerprints()[1], expected);
 }
 
 #[test]
 fn the_account_dial_finds_an_address_and_use_it_adds_that_wallet() {
+    let c = Compute::unchecked();
     let mut h = device();
     grind(&mut h, ACCOUNT);
     assert_eq!(h.app.wallet_count(), 0, "no wallet before Use it");
@@ -163,8 +169,10 @@ fn the_account_dial_finds_an_address_and_use_it_adds_that_wallet() {
     // The wallet is at the account the grind found, so its first
     // address is the one the Result stated.
     let find = osk_bip::vanity::grind(
+        &c,
         &osk_bip::vanity::Key::Master(&MasterKey::from_seed(
-            &words().to_seed(b"").expect("a seed"),
+            &c,
+            &words().to_seed(&c, b"").expect("a seed"),
             Network::Mainnet,
         )),
         &osk_bip::vanity::Method::Account,

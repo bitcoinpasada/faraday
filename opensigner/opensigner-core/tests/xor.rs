@@ -17,6 +17,7 @@ use common::{Harness, PANEL, PHONE};
 use opensigner_core::{ScreenKind, ids};
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, Network};
+use osk_crypto::work::Compute;
 use osk_entropy::{Error, SeedXor};
 use sha2::{Digest, Sha256};
 
@@ -118,9 +119,10 @@ fn fold(parts: &[Vec<u8>]) -> Vec<u8> {
 }
 
 fn fingerprint(entropy: &[u8]) -> String {
+    let c = Compute::unchecked();
     let m = Mnemonic::from_entropy(Language::English, entropy).expect("a mnemonic");
-    let seed = m.to_seed(b"").expect("a seed");
-    let hex = MasterKey::from_seed(&seed, Network::Mainnet)
+    let seed = m.to_seed(&c, b"").expect("a seed");
+    let hex = MasterKey::from_seed(&c, &seed, Network::Mainnet)
         .fingerprint()
         .to_hex();
     String::from_utf8(hex.to_vec()).expect("hex")

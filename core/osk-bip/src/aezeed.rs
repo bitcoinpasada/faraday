@@ -22,6 +22,7 @@
 //! | LND node key | `m/1017'/coin'/6'/0/0` from the entropy as the seed |
 //! | ldk-node node key | `m/0'` from the master private key of a BIP-39 seed |
 
+use osk_crypto::work::Compute;
 use osk_crypto::{Secret, SeedBytes, Zeroize, scrypt};
 
 use crate::aez;
@@ -122,8 +123,12 @@ impl CipherSeed {
 /// Reads an aezeed. `words` are indices into the BIP-39 English list,
 /// which is the list LND publishes as its own; an empty `passphrase`
 /// is LND's default, the word `aezeed`.
-pub fn decode(words: &[u16; NUM_WORDS], passphrase: &[u8]) -> Result<CipherSeed, Error> {
-    decode_at_cost(words, passphrase, SCRYPT_N)
+pub fn decode(
+    c: &Compute,
+    words: &[u16; NUM_WORDS],
+    passphrase: &[u8],
+) -> Result<CipherSeed, Error> {
+    decode_at_cost(c, words, passphrase, SCRYPT_N)
 }
 
 /// The same, stretched at a cost other than [`SCRYPT_N`].
@@ -134,18 +139,20 @@ pub fn decode(words: &[u16; NUM_WORDS], passphrase: &[u8]) -> Result<CipherSeed,
 /// vectors state were enciphered under a key no released wallet would
 /// derive. Nothing in the product calls this; the vectors do.
 pub fn decode_at_cost(
+    c: &Compute,
     words: &[u16; NUM_WORDS],
     passphrase: &[u8],
     cost: u32,
 ) -> Result<CipherSeed, Error> {
     let mut bytes = pack(words);
-    let result = decode_bytes(&bytes, passphrase, cost);
+    let result = decode_bytes(c, &bytes, passphrase, cost);
     bytes.zeroize();
     result
 }
 
 /// The 33 bytes of a cipher seed, deciphered.
 fn decode_bytes(
+    c: &Compute,
     bytes: &[u8; CIPHER_SEED_SIZE],
     passphrase: &[u8],
     cost: u32,
@@ -166,7 +173,7 @@ fn decode_bytes(
         passphrase
     };
     let mut key = Secret::new([0u8; 32]);
-    scrypt(pass, salt, cost, SCRYPT_R, SCRYPT_P, key.expose_mut()).map_err(|_| Error::Kdf)?;
+    scrypt(c, pass, salt, cost, SCRYPT_R, SCRYPT_P, key.expose_mut()).map_err(|_| Error::Kdf)?;
 
     // The associated data is the external version and the salt, so a
     // seed cannot be replayed under either changed.
@@ -252,10 +259,10 @@ pub fn node_path(coin: u32) -> DerivationPath {
 /// sixteen bytes straight to btcwallet — and the coin type is the
 /// network's, 0 on mainnet and 1 everywhere else, which is what LND's
 /// own chain table says.
-pub fn node_key(entropy: &Secret<[u8; ENTROPY_SIZE]>, network: Network) -> DerivedKey {
+pub fn node_key(c: &Compute, entropy: &Secret<[u8; ENTROPY_SIZE]>, network: Network) -> DerivedKey {
     let seed = Secret::new(SeedBytes::new(entropy.expose()).expect("16 bytes is a seed length"));
-    let master = MasterKey::from_seed_bytes(&seed, network);
-    master.derive(&node_path(network.coin_type()))
+    let master = MasterKey::from_seed_bytes(c, &seed, network);
+    master.derive(c, &node_path(network.coin_type()))
 }
 
 /// ldk-node's node secret from a BIP-39 seed.
@@ -265,18 +272,18 @@ pub fn node_key(entropy: &Secret<[u8; ENTROPY_SIZE]>, network: Network) -> Deriv
 /// makes a second master key from that and takes `m/0'`. The network
 /// changes nothing: both master keys are used for their private key and
 /// chain code, never serialised.
-pub fn ldk_node_key(seed: &Secret<[u8; 64]>, network: Network) -> DerivedKey {
-    let outer = MasterKey::from_seed(seed, network);
-    let root = outer.derive(&DerivationPath::master());
+pub fn ldk_node_key(c: &Compute, seed: &Secret<[u8; 64]>, network: Network) -> DerivedKey {
+    let outer = MasterKey::from_seed(c, seed, network);
+    let root = outer.derive(c, &DerivationPath::master());
     let mut inner_seed = Secret::new(
         SeedBytes::new(&root.secret_key().secret_bytes()).expect("32 bytes is a seed length"),
     );
-    let inner = MasterKey::from_seed_bytes(&inner_seed, network);
+    let inner = MasterKey::from_seed_bytes(c, &inner_seed, network);
     inner_seed.zeroize();
     let path = DerivationPath::from(
         [crate::keys::ChildNumber::from_hardened_idx(0).expect("0 is a valid index")].as_slice(),
     );
-    inner.derive(&path)
+    inner.derive(c, &path)
 }
 
 /// The calendar day, in UTC, that a birthday counts to: the genesis
@@ -359,13 +366,15 @@ mod tests {
 
     #[test]
     fn lnd_vectors_decode_to_their_entropy_version_and_birthday() {
-        let seed = decode_at_cost(&indices(PUBLISHED_1), b"", PUBLISHED_COST).unwrap();
+        let c = Compute::unchecked();
+        let seed = decode_at_cost(&c, &indices(PUBLISHED_1), b"", PUBLISHED_COST).unwrap();
         assert_eq!(seed.internal_version, 0);
         assert_eq!(seed.birthday, 0);
         assert_eq!(seed.entropy().expose(), &ENTROPY);
         assert_eq!(seed.birthday_date(), (2009, 1, 3));
 
         let seed = decode_at_cost(
+            &c,
             &indices(PUBLISHED_2),
             b"!very_safe_55345_password*",
             PUBLISHED_COST,
@@ -379,40 +388,42 @@ mod tests {
 
     #[test]
     fn the_same_seeds_at_the_cost_a_released_lnd_uses() {
-        let seed = decode(&indices(PRODUCTION_1), b"").unwrap();
+        let c = Compute::unchecked();
+        let seed = decode(&c, &indices(PRODUCTION_1), b"").unwrap();
         assert_eq!((seed.internal_version, seed.birthday), (0, 0));
         assert_eq!(seed.entropy().expose(), &ENTROPY);
 
-        let seed = decode(&indices(PRODUCTION_2), b"!very_safe_55345_password*").unwrap();
+        let seed = decode(&c, &indices(PRODUCTION_2), b"!very_safe_55345_password*").unwrap();
         assert_eq!((seed.internal_version, seed.birthday), (0, 3365));
         assert_eq!(seed.entropy().expose(), &ENTROPY);
 
-        let seed = decode(&indices(PRODUCTION_V1), b"hello").unwrap();
+        let seed = decode(&c, &indices(PRODUCTION_V1), b"hello").unwrap();
         assert_eq!((seed.internal_version, seed.birthday), (1, 3365));
         assert_eq!(seed.entropy().expose(), &ENTROPY);
     }
 
     #[test]
     fn a_wrong_passphrase_is_refused_and_a_wrong_word_is_caught_first() {
+        let c = Compute::unchecked();
         assert!(matches!(
-            decode(&indices(PRODUCTION_2), b"wrong"),
+            decode(&c, &indices(PRODUCTION_2), b"wrong"),
             Err(Error::Passphrase)
         ));
         // No passphrase at all is LND's word `aezeed`, which is not
         // the passphrase this one was made under either.
         assert!(matches!(
-            decode(&indices(PRODUCTION_2), b""),
+            decode(&c, &indices(PRODUCTION_2), b""),
             Err(Error::Passphrase)
         ));
         // One word changed: the CRC-32C catches it before any
         // stretching runs.
         let mut words = indices(PRODUCTION_1);
         words[0] = words[0].wrapping_add(1);
-        assert!(matches!(decode(&words, b""), Err(Error::Checksum)));
+        assert!(matches!(decode(&c, &words, b""), Err(Error::Checksum)));
         // Two words swapped, which a checksum over a set would miss.
         let mut words = indices(PRODUCTION_1);
         words.swap(3, 9);
-        assert!(matches!(decode(&words, b""), Err(Error::Checksum)));
+        assert!(matches!(decode(&c, &words, b""), Err(Error::Checksum)));
     }
 
     /// A compressed public key from its hex, so that a vector reads as
@@ -438,13 +449,14 @@ mod tests {
     /// (`tools/reference/aezeed/README.md`).
     #[test]
     fn the_node_key_matches_what_lnd_derives() {
-        let seed = decode(&indices(PRODUCTION_1), b"").unwrap();
+        let c = Compute::unchecked();
+        let seed = decode(&c, &indices(PRODUCTION_1), b"").unwrap();
         assert_eq!(
-            public_key_of(&node_key(seed.entropy(), Network::Mainnet)),
+            public_key_of(&node_key(&c, seed.entropy(), Network::Mainnet)),
             public_key("024c7005923a074fd38b16ace7be4914ec9f929717692bfb585019be13290c9b1d")
         );
         assert_eq!(
-            public_key_of(&node_key(seed.entropy(), Network::Testnet)),
+            public_key_of(&node_key(&c, seed.entropy(), Network::Testnet)),
             public_key("0226594d21c0862a11168ab07cdbc15e7c7af5ee561b741259e311f1614f4df3b7")
         );
     }
@@ -454,18 +466,19 @@ mod tests {
     /// private key of the BIP-39 seed.
     #[test]
     fn the_ldk_node_key_matches_what_ldk_node_derives() {
+        let c = Compute::unchecked();
         let words =
             crate::bip39::Mnemonic::from_entropy(crate::bip39::Language::English, &[0u8; 16])
                 .unwrap();
-        let seed = words.to_seed(b"").unwrap();
+        let seed = words.to_seed(&c, b"").unwrap();
         assert_eq!(
-            public_key_of(&ldk_node_key(&seed, Network::Mainnet)),
+            public_key_of(&ldk_node_key(&c, &seed, Network::Mainnet)),
             public_key("027cf7c81dc777e46572ff964f17650a0f6f783319fcc140fb9a69425e2fbdc93c")
         );
         // The network changes nothing: both master keys are used for
         // their private key and chain code and never serialised.
         assert_eq!(
-            public_key_of(&ldk_node_key(&seed, Network::Testnet)),
+            public_key_of(&ldk_node_key(&c, &seed, Network::Testnet)),
             public_key("027cf7c81dc777e46572ff964f17650a0f6f783319fcc140fb9a69425e2fbdc93c")
         );
     }

@@ -17,6 +17,7 @@ use opensigner_core::session::DEFAULT_WIPE_MS;
 use opensigner_core::{AssuranceTier, ScreenKind, ids, strings};
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{Fingerprint, Network};
+use osk_crypto::work::Compute;
 use osk_keep::KEEP_ATTEMPTS;
 use osk_shell_api::{Command, Event, FileKind, Key};
 use osk_ui::widgets::Icon;
@@ -551,11 +552,12 @@ fn a_moved_or_edited_blob_opens_nothing() {
 /// What the shell is holding is ciphertext: none of the secret is in it.
 #[test]
 fn the_stored_bytes_hold_no_seed_no_words_and_no_pin() {
+    let c = Compute::unchecked();
     let (_, element) = keep_a_key(None);
     let blob = element.blob.expect("a blob");
 
-    let mnemonic = Mnemonic::parse(Language::English, &ABANDON.join(" ")).expect("the words");
-    let seed = mnemonic.to_seed(b"").expect("a seed");
+    let mnemonic = Mnemonic::parse(&c, Language::English, &ABANDON.join(" ")).expect("the words");
+    let seed = mnemonic.to_seed(&c, b"").expect("a seed");
     let indices: Vec<u8> = mnemonic
         .indices()
         .iter()
@@ -894,11 +896,12 @@ fn each_pin_asks_the_secure_element_a_different_question() {
 /// opens nothing under another PIN.
 #[test]
 fn a_tag_for_one_pin_opens_nothing_under_another() {
+    let c = Compute::unchecked();
     let (_, element) = keep_a_key(None);
     let blob = element.blob.clone().expect("a blob");
     let header = osk_keep::header(&blob).expect("a header");
-    let right = osk_keep::challenge(&header, PIN.as_bytes()).expect("the PIN stretched");
-    let wrong = osk_keep::challenge(&header, b"1111").expect("the PIN stretched");
+    let right = osk_keep::challenge(&c, &header, PIN.as_bytes()).expect("the PIN stretched");
+    let wrong = osk_keep::challenge(&c, &header, b"1111").expect("the PIN stretched");
 
     let tag = element.mac(right.challenge());
     assert!(

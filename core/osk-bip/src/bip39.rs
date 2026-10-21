@@ -6,12 +6,14 @@
 //! let m = Mnemonic::from_entropy(Language::English, &[0u8; 16]).unwrap();
 //! assert_eq!(m.word_count(), 12);
 //! assert_eq!(Language::English.word(m.indices()[11]), "about");
-//! let seed = m.to_seed(b"TREZOR").unwrap();
+//! let c = osk_crypto::work::Compute::unchecked();
+//! let seed = m.to_seed(&c, b"TREZOR").unwrap();
 //! assert_eq!(seed.expose()[0], 0xc5);
 //! ```
 
 use core::fmt;
 
+use osk_crypto::work::{Compute, Work};
 use osk_crypto::{Secret, Zeroize, ZeroizeOnDrop, pbkdf2_hmac_sha512, sha256};
 
 use crate::wordlists;
@@ -674,10 +676,12 @@ impl Mnemonic {
         Ok(m)
     }
 
-    /// Parses a sentence split on Unicode whitespace (which includes the
+    /// Costs a list lookup per word and a SHA-256 for the checksum:
+    /// parses a sentence split on Unicode whitespace (which includes the
     /// ideographic space U+3000). Reports the position of the first word
     /// not found in `lang`'s list, so a typo can be pointed at.
-    pub fn parse(lang: Language, sentence: &str) -> Result<Self, Error> {
+    pub fn parse(c: &Compute, lang: Language, sentence: &str) -> Result<Self, Error> {
+        c.count(Work::WordsParse);
         let mut indices = Secret::new([0u16; MAX_WORDS]);
         let mut count = 0usize;
         for (position, word) in sentence.split_whitespace().enumerate() {
@@ -732,24 +736,30 @@ impl Mnemonic {
         ((last & ((1u16 << cs) - 1)) as u8, cs as u8)
     }
 
-    /// Derives the 64-byte BIP-39 seed with PBKDF2-HMAC-SHA512, 2048
-    /// rounds. `passphrase` must be printable ASCII (0x20..=0x7E) and at
-    /// most [`MAX_PASSPHRASE_BYTES`] long; ASCII is NFKD-invariant, so no
-    /// normalization is needed (`docs/PLANNING.md` §16.2).
-    pub fn to_seed(&self, passphrase: &[u8]) -> Result<Secret<[u8; 64]>, Error> {
+    /// Derives the 64-byte BIP-39 seed: costs a PBKDF2-HMAC-SHA512 of
+    /// 2048 rounds. `passphrase` must be printable ASCII (0x20..=0x7E)
+    /// and at most [`MAX_PASSPHRASE_BYTES`] long; ASCII is
+    /// NFKD-invariant, so no normalization is needed (`docs/PLANNING.md`
+    /// §16.2).
+    pub fn to_seed(&self, c: &Compute, passphrase: &[u8]) -> Result<Secret<[u8; 64]>, Error> {
         if passphrase.iter().any(|&b| !(0x20..=0x7E).contains(&b)) {
             return Err(Error::PassphraseNotAscii);
         }
-        self.to_seed_unchecked(passphrase)
+        self.to_seed_unchecked(c, passphrase)
     }
 
-    /// Like [`to_seed`](Self::to_seed) but takes the passphrase as
+    /// Costs a PBKDF2-HMAC-SHA512 of 2048 rounds, like
+    /// [`to_seed`](Self::to_seed), but takes the passphrase as
     /// already-NFKD-normalized bytes without the ASCII check. Its callers
     /// are the vector tests and the start-up self-test, which run the
     /// Japanese BIP-39 vector and its non-ASCII passphrase; nothing a
     /// person types reaches it, and no flow calls it.
     #[doc(hidden)]
-    pub fn to_seed_unchecked(&self, passphrase_nfkd: &[u8]) -> Result<Secret<[u8; 64]>, Error> {
+    pub fn to_seed_unchecked(
+        &self,
+        c: &Compute,
+        passphrase_nfkd: &[u8],
+    ) -> Result<Secret<[u8; 64]>, Error> {
         if passphrase_nfkd.len() > MAX_PASSPHRASE_BYTES {
             return Err(Error::PassphraseTooLong);
         }
@@ -774,6 +784,7 @@ impl Mnemonic {
 
         let mut seed = Secret::new([0u8; 64]);
         pbkdf2_hmac_sha512(
+            c,
             &sentence.expose()[..n],
             &salt.expose()[..salt_len],
             PBKDF2_ROUNDS,

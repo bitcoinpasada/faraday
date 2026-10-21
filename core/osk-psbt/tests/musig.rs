@@ -25,6 +25,7 @@ use common::{ABANDON, ZOO, master};
 use osk_bip::keys::{Fingerprint, MasterKey, Network, ScriptType};
 use osk_bip::musig::{self, PubNonce, Tweak};
 use osk_bip::policy::WalletPolicy;
+use osk_crypto::work::Compute;
 use osk_psbt::{
     Aux, Context, Error, KeyRef, Level, MusigRole, Nonce, OutputKind, Psbt, WarningKind, finalize,
     inspect, sign,
@@ -66,8 +67,9 @@ fn core_context<'a>(keys: &'a [KeyRef], wallets: &'a [WalletPolicy]) -> Context<
 /// transaction is not finished, because Core still has to aggregate.
 #[test]
 fn the_device_signs_last_after_bitcoin_core() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [core_policy()];
     let ctx = core_context(&keys, &wallets);
     let mut psbt = fixture(example::CORE_FIRST_NAME);
@@ -78,6 +80,7 @@ fn the_device_signs_last_after_bitcoin_core() {
     assert_eq!(insp.musig.as_ref().map(|m| m.keys), Some(2));
 
     let out = sign(
+        &c,
         &mut psbt,
         &[&abandon],
         &[abandon.fingerprint()],
@@ -185,8 +188,9 @@ fn signing_twice_gives_the_same_partial_signature() {
 /// nonce in a session for the transaction (§16.100 round 1).
 #[test]
 fn a_psbt_with_no_nonce_on_it_shares_this_devices_nonce() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [core_policy()];
     let ctx = core_context(&keys, &wallets);
     let mut psbt = fixture(example::DEVICE_FIRST_NAME);
@@ -202,6 +206,7 @@ fn a_psbt_with_no_nonce_on_it_shares_this_devices_nonce() {
 
     let mut session = None;
     let out = sign(
+        &c,
         &mut psbt,
         &[&abandon],
         &[abandon.fingerprint()],
@@ -235,8 +240,9 @@ fn a_psbt_with_no_nonce_on_it_shares_this_devices_nonce() {
 /// and not a payment to others.
 #[test]
 fn the_musig_change_output_is_verified() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [core_policy()];
     let ctx = core_context(&keys, &wallets);
     let insp = inspect(&fixture(example::DEVICE_FIRST_NAME), &ctx);
@@ -254,8 +260,9 @@ fn the_musig_change_output_is_verified() {
 /// chose.
 #[test]
 fn an_unregistered_musig_wallet_is_blocked() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let ctx = core_context(&keys, &[]);
     let insp = inspect(&fixture(example::CORE_FIRST_NAME), &ctx);
     assert!(
@@ -288,6 +295,7 @@ fn the_fields_survive_a_round_trip() {
 /// script-path MuSig2 spend, which is not a wallet this tree loads.
 #[test]
 fn a_script_path_musig_field_is_refused() {
+    let c = Compute::unchecked();
     let mut psbt = fixture(example::CORE_FIRST_SIGNED_NAME);
     let input = &mut psbt.inner_mut().inputs[0];
     let (key, value) = input
@@ -303,7 +311,7 @@ fn a_script_path_musig_field_is_refused() {
     assert!(osk_psbt::musig::pub_nonces(&psbt.inner().inputs[0]).is_err());
 
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [core_policy()];
     let ctx = core_context(&keys, &wallets);
     assert!(inspect(&psbt, &ctx).has_blocked());
@@ -313,6 +321,7 @@ fn a_script_path_musig_field_is_refused() {
 /// of panicking.
 #[test]
 fn a_malformed_participants_field_blocks_the_input() {
+    let c = Compute::unchecked();
     let mut psbt = fixture(example::CORE_FIRST_NAME);
     let input = &mut psbt.inner_mut().inputs[0];
     let key = input
@@ -323,7 +332,7 @@ fn a_malformed_participants_field_blocks_the_input() {
         .unwrap();
     input.unknown.insert(key, vec![0u8; 20]);
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [core_policy()];
     let ctx = core_context(&keys, &wallets);
     assert!(inspect(&psbt, &ctx).has_blocked());
@@ -343,7 +352,8 @@ fn account_path() -> DerivationPath {
 }
 
 fn account_xpub(key: &MasterKey) -> Xpub {
-    *key.account_xpub(ScriptType::Taproot, 0).unwrap().xpub()
+    let c = Compute::unchecked();
+    *key.account_xpub(&c, ScriptType::Taproot, 0).unwrap().xpub()
 }
 
 /// The two-key wallet the two seeds make, `@0` first.
@@ -379,11 +389,12 @@ fn tweaks_at(participants: &[PublicKey], change: bool, index: u32) -> (Vec<Tweak
 /// A spend of the two-key wallet at receive index 0, with the fields a
 /// coordinator that speaks BIP-373 fills in.
 fn two_key_psbt(policy: &WalletPolicy, a: &MasterKey, b: &MasterKey) -> Psbt {
+    let c = Compute::unchecked();
     let secp = Secp256k1::verification_only();
     let spk = policy.script_at(false, 0).unwrap();
     let funding = funding_tx(spk.clone(), 100_000);
     let recipient = b
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .unwrap()
         .address(false, 7)
         .unwrap()
@@ -456,7 +467,8 @@ fn two_key_psbt(policy: &WalletPolicy, a: &MasterKey, b: &MasterKey) -> Psbt {
 /// The account-level secret key of `master`, which is what a `musig()`
 /// participant signs with.
 fn account_secret(master: &MasterKey) -> SecretKey {
-    *master.derive(&account_path()).secret_key()
+    let c = Compute::unchecked();
+    *master.derive(&c, &account_path()).secret_key()
 }
 
 /// A second signer's round 1: its public nonce, and the secret nonce it
@@ -486,13 +498,14 @@ fn other_nonce(
 /// signs, and the device aggregates, finalizes and extracts.
 #[test]
 fn a_second_signer_and_the_device_finish_the_transaction() {
+    let c = Compute::unchecked();
     let secp = Secp256k1::new();
     let abandon = master(ABANDON, NET);
     let zoo = master(ZOO, NET);
     let policy = two_key_policy(&abandon, &zoo);
     let mut psbt = two_key_psbt(&policy, &abandon, &zoo);
 
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [policy];
     let ctx = core_context(&keys, &wallets);
 
@@ -528,6 +541,7 @@ fn a_second_signer_and_the_device_finish_the_transaction() {
 
     // The device signs last.
     let out = sign(
+        &c,
         &mut psbt,
         &[&abandon],
         &[abandon.fingerprint()],
@@ -571,6 +585,7 @@ fn a_second_signer_and_the_device_finish_the_transaction() {
 
     // The device reads it back, aggregates, and the input finalizes.
     let out = sign(
+        &c,
         &mut psbt,
         &[&abandon],
         &[abandon.fingerprint()],
@@ -596,11 +611,12 @@ fn a_second_signer_and_the_device_finish_the_transaction() {
 /// that participant, so the person knows who has to sign again.
 #[test]
 fn a_bad_partial_signature_names_its_participant() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let zoo = master(ZOO, NET);
     let policy = two_key_policy(&abandon, &zoo);
     let mut psbt = two_key_psbt(&policy, &abandon, &zoo);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [policy];
     let ctx = core_context(&keys, &wallets);
     let established = inspect(&psbt, &ctx).inputs[0].musig.clone().unwrap();
@@ -627,6 +643,7 @@ fn a_bad_partial_signature_names_its_participant() {
         &bogus,
     );
     let err = sign(
+        &c,
         &mut psbt,
         &[&abandon],
         &[abandon.fingerprint()],
@@ -677,8 +694,9 @@ fn hex(bytes: &[u8]) -> String {
 /// inspection with the wallet's key count and no quorum.
 #[test]
 fn the_review_names_the_musig_wallet() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [core_policy()];
     let ctx = core_context(&keys, &wallets);
     let insp = inspect(&fixture(example::CORE_FIRST_NAME), &ctx);
@@ -725,8 +743,10 @@ fn pass(
     session: &mut Option<osk_psbt::MusigSession>,
     seed: u8,
 ) -> osk_psbt::SignResult {
+    let c = Compute::unchecked();
     let selection: Vec<Fingerprint> = masters.iter().map(|m| m.fingerprint()).collect();
     sign(
+        &c,
         psbt,
         masters,
         &selection,
@@ -748,12 +768,13 @@ fn pass(
 /// session signs, aggregates and finalizes, leaving the session empty.
 #[test]
 fn the_device_goes_first_and_finishes_when_the_transaction_returns() {
+    let c = Compute::unchecked();
     let secp = Secp256k1::new();
     let abandon = master(ABANDON, NET);
     let zoo = master(ZOO, NET);
     let policy = two_key_policy(&abandon, &zoo);
     let mut psbt = two_key_psbt(&policy, &abandon, &zoo);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [policy];
 
     let mut session = None;
@@ -853,10 +874,11 @@ fn the_device_goes_first_and_finishes_when_the_transaction_returns() {
 /// replaces it, and what the first one held is gone.
 #[test]
 fn a_session_for_another_transaction_replaces_this_one() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let zoo = master(ZOO, NET);
     let policy = two_key_policy(&abandon, &zoo);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [policy.clone()];
     let ctx = context_with(&keys, &wallets, None);
 
@@ -880,10 +902,11 @@ fn a_session_for_another_transaction_replaces_this_one() {
 /// are dropped.
 #[test]
 fn a_nonce_no_session_holds_is_replaced_and_earlier_signatures_dropped() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let zoo = master(ZOO, NET);
     let policy = two_key_policy(&abandon, &zoo);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [policy.clone()];
     let mut psbt = two_key_psbt(&policy, &abandon, &zoo);
 
@@ -952,10 +975,11 @@ fn a_nonce_no_session_holds_is_replaced_and_earlier_signatures_dropped() {
 /// nonce would give the key away.
 #[test]
 fn a_nonce_drawn_again_in_one_session_is_a_new_nonce() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let zoo = master(ZOO, NET);
     let policy = two_key_policy(&abandon, &zoo);
-    let keys = [KeyRef::from_master(&abandon, 0).unwrap()];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
     let wallets = [policy.clone()];
     let mut psbt = two_key_psbt(&policy, &abandon, &zoo);
     let ours_key = account_xpub(&abandon).public_key;
@@ -1020,13 +1044,14 @@ fn a_nonce_drawn_again_in_one_session_is_a_new_nonce() {
 /// both.
 #[test]
 fn two_keys_of_one_wallet_share_and_sign_together() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let zoo = master(ZOO, NET);
     let policy = two_key_policy(&abandon, &zoo);
     let mut psbt = two_key_psbt(&policy, &abandon, &zoo);
     let keys = [
-        KeyRef::from_master(&abandon, 0).unwrap(),
-        KeyRef::from_master(&zoo, 0).unwrap(),
+        KeyRef::from_master(&c, &abandon, 0).unwrap(),
+        KeyRef::from_master(&c, &zoo, 0).unwrap(),
     ];
     let wallets = [policy];
 

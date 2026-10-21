@@ -19,6 +19,7 @@ use opensigner_core::backup::BackupStep;
 use opensigner_core::{ScreenKind, ids, strings};
 use osk_bip::bip39::Language;
 use osk_bip::threshold::ThresholdRecord;
+use osk_crypto::work::Compute;
 use osk_shell_api::{Event, FileKind};
 use osk_ui::widgets::Icon;
 
@@ -189,6 +190,7 @@ fn the_same_words_are_the_same_key() {
 /// reads back through Load a key to the same key.
 #[test]
 fn a_member_makes_an_encrypted_backup_that_reads_back() {
+    let c = Compute::unchecked();
     let mut h = device();
     h.start_load_24(&words(SHARE_0));
     h.finish_load(None);
@@ -223,7 +225,7 @@ fn a_member_makes_an_encrypted_backup_that_reads_back() {
     // The backup is the format `tools/backup/decrypt.py` reads: 24
     // words, their language, and 32 bytes.
     let opened =
-        osk_backup::oskb::open(&bytes, PASSPHRASE.as_bytes()).expect("the passphrase opens it");
+        osk_backup::oskb::open(&c, &bytes, PASSPHRASE.as_bytes()).expect("the passphrase opens it");
     assert_eq!(opened.word_count(), 24);
     assert_eq!(opened.language(), Language::English);
     assert_eq!(opened.entropy().expose().as_bytes().len(), 32);

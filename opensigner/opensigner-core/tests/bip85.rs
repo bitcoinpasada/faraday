@@ -14,6 +14,7 @@ use common::{ABANDON, Harness, PANEL};
 use opensigner_core::{ScreenKind, ids, strings};
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, Network};
+use osk_crypto::work::Compute;
 use osk_ui::widgets::keyboard::KeyInput;
 
 /// Row `i` of "Which application?", in the order the Choice lists them.
@@ -27,9 +28,11 @@ const BASE85: usize = 5;
 /// The master key of the words the harness loads, which is what the
 /// screens derive from.
 fn master() -> MasterKey {
-    let mnemonic = Mnemonic::parse(Language::English, &ABANDON.join(" ")).expect("the test words");
-    let seed = mnemonic.to_seed(b"").expect("a seed");
-    MasterKey::from_seed(&seed, Network::Mainnet)
+    let c = Compute::unchecked();
+    let mnemonic =
+        Mnemonic::parse(&c, Language::English, &ABANDON.join(" ")).expect("the test words");
+    let seed = mnemonic.to_seed(&c, b"").expect("a seed");
+    MasterKey::from_seed(&c, &seed, Network::Mainnet)
 }
 
 /// One loaded key, on its own page.
@@ -58,20 +61,21 @@ fn revealed_value(h: &mut Harness) -> String {
 
 #[test]
 fn each_application_derives_what_bip85_derives_for_this_key() {
+    let c = Compute::unchecked();
     let m = master();
     let expected: Vec<(usize, String)> = vec![
         (
             WIF,
-            String::from(osk_bip::bip85::child_wif(&m, 0).unwrap().as_str()),
+            String::from(osk_bip::bip85::child_wif(&c, &m, 0).unwrap().as_str()),
         ),
         (
             XPRV,
-            String::from(osk_bip::bip85::child_xprv(&m, 0).unwrap().as_str()),
+            String::from(osk_bip::bip85::child_xprv(&c, &m, 0).unwrap().as_str()),
         ),
         (
             BASE64,
             String::from(
-                osk_bip::bip85::child_password_base64(&m, 21, 0)
+                osk_bip::bip85::child_password_base64(&c, &m, 21, 0)
                     .unwrap()
                     .as_str(),
             ),
@@ -79,7 +83,7 @@ fn each_application_derives_what_bip85_derives_for_this_key() {
         (
             BASE85,
             String::from(
-                osk_bip::bip85::child_password_base85(&m, 12, 0)
+                osk_bip::bip85::child_password_base85(&c, &m, 12, 0)
                     .unwrap()
                     .as_str(),
             ),
@@ -105,9 +109,10 @@ fn each_application_derives_what_bip85_derives_for_this_key() {
 
 #[test]
 fn hex_derives_the_byte_count_that_was_asked_for() {
+    let c = Compute::unchecked();
     let m = master();
     for (i, bytes) in [16usize, 32, 64].into_iter().enumerate() {
-        let value = osk_bip::bip85::child_hex(&m, bytes, 0).unwrap();
+        let value = osk_bip::bip85::child_hex(&c, &m, bytes, 0).unwrap();
         let hex: String = value
             .as_bytes()
             .iter()
@@ -124,14 +129,15 @@ fn hex_derives_the_byte_count_that_was_asked_for() {
 
 #[test]
 fn the_index_that_was_typed_is_the_child_that_is_shown() {
+    let c = Compute::unchecked();
     let m = master();
     let mut h = on_the_key_page();
     choose(&mut h, WIF);
     h.pad(ids::BIP85_INDEX_PAD, KeyInput::Backspace);
     h.type_pin(ids::BIP85_INDEX_PAD, "7");
     let shown = revealed_value(&mut h);
-    let seven = String::from(osk_bip::bip85::child_wif(&m, 7).unwrap().as_str());
-    let zero = String::from(osk_bip::bip85::child_wif(&m, 0).unwrap().as_str());
+    let seven = String::from(osk_bip::bip85::child_wif(&c, &m, 7).unwrap().as_str());
+    let zero = String::from(osk_bip::bip85::child_wif(&c, &m, 0).unwrap().as_str());
     assert!(shown.contains(&seven), "index 7: {shown:?}");
     assert!(!shown.contains(&zero), "index 0 is still on screen");
     // The title names the application and the index it derived.
@@ -144,8 +150,9 @@ fn the_index_that_was_typed_is_the_child_that_is_shown() {
 
 #[test]
 fn the_derived_value_is_masked_until_the_panel_is_held() {
+    let c = Compute::unchecked();
     let m = master();
-    let value = String::from(osk_bip::bip85::child_wif(&m, 0).unwrap().as_str());
+    let value = String::from(osk_bip::bip85::child_wif(&c, &m, 0).unwrap().as_str());
     let mut h = on_the_key_page();
     choose(&mut h, WIF);
     h.type_pin(ids::BIP85_INDEX_PAD, "");
@@ -174,6 +181,7 @@ fn a_derived_secret_is_not_offered_to_the_clipboard() {
 
 #[test]
 fn a_password_takes_only_the_lengths_its_application_defines() {
+    let c = Compute::unchecked();
     let mut h = on_the_key_page();
     choose(&mut h, BASE85);
     // The default, 12, is in the field and ✓ is live.
@@ -207,7 +215,7 @@ fn a_password_takes_only_the_lengths_its_application_defines() {
     h.type_pin(ids::BIP85_INDEX_PAD, "");
     let m = master();
     let value = String::from(
-        osk_bip::bip85::child_password_base85(&m, 15, 0)
+        osk_bip::bip85::child_password_base85(&c, &m, 15, 0)
             .unwrap()
             .as_str(),
     );

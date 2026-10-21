@@ -14,6 +14,7 @@ use alloc::vec;
 use zeroize::Zeroize;
 
 use crate::hash::pbkdf2_sha256;
+use crate::work::{Compute, Work};
 
 /// Why scrypt could not run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -23,12 +24,14 @@ pub enum Error {
     Parameters,
 }
 
-/// scrypt with cost `n` (a power of two), block size `r` and
-/// parallelism `p`, filling `out`.
+/// Costs `128 · r · n` bytes of memory and `2 · n · p` `BlockMix` passes
+/// (32 MiB at aezeed's cost): scrypt with cost `n` (a power of two),
+/// block size `r` and parallelism `p`, filling `out`.
 ///
 /// `n` is the cost itself, not its logarithm: aezeed's parameters are
 /// `n = 32768`, `r = 8`, `p = 1`.
 pub fn scrypt(
+    c: &Compute,
     password: &[u8],
     salt: &[u8],
     n: u32,
@@ -36,10 +39,10 @@ pub fn scrypt(
     p: u32,
     out: &mut [u8],
 ) -> Result<(), Error> {
+    c.count(Work::Kdf);
     if n < 2 || !n.is_power_of_two() || r == 0 || p == 0 || out.is_empty() {
         return Err(Error::Parameters);
     }
-    crate::work::count(crate::work::Work::Kdf);
     let r = r as usize;
     let p = p as usize;
     let n = n as usize;
@@ -150,12 +153,13 @@ mod tests {
     /// against LND's vectors.
     #[test]
     fn rfc_7914_vectors() {
+        let c = Compute::new(|_| {});
         let mut out = [0u8; 64];
-        scrypt(b"", b"", 16, 1, 1, &mut out).unwrap();
+        scrypt(&c, b"", b"", 16, 1, 1, &mut out).unwrap();
         assert_eq!(out[..8], [0x77, 0xd6, 0x57, 0x62, 0x38, 0x65, 0x7b, 0x20]);
         assert_eq!(out[56..], [0xcf, 0x35, 0xe2, 0x0c, 0x38, 0xd1, 0x89, 0x06]);
 
-        scrypt(b"password", b"NaCl", 1024, 8, 16, &mut out).unwrap();
+        scrypt(&c, b"password", b"NaCl", 1024, 8, 16, &mut out).unwrap();
         assert_eq!(out[..8], [0xfd, 0xba, 0xbe, 0x1c, 0x9d, 0x34, 0x72, 0x00]);
         assert_eq!(out[56..], [0x83, 0x60, 0xcb, 0xdf, 0xa2, 0xcc, 0x06, 0x40]);
     }

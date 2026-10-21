@@ -503,9 +503,10 @@ impl OpenSigner {
     /// The extended private key at the applied path, derived for the one
     /// screen that shows it and never cached.
     fn explore_xprv(&self) -> String {
+        let c = crate::unchecked();
         let path = self.explore.applied_path().clone();
         self.explore_master()
-            .map(|m| String::from(m.derive(&path).xpriv_ascii().as_str()))
+            .map(|m| String::from(m.derive(&c, &path).xpriv_ascii().as_str()))
             .unwrap_or_default()
     }
 }

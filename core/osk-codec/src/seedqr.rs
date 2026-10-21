@@ -155,6 +155,7 @@ pub fn encode_compact(m: &Mnemonic) -> Result<QrMatrix, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use osk_crypto::work::Compute;
 
     /// The error of a result whose success type is not `Debug`.
     fn err<T>(r: Result<T, Error>) -> Error {
@@ -219,8 +220,9 @@ mod tests {
 
     #[test]
     fn specification_vectors_encode_and_decode() {
+        let c = Compute::unchecked();
         for (words, digits, entropy) in VECTORS {
-            let m = Mnemonic::parse(Language::English, words).unwrap();
+            let m = Mnemonic::parse(&c, Language::English, words).unwrap();
             let d = to_digits(&m);
             assert_eq!(d.expose().as_bytes(), digits.as_bytes(), "{words}");
             let e = to_entropy(&m);

@@ -18,7 +18,7 @@ libfuzzer-sys = "0.4"
 osk-bip = { path = "../core/osk-bip" }
 osk-codec = { path = "../core/osk-codec" }
 osk-psbt = { path = "../core/osk-psbt" }
-osk-crypto = { path = "../core/osk-crypto" }
+osk-crypto = { path = "../core/osk-crypto", features = ["unchecked"] }
 osk-backup = { path = "../core/osk-backup" }
 osk-keep = { path = "../core/osk-keep" }
 opensigner-core = { path = "../opensigner/opensigner-core" }

@@ -5,6 +5,7 @@ mod common;
 
 use common::XorShift;
 use osk_bip::bip39::{Error, Language, MAX_PASSPHRASE_BYTES, Mnemonic, last_word_candidates};
+use osk_crypto::work::Compute;
 
 const EN: Language = Language::English;
 
@@ -128,10 +129,11 @@ fn from_indices_rejects_bad_counts_and_words() {
 
 #[test]
 fn bad_checksum_is_detected() {
+    let c = Compute::unchecked();
     let good = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
-    assert!(Mnemonic::parse(EN, good).is_ok());
+    assert!(Mnemonic::parse(&c, EN, good).is_ok());
     let bad = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon";
-    assert_eq!(Mnemonic::parse(EN, bad).err(), Some(Error::BadChecksum));
+    assert_eq!(Mnemonic::parse(&c, EN, bad).err(), Some(Error::BadChecksum));
 
     // Flipping any single word of a valid mnemonic to a neighbour must be
     // caught unless the flip lands on another valid checksum.
@@ -146,67 +148,79 @@ fn bad_checksum_is_detected() {
 
 #[test]
 fn parse_locates_unknown_words() {
+    let c = Compute::unchecked();
     let typo = "abandon abandon abandon abandon abandom abandon abandon abandon abandon abandon abandon about";
     assert_eq!(
-        Mnemonic::parse(EN, typo).err(),
+        Mnemonic::parse(&c, EN, typo).err(),
         Some(Error::UnknownWord { position: 4 })
     );
     // Mixed and repeated whitespace, including the ideographic space, is fine.
     let spaced = "  abandon\tabandon abandon\u{3000}abandon abandon abandon\nabandon abandon abandon abandon abandon   about ";
-    assert!(Mnemonic::parse(EN, spaced).is_ok());
-    assert_eq!(Mnemonic::parse(EN, "").err(), Some(Error::InvalidWordCount));
+    assert!(Mnemonic::parse(&c, EN, spaced).is_ok());
     assert_eq!(
-        Mnemonic::parse(EN, "abandon").err(),
+        Mnemonic::parse(&c, EN, "").err(),
+        Some(Error::InvalidWordCount)
+    );
+    assert_eq!(
+        Mnemonic::parse(&c, EN, "abandon").err(),
         Some(Error::InvalidWordCount)
     );
     let too_many = std::iter::repeat_n("abandon", 25)
         .collect::<Vec<_>>()
         .join(" ");
     assert_eq!(
-        Mnemonic::parse(EN, &too_many).err(),
+        Mnemonic::parse(&c, EN, &too_many).err(),
         Some(Error::InvalidWordCount)
     );
     // A word from another language is unknown in this one.
     let mixed = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon ábaco";
     assert_eq!(
-        Mnemonic::parse(EN, mixed).err(),
+        Mnemonic::parse(&c, EN, mixed).err(),
         Some(Error::UnknownWord { position: 11 })
     );
 }
 
 #[test]
 fn passphrase_rules() {
+    let c = Compute::unchecked();
     let m = Mnemonic::from_entropy(EN, &[0u8; 16]).unwrap();
-    assert!(m.to_seed(b"").is_ok());
+    assert!(m.to_seed(&c, b"").is_ok());
     assert!(
-        m.to_seed(b" ~!@#$%^&*() printable ASCII 0x20..=0x7E")
+        m.to_seed(&c, b" ~!@#$%^&*() printable ASCII 0x20..=0x7E")
             .is_ok()
     );
     assert_eq!(
-        m.to_seed("caf\u{e9}".as_bytes()).err(),
+        m.to_seed(&c, "caf\u{e9}".as_bytes()).err(),
         Some(Error::PassphraseNotAscii)
     );
     assert_eq!(
-        m.to_seed(b"tab\there").err(),
+        m.to_seed(&c, b"tab\there").err(),
         Some(Error::PassphraseNotAscii)
     );
-    assert_eq!(m.to_seed(b"nl\n").err(), Some(Error::PassphraseNotAscii));
-    assert_eq!(m.to_seed(&[0x7f]).err(), Some(Error::PassphraseNotAscii));
-    assert!(m.to_seed(&[b'a'; MAX_PASSPHRASE_BYTES]).is_ok());
     assert_eq!(
-        m.to_seed(&[b'a'; MAX_PASSPHRASE_BYTES + 1]).err(),
+        m.to_seed(&c, b"nl\n").err(),
+        Some(Error::PassphraseNotAscii)
+    );
+    assert_eq!(
+        m.to_seed(&c, &[0x7f]).err(),
+        Some(Error::PassphraseNotAscii)
+    );
+    assert!(m.to_seed(&c, &[b'a'; MAX_PASSPHRASE_BYTES]).is_ok());
+    assert_eq!(
+        m.to_seed(&c, &[b'a'; MAX_PASSPHRASE_BYTES + 1]).err(),
         Some(Error::PassphraseTooLong)
     );
     assert_eq!(
-        m.to_seed_unchecked(&[0xe3; MAX_PASSPHRASE_BYTES + 1]).err(),
+        m.to_seed_unchecked(&c, &[0xe3; MAX_PASSPHRASE_BYTES + 1])
+            .err(),
         Some(Error::PassphraseTooLong)
     );
 
     // Different passphrases give different seeds; the same gives the same.
-    let a = m.to_seed(b"a").unwrap();
-    let b = m.to_seed(b"b").unwrap();
+    let a = m.to_seed(&c, b"a").unwrap();
+    let b = m.to_seed(&c, b"b").unwrap();
     assert!(a != b);
-    assert!(a == m.to_seed(b"a").unwrap());
+    assert!(a == m.to_seed(&c, b"a").unwrap());
 }
 
 #[test]

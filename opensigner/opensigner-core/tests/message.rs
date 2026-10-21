@@ -9,6 +9,7 @@ use opensigner_core::message::{self, Stage};
 use opensigner_core::{ScreenKind, ids};
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_psbt::bitcoin::address::{Address, NetworkUnchecked};
 use osk_psbt::message::{Checked, Format};
 use osk_shell_api::{App, Command, Event, FileKind, TouchPhase};
@@ -19,14 +20,16 @@ const MESSAGE: &str = include_str!("../../../tools/vectors/message.txt");
 const SIGNED: &str = include_str!("../../../tools/vectors/signed-message.txt");
 
 fn master() -> MasterKey {
-    let m = Mnemonic::parse(Language::English, &ABANDON.join(" ")).expect("test mnemonic");
-    MasterKey::from_seed(&m.to_seed(b"").expect("ascii"), Network::Mainnet)
+    let c = Compute::unchecked();
+    let m = Mnemonic::parse(&c, Language::English, &ABANDON.join(" ")).expect("test mnemonic");
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("ascii"), Network::Mainnet)
 }
 
 /// The first receive address of the test seed for `script`.
 fn first_address(script: ScriptType) -> String {
+    let c = Compute::unchecked();
     master()
-        .account_xpub(script, 0)
+        .account_xpub(&c, script, 0)
         .expect("account")
         .address(false, 0)
         .expect("address")

@@ -9,6 +9,7 @@ use opensigner_core::load::Step;
 use opensigner_core::session::{ATTEMPTS, DEFAULT_LOCK_MS, DEFAULT_WIPE_MS, LOCK_OPTIONS, PIN_MAX};
 use opensigner_core::{AssuranceTier, ScreenKind, ids, strings};
 use osk_bip::keys::ScriptType;
+use osk_crypto::work::Compute;
 use osk_shell_api::{App, ButtonId, Command, EntropyBytes, Event, Key};
 use osk_ui::widgets::keyboard::KeyInput;
 
@@ -99,10 +100,11 @@ fn back_from_the_pin_step_returns_to_confirm_without_a_key() {
 
 #[test]
 fn auto_lock_fires_after_the_timeout_and_input_resets_it() {
+    let c = Compute::unchecked();
     let mut h = loaded(PANEL);
     assert_eq!(h.app.lock_after_ms(), DEFAULT_LOCK_MS);
     assert!(!h.app.is_locked());
-    let before = h.app.addresses(0, ScriptType::NativeSegwit, false, 3);
+    let before = h.app.addresses(&c, 0, ScriptType::NativeSegwit, false, 3);
     assert_eq!(before.len(), 3);
     // Idle for most of the timeout, then a touch: the timer restarts.
     h.tick(DEFAULT_LOCK_MS - 5_000);
@@ -119,7 +121,7 @@ fn auto_lock_fires_after_the_timeout_and_input_resets_it() {
     // Locked: the master keys are gone but the fingerprints show.
     assert!(
         h.app
-            .addresses(0, ScriptType::NativeSegwit, false, 3)
+            .addresses(&c, 0, ScriptType::NativeSegwit, false, 3)
             .is_empty()
     );
     assert_eq!(h.app.fingerprints().len(), 1);
@@ -140,7 +142,7 @@ fn auto_lock_fires_after_the_timeout_and_input_resets_it() {
     assert!(!h.app.is_locked());
     assert_eq!(h.app.screen(), ScreenKind::Home, "a lock leaves the flow");
     assert_eq!(
-        h.app.addresses(0, ScriptType::NativeSegwit, false, 3),
+        h.app.addresses(&c, 0, ScriptType::NativeSegwit, false, 3),
         before
     );
     assert_eq!(h.app.fingerprints()[0].to_hex(), *b"73c5da0a");
@@ -368,6 +370,7 @@ fn h_toggle(h: &mut Harness) {
 
 #[test]
 fn a_key_is_not_added_until_the_shell_has_answered_the_entropy_request() {
+    let c = Compute::unchecked();
     let mut h = Harness::without_entropy(PANEL);
     assert!(h.app.session_weak());
     h.start_load(&ABANDON);
@@ -389,29 +392,30 @@ fn a_key_is_not_added_until_the_shell_has_answered_the_entropy_request() {
     assert_eq!(h.app.fingerprints().len(), 1);
     assert_eq!(h.app.is_sealed(0), Some(true));
     // A lock and an unlock leave the key where it was.
-    let before = h.app.addresses(0, ScriptType::NativeSegwit, false, 2);
+    let before = h.app.addresses(&c, 0, ScriptType::NativeSegwit, false, 2);
     h.open_settings();
     h.tap(ids::SETTINGS_LOCK);
     assert!(h.app.is_locked());
     h.unlock(PIN);
     assert_eq!(
-        h.app.addresses(0, ScriptType::NativeSegwit, false, 2),
+        h.app.addresses(&c, 0, ScriptType::NativeSegwit, false, 2),
         before
     );
 }
 
 #[test]
 fn a_background_period_locks_at_once_and_the_wipe_timer_keeps_running() {
+    let c = Compute::unchecked();
     // A short one: the app is locked and the key is still there.
     let mut h = loaded(PANEL);
-    let before = h.app.addresses(0, ScriptType::NativeSegwit, false, 2);
+    let before = h.app.addresses(&c, 0, ScriptType::NativeSegwit, false, 2);
     h.send(Event::Lock);
     assert!(h.app.is_locked(), "locked without waiting for the timeout");
     h.tick(60_000);
     assert_eq!(h.app.fingerprints().len(), 1);
     h.unlock(PIN);
     assert_eq!(
-        h.app.addresses(0, ScriptType::NativeSegwit, false, 2),
+        h.app.addresses(&c, 0, ScriptType::NativeSegwit, false, 2),
         before
     );
     // A long one: the wipe deadline passed while the app was away, and

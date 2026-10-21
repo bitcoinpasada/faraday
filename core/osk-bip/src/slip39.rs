@@ -28,12 +28,14 @@
 //!      decision keyboard",
 //! )
 //! .unwrap();
-//! let secret = recover(&[share], b"TREZOR").unwrap();
+//! let c = osk_crypto::work::Compute::unchecked();
+//! let secret = recover(&c, &[share], b"TREZOR").unwrap();
 //! assert_eq!(secret.expose().as_bytes().len(), 16);
 //! ```
 
 use core::fmt;
 
+use osk_crypto::work::Compute;
 use osk_crypto::{Secret, Zeroize, ZeroizeOnDrop, hmac_sha256, pbkdf2_hmac_sha256};
 
 use crate::wordlists::slip39 as wordlist;
@@ -786,6 +788,7 @@ fn check_passphrase(passphrase: &[u8]) -> Result<(), Error> {
 /// master secret with. `forward` runs the rounds 0, 1, 2, 3 (encryption)
 /// and its inverse runs 3, 2, 1, 0.
 fn feistel(
+    c: &Compute,
     value: &SecretBytes,
     passphrase: &[u8],
     iteration_exponent: u8,
@@ -825,6 +828,7 @@ fn feistel(
         password[0] = i;
         salt[salt_prefix..salt_prefix + half].copy_from_slice(&right[..half]);
         pbkdf2_hmac_sha256(
+            c,
             &password[..1 + passphrase.len()],
             &salt[..salt_prefix + half],
             rounds,
@@ -859,6 +863,7 @@ fn feistel(
 /// exists: the two fingerprints it shows for a passphrase are what
 /// reading the shares back with and without it would give.
 pub fn encrypt(
+    c: &Compute,
     secret: &[u8],
     passphrase: &[u8],
     identifier: u16,
@@ -866,6 +871,7 @@ pub fn encrypt(
     iteration_exponent: u8,
 ) -> Result<Secret<SecretBytes>, Error> {
     feistel_call(
+        c,
         secret,
         passphrase,
         identifier,
@@ -878,6 +884,7 @@ pub fn encrypt(
 /// The master secret behind `encrypted` under `passphrase`: the inverse
 /// of [`encrypt`].
 pub fn decrypt(
+    c: &Compute,
     encrypted: &[u8],
     passphrase: &[u8],
     identifier: u16,
@@ -885,6 +892,7 @@ pub fn decrypt(
     iteration_exponent: u8,
 ) -> Result<Secret<SecretBytes>, Error> {
     feistel_call(
+        c,
         encrypted,
         passphrase,
         identifier,
@@ -895,6 +903,7 @@ pub fn decrypt(
 }
 
 fn feistel_call(
+    c: &Compute,
     value: &[u8],
     passphrase: &[u8],
     identifier: u16,
@@ -908,6 +917,7 @@ fn feistel_call(
     }
     let value = SecretBytes::new(value)?;
     Ok(Secret::new(feistel(
+        c,
         &value,
         passphrase,
         iteration_exponent,
@@ -928,7 +938,11 @@ fn feistel_call(
 /// backup, a group short of shares, a digest that does not match. A wrong
 /// passphrase is not one of them — it gives a different master secret,
 /// and so a different wallet.
-pub fn recover(shares: &[Share], passphrase: &[u8]) -> Result<Secret<SecretBytes>, Error> {
+pub fn recover(
+    c: &Compute,
+    shares: &[Share],
+    passphrase: &[u8],
+) -> Result<Secret<SecretBytes>, Error> {
     check_passphrase(passphrase)?;
     let first = shares.first().ok_or(Error::NoShares)?;
     for s in shares {
@@ -1008,6 +1022,7 @@ pub fn recover(shares: &[Share], passphrase: &[u8]) -> Result<Secret<SecretBytes
 
     let encrypted = recover_secret(first.group_threshold, &group_points)?;
     Ok(Secret::new(feistel(
+        c,
         &encrypted,
         passphrase,
         first.iteration_exponent,
@@ -1042,6 +1057,7 @@ pub struct GroupSpec {
 /// SLIP-39 allows such a group only one share.
 #[allow(clippy::too_many_arguments)]
 pub fn split(
+    c: &Compute,
     secret: &[u8],
     passphrase: &[u8],
     identifier: u16,
@@ -1080,6 +1096,7 @@ pub fn split(
     }
 
     let encrypted = feistel(
+        c,
         &master,
         passphrase,
         iteration_exponent,

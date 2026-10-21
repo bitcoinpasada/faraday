@@ -26,6 +26,7 @@
 //! `core/osk-bip/tests/bip85.rs`.
 
 use osk_crypto::Zeroize;
+use osk_crypto::work::Compute;
 
 use crate::bip39::{Language, Mnemonic};
 use crate::keys::{ChildNumber, DerivationPath, MasterKey, SecretKey, WifAscii, XprivAscii};
@@ -131,13 +132,13 @@ impl Drop for Bytes {
 /// `HMAC-SHA512("bip-entropy-from-k", k)` over the private key at
 /// `m/83696968'` followed by `steps`, all hardened. The derived private
 /// key is zeroized before this returns.
-fn derive(master: &MasterKey, steps: &[u32]) -> Bytes {
+fn derive(c: &Compute, master: &MasterKey, steps: &[u32]) -> Bytes {
     let hardened = |n: u32| ChildNumber::from_hardened_idx(n).expect("an index below 2^31");
     let mut children = alloc::vec::Vec::with_capacity(steps.len() + 1);
     children.push(hardened(PURPOSE));
     children.extend(steps.iter().copied().map(hardened));
     let path = DerivationPath::from(children);
-    let derived = master.derive(&path);
+    let derived = master.derive(c, &path);
     let mut k = derived.secret_key().secret_bytes();
     let mut hash = osk_crypto::hmac_sha512(b"bip-entropy-from-k", &k);
     k.zeroize();
@@ -158,6 +159,7 @@ fn check_index(index: u32) -> Result<(), Error> {
 /// The child mnemonic of `words` words at `index` in `language`
 /// (application 39').
 pub fn child_mnemonic(
+    c: &Compute,
     master: &MasterKey,
     language: Language,
     words: usize,
@@ -168,6 +170,7 @@ pub fn child_mnemonic(
     }
     check_index(index)?;
     let hash = derive(
+        c,
         master,
         &[APP_BIP39, language_code(language), words as u32, index],
     );
@@ -183,9 +186,9 @@ pub fn child_mnemonic(
 /// BIP-85 takes the most significant 256 bits of the entropy as the
 /// secret exponent and writes it as a compressed WIF, which is the form
 /// Bitcoin Core's `sethdseed` takes.
-pub fn child_wif(master: &MasterKey, index: u32) -> Result<WifAscii, Error> {
+pub fn child_wif(c: &Compute, master: &MasterKey, index: u32) -> Result<WifAscii, Error> {
     check_index(index)?;
-    let hash = derive(master, &[APP_WIF, index]);
+    let hash = derive(c, master, &[APP_WIF, index]);
     let mut secret = SecretKey::from_slice(&hash.0[..32]).map_err(|_| Error::InvalidKey)?;
     let wif = WifAscii::new(&secret, master.network());
     secret.non_secure_erase();
@@ -198,14 +201,14 @@ pub fn child_wif(master: &MasterKey, index: u32) -> Result<WifAscii, Error> {
 /// BIP-85 reverses BIP-32's order: the first 32 bytes of the entropy are
 /// the chain code and the second 32 are the private key. The child
 /// number, the depth and the parent fingerprint are zero.
-pub fn child_xprv(master: &MasterKey, index: u32) -> Result<XprivAscii, Error> {
+pub fn child_xprv(c: &Compute, master: &MasterKey, index: u32) -> Result<XprivAscii, Error> {
     check_index(index)?;
-    let hash = derive(master, &[APP_XPRV, index]);
+    let hash = derive(c, master, &[APP_XPRV, index]);
     let mut chain_code = [0u8; 32];
     let mut key = [0u8; 32];
     chain_code.copy_from_slice(&hash.0[..32]);
     key.copy_from_slice(&hash.0[32..]);
-    let child = MasterKey::from_chain_code_and_key(&chain_code, &key, master.network());
+    let child = MasterKey::from_chain_code_and_key(c, &chain_code, &key, master.network());
     chain_code.zeroize();
     key.zeroize();
     Ok(child.ok_or(Error::InvalidKey)?.xpriv_ascii())
@@ -213,12 +216,17 @@ pub fn child_xprv(master: &MasterKey, index: u32) -> Result<XprivAscii, Error> {
 
 /// `bytes` bytes of entropy at `index` (application 128169'), which is
 /// the derived entropy with its trailing bytes dropped.
-pub fn child_hex(master: &MasterKey, bytes: usize, index: u32) -> Result<HexBytes, Error> {
+pub fn child_hex(
+    c: &Compute,
+    master: &MasterKey,
+    bytes: usize,
+    index: u32,
+) -> Result<HexBytes, Error> {
     if bytes < HEX_BYTES.0 || bytes > HEX_BYTES.1 {
         return Err(Error::ByteCount);
     }
     check_index(index)?;
-    let hash = derive(master, &[APP_HEX, bytes as u32, index]);
+    let hash = derive(c, master, &[APP_HEX, bytes as u32, index]);
     let mut out = HexBytes {
         buf: [0; HMAC_BYTES],
         len: bytes as u8,
@@ -230,6 +238,7 @@ pub fn child_hex(master: &MasterKey, bytes: usize, index: u32) -> Result<HexByte
 /// The base64 password of `length` characters at `index` (application
 /// 707764'): all 64 bytes base64-encoded, cut to `length`.
 pub fn child_password_base64(
+    c: &Compute,
     master: &MasterKey,
     length: usize,
     index: u32,
@@ -238,7 +247,7 @@ pub fn child_password_base64(
         return Err(Error::PasswordLength);
     }
     check_index(index)?;
-    let hash = derive(master, &[APP_BASE64, length as u32, index]);
+    let hash = derive(c, master, &[APP_BASE64, length as u32, index]);
     let mut out = Password {
         buf: [0; PASSWORD_MAX],
         len: 0,
@@ -254,6 +263,7 @@ pub fn child_password_base64(
 /// The base85 password of `length` characters at `index` (application
 /// 707785'): all 64 bytes base85-encoded, cut to `length`.
 pub fn child_password_base85(
+    c: &Compute,
     master: &MasterKey,
     length: usize,
     index: u32,
@@ -262,7 +272,7 @@ pub fn child_password_base85(
         return Err(Error::PasswordLength);
     }
     check_index(index)?;
-    let hash = derive(master, &[APP_BASE85, length as u32, index]);
+    let hash = derive(c, master, &[APP_BASE85, length as u32, index]);
     let mut out = Password {
         buf: [0; PASSWORD_MAX],
         len: 0,

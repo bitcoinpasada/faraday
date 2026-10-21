@@ -26,6 +26,7 @@ use alloc::vec::Vec;
 
 use argon2::{Algorithm, Argon2, Block, Params, Version};
 use osk_crypto::Secret;
+use osk_crypto::work::{Compute, Work};
 
 pub mod kdbx;
 pub mod oskb;
@@ -69,7 +70,8 @@ pub enum StretchError {
     Memory,
 }
 
-/// `Argon2id(password, salt)`, version 0x13, 32 bytes, at `cost`.
+/// `Argon2id(password, salt)`, version 0x13, 32 bytes, at `cost`: costs
+/// `cost.memory_kib` of memory filled `cost.passes` times.
 ///
 /// The working memory is asked for with `try_reserve` rather than
 /// taken, so a device that cannot spare what a cost asks for gets
@@ -78,13 +80,14 @@ pub enum StretchError {
 /// from the password. (The `argon2` crate's own allocating helper needs
 /// a feature that brings in its string format.)
 pub fn argon2id(
+    c: &Compute,
     cost: &Cost,
     password: &[u8],
     salt: &[u8],
 ) -> Result<Secret<[u8; 32]>, StretchError> {
+    c.count(Work::Kdf);
     let params = Params::new(cost.memory_kib, cost.passes, cost.lanes, Some(32))
         .map_err(|_| StretchError::Params)?;
-    osk_crypto::work::count(osk_crypto::work::Work::Kdf);
     let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params.clone());
     let blocks = params.block_count();
     let mut memory: Vec<Block> = Vec::new();

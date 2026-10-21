@@ -17,6 +17,7 @@ use opensigner_core::strings::EN;
 use opensigner_core::{ScreenKind, ids};
 use osk_bip::codex32::{Codex32, identifier_for};
 use osk_bip::keys::{MasterKey, Network};
+use osk_crypto::work::Compute;
 use osk_entropy::{DiceRolls, Strength};
 use osk_shell_api::Key;
 use osk_ui::widgets::keyboard::KeyInput;
@@ -190,9 +191,13 @@ fn load_strings(strings: &[&str]) -> Option<String> {
 
 /// The master fingerprint of the seed a set of strings recovers.
 fn fingerprint_of(secret: &Codex32) -> String {
+    let c = Compute::unchecked();
     let seed = secret.to_seed().expect("the secret carries a seed");
     let bytes = osk_crypto::SeedBytes::new(seed.expose().bytes()).expect("a seed");
-    hex(MasterKey::from_seed_bytes(&osk_crypto::Secret::new(bytes), Network::Mainnet).fingerprint())
+    hex(
+        MasterKey::from_seed_bytes(&c, &osk_crypto::Secret::new(bytes), Network::Mainnet)
+            .fingerprint(),
+    )
 }
 
 /// Create Codex32 shares from dice at 128 bits, not split: one string

@@ -11,6 +11,7 @@ use osk_bip::frost::{self, SecShare};
 use osk_bip::keys::Network;
 use osk_bip::policy::WalletPolicy;
 use osk_bip::threshold::ThresholdRecord;
+use osk_crypto::work::Compute;
 use osk_psbt::bitcoin::NetworkKind;
 use osk_psbt::bitcoin::secp256k1::Secp256k1;
 use osk_psbt::threshold::{Carry, CarrySection, carry_bytes};
@@ -40,6 +41,7 @@ fn pass(
     others: &[u32],
     carry: Option<&CarrySection>,
 ) -> Result<SignResult, osk_psbt::Error> {
+    let c = Compute::unchecked();
     let secp = Secp256k1::new();
     let share = &dealt.shares[holding as usize];
     let pubshare = share.public_share(&secp);
@@ -60,6 +62,7 @@ fn pass(
     }];
     let mut session = None;
     sign(
+        &c,
         psbt,
         &[],
         &[],

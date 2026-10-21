@@ -9,6 +9,7 @@ use std::process::Command as Process;
 
 use osk_backup::DEVICE_PARAMS;
 use osk_bip::bip39::{Language, Mnemonic};
+use osk_crypto::work::Compute;
 
 /// The version-2 vectors, which this build still opens: a 12-word key
 /// and a 24-word one.
@@ -127,11 +128,19 @@ fn tempfile() -> Temp {
 /// on the card or the QR on the screen — says how long the seed is.
 #[test]
 fn a_12_word_and_a_24_word_backup_are_the_same_size() {
+    let c = Compute::unchecked();
     let short = Mnemonic::from_entropy(Language::English, &[0u8; 16]).expect("a key");
     let long = Mnemonic::from_entropy(Language::English, &[0u8; 32]).expect("a key");
-    let a = osk_backup::oskb::seal(&short, PASSPHRASE.as_bytes(), DEVICE_PARAMS, &vector_seed())
-        .expect("a backup");
+    let a = osk_backup::oskb::seal(
+        &c,
+        &short,
+        PASSPHRASE.as_bytes(),
+        DEVICE_PARAMS,
+        &vector_seed(),
+    )
+    .expect("a backup");
     let b = osk_backup::oskb::seal(
+        &c,
         &long,
         PASSPHRASE.as_bytes(),
         DEVICE_PARAMS,
@@ -140,8 +149,8 @@ fn a_12_word_and_a_24_word_backup_are_the_same_size() {
     .expect("a backup");
     assert_eq!(a.len(), b.len());
 
-    let out_short = osk_backup::oskb::open(&a, PASSPHRASE.as_bytes()).expect("it opens");
-    let out_long = osk_backup::oskb::open(&b, PASSPHRASE.as_bytes()).expect("it opens");
+    let out_short = osk_backup::oskb::open(&c, &a, PASSPHRASE.as_bytes()).expect("it opens");
+    let out_long = osk_backup::oskb::open(&c, &b, PASSPHRASE.as_bytes()).expect("it opens");
     assert_eq!(out_short.indices(), short.indices());
     assert_eq!(out_long.indices(), long.indices());
 }
@@ -151,9 +160,10 @@ fn a_12_word_and_a_24_word_backup_are_the_same_size() {
 /// backup.
 #[test]
 fn a_version_2_vector_still_opens() {
+    let c = Compute::unchecked();
     let bytes = unhex(VECTOR);
     assert_eq!(bytes, VECTOR_FILE, "the hex and the file are one backup");
-    let words: Vec<&str> = osk_backup::oskb::open(&bytes, VECTOR_PASSPHRASE.as_bytes())
+    let words: Vec<&str> = osk_backup::oskb::open(&c, &bytes, VECTOR_PASSPHRASE.as_bytes())
         .expect("it opens")
         .indices()
         .iter()
@@ -165,7 +175,7 @@ fn a_version_2_vector_still_opens() {
     assert_eq!(long, VECTOR_24_FILE, "the hex and the file are one backup");
     assert_eq!(long.len(), bytes.len(), "both vectors are one length");
     assert_eq!(
-        osk_backup::oskb::open(&long, VECTOR_PASSPHRASE.as_bytes())
+        osk_backup::oskb::open(&c, &long, VECTOR_PASSPHRASE.as_bytes())
             .expect("it opens")
             .indices()
             .len(),
@@ -190,6 +200,7 @@ fn a_version_2_vector_still_opens() {
 /// pass.
 #[test]
 fn the_version_3_vectors_read_the_same_in_both_implementations() {
+    let c = Compute::unchecked();
     let words = unhex(V3_WORDS);
     let seed = unhex(V3_SEED);
     let note = unhex(V3_NOTE);
@@ -207,6 +218,7 @@ fn the_version_3_vectors_read_the_same_in_both_implementations() {
     let m = Mnemonic::from_entropy(Language::English, &[0u8; 16]).expect("a key");
     assert_eq!(
         osk_backup::oskb::seal(
+            &c,
             &m,
             VECTOR_PASSPHRASE.as_bytes(),
             DEVICE_PARAMS,
@@ -215,7 +227,7 @@ fn the_version_3_vectors_read_the_same_in_both_implementations() {
         Some(words.clone()),
         "the vector is what these inputs produce; see tools/vectors/backup/README.md"
     );
-    let opened: Vec<&str> = osk_backup::oskb::open(&words, VECTOR_PASSPHRASE.as_bytes())
+    let opened: Vec<&str> = osk_backup::oskb::open(&c, &words, VECTOR_PASSPHRASE.as_bytes())
         .expect("it opens")
         .indices()
         .iter()
@@ -223,11 +235,13 @@ fn the_version_3_vectors_read_the_same_in_both_implementations() {
         .collect();
     assert_eq!(opened, ABANDON);
 
-    match osk_backup::oskb::open_payload(&seed, VECTOR_PASSPHRASE.as_bytes()).expect("it opens") {
+    match osk_backup::oskb::open_payload(&c, &seed, VECTOR_PASSPHRASE.as_bytes()).expect("it opens")
+    {
         osk_backup::oskb::Opened::Seed(bytes) => assert_eq!(bytes.as_slice(), &[0x42u8; 32]),
         _ => panic!("a master seed"),
     }
-    match osk_backup::oskb::open_payload(&note, VECTOR_PASSPHRASE.as_bytes()).expect("it opens") {
+    match osk_backup::oskb::open_payload(&c, &note, VECTOR_PASSPHRASE.as_bytes()).expect("it opens")
+    {
         osk_backup::oskb::Opened::Note(bytes) => {
             assert_eq!(
                 String::from_utf8(bytes.to_vec()).expect("text"),
@@ -236,7 +250,9 @@ fn the_version_3_vectors_read_the_same_in_both_implementations() {
         }
         _ => panic!("a note"),
     }
-    match osk_backup::oskb::open_payload(&sheet, VECTOR_PASSPHRASE.as_bytes()).expect("it opens") {
+    match osk_backup::oskb::open_payload(&c, &sheet, VECTOR_PASSPHRASE.as_bytes())
+        .expect("it opens")
+    {
         osk_backup::oskb::Opened::Sheet(parts) => {
             assert_eq!(parts.name.as_slice(), b"Cold storage");
             assert!(parts.descriptor.starts_with(b"wsh(sortedmulti(2,"));
@@ -272,17 +288,18 @@ fn the_version_3_vectors_read_the_same_in_both_implementations() {
 /// 64 GiB is refused by what it asks for, before any work is done.
 #[test]
 fn a_file_is_opened_at_the_cost_it_states() {
+    let c = Compute::unchecked();
     let m = Mnemonic::from_entropy(Language::English, &[1u8; 32]).expect("a key");
     let cost = osk_backup::Cost {
         memory_kib: 262_144,
         passes: DEVICE_PARAMS.passes,
         lanes: DEVICE_PARAMS.lanes,
     };
-    let bytes =
-        osk_backup::oskb::seal(&m, PASSPHRASE.as_bytes(), cost, &vector_seed()).expect("a backup");
+    let bytes = osk_backup::oskb::seal(&c, &m, PASSPHRASE.as_bytes(), cost, &vector_seed())
+        .expect("a backup");
     assert_eq!(osk_backup::oskb::cost_of(&bytes), Some(cost));
     assert_eq!(
-        osk_backup::oskb::open(&bytes, PASSPHRASE.as_bytes())
+        osk_backup::oskb::open(&c, &bytes, PASSPHRASE.as_bytes())
             .expect("it opens here")
             .indices(),
         m.indices()
@@ -302,6 +319,7 @@ fn a_file_is_opened_at_the_cost_it_states() {
 /// gets the words back out of it.
 #[test]
 fn the_kdbx_vector_is_what_this_code_writes_and_reads_back_elsewhere() {
+    let c = Compute::unchecked();
     let m = Mnemonic::from_entropy(Language::English, &[0u8; 16]).expect("a key");
     let words: Vec<&str> = m
         .indices()
@@ -310,6 +328,7 @@ fn the_kdbx_vector_is_what_this_code_writes_and_reads_back_elsewhere() {
         .collect();
     let words = words.join(" ");
     let bytes = osk_backup::kdbx::write(
+        &c,
         &[osk_backup::kdbx::Item {
             title: b"73c5da0a",
             notes: b"12 words, English",
@@ -325,6 +344,7 @@ fn the_kdbx_vector_is_what_this_code_writes_and_reads_back_elsewhere() {
         "the vector is what these inputs produce; see tools/vectors/backup/README.md"
     );
     assert!(osk_backup::kdbx::verify(
+        &c,
         &bytes,
         VECTOR_PASSPHRASE.as_bytes()
     ));

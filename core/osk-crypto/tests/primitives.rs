@@ -4,7 +4,7 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 
 use osk_crypto::{
     Pinned, Secret, Zeroize, ZeroizeOnDrop, hmac_sha256, hmac_sha512, pbkdf2_hmac_sha256,
-    pbkdf2_hmac_sha512, sha256,
+    pbkdf2_hmac_sha512, sha256, work::Compute,
 };
 
 fn unhex(s: &str) -> Vec<u8> {
@@ -59,7 +59,7 @@ fn pbkdf2_hmac_sha512_known_answer() {
     // the widely published SHA-512 counterpart of the RFC 6070 vectors and
     // agrees with Python's hashlib.pbkdf2_hmac.
     let mut out = [0u8; 64];
-    pbkdf2_hmac_sha512(b"password", b"salt", 1, &mut out);
+    pbkdf2_hmac_sha512(&Compute::new(|_| {}), b"password", b"salt", 1, &mut out);
     assert_eq!(
         out.to_vec(),
         unhex(
@@ -69,7 +69,7 @@ fn pbkdf2_hmac_sha512_known_answer() {
     );
 
     // Two iterations, to exercise the round loop.
-    pbkdf2_hmac_sha512(b"password", b"salt", 2, &mut out);
+    pbkdf2_hmac_sha512(&Compute::new(|_| {}), b"password", b"salt", 2, &mut out);
     assert_eq!(
         out.to_vec(),
         unhex(
@@ -178,7 +178,7 @@ fn hmac_sha256_rfc4231_case_2() {
 fn pbkdf2_hmac_sha256_rfc7914_known_answers() {
     // RFC 7914 §11, the PBKDF2-HMAC-SHA-256 test vectors.
     let mut out = [0u8; 64];
-    pbkdf2_hmac_sha256(b"passwd", b"salt", 1, &mut out);
+    pbkdf2_hmac_sha256(&Compute::new(|_| {}), b"passwd", b"salt", 1, &mut out);
     assert_eq!(
         out.to_vec(),
         unhex(
@@ -188,7 +188,13 @@ fn pbkdf2_hmac_sha256_rfc7914_known_answers() {
     );
 
     let mut out = [0u8; 64];
-    pbkdf2_hmac_sha256(b"Password", b"NaCl", 80_000, &mut out);
+    pbkdf2_hmac_sha256(
+        &Compute::new(|_| {}),
+        b"Password",
+        b"NaCl",
+        80_000,
+        &mut out,
+    );
     assert_eq!(
         out.to_vec(),
         unhex(

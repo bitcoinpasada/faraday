@@ -11,6 +11,7 @@ use opensigner_core::load::Step;
 use opensigner_core::strings;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_shell_api::{App, ButtonId, Command, Event, Key, TouchPhase};
 
 #[test]
@@ -266,10 +267,11 @@ fn forget_removes_the_key() {
 
 #[test]
 fn network_setting_changes_the_first_address() {
+    let c = Compute::unchecked();
     let mut h = Harness::new(PANEL);
     h.start_load(&ABANDON);
     h.finish_load(None);
-    let mainnet = h.app.addresses(0, ScriptType::NativeSegwit, false, 1);
+    let mainnet = h.app.addresses(&c, 0, ScriptType::NativeSegwit, false, 1);
     assert_eq!(mainnet, vec!["bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"]);
     h.open_settings();
     assert_eq!(h.app.screen(), ScreenKind::Settings);
@@ -280,7 +282,7 @@ fn network_setting_changes_the_first_address() {
     // §4.2: the tap applied it and the Choice is still on screen.
     assert_eq!(h.app.screen(), ScreenKind::Setting);
     h.tap(ids::BACK);
-    let signet = h.app.addresses(0, ScriptType::NativeSegwit, false, 1);
+    let signet = h.app.addresses(&c, 0, ScriptType::NativeSegwit, false, 1);
     assert_ne!(signet, mainnet);
     assert!(signet[0].starts_with("tb1q"), "{}", signet[0]);
     // The fingerprint does not depend on the network.

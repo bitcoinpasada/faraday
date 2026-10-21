@@ -14,6 +14,7 @@ mod common;
 
 use common::{hex, sentence, unhex};
 use osk_bip::bip39::{Language, Mnemonic};
+use osk_crypto::work::Compute;
 use serde_json::Value;
 use unicode_normalization::UnicodeNormalization;
 
@@ -38,6 +39,7 @@ fn check_vector(
     seed_hex: &str,
     passphrase_nfkd: &[u8],
 ) {
+    let c = Compute::unchecked();
     let entropy = unhex(entropy_hex);
 
     let from_entropy = Mnemonic::from_entropy(lang, &entropy).unwrap();
@@ -56,9 +58,9 @@ fn check_vector(
         assert_eq!(ours, mnemonic);
     }
 
-    let parsed = Mnemonic::parse(lang, &nfkd(mnemonic)).unwrap();
+    let parsed = Mnemonic::parse(&c, lang, &nfkd(mnemonic)).unwrap();
     assert_eq!(parsed.indices(), from_entropy.indices());
-    let parsed_display = Mnemonic::parse(lang, &ours).unwrap();
+    let parsed_display = Mnemonic::parse(&c, lang, &ours).unwrap();
     assert_eq!(parsed_display.indices(), from_entropy.indices());
     assert_eq!(parsed.word_count(), entropy.len() * 3 / 4);
     assert_eq!(parsed.language(), lang);
@@ -69,7 +71,7 @@ fn check_vector(
         lang.name()
     );
 
-    let seed = parsed.to_seed_unchecked(passphrase_nfkd).unwrap();
+    let seed = parsed.to_seed_unchecked(&c, passphrase_nfkd).unwrap();
     assert_eq!(hex(seed.expose()), seed_hex, "{}: seed", lang.name());
 }
 
@@ -99,11 +101,12 @@ fn trezor_vectors_all_languages() {
 
 #[test]
 fn trezor_english_seed_through_public_api() {
+    let c = Compute::unchecked();
     let json: Value = serde_json::from_str(TREZOR).unwrap();
     for v in json["english"].as_array().unwrap() {
-        let m = Mnemonic::parse(Language::English, v[1].as_str().unwrap()).unwrap();
+        let m = Mnemonic::parse(&c, Language::English, v[1].as_str().unwrap()).unwrap();
         assert_eq!(
-            hex(m.to_seed(b"TREZOR").unwrap().expose()),
+            hex(m.to_seed(&c, b"TREZOR").unwrap().expose()),
             v[2].as_str().unwrap()
         );
     }
@@ -135,14 +138,16 @@ fn japanese_vectors() {
 
 #[test]
 fn japanese_passphrase_is_rejected_by_public_api() {
+    let c = Compute::unchecked();
     let json: Value = serde_json::from_str(JAPANESE).unwrap();
     let m = Mnemonic::parse(
+        &c,
         Language::Japanese,
         &nfkd(json[0]["mnemonic"].as_str().unwrap()),
     )
     .unwrap();
     assert_eq!(
-        m.to_seed(JP_PASSPHRASE.as_bytes()).err(),
+        m.to_seed(&c, JP_PASSPHRASE.as_bytes()).err(),
         Some(osk_bip::bip39::Error::PassphraseNotAscii)
     );
 }

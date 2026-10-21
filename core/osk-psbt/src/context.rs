@@ -9,6 +9,7 @@ use bitcoin::secp256k1::{PublicKey, Secp256k1, Verification};
 use osk_bip::account::{AccountXpub, MultisigAccountXpub};
 use osk_bip::keys::{self, Fingerprint, MasterKey, MultisigScriptType, Network, ScriptType};
 use osk_bip::policy::WalletPolicy;
+use osk_crypto::work::Compute;
 
 /// A loaded key as the inspector sees it: its master fingerprint and the
 /// account xpubs it can derive addresses from.
@@ -48,14 +49,14 @@ impl KeyRef {
     /// The four single-signature accounts (BIP-44/49/84/86) and BIP-48's
     /// two multisig accounts at index `account` on the master key's
     /// network.
-    pub fn from_master(master: &MasterKey, account: u32) -> Result<Self, keys::Error> {
+    pub fn from_master(c: &Compute, master: &MasterKey, account: u32) -> Result<Self, keys::Error> {
         let mut accounts = Vec::with_capacity(4);
         for script_type in ScriptType::ALL {
-            accounts.push(master.account_xpub(script_type, account)?);
+            accounts.push(master.account_xpub(c, script_type, account)?);
         }
         let mut multisig = Vec::with_capacity(2);
         for script_type in MultisigScriptType::ALL {
-            multisig.push(master.multisig_account_xpub(script_type, account)?);
+            multisig.push(master.multisig_account_xpub(c, script_type, account)?);
         }
         Ok(Self::new(master.fingerprint(), accounts, multisig))
     }

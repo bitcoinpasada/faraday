@@ -6,8 +6,9 @@
 //! use osk_bip::keys::{MasterKey, Network, ScriptType};
 //!
 //! let m = Mnemonic::from_entropy(Language::English, &[0u8; 16]).unwrap();
-//! let master = MasterKey::from_seed(&m.to_seed(b"").unwrap(), Network::Mainnet);
-//! let account = master.account_xpub(ScriptType::NativeSegwit, 0).unwrap();
+//! let c = osk_crypto::work::Compute::unchecked();
+//! let master = MasterKey::from_seed(&c, &m.to_seed(&c, b"").unwrap(), Network::Mainnet);
+//! let account = master.account_xpub(&c, ScriptType::NativeSegwit, 0).unwrap();
 //! assert_eq!(
 //!     account.address(false, 0).unwrap().to_string(),
 //!     "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"

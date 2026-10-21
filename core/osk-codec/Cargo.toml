@@ -22,6 +22,8 @@ zeroize = { workspace = true, features = ["alloc"] }
 rqrr = { workspace = true, optional = true }
 
 [dev-dependencies]
+# A token that counts nothing, for the tests (docs/COMPUTE.md §3).
+osk-crypto = { path = "../osk-crypto", features = ["unchecked"] }
 # Tests only: the PNG decoder the shells and the disk process read
 # pictures with, to read back what `png` writes.
 png.workspace = true

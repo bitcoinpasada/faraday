@@ -134,6 +134,7 @@ impl OpenSigner {
     /// computed here and kept nowhere: leaving the screen is the end of
     /// it (§16.114).
     pub(crate) fn bip85_derived(&self, key: usize) -> Option<String> {
+        let c = crate::unchecked();
         let flow = self.bip85.as_ref()?;
         let master = self.keys.get(key)?.master.as_ref()?;
         let index = flow.index_value()?;
@@ -142,23 +143,23 @@ impl OpenSigner {
             // reaches this screen.
             Bip85App::Words => None,
             Bip85App::Wif => Some(String::from(
-                osk_bip::bip85::child_wif(master, index).ok()?.as_str(),
+                osk_bip::bip85::child_wif(&c, master, index).ok()?.as_str(),
             )),
             Bip85App::Xprv => Some(String::from(
-                osk_bip::bip85::child_xprv(master, index).ok()?.as_str(),
+                osk_bip::bip85::child_xprv(&c, master, index).ok()?.as_str(),
             )),
             Bip85App::Hex => {
-                let bytes = osk_bip::bip85::child_hex(master, flow.bytes, index).ok()?;
+                let bytes = osk_bip::bip85::child_hex(&c, master, flow.bytes, index).ok()?;
                 Some(text::hex(bytes.as_bytes()))
             }
             Bip85App::Base64 => {
                 let length = flow.length_value()?;
-                let pwd = osk_bip::bip85::child_password_base64(master, length, index).ok()?;
+                let pwd = osk_bip::bip85::child_password_base64(&c, master, length, index).ok()?;
                 Some(String::from(pwd.as_str()))
             }
             Bip85App::Base85 => {
                 let length = flow.length_value()?;
-                let pwd = osk_bip::bip85::child_password_base85(master, length, index).ok()?;
+                let pwd = osk_bip::bip85::child_password_base85(&c, master, length, index).ok()?;
                 Some(String::from(pwd.as_str()))
             }
         }

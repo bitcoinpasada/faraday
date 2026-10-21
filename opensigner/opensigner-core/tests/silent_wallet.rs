@@ -23,6 +23,7 @@ use osk_bip::bitcoin::{
 };
 use osk_bip::keys::{MasterKey, Network};
 use osk_bip::silent::{self, Receiver, SendKey};
+use osk_crypto::work::Compute;
 use osk_shell_api::{Event, FileKind};
 
 /// Silent payments' place in the kind Choice, which is last.
@@ -37,10 +38,11 @@ const ADDRESS: &str = "sp1qqfqnnv8czppwysafq3uwgwvsc638hc8rx3hscuddh0xa2yd746s7x
 
 /// The receiver the device derives, computed here from the same words.
 fn receiver() -> (MasterKey, Receiver) {
+    let c = Compute::unchecked();
     let words = ABANDON.join(" ");
-    let m = Mnemonic::parse(Language::English, &words).expect("the test words");
-    let master = MasterKey::from_seed(&m.to_seed(b"").expect("a seed"), Network::Mainnet);
-    let receiver = Receiver::derive(&master, 0);
+    let m = Mnemonic::parse(&c, Language::English, &words).expect("the test words");
+    let master = MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("a seed"), Network::Mainnet);
+    let receiver = Receiver::derive(&c, &master, 0);
     (master, receiver)
 }
 
@@ -187,13 +189,14 @@ fn shows(texts: &[String], want: &str) -> bool {
 /// the address it publishes is the one the arithmetic gives.
 #[test]
 fn the_wallet_publishes_the_address_the_key_derives() {
+    let c = Compute::unchecked();
     let secp = Secp256k1::new();
     let (master, r) = receiver();
     let address = r.address(&secp).expect("an address");
     assert_eq!(address.as_str(), ADDRESS, "the address the words publish");
     // The two halves are the key at BIP-352's own paths, read again
     // through plain BIP-32 derivation.
-    let scan = master.derive(&silent::scan_path(Network::Mainnet, 0));
+    let scan = master.derive(&c, &silent::scan_path(Network::Mainnet, 0));
     let (_, decoded_scan, decoded_spend) =
         silent::decode_address(ADDRESS).expect("the address reads");
     assert_eq!(decoded_scan, scan.secret_key().public_key(&secp));

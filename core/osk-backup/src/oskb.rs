@@ -54,6 +54,7 @@ use argon2::Params;
 use chacha20poly1305::aead::inout::InOutBuf;
 use chacha20poly1305::{AeadInOut, KeyInit, Tag, XChaCha20Poly1305, XNonce};
 use osk_bip::bip39::{Language, Mnemonic};
+use osk_crypto::work::Compute;
 use osk_crypto::{Secret, Zeroize};
 use zeroize::Zeroizing;
 
@@ -234,7 +235,13 @@ pub fn cost_of(bytes: &[u8]) -> Option<Cost> {
 /// `seed` is the caller's randomness and must be fresh for every
 /// backup: a salt reused across two passphrases costs an attacker one
 /// Argon2id run for both.
-pub fn seal(m: &Mnemonic, passphrase: &[u8], cost: Cost, seed: &[u8; SEED_LEN]) -> Option<Vec<u8>> {
+pub fn seal(
+    c: &Compute,
+    m: &Mnemonic,
+    passphrase: &[u8],
+    cost: Cost,
+    seed: &[u8; SEED_LEN],
+) -> Option<Vec<u8>> {
     let mut entropy = m.entropy();
     let n = entropy.expose().as_bytes().len();
     let mut payload = Secret::new([0u8; WORDS_LEN]);
@@ -242,7 +249,7 @@ pub fn seal(m: &Mnemonic, passphrase: &[u8], cost: Cost, seed: &[u8; SEED_LEN]) 
     payload.expose_mut()[1] = language_index(m.language())?;
     payload.expose_mut()[PREFIX_LEN..PREFIX_LEN + n].copy_from_slice(entropy.expose().as_bytes());
     entropy.zeroize();
-    let out = seal_payload(KIND_WORDS, payload.expose(), passphrase, cost, seed);
+    let out = seal_payload(c, KIND_WORDS, payload.expose(), passphrase, cost, seed);
     payload.zeroize();
     out
 }
@@ -250,6 +257,7 @@ pub fn seal(m: &Mnemonic, passphrase: &[u8], cost: Cost, seed: &[u8; SEED_LEN]) 
 /// The backup of a master seed — what a SLIP-39 or a codex32 key is —
 /// under `passphrase`.
 pub fn seal_seed(
+    c: &Compute,
     master: &[u8],
     passphrase: &[u8],
     cost: Cost,
@@ -261,13 +269,14 @@ pub fn seal_seed(
     let mut payload = Secret::new([0u8; SEED_LEN_PAYLOAD]);
     payload.expose_mut()[0] = master.len() as u8;
     payload.expose_mut()[1..1 + master.len()].copy_from_slice(master);
-    let out = seal_payload(KIND_SEED, payload.expose(), passphrase, cost, seed);
+    let out = seal_payload(c, KIND_SEED, payload.expose(), passphrase, cost, seed);
     payload.zeroize();
     out
 }
 
 /// The backup of a note's UTF-8 bytes.
 pub fn seal_note(
+    c: &Compute,
     text: &[u8],
     passphrase: &[u8],
     cost: Cost,
@@ -276,13 +285,14 @@ pub fn seal_note(
     if text.len() > MAX_PAYLOAD {
         return None;
     }
-    seal_payload(KIND_NOTE, text, passphrase, cost, seed)
+    seal_payload(c, KIND_NOTE, text, passphrase, cost, seed)
 }
 
 /// The backup of a wallet's recovery sheet: its descriptor, its name
 /// and its note, each written as a little-endian `u16` length and that
 /// many bytes, in that order.
 pub fn seal_sheet(
+    c: &Compute,
     descriptor: &[u8],
     name: &[u8],
     note: &[u8],
@@ -291,7 +301,7 @@ pub fn seal_sheet(
     seed: &[u8; SEED_LEN],
 ) -> Option<Vec<u8>> {
     let payload = sheet_payload(descriptor, name, note)?;
-    seal_payload(KIND_SHEET, &payload, passphrase, cost, seed)
+    seal_payload(c, KIND_SHEET, &payload, passphrase, cost, seed)
 }
 
 /// A [`KIND_SHEET`] payload: the descriptor, the name and the note,
@@ -318,6 +328,7 @@ pub fn sheet_payload(descriptor: &[u8], name: &[u8], note: &[u8]) -> Option<Zero
 /// payload's length, the payload and zero padding to the next
 /// [`STEP`].
 fn seal_payload(
+    c: &Compute,
     kind: u8,
     payload: &[u8],
     passphrase: &[u8],
@@ -349,7 +360,7 @@ fn seal_payload(
 
     let mut aad = [0u8; HEADER_LEN];
     aad.copy_from_slice(&out[..HEADER_LEN]);
-    let key = stretch(&cost, passphrase, &seed[..SALT_LEN]).ok()?;
+    let key = stretch(c, &cost, passphrase, &seed[..SALT_LEN]).ok()?;
     let cipher = XChaCha20Poly1305::new_from_slice(key.expose()).expect("32-byte key");
     let mut nonce = [0u8; NONCE_LEN];
     nonce.copy_from_slice(&seed[SALT_LEN..]);
@@ -363,18 +374,18 @@ fn seal_payload(
 
 /// The key `bytes` hold, under `passphrase`. A backup of any other kind
 /// is [`Error::Format`] here; [`open_payload`] is what reads one.
-pub fn open(bytes: &[u8], passphrase: &[u8]) -> Result<Mnemonic, Error> {
-    match open_payload(bytes, passphrase)? {
+pub fn open(c: &Compute, bytes: &[u8], passphrase: &[u8]) -> Result<Mnemonic, Error> {
+    match open_payload(c, bytes, passphrase)? {
         Opened::Words(m) => Ok(m),
         _ => Err(Error::Format),
     }
 }
 
 /// What `bytes` hold, under `passphrase`.
-pub fn open_payload(bytes: &[u8], passphrase: &[u8]) -> Result<Opened, Error> {
+pub fn open_payload(c: &Compute, bytes: &[u8], passphrase: &[u8]) -> Result<Opened, Error> {
     let cost = read_header(bytes)?;
     let plain_len = bytes.len() - CIPHERTEXT_AT - TAG_LEN;
-    let key = stretch(&cost, passphrase, &bytes[17..HEADER_LEN])?;
+    let key = stretch(c, &cost, passphrase, &bytes[17..HEADER_LEN])?;
     let cipher = XChaCha20Poly1305::new_from_slice(key.expose()).expect("32-byte key");
     let mut nonce = [0u8; NONCE_LEN];
     nonce.copy_from_slice(&bytes[NONCE_AT..CIPHERTEXT_AT]);
@@ -509,8 +520,13 @@ fn language_index(lang: Language) -> Option<u8> {
 
 /// `Argon2id(passphrase, salt)`, 32 bytes, at `cost`: [`argon2id`],
 /// with a cost the device cannot spare the memory for named in MiB.
-fn stretch(cost: &Cost, passphrase: &[u8], salt: &[u8]) -> Result<Secret<[u8; 32]>, Error> {
-    argon2id(cost, passphrase, salt).map_err(|e| match e {
+fn stretch(
+    c: &Compute,
+    cost: &Cost,
+    passphrase: &[u8],
+    salt: &[u8],
+) -> Result<Secret<[u8; 32]>, Error> {
+    argon2id(c, cost, passphrase, salt).map_err(|e| match e {
         StretchError::Memory => Error::Memory(cost.memory_kib / 1024),
         StretchError::Params => Error::Format,
     })
@@ -538,56 +554,72 @@ mod tests {
 
     #[test]
     fn a_backup_opens_to_the_same_key() {
+        let c = Compute::unchecked();
         let m = Mnemonic::from_entropy(Language::English, &[7u8; 32]).unwrap();
-        let bytes = seal(&m, b"correct horse", CHEAP, &seed()).unwrap();
+        let bytes = seal(&c, &m, b"correct horse", CHEAP, &seed()).unwrap();
         assert_eq!(bytes.len(), LEN);
-        let back = open(&bytes, b"correct horse").unwrap();
+        let back = open(&c, &bytes, b"correct horse").unwrap();
         assert_eq!(back.indices(), m.indices());
         assert_eq!(back.language(), m.language());
     }
 
     #[test]
     fn another_passphrase_and_a_changed_header_open_nothing() {
+        let c = Compute::unchecked();
         let m = Mnemonic::from_entropy(Language::Japanese, &[3u8; 16]).unwrap();
-        let bytes = seal(&m, b"correct horse", CHEAP, &seed()).unwrap();
+        let bytes = seal(&c, &m, b"correct horse", CHEAP, &seed()).unwrap();
         assert_eq!(bytes.len(), LEN);
-        assert_eq!(open(&bytes, b"correct hors").err(), Some(Error::Passphrase));
+        assert_eq!(
+            open(&c, &bytes, b"correct hors").err(),
+            Some(Error::Passphrase)
+        );
 
         let mut flipped = bytes.clone();
         flipped[20] ^= 1;
         assert_eq!(
-            open(&flipped, b"correct horse").err(),
+            open(&c, &flipped, b"correct horse").err(),
             Some(Error::Passphrase)
         );
 
         let mut version = bytes.clone();
         version[4] = 1;
-        assert_eq!(open(&version, b"correct horse").err(), Some(Error::Format));
+        assert_eq!(
+            open(&c, &version, b"correct horse").err(),
+            Some(Error::Format)
+        );
 
         let mut magic = bytes;
         magic[0] = b'X';
-        assert_eq!(open(&magic, b"correct horse").err(), Some(Error::Format));
+        assert_eq!(
+            open(&c, &magic, b"correct horse").err(),
+            Some(Error::Format)
+        );
     }
 
     /// A 12-word key's pad is 16 zero bytes. One of them set is a
     /// backup this build will not open, however good the passphrase.
     #[test]
     fn a_backup_whose_pad_is_not_zero_is_refused() {
+        let c = Compute::unchecked();
         let m = Mnemonic::from_entropy(Language::English, &[3u8; 16]).unwrap();
         let mut payload = [0u8; WORDS_LEN];
         payload[0] = 12;
         payload[PREFIX_LEN..PREFIX_LEN + 16].copy_from_slice(&[3u8; 16]);
         payload[WORDS_LEN - 1] = 1;
         let bytes = reseal(&m, b"correct horse", KIND_WORDS, &payload);
-        assert_eq!(open(&bytes, b"correct horse").err(), Some(Error::Format));
+        assert_eq!(
+            open(&c, &bytes, b"correct horse").err(),
+            Some(Error::Format)
+        );
     }
 
     /// One backup whose payload is `payload` of `kind` rather than what
     /// [`seal`] would have written, sealed so that its tag verifies.
     fn reseal(m: &Mnemonic, passphrase: &[u8], kind: u8, payload: &[u8]) -> Vec<u8> {
-        let mut bytes = seal(m, passphrase, CHEAP, &seed()).unwrap();
+        let c = Compute::unchecked();
+        let mut bytes = seal(&c, m, passphrase, CHEAP, &seed()).unwrap();
         let plain_len = bytes.len() - CIPHERTEXT_AT - TAG_LEN;
-        let key = stretch(&CHEAP, passphrase, &seed()[..SALT_LEN]).unwrap();
+        let key = stretch(&c, &CHEAP, passphrase, &seed()[..SALT_LEN]).unwrap();
         let cipher = XChaCha20Poly1305::new_from_slice(key.expose()).unwrap();
         let mut nonce = [0u8; NONCE_LEN];
         nonce.copy_from_slice(&seed()[SALT_LEN..]);
@@ -606,11 +638,12 @@ mod tests {
 
     #[test]
     fn an_unreadable_cost_is_refused_before_any_work() {
+        let c = Compute::unchecked();
         let m = Mnemonic::from_entropy(Language::English, &[0u8; 16]).unwrap();
-        let mut bytes = seal(&m, b"correct horse", CHEAP, &seed()).unwrap();
+        let mut bytes = seal(&c, &m, b"correct horse", CHEAP, &seed()).unwrap();
         bytes[5..9].copy_from_slice(&67_108_864u32.to_le_bytes());
         assert_eq!(
-            open(&bytes, b"correct horse").err(),
+            open(&c, &bytes, b"correct horse").err(),
             Some(Error::Memory(65_536))
         );
     }
@@ -619,22 +652,24 @@ mod tests {
     /// in, and a key's two kinds are one file length.
     #[test]
     fn every_kind_comes_back_whole() {
+        let c = Compute::unchecked();
         let master: Vec<u8> = (0..32u8).collect();
-        let bytes = seal_seed(&master, b"correct horse", CHEAP, &seed()).unwrap();
+        let bytes = seal_seed(&c, &master, b"correct horse", CHEAP, &seed()).unwrap();
         assert_eq!(bytes.len(), LEN);
-        match open_payload(&bytes, b"correct horse").unwrap() {
+        match open_payload(&c, &bytes, b"correct horse").unwrap() {
             Opened::Seed(out) => assert_eq!(out.as_slice(), master.as_slice()),
             _ => panic!("a seed"),
         }
 
         let note = b"keys in the safe, words with the notary";
-        let bytes = seal_note(note, b"correct horse", CHEAP, &seed()).unwrap();
-        match open_payload(&bytes, b"correct horse").unwrap() {
+        let bytes = seal_note(&c, note, b"correct horse", CHEAP, &seed()).unwrap();
+        match open_payload(&c, &bytes, b"correct horse").unwrap() {
             Opened::Note(out) => assert_eq!(out.as_slice(), note.as_slice()),
             _ => panic!("a note"),
         }
 
         let bytes = seal_sheet(
+            &c,
             b"wpkh([73c5da0a/84h/0h/0h]xpub.../0/*)",
             b"Cold",
             b"two of three",
@@ -643,7 +678,7 @@ mod tests {
             &seed(),
         )
         .unwrap();
-        match open_payload(&bytes, b"correct horse").unwrap() {
+        match open_payload(&c, &bytes, b"correct horse").unwrap() {
             Opened::Sheet(sheet) => {
                 assert_eq!(sheet.name.as_slice(), b"Cold");
                 assert_eq!(sheet.note.as_slice(), b"two of three");
@@ -657,8 +692,9 @@ mod tests {
     /// same file length as a key does.
     #[test]
     fn a_files_length_says_only_which_step_it_is_in() {
-        let short = seal_note(&[b'x'; 100], b"correct horse", CHEAP, &seed()).unwrap();
-        let long = seal_note(&[b'x'; 300], b"correct horse", CHEAP, &seed()).unwrap();
+        let c = Compute::unchecked();
+        let short = seal_note(&c, &[b'x'; 100], b"correct horse", CHEAP, &seed()).unwrap();
+        let long = seal_note(&c, &[b'x'; 300], b"correct horse", CHEAP, &seed()).unwrap();
         assert_eq!(short.len(), LEN);
         assert_eq!(long.len(), LEN + STEP);
     }

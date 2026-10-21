@@ -11,6 +11,7 @@ use osk_bip::keys::{MasterKey, Network};
 use osk_bip::miniscript::descriptor::{DefiniteDescriptorKey, Descriptor};
 use osk_bip::miniscript::psbt::PsbtExt;
 use osk_bip::policy::WalletPolicy;
+use osk_crypto::work::Compute;
 use osk_psbt::{Aux, Context, KeyRef, Nonce, OutputKind, Psbt, SigKind, finalize, inspect, sign};
 
 mod common;
@@ -38,9 +39,10 @@ fn vectors() -> std::path::PathBuf {
 /// One key's x-only public key at the first receive address, which is
 /// what a signature under the leaf is keyed by.
 fn derived_key(m: &MasterKey) -> XOnlyPublicKey {
+    let c = Compute::unchecked();
     let secp = Secp256k1::verification_only();
-    m.derive(&bip48_path(NET))
-        .to_xpub()
+    m.derive(&c, &bip48_path(NET))
+        .to_xpub(&c)
         .derive_pub(
             &secp,
             &[
@@ -60,11 +62,12 @@ const NUMS: &str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace80
 /// account extended public key, at the BIP-48 account the field writes
 /// script multisig keys at.
 fn key_text(m: &MasterKey) -> String {
+    let c = Compute::unchecked();
     let path = bip48_path(NET);
     format!(
         "[{}/{path:#}]{}",
         m.fingerprint(),
-        m.derive(&path).to_xpub()
+        m.derive(&c, &path).to_xpub(&c)
     )
 }
 
@@ -118,12 +121,13 @@ fn definite(policy: &WalletPolicy, change: bool, index: u32) -> Descriptor<Defin
 /// A spend of that wallet: 100 000 sat in at its first receive address,
 /// 60 000 out, 39 000 back to its own first change address.
 fn spend() -> (WalletPolicy, Psbt) {
+    let c = Compute::unchecked();
     let policy = policy();
     let input = definite(&policy, false, 0);
     let back = definite(&policy, true, 0);
     let funding = funding_tx(input.script_pubkey(), 100_000);
     let elsewhere = master(ZOO, NET)
-        .account_xpub(osk_bip::keys::ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, osk_bip::keys::ScriptType::NativeSegwit, 0)
         .expect("account")
         .address(false, 0)
         .expect("address")
@@ -203,11 +207,12 @@ fn a_taproot_multisig_wallet_states_what_it_is() {
 /// third key's signature would be.
 #[test]
 fn two_of_the_three_keys_sign_and_the_input_finalizes() {
+    let c = Compute::unchecked();
     let (policy, mut psbt) = spend();
     let (abandon, zoo) = (master(ABANDON, NET), master(ZOO, NET));
     let keys = [
-        KeyRef::from_master(&abandon, 0).expect("accounts"),
-        KeyRef::from_master(&zoo, 1).expect("accounts"),
+        KeyRef::from_master(&c, &abandon, 0).expect("accounts"),
+        KeyRef::from_master(&c, &zoo, 1).expect("accounts"),
     ];
     let wallets = [policy];
     let ctx = Context {
@@ -230,6 +235,7 @@ fn two_of_the_three_keys_sign_and_the_input_finalizes() {
     );
 
     let result = sign(
+        &c,
         &mut psbt,
         &[&abandon, &zoo],
         &[abandon.fingerprint(), zoo.fingerprint()],

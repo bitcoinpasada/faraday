@@ -25,6 +25,7 @@ use bitcoin::hashes::{Hash, sha256};
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::frost::{self, SecShare};
 use osk_bip::threshold::ThresholdRecord;
+use osk_crypto::work::Compute;
 use osk_psbt::bitcoin;
 use osk_psbt::bitcoin::secp256k1::Secp256k1;
 
@@ -125,6 +126,7 @@ fn pass(
     others: &[u32],
     carry: Option<&osk_psbt::threshold::CarrySection>,
 ) -> (osk_psbt::Psbt, osk_psbt::SignResult) {
+    let c = Compute::unchecked();
     let secp = Secp256k1::new();
     let dealt = dealt();
     let share = &dealt.shares[holding as usize];
@@ -152,6 +154,7 @@ fn pass(
     }];
     let mut session = None;
     let result = osk_psbt::sign(
+        &c,
         &mut psbt,
         &[],
         &[],

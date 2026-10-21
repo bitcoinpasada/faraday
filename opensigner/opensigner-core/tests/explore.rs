@@ -42,6 +42,7 @@ use opensigner_core::strings;
 use opensigner_core::{OpenSigner, ScreenKind};
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, Network, ScriptType};
+use osk_crypto::work::Compute;
 use osk_shell_api::{BootState, DisplayInfo, Key, SecureHardware};
 use osk_ui::widgets::keyboard::KeyInput;
 
@@ -62,8 +63,9 @@ const WIDE: DisplayInfo = DisplayInfo {
 const FIRST_RECEIVE: &str = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu";
 
 fn abandon_master() -> MasterKey {
+    let c = Compute::unchecked();
     let m = Mnemonic::from_entropy(Language::English, &[0u8; 16]).unwrap();
-    MasterKey::from_seed(&m.to_seed(b"").unwrap(), Network::Mainnet)
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").unwrap(), Network::Mainnet)
 }
 
 fn load_abandon(h: &mut Harness, passphrase: Option<&str>) {
@@ -108,6 +110,7 @@ fn native_segwit_address(app: &OpenSigner) -> String {
 
 #[test]
 fn explore_derives_from_the_loaded_key() {
+    let c = Compute::unchecked();
     let mut h = Harness::new(PANEL);
     load_abandon(&mut h, None);
     open_explore(&mut h);
@@ -119,7 +122,7 @@ fn explore_derives_from_the_loaded_key() {
 
     // The account key's zpub is osk-bip's SLIP-132 form.
     let expected = abandon_master()
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .unwrap();
     let (xpub, slip) = h.app.explore_account().unwrap();
     assert_eq!(xpub, expected.xpub_string());
@@ -142,6 +145,7 @@ fn explore_derives_from_the_loaded_key() {
 
 #[test]
 fn typed_words_derive_the_same_values_and_leave_nothing_behind() {
+    let c = Compute::unchecked();
     let mut h = Harness::new(PANEL);
     open_explore(&mut h);
     assert_eq!(h.app.explore_source(), Some(Source::None));
@@ -173,7 +177,7 @@ fn typed_words_derive_the_same_values_and_leave_nothing_behind() {
     assert_eq!(h.app.screen(), ScreenKind::Explore);
 
     let expected = abandon_master()
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .unwrap();
     assert_eq!(
         h.app.explore_account().unwrap().1.as_deref(),
@@ -231,6 +235,7 @@ fn cancelling_the_word_entry_returns_to_explore_with_nothing() {
 /// is always a path that parses.
 #[test]
 fn the_path_editor_is_dead_until_the_text_parses_and_applies_on_the_tick() {
+    let c = Compute::unchecked();
     let mut h = Harness::new(PANEL);
     load_abandon(&mut h, None);
     open_explore(&mut h);
@@ -297,7 +302,7 @@ fn the_path_editor_is_dead_until_the_text_parses_and_applies_on_the_tick() {
     assert_eq!(
         addresses[0].1,
         abandon_master()
-            .account_xpub(ScriptType::Taproot, 0)
+            .account_xpub(&c, ScriptType::Taproot, 0)
             .unwrap()
             .address(false, 0)
             .unwrap()

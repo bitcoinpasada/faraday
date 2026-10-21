@@ -13,6 +13,7 @@ use std::sync::OnceLock;
 use libfuzzer_sys::fuzz_target;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, Network};
+use osk_crypto::work::Compute;
 use osk_psbt::{Context, KeyRef, Psbt, inspect};
 
 /// The BIP-39 test vector seed, as a key reference. Deriving it costs
@@ -22,10 +23,14 @@ fn abandon() -> &'static KeyRef {
     KEY.get_or_init(|| {
         let words = "abandon abandon abandon abandon abandon abandon abandon abandon abandon \
                      abandon abandon about";
-        let m = Mnemonic::parse(Language::English, words).expect("test vector mnemonic");
-        let master =
-            MasterKey::from_seed(&m.to_seed(b"").expect("ascii passphrase"), Network::Testnet);
-        KeyRef::from_master(&master, 0).expect("test vector accounts")
+        let c = Compute::unchecked();
+        let m = Mnemonic::parse(&c, Language::English, words).expect("test vector mnemonic");
+        let master = MasterKey::from_seed(
+            &c,
+            &m.to_seed(&c, b"").expect("ascii passphrase"),
+            Network::Testnet,
+        );
+        KeyRef::from_master(&c, &master, 0).expect("test vector accounts")
     })
 }
 

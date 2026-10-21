@@ -13,6 +13,7 @@
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{Fingerprint, MasterKey, Network};
 use osk_bip::slip39;
+use osk_crypto::work::Compute;
 use osk_crypto::{Zeroize, ZeroizeOnDrop};
 use osk_entropy::{
     CameraNoise, CardDraws, CoinFlips, DeviceRandom, DiceProcedure, DiceRolls, FrameStats,
@@ -388,7 +389,7 @@ impl CreateWizard {
 
     /// The strings are written: Confirm stands after them, over the
     /// seed the entropy gave.
-    pub fn codex32_made(&mut self, verified: bool, network: Network) -> bool {
+    pub fn codex32_made(&mut self, c: &Compute, verified: bool, network: Network) -> bool {
         self.codex32_done = true;
         self.backup_verified = verified;
         let CreateWizard {
@@ -398,6 +399,7 @@ impl CreateWizard {
             ..
         } = self;
         if !finish.build(
+            c,
             &Material::Seed(&secret[..usize::from(*secret_len)]),
             network,
         ) {
@@ -789,7 +791,7 @@ impl CreateWizard {
     /// Handles a tap at time `now_ms` for `network`. Returns whether the
     /// key should be taken (the hold on the last step is handled by the
     /// caller).
-    pub fn tap(&mut self, id: Id, network: Network, now_ms: u64, per_page: usize) {
+    pub fn tap(&mut self, c: &Compute, id: Id, network: Network, now_ms: u64, per_page: usize) {
         match self.step {
             // A choice is checked by the tap and confirmed by Continue
             // (`docs/DESIGN.md` §2.7).
@@ -940,7 +942,7 @@ impl CreateWizard {
                         ..
                     } = self;
                     let material = Material::Seed(&secret[..usize::from(*secret_len)]);
-                    finish.tap(step, id, &material, network)
+                    finish.tap(c, step, id, &material, network)
                 } else if self.slip39 {
                     let CreateWizard {
                         finish,
@@ -949,9 +951,9 @@ impl CreateWizard {
                         ..
                     } = self;
                     let material = Material::Secret(&secret[..usize::from(*secret_len)]);
-                    finish.tap(step, id, &material, network)
+                    finish.tap(c, step, id, &material, network)
                 } else if let Some(m) = &self.mnemonic {
-                    self.finish.tap(step, id, &Material::Words(m), network)
+                    self.finish.tap(c, step, id, &Material::Words(m), network)
                 } else {
                     None
                 };
@@ -964,9 +966,9 @@ impl CreateWizard {
 
     /// Handles keyboard input at time `now_ms` for `network`: the entry
     /// pad on the entropy step, the passphrase keyboard on its step.
-    pub fn key(&mut self, id: Id, input: KeyInput, network: Network, now_ms: u64) {
+    pub fn key(&mut self, c: &Compute, id: Id, input: KeyInput, network: Network, now_ms: u64) {
         if id == ids::LOAD_KEYBOARD && self.step == Step::XorPart {
-            self.entry.key(id, input, network, now_ms);
+            self.entry.key(c, id, input, network, now_ms);
             self.part_landed(network);
             return;
         }
@@ -1001,7 +1003,7 @@ impl CreateWizard {
                     ..
                 } = self;
                 let material = Material::Seed(&secret[..usize::from(*secret_len)]);
-                finish.key(step, input, &material, network, now_ms)
+                finish.key(c, step, input, &material, network, now_ms)
             } else if self.slip39 {
                 let CreateWizard {
                     finish,
@@ -1010,10 +1012,10 @@ impl CreateWizard {
                     ..
                 } = self;
                 let material = Material::Secret(&secret[..usize::from(*secret_len)]);
-                finish.key(step, input, &material, network, now_ms)
+                finish.key(c, step, input, &material, network, now_ms)
             } else if let Some(m) = &self.mnemonic {
                 self.finish
-                    .key(step, input, &Material::Words(m), network, now_ms)
+                    .key(c, step, input, &Material::Words(m), network, now_ms)
             } else {
                 None
             };
@@ -1649,8 +1651,9 @@ impl CreateWizard {
     /// A tap on the part step: the word entry's own, and then the two
     /// ways on once the words are in.
     fn tap_part(&mut self, id: Id, network: Network) {
+        let c = crate::unchecked();
         if self.entry.step() == crate::load::Step::Words {
-            self.entry.tap(id, network);
+            self.entry.tap(&c, id, network);
             self.part_landed(network);
             return;
         }
@@ -1673,14 +1676,15 @@ impl CreateWizard {
     /// was typed: work out the fingerprint a key loaded from this part
     /// would have, which is what names it on the screen.
     fn part_landed(&mut self, network: Network) {
+        let c = crate::unchecked();
         if self.entry.step() != crate::load::Step::Checksum || self.xor_print.is_some() {
             return;
         }
         self.xor_print = self
             .entry
             .mnemonic()
-            .and_then(|m| m.to_seed(b"").ok())
-            .map(|seed| MasterKey::from_seed(&seed, network).fingerprint());
+            .and_then(|m| m.to_seed(&c, b"").ok())
+            .map(|seed| MasterKey::from_seed(&c, &seed, network).fingerprint());
     }
 
     /// XORs the part on screen into the accumulator.
@@ -1824,35 +1828,55 @@ mod tests {
     use super::*;
 
     fn to_words(w: &mut CreateWizard) {
+        let c = Compute::unchecked();
         // A choice is checked by the tap and confirmed by Continue.
-        w.tap(ids::at(ids::CREATE_SOURCE_BASE, 0), Network::Mainnet, 0, 12);
+        w.tap(
+            &c,
+            ids::at(ids::CREATE_SOURCE_BASE, 0),
+            Network::Mainnet,
+            0,
+            12,
+        );
         assert_eq!(w.step(), Step::Source, "the tap only checks");
-        w.tap(ids::CREATE_SOURCE_CONTINUE, Network::Mainnet, 0, 12);
+        w.tap(&c, ids::CREATE_SOURCE_CONTINUE, Network::Mainnet, 0, 12);
         assert_eq!(w.step(), Step::Count);
-        w.tap(ids::at(ids::CREATE_COUNT_BASE, 0), Network::Mainnet, 0, 12);
-        w.tap(ids::CREATE_COUNT_CONTINUE, Network::Mainnet, 0, 12);
+        w.tap(
+            &c,
+            ids::at(ids::CREATE_COUNT_BASE, 0),
+            Network::Mainnet,
+            0,
+            12,
+        );
+        w.tap(&c, ids::CREATE_COUNT_CONTINUE, Network::Mainnet, 0, 12);
         assert_eq!(w.step(), Step::Language);
-        w.tap(ids::at(ids::CREATE_LANG_BASE, 0), Network::Mainnet, 0, 12);
-        w.tap(ids::CREATE_LANG_CONTINUE, Network::Mainnet, 0, 12);
+        w.tap(
+            &c,
+            ids::at(ids::CREATE_LANG_BASE, 0),
+            Network::Mainnet,
+            0,
+            12,
+        );
+        w.tap(&c, ids::CREATE_LANG_CONTINUE, Network::Mainnet, 0, 12);
         // The dice source asks which published procedure reads the
         // rolls; the hashed one is checked when the Choice opens.
         assert_eq!(w.step(), Step::Procedure);
         assert_eq!(w.chosen_procedure(), DiceProcedure::Hashed);
-        w.tap(ids::CREATE_PROCEDURE_CONTINUE, Network::Mainnet, 0, 12);
+        w.tap(&c, ids::CREATE_PROCEDURE_CONTINUE, Network::Mainnet, 0, 12);
         assert_eq!(w.step(), Step::Entropy);
         for c in "32461151351521144121541512665155412152342515356215".chars() {
             assert!(w.entry_push(c, 10));
         }
         assert!(w.entry_ready());
-        w.tap(ids::CREATE_CONTINUE, Network::Mainnet, 0, 12);
+        w.tap(&c, ids::CREATE_CONTINUE, Network::Mainnet, 0, 12);
         assert_eq!(w.step(), Step::Sanity);
         assert!(!w.warnings().any());
-        w.tap(ids::CREATE_CONTINUE, Network::Mainnet, 0, 12);
+        w.tap(&c, ids::CREATE_CONTINUE, Network::Mainnet, 0, 12);
         assert_eq!(w.step(), Step::Words);
     }
 
     #[test]
     fn dice_entry_counts_masks_and_builds_the_mnemonic() {
+        let c = Compute::unchecked();
         let mut w = CreateWizard::new();
         to_words(&mut w);
         let m = w.mnemonic().unwrap();
@@ -1873,32 +1897,34 @@ mod tests {
         assert_eq!(w.entry_len(), 0);
         assert_eq!(w.mask_deadline(), None);
         // Continue does nothing before the count is reached.
-        w.tap(ids::CREATE_CONTINUE, Network::Mainnet, 0, 12);
+        w.tap(&c, ids::CREATE_CONTINUE, Network::Mainnet, 0, 12);
         assert_eq!(w.step(), Step::Entropy);
     }
 
     #[test]
     fn quiz_pass_leads_to_the_passphrase_offer_and_marks_verified() {
+        let c = Compute::unchecked();
         let mut w = CreateWizard::new();
         to_words(&mut w);
-        w.tap(ids::CREATE_CONTINUE, Network::Mainnet, 5000, 12);
+        w.tap(&c, ids::CREATE_CONTINUE, Network::Mainnet, 5000, 12);
         assert_eq!(w.step(), Step::QuizStart);
-        w.tap(ids::QUIZ_START, Network::Mainnet, 5000, 12);
+        w.tap(&c, ids::QUIZ_START, Network::Mainnet, 5000, 12);
         assert_eq!(w.step(), Step::Quiz);
         for _ in 0..12 {
             let slot = w.quiz().unwrap().correct_slot();
             w.tap(
+                &c,
                 ids::at(ids::QUIZ_CHOICE_BASE, slot),
                 Network::Mainnet,
                 0,
                 12,
             );
-            w.tap(ids::QUIZ_CONTINUE, Network::Mainnet, 0, 12);
+            w.tap(&c, ids::QUIZ_CONTINUE, Network::Mainnet, 0, 12);
         }
         assert_eq!(w.step(), Step::PassphraseOffer);
         assert!(w.backup_verified());
-        w.tap(ids::LOAD_SKIP, Network::Mainnet, 0, 12);
-        w.tap(ids::LOAD_PASS_CONTINUE, Network::Mainnet, 0, 12);
+        w.tap(&c, ids::LOAD_SKIP, Network::Mainnet, 0, 12);
+        w.tap(&c, ids::LOAD_PASS_CONTINUE, Network::Mainnet, 0, 12);
         assert_eq!(w.step(), Step::Confirm);
         let key = w.into_key().unwrap();
         assert!(key.backup_verified);
@@ -1908,22 +1934,23 @@ mod tests {
 
     #[test]
     fn skipping_the_quiz_needs_the_caution_and_leaves_unverified() {
+        let c = Compute::unchecked();
         let mut w = CreateWizard::new();
         to_words(&mut w);
-        w.tap(ids::CREATE_CONTINUE, Network::Mainnet, 5000, 12);
+        w.tap(&c, ids::CREATE_CONTINUE, Network::Mainnet, 5000, 12);
         assert_eq!(w.step(), Step::QuizStart);
-        w.tap(ids::QUIZ_SKIP_CONFIRM, Network::Mainnet, 0, 12);
+        w.tap(&c, ids::QUIZ_SKIP_CONFIRM, Network::Mainnet, 0, 12);
         assert_eq!(
             w.step(),
             Step::QuizStart,
             "the confirm lives on the caution, not on the start"
         );
-        w.tap(ids::QUIZ_SKIP, Network::Mainnet, 0, 12);
+        w.tap(&c, ids::QUIZ_SKIP, Network::Mainnet, 0, 12);
         assert_eq!(w.step(), Step::QuizSkip);
-        w.tap(ids::QUIZ_SKIP_CANCEL, Network::Mainnet, 0, 12);
+        w.tap(&c, ids::QUIZ_SKIP_CANCEL, Network::Mainnet, 0, 12);
         assert_eq!(w.step(), Step::QuizStart);
-        w.tap(ids::QUIZ_SKIP, Network::Mainnet, 0, 12);
-        w.tap(ids::QUIZ_SKIP_CONFIRM, Network::Mainnet, 0, 12);
+        w.tap(&c, ids::QUIZ_SKIP, Network::Mainnet, 0, 12);
+        w.tap(&c, ids::QUIZ_SKIP_CONFIRM, Network::Mainnet, 0, 12);
         assert_eq!(w.step(), Step::PassphraseOffer);
         assert!(!w.backup_verified());
     }
@@ -1932,14 +1959,21 @@ mod tests {
     /// says so on the reserved caption line under the field.
     #[test]
     fn the_hex_field_says_when_the_entries_are_short() {
+        let c = Compute::unchecked();
         let mut w = CreateWizard::new();
-        w.tap(ids::at(ids::CREATE_SOURCE_BASE, 2), Network::Mainnet, 0, 12);
-        w.tap(ids::CREATE_SOURCE_CONTINUE, Network::Mainnet, 0, 12);
+        w.tap(
+            &c,
+            ids::at(ids::CREATE_SOURCE_BASE, 2),
+            Network::Mainnet,
+            0,
+            12,
+        );
+        w.tap(&c, ids::CREATE_SOURCE_CONTINUE, Network::Mainnet, 0, 12);
         w.go(Step::Entropy);
         assert!(!w.entry_too_short());
         assert!(!w.entry_push('z', 0), "the field takes hex only");
         assert!(w.entry_push('a', 0));
-        w.tap(ids::CREATE_CONTINUE, Network::Mainnet, 0, 12);
+        w.tap(&c, ids::CREATE_CONTINUE, Network::Mainnet, 0, 12);
         assert_eq!(w.step(), Step::Entropy);
         assert!(w.entry_too_short());
         assert!(w.entry_push('b', 0));
@@ -1973,21 +2007,46 @@ mod tests {
 
     #[test]
     fn coins_and_hex_sources_count_their_own_units() {
+        let c = Compute::unchecked();
         let mut w = CreateWizard::new();
-        w.tap(ids::at(ids::CREATE_SOURCE_BASE, 1), Network::Mainnet, 0, 12);
+        w.tap(
+            &c,
+            ids::at(ids::CREATE_SOURCE_BASE, 1),
+            Network::Mainnet,
+            0,
+            12,
+        );
         assert_eq!(w.source(), Source::Coins);
-        w.tap(ids::CREATE_SOURCE_CONTINUE, Network::Mainnet, 0, 12);
-        w.tap(ids::at(ids::CREATE_COUNT_BASE, 1), Network::Mainnet, 0, 12);
+        w.tap(&c, ids::CREATE_SOURCE_CONTINUE, Network::Mainnet, 0, 12);
+        w.tap(
+            &c,
+            ids::at(ids::CREATE_COUNT_BASE, 1),
+            Network::Mainnet,
+            0,
+            12,
+        );
         assert_eq!(w.count(), 24);
         assert_eq!(w.entry_needed(), 256);
         w.go(Step::Entropy);
         assert!(w.entry_push('h', 0) && w.entry_push('T', 0) && !w.entry_push('x', 0));
         assert_eq!(w.entry_chars().collect::<alloc::vec::Vec<_>>(), ['H', 'T']);
         let mut w = CreateWizard::new();
-        w.tap(ids::at(ids::CREATE_SOURCE_BASE, 2), Network::Mainnet, 0, 12);
+        w.tap(
+            &c,
+            ids::at(ids::CREATE_SOURCE_BASE, 2),
+            Network::Mainnet,
+            0,
+            12,
+        );
         assert_eq!(w.source(), Source::Hex);
-        w.tap(ids::CREATE_SOURCE_CONTINUE, Network::Mainnet, 0, 12);
-        w.tap(ids::at(ids::CREATE_COUNT_BASE, 0), Network::Mainnet, 0, 12);
+        w.tap(&c, ids::CREATE_SOURCE_CONTINUE, Network::Mainnet, 0, 12);
+        w.tap(
+            &c,
+            ids::at(ids::CREATE_COUNT_BASE, 0),
+            Network::Mainnet,
+            0,
+            12,
+        );
         assert_eq!(w.entry_needed(), 32);
         w.go(Step::Entropy);
         for _ in 0..32 {
@@ -1995,7 +2054,7 @@ mod tests {
         }
         assert!(!w.entry_push('0', 0), "exactly 32 digits");
         assert_eq!(w.entry_bits(), 128.0);
-        w.key(ids::CREATE_PAD, KeyInput::Done, Network::Mainnet, 0);
+        w.key(&c, ids::CREATE_PAD, KeyInput::Done, Network::Mainnet, 0);
         assert_eq!(w.step(), Step::Sanity);
         assert_eq!(
             osk_bip::bip39::Language::English.word(w.mnemonic().unwrap().indices()[11]),
@@ -2005,14 +2064,38 @@ mod tests {
         // was; every word count is live.
         let mut w = CreateWizard::new();
         w.set_device(false, true);
-        w.tap(ids::at(ids::CREATE_SOURCE_BASE, 4), Network::Mainnet, 0, 12);
+        w.tap(
+            &c,
+            ids::at(ids::CREATE_SOURCE_BASE, 4),
+            Network::Mainnet,
+            0,
+            12,
+        );
         assert_eq!(w.source(), Source::Dice, "no camera");
-        w.tap(ids::at(ids::CREATE_SOURCE_BASE, 6), Network::Mainnet, 0, 12);
+        w.tap(
+            &c,
+            ids::at(ids::CREATE_SOURCE_BASE, 6),
+            Network::Mainnet,
+            0,
+            12,
+        );
         assert_eq!(w.source(), Source::Dice, "Tier D");
-        w.tap(ids::at(ids::CREATE_SOURCE_BASE, 3), Network::Mainnet, 0, 12);
+        w.tap(
+            &c,
+            ids::at(ids::CREATE_SOURCE_BASE, 3),
+            Network::Mainnet,
+            0,
+            12,
+        );
         assert_eq!(w.source(), Source::Cards);
         w.go(Step::Count);
-        w.tap(ids::at(ids::CREATE_COUNT_BASE, 2), Network::Mainnet, 0, 12);
+        w.tap(
+            &c,
+            ids::at(ids::CREATE_COUNT_BASE, 2),
+            Network::Mainnet,
+            0,
+            12,
+        );
         assert_eq!(w.count(), 15);
         assert_eq!(w.entry_needed(), CardDraws::needed(Strength::Bits160));
     }

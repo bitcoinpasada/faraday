@@ -43,6 +43,7 @@ use opensigner_core::ids;
 use opensigner_core::quiz::QuizState;
 use opensigner_core::sign::{QrMode, Stage as SignStage, Step as SignStep};
 use opensigner_core::{AssuranceTier, ScreenKind, strings};
+use osk_crypto::work::Compute;
 use osk_shell_api::{App, DisplayInfo, Event, FileKind, Key, TouchPhase};
 use osk_ui::widgets::keyboard::KeyInput;
 use osk_ui::widgets::{is_chunked, tokens};
@@ -247,6 +248,7 @@ fn the_lock_card_fits_the_panel() {
 
 #[test]
 fn fingerprints_are_never_chunked_and_addresses_are() {
+    let c = Compute::unchecked();
     let mut h = loaded(PANEL);
     let fingerprint = h.app.fingerprints()[0];
     let hex = core::str::from_utf8(&fingerprint.to_hex())
@@ -256,7 +258,7 @@ fn fingerprints_are_never_chunked_and_addresses_are() {
     assert!(!is_chunked(&hex));
     let address = h
         .app
-        .addresses(0, osk_bip::keys::ScriptType::NativeSegwit, false, 1)[0]
+        .addresses(&c, 0, osk_bip::keys::ScriptType::NativeSegwit, false, 1)[0]
         .clone();
     assert!(is_chunked(&address));
     // Sixteen characters is the threshold.
@@ -1360,6 +1362,7 @@ fn the_session_ends_on_a_result_with_no_way_back() {
 }
 
 fn the_explore_screens_and_the_verify_result_fit_at(display: DisplayInfo) {
+    let c = Compute::unchecked();
     let mut h = loaded(display);
     h.tap(ids::at(ids::HOME_TILE_BASE, 3));
     h.tap(ids::TOOLS_EXPLORER);
@@ -1414,7 +1417,7 @@ fn the_explore_screens_and_the_verify_result_fit_at(display: DisplayInfo) {
     assert_fits(&h, "the address scanner", display);
     let ours = h
         .app
-        .addresses(0, osk_bip::keys::ScriptType::NativeSegwit, false, 1)[0]
+        .addresses(&c, 0, osk_bip::keys::ScriptType::NativeSegwit, false, 1)[0]
         .clone();
     h.tap(ids::SCAN_TYPE);
     assert_fits(&h, "verify typing", display);
@@ -2147,6 +2150,7 @@ at_every_size!(
 /// group is broken across two lines, and no line stops a group short of
 /// the width.
 fn a_chunked_address_fills_its_width_and_is_shown_whole_at(display: DisplayInfo) {
+    let c = Compute::unchecked();
     let where_ = format!("{}x{}", display.width, display.height);
     // Sign, the output's address on the Compare screen its reference
     // row opens (§4.5).
@@ -2163,7 +2167,7 @@ fn a_chunked_address_fills_its_width_and_is_shown_whole_at(display: DisplayInfo)
     // Verify, the address that was checked.
     let address = h
         .app
-        .addresses(0, osk_bip::keys::ScriptType::NativeSegwit, false, 1)[0]
+        .addresses(&c, 0, osk_bip::keys::ScriptType::NativeSegwit, false, 1)[0]
         .clone();
     let mut h = loaded(display);
     h.open_single_sig(0);
@@ -3986,15 +3990,21 @@ fn a_screen_is_the_same_pixels_when_it_comes_back() {
 /// over the panel's edge.
 #[test]
 fn a_wide_wordlist_keeps_its_words_inside_the_panel() {
+    let c = Compute::unchecked();
     use osk_bip::bip39::{Language, Mnemonic};
 
     const PASSPHRASE: &str = "a long enough one";
     for (display, lang) in [(PHONE, Language::Italian), (DESKTOP, Language::Japanese)] {
         let m = Mnemonic::from_entropy(lang, &[0x42; 32]).expect("a 24-word key");
         let seed = [7u8; osk_backup::oskb::SEED_LEN];
-        let bytes =
-            osk_backup::oskb::seal(&m, PASSPHRASE.as_bytes(), osk_backup::DEVICE_PARAMS, &seed)
-                .expect("a backup");
+        let bytes = osk_backup::oskb::seal(
+            &c,
+            &m,
+            PASSPHRASE.as_bytes(),
+            osk_backup::DEVICE_PARAMS,
+            &seed,
+        )
+        .expect("a backup");
 
         let mut h = Harness::new(display);
         h.go_home();

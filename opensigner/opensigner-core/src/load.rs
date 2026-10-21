@@ -21,6 +21,7 @@ use osk_bip::kana;
 use osk_bip::keys::{Fingerprint, MasterKey, Network};
 use osk_bip::slip39::{self, Share};
 use osk_bip::threshold::share_fingerprint;
+use osk_crypto::work::Compute;
 use osk_crypto::{
     MnemonicBytes, Sealed, SealedBytes, Secret, SeedBytes, SessionKey, Zeroize, ZeroizeOnDrop,
 };
@@ -784,12 +785,12 @@ impl LoadedKey {
 
     /// Rebuilds the master key from the sealed seed for this key's
     /// network. `false` if the seed does not open under `key`.
-    pub fn unlock(&mut self, key: &SessionKey) -> bool {
+    pub fn unlock(&mut self, c: &Compute, key: &SessionKey) -> bool {
         let network = self.network;
         let blind = key.secp_blind();
         match self.seed.with(key, |s| {
             let seed = Secret::new(SeedBytes::new(s.as_bytes())?);
-            Some(MasterKey::from_seed_bytes(&seed, network).blinded(&blind))
+            Some(MasterKey::from_seed_bytes(c, &seed, network).blinded(&blind))
         }) {
             Some(Some(m)) => {
                 self.master = Some(m);
@@ -1188,11 +1189,11 @@ impl LoadWizard {
     }
 
     /// Whether the shares in hand open the master secret.
-    pub fn shares_enough(&self) -> bool {
+    pub fn shares_enough(&self, c: &Compute) -> bool {
         self.shares.enough()
             && self
                 .shares
-                .with_recovery_set(|set| slip39::recover(set, b"").is_ok())
+                .with_recovery_set(|set| slip39::recover(c, set, b"").is_ok())
                 == Some(true)
     }
 
@@ -1287,7 +1288,7 @@ impl LoadWizard {
 
     /// Handles a tap at time `now_ms` for `network`. The hold on the last
     /// step is handled by the caller.
-    pub fn tap(&mut self, id: Id, network: Network) {
+    pub fn tap(&mut self, c: &Compute, id: Id, network: Network) {
         match self.step {
             // A choice is checked, then confirmed (`docs/DESIGN.md`
             // §2.7): the tap that checks a row moves nothing.
@@ -1378,7 +1379,7 @@ impl LoadWizard {
             }
             Step::Checksum if self.is_slip39() => {
                 if id == ids::LOAD_CONTINUE && self.share_error.is_none() {
-                    if self.shares_enough() {
+                    if self.shares_enough(c) {
                         self.step = Step::PassphraseOffer;
                     } else {
                         self.clear_words();
@@ -1415,7 +1416,7 @@ impl LoadWizard {
                     self.count,
                     &self.shares,
                     &self.codex,
-                    |m| finish.tap(step, id, m, network),
+                    |m| finish.tap(c, step, id, m, network),
                 )
                 .flatten()
                 {
@@ -1427,7 +1428,7 @@ impl LoadWizard {
 
     /// Handles keyboard input at time `now_ms` for `network`: the BIP-39
     /// keyboard on the words step, the passphrase keyboard on its step.
-    pub fn key(&mut self, id: Id, input: KeyInput, network: Network, now_ms: u64) {
+    pub fn key(&mut self, c: &Compute, id: Id, input: KeyInput, network: Network, now_ms: u64) {
         if id == ids::LOAD_KEYBOARD && self.step == Step::Words && self.is_codex32() {
             match input {
                 KeyInput::Char(c) => {
@@ -1473,7 +1474,7 @@ impl LoadWizard {
                 self.count,
                 &self.shares,
                 &self.codex,
-                |m| finish.key(step, input, m, network, now_ms),
+                |m| finish.key(c, step, input, m, network, now_ms),
             )
             .flatten()
             {
@@ -2119,12 +2120,12 @@ impl LoadWizard {
     /// not say whether the key was read from SLIP-39 shares or from a
     /// codex32 string, and it does not have to: either way the key is
     /// its master secret and carries no words.
-    pub fn from_seed(seed: &[u8], network: Network) -> Option<Self> {
+    pub fn from_seed(c: &Compute, seed: &[u8], network: Network) -> Option<Self> {
         let mut w = Self::new();
         w.source = Source::Slip39;
         w.scanned = true;
         let finish = &mut w.finish;
-        if !finish.build(&Material::Seed(seed), network) {
+        if !finish.build(c, &Material::Seed(seed), network) {
             return None;
         }
         w.step = Step::Confirm;
@@ -2145,6 +2146,7 @@ impl LoadWizard {
     /// confirmation. BIP 93 has no passphrase, so the passphrase steps
     /// are not asked (§16.109 rule 2).
     fn build_codex32(&mut self, network: Network) {
+        let c = crate::unchecked();
         let finish = &mut self.finish;
         let built = with_material(
             Source::Codex32,
@@ -2153,7 +2155,7 @@ impl LoadWizard {
             self.count,
             &self.shares,
             &self.codex,
-            |m| finish.build(m, network),
+            |m| finish.build(&c, m, network),
         );
         if built == Some(true) {
             self.step = Step::Confirm;
@@ -2374,14 +2376,15 @@ mod tests {
 
     /// A wizard at the word step of `lang`.
     fn typing(lang: Language) -> LoadWizard {
+        let c = Compute::unchecked();
         let mut w = LoadWizard::new();
         w.go(Step::Language);
         let i = Language::ALL
             .iter()
             .position(|l| *l == lang)
             .expect("a wordlist");
-        w.tap(ids::at(ids::LOAD_LANG_BASE, i), Network::Mainnet);
-        w.tap(ids::LOAD_LANG_CONTINUE, Network::Mainnet);
+        w.tap(&c, ids::at(ids::LOAD_LANG_BASE, i), Network::Mainnet);
+        w.tap(&c, ids::LOAD_LANG_CONTINUE, Network::Mainnet);
         assert_eq!(w.step(), Step::Words);
         w
     }
@@ -2390,6 +2393,7 @@ mod tests {
     /// so every row on the language step takes.
     #[test]
     fn every_wordlist_can_be_chosen() {
+        let c = Compute::unchecked();
         for lang in Language::ALL {
             let mut w = LoadWizard::new();
             w.go(Step::Language);
@@ -2397,9 +2401,9 @@ mod tests {
                 .iter()
                 .position(|l| *l == lang)
                 .expect("a list");
-            w.tap(ids::at(ids::LOAD_LANG_BASE, i), Network::Mainnet);
+            w.tap(&c, ids::at(ids::LOAD_LANG_BASE, i), Network::Mainnet);
             assert_eq!(w.language(), lang, "{lang:?}");
-            w.tap(ids::LOAD_LANG_CONTINUE, Network::Mainnet);
+            w.tap(&c, ids::LOAD_LANG_CONTINUE, Network::Mainnet);
             assert_eq!(w.step(), Step::Words);
         }
     }
@@ -2557,6 +2561,7 @@ mod tests {
 
     #[test]
     fn a_typed_word_waits_for_its_tap_and_the_last_word_is_filtered() {
+        let c = Compute::unchecked();
         let mut w = LoadWizard::new();
         w.go(Step::Words);
         for _ in 0..11 {
@@ -2576,11 +2581,11 @@ mod tests {
         type_word(&mut w, "about");
         assert_eq!(w.step(), Step::Checksum);
         assert!(w.checksum_ok());
-        w.tap(ids::LOAD_CONTINUE, Network::Mainnet);
+        w.tap(&c, ids::LOAD_CONTINUE, Network::Mainnet);
         assert_eq!(w.step(), Step::PassphraseOffer);
-        w.tap(ids::LOAD_SKIP, Network::Mainnet);
+        w.tap(&c, ids::LOAD_SKIP, Network::Mainnet);
         assert_eq!(w.step(), Step::PassphraseOffer, "the tap only checks");
-        w.tap(ids::LOAD_PASS_CONTINUE, Network::Mainnet);
+        w.tap(&c, ids::LOAD_PASS_CONTINUE, Network::Mainnet);
         assert_eq!(w.step(), Step::Confirm);
         assert_eq!(w.finish().fingerprint().unwrap().to_hex(), *b"73c5da0a");
         assert_eq!(w.finish().fingerprint_with_passphrase(), None);
@@ -2662,6 +2667,7 @@ mod tests {
 
     #[test]
     fn scanned_words_skip_entry_and_land_on_the_confirm() {
+        let c = Compute::unchecked();
         let lang = Language::English;
         let mut idx = [0u16; 12];
         idx[11] = 3; // "about"
@@ -2674,14 +2680,14 @@ mod tests {
         assert_eq!(w.committed(), 12);
         // The language row on the result opens the language step, and
         // back closes it onto the result.
-        w.tap(ids::LOAD_LANG_OTHER, Network::Mainnet);
+        w.tap(&c, ids::LOAD_LANG_OTHER, Network::Mainnet);
         assert_eq!(w.step(), Step::Language);
         assert!(w.back());
         assert_eq!(w.step(), Step::Checksum);
         assert_eq!(w.committed(), 12, "nothing un-committed");
         assert!(!w.back(), "the result is the first step of a scan");
-        w.tap(ids::LOAD_CONTINUE, Network::Mainnet);
-        w.tap(ids::LOAD_PASS_CONTINUE, Network::Mainnet);
+        w.tap(&c, ids::LOAD_CONTINUE, Network::Mainnet);
+        w.tap(&c, ids::LOAD_PASS_CONTINUE, Network::Mainnet);
         assert_eq!(w.step(), Step::Confirm);
         assert_eq!(w.finish().fingerprint().unwrap().to_hex(), *b"73c5da0a");
         // A scanned list with a bad checksum can be fixed by typing.
@@ -2702,6 +2708,7 @@ mod tests {
 
     #[test]
     fn back_zeroizes_what_the_step_owned() {
+        let c = Compute::unchecked();
         let mut w = LoadWizard::new();
         w.go(Step::Words);
         type_word(&mut w, "zoo");
@@ -2714,11 +2721,12 @@ mod tests {
             type_word(&mut w, "abandon");
         }
         type_word(&mut w, "about");
-        w.tap(ids::LOAD_CONTINUE, Network::Mainnet);
-        w.tap(ids::LOAD_ADD_PASSPHRASE, Network::Mainnet);
-        w.tap(ids::LOAD_PASS_CONTINUE, Network::Mainnet);
+        w.tap(&c, ids::LOAD_CONTINUE, Network::Mainnet);
+        w.tap(&c, ids::LOAD_ADD_PASSPHRASE, Network::Mainnet);
+        w.tap(&c, ids::LOAD_PASS_CONTINUE, Network::Mainnet);
         assert_eq!(w.step(), Step::Passphrase);
         w.key(
+            &c,
             ids::LOAD_PASS_KEYBOARD,
             KeyInput::Char('x'),
             Network::Mainnet,

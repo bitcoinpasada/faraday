@@ -19,6 +19,7 @@ use common::{hex, unhex};
 use osk_bip::bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
 use osk_bip::keys::Network;
 use osk_bip::silent::{self, Receiver, ScanInput, SendKey};
+use osk_crypto::work::Compute;
 use serde_json::Value;
 
 const VECTORS: &str =
@@ -536,12 +537,13 @@ fn an_address_travels_as_a_descriptor_a_uri_and_a_record() {
 /// account and unhardened at the last step.
 #[test]
 fn the_keys_come_from_the_paths_the_bip_names() {
+    let c = Compute::unchecked();
     use osk_bip::bip39::{Language, Mnemonic};
     use osk_bip::keys::MasterKey;
     let words = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
-    let m = Mnemonic::parse(Language::English, words).expect("the words");
-    let master = MasterKey::from_seed(&m.to_seed(b"").expect("a seed"), Network::Mainnet);
-    let receiver = Receiver::derive(&master, 0);
+    let m = Mnemonic::parse(&c, Language::English, words).expect("the words");
+    let master = MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("a seed"), Network::Mainnet);
+    let receiver = Receiver::derive(&c, &master, 0);
     assert_eq!(
         silent::scan_path(Network::Mainnet, 0).to_string(),
         "352'/0'/0'/1'/0"
@@ -550,8 +552,8 @@ fn the_keys_come_from_the_paths_the_bip_names() {
         silent::spend_path(Network::Mainnet, 0).to_string(),
         "352'/0'/0'/0'/0"
     );
-    let scan = master.derive(&silent::scan_path(Network::Mainnet, 0));
-    let spend = master.derive(&silent::spend_path(Network::Mainnet, 0));
+    let scan = master.derive(&c, &silent::scan_path(Network::Mainnet, 0));
+    let spend = master.derive(&c, &silent::spend_path(Network::Mainnet, 0));
     let secp = Secp256k1::new();
     assert_eq!(
         receiver.scan_public_key(&secp),
@@ -562,8 +564,8 @@ fn the_keys_come_from_the_paths_the_bip_names() {
         spend.secret_key().public_key(&secp)
     );
     // The same words on another network give another wallet.
-    let testnet = MasterKey::from_seed(&m.to_seed(b"").expect("a seed"), Network::Testnet);
-    let other = Receiver::derive(&testnet, 0);
+    let testnet = MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("a seed"), Network::Testnet);
+    let other = Receiver::derive(&c, &testnet, 0);
     assert_ne!(other.spend_public_key(), receiver.spend_public_key());
 }
 

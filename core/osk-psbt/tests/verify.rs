@@ -18,6 +18,7 @@ use common::builder::{Build, funding_tx, single_sig, sorted_multisig_change};
 use common::{ABANDON, LEGAL, ZOO, master};
 use osk_bip::keys::{Network, ScriptType};
 use osk_bip::policy::WalletPolicy;
+use osk_crypto::work::Compute;
 use osk_psbt::verify::{
     Field, NonceMode, Unchecked, Verdict, compare, deterministic, inscriptions, repeated_nonces,
     verify_signatures,
@@ -73,8 +74,9 @@ fn valid(psbt: &Psbt, what: &str) {
 
 /// Another key's address, for a recipient that is not ours.
 fn foreign() -> ScriptBuf {
+    let c = Compute::unchecked();
     master(ZOO, NET)
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .expect("the account")
         .address(false, 1)
         .expect("an address")
@@ -84,13 +86,15 @@ fn foreign() -> ScriptBuf {
 /// A single-signature spend of `script_type` over the test key, signed
 /// with `nonce` and `aux`.
 fn signed_single(script_type: ScriptType, nonce: Nonce, aux: Aux, change: u64) -> Psbt {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).expect("accounts")];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).expect("accounts")];
     let mut b = Build::new(script_type, NET);
     b.recipients.push((foreign(), 70_000));
     b.change = Some(change);
     let mut psbt = single_sig(&abandon, &b);
     sign(
+        &c,
         &mut psbt,
         &[&abandon],
         &[abandon.fingerprint()],
@@ -135,6 +139,7 @@ fn every_signature_the_committed_fixtures_carry_verifies() {
 /// signature that leaves this device verifies when it is read back.
 #[test]
 fn the_signatures_this_device_writes_verify_when_they_are_read_back() {
+    let c = Compute::unchecked();
     for script_type in ScriptType::ALL {
         let psbt = signed_single(script_type, Nonce::LowR, Aux::Deterministic, 29_000);
         valid(&psbt, &format!("{script_type:?} partly signed"));
@@ -146,9 +151,10 @@ fn the_signatures_this_device_writes_verify_when_they_are_read_back() {
         let mut psbt = read(text);
         let policy = WalletPolicy::parse_any(policy_text).expect("the fixture wallet");
         let key = master(words, NET);
-        let keys = [KeyRef::from_master(&key, 0).expect("accounts")];
+        let keys = [KeyRef::from_master(&c, &key, 0).expect("accounts")];
         let wallets = [policy];
         sign(
+            &c,
             &mut psbt,
             &[&key],
             &[key.fingerprint()],
@@ -173,6 +179,7 @@ fn the_signatures_this_device_writes_verify_when_they_are_read_back() {
 /// back out of it and checked there.
 #[test]
 fn the_signatures_inside_a_finalized_witness_are_read_back_and_verify() {
+    let c = Compute::unchecked();
     for script_type in ScriptType::ALL {
         let mut psbt = signed_single(script_type, Nonce::LowR, Aux::Deterministic, 29_000);
         finalize(&mut psbt).expect("a single-signature input finalizes");
@@ -196,10 +203,11 @@ fn the_signatures_inside_a_finalized_witness_are_read_back_and_verify() {
         29_000,
     );
     let keys = [
-        KeyRef::from_master(&abandon, 0).expect("accounts"),
-        KeyRef::from_master(&zoo, 0).expect("accounts"),
+        KeyRef::from_master(&c, &abandon, 0).expect("accounts"),
+        KeyRef::from_master(&c, &zoo, 0).expect("accounts"),
     ];
     sign(
+        &c,
         &mut psbt,
         &[&abandon, &zoo],
         &[abandon.fingerprint(), zoo.fingerprint()],
@@ -232,6 +240,7 @@ fn the_signatures_inside_a_finalized_witness_are_read_back_and_verify() {
 /// review says so as a danger.
 #[test]
 fn one_byte_changed_in_a_signature_is_invalid() {
+    let c = Compute::unchecked();
     let signed = signed_single(
         ScriptType::NativeSegwit,
         Nonce::LowR,
@@ -262,7 +271,7 @@ fn one_byte_changed_in_a_signature_is_invalid() {
     assert_eq!(verdicts(&altered), vec![Verdict::Invalid]);
 
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).expect("accounts")];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).expect("accounts")];
     let insp = inspect(&altered, &ctx(&keys, &[]));
     assert!(
         insp.dangers()
@@ -329,8 +338,9 @@ fn ecdsa_with_k(
 /// together they are the private key. The review blocks on it.
 #[test]
 fn two_signatures_under_one_nonce_are_found() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).expect("accounts")];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).expect("accounts")];
     let mut b = Build::new(ScriptType::NativeSegwit, NET);
     b.recipients.push((foreign(), 70_000));
     b.change = Some(29_000);
@@ -338,7 +348,7 @@ fn two_signatures_under_one_nonce_are_found() {
 
     // A second input of the same address, so that one key signs twice.
     let account = abandon
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .expect("the account");
     let script = account
         .address(false, 0)
@@ -364,7 +374,7 @@ fn two_signatures_under_one_nonce_are_found() {
 
     let secp = Secp256k1::new();
     let path = DerivationPath::from_str("m/84h/1h/0h/0/0").expect("the key's own path");
-    let derived = abandon.derive(&path);
+    let derived = abandon.derive(&c, &path);
     let k = SecretKey::from_slice(&[7u8; 32]).expect("a nonce");
     for index in 0..2 {
         let tx = psbt.unsigned_tx().clone();
@@ -375,7 +385,7 @@ fn two_signatures_under_one_nonce_are_found() {
             .expect("the sighash");
         let signature = ecdsa_with_k(&secp, derived.secret_key(), *msg.as_ref(), &k);
         psbt.inner_mut().inputs[index].partial_sigs.insert(
-            bitcoin::PublicKey::new(derived.to_xpub().public_key),
+            bitcoin::PublicKey::new(derived.to_xpub(&c).public_key),
             ecdsa::Signature {
                 signature,
                 sighash_type: EcdsaSighashType::All,
@@ -404,6 +414,7 @@ fn two_signatures_under_one_nonce_are_found() {
 /// a taproot signature made with fresh randomness matches none of them.
 #[test]
 fn the_devices_own_signatures_are_recognised_by_their_nonce_rule() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let psbt = signed_single(
         ScriptType::NativeSegwit,
@@ -411,7 +422,7 @@ fn the_devices_own_signatures_are_recognised_by_their_nonce_rule() {
         Aux::Deterministic,
         29_000,
     );
-    let found = deterministic(&psbt, &[&abandon]);
+    let found = deterministic(&c, &psbt, &[&abandon]);
     assert_eq!(found.len(), 1, "{found:?}");
     assert_eq!(found[0].mode, Some(NonceMode::LowR));
 
@@ -426,7 +437,7 @@ fn the_devices_own_signatures_are_recognised_by_their_nonce_rule() {
             Aux::Deterministic,
             change,
         );
-        let found = deterministic(&psbt, &[&abandon]);
+        let found = deterministic(&c, &psbt, &[&abandon]);
         assert_eq!(found.len(), 1, "{found:?}");
         let mode = found[0].mode.expect("the device's own signature");
         if mode == NonceMode::First {
@@ -446,7 +457,7 @@ fn the_devices_own_signatures_are_recognised_by_their_nonce_rule() {
         (Aux::Fresh([9u8; 32]), None),
     ] {
         let psbt = signed_single(ScriptType::Taproot, Nonce::LowR, aux, 29_000);
-        let found = deterministic(&psbt, &[&abandon]);
+        let found = deterministic(&c, &psbt, &[&abandon]);
         assert_eq!(found.len(), 1, "{found:?}");
         assert_eq!(found[0].mode, mode, "{found:?}");
     }
@@ -456,13 +467,14 @@ fn the_devices_own_signatures_are_recognised_by_their_nonce_rule() {
 /// check needs the key, and nothing else stands in for it.
 #[test]
 fn a_signature_of_another_device_is_not_recomputed() {
+    let c = Compute::unchecked();
     let psbt = signed_single(
         ScriptType::NativeSegwit,
         Nonce::LowR,
         Aux::Deterministic,
         29_000,
     );
-    assert!(deterministic(&psbt, &[&master(ZOO, NET)]).is_empty());
+    assert!(deterministic(&c, &psbt, &[&master(ZOO, NET)]).is_empty());
 }
 
 /// Two PSBTs compared: the same transaction written twice is the same
@@ -470,8 +482,9 @@ fn a_signature_of_another_device_is_not_recomputed() {
 /// signature added is the signing state.
 #[test]
 fn two_transactions_are_compared_on_what_they_decode_to() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
-    let keys = [KeyRef::from_master(&abandon, 0).expect("accounts")];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).expect("accounts")];
     let mut b = Build::new(ScriptType::NativeSegwit, NET);
     b.recipients.push((foreign(), 70_000));
     b.change = Some(29_000);
@@ -490,6 +503,7 @@ fn two_transactions_are_compared_on_what_they_decode_to() {
 
     let mut signed = unsigned.clone();
     sign(
+        &c,
         &mut signed,
         &[&abandon],
         &[abandon.fingerprint()],
@@ -512,6 +526,7 @@ fn two_transactions_are_compared_on_what_they_decode_to() {
 /// it states and the size of its body. Nothing of it is rendered.
 #[test]
 fn an_inscription_envelope_is_stated() {
+    let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let mut b = Build::new(ScriptType::Taproot, NET);
     b.recipients.push((foreign(), 70_000));
@@ -538,7 +553,7 @@ fn an_inscription_envelope_is_stated() {
     );
     assert_eq!(found[0].size, Some(body.len()));
 
-    let keys = [KeyRef::from_master(&abandon, 0).expect("accounts")];
+    let keys = [KeyRef::from_master(&c, &abandon, 0).expect("accounts")];
     let insp = inspect(&psbt, &ctx(&keys, &[]));
     assert!(
         insp.warnings.iter().any(

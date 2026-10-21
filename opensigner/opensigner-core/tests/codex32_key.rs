@@ -13,6 +13,7 @@ use opensigner_core::load::Step;
 use opensigner_core::strings::EN;
 use opensigner_core::{ScreenKind, ids};
 use osk_bip::keys::{Fingerprint, MasterKey};
+use osk_crypto::work::Compute;
 use osk_shell_api::Key;
 use osk_ui::widgets::keyboard::KeyInput;
 use serde_json::Value;
@@ -91,7 +92,8 @@ fn alternates(number: &str) -> Vec<String> {
 
 /// The master fingerprint of a vector's root key.
 fn root_fingerprint(xprv: &str) -> Fingerprint {
-    MasterKey::decode(xprv)
+    let c = Compute::unchecked();
+    MasterKey::decode(&c, xprv)
         .expect("a master xprv")
         .fingerprint()
 }

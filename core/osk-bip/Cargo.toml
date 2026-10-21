@@ -14,6 +14,8 @@ bitcoin.workspace = true
 miniscript.workspace = true
 
 [dev-dependencies]
+# A token that counts nothing, for the tests (docs/COMPUTE.md §3).
+osk-crypto = { path = "../osk-crypto", features = ["unchecked"] }
 bip39.workspace = true
 serde_json.workspace = true
 unicode-normalization.workspace = true

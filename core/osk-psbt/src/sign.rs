@@ -35,6 +35,7 @@ use bitcoin::{PublicKey, ScriptBuf, TxOut, ecdsa, taproot};
 use miniscript::{ExtParams, Miniscript, SigType, Tap, ToPublicKey};
 use osk_bip::keys::{Fingerprint, MasterKey};
 use osk_crypto::Zeroize;
+use osk_crypto::work::Compute;
 
 use crate::classify::{Classified, ScriptKind, classify};
 use crate::context::Context;
@@ -222,6 +223,7 @@ pub struct SignResult {
 /// the draws.
 #[allow(clippy::too_many_arguments)]
 pub fn sign(
+    c: &Compute,
     psbt: &mut Psbt,
     keys: &[&MasterKey],
     selection: &[Fingerprint],
@@ -265,7 +267,7 @@ pub fn sign(
         if input.final_script_sig.is_some() || input.final_script_witness.is_some() {
             continue;
         }
-        let c = classify(psbt.inner(), i);
+        let cl = classify(psbt.inner(), i);
         // A threshold input names no loaded key in its origins — its one
         // key is the group's, which no master derives — so it is handled
         // before the key claims are read (§16.103).
@@ -273,17 +275,17 @@ pub fn sign(
             if ti.ours.is_empty() {
                 continue;
             }
-            if let Some(problem) = c.problems.first() {
+            if let Some(problem) = cl.problems.first() {
                 return Err(Error::Unsupported {
                     input: i,
                     reason: problem,
                 });
             }
-            if c.utxo.is_none() {
+            if cl.utxo.is_none() {
                 return Err(Error::MissingUtxo { input: i });
             }
             let pass = sign_threshold(
-                psbt, &mut cache, i, &c, ti, shares, others, ctx.carry, &seed,
+                psbt, &mut cache, i, &cl, ti, shares, others, ctx.carry, &seed,
             )?;
             signed_inputs.extend(pass.signatures);
             threshold_entries.extend(pass.entries);
@@ -343,30 +345,30 @@ pub fn sign(
         if ecdsa_claims.is_empty() && tap_claims.is_empty() && leaf_claims.is_empty() {
             continue;
         }
-        if let Some(problem) = c.problems.first() {
+        if let Some(problem) = cl.problems.first() {
             return Err(Error::Unsupported {
                 input: i,
                 reason: problem,
             });
         }
-        if c.utxo.is_none() {
+        if cl.utxo.is_none() {
             return Err(Error::MissingUtxo { input: i });
         }
-        if c.amount_unverified {
+        if cl.amount_unverified {
             return Err(Error::Unsupported {
                 input: i,
                 reason: "no previous transaction for a SegWit input",
             });
         }
 
-        match c.kind {
+        match cl.kind {
             ScriptKind::P2pkh
             | ScriptKind::P2shP2wpkh
             | ScriptKind::P2wpkh
             | ScriptKind::Multisig { .. }
             | ScriptKind::Miniscript { .. } => {
                 for (pk, fp, path, master) in ecdsa_claims {
-                    let sig = sign_ecdsa(psbt, &mut cache, i, &c, pk, &path, master, nonce)?;
+                    let sig = sign_ecdsa(c, psbt, &mut cache, i, &cl, pk, &path, master, nonce)?;
                     signed_inputs.push(InputSignature {
                         index: i,
                         fingerprint: fp,
@@ -395,7 +397,7 @@ pub fn sign(
                     continue;
                 }
                 let done = sign_musig(
-                    psbt, &mut cache, i, &c, musig, &mine, &selected, aux, txid, session, &seed,
+                    c, psbt, &mut cache, i, &cl, musig, &mine, &selected, aux, txid, session, &seed,
                 )?;
                 nonces_shared += done.nonces_shared;
                 signed_inputs.extend(done.signatures);
@@ -403,7 +405,7 @@ pub fn sign(
             ScriptKind::P2trKey => {
                 for (xonly, fp, path, master) in tap_claims {
                     let sig =
-                        sign_taproot(psbt, &mut cache, i, &c, xonly, &path, master, aux, None)?;
+                        sign_taproot(c, psbt, &mut cache, i, &cl, xonly, &path, master, aux, None)?;
                     signed_inputs.push(InputSignature {
                         index: i,
                         fingerprint: fp,
@@ -436,7 +438,7 @@ pub fn sign(
                             continue;
                         }
                         let sig = sign_tap_leaf(
-                            psbt, &mut cache, i, &c, *xonly, *leaf_hash, path, master, aux,
+                            c, psbt, &mut cache, i, &cl, *xonly, *leaf_hash, path, master, aux,
                         )?;
                         signed_inputs.push(InputSignature {
                             index: i,
@@ -457,15 +459,16 @@ pub fn sign(
                 // input states. The coordinator picks which of the two
                 // paths the transaction ends up spending.
                 let merkle = psbt.inner().inputs[i].tap_merkle_root;
-                let spk = &c.utxo.as_ref().expect("checked by caller").script_pubkey;
+                let spk = &cl.utxo.as_ref().expect("checked by caller").script_pubkey;
                 for (xonly, fp, path, master) in tap_claims {
                     if psbt.inner().inputs[i].tap_internal_key != Some(xonly)
                         || ScriptBuf::new_p2tr(master.secp(), xonly, merkle) != *spk
                     {
                         continue;
                     }
-                    let sig =
-                        sign_taproot(psbt, &mut cache, i, &c, xonly, &path, master, aux, merkle)?;
+                    let sig = sign_taproot(
+                        c, psbt, &mut cache, i, &cl, xonly, &path, master, aux, merkle,
+                    )?;
                     signed_inputs.push(InputSignature {
                         index: i,
                         fingerprint: fp,
@@ -528,22 +531,23 @@ pub fn sign(
 /// (`osk_bip::keys`, security review M1), not one made here.
 #[allow(clippy::too_many_arguments)]
 fn sign_ecdsa(
+    c: &Compute,
     psbt: &Psbt,
     cache: &mut SighashCache<&bitcoin::Transaction>,
     index: usize,
-    c: &Classified,
+    cl: &Classified,
     pk: secp256k1::PublicKey,
     path: &DerivationPath,
     master: &MasterKey,
     nonce: Nonce,
 ) -> Result<ecdsa::Signature, Error> {
     let secp = master.secp();
-    let derived = master.derive(path);
-    if derived.to_xpub().public_key != pk {
+    let derived = master.derive(c, path);
+    if derived.to_xpub(c).public_key != pk {
         return Err(Error::KeyMismatch { input: index });
     }
     let input = &psbt.inner().inputs[index];
-    if !key_in_script(c, input, &PublicKey::new(pk)) {
+    if !key_in_script(cl, input, &PublicKey::new(pk)) {
         return Err(Error::KeyMismatch { input: index });
     }
     let (msg, sighash_type) = psbt
@@ -595,10 +599,11 @@ fn key_in_leaf(input: &bitcoin::psbt::Input, leaf: &ScriptBuf, xonly: XOnlyPubli
 /// The curve context is the master key's own, as in [`sign_ecdsa`].
 #[allow(clippy::too_many_arguments)]
 fn sign_tap_leaf(
+    c: &Compute,
     psbt: &Psbt,
     cache: &mut SighashCache<&bitcoin::Transaction>,
     index: usize,
-    c: &Classified,
+    cl: &Classified,
     xonly: XOnlyPublicKey,
     leaf_hash: TapLeafHash,
     path: &DerivationPath,
@@ -606,11 +611,11 @@ fn sign_tap_leaf(
     aux: Aux,
 ) -> Result<taproot::Signature, Error> {
     let secp = master.secp();
-    let derived = master.derive(path);
-    if derived.to_xpub().public_key.x_only_public_key().0 != xonly {
+    let derived = master.derive(c, path);
+    if derived.to_xpub(c).public_key.x_only_public_key().0 != xonly {
         return Err(Error::KeyMismatch { input: index });
     }
-    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, c, index)?;
+    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, cl, index)?;
     let sighash = cache
         .taproot_script_spend_signature_hash(index, &prevouts.as_ref(), leaf_hash, sighash_type)
         .map_err(|_| Error::Sighash { input: index })?;
@@ -638,7 +643,7 @@ fn sign_tap_leaf(
 /// otherwise.
 fn tap_sighash_inputs(
     psbt: &Psbt,
-    c: &Classified,
+    cl: &Classified,
     index: usize,
 ) -> Result<(TapSighashType, PrevoutSet), Error> {
     let input = &psbt.inner().inputs[index];
@@ -648,7 +653,7 @@ fn tap_sighash_inputs(
             .taproot_hash_ty()
             .map_err(|_| Error::Sighash { input: index })?,
     };
-    Ok((sighash_type, tap_prevouts(psbt, c, index, sighash_type)?))
+    Ok((sighash_type, tap_prevouts(psbt, cl, index, sighash_type)?))
 }
 
 /// The prevouts a taproot sighash of type `sighash_type` commits to.
@@ -657,7 +662,7 @@ fn tap_sighash_inputs(
 /// sighash type the signature itself states.
 pub(crate) fn tap_prevouts(
     psbt: &Psbt,
-    c: &Classified,
+    cl: &Classified,
     index: usize,
     sighash_type: TapSighashType,
 ) -> Result<PrevoutSet, Error> {
@@ -668,7 +673,7 @@ pub(crate) fn tap_prevouts(
             | TapSighashType::SinglePlusAnyoneCanPay
     );
     if anyone_can_pay {
-        let utxo = c.utxo.as_ref().expect("checked by caller").clone();
+        let utxo = cl.utxo.as_ref().expect("checked by caller").clone();
         return Ok(PrevoutSet::One(index, utxo));
     }
     let mut prevouts: Vec<TxOut> = Vec::with_capacity(psbt.inner().inputs.len());
@@ -709,10 +714,11 @@ impl PrevoutSet {
 /// The curve context is the master key's own, as in [`sign_ecdsa`].
 #[allow(clippy::too_many_arguments)]
 fn sign_taproot(
+    c: &Compute,
     psbt: &Psbt,
     cache: &mut SighashCache<&bitcoin::Transaction>,
     index: usize,
-    c: &Classified,
+    cl: &Classified,
     xonly: secp256k1::XOnlyPublicKey,
     path: &DerivationPath,
     master: &MasterKey,
@@ -725,16 +731,16 @@ fn sign_taproot(
         input: index,
         reason: "taproot input without tap_internal_key",
     })?;
-    let utxo = c.utxo.as_ref().expect("checked by caller");
+    let utxo = cl.utxo.as_ref().expect("checked by caller");
     if internal != xonly || ScriptBuf::new_p2tr(secp, internal, merkle_root) != utxo.script_pubkey {
         return Err(Error::KeyMismatch { input: index });
     }
-    let derived = master.derive(path);
-    if derived.to_xpub().public_key.x_only_public_key().0 != xonly {
+    let derived = master.derive(c, path);
+    if derived.to_xpub(c).public_key.x_only_public_key().0 != xonly {
         return Err(Error::KeyMismatch { input: index });
     }
 
-    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, c, index)?;
+    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, cl, index)?;
     let sighash = cache
         .taproot_key_spend_signature_hash(index, &prevouts.as_ref(), sighash_type)
         .map_err(|_| Error::Sighash { input: index })?;
@@ -797,10 +803,11 @@ struct MusigPass {
 /// finalizes the input as any key-path spend.
 #[allow(clippy::too_many_arguments)]
 fn sign_musig(
+    c: &Compute,
     psbt: &mut Psbt,
     cache: &mut SighashCache<&bitcoin::Transaction>,
     index: usize,
-    c: &Classified,
+    cl: &Classified,
     musig: &crate::inspect::MusigInput,
     mine: &[&crate::inspect::MusigParticipation],
     selected: &[(Fingerprint, &MasterKey)],
@@ -810,7 +817,7 @@ fn sign_musig(
     seed: &[u8; 32],
 ) -> Result<MusigPass, Error> {
     let secp = secp256k1::Secp256k1::new();
-    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, c, index)?;
+    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, cl, index)?;
     if sighash_type != TapSighashType::Default {
         return Err(Error::Unsupported {
             input: index,
@@ -862,8 +869,8 @@ fn sign_musig(
             .iter()
             .find(|(f, _)| *f == participation.fingerprint)
             .expect("the caller selected this key");
-        let derived = master.derive(&participation.path);
-        if derived.to_xpub().public_key != participation.key {
+        let derived = master.derive(c, &participation.path);
+        if derived.to_xpub(c).public_key != participation.key {
             return Err(Error::KeyMismatch { input: index });
         }
         // Every use of the secret key goes through the master key's
@@ -1221,7 +1228,7 @@ fn sign_threshold(
     psbt: &mut Psbt,
     cache: &mut SighashCache<&bitcoin::Transaction>,
     index: usize,
-    c: &Classified,
+    cl: &Classified,
     ti: &crate::inspect::ThresholdInput,
     shares: &[ShareKey],
     others: &[u32],
@@ -1236,7 +1243,7 @@ fn sign_threshold(
     let mut blind = crate::musig::tagged(THRESHOLD_BLIND_TAG, &[seed]);
     secp.seeded_randomize(&blind);
     blind.zeroize();
-    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, c, index)?;
+    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, cl, index)?;
     if sighash_type != TapSighashType::Default {
         return Err(Error::Unsupported {
             input: index,

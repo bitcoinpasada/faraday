@@ -27,6 +27,7 @@ use std::process::ExitCode;
 
 use osk_bip::keys::{MasterKey, Network};
 use osk_bip::policy::WalletPolicy;
+use osk_crypto::work::Compute;
 use osk_psbt::bitcoin::bip32::{ChildNumber, DerivationPath};
 use osk_psbt::{Aux, Context, KeyRef, Nonce, Psbt, SignResult, sign};
 
@@ -53,9 +54,10 @@ pub const SEEDS: [&str; 3] = [ABANDON, ZOO, LEGAL];
 
 /// One of the three keys on regtest.
 pub fn master(words: &str) -> MasterKey {
-    let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, words)
+    let c = Compute::unchecked();
+    let m = osk_bip::bip39::Mnemonic::parse(&c, osk_bip::bip39::Language::English, words)
         .expect("fixed mnemonic");
-    MasterKey::from_seed(&m.to_seed(b"").expect("empty passphrase"), NET)
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("empty passphrase"), NET)
 }
 
 /// BIP 48's script-multisig account: `48'/1'/0'/2'` on regtest. BIP 48
@@ -69,11 +71,12 @@ pub fn account_path() -> DerivationPath {
 /// One key as a descriptor writes it: its origin and its account
 /// extended public key.
 fn key_text(m: &MasterKey) -> String {
+    let c = Compute::unchecked();
     let path = account_path();
     format!(
         "[{}/{path:#}]{}",
         m.fingerprint(),
-        m.derive(&path).to_xpub()
+        m.derive(&c, &path).to_xpub(&c)
     )
 }
 
@@ -98,11 +101,12 @@ pub fn first(dir: &Path) -> Psbt {
 /// `tap_script_sig` per key under the leaf's hash and finalizes
 /// nothing, so this is the PSBT a coordinator is handed.
 pub fn signed_by(dir: &Path, holders: &[&str]) -> (Psbt, SignResult) {
+    let c = Compute::unchecked();
     let masters: Vec<MasterKey> = holders.iter().map(|w| master(w)).collect();
     let keys: Vec<KeyRef> = masters
         .iter()
         .enumerate()
-        .map(|(i, m)| KeyRef::from_master(m, i as u32).expect("accounts"))
+        .map(|(i, m)| KeyRef::from_master(&c, m, i as u32).expect("accounts"))
         .collect();
     let selection: Vec<osk_bip::keys::Fingerprint> =
         masters.iter().map(MasterKey::fingerprint).collect();
@@ -118,6 +122,7 @@ pub fn signed_by(dir: &Path, holders: &[&str]) -> (Psbt, SignResult) {
     };
     let mut psbt = first(dir);
     let result = sign(
+        &c,
         &mut psbt,
         &refs,
         &selection,

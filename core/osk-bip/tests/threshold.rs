@@ -17,6 +17,7 @@ use osk_bip::miniscript::Descriptor;
 use osk_bip::miniscript::descriptor::DescriptorPublicKey;
 use osk_bip::policy::{Error, Template, WalletPolicy};
 use osk_bip::threshold::ThresholdRecord;
+use osk_crypto::work::Compute;
 
 const RECORD: &str = include_str!("../../../tools/vectors/psbt/wallet-threshold-regtest.record");
 const SHARES: [&str; 3] = [
@@ -291,6 +292,7 @@ fn an_output_of_the_wallet_is_named_by_its_chain_and_index() {
 /// to.
 #[test]
 fn the_share_files_are_the_shares_of_the_fixture_group() {
+    let c = Compute::unchecked();
     let secp = Secp256k1::new();
     let record = record();
     record.info.validate(&secp).expect("one polynomial");
@@ -298,7 +300,7 @@ fn the_share_files_are_the_shares_of_the_fixture_group() {
     let shares: Vec<SecShare> = SHARES
         .iter()
         .map(|words| {
-            let m = Mnemonic::parse(Language::English, words.trim()).expect("24 English words");
+            let m = Mnemonic::parse(&c, Language::English, words.trim()).expect("24 English words");
             let entropy = m.entropy();
             SecShare::from_bytes(
                 &<[u8; 32]>::try_from(entropy.expose().as_bytes()).expect("32 bytes"),

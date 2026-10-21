@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, Network};
+use osk_crypto::work::Compute;
 
 /// BIP-39 vector seed: "abandon" ×11 "about".
 pub const ABANDON: &str =
@@ -18,8 +19,9 @@ pub const LEGAL: &str =
     "legal winner thank year wave sausage worth useful legal winner thank yellow";
 
 pub fn master(words: &str, network: Network) -> MasterKey {
-    let m = Mnemonic::parse(Language::English, words).expect("test mnemonic");
-    MasterKey::from_seed(&m.to_seed(b"").expect("ascii passphrase"), network)
+    let c = Compute::unchecked();
+    let m = Mnemonic::parse(&c, Language::English, words).expect("test mnemonic");
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("ascii passphrase"), network)
 }
 
 pub fn unhex(s: &str) -> Vec<u8> {

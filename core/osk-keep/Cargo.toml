@@ -22,3 +22,7 @@ chacha20poly1305 = { workspace = true }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+# A token that counts nothing, for the tests (docs/COMPUTE.md §3).
+osk-crypto = { path = "../osk-crypto", features = ["unchecked"] }

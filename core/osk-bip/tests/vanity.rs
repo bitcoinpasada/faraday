@@ -10,6 +10,7 @@
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, Network, ScriptType};
 use osk_bip::vanity::{self, Key, Method};
+use osk_crypto::work::Compute;
 
 /// BIP-39's zero entropy: "abandon … about".
 fn words() -> Mnemonic {
@@ -17,14 +18,17 @@ fn words() -> Mnemonic {
 }
 
 fn master(passphrase: &[u8]) -> MasterKey {
-    let seed = words().to_seed(passphrase).expect("a seed");
-    MasterKey::from_seed(&seed, Network::Mainnet)
+    let c = Compute::unchecked();
+    let seed = words().to_seed(&c, passphrase).expect("a seed");
+    MasterKey::from_seed(&c, &seed, Network::Mainnet)
 }
 
 #[test]
 fn the_passphrase_counter_reaches_the_address_entropylab_reaches() {
+    let c = Compute::unchecked();
     let words = words();
     let out = vanity::grind(
+        &c,
         &Key::Words(&words),
         &Method::Passphrase { base: b"" },
         ScriptType::NativeSegwit,
@@ -44,8 +48,10 @@ fn the_passphrase_counter_reaches_the_address_entropylab_reaches() {
 
 #[test]
 fn the_account_index_reaches_the_address_entropylab_reaches() {
+    let c = Compute::unchecked();
     let master = master(b"");
     let out = vanity::grind(
+        &c,
         &Key::Master(&master),
         &Method::Account,
         ScriptType::NativeSegwit,
@@ -65,8 +71,10 @@ fn the_account_index_reaches_the_address_entropylab_reaches() {
 
 #[test]
 fn the_passphrase_a_find_names_is_the_passphrase_that_makes_the_address() {
+    let c = Compute::unchecked();
     let words = words();
     let find = vanity::grind(
+        &c,
         &Key::Words(&words),
         &Method::Passphrase { base: b"" },
         ScriptType::NativeSegwit,
@@ -79,7 +87,7 @@ fn the_passphrase_a_find_names_is_the_passphrase_that_makes_the_address() {
     .expect("a find");
     let opened = master(find.suffix.as_bytes());
     let account = opened
-        .account_xpub(ScriptType::NativeSegwit, 0)
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
         .expect("an account");
     let address = account.address(false, 0).expect("the first address");
     assert_eq!(alloc_string(&address), find.address.as_str());
@@ -87,8 +95,10 @@ fn the_passphrase_a_find_names_is_the_passphrase_that_makes_the_address() {
 
 #[test]
 fn the_account_a_find_names_is_the_account_that_makes_the_address() {
+    let c = Compute::unchecked();
     let master = master(b"");
     let find = vanity::grind(
+        &c,
         &Key::Master(&master),
         &Method::Account,
         ScriptType::NativeSegwit,
@@ -100,7 +110,7 @@ fn the_account_a_find_names_is_the_account_that_makes_the_address() {
     .find
     .expect("a find");
     let account = master
-        .account_xpub(ScriptType::NativeSegwit, find.account)
+        .account_xpub(&c, ScriptType::NativeSegwit, find.account)
         .expect("an account");
     let address = account.address(false, 0).expect("the first address");
     assert_eq!(alloc_string(&address), find.address.as_str());
@@ -108,11 +118,13 @@ fn the_account_a_find_names_is_the_account_that_makes_the_address() {
 
 #[test]
 fn a_grind_that_stops_and_goes_on_reaches_the_same_candidate() {
+    let c = Compute::unchecked();
     let words = words();
     let mut from = 0;
     let mut find = None;
     while from < 62 && find.is_none() {
         let out = vanity::grind(
+            &c,
             &Key::Words(&words),
             &Method::Passphrase { base: b"" },
             ScriptType::NativeSegwit,
@@ -211,8 +223,10 @@ fn the_expected_time_is_the_count_over_the_rate() {
 
 #[test]
 fn a_dial_the_key_cannot_turn_tests_nothing() {
+    let c = Compute::unchecked();
     let master = master(b"");
     let out = vanity::grind(
+        &c,
         &Key::Master(&master),
         &Method::Passphrase { base: b"" },
         ScriptType::NativeSegwit,

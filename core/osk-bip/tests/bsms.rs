@@ -8,6 +8,7 @@ use osk_bip::bsms::{self, DescriptorRecord, SignerRecord};
 use osk_bip::keys::{MasterKey, MultisigScriptType, Network};
 use osk_bip::multisig_config;
 use osk_bip::policy::WalletPolicy;
+use osk_crypto::work::Compute;
 
 const BIP129: &str = include_str!("../../../tools/vectors/bip129/bip-0129.mediawiki");
 
@@ -224,12 +225,13 @@ const ABANDON: &str =
 /// holds against the key it names, and that key is the account's.
 #[test]
 fn the_record_this_device_writes_parses_back_and_verifies() {
-    let mnemonic = Mnemonic::parse(Language::English, ABANDON).unwrap();
-    let master = MasterKey::from_seed(&mnemonic.to_seed(b"").unwrap(), Network::Mainnet);
+    let c = Compute::unchecked();
+    let mnemonic = Mnemonic::parse(&c, Language::English, ABANDON).unwrap();
+    let master = MasterKey::from_seed(&c, &mnemonic.to_seed(&c, b"").unwrap(), Network::Mainnet);
     let account = master
-        .multisig_account_xpub(MultisigScriptType::NativeSegwit, 0)
+        .multisig_account_xpub(&c, MultisigScriptType::NativeSegwit, 0)
         .unwrap();
-    let derived = master.derive(account.path());
+    let derived = master.derive(&c, account.path());
 
     let written = bsms::signer_record(
         master.secp(),
@@ -268,12 +270,13 @@ fn the_record_this_device_writes_parses_back_and_verifies() {
 /// and on the way out.
 #[test]
 fn a_record_outside_the_bips_limits_is_refused() {
-    let mnemonic = Mnemonic::parse(Language::English, ABANDON).unwrap();
-    let master = MasterKey::from_seed(&mnemonic.to_seed(b"").unwrap(), Network::Mainnet);
+    let c = Compute::unchecked();
+    let mnemonic = Mnemonic::parse(&c, Language::English, ABANDON).unwrap();
+    let master = MasterKey::from_seed(&c, &mnemonic.to_seed(&c, b"").unwrap(), Network::Mainnet);
     let account = master
-        .multisig_account_xpub(MultisigScriptType::NativeSegwit, 0)
+        .multisig_account_xpub(&c, MultisigScriptType::NativeSegwit, 0)
         .unwrap();
-    let derived = master.derive(account.path());
+    let derived = master.derive(&c, account.path());
     let write = |token: &str, description: &str| {
         bsms::signer_record(
             master.secp(),

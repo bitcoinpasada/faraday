@@ -6,6 +6,7 @@ mod common;
 use common::{ABANDON, Harness, PANEL, PHONE};
 use opensigner_core::tools::Tool;
 use opensigner_core::{ScreenKind, ids, strings};
+use osk_crypto::work::Compute;
 use osk_shell_api::{Command, Event, FileKind};
 
 /// BIP-32 test vector 1's master extended public key.
@@ -95,13 +96,14 @@ fn a_pasted_string_the_tool_cannot_read_opens_the_field_with_the_reason() {
 /// An address off the clipboard is checked exactly as a scanned one is.
 #[test]
 fn a_pasted_address_reaches_the_check_result() {
+    let c = Compute::unchecked();
     let s = &strings::EN;
     let mut h = Harness::new(PHONE);
     h.start_load(&ABANDON);
     h.finish_load(None);
     let ours = h
         .app
-        .addresses(0, osk_bip::keys::ScriptType::NativeSegwit, false, 1)[0]
+        .addresses(&c, 0, osk_bip::keys::ScriptType::NativeSegwit, false, 1)[0]
         .clone();
     h.open_single_sig(0);
     h.tap(ids::WALLET_CHECK);
@@ -179,13 +181,14 @@ fn an_empty_clipboard_says_so_and_the_scanner_stays() {
 /// did.
 #[test]
 fn copy_writes_the_address_and_says_so() {
+    let c = Compute::unchecked();
     let s = &strings::EN;
     let mut h = Harness::new(PHONE);
     h.start_load(&ABANDON);
     h.finish_load(None);
     let ours = h
         .app
-        .addresses(0, osk_bip::keys::ScriptType::NativeSegwit, false, 1)[0]
+        .addresses(&c, 0, osk_bip::keys::ScriptType::NativeSegwit, false, 1)[0]
         .clone();
     h.open_single_sig(0);
     h.tap(ids::WALLET_CHECK);
