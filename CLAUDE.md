@@ -59,16 +59,18 @@ changes and nothing else has to be kept in step.
   where the kept value lives and tested by changing the source. What a
   screen puts together from it is computed once per frame through the
   drawing memo (`docs/SPEED.md` §3.3), and a decision (a press gated, a
-  hold released) computes from the state as it is, never from the memo.
+  hold released) computes from the state as it is (a `*_now` form),
+  never from the memo.
   A batch that adds work done while drawing or after every event is
   timed in a late-flow session before it is committed
-  (`docs/SPEED.md` §7). A costly function counts itself
-  (`faraday-core/src/work.rs`); in debug and test builds it panics when
-  it runs while a frame is drawn outside a memo fill or a kept value's
-  first working out, so every test that draws checks every screen it
-  reaches; and the budget test there fails `just` when a frame drawn
-  again, or a pointer move, does any costly work its screen's budget
-  does not name.
+  (`docs/SPEED.md` §7). A costly function takes `c: &Compute` and
+  counts itself through it, and its doc's first line says "Costs …";
+  drawing gets a read-only `View`, which cannot mint a token, so it
+  reaches costly work only through `View`'s named accessors
+  (`docs/COMPUTE.md`). `tools/costs-lint` fails `just` when this does
+  not hold, and the budget tests in `faraday-core/src/work/budget/`
+  when a frame drawn again, a pointer move, a press or a key does
+  costly work its budget does not name.
 - No hosted CI, no GitHub Actions, no metered external services.
 - `local/user-notes.txt` is the owner's own notes; agents ignore it.
 - The remote machine that builds the images is "the build machine" in

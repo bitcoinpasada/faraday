@@ -110,48 +110,44 @@ wallets, flows and open vault records.
 
 ### 3.1 The fingerprint is kept on the key (issue 120)
 
-`wallet::Key` (`faraday/faraday-core/src/wallet.rs`) gains a private
-field `fp: Fingerprint`, set where the key is made: `Session::add_mnemonic`
-(which `add_words` calls) and `Session::add_seed` already compute it before pushing the key, and
-pass it in. `Key::fingerprint(&self) -> Fingerprint` returns it. Every
-`k.master.fingerprint()` on a session key in faraday-core becomes
-`k.fingerprint()`.
+Built first in Faraday (a `fp` field on `wallet::Key`), then moved into
+core (`docs/COMPUTE.md` §5.1, `docs/UPSTREAM.md` §3). `MasterKey`
+(`core/osk-bip/src/keys.rs`) works out its fingerprint once, when the
+key is made, from the blinded context; `for_network` copies it,
+`fingerprint()` returns it, and `derive()` takes the master fingerprint
+from it. Every constructor of a `MasterKey` takes the token and says it
+costs the multiplication. Both apps save one elliptic-curve
+multiplication per derivation; no output changes, and the BIP-32
+vectors pass unchanged.
 
-The fingerprint does not depend on the network, so `Session::set_network`,
-which replaces each key's `master` with `master.for_network(network)`,
-leaves `fp` as it is. That line is the only assignment to `master`; it
-moves into a method `Key::set_network(&mut self, network)`, and `master`
-loses its `pub` for writing: it becomes a private field with an accessor
-`Key::master(&self) -> &MasterKey`. Construction of a `Key` happens only
-in `wallet.rs`; if a test or another module builds one, it goes through
-a constructor `Key::new(master, label, words, language, share,
-passphrase)` that computes `fp`.
-
-`core/osk-bip` is not changed: the cache is Faraday's, so there is no
-new difference from upstream. The snapshot tool
-(`faraday/shells/snapshot`) may keep calling `master().fingerprint()`; it
-draws each screen once.
+Faraday dropped its own field. `wallet::Key`
+(`faraday/faraday-core/src/wallet.rs`) keeps `master` private:
+`Key::master(&self) -> &MasterKey` reads it, `Key::fingerprint(&self)`
+is a lookup through it, and `Key::set_network(&mut self, network)` is
+the only way to change it (the fingerprint is the same on every
+network). A `Key` is made through `Key::new`.
 
 This also means fewer uses of the private key: each fingerprint call
-today is a multiplication with the master private key (constant time
+had been a multiplication with the master private key (constant time
 and blinded), thousands of times a second on the checklist.
 
 ### 3.2 The descriptor checksum is kept on the wallet (issue 121)
 
-`wallet::Wallet` gains a private `checksum: String`, and `policy`
-becomes private with `Wallet::policy(&self) -> &WalletPolicy`. A wallet
-is made through `Wallet::new(name, policy, source, origin)`, which
-computes the checksum; the seven struct literals in faraday-core
-(`wallet.rs` `add_wallet`, `backups.rs`, `boot_import.rs`, `inbox.rs`,
-`glance.rs`, `vaults.rs`, `vault_screens.rs`) use it. `Wallet::checksum(&self)
--> &str` returns it. The one place that changes a loaded wallet's policy,
-`silent.rs` (a silent payment wallet's labels handed out), calls
-`Wallet::set_policy(policy)`, which computes the checksum again.
-`name`, `source` and `origin` stay public.
+Built first in Faraday (a `checksum` field on `wallet::Wallet`), then
+moved into core (`docs/COMPUTE.md` §5.2, `docs/UPSTREAM.md` §3).
+`WalletPolicy` (`core/osk-bip/src/policy.rs`) sets its checksum in every
+constructor, and `checksum(&self) -> &str` is a lookup. A policy has one
+text: hardened steps are kept and written `h` whichever way they were
+read (`docs/COMPUTE.md` §5.3, F66), so a wallet read with `'`, `h` or
+both has one checksum.
 
-Every `w.policy.checksum()` on a `Wallet` in faraday-core becomes
-`w.checksum()`. Calls on a bare `WalletPolicy` (one read from a file or
-a record, not a loaded wallet) are left as they are.
+A wallet is made through `Wallet::new(name, policy, source, origin)`.
+`wallet::Wallet` keeps `policy` private, with `Wallet::policy(&self) ->
+&WalletPolicy`; `Wallet::checksum(&self)` is a lookup through it. The
+one place that changes a loaded wallet's policy, `silent.rs` (a silent
+payment wallet's labels handed out), calls `Wallet::set_policy(policy)`,
+which drops the addresses and scripts kept from the policy before.
+`name`, `source` and `origin` stay public.
 
 ### 3.3 The drawing memo (issue 122)
 
@@ -214,22 +210,38 @@ parsed or derived once, with what it describes (§2 rules 2 and 4):
   as the key or the records, is wiped when dropped and is never
   written.
 
-A kept value is worked out by whoever asks first, a frame included
-(`work::keeping`); after that every frame and every press only looks it
-up.
+A kept value is worked out by whoever asks first, a frame included;
+after that every frame and every press only looks it up.
 
-**The guard.** In debug and test builds every costly function's count
-(`work::count`) panics while a frame is drawn (`render` marks it,
-`work::Frame`) unless a memo cell is filling (`work::filling`) or a kept
-value is worked out the first time (`work::keeping`): "costly work while
-drawing: {kind} in {function}; compute it on the state or through the
-drawing memo". Release builds compile it out. Every test that draws a
-screen checks every screen state it reaches, and so do the snapshot
-tours. Its allowlist, `work::Allowed`, names each exception and why; the
-owner decides each. One entry now, `SecretShown`: a secret the person
-opened to see or copy (a seed's SeedQR grid on the copy page, a vault
-key record's words, a BIP-85 child), drawn from its source each frame
-because nothing secret is kept, not even for a frame (§2 rule 1).
+**The token** (`docs/COMPUTE.md`, F69). Every costly function, in core
+and in Faraday's crates, takes `c: &Compute` (`osk_crypto::work`) and
+counts its work through it; its doc's first line says "Costs …". The
+token is not `Clone`, `Copy`, `Default`, `Send` or `Sync`, and is
+minted only at entry points: event code holding `&mut Faraday`
+(`Faraday::compute`), the drawing view, worker threads and processes
+that draw nothing, tools and tests (COMPUTE §3). Drawing gets a
+read-only `View` (`faraday-core/src/drawing.rs`), which derefs to
+`&Faraday` and cannot mint, so a screen that calls costly work does not
+compile. `View` reaches costly work only through its named accessors in
+`drawing/`: the memo's fills (`memo.rs`), values kept on the state
+worked out the first time (`kept.rs`), and the owner's exceptions
+(`allowed.rs`). A decision (a press gated, a hold released) uses a
+`*_now(&self, c: &Compute)` form on `Faraday`, never the memo, which
+exists only on `View`. What the types cannot hold, the costs lint
+(`tools/costs-lint`) and `faraday/clippy.toml` hold, both in `just
+lint` (§8.3). The debug guard that panicked on costly work while a
+frame was drawn was removed once the token held everything it checked
+(COMPUTE §10); the counters (`work::count`, `Counts`, `snapshot`,
+`since`) and the budget tests in `work/budget/` stay, and count what
+each frame, press and key does.
+
+**The owner's list.** `Allowed` (`drawing/allowed.rs`) names each
+exception and why, one method on `View` per entry; a new exception is a
+new method, which the owner decides. One entry now, `SecretShown`: a
+secret the person opened to see or copy (a seed's SeedQR grid on the
+copy page, a vault key record's words, a BIP-85 child), drawn from its
+source each frame because nothing secret is kept, not even for a frame
+(§2 rule 1).
 
 ### 3.4 Public file names without making the files (issue 123)
 
@@ -628,11 +640,15 @@ frame that works out more than its screen's named budget, or a pointer
 move that works out anything, fails the build. Since what a frame reads
 is kept on the state (§3.3), every budget is none: a frame drawn again
 works out nothing, and a line in the table names any screen that cannot
-keep what it draws, with why. The guard of §3.3 holds the same rule in
-every test that draws. The timing above stays for milliseconds. Since
-batch S1 (§8) the same budget tests also press what each main screen
-offers, compare frames as the Inbox and the wallets grow, let every
-flow page rest at seven scales, and fix the work of the key moments.
+keep what it draws, with why. The token of §3.3 holds the same rule at
+compile time: drawing cannot call costly work but through `View`'s
+accessors. The timing above stays for milliseconds. Since batch S1 (§8)
+the same budget tests also press what each main screen offers, compare
+frames as the Inbox and the wallets grow, let every flow page rest at
+seven scales, and fix the work of the key moments; since COMPUTE D1
+(§8.3) they also hold each kept accessor, a frame's allocations and
+lines of text, each typed character, the Pi's panel and a long
+session's kept lists.
 
 ## 8. The speed audit and batch S1 (2026-10-21)
 
@@ -723,8 +739,12 @@ every row, seen or not. A later batch.
 ### 8.2 New counted kinds
 
 Counted at their source, the core's through `osk_crypto::work` (F65,
-`docs/UPSTREAM.md` §3), behind its `count` feature, which the app core
-turns on and whose counter it installs (`work::install`):
+`docs/UPSTREAM.md` §3). S1 counted them behind a `count` feature and a
+process-wide counter the app installed; since COMPUTE C3 the count
+goes through the token the caller holds (`c.count(kind)`), the feature
+and the counter are gone, and Faraday's tokens carry
+`work::core_count`, which maps each core kind to Faraday's own. S1's
+kinds:
 
 | Kind | Where |
 |---|---|
@@ -738,10 +758,31 @@ turns on and whose counter it installs (`work::install`):
 | `Blur` | `osk_ui::Canvas::frost` |
 | `FullCanvas` | `Canvas::snapshot`, `snapshot_into`, `restore`, `blend_from` |
 
-The guard of §3.3 holds every new kind but the two pixel kinds, `Blur`
-and `FullCanvas`, which are drawing's own work: the budgets count them
-instead. A sheet's frame puts its kept backdrop back, one `FullCanvas`;
-a frame drawn again does nothing else.
+The kinds Faraday had counted itself before COMPUTE C1 to C3 are now
+counted at their source in core, each by a function that takes the
+token (COMPUTE §2.3):
+
+| Kind | Where |
+|---|---|
+| `WordsParse` | `osk_bip::bip39::Mnemonic::parse` |
+| `MasterKey` | `MasterKey::from_seed`, `from_seed_bytes`, `from_xpriv`, `decode`, `from_chain_code_and_key`, each with the fingerprint it keeps (§3.1) |
+| `KeyDerive` | `MasterKey::xpub`, `derive`, `account_xpub`, `multisig_account_xpub`, `with_multisig_account_secret`; `DerivedKey::to_xpub` |
+| `DescriptorParse` | `WalletPolicy::parse`, `from_parts`, `from_descriptor`, `parse_any`, `from_record`, and the import readers through them |
+| `Address` | `WalletPolicy::script_at`, `script_at_with`, `address_at`, `find_address` |
+| `QrEncode` | `osk_codec::qr::encode`, `encode_bounded`; `seedqr::encode_seedqr`, `encode_compact` |
+| `FileHash` | `osk_crypto::sha256_whole`, which Faraday's whole-file hashes use |
+
+Faraday's own kinds (`PlanMap`, `Picture`, `WalletMatch`, `PngDecode`,
+and `Kdf` in `faraday-vault`) are counted with `work::count` by
+functions that take the token as the gate.
+
+Every kind but the two pixel kinds, `Blur` and `FullCanvas`, needs the
+token, so drawing reaches it only through `View`'s accessors (§3.3).
+The pixel kinds are drawing's own work and take no token: a canvas
+counts them through the counter its owner sets
+(`Canvas::set_counter`), and the budgets count them per frame. A
+sheet's frame puts its kept backdrop back, one `FullCanvas`; a frame
+drawn again does nothing else.
 
 ### 8.3 The tests in `just`
 
@@ -790,6 +831,40 @@ All counts, no wall time, in `faraday-core/src/work/budget/`:
   offered on its wallet's card once that wallet loads; a spend opened
   before its seeds were loaded signs with both once they are, and its
   review shows both signatures.
+
+COMPUTE D1 (2026-10-21) added:
+
+- **Each kept accessor** (`accessors.rs`): every value kept on the
+  state that drawing reads (`drawing/kept.rs`), read on two frames in a
+  row with nothing changed, does no counted work the second time, each
+  accessor on its own.
+- **Allocations and lines a frame** (`budget.rs`): each screen of the
+  walk allocates and draws no more lines of text than its measured
+  count, in two tables, the desktop's (`FRAME_COSTS`) and the Pi's
+  compact screens (`FRAME_COSTS_PI`), with a margin of 10 % or at least
+  8 (`MARGIN_PCT`, `MARGIN_MIN`). A change that draws more on purpose
+  measures again and writes the new counts there, with why. The test
+  binary counts allocations with `faraday/tools/alloc-count`.
+- **Each typed character** (`keys.rs`): a character typed into any
+  field does no costly work beyond its named budget, the key and the
+  frames after it together; a key stretch is never in a budget (§9
+  item 2).
+- **The Pi's panel**: the frame budgets, every press and the pages at
+  rest also run at the Pi's 480×640, whose compact screens are other
+  code.
+- **A long session** (`caches.rs`): a session that loads and drops
+  every test wallet, brings files in and out, changes a plan, locks and
+  unlocks the vault and walks far through addresses, account keys,
+  typed descriptions and QR codes keeps every kept list within its
+  bound, a named constant beside the list (`PUBLIC_QRS_KEPT`,
+  `TEXTS_READ_KEPT`, `WALLET_ADDRESSES_KEPT` and the rest).
+
+The lints in `just lint` hold what the types do not (COMPUTE §7 to §9):
+`tools/costs-lint` (a function taking the token says "Costs …" first;
+counted work takes a token; a mint only at its listed sites; no kept
+token but `View`'s; no mint while drawing), `faraday/clippy.toml` run
+through `tools/clippy.py`, and the `compile_fail` doctests on
+`Compute` and `View`.
 
 ## 9. Batch S2: nothing a person waits on blocks a frame (2026-10-21)
 
@@ -848,11 +923,16 @@ about ten times slower.
    the list that stretches a key or makes more than one picture panics,
    naming itself; `tests/slow_press.rs` taps the checklist, Add and
    Enter on an aezeed and checks that the tap does none of it, the
-   frame says so, and the tick does it. Left out: typing a passphrase
-   on the passphrase-check and SeedQR sheets works out the key on each
-   character (one PBKDF2, about 1 ms here), and Enter on Add a key's,
-   New key's and a chart's fields does what their buttons do at once;
-   both are keys, not presses.
+   frame says so, and the tick does it. Enter on Add a key's, New
+   key's and a chart's fields does what their buttons do at once: a
+   key, not a press. **Typing waits for a pause** (COMPUTE D1): the
+   passphrase fields on the potential wallet's and the seed read's
+   sheets (`Sheet::Potential`, `Sheet::SeedRead`), and Load a key's
+   probe of the words typed, worked out the key on each character typed (one
+   PBKDF2, about 1 ms here). They now work it out once typing has
+   paused for `motion::TYPED_PAUSE_MS` (400 ms); tests wait with
+   `testkit::pause`. Enter and the sheets' buttons work at once. The
+   key budget test (§8.3) holds every field to it.
 3. **Files laid out and drew every row, seen or not; Vault contents
    walked ~24,400 glyphs a frame.** A line of text wholly above or
    below the clip is now measured from its advances, not drawn

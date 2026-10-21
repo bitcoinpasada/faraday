@@ -2352,7 +2352,7 @@ written with. Moving the checksum into the policy (`docs/COMPUTE.md`
 §5.2) needs the policy itself to have one text.
 
 **Decision** (owner, 2026-10-20; the spec is `docs/COMPUTE.md` §5.3,
-which also specifies the compute token this prepares for).
+which also specifies the compute token this prepares for, F69).
 
 - Reading is unchanged: a hardened step written `'` or `h`, mixed or
   not, is read.
@@ -2419,3 +2419,34 @@ Faraday binary (`docs/COMPUTE.md` §3).
   check names stay the two exceptions (CLAUDE.md).
 - `just lint` checks that no binary Faraday ships enables `osk-crypto`'s
   `unchecked` feature (`tools/lint-unchecked.sh`).
+
+### F69 Costly work takes a token; drawing cannot mint one (2026-10-21)
+
+**Why.** The rule that drawing reads and does not work things out was
+held by a guard in debug and test builds: each costly function's count
+panicked while a frame was drawn, outside a memo fill, a kept value's
+first working out or a named exception. It caught only what a test or
+a snapshot tour drew, and only at run time; release builds did not
+have it.
+
+**Decision** (owner, 2026-10-21; the spec is `docs/COMPUTE.md`).
+
+- Every costly function, in `core/` and in Faraday's crates, takes a
+  token, `c: &Compute` (`osk_crypto::work`), counts its work through
+  it, and says what it costs on its doc's first line ("Costs …").
+- The token is not `Clone`, `Copy`, `Default`, `Send` or `Sync`. It is
+  minted only at entry points: event code holding `&mut Faraday`, the
+  drawing view's own, worker threads and processes that draw nothing,
+  tools and tests (COMPUTE §3). Core's sources mint none.
+- Drawing gets a read-only `View`, which cannot mint a token. It reaches
+  costly work only through named accessors: the memo's fills, values
+  kept on the state worked out the first time, and the owner's list of
+  exceptions (`Allowed`; one entry, `SecretShown`). A new exception is
+  the owner's decision.
+- The token that counts nothing (`Compute::unchecked`) is for core's
+  tests and the fuzz targets; no binary Faraday ships enables it.
+- What the types cannot hold, `tools/costs-lint`, `faraday/clippy.toml`
+  and `compile_fail` doctests hold, in `just lint`; the budget tests
+  (`faraday-core/src/work/budget/`) count what each frame, press and key
+  does.
+- The debug guard was removed once the token held everything it checked.

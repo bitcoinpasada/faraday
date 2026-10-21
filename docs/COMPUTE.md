@@ -1,6 +1,7 @@
 # Compute: costly work takes a token
 
-**Status:** 2026-10-21 · spec, owner approved the approach 2026-10-20
+**Status:** 2026-10-21 · built (U4 to D3, 2026-10-21); owner approved the
+approach 2026-10-20 (F69)
 
 Every costly function in `core/` and in Faraday's crates takes a
 `&Compute`, a token. Faraday mints one in two places: event code that
@@ -8,8 +9,8 @@ holds `&mut Faraday`, and the drawing memo's own fills. Drawing gets a
 read-only `View`, so a screen that calls costly work does not compile.
 The work counters, the budget tests (`faraday-core/src/work/budget/`,
 `work/kept.rs`) and parse-once (`docs/SPEED.md` §3.3) all stay. The debug
-guard is removed once the types and the lint enforce everything it
-checked (§10).
+guard was removed in D2, once the types and the lint enforced everything
+it checked (§10).
 
 Before the token, two values move into core: the fingerprint and the
 checksum (§5). This follows `docs/UPSTREAM.md` and F65: each core change
@@ -104,13 +105,19 @@ already parsed); `osk_crypto::hash::sha256` on small fixed inputs;
 |---|---|---|
 | `faraday-core/src/compute.rs`: `Faraday::compute(&mut self) -> Compute` (pub) | `new(work::core_count)` | Event code: `event`, `press`, `act`, ticks, storage events, boot; the warm step before a frame (§4) |
 | `faraday-core/src/drawing.rs`: `View::new` | `new(work::core_count)`, into a private field | Memo fills, kept values, `Allowed` |
-| `faraday-storage`'s worker entry, `faraday-disk/src/main.rs` | `new(\|_\| {})` | Threads and processes that draw nothing |
-| `faraday/shells/snapshot/src/main.rs` | `new(\|_\| {})` | A tool |
-| `faraday-core/src/testkit.rs`: `testkit::compute()` (cfg `test`/`testkit`) | `new(work::core_count)` | Faraday's tests |
+| `faraday-storage/src/lib.rs`: `Pictures::ask` | `new(\|_\| {})` | The pictures' worker thread, which draws nothing; a token cannot cross threads, so the thread mints its own |
+| `faraday-disk/src/main.rs`: `pictures` and `main` | `new(\|_\| {})` | The disk process's pictures thread and its serving loop, which draw nothing |
+| `faraday/shells/snapshot/src/main.rs`: `main` | `new(\|_\| {})` | A tool |
+| `faraday/tools/argon2-bench/src/main.rs`: `main` | `new(\|_\| {})` | A benchmark tool |
+| `faraday-core/src/testkit.rs`: `testkit::compute()` (cfg `test`/`testkit`) | `new(work::core_count)` | Faraday's tests and the snapshot tool's sessions |
+| `compute()` in `faraday-vault`'s `src/tests.rs` and `examples/vectors.rs`, `faraday-disk/tests/disks.rs`, `faraday-files/tests/picture.rs`, `faraday-qr/tests/formats.rs` and `interop.rs`, `faraday-scanner/src/lib.rs` (its unit tests), `faraday-starter/tests/{bitlocker,notes,template}.rs`, the Starter's `examples/snap.rs` | `new(\|_\| {})` | Tests and tools in crates that cannot reach faraday-core's test kit |
 | Core tests and benches, `fuzz/`, `faraday/fuzz/` | `unchecked()` | No app guarantee |
 
-Core's non-test sources mint nothing; they pass their callers' tokens
-through. The Starter's `phone_code` (a QR code each frame) is kept on its
+The costs lint's `MINTS` (`tools/costs-lint/src/main.rs`) is this table,
+file by file and function by function; a new mint is a line in both.
+
+Core's non-test sources mint nothing (but `Compute::unchecked`, which is
+itself made with `new`); they pass their callers' tokens through. The Starter's `phone_code` (a QR code each frame) is kept on its
 state when the address is set (C3), so the Starter needs no mint while
 drawing.
 
@@ -125,8 +132,13 @@ shows it. Beside that, `faraday/clippy.toml` disallows
 `#[expect(clippy::disallowed_methods, reason = "a mint: …")]` at the sites
 above (clippy reads the nearest `clippy.toml` above each manifest, so this
 governs every crate under `faraday/` and no other); and the costs lint
-rejects any `expect`/`allow` over `unchecked`, a mint outside its list,
-and the `unchecked` feature in any `faraday/**/Cargo.toml`.
+rejects `unchecked` under `faraday/`, a mint outside its list,
+and the `unchecked` feature in any `faraday/**/Cargo.toml`. `faraday/fuzz/`,
+a workspace of its own with no app guarantee, is exempt from both:
+its targets use `unchecked()` and its manifest turns the feature on.
+An `#[expect(clippy::disallowed_methods)]` over `Compute::unchecked`
+would silence clippy; only the costs lint rejects it, as it rejects
+`unchecked` under `faraday/` whatever attribute is over it.
 
 ## 4. The drawing side
 
@@ -224,8 +236,24 @@ change its own commit.
 C1–C3 run in sequence (they share ~700 call sites). Each C batch updates
 `fuzz/` and `faraday/fuzz/` for what it gates. When a count moves to its
 source the batch re-derives `moments.rs` and `presses.rs` and says why
-each number moved; no frame budget may rise from none. The guard stays
+each number moved; no frame budget may rise from none. The guard stayed
 active through every C batch.
+
+Built (2026-10-21):
+
+- **D1.** The costs lint, the compile_fail doctests, the full
+  `faraday/clippy.toml` with `tools/clippy.py`, and new budgets (each
+  kept accessor, allocations and lines a frame, each typed character,
+  the Pi's panel, a long session's kept lists; `docs/SPEED.md` §8.3).
+  Found: `View::item_hash` hashed a file on every read when it had no
+  hash from intake; three sheets stretched a key on every character
+  typed (now after a 400 ms pause, `docs/SPEED.md` §9 item 2); four
+  kept lists had no bound.
+- **D2.** The debug guard removed (§10); the token, the costs lint, the
+  doctests and the budget tests hold the rule.
+- **D3.** These docs: `docs/SPEED.md` §3.1 to §3.3, §8, §9; CLAUDE.md;
+  DECISIONS F66 and F69; `docs/UPSTREAM.md` §3. Found: §3, §7, §9 and
+  §12 corrected to what D1 built.
 
 ## 7. `faraday/clippy.toml`
 
@@ -237,8 +265,16 @@ only by `#[expect]` at §3's sites), `Compute::unchecked`,
 `osk-bip` function), `bitcoin::psbt::Psbt::deserialize`.
 `disallowed-types`: `miniscript::Descriptor` (`testkit.rs` and `examples/`
 under `#[expect]`). Hashing engines are not listed (risk 5). Paths
-resolve through the `osk_bip::bitcoin`/`miniscript` re-exports; clippy
-warns on an unresolvable path and `-D warnings` fails it.
+resolve through the `osk_bip::bitcoin`/`miniscript` re-exports.
+
+A path that names nothing (mistyped, or moved in a dependency) does not
+fail `-D warnings`: clippy prints a warning about its configuration and
+exits 0, and the entry guards nothing. `tools/clippy.py` runs clippy and
+fails when any message points into a `clippy.toml`; `just lint` runs
+clippy through it. The `Compute::unchecked` entry carries
+`allow-invalid = true`: the crates clippy checks under `faraday/` do not
+turn on `unchecked`, so the path names nothing in them, and the entry
+still holds wherever the feature is on.
 
 ## 8. The costs lint
 
@@ -249,28 +285,37 @@ by `just lint`; walks `core/*/src` and `faraday/**/src`, skipping
 1. a function with a `&Compute` parameter whose doc's first line does not
    state its cost; a function that calls `.count(` and takes no
    `&Compute`;
-2. `Compute::new` outside §3's list, `Compute::unchecked` anywhere under
-   `faraday/`, either constructor in core's non-test sources, the
-   `unchecked` feature in a `faraday/**/Cargo.toml`;
+2. `Compute::new` outside §3's list (tests and tools included),
+   `Compute::unchecked` anywhere under `faraday/` but `faraday/fuzz/`,
+   either constructor in core's non-test sources (but `unchecked`'s own
+   body), the `unchecked` feature in a `faraday/**/Cargo.toml` but the
+   fuzz crate's;
 3. a field, `static` or `thread_local` of type `Compute` other than
    `View.fill`;
 4. a `.compute()` call or `Compute::` path inside `render*` (but
-   `before_frame`) or any function taking `&View` or `&mut Ui`;
+   `before_frame`) or any function taking `&View` or `&mut Ui`.
 
 ## 9. compile_fail doctests
 
-Each pins its error code and has a sibling control that compiles.
-`core/osk-crypto/src/work.rs`: `c.clone()` (E0599), `Compute: Send`
-(E0277), `Compute: Default` (E0277). `faraday-core/src/drawing.rs`:
-`v.compute()` on `&View` (E0596), `app.compute()` on `&Faraday` (E0596),
-`WalletPolicy::parse(t)` without a token (E0061), `&v.fill` (E0616);
-control: `fn ev(app: &mut Faraday) { let c = app.compute();
-WalletPolicy::parse(&c, T); }`.
+`core/osk-crypto/src/work.rs`, on `Compute`, beside an example that
+compiles: `c.clone()` (E0599), `Compute: Send` (E0277), `Compute:
+Default` (E0277). `faraday-core/src/drawing.rs`, on `View`:
+`v.compute()` on `&View` (E0596), `app.compute()` on `&Faraday`
+(E0596), `WalletPolicy::parse(t)` without a token (E0061), `&v.fill`
+(E0616); twins that compile: `fn event(app: &mut Faraday, text: &str) {
+let c = app.compute(); WalletPolicy::parse(&c, text); }` and a draw
+reading `v.screen`.
+
+Rustdoc on this toolchain does not check the error code a
+`compile_fail` example names: an example that fails for another reason
+(a typo, a path moved) still passes. The compiling twin beside each,
+differing in the one thing refused, is what shows the refusal is the
+one meant; the codes are written for the reader.
 
 ## 10. When the debug guard is removed
 
-In D2, the commit after D1 is green on top of C3: every counted kind but
-the two pixel kinds then requires `&Compute`, the only token drawing can
+In D2, the commit after D1, green on top of C3: every counted kind but
+the two pixel kinds requires `&Compute`, the only token drawing can
 reach is `View`'s (used only by the guard's own three exceptions), and the
 lint and doctests hold the rest. Removed from `faraday-core/src/work.rs`:
 `Frame`, `DRAWING`, `FILLING`, `filling`, `keeping`, `allowed`, `callers`,
@@ -303,8 +348,9 @@ the token).
    reads.
 7. Count tables shift as counts move to their source; batches explain
    each change.
-8. If rustdoc does not check pinned error codes on this toolchain, the
-   controls still catch a doctest failing for the wrong reason.
+8. Rustdoc on this toolchain does not check pinned error codes (found
+   in D1). The compiling twin beside each `compile_fail` doctest is the
+   real guard: it catches a doctest failing for the wrong reason (§9).
 
 ## 13. Build time
 
