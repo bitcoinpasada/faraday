@@ -1,12 +1,13 @@
 //! The wallet description reader the device uses: a descriptor, a BIP-388 policy,
 //! a threshold or silent payments record, a BIP 129 record, a multisig
-//! config, a Coldcard export, a wallet `.json` or Bitcoin Core's
-//! `listdescriptors`, each read as the one wallet it describes. A text it
+//! config, a Coldcard export, a wallet `.json`, Bitcoin Core's
+//! `listdescriptors`, a single-key file or a Caravan config, each read as
+//! the one wallet it describes. A text it
 //! does not read is a [`Refusal`], whose line is Faraday's own
 //! (`faraday-strings`). Moved here from `faraday-core`'s `wallet` module,
 //! which re-exports it.
 
-use crate::slip132;
+use crate::{caravan, json, single_key, slip132};
 use faraday_strings::{EN, fill};
 use osk_bip::keys::Network;
 use osk_bip::policy::WalletPolicy;
@@ -153,6 +154,45 @@ fn read_wallet_as_written(text: &str) -> Result<WalletPolicy, Refusal> {
         return coldcard_export(text);
     }
     let plain = |d: &str| slip132::plain_descriptor(d).map_err(|m| Refusal::NotAWallet(m.text()));
+    // A single-key file (Cobo, Keystone, Coldcard's for Wasabi) or a
+    // Caravan config, read as JSON. JSON too deep or too long is refused;
+    // other text that is not quite JSON goes on to the readers below.
+    if text
+        .trim_start_matches('\u{feff}')
+        .trim_start()
+        .starts_with('{')
+    {
+        match json::parse(text) {
+            Ok(v) => {
+                if let Some(read) = single_key::read(&v) {
+                    let k = read.map_err(Refusal::NotAWallet)?;
+                    let d = k.descriptor().ok_or_else(|| {
+                        Refusal::NotAWallet(fill(
+                            EN.wallet_single_key_file,
+                            &[EN.wallet_single_key_no_type],
+                        ))
+                    })?;
+                    return WalletPolicy::parse_any(&d)
+                        .map_err(|e| Refusal::NotAWallet(e.to_string()));
+                }
+                if caravan::looks_like(&v) {
+                    let d = caravan::descriptor(&v).map_err(Refusal::NotAWallet)?;
+                    return WalletPolicy::parse_any(&d)
+                        .map_err(|e| Refusal::NotAWallet(e.to_string()));
+                }
+            }
+            Err(json::Error::TooDeep) => {
+                return Err(Refusal::NotAWallet(fill(
+                    EN.wallet_json_too_deep,
+                    &[&json::MAX_DEPTH.to_string()],
+                )));
+            }
+            Err(json::Error::TooLarge) => {
+                return Err(Refusal::NotAWallet(EN.wallet_json_too_large.into()));
+            }
+            Err(_) => {}
+        }
+    }
     // A wallet .json (Specter Desktop's, which Sparrow also writes and
     // reads) or Bitcoin Core's `listdescriptors`: the descriptor fields.
     if text.trim_start().starts_with('{') {

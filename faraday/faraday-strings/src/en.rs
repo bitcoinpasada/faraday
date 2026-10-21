@@ -5323,6 +5323,14 @@ pub struct Strings {
     pub public_files_key_bsms: &'static str,
     /// Text in `public_files`.
     pub public_files_signed: &'static str,
+    /// Text in `public_files`: the Caravan config's row.
+    pub public_files_caravan: &'static str,
+    /// Text in `public_files`: who reads the Caravan config.
+    pub public_files_caravan_unchained: &'static str,
+    /// Text in `public_files`: the Wasabi file's row.
+    pub public_files_wasabi: &'static str,
+    /// Text in `public_files`: who reads the Wasabi file.
+    pub public_files_wasabi_wallet: &'static str,
     // ----- public_rows_for (faraday-core/src/screens.rs) -----
     /// Text in `public_rows_for`.
     pub public_rows_for_make: &'static str,
@@ -7853,6 +7861,39 @@ pub struct Strings {
     /// Text in `slip132::Script::name`: a descriptor of no type a
     /// SLIP-132 version names.
     pub wallet_slip132_other: &'static str,
+    /// Error in `single_key::read`. `{}`: why.
+    pub wallet_single_key_file: &'static str,
+    /// Text in `single_key::read`.
+    pub wallet_single_key_fingerprint: &'static str,
+    /// Text in `single_key::read`.
+    pub wallet_single_key_xpub: &'static str,
+    /// Text in `single_key::read`.
+    pub wallet_single_key_path: &'static str,
+    /// Text in `read_wallet`, of a single-key file.
+    pub wallet_single_key_no_type: &'static str,
+    /// Error in `caravan::descriptor`. `{}`: why.
+    pub wallet_caravan: &'static str,
+    /// Text in `caravan::descriptor`.
+    pub wallet_caravan_address_type: &'static str,
+    /// Text in `caravan::descriptor`.
+    pub wallet_caravan_network: &'static str,
+    /// Text in `caravan::descriptor`.
+    pub wallet_caravan_starting_index: &'static str,
+    /// Text in `caravan::descriptor`.
+    pub wallet_caravan_keys: &'static str,
+    /// Text in `caravan::descriptor`.
+    pub wallet_caravan_quorum: &'static str,
+    /// Text in `caravan::descriptor`.
+    pub wallet_caravan_xfp: &'static str,
+    /// Text in `caravan::descriptor`. `{}`: the key, shortened.
+    pub wallet_caravan_no_origin: &'static str,
+    /// Text in `caravan::descriptor`. `{}`: the key, shortened; the
+    /// network it is on; the network the file names.
+    pub wallet_caravan_key_network: &'static str,
+    /// Error in `read_wallet`. `{}`: `json::MAX_DEPTH`.
+    pub wallet_json_too_deep: &'static str,
+    /// Error in `read_wallet`.
+    pub wallet_json_too_large: &'static str,
     /// Text in `collect_line`. `{}`: `missing`, `if collected == 0 { "" } else { " mor…`, `if missing == 1 { EN.wallet_signature…`.
     pub wallet_collect: &'static str,
     /// Text in `collect_line`, after a space.
@@ -11120,6 +11161,10 @@ pub static EN: Strings = Strings {
     public_files_for_the: "For the cosigners",
     public_files_key_bsms: "Key {}, BSMS",
     public_files_signed: "Signed xpub record, BIP 129",
+    public_files_caravan: "Caravan config",
+    public_files_caravan_unchained: "Caravan, Unchained",
+    public_files_wasabi: "Wasabi file",
+    public_files_wasabi_wallet: "Wasabi Wallet",
     public_rows_for_make: "Make the file",
     restore_of: "{} of {}",
     restore_none: "None",
@@ -12341,6 +12386,22 @@ pub static EN: Strings = Strings {
     wallet_slip132_legacy_multisig: "legacy multisig",
     wallet_slip132_silent_payments: "silent payments",
     wallet_slip132_other: "another script type",
+    wallet_single_key_file: "Single-key file: {}",
+    wallet_single_key_fingerprint: "MasterFingerprint is not 8 hex digits",
+    wallet_single_key_xpub: "ExtPubKey is not an extended public key",
+    wallet_single_key_path: "AccountKeyPath is not a derivation path",
+    wallet_single_key_no_type: "its key is not a single-key wallet's",
+    wallet_caravan: "Caravan config: {}",
+    wallet_caravan_address_type: "addressType is not P2WSH, P2SH-P2WSH or P2SH",
+    wallet_caravan_network: "network is not mainnet, testnet, signet or regtest",
+    wallet_caravan_starting_index: "startingAddressIndex is not 0",
+    wallet_caravan_keys: "a key in extendedPublicKeys is not an extended public key",
+    wallet_caravan_quorum: "the quorum does not match the keys listed",
+    wallet_caravan_xfp: "an xfp is not 8 hex digits",
+    wallet_caravan_no_origin: "{} has no bip32Path or xfp; every key of a multisig wallet needs both",
+    wallet_caravan_key_network: "{} is a {} key; the file says {}",
+    wallet_json_too_deep: "JSON nested more than {} levels deep",
+    wallet_json_too_large: "JSON longer than 1 MiB",
     wallet_collect: "Collect {}{} {}",
     wallet_more: "more",
     wallet_signature: "signature",

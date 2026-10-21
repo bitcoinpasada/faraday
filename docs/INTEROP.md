@@ -60,6 +60,9 @@ the files and codes they write.
 | Specter Desktop, Sparrow | Wallet `.json` whose keys carry no derivation | yes, as `<0;1>` | — | Specter's files; Sparrow's Specter and Coldcard exports of one wallet read as one |
 | Keystone | A change descriptor alone (`/1/*`) | yes, as `<0;1>` | — | Keystone's file |
 | Casa, Specter DIY, BlueWallet, Keystone, Electrum | SLIP-132 keys (`ypub`, `zpub`, `Ypub`, `Zpub`, `upub`, `vpub`, `Upub`, `Vpub`) in a descriptor, on a key line or bare, checked against the script or path (§5 I1) | yes; a `zpub`/`vpub` or `ypub`/`upub` alone as its single-key wallet | — | Casa's descriptor, Specter DIY's keystore, Keystone's, BIP-84's account as a zpub at its published first address |
+| Cobo, Keystone | Single-key `.json` (`ExtPubKey`, `MasterFingerprint`, `AccountKeyPath`), the version checked against the path (§5 I2) | yes, also in Create's key slots | — | Sparrow's Cobo file at BIP-84's first address; BlueWallet's Cobo file as Keystone's export of the same key |
+| Coldcard, Wasabi | Coldcard's Wasabi file (`ColdCardFirmwareVersion`), as BIP-84 account 0 (§5 I2) | yes | `{stem}-wasabi.json`, BIP-84 account 0 only | Coldcard Mk4's file against its generic export's `first`; Faraday's read back |
+| Caravan, Unchained, Sparrow, BlueWallet | Caravan wallet config, `sortedmulti` (§5 I5) | yes; a key with no `bip32Path` or `xfp` refused | `{stem}-caravan.json`, `sortedmulti` with every origin | Sparrow's exports (its two refused ones refused); BlueWallet's at its first address once its third key's path is given; Faraday's read back |
 
 Ledger, Trezor and BitBox02 sign over USB through a coordinator; they
 reach Faraday as keys inside the wallet files above, which work.
@@ -89,16 +92,19 @@ wallets.
 1. ~~**SLIP-132 keys**~~ Read since 2026-10-20 (§5 I1): in a
    descriptor, on a key line and bare, each checked against its script
    or path.
-2. **Caravan and Unchained wallet configs** (`extendedPublicKeys`,
-   `quorum`, `addressType`): neither read nor written.
+2. ~~**Caravan and Unchained wallet configs**~~ Read and written since
+   2026-10-20 (§5 I5). A key whose `bip32Path` is `Unknown` or which has
+   no `xfp` is refused: upstream's `WalletPolicy` holds no multisig key
+   without an origin (BIP-388), so BlueWallet's Caravan file, whose third
+   key has no path, does not load as written.
 3. **Electrum.** Electrum takes no descriptor, BIP 129 record or Specter
    file, and treats a plain `xpub` as legacy. Faraday writes nothing
    Electrum can make a SegWit watch-only wallet from; an Electrum wallet
    file (what Sparrow exports for Electrum) would. Faraday also reads no
    Electrum wallet file. Whether Faraday signs a PSBT Electrum builds from
    a key without its master fingerprint is untested.
-4. **Single-key JSON from Cobo/Keystone and Coldcard's Wasabi file**
-   (`ExtPubKey`, `MasterFingerprint`, `AccountKeyPath`).
+4. ~~**Single-key JSON from Cobo/Keystone and Coldcard's Wasabi file**~~
+   Read since 2026-10-20, and the Wasabi file written (§5 I2).
 5. **Electrum's own seeds** (not BIP-39): an Electrum wallet's words do not
    load.
 6. **Bitcoin Core before 29** takes no multipath descriptor; Faraday's
@@ -181,7 +187,12 @@ Writes `{stem}-wasabi.json` under More options, only for a single-key
 what `ColdCardFirmwareVersion` must hold; if it needs a real version,
 copy BlueWallet's vector. The Cobo/Keystone file is not written: it is a
 device's export of its own key, and no coordinator takes it from a third
-party. Tests: Cobo's singlesig keystore (73C5DA0A) has BIP-84's first
+party. Wasabi's reader (`WalletWasabi/Helpers/ImportWalletHelper.cs`,
+`GetKeyManagerByColdcardJson`, checked 2026-10-20) takes a file of at
+most three fields as Coldcard's, and reverses the fingerprint's bytes
+when `ColdCardFirmwareVersion` is missing or `2.1.0`; any other version
+must parse as a .NET `Version`. Faraday reads the fingerprint as Wasabi
+does and writes `5.2.2`, Coldcard Mk4's in BlueWallet's vector. Tests: Cobo's singlesig keystore (73C5DA0A) has BIP-84's first
 address for `abandon…about`; `skeleton-cobo.txt` loads; Coldcard MK4's
 Wasabi file is the BIP-84 account of its generic file, with the generic
 file's `first`; Faraday's Wasabi file reads back as the same wallet; JSON
@@ -352,6 +363,8 @@ equals the input; `psbt_parse` fuzzing gains v2.
 ### Notes for upstream (`local/for-upstream/interop.md`, the owner sends them)
 
 `osk_bip::slip132` multisig versions and a version/script check;
+`osk_bip::policy` holding a multisig key with no origin, watch-only (a
+Caravan config's `"bip32Path":"Unknown"`, §5 I5);
 `osk_bip::bsms` (#50); `osk_bip::coldcard::parse` rooting at the top-level
 `xfp`; `osk-psbt` reading and writing BIP-370; `osk_bip::silent` public
 `spscan`/`sp()` decoding; `osk_bip::core_import` before 29; optionally

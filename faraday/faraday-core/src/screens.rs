@@ -8793,8 +8793,9 @@ fn path_row(ui: &mut Ui, x: f32, y: f32, w: f32, path: &str, change: bool) -> f3
 
 /// Wallet `i`'s public files, as the backup's public step offers them:
 /// the descriptor, the wallet file, the multisig config, the backup
-/// sheet, the BSMS record, Bitcoin Core's import, and each key held here
-/// with its BSMS record, for the cosigners. Each has its own button, and Show as QR and PNG beside the
+/// sheet, the BSMS record, Bitcoin Core's import, each key held here
+/// with its BSMS record, for the cosigners, then the Caravan config and
+/// the Wasabi file where the wallet has one. Each has its own button, and Show as QR and PNG beside the
 /// ones a wallet or a person reads from a code.
 fn public_files(app: &Faraday, i: usize) -> Vec<FileRow<'static, String>> {
     use osk_bip::policy::{Template, Wrapper};
@@ -8899,6 +8900,26 @@ fn public_files(app: &Faraday, i: usize) -> Vec<FileRow<'static, String>> {
                 ),
             ));
         }
+    }
+    // I4: under More options
+    if faraday_intake::caravan::writes(wl.policy()) {
+        rows.push((
+            EN.public_files_caravan.to_string(),
+            EN.public_files_caravan_unchained,
+            format!("{stem}-caravan.json"),
+            Action::PublicOut(i, 11),
+            Vec::new(),
+        ));
+    }
+    // I4: under More options
+    if faraday_intake::single_key::wasabi_writes(wl.policy()) {
+        rows.push((
+            EN.public_files_wasabi.to_string(),
+            EN.public_files_wasabi_wallet,
+            format!("{stem}-wasabi.json"),
+            Action::PublicOut(i, 13),
+            Vec::new(),
+        ));
     }
     rows
 }

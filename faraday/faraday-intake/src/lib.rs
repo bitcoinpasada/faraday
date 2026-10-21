@@ -7,13 +7,18 @@
 //!
 //! Nothing here holds a word a person reads. Each answer is an enum, and
 //! the app that asked says it in its own strings; the one exception is
-//! [`wallet`], the description reader, whose refusals are Faraday's own
-//! lines (`faraday-strings`).
+//! [`wallet`], the description reader, and the readers of other
+//! wallets' files it calls ([`caravan`], [`single_key`], [`slip132`]),
+//! whose refusals are Faraday's own lines (`faraday-strings`). [`json`]
+//! is the JSON those readers read.
 //!
 //! [`secret_buf`] holds text a person types that may be a secret, wiped
 //! wherever it has been.
 
+pub mod caravan;
+pub mod json;
 pub mod secret_buf;
+pub mod single_key;
 pub mod slip132;
 pub mod wallet;
 

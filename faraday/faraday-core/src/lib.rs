@@ -8422,7 +8422,9 @@ impl Faraday {
     /// template, 1 the descriptor, 2 the multisig config, 3 the backup
     /// sheet, 4 the split shares, 5 the wallet .json, 6 the BIP 129
     /// descriptor record, 7 Bitcoin Core's `importdescriptors` file, 8 the
-    /// descriptor's code as a labelled picture.
+    /// descriptor's code as a labelled picture, 11 the Caravan config, 13
+    /// the Wasabi file (9 onward are under More options, `docs/INTEROP.md`
+    /// §5 I4).
     pub(crate) fn public_out(&mut self, wallet: usize, what: u8) {
         let files = self.public_made(wallet, what);
         let names: Vec<String> = files.iter().map(|(n, _)| n.clone()).collect();
@@ -8627,6 +8629,18 @@ impl Faraday {
             8 => {
                 for p in self.public_pictures(wallet, 8) {
                     files.push((p.name.clone(), p.png()));
+                }
+            }
+            11 => {
+                let net = wallet::policy_network(w.policy(), self.session.network())
+                    .unwrap_or(self.session.network());
+                if let Some(c) = faraday_intake::caravan::file(&w.name, w.policy(), net) {
+                    files.push((format!("{stem}-caravan.json"), c.into_bytes()));
+                }
+            }
+            13 => {
+                if let Some(c) = faraday_intake::single_key::wasabi_file(w.policy()) {
+                    files.push((format!("{stem}-wasabi.json"), c.into_bytes()));
                 }
             }
             _ => {}

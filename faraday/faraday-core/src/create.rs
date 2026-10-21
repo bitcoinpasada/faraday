@@ -433,7 +433,8 @@ pub fn read_key(text: &str) -> Option<String> {
 /// key record whose signature is the key's; Coldcard's multisig key file
 /// (`ccxp-….json`, which Passport and Unchained also write: flat `p2wsh`,
 /// `p2sh_p2wsh` and `p2sh` fields, each with its `_deriv`); Coldcard's
-/// generic export, one object per account; or `[fingerprint/path]xpub` on
+/// generic export, one object per account; a single-key file (Cobo's,
+/// Keystone's, Coldcard's for Wasabi); or `[fingerprint/path]xpub` on
 /// lines of their own.
 pub fn read_keys(text: &str) -> Vec<String> {
     if osk_bip::bsms::is_signer_record(text) {
@@ -445,6 +446,18 @@ pub fn read_keys(text: &str) -> Vec<String> {
             .collect();
     }
     if text.trim_start().starts_with('{') {
+        // A single-key file (Cobo, Keystone, Coldcard's for Wasabi): its
+        // one key.
+        if let Ok(v) = faraday_intake::json::parse(text)
+            && let Some(read) = faraday_intake::single_key::read(&v)
+        {
+            return read
+                .ok()
+                .and_then(|k| PolicyKey::parse(&k.key).ok())
+                .map(|k| k.key_text())
+                .into_iter()
+                .collect();
+        }
         return coldcard_keys(text);
     }
     text.lines()

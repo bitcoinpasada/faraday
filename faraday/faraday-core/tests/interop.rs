@@ -530,3 +530,240 @@ fn a_bsms_records_base58_address_with_its_case_changed_is_refused() {
         );
     }
 }
+
+// Single-key JSON files (`docs/INTEROP.md` §5 I2).
+
+#[test]
+fn cobos_single_key_file_for_bip_84s_seed_has_bip_84s_first_address() {
+    // Sparrow's Cobo file: BIP-84's account for `abandon … about`.
+    let w = wallet("sparrow/cobo-singlesig-keystore-1.json");
+    assert!(w.to_descriptor().starts_with("wpkh([73c5da0a/84"));
+    assert_eq!(first(&w, Network::Mainnet), BIP84_FIRST);
+    assert!(same(&w, &wallet("sparrow/jade-keystore.txt")));
+    // Create takes it for a native SegWit key slot, and for no multisig.
+    let text = file("sparrow/cobo-singlesig-keystore-1.json");
+    let key = key_for(NewKind::NativeSegwit, &text).unwrap();
+    assert!(
+        key.starts_with("[73c5da0a/84h/0h/0h]xpub") || key.starts_with("[73c5da0a/84'/0'/0']xpub"),
+        "{key}"
+    );
+    assert!(key_for(NewKind::Multi, &text).is_none());
+}
+
+#[test]
+fn blue_wallets_cobo_skeleton_is_the_wallet_keystone_exports_for_the_same_key() {
+    // BlueWallet's file writes its path with `\/`; Sparrow's Keystone
+    // file is the same key, 5271C071, as a change descriptor.
+    let cobo = wallet("bluewallet/skeleton-cobo.txt");
+    assert!(cobo.to_descriptor().starts_with("wpkh([5271c071/84"));
+    // Keystone's keeps its fingerprint upper-case.
+    assert_eq!(
+        cobo.to_descriptor(),
+        wallet("sparrow/keystone-singlesig-keystore-1.txt")
+            .to_descriptor()
+            .replace("5271C071", "5271c071")
+    );
+}
+
+#[test]
+fn coldcards_wasabi_file_is_the_native_segwit_account_of_its_generic_export() {
+    let generic = file("bluewallet/coldcardmk4-generic.json");
+    let wasabi = wallet("bluewallet/coldcardmk4-wasabi.json");
+    assert!(same(&wasabi, &read_wallet(&generic).unwrap()));
+    assert_eq!(first(&wasabi, Network::Mainnet), stated_first(&generic));
+}
+
+#[test]
+fn a_single_key_file_whose_key_disagrees_with_its_path_is_refused() {
+    // BIP-84's zpub on a BIP-49 path, and a Wasabi file (BIP-84) with a
+    // ypub.
+    let cobo = file("sparrow/cobo-singlesig-keystore-1.json").replace("84'", "49'");
+    let e = read_wallet(&cobo).expect_err("zpub at 49'");
+    assert!(e.text().contains(&BIP84_ZPUB[..8]), "{}", e.text());
+    let generic = file("bluewallet/coldcardmk4-generic.json");
+    let ypub = generic.split('"').find(|t| t.starts_with("ypub")).unwrap();
+    let wasabi = format!(
+        "{{\"ColdCardFirmwareVersion\": \"5.2.2\", \"MasterFingerprint\": \"086EE178\", \"ExtPubKey\": \"{ypub}\"}}"
+    );
+    assert!(read_wallet(&wasabi).is_err());
+}
+
+#[test]
+fn json_nested_past_the_depth_limit_is_refused() {
+    // The object is one level; the arrays inside it the rest.
+    let depth = faraday_intake::json::MAX_DEPTH;
+    let cobo = file("sparrow/cobo-singlesig-keystore-1.json");
+    let body = cobo.trim().trim_start_matches('{').trim_end_matches('}');
+    let deep = format!(
+        "{{{body}, \"x\": {}{}}}",
+        "[".repeat(depth),
+        "]".repeat(depth)
+    );
+    assert!(read_wallet(&deep).is_err());
+    // One level less reads as the file it is.
+    let shallow = format!(
+        "{{{body}, \"x\": {}{}}}",
+        "[".repeat(depth - 1),
+        "]".repeat(depth - 1)
+    );
+    assert_eq!(
+        first(&read_wallet(&shallow).unwrap(), Network::Mainnet),
+        BIP84_FIRST
+    );
+}
+
+/// The files Public files' row `what` puts in the Outbox for a wallet
+/// loaded from `descriptor`, as text.
+fn public_out(descriptor: &str, what: u8) -> Vec<(String, String)> {
+    let mut app = faraday_core::Faraday::new();
+    app.session = faraday_core::testkit::session();
+    let w = app
+        .session
+        .add_wallet(
+            "Test",
+            descriptor,
+            "Test wallet",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap_or_else(|e| panic!("{descriptor}: {}", e.text()));
+    app.press(faraday_core::Action::PublicOut(w, what));
+    app.outbox
+        .iter()
+        .map(|i| (i.name.clone(), String::from_utf8(i.bytes.clone()).unwrap()))
+        .collect()
+}
+
+/// Public files' Wasabi row (`Faraday::public_out`).
+const WASABI_ROW: u8 = 13;
+/// Public files' Caravan row.
+const CARAVAN_ROW: u8 = 11;
+
+fn kit(id: &str) -> String {
+    faraday_core::testkit::kits()
+        .into_iter()
+        .find(|k| k.id == id)
+        .unwrap()
+        .descriptor
+}
+
+#[test]
+fn faradays_wasabi_file_reads_back_as_the_same_wallet_and_only_bip_84s_account_0_has_one() {
+    let spending = kit("spending");
+    let out = public_out(&spending, WASABI_ROW);
+    let [(name, text)] = &out[..] else {
+        panic!("{out:?}")
+    };
+    assert_eq!(name, "test-wasabi.json");
+    let back = read_wallet(text).unwrap();
+    assert!(same(&back, &read_wallet(&spending).unwrap()));
+    assert_eq!(
+        first(&back, Network::Testnet),
+        first(&read_wallet(&spending).unwrap(), Network::Testnet)
+    );
+    for other in ["nested", "taproot", "savings"] {
+        assert!(public_out(&kit(other), WASABI_ROW).is_empty(), "{other}");
+    }
+    // Account 1 is not the account Wasabi assumes.
+    let account_1 = format!(
+        "wpkh({}/<0;1>/*)",
+        faraday_core::testkit::key(0, "m/84'/1'/1'")
+    );
+    assert!(public_out(&account_1, WASABI_ROW).is_empty());
+}
+
+// Caravan and Unchained configs (`docs/INTEROP.md` §5 I5).
+
+#[test]
+fn sparrows_caravan_export_loads_as_the_descriptor_its_fields_spell() {
+    let w = wallet("sparrow/caravan-multisig-export-1.json");
+    let p = "48'/0'/0'/2'";
+    let by_hand = format!(
+        "wsh(sortedmulti(2,[8188029f/{p}]xpub6EMVvcTUbaABdaPLaVWE72CjcN72URa5pKK1knrKLz1hKaDwUkgddc3832a8MHEpLyuow7MfjMRomt2iMtwPH4pWrFLft4JsquHjeZfKsYp/<0;1>/*,[a15e8133/{p}]xpub6EbTHAgvzZtVppjLPXia2prt6T2w7DD2VQ8gysgV6ECzmKkA6zt4WR3hX4bgciTDrnaneZoJbA19tYKBMrWuA89SbgYAdbMNWmtzrgLhqco/<0;1>/*,[d31cf7f9/{p}]xpub6Ea6qWGr6BWpCSyLo8ggypvXg1MwadiAGZxAHvrBUwvT2ki6pNVG61bg3YEdxkj7FRJ1cLFK7Vvqd9rcDvwCLX7VfEMfJJfdbA1NGsFazvz/<0;1>/*))"
+    );
+    assert!(same(&w, &read_wallet(&by_hand).unwrap()));
+}
+
+#[test]
+fn caravan_exports_sparrow_refuses_are_refused() {
+    // Sparrow's own test refuses both: a quorum of 0, and a total of 3
+    // over two keys.
+    for path in [
+        "sparrow/caravan-multisig-export-2.json",
+        "sparrow/caravan-multisig-export-3.json",
+    ] {
+        assert!(read_wallet(&file(path)).is_err(), "{path}");
+    }
+}
+
+#[test]
+fn blue_wallets_caravan_file_with_its_third_keys_path_loads_at_blue_wallets_first_address() {
+    // As written, its third key's bip32Path is "Unknown": a multisig
+    // wallet here holds no key without its origin, and the key is named.
+    let text = file("bluewallet/caravan-multisig.json");
+    let e = read_wallet(&text).expect_err("a key with no origin");
+    assert!(e.text().contains("xpub6ERj"), "{}", e.text());
+    // Sparrow's Coldcard export of the same wallet states that key's
+    // path; with it, the config is the wallet that export is.
+    let given = text.replace(
+        "\"bip32Path\": \"Unknown\"",
+        "\"bip32Path\": \"m/48'/0'/0'/2'\"",
+    );
+    let w = read_wallet(&given).unwrap();
+    assert!(same(&w, &wallet("bluewallet/fromsparrow-coldcard.txt")));
+    // BlueWallet's `multisig-hd-wallet.test.js`, "can parse files from
+    // sparrow wallet".
+    assert_eq!(
+        first(&w, Network::Mainnet),
+        "bc1qtysquqsjqjfqvhd6l2h470hdgwhcahs4nq2ca49cyxftwjnjt9ssh8emel"
+    );
+}
+
+#[test]
+fn a_caravan_config_whose_keys_or_start_disagree_with_it_is_refused() {
+    let text = file("sparrow/caravan-multisig-export-1.json");
+    for changed in [
+        text.replace("\"mainnet\"", "\"testnet\""),
+        text.replace("\"startingAddressIndex\": 0", "\"startingAddressIndex\": 5"),
+        text.replace("\"P2WSH\"", "\"P2TR\""),
+    ] {
+        assert!(read_wallet(&changed).is_err(), "{changed}");
+    }
+    // A key whose SLIP-132 version names nested multisig, in a P2WSH
+    // config: Unchained's Ypub.
+    let ypub = file("bluewallet/unchained.json")
+        .split('"')
+        .find(|t| t.starts_with("Ypub"))
+        .unwrap()
+        .to_string();
+    let first_xpub = text
+        .split('"')
+        .find(|t| t.starts_with("xpub6"))
+        .unwrap()
+        .to_string();
+    let e = read_wallet(&text.replace(&first_xpub, &ypub)).expect_err("Ypub in P2WSH");
+    assert!(e.text().contains(&ypub[..8]), "{}", e.text());
+}
+
+#[test]
+fn faradays_caravan_file_reads_back_with_the_same_first_address() {
+    for id in ["savings", "vault-nested", "vault-legacy"] {
+        let d = kit(id);
+        let out = public_out(&d, CARAVAN_ROW);
+        let [(name, text)] = &out[..] else {
+            panic!("{id}: {out:?}")
+        };
+        assert_eq!(name, "test-caravan.json");
+        let back = read_wallet(text).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
+        let own = read_wallet(&d).unwrap();
+        assert!(same(&back, &own), "{id}");
+        assert_eq!(
+            first(&back, Network::Testnet),
+            first(&own, Network::Testnet),
+            "{id}"
+        );
+    }
+    // Caravan builds sortedmulti only.
+    for id in ["spending", "taproot-multisig", "inheritance"] {
+        assert!(public_out(&kit(id), CARAVAN_ROW).is_empty(), "{id}");
+    }
+}

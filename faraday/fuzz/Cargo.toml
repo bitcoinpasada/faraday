@@ -17,6 +17,7 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 faraday-fat = { path = "../faraday-fat" }
 faraday-apk = { path = "../faraday-apk" }
+faraday-intake = { path = "../faraday-intake" }
 
 [profile.release]
 debug = true
@@ -31,6 +32,13 @@ bench = false
 [[bin]]
 name = "apk"
 path = "fuzz_targets/apk.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "json"
+path = "fuzz_targets/json.rs"
 test = false
 doc = false
 bench = false
