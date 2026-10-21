@@ -244,7 +244,8 @@ Writes `{stem}-bitcoin-core-before-29.json`: two `importdescriptors`
 requests, receive (`"internal":false`) and change (`"internal":true`),
 each from `Descriptor::into_single_descriptors()` with its own checksum,
 `"active":true`, `"range":[0,999]`, `"timestamp":0`. Not for MuSig2, FROST
-or silent payments. Tests: a fresh Public files list shows no row under
+or silent payments. Written by `osk_bip::core_import::import_descriptors_pair`
+(moved from `faraday-intake/src/core_before_29.rs` 2026-10-20). Tests: a fresh Public files list shows no row under
 More options until it is pressed; the file's two descriptors read back as
 the wallet; each checksum is Core's (shape of `core/listdescriptors.json`);
 `core-check.py` (not in `just`) gains a run against Core 28.x.

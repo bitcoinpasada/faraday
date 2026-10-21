@@ -117,6 +117,13 @@ Since the fork:
   reads both. Accepts more than before only in these two owner-confirmed
   cases; a base58 address in another case and every record Sparrow
   refuses stay refused.
+- `core/osk-bip/src/core_import.rs` (2026-10-20):
+  `import_descriptors_pair`, with `pair_descriptors` and `writes_pair`,
+  writes Bitcoin Core's `importdescriptors` file for Core before 29 (a
+  receive and a change request, each with its own checksum, the string
+  written with `json::quote`), moved in from `faraday-intake`'s
+  `core_before_29`. Why: the format's writer beside the multipath one.
+  Same output as before.
 
 ## 4. Watching upstream
 

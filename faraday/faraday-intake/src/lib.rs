@@ -11,14 +11,12 @@
 //! wallets' files it calls ([`caravan`], [`electrum`], [`single_key`]),
 //! whose refusals are Faraday's own lines (`faraday-strings`), a SLIP-132
 //! key's among them (`osk_bip::slip132` reads the key); the JSON those
-//! readers read is `osk_bip::json`. [`core_before_29`]
-//! writes Bitcoin Core's import file for Core before 29.
+//! readers read is `osk_bip::json`.
 //!
 //! [`secret_buf`] holds text a person types that may be a secret, wiped
 //! wherever it has been.
 
 pub mod caravan;
-pub mod core_before_29;
 pub mod electrum;
 pub mod secret_buf;
 pub mod single_key;
