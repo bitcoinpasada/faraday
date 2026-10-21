@@ -24,7 +24,49 @@
 
 use std::path::PathBuf;
 
-use osk_shell_api::Event;
+use osk_shell_api::{CameraFailure, Event};
+
+/// A camera that would not start: the reason to print, and the reason
+/// to tell the app when it is clearly one of the three the app has
+/// lines for.
+#[derive(Debug)]
+pub struct Unavailable {
+    /// For `--verbose` and the terminal.
+    pub reason: String,
+    /// Refused, in use or not found; `None` when it is none of these.
+    pub why: Option<CameraFailure>,
+}
+
+impl Unavailable {
+    /// A failure that is none of the three.
+    fn plain(reason: impl Into<String>) -> Unavailable {
+        Unavailable {
+            reason: reason.into(),
+            why: None,
+        }
+    }
+
+    /// The event that tells the app: `CameraFailed` with the reason, or
+    /// `CameraUnavailable` when the reason is not known.
+    pub fn event(&self) -> Event {
+        event_for(self.why)
+    }
+}
+
+impl std::fmt::Display for Unavailable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.reason)
+    }
+}
+
+/// The event for a camera that gave no frames: `CameraFailed` when the
+/// reason is known, else `CameraUnavailable`.
+fn event_for(why: Option<CameraFailure>) -> Event {
+    match why {
+        Some(why) => Event::CameraFailed(why),
+        None => Event::CameraUnavailable,
+    }
+}
 
 /// The shell's side of the camera channel.
 pub struct Camera {
@@ -43,9 +85,10 @@ impl Camera {
     }
 
     /// Starts capture. Doing this while the camera is already on is a
-    /// no-op, as the contract requires. The error is a reason to print,
-    /// and the caller answers `CameraUnavailable` once.
-    pub fn on(&mut self) -> Result<(), String> {
+    /// no-op, as the contract requires. The error is a reason to print
+    /// and, when it is known, the reason to tell the app
+    /// ([`Unavailable::event`]); the caller answers once.
+    pub fn on(&mut self) -> Result<(), Unavailable> {
         self.inner.on()
     }
 
@@ -121,8 +164,19 @@ mod linux {
     use std::sync::mpsc::{Receiver, TryRecvError, sync_channel};
     use std::thread::JoinHandle;
 
-    use opensigner_v4l2::{Camera as Device, Frame, MAX_FPS, Size};
-    use osk_shell_api::Event;
+    use opensigner_v4l2::{Camera as Device, Failure, Frame, MAX_FPS, Size};
+    use osk_shell_api::{CameraFailure, Event};
+
+    use super::Unavailable;
+
+    /// The app's reason for a V4L2 one.
+    fn reason(why: Failure) -> CameraFailure {
+        match why {
+            Failure::Refused => CameraFailure::Refused,
+            Failure::InUse => CameraFailure::InUse,
+            Failure::NotFound => CameraFailure::NotFound,
+        }
+    }
 
     /// Frames the channel holds. Two is one being decoded and one
     /// waiting; a third would already be out of date by the time the
@@ -151,20 +205,24 @@ mod linux {
             }
         }
 
-        pub fn on(&mut self) -> Result<(), String> {
+        pub fn on(&mut self) -> Result<(), Unavailable> {
             if self.disabled {
-                return Err(String::from("--no-camera"));
+                return Err(Unavailable::plain("--no-camera"));
             }
             if self.session.is_some() {
                 return Ok(());
             }
             let path = match &self.device {
                 Some(p) => p.clone(),
-                None => opensigner_v4l2::find()
-                    .ok_or_else(|| String::from("no /dev/video* is a streaming capture device"))?,
+                None => opensigner_v4l2::find_or_failure().map_err(|why| Unavailable {
+                    reason: String::from("no /dev/video* is a streaming capture device"),
+                    why: Some(reason(why)),
+                })?,
             };
-            let device = Device::open(&path, Size::HD)
-                .map_err(|e| format!("cannot open {}: {e}", path.display()))?;
+            let device = Device::open(&path, Size::HD).map_err(|e| Unavailable {
+                reason: format!("cannot open {}: {e}", path.display()),
+                why: Failure::of_io(&e).map(reason),
+            })?;
             let size = device.size();
             eprintln!(
                 "camera {}: {} {}x{}, up to {MAX_FPS} frames a second",
@@ -237,7 +295,17 @@ mod macos {
     use std::sync::mpsc::{Receiver, TryRecvError, sync_channel};
 
     use opensigner_avfoundation::{Camera as Session, MAX_FPS, Message};
-    use osk_shell_api::Event;
+    use osk_shell_api::{CameraFailure, Event};
+
+    use super::{Unavailable, event_for};
+    /// The app's reason for the backend's.
+    fn failure(why: opensigner_avfoundation::Failure) -> CameraFailure {
+        match why {
+            opensigner_avfoundation::Failure::Refused => CameraFailure::Refused,
+            opensigner_avfoundation::Failure::InUse => CameraFailure::InUse,
+            opensigner_avfoundation::Failure::NotFound => CameraFailure::NotFound,
+        }
+    }
 
     /// Frames the channel holds, as on Linux: one being decoded and one
     /// waiting. A third would be out of date by the time the core
@@ -271,9 +339,9 @@ mod macos {
             }
         }
 
-        pub fn on(&mut self) -> Result<(), String> {
+        pub fn on(&mut self) -> Result<(), Unavailable> {
             if self.disabled {
-                return Err(String::from("--no-camera"));
+                return Err(Unavailable::plain("--no-camera"));
             }
             if self.session.is_some() {
                 return Ok(());
@@ -321,10 +389,10 @@ mod macos {
                 // that a later `CameraOn` starts a session and asks
                 // again; macOS answers a second request from its
                 // remembered decision, without another prompt.
-                Ok(Message::Unavailable) => {
+                Ok(Message::Unavailable(why)) => {
                     eprintln!("camera: no device, or macOS refused access");
                     self.off();
-                    Some(Event::CameraUnavailable)
+                    Some(event_for(why.map(failure)))
                 }
                 Err(TryRecvError::Empty) => None,
                 // The sender lives as long as the session, so this is
@@ -346,7 +414,17 @@ mod windows {
     use std::sync::mpsc::{Receiver, TryRecvError, sync_channel};
 
     use faraday_mediafoundation::{Camera as Session, MAX_FPS, Message};
-    use osk_shell_api::Event;
+    use osk_shell_api::{CameraFailure, Event};
+
+    use super::{Unavailable, event_for};
+    /// The app's reason for the backend's.
+    fn failure(why: faraday_mediafoundation::Failure) -> CameraFailure {
+        match why {
+            faraday_mediafoundation::Failure::Refused => CameraFailure::Refused,
+            faraday_mediafoundation::Failure::InUse => CameraFailure::InUse,
+            faraday_mediafoundation::Failure::NotFound => CameraFailure::NotFound,
+        }
+    }
 
     /// Frames the channel holds, as on Linux: one being decoded and one
     /// waiting. A third would be out of date by the time the core
@@ -380,9 +458,9 @@ mod windows {
             }
         }
 
-        pub fn on(&mut self) -> Result<(), String> {
+        pub fn on(&mut self) -> Result<(), Unavailable> {
             if self.disabled {
-                return Err(String::from("--no-camera"));
+                return Err(Unavailable::plain("--no-camera"));
             }
             if self.session.is_some() {
                 return Ok(());
@@ -430,8 +508,13 @@ mod windows {
                 // or a device that failed; or the capture thread ended
                 // with the channel too full to say so. Turn the camera
                 // off so that a later `CameraOn` tries again.
-                Ok(Message::Unavailable) | Err(TryRecvError::Disconnected) => {
+                Ok(Message::Unavailable(why)) => {
                     eprintln!("camera: no device, Windows refused access, or the device failed");
+                    self.off();
+                    Some(event_for(why.map(failure)))
+                }
+                Err(TryRecvError::Disconnected) => {
+                    eprintln!("camera: the capture thread ended without a word");
                     self.off();
                     Some(Event::CameraUnavailable)
                 }
@@ -450,6 +533,8 @@ mod other {
 
     use osk_shell_api::Event;
 
+    use super::Unavailable;
+
     pub struct Inner;
 
     impl Inner {
@@ -457,8 +542,8 @@ mod other {
             Inner
         }
 
-        pub fn on(&mut self) -> Result<(), String> {
-            Err(String::from(
+        pub fn on(&mut self) -> Result<(), Unavailable> {
+            Err(Unavailable::plain(
                 "this shell captures on Linux, macOS and Windows only",
             ))
         }

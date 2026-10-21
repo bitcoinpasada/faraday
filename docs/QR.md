@@ -571,7 +571,8 @@ shells'. DESIGN §4.9 Scanner is the design they meet. No torch (DESIGN
    the camera goes (`scanned`), parts included, and is wiped once
    routed. Empty text or `ClipboardUnavailable` puts "Nothing to paste"
    on the state line for `NOTE_FLASH_MS` (2 s). The small panel has no
-   Paste: no shell there has a clipboard.
+   Paste: no shell there has a clipboard, and no dimmed tile stands in
+   for it. Paste is not on the small panel.
 6. **Camera failures.** If no frame arrives `NO_PICTURE_MS` (6 s) after
    the sheet opens, the square says "The camera sends no picture". A
    frame arriving later clears it. `osk-shell-api` gains
@@ -599,12 +600,18 @@ shells'. DESIGN §4.9 Scanner is the design they meet. No torch (DESIGN
 9. **macOS camera choice.** The window shell lists the AVFoundation
    cameras, and choosing one reopens the camera on it.
 
-Open for the owner:
+Decided by the owner on 2026-10-21 (the list that was open here):
 
-- The camera's picture keeps its 4:3 shape. DESIGN §4.9 draws a square.
-- Read a file in the scanner. On the stick, a scanner opens only with no
-  stick attached, so the tile could only close the scanner and open
-  Files. It is not built.
-- Paste is on the desktop's scanner sheet. On the small panel there is no
-  Paste and no dimmed tile, for the room.
-- The waits: 6 s for no picture, 4 s for a QR seen and not read.
+- **The camera's full picture, in its own 4:3 shape**, not cropped to a
+  square. What the scanner reads is what the person sees. DESIGN §4's
+  Scanner row says so.
+- **No "Read a file" in the scanner.** Files and the Inbox already load
+  files; on the stick a scanner opens only with no stick attached, so the
+  tile could only close the scanner and open Files. The scanner's band
+  holds Paste (desktop only) and Type.
+- **Paste is desktop only**, never on the small panel: there is no Paste
+  and no dimmed tile there.
+- **The waits stay**: 6 s for no picture, 4 s for a QR seen and not
+  read.
+- **Paste's seed-word check stays English only.** Widening it to other
+  wordlists is dropped.

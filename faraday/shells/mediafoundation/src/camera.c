@@ -18,7 +18,8 @@
 //     int32_t osk_mf_capture(void *ctx, const uint16_t *link,
 //                            osk_mf_frame_fn on_frame);
 //
-// Both functions return one of the OSK_MF_* codes below.
+// Both functions return 0, 1, 3 or an HRESULT, as the OSK_MF_* codes
+// below say.
 //
 // osk_mf_list calls on_device once for each video capture device, with
 // its friendly name and its symbolic link as UTF-16 (not terminated),
@@ -62,10 +63,13 @@
 // No video capture device, the chosen one is gone, or no Media
 // Foundation on this Windows.
 #define OSK_MF_NO_CAMERA 1
-// E_ACCESSDENIED: Windows' camera privacy setting refused this program.
-#define OSK_MF_DENIED 2
-// Any other failure, before the first frame or after it.
+// A failure with no HRESULT behind it (a stream that ended, a mode that
+// cannot be read), before the first frame or after it.
 #define OSK_MF_FAILED 3
+// Any failure that has an HRESULT is returned as that HRESULT, which is
+// negative: the Rust side tells E_ACCESSDENIED (the camera privacy
+// setting) and the "in use" codes from the rest (src/lib.rs,
+// `Failure::of_status`).
 
 // The size asked for: a dense code needs about this many pixels to read.
 // A camera without the mode gives the nearest one it has.
@@ -148,7 +152,7 @@ static int com_enter(void) {
 }
 
 static int32_t failure(HRESULT hr) {
-    return hr == E_ACCESSDENIED ? OSK_MF_DENIED : OSK_MF_FAILED;
+    return (int32_t)hr;
 }
 
 // Every video capture device. On success the caller owes free_devices.

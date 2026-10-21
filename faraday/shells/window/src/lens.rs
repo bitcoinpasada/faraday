@@ -46,7 +46,7 @@ impl Lens {
         app.storage(StorageEvent::Cameras(camera::list()));
         if let Err(reason) = self.camera.on() {
             eprintln!("faraday: camera unavailable: {reason}");
-            return Some(Event::CameraUnavailable);
+            return Some(reason.event());
         }
         if self.scanner.is_none() {
             self.scanner = Some(Scanner::new(ReadMode::Full));

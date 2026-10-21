@@ -40,7 +40,8 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 use faraday_scanner::{reduce, reduce_chroma, reduce_factor};
-use opensigner_v4l2::{Camera as Device, Frame, Size};
+use opensigner_v4l2::{Camera as Device, Failure, Frame, Size};
+use osk_shell_api::CameraFailure;
 use zeroize::Zeroizing;
 
 use crate::Wake;
@@ -64,8 +65,9 @@ const FPS: u8 = 15;
 enum Message {
     /// One captured frame, waiting to be taken.
     Frame(Queued),
-    /// The device could not be opened, with the reason for `--verbose`.
-    Unavailable(String),
+    /// The device could not be opened, with the reason for `--verbose`
+    /// and the one the app has a line for, when there is one.
+    Unavailable(String, Option<CameraFailure>),
 }
 
 /// A captured frame on the channel: reduced for the core's preview, and
@@ -104,8 +106,9 @@ pub enum Capture {
     /// A frame to draw and to decode.
     Frame(Shot),
     /// No device, or one that would not stream: the loop sends the
-    /// contract's `Event::CameraUnavailable`.
-    Unavailable,
+    /// contract's `Event::CameraFailed` with the reason when there is
+    /// one, else `Event::CameraUnavailable`.
+    Unavailable(Option<CameraFailure>),
 }
 
 /// A running capture: the thread, its stop flag, and the frames.
@@ -198,10 +201,10 @@ impl Camera {
             })),
             // No device, or one that would not stream. Turn the camera
             // off so that a later `CameraOn` tries again.
-            Ok(Message::Unavailable(reason)) => {
+            Ok(Message::Unavailable(reason, why)) => {
                 self.reason = Some(reason);
                 self.off();
-                Some(Capture::Unavailable)
+                Some(Capture::Unavailable(why))
             }
             Err(TryRecvError::Empty) => None,
             // The capture thread ended on its own: the device is gone.
@@ -246,14 +249,13 @@ fn capture(
     stop: &AtomicBool,
 ) {
     let opened = match device {
-        Some(p) => {
-            Device::open(&p, Size::VGA).map_err(|e| format!("cannot open {}: {e}", p.display()))
-        }
-        None => match opensigner_v4l2::find() {
-            Some(p) => {
-                Device::open(&p, Size::VGA).map_err(|e| format!("cannot open {}: {e}", p.display()))
-            }
-            None => Err(String::from("no /dev/video* is a streaming capture device")),
+        Some(p) => open(&p),
+        None => match opensigner_v4l2::find_or_failure() {
+            Ok(p) => open(&p),
+            Err(why) => Err((
+                String::from("no /dev/video* is a streaming capture device"),
+                Some(app_reason(why)),
+            )),
         },
     };
     let opened = match opened {
@@ -261,8 +263,8 @@ fn capture(
             device.set_max_fps(FPS);
             device
         }
-        Err(reason) => {
-            let _ = tx.send(Message::Unavailable(reason));
+        Err((reason, why)) => {
+            let _ = tx.send(Message::Unavailable(reason, why));
             let _ = wake.try_send(Wake::Frame);
             return;
         }
@@ -284,6 +286,26 @@ fn capture(
     }
     inner_stop.store(true, Ordering::Relaxed);
     let _ = inner.join();
+}
+
+/// Opens `path` at VGA, or says why not: the text for `--verbose` and
+/// the reason the app has a line for, when the error gives one.
+fn open(path: &std::path::Path) -> Result<Device, (String, Option<CameraFailure>)> {
+    Device::open(path, Size::VGA).map_err(|e| {
+        (
+            format!("cannot open {}: {e}", path.display()),
+            Failure::of_io(&e).map(app_reason),
+        )
+    })
+}
+
+/// The app's reason for a V4L2 one.
+fn app_reason(why: Failure) -> CameraFailure {
+    match why {
+        Failure::Refused => CameraFailure::Refused,
+        Failure::InUse => CameraFailure::InUse,
+        Failure::NotFound => CameraFailure::NotFound,
+    }
 }
 
 /// One captured frame reduced for the preview, with the captured luma

@@ -1864,19 +1864,22 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         // A camera that would not open, which the capture thread
         // reports once. It is not a frame and is not dropped for a
         // newer one.
-        let mut unavailable = false;
+        let mut unavailable = None;
         while let Some(capture) = shell.camera.poll() {
             match capture {
                 Capture::Frame(shot) => newest = Some(shot),
-                Capture::Unavailable => unavailable = true,
+                Capture::Unavailable(why) => unavailable = Some(why),
             }
         }
-        if unavailable {
+        if let Some(why) = unavailable {
             if let Some(reason) = shell.camera.take_reason() {
                 shell.say(&format!("camera unavailable: {reason}"));
             }
             shell.scanner = None;
-            shell.send(Event::CameraUnavailable);
+            shell.send(match why {
+                Some(why) => Event::CameraFailed(why),
+                None => Event::CameraUnavailable,
+            });
         }
         if let Some(shot) = newest {
             // The capture thread reduced the frame once, so each half

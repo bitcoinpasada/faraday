@@ -55,6 +55,54 @@
 // layout on both systems.
 use opensigner_avfoundation::convert;
 
+/// Why a camera gave no frames, when it is clearly one of three things:
+/// the type `opensigner-avfoundation` has, shared by both crates.
+pub use opensigner_avfoundation::Failure;
+
+/// `osk_mf_capture`'s `OSK_MF_NO_CAMERA`.
+const STATUS_NO_CAMERA: i32 = 1;
+
+/// Windows' camera privacy setting refused the program
+/// (`E_ACCESSDENIED`).
+const E_ACCESSDENIED: u32 = 0x8007_0005;
+/// A source or reader that could not start streaming, as when another
+/// program has the camera (`MF_E_HW_MFT_FAILED_START_STREAMING`), or a
+/// sharing violation or busy device from the driver
+/// (`HRESULT_FROM_WIN32` of `ERROR_SHARING_VIOLATION`, `ERROR_BUSY`).
+const IN_USE: [u32; 3] = [0xC00D_3704, 0x8007_0020, 0x8007_00AA];
+/// The device is not there (`HRESULT_FROM_WIN32` of
+/// `ERROR_FILE_NOT_FOUND`, `ERROR_DEVICE_NOT_CONNECTED`).
+const GONE: [u32; 2] = [0x8007_0002, 0x8007_048F];
+
+/// The reason an HRESULT gives for a camera that did not open or stream,
+/// or `None` for any other.
+#[must_use]
+pub fn failure_of_hresult(hr: u32) -> Option<Failure> {
+    if hr == E_ACCESSDENIED {
+        Some(Failure::Refused)
+    } else if IN_USE.contains(&hr) {
+        Some(Failure::InUse)
+    } else if GONE.contains(&hr) {
+        Some(Failure::NotFound)
+    } else {
+        None
+    }
+}
+
+/// The reason `osk_mf_capture`'s status gives: 1 is no camera, a
+/// negative status is an HRESULT, and any other (a failure with no
+/// HRESULT) has none.
+#[must_use]
+pub fn failure_of_status(status: i32) -> Option<Failure> {
+    if status == STATUS_NO_CAMERA {
+        Some(Failure::NotFound)
+    } else if status < 0 {
+        failure_of_hresult(status as u32)
+    } else {
+        None
+    }
+}
+
 /// One captured frame: 8-bit luma, row-major, `width × height` bytes,
 /// and the NV12 chroma plane for it, which is exactly the payload of
 /// `osk_shell_api::Event::CameraFrame`.
@@ -115,8 +163,9 @@ pub enum Message {
     Frame(Frame),
     /// No frames will come: no camera, the chosen one is gone, Windows
     /// refused this program the camera, or the device failed. Sent at
-    /// most once.
-    Unavailable,
+    /// most once, with the reason when it is clearly one of
+    /// [`Failure`]'s.
+    Unavailable(Option<Failure>),
 }
 
 /// A video capture device, as the scan sheet offers it.
@@ -148,7 +197,7 @@ mod windows {
     use std::thread::JoinHandle;
     use std::time::{Duration, Instant};
 
-    use crate::{Device, Frame, MAX_FPS, Message};
+    use crate::{Device, Frame, MAX_FPS, Message, failure_of_status};
 
     /// The C ABI of `src/camera.c`, which declares the same signatures in
     /// its header comment.
@@ -182,8 +231,8 @@ mod windows {
     }
 
     /// `OSK_MF_OK`: the list is complete, or `on_frame` asked to stop.
-    /// The other codes (no camera, refused, failed) all mean the same
-    /// thing to the shell: [`Message::Unavailable`].
+    /// Every other status is a [`Message::Unavailable`], with the
+    /// reason `failure_of_status` finds in it.
     const OSK_MF_OK: i32 = 0;
 
     /// The cameras this machine has, in Media Foundation's order (the
@@ -348,7 +397,9 @@ mod windows {
             )
         };
         if status != OSK_MF_OK && !shared.stop.load(Ordering::Relaxed) {
-            let _ = shared.tx.try_send(Message::Unavailable);
+            let _ = shared
+                .tx
+                .try_send(Message::Unavailable(failure_of_status(status)));
         }
     }
 
@@ -377,7 +428,7 @@ mod windows {
                 .spawn(move || capture(link, tx, flag))
                 .ok();
             if thread.is_none() {
-                let _ = failed.try_send(Message::Unavailable);
+                let _ = failed.try_send(Message::Unavailable(None));
             }
             Camera { stop, thread }
         }
@@ -398,6 +449,34 @@ mod windows {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The statuses and HRESULTs a person meets: the privacy setting, a
+    /// camera another program holds, no camera. Anything else has no
+    /// reason.
+    #[test]
+    fn statuses_give_the_reason() {
+        assert_eq!(failure_of_status(1), Some(Failure::NotFound));
+        assert_eq!(
+            failure_of_status(0x8007_0005_u32 as i32),
+            Some(Failure::Refused)
+        );
+        assert_eq!(
+            failure_of_status(0xC00D_3704_u32 as i32),
+            Some(Failure::InUse)
+        );
+        assert_eq!(
+            failure_of_status(0x8007_0020_u32 as i32),
+            Some(Failure::InUse)
+        );
+        assert_eq!(
+            failure_of_status(0x8007_048F_u32 as i32),
+            Some(Failure::NotFound)
+        );
+        // MF_E_INVALIDMEDIATYPE, and a failure with no HRESULT.
+        assert_eq!(failure_of_status(0xC00D_36B4_u32 as i32), None);
+        assert_eq!(failure_of_status(3), None);
+        assert_eq!(failure_of_status(0), None);
+    }
 
     /// The stride the device lays its rows out at is honoured, not
     /// assumed away: a 4 × 4 frame with two bytes of row padding.
