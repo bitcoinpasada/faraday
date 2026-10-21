@@ -1,10 +1,82 @@
 # Decisions
 
-Faraday's own decisions, numbered F1 onward, newest last.
-`docs/PLANNING.md` is OpenSigner's and is kept identical to upstream; its
-§15 and §16 are OpenSigner's decisions. F1 to F4 were first written as
-PLANNING §16.141 to §16.144 and moved here on 2026-10-10, when upstream
-took §16.141 for its own entry.
+Faraday's own decisions, numbered F1 onward, newest last. A new decision,
+about `core/` as about anything else, is written here.
+
+| F# | Title | Date | Status | Area |
+|---|---|---|---|---|
+| [F1](#f1-the-boot-import-and-one-line-of-fact-on-its-sheet-2026-10-08) | The boot import, and one line of fact on its sheet | 2026-10-08 | Active | stick |
+| [F2](#f2-faraday-upgrades-another-faraday-stick-and-never-signs-inside-the-upgrade-2026-10-08) | Faraday upgrades another Faraday stick, and never signs inside the upgrade | 2026-10-08 | Amended by F11 | stick |
+| [F3](#f3-a-multi-choice-list-beside-choice-for-the-backups-plan-2026-10-09) | A multi-choice list beside Choice, for the backup's plan | 2026-10-09 | Active | design |
+| [F4](#f4-on-the-pi-sd-card-where-the-app-says-stick-2026-10-09) | On the Pi, "SD card" where the app says "stick" | 2026-10-09 | Active | stick |
+| [F5](#f5-release-test-release-and-dev-builds-each-named-in-the-release-string-2026-10-10) | Release, test release and dev builds, each named in the release string | 2026-10-10 | Active | release |
+| [F6](#f6-the-backup-before-the-spend-2026-10-10) | The backup before the spend | 2026-10-10 | Active | backup |
+| [F7](#f7-totp-codes-and-a-clock-the-person-can-set-2026-10-11) | TOTP codes, and a clock the person can set | 2026-10-11 | Active | keys |
+| [F8](#f8-scan-to-sign-and-a-spend-tab-that-asks-for-data-2026-10-11) | Scan to sign, and a Spend tab that asks for data | 2026-10-11 | Active | wallets |
+| [F9](#f9-writing-over-a-file-on-a-stick-and-an-add-glyph-2026-10-11) | Writing over a file on a stick, and an Add glyph | 2026-10-11 | Active | stick |
+| [F10](#f10-the-name-as-a-wordmark-2026-10-11) | The name as a wordmark | 2026-10-11 | Active | design |
+| [F11](#f11-the-starter-one-download-that-makes-sticks-and-cards-2026-10-12) | The Starter: one download that makes sticks and cards | 2026-10-12 | Amended by F12, F13, F30, F33 | Starter |
+| [F12](#f12-the-starter-reviewed-what-the-owner-changed-in-v02-2026-10-12) | The Starter, reviewed: what the owner changed in v0.2 | 2026-10-12 | Amended by F30, F33 | Starter |
+| [F13](#f13-faraday-on-macs-the-stick-the-desktop-app-and-the-starter-2026-10-12) | Faraday on Macs: the stick, the desktop app and the Starter | 2026-10-12 | Amended by F30 | platforms |
+| [F14](#f14-maker-pages-are-published-several-families-at-once-2026-10-12) | Maker pages are published several families at once | 2026-10-12 | Active | Starter |
+| [F15](#f15-faraday-companion-an-android-app-with-no-network-access-2026-10-12) | Faraday Companion: an Android app with no network access | 2026-10-12 | Superseded by F34 | platforms |
+| [F16](#f16-the-hub-app-is-faraday-starter-the-desktop-app-is-faraday-desktop-2026-10-12) | The hub app is Faraday Starter; the desktop app is Faraday Desktop | 2026-10-12 | Active | Starter |
+| [F17](#f17-the-bitlocker-step-is-the-recovery-key-suspending-is-the-extra-safe-choice-2026-10-13) | The BitLocker step is the recovery key; suspending is the extra-safe choice | 2026-10-13 | Superseded by F33 | Starter |
+| [F18](#f18-firmware-sketches-in-faraday-starter-and-the-companion-2026-10-13) | Firmware sketches in Faraday Starter and the Companion | 2026-10-13 | Amended by F34 | Starter |
+| [F19](#f19-audits-from-experts-and-ais-published-with-faradays-response-2026-10-13) | Audits from experts and AIs, published with Faraday's response | 2026-10-13 | Active | repository |
+| [F20](#f20-faraday-desktops-mainnet-is-the-demo-test-networks-take-any-seed-2026-10-14) | Faraday Desktop's mainnet is the demo; test networks take any seed | 2026-10-14 | Active | platforms |
+| [F21](#f21-the-bitlocker-step-is-optional-2026-10-14) | The BitLocker step is optional | 2026-10-14 | Superseded by F33 | Starter |
+| [F22](#f22-an-armored-gpg-public-key-or-signature-is-public-2026-10-14) | An armored GPG public key or signature is public | 2026-10-14 | Amended by F32 | signing |
+| [F23](#f23-the-pc-sticks-kernel-is-618-longterm-ahead-of-upstreams-2026-10-14) | The PC stick's kernel is 6.18 longterm, ahead of upstream's | 2026-10-14 | Active | stick |
+| [F24](#f24-the-sticks-reminders-come-before-the-first-secret-not-at-start-2026-10-14) | The stick's reminders come before the first secret, not at start | 2026-10-14 | Active | stick |
+| [F25](#f25-the-companions-apk-signing-key-is-made-kept-and-used-in-faraday-2026-10-14) | The Companion's APK signing key is made, kept and used in Faraday | 2026-10-14 | Amended by F31, F34, F59 | signing |
+| [F26](#f26-files-of-any-size-on-a-stick-visit-imported-whole-or-only-for-signing-2026-10-14) | Files of any size on a stick visit, imported whole or only for signing | 2026-10-14 | Amended by F30 | stick |
+| [F27](#f27-nostr-keys-from-the-seed-by-bip-85-application-128002-2026-10-14) | Nostr keys from the seed, by BIP-85 application 128002' | 2026-10-14 | Amended by F34 | keys |
+| [F28](#f28-qr-codes-for-public-values-wherever-another-device-reads-them-and-for-the-totp-secret-2026-10-14) | QR codes for public values wherever another device reads them, and for the TOTP secret | 2026-10-14 | Amended by F33 | QR |
+| [F29](#f29-a-copy-by-hand-is-checked-by-its-form-typed-words-or-a-scan-of-a-seedqr-2026-10-14) | A copy by hand is checked by its form: typed words, or a scan of a SeedQR | 2026-10-14 | Active | backup |
+| [F30](#f30-no-released-faraday-desktop-the-demo-makes-no-secrets-2026-10-14) | No released Faraday Desktop; the demo makes no secrets | 2026-10-14 | Amended by F61 | release |
+| [F31](#f31-decide-where-a-key-will-be-kept-then-make-it-one-backup-flow-for-every-secret-faraday-makes-2026-10-14) | Decide where a key will be kept, then make it: one backup flow for every secret Faraday makes | 2026-10-14 | Amended by F58 | backup |
+| [F32](#f32-gpg-follows-gnupgs-behaviour-2026-10-14) | GPG follows GnuPG's behaviour | 2026-10-14 | Amended by F63 | signing |
+| [F33](#f33-secure-boot-back-on-is-the-step-no-bitlocker-recovery-key-in-the-starter-or-the-companion-2026-10-14) | Secure Boot back on is the step; no BitLocker recovery key in the Starter or the Companion | 2026-10-14 | Amended by F34, F48, F49 | Starter |
+| [F34](#f34-faraday-companion-is-dropped-2026-10-15) | Faraday Companion is dropped | 2026-10-15 | Active | platforms |
+| [F35](#f35-a-wallets-backup-plan-is-asked-place-by-place-2026-10-15) | A wallet's backup plan is asked place by place | 2026-10-15 | Active | backup |
+| [F36](#f36-numbered-stick-pills-on-every-device-2026-10-15) | Numbered stick pills on every device | 2026-10-15 | Active | stick |
+| [F37](#f37-the-backup-plan-is-a-board-of-places-2026-10-15) | The backup plan is a board of places | 2026-10-15 | Active | backup |
+| [F38](#f38-access-layers-2026-10-16) | Access layers | 2026-10-16 | Withdrawn | backup |
+| [F39](#f39-one-page-colour-steps-are-sections-not-cards-2026-10-16) | One page colour; steps are sections, not cards | 2026-10-16 | Active | design |
+| [F40](#f40-the-plan-is-what-the-places-keep-2026-10-16) | The plan is what the places keep | 2026-10-16 | Active | backup |
+| [F41](#f41-a-flow-in-progress-is-always-one-press-away-2026-10-16) | A flow in progress is always one press away | 2026-10-16 | Active | design |
+| [F42](#f42-restart-beside-power-off-with-the-bios-key-2026-10-16) | Restart beside Power off, with the BIOS key | 2026-10-16 | Active | stick |
+| [F43](#f43-the-cursor-moves-by-the-screens-scale-2026-10-16) | The cursor moves by the screen's scale | 2026-10-16 | Active | stick |
+| [F44](#f44-add-a-key-is-the-new-key-flow-2026-10-19) | Add a key is the New key flow | 2026-10-19 | Active | keys |
+| [F45](#f45-keys-from-a-vault-in-create-a-new-wallet-from-one-you-have-2026-10-19) | Keys from a vault in Create; a new wallet from one you have | 2026-10-19 | Active | wallets |
+| [F46](#f46-access-layers-layers-first-a-paper-route-for-every-layer-2026-10-19) | Access layers: layers first, a paper route for every layer | 2026-10-19 | Withdrawn | backup |
+| [F47](#f47-three-things-to-write-down-before-the-restart-and-a-sheet-to-print-2026-10-19) | Three things to write down before the restart, and a sheet to print | 2026-10-19 | Active | Starter |
+| [F48](#f48-the-recovery-key-framed-plainly-no-microsoft-account-row-2026-10-19) | The recovery key, framed plainly; no Microsoft account row | 2026-10-19 | Amended by F49 | Starter |
+| [F49](#f49-the-starter-offers-to-suspend-bitlocker-and-to-print-its-recovery-key-2026-10-19) | The Starter offers to suspend BitLocker and to print its recovery key | 2026-10-19 | Active | Starter |
+| [F50](#f50-oskdata-keeps-its-drive-letter-a-computers-own-files-are-ignored-by-name-2026-10-19) | OSKDATA keeps its drive letter; a computer's own files are ignored by name | 2026-10-19 | Active | stick |
+| [F51](#f51-a-flow-is-left-by-cancel-inside-it-2026-10-19) | A flow is left by Cancel inside it | 2026-10-19 | Active | design |
+| [F52](#f52-at-most-one-place-per-key-partial-descriptions-by-one-button-2026-10-19) | At most one place per key; partial descriptions by one button | 2026-10-19 | Active | backup |
+| [F53](#f53-one-way-to-start-a-backup-customize-for-the-rest-2026-10-20) | One way to start a backup; Customize for the rest | 2026-10-20 | Active | backup |
+| [F54](#f54-a--on-every-file-files-renamed-2026-10-20) | A ⋮ on every file; files renamed | 2026-10-20 | Active | stick |
+| [F55](#f55-the-derivation-path-on-check-its-account-on-kind-2026-10-20) | The derivation path on Check, its account on Kind | 2026-10-20 | Active | wallets |
+| [F56](#f56-seeds-alone-spend-a-place-says-how-near-it-brings-a-spend-2026-10-20) | Seeds alone spend; a place says how near it brings a spend | 2026-10-20 | Active | backup |
+| [F57](#f57-a-new-vaults-slots-go-by-the-vaults-name-2026-10-20) | A new vault's slots go by the vault's name | 2026-10-20 | Active | vault |
+| [F58](#f58-no-idle-lock-while-a-new-wallets-keys-are-kept-nowhere-30-and-60-minutes-2026-10-20) | No idle lock while a new wallet's keys are kept nowhere; 30 and 60 minutes | 2026-10-20 | Active | backup |
+| [F59](#f59-apk-signing-is-switched-off-in-the-app-its-code-stays-2026-10-20) | APK signing is switched off in the app; its code stays | 2026-10-20 | Active | signing |
+| [F60](#f60-the-boot-sheet-is-a-picker-a-file-row-offers-a-vault-only-while-one-is-open-2026-10-20) | The boot sheet is a picker; a file row offers a vault only while one is open | 2026-10-20 | Amended by F62 | stick |
+| [F61](#f61-faraday-desktop-is-published-again-testnet-only-for-real-seeds-2026-10-20) | Faraday Desktop is published again, testnet only for real seeds | 2026-10-20 | Active | release |
+| [F62](#f62-unlocking-a-vault-asks-what-to-load-2026-10-20) | Unlocking a vault asks what to load | 2026-10-20 | Active | vault |
+| [F63](#f63-sign-a-file-signs-from-a-sheet-that-shows-the-time-2026-10-20) | Sign a file signs from a sheet that shows the time | 2026-10-20 | Active | signing |
+| [F64](#f64-other-wallets-formats-the-less-common-under-more-options-2026-10-20) | Other wallets' formats, the less common under More options | 2026-10-20 | Active | wallets |
+| [F65](#f65-opensigners-code-taken-in-house-a-soft-fork-2026-10-20) | OpenSigner's code taken in house: a soft fork | 2026-10-20 | Replaced by F72 | repository |
+| [F66](#f66-hardened-steps-are-written-h-2026-10-20) | Hardened steps are written `h` | 2026-10-20 | Active | wallets |
+| [F67](#f67-the-sticks-partitions-and-files-have-faradays-names-2026-10-21) | The stick's partitions and files have Faraday's names | 2026-10-21 | Active | stick |
+| [F68](#f68-one-strings-file-opensigners-app-removed-2026-10-21) | One strings file; OpenSigner's app removed | 2026-10-21 | Active | repository |
+| [F69](#f69-costly-work-takes-a-token-drawing-cannot-mint-one-2026-10-21) | Costly work takes a token; drawing cannot mint one | 2026-10-21 | Active | speed |
+| [F70](#f70-one-crate-holds-every-key-faraday-keys-2026-10-21) | One crate holds every key: faraday-keys | 2026-10-21 | Active | keys |
+| [F71](#f71-dependencies-what-cargo-vet-says-is-true-2026-10-21) | Dependencies: what cargo-vet says is true | 2026-10-21 | Active | dependencies |
+| [F72](#f72-opensigners-code-becomes-faradays-a-hard-fork-2026-10-21) | OpenSigner's code becomes Faraday's: a hard fork | 2026-10-21 | Active | repository |
 
 ### F1 The boot import, and one line of fact on its sheet (2026-10-08)
 
@@ -45,6 +117,8 @@ does and what follows from it, in plain statement, which PLANNING
 §16.37 keeps in Learn.
 
 ### F2 Faraday upgrades another Faraday stick, and never signs inside the upgrade (2026-10-08)
+
+*Amended by F11 (2026-10-12): the Starter offers replacing Faraday on a stick, keeping its data partition, to everyone.*
 
 **Why.** Upgrading a stick meant writing the new image over the whole
 stick, which empties its data partition, or replacing `BOOTX64.EFI` on
@@ -380,6 +454,8 @@ more room, 11. The boot logo's 5×7 pixel name is unchanged.
 
 ### F11 The Starter: one download that makes sticks and cards (2026-10-12)
 
+*Amended by F12 (2026-10-12), F13 (2026-10-12), F30 (2026-10-14) and F33 (2026-10-14): the desktop app comes to Windows and macOS, is then not published, and the BitLocker guard is removed.*
+
 **Why.** Getting Faraday onto a stick or a Pi card, and a laptop to
 start from it, took a terminal, `dd`, a firmware menu and a Secure Boot
 setting; on Windows a wrong step can leave the computer asking for a
@@ -426,6 +502,8 @@ files.
 
 ### F12 The Starter, reviewed: what the owner changed in v0.2 (2026-10-12)
 
+*Amended by F30 (2026-10-14) and F33 (2026-10-14): the desktop app is not published, and the BitLocker guard is removed.*
+
 **Why.** A review of `docs/STARTER.md` v0.1 found places where the spec
 made the person do more than needed, two security holes in the
 BitLocker guard's resume path, a test the spec could not run, and a
@@ -463,6 +541,8 @@ D12 to D21) and §13 lists what moved.
   stopgap.
 
 ### F13 Faraday on Macs: the stick, the desktop app and the Starter (2026-10-12)
+
+*Amended by F30 (2026-10-14): the desktop app is not published on macOS either, and MAC batch D is dropped.*
 
 **Why.** F11 said there is no macOS app, and the stick started only on
 PCs. Intel Macs can start the PC stick with little change, and Apple
@@ -751,6 +831,8 @@ not need reads as a warning that something could go wrong.
 
 ### F22 An armored GPG public key or signature is public (2026-10-14)
 
+*Amended by F32 (2026-10-14): the reading of armour is stricter, and a revocation certificate is not public.*
+
 **Why.** A person copying their GPG public key and revocation
 certificate (`.asc`, the files Faraday's own GPG flow writes) from one
 stick to another was told "This may be a secret": `wallet::classify` read
@@ -853,6 +935,8 @@ until a secret is about to be shown or typed.
 
 ### F25 The Companion's APK signing key is made, kept and used in Faraday (2026-10-14)
 
+*Amended by F31 (2026-10-14), F34 (2026-10-15) and F59 (2026-10-20): the signing wait is the shared backup flow, the Companion's name and package are not filled in, and the app has the feature switched off.*
+
 **Why.** COMPANION D7 left the Companion's APK signing key to the
 owner, generated and kept outside Faraday. That is the one key whose
 loss cannot be repaired: Android installs an update only when it is
@@ -928,6 +1012,8 @@ answers).
 
 ### F26 Files of any size on a stick visit, imported whole or only for signing (2026-10-14)
 
+*Amended by F30 (2026-10-14): Faraday Desktop's behaviour applies to developer builds and the demo.*
+
 **Why.** A stick visit read at most 18 MiB of a file, a figure set
 because a vault with four 4 MiB slots is the largest thing Faraday
 writes. A file to sign can be larger: a release artifact, an APK, a
@@ -990,6 +1076,8 @@ means large files in the memory a vault unlock also needs.
   `docs/FLOWS.md` give today's 18 MiB.
 
 ### F27 Nostr keys from the seed, by BIP-85 application 128002' (2026-10-14)
+
+*Amended by F34 (2026-10-15): the Companion is dropped, so its refusal of nsec keys goes.*
 
 **Why.** A Nostr identity is one secp256k1 key, and losing it loses the
 identity. BIP-85 2.1.0 (2026-08-02) adds application 128002', which
@@ -1057,6 +1145,8 @@ the spec is `docs/NOSTR.md`).
 - Specified, not scheduled: it is built when the owner says.
 
 ### F28 QR codes for public values wherever another device reads them, and for the TOTP secret (2026-10-14)
+
+*Amended by F33 (2026-10-14): the BitLocker key is no longer an exception to the rule that a secret gets no QR.*
 
 **Why.** The owner's ask: "offer QR codes wherever it would be
 convenient for users inside Faraday". Faraday reaches the world by QR
@@ -1198,6 +1288,8 @@ the next number, and `docs/DEMO.md` follows it.
 
 ### F31 Decide where a key will be kept, then make it: one backup flow for every secret Faraday makes (2026-10-14)
 
+*Amended by F58 (2026-10-20): the idle lock does not come while a new wallet's keys are kept nowhere.*
+
 **Why.** A Bitcoin wallet has its backup checklist (F6); nothing else
 Faraday makes had one, and the checklist itself left every stick write
 to the stick visit. A stick is read only with nothing secret open. A key
@@ -1313,6 +1405,8 @@ FAT volume serial, which sticks written from one image can share.
 
 ### F32 GPG follows GnuPG's behaviour (2026-10-14)
 
+*Amended by F63 (2026-10-20): Sign a file signs from a sheet that shows the time, not by a hold on the page.*
+
 **Why.** Two reviews of the GPG feature found places where Faraday did
 what GnuPG does not, or was silent where GnuPG speaks. The owner's rule
 (2026-10-14): for each issue, copy what GnuPG does as closely as
@@ -1400,6 +1494,8 @@ missing, unless `FARADAY_SKIP_GNUPG=1`.
   Ed25519; primary key flags certify only, with the signing subkey.
 
 ### F33 Secure Boot back on is the step; no BitLocker recovery key in the Starter or the Companion (2026-10-14)
+
+*Amended by F34 (2026-10-15), F48 (2026-10-19) and F49 (2026-10-19): the Companion's store is dropped, the wording of where Windows keeps the key changes, and the Starter offers to suspend BitLocker and print the key.*
 
 **Why.** F17 and F21 kept a BitLocker step in Faraday Starter (Show the
 recovery key, its QR code and Save, an extra-safe suspension with a
@@ -1857,6 +1953,8 @@ carries what the person needs there.
 
 ### F48 The recovery key, framed plainly; no Microsoft account row (2026-10-19)
 
+*Amended by F49 (2026-10-19): "it is not needed" is partly reversed; Windows may ask for the key even with Secure Boot back on.*
+
 **Why.** The BitLocker page of 0.1.2 said the key was also kept in a
 Microsoft account on every computer, including one signed in with a
 local account (tracker #87). F33 removed that page; the guides'
@@ -2083,6 +2181,8 @@ so turning the switch on brings it all back. Supersedes F25's place in
 the app until the owner picks it up again.
 
 ### F60 The boot sheet is a picker; a file row offers a vault only while one is open (2026-10-20)
+
+*Amended by F62 (2026-10-20): an unlock asks what to load instead of loading every wallet and key.*
 
 **Why.** Booting with a stick holding a vault and two other files, the
 sheet said "1 vault · 2 other files" and "Pull the stick to continue";
