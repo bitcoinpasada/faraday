@@ -45,6 +45,17 @@ pub struct Canvas {
     /// left its ink, while [`Canvas::record_ink`] has it on: what the
     /// snapshot tool's audit reads. Off on a device.
     ink: Option<Vec<Ink>>,
+    /// Lines of text drawn, ever: what a test compares to say a frame
+    /// draws only what is seen ([`Canvas::lines_drawn`]).
+    lines: u64,
+    /// The pixels the canvas was last made the same as by
+    /// [`Canvas::restore`], known by where they are held and how many;
+    /// and the box of every pixel written since. Outside the box the
+    /// canvas is those pixels still, so putting them back again copies
+    /// the box alone: a sheet's frame puts back its kept page where the
+    /// sheet was drawn over it, not the whole canvas.
+    kept: Option<(usize, usize)>,
+    damage: Option<Rect>,
 }
 
 /// One thing a frame drew and the box its visible ink covers.
@@ -89,7 +100,27 @@ impl Canvas {
             scratch: Vec::new(),
             cut: Vec::new(),
             ink: None,
+            lines: 0,
+            kept: None,
+            damage: None,
         }
+    }
+
+    /// Notes that the pixels of `r` may have been written.
+    fn damaged(&mut self, r: Rect) {
+        let r = r.intersect(&self.bounds());
+        if r.is_empty() {
+            return;
+        }
+        self.damage = Some(self.damage.map_or(r, |d| union(d, r)));
+    }
+
+    /// How many lines of text this canvas has drawn, counting from its
+    /// making: a line wholly above or below the clip is measured, not
+    /// drawn, and not counted. Two counts taken around a frame say how
+    /// much text it put where it can be seen.
+    pub fn lines_drawn(&self) -> u64 {
+        self.lines
     }
 
     /// Width in pixels.
@@ -169,6 +200,7 @@ impl Canvas {
     /// Fills the whole canvas, ignoring the clip.
     pub fn clear(&mut self, color: Color) {
         self.pixmap.fill(color.to_skia());
+        self.damaged(self.bounds());
         self.cut.clear();
         if let Some(ink) = &mut self.ink {
             ink.clear();
@@ -217,6 +249,7 @@ impl Canvas {
         if r.is_empty() || color.a == 0 {
             return;
         }
+        self.damaged(r);
         if color.a < 255 {
             // Blended here, a whole pixel at a time: tiny-skia's blend of
             // a translucent fill took twenty milliseconds over a 1080p
@@ -269,6 +302,7 @@ impl Canvas {
         if area.is_empty() {
             return;
         }
+        self.damaged(area);
         // Covered by what floats, whatever its corners.
         let r = radius
             .max(0.0)
@@ -305,16 +339,16 @@ impl Canvas {
         let data = self.pixmap.data_mut();
         for py in area.y..area.bottom() {
             // The rows the covered middle spans are only walked at their
-            // two ends.
-            let skip = (py >= covered.y && py < covered.bottom() && !covered.is_empty())
-                .then_some((covered.x, covered.right()));
-            for px in area.x..area.right() {
-                if let Some((from, to)) = skip
-                    && px >= from
-                    && px < to
-                {
-                    continue;
-                }
+            // two ends: the columns left of it, then those right of it.
+            let (from, to) = if py >= covered.y && py < covered.bottom() && !covered.is_empty() {
+                (
+                    covered.x.clamp(area.x, area.right()),
+                    covered.right().clamp(area.x, area.right()),
+                )
+            } else {
+                (area.right(), area.right())
+            };
+            for px in (area.x..from).chain(to..area.right()) {
                 // Distance outside the rounded rectangle: along a side
                 // it is one coordinate's, round a corner both.
                 let qx = ((px as f32 + 0.5 - cx).abs() - hw).max(0.0);
@@ -350,21 +384,32 @@ impl Canvas {
     /// [`Canvas::restore`]).
     pub fn frost(&mut self, scale: u32, radius: u32, tint: Color) {
         osk_crypto::work::count(osk_crypto::work::Work::Blur);
+        self.damaged(self.bounds());
         let (w, h) = (self.pixmap.width() as usize, self.pixmap.height() as usize);
         let s = scale.max(1) as usize;
         let (sw, sh) = (w.div_ceil(s), h.div_ceil(s));
         // Each small pixel the mean of the block it stands for, a block
         // of columns at a time.
+        // On a dense screen (a block sixteen or more across) every other
+        // pixel of every other row stands for its two by two: a block's
+        // mean from a quarter of its pixels, which the blur after makes
+        // the same to the eye, at a quarter of the reading.
+        let step = if s >= 16 { 2 } else { 1 };
         let mut sums = alloc::vec![[0u32; 3]; sw * sh];
         let data = self.pixmap.data();
-        for y in 0..h {
+        for y in (0..h).step_by(step) {
             let line = &mut sums[(y / s) * sw..(y / s) * sw + sw];
             let row = &data[y * w * 4..(y + 1) * w * 4];
             for (cell, block) in line.iter_mut().zip(row.chunks(s * 4)) {
-                for p in block.chunks_exact(4) {
+                let mut add = |p: &[u8]| {
                     cell[0] += u32::from(p[0]);
                     cell[1] += u32::from(p[1]);
                     cell[2] += u32::from(p[2]);
+                };
+                if step == 1 {
+                    block.chunks_exact(4).for_each(&mut add);
+                } else {
+                    block.chunks_exact(4).step_by(step).for_each(&mut add);
                 }
             }
         }
@@ -373,7 +418,8 @@ impl Canvas {
             .enumerate()
             .map(|(i, p)| {
                 let (cx, cy) = (i % sw, i / sw);
-                let n = ((w - cx * s).min(s) * (h - cy * s).min(s)) as u32;
+                let n = ((w - cx * s).min(s).div_ceil(step) * (h - cy * s).min(s).div_ceil(step))
+                    as u32;
                 [p[0] / n, p[1] / n, p[2] / n]
             })
             .collect();
@@ -399,13 +445,23 @@ impl Canvas {
             .collect();
         // Back to full size, each pixel between the four small ones
         // around it: each small row is spread across the full width
-        // once, and each full row is then between two of those.
-        let place = |i: usize, n: usize| -> (usize, usize, u32) {
-            let f = ((i * 2 + 1) * 128 / s).saturating_sub(128);
+        // once, and each full row is then between two of those. On a
+        // dense screen (a small pixel sixteen or more across) the colour
+        // is worked out once for each two by two pixels, at the middle of
+        // the four: across a sixteenth of a blurred small pixel it moves
+        // by less than a level, so the four are the same to the eye, and
+        // the enlarging is a quarter of the work.
+        let step = if s >= 16 { 2 } else { 1 };
+        // The pixels from `k` to `k + step` lie between small pixels
+        // `i0` and `i1`, `t` of 256 of the way.
+        let place = |k: usize, n: usize| -> (usize, usize, u32) {
+            let f = ((k * 2 + step) * 128 / s).saturating_sub(128);
             let (i0, t) = (f / 256, (f % 256) as u32);
             (i0.min(n - 1), (i0 + 1).min(n - 1), t)
         };
-        let columns: Vec<(usize, usize, u32)> = (0..w).map(|x| place(x, sw)).collect();
+        let columns: Vec<(usize, usize, u32)> =
+            (0..w).step_by(step).map(|x| place(x, sw)).collect();
+        let cw = columns.len();
         let wide: Vec<u32> = (0..sh)
             .flat_map(|y| {
                 let row = &packed[y * sw..y * sw + sw];
@@ -414,25 +470,59 @@ impl Canvas {
                     .map(move |&(x0, x1, t)| lerp(row[x0], row[x1], t))
             })
             .collect();
+        let mut line: Vec<u32> = alloc::vec![0; cw];
         let data = self.pixmap.data_mut();
-        for y in 0..h {
+        for y in (0..h).step_by(step) {
             let (y0, y1, t) = place(y, sh);
-            let (a, b) = (&wide[y0 * w..y0 * w + w], &wide[y1 * w..y1 * w + w]);
-            let row = &mut data[y * w * 4..(y + 1) * w * 4];
-            for ((p, &top), &bottom) in row.chunks_exact_mut(4).zip(a).zip(b) {
-                p.copy_from_slice(&(lerp(top, bottom, t) | 0xff00_0000).to_le_bytes());
+            let (a, b) = (&wide[y0 * cw..y0 * cw + cw], &wide[y1 * cw..y1 * cw + cw]);
+            if step == 1 {
+                let row = &mut data[y * w * 4..(y + 1) * w * 4];
+                for ((p, &top), &bottom) in row.chunks_exact_mut(4).zip(a).zip(b) {
+                    p.copy_from_slice(&(lerp(top, bottom, t) | 0xff00_0000).to_le_bytes());
+                }
+                continue;
+            }
+            for ((p, &top), &bottom) in line.iter_mut().zip(a).zip(b) {
+                *p = lerp(top, bottom, t) | 0xff00_0000;
+            }
+            for yy in y..(y + step).min(h) {
+                let row = &mut data[yy * w * 4..(yy + 1) * w * 4];
+                for (pixels, &c) in row.chunks_mut(4 * step).zip(&line) {
+                    let c = c.to_le_bytes();
+                    for p in pixels.chunks_exact_mut(4) {
+                        p.copy_from_slice(&c);
+                    }
+                }
             }
         }
     }
 
     /// Puts back a [`Canvas::snapshot`] of this canvas; one of another
-    /// size is ignored.
+    /// size is ignored. Put back again, the same pixels in the same place
+    /// are copied only where something was drawn since: kept pixels
+    /// are not changed in place.
     pub fn restore(&mut self, pixels: &[u8]) {
         osk_crypto::work::count(osk_crypto::work::Work::FullCanvas);
-        let data = self.pixmap.data_mut();
-        if pixels.len() == data.len() {
-            data.copy_from_slice(pixels);
+        if pixels.len() != self.pixmap.data().len() {
+            return;
         }
+        let id = (pixels.as_ptr() as usize, pixels.len());
+        if self.kept == Some(id) {
+            let Some(d) = self.damage.take() else {
+                return;
+            };
+            let stride = self.pixmap.width() as usize * 4;
+            let data = self.pixmap.data_mut();
+            for y in d.y..d.bottom() {
+                let at = y as usize * stride + d.x as usize * 4;
+                let n = d.w as usize * 4;
+                data[at..at + n].copy_from_slice(&pixels[at..at + n]);
+            }
+            return;
+        }
+        self.pixmap.data_mut().copy_from_slice(pixels);
+        self.kept = Some(id);
+        self.damage = None;
     }
 
     /// A copy of every pixel, for [`Canvas::blend_from`] to fade from.
@@ -453,18 +543,28 @@ impl Canvas {
     /// another size leaves the canvas as it is.
     pub fn blend_from(&mut self, before: &[u8], t: f32) {
         osk_crypto::work::count(osk_crypto::work::Work::FullCanvas);
-        let data = self.pixmap.data_mut();
-        if before.len() != data.len() {
+        if before.len() != self.pixmap.data().len() {
             return;
         }
         let t = (t.clamp(0.0, 1.0) * 256.0) as u32;
         if t >= 256 {
             return;
         }
-        for (now, was) in data.chunks_exact_mut(4).zip(before.chunks_exact(4)) {
-            let n = u32::from_le_bytes([now[0], now[1], now[2], now[3]]);
-            let w = u32::from_le_bytes([was[0], was[1], was[2], was[3]]);
-            now.copy_from_slice(&lerp(w, n, t).to_le_bytes());
+        self.damaged(self.bounds());
+        let data = self.pixmap.data_mut();
+        // Where the two frames agree, the blend is what is there: most of
+        // a screen change (the sidebar, the page's ground) is passed over
+        // a run of pixels at a time, compared, not blended.
+        const RUN: usize = 4 * 16;
+        for (now, was) in data.chunks_mut(RUN).zip(before.chunks(RUN)) {
+            if now == was {
+                continue;
+            }
+            for (now, was) in now.chunks_exact_mut(4).zip(was.chunks_exact(4)) {
+                let n = u32::from_le_bytes([now[0], now[1], now[2], now[3]]);
+                let w = u32::from_le_bytes([was[0], was[1], was[2], was[3]]);
+                now.copy_from_slice(&lerp(w, n, t).to_le_bytes());
+            }
         }
     }
 
@@ -477,6 +577,7 @@ impl Canvas {
         if r.is_empty() || dy == 0 || dy.abs() >= r.h {
             return;
         }
+        self.damaged(r);
         let stride = self.pixmap.width() as usize;
         let (x, w) = (r.x as usize, r.w as usize);
         let data = self.pixmap.pixels_mut();
@@ -537,6 +638,7 @@ impl Canvas {
         // takes the same amount off both sides of the longer axis.
         let left = (sw as f32 - rect.w as f32 / scale) / 2.0;
         let top = (sh as f32 - rect.h as f32 / scale) / 2.0;
+        self.damaged(dst);
         let stride = self.pixmap.width() as usize;
         let data = self.pixmap.pixels_mut();
         for y in dst.y..dst.bottom() {
@@ -705,10 +807,6 @@ impl Canvas {
                 None => pixmap.fill_path(path, paint, FillRule::Winding, ts, mask),
             }
         };
-        let Some((clip, mask)) = self.mask.as_ref() else {
-            draw(&mut self.pixmap.as_mut(), 0.0, None);
-            return;
-        };
         // Every pixel the shape's ink can reach: half a stroke's width
         // beyond the path, one more for the anti-aliased edge, and one
         // for the truncation to whole pixels.
@@ -719,6 +817,11 @@ impl Canvas {
             (b.right() + grow) as i32 + 1,
             (b.bottom() + grow) as i32 + 1,
         );
+        self.damaged(Rect::new(l, t, r - l, bo - t).intersect(&self.clip()));
+        let Some((clip, mask)) = self.mask.as_ref() else {
+            draw(&mut self.pixmap.as_mut(), 0.0, None);
+            return;
+        };
         // A shape wholly outside the clip reaches no pixel the clip
         // keeps: a card scrolled off the page costs its layout and
         // nothing more, however long the page.
@@ -779,6 +882,20 @@ impl Canvas {
         let baseline = y + face.ascent;
         let clip = self.clip();
         let mut pen = (x.max(-32_768) as i64) << 6;
+        // A line wholly above or below the clip, a line box's height to
+        // spare for marks past the ascent and descent, shows nothing:
+        // its width is worked out from the advances, and no glyph is
+        // looked up or blended (a long list scrolled away, a page's
+        // rows past the panel's foot).
+        let lh = face.line_height();
+        if y + 2 * lh <= clip.y || y - lh >= clip.bottom() {
+            for c in s.chars() {
+                pen += i64::from(face.advance_64(c));
+            }
+            return ((pen + 32) >> 6) as i32 - x;
+        }
+        self.lines += 1;
+        let start = pen;
         let mut cut = false;
         let mut bbox: Option<Rect> = None;
         for c in s.chars() {
@@ -808,6 +925,10 @@ impl Canvas {
             );
             pen += i64::from(g.advance_64);
         }
+        // Every pixel its glyphs can reach: a line box above and below,
+        // and a line's height either side for a mark past its advance.
+        let (from, to) = (((start + 32) >> 6) as i32, ((pen + 32) >> 6) as i32);
+        self.damaged(Rect::new(from - lh, y - lh, to - from + 2 * lh, 3 * lh).intersect(&clip));
         // Once per string: a scroll draws the same strip again and
         // again without a clear in between.
         if cut && !self.cut.iter().any(|t| t == s) {
@@ -845,6 +966,7 @@ impl Canvas {
             g.bitmap,
             color,
         );
+        self.damaged(inked);
         self.note_ink(|| InkKind::Icon(icon), Some(inked));
     }
 
@@ -1258,6 +1380,56 @@ mod tests {
     /// bottom (drawn in the region's rows) or its side (drawn through the
     /// mask), and for fills, strokes and circles alike. A card scrolled
     /// wholly out of the region leaves it as it was.
+    #[test]
+    fn a_page_put_back_again_is_the_page_wherever_a_sheet_drew() {
+        // A sheet's frames: the kept page put back, then the sheet drawn
+        // over it, a different sheet each frame.
+        let mut c = canvas();
+        c.clear(Color::rgb(30, 40, 50));
+        c.fill_rounded_rect(Rect::new(4, 4, 40, 20), 5.0, Color::rgb(200, 90, 60));
+        let page = c.snapshot();
+        let frames: [&dyn Fn(&mut Canvas); 4] = [
+            &|c| c.fill_rounded_rect(Rect::new(10, 6, 30, 18), 4.0, Color::WHITE),
+            &|c| {
+                c.shadow(
+                    Rect::new(20, 8, 20, 12),
+                    4.0,
+                    6.0,
+                    2,
+                    Color::BLACK.with_alpha(140),
+                )
+            },
+            &|c| {
+                c.text(2, 2, "Wg", Font::regular(14.0), Color::WHITE);
+            },
+            &|c| c.fill_rect(Rect::new(50, 0, 14, 32), Color::WHITE.with_alpha(90)),
+        ];
+        for (i, draw) in frames.iter().enumerate() {
+            c.restore(&page);
+            assert_eq!(c.frame().rgba, &page[..], "frame {i}: the page put back");
+            draw(&mut c);
+        }
+        c.restore(&page);
+        assert_eq!(
+            c.frame().rgba,
+            &page[..],
+            "the last frame's sheet taken off"
+        );
+    }
+
+    #[test]
+    fn a_fade_part_of_the_way_is_each_pixel_part_of_the_way() {
+        let mut c = canvas();
+        c.clear(Color::rgb(10, 20, 30));
+        let before = c.snapshot();
+        c.fill_rect(Rect::new(20, 0, 10, 32), Color::rgb(210, 220, 230));
+        c.blend_from(&before, 0.25);
+        // Unchanged where the frames agree; a quarter of the way where
+        // they do not.
+        assert_eq!(pixel(&c, 5, 5), [10, 20, 30, 255]);
+        assert_eq!(pixel(&c, 25, 5), [60, 70, 80, 255]);
+    }
+
     #[test]
     fn a_shape_cut_by_a_clip_is_the_whole_shape_cut() {
         let region = Rect::new(8, 6, 48, 20);
