@@ -175,7 +175,7 @@ impl Faraday {
         {
             return Some(k.reading.clone());
         }
-        let reading = std::rc::Rc::new(crate::work::keeping(|| match t.tool {
+        let reading = std::rc::Rc::new(match t.tool {
             Tool::Hashes => Reading::Hashes(osk_bip::hashes::hashes(&read_input(
                 t.typed.trim(),
                 t.read_as,
@@ -189,7 +189,7 @@ impl Faraday {
             Tool::Miniscript => {
                 Reading::Miniscript(osk_bip::compile::compile(c, &t.typed, t.script, &keys))
             }
-        }));
+        });
         *t.read.borrow_mut() = Some(KeptReading {
             tool: t.tool,
             typed: t.typed.clone(),

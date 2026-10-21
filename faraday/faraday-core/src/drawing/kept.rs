@@ -1,5 +1,5 @@
 //! Values kept on the state that drawing reads, on [`View`]: each worked
-//! out the first time anyone asks, a frame included ([`crate::work::keeping`]),
+//! out the first time anyone asks, a frame included,
 //! kept with what it describes, by the inputs it is worked out from, and a
 //! lookup after (`docs/SPEED.md` §2 rules 2 and 4, §3.3; `docs/COMPUTE.md`
 //! §4). Each says what it reads. Decisions ask the same values on the
@@ -25,7 +25,6 @@ use crate::plan;
 use crate::seeds::SeedsState;
 use crate::vaults::VaultWallet;
 use crate::wallet::{Key, NonceCheck, Wallet};
-use crate::work;
 
 impl View<'_> {
     /// Wallet `w`'s address on `network` at `change`/`index`
@@ -448,7 +447,7 @@ impl View<'_> {
         {
             return Some(check.clone());
         }
-        let check = Rc::new(self.kept(|c| work::keeping(|| self.session.nonce_check(c, psbt))));
+        let check = Rc::new(self.kept(|c| self.session.nonce_check(c, psbt)));
         *cache = Some((bytes, check.clone()));
         Some(check)
     }

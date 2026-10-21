@@ -630,7 +630,7 @@ impl Faraday {
             let (hash, text) = match seen.iter().find(|s| s.name == it.name && s.probe == probe) {
                 Some(s) => (s.hash, s.text.clone()),
                 // Kept on the state (`sign_seen`) once worked out.
-                None => crate::work::keeping(|| (it.hash(c), small_text(&it.bytes))),
+                None => (it.hash(c), small_text(&it.bytes)),
             };
             keep.push(Seen {
                 name: it.name.clone(),

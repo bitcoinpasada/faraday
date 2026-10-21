@@ -7,7 +7,7 @@
 # Each path names the crate that defines it (`bitcoin`, `secp256k1`,
 # `miniscript`), which Faraday reaches through `osk_bip`'s re-exports.
 # `just lint` fails when clippy prints a warning about this file, such as
-# a path that names nothing (tools/lint-clippy-config.py).
+# a path that names nothing (tools/clippy.py).
 
 # A token for costly work (`osk_crypto::work::Compute`) is minted only at
 # the entry points docs/COMPUTE.md §3 lists, each under

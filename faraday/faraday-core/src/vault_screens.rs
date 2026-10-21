@@ -2330,9 +2330,9 @@ pub(crate) fn key_identity(c: &Compute, app: &Faraday, r: &Record) -> Option<(St
         return Some((fp.clone(), *mid));
     }
     // Kept by the key's id once worked out, by whoever asks first.
-    let master = crate::work::keeping(|| record_master(c, app, r))?;
+    let master = record_master(c, app, r)?;
     let fp = fp_text(master.fingerprint());
-    let mid = crate::work::keeping(|| crate::wallet::master_id(c, &master));
+    let mid = crate::wallet::master_id(c, &master);
     let mut kept = app.vaults.fingerprints.borrow_mut();
     if kept.len() >= vaults::FINGERPRINTS_KEPT {
         kept.remove(0);
@@ -2376,10 +2376,8 @@ pub(crate) fn record_is_policy_key(
         return kept.is_some_and(|b| b == want);
     }
     // Kept by the record's id and the path once worked out.
-    let got = crate::work::keeping(|| {
-        let master = record_master(c, app, r)?;
-        Some(account_bytes(&master.derive(c, path).to_xpub(c)))
-    });
+    let got =
+        record_master(c, app, r).map(|master| account_bytes(&master.derive(c, path).to_xpub(c)));
     let mut kept = app.vaults.accounts.borrow_mut();
     if kept.len() >= vaults::ACCOUNTS_KEPT {
         kept.remove(0);

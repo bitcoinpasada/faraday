@@ -422,7 +422,7 @@ impl Faraday {
         if let Some((_, fp)) = self.fp_memo.borrow().iter().find(|(k, _)| *k == id) {
             return Some(*fp);
         }
-        let fp = crate::work::keeping(f)?;
+        let fp = f()?;
         let mut kept = self.fp_memo.borrow_mut();
         if kept.len() >= crate::FP_MEMO_KEPT {
             kept.remove(0);

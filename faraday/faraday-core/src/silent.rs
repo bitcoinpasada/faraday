@@ -195,10 +195,10 @@ impl Faraday {
         {
             return shown.clone();
         }
-        let shown = crate::work::keeping(|| SilentShown {
+        let shown = SilentShown {
             key_here: self.silent_key_here(c),
             address: self.silent_address(c),
-        });
+        };
         *s.shown.borrow_mut() = Some((of, shown.clone()));
         shown
     }

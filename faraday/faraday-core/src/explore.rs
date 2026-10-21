@@ -111,7 +111,7 @@ impl Faraday {
         {
             return r.clone();
         }
-        let r = crate::work::keeping(|| self.explore_reading_now(c).map(std::rc::Rc::new));
+        let r = self.explore_reading_now(c).map(std::rc::Rc::new);
         *e.reading.borrow_mut() = Some((of, r.clone()));
         r
     }

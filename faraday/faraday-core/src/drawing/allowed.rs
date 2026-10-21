@@ -12,7 +12,20 @@ use osk_codec::qr::QrMatrix;
 use zeroize::Zeroizing;
 
 use super::View;
-use crate::work::Allowed;
+
+/// Costly work drawing does outside the memo and the state, each named
+/// with why it is not kept: the owner's list, each entry a method of
+/// [`View`] below. The owner decides each entry (`docs/SPEED.md` §3.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Allowed {
+    /// A secret the person opened to see or to copy by hand, drawn from
+    /// its source on each frame: a seed's words parsed for its SeedQR
+    /// grid on the backup's copy page, a vault key record's words and
+    /// a BIP-85 child shown. Nothing secret is kept, on the state or in
+    /// the memo for a frame (§2 rule 1), so there is nothing to keep it
+    /// in; it is drawn only while that page or row is open.
+    SecretShown,
+}
 
 impl View<'_> {
     /// The BIP-85 child shown, derived for this frame and wiped with it

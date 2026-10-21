@@ -534,12 +534,13 @@ impl Faraday {
         {
             return a.clone();
         }
-        let a = crate::work::keeping(|| {
-            let p = crate::wallet::read_wallet(c, &d).map_err(|e| e.text())?;
-            p.address_at(c, net, false, 0)
-                .map(|a| a.to_string())
-                .map_err(|e| e.to_string())
-        });
+        let a = crate::wallet::read_wallet(c, &d)
+            .map_err(|e| e.text())
+            .and_then(|p| {
+                p.address_at(c, net, false, 0)
+                    .map(|a| a.to_string())
+                    .map_err(|e| e.to_string())
+            });
         let mut kept = self.seeds_addresses.borrow_mut();
         if kept.len() >= crate::SEEDS_ADDRESSES_KEPT {
             kept.clear();

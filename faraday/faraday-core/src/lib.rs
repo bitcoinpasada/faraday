@@ -2212,7 +2212,7 @@ impl Faraday {
         if let Some((_, m)) = self.public_qrs.borrow().iter().find(|(t, _)| t == text) {
             return m.clone();
         }
-        let m = crate::work::keeping(|| {
+        let m = {
             osk_codec::qr::encode(
                 c,
                 osk_codec::qr::Payload::Bytes(text.as_bytes()),
@@ -2220,7 +2220,7 @@ impl Faraday {
             )
             .ok()
             .map(std::rc::Rc::new)
-        });
+        };
         let mut kept = self.public_qrs.borrow_mut();
         if kept.len() >= PUBLIC_QRS_KEPT {
             kept.clear();
@@ -2444,11 +2444,11 @@ impl EntryState {
         }
         // Kept until an event forgets it: worked out once, by the frame
         // that asks first.
-        let r = crate::work::keeping(|| {
+        let r = {
             Session::default()
                 .add_mnemonic(c, m, &self.passphrase, "", None)
                 .map_err(|e| e.text())
-        });
+        };
         *self.probe.borrow_mut() = Some(r.clone());
         r
     }
@@ -7665,7 +7665,7 @@ impl Faraday {
         if let Some((_, p)) = self.texts_read.borrow().iter().find(|(t, _)| t == text) {
             return p.clone();
         }
-        let p = crate::work::keeping(|| wallet::read_wallet(c, text).ok());
+        let p = wallet::read_wallet(c, text).ok();
         let mut kept = self.texts_read.borrow_mut();
         if kept.len() >= TEXTS_READ_KEPT {
             kept.remove(0);
@@ -7682,11 +7682,11 @@ impl Faraday {
         if let Some((_, n)) = self.config_names.borrow().iter().find(|(t, _)| t == text) {
             return n.clone();
         }
-        let n = crate::work::keeping(|| {
+        let n = {
             osk_bip::multisig_config::parse_named(c, text)
                 .ok()
                 .and_then(|(_, n)| n)
-        });
+        };
         let mut kept = self.config_names.borrow_mut();
         if kept.len() >= CONFIG_NAMES_KEPT {
             kept.remove(0);
@@ -7708,9 +7708,7 @@ impl Faraday {
         if let Some((_, p)) = self.texts_parsed.borrow().iter().find(|(t, _)| t == text) {
             return p.clone();
         }
-        let p = crate::work::keeping(|| {
-            osk_bip::policy::WalletPolicy::parse_any(c, text).map_err(|e| e.to_string())
-        });
+        let p = { osk_bip::policy::WalletPolicy::parse_any(c, text).map_err(|e| e.to_string()) };
         let mut kept = self.texts_parsed.borrow_mut();
         if kept.len() >= TEXTS_PARSED_KEPT {
             let _ = kept.remove(0);
@@ -7744,8 +7742,7 @@ impl Faraday {
         {
             return k.check.clone();
         }
-        let check =
-            crate::work::keeping(|| self.session.check_message(c, text)).map(std::rc::Rc::new);
+        let check = self.session.check_message(c, text).map(std::rc::Rc::new);
         *self.message_checked.borrow_mut() = Some(KeptMessage {
             text: text.to_string(),
             network,
@@ -7777,11 +7774,11 @@ impl Faraday {
         {
             return m.clone();
         }
-        let m = std::rc::Rc::new(crate::work::keeping(|| {
+        let m = std::rc::Rc::new({
             let m = plan::Mapped::of(c, shape, a);
             m.check(c, shape, a);
             m
-        }));
+        });
         let mut kept = self.plans_mapped.borrow_mut();
         // The plans a session shows at once: the backup's, a flow's, a
         // chart's; an answer changed makes another, and the oldest goes.
@@ -12505,9 +12502,6 @@ impl Faraday {
     /// [`drawing::View`]; what it noted for after it is written once it
     /// is drawn ([`drawing::After`]).
     fn render(&mut self) {
-        // Costly work from here on panics in debug and test builds unless
-        // the drawing memo is filling a cell (`docs/SPEED.md` §3.3).
-        let _frame = work::Frame::begin();
         self.drawing.clear();
         self.render_frame();
         self.drawing.clear();

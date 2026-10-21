@@ -157,11 +157,7 @@ impl Key {
     pub fn words_id(&self, c: &Compute) -> Option<&[u8; 32]> {
         let words = self.words.as_ref()?;
         self.words_id
-            .get_or_init(|| {
-                crate::work::keeping(|| {
-                    Some(words_id(c, &parse_words(c, self.language, words).ok()?))
-                })
-            })
+            .get_or_init(|| Some(words_id(c, &parse_words(c, self.language, words).ok()?)))
             .as_deref()
     }
 
@@ -198,7 +194,7 @@ impl Key {
         if let Some((_, t)) = self.public.borrow().iter().find(|(a, _)| *a == ask) {
             return t.clone();
         }
-        let t = crate::work::keeping(derive);
+        let t = derive();
         let mut kept = self.public.borrow_mut();
         if kept.len() >= KEY_TEXTS_KEPT {
             kept.clear();
@@ -337,10 +333,10 @@ impl Wallet {
         {
             return s.clone();
         }
-        let s = crate::work::keeping(|| {
+        let s = {
             crate::work::count(crate::work::Work::WalletMatch);
             self.policy.script_at(c, change, index).ok()
-        });
+        };
         let mut kept = self.scripts.borrow_mut();
         // A long walk through places keeps the latest only.
         if kept.len() >= WALLET_SCRIPTS_KEPT {
@@ -365,12 +361,12 @@ impl Wallet {
         {
             return a.clone();
         }
-        let a = crate::work::keeping(|| {
+        let a = {
             self.policy
                 .address_at(c, network, change, index)
                 .map(|a| a.to_string())
                 .unwrap_or_else(|e| fill(EN.wallet_no_address, &[&e.to_string()]))
-        });
+        };
         let mut kept = self.addresses.borrow_mut();
         // A long walk through addresses keeps the latest only.
         if kept.len() >= WALLET_ADDRESSES_KEPT {

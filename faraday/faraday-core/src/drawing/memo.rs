@@ -3,8 +3,7 @@
 //! (`docs/SPEED.md` §3.3, `docs/COMPUTE.md` §4). Each is the answer of the
 //! [`Faraday`] method of the same name, worked out by its `_now` form, the
 //! one decisions use; the memo is emptied when the frame ends. Each fill
-//! runs in [`work::filling`], the guard's exception for the memo, and is
-//! handed the view's token (`View::filled`).
+//! is handed the view's token (`View::filled`).
 
 use std::rc::Rc;
 
@@ -17,9 +16,9 @@ use crate::boot_import::ImportCount;
 use crate::create_from::CreateVaults;
 use crate::in_progress::Row;
 use crate::inbox::Found;
+use crate::plan;
 use crate::vault_load::{LoadView, PassSeed};
 use crate::vaults::{KeptWiped, VaultRow};
-use crate::{plan, work};
 
 impl View<'_> {
     /// Every wallet known and where its backup is
@@ -84,7 +83,7 @@ impl View<'_> {
             .inbox_found
             .get_or_init(|| {
                 self.inbox.found(&self.session, |items| {
-                    self.kept(|c| work::keeping(|| self.app.found_in(c, items)))
+                    self.kept(|c| self.app.found_in(c, items))
                 })
             })
             .clone()

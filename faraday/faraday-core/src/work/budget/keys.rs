@@ -1,6 +1,6 @@
 //! A character typed into a text field or a sheet does no costly work
 //! beyond its named budget, the key and the frames after it together
-//! (`docs/SPEED.md` §3.5), as a press does (`presses.rs`). A key stretch
+//! (`docs/SPEED.md` §9 item 2), as a press does (`presses.rs`). A key stretch
 //! (PBKDF2, scrypt, Argon2id) is never done per character: a field that
 //! shows the key its passphrase makes works it out once typing pauses
 //! ([`crate::motion::TYPED_PAUSE_MS`]), and that pause is checked here

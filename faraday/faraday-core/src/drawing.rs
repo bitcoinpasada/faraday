@@ -13,9 +13,8 @@
 //! What these answers are put together from is kept on the state, read
 //! once from what it describes (a plan's map, a vault's wallet records,
 //! an Inbox file's wallet, an address): a fill here puts parts together
-//! and parses nothing again. Each fill runs in [`crate::work::filling`],
-//! the only place, with what the state keeps ([`crate::work::keeping`]),
-//! where costly work may run while a frame is drawn.
+//! and parses nothing again. Costly work reaches a frame only through
+//! the view's token, in a memo fill or a kept value's first working out.
 //!
 //! Drawing reads the app through a [`View`] (`docs/COMPUTE.md` §4): the
 //! memo's fills, the kept values and the owner's exceptions are its
@@ -34,6 +33,7 @@ use osk_crypto::work::Compute;
 use crate::{Faraday, flow, plan, work};
 
 mod allowed;
+pub(crate) use allowed::Allowed;
 mod kept;
 mod memo;
 
@@ -200,23 +200,24 @@ impl<'a> View<'a> {
         }
     }
 
-    /// A memo fill (`memo.rs`): `f` given the token, in
-    /// [`work::filling`]. Costs what `f` costs.
+    /// A memo fill (`memo.rs`): `f` given the token. Costs what `f`
+    /// costs.
     fn filled<T>(&self, f: impl FnOnce(&Compute) -> T) -> T {
-        work::filling(|| f(&self.fill))
+        f(&self.fill)
     }
 
     /// A kept value reached while drawing (`kept.rs`): `f` given the
-    /// token. The value's own accessor marks its first working out
-    /// ([`work::keeping`]). Costs what `f` costs.
+    /// token. Costs what `f` costs.
     fn kept<T>(&self, f: impl FnOnce(&Compute) -> T) -> T {
         f(&self.fill)
     }
 
     /// One of the owner's exceptions (`allowed.rs`): `f` given the
-    /// token, in [`work::allowed`]. Costs what `f` costs.
-    fn allowed<T>(&self, why: work::Allowed, f: impl FnOnce(&Compute) -> T) -> T {
-        work::allowed(why, || f(&self.fill))
+    /// token; `why` names the entry in the owner's list. Costs what `f`
+    /// costs.
+    fn allowed<T>(&self, why: Allowed, f: impl FnOnce(&Compute) -> T) -> T {
+        let _ = why;
+        f(&self.fill)
     }
 
     /// What the pass noted for after it. Cheap.
