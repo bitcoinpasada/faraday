@@ -1,10 +1,10 @@
-//! Every word Faraday adds to OpenSigner's.
+//! Every word Faraday shows, in one file (`docs/DECISIONS.md` F68).
 //!
-//! OpenSigner's wording is `opensigner_core::strings`; Faraday's own is
-//! here, in the same shape: [`Strings`], one static per language ([`EN`]).
-//! Templates are filled by [`fill`], which behaves as
-//! `opensigner_core::strings::fill`, so that a crate that holds no part of
-//! OpenSigner's core can fill them too.
+//! [`Strings`] holds them, one static per language ([`EN`]), so that a
+//! second language is one more static and a change of wording is a change
+//! to one file. Templates carry `{}` placeholders and are filled by
+//! [`fill`], in order. The Learn pages and the self-test's check names are
+//! the two exceptions (CLAUDE.md).
 
 mod en;
 
@@ -15,8 +15,8 @@ use zeroize::Zeroizing;
 /// Fills a template's `{}` placeholders from `args`, in order. A
 /// placeholder with no argument is dropped; a spare argument is ignored.
 ///
-/// Copied from `opensigner/opensigner-core/src/strings/mod.rs` at upstream
-/// commit `d26b84e`.
+/// OpenSigner's own (`opensigner-core`'s `strings` module at upstream
+/// commit `d26b84e`).
 pub fn fill(template: &str, args: &[&str]) -> String {
     let mut out = String::with_capacity(template.len() + 16);
     let mut rest = template;
@@ -49,4 +49,17 @@ pub fn fill_secret(template: &str, args: &[&str]) -> Zeroizing<String> {
     }
     out.push_str(rest);
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fill_substitutes_in_order() {
+        assert_eq!(fill("Word {} of {}", &["7", "12"]), "Word 7 of 12");
+        assert_eq!(fill("no placeholder", &["x"]), "no placeholder");
+        assert_eq!(fill("{} and {}", &["a"]), "a and ");
+        assert_eq!(fill("Key {}", &["73c5da0a"]), "Key 73c5da0a");
+    }
 }

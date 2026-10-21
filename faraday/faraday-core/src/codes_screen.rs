@@ -7,10 +7,10 @@ use crate::codes::{CodeKind, CodeRow, codes_rows, va};
 use crate::drawing::View;
 use crate::screens::title;
 use crate::strings::EN;
+use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::vaults::VaultAction as V;
-use opensigner_core::strings::fill;
 
 /// The value row at the top: local time with seconds under its label and
 /// the zone, and Set the time (§5.3). The zone is in the label, so the

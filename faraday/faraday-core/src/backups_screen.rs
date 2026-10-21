@@ -6,10 +6,10 @@ use crate::backups::{Entry, Line};
 use crate::drawing::View;
 use crate::screens::title;
 use crate::strings::EN;
+use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::{Action, Faraday};
-use opensigner_core::strings::fill;
 use osk_crypto::work::Compute;
 
 /// A line's state colour.

@@ -8,5 +8,5 @@
 # token that counts nothing is never Faraday's.
 disallowed-methods = [
     { path = "osk_crypto::work::Compute::new", reason = "a mint: only at docs/COMPUTE.md §3's sites, under #[expect]" },
-    { path = "osk_crypto::work::Compute::unchecked", reason = "counts nothing: OpenSigner's, core's tests and tools only (docs/COMPUTE.md §3)" },
+    { path = "osk_crypto::work::Compute::unchecked", reason = "counts nothing: core's tests and the fuzz targets only (docs/COMPUTE.md §3)" },
 ]

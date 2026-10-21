@@ -9,9 +9,9 @@ use crate::forms::{self, WordKey, WordsMut};
 use crate::plan::{self, CopyChecks, CopyForm, CopyForms};
 use crate::secret_text::SecretText;
 use crate::strings::EN;
+use crate::strings::fill;
+use crate::word_entry::WordEntry;
 use crate::{BackupState, Faraday, Screen, wallet};
-use opensigner_core::load::LoadWizard;
-use opensigner_core::strings::fill;
 use osk_bip::bip39::Language;
 use osk_shell_api::Key as KeyIn;
 use zeroize::Zeroize;
@@ -21,9 +21,9 @@ use zeroize::Zeroize;
 pub struct WordCheck {
     /// The words, for a list typed on the computer's keyboard.
     pub typed: SecretText,
-    /// OpenSigner's word entry, for a list typed on an on-screen
+    /// The word entry, for a list typed on an on-screen
     /// keyboard and on the small panel.
-    pub keys: Option<Box<LoadWizard>>,
+    pub keys: Option<Box<WordEntry>>,
     /// The on-screen keyboard's shift is on.
     pub shift: bool,
     /// What the last comparison found, until the next key.
@@ -125,7 +125,7 @@ impl WordCheck {
 /// The state a word entry on screen types into: Check my copy's while it
 /// is open on Back up, else Add a key's.
 pub(crate) struct WordsUse<'a> {
-    pub keys: &'a mut Option<Box<LoadWizard>>,
+    pub keys: &'a mut Option<Box<WordEntry>>,
     pub shift: &'a mut bool,
     pub error: &'a mut Option<String>,
     pub lang: Language,

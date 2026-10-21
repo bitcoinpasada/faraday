@@ -21,7 +21,7 @@
 
 use crate::drawing::View;
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_bip::keys::Fingerprint;
 use osk_crypto::work::Compute;
 use osk_shell_api::Key as KeyIn;

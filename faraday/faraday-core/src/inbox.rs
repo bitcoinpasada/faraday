@@ -16,7 +16,7 @@
 //! here; they are put together in Add a key.
 
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use std::collections::BTreeSet;
 
 use osk_bip::bip39::{Language, Mnemonic};

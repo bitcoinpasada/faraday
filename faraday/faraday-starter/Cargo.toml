@@ -13,7 +13,6 @@ osk-shell-api = { path = "../../core/osk-shell-api" }
 osk-ui = { path = "../../core/osk-ui" }
 osk-codec = { path = "../../core/osk-codec" }
 osk-learn = { path = "../../core/osk-learn" }
-opensigner-core = { path = "../../opensigner/opensigner-core" }
 # The network the blank sheet names (`faraday-core` brings it already).
 osk-bip = { path = "../../core/osk-bip" }
 # The desktop app's own Transfer and Learn, held in online mode

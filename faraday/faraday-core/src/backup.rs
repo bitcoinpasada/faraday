@@ -19,7 +19,7 @@
 //! stick goes next.
 
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_bip::keys::{Fingerprint, Network};
 
 use crate::wallet::{Kind, Session, Wallet, fp_text};

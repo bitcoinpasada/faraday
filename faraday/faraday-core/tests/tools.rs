@@ -1,8 +1,8 @@
 //! OpenSigner's calculators on Faraday's Tools screen: what is typed
 //! reaches the calculator, and the answers are the published ones.
 
+use faraday_core::tools::Tool;
 use faraday_core::{Action, Faraday, Screen};
-use opensigner_core::tools::Tool;
 use osk_bip::hashes::hashes;
 use osk_bip::slip132::{KeyReading, key_facts};
 use osk_codec::encodings::read_input;

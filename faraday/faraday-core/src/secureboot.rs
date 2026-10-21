@@ -5,10 +5,10 @@
 //! only certificates, signed updates and signed images reach the Outbox.
 
 use crate::strings::EN;
+use crate::strings::fill;
 use faraday_sb::{Check, Keys, Pair, Policy};
 use faraday_vault::Record;
 use faraday_vault::records::kind;
-use opensigner_core::strings::fill;
 
 use crate::Faraday;
 use crate::backup_flow_steps::Built;

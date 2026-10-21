@@ -18,8 +18,8 @@
 //! back, and gets one when the seed arrives.
 
 use crate::strings::EN;
+use crate::strings::fill;
 use crate::{Faraday, Sheet};
-use opensigner_core::strings::fill;
 
 /// How long the code is.
 pub const CODE_LEN: usize = 6;

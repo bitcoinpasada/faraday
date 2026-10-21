@@ -1,100 +1,18 @@
-//! Silent payments in the app (`docs/PLANNING.md` §16.113): the form an
-//! address is shown in, the DNS record's two questions, and the check
-//! that says whether a transaction pays this wallet.
+//! The check that says whether a transaction pays a silent payments
+//! wallet (`docs/PLANNING.md` §16.113): the transaction being read, its
+//! previous outputs as far as they are known, and the answer.
+//!
+//! Taken from OpenSigner's app (`opensigner-core/src/silent.rs` at
+//! upstream `d26b84e`) when Faraday dropped that app (`docs/DECISIONS.md`
+//! F68), unchanged; Faraday's flow over it is [`crate::silent`].
 //!
 //! Nothing here is a secret. The scan private key a check needs is
 //! derived from the loaded key where the check runs and is dropped with
 //! the [`osk_bip::silent::Receiver`] that held it, so this file holds
 //! only a transaction, its previous outputs and the answer.
 
-use alloc::string::String;
-use alloc::vec::Vec;
-
 use osk_bip::bitcoin::{Amount, ScriptBuf, Transaction, Txid};
 use osk_psbt::transaction::Spending;
-
-/// The forms a silent payment address is shown in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AddressForm {
-    /// The `sp1q…` string itself.
-    Address,
-    /// BIP-321's `bitcoin:?sp=…`, which a wallet that reads URIs takes.
-    Uri,
-}
-
-impl AddressForm {
-    /// Both forms, in the order the Choice lists them.
-    pub const ALL: [AddressForm; 2] = [AddressForm::Address, AddressForm::Uri];
-}
-
-/// Where the DNS record's questions are.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DnsStep {
-    /// The user name before the domain.
-    User,
-    /// The domain the record is published under.
-    Domain,
-}
-
-/// What the person typed for the record, and which question is on
-/// screen. Both are public: a name and a domain are what the record
-/// publishes.
-pub struct Dns {
-    /// Which question.
-    pub step: DnsStep,
-    /// The user name.
-    pub user: String,
-    /// The domain.
-    pub domain: String,
-}
-
-impl Default for Dns {
-    fn default() -> Self {
-        Dns {
-            step: DnsStep::User,
-            user: String::new(),
-            domain: String::new(),
-        }
-    }
-}
-
-impl Dns {
-    /// Whether both answers are given, which is what the record needs.
-    pub fn ready(&self) -> bool {
-        !self.user.trim().is_empty() && !self.domain.trim().is_empty()
-    }
-
-    /// The field the step on screen is typing into.
-    pub fn field(&self) -> &str {
-        match self.step {
-            DnsStep::User => &self.user,
-            DnsStep::Domain => &self.domain,
-        }
-    }
-
-    /// Types one character of it. A name and a domain are ASCII here,
-    /// because a record's owner name is.
-    pub fn push(&mut self, c: char) {
-        if !c.is_ascii_graphic() {
-            return;
-        }
-        let field = match self.step {
-            DnsStep::User => &mut self.user,
-            DnsStep::Domain => &mut self.domain,
-        };
-        if field.len() < 64 {
-            field.push(c);
-        }
-    }
-
-    /// Deletes the last character of it.
-    pub fn pop(&mut self) {
-        match self.step {
-            DnsStep::User => self.user.pop(),
-            DnsStep::Domain => self.domain.pop(),
-        };
-    }
-}
 
 /// One output of a checked transaction that pays this wallet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -25,6 +25,8 @@ use zeroize::{Zeroize, Zeroizing};
 
 mod scan;
 
+pub use scan::{reduce, reduce_chroma, reduce_factor};
+
 /// How many frames the reduced copy may find nothing in before the full
 /// frame is read as well (upstream's value).
 const FULL_FRAME_EVERY: u32 = 4;

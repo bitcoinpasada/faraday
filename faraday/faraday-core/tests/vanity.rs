@@ -74,9 +74,9 @@ fn the_account_dial_finds_an_address_and_opens_its_wallet() {
 fn the_passphrase_dial_loads_the_words_with_the_passphrase_found() {
     let mut app = with_key();
     app.press(Action::Vanity(V::Dial(
-        opensigner_core::vanity::Dial::ALL
+        faraday_core::grind::Dial::ALL
             .iter()
-            .position(|d| *d == opensigner_core::vanity::Dial::Passphrase)
+            .position(|d| *d == faraday_core::grind::Dial::Passphrase)
             .unwrap() as u8,
     )));
     let found = search(&mut app, "q");

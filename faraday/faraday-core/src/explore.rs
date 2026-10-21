@@ -4,9 +4,7 @@
 //! extended public key, the public key and the address at the path are
 //! derived when drawn. Nothing private is shown or kept.
 
-use crate::strings::EN as FEN;
-use opensigner_core::explore::{implied_script, parse_path};
-use opensigner_core::strings::EN;
+use crate::strings::EN;
 use osk_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
 use osk_bip::bitcoin::{Address, CompressedPublicKey, NetworkKind};
 use osk_bip::keys::ScriptType;
@@ -68,7 +66,7 @@ impl Faraday {
     /// Opens Explore.
     pub(crate) fn explore_open(&mut self) {
         if self.session.keys.is_empty() {
-            return self.toast(FEN.explore_load_a_key);
+            return self.toast(EN.explore_load_a_key);
         }
         let coin = if self.session.network().is_mainnet() {
             "0"
@@ -225,5 +223,109 @@ impl Faraday {
             _ => return false,
         }
         true
+    }
+}
+
+/// Deepest path Explore derives.
+pub const MAX_PATH_LEVELS: usize = 10;
+
+/// Why the path text does not parse. The last valid path stays applied.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PathError {
+    /// Two slashes in a row, or a slash first: `m//0`.
+    EmptyLevel,
+    /// A level ends with a slash and nothing after it.
+    Unfinished,
+    /// A level is not digits with an optional `h`.
+    NotANumber,
+    /// An index of 2³¹ or more.
+    IndexTooLarge,
+    /// More than [`MAX_PATH_LEVELS`] levels.
+    TooDeep,
+}
+
+impl PathError {
+    /// The inline message under the path field.
+    pub fn message(self, s: &crate::strings::Strings) -> &'static str {
+        match self {
+            PathError::EmptyLevel => s.explore_path_empty,
+            PathError::Unfinished => s.explore_path_unfinished,
+            PathError::NotANumber => s.explore_path_not_a_number,
+            PathError::IndexTooLarge => s.explore_path_too_large,
+            PathError::TooDeep => s.explore_path_too_deep,
+        }
+    }
+}
+
+/// Parses path text without its `m/` prefix into a derivation path.
+/// Empty text is the master itself.
+pub fn parse_path(text: &str) -> Result<DerivationPath, PathError> {
+    let mut levels = [ChildNumber::Normal { index: 0 }; MAX_PATH_LEVELS];
+    let mut n = 0usize;
+    if text.is_empty() {
+        return Ok(DerivationPath::from(&levels[..0]));
+    }
+    for (i, level) in text.split('/').enumerate() {
+        if level.is_empty() {
+            return Err(if i > 0 && i + 1 == text.split('/').count() {
+                PathError::Unfinished
+            } else {
+                PathError::EmptyLevel
+            });
+        }
+        if n == MAX_PATH_LEVELS {
+            return Err(PathError::TooDeep);
+        }
+        let (digits, hardened) = match level.strip_suffix('h') {
+            Some(d) => (d, true),
+            None => (level, false),
+        };
+        if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+            return Err(PathError::NotANumber);
+        }
+        let index: u32 = digits.parse().map_err(|_| PathError::IndexTooLarge)?;
+        levels[n] = if hardened {
+            ChildNumber::from_hardened_idx(index).map_err(|_| PathError::IndexTooLarge)?
+        } else {
+            ChildNumber::from_normal_idx(index).map_err(|_| PathError::IndexTooLarge)?
+        };
+        n += 1;
+    }
+    Ok(DerivationPath::from(&levels[..n]))
+}
+
+/// The script type a path's purpose level implies, when it is one of
+/// BIP-44/49/84/86 and hardened.
+pub fn implied_script(path: &DerivationPath) -> Option<ScriptType> {
+    match path.as_ref().first()? {
+        ChildNumber::Hardened { index } => ScriptType::ALL
+            .iter()
+            .copied()
+            .find(|s| s.purpose() == *index),
+        ChildNumber::Normal { .. } => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn paths_parse_and_reject() {
+        let p = parse_path("84h/0h/0h/0/0").unwrap();
+        assert_eq!(p.len(), 5);
+        assert_eq!(implied_script(&p), Some(ScriptType::NativeSegwit));
+        assert_eq!(parse_path("").unwrap().len(), 0);
+        assert_eq!(implied_script(&parse_path("").unwrap()), None);
+        assert_eq!(implied_script(&parse_path("84/0").unwrap()), None);
+        assert_eq!(implied_script(&parse_path("45h").unwrap()), None);
+        assert_eq!(parse_path("/0"), Err(PathError::EmptyLevel));
+        assert_eq!(parse_path("84h//0"), Err(PathError::EmptyLevel));
+        assert_eq!(parse_path("84h/"), Err(PathError::Unfinished));
+        assert_eq!(parse_path("2147483648"), Err(PathError::IndexTooLarge));
+        assert_eq!(parse_path("2147483647h").unwrap().len(), 1);
+        assert_eq!(parse_path("hh"), Err(PathError::NotANumber));
+        assert_eq!(parse_path("h"), Err(PathError::NotANumber));
+        assert_eq!(parse_path("0/0/0/0/0/0/0/0/0/0/0"), Err(PathError::TooDeep));
     }
 }

@@ -4,7 +4,7 @@
 //! itself (`docs/TOTP.md` decision 7).
 
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_shell_api::Key as KeyIn;
 
 use crate::vaults::TextBox;

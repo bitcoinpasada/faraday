@@ -10,10 +10,10 @@ use crate::drawing::View;
 use crate::plan::{self, At};
 use crate::screens::{SOFTWARE_ROWS, held_item, next_button, section_label, ticked};
 use crate::strings::EN;
+use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Ui, W};
 use crate::{Action, PlanPress, qrow, qstep};
-use opensigner_core::strings::fill;
 
 /// The plan a set of cards draws, and whose it is.
 pub(crate) struct PlanCtx {

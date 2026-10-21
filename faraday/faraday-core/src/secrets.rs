@@ -18,9 +18,9 @@
 //! a BIP-39 passphrase.
 
 use crate::strings::EN;
+use crate::strings::fill;
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
-use opensigner_core::strings::fill;
 use osk_bip::bitcoin::hashes::{Hash, sha256};
 
 use crate::wallet::FileKind;

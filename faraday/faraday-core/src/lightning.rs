@@ -5,10 +5,10 @@
 //! public; its private key is a secret, into the vault or out only
 //! through the secret sheet.
 
+use crate::strings::fill;
 use crate::strings::{EN, fill_secret};
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
-use opensigner_core::strings::fill;
 use osk_bip::aezeed;
 use osk_bip::bip39::Language;
 use osk_crypto::Secret;

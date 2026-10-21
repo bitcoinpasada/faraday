@@ -19,7 +19,7 @@
 //! presses did before.
 
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_crypto::work::Compute;
 use osk_ui::widgets::Icon;
 use osk_ui::{Color, tokens};

@@ -16,7 +16,7 @@
 //! extension fixed after it. **Details** is a sheet: the name, the row's
 //! kind line, the size in bytes and the SHA-256 in groups of eight.
 
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_shell_api::Key as KeyIn;
 use osk_ui::tokens;
 use osk_ui::widgets::Icon;

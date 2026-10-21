@@ -4,7 +4,7 @@
 
 use crate::drawing::View;
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_ui::widgets::Icon;
 
 use crate::compact::M;
@@ -694,7 +694,7 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
 pub(crate) fn keyed_head(
     ui: &mut Ui,
     (x, y, iw): (f32, f32, f32),
-    w: &opensigner_core::load::LoadWizard,
+    w: &crate::word_entry::WordEntry,
     lang: osk_bip::bip39::Language,
     label: &str,
     status: Option<(&str, osk_ui::Color)>,

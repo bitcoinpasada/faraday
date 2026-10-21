@@ -1,54 +1,20 @@
 #!/usr/bin/env bash
-# User-facing-strings lint (UX.md §6; opensigner-core/src/strings/).
+# User-facing-strings lint (UX.md §6; docs/DECISIONS.md F68).
 #
-# Every word a user can read lives in a strings file, so that a second
+# Every word a user can read lives in one strings file, so that a second
 # language is one more static and a wording change is a change to one
-# file: OpenSigner's words in opensigner-core's `strings/en.rs`,
-# Faraday's in faraday-strings' `en.rs` (CLAUDE.md). Both files are
-# held to the same tidiness below. This lint fails when a file under
-# opensigner/opensigner-core/src/views/ holds a string literal whose first
-# character is a letter: a label, a sentence, a badge; and when Faraday's
-# screen code holds a literal with wording in it (the second check below,
-# whose kinds of allowed literal are listed there).
-#
-# Not flagged, because they carry no wording:
-#   - comments and doc comments
-#   - panic and assertion messages (`expect`, `panic!`, `unreachable!`),
-#     which a user never sees
-#   - format templates and separators with no words in them: "{}",
-#     "{} · {}", "#{}"
-#   - the notation in ALLOW below
+# file: faraday-strings' `en.rs` (CLAUDE.md). This lint fails when
+# Faraday's screen code holds a literal with wording in it (whose kinds of
+# allowed literal are listed below), and when a string in that file is
+# untidy (the last check).
 #
 # Run from the repository root; `just lint` does.
 set -u
 cd "$(dirname "$0")/.."
 
-VIEWS="opensigner/opensigner-core/src/views"
-STRINGS="opensigner/opensigner-core/src/strings/en.rs"
 FARADAY_STRINGS="faraday/faraday-strings/src/en.rs"
 
-# Lines whose literal is notation rather than wording, as one extended
-# regular expression. `m/` is a derivation path; `BIP-` names a standard.
-ALLOW_LINE='"(m/|BIP-)'
-
 status=0
-
-hits=$(
-    for f in "$VIEWS"/*.rs; do
-        # Drop comment lines and lines whose only literal is a developer
-        # message, then look for a double quote followed by a letter.
-        grep -nE '"[A-Za-z]' "$f" \
-        | grep -vE ':[[:space:]]*//' \
-        | grep -vE '\.expect\(|panic!\(|unreachable!\(|assert(_eq)?!\(|todo!\(' \
-        | grep -vE "$ALLOW_LINE" \
-        | sed "s,^,$f:,"
-    done
-)
-if [ -n "$hits" ]; then
-    echo "lint-strings: user-facing literal in a view; move it to $STRINGS"
-    echo "$hits"
-    status=1
-fi
 
 # Faraday's screen code: faraday-core (every module but the test kit:
 # the screens, and the modules whose toasts, errors and labels they
@@ -152,7 +118,7 @@ if [ -n "$hits" ]; then
     status=1
 fi
 
-for file in "$STRINGS" "$FARADAY_STRINGS"; do
+for file in "$FARADAY_STRINGS"; do
     if [ ! -f "$file" ]; then
         echo "lint-strings: missing $file"
         status=1

@@ -9,10 +9,10 @@ use crate::drawing::View;
 use crate::screens::{buttons_and_next, stepper, wrap_buttons};
 use crate::seeds::{self, Focus, SeedsAction as S, SeedsState};
 use crate::strings::EN;
+use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W, grouped};
 use crate::wallet::FileKind;
-use opensigner_core::strings::fill;
 
 fn sa(a: S) -> Action {
     Action::Seeds(a)

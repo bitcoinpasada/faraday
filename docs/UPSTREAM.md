@@ -25,8 +25,8 @@ Faraday took the code in house on 2026-10-20.
   path, an ambiguous input); accepting more than a standard requires is
   the owner's decision (F65).
 - OpenSigner's licence and copyright notices stay as they are.
-- Faraday's strings stay in `faraday/faraday-strings`; OpenSigner's
-  strings file keeps OpenSigner's strings (CLAUDE.md).
+- Every string Faraday shows is in `faraday/faraday-strings`, the one
+  strings file (F68, CLAUDE.md).
 
 ## 3. Faraday's changes since `d26b84e`
 
@@ -300,6 +300,19 @@ Since the fork:
   `key_from_words`); the app mints with its crate-private `unchecked()`
   where it needs one, whose `#[expect(dead_code)]` goes. A local `c` that
   clashed with the token is renamed. Same behaviour.
+- `opensigner/opensigner-core` and `core/osk-keep` removed (2026-10-21;
+  F68): what Faraday used moved into `faraday-core` (the Load wizard's
+  typing step as `word_entry.rs`, `quiz.rs`, the vanity state as
+  `grind.rs`, the silent payment check as `silent_check.rs`, `Tool` and
+  `MAX_SATS`, `Bip85App`, Explore's `parse_path` and `implied_script`)
+  and `faraday-scanner` (`reduce_chroma`), with the unit tests that
+  exercised it, and the 68 OpenSigner strings Faraday shows into
+  `faraday-strings`. The rest of the app, its tests, its strings file,
+  `osk-keep` and the `settings_read` and `keep_open` fuzz targets are
+  deleted. `opensigner/` keeps `shells/v4l2` and `shells/avfoundation`.
+  Why: Faraday never ran the app, and it compiled
+  `osk-crypto/unchecked` into Faraday's binaries; nothing in Faraday's
+  normal graph enables it now, which `tools/lint-unchecked.sh` checks.
 
 ## 4. Watching upstream
 

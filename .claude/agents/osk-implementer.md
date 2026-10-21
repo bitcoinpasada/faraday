@@ -9,7 +9,7 @@ Implement the brief you are given in this repository, following CLAUDE.md.
 Read the sections of the docs a change needs, not whole files.
 
 The check costs time, so spend it once. While working, run only the test
-file you touched (`cargo nextest run -p opensigner-core --test keep`) or
+file you touched (`cargo nextest run -p faraday-core --test keygen`) or
 the one crate (`cargo nextest run -p osk-ui`), and `cargo clippy -p
 <crate> --all-targets -- -D warnings` for that crate. Run `just` exactly
 once, when you believe you are done, and fix what it finds. To look at a

@@ -6,7 +6,7 @@
 //! is a master seed and has no words; a Seed XOR key is BIP-39 words again.
 
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::codex32::Codex32;
 use osk_bip::slip39;
@@ -314,21 +314,16 @@ pub const LANGUAGES: [Language; 10] = [
 
 /// Whether a list's words are typed on an on-screen keyboard: kana for
 /// Japanese, jamo for Korean, pinyin and 注音 readings for the two
-/// Chinese lists. OpenSigner's own word entry
-/// (`opensigner_core::load::LoadWizard`) does the typing, with the keys
-/// it allows and the words it offers.
+/// Chinese lists. [`crate::word_entry::WordEntry`] does the typing, with
+/// the keys it allows and the words it offers.
 pub fn on_screen(lang: Language) -> bool {
     lang.script() != osk_bip::bip39::Script::Latin
 }
 
-/// OpenSigner's word entry at its typing step, for `lang`. Up to 24
-/// words; the count is however many are taken when the key is added.
-pub fn word_typer(lang: Language) -> Box<opensigner_core::load::LoadWizard> {
-    let mut w = Box::new(opensigner_core::load::LoadWizard::new());
-    w.set_language(lang);
-    w.set_count(24);
-    w.go(opensigner_core::load::Step::Words);
-    w
+/// A word entry for `lang`. Up to 24 words; the count is however many
+/// are taken when the key is added.
+pub fn word_typer(lang: Language) -> Box<crate::word_entry::WordEntry> {
+    Box::new(crate::word_entry::WordEntry::new(lang, 24))
 }
 
 /// A list's name.
@@ -413,7 +408,7 @@ pub fn typed_mnemonic(lang: Language, typed: &str) -> Result<Mnemonic, String> {
 /// one word whole, with no other word on the list starting the same
 /// way: the point at which typing takes it as Tab would. A read list's
 /// word is whole once its tone leaves one character.
-pub fn word_whole(w: &opensigner_core::load::LoadWizard, lang: Language) -> bool {
+pub fn word_whole(w: &crate::word_entry::WordEntry, lang: Language) -> bool {
     let prefix = w.prefix();
     if prefix.is_empty() || !w.accepting() {
         return false;
@@ -430,7 +425,7 @@ pub fn word_whole(w: &opensigner_core::load::LoadWizard, lang: Language) -> bool
 /// Takes the word typed whole on `w`: the one its letters spell, or the
 /// only one they can be. Space, Tab, Enter and Add key end a word so on
 /// a physical keyboard, as a press on its pill does on the screen.
-pub fn take_typed(w: &mut opensigner_core::load::LoadWizard, lang: Language) {
+pub fn take_typed(w: &mut crate::word_entry::WordEntry, lang: Language) {
     let prefix: String = w.prefix().iter().collect();
     if prefix.is_empty() {
         return;
@@ -463,9 +458,9 @@ pub(crate) enum WordKey {
 pub(crate) struct WordsMut<'a> {
     /// The words as typed, for a list typed on the computer's keyboard.
     pub typed: &'a mut crate::secret_text::SecretText,
-    /// OpenSigner's word entry, for a list typed on an on-screen
+    /// The word entry, for a list typed on an on-screen
     /// keyboard.
-    pub keys: &'a mut Option<Box<opensigner_core::load::LoadWizard>>,
+    pub keys: &'a mut Option<Box<crate::word_entry::WordEntry>>,
     /// The last refusal.
     pub error: &'a mut Option<String>,
     /// The list the words are from.
@@ -485,7 +480,7 @@ fn latin_take(typed: &mut crate::secret_text::SecretText, lang: Language) {
 }
 
 /// Handles one key of a word entry, typed on the computer's keyboard
-/// into `typed` (a Latin list) or into OpenSigner's word entry `keys`:
+/// into `typed` (a Latin list) or into the word entry `keys`:
 /// letters; Space and Tab take the word as it is or as the one word its
 /// letters can still become; a word typed whole and alone on its prefix
 /// is taken at once; Backspace; with `numbers`, a word as its four-digit

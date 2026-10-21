@@ -44,6 +44,7 @@ mod fresh;
 pub mod glance;
 pub mod glance_sheet;
 pub mod gpg;
+pub mod grind;
 pub mod in_progress;
 pub mod inbox;
 pub mod inputs;
@@ -57,6 +58,7 @@ pub mod paper;
 pub mod pdf;
 pub mod picture;
 pub mod plan;
+pub mod quiz;
 pub mod restore;
 /// Text a person types that may be a secret (`faraday_intake`'s).
 pub use faraday_intake::secret_buf as secret_text;
@@ -70,6 +72,7 @@ pub mod seed_read;
 pub mod seeds;
 pub mod set_time;
 pub mod silent;
+pub mod silent_check;
 pub mod stick_settings;
 pub mod stick_wipe;
 /// Faraday's wording, in its own crate.
@@ -86,6 +89,7 @@ pub mod vault_out;
 pub mod vaults;
 pub mod visit_taken;
 pub mod wallet;
+pub mod word_entry;
 pub mod wordlist;
 pub mod work;
 
@@ -127,8 +131,8 @@ mod vault_screens;
 mod wordlist_screen;
 
 use crate::strings::EN;
+use crate::strings::fill;
 use faraday_intake::{arrival, seed_in_code, seedqr_words};
-use opensigner_core::strings::fill;
 use std::collections::{BTreeSet, VecDeque};
 
 use osk_crypto::work::Compute;
@@ -2338,10 +2342,10 @@ pub struct EntryState {
     /// The BIP-39 list the words are typed from, by its place in
     /// `forms::LANGUAGES`.
     pub language_at: u8,
-    /// OpenSigner's word entry, for a list typed on an on-screen
+    /// The word entry, for a list typed on an on-screen
     /// keyboard ([`forms::on_screen`]); `None` for a Latin list, whose
     /// words are typed into `typed`.
-    pub keys: Option<Box<opensigner_core::load::LoadWizard>>,
+    pub keys: Option<Box<crate::word_entry::WordEntry>>,
     /// The on-screen keyboard's shift is on.
     pub shift: bool,
     /// SLIP-39 shares, codex32 strings or Seed XOR parts collected.

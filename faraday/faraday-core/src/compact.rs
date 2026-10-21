@@ -4,7 +4,7 @@
 //! (`flow::column`).
 
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_ui::widgets::Icon;
 
 use crate::drawing::View;

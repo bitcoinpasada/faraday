@@ -11,9 +11,9 @@
 
 use crate::create::{self, NewKind};
 use crate::strings::EN;
+use crate::strings::fill;
 use crate::wallet::FileKind;
 use crate::{Faraday, Screen, family};
-use opensigner_core::strings::fill;
 use osk_crypto::work::Compute;
 
 /// The kinds a wallet of one key can be.

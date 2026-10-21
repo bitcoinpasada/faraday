@@ -5,12 +5,12 @@
 //! name, as the desktop app's small-panel pages do.
 
 use faraday_core::Action;
+use faraday_core::strings::fill;
 use faraday_core::strings::{EN, Strings};
 use faraday_core::upgrade::{Fit, describe, version};
 use faraday_ui::pal::*;
 use faraday_ui::parts::qr_code;
 use faraday_ui::{Glyph, NameSuffix, Style, W};
-use opensigner_core::strings::fill;
 use osk_ui::Color;
 use osk_ui::widgets::Icon;
 

@@ -4,7 +4,7 @@
 //! account key in a file. Nothing secret leaves the session.
 
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::keys::{MasterKey, MultisigScriptType, ScriptType};
 use osk_bip::policy::{PolicyKey, WalletPolicy};

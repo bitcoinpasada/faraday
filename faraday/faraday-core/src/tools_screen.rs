@@ -2,8 +2,8 @@
 
 use crate::drawing::View;
 use crate::strings::EN;
-use opensigner_core::strings::fill;
-use opensigner_core::tools::Tool;
+use crate::strings::fill;
+use crate::tools::Tool;
 use osk_bip::compile::{PolicyScript, compile};
 use osk_bip::descriptor::checksum_facts;
 use osk_bip::hashes::hashes;
@@ -256,7 +256,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
             let digits: u64 = t.typed.parse().unwrap_or(0);
             let sats = digits
                 .saturating_mul(UNITS[usize::from(t.unit)].1)
-                .min(opensigner_core::tools::MAX_SATS);
+                .min(crate::tools::MAX_SATS);
             rows.push(("sat".into(), crate::ui::thousands(sats)));
             rows.push((
                 "BTC".into(),

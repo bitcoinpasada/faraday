@@ -16,7 +16,7 @@
 //! up: the backup on top, through the keys, to the wallet at the foot.
 
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_crypto::work::Compute;
 use osk_ui::{Color, tokens};
 

@@ -4,7 +4,7 @@
 
 use crate::in_progress::Going;
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_crypto::work::Compute;
 use osk_psbt::{Level, OutputKind};
 use osk_ui::widgets::Icon;
@@ -12769,7 +12769,7 @@ pub(crate) fn word_count_row(
 /// where the next row starts.
 fn keyed_words(
     app: &View,
-    w: &opensigner_core::load::LoadWizard,
+    w: &crate::word_entry::WordEntry,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -12889,7 +12889,7 @@ pub(crate) fn keyed_pills(
     x: f32,
     y: f32,
     width: f32,
-    w: &opensigner_core::load::LoadWizard,
+    w: &crate::word_entry::WordEntry,
     lang: osk_bip::bip39::Language,
     hint: bool,
 ) -> f32 {
@@ -12931,7 +12931,7 @@ pub(crate) fn keyed_pills(
 /// that leads to no word off. Returns where the next row starts.
 pub(crate) fn word_keys(
     shift: bool,
-    w: &opensigner_core::load::LoadWizard,
+    w: &crate::word_entry::WordEntry,
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -13878,7 +13878,7 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         for l in &lines {
             y += ui.wrap(x, y, w, 13.0, W::R, MUTED, l) + 8.0;
         }
-        let s = &opensigner_core::strings::EN;
+        let s = &EN;
         let (result, tone) = match app.selftest() {
             Some(Ok(n)) => (
                 s.settings_selftest_passed.replacen("{}", &n.to_string(), 1),
@@ -14243,7 +14243,7 @@ fn settings(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ly += 26.0;
     }
     // The start-up self-test: what it found, and a run again.
-    let s = &opensigner_core::strings::EN;
+    let s = &EN;
     let (result, tone) = match app.selftest() {
         Some(Ok(n)) => (
             s.settings_selftest_passed.replacen("{}", &n.to_string(), 1),
@@ -14275,7 +14275,7 @@ fn settings(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// The start-up self-test failed: which check, and Exit. A build whose
 /// published vectors do not reproduce has nowhere to go but out.
 fn selftest_failed(ui: &mut Ui, w: f32, h: f32, check: &str) {
-    let s = &opensigner_core::strings::EN;
+    let s = &EN;
     ui.clear(SURFACE);
     let cw = (w - 64.0).min(560.0);
     let x = (w - cw) / 2.0;

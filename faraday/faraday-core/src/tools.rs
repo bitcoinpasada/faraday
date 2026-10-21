@@ -1,15 +1,49 @@
-//! Tools: OpenSigner's six calculators (`opensigner_core::tools`), hashes,
-//! encodings, a descriptor's checksum, an extended key in every spelling,
-//! an amount in every unit and the miniscript compiler, with Faraday's
-//! screen over them (`docs/OPENSIGNER-PARITY.md` plan C4). Nothing here
-//! is a secret: an extended private key is refused, and nothing is kept.
+//! Tools: the six calculators OpenSigner had, hashes, encodings, a
+//! descriptor's checksum, an extended key in every spelling, an amount in
+//! every unit and the miniscript compiler, with Faraday's screen over them
+//! (`docs/OPENSIGNER-PARITY.md` plan C4). Nothing here is a secret: an
+//! extended private key is refused, and nothing is kept.
 
-use opensigner_core::tools::Tool;
+use crate::strings::EN;
 use osk_bip::compile::PolicyScript;
 use osk_codec::encodings::ReadAs;
 use osk_crypto::work::Compute;
 
 use crate::{Faraday, Screen};
+
+/// The calculators, in the order Tools lists them. Taken from OpenSigner's
+/// app (`opensigner-core/src/tools.rs` at upstream `d26b84e`, F68).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tool {
+    /// SHA-256, SHA-256d and HASH160 of what is typed.
+    Hashes,
+    /// What a string is encoded in and what it decodes to.
+    Encodings,
+    /// A descriptor's checksum, and whether the one it arrived with
+    /// holds.
+    Descriptor,
+    /// Every spelling of one extended public key.
+    ConvertKey,
+    /// One amount in all four units at once.
+    Units,
+    /// A policy compiled into a descriptor.
+    Miniscript,
+}
+
+impl Tool {
+    /// The six, in the order Tools lists them.
+    pub const ALL: [Tool; 6] = [
+        Tool::Hashes,
+        Tool::Encodings,
+        Tool::Descriptor,
+        Tool::ConvertKey,
+        Tool::Units,
+        Tool::Miniscript,
+    ];
+}
+
+/// Every satoshi there will ever be.
+pub const MAX_SATS: u64 = 2_100_000_000_000_000;
 
 /// What the Tools screen holds.
 pub struct ToolsState {
@@ -30,7 +64,6 @@ pub struct ToolsState {
 
 /// A calculator's name, as OpenSigner writes it.
 pub fn tool_name(t: Tool) -> &'static str {
-    use opensigner_core::strings::EN;
     match t {
         Tool::Hashes => EN.tools_hashes,
         Tool::Encodings => EN.tools_encodings,

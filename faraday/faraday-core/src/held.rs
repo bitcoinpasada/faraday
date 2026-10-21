@@ -8,8 +8,8 @@
 //! line. A key loaded from a vault that says so is held again.
 
 use crate::strings::EN;
+use crate::strings::fill;
 use faraday_vault::records::{self, Record, field, kind};
-use opensigner_core::strings::fill;
 use osk_bip::keys::Fingerprint;
 use osk_crypto::work::Compute;
 

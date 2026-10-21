@@ -28,7 +28,7 @@ fn finish(app: &mut Faraday) {
 
 /// From the Words card: the quiz, every word answered rightly.
 fn pass_quiz(app: &mut Faraday) {
-    use opensigner_core::quiz::QuizState;
+    use faraday_core::quiz::QuizState;
     app.press(Action::KNext);
     for _ in 0..30 {
         let Some(q) = app.keygen.as_ref().and_then(|k| k.quiz.as_ref()) else {

@@ -10,8 +10,8 @@
 //! them: names are kept in the vault alone.
 
 use crate::strings::EN;
+use crate::strings::fill;
 use faraday_vault::records::{field, kind};
-use opensigner_core::strings::fill;
 use osk_crypto::work::Compute;
 
 use crate::backup::Tone;

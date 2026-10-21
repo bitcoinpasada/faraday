@@ -1,8 +1,8 @@
 //! The BIP-85 screen: the step-card column over [`crate::bip85`].
 
+use crate::bip85::Bip85App;
 use crate::strings::EN;
-use opensigner_core::Bip85App;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 
 use crate::bip85::{APPS, Bip85State, app_name, lengths, pstep};
 use crate::drawing::{Scrolled, View};

@@ -5,8 +5,8 @@
 //! screens.
 
 use faraday_core::strings::EN;
+use faraday_core::strings::fill;
 use faraday_core::upgrade::{Fit, compare};
-use opensigner_core::strings::fill1;
 
 use crate::api::{Bus, Computer, Disk, FaradayStick, InUse, Os};
 use crate::macs;
@@ -129,7 +129,7 @@ pub fn boot_menu_entry(vendor: &str, model: &str, computer: &Computer) -> Option
         Some("maker-hp") => EN.starter_boot_menu_hp,
         _ => EN.starter_boot_menu_default,
     };
-    Some(fill1(template, &label))
+    Some(fill(template, &[label.as_str()]))
 }
 
 /// Keep data's rule for writing build `build` over `stick` (F2, F5, D15):

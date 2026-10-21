@@ -18,9 +18,6 @@ osk-crypto = { path = "../../core/osk-crypto", features = ["count"] }
 osk-entropy = { path = "../../core/osk-entropy" }
 osk-learn = { path = "../../core/osk-learn" }
 osk-selftest = { path = "../../core/osk-selftest" }
-# OpenSigner's Create wizard: the new-key options and their names
-# (`src/keygen.rs`).
-opensigner-core = { path = "../../opensigner/opensigner-core" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-qr = { path = "../faraday-qr" }
 faraday-strings = { path = "../faraday-strings" }

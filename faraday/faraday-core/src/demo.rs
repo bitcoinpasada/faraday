@@ -24,9 +24,9 @@ pub fn words(word: &str) -> String {
 }
 
 use crate::backup_flow_steps::FlowAction as F;
+use crate::grind::Dial;
 use crate::vaults::VaultAction as V;
 use crate::{Action, Faraday, Screen};
-use opensigner_core::vanity::Dial;
 
 impl Faraday {
     /// Whether this session makes secrets a person could take away: false

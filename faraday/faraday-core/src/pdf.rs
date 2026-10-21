@@ -6,7 +6,7 @@
 //! nothing. Neither sheet carries a secret ([`crate::backup`]).
 
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_codec::qr::{Ecc, Payload, QrMatrix, encode};
 
 use crate::backup::structural_fixed;

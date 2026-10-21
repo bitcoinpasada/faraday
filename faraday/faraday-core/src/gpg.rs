@@ -7,10 +7,10 @@
 //! behaviour copied and how it was checked against GnuPG 2.4.
 
 use crate::strings::EN;
+use crate::strings::fill;
 use faraday_pgp::{Armor, Hash, Key, Reason, armor};
 use faraday_vault::Record;
 use faraday_vault::records::kind;
-use opensigner_core::strings::fill;
 use osk_crypto::work::Compute;
 use zeroize::{Zeroize, Zeroizing};
 

@@ -8,7 +8,7 @@
 
 use crate::drawing::View;
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_ui::widgets::Icon;
 
 use crate::compact::{buttons, scroll_sheet};

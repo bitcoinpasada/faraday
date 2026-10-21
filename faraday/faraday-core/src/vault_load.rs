@@ -10,8 +10,8 @@
 use std::collections::BTreeSet;
 use std::rc::Rc;
 
+use crate::strings::fill;
 use faraday_vault::records::{self, field, kind};
-use opensigner_core::strings::fill;
 use osk_bip::keys::Fingerprint;
 use osk_crypto::work::Compute;
 

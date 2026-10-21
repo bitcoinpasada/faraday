@@ -1,18 +1,16 @@
 //! BIP-85: child seeds, keys, bytes and passwords derived from a loaded
 //! key (`docs/OPENSIGNER-PARITY.md` plan B4). The applications and their
-//! names are OpenSigner's (`opensigner_core::Bip85App`, its strings), and
-//! every derivation is `osk-bip`'s. Each result is a secret: it goes into
+//! names are OpenSigner's ([`Bip85App`], taken from its app at upstream
+//! `d26b84e`, F68), and every derivation is `osk-bip`'s. Each result is a secret: it goes into
 //! the open vault by default (a password as an entry, child words as a
 //! key, anything else as a note), loads as a key, or leaves unprotected
 //! only through the secret sheet (`docs/FLOWS.md` decision 6). The value
 //! is derived where it is used and kept nowhere.
 
-use crate::strings::EN as FEN;
+use crate::strings::EN;
+use crate::strings::fill;
 use faraday_vault::Record;
 use faraday_vault::records::{self, field, kind};
-use opensigner_core::Bip85App;
-use opensigner_core::strings::EN;
-use opensigner_core::strings::fill;
 use osk_bip::bip39::Language;
 use osk_bip::bip85;
 use osk_crypto::work::Compute;
@@ -20,6 +18,35 @@ use zeroize::Zeroizing;
 
 use crate::wallet::fp_text;
 use crate::{Faraday, Screen, flow};
+
+/// Which BIP-85 application is being derived.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Bip85App {
+    /// Application 39': a child key, which goes to the child flow.
+    Words,
+    /// Application 2': an HD-seed WIF.
+    Wif,
+    /// Application 32': an extended private key.
+    Xprv,
+    /// Application 128169': raw bytes as hex.
+    Hex,
+    /// Application 707764': a base64 password.
+    Base64,
+    /// Application 707785': a base85 password.
+    Base85,
+}
+
+impl Bip85App {
+    /// Every application, in the order "Which application?" lists them.
+    pub const ALL: [Bip85App; 6] = [
+        Bip85App::Words,
+        Bip85App::Wif,
+        Bip85App::Xprv,
+        Bip85App::Hex,
+        Bip85App::Base64,
+        Bip85App::Base85,
+    ];
+}
 
 /// The applications, in OpenSigner's order.
 pub const APPS: [Bip85App; 6] = Bip85App::ALL;
@@ -112,7 +139,7 @@ impl Faraday {
     /// Opens the flow.
     pub(crate) fn bip85_open(&mut self) {
         if self.session.keys.is_empty() {
-            self.toast(FEN.bip85_load_a_key_first);
+            self.toast(EN.bip85_load_a_key_first);
             return;
         }
         let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint().0);
@@ -195,7 +222,7 @@ impl Faraday {
             .map(|f| fp_text(osk_bip::keys::Fingerprint(f)))
             .unwrap_or_default();
         fill(
-            FEN.bip85_bip_85_index,
+            EN.bip85_bip_85_index,
             &[
                 app_name(b.app),
                 &fp.to_string(),
@@ -209,7 +236,7 @@ impl Faraday {
     pub(crate) fn bip85_to_vault(&mut self) {
         let c = self.compute();
         if self.vaults.open.get(self.vaults.current).is_none() {
-            self.toast(FEN.bip85_no_vault_is_open);
+            self.toast(EN.bip85_no_vault_is_open);
             return;
         }
         let (Some(value), Some(b)) = (self.bip85_value(&c), self.bip85.as_ref()) else {
@@ -237,7 +264,7 @@ impl Faraday {
         };
         self.vault_push(
             record,
-            &fill(FEN.bip85_is_in_the_vault, &[&title.to_string()]),
+            &fill(EN.bip85_is_in_the_vault, &[&title.to_string()]),
         );
     }
 
@@ -245,7 +272,7 @@ impl Faraday {
     pub(crate) fn bip85_load(&mut self) {
         let c = self.compute();
         if !self.may_load_keys() {
-            self.toast(&fill(FEN.bip85_remove_the_first, &[self.medium.noun()]));
+            self.toast(&fill(EN.bip85_remove_the_first, &[self.medium.noun()]));
             return;
         }
         let Some(value) = self.bip85_value(&c) else {
@@ -253,7 +280,7 @@ impl Faraday {
         };
         let title = self.bip85_title();
         match self.session.add_words(&c, &value, &title, None) {
-            Ok(fp) => self.toast(&fill(FEN.bip85_key_added, &[&fp_text(fp).to_string()])),
+            Ok(fp) => self.toast(&fill(EN.bip85_key_added, &[&fp_text(fp).to_string()])),
             Err(e) => self.toast(&e.text()),
         }
     }
@@ -275,16 +302,16 @@ impl Faraday {
         );
         let text = Zeroizing::new(format!("{}\n{}\n", b.path(), value.as_str()));
         let what = match b.app {
-            Bip85App::Words => FEN.bip85_a_child_seed,
-            Bip85App::Wif | Bip85App::Xprv => FEN.bip85_a_private_key,
-            Bip85App::Hex => FEN.bip85_secret_bytes,
-            Bip85App::Base64 | Bip85App::Base85 => FEN.bip85_a_password,
+            Bip85App::Words => EN.bip85_a_child_seed,
+            Bip85App::Wif | Bip85App::Xprv => EN.bip85_a_private_key,
+            Bip85App::Hex => EN.bip85_secret_bytes,
+            Bip85App::Base64 | Bip85App::Base85 => EN.bip85_a_password,
         };
         self.offer_secret(crate::secrets::SecretOut::new(
             name,
             Zeroizing::new(text.as_bytes().to_vec()),
             what,
-            FEN.bip85_whoever_has_it,
+            EN.bip85_whoever_has_it,
         ));
     }
 

@@ -1,7 +1,10 @@
 //! The backup quiz (UX.md D5, D6, K1; `docs/PLANNING.md` §8.2 #7): every
 //! word of a mnemonic, in random order, each chosen from four candidates.
-//! The Create wizard runs it after the words are shown; the Backup flow
-//! runs it for any loaded key at any time.
+//! Key generation runs it after the words are shown.
+//!
+//! Taken from OpenSigner's app (`opensigner-core/src/quiz.rs` at
+//! upstream `d26b84e`) when Faraday dropped that app (`docs/DECISIONS.md`
+//! F68), unchanged but for where the word lists come from.
 //!
 //! The words come from a list rather than from a language: BIP-39's
 //! words or a SLIP-39 share's, which is the same question over a
@@ -20,7 +23,7 @@
 use osk_bip::slip39::MAX_WORDS;
 use osk_crypto::{Zeroize, ZeroizeOnDrop, sha256};
 
-use crate::load::EntryList;
+use crate::word_entry::EntryList;
 
 /// Candidates per question.
 pub const CHOICES: usize = 4;
@@ -53,8 +56,6 @@ pub struct Quiz {
     /// (`docs/DESIGN.md` §2.7).
     picked: Option<u8>,
     state: QuizState,
-    /// K1: someone else holds the device; nothing is revealed.
-    helper: bool,
     rng: u64,
 }
 
@@ -97,7 +98,7 @@ impl Quiz {
     }
 
     /// Shuffles the positions of `indices` and poses the first question.
-    pub fn new(indices: &[u16], list: EntryList, helper: bool, seed: u64) -> Self {
+    pub fn new(indices: &[u16], list: EntryList, seed: u64) -> Self {
         let len = indices.len().min(MAX_WORDS);
         let mut q = Quiz {
             order: [0; MAX_WORDS],
@@ -108,7 +109,6 @@ impl Quiz {
             wrong: 0,
             picked: None,
             state: QuizState::Asking,
-            helper,
             rng: if seed == 0 {
                 0x9E37_79B9_7F4A_7C15
             } else {
@@ -135,11 +135,6 @@ impl Quiz {
         x ^= x >> 27;
         self.rng = x;
         ((x.wrapping_mul(0x2545_F491_4F6C_DD1D) >> 32) % u64::from(n.max(1))) as u32
-    }
-
-    /// Whether the helper variant is on (K1).
-    pub fn helper(&self) -> bool {
-        self.helper
     }
 
     /// The state.
@@ -173,7 +168,8 @@ impl Quiz {
     }
 
     /// The slot the check is on, before Continue confirms it.
-    pub fn picked(&self) -> Option<usize> {
+    #[cfg(test)]
+    fn picked(&self) -> Option<usize> {
         self.picked.map(usize::from)
     }
 
@@ -292,7 +288,7 @@ mod tests {
         let m = abandon();
         let lang = EntryList::Bip39(Language::English);
         let seed = Quiz::seed(1000, m.indices());
-        let mut q = Quiz::new(m.indices(), lang, false, seed);
+        let mut q = Quiz::new(m.indices(), lang, seed);
         let mut seen = [false; 12];
         for step in 0..12 {
             assert_eq!(q.progress(), (step, 12));
@@ -322,14 +318,12 @@ mod tests {
         assert_eq!(q.state(), QuizState::Passed);
         assert!(seen.iter().all(|&s| s));
         // The same seed asks in the same order; another seed differs.
-        let a = Quiz::new(m.indices(), lang, false, seed);
-        let b = Quiz::new(m.indices(), lang, false, seed);
+        let a = Quiz::new(m.indices(), lang, seed);
+        let b = Quiz::new(m.indices(), lang, seed);
         assert_eq!(a.position(), b.position());
         assert_eq!(a.choices(), b.choices());
-        let orders: alloc::vec::Vec<usize> = (0..50u64)
-            .map(|t| {
-                Quiz::new(m.indices(), lang, false, Quiz::seed(t * 7919, m.indices())).position()
-            })
+        let orders: Vec<usize> = (0..50u64)
+            .map(|t| Quiz::new(m.indices(), lang, Quiz::seed(t * 7919, m.indices())).position())
             .collect();
         assert!(
             orders.iter().any(|&p| p != orders[0]),
@@ -341,8 +335,7 @@ mod tests {
     fn a_choice_is_checked_then_confirmed_and_a_wrong_one_waits_for_retry() {
         let m = abandon();
         let lang = EntryList::Bip39(Language::English);
-        let mut q = Quiz::new(m.indices(), lang, true, 42);
-        assert!(q.helper());
+        let mut q = Quiz::new(m.indices(), lang, 42);
         // Continue does nothing until a row is checked.
         assert!(!q.confirm(m.indices(), lang));
         assert_eq!(q.progress(), (0, 12));

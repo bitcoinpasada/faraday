@@ -20,8 +20,6 @@ osk-codec = { path = "../core/osk-codec" }
 osk-psbt = { path = "../core/osk-psbt" }
 osk-crypto = { path = "../core/osk-crypto", features = ["unchecked"] }
 osk-backup = { path = "../core/osk-backup" }
-osk-keep = { path = "../core/osk-keep" }
-opensigner-core = { path = "../opensigner/opensigner-core" }
 faraday-pgp = { path = "../faraday/faraday-pgp" }
 
 [profile.release]
@@ -65,20 +63,6 @@ bench = false
 [[bin]]
 name = "message_verify"
 path = "fuzz_targets/message_verify.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
-name = "settings_read"
-path = "fuzz_targets/settings_read.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
-name = "keep_open"
-path = "fuzz_targets/keep_open.rs"
 test = false
 doc = false
 bench = false

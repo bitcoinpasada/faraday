@@ -10,7 +10,7 @@
 //! hides it; the controls are the same in both.
 
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_ui::widgets::Icon;
 
 use crate::Action;

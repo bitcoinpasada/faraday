@@ -5,9 +5,9 @@ use crate::Action;
 use crate::drawing::View;
 use crate::screens::{section_label, title};
 use crate::strings::EN;
+use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
-use opensigner_core::strings::fill;
 
 /// A row of the Downloads list.
 const ROW: f32 = 44.0;

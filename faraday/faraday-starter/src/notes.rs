@@ -9,8 +9,8 @@
 //! recovery key (F49): the one secret here, wiped once the sheet is made.
 
 use faraday_core::pdf;
+use faraday_core::strings::fill;
 use faraday_core::strings::{EN, Strings};
-use opensigner_core::strings::fill;
 
 use crate::api::{Computer, Os, RecoveryKey};
 use crate::macs;

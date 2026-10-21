@@ -6,7 +6,7 @@
 //! (`seed_read`), which takes it only for a missing key of the wallet.
 
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_bip::keys::Fingerprint;
 use osk_crypto::work::Compute;
 use osk_shell_api::Command;

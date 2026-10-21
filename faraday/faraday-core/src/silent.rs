@@ -9,9 +9,9 @@
 //! secret sheet. Nothing here is kept; the keys are derived when used.
 
 use crate::strings::EN;
+use crate::strings::fill;
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
-use opensigner_core::strings::fill;
 use osk_bip::silent::Receiver;
 use osk_bip::silent_wallet::{MAX_LABELS, SilentWallet};
 use osk_crypto::work::Compute;
@@ -52,7 +52,7 @@ pub struct SilentState {
     pub wallet: Option<usize>,
     /// A transaction being checked: the file it came from, and the check
     /// with its previous outputs as far as Files has them.
-    pub check: Option<(String, opensigner_core::silent::Check)>,
+    pub check: Option<(String, crate::silent_check::Check)>,
     /// Where the flow returns to.
     pub back: Screen,
     /// What the page shows of the key, kept by what it is derived from
@@ -457,7 +457,7 @@ impl Faraday {
         let Some(item) = self.inbox.get(k) else {
             return;
         };
-        let Some(mut check) = opensigner_core::silent::Check::read(&item.bytes) else {
+        let Some(mut check) = crate::silent_check::Check::read(&item.bytes) else {
             return self.toast(EN.silent_not_a_transaction);
         };
         let name = item.name.clone();
@@ -484,9 +484,9 @@ impl Faraday {
     fn silent_answer(
         &self,
         c: &Compute,
-        check: &opensigner_core::silent::Check,
-    ) -> Option<opensigner_core::silent::Checked> {
-        use opensigner_core::silent::{Checked, Paid};
+        check: &crate::silent_check::Check,
+    ) -> Option<crate::silent_check::Checked> {
+        use crate::silent_check::{Checked, Paid};
         let prevouts = check.prevouts()?;
         let tx = check.tx();
         for (i, input) in tx.input.iter().enumerate() {

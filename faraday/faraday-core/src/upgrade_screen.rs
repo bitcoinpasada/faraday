@@ -5,11 +5,11 @@
 use crate::drawing::View;
 use crate::screens::title;
 use crate::strings::EN;
+use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::upgrade::{Fit, Step, UpgradeState, version};
 use crate::{Action, BootPart, Screen};
-use opensigner_core::strings::fill;
 
 /// A row of the list of sticks to upgrade.
 const ROW: f32 = 44.0;

@@ -12,7 +12,7 @@
 
 use crate::backup::split_plan;
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 
 /// Where the seeds go, by row of the seeds question.
 pub mod seeds {

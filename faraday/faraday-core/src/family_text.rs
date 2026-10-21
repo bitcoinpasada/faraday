@@ -10,9 +10,9 @@
 use crate::drawing::View;
 use crate::family::{CardId, Route, page};
 use crate::strings::EN;
+use crate::strings::fill;
 use crate::wallet::{Kind, step};
 use crate::{Faraday, Medium, guide};
-use opensigner_core::strings::fill;
 
 /// The map: where each stop happens, its name, and what is done there.
 pub fn map(m: Medium) -> [(&'static str, &'static str, String); 6] {

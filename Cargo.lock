@@ -741,7 +741,6 @@ dependencies = [
  "faraday-strings",
  "faraday-ui",
  "faraday-vault",
- "opensigner-core",
  "osk-backup",
  "osk-bip",
  "osk-codec",
@@ -911,7 +910,6 @@ dependencies = [
  "faraday-guides",
  "faraday-learn",
  "faraday-ui",
- "opensigner-core",
  "osk-bip",
  "osk-codec",
  "osk-learn",
@@ -933,7 +931,6 @@ dependencies = [
  "faraday-storage",
  "faraday-window",
  "libc",
- "opensigner-core",
  "osk-shell-api",
  "rustbus",
  "windows-sys 0.52.0",
@@ -948,7 +945,6 @@ dependencies = [
  "faraday-core",
  "faraday-scanner",
  "faraday-storage",
- "opensigner-core",
  "opensigner-v4l2",
  "osk-crypto",
  "osk-shell-api",
@@ -1785,30 +1781,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "opensigner-core"
-version = "0.1.0"
-dependencies = [
- "argon2",
- "chacha20poly1305",
- "hmac",
- "opensigner-core",
- "osk-backup",
- "osk-bip",
- "osk-codec",
- "osk-crypto",
- "osk-entropy",
- "osk-keep",
- "osk-learn",
- "osk-psbt",
- "osk-selftest",
- "osk-shell-api",
- "osk-ui",
- "serde_json",
- "sha2",
- "zeroize",
-]
-
-[[package]]
 name = "opensigner-v4l2"
 version = "0.1.0"
 dependencies = [
@@ -1893,20 +1865,6 @@ dependencies = [
  "osk-crypto",
  "osk-ui",
  "ttf-parser",
-]
-
-[[package]]
-name = "osk-keep"
-version = "0.1.0"
-dependencies = [
- "argon2",
- "chacha20poly1305",
- "hmac",
- "osk-backup",
- "osk-bip",
- "osk-crypto",
- "sha2",
- "zeroize",
 ]
 
 [[package]]

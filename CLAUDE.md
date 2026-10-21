@@ -14,12 +14,10 @@ changes and nothing else has to be kept in step.
   the same components, drawn with Faraday's own look (`faraday-ui`).
 - Every dimension is a name in `core/osk-ui/src/tokens.rs`;
   `tools/lint-tokens.sh` fails the build otherwise.
-- Every user-facing string is in OpenSigner's
-  `opensigner/opensigner-core/src/strings/en.rs` when it is OpenSigner's,
-  and in Faraday's `faraday/faraday-strings/src/en.rs` when it is
-  Faraday's; Faraday never adds to OpenSigner's file. Two exceptions: the
-  Learn pages (`core/osk-learn/src/en.rs`, edited as `docs/learn/`) and
-  the self-test's check names (`core/osk-selftest`).
+- Every user-facing string is in one file,
+  `faraday/faraday-strings/src/en.rs`. Two exceptions: the Learn pages
+  (`core/osk-learn/src/en.rs`, edited as `docs/learn/`) and the
+  self-test's check names (`core/osk-selftest`).
 - A working screen carries labels, values and actions, never an
   explanation. Explanations live in Learn and About, which are not
   working screens.
@@ -29,7 +27,7 @@ changes and nothing else has to be kept in step.
   lints in the `lint` recipe. Keep every test passing or change it to the
   rule it now encodes; do not delete a test to make the build pass. Run
   it once, at the end; while working, run the one test file you touched
-  (`cargo nextest run -p opensigner-core --test keep`). To look at a
+  (`cargo nextest run -p faraday-core --test keygen`). To look at a
   screen, render one tour at one size (`just faraday-snap 480x640 spend`,
   into `out/snapshots/faraday/480x640/spend/`); `just faraday-snapshots`,
   the default tour at every size, is for a change to the layout engine

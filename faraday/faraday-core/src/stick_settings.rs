@@ -16,8 +16,8 @@
 //! already there (`faraday_files::SETTINGS_FILE`, the same name).
 
 use crate::strings::EN;
+use crate::strings::fill;
 use crate::{Faraday, StorageEvent};
-use opensigner_core::strings::fill;
 
 /// The file's name on a stick.
 pub const FILE: &str = "faraday-settings.txt";

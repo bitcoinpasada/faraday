@@ -9,7 +9,7 @@
 //! imported is dropped, its bytes wiped as each [`Item`] drops.
 
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_crypto::work::Compute;
 use std::collections::BTreeSet;
 

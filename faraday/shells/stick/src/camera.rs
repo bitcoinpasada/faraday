@@ -39,7 +39,7 @@ use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender, TryRecvError, sync
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use opensigner_core::scan::{reduce, reduce_chroma, reduce_factor};
+use faraday_scanner::{reduce, reduce_chroma, reduce_factor};
 use opensigner_v4l2::{Camera as Device, Frame, Size};
 use zeroize::Zeroizing;
 

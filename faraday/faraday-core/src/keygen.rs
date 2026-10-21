@@ -1,11 +1,10 @@
 //! Making a new key: the randomness, the word count, and the words
 //! (`docs/FLOWS.md`, New key).
 //!
-//! The options are OpenSigner's, taken from its Create wizard rather than
-//! copied: the sources and their order ([`SOURCE_ROWS`]), what a mix may
-//! combine ([`MIX_SOURCES`]), the word counts (`opensigner_core::load::
-//! COUNTS`) and their names and the dice procedures' in OpenSigner's
-//! strings. Every cryptographic step is `osk-entropy`'s and `osk-bip`'s,
+//! The options are OpenSigner's, taken from its Create wizard: the sources
+//! and their order ([`SOURCE_ROWS`]), what a mix may combine
+//! ([`MIX_SOURCES`]), the word counts and their names, and the dice
+//! procedures' names. Every cryptographic step is `osk-entropy`'s and `osk-bip`'s,
 //! the crates OpenSigner's wizard itself calls: the rolls, flips, draws,
 //! digits and frames accumulate in their fixed buffers, the procedures
 //! hash or spell them, the sanity checks are theirs, a mix combines their
@@ -15,16 +14,15 @@
 //! The accumulators and the words are erased on drop; leaving the flow
 //! drops them all.
 
-use crate::strings::EN as FEN;
-use opensigner_core::strings::fill;
+use crate::strings::EN;
+use crate::strings::fill;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_entropy::{
     CameraNoise, CardDraws, CoinFlips, DiceProcedure, DiceRolls, MIN_MIX, Mixed, RawHex, Strength,
     Warnings,
 };
 
-pub use opensigner_core::quiz::QuizState;
-use opensigner_core::strings::EN;
+pub use crate::quiz::QuizState;
 pub use osk_entropy::{MIX_SOURCES, SOURCE_ROWS, Source};
 
 use osk_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
@@ -46,7 +44,7 @@ pub fn source_name(s: Source) -> &'static str {
         Source::Camera => EN.create_source_camera,
         Source::Mix => EN.create_source_mix,
         Source::Device => EN.create_source_device,
-        Source::SeedXor => FEN.keygen_seed_xor,
+        Source::SeedXor => EN.keygen_seed_xor,
     }
 }
 
@@ -56,7 +54,7 @@ pub fn procedure_name(p: DiceProcedure) -> &'static str {
         DiceProcedure::Hashed => EN.dice_procedure_hashed,
         DiceProcedure::SixAsZero => EN.dice_procedure_six_as_zero,
         // OpenSigner's name less its "(BitBox)".
-        DiceProcedure::Words => FEN.keygen_words_chosen,
+        DiceProcedure::Words => EN.keygen_words_chosen,
     }
 }
 
@@ -316,7 +314,7 @@ pub struct KeyGen {
     /// The key's fingerprint, once the words are made.
     pub fingerprint: Option<[u8; 4]>,
     /// OpenSigner's backup quiz, once the words have been shown.
-    pub quiz: Option<opensigner_core::quiz::Quiz>,
+    pub quiz: Option<crate::quiz::Quiz>,
     /// The person asked to skip the quiz; a second press skips it.
     pub skip_ask: bool,
     /// The quiz was skipped.
@@ -523,7 +521,7 @@ impl KeyGen {
     /// share's (20 words for 128 bits, 33 for 256).
     pub fn counts(&self) -> &'static [u8] {
         if self.slip39 {
-            &opensigner_core::load::SLIP39_COUNTS
+            &crate::word_entry::SLIP39_COUNTS
         } else {
             &COUNTS
         }
@@ -570,7 +568,7 @@ impl KeyGen {
     pub fn deal(&mut self, c: &Compute, random: [u8; 32]) -> Result<(), String> {
         use osk_bip::slip39;
         let Some(secret) = self.secret.as_ref() else {
-            return Err(FEN.keygen_no_secret_yet.to_string());
+            return Err(EN.keygen_no_secret_yet.to_string());
         };
         // The draw, stretched: SHA-256 over the draw and a counter, as
         // much as the split asks for.
@@ -598,9 +596,7 @@ impl KeyGen {
         let n = slip39::split(
             c, secret, b"", identifier, true, 1, 1, &groups, &mut fill, &mut out,
         )
-        .map_err(|e| {
-            opensigner_core::strings::fill(FEN.keygen_the_shares_could, &[&format!("{e:?}")])
-        })?;
+        .map_err(|e| crate::strings::fill(EN.keygen_the_shares_could, &[&format!("{e:?}")]))?;
         out.truncate(n);
         self.shares = out;
         self.share_at = 0;
@@ -778,13 +774,13 @@ impl KeyGen {
         let w = self.warnings();
         let mut out = Vec::new();
         if w.long_run {
-            out.push(FEN.keygen_a_long_run_of);
+            out.push(EN.keygen_a_long_run_of);
         }
         if w.skewed {
-            out.push(FEN.keygen_far_from_even);
+            out.push(EN.keygen_far_from_even);
         }
         if w.sequential {
-            out.push(FEN.keygen_a_long_run_counting);
+            out.push(EN.keygen_a_long_run_counting);
         }
         out
     }
@@ -913,9 +909,9 @@ impl KeyGen {
         }
         self.note = (!taken).then(|| {
             if self.procedure().direct() {
-                FEN.keygen_a_5_or_a_6_is.to_string()
+                EN.keygen_a_5_or_a_6_is.to_string()
             } else {
-                FEN.keygen_a_die_has_six.to_string()
+                EN.keygen_a_die_has_six.to_string()
             }
         });
     }
@@ -940,7 +936,7 @@ impl KeyGen {
             return;
         }
         if !(1..=6).contains(&face) {
-            self.note = Some(FEN.keygen_a_die_has_six.to_string());
+            self.note = Some(EN.keygen_a_die_has_six.to_string());
             return;
         }
         self.note = None;
@@ -968,7 +964,7 @@ impl KeyGen {
             return;
         }
         if self.progress().0 >= self.progress().1 {
-            self.note = Some(FEN.keygen_no_more_are.to_string());
+            self.note = Some(EN.keygen_no_more_are.to_string());
             return;
         }
         match (self.active(), c) {
@@ -1073,7 +1069,7 @@ impl KeyGen {
             }
             self.note = match osk_entropy::card_index(r, s) {
                 Some(i) if self.cards.push(i) => None,
-                Some(_) => Some(FEN.keygen_that_card_is.to_string()),
+                Some(_) => Some(EN.keygen_that_card_is.to_string()),
                 None => None,
             };
             self.rank = None;
@@ -1094,11 +1090,11 @@ impl KeyGen {
             return;
         }
         let Some(luma) = self.frame.as_ref() else {
-            self.note = Some(FEN.keygen_no_picture_from.to_string());
+            self.note = Some(EN.keygen_no_picture_from.to_string());
             return;
         };
         let (_, taken) = self.camera.push(luma);
-        self.note = (!taken).then(|| FEN.keygen_too_little_variation.to_string());
+        self.note = (!taken).then(|| EN.keygen_too_little_variation.to_string());
     }
 
     /// SHA-256 of the active source's input, which a mix combines.
@@ -1119,7 +1115,7 @@ impl KeyGen {
     pub fn finish_entry(&mut self) -> bool {
         if !self.ready() {
             let (have, need) = self.progress();
-            self.note = Some(fill(FEN.keygen_of, &[&have.to_string(), &need.to_string()]));
+            self.note = Some(fill(EN.keygen_of, &[&have.to_string(), &need.to_string()]));
             return false;
         }
         self.note = None;
@@ -1190,7 +1186,7 @@ impl crate::Faraday {
     /// Opens the flow, for a Create slot or for the session.
     pub(crate) fn keygen_open(&mut self, slot: Option<u8>) {
         if !self.may_load_keys() {
-            self.toast(&fill(FEN.keygen_remove_the_first, &[self.medium.noun()]));
+            self.toast(&fill(EN.keygen_remove_the_first, &[self.medium.noun()]));
             return;
         }
         // A flow already open ends first, giving back what it kept.
@@ -1331,7 +1327,7 @@ impl crate::Faraday {
                 }
             };
             if only_24 && m.word_count() != 24 {
-                self.entry.error = Some(FEN.keygen_a_threshold.to_string());
+                self.entry.error = Some(EN.keygen_a_threshold.to_string());
                 return;
             }
             words = Some(m);
@@ -1516,15 +1512,15 @@ impl crate::Faraday {
                         open(k, kstep::ENTER);
                     } else {
                         k.note = Some(if k.source.is_some() {
-                            FEN.keygen_choose_two_sources.to_string()
+                            EN.keygen_choose_two_sources.to_string()
                         } else {
-                            FEN.keygen_choose_a_source.to_string()
+                            EN.keygen_choose_a_source.to_string()
                         });
                     }
                 }
                 Some(kstep::ENTER) => {
                     if k.slip39 && draw.is_none() {
-                        k.note = Some(FEN.keygen_no_randomness.to_string());
+                        k.note = Some(EN.keygen_no_randomness.to_string());
                         return;
                     }
                     if k.finish_entry() {
@@ -1565,11 +1561,10 @@ impl crate::Faraday {
                 Some(kstep::WORDS) if k.slip39 => {
                     // Each share is quizzed in turn, from the first.
                     if let Some(ind) = k.share_indices(0) {
-                        let seed = opensigner_core::quiz::Quiz::seed(self.now_ms, ind);
-                        k.quiz = Some(opensigner_core::quiz::Quiz::new(
+                        let seed = crate::quiz::Quiz::seed(self.now_ms, ind);
+                        k.quiz = Some(crate::quiz::Quiz::new(
                             ind,
-                            opensigner_core::load::EntryList::Slip39,
-                            false,
+                            crate::word_entry::EntryList::Slip39,
                             seed,
                         ));
                         k.quiz_share = 0;
@@ -1582,11 +1577,10 @@ impl crate::Faraday {
                     // The quiz asks every word in a random order; the
                     // words are hidden while it runs.
                     if let Some(m) = k.mnemonic.as_ref() {
-                        let seed = opensigner_core::quiz::Quiz::seed(self.now_ms, m.indices());
-                        k.quiz = Some(opensigner_core::quiz::Quiz::new(
+                        let seed = crate::quiz::Quiz::seed(self.now_ms, m.indices());
+                        k.quiz = Some(crate::quiz::Quiz::new(
                             m.indices(),
-                            opensigner_core::load::EntryList::Bip39(Language::English),
-                            false,
+                            crate::word_entry::EntryList::Bip39(Language::English),
                             seed,
                         ));
                         k.shown = false;
@@ -1617,14 +1611,14 @@ impl crate::Faraday {
                 }
             }
             A::KQuiz(slot) if k.slip39 => {
-                let list = opensigner_core::load::EntryList::Slip39;
+                let list = crate::word_entry::EntryList::Slip39;
                 let at = k.quiz_share;
                 let ind: Vec<u16> = k.share_indices(at).map(<[u16]>::to_vec).unwrap_or_default();
                 let passed = match k.quiz.as_mut() {
                     Some(q) => {
                         q.pick(usize::from(slot));
                         q.confirm(&ind, list);
-                        q.state() == opensigner_core::quiz::QuizState::Passed
+                        q.state() == crate::quiz::QuizState::Passed
                     }
                     None => false,
                 };
@@ -1632,9 +1626,8 @@ impl crate::Faraday {
                     // The next share, or done.
                     match k.share_indices(at + 1).map(<[u16]>::to_vec) {
                         Some(next) => {
-                            let seed = opensigner_core::quiz::Quiz::seed(self.now_ms, &next);
-                            k.quiz =
-                                Some(opensigner_core::quiz::Quiz::new(&next, list, false, seed));
+                            let seed = crate::quiz::Quiz::seed(self.now_ms, &next);
+                            k.quiz = Some(crate::quiz::Quiz::new(&next, list, seed));
                             k.quiz_share = at + 1;
                         }
                         None => k.done[usize::from(kstep::QUIZ)] = true,
@@ -1647,15 +1640,15 @@ impl crate::Faraday {
                     .map(<[u16]>::to_vec)
                     .unwrap_or_default();
                 if let Some(q) = k.quiz.as_mut() {
-                    q.retry(&ind, opensigner_core::load::EntryList::Slip39);
+                    q.retry(&ind, crate::word_entry::EntryList::Slip39);
                 }
             }
             A::KQuiz(slot) => {
                 if let (Some(q), Some(m)) = (k.quiz.as_mut(), k.mnemonic.as_ref()) {
-                    let list = opensigner_core::load::EntryList::Bip39(Language::English);
+                    let list = crate::word_entry::EntryList::Bip39(Language::English);
                     q.pick(usize::from(slot));
                     q.confirm(m.indices(), list);
-                    if q.state() == opensigner_core::quiz::QuizState::Passed {
+                    if q.state() == crate::quiz::QuizState::Passed {
                         k.done[usize::from(kstep::QUIZ)] = true;
                     }
                 }
@@ -1664,7 +1657,7 @@ impl crate::Faraday {
                 if let (Some(q), Some(m)) = (k.quiz.as_mut(), k.mnemonic.as_ref()) {
                     q.retry(
                         m.indices(),
-                        opensigner_core::load::EntryList::Bip39(Language::English),
+                        crate::word_entry::EntryList::Bip39(Language::English),
                     );
                 }
             }
@@ -1701,7 +1694,7 @@ impl crate::Faraday {
         let passed = k
             .quiz
             .as_ref()
-            .is_some_and(|q| q.state() == opensigner_core::quiz::QuizState::Passed);
+            .is_some_and(|q| q.state() == crate::quiz::QuizState::Passed);
         if !(passed || k.skipped) {
             return;
         }
@@ -1712,7 +1705,7 @@ impl crate::Faraday {
             return;
         }
         let slot = k.slot;
-        let label = fill(FEN.keygen_new_key_n, &[&(self.new_keys + 1).to_string()]);
+        let label = fill(EN.keygen_new_key_n, &[&(self.new_keys + 1).to_string()]);
         // The demo adds its next public seed in place of the key just
         // made, which goes unused (`Session::next_handout`).
         let handed = self.session.next_handout().map(|(w, _)| w);
@@ -1781,7 +1774,7 @@ impl crate::Faraday {
         // typed is ignored (`Session::next_handout`, F20).
         let handed = self.session.next_handout().map(|(w, _)| w);
         if handed.is_none() && k.slot.is_some() && k.passphrase.as_str() != k.passphrase2.as_str() {
-            k.note = Some(FEN.keygen_the_two_passphrases.to_string());
+            k.note = Some(EN.keygen_the_two_passphrases.to_string());
             return;
         }
         // New key on its own makes the key alone: no passphrase
@@ -1791,7 +1784,7 @@ impl crate::Faraday {
             pass.push_str(k.passphrase.as_str());
         }
         let slot = k.slot;
-        let label = fill(FEN.keygen_new_key_n, &[&(self.new_keys + 1).to_string()]);
+        let label = fill(EN.keygen_new_key_n, &[&(self.new_keys + 1).to_string()]);
         let added = if let Some(word) = handed {
             self.session
                 .add_words(&c, &crate::demo::words(word), &label, None)
@@ -1903,7 +1896,7 @@ impl crate::Faraday {
         }
         let asks = k.asks_passphrase();
         if asks && k.passphrase.as_str() != k.passphrase2.as_str() {
-            k.note = Some(FEN.keygen_the_two_passphrases.to_string());
+            k.note = Some(EN.keygen_the_two_passphrases.to_string());
             return;
         }
         let mut pass = crate::secret_text::room();
@@ -2001,18 +1994,18 @@ impl crate::Faraday {
         if let Some(fp) = k.fingerprint.filter(|_| k.typed()) {
             // A key typed: Add a key's own toast.
             self.toast(&fill(
-                FEN.entry_add_key_added,
+                EN.entry_add_key_added,
                 &[&crate::wallet::fp_text(osk_bip::keys::Fingerprint(fp)).to_string()],
             ));
         } else if let Some(fp) = k.fingerprint {
             self.toast(&fill(
-                FEN.keygen_key_added_back,
+                EN.keygen_key_added_back,
                 &[
                     &crate::wallet::fp_text(osk_bip::keys::Fingerprint(fp)).to_string(),
                     (if k.slip39 {
-                        FEN.keygen_shares_inline
+                        EN.keygen_shares_inline
                     } else {
-                        FEN.keygen_words_inline
+                        EN.keygen_words_inline
                     }),
                 ],
             ));

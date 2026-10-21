@@ -6,9 +6,9 @@
 //! the theory.
 
 use crate::strings::EN;
+use crate::strings::fill;
 use crate::wallet::{Kind, step};
 use crate::{Medium, SpendState};
-use opensigner_core::strings::fill;
 
 /// The walk-through for one step of a spend.
 pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState, m: Medium) -> String {

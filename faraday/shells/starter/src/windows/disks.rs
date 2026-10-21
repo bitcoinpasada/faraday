@@ -18,8 +18,8 @@
 use std::fmt::Write as _;
 
 use faraday_core::strings::EN;
+use faraday_core::strings::fill;
 use faraday_starter::api::{Bus, Disk, FaradayStick, InUse, Volume};
-use opensigner_core::strings::fill;
 
 use crate::writer::Identity;
 

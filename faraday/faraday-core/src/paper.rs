@@ -8,7 +8,7 @@
 //! the secret sheet, a file (`crate::secrets`).
 
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_bip::bip39::Mnemonic;
 use osk_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
 use osk_bip::codex32::{self, Codex32};

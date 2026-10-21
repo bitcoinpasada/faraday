@@ -10,6 +10,7 @@ mod common;
 use faraday_core::backup_flow::Kind;
 use faraday_core::backup_flow_steps::FlowAction as F;
 use faraday_core::create::NewKind;
+use faraday_core::grind::Dial;
 use faraday_core::keygen::{MIX_SOURCES, Source, Way, kstep};
 use faraday_core::plan::{Item, Preset};
 use faraday_core::seeds::SeedsAction as S;
@@ -18,7 +19,6 @@ use faraday_core::vanity::VanityAction as VA;
 use faraday_core::vaults::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, Sheet, bstep, cstep, demo, qstep};
 use faraday_vault::records::kind;
-use opensigner_core::vanity::Dial;
 use osk_bip::keys::Network;
 use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
@@ -683,7 +683,7 @@ fn loaded(app: &Faraday) -> Vec<[u8; 4]> {
 
 /// Lock in, the words' quiz passed, Done.
 fn finish(app: &mut Faraday) {
-    use opensigner_core::quiz::QuizState;
+    use faraday_core::quiz::QuizState;
     app.press(Action::KLock);
     app.press(Action::KNext);
     app.press(Action::KNext);

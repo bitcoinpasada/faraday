@@ -2951,8 +2951,10 @@ as possible before the next build.
     fingerprint, WalletPolicy its checksum, hardened steps written h
     (U4, F66: fc5c3c9c–7f656572); OpenSigner code Faraday never builds
     removed and the image tree moved to faraday/image (U1, e7e91f01;
-    fixes the Pi 3 card's missing loglevel=5). Slimming opensigner-core
-    (U5) is last.
+    fixes the Pi 3 card's missing loglevel=5); the images' names,
+    partitions FARADAYBOOT/FARADAYDATA with Faraday's GPT ids (F67) and
+    the Cobalt boot logo; opensigner-core and osk-keep removed, what
+    Faraday used moved into faraday-core, one strings file (U5, F68).
 
 95. [ ] 2026-10-21, owner: **costly work takes a token** (docs/COMPUTE.md):
     A0, A1, B1–B6 and C0 built (20e7ab91, e05c24b3, f8898e72); C1–C3

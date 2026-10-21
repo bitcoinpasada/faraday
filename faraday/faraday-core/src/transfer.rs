@@ -11,7 +11,7 @@
 //! exists only when [`Faraday::online`] is set, never on the device.
 
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use std::collections::VecDeque;
 
 use osk_shell_api::Command;

@@ -11,9 +11,9 @@
 //! says it is working has been drawn.
 
 use crate::strings::EN;
+use crate::strings::fill;
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{self as fv, Contents, Cost, Header, Record};
-use opensigner_core::strings::fill;
 use osk_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
 use osk_crypto::work::Compute;
 use std::collections::BTreeSet;

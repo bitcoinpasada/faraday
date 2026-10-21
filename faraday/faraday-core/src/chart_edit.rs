@@ -11,8 +11,8 @@ use crate::glance_sheet::Target;
 use crate::plan::{self, At, Edit, Mark, Note, What};
 use crate::secret_text::SecretText;
 use crate::strings::EN;
+use crate::strings::fill;
 use crate::{Action, Faraday, Sheet};
-use opensigner_core::strings::fill;
 use osk_crypto::work::Compute;
 
 /// What the chart's sheets hold between presses.

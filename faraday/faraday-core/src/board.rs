@@ -17,7 +17,7 @@
 
 use std::rc::Rc;
 
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_crypto::work::Compute;
 
 use crate::Faraday;

@@ -5,11 +5,11 @@ use crate::drawing::{Scrolled, View};
 use crate::screens::{button_rows, next_button};
 use crate::silent::{SilentState, sstep};
 use crate::strings::EN;
+use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, Code, flow};
-use opensigner_core::strings::fill;
 
 const TITLES: [&str; sstep::COUNT] = [
     EN.silent_key,
@@ -239,8 +239,8 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
 }
 
 /// What a check came to, as a line and its tone.
-fn checked_text(r: &opensigner_core::silent::Checked) -> (String, osk_ui::Color) {
-    use opensigner_core::silent::Checked;
+fn checked_text(r: &crate::silent_check::Checked) -> (String, osk_ui::Color) {
+    use crate::silent_check::Checked;
     match r {
         Checked::Paid(paid) => {
             let n = paid.len();
@@ -269,7 +269,7 @@ fn checked_text(r: &opensigner_core::silent::Checked) -> (String, osk_ui::Color)
 /// Check a payment: the transactions in Files to check, and what the one
 /// checked came to, output by output.
 fn check_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    use opensigner_core::silent::Checked;
+    use crate::silent_check::Checked;
     let mut cy = y;
     if let Some((name, check)) = s.check.as_ref() {
         ui.text(x, cy, 13.0, W::S, TEXT, name);
@@ -322,7 +322,7 @@ fn check_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) 
         .inbox
         .iter()
         .enumerate()
-        .filter(|(_, it)| opensigner_core::silent::Check::read(&it.bytes).is_some())
+        .filter(|(_, it)| crate::silent_check::Check::read(&it.bytes).is_some())
         .map(|(k, it)| {
             (
                 fill(EN.silent_check, &[&it.name.to_string()]),

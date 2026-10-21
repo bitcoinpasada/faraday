@@ -6,9 +6,9 @@
 //! BIP-352's sending side made to it, to the address or to a label, and
 //! not one made to someone else.
 
+use faraday_core::silent_check::Checked;
 use faraday_core::wallet::Kind;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent};
-use opensigner_core::silent::Checked;
 use osk_bip::bitcoin::key::TapTweak;
 use osk_bip::bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
 use osk_bip::bitcoin::{

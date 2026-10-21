@@ -75,26 +75,22 @@ cd fuzz && cargo +nightly fuzz run decode_luma artifacts/decode_luma/rqrr-perspe
 | `psbt_parse` | `osk_psbt::Psbt::parse_bytes` / `parse_base64`, then `inspect` with no key loaded and with the BIP-39 test vector key |
 | `policy` | `osk_bip::policy::WalletPolicy::parse_any` |
 | `message_verify` | `osk_psbt::message::verify` over the test vector key's four addresses |
-| `settings_read` | `opensigner_core::settings::read` |
-| `keep_open` | `osk_keep::header`, `challenge`, `open`, `count_attempt` |
 | `xkey` | `osk_bip::xkey::decode_xpriv` / `decode_xpub`, `slip132::decode_xpub` |
 | `pgp_armor` | `faraday_pgp::read_public_armor` |
 | `json` | `osk_bip::json::parse`, written back with `quote` and read again; `osk_bip::coldcard::parse` |
 | `decode_luma` | `osk_codec::decode_luma`, the frame's width and height taken from the first two bytes |
 
-Two of them shape the input before the call, because the code under test
-rejects anything else in its first few lines and a fuzzer would never
-reach the interesting part:
+One of them shapes the input before the call, because the code under
+test rejects anything else in its first few lines and a fuzzer would
+never reach the interesting part: `decode_luma` needs
+`luma.len() == width * height`, so the target takes the two dimensions
+from the first two bytes (1 to 256 each) and pads or truncates the rest
+to fit.
 
-- `decode_luma` needs `luma.len() == width * height`, so the target takes
-  the two dimensions from the first two bytes (1 to 256 each) and pads or
-  truncates the rest to fit.
-- `keep_open` needs a 262-byte blob whose records authenticate, so the
-  target writes one at start-up under a known PIN and a known element tag
-  and lays the input over the front of a copy. A short input tampers with
-  the header of two valid records; a full-length one replaces everything.
-  `keep::header` is also called on the raw input, unshaped, which is the
-  gate an arbitrary file on the data partition actually meets.
+`settings_read` (OpenSigner's settings file) and `keep_open` (its kept-key
+blob, `osk-keep`) went with the code they read when Faraday dropped
+OpenSigner's app (`docs/DECISIONS.md` F68); the record below is kept as
+it was run.
 
 ## 2026-09-11: what was run and what it found
 
@@ -181,8 +177,8 @@ left behind:
 | `decode_luma` | 300 s | 45.9 k | 1451 | clean |
 | `keep_open` | 120 s | 22.0 k | 1093 | clean |
 
-Each of the four committed artifacts also runs clean on its own, which is
-the cheap check to repeat before touching either parser:
+Each committed artifact also runs clean on its own, which is
+the cheap check to repeat before touching the QR decoder:
 
 ```
 cd fuzz && cargo +nightly fuzz run decode_luma artifacts/decode_luma/rqrr-perspective-map.bin

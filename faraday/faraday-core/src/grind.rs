@@ -1,5 +1,9 @@
 //! The vanity address grinder's state (`docs/PLANNING.md` §16.117).
 //!
+//! Taken from OpenSigner's app (`opensigner-core/src/vanity.rs` at
+//! upstream `d26b84e`) when Faraday dropped that app (`docs/DECISIONS.md`
+//! F68), unchanged; Faraday's flow over it is [`crate::vanity`].
+//!
 //! The engine is `osk_bip::vanity`; this is what the screens hold
 //! between frames: which dial is being turned, the prefix as it is
 //! typed, how far the counter has gone, how long that took, and the

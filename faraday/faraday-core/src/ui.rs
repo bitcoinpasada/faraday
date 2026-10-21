@@ -133,7 +133,7 @@ impl CoreUi for Ui<'_> {
     /// the field is focused.
     fn no_passphrase(&mut self, x: f32, y: f32, h: f32, focused: bool) {
         let ph = 24.0;
-        let label = opensigner_core::strings::EN.passphrase_none;
+        let label = crate::strings::EN.passphrase_none;
         let pw = self.pill_in(x + 8.0, y + (h - ph) / 2.0, ph, label, DIM);
         if focused {
             self.caret(x + 14.0 + pw, y + (h - 18.0) / 2.0, 18.0);

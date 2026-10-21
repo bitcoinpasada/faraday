@@ -26,7 +26,7 @@
 //! copier a boot partition.
 
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_shell_api::Command;
 
 use crate::{BootPart, Faraday, Screen, Sheet, StorageCommand, StorageEvent};

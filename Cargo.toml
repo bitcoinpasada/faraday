@@ -8,11 +8,9 @@ members = [
     "core/osk-shell-api",
     "core/osk-codec",
     "core/osk-backup",
-    "core/osk-keep",
     "core/osk-learn",
     "core/osk-selftest",
     "core/osk-ui",
-    "opensigner/opensigner-core",
     "opensigner/shells/v4l2",
     "opensigner/shells/avfoundation",
     "tools/fontbake",
@@ -189,8 +187,6 @@ opt-level = 2
 [profile.dev.package.osk-entropy]
 opt-level = 2
 [profile.dev.package.osk-ui]
-opt-level = 2
-[profile.dev.package.opensigner-core]
 opt-level = 2
 
 # RSA-3072 key generation (`faraday-apk`, `docs/APK-SIGNING.md` §2.1) runs

@@ -107,7 +107,6 @@ already parsed); `osk_crypto::hash::sha256` on small fixed inputs;
 | `faraday-storage`'s worker entry, `faraday-disk/src/main.rs` | `new(\|_\| {})` | Threads and processes that draw nothing |
 | `faraday/shells/snapshot/src/main.rs` | `new(\|_\| {})` | A tool |
 | `faraday-core/src/testkit.rs`: `testkit::compute()` (cfg `test`/`testkit`) | `new(work::core_count)` | Faraday's tests |
-| `opensigner-core`: a crate-private `fn unchecked() -> Compute`, never re-exported | `unchecked()` | OpenSigner's app has no memo and makes no drawing claim; it mints where it needs to until U5; its pub API takes tokens from callers |
 | Core tests and benches, `fuzz/`, `faraday/fuzz/` | `unchecked()` | No app guarantee |
 
 Core's non-test sources mint nothing; they pass their callers' tokens
@@ -115,18 +114,19 @@ through. The Starter's `phone_code` (a QR code each frame) is kept on its
 state when the address is set (C3), so the Starter needs no mint while
 drawing.
 
-**Keeping Faraday off `unchecked`.** The feature alone cannot: Faraday's
-crates depend on `opensigner-core`, which turns `osk-crypto/unchecked`
-on, and cargo unifies features, so `Compute::unchecked` is compiled into
-Faraday's graph until U5. What holds it now: `faraday/clippy.toml`
-disallows `Compute::unchecked` outright and `Compute::new` except under
+**Keeping Faraday off `unchecked`.** Since U5 (F68) no crate in the
+normal dependency graph of a binary Faraday ships enables
+`osk-crypto/unchecked`: core's crates turn it on as dev-dependencies
+only, and OpenSigner's app, which turned it on, is gone.
+`tools/lint-unchecked.sh`, in `just lint`, fails if `cargo tree -e
+features,normal -i osk-crypto` over the shipped binaries, on any target,
+shows it. Beside that, `faraday/clippy.toml` disallows
+`Compute::unchecked` outright and `Compute::new` except under
 `#[expect(clippy::disallowed_methods, reason = "a mint: …")]` at the sites
 above (clippy reads the nearest `clippy.toml` above each manifest, so this
 governs every crate under `faraday/` and no other); and the costs lint
 rejects any `expect`/`allow` over `unchecked`, a mint outside its list,
-and the `unchecked` feature in any `faraday/**/Cargo.toml`. After U5,
-`just lint` adds a check that `cargo tree -e features,normal -i
-osk-crypto` for the shipped binaries shows no `unchecked`.
+and the `unchecked` feature in any `faraday/**/Cargo.toml`.
 
 ## 4. The drawing side
 
@@ -256,7 +256,6 @@ by `just lint`; walks `core/*/src` and `faraday/**/src`, skipping
    `View.fill`;
 4. a `.compute()` call or `Compute::` path inside `render*` (but
    `before_frame`) or any function taking `&View` or `&mut Ui`;
-5. a `pub` item in `opensigner-core` returning a `Compute`.
 
 ## 9. compile_fail doctests
 
@@ -296,8 +295,8 @@ the token).
 2. BSMS verification (§5.3), gated by the BIP-129 vectors.
 3. Checksums of `'`-written wallets change in OpenSigner's app (§5.4);
    formats needing `'` convert at their writer.
-4. `unchecked` is compiled into Faraday until U5; until then the
-   guarantee rests on clippy and the lint.
+4. `unchecked` was compiled into Faraday until U5 (F68), when
+   OpenSigner's app went; `tools/lint-unchecked.sh` keeps it out.
 5. Residual: a new whole-file hash written with `bitcoin::hashes` in a
    screen is not caught (the guard did not catch it either).
 6. `View` grows to ~37 thin accessors in `drawing/`, each saying what it

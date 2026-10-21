@@ -2,14 +2,14 @@
 //! first address made to begin with characters the person chose, by
 //! turning one of the key's two dials, the account index or a suffix on
 //! its BIP-39 passphrase. The engine is upstream's (`osk_bip::vanity`)
-//! and so is the state between frames (`opensigner_core::vanity::Grind`):
+//! and so is the state between frames (`crate::grind::Grind`):
 //! every tick tests a budget of candidates and comes back, so the screen
 //! stays live and Stop lands. A find is a fact about the key, the same on
 //! any device that turns the same dial.
 
+use crate::grind::{Dial, Grind, Step};
 use crate::strings::EN;
-use opensigner_core::strings::fill;
-use opensigner_core::vanity::{Dial, Grind, Step};
+use crate::strings::fill;
 use osk_bip::keys::{Fingerprint, ScriptType};
 use osk_bip::vanity::{self as engine, Key, Method};
 use zeroize::Zeroizing;

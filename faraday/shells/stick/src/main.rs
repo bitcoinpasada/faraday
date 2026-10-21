@@ -49,9 +49,9 @@
 //! needs no event it did not already have and no screen is designed
 //! twice.
 //!
-//! What it is: the standard library, `osk-shell-api`, `opensigner-core`,
-//! `faraday-scanner` for the decode and, for the camera alone,
-//! `opensigner-v4l2`. No `mmap` of its own
+//! What it is: the standard library, `osk-shell-api`, `faraday-core`,
+//! `faraday-scanner` for the decode and the frame reduction and, for the
+//! camera alone, `opensigner-v4l2`. No `mmap` of its own
 //! (the standard library has none, and `write_all_at` on a framebuffer
 //! is one `pwrite` per frame), no `libc`, no `unsafe`, no logging. The
 //! device has no console and no SSH, so nothing is printed unless

@@ -1,10 +1,9 @@
 //! Faraday's English wording: every string Faraday's screens, the stick's
-//! device check and the Starter show that OpenSigner does not. OpenSigner's
-//! own wording stays in `opensigner/opensigner-core/src/strings/en.rs`;
-//! Faraday never adds to that file. Same house style as upstream's.
+//! device check and the Starter show, in one file (F68). The strings
+//! Faraday took from OpenSigner's own file keep their names and their
+//! text. Same house style as upstream's.
 
-/// Every string Faraday shows that OpenSigner's `opensigner_core::strings::Strings`
-/// does not carry, grouped by screen.
+/// Every string Faraday shows, grouped by screen.
 pub struct Strings {
     /// Power-off sheet's first line on a PC stick that started with Secure Boot off or unread.
     pub power_secure_boot_off: &'static str,
@@ -8638,6 +8637,144 @@ pub struct Strings {
     /// The Delete files sheet's button when a vault is chosen: a hold
     /// (`docs/FLOWS.md` decision 4). `{}`: the count, "file" or "files".
     pub stick_wipe_hold_delete: &'static str,
+    // ----- Taken from OpenSigner's strings file with its wording unchanged (F68): New key's sources, checks and dice lists, the self-test, BIP-85's applications, Tools' calculators, Explore's path -----
+    /// Row that declines a passphrase.
+    pub passphrase_none: &'static str,
+    /// Button that discards the entries.
+    pub create_sanity_again: &'static str,
+    /// Source: a six-sided die.
+    pub create_source_dice: &'static str,
+    /// Source: coin flips.
+    pub create_source_coins: &'static str,
+    /// Source: typed hex.
+    pub create_source_hex: &'static str,
+    /// Source: a shuffled deck.
+    pub create_source_cards: &'static str,
+    /// Source: camera noise.
+    pub create_source_camera: &'static str,
+    /// Source: several sources mixed.
+    pub create_source_mix: &'static str,
+    /// Source: the device's own generator.
+    pub create_source_device: &'static str,
+    /// Label: the chi-square statistic of the rolls.
+    pub create_chi_square: &'static str,
+    /// Label: the longest run of one outcome.
+    pub create_longest_run: &'static str,
+    /// The run's value on a dice check: `{}` runs of the face named by
+    /// `create_face_1` to `create_face_6`, as `8 sixes`.
+    pub create_run_face: &'static str,
+    /// Plural name of dice face 1, for that value.
+    pub create_face_1: &'static str,
+    /// Plural name of dice face 2.
+    pub create_face_2: &'static str,
+    /// Plural name of dice face 3.
+    pub create_face_3: &'static str,
+    /// Plural name of dice face 4.
+    pub create_face_4: &'static str,
+    /// Plural name of dice face 5.
+    pub create_face_5: &'static str,
+    /// Plural name of dice face 6.
+    pub create_face_6: &'static str,
+    /// Verdict beside a statistic: `normal for {} rolls`.
+    pub create_stat_normal: &'static str,
+    /// Verdict beside a statistic that is out of the usual range.
+    pub create_stat_high: &'static str,
+    /// Label: heads.
+    pub create_heads: &'static str,
+    /// Label: tails.
+    pub create_tails: &'static str,
+    /// That Choice: the rolls hashed as ASCII digits.
+    pub dice_procedure_hashed: &'static str,
+    /// That Choice: every 6 written as a 0, then hashed.
+    pub dice_procedure_six_as_zero: &'static str,
+    /// The second line of a procedure's row: `{} rolls`.
+    pub dice_procedure_rolls: &'static str,
+    /// Label: how many cards were drawn.
+    pub create_cards_row: &'static str,
+    /// The shutter under it.
+    pub create_camera_shutter: &'static str,
+    /// Label: how many frames were taken.
+    pub create_frames_row: &'static str,
+    /// Label: how many of the 256 luma values the last frame used.
+    pub create_distinct_row: &'static str,
+    /// The coloured line on that step.
+    pub create_device_result: &'static str,
+    /// Label: what produced the bytes.
+    pub create_device_row: &'static str,
+    /// The generator on a device with no secure element.
+    pub create_device_os: &'static str,
+    /// The caution this source carries on the source list.
+    pub create_trusts_device: &'static str,
+    /// Label on the device-randomness result: what the bytes rest on.
+    pub create_trust_row: &'static str,
+    /// That row's value, in the caution tone.
+    pub create_trust_device: &'static str,
+    /// "Draw again" on the sanity step, for cards.
+    pub create_sanity_again_draw: &'static str,
+    /// "Take again" on the sanity step, for the camera.
+    pub create_sanity_again_take: &'static str,
+    /// Application 39': a child key of words.
+    pub bip85_app_words: &'static str,
+    /// Application 2': an HD-seed WIF.
+    pub bip85_app_wif: &'static str,
+    /// Application 32': an extended private key.
+    pub bip85_app_xprv: &'static str,
+    /// Application 128169': raw bytes.
+    pub bip85_app_hex: &'static str,
+    /// Application 707764': a password in base64.
+    pub bip85_app_base64: &'static str,
+    /// Application 707785': a password in base85.
+    pub bip85_app_base85: &'static str,
+    /// Row: the hash functions.
+    pub tools_hashes: &'static str,
+    /// Row: base58, bech32, hex, binary.
+    pub tools_encodings: &'static str,
+    /// Row: the descriptor checksum.
+    pub tools_descriptor_checksum: &'static str,
+    /// Row: xpub to SLIP-132 and back.
+    pub tools_convert_key: &'static str,
+    /// Row: the unit converter.
+    pub tools_units: &'static str,
+    /// Tools row: the miniscript policy compiler.
+    pub tools_miniscript: &'static str,
+    /// Title of the Choice that picks the list.
+    pub dice_list_title: &'static str,
+    /// Row: the 7776-word list.
+    pub dice_list_large: &'static str,
+    /// What that row costs to roll.
+    pub dice_list_large_detail: &'static str,
+    /// Row: the first 1296-word list.
+    pub dice_list_short1: &'static str,
+    /// What that row costs to roll.
+    pub dice_list_short1_detail: &'static str,
+    /// Row: the second 1296-word list.
+    pub dice_list_short2: &'static str,
+    /// What that row costs to roll, and what its words are chosen for.
+    pub dice_list_short2_detail: &'static str,
+    /// A path with two slashes in a row.
+    pub explore_path_empty: &'static str,
+    /// A path that ends with a slash.
+    pub explore_path_unfinished: &'static str,
+    /// A level that is not a number.
+    pub explore_path_not_a_number: &'static str,
+    /// An index of two to the thirty-first or more.
+    pub explore_path_too_large: &'static str,
+    /// More than ten levels.
+    pub explore_path_too_deep: &'static str,
+    /// Label: the self-test result.
+    pub settings_selftest: &'static str,
+    /// The self-test passed: `{}` is the check count.
+    pub settings_selftest_passed: &'static str,
+    /// The self-test failed: `{}` is the check.
+    pub settings_selftest_failed: &'static str,
+    /// Action that runs the self-test again.
+    pub settings_selftest_run: &'static str,
+    /// Failure title.
+    pub selftest_failed_title: &'static str,
+    /// Row label: the check that did not reproduce.
+    pub selftest_check_row: &'static str,
+    /// The only button.
+    pub selftest_exit: &'static str,
 }
 
 /// The English wording.
@@ -12790,4 +12927,72 @@ pub static EN: Strings = Strings {
     details_not_read: "Not read: {}",
     details_close: "Close",
     stick_wipe_hold_delete: "Hold to delete {} {} with zeros",
+    passphrase_none: "No passphrase",
+    create_sanity_again: "Roll again",
+    create_source_dice: "Dice",
+    create_source_coins: "Coin flips",
+    create_source_hex: "Hex entropy",
+    create_source_cards: "Playing cards",
+    create_source_camera: "Camera noise",
+    create_source_mix: "Mixed sources",
+    create_source_device: "This device",
+    create_chi_square: "Chi-square",
+    create_longest_run: "Longest run",
+    create_run_face: "{} {}",
+    create_face_1: "ones",
+    create_face_2: "twos",
+    create_face_3: "threes",
+    create_face_4: "fours",
+    create_face_5: "fives",
+    create_face_6: "sixes",
+    create_stat_normal: "normal for {} rolls",
+    create_stat_high: "high for {} rolls",
+    create_heads: "Heads",
+    create_tails: "Tails",
+    dice_procedure_hashed: "Hashed (Coldcard, SeedSigner)",
+    dice_procedure_six_as_zero: "Six as zero, hashed (Keystone)",
+    dice_procedure_rolls: "{} rolls",
+    create_cards_row: "Cards",
+    create_camera_shutter: "Take a picture",
+    create_frames_row: "Frames",
+    create_distinct_row: "Luma values",
+    create_device_result: "Not checkable",
+    create_device_row: "Source",
+    create_device_os: "operating system",
+    create_trusts_device: "trusts this device",
+    create_trust_row: "Trust",
+    create_trust_device: "this device's software",
+    create_sanity_again_draw: "Draw again",
+    create_sanity_again_take: "Take again",
+    bip85_app_words: "Words",
+    bip85_app_wif: "WIF",
+    bip85_app_xprv: "Extended private key",
+    bip85_app_hex: "Hex",
+    bip85_app_base64: "Password (base64)",
+    bip85_app_base85: "Password (base85)",
+    tools_hashes: "Hashes",
+    tools_encodings: "Encodings",
+    tools_descriptor_checksum: "Descriptor checksum",
+    tools_convert_key: "Convert key",
+    tools_units: "Units",
+    tools_miniscript: "Miniscript",
+    dice_list_title: "Which list?",
+    dice_list_large: "Long list",
+    dice_list_large_detail: "7776 words · five dice",
+    dice_list_short1: "Short list",
+    dice_list_short1_detail: "1296 words · four dice",
+    dice_list_short2: "Short list 2",
+    dice_list_short2_detail: "1296 words · 3 edits apart",
+    explore_path_empty: "Two slashes in a row.",
+    explore_path_unfinished: "Type an index after the slash.",
+    explore_path_not_a_number: "A level is a number, with h for hardened.",
+    explore_path_too_large: "The largest index is 2147483647.",
+    explore_path_too_deep: "At most ten levels.",
+    settings_selftest: "Self-test",
+    settings_selftest_passed: "passed · {} checks",
+    settings_selftest_failed: "failed · {}",
+    settings_selftest_run: "Run again",
+    selftest_failed_title: "Self-test failed",
+    selftest_check_row: "Check",
+    selftest_exit: "Exit",
 };

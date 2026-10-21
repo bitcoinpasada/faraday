@@ -4,7 +4,7 @@
 //! `osk-psbt`'s; this module only decides which call comes next.
 
 use crate::strings::EN;
-use opensigner_core::strings::fill;
+use crate::strings::fill;
 use osk_bip::bip39::{Language, Mnemonic};
 use osk_bip::bitcoin::consensus::encode::serialize_hex;
 use osk_bip::bitcoin::{Transaction, Txid};

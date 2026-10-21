@@ -2385,3 +2385,34 @@ data partition.
   it refuses any other disk and relabels nothing; its files are moved to
   a new stick by hand. The device treats its partitions as any other
   stick's, and Upgrade a Faraday stick does not offer it.
+
+### F68 One strings file; OpenSigner's app removed (2026-10-21)
+
+**Why.** Faraday never ran OpenSigner's app, `opensigner-core`: of its
+50,500 lines it used a few types and 68 of its 1,058 strings. Keeping it
+meant two strings files, with every new string placed by whose screen it
+first appeared on, 28,700 lines of tests for screens Faraday does not
+have, and the app's own `unchecked` compute token compiled into every
+Faraday binary (`docs/COMPUTE.md` §3).
+
+**Decision** (owner, 2026-10-21).
+
+- What Faraday used moved into Faraday's crates with its tests, its
+  behaviour unchanged: into `faraday-core`, the word entry for a list's
+  own keyboard (`word_entry.rs`, the typing step of OpenSigner's Load
+  wizard and nothing else of it), the backup quiz (`quiz.rs`), the
+  vanity grinder's state (`grind.rs`), the silent payment check
+  (`silent_check.rs`), the calculators' list (`tools.rs`), BIP-85's
+  applications (`bip85.rs`) and Explore's path parser (`explore.rs`);
+  into `faraday-scanner`, the camera frame's chroma reduction beside the
+  luma one it already had, which the stick's camera now uses.
+- The rest of `opensigner-core` is deleted with its tests, and
+  `core/osk-keep` (the kept-key blob, which only that app used) with it,
+  as are the fuzz targets for OpenSigner's settings file and the kept-key
+  blob. `opensigner/` keeps the two camera crates Faraday's shells use.
+- One strings file: `faraday/faraday-strings/src/en.rs`. The OpenSigner
+  strings Faraday shows moved there with their names and their text
+  unchanged; the rest are deleted. The Learn pages and the self-test's
+  check names stay the two exceptions (CLAUDE.md).
+- `just lint` checks that no binary Faraday ships enables `osk-crypto`'s
+  `unchecked` feature (`tools/lint-unchecked.sh`).

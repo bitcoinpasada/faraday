@@ -7,10 +7,10 @@ use crate::Action;
 use crate::drawing::View;
 use crate::screens::sheet_box;
 use crate::strings::EN;
+use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wordlist::{LISTS, WordListAction as WL};
-use opensigner_core::strings::fill;
 
 /// A row's height, in design units.
 const ROW: f32 = 28.0;

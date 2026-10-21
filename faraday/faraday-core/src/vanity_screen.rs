@@ -1,8 +1,8 @@
 //! The vanity screen: the step-card column over [`crate::vanity`].
 
+use crate::grind::Dial;
 use crate::strings::EN;
-use opensigner_core::strings::fill;
-use opensigner_core::vanity::Dial;
+use crate::strings::fill;
 use osk_bip::keys::ScriptType;
 
 use crate::drawing::{Scrolled, View};
