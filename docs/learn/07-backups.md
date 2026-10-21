@@ -28,8 +28,8 @@ NEVER read them out to anyone, no matter who they say they are.
 
 ## Verify your backup
 
-A backup you have never read back may be wrong: handwriting is misread, words get skipped, and steel gets stamped wrong. OpenSigner's backup quiz checks your written copy: it asks for every word in random order, offers four candidates each time, and checks your answers against the key in memory.
+A backup you have never read back may be wrong: handwriting is misread, words get skipped, and steel gets stamped wrong. Faraday's quiz checks your written copy: it asks for every word in random order, offers four candidates each time, and checks your answers against the key in memory.
 
-If you skip the quiz, the key stays marked as "not verified". That does not mean the backup is wrong. It means nobody has checked.
+If you skip the quiz, the copy is marked as not checked. That does not mean the backup is wrong. It means nobody has checked.
 
-Run the quiz again from your physical backup about once a year, and after every move. Ink fades, and you may forget where a copy is.
+Check the copy again from your physical backup about once a year, and after every move, with Check a copy of this seed. Ink fades, and you may forget where a copy is.

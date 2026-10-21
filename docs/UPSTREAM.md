@@ -50,7 +50,21 @@ Carried before the fork (`HANDOFF.md`, Upstream, has the detail):
   Starter's fields (2026-10-13). Each is optional: a core that does not
   know one ignores it, and a shell that has no such key never sends it.
 
-Since the fork: none yet.
+Since the fork:
+
+- `docs/learn/*.md` and `osk-learn`'s `en.rs` (2026-10-20): the Learn
+  pages Faraday shows name Faraday and its screens instead of
+  OpenSigner's: start here, words, transactions, randomness, where
+  randomness comes from, backups, Seed XOR, passphrases, verifying, the
+  air gap, scams, multisig, spend paths, xpubs, nonces (Low R and
+  deterministic Schnorr with no setting), signing a message, the
+  glossary (PIN and the glyph entries out, Vault and Watch-only in),
+  tools, kinds of wallets, backups in other forms, coordinator files and
+  silent payments. Bitcoin facts unchanged but for two additions: a die
+  read as a coin (randomness) and a derivation path's hardened mark
+  written `h` or an apostrophe (glossary). "Devices", "Encrypted
+  backups" and "The secure element" are unchanged, waiting on the
+  owner.
 
 ## 4. Watching upstream
 

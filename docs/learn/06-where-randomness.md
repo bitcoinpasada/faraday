@@ -2,7 +2,7 @@
 
 ## Every source asks for trust somewhere
 
-Create offers several ways to produce the bits a key is made of. They are not equally good. The difference between them is what you have to trust for the result to be random at all. This page says, for each source, what that is.
+New key offers several ways to produce the bits a key is made of. They are not equally good. The difference between them is what you have to trust for the result to be random at all. This page says, for each source, what that is.
 
 None of them can be checked afterwards: a key from a rigged source looks exactly like a key from a fair one. Choosing the source is the only control you have over this.
 
@@ -14,11 +14,13 @@ A die gives about 2.58 bits a roll, so 50 rolls give 128 bits and 99 give 256. A
 
 The counts for the three lengths in between follow the same arithmetic: 62 rolls or 160 flips for 15 words, 75 rolls or 192 flips for 18 words, 87 rolls or 224 flips for 21 words.
 
+A die can also stand in for a coin: each roll is one flip, 1, 2 or 3 for tails and 4, 5 or 6 for heads, one bit a roll.
+
 ## Three ways to read the dice
 
 Other signers turn dice into a key in more than one way, and the same rolls give different keys under each. The device asks which one you are following, so that a key you made elsewhere comes out the same here.
 
-**Hashed** is the first row and what most signers do. The rolls are written out as digits and hashed with SHA-256. Coldcard, SeedSigner and EntropyLab's "Base 10" row all do exactly this, so `echo -n 3246115135… | sha256sum` reproduces the result on any computer.
+**Hashed** is what most signers do. The rolls are written out as digits and hashed with SHA-256. Coldcard, SeedSigner and EntropyLab's "Base 10" row all do exactly this, so `echo -n 3246115135… | sha256sum` reproduces the result on any computer.
 
 **Six as zero, hashed** writes every 6 as a 0 first and then hashes the same way. Keystone uses it, and so does the "Dice" mode of iancoleman's page. It is no better or worse than the first; it is a different convention, and a key made under one will not appear under the other.
 

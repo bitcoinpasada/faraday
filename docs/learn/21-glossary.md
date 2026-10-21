@@ -42,7 +42,7 @@ A wait written into a wallet's script, after which a spend path that was closed 
 
 ## Derivation path
 
-The route from a master key to one of its child keys, level by level, starting at the root, m. An h marks a hardened level. The levels are purpose, coin, account, change, and index.
+The route from a master key to one of its child keys, level by level, starting at the root, m. An h, or an apostrophe, marks a hardened level. The levels are purpose, coin, account, change, and index.
 
 ## Descriptor
 
@@ -50,15 +50,11 @@ One line of text that describes a whole wallet: which keys, which script type, w
 
 ## Diceware
 
-A way of picking words at random by throwing dice. Each throw of four or five dice names one word of a published list, and the words together are a passphrase. OpenSigner carries the three lists the Electronic Frontier Foundation publishes.
+A way of picking words at random by throwing dice. Each throw of four or five dice names one word of a published list, and the words together are a passphrase. Faraday carries the three lists the Electronic Frontier Foundation publishes.
 
 ## Entropy
 
 Randomness, measured in bits. 128 bits of real entropy is unguessable. Entropy from a memorable phrase is far lower than it looks.
-
-## Eye glyph
-
-The mark at the start of a row that names a wallet or one of its keys: this device holds the public key only. You can derive and compare its addresses; you cannot spend from it. On a screen with a secret panel the eye is a button instead, which reveals the panel; the two never appear on one screen.
 
 ## Fee
 
@@ -88,10 +84,6 @@ A coin being spent. An input is always spent whole, and the remainder returns as
 
 The secret a wallet is built from, held as seed words. Everything else is derived from it.
 
-## Key glyph
-
-The mark at the start of a row that names a wallet or one of its keys: this device holds the private key, so it can sign for that wallet. A 2-of-3 with one of your keys in it carries the key glyph.
-
 ## Locktime
 
 The earliest block or time at which a transaction may confirm.
@@ -118,11 +110,7 @@ A coin being created: an address and an amount.
 
 ## Passphrase
 
-Extra text added to the seed words that produces a different key. It is stored nowhere.
-
-## PIN
-
-The number that opens a session on OpenSigner, or a key kept on an Android device.
+Extra text added to the seed words that produces a different key. Nothing stores it unless you keep it in a vault.
 
 ## Policy
 
@@ -150,7 +138,7 @@ The 64 bytes that the seed words and passphrase are stretched into. Every key of
 
 ## Seed words
 
-The 12 or 24 words that are the key. Whoever reads them controls the funds.
+The 12 to 24 words that are the key. Whoever reads them controls the funds.
 
 ## Share
 
@@ -162,11 +150,19 @@ Proof that a key agreed to a transaction or a message. On its own it moves nothi
 
 ## Signer
 
-The offline software or device that holds the keys and signs transactions. OpenSigner is a signer.
+The offline software or device that holds the keys and signs transactions. Faraday is a signer.
 
 ## SLIP-39
 
 Trezor's backup scheme: Shamir's Secret Sharing over a word list of its own, with a threshold. Its shares are not BIP-39 seed words.
+
+## Vault
+
+One file on a stick holding keys, wallets, entries and notes, encrypted under a passphrase. It has four slots, and each passphrase opens one of them.
+
+## Watch-only
+
+A wallet whose keys are not loaded here. Its addresses can be derived and compared; nothing can be spent from it.
 
 ## Xpub
 

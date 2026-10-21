@@ -20,7 +20,7 @@ Handing over the scan private key hands over the ability to see every payment th
 
 That is a real trade. A watching server with your scan key knows your whole receiving history, and if it also knows who you are, it knows who paid you. Give it to software you run, or to a service you have decided to trust with that; do not give it to anyone you would not show your bank statements to.
 
-Export on a silent payments wallet writes it as `sp(spscan1q…)`, which is BIP-392's descriptor for exactly this job. The device shows it on a hidden panel, as it shows seed words, because it is a secret.
+Faraday keeps the scan key in the open vault, or sends it out through the secret sheet, because it is a secret. Export on a silent payments wallet writes it, under More options, as `sp(spscan1q…)`, which is BIP-392's descriptor for exactly this job, and that too goes through the secret sheet.
 
 ## Labels
 
@@ -32,7 +32,7 @@ Labels are derived from the scan private key, not stored, so they come back from
 
 A silent payment leaves no address to look up. To know that a transaction paid you, someone has to do the arithmetic with the scan private key.
 
-Check a payment does it for one transaction. Give it the transaction, and the previous transactions of any inputs whose public keys are not in the transaction itself, and the device says which outputs pay this wallet, what they pay, and which label each was paid to. It reads nothing from the network: the transaction has to be brought to it, as a PSBT or as a raw transaction, by code or by file.
+Check a payment does it for one transaction. Give it the transaction, and the previous transactions of any inputs whose public keys are not in the transaction itself, and the device says which outputs pay this wallet, what they pay, and which label each was paid to. It reads nothing from the network: the transaction, signed, and the ones it spends from have to be copied into Files.
 
 For a wallet that watches continuously, export the scan descriptor to software that can scan blocks. That is what the descriptor is for.
 

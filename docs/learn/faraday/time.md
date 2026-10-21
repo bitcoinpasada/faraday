@@ -3,7 +3,7 @@
 ## What a TOTP code is made from
 
 A TOTP code is a hash of the vault entry's secret and the time, in
-30-second steps since 1970. Two phones with the same secret and the
+30-second steps since 1970. Two devices with the same secret and the
 same time compute the same code. The secret alone is not enough: the
 time has to be right too.
 

@@ -4,7 +4,7 @@
 
 A coordinator is the wallet software on your online machine: Sparrow, Liana, Nunchuk, Specter, Bitcoin Core and others. It holds no keys. It watches addresses, shows balances and history, picks which coins to spend, sets the fee, builds the transaction, and broadcasts it once it is signed.
 
-OpenSigner is the other half: it holds the keys and signs. Everything that crosses between the two is one of a small number of files, by QR code, memory card or USB stick. This page names them.
+Faraday is the other half: it holds the keys and signs. Everything that crosses between the two is one of a small number of files, by QR code or on a stick (on the Pi, the SD card). This page names them.
 
 ## What the coordinator sends
 
@@ -32,19 +32,19 @@ Bitcoin Secure Multisig Setup, BIP-129, is a procedure for building a multisig w
 
 It can be run with a shared secret token, so that a coordinator that swapped a key in would produce a record the signers cannot confirm. The point of the ceremony is that every signer ends up holding the same wallet description, checked on its own screen, rather than trusting one machine's word for it.
 
-This device writes a key record from a key's Account key row: choose one of the two multisig accounts, choose the BSMS key record format, and the device asks for the session token and a description. None writes the token 00, which says the session is not encrypted; a token the coordinator gave you is written into the record as it stands. The record is signed by the account key itself, and it leaves as text and as a code.
+Faraday writes a key record for each multisig key held here, under a wallet's public files, For the cosigners: the signed xpub record of BIP 129. The record is signed by the account key itself, and it leaves as text and as a code.
 
-An encrypted record is a different file, hex rather than text, and this build writes none and reads none. A record with a token in it is still plain text, so carry it the way you would carry any other file the coordinator must not be able to change: by QR code or memory card, not through the coordinator.
+An encrypted record is a different file, hex rather than text, and Faraday writes none and reads none. A record with a token in it is still plain text, so carry it the way you would carry any other file the coordinator must not be able to change: by QR code or memory card, not through the coordinator.
 
-This device reads a descriptor record with Scan. The review shows the quorum, the derivation paths the record restricts the wallet to, the wallet's own first address, and which key of the list is this device's, and you accept the wallet there. A record that is one signer's key is refused where it is read: it is a key, not a wallet. Export on a multisig wallet writes the descriptor record back out, as text and as a code. Encrypted records are refused by name.
+Faraday reads a descriptor record wherever it reads a wallet: Scan, Files, and Restore an existing wallet. It checks the wallet's first address against the one the record states, and shows the quorum, the derivation paths the record restricts the wallet to, and which keys are loaded here. A multisig wallet's public files write the descriptor record back out, as text and as a code. Encrypted records are refused by name.
 
 A BSMS record is worth keeping for the same reason a descriptor is: it is what recovery needs when the coordinator is gone.
 
 ## Bitcoin Core
 
-Bitcoin Core is not a coordinator with a wallet screen of its own, but it watches a wallet and builds transactions for it once it has been told the descriptor. Export on any wallet with a descriptor offers the Bitcoin Core import format, which is the JSON that `importdescriptors` takes: the wallet's descriptor with its checksum, marked active, over the first thousand addresses of each chain.
+Bitcoin Core is not a coordinator with a wallet screen of its own, but it watches a wallet and builds transactions for it once it has been told the descriptor. A wallet's public files offer the Bitcoin Core import format, which is the JSON that `importdescriptors` takes: the wallet's descriptor with its checksum, marked active, over the first thousand addresses of each chain. Bitcoin Core 29 or later takes it as written; an older Core takes the file under More options, Bitcoin Core before 29.
 
-Choosing the format asks where to start scanning. The start reads the whole chain from the first block, which finds coins the wallet already holds and takes a while; Now looks at nothing before this moment, which is what a wallet that has never received anything wants.
+The file asks Core to scan the whole chain from the first block, which finds coins the wallet already holds and takes a while.
 
 Save the file, carry it to the machine running Core, and hand it over with `bitcoin-cli -rpcwallet=<name> importdescriptors "$(cat <file>)"` on a wallet created with `createwallet` and private keys disabled. Core keeps the private keys nowhere: this file is the public wallet and nothing else.
 

@@ -4,7 +4,7 @@
 
 Some wallets are not "2 of 3" or "1 of 1". Their script says several different ways the coins can be spent, and a transaction uses one of them. Each way is a spend path: a set of keys that must sign, and sometimes a wait that must have passed first.
 
-A common shape is one key that can spend at any time and a second key that can spend alone after a year. That is two spend paths. The review of such a wallet lists them, one row each, with the keys named A, B, C in the same order as the key rows below.
+A common shape is one key that can spend at any time and a second key that can spend alone after a year. That is two spend paths. Faraday lists them one row each, with the keys each path needs and how long it waits.
 
 ## older and after
 
@@ -20,7 +20,7 @@ A recovery path with an older timelock starts counting when the coins were recei
 
 ## Writing one here
 
-Tools › Miniscript compiles a policy into a descriptor. Where a policy names a key, the fingerprint of a key this device already holds stands for that key's account key, so pk(73c5da0a) is accepted and needs no xpub typed. The Keys row above the field lists the fingerprints it will take; with no key loaded there is no such row and every key must be written out.
+Tools › Miniscript compiler compiles a policy into a descriptor. Where a policy names a key, the fingerprint of a key this device already holds stands for that key's account key, so pk(73c5da0a) is accepted and needs no xpub typed. The Keys row above the field lists the fingerprints it will take; with no key loaded there is no such row and every key must be written out.
 
 ## Who chooses the path
 

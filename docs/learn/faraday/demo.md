@@ -2,7 +2,7 @@
 
 ## What the demo is
 
-The demo is Faraday on a computer that is online. The website runs it in a browser and stays on mainnet. A developer's own build of Faraday Desktop starts as the same demo. On mainnet the demo opens every screen and works as Faraday does, with keys that hold nothing.
+The demo is Faraday on mainnet on a computer that is online. The website runs it in a browser and stays on mainnet. Faraday Desktop starts on testnet, and is the same demo when Network is set to Mainnet. On mainnet the demo opens every screen and works as Faraday does, with keys that hold nothing.
 
 ## The public seeds
 
@@ -22,11 +22,11 @@ Generate with dice on Create a vault runs the same way: the rolls make the words
 
 ## What the demo does not make
 
-The demo makes no secret a person could take away and use. These actions are dimmed and do nothing: SLIP-39 shares, Seed XOR parts and codex32 shares of two or more; a GPG key, Secure Boot keys and an APK signing key; every BIP-85 output; a FROST deal; the vanity passphrase dial; a Lightning node's private key shown, saved into a vault or sent out unprotected; a silent payments scan key saved into a vault or sent out unprotected; and typing an LND cipher seed. Their screens open, and everything else on them works. A Faraday stick, booted on a computer with no network, makes all of them.
+The demo makes no secret a person could take away and use. These actions are dimmed and do nothing: SLIP-39 shares, Seed XOR parts and codex32 shares of two or more; a GPG key and Secure Boot keys; every BIP-85 output; a FROST deal; the vanity passphrase dial; a Lightning node's private key shown, saved into a vault or sent out unprotected; a silent payments scan key saved into a vault or sent out unprotected; and typing an LND cipher seed. Their screens open, and everything else on them works. A Faraday stick, booted on a computer with no network, makes all of them.
 
 ## Test networks
 
-On testnet, signet and regtest a developer's build of Faraday Desktop takes any seed and shows real addresses, for testing with coins that have no value, and every action above works. Going to one first shows a warning. The website offers no test network.
+On testnet, signet and regtest Faraday Desktop takes any seed and shows real addresses, for testing with coins that have no value, and every action above works. A published Faraday Desktop shows a warning once when it starts, before any seed can be loaded: this computer is online, and a seed that holds funds is never entered there. The website offers no test network.
 
 ## Typed words are already exposed
 

@@ -16,8 +16,8 @@ The fee is simply the inputs less the outputs. If you spend 10,000 sats as 5,000
 
 ## Setup and PSBT
 
-To set up a transaction for OpenSigner, you need a coordinator that can create Partially-Signed Bitcoin Transactions, or PSBTs. You can transfer the PSBT to OpenSigner via QR code or the SD card.
+To set up a transaction for Faraday, you need a coordinator that can create Partially-Signed Bitcoin Transactions, or PSBTs. You bring the PSBT to Faraday by QR code or on a stick (on the Pi, the SD card).
 
 ## Signing
 
-Before you sign, OpenSigner lists every input and output and marks the amounts you control. The Signatures row on the inputs page lists every signature the transaction already carries, with the key it is under and whether it verifies. Read every address and amount in full and compare them with what your coordinator shows. If anything differs, do not sign; go back to the coordinator and find out why.
+Before you sign, Faraday shows what the transaction sends, the change and the fee. Change that Faraday rebuilt from the wallet's own keys is marked Verified. The Nonce check lists every signature the transaction already carries, with the key it is under and whether it verifies. Read every address and amount in full and compare them with what your coordinator shows. If anything differs, do not sign; go back to the coordinator and find out why.

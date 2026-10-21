@@ -10,7 +10,7 @@ A message tells you your wallet must be validated, synced, migrated, or upgraded
 
 ## Clipboard swaps
 
-Malware on a computer can watch for an address being copied and replace it with the attacker's address. The address you paste is not the address you copied. Always compare the address on OpenSigner with the address that the person you are paying gave you, in full.
+Malware on a computer can watch for an address being copied and replace it with the attacker's address. The address you paste is not the address you copied. Always compare the address on Faraday with the address that the person you are paying gave you, in full.
 
 ## Address poisoning
 
@@ -18,8 +18,8 @@ A tiny payment arrives in your wallet from an address that starts and ends with 
 
 ## Fake wallet software
 
-A wallet downloaded from a search advert, an app store clone, or a link in a forum post builds transactions that pay someone else, or simply uploads your seed words. Get your coordinator from the project's own website and check the download's signature before running it. See the Verifying page for how to check OpenSigner itself.
+A wallet downloaded from a search advert, an app store clone, or a link in a forum post builds transactions that pay someone else, or simply uploads your seed words. Get your coordinator from the project's own website and check the download's signature before running it. Check Faraday the same way: each release lists its files' SHA-256 sums in SHA256SUMS, signed with the release key.
 
 ## Your own mistakes
 
-Most losses are not theft. They are a backup that was never tested, a passphrase that was never written down, a wallet description for a multisig that nobody kept, or funds sent to the wrong network. OpenSigner cannot protect you from these. The Backups, Passphrases, and Inheritance pages can.
+Most losses are not theft. They are a backup that was never tested, a passphrase that was never written down, a wallet description for a multisig that nobody kept, or funds sent to the wrong network. Faraday cannot protect you from these. The Backups, Passphrases, and Inheritance pages can.
