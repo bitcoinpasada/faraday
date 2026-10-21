@@ -387,6 +387,20 @@ Since the fork:
   for the default; `osk_avf_start` takes the same ID as a C string.
   Why: a dense QR code needs the camera's own pixels, and the window
   shell's macOS scan sheet could not choose a camera. Not run on a Mac.
+- The scanner's parity with Gauss (2026-10-21; `docs/QR.md` §8, tracker
+  #181): `osk-codec`'s UR `Decoder::missing` and the fountain decoder's
+  `missing` list the fragments not resolved yet, so a UR read in parts
+  names its missing parts as BBQr's do. `osk-shell-api` gains
+  `Event::CameraFailed(CameraFailure)` (`Refused`, `InUse`, `NotFound`),
+  sent by a shell that knows why the camera gives no frames, in place of
+  `CameraUnavailable`, which still works; `osk-ui`'s `UiState` ignores
+  it, as it ignores the other camera events. `osk-ui`'s tokens gain the
+  viewfinder's (`VIEWFINDER_BRACKET_SHARE`, `_STROKE`, `_INSET`,
+  `VIEWFINDER_BAND_PAD`, `_ALPHA`, `VIEWFINDER_TRACK_ALPHA`,
+  `VIEWFINDER_STATE_SIZE`) and three timings (`NOTE_FLASH_MS`,
+  `NO_PICTURE_MS`, `POOR_PICTURE_MS`). Why: Faraday's scanner names the
+  parts it waits for, why the camera gives no picture, and draws its
+  state inside the picture. Nothing upstream computed changes.
 
 ## 4. Watching upstream
 

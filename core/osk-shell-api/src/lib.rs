@@ -73,7 +73,8 @@
 //! Camera channel (§4.4, §7): the core asks with [`Command::CameraOn`]
 //! and the shell streams [`Event::CameraFrame`]s until
 //! [`Command::CameraOff`], or answers [`Event::CameraUnavailable`] once
-//! when it has no camera (or was refused one). Frames are 8-bit luma,
+//! when it has no camera (or was refused one), or [`Event::CameraFailed`]
+//! in its place when it can say which. Frames are 8-bit luma,
 //! row-major, any size; a shell should downscale to about 640 pixels
 //! wide before sending, since QR detection needs no more and the core
 //! copies nothing it does not need. A frame may carry the NV12 chroma
@@ -296,6 +297,17 @@ pub enum Key {
     /// shell reports as this rather than as a modifier of its own (as
     /// [`Key::BackTab`] is Tab with Shift held).
     SelectAll,
+}
+
+/// Why the camera gives no frames, in [`Event::CameraFailed`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CameraFailure {
+    /// The platform or the person refused the app the camera.
+    Refused,
+    /// Another program holds the camera.
+    InUse,
+    /// There is no camera, or the one chosen is gone.
+    NotFound,
 }
 
 /// What kind of file the core wants, so that a shell with a picker can
@@ -581,6 +593,11 @@ pub enum Event {
     /// the shell has no camera, or access was refused. Sent once per
     /// `CameraOn`; the core then offers the file channel instead.
     CameraUnavailable,
+    /// [`Event::CameraUnavailable`] from a shell that knows why no
+    /// frames will come, sent in its place: the core names the reason.
+    /// Sent once per `CameraOn`. A core that does not know it ignores
+    /// it, and a shell that cannot tell sends `CameraUnavailable`.
+    CameraFailed(CameraFailure),
     /// The answer to a [`Command::RequestEntropy`]: 32 bytes from the
     /// shell's random number generator. Sent once per request, never
     /// unasked.

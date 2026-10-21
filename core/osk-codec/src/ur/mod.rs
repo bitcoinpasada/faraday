@@ -477,6 +477,17 @@ impl Decoder {
         Some((d.resolved_fragment_count().unwrap_or(0), d.fragment_count()))
     }
 
+    /// The parts of a multi-part message not read yet, numbered from 1
+    /// as the part numbers of its first frames are: the fragments the
+    /// decoder has neither read nor worked out from mixtures. Empty
+    /// before any part arrived and once the message is complete.
+    pub fn missing(&self) -> Vec<usize> {
+        match (&self.done, &self.inner) {
+            (None, Some(d)) => d.missing().into_iter().map(|i| i + 1).collect(),
+            _ => Vec::new(),
+        }
+    }
+
     /// The UR type seen so far.
     pub fn ur_type(&self) -> Option<String> {
         match (&self.done, &self.ur_type) {

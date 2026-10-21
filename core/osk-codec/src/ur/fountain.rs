@@ -318,6 +318,15 @@ impl Decoder {
         self.sequence_count
     }
 
+    /// The fragments not resolved yet, numbered from 0, in order; empty
+    /// before the first part. A fragment resolved from mixtures is not
+    /// among them.
+    pub fn missing(&self) -> Vec<usize> {
+        (0..self.sequence_count)
+            .filter(|i| !self.decoded.contains_key(i))
+            .collect()
+    }
+
     /// Whether a part belongs to the message the decoder is assembling.
     fn validate(&self, part: &Part) -> bool {
         !self.received.is_empty()

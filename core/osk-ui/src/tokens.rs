@@ -741,6 +741,27 @@ pub const KEY_MIN_TAP_MM: f32 = 4.0;
 /// Height in dp of a progress bar and of the viewfinder's state line.
 pub const BAR_HEIGHT: f32 = 6.0;
 
+/// A corner bracket's arm over a camera's picture, as a share of the
+/// picture's short side (`docs/DESIGN.md` §4.9: "a square viewfinder
+/// with corner brackets").
+pub const VIEWFINDER_BRACKET_SHARE: f32 = 1.0 / 6.0;
+/// Stroke in dp of a corner bracket.
+pub const VIEWFINDER_BRACKET_STROKE: f32 = 3.0;
+/// How far in dp the brackets stand inside the picture's edge.
+pub const VIEWFINDER_BRACKET_INSET: f32 = GAP;
+/// Space in dp round the state line and the parts bar on their band
+/// inside the picture, and between them.
+pub const VIEWFINDER_BAND_PAD: f32 = GAP;
+/// Opacity (of 255) of the band the state line sits on over the
+/// picture: dark enough that white words read over a white QR, light
+/// enough that the picture shows through.
+pub const VIEWFINDER_BAND_ALPHA: u8 = 180;
+/// Opacity (of 255) of the parts bar's empty track on that band: the
+/// bar's own colour, faint.
+pub const VIEWFINDER_TRACK_ALPHA: u8 = 70;
+/// Size in dp of the state line's words on the band inside the picture.
+pub const VIEWFINDER_STATE_SIZE: f32 = CAPTION;
+
 /// Height in dp of the QR screen's "Animated" toggle row
 /// (`docs/DESIGN.md` §4.9: "on `small` the toggle row and the progress
 /// row give way (they shrink to one line each ...) before the square
@@ -1170,6 +1191,16 @@ pub const FOCUS_STROKE: f32 = 2.0;
 
 /// Hold-button duration in milliseconds (`docs/DESIGN.md` §4.13).
 pub const HOLD_MS: u64 = 1500;
+/// Milliseconds a passing state stays on a line before the line goes
+/// back to what it said (`docs/DESIGN.md` §4.9: "Nothing to paste" on
+/// the scanner's state line "for two seconds").
+pub const NOTE_FLASH_MS: u64 = 2000;
+/// Milliseconds the scanner waits for the camera's first frame before
+/// it says the camera sends no picture (`docs/QR.md` §8 item 6).
+pub const NO_PICTURE_MS: u64 = 6000;
+/// Milliseconds a QR is seen large enough and not read before the
+/// scanner says how to hold it (`docs/QR.md` §8 item 8).
+pub const POOR_PICTURE_MS: u64 = 4000;
 /// Milliseconds a newly entered die or coin shows before it masks
 /// (`docs/DESIGN.md` §4.3: "the newest entry shows for half a second,
 /// then masks").

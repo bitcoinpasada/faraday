@@ -334,6 +334,7 @@ impl UiState {
             | Event::CameraFrame { .. }
             | Event::Scanned { .. }
             | Event::CameraUnavailable
+            | Event::CameraFailed(_)
             | Event::Entropy(_)
             | Event::Lock
             | Event::Settings { .. }
