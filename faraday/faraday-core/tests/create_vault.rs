@@ -67,7 +67,7 @@ fn create_to_vault_step() -> Faraday {
     // No paper words: the vault's item comes first and opens.
     common::no_words(&mut app);
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     assert_eq!(
@@ -188,7 +188,7 @@ fn a_finished_backup_offers_a_stick_and_asks_to_lock_first() {
     app.press(Action::Backup(wallet));
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     app.press(Action::BOut(0));

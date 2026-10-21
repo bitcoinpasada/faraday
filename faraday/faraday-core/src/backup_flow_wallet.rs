@@ -241,13 +241,13 @@ impl Faraday {
             .wallet
             .as_ref()
             .map_or(0, |wf| wf.shape.vaults);
-        let mut shape = self.plan_shape(w);
+        let mut shape = self.plan_shape_now(w);
         shape.vaults = setup;
         // The keys-to-be were numbered by slot, the seeds are numbered as
         // the description lists them (FROST's by share): where a slot's key
         // turned out to be.
         let slots = self.wallet_owner_slots(owner);
-        let list = self.backup_seed_list(w);
+        let list = self.backup_seed_list_now(w);
         let map = seed_map(&slots, &list, &self.session, shape.seeds.len());
         let base = self.wallet_seed_bases(w);
         let f = &mut self.backup_flows[i];
@@ -298,7 +298,7 @@ impl Faraday {
     pub(crate) fn wallet_seed_bases(&self, w: usize) -> Vec<String> {
         use faraday_vault::Record;
         use faraday_vault::records::{self, field, kind as rkind};
-        self.backup_seed_list(w)
+        self.backup_seed_list_now(w)
             .into_iter()
             .map(|(name, k)| {
                 let Some(key) = k.and_then(|k| self.session.keys.get(k)) else {
@@ -411,7 +411,7 @@ impl Faraday {
         let Some(b) = self.backup.as_ref() else {
             return;
         };
-        let shape = self.plan_shape(b.wallet);
+        let shape = self.plan_shape_now(b.wallet);
         let answers = b.answers.clone();
         let f = &mut self.backup_flows[i];
         let Some(wf) = f.wallet.as_mut() else {
@@ -534,37 +534,13 @@ impl Faraday {
         a: &plan::Answers,
         what: plan::What,
     ) -> Vec<String> {
-        // Kept for the frame only for the backup's own answers.
-        let own = self.drawing.is_on()
-            && self
-                .backup
-                .as_ref()
-                .is_some_and(|b| b.wallet == w && b.answers == *a);
-        if own
-            && let Some((_, _, names)) = self
-                .drawing
-                .stick_names
-                .borrow()
-                .iter()
-                .find(|(k, x, _)| *k == w && *x == what)
-        {
-            return names.clone();
+        if self.drawing.is_on() {
+            return crate::drawing::View::new(self).stick_file_names(w, shape, a, what);
         }
-        let names = if own {
-            crate::work::filling(|| self.stick_file_names_uncached(w, shape, a, what))
-        } else {
-            self.stick_file_names_uncached(w, shape, a, what)
-        };
-        if own {
-            self.drawing
-                .stick_names
-                .borrow_mut()
-                .push((w, what, names.clone()));
-        }
-        names
+        self.stick_file_names_now(w, shape, a, what)
     }
 
-    fn stick_file_names_uncached(
+    pub(crate) fn stick_file_names_now(
         &self,
         w: usize,
         shape: &plan::Shape,
@@ -625,7 +601,7 @@ impl Faraday {
         let Some(b) = self.backup.as_ref().filter(|b| b.wallet == w) else {
             return Vec::new();
         };
-        let shape = self.plan_shape(w);
+        let shape = self.plan_shape_now(w);
         let answers = b.answers.clone();
         let boxes = plan::map(&shape, &answers);
         let mut expect: Vec<(String, ReadBack)> = Vec::new();
@@ -637,9 +613,9 @@ impl Faraday {
                 }
             }
         }
-        let list = self.backup_seed_list(w);
+        let list = self.backup_seed_list_now(w);
         for what in whats {
-            let names = self.stick_file_names(w, &shape, &answers, what);
+            let names = self.stick_file_names_now(w, &shape, &answers, what);
             match what {
                 P::SeedFile(i) | P::SeedQrFile(i) | P::PassphraseFile(i) => {
                     let Some(k) = list.get(i).and_then(|(_, k)| *k) else {
@@ -757,7 +733,7 @@ impl Faraday {
     /// as it is.
     pub fn backup_stick_seed_unwarned(&self) -> Option<usize> {
         let b = self.backup.as_ref()?;
-        let shape = self.plan_shape(b.wallet);
+        let shape = self.plan_shape_now(b.wallet);
         self.plan_mapped(&shape, &b.answers)
             .seeds_on_stick_files(&shape)
             .into_iter()
@@ -778,7 +754,7 @@ impl Faraday {
             return;
         };
         let w = b.wallet;
-        let shape = self.plan_shape(w);
+        let shape = self.plan_shape_now(w);
         let Some(seed) = shape.seeds.get(i) else {
             return;
         };
@@ -853,14 +829,14 @@ impl Faraday {
             return;
         }
         let w = b.wallet;
-        let items = self.backup_items();
+        let items = self.backup_items_now();
         if !items.contains(&bstep::STICKS) {
             return;
         }
         let others_done = items
             .iter()
             .filter(|&&n| n != bstep::STICKS)
-            .all(|&n| bstep::item(n).is_some_and(|it| self.backup_item_done(it)));
+            .all(|&n| bstep::item(n).is_some_and(|it| self.backup_item_done_now(it)));
         if !others_done {
             return;
         }
@@ -874,7 +850,7 @@ impl Faraday {
             return self.toast(EN.backup_flow_past_lock);
         }
         let answers = b.answers.clone();
-        let shape = self.plan_shape(w);
+        let shape = self.plan_shape_now(w);
         // A seed's file on a stick is made only past the warning that it
         // is not protected, as the seed files item made one: nothing is
         // made or written until the person has said so for each seed
@@ -1056,8 +1032,8 @@ impl Faraday {
             return;
         };
         let w = b.wallet;
-        let shape = self.plan_shape(w);
-        let list = self.backup_seed_list(w);
+        let shape = self.plan_shape_now(w);
+        let list = self.backup_seed_list_now(w);
         let held = self.backup_held_seeds();
         // A seed kept on any stick, a vault's or a file's, waits for it.
         let on_stick = |s: usize| b.answers.seed_on_stick(&shape, s);
@@ -1709,18 +1685,14 @@ impl Faraday {
     /// (`docs/SPEED.md` §3.12).
     pub fn wallet_stick_rows(&self) -> Vec<(String, Vec<String>, Option<String>)> {
         if self.drawing.is_on() {
-            return self
-                .drawing
-                .stick_rows
-                .get_or_init(|| crate::work::filling(|| self.wallet_stick_rows_now()))
-                .clone();
+            return crate::drawing::View::new(self).wallet_stick_rows();
         }
         self.wallet_stick_rows_now()
     }
 
     /// Works out each stick's files: what [`Self::wallet_stick_rows`]
     /// answers.
-    fn wallet_stick_rows_now(&self) -> Vec<crate::drawing::StickRow> {
+    pub fn wallet_stick_rows_now(&self) -> Vec<crate::drawing::StickRow> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };

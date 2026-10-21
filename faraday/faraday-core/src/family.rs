@@ -720,7 +720,7 @@ impl Faraday {
             Some(Route::Vault) => {
                 if self.vaults.open.is_empty()
                     || !(0..self.vaults.open.len())
-                        .all(|v| self.vault_rows(v).iter().all(|r| r.seed))
+                        .all(|v| self.vault_rows_now(v).iter().all(|r| r.seed))
                 {
                     return;
                 }

@@ -333,7 +333,7 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
     common::no_vaults(&mut app);
     app.press(Action::BChecklist);
     assert!(
-        app.backup_items().contains(&bstep::PUBLIC),
+        app.backup_items_now().contains(&bstep::PUBLIC),
         "the checklist has the public files item"
     );
     app.press(Action::BStep(bstep::PUBLIC));
@@ -490,7 +490,7 @@ fn a_fresh_multisig_plan_keeps_the_whole_sheet_in_each_place() {
     let mut app = places_of("Savings");
     let b = app.backup.as_ref().unwrap();
     assert!(!b.answers.split);
-    let shape = app.plan_shape(b.wallet);
+    let shape = app.plan_shape_now(b.wallet);
     for p in 0..b.answers.places {
         assert!(b.answers.sheet_at(&shape, p), "place {p}: the whole sheet");
         assert!(b.answers.shares_at(&shape, p).is_empty(), "place {p}");
@@ -791,7 +791,7 @@ fn a_vault_with_no_stick_place_is_out_of_the_plan() {
     use faraday_core::{Action, qstep};
     let mut app = places_of("Savings");
     let w = app.backup.as_ref().unwrap().wallet;
-    let shape = app.plan_shape(w);
+    let shape = app.plan_shape_now(w);
     // Vault 1 at Place 3 with the description in it, then Place 3 gone.
     // No seed of Savings is here: the vault's row ticks at once.
     assert!(shape.watch_only());
@@ -874,7 +874,7 @@ fn open_board(app: &mut Faraday) {
 /// sticks keep.
 fn the_map(app: &Faraday) -> Vec<Spot> {
     let b = app.backup.as_ref().unwrap();
-    place_map(&app.plan_shape(b.wallet), &b.answers)
+    place_map(&app.plan_shape_now(b.wallet), &b.answers)
 }
 
 /// What spot `at` holds on the map.
@@ -982,7 +982,7 @@ fn words_at_a_place_are_on_the_map_and_its_card_says_what_finding_it_alone_gives
         "Place 3 keeps the first seed's words"
     );
     let b = app.backup.as_ref().unwrap();
-    let found = alone(&app.plan_shape(b.wallet), &b.answers, At::Place(2));
+    let found = alone(&app.plan_shape_now(b.wallet), &b.answers, At::Place(2));
     // One seed of a 2-of-3 and the whole sheet: the balance, not a spend.
     assert_eq!((found.spend, found.balance), (Found::No, Found::Yes));
     let _ = app.frame();
@@ -1009,7 +1009,7 @@ fn done_with_no_seed_ticked_leaves_the_row_unticked_and_the_map_as_it_was() {
     let b = app.backup.as_ref().unwrap();
     assert_eq!(
         b.answers
-            .row_seeds(&app.plan_shape(b.wallet), 2, Row::SeedQr),
+            .row_seeds(&app.plan_shape_now(b.wallet), 2, Row::SeedQr),
         None
     );
 }
@@ -1025,7 +1025,7 @@ fn a_vault_with_no_seed_keeps_its_stick_and_holds_the_plan_until_it_holds_someth
     vault_made(&mut app, 0);
     put(&mut app, Thing::Vault(0), Zone::Card(2));
     let b = app.backup.as_ref().unwrap();
-    let shape = app.plan_shape(b.wallet);
+    let shape = app.plan_shape_now(b.wallet);
     assert_eq!(
         b.answers.row_seeds(&shape, 2, Row::Vault(0)),
         Some(Vec::new())
@@ -1081,7 +1081,7 @@ fn an_old_plans_stick_of_files_shows_under_not_a_place_and_can_be_emptied() {
     use faraday_core::Action;
     let mut app = three_here();
     let w = app.backup.as_ref().unwrap().wallet;
-    let shape = app.plan_shape(w);
+    let shape = app.plan_shape_now(w);
     let old =
         "seeds 1001\nplaces 3\nsplit 0\nsticks 000\nwallet 1001\nsoftware 00001\nform 10\nomit 1\n";
     let a = Answers::from_text(&shape, old).expect("the old plan loads");
@@ -1163,7 +1163,7 @@ fn a_passphrase_cannot_be_ticked_where_its_words_are() {
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     open_board(&mut app);
     let b = app.backup.as_ref().unwrap();
-    let shape = app.plan_shape(b.wallet);
+    let shape = app.plan_shape_now(b.wallet);
     assert_eq!(b.answers.row_seeds(&shape, 0, Row::Words), Some(vec![0]));
     put(&mut app, Thing::Pass(0), Zone::Paper(0));
     assert!(held(&app, At::Place(0)).contains(&What::Passphrase(0)));
@@ -1316,8 +1316,8 @@ fn a_seed_file_at_a_place_has_that_places_stick_of_files_and_is_held_until_writt
     app.press(Action::BChecklist);
     // The file is made and written with its stick: no item of its own
     // (`docs/BACKUP-FLOW.md` §19.12 item 6).
-    assert_eq!(app.backup_items(), vec![bstep::ENVELOPE, bstep::STICKS]);
-    let rows = app.wallet_stick_rows();
+    assert_eq!(app.backup_items_now(), vec![bstep::ENVELOPE, bstep::STICKS]);
+    let rows = app.wallet_stick_rows_now();
     assert_eq!(rows.len(), 1, "{rows:?}");
     assert_eq!(rows[0].0, "Files (Place 2)");
     let name = format!(
@@ -1380,13 +1380,13 @@ fn make_the_checklist_is_on_the_plan_card_alone_and_the_checklist_is_the_maps() 
         );
     }
     let b = app.backup.as_ref().unwrap();
-    let want: Vec<u8> = checklist(&app.plan_shape(b.wallet), &b.answers)
+    let want: Vec<u8> = checklist(&app.plan_shape_now(b.wallet), &b.answers)
         .into_iter()
         .map(bstep::of)
         .collect();
     app.press(Action::BChecklist);
-    assert_eq!(app.backup_items(), want);
-    assert!(app.backup_items().contains(&bstep::of(Item::Vault(0))));
+    assert_eq!(app.backup_items_now(), want);
+    assert!(app.backup_items_now().contains(&bstep::of(Item::Vault(0))));
 }
 
 /// A single key with a passphrase may have a second place for the
@@ -1400,7 +1400,7 @@ fn a_single_key_with_a_passphrase_has_a_second_place_for_it() {
     let mut app = passphrase_key();
     app.press(Action::CBackup);
     let w = app.backup.as_ref().unwrap().wallet;
-    let shape = app.plan_shape(w);
+    let shape = app.plan_shape_now(w);
     assert_eq!(faraday_core::plan::max_places(&shape), 2);
     let a = &app.backup.as_ref().unwrap().answers;
     assert_eq!(a.places, 2);
@@ -1445,7 +1445,7 @@ fn each_preset_fills_the_board() {
         app.press(Action::CBackup);
         faraday_core::testkit::backup_as(&mut app, *preset);
         let w = app.backup.as_ref().unwrap().wallet;
-        let shape = app.plan_shape(w);
+        let shape = app.plan_shape_now(w);
         let a = &app.backup.as_ref().unwrap().answers;
         assert_eq!(
             a.row_seeds(&shape, 0, Row::Words),

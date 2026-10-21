@@ -7,6 +7,7 @@ use opensigner_core::strings::EN;
 use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
 
+use crate::drawing::{Scrolled, View};
 use crate::screens::{guide_text, section_label, title};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
@@ -1027,7 +1028,7 @@ pub(crate) const VSTEPS: [&str; vstep::COUNT] = [
     FEN.vault_size,
 ];
 
-pub(crate) fn create(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let panel_w = crate::screens::side_panel_w(cw);
     let Some(c) = app.vaults.create.as_ref() else {
         return;
@@ -1087,13 +1088,7 @@ pub(crate) fn create(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
-    if let Some(c) = app.vaults.create.as_mut() {
-        c.scroll = next;
-    }
-    if again {
-        app.dirty = true;
-        app.commands.push_back(osk_shell_api::Command::Draw);
-    }
+    app.scroll(Scrolled::CreateVault, next, again);
     if !compact {
         create_panel(app, ui, x0 + cw - panel_w, panel_w, h, &summaries);
     }

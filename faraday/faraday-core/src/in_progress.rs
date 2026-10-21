@@ -63,15 +63,17 @@ impl Faraday {
     /// sidebar's rows and the small Home's tiles show.
     pub fn flows_in_progress(&self) -> Rc<Vec<Row>> {
         if self.drawing.is_on() {
-            return self
-                .drawing
-                .flows
-                .get_or_init(|| Rc::new(crate::work::filling(|| self.flows_in_progress_uncached())))
-                .clone();
+            return crate::drawing::View::new(self).flows_in_progress();
         }
+        self.flows_in_progress_now()
+    }
+
+    /// Works out [`Faraday::flows_in_progress`] from the state as it is.
+    pub fn flows_in_progress_now(&self) -> Rc<Vec<Row>> {
         Rc::new(self.flows_in_progress_uncached())
     }
 
+    /// Works out [`Faraday::flows_in_progress`].
     fn flows_in_progress_uncached(&self) -> Vec<Row> {
         let mut begun = self.flows_begun_now();
         // In the order noted; one not noted yet (a flow kept across a

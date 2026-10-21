@@ -130,26 +130,26 @@ fn select_all_and_load_counts_what_it_loads_and_files_stays_on_screen() {
     // asked (`docs/NEW-WALLET.md` §11.1a).
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     unlock(&mut app);
-    let rows = app.vault_rows(0);
+    let rows = app.vault_rows_now(0);
     // Select all when some are chosen chooses all; again, none.
     if rows.iter().all(|r| r.chosen) {
         app.press(Action::Vault(V::ChooseAll(0)));
     }
     app.press(Action::Vault(V::ChooseAll(0)));
-    assert!(app.vault_rows(0).iter().all(|r| r.chosen));
+    assert!(app.vault_rows_now(0).iter().all(|r| r.chosen));
     app.press(Action::Vault(V::ChooseAll(0)));
-    assert!(app.vault_rows(0).iter().all(|r| !r.chosen));
+    assert!(app.vault_rows_now(0).iter().all(|r| !r.chosen));
     app.press(Action::Vault(V::LoadChosen(0)));
     assert!(app.session.keys.is_empty() && app.session.wallets.is_empty());
     // One seed chosen: it alone loads, and Files stays with it marked.
-    let seed = app.vault_rows(0).into_iter().find(|r| r.seed).unwrap();
+    let seed = app.vault_rows_now(0).into_iter().find(|r| r.seed).unwrap();
     app.press(Action::Vault(V::Choose(0, seed.record)));
     app.press(Action::Vault(V::LoadChosen(0)));
     assert_eq!(app.session.keys.len(), 1);
     assert!(app.session.wallets.is_empty());
     assert_eq!(app.screen, Screen::Files, "loading left Files");
     assert!(
-        app.vault_rows(0)
+        app.vault_rows_now(0)
             .iter()
             .any(|r| r.seed && r.loaded && r.record == seed.record)
     );

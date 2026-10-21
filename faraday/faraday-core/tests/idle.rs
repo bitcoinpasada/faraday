@@ -263,7 +263,7 @@ fn a_lock_while_held_says_it_ends_make_a_new_wallet_and_ends_it() {
     });
     assert!(next.create.is_none());
     assert!(
-        next.flows_in_progress().is_empty(),
+        next.flows_in_progress_now().is_empty(),
         "nothing to come back to"
     );
 }

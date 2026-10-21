@@ -8,6 +8,7 @@ use opensigner_core::strings::fill;
 use osk_psbt::{Level, OutputKind};
 use osk_ui::widgets::Icon;
 
+use crate::drawing::{Scrolled, View};
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Glyph, NameSuffix, Style, Theme, Ui, W, btc, grouped, short, thousands};
 use crate::wallet::{FileKind, Session, fp_text, key_line, network_name, step, txid_known};
@@ -26,23 +27,14 @@ const SIDEBAR_W: f32 = 240.0;
 /// sidebar, instead of stretching cards across it.
 const MAX_W: f32 = 1600.0;
 
-pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
+pub(crate) fn draw(app: &View, ui: &mut Ui) {
     let (full_w, full_h) = app.size();
     // A small panel's keyboard, when it is up, takes the foot of the
-    // panel; everything else is laid out above it.
-    let kb = if app.is_compact() {
-        let rose = app.osk_track();
-        let kb = app.osk_height();
-        if rose && kb > 0.0 {
-            app.osk_reveal(ui.f, full_h - kb);
-        }
-        kb
-    } else {
-        // The wide layout's keyboard, when brought up from its button,
-        // takes the foot of the page area, beside the sidebar.
-        app.osk_track();
-        app.osk_height()
-    };
+    // panel; everything else is laid out above it. The wide layout's,
+    // when brought up from its button, takes the foot of the page area,
+    // beside the sidebar. Whether it came up is worked out before the
+    // frame is drawn (`Faraday::osk_track`).
+    let kb = app.osk_height();
     let win_h = full_h;
     let full_h = full_h - kb;
     // The wide layout's page keeps its height under its keyboard, drawn
@@ -223,7 +215,7 @@ const HELD_TOP: f32 = 52.0;
 /// is the one a person sees.
 /// `page` is the page's height and how far it is drawn up: under the
 /// keyboard, the window's height, drawn up to keep the field in view.
-fn held_frame(app: &mut Faraday, ui: &mut Ui, full_w: f32, full_h: f32, page: (f32, f32)) {
+fn held_frame(app: &View, ui: &mut Ui, full_w: f32, full_h: f32, page: (f32, f32)) {
     let (page_h, lift) = page;
     let cw = full_w.min(MAX_W - SIDEBAR_W);
     ui.ox = (full_w - cw) / 2.0;
@@ -271,7 +263,7 @@ fn held_frame(app: &mut Faraday, ui: &mut Ui, full_w: f32, full_h: f32, page: (f
 }
 
 /// The screen itself, in the column at `x`, `cw` wide.
-fn dispatch(app: &mut Faraday, ui: &mut Ui, x: f32, cw: f32, h: f32) {
+fn dispatch(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
     match app.screen {
         Screen::Home => home(app, ui, x, cw, h),
         Screen::Start => start(app, ui, x, cw, h),
@@ -317,7 +309,7 @@ const PIN_H: f32 = 64.0;
 /// back, unless it is a step flow, which draws its own. A page's forward
 /// action is pinned in a bar at the foot, with the page scrolling above
 /// it, except while the keyboard is up, whose Done puts it away.
-fn draw_compact(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32, kb: bool, y0: f32) {
+fn draw_compact(app: &View, ui: &mut Ui, w: f32, h: f32, kb: bool, y0: f32) {
     let mut foot = h;
     if app.screen == Screen::Home && app.held {
         // The holder's Home is the one a person sees.
@@ -3689,7 +3681,7 @@ pub(crate) fn side_panel_w(cw: f32) -> f32 {
     (cw * 0.31).clamp(240.0, 320.0)
 }
 
-fn spend(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn spend(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let panel_w = side_panel_w(cw);
     let col_x = x0 + 40.0;
     let col_w = cw - panel_w - 72.0;
@@ -3763,14 +3755,7 @@ fn spend(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
-    if let Some(s) = app.spend.as_mut() {
-        s.scroll = next.y;
-        s.follow = next.follow;
-    }
-    if again {
-        app.dirty = true;
-        app.commands.push_back(osk_shell_api::Command::Draw);
-    }
+    app.scroll(Scrolled::Spend, next, again);
 
     // The panel; on a small panel, the foot, whose button is the open
     // step's Continue while it is read.
@@ -5482,7 +5467,7 @@ pub(crate) fn item_title(app: &Faraday, n: u8) -> (String, String) {
     }
 }
 
-fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn backup_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::BStage;
     let panel_w = side_panel_w(cw);
     let col_x = x0 + 40.0;
@@ -5624,7 +5609,7 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.chip_at = None;
     let all_done = checklist && marks.iter().all(|&d| d);
     let (next, again) = {
-        let app_ref: &Faraday = app;
+        let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             if checklist {
                 backup_body(app_ref, ui, steps[i], x, y, w)
@@ -5653,13 +5638,7 @@ fn backup_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         flow::column_foot(ui, &col, &cards, scroll, &mut body, Some(&mut foot))
     };
-    if let Some(b) = app.backup.as_mut() {
-        b.scroll = next;
-    }
-    if again {
-        app.dirty = true;
-        app.commands.push_back(osk_shell_api::Command::Draw);
-    }
+    app.scroll(Scrolled::Backup, next, again);
     // While the board is shown its list is the right-hand column, the
     // map's place (`docs/BACKUP-FLOW.md` §19.14).
     if !compact && app.board_shown() {
@@ -6218,7 +6197,7 @@ pub(crate) fn shares_table(
     cy + 10.0 - y
 }
 
-fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
+fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     use crate::bstep;
     let b = app.backup.as_ref().expect("backup");
     let wallet = &app.session.wallets[b.wallet];
@@ -6380,15 +6359,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     .collect();
                     cy += wrap_buttons(ui, x, cy, w, 34.0, &items) + 6.0;
                     // A secret shown: drawn from the words each frame.
-                    let matrix = crate::work::allowed(crate::work::Allowed::SecretShown, || {
-                        let mn = crate::wallet::parse_words(lang, words).ok()?;
-                        crate::work::count(crate::work::Work::QrEncode);
-                        if b.compact {
-                            osk_codec::seedqr::encode_compact(&mn).ok()
-                        } else {
-                            osk_codec::seedqr::encode_seedqr(&mn).ok()
-                        }
-                    });
+                    let matrix = app.seedqr_shown(lang, words, b.compact);
                     if let Some(mx) = matrix {
                         cy += seed_grid(ui, &mx, x, cy, w.min(560.0), b.pin) + 12.0;
                     }
@@ -7156,7 +7127,7 @@ pub(crate) const MSTEPS: [&str; 4] = [
     EN.app_signature,
 ];
 
-fn message_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn message_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::mstep;
     let col_x = x0 + 40.0;
     let col_w = (cw - 80.0).min(880.0);
@@ -7226,13 +7197,7 @@ fn message_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
-    if let Some(m) = app.message.as_mut() {
-        m.scroll = next;
-    }
-    if again {
-        app.dirty = true;
-        app.commands.push_back(osk_shell_api::Command::Draw);
-    }
+    app.scroll(Scrolled::Message, next, again);
 }
 
 fn message_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
@@ -7640,7 +7605,7 @@ pub(crate) const CSTEPS: [&str; crate::cstep::COUNT] = [
     EN.backup_flow_card_vault_count,
 ];
 
-fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn create_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::cstep;
     let col_x = x0 + 40.0;
     let col_w = (cw - 80.0).min(900.0);
@@ -7737,13 +7702,7 @@ fn create_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
-    if let Some(c) = app.create.as_mut() {
-        c.scroll = next;
-    }
-    if again {
-        app.dirty = true;
-        app.commands.push_back(osk_shell_api::Command::Draw);
-    }
+    app.scroll(Scrolled::Create, next, again);
 }
 
 /// The closed line of a card that asks about vaults: the answer, as the
@@ -8998,7 +8957,7 @@ pub(crate) const RSTEPS: [&str; crate::rstep::COUNT as usize] = [
     EN.backup_flow_card_vault_count,
 ];
 
-fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+fn restore_screen(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::rstep;
     let col_x = x0 + 40.0;
     let col_w = (cw - 80.0).min(900.0);
@@ -9077,13 +9036,7 @@ fn restore_screen(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
-    if let Some(r) = app.restore.as_mut() {
-        r.scroll = next;
-    }
-    if again {
-        app.dirty = true;
-        app.commands.push_back(osk_shell_api::Command::Draw);
-    }
+    app.scroll(Scrolled::Restore, next, again);
 }
 
 /// Restore's slots: how many are filled (a seed here, a cosigner's
@@ -15686,7 +15639,7 @@ fn power_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
 
 /// OpenSigner's Learn pages for the screen under the sheet: a tab for
 /// each, the page's sections, scrolled by the wheel or the arrow keys.
-fn learn_sheet(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
+fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let compact = ui.compact;
     let (sw, sh, pad) = if compact {
         (w - 16.0, h - 16.0, 14.0)
@@ -15806,12 +15759,10 @@ fn learn_sheet(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
     }
     ui.c.pop_clip();
     let content = cy + app.learn.scroll - top;
-    app.learn.max = (content - view).max(0.0);
-    if app.learn.scroll > app.learn.max {
-        app.learn.scroll = app.learn.max;
-    }
+    let max = (content - view).max(0.0);
+    app.learn_scroll(max, app.learn.scroll.min(max));
     // The overlay scrollbar, held and dragged as on any page.
-    ui.report_scroll(clip, app.learn.max);
+    ui.report_scroll(clip, max);
 }
 
 /// Where a secret goes: the open vault, or, once the person has said they

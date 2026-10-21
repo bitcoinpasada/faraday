@@ -1889,7 +1889,7 @@ fn run(
     t.press(Action::Nav(Screen::Backups));
     let at = t
         .app
-        .backups()
+        .backups_now()
         .iter()
         .position(|e| e.name == "Spending")
         .ok_or("Spending is not listed after the lock")?;
@@ -2182,12 +2182,12 @@ fn boot_tour(t: &mut Tour) -> Result<(), String> {
     let built = t.app.create.as_ref().and_then(|c| c.built).unwrap_or(0);
     t.press(Action::CBackup);
     t.backup_as(faraday_core::plan::Preset::PaperVault);
-    let here = t.app.plan_shape(built).here();
+    let here = t.app.plan_shape_now(built).here();
     let vaults = t
         .app
         .backup
         .as_ref()
-        .map_or(0, |b| b.answers.vault_count(&t.app.plan_shape(built)));
+        .map_or(0, |b| b.answers.vault_count(&t.app.plan_shape_now(built)));
     let p = vault_place(t, 0).unwrap_or(0);
     keep_vault(t, p, 0, &here);
     for v in 1..vaults {
@@ -4526,10 +4526,10 @@ fn first_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::BNext(bstep::ENVELOPE));
     let done = t
         .app
-        .backup_items()
+        .backup_items_now()
         .into_iter()
         .filter_map(bstep::item)
-        .all(|it| t.app.backup_item_done(it));
+        .all(|it| t.app.backup_item_done_now(it));
     if !done {
         return Err("the first tour's checklist is not done".to_string());
     }
@@ -5385,7 +5385,7 @@ fn pass_seeds_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("passseeds-load-sheet")?;
     let keys: Vec<usize> = t
         .app
-        .vault_load_view()
+        .vault_load_view_now()
         .ok_or("no Load sheet")?
         .keys
         .iter()
@@ -5401,7 +5401,7 @@ fn pass_seeds_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("passseeds-list")?;
     let pick = t
         .app
-        .vault_passphrase_seeds()
+        .vault_passphrase_seeds_now()
         .iter()
         .find(|s| s.line.ends_with(testkit::TEST_SEEDS[2].1))
         .map(|s| (s.vault, s.record))

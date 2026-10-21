@@ -195,18 +195,19 @@ impl Faraday {
     /// of each open vault's wallet records.
     pub fn vault_passphrase_seeds(&self) -> Rc<Vec<PassSeed>> {
         if self.drawing.is_on() {
-            return self
-                .drawing
-                .passphrase_seeds
-                .get_or_init(|| Rc::new(crate::work::filling(|| self.vault_passphrase_seeds_now())))
-                .clone();
+            return crate::drawing::View::new(self).vault_passphrase_seeds();
         }
-        Rc::new(self.vault_passphrase_seeds_now())
+        self.vault_passphrase_seeds_now()
     }
 
     /// Works out [`Faraday::vault_passphrase_seeds`]. Costs a parse of
     /// each open vault's wallet records.
-    fn vault_passphrase_seeds_now(&self) -> Vec<PassSeed> {
+    pub fn vault_passphrase_seeds_now(&self) -> Rc<Vec<PassSeed>> {
+        Rc::new(self.vault_passphrase_seeds_uncached())
+    }
+
+    /// Works out [`Faraday::vault_passphrase_seeds`].
+    fn vault_passphrase_seeds_uncached(&self) -> Vec<PassSeed> {
         let mut out = Vec::new();
         for (v, open) in self.vaults.open.iter().enumerate() {
             for (i, r) in open.contents.of(kind::KEY) {
@@ -242,7 +243,7 @@ impl Faraday {
     /// the sheet of the seeds kept with no passphrase, or, with one, its
     /// passphrase field at once.
     pub(crate) fn pass_seeds_open(&mut self, w: usize) {
-        let seeds = self.vault_passphrase_seeds();
+        let seeds = self.vault_passphrase_seeds_now();
         let Some(wallet) = self.session.wallets.get(w) else {
             return;
         };
@@ -379,18 +380,16 @@ impl Faraday {
     /// it keeps them read; the key fingerprints are the ones the unlock
     /// worked out.
     pub fn vault_load_view(&self) -> Option<Rc<LoadView>> {
+        if self.drawing.is_on() {
+            return crate::drawing::View::new(self).vault_load_view();
+        }
+        self.vault_load_view_now()
+    }
+
+    /// Works out [`Faraday::vault_load_view`] from the state as it is.
+    pub fn vault_load_view_now(&self) -> Option<Rc<LoadView>> {
         let s = self.vaults.load.as_ref()?;
         let v = self.load_sheet_vault()?;
-        if self.drawing.is_on() {
-            return Some(
-                self.drawing
-                    .load_sheet
-                    .get_or_init(|| {
-                        Rc::new(crate::work::filling(|| self.load_view_of(v, &s.ticked)))
-                    })
-                    .clone(),
-            );
-        }
         Some(Rc::new(self.load_view_of(v, &s.ticked)))
     }
 

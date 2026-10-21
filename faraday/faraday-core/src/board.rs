@@ -959,17 +959,18 @@ impl Faraday {
     /// from it.
     pub(crate) fn board_view(&self) -> Option<Rc<BoardView>> {
         if self.drawing.is_on() {
-            return self
-                .drawing
-                .board
-                .get_or_init(|| crate::work::filling(|| self.board_view_uncached().map(Rc::new)))
-                .clone();
+            return crate::drawing::View::new(self).board_view();
         }
-        self.board_view_uncached().map(Rc::new)
+        self.board_view_now()
     }
 
     /// Works out the plan's map, its checks and each place's line of
     /// fact: the board, for [`Faraday::board_view`].
+    pub(crate) fn board_view_now(&self) -> Option<Rc<BoardView>> {
+        self.board_view_uncached().map(Rc::new)
+    }
+
+    /// Works out [`Faraday::board_view`] (see [`Faraday::board_view_now`]).
     fn board_view_uncached(&self) -> Option<BoardView> {
         let of = self.board_of()?;
         let state = self.board_state()?;
@@ -1547,7 +1548,7 @@ impl Faraday {
         let Some(w) = self.backup.as_ref().map(|b| b.wallet) else {
             return;
         };
-        let shape = self.plan_shape(w);
+        let shape = self.plan_shape_now(w);
         if let Some(b) = self.backup.as_mut() {
             f(&mut b.answers, &shape);
             let places = b.answers.places;

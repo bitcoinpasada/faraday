@@ -134,7 +134,7 @@ fn every_software(app: &mut Faraday) {
     }
     app.press(Action::BAnswer(qrow::FORM, plan::form::TEXT as u8));
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
 }
@@ -152,7 +152,7 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
     app.press(Action::Board(BoardPress::Customize));
     let _ = app.frame();
     assert!(app.offers(Action::Board(BoardPress::AddVault)));
-    let seeds = app.plan_shape(w).seeds.len();
+    let seeds = app.plan_shape_now(w).seeds.len();
     for i in 0..seeds {
         assert!(
             !app.offers(Action::Board(BoardPress::Chip(Chip::List(Thing::Seed(i))))),
@@ -163,7 +163,7 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
     // The board closed.
     app.press(Action::BQ(qstep::BOARD));
     every_software(&mut app);
-    let items = app.backup_items();
+    let items = app.backup_items_now();
     assert!(!items.contains(&bstep::BLANK) && !items.contains(&bstep::COPY));
     // Making the checklist made every file it calls for, For the stick:
     // the public files and the shares are done with no press; the rest
@@ -171,7 +171,7 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
     for n in &items {
         let it = bstep::item(*n).unwrap();
         let made = matches!(it, plan::Item::PublicFiles | plan::Item::Sheets);
-        assert_eq!(app.backup_item_done(it), made, "{it:?}");
+        assert_eq!(app.backup_item_done_now(it), made, "{it:?}");
     }
     press_offered(&mut app, Action::BStep(bstep::PUBLIC));
     let want = testkit::public_files("Savings", &testkit::savings()).unwrap();
@@ -194,7 +194,7 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
     // again, the file replaces its namesake.
     press_offered(&mut app, Action::PublicRemove(w, 5));
     assert!(!in_outbox(&app, "savings-wallet.json"));
-    assert!(!app.backup_item_done(plan::Item::PublicFiles));
+    assert!(!app.backup_item_done_now(plan::Item::PublicFiles));
     press_offered(&mut app, Action::PublicOut(w, 5));
     assert!(in_outbox(&app, "savings-wallet.json"));
     assert_eq!(
@@ -204,7 +204,7 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
             .count(),
         1
     );
-    assert!(app.backup_item_done(plan::Item::PublicFiles));
+    assert!(app.backup_item_done_now(plan::Item::PublicFiles));
     // No seed here: no key of it to give the cosigners.
     let _ = app.frame();
     for slot in 0..3 {
@@ -215,7 +215,7 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
     press_offered(&mut app, Action::BStep(bstep::SHEETS));
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::SHEETS));
     assert!(in_outbox(&app, "savings-backup.pdf"));
-    assert!(app.backup_item_done(plan::Item::Sheets));
+    assert!(app.backup_item_done_now(plan::Item::Sheets));
 }
 
 #[test]
@@ -228,19 +228,19 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     app.press(Action::Backup(w));
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     press_offered(&mut app, Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     // Seeds here: the blank template is printed from Faraday Starter and
     // done by its press, so the checklist opens on the copy.
-    assert!(app.backup_item_done(plan::Item::Templates));
+    assert!(app.backup_item_done_now(plan::Item::Templates));
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY));
     // The vault's item opens once the copy is checked.
     app.press(Action::BStep(bstep::VAULT));
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY));
     press_offered(&mut app, Action::BCheck);
     testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
-    assert!(app.backup_item_done(plan::Item::Copy(0)));
+    assert!(app.backup_item_done_now(plan::Item::Copy(0)));
     press_offered(&mut app, Action::BStep(bstep::VAULT));
     // The vault is locked: Unlock it, and back to this step.
     app.vaults.ms_per_unit = Some(180);
@@ -258,13 +258,13 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
     assert_eq!(app.backup_kept().unwrap().wallet.1, Tone::Warn);
-    assert!(!app.backup_item_done(plan::Item::Vault(0)));
+    assert!(!app.backup_item_done_now(plan::Item::Vault(0)));
     // One press saves the seed and the wallet.
     press_offered(&mut app, Action::BVaultSave(0));
     let kept = app.backup_kept().unwrap();
     assert_eq!(kept.wallet.1, Tone::Ok, "{:?}", kept.wallet);
     assert!(kept.wallet.0.starts_with("Wallet in "), "{:?}", kept.wallet);
-    assert!(app.backup_item_done(plan::Item::Vault(0)));
+    assert!(app.backup_item_done_now(plan::Item::Vault(0)));
     // Saved once: the item goes on rather than offering it again.
     let _ = app.frame();
     assert!(!app.offers(Action::BVaultSave(0)));

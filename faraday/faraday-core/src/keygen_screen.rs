@@ -7,6 +7,7 @@ use opensigner_core::strings::fill;
 use osk_bip::bip39::Language;
 use osk_entropy::{CameraNoise, CardDraws, CoinFlips, DiceProcedure, RANKS, SUITS};
 
+use crate::drawing::{Scrolled, View};
 use crate::keygen::{
     Group, KeyGen, MIX_SOURCES, Source, Start, WAYS, Way, kstep, procedure_name, source_name,
 };
@@ -32,7 +33,7 @@ const TITLES: [&str; kstep::COUNT] = [
     FEN.keygen_words,
 ];
 
-pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(k) = app.keygen.as_ref() else {
         return;
     };
@@ -93,13 +94,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
-    if let Some(k) = app.keygen.as_mut() {
-        k.scroll = next;
-    }
-    if again {
-        app.dirty = true;
-        app.commands.push_back(osk_shell_api::Command::Draw);
-    }
+    app.scroll(Scrolled::KeyGen, next, again);
 }
 
 /// A card's title.

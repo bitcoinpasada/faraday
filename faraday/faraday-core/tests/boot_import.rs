@@ -223,7 +223,7 @@ fn the_boot_stick_is_copied_into_memory_and_nothing_is_in_files_until_import() {
     assert_eq!(app.screen, Screen::Home);
     assert_eq!(app.sheet, Some(Sheet::Import));
     assert!(app.inbox.is_empty(), "{:?}", inbox_names(&app));
-    let c = app.import_count().unwrap();
+    let c = app.import_count_now().unwrap();
     assert_eq!((c.copied, c.not_read, c.vaults), (7, 0, 1));
     let _ = app.frame();
     assert!(app.offers(Action::Import(I::Later)));

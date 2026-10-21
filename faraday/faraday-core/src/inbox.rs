@@ -528,16 +528,14 @@ impl Faraday {
     /// comparison of the session after.
     pub fn inbox_found(&self) -> Found {
         if self.drawing.is_on() {
-            return self
-                .drawing
-                .inbox_found
-                .get_or_init(|| {
-                    self.inbox.found(&self.session, |items| {
-                        crate::work::keeping(|| self.found_in(items))
-                    })
-                })
-                .clone();
+            return crate::drawing::View::new(self).inbox_found();
         }
+        self.inbox_found_now()
+    }
+
+    /// Works out [`Faraday::inbox_found`] from the state as it is: costs
+    /// `found_in`.
+    pub fn inbox_found_now(&self) -> Found {
         self.found_in(&self.inbox)
     }
 
@@ -959,7 +957,7 @@ impl Faraday {
     /// After seeds load on their own (Import and load, Add a key): the
     /// wallets in the Inbox that name them load too.
     pub(crate) fn inbox_load_named(&mut self) -> usize {
-        let found = self.inbox_found();
+        let found = self.inbox_found_now();
         let loaded: Vec<Fingerprint> = self.session.keys.iter().map(|k| k.fingerprint()).collect();
         let mut n = 0;
         for w in found.to_load() {
@@ -1041,7 +1039,7 @@ impl Faraday {
     /// Opens the sheet for making account xpub `i` of the Inbox a
     /// watch-only wallet.
     pub(crate) fn xpub_open(&mut self, i: usize) {
-        let Some(x) = self.inbox_found().xpubs.into_iter().nth(i) else {
+        let Some(x) = self.inbox_found_now().xpubs.into_iter().nth(i) else {
             return;
         };
         self.potential = Some(Potential {
@@ -1107,7 +1105,7 @@ impl Faraday {
     fn potential_seed(&self) -> Option<(FoundSeed, Option<Secret>)> {
         let fp = self.potential.as_ref()?.fingerprint?;
         let seed = self
-            .inbox_found()
+            .inbox_found_now()
             .seeds
             .into_iter()
             .find(|s| s.fingerprint == fp)?;
@@ -1240,7 +1238,7 @@ impl Faraday {
         // A wallet here that names the key: it is the wallet.
         if self.potential_match().is_some()
             || self
-                .inbox_found()
+                .inbox_found_now()
                 .wallets
                 .iter()
                 .any(|w| w.keys.contains(&fp))

@@ -66,17 +66,19 @@ impl Faraday {
     /// records; the fingerprints are the ones worked out at unlock.
     pub(crate) fn create_vaults(&self) -> Rc<CreateVaults> {
         if self.drawing.is_on() {
-            return self
-                .drawing
-                .create_vaults
-                .get_or_init(|| Rc::new(crate::work::filling(|| self.create_vaults_uncached())))
-                .clone();
+            return crate::drawing::View::new(self).create_vaults();
         }
-        Rc::new(self.create_vaults_uncached())
+        self.create_vaults_now()
     }
 
     /// Works out [`Faraday::create_vaults`]. Costs a read of each vault
     /// file's header and a hash of each open vault's key records.
+    pub(crate) fn create_vaults_now(&self) -> Rc<CreateVaults> {
+        Rc::new(self.create_vaults_uncached())
+    }
+
+    /// Works out [`Faraday::create_vaults`] (see
+    /// [`Faraday::create_vaults_now`]).
     fn create_vaults_uncached(&self) -> CreateVaults {
         let mut out = CreateVaults::default();
         for (v, open) in self.vaults.open.iter().enumerate() {

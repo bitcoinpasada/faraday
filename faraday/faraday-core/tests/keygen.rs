@@ -1054,7 +1054,7 @@ fn twelve_words_typed_with_a_passphrase_load_the_key_add_a_key_loads_not_made_he
         .add_words_with(&words, "Ride the 7 bus", "", None)
         .unwrap();
     assert_eq!(fp, want);
-    assert!(!app.held_keys().contains(&fp), "not marked made here");
+    assert!(!app.held_keys_now().contains(&fp), "not marked made here");
 
     // The same words and passphrase on the Entry screen give that key.
     let mut entry = faraday_core::testkit::started();

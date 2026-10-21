@@ -5,6 +5,7 @@ use opensigner_core::strings::fill;
 use opensigner_core::vanity::Dial;
 use osk_bip::keys::ScriptType;
 
+use crate::drawing::{Scrolled, View};
 use crate::screens::next_button;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W, grouped, thousands};
@@ -23,7 +24,7 @@ fn va(a: V) -> Action {
     Action::Vanity(a)
 }
 
-pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(v) = app.vanity.as_ref() else {
         return;
     };
@@ -65,13 +66,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
-    if let Some(v) = app.vanity.as_mut() {
-        v.scroll = next;
-    }
-    if again {
-        app.dirty = true;
-        app.commands.push_back(osk_shell_api::Command::Draw);
-    }
+    app.scroll(Scrolled::Vanity, next, again);
 }
 
 fn guide(s: u8) -> &'static str {

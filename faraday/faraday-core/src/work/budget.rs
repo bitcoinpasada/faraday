@@ -255,7 +255,7 @@ pub(super) fn walk(stop: &mut dyn FnMut(&mut Faraday, &str)) -> (Faraday, usize)
     assert_eq!(app.screen, Screen::Backup);
     stop(&mut app, "Backup board");
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&bstep::BLANK) {
+    if app.backup_items_now().contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
     stop(&mut app, "Backup checklist");

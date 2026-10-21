@@ -160,7 +160,7 @@ fn load_vault() -> Vec<u8> {
 }
 
 fn view(app: &Faraday) -> Rc<LoadView> {
-    app.vault_load_view().expect("the Load sheet is up")
+    app.vault_load_view_now().expect("the Load sheet is up")
 }
 
 fn card<'a>(v: &'a LoadView, name: &str) -> &'a LoadCard {
@@ -473,7 +473,7 @@ fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
         app.press(Action::Backup(w));
         testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
         app.press(Action::BChecklist);
-        if app.backup_items().contains(&bstep::BLANK) {
+        if app.backup_items_now().contains(&bstep::BLANK) {
             app.press(Action::BNext(bstep::BLANK));
         }
         // The copy by hand first, typed back: the vault item comes after.
@@ -701,7 +701,7 @@ fn two_seeds_with_no_passphrase_are_listed_and_the_other_one_loads_nothing() {
     )]);
     load_with_a_passphrase(&mut app);
     assert!(app.vaults.pass_seeds.as_ref().unwrap().picked.is_none());
-    let seeds = app.vault_passphrase_seeds();
+    let seeds = app.vault_passphrase_seeds_now();
     assert_eq!(seeds.len(), 2);
     let _ = app.frame();
     let texts = app.drawn_texts();

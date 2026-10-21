@@ -233,7 +233,7 @@ impl Faraday {
         // picture is offered only where the plan copies the seed as a
         // SeedQR (`docs/NEW-WALLET.md` §14.7).
         let seedqr = self
-            .backup_seed_list(b.wallet)
+            .backup_seed_list_now(b.wallet)
             .iter()
             .position(|(_, i)| *i == Some(k))
             .is_none_or(|i| self.copy_forms(b, i).seedqr);

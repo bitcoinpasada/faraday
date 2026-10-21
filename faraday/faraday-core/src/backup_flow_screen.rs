@@ -6,6 +6,7 @@
 
 use crate::backup_flow::{BackupFlow, Confirm, Step};
 use crate::backup_flow_steps::FlowAction as F;
+use crate::drawing::{Scrolled, View};
 use crate::strings::{EN as FEN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
@@ -36,7 +37,7 @@ fn fa(a: F) -> Action {
 }
 
 /// The flow's screen.
-pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(f) = app.flow() else {
         return;
     };
@@ -82,15 +83,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
-    if let Some(i) = app.flow_on
-        && let Some(f) = app.backup_flows.get_mut(i)
-    {
-        f.live.scroll = next;
-    }
-    if again {
-        app.dirty = true;
-        app.commands.push_back(osk_shell_api::Command::Draw);
-    }
+    app.scroll(Scrolled::BackupFlow, next, again);
     if panel_w > 0.0 {
         crate::board_screen::list_panel(app, ui, x0 + cw - panel_w, panel_w, h);
     }

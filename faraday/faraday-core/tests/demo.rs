@@ -224,7 +224,7 @@ fn backing_up(app: &mut Faraday) -> usize {
     faraday_core::testkit::backup_as(app, Preset::Paper);
     app.press(Action::BQ(qstep::PLAN));
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&bstep::BLANK) {
+    if app.backup_items_now().contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
     if app.backup.as_ref().unwrap().open != Some(bstep::COPY) {
@@ -313,7 +313,7 @@ fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished()
     }
     app.press(Action::BQ(qstep::PLAN));
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&bstep::BLANK) {
+    if app.backup_items_now().contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
     // The copy, typed back.
@@ -325,21 +325,21 @@ fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished()
     app.press(Action::BCheck);
     faraday_core::testkit::type_words(&mut app, &demo::words("bacon"));
     assert!(
-        app.backup_item_done(Item::Copy(0)),
+        app.backup_item_done_now(Item::Copy(0)),
         "the copy did not check"
     );
     // The envelopes, then the writes, the last item.
     app.press(Action::BStep(bstep::ENVELOPE));
     app.press(Action::BNext(bstep::ENVELOPE));
-    assert!(app.backup_item_done(Item::Envelopes));
+    assert!(app.backup_item_done_now(Item::Envelopes));
     for item in [
         Item::Templates,
         Item::Sheets,
         Item::Copy(0),
         Item::Envelopes,
     ] {
-        if app.backup_items().contains(&item_step(item)) {
-            assert!(app.backup_item_done(item), "{item:?} is not done");
+        if app.backup_items_now().contains(&item_step(item)) {
+            assert!(app.backup_item_done_now(item), "{item:?} is not done");
         }
     }
     assert!(

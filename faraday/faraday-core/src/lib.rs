@@ -30,6 +30,8 @@ pub mod decode;
 pub mod demo;
 pub mod devices;
 mod drawing;
+#[doc(hidden)]
+pub use drawing::View;
 pub mod edid;
 pub mod explore;
 pub mod family;
@@ -4998,7 +5000,7 @@ impl Faraday {
     /// (`docs/NEW-WALLET.md` §18); else locks.
     pub(crate) fn lock_ask(&mut self, for_flow: bool) {
         self.lock_for_flow = for_flow;
-        let (keys, wallets) = self.unsaved();
+        let (keys, wallets) = self.unsaved_now();
         let sealed = self.vaults.open.iter().any(|v| v.changes > 0);
         if self.lock_ends_create()
             || self.seal_waits()
@@ -5498,7 +5500,7 @@ impl Faraday {
                     .get(i)
                     .map(|w| w.checksum().to_string());
                 let at = self
-                    .backups()
+                    .backups_now()
                     .iter()
                     .position(|e| Some(&e.sum) == sum.as_ref())
                     .unwrap_or(0);
@@ -6012,9 +6014,9 @@ impl Faraday {
                 // nothing is made For the stick by opening it.
                 if self.chart_checklist(i, false) {
                     let first = self
-                        .backup_items()
+                        .backup_items_now()
                         .into_iter()
-                        .find(|&n| bstep::item(n).is_some_and(|it| !self.backup_item_done(it)));
+                        .find(|&n| bstep::item(n).is_some_and(|it| !self.backup_item_done_now(it)));
                     self.backup_item_open(first);
                     self.screen = Screen::Backup;
                 }
@@ -6023,7 +6025,7 @@ impl Faraday {
                 if i < self.session.wallets.len() {
                     let keys = self.backup_keys(i);
                     let first_key = keys.first().copied().unwrap_or(0);
-                    let shape = self.plan_shape(i);
+                    let shape = self.plan_shape_now(i);
                     // The plan this wallet's last backup saved into an
                     // open vault, as it was; else the board open on The
                     // standard way, read-only until Customize backup
@@ -6081,7 +6083,7 @@ impl Faraday {
                 let Some(w) = self.backup.as_ref().map(|b| b.wallet) else {
                     return;
                 };
-                let shape = self.plan_shape(w);
+                let shape = self.plan_shape_now(w);
                 if let (Some(q), Some(b)) = (qrow::question(list), self.backup.as_mut()) {
                     b.answers.toggle(&shape, q, usize::from(row));
                     // A question that no longer applies closes.
@@ -6143,11 +6145,11 @@ impl Faraday {
                 self.backup_extras();
                 self.plan_save();
                 self.backup_files_make();
-                let items = self.backup_items();
+                let items = self.backup_items_now();
                 let first = items
                     .iter()
                     .copied()
-                    .find(|&n| bstep::item(n).is_some_and(|it| !self.backup_item_done(it)));
+                    .find(|&n| bstep::item(n).is_some_and(|it| !self.backup_item_done_now(it)));
                 if let Some(b) = self.backup.as_mut() {
                     b.stage = BStage::Checklist;
                     b.naming = None;
@@ -6193,11 +6195,11 @@ impl Faraday {
                 // by this press.
                 if n != bstep::ENVELOPE
                     && n != bstep::BLANK
-                    && !bstep::item(n).is_some_and(|it| self.backup_item_done(it))
+                    && !bstep::item(n).is_some_and(|it| self.backup_item_done_now(it))
                 {
                     return;
                 }
-                let items = self.backup_items();
+                let items = self.backup_items_now();
                 let next = if n == bstep::ENVELOPE || n == bstep::BLANK {
                     if let Some(b) = self.backup.as_mut() {
                         if n == bstep::ENVELOPE {
@@ -6209,7 +6211,7 @@ impl Faraday {
                     items
                         .iter()
                         .copied()
-                        .find(|&i| bstep::item(i).is_some_and(|it| !self.backup_item_done(it)))
+                        .find(|&i| bstep::item(i).is_some_and(|it| !self.backup_item_done_now(it)))
                 } else {
                     items.iter().skip_while(|&&i| i != n).nth(1).copied()
                 };
@@ -6342,7 +6344,7 @@ impl Faraday {
                 ));
             }
             Action::InboxChoose(i) => {
-                if let Some(w) = self.inbox_found().to_load().get(i) {
+                if let Some(w) = self.inbox_found_now().to_load().get(i) {
                     let d = w.descriptor.clone();
                     if !self.inbox_skip.remove(&d) {
                         self.inbox_skip.insert(d);
@@ -7464,24 +7466,18 @@ impl Faraday {
     /// them: a name each (its fingerprint, or a share not here by number)
     /// and the session key that holds it, when its words are here.
     pub fn backup_seed_list(&self, w: usize) -> Vec<(String, Option<usize>)> {
-        if self.drawing.is_on()
-            && let Some((_, list)) = self
-                .drawing
-                .seed_lists
-                .borrow()
-                .iter()
-                .find(|(k, _)| *k == w)
-        {
-            return list.clone();
-        }
-        let Some(wallet) = self.session.wallets.get(w) else {
-            return Vec::new();
-        };
-        let list = crate::work::filling(|| self.backup_seed_list_of(wallet));
         if self.drawing.is_on() {
-            self.drawing.seed_lists.borrow_mut().push((w, list.clone()));
+            return crate::drawing::View::new(self).backup_seed_list(w);
         }
-        list
+        self.backup_seed_list_now(w)
+    }
+
+    /// Works out [`Faraday::backup_seed_list`] from the state as it is.
+    pub fn backup_seed_list_now(&self, w: usize) -> Vec<(String, Option<usize>)> {
+        match self.session.wallets.get(w) {
+            Some(wallet) => self.backup_seed_list_of(wallet),
+            None => Vec::new(),
+        }
     }
 
     /// [`Faraday::backup_seed_list`] for a wallet that need not be loaded.
@@ -7536,16 +7532,10 @@ impl Faraday {
     /// What wallet `w`'s plan is for: its quorum, its seeds and whether
     /// its description splits. Searches the session's keys; kept for the frame while one is drawn.
     pub fn plan_shape(&self, w: usize) -> plan::Shape {
-        if self.drawing.is_on()
-            && let Some((_, shape)) = self.drawing.shapes.borrow().iter().find(|(k, _)| *k == w)
-        {
-            return shape.clone();
-        }
-        let shape = crate::work::filling(|| self.plan_shape_uncached(w));
         if self.drawing.is_on() {
-            self.drawing.shapes.borrow_mut().push((w, shape.clone()));
+            return crate::drawing::View::new(self).plan_shape(w);
         }
-        shape
+        self.plan_shape_now(w)
     }
 
     /// Wallet description `text` read ([`wallet::read_wallet`]): the first
@@ -7602,7 +7592,8 @@ impl Faraday {
         m
     }
 
-    fn plan_shape_uncached(&self, w: usize) -> plan::Shape {
+    /// Works out [`Faraday::plan_shape`] from the state as it is.
+    pub fn plan_shape_now(&self, w: usize) -> plan::Shape {
         let Some(wallet) = self.session.wallets.get(w) else {
             return plan::Shape {
                 m: 1,
@@ -7661,16 +7652,13 @@ impl Faraday {
     /// (kept for the frame while one is drawn).
     pub fn backup_items(&self) -> Vec<u8> {
         if self.drawing.is_on() {
-            return self
-                .drawing
-                .items
-                .get_or_init(|| crate::work::filling(|| self.backup_items_uncached()))
-                .clone();
+            return crate::drawing::View::new(self).backup_items();
         }
-        self.backup_items_uncached()
+        self.backup_items_now()
     }
 
-    fn backup_items_uncached(&self) -> Vec<u8> {
+    /// Works out [`Faraday::backup_items`] from the state as it is.
+    pub fn backup_items_now(&self) -> Vec<u8> {
         let Some(b) = self.backup.as_ref() else {
             return Vec::new();
         };
@@ -7684,7 +7672,7 @@ impl Faraday {
     /// Opens checklist item `n`, or closes them all. A seed's copy shows
     /// that seed.
     fn backup_item_open(&mut self, n: Option<u8>) {
-        let shape = self.backup.as_ref().map(|b| self.plan_shape(b.wallet));
+        let shape = self.backup.as_ref().map(|b| self.plan_shape_now(b.wallet));
         let key = n
             .and_then(bstep::item)
             .and_then(|it| match it {
@@ -7698,7 +7686,7 @@ impl Faraday {
             })
             .and_then(|i| {
                 let w = self.backup.as_ref()?.wallet;
-                self.backup_seed_list(w).get(i)?.1
+                self.backup_seed_list_now(w).get(i)?.1
             });
         // More options opens closed, unless a file under it is already
         // For the stick.
@@ -7791,38 +7779,15 @@ impl Faraday {
     /// [`Faraday::backup_public_names`] for loaded wallet `wi` under
     /// answers `a`.
     pub(crate) fn backup_public_names_for(&self, wi: usize, a: &plan::Answers) -> Vec<String> {
-        // Kept only for the backup's own answers: another caller's
-        // answers are another question.
-        let own = self.drawing.is_on()
-            && self
-                .backup
-                .as_ref()
-                .is_some_and(|b| b.wallet == wi && b.answers == *a);
-        if own
-            && let Some((_, names)) = self
-                .drawing
-                .public_names
-                .borrow()
-                .iter()
-                .find(|(k, _)| *k == wi)
-        {
-            return names.clone();
+        if self.drawing.is_on() {
+            return crate::drawing::View::new(self).backup_public_names_for(wi, a);
         }
-        let names = if own {
-            crate::work::filling(|| self.backup_public_names_uncached(wi, a))
-        } else {
-            self.backup_public_names_uncached(wi, a)
-        };
-        if own {
-            self.drawing
-                .public_names
-                .borrow_mut()
-                .push((wi, names.clone()));
-        }
-        names
+        self.backup_public_names_for_now(wi, a)
     }
 
-    fn backup_public_names_uncached(&self, wi: usize, a: &plan::Answers) -> Vec<String> {
+    /// Works out [`Faraday::backup_public_names_for`] from the state as it
+    /// is.
+    pub(crate) fn backup_public_names_for_now(&self, wi: usize, a: &plan::Answers) -> Vec<String> {
         let Some(w) = self.session.wallets.get(wi) else {
             return Vec::new();
         };
@@ -7911,17 +7876,13 @@ impl Faraday {
     /// matched, the descriptor shown; the envelopes alone by a press.
     pub fn backup_item_done(&self, item: plan::Item) -> bool {
         if self.drawing.is_on() {
-            if let Some((_, done)) = self.drawing.done.borrow().iter().find(|(i, _)| *i == item) {
-                return *done;
-            }
-            let done = crate::work::filling(|| self.backup_item_done_uncached(item));
-            self.drawing.done.borrow_mut().push((item, done));
-            return done;
+            return crate::drawing::View::new(self).backup_item_done(item);
         }
-        self.backup_item_done_uncached(item)
+        self.backup_item_done_now(item)
     }
 
-    fn backup_item_done_uncached(&self, item: plan::Item) -> bool {
+    /// Works out [`Faraday::backup_item_done`] from the state as it is.
+    pub fn backup_item_done_now(&self, item: plan::Item) -> bool {
         let Some(b) = self.backup.as_ref() else {
             return false;
         };
@@ -8396,7 +8357,7 @@ impl Faraday {
         let Some(open) = self.vaults.open.get(v) else {
             return;
         };
-        let shape = self.plan_shape(wi);
+        let shape = self.plan_shape_now(wi);
         // The keys made here with their backup pending, by fingerprint
         // (`docs/NEW-WALLET.md` §14.3).
         let mut text = answers.to_text();
@@ -8713,7 +8674,7 @@ impl Faraday {
             .get(w)
             .is_some_and(|wl| b.answers.split && backup::splits(wl));
         let items: Vec<plan::Item> = self
-            .backup_items()
+            .backup_items_now()
             .into_iter()
             .filter_map(bstep::item)
             .collect();
@@ -11072,7 +11033,7 @@ impl Faraday {
     fn sign_here(&mut self) {
         // A key made here signs nothing until its backup is done
         // (`docs/NEW-WALLET.md` §14.3).
-        let held = self.held_keys();
+        let held = self.held_keys_now();
         let waiting: Vec<String> = self
             .spend
             .as_ref()
@@ -12183,16 +12144,23 @@ impl Faraday {
         }
     }
 
-    /// Draws the frame. Costs a full draw of the screen; the answers the
-    /// backup's cards share are worked out once and kept only until it
-    /// returns, by whatever way it returns.
-    fn render(&mut self) {
-        // What is kept read on the state and was dropped by a change since
-        // the last frame is read again before drawing, which only looks
-        // it up (`docs/SPEED.md` §3.3).
+    /// Works out, before a frame is drawn, what is kept read on the state
+    /// and was dropped by a change since the last frame, so that drawing
+    /// only looks it up (`docs/SPEED.md` §3.3, `docs/COMPUTE.md` §4):
+    /// each open vault's records read again when they changed. Called
+    /// before every [`Self::render`].
+    fn before_frame(&mut self) {
         for o in &self.vaults.open {
             o.contents.warm();
         }
+    }
+
+    /// Draws the frame. Costs a full draw of the screen; the answers the
+    /// backup's cards share are worked out once and kept only until it
+    /// returns, by whatever way it returns. Each drawing pass reads a
+    /// [`drawing::View`]; what it noted for after it is written once it
+    /// is drawn ([`drawing::After`]).
+    fn render(&mut self) {
         // Costly work from here on panics in debug and test builds unless
         // the drawing memo is filling a cell (`docs/SPEED.md` §3.3).
         let _frame = work::Frame::begin();
@@ -12269,6 +12237,15 @@ impl Faraday {
         let mut follow_to = None;
         let mut scrolled = Vec::new();
         let mut caret = None;
+        // A field newly focused brings the keyboard up; on a small panel
+        // the page scrolls so the field stays in view above it. Worked
+        // out before drawing, which reads the keyboard as it now is.
+        if self.osk_track() && self.compact {
+            let kb = self.osk_height();
+            if kb > 0.0 {
+                self.osk_reveal(self.f, self.h - kb);
+            }
+        }
         for _ in 0..2 {
             hits.clear();
             let disclosure = self
@@ -12312,7 +12289,9 @@ impl Faraday {
                 ui.active = slot;
                 ui.compact = self.compact;
                 ui.caret_on = self.caret_on();
-                screens::draw(self, &mut ui);
+                let view = drawing::View::new(self);
+                screens::draw(&view, &mut ui);
+                self.apply_after(view.into_after());
                 caret = ui.caret_drawn.then_some(ui.caret_on);
                 self.osk_caret(ui.caret_foot);
                 self.fields = std::mem::take(&mut ui.fields);
@@ -13212,6 +13191,7 @@ impl App for Faraday {
     fn frame(&mut self) -> Frame<'_> {
         if self.dirty {
             self.dirty = false;
+            self.before_frame();
             self.render();
         }
         match self.canvas.as_ref() {
@@ -13242,6 +13222,7 @@ impl Faraday {
         if let Some(c) = self.canvas.as_mut() {
             c.record_ink(true);
         }
+        self.before_frame();
         self.render();
         let texts = self
             .canvas

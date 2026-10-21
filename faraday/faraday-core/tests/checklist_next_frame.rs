@@ -152,7 +152,7 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     no_words(&mut app);
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&bstep::BLANK) {
+    if app.backup_items_now().contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
@@ -160,12 +160,12 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     make_vault(&mut app, "first vault phrase");
     assert_eq!(app.screen, Screen::Backup);
     app.press(Action::BVaultSave(0));
-    assert!(app.backup_item_done(Item::Vault(0)));
+    assert!(app.backup_item_done_now(Item::Vault(0)));
     app.press(Action::BNext(bstep::VAULT));
-    let seed2 = app.backup_seed_list(w)[1].0.clone();
+    let seed2 = app.backup_seed_list_now(w)[1].0.clone();
     let title = format!("Vault 2 · {seed2}");
     let number = app
-        .backup_items()
+        .backup_items_now()
         .iter()
         .position(|&n| n == bstep::VAULT + 1)
         .expect("a Vault 2 item")
@@ -207,5 +207,5 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     assert!(ticked(&boxes, &title, number), "{boxes:?}");
     assert!(boxes.iter().any(|(t, _)| *t == into), "{boxes:?}");
     assert!(app.offers(Action::BNext(bstep::VAULT + 1)), "Continue");
-    assert!(app.backup_item_done(Item::Vault(1)));
+    assert!(app.backup_item_done_now(Item::Vault(1)));
 }

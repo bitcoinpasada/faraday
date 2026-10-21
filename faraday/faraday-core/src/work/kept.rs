@@ -23,7 +23,7 @@ fn a_wallet_record_changed_in_an_open_vault_shows_as_it_now_is() {
     let _ = app.frame();
     let v = app.vaults.current;
     let row = app
-        .vault_rows(v)
+        .vault_rows_now(v)
         .into_iter()
         .find(|r| !r.seed)
         .expect("the test vault keeps a wallet");
@@ -34,7 +34,7 @@ fn a_wallet_record_changed_in_an_open_vault_shows_as_it_now_is() {
     app.vaults.open[v].contents.records[row.record].set(field::WALLET, other.descriptor.as_bytes());
     let _ = app.frame();
     let now = app
-        .vault_rows(v)
+        .vault_rows_now(v)
         .into_iter()
         .find(|r| r.record == row.record)
         .expect("the record is listed");
@@ -53,8 +53,8 @@ fn the_checklist_follows_a_plan_changed_since_the_last_frame() {
     testkit::backup_as(&mut app, Preset::PaperVault);
     app.press(Action::BChecklist);
     let _ = app.frame();
-    let shape = app.plan_shape(w);
-    let before = app.backup_items();
+    let shape = app.plan_shape_now(w);
+    let before = app.backup_items_now();
     let mut changed = false;
     for preset in Preset::ALL {
         let answers = Answers::preset(&shape, preset);
@@ -65,7 +65,7 @@ fn the_checklist_follows_a_plan_changed_since_the_last_frame() {
             .map(crate::bstep::of)
             .collect();
         assert_eq!(
-            app.backup_items(),
+            app.backup_items_now(),
             want,
             "{preset:?}: the checklist is the one the plan as it is makes"
         );

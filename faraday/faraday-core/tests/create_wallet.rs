@@ -194,7 +194,7 @@ fn back_up_this_wallet_opens_the_board_read_only_on_the_standard_way() {
     assert_eq!(b.q, Some(faraday_core::qstep::BOARD), "on the board");
     assert_eq!(
         b.answers,
-        Answers::preset(&app.plan_shape(built), Preset::Standard),
+        Answers::preset(&app.plan_shape_now(built), Preset::Standard),
         "The standard way placed"
     );
     assert!(!b.answers.custom, "read-only until Customize backup");

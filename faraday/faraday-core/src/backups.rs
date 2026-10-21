@@ -463,18 +463,14 @@ impl Faraday {
     /// Reads each open vault's wallet records as it keeps them read.
     pub fn backups(&self) -> Vec<Entry> {
         if self.drawing.is_on() {
-            return self
-                .drawing
-                .backups
-                .get_or_init(|| crate::work::filling(|| self.backups_now()))
-                .clone();
+            return crate::drawing::View::new(self).backups();
         }
         self.backups_now()
     }
 
     /// Works out [`Faraday::backups`], from each open vault's wallet
     /// records as it keeps them read ([`crate::vaults::VaultRecords`]).
-    fn backups_now(&self) -> Vec<Entry> {
+    pub fn backups_now(&self) -> Vec<Entry> {
         let mut out: Vec<Entry> = Vec::new();
         let seen = |out: &[Entry], sum: &str| out.iter().any(|e| e.sum == sum);
         for (i, w) in self.session.wallets.iter().enumerate() {

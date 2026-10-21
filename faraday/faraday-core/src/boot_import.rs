@@ -464,16 +464,13 @@ impl Faraday {
     /// wallet or a seed.
     pub fn import_count(&self) -> Option<ImportCount> {
         if self.drawing.is_on() {
-            return *self
-                .drawing
-                .import_count
-                .get_or_init(|| crate::work::filling(|| self.import_count_now()));
+            return crate::drawing::View::new(self).import_count();
         }
         self.import_count_now()
     }
 
     /// Works out [`Faraday::import_count`].
-    fn import_count_now(&self) -> Option<ImportCount> {
+    pub fn import_count_now(&self) -> Option<ImportCount> {
         let imp = self.import.as_ref()?;
         let found = self.found_in(&imp.items);
         let mut c = ImportCount::default();

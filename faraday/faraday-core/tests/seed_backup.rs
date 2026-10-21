@@ -138,7 +138,7 @@ fn backing_up_as(app: &mut Faraday, with: bool, seedqr: bool) -> Fingerprint {
         common::form(app, Zone::Paper(p), Thing::Seed(0), 1);
     }
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     app.press(Action::BStep(bstep::COPY));
@@ -498,13 +498,13 @@ fn a_matched_copy_check_marks_that_seed_only() {
     // The copy of the seed of test key 1, the first, by its place in the
     // wallet.
     let i = app
-        .backup_seed_list(app.backup.as_ref().unwrap().wallet)
+        .backup_seed_list_now(app.backup.as_ref().unwrap().wallet)
         .iter()
         .position(|(_, k)| *k == Some(k1))
         .expect("test key 1 is a seed of Savings") as u8;
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY + i));
