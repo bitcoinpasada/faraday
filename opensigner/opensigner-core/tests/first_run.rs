@@ -188,23 +188,23 @@ fn a_learn_page_with_a_flow_ends_in_the_row_that_opens_it() {
     h.finish_load(None);
     for (page, want) in [
         (1, ScreenKind::Create),
-        (6, ScreenKind::BackupMenu),
+        (5, ScreenKind::BackupMenu),
         // The encrypted backup's own flow now begins with the form it
         // will leave the device in (§16.112).
-        (7, ScreenKind::ExportForm),
-        (9, ScreenKind::OpenPassphrase),
-        (10, ScreenKind::Scan),
-        (13, ScreenKind::Build),
-        (14, ScreenKind::Tool),
-        (15, ScreenKind::AddWallet),
-        (19, ScreenKind::Scan),
+        (6, ScreenKind::ExportForm),
+        (8, ScreenKind::OpenPassphrase),
+        (9, ScreenKind::Scan),
+        (12, ScreenKind::Build),
+        (13, ScreenKind::Tool),
+        (14, ScreenKind::AddWallet),
+        (18, ScreenKind::Scan),
     ] {
         try_row(&mut h, page);
         assert_eq!(h.app.screen(), want, "the row of Learn page {page}");
         h.go_home();
     }
     // Dice opens the same wizard past the step that chooses a source.
-    try_row(&mut h, 4);
+    try_row(&mut h, 3);
     assert_eq!(h.app.screen(), ScreenKind::Create);
     assert_eq!(h.app.create_step(), Some(CreateStep::Count));
 }
@@ -214,15 +214,15 @@ fn a_row_whose_flow_needs_a_key_opens_add_when_none_is_loaded() {
     let mut h = Harness::new(PANEL);
     for (page, want) in [
         (1, ScreenKind::Create),
-        (4, ScreenKind::Create),
+        (3, ScreenKind::Create),
+        (5, ScreenKind::Add),
         (6, ScreenKind::Add),
-        (7, ScreenKind::Add),
-        (9, ScreenKind::Add),
-        (10, ScreenKind::Scan),
-        (13, ScreenKind::Build),
-        (14, ScreenKind::Tool),
-        (15, ScreenKind::AddWallet),
-        (19, ScreenKind::Add),
+        (8, ScreenKind::Add),
+        (9, ScreenKind::Scan),
+        (12, ScreenKind::Build),
+        (13, ScreenKind::Tool),
+        (14, ScreenKind::AddWallet),
+        (18, ScreenKind::Add),
     ] {
         try_row(&mut h, page);
         assert_eq!(h.app.screen(), want, "the row of Learn page {page}");
@@ -233,7 +233,7 @@ fn a_row_whose_flow_needs_a_key_opens_add_when_none_is_loaded() {
 #[test]
 fn a_learn_page_with_no_flow_has_no_row() {
     let mut h = Harness::new(PANEL);
-    for page in [0, 2, 3, 5, 8, 11, 12, 16, 17, 18, 20, 21] {
+    for page in [0, 2, 4, 7, 10, 11, 15, 16, 17, 19, 20] {
         open_page(&mut h, page);
         assert!(
             h.app.rect_of(ids::LEARN_TRY).is_none(),
