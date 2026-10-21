@@ -865,11 +865,9 @@ about ten times slower.
    9,072 → 203 (Pi); with 1,620 files 89,882 → 1,252 and 149,843 →
    244 (Pi), the same as with 81. Frames: Vault contents 4.6 → 3.7,
    4.2 → 2.9 (Pi); Files with 405 files 11.7 → 9.9, 18.6 → 9.9 (Pi);
-   with 1,620 files 42.7 → 33.4, 73.2 → 37.5 (Pi). **Still growing:**
-   Files works out what the Inbox gives (`found_in`, for its panel of
-   wallets and keys to load) once a frame, about 20 µs a file; a kept
-   copy, made again when the Inbox or the session changes, is the next
-   step. The scaling test (§8.3) now also holds every screen to the
+   with 1,620 files 42.7 → 33.4, 73.2 → 37.5 (Pi). Files still
+   worked out what the Inbox gives (`found_in`) once a frame, about
+   20 µs a file; kept in §10. The scaling test (§8.3) now also holds every screen to the
    same lines of text drawn with one and five copies of the files
    (`Canvas::lines_drawn`).
 4. **`ui.fit` measured the string again for each character it took
@@ -914,3 +912,45 @@ about ten times slower.
 The renders of the 1280×800, 3840×2160 and `--sd-card` 480×640@286
 tours are the same pixels before and after; the 2560×1600@320 tour
 differs only in frosted pages, as above.
+
+## 10. Batch S3: what the Inbox gives is kept with the Inbox (2026-10-21)
+
+§9 item 3 left Files working out what the Inbox gives (`found_in`, for
+its panel of wallets and keys to load) once a frame, about 20 µs a file.
+`Faraday::inbox` is now `InboxFiles`, which reads as the files
+(`Vec<Item>`) and keeps that result (`Found`) beside them. It is worked
+out again only when an input changed, and a frame compares the session's
+keys and wallets, not the files. Inputs of `found_in`, each how the kept
+copy is told:
+
+1. The files (added, removed, renamed, replaced, marked): every change
+   goes through `DerefMut`, which drops the kept copy. An `Item`'s bytes,
+   kind, wallet and sha never change after it is made.
+2. The session's keys: fingerprint, label and share of each, compared on
+   each ask.
+3. The session's wallets: name and policy of each, compared on each ask.
+4. Nothing else: the seeds' fingerprints and the texts read are
+   functions of the files, kept by what they come from.
+
+The invariant is written on `InboxFiles`. Decisions are not read from
+it: a press that loads, removes or opens a file calls `found_in` or
+`inbox_found` as before, and `inbox_found` answers from the state as it
+is. Tests: `work/kept.rs`, `what_the_inbox_gives_follows_the_files_and_the_session`
+changes each input in turn (file added, renamed, replaced, removed;
+wallet loaded, renamed, policy changed, gone; seed file added; key
+loaded, relabelled, gone) and checks the kept result is the fresh one and
+that asking again works nothing out; the scaling test (§8.3) also counts
+the times a frame worked the Inbox's result out (`InboxFiles::rebuilds`):
+none, with 1x and 5x the files.
+
+Files frame, release profile, the build machine, 1366×768, median of
+41 frames, ms:
+
+| Inbox files | before | after |
+|---|---|---|
+| 81 | 3.48 | 1.59 |
+| 405 | 9.75 | 1.49 |
+| 1,620 | 33.59 | 1.55 |
+
+The frame no longer grows with the Inbox. `found_in` alone is 1.9, 8.2
+and 31.7 ms at those sizes, now paid once after a change, not each frame.

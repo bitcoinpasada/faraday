@@ -3445,7 +3445,7 @@ pub struct Faraday {
     /// APK signing is in the app: off by default (F59).
     pub apk_signing: bool,
     /// Files read from sticks.
-    pub inbox: Vec<Item>,
+    pub inbox: inbox::InboxFiles,
     /// Results waiting for a stick.
     pub outbox: Vec<Item>,
     /// The sticks present.
@@ -3820,7 +3820,7 @@ impl Faraday {
             decode: None,
             catalog_find: String::new(),
             apk_signing: false,
-            inbox: Vec::new(),
+            inbox: inbox::InboxFiles::default(),
             outbox: Vec::new(),
             sticks: Vec::new(),
             not_now: false,
