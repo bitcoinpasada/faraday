@@ -114,6 +114,145 @@ pub struct Waiting {
     pub backup: Option<usize>,
 }
 
+/// The Inbox's files, with what they give ([`Found`]) kept worked out
+/// (`docs/SPEED.md` §3.3, §9). Reads as the files themselves
+/// (`Vec<Item>`).
+///
+/// Invariant: what [`InboxFiles::found`] answers is what
+/// [`Faraday::found_in`] gives for the files and the session as they are
+/// now. `found_in` reads exactly these inputs, and each is a way the kept
+/// copy is dropped or told stale:
+///
+/// 1. the files: every change to them goes through `DerefMut`, which
+///    drops the kept copy (a file added, removed, renamed, replaced or
+///    marked); an [`Item`]'s own bytes, kind, wallet and sha never change
+///    after it is made;
+/// 2. the session's keys: each key's fingerprint (what a seed here is
+///    loaded by, which wallet slots a key fills), label (a key's seed
+///    is named by it) and share (a threshold wallet's slots);
+/// 3. the session's wallets: each one's name and policy (which wallets
+///    here are loaded already, the wallets listed from the session);
+/// 4. nothing else: the words' fingerprints and the texts read are
+///    functions of the files alone, kept by what they are worked out from
+///    (`fp_memo`, `texts_read`).
+///
+/// Inputs 2 and 3 are the session's own fields, which are changed in
+/// many places; the kept copy holds what it was worked out from
+/// ([`SessionSeen`]) and is worked out again when the session no longer
+/// matches it, a comparison of a few keys and wallets, not of the files.
+#[derive(Default)]
+pub struct InboxFiles {
+    items: Vec<Item>,
+    kept: std::cell::RefCell<Option<(SessionSeen, Found)>>,
+    rebuilds: std::cell::Cell<u64>,
+}
+
+/// The session as [`InboxFiles`]' kept copy was worked out from it.
+struct SessionSeen {
+    keys: Vec<(
+        Fingerprint,
+        String,
+        Option<osk_bip::bitcoin::secp256k1::PublicKey>,
+    )>,
+    wallets: Vec<(String, osk_bip::policy::WalletPolicy)>,
+}
+
+impl SessionSeen {
+    fn of(s: &Session) -> SessionSeen {
+        SessionSeen {
+            keys: s
+                .keys
+                .iter()
+                .map(|k| (k.fingerprint(), k.label.clone(), k.share))
+                .collect(),
+            wallets: s
+                .wallets
+                .iter()
+                .map(|w| (w.name.clone(), w.policy().clone()))
+                .collect(),
+        }
+    }
+
+    /// Whether `s` is the session this was taken from. Costs a
+    /// comparison of each wallet's policy.
+    fn matches(&self, s: &Session) -> bool {
+        self.keys.len() == s.keys.len()
+            && self.wallets.len() == s.wallets.len()
+            && self
+                .keys
+                .iter()
+                .zip(&s.keys)
+                .all(|(a, k)| a.0 == k.fingerprint() && a.1 == k.label && a.2 == k.share)
+            && self
+                .wallets
+                .iter()
+                .zip(&s.wallets)
+                .all(|(a, w)| a.0 == w.name && a.1 == *w.policy())
+    }
+}
+
+impl InboxFiles {
+    /// What `make` gives for these files and `session`, worked out
+    /// again only when either changed since. Costs what `make` does
+    /// (`found_in`: every file read once) the first time after a change,
+    /// a comparison of the session's keys and wallets after.
+    pub(crate) fn found(&self, session: &Session, make: impl FnOnce(&[Item]) -> Found) -> Found {
+        if let Some((seen, found)) = &*self.kept.borrow()
+            && seen.matches(session)
+        {
+            return found.clone();
+        }
+        self.rebuilds.set(self.rebuilds.get() + 1);
+        let found = make(&self.items);
+        *self.kept.borrow_mut() = Some((SessionSeen::of(session), found.clone()));
+        found
+    }
+
+    /// How many times [`InboxFiles::found`] worked its answer out.
+    pub fn rebuilds(&self) -> u64 {
+        self.rebuilds.get()
+    }
+}
+
+impl std::ops::Deref for InboxFiles {
+    type Target = Vec<Item>;
+    fn deref(&self) -> &Vec<Item> {
+        &self.items
+    }
+}
+
+/// A change to the files drops what was worked out of them: the
+/// invariant of [`InboxFiles`].
+impl std::ops::DerefMut for InboxFiles {
+    fn deref_mut(&mut self) -> &mut Vec<Item> {
+        *self.kept.get_mut() = None;
+        &mut self.items
+    }
+}
+
+impl From<Vec<Item>> for InboxFiles {
+    fn from(items: Vec<Item>) -> InboxFiles {
+        InboxFiles {
+            items,
+            ..InboxFiles::default()
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a InboxFiles {
+    type Item = &'a Item;
+    type IntoIter = std::slice::Iter<'a, Item>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.items.iter()
+    }
+}
+
+impl FromIterator<Item> for InboxFiles {
+    fn from_iter<I: IntoIterator<Item = Item>>(i: I) -> InboxFiles {
+        InboxFiles::from(i.into_iter().collect::<Vec<_>>())
+    }
+}
+
 /// Everything the Inbox gives, put together.
 #[derive(Debug, Clone, Default)]
 pub struct Found {
@@ -377,19 +516,26 @@ impl Faraday {
         Zeroizing::new(line.to_string())
     }
 
-    /// Everything the Inbox gives, put together. Kept in the drawing memo
-    /// while a frame is drawn (`docs/SPEED.md` §3.3). Each wallet file is
-    /// read when it came in ([`crate::Item::wallet`]) and each seed's
-    /// fingerprint is kept once worked out; costs a merge of any split
-    /// sheets.
+    /// Everything the Inbox gives, put together. While a frame is drawn
+    /// it is the kept copy ([`InboxFiles`]), worked out again only when
+    /// the files or the session's keys and wallets change, and once a
+    /// frame in the drawing memo (`docs/SPEED.md` §3.3); a decision
+    /// (a press, a load) works it out from the state as it is. Each
+    /// wallet file is read when it came in ([`crate::Item::wallet`]) and
+    /// each seed's fingerprint is kept once worked out; costs `found_in`
+    /// (a merge of any split sheets, every file looked at) except while
+    /// drawing, where it is that the first time after a change and a
+    /// comparison of the session after.
     pub fn inbox_found(&self) -> Found {
         if self.drawing.is_on() {
-            return self
-                .drawing
-                .inbox_found
-                .get_or_init(|| crate::work::filling(|| self.found_in(&self.inbox)))
-                .clone();
+            return crate::drawing::View::new(self).inbox_found();
         }
+        self.inbox_found_now()
+    }
+
+    /// Works out [`Faraday::inbox_found`] from the state as it is: costs
+    /// `found_in`.
+    pub fn inbox_found_now(&self) -> Found {
         self.found_in(&self.inbox)
     }
 
@@ -811,7 +957,7 @@ impl Faraday {
     /// After seeds load on their own (Import and load, Add a key): the
     /// wallets in the Inbox that name them load too.
     pub(crate) fn inbox_load_named(&mut self) -> usize {
-        let found = self.inbox_found();
+        let found = self.inbox_found_now();
         let loaded: Vec<Fingerprint> = self.session.keys.iter().map(|k| k.fingerprint()).collect();
         let mut n = 0;
         for w in found.to_load() {
@@ -893,7 +1039,7 @@ impl Faraday {
     /// Opens the sheet for making account xpub `i` of the Inbox a
     /// watch-only wallet.
     pub(crate) fn xpub_open(&mut self, i: usize) {
-        let Some(x) = self.inbox_found().xpubs.into_iter().nth(i) else {
+        let Some(x) = self.inbox_found_now().xpubs.into_iter().nth(i) else {
             return;
         };
         self.potential = Some(Potential {
@@ -959,7 +1105,7 @@ impl Faraday {
     fn potential_seed(&self) -> Option<(FoundSeed, Option<Secret>)> {
         let fp = self.potential.as_ref()?.fingerprint?;
         let seed = self
-            .inbox_found()
+            .inbox_found_now()
             .seeds
             .into_iter()
             .find(|s| s.fingerprint == fp)?;
@@ -1092,7 +1238,7 @@ impl Faraday {
         // A wallet here that names the key: it is the wallet.
         if self.potential_match().is_some()
             || self
-                .inbox_found()
+                .inbox_found_now()
                 .wallets
                 .iter()
                 .any(|w| w.keys.contains(&fp))

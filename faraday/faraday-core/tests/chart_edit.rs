@@ -672,7 +672,7 @@ fn in_an_open_vaults_view_a_change_is_kept_in_that_vault() {
 /// most one place per key has it (`docs/BACKUP-FLOW.md` §19.19).
 fn preset_saved(app: &mut Faraday, k: u8) {
     let w = app.backup.as_ref().unwrap().wallet;
-    let shape = app.plan_shape(w);
+    let shape = app.plan_shape_now(w);
     let base = if shape.multi() { shape.seeds.len() } else { 2 };
     let preset = faraday_core::plan::Preset::ALL[usize::from(k)];
     app.backup.as_mut().unwrap().answers =

@@ -211,7 +211,7 @@ fn a_place_names_name_never_leaves_the_vault() {
     assert_eq!(app.place_name(0), NAME);
     app.press(Action::BQ(qstep::PLAN));
     press_offered(&mut app, Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     app.press(Action::BReveal);

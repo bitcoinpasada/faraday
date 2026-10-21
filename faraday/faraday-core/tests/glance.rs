@@ -107,7 +107,7 @@ fn planned(app: &mut Faraday, w: usize, preset: u8) {
     app.press(Action::Backup(w));
     preset_saved(app, preset);
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     app.press(Action::OpenWallet(w));
@@ -484,7 +484,7 @@ fn a_wallet_loaded_from_its_vault_on_another_power_on_charts_the_vaults_plan() {
     planned(&mut app, w, 2);
     app.press(Action::Backup(w));
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     app.press(Action::BVaultSave(0));
@@ -599,7 +599,7 @@ fn vault_holding(app: &mut Faraday, w: usize, plan: bool) {
         planned(app, w, 2);
         app.press(Action::Backup(w));
         app.press(Action::BChecklist);
-        if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+        if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
             app.press(Action::BNext(faraday_core::bstep::BLANK));
         }
         app.press(Action::BVaultSave(0));
@@ -689,7 +689,7 @@ fn a_wallet_with_no_plan_in_the_vault_shows_its_wallet_and_keys_only() {
 /// most one place per key has it (`docs/BACKUP-FLOW.md` §19.19).
 fn preset_saved(app: &mut Faraday, k: u8) {
     let w = app.backup.as_ref().unwrap().wallet;
-    let shape = app.plan_shape(w);
+    let shape = app.plan_shape_now(w);
     let base = if shape.multi() { shape.seeds.len() } else { 2 };
     let preset = faraday_core::plan::Preset::ALL[usize::from(k)];
     app.backup.as_mut().unwrap().answers =

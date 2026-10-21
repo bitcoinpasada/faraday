@@ -28,7 +28,8 @@
 //! - [`work`]: a count of the core's costly work by kind (a PSBT parsed,
 //!   inspected or signed, a key stretched, a canvas blurred or copied
 //!   whole), kept by an application that installs a counter; empty
-//!   unless the `count` feature is on.
+//!   unless the `count` feature is on. With it, [`work::Compute`], the
+//!   token a costly function takes (`docs/COMPUTE.md` §2).
 //!
 //! The crate is `no_std` (but for the `count` feature, which needs
 //! `std` for its process-wide counter) and allocates for one reason

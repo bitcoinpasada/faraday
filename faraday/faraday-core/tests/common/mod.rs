@@ -1026,7 +1026,7 @@ pub fn description_file_at(app: &mut Faraday, p: usize) {
 /// keeps them. The flows these tests drive write any number of places.
 pub fn second_place(app: &mut Faraday) {
     let w = app.backup.as_ref().expect("Back up").wallet;
-    let shape = app.plan_shape(w);
+    let shape = app.plan_shape_now(w);
     let b = app.backup.as_mut().expect("Back up");
     if b.answers.places < 2 {
         b.answers.add_place(&shape);
@@ -1038,7 +1038,7 @@ pub fn second_place(app: &mut Faraday) {
 /// one place per key has it (`docs/BACKUP-FLOW.md` §19.19), customised.
 pub fn preset_two_places(app: &mut Faraday, k: u8) {
     let w = app.backup.as_ref().expect("Back up").wallet;
-    let shape = app.plan_shape(w);
+    let shape = app.plan_shape_now(w);
     let preset = plan::Preset::ALL[usize::from(k)];
     let mut a = plan::Answers::preset_at(&shape, preset, 2);
     a.custom = true;

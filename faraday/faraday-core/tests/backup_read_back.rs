@@ -51,7 +51,7 @@ fn kind_index(kind: NewKind) -> u8 {
 }
 
 fn backup_shape(app: &Faraday) -> Shape {
-    app.plan_shape(app.backup.as_ref().unwrap().wallet)
+    app.plan_shape_now(app.backup.as_ref().unwrap().wallet)
 }
 
 /// A change to Back up's plan made straight to its map, as a drop on the
@@ -190,7 +190,7 @@ fn copied_in(files: &[(String, Vec<u8>)]) -> Faraday {
 /// The seed the Inbox finds whose key is `fp`, made a wallet of the first
 /// kind (Native SegWit) on its sheet: its first address.
 fn seed_made_wallet(app: &mut Faraday, fp: [u8; 4]) -> String {
-    let found = app.inbox_found();
+    let found = app.inbox_found_now();
     assert!(
         found.seeds.iter().any(|s| s.fingerprint.0 == fp),
         "the seed {:02x?} is found: {:?}",
@@ -284,7 +284,7 @@ fn a_passphrase_file_beside_the_words_restores_the_key_with_its_passphrase() {
     let alone = copied_in(&on(&shell, &["S1"]));
     assert!(
         alone
-            .inbox_found()
+            .inbox_found_now()
             .seeds
             .iter()
             .all(|s| s.fingerprint.0 != fps[0])

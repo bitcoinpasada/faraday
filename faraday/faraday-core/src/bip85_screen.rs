@@ -5,6 +5,7 @@ use opensigner_core::Bip85App;
 use opensigner_core::strings::fill;
 
 use crate::bip85::{APPS, Bip85State, app_name, lengths, pstep};
+use crate::drawing::{Scrolled, View};
 use crate::screens::{button_rows, next_button};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
@@ -18,7 +19,7 @@ const TITLES: [&str; pstep::COUNT] = [
     EN.bip85_value,
 ];
 
-pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(b) = app.bip85.as_ref() else {
         return;
     };
@@ -51,7 +52,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let scroll = b.scroll;
     let (next, again) = {
-        let app_ref: &Faraday = app;
+        let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             match app_ref.bip85.as_ref() {
                 Some(b) => card(app_ref, b, ui, i as u8, x, y, w),
@@ -60,13 +61,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
-    if let Some(b) = app.bip85.as_mut() {
-        b.scroll = next;
-    }
-    if again {
-        app.dirty = true;
-        app.commands.push_back(osk_shell_api::Command::Draw);
-    }
+    app.scroll(Scrolled::Bip85, next, again);
 }
 
 fn length_label(b: &Bip85State) -> Option<String> {
@@ -114,7 +109,7 @@ fn guide(s: u8, app: Bip85App) -> String {
     }
 }
 
-fn card(app: &Faraday, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
+fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     match s {
         pstep::KEY => {
@@ -247,11 +242,7 @@ fn card(app: &Faraday, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f3
             cy += below;
             // Derived for this frame only, and wiped with it: a secret
             // shown, which nothing keeps.
-            let value = if b.shown {
-                crate::work::allowed(crate::work::Allowed::SecretShown, || app.bip85_value())
-            } else {
-                None
-            };
+            let value = if b.shown { app.bip85_shown() } else { None };
             let shown =
                 value.as_ref().map_or("••••••••••••", |v| v.as_str());
             cy += ui

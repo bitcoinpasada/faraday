@@ -210,7 +210,7 @@ fn unlock_on_tab(app: &mut Faraday) {
     settle(app);
     // Unlocked: everything is ticked, nothing loaded until Load.
     assert!(app.session.keys.is_empty(), "the unlock loaded before Load");
-    assert!(app.vault_rows(0).iter().all(|r| r.chosen));
+    assert!(app.vault_rows_now(0).iter().all(|r| r.chosen));
     app.press(Action::Vault(
         faraday_core::vaults::VaultAction::LoadChosen(0),
     ));

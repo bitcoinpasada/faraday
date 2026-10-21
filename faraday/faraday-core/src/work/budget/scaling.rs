@@ -5,7 +5,9 @@
 //! wallet against every test wallet, with a spend open and without. A
 //! frame also draws as many lines of text with five copies of the files
 //! as with one: a list draws the rows that can be seen, not the rest
-//! (`docs/SPEED.md` §9).
+//! (`docs/SPEED.md` §9), and works out nothing of what the Inbox gives
+//! (`found_in`, kept with the files) unless the files or the session
+//! changed.
 
 use super::{frame_work, hover_work};
 use crate::work::{Counts, KINDS};
@@ -76,14 +78,18 @@ const SCREENS: [(&str, Action); 6] = [
 
 /// Each screen's frame drawn again, and a pointer moved over it; and
 /// the lines of text a frame of it draws.
-fn works(app: &mut Faraday) -> Vec<(&'static str, Counts, Counts, u64)> {
+fn works(app: &mut Faraday) -> Vec<(&'static str, Counts, Counts, u64, u64)> {
     SCREENS
         .iter()
         .map(|&(name, a)| {
             app.press(a);
             let frame = frame_work(app);
             let lines = lines_drawn(app);
-            (name, frame, hover_work(app), lines)
+            let before = app.inbox.rebuilds();
+            app.dirty = true;
+            let _ = osk_shell_api::App::frame(app);
+            let rebuilt = app.inbox.rebuilds() - before;
+            (name, frame, hover_work(app), lines, rebuilt)
         })
         .collect()
 }
@@ -121,13 +127,19 @@ fn a_frame_does_the_same_work_with_five_times_the_files_and_every_wallet() {
             assert_eq!(app.inbox.len(), copies * base.inbox.len());
             let work = works(&mut app);
             assert_eq!(work.len(), base_work.len());
-            for ((name, frame, hover, lines), (_, f1, _, l1)) in work.iter().zip(&base_work) {
+            for ((name, frame, hover, lines, rebuilt), (_, f1, _, l1, _)) in
+                work.iter().zip(&base_work)
+            {
                 assert_eq!(
                     text(frame),
                     text(f1),
                     "{name}, spend open {spend}: a frame with {copies}x the files and {wallets} wallets did other work than with 1x and one"
                 );
                 assert_eq!(text(hover), "", "{name}: a pointer move did work");
+                assert_eq!(
+                    *rebuilt, 0,
+                    "{name}, spend open {spend}: a frame with {copies}x the files worked out what the Inbox gives again"
+                );
                 if wallets == 1 {
                     assert_eq!(
                         lines, l1,

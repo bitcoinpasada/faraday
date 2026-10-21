@@ -1,0 +1,12 @@
+# Clippy's settings for Faraday's crates. Clippy reads the nearest
+# clippy.toml above each crate's manifest, so this governs every crate
+# under faraday/ and none in core/ or opensigner/ (docs/COMPUTE.md §3, §7).
+
+# A token for costly work (`osk_crypto::work::Compute`) is minted only at
+# the entry points docs/COMPUTE.md §3 lists, each under
+# `#[expect(clippy::disallowed_methods, reason = "a mint: …")]`; the
+# token that counts nothing is never Faraday's.
+disallowed-methods = [
+    { path = "osk_crypto::work::Compute::new", reason = "a mint: only at docs/COMPUTE.md §3's sites, under #[expect]" },
+    { path = "osk_crypto::work::Compute::unchecked", reason = "counts nothing: OpenSigner's, core's tests and tools only (docs/COMPUTE.md §3)" },
+]

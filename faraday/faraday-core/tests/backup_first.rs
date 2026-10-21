@@ -110,7 +110,7 @@ fn checklist(app: &mut Faraday, p: Preset) {
     backup_as(app, p);
     assert_eq!(app.screen, Screen::Backup);
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
@@ -128,7 +128,7 @@ fn check_the_copy(app: &mut Faraday, fp: Fingerprint) {
     app.press(Action::BCheck);
     testkit::type_words(app, &words);
     assert!(
-        app.backup_item_done(Item::Copy(0)),
+        app.backup_item_done_now(Item::Copy(0)),
         "the copy did not check"
     );
 }
@@ -185,7 +185,7 @@ fn a_key_from_new_key_cannot_sign_until_its_wallets_checklist_is_complete_and_ca
     assert_eq!(app.screen, Screen::Backup);
     backup_as(&mut app, Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     check_the_copy(&mut app, fp);
@@ -268,7 +268,7 @@ fn after_a_lock_and_an_unlock_from_the_vault_the_held_key_is_still_held() {
     unlock(&mut app);
     app.press(Action::Nav(Screen::Backup));
     app.press(Action::BVaultSave(0));
-    assert!(app.backup_item_done(Item::Vault(0)));
+    assert!(app.backup_item_done_now(Item::Vault(0)));
     assert!(app.key_held(fp), "the checklist is not done");
     let vault: Vec<_> = locked(&mut app)
         .into_iter()
@@ -294,7 +294,7 @@ fn the_cards_address_carries_the_warning_until_the_backup_is_done() {
     app.press(Action::Backup(w));
     backup_as(&mut app, Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     check_the_copy(&mut app, fp);
@@ -336,7 +336,7 @@ fn a_key_made_here_shows_no_receive_address_until_its_backup_is_done() {
     app.press(Action::Backup(w));
     backup_as(&mut app, Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     check_the_copy(&mut app, fp);
@@ -354,7 +354,7 @@ fn the_press_that_completes_the_last_item_shows_the_receive_address_on_the_next_
     app.press(Action::Backup(w));
     backup_as(&mut app, Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     check_the_copy(&mut app, fp);
@@ -400,7 +400,7 @@ fn with_every_item_done_the_done_card_shows_the_three_checks_above_the_chart() {
     backup_as(&mut app, Preset::Paper);
     no_paper_description(&mut app);
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     check_the_copy(&mut app, fp);
@@ -436,7 +436,7 @@ fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
     // No paper: the vault's item comes first.
     no_words(&mut app);
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
@@ -478,7 +478,7 @@ fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
     assert!(!app.offers(make));
     assert!(!app.offers(Action::BNext(bstep::VAULT)));
     app.press(Action::BVaultSave(0));
-    assert!(app.backup_item_done(Item::Vault(0)));
+    assert!(app.backup_item_done_now(Item::Vault(0)));
     assert!(app.key_held(fp), "the rest of the checklist waits");
     let _ = app.frame();
     assert!(app.offers(Action::BNext(bstep::VAULT)), "Continue");
@@ -496,7 +496,7 @@ fn changing_to_paper_only_after_the_vault_keeps_its_copy_on_the_map_and_the_hold
     unlock(&mut app);
     app.press(Action::Nav(Screen::Backup));
     app.press(Action::BVaultSave(0));
-    assert!(app.backup_item_done(Item::Vault(0)));
+    assert!(app.backup_item_done_now(Item::Vault(0)));
     // Paper only, part way: the vault taken off on the board, by its ×
     // and Take off, as a person does it (§19.21).
     app.press(Action::BPlan);
@@ -511,10 +511,10 @@ fn changing_to_paper_only_after_the_vault_keeps_its_copy_on_the_map_and_the_hold
         "no vault on the plan"
     );
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
-    assert!(!app.backup_items().contains(&bstep::VAULT));
+    assert!(!app.backup_items_now().contains(&bstep::VAULT));
     let line = format!("vault.ofv holds seed {}", fp_text(fp));
     let shown = app.drawn_texts().join(" ");
     assert!(shown.contains(&line), "{shown}");
@@ -542,7 +542,7 @@ fn a_plan_with_the_seed_unticked_everywhere_offers_no_make_the_checklist() {
     let nowhere = format!("Seed {} is kept nowhere", fp_text(fp));
     assert!(app.drawn_texts().contains(&nowhere));
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Plan);
@@ -559,7 +559,7 @@ fn the_done_card_says_extra_copies_are_made_outside_the_plan_in_guided_only() {
     backup_as(&mut app, Preset::Paper);
     no_paper_description(&mut app);
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     check_the_copy(&mut app, fp);

@@ -16,12 +16,26 @@
 //! and parses nothing again. Each fill runs in [`crate::work::filling`],
 //! the only place, with what the state keeps ([`crate::work::keeping`]),
 //! where costly work may run while a frame is drawn.
+//!
+//! Drawing reads the app through a [`View`] (`docs/COMPUTE.md` §4): the
+//! memo's fills, the kept values and the owner's exceptions are its
+//! accessors in `drawing/` (`memo.rs`, `kept.rs`, `allowed.rs`), and what
+//! a pass writes is noted in its [`After`] for `render` to apply. The
+//! view holds the one token drawing can reach, private, and its
+//! accessors alone hand it to the work they do.
+//! Decisions use each memo answer's `_now` form on [`Faraday`].
 
 use std::cell::{Cell, OnceCell, RefCell};
+use std::ops::Deref;
 
 use osk_bip::keys::Fingerprint;
+use osk_crypto::work::Compute;
 
-use crate::plan;
+use crate::{Faraday, flow, plan, work};
+
+mod allowed;
+mod kept;
+mod memo;
 
 /// A wallet's seeds: a name each and the session key that holds it.
 pub(crate) type SeedList = Vec<(String, Option<usize>)>;
@@ -68,7 +82,7 @@ pub(crate) struct Drawing {
     pub stick_rows: OnceCell<Vec<StickRow>>,
     /// The Load sheet an unlock shows ([`crate::Faraday::vault_load_view`],
     /// F62).
-    pub load_sheet: OnceCell<std::rc::Rc<crate::vault_load::LoadView>>,
+    pub load_sheet: OnceCell<Option<std::rc::Rc<crate::vault_load::LoadView>>>,
     /// The seeds open vaults keep without a passphrase
     /// ([`crate::Faraday::vault_passphrase_seeds`], F62).
     pub passphrase_seeds: OnceCell<std::rc::Rc<Vec<crate::vault_load::PassSeed>>>,
@@ -103,5 +117,228 @@ impl Drawing {
     /// Whether the memo is in use: only while a frame is drawn.
     pub fn is_on(&self) -> bool {
         self.on.get()
+    }
+}
+
+/// What drawing sees of the app: the state, read only, and what a frame
+/// works out, through the named accessors in `drawing/`: the memo's
+/// fills (`memo.rs`), values kept on the state (`kept.rs`) and the
+/// owner's `Allowed` exceptions (`allowed.rs`) (`docs/COMPUTE.md` §4).
+/// It derefs to [`Faraday`], never to `&mut Faraday`: what a pass writes
+/// (a scroll clamped, another frame asked for) it notes in its [`After`],
+/// which `render` applies once the pass is drawn.
+#[doc(hidden)]
+pub struct View<'a> {
+    app: &'a Faraday,
+    /// The token the accessors in `drawing/` hand to the work they fill,
+    /// keep or are allowed; private, so no screen can name it.
+    fill: Compute,
+    after: RefCell<After>,
+}
+
+impl Deref for View<'_> {
+    type Target = Faraday;
+
+    fn deref(&self) -> &Faraday {
+        self.app
+    }
+}
+
+impl<'a> View<'a> {
+    /// The view one drawing pass reads, with its token. Cheap.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a mint: View's token for its memo fills, kept values and Allowed entries (docs/COMPUTE.md §3)"
+    )]
+    pub(crate) fn new(app: &'a Faraday) -> Self {
+        View {
+            app,
+            fill: Compute::new(work::core_count),
+            after: RefCell::new(After::default()),
+        }
+    }
+
+    /// A memo fill (`memo.rs`): `f` given the token, in
+    /// [`work::filling`]. Costs what `f` costs.
+    fn filled<T>(&self, f: impl FnOnce(&Compute) -> T) -> T {
+        work::filling(|| f(&self.fill))
+    }
+
+    /// A kept value reached while drawing (`kept.rs`): `f` given the
+    /// token. The value's own accessor marks its first working out
+    /// ([`work::keeping`]). Costs what `f` costs.
+    fn kept<T>(&self, f: impl FnOnce(&Compute) -> T) -> T {
+        f(&self.fill)
+    }
+
+    /// One of the owner's exceptions (`allowed.rs`): `f` given the
+    /// token, in [`work::allowed`]. Costs what `f` costs.
+    fn allowed<T>(&self, why: work::Allowed, f: impl FnOnce(&Compute) -> T) -> T {
+        work::allowed(why, || f(&self.fill))
+    }
+
+    /// What the pass noted for after it. Cheap.
+    pub(crate) fn into_after(self) -> After {
+        self.after.into_inner()
+    }
+
+    /// A step column's scroll as the pass leaves it: set after the pass,
+    /// with another frame asked for when `again`.
+    pub(crate) fn scroll(&self, column: Scrolled, to: flow::Scroll, again: bool) {
+        let mut a = self.after.borrow_mut();
+        a.scrolls.push((column, to));
+        a.redraw |= again;
+    }
+
+    /// The Learn sheet's end and its scroll as drawn, set after the pass.
+    pub(crate) fn learn_scroll(&self, max: f32, scroll: f32) {
+        self.after.borrow_mut().learn = Some((max, scroll));
+    }
+
+    /// The word list's end and its scroll as drawn, set after the pass,
+    /// its follow done.
+    pub(crate) fn wordlist_scroll(&self, max: f32, scroll: f32) {
+        self.after.borrow_mut().wordlist = Some((max, scroll));
+    }
+
+    /// How far the wide layout draws the page up under its keyboard
+    /// ([`Faraday::osk_lift_now`]), kept after the pass for the caret.
+    /// Cheap.
+    pub(crate) fn osk_lift(&self, visible: f32, f: f32) -> f32 {
+        let lift = self.app.osk_lift_now(visible, f);
+        self.after.borrow_mut().lift = Some(lift);
+        lift
+    }
+}
+
+/// A step column whose scroll a drawing pass sets.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Scrolled {
+    /// The backup flow open.
+    BackupFlow,
+    /// Silent payments.
+    Silent,
+    /// BIP-85.
+    Bip85,
+    /// New key.
+    KeyGen,
+    /// Vanity.
+    Vanity,
+    /// Create a vault.
+    CreateVault,
+    /// A spend.
+    Spend,
+    /// A wallet's backup.
+    Backup,
+    /// Sign a message.
+    Message,
+    /// Create a wallet.
+    Create,
+    /// Restore a wallet.
+    Restore,
+    /// The Spend tab.
+    Family,
+}
+
+/// What a drawing pass writes, applied by `render` after the pass
+/// ([`Faraday::apply_after`]).
+#[derive(Default)]
+pub(crate) struct After {
+    /// Another frame wanted.
+    pub redraw: bool,
+    /// Step columns' scrolls, in the order drawn.
+    pub scrolls: Vec<(Scrolled, flow::Scroll)>,
+    /// The Learn sheet's end and scroll.
+    pub learn: Option<(f32, f32)>,
+    /// The word list's end and scroll.
+    pub wordlist: Option<(f32, f32)>,
+    /// How far the wide layout drew the page up under its keyboard.
+    pub lift: Option<f32>,
+}
+
+impl Faraday {
+    /// Writes what a drawing pass noted. Cheap.
+    pub(crate) fn apply_after(&mut self, a: After) {
+        for (column, to) in a.scrolls {
+            match column {
+                Scrolled::BackupFlow => {
+                    if let Some(i) = self.flow_on
+                        && let Some(f) = self.backup_flows.get_mut(i)
+                    {
+                        f.live.scroll = to;
+                    }
+                }
+                Scrolled::Silent => {
+                    if let Some(s) = self.silent.as_mut() {
+                        s.scroll = to;
+                    }
+                }
+                Scrolled::Bip85 => {
+                    if let Some(b) = self.bip85.as_mut() {
+                        b.scroll = to;
+                    }
+                }
+                Scrolled::KeyGen => {
+                    if let Some(k) = self.keygen.as_mut() {
+                        k.scroll = to;
+                    }
+                }
+                Scrolled::Vanity => {
+                    if let Some(v) = self.vanity.as_mut() {
+                        v.scroll = to;
+                    }
+                }
+                Scrolled::CreateVault => {
+                    if let Some(c) = self.vaults.create.as_mut() {
+                        c.scroll = to;
+                    }
+                }
+                Scrolled::Spend => {
+                    if let Some(s) = self.spend.as_mut() {
+                        s.scroll = to.y;
+                        s.follow = to.follow;
+                    }
+                }
+                Scrolled::Backup => {
+                    if let Some(b) = self.backup.as_mut() {
+                        b.scroll = to;
+                    }
+                }
+                Scrolled::Message => {
+                    if let Some(m) = self.message.as_mut() {
+                        m.scroll = to;
+                    }
+                }
+                Scrolled::Create => {
+                    if let Some(c) = self.create.as_mut() {
+                        c.scroll = to;
+                    }
+                }
+                Scrolled::Restore => {
+                    if let Some(r) = self.restore.as_mut() {
+                        r.scroll = to;
+                    }
+                }
+                Scrolled::Family => self.family.scroll = to,
+            }
+        }
+        if let Some((max, scroll)) = a.learn {
+            self.learn.max = max;
+            self.learn.scroll = scroll;
+        }
+        if let Some((max, scroll)) = a.wordlist
+            && let Some(st) = self.wordlist.as_mut()
+        {
+            st.max = max;
+            st.scroll = scroll;
+            st.follow = false;
+        }
+        if let Some(lift) = a.lift {
+            self.osk_set_lift(lift);
+        }
+        if a.redraw {
+            self.dirty = true;
+            self.commands.push_back(osk_shell_api::Command::Draw);
+        }
     }
 }

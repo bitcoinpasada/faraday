@@ -79,7 +79,7 @@ fn a_sticks_pictures_come_in_while_its_sheet_is_drawn() {
         Some(Sheet::Import),
         "the boot stick's sheet is up"
     );
-    let count = app.import_count().expect("the sheet counts");
+    let count = app.import_count_now().expect("the sheet counts");
     assert!(
         count.reading >= 1,
         "the pass returned with the photograph still being read: {count:?}"
@@ -88,7 +88,7 @@ fn a_sticks_pictures_come_in_while_its_sheet_is_drawn() {
     // Frames go on being drawn while the pictures are read.
     let until = Instant::now() + Duration::from_secs(60);
     let mut frames = 0;
-    while app.import_count().is_some_and(|c| c.reading > 0) {
+    while app.import_count_now().is_some_and(|c| c.reading > 0) {
         assert!(Instant::now() < until, "the pictures were never read");
         std::thread::sleep(Duration::from_millis(5));
         serve_with(&mut app, &mut boxes, None, &mut dirs);
@@ -96,7 +96,7 @@ fn a_sticks_pictures_come_in_while_its_sheet_is_drawn() {
         frames += 1;
     }
     assert!(frames > 1, "frames were drawn while the pictures were read");
-    let count = app.import_count().expect("the sheet counts");
+    let count = app.import_count_now().expect("the sheet counts");
     assert_eq!(count.copied, 2, "both pictures came in: {count:?}");
     assert_eq!(count.wallets, 1, "the code's wallet is offered: {count:?}");
 }

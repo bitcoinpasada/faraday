@@ -23,7 +23,7 @@ fn a_wallet_record_changed_in_an_open_vault_shows_as_it_now_is() {
     let _ = app.frame();
     let v = app.vaults.current;
     let row = app
-        .vault_rows(v)
+        .vault_rows_now(v)
         .into_iter()
         .find(|r| !r.seed)
         .expect("the test vault keeps a wallet");
@@ -34,7 +34,7 @@ fn a_wallet_record_changed_in_an_open_vault_shows_as_it_now_is() {
     app.vaults.open[v].contents.records[row.record].set(field::WALLET, other.descriptor.as_bytes());
     let _ = app.frame();
     let now = app
-        .vault_rows(v)
+        .vault_rows_now(v)
         .into_iter()
         .find(|r| r.record == row.record)
         .expect("the record is listed");
@@ -53,8 +53,8 @@ fn the_checklist_follows_a_plan_changed_since_the_last_frame() {
     testkit::backup_as(&mut app, Preset::PaperVault);
     app.press(Action::BChecklist);
     let _ = app.frame();
-    let shape = app.plan_shape(w);
-    let before = app.backup_items();
+    let shape = app.plan_shape_now(w);
+    let before = app.backup_items_now();
     let mut changed = false;
     for preset in Preset::ALL {
         let answers = Answers::preset(&shape, preset);
@@ -65,7 +65,7 @@ fn the_checklist_follows_a_plan_changed_since_the_last_frame() {
             .map(crate::bstep::of)
             .collect();
         assert_eq!(
-            app.backup_items(),
+            app.backup_items_now(),
             want,
             "{preset:?}: the checklist is the one the plan as it is makes"
         );
@@ -263,4 +263,127 @@ fn a_spend_opened_before_its_seeds_were_loaded_signs_with_them_once_they_are() {
         "both seeds loaded since signed"
     );
     assert_eq!(s.signers.len(), 2, "the review shows both signatures");
+}
+
+/// What the state keeps of what the Inbox gives, as a frame asks for it.
+fn kept_found(app: &crate::Faraday) -> crate::inbox::Found {
+    app.inbox.found(&app.session, |items| app.found_in(items))
+}
+
+/// [`kept_found`]'s fresh counterpart.
+fn found_fresh(app: &crate::Faraday) -> String {
+    format!("{:?}", app.found_in(&app.inbox))
+}
+
+/// The first file on the test stick of wallet `id` that reads as a
+/// wallet.
+fn wallet_file(id: &str) -> (String, Vec<u8>) {
+    testkit::files()
+        .expect("the test stick's files")
+        .into_iter()
+        .find(|(n, b)| {
+            n.starts_with(&format!("{id}-"))
+                && crate::Item::new(n, b.clone()).kind == crate::wallet::FileKind::Wallet
+        })
+        .expect("a wallet file")
+}
+
+/// What the Inbox gives as the state keeps it is what it gives worked out
+/// again, and it is worked out again only when the files or the session
+/// changed: each input of `found_in` changed in turn, and the kept result
+/// follows (`inbox::InboxFiles`).
+#[test]
+fn what_the_inbox_gives_follows_the_files_and_the_session() {
+    use crate::Item;
+    let kits = testkit::kits();
+    let (one, two) = (&kits[0], &kits[1]);
+    let (n1, b1) = wallet_file(one.id);
+    let (n2, b2) = wallet_file(two.id);
+    let mut app = testkit::started();
+    let _ = app.session.set_network(testkit::NET);
+    let mut last = format!("{:?}", kept_found(&app));
+    let mut step = |app: &mut crate::Faraday, what: &str, changes: bool| {
+        let kept = format!("{:?}", kept_found(app));
+        assert_eq!(
+            kept,
+            found_fresh(app),
+            "{what}: the kept result is the fresh one"
+        );
+        assert_eq!(
+            kept != last,
+            changes,
+            "{what}: the Inbox's result changed: {changes}"
+        );
+        let rebuilds = app.inbox.rebuilds();
+        let _ = kept_found(app);
+        assert_eq!(
+            app.inbox.rebuilds(),
+            rebuilds,
+            "{what}: asked again, not worked out again"
+        );
+        last = kept;
+    };
+    step(&mut app, "nothing in the Inbox", false);
+
+    // The files: added, renamed, replaced, removed.
+    app.inbox.push(Item::new(&n1, b1.clone()));
+    step(&mut app, "a wallet file added", true);
+    assert_eq!(kept_found(&app).wallets.len(), 1);
+    app.inbox[0].name = "renamed-wallet.txt".to_string();
+    step(&mut app, "the file renamed", true);
+    assert_eq!(kept_found(&app).wallets[0].name, "Renamed");
+    app.inbox[0] = Item::new(&n2, b2.clone());
+    step(&mut app, "the file replaced by another wallet's", true);
+    app.inbox.push(Item::new(&n1, b1.clone()));
+    step(&mut app, "the first wallet's file added again", true);
+    assert_eq!(kept_found(&app).wallets.len(), 2);
+    app.inbox.remove(0);
+    step(&mut app, "a file removed", true);
+    assert_eq!(kept_found(&app).wallets.len(), 1);
+
+    // The session's wallets: loaded, renamed, its policy changed.
+    app.session
+        .add_wallet(one.name, &one.descriptor, "test", Origin::Named)
+        .expect("the wallet loads");
+    step(&mut app, "the file's wallet loaded", true);
+    assert!(kept_found(&app).wallets.iter().all(|w| w.loaded));
+    app.session.wallets[0].name = "Kept under another name".to_string();
+    step(&mut app, "a loaded wallet renamed", false);
+    app.inbox.remove(0);
+    step(&mut app, "the file removed, the loaded wallet stays", true);
+    app.session.wallets[0].name = "Another name".to_string();
+    step(&mut app, "the loaded wallet renamed", true);
+    assert_eq!(kept_found(&app).wallets[0].name, "Another name");
+    app.session.wallets[0].set_policy(read_wallet(&two.descriptor).expect("a test wallet"));
+    step(&mut app, "the loaded wallet's policy changed", true);
+    app.session.wallets.clear();
+    step(&mut app, "the loaded wallet gone", true);
+    assert!(kept_found(&app).wallets.is_empty());
+
+    // The session's keys: a seed in a file is loaded once the key is; a
+    // key's label is its seed's name.
+    let (word, l) = &testkit::TEST_SEEDS[0];
+    app.inbox.push(Item::new(
+        "words.txt",
+        format!("{}\n", testkit::test_words(word)).into_bytes(),
+    ));
+    step(&mut app, "a seed file added", true);
+    assert!(!kept_found(&app).seeds[0].loaded);
+    app.session
+        .add_words(&testkit::test_words(word), l, None)
+        .expect("the seed loads");
+    step(&mut app, "the seed loaded", true);
+    assert!(kept_found(&app).seeds[0].loaded);
+    let (word, l) = &testkit::TEST_SEEDS[1];
+    app.session
+        .add_words(&testkit::test_words(word), l, None)
+        .expect("the seed loads");
+    step(&mut app, "another key loaded", true);
+    assert_eq!(kept_found(&app).seeds.len(), 2);
+    app.session.keys[1].label = "Another label".to_string();
+    step(&mut app, "a key relabelled", true);
+    assert_eq!(kept_found(&app).seeds[1].label, "Another label");
+    app.session.keys.remove(0);
+    step(&mut app, "a key gone", true);
+    assert!(!kept_found(&app).seeds[0].loaded);
 }

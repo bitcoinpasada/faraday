@@ -59,7 +59,7 @@ fn backup_places(app: &Faraday) -> usize {
 }
 
 fn backup_shape(app: &Faraday) -> Shape {
-    app.plan_shape(app.backup.as_ref().unwrap().wallet)
+    app.plan_shape_now(app.backup.as_ref().unwrap().wallet)
 }
 
 /// The plan's map as it is, sticks and all.
@@ -99,7 +99,7 @@ fn three_here() -> Faraday {
 /// Saves into the open vaults what the plan puts in each.
 fn save_vaults(app: &mut Faraday) {
     let vaults: Vec<usize> = app
-        .backup_items()
+        .backup_items_now()
         .into_iter()
         .filter_map(|n| match bstep::item(n) {
             Some(Item::Vault(v)) => Some(v),
@@ -109,7 +109,7 @@ fn save_vaults(app: &mut Faraday) {
     for v in vaults {
         app.press(Action::BVaultSave(v as u8));
         assert!(
-            app.backup_item_done(Item::Vault(v)),
+            app.backup_item_done_now(Item::Vault(v)),
             "Vault {} saved",
             v + 1
         );
@@ -320,7 +320,7 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
     // The files are no items of their own: they go with their sticks.
     assert_eq!(
-        app.backup_items(),
+        app.backup_items_now(),
         vec![bstep::VAULT, bstep::ENVELOPE, bstep::STICKS]
     );
     save_vaults(&mut app);
@@ -414,7 +414,7 @@ fn a_seed_kept_nowhere_holds_the_plan() {
     assert_eq!(app.backup_kept_nowhere(), None);
     app.press(Action::BChecklist);
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
-    assert_eq!(app.backup_items(), vec![bstep::ENVELOPE, bstep::STICKS]);
+    assert_eq!(app.backup_items_now(), vec![bstep::ENVELOPE, bstep::STICKS]);
     app.press(Action::BNext(bstep::ENVELOPE));
     assert!(
         app.key_held(Fingerprint(fp)),
@@ -2271,7 +2271,7 @@ fn the_standard_ways_checklist_writes_its_copies() {
     app.press(Action::BQ(qstep::PLAN));
     app.press(Action::BChecklist);
     assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
-    let items = app.backup_items();
+    let items = app.backup_items_now();
     for i in 0..3 {
         assert!(
             items.contains(&bstep::of(Item::Copy(i))),
@@ -2718,7 +2718,7 @@ fn change_the_plan_from_the_checklist_shows_the_board() {
         sorted(paper(&app, 0)),
         sorted(vec![What::SeedQr(0), What::Sheet])
     );
-    assert!(app.backup_items().contains(&bstep::of(Item::Copy(0))));
+    assert!(app.backup_items_now().contains(&bstep::of(Item::Copy(0))));
 }
 
 /// A new plan keeps each seed's words on paper and no SeedQR, a single key
@@ -2738,7 +2738,7 @@ fn a_new_plan_keeps_the_words_and_no_seedqr() {
             assert_eq!(paper(&app, p), vec![What::Words(p), What::Sheet]);
         }
         app.press(Action::BChecklist);
-        let items = app.backup_items();
+        let items = app.backup_items_now();
         assert!(items.contains(&bstep::of(Item::Copy(0))), "{items:?}");
         app.press(Action::BPlan);
         app.press(Action::Board(BP::Customize));

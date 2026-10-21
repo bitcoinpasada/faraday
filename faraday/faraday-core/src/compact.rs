@@ -7,6 +7,7 @@ use crate::strings::EN;
 use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
 
+use crate::drawing::View;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui, W};
 use crate::wallet::network_name;
@@ -239,7 +240,7 @@ fn help(ui: &mut Ui, x: f32, y: f32) {
 
 /// A page that is not one of the step flows: its bar, then the page
 /// under it as the desktop draws it, in the panel's width.
-pub(crate) fn page(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
+pub(crate) fn page(app: &View, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
     let name = match app.session.wallets.get(app.wallet) {
         Some(_) if app.screen == Screen::Wallets && app.glance => EN.compact_at_a_glance,
         Some(w) if app.screen == Screen::Wallets => w.name.as_str(),
@@ -853,7 +854,9 @@ impl Faraday {
     /// up, so the focused field stays in view above it: the page keeps
     /// its own height and moves up no further than the keyboard is tall.
     /// `visible` is the height left above the keyboard; `f` pixels a unit.
-    pub(crate) fn osk_lift(&mut self, visible: f32, f: f32) -> f32 {
+    /// Drawing asks it through [`crate::drawing::View::osk_lift`], which
+    /// keeps it for the caret after the pass ([`Self::osk_set_lift`]).
+    pub(crate) fn osk_lift_now(&self, visible: f32, f: f32) -> f32 {
         let foot = if self.osk_auto() {
             self.osk
                 .caret
@@ -861,9 +864,12 @@ impl Faraday {
         } else {
             self.osk.caret
         };
-        let lift = foot.map_or(0.0, |y| (y + 24.0 - visible).clamp(0.0, self.osk_height()));
+        foot.map_or(0.0, |y| (y + 24.0 - visible).clamp(0.0, self.osk_height()))
+    }
+
+    /// Keeps how far the frame drew the page up ([`Self::osk_lift_now`]).
+    pub(crate) fn osk_set_lift(&mut self, lift: f32) {
         self.osk.lift = lift;
-        lift
     }
 
     /// The caret the frame drew, where it would be unmoved.

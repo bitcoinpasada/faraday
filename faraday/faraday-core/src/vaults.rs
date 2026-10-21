@@ -1198,17 +1198,13 @@ impl Faraday {
     /// §3.3). Costs a parse of each key's words.
     pub fn unsaved(&self) -> (Vec<String>, Vec<String>) {
         if self.drawing.is_on() {
-            return self
-                .drawing
-                .unsaved
-                .get_or_init(|| crate::work::filling(|| self.unsaved_now()))
-                .clone();
+            return crate::drawing::View::new(self).unsaved();
         }
         self.unsaved_now()
     }
 
     /// Works out [`Faraday::unsaved`]. Costs a parse of each key's words.
-    fn unsaved_now(&self) -> (Vec<String>, Vec<String>) {
+    pub fn unsaved_now(&self) -> (Vec<String>, Vec<String>) {
         let held_keys: Vec<&[u8]> = self
             .vaults
             .open
@@ -1261,30 +1257,15 @@ impl Faraday {
     /// each open vault's wallets; kept for the frame while one is drawn
     /// (`docs/SPEED.md` §3.12).
     pub fn kept_wiped(&self, power_off: bool) -> KeptWiped {
-        let on = self.drawing.is_on();
-        if on
-            && let Some((_, kept)) = self
-                .drawing
-                .kept_wiped
-                .borrow()
-                .iter()
-                .find(|(p, _)| *p == power_off)
-        {
-            return kept.clone();
+        if self.drawing.is_on() {
+            return crate::drawing::View::new(self).kept_wiped(power_off);
         }
-        let out = crate::work::filling(|| self.kept_wiped_now(power_off));
-        if on {
-            self.drawing
-                .kept_wiped
-                .borrow_mut()
-                .push((power_off, out.clone()));
-        }
-        out
+        self.kept_wiped_now(power_off)
     }
 
     /// Reads each seed's words and each open vault's wallets: what
     /// [`Self::kept_wiped`] answers.
-    fn kept_wiped_now(&self, power_off: bool) -> KeptWiped {
+    pub fn kept_wiped_now(&self, power_off: bool) -> KeptWiped {
         let mut out = KeptWiped::default();
         // Make a new wallet before its keys are kept anywhere ends with
         // the lock or the power-off (`docs/NEW-WALLET.md` §18).
@@ -1710,7 +1691,7 @@ impl Faraday {
                 }
             }
             V::ChooseAll(v) => {
-                let rows = self.vault_rows(v);
+                let rows = self.vault_rows_now(v);
                 if let Some(o) = self.vaults.open.get_mut(v) {
                     let open: Vec<usize> = rows
                         .iter()
@@ -2763,26 +2744,15 @@ impl Faraday {
     /// §3.3). Reads its wallet records as it keeps them read
     /// ([`VaultRecords`]).
     pub fn vault_rows(&self, v: usize) -> Vec<VaultRow> {
-        if !self.drawing.is_on() {
-            return self.vault_rows_now(v);
+        if self.drawing.is_on() {
+            return crate::drawing::View::new(self).vault_rows(v);
         }
-        if let Some((_, kept)) = self
-            .drawing
-            .vault_rows
-            .borrow()
-            .iter()
-            .find(|(o, _)| *o == v)
-        {
-            return kept.clone();
-        }
-        let rows = crate::work::filling(|| self.vault_rows_now(v));
-        self.drawing.vault_rows.borrow_mut().push((v, rows.clone()));
-        rows
+        self.vault_rows_now(v)
     }
 
     /// Works out [`Faraday::vault_rows`] from the wallet records as the
     /// vault keeps them read ([`VaultRecords`]).
-    fn vault_rows_now(&self, v: usize) -> Vec<VaultRow> {
+    pub fn vault_rows_now(&self, v: usize) -> Vec<VaultRow> {
         let Some(open) = self.vaults.open.get(v) else {
             return Vec::new();
         };

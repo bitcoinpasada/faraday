@@ -6,6 +6,7 @@ use crate::strings::EN;
 use opensigner_core::strings::fill;
 use osk_ui::widgets::Icon;
 
+use crate::drawing::{Scrolled, View};
 use crate::family::{Came, CardId, FamilyAction as F, Question, more_bit, page};
 use crate::family_text as text;
 use crate::screens::{next_button, step_body, step_summary};
@@ -19,7 +20,7 @@ fn fa(a: F) -> Action {
     Action::Family(a)
 }
 
-pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if app.family_overview() && ui.compact {
         loaded_compact(app, ui, cw, h);
         return;
@@ -29,9 +30,11 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         // Scrolled no further than its end.
         let max = (content - h).max(0.0);
         if crate::flow::past_end(app.family.scroll.y, max) {
-            app.family.scroll.y = max;
-            app.dirty = true;
-            app.commands.push_back(osk_shell_api::Command::Draw);
+            let to = flow::Scroll {
+                y: max,
+                ..app.family.scroll
+            };
+            app.scroll(Scrolled::Family, to, true);
         }
         return;
     }
@@ -98,11 +101,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         flow::column(ui, &col, &cards, scroll, &mut draw_body)
     };
-    app.family.scroll = next;
-    if again {
-        app.dirty = true;
-        app.commands.push_back(osk_shell_api::Command::Draw);
-    }
+    app.scroll(Scrolled::Family, next, again);
 }
 
 /// The tab with something loaded already: each wallet and what it needs
@@ -312,7 +311,7 @@ fn loaded(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
 
 /// [`loaded`] on a small panel: under the page's bar, one column, each
 /// card's button under what it says.
-fn loaded_compact(app: &mut Faraday, ui: &mut Ui, cw: f32, h: f32) {
+fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
     use crate::compact::{BAR_H, M};
     use crate::compact_screens::measured;
     use crate::screens::{missing_keys_line, section_label, wrap_buttons};
@@ -511,9 +510,11 @@ fn loaded_compact(app: &mut Faraday, ui: &mut Ui, cw: f32, h: f32) {
     let max = (content - (h - BAR_H)).max(0.0);
     ui.report_scroll(clip, max);
     if crate::flow::past_end(app.family.scroll.y, max) {
-        app.family.scroll.y = max;
-        app.dirty = true;
-        app.commands.push_back(osk_shell_api::Command::Draw);
+        let to = flow::Scroll {
+            y: max,
+            ..app.family.scroll
+        };
+        app.scroll(Scrolled::Family, to, true);
     }
     crate::compact::bar(
         app,

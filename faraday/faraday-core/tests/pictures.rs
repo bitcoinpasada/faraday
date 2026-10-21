@@ -272,7 +272,7 @@ fn checklist_for(name: &str, descriptor: &str) -> (Faraday, usize) {
         }
     }
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&bstep::BLANK) {
+    if app.backup_items_now().contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
     (app, w)
@@ -301,13 +301,13 @@ fn public_item_lists_the_pictures_written(name: &str, descriptor: &str, parts: b
     let mut want = pictures.clone();
     want.sort();
     assert_eq!(have, want);
-    assert!(app.backup_items().contains(&bstep::PUBLIC));
-    assert!(app.backup_item_done(Item::PublicFiles));
+    assert!(app.backup_items_now().contains(&bstep::PUBLIC));
+    assert!(app.backup_item_done_now(Item::PublicFiles));
     // Taking the descriptor's picture (its first part, past one code) off
     // the stick makes the item not done again.
     let one = pictures.first().unwrap().clone();
     app.outbox.retain(|i| i.name != one);
-    assert!(!app.backup_item_done(Item::PublicFiles));
+    assert!(!app.backup_item_done_now(Item::PublicFiles));
 }
 
 #[test]

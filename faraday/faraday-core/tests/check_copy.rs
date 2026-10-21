@@ -136,7 +136,7 @@ fn backing_up_on(app: &mut Faraday, words: &str, camera: bool, copies: (bool, bo
     testkit::backup_as(app, plan::Preset::Paper);
     copies_as(app, 0, copies.0, copies.1);
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&bstep::BLANK) {
+    if app.backup_items_now().contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
     // The template is made with the checklist, so the copy is the first
@@ -190,7 +190,7 @@ fn note(app: &Faraday) -> String {
 }
 
 fn seeds_done(app: &Faraday) -> bool {
-    app.backup_item_done(Item::Copy(0))
+    app.backup_item_done_now(Item::Copy(0))
 }
 
 fn shown(app: &mut Faraday, want: &str) -> bool {
@@ -630,7 +630,7 @@ fn each_seed_is_checked_by_its_own_forms() {
     app.press(Action::Backup(w));
     let _ = app.frame();
     let seeds: Vec<usize> = app
-        .backup_seed_list(w)
+        .backup_seed_list_now(w)
         .iter()
         .enumerate()
         .filter_map(|(i, (_, k))| k.map(|_| i))
@@ -640,13 +640,13 @@ fn each_seed_is_checked_by_its_own_forms() {
     copies_as(&mut app, seeds[0], true, false);
     copies_as(&mut app, seeds[1], false, true);
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&bstep::BLANK) {
+    if app.backup_items_now().contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
     let first = bstep::COPY + seeds[0] as u8;
     let second = bstep::COPY + seeds[1] as u8;
     let words_of = |app: &Faraday, i: usize| {
-        let k = app.backup_seed_list(w)[i].1.unwrap();
+        let k = app.backup_seed_list_now(w)[i].1.unwrap();
         app.session.keys[k].words.as_ref().unwrap().to_string()
     };
     // The words seed: typed.
@@ -658,7 +658,7 @@ fn each_seed_is_checked_by_its_own_forms() {
     app.press(Action::BCheck);
     let typed = words_of(&app, seeds[0]);
     testkit::type_words(&mut app, &typed);
-    assert!(app.backup_item_done(Item::Copy(seeds[0])));
+    assert!(app.backup_item_done_now(Item::Copy(seeds[0])));
     app.press(Action::BNext(first));
     // The SeedQR seed: scanned.
     if app.backup.as_ref().unwrap().open != Some(second) {
@@ -666,11 +666,11 @@ fn each_seed_is_checked_by_its_own_forms() {
     }
     assert!(offered(&mut app, Action::BScan));
     assert!(!app.offers(Action::BCheck));
-    assert!(!app.backup_item_done(Item::Copy(seeds[1])));
+    assert!(!app.backup_item_done_now(Item::Copy(seeds[1])));
     app.press(Action::BScan);
     let drawn = standard(&words_of(&app, seeds[1]));
     scan(&mut app, drawn);
-    assert!(app.backup_item_done(Item::Copy(seeds[1])));
+    assert!(app.backup_item_done_now(Item::Copy(seeds[1])));
 }
 
 #[test]
@@ -741,7 +741,7 @@ fn checklist(app: &mut Faraday) -> Shown {
     let boxes = app.drawn_text_boxes();
     (
         boxes,
-        app.backup_items(),
+        app.backup_items_now(),
         app.backup.as_ref().and_then(|b| b.open),
         seeds_done(app),
     )

@@ -1,6 +1,7 @@
 //! The Silent payments screen: the step-card column over
 //! [`crate::silent`].
 
+use crate::drawing::{Scrolled, View};
 use crate::screens::{button_rows, next_button};
 use crate::silent::{SilentState, sstep};
 use crate::strings::EN;
@@ -17,7 +18,7 @@ const TITLES: [&str; sstep::COUNT] = [
     EN.silent_check_a_payment,
 ];
 
-pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(s) = app.silent.as_ref() else {
         return;
     };
@@ -59,13 +60,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
-    if let Some(s) = app.silent.as_mut() {
-        s.scroll = next;
-    }
-    if again {
-        app.dirty = true;
-        app.commands.push_back(osk_shell_api::Command::Draw);
-    }
+    app.scroll(Scrolled::Silent, next, again);
 }
 
 fn summary(app: &Faraday, s: &SilentState, k: u8) -> String {

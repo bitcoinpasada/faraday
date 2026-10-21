@@ -4,7 +4,7 @@
 //! closes it, as Back does.
 
 use crate::Action;
-use crate::Faraday;
+use crate::drawing::View;
 use crate::screens::sheet_box;
 use crate::strings::EN;
 use crate::ui::pal::*;
@@ -15,8 +15,8 @@ use opensigner_core::strings::fill;
 /// A row's height, in design units.
 const ROW: f32 = 28.0;
 
-pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
-    let Some(st) = app.wordlist.as_mut() else {
+pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    let Some(st) = app.wordlist.as_ref() else {
         return;
     };
     let compact = ui.compact;
@@ -96,20 +96,21 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
     let top = cy;
     let view = (y + sh - 20.0 - top).max(ROW);
     let content = words.len() as f32 * ROW + 12.0;
-    st.max = (content - view).max(0.0);
-    if st.follow {
-        st.follow = false;
-        if let Some(m) = st.mark {
-            st.scroll = m as f32 * ROW - (view - ROW) / 2.0;
-        }
+    let max = (content - view).max(0.0);
+    let mut scroll = st.scroll;
+    if st.follow
+        && let Some(m) = st.mark
+    {
+        scroll = m as f32 * ROW - (view - ROW) / 2.0;
     }
-    st.scroll = st.scroll.clamp(0.0, st.max);
+    let scroll = scroll.clamp(0.0, max);
+    app.wordlist_scroll(max, scroll);
     let clip = ui.rect(x, top, sw, view);
     ui.c.push_clip(clip);
-    let first = (st.scroll / ROW).floor() as usize;
-    let last = (((st.scroll + view) / ROW).ceil() as usize).min(words.len());
+    let first = (scroll / ROW).floor() as usize;
+    let last = (((scroll + view) / ROW).ceil() as usize).min(words.len());
     for (i, word) in words.iter().enumerate().take(last).skip(first) {
-        let ry = top + 4.0 + i as f32 * ROW - st.scroll;
+        let ry = top + 4.0 + i as f32 * ROW - scroll;
         let marked = st.mark == Some(i);
         if marked {
             ui.fill(bx, ry, bw, ROW - 2.0, 6.0, ACCENT.with_alpha(40));
@@ -138,5 +139,5 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, w: f32, h: f32) {
     }
     ui.c.pop_clip();
     // The overlay scrollbar, held and dragged as on any page.
-    ui.report_scroll(clip, st.max);
+    ui.report_scroll(clip, max);
 }

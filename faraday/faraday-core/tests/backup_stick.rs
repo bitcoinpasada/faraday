@@ -281,7 +281,7 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     app.press(Action::Backup(0));
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     app.press(Action::BChecklist);
-    if app.backup_items().contains(&faraday_core::bstep::BLANK) {
+    if app.backup_items_now().contains(&faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     if app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {
@@ -291,7 +291,7 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     app.press(Action::BCheck);
     testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     assert!(
-        app.backup_item_done(faraday_core::plan::Item::Copy(0)),
+        app.backup_item_done_now(faraday_core::plan::Item::Copy(0)),
         "the copy was not checked"
     );
     // The test vault, which holds the seed; the wallet saved into it.

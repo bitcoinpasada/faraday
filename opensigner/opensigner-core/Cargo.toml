@@ -14,7 +14,8 @@ osk-ui = { path = "../../core/osk-ui" }
 osk-bip = { path = "../../core/osk-bip" }
 osk-psbt = { path = "../../core/osk-psbt" }
 osk-entropy = { path = "../../core/osk-entropy" }
-osk-crypto = { path = "../../core/osk-crypto" }
+# `unchecked`: the app mints its own tokens (docs/COMPUTE.md §3).
+osk-crypto = { path = "../../core/osk-crypto", features = ["unchecked"] }
 osk-codec = { path = "../../core/osk-codec" }
 # The encrypted file formats (`.oskb`, KDBX 4) and the kept-key blob.
 osk-backup = { path = "../../core/osk-backup" }

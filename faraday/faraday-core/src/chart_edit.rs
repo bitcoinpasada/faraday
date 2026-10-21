@@ -201,7 +201,7 @@ impl Faraday {
         let Some((answers, names)) = glance::plan_of(self, w) else {
             return;
         };
-        let shape = self.plan_shape(w);
+        let shape = self.plan_shape_now(w);
         let boxes = plan::map(&shape, &answers);
         let dest: Vec<(What, Option<usize>)> = match edit {
             // Each thing the place keeps, its sticks' too, as the chart
@@ -294,7 +294,7 @@ impl Faraday {
         let label = |at: At, what: What| {
             g.as_ref()
                 .and_then(|g| glance::label_of(g, at, what))
-                .unwrap_or_else(|| what.label(&self.plan_shape(w), self.medium))
+                .unwrap_or_else(|| what.label(&self.plan_shape_now(w), self.medium))
         };
         match edit {
             Edit::Add(at @ At::Vault(_), what) => fill(

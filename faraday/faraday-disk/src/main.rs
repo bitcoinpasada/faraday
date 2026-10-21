@@ -64,6 +64,14 @@ fn answer_to(now: &Now, talk: u64, seq: u32, mut answer: Response) -> std::io::R
 fn pictures(now: Now) -> Sender<(u64, u32, Vec<u8>)> {
     let (jobs, asked) = mpsc::channel::<(u64, u32, Vec<u8>)>();
     std::thread::spawn(move || {
+        // The thread's token, for the pictures it reads once reading
+        // takes one (docs/COMPUTE.md §3, C3). The process draws nothing,
+        // so it counts nothing.
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "a mint: the disk process's pictures thread, which draws nothing (docs/COMPUTE.md §3)"
+        )]
+        let _compute = osk_crypto::work::Compute::new(|_| {});
         for (talk, seq, mut bytes) in asked {
             let current = now
                 .lock()

@@ -59,16 +59,13 @@ impl Faraday {
     /// not done.
     pub fn held_keys(&self) -> Vec<Fingerprint> {
         if self.drawing.is_on() {
-            return self
-                .drawing
-                .held
-                .get_or_init(|| crate::work::filling(|| self.held_keys_uncached()))
-                .clone();
+            return crate::drawing::View::new(self).held_keys();
         }
-        self.held_keys_uncached()
+        self.held_keys_now()
     }
 
-    fn held_keys_uncached(&self) -> Vec<Fingerprint> {
+    /// Works out [`Faraday::held_keys`] from the state as it is.
+    pub fn held_keys_now(&self) -> Vec<Fingerprint> {
         let flow = self.flow_held();
         let mut out = self.held_keys_stored_with(&flow);
         for fp in flow {
@@ -284,19 +281,19 @@ impl Faraday {
             return;
         }
         let w = b.wallet;
-        let items = self.backup_items();
+        let items = self.backup_items_now();
         // Every item but the writes: those wait for the lock, and the
         // hold on a key kept in a vault moves to the flow there.
         let all = items
             .iter()
             .filter(|&&n| n != bstep::STICKS)
-            .all(|&n| bstep::item(n).is_some_and(|it| self.backup_item_done(it)));
+            .all(|&n| bstep::item(n).is_some_and(|it| self.backup_item_done_now(it)));
         if !all {
             return;
         }
         let writes = items.contains(&bstep::STICKS);
-        let shape = self.plan_shape(w);
-        let list = self.backup_seed_list(w);
+        let shape = self.plan_shape_now(w);
+        let list = self.backup_seed_list_now(w);
         let mapped = self.plan_mapped(&shape, &b.answers);
         // A seed kept on any stick, a vault's or a file's, waits for it.
         let in_vault = |i: usize| mapped.seed_on_stick(i);
@@ -415,12 +412,12 @@ impl Faraday {
     /// Whether checklist item `n` may open: it is on the checklist and
     /// every item before it is done.
     pub(crate) fn backup_reachable(&self, n: u8) -> bool {
-        let items = self.backup_items();
+        let items = self.backup_items_now();
         items.contains(&n)
             && items
                 .iter()
                 .take_while(|&&i| i != n)
-                .all(|&i| bstep::item(i).is_some_and(|it| self.backup_item_done(it)))
+                .all(|&i| bstep::item(i).is_some_and(|it| self.backup_item_done_now(it)))
     }
 
     /// The first item not done, which the later items wait for.
@@ -621,7 +618,7 @@ impl Faraday {
         if b.stage != BStage::Checklist {
             return;
         }
-        let shape = self.plan_shape(b.wallet);
+        let shape = self.plan_shape_now(b.wallet);
         let mut prior = Vec::new();
         for v in b.answers.vaults_made(&shape) {
             let Some(name) = self.backup_vault_fits(v) else {
@@ -646,7 +643,7 @@ impl Faraday {
         let Some(b) = self.backup.as_ref() else {
             return;
         };
-        let shape = self.plan_shape(b.wallet);
+        let shape = self.plan_shape_now(b.wallet);
         let kept: Vec<String> = b
             .answers
             .vaults_made(&shape)

@@ -264,6 +264,14 @@ impl Pictures {
             let (jobs, asked) = std::sync::mpsc::channel::<(String, String)>();
             let (read, done) = std::sync::mpsc::channel();
             std::thread::spawn(move || {
+                // The thread's token, for the pictures it reads once
+                // reading takes one (docs/COMPUTE.md §3, C3). It draws
+                // nothing, so it counts nothing.
+                #[expect(
+                    clippy::disallowed_methods,
+                    reason = "a mint: the pictures' thread, which draws nothing (docs/COMPUTE.md §3)"
+                )]
+                let _compute = osk_crypto::work::Compute::new(|_| {});
                 for (stick, name) in asked {
                     let picture = read_qr_png(&stick, &name);
                     if read.send((stick, name, picture)).is_err() {

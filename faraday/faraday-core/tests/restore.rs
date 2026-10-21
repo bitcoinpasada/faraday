@@ -609,7 +609,10 @@ fn with_vaults_back_up_this_wallet_resumes_at_the_plan_with_its_vaults() {
 #[test]
 fn with_vaults_spend_from_this_wallet_opens_at_once() {
     let (_shell, mut app, w) = two_vaults_done();
-    assert!(app.held_keys().is_empty(), "a restored key signs at once");
+    assert!(
+        app.held_keys_now().is_empty(),
+        "a restored key signs at once"
+    );
     let (label, action) = app.spend_button(w);
     assert_eq!(label, "Spend from this wallet");
     app.press(action);
