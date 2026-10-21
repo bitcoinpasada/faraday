@@ -1,7 +1,8 @@
 //! What Faraday's scanner reads and its QR sender writes beyond
 //! OpenSigner's codec (`docs/QR.md`): BBQr, numbered text parts, the
 //! Faraday file envelope and the UR registry's key and wallet types. UR
-//! itself (single and fountain-coded, `crypto-psbt` and `bytes`) stays
+//! itself (single and fountain-coded, `crypto-psbt` and `bytes`, and a
+//! single part of any type, `osk_codec::ur::encode_single`) stays
 //! `osk-codec`'s; [`send`] makes the codes a thing is sent as, in every
 //! format a Faraday app offers.
 //!
@@ -16,7 +17,6 @@ pub mod envelope;
 pub mod registry;
 pub mod send;
 pub mod specter;
-pub mod ur;
 
 /// What a whole transfer turned out to be.
 #[derive(Debug, Clone, PartialEq, Eq)]

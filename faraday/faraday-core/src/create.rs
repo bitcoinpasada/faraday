@@ -251,7 +251,7 @@ impl NewKind {
         let path: Vec<_> = a.path().into_iter().copied().collect();
         let cbor =
             faraday_qr::registry::account_cbor(a.master_fingerprint().0, &path, a.xpub(), false);
-        Some(faraday_qr::ur::single("crypto-account", &cbor))
+        Some(osk_codec::ur::encode_single("crypto-account", &cbor))
     }
 
     /// A key's BIP 129 key record, signed by the account key itself:

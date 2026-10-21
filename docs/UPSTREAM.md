@@ -124,6 +124,11 @@ Since the fork:
   written with `json::quote`), moved in from `faraday-intake`'s
   `core_before_29`. Why: the format's writer beside the multipath one.
   Same output as before.
+- `core/osk-codec/src/ur/mod.rs` (2026-10-20): `ur::encode_single(ur_type,
+  cbor)` is public (it was private, arguments the other way round), so
+  Faraday writes `ur:crypto-account` with it; `faraday-qr`'s copy of the
+  bytewords table and CRC-32 (`faraday-qr/src/ur.rs`) is gone. Why: one
+  copy of the alphabet and its checksum. Same output as before.
 
 ## 4. Watching upstream
 

@@ -267,9 +267,14 @@ fn validate_type(ur_type: &str) -> Result<(), Fault> {
     Ok(())
 }
 
-/// `ur:<type>/<bytewords>`.
-fn encode_single(data: &[u8], ur_type: &str) -> String {
-    alloc::format!("ur:{ur_type}/{}", bytewords::encode(data))
+/// A single-part UR of any registry type, `ur:<ur_type>/<bytewords>`: the
+/// minimal bytewords of `cbor` with its CRC-32 (BCR-2020-005, -012), for
+/// the types this crate has no encoder of its own for (Faraday's
+/// `ur:crypto-account`). `ur_type` is letters, digits and `-`, as
+/// [`Decoder`] requires of what it reads.
+pub fn encode_single(ur_type: &str, cbor: &[u8]) -> String {
+    debug_assert!(validate_type(ur_type).is_ok(), "{ur_type}");
+    alloc::format!("ur:{ur_type}/{}", bytewords::encode(cbor))
 }
 
 /// The kind, type, payload and `<seq>-<count>` of one UR string.
@@ -308,12 +313,12 @@ fn decode_indices(indices: &str) -> Result<(usize, usize), Fault> {
 
 /// A single-part `ur:crypto-psbt`.
 pub fn encode_psbt(psbt: &[u8]) -> String {
-    encode_single(&cbor_bytes(psbt), PSBT_TYPE)
+    encode_single(PSBT_TYPE, &cbor_bytes(psbt))
 }
 
 /// A single-part `ur:bytes`.
 pub fn encode_bytes(bytes: &[u8]) -> String {
-    encode_single(&cbor_bytes(bytes), BYTES_TYPE)
+    encode_single(BYTES_TYPE, &cbor_bytes(bytes))
 }
 
 /// Decodes a single-part UR.
@@ -515,7 +520,7 @@ mod tests {
             0x46, 0x8b, 0x2d, 0xbc, 0x52,
         ];
         assert_eq!(
-            encode_single(&cbor, "seed"),
+            encode_single("seed", &cbor),
             "ur:seed/oyadgdstaslplabghydrpfmkbggufgludprfgmamdpwmox"
         );
         let m = decode_single("ur:seed/oyadgdstaslplabghydrpfmkbggufgludprfgmamdpwmox").unwrap();
@@ -534,7 +539,7 @@ mod tests {
 
         // A 50-byte message as one part.
         assert_eq!(
-            encode_single(&cbor_bytes(&make_message("Wolf", 50)), BYTES_TYPE),
+            encode_single(BYTES_TYPE, &cbor_bytes(&make_message("Wolf", 50))),
             "ur:bytes/hdeymejtswhhylkepmykhhtsytsnoyoyaxaedsuttydmmhhpktpmsrjtgwdpfnsboxgwlbaawzuefywkdplrsrjynbvygabwjldapfcsdwkbrkch"
         );
 
@@ -547,7 +552,7 @@ mod tests {
             0xa3, 0x71, 0x61, 0x90, 0x8b, 0x9a, 0x39, 0x86,
         ];
         assert_eq!(
-            encode_single(&request, "crypto-request"),
+            encode_single("crypto-request", &request),
             "ur:crypto-request/oeadtpdagdaobncpftlnylfgfgmuztihbawfsgrtflaotaadwkoyadtaaohdhdcxvsdkfgkepezepefrrffmbnnbmdvahnptrdtpbtuyimmemweootjshsmhlunyeslnameyhsdi"
         );
 
