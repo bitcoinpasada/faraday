@@ -157,7 +157,7 @@ These are expected to change, and nothing else is:
 
 The check for the rename commit: the sorted list of string literals in
 every `src/` is the same before and after, except the lines above.
-`local/structure-pass/string-literals.py` writes that list. The baseline
+A script kept with the pass writes that list. The baseline
 at 3bd25c2d holds 56,000 literals, 88 of which name osk or OpenSigner.
 The step's report includes the diff. The vectors and the vault and
 backup tests catch the rest.

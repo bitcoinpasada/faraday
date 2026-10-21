@@ -11,7 +11,7 @@ from RAM. It is a fork of
 OpenSignerKit / OpenSigner and keeps OpenSigner's trust model: one Rust
 binary on a kernel that contains what the device needs and nothing else,
 no network stack, no shell, no login, bit-identical builds. It takes
-the name of Faraday OS, the owner's amnesic offline Arch desktop, which is
+the name of Faraday OS, an earlier offline desktop project, which is
 deprecated (2026-10-04): Faraday OS was a general desktop, and Faraday
 does a fixed set of jobs. Where this plan borrows from Faraday OS (its QR
 transfer, its USB policy, its palette), it says Faraday OS.

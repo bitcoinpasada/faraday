@@ -9,9 +9,8 @@ Faraday is an offline key appliance: a fork of OpenSignerKit /
 OpenSigner that boots from a USB stick on an x86-64 PC (or its card on a
 Raspberry Pi), runs from RAM, and adds vaults, a Wallets tab, GPG, Secure Boot
 and QR transfer to OpenSigner. It was called openfaraday until
-2026-10-04, when the owner renamed it Faraday and deprecated Faraday OS
-(the owner's amnesic Arch desktop), whose repository is now
-`~/Projects/faraday-os-deprecated`. A first build exists (below).
+2026-10-04, when the owner renamed it Faraday and deprecated Faraday OS,
+an earlier offline desktop project. A first build exists (below).
 
 ## Where we stopped (2026-10-10)
 
@@ -37,7 +36,7 @@ built batch by batch, every batch committed with `just` green:
 Desktop, stick and Pi were built from `3be049a` on 2026-10-10 as test
 releases (Pi only when the owner asks). Everything was pushed on
 2026-10-10, through the commit that wrote this line. What the owner tries
-next is at the top of the owner-to-test list (`local/REMAINING.md`).
+next is on the board.
 
 ## Where we stopped (2026-10-08)
 
@@ -177,8 +176,7 @@ is dropped here when upstream has it):
   No result changes: the BIP-327, FROST and BIP-352 vectors pass as
   they were.
 - 2026-10-19, note for the owner to send in
-  `local/for-upstream/osk-codec-png-and-osk-ui-sd-card.md` (with its
-  `.patch`; tracker #64): `core/osk-codec`'s `png::grey_png` (an
+  a note for upstream (with its `.patch`; tracker #64): `core/osk-codec`'s `png::grey_png` (an
   eight-bit greyscale PNG, beside `qr_png`, with `tests/png.rs`), and
   `core/osk-ui`'s `Icon::SdCard` and `Icon::Add` (their place in
   `Icon::ALL`, the `tools/fontbake` entries, the rebaked `icon.outl`).
@@ -196,8 +194,7 @@ is dropped here when upstream has it):
   Starter's fields (2026-10-13). Each is optional: a core that does not
   know one ignores it, and a shell that has no such key never sends it.
   Not yet offered upstream.
-- 2026-10-14, note for the owner to send in
-  `local/for-upstream/kernel-6.18-edid.md` (F23): the PC stick's
+- 2026-10-14, note for the owner to send upstream (F23): the PC stick's
   kernel. No upstream file changes; Faraday's image overlay replaces
   the board's `buildroot.fragment` with a copy pinning 6.18.56 instead
   of 6.6.84 and adding five mainline commits from 6.19
@@ -344,13 +341,9 @@ as possible before the next build.
      writes a PDF to print. Nothing secret is ever in a file or a PDF.
    - restore flows ("Restoring from a backup"): words, SeedQR, the
      descriptor or its split sheets.
-8. [x] Rename the project to Faraday (owner, 2026-10-04): the old
-   Faraday OS repo at `~/Projects/faraday` becomes
-   `~/Projects/faraday-os-deprecated` (its GitHub repo,
-   bitcoinpasada/faraday, is the owner's to rename); this repo becomes
-   `~/Projects/faraday`; crates `faraday-*`, outputs `out/linux/faraday`
-   and `out/stick/faraday-x86_64-uefi.img`, recipes `faraday-*`; recreate the auto-continue job with the
-   new path.
+8. [x] Rename the project to Faraday (owner, 2026-10-04): crates
+   `faraday-*`, outputs `out/linux/faraday` and
+   `out/stick/faraday-x86_64-uefi.img`, recipes `faraday-*`.
 9. [x] Small fixes: scroll long lists (Stick visit, Files, the wallet
    list), compact wallet rows; a stick's volume label instead of `sda1`;
    "Boot stick" once; "1 of 1 signature"; a signed file named
@@ -1394,10 +1387,9 @@ as possible before the next build.
         `just faraday-panel 2.8` (or `5` for a phone): the desktop app
         with `--panel INCHES [--aspect W:H] [--ppi N]` opens a window
         that measures that diagonal on the laptop's own screen (pixels
-        per inch from its EDID; 277 on the test laptop), and takes the
+        per inch from its EDID), and takes the
         touchscreen's touches (`WindowEvent::Touch`, new in the desktop
-        shell). Under Hyprland the recipe focuses the eDP screen first,
-        so the window opens there and floats at its size.
+        shell).
 
     **Pinned forward action and scroll cues (owner, 2026-10-08).** The
     owner found Continue below the fold on Create a wallet's Kind step.
@@ -1569,7 +1561,7 @@ as possible before the next build.
     `.config` of that day's x86 stick build (Linux 6.6.84,
     `out/pi/x86_64-uefi-efi-framebuffer/output/build/linux-custom/.config`)
     against the Kernel Self Protection Project's list. The findings, with
-    a reason for each option, are in `local/upstream-kernel-hardening.md`.
+    a reason for each option, were written up for upstream.
     **The owner gave that file to the OpenSigner developer** and is
     waiting for upstream's changes. Most of it is upstream's x86 fragment,
     which Faraday's is a copy of.
@@ -1623,7 +1615,7 @@ as possible before the next build.
     - **README.** The owner's draft of the new README, with the security
       model, the comparison with amnesiac live systems and "a live
       system with networking compiled out", is
-      `local/README-draft.md`. **It is not published until upstream's
+      a draft kept outside the repository. **It is not published until upstream's
       hardening has landed and been merged here**, and then the owner
       adds the discussion to it. Until then the draft states two things
       the build does not yet make true: that the only storage the
@@ -1657,7 +1649,7 @@ as possible before the next build.
          image (stick rule, grant helper, USB authorisation) with the new
          mounts, Yama and Lockdown. Not built: the Pi images. Not done:
          a boot on the test laptop or a Pi.
-      5. Done: `README.md` written from `local/README-draft.md`, with the
+      5. Done: `README.md` written from that draft, with the
          hardening, and corrected where the draft claimed more than the
          tree has: no keyboard layout setting, no QR transfer tab, no
          `tools/build/linux` (so `just faraday-linux-bin` does not run),
@@ -1966,8 +1958,8 @@ as possible before the next build.
     **Next, batch R in order:** (1) the Pi image's readable build ID,
     above; (2) the glibc 2.31 container build of the desktop app (HUB
     §1.2), `just faraday-linux-bin`, checked with `objdump -T` that
-    nothing needs more than `GLIBC_2.31`, and the app run on the
-    owner's desktop; (3) the pure-Rust xz decoder chosen, with its
+    nothing needs more than `GLIBC_2.31`, and the app run on a
+    desktop; (3) the pure-Rust xz decoder chosen, with its
     `docs/deps/` note (read the candidates; never liblzma); (4) the
     hub's payload build from `out/release/VERSION/` (manifest: name,
     `.xz` sum, `.img` sum, build ID). Then batch L.
@@ -1976,7 +1968,7 @@ as possible before the next build.
     answered a review of v0.1 the same day; every decision is now
     taken (STARTER §12, D1–D21) except D11, which batch W's report answers;
     STARTER §13 lists what moved. In the tree, uncommitted, with F12 in
-    `docs/DECISIONS.md` and the item in `local/REMAINING.md`: the
+    `docs/DECISIONS.md` and the item on the board: the
     orchestrator reviews and commits. What it changes for the work
     already started: (a) batch R's staging script, when it comes to
     stage the hub apps, stages the Linux one as
@@ -2019,7 +2011,7 @@ as possible before the next build.
     build machine.
 
     **Next.** (1) The owner tries the Linux hub app on the desktop
-    (`just faraday-starter`, run through `local/remote-run.sh --fetch`), and
+    (`just faraday-starter`, on the build machine), and
     one real write to a spare stick the owner names, recording what
     polkit asks. (2) G's first group of maker pages (F14). (3) W's code,
     cross-compiled and tested on recorded answers; W's acceptance
@@ -2056,7 +2048,7 @@ as possible before the next build.
     upstream's board file while 6.6 is at 6.6.158; the owner is asking
     upstream to move to 6.18 longterm (a note for upstream was written);
     nothing is added to Faraday's kernel meanwhile; with 6.19's EFI-stub
-    EDID commits the stick could name a TV itself (`local/REMAINING.md`).
+    EDID commits the stick could name a TV itself.
     (b) The Windows test VM: on the build machine, nested KVM cannot
     enter SMM, the distribution's non-SMM firmware has no Secure Boot,
     TCG crashed Windows setup (0x3B) after 3.5 h, and a KVM guest on a
@@ -2138,7 +2130,7 @@ as possible before the next build.
     (each family's own colours, square corners, Terminus as the
     text-mode font, "Mock-up" under each); 32 sketches over the nine
     maker pages, STARTER §7.8; the guides corrected against the makers'
-    simulators and manuals (research in local/firmware-sketches/). (c) Fixed: the three
+    simulators and manuals (research kept outside the repository). (c) Fixed: the three
     places that decided by displayed text now carry an enum instead
     (18af179, `plan::AloneKind`, `wallet::Origin`).
 
@@ -2260,7 +2252,7 @@ as possible before the next build.
          `serial` is empty, the report says so, and A3c reads it on a
          Mac. A written guess at ioreg's layout is not acceptable.
     3. **`facts`**: `Computer` from `sysctl -n hw.model` (the model
-       identifier, `MacBookPro14,1`), `uname -m` and `sysctl -n
+       identifier, such as `MacBookProN,M`), `uname -m` and `sysctl -n
        sysctl.proc_translated` (an x86_64 hub under Rosetta is on an
        ARM Mac: `arm` true), with `os: Os::MacOs`, `maker` "Apple
        Inc." (what DMI says on every Intel Mac), `family` empty, `uefi`
@@ -2381,7 +2373,7 @@ as possible before the next build.
        T2, 32-bit EFI, keyboard: USB, SPI, through the T2, or Apple
        Silicon), with the pages and the date read in its doc comment.
        The orchestrator hands over a researched list
-       (`local/mac-models.tsv`, not in git); check its rows against
+       (not in git); check its rows against
        the sources before copying them. `mac(model) -> Option<&Mac>`
        and what Home needs from it. The README's "Which Macs" (MAC §7)
        is batch I's, from this table, with the test that they agree.
@@ -2527,7 +2519,7 @@ as possible before the next build.
     (`target/release/faraday`) finds none of the guides' text ("Startup
     Security Utility", the Windows guide's first section heading) and
     the Starter's finds it. Then the desktop, stick and Pi builds
-    (`local/remote-build.sh`), once, carrying A3b and F18 too.
+    on the build machine, once, carrying A3b and F18 too.
 
 
 75. [x] 2026-10-14, owner: **the BitLocker step is optional** (F21,
@@ -2718,7 +2710,7 @@ as possible before the next build.
     builds `out/windows/faraday.exe` and the default still builds the
     Starter; clippy for `x86_64-pc-windows-gnu` is clean on both (the
     recipe's clippy switch). Then the architect runs `just` once and
-    `local/remote-build.sh starter` and the owner tries it on Windows.
+    builds the Starter, and the owner tries it on Windows.
 
     **C2. The camera on Windows.**
 
@@ -2791,7 +2783,7 @@ as possible before the next build.
     laptop's stick (quick throughout). C built 2026-10-19 (the desktop
     shell has no test harness: a toggled stick and a written file are
     the owner's check). D measured at high-density full-screen sizes first; E in
-    faraday-website.
+    the website's own repository.
 
 78. [ ] 2026-10-15, owner: **the backup board** (`docs/BACKUP-FLOW.md`
     §19, F37). The plan's place cards become a board: a card per place
@@ -2998,11 +2990,3 @@ as possible before the next build.
 Builds run on the build machine: it has the pinned Rust toolchain,
 `just`, podman (no docker) and QEMU with OVMF.
 
-## Other sources the docs cite
-
-Copied beside this project on the build machine, in `~/Projects/`:
-- `~/Projects/faraday-os-deprecated`: Faraday OS source, docs, profile, package repo and
-  test scripts. Left behind on the laptop as build output:
-  `out/` (ISOs), `work/`, `test/run/` (disk images), and the kernel's
-  `src/`, `pkg/`, source tarballs and built packages under
-  `kernel/linux-faraday/`.

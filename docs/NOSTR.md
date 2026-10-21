@@ -16,7 +16,7 @@ Signing Nostr events is not part of this spec; it is a later item.
 
 ## 0. Rules for the implementing agent
 
-- `CLAUDE.md` and `CLAUDE.local.md` apply in full: every dimension a
+- `CLAUDE.md` applies in full: every dimension a
   token; labels, not prose, on working screens (the explanations are
   §9's Learn page); tests for user-facing behaviour only; `just` once at
   the end of the batch; no `rm`; no commits; no agents.

@@ -38,8 +38,7 @@ every flow with its kind preset, so the everyday surfaces can be quiet.
   `docs/VAULT.md` for anything about a vault's file or state;
   `docs/FAMILY.md` for the Spend tab; `README.md` "Screens" if a
   screenshot no longer matches.
-- Render to look: `local/remote-run.sh --fetch out/snapshots/faraday/1280x800
-  just faraday-snap 1280x800` and the same for `480x640`. The tour in
+- Render to look: `just faraday-snap 1280x800` and the same for `480x640`. The tour in
   `faraday/shells/snapshot/src/main.rs` drives every flow; where a step
   this file removes or reorders is named there, change the tour too.
 - Completion report, one per batch: the items done, each with its
@@ -720,7 +719,7 @@ Batches: §1, §2, §3 (3.1 to 3.4), §4 (4.1 to 4.3, then 3.5, then 4.4
 to 4.7), §5, §6, each ending with its tests, `just`,
 the two renders, and the completion report. §4.4 (the boot sheet) and
 §5 (Backups) are the two with the most new code; do not fold either
-into another batch. After §6, `local/REMAINING.md` gets the owner's
+into another batch. After §6, the board gets the owner's
 test list for this pass: the desktop app's Home with nothing loaded,
 Create a wallet to Backup done on a 2-of-3, the boot sheet with one
 vault on the release stick, and the Backups screen after a stick

@@ -443,7 +443,7 @@ the key's Backup menu offers no SeedQR.
   the Cobo/Keystone single-key writer, and a longer Back up software
   question (its `software` field is five bits).
 
-### Notes for upstream (`local/for-upstream/interop.md`, the owner sends them)
+### Notes for upstream (the owner sends them)
 
 `osk_bip::slip132` multisig versions and a version/script check;
 `osk_bip::bsms` (#50); `osk_bip::coldcard::parse` rooting at the top-level

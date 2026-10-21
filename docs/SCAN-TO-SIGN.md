@@ -18,8 +18,7 @@ to GPG's Sign a file.
 
 ## 0. Rules for the implementing agent
 
-- `CLAUDE.md` and `CLAUDE.local.md` apply in full: every build and test
-  through `local/remote-run.sh`; every dimension a token; labels, not
+- `CLAUDE.md` applies in full: every build and test on the build machine; every dimension a token; labels, not
   prose, on working screens (the Spend tab's lead and More text are the
   tab's own, `docs/FAMILY.md` §1 rule 6); tests for user-facing
   behaviour only; `just` once at the end of a batch; no `rm`; no
@@ -36,8 +35,7 @@ to GPG's Sign a file.
 - An existing test that asserts old wording or the old routes is
   changed to the rule it now encodes, never deleted to pass.
 - Docs in the same batch as the code they describe (§7).
-- To look: `local/remote-run.sh --fetch out/snapshots/faraday/1280x800
-  just faraday-snap 1280x800`, and `240x320` for the small panel. The
+- To look: `just faraday-snap 1280x800`, and `240x320` for the small panel. The
   snapshot tour (`faraday/shells/snapshot/src/main.rs`) follows the new
   wording and routes; §7 names the shots it gains.
 - Completion report: the items done, each with its tests and whether
@@ -67,7 +65,7 @@ to GPG's Sign a file.
    SegWit by default, only when every key is in hand as a seed or an
    xpub.
 7. **Restore on the Wallets tab** stays as it is; it may take this front
-   end later (REMAINING).
+   end later.
 8. **GPG Sign a file** signs several files at once from a checkbox list.
 
 Decided in this spec (architect, inside the owner's eight):

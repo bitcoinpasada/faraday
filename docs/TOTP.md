@@ -17,8 +17,7 @@ is UTC today.
 
 ## 0. Rules for the implementing agent
 
-- `CLAUDE.md` and `CLAUDE.local.md` apply in full: every build and test
-  through `local/remote-run.sh`; every dimension a token; labels, not
+- `CLAUDE.md` applies in full: every build and test on the build machine; every dimension a token; labels, not
   prose, on working screens; tests for user-facing behaviour only;
   `just` once at the end of a batch; no `rm`; no commits; no agents.
 - Two batches, in order: §1–§3 (the clock), then §4–§7 (the codes). Each
@@ -30,8 +29,7 @@ is UTC today.
   `import.rs`). A test states what a person sees or can do.
 - Docs in the same batch as the code they describe (§9).
 - The snapshot tour (`faraday/shells/snapshot/src/main.rs`) gains the
-  shots §9 names. To look: `local/remote-run.sh --fetch
-  out/snapshots/faraday/1280x800 just faraday-snap 1280x800`, and
+  shots §9 names. To look: `just faraday-snap 1280x800`, and
   `480x640` and `240x320` for the small panel.
 - Completion report: the items done, each with its tests and whether
   they pass; what was left out and why; docs changed; render names to

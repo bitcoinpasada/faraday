@@ -1,7 +1,7 @@
 # Scrolling, motion and appearance
 
 **Status: approved by the owner 2026-10-06; built 2026-10-07, waiting
-for the owner's check on the test laptop.** The progress list at the end says
+for the owner's check on hardware.** The progress list at the end says
 what was done and how; §6 lists what was measured after.
 
 The owner's ask: scrolling should feel like any modern native app, the
@@ -658,7 +658,7 @@ Same harness and machine as §2, release profile.
 - The frame a sheet opens on costs two frames at 1080p, once.
   Frosting by a coarser reduction would be cheaper still.
 - Not measured here: the framebuffer write on the stick (`--timings`
-  on the test laptop says how long a frame's `pwrite` takes).
+  on a stick says how long a frame's `pwrite` takes).
 
 ## 7. Notes for whoever changes this next
 

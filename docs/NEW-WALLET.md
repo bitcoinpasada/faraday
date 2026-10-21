@@ -17,8 +17,7 @@ with shares a person has not heard of.
 
 ## 0. Rules for the implementing agent
 
-- `CLAUDE.md` and `CLAUDE.local.md` apply in full: every build and test
-  through `local/remote-run.sh`; every dimension a token; labels, not
+- `CLAUDE.md` applies in full: every build and test on the build machine; every dimension a token; labels, not
   prose, on working screens; tests for user-facing behaviour only;
   `just` once at the end of a batch; no `rm`; no commits; no agents.
 - Work the batches in order. Each batch is one review and one
@@ -34,8 +33,7 @@ with shares a person has not heard of.
   vaults.
 - The snapshot tour (`faraday/shells/snapshot/src/main.rs`) drives these
   flows; where a step this file removes, adds or reorders is named
-  there, change the tour too. To look: `local/remote-run.sh --fetch
-  out/snapshots/faraday/1280x800 just faraday-snap 1280x800` (and
+  there, change the tour too. To look: `just faraday-snap 1280x800` (and
   `480x640`).
 - Completion report: the items done, each with its tests and whether
   they pass; what was left out and why; docs changed; render names to
@@ -676,7 +674,7 @@ that: an Unlock from the Vaults list loads the wallets the vault holds,
 with their keys where the vault holds them (as the boot sheet's Unlock
 does), and lands on Wallets with the same toast and selection. A vault
 that holds no wallet lands where it does today. That test changes to
-the new rule. It answers the question in `local/REMAINING.md`, "Unlock
+the new rule. It answers the owner's question, "Unlock
 from the Vaults list lands on Files. Open the vault instead?".
 
 Since F62 (2026-10-20) neither Unlock loads at once: each shows **Load

@@ -25,8 +25,7 @@ checklist. The flow is written here once; `docs/NEW-WALLET.md` §14.8,
 
 ## 0. Rules for the implementing agent
 
-- `CLAUDE.md` and `CLAUDE.local.md` apply in full: every build and test
-  through `local/remote-run.sh`; every dimension a token; labels, not
+- `CLAUDE.md` applies in full: every build and test on the build machine; every dimension a token; labels, not
   prose, on working screens; tests for user-facing behaviour only;
   `just` once at the end of the batch; no `rm`; no commits; no agents.
 - Every string in `faraday/faraday-strings/src/en.rs` with the prefix

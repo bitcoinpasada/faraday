@@ -27,8 +27,7 @@ is Faraday.
 
 ## 0. Rules for the implementing agent
 
-- `CLAUDE.md` and `CLAUDE.local.md` apply in full: every build and test
-  through `local/remote-run.sh`; every dimension a token; labels, not
+- `CLAUDE.md` applies in full: every build and test on the build machine; every dimension a token; labels, not
   prose, on working screens (explanations go in Learn pages); tests for
   user-facing behaviour only; `just` once at the end of a batch; no
   `rm`; no commits; no agents.

@@ -505,7 +505,7 @@ supersedes F11's "no macOS app".
 - The Starter can remove the start-up volume again, for privacy.
 - The README lists the supported Macs by model identifier, each claim
   cited, as Expected or Not supported. Nothing published says which
-  models were tried: those are the owner's own Macs.
+  models were tried.
 - There is no Mac to build on yet: the Intel Mac work, the Apple
   Silicon image and its start-up file go ahead; the macOS apps and the
   Apple Silicon setup wait for one.
@@ -815,7 +815,7 @@ until upstream moved it; waiting left both open.
   the rules the Starter and the stick share.
 - The Pi's kernel is unchanged: upstream's Raspberry Pi tree.
 - Upstream is asked to move the board to 6.18 and carry the five
-  commits (`local/for-upstream/kernel-6.18-edid.md`). When its board
+  commits (a note for upstream). When its board
   has both, Faraday's copy and its patches go.
 - `faraday/image/run-build.sh` cleans a variant's Buildroot tree when
   its kernel source (tarball, hash, patches) changes: the toolchain's

@@ -11,7 +11,7 @@ Why the copy exists: security review 2026-09-11 item M5a. The QR decoder
 reads camera frames, which nobody controls, and `opensigner-pi` is built
 with `panic = "abort"` and is the only process on the board, so a panic
 inside grid detection powers the device off while a person is signing.
-`local/crate-reduction-plan.md` §5 wants the crate in the tree anyway:
+OpenSigner's crate-reduction plan (§5) wants the crate in the tree anyway:
 trimmed of `lru` and `g2p` it takes twelve crates and about 100,000 lines
 off the device dependency graphs.
 
@@ -143,7 +143,7 @@ next pass over this crate has somewhere to start.
 
 ## Next steps from the plan
 
-`local/crate-reduction-plan.md` §5.1 asked for three removals. `lru` and
+That plan's §5.1 asked for three removals. `lru` and
 `g2p` are done. The third was a correction rather than a removal: `log`
 is not a dependency of this crate and never was — it is in the graph
 through `tiny-skia`.

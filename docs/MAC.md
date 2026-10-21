@@ -28,8 +28,7 @@ kernel inside the sealed start-up file (§4.2).
 
 ## 0. Rules for the implementing agent
 
-- `CLAUDE.md` and `CLAUDE.local.md` apply in full: builds and tests
-  through `local/remote-run.sh`; no `rm`; no commits; no agents; `just`
+- `CLAUDE.md` applies in full: builds and tests on the build machine; no `rm`; no commits; no agents; `just`
   once at the end of a batch.
 - Batches in §8's order; one review and one completion report each.
 - **§2.2 and §4.3 are requirements, not goals.** If a batch finds one
@@ -545,7 +544,7 @@ Home goes on to the next step (HANDOFF item 73, A3a).
 The README gains **"Which Macs"**, the list a person checks before
 buying or trying, and the website's download page links to it.
 
-- One row per Mac model identifier (`MacBookPro14,1`, `Mac14,2`, …),
+- One row per Mac model identifier (`MacBookProN,M`, `MacN,M`, …),
   with its marketing name and year, grouped as §1's table: image,
   built-in keyboard, built-in pointer, camera, what to set in the
   firmware, and status.
@@ -563,9 +562,8 @@ buying or trying, and the website's download page links to it.
 
 ### 7.1 No "Tried" column
 
-A "Tried" mark would name the Macs Faraday was run on, and those are
-the owner's own, which the owner's rules treat as personal information
-(owner, M6). So the list never says which models were tried: every
+A "Tried" mark would name the Macs Faraday was run on, which is
+personal information (owner, M6). So the list never says which models were tried: every
 status comes from cited documentation. Tries on hardware still happen
 and fix what they find; a model found not to work despite its
 documentation becomes *Not supported* with the reason, which names a

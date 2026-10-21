@@ -469,9 +469,7 @@ use; the pressable rows need no new label.
 
 One batch, one review, one completion report.
 
-- **Rules for the implementing agent.** `CLAUDE.md` and
-  `CLAUDE.local.md` apply in full: builds and tests through
-  `local/remote-run.sh`; every dimension a token; labels, not prose;
+- **Rules for the implementing agent.** `CLAUDE.md` applies in full: builds and tests on the build machine; every dimension a token; labels, not prose;
   tests for user-facing behaviour only; `just` once at the end; no
   `rm`; no commits; no agents. Nothing in `opensigner/` or `core/`.
 - **Code.** `lib.rs` (the variants, their `code_view` arms,

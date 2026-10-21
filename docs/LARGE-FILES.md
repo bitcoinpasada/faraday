@@ -19,8 +19,7 @@ to APKs. `docs/APK-SIGNING.md` is the first user.
 
 ## 0. Rules for the implementing agent
 
-- `CLAUDE.md` and `CLAUDE.local.md` apply in full: every build and test
-  through `local/remote-run.sh`; every dimension a token; labels, not
+- `CLAUDE.md` applies in full: every build and test on the build machine; every dimension a token; labels, not
   prose, on working screens; tests for user-facing behaviour only;
   `just` once at the end of a batch; no `rm`; no commits; no agents.
 - Batches in §12's order; one review and one completion report each.

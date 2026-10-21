@@ -3,7 +3,7 @@
 **Status: 2026-10-16, batches A and B built and checked by the owner on
 the slow laptop's stick; C next, after BACKUP-FLOW §19's F batches; D
 measured at the stick's high-density sizes before it is decided (§6); E
-in faraday-website.
+in the website's own repository.
 §7 is a standing rule (owner). §8: the speed audit's batch S1
 (2026-10-21); §11: batch E of 2026-10-21, the stick's panel and the
 Starter. Tracker issue 119 and its sub-issues 120–130.**
@@ -67,7 +67,7 @@ draws is worked out that often. The backup screens work out a great deal:
    twice the size may not fit, and then every glyph is rasterised again
    on every frame. Not confirmed.
 9. **The web demo reads its whole state on every pointer move.**
-   faraday-website's `web/index.html` sends each `pointermove` through
+   The website's `web/index.html` sends each `pointermove` through
    `call`, which forces `watch`, which calls `faraday_state`; `Web::state`
    (`web/src/lib.rs`) runs the checklist (`story.rs` `checklist_next`)
    and serialises it to JSON, whether or not anything changed.
@@ -322,9 +322,9 @@ everything, and `CACHE_BUDGET` becomes 1 MB. That is a change to
 upstream files differ from upstream". If no screen clears it every frame,
 nothing changes and the issue is closed with the numbers.
 
-### 3.9 The web demo (issue 128, built in faraday-website)
+### 3.9 The web demo (issue 128, built in the website's own repository)
 
-In faraday-website's `web/index.html`, `pointermove` (both
+In the website's `web/index.html`, `pointermove` (both
 `faraday_move` and `faraday_hover`) and `pointerleave` go through a
 `call` that does not force `watch`: the state is read at most every
 150 ms, as `watch` already does when not forced, and at once after any
@@ -433,7 +433,7 @@ the tree, `just` green.
   the owner's check, and the report says so).
 - **D, the glyph cache** (§3.8; issue 127): measured by the architect;
   built only if it clears every frame.
-- **E, the web demo** (§3.9; issue 128): in faraday-website.
+- **E, the web demo** (§3.9; issue 128): in the website's own repository.
 - **F, the vault 2 card, the sticks card, the late flow again**
   (§3.12; issue 119). Tests: `tests/backup_checklist.rs` passes
   unchanged; a vault opened mid-checklist, holding the wallet, ticks
