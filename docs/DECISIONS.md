@@ -2216,3 +2216,42 @@ Vaults overview).
   in the vault by this. A key page's own **Load with a passphrase**, in
   the vault, has no wallet to check against and is unchanged.
 - On the Pi, sizes as everywhere.
+
+### F63 Sign a file signs from a sheet that shows the time (2026-10-20)
+
+**Why.** On the 0.1.5 stick, with the clock not yet checked this
+power-on, the hold on Sign a file opened Set the time and signed
+nothing: the hold was spent on the clock check of `docs/TOTP.md` §1.3,
+and after Set or Keep this time the page was back as it was, so a
+second hold was needed to sign. Nothing said that the first one had not
+signed.
+
+**Decision** (owner, 2026-10-20). Amends F32's "Signing takes a hold"
+and, for Sign a file, `docs/TOTP.md` §1.3.
+
+- The page's sign control is a plain button, **Sign**, enabled while at
+  least one listed file is ticked. It signs nothing.
+- **Sign** opens the sheet **Sign with {user ID}** over the page: each
+  ticked file with its size and the first 16 hex digits of its SHA-256
+  (the page above shows all 64); the row **Signature time**, the time
+  the signatures will carry (the device's clock, local, with the zone),
+  with **Set the time**; then **Hold to sign 1 file** / **Hold to sign
+  {n} files** and **Cancel**.
+- **Set the time** opens the existing Set the time; Set, Keep this time
+  and Back return to the sheet with the files still ticked. Returning
+  signs nothing.
+- Only the sheet's hold signs, once per file, at the clock's time when
+  it completes, and closes the sheet; the result is as before (one
+  `{file}.asc` each For the stick, one toast, the rows marked Signed).
+  The hold no longer opens Set the time: the sheet's time row stands in
+  for §1.3's check for this action, and holding does not mark the clock
+  checked.
+- With the clock not known (the Pi before its time is set) the row reads
+  "Not known" and the hold is disabled: a signature carries its time
+  (F32), so none is made without one. **Cancel**, Escape or a press
+  beside the sheet closes it; the files stay ticked; nothing is signed.
+- A ticked file replaced by a stick visit while the sheet is open drops
+  off it, and the hold signs nothing for it, as before.
+- Not changed: a row's **Show as QR** and **PNG**, which make one file's
+  signature as a code or picture, and Make a key, Renew and Make a
+  revocation, which still ask for the time first (§1.3).

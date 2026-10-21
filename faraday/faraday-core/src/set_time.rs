@@ -8,7 +8,7 @@ use opensigner_core::strings::fill;
 use osk_shell_api::Key as KeyIn;
 
 use crate::vaults::TextBox;
-use crate::{Faraday, Screen};
+use crate::{Faraday, Screen, Sheet};
 
 /// Which of Set the time's two fields typing goes to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -30,6 +30,9 @@ pub struct SetTime {
     /// The screen Back, Set and Keep this time return to: Settings, or
     /// (batch 2) the codes screen.
     pub back_to: Screen,
+    /// The sheet Set the time was opened from (Sign with {key}, F63),
+    /// shown again over `back_to` by Back, Set and Keep this time.
+    pub sheet: Option<Sheet>,
 }
 
 impl Default for SetTime {
@@ -39,6 +42,7 @@ impl Default for SetTime {
             time: TextBox::default(),
             focus: None,
             back_to: Screen::Settings,
+            sheet: None,
         }
     }
 }
@@ -126,9 +130,11 @@ impl Faraday {
         self.save_boxes();
     }
 
-    /// Opens Set the time from `self.screen`, which it returns to.
+    /// Opens Set the time from `self.screen`, which it returns to, and
+    /// from the sheet over it, which it shows again.
     pub(crate) fn open_set_time(&mut self) {
         self.set_time.back_to = self.screen;
+        self.set_time.sheet = self.sheet.take();
         self.set_time.date = TextBox::default();
         self.set_time.time = TextBox::default();
         if let Some(t) = self.clock_now() {
@@ -181,8 +187,18 @@ impl Faraday {
             EN.set_time_time_set_to,
             &[&format!("{h:02}"), &format!("{mi:02}")],
         ));
-        self.screen = self.set_time.back_to;
+        self.set_time_return();
         self.save_boxes();
+    }
+
+    /// Back to the screen and the sheet Set the time was opened from.
+    /// Signs nothing and makes nothing there (F63).
+    fn set_time_return(&mut self) {
+        self.screen = self.set_time.back_to;
+        let sheet = self.set_time.sheet.take();
+        if self.sheet.is_none() {
+            self.sheet = sheet;
+        }
     }
 
     /// Keep this time: marks the clock checked, sets no offset.
@@ -190,13 +206,13 @@ impl Faraday {
         if self.clock_now().is_some() {
             self.vaults.clock_checked = true;
         }
-        self.screen = self.set_time.back_to;
+        self.set_time_return();
         self.save_boxes();
     }
 
     /// Back: goes back without marking anything.
     pub(crate) fn set_time_back(&mut self) {
-        self.screen = self.set_time.back_to;
+        self.set_time_return();
     }
 
     /// Typing on the Set the time screen; `false` when it is not shown or

@@ -1146,7 +1146,8 @@ title, and the unlock goes back to the flow.
   row; **Export the kept revocation** and **Make a revocation** (the
   secret sheet, no code or picture); **Sign a file**, whose list shows
   each file's SHA-256 and a small text file's text, with **Show as QR** and
-  **PNG** on each file's row and a hold to sign; **Renew** with a term
+  **PNG** on each file's row, and **Sign**, whose sheet shows the files
+  and the signature time and holds to sign (F63); **Renew** with a term
   chosen; **Hold to mark the key revoked** (F32).
 - Secure Boot keys → **Open Secure Boot**.
 - A recovery sheet → its descriptor, with **Show as QR** and **PNG** on
@@ -1525,7 +1526,11 @@ renews nothing after.
 **Sign a file** → the page names the key as gpg-agent's pinentry does
 (user ID, signing subkey ID and main key ID, creation date) and lists the
 files copied in, each with its name, size, SHA-256 and, when small, its
-text → tick → **Hold to sign** → a detached signature `{file}.asc` For the
+text → tick → **Sign** → the sheet **Sign with {user ID}**: the files
+ticked (name, size, start of the SHA-256), **Signature time** (the
+clock's, with **Set the time**, which returns to the sheet), **Hold to
+sign** and **Cancel**; only that hold signs, and with the clock not
+known it is disabled (F63) → a detached signature `{file}.asc` For the
 stick. A file replaced by a stick visit after it was ticked is unticked.
 A signature is not written over a file of that name. An expired or
 revoked key, or a clock before the key was made, signs nothing and says

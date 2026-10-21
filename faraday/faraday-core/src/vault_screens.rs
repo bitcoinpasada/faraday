@@ -3257,7 +3257,7 @@ fn detail(
                 .iter()
                 .any(|o| o.name == format!("{}.asc", f.name));
             // Show as QR and PNG hold one signature over this file each;
-            // ticking and holding Sign is the way to make it. They follow
+            // ticking, Sign and its sheet's hold is the way to make it. They follow
             // the file by its hash, not its place in the Inbox.
             let prefix: [u8; 8] = f.hash[..8].try_into().unwrap_or([0; 8]);
             let buttons = [
@@ -3316,25 +3316,18 @@ fn detail(
             dy = ey + 8.0;
         }
         dy += 8.0;
-        let n = files.iter().filter(|f| app.gpg_ticked(f)).count();
-        let label = match n {
-            0 => FEN.vault_hold_to_sign.to_string(),
-            1 => FEN.vault_hold_to_sign_1_file.to_string(),
-            n => fill(FEN.vault_hold_to_sign_files, &[&n.to_string()]),
-        };
-        let w = if n == 0 {
-            ui.button(
-                dx,
-                dy,
-                None,
-                36.0,
-                &label,
-                Style::Disabled,
-                va(V::GpgHoldSign),
-            )
-        } else {
-            hold_button(app, ui, dx, dy, &label, va(V::GpgHoldSign), ACCENT)
-        };
+        // Sign opens Sign with {key} over the page; only its hold signs
+        // (F63).
+        let any = files.iter().any(|f| app.gpg_ticked(f));
+        let w = ui.button(
+            dx,
+            dy,
+            None,
+            36.0,
+            FEN.vault_sign,
+            if any { Style::Primary } else { Style::Disabled },
+            va(V::GpgSign),
+        );
         ui.button(
             dx + w + 10.0,
             dy,
@@ -3849,6 +3842,132 @@ fn backup_row(
         h += 6.0;
     }
     h
+}
+
+/// **Sign with {key}**, opened by Sign a file's **Sign** (F63): the files
+/// ticked, each with its size and the start of its SHA-256; the time the
+/// signatures will carry, with **Set the time**; then the hold that signs
+/// and Cancel. With the clock not known the time says so and the hold is
+/// disabled. Hashes a file the page has not hashed yet.
+pub(crate) fn gpg_sign_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
+    let chosen = app.gpg_chosen();
+    let who = app.gpg_user_id().unwrap_or_default();
+    let title = fill(FEN.vault_sign_with, &[&who]);
+    let now = app.clock_now();
+    let when = match now {
+        Some(_) => {
+            let zone = format!("UTC{}", vaults::tz_offset_text(app.tz_min));
+            format!("{} {zone}", app.now_local_text())
+        }
+        None => FEN.set_time_not_known.to_string(),
+    };
+    let label = match chosen.len() {
+        0 => FEN.vault_hold_to_sign.to_string(),
+        1 => FEN.vault_hold_to_sign_1_file.to_string(),
+        n => fill(FEN.vault_hold_to_sign_files, &[&n.to_string()]),
+    };
+    let ready = now.is_some() && !chosen.is_empty();
+    let place = if ui.compact {
+        (8.0, w - 16.0)
+    } else {
+        let sw = (w - 48.0).min(640.0);
+        ((w - sw) / 2.0, sw)
+    };
+    let margin = if ui.compact { 8.0 } else { 32.0 };
+    let pad = if ui.compact { 16.0 } else { 32.0 };
+    crate::compact::scroll_sheet(ui, place, h, margin, pad, &mut |ui, x, y, iw| {
+        let mut cy = y;
+        if ui.compact {
+            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Sign, ACCENT, &title);
+        } else {
+            ui.icon(x, cy, 30.0, Icon::Sign, 18.0, ACCENT);
+            let t = ui.fit(20.0, W::S, &title, iw - 42.0);
+            ui.text_mid(x + 42.0, cy, 30.0, 20.0, W::S, TEXT, &t);
+            cy += 46.0;
+        }
+        for f in &chosen {
+            let line = format!("{} · {}", f.name, gpg_file_size(f.size as u64));
+            let line = ui.fit(14.0, W::M, &line, iw);
+            ui.text(x, cy, 14.0, W::M, TEXT, &line);
+            cy += 22.0;
+            let hex: String = f.hash[..8].iter().map(|b| format!("{b:02x}")).collect();
+            ui.text(x, cy, 12.0, W::M, MUTED, &format!("{hex}…"));
+            cy += 22.0;
+            ui.rule(x, cy, iw, INNER);
+            cy += 10.0;
+        }
+        // The time the signatures will carry, and the way to change it.
+        ui.text(x, cy, 12.0, W::R, MUTED, FEN.vault_signature_time);
+        cy += 20.0;
+        let set_w = ui.measure(13.0, W::S, FEN.vault_set_the_time) + 30.0;
+        let tone = if now.is_some() { TEXT } else { WARN };
+        if ui.compact {
+            cy += ui.wrap(x, cy, iw, 14.0, W::M, tone, &when) + 8.0;
+            ui.button(
+                x,
+                cy,
+                Some(set_w),
+                36.0,
+                FEN.vault_set_the_time,
+                Style::Secondary,
+                Action::OpenSetTime,
+            );
+            cy += 46.0;
+        } else {
+            let t = ui.fit(14.0, W::M, &when, iw - set_w - 12.0);
+            ui.text_mid(x, cy, 36.0, 14.0, W::M, tone, &t);
+            ui.button(
+                x + iw - set_w,
+                cy,
+                Some(set_w),
+                36.0,
+                FEN.vault_set_the_time,
+                Style::Secondary,
+                Action::OpenSetTime,
+            );
+            cy += 46.0;
+        }
+        ui.rule(x, cy, iw, INNER);
+        cy += 14.0;
+        let hw = if ready {
+            hold_button_in(app, ui, x, cy, iw, &label, va(V::GpgHoldSign), ACCENT)
+        } else {
+            ui.button(
+                x,
+                cy,
+                None,
+                36.0,
+                &label,
+                Style::Disabled,
+                va(V::GpgHoldSign),
+            )
+        };
+        let cancel_w = ui.measure(13.0, W::S, FEN.vault_cancel) + 30.0;
+        if hw + 10.0 + cancel_w <= iw {
+            ui.button(
+                x + hw + 10.0,
+                cy,
+                Some(cancel_w),
+                36.0,
+                FEN.vault_cancel,
+                Style::Ghost,
+                Action::Cancel,
+            );
+        } else {
+            cy += 44.0;
+            ui.button(
+                x,
+                cy,
+                Some(cancel_w),
+                36.0,
+                FEN.vault_cancel,
+                Style::Ghost,
+                Action::Cancel,
+            );
+        }
+        cy += 36.0;
+        cy - y
+    });
 }
 
 /// Save to a stick's popup (`docs/BACKUP-FLOW.md` §19.7): for a key,

@@ -385,6 +385,8 @@ fn a_gpg_signature_reads_back_from_its_code_and_its_picture() {
         .position(|i| i.name == "SHA256SUMS")
         .unwrap();
     app.press(Action::Vault(V::GpgTick(k)));
+    // Sign, then the hold on its sheet (F63).
+    app.press(Action::Vault(V::GpgSign));
     app.press(Action::Vault(V::GpgHoldSign));
     let want = text(&outbox(&app, "SHA256SUMS.asc"));
     let code = app.signature_code("SHA256SUMS").unwrap();

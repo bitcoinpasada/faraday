@@ -2912,6 +2912,13 @@ as possible before the next build.
     key against the wallet. Tests in `tests/vault_load.rs`; snapshot
     tour `passseeds`. 09acfa5c.
 
+91. [x] 2026-10-20, owner: **GPG Sign a file signs from a sheet** (F63).
+    The first hold went to Set the time without signing (vaults.rs
+    `GpgHoldSign` behind `time_asked`); now **Sign** opens "Sign with
+    {user ID}" with the files, the signature time and Set the time, and
+    only its hold signs. Tests in `tests/gpg.rs`; tour step
+    `vault-gpg-sign-sheet`.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:

@@ -697,6 +697,9 @@ impl Faraday {
     /// Clears the signing page, its ticks and the other GPG pages when the
     /// vault, the category or the key selected changes.
     pub(crate) fn gpg_page_reset(&mut self) {
+        if self.sheet == Some(crate::Sheet::GpgSign) {
+            self.sheet = None;
+        }
         self.vaults.signing = false;
         self.vaults.sign_ticked.clear();
         self.vaults.sign_key = None;
@@ -707,6 +710,55 @@ impl Faraday {
     /// The selected key's fingerprint.
     pub(crate) fn gpg_fingerprint(&self) -> Option<[u8; 20]> {
         self.gpg_selected().map(|(_, k)| k.fingerprint())
+    }
+
+    /// The selected key's first user ID, which Sign with {key} names it
+    /// by.
+    pub(crate) fn gpg_user_id(&self) -> Option<String> {
+        let at = self.vault_selected_index()?;
+        let r = self
+            .vaults
+            .open
+            .get(self.vaults.current)?
+            .contents
+            .records
+            .get(at)?;
+        let id = r.fields.iter().find(|x| x.number == f::USER_ID)?;
+        Some(String::from_utf8_lossy(&id.bytes).into_owned())
+    }
+
+    /// The listed files ticked to sign, as Sign's sheet lists them.
+    /// Hashes a file the page has not hashed yet.
+    pub(crate) fn gpg_chosen(&self) -> Vec<GpgFile> {
+        self.gpg_files()
+            .into_iter()
+            .filter(|f| self.gpg_ticked(f))
+            .collect()
+    }
+
+    /// Sign a file's **Sign**: opens **Sign with {key}** over the page
+    /// when a listed file is ticked. Signs nothing and asks nothing: the
+    /// sheet shows the time the signatures will carry (F63).
+    pub(crate) fn gpg_sign_sheet_open(&mut self) {
+        if !self.vaults.signing || self.vaults.sign_key != self.gpg_fingerprint() {
+            return;
+        }
+        if self.gpg_chosen().is_empty() {
+            return;
+        }
+        self.sheet = Some(crate::Sheet::GpgSign);
+    }
+
+    /// The hold on **Sign with {key}**: signs the ticked files at the
+    /// time the sheet shows, then closes it. With the clock not known
+    /// the hold is disabled and signs nothing (F63). Nothing else signs:
+    /// pressed with no sheet open, it does nothing.
+    pub(crate) fn gpg_sign_sheet_hold(&mut self) {
+        if self.sheet != Some(crate::Sheet::GpgSign) || self.clock_now().is_none() {
+            return;
+        }
+        self.sheet = None;
+        self.gpg_sign_ticked();
     }
 
     /// Signs every ticked file in one go, after the hold: a detached

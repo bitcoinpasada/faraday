@@ -1736,6 +1736,12 @@ fn run(
         t.press(Action::Vault(V::GpgTick(k)));
     }
     t.shot("vault-gpg-sign")?;
+    // Sign opens Sign with {key}: the files, the time, the hold (F63).
+    t.press(Action::Vault(V::GpgSign));
+    if t.app.sheet != Some(faraday_core::Sheet::GpgSign) {
+        return Err("Sign did not open its sheet".into());
+    }
+    t.shot("vault-gpg-sign-sheet")?;
     t.press(Action::Vault(V::GpgHoldSign));
     for name in ["vault-entries.txt", "BOOTX64.EFI"] {
         if !t.app.outbox.iter().any(|i| i.name == format!("{name}.asc")) {

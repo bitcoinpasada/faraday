@@ -1766,6 +1766,10 @@ pub enum Sheet {
     /// one to load with a passphrase typed now, checked against the
     /// wallet (`vault_load`, F62).
     PassphraseSeeds,
+    /// **Sign with {key}**, from Sign a file's **Sign**: the files chosen,
+    /// the time the signatures will carry with **Set the time**, and the
+    /// hold that signs (F63).
+    GpgSign,
 }
 
 /// What a scan pass saw of a code ([`StorageEvent::QrSeen`]).
@@ -5762,6 +5766,11 @@ impl Faraday {
             // Escape on the Load sheet is its Not now (F62).
             Action::Cancel if self.sheet == Some(Sheet::UnlockLoad) => {
                 self.load_sheet_act(vaults::VaultAction::LoadNotNow);
+            }
+            // Sign with {key}'s Cancel: the sheet closes, the files stay
+            // ticked, nothing is signed (F63).
+            Action::Cancel if self.sheet == Some(Sheet::GpgSign) => {
+                self.sheet = None;
             }
             Action::Cancel if self.sheet == Some(Sheet::PassphraseSeeds) => {
                 self.pass_seeds_close();

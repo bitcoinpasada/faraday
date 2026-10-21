@@ -2654,10 +2654,15 @@ pub struct Strings {
     pub vault_hold_to_mark_revoked: &'static str,
     /// Line on the signing page. `{}`: the IDs, the date.
     pub vault_signing_key_ids: &'static str,
-    /// Hold button on the signing page.
+    /// Hold button on Sign with {key}.
     pub vault_hold_to_sign_1_file: &'static str,
-    /// Hold button on the signing page. `{}`: the count.
+    /// Hold button on Sign with {key}. `{}`: the count.
     pub vault_hold_to_sign_files: &'static str,
+    /// Title of the sheet Sign opens on the signing page (F63). `{}`:
+    /// the key's user ID.
+    pub vault_sign_with: &'static str,
+    /// Row on Sign with {key}: the time the signatures will carry.
+    pub vault_signature_time: &'static str,
     // ----- guide (faraday-core/src/guide.rs) -----
     /// Text in `spend`.
     pub guide_this_is_the_wallet: &'static str,
@@ -7475,7 +7480,7 @@ pub struct Strings {
     pub vault_sign_or_check: &'static str,
     /// Text in `images_panel`. `{}`: `app.medium.from_the()`.
     pub vault_no_efi_image: &'static str,
-    /// Button in `images_panel`.
+    /// Button in `images_panel`, and on the GPG signing page.
     pub vault_sign: &'static str,
     /// Button in `images_panel`.
     pub vault_check: &'static str,
@@ -9838,6 +9843,8 @@ pub static EN: Strings = Strings {
     vault_signing_key_ids: "Signing subkey ID {} · main key ID {} · created {}",
     vault_hold_to_sign_1_file: "Hold to sign 1 file",
     vault_hold_to_sign_files: "Hold to sign {} files",
+    vault_sign_with: "Sign with {}",
+    vault_signature_time: "Signature time",
     guide_this_is_the_wallet: "This is the wallet the transaction spends from. Faraday found it by rebuilding the wallet's address from the key paths the transaction carries, so the match is exact. If the name is not the wallet you meant to spend from, stop here.",
     guide_no_wallet_loaded: "No wallet loaded here matches this transaction. You can still sign it from the key paths it carries, but Faraday cannot tell change from a payment to someone else. Load the wallet first if you have its description.",
     guide_open_the_same: "Open the same wallet in the software that made this transaction and compare these addresses with the ones it shows. If they match, both programs are looking at the same wallet, and the change address is one you control.",

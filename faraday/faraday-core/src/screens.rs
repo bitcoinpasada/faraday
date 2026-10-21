@@ -181,6 +181,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui) {
             Sheet::Details => crate::file_menu::details_sheet(app, ui, w, h),
             Sheet::UnlockLoad => crate::vault_load_screen::draw(app, ui, w, h),
             Sheet::PassphraseSeeds => crate::vault_load_screen::pass_seeds(app, ui, w, h),
+            Sheet::GpgSign => crate::vault_screens::gpg_sign_sheet(app, ui, w, h),
         }
         ui.oy = 0.0;
     }

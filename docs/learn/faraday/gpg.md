@@ -65,7 +65,9 @@ signature is made, because a signature on a bad file cannot be
 withdrawn. The signature is `name.asc` beside the file. `gpg --verify
 name.asc name` checks it with the public certificate.
 
-The signature states the time of this computer's clock. Faraday signs
+The signature states the time of this computer's clock. Sign shows
+that time with the files before the hold, and Set the time there
+changes it; with no known time nothing is signed. Faraday signs
 nothing with a key that has expired, was revoked, or was made after the
 clock's time, and says so in GnuPG's words.
 

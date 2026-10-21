@@ -340,8 +340,11 @@ pub enum VaultAction {
     /// Tick every signable file, or untick them all when every one is
     /// already ticked.
     GpgTickAll,
-    /// Held to sign every ticked file with the selected GPG key, one
-    /// signature each to the Outbox.
+    /// Sign a file's **Sign**: the sheet over the page with the files
+    /// ticked, the time and the hold (F63). Signs nothing.
+    GpgSign,
+    /// Held on that sheet to sign every ticked file with the selected GPG
+    /// key, one signature each to the Outbox.
     GpgHoldSign,
     /// Choose the Windows-compatible enrolment policy, or own keys only.
     SbOwnOnly(bool),
@@ -1867,6 +1870,7 @@ impl Faraday {
             // A key made in the backup flow signs nothing until every place
             // of its plan is written: the action opens the flow.
             V::GpgSignPick
+            | V::GpgSign
             | V::GpgHoldSign
             | V::GpgRenew
             | V::SbEnrol
@@ -1903,11 +1907,10 @@ impl Faraday {
             }
             V::GpgTick(k) => self.gpg_tick(k),
             V::GpgTickAll => self.gpg_tick_all(),
-            V::GpgHoldSign => {
-                if !self.time_asked() {
-                    self.gpg_sign_ticked();
-                }
-            }
+            // Sign opens the sheet; only its hold signs, and it reads the
+            // time the sheet shows rather than asking for it (F63).
+            V::GpgSign => self.gpg_sign_sheet_open(),
+            V::GpgHoldSign => self.gpg_sign_sheet_hold(),
             V::SbOwnOnly(on) => self.vaults.sb_own_only = on,
             V::SbEnrol => {
                 if !self.time_asked() {
@@ -4045,9 +4048,13 @@ impl Faraday {
     }
 
     /// Whether the screen shows the clock or a TOTP code live: Settings'
-    /// and Set the time's Now, the codes, and an open vault's entries,
-    /// whose detail has the Code row.
+    /// and Set the time's Now, the codes, an open vault's entries, whose
+    /// detail has the Code row, and Sign with {key}'s time.
     pub(crate) fn shows_clock(&self) -> bool {
+        // Sign with {key}'s signature time (F63).
+        if self.sheet == Some(crate::Sheet::GpgSign) {
+            return true;
+        }
         match self.screen {
             Screen::Settings | Screen::SetTime | Screen::Codes => true,
             Screen::VaultContents => self.vaults.category == 2,

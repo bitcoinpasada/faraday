@@ -214,6 +214,14 @@ fn outbox_names(app: &Faraday) -> Vec<String> {
     app.outbox.iter().map(|i| i.name.clone()).collect()
 }
 
+/// Sign on the page, then the hold on Sign with {key}: the one way a
+/// ticked file is signed (F63).
+fn sign(app: &mut Faraday) {
+    app.press(Action::Vault(V::GpgSign));
+    assert_eq!(app.sheet, Some(Sheet::GpgSign), "Sign opens its sheet");
+    app.press(Action::Vault(V::GpgHoldSign));
+}
+
 /// Everything drawn, as one string without spaces.
 fn drawn(app: &mut Faraday) -> String {
     let _ = app.frame();
@@ -248,24 +256,141 @@ fn on_the_stick_make_a_key_asks_for_the_time_first() {
     assert_eq!(gpg_keys(&app), before + 1);
 }
 
-/// Signing on the stick asks for the time first too, and signs nothing
-/// until it is checked.
+/// On the stick, with the clock not checked, Sign opens Sign with {key}
+/// and asks nothing: the sheet lists the file chosen and the time the
+/// signature will carry, and nothing is signed until its hold (F63).
 #[test]
-fn on_the_stick_signing_asks_for_the_time_first() {
+fn on_the_stick_sign_opens_the_sheet_with_the_time_and_signs_nothing() {
     let mut app = unlocked();
     app.online = true;
     make_key(&mut app, "Release");
     app.online = false;
     app.press(Action::Vault(V::GpgSignPick));
-    app.press(Action::Vault(V::GpgTick(0)));
+    app.press(Action::Vault(V::GpgTick(listed(&app, "SHA256SUMS"))));
     let files = app.outbox.len();
-    app.press(Action::Vault(V::GpgHoldSign));
-    assert_eq!(app.screen, Screen::SetTime);
+    app.press(Action::Vault(V::GpgSign));
+    assert_eq!(app.screen, Screen::VaultContents, "no Set the time");
+    assert_eq!(app.sheet, Some(Sheet::GpgSign));
     assert_eq!(app.outbox.len(), files, "nothing signed");
-    app.press(Action::SetTimeKeep);
+    let page = drawn(&mut app);
+    assert!(page.contains("SignwithRelease"), "{page}");
+    assert!(page.contains("SHA256SUMS·"), "the file chosen: {page}");
+    assert!(!page.contains("v0.1.0.tag·"), "a file not chosen: {page}");
+    assert!(page.contains("Signaturetime"), "{page}");
+    let now = app.now_local_text().replace(' ', "");
+    assert!(page.contains(&now), "the clock's time: {page}");
+    assert!(page.contains("Holdtosign1file"), "{page}");
     app.press(Action::Vault(V::GpgHoldSign));
-    assert_eq!(app.screen, Screen::VaultContents);
+    assert_eq!(app.sheet, None, "the sheet closes");
+    assert_eq!(app.outbox.len(), files + 1, "one signature");
+    assert!(app.outbox.iter().any(|i| i.name == "SHA256SUMS.asc"));
     assert_eq!(app.toast_text(), Some("1 signature waits for the stick"));
+}
+
+/// Set the time from the sheet returns to it, the files still chosen, and
+/// signs nothing by itself; the hold then signs once, at the time set
+/// (F63).
+#[test]
+fn set_the_time_from_the_sheet_returns_to_it_and_signs_nothing() {
+    let mut app = signing();
+    for name in ["SHA256SUMS", "v0.1.0.tag"] {
+        app.press(Action::Vault(V::GpgTick(listed(&app, name))));
+    }
+    let files = app.outbox.len();
+    app.press(Action::Vault(V::GpgSign));
+    app.press(Action::OpenSetTime);
+    assert_eq!(app.screen, Screen::SetTime);
+    assert_eq!(app.sheet, None, "Set the time is not under the sheet");
+    app.event(Event::Key(Key::Tab));
+    for _ in 0..10 {
+        app.event(Event::Key(Key::Backspace));
+    }
+    type_text(&mut app, "2026-10-21");
+    app.event(Event::Key(Key::Tab));
+    type_text(&mut app, "09:30");
+    app.press(Action::SetTimeSet);
+    assert_eq!(app.screen, Screen::VaultContents);
+    assert_eq!(app.sheet, Some(Sheet::GpgSign), "back on the sheet");
+    assert_eq!(app.outbox.len(), files, "returning signs nothing");
+    assert_eq!(app.vaults.sign_ticked.len(), 2, "the files still chosen");
+    // Back and Keep this time return to it too, and sign nothing.
+    app.press(Action::OpenSetTime);
+    app.press(Action::SetTimeBack);
+    assert_eq!(app.sheet, Some(Sheet::GpgSign));
+    app.press(Action::OpenSetTime);
+    app.press(Action::SetTimeKeep);
+    assert_eq!(app.sheet, Some(Sheet::GpgSign));
+    assert_eq!(app.outbox.len(), files, "nothing signed");
+    app.press(Action::Vault(V::GpgHoldSign));
+    assert_eq!(app.outbox.len(), files + 2, "one signature per file");
+    // The time set is the one signed at.
+    let at = u32::try_from(app.clock_now().unwrap()).unwrap();
+    let key = key_of(&app);
+    let want = armor(
+        Armor::Signature,
+        &key.sign(&release_files()[0].1, at, Hash::Sha512),
+    );
+    let sig = app
+        .outbox
+        .iter()
+        .find(|i| i.name == "SHA256SUMS.asc")
+        .unwrap();
+    assert_eq!(String::from_utf8_lossy(&sig.bytes).trim(), want.trim());
+    // A second hold has no sheet to act on.
+    app.press(Action::Vault(V::GpgHoldSign));
+    assert_eq!(app.outbox.len(), files + 2, "signed once");
+}
+
+/// With the clock not known (the Pi before its time is set), the sheet
+/// says so and its hold signs nothing until the time is set.
+#[test]
+fn with_the_clock_not_known_the_sheet_says_so_and_the_hold_signs_nothing() {
+    let mut app = signing();
+    app.press(Action::Vault(V::GpgTick(listed(&app, "SHA256SUMS"))));
+    // The Pi's clock at power-on: 1970.
+    app.storage(StorageEvent::Clock { unix_secs: 10 });
+    assert_eq!(app.clock_now(), None);
+    let files = app.outbox.len();
+    app.press(Action::Vault(V::GpgSign));
+    assert_eq!(app.sheet, Some(Sheet::GpgSign));
+    let page = drawn(&mut app);
+    assert!(page.contains("Signaturetime"), "{page}");
+    assert!(page.contains("Notknown"), "{page}");
+    app.press(Action::Vault(V::GpgHoldSign));
+    assert_eq!(app.outbox.len(), files, "nothing signed");
+    assert_eq!(app.sheet, Some(Sheet::GpgSign), "the sheet stays");
+    app.press(Action::OpenSetTime);
+    // The date is empty, the time field focused: Tab to the date.
+    app.event(Event::Key(Key::Tab));
+    type_text(&mut app, "2026-10-21");
+    app.event(Event::Key(Key::Tab));
+    type_text(&mut app, "09:30");
+    app.press(Action::SetTimeSet);
+    assert_eq!(app.sheet, Some(Sheet::GpgSign));
+    assert_eq!(app.outbox.len(), files, "setting the time signs nothing");
+    app.press(Action::Vault(V::GpgHoldSign));
+    assert_eq!(app.outbox.len(), files + 1);
+}
+
+/// Cancel closes the sheet and signs nothing; the file stays chosen. The
+/// hold signs nothing with no sheet open, and Sign opens none with no
+/// file chosen.
+#[test]
+fn cancel_signs_nothing_and_only_the_sheets_hold_signs() {
+    let mut app = signing();
+    let files = app.outbox.len();
+    app.press(Action::Vault(V::GpgSign));
+    assert_eq!(app.sheet, None, "no file chosen");
+    app.press(Action::Vault(V::GpgTick(listed(&app, "SHA256SUMS"))));
+    app.press(Action::Vault(V::GpgHoldSign));
+    assert_eq!(app.outbox.len(), files, "no sheet, nothing signed");
+    app.press(Action::Vault(V::GpgSign));
+    assert_eq!(app.sheet, Some(Sheet::GpgSign));
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.outbox.len(), files, "nothing signed");
+    assert_eq!(app.vaults.sign_ticked.len(), 1, "still chosen");
+    assert!(app.vaults.signing, "the page stays");
 }
 
 /// A new key's term is GnuPG's default for `--quick-generate-key`, three
@@ -471,7 +596,7 @@ fn a_new_revocation_asks_the_reason_as_gnupg_does() {
 fn no_seed_and_no_paperkey_reaches_the_outbox() {
     let mut app = signing();
     app.press(Action::Vault(V::GpgTickAll));
-    app.press(Action::Vault(V::GpgHoldSign));
+    sign(&mut app);
     app.press(Action::Vault(V::GpgExport));
     app.press(Action::Vault(V::GpgRenewTerm(2)));
     app.storage(StorageEvent::Clock {
@@ -507,7 +632,7 @@ fn ticking_two_files_and_signing_puts_two_signatures_in_the_outbox() {
         app.press(Action::Vault(V::GpgTick(k)));
     }
     assert!(app.screen != Screen::Home, "still on the vault");
-    app.press(Action::Vault(V::GpgHoldSign));
+    sign(&mut app);
     assert!(app.vaults.signing, "the page stays open");
     for name in names.iter().take(2) {
         let sig = app
@@ -537,7 +662,7 @@ fn a_signature_verifies_in_gnupg() {
     let mut app = signing();
     let k = listed(&app, "SHA256SUMS");
     app.press(Action::Vault(V::GpgTick(k)));
-    app.press(Action::Vault(V::GpgHoldSign));
+    sign(&mut app);
     let sig = app
         .outbox
         .iter()
@@ -617,13 +742,16 @@ fn signing_takes_a_hold() {
 }
 
 /// The ticks are keyed by name and hash: a stick visit that replaces a
-/// ticked file's bytes leaves it unticked, and the hold signs nothing.
+/// ticked file's bytes while Sign with {key} is open leaves it unticked,
+/// and the hold signs nothing.
 #[test]
 fn a_stick_visit_that_replaces_a_ticked_file_drops_its_tick() {
     let mut app = signing();
     let k = listed(&app, "SHA256SUMS");
     app.press(Action::Vault(V::GpgTick(k)));
     assert_eq!(app.vaults.sign_ticked.len(), 1);
+    app.press(Action::Vault(V::GpgSign));
+    assert_eq!(app.sheet, Some(Sheet::GpgSign));
     let changed = (
         "SHA256SUMS".to_string(),
         b"# Faraday 0.1.0, commit 7fcc43a\n0000  faraday-0.1.0-linux-x86_64\n".to_vec(),
@@ -639,10 +767,9 @@ fn a_stick_visit_that_replaces_a_ticked_file_drops_its_tick() {
         item.bytes, changed.1,
         "the stick's file is the one in the Inbox"
     );
-    // The page shows it unticked, with the new hash.
-    let page = drawn(&mut app);
-    assert!(page.contains(&gpg::sha256_hex(&changed.1)));
-    assert!(!page.contains("Holdtosign1file"), "{page}");
+    // The sheet lists no file to sign.
+    let sheet = drawn(&mut app);
+    assert!(!sheet.contains("Holdtosign1file"), "{sheet}");
     let before = app.outbox.len();
     app.press(Action::Vault(V::GpgHoldSign));
     assert_eq!(app.outbox.len(), before, "nothing signed");
@@ -651,6 +778,12 @@ fn a_stick_visit_that_replaces_a_ticked_file_drops_its_tick() {
         "{:?}",
         app.toast_text()
     );
+    // The page shows it unticked, with the new hash.
+    let page = drawn(&mut app);
+    assert!(page.contains(&gpg::sha256_hex(&changed.1)), "{page}");
+    // Nothing is ticked now: Sign opens no sheet.
+    app.press(Action::Vault(V::GpgSign));
+    assert_eq!(app.sheet, None);
 }
 
 /// Changing the key selected, the category or the vault clears the
@@ -685,7 +818,7 @@ fn a_signed_file_is_marked_and_an_asc_in_the_inbox_is_not_listed() {
     let name = &release_files()[0].0;
     let k = listed(&app, name);
     app.press(Action::Vault(V::GpgTick(k)));
-    app.press(Action::Vault(V::GpgHoldSign));
+    sign(&mut app);
     let _ = app.frame();
     let texts = app.drawn_texts();
     assert!(
@@ -748,7 +881,7 @@ fn with_one_file_it_starts_ticked() {
         app.vaults.sign_ticked,
         vec![("SHA256SUMS".to_string(), gpg::sha256(b"hello"))]
     );
-    app.press(Action::Vault(V::GpgHoldSign));
+    sign(&mut app);
     assert!(
         app.outbox.iter().any(|i| i.name == "SHA256SUMS.asc"),
         "the hold signed the one ticked file"
@@ -776,7 +909,7 @@ fn a_signature_never_overwrites_the_certificate() {
     app.press(Action::Vault(V::GpgSignPick));
     let k = listed(&app, &stem);
     app.press(Action::Vault(V::GpgTick(k)));
-    app.press(Action::Vault(V::GpgHoldSign));
+    sign(&mut app);
     let now = app.outbox.iter().find(|i| i.name == cert.name).unwrap();
     assert_eq!(now.bytes, cert.bytes, "the certificate is as it was");
     let toast = app.toast_text().unwrap().to_string();
@@ -797,7 +930,7 @@ fn an_expired_a_revoked_and_a_future_key_sign_nothing() {
         unix_secs: u64::from(key.created) + u64::from(key.expiry) + 1,
     });
     let before = app.outbox.len();
-    app.press(Action::Vault(V::GpgHoldSign));
+    sign(&mut app);
     assert_eq!(app.outbox.len(), before);
     let t = app.toast_text().unwrap();
     assert!(t.starts_with("Unusable secret key: it expired on "), "{t}");
@@ -807,7 +940,7 @@ fn an_expired_a_revoked_and_a_future_key_sign_nothing() {
     app.press(Action::Vault(V::GpgHoldRevoke));
     app.press(Action::Vault(V::GpgTick(listed(&app, "SHA256SUMS"))));
     let before = app.outbox.len();
-    app.press(Action::Vault(V::GpgHoldSign));
+    sign(&mut app);
     assert_eq!(app.outbox.len(), before);
     let t = app.toast_text().unwrap();
     assert!(
@@ -822,7 +955,7 @@ fn an_expired_a_revoked_and_a_future_key_sign_nothing() {
         unix_secs: CLOCK - 3 * 86_400,
     });
     let before = app.outbox.len();
-    app.press(Action::Vault(V::GpgHoldSign));
+    sign(&mut app);
     assert_eq!(app.outbox.len(), before);
     let t = app.toast_text().unwrap();
     assert!(
@@ -1179,6 +1312,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
         );
         assert!(app.signature_code(name).is_some(), "{name}");
     }
+    signs_both(&mut app, &files);
 }
 
 /// The same files on the boot stick beside its vault: the boot sheet lists
@@ -1251,4 +1385,38 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
             "{name} is not offered: {page}"
         );
     }
+    signs_both(&mut app, &files);
+}
+
+/// Both files ticked, Sign: the sheet lists both and signs nothing; its
+/// hold signs each once (F63).
+fn signs_both(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
+    for (name, _) in files {
+        let k = listed(app, name);
+        if !app.vaults.sign_ticked.iter().any(|(n, _)| n == name) {
+            app.press(Action::Vault(V::GpgTick(k)));
+        }
+    }
+    let before = app.outbox.len();
+    app.press(Action::Vault(V::GpgSign));
+    assert_eq!(app.sheet, Some(Sheet::GpgSign));
+    assert_eq!(app.outbox.len(), before, "Sign signs nothing");
+    let sheet = drawn(app);
+    for (name, bytes) in files {
+        assert!(
+            sheet.contains(&format!("{name}·{}B", bytes.len())),
+            "{name} on the sheet: {sheet}"
+        );
+    }
+    assert!(sheet.contains("Holdtosign2files"), "{sheet}");
+    app.press(Action::Vault(V::GpgHoldSign));
+    for (name, _) in files {
+        let n = app
+            .outbox
+            .iter()
+            .filter(|i| i.name == format!("{name}.asc"))
+            .count();
+        assert_eq!(n, 1, "{name} signed once");
+    }
+    assert_eq!(app.outbox.len(), before + files.len());
 }

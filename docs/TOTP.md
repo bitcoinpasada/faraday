@@ -114,12 +114,15 @@ session's secrets.
 the offset. The desktop app (`app.online`) counts as checked whenever
 its clock is known. §5 uses this, and so does everything else that
 keeps the time it reads (HANDOFF item 68, 2026-10-11): GPG's Make a
-key, Renew, Make a revocation, Sign and a signature's QR and PNG, and Secure Boot's Make keys and enrolment files. With the clock
+key, Renew, Make a revocation, a signature's QR and PNG, and Secure Boot's Make keys and enrolment files. With the clock
 not checked (the stick and the Pi), pressing one opens Set the time
 (§3) over the same page, which it returns to, and does nothing else;
 the person then presses again. A GPG key's creation time is part of its
 fingerprint, so a wrong clock is not put right later. Signing an image
-with the db key reads no clock and does not ask.
+with the db key reads no clock and does not ask. GPG's Sign a file does
+not ask either (F63): its sheet shows the time the signatures will
+carry, with **Set the time**, which returns to the sheet, and only its
+hold signs, disabled while the clock is not known.
 
 ## 2. The time zone
 
