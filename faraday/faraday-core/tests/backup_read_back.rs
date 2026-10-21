@@ -133,6 +133,7 @@ fn lock_and_write(shell: &mut Shell, app: &mut Faraday) -> Faraday {
         "{:?}",
         app.backup_kept_nowhere(&c)
     );
+    testkit::type_passphrases(app);
     app.press(Action::BNext(bstep::ENVELOPE));
     shell.flow(app, F::WalletLock);
     let_seed_files_out(app);

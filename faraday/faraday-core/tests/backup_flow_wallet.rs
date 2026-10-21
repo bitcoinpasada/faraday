@@ -1991,6 +1991,7 @@ fn two_of_three_ready_with(shell: &mut Shell, passphrase: bool) -> Faraday {
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     no_words(&mut app);
     app.press(Action::BChecklist);
+    testkit::type_passphrases(&mut app);
     save_vaults(&mut app);
     app.press(Action::BOut(3));
     app.press(Action::BNext(bstep::ENVELOPE));

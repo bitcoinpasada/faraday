@@ -1348,10 +1348,11 @@ fn a_seed_file_at_a_place_has_that_places_stick_of_files_and_is_held_until_writt
     assert_eq!(held(&app, At::Place(1)), vec![What::SeedFile(0)]);
     app.press(Action::BChecklist);
     // The file is made and written with its stick: no item of its own
-    // (`docs/BACKUP-FLOW.md` §19.12 item 6).
+    // (`docs/BACKUP-FLOW.md` §19.12 item 6). The passphrase on paper has
+    // its own (`docs/NEW-WALLET.md` §14.7 item 5).
     assert_eq!(
         app.backup_items_now(&c),
-        vec![bstep::ENVELOPE, bstep::STICKS]
+        vec![bstep::PASSPHRASE, bstep::ENVELOPE, bstep::STICKS]
     );
     let rows = app.wallet_stick_rows_now(&c);
     assert_eq!(rows.len(), 1, "{rows:?}");

@@ -125,6 +125,7 @@ pub(crate) fn backup(
                 &[&lead.to_string(), &further.to_string()],
             )
         }
+        n if bstep::is_passphrase(n) => EN.guide_passphrase_on_paper.to_string(),
         bstep::PUBLIC => fill(EN.guide_this_half_is, &[medium.for_the()]),
         bstep::SHEETS if m > 1 => fill(
             EN.guide_instead_of_one,

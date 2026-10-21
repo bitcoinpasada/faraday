@@ -1069,8 +1069,9 @@ chart.
 
 ### 14.7 A copy by hand is checked by its form (F29)
 
-Items 1, 2 and 4 and the chart are built (2026-10-20); item 3 (Keep
-the words only, the three scans, the grid drawn in part) is not.
+Items 1, 2 and 4 and the chart are built (2026-10-20), item 5 on
+2026-10-21; item 3 (Keep the words only, the three scans, the grid
+drawn in part) is not.
 Built as specified, with these notes: the blank template's `copy:`
 line (`backup::sheet_blank`, `pdf::blank_sheet`) was built with the
 Starter's template page and is unchanged; the typed words are
@@ -1182,10 +1183,9 @@ returns which of the two the seed has.
   the paper again and types it; if the paper is wrong, **Show the
   seed** ends the check, shows the seed to correct the paper, and the
   check is started again from word 1. **Clear** starts it again too.
-- **The passphrase** is not asked. The copy item has no line for it;
-  the plan keeps it at a place that does not keep its words; and a
-  passphrase kept at a place has its own check on the chart (§9.4:
-  typed, compared by the fingerprint it makes, nothing kept).
+- **The passphrase** is not asked here. The copy item has no line for
+  it, and the plan keeps it at a place that does not keep its words; a
+  passphrase on paper is its own item (item 5).
 - **Wiping.** The typed words are a `SecretText`, and the word entry's
   state is dropped and wiped as Add a key's is: on a match, on Clear,
   on Show the seed, on leaving the item or changing the key
@@ -1235,6 +1235,41 @@ the map until destroyed". The chart's **I destroyed this copy**
 **4. Several keys.** Each seed here keeps its own copy item, with the
 forms its own copies have; a multisig with words for one seed and a
 SeedQR for another checks each by its own row.
+
+**5. A passphrase on paper is its own item** (owner, 2026-10-21;
+tracker #180). The check follows the copy's form, as for the words.
+
+- **The item.** `plan::Item::Passphrase(i)`, "Write the passphrase of
+  seed {} on paper", with Checked or Not checked under it as a copy
+  item has.
+- **When.** Seed *i* is held here and the map keeps `What::Passphrase(i)`
+  at a place. A passphrase kept only in a vault (`SeedPassphrase`), as
+  a file (`PassphraseFile`) or sealed has no such item: the vault's item
+  and the stick's carry it.
+- **Where in the order.** Right after seed *i*'s copy item; with no
+  copy of that seed on paper, where its copy item would be, after the
+  templates.
+- **Show the passphrase** shows it, to be written down, and hides it
+  again; a press while the check is open ends the check and wipes what
+  was typed, as Show the seed does.
+- **The check.** The foot's **Check my copy** opens a field for the
+  passphrase as written on the paper, with the passphrase hidden; what
+  is typed is drawn as bullets. **Compare** (or Enter) compares it,
+  whole and exactly, with the passphrase the key was loaded with; no
+  character is compared alone. A match: "Your copy matches the
+  passphrase" (`OK`), the typed text wiped, the field closed, the item
+  done. A mismatch: "Your copy differs from the passphrase" (`ERR`),
+  the typed text wiped, the field left open. **Clear** wipes it too.
+  On the small panel the docked keyboard types it.
+- **Kept.** Done when it has matched in this backup
+  (`BackupState::checked`, the form `CopyForm::Passphrase`), never in
+  the record; the typed text is a `SecretText`, wiped on a match, a
+  mismatch, Clear, Show, leaving the item and a lock, which drops the
+  backup under way. The passphrase matching is not a check of the
+  seed's copy.
+- **The blank template** carries no passphrase line: the passphrase is
+  kept at a place without its words, so any paper does, and a line on
+  the seed's sheet would invite writing it beside them.
 
 **The chart.** §9.3's **Check a copy of this seed** and §9.4's **Check
 this copy** follow the line's form: a words line opens the typed

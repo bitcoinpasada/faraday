@@ -2719,6 +2719,8 @@ pub struct Strings {
     pub guide_none_of_this: &'static str,
     /// Text in `backup`.
     pub guide_copy_words: &'static str,
+    /// Text in `backup`, a passphrase on paper.
+    pub guide_passphrase_on_paper: &'static str,
     /// Text in `backup`, a copy of the SeedQR.
     pub guide_copy_seedqr: &'static str,
     /// Text in `backup`, a copy of both.
@@ -4856,6 +4858,8 @@ pub struct Strings {
     pub item_title_template_n: &'static str,
     /// Text in `item_title`. `{}`: `shape.seeds.get(i).map_or("", |s| s.n…`.
     pub item_title_copy_seed: &'static str,
+    /// Text in `item_title`. `{}`: the seed's name.
+    pub item_title_passphrase: &'static str,
     /// Text in `item_title`.
     pub item_title_checked: &'static str,
     /// Text in `item_title`.
@@ -4924,6 +4928,14 @@ pub struct Strings {
     pub backup_hide_the_seed: &'static str,
     /// Text in `backup_body`.
     pub backup_show_the_seed: &'static str,
+    /// Text in `backup_body`, a passphrase item.
+    pub backup_hide_the_passphrase: &'static str,
+    /// Text in `backup_body`, a passphrase item.
+    pub backup_show_the_passphrase: &'static str,
+    /// Text in `backup_body`, a passphrase item. `{}`: the key's line.
+    pub backup_passphrase_of: &'static str,
+    /// Line in `backup_body`: the key keeps no passphrase to show.
+    pub backup_no_passphrase_kept: &'static str,
     /// Text in `backup_body`. `{}`: `key_line(key.master.fingerprint(), &k…`, `list.len()`.
     pub backup_words: &'static str,
     /// Line in `backup_body`.
@@ -5025,11 +5037,19 @@ pub struct Strings {
     pub copy_check_word_differs: &'static str,
     /// Button in `copy_check`.
     pub copy_check_clear: &'static str,
+    /// Label of the typed passphrase in `copy_check`.
+    pub copy_check_your_copys_passphrase: &'static str,
+    /// Text in `copy_check`.
+    pub copy_check_passphrase_matches: &'static str,
+    /// Text in `copy_check`.
+    pub copy_check_passphrase_differs: &'static str,
     // ----- item_action (faraday-core/src/screens.rs) -----
     /// Text in `item_action`.
     pub item_action_continue: &'static str,
     /// Text in `item_action`.
     pub item_action_check_my: &'static str,
+    /// Text in `item_action`: a passphrase typed back, compared.
+    pub item_action_compare: &'static str,
     /// Text in `item_action`.
     pub item_action_lock_it: &'static str,
     /// Text in `item_action`. `{}`: `open.name`.
@@ -10117,6 +10137,7 @@ pub static EN: Strings = Strings {
     guide_print_the_blank: "Print the blank template first, anywhere: it holds no secret, only numbered lines for the words and the squares every SeedQR of this length shares. It waits {}: carry it to the desktop app, and print one copy per seed. You write on it by hand in the next step.",
     guide_none_of_this: "None of this wallet's seeds were typed into this session, so there is nothing to copy here. Each seed is backed up on the device that holds it.",
     guide_copy_words: "Copy each seed onto its own template by hand, the words in order. Then type your copy's words back; the first word that differs is named.",
+    guide_passphrase_on_paper: "Write the passphrase on paper by hand, exactly as it is, capitals and spaces included. Then type your copy back; it is compared whole.",
     guide_copy_seedqr: "Copy each seed onto its own template by hand, the SeedQR square by square. The grey squares are already on the template. Click a row to keep your place, or move it with the arrow keys. Then scan your copy with the camera; a mistake is named by its word. With no camera, type the seed's words back.",
     guide_copy_both: "Copy each seed onto its own template by hand: the words, and the SeedQR square by square. The grey squares are already on the template. Click a row to keep your place, or move it with the arrow keys. Then type your copy's words back and scan the grid with the camera; a mistake is named by its word. With no camera, type the words back.",
     guide_a_printer_is: "{}{} A printer is a computer with memory and often a network, so a seed never goes to one. There is no line for a passphrase: written beside the words it stops being a second factor.",
@@ -11134,6 +11155,7 @@ pub static EN: Strings = Strings {
     item_title_templates: "templates",
     item_title_template_n: "Template for {} words",
     item_title_copy_seed: "Copy seed {} by hand",
+    item_title_passphrase: "Write the passphrase of seed {} on paper",
     item_title_checked: "Checked",
     item_title_not_checked: "Not checked",
     item_title_vault_2: "Vault {}",
@@ -11167,6 +11189,10 @@ pub static EN: Strings = Strings {
     backup_no_key_of_this: "No key of this wallet was loaded from words in this session",
     backup_hide_the_seed: "Hide the seed",
     backup_show_the_seed: "Show the seed",
+    backup_hide_the_passphrase: "Hide the passphrase",
+    backup_show_the_passphrase: "Show the passphrase",
+    backup_passphrase_of: "Passphrase of {}",
+    backup_no_passphrase_kept: "This key was loaded without its passphrase",
     backup_words: "{} · {} words",
     backup_seedqr_is_for: "SeedQR is for English words only: copy these words by hand",
     backup_standard_seedqr: "Standard SeedQR",
@@ -11214,8 +11240,12 @@ pub static EN: Strings = Strings {
     copy_check_your_copy: "Your copy matches the seed",
     copy_check_word_differs: "Word {} differs from the seed",
     copy_check_clear: "Clear",
+    copy_check_your_copys_passphrase: "Your copy's passphrase",
+    copy_check_passphrase_matches: "Your copy matches the passphrase",
+    copy_check_passphrase_differs: "Your copy differs from the passphrase",
     item_action_continue: "Continue",
     item_action_check_my: "Check my copy",
+    item_action_compare: "Compare",
     item_action_lock_it: "Lock it and make a new vault",
     item_action_save_into: "Save into {}",
     item_action_make_it: "Make it",

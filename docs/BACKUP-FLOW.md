@@ -118,7 +118,7 @@ else:
 | Spot (map) | What the flow does with it |
 |---|---|
 | `At::Place(p)` holding `VaultStick(v)` | a stick, "the stick for Vault v (Place p)": brought in at step 2, written at step 6 |
-| `At::Place(p)` holding words, SeedQR, a passphrase, the sheet, shares | the checklist's paper items (Templates, printed from Faraday Starter; Copy with F29's check; Sheets), as today |
+| `At::Place(p)` holding words, SeedQR, a passphrase, the sheet, shares | the checklist's paper items (Templates, printed from Faraday Starter; Copy with F29's check; Passphrase, typed back, NEW-WALLET §14.7 item 5; Sheets) |
 | `At::Vault(v)` | a vault: existing or new (step 1), unlocked or made (step 3), its seeds made into it (step 4) |
 | `At::Files` | "the stick of files" (seed files, public files): written at step 6 |
 | `At::Software` | the descriptor shown, or its files on a stick: written at step 6 |

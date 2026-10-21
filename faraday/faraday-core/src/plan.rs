@@ -2820,6 +2820,9 @@ pub enum Item {
     Templates,
     /// Copy seed `i` by hand and check it.
     Copy(usize),
+    /// Write seed `i`'s passphrase on paper and check it
+    /// (`docs/NEW-WALLET.md` §14.7 item 5).
+    Passphrase(usize),
     /// Make vault `v` and save into it its seeds, and the wallet where
     /// the plan puts it there.
     Vault(usize),
@@ -2858,15 +2861,20 @@ pub fn checklist_on(shape: &Shape, a: &Answers, m: &Mapped) -> Vec<Item> {
             .any(|s| s.holds.iter().any(|(w, _)| f(*w)))
     };
     let mut out = Vec::new();
-    let paper: Vec<usize> = shape
-        .here()
-        .into_iter()
-        .filter(|&i| at_places(&|w| w == What::Words(i) || w == What::SeedQr(i)))
-        .collect();
-    if !paper.is_empty() {
-        out.push(Item::Templates);
-        out.extend(paper.into_iter().map(Item::Copy));
+    // Each seed here: its copy by hand, then its passphrase on paper.
+    let mut paper = Vec::new();
+    for i in shape.here() {
+        if at_places(&|w| w == What::Words(i) || w == What::SeedQr(i)) {
+            paper.push(Item::Copy(i));
+        }
+        if at_places(&|w| w == What::Passphrase(i)) {
+            paper.push(Item::Passphrase(i));
+        }
     }
+    if paper.iter().any(|i| matches!(i, Item::Copy(_))) {
+        out.push(Item::Templates);
+    }
+    out.extend(paper);
     out.extend(boxes.iter().filter_map(|s| match s.at {
         At::Vault(v) => Some(Item::Vault(v)),
         _ => None,
@@ -2907,6 +2915,9 @@ pub enum CopyForm {
     Words,
     /// The SeedQR, checked by scanning the drawn grid.
     SeedQr,
+    /// The passphrase on paper, checked by typing it back
+    /// (`docs/NEW-WALLET.md` §14.7 item 5): not a copy of the seed.
+    Passphrase,
 }
 
 /// The forms seed `i`'s copies by hand take on the map: the words, a

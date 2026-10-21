@@ -2924,21 +2924,30 @@ pub mod bstep {
     /// Write to sticks: one lock, then each stick by place.
     pub const STICKS: u8 = 10;
     /// Copy seed i by hand and check it: `COPY + i`, the seed by its
-    /// place among the wallet's, below [`VAULT`].
+    /// place among the wallet's, below [`PASSPHRASE`].
     pub const COPY: u8 = 16;
+    /// Seed i's passphrase on paper, checked: `PASSPHRASE + i`, below
+    /// [`VAULT`].
+    pub const PASSPHRASE: u8 = 72;
     /// Vault v made and filled: `VAULT + v`, the first vault `VAULT`.
     pub const VAULT: u8 = 128;
 
     /// Whether `n` is a seed's copy by hand.
     pub fn is_copy(n: u8) -> bool {
-        (COPY..VAULT).contains(&n)
+        (COPY..PASSPHRASE).contains(&n)
+    }
+
+    /// Whether `n` is a seed's passphrase on paper.
+    pub fn is_passphrase(n: u8) -> bool {
+        (PASSPHRASE..VAULT).contains(&n)
     }
 
     /// An item's number.
     pub fn of(item: Item) -> u8 {
         match item {
             Item::Templates => BLANK,
-            Item::Copy(i) => COPY.saturating_add(i.min(usize::from(VAULT - COPY - 1)) as u8),
+            Item::Copy(i) => COPY + i.min(usize::from(PASSPHRASE - COPY - 1)) as u8,
+            Item::Passphrase(i) => PASSPHRASE + i.min(usize::from(VAULT - PASSPHRASE - 1)) as u8,
             Item::Vault(v) => VAULT.saturating_add(v.min(127) as u8),
             Item::SeedFiles => FILES,
             Item::Sheets => SHEETS,
@@ -2960,6 +2969,7 @@ pub mod bstep {
             ENVELOPE => Item::Envelopes,
             STICKS => Item::Sticks,
             n if n >= VAULT => Item::Vault(usize::from(n - VAULT)),
+            n if n >= PASSPHRASE => Item::Passphrase(usize::from(n - PASSPHRASE)),
             n if n >= COPY => Item::Copy(usize::from(n - COPY)),
             _ => return None,
         })
@@ -7806,7 +7816,7 @@ impl Faraday {
         let key = n
             .and_then(bstep::item)
             .and_then(|it| match it {
-                plan::Item::Copy(i) => Some(i),
+                plan::Item::Copy(i) | plan::Item::Passphrase(i) => Some(i),
                 // A vault's item shows its first seed.
                 plan::Item::Vault(v) => {
                     let b = self.backup.as_ref()?;
@@ -7829,6 +7839,10 @@ impl Faraday {
                 })
             });
         if let Some(b) = self.backup.as_mut() {
+            // A passphrase item opens, and closes, with it hidden.
+            if n.is_some_and(bstep::is_passphrase) || b.open.is_some_and(bstep::is_passphrase) {
+                b.reveal = false;
+            }
             b.open = n;
             b.public_more = more;
             b.scroll.follow = true;
@@ -8032,6 +8046,12 @@ impl Faraday {
                 .iter()
                 .find(|(j, _)| *j == i)
                 .is_some_and(|(_, k)| self.copy_checked(c, b, i, k)),
+            plan::Item::Passphrase(i) => {
+                here.iter().find(|(j, _)| *j == i).is_some_and(|(_, k)| {
+                    b.checked
+                        .contains(&(k.fingerprint().0, plan::CopyForm::Passphrase))
+                })
+            }
             plan::Item::Vault(v) => self.backup_vault_fits(c, v).is_some(),
             plan::Item::SeedFiles => {
                 !here.is_empty() && here.iter().all(|(_, k)| self.seed_file_made(&stem, k))
@@ -11551,6 +11571,12 @@ impl Faraday {
                         && self.backup.as_ref().is_some_and(|b| b.naming.is_some()))
             }
             Screen::Entry => true,
+            // A passphrase on paper typed back for Check my copy.
+            Screen::Backup => self
+                .backup
+                .as_ref()
+                .and_then(|b| b.check.as_ref())
+                .is_some_and(|c| c.passphrase),
             Screen::Wallets => self.renaming.is_some(),
             Screen::Message => self.message.as_ref().is_some_and(|m| m.typing),
             Screen::KeyGen => self.keygen.as_ref().is_some_and(|k| {

@@ -5364,9 +5364,13 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
                 fill(EN.item_title_template_n, &[&b.words.to_string()]),
             )
         }
-        Item::Copy(i) => (
+        Item::Copy(i) | Item::Passphrase(i) => (
             fill(
-                EN.item_title_copy_seed,
+                if matches!(item, Item::Copy(_)) {
+                    EN.item_title_copy_seed
+                } else {
+                    EN.item_title_passphrase
+                },
                 &[(shape.seeds.get(i).map_or("", |s| s.name.as_str()))],
             ),
             if done {
@@ -5718,7 +5722,9 @@ pub(crate) fn held_item(
     use crate::plan::{At, Item, What};
     let has = |it: Item| items.contains(&crate::bstep::of(it));
     let item = match (at, what) {
-        (At::Away, _) | (_, What::Passphrase(_) | What::VaultStick(_)) => return None,
+        (At::Away, _) | (_, What::VaultStick(_)) => return None,
+        (At::Place(_), What::Passphrase(i)) => Item::Passphrase(i),
+        (_, What::Passphrase(_)) => return None,
         (_, What::Words(i) | What::SeedQr(i)) => Item::Copy(i),
         (_, What::Sheet | What::Share(_)) => Item::Sheets,
         (At::Vault(v), _) => Item::Vault(v),
@@ -6385,6 +6391,12 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += 48.0;
             }
         }
+        n if bstep::is_passphrase(n) => {
+            cy += passphrase_item(app, ui, x, cy, w);
+            if item_next(app, ui, x, cy, w, n) {
+                cy += 48.0;
+            }
+        }
         bstep::PUBLIC => {
             cy += public_rows_for(app, ui, x, cy, w, b.wallet, Some(&app.backup_public()));
             cy += 12.0;
@@ -6540,7 +6552,8 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return 0.0;
     };
     let mut cy = y;
-    if let Some(found) = b.scanned.as_ref() {
+    let pass = b.open.is_some_and(crate::bstep::is_passphrase);
+    if let Some(found) = b.scanned.as_ref().filter(|_| !pass) {
         let c = if *found == crate::backup::CopyCheck::Matches {
             OK
         } else {
@@ -6550,13 +6563,59 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += ui.wrap(x, cy, w, 13.0, W::S, c, &line) + 12.0;
     }
     let Some(c) = b.check.as_ref() else {
-        if b.checked
-            .contains(&(key.fingerprint().0, crate::plan::CopyForm::Words))
-        {
-            cy += ui.wrap(x, cy, w, 13.0, W::S, OK, EN.copy_check_your_copy) + 12.0;
+        let (form, line) = if pass {
+            (
+                crate::plan::CopyForm::Passphrase,
+                EN.copy_check_passphrase_matches,
+            )
+        } else {
+            (crate::plan::CopyForm::Words, EN.copy_check_your_copy)
+        };
+        if b.checked.contains(&(key.fingerprint().0, form)) {
+            cy += ui.wrap(x, cy, w, 13.0, W::S, OK, line) + 12.0;
         }
         return cy - y;
     };
+    if c.passphrase {
+        // The passphrase as typed, as bullets; the comparison's line.
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            12.0,
+            W::R,
+            DIM,
+            EN.copy_check_your_copys_passphrase,
+        ) + 4.0;
+        ui.fill(x, cy, w, 42.0, 8.0, BG);
+        ui.stroke(x, cy, w, 42.0, 8.0, ACCENT);
+        let dots = "•".repeat(c.typed.chars().count());
+        let dots = ui.fit(14.0, W::M, &dots, w - 30.0);
+        ui.text_mid(x + 12.0, cy, 42.0, 14.0, W::M, TEXT, &dots);
+        cy += 42.0 + 12.0;
+    } else {
+        cy = word_check(ui, x, cy, w, c);
+    }
+    // How the last comparison went, and Clear.
+    let line = c.error.as_deref().unwrap_or("");
+    let lh = ui.wrap(x, cy, w - 88.0, 13.0, W::S, ERR, line);
+    ui.button(
+        x + w - 80.0,
+        cy - 8.0,
+        Some(80.0),
+        32.0,
+        EN.copy_check_clear,
+        Style::Ghost,
+        Action::BCheckClear,
+    );
+    cy += lh.max(18.0) + 12.0;
+    cy - y
+}
+
+/// The typed words of the open check: the word being typed and its
+/// number, the words taken masked, the keys. Returns where it ends.
+fn word_check(ui: &mut Ui, x: f32, y: f32, w: f32, c: &crate::copy_check::WordCheck) -> f32 {
+    let mut cy = y;
     let lang = c.lang;
     if !ui.compact {
         cy += ui.wrap(x, cy, w, 12.0, W::R, DIM, EN.copy_check_your_copys_words) + 4.0;
@@ -6603,19 +6662,62 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy = word_keys(c.shift, k, ui, x, cy, w, 30.0);
         }
     }
-    // How the last comparison went, and Clear.
-    let line = error.unwrap_or("");
-    let lh = ui.wrap(x, cy, w - 88.0, 13.0, W::S, ERR, line);
-    ui.button(
-        x + w - 80.0,
-        cy - 8.0,
-        Some(80.0),
-        32.0,
-        EN.copy_check_clear,
-        Style::Ghost,
-        Action::BCheckClear,
+    cy
+}
+
+/// A passphrase on paper's item (`docs/NEW-WALLET.md` §14.7 item 5):
+/// Show the passphrase, and the passphrase while shown and no check is
+/// open; then the check. Returns its height.
+fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let Some(b) = app.backup.as_ref() else {
+        return 0.0;
+    };
+    let Some(key) = app.session.keys.get(b.key) else {
+        ui.wrap(x, y, w, 13.0, W::R, MUTED, EN.backup_no_key_of_this);
+        return 30.0;
+    };
+    let mut cy = y;
+    let bw = ui.button(
+        x,
+        cy,
+        None,
+        38.0,
+        if b.reveal {
+            EN.backup_hide_the_passphrase
+        } else {
+            EN.backup_show_the_passphrase
+        },
+        if b.reveal {
+            Style::Secondary
+        } else {
+            Style::Primary
+        },
+        Action::BReveal,
     );
-    cy += lh.max(18.0) + 12.0;
+    let (ix, iy) = if ui.compact {
+        (x, cy + 44.0)
+    } else {
+        (x + bw + 14.0, cy)
+    };
+    let info = fill(
+        EN.backup_passphrase_of,
+        &[&key_line(key.fingerprint(), &key.label).to_string()],
+    );
+    let info = ui.fit(13.0, W::R, &info, x + w - ix);
+    ui.text_mid(ix, iy, 38.0, 13.0, W::R, MUTED, &info);
+    cy = iy + 52.0;
+    // The passphrase is not drawn while the check is open.
+    if b.reveal && b.check.is_none() {
+        match key.passphrase.as_ref() {
+            Some(p) => cy += ui.wrap(x, cy, w, 16.0, W::M, TEXT, p) + 16.0,
+            None => cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.backup_no_passphrase_kept) + 12.0,
+        }
+    }
+    cy += copy_check(app, ui, x, cy, w);
+    if ui.compact {
+        cy += 8.0;
+        cy += kept_rows(app, ui, x, cy, w);
+    }
     cy - y
 }
 
@@ -6663,6 +6765,11 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
             };
             (EN.item_action_check_my.to_string(), action)
         }
+        // Check my copy opens the field; with it open, Compare.
+        Item::Passphrase(_) if b.check.is_some() => {
+            (EN.item_action_compare.to_string(), Action::BCheck)
+        }
+        Item::Passphrase(_) => (EN.item_action_check_my.to_string(), Action::BCheck),
         Item::Vault(v) => match app.backup_vault_target(v) {
             Some(cur) if app.backup_vault_taken(v, cur) => (
                 EN.item_action_lock_it.to_string(),
@@ -6701,7 +6808,13 @@ fn item_next(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> bool {
     let (label, action) = item_action(app, n);
     // While the typed check is open it compares on the last word: the
     // foot's Check my copy would do nothing, so it is not drawn.
-    if action == Action::BCheck && app.backup.as_ref().is_some_and(|b| b.check.is_some()) {
+    if action == Action::BCheck
+        && app
+            .backup
+            .as_ref()
+            .and_then(|b| b.check.as_ref())
+            .is_some_and(|c| !c.passphrase)
+    {
         return false;
     }
     let label = ui.fit(14.0, W::S, &label, w - 36.0);

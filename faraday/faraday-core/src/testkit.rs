@@ -1346,6 +1346,36 @@ pub fn type_words(app: &mut crate::Faraday, words: &str) {
     }
 }
 
+/// Checks every passphrase the backup's checklist keeps on paper, as a
+/// person with a right copy does: its item opened, Check my copy, the
+/// key's own passphrase typed back and Enter (`docs/NEW-WALLET.md`
+/// §14.7 item 5).
+pub fn type_passphrases(app: &mut crate::Faraday) {
+    use crate::{Action, bstep};
+    use osk_shell_api::{App, Event, Key};
+    for n in app.backup_items_now(&compute()) {
+        if !bstep::is_passphrase(n) {
+            continue;
+        }
+        if app.backup.as_ref().and_then(|b| b.open) != Some(n) {
+            app.press(Action::BStep(n));
+        }
+        let pass = {
+            let b = app.backup.as_ref().expect("a backup is open");
+            let key = app.session.keys.get(b.key).expect("the open seed");
+            key.passphrase
+                .as_ref()
+                .expect("a key with a passphrase")
+                .to_string()
+        };
+        app.press(Action::BCheck);
+        for c in pass.chars() {
+            app.event(Event::Key(Key::Char(c)));
+        }
+        app.event(Event::Key(Key::Enter));
+    }
+}
+
 /// Opens Check my copy on the backup's open copy item and types the
 /// seed's own words back, as a person with a right copy does.
 pub fn type_copy(app: &mut crate::Faraday) {

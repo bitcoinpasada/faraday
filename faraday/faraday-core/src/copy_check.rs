@@ -2,7 +2,8 @@
 //! §14.7): the words are typed back, a SeedQR is scanned. This is the
 //! typed check, which types through the word entry Add a key uses
 //! ([`crate::forms::word_key`]), and the rules for which checks a copy
-//! item asks for.
+//! item asks for. A passphrase on paper is checked the same way, typed
+//! back whole with the passphrase hidden (§14.7 item 5).
 
 use crate::backup::{self, CopyCheck};
 use crate::forms::{self, WordKey, WordsMut};
@@ -17,10 +18,11 @@ use osk_crypto::work::Compute;
 use osk_shell_api::Key as KeyIn;
 use zeroize::Zeroize;
 
-/// The typed check of a copy of the words while it is open: the words
-/// typed so far, wiped whenever it is dropped.
+/// The typed check of a copy of the words, or of a passphrase on paper,
+/// while it is open: what is typed so far, wiped whenever it is dropped.
 pub struct WordCheck {
-    /// The words, for a list typed on the computer's keyboard.
+    /// The words, for a list typed on the computer's keyboard; or the
+    /// passphrase.
     pub typed: SecretText,
     /// The word entry, for a list typed on an on-screen
     /// keyboard and on the small panel.
@@ -33,6 +35,8 @@ pub struct WordCheck {
     pub lang: Language,
     /// The seed's word count.
     pub count: usize,
+    /// A passphrase is typed, whole, not the words.
+    pub passphrase: bool,
 }
 
 impl WordCheck {
@@ -46,6 +50,15 @@ impl WordCheck {
             error: None,
             lang,
             count,
+            passphrase: false,
+        }
+    }
+
+    /// A check of a passphrase on paper, with nothing typed.
+    fn passphrase() -> WordCheck {
+        WordCheck {
+            passphrase: true,
+            ..WordCheck::new(Language::English, 0, false)
         }
     }
 
@@ -137,7 +150,11 @@ impl Faraday {
     /// The word entry the on-screen keys and the candidates press into.
     pub(crate) fn words_use(&mut self) -> WordsUse<'_> {
         if self.screen == Screen::Backup
-            && let Some(c) = self.backup.as_mut().and_then(|b| b.check.as_mut())
+            && let Some(c) = self
+                .backup
+                .as_mut()
+                .and_then(|b| b.check.as_mut())
+                .filter(|c| !c.passphrase)
         {
             return WordsUse {
                 keys: &mut c.keys,
@@ -214,14 +231,23 @@ impl Faraday {
             });
         match at {
             Some((i, key)) => self.copy_checked(c, b, i, key),
-            None => b.checked.iter().any(|(f, _)| *f == fp),
+            None => b
+                .checked
+                .iter()
+                .any(|(f, form)| *f == fp && *form != CopyForm::Passphrase),
         }
     }
 
     /// Check my copy: opens the typed check, with nothing typed and the
-    /// seed hidden.
+    /// seed hidden. With a passphrase's check open, Compare.
     pub(crate) fn copy_check_open(&mut self) {
-        if self.backup.as_ref().is_none_or(|b| b.check.is_some()) {
+        let Some(b) = self.backup.as_ref() else {
+            return;
+        };
+        if let Some(c) = b.check.as_ref() {
+            if c.passphrase {
+                self.passphrase_check_try();
+            }
             return;
         }
         let check = self.copy_check_new();
@@ -243,6 +269,9 @@ impl Faraday {
 
     fn copy_check_new(&self) -> Option<WordCheck> {
         let b = self.backup.as_ref()?;
+        if b.open.is_some_and(crate::bstep::is_passphrase) {
+            return Some(WordCheck::passphrase());
+        }
         let key = self.session.keys.get(b.key)?;
         let count = key.words.as_ref()?.split_whitespace().count();
         let keyed = forms::on_screen(key.language) || self.compact;
@@ -255,6 +284,27 @@ impl Faraday {
         let Some(c) = self.backup.as_mut().and_then(|b| b.check.as_mut()) else {
             return;
         };
+        if c.passphrase {
+            match key {
+                // BIP-39 passphrases here are printable ASCII.
+                KeyIn::Char(ch) if (' '..='~').contains(&ch) => {
+                    c.typed.push(ch);
+                    c.error = None;
+                }
+                KeyIn::Backspace | KeyIn::Delete => {
+                    c.typed.pop();
+                    c.error = None;
+                }
+                KeyIn::Enter => self.passphrase_check_try(),
+                KeyIn::Escape => {
+                    if let Some(b) = self.backup.as_mut() {
+                        b.check = None;
+                    }
+                }
+                _ => {}
+            }
+            return;
+        }
         match forms::word_key(c.entry(), key) {
             // The word as typed is taken, as a space takes it.
             WordKey::Enter => {
@@ -283,7 +333,7 @@ impl Faraday {
         let Some(chk) = b.check.as_ref() else {
             return;
         };
-        if chk.taken() < chk.count {
+        if chk.passphrase || chk.taken() < chk.count {
             return;
         }
         let Some(key) = self.session.keys.get(b.key) else {
@@ -326,6 +376,41 @@ impl Faraday {
                     c.error = Some(line);
                 }
             }
+        }
+    }
+}
+
+impl Faraday {
+    /// Compare: the passphrase typed against the one the key was loaded
+    /// with, whole, exactly and in constant time. A match is the item
+    /// done; either way what was typed is wiped. A key that keeps no
+    /// passphrase matches nothing.
+    pub(crate) fn passphrase_check_try(&mut self) {
+        let Some(b) = self.backup.as_ref() else {
+            return;
+        };
+        let Some(chk) = b.check.as_ref().filter(|c| c.passphrase) else {
+            return;
+        };
+        let Some(key) = self.session.keys.get(b.key) else {
+            return;
+        };
+        let fp = key.fingerprint().0;
+        let matched = key.passphrase.as_ref().is_some_and(|p| {
+            osk_crypto::Secret::new(p.as_bytes().to_vec())
+                == osk_crypto::Secret::new(chk.typed.as_bytes().to_vec())
+        });
+        let Some(b) = self.backup.as_mut() else {
+            return;
+        };
+        if matched {
+            b.check = None;
+            if !b.checked.contains(&(fp, CopyForm::Passphrase)) {
+                b.checked.push((fp, CopyForm::Passphrase));
+            }
+        } else if let Some(c) = b.check.as_mut() {
+            c.typed.clear();
+            c.error = Some(EN.copy_check_passphrase_differs.to_string());
         }
     }
 }

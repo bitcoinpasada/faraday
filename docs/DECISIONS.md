@@ -1124,8 +1124,11 @@ they were typed, with the seed allowed on screen above the field.
   list and word count, shows the word being typed and masks the words
   taken, compares once the last word is in, and names the first word
   that differs; the words before it stay and typing resumes there.
-- The BIP-39 passphrase is not asked: it has its own check on the
-  chart, by the fingerprint it makes.
+- The BIP-39 passphrase is not asked by the copy's check. A passphrase
+  the plan keeps on paper is its own checklist item, after its seed's
+  copy, checked by typing it back hidden and comparing it exactly
+  (owner, 2026-10-21; §14.7 item 5). On the chart it keeps its own
+  check, by the fingerprint it makes.
 - A SeedQR copy can be dropped for the words: in the plan, by **Keep
   the words only** on its item, and at the item's foot after three
   scans without a match. The plan is edited directly; if the seed's
