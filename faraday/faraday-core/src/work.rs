@@ -2,9 +2,12 @@
 //! that drawing a frame twice, or moving the pointer, did none it should
 //! not (`docs/SPEED.md` §3.3 and §7).
 //!
-//! Each costly function calls [`count`] on its first line. A count is a
-//! thread-local add, about a nanosecond, always compiled: not a cargo
-//! feature and not `cfg(test)`, so faraday-core is built once. The counts
+//! Each costly function calls [`count`] on its first line; the core's
+//! own (a PSBT parsed, inspected or signed, a key stretched, a QR code
+//! read, a canvas blurred or copied) count themselves through
+//! `osk_crypto::work`, whose counter is this crate's ([`install`]). A
+//! count is a thread-local add, about a nanosecond, always compiled: not
+//! a cargo feature and not `cfg(test)`, so faraday-core is built once. The counts
 //! are per thread so that tests running side by side in one process do
 //! not see each other's work; drawing and events run on the thread that
 //! calls the app. Nothing reads them outside a test.
@@ -42,10 +45,33 @@ pub enum Work {
     WordsParse,
     /// A PNG or a PDF made.
     Picture,
+    /// A PSBT parsed from its bytes or its base64 (`osk-psbt`).
+    PsbtParse,
+    /// A PSBT inspected against the session's keys and wallets
+    /// (`osk_psbt::inspect`, also inside every signing).
+    PsbtInspect,
+    /// A PSBT or a message signed (`osk-psbt`).
+    Sign,
+    /// A wallet's script derived to find which wallet a PSBT spends from
+    /// ([`crate::wallet::Wallet::script_at`]).
+    WalletMatch,
+    /// A PNG's pixels decoded to look for QR codes (`faraday-files`).
+    PngDecode,
+    /// QR codes looked for in a picture's pixels (`osk-codec`).
+    QrDecode,
+    /// A key stretched: PBKDF2, scrypt or Argon2 (`osk-crypto`,
+    /// `osk-backup`, `faraday-vault`).
+    Kdf,
+    /// A canvas reduced and blurred: a sheet's frosted backdrop, made
+    /// once when the sheet opens (`osk-ui`).
+    Blur,
+    /// A whole canvas copied: a snapshot taken, put back or blended
+    /// (`osk-ui`): a sheet's kept backdrop each frame, a fade's.
+    FullCanvas,
 }
 
 /// Every kind, in the order the counts keep them.
-pub const KINDS: [Work; 9] = [
+pub const KINDS: [Work; 18] = [
     Work::MasterKey,
     Work::KeyDerive,
     Work::Address,
@@ -55,7 +81,47 @@ pub const KINDS: [Work; 9] = [
     Work::QrEncode,
     Work::WordsParse,
     Work::Picture,
+    Work::PsbtParse,
+    Work::PsbtInspect,
+    Work::Sign,
+    Work::WalletMatch,
+    Work::PngDecode,
+    Work::QrDecode,
+    Work::Kdf,
+    Work::Blur,
+    Work::FullCanvas,
 ];
+
+/// The kinds that are drawing's own pixel work: a frame does them (a
+/// sheet's backdrop put back, a fade blended), so the guard lets them
+/// through and the budget test counts them per frame instead.
+pub const PIXELS: [Work; 2] = [Work::Blur, Work::FullCanvas];
+
+/// The core's kind as this crate counts it.
+fn of_core(w: osk_crypto::work::Work) -> Work {
+    use osk_crypto::work::Work as C;
+    match w {
+        C::PsbtParse => Work::PsbtParse,
+        C::PsbtInspect => Work::PsbtInspect,
+        C::Sign => Work::Sign,
+        C::QrDecode => Work::QrDecode,
+        C::PngDecode => Work::PngDecode,
+        C::Kdf => Work::Kdf,
+        C::Blur => Work::Blur,
+        C::FullCanvas => Work::FullCanvas,
+    }
+}
+
+/// The counter the core's costly functions call (`osk_crypto::work`).
+fn core_count(w: osk_crypto::work::Work) {
+    count(of_core(w));
+}
+
+/// Has the core count its costly work here, for the process: once, at
+/// the app's start and at the first count a test takes. A lookup after.
+pub(crate) fn install() {
+    osk_crypto::work::set_counter(core_count);
+}
 
 thread_local! {
     static COUNTS: [Cell<u64>; KINDS.len()] = const { [const { Cell::new(0) }; KINDS.len()] };
@@ -158,7 +224,11 @@ pub(crate) fn allowed<T>(why: Allowed, f: impl FnOnce() -> T) -> T {
 #[cfg_attr(debug_assertions, track_caller)]
 pub fn count(w: Work) {
     #[cfg(debug_assertions)]
-    if DRAWING.with(Cell::get) && FILLING.with(Cell::get) == 0 && !std::thread::panicking() {
+    if DRAWING.with(Cell::get)
+        && FILLING.with(Cell::get) == 0
+        && !PIXELS.contains(&w)
+        && !std::thread::panicking()
+    {
         let at = std::panic::Location::caller();
         panic!(
             "costly work while drawing: {w:?} in {}:{}; compute it on the state or through the drawing memo (docs/SPEED.md §3.3)\ncalled from: {}",
@@ -211,6 +281,7 @@ impl Counts {
 
 /// The counts so far on this thread.
 pub fn snapshot() -> Counts {
+    install();
     COUNTS.with(|c| {
         let mut out = Counts::default();
         for (o, cell) in out.0.iter_mut().zip(c.iter()) {

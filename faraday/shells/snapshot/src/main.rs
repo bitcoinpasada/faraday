@@ -2898,6 +2898,7 @@ fn visit_tour(t: &mut Tour) -> Result<(), String> {
             picture: None,
             sha: None,
             wallet: None,
+            psbt: None,
         });
     }
     t.app.outbox.push(faraday_core::Item {
@@ -2908,6 +2909,7 @@ fn visit_tour(t: &mut Tour) -> Result<(), String> {
         picture: None,
         sha: None,
         wallet: None,
+        psbt: None,
     });
     t.sticks(true);
     t.press(Action::Nav(Screen::Visit));
@@ -2968,6 +2970,7 @@ fn inbox_tour(t: &mut Tour) -> Result<(), String> {
         picture,
         sha: None,
         wallet: None,
+        psbt: None,
     };
     t.app
         .outbox

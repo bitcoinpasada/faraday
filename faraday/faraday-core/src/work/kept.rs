@@ -186,3 +186,81 @@ fn a_seed_whose_fingerprint_finds_a_record_of_another_seed_is_not_kept_there() {
         "a fingerprint alone does not make another seed kept"
     );
 }
+
+#[test]
+fn a_psbt_waiting_in_files_is_offered_on_its_wallets_card_once_the_wallet_loads() {
+    use crate::StorageEvent;
+    let kits = testkit::kits();
+    let savings = kits.iter().find(|k| k.id == "savings").expect("Savings");
+    let mut app = testkit::started();
+    let _ = app.session.set_network(testkit::NET);
+    let psbt = testkit::unsigned(savings).expect("Savings' spend");
+    app.storage(StorageEvent::Restored {
+        inbox: vec![("savings-unsigned.psbt".into(), psbt.to_bytes())],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    // Another wallet first: the PSBT is not its.
+    let other = kits.iter().find(|k| k.id == "spending").expect("Spending");
+    let w = app
+        .session
+        .add_wallet(other.name, &other.descriptor, "test", Origin::Named)
+        .expect("Spending loads");
+    app.press(Action::Nav(Screen::Wallets));
+    let _ = app.frame();
+    assert_eq!(app.psbt_for(w), None, "the PSBT is not Spending's");
+    let w = app
+        .session
+        .add_wallet(savings.name, &savings.descriptor, "test", Origin::Named)
+        .expect("Savings loads");
+    let _ = app.frame();
+    assert_eq!(app.psbt_for(w), Some(0), "the PSBT is Savings'");
+    assert_ne!(
+        app.spend_button(w).0,
+        crate::strings::EN.family_spend_from_this,
+        "Savings' card offers to sign the PSBT in Files"
+    );
+}
+
+#[test]
+fn a_spend_opened_before_its_seeds_were_loaded_signs_with_them_once_they_are() {
+    use crate::StorageEvent;
+    let kits = testkit::kits();
+    let savings = kits.iter().find(|k| k.id == "savings").expect("Savings");
+    let mut app = testkit::started();
+    let _ = app.session.set_network(testkit::NET);
+    app.session
+        .add_wallet(savings.name, &savings.descriptor, "test", Origin::Named)
+        .expect("Savings loads");
+    let psbt = testkit::unsigned(savings).expect("Savings' spend");
+    app.storage(StorageEvent::Restored {
+        inbox: vec![("savings-unsigned.psbt".into(), psbt.to_bytes())],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::StartSpend(0));
+    let _ = app.frame();
+    assert!(
+        app.spend
+            .as_ref()
+            .is_some_and(|s| s.inspection.participating_keys.iter().all(|fp| !app
+                .session
+                .keys
+                .iter()
+                .any(|k| k.fingerprint() == *fp))),
+        "no seed of the spend is here yet"
+    );
+    for (word, l) in &testkit::TEST_SEEDS[..2] {
+        let _ = app.session.add_words(&testkit::test_words(word), l, None);
+    }
+    app.press(Action::SignHere);
+    let _ = app.frame();
+    let s = app.spend.as_ref().expect("the spend");
+    assert_eq!(s.error, None);
+    assert_eq!(
+        s.spend.signed_here.len(),
+        2,
+        "both seeds loaded since signed"
+    );
+    assert_eq!(s.signers.len(), 2, "the review shows both signatures");
+}

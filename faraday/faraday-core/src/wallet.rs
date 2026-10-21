@@ -288,6 +288,10 @@ pub struct Wallet {
     /// and index ([`Wallet::address_on`]): public, and dropped with the
     /// policy they come from ([`Wallet::set_policy`]).
     addresses: std::cell::RefCell<Vec<(Network, bool, u32, String)>>,
+    /// The scripts asked of it to find which wallet a PSBT spends from,
+    /// each derived once, by chain and index ([`Wallet::script_at`]):
+    /// public, and dropped with the policy they come from.
+    scripts: std::cell::RefCell<Vec<(bool, u32, Option<osk_bip::bitcoin::ScriptBuf>)>>,
 }
 
 impl Wallet {
@@ -301,7 +305,34 @@ impl Wallet {
             source,
             origin,
             addresses: std::cell::RefCell::new(Vec::new()),
+            scripts: std::cell::RefCell::new(Vec::new()),
         }
+    }
+
+    /// Its script at `change`/`index`, `None` when it has none there:
+    /// derived the first time it is asked and kept on the wallet, a
+    /// lookup after, as [`Wallet::address_on`] keeps addresses. Costs a
+    /// script derivation the first time.
+    pub fn script_at(&self, change: bool, index: u32) -> Option<osk_bip::bitcoin::ScriptBuf> {
+        if let Some((.., s)) = self
+            .scripts
+            .borrow()
+            .iter()
+            .find(|(c, i, _)| *c == change && *i == index)
+        {
+            return s.clone();
+        }
+        let s = crate::work::keeping(|| {
+            crate::work::count(crate::work::Work::WalletMatch);
+            self.policy.script_at(change, index).ok()
+        });
+        let mut kept = self.scripts.borrow_mut();
+        // A long walk through places keeps the latest only.
+        if kept.len() >= 256 {
+            kept.clear();
+        }
+        kept.push((change, index, s.clone()));
+        s
     }
 
     /// Its address on `network` at `change`/`index`, or why there is
@@ -352,6 +383,7 @@ impl Wallet {
         self.checksum = policy.checksum();
         self.policy = policy;
         self.addresses.borrow_mut().clear();
+        self.scripts.borrow_mut().clear();
     }
 }
 
@@ -777,7 +809,18 @@ impl Session {
         source: &str,
         origin: Origin,
     ) -> Result<usize, Refusal> {
-        let policy = read_wallet(text)?;
+        self.add_policy(name, read_wallet(text)?, source, origin)
+    }
+
+    /// [`Session::add_wallet`] of a description read before (a vault's
+    /// kept records): no parse.
+    pub fn add_policy(
+        &mut self,
+        name: &str,
+        policy: WalletPolicy,
+        source: &str,
+        origin: Origin,
+    ) -> Result<usize, Refusal> {
         let descriptor = same_wallet(&policy);
         if let Some(i) = self
             .wallets
@@ -1003,6 +1046,17 @@ impl Session {
             .collect()
     }
 
+    /// What an inspection is worked out from beside the PSBT
+    /// ([`InspectInputs`]). Lookups: each key's id and each wallet's
+    /// checksum are kept.
+    pub fn inspect_inputs(&self) -> InspectInputs {
+        InspectInputs {
+            network: self.network,
+            keys: self.keys.iter().map(Key::master_id).collect(),
+            wallets: self.wallets.iter().map(|w| w.checksum.clone()).collect(),
+        }
+    }
+
     /// The inspection of `psbt` against this session's keys and wallets.
     pub fn inspect(&self, psbt: &Psbt) -> Inspection {
         self.inspect_with(psbt, None)
@@ -1052,13 +1106,16 @@ impl Session {
         seed: [u8; 32],
         musig: &mut Option<osk_psbt::MusigSession>,
     ) -> Result<Vec<Fingerprint>, String> {
-        self.sign_with(psbt, seed, musig, &[], None).map(|s| s.by)
+        self.sign_with(psbt, seed, musig, &[], None, None)
+            .map(|s| s.by)
     }
 
     /// Signs `psbt` with every session key and share it names. `others`
     /// are the shares chosen to sign with this one, by identifier, at a
     /// threshold spend's first location; `carry` is the section a later
-    /// location reads.
+    /// location reads. `known` is the inspection of `psbt` with this
+    /// session and `carry` when the caller keeps one current (the open
+    /// spend's): it chooses the keys without inspecting again.
     pub fn sign_with(
         &self,
         psbt: &mut Psbt,
@@ -1066,6 +1123,7 @@ impl Session {
         musig: &mut Option<osk_psbt::MusigSession>,
         others: &[u32],
         carry: Option<&osk_psbt::threshold::CarrySection>,
+        known: Option<&Inspection>,
     ) -> Result<Signed, String> {
         let refs = self.key_refs();
         let policies = self.policies();
@@ -1073,7 +1131,14 @@ impl Session {
         let mut ctx = context(self.network, &refs, &policies);
         ctx.shares = &share_refs;
         ctx.carry = carry;
-        let inspection = osk_psbt::inspect(psbt, &ctx);
+        let own;
+        let inspection = match known {
+            Some(i) => i,
+            None => {
+                own = osk_psbt::inspect(psbt, &ctx);
+                &own
+            }
+        };
         let selection: Vec<Fingerprint> = inspection
             .participating_keys
             .iter()
@@ -1250,40 +1315,89 @@ impl Kind {
 impl Session {
     /// The loaded wallet whose script the transaction's first input
     /// spends, found by re-deriving each wallet's script at the paths the
-    /// input's own key origins state.
+    /// input's own key origins state. Costs a txid and, the first time a
+    /// wallet is asked a place, a script derivation ([`Wallet::script_at`]).
     pub fn wallet_for(&self, psbt: &Psbt) -> Option<usize> {
+        self.spends_from(&PsbtSeen::of(psbt))
+    }
+
+    /// [`Session::wallet_for`] of a PSBT read before ([`PsbtSeen`]):
+    /// lookups once each wallet keeps its scripts at the input's places,
+    /// so a frame may ask it of every file in Files.
+    pub fn spends_from(&self, seen: &PsbtSeen) -> Option<usize> {
+        let (spk, places) = seen.first.as_ref()?;
+        self.wallets.iter().position(|w| {
+            places
+                .iter()
+                .any(|(change, index)| w.script_at(*change, *index).as_ref() == Some(spk))
+        })
+    }
+}
+
+/// What an inspection of a PSBT is worked out from beside it: the
+/// network, each key (by [`master_id`]) and each wallet (by its
+/// checksum). Two equal ones inspect a PSBT alike. Public.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InspectInputs {
+    network: Network,
+    keys: Vec<[u8; 32]>,
+    wallets: Vec<String>,
+}
+
+/// What a PSBT says that the screens read, taken once when it is read
+/// (`docs/SPEED.md` §3.3): its transaction's id, its signatures, and the
+/// script and places its first input spends from, which find its wallet
+/// ([`Session::spends_from`]) whatever wallets are loaded then. Public.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PsbtSeen {
+    /// The unsigned transaction's id.
+    pub txid: Txid,
+    /// Partial signatures on all its inputs.
+    pub sigs: usize,
+    /// The first input's script, and each (change, index) its key
+    /// origins state.
+    first: Option<(osk_bip::bitcoin::ScriptBuf, Vec<(bool, u32)>)>,
+}
+
+impl PsbtSeen {
+    /// What `psbt` says. Costs a txid.
+    pub fn of(psbt: &Psbt) -> PsbtSeen {
         let inner = psbt.inner();
-        let input = inner.inputs.first()?;
-        let txin = inner.unsigned_tx.input.first()?;
-        let spk = match (&input.witness_utxo, &input.non_witness_utxo) {
-            (Some(out), _) => out.script_pubkey.clone(),
-            (None, Some(tx)) => tx
-                .output
-                .get(txin.previous_output.vout as usize)?
-                .script_pubkey
-                .clone(),
-            _ => return None,
-        };
-        let mut places: Vec<(bool, u32)> = Vec::new();
-        let paths = input
-            .bip32_derivation
-            .values()
-            .map(|(_, p)| p.clone())
-            .chain(input.tap_key_origins.values().map(|(_, (_, p))| p.clone()));
-        for path in paths {
-            let n: Vec<u32> = path.into_iter().map(|c| u32::from(*c)).collect();
-            if n.len() >= 2 {
-                let (chain, index) = (n[n.len() - 2], n[n.len() - 1]);
-                if chain <= 1 && !places.contains(&(chain == 1, index)) {
-                    places.push((chain == 1, index));
+        let sigs = inner.inputs.iter().map(|i| i.partial_sigs.len()).sum();
+        let first = (|| {
+            let input = inner.inputs.first()?;
+            let txin = inner.unsigned_tx.input.first()?;
+            let spk = match (&input.witness_utxo, &input.non_witness_utxo) {
+                (Some(out), _) => out.script_pubkey.clone(),
+                (None, Some(tx)) => tx
+                    .output
+                    .get(txin.previous_output.vout as usize)?
+                    .script_pubkey
+                    .clone(),
+                _ => return None,
+            };
+            let mut places: Vec<(bool, u32)> = Vec::new();
+            let paths = input
+                .bip32_derivation
+                .values()
+                .map(|(_, p)| p.clone())
+                .chain(input.tap_key_origins.values().map(|(_, (_, p))| p.clone()));
+            for path in paths {
+                let n: Vec<u32> = path.into_iter().map(|c| u32::from(*c)).collect();
+                if n.len() >= 2 {
+                    let (chain, index) = (n[n.len() - 2], n[n.len() - 1]);
+                    if chain <= 1 && !places.contains(&(chain == 1, index)) {
+                        places.push((chain == 1, index));
+                    }
                 }
             }
+            Some((spk, places))
+        })();
+        PsbtSeen {
+            txid: inner.unsigned_tx.compute_txid(),
+            sigs,
+            first,
         }
-        self.wallets.iter().position(|w| {
-            places.iter().any(|(change, index)| {
-                w.policy.script_at(*change, *index).ok().as_ref() == Some(&spk)
-            })
-        })
     }
 }
 
@@ -1467,68 +1581,104 @@ fn text_may_be_secret(text: &str) -> bool {
 
 /// Says what a file holds.
 pub fn classify(name: &str, bytes: &[u8]) -> FileKind {
+    classify_read(name, bytes).kind
+}
+
+/// A file classified ([`classify_read`]), with what was read to tell:
+/// a PSBT's summary, a wallet file's wallet.
+pub struct Classified {
+    /// What it holds.
+    pub kind: FileKind,
+    /// A PSBT's summary, when it is one.
+    pub psbt: Option<PsbtSeen>,
+    /// The wallet a wallet file describes, when it is one.
+    pub wallet: Option<WalletPolicy>,
+}
+
+impl From<FileKind> for Classified {
+    fn from(kind: FileKind) -> Classified {
+        Classified {
+            kind,
+            psbt: None,
+            wallet: None,
+        }
+    }
+}
+
+/// [`classify`], keeping what it read to tell: a PSBT is parsed once and a
+/// wallet file read once when a file comes in. Costs what [`classify`]
+/// costs.
+pub fn classify_read(name: &str, bytes: &[u8]) -> Classified {
     if faraday_vault::read_header(bytes).is_ok() {
-        return FileKind::Vault;
+        return FileKind::Vault.into();
     }
     if osk_backup::oskb::is_backup(bytes) {
-        return FileKind::Backup;
+        return FileKind::Backup.into();
     }
     if bytes.starts_with(b"%PDF-") {
-        return FileKind::Pdf;
+        return FileKind::Pdf.into();
     }
     if faraday_intake::is_kdbx(bytes) {
-        return FileKind::Kdbx;
+        return FileKind::Kdbx.into();
     }
     if crate::secureboot::is_image(name) && bytes.starts_with(b"MZ") {
-        return FileKind::EfiImage;
+        return FileKind::EfiImage.into();
     }
     if faraday_apk::zip::names_manifest(bytes) {
-        return FileKind::Apk;
+        return FileKind::Apk.into();
     }
     if faraday_apk::pem::read(bytes).is_some() {
-        return FileKind::Certificate;
+        return FileKind::Certificate.into();
     }
     if osk_psbt::threshold::Carry::looks_like_carry(bytes) {
-        return FileKind::Carry;
+        return FileKind::Carry.into();
     }
-    if read_psbt(bytes).is_some() {
-        return FileKind::Psbt;
+    if let Some(p) = read_psbt(bytes) {
+        return Classified {
+            kind: FileKind::Psbt,
+            psbt: Some(PsbtSeen::of(&p)),
+            wallet: None,
+        };
     }
     if let Ok(text) = std::str::from_utf8(bytes) {
         if text.starts_with("faraday-sheet 1") {
-            return FileKind::Sheet;
+            return FileKind::Sheet.into();
         }
         if let Some(block) = faraday_pgp::read_public(bytes)
             && !block.texts.iter().any(|t| text_may_be_secret(t))
         {
-            return FileKind::Gpg;
+            return FileKind::Gpg.into();
         }
         if let Some(m) = osk_psbt::message::parse_signed(text)
             && m.address.parse::<osk_bip::bitcoin::Address<_>>().is_ok()
         {
-            return FileKind::Message;
+            return FileKind::Message.into();
         }
         if crate::restore::is_share(text) {
-            return FileKind::Share;
+            return FileKind::Share.into();
         }
         if faraday_intake::wallet::holds_secret(text) {
-            return FileKind::SecretWallet;
+            return FileKind::SecretWallet.into();
         }
-        if read_wallet(text).is_ok() {
-            return FileKind::Wallet;
+        if let Ok(w) = read_wallet(text) {
+            return Classified {
+                kind: FileKind::Wallet,
+                psbt: None,
+                wallet: Some(w),
+            };
         }
         if crate::create::read_key(text).is_some() {
-            return FileKind::Key;
+            return FileKind::Key.into();
         }
         if crate::forms::typed_mnemonic(Language::English, &crate::forms::file_words(text)).is_ok()
         {
-            return FileKind::Words;
+            return FileKind::Words.into();
         }
         if faraday_vault::entries::looks_like_entries(text) {
-            return FileKind::Entries;
+            return FileKind::Entries.into();
         }
         if crate::inbox::part_of(text).is_some() {
-            return FileKind::SeedPart;
+            return FileKind::SeedPart.into();
         }
         // A raw transaction in hex, under any name: what a wallet or an
         // explorer gives to broadcast.
@@ -1537,13 +1687,13 @@ pub fn classify(name: &str, bytes: &[u8]) -> FileKind {
             && t.bytes().all(|b| b.is_ascii_hexdigit())
             && osk_psbt::transaction::read_raw(t.as_bytes()).is_some()
         {
-            return FileKind::Transaction;
+            return FileKind::Transaction.into();
         }
         if is_text(text) {
-            return FileKind::Text;
+            return FileKind::Text.into();
         }
     }
-    FileKind::Other
+    FileKind::Other.into()
 }
 
 /// One transaction being signed, from the moment it is loaded.
@@ -1579,7 +1729,18 @@ impl Spend {
 
     /// Fingerprints with a valid signature on the first input; for a
     /// MuSig2 wallet, the participants whose partial signature is on it.
+    /// Costs an inspection of the PSBT, but for MuSig2.
     pub fn signers(&self, session: &Session) -> Vec<Fingerprint> {
+        self.signers_by(session, None)
+    }
+
+    /// [`Spend::signers`], read from `inspection` of this PSBT when one
+    /// is given (the spend's kept one), else inspected now.
+    pub fn signers_by(
+        &self,
+        session: &Session,
+        inspection: Option<&Inspection>,
+    ) -> Vec<Fingerprint> {
         if let Some(w) = session
             .wallet_for(&self.psbt)
             .and_then(|i| session.wallets.get(i))
@@ -1609,7 +1770,14 @@ impl Spend {
                 .filter_map(|k| k.fingerprint())
                 .collect();
         }
-        let inspection = session.inspect(&self.psbt);
+        let own;
+        let inspection = match inspection {
+            Some(i) => i,
+            None => {
+                own = session.inspect(&self.psbt);
+                &own
+            }
+        };
         let mut out: Vec<Fingerprint> = inspection
             .present_signatures()
             .filter(|s| s.input == 0 && s.verdict == Verdict::Valid)

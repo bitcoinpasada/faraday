@@ -1629,6 +1629,12 @@ pub struct Item {
     /// made, so this stays what they say; nothing reads the bytes again
     /// for it.
     pub wallet: Option<osk_bip::policy::WalletPolicy>,
+    /// What a PSBT file says (its txid, its signatures, what its first
+    /// input spends), read once when the file came in, as
+    /// [`Item::wallet`] is: `None` for any other file. Which loaded
+    /// wallet it spends from is found from it
+    /// ([`wallet::Session::spends_from`]), so it follows the wallets.
+    pub psbt: Option<wallet::PsbtSeen>,
 }
 
 /// An Inbox or Outbox file may be a seed or a share written in the clear:
@@ -1644,12 +1650,9 @@ impl Item {
     /// once. Costs a classification, a parse of a wallet file's
     /// description and a hash of an APK, a vault or an EFI image.
     fn new(name: &str, bytes: Vec<u8>) -> Item {
-        let kind = wallet::classify(name, &bytes);
+        let wallet::Classified { kind, psbt, wallet } = wallet::classify_read(name, &bytes);
         let sha = matches!(kind, FileKind::Apk | FileKind::Vault | FileKind::EfiImage)
             .then(|| sha256_of(&bytes));
-        let wallet = (kind == FileKind::Wallet)
-            .then(|| wallet::read_wallet(&String::from_utf8_lossy(&bytes)).ok())
-            .flatten();
         Item {
             name: name.to_string(),
             bytes,
@@ -1658,7 +1661,14 @@ impl Item {
             picture: None,
             sha,
             wallet,
+            psbt,
         }
+    }
+
+    /// What a PSBT file says, read when it came in ([`Item::psbt`]): a
+    /// lookup.
+    pub fn psbt(&self) -> Option<&wallet::PsbtSeen> {
+        self.psbt.as_ref().filter(|_| self.kind == FileKind::Psbt)
     }
 
     /// The wallet a wallet file describes, read when it came in. A lookup.
@@ -2414,8 +2424,13 @@ pub struct SpendState {
     pub table: bool,
     /// The last refusal or failure.
     pub error: Option<String>,
-    /// The inspection, kept current.
+    /// The inspection, kept current: worked out again only when what it
+    /// is of changed ([`SpendState::inspected`]).
     pub inspection: osk_psbt::Inspection,
+    /// What [`SpendState::inspection`] is of: the PSBT, the session's
+    /// network, keys and wallets, and whether a carry came with it.
+    /// `refresh_spend` inspects again only when one of them changed.
+    pub(crate) inspected: Option<(osk_psbt::Psbt, wallet::InspectInputs, bool)>,
     /// Fingerprints with a valid signature.
     pub signers: Vec<[u8; 4]>,
     /// Which results went to the Outbox.
@@ -2458,6 +2473,16 @@ pub struct SpendState {
     /// true, closing every card (an interactive collapse) leaves `open`
     /// at `None` rather than reopening one.
     pub opened: bool,
+}
+
+impl SpendState {
+    /// Whether [`SpendState::inspection`] is of the PSBT as it is, with
+    /// the session's `inputs` and the carry as they are.
+    pub(crate) fn inspected_for(&self, inputs: &wallet::InspectInputs) -> bool {
+        self.inspected.as_ref().is_some_and(|(p, i, c)| {
+            *c == self.carry.is_some() && i == inputs && *p == self.spend.psbt
+        })
+    }
 }
 
 /// An account key of a loaded wallet held here, as
@@ -3711,6 +3736,8 @@ impl Default for Faraday {
 impl Faraday {
     /// A fresh app: no keys, empty boxes, Home.
     pub fn new() -> Self {
+        // The core counts its costly work with this crate's counter.
+        work::install();
         Faraday {
             canvas: None,
             f: 1.0,
@@ -5072,8 +5099,13 @@ impl Faraday {
             return;
         }
         let spend = Spend::new(psbt, &name);
-        let inspection = self.session.inspect(&spend.psbt);
-        let signers = spend.signers(&self.session).iter().map(|f| f.0).collect();
+        // Inspected once here; `refresh_spend` below finds it current.
+        let inspection = self.session.inspect_with(&spend.psbt, carry.as_ref());
+        let inspected = Some((
+            spend.psbt.clone(),
+            self.session.inspect_inputs(),
+            carry.is_some(),
+        ));
         let mut state = SpendState {
             spend,
             // Computed in `refresh_spend`, once Check's done state is
@@ -5084,7 +5116,8 @@ impl Faraday {
             table: false,
             error: None,
             inspection,
-            signers,
+            inspected,
+            signers: Vec::new(),
             out_signed: false,
             out_tx: false,
             show_hex: false,
@@ -5110,8 +5143,19 @@ impl Faraday {
 
     fn refresh_spend(&mut self) {
         if let Some(s) = self.spend.as_mut() {
-            s.inspection = self.session.inspect_with(&s.spend.psbt, s.carry.as_ref());
-            s.signers = s.spend.signers(&self.session).iter().map(|f| f.0).collect();
+            // Inspected once each time the PSBT or the session changes,
+            // not on every press that refreshes the spend.
+            let inputs = self.session.inspect_inputs();
+            if !s.inspected_for(&inputs) {
+                s.inspection = self.session.inspect_with(&s.spend.psbt, s.carry.as_ref());
+                s.inspected = Some((s.spend.psbt.clone(), inputs, s.carry.is_some()));
+            }
+            s.signers = s
+                .spend
+                .signers_by(&self.session, Some(&s.inspection))
+                .iter()
+                .map(|f| f.0)
+                .collect();
             s.wallet = self.session.wallet_for(&s.spend.psbt);
             let wallet = s.wallet.and_then(|w| self.session.wallets.get(w));
             let kind = wallet.map(|w| wallet::Kind::of(w.policy()));
@@ -5210,21 +5254,12 @@ impl Faraday {
 
     /// The Inbox PSBT to offer first: the one with the fewest signatures,
     /// so a cosigner's signed copy never stands in for the transaction.
+    /// Reads what each file said when it came in ([`Item::psbt`]).
     pub fn lead_psbt(&self) -> Option<usize> {
         self.inbox
             .iter()
             .enumerate()
-            .filter(|(_, it)| it.kind == FileKind::Psbt)
-            .filter_map(|(i, it)| {
-                let p = wallet::read_psbt(&it.bytes)?;
-                let sigs: usize = p
-                    .inner()
-                    .inputs
-                    .iter()
-                    .map(|inp| inp.partial_sigs.len())
-                    .sum();
-                Some((sigs, i))
-            })
+            .filter_map(|(i, it)| Some((it.psbt()?.sigs, i)))
             .min()
             .map(|(_, i)| i)
     }
@@ -6362,9 +6397,8 @@ impl Faraday {
                         .or_else(|| {
                             self.inbox
                                 .iter()
-                                .filter(|i| i.kind == FileKind::Psbt)
-                                .filter_map(|i| wallet::read_psbt(&i.bytes))
-                                .find(|p| p.unsigned_tx().compute_txid() == txid)
+                                .find(|i| i.psbt().is_some_and(|p| p.txid == txid))
+                                .and_then(|i| wallet::read_psbt(&i.bytes))
                         });
                     let prevouts = psbt.map(|p| decode::prevouts_of(&p)).unwrap_or_default();
                     let decoded = decode::decode(&tx, &prevouts, &self.session, &item.name);
@@ -11115,9 +11149,18 @@ impl Faraday {
                         .collect(),
                 )
             });
-        let signed =
-            self.session
-                .sign_with(&mut psbt, seed, &mut s.musig, &s.others, s.carry.as_ref());
+        // The spend's inspection chooses the keys when it is of this
+        // PSBT and session as they are; else signing inspects.
+        let inputs = self.session.inspect_inputs();
+        let known = s.inspected_for(&inputs).then_some(&s.inspection);
+        let signed = self.session.sign_with(
+            &mut psbt,
+            seed,
+            &mut s.musig,
+            &s.others,
+            s.carry.as_ref(),
+            known,
+        );
         // A session whose every nonce has signed is over: the next pass
         // over this transaction opens a new one, never the same nonce.
         if s.musig.as_ref().is_some_and(|m| m.is_empty()) {
@@ -11697,6 +11740,19 @@ impl Faraday {
         v.into_iter()
     }
 
+    /// What the region that scrolls now rounds an offset to: whole
+    /// pixels, and never past the end the last frame drew. Rounded up
+    /// past it, the page would clamp it back and ask for another frame,
+    /// for ever at a scale that is not whole.
+    fn whole_offset(&self) -> impl Fn(f32) -> f32 + use<> {
+        let f = self.f.max(0.1);
+        let end = self.region_now().map(|e| (e.max * f).floor().max(0.0));
+        move |o| {
+            let px = (o * f).round();
+            end.map_or(px, |end| px.min(end)) / f
+        }
+    }
+
     /// The region that scrolls now, as the last frame drew it.
     fn region_now(&self) -> Option<ui::Scrolled> {
         let slot = self.slot();
@@ -12156,8 +12212,9 @@ impl Faraday {
         // Offsets in whole pixels, whoever set them last, so a scrolled
         // page moves as one.
         let f = self.f.max(0.1);
+        let whole = self.whole_offset();
         if let Some(offset) = self.scroll_slot() {
-            *offset = (*offset * f).round() / f;
+            *offset = whole(*offset);
         }
         let stretch = (self.motion.stretch() * f).round() as i32;
         // The overlay scrollbar shows while the offset moves and fades
@@ -12383,8 +12440,8 @@ impl Faraday {
             d.moving = false;
         }
         self.guided_moving = None;
-        let f = self.f.max(0.1);
-        let offset = self.scroll_slot().map_or(0.0, |o| (*o * f).round() / f);
+        let whole = self.whole_offset();
+        let offset = self.scroll_slot().map_or(0.0, |o| whole(*o));
         self.bar_seen = ((self.region_key(), self.slot()), offset, 0);
         if self.toast.is_some() {
             self.toast_at = Some(self.now_ms.saturating_sub(motion::TOAST_MS));

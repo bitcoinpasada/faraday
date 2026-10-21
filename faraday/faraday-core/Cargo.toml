@@ -14,7 +14,7 @@ osk-ui = { path = "../../core/osk-ui" }
 osk-bip = { path = "../../core/osk-bip" }
 osk-psbt = { path = "../../core/osk-psbt" }
 osk-codec = { path = "../../core/osk-codec" }
-osk-crypto = { path = "../../core/osk-crypto" }
+osk-crypto = { path = "../../core/osk-crypto", features = ["count"] }
 osk-entropy = { path = "../../core/osk-entropy" }
 osk-learn = { path = "../../core/osk-learn" }
 osk-selftest = { path = "../../core/osk-selftest" }

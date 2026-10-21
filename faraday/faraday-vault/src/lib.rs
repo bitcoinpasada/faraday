@@ -233,6 +233,7 @@ pub fn derive(header: &Header, passphrase: &[u8]) -> Result<SlotKey, Error> {
 fn stretch(cost: &Cost, passphrase: &[u8], salt: &[u8]) -> Result<Secret<[u8; 32]>, Error> {
     let params =
         Params::new(cost.memory_kib, cost.passes, cost.lanes, Some(32)).map_err(|_| Error::Cost)?;
+    osk_crypto::work::count(osk_crypto::work::Work::Kdf);
     let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params.clone());
     let blocks = params.block_count();
     let mut memory: Vec<Block> = Vec::new();

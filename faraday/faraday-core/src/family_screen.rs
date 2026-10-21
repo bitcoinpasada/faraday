@@ -28,7 +28,7 @@ pub(crate) fn draw(app: &mut Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let content = loaded(app, ui, x0, cw);
         // Scrolled no further than its end.
         let max = (content - h).max(0.0);
-        if app.family.scroll.y > max {
+        if crate::flow::past_end(app.family.scroll.y, max) {
             app.family.scroll.y = max;
             app.dirty = true;
             app.commands.push_back(osk_shell_api::Command::Draw);
@@ -510,7 +510,7 @@ fn loaded_compact(app: &mut Faraday, ui: &mut Ui, cw: f32, h: f32) {
     let content = y - top + 24.0;
     let max = (content - (h - BAR_H)).max(0.0);
     ui.report_scroll(clip, max);
-    if app.family.scroll.y > max {
+    if crate::flow::past_end(app.family.scroll.y, max) {
         app.family.scroll.y = max;
         app.dirty = true;
         app.commands.push_back(osk_shell_api::Command::Draw);
@@ -1607,8 +1607,8 @@ fn bring(app: &Faraday, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .filter(|(_, i)| i.kind == FileKind::Psbt)
         .filter(|(_, i)| {
             !card
-                || crate::wallet::read_psbt(&i.bytes)
-                    .and_then(|p| app.session.wallet_for(&p))
+                || i.psbt()
+                    .and_then(|p| app.session.spends_from(p))
                     .is_some_and(|w| Some(w) == wallet)
         })
         .map(|(k, i)| (k, i.name.as_str()))

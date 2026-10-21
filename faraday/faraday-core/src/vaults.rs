@@ -1338,11 +1338,14 @@ impl Faraday {
             out.kept.push(files);
         }
         // Where an open vault holds each seed and wallet.
-        let in_vault_key = |payload: &[u8]| {
+        // A seed is in a vault when a key record there holds its words,
+        // from any list: told by the hash of their entropy each keeps
+        // (`Key::words_id`, `VaultRecords::words_id`), not parsed here.
+        let in_vault_key = |id: &[u8; 32]| {
             self.vaults.open.iter().find_map(|v| {
                 v.contents
                     .of(kind::KEY)
-                    .any(|(_, r)| r.field(field::KEY) == Some(payload))
+                    .any(|(i, _)| v.contents.words_id(i) == Some(id))
                     .then(|| v.label())
             })
         };
@@ -1355,11 +1358,7 @@ impl Faraday {
             })
         };
         for k in &self.session.keys {
-            let vault = k
-                .words
-                .as_ref()
-                .and_then(|w| crate::wallet::parse_words(k.language, w).ok())
-                .and_then(|m| in_vault_key(&records::words_payload(&m)));
+            let vault = k.words_id().and_then(in_vault_key);
             let copy = self.seed_copy_checked(k.fingerprint().0);
             let (state, nowhere) = match (vault, copy) {
                 (Some(v), true) => (fill(EN.vaults_in_copy_checked, &[&v.to_string()]), false),
@@ -2965,7 +2964,7 @@ impl Faraday {
             return (0, 0);
         };
         let mut words: Vec<(Zeroizing<String>, String)> = Vec::new();
-        let mut descs: Vec<(String, String)> = Vec::new();
+        let mut descs: Vec<(osk_bip::policy::WalletPolicy, String)> = Vec::new();
         let mut seeds: Vec<(Zeroizing<Vec<u8>>, String)> = Vec::new();
         let mut passphrases: Vec<Zeroizing<String>> = Vec::new();
         for (i, r) in open.contents.of(kind::KEY) {
@@ -2989,9 +2988,11 @@ impl Faraday {
             if !set.contains(&i) {
                 continue;
             }
-            if let Some(text) = r.text(field::WALLET) {
+            // Read once when the records changed (`VaultRecords`), not
+            // again here.
+            if let Some(d) = open.contents.described(i) {
                 descs.push((
-                    text.to_string(),
+                    d.policy.clone(),
                     r.text(field::WALLET_NAME)
                         .unwrap_or(EN.vaults_wallet)
                         .to_string(),
@@ -3009,10 +3010,13 @@ impl Faraday {
             }
         }
         let before = self.session.wallets.len();
-        for (text, name) in &descs {
-            let _ =
-                self.session
-                    .add_wallet(name, text, EN.vaults_vault, crate::wallet::Origin::Vault);
+        for (policy, name) in descs {
+            let _ = self.session.add_policy(
+                &name,
+                policy,
+                EN.vaults_vault,
+                crate::wallet::Origin::Vault,
+            );
         }
         wallets += self.session.wallets.len() - before;
         self.refresh_spend();

@@ -355,11 +355,19 @@ pub fn column_foot(
             }
         }
     }
-    if next.y > max {
+    if past_end(next.y, max) {
         next.y = max;
         again = true;
     }
     (next, again)
+}
+
+/// Whether a page's offset `y` is past its end `max`, both in design
+/// units. The frame rounds an offset to whole pixels at or under the end
+/// (`Faraday::whole_offset`), which may be a hair over `max` as a float:
+/// that is not past it, or the page would clamp and draw again for ever.
+pub(crate) fn past_end(y: f32, max: f32) -> bool {
+    y > max + 1e-3
 }
 
 /// The step flow on a small panel: the open step is the page. A bar
@@ -518,7 +526,7 @@ fn paged(
     let max = (content_h - (col.h - BAR_H)).max(0.0);
     ui.report_scroll(clip, max);
     let mut again = false;
-    if next.y > max {
+    if past_end(next.y, max) {
         next.y = max;
         again = true;
     }

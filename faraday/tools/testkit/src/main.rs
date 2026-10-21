@@ -213,6 +213,7 @@ fn run(out: &Path) -> Result<(), String> {
         &mut None,
         &[],
         Some(&carry.section),
+        None,
     )?;
     flow.finish()
         .map_err(|e| format!("threshold did not finish: {e}"))?;

@@ -65,6 +65,20 @@ Since the fork:
   written `h` or an apostrophe (glossary). "Devices", "Encrypted
   backups" and "The secure element" are unchanged, waiting on the
   owner.
+- The count of costly work (2026-10-21; `docs/SPEED.md` §8, F65's
+  compute token): `core/osk-crypto` gains `work` (`Work`,
+  `set_counter`, `count`), empty unless its new `count` feature is on,
+  which needs `std`; Faraday's app core turns it on and installs its
+  counter. Each costly function counts itself on its first line:
+  `osk-psbt`'s `Psbt::parse_bytes` past the magic check (a PSBT
+  parsed), `inspect` (inspected), `sign::sign` and `message::sign`
+  (signed); `osk-codec`'s `decode::decode_luma` (QR codes looked for);
+  `osk-crypto`'s `pbkdf2_hmac_sha256`, `pbkdf2_hmac_sha512` and
+  `scrypt` (a key stretched; scrypt's own two PBKDF2 passes go through
+  an uncounted helper, so it counts once); `osk-backup`'s `argon2id`;
+  `osk-ui`'s `Canvas::frost` (blurred) and `snapshot`, `snapshot_into`,
+  `restore`, `blend_from` (a whole canvas copied), with `osk-ui` now
+  depending on `osk-crypto`. Nothing computed changes.
 
 ## 4. Watching upstream
 

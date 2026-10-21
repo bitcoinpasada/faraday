@@ -288,17 +288,15 @@ impl Faraday {
     /// The PSBT in Files that spends from wallet `w`: of several, the
     /// one with the fewest signatures, so a cosigner's signed copy never
     /// stands in for the transaction.
+    /// Reads what each file said when it came in ([`crate::Item::psbt`])
+    /// and the scripts each wallet keeps: lookups once kept.
     pub fn psbt_for(&self, w: usize) -> Option<usize> {
         self.inbox
             .iter()
             .enumerate()
-            .filter(|(_, it)| it.kind == FileKind::Psbt)
             .filter_map(|(k, it)| {
-                let p = crate::wallet::read_psbt(&it.bytes)?;
-                (self.session.wallet_for(&p) == Some(w)).then(|| {
-                    let sigs: usize = p.inner().inputs.iter().map(|i| i.partial_sigs.len()).sum();
-                    (sigs, k)
-                })
+                let seen = it.psbt()?;
+                (self.session.spends_from(seen) == Some(w)).then_some((seen.sigs, k))
             })
             .min()
             .map(|(_, k)| k)
@@ -762,8 +760,8 @@ impl Faraday {
         let only = (self.session.wallets.len() == 1).then_some(0);
         let by_psbt = || {
             self.lead_psbt()
-                .and_then(|i| crate::wallet::read_psbt(&self.inbox[i].bytes))
-                .and_then(|p| self.session.wallet_for(&p))
+                .and_then(|i| self.inbox[i].psbt())
+                .and_then(|p| self.session.spends_from(p))
         };
         if let Some(i) = only.or_else(by_psbt) {
             self.family.wallet = Some(self.session.wallets[i].name.clone());
@@ -1030,16 +1028,13 @@ impl Faraday {
         if self.family_ready() || self.family_question() != Question::Anything {
             return;
         }
-        let Some(p) = self
-            .inbox
-            .get(index)
-            .and_then(|i| crate::wallet::read_psbt(&i.bytes))
-        else {
+        let Some(p) = self.inbox.get(index).and_then(|i| i.psbt()).cloned() else {
             return;
         };
         for kind in SINGLE {
             self.family_words_kind(kind);
-            if self.family_wallet().is_some() && self.session.wallet_for(&p) == self.family_wallet()
+            if self.family_wallet().is_some()
+                && self.session.spends_from(&p) == self.family_wallet()
             {
                 self.family.everything = true;
                 self.family.guess = None;

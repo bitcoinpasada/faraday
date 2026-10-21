@@ -4,7 +4,8 @@
 the slow laptop's stick; C next, after BACKUP-FLOW §19's F batches; D
 measured at the stick's high-density sizes before it is decided (§6); E
 in faraday-website.
-§7 is a standing rule (owner). Tracker issue 119 and its sub-issues
+§7 is a standing rule (owner). §8: the speed audit's batch S1
+(2026-10-21). Tracker issue 119 and its sub-issues
 120–130.**
 
 The owner's report: on a slow laptop Faraday became very slow in the
@@ -628,4 +629,164 @@ move that works out anything, fails the build. Since what a frame reads
 is kept on the state (§3.3), every budget is none: a frame drawn again
 works out nothing, and a line in the table names any screen that cannot
 keep what it draws, with why. The guard of §3.3 holds the same rule in
-every test that draws. The timing above stays for milliseconds.
+every test that draws. The timing above stays for milliseconds. Since
+batch S1 (§8) the same budget tests also press what each main screen
+offers, compare frames as the Inbox and the wallets grow, let every
+flow page rest at seven scales, and fix the work of the key moments.
+
+## 8. The speed audit and batch S1 (2026-10-21)
+
+The speed audit of 2026-10-20 (a session's report, kept outside the
+repository) measured every path a person waits on with a harness like
+§4's, extended with a counting allocator, pixel counters, three more
+counted kinds and a log of every press, event and frame. Batch S1 fixed
+its findings 1, 2, 3, 5, 6, 7 and 8 at their cause and put each under a
+count in `just`. Findings 4 (PNGs read on the UI thread), 9 (presses
+that make many pictures), 10 to 12 (the frosted backdrop, pixel
+overdraw, the word list at high density) are later batches.
+
+### 8.1 What S1 fixed
+
+Each finding, its cause, and the fix. "Before" is `main` after the
+parse-once work and the guard (§3.3), which had already removed the
+vault records' parses per press (finding 6) and the import sheet's
+descriptor parses per frame (finding 7); "after" is S1. Build machine,
+release profile, the audit's harness (outside the repository), medians
+in ms at 1366×768 unless said. The before run shared the machine with
+another build (the heavy session took 1.3 s to build against 0.6 s
+after), so single numbers read ±30 %; the counts are exact.
+
+1. **A page at rest redrew at 60 Hz at a scale that is not whole.** A
+   frame rounded the scroll offset to whole pixels, which could land a
+   hair past the page's end; the flow pages (and the Spend tab) clamped
+   it back to the end and asked for another frame, which rounded it past
+   again, for ever. Now the frame never rounds past the end the last
+   frame drew (`Faraday::whole_offset`), and a page counts an offset as
+   past its end only beyond float noise (`flow::past_end`). Before: 120
+   of 120 idle ticks drew on the Backup board at 1.25, 1.5 and 2.5
+   (1.2 to 6.0 s of drawing in 2 s), the checklist at 1.75, Spend at
+   1.25 and 2.5. After: none at any of 1, 1.25, 1.5, 1.75, 2, 2.5 (the
+   harness) and 3 (the test).
+2. **Wallets and Home parsed every PSBT in Files, and matched each
+   against every wallet, every frame** (`lead_psbt`, `spend_button` →
+   `psbt_for` → `wallet_for`). Each Files item now keeps what its PSBT
+   says, read once as it comes in (`Item::psbt`, a `wallet::PsbtSeen`:
+   txid, signature count, the first input's script and places), from
+   the same parse that classifies it (`wallet::classify_read`); which
+   wallet it spends from is found from that against each wallet's
+   scripts, which a wallet derives once per place and keeps
+   (`Wallet::script_at`, dropped with its policy), so it follows the
+   wallets as they load and change. Before: Home 21 PSBT parses a frame;
+   a wallet's card with the vault's wallets loaded 23 to 48 ms (42 parses
+   and a match against 13 wallets each frame); with 405 files 80 ms and
+   with 1,620 files 313 ms (600 ms on the Pi's layout). After: no PSBT
+   parse or match in any frame; Home 1.7 ms, every card 2.8 to 3.4 ms,
+   the card with 1,620 files 2.4 ms (0.9 ms on the Pi's layout).
+3. **With a spend open, Files and the spend's cosigner rows parsed every
+   PSBT in Files each frame** to find copies of the same transaction
+   (`screens.rs`, four places). They compare the kept txid. Before:
+   Files 18.8 ms a frame with 82 PSBT parses; after 6.4 ms with none.
+4. **Opening a spend inspected the PSBT four times, and Sign here
+   twice** (`start_spend` and `refresh_spend`, each with `inspect` and
+   `Spend::signers`' own; `refresh_spend` runs after some forty kinds of
+   press). The spend keeps its inspection with what it is of — the PSBT,
+   the session's network, keys (by id) and wallets (by checksum), the
+   carry (`SpendState::inspected`, `wallet::InspectInputs`) — and
+   inspects again only when one changed; `signers` reads it
+   (`Spend::signers_by`), and Sign here chooses its keys from it when it
+   is current (`Session::sign_with`'s `known`). Before: StartSpend 6 to
+   9 ms at one input, 84 to 114 ms at 100 inputs; SignHere 6 to 9 ms and
+   82 to 112 ms. After: StartSpend 1.6 to 2.6 ms and 22 to 31 ms;
+   SignHere 3.9 to 5.7 ms and 21 to 30 ms (one inspection inside the
+   signing, one of the signed PSBT).
+5. **Vault presses re-parsing every wallet record** (finding 6): gone
+   before S1 (`VaultRecords` keeps each record's description read).
+   The press budget test (§8.3) now holds every vault press to it.
+6. **Load ticked parsed every wallet record again** (finding 8,
+   48 parses, then 12 after the parse-once work): it loads the
+   descriptions `VaultRecords` read at unlock (`Session::add_policy`).
+   Before: the press 11.6 ms, then Wallets 49 to 53 ms a frame. After:
+   3.2 ms, then 5 ms a frame; no description parsed.
+7. **The boot import sheet** (finding 7): no counted work a frame since
+   the parse-once work; S1 adds its scaling test. Its first frame 32 to
+   57 ms before, 19 to 20 ms after (from the Inbox's PSBTs no longer
+   parsed on the Home under it); then 4.6 ms a frame against 10 to 15.
+8. **The power sheet parsed each loaded seed's words every frame**, to
+   say which vault keeps it (found by S1's sheet budget). It compares
+   the hash of each seed's entropy the key and the vault's records keep
+   (`Key::words_id`, `VaultRecords::words_id`).
+
+Files still grows with the Inbox without any counted work: 3.8 ms at
+81 files, 11 ms at 405 and 40 ms at 1,620 (78 before): it lays out
+every row, seen or not. A later batch.
+
+### 8.2 New counted kinds
+
+Counted at their source, the core's through `osk_crypto::work` (F65,
+`docs/UPSTREAM.md` §3), behind its `count` feature, which the app core
+turns on and whose counter it installs (`work::install`):
+
+| Kind | Where |
+|---|---|
+| `PsbtParse` | `osk_psbt::Psbt::parse_bytes`, past the magic check (base64 too) |
+| `PsbtInspect` | `osk_psbt::inspect`, also the one inside every signing |
+| `Sign` | `osk_psbt::sign`, `osk_psbt::message::sign` |
+| `WalletMatch` | `Wallet::script_at`, a script derived to match a PSBT |
+| `PngDecode` | `faraday_files::qr_in_png` |
+| `QrDecode` | `osk_codec::decode::decode_luma` |
+| `Kdf` | `osk_crypto`'s PBKDF2 and scrypt, `osk_backup::argon2id`, `faraday-vault`'s Argon2id |
+| `Blur` | `osk_ui::Canvas::frost` |
+| `FullCanvas` | `Canvas::snapshot`, `snapshot_into`, `restore`, `blend_from` |
+
+The guard of §3.3 holds every new kind but the two pixel kinds, `Blur`
+and `FullCanvas`, which are drawing's own work: the budgets count them
+instead. A sheet's frame puts its kept backdrop back, one `FullCanvas`;
+a frame drawn again does nothing else.
+
+### 8.3 The tests in `just`
+
+All counts, no wall time, in `faraday-core/src/work/budget/`:
+
+- **Frames** (`budget.rs`): the heavy session's screens of §7, now with
+  the power, Learn and scan sheets; every budget none but a sheet's one
+  `FullCanvas`.
+- **Every press** (`presses.rs`): on each main screen and the open
+  spend, every action the frame offers is pressed in turn (about 170
+  presses), each counted with the frame, a tick and the frame after;
+  left out by name are the presses that end the session or drop what
+  the next needs (lock, power, wipe, network, demo, removals, a shorter
+  idle lock, holds). Budgets, all else none:
+
+  | Press | Kind | Budget | Why |
+  |---|---|---|---|
+  | any | `FullCanvas` | 3 (5 to a sheet) | the screen fades from a copy of the frame before, blended into the next two; a sheet also keeps its frosted page and puts it back |
+  | any | `Blur` | 1 | a sheet frosts the page under it once |
+  | `PickWallet` | `Address` | 1 | the card's first receive address, derived once, kept |
+  | `PickWallet` | `WalletMatch` | 11 | the card's button asks which wallet each PSBT spends from; each wallet derives its script at a place once, kept |
+  | `Step` | `Address` | 2 | a spend's step shows the wallet's own addresses its outputs pay, each derived once, kept |
+  | `Vault(Category)` | `WordsParse` | 1 | the seeds category shows a key record's words (`Allowed::SecretShown`) |
+  | `Backup` | `PlanMap` | 2 | the wallet's plan mapped and checked once for its shape and answers, kept (eight kept) |
+  | `Resume(Flow)` | `FileHash` | 2 | the GPG flow resumed at its end finishes: its vault sealed and hashed, then hashed as it comes into the Outbox |
+
+- **Scaling** (`scaling.rs`): Home, Wallets, a wallet's card, Files,
+  the Spend tab and Spend, with no spend and with Savings' open, do the
+  same work a frame (none) with one and five copies of the test stick's
+  files and one and all ten test wallets; the boot import sheet does
+  the same with one and five copies (its kept backdrop only).
+- **Idle** (`idle.rs`): every flow page of the walk and the main
+  screens that scroll, at scales 1, 1.25, 1.5, 1.75, 2, 2.5 and 3, at
+  their top and at their end: 120 ticks ask for no frame.
+- **Key moments** (`moments.rs`), each exactly its table:
+
+  | Moment | Work |
+  |---|---|
+  | start to Home with the test stick's 82 files (the self-test apart) | `PsbtParse` 21, one per PSBT; `DescriptorParse` 41, the classifier trying each other text file as a description; `FileHash` 2, the vault and the APK |
+  | Unlock to the Load sheet | `Kdf` 5 (Argon2id 1; PBKDF2 for the vault's seed and the three seed files Files shows under the sheet); `MasterKey` 4; `WordsParse` 5; `FileHash` 2; `DescriptorParse` 13 (12 records once, the kept wallet text once); `Blur` 1; `FullCanvas` 5 |
+  | Load ticked | `WordsParse` 2, `Kdf` 1, `MasterKey` 1, `FileHash` 1 (the seed loaded); `Address` 1 and `WalletMatch` 12 (Wallets' cards, kept); `FullCanvas` 5; no description parsed |
+  | a PSBT opened to its review | `PsbtParse` 1, `PsbtInspect` 1, `WalletMatch` 1, `FullCanvas` 5 |
+  | Sign here (Savings, both seeds) | `Sign` 1; `PsbtInspect` 2 (the signing's own, the signed PSBT's); `PsbtParse` 1 and `DescriptorParse` 1 (the two results classified as they come into the Outbox); `FullCanvas` 4 |
+
+- **Kept values follow** (`work/kept.rs`): a PSBT waiting in Files is
+  offered on its wallet's card once that wallet loads; a spend opened
+  before its seeds were loaded signs with both once they are, and its
+  review shows both signatures.

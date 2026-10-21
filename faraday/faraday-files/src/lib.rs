@@ -620,8 +620,10 @@ pub fn read_qr_png(place: &mut dyn Place, name: &str) -> Result<Picture, String>
     Ok((bytes, codes))
 }
 
-/// The QR codes in a PNG's bytes.
+/// The QR codes in a PNG's bytes. Costs a PNG decode and one or two
+/// passes of the QR reader over its pixels.
 pub fn qr_in_png(bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
+    osk_crypto::work::count(osk_crypto::work::Work::PngDecode);
     let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
     decoder.set_transformations(png::Transformations::normalize_to_color8());
     let mut reader = decoder.read_info().map_err(|e| e.to_string())?;

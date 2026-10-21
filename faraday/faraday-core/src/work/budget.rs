@@ -6,6 +6,11 @@
 //! GPG key's backup flow under way, a spend open, and the test stick's
 //! files in the Inbox.
 
+mod idle;
+mod moments;
+mod presses;
+mod scaling;
+
 use osk_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 use super::{Counts, KINDS, Work, since, snapshot};
@@ -30,6 +35,11 @@ use crate::{Action, Faraday, Screen, Sheet, StorageEvent, bstep, cstep, testkit}
 /// the test vault keeps 12 wallets and 1 seed, the Inbox holds the test
 /// stick's files.
 const BUDGETS: &[(&str, Work, u64, &str)] = &[];
+
+/// A sheet stands on the page under it, frosted once when it opens and
+/// kept: each frame puts that copy back (`Ui::backdrop`), one copy of the
+/// whole canvas.
+const SHEET_CANVAS: u64 = 1;
 
 /// The budget of `kind` on `screen`.
 fn budget(screen: &str, kind: Work) -> u64 {
@@ -212,7 +222,10 @@ impl Report {
             if n > 0 {
                 line.push_str(&format!(" {k:?} {n}"));
             }
-            let budget = budget(name, k);
+            let mut budget = budget(name, k);
+            if k == Work::FullCanvas && app.sheet.is_some() {
+                budget = budget.max(SHEET_CANVAS);
+            }
             if n > budget {
                 self.failures.push(format!(
                     "{name}: a frame did {k:?} {n} times (budget {budget}): a frame did work the drawing memo should keep (docs/SPEED.md §3.3)"
@@ -229,30 +242,23 @@ impl Report {
     }
 }
 
-#[test]
-fn a_frame_drawn_again_and_a_pointer_move_do_no_costly_work_beyond_the_budget() {
-    let start = snapshot();
+/// The heavy session walked through every screen the budget covers:
+/// `stop` is called at each, with its name, on the app as it stands
+/// there. Returns the app at the end and the 2-of-3's index.
+pub(super) fn walk(stop: &mut dyn FnMut(&mut Faraday, &str)) -> (Faraday, usize) {
     let (mut app, w) = heavy();
-    assert!(
-        since(&start).of(Work::MasterKey) >= 3,
-        "the three keys made here were counted"
-    );
-    let mut r = Report {
-        lines: Vec::new(),
-        failures: Vec::new(),
-    };
-    r.check(&mut app, "Create");
+    stop(&mut app, "Create");
 
     // The backup: the board, then the checklist.
     app.press(Action::CBackup);
     testkit::backup_as(&mut app, crate::plan::Preset::PaperVault);
     assert_eq!(app.screen, Screen::Backup);
-    r.check(&mut app, "Backup board");
+    stop(&mut app, "Backup board");
     app.press(Action::BChecklist);
     if app.backup_items().contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
-    r.check(&mut app, "Backup checklist");
+    stop(&mut app, "Backup checklist");
 
     // The test vault unlocked from the Vaults tab: its Load sheet, then
     // everything it keeps loaded.
@@ -263,7 +269,7 @@ fn a_frame_drawn_again_and_a_pointer_move_do_no_costly_work_beyond_the_budget() 
         "{:?}",
         app.vaults.unlock_error
     );
-    r.check(&mut app, "Load sheet");
+    stop(&mut app, "Load sheet");
     app.press(Action::Vault(V::LoadTicked));
     // Every test wallet loaded beside the 2-of-3, as Load would.
     for kit in testkit::kits() {
@@ -300,7 +306,7 @@ fn a_frame_drawn_again_and_a_pointer_move_do_no_costly_work_beyond_the_budget() 
         app.backup_flows.last().is_some_and(|f| f.made),
         "the GPG key was made"
     );
-    r.check(&mut app, "GPG key flow");
+    stop(&mut app, "GPG key flow");
     for s in &mut app.backup_flows.last_mut().expect("the flow").slots {
         s.written = Some(Written {
             stick: String::new(),
@@ -313,7 +319,7 @@ fn a_frame_drawn_again_and_a_pointer_move_do_no_costly_work_beyond_the_budget() 
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(Kind::Gpg.category())));
     app.press(Action::Vault(V::GpgSignPick));
-    r.check(&mut app, "GPG Sign a file");
+    stop(&mut app, "GPG Sign a file");
     let listed = app
         .inbox
         .iter()
@@ -322,13 +328,9 @@ fn a_frame_drawn_again_and_a_pointer_move_do_no_costly_work_beyond_the_budget() 
         .expect("SHA256SUMS is listed");
     app.press(Action::Vault(V::GpgTick(listed)));
     app.press(Action::Vault(V::GpgSign));
-    if app.sheet == Some(Sheet::GpgSign) {
-        r.check(&mut app, "GPG sign sheet");
-        app.press(Action::Cancel);
-    } else {
-        r.failures
-            .push(format!("the GPG sign sheet did not open: {:?}", app.sheet));
-    }
+    assert_eq!(app.sheet, Some(Sheet::GpgSign), "the GPG sign sheet opened");
+    stop(&mut app, "GPG sign sheet");
+    app.press(Action::Cancel);
 
     // A spend of Savings open.
     let psbt = app
@@ -337,29 +339,59 @@ fn a_frame_drawn_again_and_a_pointer_move_do_no_costly_work_beyond_the_budget() 
         .position(|i| i.name == "savings-unsigned.psbt")
         .expect("the spend is in the Inbox");
     app.press(Action::StartSpend(psbt));
-    r.check(&mut app, "Spend");
+    stop(&mut app, "Spend");
 
-    for (name, screen) in [
-        ("Home", Screen::Home),
-        ("Wallets", Screen::Wallets),
-        ("Files", Screen::Files),
-        ("Vaults", Screen::Vaults),
-        ("Vault contents", Screen::VaultContents),
-        ("Backups", Screen::Backups),
-        ("Spend tab", Screen::Family),
-        ("Settings", Screen::Settings),
-        ("Tools", Screen::Tools),
-    ] {
+    for (name, screen) in MAIN {
         app.press(Action::Nav(screen));
-        r.check(&mut app, name);
+        stop(&mut app, name);
+    }
+    for (name, a) in SHEETS {
+        app.press(a);
+        assert!(app.sheet.is_some(), "{name} opened");
+        stop(&mut app, name);
+        app.press(Action::Cancel);
     }
     app.press(Action::OpenWallet(w));
-    r.check(&mut app, "Wallet chart");
+    stop(&mut app, "Wallet chart");
     app.press(Action::Backup(w));
-    r.check(&mut app, "Backup reopened");
+    stop(&mut app, "Backup reopened");
     app.press(Action::CreateWallet);
-    r.check(&mut app, "Create, new");
+    stop(&mut app, "Create, new");
+    (app, w)
+}
 
+/// The sheets every main screen offers, by name, each with what opens it.
+pub(super) const SHEETS: [(&str, Action); 3] = [
+    ("Power sheet", Action::PowerAsk),
+    ("Learn sheet", Action::Learn),
+    ("Scan sheet", Action::Scan),
+];
+
+/// The main screens, each reached from the navigation, by name.
+pub(super) const MAIN: [(&str, Screen); 9] = [
+    ("Home", Screen::Home),
+    ("Wallets", Screen::Wallets),
+    ("Files", Screen::Files),
+    ("Vaults", Screen::Vaults),
+    ("Vault contents", Screen::VaultContents),
+    ("Backups", Screen::Backups),
+    ("Spend tab", Screen::Family),
+    ("Settings", Screen::Settings),
+    ("Tools", Screen::Tools),
+];
+
+#[test]
+fn a_frame_drawn_again_and_a_pointer_move_do_no_costly_work_beyond_the_budget() {
+    let start = snapshot();
+    let mut r = Report {
+        lines: Vec::new(),
+        failures: Vec::new(),
+    };
+    let _ = walk(&mut |app, name| r.check(app, name));
+    assert!(
+        since(&start).of(Work::MasterKey) >= 3,
+        "the three keys made here were counted"
+    );
     assert!(
         r.failures.is_empty(),
         "{}\n\nEach screen's frame:\n{}",

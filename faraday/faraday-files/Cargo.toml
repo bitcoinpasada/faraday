@@ -11,6 +11,8 @@ publish = false
 [dependencies]
 faraday-fat = { path = "../faraday-fat" }
 osk-codec = { path = "../../core/osk-codec" }
+# The count of costly work (`osk_crypto::work`): a PNG decoded.
+osk-crypto = { path = "../../core/osk-crypto" }
 png.workspace = true
 zeroize = { workspace = true, features = ["alloc"] }
 

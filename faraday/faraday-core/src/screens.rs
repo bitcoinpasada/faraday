@@ -4775,12 +4775,8 @@ pub(crate) fn step_body(
                 .inbox
                 .iter()
                 .enumerate()
-                .filter(|(_, it)| it.kind == FileKind::Psbt && it.name != s.spend.source)
-                .filter(|(_, it)| {
-                    crate::wallet::read_psbt(&it.bytes)
-                        .map(|p| p.unsigned_tx().compute_txid() == txid)
-                        .unwrap_or(false)
-                })
+                .filter(|(_, it)| it.name != s.spend.source)
+                .filter(|(_, it)| it.psbt().is_some_and(|p| p.txid == txid))
                 .map(|(k, it)| (k, it.name.clone()))
                 .collect();
             if !complete {
@@ -5059,12 +5055,8 @@ pub(crate) fn step_body(
                     .inbox
                     .iter()
                     .enumerate()
-                    .filter(|(_, it)| it.kind == FileKind::Psbt && it.name != s.spend.source)
-                    .filter(|(_, it)| {
-                        crate::wallet::read_psbt(&it.bytes)
-                            .map(|p| p.unsigned_tx().compute_txid() == txid)
-                            .unwrap_or(false)
-                    })
+                    .filter(|(_, it)| it.name != s.spend.source)
+                    .filter(|(_, it)| it.psbt().is_some_and(|p| p.txid == txid))
                     .map(|(k, it)| (k, it.name.clone()))
                     .collect();
                 let labels: Vec<String> = copies
@@ -9923,11 +9915,8 @@ fn files(app: &Faraday, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text(x + 66.0, iy + 36.0, 12.0, W::R, MUTED, &line);
         let mut bx = x + 66.0;
         let same_spend = app.spend.as_ref().is_some_and(|s| {
-            crate::wallet::read_psbt(&item.bytes)
-                .map(|p| {
-                    p.unsigned_tx().compute_txid() == s.spend.txid && item.name != s.spend.source
-                })
-                .unwrap_or(false)
+            item.psbt()
+                .is_some_and(|p| p.txid == s.spend.txid && item.name != s.spend.source)
         });
         match item.kind {
             FileKind::Psbt if same_spend => {
@@ -11057,9 +11046,8 @@ fn inbox_actions(app: &Faraday, k: usize, item: &crate::Item) -> (Buttons, Note)
         )
     };
     let same_spend = app.spend.as_ref().is_some_and(|s| {
-        crate::wallet::read_psbt(&item.bytes)
-            .map(|p| p.unsigned_tx().compute_txid() == s.spend.txid && item.name != s.spend.source)
-            .unwrap_or(false)
+        item.psbt()
+            .is_some_and(|p| p.txid == s.spend.txid && item.name != s.spend.source)
     });
     match item.kind {
         FileKind::Psbt if same_spend => {

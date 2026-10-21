@@ -892,7 +892,7 @@ pub fn threshold_carry() -> Result<Vec<u8>, String> {
         )
         .map_err(|e| e.text())?;
     let mut psbt = threshold_unsigned()?;
-    let signed = session.sign_with(&mut psbt, [5; 32], &mut None, &[1], None)?;
+    let signed = session.sign_with(&mut psbt, [5; 32], &mut None, &[1], None, None)?;
     let section = signed
         .carry
         .ok_or("the first location left no carry section")?;
