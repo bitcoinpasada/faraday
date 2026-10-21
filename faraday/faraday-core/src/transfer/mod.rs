@@ -22,7 +22,7 @@ use faraday_shell_api::Command;
 use crate::secrets::Exposure;
 use crate::wallet::{self, FileKind};
 use crate::{
-    Faraday, QR_PARTS, QrFormat, QrSource, QrView, ScanPurpose, ScanState, Screen, Sheet,
+    Action, Faraday, QR_PARTS, QrFormat, QrSource, QrView, ScanPurpose, ScanState, Screen, Sheet,
     StorageCommand,
 };
 
@@ -342,6 +342,19 @@ impl Faraday {
     pub(crate) fn transfer_open_folder(&mut self) {
         if self.online && self.transfer.opens {
             self.storage_out.push_back(StorageCommand::OpenDownloads);
+        }
+    }
+}
+
+impl Faraday {
+    /// Handles the Transfer screen's actions (`Transfer*`).
+    pub(crate) fn transfer_act(&mut self, action: Action) {
+        match action {
+            Action::TransferSend(i) => self.transfer_pick(i),
+            Action::TransferReceive => self.transfer_receive(),
+            Action::TransferOpenFolder => self.transfer_open_folder(),
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
         }
     }
 }

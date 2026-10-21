@@ -4,10 +4,14 @@
 //! then the seeds, typed back in.
 
 use crate::strings::EN;
+use crate::strings::fill;
 use faraday_bip::multisig_config;
 use faraday_crypto::work::Compute;
 
-use crate::{VaultAsk, create, flow, rstep, seeds};
+use crate::{
+    Action, EntryState, Faraday, FileKind, MAX_VAULTS, Screen, VaultAsk, create, flow, restore,
+    rstep, seeds, stem, wallet,
+};
 
 /// What one multisig config file, whole or a share, says.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -256,6 +260,279 @@ impl RestoreState {
             .copied()
             .find(|&s| !self.done[s as usize]);
         self.scroll.follow = true;
+    }
+}
+
+impl Faraday {
+    /// Costs what the actions below cost, the keys' and wallets' work among
+    /// it: handles the Restore wallet flow's actions (`Action::R*`, `RestoreWallet`, `RestoreShares`, `KeyWallet`).
+    pub(crate) fn restore_act(&mut self, action: Action, c: &Compute) {
+        match action {
+            Action::RFromVault(v, r) => self.restore_from_vault(v, r),
+            Action::RestoreWallet
+                if self.restore.as_ref().is_some_and(|r| {
+                    self.setup_pending(r.owner, r.into_vaults(), r.done[rstep::SEEDS as usize])
+                }) =>
+            {
+                self.screen = Screen::Restore;
+            }
+            Action::RestoreWallet => {
+                let owner = self.fresh_owner();
+                self.restore = Some(RestoreState {
+                    owner,
+                    from_home: self.screen == Screen::Home,
+                    ..RestoreState::new()
+                });
+                self.screen = Screen::Restore;
+            }
+            // The seeds wait for the question of vaults and for the
+            // setup it asked for (`docs/history/NEW-WALLET.md` §12.3 item 4).
+            Action::RStep(k)
+                if k == rstep::SEEDS
+                    && self.restore.as_ref().is_some_and(|r| {
+                        let made = r.done[rstep::SEEDS as usize];
+                        (r.vaults.answer.is_none() && !made)
+                            || self.setup_pending(r.owner, r.into_vaults(), made)
+                    }) => {}
+            Action::RVaults(_) | Action::RVaultN(_)
+                if self.restore.as_ref().is_some_and(|r| {
+                    !r.done[rstep::SEEDS as usize] && self.setup_vault_open(r.owner)
+                }) =>
+            {
+                self.toast(EN.create_vaults_locked);
+            }
+            Action::RStep(k) => {
+                if let Some(r) = self.restore.as_mut() {
+                    r.open = if r.open == Some(k) { None } else { Some(k) };
+                    r.scroll.follow = true;
+                }
+            }
+            // The question of vaults waits for its answer.
+            Action::RNext(k)
+                if k == rstep::WHERE
+                    && self
+                        .restore
+                        .as_ref()
+                        .is_some_and(|r| r.vaults.answer.is_none()) => {}
+            // How many vaults: Continue opens the setup, which comes back
+            // to Seeds.
+            Action::RNext(k) if k == rstep::HOW_MANY => {
+                if let Some(r) = self.restore.as_mut() {
+                    r.done[k as usize] = true;
+                    let owner = r.owner;
+                    self.wallet_flow_begin(owner);
+                }
+            }
+            Action::RNext(k) => {
+                if let Some(r) = self.restore.as_mut() {
+                    r.next(k);
+                }
+            }
+            Action::RVaults(yes) => {
+                if let Some(r) = self.restore.as_mut()
+                    && !r.done[rstep::SEEDS as usize]
+                    && r.vaults.answer != Some(yes)
+                {
+                    let owner = r.owner;
+                    r.vaults.answer = Some(yes);
+                    r.done[rstep::WHERE as usize] = false;
+                    r.done[rstep::HOW_MANY as usize] = false;
+                    self.wallet_vaults_changed(owner);
+                }
+            }
+            Action::RVaultN(n) => {
+                if let Some(r) = self.restore.as_mut()
+                    && !r.done[rstep::SEEDS as usize]
+                {
+                    let owner = r.owner;
+                    r.vaults.count = usize::from(n).clamp(1, MAX_VAULTS);
+                    r.done[rstep::HOW_MANY as usize] = false;
+                    self.wallet_vaults_changed(owner);
+                }
+            }
+            Action::RKind(i) => self.restore_kind(i),
+            Action::RMoreKinds => {
+                if let Some(r) = self.restore.as_mut() {
+                    r.more_kinds = true;
+                }
+            }
+            Action::RFromFiles => {
+                let files: Vec<usize> = self
+                    .inbox
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, i)| i.kind == FileKind::Wallet)
+                    .map(|(k, _)| k)
+                    .collect();
+                match files.as_slice() {
+                    [one] => self.act(Action::RUse(*one)),
+                    _ => {
+                        if let Some(r) = self.restore.as_mut() {
+                            r.open = Some(rstep::DESCRIPTION);
+                            r.scroll.follow = true;
+                        }
+                    }
+                }
+            }
+            Action::RAbsent(k) => {
+                if let Some(r) = self.restore.as_mut()
+                    && r.described
+                {
+                    match r.absent.iter().position(|&a| a == k) {
+                        Some(p) => {
+                            r.absent.remove(p);
+                        }
+                        None => r.absent.push(k),
+                    }
+                    r.error = None;
+                }
+            }
+            // The passphrase is asked after the seed: on Add a key for
+            // typed words, on the scan's sheet for a SeedQR (`seed_read`).
+            Action::RSlotWords => {
+                if let Some(r) = self.restore.as_mut() {
+                    r.error = None;
+                }
+                self.act(Action::Entry(None));
+            }
+            Action::RSlotScan => {
+                if self.may_load_keys() {
+                    if let Some(r) = self.restore.as_mut() {
+                        r.error = None;
+                    }
+                    self.entry = EntryState::default();
+                    self.entry.back = Some(Screen::Restore);
+                    self.act(Action::ScanSeed);
+                }
+            }
+            Action::RUse(i) => {
+                if let Some(item) = self.inbox.get(i) {
+                    let text = String::from_utf8_lossy(&item.bytes).into_owned();
+                    let name = faraday_bip::multisig_config::parse_named(c, &text)
+                        .ok()
+                        .and_then(|(_, n)| n)
+                        .unwrap_or_else(|| stem(&item.name));
+                    let source = item.name.clone();
+                    self.restore_wallet(&name, &text, &source, wallet::Origin::Named);
+                }
+            }
+            Action::RShare(i) => {
+                if let Some(item) = self.inbox.get(i) {
+                    let n = item.name.clone();
+                    if let Some(r) = self.restore.as_mut() {
+                        if let Some(p) = r.shares.iter().position(|x| *x == n) {
+                            r.shares.remove(p);
+                        } else {
+                            r.shares.push(n);
+                        }
+                    }
+                }
+            }
+            Action::RRebuild => {
+                let texts = self.restore_share_texts(c);
+                match restore::merge(&texts) {
+                    Ok(m) => match m.whole {
+                        Some(whole) => {
+                            let name = faraday_bip::multisig_config::parse_named(c, &whole)
+                                .ok()
+                                .and_then(|(_, n)| n)
+                                .unwrap_or_else(|| EN.act_restored_wallet.to_string());
+                            self.restore_wallet(
+                                &name,
+                                &whole,
+                                EN.act_its_shares,
+                                wallet::Origin::Named,
+                            );
+                        }
+                        None => {
+                            if let Some(r) = self.restore.as_mut() {
+                                r.error = Some(fill(
+                                    EN.act_of_keys_in_hand,
+                                    &[&m.have.len().to_string(), &m.n.to_string()],
+                                ));
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        if let Some(r) = self.restore.as_mut() {
+                            r.error = Some(e);
+                        }
+                    }
+                }
+            }
+            Action::RSeeds => {
+                if let Some(r) = self.restore.as_mut()
+                    && !r.kind().threshold()
+                {
+                    // The wallet comes from the seeds now, not a file.
+                    r.wallet = None;
+                    r.described = false;
+                    r.absent.clear();
+                    r.error = None;
+                    r.done[rstep::SEEDS as usize] = false;
+                    r.done[rstep::CHECK as usize] = false;
+                    r.next(rstep::DESCRIPTION);
+                }
+            }
+            Action::KeyWallet(fp, n) => {
+                use create::NewKind;
+                let mut s = seeds::SeedsState::default();
+                s.fix(if n > 1 {
+                    NewKind::Multi
+                } else {
+                    NewKind::NativeSegwit
+                });
+                s.set_n(usize::from(n));
+                s.take(fp);
+                let mut r = RestoreState {
+                    owner: self.fresh_owner(),
+                    seeds: Some(s),
+                    from_key: true,
+                    ..RestoreState::default()
+                };
+                for k in [rstep::KIND, rstep::QUORUM, rstep::DESCRIPTION] {
+                    r.done[k as usize] = true;
+                }
+                r.open = Some(rstep::SEEDS);
+                self.restore = Some(r);
+                self.screen = Screen::Restore;
+            }
+            Action::RestoreShares => {
+                let texts: Vec<String> = self
+                    .inbox
+                    .iter()
+                    .filter(|i| i.kind == FileKind::Share)
+                    .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
+                    .collect();
+                match restore::merge(&texts).map(|m| m.whole) {
+                    Ok(Some(whole)) => {
+                        let name = faraday_bip::multisig_config::parse_named(c, &whole)
+                            .ok()
+                            .and_then(|(_, n)| n)
+                            .unwrap_or_else(|| EN.act_restored_wallet.to_string());
+                        match self.session.add_wallet(
+                            c,
+                            &name,
+                            &whole,
+                            EN.act_its_shares,
+                            wallet::Origin::Named,
+                        ) {
+                            Ok(i) => {
+                                self.wallet = i;
+                                self.screen = Screen::Wallets;
+                                self.refresh_spend();
+                                self.toast(&fill(EN.act_restored_from_its, &[&name.to_string()]));
+                            }
+                            Err(e) => self.toast(&e.text()),
+                        }
+                    }
+                    Ok(None) => self.toast(EN.act_not_every_key_is),
+                    Err(e) => self.toast(&e),
+                }
+            }
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
     }
 }
 

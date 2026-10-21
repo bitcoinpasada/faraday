@@ -553,3 +553,52 @@ impl Faraday {
         self.device_released();
     }
 }
+
+impl Faraday {
+    /// Handles the device checks', network and input-device actions (`Devices*`, `Network`, `AirgapUnderstood`, `Input*`).
+    pub(crate) fn devices_act(&mut self, action: Action) {
+        match action {
+            Action::InputUse(id) => self.input_believe(id),
+            Action::InputIgnore(id) => self.input_ignore(id),
+            Action::Network(n)
+                if self.online
+                    && !n.is_mainnet()
+                    && !self.airgap_warned
+                    && self.session.network().is_mainnet()
+                    && self.session.wallets.is_empty()
+                    && !self.session.network_fixed() =>
+            {
+                self.test_asked = Some(n);
+                self.sheet = Some(Sheet::NotAirgapped);
+            }
+            Action::AirgapUnderstood => {
+                self.airgap_warned = true;
+                self.sheet = None;
+                if let Some(n) = self.test_asked.take() {
+                    self.act(Action::Network(n));
+                }
+                // What waited under the start warning comes up now: a new
+                // device first, then the boot import (F61).
+                self.input_sheet();
+                if self.sheet.is_none()
+                    && self.import.is_some()
+                    && std::mem::take(&mut self.import_under_input)
+                {
+                    self.sheet = Some(Sheet::Import);
+                }
+            }
+            Action::Network(n) => match self.session.set_network(n) {
+                Ok(()) => {
+                    self.sheet = None;
+                    self.refresh_spend();
+                }
+                Err(e) => self.toast(&e.text()),
+            },
+            Action::DevicesCheck => self.device_check(),
+            Action::DevicesContinue => self.device_continue(),
+            Action::DevicesUnderstood => self.device_understood(),
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
+    }
+}

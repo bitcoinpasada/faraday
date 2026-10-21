@@ -693,3 +693,21 @@ pub(crate) fn zeroing_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         cy - y
     });
 }
+
+impl Faraday {
+    /// Handles the Delete files and zero-a-stick actions (`Delete*`, `ZeroStop`).
+    pub(crate) fn wipe_act(&mut self, action: Action) {
+        match action {
+            Action::DeleteFiles => self.delete_open(),
+            Action::DeleteWhat(k) => self.delete_what(k),
+            Action::DeletePick(k) => self.delete_pick(k),
+            Action::DeletePasses(n) => self.delete_passes(n),
+            // A vault chosen is deleted by the hold alone (decision 4).
+            Action::DeleteGo if !self.delete_holds() => self.delete_go(),
+            Action::DeleteGo => {}
+            Action::ZeroStop => self.zero_stop(),
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
+    }
+}

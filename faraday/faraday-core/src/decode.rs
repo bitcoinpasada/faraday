@@ -16,6 +16,7 @@ use faraday_crypto::work::Compute;
 
 use crate::Screen;
 use crate::wallet::Session;
+use crate::{Action, Faraday, QrView, decode, wallet};
 
 /// One input, as decoded.
 #[derive(Debug, Clone)]
@@ -223,4 +224,75 @@ pub struct DecodeState {
     pub back: Screen,
     /// The hex is shown.
     pub show_hex: bool,
+}
+
+impl Faraday {
+    /// Costs what the actions below cost, the keys' and wallets' work among
+    /// it: handles the Decode screen's actions (`DecodeFinished`, `DecodeInbox`, `QrDecoded`, `DecodeHex`, `SpendHex`).
+    pub(crate) fn decode_act(&mut self, action: Action, c: &Compute) {
+        match action {
+            Action::DecodeFinished => {
+                if let Some(s) = self.spend.as_ref()
+                    && let Some(tx) = s.spend.finished.as_ref()
+                {
+                    let prevouts = decode::prevouts_of(&s.spend.psbt);
+                    let source = fill(EN.act_finished_from, &[&s.spend.source.to_string()]);
+                    let decoded = decode::decode(c, tx, &prevouts, &self.session, &source);
+                    self.decode = Some(DecodeState {
+                        decoded,
+                        back: self.screen,
+                        show_hex: false,
+                    });
+                    self.screen = Screen::Decode;
+                }
+            }
+            Action::DecodeInbox(k) => {
+                if let Some(item) = self.inbox.get(k)
+                    && let Some(tx) = faraday_psbt::transaction::read_raw(&item.bytes)
+                {
+                    // The amounts going in, from a PSBT of the same
+                    // transaction when one is here.
+                    let txid = tx.compute_txid();
+                    let psbt = self
+                        .spend
+                        .as_ref()
+                        .map(|s| s.spend.psbt.clone())
+                        .filter(|p| p.unsigned_tx().compute_txid() == txid)
+                        .or_else(|| {
+                            self.inbox
+                                .iter()
+                                .find(|i| i.psbt().is_some_and(|p| p.txid == txid))
+                                .and_then(|i| wallet::read_psbt(c, &i.bytes))
+                        });
+                    let prevouts = psbt.map(|p| decode::prevouts_of(&p)).unwrap_or_default();
+                    let decoded = decode::decode(c, &tx, &prevouts, &self.session, &item.name);
+                    self.decode = Some(DecodeState {
+                        decoded,
+                        back: self.screen,
+                        show_hex: false,
+                    });
+                    self.screen = Screen::Decode;
+                    self.list_offset = 0.0;
+                }
+            }
+            Action::QrDecoded => {
+                if let Some(d) = self.decode.as_ref() {
+                    let hex = d.decoded.hex.clone();
+                    self.open_qr(QrView::text(c, EN.act_transaction, &hex));
+                }
+            }
+            Action::DecodeHex => {
+                if let Some(d) = self.decode.as_mut() {
+                    d.show_hex = !d.show_hex;
+                }
+            }
+            Action::SpendHex => {
+                if let Some(s) = self.spend.as_mut() {
+                    s.show_hex = !s.show_hex;
+                }
+            }
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
+    }
 }

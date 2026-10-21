@@ -4,7 +4,10 @@
 use std::collections::BTreeSet;
 
 use crate::wallet::Session;
-use crate::{Column, Screen, VisitBarAt, Writing, flow, forms, secret_text, visit_taken};
+use crate::{
+    Action, Code, Column, Faraday, Screen, VisitBarAt, Writing, flow, forms, mstep, secret_text,
+    visit_taken,
+};
 use faraday_crypto::work::Compute;
 
 /// Seed entry.
@@ -189,5 +192,113 @@ impl VisitState {
             Column::Outbox => 0,
             Column::Stick => 1,
         }]
+    }
+}
+
+impl Faraday {
+    /// Costs what the actions below cost, the keys' and wallets' work among
+    /// it: handles the message-signing flow's actions (`SignMessage`, `M*`, `CheckMessage`).
+    pub(crate) fn message_act(&mut self, action: Action, c: &Compute) {
+        match action {
+            Action::SignMessage => {
+                let first = self.session.message_wallets().first().copied();
+                self.message = Some(MessageState {
+                    open: Some(mstep::ADDRESS),
+                    wallet: first,
+                    bip322: true,
+                    ..MessageState::default()
+                });
+                self.screen = Screen::Message;
+            }
+            Action::MStep(n) => {
+                if let Some(m) = self.message.as_mut() {
+                    m.open = if m.open == Some(n) { None } else { Some(n) };
+                    m.scroll.follow = true;
+                    m.typing = m.open == Some(mstep::TEXT);
+                }
+            }
+            Action::MNext(n) => {
+                if let Some(m) = self.message.as_mut() {
+                    m.done[n as usize] = true;
+                    m.open = (0..4u8).find(|&i| !m.done[i as usize]);
+                    m.scroll.follow = true;
+                    m.typing = m.open == Some(mstep::TEXT);
+                }
+            }
+            Action::MWallet(i) => {
+                if let Some(m) = self.message.as_mut() {
+                    m.wallet = Some(i);
+                    m.index = 0;
+                    m.signed = None;
+                }
+            }
+            Action::MIndex(d) => {
+                if let Some(m) = self.message.as_mut() {
+                    m.index = (i64::from(m.index) + i64::from(d)).clamp(0, 9999) as u32;
+                    m.signed = None;
+                }
+            }
+            Action::MType => {
+                if let Some(m) = self.message.as_mut() {
+                    m.typing = !m.typing;
+                }
+            }
+            Action::MFormat(b) => {
+                if let Some(m) = self.message.as_mut() {
+                    m.bip322 = b;
+                    m.signed = None;
+                }
+            }
+            Action::MSign => {
+                if let Some(m) = self.message.as_mut()
+                    && let Some(w) = m.wallet
+                {
+                    let format = if m.bip322 {
+                        faraday_psbt::message::Format::Bip322
+                    } else {
+                        faraday_psbt::message::Format::Bip137
+                    };
+                    match self.session.sign_message(c, w, m.index, &m.text, format) {
+                        Ok(signed) => {
+                            m.signed = Some(signed);
+                            m.error = None;
+                            m.done[mstep::SIGN as usize] = true;
+                        }
+                        Err(e) => m.error = Some(e),
+                    }
+                }
+                // The signed message goes For the stick as it is made.
+                if self.message.as_ref().is_some_and(|m| m.signed.is_some()) {
+                    self.act(Action::MOut);
+                }
+            }
+            Action::MOut | Action::MQr => {
+                if let Some(m) = self.message.as_ref()
+                    && let Some(sig) = m.signed.as_ref()
+                {
+                    let text =
+                        faraday_psbt::message::signed_text(&sig.address, &sig.signature, &m.text);
+                    if action == Action::MOut {
+                        let name = format!(
+                            "message-{}.txt",
+                            &sig.address[sig.address.len().saturating_sub(6)..]
+                        );
+                        self.put_outbox(&name, text.into_bytes());
+                        self.toast_out(&name);
+                    } else {
+                        let view = self.code_view(c, Code::Message);
+                        self.open_qr(view);
+                    }
+                }
+            }
+            Action::CheckMessage(i) => {
+                if i < self.inbox.len() {
+                    self.checking = Some(i);
+                    self.screen = Screen::CheckMessage;
+                }
+            }
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
     }
 }

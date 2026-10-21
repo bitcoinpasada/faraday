@@ -5,6 +5,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::{Action, Faraday, Screen, Sheet, family, result_stem, secrets, wallet};
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::consensus::encode::serialize_hex;
 use faraday_bip::bitcoin::{Transaction, Txid};
@@ -2208,6 +2209,178 @@ impl SpendState {
         self.inspected.as_ref().is_some_and(|(p, i, c)| {
             *c == self.carry.is_some() && i == inputs && *p == self.spend.psbt
         })
+    }
+}
+
+impl Faraday {
+    /// Handles the open wallet's and spend's actions (`PickWallet`, `StartSpend`, `Step*`, `Sign*`, `Collect`, `Public*`, `WalletKey*`, `TOther` and the like).
+    pub(crate) fn wallet_act(&mut self, action: Action) {
+        match action {
+            Action::PickWallet(i) => {
+                self.wallet = i;
+                self.renaming = None;
+                self.card_offset = 0.0;
+            }
+            Action::PickKey(fp) => self.loose_pick = Some(fp),
+            Action::RemoveWallet(i) => {
+                if i < self.session.wallets.len() {
+                    self.session.wallets.remove(i);
+                    self.wallet = 0;
+                }
+            }
+            Action::RemoveKeys => {
+                self.session.keys.clear();
+                self.spend = None;
+            }
+            Action::StartSpend(i) => self.start_spend(i),
+            Action::Step(n) => {
+                if let Some(s) = self.spend.as_mut() {
+                    // On the Spend tab a step opened from another card
+                    // stays open.
+                    let from_page = self.screen == Screen::Family
+                        && self.family.open != Some(family::Open::Spend);
+                    s.open = if s.open == Some(n) && !from_page {
+                        None
+                    } else {
+                        Some(n)
+                    };
+                    s.error = None;
+                    s.follow = true;
+                }
+                if self.screen == Screen::Family {
+                    self.family_step_moved(false);
+                }
+            }
+            Action::StepNext(n) => {
+                if let Some(s) = self.spend.as_mut() {
+                    s.done[n as usize] = true;
+                    s.open = s.steps.iter().copied().find(|&i| !s.done[i as usize]);
+                    s.error = None;
+                    s.follow = true;
+                }
+                // Check's own Continue: this wallet is checked this
+                // power-on (`docs/WALLETS.md` §4), kept across a lock.
+                if n == wallet::step::CHECK
+                    && let Some(w) = self.spend.as_ref().and_then(|s| s.wallet)
+                    && let Some(wallet) = self.session.wallets.get(w)
+                {
+                    let checksum = wallet.checksum().to_string();
+                    self.mark_checked(&checksum);
+                }
+                if self.screen == Screen::Family {
+                    self.family_step_moved(true);
+                }
+            }
+            Action::ToggleTable => {
+                if let Some(s) = self.spend.as_mut() {
+                    s.table = !s.table;
+                }
+            }
+            Action::SignHere => self.sign_here(),
+            Action::Collect(i) => self.collect(i),
+            Action::SignedToOutbox => {
+                if let Some(s) = self.spend.as_mut() {
+                    let name = format!("{}-signed.psbt", result_stem(&s.spend.source));
+                    let bytes = s.spend.psbt.to_bytes();
+                    s.out_signed = true;
+                    self.put_outbox(&name, bytes);
+                }
+            }
+            Action::TxToOutbox => {
+                if let Some(s) = self.spend.as_mut()
+                    && let Some(hex) = s.spend.finished_hex()
+                {
+                    let name = format!("{}-final.txn", result_stem(&s.spend.source));
+                    s.out_tx = true;
+                    self.put_outbox(&name, hex.into_bytes());
+                }
+            }
+            Action::Primary => self.primary(),
+            Action::LoadWallet(i) => self.load_wallet(i),
+            Action::LoadKey(i) => {
+                if self.load_key(i) {
+                    self.inbox_load_named();
+                }
+            }
+            Action::PublicOut(i, what) => self.public_out(i, what),
+            Action::PublicMore(i) => {
+                if let Some(b) = self.backup.as_mut()
+                    && b.wallet == i
+                {
+                    b.public_more = true;
+                }
+            }
+            Action::PublicRemove(i, what) => self.public_remove(i, what),
+            Action::WalletKeyOut(i, k) => self.wallet_key_out(i, k),
+            Action::WalletKeyBsms(i, k) => self.wallet_key_bsms(i, k),
+            Action::OpenWallet(i) => {
+                if i < self.session.wallets.len() {
+                    self.wallet = i;
+                    self.screen = Screen::Wallets;
+                    self.card_offset = 0.0;
+                    self.glance = false;
+                    self.chart_focus = None;
+                }
+            }
+            Action::WriteAsk => {
+                if !self.clean() {
+                    self.sheet = Some(Sheet::WriteOut);
+                } else if self.sticks.is_empty() {
+                    self.toast(&fill(EN.act_plug_in_the_visit, &[self.medium.a()]));
+                } else {
+                    self.act(Action::Nav(Screen::Visit));
+                }
+            }
+            Action::Rename => {
+                // Pressing the name field again keeps what is typed.
+                if self.renaming.is_none() {
+                    self.renaming = self
+                        .session
+                        .wallets
+                        .get(self.wallet)
+                        .map(|w| w.name.clone());
+                }
+            }
+            Action::TOther(id) => {
+                if let Some(s) = self.spend.as_mut() {
+                    if let Some(k) = s.others.iter().position(|o| *o == id) {
+                        s.others.remove(k);
+                    } else {
+                        s.others.push(id);
+                        s.others.sort_unstable();
+                    }
+                    s.error = None;
+                }
+            }
+            Action::CarryToOutbox => {
+                // The carry holds the secret nonce the next share signs
+                // with: a vault by default, the Outbox only after a warning.
+                let out = self.spend.as_mut().and_then(|s| {
+                    let stem = result_stem(&s.spend.source);
+                    let bytes = s.carry_out.take()?;
+                    let psbt = s.spend.psbt.to_bytes();
+                    let round = secrets::Round {
+                        tx: secrets::tx_hash(&s.spend.psbt),
+                        key: s.signers.first().copied().unwrap_or_default(),
+                        psbt,
+                        psbt_name: format!("{stem}-part.psbt"),
+                    };
+                    let mut out = secrets::SecretOut::new(
+                        format!("{stem}-partly-signed.osk"),
+                        bytes,
+                        EN.act_the_secret_nonce,
+                        EN.act_whoever_has_it,
+                    );
+                    out.keep = secrets::Keep::Round(round);
+                    Some(out)
+                });
+                if let Some(out) = out {
+                    self.offer_secret(out);
+                }
+            }
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
     }
 }
 

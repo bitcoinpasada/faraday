@@ -31,7 +31,7 @@ use crate::strings::EN;
 use crate::strings::fill;
 use faraday_shell_api::Command;
 
-use crate::{BootPart, Faraday, Screen, Sheet, StorageCommand, StorageEvent};
+use crate::{Action, BootPart, Faraday, Screen, Sheet, StorageCommand, StorageEvent};
 
 /// What the upgrade holds while it is on screen.
 #[derive(Debug, Default)]
@@ -398,5 +398,19 @@ impl Faraday {
         self.sticks
             .iter()
             .find(|s| s.id.split_once('@').is_some_and(|(_, d)| d == disk))
+    }
+}
+
+impl Faraday {
+    /// Handles the Upgrade screen's actions (`Upgrade*`).
+    pub(crate) fn upgrade_act(&mut self, action: Action) {
+        match action {
+            Action::UpgradeOpen => self.upgrade_open(),
+            Action::UpgradePick(i) => self.upgrade_pick(i),
+            Action::UpgradeWrite => self.upgrade_write(),
+            Action::UpgradeAgain => self.upgrade_again(),
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
     }
 }

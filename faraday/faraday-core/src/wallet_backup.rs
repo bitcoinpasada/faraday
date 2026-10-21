@@ -24,7 +24,10 @@ use faraday_bip::keys::{Fingerprint, Network};
 use faraday_crypto::work::Compute;
 
 use crate::wallet::{Kind, Session, Wallet, fp_text};
-use crate::{BStage, board, copy_check, flow, paper, plan};
+use crate::{
+    Action, BStage, Command, Faraday, Later, PlanPress, ScanPurpose, ScanState, Screen, Sheet,
+    board, bstep, copy_check, file_stem, flow, paper, plan, qrow, qstep, ui, vault,
+};
 
 /// Which keys each sheet of a split backup carries: sheet `i` carries `d`
 /// keys starting at key `i`, wrapping, where `d` is `n` less the keys each
@@ -514,6 +517,332 @@ pub struct BackupState {
     /// not to load at unlock: the vault item's **Load at unlock** turned
     /// off (F62). Every other starts on.
     pub no_load: Vec<usize>,
+}
+
+impl Faraday {
+    /// Costs what the actions below cost, the keys' and wallets' work among
+    /// it: handles the wallet backup flow's actions (`Backup*`, `BQ*`, `B*`).
+    pub(crate) fn backup_act(&mut self, action: Action, c: &Compute) {
+        match action {
+            Action::BackupChecklist(i) => {
+                // The plan the chart shows, at its first item not done;
+                // nothing is made For the stick by opening it.
+                if self.chart_checklist(i, false) {
+                    let first = self.backup_items_now(c).into_iter().find(|&n| {
+                        bstep::item(n).is_some_and(|it| !self.backup_item_done_now(c, it))
+                    });
+                    self.backup_item_open(first);
+                    self.screen = Screen::Backup;
+                }
+            }
+            Action::Backup(i) => {
+                if i < self.session.wallets.len() {
+                    let keys = self.backup_keys(i);
+                    let first_key = keys.first().copied().unwrap_or(0);
+                    let shape = self.plan_shape_now(i);
+                    // The plan this wallet's last backup saved into an
+                    // open vault, as it was; else the board open on The
+                    // standard way, read-only until Customize backup
+                    // (`docs/BACKUP-FLOW.md` §17.6).
+                    let (answers, names, q) = match self.plan_load(c, i, &shape) {
+                        Some((a, names)) => (a, names, None),
+                        None => (
+                            plan::Answers::preset(&shape, plan::Preset::Standard),
+                            Vec::new(),
+                            Some(qstep::BOARD),
+                        ),
+                    };
+                    // A copy checked this power-on stays checked.
+                    let checked = self
+                        .backups_checked(i)
+                        .into_iter()
+                        .flat_map(|fp| [(fp, plan::CopyForm::Words), (fp, plan::CopyForm::SeedQr)])
+                        .collect();
+                    self.backup = Some(BackupState {
+                        wallet: i,
+                        q,
+                        answers,
+                        names,
+                        checked,
+                        key: first_key,
+                        words: 24,
+                        ..BackupState::default()
+                    });
+                    self.screen = Screen::Backup;
+                }
+            }
+            Action::BQ(n) => {
+                if let Some(b) = self.backup.as_mut() {
+                    b.q = if b.q == Some(n) { None } else { Some(n) };
+                    b.scroll.follow = true;
+                    b.naming = None;
+                }
+            }
+            Action::BQNext(n) => {
+                let qs = self.backup_questions(c);
+                if let Some(b) = self.backup.as_mut() {
+                    b.q = qs.iter().skip_while(|&&q| q != n).nth(1).copied();
+                    b.scroll.follow = true;
+                    b.naming = None;
+                }
+            }
+            Action::BAnswer(list, row) => {
+                // Back up's plan asks the rest place by place.
+                if !matches!(list, qrow::SOFTWARE | qrow::FORM) {
+                    return;
+                }
+                if let Some(i) = self.backup_locked_flow() {
+                    return self.flow_wallet_answer(i, list, row);
+                }
+                let Some(w) = self.backup.as_ref().map(|b| b.wallet) else {
+                    return;
+                };
+                let shape = self.plan_shape_now(w);
+                if let (Some(q), Some(b)) = (qrow::question(list), self.backup.as_mut()) {
+                    b.answers.toggle(&shape, q, usize::from(row));
+                    // A question that no longer applies closes.
+                    b.naming = b.naming.filter(|&p| p < b.answers.places);
+                }
+            }
+            Action::BName(p8) => {
+                let open = self.vaults.open.get(self.vaults.current).is_some();
+                let mut focused = false;
+                if let Some(b) = self.backup.as_mut()
+                    && open
+                {
+                    let p = usize::from(p8);
+                    if b.names.len() <= p {
+                        b.names.resize(p + 1, String::new());
+                    }
+                    if b.naming == Some(p) {
+                        b.naming = None;
+                    } else {
+                        // The field holds the name shown, "Place 1" until
+                        // one is typed, so the press selects all of it
+                        // (`docs/BACKUP-FLOW.md` §17.18).
+                        if b.names[p].trim().is_empty() {
+                            b.names[p] = fill(EN.place_name_place, &[&(p + 1).to_string()]);
+                        }
+                        b.naming = Some(p);
+                        focused = true;
+                    }
+                }
+                if focused {
+                    self.edit = ui::Edit {
+                        field: Some(Action::BName(p8)),
+                        caret: None,
+                        anchor: Some(0),
+                    };
+                }
+            }
+            Action::BChecklist => {
+                // A plan that keeps no copy of a key made here, or leaves
+                // a vault's stick at no place, is not made into a
+                // checklist (`docs/history/NEW-WALLET.md` §14.2, §14.4).
+                // A backup past its lock keeps its plan until its writes
+                // are done (`docs/BACKUP-FLOW.md` §15.8).
+                if self.backup_locked_flow().is_some() {
+                    return self.toast(EN.backup_flow_past_lock);
+                }
+                // A vault's stick at no place is a warning only
+                // (`docs/BACKUP-FLOW.md` §17.16 item 3).
+                if self.backup_kept_nowhere(c).is_some()
+                    || self
+                        .backup
+                        .as_ref()
+                        .and_then(|b| b.answers.empty_vault())
+                        .is_some()
+                {
+                    return;
+                }
+                self.backup_extras();
+                self.plan_save();
+                self.backup_files_make();
+                let items = self.backup_items_now(c);
+                let first = items
+                    .iter()
+                    .copied()
+                    .find(|&n| bstep::item(n).is_some_and(|it| !self.backup_item_done_now(c, it)));
+                if let Some(b) = self.backup.as_mut() {
+                    b.stage = BStage::Checklist;
+                    b.naming = None;
+                    b.scroll = flow::Scroll::default();
+                }
+                self.backup_item_open(first);
+                self.backups_sync();
+            }
+            Action::BPlan => {
+                // The cards show the map as it is, a chart's edits
+                // included (`docs/BACKUP-FLOW.md` §15.2): nothing is
+                // replaced, so nothing is asked.
+                // What the checklist has put in vaults so far, should the
+                // new plan drop it.
+                self.backup_prior();
+                if let Some(b) = self.backup.as_mut() {
+                    b.stage = BStage::Plan;
+                    // On the board, the first card, at the top: as a new
+                    // plan opens (`docs/BACKUP-FLOW.md` §17.21 item 11).
+                    b.q = Some(qstep::BOARD);
+                    b.check = None;
+                    b.scroll = flow::Scroll::default();
+                }
+            }
+            Action::BWallets => {
+                if let Some(b) = self.backup.as_mut() {
+                    b.pick = !b.pick;
+                }
+            }
+            Action::BStep(n) => {
+                let open = self.backup.as_ref().and_then(|b| b.open);
+                // An item opens once every item before it is done
+                // (`docs/history/NEW-WALLET.md` §14.1).
+                if open == Some(n) {
+                    self.backup_item_open(None);
+                } else if self.backup_reachable(c, n) {
+                    self.backup_item_open(Some(n));
+                }
+            }
+            Action::BNext(n) => {
+                // No way past an item but doing it; the envelopes and the
+                // blank templates, printed from Faraday Starter, are done
+                // by this press.
+                if n != bstep::ENVELOPE
+                    && n != bstep::BLANK
+                    && !bstep::item(n).is_some_and(|it| self.backup_item_done_now(c, it))
+                {
+                    return;
+                }
+                let items = self.backup_items_now(c);
+                let next = if n == bstep::ENVELOPE || n == bstep::BLANK {
+                    if let Some(b) = self.backup.as_mut() {
+                        if n == bstep::ENVELOPE {
+                            b.envelopes = true;
+                        } else {
+                            b.printed = true;
+                        }
+                    }
+                    items.iter().copied().find(|&i| {
+                        bstep::item(i).is_some_and(|it| !self.backup_item_done_now(c, it))
+                    })
+                } else {
+                    items.iter().skip_while(|&&i| i != n).nth(1).copied()
+                };
+                self.backup_item_open(next);
+            }
+            Action::BKey(k) => {
+                if let Some(b) = self.backup.as_mut() {
+                    b.key = k;
+                    b.reveal = false;
+                    b.check = None;
+                    b.scanned = None;
+                    b.paper = None;
+                }
+            }
+            Action::BReveal => {
+                // Show the seed ends the check and wipes what was typed;
+                // the check starts again from word 1.
+                if let Some(b) = self.backup.as_mut() {
+                    b.reveal = b.check.is_some() || !b.reveal;
+                    b.check = None;
+                }
+            }
+            Action::BXor(n) => self.paper_xor(n),
+            Action::BCodex32(k, n) => self.paper_codex32(k, n),
+            Action::BPaperHide => {
+                if let Some(b) = self.backup.as_mut() {
+                    b.paper = None;
+                }
+            }
+            Action::BCompact(c) => {
+                if let Some(b) = self.backup.as_mut() {
+                    b.compact = c;
+                    b.pin = 0;
+                }
+            }
+            Action::BPin(r) => {
+                if let Some(b) = self.backup.as_mut() {
+                    b.pin = r;
+                }
+            }
+            Action::BCheck => self.copy_check_open(),
+            Action::BScan => {
+                let fp = self
+                    .backup
+                    .as_ref()
+                    .and_then(|b| self.session.keys.get(b.key))
+                    .map(|k| k.fingerprint());
+                if let Some(fp) = fp {
+                    let mut scan = ScanState::default();
+                    scan.purpose = ScanPurpose::CheckCopy(fp);
+                    self.scan = Some(scan);
+                    self.sheet = Some(Sheet::Scan);
+                    self.commands.push_back(Command::CameraOn);
+                }
+            }
+            Action::BCheckClear => self.copy_check_clear(),
+            Action::BKeepWords => self.keep_words_only(),
+            Action::BVaultSave(v) => self.backup_vault_save(usize::from(v)),
+            Action::BVaultLoad(v) => self.backup_vault_load_toggle(usize::from(v)),
+            Action::BFilesMake => {
+                self.backup_files_make();
+                self.backups_sync();
+            }
+            Action::BackupFirst(w) => self.backup_first(w),
+            Action::BNewVault(v) => {
+                let v = usize::from(v);
+                if let Some(t) = self.backup_vault_target(v) {
+                    if self.backup_vault_set_up(v) == Some(t) {
+                        // The vault set up for this plan vault keeps its
+                        // stick and its place in the setup: it is not
+                        // locked away from here.
+                        let name = self.vaults.open[t].name.to_string();
+                        self.toast(&fill(EN.backup_flow_set_up_holds_other, &[&name]));
+                    } else if self.vault_lock_one(t) {
+                        self.vault_act(vault::VaultAction::CreateFrom(Screen::Backup));
+                    }
+                }
+            }
+            Action::BFile => {
+                // The seeds' files item makes the first one not yet made.
+                let next = self.backup.as_ref().and_then(|b| {
+                    let stem = file_stem(&self.session.wallets.get(b.wallet)?.name);
+                    self.backup_keys(b.wallet)
+                        .into_iter()
+                        .find(|&k| !self.seed_file_made(&stem, &self.session.keys[k]))
+                });
+                if let (Some(k), Some(b)) = (next, self.backup.as_mut())
+                    && b.open == Some(bstep::FILES)
+                {
+                    b.key = k;
+                }
+                self.offer_seed();
+            }
+            Action::BWords(n) => {
+                if let Some(b) = self.backup.as_mut() {
+                    b.words = n;
+                }
+            }
+            Action::BOmit(n) => {
+                if let Some(i) = self.backup_locked_flow() {
+                    return self
+                        .flow_plan_press(i, PlanPress::Omit(u8::try_from(n).unwrap_or(u8::MAX)));
+                }
+                let remake = self.backup_remake(4);
+                if let Some(b) = self.backup.as_mut() {
+                    b.answers.omit = n;
+                }
+                // The shares' files and pictures are made again once the
+                // slider is let go and a frame drawn (`docs/SPEED.md` §9).
+                if let Some(w) = remake {
+                    self.later = Some(Later::PublicOut(w, 4));
+                    self.later_drawn = false;
+                }
+            }
+            Action::BOut(what) => self.backup_out(what),
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[cfg(test)]

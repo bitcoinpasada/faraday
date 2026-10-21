@@ -14,7 +14,7 @@ use faraday_draw::widgets::Icon;
 use crate::compact::{buttons, scroll_sheet};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
-use crate::{Action, Faraday, Sheet, StorageCommand, sha256_of, stick};
+use crate::{Action, Faraday, READ_MAX, Screen, Sheet, StorageCommand, sha256_of, stick};
 
 /// What becomes of one file whose name is taken.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -265,4 +265,86 @@ pub(crate) fn taken_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         );
         cy - y
     });
+}
+
+impl Faraday {
+    /// Handles the stick visit's actions (`Action::Visit*`).
+    pub(crate) fn visit_act(&mut self, action: Action) {
+        match action {
+            Action::VisitStick(i) => {
+                self.visit.stick = i;
+                self.visit.inn = self.visit_default_in();
+                self.visit.settings = None;
+            }
+            Action::VisitSettings => {
+                self.visit.settings = Some(!self.visit_settings_on());
+            }
+            Action::VisitOut(i) => {
+                if let Some(item) = self
+                    .outbox
+                    .get(i)
+                    .filter(|it| !self.in_the_backup(&it.name))
+                {
+                    let n = item.name.clone();
+                    if !self.visit.out.remove(&n) {
+                        self.visit.out.insert(n);
+                    }
+                }
+            }
+            Action::VisitIn(i) => {
+                if let Some(stick) = self.sticks.get(self.visit.stick)
+                    && let Some((n, size)) = stick.files.get(i)
+                    && *size <= READ_MAX
+                {
+                    let n = n.clone();
+                    if !self.visit.inn.remove(&n) {
+                        self.visit.inn.insert(n);
+                    }
+                }
+            }
+            // Unselect all: everything comes in by default (§4.6).
+            Action::VisitInAll => self.visit.inn.clear(),
+            Action::VisitOutAll => {
+                // Every row but an unprotected secret, which is ticked one
+                // at a time (FLOWS.md decision 6); from the Inbox, every
+                // public or sealed file, and none that may be a secret.
+                let all = self.visit_all_out();
+                let inbox = self.visit_inbox_plain();
+                let every = self.visit_settings_on()
+                    && all.is_subset(&self.visit.out)
+                    && inbox.is_subset(&self.visit.from_inbox);
+                if every {
+                    self.visit.out.clear();
+                    for n in &inbox {
+                        self.visit.from_inbox.remove(n);
+                    }
+                } else {
+                    self.visit.out.extend(all);
+                    self.visit.from_inbox.extend(inbox);
+                }
+                self.visit.settings = Some(!every);
+            }
+            Action::VisitInbox(i) => self.visit_inbox(i),
+            Action::VisitBar(_) => {}
+            Action::VisitWrite => self.visit_write_ask(),
+            Action::VisitReplace => self.visit_write(true),
+            Action::VisitKeepBoth => self.visit_write(false),
+            Action::VisitCopy => self.visit_copy(),
+            Action::VisitCopyAndLoad => {
+                self.visit.load_after.extend(self.visit.inn.iter().cloned());
+                self.visit_copy();
+                // Straight to the Inbox, where they arrive; the stick's
+                // pull loads them from there.
+                self.act(Action::Nav(Screen::Files));
+            }
+            Action::VisitFrom(back) => {
+                if !self.sticks.is_empty() && !self.holds_secret() {
+                    self.after_visit = Some(back);
+                    self.act(Action::Nav(Screen::Visit));
+                }
+            }
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
+    }
 }

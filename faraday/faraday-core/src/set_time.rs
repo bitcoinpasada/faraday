@@ -8,7 +8,7 @@ use crate::strings::fill;
 use faraday_shell_api::Key as KeyIn;
 
 use crate::vault::TextBox;
-use crate::{Faraday, Screen, Sheet};
+use crate::{Action, Faraday, Screen, Sheet};
 
 /// Which of Set the time's two fields typing goes to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -248,6 +248,26 @@ impl Faraday {
         match focus {
             Focus::Date => &mut self.set_time.date,
             Focus::Time => &mut self.set_time.time,
+        }
+    }
+}
+
+impl Faraday {
+    /// Handles the clock's actions (`TzStep`, `OpenSetTime`, `SetTime*`).
+    pub(crate) fn time_act(&mut self, action: Action) {
+        match action {
+            Action::TzStep(delta) => self.tz_step(delta),
+            Action::OpenSetTime => self.open_set_time(),
+            Action::SetTimeFocus(f) => self.set_time.focus = Some(f),
+            Action::SetTimeSet => {
+                if self.set_time_ready() {
+                    self.set_time_set();
+                }
+            }
+            Action::SetTimeKeep => self.set_time_keep(),
+            Action::SetTimeBack => self.set_time_back(),
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
         }
     }
 }

@@ -1,7 +1,7 @@
 //! The QR view (a code shown, in parts) and the camera's scan state.
 
 use crate::strings::{EN, fill};
-use crate::{part_note, picture, secrets, wallet};
+use crate::{Action, Faraday, Screen, part_note, picture, qr_fits, secrets, transfer, wallet};
 use faraday_crypto::work::Compute;
 
 /// What a scan pass saw of a code ([`StorageEvent::QrSeen`]).
@@ -472,5 +472,100 @@ impl QrView {
             self.png_name.clone(),
             picture::labelled_png(c, code, &self.title, &self.label),
         ))
+    }
+}
+
+impl Faraday {
+    /// Costs what the actions below cost, the keys' and wallets' work among
+    /// it: handles the QR view's and the PDF buttons' actions (`Qr*`, `ShowCode`, `CodePng`, `Pdf*`).
+    pub(crate) fn qr_act(&mut self, action: Action, c: &Compute) {
+        match action {
+            Action::PdfInbox(i) => {
+                if let Some(item) = self.inbox.get(i) {
+                    let (name, bytes) = (item.name.clone(), item.bytes.clone());
+                    self.make_pdf(&name, &bytes);
+                }
+            }
+            Action::PdfOutbox(i) => {
+                if let Some(item) = self.outbox.get(i) {
+                    let (name, bytes) = (item.name.clone(), item.bytes.clone());
+                    self.make_pdf(&name, &bytes);
+                }
+            }
+            Action::QrSigned | Action::QrPart => {
+                if let Some(s) = self.spend.as_ref() {
+                    let title = if action == Action::QrSigned {
+                        EN.act_signed_psbt
+                    } else {
+                        EN.act_psbt_for_the_next
+                    };
+                    let bytes = s.spend.psbt.to_bytes();
+                    self.open_qr(QrView::psbt(c, title, &bytes));
+                }
+            }
+            Action::QrWallet(i) => {
+                if let Some(b) = self.backup.as_mut()
+                    && b.wallet == i
+                    && self.screen == Screen::Backup
+                {
+                    b.shown = true;
+                    self.backups_shown();
+                }
+                if i < self.session.wallets.len() {
+                    let view = self.code_view(c, Code::Descriptor(i));
+                    self.open_qr(view);
+                }
+            }
+            Action::ShowCode(c) | Action::CodePng(c)
+                if matches!(c, Code::GpgSignature(_)) && self.time_asked() => {}
+            Action::ShowCode(code) => {
+                let view = self.code_view(c, code);
+                self.open_qr(view);
+            }
+            Action::CodePng(code) => {
+                let view = self.code_view(c, code);
+                self.code_png(view.as_ref());
+            }
+            Action::QrPng => {
+                if let Some(q) = self.qr.take() {
+                    self.code_png(Ok(&q));
+                    self.qr = Some(q);
+                }
+            }
+            Action::QrOutbox(i) => {
+                if let Some(item) = self.outbox.get(i).filter(|it| qr_fits(it)) {
+                    // What a wallet reads goes as itself; any other file in
+                    // the Faraday file envelope.
+                    let source = transfer::qr_source(&item.name, &item.bytes, item.kind);
+                    let secret = item.secret;
+                    let view = QrView::of(c, &item.name, source, QrFormat::Ur, QR_PARTS[1]).map(
+                        |mut v| {
+                            v.secret |= secret;
+                            v
+                        },
+                    );
+                    self.open_qr(view);
+                }
+            }
+            Action::QrFormat(i) => {
+                if let Some(q) = self.qr.as_ref() {
+                    let f = QrFormat::ALL[usize::from(i) % QrFormat::ALL.len()];
+                    let v = q.redo(c, f, q.part);
+                    self.open_qr(v);
+                }
+            }
+            Action::QrPartSize(n) => {
+                if let Some(q) = self.qr.as_ref() {
+                    let v = q.redo(c, q.format, n);
+                    self.open_qr(v);
+                }
+            }
+            Action::QrSpeed(ms) => {
+                self.qr_frame_ms = ms;
+                self.save_boxes();
+            }
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
     }
 }

@@ -10,7 +10,10 @@ use faraday_bip::policy::{PolicyKey, WalletPolicy};
 use faraday_bip::slip132;
 use faraday_crypto::work::Compute;
 
-use crate::{VaultAsk, backup_flow, cstep, flow, secret_text};
+use crate::{
+    Action, Code, Faraday, MAX_VAULTS, Screen, VaultAsk, backup_flow, create, cstep, flow,
+    secret_text, wallet,
+};
 
 /// The kinds a wallet can be created as.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -645,5 +648,305 @@ impl CreateState {
         self.pass2.clear();
         self.pass_focus = None;
         self.pass_note = None;
+    }
+}
+
+impl Faraday {
+    /// Costs what the actions below cost, the keys' and wallets' work among
+    /// it: handles the Create wallet flow's actions (`Action::C*`, `CreateWallet`, `CreateOver`, `PlanAddPass`, `NewWalletFrom`).
+    pub(crate) fn create_act(&mut self, action: Action, c: &Compute) {
+        match action {
+            Action::CreateWallet
+                if self.create_unfinished()
+                    || self.create.as_ref().is_some_and(|c| {
+                        self.setup_pending(c.owner, c.into_vaults(), c.built.is_some())
+                    }) =>
+            {
+                let from_home = self.screen == Screen::Home;
+                if let Some(c) = self.create.as_mut() {
+                    c.from_home = from_home;
+                }
+                self.screen = Screen::Create;
+            }
+            Action::CreateWallet | Action::CreateOver => {
+                // Create opens with Kind open, whatever opened it
+                // (`docs/history/NEW-WALLET.md` §2.1); Back goes where it was
+                // opened from, Home or Wallets.
+                // Where the keys will be kept is done only once the person
+                // has pressed its own Continue, whatever is ticked to begin
+                // with.
+                let done = [false; cstep::COUNT];
+                let owner = self.fresh_owner();
+                self.create = Some(CreateState {
+                    owner,
+                    done,
+                    open: Some(cstep::KIND),
+                    // Start over keeps it.
+                    from_home: self.screen == Screen::Home
+                        || (self.screen == Screen::Create
+                            && self.create.as_ref().is_some_and(|c| c.from_home)),
+                    m: 2,
+                    n: 3,
+                    slots: vec![create::Source::Empty; 1],
+                    ..CreateState::default()
+                });
+                self.screen = Screen::Create;
+            }
+            // Keys stay closed while the vaults' setup is to do.
+            Action::CStep(k)
+                if k == cstep::KEYS
+                    && self.create.as_ref().is_some_and(|c| {
+                        self.setup_pending(c.owner, c.into_vaults(), c.built.is_some())
+                    }) => {}
+            Action::CStep(k) => {
+                if let Some(c) = self.create.as_mut() {
+                    c.open = if c.open == Some(k) { None } else { Some(k) };
+                    c.scroll.follow = true;
+                }
+            }
+            // Keys' Continue makes the wallet, which opens Check; until
+            // it is made, a refusal keeps Keys open with the reason.
+            Action::CNext(k)
+                if k == cstep::KEYS && self.create.as_ref().is_some_and(|c| c.built.is_none()) =>
+            {
+                self.create_make();
+            }
+            // The question of vaults waits for its answer.
+            Action::CNext(k)
+                if k == cstep::WHERE
+                    && self
+                        .create
+                        .as_ref()
+                        .is_some_and(|c| c.vaults.answer.is_none()) => {}
+            // How many vaults: Continue opens the setup, which brings in
+            // each vault's stick and opens or makes the vault; it comes
+            // back to Keys.
+            Action::CNext(k) if k == cstep::HOW_MANY => {
+                if let Some(c) = self.create.as_mut() {
+                    c.done[k as usize] = true;
+                    let owner = c.owner;
+                    self.wallet_flow_begin(owner);
+                }
+            }
+            Action::CNext(k) => {
+                if let Some(c) = self.create.as_mut() {
+                    c.done[k as usize] = true;
+                }
+                self.create_open_next();
+                // Check's own Continue: this wallet is checked this
+                // power-on (`docs/WALLETS.md` §4).
+                if k == cstep::CHECK
+                    && let Some(w) = self.create.as_ref().and_then(|c| c.built)
+                    && let Some(wallet) = self.session.wallets.get(w)
+                {
+                    let checksum = wallet.checksum().to_string();
+                    self.mark_checked(&checksum);
+                }
+            }
+            Action::CKind(i) => {
+                if let Some(c) = self.create.as_mut()
+                    && c.built.is_none()
+                {
+                    // Ticks the kind, whether chosen by hand on an open
+                    // Kind card or by a Tools tile opening Create with
+                    // its kind already ticked (`docs/history/NEW-WALLET.md`
+                    // §2.1): either way Kind stays open until its own
+                    // Continue closes it.
+                    c.kind = create::NewKind::ALL[i as usize % create::NewKind::ALL.len()];
+                    if c.kind.multi() {
+                        c.n = c.n.clamp(2, c.kind.max_keys());
+                        c.m = if c.kind.all_sign() { c.n } else { c.m.min(c.n) };
+                    }
+                    // A threshold wallet's slots are the shares chosen;
+                    // the deal computes the rest.
+                    let n = match c.kind {
+                        k if k.threshold() => c.m,
+                        k if k.multi() => c.n,
+                        _ => 1,
+                    };
+                    if c.kind.threshold() {
+                        c.slots.retain(|s| matches!(s, create::Source::Here(_)));
+                    }
+                    c.slots.resize(n, create::Source::Empty);
+                    c.slots.truncate(n);
+                }
+                self.create_from_refresh();
+            }
+            Action::CBackup => {
+                if let Some(i) = self.create.as_ref().and_then(|c| c.built) {
+                    self.act(Action::Backup(i));
+                    if let Some(b) = self.backup.as_mut() {
+                        b.from_create = true;
+                    }
+                }
+            }
+            Action::CVaults(_) | Action::CVaultN(_)
+                if self
+                    .create
+                    .as_ref()
+                    .is_some_and(|c| c.built.is_none() && self.setup_vault_open(c.owner)) =>
+            {
+                self.toast(EN.create_vaults_locked);
+            }
+            Action::CVaults(yes) => {
+                if let Some(c) = self.create.as_mut()
+                    && c.built.is_none()
+                    && c.vaults.answer != Some(yes)
+                {
+                    let owner = c.owner;
+                    c.vaults.answer = Some(yes);
+                    c.done[cstep::WHERE as usize] = false;
+                    c.done[cstep::HOW_MANY as usize] = false;
+                    self.wallet_vaults_changed(owner);
+                }
+            }
+            Action::CVaultN(n) => {
+                if let Some(c) = self.create.as_mut()
+                    && c.built.is_none()
+                {
+                    let owner = c.owner;
+                    c.vaults.count = usize::from(n).clamp(1, MAX_VAULTS);
+                    c.done[cstep::HOW_MANY as usize] = false;
+                    self.wallet_vaults_changed(owner);
+                }
+            }
+            Action::PlanAddPass => self.plan_add_passphrase(),
+            Action::CMoreKinds => {
+                if let Some(c) = self.create.as_mut() {
+                    c.more_kinds = true;
+                }
+            }
+            Action::CM(d) => {
+                if let Some(c) = self.create.as_mut() {
+                    c.m = if c.kind.all_sign() {
+                        c.n
+                    } else {
+                        (c.m as i64 + i64::from(d)).clamp(1, c.n as i64) as usize
+                    };
+                    if c.kind.threshold() {
+                        c.slots.resize(c.m, create::Source::Empty);
+                    }
+                }
+            }
+            Action::CN(d) => {
+                if let Some(c) = self.create.as_mut()
+                    && c.kind.multi()
+                {
+                    c.n = (c.n as i64 + i64::from(d)).clamp(2, c.kind.max_keys() as i64) as usize;
+                    c.m = if c.kind.all_sign() { c.n } else { c.m.min(c.n) };
+                    let slots = if c.kind.threshold() { c.m } else { c.n };
+                    c.slots.resize(slots, create::Source::Empty);
+                }
+                self.create_from_refresh();
+            }
+            // NEW-WALLET §16 (F45): keys from a vault in Create; a new
+            // wallet from one held.
+            Action::CSlotVault(k, v, r) => self.create_slot_vault(k, v, r),
+            Action::CAccount(d) => self.create_account_step(d),
+            Action::CPathChange => self.create_take_back(),
+            Action::NewWalletFrom(i) => self.create_from_wallet(i),
+            Action::CSlotHere(k, fp) => {
+                if let Some(c) = self.create.as_mut()
+                    && let Some(s) = c.slots.get_mut(k as usize)
+                {
+                    *s = create::Source::Here(fp);
+                    if c.pass_slot == Some(k) {
+                        c.close_pass();
+                    }
+                }
+            }
+            Action::CSlotFile(k, i) => {
+                let kind = self.create.as_ref().map(|c| c.kind).unwrap_or_default();
+                let key = self
+                    .inbox
+                    .get(i)
+                    .and_then(|it| create::key_for(kind, &String::from_utf8_lossy(&it.bytes)));
+                // A cosigner's key sets the network the wallet is made on.
+                let net = key
+                    .as_deref()
+                    .and_then(|k| faraday_bip::policy::PolicyKey::parse(k).ok())
+                    .map(|k| wallet::network_of_key(&k, self.session.network()));
+                if let Err(e) = self.session.follow(net) {
+                    if let Some(c) = self.create.as_mut() {
+                        c.error = Some(e.text());
+                    }
+                    return;
+                }
+                if let Some(c) = self.create.as_mut()
+                    && let Some(s) = c.slots.get_mut(k as usize)
+                    && let Some(key) = key
+                {
+                    *s = create::Source::Cosigner(key);
+                }
+            }
+            Action::CSlotLater(k) => {
+                if let Some(c) = self.create.as_mut()
+                    && let Some(s) = c.slots.get_mut(k as usize)
+                {
+                    *s = create::Source::Later;
+                }
+            }
+            Action::CKeyOut(k) | Action::CKeyQr(k) => {
+                let qr = matches!(action, Action::CKeyQr(_));
+                match self.create_key_text(c, k) {
+                    Ok((fp, text)) => {
+                        let kind = self.create.as_ref().map_or("", |c| c.kind.name());
+                        if qr {
+                            let view = self.code_view(c, Code::Key(k));
+                            self.open_qr(view);
+                        } else {
+                            let name = format!("xpub-{fp}.txt");
+                            self.put_outbox(
+                                &name,
+                                format!("# Account xpub {fp}, {kind}\n{text}\n").into_bytes(),
+                            );
+                            self.toast_out(&name);
+                        }
+                    }
+                    Err(e) => self.toast(&e),
+                }
+            }
+            Action::CKeyBsms(k) => match self.create_key_bsms(c, k) {
+                Some((fpt, text)) => {
+                    let name = format!("xpub-{fpt}-bsms.txt");
+                    self.put_outbox(&name, text.into_bytes());
+                    self.toast_out(&name);
+                }
+                None => self.toast(EN.act_bip_129_covers),
+            },
+            Action::CSlotClear(k) => {
+                if let Some(c) = self.create.as_mut()
+                    && let Some(s) = c.slots.get_mut(k as usize)
+                {
+                    *s = create::Source::Empty;
+                    if c.pass_slot == Some(k) {
+                        c.close_pass();
+                    }
+                }
+            }
+            Action::CPassOpen(k) => {
+                if let Some(c) = self.create.as_mut() {
+                    if c.pass_slot == Some(k) {
+                        c.close_pass();
+                    } else if c.built.is_none() {
+                        c.close_pass();
+                        c.pass_slot = Some(k);
+                        c.pass_focus = Some(0);
+                    }
+                }
+            }
+            Action::CPassField(f) => {
+                if let Some(c) = self.create.as_mut()
+                    && c.pass_slot.is_some()
+                    && f < 2
+                {
+                    c.pass_focus = Some(f);
+                    c.pass_note = None;
+                }
+            }
+            Action::CPassLock => self.create_pass_lock(),
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
     }
 }

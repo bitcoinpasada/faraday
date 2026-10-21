@@ -24,7 +24,7 @@ use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
 
 use crate::wallet::FileKind;
-use crate::{Faraday, Sheet};
+use crate::{Action, Faraday, Sheet};
 
 /// Who may read a file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -493,6 +493,20 @@ impl Faraday {
             if v.contents.records.len() != before {
                 v.changes += 1;
             }
+        }
+    }
+}
+
+impl Faraday {
+    /// Handles the secret sheet's actions (`Secret*`).
+    pub(crate) fn secret_act(&mut self, action: Action) {
+        match action {
+            Action::SecretVault => self.secret_to_vault(),
+            Action::SecretAck => self.secret_ack = !self.secret_ack,
+            Action::SecretUnprotected => self.secret_unprotected(),
+            Action::SecretForm(i) => self.secret_form(usize::from(i)),
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
         }
     }
 }

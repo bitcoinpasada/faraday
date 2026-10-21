@@ -20,7 +20,7 @@ use crate::plan::{self, At, Tag, What};
 use crate::vault::Currency;
 use crate::wallet::{Session, Wallet, fp_text};
 use crate::wallet_backup::Tone;
-use crate::{Faraday, file_stem};
+use crate::{Action, Faraday, Screen, file_stem};
 
 /// What this power-on saw of one wallet's backup.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -946,5 +946,37 @@ fn lower_first(s: &str) -> String {
     match c.next() {
         Some(f) => f.to_lowercase().chain(c).collect(),
         None => String::new(),
+    }
+}
+
+impl Faraday {
+    /// Costs what the actions below cost, the keys' and wallets' work among
+    /// it: handles the Backups screen's actions (`BackupsOf`, `BackupsPage`).
+    pub(crate) fn backups_act(&mut self, action: Action, c: &Compute) {
+        match action {
+            Action::BackupsOf(i) => {
+                let sum = self
+                    .session
+                    .wallets
+                    .get(i)
+                    .map(|w| w.checksum().to_string());
+                let at = self
+                    .backups_now(c)
+                    .iter()
+                    .position(|e| Some(&e.sum) == sum.as_ref())
+                    .unwrap_or(0);
+                self.act(Action::Nav(Screen::Backups));
+                self.backups_at = at;
+                if !self.compact {
+                    self.list_offset = crate::backups::screen::offset_of_now(c, self, at);
+                }
+            }
+            Action::BackupsPage(i) => {
+                self.backups_at = i;
+                self.list_offset = 0.0;
+            }
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
     }
 }

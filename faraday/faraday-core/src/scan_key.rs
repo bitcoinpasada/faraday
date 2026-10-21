@@ -13,7 +13,7 @@ use faraday_shell_api::Command;
 
 use crate::plan::{At, What};
 use crate::wallet::{Session, fp_text};
-use crate::{Faraday, Sheet};
+use crate::{Action, Faraday, ScanPurpose, ScanState, Sheet};
 
 /// Costs what `add_words_with` costs. The key `words` make with `pass`,
 /// if they are BIP-39 words.
@@ -222,6 +222,65 @@ impl Faraday {
             ));
         } else {
             self.toast(&fill(EN.scan_key_key_added, &[&(n + 1).to_string()]));
+        }
+    }
+}
+
+impl Faraday {
+    /// Handles the scan sheet's actions (`ScanPaste`, `ScanCamera`, `ScanPart`, `ScanSeed`, `ScanKey`, `Scan`).
+    pub(crate) fn scan_act(&mut self, action: Action) {
+        match action {
+            Action::ScanPaste => self.scan_paste(),
+            Action::ScanCamera(i) => {
+                if let Some((id, _)) = self.cameras.get(usize::from(i)) {
+                    self.camera = Some(id.clone());
+                    self.camera_change = Some(id.clone());
+                    if let Some(s) = self.scan.as_mut() {
+                        s.seen = None;
+                        s.too_fine = 0;
+                    }
+                }
+            }
+            Action::ScanPart => {
+                if self.may_load_keys() {
+                    let mut scan = ScanState::default();
+                    scan.purpose = ScanPurpose::KeyPart;
+                    self.scan = Some(scan);
+                    self.sheet = Some(Sheet::Scan);
+                    self.commands.push_back(Command::CameraOn);
+                }
+            }
+            Action::ScanSeed => {
+                if self.may_load_keys() {
+                    let mut scan = ScanState::default();
+                    scan.purpose = ScanPurpose::Seed;
+                    self.scan = Some(scan);
+                    self.sheet = Some(Sheet::Scan);
+                    self.commands.push_back(Command::CameraOn);
+                }
+            }
+            Action::ScanKey(w) => {
+                if self.may_load_keys() && w < self.session.wallets.len() {
+                    let mut scan = ScanState::default();
+                    scan.purpose = ScanPurpose::WalletKey(w);
+                    self.scan = Some(scan);
+                    self.sheet = Some(Sheet::Scan);
+                    self.commands.push_back(Command::CameraOn);
+                }
+            }
+            Action::Scan => {
+                let mut scan = ScanState::default();
+                if let Some((decoder, assembler)) = self.scan_parts.take() {
+                    scan.decoder = decoder;
+                    scan.assembler = assembler;
+                    scan.note = Some(EN.act_carrying_on_with.to_string());
+                }
+                self.scan = Some(scan);
+                self.sheet = Some(Sheet::Scan);
+                self.commands.push_back(Command::CameraOn);
+            }
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
         }
     }
 }

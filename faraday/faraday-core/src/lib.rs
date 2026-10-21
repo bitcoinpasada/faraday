@@ -44,6 +44,13 @@
 //!   `upgrade`, `secure_boot/state.rs`, `names`.
 //! - Support: `wordlist`, `learn`, `tools`, `testkit`.
 //!
+//! `Faraday::act_inner` is the dispatch for presses: it runs the checks that
+//! come before any action, then sends each `Action` to its area's
+//! `<area>_act` (`create_act` in `create`, `restore_act` in `restore`,
+//! `backup_act` in `wallet_backup`, `wallet_act` in `wallet`, `visit_act` in
+//! `visit_taken` and the like). Only navigation, Back, the settings and the
+//! Learn sheet are handled in `act_inner` itself.
+//!
 //! Every `Screen` variant and the file that draws it. An area draws in its
 //! own `screen.rs`; a screen with no area folder is in `screens/`, whose
 //! `mod.rs` holds the frame and the dispatch, `sidebar.rs` the sidebar,
@@ -3262,6 +3269,132 @@ impl Faraday {
         self.flows_note();
     }
 
+    /// Costs what the actions below cost, the keys' and wallets' work among
+    /// it: handles lock, power and idle-timer actions (`Lock*`, `NotNow`, `Power*`, `Restart`, `Idle*`).
+    pub(crate) fn power_act(&mut self, action: Action, c: &Compute) {
+        match action {
+            Action::Lock => self.lock(),
+            Action::LockUnsealed => self.lock_now(),
+            Action::LockAsk => self.lock_ask(false),
+            Action::NotNow => {
+                self.sheet = None;
+                // Asked for by Upgrade, with no stick in: nothing waits.
+                self.not_now = !std::mem::take(&mut self.upgrade_after_lock);
+            }
+            Action::PowerAsk => {
+                // An open vault's changes are never sealed at power-off:
+                // the sheet says they are lost.
+                let changed = self.vaults.open.iter().any(|v| v.changes > 0);
+                if self.outbox.is_empty()
+                    && !self.secure_boot_reminder()
+                    && !changed
+                    && !self.offers_restart()
+                    && !self.lock_held(c)
+                {
+                    self.commands.push_back(Command::Exit);
+                } else {
+                    self.sheet = Some(Sheet::Power);
+                }
+            }
+            Action::PowerOff => {
+                self.sheet = None;
+                self.commands.push_back(Command::Exit);
+            }
+            Action::Restart => {
+                self.sheet = None;
+                self.restart_computer = self.offers_restart();
+                self.commands.push_back(Command::Exit);
+            }
+            Action::IdleLock(m) => {
+                self.idle_lock_min = m;
+                self.save_boxes();
+            }
+            Action::IdleOff(m) => {
+                self.idle_off_min = m;
+                self.save_boxes();
+            }
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
+    }
+
+    /// Handles `Action::Cancel`, Back and Escape on a sheet: the sheet closes,
+    /// by the way out its own kind has, and what it held is let go.
+    pub(crate) fn cancel_act(&mut self, action: Action) {
+        match action {
+            // The ⋮ menu's way out is its own: back to the Add sheet it
+            // came from (`docs/BACKUP-FLOW.md` §17.20).
+            Action::Cancel if self.sheet == Some(Sheet::BoardMenu) => {
+                self.board_act(board::BoardPress::MenuClose);
+            }
+            Action::Cancel
+                if matches!(
+                    self.sheet,
+                    Some(Sheet::FileMenu | Sheet::Rename | Sheet::Details)
+                ) =>
+            {
+                self.file_act(file_menu::FilePress::Close);
+            }
+            // Escape on the Load sheet is its Not now (F62).
+            Action::Cancel if self.sheet == Some(Sheet::UnlockLoad) => {
+                self.load_sheet_act(vault::VaultAction::LoadNotNow);
+            }
+            // Sign with {key}'s Cancel: the sheet closes, the files stay
+            // ticked, nothing is signed (F63).
+            Action::Cancel if self.sheet == Some(Sheet::GpgSign) => {
+                self.sheet = None;
+            }
+            Action::Cancel if self.sheet == Some(Sheet::PassphraseSeeds) => {
+                self.pass_seeds_close();
+            }
+            Action::Cancel => {
+                self.pull = None;
+                self.vaults.stick_save = None;
+                self.devices.after = None;
+                self.devices.over_import = false;
+                // A seed read and not loaded is wiped.
+                self.seed_read = None;
+                self.delete_ask = None;
+                self.visit.taken.clear();
+                self.test_asked = None;
+                self.secret_cancel();
+                self.wordlist = None;
+                self.potential = None;
+                // A transfer in parts survives closing the camera: the
+                // parts read so far wait for the next scan.
+                if let Some(s) = self.scan.as_mut()
+                    && s.in_parts()
+                    && s.purpose != ScanPurpose::Transfer
+                {
+                    self.scan_parts = Some((
+                        std::mem::take(&mut s.decoder),
+                        std::mem::take(&mut s.assembler),
+                    ));
+                }
+                if let Some(scan) = self.scan.take() {
+                    self.commands.push_back(Command::CameraOff);
+                    // A copy's scan closed by the person: one scan without
+                    // a match (a match closes the camera itself).
+                    if let ScanPurpose::CheckCopy(fp) = scan.purpose {
+                        self.copy_missed(fp.0);
+                    }
+                }
+                self.sheet = None;
+                self.qr = None;
+                self.chart = None;
+                self.chart_work.secret.clear();
+                self.chart_work.ask = None;
+                if let Some(b) = self.backup.as_mut() {
+                    b.pick = false;
+                }
+                // A device still waiting comes back up.
+                self.input_sheet();
+            }
+            // `act_inner` passes only `Action::Cancel`.
+            _ => unreachable!(),
+        }
+    }
+
     fn act_inner(&mut self, action: Action) {
         let c = self.compute();
         // A build whose vectors do not reproduce does nothing but exit.
@@ -3342,17 +3475,12 @@ impl Faraday {
                 self.screen = Screen::Family;
             }
             Action::Osk(p) => self.osk_press(p),
-            Action::ScanPaste => self.scan_paste(),
-            Action::ScanCamera(i) => {
-                if let Some((id, _)) = self.cameras.get(usize::from(i)) {
-                    self.camera = Some(id.clone());
-                    self.camera_change = Some(id.clone());
-                    if let Some(s) = self.scan.as_mut() {
-                        s.seen = None;
-                        s.too_fine = 0;
-                    }
-                }
-            }
+            a @ (Action::ScanPaste
+            | Action::ScanCamera(..)
+            | Action::ScanPart
+            | Action::ScanSeed
+            | Action::ScanKey(..)
+            | Action::Scan) => self.scan_act(a),
             Action::Bip85
             | Action::PStep(_)
             | Action::PKey(_)
@@ -3396,10 +3524,10 @@ impl Faraday {
                 self.explore_act(Action::Explore);
                 self.explore_act(Action::XKey(fp));
             }
-            Action::SecretVault => self.secret_to_vault(),
-            Action::SecretAck => self.secret_ack = !self.secret_ack,
-            Action::SecretUnprotected => self.secret_unprotected(),
-            Action::SecretForm(i) => self.secret_form(usize::from(i)),
+            a @ (Action::SecretVault
+            | Action::SecretAck
+            | Action::SecretUnprotected
+            | Action::SecretForm(..)) => self.secret_act(a),
             Action::LearnPage(i) => self.learn_page(i),
             Action::LearnStep(n) => self.learn_tick_step(n),
             Action::WordList(a) => self.wordlist_act(a),
@@ -3441,48 +3569,26 @@ impl Faraday {
             Action::Resume(g) => self.flow_resume(g),
             Action::CancelFlow => self.flow_cancel(),
             Action::CancelFlowNow => self.flow_cancel_now(),
-            Action::TransferSend(i) => self.transfer_pick(i),
-            Action::TransferReceive => self.transfer_receive(),
-            Action::TransferOpenFolder => self.transfer_open_folder(),
+            a @ (Action::TransferSend(..)
+            | Action::TransferReceive
+            | Action::TransferOpenFolder) => self.transfer_act(a),
             Action::SeedRead(c) => self.seed_read_act(c),
-            Action::DeleteFiles => self.delete_open(),
-            Action::DeleteWhat(k) => self.delete_what(k),
-            Action::DeletePick(k) => self.delete_pick(k),
-            Action::DeletePasses(n) => self.delete_passes(n),
-            // A vault chosen is deleted by the hold alone (decision 4).
-            Action::DeleteGo if !self.delete_holds() => self.delete_go(),
-            Action::DeleteGo => {}
-            Action::ZeroStop => self.zero_stop(),
+            a @ (Action::DeleteFiles
+            | Action::DeleteWhat(..)
+            | Action::DeletePick(..)
+            | Action::DeletePasses(..)
+            | Action::DeleteGo
+            | Action::ZeroStop) => self.wipe_act(a),
             Action::OpenInstitute => {
                 if self.online {
                     self.storage_out.push_back(StorageCommand::OpenInstitute);
                 }
             }
-            Action::UpgradeOpen => self.upgrade_open(),
-            Action::UpgradePick(i) => self.upgrade_pick(i),
-            Action::UpgradeWrite => self.upgrade_write(),
-            Action::UpgradeAgain => self.upgrade_again(),
-            Action::BackupsOf(i) => {
-                let sum = self
-                    .session
-                    .wallets
-                    .get(i)
-                    .map(|w| w.checksum().to_string());
-                let at = self
-                    .backups_now(&c)
-                    .iter()
-                    .position(|e| Some(&e.sum) == sum.as_ref())
-                    .unwrap_or(0);
-                self.act(Action::Nav(Screen::Backups));
-                self.backups_at = at;
-                if !self.compact {
-                    self.list_offset = crate::backups::screen::offset_of_now(&c, self, at);
-                }
-            }
-            Action::BackupsPage(i) => {
-                self.backups_at = i;
-                self.list_offset = 0.0;
-            }
+            a @ (Action::UpgradeOpen
+            | Action::UpgradePick(..)
+            | Action::UpgradeWrite
+            | Action::UpgradeAgain) => self.upgrade_act(a),
+            a @ (Action::BackupsOf(..) | Action::BackupsPage(..)) => self.backups_act(a, &c),
             Action::Nav(s) => {
                 self.chart_focus = None;
                 if s == Screen::Backups {
@@ -3507,438 +3613,108 @@ impl Faraday {
                     self.visit.out_offset = 0.0;
                 }
             }
-            Action::Entry(wanted) => {
-                if self.may_load_keys() {
-                    let back = matches!(
-                        self.screen,
-                        Screen::Restore | Screen::Family | Screen::Spend
-                    )
-                    .then_some(self.screen);
-                    self.entry = EntryState::default();
-                    self.entry.wanted = wanted;
-                    self.entry.back = back;
-                    // A small panel has no keyboard of its own: every
-                    // list's words go on the word keyboard.
-                    if self.compact {
-                        self.entry.keys = Some(forms::word_typer(self.entry.language()));
-                    }
-                    self.screen = Screen::Entry;
-                }
-            }
-            Action::EntryWordCount(n) => {
-                if EntryState::COUNTS.contains(&n) {
-                    self.entry.word_count = n;
-                }
-            }
-            Action::EntryClear => {
-                self.entry.word_count = 0;
-                self.entry.typed.clear();
-                if self.entry.keys.is_some() {
-                    self.entry.keys = Some(forms::word_typer(self.entry.language()));
-                }
-                self.entry.label.clear();
-                self.entry.error = None;
-            }
-            Action::EntryAdd => self.entry_add(),
-            Action::EntryLanguages => self.entry.languages = !self.entry.languages,
-            Action::EntryLanguage(i) => {
-                if let Some(&lang) = forms::LANGUAGES.get(usize::from(i)) {
-                    self.entry.language_at = i;
-                    self.entry.error = None;
-                    self.entry.shift = false;
-                    // A list with a keyboard of its own starts its words
-                    // over; one typed in Latin letters keeps them.
-                    self.entry.keys =
-                        (forms::on_screen(lang) || self.compact).then(|| forms::word_typer(lang));
-                    if self.compact {
-                        self.entry.languages = false;
-                    }
-                }
-            }
-            Action::EntryKey(c) => {
-                let w = self.words_use();
-                let (lang, in_check) = (w.lang, w.in_check);
-                if let Some(k) = w.keys.as_mut() {
-                    k.type_char(c);
-                    *w.shift = false;
-                    *w.error = None;
-                    if forms::word_whole(k, lang) {
-                        forms::take_typed(k, lang);
-                    }
-                }
-                if in_check {
-                    self.copy_check_after();
-                }
-            }
-            Action::EntryKeyBack => {
-                let w = self.words_use();
-                if let Some(k) = w.keys.as_mut() {
-                    k.backspace();
-                    *w.error = None;
-                }
-            }
-            Action::EntryShift => {
-                let w = self.words_use();
-                *w.shift = !*w.shift;
-            }
-            Action::EntryCandidate(n) => {
-                let w = self.words_use();
-                let in_check = w.in_check;
-                if let Some(k) = w.keys.as_mut() {
-                    k.commit_candidate(usize::from(n));
-                    *w.error = None;
-                }
-                if in_check {
-                    self.copy_check_after();
-                }
-            }
-            Action::EntryForm(i) => {
-                if let Some(&f) = forms::Form::ALL.get(usize::from(i)) {
-                    let (wanted, back) = (self.entry.wanted, self.entry.back);
-                    self.entry = EntryState::default();
-                    self.entry.wanted = wanted;
-                    self.entry.back = back;
-                    self.entry.form = f;
-                    // Chosen from the chips, or opened by a Tools tile
-                    // for this form: the chips stay in view.
-                    self.entry.other_forms = true;
-                }
-            }
-            Action::EntryOtherForms => self.entry.other_forms = true,
-            Action::EntryPart => self.form_add_part(),
-            Action::EntryRecover => self.form_recover(),
-            Action::PickWallet(i) => {
-                self.wallet = i;
-                self.renaming = None;
-                self.card_offset = 0.0;
-            }
-            Action::PickKey(fp) => self.loose_pick = Some(fp),
-            Action::RemoveWallet(i) => {
-                if i < self.session.wallets.len() {
-                    self.session.wallets.remove(i);
-                    self.wallet = 0;
-                }
-            }
-            Action::RemoveKeys => {
-                self.session.keys.clear();
-                self.spend = None;
-            }
-            Action::StartSpend(i) => self.start_spend(i),
-            Action::Step(n) => {
-                if let Some(s) = self.spend.as_mut() {
-                    // On the Spend tab a step opened from another card
-                    // stays open.
-                    let from_page = self.screen == Screen::Family
-                        && self.family.open != Some(family::Open::Spend);
-                    s.open = if s.open == Some(n) && !from_page {
-                        None
-                    } else {
-                        Some(n)
-                    };
-                    s.error = None;
-                    s.follow = true;
-                }
-                if self.screen == Screen::Family {
-                    self.family_step_moved(false);
-                }
-            }
-            Action::StepNext(n) => {
-                if let Some(s) = self.spend.as_mut() {
-                    s.done[n as usize] = true;
-                    s.open = s.steps.iter().copied().find(|&i| !s.done[i as usize]);
-                    s.error = None;
-                    s.follow = true;
-                }
-                // Check's own Continue: this wallet is checked this
-                // power-on (`docs/WALLETS.md` §4), kept across a lock.
-                if n == wallet::step::CHECK
-                    && let Some(w) = self.spend.as_ref().and_then(|s| s.wallet)
-                    && let Some(wallet) = self.session.wallets.get(w)
-                {
-                    let checksum = wallet.checksum().to_string();
-                    self.mark_checked(&checksum);
-                }
-                if self.screen == Screen::Family {
-                    self.family_step_moved(true);
-                }
-            }
-            Action::ToggleTable => {
-                if let Some(s) = self.spend.as_mut() {
-                    s.table = !s.table;
-                }
-            }
-            Action::SignHere => self.sign_here(),
-            Action::Collect(i) => self.collect(i),
-            Action::SignedToOutbox => {
-                if let Some(s) = self.spend.as_mut() {
-                    let name = format!("{}-signed.psbt", result_stem(&s.spend.source));
-                    let bytes = s.spend.psbt.to_bytes();
-                    s.out_signed = true;
-                    self.put_outbox(&name, bytes);
-                }
-            }
-            Action::TxToOutbox => {
-                if let Some(s) = self.spend.as_mut()
-                    && let Some(hex) = s.spend.finished_hex()
-                {
-                    let name = format!("{}-final.txn", result_stem(&s.spend.source));
-                    s.out_tx = true;
-                    self.put_outbox(&name, hex.into_bytes());
-                }
-            }
-            Action::Primary => self.primary(),
-            Action::LoadWallet(i) => self.load_wallet(i),
-            Action::InboxRemove(i) => {
-                if i < self.inbox.len() {
-                    self.inbox.remove(i);
-                    self.save_boxes();
-                }
-            }
-            Action::OutboxRemove(i) => {
-                if i < self.outbox.len() {
-                    let gone = self.outbox.remove(i);
-                    self.files_menu.renamed.remove(&gone.name);
-                    self.save_boxes();
-                }
-            }
-            Action::VisitStick(i) => {
-                self.visit.stick = i;
-                self.visit.inn = self.visit_default_in();
-                self.visit.settings = None;
-            }
-            Action::VisitSettings => {
-                self.visit.settings = Some(!self.visit_settings_on());
-            }
-            Action::VisitOut(i) => {
-                if let Some(item) = self
-                    .outbox
-                    .get(i)
-                    .filter(|it| !self.in_the_backup(&it.name))
-                {
-                    let n = item.name.clone();
-                    if !self.visit.out.remove(&n) {
-                        self.visit.out.insert(n);
-                    }
-                }
-            }
-            Action::VisitIn(i) => {
-                if let Some(stick) = self.sticks.get(self.visit.stick)
-                    && let Some((n, size)) = stick.files.get(i)
-                    && *size <= READ_MAX
-                {
-                    let n = n.clone();
-                    if !self.visit.inn.remove(&n) {
-                        self.visit.inn.insert(n);
-                    }
-                }
-            }
-            // Unselect all: everything comes in by default (§4.6).
-            Action::VisitInAll => self.visit.inn.clear(),
-            Action::VisitOutAll => {
-                // Every row but an unprotected secret, which is ticked one
-                // at a time (FLOWS.md decision 6); from the Inbox, every
-                // public or sealed file, and none that may be a secret.
-                let all = self.visit_all_out();
-                let inbox = self.visit_inbox_plain();
-                let every = self.visit_settings_on()
-                    && all.is_subset(&self.visit.out)
-                    && inbox.is_subset(&self.visit.from_inbox);
-                if every {
-                    self.visit.out.clear();
-                    for n in &inbox {
-                        self.visit.from_inbox.remove(n);
-                    }
-                } else {
-                    self.visit.out.extend(all);
-                    self.visit.from_inbox.extend(inbox);
-                }
-                self.visit.settings = Some(!every);
-            }
-            Action::VisitInbox(i) => self.visit_inbox(i),
-            Action::VisitBar(_) => {}
-            Action::VisitWrite => self.visit_write_ask(),
-            Action::VisitReplace => self.visit_write(true),
-            Action::VisitKeepBoth => self.visit_write(false),
-            Action::VisitCopy => self.visit_copy(),
-            Action::VisitCopyAndLoad => {
-                self.visit.load_after.extend(self.visit.inn.iter().cloned());
-                self.visit_copy();
-                // Straight to the Inbox, where they arrive; the stick's
-                // pull loads them from there.
-                self.act(Action::Nav(Screen::Files));
-            }
-            Action::LoadKey(i) => {
-                if self.load_key(i) {
-                    self.inbox_load_named();
-                }
-            }
-            Action::Lock => self.lock(),
-            Action::LockUnsealed => self.lock_now(),
-            Action::EntryPassphrase => self.entry.on_passphrase = !self.entry.on_passphrase,
-            Action::LockAsk => self.lock_ask(false),
-            Action::NotNow => {
-                self.sheet = None;
-                // Asked for by Upgrade, with no stick in: nothing waits.
-                self.not_now = !std::mem::take(&mut self.upgrade_after_lock);
-            }
-            Action::PowerAsk => {
-                // An open vault's changes are never sealed at power-off:
-                // the sheet says they are lost.
-                let changed = self.vaults.open.iter().any(|v| v.changes > 0);
-                if self.outbox.is_empty()
-                    && !self.secure_boot_reminder()
-                    && !changed
-                    && !self.offers_restart()
-                    && !self.lock_held(&c)
-                {
-                    self.commands.push_back(Command::Exit);
-                } else {
-                    self.sheet = Some(Sheet::Power);
-                }
-            }
-            Action::PowerOff => {
-                self.sheet = None;
-                self.commands.push_back(Command::Exit);
-            }
-            Action::Restart => {
-                self.sheet = None;
-                self.restart_computer = self.offers_restart();
-                self.commands.push_back(Command::Exit);
-            }
-            Action::InputUse(id) => self.input_believe(id),
-            Action::InputIgnore(id) => self.input_ignore(id),
-            Action::IdleLock(m) => {
-                self.idle_lock_min = m;
-                self.save_boxes();
-            }
-            Action::IdleOff(m) => {
-                self.idle_off_min = m;
-                self.save_boxes();
-            }
-            Action::PublicOut(i, what) => self.public_out(i, what),
-            Action::PublicMore(i) => {
-                if let Some(b) = self.backup.as_mut()
-                    && b.wallet == i
-                {
-                    b.public_more = true;
-                }
-            }
-            Action::PublicRemove(i, what) => self.public_remove(i, what),
-            Action::WalletKeyOut(i, k) => self.wallet_key_out(i, k),
-            Action::WalletKeyBsms(i, k) => self.wallet_key_bsms(i, k),
-            Action::RFromVault(v, r) => self.restore_from_vault(v, r),
-            Action::VisitFrom(back) => {
-                if !self.sticks.is_empty() && !self.holds_secret() {
-                    self.after_visit = Some(back);
-                    self.act(Action::Nav(Screen::Visit));
-                }
-            }
-            Action::Network(n)
-                if self.online
-                    && !n.is_mainnet()
-                    && !self.airgap_warned
-                    && self.session.network().is_mainnet()
-                    && self.session.wallets.is_empty()
-                    && !self.session.network_fixed() =>
-            {
-                self.test_asked = Some(n);
-                self.sheet = Some(Sheet::NotAirgapped);
-            }
-            Action::AirgapUnderstood => {
-                self.airgap_warned = true;
-                self.sheet = None;
-                if let Some(n) = self.test_asked.take() {
-                    self.act(Action::Network(n));
-                }
-                // What waited under the start warning comes up now: a new
-                // device first, then the boot import (F61).
-                self.input_sheet();
-                if self.sheet.is_none()
-                    && self.import.is_some()
-                    && std::mem::take(&mut self.import_under_input)
-                {
-                    self.sheet = Some(Sheet::Import);
-                }
-            }
-            Action::Network(n) => match self.session.set_network(n) {
-                Ok(()) => {
-                    self.sheet = None;
-                    self.refresh_spend();
-                }
-                Err(e) => self.toast(&e.text()),
-            },
-            Action::DevicesCheck => self.device_check(),
-            Action::DevicesContinue => self.device_continue(),
-            Action::DevicesUnderstood => self.device_understood(),
-            // The ⋮ menu's way out is its own: back to the Add sheet it
-            // came from (`docs/BACKUP-FLOW.md` §17.20).
-            Action::Cancel if self.sheet == Some(Sheet::BoardMenu) => {
-                self.board_act(board::BoardPress::MenuClose);
-            }
-            Action::Cancel
-                if matches!(
-                    self.sheet,
-                    Some(Sheet::FileMenu | Sheet::Rename | Sheet::Details)
-                ) =>
-            {
-                self.file_act(file_menu::FilePress::Close);
-            }
+            a @ (Action::Entry(..)
+            | Action::EntryWordCount(..)
+            | Action::EntryClear
+            | Action::EntryAdd
+            | Action::EntryLanguages
+            | Action::EntryLanguage(..)
+            | Action::EntryKey(..)
+            | Action::EntryKeyBack
+            | Action::EntryShift
+            | Action::EntryCandidate(..)
+            | Action::EntryForm(..)
+            | Action::EntryOtherForms
+            | Action::EntryPart
+            | Action::EntryRecover
+            | Action::EntryPassphrase
+            | Action::EntryWallet(..)) => self.entry_act(a),
+            a @ (Action::PickWallet(..)
+            | Action::PickKey(..)
+            | Action::RemoveWallet(..)
+            | Action::RemoveKeys
+            | Action::StartSpend(..)
+            | Action::Step(..)
+            | Action::StepNext(..)
+            | Action::ToggleTable
+            | Action::SignHere
+            | Action::Collect(..)
+            | Action::SignedToOutbox
+            | Action::TxToOutbox
+            | Action::Primary
+            | Action::LoadWallet(..)
+            | Action::LoadKey(..)
+            | Action::PublicOut(..)
+            | Action::PublicMore(..)
+            | Action::PublicRemove(..)
+            | Action::WalletKeyOut(..)
+            | Action::WalletKeyBsms(..)
+            | Action::OpenWallet(..)
+            | Action::WriteAsk
+            | Action::Rename
+            | Action::TOther(..)
+            | Action::CarryToOutbox) => self.wallet_act(a),
+            a @ (Action::InboxRemove(..)
+            | Action::OutboxRemove(..)
+            | Action::InboxLoad
+            | Action::InboxChoose(..)
+            | Action::PotentialOpen(..)
+            | Action::XpubOpen(..)
+            | Action::BackupOpen(..)
+            | Action::PotentialKind(..)
+            | Action::PotentialShow
+            | Action::PotentialType
+            | Action::PotentialMake) => self.inbox_act(a, &c),
+            a @ (Action::VisitStick(..)
+            | Action::VisitSettings
+            | Action::VisitOut(..)
+            | Action::VisitIn(..)
+            | Action::VisitInAll
+            | Action::VisitOutAll
+            | Action::VisitInbox(..)
+            | Action::VisitBar(..)
+            | Action::VisitWrite
+            | Action::VisitReplace
+            | Action::VisitKeepBoth
+            | Action::VisitCopy
+            | Action::VisitCopyAndLoad
+            | Action::VisitFrom(..)) => self.visit_act(a),
+            a @ (Action::Lock
+            | Action::LockUnsealed
+            | Action::LockAsk
+            | Action::NotNow
+            | Action::PowerAsk
+            | Action::PowerOff
+            | Action::Restart
+            | Action::IdleLock(..)
+            | Action::IdleOff(..)) => self.power_act(a, &c),
+            a @ (Action::InputUse(..)
+            | Action::InputIgnore(..)
+            | Action::Network(..)
+            | Action::AirgapUnderstood
+            | Action::DevicesCheck
+            | Action::DevicesContinue
+            | Action::DevicesUnderstood) => self.devices_act(a),
+            a @ (Action::RFromVault(..)
+            | Action::RestoreWallet
+            | Action::RStep(..)
+            | Action::RVaults(..)
+            | Action::RVaultN(..)
+            | Action::RNext(..)
+            | Action::RKind(..)
+            | Action::RMoreKinds
+            | Action::RFromFiles
+            | Action::RAbsent(..)
+            | Action::RSlotWords
+            | Action::RSlotScan
+            | Action::RUse(..)
+            | Action::RShare(..)
+            | Action::RRebuild
+            | Action::RSeeds
+            | Action::KeyWallet(..)
+            | Action::RestoreShares) => self.restore_act(a, &c),
+            a @ Action::Cancel => self.cancel_act(a),
             Action::File(p) => self.file_act(p),
-            // Escape on the Load sheet is its Not now (F62).
-            Action::Cancel if self.sheet == Some(Sheet::UnlockLoad) => {
-                self.load_sheet_act(vault::VaultAction::LoadNotNow);
-            }
-            // Sign with {key}'s Cancel: the sheet closes, the files stay
-            // ticked, nothing is signed (F63).
-            Action::Cancel if self.sheet == Some(Sheet::GpgSign) => {
-                self.sheet = None;
-            }
-            Action::Cancel if self.sheet == Some(Sheet::PassphraseSeeds) => {
-                self.pass_seeds_close();
-            }
-            Action::Cancel => {
-                self.pull = None;
-                self.vaults.stick_save = None;
-                self.devices.after = None;
-                self.devices.over_import = false;
-                // A seed read and not loaded is wiped.
-                self.seed_read = None;
-                self.delete_ask = None;
-                self.visit.taken.clear();
-                self.test_asked = None;
-                self.secret_cancel();
-                self.wordlist = None;
-                self.potential = None;
-                // A transfer in parts survives closing the camera: the
-                // parts read so far wait for the next scan.
-                if let Some(s) = self.scan.as_mut()
-                    && s.in_parts()
-                    && s.purpose != ScanPurpose::Transfer
-                {
-                    self.scan_parts = Some((
-                        std::mem::take(&mut s.decoder),
-                        std::mem::take(&mut s.assembler),
-                    ));
-                }
-                if let Some(scan) = self.scan.take() {
-                    self.commands.push_back(Command::CameraOff);
-                    // A copy's scan closed by the person: one scan without
-                    // a match (a match closes the camera itself).
-                    if let ScanPurpose::CheckCopy(fp) = scan.purpose {
-                        self.copy_missed(fp.0);
-                    }
-                }
-                self.sheet = None;
-                self.qr = None;
-                self.chart = None;
-                self.chart_work.secret.clear();
-                self.chart_work.ask = None;
-                if let Some(b) = self.backup.as_mut() {
-                    b.pick = false;
-                }
-                // A device still waiting comes back up.
-                self.input_sheet();
-            }
             Action::About(k) => {
                 let this = (self.screen, k);
                 self.about_open = (self.about_open != Some(this)).then_some(this);
@@ -3956,1304 +3732,107 @@ impl Faraday {
                 self.seal_amounts = on;
                 self.save_boxes();
             }
-            Action::TzStep(delta) => self.tz_step(delta),
-            Action::OpenSetTime => self.open_set_time(),
-            Action::SetTimeFocus(f) => self.set_time.focus = Some(f),
-            Action::SetTimeSet => {
-                if self.set_time_ready() {
-                    self.set_time_set();
-                }
-            }
-            Action::SetTimeKeep => self.set_time_keep(),
-            Action::SetTimeBack => self.set_time_back(),
-            Action::OpenCodes => self.open_codes(),
-            Action::CodesOpen(v, item) => self.open_code_row(v, item),
-            Action::CodesAdd => self.codes_add_entry(),
-            Action::OpenWallet(i) => {
-                if i < self.session.wallets.len() {
-                    self.wallet = i;
-                    self.screen = Screen::Wallets;
-                    self.card_offset = 0.0;
-                    self.glance = false;
-                    self.chart_focus = None;
-                }
-            }
+            a @ (Action::TzStep(..)
+            | Action::OpenSetTime
+            | Action::SetTimeFocus(..)
+            | Action::SetTimeSet
+            | Action::SetTimeKeep
+            | Action::SetTimeBack) => self.time_act(a),
+            a @ (Action::OpenCodes | Action::CodesOpen(..) | Action::CodesAdd) => self.codes_act(a),
             Action::Chart(c) => self.chart_act(c),
             Action::Glance(open) => {
                 self.glance = open && self.screen == Screen::Wallets;
                 self.list_offset = 0.0;
             }
-            Action::BackupChecklist(i) => {
-                // The plan the chart shows, at its first item not done;
-                // nothing is made For the stick by opening it.
-                if self.chart_checklist(i, false) {
-                    let first = self.backup_items_now(&c).into_iter().find(|&n| {
-                        bstep::item(n).is_some_and(|it| !self.backup_item_done_now(&c, it))
-                    });
-                    self.backup_item_open(first);
-                    self.screen = Screen::Backup;
-                }
-            }
-            Action::Backup(i) => {
-                if i < self.session.wallets.len() {
-                    let keys = self.backup_keys(i);
-                    let first_key = keys.first().copied().unwrap_or(0);
-                    let shape = self.plan_shape_now(i);
-                    // The plan this wallet's last backup saved into an
-                    // open vault, as it was; else the board open on The
-                    // standard way, read-only until Customize backup
-                    // (`docs/BACKUP-FLOW.md` §17.6).
-                    let (answers, names, q) = match self.plan_load(&c, i, &shape) {
-                        Some((a, names)) => (a, names, None),
-                        None => (
-                            plan::Answers::preset(&shape, plan::Preset::Standard),
-                            Vec::new(),
-                            Some(qstep::BOARD),
-                        ),
-                    };
-                    // A copy checked this power-on stays checked.
-                    let checked = self
-                        .backups_checked(i)
-                        .into_iter()
-                        .flat_map(|fp| [(fp, plan::CopyForm::Words), (fp, plan::CopyForm::SeedQr)])
-                        .collect();
-                    self.backup = Some(BackupState {
-                        wallet: i,
-                        q,
-                        answers,
-                        names,
-                        checked,
-                        key: first_key,
-                        words: 24,
-                        ..BackupState::default()
-                    });
-                    self.screen = Screen::Backup;
-                }
-            }
-            Action::BQ(n) => {
-                if let Some(b) = self.backup.as_mut() {
-                    b.q = if b.q == Some(n) { None } else { Some(n) };
-                    b.scroll.follow = true;
-                    b.naming = None;
-                }
-            }
-            Action::BQNext(n) => {
-                let qs = self.backup_questions(&c);
-                if let Some(b) = self.backup.as_mut() {
-                    b.q = qs.iter().skip_while(|&&q| q != n).nth(1).copied();
-                    b.scroll.follow = true;
-                    b.naming = None;
-                }
-            }
-            Action::BAnswer(list, row) => {
-                // Back up's plan asks the rest place by place.
-                if !matches!(list, qrow::SOFTWARE | qrow::FORM) {
-                    return;
-                }
-                if let Some(i) = self.backup_locked_flow() {
-                    return self.flow_wallet_answer(i, list, row);
-                }
-                let Some(w) = self.backup.as_ref().map(|b| b.wallet) else {
-                    return;
-                };
-                let shape = self.plan_shape_now(w);
-                if let (Some(q), Some(b)) = (qrow::question(list), self.backup.as_mut()) {
-                    b.answers.toggle(&shape, q, usize::from(row));
-                    // A question that no longer applies closes.
-                    b.naming = b.naming.filter(|&p| p < b.answers.places);
-                }
-            }
+            a @ (Action::BackupChecklist(..)
+            | Action::Backup(..)
+            | Action::BQ(..)
+            | Action::BQNext(..)
+            | Action::BAnswer(..)
+            | Action::BName(..)
+            | Action::BChecklist
+            | Action::BPlan
+            | Action::BWallets
+            | Action::BStep(..)
+            | Action::BNext(..)
+            | Action::BKey(..)
+            | Action::BReveal
+            | Action::BXor(..)
+            | Action::BCodex32(..)
+            | Action::BPaperHide
+            | Action::BCompact(..)
+            | Action::BPin(..)
+            | Action::BCheck
+            | Action::BScan
+            | Action::BCheckClear
+            | Action::BKeepWords
+            | Action::BVaultSave(..)
+            | Action::BVaultLoad(..)
+            | Action::BFilesMake
+            | Action::BackupFirst(..)
+            | Action::BNewVault(..)
+            | Action::BFile
+            | Action::BWords(..)
+            | Action::BOmit(..)
+            | Action::BOut(..)) => self.backup_act(a, &c),
             Action::Board(p) => self.board_act(p),
-            Action::BName(p8) => {
-                let open = self.vaults.open.get(self.vaults.current).is_some();
-                let mut focused = false;
-                if let Some(b) = self.backup.as_mut()
-                    && open
-                {
-                    let p = usize::from(p8);
-                    if b.names.len() <= p {
-                        b.names.resize(p + 1, String::new());
-                    }
-                    if b.naming == Some(p) {
-                        b.naming = None;
-                    } else {
-                        // The field holds the name shown, "Place 1" until
-                        // one is typed, so the press selects all of it
-                        // (`docs/BACKUP-FLOW.md` §17.18).
-                        if b.names[p].trim().is_empty() {
-                            b.names[p] = fill(EN.place_name_place, &[&(p + 1).to_string()]);
-                        }
-                        b.naming = Some(p);
-                        focused = true;
-                    }
-                }
-                if focused {
-                    self.edit = ui::Edit {
-                        field: Some(Action::BName(p8)),
-                        caret: None,
-                        anchor: Some(0),
-                    };
-                }
-            }
-            Action::BChecklist => {
-                // A plan that keeps no copy of a key made here, or leaves
-                // a vault's stick at no place, is not made into a
-                // checklist (`docs/history/NEW-WALLET.md` §14.2, §14.4).
-                // A backup past its lock keeps its plan until its writes
-                // are done (`docs/BACKUP-FLOW.md` §15.8).
-                if self.backup_locked_flow().is_some() {
-                    return self.toast(EN.backup_flow_past_lock);
-                }
-                // A vault's stick at no place is a warning only
-                // (`docs/BACKUP-FLOW.md` §17.16 item 3).
-                if self.backup_kept_nowhere(&c).is_some()
-                    || self
-                        .backup
-                        .as_ref()
-                        .and_then(|b| b.answers.empty_vault())
-                        .is_some()
-                {
-                    return;
-                }
-                self.backup_extras();
-                self.plan_save();
-                self.backup_files_make();
-                let items = self.backup_items_now(&c);
-                let first = items
-                    .iter()
-                    .copied()
-                    .find(|&n| bstep::item(n).is_some_and(|it| !self.backup_item_done_now(&c, it)));
-                if let Some(b) = self.backup.as_mut() {
-                    b.stage = BStage::Checklist;
-                    b.naming = None;
-                    b.scroll = flow::Scroll::default();
-                }
-                self.backup_item_open(first);
-                self.backups_sync();
-            }
-            Action::BPlan => {
-                // The cards show the map as it is, a chart's edits
-                // included (`docs/BACKUP-FLOW.md` §15.2): nothing is
-                // replaced, so nothing is asked.
-                // What the checklist has put in vaults so far, should the
-                // new plan drop it.
-                self.backup_prior();
-                if let Some(b) = self.backup.as_mut() {
-                    b.stage = BStage::Plan;
-                    // On the board, the first card, at the top: as a new
-                    // plan opens (`docs/BACKUP-FLOW.md` §17.21 item 11).
-                    b.q = Some(qstep::BOARD);
-                    b.check = None;
-                    b.scroll = flow::Scroll::default();
-                }
-            }
-            Action::BWallets => {
-                if let Some(b) = self.backup.as_mut() {
-                    b.pick = !b.pick;
-                }
-            }
-            Action::BStep(n) => {
-                let open = self.backup.as_ref().and_then(|b| b.open);
-                // An item opens once every item before it is done
-                // (`docs/history/NEW-WALLET.md` §14.1).
-                if open == Some(n) {
-                    self.backup_item_open(None);
-                } else if self.backup_reachable(&c, n) {
-                    self.backup_item_open(Some(n));
-                }
-            }
-            Action::BNext(n) => {
-                // No way past an item but doing it; the envelopes and the
-                // blank templates, printed from Faraday Starter, are done
-                // by this press.
-                if n != bstep::ENVELOPE
-                    && n != bstep::BLANK
-                    && !bstep::item(n).is_some_and(|it| self.backup_item_done_now(&c, it))
-                {
-                    return;
-                }
-                let items = self.backup_items_now(&c);
-                let next = if n == bstep::ENVELOPE || n == bstep::BLANK {
-                    if let Some(b) = self.backup.as_mut() {
-                        if n == bstep::ENVELOPE {
-                            b.envelopes = true;
-                        } else {
-                            b.printed = true;
-                        }
-                    }
-                    items.iter().copied().find(|&i| {
-                        bstep::item(i).is_some_and(|it| !self.backup_item_done_now(&c, it))
-                    })
-                } else {
-                    items.iter().skip_while(|&&i| i != n).nth(1).copied()
-                };
-                self.backup_item_open(next);
-            }
-            Action::BKey(k) => {
-                if let Some(b) = self.backup.as_mut() {
-                    b.key = k;
-                    b.reveal = false;
-                    b.check = None;
-                    b.scanned = None;
-                    b.paper = None;
-                }
-            }
-            Action::BReveal => {
-                // Show the seed ends the check and wipes what was typed;
-                // the check starts again from word 1.
-                if let Some(b) = self.backup.as_mut() {
-                    b.reveal = b.check.is_some() || !b.reveal;
-                    b.check = None;
-                }
-            }
-            Action::BXor(n) => self.paper_xor(n),
-            Action::BCodex32(k, n) => self.paper_codex32(k, n),
-            Action::BPaperHide => {
-                if let Some(b) = self.backup.as_mut() {
-                    b.paper = None;
-                }
-            }
-            Action::BCompact(c) => {
-                if let Some(b) = self.backup.as_mut() {
-                    b.compact = c;
-                    b.pin = 0;
-                }
-            }
-            Action::BPin(r) => {
-                if let Some(b) = self.backup.as_mut() {
-                    b.pin = r;
-                }
-            }
-            Action::BCheck => self.copy_check_open(),
-            Action::BScan => {
-                let fp = self
-                    .backup
-                    .as_ref()
-                    .and_then(|b| self.session.keys.get(b.key))
-                    .map(|k| k.fingerprint());
-                if let Some(fp) = fp {
-                    let mut scan = ScanState::default();
-                    scan.purpose = ScanPurpose::CheckCopy(fp);
-                    self.scan = Some(scan);
-                    self.sheet = Some(Sheet::Scan);
-                    self.commands.push_back(Command::CameraOn);
-                }
-            }
-            Action::BCheckClear => self.copy_check_clear(),
-            Action::BKeepWords => self.keep_words_only(),
-            Action::BVaultSave(v) => self.backup_vault_save(usize::from(v)),
-            Action::BVaultLoad(v) => self.backup_vault_load_toggle(usize::from(v)),
-            Action::BFilesMake => {
-                self.backup_files_make();
-                self.backups_sync();
-            }
-            Action::BackupFirst(w) => self.backup_first(w),
-            Action::BNewVault(v) => {
-                let v = usize::from(v);
-                if let Some(t) = self.backup_vault_target(v) {
-                    if self.backup_vault_set_up(v) == Some(t) {
-                        // The vault set up for this plan vault keeps its
-                        // stick and its place in the setup: it is not
-                        // locked away from here.
-                        let name = self.vaults.open[t].name.to_string();
-                        self.toast(&fill(EN.backup_flow_set_up_holds_other, &[&name]));
-                    } else if self.vault_lock_one(t) {
-                        self.vault_act(vault::VaultAction::CreateFrom(Screen::Backup));
-                    }
-                }
-            }
-            Action::BFile => {
-                // The seeds' files item makes the first one not yet made.
-                let next = self.backup.as_ref().and_then(|b| {
-                    let stem = file_stem(&self.session.wallets.get(b.wallet)?.name);
-                    self.backup_keys(b.wallet)
-                        .into_iter()
-                        .find(|&k| !self.seed_file_made(&stem, &self.session.keys[k]))
-                });
-                if let (Some(k), Some(b)) = (next, self.backup.as_mut())
-                    && b.open == Some(bstep::FILES)
-                {
-                    b.key = k;
-                }
-                self.offer_seed();
-            }
-            Action::BWords(n) => {
-                if let Some(b) = self.backup.as_mut() {
-                    b.words = n;
-                }
-            }
-            Action::BOmit(n) => {
-                if let Some(i) = self.backup_locked_flow() {
-                    return self
-                        .flow_plan_press(i, PlanPress::Omit(u8::try_from(n).unwrap_or(u8::MAX)));
-                }
-                let remake = self.backup_remake(4);
-                if let Some(b) = self.backup.as_mut() {
-                    b.answers.omit = n;
-                }
-                // The shares' files and pictures are made again once the
-                // slider is let go and a frame drawn (`docs/SPEED.md` §9).
-                if let Some(w) = remake {
-                    self.later = Some(Later::PublicOut(w, 4));
-                    self.later_drawn = false;
-                }
-            }
-            Action::BOut(what) => self.backup_out(what),
             Action::Catalog(i) => self.catalog_go(usize::from(i)),
-            Action::InboxLoad => {
-                let (w, k) = self.inbox_load();
-                self.toast(&fill(
-                    EN.act_and_loaded,
-                    &[
-                        &w.to_string(),
-                        (if w == 1 {
-                            EN.act_wallet
-                        } else {
-                            EN.act_wallets
-                        }),
-                        &k.to_string(),
-                        (if k == 1 { EN.act_seed } else { EN.act_seeds }),
-                    ],
-                ));
-            }
-            Action::InboxChoose(i) => {
-                if let Some(w) = self.inbox_found_now(&c).to_load().get(i) {
-                    let d = w.descriptor.clone();
-                    if !self.inbox_skip.remove(&d) {
-                        self.inbox_skip.insert(d);
-                    }
-                }
-            }
-            Action::PotentialOpen(fp) => {
-                if self.may_load_keys() {
-                    self.potential_open(faraday_bip::keys::Fingerprint(fp));
-                } else {
-                    self.toast(&fill(EN.act_remove_the_first, &[self.medium.noun()]));
-                }
-            }
-            Action::XpubOpen(i) => self.xpub_open(i),
-            Action::BackupOpen(k) => {
-                if self.may_load_keys() {
-                    self.backup_open(k);
-                } else {
-                    self.toast(&fill(EN.act_remove_the_first, &[self.medium.noun()]));
-                }
-            }
-            Action::PotentialKind(k) => {
-                if let (Some(p), Some(&kind)) =
-                    (self.potential.as_mut(), inbox::KINDS.get(usize::from(k)))
-                {
-                    p.kind = kind;
-                }
-            }
-            Action::PotentialShow => {
-                if let Some(p) = self.potential.as_mut() {
-                    p.shown = !p.shown;
-                }
-            }
-            Action::PotentialType => {
-                if let Some(p) = self.potential.as_mut() {
-                    p.typing = self.sticks.is_empty();
-                }
-            }
-            Action::PotentialMake => self.potential_make(),
-            Action::DecodeFinished => {
-                if let Some(s) = self.spend.as_ref()
-                    && let Some(tx) = s.spend.finished.as_ref()
-                {
-                    let prevouts = decode::prevouts_of(&s.spend.psbt);
-                    let source = fill(EN.act_finished_from, &[&s.spend.source.to_string()]);
-                    let decoded = decode::decode(&c, tx, &prevouts, &self.session, &source);
-                    self.decode = Some(DecodeState {
-                        decoded,
-                        back: self.screen,
-                        show_hex: false,
-                    });
-                    self.screen = Screen::Decode;
-                }
-            }
-            Action::DecodeInbox(k) => {
-                if let Some(item) = self.inbox.get(k)
-                    && let Some(tx) = faraday_psbt::transaction::read_raw(&item.bytes)
-                {
-                    // The amounts going in, from a PSBT of the same
-                    // transaction when one is here.
-                    let txid = tx.compute_txid();
-                    let psbt = self
-                        .spend
-                        .as_ref()
-                        .map(|s| s.spend.psbt.clone())
-                        .filter(|p| p.unsigned_tx().compute_txid() == txid)
-                        .or_else(|| {
-                            self.inbox
-                                .iter()
-                                .find(|i| i.psbt().is_some_and(|p| p.txid == txid))
-                                .and_then(|i| wallet::read_psbt(&c, &i.bytes))
-                        });
-                    let prevouts = psbt.map(|p| decode::prevouts_of(&p)).unwrap_or_default();
-                    let decoded = decode::decode(&c, &tx, &prevouts, &self.session, &item.name);
-                    self.decode = Some(DecodeState {
-                        decoded,
-                        back: self.screen,
-                        show_hex: false,
-                    });
-                    self.screen = Screen::Decode;
-                    self.list_offset = 0.0;
-                }
-            }
-            Action::QrDecoded => {
-                if let Some(d) = self.decode.as_ref() {
-                    let hex = d.decoded.hex.clone();
-                    self.open_qr(QrView::text(&c, EN.act_transaction, &hex));
-                }
-            }
-            Action::DecodeHex => {
-                if let Some(d) = self.decode.as_mut() {
-                    d.show_hex = !d.show_hex;
-                }
-            }
-            Action::SpendHex => {
-                if let Some(s) = self.spend.as_mut() {
-                    s.show_hex = !s.show_hex;
-                }
-            }
-            Action::WriteAsk => {
-                if !self.clean() {
-                    self.sheet = Some(Sheet::WriteOut);
-                } else if self.sticks.is_empty() {
-                    self.toast(&fill(EN.act_plug_in_the_visit, &[self.medium.a()]));
-                } else {
-                    self.act(Action::Nav(Screen::Visit));
-                }
-            }
-            Action::SignMessage => {
-                let first = self.session.message_wallets().first().copied();
-                self.message = Some(MessageState {
-                    open: Some(mstep::ADDRESS),
-                    wallet: first,
-                    bip322: true,
-                    ..MessageState::default()
-                });
-                self.screen = Screen::Message;
-            }
-            Action::MStep(n) => {
-                if let Some(m) = self.message.as_mut() {
-                    m.open = if m.open == Some(n) { None } else { Some(n) };
-                    m.scroll.follow = true;
-                    m.typing = m.open == Some(mstep::TEXT);
-                }
-            }
-            Action::MNext(n) => {
-                if let Some(m) = self.message.as_mut() {
-                    m.done[n as usize] = true;
-                    m.open = (0..4u8).find(|&i| !m.done[i as usize]);
-                    m.scroll.follow = true;
-                    m.typing = m.open == Some(mstep::TEXT);
-                }
-            }
-            Action::MWallet(i) => {
-                if let Some(m) = self.message.as_mut() {
-                    m.wallet = Some(i);
-                    m.index = 0;
-                    m.signed = None;
-                }
-            }
-            Action::MIndex(d) => {
-                if let Some(m) = self.message.as_mut() {
-                    m.index = (i64::from(m.index) + i64::from(d)).clamp(0, 9999) as u32;
-                    m.signed = None;
-                }
-            }
-            Action::MType => {
-                if let Some(m) = self.message.as_mut() {
-                    m.typing = !m.typing;
-                }
-            }
-            Action::MFormat(b) => {
-                if let Some(m) = self.message.as_mut() {
-                    m.bip322 = b;
-                    m.signed = None;
-                }
-            }
-            Action::MSign => {
-                if let Some(m) = self.message.as_mut()
-                    && let Some(w) = m.wallet
-                {
-                    let format = if m.bip322 {
-                        faraday_psbt::message::Format::Bip322
-                    } else {
-                        faraday_psbt::message::Format::Bip137
-                    };
-                    match self.session.sign_message(&c, w, m.index, &m.text, format) {
-                        Ok(signed) => {
-                            m.signed = Some(signed);
-                            m.error = None;
-                            m.done[mstep::SIGN as usize] = true;
-                        }
-                        Err(e) => m.error = Some(e),
-                    }
-                }
-                // The signed message goes For the stick as it is made.
-                if self.message.as_ref().is_some_and(|m| m.signed.is_some()) {
-                    self.act(Action::MOut);
-                }
-            }
-            Action::MOut | Action::MQr => {
-                if let Some(m) = self.message.as_ref()
-                    && let Some(sig) = m.signed.as_ref()
-                {
-                    let text =
-                        faraday_psbt::message::signed_text(&sig.address, &sig.signature, &m.text);
-                    if action == Action::MOut {
-                        let name = format!(
-                            "message-{}.txt",
-                            &sig.address[sig.address.len().saturating_sub(6)..]
-                        );
-                        self.put_outbox(&name, text.into_bytes());
-                        self.toast_out(&name);
-                    } else {
-                        let view = self.code_view(&c, Code::Message);
-                        self.open_qr(view);
-                    }
-                }
-            }
-            Action::CreateWallet
-                if self.create_unfinished()
-                    || self.create.as_ref().is_some_and(|c| {
-                        self.setup_pending(c.owner, c.into_vaults(), c.built.is_some())
-                    }) =>
-            {
-                let from_home = self.screen == Screen::Home;
-                if let Some(c) = self.create.as_mut() {
-                    c.from_home = from_home;
-                }
-                self.screen = Screen::Create;
-            }
-            Action::CreateWallet | Action::CreateOver => {
-                // Create opens with Kind open, whatever opened it
-                // (`docs/history/NEW-WALLET.md` §2.1); Back goes where it was
-                // opened from, Home or Wallets.
-                // Where the keys will be kept is done only once the person
-                // has pressed its own Continue, whatever is ticked to begin
-                // with.
-                let done = [false; cstep::COUNT];
-                let owner = self.fresh_owner();
-                self.create = Some(CreateState {
-                    owner,
-                    done,
-                    open: Some(cstep::KIND),
-                    // Start over keeps it.
-                    from_home: self.screen == Screen::Home
-                        || (self.screen == Screen::Create
-                            && self.create.as_ref().is_some_and(|c| c.from_home)),
-                    m: 2,
-                    n: 3,
-                    slots: vec![create::Source::Empty; 1],
-                    ..CreateState::default()
-                });
-                self.screen = Screen::Create;
-            }
-            // Keys stay closed while the vaults' setup is to do.
-            Action::CStep(k)
-                if k == cstep::KEYS
-                    && self.create.as_ref().is_some_and(|c| {
-                        self.setup_pending(c.owner, c.into_vaults(), c.built.is_some())
-                    }) => {}
-            Action::CStep(k) => {
-                if let Some(c) = self.create.as_mut() {
-                    c.open = if c.open == Some(k) { None } else { Some(k) };
-                    c.scroll.follow = true;
-                }
-            }
-            // Keys' Continue makes the wallet, which opens Check; until
-            // it is made, a refusal keeps Keys open with the reason.
-            Action::CNext(k)
-                if k == cstep::KEYS && self.create.as_ref().is_some_and(|c| c.built.is_none()) =>
-            {
-                self.create_make();
-            }
-            // The question of vaults waits for its answer.
-            Action::CNext(k)
-                if k == cstep::WHERE
-                    && self
-                        .create
-                        .as_ref()
-                        .is_some_and(|c| c.vaults.answer.is_none()) => {}
-            // How many vaults: Continue opens the setup, which brings in
-            // each vault's stick and opens or makes the vault; it comes
-            // back to Keys.
-            Action::CNext(k) if k == cstep::HOW_MANY => {
-                if let Some(c) = self.create.as_mut() {
-                    c.done[k as usize] = true;
-                    let owner = c.owner;
-                    self.wallet_flow_begin(owner);
-                }
-            }
-            Action::CNext(k) => {
-                if let Some(c) = self.create.as_mut() {
-                    c.done[k as usize] = true;
-                }
-                self.create_open_next();
-                // Check's own Continue: this wallet is checked this
-                // power-on (`docs/WALLETS.md` §4).
-                if k == cstep::CHECK
-                    && let Some(w) = self.create.as_ref().and_then(|c| c.built)
-                    && let Some(wallet) = self.session.wallets.get(w)
-                {
-                    let checksum = wallet.checksum().to_string();
-                    self.mark_checked(&checksum);
-                }
-            }
-            Action::CKind(i) => {
-                if let Some(c) = self.create.as_mut()
-                    && c.built.is_none()
-                {
-                    // Ticks the kind, whether chosen by hand on an open
-                    // Kind card or by a Tools tile opening Create with
-                    // its kind already ticked (`docs/history/NEW-WALLET.md`
-                    // §2.1): either way Kind stays open until its own
-                    // Continue closes it.
-                    c.kind = create::NewKind::ALL[i as usize % create::NewKind::ALL.len()];
-                    if c.kind.multi() {
-                        c.n = c.n.clamp(2, c.kind.max_keys());
-                        c.m = if c.kind.all_sign() { c.n } else { c.m.min(c.n) };
-                    }
-                    // A threshold wallet's slots are the shares chosen;
-                    // the deal computes the rest.
-                    let n = match c.kind {
-                        k if k.threshold() => c.m,
-                        k if k.multi() => c.n,
-                        _ => 1,
-                    };
-                    if c.kind.threshold() {
-                        c.slots.retain(|s| matches!(s, create::Source::Here(_)));
-                    }
-                    c.slots.resize(n, create::Source::Empty);
-                    c.slots.truncate(n);
-                }
-                self.create_from_refresh();
-            }
-            Action::CBackup => {
-                if let Some(i) = self.create.as_ref().and_then(|c| c.built) {
-                    self.act(Action::Backup(i));
-                    if let Some(b) = self.backup.as_mut() {
-                        b.from_create = true;
-                    }
-                }
-            }
-            Action::CVaults(_) | Action::CVaultN(_)
-                if self
-                    .create
-                    .as_ref()
-                    .is_some_and(|c| c.built.is_none() && self.setup_vault_open(c.owner)) =>
-            {
-                self.toast(EN.create_vaults_locked);
-            }
-            Action::CVaults(yes) => {
-                if let Some(c) = self.create.as_mut()
-                    && c.built.is_none()
-                    && c.vaults.answer != Some(yes)
-                {
-                    let owner = c.owner;
-                    c.vaults.answer = Some(yes);
-                    c.done[cstep::WHERE as usize] = false;
-                    c.done[cstep::HOW_MANY as usize] = false;
-                    self.wallet_vaults_changed(owner);
-                }
-            }
-            Action::CVaultN(n) => {
-                if let Some(c) = self.create.as_mut()
-                    && c.built.is_none()
-                {
-                    let owner = c.owner;
-                    c.vaults.count = usize::from(n).clamp(1, MAX_VAULTS);
-                    c.done[cstep::HOW_MANY as usize] = false;
-                    self.wallet_vaults_changed(owner);
-                }
-            }
-            Action::PlanAddPass => self.plan_add_passphrase(),
-            Action::CMoreKinds => {
-                if let Some(c) = self.create.as_mut() {
-                    c.more_kinds = true;
-                }
-            }
-            Action::CM(d) => {
-                if let Some(c) = self.create.as_mut() {
-                    c.m = if c.kind.all_sign() {
-                        c.n
-                    } else {
-                        (c.m as i64 + i64::from(d)).clamp(1, c.n as i64) as usize
-                    };
-                    if c.kind.threshold() {
-                        c.slots.resize(c.m, create::Source::Empty);
-                    }
-                }
-            }
-            Action::CN(d) => {
-                if let Some(c) = self.create.as_mut()
-                    && c.kind.multi()
-                {
-                    c.n = (c.n as i64 + i64::from(d)).clamp(2, c.kind.max_keys() as i64) as usize;
-                    c.m = if c.kind.all_sign() { c.n } else { c.m.min(c.n) };
-                    let slots = if c.kind.threshold() { c.m } else { c.n };
-                    c.slots.resize(slots, create::Source::Empty);
-                }
-                self.create_from_refresh();
-            }
-            // NEW-WALLET §16 (F45): keys from a vault in Create; a new
-            // wallet from one held.
-            Action::CSlotVault(k, v, r) => self.create_slot_vault(k, v, r),
-            Action::CAccount(d) => self.create_account_step(d),
-            Action::CPathChange => self.create_take_back(),
-            Action::NewWalletFrom(i) => self.create_from_wallet(i),
-            Action::CSlotHere(k, fp) => {
-                if let Some(c) = self.create.as_mut()
-                    && let Some(s) = c.slots.get_mut(k as usize)
-                {
-                    *s = create::Source::Here(fp);
-                    if c.pass_slot == Some(k) {
-                        c.close_pass();
-                    }
-                }
-            }
-            Action::CSlotFile(k, i) => {
-                let kind = self.create.as_ref().map(|c| c.kind).unwrap_or_default();
-                let key = self
-                    .inbox
-                    .get(i)
-                    .and_then(|it| create::key_for(kind, &String::from_utf8_lossy(&it.bytes)));
-                // A cosigner's key sets the network the wallet is made on.
-                let net = key
-                    .as_deref()
-                    .and_then(|k| faraday_bip::policy::PolicyKey::parse(k).ok())
-                    .map(|k| wallet::network_of_key(&k, self.session.network()));
-                if let Err(e) = self.session.follow(net) {
-                    if let Some(c) = self.create.as_mut() {
-                        c.error = Some(e.text());
-                    }
-                    return;
-                }
-                if let Some(c) = self.create.as_mut()
-                    && let Some(s) = c.slots.get_mut(k as usize)
-                    && let Some(key) = key
-                {
-                    *s = create::Source::Cosigner(key);
-                }
-            }
-            Action::CSlotLater(k) => {
-                if let Some(c) = self.create.as_mut()
-                    && let Some(s) = c.slots.get_mut(k as usize)
-                {
-                    *s = create::Source::Later;
-                }
-            }
-            Action::CKeyOut(k) | Action::CKeyQr(k) => {
-                let qr = matches!(action, Action::CKeyQr(_));
-                match self.create_key_text(&c, k) {
-                    Ok((fp, text)) => {
-                        let kind = self.create.as_ref().map_or("", |c| c.kind.name());
-                        if qr {
-                            let view = self.code_view(&c, Code::Key(k));
-                            self.open_qr(view);
-                        } else {
-                            let name = format!("xpub-{fp}.txt");
-                            self.put_outbox(
-                                &name,
-                                format!("# Account xpub {fp}, {kind}\n{text}\n").into_bytes(),
-                            );
-                            self.toast_out(&name);
-                        }
-                    }
-                    Err(e) => self.toast(&e),
-                }
-            }
-            Action::CKeyBsms(k) => match self.create_key_bsms(&c, k) {
-                Some((fpt, text)) => {
-                    let name = format!("xpub-{fpt}-bsms.txt");
-                    self.put_outbox(&name, text.into_bytes());
-                    self.toast_out(&name);
-                }
-                None => self.toast(EN.act_bip_129_covers),
-            },
-            Action::CSlotClear(k) => {
-                if let Some(c) = self.create.as_mut()
-                    && let Some(s) = c.slots.get_mut(k as usize)
-                {
-                    *s = create::Source::Empty;
-                    if c.pass_slot == Some(k) {
-                        c.close_pass();
-                    }
-                }
-            }
-            Action::CPassOpen(k) => {
-                if let Some(c) = self.create.as_mut() {
-                    if c.pass_slot == Some(k) {
-                        c.close_pass();
-                    } else if c.built.is_none() {
-                        c.close_pass();
-                        c.pass_slot = Some(k);
-                        c.pass_focus = Some(0);
-                    }
-                }
-            }
-            Action::CPassField(f) => {
-                if let Some(c) = self.create.as_mut()
-                    && c.pass_slot.is_some()
-                    && f < 2
-                {
-                    c.pass_focus = Some(f);
-                    c.pass_note = None;
-                }
-            }
-            Action::CPassLock => self.create_pass_lock(),
-            Action::Rename => {
-                // Pressing the name field again keeps what is typed.
-                if self.renaming.is_none() {
-                    self.renaming = self
-                        .session
-                        .wallets
-                        .get(self.wallet)
-                        .map(|w| w.name.clone());
-                }
-            }
-            Action::ScanPart => {
-                if self.may_load_keys() {
-                    let mut scan = ScanState::default();
-                    scan.purpose = ScanPurpose::KeyPart;
-                    self.scan = Some(scan);
-                    self.sheet = Some(Sheet::Scan);
-                    self.commands.push_back(Command::CameraOn);
-                }
-            }
-            Action::ScanSeed => {
-                if self.may_load_keys() {
-                    let mut scan = ScanState::default();
-                    scan.purpose = ScanPurpose::Seed;
-                    self.scan = Some(scan);
-                    self.sheet = Some(Sheet::Scan);
-                    self.commands.push_back(Command::CameraOn);
-                }
-            }
-            Action::ScanKey(w) => {
-                if self.may_load_keys() && w < self.session.wallets.len() {
-                    let mut scan = ScanState::default();
-                    scan.purpose = ScanPurpose::WalletKey(w);
-                    self.scan = Some(scan);
-                    self.sheet = Some(Sheet::Scan);
-                    self.commands.push_back(Command::CameraOn);
-                }
-            }
-            Action::EntryWallet(w) => {
-                if self.may_load_keys() && w < self.session.wallets.len() {
-                    if self.scan.take().is_some() {
-                        self.commands.push_back(Command::CameraOff);
-                    }
-                    self.sheet = None;
-                    self.act(Action::Entry(None));
-                    self.entry.wallet = Some(w);
-                }
-            }
-            Action::Scan => {
-                let mut scan = ScanState::default();
-                if let Some((decoder, assembler)) = self.scan_parts.take() {
-                    scan.decoder = decoder;
-                    scan.assembler = assembler;
-                    scan.note = Some(EN.act_carrying_on_with.to_string());
-                }
-                self.scan = Some(scan);
-                self.sheet = Some(Sheet::Scan);
-                self.commands.push_back(Command::CameraOn);
-            }
-            Action::RestoreWallet
-                if self.restore.as_ref().is_some_and(|r| {
-                    self.setup_pending(r.owner, r.into_vaults(), r.done[rstep::SEEDS as usize])
-                }) =>
-            {
-                self.screen = Screen::Restore;
-            }
-            Action::RestoreWallet => {
-                let owner = self.fresh_owner();
-                self.restore = Some(RestoreState {
-                    owner,
-                    from_home: self.screen == Screen::Home,
-                    ..RestoreState::new()
-                });
-                self.screen = Screen::Restore;
-            }
-            // The seeds wait for the question of vaults and for the
-            // setup it asked for (`docs/history/NEW-WALLET.md` §12.3 item 4).
-            Action::RStep(k)
-                if k == rstep::SEEDS
-                    && self.restore.as_ref().is_some_and(|r| {
-                        let made = r.done[rstep::SEEDS as usize];
-                        (r.vaults.answer.is_none() && !made)
-                            || self.setup_pending(r.owner, r.into_vaults(), made)
-                    }) => {}
-            Action::RVaults(_) | Action::RVaultN(_)
-                if self.restore.as_ref().is_some_and(|r| {
-                    !r.done[rstep::SEEDS as usize] && self.setup_vault_open(r.owner)
-                }) =>
-            {
-                self.toast(EN.create_vaults_locked);
-            }
-            Action::RStep(k) => {
-                if let Some(r) = self.restore.as_mut() {
-                    r.open = if r.open == Some(k) { None } else { Some(k) };
-                    r.scroll.follow = true;
-                }
-            }
-            // The question of vaults waits for its answer.
-            Action::RNext(k)
-                if k == rstep::WHERE
-                    && self
-                        .restore
-                        .as_ref()
-                        .is_some_and(|r| r.vaults.answer.is_none()) => {}
-            // How many vaults: Continue opens the setup, which comes back
-            // to Seeds.
-            Action::RNext(k) if k == rstep::HOW_MANY => {
-                if let Some(r) = self.restore.as_mut() {
-                    r.done[k as usize] = true;
-                    let owner = r.owner;
-                    self.wallet_flow_begin(owner);
-                }
-            }
-            Action::RNext(k) => {
-                if let Some(r) = self.restore.as_mut() {
-                    r.next(k);
-                }
-            }
-            Action::RVaults(yes) => {
-                if let Some(r) = self.restore.as_mut()
-                    && !r.done[rstep::SEEDS as usize]
-                    && r.vaults.answer != Some(yes)
-                {
-                    let owner = r.owner;
-                    r.vaults.answer = Some(yes);
-                    r.done[rstep::WHERE as usize] = false;
-                    r.done[rstep::HOW_MANY as usize] = false;
-                    self.wallet_vaults_changed(owner);
-                }
-            }
-            Action::RVaultN(n) => {
-                if let Some(r) = self.restore.as_mut()
-                    && !r.done[rstep::SEEDS as usize]
-                {
-                    let owner = r.owner;
-                    r.vaults.count = usize::from(n).clamp(1, MAX_VAULTS);
-                    r.done[rstep::HOW_MANY as usize] = false;
-                    self.wallet_vaults_changed(owner);
-                }
-            }
-            Action::RKind(i) => self.restore_kind(i),
-            Action::RMoreKinds => {
-                if let Some(r) = self.restore.as_mut() {
-                    r.more_kinds = true;
-                }
-            }
-            Action::RFromFiles => {
-                let files: Vec<usize> = self
-                    .inbox
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, i)| i.kind == FileKind::Wallet)
-                    .map(|(k, _)| k)
-                    .collect();
-                match files.as_slice() {
-                    [one] => self.act(Action::RUse(*one)),
-                    _ => {
-                        if let Some(r) = self.restore.as_mut() {
-                            r.open = Some(rstep::DESCRIPTION);
-                            r.scroll.follow = true;
-                        }
-                    }
-                }
-            }
-            Action::RAbsent(k) => {
-                if let Some(r) = self.restore.as_mut()
-                    && r.described
-                {
-                    match r.absent.iter().position(|&a| a == k) {
-                        Some(p) => {
-                            r.absent.remove(p);
-                        }
-                        None => r.absent.push(k),
-                    }
-                    r.error = None;
-                }
-            }
-            // The passphrase is asked after the seed: on Add a key for
-            // typed words, on the scan's sheet for a SeedQR (`seed_read`).
-            Action::RSlotWords => {
-                if let Some(r) = self.restore.as_mut() {
-                    r.error = None;
-                }
-                self.act(Action::Entry(None));
-            }
-            Action::RSlotScan => {
-                if self.may_load_keys() {
-                    if let Some(r) = self.restore.as_mut() {
-                        r.error = None;
-                    }
-                    self.entry = EntryState::default();
-                    self.entry.back = Some(Screen::Restore);
-                    self.act(Action::ScanSeed);
-                }
-            }
-            Action::RUse(i) => {
-                if let Some(item) = self.inbox.get(i) {
-                    let text = String::from_utf8_lossy(&item.bytes).into_owned();
-                    let name = faraday_bip::multisig_config::parse_named(&c, &text)
-                        .ok()
-                        .and_then(|(_, n)| n)
-                        .unwrap_or_else(|| stem(&item.name));
-                    let source = item.name.clone();
-                    self.restore_wallet(&name, &text, &source, wallet::Origin::Named);
-                }
-            }
-            Action::RShare(i) => {
-                if let Some(item) = self.inbox.get(i) {
-                    let n = item.name.clone();
-                    if let Some(r) = self.restore.as_mut() {
-                        if let Some(p) = r.shares.iter().position(|x| *x == n) {
-                            r.shares.remove(p);
-                        } else {
-                            r.shares.push(n);
-                        }
-                    }
-                }
-            }
-            Action::RRebuild => {
-                let texts = self.restore_share_texts(&c);
-                match restore::merge(&texts) {
-                    Ok(m) => match m.whole {
-                        Some(whole) => {
-                            let name = faraday_bip::multisig_config::parse_named(&c, &whole)
-                                .ok()
-                                .and_then(|(_, n)| n)
-                                .unwrap_or_else(|| EN.act_restored_wallet.to_string());
-                            self.restore_wallet(
-                                &name,
-                                &whole,
-                                EN.act_its_shares,
-                                wallet::Origin::Named,
-                            );
-                        }
-                        None => {
-                            if let Some(r) = self.restore.as_mut() {
-                                r.error = Some(fill(
-                                    EN.act_of_keys_in_hand,
-                                    &[&m.have.len().to_string(), &m.n.to_string()],
-                                ));
-                            }
-                        }
-                    },
-                    Err(e) => {
-                        if let Some(r) = self.restore.as_mut() {
-                            r.error = Some(e);
-                        }
-                    }
-                }
-            }
-            Action::RSeeds => {
-                if let Some(r) = self.restore.as_mut()
-                    && !r.kind().threshold()
-                {
-                    // The wallet comes from the seeds now, not a file.
-                    r.wallet = None;
-                    r.described = false;
-                    r.absent.clear();
-                    r.error = None;
-                    r.done[rstep::SEEDS as usize] = false;
-                    r.done[rstep::CHECK as usize] = false;
-                    r.next(rstep::DESCRIPTION);
-                }
-            }
-            Action::KeyWallet(fp, n) => {
-                use create::NewKind;
-                let mut s = seeds::SeedsState::default();
-                s.fix(if n > 1 {
-                    NewKind::Multi
-                } else {
-                    NewKind::NativeSegwit
-                });
-                s.set_n(usize::from(n));
-                s.take(fp);
-                let mut r = RestoreState {
-                    owner: self.fresh_owner(),
-                    seeds: Some(s),
-                    from_key: true,
-                    ..RestoreState::default()
-                };
-                for k in [rstep::KIND, rstep::QUORUM, rstep::DESCRIPTION] {
-                    r.done[k as usize] = true;
-                }
-                r.open = Some(rstep::SEEDS);
-                self.restore = Some(r);
-                self.screen = Screen::Restore;
-            }
+            a @ (Action::DecodeFinished
+            | Action::DecodeInbox(..)
+            | Action::QrDecoded
+            | Action::DecodeHex
+            | Action::SpendHex) => self.decode_act(a, &c),
+            a @ (Action::SignMessage
+            | Action::MStep(..)
+            | Action::MNext(..)
+            | Action::MWallet(..)
+            | Action::MIndex(..)
+            | Action::MType
+            | Action::MFormat(..)
+            | Action::MSign
+            | Action::MOut
+            | Action::MQr
+            | Action::CheckMessage(..)) => self.message_act(a, &c),
+            a @ (Action::CreateWallet
+            | Action::CreateOver
+            | Action::CStep(..)
+            | Action::CNext(..)
+            | Action::CKind(..)
+            | Action::CBackup
+            | Action::CVaults(..)
+            | Action::CVaultN(..)
+            | Action::PlanAddPass
+            | Action::CMoreKinds
+            | Action::CM(..)
+            | Action::CN(..)
+            | Action::CSlotVault(..)
+            | Action::CAccount(..)
+            | Action::CPathChange
+            | Action::NewWalletFrom(..)
+            | Action::CSlotHere(..)
+            | Action::CSlotFile(..)
+            | Action::CSlotLater(..)
+            | Action::CKeyOut(..)
+            | Action::CKeyQr(..)
+            | Action::CKeyBsms(..)
+            | Action::CSlotClear(..)
+            | Action::CPassOpen(..)
+            | Action::CPassField(..)
+            | Action::CPassLock) => self.create_act(a, &c),
             Action::Seeds(a) => self.seeds_act(a),
             Action::Slide(id, v) => self.slide(id, v),
-            Action::RestoreShares => {
-                let texts: Vec<String> = self
-                    .inbox
-                    .iter()
-                    .filter(|i| i.kind == FileKind::Share)
-                    .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
-                    .collect();
-                match restore::merge(&texts).map(|m| m.whole) {
-                    Ok(Some(whole)) => {
-                        let name = faraday_bip::multisig_config::parse_named(&c, &whole)
-                            .ok()
-                            .and_then(|(_, n)| n)
-                            .unwrap_or_else(|| EN.act_restored_wallet.to_string());
-                        match self.session.add_wallet(
-                            &c,
-                            &name,
-                            &whole,
-                            EN.act_its_shares,
-                            wallet::Origin::Named,
-                        ) {
-                            Ok(i) => {
-                                self.wallet = i;
-                                self.screen = Screen::Wallets;
-                                self.refresh_spend();
-                                self.toast(&fill(EN.act_restored_from_its, &[&name.to_string()]));
-                            }
-                            Err(e) => self.toast(&e.text()),
-                        }
-                    }
-                    Ok(None) => self.toast(EN.act_not_every_key_is),
-                    Err(e) => self.toast(&e),
-                }
-            }
-            Action::CheckMessage(i) => {
-                if i < self.inbox.len() {
-                    self.checking = Some(i);
-                    self.screen = Screen::CheckMessage;
-                }
-            }
-            Action::PdfInbox(i) => {
-                if let Some(item) = self.inbox.get(i) {
-                    let (name, bytes) = (item.name.clone(), item.bytes.clone());
-                    self.make_pdf(&name, &bytes);
-                }
-            }
-            Action::PdfOutbox(i) => {
-                if let Some(item) = self.outbox.get(i) {
-                    let (name, bytes) = (item.name.clone(), item.bytes.clone());
-                    self.make_pdf(&name, &bytes);
-                }
-            }
-            Action::QrSigned | Action::QrPart => {
-                if let Some(s) = self.spend.as_ref() {
-                    let title = if action == Action::QrSigned {
-                        EN.act_signed_psbt
-                    } else {
-                        EN.act_psbt_for_the_next
-                    };
-                    let bytes = s.spend.psbt.to_bytes();
-                    self.open_qr(QrView::psbt(&c, title, &bytes));
-                }
-            }
-            Action::QrWallet(i) => {
-                if let Some(b) = self.backup.as_mut()
-                    && b.wallet == i
-                    && self.screen == Screen::Backup
-                {
-                    b.shown = true;
-                    self.backups_shown();
-                }
-                if i < self.session.wallets.len() {
-                    let view = self.code_view(&c, Code::Descriptor(i));
-                    self.open_qr(view);
-                }
-            }
-            Action::ShowCode(c) | Action::CodePng(c)
-                if matches!(c, Code::GpgSignature(_)) && self.time_asked() => {}
-            Action::ShowCode(code) => {
-                let view = self.code_view(&c, code);
-                self.open_qr(view);
-            }
-            Action::CodePng(code) => {
-                let view = self.code_view(&c, code);
-                self.code_png(view.as_ref());
-            }
-            Action::QrPng => {
-                if let Some(q) = self.qr.take() {
-                    self.code_png(Ok(&q));
-                    self.qr = Some(q);
-                }
-            }
-            Action::QrOutbox(i) => {
-                if let Some(item) = self.outbox.get(i).filter(|it| qr_fits(it)) {
-                    // What a wallet reads goes as itself; any other file in
-                    // the Faraday file envelope.
-                    let source = transfer::qr_source(&item.name, &item.bytes, item.kind);
-                    let secret = item.secret;
-                    let view = QrView::of(&c, &item.name, source, QrFormat::Ur, QR_PARTS[1]).map(
-                        |mut v| {
-                            v.secret |= secret;
-                            v
-                        },
-                    );
-                    self.open_qr(view);
-                }
-            }
-            Action::QrFormat(i) => {
-                if let Some(q) = self.qr.as_ref() {
-                    let f = QrFormat::ALL[usize::from(i) % QrFormat::ALL.len()];
-                    let v = q.redo(&c, f, q.part);
-                    self.open_qr(v);
-                }
-            }
-            Action::QrPartSize(n) => {
-                if let Some(q) = self.qr.as_ref() {
-                    let v = q.redo(&c, q.format, n);
-                    self.open_qr(v);
-                }
-            }
-            Action::QrSpeed(ms) => {
-                self.qr_frame_ms = ms;
-                self.save_boxes();
-            }
-            Action::TOther(id) => {
-                if let Some(s) = self.spend.as_mut() {
-                    if let Some(k) = s.others.iter().position(|o| *o == id) {
-                        s.others.remove(k);
-                    } else {
-                        s.others.push(id);
-                        s.others.sort_unstable();
-                    }
-                    s.error = None;
-                }
-            }
-            Action::CarryToOutbox => {
-                // The carry holds the secret nonce the next share signs
-                // with: a vault by default, the Outbox only after a warning.
-                let out = self.spend.as_mut().and_then(|s| {
-                    let stem = result_stem(&s.spend.source);
-                    let bytes = s.carry_out.take()?;
-                    let psbt = s.spend.psbt.to_bytes();
-                    let round = secrets::Round {
-                        tx: secrets::tx_hash(&s.spend.psbt),
-                        key: s.signers.first().copied().unwrap_or_default(),
-                        psbt,
-                        psbt_name: format!("{stem}-part.psbt"),
-                    };
-                    let mut out = secrets::SecretOut::new(
-                        format!("{stem}-partly-signed.osk"),
-                        bytes,
-                        EN.act_the_secret_nonce,
-                        EN.act_whoever_has_it,
-                    );
-                    out.keep = secrets::Keep::Round(round);
-                    Some(out)
-                });
-                if let Some(out) = out {
-                    self.offer_secret(out);
-                }
-            }
+            a @ (Action::PdfInbox(..)
+            | Action::PdfOutbox(..)
+            | Action::QrSigned
+            | Action::QrPart
+            | Action::QrWallet(..)
+            | Action::ShowCode(..)
+            | Action::CodePng(..)
+            | Action::QrPng
+            | Action::QrOutbox(..)
+            | Action::QrFormat(..)
+            | Action::QrPartSize(..)
+            | Action::QrSpeed(..)) => self.qr_act(a, &c),
             Action::Scale(pct) => {
                 self.scale_pct = pct;
                 if let Some(d) = self.last_display {

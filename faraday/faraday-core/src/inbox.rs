@@ -29,7 +29,7 @@ use zeroize::Zeroizing;
 
 use crate::create::NewKind;
 use crate::wallet::{FileKind, Refusal, Session, Wallet, fp_text};
-use crate::{Faraday, Item, forms, stem};
+use crate::{Action, Faraday, Item, forms, inbox, stem};
 
 /// Where a seed found in the Inbox comes from.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1388,4 +1388,85 @@ impl Faraday {
 
 fn item_name(app: &Faraday, k: usize) -> String {
     app.inbox.get(k).map_or(String::new(), |i| i.name.clone())
+}
+
+impl Faraday {
+    /// Costs what the actions below cost, the keys' and wallets' work among
+    /// it: handles the Inbox's actions (`InboxLoad`, `InboxChoose`, `InboxRemove`, `OutboxRemove`, `Potential*`, `XpubOpen`, `BackupOpen`).
+    pub(crate) fn inbox_act(&mut self, action: Action, c: &Compute) {
+        match action {
+            Action::InboxRemove(i) => {
+                if i < self.inbox.len() {
+                    self.inbox.remove(i);
+                    self.save_boxes();
+                }
+            }
+            Action::OutboxRemove(i) => {
+                if i < self.outbox.len() {
+                    let gone = self.outbox.remove(i);
+                    self.files_menu.renamed.remove(&gone.name);
+                    self.save_boxes();
+                }
+            }
+            Action::InboxLoad => {
+                let (w, k) = self.inbox_load();
+                self.toast(&fill(
+                    EN.act_and_loaded,
+                    &[
+                        &w.to_string(),
+                        (if w == 1 {
+                            EN.act_wallet
+                        } else {
+                            EN.act_wallets
+                        }),
+                        &k.to_string(),
+                        (if k == 1 { EN.act_seed } else { EN.act_seeds }),
+                    ],
+                ));
+            }
+            Action::InboxChoose(i) => {
+                if let Some(w) = self.inbox_found_now(c).to_load().get(i) {
+                    let d = w.descriptor.clone();
+                    if !self.inbox_skip.remove(&d) {
+                        self.inbox_skip.insert(d);
+                    }
+                }
+            }
+            Action::PotentialOpen(fp) => {
+                if self.may_load_keys() {
+                    self.potential_open(faraday_bip::keys::Fingerprint(fp));
+                } else {
+                    self.toast(&fill(EN.act_remove_the_first, &[self.medium.noun()]));
+                }
+            }
+            Action::XpubOpen(i) => self.xpub_open(i),
+            Action::BackupOpen(k) => {
+                if self.may_load_keys() {
+                    self.backup_open(k);
+                } else {
+                    self.toast(&fill(EN.act_remove_the_first, &[self.medium.noun()]));
+                }
+            }
+            Action::PotentialKind(k) => {
+                if let (Some(p), Some(&kind)) =
+                    (self.potential.as_mut(), inbox::KINDS.get(usize::from(k)))
+                {
+                    p.kind = kind;
+                }
+            }
+            Action::PotentialShow => {
+                if let Some(p) = self.potential.as_mut() {
+                    p.shown = !p.shown;
+                }
+            }
+            Action::PotentialType => {
+                if let Some(p) = self.potential.as_mut() {
+                    p.typing = self.sticks.is_empty();
+                }
+            }
+            Action::PotentialMake => self.potential_make(),
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
+    }
 }

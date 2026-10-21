@@ -8,6 +8,7 @@
 //! The whole struct is zeroized on drop. This file is listed in
 //! `tools/lint-secrets.sh` and may hold no heap text.
 
+use crate::{Action, Command, EntryState, Faraday, Screen, forms};
 use faraday_bip::bip39::{self, Language, Script, Typed};
 use faraday_bip::kana;
 use faraday_bip::slip39;
@@ -614,6 +615,127 @@ fn last_word_mask(first_words: &[u16]) -> [u64; 32] {
         }
     }
     mask
+}
+
+impl Faraday {
+    /// Handles seed-word entry's actions (`Action::Entry*`).
+    pub(crate) fn entry_act(&mut self, action: Action) {
+        match action {
+            Action::Entry(wanted) => {
+                if self.may_load_keys() {
+                    let back = matches!(
+                        self.screen,
+                        Screen::Restore | Screen::Family | Screen::Spend
+                    )
+                    .then_some(self.screen);
+                    self.entry = EntryState::default();
+                    self.entry.wanted = wanted;
+                    self.entry.back = back;
+                    // A small panel has no keyboard of its own: every
+                    // list's words go on the word keyboard.
+                    if self.compact {
+                        self.entry.keys = Some(forms::word_typer(self.entry.language()));
+                    }
+                    self.screen = Screen::Entry;
+                }
+            }
+            Action::EntryWordCount(n) => {
+                if EntryState::COUNTS.contains(&n) {
+                    self.entry.word_count = n;
+                }
+            }
+            Action::EntryClear => {
+                self.entry.word_count = 0;
+                self.entry.typed.clear();
+                if self.entry.keys.is_some() {
+                    self.entry.keys = Some(forms::word_typer(self.entry.language()));
+                }
+                self.entry.label.clear();
+                self.entry.error = None;
+            }
+            Action::EntryAdd => self.entry_add(),
+            Action::EntryLanguages => self.entry.languages = !self.entry.languages,
+            Action::EntryLanguage(i) => {
+                if let Some(&lang) = forms::LANGUAGES.get(usize::from(i)) {
+                    self.entry.language_at = i;
+                    self.entry.error = None;
+                    self.entry.shift = false;
+                    // A list with a keyboard of its own starts its words
+                    // over; one typed in Latin letters keeps them.
+                    self.entry.keys =
+                        (forms::on_screen(lang) || self.compact).then(|| forms::word_typer(lang));
+                    if self.compact {
+                        self.entry.languages = false;
+                    }
+                }
+            }
+            Action::EntryKey(c) => {
+                let w = self.words_use();
+                let (lang, in_check) = (w.lang, w.in_check);
+                if let Some(k) = w.keys.as_mut() {
+                    k.type_char(c);
+                    *w.shift = false;
+                    *w.error = None;
+                    if forms::word_whole(k, lang) {
+                        forms::take_typed(k, lang);
+                    }
+                }
+                if in_check {
+                    self.copy_check_after();
+                }
+            }
+            Action::EntryKeyBack => {
+                let w = self.words_use();
+                if let Some(k) = w.keys.as_mut() {
+                    k.backspace();
+                    *w.error = None;
+                }
+            }
+            Action::EntryShift => {
+                let w = self.words_use();
+                *w.shift = !*w.shift;
+            }
+            Action::EntryCandidate(n) => {
+                let w = self.words_use();
+                let in_check = w.in_check;
+                if let Some(k) = w.keys.as_mut() {
+                    k.commit_candidate(usize::from(n));
+                    *w.error = None;
+                }
+                if in_check {
+                    self.copy_check_after();
+                }
+            }
+            Action::EntryForm(i) => {
+                if let Some(&f) = forms::Form::ALL.get(usize::from(i)) {
+                    let (wanted, back) = (self.entry.wanted, self.entry.back);
+                    self.entry = EntryState::default();
+                    self.entry.wanted = wanted;
+                    self.entry.back = back;
+                    self.entry.form = f;
+                    // Chosen from the chips, or opened by a Tools tile
+                    // for this form: the chips stay in view.
+                    self.entry.other_forms = true;
+                }
+            }
+            Action::EntryOtherForms => self.entry.other_forms = true,
+            Action::EntryPart => self.form_add_part(),
+            Action::EntryRecover => self.form_recover(),
+            Action::EntryPassphrase => self.entry.on_passphrase = !self.entry.on_passphrase,
+            Action::EntryWallet(w) => {
+                if self.may_load_keys() && w < self.session.wallets.len() {
+                    if self.scan.take().is_some() {
+                        self.commands.push_back(Command::CameraOff);
+                    }
+                    self.sheet = None;
+                    self.act(Action::Entry(None));
+                    self.entry.wallet = Some(w);
+                }
+            }
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -126,3 +126,16 @@ impl Faraday {
 pub(crate) fn va(a: VaultAction) -> Action {
     Action::Vault(a)
 }
+
+impl Faraday {
+    /// Handles the Codes screen's actions (`OpenCodes`, `CodesOpen`, `CodesAdd`).
+    pub(crate) fn codes_act(&mut self, action: Action) {
+        match action {
+            Action::OpenCodes => self.open_codes(),
+            Action::CodesOpen(v, item) => self.open_code_row(v, item),
+            Action::CodesAdd => self.codes_add_entry(),
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
+    }
+}
