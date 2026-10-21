@@ -28,6 +28,7 @@ impl Psbt {
         if bytes.len() < MAGIC.len() || &bytes[..MAGIC.len()] != MAGIC {
             return Err(Error::NotPsbt);
         }
+        osk_crypto::work::count(osk_crypto::work::Work::PsbtParse);
         let inner = bitcoin::Psbt::deserialize(bytes).map_err(|e| Error::Parse(e.to_string()))?;
         if inner.version != 0 {
             return Err(Error::UnsupportedVersion(inner.version));

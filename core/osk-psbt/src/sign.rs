@@ -234,6 +234,7 @@ pub fn sign(
     shares: &[ShareKey],
     others: &[u32],
 ) -> Result<SignResult, Error> {
+    osk_crypto::work::count(osk_crypto::work::Work::Sign);
     let inspection = inspect(psbt, ctx);
     if inspection.has_blocked() {
         return Err(Error::Blocked(inspection.blocked()));

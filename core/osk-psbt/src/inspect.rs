@@ -530,6 +530,7 @@ fn warn(warnings: &mut Vec<Warning>, level: Level, kind: WarningKind, text: Stri
 
 /// Inspects `psbt` for the keys and network in `ctx`.
 pub fn inspect(psbt: &Psbt, ctx: &Context) -> Inspection {
+    osk_crypto::work::count(osk_crypto::work::Work::PsbtInspect);
     let secp = Secp256k1::verification_only();
     let inner = psbt.inner();
     let tx = &inner.unsigned_tx;

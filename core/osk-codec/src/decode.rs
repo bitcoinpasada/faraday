@@ -28,6 +28,7 @@ pub fn decode_luma(width: usize, height: usize, luma: &[u8]) -> Vec<Decoded> {
     if width == 0 || height == 0 || luma.len() != width * height {
         return Vec::new();
     }
+    osk_crypto::work::count(osk_crypto::work::Work::QrDecode);
     let mut image =
         rqrr::PreparedImage::prepare_from_greyscale(width, height, |x, y| luma[y * width + x]);
     let mut out = Vec::new();

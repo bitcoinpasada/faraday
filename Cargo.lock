@@ -786,6 +786,7 @@ version = "0.1.5"
 dependencies = [
  "faraday-fat",
  "osk-codec",
+ "osk-crypto",
  "png",
  "zeroize",
 ]
@@ -2008,6 +2009,7 @@ version = "0.1.0"
 dependencies = [
  "osk-bip",
  "osk-codec",
+ "osk-crypto",
  "osk-shell-api",
  "tiny-skia 0.12.0",
  "zeroize",

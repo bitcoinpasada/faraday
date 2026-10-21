@@ -17,6 +17,7 @@ pub fn hmac_sha512(key: &[u8], msg: &[u8]) -> [u8; 64] {
 /// PBKDF2 with HMAC-SHA-512 as the PRF (RFC 8018 §5.2). Fills `out`, which
 /// may be any length; BIP-39 uses 64 bytes and 2048 rounds.
 pub fn pbkdf2_hmac_sha512(password: &[u8], salt: &[u8], rounds: u32, out: &mut [u8]) {
+    crate::work::count(crate::work::Work::Kdf);
     pbkdf2::pbkdf2_hmac::<Sha512>(password, salt, rounds, out);
 }
 
@@ -32,5 +33,12 @@ pub fn hmac_sha256(key: &[u8], msg: &[u8]) -> [u8; 32] {
 /// may be any length; SLIP-39's round function uses it with half the
 /// master secret's length.
 pub fn pbkdf2_hmac_sha256(password: &[u8], salt: &[u8], rounds: u32, out: &mut [u8]) {
+    crate::work::count(crate::work::Work::Kdf);
+    pbkdf2_sha256(password, salt, rounds, out);
+}
+
+/// [`pbkdf2_hmac_sha256`] uncounted, for scrypt's own two single-round
+/// passes: scrypt counts itself once.
+pub(crate) fn pbkdf2_sha256(password: &[u8], salt: &[u8], rounds: u32, out: &mut [u8]) {
     pbkdf2::pbkdf2_hmac::<Sha256>(password, salt, rounds, out);
 }

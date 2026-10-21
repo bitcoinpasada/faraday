@@ -349,6 +349,7 @@ impl Canvas {
     /// it is meant to be done once and kept ([`Canvas::snapshot`],
     /// [`Canvas::restore`]).
     pub fn frost(&mut self, scale: u32, radius: u32, tint: Color) {
+        osk_crypto::work::count(osk_crypto::work::Work::Blur);
         let (w, h) = (self.pixmap.width() as usize, self.pixmap.height() as usize);
         let s = scale.max(1) as usize;
         let (sw, sh) = (w.div_ceil(s), h.div_ceil(s));
@@ -427,6 +428,7 @@ impl Canvas {
     /// Puts back a [`Canvas::snapshot`] of this canvas; one of another
     /// size is ignored.
     pub fn restore(&mut self, pixels: &[u8]) {
+        osk_crypto::work::count(osk_crypto::work::Work::FullCanvas);
         let data = self.pixmap.data_mut();
         if pixels.len() == data.len() {
             data.copy_from_slice(pixels);
@@ -435,11 +437,13 @@ impl Canvas {
 
     /// A copy of every pixel, for [`Canvas::blend_from`] to fade from.
     pub fn snapshot(&self) -> Vec<u8> {
+        osk_crypto::work::count(osk_crypto::work::Work::FullCanvas);
         self.pixmap.data().to_vec()
     }
 
     /// The same copy into `into`, reusing its room.
     pub fn snapshot_into(&self, into: &mut Vec<u8>) {
+        osk_crypto::work::count(osk_crypto::work::Work::FullCanvas);
         into.clear();
         into.extend_from_slice(self.pixmap.data());
     }
@@ -448,6 +452,7 @@ impl Canvas {
     /// of this canvas, to what is drawn now: a cross-fade. A snapshot of
     /// another size leaves the canvas as it is.
     pub fn blend_from(&mut self, before: &[u8], t: f32) {
+        osk_crypto::work::count(osk_crypto::work::Work::FullCanvas);
         let data = self.pixmap.data_mut();
         if before.len() != data.len() {
             return;

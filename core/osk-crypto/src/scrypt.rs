@@ -13,7 +13,7 @@
 use alloc::vec;
 use zeroize::Zeroize;
 
-use crate::hash::pbkdf2_hmac_sha256;
+use crate::hash::pbkdf2_sha256;
 
 /// Why scrypt could not run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,6 +39,7 @@ pub fn scrypt(
     if n < 2 || !n.is_power_of_two() || r == 0 || p == 0 || out.is_empty() {
         return Err(Error::Parameters);
     }
+    crate::work::count(crate::work::Work::Kdf);
     let r = r as usize;
     let p = p as usize;
     let n = n as usize;
@@ -49,7 +50,7 @@ pub fn scrypt(
     let v_len = block.checked_mul(n).ok_or(Error::Parameters)?;
 
     let mut b = vec![0u8; total];
-    pbkdf2_hmac_sha256(password, salt, 1, &mut b);
+    pbkdf2_sha256(password, salt, 1, &mut b);
 
     let mut v = vec![0u8; v_len];
     let mut scratch = vec![0u8; 256 * r];
@@ -59,7 +60,7 @@ pub fn scrypt(
     v.zeroize();
     scratch.zeroize();
 
-    pbkdf2_hmac_sha256(password, &b, 1, out);
+    pbkdf2_sha256(password, &b, 1, out);
     b.zeroize();
     Ok(())
 }

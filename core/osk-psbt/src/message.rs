@@ -162,6 +162,7 @@ pub fn sign(
     nonce: Nonce,
     aux: Aux,
 ) -> Result<Signed, Error> {
+    osk_crypto::work::count(osk_crypto::work::Work::Sign);
     if !Format::for_script(script).contains(&format) {
         return Err(Error::UnsupportedFormat);
     }

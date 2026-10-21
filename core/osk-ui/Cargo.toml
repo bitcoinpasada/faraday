@@ -20,6 +20,9 @@ osk-codec = { path = "../osk-codec", default-features = false }
 # last holder lets go, the application's state or the drawn tree.
 zeroize.workspace = true
 tiny-skia.workspace = true
+# The count of costly work (`osk_crypto::work`): a canvas blurred or
+# copied whole.
+osk-crypto = { path = "../osk-crypto" }
 
 [dev-dependencies]
 # The wordlists, which the candidate tests take their longest words from.
