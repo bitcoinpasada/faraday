@@ -41,6 +41,15 @@ const COL_W: f32 = 720.0;
 /// Draws the frame. Returns how far the page can scroll, units.
 pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
     let (w, h) = (starter.w, starter.h);
+    // Under a sheet that has its frosted copy of the page, the page is
+    // not drawn again: the copy stands for it, and so does the scroll
+    // it was drawn at (`Starter::frost`).
+    if let Some(sheet) = starter.sheet
+        && ui.frost.is_some()
+    {
+        sheet_over(starter, ui, w, h, sheet);
+        return starter.max;
+    }
     ui.clear(BG);
     let compact = starter.compact;
     let top = if starter.page == Page::Home {
@@ -85,17 +94,23 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
         head(starter, ui, w);
     }
     if let Some(sheet) = starter.sheet {
-        ui.hits.clear();
-        ui.in_sheet = true;
-        ui.backdrop();
-        match sheet {
-            Sheet::Restart(to) => restart_sheet(starter, ui, w, h, to),
-            Sheet::Uninstall => uninstall_sheet(starter, ui, w, h),
-            Sheet::LetThrough => let_through_sheet(starter, ui, w, h),
-        }
-        ui.in_sheet = false;
+        sheet_over(starter, ui, w, h, sheet);
     }
     max
+}
+
+/// The open sheet over the frosted page: frosted now from what the frame
+/// drew, or put back from the copy kept.
+fn sheet_over(starter: &Starter, ui: &mut Ui, w: f32, h: f32, sheet: Sheet) {
+    ui.hits.clear();
+    ui.in_sheet = true;
+    ui.backdrop();
+    match sheet {
+        Sheet::Restart(to) => restart_sheet(starter, ui, w, h, to),
+        Sheet::Uninstall => uninstall_sheet(starter, ui, w, h),
+        Sheet::LetThrough => let_through_sheet(starter, ui, w, h),
+    }
+    ui.in_sheet = false;
 }
 
 // ---------------------------------------------------------------------

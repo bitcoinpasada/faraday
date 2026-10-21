@@ -59,7 +59,8 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 
-/// How often the Downloads folder and the cameras are looked at again.
+/// How often the Downloads folder and the cameras are looked at again,
+/// on a thread of their own ([`watch_listing`]).
 const RESCAN: Duration = Duration::from_millis(700);
 /// How often what is attached is read again for what is of concern
 /// (docs/STARTER.md §3.1a): polling, the same on every system, since no
@@ -89,6 +90,9 @@ struct Shell {
     key_sheets: Vec<PathBuf>,
     /// The Downloads folder Transfer uses.
     host: Host,
+    /// What [`watch_listing`] reads: the Downloads folder and the
+    /// cameras, sent when either changed.
+    listing: Receiver<Listing>,
     listed: Option<StorageEvent>,
     cameras: Option<Vec<(String, String)>>,
     boxes: Boxes,
@@ -99,7 +103,6 @@ struct Shell {
     shown: (u32, u32),
     scale: f64,
     pace: Pacer,
-    next_scan: Instant,
     pointer: Pointer,
     lens: Lens,
 }
@@ -355,20 +358,22 @@ impl Shell {
     }
 
     /// Tells the held app what Downloads holds and which cameras there
-    /// are, when that changed.
+    /// are, when that changed: the newest of what [`watch_listing`] read.
+    /// A lookup; the reading is done on that thread.
     fn relist(&mut self) {
-        let now = self.host.files();
-        if self.listed.as_ref() != Some(&now) {
-            self.starter.held().storage(now.clone());
-            self.listed = Some(now);
+        let Some(now) = self.listing.try_iter().last() else {
+            return;
+        };
+        if self.listed.as_ref() != Some(&now.files) {
+            self.starter.held().storage(now.files.clone());
+            self.listed = Some(now.files);
             self.redraw();
         }
-        let cameras = camera::list();
-        if self.cameras.as_ref() != Some(&cameras) {
+        if self.cameras.as_ref() != Some(&now.cameras) {
             self.starter
                 .held()
-                .storage(StorageEvent::Cameras(cameras.clone()));
-            self.cameras = Some(cameras);
+                .storage(StorageEvent::Cameras(now.cameras.clone()));
+            self.cameras = Some(now.cameras);
             self.redraw();
         }
     }
@@ -480,10 +485,7 @@ impl ApplicationHandler for Shell {
             let refresh = view::refresh(self.window());
             self.pace.ticked_at(now, refresh);
         }
-        if now >= self.next_scan {
-            self.relist();
-            self.next_scan = now + RESCAN;
-        }
+        self.relist();
         event_loop.set_control_flow(ControlFlow::WaitUntil(self.pace.next_tick));
     }
 
@@ -494,6 +496,42 @@ impl ApplicationHandler for Shell {
         self.key_sheets.clear();
         self.system.exiting();
     }
+}
+
+/// What Transfer lists of this computer: the Downloads folder and the
+/// cameras.
+#[derive(Clone, PartialEq)]
+struct Listing {
+    files: StorageEvent,
+    cameras: Vec<(String, String)>,
+}
+
+/// Costs a directory listing with each file's metadata and a camera
+/// enumeration (Media Foundation's on Windows) every [`RESCAN`], on a
+/// thread of its own so the window's thread never waits on either; sends
+/// the listing when it changed, the first at once.
+fn watch_listing(downloads: PathBuf, opens: bool, out: Sender<Listing>) {
+    std::thread::spawn(move || {
+        let host = Host {
+            print: PathBuf::new(),
+            downloads,
+            opens,
+        };
+        let mut last = None;
+        loop {
+            let now = Listing {
+                files: host.files(),
+                cameras: camera::list(),
+            };
+            if last.as_ref() != Some(&now) {
+                if out.send(now.clone()).is_err() {
+                    return;
+                }
+                last = Some(now);
+            }
+            std::thread::sleep(RESCAN);
+        }
+    });
 }
 
 /// Reads what is attached that is of concern now, then every
@@ -657,7 +695,9 @@ fn main() -> ExitCode {
         .map(|h| PathBuf::from(h).join("faraday-print"))
         .unwrap_or_else(|| PathBuf::from("faraday-print"));
     let pace = Pacer::new(timings);
-    let next_scan = pace.epoch;
+    let opens = faraday_storage::can_open_folders();
+    let (listed, listing) = channel();
+    watch_listing(downloads.clone(), opens, listed);
     let mut shell = Shell {
         starter,
         system,
@@ -672,8 +712,9 @@ fn main() -> ExitCode {
         host: Host {
             print,
             downloads,
-            opens: faraday_storage::can_open_folders(),
+            opens,
         },
+        listing,
         listed: None,
         cameras: None,
         boxes: Boxes::Memory {
@@ -687,7 +728,6 @@ fn main() -> ExitCode {
         shown: size,
         scale: 1.0,
         pace,
-        next_scan,
         pointer: Pointer::new(),
         lens: Lens::new(Camera::new(None, false)),
     };

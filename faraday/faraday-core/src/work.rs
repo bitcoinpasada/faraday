@@ -122,8 +122,9 @@ fn of_core(w: osk_crypto::work::Work) -> Work {
 }
 
 /// The counter the core's costly functions call through the token, and
-/// a canvas with its pixel work (`osk_crypto::work`). Costs an add.
-pub(crate) fn core_count(w: osk_crypto::work::Work) {
+/// a canvas with its pixel work (`osk_crypto::work`): the Starter's
+/// canvas counts with it too. Costs an add.
+pub fn core_count(w: osk_crypto::work::Work) {
     count(of_core(w));
 }
 

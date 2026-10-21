@@ -118,6 +118,7 @@ mod keyboard;
 mod pace;
 mod panel;
 mod pointer;
+mod present;
 mod timings;
 mod touch;
 mod usb;
@@ -144,6 +145,7 @@ use osk_shell_api::{
 };
 use pace::Pace;
 use panel::{Panel, lock};
+use present::Presenter;
 use timings::{Bucket, Timings};
 
 /// How long the main loop waits to be woken before sending a tick.
@@ -659,10 +661,10 @@ struct Shell {
     /// which move the arrow on it themselves.
     panel: Arc<Mutex<Panel>>,
     geometry: Geometry,
-    /// The converted frame, kept between draws so a redraw allocates
-    /// nothing. The cursor is drawn into this copy, never into the
-    /// core's frame.
-    scratch: Vec<u8>,
+    /// The core's last frame and its converted copy, kept between draws
+    /// so a redraw allocates nothing and converts and writes only the
+    /// rows that changed (`present.rs`).
+    presenter: Presenter,
     /// Where a mouse or a touchpad is pointing, on a machine that has
     /// one, shared with the input threads that move it. A machine with
     /// only a touchscreen has no cursor and draws no arrow.
@@ -842,78 +844,51 @@ impl Shell {
         }
     }
 
-    /// Converts the core's frame and writes it to the panel.
+    /// Costs a comparison of the core's frame with the last, and a
+    /// conversion and a write of the rows that changed (`present.rs`).
     ///
-    /// Only the rows that differ from the frame on the panel are written
-    /// (`panel.rs`): a frame that moves a caret, a toast or the scrollbar
-    /// writes a strip; a scroll writes the scrolled region and not the
-    /// bars around it. The firmware framebuffer has no vsync, so a frame
-    /// can be caught half written; fewer bytes make that window shorter.
-    /// The frame goes out in bands of rows, each under its own hold of
-    /// the panel's lock, so a mouse move from an input thread slips in
-    /// between two bands and the arrow never waits for a frame.
+    /// Only the rows that differ from the frame on the panel are
+    /// converted and written: a frame drawn again with nothing changed
+    /// costs neither, a frame that moves a caret, a toast or the
+    /// scrollbar a strip, a scroll the scrolled region and not the bars
+    /// around it. The firmware framebuffer has no vsync, so a frame can
+    /// be caught half written; fewer bytes make that window shorter.
     fn draw(&mut self) {
         let g = self.geometry;
         let pixels = usize::from(g.width) * usize::from(g.height);
-        let bytes = pixels * g.depth.bytes_per_pixel();
-        let mut scratch = std::mem::take(&mut self.scratch);
-        if scratch.len() != bytes {
-            scratch = vec![0u8; bytes];
-        }
 
         // The frame is painted when it is read, so the app is borrowed
         // mutably here and anything to say waits until it is given back.
         let mut complaint = None;
-        let converted = match self.app.as_mut().map(App::frame) {
+        let mut result = None;
+        match self.app.as_mut().map(App::frame) {
             Some(frame) if (frame.width, frame.height) != (g.width, g.height) => {
                 complaint = Some("frame does not match the panel; not drawing");
-                false
             }
             Some(frame) if frame.rgba.len() < pixels * 4 => {
                 complaint = Some("short frame; not drawing");
-                false
             }
             Some(frame) => {
-                let start = self.timings.is_some().then(Instant::now);
-                fb::convert_into(&frame.rgba[..pixels * 4], g.depth, &mut scratch);
-                if let (Some(start), Some(t)) = (start, self.timings.as_mut()) {
-                    t.add(Bucket::Convert, start.elapsed());
-                }
-                true
+                result = Some(self.presenter.present(
+                    &frame.rgba[..pixels * 4],
+                    g,
+                    &self.panel,
+                    self.timings.as_mut(),
+                ));
             }
-            None => false,
-        };
+            None => {}
+        }
         if let Some(message) = complaint {
             self.say(message);
-        }
-        if !converted {
-            self.scratch = scratch;
-            return;
-        }
-
-        let start = self.timings.is_some().then(Instant::now);
-        let rows = usize::from(g.height);
-        let mut result = Ok(());
-        let mut first = 0;
-        while first < rows && result.is_ok() {
-            let last = (first + panel::CHUNK_ROWS - 1).min(rows - 1);
-            result = lock(&self.panel).write_rows(&scratch, first, last);
-            first = last + 1;
-        }
-        if result.is_ok() {
-            lock(&self.panel).complete();
-        }
-        if let (Some(start), Some(t)) = (start, self.timings.as_mut()) {
-            t.add(Bucket::Write, start.elapsed());
         }
         match result {
             // A frame the core drew counts whether or not a pixel
             // changed: `--frames` and the frame grid follow the core's
             // draws, not the panel's bytes.
-            Ok(()) => self.drawn += 1,
-            Err(e) => self.say(&format!("framebuffer write failed: {e}")),
+            Some(Ok(())) => self.drawn += 1,
+            Some(Err(e)) => self.say(&format!("framebuffer write failed: {e}")),
+            None => {}
         }
-        self.scratch = scratch;
     }
 
     /// True once enough frames have been drawn for `--frames`.
@@ -1499,7 +1474,7 @@ fn run(args: Args) -> Result<Exit, String> {
         restart: false,
         panel,
         geometry,
-        scratch: Vec::new(),
+        presenter: Presenter::default(),
         cursor,
         believed,
         epoch: Instant::now(),

@@ -2956,10 +2956,16 @@ as possible before the next build.
     the Cobalt boot logo; opensigner-core and osk-keep removed, what
     Faraday used moved into faraday-core, one strings file (U5, F68).
 
-95. [ ] 2026-10-21, owner: **costly work takes a token** (docs/COMPUTE.md):
-    A0, A1, B1–B6 and C0 built (20e7ab91, e05c24b3, f8898e72); C1–C3
-    gate the costly functions, D1 adds the costs lint and compile_fail
-    doctests, D2 removes the debug guard, D3 the docs.
+95. [x] 2026-10-21, owner: **costly work takes a token** (docs/COMPUTE.md,
+    F69): A0–C3 built; D1 (de79b258, 75edd458) the costs lint,
+    compile_fail doctests, the full clippy list and per-accessor,
+    allocation, line, typing, Pi-size and long-session budgets; D2
+    (afd80937) removed the debug guard; D3 (dca147e3) the docs.
+96. [x] 2026-10-21, owner: **batch E** (SPEED §11): the stick shell
+    converts and writes only the rows that changed, with a budget test;
+    the Starter keeps a sheet's frosted page, lists Downloads and cameras
+    off the window's thread, and has its own budget test.
+
 ## Next steps
 
 **START HERE (2026-10-08).** In order:

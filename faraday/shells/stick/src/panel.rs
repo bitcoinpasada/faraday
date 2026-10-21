@@ -28,9 +28,35 @@ pub fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|e| e.into_inner())
 }
 
+/// Where a panel's bytes go: the framebuffer device, or, in a test, a
+/// buffer in memory.
+pub trait Sink {
+    /// Writes all of `buf` at byte `offset`.
+    fn write_at(&mut self, buf: &[u8], offset: u64) -> std::io::Result<()>;
+}
+
+impl Sink for File {
+    fn write_at(&mut self, buf: &[u8], offset: u64) -> std::io::Result<()> {
+        self.write_all_at(buf, offset)
+    }
+}
+
+/// A panel in memory, grown to whatever is written: what a test draws
+/// on.
+impl Sink for Vec<u8> {
+    fn write_at(&mut self, buf: &[u8], offset: u64) -> std::io::Result<()> {
+        let at = usize::try_from(offset).map_err(std::io::Error::other)?;
+        if self.len() < at + buf.len() {
+            self.resize(at + buf.len(), 0);
+        }
+        self[at..at + buf.len()].copy_from_slice(buf);
+        Ok(())
+    }
+}
+
 /// The framebuffer and what is on it.
-pub struct Panel {
-    fb: File,
+pub struct Panel<S: Sink = File> {
+    fb: S,
     geometry: Geometry,
     /// The converted frame the panel shows, without the arrow. Rows are
     /// kept in step with the panel as they are written.
@@ -44,11 +70,14 @@ pub struct Panel {
     /// The band of rows being written, kept so a write allocates
     /// nothing.
     band: Vec<u8>,
+    /// Rows written to the framebuffer, ever, the arrow's included: what
+    /// the budget test counts (`present.rs`).
+    written: u64,
 }
 
-impl Panel {
+impl<S: Sink> Panel<S> {
     /// A panel nothing has been drawn on yet.
-    pub fn new(fb: File, geometry: Geometry) -> Panel {
+    pub fn new(fb: S, geometry: Geometry) -> Panel<S> {
         Panel {
             fb,
             geometry,
@@ -56,14 +85,35 @@ impl Panel {
             stale: true,
             arrow: None,
             band: Vec::new(),
+            written: 0,
         }
     }
 
-    /// Writes rows `first..=last` of `frame`, a whole converted frame,
-    /// where they differ from what the panel shows, with the arrow drawn
-    /// where it falls in them. The caller walks a frame in chunks of
-    /// [`CHUNK_ROWS`], one call per hold of the lock, and calls
-    /// [`Panel::complete`] after the last.
+    /// Whether the next frame must be written whole: nothing is known to
+    /// be on the panel (before the first frame, after a blanking or a
+    /// failed write).
+    pub fn stale(&self) -> bool {
+        self.stale
+    }
+
+    /// Rows written to the framebuffer so far.
+    #[cfg(test)]
+    pub fn rows_written(&self) -> u64 {
+        self.written
+    }
+
+    /// What the panel's framebuffer holds, for a test.
+    #[cfg(test)]
+    pub fn sink(&self) -> &S {
+        &self.fb
+    }
+
+    /// Costs a comparison of the rows with what the panel shows and a
+    /// write of those that differ: rows `first..=last` of `frame`, a
+    /// whole converted frame, written where they differ from the panel,
+    /// with the arrow drawn where it falls in them. The caller walks a
+    /// frame in chunks of [`CHUNK_ROWS`], one call per hold of the lock,
+    /// and calls [`Panel::complete`] after the last.
     pub fn write_rows(&mut self, frame: &[u8], first: usize, last: usize) -> std::io::Result<()> {
         let row = self.geometry.row_bytes();
         if self.shown.len() != frame.len() {
@@ -132,12 +182,12 @@ impl Panel {
     }
 
     /// Paints the panel black: what was on it is gone before the power
-    /// is.
+    /// is. Writes every row.
     pub fn blank(&mut self) {
         let g = self.geometry;
         let row = vec![0u8; g.row_bytes()];
         for y in 0..usize::from(g.height) {
-            let _ = self.fb.write_all_at(&row, (y * g.stride) as u64);
+            let _ = self.fb.write_at(&row, (y * g.stride) as u64);
         }
         self.stale = true;
         self.arrow = None;
@@ -156,13 +206,14 @@ impl Panel {
         if let Some(at) = self.arrow {
             cursor::draw_rows(&mut self.band, g, at, first);
         }
+        self.written += (last + 1 - first) as u64;
         if g.stride == row {
-            self.fb.write_all_at(&self.band, (first * row) as u64)
+            self.fb.write_at(&self.band, (first * row) as u64)
         } else {
             (first..=last).try_for_each(|y| {
                 let r = (y - first) * row;
                 self.fb
-                    .write_all_at(&self.band[r..r + row], (y * g.stride) as u64)
+                    .write_at(&self.band[r..r + row], (y * g.stride) as u64)
             })
         }
     }
@@ -174,7 +225,7 @@ mod tests {
     use crate::fb::Depth;
 
     /// A panel that is a temporary file, read back to check.
-    fn panel(tag: &str) -> (Panel, std::path::PathBuf) {
+    fn panel(tag: &str) -> (Panel<File>, std::path::PathBuf) {
         let path = std::env::temp_dir().join(format!("faraday-panel-{}-{tag}", std::process::id()));
         let fb = File::options()
             .read(true)

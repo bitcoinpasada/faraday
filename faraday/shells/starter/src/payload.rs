@@ -28,9 +28,10 @@ pub struct Payload {
 }
 
 impl Payload {
-    /// The payload built in, or `None` for a Starter built without one
-    /// (or, which the build prevents, with a manifest that does not
-    /// parse).
+    /// Costs a parse of the manifest: the payload built in, or `None`
+    /// for a Starter built without one (or, which the build prevents,
+    /// with a manifest that does not parse). The files are borrowed from
+    /// the program, not copied or hashed.
     pub fn built_in() -> Option<Payload> {
         let manifest = Manifest::parse(built::MANIFEST?).ok()?;
         let files = built::FILES
@@ -110,8 +111,9 @@ pub struct Image {
 }
 
 impl Image {
-    /// Reads `path` once, decompressing a `.xz`, for its SHA-256 and
-    /// size: the value `sha256sum` gives for the image itself.
+    /// Costs a read of the whole file, decompressing a `.xz`, and its
+    /// SHA-256: the value `sha256sum` gives for the image itself, and its
+    /// size. Done once, at start, before the window opens.
     pub fn hash(path: &Path) -> Result<Image, String> {
         let name = path
             .file_name()

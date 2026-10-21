@@ -596,6 +596,16 @@ pub struct Starter {
     held: Faraday,
     /// The held app is on screen.
     showing: bool,
+    /// The page under the open sheet, frosted and dimmed, as the frame
+    /// that opened the sheet drew it (`faraday_ui::Ui::backdrop`): each
+    /// frame after puts it back instead of drawing and blurring the page
+    /// again. Invariant: it is the page as the state draws it now. It is
+    /// dropped by everything that can change that page: a display, a
+    /// report from the shell ([`Starter::starter_event`]), an action
+    /// (`act`), a scroll; and by a frame with no sheet. A hover or a
+    /// press does not change it: under a sheet only the sheet's own
+    /// buttons are pressable, and none of them is on a page.
+    frost: Option<Vec<u8>>,
 }
 
 impl Default for Starter {
@@ -664,6 +674,7 @@ impl Starter {
             seen: Vec::new(),
             held,
             showing: false,
+            frost: None,
         };
         s.phone_codes_make();
         s
@@ -1042,6 +1053,9 @@ impl Starter {
         if let Some(c) = self.canvas.as_mut() {
             c.record_ink(true);
         }
+        // The page under a sheet is drawn too, not put back from its
+        // frosted copy, so its words are read.
+        self.frost = None;
         self.render();
         let texts = self
             .canvas
@@ -1066,6 +1080,7 @@ impl Starter {
     /// Reports what the shell read (§2): this computer, the disks, the
     /// payload, a write's progress.
     pub fn starter_event(&mut self, event: StarterEvent) {
+        self.frost = None;
         match event {
             StarterEvent::Computer(c) => {
                 self.computer = c;
@@ -1291,6 +1306,7 @@ impl Starter {
     }
 
     fn act(&mut self, action: StarterAction) {
+        self.frost = None;
         let c = self.held.compute();
         // While the sheet is up, only its own buttons.
         if self.sheet.is_some()
@@ -1724,7 +1740,13 @@ impl Starter {
         self.f = f;
         self.w = f32::from(d.width) / f;
         self.h = f32::from(d.height) / f;
-        self.canvas = Some(Canvas::new(&scaled));
+        let mut canvas = Canvas::new(&scaled);
+        // The canvas notes its pixel work, a blur or a whole copy, with
+        // the held app's counter (`docs/COMPUTE.md` §2.2), for the
+        // budget test.
+        canvas.set_counter(faraday_core::work::core_count);
+        self.canvas = Some(canvas);
+        self.frost = None;
     }
 
     fn render(&mut self) {
@@ -1739,7 +1761,10 @@ impl Starter {
             ui.hovered = self.hovered;
             ui.compact = self.compact;
             ui.offset = self.offset;
-            draw::frame(self, &mut ui)
+            ui.frost = self.sheet.and(self.frost.take());
+            let max = draw::frame(self, &mut ui);
+            self.frost = ui.frost.take();
+            max
         };
         self.max = max;
         self.hits = hits;
@@ -1754,13 +1779,16 @@ impl Starter {
             .map(|(_, a)| *a)
     }
 
-    fn touch(&mut self, x: i32, y: i32, phase: TouchPhase) {
+    /// A contact at (x, y): whether the frame changes.
+    fn touch(&mut self, x: i32, y: i32, phase: TouchPhase) -> bool {
         match phase {
             TouchPhase::Down => self.pressed = self.hit_at(x, y),
             TouchPhase::Move => {
-                if self.pressed.is_some() && self.hit_at(x, y) != self.pressed {
-                    self.pressed = None;
+                // A move that keeps the press as it was changes nothing.
+                if self.pressed.is_none() || self.hit_at(x, y) == self.pressed {
+                    return false;
                 }
+                self.pressed = None;
             }
             TouchPhase::Up => {
                 let pressed = self.pressed.take();
@@ -1773,6 +1801,7 @@ impl Starter {
                 }
             }
         }
+        true
     }
 
     /// After an event the held app took: once it leaves Transfer and its
@@ -1823,7 +1852,9 @@ impl App for Starter {
                 return;
             }
             Event::Touch { x, y, phase } if !self.showing => {
-                self.touch(i32::from(x), i32::from(y), phase);
+                if !self.touch(i32::from(x), i32::from(y), phase) {
+                    return;
+                }
             }
             Event::Hover { x, y } if !self.showing => {
                 self.hover = Some((i32::from(x), i32::from(y)));
@@ -1840,8 +1871,14 @@ impl App for Starter {
                 }
             }
             Event::Wheel { dy, .. } | Event::Scroll { dy, .. } if !self.showing => {
-                self.offset =
+                let offset =
                     (self.offset + f32::from(dy) / self.f.max(0.1)).clamp(0.0, self.max.max(0.0));
+                // At an end, a turn further moves nothing.
+                if offset == self.offset {
+                    return;
+                }
+                self.offset = offset;
+                self.frost = None;
             }
             Event::Back if !self.showing => self.act(StarterAction::Back),
             Event::Key(Key::Escape) if !self.showing => self.act(StarterAction::Back),

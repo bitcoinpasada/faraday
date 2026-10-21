@@ -211,8 +211,9 @@ pub fn bgra8888(r: u8, g: u8, b: u8) -> [u8; 4] {
     [b, g, r, 0xff]
 }
 
-/// Converts `rgba` (a whole number of pixels) into `out`, which must be
-/// exactly `pixels × bytes_per_pixel` long.
+/// Costs a pass over every pixel: converts `rgba` (a whole number of
+/// pixels) into `out`, which must be exactly `pixels × bytes_per_pixel`
+/// long.
 pub fn convert_into(rgba: &[u8], depth: Depth, out: &mut [u8]) {
     match depth {
         Depth::Rgb565 => {
@@ -238,9 +239,10 @@ pub fn convert_into(rgba: &[u8], depth: Depth, out: &mut [u8]) {
     }
 }
 
-/// The rows of `next` that differ from `prev`, both converted frames of
-/// `row` bytes a row: the first and the last (inclusive), or `None` when
-/// the two are the same. A `prev` of another size (none yet) makes every
+/// Costs a comparison of the two frames, up to the first and from the
+/// last row that differ: the rows of `next` that differ from `prev`, both
+/// frames of `row` bytes a row, the first and the last (inclusive), or
+/// `None` when the two are the same. A `prev` of another size (none yet) makes every
 /// row a changed one. Only these rows need writing to the panel: fewer
 /// bytes cross to the framebuffer, and the beam has less of a window to
 /// catch the write half done in.

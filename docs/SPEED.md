@@ -5,8 +5,8 @@ the slow laptop's stick; C next, after BACKUP-FLOW §19's F batches; D
 measured at the stick's high-density sizes before it is decided (§6); E
 in faraday-website.
 §7 is a standing rule (owner). §8: the speed audit's batch S1
-(2026-10-21). Tracker issue 119 and its sub-issues
-120–130.**
+(2026-10-21); §11: batch E of 2026-10-21, the stick's panel and the
+Starter. Tracker issue 119 and its sub-issues 120–130.**
 
 The owner's report: on a slow laptop Faraday became very slow in the
 later stages of setting up a multisig wallet, the backups especially,
@@ -1034,3 +1034,123 @@ Files frame, release profile, the build machine, 1366×768, median of
 
 The frame no longer grows with the Inbox. `found_in` alone is 1.9, 8.2
 and 31.7 ms at those sizes, now paid once after a change, not each frame.
+
+## 11. Batch E: the stick's panel and the Starter (2026-10-21)
+
+The counts of §8 covered faraday-core. Batch E (owner; not §5's E,
+the web demo) takes them to the two places they did not reach: the stick shell's path from the core's
+frame to the framebuffer, and the Starter.
+
+### 11.1 E1: the stick shell writes only what changed
+
+**Found.** The stick shell (`faraday/shells/stick`) draws when the core
+asks (`Command::Draw`), at most once a loop pass; at rest it draws
+nothing. But each draw converted the whole frame to the panel's format
+(`fb::convert_into`, a pass over every pixel), and only then did the
+panel compare the converted rows with what it shows and write the rows
+that differ (`panel.rs`). The core paints its whole canvas on every
+draw, so a frame drawn again with nothing changed (a press where nothing
+is, a toast's frame that lands on the same pixels) converted a whole
+frame and wrote none of it.
+
+**Fixed.** `present.rs`'s `Presenter` keeps the core's last frame beside
+its converted copy and compares first (`fb::changed_rows`, a `memcmp` a
+row): only the rows from the first to the last that differ are
+converted, and only those are walked to the panel. A frame that is the
+same converts and writes nothing; a stale panel (the first frame, after
+a blanking or a failed write) still takes the whole frame. The cost is
+a copy of the core's frame (1.2 MB at 480×640, 8.3 MB at 1920×1080).
+Build machine, release profile, a frame with nothing changed:
+
+| Panel | convert (before) | compare (after) |
+|---|---|---|
+| 480×640, RGB565 | 0.27 ms | 0.02 ms |
+| 1366×768, BGR888 | 0.98 ms | 0.08 ms |
+| 1920×1080, BGRA8888 | 1.56 ms | 0.26 ms |
+
+Before, the panel's own comparison of the converted rows came on top.
+
+**Tested.** `Panel` writes to a `Sink` (the framebuffer `File`, or a
+`Vec<u8>` in a test) and counts the rows it writes; the `Presenter`
+counts the rows it converts. `present::tests::the_panel_is_written_only_where_the_frame_changed`
+drives a real `Faraday` on the Pi's 480×640: the first frame converts
+and writes 640 rows; 120 ticks at rest, none; the same frame drawn again
+twice, none; a changed frame and the frames after it, at most 640 rows
+converted and 640 written each, and the panel then holds the frame; a
+blanked panel takes the next frame whole without converting it again.
+
+### 11.2 E2: the Starter
+
+**Found**, reading every path a frame and an event take
+(`faraday/faraday-starter`, `faraday/shells/starter`):
+
+1. **A sheet's frosted page was made again every frame.** The Starter
+   made a new `faraday_ui::Ui` each frame with no kept backdrop, so each
+   frame with a sheet open (Restart, Uninstall, Continue anyway) drew the
+   whole page, reduced and blurred it (`Work::Blur`) and copied it
+   (`Work::FullCanvas`) before drawing the sheet: on every hover change
+   over the sheet's buttons, every press, every frame drawn again. A
+   sheet frame took 5.4 ms at 1100×760 and 13.7 ms at 2200×1520; with
+   the page kept, 0.9 ms and 3.0 ms (release, build machine).
+2. **The Downloads folder and the cameras were read on the window's
+   thread every 0.7 s**: a directory listing with each file's metadata,
+   and on Windows a Media Foundation start-up and device enumeration,
+   whether or not Transfer was open. A large Downloads folder or a slow
+   enumeration was a stall of the window at that rate.
+3. **Frames asked for that change nothing**: a wheel turn at a page's
+   end, and a pointer moved with the button held that keeps the press as
+   it was, each drew the page again.
+4. The Starter's canvas noted no pixel work, so no count could see 1.
+
+Nothing else on a frame costs more than a lookup: drawing takes
+`&Starter`, the phone's QR codes are made when the computer is reported
+(`Starter::phone_codes_make`), the Mac table is parsed once
+(`macs::macs`), the PDFs are made on a press with the held app's token,
+and the costs lint's rule 4 keeps `.compute()` out of the drawing
+functions. The disks, the concerns, BitLocker, the installed copy and
+every write already run on threads of their own. The developer's
+`--image` is hashed once at start, before the window opens
+(`payload::Image::hash`); it stays there, since a file that cannot be
+read ends the program with its reason before a window is shown.
+
+**Fixed.**
+
+1. The frosted page is kept on the Starter (`Starter::frost`) and given
+   to each frame's `Ui`; a frame under a sheet that has it puts it back
+   and draws the sheet alone (`draw::frame`). It is dropped by every
+   change that can alter the page under the sheet (a display, a report
+   from the shell, an action, a scroll) and by a frame with no sheet; a
+   hover or a press cannot, since under a sheet only the sheet's own
+   buttons, none of which is on a page, can be pressed. The invariant is
+   written on the field. `drawn_texts` drops it, so a test still reads
+   the page's words under a sheet.
+2. The shell reads the Downloads folder and the cameras on a thread of
+   its own (`watch_listing`), which sends the listing when it changed;
+   the window's thread takes the newest and tells the held app as
+   before.
+3. A wheel turn that does not move the page, and a pointer move that
+   keeps the press, ask for no frame.
+4. The Starter's canvas counts its pixel work with faraday-core's
+   counter (`work::core_count`, now public).
+
+**Tested.** `faraday-starter/tests/budget.rs`, on Home, the restart
+sheet, Start and its restart sheet, Which stick, About, Blank templates,
+Install, the uninstall sheet, the Continue anyway sheet, Transfer and
+Learn: a frame drawn again does no counted work but one `FullCanvas` a
+frame (a sheet's kept page put back) and shows the same pixels; the
+pointer moved over the whole window, the same; 120 ticks at rest ask for
+no frame and do no work. With the page not kept the first two fail on
+`Blur`. The kept page follows its source: a receiver plugged in under
+the open restart sheet shows on Home under it, the same pixels as the
+sheet opened after (`the_page_under_a_sheet_shows_what_changed_under_it`). The 390 renders of `cargo run -p faraday-starter --example snap`
+at 1280×800, 480×640@286, 800×600@240 and 1100×760@160 are byte for byte
+the same before and after (sha256 of each).
+
+**Next.** The Starter's costly work already takes the held app's token
+(`Starter::held().compute()`, minted at its events), and its drawing is
+read-only through `&Starter`, so no `View` of its own is needed yet. If
+the Starter grows a value worked out from its state (an offer list, a
+checklist) that becomes costly, it is kept on the state as §3.3 says,
+and the budget test names it. The desktop app's shell reads the
+Downloads folder and the cameras on its window's thread the same way the
+Starter did; moving that read to a thread is its own change.
