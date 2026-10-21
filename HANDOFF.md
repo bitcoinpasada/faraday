@@ -2925,6 +2925,39 @@ as possible before the next build.
     only its hold signs. Tests in `tests/gpg.rs`; tour step
     `vault-gpg-sign-sheet`.
 
+
+92. [x] 2026-10-20, owner: **other wallets' formats, I1–I6** (F64,
+    INTEROP §5; tracker #43–#48): SLIP-132 keys checked against their
+    script, BIP 129 records Sparrow writes, a JSON reader, Cobo/Keystone
+    and Wasabi files, Caravan/Unchained configs, More options on Public
+    files with Core before 29, Electrum wallet files. 1590a582,
+    a3969c90, 556223bc. I7–I11 (Electrum seeds, Specter DIY, sp(),
+    PSBT v2, a private key swept) are next, built in core.
+
+93. [x] 2026-10-20/21, owner: **no costly work while drawing** (SPEED
+    §3.3, §7–§10): the per-frame work budget test (a5bdcf67); parsed
+    forms kept on the state and the debug guard in every test
+    (9aef70b5; a vault holds a seed by the SHA-256 of its entropy, a
+    vault key record confirmed by a 32-byte id); speed batches S1
+    (47f143ae: idle redraw, PSBTs and spends inspected once, presses,
+    scaling, idle and key-moment budgets), S2 (f6b6d409: pictures read
+    on a worker, slow presses draw a frame first, rows out of view not
+    drawn, ui.fit in one pass) and S3 (Files' found panel kept).
+
+94. [x] 2026-10-20/21, owner: **OpenSigner taken in house** (F65,
+    docs/UPSTREAM.md): docs (U0, b4f8758c); the Learn pages name Faraday
+    (f4c05ff0); one JSON, SLIP-132, Coldcard, BSMS, Core-before-29 and
+    UR reader in core (U2, U3: 73e0cc73–8973918b); MasterKey keeps its
+    fingerprint, WalletPolicy its checksum, hardened steps written h
+    (U4, F66: fc5c3c9c–7f656572); OpenSigner code Faraday never builds
+    removed and the image tree moved to faraday/image (U1, e7e91f01;
+    fixes the Pi 3 card's missing loglevel=5). Slimming opensigner-core
+    (U5) is last.
+
+95. [ ] 2026-10-21, owner: **costly work takes a token** (docs/COMPUTE.md):
+    A0, A1, B1–B6 and C0 built (20e7ab91, e05c24b3, f8898e72); C1–C3
+    gate the costly functions, D1 adds the costs lint and compile_fail
+    doctests, D2 removes the debug guard, D3 the docs.
 ## Next steps
 
 **START HERE (2026-10-08).** In order:
