@@ -81,6 +81,7 @@ about `core/` as about anything else, is written here.
 | [F71](#f71-dependencies-what-cargo-vet-says-is-true-2026-10-21) | Dependencies: what cargo-vet says is true | 2026-10-21 | Active | dependencies |
 | [F72](#f72-faradays-code-is-its-own-a-hard-fork-2026-10-21) | Faraday's code is its own: a hard fork | 2026-10-21 | Amended by F73 | repository |
 | [F73](#f73-the-upstream-project-is-named-only-in-license-2026-10-21) | The upstream project is named only in LICENSE | 2026-10-21 | Active | repository |
+| [F74](#f74-the-structure-is-held-by-just-2026-10-21) | The structure is held by `just` | 2026-10-21 | Active | repository |
 
 ### F1 The boot import, and one line of fact on its sheet (2026-10-08)
 
@@ -2694,3 +2695,27 @@ project.
   would change signatures and vectors.
 - Code comments and current docs drop a provenance clause rather than
   rename it. The records (`docs/history/` and this file) say "upstream".
+
+### F74 The structure is held by `just` (2026-10-21)
+
+**Why.** The structure pass split the monoliths, gave each area a folder,
+mapped the code and confined secrets to one crate. Nothing but care would
+have kept them so: a new 3,000-line file, a function grown back, or an
+area reaching into another's state would pass every check `just` had.
+
+**Decision** (owner, 2026-10-21; `docs/STRUCTURE-PASS.md` §7.2 and §7.3).
+
+- Every structural rule is enforced in `just lint`:
+  - the key boundary (`lint-secrets`);
+  - the code map matching the tree, and file and function sizes
+    (tools/lint-layout.sh, with tools/lint-layout.counts);
+  - dependencies (`cargo vet`);
+  - after phase 7, where `impl Faraday` may appear.
+- A ratchet count only falls. Raising one is the owner's decision,
+  recorded here.
+- CLAUDE.md names each rule and its lint.
+- A periodic structure review is on the board.
+- Phase 7 groups each area's state into its own struct with private
+  fields and the area's logic on it. Flows that span areas stay as
+  explicit glue on `Faraday`. Areas exchanging only messages is not
+  taken.

@@ -464,6 +464,71 @@ test-list checks unchanged:
 5. the crate edges;
 6. the snapshot tours.
 
+### 7.2 Enforcement: the structure stays (F74)
+
+Each rule this pass sets is held by `just`, so that a later change
+cannot quietly undo it. Already held:
+- **`costs-lint`, clippy's disallowed methods and the budget tests:**
+  costly work goes through the token, and drawing does none.
+- **`lint-strings`:** one strings file.
+- **`lint-secrets`:** no printing and no `Debug` of secret types.
+- **`lint-docs`:** status headers, and every path a doc names resolves.
+- **`lint-tokens`:** the count of numbers written in place only falls.
+- **`cargo-deny`**, fmt, and clippy with warnings as errors.
+
+Added as each phase lands:
+1. **After phase 5:**
+   - `lint-secrets` refuses secret types and secret-taking functions
+     outside faraday-keys (docs/KEYS.md §4 step 4).
+   - tools/lint-layout.sh checks:
+     - **The code map:** every module `lib.rs` declares appears in its
+       `//!` code map. Every `Screen` variant appears in the map's table,
+       and the file named there exists and draws it. A new top-level
+       file in faraday-core is a new line in the map.
+     - **File size:** no Rust source file over 2,500 lines, except those
+       in tools/lint-layout.counts at their size, which only falls.
+     - **Function size:** clippy's `too_many_lines` is on. Each long
+       function carries an `#[expect]`, and their number is in the counts
+       file. The same holds for `#[allow(clippy::too_many_arguments)]`
+       (49 today).
+2. **Phase 6:** `cargo vet --locked` in `just lint` (F71).
+3. **Phase 7:**
+   - an `impl Faraday` ratchet: the files allowed one are listed, and
+     the list only shrinks;
+   - each area's state has private fields, so Rust itself refuses a
+     reach across areas.
+
+**Every ratchet works the same way.** A count that rises fails the
+lint, and a count that falls fails it too, until the file is lowered.
+Raising a count is the owner's decision, recorded in DECISIONS, as
+accepting more than a standard requires already is.
+
+**CLAUDE.md names each rule and its lint** (its "Structure" section),
+so a session sees the rules before it writes code.
+
+**What lints cannot check is judgement.** That rests on CLAUDE.md's
+process: a spec first for anything that takes decisions, design by
+Opus, review from the tree. A periodic structure review, like the one
+this pass came from, is on the board.
+
+### 7.3 Phase 7's shape (owner, 2026-10-21)
+
+- Each area's fields move into a struct in its folder (`VaultArea`,
+  `BackupFlowArea`, and so on), and the area's logic moves from
+  `impl Faraday` onto it.
+- What an area needs from elsewhere is passed in, so its signature
+  states its reach. An area that is not given `&Keys` cannot reveal a
+  secret.
+- Flows that span areas stay as short `impl Faraday` functions that
+  call each area in turn: explicit glue.
+- The stricter design, where areas only exchange messages (effects
+  applied in one place), is not taken. It would rewrite every
+  cross-area flow, the backup flow first, at real behaviour risk, for
+  little more to audit than the glue gives.
+- One area per commit, self-contained areas first.
+- The measures are `Faraday`'s top-level field count and the number of
+  files with `impl Faraday`; both only fall.
+
 ## 8. Order, checks and builds
 
 | Wave | Steps | Quiet tree needed | Builds after |

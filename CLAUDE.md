@@ -70,6 +70,23 @@ changes and nothing else has to be kept in step.
   not hold, and the budget tests in `faraday-core/src/work/budget/`
   when a frame drawn again, a pointer move, a press or a key does
   costly work its budget does not name.
+- **Structure** (F74; `docs/STRUCTURE-PASS.md` §7). Each rule is held
+  by `just lint`; a ratchet count in a counts file only falls, and
+  raising one is the owner's decision, recorded in DECISIONS.
+  - An area's code is in its folder in faraday-core: its state and
+    logic in `mod.rs`, its screen in `screen.rs`. Screens that belong to
+    no area are `screens/<name>.rs`. `lib.rs`'s code map names every
+    module and every screen's file (tools/lint-layout.sh, once built).
+  - No new monolith: files over 2,500 lines and long functions are
+    counted and only fall (tools/lint-layout.counts, once built).
+  - Key material lives in `faraday-keys` and leaves only through its
+    eleven named reveals (F70, `docs/KEYS.md`); `lint-secrets` holds it.
+  - Costly work takes the compute token (`costs-lint`), every string is
+    in one file (`lint-strings`), numbers written in place in screens
+    only fall (`lint-tokens`), docs carry a status header and name only
+    paths that exist (`lint-docs`).
+  - Areas reach each other only through what their functions are given;
+    flows that span areas are explicit glue on `Faraday` (phase 7).
 - No hosted CI, no GitHub Actions, no metered external services.
 - `local/user-notes.txt` is the owner's own notes; agents ignore it.
 - The remote machine that builds the images is "the build machine" in
