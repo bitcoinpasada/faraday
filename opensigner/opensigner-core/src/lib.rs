@@ -76,6 +76,18 @@ use osk_ui::widgets::keyboard::{self, KeyInput};
 use osk_ui::widgets::{self, HitTarget, Icon, Widget, tokens};
 use zeroize::{Zeroize, Zeroizing};
 
+/// A token for the app's own costly work (`docs/COMPUTE.md` §3): the app
+/// has no drawing memo and makes no drawing claim, so it mints where it
+/// needs one. Crate-private and never re-exported: the pub API takes its
+/// tokens from callers. Cheap.
+#[expect(
+    dead_code,
+    reason = "no costly function takes a token until docs/COMPUTE.md's C1"
+)]
+fn unchecked() -> osk_crypto::work::Compute {
+    osk_crypto::work::Compute::unchecked()
+}
+
 pub mod backup;
 pub mod build;
 pub mod codes;
