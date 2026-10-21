@@ -228,7 +228,7 @@ pub fn of_vault(app: &Faraday, v: usize, r: usize) -> Option<Glance> {
         rec.text(field::WALLET_NAME)
             .unwrap_or(EN.glance_wallet)
             .to_string(),
-        crate::wallet::read_wallet(rec.text(field::WALLET)?).ok()?,
+        open.contents.described(r)?.policy.clone(),
         String::new(),
         crate::wallet::Origin::Named,
     );
@@ -552,7 +552,8 @@ fn backup_nodes(
             .unwrap_or(Tag::Public)
     };
     // The chart draws places: each with what its sticks keep.
-    let boxes = plan::place_map(shape, a);
+    let mapped = app.plan_mapped(shape, a);
+    let boxes = &mapped.places;
     // A vault's stick at more than one place: the first is its stick, each
     // further one a copy, "Vault 1 · copy" (§9.4).
     let stick_at = |at: At, v: usize| {
@@ -645,7 +646,7 @@ fn backup_nodes(
                 ),
                 At::Away => (None, None),
                 at => {
-                    let found = plan::alone(shape, a, at);
+                    let found = plan::alone_on(shape, a, &mapped, at);
                     (Some(found.text().to_string()), Some(found.kind()))
                 }
             };
@@ -689,8 +690,8 @@ fn backup_nodes(
         .collect();
     Backup::Plan {
         nodes,
-        check: plan::check(shape, a),
-        items: plan::checklist(shape, a),
+        check: mapped.check(shape, a),
+        items: plan::checklist_on(shape, a, &mapped),
         edited: a.map.is_some(),
     }
 }

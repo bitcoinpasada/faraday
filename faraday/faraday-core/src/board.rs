@@ -962,7 +962,7 @@ impl Faraday {
             return self
                 .drawing
                 .board
-                .get_or_init(|| self.board_view_uncached().map(Rc::new))
+                .get_or_init(|| crate::work::filling(|| self.board_view_uncached().map(Rc::new)))
                 .clone();
         }
         self.board_view_uncached().map(Rc::new)
@@ -978,6 +978,8 @@ impl Faraday {
         // The map in full: a vault kept at no place is on the list
         // (`docs/BACKUP-FLOW.md` §19.16 item 3).
         let m = plan::stored_map(&shape, &a);
+        // The plan's map and its check, once for every line below.
+        let mapped = self.plan_mapped(&shape, &a);
         let kept = plan::kept_vaults(&m);
         let custom = a.custom;
         let places = plan::places_of(&m).max(1);
@@ -1000,12 +1002,12 @@ impl Faraday {
             }
         };
         for i in shape.here() {
-            if let Some(line) = plan::kept_nowhere(&shape, &a, &[i]) {
+            if let Some(line) = plan::kept_nowhere_on(&shape, &mapped, &[i]) {
                 warn(line, &mut warnings);
             }
         }
         let things: Vec<Vec<Thing>> = (0..places).map(|p| things_at(&m, p)).collect();
-        let lost_no = plan::check(&shape, &a).lost == plan::Lost::No;
+        let lost_no = mapped.check(&shape, &a).lost == plan::Lost::No;
         for (p, here) in things.iter().enumerate() {
             for i in shape.here() {
                 // A passphrase beside its seed's words, on paper or a stick
@@ -1047,11 +1049,13 @@ impl Faraday {
                 }
             }
         }
-        if let Some(line) = plan::lost_why(&shape, &a, &place_name, self.medium.noun()) {
+        if let Some(line) = plan::lost_why_on(&shape, &a, &mapped, &place_name, self.medium.noun())
+        {
             warn(line, &mut warnings);
         }
         // A single key's one place is no warning (§19.19).
-        if let Some(p) = plan::all_at_one_place(&shape, &a).filter(|_| plan::max_places(&shape) > 1)
+        if let Some(p) =
+            plan::all_at_one_place_on(&shape, &mapped).filter(|_| plan::max_places(&shape) > 1)
         {
             warn(
                 fill(EN.plan_all_at_one_place, &[&place_name(p)]),
@@ -1059,7 +1063,9 @@ impl Faraday {
             );
         }
         for p in 0..places {
-            if places > 1 && plan::alone(&shape, &a, At::Place(p)).spend == plan::Found::Yes {
+            if places > 1
+                && plan::alone_on(&shape, &a, &mapped, At::Place(p)).spend == plan::Found::Yes
+            {
                 warn(
                     fill(EN.board_alone_spends, &[&place_name(p)]),
                     &mut warnings,
@@ -1069,18 +1075,18 @@ impl Faraday {
         // The description and the places (`docs/BACKUP-FLOW.md` §19.19
         // item 5): what cannot put it back together, a place that sees
         // the balance from its share and seeds, a place with no seed.
-        if !plan::description_kept(&shape, &a) {
-            warn(description_line(&shape, &a), &mut warnings);
+        if !plan::description_kept_on(&shape, &a, &mapped) {
+            warn(description_line(&shape, &mapped), &mut warnings);
         }
         for (p, here) in things.iter().enumerate() {
-            let alone = plan::alone(&shape, &a, At::Place(p));
+            let alone = plan::alone_on(&shape, &a, &mapped, At::Place(p));
             let share = here.iter().any(|t| matches!(t, Thing::Share(_)));
             if share
                 && !here.contains(&Thing::Whole)
                 && alone.balance == plan::Found::Yes
                 && alone.spend != plan::Found::Yes
             {
-                let held = plan::holds_at(&plan::place_map(&shape, &a), At::Place(p));
+                let held = plan::holds_at(&mapped.places, At::Place(p));
                 warn(
                     fill(
                         EN.board_sees_warn,
@@ -1244,7 +1250,7 @@ impl Faraday {
                         },
                     });
                 }
-                let alone = plan::alone(&shape, &a, At::Place(p));
+                let alone = plan::alone_on(&shape, &a, &mapped, At::Place(p));
                 // The name being typed is drawn as it is typed, the field's
                 // own text (§19.18).
                 let name = match self.backup.as_ref() {
@@ -1259,7 +1265,7 @@ impl Faraday {
                     facts: {
                         let (t, k) = alone.balance_tag();
                         let mut v = vec![(t.to_string(), k)];
-                        v.extend(plan::reach(&shape, &a, p).map(plan::Reach::tag));
+                        v.extend(plan::reach_on(&shape, &mapped, p).map(plan::Reach::tag));
                         v
                     },
                 }
@@ -1380,7 +1386,7 @@ impl Faraday {
             custom,
             names_typed,
             naming,
-            check: plan::check(&shape, &a),
+            check: mapped.check(&shape, &a),
             shape,
         })
     }
@@ -2302,12 +2308,17 @@ impl Faraday {
             return;
         }
         let places = now.places.min(was.places);
+        // Each plan mapped once for every place asked of it.
+        let (now_m, was_m) = (
+            plan::Mapped::of(&shape, &now),
+            plan::Mapped::of(&shape, &was),
+        );
         // Nearer a spend, at a place keeping more than one seed that
         // signs (§19.22): asked before the balance. A single key's one
         // seed is never asked about.
         let near = (0..places).filter(|_| shape.multi()).find_map(|p| {
-            let r = plan::reach(&shape, &now, p)?;
-            (r.seeds >= 2 && r.nearer_than(plan::reach(&shape, &was, p))).then_some((p, r))
+            let r = plan::reach_on(&shape, &now_m, p)?;
+            (r.seeds >= 2 && r.nearer_than(plan::reach_on(&shape, &was_m, p))).then_some((p, r))
         });
         if let Some((p, r)) = near {
             let place = self.board_place_name(p);
@@ -2339,14 +2350,14 @@ impl Faraday {
             self.sheet_scroll = (0.0, None);
             return;
         }
-        let sees = |a: &Answers, p: usize| {
-            let x = plan::alone(&shape, a, At::Place(p));
+        let sees = |a: &Answers, m: &plan::Mapped, p: usize| {
+            let x = plan::alone_on(&shape, a, m, At::Place(p));
             x.balance == plan::Found::Yes && x.spend != plan::Found::Yes
         };
-        let Some(p) = (0..places).find(|&p| sees(&now, p) && !sees(&was, p)) else {
+        let Some(p) = (0..places).find(|&p| sees(&now, &now_m, p) && !sees(&was, &was_m, p)) else {
             return;
         };
-        let held = plan::holds_at(&plan::place_map(&shape, &now), At::Place(p));
+        let held = plan::holds_at(&now_m.places, At::Place(p));
         let line = sees_line(&shape, &now, &held);
         let title = fill(EN.board_sees_title, &[&self.board_place_name(p)]);
         if let Some(st) = self.board_state_mut() {
@@ -2623,8 +2634,8 @@ fn sees_line(shape: &Shape, a: &Answers, held: &[What]) -> String {
 /// The line under the board when nothing kept puts the description back
 /// together (`docs/BACKUP-FLOW.md` §19.19 item 5): what is kept, and what
 /// would complete it.
-fn description_line(shape: &Shape, a: &Answers) -> String {
-    let kept = plan::shares_kept(shape, a);
+fn description_line(shape: &Shape, m: &plan::Mapped) -> String {
+    let kept = plan::shares_kept_on(shape, m);
     if kept.is_empty() {
         return EN.board_desc_nothing.to_string();
     }

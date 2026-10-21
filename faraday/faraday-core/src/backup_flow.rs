@@ -538,20 +538,25 @@ impl Plan {
 /// the stick that carries the public files and sheets. Every stick of the
 /// map is one stick of the flow ([`stick_target`]).
 pub fn plan_of(shape: &crate::plan::Shape, a: &crate::plan::Answers) -> Plan {
+    plan_of_on(a, &crate::plan::Mapped::of(shape, a))
+}
+
+/// [`plan_of`] on the plan's map `m`.
+pub fn plan_of_on(a: &crate::plan::Answers, m: &crate::plan::Mapped) -> Plan {
     use crate::plan::{At, What};
-    let sticks = crate::plan::map(shape, a);
+    let sticks = &m.map;
     // A place with its sticks folded in: what the place keeps.
-    let boxes = crate::plan::by_place(&sticks);
+    let boxes = &m.places;
     let mut places: Vec<(usize, Vec<usize>)> = Vec::new();
     let mut place_files: Vec<usize> = Vec::new();
     let mut nv = 0usize;
     let mut with_wallet: Option<usize> = None;
-    for s in &boxes {
+    for s in boxes {
         match s.at {
             At::Place(p) => {
                 let mut vs: Vec<usize> = Vec::new();
-                for k in 0..crate::plan::sticks_at(&sticks, p) {
-                    match crate::plan::stick_vault(&sticks, p, k) {
+                for k in 0..crate::plan::sticks_at(sticks, p) {
+                    match crate::plan::stick_vault(sticks, p, k) {
                         Some(v) => vs.push(v),
                         None => place_files.push(p),
                     }
@@ -575,7 +580,7 @@ pub fn plan_of(shape: &crate::plan::Shape, a: &crate::plan::Answers) -> Plan {
     let seed_files =
         files_spot.is_some_and(|s| s.holds.iter().any(|(w, _)| matches!(w, What::SeedFile(_))));
     let wallet_files = files_spot.is_some_and(|s| s.holds.iter().any(|(w, _)| *w == What::Wallet));
-    let public_any = crate::plan::public_stick(shape, a);
+    let public_any = crate::plan::public_stick_on(a, m);
     // The stick of public files is read on an online computer: a plain
     // seed file never shares it by default, however the plan keeps the
     // description (`docs/BACKUP-FLOW.md` §16, a default the owner may
@@ -980,6 +985,18 @@ impl BackupFlow {
         BackupFlow::with_wallet(plan, shape, answers, name)
     }
 
+    /// [`BackupFlow::new_wallet`] on the plan's map `m` of `shape` and
+    /// `answers`, mapped already.
+    pub fn new_wallet_on(
+        shape: crate::plan::Shape,
+        answers: crate::plan::Answers,
+        name: &str,
+        m: &crate::plan::Mapped,
+    ) -> BackupFlow {
+        let plan = plan_of_on(&answers, m);
+        BackupFlow::with_wallet(plan, shape, answers, name)
+    }
+
     /// A new flow that sets up `count` vaults for a wallet whose keys are
     /// not made yet: it starts at step 2, with a stick for each vault, and
     /// asks nothing about places, paper or which key goes where.
@@ -1070,10 +1087,20 @@ impl BackupFlow {
         let Some(w) = self.wallet.as_ref() else {
             return;
         };
+        let m = crate::plan::Mapped::of(&w.shape, &w.answers);
+        self.wallet_replan_on(&m);
+    }
+
+    /// [`BackupFlow::wallet_replan`] on its plan's map `m`, mapped
+    /// already.
+    pub(crate) fn wallet_replan_on(&mut self, m: &crate::plan::Mapped) {
+        let Some(w) = self.wallet.as_ref() else {
+            return;
+        };
         if self.is_setup() {
             return;
         }
-        let mut plan = plan_of(&w.shape, &w.answers);
+        let mut plan = plan_of_on(&w.answers, m);
         // The vaults the flow knows stay, whether or not the plan names
         // them yet: the vaults set up before the keys are the plan's to
         // put seeds in.

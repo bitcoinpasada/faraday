@@ -186,6 +186,50 @@ finds, for each card, whether it is reachable from the done marks of the
 items before it in one pass over `items`, instead of calling
 `backup_reachable` per card. `backup_reachable` stays for `act`.
 
+**Parsed once, kept parsed (owner, 2026-10-20).** The memo keeps what a
+frame puts together; what it is put together from is kept on the state,
+parsed or derived once, with what it describes (§2 rules 2 and 4):
+
+- each open vault's records keep the wallet descriptions they hold read
+  (policy, checksum, shape) and each key record's word count
+  (`VaultRecords`): read at the first ask after a change, and before
+  every frame; any change to the records goes through `DerefMut`, which
+  drops what was read;
+- each Inbox and Outbox file keeps the wallet it describes, read when it
+  came in, and a vault's or an APK's hash (`Item::wallet`, `Item::sha`):
+  an Item's bytes never change;
+- each plan's map, by place and with its check (`plan::Mapped`), is kept
+  by the shape and answers it maps (`Faraday::plan_mapped`), and the
+  plan's helpers read the map they are given (`alone_on`, `reach_on`,
+  `checklist_on` and the rest) instead of mapping again;
+- a wallet keeps its addresses, a key its account key texts, Explore
+  its last reading, the power sheet's guide address its code, each by
+  what it is worked out from: a change to any of those is another key,
+  so none is stale;
+- a key, and each open vault's key records, keep the SHA-256 of their
+  words' entropy (`wallet::WordsId`, all 32 bytes, the same from any
+  list): what "this vault holds this seed" compares, so two seeds never
+  pass for one (F65). A hash of secret entropy, it lives only as long
+  as the key or the records, is wiped when dropped and is never
+  written.
+
+A kept value is worked out by whoever asks first, a frame included
+(`work::keeping`); after that every frame and every press only looks it
+up.
+
+**The guard.** In debug and test builds every costly function's count
+(`work::count`) panics while a frame is drawn (`render` marks it,
+`work::Frame`) unless a memo cell is filling (`work::filling`) or a kept
+value is worked out the first time (`work::keeping`): "costly work while
+drawing: {kind} in {function}; compute it on the state or through the
+drawing memo". Release builds compile it out. Every test that draws a
+screen checks every screen state it reaches, and so do the snapshot
+tours. Its allowlist, `work::Allowed`, names each exception and why; the
+owner decides each. One entry now, `SecretShown`: a secret the person
+opened to see or copy (a seed's SeedQR grid on the copy page, a vault
+key record's words, a BIP-85 child), drawn from its source each frame
+because nothing secret is kept, not even for a frame (§2 rule 1).
+
 ### 3.4 Public file names without making the files (issue 123)
 
 A new function `picture_names(name: &str, part: &str, text: &str) ->
@@ -580,5 +624,8 @@ function counts itself by kind (`faraday-core/src/work.rs`), and the
 budget test there (`work/budget.rs`) draws every main screen and the heavy
 sheets of the session above twice, and moves the pointer over each; a
 frame that works out more than its screen's named budget, or a pointer
-move that works out anything, fails the build. The timing above stays
-for milliseconds.
+move that works out anything, fails the build. Since what a frame reads
+is kept on the state (§3.3), every budget is none: a frame drawn again
+works out nothing, and a line in the table names any screen that cannot
+keep what it draws, with why. The guard of §3.3 holds the same rule in
+every test that draws. The timing above stays for milliseconds.

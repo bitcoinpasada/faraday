@@ -66,7 +66,7 @@ impl Faraday {
             return self
                 .drawing
                 .flows
-                .get_or_init(|| Rc::new(self.flows_in_progress_uncached()))
+                .get_or_init(|| Rc::new(crate::work::filling(|| self.flows_in_progress_uncached())))
                 .clone();
         }
         Rc::new(self.flows_in_progress_uncached())

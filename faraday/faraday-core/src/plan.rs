@@ -484,7 +484,20 @@ impl Answers {
     /// saved before the places kept files (`At::Files`), which the
     /// checklist's seed files item makes.
     pub fn seeds_as_files(&self, shape: &Shape) -> Vec<usize> {
-        let mut out: Vec<usize> = holds_in(&map(shape, self), At::Files)
+        Mapped::of(shape, self).seeds_as_files()
+    }
+
+    /// The seeds the plan keeps as a file on a stick at a place: see
+    /// [`Mapped::seeds_on_stick_files`].
+    pub fn seeds_on_stick_files(&self, shape: &Shape) -> Vec<usize> {
+        Mapped::of(shape, self).seeds_on_stick_files(shape)
+    }
+}
+
+impl Mapped {
+    /// [`Answers::seeds_as_files`] on this map.
+    pub fn seeds_as_files(&self) -> Vec<usize> {
+        let mut out: Vec<usize> = holds_in(&self.map, At::Files)
             .into_iter()
             .filter_map(|w| match w {
                 What::SeedFile(i) => Some(i),
@@ -501,7 +514,8 @@ impl Answers {
     /// each made only past the secret sheet's warning that a seed's file
     /// on a stick is not protected (`docs/BACKUP-FLOW.md` §19.12 item 6).
     pub fn seeds_on_stick_files(&self, shape: &Shape) -> Vec<usize> {
-        let mut out: Vec<usize> = map(shape, self)
+        let mut out: Vec<usize> = self
+            .map
             .iter()
             .filter(|s| matches!(s.at, At::Stick(..)))
             .flat_map(|s| s.holds.iter())
@@ -515,13 +529,22 @@ impl Answers {
         out.dedup();
         out
     }
+}
 
+impl Answers {
     /// Whether the plan keeps seed `i` on a stick: in a vault, or as a
     /// file (its words, its SeedQR picture, or its passphrase's file) on
     /// the stick of files or a stick at a place. Such a seed is held until
     /// that stick is written (F6, F31).
     pub fn seed_on_stick(&self, shape: &Shape, i: usize) -> bool {
-        map(shape, self).iter().any(|s| match s.at {
+        Mapped::of(shape, self).seed_on_stick(i)
+    }
+}
+
+impl Mapped {
+    /// [`Answers::seed_on_stick`] on this map.
+    pub fn seed_on_stick(&self, i: usize) -> bool {
+        self.map.iter().any(|s| match s.at {
             At::Vault(_) => s
                 .holds
                 .iter()
@@ -532,17 +555,31 @@ impl Answers {
             _ => false,
         })
     }
+}
 
+impl Answers {
     /// The places that keep a stick of files: a stick with no vault on
     /// it, holding a seed's file, the description's files, a share's or
     /// the software's (`docs/BACKUP-FLOW.md` §17.2, §19.4).
     pub fn file_places(&self, shape: &Shape) -> Vec<usize> {
-        let boxes = map(shape, self);
+        Mapped::of(shape, self).file_places()
+    }
+
+    /// The files the stick `s` at place `p` keeps, in order.
+    pub fn stick_files(&self, shape: &Shape, p: usize, s: usize) -> Vec<What> {
+        Mapped::of(shape, self).stick_files(p, s)
+    }
+}
+
+impl Mapped {
+    /// [`Answers::file_places`] on this map.
+    pub fn file_places(&self) -> Vec<usize> {
+        let boxes: &[Spot] = &self.map;
         let mut out: Vec<usize> = boxes
             .iter()
             .filter_map(|s| match s.at {
                 At::Stick(p, k)
-                    if stick_vault(&boxes, p, k).is_none()
+                    if stick_vault(boxes, p, k).is_none()
                         && s.holds.iter().any(|(w, _)| is_file(*w)) =>
                 {
                     Some(p)
@@ -554,14 +591,16 @@ impl Answers {
         out
     }
 
-    /// The files the stick `s` at place `p` keeps, in order.
-    pub fn stick_files(&self, shape: &Shape, p: usize, s: usize) -> Vec<What> {
-        holds_in(&map(shape, self), At::Stick(p, s))
+    /// [`Answers::stick_files`] on this map.
+    pub fn stick_files(&self, p: usize, s: usize) -> Vec<What> {
+        holds_in(&self.map, At::Stick(p, s))
             .into_iter()
             .filter(|w| is_file(*w))
             .collect()
     }
+}
 
+impl Answers {
     /// Sets how many places keep paper, at least one and as many as the
     /// person adds; the lists by place grow or shrink with it.
     pub fn set_places(&mut self, shape: &Shape, places: usize) {
@@ -1585,6 +1624,192 @@ pub fn map(shape: &Shape, a: &Answers) -> Vec<Spot> {
     in_plan(stored_map(shape, a))
 }
 
+/// The plan mapped once: its map, the map by place, and its check, for
+/// the helpers that read them (`docs/SPEED.md` §3.3). A frame gets one
+/// through the drawing memo ([`crate::Faraday::plan_mapped`]) and a
+/// press makes its own from the state as it is; either way the plan is
+/// mapped once and each helper reads the map it is given, never mapping
+/// again. It describes the shape and answers it was made from and is not
+/// kept past them.
+#[derive(Debug)]
+pub struct Mapped {
+    /// The plan's map ([`map`]).
+    pub map: Vec<Spot>,
+    /// The map as places keep it ([`place_map`]).
+    pub places: Vec<Spot>,
+    check: std::cell::OnceCell<Check>,
+}
+
+impl Mapped {
+    /// Maps the plan. Costs a map of it.
+    pub fn of(shape: &Shape, a: &Answers) -> Mapped {
+        let map = map(shape, a);
+        let places = by_place(&map);
+        Mapped {
+            map,
+            places,
+            check: std::cell::OnceCell::new(),
+        }
+    }
+
+    /// The check of this map ([`check`]): worked out the first time it is
+    /// asked, a lookup after. Costs a search over the places the first
+    /// time.
+    pub fn check(&self, shape: &Shape, a: &Answers) -> Check {
+        *self.check.get_or_init(|| {
+            crate::work::count(crate::work::Work::PlanMap);
+            check_of(shape, a, &self.places)
+        })
+    }
+}
+
+impl Mapped {
+    /// [`Answers::vault_shares`] on this map.
+    pub fn vault_shares(&self, v: usize) -> Vec<usize> {
+        holds_in(&self.map, At::Vault(v))
+            .into_iter()
+            .filter_map(|w| match w {
+                What::Share(j) => Some(j),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// [`Answers::vault_passphrases`] on this map.
+    pub fn vault_passphrases(&self, v: usize) -> Vec<usize> {
+        holds_in(&self.map, At::Vault(v))
+            .into_iter()
+            .filter_map(|w| match w {
+                What::PassphraseSealed(i) => Some(i),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// [`Answers::vault_pass`] on this map.
+    pub fn vault_pass(&self, v: usize) -> Vec<usize> {
+        holds_in(&self.map, At::Vault(v))
+            .into_iter()
+            .filter_map(|w| match w {
+                What::SeedPassphrase(i) => Some(i),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// [`Answers::stick_elsewhere`] on this map.
+    pub fn stick_elsewhere(&self, v: usize, p: usize) -> Vec<usize> {
+        sticks_of(&self.map, v)
+            .into_iter()
+            .filter(|&q| q != p)
+            .collect()
+    }
+
+    /// [`Answers::old_files`] on this map.
+    pub fn old_files(&self) -> Vec<What> {
+        holds_in(&self.map, At::Files)
+    }
+
+    /// [`Answers::software_on`] on this map.
+    pub fn software_on(&self) -> bool {
+        self.map.iter().any(|s| s.at == At::Software)
+    }
+
+    /// [`Answers::whole_at`] on this map.
+    pub fn whole_at(&self) -> Vec<usize> {
+        let boxes: &[Spot] = &self.places;
+        boxes
+            .iter()
+            .filter_map(|s| match s.at {
+                At::Place(p)
+                    if s.holds
+                        .iter()
+                        .any(|(w, _)| matches!(w, What::Sheet | What::WalletFile(_))) =>
+                {
+                    Some(p)
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// [`Answers::row_seeds`] on this map.
+    pub fn row_seeds(&self, shape: &Shape, p: usize, row: Row) -> Option<Vec<usize>> {
+        let boxes: &[Spot] = &self.places;
+        if let Row::Vault(v) = row {
+            if !holds_in(boxes, At::Place(p)).contains(&What::VaultStick(v)) {
+                return None;
+            }
+            return Some(vault_seeds_in(boxes, v));
+        }
+        let held = holds_in(boxes, At::Place(p));
+        let out: Vec<usize> = (0..shape.seeds.len())
+            .filter(|&i| row.what(i).is_some_and(|w| held.contains(&w)))
+            .collect();
+        (!out.is_empty()).then_some(out)
+    }
+
+    /// [`Answers::shares_here`] on this map.
+    pub fn shares_here(&self, p: usize) -> Vec<usize> {
+        let boxes: &[Spot] = &self.places;
+        let mut out: Vec<usize> = holds_in(boxes, At::Place(p))
+            .into_iter()
+            .filter_map(|w| match w {
+                What::Share(j) | What::ShareFile(j, _) => Some(j),
+                _ => None,
+            })
+            .collect();
+        for v in forms_vaults(boxes, p) {
+            out.extend(
+                holds_in(boxes, At::Vault(v))
+                    .into_iter()
+                    .filter_map(|w| match w {
+                        What::Share(j) => Some(j),
+                        _ => None,
+                    }),
+            );
+        }
+        out.sort_unstable();
+        out.dedup();
+        out
+    }
+
+    /// [`Answers::form_at`] on this map.
+    pub fn form_at(&self, p: usize, form: Form) -> bool {
+        let boxes: &[Spot] = &self.places;
+        let held = holds_in(boxes, At::Place(p));
+        match form {
+            Form::Paper => held
+                .iter()
+                .any(|w| matches!(w, What::Sheet | What::Share(_))),
+            Form::File => held
+                .iter()
+                .any(|w| matches!(w, What::WalletFile(_) | What::ShareFile(..))),
+            Form::Vault(v) => {
+                held.contains(&What::VaultStick(v)) && forms_vaults(boxes, p).contains(&v)
+            }
+        }
+    }
+}
+
+/// The vaults whose stick place `p` keeps and that hold the
+/// description, whole or a share of it.
+fn forms_vaults(boxes: &[Spot], p: usize) -> Vec<usize> {
+    holds_in(boxes, At::Place(p))
+        .into_iter()
+        .filter_map(|w| match w {
+            What::VaultStick(v)
+                if holds_in(boxes, At::Vault(v))
+                    .iter()
+                    .any(|w| matches!(w, What::Wallet | What::Share(_))) =>
+            {
+                Some(v)
+            }
+            _ => None,
+        })
+        .collect()
+}
+
 /// The vaults of the map `m` that a place keeps a stick of, each once,
 /// in order.
 pub fn kept_vaults(m: &[Spot]) -> Vec<usize> {
@@ -1985,9 +2210,14 @@ impl Alone {
 /// check's "One place found" lines are the most any spot gives.
 /// A place is read with its sticks; a stick alone, as itself.
 pub fn alone(shape: &Shape, a: &Answers, at: At) -> Alone {
+    alone_on(shape, a, &Mapped::of(shape, a), at)
+}
+
+/// [`alone`] on the map `m`.
+pub fn alone_on(shape: &Shape, a: &Answers, m: &Mapped, at: At) -> Alone {
     match at {
-        At::Stick(..) => alone_in(shape, a, &map(shape, a), at),
-        _ => alone_in(shape, a, &place_map(shape, a), at),
+        At::Stick(..) => alone_in(shape, a, &m.map, at),
+        _ => alone_in(shape, a, &m.places, at),
     }
 }
 
@@ -2040,7 +2270,13 @@ impl Reach {
 /// vaults read. Costs a map of the plan and a search over the places,
 /// at most the quorum deep.
 pub fn reach(shape: &Shape, a: &Answers, p: usize) -> Option<Reach> {
-    let boxes = place_map(shape, a);
+    reach_on(shape, &Mapped::of(shape, a), p)
+}
+
+/// [`reach`] on the map `mapped`. Costs a search over the places, at most
+/// the quorum deep.
+pub fn reach_on(shape: &Shape, mapped: &Mapped, p: usize) -> Option<Reach> {
+    let boxes: &[Spot] = &mapped.places;
     let m = shape.m.max(1);
     let n = shape.seeds.len().min(64);
     let need: u64 = (0..n)
@@ -2059,13 +2295,13 @@ pub fn reach(shape: &Shape, a: &Answers, p: usize) -> Option<Reach> {
     let read = |q: usize, vaults: bool| -> (u64, u64) {
         let at = At::Place(q);
         let mut have = Have::none(shape);
-        holds_in(&boxes, at).into_iter().for_each(|w| have.add(w));
+        holds_in(boxes, at).into_iter().for_each(|w| have.add(w));
         if vaults {
-            have = opened_in(&boxes, &have, &reads_in(&boxes, at));
+            have = opened_in(boxes, &have, &reads_in(boxes, at));
         }
         masks(&have)
     };
-    let places: Vec<usize> = spots(&boxes)
+    let places: Vec<usize> = spots(boxes)
         .into_iter()
         .filter_map(|at| match at {
             At::Place(q) => Some(q),
@@ -2201,8 +2437,7 @@ fn alone_in(shape: &Shape, a: &Answers, boxes: &[Spot], at: At) -> Alone {
 /// stick, or from its own stick.
 /// A place is lost or found with its sticks.
 pub fn check(shape: &Shape, a: &Answers) -> Check {
-    crate::work::count(crate::work::Work::PlanMap);
-    check_of(shape, a, &place_map(shape, a))
+    Mapped::of(shape, a).check(shape, a)
 }
 
 /// The check of the map `boxes`.
@@ -2243,7 +2478,12 @@ fn check_of(shape: &Shape, a: &Answers, boxes: &[Spot]) -> Check {
 /// with its own passphrase, whatever else is elsewhere
 /// (`docs/BACKUP-FLOW.md` §10.3).
 pub fn all_at_one_place(shape: &Shape, a: &Answers) -> Option<usize> {
-    one_place_in(shape, &place_map(shape, a))
+    all_at_one_place_on(shape, &Mapped::of(shape, a))
+}
+
+/// [`all_at_one_place`] on the map `m`.
+pub fn all_at_one_place_on(shape: &Shape, m: &Mapped) -> Option<usize> {
+    one_place_in(shape, &m.places)
 }
 
 /// [`all_at_one_place`] on the map `boxes`.
@@ -2388,19 +2628,30 @@ pub fn lost_why(
     name: &dyn Fn(usize) -> String,
     noun: &str,
 ) -> Option<String> {
-    let boxes = place_map(shape, a);
-    let places = spots(&boxes);
+    lost_why_on(shape, a, &Mapped::of(shape, a), name, noun)
+}
+
+/// [`lost_why`] on the map `m`.
+pub fn lost_why_on(
+    shape: &Shape,
+    a: &Answers,
+    m: &Mapped,
+    name: &dyn Fn(usize) -> String,
+    noun: &str,
+) -> Option<String> {
+    let boxes: &[Spot] = &m.places;
+    let places = spots(boxes);
     // A single place: "No: a single place" says why (§19.19); a seed kept
     // nowhere still says so.
     if places.len() == 1 {
-        return kept_nowhere(shape, a, &shape.here());
+        return kept_nowhere_on(shape, m, &shape.here());
     }
     let gone = places
         .iter()
         .copied()
-        .find(|&g| lost_one(shape, a, &boxes, &places, Some(g)) == Lost::No)?;
+        .find(|&g| lost_one(shape, a, boxes, &places, Some(g)) == Lost::No)?;
     let stick_text = |v: usize| -> String {
-        let at: Vec<String> = sticks_of(&boxes, v).into_iter().map(name).collect();
+        let at: Vec<String> = sticks_of(boxes, v).into_iter().map(name).collect();
         if at.is_empty() {
             EN.plan_at_no_place.to_string()
         } else {
@@ -2411,7 +2662,7 @@ pub fn lost_why(
     // every stick is there.
     let with_gone = |at: At| -> bool {
         at == gone
-            || matches!(at, At::Vault(v) if sticks_of(&boxes, v)
+            || matches!(at, At::Vault(v) if sticks_of(boxes, v)
                 .into_iter()
                 .all(|p| At::Place(p) == gone))
     };
@@ -2428,7 +2679,7 @@ pub fn lost_why(
     };
     for i in shape.here() {
         let seed = &shape.seeds[i].name;
-        let kept = seed_spots(&boxes, i);
+        let kept = seed_spots(boxes, i);
         if kept.is_empty() {
             return Some(fill(EN.plan_seed_is_kept_nowhere, &[&seed.to_string()]));
         }
@@ -2445,7 +2696,7 @@ pub fn lost_why(
             ));
         }
         if shape.seeds[i].passphrase {
-            let pass = pass_spots(&boxes, i);
+            let pass = pass_spots(boxes, i);
             if pass.is_empty() {
                 return Some(fill(EN.plan_the_passphrase, &[&seed.to_string()]));
             }
@@ -2463,14 +2714,14 @@ pub fn lost_why(
     let mut readable: Vec<usize> = Vec::new();
     for &at in places.iter().filter(|&&at| at != gone) {
         if !matches!(at, At::Vault(_)) {
-            holds_in(&boxes, at).into_iter().for_each(|w| have.add(w));
+            holds_in(boxes, at).into_iter().for_each(|w| have.add(w));
         }
-        readable.extend(reads_in(&boxes, at));
+        readable.extend(reads_in(boxes, at));
     }
     for at in [At::Software, At::Away] {
-        holds_in(&boxes, at).into_iter().for_each(|w| have.add(w));
+        holds_in(boxes, at).into_iter().for_each(|w| have.add(w));
     }
-    let have = opened_in(&boxes, &have, &readable);
+    let have = opened_in(boxes, &have, &readable);
     if have.seeds_ok(shape) >= shape.m.max(1) && !have.wallet_ok(shape, a) {
         return Some(fill(
             EN.plan_without_no_description,
@@ -2501,18 +2752,23 @@ fn name_at(at: At, name: &dyn Fn(usize) -> String, noun: &str) -> String {
 /// passphrase's file, a vault on a stick (F31: the hold lasts until that
 /// stick is written).
 pub fn kept_nowhere(shape: &Shape, a: &Answers, seeds: &[usize]) -> Option<String> {
-    let boxes = place_map(shape, a);
+    kept_nowhere_on(shape, &Mapped::of(shape, a), seeds)
+}
+
+/// [`kept_nowhere`] on the map `m`.
+pub fn kept_nowhere_on(shape: &Shape, m: &Mapped, seeds: &[usize]) -> Option<String> {
+    let boxes: &[Spot] = &m.places;
     for &i in seeds {
         let Some(seed) = shape.seeds.get(i).filter(|s| s.here) else {
             continue;
         };
-        if seed_spots(&boxes, i).is_empty() {
+        if seed_spots(boxes, i).is_empty() {
             return Some(fill(
                 EN.plan_seed_is_kept_nowhere,
                 &[&seed.name.to_string()],
             ));
         }
-        if seed.passphrase && pass_spots(&boxes, i).is_empty() {
+        if seed.passphrase && pass_spots(boxes, i).is_empty() {
             return Some(fill(EN.plan_the_passphrase, &[&seed.name.to_string()]));
         }
     }
@@ -2525,7 +2781,12 @@ pub fn kept_nowhere(shape: &Shape, a: &Answers, seeds: &[usize]) -> Option<Strin
 /// software given its text form. Files kept at a place go on a stick
 /// there instead (§17.2, §19.4).
 pub fn public_stick(shape: &Shape, a: &Answers) -> bool {
-    let boxes = map(shape, a);
+    public_stick_on(a, &Mapped::of(shape, a))
+}
+
+/// [`public_stick`] on the map `m`.
+pub fn public_stick_on(a: &Answers, m: &Mapped) -> bool {
+    let boxes: &[Spot] = &m.map;
     let software = boxes.iter().any(|s| s.at == At::Software);
     boxes.iter().any(|s| {
         (matches!(s.at, At::Place(_))
@@ -2580,7 +2841,12 @@ pub enum Item {
 /// stick's files are no item of their own: they are made and written with
 /// their stick (`docs/BACKUP-FLOW.md` §19.12 item 6).
 pub fn checklist(shape: &Shape, a: &Answers) -> Vec<Item> {
-    let boxes = map(shape, a);
+    checklist_on(shape, a, &Mapped::of(shape, a))
+}
+
+/// [`checklist`] on the map `m`.
+pub fn checklist_on(shape: &Shape, a: &Answers, m: &Mapped) -> Vec<Item> {
+    let boxes: &[Spot] = &m.map;
     let at_places = |f: &dyn Fn(What) -> bool| {
         boxes
             .iter()
@@ -2601,7 +2867,7 @@ pub fn checklist(shape: &Shape, a: &Answers) -> Vec<Item> {
         At::Vault(v) => Some(Item::Vault(v)),
         _ => None,
     }));
-    let files = holds_in(&boxes, At::Files);
+    let files = holds_in(boxes, At::Files);
     if files.iter().any(|w| matches!(w, What::SeedFile(_))) {
         out.push(Item::SeedFiles);
     }
@@ -2676,7 +2942,12 @@ impl CopyForms {
 /// map's `Words(i)` and `SeedQr(i)`, whether from the seeds question or
 /// from the board's placed chips and the chart's edits. Builds the map.
 pub fn copy_forms(shape: &Shape, a: &Answers, i: usize) -> CopyForms {
-    let boxes = map(shape, a);
+    copy_forms_on(&Mapped::of(shape, a), i)
+}
+
+/// [`copy_forms`] on the map `m`.
+pub fn copy_forms_on(m: &Mapped, i: usize) -> CopyForms {
+    let boxes: &[Spot] = &m.map;
     let at = |w: What| {
         boxes
             .iter()
@@ -2692,7 +2963,12 @@ pub fn copy_forms(shape: &Shape, a: &Answers, i: usize) -> CopyForms {
 /// How many blank templates the plan prints: one per paper copy of a
 /// seed, in every place.
 pub fn templates(shape: &Shape, a: &Answers) -> usize {
-    map(shape, a)
+    templates_on(shape, &Mapped::of(shape, a))
+}
+
+/// [`templates`] on the map `m`.
+pub fn templates_on(shape: &Shape, m: &Mapped) -> usize {
+    m.map
         .iter()
         .filter(|s| matches!(s.at, At::Place(_)))
         .map(|s| {
@@ -3176,60 +3452,28 @@ impl Answers {
     /// ticked while the place keeps its stick, and holds the vault's
     /// seeds.
     pub fn row_seeds(&self, shape: &Shape, p: usize, row: Row) -> Option<Vec<usize>> {
-        let boxes = place_map(shape, self);
-        if let Row::Vault(v) = row {
-            if !holds_in(&boxes, At::Place(p)).contains(&What::VaultStick(v)) {
-                return None;
-            }
-            return Some(vault_seeds_in(&boxes, v));
-        }
-        let held = holds_in(&boxes, At::Place(p));
-        let out: Vec<usize> = (0..shape.seeds.len())
-            .filter(|&i| row.what(i).is_some_and(|w| held.contains(&w)))
-            .collect();
-        (!out.is_empty()).then_some(out)
+        Mapped::of(shape, self).row_seeds(shape, p, row)
     }
 
     /// The shares vault `v` keeps (`docs/BACKUP-FLOW.md` §17.6).
     pub fn vault_shares(&self, shape: &Shape, v: usize) -> Vec<usize> {
-        holds_in(&map(shape, self), At::Vault(v))
-            .into_iter()
-            .filter_map(|w| match w {
-                What::Share(j) => Some(j),
-                _ => None,
-            })
-            .collect()
+        Mapped::of(shape, self).vault_shares(v)
     }
 
     /// The seeds whose passphrase vault `v` keeps alone, without the seed:
     /// each a passphrase record (`docs/BACKUP-FLOW.md` §19.12 item 4).
     pub fn vault_passphrases(&self, shape: &Shape, v: usize) -> Vec<usize> {
-        holds_in(&map(shape, self), At::Vault(v))
-            .into_iter()
-            .filter_map(|w| match w {
-                What::PassphraseSealed(i) => Some(i),
-                _ => None,
-            })
-            .collect()
+        Mapped::of(shape, self).vault_passphrases(v)
     }
 
     /// The seeds vault `v` keeps with their passphrase.
     pub fn vault_pass(&self, shape: &Shape, v: usize) -> Vec<usize> {
-        holds_in(&map(shape, self), At::Vault(v))
-            .into_iter()
-            .filter_map(|w| match w {
-                What::SeedPassphrase(i) => Some(i),
-                _ => None,
-            })
-            .collect()
+        Mapped::of(shape, self).vault_pass(v)
     }
 
     /// The places other than `p` that keep vault `v`'s stick.
     pub fn stick_elsewhere(&self, shape: &Shape, v: usize, p: usize) -> Vec<usize> {
-        sticks_of(&map(shape, self), v)
-            .into_iter()
-            .filter(|&q| q != p)
-            .collect()
+        Mapped::of(shape, self).stick_elsewhere(v, p)
     }
 
     /// Row `row` of place `p`'s card as its sheet's **Done** leaves it:
@@ -3480,62 +3724,12 @@ impl Answers {
     /// The shares place `p` keeps, in any form: on paper, as files, or in
     /// a vault whose stick it keeps.
     pub fn shares_here(&self, shape: &Shape, p: usize) -> Vec<usize> {
-        let boxes = place_map(shape, self);
-        let mut out: Vec<usize> = holds_in(&boxes, At::Place(p))
-            .into_iter()
-            .filter_map(|w| match w {
-                What::Share(j) | What::ShareFile(j, _) => Some(j),
-                _ => None,
-            })
-            .collect();
-        for v in self.forms_vaults(&boxes, p) {
-            out.extend(
-                holds_in(&boxes, At::Vault(v))
-                    .into_iter()
-                    .filter_map(|w| match w {
-                        What::Share(j) => Some(j),
-                        _ => None,
-                    }),
-            );
-        }
-        out.sort_unstable();
-        out.dedup();
-        out
-    }
-
-    /// The vaults whose stick place `p` keeps and that hold the
-    /// description, whole or a share of it.
-    fn forms_vaults(&self, boxes: &[Spot], p: usize) -> Vec<usize> {
-        holds_in(boxes, At::Place(p))
-            .into_iter()
-            .filter_map(|w| match w {
-                What::VaultStick(v)
-                    if holds_in(boxes, At::Vault(v))
-                        .iter()
-                        .any(|w| matches!(w, What::Wallet | What::Share(_))) =>
-                {
-                    Some(v)
-                }
-                _ => None,
-            })
-            .collect()
+        Mapped::of(shape, self).shares_here(p)
     }
 
     /// Whether place `p` keeps the description in form `form`.
     pub fn form_at(&self, shape: &Shape, p: usize, form: Form) -> bool {
-        let boxes = place_map(shape, self);
-        let held = holds_in(&boxes, At::Place(p));
-        match form {
-            Form::Paper => held
-                .iter()
-                .any(|w| matches!(w, What::Sheet | What::Share(_))),
-            Form::File => held
-                .iter()
-                .any(|w| matches!(w, What::WalletFile(_) | What::ShareFile(..))),
-            Form::Vault(v) => {
-                held.contains(&What::VaultStick(v)) && self.forms_vaults(&boxes, p).contains(&v)
-            }
-        }
+        Mapped::of(shape, self).form_at(p, form)
     }
 
     /// The forms the description's files take where Where the
@@ -3666,7 +3860,7 @@ impl Answers {
     /// What a plan saved before the cards keeps on the stick of files
     /// (`At::Files`), in its order.
     pub fn old_files(&self, shape: &Shape) -> Vec<What> {
-        holds_in(&map(shape, self), At::Files)
+        Mapped::of(shape, self).old_files()
     }
 
     /// The `k`th thing of [`Answers::old_files`] off the map; the stick
@@ -3679,7 +3873,7 @@ impl Answers {
 
     /// Whether the description goes into watch-only software.
     pub fn software_on(&self, shape: &Shape) -> bool {
-        map(shape, self).iter().any(|s| s.at == At::Software)
+        Mapped::of(shape, self).software_on()
     }
 
     /// Into watch-only software, ticked or unticked.
@@ -3697,7 +3891,14 @@ impl Answers {
     /// The software and the files' form are asked: the description goes
     /// into watch-only software, or as files somewhere.
     pub fn asks_software(&self, shape: &Shape) -> bool {
-        map(shape, self).iter().any(|s| {
+        Mapped::of(shape, self).asks_software()
+    }
+}
+
+impl Mapped {
+    /// [`Answers::asks_software`] on this map.
+    pub fn asks_software(&self) -> bool {
+        self.map.iter().any(|s| {
             s.at == At::Software
                 || s.holds.iter().any(|(w, _)| {
                     matches!(
@@ -3924,7 +4125,17 @@ fn without_all(boxes: &[Spot], gone: &[(At, What)]) -> Vec<Spot> {
 /// What follows on the plan `a` from the things `marks` lists: the lost
 /// ones gone, the exposed ones in one finder's hands.
 pub fn follows(shape: &Shape, a: &Answers, marks: &[(At, What, Mark)]) -> Follows {
-    let boxes = place_map(shape, a);
+    follows_on(shape, a, &Mapped::of(shape, a), marks)
+}
+
+/// [`follows`] on the map `m`.
+pub fn follows_on(
+    shape: &Shape,
+    a: &Answers,
+    mapped: &Mapped,
+    marks: &[(At, What, Mark)],
+) -> Follows {
+    let boxes: &[Spot] = &mapped.places;
     let lost: Vec<(At, What)> = marks
         .iter()
         .filter(|m| m.2 == Mark::Lost)
@@ -3935,11 +4146,11 @@ pub fn follows(shape: &Shape, a: &Answers, marks: &[(At, What, Mark)]) -> Follow
         .filter(|m| m.2 == Mark::Exposed)
         .map(|m| (m.1, tag_of(m.0, m.1)))
         .collect();
-    let left = without_all(&boxes, &lost);
+    let left = without_all(boxes, &lost);
     let rebuilds = lost_one(shape, a, &left, &spots(&left), None);
     // Whoever found the exposed things holds them as one place would.
     let finder = At::Place(usize::MAX);
-    let mut with = boxes.clone();
+    let mut with = boxes.to_vec();
     with.push(Spot {
         at: finder,
         holds: exposed
@@ -4185,9 +4396,13 @@ fn search(
 /// back together (`docs/BACKUP-FLOW.md` §19.19 item 5): the whole of it,
 /// or shares and seeds that hold every key.
 pub fn description_kept(shape: &Shape, a: &Answers) -> bool {
-    let boxes = place_map(shape, a);
+    description_kept_on(shape, a, &Mapped::of(shape, a))
+}
+
+/// [`description_kept`] on the map `m`.
+pub fn description_kept_on(shape: &Shape, a: &Answers, m: &Mapped) -> bool {
     let mut have = Have::none(shape);
-    for s in &boxes {
+    for s in &m.places {
         s.holds.iter().for_each(|(w, _)| have.add(*w));
     }
     have.wallet_ok(shape, a)
@@ -4196,7 +4411,12 @@ pub fn description_kept(shape: &Shape, a: &Answers) -> bool {
 /// The shares the plan keeps, each with how many places, vaults and the
 /// software keep it, in share order.
 pub fn shares_kept(shape: &Shape, a: &Answers) -> Vec<(usize, usize)> {
-    let boxes = place_map(shape, a);
+    shares_kept_on(shape, &Mapped::of(shape, a))
+}
+
+/// [`shares_kept`] on the map `m`.
+pub fn shares_kept_on(shape: &Shape, m: &Mapped) -> Vec<(usize, usize)> {
+    let boxes = &m.places;
     (0..shape.keys)
         .map(|j| {
             let n = boxes
@@ -4259,20 +4479,7 @@ impl Answers {
     /// The places that keep the whole description, on paper or on a stick
     /// there.
     pub fn whole_at(&self, shape: &Shape) -> Vec<usize> {
-        let boxes = place_map(shape, self);
-        boxes
-            .iter()
-            .filter_map(|s| match s.at {
-                At::Place(p)
-                    if s.holds
-                        .iter()
-                        .any(|(w, _)| matches!(w, What::Sheet | What::WalletFile(_))) =>
-                {
-                    Some(p)
-                }
-                _ => None,
-            })
-            .collect()
+        Mapped::of(shape, self).whole_at()
     }
 
     /// Partial descriptions are on: a share of the description is kept.

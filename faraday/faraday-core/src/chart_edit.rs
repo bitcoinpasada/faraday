@@ -84,13 +84,9 @@ impl Faraday {
         };
         let want = crate::wallet::same_wallet(wallet.policy());
         open.contents
-            .of(kind::PLAN)
-            .filter(|(_, r)| {
-                r.text(field::PLAN_WALLET)
-                    .and_then(|t| crate::wallet::read_wallet(t).ok())
-                    .is_some_and(|p| crate::wallet::same_wallet(&p) == want)
-            })
-            .flat_map(|(_, r)| {
+            .described_of(kind::PLAN)
+            .filter(|(_, _, d)| d.same == want)
+            .flat_map(|(_, r, _)| {
                 r.fields
                     .iter()
                     .filter(|f| f.number == field::PLAN_NOTE)
@@ -154,17 +150,15 @@ impl Faraday {
         let mut notes = self.plan_notes(wallet, Some(v));
         change(&mut notes);
         let want = crate::wallet::same_wallet(wallet.policy());
-        let same = |r: &faraday_vault::records::Record| {
-            r.kind == kind::PLAN
-                && r.text(field::PLAN_WALLET)
-                    .and_then(|t| crate::wallet::read_wallet(t).ok())
-                    .is_some_and(|p| crate::wallet::same_wallet(&p) == want)
-        };
-        let has = self
-            .vaults
-            .open
-            .get(v)
-            .is_some_and(|o| o.contents.records.iter().any(same));
+        // This wallet's plan records, by place.
+        let ours: Vec<usize> = self.vaults.open.get(v).map_or_else(Vec::new, |o| {
+            o.contents
+                .described_of(kind::PLAN)
+                .filter(|(_, _, d)| d.same == want)
+                .map(|(i, _, _)| i)
+                .collect()
+        });
+        let has = !ours.is_empty();
         if !has {
             // No record of this plan here yet: the plan the chart shows,
             // saved with the notes.
@@ -178,7 +172,12 @@ impl Faraday {
             return false;
         };
         let mut trial = open.contents.clone();
-        for r in trial.records.iter_mut().filter(|r| same(r)) {
+        for (_, r) in trial
+            .records
+            .iter_mut()
+            .enumerate()
+            .filter(|(i, _)| ours.contains(i))
+        {
             r.fields.retain(|f| f.number != field::PLAN_NOTE);
             for n in &notes {
                 r.push(field::PLAN_NOTE, n.to_text().as_bytes());
@@ -401,13 +400,9 @@ impl Faraday {
             return Vec::new();
         };
         open.contents
-            .of(kind::PLAN)
-            .filter(|(_, r)| {
-                r.text(field::PLAN_WALLET)
-                    .and_then(|t| crate::wallet::read_wallet(t).ok())
-                    .is_some_and(|p| crate::wallet::same_wallet(&p) == want)
-            })
-            .flat_map(|(_, r)| {
+            .described_of(kind::PLAN)
+            .filter(|(_, _, d)| d.same == want)
+            .flat_map(|(_, r, _)| {
                 r.fields
                     .iter()
                     .filter(|f| f.number == field::PLAN_HOLDS)

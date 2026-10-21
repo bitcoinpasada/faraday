@@ -69,7 +69,7 @@ impl Faraday {
             .keys
             .iter()
             .filter_map(|k| {
-                let text = crate::create::NewKind::Multi.key_text(k.master()).ok()?;
+                let text = k.account_text(crate::create::NewKind::Multi, 0).ok()?;
                 Some((
                     crate::wallet::fp_text(k.fingerprint()),
                     format!("{text}/<0;1>/*"),

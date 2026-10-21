@@ -69,7 +69,7 @@ impl Faraday {
             return self
                 .drawing
                 .create_vaults
-                .get_or_init(|| Rc::new(self.create_vaults_uncached()))
+                .get_or_init(|| Rc::new(crate::work::filling(|| self.create_vaults_uncached())))
                 .clone();
         }
         Rc::new(self.create_vaults_uncached())

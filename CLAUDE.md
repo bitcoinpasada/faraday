@@ -44,15 +44,23 @@ changes and nothing else has to be kept in step.
 - A function that costs more than a lookup (an elliptic-curve
   multiplication, a descriptor written out, a QR code made, a file read)
   says so in the first line of its doc comment.
-- Drawing reads; it does not work things out. What a screen needs from a
-  flow's state is computed once per frame through the drawing memo
-  (`docs/SPEED.md` §3.3), and a decision (a press gated, a hold
-  released) computes from the state as it is, never from the memo. A
-  batch that adds work done while drawing or after every event is timed
-  in a late-flow session before it is committed (`docs/SPEED.md` §7).
-  A costly function counts itself (`faraday-core/src/work.rs`), and the
-  budget test there fails `just` when a frame drawn again, or a pointer
-  move, does more costly work than its screen's budget.
+- Drawing reads; it does not work things out. What is parsed or derived
+  once is kept on the state with what it describes (a vault's wallet
+  records read, an Inbox file's wallet, a plan's map, an address), kept
+  in step with its source at every change, and that invariant is written
+  where the kept value lives and tested by changing the source. What a
+  screen puts together from it is computed once per frame through the
+  drawing memo (`docs/SPEED.md` §3.3), and a decision (a press gated, a
+  hold released) computes from the state as it is, never from the memo.
+  A batch that adds work done while drawing or after every event is
+  timed in a late-flow session before it is committed
+  (`docs/SPEED.md` §7). A costly function counts itself
+  (`faraday-core/src/work.rs`); in debug and test builds it panics when
+  it runs while a frame is drawn outside a memo fill or a kept value's
+  first working out, so every test that draws checks every screen it
+  reaches; and the budget test there fails `just` when a frame drawn
+  again, or a pointer move, does any costly work its screen's budget
+  does not name.
 - No hosted CI, no GitHub Actions, no metered external services.
 - `local/user-notes.txt` is the owner's own notes; agents ignore it.
 - The remote machine that builds the images is "the build machine" in

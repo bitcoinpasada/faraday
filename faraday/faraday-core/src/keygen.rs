@@ -1820,7 +1820,7 @@ impl crate::Faraday {
             .keys
             .iter()
             .find(|key| key.fingerprint() == fp)
-            .and_then(|key| kind.key_text_account(key.master(), account).ok());
+            .and_then(|key| key.account_text(kind, account).ok());
         if let Some(k) = self.keygen.as_mut() {
             k.locked = true;
             k.with_passphrase = !pass.is_empty();
@@ -1942,7 +1942,7 @@ impl crate::Faraday {
             .keys
             .iter()
             .find(|key| key.fingerprint() == fp)
-            .and_then(|key| kind.key_text_account(key.master(), account).ok());
+            .and_then(|key| key.account_text(kind, account).ok());
         // What was typed goes; the Key card keeps the words to show.
         self.entry = crate::EntryState::default();
         if let Some(k) = self.keygen.as_mut() {

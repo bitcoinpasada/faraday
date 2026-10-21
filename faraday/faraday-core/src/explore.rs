@@ -34,7 +34,21 @@ pub struct ExploreState {
     pub script: ScriptType,
     /// Where it returns to.
     pub back: Screen,
+    /// The last reading, with what it was worked out from: the key, the
+    /// path, the script, the network and whether the key is loaded. Asked
+    /// again with the same, it is a lookup ([`Faraday::explore_reading`]);
+    /// anything else works it out afresh, so it is never stale. Public.
+    reading: std::cell::RefCell<Option<(ReadingOf, Option<std::rc::Rc<Reading>>)>>,
 }
+
+/// What a [`Reading`] is worked out from.
+type ReadingOf = (
+    Option<[u8; 4]>,
+    String,
+    ScriptType,
+    osk_bip::keys::Network,
+    bool,
+);
 
 /// What a path gives: the extended public key, the public key and, at a
 /// leaf, the address.
@@ -65,6 +79,7 @@ impl Faraday {
             path: PRESETS[0].1.replace("{c}", coin),
             script: ScriptType::NativeSegwit,
             back: self.screen,
+            reading: Default::default(),
         });
         self.screen = Screen::Explore;
     }
@@ -76,8 +91,34 @@ impl Faraday {
         parse_path(&t).map_err(|p| p.message(&EN))
     }
 
-    /// What the path gives for the chosen key.
-    pub fn explore_reading(&self) -> Option<Reading> {
+    /// What the path gives for the chosen key: worked out the first time
+    /// it is asked with these key, path and script, by whoever asks, a
+    /// frame included, and kept on Explore's state, a lookup after. Costs
+    /// a key derivation the first time.
+    pub fn explore_reading(&self) -> Option<std::rc::Rc<Reading>> {
+        let e = self.explore.as_ref()?;
+        let of: ReadingOf = (
+            e.key,
+            e.path.clone(),
+            e.script,
+            self.session.network(),
+            self.session
+                .keys
+                .iter()
+                .any(|k| Some(k.fingerprint().0) == e.key),
+        );
+        if let Some((was, r)) = e.reading.borrow().as_ref()
+            && *was == of
+        {
+            return r.clone();
+        }
+        let r = crate::work::keeping(|| self.explore_reading_now().map(std::rc::Rc::new));
+        *e.reading.borrow_mut() = Some((of, r.clone()));
+        r
+    }
+
+    /// Works out [`Faraday::explore_reading`]. Costs a key derivation.
+    fn explore_reading_now(&self) -> Option<Reading> {
         crate::work::count(crate::work::Work::KeyDerive);
         let e = self.explore.as_ref()?;
         let path = self.explore_path().ok()?;

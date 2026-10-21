@@ -381,6 +381,7 @@ fn a_stick_visit_leaves_the_seed_file_unticked() {
             secret: false,
             picture: None,
             sha: None,
+            wallet: None,
         });
         app.storage(StorageEvent::Sticks(vec![StickInfo {
             serial: None,

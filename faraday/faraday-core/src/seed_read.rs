@@ -93,6 +93,11 @@ pub struct SeedRead {
     reason: Option<String>,
     /// Opened by the Spend tab, and what for.
     pub family: Option<ForFamily>,
+    /// The key the passphrase typed twice makes ([`SeedRead::with_key`]):
+    /// worked out when the typing that changes the fields is taken
+    /// (`Faraday::seed_read_key`, the only way they change), never while
+    /// drawing. A fingerprint: public.
+    with: Option<Fingerprint>,
 }
 
 impl SeedRead {
@@ -101,8 +106,15 @@ impl SeedRead {
         !self.pass.is_empty() && self.pass.as_str() == self.pass2.as_str()
     }
 
-    /// The key the passphrase typed makes, once it is typed twice alike.
+    /// The key the passphrase typed makes, once it is typed twice alike:
+    /// worked out when it was typed. A lookup.
     fn with_key(&self) -> Option<Fingerprint> {
+        self.with
+    }
+
+    /// Works out [`SeedRead::with_key`] from the fields as they are. Costs
+    /// a PBKDF2 and an elliptic-curve multiplication once they match.
+    fn with_key_now(&self) -> Option<Fingerprint> {
         self.pass_ready()
             .then(|| key_of(&self.words, &self.pass))
             .flatten()
@@ -411,6 +423,7 @@ impl Faraday {
             }
             _ => return false,
         }
+        s.with = s.with_key_now();
         s.error = None;
         true
     }

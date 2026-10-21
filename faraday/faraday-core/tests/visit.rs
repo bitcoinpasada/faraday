@@ -157,6 +157,7 @@ fn with_outbox(mut app: Faraday, n: usize, secret: bool) -> Faraday {
             secret: false,
             picture: None,
             sha: None,
+            wallet: None,
         });
     }
     if secret {
@@ -167,6 +168,7 @@ fn with_outbox(mut app: Faraday, n: usize, secret: bool) -> Faraday {
             secret: true,
             picture: None,
             sha: None,
+            wallet: None,
         });
     }
     app.press(Action::Nav(Screen::Visit));
@@ -708,6 +710,7 @@ fn writing_over(on_stick: &[(&str, u64)], outbox: Vec<(&str, Vec<u8>)>) -> Farad
             secret: false,
             picture: None,
             sha: None,
+            wallet: None,
         });
     }
     app.storage(StorageEvent::Sticks(vec![StickInfo {

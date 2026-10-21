@@ -476,7 +476,7 @@ impl Faraday {
         let mut keys = Vec::new();
         for fp in self.seeds_here(s) {
             let key = self.session_key(fp).ok_or(EN.seeds_a_seed_is_no)?;
-            keys.push(create::key_text_at(key.master(), &path)?);
+            keys.push(key.text_at(&path)?);
         }
         if keys.is_empty() {
             return Err(EN.seeds_no_seed_yet.to_string());
@@ -523,14 +523,35 @@ impl Faraday {
         Ok(d)
     }
 
-    /// The first receive address of the wallet the piece describes.
+    /// The first receive address of the wallet the piece describes:
+    /// worked out the first time it is asked for this description, by
+    /// whoever asks, a frame included, and kept on the state by the
+    /// description and network it comes from, a lookup after (public).
+    /// Costs a parse of the description and an address the first time.
     pub fn seeds_address(&self, s: &SeedsState) -> Result<String, String> {
         let d = self.seeds_descriptor(s)?;
-        let p = crate::wallet::read_wallet(&d).map_err(|e| e.text())?;
-        crate::work::count(crate::work::Work::Address);
-        p.address_at(self.session.network(), false, 0)
-            .map(|a| a.to_string())
-            .map_err(|e| e.to_string())
+        let net = self.session.network();
+        if let Some((.., a)) = self
+            .seeds_addresses
+            .borrow()
+            .iter()
+            .find(|(x, n, _)| *x == d && *n == net)
+        {
+            return a.clone();
+        }
+        let a = crate::work::keeping(|| {
+            let p = crate::wallet::read_wallet(&d).map_err(|e| e.text())?;
+            crate::work::count(crate::work::Work::Address);
+            p.address_at(net, false, 0)
+                .map(|a| a.to_string())
+                .map_err(|e| e.to_string())
+        });
+        let mut kept = self.seeds_addresses.borrow_mut();
+        if kept.len() >= 16 {
+            kept.clear();
+        }
+        kept.push((d, net, a.clone()));
+        a
     }
 
     /// A slider pressed, dragged or stepped to `value`.

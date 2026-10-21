@@ -347,6 +347,7 @@ fn a_psbt_row_shows_sign_and_a_dots_menu_of_details_and_remove() {
         secret: false,
         picture: None,
         sha: None,
+        wallet: None,
     });
     app.press(Action::Nav(Screen::Files));
     let _ = app.frame();

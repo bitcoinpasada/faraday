@@ -459,7 +459,21 @@ impl Faraday {
     }
 
     /// What the boot stick brought, counted for the sheet's first line.
+    /// Kept in the drawing memo while a frame is drawn (`docs/SPEED.md`
+    /// §3.3). Costs a read of every file it brought that may describe a
+    /// wallet or a seed.
     pub fn import_count(&self) -> Option<ImportCount> {
+        if self.drawing.is_on() {
+            return *self
+                .drawing
+                .import_count
+                .get_or_init(|| crate::work::filling(|| self.import_count_now()));
+        }
+        self.import_count_now()
+    }
+
+    /// Works out [`Faraday::import_count`].
+    fn import_count_now(&self) -> Option<ImportCount> {
         let imp = self.import.as_ref()?;
         let found = self.found_in(&imp.items);
         let mut c = ImportCount::default();

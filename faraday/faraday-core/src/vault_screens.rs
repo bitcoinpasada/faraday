@@ -2120,8 +2120,9 @@ fn item_heading(app: &Faraday, r: &Record) -> (String, String, bool) {
     match r.kind {
         kind::KEY => {
             let fp = key_fingerprint(app, r).unwrap_or_else(|| FEN.vault_key.to_string());
-            let words = crate::wallet::record_words(r)
-                .map(|m| fill(FEN.vault_words_n, &[&m.word_count().to_string()]))
+            let words = app
+                .record_word_count(r)
+                .map(|n| fill(FEN.vault_words_n, &[&n.to_string()]))
                 .unwrap_or_else(|| FEN.vault_master_seed.into());
             let loads = records::loads_at_unlock(r);
             let label = r.text(field::KEY_LABEL).unwrap_or("");
@@ -2139,7 +2140,9 @@ fn item_heading(app: &Faraday, r: &Record) -> (String, String, bool) {
                 .text(field::WALLET_NAME)
                 .unwrap_or(FEN.vault_wallet)
                 .to_string();
-            let mut line = wallet_shape(r).unwrap_or_else(|| FEN.vault_wallet.into());
+            let mut line = app
+                .record_described(r)
+                .map_or_else(|| FEN.vault_wallet.into(), |d| d.shape.clone());
             if !records::loads_at_unlock(r) {
                 line = format!("{line} · {}", FEN.vault_not_loaded_at_unlock_inline);
             }
@@ -2255,14 +2258,6 @@ fn sheet_parts(r: &Record) -> (String, String, String) {
     }
 }
 
-/// A wallet record's shape, as the session names one. Costs a parse of
-/// the record's description.
-pub(crate) fn wallet_shape(r: &Record) -> Option<String> {
-    let text = r.text(field::WALLET)?;
-    let policy = crate::wallet::read_wallet(text).ok()?;
-    Some(policy_shape(policy))
-}
-
 /// The shape of a wallet read already, as the session names one. Costs
 /// the descriptor's checksum.
 pub(crate) fn policy_shape(policy: osk_bip::policy::WalletPolicy) -> String {
@@ -2274,8 +2269,26 @@ pub(crate) fn policy_shape(policy: osk_bip::policy::WalletPolicy) -> String {
     ))
 }
 
-/// A key record's fingerprint, worked out once per key and kept.
+/// A key record's fingerprint, worked out once per key and kept. Four
+/// bytes: it finds a candidate; whether the record is a given key is
+/// [`record_is_key`]'s to say.
 pub(crate) fn key_fingerprint(app: &Faraday, r: &Record) -> Option<String> {
+    key_identity(app, r).map(|(fp, _)| fp)
+}
+
+/// Whether key record `r` holds session key `key`: the same master key,
+/// its passphrase applied, told by all 32 bytes of
+/// [`crate::wallet::master_id`] (F65), the fingerprint finding the
+/// candidate. Kept once worked out, as the fingerprint is.
+pub(crate) fn record_is_key(app: &Faraday, r: &Record, key: &crate::wallet::Key) -> bool {
+    key_identity(app, r)
+        .is_some_and(|(fp, id)| fp == fp_text(key.fingerprint()) && id == key.master_id())
+}
+
+/// A key record's fingerprint and [`crate::wallet::master_id`], worked
+/// out once per key and kept. Costs a PBKDF2 and two elliptic-curve
+/// multiplications the first time.
+fn key_identity(app: &Faraday, r: &Record) -> Option<(String, [u8; 32])> {
     use osk_bip::bitcoin::hashes::{Hash, sha256};
     // By the payload and the passphrase stored with it: the same words
     // with a passphrase are another key.
@@ -2287,34 +2300,41 @@ pub(crate) fn key_fingerprint(app: &Faraday, r: &Record) -> Option<String> {
         osk_bip::bitcoin::hashes::HashEngine::input(&mut engine, p);
     }
     let id = sha256::Hash::from_engine(engine).to_byte_array();
-    if let Some((_, fp)) = app
+    if let Some((_, fp, mid)) = app
         .vaults
         .fingerprints
         .borrow()
         .iter()
-        .find(|(k, _)| *k == id)
+        .find(|(k, ..)| *k == id)
     {
-        return Some(fp.clone());
+        return Some((fp.clone(), *mid));
     }
-    crate::work::count(crate::work::Work::MasterKey);
-    let master = match crate::wallet::record_words(r) {
-        Some(m) => {
-            let passphrase = r.text(field::KEY_PASSPHRASE).unwrap_or("");
-            let seed = m.to_seed(passphrase.as_bytes()).ok()?;
-            osk_bip::keys::MasterKey::from_seed(&seed, app.session.network())
-        }
-        None => {
-            let seed = vaults::seed_of(r)?;
-            let bytes = osk_crypto::SeedBytes::new(&seed)?;
-            osk_bip::keys::MasterKey::from_seed_bytes(
-                &osk_crypto::Secret::new(bytes),
-                app.session.network(),
-            )
-        }
-    };
+    // Kept by the key's id once worked out, by whoever asks first.
+    let master = crate::work::keeping(|| -> Option<osk_bip::keys::MasterKey> {
+        crate::work::count(crate::work::Work::MasterKey);
+        Some(match crate::wallet::record_words(r) {
+            Some(m) => {
+                let passphrase = r.text(field::KEY_PASSPHRASE).unwrap_or("");
+                let seed = m.to_seed(passphrase.as_bytes()).ok()?;
+                osk_bip::keys::MasterKey::from_seed(&seed, app.session.network())
+            }
+            None => {
+                let seed = vaults::seed_of(r)?;
+                let bytes = osk_crypto::SeedBytes::new(&seed)?;
+                osk_bip::keys::MasterKey::from_seed_bytes(
+                    &osk_crypto::Secret::new(bytes),
+                    app.session.network(),
+                )
+            }
+        })
+    })?;
     let fp = fp_text(master.fingerprint());
-    app.vaults.fingerprints.borrow_mut().push((id, fp.clone()));
-    Some(fp)
+    let mid = crate::work::keeping(|| crate::wallet::master_id(&master));
+    app.vaults
+        .fingerprints
+        .borrow_mut()
+        .push((id, fp.clone(), mid));
+    Some((fp, mid))
 }
 
 fn words_text(m: &osk_bip::bip39::Mnemonic) -> String {
@@ -3383,8 +3403,10 @@ fn detail(
         kind::KEY => {
             let fp = key_fingerprint(app, r).unwrap_or_default();
             field_row(ui, &mut dy, FEN.vault_fingerprint, &fp, true);
-            // Read from the record once for the frame.
-            let m = crate::wallet::record_words(r);
+            // Read from the record once for the frame: a secret shown.
+            let m = crate::work::allowed(crate::work::Allowed::SecretShown, || {
+                crate::wallet::record_words(r)
+            });
             if let Some(m) = &m {
                 hold_row(ui, &mut dy, FEN.vault_words, &words_text(m), true);
                 if m.language() == osk_bip::bip39::Language::English {
@@ -4144,12 +4166,8 @@ fn save_panel(
     } else {
         let held: Vec<String> = v
             .contents
-            .of(kind::WALLET)
-            .filter_map(|(_, r)| {
-                r.text(field::WALLET)
-                    .and_then(|t| crate::wallet::read_wallet(t).ok())
-            })
-            .map(|p| p.to_descriptor())
+            .described_of(kind::WALLET)
+            .map(|(_, _, d)| d.policy.to_descriptor())
             .collect();
         for (k, wl) in app.session.wallets.iter().enumerate() {
             if held.contains(&wl.policy().to_descriptor()) {
@@ -4404,7 +4422,8 @@ fn images_panel(app: &Faraday, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f3
         dy += 40.0;
         ui.text(dx, dy, 12.0, W::R, MUTED, "SHA-256");
         dy += 20.0;
-        let hash = crate::secureboot::image_sha256(&item.bytes);
+        // Taken when the image came in (`Item::sha`).
+        let hash = crate::secureboot::image_sha256(&item.hash());
         dy += ui.wrap(dx, dy, dw, 15.0, W::M, TEXT, &hash) + 14.0;
         dy += ui.wrap(dx, dy, dw, 13.0, W::R, MUTED, FEN.vault_compare_it_with) + 16.0;
         let hw = hold_button(
@@ -4504,63 +4523,31 @@ fn images_panel(app: &Faraday, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f3
     dy + 56.0
 }
 
-/// Parses open vault `v`'s wallet records (once a frame, `vault_wallets`):
-/// whether it holds a wallet with the same descriptor, as
-/// [`crate::wallet::same_wallet`] compares them.
+/// Whether open vault `v` holds a wallet with the same descriptor, as
+/// [`crate::wallet::same_wallet`] compares them: from its wallet records
+/// as the vault keeps them read ([`crate::vaults::VaultRecords`]).
 pub(crate) fn vault_has_wallet(app: &Faraday, v: usize, w: &Wallet) -> bool {
     let want = crate::wallet::same_wallet(w.policy());
-    vault_wallets(app, v)
-        .iter()
-        .any(|d| d.replace('\'', "h") == want)
-}
-
-/// Parses each wallet record open vault `v` holds: their descriptors, each
-/// as `to_descriptor` writes it; a record that does not read is left out.
-/// Kept for the frame while one is drawn (`docs/SPEED.md` §3.12); outside
-/// a frame worked out each time.
-pub(crate) fn vault_wallets(app: &Faraday, v: usize) -> std::rc::Rc<Vec<String>> {
-    let on = app.drawing.is_on();
-    if on
-        && let Some((_, kept)) = app
-            .drawing
-            .vault_wallets
-            .borrow()
-            .iter()
-            .find(|(o, _)| *o == v)
-    {
-        return kept.clone();
-    }
-    let list: Vec<String> = app.vaults.open.get(v).map_or_else(Vec::new, |o| {
+    app.vaults.open.get(v).is_some_and(|o| {
         o.contents
-            .of(kind::WALLET)
-            .filter_map(|(_, r)| r.text(field::WALLET))
-            .filter_map(|t| crate::wallet::read_wallet(t).ok())
-            .map(|p| p.to_descriptor())
-            .collect()
-    });
-    let list = std::rc::Rc::new(list);
-    if on {
-        app.drawing
-            .vault_wallets
-            .borrow_mut()
-            .push((v, list.clone()));
-    }
-    list
+            .described_of(kind::WALLET)
+            .any(|(_, _, d)| d.same == want)
+    })
 }
 
-/// Whether open vault `v` holds the key with fingerprint `fp`.
-pub(crate) fn vault_has_key(app: &Faraday, v: usize, fp: osk_bip::keys::Fingerprint) -> bool {
-    vault_key(app, v, fp).is_some()
+/// Whether open vault `v` holds session key `key` ([`record_is_key`]).
+pub(crate) fn vault_has_key(app: &Faraday, v: usize, key: &crate::wallet::Key) -> bool {
+    vault_key(app, v, key).is_some()
 }
 
-/// Whether open vault `v` holds the key with fingerprint `fp`, and if so
-/// whether its record keeps the BIP-39 passphrase.
-pub(crate) fn vault_key(app: &Faraday, v: usize, fp: osk_bip::keys::Fingerprint) -> Option<bool> {
-    let want = fp_text(fp);
+/// Whether open vault `v` holds session key `key`, and if so whether its
+/// record keeps the BIP-39 passphrase: a record of the same master key,
+/// told by all 32 bytes of its id, not by its fingerprint alone (F65).
+pub(crate) fn vault_key(app: &Faraday, v: usize, key: &crate::wallet::Key) -> Option<bool> {
     let o = app.vaults.open.get(v)?;
     o.contents
         .of(kind::KEY)
-        .find(|(_, r)| key_fingerprint(app, r).as_deref() == Some(want.as_str()))
+        .find(|(_, r)| record_is_key(app, r, key))
         .map(|(_, r)| r.field(field::KEY_PASSPHRASE).is_some())
 }
 

@@ -2,14 +2,20 @@
 //!
 //! A frame asks the backup's checklist the same questions many times: the
 //! items, whether each is done, the plan's shape, the seeds, the held keys
-//! and the public file names, a stick's among them, the wallets an open
-//! vault holds, what a lock keeps and wipes, and the sticks to write;
-//! and for every screen, what the Inbox gives, every wallet known with
-//! its backup, and each open vault's rows.
+//! and the public file names, a stick's among them, what a lock keeps and
+//! wipes, and the sticks to write; and for every screen, what the Inbox
+//! gives, every wallet known with its backup, and each open vault's rows.
 //! While [`crate::Faraday::render`] runs the answers are kept here;
 //! nothing is kept outside it. Only drawing reads
 //! them: a decision (a press gated, a hold released) computes from the
 //! state as it is (`docs/SPEED.md` §2 rule 3).
+//!
+//! What these answers are put together from is kept on the state, read
+//! once from what it describes (a plan's map, a vault's wallet records,
+//! an Inbox file's wallet, an address): a fill here puts parts together
+//! and parses nothing again. Each fill runs in [`crate::work::filling`],
+//! the only place, with what the state keeps ([`crate::work::keeping`]),
+//! where costly work may run while a frame is drawn.
 
 use std::cell::{Cell, OnceCell, RefCell};
 
@@ -38,8 +44,6 @@ pub(crate) struct Drawing {
     pub shapes: RefCell<Vec<(usize, plan::Shape)>>,
     /// `backup_seed_list` per wallet.
     pub seed_lists: RefCell<Vec<(usize, SeedList)>>,
-    /// `copy_forms` per wallet and seed.
-    pub copy_forms: RefCell<Vec<((usize, usize), plan::CopyForms)>>,
     /// `held_keys`.
     pub held: OnceCell<Vec<Fingerprint>>,
     /// `backup_public_names_for` per wallet, for the backup's own answers.
@@ -56,9 +60,6 @@ pub(crate) struct Drawing {
     /// The flows in progress ([`crate::Faraday::flows_in_progress`],
     /// `docs/FLOWS.md`, Flows in progress).
     pub flows: OnceCell<std::rc::Rc<Vec<crate::in_progress::Row>>>,
-    /// The wallets each open vault holds, by its place among the open
-    /// vaults (`vault_screens::vault_wallets`): public descriptors.
-    pub vault_wallets: RefCell<Vec<(usize, std::rc::Rc<Vec<String>>)>>,
     /// What a lock keeps and wipes, by `power_off`
     /// ([`crate::Faraday::kept_wiped`]).
     pub kept_wiped: RefCell<Vec<(bool, crate::vaults::KeptWiped)>>,
@@ -79,6 +80,12 @@ pub(crate) struct Drawing {
     pub vault_rows: RefCell<Vec<(usize, Vec<crate::vaults::VaultRow>)>>,
     /// Everything the Inbox gives ([`crate::Faraday::inbox_found`]).
     pub inbox_found: OnceCell<crate::inbox::Found>,
+    /// The session's keys and wallets no open vault holds
+    /// ([`crate::Faraday::unsaved`]).
+    pub unsaved: OnceCell<(Vec<String>, Vec<String>)>,
+    /// What the boot stick brought, counted
+    /// ([`crate::Faraday::import_count`]).
+    pub import_count: OnceCell<Option<crate::boot_import::ImportCount>>,
 }
 
 impl Drawing {

@@ -245,8 +245,13 @@ fn card(app: &Faraday, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f3
                 + 6.0;
             ui.text(x, cy, 12.0, W::R, MUTED, app_name(b.app));
             cy += below;
-            // Derived for this frame only, and wiped with it.
-            let value = if b.shown { app.bip85_value() } else { None };
+            // Derived for this frame only, and wiped with it: a secret
+            // shown, which nothing keeps.
+            let value = if b.shown {
+                crate::work::allowed(crate::work::Allowed::SecretShown, || app.bip85_value())
+            } else {
+                None
+            };
             let shown =
                 value.as_ref().map_or("••••••••••••", |v| v.as_str());
             cy += ui

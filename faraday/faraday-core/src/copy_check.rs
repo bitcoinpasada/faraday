@@ -156,27 +156,12 @@ impl Faraday {
         }
     }
 
-    /// The forms of the copies of seed `i` the backup's map keeps. Builds
-    /// the map, once a frame while drawing.
+    /// The forms of the copies of seed `i` the backup's map keeps, read
+    /// from the plan's map ([`Faraday::plan_mapped`]: once a frame while
+    /// drawing).
     pub(crate) fn copy_forms(&self, b: &BackupState, i: usize) -> CopyForms {
-        if self.drawing.is_on()
-            && let Some((_, f)) = self
-                .drawing
-                .copy_forms
-                .borrow()
-                .iter()
-                .find(|(k, _)| *k == (b.wallet, i))
-        {
-            return *f;
-        }
-        let forms = plan::copy_forms(&self.plan_shape(b.wallet), &b.answers, i);
-        if self.drawing.is_on() {
-            self.drawing
-                .copy_forms
-                .borrow_mut()
-                .push(((b.wallet, i), forms));
-        }
-        forms
+        let shape = self.plan_shape(b.wallet);
+        plan::copy_forms_on(&self.plan_mapped(&shape, &b.answers), i)
     }
 
     /// What checking seed `i`'s copies asks for with the cameras listed

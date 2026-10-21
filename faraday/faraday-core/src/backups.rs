@@ -285,8 +285,9 @@ impl Faraday {
         let stem = file_stem(&wallet.name);
         let public = wi.map_or_else(Vec::new, |wi| self.backup_public_names_for(wi, a));
         // A place with what its sticks keep.
-        plan::place_map(&shape, a)
-            .into_iter()
+        self.plan_mapped(&shape, a)
+            .places
+            .iter()
             .map(|spot| {
                 let mut out = Spot {
                     at: spot.at,
@@ -459,20 +460,20 @@ impl Faraday {
     /// Every wallet known: loaded, in an open vault, or remembered of a
     /// locked one, once each by descriptor checksum, in that order. Kept
     /// in the drawing memo while a frame is drawn (`docs/SPEED.md` §3.3).
-    /// Costs a parse of each open vault's wallet records.
+    /// Reads each open vault's wallet records as it keeps them read.
     pub fn backups(&self) -> Vec<Entry> {
         if self.drawing.is_on() {
             return self
                 .drawing
                 .backups
-                .get_or_init(|| self.backups_now())
+                .get_or_init(|| crate::work::filling(|| self.backups_now()))
                 .clone();
         }
         self.backups_now()
     }
 
-    /// Works out [`Faraday::backups`]. Costs a parse of each open vault's
-    /// wallet records.
+    /// Works out [`Faraday::backups`], from each open vault's wallet
+    /// records as it keeps them read ([`crate::vaults::VaultRecords`]).
     fn backups_now(&self) -> Vec<Entry> {
         let mut out: Vec<Entry> = Vec::new();
         let seen = |out: &[Entry], sum: &str| out.iter().any(|e| e.sum == sum);
@@ -490,14 +491,8 @@ impl Faraday {
             });
         }
         for v in &self.vaults.open {
-            for (_, r) in v.contents.of(kind::WALLET) {
-                let Some(policy) = r
-                    .text(field::WALLET)
-                    .and_then(|t| crate::wallet::read_wallet(t).ok())
-                else {
-                    continue;
-                };
-                let sum = policy.checksum();
+            for (_, r, d) in v.contents.described_of(kind::WALLET) {
+                let sum = d.checksum.clone();
                 if seen(&out, &sum) {
                     continue;
                 }
@@ -505,7 +500,7 @@ impl Faraday {
                     r.text(field::WALLET_NAME)
                         .unwrap_or(EN.backups_wallet)
                         .to_string(),
-                    policy,
+                    d.policy.clone(),
                     EN.backups_vault.to_string(),
                     crate::wallet::Origin::Vault,
                 );
@@ -679,18 +674,25 @@ impl Faraday {
             .collect();
         let holds = |o: &crate::vaults::OpenVault| {
             if !wanted.is_empty() {
-                let keys: Vec<String> = o
-                    .contents
-                    .of(kind::KEY)
-                    .filter_map(|(_, r)| crate::vault_screens::key_fingerprint(self, r))
-                    .collect();
-                return wanted.iter().all(|f| keys.contains(f));
+                // Each seed as the session holds it, and a record of that
+                // very key: the fingerprint finds it, all 32 bytes of the
+                // master key's id say it is the one (F65). A seed not held
+                // here cannot be told apart, so it is not said kept.
+                return seeds.iter().all(|f| {
+                    self.session
+                        .keys
+                        .iter()
+                        .find(|k| k.fingerprint().0 == *f)
+                        .is_some_and(|k| {
+                            o.contents
+                                .of(kind::KEY)
+                                .any(|(_, r)| crate::vault_screens::record_is_key(self, r, k))
+                        })
+                });
             }
-            o.contents.of(kind::WALLET).any(|(_, r)| {
-                r.text(field::WALLET)
-                    .and_then(|t| crate::wallet::read_wallet(t).ok())
-                    .is_some_and(|p| p.checksum() == sum)
-            })
+            o.contents
+                .described_of(kind::WALLET)
+                .any(|(_, _, d)| d.checksum == sum)
         };
         let file = self
             .vaults
@@ -699,6 +701,8 @@ impl Faraday {
             .position(holds)
             .and_then(|v| files.iter().find(|f| f.open == Some(v)))
             .or_else(|| {
+                // A locked vault, as remembered when it was open: the
+                // summary keeps fingerprints only (see `VaultSummary`).
                 let s = self.vaults.summaries.iter().find(|s| {
                     if wanted.is_empty() {
                         s.sums.iter().any(|c| c == sum)

@@ -163,7 +163,7 @@ fn fp_of(text: &str) -> Option<Fingerprint> {
 impl Faraday {
     /// The first wallet of open vault `v` that key record `r` is a seed
     /// of, by name: such a key loads with it and has no Load at unlock of
-    /// its own (F62). Costs a parse of each wallet record of the vault.
+    /// its own (F62). Reads the wallet records as the vault keeps them read ([`crate::vaults::VaultRecords`]).
     pub(crate) fn vault_key_wallet(&self, v: usize, r: usize) -> Option<String> {
         let open = self.vaults.open.get(v)?;
         let rec = open
@@ -172,17 +172,19 @@ impl Faraday {
             .get(r)
             .filter(|x| x.kind == kind::KEY)?;
         let fp = crate::vault_screens::key_fingerprint(self, rec)?;
-        open.contents.of(kind::WALLET).find_map(|(_, w)| {
-            let p = crate::wallet::read_wallet(w.text(field::WALLET)?).ok()?;
-            p.keys()
-                .iter()
-                .any(|k| k.fingerprint().map(fp_text).as_deref() == Some(fp.as_str()))
-                .then(|| {
-                    w.text(field::WALLET_NAME)
-                        .unwrap_or(EN.vaults_wallet)
-                        .to_string()
-                })
-        })
+        open.contents
+            .described_of(kind::WALLET)
+            .find_map(|(_, w, d)| {
+                let p = &d.policy;
+                p.keys()
+                    .iter()
+                    .any(|k| k.fingerprint().map(fp_text).as_deref() == Some(fp.as_str()))
+                    .then(|| {
+                        w.text(field::WALLET_NAME)
+                            .unwrap_or(EN.vaults_wallet)
+                            .to_string()
+                    })
+            })
     }
 
     /// The seeds open vaults keep as words without a BIP-39 passphrase,
@@ -196,7 +198,7 @@ impl Faraday {
             return self
                 .drawing
                 .passphrase_seeds
-                .get_or_init(|| Rc::new(self.vault_passphrase_seeds_now()))
+                .get_or_init(|| Rc::new(crate::work::filling(|| self.vault_passphrase_seeds_now())))
                 .clone();
         }
         Rc::new(self.vault_passphrase_seeds_now())
@@ -208,8 +210,8 @@ impl Faraday {
         let mut out = Vec::new();
         for (v, open) in self.vaults.open.iter().enumerate() {
             for (i, r) in open.contents.of(kind::KEY) {
-                if r.field(field::KEY_PASSPHRASE).is_some()
-                    || crate::wallet::record_words(r).is_none()
+                // Words, as the vault keeps them read: no parse here.
+                if r.field(field::KEY_PASSPHRASE).is_some() || open.contents.word_count(i).is_none()
                 {
                     continue;
                 }
@@ -373,9 +375,9 @@ impl Faraday {
     }
 
     /// What the sheet shows, kept in the drawing memo while a frame is
-    /// drawn (`docs/SPEED.md` §3.3). Costs a parse of each wallet record
-    /// of the vault; the key fingerprints are the ones the unlock worked
-    /// out.
+    /// drawn (`docs/SPEED.md` §3.3). Reads the vault's wallet records as
+    /// it keeps them read; the key fingerprints are the ones the unlock
+    /// worked out.
     pub fn vault_load_view(&self) -> Option<Rc<LoadView>> {
         let s = self.vaults.load.as_ref()?;
         let v = self.load_sheet_vault()?;
@@ -383,15 +385,16 @@ impl Faraday {
             return Some(
                 self.drawing
                     .load_sheet
-                    .get_or_init(|| Rc::new(self.load_view_of(v, &s.ticked)))
+                    .get_or_init(|| {
+                        Rc::new(crate::work::filling(|| self.load_view_of(v, &s.ticked)))
+                    })
                     .clone(),
             );
         }
         Some(Rc::new(self.load_view_of(v, &s.ticked)))
     }
 
-    /// Works out the sheet for open vault `v` with `ticked`. Costs a parse
-    /// of each wallet record of the vault.
+    /// Works out the sheet for open vault `v` with `ticked`, from the wallet records as the vault keeps them read ([`crate::vaults::VaultRecords`]).
     fn load_view_of(&self, v: usize, ticked: &BTreeSet<usize>) -> LoadView {
         let Some(open) = self.vaults.open.get(v) else {
             return LoadView::default();
@@ -431,25 +434,26 @@ impl Faraday {
                     .text(field::WALLET_NAME)
                     .unwrap_or(EN.vaults_wallet)
                     .to_string();
-                let policy = crate::wallet::read_wallet(r.text(field::WALLET).unwrap_or("")).ok();
+                let policy = open.contents.described(i).map(|d| &d.policy);
                 let fps = policy.as_ref().map_or_else(Vec::new, |p| {
                     p.keys()
                         .iter()
                         .map(|k| k.fingerprint().map(fp_text))
                         .collect()
                 });
-                let loaded = policy.as_ref().is_some_and(|p| {
-                    let want = same_wallet(p);
+                let loaded = open.contents.described(i).is_some_and(|d| {
                     self.session
                         .wallets
                         .iter()
-                        .any(|w| same_wallet(w.policy()) == want)
+                        .any(|w| same_wallet(w.policy()) == d.same)
                 });
                 W {
                     record: i,
                     name,
-                    kind: policy
-                        .map(crate::vault_screens::policy_shape)
+                    kind: open
+                        .contents
+                        .described(i)
+                        .map(|d| d.shape.clone())
                         .unwrap_or_default(),
                     fps,
                     loaded,
@@ -556,7 +560,7 @@ impl Faraday {
     /// the Vaults tab: its Load sheet comes up, its cards ticked from
     /// each record's Load at unlock. Returns false, showing nothing, when
     /// the vault holds no wallet and no key, or the session holds all of
-    /// them already. Costs a parse of each wallet record.
+    /// them already. Reads the wallet records as the vault keeps them read ([`crate::vaults::VaultRecords`]).
     pub(crate) fn load_sheet_offer(&mut self, v: usize, boot: bool, wallets_before: usize) -> bool {
         let Some(open) = self.vaults.open.get(v) else {
             return false;

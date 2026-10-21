@@ -1047,7 +1047,7 @@ pub(crate) fn view(app: &Faraday, press: Press, target: Target) -> Option<View> 
         Target::Marked(n, line) => {
             let node = nodes.get(usize::from(n))?;
             let (shape, answers) = g.plan.as_ref()?;
-            let f = plan::follows(shape, answers, &marks);
+            let f = plan::follows_on(shape, answers, &app.plan_mapped(shape, answers), &marks);
             let title = match line {
                 Some(j) => node.holds.get(usize::from(j))?.clone(),
                 None => node.name.clone(),

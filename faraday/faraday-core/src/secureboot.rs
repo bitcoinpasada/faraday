@@ -9,7 +9,6 @@ use faraday_sb::{Check, Keys, Pair, Policy};
 use faraday_vault::Record;
 use faraday_vault::records::kind;
 use opensigner_core::strings::fill;
-use osk_bip::bitcoin::hashes::{Hash, sha256};
 
 use crate::Faraday;
 use crate::backup_flow_steps::Built;
@@ -101,10 +100,8 @@ pub fn is_image(name: &str) -> bool {
     name.to_ascii_lowercase().ends_with(".efi")
 }
 
-/// An image's SHA-256, in groups of four for comparing by eye.
-pub fn image_sha256(bytes: &[u8]) -> String {
-    crate::work::count(crate::work::Work::FileHash);
-    let h = sha256::Hash::hash(bytes).to_byte_array();
+/// An image's SHA-256 `h`, in groups of four for comparing by eye.
+pub fn image_sha256(h: &[u8; 32]) -> String {
     h.chunks(2)
         .map(|c| format!("{:02x}{:02x}", c[0], c[1]))
         .collect::<Vec<_>>()

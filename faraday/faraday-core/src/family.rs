@@ -739,8 +739,7 @@ impl Faraday {
             {
                 continue;
             }
-            let text = String::from_utf8_lossy(&it.bytes);
-            if let Ok(p) = crate::wallet::read_wallet(&text) {
+            if let Some(p) = it.wallet() {
                 let d = p.to_descriptor();
                 if !wallets.iter().any(|(_, x)| *x == d) {
                     wallets.push((k, d));
@@ -1316,7 +1315,7 @@ impl Faraday {
         let Some(key) = self.family_words_key() else {
             return;
         };
-        let text = match kind.key_text(key.master()) {
+        let text = match key.account_text(kind, 0) {
             Ok(t) => t,
             Err(e) => {
                 self.family.error = Some(e);

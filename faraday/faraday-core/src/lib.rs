@@ -1615,9 +1615,17 @@ pub struct Item {
     /// the disk process decoded ([`FileKind::Other`] when none read). Its
     /// bytes are the picture's, kept to be written out as they came.
     pub picture: Option<FileKind>,
-    /// SHA-256 of an APK's bytes, taken once when the file came in; `None`
-    /// for any other file.
+    /// SHA-256 of an APK's, a vault's or an EFI image's bytes, taken once
+    /// when the file came in (each is public: a vault's file is sealed);
+    /// `None` for any other file. An Item's bytes never change after it
+    /// is made.
     pub sha: Option<[u8; 32]>,
+    /// The wallet a wallet file describes, read once when the file came
+    /// in, as [`Item::sha`] is taken (`docs/SPEED.md` §3.3): `None` for
+    /// any other file. An Item's bytes are never changed after it is
+    /// made, so this stays what they say; nothing reads the bytes again
+    /// for it.
+    pub wallet: Option<osk_bip::policy::WalletPolicy>,
 }
 
 /// An Inbox or Outbox file may be a seed or a share written in the clear:
@@ -1629,9 +1637,16 @@ impl Drop for Item {
 }
 
 impl Item {
+    /// The file as it came in, classified, with what it describes read
+    /// once. Costs a classification, a parse of a wallet file's
+    /// description and a hash of an APK, a vault or an EFI image.
     fn new(name: &str, bytes: Vec<u8>) -> Item {
         let kind = wallet::classify(name, &bytes);
-        let sha = (kind == FileKind::Apk).then(|| sha256_of(&bytes));
+        let sha = matches!(kind, FileKind::Apk | FileKind::Vault | FileKind::EfiImage)
+            .then(|| sha256_of(&bytes));
+        let wallet = (kind == FileKind::Wallet)
+            .then(|| wallet::read_wallet(&String::from_utf8_lossy(&bytes)).ok())
+            .flatten();
         Item {
             name: name.to_string(),
             bytes,
@@ -1639,7 +1654,20 @@ impl Item {
             secret: false,
             picture: None,
             sha,
+            wallet,
         }
+    }
+
+    /// The wallet a wallet file describes, read when it came in. A lookup.
+    pub fn wallet(&self) -> Option<&osk_bip::policy::WalletPolicy> {
+        self.wallet.as_ref()
+    }
+
+    /// SHA-256 of its bytes: the one taken when it came in ([`Item::sha`],
+    /// an APK's, a vault's or an EFI image's), a lookup. Any other file
+    /// is hashed now.
+    pub fn hash(&self) -> [u8; 32] {
+        self.sha.unwrap_or_else(|| sha256_of(&self.bytes))
     }
 
     /// What it holds: a picture's codes, or the file itself.
@@ -2114,6 +2142,38 @@ impl QrView {
     }
 }
 
+/// A description's first receive address on a network, or why there is
+/// none ([`Faraday::seeds_address`]).
+type KeptAddress = (String, osk_bip::keys::Network, Result<String, String>);
+
+impl Faraday {
+    /// The QR code of `text`, public text a screen shows (a guide's
+    /// address): made the first time it is asked, by whoever asks, a frame
+    /// included, and kept on the state by its text, a lookup after
+    /// (`docs/SPEED.md` §2 rule 1: what is kept is public). Costs a QR
+    /// encoding the first time.
+    pub(crate) fn public_qr(&self, text: &str) -> Option<std::rc::Rc<osk_codec::qr::QrMatrix>> {
+        if let Some((_, m)) = self.public_qrs.borrow().iter().find(|(t, _)| t == text) {
+            return m.clone();
+        }
+        let m = crate::work::keeping(|| {
+            crate::work::count(crate::work::Work::QrEncode);
+            osk_codec::qr::encode(
+                osk_codec::qr::Payload::Bytes(text.as_bytes()),
+                osk_codec::qr::Ecc::Medium,
+            )
+            .ok()
+            .map(std::rc::Rc::new)
+        });
+        let mut kept = self.public_qrs.borrow_mut();
+        if kept.len() >= 8 {
+            kept.clear();
+        }
+        kept.push((text.to_string(), m.clone()));
+        m
+    }
+}
+
 /// Text as pictures keep it: one static code while it fits version 25
 /// at medium error correction (the bound `docs/WALLETS.md` §5 sets for
 /// a descriptor on screen), else the BBQr parts the QR view makes, one
@@ -2321,9 +2381,13 @@ impl EntryState {
         if let Some(r) = self.probe.borrow().as_ref() {
             return r.clone();
         }
-        let r = Session::default()
-            .add_mnemonic(m, &self.passphrase, "", None)
-            .map_err(|e| e.text());
+        // Kept until an event forgets it: worked out once, by the frame
+        // that asks first.
+        let r = crate::work::keeping(|| {
+            Session::default()
+                .add_mnemonic(m, &self.passphrase, "", None)
+                .map_err(|e| e.text())
+        });
         *self.probe.borrow_mut() = Some(r.clone());
         r
     }
@@ -2900,8 +2964,13 @@ impl PlanPress {
 /// into software or as files, and The plan. Back up's and a wallet flow's
 /// alike (§19.12 item 1).
 pub fn plan_cards(shape: &plan::Shape, a: &plan::Answers) -> Vec<u8> {
+    plan_cards_on(&plan::Mapped::of(shape, a))
+}
+
+/// [`plan_cards`] on the plan's map `m`.
+pub(crate) fn plan_cards_on(m: &plan::Mapped) -> Vec<u8> {
     let mut v = vec![qstep::BOARD];
-    if a.asks_software(shape) {
+    if m.asks_software() {
         v.push(qstep::SOFTWARE);
     }
     v.push(qstep::PLAN);
@@ -2926,7 +2995,7 @@ pub(crate) fn share_record_is(r: &faraday_vault::Record, cs: &str, j: Option<usi
 
 /// [`plan_cards`] for a plan drawn by `plan_cards`.
 pub(crate) fn plan_cards_of(ctx: &plan_cards::PlanCtx) -> Vec<u8> {
-    plan_cards(&ctx.shape, &ctx.answers)
+    plan_cards_on(&ctx.mapped)
 }
 
 /// The lists a [`Action::BAnswer`] ticks, as [`plan::Question`] names
@@ -3068,12 +3137,12 @@ impl Receipt {
         }
     }
 
-    /// The file written and matched under `name` with these bytes.
-    pub fn holds(&self, name: &str, bytes: &[u8]) -> bool {
-        let hash = sha256_of(bytes);
+    /// The file written and matched under `name` with bytes of this
+    /// SHA-256.
+    pub fn holds(&self, name: &str, hash: &[u8; 32]) -> bool {
         self.files
             .iter()
-            .any(|f| f.verified && f.name == name && f.hash == hash)
+            .any(|f| f.verified && f.name == name && f.hash == *hash)
     }
 
     /// Whether a file with these bytes was written and matched.
@@ -3265,6 +3334,19 @@ pub struct Faraday {
     /// What a frame works out once (`docs/SPEED.md` §3.3): on only while
     /// `render` runs.
     drawing: drawing::Drawing,
+    /// QR codes of public text a screen shows (a guide's address), each
+    /// made once, by its text ([`Faraday::public_qr`]).
+    public_qrs: std::cell::RefCell<Vec<(String, Option<std::rc::Rc<osk_codec::qr::QrMatrix>>)>>,
+    /// Wallet descriptions read that no file or record keeps read, each
+    /// by its text ([`Faraday::read_kept`]): public, and never stale.
+    texts_read: std::cell::RefCell<Vec<(String, Option<osk_bip::policy::WalletPolicy>)>>,
+    /// Plans mapped, each by the shape and answers it is the map of
+    /// ([`Faraday::plan_mapped`]): public, and never stale, since a
+    /// change to either is another key.
+    plans_mapped: std::cell::RefCell<Vec<(plan::Shape, plan::Answers, std::rc::Rc<plan::Mapped>)>>,
+    /// First receive addresses of descriptions Seeds puts together, by the
+    /// description and network ([`Faraday::seeds_address`]): public.
+    seeds_addresses: std::cell::RefCell<Vec<KeptAddress>>,
     /// The last number given to a Make a new wallet or a Restore, which a
     /// wallet's backup flow is tied to while the wallet is being made.
     owner_seq: u64,
@@ -3663,6 +3745,10 @@ impl Faraday {
             new_keys: 0,
             made_here: Vec::new(),
             drawing: drawing::Drawing::default(),
+            public_qrs: Default::default(),
+            seeds_addresses: Default::default(),
+            plans_mapped: Default::default(),
+            texts_read: Default::default(),
             owner_seq: 0,
             // A new GPG key's term starts at GnuPG's default, never at "never".
             vaults: {
@@ -4839,7 +4925,7 @@ impl Faraday {
             let written = |i: &Item| {
                 self.receipt
                     .as_ref()
-                    .is_some_and(|r| r.holds(&i.name, &i.bytes))
+                    .is_some_and(|r| r.holds(&i.name, &i.hash()))
             };
             let one = vaults
                 .iter()
@@ -7223,7 +7309,7 @@ impl Faraday {
             lines.push(
                 match open
                     .clone()
-                    .find_map(|v| vault_key(self, v, fp).map(|p| (v, p)))
+                    .find_map(|v| vault_key(self, v, key).map(|p| (v, p)))
                 {
                     Some((v, with)) => (
                         fill(
@@ -7329,7 +7415,7 @@ impl Faraday {
         let Some(wallet) = self.session.wallets.get(w) else {
             return Vec::new();
         };
-        let list = self.backup_seed_list_of(wallet);
+        let list = crate::work::filling(|| self.backup_seed_list_of(wallet));
         if self.drawing.is_on() {
             self.drawing.seed_lists.borrow_mut().push((w, list.clone()));
         }
@@ -7393,11 +7479,65 @@ impl Faraday {
         {
             return shape.clone();
         }
-        let shape = self.plan_shape_uncached(w);
+        let shape = crate::work::filling(|| self.plan_shape_uncached(w));
         if self.drawing.is_on() {
             self.drawing.shapes.borrow_mut().push((w, shape.clone()));
         }
         shape
+    }
+
+    /// Wallet description `text` read ([`wallet::read_wallet`]): the first
+    /// time it is asked, by whoever asks, a frame included, and kept on the
+    /// state by its text, a lookup after. For a description no Inbox file
+    /// or vault record keeps read: split sheets put together, a threshold
+    /// wallet's descriptor. Costs a parse the first time.
+    pub(crate) fn read_kept(&self, text: &str) -> Option<osk_bip::policy::WalletPolicy> {
+        if let Some((_, p)) = self.texts_read.borrow().iter().find(|(t, _)| t == text) {
+            return p.clone();
+        }
+        let p = crate::work::keeping(|| wallet::read_wallet(text).ok());
+        let mut kept = self.texts_read.borrow_mut();
+        if kept.len() >= 32 {
+            kept.remove(0);
+        }
+        kept.push((text.to_string(), p.clone()));
+        p
+    }
+
+    /// The plan of `shape` under answers `a`, mapped with its check, for
+    /// every helper that reads the plan's map (`docs/SPEED.md` §3.3):
+    /// mapped the first time these shape and answers are asked, by
+    /// whoever asks, a frame included, and kept on the state by them
+    /// ([`Faraday::plans_mapped`]), a lookup after. A frame and a press
+    /// read the same map, and it is the map of the state as it is: a
+    /// change to the answers or the shape is another key. Costs a map of
+    /// the plan and its check the first time.
+    pub(crate) fn plan_mapped(
+        &self,
+        shape: &plan::Shape,
+        a: &plan::Answers,
+    ) -> std::rc::Rc<plan::Mapped> {
+        if let Some((_, _, m)) = self
+            .plans_mapped
+            .borrow()
+            .iter()
+            .find(|(s, x, _)| s == shape && x == a)
+        {
+            return m.clone();
+        }
+        let m = std::rc::Rc::new(crate::work::keeping(|| {
+            let m = plan::Mapped::of(shape, a);
+            m.check(shape, a);
+            m
+        }));
+        let mut kept = self.plans_mapped.borrow_mut();
+        // The plans a session shows at once: the backup's, a flow's, a
+        // chart's; an answer changed makes another, and the oldest goes.
+        if kept.len() >= 8 {
+            kept.remove(0);
+        }
+        kept.push((shape.clone(), a.clone(), m.clone()));
+        m
     }
 
     fn plan_shape_uncached(&self, w: usize) -> plan::Shape {
@@ -7452,7 +7592,7 @@ impl Faraday {
         // description goes (`docs/BACKUP-FLOW.md` §19.1); the software and
         // The plan stay. Start from is gone (§19.21 item 1).
         let shape = self.plan_shape(b.wallet);
-        plan_cards(&shape, &b.answers)
+        plan_cards_on(&self.plan_mapped(&shape, &b.answers))
     }
 
     /// The backup's checklist, by [`bstep`]: only what the plan needs. Works out the plan's shape
@@ -7462,7 +7602,7 @@ impl Faraday {
             return self
                 .drawing
                 .items
-                .get_or_init(|| self.backup_items_uncached())
+                .get_or_init(|| crate::work::filling(|| self.backup_items_uncached()))
                 .clone();
         }
         self.backup_items_uncached()
@@ -7473,7 +7613,7 @@ impl Faraday {
             return Vec::new();
         };
         let shape = self.plan_shape(b.wallet);
-        plan::checklist(&shape, &b.answers)
+        plan::checklist_on(&shape, &b.answers, &self.plan_mapped(&shape, &b.answers))
             .into_iter()
             .map(bstep::of)
             .collect()
@@ -7595,7 +7735,11 @@ impl Faraday {
         {
             return names.clone();
         }
-        let names = self.backup_public_names_uncached(wi, a);
+        let names = if own {
+            crate::work::filling(|| self.backup_public_names_uncached(wi, a))
+        } else {
+            self.backup_public_names_uncached(wi, a)
+        };
         if own {
             self.drawing
                 .public_names
@@ -7697,7 +7841,7 @@ impl Faraday {
             if let Some((_, done)) = self.drawing.done.borrow().iter().find(|(i, _)| *i == item) {
                 return *done;
             }
-            let done = self.backup_item_done_uncached(item);
+            let done = crate::work::filling(|| self.backup_item_done_uncached(item));
             self.drawing.done.borrow_mut().push((item, done));
             return done;
         }
@@ -7915,8 +8059,8 @@ impl Faraday {
         };
         let shape = self.plan_shape(b.wallet);
         let list = self.backup_seed_list(b.wallet);
-        b.answers
-            .vault_passphrases(&shape, v)
+        self.plan_mapped(&shape, &b.answers)
+            .vault_passphrases(v)
             .into_iter()
             .filter_map(|i| list.get(i)?.1)
             .filter(|&k| {
@@ -7954,8 +8098,8 @@ impl Faraday {
         let shape = self.plan_shape(b.wallet);
         let (m, n) = Session::quorum(w);
         let plan = backup::split_plan(n, m, b.answers.omit);
-        b.answers
-            .vault_shares(&shape, v)
+        self.plan_mapped(&shape, &b.answers)
+            .vault_shares(v)
             .into_iter()
             .filter_map(|j| Some((j, backup::split_share(w, plan.get(j)?)?, plan.len())))
             .collect()
@@ -8094,12 +8238,8 @@ impl Faraday {
         use faraday_vault::records::{field, kind};
         let want = wallet::same_wallet(wallet.policy());
         let o = self.vaults.open.get(v)?;
-        o.contents.of(kind::PLAN).find_map(|(_, r)| {
-            let same = r
-                .text(field::PLAN_WALLET)
-                .and_then(|t| wallet::read_wallet(t).ok())
-                .is_some_and(|p| wallet::same_wallet(&p) == want);
-            if !same {
+        o.contents.described_of(kind::PLAN).find_map(|(_, r, d)| {
+            if d.same != want {
                 return None;
             }
             let a = plan::Answers::from_text(shape, r.text(field::PLAN_ANSWERS)?)?;
@@ -8152,14 +8292,13 @@ impl Faraday {
 
     /// The open vault that keeps a plan (record type 11) for `wallet`.
     pub(crate) fn plan_vault_of(&self, wallet: &wallet::Wallet) -> Option<usize> {
-        use faraday_vault::records::{field, kind};
+        use faraday_vault::records::kind;
         let want = wallet::same_wallet(wallet.policy());
         (0..self.vaults.open.len()).find(|&v| {
-            self.vaults.open[v].contents.of(kind::PLAN).any(|(_, r)| {
-                r.text(field::PLAN_WALLET)
-                    .and_then(|t| wallet::read_wallet(t).ok())
-                    .is_some_and(|p| wallet::same_wallet(&p) == want)
-            })
+            self.vaults.open[v]
+                .contents
+                .described_of(kind::PLAN)
+                .any(|(_, _, d)| d.same == want)
         })
     }
 
@@ -8226,12 +8365,14 @@ impl Faraday {
             record.push(field::PLAN_HOLDS, line.as_bytes());
         }
         let want = wallet::same_wallet(w.policy());
-        let same = |r: &faraday_vault::records::Record| {
-            r.kind == kind::PLAN
-                && r.text(field::PLAN_WALLET)
-                    .and_then(|t| wallet::read_wallet(t).ok())
-                    .is_some_and(|p| wallet::same_wallet(&p) == want)
-        };
+        // This wallet's plan records, by place.
+        let ours: Vec<usize> = open
+            .contents
+            .described_of(kind::PLAN)
+            .filter(|(_, _, d)| d.same == want)
+            .map(|(i, _, _)| i)
+            .collect();
+        let same = |i: usize| ours.contains(&i);
         // The notes on the map: those given, else those the record kept.
         let kept: Vec<String> = match notes {
             Some(n) => n.iter().map(plan::Note::to_text).collect(),
@@ -8239,8 +8380,9 @@ impl Faraday {
                 .contents
                 .records
                 .iter()
-                .filter(|r| same(r))
-                .flat_map(|r| {
+                .enumerate()
+                .filter(|(i, _)| same(*i))
+                .flat_map(|(_, r)| {
                     r.fields
                         .iter()
                         .filter(|f| f.number == field::PLAN_NOTE)
@@ -8253,8 +8395,8 @@ impl Faraday {
             record.push(field::PLAN_NOTE, n.as_bytes());
         }
         // Kept as it was: nothing to write back.
-        let unchanged = open.contents.records.iter().any(|r| {
-            same(r)
+        let unchanged = open.contents.records.iter().enumerate().any(|(i, r)| {
+            same(i)
                 && r.fields.len() == record.fields.len()
                 && r.fields
                     .iter()
@@ -8269,11 +8411,18 @@ impl Faraday {
             .contents
             .records
             .iter()
-            .filter(|r| same(r))
-            .cloned()
+            .enumerate()
+            .filter(|(i, _)| same(*i))
+            .map(|(_, r)| r.clone())
             .collect();
-        if let Some(open) = self.vaults.open.get_mut(v) {
-            open.contents.records.retain(|r| !same(r));
+        if let Some(open) = self.vaults.open.get_mut(v)
+            && !ours.is_empty()
+        {
+            let mut at = 0;
+            open.contents.records.retain(|_| {
+                at += 1;
+                !same(at - 1)
+            });
         }
         if !self.vault_push_in(
             v,
@@ -8681,7 +8830,7 @@ impl Faraday {
         // Create's own account for its kind: what its BIP 129 record and
         // its account code are made at. A key elsewhere has neither.
         let standard = kind.filter(|k| {
-            k.key_text(key.master())
+            key.account_text(*k, 0)
                 .ok()
                 .and_then(|t| osk_bip::policy::PolicyKey::parse(&t).ok())
                 .is_some_and(|t| t.xpub() == pk.xpub() && t.path() == pk.path())
@@ -8708,14 +8857,31 @@ impl Faraday {
         }
         for slot in 0..w.policy().keys().len().min(usize::from(u8::MAX)) {
             let slot = slot as u8;
-            if let Ok(k) = self.wallet_key(i, slot)
-                && !seen.contains(&k.fp)
+            if let Some(fp) = self.wallet_key_here(i, slot)
+                && !seen.contains(&fp)
             {
-                seen.push(k.fp);
+                seen.push(fp);
                 out.push(slot);
             }
         }
         out
+    }
+
+    /// The master fingerprint of slot `slot` of wallet `i` when
+    /// [`Faraday::wallet_key`] has that key: its seed is here and the
+    /// wallet is no threshold or silent payments wallet. A lookup; it
+    /// derives nothing.
+    fn wallet_key_here(&self, i: usize, slot: u8) -> Option<osk_bip::keys::Fingerprint> {
+        let w = self.session.wallets.get(i)?;
+        if w.policy().record().is_some() || w.policy().silent().is_some() {
+            return None;
+        }
+        let fp = w.policy().keys().get(usize::from(slot))?.fingerprint()?;
+        self.session
+            .keys
+            .iter()
+            .any(|k| k.fingerprint() == fp)
+            .then_some(fp)
     }
 
     /// A wallet key's BIP 129 key record, signed by the key: for a `wsh`
@@ -8786,7 +8952,7 @@ impl Faraday {
             .ok_or(EN.create_key_text_a_chosen)?;
         Ok((
             fp_text(osk_bip::keys::Fingerprint(*fp)),
-            c.kind.key_text_account(key.master(), c.account)?,
+            key.account_text(c.kind, c.account)?,
         ))
     }
 
@@ -8850,7 +9016,7 @@ impl Faraday {
                         .iter()
                         .find(|k| k.fingerprint().0 == *fp)
                         .ok_or(EN.create_keys_a_chosen)?;
-                    out.push(c.kind.key_text_account(key.master(), c.account)?);
+                    out.push(key.account_text(c.kind, c.account)?);
                 }
                 create::Source::Cosigner(text) => out.push(text.clone()),
             }
@@ -11887,6 +12053,15 @@ impl Faraday {
     /// backup's cards share are worked out once and kept only until it
     /// returns, by whatever way it returns.
     fn render(&mut self) {
+        // What is kept read on the state and was dropped by a change since
+        // the last frame is read again before drawing, which only looks
+        // it up (`docs/SPEED.md` §3.3).
+        for o in &self.vaults.open {
+            o.contents.warm();
+        }
+        // Costly work from here on panics in debug and test builds unless
+        // the drawing memo is filling a cell (`docs/SPEED.md` §3.3).
+        let _frame = work::Frame::begin();
         self.drawing.start();
         self.render_frame();
         self.drawing.clear();

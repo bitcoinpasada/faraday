@@ -5363,7 +5363,7 @@ pub(crate) fn item_title(app: &Faraday, n: u8) -> (String, String) {
     let done = app.backup_item_done(item);
     match item {
         Item::Templates => {
-            let k = crate::plan::templates(&shape, a).max(1);
+            let k = crate::plan::templates_on(&shape, &app.plan_mapped(&shape, a)).max(1);
             (
                 fill(
                     EN.item_title_print_blank,
@@ -6270,7 +6270,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
             let line = fill(
                 EN.item_templates_starter,
                 &[
-                    &crate::plan::templates(&shape, &b.answers)
+                    &crate::plan::templates_on(&shape, &app.plan_mapped(&shape, &b.answers))
                         .max(1)
                         .to_string(),
                     &b.words.to_string(),
@@ -6387,16 +6387,18 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                     })
                     .collect();
                     cy += wrap_buttons(ui, x, cy, w, 34.0, &items) + 6.0;
-                    if let Ok(mn) = crate::wallet::parse_words(lang, words) {
+                    // A secret shown: drawn from the words each frame.
+                    let matrix = crate::work::allowed(crate::work::Allowed::SecretShown, || {
+                        let mn = crate::wallet::parse_words(lang, words).ok()?;
                         crate::work::count(crate::work::Work::QrEncode);
-                        let matrix = if b.compact {
-                            osk_codec::seedqr::encode_compact(&mn)
+                        if b.compact {
+                            osk_codec::seedqr::encode_compact(&mn).ok()
                         } else {
-                            osk_codec::seedqr::encode_seedqr(&mn)
-                        };
-                        if let Ok(mx) = matrix {
-                            cy += seed_grid(ui, &mx, x, cy, w.min(560.0), b.pin) + 12.0;
+                            osk_codec::seedqr::encode_seedqr(&mn).ok()
                         }
+                    });
+                    if let Some(mx) = matrix {
+                        cy += seed_grid(ui, &mx, x, cy, w.min(560.0), b.pin) + 12.0;
                     }
                 }
                 cy += paper_section(app, ui, x, cy, w);
@@ -6512,7 +6514,7 @@ fn backup_body(app: &Faraday, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32
                 cy += map_rows(app, ui, x, cy, w, false);
             } else {
                 let shape = app.plan_shape(b.wallet);
-                for spot in crate::plan::place_map(&shape, &b.answers) {
+                for spot in &app.plan_mapped(&shape, &b.answers).places {
                     let crate::plan::At::Place(p) = spot.at else {
                         continue;
                     };
@@ -14508,6 +14510,15 @@ fn kept_sections(
     ]
 }
 
+/// A kept sheet's line, its tone, a labelled row, and a code to show
+/// with its text.
+type SheetLine<'a> = (
+    &'a str,
+    osk_ui::Color,
+    Option<(&'a str, &'a str)>,
+    Option<(&'a str, &'a osk_codec::qr::QrMatrix)>,
+);
+
 /// A sheet that says what a lock or a power-off does: its title, a line,
 /// the sections, each line wrapped to the sheet, and its buttons.
 fn kept_sheet(
@@ -14515,7 +14526,7 @@ fn kept_sheet(
     w: f32,
     h: f32,
     head: (Glyph, osk_ui::Color, &str),
-    (line, line_tone, row, code): (&str, osk_ui::Color, Option<(&str, &str)>, &str),
+    (line, line_tone, row, code): SheetLine<'_>,
     sections: &[(&str, Vec<(String, osk_ui::Color)>)],
     actions: &[(&str, Style, Action)],
 ) {
@@ -14542,18 +14553,12 @@ fn kept_sheet(
         if let Some((label, value)) = row {
             cy += crate::compact::kv(ui, x, cy, iw, label, value, TEXT);
         }
-        if !code.is_empty() {
+        if let Some((code, m)) = code {
             // The same size the Starter's restart sheet draws its code.
             let side = if ui.compact { 104.0f32 } else { 160.0 }.min(iw);
-            crate::work::count(crate::work::Work::QrEncode);
-            if let Ok(m) = osk_codec::qr::encode(
-                osk_codec::qr::Payload::Bytes(code.as_bytes()),
-                osk_codec::qr::Ecc::Medium,
-            ) {
-                qr_code(ui, &m, x, cy, side);
-                cy += side + 10.0;
-                cy += ui.wrap(x, cy, iw, 12.0, W::M, MUTED, code) + 12.0;
-            }
+            qr_code(ui, m, x, cy, side);
+            cy += side + 10.0;
+            cy += ui.wrap(x, cy, iw, 12.0, W::M, MUTED, code) + 12.0;
         }
         for (name, lines) in sections {
             if lines.is_empty() {
@@ -14605,7 +14610,7 @@ fn lock_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         w,
         h,
         (app.medium.icon(), WARN, &attached),
-        (&line, MUTED, None, ""),
+        (&line, MUTED, None, None),
         &kept_sections(app, false, then),
         &[
             (EN.lock_not_now, Style::Secondary, Action::NotNow),
@@ -14624,7 +14629,7 @@ fn write_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         w,
         h,
         (app.medium.icon(), ACCENT, &title),
-        ("", MUTED, None, ""),
+        ("", MUTED, None, None),
         &kept_sections(app, false, then),
         &[
             (EN.write_out_not_now, Style::Secondary, Action::Cancel),
@@ -15592,17 +15597,15 @@ fn power_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
         buttons.push((EN.power_restart, Style::Secondary, Action::Restart));
     }
     buttons.push((EN.power_power_off, Style::Primary, Action::PowerOff));
+    // The guide's address, and its code: made once, kept on the state.
+    let guide = app.secure_boot_guide().filter(|g| !g.is_empty());
+    let guide_qr = guide.as_deref().and_then(|g| app.public_qr(g));
     kept_sheet(
         ui,
         w,
         h,
         (Icon::Power.into(), TEXT, title),
-        (
-            line,
-            WARN,
-            row,
-            &app.secure_boot_guide().unwrap_or_default(),
-        ),
+        (line, WARN, row, guide.as_deref().zip(guide_qr.as_deref())),
         &kept_sections(app, true, then.to_string()),
         &buttons,
     );
@@ -15749,7 +15752,13 @@ fn secret_out_sheet(app: &Faraday, ui: &mut Ui, w: f32, h: f32) {
     let v = app.vaults.current;
     let vault = app.vaults.open.get(v).map(|o| {
         let held = match out.keep {
-            crate::secrets::Keep::Key { fp, .. } => crate::vault_screens::vault_has_key(app, v, fp),
+            // The key itself, told by its master key's id (F65).
+            crate::secrets::Keep::Key { key, fp } => app
+                .session
+                .keys
+                .get(key)
+                .filter(|k| k.fingerprint() == fp)
+                .is_some_and(|k| crate::vault_screens::vault_has_key(app, v, k)),
             _ => false,
         };
         (o.name.as_str(), held)

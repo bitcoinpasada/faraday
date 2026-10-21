@@ -1203,7 +1203,7 @@ impl Faraday {
         self.inbox.iter().chain(self.outbox.iter()).any(|it| {
             it.kind == FileKind::Vault
                 && fv::read_header(&it.bytes).is_ok_and(|h| &h.salt == salt)
-                && &sha256_of(&it.bytes) != sha
+                && &it.hash() != sha
         })
     }
 
@@ -1215,7 +1215,7 @@ impl Faraday {
         }) else {
             return String::new();
         };
-        let hash = sha256_of(&it.bytes);
+        let hash = it.hash();
         self.vault_from
             .iter()
             .find(|(n, h, _)| n == &it.name || *h == hash)

@@ -21,6 +21,32 @@ pub const START_NETWORK: Network = Network::Mainnet;
 // at the paths this crate has always had them.
 pub use faraday_intake::wallet::{Refusal, network_name, network_of_key, policy_network};
 
+/// What tells one seed's words from another's, from whichever list they
+/// are read: the SHA-256 of their entropy, all 32 bytes, so that two
+/// seeds never pass for one (F65: what cannot be told apart is not
+/// counted as kept). A hash of secret entropy: kept only beside what it
+/// is of (a key, an open vault's records), wiped when dropped, never
+/// written anywhere.
+pub type WordsId = zeroize::Zeroizing<[u8; 32]>;
+
+/// What tells one master key from another in all 32 bytes, the
+/// passphrase applied: the SHA-256 of its public key and chain code, the
+/// same on every network. Public (a hash of public data); what "this
+/// vault holds this key" compares, where the 4-byte fingerprint only
+/// finds a candidate (F65). Costs an elliptic-curve multiplication.
+pub fn master_id(m: &MasterKey) -> [u8; 32] {
+    let x = m.xpub();
+    let mut bytes = x.public_key.serialize().to_vec();
+    bytes.extend_from_slice(x.chain_code.as_bytes());
+    crate::sha256_of(&bytes)
+}
+
+/// [`WordsId`] of `m`'s words. Costs a hash; the words are parsed already.
+pub fn words_id(m: &Mnemonic) -> WordsId {
+    let entropy = m.entropy();
+    zeroize::Zeroizing::new(crate::sha256_of(entropy.expose().as_bytes()))
+}
+
 /// Reads a wallet description: `faraday_intake`'s reader, counted
 /// ([`crate::work`]). Costs a parse of the description and its keys.
 pub fn read_wallet(text: &str) -> Result<WalletPolicy, Refusal> {
@@ -47,6 +73,9 @@ pub(crate) use faraday_intake::wallet::{json_string, network_of_kind};
 pub struct Key {
     /// The master key.
     master: MasterKey,
+    /// [`master_id`] of the master key, worked out once when the key is
+    /// made; the same on every network.
+    master_id: [u8; 32],
     /// The master key's fingerprint, worked out once when the key is made.
     /// Public, and the same on every network.
     fp: Fingerprint,
@@ -65,6 +94,20 @@ pub struct Key {
     /// The BIP-39 passphrase it was loaded with, when it has one. Wiped
     /// with the session.
     pub passphrase: Option<zeroize::Zeroizing<String>>,
+    /// Its public key texts asked for, each derived once
+    /// ([`Key::account_text`], [`Key::text_at`]), by what was asked:
+    /// public, and dropped when the master key moves network.
+    public: std::cell::RefCell<Vec<(PublicAsk, Result<String, String>)>>,
+    /// Its words' [`WordsId`] ([`Key::words_id`]), once worked out:
+    /// wiped with the key.
+    words_id: std::cell::OnceCell<Option<WordsId>>,
+}
+
+/// A public key text a [`Key`] keeps: a kind's account, or a path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum PublicAsk {
+    Account(crate::create::NewKind, u32),
+    Path(String),
 }
 
 impl Key {
@@ -80,20 +123,84 @@ impl Key {
     ) -> Key {
         crate::work::count(crate::work::Work::MasterKey);
         let fp = master.fingerprint();
+        let master_id = master_id(&master);
         Key {
             master,
+            master_id,
             fp,
             label,
             words,
             language,
             share,
             passphrase,
+            public: std::cell::RefCell::new(Vec::new()),
+            words_id: std::cell::OnceCell::new(),
         }
+    }
+
+    /// What tells its words apart from other words, whatever list they
+    /// were typed from and whatever passphrase is added ([`WordsId`]):
+    /// worked out the first time it is asked, by whoever asks, a frame
+    /// included, and kept on the key until it is dropped. `None` for a key
+    /// with no words. Costs a parse of the words the first time.
+    pub fn words_id(&self) -> Option<&[u8; 32]> {
+        let words = self.words.as_ref()?;
+        self.words_id
+            .get_or_init(|| {
+                crate::work::keeping(|| Some(words_id(&parse_words(self.language, words).ok()?)))
+            })
+            .as_deref()
+    }
+
+    /// `[fingerprint/path]xpub` at `kind`'s path with account `account`
+    /// ([`crate::create::NewKind::key_text_account`]): derived the first
+    /// time it is asked, by whoever asks, a frame included, and kept on
+    /// the key, a lookup after. Costs a key derivation the first time.
+    pub fn account_text(
+        &self,
+        kind: crate::create::NewKind,
+        account: u32,
+    ) -> Result<String, String> {
+        self.public_text(PublicAsk::Account(kind, account), || {
+            kind.key_text_account(&self.master, account)
+        })
+    }
+
+    /// `[fingerprint/path]xpub` at `path` ([`crate::create::key_text_at`]),
+    /// kept as [`Key::account_text`] is. Costs a key derivation the first
+    /// time.
+    pub fn text_at(&self, path: &str) -> Result<String, String> {
+        self.public_text(PublicAsk::Path(path.to_string()), || {
+            crate::create::key_text_at(&self.master, path)
+        })
+    }
+
+    fn public_text(
+        &self,
+        ask: PublicAsk,
+        derive: impl FnOnce() -> Result<String, String>,
+    ) -> Result<String, String> {
+        if let Some((_, t)) = self.public.borrow().iter().find(|(a, _)| *a == ask) {
+            return t.clone();
+        }
+        let t = crate::work::keeping(derive);
+        let mut kept = self.public.borrow_mut();
+        if kept.len() >= 64 {
+            kept.clear();
+        }
+        kept.push((ask, t.clone()));
+        t
     }
 
     /// The master key.
     pub fn master(&self) -> &MasterKey {
         &self.master
+    }
+
+    /// [`master_id`] of its master key; a lookup, kept when the key was
+    /// made.
+    pub fn master_id(&self) -> [u8; 32] {
+        self.master_id
     }
 
     /// The master key's fingerprint; a lookup, kept when the key was made.
@@ -105,6 +212,7 @@ impl Key {
     /// every network.
     pub fn set_network(&mut self, network: Network) {
         self.master = self.master.for_network(network);
+        self.public.borrow_mut().clear();
     }
 
     /// Whether the key's words are the ones with these BIP-39 `indices`;
@@ -176,6 +284,10 @@ pub struct Wallet {
     /// second language would not carry. [`source_tag`] and Family's
     /// routing (`family.rs`) read this, not the words.
     pub origin: Origin,
+    /// The addresses asked of it, each derived once, by network, chain
+    /// and index ([`Wallet::address_on`]): public, and dropped with the
+    /// policy they come from ([`Wallet::set_policy`]).
+    addresses: std::cell::RefCell<Vec<(Network, bool, u32, String)>>,
 }
 
 impl Wallet {
@@ -188,7 +300,39 @@ impl Wallet {
             checksum,
             source,
             origin,
+            addresses: std::cell::RefCell::new(Vec::new()),
         }
+    }
+
+    /// Its address on `network` at `change`/`index`, or why there is
+    /// none: derived the first time it is asked and kept on the wallet, a
+    /// lookup after (`docs/SPEED.md` §2: a kept value is public and goes
+    /// with what it describes). A frame that shows an address asks it
+    /// again every frame; it is derived once. Costs an address derivation
+    /// the first time.
+    pub fn address_on(&self, network: Network, change: bool, index: u32) -> String {
+        if let Some((.., a)) = self
+            .addresses
+            .borrow()
+            .iter()
+            .find(|(n, c, i, _)| *n == network && *c == change && *i == index)
+        {
+            return a.clone();
+        }
+        let a = crate::work::keeping(|| {
+            crate::work::count(crate::work::Work::Address);
+            self.policy
+                .address_at(network, change, index)
+                .map(|a| a.to_string())
+                .unwrap_or_else(|e| fill(EN.wallet_no_address, &[&e.to_string()]))
+        });
+        let mut kept = self.addresses.borrow_mut();
+        // A long walk through addresses keeps the latest only.
+        if kept.len() >= 256 {
+            kept.clear();
+        }
+        kept.push((network, change, index, a.clone()));
+        a
     }
 
     /// The policy, as it was read.
@@ -207,6 +351,7 @@ impl Wallet {
     pub fn set_policy(&mut self, policy: WalletPolicy) {
         self.checksum = policy.checksum();
         self.policy = policy;
+        self.addresses.borrow_mut().clear();
     }
 }
 
@@ -775,13 +920,9 @@ impl Session {
     }
 
     /// An address of the wallet, on the session's network.
+    /// Derived once per wallet and kept on it ([`Wallet::address_on`]).
     pub fn address(&self, wallet: &Wallet, change: bool, index: u32) -> String {
-        crate::work::count(crate::work::Work::Address);
-        wallet
-            .policy
-            .address_at(self.network, change, index)
-            .map(|a| a.to_string())
-            .unwrap_or_else(|e| fill(EN.wallet_no_address, &[&e.to_string()]))
+        wallet.address_on(self.network, change, index)
     }
 
     /// The public seed New key adds next while the demo is on, as its

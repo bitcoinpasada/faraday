@@ -273,7 +273,7 @@ impl Faraday {
         if let Some((_, fp)) = self.fp_memo.borrow().iter().find(|(k, _)| *k == id) {
             return Some(*fp);
         }
-        let fp = f()?;
+        let fp = crate::work::keeping(f)?;
         self.fp_memo.borrow_mut().push((id, fp));
         Some(fp)
     }
@@ -378,14 +378,16 @@ impl Faraday {
     }
 
     /// Everything the Inbox gives, put together. Kept in the drawing memo
-    /// while a frame is drawn (`docs/SPEED.md` §3.3). Costs a read of
-    /// every Inbox file that may describe a wallet or a seed.
+    /// while a frame is drawn (`docs/SPEED.md` §3.3). Each wallet file is
+    /// read when it came in ([`crate::Item::wallet`]) and each seed's
+    /// fingerprint is kept once worked out; costs a merge of any split
+    /// sheets.
     pub fn inbox_found(&self) -> Found {
         if self.drawing.is_on() {
             return self
                 .drawing
                 .inbox_found
-                .get_or_init(|| self.found_in(&self.inbox))
+                .get_or_init(|| crate::work::filling(|| self.found_in(&self.inbox)))
                 .clone();
         }
         self.found_in(&self.inbox)
@@ -550,13 +552,10 @@ impl Faraday {
         // they name is not a potential wallet.
         let push_wallet = |found: &mut Found,
                            name: String,
-                           text: &str,
+                           policy: osk_bip::policy::WalletPolicy,
                            file: Option<usize>,
                            shares: bool,
                            loaded: bool| {
-            let Ok(policy) = crate::wallet::read_wallet(text) else {
-                return;
-            };
             let descriptor = crate::wallet::same_wallet(&policy);
             if let Some(w) = found
                 .wallets
@@ -600,16 +599,15 @@ impl Faraday {
             .map(|w| crate::wallet::same_wallet(w.policy()))
             .collect();
         for (k, item) in items.iter().enumerate() {
-            if item.kind != FileKind::Wallet {
+            // Read when the file came in.
+            let Some(policy) = item.wallet() else {
                 continue;
-            }
-            let text = String::from_utf8_lossy(&item.bytes).into_owned();
-            let loaded = crate::wallet::read_wallet(&text)
-                .is_ok_and(|p| loaded_desc.contains(&crate::wallet::same_wallet(&p)));
+            };
+            let loaded = loaded_desc.contains(&crate::wallet::same_wallet(policy));
             push_wallet(
                 &mut found,
                 self.wallet_name_in(items, k),
-                &text,
+                policy.clone(),
                 Some(k),
                 false,
                 loaded,
@@ -628,9 +626,10 @@ impl Faraday {
                             .ok()
                             .and_then(|(_, n)| n)
                             .unwrap_or_else(|| EN.inbox_restored_wallet.to_string());
-                        let loaded = crate::wallet::read_wallet(&whole)
-                            .is_ok_and(|p| loaded_desc.contains(&crate::wallet::same_wallet(&p)));
-                        push_wallet(&mut found, name, &whole, None, true, loaded);
+                        if let Some(p) = self.read_kept(&whole) {
+                            let loaded = loaded_desc.contains(&crate::wallet::same_wallet(&p));
+                            push_wallet(&mut found, name, p, None, true, loaded);
+                        }
                     }
                     None => found.waiting.push(Waiting {
                         line: fill(
@@ -647,14 +646,21 @@ impl Faraday {
             }
         }
         for w in &self.session.wallets {
-            push_wallet(
-                &mut found,
-                w.name.clone(),
-                &w.policy().to_descriptor(),
-                None,
-                false,
-                true,
-            );
+            // As its descriptor reads: a silent payments wallet has none
+            // (its "descriptor" is its address), and a threshold wallet's
+            // reads as the plain wallet it signs as, which only a parse
+            // gives; any other is its own policy, with nothing to read.
+            let policy = if w.policy().silent().is_some() {
+                continue;
+            } else if w.policy().record().is_some() {
+                match self.read_kept(&w.policy().to_descriptor()) {
+                    Some(p) => p,
+                    None => continue,
+                }
+            } else {
+                w.policy().clone()
+            };
+            push_wallet(&mut found, w.name.clone(), policy, None, false, true);
         }
         let seeds: Vec<Fingerprint> = found.seeds.iter().map(|s| s.fingerprint).collect();
         for w in found.wallets.iter_mut() {
@@ -1103,7 +1109,7 @@ impl Faraday {
         let Some(key) = self.session.keys.iter().find(|k| k.fingerprint() == fp) else {
             return;
         };
-        let text = match kind.key_text(key.master()) {
+        let text = match key.account_text(kind, 0) {
             Ok(t) => t,
             Err(e) => {
                 if let Some(p) = self.potential.as_mut() {

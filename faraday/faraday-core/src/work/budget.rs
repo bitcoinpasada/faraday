@@ -19,117 +19,17 @@ use crate::{Action, Faraday, Screen, Sheet, StorageEvent, bstep, cstep, testkit}
 /// What one frame of a screen may work out each time it is drawn, in
 /// this session, with the reason: (screen, kind, budget, why). `*` is
 /// every screen; a screen's own line wins over it. Every kind not listed
-/// has a budget of none. The memo is emptied after each frame (§3.3), so
-/// what it keeps is worked out once a frame and counts here; what is
-/// kept on the state (a key's fingerprint, a wallet's checksum) is never
-/// worked out while drawing. The counts follow the session: the test
-/// vault keeps 12 wallets and 1 seed, the Inbox holds the test stick's
-/// files.
-const BUDGETS: &[(&str, Work, u64, &str)] = &[
-    (
-        "*",
-        Work::PlanMap,
-        2,
-        "the backup's checklist and its copy forms, once a frame through the memo (backup_items, copy_forms)",
-    ),
-    (
-        "Load sheet",
-        Work::DescriptorParse,
-        12,
-        "each wallet record of the vault, once a frame through the memo (vault_load_view, F62)",
-    ),
-    (
-        "Home",
-        Work::DescriptorParse,
-        12,
-        "every wallet known (backups): each open vault's wallet records, once a frame through the memo",
-    ),
-    (
-        "Backups",
-        Work::DescriptorParse,
-        12,
-        "every wallet known (backups), once a frame through the memo",
-    ),
-    (
-        "Wallets",
-        Work::DescriptorParse,
-        12,
-        "the card's backup line (backups), once a frame through the memo",
-    ),
-    (
-        "Wallets",
-        Work::Address,
-        1,
-        "the card's receive line derives the one address it shows",
-    ),
-    (
-        "Wallets",
-        Work::WordsParse,
-        1,
-        "the seeds open vaults keep without a passphrase, each key record's words once a frame through the memo (vault_passphrase_seeds, F62)",
-    ),
-    (
-        "Wallet chart",
-        Work::DescriptorParse,
-        12,
-        "the backup line and the chart's nodes (backups), once a frame through the memo",
-    ),
-    (
-        "Wallet chart",
-        Work::WordsParse,
-        1,
-        "vault_passphrase_seeds, once a frame through the memo (F62)",
-    ),
-    // TODO: glance::backup_nodes maps the plan again in each plan helper
-    // (plan::alone, plan::check, plan::checklist through place_map).
-    (
-        "Wallet chart",
-        Work::PlanMap,
-        9,
-        "the chart's backup nodes ask plan helpers that each map the plan",
-    ),
-    // TODO: found_in (inbox.rs) reads some Inbox files more than once
-    // (39 + 26 parses for the test stick's files), and
-    // vault_wallets_with_keys parses the vault's wallets beside
-    // vault_rows (12 each).
-    (
-        "Files",
-        Work::DescriptorParse,
-        89,
-        "what the Inbox gives (inbox_found) and each open vault's rows, once a frame through the memo",
-    ),
-    // TODO: plan_cards::body, plan_cards::summary and the board's own
-    // lines call plan helpers (plan::alone, kept_nowhere, reach, check,
-    // lost_why) that each map the plan again through place_map.
-    (
-        "Backup board",
-        Work::PlanMap,
-        25,
-        "the plan card's lines, each from a plan helper that maps the plan",
-    ),
-    (
-        "Backup reopened",
-        Work::PlanMap,
-        25,
-        "the plan card's lines, as on the board",
-    ),
-    // TODO: backup_screen and its cards map the plan per card and per
-    // seed (14 + 12 directly, the rest through plan helpers).
-    (
-        "Backup checklist",
-        Work::PlanMap,
-        43,
-        "the checklist's cards and map, each from a plan helper that maps the plan",
-    ),
-    // TODO: wallet_slot_files asks backup_public_names_for twice per
-    // frame, each deriving the three account keys (3 would do).
-    (
-        "Backup checklist",
-        Work::KeyDerive,
-        6,
-        "the sticks card's public file names name each account key (wallet_stick_rows, once a frame through the memo)",
-    ),
-];
+/// has a budget of none. What a frame reads is kept on the state, worked
+/// out once from what it describes and again only when that changes: a
+/// key's fingerprint, a wallet's checksum and addresses, an account
+/// key's text, each Inbox file's wallet, each open vault's wallet
+/// records and word counts, each plan's map and check (`docs/SPEED.md`
+/// §3.3). The frame before the one counted works out what a change left
+/// to work out, so a frame drawn again works out nothing; a line here is
+/// a screen that cannot keep what it draws, and says why. The session:
+/// the test vault keeps 12 wallets and 1 seed, the Inbox holds the test
+/// stick's files.
+const BUDGETS: &[(&str, Work, u64, &str)] = &[];
 
 /// The budget of `kind` on `screen`.
 fn budget(screen: &str, kind: Work) -> u64 {
@@ -183,7 +83,7 @@ fn key_made_here(app: &mut Faraday, slot: u8, seed: usize) {
 
 /// The heaviest session: see the module's comment. Returns the app and
 /// the 2-of-3's index.
-fn heavy() -> (Faraday, usize) {
+pub(super) fn heavy() -> (Faraday, usize) {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
@@ -251,6 +151,26 @@ fn heavy() -> (Faraday, usize) {
     let w = w.expect("the 2-of-3 was made");
     assert_eq!(app.session.keys.len(), 3);
     (app, w)
+}
+
+/// The test vault, unlocked from the Vaults tab with its first passphrase.
+pub(super) fn unlock_test_vault(app: &mut Faraday) {
+    app.press(Action::Nav(Screen::Vaults));
+    let n = app
+        .vault_files()
+        .iter()
+        .position(|f| f.name == "vault.ofv")
+        .expect("the test vault is listed");
+    app.press(Action::Vault(V::Open(n)));
+    type_text(app, testkit::VAULT_PASSPHRASES[0]);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults.open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
 }
 
 /// The work of one frame of the screen as it stands, drawn again with
@@ -336,22 +256,7 @@ fn a_frame_drawn_again_and_a_pointer_move_do_no_costly_work_beyond_the_budget() 
 
     // The test vault unlocked from the Vaults tab: its Load sheet, then
     // everything it keeps loaded.
-    app.press(Action::Nav(Screen::Vaults));
-    let n = app
-        .vault_files()
-        .iter()
-        .position(|f| f.name == "vault.ofv")
-        .expect("the test vault is listed");
-    app.press(Action::Vault(V::Open(n)));
-    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
-    app.press(Action::Vault(V::Unlock));
-    for t in 1..60u64 {
-        if !app.vaults.open.is_empty() {
-            break;
-        }
-        let _ = app.frame();
-        app.event(Event::Tick { now_ms: t * 1000 });
-    }
+    unlock_test_vault(&mut app);
     assert_eq!(
         app.sheet,
         Some(Sheet::UnlockLoad),

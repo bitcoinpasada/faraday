@@ -15,9 +15,13 @@ use osk_bip::keys::Fingerprint;
 use crate::wallet::{self, fp_text};
 use crate::{Action, BStage, Faraday, Screen, bstep, plan};
 
-/// Whether vault key record `r` holds the words of session key `key`.
-fn same_words(r: &Record, key: &wallet::Key) -> bool {
-    crate::wallet::record_words(r).is_some_and(|m| key.words_are(m.indices()))
+/// Whether vault key record `r` holds the words of session key `key`,
+/// from whichever list: told by the SHA-256 of each one's entropy
+/// ([`wallet::WordsId`]), all 32 bytes, both kept once worked out, so
+/// nothing parses the words again and two seeds never pass for one.
+fn same_words(app: &Faraday, r: &Record, key: &wallet::Key) -> bool {
+    key.words_id()
+        .is_some_and(|id| app.record_words_id(r).is_some_and(|x| *x == *id))
 }
 
 /// Whether vault key record `r` says its key's backup is pending.
@@ -35,7 +39,7 @@ impl Faraday {
             return false;
         };
         open.contents.of(kind::KEY).any(|(_, r)| {
-            same_words(r, key)
+            same_words(self, r, key)
                 && (!with_pass
                     || r.text(field::KEY_PASSPHRASE)
                         .is_some_and(|p| key.passphrase.as_ref().is_some_and(|q| q.as_str() == p)))
@@ -58,7 +62,7 @@ impl Faraday {
             return self
                 .drawing
                 .held
-                .get_or_init(|| self.held_keys_uncached())
+                .get_or_init(|| crate::work::filling(|| self.held_keys_uncached()))
                 .clone();
         }
         self.held_keys_uncached()
@@ -134,7 +138,7 @@ impl Faraday {
                 }
             }
             for (_, r) in open.contents.of(kind::KEY).filter(|(_, r)| pending(r)) {
-                for k in self.session.keys.iter().filter(|k| same_words(r, k)) {
+                for k in self.session.keys.iter().filter(|k| same_words(self, r, k)) {
                     add(k.fingerprint());
                 }
             }
@@ -228,7 +232,11 @@ impl Faraday {
     pub fn backup_kept_nowhere(&self) -> Option<String> {
         let b = self.backup.as_ref()?;
         let shape = self.plan_shape(b.wallet);
-        plan::kept_nowhere(&shape, &b.answers, &self.backup_held_seeds())
+        plan::kept_nowhere_on(
+            &shape,
+            &self.plan_mapped(&shape, &b.answers),
+            &self.backup_held_seeds(),
+        )
     }
 
     /// Before an open vault is sealed: every held key's record in it says
@@ -243,15 +251,20 @@ impl Faraday {
             let mut changed = false;
             for &k in &keys {
                 let key = &self.session.keys[k];
-                for r in self.vaults.open[v].contents.records.iter_mut() {
-                    if r.kind == kind::KEY && same_words(r, key) && !pending(r) {
-                        let flags = r
-                            .field(field::KEY_FLAGS)
-                            .and_then(|f| f.first().copied())
-                            .unwrap_or(0);
-                        r.set(field::KEY_FLAGS, &[flags | records::BACKUP_PENDING]);
-                        changed = true;
-                    }
+                let marks: Vec<usize> = self.vaults.open[v]
+                    .contents
+                    .of(kind::KEY)
+                    .filter(|(_, r)| same_words(self, r, key) && !pending(r))
+                    .map(|(i, _)| i)
+                    .collect();
+                for i in marks {
+                    let r = &mut self.vaults.open[v].contents.records[i];
+                    let flags = r
+                        .field(field::KEY_FLAGS)
+                        .and_then(|f| f.first().copied())
+                        .unwrap_or(0);
+                    r.set(field::KEY_FLAGS, &[flags | records::BACKUP_PENDING]);
+                    changed = true;
                 }
             }
             if changed {
@@ -284,13 +297,14 @@ impl Faraday {
         let writes = items.contains(&bstep::STICKS);
         let shape = self.plan_shape(w);
         let list = self.backup_seed_list(w);
+        let mapped = self.plan_mapped(&shape, &b.answers);
         // A seed kept on any stick, a vault's or a file's, waits for it.
-        let in_vault = |i: usize| b.answers.seed_on_stick(&shape, i);
+        let in_vault = |i: usize| mapped.seed_on_stick(i);
         let released: Vec<(Fingerprint, usize)> = self
             .backup_held_seeds()
             .into_iter()
             .filter(|&i| !(writes && in_vault(i)))
-            .filter(|&i| plan::kept_nowhere(&shape, &b.answers, &[i]).is_none())
+            .filter(|&i| plan::kept_nowhere_on(&shape, &mapped, &[i]).is_none())
             .filter_map(|i| {
                 let k = list.get(i)?.1?;
                 Some((self.session.keys.get(k)?.fingerprint(), k))
@@ -328,15 +342,36 @@ impl Faraday {
             let Some(key) = self.session.keys.get(k) else {
                 return;
             };
-            for r in self.vaults.open[v].contents.records.iter_mut() {
-                if r.kind == kind::KEY && same_words(r, key) && pending(r) {
-                    let flags = r
-                        .field(field::KEY_FLAGS)
-                        .and_then(|f| f.first().copied())
-                        .unwrap_or(0);
-                    r.set(field::KEY_FLAGS, &[flags & !records::BACKUP_PENDING]);
-                    changed = true;
-                }
+            let marks: Vec<usize> = self.vaults.open[v]
+                .contents
+                .of(kind::KEY)
+                .filter(|(_, r)| same_words(self, r, key) && pending(r))
+                .map(|(i, _)| i)
+                .collect();
+            for i in marks {
+                let r = &mut self.vaults.open[v].contents.records[i];
+                let flags = r
+                    .field(field::KEY_FLAGS)
+                    .and_then(|f| f.first().copied())
+                    .unwrap_or(0);
+                r.set(field::KEY_FLAGS, &[flags & !records::BACKUP_PENDING]);
+                changed = true;
+            }
+            // The plans that name the key held: only those change.
+            let plans: Vec<usize> = self.vaults.open[v]
+                .contents
+                .of(kind::PLAN)
+                .filter(|(_, r)| {
+                    r.text(field::PLAN_ANSWERS).is_some_and(|a| {
+                        plan::held_in(a)
+                            .iter()
+                            .any(|h| h.eq_ignore_ascii_case(&text))
+                    })
+                })
+                .map(|(i, _)| i)
+                .collect();
+            for i in plans {
+                let r = &mut self.vaults.open[v].contents.records[i];
                 if r.kind == kind::PLAN
                     && let Some(answers) = r.text(field::PLAN_ANSWERS)
                     && plan::held_in(answers)
@@ -445,18 +480,19 @@ impl Faraday {
         let Some(open) = self.vaults.open.get_mut(cur) else {
             return;
         };
-        let mut changed = false;
-        for r in open.contents.records.iter_mut() {
-            let ours = r.kind == kind::WALLET
-                && r.text(field::WALLET)
-                    .and_then(|t| crate::wallet::read_wallet(t).ok())
-                    .is_some_and(|p| crate::wallet::same_wallet(&p) == want);
-            if ours && faraday_vault::records::loads_at_unlock(r) != loads {
-                faraday_vault::records::set_loads_at_unlock(r, loads);
-                changed = true;
-            }
+        // This wallet's records whose mark is not as wanted yet.
+        let to_set: Vec<usize> = open
+            .contents
+            .described_of(kind::WALLET)
+            .filter(|(_, r, d)| {
+                d.same == want && faraday_vault::records::loads_at_unlock(r) != loads
+            })
+            .map(|(i, _, _)| i)
+            .collect();
+        for &i in &to_set {
+            faraday_vault::records::set_loads_at_unlock(&mut open.contents.records[i], loads);
         }
-        if changed {
+        if !to_set.is_empty() {
             open.changes += 1;
         }
     }

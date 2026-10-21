@@ -104,6 +104,7 @@ fn the_session_strip_names_the_current_stage() {
         secret: false,
         picture: None,
         sha: None,
+        wallet: None,
     });
     assert_eq!(app.session_stage(), "Write out");
     app.storage(faraday_core::StorageEvent::Sticks(vec![
