@@ -446,6 +446,15 @@ map in `lib.rs` has a table from every `Screen` variant to its file.
 | `lib.rs`'s `*State` structs | their area's `mod.rs`, or `state.rs` where there is no area |
 | `screens.rs` | `screens/mod.rs`: the `Screen` enum's dispatch, the sidebar, sheets and shared parts. Each inline screen goes to its area's `screen.rs`, or to `screens/<name>.rs` |
 
+**Crate edges, measured in step 5.**
+- **faraday-storage stays on faraday-core.** It is the layer between the
+  shells and the app: it takes `&mut Faraday` and feeds stick events
+  into it. The review's "a handful of types" missed that.
+- **faraday-starter takes its strings from faraday-strings.** It still
+  uses faraday-core for the PDF writer, version comparison, EDID, the
+  mark and the blank backup sheet. Moving those out is a separate piece
+  of work, done only if a reason comes up.
+
 The steps, each its own commit with `just` green and the literal and
 test-list checks unchanged:
 1. the folders;

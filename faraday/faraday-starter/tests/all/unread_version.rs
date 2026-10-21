@@ -4,7 +4,6 @@
 //! the elevated copy to read it once, then applies the stick's own
 //! rules; a declined prompt says so and nothing is written.
 
-use faraday_core::strings::EN;
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::api::{
     Bus, Computer, Disk, FaradayStick, Mode, Os, Payload, PayloadFile, Reason, StarterCommand,
@@ -12,6 +11,7 @@ use faraday_starter::api::{
 };
 use faraday_starter::decide::Target;
 use faraday_starter::{Page, Starter, StarterAction};
+use faraday_strings::EN;
 
 const GB: u64 = 1_000_000_000;
 

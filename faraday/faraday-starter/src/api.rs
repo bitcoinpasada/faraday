@@ -392,7 +392,7 @@ pub enum StickFault {
 }
 
 /// Why something the shell was asked to do did not happen: the one list
-/// the screens turn into `starter_` strings (`faraday_core::strings`). Where a
+/// the screens turn into `starter_` strings (`faraday_strings`). Where a
 /// reason carries text (`detail`), it is the operating system's own
 /// words for what failed, shown after the Starter's.
 #[derive(Debug, Clone, PartialEq, Eq)]

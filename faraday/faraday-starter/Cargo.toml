@@ -19,6 +19,7 @@ faraday-bip = { path = "../../core/faraday-bip" }
 # turns on the held app's guide pages and firmware sketches, which the
 # Starter shows and the desktop app, the stick and the Pi do not.
 faraday-core = { path = "../faraday-core", features = ["guides"] }
+faraday-strings = { path = "../faraday-strings" }
 # The token the notes' and the template's PDFs take (docs/COMPUTE.md §2).
 faraday-crypto = { path = "../../core/faraday-crypto" }
 # Faraday's drawing.

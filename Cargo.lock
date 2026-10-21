@@ -1041,6 +1041,7 @@ dependencies = [
  "faraday-guides",
  "faraday-learn",
  "faraday-shell-api",
+ "faraday-strings",
  "faraday-ui",
  "png",
  "zeroize",

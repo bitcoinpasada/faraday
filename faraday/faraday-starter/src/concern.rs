@@ -15,7 +15,7 @@
 use crate::api::Kind;
 use faraday_core::edid::{self, Display, names_kvm, words};
 pub use faraday_core::edid::{edid_maker, edid_name};
-use faraday_core::strings::EN;
+use faraday_strings::EN;
 
 /// What a screen is, from its EDID: [`edid::display`]'s rules, as the
 /// Starter's kinds.

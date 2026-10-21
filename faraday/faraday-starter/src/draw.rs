@@ -5,11 +5,11 @@
 //! name, as the desktop app's small-panel pages do.
 
 use faraday_core::Action;
-use faraday_core::strings::fill;
-use faraday_core::strings::{EN, Strings};
 use faraday_core::upgrade::{Fit, describe, version};
 use faraday_draw::Color;
 use faraday_draw::widgets::Icon;
+use faraday_strings::fill;
+use faraday_strings::{EN, Strings};
 use faraday_ui::pal::*;
 use faraday_ui::parts::qr_code;
 use faraday_ui::{Glyph, NameSuffix, Style, W};
@@ -491,7 +491,7 @@ fn step_head(ui: &mut Ui, x: f32, y: f32, w: f32, n: usize, text: &str, done: bo
     th.max(26.0) + 10.0
 }
 
-/// What a reason reads as, from `faraday_core::strings`.
+/// What a reason reads as, from `faraday_strings`.
 pub(crate) fn reason_text(r: &Reason) -> String {
     let n = |v: u64| v.to_string();
     let bytes = |v: u64| fill(S.starter_why_bytes, &[&v.to_string()]);

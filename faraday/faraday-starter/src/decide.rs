@@ -4,9 +4,9 @@
 //! (§3.1), on a Mac too (§3.1's "On a Mac", `docs/MAC.md` §6). The screens draw these; the tests check them through the
 //! screens.
 
-use faraday_core::strings::EN;
-use faraday_core::strings::fill;
 use faraday_core::upgrade::{Fit, compare};
+use faraday_strings::EN;
+use faraday_strings::fill;
 
 use crate::api::{Bus, Computer, Disk, FaradayStick, InUse, Os};
 use crate::macs;

@@ -21,7 +21,7 @@ pub mod macs;
 pub mod notes;
 pub mod template;
 
-/// What a [`api::Reason`] reads as on screen, from `faraday_core::strings`.
+/// What a [`api::Reason`] reads as on screen, from `faraday_strings`.
 pub fn reason_text(reason: &api::Reason) -> String {
     draw::reason_text(reason)
 }
@@ -773,9 +773,9 @@ impl Starter {
     pub fn receiver_line(&self) -> Option<&'static str> {
         let has = |k: Kind| self.concerns.iter().any(|c| c.kind == k);
         if has(Kind::Receiver) {
-            Some(faraday_core::strings::EN.devices_receiver_notice)
+            Some(faraday_strings::EN.devices_receiver_notice)
         } else if has(Kind::BoltReceiver) {
-            Some(faraday_core::strings::EN.devices_bolt_notice)
+            Some(faraday_strings::EN.devices_bolt_notice)
         } else {
             None
         }
