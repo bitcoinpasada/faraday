@@ -1,0 +1,39 @@
+//! The add_key tour.
+
+use faraday_core::testkit;
+use faraday_core::{Action, Screen};
+use crate::tour::{Tour, type_text};
+
+/// Add a key, which is New key opening on Start (`docs/history/NEW-WALLET.md`
+/// §15): the Start card, its Other forms, the Words card typed, the Key
+/// card for words typed, locked in; then the codex32 tile's Words card.
+pub(crate) fn add_key_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::keygen::Start;
+    t.press(Action::Nav(Screen::WalletsStart));
+    t.press(Action::KeyGen(None));
+    t.shot("addkey-start")?;
+    t.press(Action::KOthers);
+    t.shot("addkey-start-others")?;
+    t.press(Action::KOthers);
+    t.press(Action::KStart(Start::Words.index()));
+    t.press(Action::KNext);
+    t.shot("addkey-words")?;
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
+    let cut = words.len() / 2;
+    type_text(t, &words[..cut]);
+    t.shot("addkey-words-typing")?;
+    type_text(t, &words[cut..]);
+    t.shot("addkey-words-typed")?;
+    t.press(Action::KNext);
+    t.shot("addkey-key")?;
+    t.press(Action::KLock);
+    t.shot("addkey-key-locked")?;
+    t.press(Action::KNext);
+    t.press(Action::Nav(Screen::Catalog));
+    let codex32 = faraday_core::catalog::TILES
+        .iter()
+        .position(|tile| tile.name == "codex32")
+        .ok_or("no codex32 tile")?;
+    t.press(Action::Catalog(codex32 as u8));
+    t.shot("addkey-codex32")
+}
