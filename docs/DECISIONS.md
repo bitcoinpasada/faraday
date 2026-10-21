@@ -2308,6 +2308,9 @@ people use.
 
 ### F65 OpenSigner's code taken in house: a soft fork (2026-10-20)
 
+*Replaced by F72 (2026-10-21), a hard fork. Its rule on cryptographic
+changes and its caution carry over.*
+
 **Why.** Faraday never edited `core/` or `opensigner/`, so every gap in
 them was wrapped in Faraday's own code or waited on a note to
 OpenSigner: a BIP 129 tidy-up before upstream's parser, SLIP-132 read a
@@ -2450,3 +2453,118 @@ have it.
   (`faraday-core/src/work/budget/`) count what each frame, press and key
   does.
 - The debug guard was removed once the token held everything it checked.
+
+### F70 One crate holds every key: faraday-keys (2026-10-21)
+
+**Why.** faraday-core derives and uses private keys in about 40 of its
+source files: message signing, Lightning, the BSMS signer record,
+BIP-85, the GPG, APK and Secure Boot keys, and a vault's master key
+worked out inside a screen file. Finding the code that touches a secret
+meant reading the whole crate, and nothing stopped a new file from
+joining it.
+
+**Decision** (owner, 2026-10-21; the spec is `docs/STRUCTURE-PASS.md`
+§5).
+
+- A new crate, `faraday-keys`, owns all key material in memory and does
+  every operation on it: a seed, its words and its BIP-39 passphrase, a
+  private key or anything derived from one, a TOTP secret, a GPG, APK or
+  Secure Boot private key, a FROST or MuSig secret nonce, a silent
+  payment scan key, and the open vault's KEY and PASSPHRASE records with
+  the slot key that saves them.
+- faraday-core holds handles and the values kept from a key
+  (fingerprints, xpubs, the words id, shares); drawing reads those and
+  never a secret.
+- Words and passphrases leave faraday-keys only through a named reveal:
+  show the seed, copy it by hand, SeedQR, an unprotected secret to the
+  Outbox. A new reason is a new variant, seen in review.
+- Transient secret input (a typed word or passphrase, a camera frame,
+  scanned or pasted text) stays where it arrives, under lint-secrets'
+  rules, and is handed to faraday-keys at the earliest point. The
+  Starter's BitLocker recovery password is not key material and stays in
+  the Starter.
+- The crates that take a secret and keep nothing stay separate: the
+  core crypto crates, faraday-vault, faraday-pgp, faraday-sb and
+  faraday-apk. Only faraday-keys calls their secret-taking functions.
+- `tools/lint-secrets.sh` refuses the secret types and those functions
+  anywhere else outside `tests/`, and AUDIT.md describes the boundary.
+- Built in three steps, each its own commit: the operations, the session
+  keys, the vault key records. The vault format does not change.
+
+### F71 Dependencies: what cargo-vet says is true (2026-10-21)
+
+**Why.** `supply-chain/audits.toml` held no audit, 223 crates were
+exempted, 23 locked crates (curve25519-dalek, ed25519-dalek, rsa,
+crypto-bigint, sha1 and miniscript among them) were in neither list, and
+`cargo vet` ran in no recipe. Upstream's PLANNING §10.1 promised crypto
+crates "pinned, vendored, cargo vet audit record for each". The six
+imported audit sets cover almost nothing of Faraday's tree (pruning
+removes 3 exemptions), and reading all of it is about five million
+lines, most of it the desktop window stack.
+
+**Decision** (owner, 2026-10-21; replaces PLANNING §10.1 for Faraday;
+the spec is `docs/STRUCTURE-PASS.md` §6).
+
+- `cargo vet --locked` runs in `just lint` against the committed
+  `imports.lock`, so `just` stays offline. A `vet-refresh` recipe
+  updates the imports when chosen.
+- Trust is explicit and named: the rust-bitcoin, RustCrypto and dalek
+  publishers, and the publishers Mozilla, ISRG and Bytecode Alliance
+  already trust in Faraday's tree (dtolnay, sunfishcode, kennykerr,
+  BurntSushi, epage, alexcrichton, rust-lang-owner).
+- A trust entry ends at most a year ahead. It is renewed with
+  `vet-refresh`, and the board carries the renewal a month before the
+  earliest end.
+- Real audits are written only where reading is feasible and Faraday
+  depends on it (sha1, the APK and PGP crates), under a criteria label
+  that says who read it, the owner or an AI.
+- Everything else stays an exemption, and its `docs/deps/` page says
+  "not reviewed". Every direct dependency has a `docs/deps/` page,
+  `bitcoin` first.
+- "Vendored" is dropped. Sources are pinned by `Cargo.lock`'s checksums,
+  and every build passes `--locked`, the image builds included.
+  `third_party/rqrr` stays vendored because Faraday patches it, and
+  cargo-vet treats it as first-party
+  (`audit-as-crates-io = false`).
+
+### F72 OpenSigner's code becomes Faraday's: a hard fork (2026-10-21)
+
+**Why.** OpenSigner's developer will not maintain it. F65's soft fork
+kept upstream's names, an `upstream` remote and a change list, all for
+porting both ways, and nothing will now be ported. Eleven crates named
+`osk-*`, a folder named `opensigner/` and descriptions "for
+OpenSignerKit" told a reader the code was someone else's when it is
+Faraday's to answer for.
+
+**Decision** (owner, 2026-10-21; the spec is `docs/STRUCTURE-PASS.md`
+§3).
+
+- Every `osk-*` crate is renamed `faraday-*`: osk-backup, -bip, -codec,
+  -crypto, -entropy, -psbt, -selftest and -shell-api keep their second
+  word; osk-ui becomes `faraday-draw`; osk-learn merges into
+  `faraday-learn`; osk-fontbake becomes `faraday-fontbake`. `core/`
+  keeps the libraries that hold no flow and no wording.
+- The camera crates move to `faraday/shells/v4l2` and
+  `faraday/shells/avfoundation` as `faraday-v4l2` and
+  `faraday-avfoundation`, and `opensigner/` is deleted.
+- Formats keep their bytes: the `OSKB`, `OSKC` and `OSKO` magics, the
+  `.oskb` and `.osk` extensions, every domain-separation and nonce tag
+  (`osk-sealed-v1`, `OpenSigner/musig-rand` and the rest), the
+  `osk-threshold` and `osk-silent` headers, and "OpenSigner backup" as
+  the name of that file. The rename's check is that the source's string
+  literals are unchanged except the paths, internal names and Learn text
+  the spec lists.
+- KeePass files Faraday writes name Faraday as their generator and
+  database.
+- Before the rename, the provenance is frozen: the full base hash,
+  upstream's URL, the tree hash of the forked code, the per-crate
+  diffstat and F65's change list, kept in `docs/history/UPSTREAM.md`.
+  Then the `upstream` remote and `local/for-upstream/` are removed.
+- F65's per-change rule ends. Its lasting rules apply to the whole
+  repository and move into CLAUDE.md: a cryptographic change is tested
+  against published vectors or another implementation, and owning the
+  code never loosens a check.
+- OpenSigner's MIT notice stays. The README says Faraday began as a fork
+  of OpenSignerKit at `d26b84e`.
+- Learn pages say Faraday where they mean this app; a page about
+  something Faraday does not have is dropped.
