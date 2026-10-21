@@ -20,7 +20,7 @@
 //! Core before 29 takes no multipath descriptor, so
 //! [`import_descriptors_pair`] writes the receive and the change
 //! descriptor as two requests (Faraday's since the fork,
-//! `docs/UPSTREAM.md` §3).
+//! `docs/history/UPSTREAM.md` §3).
 
 use alloc::string::String;
 use core::fmt::Write;

@@ -559,8 +559,8 @@ a vetted crate, and what it is checked against.
 signature, PSBT and message signature is in the `core/` crates
 (`osk-crypto`, `osk-bip`, `osk-psbt`, `osk-entropy`), which began as
 OpenSigner's. Since 2026-10-20 Faraday maintains them itself, as a soft
-fork (`docs/UPSTREAM.md`, F65): it changes them where it needs to, each
-change its own commit listed in `docs/UPSTREAM.md`, and ports what
+fork (`docs/history/UPSTREAM.md`, F65): it changes them where it needs to, each
+change its own commit listed in `docs/history/UPSTREAM.md`, and ports what
 OpenSigner fixes. Faraday's own crates
 compute only what OpenSigner has no use for, each as a library with no
 interface: the vault (`faraday-vault`), OpenPGP (`faraday-pgp`) and
@@ -575,7 +575,7 @@ Why this is better than one repository and one application:
   layers can be reviewed at different depths, and `docs/AUDIT.md` §5
   draws the line.
 - **Every change listed.** `core/` here is OpenSigner's tree at a
-  recorded commit plus the changes `docs/UPSTREAM.md` lists, each its own
+  recorded commit plus the changes `docs/history/UPSTREAM.md` lists, each its own
   commit, so a diff against that commit shows exactly what Faraday
   changed. A reviewer who has audited OpenSigner's signing reads only
   those.
@@ -816,7 +816,7 @@ The release tags are signed with the same key: `git tag -v v0.1.5`.
 ## Relationship to OpenSigner
 
 `core/` and `opensigner/` began as OpenSignerKit/OpenSigner's tree.
-Faraday maintains them as a soft fork (`docs/UPSTREAM.md`, F65): it
+Faraday maintains them as a soft fork (`docs/history/UPSTREAM.md`, F65): it
 changes them where it needs to, lists every change, and ports what
 OpenSigner fixes from the git remote `upstream`; this repository's
 history starts fresh and shares none with upstream's.
@@ -832,7 +832,7 @@ the vault and QR formats.
 - OpenSigner's changes are ported from the `upstream` remote
   (`git diff <last> upstream/main`), not copied by hand; Faraday's own
   changes to `core/` and `opensigner/` are each a commit listed in
-  `docs/UPSTREAM.md`.
+  `docs/history/UPSTREAM.md`.
 - Nothing under `local/` is committed; use it for private notes.
 
 ## License

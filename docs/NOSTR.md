@@ -612,7 +612,7 @@ User-facing behaviour and published vectors (`CLAUDE.md`).
 
 `tools/vectors/bip85/` is OpenSigner's (`core/osk-bip/tests/bip85.rs`
 reads it) and is not changed: its extractor skips Nostr, and adding it
-there would be drift from OpenSigner's copy (`docs/UPSTREAM.md`). Faraday's are a new folder, `tools/vectors/nostr/`,
+there would be drift from OpenSigner's copy (`docs/history/UPSTREAM.md`). Faraday's are a new folder, `tools/vectors/nostr/`,
 as `tools/vectors/vault/` is Faraday's:
 
 - `extract.py` reads `../bip85/bip-0085.mediawiki`'s Nostr section (its

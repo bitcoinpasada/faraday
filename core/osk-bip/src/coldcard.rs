@@ -26,7 +26,7 @@
 //! extended key text is. The file is read as JSON ([`crate::json`]), so a
 //! field is the one at its place in the file, escapes undone, and a file
 //! that is not JSON, names a key twice or nests too deep is no export.
-//! Faraday's since the fork (`docs/UPSTREAM.md` §3).
+//! Faraday's since the fork (`docs/history/UPSTREAM.md` §3).
 
 use alloc::string::String;
 use alloc::vec::Vec;

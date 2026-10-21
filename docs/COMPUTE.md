@@ -13,7 +13,7 @@ guard was removed in D2, once the types and the lint enforced everything
 it checked (§10).
 
 Before the token, two values move into core: the fingerprint and the
-checksum (§5). This follows `docs/UPSTREAM.md` and F65: each core change
+checksum (§5). This follows `docs/history/UPSTREAM.md` and F65: each core change
 is its own commit, listed in UPSTREAM §3 the same day. Nothing here
 loosens a check.
 
@@ -252,7 +252,7 @@ Built (2026-10-21):
 - **D2.** The debug guard removed (§10); the token, the costs lint, the
   doctests and the budget tests hold the rule.
 - **D3.** These docs: `docs/SPEED.md` §3.1 to §3.3, §8, §9; CLAUDE.md;
-  DECISIONS F66 and F69; `docs/UPSTREAM.md` §3. Found: §3, §7, §9 and
+  DECISIONS F66 and F69; `docs/history/UPSTREAM.md` §3. Found: §3, §7, §9 and
   §12 corrected to what D1 built.
 
 ## 7. `faraday/clippy.toml`
@@ -330,7 +330,7 @@ everything parse-once keeps.
 `docs/SPEED.md` §3.1–§3.2 (core keeps fingerprint and checksum), §3.3
 ("The guard" becomes "The token"), §8.2 (new sources); CLAUDE.md's
 "Drawing reads" bullet (the token replaces the guard sentence);
-`docs/UPSTREAM.md` §3 per core commit; `docs/DECISIONS.md` F66 (`h`, and
+`docs/history/UPSTREAM.md` §3 per core commit; `docs/DECISIONS.md` F66 (`h`, and
 the token).
 
 ## 12. Risks

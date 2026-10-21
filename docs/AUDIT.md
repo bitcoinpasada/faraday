@@ -3,7 +3,7 @@
 **Status:** written 2026-10-06; corrected 2026-10-21 where it had become
 false. `core/` is Faraday's code: a fork of OpenSignerKit at
 `d26b84e92f4e960071fd4a8279112bf6d7f0d34c` (F65; F72 makes it a hard
-fork), with Faraday's changes listed in `docs/UPSTREAM.md`. This file is
+fork), with Faraday's changes listed in `docs/history/UPSTREAM.md`. This file is
 rewritten when the key boundary (F70) is built. One row per
 crate that touches a key, a seed, a signature, a cipher or a passphrase,
 saying what it computes, whether that is written in this tree or taken
@@ -32,7 +32,7 @@ Three tiers, used through the rest of this file:
 
 ## 1. Crates that compute cryptography
 
-### `core/` (OpenSigner's code as forked; changes listed in `docs/UPSTREAM.md`)
+### `core/` (OpenSigner's code as forked; changes listed in `docs/history/UPSTREAM.md`)
 
 | Crate | What it computes | Written here, or from a crate | Checked against |
 |---|---|---|---|

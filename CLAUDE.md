@@ -38,8 +38,8 @@ changes and nothing else has to be kept in step.
   token's value, a library's or the language's own behaviour, or a
   comparison of a screen's geometry against the design document.
 - `core/` and `opensigner/` are Faraday's to change (a soft fork,
-  `docs/UPSTREAM.md`, F65): fix a thing at its source rather than wrap
-  it. Each change there is its own commit, listed in `docs/UPSTREAM.md`
+  `docs/history/UPSTREAM.md`, F65): fix a thing at its source rather than wrap
+  it. Each change there is its own commit, listed in `docs/history/UPSTREAM.md`
   §3 the same day; a cryptographic change is tested against published
   vectors or another implementation. Owning the code never loosens it:
   what OpenSigner refuses stays refused (a multisig key without an

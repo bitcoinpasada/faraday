@@ -10,7 +10,7 @@
 //! `xpub`/`tpub`). A version is taken only where its type agrees with the
 //! script around the key ([`plain_descriptor`]) or the purpose in its
 //! path ([`key_line`]); a key that disagrees is a [`Mismatch`], never
-//! converted silently. Faraday's since the fork (`docs/UPSTREAM.md` §3).
+//! converted silently. Faraday's since the fork (`docs/history/UPSTREAM.md` §3).
 
 use alloc::boxed::Box;
 use alloc::string::String;

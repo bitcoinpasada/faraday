@@ -29,14 +29,14 @@ review. Its wording is in one strings file, as OpenSigner's is.
 **Rules that keep Faraday downstream of OpenSigner:**
 
 1. **Since F65 Faraday maintains `core/` and `opensigner/` itself**
-   (`docs/UPSTREAM.md` lists every change; none loosens a check). The
+   (`docs/history/UPSTREAM.md` lists every change; none loosens a check). The
    Wallets tab does not run `opensigner-core`, and the OpenSigner tab
    connects to the vault through its existing interface (below), so no
    vault bridge inside OpenSigner is needed.
 2. **Where Faraday needs a variant of an upstream part** (the stick's
    image boards, its shell, `osk-ui`), the variant is a copy under
    `faraday/` recording the upstream commit it was copied from.
-   `docs/UPSTREAM.md` §4 says how upstream's changes to those originals
+   `docs/history/UPSTREAM.md` §4 says how upstream's changes to those originals
    are watched, so a fix upstream is seen and carried over deliberately.
 3. **`faraday-core` names upstream types directly**, so if OpenSigner
    renames or changes something the Wallets tab uses, `faraday-core`
@@ -56,7 +56,7 @@ review. Its wording is in one strings file, as OpenSigner's is.
    transaction with its previous outputs in `osk-psbt`, and address parsing
    and a wallet's address search in `osk-bip`. The Wallets tab therefore
    depends on no app code. Still in the app, and moved into `core/` by
-   Faraday (F65, listed in `docs/UPSTREAM.md`) when the Wallets tab needs
+   Faraday (F65, listed in `docs/history/UPSTREAM.md`) when the Wallets tab needs
    them: the Tools calculators, the self-test's
    vector set, and `inspect.rs`'s reading of key origins through `osk-ui`.
    Codex32 and SLIP-39 share handling and the MuSig2 session state are

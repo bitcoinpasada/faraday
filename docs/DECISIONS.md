@@ -2319,13 +2319,13 @@ other carried changes. OpenSigner's development has slowed (no upstream
 commit since 2026-10-10), and the speed work needs a compute token on
 the costly functions, upstream's included.
 
-**Decision** (owner, 2026-10-20; `docs/UPSTREAM.md`).
+**Decision** (owner, 2026-10-20; `docs/history/UPSTREAM.md`).
 
 - Faraday maintains `core/` and `opensigner/` as a soft fork from
   upstream's `d26b84e`. It changes them where it needs to, fixing a gap
   at its source rather than wrapping it.
 - Each change there is its own commit with what and why, listed in
-  `docs/UPSTREAM.md` §3 the same day; a cryptographic change is tested
+  `docs/history/UPSTREAM.md` §3 the same day; a cryptographic change is tested
   against published vectors or another implementation first.
 - OpenSigner's new commits are read when there is reason to and ported
   as commits naming theirs, security fixes first. Notes for upstream

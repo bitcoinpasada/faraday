@@ -29,7 +29,7 @@ checklist. The flow is written here once; `docs/NEW-WALLET.md` §14.8,
   prose, on working screens; tests for user-facing behaviour only;
   `just` once at the end of the batch; no `rm`; no commits; no agents.
 - Every string in `faraday/faraday-strings/src/en.rs` with the prefix
-  `backup_flow_` (§12), the one strings file (F68); a change to `core/` or `opensigner/` is listed in `docs/UPSTREAM.md` (F65).
+  `backup_flow_` (§12), the one strings file (F68); a change to `core/` or `opensigner/` is listed in `docs/history/UPSTREAM.md` (F65).
 - A stick is handed only to a clean process (`PLAN.md` §5.3 and §5.4).
   Nothing in this flow opens a secret in a process that holds a stick,
   or hands a stick to a process that holds a secret. A change that would

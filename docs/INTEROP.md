@@ -128,7 +128,7 @@ wallets.
 Every reader goes in `faraday-intake`, after the pattern of
 `caravan` and `electrum`, except where upstream's crates also read
 the format: since F65 Faraday changes `core/` itself, so such a reader goes
-in `core/` (the batches in `docs/UPSTREAM.md`), with every change listed
+in `core/` (the batches in `docs/history/UPSTREAM.md`), with every change listed
 there. What upstream might take is noted at the end, for the owner to send. New strings go in
 `faraday/faraday-strings/src/en.rs`. New vectors go under
 `faraday/faraday-core/tests/vectors/interop/<source>/`, with their source

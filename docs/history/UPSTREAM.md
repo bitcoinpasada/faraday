@@ -1,7 +1,80 @@
-# Faraday and OpenSigner
+# Where Faraday's code came from
 
-**Status:** 2026-10-20 · Faraday is a soft fork of OpenSignerKit/OpenSigner
-(`docs/DECISIONS.md` F65).
+**Kind:** History
+**Status:** Frozen at the hard fork (F72, 2026-10-21). §1 to §3 below
+are the soft fork's record (F65, 2026-10-20 to 2026-10-21) as it stood.
+From F72 on, Faraday's own commits are the record.
+**Decisions:** F65, F72
+
+## Provenance
+
+Faraday began as a fork of OpenSignerKit, OpenSigner's repository:
+
+- **Upstream:** https://github.com/maxmoney21m/opensignerkit
+- **Base commit:** `d26b84e92f4e960071fd4a8279112bf6d7f0d34c`
+  (2026-10-10, upstream's §16.141)
+- **Tree hashes at the base**, so the base can be checked without
+  trusting upstream's history:
+  - `core/`: `a525ec1900a5b6e1ed13a225020909bac1bc0b77`
+  - `opensigner/`: `12a2e075f2fccdd44ce0a1ae06f7c07bbf51131a`
+
+  `git rev-parse <base>:core` gives the first on any copy of the base.
+- **The freeze commit:** the commit that added this file to
+  `docs/history/`, found with
+  `git log --diff-filter=A --format=%H -1 -- docs/history/UPSTREAM.md`.
+  It is the last commit before the crates were renamed (F72), so the
+  diff below reads crate by crate.
+
+**The auditor's diff**: everything Faraday changed in OpenSigner's code,
+up to the rename:
+
+```
+git fetch https://github.com/maxmoney21m/opensignerkit d26b84e92f4e960071fd4a8279112bf6d7f0d34c
+git diff d26b84e92f4e960071fd4a8279112bf6d7f0d34c <freeze> -- core/ opensigner/
+```
+
+After the freeze commit, the rename moves `core/osk-*` to `core/faraday-*`
+and changes every `osk_*` path. `git diff -M <freeze> <rename>` shows the
+moves as renames; the rename's commit message lists the name map.
+
+**What changed, path by path**, from the base to the freeze commit.
+`tools/`, `fuzz/`, `third_party/` and `docs/` also came from upstream,
+and Faraday's own files have since joined them there:
+
+| Path | At the base | Now | Files changed | Lines added | Lines removed |
+|---|---|---|---|---|---|
+| `core/osk-backup` | 5 files | 5 files | 5 | 179 | 82 |
+| `core/osk-bip` | 75 files | 80 files | 44 | 2883 | 748 |
+| `core/osk-codec` | 13 files | 15 files | 10 | 265 | 58 |
+| `core/osk-crypto` | 9 files | 10 files | 7 | 243 | 26 |
+| `core/osk-entropy` | 2 files | 2 files | 0 | 0 | 0 |
+| `core/osk-keep` | 5 files | 0 files | 5 | 0 | 1491 |
+| `core/osk-learn` | 3 files | 3 files | 2 | 137 | 268 |
+| `core/osk-psbt` | 36 files | 36 files | 27 | 710 | 407 |
+| `core/osk-selftest` | 2 files | 2 files | 2 | 55 | 35 |
+| `core/osk-shell-api` | 2 files | 2 files | 1 | 83 | 1 |
+| `core/osk-ui` | 60 files | 22 files | 59 | 887 | 19058 |
+| `opensigner/opensigner-core` | 125 files | 0 files | 125 | 0 | 78938 |
+| `opensigner/opensigner-ffi` | 4 files | 0 files | 4 | 0 | 2078 |
+| `opensigner/shells/android` | 21 files | 0 files | 21 | 0 | 3098 |
+| `opensigner/shells/avfoundation` | 6 files | 6 files | 4 | 230 | 66 |
+| `opensigner/shells/desktop` | 5 files | 0 files | 5 | 0 | 1667 |
+| `opensigner/shells/pi` | 81 files | 0 files | 81 | 0 | 10332 |
+| `opensigner/shells/scanner` | 3 files | 0 files | 3 | 0 | 402 |
+| `opensigner/shells/snapshot` | 2 files | 0 files | 2 | 0 | 1235 |
+| `opensigner/shells/v4l2` | 5 files | 5 files | 3 | 166 | 33 |
+| `tools` | 238 files | 213 files | 102 | 3022 | 4568 |
+| `fuzz` | 56 files | 48 files | 18 | 156 | 154 |
+| `third_party` | 17 files | 17 files | 1 | 2 | 2 |
+| `docs` | 49 files | 119 files | 113 | 25124 | 670 |
+
+The crates deleted outright:
+- `opensigner-core`, OpenSigner's app;
+- `opensigner-ffi`;
+- the `android`, `desktop`, `pi`, `scanner` and `snapshot` shells;
+- `osk-keep`.
+
+Faraday never ran them, and F68 records why they went.
 
 ## 1. Where Faraday forked
 
@@ -426,14 +499,3 @@ Since the fork:
   checks `widgets/`. Why: nothing in Faraday used the rest, which the
   compiler confirmed with the modules made crate-private. Faraday's
   screens draw as before.
-
-## 4. Watching upstream
-
-When there is reason to (a release, a security advisory, or every few
-weeks), fetch `upstream` and read `git log d26b84e..upstream/main`. Port
-what matters, security fixes first, as a commit per upstream change
-naming upstream's commit, and move §1's sync point. Changes to what §3
-lists as removed (OpenSigner's own shells, their tools and recipes) are
-not ported. Notes once meant for
-upstream (`local/for-upstream/`) are optional: they may still be sent,
-and nothing waits on them.

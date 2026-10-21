@@ -2,7 +2,7 @@
 //! says what each pass saw (`docs/QR.md` §1, "the found code outlined"
 //! and "too fine for this camera"). It began as a copy of upstream's
 //! `opensigner/shells/scanner` at c418768, which Faraday no longer
-//! carries (`docs/UPSTREAM.md` §3); this crate does all that one did.
+//! carries (`docs/history/UPSTREAM.md` §3); this crate does all that one did.
 //!
 //! A pass that finds a code's finder patterns reports a [`Seen`]: its
 //! four corners in the frame, the size of one module in pixels, and
