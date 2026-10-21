@@ -19,9 +19,28 @@ pub const START_NETWORK: Network = Network::Mainnet;
 
 // The description reader (`faraday-intake`),
 // at the paths this crate has always had them.
-pub use faraday_intake::wallet::{
-    Refusal, network_name, network_of_key, policy_network, read_wallet,
-};
+pub use faraday_intake::wallet::{Refusal, network_name, network_of_key, policy_network};
+
+/// Reads a wallet description: `faraday_intake`'s reader, counted
+/// ([`crate::work`]). Costs a parse of the description and its keys.
+pub fn read_wallet(text: &str) -> Result<WalletPolicy, Refusal> {
+    crate::work::count(crate::work::Work::DescriptorParse);
+    faraday_intake::wallet::read_wallet(text)
+}
+
+/// Parses seed words in `lang`: BIP-39's parser, counted
+/// ([`crate::work`]). Costs a word-list search per word and a hash.
+pub fn parse_words(lang: Language, text: &str) -> Result<Mnemonic, osk_bip::bip39::Error> {
+    crate::work::count(crate::work::Work::WordsParse);
+    Mnemonic::parse(lang, text)
+}
+
+/// A vault key record's seed words, when it holds words: the vault's
+/// reader, counted ([`crate::work`]). Costs a parse of the words.
+pub fn record_words(r: &faraday_vault::Record) -> Option<Mnemonic> {
+    crate::work::count(crate::work::Work::WordsParse);
+    faraday_vault::records::words_of(r)
+}
 pub(crate) use faraday_intake::wallet::{json_string, network_of_kind};
 
 /// A key that can sign, held for this session only.
@@ -59,6 +78,7 @@ impl Key {
         share: Option<osk_bip::bitcoin::secp256k1::PublicKey>,
         passphrase: Option<zeroize::Zeroizing<String>>,
     ) -> Key {
+        crate::work::count(crate::work::Work::MasterKey);
         let fp = master.fingerprint();
         Key {
             master,
@@ -108,7 +128,7 @@ impl Key {
         if let Some(share) = self
             .words
             .as_ref()
-            .and_then(|w| Mnemonic::parse(self.language, w).ok())
+            .and_then(|w| crate::wallet::parse_words(self.language, w).ok())
             .and_then(|m| secret_share(&m))
         {
             take(&share);
@@ -449,7 +469,7 @@ impl Session {
             zeroize::Zeroizing::new(words.split_whitespace().collect::<Vec<_>>().join(" "));
         let mut first = None;
         for lang in Language::ALL {
-            match Mnemonic::parse(lang, &normal) {
+            match crate::wallet::parse_words(lang, &normal) {
                 Ok(m) => return self.add_mnemonic(&m, passphrase, label, wanted),
                 Err(e) => {
                     first.get_or_insert(e);
@@ -756,6 +776,7 @@ impl Session {
 
     /// An address of the wallet, on the session's network.
     pub fn address(&self, wallet: &Wallet, change: bool, index: u32) -> String {
+        crate::work::count(crate::work::Work::Address);
         wallet
             .policy
             .address_at(self.network, change, index)

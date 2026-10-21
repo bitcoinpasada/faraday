@@ -50,6 +50,9 @@ changes and nothing else has to be kept in step.
   released) computes from the state as it is, never from the memo. A
   batch that adds work done while drawing or after every event is timed
   in a late-flow session before it is committed (`docs/SPEED.md` §7).
+  A costly function counts itself (`faraday-core/src/work.rs`), and the
+  budget test there fails `just` when a frame drawn again, or a pointer
+  move, does more costly work than its screen's budget.
 - No hosted CI, no GitHub Actions, no metered external services.
 - `local/user-notes.txt` is the owner's own notes; agents ignore it.
 - The remote machine that builds the images is "the build machine" in

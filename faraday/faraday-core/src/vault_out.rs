@@ -6,7 +6,7 @@
 //! goes to the Outbox, for the stick, as Files' files do.
 
 use crate::strings::EN;
-use faraday_vault::records::{self, field, kind};
+use faraday_vault::records::{field, kind};
 use opensigner_core::strings::fill;
 
 use crate::vaults::VaultAction;
@@ -73,12 +73,13 @@ impl Faraday {
         let Some((at, r)) = self.vault_record_of(kind::KEY) else {
             return;
         };
-        let Some(m) = records::words_of(r) else {
+        let Some(m) = crate::wallet::record_words(r) else {
             return;
         };
         if m.language() != osk_bip::bip39::Language::English {
             return;
         }
+        crate::work::count(crate::work::Work::QrEncode);
         if let Ok(mx) = osk_codec::seedqr::encode_seedqr(&m) {
             self.vaults.seedqr = Some((at, mx));
         }
@@ -138,7 +139,7 @@ impl Faraday {
             let Some((_, r)) = self.vault_record_of(kind::KEY) else {
                 return;
             };
-            let Some(m) = records::words_of(r) else {
+            let Some(m) = crate::wallet::record_words(r) else {
                 return;
             };
             let fp = crate::vault_screens::key_fingerprint(self, r).unwrap_or_default();
@@ -256,7 +257,7 @@ impl Faraday {
             .filter(|r| r.kind == kind::KEY)
             .and_then(|r| {
                 let fp = crate::vault_screens::key_fingerprint(self, r).unwrap_or_default();
-                records::words_of(r).map(|m| (m, fp))
+                crate::wallet::record_words(r).map(|m| (m, fp))
             });
         for f in save.files.into_iter().filter(|f| f.ticked) {
             match f.what {

@@ -574,3 +574,11 @@ The numbers go in the batch's report beside the ones from before it. A
 frame that costs more than before, by more than the run-to-run spread,
 is explained in the report or fixed in the batch. The harness stays
 outside the repository; this rule is how it is used.
+
+The counts are enforced in `just` (owner, 2026-10-20): each costly
+function counts itself by kind (`faraday-core/src/work.rs`), and the
+budget test there (`work/budget.rs`) draws every main screen and the heavy
+sheets of the session above twice, and moves the pointer over each; a
+frame that works out more than its screen's named budget, or a pointer
+move that works out anything, fails the build. The timing above stays
+for milliseconds.

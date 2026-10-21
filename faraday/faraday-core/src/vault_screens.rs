@@ -2120,7 +2120,7 @@ fn item_heading(app: &Faraday, r: &Record) -> (String, String, bool) {
     match r.kind {
         kind::KEY => {
             let fp = key_fingerprint(app, r).unwrap_or_else(|| FEN.vault_key.to_string());
-            let words = records::words_of(r)
+            let words = crate::wallet::record_words(r)
                 .map(|m| fill(FEN.vault_words_n, &[&m.word_count().to_string()]))
                 .unwrap_or_else(|| FEN.vault_master_seed.into());
             let loads = records::loads_at_unlock(r);
@@ -2255,15 +2255,23 @@ fn sheet_parts(r: &Record) -> (String, String, String) {
     }
 }
 
+/// A wallet record's shape, as the session names one. Costs a parse of
+/// the record's description.
 pub(crate) fn wallet_shape(r: &Record) -> Option<String> {
     let text = r.text(field::WALLET)?;
     let policy = crate::wallet::read_wallet(text).ok()?;
-    Some(Session::shape(&Wallet::new(
+    Some(policy_shape(policy))
+}
+
+/// The shape of a wallet read already, as the session names one. Costs
+/// the descriptor's checksum.
+pub(crate) fn policy_shape(policy: osk_bip::policy::WalletPolicy) -> String {
+    Session::shape(&Wallet::new(
         String::new(),
         policy,
         String::new(),
         crate::wallet::Origin::Named,
-    )))
+    ))
 }
 
 /// A key record's fingerprint, worked out once per key and kept.
@@ -2288,7 +2296,8 @@ pub(crate) fn key_fingerprint(app: &Faraday, r: &Record) -> Option<String> {
     {
         return Some(fp.clone());
     }
-    let master = match records::words_of(r) {
+    crate::work::count(crate::work::Work::MasterKey);
+    let master = match crate::wallet::record_words(r) {
         Some(m) => {
             let passphrase = r.text(field::KEY_PASSPHRASE).unwrap_or("");
             let seed = m.to_seed(passphrase.as_bytes()).ok()?;
@@ -3375,7 +3384,7 @@ fn detail(
             let fp = key_fingerprint(app, r).unwrap_or_default();
             field_row(ui, &mut dy, FEN.vault_fingerprint, &fp, true);
             // Read from the record once for the frame.
-            let m = records::words_of(r);
+            let m = crate::wallet::record_words(r);
             if let Some(m) = &m {
                 hold_row(ui, &mut dy, FEN.vault_words, &words_text(m), true);
                 if m.language() == osk_bip::bip39::Language::English {

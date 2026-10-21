@@ -84,6 +84,7 @@ pub mod vaults;
 pub mod visit_taken;
 pub mod wallet;
 pub mod wordlist;
+pub mod work;
 
 mod backup_flow_screen;
 mod backup_flow_wallet;
@@ -2048,6 +2049,7 @@ impl QrView {
         format: QrFormat,
         part: usize,
     ) -> Result<QrView, String> {
+        crate::work::count(crate::work::Work::QrEncode);
         let (made, frames) = faraday_qr::send::frames(&source, format, part).map_err(send_error)?;
         let sub = made_line(made);
         let secret = match &source {
@@ -2121,6 +2123,7 @@ impl QrView {
 /// code each, which a scanner that assembles parts takes one after the
 /// other.
 pub(crate) fn picture_codes(text: &str) -> Result<Vec<osk_codec::qr::QrMatrix>, String> {
+    crate::work::count(crate::work::Work::QrEncode);
     use osk_codec::qr::{Ecc, Payload, encode_bounded};
     if let Ok(m) = encode_bounded(Payload::Bytes(text.as_bytes()), Ecc::Medium, 25) {
         return Ok(vec![m]);
@@ -3158,6 +3161,7 @@ impl Receipt {
 
 /// SHA-256 of `bytes`.
 pub(crate) fn sha256_of(bytes: &[u8]) -> [u8; 32] {
+    crate::work::count(crate::work::Work::FileHash);
     use osk_bip::bitcoin::hashes::{Hash, sha256};
     sha256::Hash::hash(bytes).to_byte_array()
 }
@@ -9825,7 +9829,6 @@ impl Faraday {
     /// seed, never loaded. A match closes the camera; a word that differs
     /// is named and the camera stays open for the copy fixed.
     fn copy_scanned(&mut self, fp: osk_bip::keys::Fingerprint, bytes: zeroize::Zeroizing<Vec<u8>>) {
-        use osk_bip::bip39::Mnemonic;
         let copy = copy_indices(&bytes);
         drop(bytes);
         let Some(copy) = copy else {
@@ -9841,7 +9844,7 @@ impl Faraday {
             .find(|k| k.fingerprint() == fp)
             .and_then(|k| {
                 let words = k.words.as_ref()?;
-                Mnemonic::parse(k.language, words.as_str()).ok()
+                crate::wallet::parse_words(k.language, words.as_str()).ok()
             });
         let Some(seed) = seed else {
             // The seed is no longer here: nothing to compare with.
@@ -10288,6 +10291,7 @@ impl Faraday {
             2 => backup::multisig_config(w, None),
             6 => {
                 let net = self.session.network();
+                crate::work::count(crate::work::Work::Address);
                 let first = w.policy().address_at(net, false, 0).ok()?;
                 Some(
                     osk_bip::bsms::DescriptorRecord {

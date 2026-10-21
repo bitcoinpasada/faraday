@@ -137,6 +137,7 @@ impl Faraday {
     /// The value the flow derives, as text: the child words, the WIF, the
     /// xprv, the hex or the password.
     pub fn bip85_value(&self) -> Option<Zeroizing<String>> {
+        crate::work::count(crate::work::Work::KeyDerive);
         // The demo derives no BIP-85 output (`docs/DEMO.md` §4).
         if !self.makes_secrets() {
             return None;
@@ -219,7 +220,7 @@ impl Faraday {
                 .with(field::PASSWORD, value.as_bytes())
                 .with(field::NOTES, path.as_bytes()),
             Bip85App::Words => {
-                let Ok(m) = osk_bip::bip39::Mnemonic::parse(Language::English, &value) else {
+                let Ok(m) = crate::wallet::parse_words(Language::English, &value) else {
                     return;
                 };
                 Record::new(kind::KEY)

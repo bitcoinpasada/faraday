@@ -156,6 +156,7 @@ impl Page {
 
 /// The finished document.
 fn document(pages: Vec<Page>) -> Vec<u8> {
+    crate::work::count(crate::work::Work::Picture);
     let mut out: Vec<u8> = b"%PDF-1.4\n%\xE2\xE3\xCF\xD3\n".to_vec();
     let mut offsets: Vec<usize> = Vec::new();
     let n = pages.len();
@@ -599,7 +600,8 @@ fn probe_matrix(words: usize) -> Result<QrMatrix, String> {
     } else {
         format!("{} about", ["abandon"; 11].join(" "))
     };
-    let m = osk_bip::bip39::Mnemonic::parse(osk_bip::bip39::Language::English, &sentence)
+    let m = crate::wallet::parse_words(osk_bip::bip39::Language::English, &sentence)
         .map_err(|e| e.to_string())?;
+    crate::work::count(crate::work::Work::QrEncode);
     osk_codec::seedqr::encode_seedqr(&m).map_err(|e| format!("{e:?}"))
 }

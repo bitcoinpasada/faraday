@@ -188,6 +188,7 @@ impl NewKind {
     /// account `account` in place of 0 (`docs/NEW-WALLET.md` §16.2).
     /// Costs a key derivation.
     pub fn key_text_account(self, master: &MasterKey, account: u32) -> Result<String, String> {
+        crate::work::count(crate::work::Work::KeyDerive);
         let (xpub, fp, path) = match self {
             NewKind::Threshold => return Err(EN.create_a_share_has.to_string()),
             NewKind::NativeSegwit
@@ -240,6 +241,7 @@ impl NewKind {
     /// [`NewKind::account_ur`] at account `account`. Costs a key
     /// derivation.
     pub fn account_ur_at(self, master: &MasterKey, account: u32) -> Option<String> {
+        crate::work::count(crate::work::Work::KeyDerive);
         if self != NewKind::Multi {
             return None;
         }
@@ -263,6 +265,7 @@ impl NewKind {
         account: u32,
         description: &str,
     ) -> Option<String> {
+        crate::work::count(crate::work::Work::KeyDerive);
         let script = match self {
             NewKind::Multi => MultisigScriptType::NativeSegwit,
             NewKind::MultiNested => MultisigScriptType::NestedSegwit,
@@ -321,6 +324,7 @@ pub fn account_of(policy: &WalletPolicy) -> u32 {
 /// `m/48'/0'/0'/2'` or `48h/0h/0h/2h`: what [`NewKind::key_text`] gives
 /// at a kind's own path, at any other.
 pub fn key_text_at(master: &MasterKey, path: &str) -> Result<String, String> {
+    crate::work::count(crate::work::Work::KeyDerive);
     let path = normal_path(path).ok_or_else(|| fill(EN.create_not_a_derivation, &[path]))?;
     let parsed: osk_bip::bitcoin::bip32::DerivationPath =
         path.parse().map_err(|e| format!("{e}"))?;

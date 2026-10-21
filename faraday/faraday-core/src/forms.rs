@@ -179,7 +179,7 @@ impl Faraday {
                     self.entry.parts.codex32.push(c);
                     Ok(())
                 }),
-            Form::Xor => Mnemonic::parse(Language::English, &text)
+            Form::Xor => crate::wallet::parse_words(Language::English, &text)
                 .map_err(|e| fill(EN.forms_not_bip_39_words, &[&e.to_string()]))
                 .and_then(|m| {
                     let e = m.entropy();

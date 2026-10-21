@@ -307,7 +307,7 @@ impl Faraday {
                 let Some(words) = key.words.as_ref() else {
                     return name;
                 };
-                let Ok(m) = osk_bip::bip39::Mnemonic::parse(key.language, words) else {
+                let Ok(m) = crate::wallet::parse_words(key.language, words) else {
                     return name;
                 };
                 let rec = Record::new(rkind::KEY).with(field::KEY, &records::words_payload(&m));
@@ -699,12 +699,12 @@ impl Faraday {
     /// `payload` is them: what its picture must read as (English words
     /// only, as the picture is made). `None` where the words are not here.
     pub(crate) fn seedqr_reads_as(&self, k: usize, payload: &[u8]) -> Option<bool> {
-        use osk_bip::bip39::{Language, Mnemonic};
+        use osk_bip::bip39::Language;
         let key = self.session.keys.get(k)?;
         if key.language != Language::English {
             return None;
         }
-        let m = Mnemonic::parse(key.language, key.words.as_deref()?).ok()?;
+        let m = crate::wallet::parse_words(key.language, key.words.as_deref()?).ok()?;
         let digits = osk_codec::seedqr::to_digits(&m);
         Some(digits.expose().as_bytes() == payload)
     }
@@ -723,7 +723,7 @@ impl Faraday {
     /// one line; the SeedQR as a labelled picture (English words only);
     /// the passphrase, one line.
     fn seed_stick_bytes(&self, k: usize, what: plan::What) -> Option<zeroize::Zeroizing<Vec<u8>>> {
-        use osk_bip::bip39::{Language, Mnemonic};
+        use osk_bip::bip39::Language;
         let key = self.session.keys.get(k)?;
         let line = |t: &str| {
             let mut v = Vec::with_capacity(t.len() + 1);
@@ -738,7 +738,7 @@ impl Faraday {
                 if key.language != Language::English {
                     return None;
                 }
-                let m = Mnemonic::parse(key.language, key.words.as_deref()?).ok()?;
+                let m = crate::wallet::parse_words(key.language, key.words.as_deref()?).ok()?;
                 seedqr_png(&m, &fp_text(key.fingerprint()))
             }
             _ => None,
@@ -2372,6 +2372,7 @@ pub(crate) fn seedqr_png(
     if m.language() != osk_bip::bip39::Language::English {
         return None;
     }
+    crate::work::count(crate::work::Work::QrEncode);
     let mx = osk_codec::seedqr::encode_seedqr(m).ok()?;
     let title = fill(EN.secrets_seed, &[fp]);
     let lines = [fill(

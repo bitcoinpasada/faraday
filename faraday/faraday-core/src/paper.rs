@@ -51,7 +51,7 @@ impl Faraday {
     fn paper_key(&self) -> Option<(Mnemonic, Zeroizing<String>, [u8; 4])> {
         let b = self.backup.as_ref()?;
         let k = self.session.keys.get(b.key)?;
-        let m = Mnemonic::parse(k.language, k.words.as_ref()?).ok()?;
+        let m = crate::wallet::parse_words(k.language, k.words.as_ref()?).ok()?;
         let p = Zeroizing::new(
             k.passphrase
                 .as_deref()

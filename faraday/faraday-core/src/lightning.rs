@@ -10,7 +10,7 @@ use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
 use opensigner_core::strings::fill;
 use osk_bip::aezeed;
-use osk_bip::bip39::{Language, Mnemonic};
+use osk_bip::bip39::Language;
 use osk_crypto::Secret;
 use zeroize::Zeroizing;
 
@@ -93,7 +93,7 @@ impl Faraday {
                 let key = self.session.keys.iter().find(|k| k.fingerprint().0 == fp);
                 match key.and_then(|k| Some((k, k.words.as_ref()?))) {
                     None => Err(EN.lightning_this_key.to_string()),
-                    Some((k, words)) => Mnemonic::parse(k.language, words)
+                    Some((k, words)) => crate::wallet::parse_words(k.language, words)
                         .map_err(|e| e.to_string())
                         .and_then(|m| {
                             let p = k.passphrase.as_deref().map_or("", |p| p.as_str());

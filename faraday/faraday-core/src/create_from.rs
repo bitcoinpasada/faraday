@@ -98,7 +98,7 @@ impl Faraday {
                     record: i,
                     fp,
                     line: key_line(Fingerprint(fp), label),
-                    share: records::words_of(r).is_some_and(|m| m.word_count() == 24),
+                    share: crate::wallet::record_words(r).is_some_and(|m| m.word_count() == 24),
                 });
             }
             if !keys.is_empty() {

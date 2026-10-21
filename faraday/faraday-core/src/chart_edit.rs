@@ -575,8 +575,9 @@ impl Faraday {
                 .iter()
                 .find(|key| key.fingerprint().0 == fp)?;
             let words = key.words.as_ref()?;
-            let m = osk_bip::bip39::Mnemonic::parse(key.language, words).ok()?;
+            let m = crate::wallet::parse_words(key.language, words).ok()?;
             let seed = m.to_seed(self.chart_work.secret.as_bytes()).ok()?;
+            crate::work::count(crate::work::Work::MasterKey);
             let made = osk_bip::keys::MasterKey::from_seed(&seed, self.session.network());
             Some(made.fingerprint().0 == fp)
         });

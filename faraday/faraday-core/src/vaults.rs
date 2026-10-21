@@ -970,7 +970,7 @@ impl Faraday {
                 let payload = k
                     .words
                     .as_ref()
-                    .and_then(|w| osk_bip::bip39::Mnemonic::parse(k.language, w).ok())
+                    .and_then(|w| crate::wallet::parse_words(k.language, w).ok())
                     .map(|m| records::words_payload(&m));
                 !payload.is_some_and(|p| held_keys.contains(&p.as_slice()))
             })
@@ -1091,7 +1091,7 @@ impl Faraday {
             let vault = k
                 .words
                 .as_ref()
-                .and_then(|w| osk_bip::bip39::Mnemonic::parse(k.language, w).ok())
+                .and_then(|w| crate::wallet::parse_words(k.language, w).ok())
                 .and_then(|m| in_vault_key(&records::words_payload(&m)));
             let copy = self.seed_copy_checked(k.fingerprint().0);
             let (state, nowhere) = match (vault, copy) {
@@ -2113,7 +2113,7 @@ impl Faraday {
                 else {
                     return;
                 };
-                let Some(m) = records::words_of(r) else {
+                let Some(m) = crate::wallet::record_words(r) else {
                     return;
                 };
                 let words = phrase_of(&m);
@@ -2493,16 +2493,39 @@ impl Faraday {
 
     /// The keys and wallets open vault `v` holds, each with whether the
     /// session has it already and whether it is chosen for the next load.
+    /// Kept in the drawing memo while a frame is drawn (`docs/SPEED.md`
+    /// §3.3). Costs a parse of each of its wallet records.
     pub fn vault_rows(&self, v: usize) -> Vec<VaultRow> {
+        if !self.drawing.is_on() {
+            return self.vault_rows_now(v);
+        }
+        if let Some((_, kept)) = self
+            .drawing
+            .vault_rows
+            .borrow()
+            .iter()
+            .find(|(o, _)| *o == v)
+        {
+            return kept.clone();
+        }
+        let rows = self.vault_rows_now(v);
+        self.drawing.vault_rows.borrow_mut().push((v, rows.clone()));
+        rows
+    }
+
+    /// Works out [`Faraday::vault_rows`]. Costs a parse of each of the
+    /// vault's wallet records.
+    fn vault_rows_now(&self, v: usize) -> Vec<VaultRow> {
         let Some(open) = self.vaults.open.get(v) else {
             return Vec::new();
         };
         let mut rows = Vec::new();
         for (i, r) in open.contents.of(kind::WALLET) {
             let text = r.text(field::WALLET).unwrap_or("");
-            let loaded = crate::wallet::read_wallet(text).is_ok_and(|p| {
+            let policy = crate::wallet::read_wallet(text).ok();
+            let loaded = policy.as_ref().is_some_and(|p| {
                 self.session.wallets.iter().any(|w| {
-                    crate::wallet::same_wallet(w.policy()) == crate::wallet::same_wallet(&p)
+                    crate::wallet::same_wallet(w.policy()) == crate::wallet::same_wallet(p)
                 })
             });
             rows.push(VaultRow {
@@ -2511,7 +2534,9 @@ impl Faraday {
                     .text(field::WALLET_NAME)
                     .unwrap_or(EN.vaults_wallet)
                     .to_string(),
-                detail: crate::vault_screens::wallet_shape(r).unwrap_or_default(),
+                detail: policy
+                    .map(crate::vault_screens::policy_shape)
+                    .unwrap_or_default(),
                 seed: false,
                 loaded,
                 chosen: !open.skip.contains(&i),
@@ -2684,7 +2709,7 @@ impl Faraday {
                 continue;
             }
             let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
-            if let Some(m) = records::words_of(r) {
+            if let Some(m) = crate::wallet::record_words(r) {
                 // Stored with the key, or kept alone in an open vault.
                 let pass = match r.text(field::KEY_PASSPHRASE) {
                     Some(p) => Zeroizing::new(p.to_string()),
@@ -2857,7 +2882,7 @@ impl Faraday {
         match r.kind {
             kind::KEY => {
                 let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
-                let added = match records::words_of(r) {
+                let added = match crate::wallet::record_words(r) {
                     Some(m) => {
                         // Stored with the key, or kept alone in an open
                         // vault (`docs/BACKUP-FLOW.md` §19.12 item 4).
@@ -3166,6 +3191,7 @@ impl Faraday {
                 let Ok(seed) = m.to_seed(p.as_bytes()) else {
                     continue;
                 };
+                crate::work::count(crate::work::Work::MasterKey);
                 let master = osk_bip::keys::MasterKey::from_seed(&seed, self.session.network());
                 if master.fingerprint().0[..] == *fp {
                     return Some(Zeroizing::new(p.to_string()));
@@ -3188,7 +3214,7 @@ impl Faraday {
             self.toast(EN.vaults_this_key_has);
             return None;
         };
-        let m = osk_bip::bip39::Mnemonic::parse(key.language, words).ok()?;
+        let m = crate::wallet::parse_words(key.language, words).ok()?;
         // Made here and its backup not done: the vault says so, beside
         // the seed.
         // It loads at unlock (no flag says otherwise, F62).
@@ -4167,6 +4193,11 @@ impl Faraday {
             None if changed => Some(Currency::Changed),
             // Read from a stick and not changed: on the stick it came
             // from, as it is, when that stick is known.
+            // The file is hashed only when a stick read is recorded under
+            // its name: drawing asks this on every frame.
+            None if !self.vault_from.iter().any(|(n, ..)| *n == f.name) => {
+                Some(Currency::Unchanged)
+            }
             None => {
                 let hash = self
                     .inbox

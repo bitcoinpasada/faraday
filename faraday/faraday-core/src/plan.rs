@@ -1581,6 +1581,7 @@ pub fn form_name(f: usize) -> &'static str {
 /// the plan (`docs/BACKUP-FLOW.md` §19.16 item 3). The checks, the
 /// checklist and the flows read this one.
 pub fn map(shape: &Shape, a: &Answers) -> Vec<Spot> {
+    crate::work::count(crate::work::Work::PlanMap);
     in_plan(stored_map(shape, a))
 }
 
@@ -2200,6 +2201,7 @@ fn alone_in(shape: &Shape, a: &Answers, boxes: &[Spot], at: At) -> Alone {
 /// stick, or from its own stick.
 /// A place is lost or found with its sticks.
 pub fn check(shape: &Shape, a: &Answers) -> Check {
+    crate::work::count(crate::work::Work::PlanMap);
     check_of(shape, a, &place_map(shape, a))
 }
 

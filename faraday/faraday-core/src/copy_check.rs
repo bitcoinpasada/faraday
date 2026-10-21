@@ -12,7 +12,7 @@ use crate::strings::EN;
 use crate::{BackupState, Faraday, Screen, wallet};
 use opensigner_core::load::LoadWizard;
 use opensigner_core::strings::fill;
-use osk_bip::bip39::{Language, Mnemonic};
+use osk_bip::bip39::Language;
 use osk_shell_api::Key as KeyIn;
 use zeroize::Zeroize;
 
@@ -294,7 +294,7 @@ impl Faraday {
         let seed = key
             .words
             .as_ref()
-            .and_then(|w| Mnemonic::parse(key.language, w.as_str()).ok());
+            .and_then(|w| crate::wallet::parse_words(key.language, w.as_str()).ok());
         let Some(seed) = seed else {
             return;
         };
