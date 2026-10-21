@@ -41,7 +41,7 @@ pub fn record_words(r: &faraday_vault::Record) -> Option<Mnemonic> {
     crate::work::count(crate::work::Work::WordsParse);
     faraday_vault::records::words_of(r)
 }
-pub(crate) use faraday_intake::wallet::{json_string, network_of_kind};
+pub(crate) use faraday_intake::wallet::{json_label, network_of_kind};
 
 /// A key that can sign, held for this session only.
 pub struct Key {
@@ -1191,24 +1191,6 @@ pub fn needed(wallet: &Wallet) -> usize {
 /// write a hardened step as `h` or as `'`.
 pub fn same_wallet(policy: &WalletPolicy) -> String {
     policy.to_descriptor().replace('\'', "h")
-}
-
-/// The object under `key` in a JSON text, from its name to its closing
-/// brace. Enough for the flat objects wallets write; not a JSON parser.
-pub(crate) fn json_object<'a>(text: &'a str, key: &str) -> Option<&'a str> {
-    let at = text.find(&format!("\"{key}\""))?;
-    let rest = &text[at..];
-    let open = rest.find('{')?;
-    // The value must be the object itself, not a later one.
-    if rest[key.len() + 2..open]
-        .trim()
-        .trim_start_matches(':')
-        .trim()
-        != ""
-    {
-        return None;
-    }
-    Some(&rest[..rest.find('}')? + 1])
 }
 
 /// What a file holds, as far as this build is concerned.

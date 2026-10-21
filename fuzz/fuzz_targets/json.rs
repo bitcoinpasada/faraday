@@ -1,12 +1,12 @@
-//! `faraday-intake`'s JSON reader over any bytes (`docs/INTEROP.md` §5
-//! I2), then the wallet reader over the same text: a single-key file or a
-//! Caravan config is another wallet's file, whose every byte its writer
-//! chose. Text that reads as JSON is written back and read again.
+//! `osk_bip::json` over any bytes, then the Coldcard export reader that
+//! reads with it: another wallet's file, whose every byte its writer
+//! chose. Text that reads as JSON is written back and read again, and
+//! must be the same value.
 
 #![no_main]
 
-use faraday_intake::json::{self, Value};
 use libfuzzer_sys::fuzz_target;
+use osk_bip::json::{self, Value};
 
 /// The value written as JSON again.
 fn write(v: &Value) -> String {
@@ -36,5 +36,7 @@ fuzz_target!(|data: &[u8]| {
     if let Ok(v) = json::parse(text) {
         assert_eq!(json::parse(&write(&v)), Ok(v));
     }
-    let _ = faraday_intake::wallet::read_wallet(text);
+    if osk_bip::coldcard::looks_like_export(text) {
+        let _ = osk_bip::coldcard::parse(text);
+    }
 });

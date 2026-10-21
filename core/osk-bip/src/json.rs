@@ -9,6 +9,14 @@
 //!
 //! The quotation mark is written `'\u{22}'` and `b'\x22'` here, so that
 //! `tools/lint-strings.sh` does not read it as the start of a string.
+//!
+//! Faraday's since the fork (`docs/UPSTREAM.md` §3): it replaced the
+//! scanners [`crate::coldcard`] and Faraday's readers used, which took
+//! the first `"key"` anywhere in the text and undid no escapes.
+
+use alloc::format;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 /// The deepest nesting of arrays and objects read.
 pub const MAX_DEPTH: usize = 32;
@@ -78,6 +86,48 @@ impl Value {
         match self {
             Value::Array(items) => Some(items),
             _ => None,
+        }
+    }
+
+    /// The first member named `key` at any depth, in the order the text
+    /// writes them (an object's members before what follows it): the
+    /// field a wallet file names once wherever its writer put it.
+    pub fn find(&self, key: &str) -> Option<&Value> {
+        match self {
+            Value::Object(members) => members
+                .iter()
+                .find_map(|(k, v)| if k == key { Some(v) } else { v.find(key) }),
+            Value::Array(items) => items.iter().find_map(|v| v.find(key)),
+            _ => None,
+        }
+    }
+
+    /// Every string member named `key` at any depth, in the order the
+    /// text writes them.
+    pub fn strings_named(&self, key: &str) -> Vec<String> {
+        let mut out = Vec::new();
+        self.collect_strings(key, &mut out);
+        out
+    }
+
+    fn collect_strings(&self, key: &str, out: &mut Vec<String>) {
+        match self {
+            Value::Object(members) => {
+                for (k, v) in members {
+                    if k == key
+                        && let Value::String(s) = v
+                    {
+                        out.push(s.clone());
+                    }
+                    v.collect_strings(key, out);
+                }
+            }
+            Value::Array(items) => {
+                for v in items {
+                    v.collect_strings(key, out);
+                }
+            }
+            _ => {}
         }
     }
 }

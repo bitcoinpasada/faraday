@@ -452,7 +452,7 @@ pub fn read_keys(text: &str) -> Vec<String> {
     if text.trim_start().starts_with('{') {
         // A single-key file (Cobo, Keystone, Coldcard's for Wasabi): its
         // one key.
-        if let Ok(v) = faraday_intake::json::parse(text)
+        if let Ok(v) = osk_bip::json::parse(text)
             && let Some(read) = faraday_intake::single_key::read(&v)
         {
             return read
@@ -481,8 +481,12 @@ pub fn read_keys(text: &str) -> Vec<String> {
 /// takes as `xpub` or `tpub` once the version agrees with the purpose in
 /// the key's path (`slip132::key_line`); a key that disagrees is left out.
 fn coldcard_keys(text: &str) -> Vec<String> {
-    use crate::wallet::{json_object, json_string};
-    let Some(master) = json_string(text, "xfp") else {
+    use osk_bip::json::{self, Value};
+    let Ok(file) = json::parse(text) else {
+        return Vec::new();
+    };
+    let string = |v: &Value, name: &str| v.get(name).and_then(Value::as_str).map(String::from);
+    let Some(master) = file.find("xfp").and_then(Value::as_str) else {
         return Vec::new();
     };
     let master = master.to_ascii_lowercase();
@@ -495,16 +499,10 @@ fn coldcard_keys(text: &str) -> Vec<String> {
     // The multisig key file: flat fields. Coldcard has written the nested
     // one as `p2wsh_p2sh` and as `p2sh_p2wsh`.
     for field in ["p2wsh", "p2sh_p2wsh", "p2wsh_p2sh", "p2sh"] {
-        let flat = text.find(&format!("\"{field}\"")).is_some_and(|at| {
-            // A field at the top level, not inside an account object.
-            text[..at].matches('{').count() == text[..at].matches('}').count() + 1
-        });
-        if !flat {
-            continue;
-        }
+        // A field at the top level, not inside an account object.
         if let (Some(d), Some(x)) = (
-            json_string(text, &format!("{field}_deriv")),
-            json_string(text, field),
+            string(&file, &format!("{field}_deriv")),
+            string(&file, field),
         ) && let Some(k) = key(&d, &x)
         {
             keys.push(k);
@@ -514,9 +512,8 @@ fn coldcard_keys(text: &str) -> Vec<String> {
     for field in [
         "bip48_2", "bip48_1", "bip45", "bip86", "bip84", "bip49", "bip44",
     ] {
-        if let Some(account) = json_object(text, field)
-            && let (Some(d), Some(x)) =
-                (json_string(account, "deriv"), json_string(account, "xpub"))
+        if let Some(account) = file.find(field).filter(|v| matches!(v, Value::Object(_)))
+            && let (Some(d), Some(x)) = (string(account, "deriv"), string(account, "xpub"))
             && let Some(k) = key(&d, &x)
         {
             keys.push(k);

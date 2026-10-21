@@ -14,14 +14,15 @@
 //! wallet of their own, so [`cosigner_key`] reads one of them as a key
 //! expression for the wallet builder to put in a policy.
 //!
-//! The reader is a scanner over the text rather than a JSON parser: the
-//! file is a flat object of string fields written by one program, and a
-//! dependency for it would be a dependency for one file format.
+//! The file is read as JSON ([`crate::json`]), so a field is the one at
+//! its place in the file, escapes undone, and a file that is not JSON,
+//! names a key twice or nests too deep is no export.
 
 use alloc::string::String;
 
 use bitcoin::base58;
 
+use crate::json::{self, Value};
 use crate::keys::{MultisigScriptType, ScriptType};
 use crate::policy::{DESCRIPTOR_SUFFIX, Error, WalletPolicy};
 use crate::xkey;
@@ -38,17 +39,19 @@ const ACCOUNTS: &[(&str, ScriptType)] = &[
 /// Whether `text` looks like one of these exports: a JSON object with a
 /// master fingerprint and at least one account in it.
 pub fn looks_like_export(text: &str) -> bool {
-    let text = text.trim();
-    text.starts_with('{')
-        && string_field(text, "xfp").is_some()
+    let Some(file) = read(text) else {
+        return false;
+    };
+    string_field(&file, "xfp").is_some()
         && ACCOUNTS
             .iter()
-            .any(|(name, _)| object(text, name).is_some())
+            .any(|(name, _)| object(&file, name).is_some())
 }
 
 /// The single-sig wallet the export offers.
 pub fn parse(text: &str) -> Result<WalletPolicy, Error> {
-    let text = text.trim();
+    let file = read(text).ok_or(Error::Key)?;
+    let text = &file;
     let xfp = string_field(text, "xfp").ok_or(Error::Key)?;
     for (name, script) in ACCOUNTS {
         let Some(account) = object(text, name) else {
@@ -88,7 +91,8 @@ pub fn parse(text: &str) -> Result<WalletPolicy, Error> {
 /// empty. Coldcard writes none; other tools that write this file do,
 /// and it is the wallet's name.
 pub fn name(text: &str) -> Option<String> {
-    let name = string_field(text.trim(), "name")?.trim();
+    let file = read(text)?;
+    let name = string_field(&file, "name")?.trim();
     (!name.is_empty()).then(|| String::from(name))
 }
 
@@ -132,7 +136,8 @@ const MULTISIG_VERSIONS: [([u8; 4], [u8; 4]); 4] = [
 /// carries, so the key states its own origin and nothing is invented.
 /// A file with no such account is [`Error::Key`].
 pub fn cosigner_key(text: &str, account: Cosigner) -> Result<String, Error> {
-    let text = text.trim();
+    let file = read(text).ok_or(Error::Key)?;
+    let text = &file;
     let xfp = string_field(text, "xfp").ok_or(Error::Key)?;
     let (deriv, key) = match account {
         Cosigner::Taproot => {
@@ -185,51 +190,21 @@ fn plain_xpub(key: &str) -> Result<String, Error> {
     Ok(base58::encode_check(&bytes))
 }
 
-/// The value of `"name": "…"`, unescaped only as far as these files go,
-/// which is not at all: every value here is hex, a derivation path or a
-/// base58 key.
-fn string_field<'a>(text: &'a str, name: &str) -> Option<&'a str> {
-    let rest = after_name(text, name)?;
-    let rest = rest.strip_prefix('"')?;
-    let end = rest.find('"')?;
-    Some(&rest[..end])
+/// The text read as JSON, when it is a JSON object.
+fn read(text: &str) -> Option<Value> {
+    json::parse(text)
+        .ok()
+        .filter(|v| matches!(v, Value::Object(_)))
 }
 
-/// The text of the object at `"name": { … }`, braces included.
-fn object<'a>(text: &'a str, name: &str) -> Option<&'a str> {
-    let rest = after_name(text, name)?;
-    if !rest.starts_with('{') {
-        return None;
-    }
-    let mut depth = 0usize;
-    for (i, c) in rest.char_indices() {
-        match c {
-            '{' => depth += 1,
-            '}' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(&rest[..=i]);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
+/// The string member `name` of an object.
+fn string_field<'a>(object: &'a Value, name: &str) -> Option<&'a str> {
+    object.get(name)?.as_str()
 }
 
-/// What follows `"name":`, with the whitespace around the colon gone.
-fn after_name<'a>(text: &'a str, name: &str) -> Option<&'a str> {
-    let mut from = 0;
-    let quoted = alloc::format!("\"{name}\"");
-    while let Some(at) = text[from..].find(&quoted) {
-        let after = &text[from + at + quoted.len()..];
-        let after = after.trim_start();
-        if let Some(after) = after.strip_prefix(':') {
-            return Some(after.trim_start());
-        }
-        from += at + quoted.len();
-    }
-    None
+/// The object member `name` of an object.
+fn object<'a>(object: &'a Value, name: &str) -> Option<&'a Value> {
+    object.get(name).filter(|v| matches!(v, Value::Object(_)))
 }
 
 #[cfg(test)]

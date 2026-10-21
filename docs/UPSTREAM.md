@@ -65,6 +65,15 @@ Since the fork:
   written `h` or an apostrophe (glossary). "Devices", "Encrypted
   backups" and "The secure element" are unchanged, waiting on the
   owner.
+- `core/osk-bip/src/json.rs`, `osk_bip::json` (2026-10-20): Faraday's
+  JSON reader (RFC 8259, every escape, at most 32 deep and 1 MiB, a key
+  named twice refused) moved in from `faraday-intake`, its fuzz target
+  into `fuzz/` as `json`. `osk_bip::coldcard` reads its file with it
+  instead of a scanner that took the first `"name"` anywhere in the
+  text and undid no escapes, and `core_import` writes the descriptor
+  with `json::quote`. Why: one JSON reader for every wallet file, in the
+  crate that reads the formats. Stricter only: text that is not JSON,
+  names a key twice or nests deeper than 32 is no Coldcard export.
 
 ## 4. Watching upstream
 

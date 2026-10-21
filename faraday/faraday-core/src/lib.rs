@@ -10548,9 +10548,7 @@ impl Faraday {
             .collect::<Vec<_>>()
             .join(" ");
         // A wallet .json carries its own name.
-        let name = wallet::json_string(&text, "label")
-            .filter(|l| text.trim_start().starts_with('{') && !l.trim().is_empty())
-            .unwrap_or(name);
+        let name = wallet::json_label(&text).unwrap_or(name);
         match self
             .session
             .add_wallet(&name, &text, &source, wallet::Origin::Named)

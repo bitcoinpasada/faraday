@@ -591,7 +591,7 @@ fn a_single_key_file_whose_key_disagrees_with_its_path_is_refused() {
 #[test]
 fn json_nested_past_the_depth_limit_is_refused() {
     // The object is one level; the arrays inside it the rest.
-    let depth = faraday_intake::json::MAX_DEPTH;
+    let depth = osk_bip::json::MAX_DEPTH;
     let cobo = file("sparrow/cobo-singlesig-keystore-1.json");
     let body = cobo.trim().trim_start_matches('{').trim_end_matches('}');
     let deep = format!(
@@ -609,6 +609,24 @@ fn json_nested_past_the_depth_limit_is_refused() {
     assert_eq!(
         first(&read_wallet(&shallow).unwrap(), Network::Mainnet),
         BIP84_FIRST
+    );
+}
+
+/// A wallet `.json` is read as JSON: one that names its descriptor twice
+/// could be read as either wallet, and one cut short is not the file its
+/// writer wrote; both are refused, where the whole file loads.
+#[test]
+fn a_wallet_json_naming_its_descriptor_twice_or_cut_short_is_refused() {
+    let specter = file("sparrow/specter-wallet.json");
+    assert!(read_wallet(&specter).is_ok());
+    let other = "\"descriptor\": \"wpkh([4df18faa/84'/0'/0']xpub6BgwyseZdeGJj2vB3FPHSGPxR1LLkr8AsAJqedrgjwBXKXXVWkH31fhwtQXgrM7uMrWjLwXhuDhhenNAh5eBdUSjrHkrKfaXutcJdAfgQ8D)\",\n  \"descriptor\"";
+    let twice = specter.replacen("\"descriptor\"", other, 1);
+    assert!(read_wallet(&twice).is_err());
+    let cut = specter.trim_end().trim_end_matches('}');
+    assert!(read_wallet(cut).is_err());
+    assert_eq!(
+        faraday_intake::wallet::json_label(&specter).as_deref(),
+        Some("specter-wallet")
     );
 }
 
@@ -778,7 +796,7 @@ const ELECTRUM_ROW: u8 = 10;
 /// The requests of an `importdescriptors` file: each one's `desc` and
 /// `internal`, after checking the fields Core needs.
 fn import_requests(text: &str) -> Vec<(String, bool)> {
-    use faraday_intake::json::{self, Value};
+    use osk_bip::json::{self, Value};
     let v = json::parse(text).unwrap();
     v.as_array()
         .unwrap()
@@ -820,13 +838,13 @@ fn the_import_for_core_before_29_is_the_receive_and_change_descriptors_core_itse
     assert_eq!(name, "test-bitcoin-core-before-29.json");
     let requests = import_requests(text);
     let listed = |internal: bool| {
-        let v = faraday_intake::json::parse(&core).unwrap();
+        let v = osk_bip::json::parse(&core).unwrap();
         v.get("descriptors")
-            .and_then(faraday_intake::json::Value::as_array)
+            .and_then(osk_bip::json::Value::as_array)
             .unwrap()
             .iter()
-            .filter(|d| d.get("internal") == Some(&faraday_intake::json::Value::Bool(internal)))
-            .filter_map(|d| d.get("desc").and_then(faraday_intake::json::Value::as_str))
+            .filter(|d| d.get("internal") == Some(&osk_bip::json::Value::Bool(internal)))
+            .filter_map(|d| d.get("desc").and_then(osk_bip::json::Value::as_str))
             .find(|d| d.starts_with("wpkh("))
             .unwrap()
             .to_string()

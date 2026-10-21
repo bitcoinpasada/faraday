@@ -21,10 +21,10 @@
 //! A file whose keystores hold an `xprv`, a `seed` or imported private
 //! keys is a secret ([`holds_secret`]); only its public keys are read.
 
-use crate::json::{self, Value};
 use crate::single_key::path_h;
 use crate::slip132::{self, Script};
 use faraday_strings::{EN, fill};
+use osk_bip::json::{self, Value};
 use osk_bip::policy::{Template, WalletPolicy, Wrapper};
 
 /// The most keys a multisig script holds, and so the most keystores read.

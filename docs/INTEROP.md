@@ -171,10 +171,14 @@ address.
 
 ### I2. A JSON reader; single-key JSON from Cobo/Keystone and Wasabi (§4 item 4; #46)
 
-`faraday-intake/src/json.rs`: a value parser (depth ≤ 32, size ≤ 1 MiB,
-full string escapes including `\uXXXX`), no new crate, and a fuzz target
-`faraday/fuzz/fuzz_targets/json.rs`. Every new reader uses it; the
-existing `json_string`/`json_object` stay for the files they read now.
+`osk_bip::json` (`core/osk-bip/src/json.rs`, moved from `faraday-intake`
+2026-10-20): a value parser (depth ≤ 32, size ≤ 1 MiB, full string
+escapes including `\uXXXX`, a key named twice refused), no new crate,
+and a fuzz target `fuzz/fuzz_targets/json.rs`. Every reader of a JSON
+file uses it: since 2026-10-20 also the wallet `.json` and
+`listdescriptors` reader, the `"label"` a wallet `.json` names, and
+Coldcard's files, whose scanners (`json_string`, `json_object`,
+`osk_bip::coldcard`'s own) are gone.
 
 Reads Cobo/Keystone `{"ExtPubKey","MasterFingerprint","AccountKeyPath"}`
 (`AccountKeyPath` may lack `m/`; the version is checked against the path

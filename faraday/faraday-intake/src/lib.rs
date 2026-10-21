@@ -9,9 +9,9 @@
 //! the app that asked says it in its own strings; the one exception is
 //! [`wallet`], the description reader, and the readers of other
 //! wallets' files it calls ([`caravan`], [`electrum`], [`single_key`],
-//! [`slip132`]), whose refusals are Faraday's own lines (`faraday-strings`). [`json`]
-//! is the JSON those readers read; [`core_before_29`] writes Bitcoin
-//! Core's import file for Core before 29.
+//! [`slip132`]), whose refusals are Faraday's own lines (`faraday-strings`);
+//! the JSON those readers read is `osk_bip::json`. [`core_before_29`]
+//! writes Bitcoin Core's import file for Core before 29.
 //!
 //! [`secret_buf`] holds text a person types that may be a secret, wiped
 //! wherever it has been.
@@ -19,7 +19,6 @@
 pub mod caravan;
 pub mod core_before_29;
 pub mod electrum;
-pub mod json;
 pub mod secret_buf;
 pub mod single_key;
 pub mod slip132;

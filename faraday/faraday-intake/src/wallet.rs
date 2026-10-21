@@ -7,8 +7,9 @@
 //! (`faraday-strings`). Moved here from `faraday-core`'s `wallet` module,
 //! which re-exports it.
 
-use crate::{caravan, electrum, json, single_key, slip132};
+use crate::{caravan, electrum, single_key, slip132};
 use faraday_strings::{EN, fill};
+use osk_bip::json::{self, Value};
 use osk_bip::keys::Network;
 use osk_bip::policy::WalletPolicy;
 
@@ -160,6 +161,7 @@ fn read_wallet_as_written(text: &str) -> Result<WalletPolicy, Refusal> {
     // A single-key file (Cobo, Keystone, Coldcard's for Wasabi), a
     // Caravan config or an Electrum wallet file, read as JSON. JSON too deep or too long is refused;
     // other text that is not quite JSON goes on to the readers below.
+    let mut read_json: Option<Value> = None;
     if text
         .trim_start_matches('\u{feff}')
         .trim_start()
@@ -188,6 +190,7 @@ fn read_wallet_as_written(text: &str) -> Result<WalletPolicy, Refusal> {
                     return WalletPolicy::parse_any(&d)
                         .map_err(|e| Refusal::NotAWallet(e.to_string()));
                 }
+                read_json = Some(v);
             }
             Err(json::Error::TooDeep) => {
                 return Err(Refusal::NotAWallet(fill(
@@ -203,13 +206,18 @@ fn read_wallet_as_written(text: &str) -> Result<WalletPolicy, Refusal> {
     }
     // A wallet .json (Specter Desktop's, which Sparrow also writes and
     // reads) or Bitcoin Core's `listdescriptors`: the descriptor fields.
+    // Text that starts as JSON and is not JSON is refused here.
     if text.trim_start().starts_with('{') {
-        let d = json_string(text, "descriptor")
-            .or_else(|| json_string(text, "desc"))
-            .ok_or_else(|| Refusal::NotAWallet(EN.wallet_a_json_file.into()))?;
-        return WalletPolicy::parse_any(&plain(&d)?).or_else(|e| {
-            let mut all = json_strings(text, "descriptor");
-            all.extend(json_strings(text, "desc"));
+        let no_descriptor = || Refusal::NotAWallet(EN.wallet_a_json_file.into());
+        let v = read_json.ok_or_else(no_descriptor)?;
+        let d = v
+            .find("descriptor")
+            .and_then(Value::as_str)
+            .or_else(|| v.find("desc").and_then(Value::as_str))
+            .ok_or_else(no_descriptor)?;
+        return WalletPolicy::parse_any(&plain(d)?).or_else(|e| {
+            let mut all = v.strings_named("descriptor");
+            all.extend(v.strings_named("desc"));
             let all = all
                 .iter()
                 .map(|d| plain(d.as_str()))
@@ -419,20 +427,6 @@ fn with_chains(d: &str) -> Option<String> {
     found.then_some(out)
 }
 
-/// Every string value under `key` in a JSON text.
-fn json_strings(text: &str, key: &str) -> Vec<String> {
-    let pattern = format!("\"{key}\"");
-    let mut out = Vec::new();
-    let mut from = 0;
-    while let Some(at) = text[from..].find(&pattern) {
-        if let Some(v) = json_string(&text[from + at..], key) {
-            out.push(v);
-        }
-        from += at + pattern.len();
-    }
-    out
-}
-
 /// Coldcard's account export, which Nunchuk, Passport and Sparrow also
 /// write: one object per single-sig account. The wallet is the first of
 /// BIP-84, BIP-86, BIP-49 and BIP-44 the file has, as OpenSigner chooses.
@@ -445,27 +439,31 @@ fn json_strings(text: &str, key: &str) -> Vec<String> {
 /// states its first address, the wallet read must give the same one.
 fn coldcard_export(text: &str) -> Result<WalletPolicy, Refusal> {
     let bad = |why: &str| Refusal::NotAWallet(fill(EN.wallet_coldcard_export, &[why]));
-    let master = json_string(text, "xfp").ok_or_else(|| bad(EN.wallet_no_xfp))?;
+    let file = json::parse(text).map_err(|_| bad(EN.wallet_no_xfp))?;
+    let master = file
+        .find("xfp")
+        .and_then(Value::as_str)
+        .ok_or_else(|| bad(EN.wallet_no_xfp))?;
     for (field, wrap) in [
         ("bip84", "wpkh(K)"),
         ("bip86", "tr(K)"),
         ("bip49", "sh(wpkh(K))"),
         ("bip44", "pkh(K)"),
     ] {
-        let Some(at) = text.find(&format!("\"{field}\"")) else {
+        let Some(account) = file.find(field) else {
             continue;
         };
-        let account = &text[at..at + text[at..].find('}').unwrap_or(text.len() - at)];
-        let (Some(deriv), Some(xpub)) =
-            (json_string(account, "deriv"), json_string(account, "xpub"))
-        else {
+        let (Some(deriv), Some(xpub)) = (
+            account.get("deriv").and_then(Value::as_str),
+            account.get("xpub").and_then(Value::as_str),
+        ) else {
             continue;
         };
         let path = deriv.trim_start_matches('m').trim_start_matches('/');
         let key = format!("[{}/{path}]{xpub}/<0;1>/*", master.to_ascii_lowercase());
         let policy = WalletPolicy::parse_any(&wrap.replace('K', &key))
             .map_err(|e| Refusal::NotAWallet(e.to_string()))?;
-        if let Some(first) = json_string(account, "first") {
+        if let Some(first) = account.get("first").and_then(Value::as_str) {
             let found = osk_bip::keys::Network::ALL.iter().any(|&net| {
                 policy
                     .address_at(net, false, 0)
@@ -483,25 +481,16 @@ fn coldcard_export(text: &str) -> Result<WalletPolicy, Refusal> {
     Err(bad(EN.wallet_no_single_sig))
 }
 
-/// The first string value under `key` in a JSON text, with its escapes
-/// undone. Enough for the wallet files coordinators write; not a JSON
-/// parser.
-pub fn json_string(text: &str, key: &str) -> Option<String> {
-    let at = text.find(&format!("\"{key}\""))? + key.len() + 2;
-    let rest = text[at..].trim_start().strip_prefix(':')?.trim_start();
-    let mut chars = rest.strip_prefix('"')?.chars();
-    let mut out = String::new();
-    loop {
-        match chars.next()? {
-            '"' => return Some(out),
-            '\\' => match chars.next()? {
-                'n' => out.push('\n'),
-                't' => out.push('\t'),
-                c => out.push(c),
-            },
-            c => out.push(c),
-        }
+/// The name a wallet `.json` carries in its `"label"` (Specter Desktop's,
+/// Sparrow's for Specter), when it has one that is not blank: the first
+/// member of that name in the file. Costs a JSON parse.
+pub fn json_label(text: &str) -> Option<String> {
+    if !text.trim_start().starts_with('{') {
+        return None;
     }
+    let file = json::parse(text).ok()?;
+    let label = file.find("label")?.as_str()?;
+    (!label.trim().is_empty()).then(|| label.to_string())
 }
 
 /// A wallet's first receive address, worked out as the device works it

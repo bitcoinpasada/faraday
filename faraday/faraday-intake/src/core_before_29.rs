@@ -7,7 +7,7 @@
 //! The origins are kept as the wallet writes them, so a wallet read from
 //! Core's own `listdescriptors` gives back Core's own two strings.
 
-use crate::json;
+use osk_bip::json;
 use osk_bip::policy::{Template, WalletPolicy};
 
 /// The multipath step every wallet with a descriptor derives through.

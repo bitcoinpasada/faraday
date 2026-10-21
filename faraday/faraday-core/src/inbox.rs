@@ -724,9 +724,7 @@ impl Faraday {
             })
             .collect::<Vec<_>>()
             .join(" ");
-        crate::wallet::json_string(&text, "label")
-            .filter(|l| text.trim_start().starts_with('{') && !l.trim().is_empty())
-            .unwrap_or(name)
+        crate::wallet::json_label(&text).unwrap_or(name)
     }
 
     /// Loads the chosen wallets the Inbox describes, each with the seeds

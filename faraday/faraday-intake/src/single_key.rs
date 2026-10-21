@@ -12,11 +12,11 @@
 //! `GetKeyManagerByColdcardJson`). Both are read here as Wasabi reads
 //! them, and the file Faraday writes carries a version Wasabi parses.
 
-use crate::json::{self, Value};
 use crate::slip132::{self, Script};
 use faraday_strings::{EN, fill};
 use osk_bip::bitcoin::NetworkKind;
 use osk_bip::bitcoin::bip32::ChildNumber;
+use osk_bip::json::{self, Value};
 use osk_bip::keys::ScriptType;
 use osk_bip::policy::{Template, WalletPolicy};
 

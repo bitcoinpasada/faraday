@@ -56,24 +56,10 @@ pub fn import_descriptors(descriptor: &str, rescan: Rescan) -> String {
     // Writing into a String cannot fail.
     let _ = write!(
         out,
-        "[\n  {{\n    \"desc\": \"{}\",\n    \"active\": true,\n    \"range\": [0, {}],\n    \"timestamp\": {}\n  }}\n]\n",
-        escape(descriptor),
+        "[\n  {{\n    \"desc\": {},\n    \"active\": true,\n    \"range\": [0, {}],\n    \"timestamp\": {}\n  }}\n]\n",
+        crate::json::quote(descriptor),
         RANGE_END,
         rescan.timestamp()
     );
-    out
-}
-
-/// JSON's two mandatory escapes. A descriptor holds neither, being
-/// letters, digits and `[]()<>;,/'*#`, but a string written into JSON is
-/// escaped whatever is in it.
-fn escape(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    for c in text.chars() {
-        if c == '"' || c == '\\' {
-            out.push('\\');
-        }
-        out.push(c);
-    }
     out
 }

@@ -14,10 +14,10 @@
 //! `WalletPolicy` holds no key without one (BIP-388; upstream's
 //! `policy::check`).
 
-use crate::json::{self, Value};
 use crate::slip132::{self, Script};
 use crate::wallet::network_name;
 use faraday_strings::{EN, fill};
+use osk_bip::json::{self, Value};
 use osk_bip::keys::Network;
 use osk_bip::policy::{Template, WalletPolicy, Wrapper};
 
