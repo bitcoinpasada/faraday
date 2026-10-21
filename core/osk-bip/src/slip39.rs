@@ -784,9 +784,10 @@ fn check_passphrase(passphrase: &[u8]) -> Result<(), Error> {
     Ok(())
 }
 
-/// The four-round Feistel network SLIP-39 encrypts and decrypts the
-/// master secret with. `forward` runs the rounds 0, 1, 2, 3 (encryption)
-/// and its inverse runs 3, 2, 1, 0.
+/// Costs a PBKDF2 (through `pbkdf2_hmac_sha256`). The four-round
+/// Feistel network SLIP-39 encrypts and decrypts the master secret
+/// with. `forward` runs the rounds 0, 1, 2, 3 (encryption) and its
+/// inverse runs 3, 2, 1, 0.
 fn feistel(
     c: &Compute,
     value: &SecretBytes,
@@ -856,8 +857,8 @@ fn feistel(
     }
 }
 
-/// The encrypted master secret a split carries, which is `secret` under
-/// `passphrase`.
+/// Costs a PBKDF2 (through `feistel_call`). The encrypted master secret
+/// a split carries, which is `secret` under `passphrase`.
 ///
 /// A device that writes shares needs this on its own, before any share
 /// exists: the two fingerprints it shows for a passphrase are what
@@ -881,8 +882,8 @@ pub fn encrypt(
     )
 }
 
-/// The master secret behind `encrypted` under `passphrase`: the inverse
-/// of [`encrypt`].
+/// Costs a PBKDF2 (through `feistel_call`). The master secret behind
+/// `encrypted` under `passphrase`: the inverse of [`encrypt`].
 pub fn decrypt(
     c: &Compute,
     encrypted: &[u8],
@@ -902,6 +903,7 @@ pub fn decrypt(
     )
 }
 
+/// Costs a PBKDF2 (through `feistel`).
 fn feistel_call(
     c: &Compute,
     value: &[u8],
@@ -929,7 +931,8 @@ fn feistel_call(
 
 // --- recovery --------------------------------------------------------------
 
-/// The master secret behind `shares`, under `passphrase`.
+/// Costs a PBKDF2 (through `feistel`). The master secret behind
+/// `shares`, under `passphrase`.
 ///
 /// The result is the BIP-32 seed: hand it to
 /// `bitcoin::bip32::Xpriv::new_master`. It is not BIP-39 entropy.
@@ -1044,7 +1047,8 @@ pub struct GroupSpec {
     pub count: u8,
 }
 
-/// Splits `secret` into the shares `groups` describes.
+/// Costs a PBKDF2 (through `feistel`). Splits `secret` into the shares
+/// `groups` describes.
 ///
 /// `secret` is the master secret: 16 to 32 bytes of even length, and the
 /// BIP-32 seed the wallet comes from. `random` fills the slice it is

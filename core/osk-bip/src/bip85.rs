@@ -129,6 +129,7 @@ impl Drop for Bytes {
     }
 }
 
+/// Costs a key derivation (through `MasterKey::derive`).
 /// `HMAC-SHA512("bip-entropy-from-k", k)` over the private key at
 /// `m/83696968'` followed by `steps`, all hardened. The derived private
 /// key is zeroized before this returns.
@@ -156,8 +157,8 @@ fn check_index(index: u32) -> Result<(), Error> {
     Ok(())
 }
 
-/// The child mnemonic of `words` words at `index` in `language`
-/// (application 39').
+/// Costs a key derivation (through `derive`). The child mnemonic of
+/// `words` words at `index` in `language` (application 39').
 pub fn child_mnemonic(
     c: &Compute,
     master: &MasterKey,
@@ -180,8 +181,8 @@ pub fn child_mnemonic(
     Mnemonic::from_entropy(language, &hash.0[..n]).map_err(|_| Error::Wordlist)
 }
 
-/// The child HD-seed WIF at `index` (application 2'), on the network the
-/// master key is for.
+/// Costs a key derivation (through `derive`). The child HD-seed WIF at
+/// `index` (application 2'), on the network the master key is for.
 ///
 /// BIP-85 takes the most significant 256 bits of the entropy as the
 /// secret exponent and writes it as a compressed WIF, which is the form
@@ -195,8 +196,10 @@ pub fn child_wif(c: &Compute, master: &MasterKey, index: u32) -> Result<WifAscii
     Ok(wif)
 }
 
-/// The child extended private key at `index` (application 32'), at depth
-/// 0 on the network the master key is for.
+/// Costs a key derivation and a master key (through `derive` and
+/// `from_chain_code_and_key`). The child extended private key at
+/// `index` (application 32'), at depth 0 on the network the master key
+/// is for.
 ///
 /// BIP-85 reverses BIP-32's order: the first 32 bytes of the entropy are
 /// the chain code and the second 32 are the private key. The child
@@ -214,8 +217,9 @@ pub fn child_xprv(c: &Compute, master: &MasterKey, index: u32) -> Result<XprivAs
     Ok(child.ok_or(Error::InvalidKey)?.xpriv_ascii())
 }
 
-/// `bytes` bytes of entropy at `index` (application 128169'), which is
-/// the derived entropy with its trailing bytes dropped.
+/// Costs a key derivation (through `derive`). `bytes` bytes of entropy
+/// at `index` (application 128169'), which is the derived entropy with
+/// its trailing bytes dropped.
 pub fn child_hex(
     c: &Compute,
     master: &MasterKey,
@@ -235,8 +239,9 @@ pub fn child_hex(
     Ok(out)
 }
 
-/// The base64 password of `length` characters at `index` (application
-/// 707764'): all 64 bytes base64-encoded, cut to `length`.
+/// Costs a key derivation (through `derive`). The base64 password of
+/// `length` characters at `index` (application 707764'): all 64 bytes
+/// base64-encoded, cut to `length`.
 pub fn child_password_base64(
     c: &Compute,
     master: &MasterKey,
@@ -260,8 +265,9 @@ pub fn child_password_base64(
     Ok(out)
 }
 
-/// The base85 password of `length` characters at `index` (application
-/// 707785'): all 64 bytes base85-encoded, cut to `length`.
+/// Costs a key derivation (through `derive`). The base85 password of
+/// `length` characters at `index` (application 707785'): all 64 bytes
+/// base85-encoded, cut to `length`.
 pub fn child_password_base85(
     c: &Compute,
     master: &MasterKey,

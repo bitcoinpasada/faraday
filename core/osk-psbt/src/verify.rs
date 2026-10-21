@@ -958,8 +958,9 @@ pub fn repeated_nonces(psbt: &Psbt, ctx: &Context) -> Vec<NonceReuse> {
     out
 }
 
-/// Which nonce rule made each signature that is under a key one of
-/// `keys` holds.
+/// Costs a key derivation per signature checked (through `ecdsa_mode`
+/// and `schnorr_mode`). Which nonce rule made each signature that is
+/// under a key one of `keys` holds.
 ///
 /// The key is derived from the PSBT's own origin data, the way
 /// [`crate::sign`] derives it, and lives only inside this call.
@@ -1037,7 +1038,8 @@ pub fn deterministic(c: &Compute, psbt: &Psbt, keys: &[&MasterKey]) -> Vec<Deter
     out
 }
 
-/// Which RFC 6979 rule reproduces an ECDSA signature, if either does.
+/// Costs a key derivation (through `derive` and `to_xpub`). Which RFC
+/// 6979 rule reproduces an ECDSA signature, if either does.
 fn ecdsa_mode(
     c: &Compute,
     master: &MasterKey,
@@ -1063,10 +1065,11 @@ fn ecdsa_mode(
     None
 }
 
-/// Whether BIP-340 with zero auxiliary randomness reproduces a Schnorr
-/// signature. `tweak` is the merkle root for a key-path signature —
-/// `Some(None)` for a key-only wallet — and `None` for a script path,
-/// which signs under the key itself.
+/// Costs a key derivation (through `derive`). Whether BIP-340 with zero
+/// auxiliary randomness reproduces a Schnorr signature. `tweak` is the
+/// merkle root for a key-path signature — `Some(None)` for a key-only
+/// wallet — and `None` for a script path, which signs under the key
+/// itself.
 fn schnorr_mode(
     c: &Compute,
     master: &MasterKey,

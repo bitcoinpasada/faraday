@@ -385,7 +385,8 @@ fn path(network: Network, account: u32, change: u32) -> DerivationPath {
 }
 
 impl Receiver {
-    /// The wallet at BIP-352's paths under `master`, for `account`.
+    /// Costs two key derivations. The wallet at BIP-352's paths under
+    /// `master`, for `account`.
     pub fn derive(c: &Compute, master: &MasterKey, account: u32) -> Receiver {
         let network = master.network();
         let scan = master.derive(c, &scan_path(network, account));

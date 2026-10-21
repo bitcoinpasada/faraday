@@ -194,10 +194,11 @@ pub struct SignResult {
     pub threshold: Option<ThresholdOutcome>,
 }
 
-/// Signs every input that names one of the `selection` fingerprints in
-/// its key origins, using the matching master key from `keys`, the
-/// RFC 6979 nonce `nonce` names and the Schnorr auxiliary randomness
-/// `aux` carries.
+/// Costs what `inspect`, `sign_ecdsa`, `sign_musig` and the rest it
+/// calls cost. Signs every input that names one of the `selection`
+/// fingerprints in its key origins, using the matching master key from
+/// `keys`, the RFC 6979 nonce `nonce` names and the Schnorr auxiliary
+/// randomness `aux` carries.
 ///
 /// Refuses (before touching the PSBT) when the inspection has any
 /// blocked warning, whatever `force` says; when it has any danger warning
@@ -523,9 +524,10 @@ pub fn sign(
     })
 }
 
-/// Derives the key at `path`, checks it is the key the PSBT names and
-/// that it appears in the script, then signs and verifies. The derived
-/// key lives only in this frame.
+/// Costs a key derivation (through `derive` and `to_xpub`). Derives the
+/// key at `path`, checks it is the key the PSBT names and that it
+/// appears in the script, then signs and verifies. The derived key
+/// lives only in this frame.
 ///
 /// The curve context is the master key's own, blinded by the session
 /// (`osk_bip::keys`, security review M1), not one made here.
@@ -591,9 +593,10 @@ fn key_in_leaf(input: &bitcoin::psbt::Input, leaf: &ScriptBuf, xonly: XOnlyPubli
     crate::classify::script_key_set(&ms, &hashes).contains(&xonly)
 }
 
-/// BIP-341 script-path signing: the derived key must be the one the PSBT
-/// names for this leaf, and the signature commits to the leaf's hash. It
-/// is verified against the key itself, which is what a script-path
+/// Costs a key derivation (through `derive` and `to_xpub`). BIP-341
+/// script-path signing: the derived key must be the one the PSBT names
+/// for this leaf, and the signature commits to the leaf's hash. It is
+/// verified against the key itself, which is what a script-path
 /// signature is checked against — no tweak.
 ///
 /// The curve context is the master key's own, as in [`sign_ecdsa`].
@@ -704,12 +707,12 @@ impl PrevoutSet {
     }
 }
 
-/// BIP-86 and BIP-341 key-path signing: the derived key must be the
-/// input's internal key, the output must be that key tweaked by
-/// `merkle_root` (nothing for a key-only wallet, the tree's root for a
-/// `tr()` with leaves), and the signature is verified against the
-/// tweaked output key. The auxiliary randomness is `aux`'s value for
-/// this input.
+/// Costs a key derivation (through `derive` and `to_xpub`). BIP-86 and
+/// BIP-341 key-path signing: the derived key must be the input's
+/// internal key, the output must be that key tweaked by `merkle_root`
+/// (nothing for a key-only wallet, the tree's root for a `tr()` with
+/// leaves), and the signature is verified against the tweaked output
+/// key. The auxiliary randomness is `aux`'s value for this input.
 ///
 /// The curve context is the master key's own, as in [`sign_ecdsa`].
 #[allow(clippy::too_many_arguments)]
@@ -777,7 +780,8 @@ struct MusigPass {
     nonces_shared: usize,
 }
 
-/// Signing a BIP-373 MuSig2 input (`docs/PLANNING.md` §16.100).
+/// Costs a key derivation (through `derive` and `to_xpub`). Signing a
+/// BIP-373 MuSig2 input (`docs/PLANNING.md` §16.100).
 ///
 /// Each participant this device holds and the caller selected is handled
 /// one of three ways, decided from the input as it arrived so that two

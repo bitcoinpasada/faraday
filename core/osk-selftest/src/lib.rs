@@ -97,14 +97,14 @@ fn secp() -> Secp256k1<All> {
 /// name of the first that failed.
 pub type Outcome = Result<usize, &'static str>;
 
-/// Runs [`CHECKS`]: costs three PBKDF2s, an scrypt and an Argon2id at
-/// small costs, a few key derivations and two signatures.
+/// Costs three PBKDF2s, an scrypt and an Argon2id at small costs, a few
+/// key derivations and two signatures: runs [`CHECKS`].
 pub fn run(c: &Compute) -> Outcome {
     run_checks(c, &CHECKS)
 }
 
-/// Runs `checks` in order and stops at the first failure: costs what
-/// the checks cost.
+/// Costs what the checks cost: runs `checks` in order and stops at the
+/// first failure.
 pub fn run_checks(c: &Compute, checks: &[Check]) -> Outcome {
     for check in checks {
         if !(check.run)(c) {
@@ -122,6 +122,7 @@ const BIP39_MNEMONIC: &str =
 const BIP39_SEED: &str = "c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04";
 const BIP39_PASSPHRASE: &[u8] = b"TREZOR";
 
+/// Costs a PBKDF2 (through `to_seed`).
 fn bip39_vector(c: &Compute) -> bool {
     let Some(entropy) = unhex(BIP39_ENTROPY) else {
         return false;
@@ -159,6 +160,7 @@ const BIP39_JP_PASSPHRASE_NFKD: &str = "e383a1e383bce38388e383abe382abe38299e383
     e381afe3829ae381afe38299e3818fe38299e3829de38299e381a1e381a1e38299e58d81e4babae58d81e889b2";
 const BIP39_JP_SEED: &str = "a262d6fb6122ecf45be09c50492b31f92e9beb7d9a845987a02cefda57a15f9c467a17872029a9e92299b5cbdf306e3a0ee620245cbd508959b6cb7ca637bd55";
 
+/// Costs a PBKDF2 (through `to_seed_unchecked`).
 fn bip39_japanese_vector(c: &Compute) -> bool {
     let Some(entropy) = unhex(BIP39_JP_ENTROPY) else {
         return false;
@@ -189,6 +191,7 @@ const BIP32_SEED: &str = "000102030405060708090a0b0c0d0e0f";
 const BIP32_PATH: &str = "m/0h/1/2h";
 const BIP32_XPUB: &str = "xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5";
 
+/// Costs what `from_xpriv`, `derive` and `to_xpub` cost.
 fn bip32_vector(c: &Compute) -> bool {
     let Some(seed) = unhex(BIP32_SEED) else {
         return false;
@@ -209,6 +212,8 @@ fn bip32_vector(c: &Compute) -> bool {
 
 const BIP84_ADDRESS: &str = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu";
 
+/// Costs what `parse`, `to_seed`, `from_seed` and the rest it calls
+/// cost.
 fn bip84_address(c: &Compute) -> bool {
     let Ok(m) = Mnemonic::parse(c, Language::English, BIP39_MNEMONIC) else {
         return false;
@@ -231,6 +236,8 @@ const ECDSA_WIF: &str = "Kwr371tjA9u2rFSMZjTNun2PXXP3WPZu2afRHTcta6KxEUdm1vEw";
 const ECDSA_MESSAGE: &[u8] = b"Very deterministic message";
 const ECDSA_DER: &str = "304402205dbbddda71772d95ce91cd2d14b592cfbc1dd0aabd6a394b6c2d377bbe59d31d022014ddda21494a4e221f0824f0b8b924c43fa43c0ad57dccdaa11f81a6bd4582f6";
 
+/// Costs an ECDSA signature and its check; takes the token as every
+/// check does.
 fn ecdsa_vector(_c: &Compute) -> bool {
     let Ok(key) = PrivateKey::from_wif(ECDSA_WIF) else {
         return false;
@@ -261,6 +268,8 @@ const SCHNORR_MESSAGE: &str = "243f6a8885a308d313198a2e03707344a4093822299f31d00
 const SCHNORR_SIG: &str = "6896bd60eeae296db48a229ff71dfe071bde413e6d43f917dc8dcf8c78de3341\
     8906d11ac976abccb20b091292bff4ea897efcb639ea871cfa95f6de339e4b0a";
 
+/// Costs a BIP-340 signature and its check; takes the token as every
+/// check does.
 fn schnorr_vector(_c: &Compute) -> bool {
     let (Some(secret), Some(public), Some(aux), Some(message), Some(expected)) = (
         unhex(SCHNORR_SECRET),
@@ -301,6 +310,7 @@ fn schnorr_vector(_c: &Compute) -> bool {
 const SCRYPT_KEY: &str = "77d6576238657b203b19ca42c18a0497f16b4844e3074ae8dfdffa3fede2144\
     2fcd0069ded0948f8326a753a0fc81f17e8d3e0fb2e0d3628cf35e20c38d18906";
 
+/// Costs an scrypt run (through `scrypt`).
 fn scrypt_vector(c: &Compute) -> bool {
     let mut out = [0u8; 64];
     if osk_crypto::scrypt(c, b"", b"", 16, 1, 1, &mut out).is_err() {
@@ -325,6 +335,7 @@ const ARGON2ID_PASSWORD: &[u8] = b"password";
 const ARGON2ID_SALT: &[u8] = b"somesaltsomesalt";
 const ARGON2ID_KEY: &str = "cab746b4621993fdc91ec50787980b414a90a692f0bc68dfe19f9c25b3cba9ec";
 
+/// Costs an Argon2id run (through `argon2id`).
 fn argon2id_vector(c: &Compute) -> bool {
     let Ok(key) = osk_backup::argon2id(c, &ARGON2ID_COST, ARGON2ID_PASSWORD, ARGON2ID_SALT) else {
         return false;

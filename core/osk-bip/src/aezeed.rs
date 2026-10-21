@@ -120,9 +120,10 @@ impl CipherSeed {
     }
 }
 
-/// Reads an aezeed. `words` are indices into the BIP-39 English list,
-/// which is the list LND publishes as its own; an empty `passphrase`
-/// is LND's default, the word `aezeed`.
+/// Costs an scrypt run (through `decode_at_cost`). Reads an aezeed.
+/// `words` are indices into the BIP-39 English list, which is the list
+/// LND publishes as its own; an empty `passphrase` is LND's default,
+/// the word `aezeed`.
 pub fn decode(
     c: &Compute,
     words: &[u16; NUM_WORDS],
@@ -131,7 +132,8 @@ pub fn decode(
     decode_at_cost(c, words, passphrase, SCRYPT_N)
 }
 
-/// The same, stretched at a cost other than [`SCRYPT_N`].
+/// Costs an scrypt run (through `decode_bytes`). The same, stretched at
+/// a cost other than [`SCRYPT_N`].
 ///
 /// It exists because LND's own published vectors are not decodable by
 /// LND: `aezeed/cipherseed_test.go` has an `init()` that sets
@@ -150,7 +152,8 @@ pub fn decode_at_cost(
     result
 }
 
-/// The 33 bytes of a cipher seed, deciphered.
+/// Costs an scrypt run (through `scrypt`). The 33 bytes of a cipher
+/// seed, deciphered.
 fn decode_bytes(
     c: &Compute,
     bytes: &[u8; CIPHER_SEED_SIZE],
@@ -253,7 +256,8 @@ pub fn node_path(coin: u32) -> DerivationPath {
     )
 }
 
-/// LND's node identity key from a cipher seed's entropy.
+/// Costs a master key and a key derivation (through `from_seed_bytes`
+/// and `derive`). LND's node identity key from a cipher seed's entropy.
 ///
 /// The entropy is the BIP-32 seed with no stretching — LND hands those
 /// sixteen bytes straight to btcwallet — and the coin type is the
@@ -265,7 +269,8 @@ pub fn node_key(c: &Compute, entropy: &Secret<[u8; ENTROPY_SIZE]>, network: Netw
     master.derive(c, &node_path(network.coin_type()))
 }
 
-/// ldk-node's node secret from a BIP-39 seed.
+/// Costs a master key and a key derivation (through `from_seed_bytes`
+/// and `derive`). ldk-node's node secret from a BIP-39 seed.
 ///
 /// ldk-node makes a master key from the 64-byte seed, hands the master
 /// *private key* to `KeysManager` as its own 32-byte seed, and LDK

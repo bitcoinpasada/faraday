@@ -79,9 +79,9 @@ pub enum ReadError {
     Policy(Error),
 }
 
-/// The single-sig wallet the export offers, with the field it was read
-/// from. Costs a JSON parse, a policy parse and an address derivation
-/// per network until the stated first address is found.
+/// Costs a JSON parse, a policy parse and an address derivation per
+/// network until the stated first address is found. The single-sig
+/// wallet the export offers, with the field it was read from.
 pub fn read(c: &Compute, text: &str) -> Result<(WalletPolicy, &'static str), ReadError> {
     let file = read_json(text).ok_or(ReadError::NoXfp)?;
     let xfp = string_field(&file, "xfp").ok_or(ReadError::NoXfp)?;

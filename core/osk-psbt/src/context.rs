@@ -46,9 +46,10 @@ impl KeyRef {
         }
     }
 
-    /// The four single-signature accounts (BIP-44/49/84/86) and BIP-48's
-    /// two multisig accounts at index `account` on the master key's
-    /// network.
+    /// Costs a key derivation (through `account_xpub` and
+    /// `multisig_account_xpub`). The four single-signature accounts
+    /// (BIP-44/49/84/86) and BIP-48's two multisig accounts at index
+    /// `account` on the master key's network.
     pub fn from_master(c: &Compute, master: &MasterKey, account: u32) -> Result<Self, keys::Error> {
         let mut accounts = Vec::with_capacity(4);
         for script_type in ScriptType::ALL {

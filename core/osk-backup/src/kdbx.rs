@@ -153,9 +153,9 @@ pub struct Item<'a> {
     pub secret: &'a [u8],
 }
 
-/// The KDBX 4 database holding `items`, under `passphrase`, at `cost`,
-/// with the master seed, the IV, the Argon2id salt and the inner key
-/// taken from `seed`.
+/// Costs an Argon2id run (through `keys`). The KDBX 4 database holding
+/// `items`, under `passphrase`, at `cost`, with the master seed, the
+/// IV, the Argon2id salt and the inner key taken from `seed`.
 ///
 /// `seed` is the caller's randomness and must be fresh for every file:
 /// a salt reused across two passphrases costs an attacker one Argon2id
@@ -206,8 +206,9 @@ pub fn write(
     Some(out)
 }
 
-/// Whether `bytes` are a KDBX 4 file whose header hash, header HMAC and
-/// every block HMAC verify under `passphrase`.
+/// Costs an Argon2id run (through `keys`). Whether `bytes` are a KDBX 4
+/// file whose header hash, header HMAC and every block HMAC verify
+/// under `passphrase`.
 ///
 /// This is the check on what [`write`] wrote, not an importer: it reads
 /// the header, runs the key derivation the header states and verifies
@@ -255,7 +256,8 @@ struct Keys {
     hmac_base: Secret<[u8; 64]>,
 }
 
-/// The keys of a file with this master seed, salt, passphrase and cost.
+/// Costs an Argon2id run (through `stretch`). The keys of a file with
+/// this master seed, salt, passphrase and cost.
 fn keys(
     c: &Compute,
     master_seed: &[u8],
@@ -287,8 +289,9 @@ fn keys(
     })
 }
 
-/// `Argon2id(composite, salt)`, 32 bytes, at `cost`: [`argon2id`],
-/// refused above [`MAX_MEMORY_KIB`].
+/// Costs an Argon2id run (through `argon2id`). `Argon2id(composite,
+/// salt)`, 32 bytes, at `cost`: [`argon2id`], refused above
+/// [`MAX_MEMORY_KIB`].
 fn stretch(
     c: &Compute,
     composite: &Secret<[u8; 32]>,

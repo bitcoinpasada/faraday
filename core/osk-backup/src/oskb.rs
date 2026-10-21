@@ -229,8 +229,9 @@ pub fn cost_of(bytes: &[u8]) -> Option<Cost> {
     read_header(bytes).ok()
 }
 
-/// The backup of `m` under `passphrase`, at `cost`, with the salt and
-/// the nonce taken from `seed`. `None` where Argon2id refuses the cost.
+/// Costs an Argon2id run (through `seal_payload`). The backup of `m`
+/// under `passphrase`, at `cost`, with the salt and the nonce taken
+/// from `seed`. `None` where Argon2id refuses the cost.
 ///
 /// `seed` is the caller's randomness and must be fresh for every
 /// backup: a salt reused across two passphrases costs an attacker one
@@ -254,8 +255,9 @@ pub fn seal(
     out
 }
 
-/// The backup of a master seed — what a SLIP-39 or a codex32 key is —
-/// under `passphrase`.
+/// Costs an Argon2id run (through `seal_payload`). The backup of a
+/// master seed — what a SLIP-39 or a codex32 key is — under
+/// `passphrase`.
 pub fn seal_seed(
     c: &Compute,
     master: &[u8],
@@ -274,7 +276,8 @@ pub fn seal_seed(
     out
 }
 
-/// The backup of a note's UTF-8 bytes.
+/// Costs an Argon2id run (through `seal_payload`). The backup of a
+/// note's UTF-8 bytes.
 pub fn seal_note(
     c: &Compute,
     text: &[u8],
@@ -288,9 +291,10 @@ pub fn seal_note(
     seal_payload(c, KIND_NOTE, text, passphrase, cost, seed)
 }
 
-/// The backup of a wallet's recovery sheet: its descriptor, its name
-/// and its note, each written as a little-endian `u16` length and that
-/// many bytes, in that order.
+/// Costs an Argon2id run (through `seal_payload`). The backup of a
+/// wallet's recovery sheet: its descriptor, its name and its note, each
+/// written as a little-endian `u16` length and that many bytes, in that
+/// order.
 pub fn seal_sheet(
     c: &Compute,
     descriptor: &[u8],
@@ -324,9 +328,9 @@ pub fn sheet_payload(descriptor: &[u8], name: &[u8], note: &[u8]) -> Option<Zero
     Some(payload)
 }
 
-/// One payload of `kind`, sealed. The plaintext is the kind, the
-/// payload's length, the payload and zero padding to the next
-/// [`STEP`].
+/// Costs an Argon2id run (through `stretch`). One payload of `kind`,
+/// sealed. The plaintext is the kind, the payload's length, the payload
+/// and zero padding to the next [`STEP`].
 fn seal_payload(
     c: &Compute,
     kind: u8,
@@ -372,8 +376,9 @@ fn seal_payload(
     Some(out)
 }
 
-/// The key `bytes` hold, under `passphrase`. A backup of any other kind
-/// is [`Error::Format`] here; [`open_payload`] is what reads one.
+/// Costs an Argon2id run (through `open_payload`). The key `bytes`
+/// hold, under `passphrase`. A backup of any other kind is
+/// [`Error::Format`] here; [`open_payload`] is what reads one.
 pub fn open(c: &Compute, bytes: &[u8], passphrase: &[u8]) -> Result<Mnemonic, Error> {
     match open_payload(c, bytes, passphrase)? {
         Opened::Words(m) => Ok(m),
@@ -381,7 +386,8 @@ pub fn open(c: &Compute, bytes: &[u8], passphrase: &[u8]) -> Result<Mnemonic, Er
     }
 }
 
-/// What `bytes` hold, under `passphrase`.
+/// Costs an Argon2id run (through `stretch`). What `bytes` hold, under
+/// `passphrase`.
 pub fn open_payload(c: &Compute, bytes: &[u8], passphrase: &[u8]) -> Result<Opened, Error> {
     let cost = read_header(bytes)?;
     let plain_len = bytes.len() - CIPHERTEXT_AT - TAG_LEN;
@@ -518,8 +524,9 @@ fn language_index(lang: Language) -> Option<u8> {
         .map(|i| i as u8)
 }
 
-/// `Argon2id(passphrase, salt)`, 32 bytes, at `cost`: [`argon2id`],
-/// with a cost the device cannot spare the memory for named in MiB.
+/// Costs an Argon2id run (through `argon2id`). `Argon2id(passphrase,
+/// salt)`, 32 bytes, at `cost`: [`argon2id`], with a cost the device
+/// cannot spare the memory for named in MiB.
 fn stretch(
     c: &Compute,
     cost: &Cost,

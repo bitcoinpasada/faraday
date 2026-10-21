@@ -676,8 +676,8 @@ impl MasterKey {
         self.fingerprint
     }
 
-    /// The master extended public key (depth 0): costs an
-    /// elliptic-curve multiplication.
+    /// Costs an elliptic-curve multiplication: the master extended public
+    /// key (depth 0).
     pub fn xpub(&self, c: &Compute) -> Xpub {
         c.count(Work::KeyDerive);
         Xpub::from_priv(&self.secp, self.xpriv())
@@ -870,8 +870,8 @@ impl DerivedKey {
         self.xpriv.fingerprint(&self.secp).into()
     }
 
-    /// The matching extended public key: costs an elliptic-curve
-    /// multiplication.
+    /// Costs an elliptic-curve multiplication: the matching extended public
+    /// key.
     pub fn to_xpub(&self, c: &Compute) -> Xpub {
         c.count(Work::KeyDerive);
         self.xpub_of()

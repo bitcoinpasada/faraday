@@ -1370,7 +1370,8 @@ fn leaf_keys(input: &Input, leaf: &ScriptBuf) -> Vec<bitcoin::secp256k1::XOnlyPu
     crate::classify::script_key_set(&ms, &hashes)
 }
 
-/// Which way an input spends its wallet's script.
+/// Costs what `wallet_claim` costs. Which way an input spends its
+/// wallet's script.
 ///
 /// A taproot input that carries leaf scripts spends one of those leaves;
 /// one that carries only its internal key spends the key path. A `wsh`
@@ -1476,9 +1477,10 @@ fn hex(bytes: &[u8]) -> String {
     s
 }
 
-/// The registered wallet an input spends: the one its key origins name,
-/// when the wallet's own script at that index is the input's. Taproot
-/// states its origins in their own field, so both are read.
+/// Costs what `wallet_claim` costs. The registered wallet an input
+/// spends: the one its key origins name, when the wallet's own script
+/// at that index is the input's. Taproot states its origins in their
+/// own field, so both are read.
 fn wallet_input(
     c: &Compute,
     ctx: &Context,
@@ -1539,9 +1541,10 @@ fn sighash_kind(input: &Input, kind: ScriptKind, spk: Option<&bitcoin::Script>) 
     }
 }
 
-/// Change detection (`docs/PLANNING.md` §8.4 #3): verified only when a
-/// stated origin names a loaded key and re-deriving it reproduces the
-/// output script exactly.
+/// Costs what `output_claims` costs. Change detection
+/// (`docs/PLANNING.md` §8.4 #3): verified only when a stated origin
+/// names a loaded key and re-deriving it reproduces the output script
+/// exactly.
 ///
 /// An output states one origin per key of the script, so a multisig
 /// change output names cosigners this device does not hold. What those
@@ -1572,7 +1575,8 @@ fn output_kind<C: Verification>(
     kind
 }
 
-/// The body of [`output_kind`], with every warning its claims raise.
+/// Costs what `musig_output` and `wallet_claim` cost. The body of
+/// [`output_kind`], with every warning its claims raise.
 fn output_claims<C: Verification>(
     c: &Compute,
     secp: &Secp256k1<C>,
@@ -2069,11 +2073,11 @@ fn musig_sub_path(path: &DerivationPath) -> Option<(bool, u32)> {
     }
 }
 
-/// Establishes what a `P2trKey` input carrying
-/// `PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS` is, in the order §16.100 states:
-/// the registered wallet, the aggregate, this device's participants, the
-/// sub-path, and the script. `Ok(None)` is an input that is not a MuSig2
-/// input at all.
+/// Costs an address derivation (through `script_at_with`). Establishes
+/// what a `P2trKey` input carrying `PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS`
+/// is, in the order §16.100 states: the registered wallet, the
+/// aggregate, this device's participants, the sub-path, and the script.
+/// `Ok(None)` is an input that is not a MuSig2 input at all.
 ///
 /// A merkle root never reaches here: an input that states one is
 /// classified [`ScriptKind::P2trScript`], which this crate refuses to
@@ -2238,9 +2242,10 @@ fn musig_input<C: Verification>(
     }))
 }
 
-/// A MuSig2 change output: the participants field names a registered
-/// wallet, the internal key's origin carries the aggregate's fingerprint
-/// and a two-step sub-path, and the script is the wallet's own there.
+/// Costs an address derivation (through `script_at_with`). A MuSig2
+/// change output: the participants field names a registered wallet, the
+/// internal key's origin carries the aggregate's fingerprint and a
+/// two-step sub-path, and the script is the wallet's own there.
 ///
 /// `Some(Err(()))` is an output that claims the wallet and pays
 /// somewhere else, which is the `ChangeSpoof` a multisig claim would be.
@@ -2432,8 +2437,9 @@ fn is_threshold_input(ctx: &Context, input: &Input) -> bool {
     has_threshold_records(input) || threshold_claim(ctx, input).is_some()
 }
 
-/// Establishes what a `P2trKey` threshold input is, in §16.103's order:
-/// the registered wallet, the internal and output keys, the script, the
+/// Costs an address derivation (through `script_at_with`). Establishes
+/// what a `P2trKey` threshold input is, in §16.103's order: the
+/// registered wallet, the internal and output keys, the script, the
 /// signer set the records name, the shares this device holds, and what
 /// this pass will do with each.
 fn threshold_input<C: Verification>(

@@ -70,8 +70,9 @@ pub enum StretchError {
     Memory,
 }
 
-/// `Argon2id(password, salt)`, version 0x13, 32 bytes, at `cost`: costs
-/// `cost.memory_kib` of memory filled `cost.passes` times.
+/// Costs an Argon2id run: `cost.memory_kib` of memory filled
+/// `cost.passes` times. `Argon2id(password, salt)`, version 0x13, 32
+/// bytes, at `cost`.
 ///
 /// The working memory is asked for with `try_reserve` rather than
 /// taken, so a device that cannot spare what a cost asks for gets

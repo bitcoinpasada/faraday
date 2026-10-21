@@ -736,11 +736,10 @@ impl Mnemonic {
         ((last & ((1u16 << cs) - 1)) as u8, cs as u8)
     }
 
-    /// Derives the 64-byte BIP-39 seed: costs a PBKDF2-HMAC-SHA512 of
-    /// 2048 rounds. `passphrase` must be printable ASCII (0x20..=0x7E)
-    /// and at most [`MAX_PASSPHRASE_BYTES`] long; ASCII is
-    /// NFKD-invariant, so no normalization is needed (`docs/PLANNING.md`
-    /// §16.2).
+    /// Costs a PBKDF2-HMAC-SHA512 of 2048 rounds: derives the 64-byte
+    /// BIP-39 seed. `passphrase` must be printable ASCII (0x20..=0x7E) and
+    /// at most [`MAX_PASSPHRASE_BYTES`] long; ASCII is NFKD-invariant, so
+    /// no normalization is needed (`docs/PLANNING.md` §16.2).
     pub fn to_seed(&self, c: &Compute, passphrase: &[u8]) -> Result<Secret<[u8; 64]>, Error> {
         if passphrase.iter().any(|&b| !(0x20..=0x7E).contains(&b)) {
             return Err(Error::PassphraseNotAscii);

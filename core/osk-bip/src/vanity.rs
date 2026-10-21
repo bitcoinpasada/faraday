@@ -323,8 +323,10 @@ pub fn counter_text(counter: u64) -> Option<Counter> {
     Some(out)
 }
 
-/// Grinds at most `budget` candidates from `from`, and stops on the
-/// first address that begins with `prefix`.
+/// Costs what `grind_passphrase` or `grind_account` costs per
+/// candidate, at most `budget` of them. Grinds at most `budget`
+/// candidates from `from`, and stops on the first address that begins
+/// with `prefix`.
 ///
 /// `prefix` carries the fixed prefix its script type gives every
 /// address, as the screen shows it. A prefix that is the fixed prefix
@@ -363,7 +365,8 @@ pub fn grind(
     }
 }
 
-/// The passphrase dial: one PBKDF2 per candidate.
+/// Costs a PBKDF2, a master key and a key derivation per candidate. The
+/// passphrase dial: one PBKDF2 per candidate.
 #[allow(clippy::too_many_arguments)]
 fn grind_passphrase(
     c: &Compute,
@@ -417,8 +420,9 @@ fn grind_passphrase(
     Outcome { tested, find: None }
 }
 
-/// The account dial: one hardened derivation per candidate, from the
-/// `purpose'/coin'` node, which is derived once.
+/// Costs a key derivation per candidate (through `derive` and
+/// `to_xpub`). The account dial: one hardened derivation per candidate,
+/// from the `purpose'/coin'` node, which is derived once.
 fn grind_account(
     c: &Compute,
     master: &MasterKey,

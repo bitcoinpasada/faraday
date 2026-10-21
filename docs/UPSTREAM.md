@@ -364,6 +364,16 @@ Since the fork:
   a dev-dependency. Why: every core count now goes through a token the
   caller holds, and a frame's pixel work through the canvas it draws on.
   Nothing computed changes.
+- Each function that takes the token says what it costs on its doc's
+  first line (2026-10-21; `docs/COMPUTE.md` D1): in `osk-backup`
+  (`argon2id`, `kdbx`, `oskb`), `osk-bip` (`aezeed`, `bip39`, `bip85`,
+  `coldcard`, `keys`, `silent`, `slip39`, `vanity`), `osk-crypto`
+  (`pbkdf2_hmac_sha256`, `pbkdf2_hmac_sha512`), `osk-psbt` (`context`,
+  `inspect`, `sign`, `verify`) and `osk-selftest`, the first line now
+  begins "Costs …" (the cost it names, or the gated callee it costs
+  through), which Faraday's costs lint (`tools/costs-lint`) checks. Why:
+  `CLAUDE.md`'s rule that a costly function says so first, made a check.
+  Doc comments only; nothing compiled changes.
 
 ## 4. Watching upstream
 
