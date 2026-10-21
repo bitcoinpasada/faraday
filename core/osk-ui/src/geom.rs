@@ -12,7 +12,7 @@ use osk_shell_api::DisplayInfo;
 pub struct Dp(pub f32);
 
 /// Converts dp to pixels for one display, and carries the size class's
-/// type scale (`widgets::tokens::type_scale_pct`).
+/// type scale (`tokens::type_scale_pct`).
 ///
 /// Lengths are unaffected by the type scale: a 48 dp touch target is 48 dp
 /// on every class. Only [`crate::text::Font`] applies it, so the ramp
@@ -24,7 +24,7 @@ pub struct Scale {
     /// The type ramp's scale, in percent.
     type_pct: u16,
     /// Whether text takes the class's narrow cut of the text faces
-    /// (`widgets::tokens::narrow_text`).
+    /// (`tokens::narrow_text`).
     narrow: bool,
 }
 
@@ -52,8 +52,8 @@ impl Scale {
     pub fn for_class(dpi: u16, class: SizeClass) -> Self {
         Scale {
             dpi: dpi.max(1),
-            type_pct: crate::widgets::tokens::type_scale_pct(class),
-            narrow: crate::widgets::tokens::narrow_text(class),
+            type_pct: crate::tokens::type_scale_pct(class),
+            narrow: crate::tokens::narrow_text(class),
         }
     }
 
@@ -140,90 +140,6 @@ impl SizeClass {
         } else {
             SizeClass::Wide
         }
-    }
-}
-
-/// What a screen knows about the space it is drawn in: how big that
-/// space is in dp, and which class it belongs to.
-///
-/// The class swaps component variants; the two lengths let a composite
-/// branch on the room it actually has, so a 411 x 891 dp phone and a
-/// 411 x 600 dp phone can lay out differently (UX review 2026-09-07,
-/// §2b.3). Organisms take `&Metrics` wherever they used to take a bare
-/// [`SizeClass`].
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Metrics {
-    /// Width in dp of the area the screen is drawn in.
-    pub width_dp: f32,
-    /// Height in dp of that area.
-    pub height_dp: f32,
-    /// The display's size class.
-    pub class: SizeClass,
-    /// The unusable strip at the top of the display in dp, as the shell
-    /// reported it in [`DisplayInfo::inset_top`]. The app bar starts
-    /// below it.
-    pub inset_top_dp: f32,
-    /// The unusable strip at the bottom of the display in dp, as the
-    /// shell reported it in [`DisplayInfo::inset_bottom`]. What is
-    /// anchored to the bottom stands this far clear of the edge.
-    pub inset_bottom_dp: f32,
-}
-
-impl Metrics {
-    /// Metrics for an area of `width_dp` by `height_dp` on `class`, with
-    /// no insets.
-    pub fn new(width_dp: f32, height_dp: f32, class: SizeClass) -> Self {
-        Metrics {
-            width_dp,
-            height_dp,
-            class,
-            inset_top_dp: 0.0,
-            inset_bottom_dp: 0.0,
-        }
-    }
-
-    /// The same metrics with the shell's insets, in dp.
-    pub fn with_insets(self, top_dp: f32, bottom_dp: f32) -> Self {
-        Metrics {
-            inset_top_dp: top_dp,
-            inset_bottom_dp: bottom_dp,
-            ..self
-        }
-    }
-
-    /// Metrics for a whole display, insets included.
-    pub fn of(display: &DisplayInfo) -> Self {
-        let scale = Scale::new(display.dpi);
-        let factor = scale.factor();
-        Metrics::new(
-            f32::from(display.width) / factor,
-            f32::from(display.height) / factor,
-            SizeClass::of(display),
-        )
-        .with_insets(
-            f32::from(display.inset_top) / factor,
-            f32::from(display.inset_bottom) / factor,
-        )
-    }
-
-    /// The same class over a smaller area: a pane beside a sidebar, a
-    /// capped wizard column.
-    pub fn area(self, width_dp: f32, height_dp: f32) -> Self {
-        Metrics {
-            width_dp,
-            height_dp,
-            ..self
-        }
-    }
-
-    /// Whether this is the `Wide` class.
-    pub fn is_wide(self) -> bool {
-        self.class == SizeClass::Wide
-    }
-
-    /// Whether this is the `Small` class.
-    pub fn is_small(self) -> bool {
-        self.class == SizeClass::Small
     }
 }
 

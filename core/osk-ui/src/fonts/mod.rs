@@ -24,7 +24,7 @@ pub enum Family {
     /// Noto Sans SemiBold: titles, row labels, buttons.
     SemiBold,
     /// Noto Sans SemiCondensed: [`Family::Regular`] on a class that sets
-    /// its text narrow (`widgets::tokens::narrow_text`). No [`Font`]
+    /// its text narrow (`tokens::narrow_text`). No [`Font`]
     /// asks for it; [`Font::sized`] resolves to it.
     ///
     /// [`Font`]: crate::text::Font
@@ -49,16 +49,6 @@ pub enum Family {
     /// [`Font`]: crate::text::Font
     Cjk,
 }
-
-/// Every face text is drawn in, the narrow cuts included: what a check
-/// that every character has a glyph walks.
-pub const TEXT_FAMILIES: [Family; 5] = [
-    Family::Regular,
-    Family::SemiBold,
-    Family::RegularNarrow,
-    Family::SemiBoldNarrow,
-    Family::Mono,
-];
 
 /// One face's outline file.
 #[derive(Debug)]

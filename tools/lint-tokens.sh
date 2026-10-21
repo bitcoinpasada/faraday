@@ -4,12 +4,11 @@
 # Every dimension, size, ratio and timing of the design system is a name
 # in core/osk-ui/src/tokens.rs, so that changing a number changes it
 # everywhere and a review is settled by editing one file. This lint fails
-# when a composite writes a layout number of its own instead.
+# when a widget writes a layout number of its own instead.
 #
-# Checked: core/osk-ui/src/organisms.rs, core/osk-ui/src/gallery.rs and
-# every file under core/osk-ui/src/components/, core/osk-ui/src/screens/
-# and core/osk-ui/src/widgets/. Not checked: tokens.rs itself, which is
-# where the numbers live.
+# Checked: every file under core/osk-ui/src/widgets/ (the icon and the
+# keyboard). Not checked: tokens.rs itself, which is where the numbers
+# live.
 #
 # A decimal literal is allowed when it is:
 #   - 0.0, 0.5, 1.0 or 2.0 (an origin, a half, a whole, a halving)
@@ -18,22 +17,16 @@
 #   - in the file's `#[cfg(test)]` module, where a test names the
 #     reference sizes it solves at
 #   - between the markers `lint-tokens: sample data` and
-#     `lint-tokens: end sample data`, which is where the gallery keeps
-#     the placeholder values its pages show. Those are content — a fee
-#     rate, a roll count — and not the design system.
+#     `lint-tokens: end sample data`
 #
 # Run from the repository root; `just lint` does.
 set -u
 cd "$(dirname "$0")/.."
 
-FILES=(
-    core/osk-ui/src/organisms.rs
-    core/osk-ui/src/gallery.rs
-)
+FILES=()
 while IFS= read -r f; do
     FILES+=("$f")
-done < <(find core/osk-ui/src/components core/osk-ui/src/screens \
-    core/osk-ui/src/widgets -name '*.rs' | sort)
+done < <(find core/osk-ui/src/widgets -name '*.rs' | sort)
 
 TOKENS="core/osk-ui/src/tokens.rs"
 

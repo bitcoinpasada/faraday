@@ -414,6 +414,19 @@ Since the fork:
   parts it waits for, why the camera gives no picture, and draws its
   state inside the picture. Nothing upstream computed changes.
 
+- `core/osk-ui`'s widget tree removed (2026-10-21; docs/STRUCTURE-PASS.md
+  §3 step 1): `audit`, `components`, `descriptor`, `organisms`,
+  `screens`, `state`, `gallery` (and its feature), `widgets::chunked`,
+  `widgets::render`, the `Widget` enum, the layout engine (`Node`,
+  `solve`, `Layout`; `layout.rs` keeps `LayoutCtx`), `Theme`,
+  `geom::Metrics`, `text::wrapped_width` and `fonts::TEXT_FAMILIES`, with
+  their tests; the crate goes from 25,111 lines to 6,310. What stays is
+  what Faraday draws with: the canvas, text and fonts, geometry, tokens,
+  `LayoutCtx`, and the icon and keyboard widgets. `tools/lint-tokens.sh`
+  checks `widgets/`. Why: nothing in Faraday used the rest, which the
+  compiler confirmed with the modules made crate-private. Faraday's
+  screens draw as before.
+
 ## 4. Watching upstream
 
 When there is reason to (a release, a security advisory, or every few

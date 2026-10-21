@@ -65,7 +65,7 @@ impl Font {
     /// The face and pixel size this font resolves to on a display.
     ///
     /// Text takes the scale's type factor, which grows the ramp with the
-    /// size class (`widgets::tokens::type_scale_pct`); the icon face does
+    /// size class (`tokens::type_scale_pct`); the icon face does
     /// not, because an icon is drawn to fit a box a screen asked for in
     /// dp.
     pub fn sized(&self, scale: Scale) -> SizedFace {
@@ -254,15 +254,6 @@ fn trim_end(s: &str, start: usize, end: usize) -> usize {
 /// Height in pixels of `text` wrapped to `max_width`.
 pub fn wrapped_height(face: &SizedFace, text: &str, max_width: i32) -> i32 {
     wrap(face, text, max_width).len() as i32 * face.line_height()
-}
-
-/// Width of the widest wrapped line.
-pub fn wrapped_width(face: &SizedFace, text: &str, max_width: i32) -> i32 {
-    wrap(face, text, max_width)
-        .iter()
-        .map(|&(s, e)| width(face, &text[s..e]))
-        .max()
-        .unwrap_or(0)
 }
 
 #[cfg(test)]
