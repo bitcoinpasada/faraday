@@ -74,7 +74,7 @@ pub struct Frame {
 impl Frame {
     /// Copies an NV12 buffer's two planes into a frame: the `stride` the
     /// device lays each one's rows out at is honoured, and a frame wider
-    /// than 800 pixels is shrunk by an integer factor.
+    /// than 1280 pixels is shrunk by an integer factor.
     ///
     /// `chroma` is plane UV and its own bytes per row. `None`, or a plane
     /// shorter than the rows it claims, leaves the preview grey.
@@ -451,17 +451,17 @@ mod tests {
         assert!(Frame::from_plane(&plane, 6, 4, 6, None).is_some());
     }
 
-    /// A 1280 × 720 plane, which is what many laptop cameras give,
-    /// comes back halved: 1280 needs a factor of two to reach 800.
+    /// A 2560 × 1440 plane comes back halved: 2560 needs a factor of two
+    /// to reach 1280.
     #[test]
     fn wide_planes_are_halved() {
-        let (width, height, stride) = (1280usize, 720usize, 1408usize);
+        let (width, height, stride) = (2560usize, 1440usize, 2688usize);
         let mut plane = vec![0u8; stride * height];
         for y in 0..height {
             let value = (y % 256) as u8;
             plane[y * stride..y * stride + width].fill(value);
         }
-        let (cw, ch) = (640usize, 360usize);
+        let (cw, ch) = (1280usize, 720usize);
         let mut uv = vec![0u8; stride * ch];
         for y in 0..ch {
             for x in 0..cw {
@@ -472,14 +472,14 @@ mod tests {
         }
         let frame =
             Frame::from_plane(&plane, width, height, stride, Some((&uv, stride))).expect("long");
-        assert_eq!((frame.width, frame.height), (640, 360));
+        assert_eq!((frame.width, frame.height), (1280, 720));
         // Output row 0 averages rows 0 and 1, row 3 averages 6 and 7.
         assert_eq!(frame.luma[0], 0);
-        assert_eq!(frame.luma[3 * 640], 6);
+        assert_eq!(frame.luma[3 * 1280], 6);
         // The chroma is halved with it: each output pair averages a 2 x 2
         // block of pairs.
         let chroma = frame.chroma.expect("the plane was given");
-        assert_eq!(chroma.len(), 320 * 180 * 2);
+        assert_eq!(chroma.len(), 640 * 360 * 2);
         assert_eq!((chroma[0], chroma[1]), (0, 0));
         assert_eq!((chroma[2], chroma[3]), (0, 2));
     }

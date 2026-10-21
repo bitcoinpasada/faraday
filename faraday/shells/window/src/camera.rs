@@ -63,8 +63,8 @@ impl Camera {
 
     /// Opens `path` from now on, the camera the person chose on the scan
     /// sheet; a camera already running is restarted on it. On Linux it is
-    /// a `/dev/videoN`, on Windows a device's symbolic link; macOS uses
-    /// the system's own camera.
+    /// a `/dev/videoN`, on Windows a device's symbolic link, on macOS a
+    /// device's unique ID.
     pub fn choose(&mut self, path: PathBuf) {
         self.inner.choose(path);
     }
@@ -76,8 +76,9 @@ impl Camera {
 /// its metadata node without opening either; the name is the one the
 /// device gives. The stick shell lists them the same way. On Windows,
 /// Media Foundation's video capture devices: the symbolic link and the
-/// name Windows shows (`windows::list`). Empty on macOS.
-#[cfg(not(target_os = "windows"))]
+/// name Windows shows (`windows::list`). On macOS, AVFoundation's video
+/// devices: the unique ID and the name macOS shows (`macos::list`).
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 pub fn list() -> Vec<(String, String)> {
     let mut out: Vec<(u32, String, String)> = Vec::new();
     let Ok(dir) = std::fs::read_dir("/sys/class/video4linux") else {
@@ -162,7 +163,7 @@ mod linux {
                 None => opensigner_v4l2::find()
                     .ok_or_else(|| String::from("no /dev/video* is a streaming capture device"))?,
             };
-            let device = Device::open(&path, Size::VGA)
+            let device = Device::open(&path, Size::HD)
                 .map_err(|e| format!("cannot open {}: {e}", path.display()))?;
             let size = device.size();
             eprintln!(
@@ -227,6 +228,8 @@ mod linux {
 
 #[cfg(target_os = "macos")]
 use macos::Inner;
+#[cfg(target_os = "macos")]
+pub use macos::list;
 
 #[cfg(target_os = "macos")]
 mod macos {
@@ -241,17 +244,28 @@ mod macos {
     /// reached it, and the capture callback drops it instead.
     const QUEUE: usize = 2;
 
+    /// The cameras this machine has, as `(unique ID, name)`, for the scan
+    /// sheet's choice, in the system's order: the first is not
+    /// necessarily the default one, which is opened when none was chosen.
+    pub fn list() -> Vec<(String, String)> {
+        opensigner_avfoundation::devices()
+            .into_iter()
+            .map(|d| (d.id, d.name))
+            .collect()
+    }
+
     pub struct Inner {
+        /// The unique ID of the camera to open, or `None` for the
+        /// system's default.
+        device: Option<String>,
         disabled: bool,
         session: Option<(Session, Receiver<Message>)>,
     }
 
     impl Inner {
         pub fn new(device: Option<PathBuf>, disabled: bool) -> Inner {
-            if device.is_some() {
-                eprintln!("camera: --camera names a V4L2 device and does nothing on macOS");
-            }
             Inner {
+                device: device.map(|p| p.to_string_lossy().into_owned()),
                 disabled,
                 session: None,
             }
@@ -268,13 +282,25 @@ mod macos {
             // Starting is asynchronous: the permission prompt, the
             // device and the session all answer on the channel. A
             // failure arrives as `Unavailable`, never as an error here.
-            let session = Session::start(tx);
-            eprintln!("camera: the default AVFoundation device, up to {MAX_FPS} frames a second");
+            let session = Session::start(self.device.as_deref(), tx);
+            eprintln!(
+                "camera: AVFoundation, {}, up to {MAX_FPS} frames a second",
+                self.device.as_deref().unwrap_or("the default device")
+            );
             self.session = Some((session, frames));
             Ok(())
         }
 
-        pub fn choose(&mut self, _path: PathBuf) {}
+        pub fn choose(&mut self, path: PathBuf) {
+            let running = self.session.is_some();
+            self.device = Some(path.to_string_lossy().into_owned());
+            if running {
+                self.off();
+                if let Err(reason) = self.on() {
+                    eprintln!("faraday: camera unavailable: {reason}");
+                }
+            }
+        }
 
         pub fn off(&mut self) {
             // Dropping the session stops it: the capture is torn down

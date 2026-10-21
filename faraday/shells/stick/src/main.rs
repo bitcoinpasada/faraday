@@ -136,7 +136,7 @@ use camera::{Camera, Capture};
 use cursor::{Cursor, Pointed};
 use faraday_core::strings::{EN, fill};
 use faraday_core::{Faraday, Medium, SecureBootAtStart, StickInfo, StorageEvent};
-use faraday_scanner::Scanner;
+use faraday_scanner::{ReadMode, Scanner};
 use faraday_storage::{Boot, BootProcess, Boxes, Dirs, DiskProcess, serve_all, stick_info};
 use fb::{Depth, Geometry};
 use files::Files;
@@ -651,8 +651,6 @@ struct Shell {
     usb: Option<Vec<faraday_core::devices::UsbDevice>>,
     /// Devices whose input is held back, and where each stands.
     held: std::collections::BTreeMap<u32, Hold>,
-    /// The last frame went to the scanner inverted.
-    inverted: bool,
     /// Held-back devices found before the app was there to be told.
     announce: Vec<(u32, String, bool, bool)>,
     /// The app locked: exit with the restart code.
@@ -1043,7 +1041,7 @@ impl Shell {
                             self.say(&format!("camera unavailable: {reason}"));
                             pending.push_back(Event::CameraUnavailable);
                         } else if self.scanner.is_none() {
-                            self.scanner = Some(Scanner::new());
+                            self.scanner = Some(Scanner::new(ReadMode::Reduced));
                         }
                     }
                     Command::CameraOff => {
@@ -1470,7 +1468,6 @@ fn run(args: Args) -> Result<Exit, String> {
             .map(|(id, ..)| (*id, Hold::Pending))
             .collect(),
         announce: initial,
-        inverted: false,
         restart: false,
         panel,
         geometry,
@@ -1887,14 +1884,9 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
             // captured luma to the scanner, which reads the codes in
             // it, and the reduced frame to the core, which draws it.
             if let Some(scanner) = shell.scanner.as_ref() {
-                // Every other frame goes to the scanner inverted, so a
-                // code printed light on dark reads too (`docs/QR.md` §1).
-                shell.inverted = !shell.inverted;
-                let mut luma = shot.full_luma;
-                if shell.inverted {
-                    luma.iter_mut().for_each(|b| *b = 255 - *b);
-                }
-                scanner.offer(shot.full_width, shot.full_height, luma);
+                // The scanner reads every other frame inverted, so a code
+                // printed light on dark reads too (`docs/QR.md` §1).
+                scanner.offer(shot.full_width, shot.full_height, shot.full_luma);
             }
             shell.send_timed(
                 Bucket::Camera,

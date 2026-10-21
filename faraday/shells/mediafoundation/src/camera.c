@@ -1,6 +1,6 @@
 // Media Foundation capture for the Windows shells (docs/PLANNING.md
 // §16.33, docs/STARTER.md §8): the video capture devices, one opened as
-// a source reader that gives NV12 near 640 x 480, and synchronous reads
+// a source reader that gives NV12 near 1280 x 720, and synchronous reads
 // whose Y and UV planes go to a C callback. Plane Y is the luma the core
 // decodes; plane UV is already the interleaved chroma the core draws the
 // preview in colour from.
@@ -67,9 +67,10 @@
 // Any other failure, before the first frame or after it.
 #define OSK_MF_FAILED 3
 
-// The size asked for: rqrr needs no more than this to find a code.
-#define WANT_WIDTH 640
-#define WANT_HEIGHT 480
+// The size asked for: a dense code needs about this many pixels to read.
+// A camera without the mode gives the nearest one it has.
+#define WANT_WIDTH 1280
+#define WANT_HEIGHT 720
 
 typedef void (*osk_mf_device_fn)(void *ctx, const uint16_t *name,
                                  uint32_t name_len, const uint16_t *link,
@@ -248,11 +249,11 @@ static IMFActivate *pick(IMFActivate **devices, UINT32 count, const WCHAR *link)
 
 static UINT32 distance(UINT32 a, UINT32 b) { return a > b ? a - b : b - a; }
 
-// Picks the device's own format nearest 640 x 480, so the camera itself
+// Picks the device's own format nearest 1280 x 720, so the camera itself
 // runs at that size, then asks the reader for NV12 at that size; the
 // reader's video processing converts whatever the device gives (YUY2,
 // MJPG) into NV12. A device that refuses its own native type still gets
-// the NV12 request, at 640 x 480.
+// the NV12 request, at 1280 x 720.
 static HRESULT choose_format(const struct mf *m, IMFSourceReader *reader) {
     IMFMediaType *best = NULL;
     UINT64 best_size = ((UINT64)WANT_WIDTH << 32) | WANT_HEIGHT;

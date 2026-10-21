@@ -12,9 +12,18 @@
 //! says so and offers the fix (an animated code, or a file).
 //!
 //! Everything else is as upstream's was: the newest frame replaces the one not
-//! yet taken, the reduced copy is read every pass and the full frame on
-//! every [`FULL_FRAME_EVERY`]th miss, and a frame, a reduced copy and a
-//! payload are wiped when this crate lets go of them.
+//! yet taken, and a frame, a reduced copy and a payload are wiped when
+//! this crate lets go of them. What the worker reads of a frame is the
+//! shell's choice, a [`ReadMode`]: the stick and the Pi, whose
+//! processors read a 640 × 480 frame ten times a second only by reading
+//! a reduced copy, pass [`ReadMode::Reduced`] (the reduced copy every
+//! pass and the full frame on every [`FULL_FRAME_EVERY`]th miss); the
+//! desktop shells, whose cameras give 1280 × 720 for the dense codes
+//! that need every pixel, pass [`ReadMode::Full`] (the full frame every
+//! pass, paced by how long the pass takes, since the worker takes the
+//! newest frame each time it is free). Either way the worker reads every
+//! other frame inverted, so a code printed light on dark reads too
+//! (`docs/QR.md` §1).
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
@@ -30,6 +39,17 @@ pub use scan::{reduce, reduce_chroma, reduce_factor};
 /// How many frames the reduced copy may find nothing in before the full
 /// frame is read as well (upstream's value).
 const FULL_FRAME_EVERY: u32 = 4;
+
+/// What the worker reads of each frame it takes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReadMode {
+    /// The reduced copy every pass, and the full frame on every
+    /// [`FULL_FRAME_EVERY`]th miss: the stick and the Pi.
+    Reduced,
+    /// The full frame every pass: the desktop shells, which ask their
+    /// cameras for 1280 × 720.
+    Full,
+}
 
 /// Below this many pixels a module, a code is too fine to read: `rqrr`
 /// samples one point a module, and a camera's blur spreads a module over
@@ -90,9 +110,9 @@ pub struct Scanner {
 }
 
 impl Scanner {
-    /// Starts the worker.
+    /// Starts the worker, which reads frames as `mode` says.
     #[must_use]
-    pub fn new() -> Scanner {
+    pub fn new(mode: ReadMode) -> Scanner {
         let pending = Arc::new((Mutex::new(Pending::default()), Condvar::new()));
         let ended = Arc::new(AtomicBool::new(false));
         let (tx, found) = channel();
@@ -100,7 +120,7 @@ impl Scanner {
             let pending = Arc::clone(&pending);
             let ended = Arc::clone(&ended);
             std::thread::spawn(move || {
-                work(&pending, &tx);
+                work(&pending, &tx, mode);
                 ended.store(true, Ordering::Relaxed);
             })
         };
@@ -187,23 +207,18 @@ impl Scanner {
     }
 }
 
-impl Default for Scanner {
-    fn default() -> Scanner {
-        Scanner::new()
-    }
-}
-
 impl Drop for Scanner {
     fn drop(&mut self) {
         self.stop();
     }
 }
 
-fn work(pending: &(Mutex<Pending>, Condvar), tx: &Sender<Found>) {
+fn work(pending: &(Mutex<Pending>, Condvar), tx: &Sender<Found>, mode: ReadMode) {
     let (lock, wake) = pending;
     let mut misses = 0u32;
+    let mut inverted = false;
     loop {
-        let job = {
+        let mut job = {
             let Ok(mut state) = lock.lock() else {
                 return;
             };
@@ -221,7 +236,14 @@ fn work(pending: &(Mutex<Pending>, Condvar), tx: &Sender<Found>) {
                 None => continue,
             }
         };
-        let (code, seen) = read(&job, &mut misses);
+        // Every other frame the worker takes is read inverted. It counts
+        // the frames it takes, not the ones offered: a pass slower than
+        // the camera would otherwise take the same parity every time.
+        if inverted {
+            job.luma.iter_mut().for_each(|b| *b = 255 - *b);
+        }
+        inverted = !inverted;
+        let (code, seen) = read(&job, mode, &mut misses);
         if let Some(s) = seen
             && tx.send(Found::Seen(s)).is_err()
         {
@@ -236,7 +258,7 @@ fn work(pending: &(Mutex<Pending>, Condvar), tx: &Sender<Found>) {
 }
 
 /// One frame's first code, and what was seen of it, at `scale` frame
-/// pixels a pixel of `luma`.
+/// pixels a pixel of `luma`. Costs a decode of the frame.
 pub fn look(
     width: usize,
     height: usize,
@@ -283,11 +305,14 @@ pub fn look(
     (None, seen)
 }
 
-/// Upstream's policy: the reduced copy every frame, the full frame on
-/// every [`FULL_FRAME_EVERY`]th miss.
-fn read(job: &Job, misses: &mut u32) -> (Option<Vec<u8>>, Option<Seen>) {
+/// One frame, read as `mode` says. Costs a decode of the frame: a
+/// reduced copy and, now and then, the full frame, or the full frame.
+fn read(job: &Job, mode: ReadMode, misses: &mut u32) -> (Option<Vec<u8>>, Option<Seen>) {
     let (w, h) = (job.width, job.height);
     let frame = (w as u16, h as u16);
+    if mode == ReadMode::Full {
+        return look(w, h, &job.luma, 1, frame);
+    }
     let factor = scan::reduce_factor(w, h);
     let (rw, rh, reduced) = scan::reduce(w, h, &job.luma);
     let reduced = Zeroizing::new(reduced);
@@ -342,10 +367,64 @@ mod tests {
         assert!(s.corners[0].0 >= (QUIET_ZONE * 6 - 6) as u16);
     }
 
+    /// A code of `bytes` bytes at `scale` pixels a module, in the middle of a
+    /// white 1280 × 720 frame: what a phone held up to a laptop's camera
+    /// gives for a large PSBT. Its version is returned with it.
+    fn dense_frame(bytes: usize, scale: usize) -> (Vec<u8>, Vec<u8>, u8) {
+        let c = compute();
+        let payload: Vec<u8> = (0..bytes).map(|i| (i * 7 + i / 13) as u8).collect();
+        let m = qr::encode(&c, Payload::Bytes(&payload), Ecc::Low).unwrap();
+        let (cw, ch, code) = m.to_luma(scale, QUIET_ZONE);
+        let (w, h) = (1280, 720);
+        let mut px = vec![255u8; w * h];
+        let (x0, y0) = ((w - cw) / 2, (h - ch) / 2);
+        for y in 0..ch {
+            px[(y0 + y) * w + x0..(y0 + y) * w + x0 + cw]
+                .copy_from_slice(&code[y * cw..(y + 1) * cw]);
+        }
+        (payload, px, m.version())
+    }
+
+    /// Offers `px` until the worker reads a code, or gives up.
+    fn read_by_worker(mode: ReadMode, w: u16, h: u16, px: &[u8]) -> Option<Vec<u8>> {
+        let scanner = Scanner::new(mode);
+        for _ in 0..400 {
+            scanner.offer(w, h, px.to_vec());
+            std::thread::sleep(std::time::Duration::from_millis(25));
+            if let Some(c) = scanner.poll() {
+                return Some(c);
+            }
+        }
+        None
+    }
+
+    #[test]
+    fn a_dense_code_reads_at_full_frame() {
+        let (payload, px, version) = dense_frame(1500, 3);
+        assert!(version >= 25, "version {version}");
+        assert_eq!(
+            read_by_worker(ReadMode::Full, 1280, 720, &px).as_deref(),
+            Some(&payload[..])
+        );
+    }
+
+    #[test]
+    fn a_light_on_dark_code_reads() {
+        let (payload, px, _) = dense_frame(300, 6);
+        let dark: Vec<u8> = px.iter().map(|b| 255 - b).collect();
+        for mode in [ReadMode::Full, ReadMode::Reduced] {
+            assert_eq!(
+                read_by_worker(mode, 1280, 720, &dark).as_deref(),
+                Some(&payload[..]),
+                "{mode:?}"
+            );
+        }
+    }
+
     #[test]
     fn the_worker_reads_and_reports() {
         let (w, h, px) = frame(4);
-        let scanner = Scanner::new();
+        let scanner = Scanner::new(ReadMode::Reduced);
         scanner.offer(w as u16, h as u16, px);
         let mut code = None;
         for _ in 0..200 {

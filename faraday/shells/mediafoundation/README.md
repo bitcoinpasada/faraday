@@ -2,7 +2,7 @@
 
 Camera capture on Windows for the desktop app and the Starter: the video
 capture devices from Media Foundation, one opened as a source reader
-giving NV12 near 640 x 480, and its Y plane handed to the core as 8-bit
+giving NV12 near 1280 x 720, and its Y plane handed to the core as 8-bit
 luma with the UV plane as the preview's colour. The Windows twin of
 `opensigner-avfoundation`.
 

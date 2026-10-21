@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 
 use faraday_core::{Faraday, StorageEvent};
-use faraday_scanner::Scanner;
+use faraday_scanner::{ReadMode, Scanner, reduce, reduce_chroma, reduce_factor};
 use osk_shell_api::Event;
 
 use crate::camera::{self, Camera};
@@ -49,7 +49,7 @@ impl Lens {
             return Some(Event::CameraUnavailable);
         }
         if self.scanner.is_none() {
-            self.scanner = Some(Scanner::new());
+            self.scanner = Some(Scanner::new(ReadMode::Full));
         }
         None
     }
@@ -92,15 +92,29 @@ impl Lens {
             chroma,
         }) = newest
         {
+            // The preview is the reduced frame, as on the stick, and the
+            // scanner gets the camera's own pixels: a 1280 × 720 frame
+            // is reduced once here and not again by the core's drawing.
+            let (w, h) = (usize::from(width), usize::from(height));
+            let factor = reduce_factor(w, h);
+            let (rw, rh, small) = reduce(w, h, &luma);
+            let small_chroma = chroma
+                .as_deref()
+                .map(|uv| reduce_chroma(w, h, uv, factor))
+                .filter(|uv| !uv.is_empty());
             if let Some(scanner) = host.lens().scanner.as_ref() {
-                scanner.offer(width, height, luma.clone());
+                scanner.offer(width, height, luma);
             }
-            host.send(Event::CameraFrame {
-                width,
-                height,
-                luma,
-                chroma,
-            });
+            // A frame shorter than its size says reduces to nothing and
+            // is not drawn.
+            if (rw, rh) != (0, 0) {
+                host.send(Event::CameraFrame {
+                    width: rw,
+                    height: rh,
+                    luma: small,
+                    chroma: small_chroma,
+                });
+            }
         }
         while let Some(bytes) = host.lens().scanner.as_ref().and_then(Scanner::poll) {
             host.send(Event::Scanned { bytes });
