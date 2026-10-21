@@ -52,7 +52,7 @@ Every computer has a random number generator, built from a hardware source plus 
 
 Using it for a key asks you to trust this device completely. A generator that is faulty, or that was built to be predictable, produces keys that look perfectly normal and that its maker can recreate. You can check a die. You cannot check a chip.
 
-That is the whole caution, and it is why the row carries one. In a browser the generator belongs to the browser and to the page, so the row is not offered at all.
+That is the whole caution, and it is why the row carries one. In a browser the generator belongs to the browser and to the page, so the website demo offers the row but puts one of its public demo keys in place of the key it makes.
 
 ## Mixing
 

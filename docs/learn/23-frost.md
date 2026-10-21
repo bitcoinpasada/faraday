@@ -20,7 +20,7 @@ So the record travels with every share. Keep a copy wherever you keep a share, a
 
 ## Creating a wallet
 
-A dealer makes the shares. On this device that means choosing how many shares and how many must sign, picking the loaded keys that will be the chosen shares, and letting the device compute the rest; each computed share is shown as words with a quiz, and each becomes a loaded key you can write down and then forget.
+A dealer makes the shares. On this device that means choosing how many shares and how many must sign, picking the loaded keys that will be the chosen shares, and letting the device compute the rest; each computed share becomes a loaded key of its own, which you back up like any other key and can then forget.
 
 The shares exist together on one device for the length of that flow. That is what a dealer is, and it is the trade-off FROST makes against a key generation where the shares are never in one place.
 

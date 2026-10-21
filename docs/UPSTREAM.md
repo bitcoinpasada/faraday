@@ -259,6 +259,13 @@ Since the fork:
   description rebuilt from every key, not from a quorum), backups in
   other forms (a vault in place of the encrypted backup) and the
   glossary's Passphrase.
+- `docs/learn/*.md` and `osk-learn`'s `en.rs` (2026-10-21, tracker
+  #176): where randomness comes from says the website demo offers the
+  generator row and puts a public demo key in place of the key it
+  makes; passphrases says every two words of the EFF's second short
+  list are at least three edits apart (the closest pair is three);
+  FROST says a dealt share becomes a loaded key that is backed up like
+  any other, with no quiz at the deal.
 - `core/osk-crypto/src/work.rs` (2026-10-21; `docs/COMPUTE.md` C0):
   `Compute`, the token costly work will take: not `Clone`, `Copy`,
   `Default`, `Send` or `Sync`; minted by `Compute::new(count)` at an

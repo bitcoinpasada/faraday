@@ -24,7 +24,7 @@ A passphrase you make up yourself is weaker than it looks. Lines from songs, nam
 
 Create a vault rolls one for you, under Generate with dice. You pick a list, you pick how many words, and you throw a die. Five throws name one word of the long list, four throws name one word of a short list. The device does not choose anything; it only looks the words up.
 
-The lists are the ones the Electronic Frontier Foundation publishes, and Tools › Word lists shows each of them. The long list has 7776 words, so each word is worth 12.9 bits. The short lists have 1296 words each, so each word is worth 10.3 bits; their words are shorter to type, and the second short list has no two words within three edits of each other, so a misread word is still recognisable.
+The lists are the ones the Electronic Frontier Foundation publishes, and Tools › Word lists shows each of them. The long list has 7776 words, so each word is worth 12.9 bits. The short lists have 1296 words each, so each word is worth 10.3 bits; their words are shorter to type, and every two words of the second short list are at least three edits apart, so a misread word is still recognisable.
 
 Six words from the long list are 77 bits. That is the length to use unless you have a reason to differ: it is more than offline guessing reaches, and it is six words to write down rather than ten.
 

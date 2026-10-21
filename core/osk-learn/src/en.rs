@@ -203,7 +203,7 @@ pub static EN: Learn = Learn {
                 paragraphs: &[
                     "Every computer has a random number generator, built from a hardware source plus the operating system. It is usually fine, and it is what this device uses to blind its own calculations.",
                     "Using it for a key asks you to trust this device completely. A generator that is faulty, or that was built to be predictable, produces keys that look perfectly normal and that its maker can recreate. You can check a die. You cannot check a chip.",
-                    "That is the whole caution, and it is why the row carries one. In a browser the generator belongs to the browser and to the page, so the row is not offered at all.",
+                    "That is the whole caution, and it is why the row carries one. In a browser the generator belongs to the browser and to the page, so the website demo offers the row but puts one of its public demo keys in place of the key it makes.",
                 ],
             },
             Section {
@@ -359,7 +359,7 @@ pub static EN: Learn = Learn {
                 paragraphs: &[
                     "A passphrase you make up yourself is weaker than it looks. Lines from songs, names with digits after them, and letter substitutions are all in the lists a cracking program tries first. Words chosen by dice are not in any such list.",
                     "Create a vault rolls one for you, under Generate with dice. You pick a list, you pick how many words, and you throw a die. Five throws name one word of the long list, four throws name one word of a short list. The device does not choose anything; it only looks the words up.",
-                    "The lists are the ones the Electronic Frontier Foundation publishes, and Tools › Word lists shows each of them. The long list has 7776 words, so each word is worth 12.9 bits. The short lists have 1296 words each, so each word is worth 10.3 bits; their words are shorter to type, and the second short list has no two words within three edits of each other, so a misread word is still recognisable.",
+                    "The lists are the ones the Electronic Frontier Foundation publishes, and Tools › Word lists shows each of them. The long list has 7776 words, so each word is worth 12.9 bits. The short lists have 1296 words each, so each word is worth 10.3 bits; their words are shorter to type, and every two words of the second short list are at least three edits apart, so a misread word is still recognisable.",
                     "Six words from the long list are 77 bits. That is the length to use unless you have a reason to differ: it is more than offline guessing reaches, and it is six words to write down rather than ten.",
                     "A rolled passphrase is text like any other. Create a vault uses it as the vault's passphrase; rolled the same way from the lists, it can be the BIP-39 passphrase on a key, or the password for anything else. Keep it apart from the seed words, as the rest of this page says.",
                 ],
@@ -1203,7 +1203,7 @@ pub static EN: Learn = Learn {
             Section {
                 heading: "Creating a wallet",
                 paragraphs: &[
-                    "A dealer makes the shares. On this device that means choosing how many shares and how many must sign, picking the loaded keys that will be the chosen shares, and letting the device compute the rest; each computed share is shown as words with a quiz, and each becomes a loaded key you can write down and then forget.",
+                    "A dealer makes the shares. On this device that means choosing how many shares and how many must sign, picking the loaded keys that will be the chosen shares, and letting the device compute the rest; each computed share becomes a loaded key of its own, which you back up like any other key and can then forget.",
                     "The shares exist together on one device for the length of that flow. That is what a dealer is, and it is the trade-off FROST makes against a key generation where the shares are never in one place.",
                 ],
             },
