@@ -470,8 +470,8 @@ cannot make; `0x00` would be untrue of most keys.
 An export runs scrypt twice at LOG_N 16: once to encrypt, once for the
 check. Each holds 64 MiB, the same as a Light vault's unlock, freed and
 zeroized before the next. `osk_crypto::scrypt` allocates with `vec!`,
-which ends the app if the allocation fails; `core/` is not edited for
-this, and a Pi 3's 1 GiB holds it, since a vault's own key-derivation
+which ends the app if the allocation fails; `core/` is not changed for
+this (F65 allows it, and nothing here needs it), and a Pi 3's 1 GiB holds it, since a vault's own key-derivation
 memory is freed once the vault is open. Time is an estimate, not a
 measurement: under a second on a desktop, several seconds on a Pi 3.
 The completion report gives the time measured on the build machine; the
@@ -611,8 +611,8 @@ User-facing behaviour and published vectors (`CLAUDE.md`).
 ### 10.1 Vectors
 
 `tools/vectors/bip85/` is OpenSigner's (`core/osk-bip/tests/bip85.rs`
-reads it) and is not edited: its extractor skips Nostr, and adding it
-there would be drift. Faraday's are a new folder, `tools/vectors/nostr/`,
+reads it) and is not changed: its extractor skips Nostr, and adding it
+there would be drift from OpenSigner's copy (`docs/UPSTREAM.md`). Faraday's are a new folder, `tools/vectors/nostr/`,
 as `tools/vectors/vault/` is Faraday's:
 
 - `extract.py` reads `../bip85/bip-0085.mediawiki`'s Nostr section (its

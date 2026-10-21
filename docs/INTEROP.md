@@ -124,9 +124,10 @@ wallets.
 ## 5. The batches that build §4 (F64, owner 2026-10-20)
 
 Every reader goes in `faraday-intake`, after the pattern of
-`wallet::coldcard_export` (§3). Faraday reads the format itself and never
-edits an upstream crate (`core/`, `opensigner/`); what upstream should
-change is noted at the end, for the owner to send. New strings go in
+`wallet::coldcard_export` (§3), except where upstream's crates also read
+the format: since F65 Faraday changes `core/` itself, so such a reader goes
+in `core/` (the batches in `docs/UPSTREAM.md`), with every change listed
+there. What upstream might take is noted at the end, for the owner to send. New strings go in
 `faraday/faraday-strings/src/en.rs`. New vectors go under
 `faraday/faraday-core/tests/vectors/interop/<source>/`, with their source
 and licence in that folder's README. Reading needs no choice: every format
@@ -205,8 +206,8 @@ Before `DescriptorRecord::parse`, in `faraday-intake/src/wallet.rs`: (a) an
 address line that is all upper-case bech32/bech32m (`BC1…`, `TB1…`,
 `BCRT1…`) is lower-cased, and a base58 line is never touched; (b) a `/**`
 template whose third line is exactly `No path restrictions` reads as
-`/0/*,/1/*`. The first-address check runs unchanged on the result. When
-upstream fixes the parser this becomes a no-op. Not read: Sparrow's
+`/0/*,/1/*`. The first-address check runs unchanged on the result. The tidy-up
+moves into `osk_bip::bsms` (batch U3). Not read: Sparrow's
 fixed-path records (one address, not a wallet), a blank paths line
 (cannot be told from a cut-off file), encrypted records. Tests:
 `multisig-4.bsms` and `multisig-6.bsms` load with Sparrow's stated first
@@ -255,13 +256,13 @@ Reads and writes
 (Unchained's config is this format; extra fields are ignored). Read as
 `sortedmulti` (BIP 67), written only for `sortedmulti` `wsh`/`sh(wsh)`/`sh`
 wallets whose keys all have origins. A key with `"bip32Path":"Unknown"` or
-no `xfp` is read with no origin (watch-only here, its slot Not here); a key
+no `xfp` is refused (a multisig key with no origin is not held); a key
 whose network disagrees with `network` is refused; `startingAddressIndex`
 other than 0 is refused. Writes `{stem}-caravan.json` under More options.
 Tests: Sparrow's three Caravan exports load and equal its own exports or
-the descriptor written by hand; BlueWallet's Caravan file loads with its
-third key origin-less; Faraday's file reads back with the same first
-address.
+the descriptor written by hand; BlueWallet's Caravan file loads at its
+first address once its third key's path is given, and as written is
+refused; Faraday's file reads back with the same first address.
 
 ### I6. Electrum wallet files (§4 item 3; #45)
 
@@ -431,12 +432,11 @@ the key's Backup menu offers no SeedQR.
 ### Notes for upstream (`local/for-upstream/interop.md`, the owner sends them)
 
 `osk_bip::slip132` multisig versions and a version/script check;
-`osk_bip::policy` holding a multisig key with no origin, watch-only (a
-Caravan config's `"bip32Path":"Unknown"`, §5 I5);
 `osk_bip::bsms` (#50); `osk_bip::coldcard::parse` rooting at the top-level
 `xfp`; `osk-psbt` reading and writing BIP-370; `osk_bip::silent` public
-`spscan`/`sp()` decoding; `osk_bip::core_import` before 29; optionally
-`osk-psbt` matching a key by its account xpub's own fingerprint;
+`spscan`/`sp()` decoding; `osk_bip::core_import` before 29;
 `osk_bip::slip132` writing a key in the version that names its script
 (the Electrum file, §5 I6); a receive and a change `sortedmulti_a`
 descriptor read as one wallet, which `miniscript` cannot parse (§5 I4).
+`osk-psbt` matching a key by its account xpub's own fingerprint stays
+refused: BIP-174's fingerprint is the master key's.

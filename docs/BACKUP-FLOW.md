@@ -30,7 +30,7 @@ checklist. The flow is written here once; `docs/NEW-WALLET.md` §14.8,
   prose, on working screens; tests for user-facing behaviour only;
   `just` once at the end of the batch; no `rm`; no commits; no agents.
 - Every string in `faraday/faraday-strings/src/en.rs` with the prefix
-  `backup_flow_` (§12). OpenSigner's files and strings are not edited.
+  `backup_flow_` (§12). OpenSigner's strings file is not edited (CLAUDE.md); a change to `core/` or `opensigner/` is listed in `docs/UPSTREAM.md` (F65).
 - A stick is handed only to a clean process (`PLAN.md` §5.3 and §5.4).
   Nothing in this flow opens a secret in a process that holds a stick,
   or hands a stick to a process that holds a secret. A change that would
@@ -1628,7 +1628,7 @@ cards, keeping what each checked; none is deleted.
 
 `docs/WALLETS.md` §5 (the questions), `docs/NEW-WALLET.md` §5.2 (marked
 "Changed by BACKUP-FLOW §17"), `docs/DESIGN.md` §4.2's "Used for".
-`docs/learn/07-backups.md` is upstream's: leave it, and say in the
+`docs/learn/07-backups.md` is OpenSigner's page as forked: leave it, and say in the
 report what in it no longer matches.
 
 ### 17.6 A share in a vault

@@ -1,5 +1,6 @@
 //! Faraday's stick shell: a copy of `opensigner/shells/pi` at upstream
-//! c418768 that hosts `faraday-core` instead of OpenSigner. What
+//! c418768 that hosts `faraday-core` instead of OpenSigner (a later
+//! batch may fold it into `opensigner/`, U1). What
 //! differs from the original: the app (`Faraday`), sticks reported to
 //! it by the disk process over its two FIFOs (`PLAN.md` §4.3), or from
 //! `/proc/mounts` where there is no disk process, with their files read

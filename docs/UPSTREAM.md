@@ -43,6 +43,12 @@ Carried before the fork (`HANDOFF.md`, Upstream, has the detail):
   `Icon::Add` (2026-10-19; tracker #64).
 - `docs/learn/06-where-randomness.md` and `osk-learn`'s `en.rs`: the
   dice section's sentence on 70 and 140 rolls.
+- `core/osk-shell-api`: keys and events Faraday's desktop shells send that
+  upstream's enums do not have: `Key::Delete`, `Event::Wheel`,
+  `ScrollEnd`, `Shift`, `Back`, `Forward`, `Hover` and `HoverEnd` (since
+  0.1.1), and `Key::Home`, `End` and `SelectAll` (Ctrl+A) for the
+  Starter's fields (2026-10-13). Each is optional: a core that does not
+  know one ignores it, and a shell that has no such key never sends it.
 
 Since the fork: none yet.
 

@@ -1,4 +1,5 @@
-//! Faraday's copy of `opensigner/shells/scanner` at upstream c418768:
+//! Faraday's copy of `opensigner/shells/scanner` at upstream c418768 (a
+//! later batch may fold it into `opensigner/`, U1):
 //! reads the QR codes in a shell's camera frames on a worker thread, as
 //! that crate does, and also says what each pass saw (`docs/QR.md` §1,
 //! "the found code outlined" and "too fine for this camera").

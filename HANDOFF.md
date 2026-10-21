@@ -207,8 +207,9 @@ is dropped here when upstream has it):
 
 ## Decisions so far (all in the docs)
 
-- Trust model kept from OpenSigner; no upstream file edited; variants of
-  upstream parts are copies under `faraday/`; `faraday-core` names
+- Trust model kept from OpenSigner; since F65 Faraday changes `core/` and
+  `opensigner/` itself (`docs/UPSTREAM.md` lists each change, none loosens
+  a check); variants of upstream parts are copies under `faraday/`; `faraday-core` names
   OpenSigner's `osk-*` types directly, with no separate adapter crate.
 - USB "option B": no filesystem in the kernel; a `CAP_CHOWN`-only helper
   hands USB/SD partitions (never whole disks, never `OSKBOOT`) to an
@@ -1572,8 +1573,8 @@ as possible before the next build.
     **The owner gave that file to the OpenSigner developer** and is
     waiting for upstream's changes. Most of it is upstream's x86 fragment,
     which Faraday's is a copy of.
-    - **Order.** When upstream's changes land, merge them (`just
-      upstream-diff` lists them) and carry them into Faraday's copies under
+    - **Order.** When upstream's changes land, merge them (`git log
+      d26b84e..upstream/main` lists them) and carry them into Faraday's copies under
       `faraday/image/overlay/boards/`. What upstream does not take, or that
       is Faraday's alone (the disk process, the grant helper, the clean
       marker), Faraday does in its overlay. Ask the owner before starting
