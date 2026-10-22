@@ -86,6 +86,7 @@ about `core/` as about anything else, is written here.
 | [F76](#f76-the-key-explorer-lists-an-accounts-addresses-and-finds-one-2026-10-22) | The key explorer lists an account's addresses and finds one | 2026-10-22 | Active | wallets |
 | [F77](#f77-back-lands-on-the-screen-seen-before-as-it-was-seen-2026-10-22) | Back lands on the screen seen before, as it was seen | 2026-10-22 | Active | design |
 | [F78](#f78-a-windows-layout-does-not-follow-the-compositors-scale-above-15-2026-10-22) | A window's layout does not follow the compositor's scale above 1.5 | 2026-10-22 | Active | design |
+| [F79](#f79-faradays-crypto-is-cross-checked-against-python-references-offline-at-build-time-2026-10-22) | Faraday's crypto is cross-checked against Python references, offline, at build time | 2026-10-22 | Active | crypto |
 
 ### F1 The boot import, and one line of fact on its sheet (2026-10-08)
 
@@ -2878,3 +2879,34 @@ same window looked different depending on the screen it was on.
   one-column layout at the screen's own density.
 - Screens at scale 1.5 or below, the full-screen window, the stick and
   the Pi are unchanged.
+
+### F79 Faraday's crypto is cross-checked against Python references, offline, at build time (2026-10-22)
+
+**Why.** Every cryptographic result Faraday shows or acts on comes from
+one implementation. A second, independent one finds a bug as a
+disagreement instead of a wrong address, key or signature
+(`docs/MULTIVENDOR.md`). Running a Python interpreter on the stick
+would add about 20 MB and a large body of trusted code to the boot file.
+Running the cross-check in every `just` would slow every check by
+minutes. Fetching references or packages while it runs would make the
+check depend on the web's certificates.
+
+**Decision** (owner, 2026-10-22; `docs/MULTIVENDOR.md` §10).
+
+- Option A: `just crosscheck`, a recipe of its own, checks Faraday's
+  results against the Python references over every published vector and
+  a seeded random corpus. Nothing of it is in an image or an app.
+- A stamp records the hash of the crypto sources and the crypto crates'
+  `Cargo.lock` entries at the last passing run. `just lint` fails when
+  they no longer match it, so a change to the crypto, or a version bump
+  of a crypto crate, is not committed without a passing cross-check. The
+  stamp check costs about a second.
+- Before each release, `just crosscheck --fresh` runs with a new seed
+  and about ten times the random cases.
+- Offline: the pure-Python references are copied into
+  `tools/reference/` with their source and SHA-256, and a file that does
+  not match is refused. Argon2id and XChaCha20-Poly1305 come from the
+  Linux distribution's signed packages, not pip. The cross-check runs
+  with no network.
+- Options B (a verifier on the stick for public data) and C (one that
+  also receives seeds) are deferred, not refused.

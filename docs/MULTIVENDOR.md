@@ -1,11 +1,12 @@
 # Two implementations of every cryptographic step
 
 **Kind:** Spec
-**Status:** Proposal; not scheduled
+**Status:** Decided in part, not built
 
-Proposal, 2026-10-06. Nothing here is built. The owner will decide
-the implementation later; this records the question, what is known, the
-options and a recommendation.
+Proposal, 2026-10-06. Decided in part 2026-10-22 (owner,
+`docs/DECISIONS.md` F79): option A, the build-time cross-check, is
+specified in §10 and not yet built. Options B and C are deferred. Nothing
+here is built.
 
 ## 1. The idea
 
@@ -119,17 +120,112 @@ stops what depends on it: no export, no signing, no loading of the wallet.
   misreading of a BIP; the BIPs' own reference code and published vectors
   are the defence there.
 
-## 8. Recommendation
+## 8. Recommendation, and what was decided
 
 1. A first: build-time differential tests against the Python references.
-   Cheapest, catches the most.
+   Cheapest, catches the most. **Decided** (F79): §10.
 2. B next: the run-time verifier for public data, with the mark on screen.
+   **Deferred** (F79).
 3. C last, behind a setting, once the owner accepts a second process
-   holding seeds.
+   holding seeds. **Deferred** (F79).
+
+The stick's boot partition is 64 MiB (tracker #187), so B or C can still
+add an interpreter to the boot file later without a new layout.
 
 ## 9. Open questions for the owner
+
+Only for B and C, when they come back:
 
 1. Stick image first, or the desktop app first?
 2. MicroPython (small, fewer libraries) or CPython (larger, every library
    in §3)?
 3. Should the second implementation ever receive seeds (option C)?
+
+## 10. The build-time cross-check (option A)
+
+Decided 2026-10-22 (owner, F79). Not built.
+
+### 10.1 What runs
+
+`just crosscheck` is a recipe of its own, not part of `just`. A
+test-only Rust command, never shipped in an image or app, reads one
+request a line on stdin and answers one line on stdout: the operation,
+its inputs and Faraday's result. A Python script sends the requests,
+recomputes each result with the references in §3, and stops at the first
+disagreement, naming the operation, the inputs and both results.
+
+The inputs are every published vector under `tools/vectors/` and a
+corpus of random inputs drawn from a fixed seed, so that a failure is
+reproduced by running again. Each area runs in its own process, in
+parallel. Secrets in the cross-check are test data only.
+
+### 10.2 When it runs
+
+- **The stamp.** A passing run writes a stamp file beside the
+  cross-check: one hash over the crypto sources and the crypto crates'
+  entries in `Cargo.lock`, and the versions of the references and the
+  Python interpreter it ran with. `just lint` hashes the same inputs and
+  fails when they do not match the stamp, with "crypto changed since the
+  last cross-check: run `just crosscheck`". The check costs about a
+  second; the cross-check itself runs only when it fails. The stamp is
+  committed with the change that made it pass. It is a record, not a
+  security control.
+- **What the stamp covers.** `core/faraday-crypto`, `core/faraday-bip`,
+  `core/faraday-psbt`, `core/faraday-entropy`, `core/faraday-backup`,
+  the signing and derivation code in `faraday/faraday-keys`, and the
+  `Cargo.lock` entries of rust-bitcoin, rust-miniscript, secp256k1 and
+  the RustCrypto crates. A version bump of one of those crates counts as
+  a crypto change.
+- **Before a release:** `just crosscheck --fresh`, with a new random
+  seed and about ten times the random cases. A disagreement it finds
+  keeps its seed and inputs as a new vector.
+
+### 10.3 How long
+
+Each run has a time budget, and each area's corpus is sized to fit it,
+so adding an area does not lengthen the run. Estimates until measured:
+
+- The stamp run: about 2 to 5 minutes. Pure-Python curve arithmetic
+  takes about 5 to 30 ms an operation, so an area gets a few thousand
+  random cases; the vault gets dozens, because Argon2id is memory-hard by
+  design.
+- The run before a release: about 30 to 60 minutes.
+
+### 10.4 Offline, and pinned
+
+The cross-check fetches nothing, ever.
+
+- **The pure-Python references** (the BIPs' reference code, Bitcoin
+  Core's functional-test framework, `python-mnemonic`,
+  `python-shamir-mnemonic`) are copied into `tools/reference/`, each with
+  its source (the git commit in the BIPs repository, Core's release tag,
+  Trezor's release) and its SHA-256. The cross-check refuses to run when
+  a file does not match its hash. Adding or updating one is a reviewed
+  commit. A first copy is checked against something other than the
+  web's certificates: the BIPs repository's commit hash, Core's signed
+  tag, Trezor's signed release.
+- **Argon2id and XChaCha20-Poly1305** come from the Linux
+  distribution's packages (`python3-argon2`, `python3-nacl` or their
+  equivalents), installed once on the machine that runs the cross-check
+  and verified by the distribution's signatures, not by pip. Their
+  versions are in the stamp.
+- **No network.** Python runs in a network namespace with no
+  interfaces, and the Rust command is built with `--offline --frozen`.
+  Anything that tries to fetch fails instead of downloading.
+
+### 10.5 Order of work
+
+1. Faraday's own Rust, which no other library checks: MuSig2 (BIP-327,
+   328, 390), FROST (BIP-445), silent payments (BIP-352), BIP-85,
+   SLIP-39, codex32 (BIP-93) and Seed XOR.
+2. The vault: Argon2id, HKDF, XChaCha20-Poly1305 (`docs/VAULT.md`).
+3. BIP-39 and BIP-32 derivation.
+4. What comes from rust-bitcoin and rust-miniscript: sighash, PSBT,
+   addresses, descriptor checksums, transaction ids, signed messages.
+
+### 10.6 What it does not catch
+
+A library changed after the build, or a fault on the machine that
+signs; only option B catches those. A misreading of a BIP that both
+implementations share; the BIPs' own reference code and the published
+vectors are the defence there.
