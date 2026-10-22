@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built (F81): M1 to M6
-**Open:** M7 and M8 of §10 here, and W1 in the website's repository.
+**Open:** M6b, M7 and M8 of §10 here, and W1 in the website's repository.
 
 The owner's decisions are F81. This says how they are built. Where it
 and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
@@ -43,12 +43,12 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
    public: &[Fingerprint], nodes: &[[u8; 33]])` (a handout's name, its
    word count, its fingerprint; every sample key's fingerprint; the
    public Lightning node ids; a key that takes a passphrase is in
-   `public` twice, with none and with `password`, §6.2). It is a lookup now, no probe: the
+   `public` twice, with none and with `faraday`, §6.2). It is a lookup now, no probe: the
    fingerprints are literals checked by a test (§5.4). `faraday-keys`
    stays the only code that decides a key is public (`Keys::allowed`,
    `Keys::is_public`, and the new `Keys::is_public_node`). Built in M5:
    a handout is a `faraday_keys::Handout` (name, word count and two
-   fingerprints, with none and with `password`, so a handout loaded with
+   fingerprints, with none and with `faraday`, so a handout loaded with
    either counts as loaded, §7), and core's `Session::set_demo` takes a
    `faraday_core::samples::Samples` and passes its handouts, public set
    and node ids.
@@ -151,7 +151,7 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
   length), a seed scanner's Type and Paste, a SLIP-39 share, a codex32
   string, an LND cipher seed and its passphrase, hex entropy, an xprv or
   a WIF, a BIP-39 passphrase, a vault's or a backup's passphrase where it
-  can be typed (not in Demo, where it is `password`, §6.2). A statement
+  can be typed (not in Demo, where it is `faraday`, §6.2). A statement
   of fact in the caution tone, as a key card's line is (DESIGN §4.11);
   one string, one placement rule (under the field, above the keyboard,
   on the wide and the compact layout). Not in README or on the website's
@@ -188,11 +188,11 @@ sample. "Public set" means its fingerprint (or node id) is in
 | codex32 secret | codex32, k = 0 | `tools/vectors/bip93/vectors.json`, secrets, vector 1 | the vector's seed and xprv |
 | codex32, 2 shares | codex32 set; the tick loads both shares | sets, vector 2 | the same |
 | Seed XOR, 2 parts | Seed XOR set; the tick loads the combined key | `tools/vectors/xor/12-words-2-parts.txt` (constructed, not Coldcard's; its README says so) | the file's seed words |
-| Encrypted backup | an `.oskb` holding a 32-byte master seed, no words | new, made under `password` with `tools/vectors/backup/backup-v3-seed-32.oskb`'s payload (every byte `42`) | opened by `faraday-backup` and by `tools/backup/decrypt.py` to that payload |
+| Encrypted backup | an `.oskb` holding a 32-byte master seed, no words | new, made under `faraday` with `tools/vectors/backup/backup-v3-seed-32.oskb`'s payload (every byte `42`) | opened by `faraday-backup` and by `tools/backup/decrypt.py` to that payload |
 | LND cipher seed | aezeed, for Lightning node key only; public node id | LND's published vector, `PRODUCTION_1` in `core/faraday-bip/src/aezeed.rs` (no passphrase) | the node id `aezeed.rs`'s test names |
 
 **With a passphrase.** Every key form that takes a passphrase (BIP-39,
-SLIP-39) is public twice: with none, and with `password` (§6.2). Both
+SLIP-39) is public twice: with none, and with `faraday` (§6.2). Both
 fingerprints are in the public set; the vectors' own passphrases
 (`TREZOR`, the Japanese case's) are used only by the test that checks
 the sample against its vector, since Demo never takes another
@@ -246,12 +246,12 @@ unsigned spend where the testkit makes one (`testkit::unsigned`,
 
 ### 5.3 Other inputs
 
-- **Passphrases and passwords**: `password`, everywhere (§6.2).
-  `demo::PASSPHRASE` becomes `"password"` and stays in `faraday-core`;
+- **Passphrases and passwords**: `faraday`, everywhere (§6.2).
+  `demo::PASSPHRASE` becomes `"faraday"` and stays in `faraday-core`;
   `PASSPHRASE_WORDS` goes.
 - **A vault file**: a vault made like the testkit's
   (`testkit::test_vault`: test key 1 and the Savings wallet) under the
-  one passphrase `password`, as a literal file.
+  one passphrase `faraday`, as a literal file.
 - **A signed message**: one made by sample Spending's first receive
   address, as a literal; **an address**: Spending's receive address 0.
 - **A TOTP setup code**: the testkit's `ENTRIES_FILE` first line (RFC
@@ -282,7 +282,7 @@ unsigned spend where the testkit makes one (`testkit::unsigned`,
   testkit's; every unsigned spend equals the testkit's bytes; every
   vector sample equals its vector file read at test time (words,
   shares, strings, seed, xprv where the vector has one); the `.oskb`
-  and the vault open under `password` to what the table says;
+  and the vault open under `faraday` to what the table says;
   the cipher seed's node id is the one `aezeed.rs`'s test names; and
   the handout list holds every length New key offers.
 - `demo::SEEDS` and `demo::words` move into the crate; `demo.rs` keeps
@@ -309,7 +309,7 @@ Testnet, Signet or Regtest; drawn on the website.
 **The same value again.** Where a flow asks again for a value a sample
 filled, the button fills the matching one, read from the state that
 already holds it: the next share of the set begun (`forms::Parts`), the
-SeedQR of the key a copy check names, a passphrase (always `password`,
+SeedQR of the key a copy check names, a passphrase (always `faraday`,
 §6.2). Nothing new is kept for it. A value the person typed is theirs
 to remember, as for real.
 
@@ -366,17 +366,20 @@ against what the state keeps (a wallet's missing keys are kept on it).
 Nothing is derived while drawing. A press derives through the step's
 own path, with the handler's `Compute`.
 
-### 6.2 Every passphrase is `password`
+### 6.2 Every passphrase is `faraday`
 
-In Demo every passphrase and password field holds `password`, drawn
-unmasked, and takes no typing, no paste and no sample chip; the eye and
+In Demo every passphrase and password field holds `faraday` (all
+lowercase; owner, 2026-10-22), drawn unmasked in the mono face inside a
+code box (a token-padded, tinted, rounded box, as inline code is drawn),
+so its exact characters are plain and nothing around them reads as part
+of it; the field takes no typing, no paste and no sample chip; the eye and
 its 30 s countdown are not drawn there. Where a field is optional (a
 key's BIP-39 passphrase, a seed read's, the potential wallet's), the
 person still chooses whether to use one; when they do, it is
-`password`. A second field that types a passphrase back is filled the
+`faraday`. A second field that types a passphrase back is filled the
 same, so "The two passphrases differ" never shows. The Load samples
 sheet and the Learn page each say it once: "In Demo, every passphrase
-is password." No field explains it.
+is" followed by `faraday` in the same code box. No field explains it.
 
 `Faraday::demo_passphrase()` (true in Demo) is the one test; each field
 below asks it where it takes a key press and where it draws, and fills
@@ -398,7 +401,7 @@ itself from `demo::PASSPHRASE` when its step opens.
 | An aezeed's passphrase, when added | `faraday/faraday-core/src/lightning/mod.rs` |
 
 **Generate with dice** (DEMO §5.2) still takes the rolls and shows the
-words; when the last word is in, both fields take `password` in place
+words; when the last word is in, both fields take `faraday` in place
 of them, and the card's one line says so (`vault_demo_uses_public`).
 
 **Refusals of a weak passphrase.** There are none to loosen: Faraday
@@ -408,7 +411,7 @@ refuses an empty passphrase and a repeat that differs
 strength only for words the dice made (`Vaults::phrase_bits`; a typed
 passphrase's is not measured). The dice count (how many rolls make a
 word, how many words) is unchanged. In Demo `phrase_bits` gives `None`
-for `password` (the dice's words are dropped), so no strength line and
+for `faraday` (the dice's words are dropped), so no strength line and
 no "weakest passphrase" line is drawn; `PASSPHRASE_WORDS` goes. Outside
 Demo nothing changes: a test types a short passphrase on Testnet and on
 the stick and sees it taken as typed, masked and editable, with the
@@ -427,7 +430,7 @@ of these words"; after Lock in, the toast "Added sample ocean ×12
 loaded, Lock in is dimmed (`demo_refuses`, `Action::KLock`). Ticking in
 Load samples skips nothing: the handout takes the first not loaded,
 whatever loaded it; a handout counts as loaded with or without
-`password`. A passphrase chosen on the Key card is `password` (§6.2),
+`faraday`. A passphrase chosen on the Key card is `faraday` (§6.2),
 and the handout is added with it. A typed key (`KeyGen::typed`) is not
 replaced.
 
@@ -452,7 +455,7 @@ the file has them.
 | `samples_select_all` / `samples_unselect_all` | Select all / Unselect all |
 | `samples_not_now` | Not now |
 | `samples_load` | Load ticked |
-| `samples_password` | In Demo, every passphrase is password. |
+| `samples_password` | In Demo, every passphrase is (the passphrase follows in its code box) |
 | `samples_loaded` | Loaded {} (`{}`: how many, as the Load sheet's toast counts) |
 | `use_a_sample` | Use a sample |
 | `scan_sample` | Sample |
@@ -469,7 +472,7 @@ the file has them.
 | `keygen_lock_in_adds` (changed) | Lock in adds sample {} ({}) in place of these words |
 | `keygen_added_public_seed` → `keygen_added_sample` | Added sample {} ({}) in place of the key made |
 | `wallet_is_not_a_key` (changed) | {} is not a sample: Demo takes only samples |
-| `vault_demo_uses_public` (changed) | Demo puts password in place of these words |
+| `vault_demo_uses_public` (changed) | Demo puts faraday in place of these words |
 | `wallet_public_seeds_only`, `network_row_note_wallets` | removed |
 
 ## 9. The website (batch W1, in its repository)
@@ -497,16 +500,16 @@ nothing of it.
     less 2,140 sat to change.
   - **Spend using a Faraday backup**: the boot stick's vault holds Seed
     A and Savings' sample descriptor, with the plan and places as today
-    (`backup_answers`), under the one passphrase `password` (Demo's;
+    (`backup_answers`), under the one passphrase `faraday` (Demo's;
     the second, easy slot goes, since it was the same word); Seed B's
-    paper and the phone as above. The sticky note says `password`.
+    paper and the phone as above. The sticky note says `faraday`.
   - **Start fresh** loads no sample: the story is making a wallet, and
     its key comes from New key's handout (a 12 or 24-word sample by the
     length chosen).
   - `desk.rs`'s own `descriptor`, `account`, `spend`, `fingerprint`,
     `PATH` and `NET` go; it reads the samples. Hints and walk steps
     that name an amount say tBTC where Faraday shows tBTC; those that
-    name the vault's passphrase or the easy one say `password`.
+    name the vault's passphrase or the easy one say `faraday`.
 - Tests: each story walked to its end (`stories.rs`), on testnet; the
   papers' SeedQRs and the phone's PSBT equal the samples'; nothing in
   the website depends on faraday-core's `testkit` (a check in its
@@ -671,9 +674,10 @@ wallet would notice.
   `Action::SampleTick`, `Action::SamplesLoad`); the pill in
   `screens/mod.rs` and `compact/mod.rs`; en.rs (`samples_*`,
   `sample_*`).
-- **One line** above the lists, muted: "In Demo, every passphrase is
-  password." (`samples_password`). No "in use" list: with every
-  passphrase `password`, what is in use is the keys and wallets loaded,
+- **One line** above the lists, muted: "In Demo, every passphrase is"
+  (`samples_password`) then `faraday` (`demo::PASSPHRASE`) in the code
+  box of §6.2. No "in use" list: with every
+  passphrase `faraday`, what is in use is the keys and wallets loaded,
   which the lists already show ticked and dimmed.
 - **Behaviour**: a sample already loaded is ticked and dimmed; nothing
   is ticked at first otherwise. Load ticked loads wallets first, then
@@ -695,6 +699,35 @@ wallet would notice.
   a person can type them from there), and that anything sent to them
   can be taken by anyone; DEMO §5's Keys line.
 - **Done**: snapshots of the sheet at 480x640 and 1280x800.
+
+### M6b. What each sample is, and the passphrase `faraday`
+
+Owner, 2026-10-22, after M6.
+- **Each row says what it is**, as its value (a row with a value,
+  DESIGN §4.2), read from the sample's own data once when the sheet
+  opens, never derived while drawing. Wallets: kind and script, e.g.
+  "Savings" · "2-of-3 multisig · native SegWit", "Spending" ·
+  "single-sig · native SegWit", "Taproot tree" · "single-sig · Taproot,
+  script tree", "MuSig2" · "2-of-2 MuSig2 · Taproot", "FROST 2 of 3" ·
+  "2-of-3 FROST · Taproot", "3 of 5" · "3-of-5 multisig · native
+  SegWit". Keys: form and size, e.g. "bacon ×24" · "BIP-39 · 24 words",
+  "twelve ×12" · "BIP-39 · 12 words", "SLIP-39 2 of 3" · "SLIP-39 · 2 of
+  3 shares", "codex32" · "codex32 · secret", "Seed XOR" · "Seed XOR · 2
+  parts", the backup · "Encrypted backup (.oskb)". The labels are
+  en.rs strings composed from the script and threshold the sample
+  already records; a new sample takes its label from the same parts.
+- **The passphrase is `faraday`**, all lowercase, in place of
+  `password` everywhere M5 and M6 used it: `demo::PASSPHRASE`, the
+  handouts' second fingerprint, the sample vault and the sample backup
+  (remade under `faraday` by `examples/regenerate.rs`), the tests, the
+  Learn page and DEMO.
+- **The code box** of §6.2: the Load samples sheet's line shows
+  `faraday` in it; the Learn page's Samples section shows it as inline
+  code. M8 draws every Demo passphrase field the same way.
+- **Tests**: every sample row offers its type; the sample vault and the
+  backup open under `faraday` and not under `password`; Demo takes a
+  sample with `faraday` as its passphrase and refuses it with
+  `password`.
 
 ### M7. Use a sample: keys and the scanner
 
@@ -720,21 +753,21 @@ wallet would notice.
   DESIGN §4.3 (Use a sample on an entry, in Demo only); DEMO §5.
 - **Done**: snapshots of Add a key and the scanner in Demo, both sizes.
 
-### M8. Every passphrase is `password`; vaults, Lightning, checks
+### M8. Every passphrase is `faraday`; vaults, Lightning, checks
 
 - **Files**: every field of §6.2's table, `Faraday::demo_passphrase`;
-  `faraday/faraday-core/src/demo.rs` (`PASSPHRASE` = `"password"`,
+  `faraday/faraday-core/src/demo.rs` (`PASSPHRASE` = `"faraday"`,
   `PASSPHRASE_WORDS` gone); `vault/mod.rs` (Generate with dice puts
-  `password`; `phrase_bits` gives `None` for it); the remaining rows of
+  `faraday`; `phrase_bits` gives `None` for it); the remaining rows of
   §6's table (the Vaults screen's sample vault, Lightning's cipher seed,
   whose row opens in Demo, Check a signed message and Check an address,
   the TOTP code); en.rs (`samples_password`, `vault_demo_uses_public`).
-- **Tests**: in Demo each field of §6.2 shows `password`, takes no
+- **Tests**: in Demo each field of §6.2 shows `faraday`, takes no
   typing, and the flow goes on: New key with a passphrase adds the
-  handout's `password` key, which the public set takes; Create a vault
-  makes one that unlocks with `password`; Generate with dice shows the
-  rolled words and the field takes `password`; an `.oskb` written in
-  Demo opens with `password`; the sample vault appears in Vaults and
+  handout's `faraday` key, which the public set takes; Create a vault
+  makes one that unlocks with `faraday`; Generate with dice shows the
+  rolled words and the field takes `faraday`; an `.oskb` written in
+  Demo opens with `faraday`; the sample vault appears in Vaults and
   unlocks to the Load sheet; Lightning's cipher seed row fills LND's
   vector and shows its node id, a typed cipher seed that is not the
   vector is refused, and Show stays dimmed; the signed message checks
@@ -742,13 +775,13 @@ wallet would notice.
   and on the stick: a short passphrase is taken as typed, masked and
   editable; two that differ are still refused; the dice's strength
   line is drawn.
-- **Docs**: DEMO §5.2 (`password` in place of the rolled words), §6
-  (the LND row; typing a password into an Entry: now `password`, no
+- **Docs**: DEMO §5.2 (`faraday` in place of the rolled words), §6
+  (the LND row; typing a password into an Entry: now `faraday`, no
   longer typed), §4 (the Lightning rows unchanged); the Learn page: "In
-  Demo, every passphrase is password." once, Generate with dice's
+  Demo, every passphrase is faraday." once, Generate with dice's
   passphrase changed, "What the demo does not make" without the cipher
   seed; DESIGN §4.10's Mask policy (a Demo exception: sample secrets
-  and `password` are drawn unmasked); DEMO's header and every remaining
+  and `faraday` are drawn unmasked); DEMO's header and every remaining
   "mainnet" meaning the demo. DEMO is then Reference again with Demo as
   built; this file goes to `docs/history/` once W1 is done.
 - **Done**: `just` passes; `bash tools/lint-docs.sh` passes.
