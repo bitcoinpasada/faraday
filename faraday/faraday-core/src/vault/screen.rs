@@ -7,8 +7,11 @@ use crate::strings::fill;
 use faraday_crypto::work::Compute;
 use faraday_draw::widgets::Icon;
 
+use crate::demo::Show;
 use crate::drawing::{Scrolled, View};
-use crate::screens::{guide_text, never_real_seed_if, never_under, section_label, title};
+use crate::screens::{
+    guide_text, never_pass, never_real_seed_if, never_under, section_label, title,
+};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::vault::{
@@ -17,6 +20,7 @@ use crate::vault::{
 };
 use crate::wallet::{Session, Wallet, fp_text};
 use crate::{Action, Code, Faraday, Screen, flow};
+use faraday_draw::tokens;
 use faraday_keys::vault::RecordView;
 use faraday_keys::{Part, Reveal};
 use faraday_vault::records::{field, kind};
@@ -128,11 +132,16 @@ pub(crate) fn secret_box(
     y: f32,
     w: f32,
     b: &TextBox,
-    shown: bool,
+    show: Show,
     focused: bool,
     action: Action,
     eye: Action,
 ) {
+    // Demo's passphrase: in its code box, no eye, nothing to press.
+    if show == Show::Fixed {
+        return crate::screens::code_field(ui, x, y, w, tokens::TEXT_FIELD, &b.text);
+    }
+    let shown = show == Show::Shown;
     text_box(ui, x, y, w, b, !shown, focused, action);
     // The eye sits inside the field's right end, over any long text.
     let ex = x + w - 40.0;
@@ -389,6 +398,7 @@ pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let files = app.vault_files();
     if files.is_empty() {
         ui.text(x, y + 8.0, 15.0, W::R, MUTED, EN.vault_no_vault_in_files);
+        crate::samples::put::button(app, ui, x, y + tokens::TEXT_FIELD);
         return;
     }
     let in_inbox = |salt: &[u8; 32]| {
@@ -603,7 +613,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y,
             w,
             &app.vaults.passphrase,
-            app.vaults.typed_shown,
+            app.pass_shows(app.vaults.typed_shown),
             focused,
             va(V::FocusPassphrase),
             va(V::ShowTyped),
@@ -611,7 +621,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         stick_field(app.medium, ui, x, y, w);
     }
-    y += 56.0 + never_under(app, ui, x, y, w);
+    y += 56.0 + never_pass(app, ui, x, y, w);
     let working = app.vaults.working == Some(vault::Work::Unlock);
     if working {
         let f = files.get(app.vaults.pick);
@@ -742,6 +752,7 @@ fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let files = app.vault_files();
     if files.is_empty() {
         y += ui.wrap(x, y, w, 14.0, W::R, MUTED, EN.vault_no_vault_in_files) + 12.0;
+        y += crate::samples::put::button(app, ui, x, y);
     }
     let in_inbox = |salt: &[u8; 32]| {
         app.inbox
@@ -965,7 +976,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y,
             w,
             &app.vaults.passphrase,
-            app.vaults.typed_shown,
+            app.pass_shows(app.vaults.typed_shown),
             focused,
             va(V::FocusPassphrase),
             va(V::ShowTyped),
@@ -973,7 +984,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         stick_field(app.medium, ui, x, y, w);
     }
-    y += 52.0 + never_under(app, ui, x, y, w);
+    y += 52.0 + never_pass(app, ui, x, y, w);
     if app.vaults.working == Some(vault::Work::Unlock) {
         let f = files.get(app.vaults.pick);
         let t = f
@@ -1547,20 +1558,15 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 let pull = fill(EN.vault_remove_the_then, &[app.medium.noun()]);
                 cy += stick_banner(ui, x, cy, w, &pull);
             }
-            ui.button(
-                x,
-                cy,
-                None,
-                32.0,
-                if c.shown {
+            if !app.demo_passphrase() {
+                let eye = if c.shown {
                     EN.vault_hide_passphrases
                 } else {
                     EN.vault_show_passphrases
-                },
-                Style::Ghost,
-                va(V::CShow),
-            );
-            cy += 42.0;
+                };
+                ui.button(x, cy, None, 32.0, eye, Style::Ghost, va(V::CShow));
+                cy += 42.0;
+            }
             for (i, (a, b)) in c.phrases.iter().enumerate() {
                 let rolling = app.vaults.dice.as_ref().is_some_and(|d| d.0 == i);
                 ui.text_mid(
@@ -1629,7 +1635,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         cy,
                         half,
                         a,
-                        c.shown,
+                        app.pass_shows(c.shown),
                         fa,
                         va(V::CFocus(i, false)),
                         va(V::CShow),
@@ -1640,7 +1646,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         cy,
                         half,
                         b,
-                        c.shown,
+                        app.pass_shows(c.shown),
                         fb,
                         va(V::CFocus(i, true)),
                         va(V::CShow),
@@ -1649,7 +1655,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     stick_field(app.medium, ui, x, cy, half);
                     stick_field(app.medium, ui, x + half + 12.0, cy, half);
                 }
-                cy += 46.0 + never_real_seed_if(may, app, ui, x, cy, w);
+                cy += 46.0 + never_real_seed_if(may && !app.demo_passphrase(), app, ui, x, cy, w);
                 let (status, color) = if !b.text.is_empty() && *a.text == *b.text {
                     (EN.vault_matches, OK)
                 } else if !b.text.is_empty() {
@@ -1679,7 +1685,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                             MUTED
                         },
                     )),
-                    None if !a.text.is_empty() => {
+                    None if !a.text.is_empty() && !app.demo_passphrase() => {
                         Some((fill(EN.vault_typed_its_own, &[&format!("{cost:.1}")]), DIM))
                     }
                     None => None,
@@ -1689,15 +1695,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 }
                 // The demo's public passphrase stands in for the rolled
                 // words, as New key's public seed does (`docs/DEMO.md` §5.2).
-                if !app.makes_secrets()
-                    && c.from_dice
-                        .get(i)
-                        .and_then(|d| d.as_ref())
-                        .is_some_and(|(made, _)| {
-                            made.as_str() == crate::demo::PASSPHRASE
-                                && vault::Vaults::phrase_bits(c, i).is_some()
-                        })
-                {
+                if app.dice_made_public(c, i) {
                     cy += 4.0;
                     cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, EN.vault_demo_uses_public);
                 }
@@ -1963,7 +1961,6 @@ fn create_panel(
 /// What Create vault will make: warnings about its cost, the file, its
 /// size, memory and unlock time, and the passphrases' strength. Returns
 /// its height.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let Some(c) = app.vaults.create.as_ref() else {
         return 0.0;
@@ -2027,23 +2024,7 @@ fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     ui.text(x, y, 13.0, W::S, MUTED, EN.vault_will_create);
     y += 26.0;
     let cost = vault::cost_bits(mem, passes);
-    // The weakest passphrase's strength, known when the dice made every
-    // one.
-    let own: Vec<Option<f32>> = (0..c.phrases.len())
-        .map(|i| vault::Vaults::phrase_bits(c, i))
-        .collect();
-    let strength = if c.phrases.iter().all(|(a, _)| a.text.is_empty()) {
-        EN.vault_no_passphrase.to_string()
-    } else if let Some(min) = own
-        .iter()
-        .map(|b| b.map(|b| b + cost))
-        .collect::<Option<Vec<f32>>>()
-        .and_then(|v| v.into_iter().reduce(f32::min))
-    {
-        fill(EN.vault_bits, &[&format!("{min:.1}")])
-    } else {
-        EN.vault_not_measured.to_string()
-    };
+    let strength = app.weakest_text(c, cost);
     let facts = [
         (
             EN.vault_file,
@@ -2066,7 +2047,7 @@ fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         ),
         (EN.vault_goes_to, app.medium.for_box().to_string()),
     ];
-    for (k, v) in facts.iter() {
+    for (k, v) in facts.iter().filter(|(_, v)| !v.is_empty()) {
         ui.text_mid(x, y, 30.0, 12.0, W::R, MUTED, k);
         ui.text_right(x + w, y, 30.0, 13.0, W::R, TEXT, v);
         y += 30.0;
@@ -3090,7 +3071,7 @@ pub(crate) fn codes_form(app: &View, ui: &mut Ui, dx: f32, dy: f32, dw: f32) -> 
                 dy,
                 dw,
                 b,
-                app.vaults.typed_shown,
+                app.field_shows(form, k),
                 focused,
                 va(V::FocusField(k)),
                 va(V::ShowTyped),
@@ -3169,7 +3150,7 @@ fn detail(
                         dy,
                         dw,
                         b,
-                        app.vaults.typed_shown,
+                        app.field_shows(form, k),
                         focused,
                         va(V::FocusField(k)),
                         va(V::ShowTyped),
@@ -3248,12 +3229,12 @@ fn detail(
             dy,
             dw,
             &p.text,
-            app.vaults.typed_shown,
+            app.pass_shows(app.vaults.typed_shown),
             focused,
             va(V::FocusPrompt),
             va(V::ShowTyped),
         );
-        dy += 56.0 + never_under(app, ui, dx, dy, dw);
+        dy += 56.0 + never_pass(app, ui, dx, dy, dw);
         if app.vaults.working == Some(vault::Work::Backup) {
             ui.text_mid(dx, dy, 40.0, 15.0, W::S, ACCENT, EN.vault_opening);
         } else if app.vaults.working == Some(vault::Work::Kdbx) {

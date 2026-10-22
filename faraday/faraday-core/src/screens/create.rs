@@ -1,7 +1,7 @@
 //! `Screen::Create`: creating a wallet.
 
 use super::parts::{
-    buttons_and_next, descriptor_row, first_addresses, kind_rows, locked_tag, never_real_seed,
+    buttons_and_next, descriptor_row, first_addresses, kind_rows, locked_tag, never_real_seed_if,
     next_button, pass_field, stepper, vaults_answer_line,
 };
 use crate::drawing::{Scrolled, View};
@@ -527,7 +527,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                             pw,
                             EN.create_passphrase,
                             &c.pass,
-                            c.pass_focus == Some(0),
+                            (c.pass_focus == Some(0), app.demo_passphrase()),
                             Action::CPassField(0),
                         );
                         cy += pass_field(
@@ -537,10 +537,10 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                             pw,
                             EN.create_passphrase_again,
                             &c.pass2,
-                            c.pass_focus == Some(1),
+                            (c.pass_focus == Some(1), app.demo_passphrase()),
                             Action::CPassField(1),
                         );
-                        cy += never_real_seed(app, ui, px, cy, pw);
+                        cy += never_real_seed_if(!app.demo_passphrase(), app, ui, px, cy, pw);
                         if let Some(n) = &c.pass_note {
                             cy += ui.wrap(px, cy, pw, 13.0, W::R, ERR, n) + 6.0;
                         }

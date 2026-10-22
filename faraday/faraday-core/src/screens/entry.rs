@@ -407,7 +407,7 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         y,
         pw,
         &app.entry.passphrase,
-        on,
+        (on, app.demo_passphrase()),
         Action::EntryPassphrase,
     );
     ui.hit(px, y, pw, 40.0, Action::EntryPassphrase);
@@ -621,7 +621,7 @@ pub(crate) fn entry_form(
             y,
             pw,
             &app.entry.passphrase,
-            on,
+            (on, app.demo_passphrase()),
             Action::EntryPassphrase,
         );
         ui.hit(px, y, pw, 40.0, Action::EntryPassphrase);

@@ -570,3 +570,19 @@ pub const ENTRY_CELL_GAP: f32 = 10.0;
 /// Add a key's word cell on a wide display: the room its number takes at
 /// the left, before the word.
 pub const ENTRY_CELL_NUMBER: f32 = 24.0;
+
+/// A passphrase field that takes no typing (Demo's `faraday`): how far
+/// its code box stands in from the field's left edge.
+pub const PASS_CODE_INSET: f32 = 12.0;
+
+/// A passphrase field that takes no typing: the size of the passphrase in
+/// its code box.
+pub const PASS_CODE_TEXT: f32 = 14.0;
+
+/// A one-line text field a little taller than [`TEXT_FIELD`]: a
+/// passphrase field on a small panel, and Check my copy's.
+pub const TEXT_FIELD_TALL: f32 = 42.0;
+
+/// A one-line text field of a sheet and of the Lightning screen's cipher
+/// seed.
+pub const TEXT_FIELD_SHEET: f32 = 44.0;

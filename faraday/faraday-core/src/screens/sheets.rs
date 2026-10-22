@@ -1,11 +1,13 @@
 //! The sheets drawn over a screen.
 
+use super::parts::demo_choice;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Glyph, Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, Screen};
+use faraday_draw::tokens as T;
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{
     STEP_INDENT, STEP_SIDE, button_rows, measure_wrap, qr_code, sheet_box, step_circle,
@@ -83,7 +85,14 @@ fn potential_compact(
                 _ => EN.potential_bip_39_passphrase,
             };
             cy += ui.wrap(x, cy, iw, 13.0, W::S, TEXT, label) + 6.0;
-            if app.may_load_keys() {
+            if app.demo_passphrase() {
+                demo_choice(
+                    ui,
+                    (x, cy, iw, T::TEXT_FIELD_SHEET),
+                    &p.passphrase,
+                    Action::PotentialType,
+                );
+            } else if app.may_load_keys() {
                 let shown = if p.shown {
                     zeroize::Zeroizing::new(p.passphrase.to_string())
                 } else {
@@ -255,7 +264,14 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         };
         ui.text(ix, cy, 13.0, W::S, TEXT, label);
         cy += 24.0;
-        if app.may_load_keys() {
+        if app.demo_passphrase() {
+            demo_choice(
+                ui,
+                (ix, cy, iw, T::TEXT_FIELD),
+                &p.passphrase,
+                Action::PotentialType,
+            );
+        } else if app.may_load_keys() {
             let shown = if p.shown {
                 zeroize::Zeroizing::new(p.passphrase.to_string())
             } else {

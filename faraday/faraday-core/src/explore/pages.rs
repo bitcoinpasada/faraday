@@ -76,7 +76,7 @@ fn row(
 
 /// A field drawn as Explore's path field is: the text and the caret, a
 /// red edge when `bad`. Returns the height used.
-fn field(ui: &mut Ui, x: f32, y: f32, width: f32, text: &str, bad: bool) -> f32 {
+fn field(ui: &mut Ui, x: f32, y: f32, width: f32, text: &str, bad: bool, chip: bool) -> f32 {
     ui.fill(x, y, width, T::FIELD, T::GAP, BG);
     ui.stroke(
         x,
@@ -86,6 +86,10 @@ fn field(ui: &mut Ui, x: f32, y: f32, width: f32, text: &str, bad: bool) -> f32 
         T::GAP,
         if bad { ERR } else { ACCENT },
     );
+    if chip {
+        crate::samples::put::chip(ui, (x, y, width, T::FIELD), Action::UseSample);
+        return T::FIELD + T::GAP;
+    }
     let shown = format!("{text}{}", ui.caret_char());
     let shown = ui.fit(T::BODY, W::M, &shown, width - T::PAD * 2.0);
     ui.text_mid(x + T::PAD, y, T::FIELD, T::BODY, W::M, TEXT, &shown);
@@ -118,7 +122,7 @@ pub(super) fn addresses(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.text(x, y, T::CAPTION, W::R, MUTED, EN.explore_from);
     y += T::PAD + T::GAP_SMALL;
     let fw = if ui.compact { width } else { width / 2.0 };
-    y += field(ui, x, y, fw, &e.from.to_string(), false);
+    y += field(ui, x, y, fw, &e.from.to_string(), false, false);
     let page = PAGE.to_string();
     let steps = [
         (
@@ -153,7 +157,8 @@ pub(super) fn find(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut y = top(app, ui, x, y, width, EN.explore_find);
     ui.text(x, y, T::CAPTION, W::R, MUTED, EN.explore_address);
     y += T::PAD + T::GAP_SMALL;
-    y += field(ui, x, y, width, &e.query, e.note.is_some());
+    let chip = app.explore_sample_shown();
+    y += field(ui, x, y, width, &e.query, e.note.is_some(), chip);
     if let Some(n) = e.note {
         y += ui.wrap(x, y, width, T::CAPTION, W::R, ERR, n) + T::GAP;
     }

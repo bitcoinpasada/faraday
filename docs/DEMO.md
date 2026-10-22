@@ -1,7 +1,7 @@
 # The demo, and Faraday Desktop for developers
 
 **Kind:** Reference
-**Status:** Built (F30, F61); the website's part is in its own repository
+**Status:** Built (F30, F61, F81); the website's part is in its own repository
 
 ## 1. The decision
 
@@ -40,8 +40,9 @@ address is bitcoin. Two builds have it:
 - **Faraday Desktop**, a developer's build or a release, which starts in
   Demo. Leaving it for Testnet, Signet or Regtest is a lock into a
   fresh session in that mode (F81). No warning sheet comes first (M3,
-  `docs/MODES.md` §4); every step that takes a seed or a secret draws the
-  line "Never type a seed that holds real bitcoin here." under its field.
+  `docs/MODES.md` §4); every step that takes a seed or a secret that can
+  be typed draws the line "Never type a seed that holds real bitcoin
+  here." under its field (not a passphrase field of Demo, §5.4).
 
 The stick, the Pi and the `Faraday` the Starter holds for Transfer and
 Learn never call `set_demo`: the stick has no Demo mode, and nothing in
@@ -77,9 +78,9 @@ new secret: they are public.
 Two actions are open with their result replaced (owner, 2026-10-14):
 New key, whose sources all run and whose key is replaced by the next
 public seed (§5.1, F20), and **Generate with dice** for a vault
-passphrase, whose rolls run and whose words are replaced by the demo's
-public passphrase (§5.2). What they make is shown and then dropped,
-never kept.
+passphrase, whose rolls run and whose words are replaced by `faraday`,
+the one passphrase of the demo (§5.2). What they make is shown and then
+dropped, never kept.
 
 An action stays open when it shows public values, loads a public seed,
 signs or checks with one, or encrypts what is already held. Encryption
@@ -117,7 +118,8 @@ public values work; only the actions in the table are disabled.
 - **Keys**: typing, scanning or reading a public seed in any form (words,
   SeedQR, CompactSeedQR, SLIP-39 shares, Seed XOR parts, codex32, an
   encrypted backup), refused unless it is a
-  public seed (F20); a passphrase field, ignored (F20); **Load samples**,
+  public seed (F20); a passphrase, chosen and never typed: it is `faraday`
+  (§5.4); **Load samples**,
   the pill beside the Demo pill, which loads ticked sample wallets and
   sample keys in every form, with the wallets' own keys (F81, `docs/MODES.md`
   §3 and §10 M6); **Use a sample**, a chip inside the empty field of every
@@ -135,18 +137,20 @@ public values work; only the actions in the table are disabled.
   its chart.
 - **Spending**: Sign a transaction, the Spend tab, the nonce check,
   Decode, MuSig2 and FROST signing rounds.
-- **Messages**: Sign a message, Check a signed message.
+- **Messages**: Sign a message, Check a signed message (its Tools tile
+  takes the sample message where the Inbox has none), Find an address
+  (the sample address in its field).
 - **Backups of a public seed**: Words, SeedQR, CompactSeedQR, a single
   codex32 string where one is offered, into a vault, the secret sheet and **Out unprotected…** for the seed
   itself, the backup plan and checklist (§5.3), Check a copy.
-- **Vaults**: Create a vault with a typed passphrase, or with **Generate
-  with dice**, whose words the demo's public passphrase replaces (§5.2),
-  Unlock, Vault
+- **Vaults**: Create a vault, its passphrase `faraday` or **Generate with
+  dice**, whose words `faraday` replaces (§5.2), a sample vault where
+  none is in Files (**Use a sample**), Unlock, Vault
   contents, entries, notes, TOTP codes, KeePass export, Open an
   .oskb backup, the stick visit and Files.
 - **Vanity address** on the account dial; **Lightning node key**'s node
   id from a loaded public seed, and its LND cipher seed row, which takes
-  only LND's published seed; **Silent payments**' address, labels,
+  only LND's published seed and offers it (**Use a sample**); **Silent payments**' address, labels,
   record and Check a payment.
 - **Tools**: every calculator, word list and Find a tool; every tile
   opens its screen.
@@ -171,13 +175,31 @@ for that length only.
 
 **Generate with dice** on Create a vault is open: the person rolls and
 types the numbers, and the words appear as on the device. When the last
-word is in, the passphrase field takes the demo's public passphrase in
-place of the rolled words, and the card says so in one line, "The demo
-uses its public passphrase in place of these words", as New key's Key
-card does. The public passphrase is a constant in
-`faraday-core/src/demo.rs` beside the seeds: the website's demo
-passphrase, already published on its note, moves there and the web
-shell uses Faraday's. A passphrase typed by hand is kept as typed.
+word is in, both passphrase fields hold `faraday` in place of the rolled
+words, and the card says so in one line, "Demo puts faraday in place of
+these words", as New key's Key card does. No strength line is drawn for
+it. `faraday` is `demo::PASSPHRASE` in `faraday-core/src/demo.rs`, the
+one constant every Demo passphrase field and the samples
+(`faraday-samples`, the sample vault and backup) use.
+
+### 5.4 Every passphrase is `faraday`
+
+In Demo every passphrase and password field holds `faraday` (F81,
+`docs/MODES.md` §6.2), drawn unmasked in a code box (DESIGN §4.10), and
+takes no typing, no paste and no sample chip; no eye is drawn on it.
+`Faraday::demo_passphrase()` is the one test. A field that is not
+optional is filled when its step opens: the vault's unlock and the
+passphrase of an `.oskb` opened, Create a vault's pairs, a prompt, Add a
+passphrase on a Create slot or a seed read, Check my copy's, a new
+entry's password. A field that is optional, with **No passphrase** in it
+while empty (Add a key's BIP-39 passphrase, New key's pair, the potential
+wallet's, an aezeed's), is chosen by a press on it: it then holds
+`faraday` (a pair is chosen by a press on its first field, and both
+fill), and a press again empties it. A key
+added with a passphrase is the public set's second fingerprint of the
+sample, which Demo takes. No line says "Never type a seed that holds real
+bitcoin here." under a field that takes no typing. Outside Demo every
+field is typed, masked and edited as before.
 
 ### 5.3 The backup plan in the demo
 
@@ -192,15 +214,15 @@ any copy made away from the device is.
 
 | Case | Decision | Why |
 |---|---|---|
-| Typing a password or TOTP secret into a vault Entry | Open | Typed, not generated, and the only way to try entries, TOTP codes and KeePass export. The demo cannot tell a real password from a made-up one, as it cannot tell a funded seed on a test network; the demo's Learn page says to type nothing real |
-| Typing an LND cipher seed (aezeed) on Lightning node key | Open in Demo, taking LND's published vector only (F81, `docs/MODES.md` §10 M7) | Whatever else is typed would be someone's real node seed, so Demo refuses it as it refuses a key that is not public. A loaded public seed is the other source and stays |
-| Making a vault | Open, with a typed passphrase; **Generate with dice** open, its words replaced by the demo's public passphrase (§5.2) | It encrypts what the demo holds: public seeds and what was typed. Its keys are internal to the file and never shown. The rolled words are dropped, as New key's are, so the passphrase the vault takes is public |
+| A password into a vault Entry; a TOTP secret | The password is `faraday` and takes no typing (§5.4); a TOTP secret is typed or scanned | The password field is a passphrase field of the demo; a TOTP secret is typed, and is the only way to try TOTP codes and KeePass export. The demo cannot tell a real secret from a made-up one; the demo's Learn page says to type nothing real |
+| Typing an LND cipher seed (aezeed) on Lightning node key | Open in Demo, taking LND's published vector only (F81, `docs/MODES.md` §10 M7, M8), which **Use a sample** types in; its passphrase is none or `faraday` (§5.4), and the vector has none | Whatever else is typed would be someone's real node seed, so Demo refuses it as it refuses a key that is not public. A loaded public seed is the other source and stays |
+| Making a vault | Open, under `faraday`; **Generate with dice** open, its words replaced by `faraday` (§5.2) | It encrypts what the demo holds: public seeds and what was typed. Its keys are internal to the file and never shown. The rolled words are dropped, as New key's are, so the passphrase the vault takes is public |
 | BIP-85 outputs | Disabled, as the owner said | Derived from a public seed, so anyone can derive them, but they look like a fresh password or seed and would be used as one |
 | Lightning node private key, silent payments scan key | Disabled | Derived private keys for use in another program, as BIP-85's are |
 | The secret sheet and **Out unprotected…** for a public seed | Open | Every value they can carry in the demo is a public seed's own spelling; the sources of every other secret are disabled at §4 |
 | Seed XOR, codex32 and SLIP-39 splits of a public seed | Disabled | The parts are fresh randomness; a person copying them would hold something that looks like a real backup |
 | A single codex32 string of a public seed (k of 1), where offered | Open | Another spelling of a public seed, with no randomness |
-| Encrypted backup, KeePass export, sealed files | Open | Encryption of what is held, under a typed passphrase or password |
+| Encrypted backup, KeePass export, sealed files | Open | Encryption of what is held, under `faraday` (§5.4). The KeePass export keeps its minimum of 8 characters, which `faraday` does not meet: in Demo it says so and writes nothing |
 | Vanity address's passphrase dial | Disabled | It makes a new key under a passphrase; Demo refuses that key anyway |
 | FROST deal | Disabled | The dealt shares are new seeds that are not public seeds |
 

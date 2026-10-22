@@ -252,12 +252,12 @@ pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
                         cy,
                         iw,
                         &q.text,
-                        app.vaults.typed_shown,
+                        app.pass_shows(app.vaults.typed_shown),
                         app.vaults.focus == Some(crate::vault::Focus::Prompt),
                         va(V::FocusPrompt),
                         va(V::ShowTyped),
                     );
-                    cy += 50.0 + crate::screens::never_under(app, ui, x, cy, iw);
+                    cy += 50.0 + crate::screens::never_pass(app, ui, x, cy, iw);
                     if let Some(e) = &q.error {
                         cy += ui.wrap(x, cy, iw, 13.0, W::R, ERR, e) + 10.0;
                     }

@@ -3,6 +3,7 @@
 use crate::tour::{Tour, type_text};
 use faraday_core::samples::Pick;
 use faraday_core::testkit;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StickInfo, StorageEvent};
 
 /// The desktop app's stick pills: the default two, then a wallet's backup
@@ -98,6 +99,7 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("modes-demo-add-key")?;
     crate::tour::scroll(t, 700);
     t.shot("modes-demo-add-key-foot")?;
+    demo_passphrases(t)?;
     // Load samples: the sheet, Savings ticked, loaded (its toast), and the
     // sheet again with Savings and its three keys ticked and dimmed.
     t.press(Action::Nav(Screen::Home));
@@ -124,10 +126,75 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Cancel);
     t.press(Action::Entry(None));
     t.shot("modes-testnet-add-key")?;
+    testnet_passphrases(t)?;
     t.press(Action::Nav(Screen::Tools));
     t.shot("modes-testnet-tools")?;
     t.app.session = faraday_core::wallet::Session::on(faraday_bip::keys::Network::Mainnet);
     t.app.set_modes(faraday_core::STICK_MODES);
     t.press(Action::Nav(Screen::Settings));
     t.shot("modes-mainnet-settings")
+}
+
+/// Passphrases in Demo (`docs/MODES.md` §6.2): Add a key's is chosen and
+/// never typed, the sample vault unlocks with `faraday` filled in, and
+/// Create a vault's pair is `faraday` twice.
+fn demo_passphrases(t: &mut Tour) -> Result<(), String> {
+    // The passphrase is chosen, not typed: pressed, it is faraday in its
+    // code box, and nothing typed is taken.
+    t.press(Action::Nav(Screen::Home));
+    t.press(Action::Entry(None));
+    t.press(Action::UseSample);
+    t.press(Action::EntryPassphrase);
+    type_text(t, "x");
+    t.shot("modes-demo-add-key-passphrase")?;
+    crate::tour::scroll(t, 700);
+    t.shot("modes-demo-add-key-passphrase-foot")?;
+    // Vaults: the sample vault stands in for one to bring, unlocks with
+    // faraday filled in, and Create a vault's pair is faraday twice.
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.vaults.ms_per_unit = Some(180);
+    t.press(Action::Nav(Screen::Vaults));
+    t.shot("modes-demo-vaults-empty")?;
+    t.press(Action::UseSample);
+    t.press(Action::Vault(V::Open(0)));
+    t.shot("modes-demo-unlock")?;
+    t.press(Action::Vault(V::Create));
+    t.shot("modes-demo-create-vault")?;
+    let rolls = "123456123456123456123456123456";
+    t.press(Action::Vault(V::Dice(0)));
+    type_text(t, rolls);
+    t.press(Action::Vault(V::DiceUse));
+    crate::tour::scroll(t, 300);
+    t.shot("modes-demo-create-vault-dice")?;
+    Ok(())
+}
+
+/// The same fields on Testnet: typed, masked and measured as before.
+fn testnet_passphrases(t: &mut Tour) -> Result<(), String> {
+    t.press(Action::EntryPassphrase);
+    type_text(t, "ab");
+    t.shot("modes-testnet-add-key-passphrase")?;
+    let vault = faraday_samples::SAMPLES.inputs.vault.to_vec();
+    t.app.storage(StorageEvent::Restored {
+        inbox: vec![("vault.ofv".to_string(), vault)],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.app.vaults.ms_per_unit = Some(180);
+    t.press(Action::Nav(Screen::Vaults));
+    t.press(Action::Vault(V::Open(0)));
+    type_text(t, "ab");
+    t.shot("modes-testnet-unlock")?;
+    t.press(Action::Vault(V::Create));
+    t.press(Action::Vault(V::CFocus(0, false)));
+    type_text(t, "ab");
+    t.press(Action::Vault(V::CFocus(0, true)));
+    type_text(t, "ab");
+    t.shot("modes-testnet-create-vault")?;
+    Ok(())
 }

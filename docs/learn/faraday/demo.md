@@ -12,9 +12,9 @@ Demo takes only samples, on testnet. Any other key is refused by its fingerprint
 
 ## New key in the demo
 
-New key runs as on the device: the dice, the coins, the cards, hex digits, the camera or the computer's generator make the words, and the quiz checks them. At Lock in, the demo adds the next sample of the length chosen that is not loaded, in place of the key made, and the Key card says which. There are samples of 12, 15, 18, 21 and 24 words: four of 12, two each of 15, 18 and 21, and eleven of 24. A passphrase typed there is ignored. The key made is not kept. With every sample of that length loaded, Lock in is dimmed.
+New key runs as on the device: the dice, the coins, the cards, hex digits, the camera or the computer's generator make the words, and the quiz checks them. At Lock in, the demo adds the next sample of the length chosen that is not loaded, in place of the key made, and the Key card says which. There are samples of 12, 15, 18, 21 and 24 words: four of 12, two each of 15, 18 and 21, and eleven of 24. A passphrase there is chosen, not typed: with one, the sample is added with it, and the field takes no typing. The key made is not kept. With every sample of that length loaded, Lock in is dimmed.
 
-Generate with dice on Create a vault runs the same way: the rolls make the words, and the demo puts its public passphrase, brightharborcalmbreezequietshelter, in place of them. The vault is made under the public passphrase; the rolled words are not kept. A passphrase typed by hand is kept as typed.
+Generate with dice on Create a vault runs the same way: the rolls make the words, and the card shows them, then the demo puts `faraday` in place of them. The vault is made under it; the rolled words are not kept. Every other passphrase and password field in the demo holds `faraday` too and takes no typing; where a passphrase is optional, a press on its field chooses whether to use one.
 
 ## Samples
 
@@ -52,9 +52,13 @@ Encrypted backup: a file, in Load samples only, opened with the passphrase `fara
 
 LND cipher seed: above judge emerge veteran reform crunch system all snap please shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body; it gives a Lightning node key, and Load samples does not list it.
 
+## Other samples
+
+Where a screen asks for a vault, a signed message or an address, Use a sample puts one in. Vaults with none offers a sample vault, which opens with the passphrase already filled in. The Check a signed message tile in Tools opens a sample message made by sample Spending's first receive address. Find an address takes that address in its field, and finds it once Spending is loaded. The LND cipher seed field takes the sample cipher seed. They are public, so anything sent to that address can be taken by anyone.
+
 ## What the demo does not make
 
-The demo makes no secret a person could take away and use. These actions are dimmed and do nothing: SLIP-39 shares, Seed XOR parts and codex32 shares of two or more; a GPG key and Secure Boot keys; every BIP-85 output; a FROST deal; the vanity passphrase dial; a Lightning node's private key shown, saved into a vault or sent out unprotected; a silent payments scan key saved into a vault or sent out unprotected; and typing an LND cipher seed. Their screens open, and everything else on them works. A Faraday stick, booted on a computer with no network, makes all of them.
+The demo makes no secret a person could take away and use. These actions are dimmed and do nothing: SLIP-39 shares, Seed XOR parts and codex32 shares of two or more; a GPG key and Secure Boot keys; every BIP-85 output; a FROST deal; the vanity passphrase dial; a Lightning node's private key shown, saved into a vault or sent out unprotected; and a silent payments scan key saved into a vault or sent out unprotected. A Lightning cipher seed other than the sample is refused. Their screens open, and everything else on them works. A Faraday stick, booted on a computer with no network, makes all of them.
 
 ## Test networks
 

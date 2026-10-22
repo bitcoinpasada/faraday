@@ -732,6 +732,12 @@ impl Faraday {
             }
             Action::EntryPart => self.form_add_part(),
             Action::EntryRecover => self.form_recover(),
+            // Demo: the press chooses whether to use `faraday`.
+            Action::EntryPassphrase if self.demo_passphrase() => {
+                Self::demo_pass_toggle(&mut self.entry.passphrase, None);
+                self.entry.on_passphrase = true;
+                self.entry.error = None;
+            }
             Action::EntryPassphrase => self.entry.on_passphrase = !self.entry.on_passphrase,
             Action::EntryWallet(w) => {
                 if self.may_load_keys() && w < self.session.wallets.len() {

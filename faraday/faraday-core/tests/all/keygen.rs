@@ -749,12 +749,13 @@ fn unequal_passphrases_lock_nothing_in() {
     assert_eq!(app.session.keys.len(), 1);
 }
 
-/// The demo on a Create slot (F20): the passphrase fields stay, what is
-/// typed in them is ignored, and Lock in adds the next sample with
-/// no passphrase, saying so before and after.
+/// The demo on a Create slot (F20, `docs/MODES.md` §7): the passphrase is
+/// chosen, not typed, and is `faraday`; Lock in adds the next sample with
+/// it, saying so before and after.
 #[test]
-fn the_demo_locks_in_its_sample_whatever_passphrase_is_typed() {
+fn the_demo_locks_in_its_sample_with_faraday_when_a_passphrase_is_chosen() {
     use faraday_core::wallet::fp_text;
+    let c = faraday_core::testkit::compute();
     let mut app = slot_flow(true);
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.session.set_demo(faraday_core::testkit::demo_samples());
@@ -770,10 +771,53 @@ fn the_demo_locks_in_its_sample_whatever_passphrase_is_typed() {
     type_text(&mut app, "one");
     app.press(Action::KPassField(1));
     type_text(&mut app, "two");
+    let k = app.keygen.as_ref().unwrap();
+    assert_eq!(k.passphrase.as_str(), "faraday", "nothing typed is taken");
+    assert_eq!(
+        k.passphrase2.as_str(),
+        "faraday",
+        "the repeat is filled the same"
+    );
+    app.press(Action::KLock);
+    let with = faraday_core::wallet::Session::default()
+        .keys
+        .add_words_with(
+            &c,
+            &faraday_core::samples::repeated(word, n),
+            "faraday",
+            "",
+            None,
+        )
+        .unwrap()
+        .0;
+    assert_eq!(added(&app), vec![with]);
+    let c = app.create.as_ref().unwrap();
+    assert_eq!(c.slots[0], faraday_core::create::Source::Here(with));
+    let shown = texts(&mut app);
+    assert!(shown.contains(&format!(
+        "Added sample {word} ×{n} ({}) in place of the key made",
+        fp_text(faraday_bip::keys::Fingerprint(with))
+    )));
+    assert!(!shown.contains("Not set"), "faraday went with it");
+}
+
+/// The passphrase stays optional in Demo: chosen and chosen again it is
+/// none, and the sample goes in as it is.
+#[test]
+fn the_demo_locks_in_its_sample_with_no_passphrase_unless_one_is_chosen() {
+    use faraday_core::wallet::fp_text;
+    let mut app = slot_flow(true);
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
+    app.session.set_demo(faraday_core::testkit::demo_samples());
+    flip_all(&mut app);
+    app.press(Action::KNext);
+    let n = app.keygen.as_ref().unwrap().handout_words();
+    let (word, fp) = app.session.keys.next_handout(n).unwrap();
+    // Chosen, then unchosen.
+    app.press(Action::KPassField(0));
+    app.press(Action::KPassField(0));
     app.press(Action::KLock);
     assert_eq!(added(&app), vec![fp.0]);
-    let c = app.create.as_ref().unwrap();
-    assert_eq!(c.slots[0], faraday_core::create::Source::Here(fp.0));
     let shown = texts(&mut app);
     assert!(shown.contains(&format!(
         "Added sample {word} ×{n} ({}) in place of the key made",

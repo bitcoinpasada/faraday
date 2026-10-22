@@ -728,6 +728,10 @@ pub(crate) struct Osk {
 impl Faraday {
     /// A field with focus takes typing now.
     fn osk_auto(&self) -> bool {
+        // A field that holds Demo's passphrase takes no typing.
+        if self.demo_pass_typing() {
+            return false;
+        }
         if self.sheet == Some(crate::Sheet::Potential) {
             return self.potential.as_ref().is_some_and(|p| p.typing);
         }

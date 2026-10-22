@@ -25,11 +25,12 @@ use faraday_bip::codex32::Codex32;
 use faraday_bip::keys::Fingerprint;
 use faraday_bip::slip39;
 use faraday_crypto::work::Compute;
+use faraday_shell_api::Key as KeyIn;
 use zeroize::Zeroizing;
 
 use crate::create::NewKind;
 use crate::wallet::{FileKind, Refusal, Session, Wallet, fp_text};
-use crate::{Action, Faraday, Item, forms, inbox, stem};
+use crate::{Action, Faraday, Item, Sheet, forms, inbox, stem};
 
 /// Where a seed found in the Inbox comes from.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1030,6 +1031,60 @@ pub const KINDS: [NewKind; 4] = [
 ];
 
 impl Faraday {
+    /// The potential wallet's passphrase changed: with none, the seed's
+    /// own fingerprint, a lookup; with one, the key it makes is worked
+    /// out once typing pauses ([`Faraday::typed_tick`]), and none is
+    /// shown until then.
+    pub(crate) fn potential_typed(&mut self) {
+        let Some(p) = self.potential.as_mut() else {
+            return;
+        };
+        if p.passphrase.is_empty() || p.backup.is_some() || p.xpub.is_some() {
+            self.typed_at = None;
+            self.potential_refresh();
+            return;
+        }
+        p.with = None;
+        self.typed_at = Some(self.now_ms);
+    }
+
+    /// Typing into the potential wallet's sheet. Returns whether the key
+    /// was taken.
+    pub(crate) fn potential_key(&mut self, key: KeyIn) -> bool {
+        if self.sheet != Some(Sheet::Potential) {
+            return false;
+        }
+        match key {
+            KeyIn::Escape => {
+                self.potential = None;
+                self.sheet = None;
+            }
+            KeyIn::Enter => self.potential_make(),
+            // Nothing secret is typed with a stick attached.
+            _ if !self.sticks.is_empty() => {}
+            KeyIn::Char(c) if !c.is_control() => {
+                if let Some(p) = self.potential.as_mut()
+                    && p.typing
+                {
+                    p.passphrase.push(c);
+                    p.error = None;
+                }
+                self.potential_typed();
+            }
+            KeyIn::Backspace => {
+                if let Some(p) = self.potential.as_mut()
+                    && p.typing
+                {
+                    p.passphrase.pop();
+                    p.error = None;
+                }
+                self.potential_typed();
+            }
+            _ => {}
+        }
+        true
+    }
+
     /// Opens the sheet for making seed `fp` a wallet.
     pub(crate) fn potential_open(&mut self, fp: Fingerprint) {
         self.potential = Some(Potential {
@@ -1428,6 +1483,15 @@ impl Faraday {
             Action::PotentialShow => {
                 if let Some(p) = self.potential.as_mut() {
                     p.shown = !p.shown;
+                }
+            }
+            // Demo: the press on the wallet's passphrase chooses whether
+            // to use `faraday`; a backup's is always filled.
+            Action::PotentialType if self.demo_passphrase() => {
+                if let Some(p) = self.potential.as_mut().filter(|p| p.backup.is_none()) {
+                    Self::demo_pass_toggle(&mut p.passphrase, None);
+                    p.typing = true;
+                    self.potential_typed();
                 }
             }
             Action::PotentialType => {

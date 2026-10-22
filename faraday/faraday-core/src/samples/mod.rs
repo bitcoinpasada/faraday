@@ -27,7 +27,7 @@ use faraday_keys::Handout;
 /// The passphrase of every sample that has one: the backup, the vault, and
 /// the second fingerprint of each key that takes a passphrase
 /// (`docs/MODES.md` §6.2, §10 M6b). All lowercase.
-pub const PASSPHRASE: &str = "faraday";
+pub const PASSPHRASE: &str = crate::demo::PASSPHRASE;
 
 /// The form a key sample is read in (`docs/MODES.md` §5.1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -559,7 +559,7 @@ impl Faraday {
                 }
             }
             Action::SamplesLoad => self.samples_load(set),
-            Action::UseSample => self.entry_use_sample(),
+            Action::UseSample => self.use_sample(),
             Action::ScanSample => self.scan_use_sample(),
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),

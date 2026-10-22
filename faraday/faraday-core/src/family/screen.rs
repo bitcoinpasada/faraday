@@ -1178,7 +1178,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy,
             w,
             &app.vaults.passphrase,
-            app.vaults.typed_shown,
+            app.pass_shows(app.vaults.typed_shown),
             focused,
             Action::Vault(VaultAction::FocusPassphrase),
             Action::Vault(VaultAction::ShowTyped),
@@ -1186,7 +1186,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     } else {
         crate::vault::screen::stick_field(app.medium, ui, x, cy, w);
     }
-    cy += 52.0 + crate::screens::never_under(app, ui, x, cy, w);
+    cy += 52.0 + crate::screens::never_pass(app, ui, x, cy, w);
     if app.vaults.working == Some(crate::vault::Work::Unlock) {
         ui.text_mid(x, cy, 42.0, 14.0, W::S, ACCENT, EN.family_unlocking);
     } else {

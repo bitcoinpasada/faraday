@@ -199,7 +199,7 @@ fn origin_of(text: &str) -> Option<[u8; 4]> {
 impl Faraday {
     /// The samples, where Use a sample is on at all: Demo with samples
     /// set.
-    fn put_on(&self) -> Option<&'static Samples> {
+    pub(crate) fn put_on(&self) -> Option<&'static Samples> {
         self.samples.filter(|_| self.samples_on())
     }
 
@@ -402,7 +402,7 @@ impl Faraday {
             ScanPurpose::Intake | ScanPurpose::VaultEntry => true,
             ScanPurpose::Files => matches!(
                 self.screen,
-                Screen::Restore | Screen::Spend | Screen::Decode
+                Screen::Restore | Screen::Spend | Screen::Decode | Screen::Catalog
             ),
             ScanPurpose::CheckCopy(fp) => english_keys(set)
                 .any(|(_, k)| k.plain == Some(fp.0) || k.with_passphrase == Some(fp.0)),
@@ -490,6 +490,10 @@ impl Faraday {
                 list.get(at)
                     .map(|s| set.wallets[*s].text.as_bytes().to_vec())
             }
+            // Check an address, from the Tools tile: the sample address.
+            ScanPurpose::Files if self.screen == Screen::Catalog => {
+                Some(set.inputs.address.as_bytes().to_vec())
+            }
             ScanPurpose::Files => self.sample_spend(c, set).map(<[u8]>::to_vec),
             ScanPurpose::Transfer => None,
         }
@@ -565,6 +569,124 @@ impl Faraday {
                 }
                 Err(e) => st.error = Some(e),
             }
+        }
+    }
+}
+
+/// A Use a sample button on a screen with no field to put it in, at
+/// (`x`, `y`) and the touch floor's height: drawn only where samples are
+/// set (Demo). Returns its height with the gap under it, 0 where not
+/// drawn.
+pub(crate) fn button(app: &Faraday, ui: &mut Ui, x: f32, y: f32) -> f32 {
+    if app.put_on().is_none() {
+        return 0.0;
+    }
+    let h = tokens::TEXT_FIELD;
+    ui.button(
+        x,
+        y,
+        None,
+        h,
+        EN.use_a_sample,
+        Style::Secondary,
+        Action::UseSample,
+    );
+    h + tokens::GAP
+}
+
+// The inputs of other flows (`docs/MODES.md` §5.3, §6).
+
+impl Faraday {
+    /// Handles `Action::UseSample` by the screen it was drawn on: the
+    /// Vaults list, Lightning's cipher seed, Find an address, or an
+    /// entry field.
+    pub(crate) fn use_sample(&mut self) {
+        match self.screen {
+            Screen::Vaults => self.vaults_use_sample(),
+            Screen::Lightning => self.lightning_use_sample(),
+            Screen::Explore => self.explore_use_sample(),
+            _ => self.entry_use_sample(),
+        }
+    }
+
+    /// Costs what `Item::new` costs. The Vaults screen with no vault:
+    /// the sample vault goes into the Inbox as a file of the session,
+    /// written nowhere, and is listed and unlocked like any other
+    /// (under `faraday`).
+    fn vaults_use_sample(&mut self) {
+        let Some(set) = self.put_on() else { return };
+        if !self.vault_files().is_empty() {
+            return;
+        }
+        let c = self.compute();
+        let item = crate::Item::new(&c, EN.sample_vault_file, set.inputs.vault.to_vec());
+        self.inbox.push(item);
+    }
+
+    /// Costs what `Item::new` costs. Check a signed message with no
+    /// message in the Inbox: the sample message goes in as a file of the
+    /// session, and its check opens.
+    pub(crate) fn check_use_sample(&mut self) {
+        let Some(set) = self.put_on() else { return };
+        let c = self.compute();
+        let text = set.inputs.signed_message.as_bytes().to_vec();
+        self.inbox
+            .push(crate::Item::new(&c, EN.sample_message_file, text));
+        self.act(Action::CheckMessage(self.inbox.len() - 1));
+    }
+
+    /// Whether the aezeed's words field draws Use a sample: Demo, the
+    /// cipher seed chosen, nothing typed or pressed. A lookup.
+    pub fn lightning_sample_shown(&self) -> bool {
+        self.put_on().is_some()
+            && self.lightning.as_ref().is_some_and(|l| {
+                l.source == Some(crate::lightning::NodeSource::Aezeed)
+                    && l.typed.is_empty()
+                    && l.sample.shown()
+            })
+    }
+
+    /// Handles `UseSample` on Lightning: the sample cipher seed's words
+    /// are typed in; Read it goes on as it does for typed words.
+    fn lightning_use_sample(&mut self) {
+        let Some(set) = self.put_on() else { return };
+        if !self.lightning_sample_shown() {
+            return;
+        }
+        let words = set
+            .keys
+            .iter()
+            .find(|k| k.form == SampleForm::Aezeed)
+            .and_then(|k| k.parts.first().copied());
+        if let (Some(words), Some(l)) = (words, self.lightning.as_mut()) {
+            l.typed.set(words);
+            l.node = None;
+            l.error = None;
+            l.sample.filled = true;
+        }
+    }
+
+    /// Whether Find an address's field draws Use a sample: Demo, nothing
+    /// typed or pressed. A lookup.
+    pub fn explore_sample_shown(&self) -> bool {
+        self.put_on().is_some()
+            && self.explore.as_ref().is_some_and(|e| {
+                e.page == crate::explore::Page::Find && e.query.is_empty() && e.sample.shown()
+            })
+    }
+
+    /// Handles `UseSample` on Find an address: the sample address is put
+    /// in as typed; Search goes on as it does for a typed one.
+    fn explore_use_sample(&mut self) {
+        let Some(set) = self.put_on() else { return };
+        if !self.explore_sample_shown() {
+            return;
+        }
+        if let Some(e) = self.explore.as_mut() {
+            e.query = set.inputs.address.to_string();
+            e.search = None;
+            e.note = None;
+            e.sample.filled = true;
         }
     }
 }

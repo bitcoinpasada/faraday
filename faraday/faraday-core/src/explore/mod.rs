@@ -54,6 +54,8 @@ pub struct ExploreState {
     pub search: Option<addresses::Search>,
     /// Find an address: what became of a paste that was not taken.
     pub note: Option<&'static str>,
+    /// Use a sample in the address field (`docs/MODES.md` §6).
+    pub(crate) sample: crate::samples::put::Use,
     /// The account's addresses worked out, kept by the account they are
     /// of ([`addresses::Kept`]). Public.
     kept: std::cell::RefCell<addresses::Kept>,
@@ -110,6 +112,7 @@ impl Faraday {
             depth: addresses::DEPTHS[0],
             search: None,
             note: None,
+            sample: Default::default(),
             kept: Default::default(),
         });
         self.screen = Screen::Explore;

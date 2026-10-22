@@ -5,6 +5,7 @@
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
+use faraday_draw::tokens as T;
 use faraday_draw::widgets::Icon;
 
 use crate::compact::M;
@@ -463,7 +464,7 @@ fn pass_field(
     w: f32,
     label: &str,
     secret: &str,
-    on: bool,
+    (on, fixed): (bool, bool),
     action: Action,
 ) -> f32 {
     ui.text(x, y, 12.0, W::R, MUTED, label);
@@ -471,7 +472,9 @@ fn pass_field(
     ui.fill(x, fy, w, 42.0, 8.0, BG);
     ui.stroke(x, fy, w, 42.0, 8.0, if on { ACCENT } else { BORDER });
     if secret.is_empty() {
-        ui.no_passphrase(x, fy, 42.0, on);
+        ui.no_passphrase(x, fy, 42.0, on && !fixed);
+    } else if fixed {
+        crate::screens::code_field(ui, x, fy, w, T::TEXT_FIELD_TALL, secret);
     } else {
         let dots = "•".repeat(secret.chars().count());
         ui.typed(
@@ -568,7 +571,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         iw,
         EN.compact_bip_39_passphrase,
         &app.entry.passphrase,
-        app.entry.on_passphrase,
+        (app.entry.on_passphrase, app.demo_passphrase()),
         Action::EntryPassphrase,
     );
     // Add key is pinned at the foot.
@@ -860,7 +863,7 @@ pub(crate) fn entry_form(
             iw,
             EN.compact_passphrase,
             &app.entry.passphrase,
-            app.entry.on_passphrase,
+            (app.entry.on_passphrase, app.demo_passphrase()),
             Action::EntryPassphrase,
         );
     }

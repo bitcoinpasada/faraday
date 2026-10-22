@@ -464,7 +464,10 @@ impl Faraday {
             Go::SignMessage if self.session.message_wallets().is_empty() => {
                 EN.catalog_needs_a_single
             }
-            Go::CheckMessage if !self.inbox.iter().any(|i| i.kind == FileKind::Message) => {
+            Go::CheckMessage
+                if !self.inbox.iter().any(|i| i.kind == FileKind::Message)
+                    && self.put_on().is_none() =>
+            {
                 EN.catalog_copy_a_signed
             }
             // The keys the backup flow makes: the tile starts it, or resumes
@@ -557,6 +560,9 @@ impl Faraday {
             Go::CheckMessage => {
                 if let Some(k) = self.inbox.iter().position(|i| i.kind == FileKind::Message) {
                     self.act(Action::CheckMessage(k));
+                } else {
+                    // Demo: the sample message stands in for the one to copy in.
+                    self.check_use_sample();
                 }
             }
             Go::Vaults => self.act(Action::Nav(Screen::Vaults)),

@@ -562,6 +562,7 @@ impl Faraday {
         let Some(e) = self.explore.as_mut() else {
             return;
         };
+        e.sample.dismiss();
         match ch {
             Some(ch) if ch.is_ascii_alphanumeric() && e.query.len() < QUERY_MAX => {
                 e.query.push(ch);

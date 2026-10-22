@@ -5,6 +5,7 @@ use crate::drawing::View;
 use crate::lightning::NodeSource;
 use crate::screens::{button_rows, guide_text, title};
 use crate::strings::EN;
+use faraday_draw::tokens as T;
 use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
@@ -128,7 +129,11 @@ fn body(
             s
         };
         let shown = ui.fit_secret(14.0, W::M, &shown, width - 90.0);
-        ui.text_mid(x + 12.0, y, 44.0, 14.0, W::M, TEXT, &shown);
+        if app.lightning_sample_shown() {
+            crate::samples::put::chip(ui, (x, y, width, T::TEXT_FIELD_SHEET), Action::UseSample);
+        } else {
+            ui.text_mid(x + 12.0, y, 44.0, 14.0, W::M, TEXT, &shown);
+        }
         ui.text_right(
             x + width - 12.0,
             y,
@@ -158,13 +163,17 @@ fn body(
             8.0,
             if l.on_passphrase { ACCENT } else { BORDER },
         );
-        let p = if l.passphrase.is_empty() && !l.on_passphrase {
-            EN.lightning_aezeed_lnd.to_string()
+        if app.demo_passphrase() && !l.passphrase.is_empty() {
+            crate::screens::code_field(ui, px, y, pw, T::TEXT_FIELD, &l.passphrase);
         } else {
-            format!("{}{}", "•".repeat(l.passphrase.len()), ui.caret_char())
-        };
-        let p = ui.fit(13.0, W::M, &p, pw - 24.0);
-        ui.text_mid(px + 12.0, y, 40.0, 13.0, W::M, TEXT, &p);
+            let p = if l.passphrase.is_empty() && !l.on_passphrase {
+                EN.lightning_aezeed_lnd.to_string()
+            } else {
+                format!("{}{}", "•".repeat(l.passphrase.len()), ui.caret_char())
+            };
+            let p = ui.fit(13.0, W::M, &p, pw - 24.0);
+            ui.text_mid(px + 12.0, y, 40.0, 13.0, W::M, TEXT, &p);
+        }
         ui.hit(px, y, pw, 40.0, Action::LPassphrase);
         let (rx, ry) = if below > 0.0 {
             (px, y + 48.0)

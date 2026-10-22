@@ -11,7 +11,7 @@ use crate::keygen::{
     Group, KeyGen, MIX_SOURCES, Source, Start, WAYS, Way, kstep, procedure_name, source_name,
 };
 use crate::screens::{
-    buttons_and_next, descriptor_row, locked_tag, never_below, never_real_seed, next_button,
+    buttons_and_next, descriptor_row, locked_tag, never_below, never_real_seed_if, next_button,
     pass_field, section_label, stepper,
 };
 use crate::ui::pal::*;
@@ -479,7 +479,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
                 w,
                 EN.keygen_passphrase,
                 &k.passphrase,
-                k.focus == Some(0),
+                (k.focus == Some(0), app.demo_passphrase()),
                 Action::KPassField(0),
             );
             cy += pass_field(
@@ -489,10 +489,10 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
                 w,
                 EN.keygen_passphrase_again,
                 &k.passphrase2,
-                k.focus == Some(1),
+                (k.focus == Some(1), app.demo_passphrase()),
                 Action::KPassField(1),
             );
-            cy += never_real_seed(app, ui, x, cy, w);
+            cy += never_real_seed_if(!app.demo_passphrase(), app, ui, x, cy, w);
         }
         // The demo adds a sample in place of words made here (F20).
         if !k.typed()

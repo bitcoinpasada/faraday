@@ -8023,75 +8023,6 @@ impl Faraday {
         }
     }
 
-    /// Whether typing goes to a text field now.
-    pub(crate) fn typing_field(&self) -> bool {
-        if self.chart_typing() {
-            return true;
-        }
-        if self.sheet == Some(Sheet::Import) {
-            return self.vaults.focus == Some(vault::Focus::Passphrase);
-        }
-        if self.sheet == Some(Sheet::SeedRead) {
-            return self.seed_read.as_ref().is_some_and(|s| s.focus.is_some());
-        }
-        if self.sheet == Some(Sheet::PassphraseSeeds) {
-            return self.vaults.focus == Some(vault::Focus::Prompt);
-        }
-        if self.sheet == Some(Sheet::Rename) {
-            return self.files_menu.renaming.is_some();
-        }
-        match self.screen {
-            Screen::Family => self.vaults.focus.is_some() || self.seeds_typing(),
-            Screen::Restore => self.seeds_typing(),
-            Screen::Unlock
-            | Screen::CreateVault
-            | Screen::VaultContents
-            | Screen::Codes
-            | Screen::BackupFlow => {
-                self.vaults.focus.is_some()
-                    || (self.screen == Screen::BackupFlow
-                        && self.backup.as_ref().is_some_and(|b| b.naming.is_some()))
-            }
-            Screen::Entry => true,
-            // A passphrase on paper typed back for Check my copy.
-            Screen::Backup => self
-                .backup
-                .as_ref()
-                .and_then(|b| b.check.as_ref())
-                .is_some_and(|c| c.passphrase),
-            Screen::Wallets => self.renaming.is_some(),
-            Screen::Message => self.message.as_ref().is_some_and(|m| m.typing),
-            Screen::KeyGen => self.keygen.as_ref().is_some_and(|k| {
-                !k.locked
-                    && ((k.focus.is_some() && k.open == Some(keygen::kstep::KEY))
-                        || (k.open == Some(keygen::kstep::ENTER) && k.typing && k.flip_or_roll())
-                        || k.open == Some(keygen::kstep::TYPED))
-            }),
-            Screen::Create => self
-                .create
-                .as_ref()
-                .is_some_and(|c| c.pass_slot.is_some() && c.pass_focus.is_some()),
-            _ => false,
-        }
-    }
-
-    /// The potential wallet's passphrase changed: with none, the seed's
-    /// own fingerprint, a lookup; with one, the key it makes is worked
-    /// out once typing pauses ([`Faraday::typed_tick`]), and none is
-    /// shown until then.
-    fn potential_typed(&mut self) {
-        let Some(p) = self.potential.as_mut() else {
-            return;
-        };
-        if p.passphrase.is_empty() || p.backup.is_some() || p.xpub.is_some() {
-            self.typed_at = None;
-            self.potential_refresh();
-            return;
-        }
-        p.with = None;
-        self.typed_at = Some(self.now_ms);
-    }
-
     /// Works out the key a passphrase typed makes, once typing has paused
     /// for [`motion::TYPED_PAUSE_MS`]: the potential wallet's, or the
     /// seed read's; or lets the next frame work out the key the words
@@ -8120,46 +8051,10 @@ impl Faraday {
         self.typed_at.is_some()
     }
 
-    /// Typing into the potential wallet's sheet. Returns whether the key
-    /// was taken.
-    fn potential_key(&mut self, key: KeyIn) -> bool {
-        if self.sheet != Some(Sheet::Potential) {
-            return false;
-        }
-        match key {
-            KeyIn::Escape => {
-                self.potential = None;
-                self.sheet = None;
-            }
-            KeyIn::Enter => self.potential_make(),
-            // Nothing secret is typed with a stick attached.
-            _ if !self.sticks.is_empty() => {}
-            KeyIn::Char(c) if !c.is_control() => {
-                if let Some(p) = self.potential.as_mut()
-                    && p.typing
-                {
-                    p.passphrase.push(c);
-                    p.error = None;
-                }
-                self.potential_typed();
-            }
-            KeyIn::Backspace => {
-                if let Some(p) = self.potential.as_mut()
-                    && p.typing
-                {
-                    p.passphrase.pop();
-                    p.error = None;
-                }
-                self.potential_typed();
-            }
-            _ => {}
-        }
-        true
-    }
-
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn key(&mut self, key: KeyIn) {
-        if self.selftest_failed() {
+        // Demo's passphrases take no typing (`docs/MODES.md` §6.2).
+        if self.selftest_failed() || self.demo_pass_swallows(key) {
             return;
         }
         // Ctrl+V is the scanner's Paste, and nothing anywhere else.
@@ -9254,6 +9149,7 @@ impl Faraday {
             self.vaults.typed_shown = false;
             self.vaults.unlock_error = None;
         }
+        self.demo_pass_sync();
         // Leaving the new-key screen drops what it held.
         if self.screen != Screen::KeyGen && self.keygen.is_some() {
             self.keygen_drop();

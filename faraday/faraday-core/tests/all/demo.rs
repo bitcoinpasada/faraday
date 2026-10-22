@@ -24,7 +24,7 @@ use faraday_vault::records::kind;
 const DEMO_PAGE: &str = "The demo and its public seeds";
 
 /// The passphrase of the empty vault in Files.
-const VAULT_PHRASE: &str = "demo vault";
+const VAULT_PHRASE: &str = "faraday";
 
 /// An empty vault, in Files from the start.
 fn vault_file() -> (String, Vec<u8>) {
@@ -842,25 +842,32 @@ fn opens_with(app: &mut Faraday, phrase: &str) -> bool {
 }
 
 #[test]
-fn in_the_demo_a_vault_from_the_dice_opens_with_the_public_passphrase() {
+fn in_the_demo_a_vault_from_the_dice_shows_the_rolled_words_then_opens_with_faraday() {
     let rolled =
         faraday_core::vault::dice_words(ROLLS, faraday_bip::diceware::List::Large).join("");
-    let mut app = app_on(true);
-    make_vault(&mut app, None);
-    assert!(!opens_with(&mut app, &rolled), "the rolled words open it");
     let mut app = app_on(true);
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     app.press(Action::Vault(V::Dice(0)));
     crate::common::type_text(&mut app, ROLLS);
+    // The rolled words are shown as they are rolled.
+    let words = faraday_core::vault::dice_words(ROLLS, faraday_bip::diceware::List::Large);
+    assert!(crate::common::has_part(&mut app, words[0]));
     app.press(Action::Vault(V::DiceUse));
     assert!(crate::common::has(
         &mut app,
-        "The demo uses its public passphrase in place of these words"
+        "Demo puts faraday in place of these words"
     ));
+    // Both fields hold faraday, and the dice's strength is not measured.
+    let c = app.vaults.create.as_ref().expect("the form");
+    assert_eq!(c.phrases[0].0.text.as_str(), "faraday");
+    assert_eq!(c.phrases[0].1.text.as_str(), "faraday");
+    assert!(!crate::common::has_part(&mut app, "bits from dice"));
     app.press(Action::Vault(V::CGo));
     crate::common::settle(&mut app, 1);
+    assert_eq!(app.screen, Screen::Unlock, "the vault was made");
     assert!(opens_with(&mut app, demo::PASSPHRASE));
+    assert_ne!(rolled, demo::PASSPHRASE);
 
     // On the stick the rolled words are the passphrase.
     let mut app = app_on(false);
@@ -869,10 +876,12 @@ fn in_the_demo_a_vault_from_the_dice_opens_with_the_public_passphrase() {
 }
 
 #[test]
-fn in_the_demo_a_vault_with_a_typed_passphrase_opens_with_it() {
+fn in_the_demo_a_vault_takes_no_typed_passphrase_and_opens_with_faraday() {
     let mut app = app_on(true);
     make_vault(&mut app, Some("harbour lantern"));
-    assert!(opens_with(&mut app, "harbour lantern"));
+    // Typing into the fields did nothing: they held faraday all along.
+    assert!(opens_with(&mut app, demo::PASSPHRASE));
+    assert_eq!(app.vaults.open.len(), 1);
 }
 
 // ---------------------------------------------------------------------

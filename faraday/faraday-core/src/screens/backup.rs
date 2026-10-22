@@ -11,6 +11,7 @@ use crate::ui::{CoreUi, Style, Ui, W};
 use crate::wallet::{Session, fp_text, key_line};
 use crate::{Action, Code, Faraday, Screen, flow, guide};
 use faraday_crypto::work::Compute;
+use faraday_draw::tokens as T;
 use faraday_draw::widgets::Icon;
 use faraday_keys::Reveal;
 use faraday_ui::parts::{button_rows, section_label, title, wrap_buttons};
@@ -1087,12 +1088,17 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             DIM,
             EN.copy_check_your_copys_passphrase,
         ) + 4.0;
-        ui.fill(x, cy, w, 42.0, 8.0, BG);
-        ui.stroke(x, cy, w, 42.0, 8.0, ACCENT);
-        let dots = "•".repeat(c.typed.chars().count());
-        let dots = ui.fit(14.0, W::M, &dots, w - 30.0);
-        ui.text_mid(x + 12.0, cy, 42.0, 14.0, W::M, TEXT, &dots);
-        cy += 42.0 + 12.0 + never_below(app, ui, x, cy + 42.0, w);
+        if app.demo_passphrase() {
+            crate::screens::code_field(ui, x, cy, w, T::TEXT_FIELD_TALL, &c.typed);
+            cy += T::TEXT_FIELD_TALL + T::GAP + T::GAP_SMALL;
+        } else {
+            ui.fill(x, cy, w, 42.0, 8.0, BG);
+            ui.stroke(x, cy, w, 42.0, 8.0, ACCENT);
+            let dots = "•".repeat(c.typed.chars().count());
+            let dots = ui.fit(14.0, W::M, &dots, w - 30.0);
+            ui.text_mid(x + 12.0, cy, 42.0, 14.0, W::M, TEXT, &dots);
+            cy += 42.0 + 12.0 + never_below(app, ui, x, cy + 42.0, w);
+        }
     } else {
         cy = word_check(app, ui, x, cy, w, c);
     }

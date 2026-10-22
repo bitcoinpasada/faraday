@@ -32,7 +32,7 @@ use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
 use faraday_crypto::work::Compute;
 
 use crate::forms::Form;
-use crate::{Screen, flow};
+use crate::{Faraday, Screen, flow};
 
 /// The word counts on offer.
 pub const COUNTS: [u8; 5] = faraday_entropy::WORD_COUNTS;
@@ -1426,6 +1426,7 @@ impl crate::Faraday {
             }
             return;
         }
+        let demo = self.demo_passphrase();
         let Some(k) = self.keygen.as_mut() else {
             return;
         };
@@ -1446,6 +1447,11 @@ impl crate::Faraday {
             A::KOthers => k.others_open = !k.others_open,
             A::KPassField(f) => {
                 if k.open == Some(kstep::KEY) && k.asks_passphrase() && f < 2 {
+                    // Demo: a press on the first field chooses whether to use
+                    // `faraday`; the repeat follows it.
+                    if demo && f == 0 {
+                        Faraday::demo_pass_toggle(&mut k.passphrase, Some(&mut k.passphrase2));
+                    }
                     k.focus = Some(f);
                     k.note = None;
                 }
@@ -1781,29 +1787,34 @@ impl crate::Faraday {
             return;
         };
         // The demo adds its next sample of this length in place of the key
-        // just made, which goes unused, and with no passphrase: a
-        // passphrase typed is ignored (`Keys::next_handout`, F20).
+        // just made, which goes unused, with the passphrase chosen on the
+        // Key card, which is `faraday` (`Keys::next_handout`, F20,
+        // `docs/MODES.md` §7).
         let handed = self
             .session
             .keys
             .next_handout(k.handout_words())
             .map(|(w, _)| (w, k.handout_words()));
-        if handed.is_none() && k.slot.is_some() && k.passphrase.as_str() != k.passphrase2.as_str() {
+        if k.slot.is_some() && k.passphrase.as_str() != k.passphrase2.as_str() {
             k.note = Some(EN.keygen_the_two_passphrases.to_string());
             return;
         }
         // New key on its own makes the key alone: no passphrase
         // (decision 4).
         let mut pass = crate::secret_text::room();
-        if k.slot.is_some() && handed.is_none() {
+        if k.slot.is_some() {
             pass.push_str(k.passphrase.as_str());
         }
         let slot = k.slot;
         let label = fill(EN.keygen_new_key_n, &[&(self.new_keys + 1).to_string()]);
         let added = if let Some((word, n)) = handed {
-            self.session
-                .keys
-                .add_words(&c, &crate::samples::repeated(word, n), &label, None)
+            self.session.keys.add_words_with(
+                &c,
+                &crate::samples::repeated(word, n),
+                &pass,
+                &label,
+                None,
+            )
         } else {
             self.session
                 .keys

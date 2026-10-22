@@ -14,6 +14,7 @@ pub mod load;
 pub(crate) mod load_screen;
 pub mod out;
 pub(crate) mod screen;
+mod strength;
 
 use crate::strings::EN;
 use crate::strings::fill;
@@ -1224,11 +1225,13 @@ impl Vaults {
     }
 
     /// Passphrase `i`'s own bits, known only while it is the words the
-    /// dice made: a typed passphrase's strength is not measured.
+    /// dice made: a typed passphrase's strength is not measured, nor is
+    /// Demo's `faraday`, which stands in for the rolled words.
     pub fn phrase_bits(c: &CreateForm, i: usize) -> Option<f32> {
         let (made, bits) = c.from_dice.get(i)?.as_ref()?;
         let (a, b) = c.phrases.get(i)?;
-        (**made == *a.text && **made == *b.text).then_some(*bits)
+        let same = made.as_str() == a.text.as_str() && made.as_str() == b.text.as_str();
+        (same && made.as_str() != crate::demo::PASSPHRASE).then_some(*bits)
     }
 }
 
@@ -2087,11 +2090,7 @@ impl Faraday {
                         && !words.is_empty()
                     {
                         let (phrase, bits) = if public {
-                            (
-                                Zeroizing::new(crate::demo::PASSPHRASE.to_string()),
-                                crate::demo::PASSPHRASE_WORDS as f32
-                                    * faraday_bip::diceware::List::Large.bits_per_word(),
-                            )
+                            (Zeroizing::new(crate::demo::PASSPHRASE.to_string()), 0.0)
                         } else {
                             (
                                 Zeroizing::new(words.join("")),

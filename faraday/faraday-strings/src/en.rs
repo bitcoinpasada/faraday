@@ -7905,6 +7905,11 @@ pub struct Strings {
     pub sample_backup: &'static str,
     /// Name of the LND cipher seed sample.
     pub sample_aezeed: &'static str,
+    /// File name of the sample vault, which Use a sample puts in the Inbox.
+    pub sample_vault_file: &'static str,
+    /// File name of the sample signed message, which Use a sample puts in
+    /// the Inbox.
+    pub sample_message_file: &'static str,
     /// Wallet row in Load samples.
     pub sample_savings: &'static str,
     /// Wallet row in Load samples.
@@ -12448,7 +12453,7 @@ pub static EN: Strings = Strings {
     vault_or_type_your: "or type your own below",
     vault_matches: "Matches",
     vault_does_not_match: "Does not match yet",
-    vault_demo_uses_public: "The demo uses its public passphrase in place of these words",
+    vault_demo_uses_public: "Demo puts faraday in place of these words",
     vault_type_it_then: "Type it, then type it again",
     vault_bits_from_dice: "{} bits from dice + ≈{} from the unlock cost ≈ {} bits",
     vault_typed_its_own: "Typed: its own bits are not measured · the unlock cost adds ≈{}",
@@ -12811,6 +12816,8 @@ pub static EN: Strings = Strings {
     sample_xor: "Seed XOR, 2 parts",
     sample_backup: "Encrypted backup",
     sample_aezeed: "LND cipher seed",
+    sample_vault_file: "sample.ofv",
+    sample_message_file: "sample-message.txt",
     sample_savings: "Savings",
     sample_spending: "Spending",
     sample_taproot: "Taproot",

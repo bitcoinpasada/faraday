@@ -923,7 +923,7 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
                     cy,
                     w,
                     &app.vaults.passphrase,
-                    app.vaults.typed_shown,
+                    app.pass_shows(app.vaults.typed_shown),
                     focused,
                     Action::Vault(V::FocusPassphrase),
                     Action::Vault(V::ShowTyped),
@@ -931,7 +931,7 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             } else {
                 stick_field(app.medium, ui, x, cy, w);
             }
-            cy += 52.0 + crate::screens::never_under(app, ui, x, cy, w);
+            cy += 52.0 + crate::screens::never_pass(app, ui, x, cy, w);
             if app.vaults.working == Some(vault::Work::Unlock) {
                 cy += line(ui, x, cy, w, FEN.backup_flow_unlocking, ACCENT);
             } else {

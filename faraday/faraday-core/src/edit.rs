@@ -23,6 +23,58 @@ use crate::{Action, Faraday, Screen, Sheet, keygen};
 const FORWARD_MAX: usize = 8;
 
 impl Faraday {
+    /// Whether typing goes to a text field now.
+    pub(crate) fn typing_field(&self) -> bool {
+        if self.chart_typing() {
+            return true;
+        }
+        if self.sheet == Some(Sheet::Import) {
+            return self.vaults.focus == Some(vault::Focus::Passphrase);
+        }
+        if self.sheet == Some(Sheet::SeedRead) {
+            return self.seed_read.as_ref().is_some_and(|s| s.focus.is_some());
+        }
+        if self.sheet == Some(Sheet::PassphraseSeeds) {
+            return self.vaults.focus == Some(vault::Focus::Prompt);
+        }
+        if self.sheet == Some(Sheet::Rename) {
+            return self.files_menu.renaming.is_some();
+        }
+        match self.screen {
+            Screen::Family => self.vaults.focus.is_some() || self.seeds_typing(),
+            Screen::Restore => self.seeds_typing(),
+            Screen::Unlock
+            | Screen::CreateVault
+            | Screen::VaultContents
+            | Screen::Codes
+            | Screen::BackupFlow => {
+                self.vaults.focus.is_some()
+                    || (self.screen == Screen::BackupFlow
+                        && self.backup.as_ref().is_some_and(|b| b.naming.is_some()))
+            }
+            Screen::Entry => true,
+            // A passphrase on paper typed back for Check my copy.
+            Screen::Backup => self
+                .backup
+                .as_ref()
+                .and_then(|b| b.check.as_ref())
+                .is_some_and(|c| c.passphrase),
+            Screen::Wallets => self.renaming.is_some(),
+            Screen::Message => self.message.as_ref().is_some_and(|m| m.typing),
+            Screen::KeyGen => self.keygen.as_ref().is_some_and(|k| {
+                !k.locked
+                    && ((k.focus.is_some() && k.open == Some(keygen::kstep::KEY))
+                        || (k.open == Some(keygen::kstep::ENTER) && k.typing && k.flip_or_roll())
+                        || k.open == Some(keygen::kstep::TYPED))
+            }),
+            Screen::Create => self
+                .create
+                .as_ref()
+                .is_some_and(|c| c.pass_slot.is_some() && c.pass_focus.is_some()),
+            _ => false,
+        }
+    }
+
     /// The field typing goes to, by the action that focuses it: one
     /// that takes a caret, a selection and an edit inside it.
     pub(crate) fn typing_target(&self) -> Option<Action> {
@@ -35,7 +87,7 @@ impl Faraday {
         {
             return Some(Action::BName(u8::try_from(p).unwrap_or(u8::MAX)));
         }
-        if !self.typing_field() {
+        if !self.typing_field() || self.demo_pass_typing() {
             return None;
         }
         if self.sheet == Some(Sheet::Import) {

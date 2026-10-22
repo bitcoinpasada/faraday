@@ -46,6 +46,8 @@ pub struct LightningState {
     pub shown: bool,
     /// Where it returns to.
     pub back: Screen,
+    /// Use a sample on the aezeed's words (`docs/MODES.md` §6).
+    pub(crate) sample: crate::samples::put::Use,
 }
 
 impl Faraday {
@@ -60,6 +62,7 @@ impl Faraday {
             error: None,
             shown: false,
             back: self.screen,
+            sample: Default::default(),
         });
         self.screen = Screen::Lightning;
     }
@@ -168,6 +171,7 @@ impl Faraday {
             }
             _ => {}
         }
+        let demo = self.demo_passphrase();
         let Some(l) = self.lightning.as_mut() else {
             return;
         };
@@ -182,6 +186,12 @@ impl Faraday {
                 l.source = Some(NodeSource::Aezeed);
                 l.node = None;
                 l.error = None;
+            }
+            // Demo: the press chooses whether to use `faraday`.
+            A::LPassphrase if demo => {
+                Faraday::demo_pass_toggle(&mut l.passphrase, None);
+                l.on_passphrase = true;
+                l.node = None;
             }
             A::LPassphrase => l.on_passphrase = !l.on_passphrase,
             A::LShow => l.shown = !l.shown,
@@ -217,6 +227,7 @@ impl Faraday {
         if l.source != Some(NodeSource::Aezeed) {
             return false;
         }
+        l.sample.dismiss();
         let field = if l.on_passphrase {
             &mut l.passphrase
         } else {
