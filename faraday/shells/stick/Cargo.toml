@@ -1,6 +1,6 @@
 [package]
 name = "faraday-stick"
-version = "0.1.5"
+version = "0.1.6"
 description = "Faraday on the stick's framebuffer: hosts faraday-core and reports sticks"
 edition.workspace = true
 license.workspace = true

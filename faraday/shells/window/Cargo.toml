@@ -1,6 +1,6 @@
 [package]
 name = "faraday-window"
-version = "0.1.5"
+version = "0.1.6"
 description = "What the desktop app and the Starter share to run in a window: the frame pacing, the input, the copy to the window, and the camera with its scanner"
 edition.workspace = true
 license.workspace = true

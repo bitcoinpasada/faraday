@@ -8,7 +8,7 @@ signs with them on a machine that has no network.
 
 Every document, and which one answers which question: `docs/README.md`.
 
-> **Use at your own risk.** Faraday is not reviewed. 0.1.5 is a
+> **Use at your own risk.** Faraday is not reviewed. 0.1.6 is a
 > pre-release: no one outside the project has reviewed its code, its
 > cryptography or its builds, and no second builder has reproduced it.
 > It comes with no warranty of any kind (see `LICENSE`). Check a
@@ -547,18 +547,18 @@ each `.xz` and, under the `.img` name, the image inside it, so the same
 command checks a download and, after `xz -d`, the image. It lists the
 Linux Starter's `.tar.gz` and, under its own name, the file inside it, so
 either can be checked, and Faraday Desktop's two files as they are:
-`faraday-desktop-0.1.5-testnet-only-linux-x86_64` and
-`faraday-desktop-0.1.5-testnet-only-windows-x86_64.exe`.
+`faraday-desktop-0.1.6-testnet-only-linux-x86_64` and
+`faraday-desktop-0.1.6-testnet-only-windows-x86_64.exe`.
 
 On Windows, Gpg4win's `gpg` takes the same first three commands, and
 PowerShell prints a file's sum to compare with its line in
 `SHA256SUMS`:
 
 ```
-Get-FileHash -Algorithm SHA256 .\faraday-stick-0.1.5-x86_64-uefi.img.xz
+Get-FileHash -Algorithm SHA256 .\faraday-stick-0.1.6-x86_64-uefi.img.xz
 ```
 
-The release tags are signed with the same key: `git tag -v v0.1.5`.
+The release tags are signed with the same key: `git tag -v v0.1.6`.
 
 ## Repository layout
 

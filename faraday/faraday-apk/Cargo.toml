@@ -1,6 +1,6 @@
 [package]
 name = "faraday-apk"
-version = "0.1.5"
+version = "0.1.6"
 description = "The Android app signing key Faraday makes, and APK Signature Scheme v2 and v3 signatures with it (docs/APK-SIGNING.md)"
 edition.workspace = true
 license.workspace = true

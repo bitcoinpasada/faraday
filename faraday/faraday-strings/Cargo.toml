@@ -1,6 +1,6 @@
 [package]
 name = "faraday-strings"
-version = "0.1.5"
+version = "0.1.6"
 description = "Faraday's wording: every string Faraday's screens, the stick's device check and the Starter show"
 edition.workspace = true
 license.workspace = true
