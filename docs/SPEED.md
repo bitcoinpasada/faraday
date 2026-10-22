@@ -292,9 +292,10 @@ themselves (`Faraday::screen_name`, a new `pub fn` returning
 line a second; nothing else, never what the screen shows, what was
 pressed or a file's name. A release prints nothing.
 
-It is seen when the app is started from a terminal. The stick is left
-out: its timings go to an exchange partition Faraday does not mount, so
-a line there would reach no one.
+It is seen when the app is started from a terminal. The stick prints
+no such line; its dev image records what its loop costs in
+`faraday-timings.txt`, which the shell keeps in RAM and writes onto the
+boot stick through the disk process (`faraday/image/README.md`).
 
 ### 3.12 The vault 2 card and the sticks card; the late flow again (2026-10-19)
 

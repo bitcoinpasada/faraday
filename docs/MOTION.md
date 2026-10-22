@@ -151,6 +151,13 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
   from one frame to the next while something moved. A frame-to-frame
   mean near the screen's period with a worst case under twice it is a
   motion with no dropped frame.
+- The dev stick's `--timings` (`faraday/image/README.md`) writes a
+  block every five seconds to `faraday-timings.txt` on the boot stick:
+  a frame drawn in full against a fade's blended step (`frame`,
+  `blend`), how many frames went out at each step of the frame grid
+  (`grid`), and what fades did (`fade`: changes that faded, were drawn
+  at once for slow steps or for reduce motion, the recent step gaps'
+  median, and whether the next change fades; `Faraday::take_fade_counts`).
 
 ### 3.3 Scroll physics (`faraday-core/src/motion.rs`)
 
