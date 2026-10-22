@@ -781,7 +781,9 @@ UUID `46617261-6461-792D-5374-69636B000000` and exactly two partitions,
 `OSKBOOT` and `OSKDATA`,
 is refused as any other disk is, and nothing is relabelled: its files are
 moved to a new stick by hand (owner, 2026-10-21; `docs/DECISIONS.md`
-F67). The source is
+F67). A stick whose `FARADAYBOOT` is smaller than the image's 64 MiB,
+such as one made with a 48 MB boot partition before F80, is refused
+the same way, with both sizes. The source is
 decompressed from the payload while it is written, and the SHA-256 of
 the decompressed stream must equal the manifest's before the writer
 reports success.
@@ -832,7 +834,16 @@ Upgrade a Faraday stick are unchanged.
   anywhere but `/run/media`, `/media` or `/mnt` (udisks2's
   `Filesystem.MountPoints`), or swap (`Swapspace.Active`); on Windows
   the disk holding the Windows, boot or page-file volume.
-- Never a disk smaller than the image.
+- Never a disk smaller than the image: 193 MiB and 20 KiB for the
+  stick, 196 MiB for the Pi card (F80). The minimum the Starter states
+  is a USB stick or SD card of 256 MB or larger: with none attached,
+  Which stick? and Which card? say "No USB stick attached · 256 MB or
+  larger". Faraday's own boot file takes about
+  14 MB of the stick's 64 MiB boot partition, and the Pi
+  card's boot files about 16 MB of its 64 MiB; the rest is
+  room for later versions to grow. The 128 MiB data partition is
+  storage for files (vaults, PSBTs). That explanation is in the README
+  and the Learn pages, not on a working screen.
 - A disk is dimmed, not hidden, when refused, with the reason in one
   line, so the person sees why their disk is not offered.
 

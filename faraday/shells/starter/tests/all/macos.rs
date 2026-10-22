@@ -15,8 +15,8 @@ use faraday_starter_shell::macos::facts;
 use faraday_starter_shell::macos::install::{self, Dirs};
 use faraday_starter_shell::macos::plist;
 
-/// The stick image's size: 81 MiB.
-const IMAGE: u64 = 84_955_136;
+/// The stick image's size: 193 MiB and the backup GPT's 20 KiB (F80).
+const IMAGE: u64 = 202_395_648;
 
 /// A file of answers: each after a `=== <command>` line.
 fn answers(name: &str) -> Answers {

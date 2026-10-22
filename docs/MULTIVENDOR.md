@@ -125,8 +125,8 @@ stops what depends on it: no export, no signing, no loading of the wallet.
 3. C last, behind a setting, once the owner accepts a second process
    holding seeds. **Deferred** (F79).
 
-The stick's boot partition is 64 MiB (tracker #187), so B or C can still
-add an interpreter to the boot file later without a new layout.
+The stick's boot partition is 64 MiB (F80), so B or C can still add an
+interpreter to the boot file later without a new layout.
 
 ## 9. Open questions for the owner
 

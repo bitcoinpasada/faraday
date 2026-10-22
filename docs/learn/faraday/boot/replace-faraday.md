@@ -6,6 +6,8 @@ Make a Faraday stick → Replace Faraday, keep data writes a new Faraday over th
 
 The rules are the stick's own Upgrade a Faraday stick's. A stick that already holds the same build is not written. Writing an older Faraday over a newer one is marked on Confirm and can still be done. The stick's boot partition has to be at least as large as the new one's; a stick whose boot partition is smaller has to be written whole, which empties its data partition.
 
+A Faraday stick or Pi card needs a USB stick or SD card of 256 MB or larger. Faraday's own boot file takes about 14 MB of the stick's 64 MiB boot partition, and the Pi card's boot files about 16 MB of its 64 MiB; the rest of that partition is room for later versions to grow. The 128 MiB data partition is storage for files: vaults, PSBTs and anything else brought to the device.
+
 ## What the computer can see
 
 Plugging the stick into this computer is what exposes its data partition, whatever Faraday Starter does. The computer can read and write it, and Windows gives it a drive letter. The vaults there are encrypted with their passphrases. The settings file is not encrypted. A program on this computer could read the settings file, and could change or delete anything on the data partition.
@@ -18,4 +20,4 @@ Write the new Faraday onto a spare stick here with New Faraday stick, start from
 
 ## Where this comes from
 
-Faraday's own design: the Starter's specification (sections 3.2 and 4.4) and decisions F2, F5 and F11, in Faraday's repository, as of 2026-10-12.
+Faraday's own design: the Starter's specification (sections 3.2 and 4.4) and decisions F2, F5, F11 and F80, in Faraday's repository, as of 2026-10-22.

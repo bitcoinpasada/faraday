@@ -15,7 +15,7 @@ use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware}
 fn read_source_release(app: &mut Faraday, release: &str) {
     app.storage(StorageEvent::Boots(vec![part(
         "sda1@sda#1",
-        48 * MB,
+        64 * MB,
         Some(release),
         false,
     )]));
@@ -23,7 +23,7 @@ fn read_source_release(app: &mut Faraday, release: &str) {
     app.storage(StorageEvent::BootSource {
         id: "sda1@sda#1".into(),
         release: release.into(),
-        size: 48 * MB,
+        size: 64 * MB,
     });
 }
 
@@ -81,7 +81,7 @@ fn open(app: &mut Faraday) {
 fn read_source(app: &mut Faraday) {
     app.storage(StorageEvent::Boots(vec![part(
         "sda1@sda#1",
-        48 * MB,
+        64 * MB,
         Some(RUNNING),
         false,
     )]));
@@ -89,7 +89,7 @@ fn read_source(app: &mut Faraday) {
     app.storage(StorageEvent::BootSource {
         id: "sda1@sda#1".into(),
         release: RUNNING.into(),
-        size: 48 * MB,
+        size: 64 * MB,
     });
 }
 
@@ -127,8 +127,8 @@ fn the_stick_faraday_started_from_is_read_and_another_is_written_from_it() {
     }]));
     assert_eq!(app.screen, Screen::Upgrade);
     app.storage(StorageEvent::Boots(vec![
-        part("sda1@sda#1", 48 * MB, Some(RUNNING), true),
-        part("sdb1@sdb#2", 48 * MB, None, false),
+        part("sda1@sda#1", 64 * MB, Some(RUNNING), true),
+        part("sdb1@sdb#2", 64 * MB, None, false),
     ]));
     let target = upgrade(&app).target().cloned().expect("a stick to upgrade");
     assert_eq!(version(target.release.as_deref()), "0.1.0 or earlier");
@@ -172,14 +172,14 @@ fn with_both_sticks_in_the_one_holding_this_faraday_is_the_source() {
     // Both in at once, the older first by name: the copier decides by
     // what each holds, and the app writes to the other.
     app.storage(StorageEvent::Boots(vec![
-        part("sda1@sda#1", 48 * MB, None, false),
-        part("sdb1@sdb#5", 48 * MB, Some(RUNNING), false),
+        part("sda1@sda#1", 64 * MB, None, false),
+        part("sdb1@sdb#5", 64 * MB, Some(RUNNING), false),
     ]));
     assert_eq!(asked(&mut app), vec![StorageCommand::BootRead]);
     app.storage(StorageEvent::BootSource {
         id: "sdb1@sdb#5".into(),
         release: RUNNING.into(),
-        size: 48 * MB,
+        size: 64 * MB,
     });
     let target = upgrade(&app).target().cloned();
     assert_eq!(target.map(|t| t.id), Some("sda1@sda#1".to_string()));
@@ -192,20 +192,20 @@ fn a_newer_stick_is_warned_about_and_a_smaller_or_same_one_is_not_written() {
     read_source(&mut app);
     let newer = part(
         "sdb1@sdb#2",
-        48 * MB,
+        64 * MB,
         Some("6.6.84-faraday-0.10.0+0123456789ab"),
         false,
     );
-    let small = part("sdc1@sdc#3", 32 * MB, None, false);
-    let same = part("sdd1@sdd#4", 48 * MB, Some(RUNNING), false);
+    let small = part("sdc1@sdc#3", 48 * MB, None, false);
+    let same = part("sdd1@sdd#4", 64 * MB, Some(RUNNING), false);
     let older = part(
         "sde1@sde#5",
-        48 * MB,
+        64 * MB,
         Some("6.6.84-faraday-0.1.9+0123456789ab"),
         false,
     );
     app.storage(StorageEvent::Boots(vec![
-        part("sda1@sda#1", 48 * MB, Some(RUNNING), true),
+        part("sda1@sda#1", 64 * MB, Some(RUNNING), true),
         newer.clone(),
         small.clone(),
         same.clone(),
@@ -214,7 +214,7 @@ fn a_newer_stick_is_warned_about_and_a_smaller_or_same_one_is_not_written() {
     let u = upgrade(&app);
     assert_eq!(u.targets().len(), 4);
     assert_eq!(u.fit(&newer), Fit::Newer);
-    assert_eq!(u.fit(&small), Fit::TooSmall(32, 48));
+    assert_eq!(u.fit(&small), Fit::TooSmall(48, 64));
     assert_eq!(u.fit(&same), Fit::Same);
     assert_eq!(u.fit(&older), Fit::Fits);
     // The newer one is written when asked: it is a warning.
@@ -244,8 +244,8 @@ fn a_stick_pulled_during_the_write_is_said_and_written_again_when_back() {
     open(&mut app);
     read_source(&mut app);
     app.storage(StorageEvent::Boots(vec![
-        part("sda1@sda#1", 48 * MB, Some(RUNNING), true),
-        part("sdb1@sdb#2", 48 * MB, None, false),
+        part("sda1@sda#1", 64 * MB, Some(RUNNING), true),
+        part("sdb1@sdb#2", 64 * MB, None, false),
     ]));
     app.press(Action::UpgradeWrite);
     asked(&mut app);
@@ -262,8 +262,8 @@ fn a_stick_pulled_during_the_write_is_said_and_written_again_when_back() {
     // Put back: a new disk number, written again from the source still
     // held.
     app.storage(StorageEvent::Boots(vec![
-        part("sda1@sda#1", 48 * MB, Some(RUNNING), true),
-        part("sdb1@sdb#6", 48 * MB, Some("6.6.84"), false),
+        part("sda1@sda#1", 64 * MB, Some(RUNNING), true),
+        part("sdb1@sdb#6", 64 * MB, Some("6.6.84"), false),
     ]));
     assert!(asked(&mut app).is_empty(), "the source is not read again");
     app.press(Action::UpgradeWrite);
@@ -281,7 +281,7 @@ fn a_refused_source_is_said_and_tried_again_only_with_another_stick() {
     open(&mut app);
     app.storage(StorageEvent::Boots(vec![part(
         "sdb1@sdb#2",
-        48 * MB,
+        64 * MB,
         None,
         false,
     )]));
@@ -296,15 +296,15 @@ fn a_refused_source_is_said_and_tried_again_only_with_another_stick() {
     // The same stick listed again: not read again.
     app.storage(StorageEvent::Boots(vec![part(
         "sdb1@sdb#2",
-        48 * MB,
+        64 * MB,
         None,
         true,
     )]));
     assert!(asked(&mut app).is_empty());
     // The boot stick goes in beside it.
     app.storage(StorageEvent::Boots(vec![
-        part("sda1@sda#7", 48 * MB, Some(RUNNING), false),
-        part("sdb1@sdb#2", 48 * MB, None, false),
+        part("sda1@sda#7", 64 * MB, Some(RUNNING), false),
+        part("sdb1@sdb#2", 64 * MB, None, false),
     ]));
     assert_eq!(asked(&mut app), vec![StorageCommand::BootRead]);
     assert_eq!(upgrade(&app).refused, None);
@@ -315,8 +315,8 @@ fn two_sticks_holding_this_faraday_are_refused_until_one_is_taken_out() {
     let mut app = device();
     open(&mut app);
     app.storage(StorageEvent::Boots(vec![
-        part("sda1@sda#1", 48 * MB, Some(RUNNING), false),
-        part("sdb1@sdb#2", 48 * MB, Some(RUNNING), false),
+        part("sda1@sda#1", 64 * MB, Some(RUNNING), false),
+        part("sdb1@sdb#2", 64 * MB, Some(RUNNING), false),
     ]));
     assert_eq!(asked(&mut app), vec![StorageCommand::BootRead]);
     let several = faraday_strings::fill(faraday_strings::EN.upgrade_several_hold, &["2"]);
@@ -330,7 +330,7 @@ fn two_sticks_holding_this_faraday_are_refused_until_one_is_taken_out() {
     // One taken out: the one left is read.
     app.storage(StorageEvent::Boots(vec![part(
         "sdb1@sdb#2",
-        48 * MB,
+        64 * MB,
         Some(RUNNING),
         false,
     )]));
@@ -388,7 +388,7 @@ fn leaving_the_upgrade_ends_it_and_a_stick_then_is_visited() {
     // The copier's late answers change nothing.
     app.storage(StorageEvent::Boots(vec![part(
         "sdb1@sdb#2",
-        48 * MB,
+        64 * MB,
         None,
         false,
     )]));
@@ -460,14 +460,14 @@ fn a_test_release_fits_over_another_commit_s_test_release_and_is_written() {
     read_source_release(&mut app, "6.6.84-faraday-0.1.0+aaaaaaaaaaaa.test");
     let target = part(
         "sdb1@sdb#2",
-        48 * MB,
+        64 * MB,
         Some("6.6.84-faraday-0.1.0+bbbbbbbbbbbb.test"),
         false,
     );
     app.storage(StorageEvent::Boots(vec![
         part(
             "sda1@sda#1",
-            48 * MB,
+            64 * MB,
             Some("6.6.84-faraday-0.1.0+aaaaaaaaaaaa.test"),
             true,
         ),
@@ -493,14 +493,14 @@ fn two_test_builds_of_the_same_commit_with_different_changes_are_not_the_same_bu
     );
     let target = part(
         "sdb1@sdb#2",
-        48 * MB,
+        64 * MB,
         Some("6.6.84-faraday-0.1.0+aaaaaaaaaaaa.dirty-22222222.test"),
         false,
     );
     app.storage(StorageEvent::Boots(vec![
         part(
             "sda1@sda#1",
-            48 * MB,
+            64 * MB,
             Some("6.6.84-faraday-0.1.0+aaaaaaaaaaaa.dirty-11111111.test"),
             true,
         ),
@@ -526,9 +526,9 @@ fn a_target_with_the_same_build_string_is_still_refused() {
     open(&mut app);
     let release = "6.6.84-faraday-0.1.0+aaaaaaaaaaaa.dirty-11111111.test";
     read_source_release(&mut app, release);
-    let target = part("sdb1@sdb#2", 48 * MB, Some(release), false);
+    let target = part("sdb1@sdb#2", 64 * MB, Some(release), false);
     app.storage(StorageEvent::Boots(vec![
-        part("sda1@sda#1", 48 * MB, Some(release), true),
+        part("sda1@sda#1", 64 * MB, Some(release), true),
         target.clone(),
     ]));
     assert_eq!(upgrade(&app).fit(&target), Fit::Same);
@@ -543,18 +543,18 @@ fn a_dev_source_warns_over_a_test_a_release_and_an_old_target_and_still_writes()
     read_source_release(&mut app, "6.6.84-faraday-0.1.0+aaaaaaaaaaaa.dev");
     let test_target = part(
         "sdb1@sdb#2",
-        48 * MB,
+        64 * MB,
         Some("6.6.84-faraday-0.1.0+bbbbbbbbbbbb.test"),
         false,
     );
     // A released version, higher than the source's: Dev still outranks
     // Newer (docs/DECISIONS.md F5's order).
-    let release_target = part("sdc1@sdc#3", 48 * MB, Some("6.6.84-faraday-0.9.0"), false);
-    let old_target = part("sdd1@sdd#4", 48 * MB, None, false);
+    let release_target = part("sdc1@sdc#3", 64 * MB, Some("6.6.84-faraday-0.9.0"), false);
+    let old_target = part("sdd1@sdd#4", 64 * MB, None, false);
     app.storage(StorageEvent::Boots(vec![
         part(
             "sda1@sda#1",
-            48 * MB,
+            64 * MB,
             Some("6.6.84-faraday-0.1.0+aaaaaaaaaaaa.dev"),
             true,
         ),
@@ -583,14 +583,14 @@ fn a_dev_source_fits_a_dev_target_of_another_commit() {
     read_source_release(&mut app, "6.6.84-faraday-0.1.0+aaaaaaaaaaaa.dev");
     let dev_target = part(
         "sdb1@sdb#2",
-        48 * MB,
+        64 * MB,
         Some("6.6.84-faraday-0.1.0+cccccccccccc.dev"),
         false,
     );
     app.storage(StorageEvent::Boots(vec![
         part(
             "sda1@sda#1",
-            48 * MB,
+            64 * MB,
             Some("6.6.84-faraday-0.1.0+aaaaaaaaaaaa.dev"),
             true,
         ),
@@ -606,14 +606,14 @@ fn a_higher_version_number_is_newer() {
     read_source_release(&mut app, "6.6.84-faraday-0.1.0+aaaaaaaaaaaa.test");
     let target = part(
         "sdb1@sdb#2",
-        48 * MB,
+        64 * MB,
         Some("6.6.84-faraday-0.9.0+bbbbbbbbbbbb.test"),
         false,
     );
     app.storage(StorageEvent::Boots(vec![
         part(
             "sda1@sda#1",
-            48 * MB,
+            64 * MB,
             Some("6.6.84-faraday-0.1.0+aaaaaaaaaaaa.test"),
             true,
         ),

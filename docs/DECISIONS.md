@@ -94,3 +94,4 @@ Read this table, then only the decision you need.
 | [F77](decisions/F77.md) | Back lands on the screen seen before, as it was seen | 2026-10-22 | Active | design |
 | [F78](decisions/F78.md) | A window's layout does not follow the compositor's scale above 1.5 | 2026-10-22 | Active | design |
 | [F79](decisions/F79.md) | Faraday's crypto is cross-checked against Python references, offline, at build time | 2026-10-22 | Active | crypto |
+| [F80](decisions/F80.md) | A stick or Pi card has a 64 MiB boot and a 128 MiB FAT32 data partition | 2026-10-22 | Active | stick |

@@ -5,7 +5,8 @@
 //! readable and their files where they were, and the volume passes
 //! `fsck.fat -n`.
 //!
-//! The volume is made by `mkfs.fat` and filled by mtools, found as
+//! The volume is a stick's data partition as the image makes it, 128 MiB
+//! FAT32 (F80), made by `mkfs.fat` and filled by mtools, found as
 //! `faraday-fat`'s own FAT tests find them (`FARADAY_FATTOOLS`,
 //! `/usr/sbin`, `/sbin`, PATH); a machine without them says so and skips.
 
@@ -93,7 +94,7 @@ fn a_partition_windows_and_a_mac_wrote_to_lists_and_keeps_the_psbt_alone() {
     let i = img.to_str().unwrap();
     let (ok, _) = run(
         "mkfs.fat",
-        &["-C", "-F", "16", "-n", "FARADAYDATA", i, "32768"],
+        &["-C", "-F", "32", "-n", "FARADAYDATA", i, "131072"],
     );
     assert!(ok, "mkfs.fat");
     let src = dir.join("src");

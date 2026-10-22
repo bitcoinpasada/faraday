@@ -391,8 +391,8 @@ out there too, for the same reasons.
 
 | Store | Size | How written | Wipeable | Reachable by the app |
 |---|---|---|---|---|
-| microSD boot partition | 32 MB | raw `/dev/mmcblk0p1` | yes, by rewriting the card | no: never mounted, node is root's |
-| microSD exchange partition | 32 MB | files at `/mnt/microsd` | yes | yes, and this is the only store it writes |
+| microSD boot partition | 64 MiB | raw `/dev/mmcblk0p1` | yes, by rewriting the card | no: never mounted, node is root's |
+| microSD exchange partition | 128 MiB | files at `/mnt/microsd` | yes | yes, and this is the only store it writes |
 | SoC OTP (BCM2837) | 8 customer rows, 256 bits | firmware mailbox | **no**, one-time | no: `BCM_VCIO` is not built |
 | GT911 touch controller | ~186 bytes of config flash | I2C register write | overwrite | no: `/dev/i2c-*` is root's, and the image ships no controller firmware |
 | Camera module (OV5647, IMX219) | none | — | — | — |
@@ -418,13 +418,13 @@ are a way around that.
 
 Two FAT partitions, both `0x0C`:
 
-1. **boot**, 32 MB, holding about 16 MB. What the Pi firmware reads: `bootcode.bin`,
+1. **boot**, 64 MiB, FAT16, holding about 16 MB. What the Pi firmware reads: `bootcode.bin`,
    `start_x.elf`, `fixup_x.dat`, `config.txt`, `cmdline.txt`, `zImage`,
    `overlays/`, and the board's device trees — `bcm2710-rpi-3-b.dtb` and
    `bcm2710-rpi-3-b-plus.dtb` for `pi3`, from its `board.conf`.
    `boards/pi3/genimage.cfg` is the template; `build.sh` fills the device
    trees in.
-2. **exchange**, 32 MB, labelled `FARADAYDATA`, holding one `README.txt` that
+2. **exchange**, 128 MiB, FAT32, labelled `FARADAYDATA`, holding one `README.txt` that
    says what it is for. Init mounts it at `/mnt/microsd`
    (`flush,noexec,nosuid,nodev,uid=200,gid=200,umask=077`), and it is the
    file channel: a `.psbt` put
@@ -445,7 +445,7 @@ number: the disk `46617261-6461-792D-5374-69636B000000`, the boot
 partition `…000001` and the data partition `…000002`. The partitions'
 GPT names are their FAT labels, `FARADAYBOOT` and `FARADAYDATA`:
 
-1. **FARADAYBOOT**, 48 MB, the EFI system partition, FAT32, labelled `FARADAYBOOT`,
+1. **FARADAYBOOT**, 64 MiB, the EFI system partition, FAT32, labelled `FARADAYBOOT`,
    bootable,
    holding exactly one file: `EFI/BOOT/BOOTX64.EFI`. That file is the
    kernel. `CONFIG_EFI_STUB` makes `bzImage` a PE/COFF application with
@@ -454,14 +454,22 @@ GPT names are their FAT labels, `FARADAYBOOT` and `FARADAYDATA`:
    blob anywhere on the partition. The firmware finds it because
    `EFI/BOOT/BOOTX64.EFI` is where a removable disk's default loader
    lives.
-   The size is set by FAT32 and not by the content: a FAT32 filesystem
-   is only valid with at least 65525 clusters, and a 32 MB partition has
-   about 64500. `mkfs.fat` makes one anyway, with a warning, and OVMF
-   refuses to mount it — which shows up as "failed to load ... Not
-   Found" and no boot at all.
-2. **FARADAYDATA**, 32 MB, FAT, labelled `FARADAYDATA`, the same partition and
+   The file is about 10 MB; 64 MiB holds a boot file of 30 MB twice
+   over (F80). A FAT32 filesystem is only valid with at least 65525
+   clusters: `mkfs.fat` makes a smaller one anyway, with a warning, and
+   OVMF refuses to mount it — which shows up as "failed to load ... Not
+   Found" and no boot at all. At 64 MiB it has 129022.
+2. **FARADAYDATA**, 128 MiB, FAT32, labelled `FARADAYDATA`, the same partition and
    the same note as the Pi's. `rcS` finds it with `findfs LABEL=FARADAYDATA`, because
    the stick is `sda` on one machine and `sdb` on the next.
+
+The image is 193 MiB and 20 KiB: 1 MiB before the first partition, the
+two partitions, and the backup GPT. A stick or card made before F80 has
+a 48 MB (stick) or 32 MB (card) boot partition and a 32 MB FAT16 data
+partition. Faraday reads and writes that data partition as any other;
+Upgrade a Faraday stick and the Starter's keep data refuse to write a
+64 MiB boot partition onto it, so its files are moved to a new stick by
+hand.
 
 No partition labelled `FARADAYBOOT` is handed to the app on any
 medium: that is a Faraday stick's EFI system partition, which holds the
@@ -617,8 +625,9 @@ combination over, delete its directory under `out/pi/`.
 
 ## Write it to a card or a stick
 
-Any card or stick of 128 MB or more holds the image; the smallest sold are
-far larger than that, and the unused space is simply unused.
+Any card or stick sold as 256 MB or more holds the image: the stick's is
+193 MiB and 20 KiB, the Pi card's 196 MiB (F80). The smallest sold are far
+larger than that, and the unused space is simply unused.
 
 **`dd` overwrites the whole device.** Everything on the card or stick you
 name is gone: its partition table, every partition, every file. There is

@@ -225,8 +225,8 @@ written. A stick that holds vaults then never needs another computer.
 3. Remove it and insert the stick to upgrade, or have both in at once.
    The screen shows the version on that stick and the one to be written,
    marks a stick that carries a newer Faraday, and refuses one whose
-   boot partition is smaller than 48 MB or that already carries this
-   version. **Upgrade** writes, reads back and compares.
+   boot partition is smaller than 64 MiB (a stick made with a 48 MB one)
+   or that already carries this version. **Upgrade** writes, reads back and compares.
 
 A stick pulled during the write does not start until it is upgraded
 again; its data partition is not touched. Sticks from Faraday 0.1.0 and
@@ -353,6 +353,13 @@ It is not code-signed, since a certificate names a person or company and
 Faraday is published under a pseudonym: Windows shows "Windows protected
 your PC" the first time, and *More info*, then *Run anyway*, opens it.
 Check it against the signed `SHA256SUMS` first.
+
+A Faraday stick or Pi card needs a USB stick or SD card of 256 MB or
+larger. Faraday's own boot file takes about 14 MB of the
+stick's 64 MiB boot partition, and the Pi card's boot files about
+16 MB of its 64 MiB; the rest of that partition is room for
+later versions to grow. The 128 MiB data partition is storage for files:
+vaults, PSBTs and anything else brought to the device.
 
 It runs on Ubuntu 20.04 and later, Debian 11 and later, Fedora 32 and
 later and Arch, on x86-64. Writing a stick needs udisks2, which desktop

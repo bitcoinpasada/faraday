@@ -14,8 +14,8 @@ use faraday_starter::decide::{Refusal, Target, offers};
 use faraday_starter_shell::linux::udisks::Objects;
 use faraday_starter_shell::linux::{self, Open, Udisks, Versions};
 
-/// The stick image's size: 81 MiB.
-const IMAGE: u64 = 84_955_136;
+/// The stick image's size: 193 MiB and the backup GPT's 20 KiB (F80).
+const IMAGE: u64 = 202_395_648;
 
 fn recorded(name: &str) -> String {
     std::fs::read_to_string(

@@ -4,10 +4,10 @@
 //! so the tests check every message's round trip on any system.
 //!
 //! ```text
-//! progress writing 1048576 84955136
-//! progress reading-back 1048576 84955136
+//! progress writing 1048576 202395648
+//! progress reading-back 1048576 202395648
 //! ok
-//! failed TooSmall 15931539456 84955136
+//! failed TooSmall 15931539456 202395648
 //! ```
 //!
 //! The elevated copy's `--read-version` (tracker #21) answers on the

@@ -331,13 +331,13 @@ mod tests {
             Response::Parts(vec![
                 Part {
                     id: "sda1@sda#4".into(),
-                    size: 48 << 20,
+                    size: 64 << 20,
                     release: Some("6.6.84-faraday-0.2.0+4d0680b1a2b3".into()),
                     source: true,
                 },
                 Part {
                     id: "sdb1@sdb#7".into(),
-                    size: 48 << 20,
+                    size: 64 << 20,
                     release: None,
                     source: false,
                 },
@@ -345,7 +345,7 @@ mod tests {
             Response::Source {
                 id: "sda1@sda#4".into(),
                 release: "6.6.84-faraday-0.2.0+4d0680b1a2b3".into(),
-                size: 48 << 20,
+                size: 64 << 20,
             },
             Response::Written {
                 id: "sdb1@sdb#7".into(),

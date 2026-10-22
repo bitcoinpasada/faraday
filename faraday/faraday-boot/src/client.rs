@@ -15,7 +15,7 @@ use crate::proto::{self, Request, Response};
 /// How long a listing may take: a stick seen for the first time has its
 /// boot partition read for its release string.
 const ASK_LIST: Duration = Duration::from_secs(60);
-/// How long reading the source may take: a 48 MB partition on a slow
+/// How long reading the source may take: a 64 MiB partition on a slow
 /// stick.
 const ASK_READ: Duration = Duration::from_secs(120);
 /// How long a write may take: written, flushed and read back.

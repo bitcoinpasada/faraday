@@ -66,22 +66,24 @@ pub const MARK: &[u8] = b"-faraday-";
 /// The longest release string taken: the kernel's own limit.
 pub const MAX_RELEASE: usize = 64;
 
-/// The largest boot partition read or searched: the PC's is 48 MB, the
-/// Pi's 32 MB.
+/// The largest boot partition read or searched: the PC's and the Pi's
+/// are both 64 MiB (F80); an older stick's is 48 MiB and an older Pi
+/// card's 32 MiB.
 pub const MAX_PARTITION: u64 = 64 << 20;
 
 /// The size of the boot partition the running image was built with, as
 /// `genimage.cfg` lays it out for the board this binary is built for:
-/// the PC stick's FAT32 EFI system partition is 48 MiB
-/// (`boards/x86_64-uefi`), the Pi's FAT16 boot partition 32 MiB
-/// (`boards/pi3`, `boards/pi02w`). A source of any other size is not one
+/// the PC stick's FAT32 EFI system partition and the Pi's FAT16 boot
+/// partition are both 64 MiB (`boards/x86_64-uefi`, `boards/pi3`,
+/// `boards/pi02w`; F80). A source of any other size is not one
 /// this image made. `None` where no Faraday image is built (the Starter
 /// on Windows and macOS uses [`find_release`] alone); there the size is
 /// not checked.
-pub const BOOT_BYTES: Option<u64> = if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
-    Some(48 << 20)
-} else if cfg!(all(target_os = "linux", target_arch = "arm")) {
-    Some(32 << 20)
+pub const BOOT_BYTES: Option<u64> = if cfg!(all(
+    target_os = "linux",
+    any(target_arch = "x86_64", target_arch = "arm")
+)) {
+    Some(64 << 20)
 } else {
     None
 };

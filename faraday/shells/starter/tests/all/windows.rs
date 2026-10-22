@@ -24,8 +24,8 @@ use faraday_starter_shell::windows::pipe::{self, Message};
 use faraday_starter_shell::windows::registry::{self, Facts};
 use faraday_starter_shell::windows::shortcut;
 
-/// The stick image's size: 81 MiB.
-const IMAGE: u64 = 84_955_136;
+/// The stick image's size: 193 MiB and the backup GPT's 20 KiB (F80).
+const IMAGE: u64 = 202_395_648;
 
 fn laptop() -> Snapshot {
     let text =

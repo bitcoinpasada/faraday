@@ -18,7 +18,9 @@ The upgrade shows the version on the stick to upgrade and the version to be writ
 
 ## Limits
 
-The stick to upgrade needs a boot partition at least as large as this one's: 48 MB on a PC. A release whose boot partition grew cannot be copied onto an older stick. That stick has to be written again from the image on a computer, which empties its data partition.
+A Faraday stick or Pi card needs a USB stick or SD card of 256 MB or larger. Faraday's own boot file takes about 14 MB of the stick's 64 MiB boot partition, and the Pi card's boot files about 16 MB of its 64 MiB; the rest of that partition is room for later versions to grow. The 128 MiB data partition is storage for files: vaults, PSBTs and anything else brought to the device.
+
+The stick to upgrade needs a boot partition at least as large as this one's: 64 MB. A stick made when the boot partition was 48 MB cannot take this Faraday, nor can any stick whose boot partition is smaller than the release's. That stick has to be written again from the image on a computer, which empties its data partition: copy its files to another stick first, and back after.
 
 A stick removed during the write does not start until it is upgraded again. The write does not touch its data partition, so its vaults are still there.
 
