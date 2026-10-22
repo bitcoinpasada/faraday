@@ -1,6 +1,8 @@
 //! The seedfile tour.
 
-use crate::tour::{Tour, scroll, scroll_to, seed_files_at, type_text};
+use crate::tour::{Tour, bmap, bshape, scroll, scroll_to, seed_files_at, type_text};
+use faraday_core::board::{BoardPress as B, Chip, Thing, Zone};
+use faraday_core::plan::{At, What};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent, bstep};
@@ -10,8 +12,9 @@ use faraday_crypto::work::Compute;
 /// checklist offering a seed into a vault or as a file: with no vault
 /// open, the step and the secret sheet; with the test vault open, a
 /// seed it holds and one it does not, and the sheet; then the seed's
-/// SeedQR, Standard and Compact, put in the Outbox past the warning and
-/// written beside the screens.
+/// SeedQR (kept on paper through the board's form toggles, as the
+/// presets keep none), Standard and Compact, put in the Outbox past the
+/// warning and written beside the screens.
 pub(crate) fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
     t.press(Action::Entry(None));
@@ -27,6 +30,7 @@ pub(crate) fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::Backup(0));
     t.backup_as(faraday_core::plan::Preset::PaperVault);
     seed_files_at(c, t, 0);
+    seedqr_on_paper(c, t)?;
     t.press(Action::BChecklist);
     t.press(Action::BStep(bstep::FILES));
     scroll_to(t, Action::BFile);
@@ -100,6 +104,30 @@ pub(crate) fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         let path = t.out.join(format!("outbox-{}", item.name));
         std::fs::write(&path, &item.bytes).map_err(|e| format!("{}: {e}", path.display()))?;
         println!("{}", path.display());
+    }
+    Ok(())
+}
+
+/// Costs a map of the plan (through `bmap`). The presets keep no SeedQR,
+/// and the sheet offers a seed's SeedQR picture only where the plan keeps
+/// it on paper: each seed's words chip on paper takes the SeedQR form, by
+/// the chip's own toggle.
+fn seedqr_on_paper(c: &Compute, t: &mut Tour) -> Result<(), String> {
+    for i in bshape(t).map(|sh| sh.here()).unwrap_or_default() {
+        let place = (0..t.app.board_plan().map_or(0, |(_, a)| a.places)).find(|&p| {
+            bmap(c, t)
+                .iter()
+                .any(|s| s.at == At::Place(p) && s.holds.iter().any(|(w, _)| *w == What::Words(i)))
+        });
+        let Some(p) = place else {
+            return Err(format!("seed {i} has no words on paper"));
+        };
+        t.press(Action::Board(B::Chip(Chip::Placed(
+            Zone::Paper(p),
+            Thing::Seed(i),
+        ))));
+        t.press(Action::Board(B::Form(Zone::Paper(p), Thing::Seed(i), 1)));
+        t.press(Action::Board(B::LetGo));
     }
     Ok(())
 }

@@ -1,6 +1,7 @@
 //! The first tour.
 
 use crate::tour::{Tour, device_key, scroll, scroll_to, type_text, type_words, vault_place};
+use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent, bstep};
 use faraday_crypto::work::Compute;
@@ -10,8 +11,9 @@ use faraday_crypto::work::Compute;
 /// (`docs/history/NEW-WALLET.md` §14): a single-key wallet made here, its card
 /// with Finish the backup first and the receive warning; Places with
 /// Vault 1's stick unticked; the vault item with no vault open, with
-/// one made and open, and saved into; the end of the backup with the
-/// checks strip and the chart.
+/// one made and open, and saved into; the templates marked printed, Write
+/// to sticks (the lock, each stick by place, Unlock Vault 1); the end of
+/// the backup with the checks strip and the chart.
 pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
     use faraday_core::plan::Preset;
@@ -42,6 +44,8 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     vault_place(c, t, 0).ok_or("Vault 1's stick has no place")?;
     t.shot("first-place-vault-board")?;
     t.press(Action::BChecklist);
+    // The blank templates, printed from the Starter and marked done.
+    t.press(Action::BNext(bstep::BLANK));
     // The copy checked, typed back.
     t.press(Action::BCheck);
     type_words(t, None)?;
@@ -81,6 +85,18 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         t.press(Action::BStep(bstep::ENVELOPE));
     }
     t.press(Action::BNext(bstep::ENVELOPE));
+    write_sticks(t)?;
+    t.shot("first-sticks-written")?;
+    t.press(Action::Flow(F::UnlockDone(0)));
+    type_text(t, "first phrase");
+    t.press(Action::Vault(V::Unlock));
+    for _ in 0..10 {
+        t.tick();
+    }
+    // Back on the checklist, the printed templates and the envelopes,
+    // which nothing else marks, are pressed again.
+    t.press(Action::BNext(bstep::BLANK));
+    t.press(Action::BNext(bstep::ENVELOPE));
     let done = t
         .app
         .backup_items_now(c)
@@ -99,4 +115,58 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     scroll_to(t, Action::BPlan);
     t.shot("first-done-foot")?;
     Ok(())
+}
+
+/// Write to sticks: the one lock, then each stick by place, as the flow
+/// asks, until every stick of the plan is written.
+fn write_sticks(t: &mut Tour) -> Result<(), String> {
+    t.press(Action::Flow(F::WalletLock));
+    let (inbox, outbox, kept) = t.boxes.clone().ok_or("nothing was kept by the lock")?;
+    t.app.storage(StorageEvent::Restored {
+        inbox,
+        outbox,
+        kept,
+    });
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    t.pump();
+    for _ in 0..6 {
+        let slot = t
+            .app
+            .flow()
+            .and_then(|f| f.slots.iter().position(|s| s.written.is_none()));
+        let Some(slot) = slot else { break };
+        let stick = match t.app.flow().and_then(|f| f.slots[slot].bound.clone()) {
+            Some(b) if b.label == "TESTSTICK" => t.stick(),
+            Some(b) => empty_stick("b", b.serial.unwrap_or(2)),
+            None => empty_stick(&format!("c{slot}"), 3 + slot as u32),
+        };
+        t.app.storage(StorageEvent::Sticks(vec![stick]));
+        t.pump();
+        for _ in 0..2 {
+            let hold = t
+                .app
+                .flow()
+                .and_then(|f| f.live.reading.as_ref())
+                .is_some_and(|r| r.hold);
+            t.press(Action::Flow(if hold { F::Hold } else { F::Tap }));
+        }
+        t.app.storage(StorageEvent::Sticks(Vec::new()));
+        t.pump();
+    }
+    for _ in 0..5 {
+        t.tick();
+    }
+    Ok(())
+}
+
+fn empty_stick(id: &str, serial: u32) -> faraday_core::StickInfo {
+    faraday_core::StickInfo {
+        serial: Some(serial),
+        id: id.into(),
+        label: "KEYSTICK".into(),
+        boot: false,
+        files: Vec::new(),
+    }
 }
