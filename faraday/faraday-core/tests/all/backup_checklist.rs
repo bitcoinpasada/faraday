@@ -203,6 +203,85 @@ fn a_fresh_backup_starts_with_the_templates_and_envelopes_not_done() {
     assert!(!app.backup_item_done_now(&c, Item::Envelopes));
 }
 
+/// What a lock does to the backup under way: it is gone, and opened again
+/// from the wallet, which an unlock loads back.
+fn reopened(app: &mut Faraday, w: usize) {
+    app.backup = None;
+    app.press(Action::Backup(w));
+    app.press(Action::BChecklist);
+}
+
+#[test]
+fn the_descriptor_shown_as_a_code_stays_done_when_the_backup_is_opened_again() {
+    let c = testkit::compute();
+    let mut app = device(Vec::new());
+    let w = one_key(&mut app);
+    app.press(Action::Backup(w));
+    faraday_core::testkit::backup_as(&mut app, plan::Preset::PaperVaultSoftware);
+    app.press(Action::BAnswer(
+        qrow::SOFTWARE,
+        plan::software::SPARROW as u8,
+    ));
+    app.press(Action::BChecklist);
+    assert!(app.backup_items_now(&c).contains(&bstep::SHOW));
+    assert!(!done(&app, Item::ShowDescriptor));
+    app.press(Action::QrWallet(w));
+    assert!(done(&app, Item::ShowDescriptor));
+    reopened(&mut app, w);
+    assert!(done(&app, Item::ShowDescriptor), "forgotten when reopened");
+}
+
+#[test]
+fn a_passphrase_typed_back_stays_checked_when_the_backup_is_opened_again() {
+    let c = testkit::compute();
+    let mut app = device(Vec::new());
+    let m = faraday_bip::bip39::Mnemonic::parse(
+        &c,
+        faraday_bip::bip39::Language::English,
+        &testkit::test_words(testkit::TEST_SEEDS[0].0),
+    )
+    .unwrap();
+    app.session
+        .keys
+        .add_mnemonic(&c, &m, "lantern-orchid-41", "Key", None)
+        .unwrap();
+    let text = faraday_core::create::NewKind::NativeSegwit
+        .key_text(&c, app.session.keys.master_for_tests(0))
+        .unwrap();
+    use faraday_core::testkit::KindText;
+    let w = app
+        .session
+        .add_wallet(
+            &c,
+            "Spending",
+            &format!("wpkh({text}/<0;1>/*)"),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    app.press(Action::Backup(w));
+    faraday_core::testkit::backup_as(&mut app, plan::Preset::Paper);
+    no_words(&mut app);
+    put(&mut app, Thing::Pass(0), Zone::Paper(0));
+    app.press(Action::BChecklist);
+    assert!(
+        app.backup_items_now(&c).contains(&bstep::PASSPHRASE),
+        "{:?}",
+        app.backup_items_now(&c)
+    );
+    assert!(!done(&app, Item::Passphrase(0)));
+    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::PASSPHRASE));
+    app.press(Action::BCheck);
+    type_text(&mut app, "lantern-orchid-41");
+    app.event(Event::Key(Key::Enter));
+    assert!(
+        done(&app, Item::Passphrase(0)),
+        "the passphrase did not match"
+    );
+    reopened(&mut app, w);
+    assert!(done(&app, Item::Passphrase(0)), "forgotten when reopened");
+}
+
 #[test]
 fn making_the_checklist_with_sparrow_chosen_puts_the_wallet_file_for_the_stick() {
     let c = faraday_core::testkit::compute();

@@ -43,6 +43,9 @@ pub struct Record {
     /// The envelopes were marked closed in this wallet's backup. Kept
     /// like [`Record::printed`].
     pub envelopes: bool,
+    /// The seeds whose passphrase was typed back and matched in this
+    /// wallet's backup, by fingerprint. Kept like [`Record::printed`].
+    pub passphrases: Vec<[u8; 4]>,
     /// The plan's answers, as [`plan::Answers::to_text`] writes them:
     /// what the wallet's card draws its chart from once the backup is
     /// left. Empty in a record kept before it was written.
@@ -53,6 +56,15 @@ pub struct Record {
     /// the fingerprint only finds a candidate (F65). Empty in a record
     /// kept before it was written.
     pub ids: Vec<([u8; 4], [u8; 32])>,
+}
+
+/// A record's marks, as a backup opened again takes them up.
+#[derive(Default)]
+pub(crate) struct Marks {
+    pub printed: bool,
+    pub envelopes: bool,
+    pub shown: bool,
+    pub passphrases: Vec<[u8; 4]>,
 }
 
 /// One place of the map.
@@ -242,6 +254,9 @@ pub(crate) fn encode(all: &[Record]) -> Vec<u8> {
                 u8::from(r.envelopes)
             ));
         }
+        for fp in &r.passphrases {
+            out.push_str(&format!("pass\t{}\n", hex4(*fp)));
+        }
         for (fp, n) in &r.checks {
             out.push_str(&format!("check\t{}\t{n}\n", hex4(*fp)));
         }
@@ -290,6 +305,11 @@ pub(crate) fn decode(bytes: &[u8]) -> Vec<Record> {
                     files: list(files),
                     secret: list(secret),
                 });
+            }
+            ["pass", fp] => {
+                if let (Some(fp), Some(r)) = (read_hex4(fp), out.last_mut()) {
+                    r.passphrases.push(fp);
+                }
             }
             ["marks", printed, envelopes] => {
                 if let Some(r) = out.last_mut() {
@@ -503,6 +523,7 @@ impl Faraday {
                 shown,
                 printed: false,
                 envelopes: false,
+                passphrases: Vec::new(),
                 answers,
                 ids,
             }),
@@ -581,16 +602,40 @@ impl Faraday {
         }
     }
 
-    /// Whether the templates and the envelopes of loaded wallet `i`'s
-    /// backup were marked done, for a backup of it opened again.
-    pub(crate) fn backups_marks(&self, i: usize) -> (bool, bool) {
+    /// A passphrase of seed `fp` typed back matched in the backup under
+    /// way: the record keeps it, for a backup opened again after a lock.
+    pub(crate) fn backups_passphrase_checked(&mut self, fp: [u8; 4]) {
+        let Some(sum) = self
+            .backup
+            .as_ref()
+            .and_then(|b| self.session.wallets.get(b.wallet))
+            .map(|w| w.checksum().to_string())
+        else {
+            return;
+        };
+        if let Some(r) = self.backup_records.iter_mut().find(|r| r.sum == sum)
+            && !r.passphrases.contains(&fp)
+        {
+            r.passphrases.push(fp);
+        }
+    }
+
+    /// What loaded wallet `i`'s backup was marked with that nothing else
+    /// holds, for a backup of it opened again: the templates, the
+    /// envelopes, the descriptor shown, the passphrases checked.
+    pub(crate) fn backups_marks(&self, i: usize) -> Marks {
         let Some(sum) = self.session.wallets.get(i).map(|w| w.checksum()) else {
-            return (false, false);
+            return Marks::default();
         };
         self.backup_records
             .iter()
             .find(|r| r.sum == sum)
-            .map_or((false, false), |r| (r.printed, r.envelopes))
+            .map_or_else(Marks::default, |r| Marks {
+                printed: r.printed,
+                envelopes: r.envelopes,
+                shown: r.shown,
+                passphrases: r.passphrases.clone(),
+            })
     }
 
     /// The seeds of loaded wallet `i` whose copy was checked this
@@ -723,6 +768,7 @@ impl Faraday {
             shown: false,
             printed: false,
             envelopes: false,
+            passphrases: Vec::new(),
             answers: String::new(),
         };
         Some(self.record_lines(c, &r, &names))

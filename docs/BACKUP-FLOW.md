@@ -644,7 +644,8 @@ Moved to `docs/history/BACKUP-FLOW-LOG.md`.
   a file: its body reads "Print {n} from Faraday Starter: Blank
   templates, {words} words, {copy}" and its foot is **Done**, a press,
   as Envelopes' is. Both presses are kept with the wallet's backup
-  record, so Write to sticks' lock and the unlock after it leave them
+  record, as are the descriptor shown as a code and a passphrase typed
+  back, so Write to sticks' lock and the unlock after it leave them
   done. No template is written to a stick, and
   `blank-template-{words}-words.pdf` is no longer made here.
 

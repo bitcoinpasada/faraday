@@ -466,6 +466,7 @@ impl Faraday {
             if !b.checked.contains(&(fp, CopyForm::Passphrase)) {
                 b.checked.push((fp, CopyForm::Passphrase));
             }
+            self.backups_passphrase_checked(fp);
         } else if let Some(c) = b.check.as_mut() {
             c.typed.clear();
             c.error = Some(EN.copy_check_passphrase_differs.to_string());

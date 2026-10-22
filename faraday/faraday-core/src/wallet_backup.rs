@@ -562,10 +562,17 @@ impl Faraday {
                         ),
                     };
                     // A copy checked this power-on stays checked.
+                    let marks = self.backups_marks(i);
                     let checked = self
                         .backups_checked(i)
                         .into_iter()
                         .flat_map(|fp| [(fp, plan::CopyForm::Words), (fp, plan::CopyForm::SeedQr)])
+                        .chain(
+                            marks
+                                .passphrases
+                                .iter()
+                                .map(|&fp| (fp, plan::CopyForm::Passphrase)),
+                        )
                         .collect();
                     // The template offered first is the one the seeds to
                     // copy fit: 12 words when none has more, else 24.
@@ -581,11 +588,11 @@ impl Faraday {
                     } else {
                         24
                     };
-                    let (printed, envelopes) = self.backups_marks(i);
                     self.backup = Some(BackupState {
                         wallet: i,
-                        printed,
-                        envelopes,
+                        printed: marks.printed,
+                        envelopes: marks.envelopes,
+                        shown: marks.shown,
                         q,
                         answers,
                         names,
