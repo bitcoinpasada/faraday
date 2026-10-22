@@ -10,7 +10,7 @@
 //! failed TooSmall 15931539456 202395648
 //! ```
 //!
-//! The elevated copy's `--read-version` (tracker #21) answers on the
+//! The elevated copy's `--read-version` answers on the
 //! same kind of pipe: `release` and the release string found on the
 //! stick's boot partition, or `release` alone for none, then `ok`; or
 //! `failed` and the reason.

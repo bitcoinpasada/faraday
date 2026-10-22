@@ -105,7 +105,7 @@ and licence in that folder's README. Reading needs no choice: every format
 is recognised by its content wherever a wallet, a key or a PSBT is read
 today. Choices few people need sit under **More options** (F64).
 
-### I1. SLIP-132 keys everywhere (§4 item 1; tracker #43)
+### I1. SLIP-132 keys everywhere (§4 item 1)
 
 Reads extended keys with SLIP-0132's version bytes:
 

@@ -803,7 +803,7 @@ where it leaves the person. Not built.
     asked for by name: a slot's fingerprint, a wallet's missing key,
     Restore's seed slots, and a seed scanned from Home or the Spend tab.
 61. **A ⋮ on every file; Rename** (owner, 2026-10-20; `docs/DECISIONS.md`
-    F54; tracker #162). Every file row, in Files and on the stick visit,
+    F54). Every file row, in Files and on the stick visit,
     keeps the one action it is for as a visible button and puts the rest
     behind a ⋮ at its right end, as the backup board's chips do
     (`docs/BACKUP-FLOW.md` §17.20: a popup under the ⋮, the sheet on the

@@ -178,7 +178,7 @@ is dropped here when upstream has it):
   No result changes: the BIP-327, FROST and BIP-352 vectors pass as
   they were.
 - 2026-10-19, note for the owner to send in
-  a note for upstream (with its `.patch`; tracker #64): `core/osk-codec`'s `png::grey_png` (an
+  a note for upstream (with its `.patch`): `core/osk-codec`'s `png::grey_png` (an
   eight-bit greyscale PNG, beside `qr_png`, with `tests/png.rs`), and
   `core/osk-ui`'s `Icon::SdCard` and `Icon::Add` (their place in
   `Icon::ALL`, the `tools/fontbake` entries, the rebaked `icon.outl`).
@@ -2163,7 +2163,7 @@ as possible before the next build.
     (owner) with the hub app on macOS: item 73.**
 
 72. [x] 2026-10-12, owner: **Faraday Companion**, dropped 2026-10-15
-    (DECISIONS F34, tracker #113). It was an Android app with no network
+    (DECISIONS F34). It was an Android app with no network
     permission that read the device's codes and showed codes for it
     (F15). The owner dropped it: the Starter's guides carry the
     start-from-stick steps, the website's guide pages open on any phone
@@ -2524,8 +2524,8 @@ as possible before the next build.
     on the build machine, once, carrying A3b and F18 too.
 
 
-75. [x] 2026-10-14, owner: **the BitLocker step is optional** (F21,
-    tracker issue 89). The Learn pages, the Windows guide and the
+75. [x] 2026-10-14, owner: **the BitLocker step is optional** (F21).
+    The Learn pages, the Windows guide and the
     maker pages are the architect's, done separately; this item is the
     Starter's code, its strings, its tests, its renders and STARTER.md.
 
@@ -2614,7 +2614,7 @@ as possible before the next build.
 
 
 76. [x] 2026-10-14, owner: **batch C, the desktop app and the camera on
-    Windows** (`docs/STARTER.md` §2, §8, §11; tracker issue 25). Two
+    Windows** (`docs/STARTER.md` §2, §8, §11). Two
     parts that touch different files: C1 the desktop app on Windows,
     C2 the camera. Survey facts below were read 2026-10-14.
 
@@ -2767,8 +2767,8 @@ as possible before the next build.
     `strings` on the exe finds no build path.
 
 
-77. [ ] 2026-10-15, owner: **speed in long flows** (`docs/SPEED.md`;
-    tracker issue 119, sub-issues 120–130). On a slow laptop the later
+77. [ ] 2026-10-15, owner: **speed in long flows** (`docs/SPEED.md`).
+    On a slow laptop the later
     stages of a multisig wallet's setup, the backups especially, became
     very slow, on the desktop and the web demo too. Read from the code:
     the screens recompute key fingerprints (an elliptic-curve
@@ -2825,7 +2825,7 @@ as possible before the next build.
     L1–L6 are §20.8 (2026-10-19).
 
 80. [x] 2026-10-16, owner: **Restore ends on a choice**
-    (`docs/history/NEW-WALLET.md` §12.3; tracker issue 134). A restored wallet
+    (`docs/history/NEW-WALLET.md` §12.3). A restored wallet
     landed in the backup flow; Restore now ends on Done every time, with
     Spend from this wallet, Back up this wallet, Wallets, and later
     another wallet from the same seeds (issue 131). Vaults set up before
@@ -2854,7 +2854,7 @@ as possible before the next build.
     BIP-85 and the like run in `press` only, not on a tap.
 
 82. [x] 2026-10-19, owner: **Add a key is the New key flow**
-    (`docs/history/NEW-WALLET.md` §15, F44; tracker #132). New key opens on a
+    (`docs/history/NEW-WALLET.md` §15, F44). New key opens on a
     Start card: Make a new key, Type the words, Scan a SeedQR, Other
     forms; Add a key on the Wallets page and its Tools tile open it.
     Built 2026-10-19 (`keygen.rs` START and TYPED cards, `Start`;
@@ -2864,8 +2864,7 @@ as possible before the next build.
     `forms.rs` `form_key`; the snapshot tool's `addkey` tour), 5d4b097.
 
 83. [x] 2026-10-19, owner: **keys from a vault in Create; a new wallet
-    from one you have** (`docs/history/NEW-WALLET.md` §16, F45; tracker #149,
-    #131 folded in). Built 2026-10-19 (§16.1, §16.2; §16.3 with
+    from one you have** (`docs/history/NEW-WALLET.md` §16, F45). Built 2026-10-19 (§16.1, §16.2; §16.3 with
     item 80): `create_from.rs`, Create's Keys and Kind cards, the
     wallet card's **New wallet from this one**; tests in
     `tests/create_wallet.rs` and `tests/vault_keys.rs`; snapshot tour
@@ -2886,17 +2885,15 @@ as possible before the next build.
     count moves the cursor by the arrow's scale, not one pixel. Built
     2026-10-19 (`shells/stick/src/cursor.rs`, tests there).
 
-86. [x] 2026-10-20, owner: **APK signing switched off** (F59; tracker
-    #95 Later). `Faraday::apk_signing`, off by default; the code, tests,
+86. [x] 2026-10-20, owner: **APK signing switched off** (F59). `Faraday::apk_signing`, off by default; the code, tests,
     spec and Learn page stay. The snapshot tour has no APK step.
     4c377473.
 
 87. [x] 2026-10-20: **the one-place warning counts every seed**
-    (BACKUP-FLOW §10.3; tracker #173). c101783a.
+    (BACKUP-FLOW §10.3). c101783a.
 
 88. [x] 2026-10-20, owner: **the boot sheet is a picker; vault actions
-    on file rows only while a vault is open** (F60; tracker #171,
-    #172). `boot_import.rs`, `boot_import_screen.rs`; tests in
+    on file rows only while a vault is open** (F60). `boot_import.rs`, `boot_import_screen.rs`; tests in
     `tests/boot_import.rs`, `tests/gpg.rs`, `tests/inbox.rs`. f0e1ed81.
 
 89. [x] 2026-10-20, owner: **Faraday Desktop published again, testnet
@@ -2921,7 +2918,7 @@ as possible before the next build.
 
 
 92. [x] 2026-10-20, owner: **other wallets' formats, I1–I6** (F64,
-    INTEROP §5; tracker #43–#48): SLIP-132 keys checked against their
+    INTEROP §5): SLIP-132 keys checked against their
     script, BIP 129 records Sparrow writes, a JSON reader, Cobo/Keystone
     and Wasabi files, Caravan/Unchained configs, More options on Public
     files with Core before 29, Electrum wallet files. 1590a582,

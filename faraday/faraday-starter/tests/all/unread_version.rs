@@ -1,5 +1,5 @@
 //! A Faraday stick whose version Windows did not let the Starter read
-//! (tracker #21, option e): Home and Which stick say "version not read",
+//! (option e): Home and Which stick say "version not read",
 //! never "0.1.0 or earlier"; New stick needs no version; keep data asks
 //! the elevated copy to read it once, then applies the stick's own
 //! rules; a declined prompt says so and nothing is written.

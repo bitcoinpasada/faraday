@@ -10,7 +10,7 @@ original number; the source keeps a one-line stub under the same heading.
 
 V0.2 · 2026-10-05 · partly built; §6 says what is and what is not.
 §7 (2026-10-14, F28) is specified, not scheduled; build only when the owner says.
-§8 (2026-10-21, tracker #181) is parity with Gauss's scanner.
+§8 (2026-10-21) is parity with Gauss's scanner.
 
 Sources read for this file: Faraday OS's docs/gpg-qr-workflows.md and
 `lib/faraday/qr_*.py`, `qr-transfer-gui.py` and `ur/` (the Foundation
@@ -163,7 +163,7 @@ flow.
   tests for user-facing behaviour only; `just` once at the end; no
   `rm`; no commits; no agents. Nothing in `core/`.
 
-## §8 Parity with Gauss (tracker #181) (from docs/QR.md)
+## §8 Parity with Gauss (from docs/QR.md)
 
 The introduction:
 

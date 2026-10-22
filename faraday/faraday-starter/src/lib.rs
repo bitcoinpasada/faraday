@@ -514,8 +514,8 @@ pub struct Starter {
     pub disks: Vec<Disk>,
     /// The disks as the shell last sent them.
     shell_disks: Vec<Disk>,
-    /// The versions the elevated copy read this session (Windows,
-    /// tracker #21), by disk id, serial and size: asked once per stick,
+    /// The versions the elevated copy read this session (Windows),
+    /// by disk id, serial and size: asked once per stick,
     /// and forgotten once the stick is written.
     versions: Vec<((String, String, u64), Option<String>)>,
     /// A stick's version being read through the elevated copy: its id.
@@ -964,7 +964,7 @@ impl Starter {
     }
 
     /// Keep data is ticked on a stick whose version is not read yet
-    /// (Windows, tracker #21): Continue waits for it.
+    /// (Windows): Continue waits for it.
     pub fn keep_unread(&self) -> bool {
         self.making.as_ref().and_then(|m| m.mode) == Some(Mode::KeepData)
             && self

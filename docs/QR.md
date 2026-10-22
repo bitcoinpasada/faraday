@@ -439,9 +439,9 @@ One batch, one review, one completion report.
 - **Completion report:** each item with its tests and whether they
   pass; what was left out and why; the docs changed; the render names.
 
-## 8. Parity with Gauss (tracker #181)
+## 8. Parity with Gauss
 
-Built (tracker #181; F75 for a seed's paste). Items 1 and 4 to 8 are
+Built (F75 for a seed's paste). Items 1 and 4 to 8 are
 the core's; items 2, 3 and 9 are the camera shells'. DESIGN §4.9
 Scanner is the design they meet. No torch (DESIGN §4.9).
 The comparison that led here: moved to `docs/history/QR-LOG.md`.

@@ -2,7 +2,7 @@
 //! platform seam from the calls in `sys` and the readings in the pure
 //! modules, and [`elevated_write`] is the elevated copy's whole life
 //! when it writes ([`elevated_read_version`] when it reads a stick's
-//! version for keep data, tracker #21).
+//! version for keep data).
 
 use std::collections::BTreeMap;
 use std::fs::{File, OpenOptions};
@@ -532,7 +532,7 @@ fn elevate_write(
     result.unwrap_or_else(|| Err(ended(&child)))
 }
 
-/// The window's side of keep data's version read (tracker #21): a pipe,
+/// The window's side of keep data's version read: a pipe,
 /// the elevated copy started on it with `--read-version`, and the
 /// release string it answered. A declined prompt on an account that is
 /// not an administrator's says so.
@@ -689,7 +689,7 @@ fn elevated_write(args: &[String]) -> ExitCode {
             n,
             locks: Vec::new(),
         };
-        // Keep data's second check (tracker #21): the window could not
+        // Keep data's second check: the window could not
         // read the stick's version without elevation, so this copy reads
         // it again and refuses the same build.
         if e.order.mode == Mode::KeepData {
@@ -719,8 +719,8 @@ fn elevated_write(args: &[String]) -> ExitCode {
     }
 }
 
-/// The elevated copy that reads a stick's version for keep data
-/// (tracker #21): reads its arguments, refusing a malformed list before
+/// The elevated copy that reads a stick's version for keep data:
+/// reads its arguments, refusing a malformed list before
 /// anything is opened, connects to the window's pipe, checks the disk is
 /// the one the window listed, reads its partition table and boot
 /// partition, and answers there.

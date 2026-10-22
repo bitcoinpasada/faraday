@@ -403,8 +403,7 @@ pub fn write(
 /// Faraday stick's, as keep data checks it; `None` for a stick made
 /// before Faraday put its version there. Read in aligned blocks, as a
 /// disk opened unbuffered (Windows) takes its reads. The elevated copy's
-/// `--read-version` and its keep data's second check read the stick so
-/// (tracker #21).
+/// `--read-version` and its keep data's second check read the stick.
 pub fn release_on_stick<R: Read + Seek>(
     disk: &mut R,
     len: u64,
@@ -453,8 +452,8 @@ pub fn release_on_stick<R: Read + Seek>(
     Ok(None)
 }
 
-/// Keep data's second check, in the elevated writer on Windows (tracker
-/// #21): writing build `build` over a stick that holds the release
+/// Keep data's second check, in the elevated writer on Windows:
+/// writing build `build` over a stick that holds the release
 /// string `on_stick` is refused when it is the same build, by the
 /// stick's own rule (`faraday_core::upgrade::compare`). A source with
 /// no build ID it can be compared by passes, as Confirm lets it.

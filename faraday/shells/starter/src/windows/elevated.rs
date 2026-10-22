@@ -11,7 +11,7 @@
 //! ```
 //!
 //! Keep data on a stick whose version Windows did not let the window
-//! read (tracker #21) starts it with `--read-version` first:
+//! read starts it with `--read-version` first:
 //!
 //! ```text
 //! --read-version --pipe \\.\pipe\faraday-starter-… --disk \\.\PhysicalDrive2

@@ -411,7 +411,7 @@ theme: warm cream page, espresso text, a terracotta accent (#A34E26,
 
 ### 3.9 The stick's touchpad: click-and-drag and tap-and-drag (2026-10-19)
 
-Owner-asked 2026-10-19, tracker #154: dragging a scrollbar with a
+Owner-asked 2026-10-19: dragging a scrollbar with a
 laptop's touchpad did not work on the stick. The pad should do what a
 person's laptop does under Linux (libinput) and Windows (Precision
 Touchpad), so the core sees what a mouse sends: Down, Moves, Up.

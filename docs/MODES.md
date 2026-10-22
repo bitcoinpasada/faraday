@@ -1,7 +1,7 @@
 # Modes, Demo and samples
 
 **Kind:** Spec
-**Status:** Partly built (F81, tracker #191): M1, M2 and M3
+**Status:** Partly built (F81): M1, M2 and M3
 **Open:** M4 to M8 of §10 here, and W1 in the website's repository.
 
 The owner's decisions are F81. This says how they are built. Where it

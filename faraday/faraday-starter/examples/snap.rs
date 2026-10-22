@@ -521,8 +521,8 @@ fn run(s: &Snap) -> Result<(), String> {
     h.press(n);
     s.shot(&mut h, "stick-2-what-same-build")?;
 
-    // Windows, a stick whose version it did not let the Starter read
-    // (tracker #21): Home, Which stick, then keep data reading it and
+    // Windows, a stick whose version it did not let the Starter read:
+    // Home, Which stick, then keep data reading it and
     // the prompt declined.
     let unread = || {
         let mut d = stick("sde", "");

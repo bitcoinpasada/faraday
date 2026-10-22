@@ -531,10 +531,10 @@ Bitcoin wallet (§10, §11).
 - Completion report: items done, each with its tests and whether they
   pass; what was left out and why; docs changed; renders to look at.
 
-## §4.8 Changing the plan: the extra round for an existing vault, dropped (tracker #161) (from docs/BACKUP-FLOW.md)
+## §4.8 Changing the plan: the extra round for an existing vault, dropped (from docs/BACKUP-FLOW.md)
 
 - **A stick holding an existing vault the key should go into**:
-  *Dropped (owner, 2026-10-20; tracker #161): an existing vault is
+  *Dropped (owner, 2026-10-20): an existing vault is
   brought in only before the keys (§10.2, §17.21 item 5). The round
   below is not built.* One
   guided extra round, inside the flow, on its own card, **Add {vault}**:

@@ -352,7 +352,7 @@ inserted before step 2.
   stick at step 6, with the second-copy rules.
 - **A stick holding an existing vault the key should go into**: not
   offered. An existing vault is brought in only before the keys (§10.2,
-  §17.21 item 5; owner, 2026-10-20, tracker #161). The extra round
+  §17.21 item 5; owner, 2026-10-20). The extra round
   **Add {vault}** that was specified here, and its offer for a key kept
   only on paper, are not built: moved to `docs/history/BACKUP-FLOW-LOG.md`.
 
@@ -915,7 +915,7 @@ The owner's answers (2026-10-14).
 7. **A key kept only on paper** when a vault is filled again after the
    lock (§15.8): it is typed back in from its copy, **Add the key from
    its copy**. (The choice that stood here belonged to the extra round
-   for an existing vault, which is not built: tracker #161,
+   for an existing vault, which is not built:
    `docs/history/BACKUP-FLOW-LOG.md`.)
 8. **A stick holding vaults, at a place the plan gives a new vault**:
    **A new vault beside them** first and chosen.
@@ -1810,7 +1810,7 @@ F40. Built in F2d.
 
 ### 17.17 The files box, and the stick and vault glyphs (owner, 2026-10-16)
 
-Decided from the owner's look at F2c (tracker #146): a stick carrying a
+Decided from the owner's look at F2c: a stick carrying a
 vault was nearly all vault box, its own area a thin margin, so where to
 drop a thing to keep it on the stick but not in the vault could not be
 seen. Built in F2d with §17.16.
@@ -1853,7 +1853,7 @@ seen. Built in F2d with §17.16.
 
 ### 17.18 A place's name, pressed, is selected (owner, 2026-10-16)
 
-Tracker #147: a press on "Place 1" to rename it showed a blinking caret
+A press on "Place 1" to rename it showed a blinking caret
 after the name, which says typing adds to it, though typing replaces it.
 
 1. **The press selects the whole name.** A press on a place's name (while
@@ -1979,7 +1979,7 @@ which share goes where.
   only where the hand-out rebuilds.
 - The checklist's Shares card still sets the keys left off.
 
-### 17.20 The ⋮ menu: placing without dragging (owner, 2026-10-19; tracker #150)
+### 17.20 The ⋮ menu: placing without dragging (owner, 2026-10-19)
 
 Dragging stays, and so does tap to select then tap a box; the ⋮ menu is
 the visible way to place, move, copy and take off without dragging.
@@ -2042,7 +2042,7 @@ the visible way to place, move, copy and take off without dragging.
 - On a placed chip the × stays, before the rule; the ⋮ is at the
   chip's right end.
 
-### 17.21 One way to start; Customize for the rest (owner, 2026-10-20; tracker #160)
+### 17.21 One way to start; Customize for the rest (owner, 2026-10-20)
 
 The standard way is the one preset, and it keeps each seed as its
 words on paper, without a SeedQR (owner, 2026-10-20): it is now what
@@ -2080,7 +2080,7 @@ the board in Customize backup.
    muted style: "Vaults already on sticks are brought in here, not
    later." Reason, not shown: a vault on a stick not read this power-on
    cannot be read after the keys without a lock, and the lock wipes the
-   keys and Create's state (tracker #106, the extra round of §4.8 is not
+   keys and Create's state (the extra round of §4.8 is not
    built).
 6. **A planned vault not made yet says so.** A vault box's header band
    reads "Vault 2 · sealed · made in the checklist" while the plan's

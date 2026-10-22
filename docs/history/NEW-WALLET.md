@@ -819,8 +819,8 @@ seeds. Restore ends on a choice, every time.
    (none is the one to take):
    - **Spend from this wallet** (`spend_button`, §11.2): sign a PSBT.
    - **Back up this wallet**.
-   - **Another wallet from these seeds**, when tracker issue 131 (a new
-     wallet at another account index) is built; that issue adds it. Not
+   - **Another wallet from these seeds**, when a new wallet at another
+     account index is built; that work adds it. Not
      drawn before.
    - **Wallets**: the wallet on the Wallets page.
 3. **Vaults already set up wait.** With vaults (the question answered
@@ -1258,8 +1258,7 @@ the map until destroyed". The chart's **I destroyed this copy**
 forms its own copies have; a multisig with words for one seed and a
 SeedQR for another checks each by its own row.
 
-**5. A passphrase on paper is its own item** (owner, 2026-10-21;
-tracker #180). The check follows the copy's form, as for the words.
+**5. A passphrase on paper is its own item** (owner, 2026-10-21). The check follows the copy's form, as for the words.
 
 - **The item.** `plan::Item::Passphrase(i)`, "Write the passphrase of
   seed {} on paper", with Checked or Not checked under it as a copy
@@ -1456,7 +1455,7 @@ Then the owner's walk: a single key from Wallets to Backup done, with
 dice by hand and a passphrase; a 2-of-3 with two keys made here and one
 cosigner later; the 3-of-5 slider; each wallet's card at a glance.
 
-## 15. Add a key is the New key flow (owner, 2026-10-19; tracker #132; F44)
+## 15. Add a key is the New key flow (owner, 2026-10-19; F44)
 
 **Why.** Add a key opened straight on boxes for typing seed words, while
 New key inside Create a wallet offered the length, the source of
@@ -1575,7 +1574,7 @@ the words form; `scan_a_key.rs` `add_a_key_leads_with_scan_a_seedqr`;
 **Docs.** FLOWS decision 18 and its Add a key screen, DESIGN's Add a key menu
 (§4, which no longer matched the code), SIMPLIFY §2.4 marked replaced.
 
-## 16. Keys from a vault, and a new wallet from one you have (owner, 2026-10-19; tracker #149, #131; F45)
+## 16. Keys from a vault, and a new wallet from one you have (owner, 2026-10-19; F45)
 
 **Why.** Create a wallet offered only keys already loaded into the
 session: a key kept in a vault had to be loaded from the vault's own

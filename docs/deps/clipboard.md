@@ -4,8 +4,8 @@ Decision: the desktop shell reads and writes the clipboard by running
 `wl-paste`/`wl-copy`, `xclip` or `pbpaste`/`pbcopy`, in that order. No
 clipboard crate is used.
 
-The read path is used by the scanner's Paste on the desktop (tracker
-#182; `faraday/shells/window/src/clipboard.rs`). The owner chose this
+The read path is used by the scanner's Paste on the desktop
+(`faraday/shells/window/src/clipboard.rs`). The owner chose this
 over `arboard` on 2026-10-21, as this page had decided.
 
 ## How the read runs

@@ -17,7 +17,7 @@ measured at the stick's high-density sizes before it is decided (§6); E
 in the website's own repository.
 §7 is a standing rule (owner). §8: the speed audit's batch S1
 (2026-10-21); §11: batch E of 2026-10-21, the stick's panel and the
-Starter. Tracker issue 119 and its sub-issues 120–130.
+Starter.
 
 ## §1 What is wrong (read from the code at 2e807ae; not yet measured) (from docs/SPEED.md)
 
@@ -277,7 +277,7 @@ thirtieth). A person does not check one copy thirty times, but something
 grows with each check; the build machine has no sampling profiler, so
 its stacks are not taken. It is left for a later batch.
 
-What grew (tracker #156, 2026-10-19): the digits typed back. The field
+What grew (2026-10-19): the digits typed back. The field
 took every digit typed while it had the typing, also past the seed's own
 48 or 96 once the copy matched, and drawing it joins all of them in
 groups of four and shortens the line to its box one character at a time

@@ -1555,7 +1555,7 @@ What the spec did not foresee:
   BIP-85's, Explore's, the calculators', Vanity's and the others', run
   in `Faraday::press`, the scripted way in; a tap goes through `touch`
   and `act` and skipped them, so on a device these screens kept their
-  state when left by a tap. Since 2026-10-19 (tracker #155) they run
+  state when left by a tap. Since 2026-10-19 they run
   after every press however it comes (a tap, a key, the mouse's back
   button, a stick that opens another screen, a scripted press:
   `after_input`), so a screen left by any of them keeps nothing, and

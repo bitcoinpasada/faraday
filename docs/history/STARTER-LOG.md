@@ -234,7 +234,7 @@ the shell (`windows/bitlocker.rs`, `sys.rs`'s WMI and property store,
 Only real Windows can show: the elevation prompt on an administrator's
 and a standard account, the shell property and WMI on Windows Home with
 Device encryption, a managed computer's refusal code, how Windows
-counts the starts (tracker #157), and whether the viewer holds the key
+counts the starts, and whether the viewer holds the key
 sheet open when the Starter exits.
 
 ## §6.6 What is removed (from docs/STARTER.md)

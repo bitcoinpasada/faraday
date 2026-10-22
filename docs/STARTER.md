@@ -579,7 +579,7 @@ there is one and at the general page otherwise, with the steps in
 order and the buttons the operating system allows. The steps shown
 follow this computer's state.
 
-**Write down** (owner, 2026-10-15 and 2026-10-19, F47; tracker #114),
+**Write down** (owner, 2026-10-15 and 2026-10-19, F47),
 before step 1: what the person needs once the computer restarts and
 the Starter is no longer on screen, as three value rows, then
 **Print**:
@@ -804,7 +804,7 @@ shows as one made before versions were recorded. That version is shown
 on Which stick and Confirm and drives the keep-data rules (§3.2).
 FARADAYDATA is never mounted, opened, read or written (§4.4).
 
-**On Windows** (owner, 2026-10-19, tracker #21 option (e), D22) FARADAYBOOT
+**On Windows** (owner, 2026-10-19, option (e), D22) FARADAYBOOT
 is an EFI system partition, which Windows lets only an elevated process
 read, so the Starter's own process cannot read the version. "Could not
 read" is kept apart from "no version on the stick": Home and Which stick
@@ -872,7 +872,7 @@ file is not. The Learn page "Replacing Faraday on a stick" says this
 and points to Settings → Upgrade a Faraday stick, which upgrades a
 stick from another stick without an online computer.
 
-**FARADAYDATA from Windows and macOS** (owner, 2026-10-19, tracker #30;
+**FARADAYDATA from Windows and macOS** (owner, 2026-10-19;
 D11). FARADAYDATA keeps the drive letter Windows gives it, so a person can
 put a PSBT, or any file, on a Faraday stick from Windows, and a Mac
 mounts it as it mounts any FAT volume. Faraday reads what they write
@@ -1042,8 +1042,8 @@ whose Secure Boot keys changed does not ask afterwards either.
   Windows, so the restart into the BIOS, Faraday's session and the
   restart after it do not use it up. 3 leaves room for a Windows start
   between (an update, a start before the stick is chosen). How Windows
-  counts is to be confirmed on the Windows test virtual machine
-  (tracker #157); the count is `api::SUSPEND_STARTS`, held at 3 by the
+  counts is to be confirmed on the Windows test virtual machine;
+  the count is `api::SUSPEND_STARTS`, held at 3 by the
   owner.
 - **The recovery key on the sheet** (§3.4): the tick box beside Print;
   ticked, Print starts the elevated copy (`--bitlocker key`), which
@@ -1067,7 +1067,7 @@ whose Secure Boot keys changed does not ask afterwards either.
   stick from the boot menu on the restart that saves Secure Boot off
   (§3.4 step 3).
 - The stick reminds at power-off (§7.5).
-- **No Microsoft account row** (F48; tracker #87). Nothing in the
+- **No Microsoft account row** (F48). Nothing in the
   Starter names a Microsoft account, so the Starter does not read the
   account type. The guides' pointer (§6.7) names the Microsoft account
   as a condition.
@@ -1109,7 +1109,7 @@ step: nothing waits on it, and Home has no BitLocker item.
 Still to be seen on real Windows, which only it can show: the elevation
 prompt on an administrator's and a standard account, the shell property
 and WMI on Windows Home with Device encryption, a managed computer's
-refusal code, how Windows counts the starts (tracker #157), and whether
+refusal code, how Windows counts the starts, and whether
 the viewer holds the key sheet open when the Starter exits.
 
 The F33 batches and their tests, and F49's batch and its tests: moved to `docs/history/STARTER-LOG.md`.
@@ -1143,8 +1143,7 @@ every app, so the pages change with the code that reads them).
   the Windows guide and each maker page. Until F48 it read "If Windows
   asks for the BitLocker recovery key: for a computer set up with a
   Microsoft account, the key is on the account's recovery-key page,
-  aka.ms/myrecoverykey; otherwise …". F48 (owner, 2026-10-19; tracker
-  #87) framed the key plainly and named the Microsoft account only as a
+  aka.ms/myrecoverykey; otherwise …". F48 (owner, 2026-10-19) framed the key plainly and named the Microsoft account only as a
   condition, but also said "It is not needed here", which F49 corrects:
   Windows may ask for it even with Secure Boot back on (§6.1). Since
   F49 it reads: "The BitLocker recovery key: with Secure Boot off,
@@ -1678,8 +1677,8 @@ what moved.
   and the desktop app on Windows is a developer's build.
 - **D21 tools/flash-stick:** removed once the Starter writes a
   developer's own image (`--image`, §1.1), in batch L.
-- **D22 The stick's version on Windows** (owner, 2026-10-19, tracker
-  #21, option (e)): an elevated read when keep data is chosen, one
+- **D22 The stick's version on Windows** (owner, 2026-10-19, option
+  (e)): an elevated read when keep data is chosen, one
   administrator prompt, and "version not read" kept apart from "0.1.0 or
   earlier" (§4.1). A copy of the version on FARADAYDATA or in the GPT was
   rejected: what Windows reads without elevation is not updated by keep

@@ -165,7 +165,7 @@ pub struct Strings {
     /// What is on a disk: `{}` the version.
     pub starter_on_faraday: &'static str,
     /// A Faraday stick's version when it was not read: Windows lets
-    /// only an administrator read the boot partition (tracker #21).
+    /// only an administrator read the boot partition.
     pub starter_version_not_read: &'static str,
     /// What is on a disk.
     pub starter_on_empty: &'static str,
@@ -208,7 +208,7 @@ pub struct Strings {
     /// Keep data refused.
     pub starter_mode_same: &'static str,
     /// Keep data ticked on a stick whose version was not read: the
-    /// elevated copy reading it (tracker #21).
+    /// elevated copy reading it.
     pub starter_mode_reading: &'static str,
     /// The whole stick refused for a boot partition image.
     pub starter_mode_boot_only: &'static str,

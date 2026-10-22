@@ -514,7 +514,7 @@ impl Faraday {
         }
         if let Some(r) = self.backup_records.iter_mut().find(|r| r.sum == sum) {
             // One count per copy on paper the plan keeps of the seed:
-            // checks past them count no further copy (tracker #156).
+            // checks past them count no further copy.
             let copies = r
                 .spots
                 .iter()

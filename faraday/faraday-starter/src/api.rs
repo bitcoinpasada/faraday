@@ -51,7 +51,7 @@ pub struct Computer {
 /// `manage-bde -protectors -disable C: -RebootCount 3` sets it. Windows
 /// keeps the count and lowers it each time Windows starts; the BIOS and
 /// the stick do not run Windows, so they do not count (to be confirmed
-/// on the Windows test virtual machine, tracker #157).
+/// on the Windows test virtual machine).
 pub const SUSPEND_STARTS: u32 = 3;
 
 /// The protection of the Windows system drive (§6, F49).
@@ -199,7 +199,7 @@ pub struct FaradayStick {
     /// FARADAYBOOT was read. On Windows it is not until keep data asks the
     /// elevated copy ([`StarterCommand::ReadVersion`]): FARADAYBOOT is an
     /// EFI system partition, which Windows lets only an administrator
-    /// read (tracker #21). While `false`, `release` is `None` and says
+    /// read. While `false`, `release` is `None` and says
     /// nothing about the stick.
     pub read: bool,
 }
@@ -549,7 +549,7 @@ pub enum Reason {
     /// No Faraday stick is attached.
     NoStick,
     /// Keep data: the stick already holds the build to be written, as
-    /// the elevated writer read it on Windows (tracker #21).
+    /// the elevated writer read it on Windows.
     SameBuild,
     /// The person declined the administrator permission a step asks
     /// for (Windows' elevation prompt, polkit's password on Linux), so
@@ -830,7 +830,7 @@ pub enum StarterCommand {
     /// for the sheet (F49); answered by [`StarterEvent::RecoveryKey`].
     ReadRecoveryKey,
     /// Read a Faraday stick's version through the elevated copy
-    /// (Windows, tracker #21), for keep data's rules; answered by
+    /// (Windows), for keep data's rules; answered by
     /// [`StarterEvent::VersionRead`]. The elevated copy refuses a disk
     /// whose serial or size is not these.
     ReadVersion {

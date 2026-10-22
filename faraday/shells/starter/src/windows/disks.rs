@@ -612,8 +612,8 @@ fn unhex(s: &str) -> Option<Vec<u8>> {
 
 /// A Faraday stick as Windows reads it without elevation: the release
 /// string found on its boot volume, when Windows let it be read. Windows
-/// lets only an administrator read FARADAYBOOT, an EFI system partition
-/// (tracker #21), so nothing found is "not read", never a stick made
+/// lets only an administrator read FARADAYBOOT, an EFI system partition,
+/// so nothing found is "not read", never a stick made
 /// before Faraday put its version there; keep data asks the elevated
 /// copy to read it.
 pub fn stick_read(release: Option<String>) -> FaradayStick {

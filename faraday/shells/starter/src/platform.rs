@@ -103,7 +103,7 @@ pub trait Platform: Send + Sync {
 
     /// The release string on the Faraday stick `disk` (serial `serial`,
     /// `size` bytes, as listed), read through the elevated copy for keep
-    /// data (Windows, tracker #21): `None` for a stick made before
+    /// data (Windows): `None` for a stick made before
     /// Faraday put one there. Other systems read it while listing the
     /// disks and never ask.
     fn read_version(&self, disk: &str, serial: &str, size: u64) -> Result<Option<String>, Reason> {

@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the glyph cache (§3.8). The web demo's part is in the website's own repository.
-**Open:** the glyph cache at the stick's full-screen sizes on high-density panels: measured, then changed only if a frame clears it (§3.8, tracker issue 127).
+**Open:** the glyph cache at the stick's full-screen sizes on high-density panels: measured, then changed only if a frame clears it (§3.8).
 
 §2 and §7 are standing rules; §3.3, §8.3 and §9 to §11 say what holds now.
 
