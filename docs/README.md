@@ -38,6 +38,7 @@ need. Each document's header says what kind it is:
 | Which tool or lint does what? | `tools/README.md` |
 | Where are keys held, and how do they leave? | `docs/KEYS.md`, then `docs/AUDIT.md` §2 |
 | What is planned and not built? | each Spec's `**Open:**` line (the Specs are listed below); the board holds the rest |
+| How would a signer be kept from hiding its key in a nonce (anti-exfil)? | `docs/ANTI-EXFIL.md` |
 | How do I submit an audit? | `docs/AUDIT-SUBMISSIONS.md` |
 | How do I report a security problem? | `SECURITY.md` |
 | What are the rules for changing this repository? | `CLAUDE.md` |
@@ -64,6 +65,7 @@ need. Each document's header says what kind it is:
 
 **Spec**
 
+- `docs/ANTI-EXFIL.md`: Anti-exfil. Planned, not scheduled.
 - `docs/BACKUP-FLOW.md`: The backup flow. Partly built.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.
