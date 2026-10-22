@@ -106,6 +106,7 @@
 //! graphics mode; all three are named in `README.md`.
 
 mod camera;
+mod clock;
 mod cursor;
 mod evdev;
 mod fb;
@@ -671,6 +672,8 @@ struct Shell {
     epoch: Instant,
     /// Frames drawn so far, for `--frames`.
     drawn: u64,
+    /// The last frame drawn was a fade's step, two kept frames blended.
+    last_blend: bool,
     /// `--frames N`, or `None` to run until the core exits.
     limit: Option<u64>,
     /// A `Draw` arrived since the last `flush`.
@@ -857,6 +860,7 @@ impl Shell {
         let mut complaint = None;
         let mut result = None;
         let blends = self.app.as_ref().is_some_and(Faraday::next_frame_blends);
+        self.last_blend = blends;
         let start = self.timings.is_some().then(Instant::now);
         let frame = self.app.as_mut().map(App::frame);
         if let (Some(start), Some(t)) = (start, self.timings.as_mut()) {
@@ -1498,6 +1502,7 @@ fn run(args: Args) -> Result<Exit, String> {
         believed,
         epoch: Instant::now(),
         drawn: 0,
+        last_blend: false,
         limit: args.frames,
         done: false,
         dirty: false,
@@ -1761,6 +1766,9 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
     // that does not (`pace.rs`).
     let mut next_frame: Option<Instant> = None;
     let mut pace = Pace::new();
+    let mut boost = clock::Boost::new();
+    // When the last pass that drew began, if its frame was a fade's step.
+    let mut last_fade_step: Option<Instant> = None;
     while !shell.done && !shell.enough() {
         // Everything the controller has reported since the last pass
         // goes in now. It reports a moving finger a hundred times a
@@ -1819,6 +1827,16 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         // every couple of seconds.
         shell.rescan_inputs();
         collapse_moves(&mut batch);
+        // Input raises the CPU's lowest clock before it is handled, so
+        // the frame it changes and a fade after it are drawn at speed.
+        if batch.iter().any(|w| {
+            matches!(
+                w,
+                Wake::Touch(_) | Wake::Pointer(_) | Wake::Key(_) | Wake::KeyUp(_)
+            )
+        }) {
+            boost.moving(began);
+        }
         for wake in batch {
             match wake {
                 Wake::Touch(t) => {
@@ -1960,11 +1978,19 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         // next deadline is a step after this one, or a step from now
         // when this pass ran past it.
         if shell.drawn != drawn {
-            pace.drew(began.elapsed());
+            if shell.last_blend {
+                pace.stepped_fade(began.elapsed());
+            } else {
+                pace.drew(began.elapsed());
+            }
             if let Some(timings) = shell.timings.as_mut() {
                 timings.stepped(pace.frames(), pace.cost());
-                timings.sample_clock();
+                timings.sample_clock(boost.raised());
+                if let (true, Some(last)) = (shell.last_blend, last_fade_step) {
+                    timings.fade_step(began.duration_since(last), began.elapsed(), pace.step());
+                }
             }
+            last_fade_step = shell.last_blend.then_some(began);
         }
         next_frame = (contact || shell.drawn != drawn).then(|| {
             let now = Instant::now();
@@ -1974,6 +2000,13 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
                 .filter(|d| *d > now)
                 .unwrap_or(now + step)
         });
+        // The clock stays raised while frames are drawn on the grid, and
+        // comes down a while after.
+        if next_frame.is_some() {
+            boost.moving(Instant::now());
+        } else {
+            boost.still(Instant::now());
+        }
         if let Some(timings) = shell.timings.as_mut() {
             timings.pass();
         }

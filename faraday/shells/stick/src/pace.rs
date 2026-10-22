@@ -25,12 +25,27 @@ const KEEP: f64 = 1.25;
 /// much room, so the step does not flip at the boundary.
 const SHORTEN: f64 = 1.6;
 
+/// Whether a fade's steps are timed apart from frames drawn in full.
+/// On the PC stick only, for now: the Pi keeps one grid for both.
+const BLENDS_APART: bool = cfg!(target_arch = "x86_64");
+
+/// How many of a fade's recent steps the median of their cost is taken
+/// over.
+const BLENDS_KEPT: usize = 5;
+
 /// What a pass costs, smoothed, and the step that holds it.
 pub struct Pace {
     /// What recent passes that drew took, weighted towards the newest:
     /// `None` before the first.
     cost: Option<Duration>,
     frames: u32,
+    /// What the last few passes whose frame was a fade's step took, two
+    /// kept frames blended, oldest first: a fade is paced by the median
+    /// of what its steps cost, not by the frame that showed the change,
+    /// often the slowest there is, and not by one step held up.
+    blends: Vec<Duration>,
+    /// The last pass that drew was a fade's step.
+    blended: bool,
 }
 
 impl Pace {
@@ -39,6 +54,8 @@ impl Pace {
         Pace {
             cost: None,
             frames: 1,
+            blends: Vec::new(),
+            blended: false,
         }
     }
 
@@ -47,6 +64,7 @@ impl Pace {
     /// the smoothed cost a fifth of the way, so a single late frame does
     /// not change the step; a machine that is slow every frame does.
     pub fn drew(&mut self, took: Duration) {
+        self.blended = false;
         let cost = match self.cost {
             None => took,
             Some(c) => (c * 4 + took) / 5,
@@ -62,14 +80,42 @@ impl Pace {
         }
     }
 
-    /// The time from one frame's deadline to the next.
-    pub fn step(&self) -> Duration {
-        FRAME * self.frames
+    /// A pass whose frame was a fade's step took `took`. Where fades are
+    /// timed apart, the step after it holds the median of what the last
+    /// few such steps cost; elsewhere it counts as any pass that drew.
+    pub fn stepped_fade(&mut self, took: Duration) {
+        if !BLENDS_APART {
+            self.drew(took);
+            return;
+        }
+        if self.blends.len() == BLENDS_KEPT {
+            self.blends.remove(0);
+        }
+        self.blends.push(took);
+        self.blended = true;
     }
 
-    /// The step in whole frames, for `--timings`.
+    /// The median of the last few fade steps' costs, when there are any.
+    fn blend_cost(&self) -> Option<Duration> {
+        let mut costs = self.blends.clone();
+        costs.sort_unstable();
+        costs.get(costs.len() / 2).copied()
+    }
+
+    /// The time from one frame's deadline to the next.
+    pub fn step(&self) -> Duration {
+        FRAME * self.frames()
+    }
+
+    /// The step in whole frames: after a fade's step, the fewest that
+    /// hold what such a step costs with room; else the grid's.
     pub fn frames(&self) -> u32 {
-        self.frames
+        match self.blend_cost() {
+            Some(cost) if self.blended => (1..=MOST)
+                .find(|&n| FRAME * n >= cost.mul_f64(KEEP))
+                .unwrap_or(MOST),
+            _ => self.frames,
+        }
     }
 
     /// The smoothed cost the step was chosen from, for `--timings`.
@@ -110,6 +156,31 @@ mod tests {
             pace.drew(ms(4));
         }
         assert_eq!(pace.step(), FRAME, "quick again, the grid is fine again");
+    }
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn a_fade_steps_at_what_its_steps_cost_not_at_the_frame_that_showed_it() {
+        let mut pace = Pace::new();
+        // Screens drawn in full at 20 ms a frame: a step of two frames.
+        for _ in 0..20 {
+            pace.drew(ms(20));
+        }
+        assert_eq!(pace.step(), FRAME * 2);
+        // A sheet opens on a frame of 40 ms, and its fade's steps blend
+        // in 10: each comes a frame after the last.
+        pace.drew(ms(40));
+        for _ in 0..5 {
+            pace.stepped_fade(ms(10));
+            assert_eq!(pace.step(), FRAME);
+        }
+        // One step held up, a write to the stick, does not stretch the
+        // steps after it.
+        pace.stepped_fade(ms(120));
+        assert_eq!(pace.step(), FRAME);
+        // The fade over, frames drawn in full keep their own step.
+        pace.drew(ms(20));
+        assert_eq!(pace.step(), FRAME * 2);
     }
 
     #[test]

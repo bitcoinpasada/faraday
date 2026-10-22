@@ -200,7 +200,9 @@ buckets, a `grid` line counts the passes that drew at each step of the
 frame grid (16.7, 33.3, 50 and 66.7 ms) and gives the smoothed pass cost
 the step was chosen from, a `clock` line gives the first CPU's clock at
 the passes that drew (the header names its cpufreq driver and governor),
-and a `fade` line says how many changes faded,
+a `steps` line lists each fade step that followed another as the gap
+since it, what its pass cost and the step chosen after it, in ms, and a
+`fade` line says how many changes faded,
 were drawn at once because the last fades' steps came too far apart
 (`skipped`) or because reduce motion is on (`reduced`), how many fade
 steps were blended, how many recent step gaps are known and their median,

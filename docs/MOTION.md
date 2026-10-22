@@ -95,6 +95,22 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
   period from the monitor the window is on). On Wayland the compositor
   settles the rate the same way by itself: a frame that misses a refresh
   is shown at the next, and the frame after is asked for from there.
+- **On the PC stick a fade's steps keep their own step.** A step that
+  only blends the two kept frames is paced by the median of what the
+  last five such steps cost, not by the frames drawn in full: the frame
+  that shows a change is often the slowest there is, and one step held
+  up does not stretch the ones after it
+  (`Pace::stepped_fade`, `faraday/shells/stick/src/pace.rs`). The Pi
+  keeps one grid for both.
+- **On the PC stick the CPU's clock is up while something moves.** The
+  stick kernel's governor is schedutil, which raises a CPU's clock only
+  once work has run a while; a fade starts from idle. On a PC whose
+  CPUs run schedutil, init lets the app write each CPU group's
+  `scaling_min_freq`, and the shell sets it to the highest clock at
+  input and while frames are drawn, and back a second after the last
+  (`faraday/shells/stick/src/clock.rs`). A CPU whose driver sets its own
+  clock (intel_pstate with HWP, amd-pstate) runs that driver's
+  powersave and is left alone, and so is the Pi.
 - **A shape wholly outside the clip is not drawn** (`Canvas::draw_path`,
   2026-10-12). A page's cards are all drawn every frame, inside the
   scroll region's clip; one scrolled off the page used to be filled in

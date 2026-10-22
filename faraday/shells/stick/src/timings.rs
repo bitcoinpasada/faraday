@@ -62,6 +62,9 @@ const NAMES: [&str; 8] = [
     "touch", "tick", "camera", "scanned", "convert", "write", "frame", "blend",
 ];
 
+/// How many fade steps one block lists.
+const FADE_STEPS_KEPT: usize = 40;
+
 /// The frame grid's steps a block counts, in frames at 60 Hz: one to
 /// four (`pace.rs`).
 const STEPS: usize = 4;
@@ -93,6 +96,13 @@ pub struct Timings {
     /// The first CPU's clock in kHz as sampled at each pass that drew
     /// since the last block: how many samples, their sum, the highest.
     clock: (u64, u64, u64),
+    /// Of those samples, how many came while the shell held the clock
+    /// raised (`clock.rs`).
+    raised: u64,
+    /// Each fade step since the last block that followed another: the
+    /// gap since that one, what the pass cost, and the step chosen after
+    /// it, in milliseconds; the first `FADE_STEPS_KEPT`.
+    fade_steps: Vec<(u16, u16, u16)>,
     /// Every block so far, for a medium written whole each time.
     kept: String,
     /// The shell's clock when the whole file was last written.
@@ -109,6 +119,8 @@ impl Timings {
             steps: [0; STEPS],
             pace_cost: Duration::ZERO,
             clock: (0, 0, 0),
+            raised: 0,
+            fade_steps: Vec::new(),
             next: INTERVAL,
             header: format!(
                 "faraday {version} panel {width}x{height} \
@@ -162,13 +174,23 @@ impl Timings {
     }
 
     /// Costs a read of a sysfs file: samples the first CPU's clock, at
-    /// a pass that drew.
-    pub fn sample_clock(&mut self) {
+    /// a pass that drew, and whether the shell held it `raised`.
+    pub fn sample_clock(&mut self, raised: bool) {
+        self.raised += u64::from(raised);
         if let Ok(khz) = cpufreq("scaling_cur_freq").parse::<u64>() {
             let (n, sum, top) = &mut self.clock;
             *n += 1;
             *sum += khz;
             *top = (*top).max(khz);
+        }
+    }
+
+    /// Records a fade step that followed another `gap` after it, the
+    /// pass costing `cost`, with the grid's next step `step`.
+    pub fn fade_step(&mut self, gap: Duration, cost: Duration, step: Duration) {
+        if self.fade_steps.len() < FADE_STEPS_KEPT {
+            let ms = |d: Duration| d.as_millis().min(9999) as u16;
+            self.fade_steps.push((ms(gap), ms(cost), ms(step)));
         }
     }
 
@@ -228,10 +250,18 @@ impl Timings {
         ));
         let (n, sum, top) = self.clock;
         out.push_str(&format!(
-            "clock    samples {n} mean_mhz {} max_mhz {}\n",
+            "clock    samples {n} mean_mhz {} max_mhz {} raised {}\n",
             sum.checked_div(n).unwrap_or(0) / 1000,
             top / 1000,
+            self.raised,
         ));
+        if !self.fade_steps.is_empty() {
+            out.push_str("steps   ");
+            for (gap, cost, step) in &self.fade_steps {
+                out.push_str(&format!(" {gap}/{cost}/{step}"));
+            }
+            out.push('\n');
+        }
         if let Some(f) = fade {
             let median = f
                 .median_gap_ms
@@ -252,6 +282,8 @@ impl Timings {
         self.touches = 0;
         self.steps = [0; STEPS];
         self.clock = (0, 0, 0);
+        self.raised = 0;
+        self.fade_steps.clear();
         out
     }
 }

@@ -38,6 +38,17 @@ mkdir -p /run/faraday-clean
 chown faraday:faraday /run/faraday-clean
 chmod 0755 /run/faraday-clean
 
+# On a PC whose CPUs run schedutil, the app may raise their lowest clock
+# while something moves (docs/MOTION.md §3.5): the clock otherwise rises
+# only after work has run a while, and a fade starts from idle. A CPU
+# whose driver sets its own clock, and the Pi, are left alone.
+if [ "$(uname -m)" = x86_64 ]; then
+    for p in /sys/devices/system/cpu/cpufreq/policy*; do
+        [ "$(cat "$p/scaling_governor" 2>/dev/null)" = schedutil ] &&
+            chown faraday "$p/scaling_min_freq"
+    done
+fi
+
 # The disk process's two pipes: requests from the app's shell, answers to
 # it. The disk process owns them and the app's group may use them; nobody
 # else can.
