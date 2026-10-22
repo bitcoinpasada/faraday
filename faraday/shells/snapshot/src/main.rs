@@ -162,6 +162,7 @@ fn run(
         Some("pills") => return tours::desktop::pills_tour(&mut t),
         Some("walletflow") => return tours::wallet_flow::wallet_flow_tour(c, &mut t),
         Some("demo") => return tours::desktop::demo_tour(c, &mut t),
+        Some("modes") => return tours::desktop::modes_tour(c, &mut t),
         Some("startwarn") => return tours::desktop::start_warning_tour(c, &mut t),
         Some("vaultshow") => return tours::vault_show::vault_show_tour(&mut t),
         Some("addkey") => return tours::add_key::add_key_tour(&mut t),
@@ -187,7 +188,7 @@ fn main() -> ExitCode {
     };
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|vaultshow|addkey|cancel]"
+            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel]"
         );
         return ExitCode::from(2);
     }
@@ -258,6 +259,7 @@ fn main() -> ExitCode {
             "pills",
             "walletflow",
             "demo",
+            "modes",
             "startwarn",
             "vaultshow",
             "addkey",
@@ -270,7 +272,7 @@ fn main() -> ExitCode {
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, startwarn, vaultshow, addkey, createfrom, inprogress, cancel, std or parts"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, startwarn, vaultshow, addkey, createfrom, inprogress, cancel, std or parts"
         );
         return ExitCode::from(2);
     }

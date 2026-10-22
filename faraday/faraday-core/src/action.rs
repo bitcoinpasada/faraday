@@ -212,6 +212,8 @@ pub enum Action {
     RFromVault(usize, usize),
     /// Choose this mode: a lock, and a fresh session in the mode (F81).
     Mode(crate::modes::Mode),
+    /// Open the mode sheet: the pill, or Settings' Mode row.
+    ModeSheet,
     /// The online app's not-air-gapped warning acknowledged: the test
     /// mode, if one was asked for, follows.
     AirgapUnderstood,

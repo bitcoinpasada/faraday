@@ -58,7 +58,7 @@
 //! - Sticks, boot and files: `upgrade`, `transfer` (the desktop as the
 //!   device's QR link), `names` (the Starter's install names),
 //!   `secure_boot/state.rs`.
-//! - Support: `wordlist`, `learn`, `modes` (F81), `tools`, `testkit`.
+//! - Support: `wordlist`, `learn`, `modes` (F81, with `modes/screen.rs`), `tools`, `testkit`.
 //!
 //! `Faraday::act_inner` is the dispatch for presses: it runs the checks that
 //! come before any action, then sends each `Action` to its area's
@@ -678,6 +678,9 @@ pub enum Sheet {
     /// the time the signatures will carry with **Set the time**, and the
     /// hold that signs (F63).
     GpgSign,
+    /// **Mode**, from the pill or Settings' Mode row: the modes this app
+    /// offers, the one in use marked (F81, `modes/screen.rs`).
+    Mode,
 }
 
 /// A description's first receive address on a network, or why there is
@@ -3346,12 +3349,8 @@ impl Faraday {
             }
             // Sign with {key}'s Cancel: the sheet closes, the files stay
             // ticked, nothing is signed (F63).
-            Action::Cancel if self.sheet == Some(Sheet::GpgSign) => {
-                self.sheet = None;
-            }
-            Action::Cancel if self.sheet == Some(Sheet::PassphraseSeeds) => {
-                self.pass_seeds_close();
-            }
+            Action::Cancel if self.sheet == Some(Sheet::GpgSign) => self.sheet = None,
+            Action::Cancel if self.sheet == Some(Sheet::PassphraseSeeds) => self.pass_seeds_close(),
             Action::Cancel => {
                 self.pull = None;
                 self.vaults.stick_save = None;
@@ -3701,6 +3700,7 @@ impl Faraday {
             a @ (Action::InputUse(..)
             | Action::InputIgnore(..)
             | Action::Mode(..)
+            | Action::ModeSheet
             | Action::AirgapUnderstood
             | Action::DevicesCheck
             | Action::DevicesContinue

@@ -6,6 +6,8 @@
 //! A mode change is a lock: the fresh session the shell starts afterwards
 //! is in the mode chosen ([`Faraday::mode_after_restart`]).
 
+pub(crate) mod screen;
+
 use crate::Faraday;
 use crate::strings::EN;
 use crate::wallet::network_name;
@@ -92,6 +94,12 @@ impl Faraday {
     /// reads it before it drops the app.
     pub fn mode_after_restart(&self) -> Mode {
         self.next_mode.unwrap_or_else(|| self.mode())
+    }
+
+    /// Handles `Action::ModeSheet`: the pill or Settings' Mode row opens
+    /// the sheet, over the page it was pressed on.
+    pub(crate) fn mode_sheet_open(&mut self) {
+        self.sheet = Some(crate::Sheet::Mode);
     }
 
     /// Handles `Action::Mode`: a mode change is a lock. The mode in use,

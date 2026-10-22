@@ -145,9 +145,10 @@ the sticks; its **Files** entry opens Files. **The session strip**
 current stage in the accent, computed from what is attached, loaded and
 waiting; tapping it opens Files. **Write out** is files For the stick,
 or a vault changed since it was written (decision 26), with no stick
-attached. The network shows only as an off-mainnet pill that opens
-nothing (decisions 14 and 33): no coloured bar along the top on a test
-network; choosing a network is a Settings row.
+attached. The mode shows only as an off-mainnet pill that opens the
+mode sheet (decisions 14 and 33; F81): no coloured bar along the top on
+a test network; the sheet is also Settings' Mode row, the only door on
+mainnet.
 
 ## Files
 

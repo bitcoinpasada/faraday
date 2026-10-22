@@ -5989,8 +5989,8 @@ pub struct Strings {
     pub settings_min: &'static str,
     /// Text in `settings`. `{}`: `names.join(", ")`.
     pub settings_ignored_until: &'static str,
-    /// Line in `settings`.
-    pub settings_network: &'static str,
+    /// Row in `settings`, and the mode sheet's title row there.
+    pub settings_mode: &'static str,
     /// Line in `settings`.
     pub settings_appearance: &'static str,
     /// Line in `settings`.
@@ -7844,6 +7844,12 @@ pub struct Strings {
     // ----- modes (faraday-core/src/modes/mod.rs) -----
     /// Text in `Mode::name`.
     pub mode_demo: &'static str,
+    /// The pill in Demo: the mode and its network.
+    pub mode_demo_pill: &'static str,
+    /// Title of the mode sheet.
+    pub mode_sheet_title: &'static str,
+    /// Button in the mode sheet.
+    pub mode_not_now: &'static str,
     // ----- wallet (faraday-core/src/wallet.rs) -----
     /// Text in `network_name`.
     pub wallet_mainnet: &'static str,
@@ -11747,7 +11753,7 @@ pub static EN: Strings = Strings {
     settings_never: "Never",
     settings_min: "{} min",
     settings_ignored_until: "Ignored until unplugged: {}",
-    settings_network: "Network",
+    settings_mode: "Mode",
     settings_appearance: "Appearance",
     settings_motion: "Motion",
     settings_full: "Full",
@@ -12650,6 +12656,9 @@ pub static EN: Strings = Strings {
     visit_taken_keep_both: "Keep both",
     visit_taken_cancel: "Cancel",
     mode_demo: "Demo",
+    mode_demo_pill: "Demo · Testnet",
+    mode_sheet_title: "Mode",
+    mode_not_now: "Not now",
     wallet_mainnet: "Mainnet",
     wallet_testnet: "Testnet",
     wallet_signet: "Signet",

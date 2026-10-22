@@ -561,6 +561,7 @@ impl Faraday {
             Action::InputUse(id) => self.input_believe(id),
             Action::InputIgnore(id) => self.input_ignore(id),
             Action::Mode(m) => self.mode_act(m),
+            Action::ModeSheet => self.mode_sheet_open(),
             Action::AirgapUnderstood => {
                 self.airgap_warned = true;
                 self.sheet = None;

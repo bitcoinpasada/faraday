@@ -12,7 +12,6 @@ use faraday_draw::widgets::Icon;
 use crate::drawing::View;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui, W};
-use crate::wallet::network_name;
 use crate::{Action, Faraday, Screen};
 pub(crate) use faraday_ui::sheet::{buttons, kv, kv_sheet, scroll_sheet, sheet, sheet_head};
 
@@ -122,17 +121,17 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
         }
         w - M - 38.0
     };
-    // The network, off mainnet, beside the ?: centred on the bar, a gap
-    // to the ?'s left (the gap `right` already holds). A badge: it opens nothing.
-    let net = app.session.network();
-    if !net.is_mainnet() {
-        let label = network_name(net);
-        let (ph, pw) = (28.0, ui.measure(12.0, W::S, label) + 24.0);
-        let (px, py) = (right - pw, (BAR_H - ph) / 2.0);
+    // The mode, off mainnet, beside the ?: centred on the bar, a gap
+    // to the ?'s left (the gap `right` already holds). Pressed, it opens
+    // the mode sheet.
+    if crate::modes::screen::shows_pill(app) {
+        let pw = crate::modes::screen::pill_width(app, ui);
+        let (px, py) = (
+            right - pw,
+            (BAR_H - faraday_draw::tokens::MODE_PILL_HEIGHT) / 2.0,
+        );
         if draw {
-            ui.fill(px, py, pw, ph, ph / 2.0, WARN.with_alpha(30));
-            ui.stroke(px, py, pw, ph, ph / 2.0, WARN.with_alpha(110));
-            ui.text_mid(px + 12.0, py, ph, 12.0, W::S, WARN, label);
+            crate::modes::screen::pill(app, ui, px, py);
         }
         right = px - faraday_draw::tokens::GAP;
     }
@@ -317,24 +316,31 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let mut y = top + 12.0;
     let inner = w - 2.0 * M;
 
-    // The mark and the name; off mainnet, a badge on the right that
-    // opens nothing. The chooser is in Settings.
+    // The mark and the name; off mainnet, the mode pill on the right,
+    // which opens the mode sheet.
     ui.mark(M, y, 20.0, 23.0);
-    ui.wordmark_named(
-        M + 28.0,
-        y + 6.0,
-        11.0,
-        TEXT,
-        crate::screens::name_suffix(app),
-    );
-    let net = app.session.network();
-    if !net.is_mainnet() {
-        let label = network_name(net);
-        let pw = ui.measure(12.0, W::S, label) + 24.0;
-        let (px, py) = (w - M - pw, y - 2.0);
-        ui.fill(px, py, pw, 28.0, 14.0, WARN.with_alpha(30));
-        ui.stroke(px, py, pw, 28.0, 14.0, WARN.with_alpha(110));
-        ui.text_mid(px + 12.0, py, 28.0, 12.0, W::S, WARN, label);
+    let mut suffix = crate::screens::name_suffix(app);
+    let pill = crate::modes::screen::shows_pill(app);
+    let pw = if pill {
+        crate::modes::screen::pill_width(app, ui)
+    } else {
+        0.0
+    };
+    // The pill takes the name's end where the two do not fit: the name
+    // goes without "Desktop".
+    let (nx, ny) = (M + 28.0, y + 6.0);
+    if pill
+        && nx
+            + crate::compact::screen::measured(ui, |ui| {
+                ui.wordmark_named(nx, ny, 11.0, TEXT, suffix)
+            })
+            > w - M - pw - faraday_draw::tokens::GAP
+    {
+        suffix = crate::ui::NameSuffix::None;
+    }
+    ui.wordmark_named(nx, ny, 11.0, TEXT, suffix);
+    if pill {
+        crate::modes::screen::pill(app, ui, w - M - pw, y - 2.0);
     }
     y += 38.0;
 

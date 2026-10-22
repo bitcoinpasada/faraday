@@ -488,3 +488,15 @@ pub const NO_PICTURE_MS: u64 = 6000;
 /// Milliseconds a QR is seen large enough and not read before the
 /// scanner says how to hold it (`docs/QR.md` §8 item 8).
 pub const POOR_PICTURE_MS: u64 = 4000;
+
+/// The mode pill's height (`docs/MODES.md` §3).
+pub const MODE_PILL_HEIGHT: f32 = 28.0;
+
+/// The mode pill's inset from its edge to its label, each side.
+pub const MODE_PILL_PAD: f32 = 12.0;
+
+/// The mode sheet's widest, as the Load sheet's.
+pub const MODE_SHEET_WIDTH: f32 = 640.0;
+
+/// A row of the mode sheet, and of Settings' Mode row.
+pub const MODE_ROW: f32 = 48.0;

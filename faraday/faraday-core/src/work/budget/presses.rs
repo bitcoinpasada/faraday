@@ -13,14 +13,14 @@ use crate::{Action, Faraday, Screen};
 
 /// Presses left out, by the start of their name: each ends the session
 /// or drops what the next press needs (a lock, a wipe, a change of
-/// mode, a removal; a shorter idle lock locks on the next tick), or
+/// mode (`Mode(..)`; the pill's `ModeSheet` is walked), a removal; a shorter idle lock locks on the next tick), or
 /// is a hold that a press does not finish.
 const SKIP: [&str; 17] = [
     "Lock",
     "PowerOff",
     "Restart",
     "Wipe",
-    "Mode",
+    "Mode(",
     "Demo",
     "Forget",
     "Delete",
@@ -211,4 +211,52 @@ fn every_press_a_main_screen_offers_does_no_costly_work_beyond_its_budget() {
 fn on_the_pis_panel_every_press_a_main_screen_offers_does_no_costly_work_beyond_its_budget() {
     // A compact screen offers fewer presses: one column, its menu folded.
     presses_hold_on(PI, 30);
+}
+
+/// The mode pill's press and the mode sheet's frames, in a mode the pill
+/// shows: nothing costly beyond the fade and the frosted page every sheet
+/// takes (`docs/MODES.md` §3), at rest and drawn again.
+fn mode_sheet_holds_on(panel: Panel) {
+    let (mut app, _) = super::heavy_on(panel);
+    // The heavy session is on Testnet: the pill shows.
+    on(&mut app, Screen::Home);
+    assert!(app.offers(Action::ModeSheet), "the pill is on Home");
+    let work = press_work(&mut app, Action::ModeSheet);
+    assert_eq!(app.sheet, Some(crate::Sheet::Mode));
+    for k in KINDS {
+        let b = match k {
+            Work::FullCanvas => SHEET_CANVAS,
+            Work::Blur => 1,
+            _ => 0,
+        };
+        assert!(work.of(k) <= b, "ModeSheet did {k:?} {} times", work.of(k));
+    }
+    // The sheet drawn again at rest: nothing costly at all.
+    app.settle();
+    let _ = app.frame();
+    let before = snapshot();
+    for _ in 0..3 {
+        let _ = app.frame();
+    }
+    let again = since(&before);
+    for k in KINDS {
+        assert!(
+            again.of(k) == 0,
+            "the sheet's frames did {k:?} {}",
+            again.of(k)
+        );
+    }
+    // Not now: the page comes back, a press like any that leaves a sheet.
+    let work = press_work(&mut app, Action::Cancel);
+    assert_eq!(app.sheet, None);
+    for k in KINDS {
+        let b = if k == Work::FullCanvas { 3 } else { 0 };
+        assert!(work.of(k) <= b, "Not now did {k:?} {}", work.of(k));
+    }
+}
+
+#[test]
+fn the_mode_pills_press_and_the_sheets_frames_do_no_costly_work() {
+    mode_sheet_holds_on(DESKTOP);
+    mode_sheet_holds_on(PI);
 }

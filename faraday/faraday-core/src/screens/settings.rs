@@ -75,6 +75,9 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, w) = (x0 + crate::compact::M, cw - 2.0 * crate::compact::M);
     let top = 12.0 - app.list_offset;
     let mut y = top;
+    // First, where a short panel reaches it without scrolling: on
+    // Mainnet, where no pill shows, it is the only door to the sheet.
+    y += mode_card(app, ui, x, y, w) + 14.0;
     y += section(ui, x, y, w, EN.settings_session, &|ui, x, y0, w| {
         let mut y = y0;
         let n = app.session.keys.len();
@@ -160,11 +163,6 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Action::OpenSetTime,
         );
         y - y0
-    });
-    y += section(ui, x, y, w, EN.settings_network, &|ui, x, y0, w| {
-        let mut y = y0;
-        y += wrap_buttons(ui, x, y, w, 38.0, &network_row_items(app));
-        y - y0 - 8.0
     });
     y += section(ui, x, y, w, EN.settings_appearance, &|ui, x, y0, w| {
         let per_row = 2;
@@ -471,13 +469,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     y += 244.0 - fewer + ignored_h;
     y += time_section(app, ui, x, y, width) + 20.0;
-    ui.card(x, y, width, 94.0, LINE);
-    ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, EN.settings_network);
-    let mut sx = x + 22.0;
-    for (label, style, action) in network_row_items(app) {
-        sx += ui.button(sx, y + 46.0, None, 38.0, label, style, action) + 8.0;
-    }
-    y += 114.0;
+    y += mode_card(app, ui, x, y, width) + 20.0;
     // Each theme a tile in its own colours, in rows as wide as the card.
     let inner = width - 44.0;
     let per_row =
@@ -697,23 +689,12 @@ fn idle_rows(app: &View) -> Vec<IdleRow> {
     rows
 }
 
-/// The Network row's buttons: every mode the app offers, the one in use
-/// marked primary, and every other disabled when the session's network is
-/// fixed (the website). A press is a lock into the mode (F81).
-pub(crate) fn network_row_items(app: &View) -> Vec<(&'static str, Style, Action)> {
-    let now = app.mode();
-    let fixed = app.session.keys.network_fixed();
-    app.modes()
-        .iter()
-        .map(|&m| {
-            let style = if m == now {
-                Style::Primary
-            } else if fixed {
-                Style::Disabled
-            } else {
-                Style::Secondary
-            };
-            (m.name(), style, Action::Mode(m))
-        })
-        .collect()
+/// The card holding the Mode row, which opens the mode sheet. Returns
+/// its height.
+fn mode_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let pad = 22.0;
+    let h = faraday_draw::tokens::MODE_ROW + 2.0 * pad;
+    ui.card(x, y, w, h, LINE);
+    crate::modes::screen::settings_row(app, ui, x + pad, y + pad, w - 2.0 * pad);
+    h
 }

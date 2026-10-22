@@ -30,7 +30,6 @@ use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
-use crate::wallet::network_name;
 use crate::{Action, Screen, Sheet};
 pub(crate) use backup::{SOFTWARE_ROWS, extra_copies, held_item, item_title, item_title_now};
 pub(crate) use create::CSTEPS;
@@ -216,6 +215,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::UnlockLoad => crate::vault::load_screen::draw(app, ui, w, h),
             Sheet::PassphraseSeeds => crate::vault::load_screen::pass_seeds(app, ui, w, h),
             Sheet::GpgSign => crate::vault::screen::gpg_sign_sheet(app, ui, w, h),
+            Sheet::Mode => crate::modes::screen::sheet(app, ui, w, h),
         }
         ui.oy = 0.0;
     }
@@ -431,37 +431,27 @@ fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
     }
 }
 
-/// The network the session is on, at the top right of every page beside
+/// The mode the session is in, at the top right of every page beside
 /// the ? (at `qx`, where the ? is or would be), centred on it, a token
-/// gap to its left. A badge, off mainnet only: it opens nothing. Returns
-/// where the next thing in the row ends, a gap to its left.
+/// gap to its left. Off Mainnet only; pressed, it opens the mode sheet.
+/// Returns where the next thing in the row ends, a gap to its left.
 fn header_network_pill(app: &View, ui: &mut Ui, qx: f32) -> f32 {
-    let net = app.session.network();
     let left = network_pill_left(app, ui, qx);
-    if net.is_mainnet() {
-        return left;
+    if crate::modes::screen::shows_pill(app) {
+        let pw = crate::modes::screen::pill_width(app, ui);
+        crate::modes::screen::pill(app, ui, qx - faraday_draw::tokens::GAP - pw, 12.0);
     }
-    let label = network_name(net);
-    let (h, qy, qh) = (28.0, 12.0, 28.0);
-    let pw = ui.measure(12.0, W::S, label) + 24.0;
-    let px = qx - faraday_draw::tokens::GAP - pw;
-    let py = qy + (qh - h) / 2.0;
-    ui.fill(px, py, pw, h, h / 2.0, WARN.with_alpha(30));
-    ui.stroke(px, py, pw, h, h / 2.0, WARN.with_alpha(110));
-    ui.text_mid(px + 12.0, py, h, 12.0, W::S, WARN, label);
     left
 }
 
 /// Where the top-right row's next item ends, left of the ? (at `qx`)
-/// and the network pill when there is one, a gap between each.
+/// and the mode pill when there is one, a gap between each.
 fn network_pill_left(app: &View, ui: &Ui, qx: f32) -> f32 {
-    let net = app.session.network();
     let gap = faraday_draw::tokens::GAP;
-    if net.is_mainnet() {
+    if !crate::modes::screen::shows_pill(app) {
         return qx - gap;
     }
-    let pw = ui.measure(12.0, W::S, network_name(net)) + 24.0;
-    qx - gap - pw - gap
+    qx - gap - crate::modes::screen::pill_width(app, ui) - gap
 }
 
 /// The wide layout's page area: its left edge and width, the screen

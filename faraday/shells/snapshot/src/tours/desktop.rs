@@ -77,3 +77,31 @@ pub(crate) fn demo_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::LKey(fp));
     t.shot("demo-lightning")
 }
+
+/// Costs what `set_demo` costs. The mode pill and sheet (`docs/MODES.md`
+/// §3): Home and the sheet in Demo and on Testnet, then Settings' Mode
+/// row on Mainnet, where no pill shows.
+pub(crate) fn modes_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
+    t.app.online = true;
+    t.app.session = faraday_core::wallet::Session::on(testkit::NET);
+    t.app.session.set_demo(c);
+    t.app.set_modes(faraday_core::DESKTOP_MODES);
+    t.press(Action::Nav(Screen::Home));
+    t.shot("modes-demo-home")?;
+    t.press(Action::ModeSheet);
+    t.shot("modes-demo-sheet")?;
+    t.press(Action::Cancel);
+    t.app.session = faraday_core::wallet::Session::on(testkit::NET);
+    t.app.set_modes(faraday_core::DESKTOP_MODES);
+    t.press(Action::Nav(Screen::Home));
+    t.shot("modes-testnet-home")?;
+    t.press(Action::ModeSheet);
+    t.shot("modes-testnet-sheet")?;
+    t.press(Action::Cancel);
+    t.press(Action::Nav(Screen::Tools));
+    t.shot("modes-testnet-tools")?;
+    t.app.session = faraday_core::wallet::Session::on(faraday_bip::keys::Network::Mainnet);
+    t.app.set_modes(faraday_core::STICK_MODES);
+    t.press(Action::Nav(Screen::Settings));
+    t.shot("modes-mainnet-settings")
+}

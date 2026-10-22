@@ -254,3 +254,149 @@ fn demo_hands_out_a_public_seed_for_new_key_and_testnet_does_not() {
     let testnet = testkit::started();
     assert!(testnet.session.keys.next_handout().is_none());
 }
+
+/// `app` shown on a window: wide (1366 x 768) or the Pi's compact panel
+/// (480 x 640).
+fn shown_on(app: &mut Faraday, compact: bool) {
+    let (width, height, dpi) = if compact {
+        (480, 640, 286)
+    } else {
+        (1366, 768, 160)
+    };
+    app.event(Event::Display(faraday_shell_api::DisplayInfo {
+        width,
+        height,
+        dpi,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+}
+
+const PAGES: [Screen; 5] = [
+    Screen::Home,
+    Screen::Wallets,
+    Screen::Files,
+    Screen::Vaults,
+    Screen::Settings,
+];
+
+#[test]
+fn off_mainnet_every_page_offers_the_pill_and_it_opens_the_sheet() {
+    for compact in [false, true] {
+        for demo in [true, false] {
+            let mut app = if demo { demo_app() } else { testkit::started() };
+            if !demo {
+                testkit::move_to(&mut app.session, Network::Signet).unwrap();
+            }
+            shown_on(&mut app, compact);
+            for page in PAGES {
+                app.press(Action::Nav(page));
+                assert!(
+                    crate::common::offered(&mut app, Action::ModeSheet),
+                    "{page:?} compact {compact} demo {demo}"
+                );
+            }
+            app.press(Action::Nav(Screen::Home));
+            app.press(Action::ModeSheet);
+            assert_eq!(app.sheet, Some(Sheet::Mode));
+        }
+    }
+}
+
+#[test]
+fn the_pill_names_the_mode_and_in_demo_its_network() {
+    let mut app = demo_app();
+    shown_on(&mut app, false);
+    assert!(crate::common::has(&mut app, "Demo · Testnet"));
+    let mut app = testkit::started();
+    testkit::move_to(&mut app.session, Network::Regtest).unwrap();
+    shown_on(&mut app, true);
+    assert!(crate::common::has(&mut app, "Regtest"));
+}
+
+#[test]
+fn on_mainnet_no_pill_shows_and_settings_mode_row_opens_the_sheet() {
+    for compact in [false, true] {
+        let mut app = testkit::started();
+        testkit::move_to(&mut app.session, Network::Mainnet).unwrap();
+        shown_on(&mut app, compact);
+        for page in [Screen::Home, Screen::Wallets, Screen::Files] {
+            app.press(Action::Nav(page));
+            assert!(
+                !crate::common::offered(&mut app, Action::ModeSheet),
+                "{page:?} compact {compact}"
+            );
+        }
+        app.press(Action::Nav(Screen::Settings));
+        assert!(
+            crate::common::offered(&mut app, Action::ModeSheet),
+            "compact {compact}"
+        );
+        app.press(Action::ModeSheet);
+        assert_eq!(app.sheet, Some(Sheet::Mode));
+    }
+}
+
+#[test]
+fn the_sheet_offers_each_mode_marks_the_one_in_use_and_not_now_closes_it() {
+    for compact in [false, true] {
+        let mut app = demo_app();
+        shown_on(&mut app, compact);
+        app.press(Action::ModeSheet);
+        for &m in DESKTOP_MODES {
+            assert!(crate::common::offered(&mut app, Action::Mode(m)), "{m:?}");
+        }
+        assert!(!crate::common::offered(
+            &mut app,
+            Action::Mode(Mode::Mainnet)
+        ));
+        let names = crate::common::texts(&mut app);
+        for want in ["Mode", "Demo", "Testnet", "Signet", "Regtest", "Not now"] {
+            assert!(names.iter().any(|t| t == want), "{want}: {names:?}");
+        }
+        assert!(!names.iter().any(|t| t == "Mainnet"));
+        assert!(crate::common::offered(&mut app, Action::Cancel));
+        app.press(Action::Cancel);
+        assert_eq!(app.sheet, None);
+        assert_eq!(app.mode(), Mode::Demo);
+    }
+}
+
+#[test]
+fn escape_closes_the_sheet_and_choosing_a_row_locks_into_its_mode() {
+    let mut app = demo_app();
+    shown_on(&mut app, false);
+    app.press(Action::ModeSheet);
+    app.event(Event::Key(faraday_shell_api::Key::Escape));
+    assert_eq!(app.sheet, None);
+    app.press(Action::ModeSheet);
+    app.press(Action::Mode(Mode::Regtest));
+    assert!(app.restart_requested());
+    assert_eq!(app.mode_after_restart(), Mode::Regtest);
+}
+
+#[test]
+fn a_fixed_sessions_sheet_offers_no_other_mode() {
+    let mut app = demo_app();
+    app.session.keys.fix_network();
+    shown_on(&mut app, false);
+    // The pill still opens the sheet.
+    assert!(crate::common::offered(&mut app, Action::ModeSheet));
+    app.press(Action::ModeSheet);
+    assert_eq!(app.sheet, Some(Sheet::Mode));
+    assert!(crate::common::offered(&mut app, Action::Mode(Mode::Demo)));
+    for m in [Mode::Testnet, Mode::Signet, Mode::Regtest] {
+        assert!(!crate::common::offered(&mut app, Action::Mode(m)), "{m:?}");
+    }
+    // The dimmed rows still name their modes, with no reason line.
+    let names = crate::common::texts(&mut app);
+    for want in ["Testnet", "Signet", "Regtest"] {
+        assert!(names.iter().any(|t| t == want), "{want}");
+    }
+    assert_eq!(app.sheet, Some(Sheet::Mode));
+}
