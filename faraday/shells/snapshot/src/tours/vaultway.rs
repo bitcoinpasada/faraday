@@ -52,7 +52,9 @@ pub(crate) fn vaultway_tour(t: &mut Tour) -> Result<(), String> {
     for _ in 0..20 {
         t.tick();
     }
-    if t.app.screen != Screen::VaultContents {
+    crate::tour::not_now_load(t);
+    // GPG keys continue into the backup flow the vault was opened for.
+    if !matches!(t.app.screen, Screen::VaultContents | Screen::BackupFlow) {
         return Err("unlocking did not come back to the GPG keys".into());
     }
     t.shot("unlocked-gpg")?;

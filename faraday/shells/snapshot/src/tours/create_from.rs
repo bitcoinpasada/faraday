@@ -84,7 +84,7 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
         "create-keys-vault-open-down",
     )?;
     // The vault's key and test key 3 worked out apart from the session.
-    let mut apart = faraday_core::wallet::Session::default();
+    let mut apart = testkit::session();
     for n in [0, 2] {
         let (word, label) = testkit::TEST_SEEDS[n];
         apart

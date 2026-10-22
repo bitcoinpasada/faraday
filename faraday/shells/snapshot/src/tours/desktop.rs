@@ -110,8 +110,14 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("modes-demo-samples-sheet")?;
     t.press(Action::SampleTick(Pick::Wallet(0)));
     t.shot("modes-demo-samples-ticked")?;
+    // With a stick in, keys do not load: the Pull sheet asks for it out,
+    // and pulling it loads the samples.
+    t.sticks(true);
     t.press(Action::SamplesLoad);
+    t.shot("modes-demo-samples-pull")?;
+    t.sticks(false);
     t.shot("modes-demo-samples-loaded")?;
+    demo_psbt(t)?;
     t.press(Action::Samples);
     t.shot("modes-demo-samples-after")?;
     crate::tour::scroll(t, 700);
@@ -133,6 +139,28 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     t.app.set_modes(faraday_core::STICK_MODES);
     t.press(Action::Nav(Screen::Settings));
     t.shot("modes-mainnet-settings")
+}
+
+/// The sample transaction (`docs/MODES.md` §6): Home's scanner, the
+/// Wallets path's spend steps and their scanners, each with Load sample
+/// PSBT, and the review it leads to.
+fn demo_psbt(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::family::{FamilyAction as F, page};
+    t.press(Action::Nav(Screen::Home));
+    t.press(Action::Scan);
+    t.shot("modes-demo-scan-psbt")?;
+    t.press(Action::Cancel);
+    t.press(Action::Nav(Screen::Wallets));
+    t.press(Action::OpenWallet(0));
+    t.press(Action::Family(F::SpendFrom(0)));
+    t.shot("modes-demo-spend-first")?;
+    t.press(Action::Scan);
+    t.shot("modes-demo-spend-scan-psbt")?;
+    t.press(Action::Cancel);
+    t.press(Action::Family(F::Next(page::CHECK)));
+    t.shot("modes-demo-spend-write")?;
+    t.press(Action::SamplePsbt);
+    t.shot("modes-demo-spend-read")
 }
 
 /// Passphrases in Demo (`docs/MODES.md` §6.2): each empty field offers the

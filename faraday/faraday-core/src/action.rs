@@ -234,6 +234,9 @@ pub enum Action {
     PassChip(crate::demo::PassField),
     /// The scanner's Sample tile: reads a sample as the camera would.
     ScanSample,
+    /// Load sample PSBT, in a step that asks for the transaction: the
+    /// sample spend comes in as a scan of it would bring it.
+    SamplePsbt,
     /// Close a sheet.
     Cancel,
     /// Set the display scale, in percent.

@@ -981,6 +981,36 @@ impl Faraday {
         }
     }
 
+    /// A SLIP-39 share or a codex32 string read by the intake scanner:
+    /// Add a key opens on its form with it in, and returns to the Spend
+    /// tab once the key is put together. Returns whether it was one.
+    pub(crate) fn intake_key_part(&mut self, bytes: &[u8]) -> bool {
+        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_lowercase());
+        let form = if faraday_bip::slip39::Share::parse(&text).is_ok() {
+            crate::forms::Form::Slip39
+        } else if faraday_bip::codex32::Codex32::parse(&text).is_ok() {
+            crate::forms::Form::Codex32
+        } else {
+            return false;
+        };
+        if !self.may_load_keys() {
+            if let Some(scan) = self.scan.as_mut() {
+                scan.note = Some(crate::stick_keys(self.medium));
+            }
+            return true;
+        }
+        self.scan = None;
+        self.sheet = None;
+        self.commands.push_back(Command::CameraOff);
+        self.act(Action::Entry(None));
+        if let Some(i) = crate::forms::Form::ALL.iter().position(|f| *f == form) {
+            self.act(Action::EntryForm(i as u8));
+        }
+        self.entry.typed.set(&text);
+        self.form_add_part();
+        true
+    }
+
     /// A file the intake scanner put in Files: listed, and taken as what
     /// it is. The camera stays on.
     pub(crate) fn family_intake_file(&mut self, index: usize) {

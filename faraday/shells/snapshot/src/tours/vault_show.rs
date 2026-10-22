@@ -29,6 +29,7 @@ pub(crate) fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
     type_text(t, testkit::VAULT_PASSPHRASES[0]);
     t.press(Action::Vault(V::Unlock));
     t.tick();
+    crate::tour::not_now_load(t);
     t.press(Action::Nav(Screen::VaultContents));
     t.press(Action::Vault(V::Category(0)));
     t.press(Action::Vault(V::Item(0)));

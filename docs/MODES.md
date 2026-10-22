@@ -70,6 +70,14 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
    `Faraday::mode_after_restart()` is `next_mode.unwrap_or(self.mode())`:
    a lock keeps the mode the person was in; a mode change takes the one
    chosen. The shell reads it before it drops the app.
+   A mode change empties more than a lock does (owner, 2026-10-22): the
+   Inbox (From the stick) and the Outbox (For the stick) are emptied and
+   the shell is told to keep none of them (`SaveBoxes` with nothing), on
+   the desktop and on the stick and the Pi alike; nothing the lock keeps
+   in memory is carried but the mode. A plain lock keeps both boxes as
+   before. Files on a stick are not touched. The Lock sheet of a mode
+   change says it keeps nothing but the mode (`lock_mode_keeps_nothing`)
+   and does not list the files For the stick as kept.
 7. **What goes.** `Session::set_network` and `Keys::set_network` leave
    every path a person takes; `Keys::set_network` stays only for
    `Session::follow` (point 8) and a shell's start. Its mainnet refusal
@@ -304,7 +312,14 @@ loaded, and for a set, not yet begun.
 **Placement.** Inside the empty field, where a placeholder would be.
 The scanner, which has no field: a third tile in the band, after Paste
 and Type (DESIGN §4.9), with an existing icon. Never drawn on Mainnet,
-Testnet, Signet or Regtest; drawn on the website.
+Testnet, Signet or Regtest; drawn on the website. The tile says what it
+hands over (Load sample PSBT, wallet, seed, share, key, SeedQR, code,
+address), the short word Sample where the long one does not fit. Every
+scanner that takes a file offers it; a step that asks for the transaction
+(the Spend tab's What do you have?, its first step's shortcut, Write the
+payment) also has a Load sample PSBT button beside its Scan, which hands
+over the same spend and takes the same path as a scan of it. The same
+transaction read again is the file already in Files, not a second copy.
 
 **The same value again.** Where a flow asks again for a value a sample
 filled, the button fills the matching one, read from the state that
@@ -342,7 +357,7 @@ to remember, as for real.
 | Add a key, BIP-39 words | `faraday/faraday-core/src/screens/entry.rs` `entry_form`, `entry_words`; `forms.rs` `Form::Words` | the next word sample of the word count chosen (`word_count_row`), as typed words |
 | Add a key, SLIP-39 / codex32 / Seed XOR | the same; `forms.rs` `Parts` | the next part of the set begun; with none begun, part 1 of the first set not loaded |
 | The scanner: a seed, a part, a wallet's missing key, the Spend tab's envelope | `faraday/faraday-core/src/screens/sheets.rs` `scan_sheet`; `qr_view.rs` `ScanPurpose::Seed`, `KeyPart`, `WalletKey`, `Intake`; handed to `Faraday::scanned` | Seed: a word sample's SeedQR digits; KeyPart: as Add a key; WalletKey(n): the sample whose fingerprint is a missing key of wallet n (no tile when none is); Intake: the unsigned spend of the first loaded sample wallet, else Savings' |
-| The scanner: a file (a wallet, a PSBT) | `ScanPurpose::Files` from Restore, Spend, Decode | Restore: the next sample wallet not loaded, as its descriptor; Spend and Decode: the unsigned spend of the wallet in hand, else of the first loaded sample wallet |
+| The scanner: a file (a wallet, a PSBT) | `ScanPurpose::Files` from any screen | Restore: the next sample wallet not loaded, as its descriptor; Spend and Decode: the unsigned spend of the wallet in hand, else of the first loaded sample wallet |
 | The scanner: a copy to check | `ScanPurpose::CheckCopy(fp)` | the SeedQR of key `fp` when it is a sample; no tile otherwise |
 | The scanner: a TOTP code | `ScanPurpose::VaultEntry` | §5.3's setup code |
 | Scan a key (a wallet's missing key) | `faraday/faraday-core/src/scan_key.rs` | as WalletKey above |

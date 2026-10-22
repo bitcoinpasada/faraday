@@ -169,7 +169,13 @@ fn body(
             let p = if l.passphrase.is_empty() && !l.on_passphrase {
                 EN.lightning_aezeed_lnd.to_string()
             } else {
-                format!("{}{}", "•".repeat(l.passphrase.len()), ui.caret_char())
+                let chip = app.pass_chip_shown(
+                    crate::demo::PassField::Aezeed,
+                    l.passphrase.is_empty(),
+                    l.on_passphrase,
+                );
+                let caret = if chip { "" } else { ui.caret_char() };
+                format!("{}{}", "•".repeat(l.passphrase.len()), caret)
             };
             let p = ui.fit(13.0, W::M, &p, pw - 24.0);
             ui.text_mid(px + 12.0, y, 40.0, 13.0, W::M, TEXT, &p);

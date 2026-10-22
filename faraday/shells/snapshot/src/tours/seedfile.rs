@@ -65,6 +65,7 @@ pub(crate) fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     for _ in 0..20 {
         t.tick();
     }
+    crate::tour::not_now_load(t);
     if t.app.vaults.open.len() != 1 {
         return Err("the test vault did not open".into());
     }

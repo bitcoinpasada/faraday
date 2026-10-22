@@ -784,33 +784,30 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     let ready = app.family_ready();
     let may = app.may_load_keys();
-    cy += crate::screens::wrap_buttons(
-        ui,
-        x,
-        cy,
-        w,
-        40.0,
-        &[
-            (
-                EN.family_scan_the_qr,
-                if ready {
-                    Style::Secondary
-                } else {
-                    Style::Primary
-                },
-                fa(F::Scan),
-            ),
-            (
-                EN.family_type_the_words,
-                if may {
-                    Style::Secondary
-                } else {
-                    Style::Disabled
-                },
-                fa(F::TypeWords),
-            ),
-        ],
-    );
+    let mut ways = vec![
+        (
+            EN.family_scan_the_qr,
+            if ready {
+                Style::Secondary
+            } else {
+                Style::Primary
+            },
+            fa(F::Scan),
+        ),
+        (
+            EN.family_type_the_words,
+            if may {
+                Style::Secondary
+            } else {
+                Style::Disabled
+            },
+            fa(F::TypeWords),
+        ),
+    ];
+    if app.sample_psbt_offered() {
+        ways.push((EN.scan_sample_psbt, Style::Secondary, Action::SamplePsbt));
+    }
+    cy += crate::screens::wrap_buttons(ui, x, cy, w, 40.0, &ways);
     // A description already in Files, or on a stick to copy in.
     if !ready {
         let files: Vec<String> = app
@@ -1376,6 +1373,14 @@ fn shortcut(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if app.spend.is_some() {
         return 0.0;
     }
+    let sample = app.sample_psbt_offered();
+    let with_sample = |scan: &'static str| {
+        let mut items = vec![(scan, Style::Secondary, Action::Scan)];
+        if sample {
+            items.push((EN.scan_sample_psbt, Style::Secondary, Action::SamplePsbt));
+        }
+        items
+    };
     if ui.compact {
         // Too long for one button on a small panel: the line, then Scan it.
         let lh = ui.wrap(x, y, w, 14.0, W::S, TEXT, EN.family_i_have_the_psbt_from) + 8.0;
@@ -1386,18 +1391,11 @@ fn shortcut(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 y + lh,
                 w,
                 40.0,
-                &[(EN.family_scan_it, Style::Secondary, Action::Scan)],
+                &with_sample(EN.family_scan_it),
             )
             + 8.0;
     }
-    crate::screens::wrap_buttons(
-        ui,
-        x,
-        y,
-        w,
-        40.0,
-        &[(SHORTCUT, Style::Secondary, Action::Scan)],
-    ) + 8.0
+    crate::screens::wrap_buttons(ui, x, y, w, 40.0, &with_sample(SHORTCUT)) + 8.0
 }
 
 /// The shortcut's label.
@@ -1610,6 +1608,18 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Action::Scan,
     );
     cy += 52.0;
+    if app.sample_psbt_offered() {
+        ui.button(
+            x,
+            cy,
+            None,
+            faraday_draw::tokens::SAMPLE_BUTTON_HEIGHT,
+            EN.scan_sample_psbt,
+            Style::Secondary,
+            Action::SamplePsbt,
+        );
+        cy += faraday_draw::tokens::SAMPLE_BUTTON_ROW;
+    }
     let label = if card {
         fill(EN.family_on, &[app.medium.a()])
     } else {

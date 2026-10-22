@@ -582,7 +582,8 @@ pub(crate) fn dots_field(
     // The chip, drawn after, is pressed before the field.
     ui.hit(x, y, w, tokens::TEXT_FIELD, action);
     if text.is_empty() {
-        ui.no_passphrase(x, y, 40.0, on);
+        // No caret under the chip.
+        ui.no_passphrase(x, y, 40.0, on && !matches!(chip, Some((_, true))));
         if let Some((a, true)) = chip {
             crate::samples::put::pass_chip(ui, (x, y, w, tokens::TEXT_FIELD), a, true);
         }

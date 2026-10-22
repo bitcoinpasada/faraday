@@ -2,12 +2,15 @@
 //! data is checked against the key store, the testkit, the published
 //! vectors and another implementation of BIP-39 and BIP-32.
 
+mod chip_caret;
 mod common;
 mod files;
 mod handouts;
 mod keys;
 mod load;
 mod passphrase;
+mod psbt;
+mod pull;
 mod use_sample;
 mod vectors;
 mod wallets;

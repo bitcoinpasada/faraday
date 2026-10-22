@@ -569,6 +569,7 @@ impl Faraday {
             Action::SamplesLoad => self.samples_load(set),
             Action::UseSample => self.use_sample(),
             Action::ScanSample => self.scan_use_sample(),
+            Action::SamplePsbt => self.sample_psbt_use(),
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
         }

@@ -96,6 +96,30 @@ impl Faraday {
         self.next_mode.unwrap_or_else(|| self.mode())
     }
 
+    /// What a lock hands the shell to keep in memory: the boxes as they
+    /// are, or, for a mode change, nothing at all, the Inbox and the
+    /// Outbox emptied here too (`docs/MODES.md` §2, item 6).
+    pub(crate) fn save_boxes_for_lock(&mut self) {
+        if self.mode_changing() {
+            self.inbox.clear();
+            self.outbox.clear();
+            self.storage_out
+                .push_back(crate::StorageCommand::SaveBoxes {
+                    inbox: Vec::new(),
+                    outbox: Vec::new(),
+                    kept: Vec::new(),
+                });
+        } else {
+            self.save_boxes();
+        }
+    }
+
+    /// Whether the lock now asked for is a mode change: it keeps nothing
+    /// but the mode. A lookup.
+    pub fn mode_changing(&self) -> bool {
+        self.next_mode.is_some()
+    }
+
     /// Handles `Action::ModeSheet`: the pill or Settings' Mode row opens
     /// the sheet, over the page it was pressed on.
     pub(crate) fn mode_sheet_open(&mut self) {

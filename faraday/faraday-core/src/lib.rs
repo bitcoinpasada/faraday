@@ -2705,6 +2705,9 @@ impl Faraday {
             | Action::Vault(vault::VaultAction::PassphraseKey(_)) => EN.pull_what_add_a_key,
             Action::KeyGen(Some(_)) | Action::KeyGenSlip39 => EN.pull_what_make_a_key,
             Action::PotentialOpen(_) => EN.pull_what_load_the,
+            // The ticks stay on the Load samples state while the sheet
+            // waits; the load runs when the stick is out.
+            Action::SamplesLoad if self.sample_sheet.any_ticked() => EN.pull_what_load_samples,
             Action::BackupOpen(_) => EN.pull_what_open_the,
             // Unlocking for another flow: the Pull sheet asks first, and
             // Unlock opens once the stick is out.
@@ -3030,7 +3033,7 @@ impl Faraday {
         self.bip85 = None;
         self.secret_out = None;
         self.entry = EntryState::default();
-        self.save_boxes();
+        self.save_boxes_for_lock();
         self.restart = true;
         self.commands.push_back(Command::Exit);
     }
@@ -3692,7 +3695,8 @@ impl Faraday {
             | Action::SamplesAll
             | Action::SamplesLoad
             | Action::UseSample
-            | Action::ScanSample) => self.samples_act(a),
+            | Action::ScanSample
+            | Action::SamplePsbt) => self.samples_act(a),
             a @ (Action::RFromVault(..)
             | Action::RestoreWallet
             | Action::RStep(..)
@@ -6606,10 +6610,11 @@ impl Faraday {
             return;
         }
         let is_key = item.kind == FileKind::Key;
-        self.inbox.push(item);
-        self.save_boxes();
+        // The same file read again is the one already in Files.
+        let at = self.inbox_file_in(item);
+        let name = self.inbox[at].name.clone();
         if intake {
-            self.family_intake_file(self.inbox.len() - 1);
+            self.family_intake_file(at);
             return;
         }
         self.scan = None;
@@ -6617,14 +6622,13 @@ impl Faraday {
         self.commands.push_back(Command::CameraOff);
         // A cosigner's account key scanned while a wallet is made from
         // seeds fills the box waiting for one.
-        if is_key && self.seeds_take_file(self.inbox.len() - 1) {
+        if is_key && self.seeds_take_file(at) {
             self.toast(&fill(EN.scanned_is_a_cosigner, &[&name.to_string()]));
             return;
         }
         // A cosigner's key scanned while a wallet is being made fills the
         // slot waiting for one.
         if is_key && let Some(slot) = self.create_waiting_slot() {
-            let at = self.inbox.len() - 1;
             self.act(Action::CSlotFile(slot, at));
             self.toast(&fill(
                 EN.scanned_is_key,
@@ -6633,10 +6637,10 @@ impl Faraday {
             self.screen = Screen::Create;
             return;
         }
-        if self.screen == Screen::Family && self.family_arrived(self.inbox.len() - 1) {
+        if self.screen == Screen::Family && self.family_arrived(at) {
             return;
         }
-        if self.screen == Screen::Restore && self.restore_arrived(self.inbox.len() - 1) {
+        if self.screen == Screen::Restore && self.restore_arrived(at) {
             return;
         }
         self.toast(&fill(EN.scanned_is_in_files, &[&name.to_string()]));
@@ -6646,36 +6650,6 @@ impl Faraday {
         ) {
             self.screen = Screen::Files;
         }
-    }
-
-    /// A SLIP-39 share or a codex32 string read by the intake scanner:
-    /// Add a key opens on its form with it in, and returns to the Spend
-    /// tab once the key is put together. Returns whether it was one.
-    fn intake_key_part(&mut self, bytes: &[u8]) -> bool {
-        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_lowercase());
-        let form = if faraday_bip::slip39::Share::parse(&text).is_ok() {
-            forms::Form::Slip39
-        } else if faraday_bip::codex32::Codex32::parse(&text).is_ok() {
-            forms::Form::Codex32
-        } else {
-            return false;
-        };
-        if !self.may_load_keys() {
-            if let Some(scan) = self.scan.as_mut() {
-                scan.note = Some(stick_keys(self.medium));
-            }
-            return true;
-        }
-        self.scan = None;
-        self.sheet = None;
-        self.commands.push_back(Command::CameraOff);
-        self.act(Action::Entry(None));
-        if let Some(i) = forms::Form::ALL.iter().position(|f| *f == form) {
-            self.act(Action::EntryForm(i as u8));
-        }
-        self.entry.typed.set(&text);
-        self.form_add_part();
-        true
     }
 
     /// A seed's words read by the camera: the camera closes and the
@@ -9314,8 +9288,10 @@ fn slow(a: Action) -> bool {
             | Action::LResolve
             | Action::LoadKey(_)
             | Action::Lock
+            | Action::NewWalletFrom(_)
             | Action::SamplesLoad
             | Action::ScanSample
+            | Action::SamplePsbt
             | Action::PLoad
             | Action::PotentialMake
             | Action::SecretUnprotected

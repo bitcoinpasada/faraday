@@ -216,6 +216,19 @@ impl InboxFiles {
     }
 }
 
+impl Faraday {
+    /// Puts a file that came in into Files and returns its place: the
+    /// same file read again is the one already there, not a second copy.
+    pub(crate) fn inbox_file_in(&mut self, item: Item) -> usize {
+        if let Some(at) = self.inbox.iter().position(|i| i.bytes == item.bytes) {
+            return at;
+        }
+        self.inbox.push(item);
+        self.save_boxes();
+        self.inbox.len() - 1
+    }
+}
+
 impl std::ops::Deref for InboxFiles {
     type Target = Vec<Item>;
     fn deref(&self) -> &Vec<Item> {

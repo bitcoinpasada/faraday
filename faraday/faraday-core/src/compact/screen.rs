@@ -474,7 +474,8 @@ fn pass_field(
     // The chip, drawn after, is pressed before the field.
     ui.hit(x, fy, w, T::TEXT_FIELD_TALL, action);
     if secret.is_empty() {
-        ui.no_passphrase(x, fy, 42.0, on);
+        // No caret under the chip.
+        ui.no_passphrase(x, fy, 42.0, on && !matches!(chip, Some((_, true))));
         if let Some((a, true)) = chip {
             crate::samples::put::pass_chip(ui, (x, fy, w, T::TEXT_FIELD_TALL), a, true);
         }

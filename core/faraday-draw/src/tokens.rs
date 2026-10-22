@@ -559,6 +559,17 @@ pub const SCAN_TILE_TEXT: f32 = 14.0;
 /// padding each side.
 pub const SCAN_TILE_PAD: f32 = 32.0;
 
+/// The scanner's Sample tile on a wide display: the most room its label
+/// may take; a longer one is the short label.
+pub const SCAN_TILE_MAX_SPAN: f32 = 210.0;
+
+/// A step's Load sample PSBT button beside its Scan: its height, and the
+/// row it takes with the gap under it.
+pub const SAMPLE_BUTTON_HEIGHT: f32 = 40.0;
+
+/// A step's Load sample PSBT button: the row it takes.
+pub const SAMPLE_BUTTON_ROW: f32 = 52.0;
+
 /// The scanner's foot: the gap between its buttons.
 pub const SCAN_TILE_GAP: f32 = 12.0;
 

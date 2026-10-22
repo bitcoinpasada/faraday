@@ -170,22 +170,34 @@ pub(crate) fn pass_box(
     ui: &mut crate::ui::Ui,
     (x, y, w): (f32, f32, f32),
     b: &crate::vault::TextBox,
-    (shown, focused): (bool, bool),
+    (shown_eye, focused): (bool, bool),
     (action, eye): (Action, Action),
     field: PassField,
 ) {
     let h = faraday_draw::tokens::TEXT_FIELD;
+    // No caret under the chip: it stands where the typing would start.
+    let chip = app.pass_chip_shown(field, b.text.is_empty(), focused);
     crate::vault::screen::secret_box(
         ui,
         x,
         y,
         w,
         b,
-        app.pass_shows(shown, &b.text),
-        focused,
+        app.pass_shows(shown_eye, &b.text),
+        focused && !chip,
         action,
         eye,
     );
+    if focused && chip {
+        ui.stroke(
+            x,
+            y,
+            w,
+            h,
+            faraday_draw::tokens::FIELD_RADIUS,
+            crate::ui::pal::ACCENT,
+        );
+    }
     app.pass_chip_draw(ui, (x, y, w, h), (b.text.is_empty(), focused, false), field);
 }
 
@@ -277,15 +289,22 @@ impl Faraday {
         (empty, focused, right): (bool, bool, bool),
         field: PassField,
     ) {
-        if !empty {
+        if !self.pass_chip_shown(field, empty, focused) {
             return;
         }
-        if field == PassField::Prompt && !self.prompt_chip() {
-            return;
-        }
-        if let Some((a, true)) = self.pass_chip(field, focused) {
+        if let Some((a, _)) = self.pass_chip(field, focused) {
             crate::samples::put::pass_chip(ui, r, a, right);
         }
+    }
+
+    /// Whether the chip of `field` is on screen: Demo, the field `empty`,
+    /// the person not pressed in it (`focused`) or typed, and the field
+    /// offering one (the KeePass export's prompt does not). The caret is
+    /// not drawn in the field while it is. A lookup.
+    pub(crate) fn pass_chip_shown(&self, field: PassField, empty: bool, focused: bool) -> bool {
+        empty
+            && !(field == PassField::Prompt && !self.prompt_chip())
+            && matches!(self.pass_chip(field, focused), Some((_, true)))
     }
 
     /// The chip of a vault entry's password field `k` of `form`, when it
@@ -301,8 +320,31 @@ impl Faraday {
         if form.is_password(k) {
             let h = faraday_draw::tokens::TEXT_FIELD;
             let field = PassField::Password(k as u8);
+            if focused && self.pass_chip_shown(field, b.text.is_empty(), focused) {
+                ui.stroke(
+                    x,
+                    y,
+                    w,
+                    h,
+                    faraday_draw::tokens::FIELD_RADIUS,
+                    crate::ui::pal::ACCENT,
+                );
+            }
             self.pass_chip_draw(ui, (x, y, w, h), (b.text.is_empty(), focused, false), field);
         }
+    }
+
+    /// Whether the caret draws in field `k` of `form`, which is `focused`:
+    /// not under the chip of an empty password.
+    pub(crate) fn field_caret(
+        &self,
+        form: &crate::vault::Form,
+        k: usize,
+        (b, focused): (&crate::vault::TextBox, bool),
+    ) -> bool {
+        let chip = form.is_password(k)
+            && self.pass_chip_shown(PassField::Password(k as u8), b.text.is_empty(), focused);
+        focused && !chip
     }
 
     /// A key is typed (or erased): the chip of a field in focus is gone.

@@ -97,7 +97,13 @@ fn potential_compact(
                 ui.stroke(x, cy, iw, 44.0, 8.0, if p.typing { ACCENT } else { BORDER });
                 let shown = ui.fit_secret(14.0, W::M, &shown, iw - 60.0);
                 let tw = ui.text_mid(x + 12.0, cy, 44.0, 14.0, W::M, TEXT, &shown);
-                if p.typing {
+                if p.typing
+                    && !app.pass_chip_shown(
+                        crate::demo::PassField::Potential,
+                        p.passphrase.is_empty(),
+                        p.typing,
+                    )
+                {
                     ui.caret(x + 13.0 + tw, cy + 13.0, 18.0);
                 }
                 ui.hit(x, cy, iw - 44.0, 44.0, Action::PotentialType);
@@ -285,7 +291,13 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             );
             let shown = ui.fit_secret(14.0, W::M, &shown, iw - 60.0);
             let tw = ui.text_mid(ix + 12.0, cy, 40.0, 14.0, W::M, TEXT, &shown);
-            if p.typing {
+            if p.typing
+                && !app.pass_chip_shown(
+                    crate::demo::PassField::Potential,
+                    p.passphrase.is_empty(),
+                    p.typing,
+                )
+            {
                 ui.caret(ix + 13.0 + tw, cy + 11.0, 18.0);
             }
             ui.hit(ix, cy, iw - 44.0, 40.0, Action::PotentialType);
@@ -691,6 +703,11 @@ fn kept_sections(
     then: String,
 ) -> Vec<(&'static str, Vec<(String, faraday_draw::Color)>)> {
     let kw = app.kept_wiped(power_off);
+    let then = if app.mode_changing() {
+        EN.lock_mode_keeps_nothing.to_string()
+    } else {
+        then
+    };
     vec![
         (
             EN.kept_sections_kept,
@@ -1002,7 +1019,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             .collect();
         let typing = if typing { 220.0 } else { 0.0 };
         let sampling = if sample {
-            crate::samples::put::scan_tile_span(ui)
+            crate::samples::put::scan_tile_span(ui, app.scan_sample_label())
         } else {
             0.0
         };
@@ -1023,7 +1040,12 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     let mut left = x + sw - 32.0 - 120.0 - 12.0;
     if sample {
-        left = crate::samples::put::scan_tile(ui, (x, sw, foot), (type_row, left));
+        left = crate::samples::put::scan_tile(
+            ui,
+            (x, sw, foot),
+            (type_row, left),
+            app.scan_sample_label(),
+        );
     }
     if let Some(action) = type_instead {
         let label = EN.scan_type_the_words;

@@ -3070,7 +3070,7 @@ pub(crate) fn codes_form(app: &View, ui: &mut Ui, dx: f32, dy: f32, dw: f32) -> 
                 dw,
                 b,
                 app.field_shows(form, k),
-                focused,
+                app.field_caret(form, k, (b, focused)),
                 va(V::FocusField(k)),
                 va(V::ShowTyped),
             );
@@ -3150,7 +3150,7 @@ fn detail(
                         dw,
                         b,
                         app.field_shows(form, k),
-                        focused,
+                        app.field_caret(form, k, (b, focused)),
                         va(V::FocusField(k)),
                         va(V::ShowTyped),
                     );

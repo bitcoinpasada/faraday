@@ -3378,6 +3378,10 @@ pub struct Strings {
     pub pull_what_add_a_key: &'static str,
     /// Text in `pull_what`.
     pub pull_what_scan: &'static str,
+    /// Text in `pull_what`.
+    pub pull_what_load_samples: &'static str,
+    /// The Lock sheet's last section when the lock is a mode change.
+    pub lock_mode_keeps_nothing: &'static str,
     // ----- visit_then (faraday-core/src/lib.rs) -----
     /// Text in `visit_then`. `{}`: `self.back_name(s)`.
     pub visit_then_then: &'static str,
@@ -7850,6 +7854,23 @@ pub struct Strings {
     /// The same where the field is narrower than the chip, and the
     /// scanner's tile that reads a sample.
     pub scan_sample: &'static str,
+    /// The scanner's tile, and the step's button, that hands over the
+    /// sample transaction.
+    pub scan_sample_psbt: &'static str,
+    /// The scanner's tile that hands over a sample wallet.
+    pub scan_sample_wallet: &'static str,
+    /// The scanner's tile that hands over a sample seed.
+    pub scan_sample_seed: &'static str,
+    /// The scanner's tile that hands over a sample share or part.
+    pub scan_sample_share: &'static str,
+    /// The scanner's tile that hands over a sample key.
+    pub scan_sample_key: &'static str,
+    /// The scanner's tile that hands over a sample SeedQR.
+    pub scan_sample_seedqr: &'static str,
+    /// The scanner's tile that hands over a sample code.
+    pub scan_sample_code: &'static str,
+    /// The scanner's tile that hands over a sample address.
+    pub scan_sample_address: &'static str,
     // ----- samples (faraday-core/src/samples/) -----
     /// The Load samples pill, on the wide layout.
     pub samples_pill: &'static str,
@@ -10659,6 +10680,8 @@ pub static EN: Strings = Strings {
     pull_what_make_a_key: "make a key",
     pull_what_add_a_key: "add a key",
     pull_what_scan: "scan",
+    pull_what_load_samples: "load the samples",
+    lock_mode_keeps_nothing: "A mode change keeps nothing but the mode: Files, For the stick, keys and wallets are emptied.",
     visit_then_then: "Then: {}",
     visit_then_then_unlock: "Then: Unlock",
     visit_then_then_home: "Then: Home",
@@ -12791,6 +12814,14 @@ pub static EN: Strings = Strings {
     never_real_seed: "Never type a seed that holds real bitcoin here.",
     use_a_sample: "Use a sample",
     scan_sample: "Sample",
+    scan_sample_psbt: "Load sample PSBT",
+    scan_sample_wallet: "Load sample wallet",
+    scan_sample_seed: "Load sample seed",
+    scan_sample_share: "Load sample share",
+    scan_sample_key: "Load sample key",
+    scan_sample_seedqr: "Load sample SeedQR",
+    scan_sample_code: "Load sample code",
+    scan_sample_address: "Load sample address",
     samples_pill: "Load samples",
     samples_pill_short: "Samples",
     samples_title: "Load samples",

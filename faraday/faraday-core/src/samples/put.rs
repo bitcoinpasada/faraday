@@ -137,9 +137,20 @@ pub(crate) fn box_chip(ui: &mut Ui, (x, y, w): (f32, f32, f32), action: Action) 
 
 /// The room the scanner's Sample tile takes in the foot on a wide
 /// display, with the gap after it.
-pub(crate) fn scan_tile_span(ui: &Ui) -> f32 {
-    let label = ui.measure(tokens::SCAN_TILE_TEXT, W::S, EN.scan_sample);
+pub(crate) fn scan_tile_span(ui: &Ui, long: &'static str) -> f32 {
+    let label = ui.measure(tokens::SCAN_TILE_TEXT, W::S, scan_tile_label(ui, long));
     label + tokens::SCAN_TILE_PAD + tokens::SCAN_TILE_GAP
+}
+
+/// What the tile says: `long`, what it hands over, where it fits; else
+/// the short word.
+fn scan_tile_label(ui: &Ui, long: &'static str) -> &'static str {
+    let span = ui.measure(tokens::SCAN_TILE_TEXT, W::S, long) + tokens::SCAN_TILE_PAD;
+    if ui.compact || span <= tokens::SCAN_TILE_MAX_SPAN {
+        long
+    } else {
+        EN.scan_sample
+    }
 }
 
 /// The scanner's Sample tile: on a wide display in the foot, ending at
@@ -149,9 +160,10 @@ pub(crate) fn scan_tile(
     ui: &mut Ui,
     (x, w, foot): (f32, f32, f32),
     (row, left): (f32, f32),
+    long: &'static str,
 ) -> f32 {
     let (h, side) = (tokens::SCAN_TILE_HEIGHT, tokens::SCAN_SIDE);
-    let label = EN.scan_sample;
+    let label = scan_tile_label(ui, long);
     if ui.compact {
         let above = foot - tokens::SCAN_TILE_ROW - row;
         let wide = Some(w - 2.0 * side);
@@ -166,7 +178,7 @@ pub(crate) fn scan_tile(
         );
         return left;
     }
-    let span = scan_tile_span(ui);
+    let span = scan_tile_span(ui, long);
     let bw = span - tokens::SCAN_TILE_GAP;
     let at = left - bw;
     ui.button(
@@ -425,13 +437,61 @@ impl Faraday {
                     && english_keys(set).any(|(_, k)| k.plain.is_some_and(|p| missing.contains(&p)))
             }
             ScanPurpose::Intake | ScanPurpose::VaultEntry => true,
-            ScanPurpose::Files => matches!(
-                self.screen,
-                Screen::Restore | Screen::Spend | Screen::Decode | Screen::Catalog
-            ),
+            ScanPurpose::Files => true,
             ScanPurpose::CheckCopy(fp) => english_keys(set)
                 .any(|(_, k)| k.plain == Some(fp.0) || k.with_passphrase == Some(fp.0)),
             ScanPurpose::Transfer => false,
+        }
+    }
+
+    /// What the Sample tile on the scanner on screen hands over, as the
+    /// words on it: a lookup.
+    pub fn scan_sample_label(&self) -> &'static str {
+        let purpose = self.scan.as_ref().map(|s| s.purpose);
+        match purpose {
+            Some(ScanPurpose::Seed) => EN.scan_sample_seed,
+            Some(ScanPurpose::KeyPart) => EN.scan_sample_share,
+            Some(ScanPurpose::WalletKey(_)) => EN.scan_sample_key,
+            Some(ScanPurpose::CheckCopy(_)) => EN.scan_sample_seedqr,
+            Some(ScanPurpose::VaultEntry) => EN.scan_sample_code,
+            Some(ScanPurpose::Files) if self.screen == Screen::Restore => EN.scan_sample_wallet,
+            Some(ScanPurpose::Files) if self.screen == Screen::Catalog => EN.scan_sample_address,
+            _ => EN.scan_sample_psbt,
+        }
+    }
+
+    /// Whether a step that asks for the transaction draws Load sample
+    /// PSBT: Demo, with samples set. A lookup.
+    pub fn sample_psbt_offered(&self) -> bool {
+        self.put_on().is_some()
+    }
+
+    /// Costs a wallet read for each sample wallet. Handles
+    /// `Action::SamplePsbt`: the sample spend comes in as a scan of it
+    /// would bring it, on this step: What do you have? takes it as a
+    /// thing that came in, any other step as a file.
+    pub(crate) fn sample_psbt_use(&mut self) {
+        let Some(set) = self.put_on() else { return };
+        let c = self.compute();
+        let Some(bytes) = self.sample_spend(&c, set) else {
+            return;
+        };
+        let had = self.scan.is_some();
+        if !had {
+            let holding = self.screen == Screen::Family
+                && self.family.open
+                    == Some(crate::family::Open::Page(crate::family::page::HOLDING));
+            let mut scan = crate::ScanState::default();
+            scan.purpose = if holding {
+                ScanPurpose::Intake
+            } else {
+                ScanPurpose::Files
+            };
+            self.scan = Some(scan);
+        }
+        self.scanned(bytes.to_vec());
+        if !had {
+            self.scan = None;
         }
     }
 
@@ -533,7 +593,18 @@ impl Faraday {
         }
         let c = self.compute();
         if let Some(bytes) = self.scan_sample_bytes(&c, set) {
+            let intake = self
+                .scan
+                .as_ref()
+                .is_some_and(|s| s.purpose == ScanPurpose::Intake);
             self.scanned(bytes);
+            // The intake scanner stays on for the next code; the sample
+            // transaction is the last thing it has to bring.
+            if intake && self.scan.is_some() {
+                self.scan = None;
+                self.sheet = None;
+                self.commands.push_back(crate::Command::CameraOff);
+            }
         }
     }
 

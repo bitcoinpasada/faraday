@@ -1338,7 +1338,7 @@ impl Faraday {
             },
             self.medium.for_the()
         );
-        if power_off {
+        if power_off || self.mode_changing() {
             if n > 0 {
                 out.wiped.push((files, true));
             }

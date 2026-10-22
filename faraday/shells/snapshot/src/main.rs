@@ -108,6 +108,10 @@ fn run(
     let mut app = Faraday::new();
     app.medium = medium;
     app.event(display(size, dpi));
+    // The test wallets and vault are on the test network, which a
+    // Mainnet session takes none of once a key is loaded.
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET)
+        .map_err(|e| e.text())?;
     // `FARADAY_SNAP_THEME=<id>` takes the tour in that theme ("light",
     // "dark" …) instead of the first start's.
     if let Ok(id) = std::env::var("FARADAY_SNAP_THEME")

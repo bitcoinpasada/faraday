@@ -40,6 +40,10 @@ pub(crate) fn from_vault_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     type_text(t, testkit::VAULT_PASSPHRASES[0]);
     t.press(Action::Import(I::Submit));
     t.tick();
+    // The unlock offers what to load; everything ticked loads.
+    if t.app.sheet == Some(faraday_core::Sheet::UnlockLoad) {
+        t.press(Action::Vault(V::LoadTicked));
+    }
     if t.app.screen != Screen::Wallets {
         return Err(format!("the unlock landed on {:?}", t.app.screen));
     }

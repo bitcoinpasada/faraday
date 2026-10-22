@@ -203,6 +203,9 @@ impl Tour {
         let medium = self.app.medium;
         self.app = Faraday::new();
         self.app.medium = medium;
+        // A lock keeps the mode, and the tours' wallets are on the test
+        // network.
+        let _ = faraday_core::testkit::move_to(&mut self.app.session, faraday_core::testkit::NET);
         if medium == Medium::Stick {
             self.app.devices = laptop();
         }
@@ -667,4 +670,12 @@ pub(crate) fn key_text_of(
 ) -> Result<String, String> {
     use faraday_core::wallet::KeyTexts;
     keys.account_text(c, i, kind, 0)
+}
+
+/// The Load sheet an unlock offers (F62), put off with Not now: the tours
+/// that look at the vault's contents, not at what it loads.
+pub(crate) fn not_now_load(t: &mut Tour) {
+    if t.app.sheet == Some(faraday_core::Sheet::UnlockLoad) {
+        t.press(Action::Cancel);
+    }
 }
