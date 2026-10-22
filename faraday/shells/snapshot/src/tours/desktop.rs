@@ -12,6 +12,7 @@ use faraday_shell_api::App as _;
 pub(crate) fn pills_tour(t: &mut Tour) -> Result<(), String> {
     t.app.shell_sticks = true;
     t.app.online = true;
+    t.app.seed_line = true;
     let stick = |name: &str| StickInfo {
         id: name.into(),
         label: name.into(),
@@ -42,6 +43,7 @@ pub(crate) fn pills_tour(t: &mut Tour) -> Result<(), String> {
 /// and the Lightning node key, on a sample.
 pub(crate) fn demo_tour(t: &mut Tour) -> Result<(), String> {
     t.app.online = true;
+    t.app.seed_line = true;
     t.app.session = faraday_core::wallet::Session::on(testkit::NET);
     t.app
         .session
@@ -72,6 +74,7 @@ pub(crate) fn demo_tour(t: &mut Tour) -> Result<(), String> {
 /// row on Mainnet, where no pill shows.
 pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     t.app.online = true;
+    t.app.seed_line = true;
     t.app.session = faraday_core::wallet::Session::on(testkit::NET);
     t.app.session.set_demo(&faraday_samples::SAMPLES);
     t.app.samples = Some(&faraday_samples::SAMPLES);

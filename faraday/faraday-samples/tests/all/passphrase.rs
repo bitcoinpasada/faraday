@@ -57,6 +57,7 @@ fn testnet() -> Faraday {
     let mut app = testkit::started();
     show(&mut app, 1280, 4000, 160);
     app.online = true;
+    app.seed_line = true;
     testkit::move_to(&mut app.session, Network::Testnet).expect("testnet");
     app
 }

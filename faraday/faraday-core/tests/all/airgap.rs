@@ -33,6 +33,7 @@ fn wallet_on(network: Network) -> String {
 fn desktop() -> Faraday {
     let mut app = testkit::started();
     app.online = true;
+    app.seed_line = true;
     app.session = Session::on(Network::Testnet);
     app.session.set_demo(faraday_core::testkit::demo_samples());
     app.set_modes(DESKTOP_MODES);
@@ -240,4 +241,17 @@ fn the_stick_and_the_pi_say_nothing_of_it() {
     assert!(!says_never(&mut app));
     app.press(Action::EntryForm(1));
     assert!(!says_never(&mut app));
+}
+
+#[test]
+fn the_seed_line_alone_does_not_make_the_app_the_desktop() {
+    let mut app = testkit::started();
+    app.seed_line = true;
+    app.press(Action::Entry(None));
+    assert!(says_never(&mut app));
+    assert!(!app.drawn_texts().iter().any(|t| t.contains("DESKTOP")));
+    assert!(!app.offers(Action::Nav(faraday_core::Screen::Transfer)));
+    app.press(Action::Nav(faraday_core::Screen::Settings));
+    let _ = app.frame();
+    assert!(!app.drawn_texts().iter().any(|t| t == "Quit"));
 }

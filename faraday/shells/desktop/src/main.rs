@@ -677,6 +677,7 @@ fn watch_listing(downloads: PathBuf, opens: bool, out: Sender<Listing>) {
 fn desktop_app_in(mode: faraday_core::Mode) -> Faraday {
     let mut app = Faraday::new();
     app.online = true;
+    app.seed_line = true;
     // This shell answers `RequestClipboard` (faraday_window::clipboard).
     app.clipboard = true;
     app.shell_sticks = true;

@@ -22,7 +22,7 @@ pub(crate) fn guide_text(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, text: 
 }
 
 /// The caution under a field where a seed or a secret is typed or
-/// pasted, on an online shell only: a statement of fact in the caution
+/// pasted, where `Faraday::seed_line` is set (the desktop) only: a statement of fact in the caution
 /// tone, in every mode. Returns the height it took, with the gap under
 /// it; nothing on the stick or the Pi.
 pub(crate) fn never_real_seed(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
@@ -38,7 +38,7 @@ pub(crate) fn never_under(app: &View, ui: &mut Ui, x: f32, top: f32, w: f32) -> 
 /// The line one gap under a field whose bottom edge is at `bottom`, on an
 /// online shell. Returns the gap and the line's height; 0 elsewhere.
 pub(crate) fn never_below(app: &View, ui: &mut Ui, x: f32, bottom: f32, w: f32) -> f32 {
-    if app.online {
+    if app.seed_line {
         grid_never(ui, x, bottom, w)
     } else {
         0.0

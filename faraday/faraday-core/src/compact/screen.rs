@@ -689,7 +689,7 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
         (x, y, iw),
         lang,
         &taken,
-        (app.entry.word_boxes(taken.len() + 1), false, app.online),
+        (app.entry.word_boxes(taken.len() + 1), false, app.seed_line),
     );
     // Under the word fields.
     y + crate::screens::button_rows(ui, x, y, iw, &langs) - 6.0

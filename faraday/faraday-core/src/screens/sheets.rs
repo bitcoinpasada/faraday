@@ -882,7 +882,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let hint = if intake { app.family_hint() } else { None };
     let hint_h = hint.map_or(0.0, |t| measure_wrap(ui, side_w, 12.0, W::R, t) + 8.0);
     // A scanner that loads a seed can be given one by Type or Paste.
-    let seed_scan = app.online
+    let seed_scan = app.seed_line
         && matches!(
             sc.purpose,
             crate::ScanPurpose::Seed

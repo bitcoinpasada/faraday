@@ -1604,19 +1604,18 @@ pub struct Faraday {
     /// What can be pressed under it.
     hovered: Option<Action>,
     scanned: u32,
-    /// Running on an online machine (the desktop app), where sheets are
-    /// turned into PDFs. Never set on the device.
+    /// Running on an online machine (the desktop app); sheets become PDFs.
     pub online: bool,
+    /// A seed typed here is on an online computer: the seed line is drawn.
+    pub seed_line: bool,
     /// Held by another app that shows only Transfer and the Learn sheet
     /// (the Starter, `docs/STARTER.md` §2), set with [`Faraday::online`]:
-    /// no sidebar and no Home of its own. Its way back goes to this
-    /// app's Home, which draws nothing; the holder takes leaving
-    /// Transfer and the sheets as going back to its own Home.
+    /// no sidebar, no Home of its own; leaving Transfer or the sheets
+    /// goes back to the holder's Home.
     pub held: bool,
-    /// The shell lets a person insert and pull sticks by hand, and the
-    /// app draws a pill for each across the top of the window
-    /// ([`Faraday::stick_pills`]): the desktop app and the website demo.
-    /// Never set on the device.
+    /// The shell lets a person insert and pull sticks by hand, and the app
+    /// draws a pill for each ([`Faraday::stick_pills`]): the desktop app
+    /// and the website demo. Never set on the device.
     pub shell_sticks: bool,
     /// The shell answers `RequestClipboard` with the clipboard's text: the
     /// desktop app. The scanner's Paste is dimmed where it is not set,
@@ -1850,6 +1849,7 @@ impl Faraday {
             selftest: None,
             hovered: None,
             online: false,
+            seed_line: false,
             held: false,
             shell_sticks: false,
             clipboard: false,

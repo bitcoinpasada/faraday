@@ -188,7 +188,7 @@ pub(crate) fn entry_words(
             boxes: grid.1,
             masked: false,
             caret: !app.entry.on_passphrase && !chip,
-            never: app.online,
+            never: app.seed_line,
         },
     );
     if chip {
@@ -300,7 +300,7 @@ fn keyed_words(
             boxes: app.entry.word_boxes(taken.len() + 1),
             masked: false,
             caret: !app.entry.on_passphrase,
-            never: app.online,
+            never: app.seed_line,
         },
     );
     // The count and, when the words are a whole key, its checksum and

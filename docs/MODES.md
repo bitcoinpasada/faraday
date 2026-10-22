@@ -151,8 +151,10 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
   in any mode, Demo included (Demo swaps it for a sample only after it
   is typed), so a sheet on one path protects nothing.
 - **Instead, one line at every place a secret is typed** (owner,
-  2026-10-22): on an online shell (`Faraday::online`, set by the desktop
-  and the web shells; never on the stick or the Pi), every step where a
+  2026-10-22): where the shell sets `Faraday::seed_line` (a seed typed
+  here is on an online computer: the desktop, with `Faraday::online`, and
+  the website alone, which does not become Faraday Desktop; never the
+  stick or the Pi), every step where a
   seed or a secret can be typed or pasted draws one caution-tone line
   under its field, `never_real_seed` "Never type a seed that holds real
   bitcoin here.", in every mode, Demo included: words (BIP-39, every
@@ -635,8 +637,8 @@ wallet would notice.
   (`not_airgapped_sheet` gone) and screens/mod.rs's routing of it;
   `faraday/faraday-core/src/boot_import/mod.rs` (no wait under it);
   `faraday/faraday-strings/src/en.rs` (`test_network_*` gone,
-  `never_real_seed` added); `Faraday::online` (lib.rs), set in
-  `faraday/shells/desktop/src/main.rs`; the line drawn at every step §4
+  `never_real_seed` added); `Faraday::online` and `Faraday::seed_line`
+  (lib.rs), set in `faraday/shells/desktop/src/main.rs`; the line drawn at every step §4
   lists (seeds/, keygen/, scan_key.rs, the entry screens for passphrases,
   xprv, WIF, hex, SLIP-39, codex32, aezeed — find each through the
   functions that take typed secret input).

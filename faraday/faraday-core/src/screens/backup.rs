@@ -1160,7 +1160,7 @@ fn word_check(
                 boxes: c.count,
                 masked: true,
                 caret: !chip,
-                never: app.online,
+                never: app.seed_line,
             };
             let grid = cy;
             cy = typed_cells(ui, (x, cy, w), lang, &c.typed, cells);
@@ -1199,7 +1199,7 @@ fn word_check(
                 boxes: c.count,
                 masked: true,
                 caret: true,
-                never: app.online,
+                never: app.seed_line,
             };
             cy += keyed_cells(ui, (x, cy, w), lang, &taken, &prefix, cells);
             cy += keyed_pills(ui, x, cy, w, k, lang, false);
