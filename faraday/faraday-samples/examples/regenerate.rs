@@ -24,19 +24,20 @@ use faraday_intake::{Part, part_of};
 use faraday_keys::identity::{Material, fingerprint, fingerprint_of_words};
 
 /// The one passphrase of every sample that takes one.
-const PASSWORD: &str = "password";
+const PASSPHRASE: &str = faraday_core::samples::PASSPHRASE;
 
 struct Key {
     name: &'static str,
     word: &'static str,
     count: u8,
     form: &'static str,
+    size: String,
     listed: bool,
     parts: Vec<String>,
     combined: String,
     file: Option<&'static str>,
     plain: Option<[u8; 4]>,
-    with_password: Option<[u8; 4]>,
+    with_passphrase: Option<[u8; 4]>,
     node: Option<[u8; 33]>,
 }
 
@@ -69,9 +70,14 @@ fn words_key(c: &Compute, name: &'static str, word: &'static str, count: u8) -> 
         word,
         count,
         form: "Words",
+        size: format!("Words({count})"),
         listed: true,
         plain: Some(fingerprint_of_words(c, &phrase, "").expect("words").0),
-        with_password: Some(fingerprint_of_words(c, &phrase, PASSWORD).expect("words").0),
+        with_passphrase: Some(
+            fingerprint_of_words(c, &phrase, PASSPHRASE)
+                .expect("words")
+                .0,
+        ),
         parts: vec![phrase],
         combined: String::new(),
         file: None,
@@ -79,20 +85,27 @@ fn words_key(c: &Compute, name: &'static str, word: &'static str, count: u8) -> 
     }
 }
 
-fn plain_words(c: &Compute, name: &'static str, phrase: &str, form: &'static str) -> Key {
+fn plain_words(
+    c: &Compute,
+    name: &'static str,
+    phrase: &str,
+    form: &'static str,
+    size: String,
+) -> Key {
     Key {
         name,
         word: "",
         count: 0,
         form,
+        size,
         listed: true,
         plain: Some(
             fingerprint_of_words(c, phrase, "")
                 .unwrap_or_else(|e| panic!("{name}: {e}"))
                 .0,
         ),
-        with_password: Some(
-            fingerprint_of_words(c, phrase, PASSWORD)
+        with_passphrase: Some(
+            fingerprint_of_words(c, phrase, PASSPHRASE)
                 .unwrap_or_else(|e| panic!("{name}: {e}"))
                 .0,
         ),
@@ -109,7 +122,7 @@ fn seed_fp(c: &Compute, seed: &[u8]) -> [u8; 4] {
         .0
 }
 
-fn slip39_key(c: &Compute, name: &'static str, shares: &[String]) -> Key {
+fn slip39_key(c: &Compute, name: &'static str, shares: &[String], size: String) -> Key {
     let parsed: Vec<_> = shares
         .iter()
         .map(|s| match part_of(s) {
@@ -127,17 +140,18 @@ fn slip39_key(c: &Compute, name: &'static str, shares: &[String]) -> Key {
         word: "",
         count: 0,
         form: "Slip39",
+        size,
         listed: true,
         parts: shares.to_vec(),
         combined: String::new(),
         file: None,
         plain: Some(fp("")),
-        with_password: Some(fp(PASSWORD)),
+        with_passphrase: Some(fp(PASSPHRASE)),
         node: None,
     }
 }
 
-fn codex32_key(c: &Compute, name: &'static str, strings: &[String]) -> Key {
+fn codex32_key(c: &Compute, name: &'static str, strings: &[String], size: String) -> Key {
     let parsed: Vec<_> = strings
         .iter()
         .map(|s| match part_of(s) {
@@ -151,12 +165,13 @@ fn codex32_key(c: &Compute, name: &'static str, strings: &[String]) -> Key {
         word: "",
         count: 0,
         form: "Codex32",
+        size,
         listed: true,
         parts: strings.to_vec(),
         combined: String::new(),
         file: None,
         plain: Some(seed_fp(c, &seed)),
-        with_password: None,
+        with_passphrase: None,
         node: None,
     }
 }
@@ -174,8 +189,20 @@ fn bip39_vectors(c: &Compute) -> (Key, Key) {
         jp[0]["mnemonic"].as_str().expect("words").nfkd().collect()
     };
     (
-        plain_words(c, "sample_abandon", abandon, "Words"),
-        plain_words(c, "sample_japanese", &japanese, "Words"),
+        plain_words(
+            c,
+            "sample_abandon",
+            abandon,
+            "Words",
+            "Words(12)".to_string(),
+        ),
+        plain_words(
+            c,
+            "sample_japanese",
+            &japanese,
+            "Words",
+            "JapaneseWords(12)".to_string(),
+        ),
     )
 }
 
@@ -188,7 +215,13 @@ fn xor_key(c: &Compute) -> Key {
             .trim()
             .to_string()
     };
-    let mut k = plain_words(c, "sample_xor", &line("seed words: "), "Xor");
+    let mut k = plain_words(
+        c,
+        "sample_xor",
+        &line("seed words: "),
+        "Xor",
+        "Parts(2)".to_string(),
+    );
     k.parts = vec![line("part 1 words: "), line("part 2 words: ")];
     k.combined = line("seed words: ");
     k
@@ -204,7 +237,7 @@ fn slip_shares(case: usize) -> Vec<String> {
 }
 
 /// The `.oskb` holding the 32-byte master seed that is every byte 0x42,
-/// under `password`, at the cost of the vectors, with a salt and a nonce
+/// under `faraday`, at the cost of the vectors, with a salt and a nonce
 /// counted up from 0x20.
 fn backup_file(c: &Compute) -> Vec<u8> {
     let mut seed = [0u8; faraday_backup::oskb::SEED_LEN];
@@ -216,7 +249,7 @@ fn backup_file(c: &Compute) -> Vec<u8> {
         passes: 3,
         lanes: 1,
     };
-    faraday_backup::oskb::seal_seed(c, &[0x42u8; 32], PASSWORD.as_bytes(), cost, &seed)
+    faraday_backup::oskb::seal_seed(c, &[0x42u8; 32], PASSPHRASE.as_bytes(), cost, &seed)
         .expect("a backup")
 }
 
@@ -229,12 +262,13 @@ fn aezeed_key() -> Key {
         word: "",
         count: 0,
         form: "Aezeed",
+        size: "Words(24)".to_string(),
         listed: true,
         parts: vec![words.to_string()],
         combined: String::new(),
         file: None,
         plain: None,
-        with_password: None,
+        with_passphrase: None,
         node: Some(node.try_into().expect("33 bytes")),
     }
 }
@@ -247,15 +281,31 @@ fn keys(c: &Compute) -> Vec<Key> {
     let (abandon, japanese) = bip39_vectors(c);
     all.push(abandon);
     all.push(japanese);
-    all.push(slip39_key(c, "sample_slip39_one", &slip_shares(0)));
-    all.push(slip39_key(c, "sample_slip39_two_of_three", &slip_shares(3)));
-    all.push(slip39_key(c, "sample_slip39_groups", &slip_shares(36)));
+    all.push(slip39_key(
+        c,
+        "sample_slip39_one",
+        &slip_shares(0),
+        "Shares(1)".to_string(),
+    ));
+    all.push(slip39_key(
+        c,
+        "sample_slip39_two_of_three",
+        &slip_shares(3),
+        "Threshold { need: 2, total: 3 }".to_string(),
+    ));
+    all.push(slip39_key(
+        c,
+        "sample_slip39_groups",
+        &slip_shares(36),
+        format!("GroupShares({})", slip_shares(36).len()),
+    ));
     let codex = json("bip93/vectors.json");
     let secret = codex["secrets"][0]["string"].as_str().expect("string");
     all.push(codex32_key(
         c,
         "sample_codex32_secret",
         &[secret.to_string()],
+        "Secret".to_string(),
     ));
     let shares: Vec<String> = codex["sets"][0]["shares"]
         .as_array()
@@ -263,19 +313,26 @@ fn keys(c: &Compute) -> Vec<Key> {
         .iter()
         .map(|s| s.as_str().expect("text").to_string())
         .collect();
-    all.push(codex32_key(c, "sample_codex32_shares", &shares));
+    let count = shares.len();
+    all.push(codex32_key(
+        c,
+        "sample_codex32_shares",
+        &shares,
+        format!("Shares({count})"),
+    ));
     all.push(xor_key(c));
     all.push(Key {
         name: "sample_backup",
         word: "",
         count: 0,
         form: "Backup",
+        size: "File".to_string(),
         listed: true,
         parts: Vec::new(),
         combined: String::new(),
         file: Some("data/sample.oskb"),
         plain: Some(seed_fp(c, &[0x42u8; 32])),
-        with_password: None,
+        with_passphrase: None,
         node: None,
     });
     all.push(aezeed_key());
@@ -285,12 +342,13 @@ fn keys(c: &Compute) -> Vec<Key> {
             word: "",
             count: 0,
             form: "Seed",
+            size: "Bytes(64)".to_string(),
             listed: false,
             parts: vec![hex(&[b; 64])],
             combined: String::new(),
             file: None,
             plain: Some(seed_fp(c, &[b; 64])),
-            with_password: None,
+            with_passphrase: None,
             node: None,
         });
     }
@@ -299,12 +357,46 @@ fn keys(c: &Compute) -> Vec<Key> {
 
 struct Wallet {
     name: &'static str,
+    kind: String,
+    script: &'static str,
     text: String,
     spend: Option<String>,
     keys: Vec<[u8; 4]>,
 }
 
-fn wallets(keys: &[Key]) -> Vec<Wallet> {
+/// What a wallet is and the script it pays to, as the policy reading it
+/// says: `(kind, script)` as the text of `SampleKind` and `SampleScript`.
+fn describe(c: &Compute, text: &str) -> (String, &'static str) {
+    use faraday_bip::keys::ScriptType;
+    use faraday_bip::policy::Template;
+    let p = faraday_core::wallet::read_wallet(c, text).expect("a wallet");
+    let tree = matches!(p.template(), Template::Tree) && p.tapscript_quorum().is_none();
+    let script = match (tree, p.script_type()) {
+        (true, _) => "TaprootTree",
+        (_, ScriptType::Legacy) => "Legacy",
+        (_, ScriptType::NestedSegwit) => "NestedSegwit",
+        (_, ScriptType::NativeSegwit) => "NativeSegwit",
+        (_, ScriptType::Taproot) => "Taproot",
+    };
+    let multi =
+        |(need, total): (usize, usize)| format!("Multisig {{ need: {need}, total: {total} }}");
+    let kind = if let Some(q) = p.tapscript_quorum().or_else(|| p.quorum()) {
+        multi(q)
+    } else {
+        match p.template() {
+            Template::MuSig => format!("MuSig({})", p.keys().len()),
+            Template::Threshold {
+                threshold,
+                participants,
+            } => format!("Frost {{ need: {threshold}, total: {participants} }}"),
+            Template::Miniscript { .. } => "Timelock".to_string(),
+            _ => "Single".to_string(),
+        }
+    };
+    (kind, script)
+}
+
+fn wallets(c: &Compute, keys: &[Key]) -> Vec<Wallet> {
     let fp_of = |w: &str, n: u8| {
         keys.iter()
             .find(|k| k.word == w && k.count == n)
@@ -338,8 +430,11 @@ fn wallets(keys: &[Key]) -> Vec<Wallet> {
             spend.to_bytes(),
         )
         .expect("write");
+        let (kind, script) = describe(c, &kit.descriptor);
         out.push(Wallet {
             name,
+            kind,
+            script,
             keys: used(&kit.descriptor),
             text: kit.descriptor.clone(),
             spend: Some(format!("data/{}.psbt", kit.id)),
@@ -352,8 +447,11 @@ fn wallets(keys: &[Key]) -> Vec<Wallet> {
     )
     .expect("write");
     let musig_text = musig.to_descriptor_checksummed();
+    let (kind, script) = describe(c, &musig_text);
     out.push(Wallet {
         name: "sample_musig",
+        kind,
+        script,
         keys: used(&musig_text),
         text: musig_text,
         spend: Some("data/musig.psbt".to_string()),
@@ -363,15 +461,22 @@ fn wallets(keys: &[Key]) -> Vec<Wallet> {
         testkit::threshold_unsigned().expect("a spend").to_bytes(),
     )
     .expect("write");
+    let frost_text = testkit::threshold_record().expect("a record").to_text();
+    let (kind, script) = describe(c, &frost_text);
     out.push(Wallet {
         name: "sample_frost",
-        text: testkit::threshold_record().expect("a record").to_text(),
+        kind,
+        script,
+        text: frost_text,
         spend: Some("data/frost.psbt".to_string()),
         keys: vec![fp_of("bacon", 24), fp_of("zebra", 24)],
     });
     let five = testkit::three_of_five();
+    let (kind, script) = describe(c, &five);
     out.push(Wallet {
         name: "sample_three_of_five",
+        kind,
+        script,
         keys: used(&five),
         text: five,
         spend: None,
@@ -379,7 +484,7 @@ fn wallets(keys: &[Key]) -> Vec<Wallet> {
     out
 }
 
-/// The vault: sample key 1 and the Savings wallet, under `password`.
+/// The vault: sample key 1 and the Savings wallet, under `faraday`.
 fn vault_file(c: &Compute) -> Vec<u8> {
     use faraday_vault::records::{self, field, kind};
     use faraday_vault::{Contents, Cost, Record};
@@ -405,7 +510,7 @@ fn vault_file(c: &Compute) -> Vec<u8> {
         c,
         faraday_vault::SLOT_SIZES[0],
         cost,
-        &[PASSWORD.as_bytes()],
+        &[PASSPHRASE.as_bytes()],
         &[contents],
         &[0x7a; 32],
     )
@@ -457,18 +562,19 @@ fn emit_key(out: &mut String, k: &Key) {
         .map_or("&[]".to_string(), |f| format!("include_bytes!(\"../{f}\")"));
     writeln!(
         out,
-        "    SampleKey {{ name: {:?}, word: {:?}, count: {}, form: SampleForm::{}, listed: {}, \
-         parts: &[{}], combined: {:?}, file: {}, plain: {}, with_password: {}, node: {} }},",
+        "    SampleKey {{ name: {:?}, word: {:?}, count: {}, form: SampleForm::{}, \
+         size: SampleSize::{}, listed: {}, parts: &[{}], combined: {:?}, file: {}, plain: {}, with_passphrase: {}, node: {} }},",
         k.name,
         k.word,
         k.count,
         k.form,
+        k.size,
         k.listed,
         parts.join(", "),
         k.combined,
         file,
         opt(k.plain.as_ref().map(|f| &f[..])),
-        opt(k.with_password.as_ref().map(|f| &f[..])),
+        opt(k.with_passphrase.as_ref().map(|f| &f[..])),
         opt(k.node.as_ref().map(|f| &f[..])),
     )
     .expect("string");
@@ -482,8 +588,11 @@ fn emit_wallet(out: &mut String, w: &Wallet) {
     let keys: Vec<String> = w.keys.iter().map(|k| arr(k)).collect();
     writeln!(
         out,
-        "    SampleWallet {{ name: {:?}, text: {:?}, spend: {}, keys: &[{}] }},",
+        "    SampleWallet {{ name: {:?}, kind: SampleKind::{}, script: SampleScript::{}, \
+         text: {:?}, spend: {}, keys: &[{}] }},",
         w.name,
+        w.kind,
+        w.script,
         w.text,
         spend,
         keys.join(", "),
@@ -495,7 +604,7 @@ fn main() {
     let c = compute();
     std::fs::create_dir_all(root().join("data")).expect("data dir");
     let keys = keys(&c);
-    let wallets = wallets(&keys);
+    let wallets = wallets(&c, &keys);
     std::fs::write(root().join("data/sample.oskb"), backup_file(&c)).expect("write");
     std::fs::write(root().join("data/sample.ofv"), vault_file(&c)).expect("write");
     let (address, message) = signed_message(&c);
@@ -503,7 +612,7 @@ fn main() {
 
     let mut out = String::from(
         "//! Generated by `examples/regenerate.rs`. Do not edit by hand.\n\n\
-         use faraday_core::samples::{SampleForm, SampleInputs, SampleKey, SampleWallet, Samples};\n\n\
+         use faraday_core::samples::{SampleForm, SampleInputs, SampleKey, SampleKind, SampleScript, SampleSize, SampleWallet, Samples};\n\n\
          pub(crate) static KEYS: &[SampleKey] = &[\n",
     );
     for k in &keys {

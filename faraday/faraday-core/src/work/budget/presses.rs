@@ -307,7 +307,7 @@ fn the_mode_pills_press_and_the_sheets_frames_do_no_costly_work() {
 /// handouts, and the Savings wallet over the first three of them (the
 /// real data is in `faraday-samples`, which core does not link).
 fn savings_samples() -> &'static crate::samples::Samples {
-    use crate::samples::{SampleWallet, Samples};
+    use crate::samples::{SampleKind, SampleScript, SampleWallet, Samples};
     static SET: std::sync::OnceLock<Samples> = std::sync::OnceLock::new();
     SET.get_or_init(|| {
         let keys = testkit::demo_samples().keys;
@@ -317,6 +317,8 @@ fn savings_samples() -> &'static crate::samples::Samples {
             .collect();
         let wallet = SampleWallet {
             name: "sample_savings",
+            kind: SampleKind::Multisig { need: 2, total: 3 },
+            script: SampleScript::NativeSegwit,
             text: Box::leak(testkit::savings().into_boxed_str()),
             spend: &[],
             keys: Box::leak(fps.into_boxed_slice()),

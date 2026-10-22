@@ -3,7 +3,7 @@
 //! the session the way a typed or scanned key and wallet go in. The tests
 //! drive a `Faraday` with the real samples set, as the desktop does.
 
-use crate::common::{PASSWORD, demo_app, fingerprint_of_seed, json, show};
+use crate::common::{demo_app, fingerprint_of_seed, json, show};
 use faraday_bip::keys::{Fingerprint, Network};
 use faraday_core::samples::{Pick, SampleKey};
 use faraday_core::testkit::{self, compute};
@@ -95,6 +95,76 @@ fn in_demo_the_pill_opens_a_sheet_that_lists_every_sample() {
     assert!(small.offers(Action::SampleTick(Pick::Wallet(0))));
 }
 
+/// Every row of the sheet and the type it shows under its name, as a
+/// person reads them.
+const TYPES: &[&str] = &[
+    "2-of-3 multisig \u{b7} native SegWit",
+    "single-sig \u{b7} native SegWit",
+    "single-sig \u{b7} Taproot",
+    "single-sig \u{b7} nested SegWit",
+    "single-sig \u{b7} legacy",
+    "2-of-3 multisig \u{b7} nested SegWit",
+    "2-of-3 multisig \u{b7} legacy",
+    "2-of-3 multisig \u{b7} Taproot",
+    "timelock recovery \u{b7} native SegWit",
+    "single-sig \u{b7} Taproot, script tree",
+    "3-key MuSig2 \u{b7} Taproot",
+    "2-of-3 FROST \u{b7} Taproot",
+    "3-of-5 multisig \u{b7} native SegWit",
+    "BIP-39 \u{b7} 24 words",
+    "BIP-39 \u{b7} 12 words",
+    "BIP-39 \u{b7} 15 words",
+    "BIP-39 \u{b7} 18 words",
+    "BIP-39 \u{b7} 21 words",
+    "BIP-39 \u{b7} 12 words, Japanese",
+    "SLIP-39 \u{b7} 1 share",
+    "SLIP-39 \u{b7} 2 of 3 shares",
+    "SLIP-39 \u{b7} groups, 3 shares",
+    "codex32 \u{b7} secret",
+    "codex32 \u{b7} 2 shares",
+    "Seed XOR \u{b7} 2 parts",
+    "Encrypted backup (.oskb)",
+];
+
+#[test]
+fn every_row_of_the_sheet_says_what_the_sample_is() {
+    let mut app = demo_app();
+    open(&mut app);
+    let texts = app.drawn_texts();
+    for want in TYPES {
+        assert!(texts.iter().any(|t| t == want), "no row says {want:?}");
+    }
+    // One type line for every row, and every one of them is in the list.
+    let rows = SAMPLES.wallets.len() + listed().len();
+    let shown = texts.iter().filter(|t| TYPES.contains(&t.as_str())).count();
+    assert_eq!(shown, rows);
+    // A sample added later gets its line from what it records: none is
+    // blank, and the sheet and the sample agree.
+    for w in SAMPLES.wallets {
+        assert!(texts.contains(&w.kind_label()), "{}", w.name);
+    }
+    for k in listed() {
+        assert!(texts.contains(&k.kind_label()), "{}", k.name);
+    }
+}
+
+#[test]
+fn the_sheet_says_the_passphrase_is_faraday_in_a_code_box_and_never_password() {
+    let mut app = demo_app();
+    open(&mut app);
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "In Demo, every passphrase is"));
+    assert!(texts.iter().any(|t| t == "faraday"));
+    assert!(!texts.iter().any(|t| t.contains("password")));
+    // The characters are drawn as they are, with no quote marks round them.
+    assert!(!texts.iter().any(|t| t.contains("\"faraday\"")));
+    // On the compact panel too.
+    let mut small = demo_app();
+    show(&mut small, 480, 640, 286);
+    open(&mut small);
+    assert!(small.drawn_texts().iter().any(|t| t == "faraday"));
+}
+
 #[test]
 fn ticking_savings_and_loading_it_loads_the_wallet_and_its_three_keys() {
     let c = compute();
@@ -149,8 +219,6 @@ fn ticking_the_backup_loads_the_key_of_its_32_byte_seed() {
     load(&mut app, &[key_pick("sample_backup", "")]);
     assert_eq!(app.session.keys.len(), 1);
     assert!(held(&app, fingerprint_of_seed(&[0x42; 32])));
-    // It opened under the one passphrase Demo has.
-    assert_eq!(PASSWORD, "password");
 }
 
 #[test]

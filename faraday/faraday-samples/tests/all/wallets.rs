@@ -126,3 +126,42 @@ fn the_three_of_five_has_no_spend_and_every_other_wallet_has_one() {
         );
     }
 }
+
+#[test]
+fn the_kind_and_script_a_wallet_sample_records_are_what_its_policy_reads_as() {
+    use faraday_bip::keys::ScriptType;
+    use faraday_core::samples::{SampleKind as K, SampleScript as S};
+    let c = compute();
+    for w in SAMPLES.wallets {
+        let p = faraday_core::wallet::read_wallet(&c, w.text).expect(w.name);
+        let script = match p.script_type() {
+            ScriptType::Legacy => S::Legacy,
+            ScriptType::NestedSegwit => S::NestedSegwit,
+            ScriptType::NativeSegwit => S::NativeSegwit,
+            ScriptType::Taproot if w.name == "sample_tree" => S::TaprootTree,
+            ScriptType::Taproot => S::Taproot,
+        };
+        assert_eq!(w.script, script, "{}", w.name);
+        let quorum = p.tapscript_quorum().or_else(|| p.quorum());
+        match w.kind {
+            K::Multisig { need, total } => {
+                let want = (usize::from(need), usize::from(total));
+                assert_eq!(quorum, Some(want), "{}", w.name);
+            }
+            K::MuSig(keys) => assert_eq!(usize::from(keys), p.keys().len(), "{}", w.name),
+            K::Single | K::Timelock | K::Frost { .. } => assert_eq!(quorum, None, "{}", w.name),
+        }
+    }
+    // A FROST group is 2 of 3 and the inheritance wallet is the timelocked
+    // one.
+    let kind = |name: &str| {
+        SAMPLES
+            .wallets
+            .iter()
+            .find(|w| w.name == name)
+            .expect(name)
+            .kind
+    };
+    assert_eq!(kind("sample_frost"), K::Frost { need: 2, total: 3 });
+    assert_eq!(kind("sample_inheritance"), K::Timelock);
+}

@@ -126,7 +126,8 @@ pub fn demo_samples() -> &'static crate::samples::Samples {
                     combined: "",
                     file: &[],
                     plain: Some(fp(phrase, "")),
-                    with_password: Some(fp(phrase, "password")),
+                    size: crate::samples::SampleSize::Words(count),
+                    with_passphrase: Some(fp(phrase, crate::samples::PASSPHRASE)),
                     node: None,
                 }
             })

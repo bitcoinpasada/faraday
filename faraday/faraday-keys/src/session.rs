@@ -260,8 +260,8 @@ pub struct Handout {
     pub words: u8,
     /// Its fingerprint with no passphrase.
     pub plain: Fingerprint,
-    /// Its fingerprint with the passphrase `password`.
-    pub with_password: Fingerprint,
+    /// Its fingerprint with the passphrase `faraday`.
+    pub with_passphrase: Fingerprint,
 }
 
 /// What the shell gave the demo (F81, `docs/MODES.md` §2.3): public data,
@@ -412,7 +412,7 @@ impl Keys {
             .find(|h| {
                 h.words == words
                     && self.position(h.plain).is_none()
-                    && self.position(h.with_password).is_none()
+                    && self.position(h.with_passphrase).is_none()
             })
             .map(|h| (h.name, h.plain))
     }
@@ -434,7 +434,7 @@ impl Keys {
     /// Sets the demo up (F20, F81). A lookup: the fingerprints are
     /// literals the samples crate's tests check. `handouts` are what New
     /// key hands out, `public` every fingerprint the demo takes (a key
-    /// that takes a passphrase is there with none and with `password`),
+    /// that takes a passphrase is there with none and with `faraday`),
     /// `nodes` the Lightning node ids it takes. While the demo is on the
     /// store takes only these.
     pub fn set_demo(&mut self, handouts: &[Handout], public: &[Fingerprint], nodes: &[[u8; 33]]) {

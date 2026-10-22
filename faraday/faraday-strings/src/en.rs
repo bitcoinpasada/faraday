@@ -7869,7 +7869,7 @@ pub struct Strings {
     pub samples_not_now: &'static str,
     /// Button in Load samples.
     pub samples_load: &'static str,
-    /// Line in Load samples.
+    /// Line in Load samples, followed by the passphrase in a code box.
     pub samples_password: &'static str,
     /// Toast after Load ticked. `{}`: what loaded, made of `samples_n_*`.
     pub samples_loaded: &'static str,
@@ -7931,6 +7931,52 @@ pub struct Strings {
     pub sample_frost: &'static str,
     /// Wallet row in Load samples.
     pub sample_three_of_five: &'static str,
+    /// What a Load samples row is: its kind and its script, or its form and its size. `{}`: the two parts.
+    pub sample_type: &'static str,
+    /// Kind of a sample wallet with one key.
+    pub sample_kind_single: &'static str,
+    /// Kind of a sample multisig wallet. `{}`: signatures required, keys.
+    pub sample_kind_multisig: &'static str,
+    /// Kind of a sample MuSig2 wallet. `{}`: keys.
+    pub sample_kind_musig: &'static str,
+    /// Kind of a sample FROST wallet. `{}`: shares that sign, shares.
+    pub sample_kind_frost: &'static str,
+    /// Kind of a sample wallet with a key and a second that spends after a delay.
+    pub sample_kind_timelock: &'static str,
+    /// Script of a sample Taproot wallet with a tree of scripts.
+    pub sample_script_tree: &'static str,
+    /// Form of a sample key made of BIP-39 words.
+    pub sample_form_bip39: &'static str,
+    /// Form of a sample key made of SLIP-39 shares.
+    pub sample_form_slip39: &'static str,
+    /// Form of a sample key made of codex32 strings.
+    pub sample_form_codex32: &'static str,
+    /// Form of a sample key made of Seed XOR parts.
+    pub sample_form_xor: &'static str,
+    /// Form of a sample key that is a master seed.
+    pub sample_form_seed: &'static str,
+    /// Whole type of the sample encrypted backup.
+    pub sample_form_backup: &'static str,
+    /// Form of the sample LND cipher seed.
+    pub sample_form_aezeed: &'static str,
+    /// Size of a sample key of BIP-39 words. `{}`: how many.
+    pub sample_size_words: &'static str,
+    /// Size of a sample key of Japanese BIP-39 words. `{}`: how many.
+    pub sample_size_words_japanese: &'static str,
+    /// Size of a sample key of one share.
+    pub sample_size_share: &'static str,
+    /// Size of a sample key of shares. `{}`: how many.
+    pub sample_size_shares: &'static str,
+    /// Size of a sample SLIP-39 set. `{}`: shares that recover the key, shares dealt.
+    pub sample_size_threshold: &'static str,
+    /// Size of a sample SLIP-39 set in groups. `{}`: shares.
+    pub sample_size_groups: &'static str,
+    /// Size of the sample codex32 secret.
+    pub sample_size_secret: &'static str,
+    /// Size of a sample Seed XOR set. `{}`: parts.
+    pub sample_size_parts: &'static str,
+    /// Size of a sample master seed. `{}`: bytes.
+    pub sample_size_bytes: &'static str,
     // ----- wallet (faraday-core/src/wallet.rs) -----
     /// Text in `network_name`.
     pub wallet_mainnet: &'static str,
@@ -12747,7 +12793,7 @@ pub static EN: Strings = Strings {
     samples_unselect_all: "Unselect all",
     samples_not_now: "Not now",
     samples_load: "Load ticked",
-    samples_password: "In Demo, every passphrase is password.",
+    samples_password: "In Demo, every passphrase is",
     samples_loaded: "Loaded {}",
     samples_n_wallet: "{} wallet",
     samples_n_wallets: "{} wallets",
@@ -12778,6 +12824,29 @@ pub static EN: Strings = Strings {
     sample_musig: "MuSig2",
     sample_frost: "FROST 2 of 3",
     sample_three_of_five: "3 of 5",
+    sample_type: "{} · {}",
+    sample_kind_single: "single-sig",
+    sample_kind_multisig: "{}-of-{} multisig",
+    sample_kind_musig: "{}-key MuSig2",
+    sample_kind_frost: "{}-of-{} FROST",
+    sample_kind_timelock: "timelock recovery",
+    sample_script_tree: "Taproot, script tree",
+    sample_form_bip39: "BIP-39",
+    sample_form_slip39: "SLIP-39",
+    sample_form_codex32: "codex32",
+    sample_form_xor: "Seed XOR",
+    sample_form_seed: "Master seed",
+    sample_form_backup: "Encrypted backup (.oskb)",
+    sample_form_aezeed: "LND cipher seed",
+    sample_size_words: "{} words",
+    sample_size_words_japanese: "{} words, Japanese",
+    sample_size_share: "1 share",
+    sample_size_shares: "{} shares",
+    sample_size_threshold: "{} of {} shares",
+    sample_size_groups: "groups, {} shares",
+    sample_size_secret: "secret",
+    sample_size_parts: "{} parts",
+    sample_size_bytes: "{} bytes",
     wallet_mainnet: "Mainnet",
     wallet_testnet: "Testnet",
     wallet_signet: "Signet",

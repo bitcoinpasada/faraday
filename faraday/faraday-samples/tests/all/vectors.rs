@@ -3,7 +3,7 @@
 //! state are the ones another implementation gives.
 
 use crate::common::{
-    PASSWORD, entropy_of, fingerprint_of_seed, hex, json, key, reference_fingerprint, unhex,
+    PASSPHRASE, entropy_of, fingerprint_of_seed, hex, json, key, reference_fingerprint, unhex,
     vector, xprv_of_seed,
 };
 use faraday_bip::slip39::Share;
@@ -24,15 +24,15 @@ fn abandon_is_the_first_bip39_vector_and_its_seed_is_the_published_one() {
     assert_eq!(hex(&seed), case[2].as_str().expect("seed"));
     assert_eq!(xprv_of_seed(&seed), case[3].as_str().expect("xprv"));
     // The sample's fingerprints are those of the same words under none
-    // and under `password`.
+    // and under `faraday`.
     let lang = bip39::Language::English;
     assert_eq!(
         sample.plain,
         Some(reference_fingerprint(lang, sample.parts[0], ""))
     );
     assert_eq!(
-        sample.with_password,
-        Some(reference_fingerprint(lang, sample.parts[0], PASSWORD))
+        sample.with_passphrase,
+        Some(reference_fingerprint(lang, sample.parts[0], PASSPHRASE))
     );
 }
 
@@ -67,8 +67,8 @@ fn the_japanese_sample_is_the_first_bip32jp_vector() {
         Some(reference_fingerprint(lang, sample.parts[0], ""))
     );
     assert_eq!(
-        sample.with_password,
-        Some(reference_fingerprint(lang, sample.parts[0], PASSWORD))
+        sample.with_passphrase,
+        Some(reference_fingerprint(lang, sample.parts[0], PASSPHRASE))
     );
 }
 
@@ -112,8 +112,8 @@ fn slip39_sample_is_case(name: &str, number: usize) {
     assert_eq!(hex(&master), case[2].as_str().expect("master secret"));
     assert_eq!(xprv_of_seed(&master), case[3].as_str().expect("xprv"));
     // And the sample's fingerprints are those of the secret under none and
-    // under `password`.
-    for (pass, want) in [("", sample.plain), (PASSWORD, sample.with_password)] {
+    // under `faraday`.
+    for (pass, want) in [("", sample.plain), (PASSPHRASE, sample.with_passphrase)] {
         let secret = faraday_keys::slip39_seed(&c, &shares, pass.as_bytes()).expect("recovers");
         assert_eq!(
             Some(fingerprint_of_seed(&secret)),
@@ -170,7 +170,7 @@ fn the_codex32_samples_are_bip93_vectors_1_and_2_with_their_seed_and_xprv() {
         assert_eq!(hex(&got), seed, "{name}");
         assert_eq!(xprv_of_seed(&got), xprv, "{name}");
         assert_eq!(sample.plain, Some(fingerprint_of_seed(&got)), "{name}");
-        assert_eq!(sample.with_password, None);
+        assert_eq!(sample.with_passphrase, None);
     }
 }
 
@@ -203,8 +203,8 @@ fn the_seed_xor_sample_is_the_two_part_file_and_its_parts_xor_to_the_key() {
         Some(reference_fingerprint(lang, sample.combined, ""))
     );
     assert_eq!(
-        sample.with_password,
-        Some(reference_fingerprint(lang, sample.combined, PASSWORD))
+        sample.with_passphrase,
+        Some(reference_fingerprint(lang, sample.combined, PASSPHRASE))
     );
 }
 

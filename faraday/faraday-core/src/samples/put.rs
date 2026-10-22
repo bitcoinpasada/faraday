@@ -405,7 +405,7 @@ impl Faraday {
                 Screen::Restore | Screen::Spend | Screen::Decode
             ),
             ScanPurpose::CheckCopy(fp) => english_keys(set)
-                .any(|(_, k)| k.plain == Some(fp.0) || k.with_password == Some(fp.0)),
+                .any(|(_, k)| k.plain == Some(fp.0) || k.with_passphrase == Some(fp.0)),
             ScanPurpose::Transfer => false,
         }
     }
@@ -471,7 +471,7 @@ impl Faraday {
             }
             ScanPurpose::CheckCopy(fp) => {
                 let (_, k) = english_keys(set)
-                    .find(|(_, k)| k.plain == Some(fp.0) || k.with_password == Some(fp.0))?;
+                    .find(|(_, k)| k.plain == Some(fp.0) || k.with_passphrase == Some(fp.0))?;
                 seedqr_digits(k.parts.first()?)
             }
             ScanPurpose::VaultEntry => Some(set.inputs.totp.as_bytes().to_vec()),

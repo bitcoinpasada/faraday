@@ -1,0 +1,127 @@
+//! Multi-choice rows and the code box (`docs/DESIGN.md` §4.2, §4.3): the
+//! pieces of [`Ui`] that list rows with a checkbox and that show a value
+//! whose exact characters must be plain.
+
+use crate::pal::*;
+use crate::{Ui, W};
+use faraday_draw::Color;
+use faraday_draw::tokens::{
+    CAPTION, GAP, GAP_SMALL, LABEL, LIST_INDENT, LIST_RESERVE, RADIUS_SMALL, ROW,
+};
+
+impl<A: Copy + PartialEq> Ui<'_, A> {
+    /// A multi-choice list (`docs/DESIGN.md` §4.2, Multi choice): one
+    /// full-width row per option, a checkbox at its start, any number
+    /// ticked; a tap ticks or unticks its row. A row not enabled is
+    /// dimmed and takes no tap. The rows are `(label, ticked, enabled,
+    /// action)`. Returns the list's height; Continue goes under it.
+    pub fn multi_list(&mut self, x: f32, y: f32, w: f32, rows: &[(String, bool, bool, A)]) -> f32 {
+        let rh = if self.compact { 44.0 } else { 40.0 };
+        self.multi_rows(x, y, w, rows, &[], rh)
+    }
+
+    /// [`Ui::multi_list`] with a value under each row's label, as a value
+    /// row has (`docs/DESIGN.md` §4.2): `values[i]` is the muted line
+    /// under `rows[i]`'s label. A row with no value has none. Each row is
+    /// [`ROW`] tall. Returns the list's height.
+    pub fn multi_list_valued(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        rows: &[(String, bool, bool, A)],
+        values: &[String],
+    ) -> f32 {
+        self.multi_rows(x, y, w, rows, values, ROW)
+    }
+
+    /// The rows of [`Ui::multi_list`] and [`Ui::multi_list_valued`], each
+    /// `rh` tall.
+    fn multi_rows(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        rows: &[(String, bool, bool, A)],
+        values: &[String],
+        rh: f32,
+    ) -> f32 {
+        for (i, (label, on, enabled, action)) in rows.iter().enumerate() {
+            let ry = y + i as f32 * rh;
+            if *enabled && (self.is_pressed(*action) || self.is_hovered(*action)) {
+                self.fill(x, ry + 2.0, w, rh - 4.0, 8.0, INNER);
+            }
+            self.checkbox(x + 10.0, ry + (rh - 18.0) / 2.0, *on, *enabled);
+            let shown = self.fit(LABEL, W::R, label, w - LIST_RESERVE);
+            let fg = if *enabled { TEXT } else { DIM };
+            match values.get(i) {
+                Some(value) => {
+                    let (lh, vh) = (self.line(LABEL, W::R), self.line(CAPTION, W::R));
+                    let top = ry + (rh - lh - GAP_SMALL - vh) / 2.0;
+                    self.text(x + LIST_INDENT, top, LABEL, W::R, fg, &shown);
+                    let value = self.fit(CAPTION, W::R, value, w - LIST_RESERVE);
+                    let vc = if *enabled { MUTED } else { DIM };
+                    self.text(
+                        x + LIST_INDENT,
+                        top + lh + GAP_SMALL,
+                        CAPTION,
+                        W::R,
+                        vc,
+                        &value,
+                    );
+                }
+                None => {
+                    self.text_mid(x + LIST_INDENT, ry, rh, LABEL, W::R, fg, &shown);
+                }
+            }
+            if i + 1 < rows.len() {
+                self.rule(x + LIST_INDENT, ry + rh, w - LIST_INDENT, INNER);
+            }
+            if *enabled {
+                self.hit(x, ry, w, rh, *action);
+            }
+        }
+        rows.len() as f32 * rh
+    }
+
+    /// Text in a code box: the exact characters of a value that must be
+    /// read as they are, in the mono face on a tinted, rounded box, padded
+    /// by tokens, with no quotes. `x` and `y` are the box's top left. The
+    /// box is [`Ui::code_height`] tall at `size`. Returns its width.
+    pub fn code_box(&mut self, x: f32, y: f32, size: f32, text: &str) -> f32 {
+        let width = self.measure(size, W::M, text) + 2.0 * GAP;
+        let h = self.code_height(size);
+        self.fill(x, y, width, h, RADIUS_SMALL, INNER);
+        self.text_mid(x + GAP, y, h, size, W::M, TEXT, text);
+        width
+    }
+
+    /// The height of a [`Ui::code_box`] at `size`.
+    pub fn code_height(&self, size: f32) -> f32 {
+        self.line(size, W::M) + 2.0 * GAP_SMALL
+    }
+
+    /// A line `lead` followed by `code` in its code box, the box on the
+    /// next line where it does not fit beside the lead in `w`. The lead
+    /// is `color`, at `size` in the regular face. Returns the height.
+    pub fn code_line(
+        &mut self,
+        (x, y, w): (f32, f32, f32),
+        size: f32,
+        color: Color,
+        lead: &str,
+        code: &str,
+    ) -> f32 {
+        let lead_w = self.measure(size, W::R, lead);
+        let box_w = self.measure(size, W::M, code) + 2.0 * GAP;
+        let h = self.code_height(size);
+        if lead_w + GAP + box_w <= w {
+            self.text_mid(x, y, h, size, W::R, color, lead);
+            self.code_box(x + lead_w + GAP, y, size, code);
+            return h;
+        }
+        let lead_h = self.wrap(x, y, w, size, W::R, color, lead);
+        self.code_box(x, y + lead_h + GAP_SMALL, size, code);
+        lead_h + GAP_SMALL + h
+    }
+}

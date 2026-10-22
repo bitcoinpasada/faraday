@@ -18,7 +18,7 @@ Generate with dice on Create a vault runs the same way: the rolls make the words
 
 ## Samples
 
-Load samples is a pill beside the Demo pill. It opens a list of sample wallets and sample keys, each with a tick box. Load ticked puts the ticked ones in as if they had been typed or scanned. A set loads as one key, from as many shares or parts as it needs. A wallet loads with the sample keys it uses. A sample already loaded is ticked and dimmed. In Demo, every passphrase is password.
+Load samples is a pill beside the Demo pill. It opens a list of sample wallets and sample keys, each with a tick box. Load ticked puts the ticked ones in as if they had been typed or scanned. A set loads as one key, from as many shares or parts as it needs. A wallet loads with the sample keys it uses. A sample already loaded is ticked and dimmed. Each row says what the sample is under its name: a wallet its kind and script, a key its form and size. In Demo, every passphrase is `faraday`.
 
 Every sample is public, and anything sent to a sample's addresses can be taken by anyone. The words, shares and strings below can be typed where a screen asks for them.
 
@@ -48,7 +48,7 @@ codex32, 2 shares: MS12NAMEA320ZYXWVUTSRQPNMLKJHGFEDCAXRPP870HKKQRM and MS12NAME
 
 Seed XOR, 2 parts: float vendor rabbit upgrade alter globe right toddler window roof black rule and icon weasel expose grace stand spike plastic high runway betray prevent axis
 
-Encrypted backup: a file, in Load samples only, opened with the passphrase password; it holds a master seed of 32 bytes, each byte 42.
+Encrypted backup: a file, in Load samples only, opened with the passphrase `faraday`; it holds a master seed of 32 bytes, each byte 42.
 
 LND cipher seed: above judge emerge veteran reform crunch system all snap please shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body; it gives a Lightning node key, and Load samples does not list it.
 

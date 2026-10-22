@@ -1,8 +1,8 @@
 //! The sample files open the way a person opens them: the encrypted
-//! backup and the vault under `password`, the signed message against its
+//! backup and the vault under `faraday`, the signed message against its
 //! address, the setup code as the vault takes it.
 
-use crate::common::{PASSWORD, key};
+use crate::common::{PASSPHRASE, key};
 use faraday_backup::oskb::{self, Opened};
 use faraday_bip::keys::Network;
 use faraday_core::testkit::{self, compute};
@@ -11,15 +11,16 @@ use faraday_samples::SAMPLES;
 use faraday_vault::records::{field, kind};
 
 #[test]
-fn the_backup_opens_under_password_to_the_master_seed_of_every_byte_0x42() {
+fn the_backup_opens_under_the_passphrase_to_the_master_seed_of_every_byte_0x42() {
     let c = compute();
     let sample = key("sample_backup");
-    match oskb::open_payload(&c, sample.file, PASSWORD.as_bytes()).expect("it opens") {
+    match oskb::open_payload(&c, sample.file, PASSPHRASE.as_bytes()).expect("it opens") {
         Opened::Seed(seed) => assert_eq!(seed.as_slice(), [0x42u8; 32]),
         _ => panic!("a master seed"),
     }
     // Another passphrase does not open it.
-    assert!(oskb::open_payload(&c, sample.file, b"Password").is_err());
+    assert!(oskb::open_payload(&c, sample.file, b"password").is_err());
+    assert!(oskb::open_payload(&c, sample.file, b"Faraday").is_err());
     // It is the vectors' payload: the same seed their backup holds.
     assert_eq!(
         sample.plain,
@@ -53,7 +54,7 @@ fn decrypt_with_script(bytes: &[u8]) -> Option<(String, String)> {
         .arg(root.join("tools/backup/decrypt.py"))
         .arg(&path)
         .arg("--passphrase")
-        .arg(PASSWORD)
+        .arg(PASSPHRASE)
         .current_dir(&root)
         .output()
         .expect("run the script");
@@ -88,11 +89,12 @@ fn the_backup_opens_in_the_python_reader_to_the_same_seed() {
 }
 
 #[test]
-fn the_vault_opens_under_password_to_sample_key_1_and_the_savings_wallet() {
+fn the_vault_opens_under_the_passphrase_to_sample_key_1_and_the_savings_wallet() {
     let c = compute();
     let vault = SAMPLES.inputs.vault;
     assert!(faraday_vault::is_vault(vault));
-    let (_, contents) = faraday_vault::open(&c, vault, PASSWORD.as_bytes()).expect("it opens");
+    assert!(faraday_vault::open(&c, vault, b"password").is_err());
+    let (_, contents) = faraday_vault::open(&c, vault, PASSPHRASE.as_bytes()).expect("it opens");
     let of = |k: u8| -> Vec<&faraday_vault::Record> {
         contents.records.iter().filter(|r| r.kind == k).collect()
     };

@@ -26,8 +26,8 @@ use faraday_keys::Handout;
 
 /// The passphrase of every sample that has one: the backup, the vault, and
 /// the second fingerprint of each key that takes a passphrase
-/// (`docs/MODES.md` §6.2).
-pub const PASSWORD: &str = "password";
+/// (`docs/MODES.md` §6.2, §10 M6b). All lowercase.
+pub const PASSPHRASE: &str = "faraday";
 
 /// The form a key sample is read in (`docs/MODES.md` §5.1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,13 +51,42 @@ pub enum SampleForm {
 impl SampleForm {
     /// Whether a key of this form takes a passphrase (BIP-39, SLIP-39, and
     /// Seed XOR, whose result is BIP-39 words), so is public twice: with
-    /// none and with `password`.
+    /// none and with `faraday`.
     pub fn takes_passphrase(self) -> bool {
         matches!(
             self,
             SampleForm::Words | SampleForm::Slip39 | SampleForm::Xor
         )
     }
+}
+
+/// How big a key sample is, as its type line says it (`docs/MODES.md`
+/// §10 M6b): what the form counts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SampleSize {
+    /// BIP-39 words (or an LND cipher seed's).
+    Words(u8),
+    /// BIP-39 words of the Japanese list.
+    JapaneseWords(u8),
+    /// This many shares, typed or scanned.
+    Shares(u8),
+    /// SLIP-39 shares, `need` of the `total` the set was dealt in.
+    Threshold {
+        /// How many shares recover the key.
+        need: u8,
+        /// How many the set holds.
+        total: u8,
+    },
+    /// SLIP-39 shares of a set in groups, this many of them.
+    GroupShares(u8),
+    /// A codex32 secret, which is the key itself.
+    Secret,
+    /// Seed XOR parts.
+    Parts(u8),
+    /// A master seed of this many bytes.
+    Bytes(u8),
+    /// A file: the form says all.
+    File,
 }
 
 /// A sample key.
@@ -71,6 +100,8 @@ pub struct SampleKey {
     pub count: u8,
     /// The form it is read in.
     pub form: SampleForm,
+    /// How big it is: what the form counts.
+    pub size: SampleSize,
     /// Whether the Load samples sheet lists it. A key a wallet needs and
     /// the table of §5.1 does not list (the 3 of 5's) is not.
     pub listed: bool,
@@ -86,11 +117,51 @@ pub struct SampleKey {
     /// The key's fingerprint with no passphrase; `None` for a cipher
     /// seed, which loads no key.
     pub plain: Option<[u8; 4]>,
-    /// Its fingerprint with the passphrase `password`, for a form that
+    /// Its fingerprint with the passphrase `faraday`, for a form that
     /// takes one.
-    pub with_password: Option<[u8; 4]>,
+    pub with_passphrase: Option<[u8; 4]>,
     /// For a cipher seed: the Lightning node id it gives.
     pub node: Option<[u8; 33]>,
+}
+
+/// What a sample wallet is, apart from its script.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SampleKind {
+    /// One key.
+    Single,
+    /// `need` signatures of `total` keys.
+    Multisig {
+        /// Signatures required.
+        need: u8,
+        /// Keys.
+        total: u8,
+    },
+    /// A MuSig2 aggregate of this many keys.
+    MuSig(u8),
+    /// A FROST group: `need` of `total` shares sign.
+    Frost {
+        /// Shares that sign.
+        need: u8,
+        /// Shares dealt.
+        total: u8,
+    },
+    /// A key, and a second that spends after a delay.
+    Timelock,
+}
+
+/// The script a sample wallet pays to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SampleScript {
+    /// Pay to public key hash, or to script hash.
+    Legacy,
+    /// SegWit nested in script hash.
+    NestedSegwit,
+    /// Native SegWit.
+    NativeSegwit,
+    /// Taproot.
+    Taproot,
+    /// Taproot with a tree of scripts.
+    TaprootTree,
 }
 
 /// A sample wallet (`docs/MODES.md` §5.2).
@@ -98,6 +169,10 @@ pub struct SampleKey {
 pub struct SampleWallet {
     /// The name of its string in `faraday-strings` (`sample_savings`, ...).
     pub name: &'static str,
+    /// What kind of wallet it is.
+    pub kind: SampleKind,
+    /// The script it pays to.
+    pub script: SampleScript,
     /// What `Session::add_wallet` takes: its descriptor, or for the FROST
     /// wallet its record text.
     pub text: &'static str,
@@ -111,7 +186,7 @@ pub struct SampleWallet {
 /// The other inputs a flow takes (`docs/MODES.md` §5.3).
 #[derive(Debug, Clone, Copy)]
 pub struct SampleInputs {
-    /// A vault file (`.ofv`) under the passphrase `password`.
+    /// A vault file (`.ofv`) under the passphrase `faraday`.
     pub vault: &'static [u8],
     /// A signed message, in the text form a person pastes: made by sample
     /// Spending's first receive address.
@@ -150,18 +225,18 @@ impl Samples {
                     name: k.word,
                     words: k.count,
                     plain: Fingerprint(k.plain?),
-                    with_password: Fingerprint(k.with_password?),
+                    with_passphrase: Fingerprint(k.with_passphrase?),
                 })
             })
             .collect()
     }
 
     /// Every fingerprint Demo takes: each key's with none, and each key
-    /// that takes a passphrase with `password` too. Allocates a list.
+    /// that takes a passphrase with `faraday` too. Allocates a list.
     pub fn public(&self) -> Vec<Fingerprint> {
         self.keys
             .iter()
-            .flat_map(|k| [k.plain, k.with_password])
+            .flat_map(|k| [k.plain, k.with_passphrase])
             .flatten()
             .map(Fingerprint)
             .collect()
@@ -183,10 +258,13 @@ pub enum Pick {
 }
 
 /// One row of the sheet.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) struct Row {
     /// Its place in [`Samples::wallets`] or [`Samples::keys`].
     pub(crate) sample: usize,
+    /// What the sample is, as its value: made once when the sheet opens
+    /// from what the sample records, never while drawing.
+    pub(crate) kind: String,
     /// Ticked by the person, to load.
     pub(crate) ticked: bool,
     /// Already in the session: shown ticked and dimmed.
@@ -219,6 +297,32 @@ impl SheetState {
             Pick::Wallet(i) => self.wallets.get_mut(usize::from(i)),
             Pick::Key(i) => self.keys.get_mut(usize::from(i)),
         }
+    }
+}
+
+impl SampleWallet {
+    /// What the wallet is: its kind and its script, "2-of-3 multisig ·
+    /// native SegWit". A few strings put together.
+    pub fn kind_label(&self) -> String {
+        let en = &EN;
+        let n = |n: u8| n.to_string();
+        let kind = match self.kind {
+            SampleKind::Single => en.sample_kind_single.to_string(),
+            SampleKind::Multisig { need, total } => {
+                fill(en.sample_kind_multisig, &[&n(need), &n(total)])
+            }
+            SampleKind::MuSig(keys) => fill(en.sample_kind_musig, &[&n(keys)]),
+            SampleKind::Frost { need, total } => fill(en.sample_kind_frost, &[&n(need), &n(total)]),
+            SampleKind::Timelock => en.sample_kind_timelock.to_string(),
+        };
+        let script = match self.script {
+            SampleScript::Legacy => en.wallet_legacy,
+            SampleScript::NestedSegwit => en.wallet_nested_segwit,
+            SampleScript::NativeSegwit => en.wallet_native_segwit,
+            SampleScript::Taproot => en.wallet_taproot,
+            SampleScript::TaprootTree => en.sample_script_tree,
+        };
+        fill(en.sample_type, &[&kind, script])
     }
 }
 
@@ -257,6 +361,37 @@ pub fn label(name: &str, word: &str, count: u8) -> Option<String> {
 }
 
 impl SampleKey {
+    /// What the key is: its form and its size, "BIP-39 · 24 words". A few
+    /// strings put together.
+    pub fn kind_label(&self) -> String {
+        let en = &EN;
+        let form = match self.form {
+            SampleForm::Words => en.sample_form_bip39,
+            SampleForm::Slip39 => en.sample_form_slip39,
+            SampleForm::Codex32 => en.sample_form_codex32,
+            SampleForm::Xor => en.sample_form_xor,
+            SampleForm::Seed => en.sample_form_seed,
+            SampleForm::Backup => en.sample_form_backup,
+            SampleForm::Aezeed => en.sample_form_aezeed,
+        };
+        let n = |n: u8| n.to_string();
+        let size = match self.size {
+            SampleSize::Words(c) => fill(en.sample_size_words, &[&n(c)]),
+            SampleSize::JapaneseWords(c) => fill(en.sample_size_words_japanese, &[&n(c)]),
+            SampleSize::Shares(1) => en.sample_size_share.to_string(),
+            SampleSize::Shares(c) => fill(en.sample_size_shares, &[&n(c)]),
+            SampleSize::Threshold { need, total } => {
+                fill(en.sample_size_threshold, &[&n(need), &n(total)])
+            }
+            SampleSize::GroupShares(c) => fill(en.sample_size_groups, &[&n(c)]),
+            SampleSize::Secret => en.sample_size_secret.to_string(),
+            SampleSize::Parts(c) => fill(en.sample_size_parts, &[&n(c)]),
+            SampleSize::Bytes(c) => fill(en.sample_size_bytes, &[&n(c)]),
+            SampleSize::File => return form.to_string(),
+        };
+        fill(en.sample_type, &[form, &size])
+    }
+
     /// What the key is called on screen.
     pub(crate) fn label(&self) -> String {
         label(self.name, self.word, self.count).unwrap_or_default()
@@ -269,9 +404,9 @@ impl SampleKey {
     }
 
     /// Whether the session holds it, with no passphrase or with
-    /// `password`. A lookup.
+    /// `faraday`. A lookup.
     pub(crate) fn held(&self, keys: &faraday_keys::Keys) -> bool {
-        [self.plain, self.with_password]
+        [self.plain, self.with_passphrase]
             .into_iter()
             .flatten()
             .any(|fp| keys.position_of(fp).is_some())
@@ -318,7 +453,7 @@ impl SampleKey {
             }
             SampleForm::Seed => keys.add_seed(c, &unhex(part(0)), &label),
             SampleForm::Backup => {
-                match keys.add_backup(c, self.file, PASSWORD.as_bytes(), &label) {
+                match keys.add_backup(c, self.file, PASSPHRASE.as_bytes(), &label) {
                     Ok(faraday_keys::vault::Added::Key(added)) => added,
                     _ => return false,
                 }
@@ -375,6 +510,7 @@ impl Faraday {
             .enumerate()
             .map(|(sample, w)| Row {
                 sample,
+                kind: w.kind_label(),
                 ticked: false,
                 loaded: !have.is_empty()
                     && read_wallet(c, w.text).is_ok_and(|p| have.contains(&same_wallet(&p))),
@@ -387,6 +523,7 @@ impl Faraday {
             .filter(|(_, k)| k.tickable())
             .map(|(sample, k)| Row {
                 sample,
+                kind: k.kind_label(),
                 ticked: false,
                 loaded: k.held(&self.session.keys),
             })

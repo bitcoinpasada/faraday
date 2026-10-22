@@ -11,7 +11,7 @@ use faraday_core::{DESKTOP_MODES, Faraday};
 use faraday_samples::SAMPLES;
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
-pub const PASSWORD: &str = "password";
+pub const PASSPHRASE: &str = "faraday";
 
 /// The sample whose parts are exactly `name`'s, the `n`th of that name.
 pub fn key(name: &str) -> &'static SampleKey {

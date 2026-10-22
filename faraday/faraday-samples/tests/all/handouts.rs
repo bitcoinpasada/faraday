@@ -1,7 +1,7 @@
 //! What New key hands out in Demo: a sample of the length chosen, for
 //! every length it offers.
 
-use crate::common::{PASSWORD, reference_fingerprint};
+use crate::common::{PASSPHRASE, reference_fingerprint};
 use faraday_bip::keys::Network;
 use faraday_core::samples::repeated;
 use faraday_core::testkit::{self, compute};
@@ -35,8 +35,8 @@ fn each_handout_is_a_valid_phrase_and_the_24_word_ones_are_every_word_valid_that
             .unwrap_or_else(|e| panic!("{} x{}: {e}", h.name, h.words));
         assert_eq!(h.plain.0, reference_fingerprint(lang, &phrase, ""));
         assert_eq!(
-            h.with_password.0,
-            reference_fingerprint(lang, &phrase, PASSWORD)
+            h.with_passphrase.0,
+            reference_fingerprint(lang, &phrase, PASSPHRASE)
         );
     }
     // Which words are valid 24 times, by trying all 2048.
@@ -58,7 +58,7 @@ fn the_handouts_are_those_the_cores_tests_use() {
     assert_eq!(want.len(), have.len());
     for (w, h) in want.iter().zip(&have) {
         assert_eq!((w.name, w.words), (h.name, h.words));
-        assert_eq!((w.plain, w.with_password), (h.plain, h.with_password));
+        assert_eq!((w.plain, w.with_passphrase), (h.plain, h.with_passphrase));
     }
 }
 
@@ -90,11 +90,11 @@ fn new_key_hands_out_the_next_sample_of_the_length_until_all_are_loaded() {
 }
 
 #[test]
-fn a_sample_loaded_with_password_counts_as_loaded_for_new_key() {
+fn a_sample_loaded_with_passphrase_counts_as_loaded_for_new_key() {
     let c = compute();
     let mut keys = demo_keys();
     let first = of_length(12)[0];
-    keys.add_words_with(&c, &repeated(first, 12), PASSWORD, "", None)
+    keys.add_words_with(&c, &repeated(first, 12), PASSPHRASE, "", None)
         .expect("loads");
     assert_eq!(keys.next_handout(12).map(|h| h.0), Some(of_length(12)[1]));
 }

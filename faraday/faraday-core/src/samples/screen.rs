@@ -4,7 +4,7 @@
 //! loaded shows ticked and dimmed. Drawing reads the rows
 //! ([`super::SheetState`]) and works nothing out.
 
-use super::{Pick, Row, label};
+use super::{PASSPHRASE, Pick, Row, label};
 use crate::Action;
 use crate::compact::{buttons, scroll_sheet};
 use crate::drawing::View;
@@ -23,21 +23,21 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     });
 }
 
-/// A list's rows for `multi_list`: the sample's name, ticked once loaded
-/// too, and pressable until it is.
-fn list(
-    rows: &[Row],
-    name: impl Fn(usize) -> String,
-    pick: fn(u8) -> Pick,
-) -> Vec<(String, bool, bool, Action)> {
+/// The rows of `multi_list_valued` and the value under each.
+type Listed = (Vec<(String, bool, bool, Action)>, Vec<String>);
+
+/// A list's rows for `multi_list_valued`: the sample's name, ticked once
+/// loaded too, and pressable until it is; and, for each, what it is.
+fn list(rows: &[Row], name: impl Fn(usize) -> String, pick: fn(u8) -> Pick) -> Listed {
     rows.iter()
         .enumerate()
         .filter_map(|(i, r)| {
             let at = u8::try_from(i).ok()?;
             let action = Action::SampleTick(pick(at));
-            Some((name(r.sample), r.ticked || r.loaded, !r.loaded, action))
+            let row = (name(r.sample), r.ticked || r.loaded, !r.loaded, action);
+            Some((row, r.kind.clone()))
         })
-        .collect()
+        .unzip()
 }
 
 /// A small heading over a list. Returns its height.
@@ -54,7 +54,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     let mut cy = y;
     cy += head(ui, (x, cy, w), Icon::Download, EN.samples_title);
-    cy += ui.wrap(x, cy, w, LABEL, W::R, MUTED, EN.samples_password) + PAD;
+    cy += ui.code_line((x, cy, w), LABEL, MUTED, EN.samples_password, PASSPHRASE) + PAD;
     // Unselect all while any is ticked; Select all once none is.
     let any = state.any_ticked();
     let link = if any {
@@ -67,15 +67,15 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     ui.hit(x - GAP, cy, lw + 2.0 * GAP, TOUCH, Action::SamplesAll);
     cy += TOUCH;
     cy += heading(ui, x, cy, EN.samples_wallets);
-    let wallets = list(
+    let (wallets, kinds) = list(
         &state.wallets,
         |i| label(set.wallets[i].name, "", 0).unwrap_or_default(),
         Pick::Wallet,
     );
-    cy += ui.multi_list(x, cy, w, &wallets) + PAD;
+    cy += ui.multi_list_valued(x, cy, w, &wallets, &kinds) + PAD;
     cy += heading(ui, x, cy, EN.samples_keys);
-    let keys = list(&state.keys, |i| set.keys[i].label(), Pick::Key);
-    cy += ui.multi_list(x, cy, w, &keys) + PAD;
+    let (keys, kinds) = list(&state.keys, |i| set.keys[i].label(), Pick::Key);
+    cy += ui.multi_list_valued(x, cy, w, &keys, &kinds) + PAD;
     let load = if any && app.may_load_keys() {
         Style::Primary
     } else {

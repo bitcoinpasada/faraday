@@ -782,7 +782,7 @@ fn in_the_demo_with_every_sample_of_a_length_loaded_lock_in_is_dimmed_at_that_le
 }
 
 #[test]
-fn a_sample_loaded_with_the_passphrase_password_counts_as_loaded_for_new_key() {
+fn a_sample_loaded_with_the_passphrase_counts_as_loaded_for_new_key() {
     let c = testkit::compute();
     let mut app = app_on(true);
     app.session
@@ -790,7 +790,7 @@ fn a_sample_loaded_with_the_passphrase_password_counts_as_loaded_for_new_key() {
         .add_words_with(
             &c,
             &faraday_core::samples::repeated("twelve", 12),
-            "password",
+            faraday_core::samples::PASSPHRASE,
             "",
             None,
         )

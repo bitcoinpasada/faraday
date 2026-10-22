@@ -456,6 +456,10 @@ the file has them.
 | `samples_not_now` | Not now |
 | `samples_load` | Load ticked |
 | `samples_password` | In Demo, every passphrase is (the passphrase follows in its code box) |
+| `sample_type` | {} · {} (kind and script, or form and size) |
+| `sample_kind_single` / `sample_kind_multisig` / `sample_kind_musig` / `sample_kind_frost` / `sample_kind_timelock` / `sample_script_tree` | single-sig / {}-of-{} multisig / {}-key MuSig2 / {}-of-{} FROST / timelock recovery / Taproot, script tree (the other scripts are `wallet_legacy`, `wallet_nested_segwit`, `wallet_native_segwit`, `wallet_taproot`) |
+| `sample_form_bip39` / `_slip39` / `_codex32` / `_xor` / `_seed` / `_backup` / `_aezeed` | BIP-39 / SLIP-39 / codex32 / Seed XOR / Master seed / Encrypted backup (.oskb) / LND cipher seed |
+| `sample_size_words` / `_words_japanese` / `_share` / `_shares` / `_threshold` / `_groups` / `_secret` / `_parts` / `_bytes` | {} words / {} words, Japanese / 1 share / {} shares / {} of {} shares / groups, {} shares / secret / {} parts / {} bytes |
 | `samples_loaded` | Loaded {} (`{}`: how many, as the Load sheet's toast counts) |
 | `use_a_sample` | Use a sample |
 | `scan_sample` | Sample |
@@ -656,7 +660,8 @@ wallet would notice.
 - **As built**: `faraday_core::samples` holds `SampleKey`, `SampleWallet`,
   `SampleInputs` and `Samples` (a key's `name` is the field of its string
   in `en.rs`, which M6 adds; `parts` is what is typed or scanned;
-  `plain` and `with_password` are its fingerprints; `listed` is false for
+  `plain` and `with_passphrase` are its fingerprints; `size` is what its
+  form counts (M6b); a wallet's `kind` and `script` likewise; `listed` is false for
   the 3 of 5's five keys). The crate's `src/data.rs` and `data/` are
   written by `cargo run -p faraday-samples --example regenerate`. Core's
   tests do not link the crate: `testkit::demo_samples()` derives the 21

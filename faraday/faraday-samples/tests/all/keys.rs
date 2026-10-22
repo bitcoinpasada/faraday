@@ -1,7 +1,7 @@
 //! Demo takes every sample the way a person would load it, and nothing
 //! else: the public set is complete and no other key is in it.
 
-use crate::common::{PASSWORD, hex, unhex};
+use crate::common::{PASSPHRASE, hex, unhex};
 use faraday_bip::bip39::Language;
 use faraday_bip::keys::{Fingerprint, Network};
 use faraday_core::samples::{SampleForm, SampleKey, Samples};
@@ -57,7 +57,7 @@ fn load(keys: &mut Keys, sample: &SampleKey, passphrase: &str) -> Result<Fingerp
             .add_seed(&c, &unhex(sample.parts[0]), "")
             .map_err(refused),
         SampleForm::Backup => match keys
-            .add_backup(&c, sample.file, PASSWORD.as_bytes(), "")
+            .add_backup(&c, sample.file, PASSPHRASE.as_bytes(), "")
             .map_err(|e| format!("{e:?}"))?
         {
             faraday_keys::vault::Added::Key(r) => r.map_err(refused),
@@ -83,13 +83,13 @@ fn demo_takes_every_sample_key_in_the_form_it_comes_in() {
 }
 
 #[test]
-fn demo_takes_the_keys_that_take_a_passphrase_with_password_too() {
+fn demo_takes_the_keys_that_take_a_passphrase_with_it_too() {
     let mut with = 0;
-    for sample in SAMPLES.keys.iter().filter(|k| k.with_password.is_some()) {
+    for sample in SAMPLES.keys.iter().filter(|k| k.with_passphrase.is_some()) {
         let mut keys = demo_keys();
-        let fp = load(&mut keys, sample, PASSWORD)
-            .unwrap_or_else(|e| panic!("{} with password: {e}", sample.name));
-        assert_eq!(Some(fp.0), sample.with_password, "{}", sample.name);
+        let fp = load(&mut keys, sample, PASSPHRASE)
+            .unwrap_or_else(|e| panic!("{} with the passphrase: {e}", sample.name));
+        assert_eq!(Some(fp.0), sample.with_passphrase, "{}", sample.name);
         with += 1;
     }
     // The 21 repeated words, the 12-word vector, the Japanese one, the
@@ -98,7 +98,7 @@ fn demo_takes_the_keys_that_take_a_passphrase_with_password_too() {
     // And the forms that take none have none.
     for sample in SAMPLES.keys.iter() {
         let takes = sample.form.takes_passphrase();
-        assert_eq!(sample.with_password.is_some(), takes, "{}", sample.name);
+        assert_eq!(sample.with_passphrase.is_some(), takes, "{}", sample.name);
     }
 }
 
@@ -116,8 +116,17 @@ fn demo_refuses_a_key_that_is_not_a_sample_and_a_sample_with_another_passphrase(
         keys.add_words_with(&c, abandon.parts[0], "TREZOR", "", None)
             .is_err()
     );
+    // Nor under `password`: the passphrase is `faraday`.
+    assert!(
+        keys.add_words_with(&c, abandon.parts[0], "password", "", None)
+            .is_err()
+    );
     assert!(
         keys.add_words_with(&c, abandon.parts[0], "", "", None)
+            .is_ok()
+    );
+    assert!(
+        keys.add_words_with(&c, abandon.parts[0], "faraday", "", None)
             .is_ok()
     );
     // Words that are valid and are in no sample.
@@ -135,7 +144,7 @@ fn every_fingerprint_of_the_public_set_belongs_to_a_sample_and_none_repeats() {
     }
     let mut want = 0;
     for k in SAMPLES.keys {
-        want += usize::from(k.plain.is_some()) + usize::from(k.with_password.is_some());
+        want += usize::from(k.plain.is_some()) + usize::from(k.with_passphrase.is_some());
     }
     assert_eq!(public.len(), want);
     let keys = demo_keys();
@@ -192,4 +201,46 @@ fn a_sample_carries_what_a_flow_needs_to_load_it() {
     // Seed XOR, the backup and the cipher seed.
     assert_eq!(listed, 21 + 2 + 3 + 2 + 1 + 1 + 1);
     let _: &Samples = &SAMPLES;
+}
+
+#[test]
+fn the_size_a_key_sample_records_is_what_its_data_holds() {
+    use faraday_core::samples::SampleSize as S;
+    let words = |t: &str| u8::try_from(t.split_whitespace().count()).expect("a count");
+    for k in SAMPLES.keys {
+        let parts = u8::try_from(k.parts.len()).expect("a count");
+        match k.size {
+            S::Words(n) | S::JapaneseWords(n) => assert_eq!(n, words(k.parts[0]), "{}", k.name),
+            S::Shares(n) | S::GroupShares(n) | S::Parts(n) => assert_eq!(n, parts, "{}", k.name),
+            S::Secret => assert_eq!(parts, 1, "{}", k.name),
+            S::Bytes(n) => assert_eq!(usize::from(n), unhex(k.parts[0]).len(), "{}", k.name),
+            S::File => assert!(!k.file.is_empty(), "{}", k.name),
+            S::Threshold { need, total } => {
+                // A share states how many shares recover its key; the set
+                // it came from is as large as the vector says.
+                let share = match part_of(k.parts[0]) {
+                    Some(Part::Slip39(s)) => s,
+                    _ => panic!("a SLIP-39 share"),
+                };
+                assert_eq!(need, share.member_threshold(), "{}", k.name);
+                assert!(total >= need && parts >= need, "{}", k.name);
+            }
+        }
+    }
+    // A Seed XOR sample is as long as the key its parts make.
+    let xor = crate::common::key("sample_xor");
+    assert_eq!(words(xor.combined), 12);
+}
+
+#[test]
+fn only_the_japanese_sample_is_in_the_japanese_list() {
+    use faraday_core::samples::SampleSize as S;
+    for k in SAMPLES.keys {
+        assert_eq!(
+            matches!(k.size, S::JapaneseWords(_)),
+            k.name == "sample_japanese",
+            "{}",
+            k.name
+        );
+    }
 }

@@ -96,6 +96,11 @@ pub const BACK_LINK_ROW: f32 = 26.0;
 
 /// Standard list row height.
 pub const ROW: f32 = 56.0;
+/// How far in a multi-choice row's label starts: past its checkbox.
+pub const LIST_INDENT: f32 = 40.0;
+/// What a multi-choice row's label leaves free at its right: the
+/// checkbox's place and the row's edge.
+pub const LIST_RESERVE: f32 = 50.0;
 /// Primary menu row height: an icon, a label and a chevron.
 pub const MENU_ROW: f32 = 72.0;
 /// Menu row height on a `small` panel, where five rows and the app bar
