@@ -214,9 +214,6 @@ pub enum Action {
     Mode(crate::modes::Mode),
     /// Open the mode sheet: the pill, or Settings' Mode row.
     ModeSheet,
-    /// The online app's not-air-gapped warning acknowledged: the test
-    /// mode, if one was asked for, follows.
-    AirgapUnderstood,
     /// Close a sheet.
     Cancel,
     /// Set the display scale, in percent.

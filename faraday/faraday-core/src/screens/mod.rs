@@ -44,15 +44,16 @@ pub(crate) use files::vault_panel;
 pub(crate) use home::home_lead_beside_tiles;
 pub(crate) use message::MSTEPS;
 pub(crate) use parts::{
-    buttons_and_next, descriptor_row, first_addresses, guide_text, keyed_pills, kind_line,
-    kind_name, locked_tag, next_button, pass_field, pin_button, side_panel_w, sign_readiness,
-    size_text, stepper, ticked, word_keys,
+    buttons_and_next, descriptor_row, first_addresses, grid_never, guide_text, keyed_pills,
+    kind_line, kind_name, locked_tag, never_below, never_real_seed, never_real_seed_if,
+    never_under, next_button, pass_field, pin_button, side_panel_w, sign_readiness, size_text,
+    stepper, ticked, word_keys,
 };
 pub(crate) use restore::RSTEPS;
 use sheets::{
     devices_sheet, idle_warn_sheet, learn_sheet, lock_sheet, locked_sheet, new_input_sheet,
-    not_airgapped_sheet, potential_sheet, power_sheet, pull_sheet, qr_sheet, scan_sheet,
-    secret_out_sheet, write_out_sheet,
+    potential_sheet, power_sheet, pull_sheet, qr_sheet, scan_sheet, secret_out_sheet,
+    write_out_sheet,
 };
 use sidebar::sidebar;
 pub(crate) use sidebar::{lock_held_pill, name_suffix};
@@ -174,9 +175,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::NewInput => app.inputs.first().map(|d| Action::InputIgnore(d.id)),
             // Zeroing stops by its own Stop, never by a press beside it.
             Sheet::WordList | Sheet::IdleWarn | Sheet::Zeroing => None,
-            // Reached a test network without asking: only the
-            // acknowledgement.
-            Sheet::NotAirgapped if app.test_asked.is_none() => None,
             Sheet::BoardMenu => Some(Action::Board(crate::board::BoardPress::MenuClose)),
             _ => Some(Action::Cancel),
         };
@@ -186,7 +184,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Power => power_sheet(app, ui, w, h),
             Sheet::Qr => qr_sheet(app, ui, w, h),
             Sheet::Scan => scan_sheet(app, ui, w, h),
-            Sheet::NotAirgapped => not_airgapped_sheet(app, ui, w, h),
             Sheet::Locked => locked_sheet(app, ui, w, h),
             Sheet::NewInput => new_input_sheet(app, ui, w, h),
             Sheet::Learn => learn_sheet(app, ui, w, h),

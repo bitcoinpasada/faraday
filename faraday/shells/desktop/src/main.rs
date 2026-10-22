@@ -53,11 +53,11 @@
 //! winit reports the drop: on X11, not on native Wayland. Nothing
 //! received goes into the app's Inbox.
 //!
-//! Every session here opens on testnet. A release build (a build ID
-//! with nothing after the version, `faraday_core::is_release`) first
-//! shows the not-air-gapped warning, once a session, before any seed can
-//! be loaded (F61); a developer or test build shows none (owner,
-//! 2026-10-19). Mainnet, chosen from Network, is the demo (F20).
+//! Every session here opens in Demo, on testnet, in every build; the
+//! pill and Settings choose Testnet, Signet or Regtest, and a lock
+//! keeps the mode (F81). No warning comes first: every step that takes
+//! a seed carries a line saying never to type one that holds real
+//! bitcoin.
 //! The stick's app starts on mainnet.
 //!
 //! Locking ends the app's process on the device; here it replaces the app
@@ -317,7 +317,11 @@ impl Shell {
     }
 
     fn restart(&mut self, event_loop: &ActiveEventLoop) {
-        self.app = Some(desktop_app_after_lock());
+        let mode = self
+            .app
+            .as_ref()
+            .map_or(faraday_core::Mode::Demo, Faraday::mode_after_restart);
+        self.app = Some(desktop_app_in(mode));
         // Pictures the last app asked for are not this one's.
         self.dirs = Dirs::default();
         self.seen.clear();
@@ -666,38 +670,22 @@ fn watch_listing(downloads: PathBuf, opens: bool, out: Sender<Listing>) {
 }
 
 /// A fresh app as the desktop runs it: the online Faraday, which turns
-/// sheets into PDFs, opening on testnet, where it takes any seed and
-/// shows real addresses. A release build shows the not-air-gapped
-/// warning once at program start, before any seed can be loaded (F61);
-/// a developer or test build shows none (owner, 2026-10-19). Mainnet,
-/// chosen from Network, is the demo (F20): there it takes only the
-/// public seeds and shows every address with a broken checksum.
-fn desktop_app() -> Faraday {
-    desktop_app_for(faraday_core::is_release())
-}
-
-/// The fresh app a lock starts: the warning was shown at program start,
-/// so it is not shown again (owner, 2026-10-20).
-fn desktop_app_after_lock() -> Faraday {
-    desktop_app_for(false)
-}
-
-/// [`desktop_app`], with the start warning (`release`) or without.
-fn desktop_app_for(release: bool) -> Faraday {
+/// sheets into PDFs, in `mode`. Every build starts in Demo (the key
+/// store's public set, on testnet); a lock starts the fresh session in
+/// the mode the old one chose or was in. No warning comes first: the
+/// steps that take a seed carry a line instead (F81).
+fn desktop_app_in(mode: faraday_core::Mode) -> Faraday {
     let mut app = Faraday::new();
     app.online = true;
     // This shell answers `RequestClipboard` (faraday_window::clipboard).
     app.clipboard = true;
     app.shell_sticks = true;
-    app.session = faraday_core::wallet::Session::on(faraday_bip::keys::Network::Testnet);
-    let c = app.compute();
-    app.session.set_demo(&c);
-    app.set_modes(faraday_core::DESKTOP_MODES);
-    if release {
-        app.with_start_warning();
-    } else {
-        app.without_airgap_warning();
+    app.session = faraday_core::wallet::Session::on(mode.network());
+    if mode == faraday_core::Mode::Demo {
+        let c = app.compute();
+        app.session.set_demo(&c);
     }
+    app.set_modes(faraday_core::DESKTOP_MODES);
     app
 }
 
@@ -875,7 +863,7 @@ fn main() -> ExitCode {
     let print_dir = home()
         .map(|h| h.join("faraday-print"))
         .unwrap_or_else(|| PathBuf::from("faraday-print"));
-    let app = desktop_app();
+    let app = desktop_app_in(faraday_core::Mode::Demo);
     let pace = Pacer::new(timings);
     let next_scan = pace.epoch;
     let opens = faraday_storage::can_open_folders();
@@ -994,7 +982,7 @@ mod tests {
     #[test]
     fn the_desktop_opens_in_demo_on_testnet_and_a_mode_change_locks() {
         let c = faraday_core::testkit::compute();
-        let mut app = desktop_app();
+        let mut app = desktop_app_in(faraday_core::Mode::Demo);
         assert_eq!(app.mode(), faraday_core::Mode::Demo);
         assert_eq!(app.session.network(), faraday_core::testkit::NET);
         let other = "abandon abandon abandon abandon abandon abandon \
@@ -1007,25 +995,25 @@ mod tests {
         assert!(app.restart_requested());
     }
 
-    /// A release opens on testnet behind the online warning, which is
-    /// acknowledged once (F61); a developer's build shows none.
+    /// Every build opens in Demo with no sheet; a lock keeps the mode,
+    /// and a mode chosen is where the fresh session starts.
     #[test]
-    fn a_release_opens_on_testnet_behind_the_online_warning() {
-        let mut app = desktop_app_for(true);
-        assert_eq!(app.session.network(), faraday_core::testkit::NET);
-        assert_eq!(app.sheet, Some(faraday_core::Sheet::NotAirgapped));
-        app.press(faraday_core::Action::AirgapUnderstood);
+    fn every_build_opens_in_demo_with_no_sheet() {
+        let app = desktop_app_in(faraday_core::Mode::Demo);
         assert!(app.sheet.is_none());
+        assert_eq!(app.mode(), faraday_core::Mode::Demo);
         assert_eq!(app.session.network(), faraday_core::testkit::NET);
-        assert!(desktop_app_for(false).sheet.is_none());
     }
 
-    /// A lock starts a fresh app with no warning: it was shown once, at
-    /// program start (owner, 2026-10-20).
     #[test]
-    fn after_a_lock_the_online_warning_is_not_shown_again() {
-        let app = desktop_app_after_lock();
-        assert!(app.sheet.is_none());
-        assert_eq!(app.session.network(), faraday_core::testkit::NET);
+    fn leaving_demo_for_testnet_starts_a_fresh_testnet_session() {
+        let mut app = desktop_app_in(faraday_core::Mode::Demo);
+        app.press(faraday_core::Action::Mode(faraday_core::Mode::Testnet));
+        let fresh = desktop_app_in(app.mode_after_restart());
+        assert!(fresh.sheet.is_none());
+        assert_eq!(fresh.mode(), faraday_core::Mode::Testnet);
+        assert!(!fresh.session.keys.demo());
+        let locked = desktop_app_in(fresh.mode_after_restart());
+        assert_eq!(locked.mode(), faraday_core::Mode::Testnet);
     }
 }

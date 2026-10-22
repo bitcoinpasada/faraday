@@ -4499,8 +4499,6 @@ pub struct Strings {
     pub app_super_s_held_2: &'static str,
     /// Text in `TIME_FOR`.
     pub app_for_totp_codes: &'static str,
-    /// Text in `NOT_AIRGAPPED`.
-    pub app_for_real_funds: &'static str,
     // ----- loose_card (faraday-core/src/screens/wallets.rs) -----
     /// Text in `loose_card`. `{}`: `fp_text(*only)`.
     pub loose_card_key_is_loaded: &'static str,
@@ -6221,17 +6219,6 @@ pub struct Strings {
     pub locked_no_power_off: &'static str,
     /// Button in `locked_sheet`.
     pub locked_continue: &'static str,
-    // ----- not_airgapped (faraday-core/src/screens/sheets.rs) -----
-    /// Text in `not_airgapped_sheet`.
-    pub test_network_cancel: &'static str,
-    /// Text in `not_airgapped_sheet`.
-    pub test_network_i_understand: &'static str,
-    /// Line in `not_airgapped_sheet`.
-    pub test_network_title: &'static str,
-    /// Text in `NOT_AIRGAPPED`.
-    pub test_network_testing_only: &'static str,
-    /// Text in `NOT_AIRGAPPED`.
-    pub test_network_online: &'static str,
     // ----- power (faraday-core/src/screens/sheets.rs) -----
     /// Text in `power_sheet`.
     pub power_the_computer: &'static str,
@@ -7850,6 +7837,9 @@ pub struct Strings {
     pub mode_sheet_title: &'static str,
     /// Button in the mode sheet.
     pub mode_not_now: &'static str,
+    /// The line under every field where a seed or a secret is typed, on an
+    /// online shell.
+    pub never_real_seed: &'static str,
     // ----- wallet (faraday-core/src/wallet.rs) -----
     /// Text in `network_name`.
     pub wallet_mainnet: &'static str,
@@ -11052,7 +11042,6 @@ pub static EN: Strings = Strings {
     app_done: "Done",
     app_super_s_held_2: "Super + S held 2 s: power off at once",
     app_for_totp_codes: "For TOTP codes, GPG and Secure Boot signatures, and backup check dates",
-    app_for_real_funds: "For real funds, use Faraday booted from a stick on a computer with no network",
     loose_card_key_is_loaded: "Key {} is loaded. No wallet uses it.",
     loose_card_keys_are: "{} keys are loaded. No wallet uses them.",
     loose_card_add_another: "Add another key",
@@ -11863,11 +11852,6 @@ pub static EN: Strings = Strings {
     locked_powers_off_in: "Powers off in {} without input",
     locked_no_power_off: "{} {} · no power-off until written",
     locked_continue: "Continue",
-    test_network_cancel: "Cancel",
-    test_network_i_understand: "I understand",
-    test_network_title: "Test network",
-    test_network_testing_only: "For testing only: a test network takes any seed",
-    test_network_online: "This computer is online: never enter a seed that holds funds here",
     power_the_computer: "The computer powers off",
     power_cancel: "Cancel",
     power_power_off: "Power off",
@@ -12659,6 +12643,7 @@ pub static EN: Strings = Strings {
     mode_demo_pill: "Demo · Testnet",
     mode_sheet_title: "Mode",
     mode_not_now: "Not now",
+    never_real_seed: "Never type a seed that holds real bitcoin here.",
     wallet_mainnet: "Mainnet",
     wallet_testnet: "Testnet",
     wallet_signet: "Signet",

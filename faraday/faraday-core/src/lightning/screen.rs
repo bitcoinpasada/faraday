@@ -139,6 +139,7 @@ fn body(
             &fill(EN.lightning_of_24, &[&n.to_string()]),
         );
         y += 52.0;
+        y += crate::screens::never_real_seed(app, ui, x, y, width);
         ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, EN.lightning_passphrase);
         // On a small panel the field goes under its name, Read it under
         // the field.

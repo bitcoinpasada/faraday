@@ -11,7 +11,8 @@ use crate::keygen::{
     Group, KeyGen, MIX_SOURCES, Source, Start, WAYS, Way, kstep, procedure_name, source_name,
 };
 use crate::screens::{
-    buttons_and_next, descriptor_row, locked_tag, next_button, pass_field, section_label, stepper,
+    buttons_and_next, descriptor_row, locked_tag, never_below, never_real_seed, next_button,
+    pass_field, section_label, stepper,
 };
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
@@ -338,7 +339,7 @@ fn card_body(app: &View, k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
         kstep::TYPED => typed(app, ui, x, y, w),
         kstep::LENGTH => length(k, ui, x, y, w),
         kstep::SOURCE => sources(k, ui, x, y, w),
-        kstep::ENTER => entries(k, ui, x, y, w),
+        kstep::ENTER => entries(app, k, ui, x, y, w),
         kstep::KEY => key_card(app, k, ui, x, y, w),
         kstep::CHECK => check(k, ui, x, y, w),
         kstep::WORDS => words(k, ui, x, y, w),
@@ -491,6 +492,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
                 k.focus == Some(1),
                 Action::KPassField(1),
             );
+            cy += never_real_seed(app, ui, x, cy, w);
         }
         // The demo adds a public seed in place of words made here (F20).
         if !k.typed()
@@ -974,7 +976,7 @@ fn sources(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let (have, need) = k.progress();
     let active = k.active();
@@ -1033,7 +1035,7 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     match active {
         Some(Source::Dice | Source::Coins) if k.typing => {
-            cy = typed_box(k, ui, x, cy, w);
+            cy = typed_box(app, k, ui, x, cy, w);
             if k.reveals() {
                 cy = reveal(k, ui, x, cy, w);
             }
@@ -1170,7 +1172,7 @@ fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     Action::KHex(v),
                 );
             }
-            cy += 104.0;
+            cy += 104.0 + never_below(app, ui, x, cy + 90.0, w);
         }
         Some(Source::Camera) => {
             let bw = ui.button(
@@ -1318,7 +1320,7 @@ fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 /// The box entries are typed into. Each is taken as it is typed, and
 /// the box shows every one taken, by buttons too.
-fn typed_box(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn typed_box(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     ui.fill(x, y, w, 40.0, 8.0, BG);
     ui.stroke(x, y, w, 40.0, 8.0, ACCENT);
     // A press in the box places the caret, a drag selects rolls, and
@@ -1341,7 +1343,8 @@ fn typed_box(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         _ => EN.keygen_faces_1_to_6,
     };
     ui.text(x, y + 48.0, 12.0, W::R, DIM, what);
-    y + 76.0
+    let line = never_below(app, ui, x, y + 64.0, w);
+    y + 76.0 + line
 }
 
 /// The words the entries name, as they come in: each word's place, the

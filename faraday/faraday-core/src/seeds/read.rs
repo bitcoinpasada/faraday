@@ -583,6 +583,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 s.focus == Some(1),
                 Action::SeedRead(Choice::Field(1)),
             );
+            cy += crate::screens::never_real_seed(app, ui, x, cy, iw);
             if let Some(fp) = with {
                 cy += key_line(ui, x, cy, iw, EN.seed_read_with_this, fp);
             } else if differ {

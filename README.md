@@ -397,15 +397,14 @@ trying it on testnet and for developing it. Each release publishes it
 for Linux and Windows as `faraday-desktop-X.Y.Z-testnet-only-linux-x86_64`
 and `faraday-desktop-X.Y.Z-testnet-only-windows-x86_64.exe`
 (`docs/DECISIONS.md` F61). It has none of the stick's protections and is
-never for a seed that holds funds. It opens on testnet, which takes any
-seed; a release first says this computer is online and never to enter a
-seed that holds funds there, once each session, before any seed can be
-loaded. Mainnet, chosen from **Network**, is the demo, which takes only
-the public seeds (each of `bacon`, `flag`, `gas`, `great`, `slice`,
-`solution`, `summer`, `they`, `trade`, `trap` and `zebra`, twenty-four
-times), shows every address with a broken checksum and makes no secret
-a person could keep (`docs/DEMO.md`). A developer's build opens on
-testnet with no warning.
+never for a seed that holds funds. It starts in Demo, a mode on
+testnet that takes only the public seeds (each of `bacon`, `flag`,
+`gas`, `great`, `slice`, `solution`, `summer`, `they`, `trade`, `trap`
+and `zebra`, twenty-four times) and makes no secret a person could keep
+(`docs/DEMO.md`). Testnet, Signet and Regtest, chosen from the mode pill
+or Settings, take any seed. Every build starts in Demo with no warning
+sheet; each screen that takes a seed or a secret says under its field
+never to type a seed that holds real bitcoin there.
 
 Prerequisites: stable Rust (see `rust-toolchain.toml`), a C compiler
 (`secp256k1-sys` builds libsecp256k1 from source), and on Linux the X11

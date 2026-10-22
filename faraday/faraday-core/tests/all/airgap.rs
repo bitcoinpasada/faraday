@@ -1,10 +1,8 @@
 //! The online app (the desktop) opens in Demo, which takes only public
-//! seeds (F20, F81). Before a release build leaves Demo for a test
-//! network, which takes any seed, it says it is for testing only and that
-//! this computer is not air-gapped: the change waits for "I understand",
-//! and Cancel leaves it in Demo. The device never shows it. A released
-//! Faraday Desktop that opens behind the warning shows it at start,
-//! before any key can be added (F61).
+//! seeds (F20, F81), and shows no warning sheet in any mode: a person can
+//! type a seed on an online computer anywhere, so every step that takes
+//! a seed or a secret says once, in a line under its field, never to
+//! type one that holds real bitcoin. The stick and the Pi say nothing.
 
 use faraday_bip::keys::Network;
 use faraday_core::create::NewKind;
@@ -158,27 +156,17 @@ fn demo_names_its_learn_page_first_and_the_device_never() {
     );
 }
 
-/// The released desktop's app: online, with the start warning, before its
-/// first frame or stick (F61).
-fn released_desktop() -> Faraday {
-    let mut app = desktop();
-    app.with_start_warning();
-    app
+const NEVER: &str = "Never type a seed that holds real bitcoin here.";
+
+fn says_never(app: &mut Faraday) -> bool {
+    let _ = app.frame();
+    app.drawn_texts().iter().any(|t| t == NEVER)
 }
 
 #[test]
-fn the_released_desktop_warns_at_start_before_any_key_can_be_added() {
+fn the_desktop_opens_with_no_warning_and_takes_a_seed_at_once() {
     let c = testkit::compute();
-    let mut app = released_desktop();
-    let _ = app.frame();
-    assert_eq!(app.sheet, Some(Sheet::NotAirgapped));
-    assert!(app.offers(Action::AirgapUnderstood));
-    assert!(!app.offers(Action::Cancel), "only the acknowledgement");
-    assert!(
-        !app.offers(Action::Scan),
-        "no Scan, or anything else, under it"
-    );
-    app.press(Action::AirgapUnderstood);
+    let mut app = desktop();
     let _ = app.frame();
     assert_eq!(app.sheet, None);
     assert_eq!(app.mode(), Mode::Demo);
@@ -192,18 +180,8 @@ fn the_released_desktop_warns_at_start_before_any_key_can_be_added() {
 }
 
 #[test]
-fn the_start_warning_is_acknowledged_once_a_session() {
-    let mut app = released_desktop();
-    app.press(Action::AirgapUnderstood);
-    app.press(Action::Mode(Mode::Signet));
-    let _ = app.frame();
-    assert_eq!(app.mode_after_restart(), Mode::Signet);
-    assert_eq!(app.sheet, None);
-}
-
-#[test]
-fn the_boot_import_waits_for_the_start_warning() {
-    let mut app = released_desktop();
+fn the_boot_import_offers_its_files_at_once() {
+    let mut app = desktop();
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         serial: None,
         id: "boot".into(),
@@ -221,17 +199,41 @@ fn the_boot_import_waits_for_the_start_warning() {
         }
     }
     let _ = app.frame();
-    assert_eq!(app.sheet, Some(Sheet::NotAirgapped));
-    assert!(app.session.keys.is_empty());
-    app.press(Action::AirgapUnderstood);
     assert_eq!(app.sheet, Some(Sheet::Import));
 }
 
 #[test]
-fn a_developer_desktop_opens_with_no_warning() {
-    let mut app = desktop();
-    app.without_airgap_warning();
-    let _ = app.frame();
-    assert_eq!(app.sheet, None);
-    assert!(app.offers(Action::Scan));
+fn every_step_that_takes_a_secret_says_never_a_real_seed_on_the_desktop() {
+    for mode in [Mode::Demo, Mode::Testnet] {
+        let mut app = desktop();
+        if mode == Mode::Testnet {
+            app.session = Session::on(Network::Testnet);
+        }
+        assert_eq!(app.mode(), mode);
+        // Add a key: the words, then each other form.
+        app.press(Action::Entry(None));
+        assert!(says_never(&mut app), "words, {mode:?}");
+        for form in 1..4 {
+            app.press(Action::EntryForm(form));
+            assert!(says_never(&mut app), "form {form}, {mode:?}");
+        }
+        // New key: its Words card.
+        let mut app = desktop();
+        if mode == Mode::Testnet {
+            app.session = Session::on(Network::Testnet);
+        }
+        app.press(Action::KeyGen(None));
+        app.press(Action::KStart(faraday_core::keygen::Start::Words.index()));
+        app.press(Action::KNext);
+        assert!(says_never(&mut app), "new key, {mode:?}");
+    }
+}
+
+#[test]
+fn the_stick_and_the_pi_say_nothing_of_it() {
+    let mut app = testkit::started();
+    app.press(Action::Entry(None));
+    assert!(!says_never(&mut app));
+    app.press(Action::EntryForm(1));
+    assert!(!says_never(&mut app));
 }

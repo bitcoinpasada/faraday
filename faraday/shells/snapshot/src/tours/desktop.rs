@@ -36,20 +36,6 @@ pub(crate) fn pills_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("pills-five-vaults")
 }
 
-/// Costs what `set_demo` costs. A released Faraday Desktop's first
-/// screen: testnet, behind the online warning (F61), then Home once it
-/// is acknowledged.
-pub(crate) fn start_warning_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
-    t.app.online = true;
-    t.app.shell_sticks = true;
-    t.app.session = faraday_core::wallet::Session::on(testkit::NET);
-    t.app.session.set_demo(c);
-    t.app.with_start_warning();
-    t.shot("desktop-start-warning")?;
-    t.press(Action::AirgapUnderstood);
-    t.shot("desktop-start-home")
-}
-
 /// Costs what `set_demo` costs. The demo's dimmed actions
 /// (`docs/DEMO.md` §7): BIP-85's Value card and the Lightning node key,
 /// on a public seed.
@@ -91,6 +77,13 @@ pub(crate) fn modes_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::ModeSheet);
     t.shot("modes-demo-sheet")?;
     t.press(Action::Cancel);
+    // Where a seed is typed, online, in Demo and on testnet: one line
+    // under the field.
+    t.press(Action::Entry(None));
+    type_text(t, "abandon abandon abandon");
+    t.shot("modes-demo-add-key")?;
+    crate::tour::scroll(t, 700);
+    t.shot("modes-demo-add-key-foot")?;
     t.app.session = faraday_core::wallet::Session::on(testkit::NET);
     t.app.set_modes(faraday_core::DESKTOP_MODES);
     t.press(Action::Nav(Screen::Home));
@@ -98,6 +91,8 @@ pub(crate) fn modes_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::ModeSheet);
     t.shot("modes-testnet-sheet")?;
     t.press(Action::Cancel);
+    t.press(Action::Entry(None));
+    t.shot("modes-testnet-add-key")?;
     t.press(Action::Nav(Screen::Tools));
     t.shot("modes-testnet-tools")?;
     t.app.session = faraday_core::wallet::Session::on(faraday_bip::keys::Network::Mainnet);

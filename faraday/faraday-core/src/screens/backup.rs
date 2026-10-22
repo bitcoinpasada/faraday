@@ -1,8 +1,8 @@
 //! `Screen::Backup`: backing up a wallet.
 
 use super::parts::{
-    Cells, buttons_and_next, file_row, keyed_cells, keyed_pills, made_state, next_button,
-    side_panel_w, ticked, typed_cells, word_keys,
+    Cells, buttons_and_next, file_row, keyed_cells, keyed_pills, made_state, never_below,
+    never_real_seed, next_button, side_panel_w, ticked, typed_cells, word_keys,
 };
 use crate::drawing::{Scrolled, View};
 use crate::strings::{EN, fill};
@@ -1092,9 +1092,9 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let dots = "•".repeat(c.typed.chars().count());
         let dots = ui.fit(14.0, W::M, &dots, w - 30.0);
         ui.text_mid(x + 12.0, cy, 42.0, 14.0, W::M, TEXT, &dots);
-        cy += 42.0 + 12.0;
+        cy += 42.0 + 12.0 + never_below(app, ui, x, cy + 42.0, w);
     } else {
-        cy = word_check(ui, x, cy, w, c);
+        cy = word_check(app, ui, x, cy, w, c);
     }
     // How the last comparison went, and Clear.
     let line = c.error.as_deref().unwrap_or("");
@@ -1114,7 +1114,14 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 /// The typed words of the open check: the word being typed and its
 /// number, the words taken masked, the keys. Returns where it ends.
-fn word_check(ui: &mut Ui, x: f32, y: f32, w: f32, c: &crate::copy_check::WordCheck) -> f32 {
+fn word_check(
+    app: &View,
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    c: &crate::copy_check::WordCheck,
+) -> f32 {
     let mut cy = y;
     let lang = c.lang;
     if !ui.compact {
@@ -1133,6 +1140,7 @@ fn word_check(ui: &mut Ui, x: f32, y: f32, w: f32, c: &crate::copy_check::WordCh
                 boxes: c.count,
                 masked: true,
                 caret: true,
+                never: app.online,
             };
             cy = typed_cells(ui, (x, cy, w), lang, &c.typed, cells);
         }
@@ -1147,6 +1155,7 @@ fn word_check(ui: &mut Ui, x: f32, y: f32, w: f32, c: &crate::copy_check::WordCh
                 status,
                 (true, c.shift),
             );
+            cy += never_real_seed(app, ui, x, cy, w);
         }
         Some(k) => {
             cy += ui.wrap(x, cy, w, 13.0, W::S, MUTED, &label) + 8.0;
@@ -1156,6 +1165,7 @@ fn word_check(ui: &mut Ui, x: f32, y: f32, w: f32, c: &crate::copy_check::WordCh
                 boxes: c.count,
                 masked: true,
                 caret: true,
+                never: app.online,
             };
             cy += keyed_cells(ui, (x, cy, w), lang, &taken, &prefix, cells);
             cy += keyed_pills(ui, x, cy, w, k, lang, false);

@@ -28,14 +28,10 @@ pub(crate) fn transfer_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     put("spending-wallet.txt", spending.descriptor.as_bytes())?;
     let psbt = std::fs::read(t.kit.join("savings-unsigned.psbt")).map_err(|e| e.to_string())?;
     put("savings-unsigned.psbt", &psbt)?;
-    // The online app starts in Demo, on testnet; the release build's
-    // start warning is up first (F61).
+    // The online app starts in Demo, on testnet.
     t.app.online = true;
     t.app.session = faraday_core::wallet::Session::on(testkit::NET);
     t.app.session.set_demo(c);
-    t.app.with_start_warning();
-    t.shot("test-network")?;
-    t.press(Action::AirgapUnderstood);
     let host = faraday_storage::Host {
         print: t.out.clone(),
         downloads: downloads.clone(),

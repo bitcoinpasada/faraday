@@ -8,7 +8,7 @@ use crate::strings::fill;
 use faraday_draw::widgets::Icon;
 
 use crate::compact::M;
-use crate::screens::missing_keys_line;
+use crate::screens::{missing_keys_line, never_real_seed};
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
 use crate::wallet::{Session, fp_text};
@@ -647,6 +647,7 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
         );
     }
     let Some(w) = app.entry.keys.as_deref() else {
+        y += never_real_seed(app, ui, x, y, iw);
         return y + crate::screens::button_rows(ui, x, y, iw, &langs);
     };
     let taken: Vec<u16> = w.committed_indices().collect();
@@ -672,8 +673,7 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
         (x, y, iw),
         lang,
         &taken,
-        app.entry.word_boxes(taken.len() + 1),
-        false,
+        (app.entry.word_boxes(taken.len() + 1), false, app.online),
     );
     // Under the word fields.
     y + crate::screens::button_rows(ui, x, y, iw, &langs) - 6.0
@@ -729,8 +729,7 @@ pub(crate) fn keyed_taken(
     (x, y, iw): (f32, f32, f32),
     lang: faraday_bip::bip39::Language,
     taken: &[u16],
-    count: usize,
-    masked: bool,
+    (count, masked, never): (usize, bool, bool),
 ) -> f32 {
     let cols = 3;
     let cellw = (iw - (cols - 1) as f32 * 6.0) / cols as f32;
@@ -761,7 +760,12 @@ pub(crate) fn keyed_taken(
             ui.text_mid(cx + 22.0, cy, 28.0, 12.0, W::M, TEXT, &t);
         }
     }
-    count.div_ceil(cols) as f32 * 32.0 + 10.0
+    let rows_h = count.div_ceil(cols) as f32 * 32.0;
+    if never {
+        rows_h + 10.0 + crate::screens::grid_never(ui, x, y + rows_h - 4.0, iw)
+    } else {
+        rows_h + 10.0
+    }
 }
 
 /// Add a key in another form: one share, string or part typed at a time
@@ -813,7 +817,7 @@ pub(crate) fn entry_form(
     if !on {
         ui.hit(x, y, iw, bh, Action::EntryPassphrase);
     }
-    y += bh + 10.0;
+    y += bh + 10.0 + crate::screens::never_below(app, ui, x, y + bh, iw);
     if let Some(e) = &app.entry.error {
         y += ui.wrap(x, y, iw, 13.0, W::R, ERR, e) + 8.0;
     }

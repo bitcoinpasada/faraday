@@ -39,8 +39,9 @@ address is bitcoin. Two builds have it:
   Demo for the whole session.
 - **Faraday Desktop**, a developer's build or a release, which starts in
   Demo. Leaving it for Testnet, Signet or Regtest is a lock into a
-  fresh session in that mode (F81); a release build first shows F20's
-  online warning once per program start (F61).
+  fresh session in that mode (F81). No warning sheet comes first (M3,
+  `docs/MODES.md` §4); every step that takes a seed or a secret draws the
+  line "Never type a seed that holds real bitcoin here." under its field.
 
 The stick, the Pi and the `Faraday` the Starter holds for Transfer and
 Learn never call `set_demo`: the stick has no Demo mode, and nothing in
@@ -54,11 +55,12 @@ false, so a key press, a click, a shell message or a test's action all
 meet the same refusal. No action in §4 has a path around it.
 
 **Test networks in Faraday Desktop** keep F20's rules: any seed, real
-addresses, the warning first. `Keys::demo()` is false there, so every
+addresses, no warning sheet. `Keys::demo()` is false there, so every
 action in §4 is live on a test network, which is how a developer tries
 Make flows without a stick. A key made there is a real key made on an
-online computer; the test-network warning is the guard, as it is for
-typed seeds, and the released files are named testnet only (F61). F27's rule is
+online computer; the line under every field that takes a seed or a secret
+is the guard, in every mode, and the released files are named testnet
+only (F61). F27's rule is
 separate and stands: no Nostr key while `Faraday::online` is set, on
 any network.
 

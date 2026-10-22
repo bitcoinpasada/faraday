@@ -1,7 +1,7 @@
 //! `Screen::Entry`: typing a seed.
 
 use super::parts::{
-    Cells, dots_field, guide_text, keyed_cells, keyed_pills, typed_cells, word_keys,
+    Cells, dots_field, guide_text, keyed_cells, keyed_pills, never_below, typed_cells, word_keys,
 };
 use crate::drawing::View;
 use crate::strings::{EN, fill};
@@ -185,6 +185,7 @@ pub(crate) fn entry_words(
             boxes: app.entry.word_boxes(words.len()),
             masked: false,
             caret: !app.entry.on_passphrase,
+            never: app.online,
         },
     );
     y += button_rows(ui, x, y, width, &langs);
@@ -293,6 +294,7 @@ fn keyed_words(
             boxes: app.entry.word_boxes(taken.len() + 1),
             masked: false,
             caret: !app.entry.on_passphrase,
+            never: app.online,
         },
     );
     // The count and, when the words are a whole key, its checksum and
@@ -568,7 +570,7 @@ pub(crate) fn entry_form(
         },
         &shown,
     );
-    y += 54.0;
+    y += 54.0 + never_below(app, ui, x, y + 44.0, width);
     if let Some(e) = &app.entry.error {
         y += ui.wrap(x, y, width, 13.0, W::R, ERR, e) + 8.0;
     }

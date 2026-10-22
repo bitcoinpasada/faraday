@@ -6,6 +6,7 @@ use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
 use crate::wallet::{FileKind, Session};
 use crate::{Action, Faraday};
+use faraday_draw::tokens;
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{section_label, wrap_buttons};
 
@@ -18,6 +19,47 @@ pub(crate) fn guide_text(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, text: 
     let h = ui.wrap(x + 14.0, y, w - 14.0, 14.0, W::R, TEXT, text);
     ui.fill(x, y, 3.0, h, 1.5, ACCENT.with_alpha(140));
     h + 18.0
+}
+
+/// The caution under a field where a seed or a secret is typed or
+/// pasted, on an online shell only: a statement of fact in the caution
+/// tone, in every mode. Returns the height it took, with the gap under
+/// it; nothing on the stick or the Pi.
+pub(crate) fn never_real_seed(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    never_real_seed_if(true, app, ui, x, y, w)
+}
+
+/// The line one gap under a one-line text field whose top is `top`, on
+/// an online shell. Returns the gap and the line's height; 0 elsewhere.
+pub(crate) fn never_under(app: &View, ui: &mut Ui, x: f32, top: f32, w: f32) -> f32 {
+    never_below(app, ui, x, top + tokens::TEXT_FIELD, w)
+}
+
+/// The line one gap under a field whose bottom edge is at `bottom`, on an
+/// online shell. Returns the gap and the line's height; 0 elsewhere.
+pub(crate) fn never_below(app: &View, ui: &mut Ui, x: f32, bottom: f32, w: f32) -> f32 {
+    if app.online {
+        grid_never(ui, x, bottom, w)
+    } else {
+        0.0
+    }
+}
+
+/// [`never_real_seed`], only where `typed` says the field can be typed
+/// into (not while a stick is attached).
+pub(crate) fn never_real_seed_if(
+    typed: bool,
+    app: &View,
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+) -> f32 {
+    if typed {
+        never_under(app, ui, x, y, w)
+    } else {
+        0.0
+    }
 }
 
 /// Whether the seeds loaded here sign for `w` on their own (2), some of
@@ -678,6 +720,23 @@ pub(crate) struct Cells {
     pub boxes: usize,
     pub masked: bool,
     pub caret: bool,
+    /// Draw the never-a-real-seed line one gap under the grid (online).
+    pub never: bool,
+}
+
+/// The never-a-real-seed line one gap under a grid whose last row ends
+/// at `bottom`. Returns the gap and the line's height.
+pub(crate) fn grid_never(ui: &mut Ui, x: f32, bottom: f32, w: f32) -> f32 {
+    tokens::GAP
+        + ui.wrap(
+            x,
+            bottom + tokens::GAP,
+            w,
+            13.0,
+            W::R,
+            WARN,
+            EN.never_real_seed,
+        )
 }
 
 /// A Latin list's words as typed, in a grid of numbered cells with the
@@ -696,6 +755,7 @@ pub(crate) fn typed_cells(
         boxes,
         masked,
         caret,
+        never,
     } = cells;
     let mut y = y;
     let words: Vec<&str> = typed.split_whitespace().collect();
@@ -741,7 +801,11 @@ pub(crate) fn typed_cells(
             ui.caret(cx + 37.0, cy + 10.0, 18.0);
         }
     }
-    y += shown.div_ceil(cols) as f32 * 46.0 + 12.0;
+    let rows_h = shown.div_ceil(cols) as f32 * 46.0;
+    y += rows_h + 12.0;
+    if never {
+        y += grid_never(ui, x, y - 12.0 - 8.0, width) - tokens::GAP;
+    }
 
     // Candidates for the word being typed.
     if typing_word && let Some(prefix) = words.last() {
@@ -782,6 +846,7 @@ pub(crate) fn keyed_cells(
         boxes: shown,
         masked,
         caret,
+        never,
     } = cells;
     let cols = 6;
     let cellw = (width - (cols - 1) as f32 * 8.0) / cols as f32;
@@ -820,7 +885,12 @@ pub(crate) fn keyed_cells(
             ui.caret(cx + 31.0 + tw, cy + 9.0, 18.0);
         }
     }
-    shown.div_ceil(cols) as f32 * 42.0 + 8.0
+    let rows_h = shown.div_ceil(cols) as f32 * 42.0;
+    if never {
+        rows_h + 8.0 + grid_never(ui, x, y + rows_h - 6.0, width)
+    } else {
+        rows_h + 8.0
+    }
 }
 
 /// What the keys typed on a list's own keyboard can be: a pill each,

@@ -257,7 +257,7 @@ pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
                         va(V::FocusPrompt),
                         va(V::ShowTyped),
                     );
-                    cy += 50.0;
+                    cy += 50.0 + crate::screens::never_under(app, ui, x, cy, iw);
                     if let Some(e) = &q.error {
                         cy += ui.wrap(x, cy, iw, 13.0, W::R, ERR, e) + 10.0;
                     }

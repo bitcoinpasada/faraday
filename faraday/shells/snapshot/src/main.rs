@@ -163,7 +163,6 @@ fn run(
         Some("walletflow") => return tours::wallet_flow::wallet_flow_tour(c, &mut t),
         Some("demo") => return tours::desktop::demo_tour(c, &mut t),
         Some("modes") => return tours::desktop::modes_tour(c, &mut t),
-        Some("startwarn") => return tours::desktop::start_warning_tour(c, &mut t),
         Some("vaultshow") => return tours::vault_show::vault_show_tour(&mut t),
         Some("addkey") => return tours::add_key::add_key_tour(&mut t),
         Some("createfrom") => return tours::create_from::create_from_tour(c, &mut t),
@@ -260,7 +259,6 @@ fn main() -> ExitCode {
             "walletflow",
             "demo",
             "modes",
-            "startwarn",
             "vaultshow",
             "addkey",
             "createfrom",
@@ -272,7 +270,7 @@ fn main() -> ExitCode {
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, startwarn, vaultshow, addkey, createfrom, inprogress, cancel, std or parts"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, vaultshow, addkey, createfrom, inprogress, cancel, std or parts"
         );
         return ExitCode::from(2);
     }

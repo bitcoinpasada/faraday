@@ -555,29 +555,13 @@ impl Faraday {
 }
 
 impl Faraday {
-    /// Handles the device checks', mode and input-device actions (`Devices*`, `Mode`, `AirgapUnderstood`, `Input*`).
+    /// Handles the device checks', mode and input-device actions (`Devices*`, `Mode`, `Input*`).
     pub(crate) fn devices_act(&mut self, action: Action) {
         match action {
             Action::InputUse(id) => self.input_believe(id),
             Action::InputIgnore(id) => self.input_ignore(id),
             Action::Mode(m) => self.mode_act(m),
             Action::ModeSheet => self.mode_sheet_open(),
-            Action::AirgapUnderstood => {
-                self.airgap_warned = true;
-                self.sheet = None;
-                if let Some(m) = self.test_asked.take() {
-                    self.act(Action::Mode(m));
-                }
-                // What waited under the start warning comes up now: a new
-                // device first, then the boot import (F61).
-                self.input_sheet();
-                if self.sheet.is_none()
-                    && self.import.is_some()
-                    && std::mem::take(&mut self.import_under_input)
-                {
-                    self.sheet = Some(Sheet::Import);
-                }
-            }
             Action::DevicesCheck => self.device_check(),
             Action::DevicesContinue => self.device_continue(),
             Action::DevicesUnderstood => self.device_understood(),

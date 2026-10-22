@@ -845,7 +845,22 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let intake = sc.purpose == crate::ScanPurpose::Intake;
     let hint = if intake { app.family_hint() } else { None };
     let hint_h = hint.map_or(0.0, |t| measure_wrap(ui, side_w, 12.0, W::R, t) + 8.0);
-    let keys_h = keys.len() as f32 * 20.0 + if keys.is_empty() { 0.0 } else { 6.0 } + hint_h;
+    // A scanner that loads a seed can be given one by Type or Paste.
+    let seed_scan = app.online
+        && matches!(
+            sc.purpose,
+            crate::ScanPurpose::Seed
+                | crate::ScanPurpose::KeyPart
+                | crate::ScanPurpose::WalletKey(_)
+                | crate::ScanPurpose::Intake
+        );
+    let never_h = if seed_scan {
+        measure_wrap(ui, side_w, 13.0, W::R, EN.never_real_seed) + 8.0
+    } else {
+        0.0
+    };
+    let keys_h =
+        keys.len() as f32 * 20.0 + if keys.is_empty() { 0.0 } else { 6.0 } + hint_h + never_h;
     let typing = for_wallet.is_some() || (intake && app.may_load_keys());
     let type_row = if typing && ui.compact { 52.0 } else { 0.0 };
     let extra = rows + keys_h + type_row;
@@ -873,6 +888,10 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if let Some(t) = hint {
         let ty = y + top + keys.len() as f32 * 20.0;
         ui.wrap(x + 32.0, ty, side_w, 12.0, W::R, TEXT, t);
+    }
+    if seed_scan {
+        let ty = y + top + keys.len() as f32 * 20.0 + hint_h;
+        ui.wrap(x + 32.0, ty, side_w, 13.0, W::R, WARN, EN.never_real_seed);
     }
     let y = y + keys_h;
     let (px, py) = (x + 32.0, y + top);
@@ -1734,70 +1753,6 @@ pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         Style::Primary,
         Action::Cancel,
     );
-}
-
-/// The lines of the online app's test network warning (F20).
-const NOT_AIRGAPPED: [&str; 3] = [
-    EN.test_network_testing_only,
-    EN.test_network_online,
-    EN.app_for_real_funds,
-];
-
-/// The online app going to a test network, or found on one: it is for
-/// testing only, and this computer is not air-gapped (F20). Cancel only
-/// when the network was asked for from Network.
-pub(super) fn not_airgapped_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let asked = app.test_asked.is_some();
-    let mut buttons = Vec::new();
-    if asked {
-        buttons.push((EN.test_network_cancel, Style::Secondary, Action::Cancel));
-    }
-    buttons.push((
-        EN.test_network_i_understand,
-        Style::Primary,
-        Action::AirgapUnderstood,
-    ));
-    if ui.compact {
-        crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
-            let mut cy = y;
-            cy += crate::compact::sheet_head(
-                ui,
-                x,
-                cy,
-                iw,
-                Icon::Warning,
-                WARN,
-                EN.test_network_title,
-            );
-            for (i, line) in NOT_AIRGAPPED.iter().enumerate() {
-                let fg = if i == 0 { WARN } else { TEXT };
-                cy += ui.wrap(x, cy, iw, 13.0, W::R, fg, line) + 8.0;
-            }
-            cy += 8.0;
-            cy += crate::compact::buttons(ui, x, cy, iw, &buttons);
-            cy - y
-        });
-        return;
-    }
-    let sw = 520.0f32.min(w - 48.0);
-    let sh = 280.0;
-    let (x, y) = sheet_box(ui, w, h, sw, sh);
-    let (bx, bw) = (x + 32.0, sw - 64.0);
-    let mut cy = y + 26.0;
-    ui.icon(bx - 4.0, cy - 2.0, 28.0, Icon::Warning, 14.0, WARN);
-    ui.text(bx + 28.0, cy, 18.0, W::S, TEXT, EN.test_network_title);
-    cy += 44.0;
-    for (i, line) in NOT_AIRGAPPED.iter().enumerate() {
-        let fg = if i == 0 { WARN } else { TEXT };
-        cy += ui.wrap(bx, cy, bw, 14.0, W::R, fg, line) + 10.0;
-    }
-    let by = y + sh - 32.0 - 46.0;
-    let n = buttons.len() as f32;
-    let each = (bw - 12.0 * (n - 1.0)) / n;
-    for (i, (label, style, action)) in buttons.into_iter().enumerate() {
-        let at = bx + i as f32 * (each + 12.0);
-        ui.button(at, by, Some(each), 46.0, label, style, action);
-    }
 }
 
 pub(super) fn power_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {

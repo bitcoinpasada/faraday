@@ -187,7 +187,7 @@ fn passphrase(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, file: usize) -> f
     } else {
         stick_field(app.medium, ui, x, cy, w);
     }
-    cy += 50.0;
+    cy += 50.0 + crate::screens::never_under(app, ui, x, cy, w);
     if app.vaults.working == Some(Work::Unlock) {
         cy += ui.wrap(x, cy, w, 14.0, W::S, ACCENT, &unlocking(app, file)) + 10.0;
     }
@@ -221,7 +221,7 @@ fn typing(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, title: &str, file: us
         Action::Vault(V::FocusPassphrase),
         Action::Vault(V::ShowTyped),
     );
-    cy += 44.0;
+    cy += 44.0 + crate::screens::never_under(app, ui, x, cy, w);
     cy - y
 }
 

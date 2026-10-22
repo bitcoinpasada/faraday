@@ -8,7 +8,7 @@ use faraday_crypto::work::Compute;
 use faraday_draw::widgets::Icon;
 
 use crate::drawing::{Scrolled, View};
-use crate::screens::{guide_text, section_label, title};
+use crate::screens::{guide_text, never_real_seed_if, never_under, section_label, title};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::vault::{
@@ -611,7 +611,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         stick_field(app.medium, ui, x, y, w);
     }
-    y += 56.0;
+    y += 56.0 + never_under(app, ui, x, y, w);
     let working = app.vaults.working == Some(vault::Work::Unlock);
     if working {
         let f = files.get(app.vaults.pick);
@@ -973,7 +973,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         stick_field(app.medium, ui, x, y, w);
     }
-    y += 52.0;
+    y += 52.0 + never_under(app, ui, x, y, w);
     if app.vaults.working == Some(vault::Work::Unlock) {
         let f = files.get(app.vaults.pick);
         let t = f
@@ -1649,7 +1649,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     stick_field(app.medium, ui, x, cy, half);
                     stick_field(app.medium, ui, x + half + 12.0, cy, half);
                 }
-                cy += 46.0;
+                cy += 46.0 + never_real_seed_if(may, app, ui, x, cy, w);
                 let (status, color) = if !b.text.is_empty() && *a.text == *b.text {
                     (EN.vault_matches, OK)
                 } else if !b.text.is_empty() {
@@ -1810,7 +1810,7 @@ fn dice_panel(
         focused,
         Action::Vault(V::Dice(app.vaults.dice.as_ref().map_or(0, |d| d.0))),
     );
-    cy += 50.0;
+    cy += 50.0 + never_under(app, ui, x, cy, w);
     let words = vault::dice_words(&rolls.text, list);
     let per = list.dice_per_word();
     let left = rolls.text.len() % per;
@@ -3253,7 +3253,7 @@ fn detail(
             va(V::FocusPrompt),
             va(V::ShowTyped),
         );
-        dy += 56.0;
+        dy += 56.0 + never_under(app, ui, dx, dy, dw);
         if app.vaults.working == Some(vault::Work::Backup) {
             ui.text_mid(dx, dy, 40.0, 15.0, W::S, ACCENT, EN.vault_opening);
         } else if app.vaults.working == Some(vault::Work::Kdbx) {

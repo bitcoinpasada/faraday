@@ -72,13 +72,11 @@ fn display(app: &mut Faraday, width: u16, height: u16, dpi: u16) {
     }));
 }
 
-/// The desktop's app: online, on testnet, with its warning before a test
-/// network acknowledged.
+/// The desktop's app: online, on testnet.
 fn desktop() -> Faraday {
     let mut app = Faraday::new();
     app.online = true;
     app.session = Session::on(testkit::NET);
-    app.press(Action::AirgapUnderstood);
     app
 }
 

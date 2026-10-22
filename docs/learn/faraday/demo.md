@@ -22,7 +22,7 @@ The demo makes no secret a person could take away and use. These actions are dim
 
 ## Test networks
 
-On testnet, signet and regtest Faraday Desktop takes any seed and shows real addresses, for testing with coins that have no value, and every action above works. A published Faraday Desktop shows a warning once when it starts, before any seed can be loaded: this computer is online, and a seed that holds funds is never entered there. The website offers no test network.
+Faraday Desktop starts in Demo. Testnet, signet and regtest, chosen from the mode pill or Settings, take any seed and show real addresses, for testing with coins that have no value, and every action above works. This computer is online, so a seed that holds real bitcoin is never typed into Faraday Desktop, in any mode: every screen that takes a seed or a secret says so under its field. The website offers no test network.
 
 ## Typed words are already exposed
 

@@ -594,9 +594,6 @@ pub enum Sheet {
     Qr,
     /// The camera, reading QR codes.
     Scan,
-    /// The online app on a test network: this computer is not
-    /// air-gapped, and a test network takes any seed (F20).
-    NotAirgapped,
     /// Locked for idleness: what waits in the Outbox.
     Locked,
     /// A new input device, waiting to be believed or ignored.
@@ -1255,9 +1252,8 @@ pub struct Faraday {
     pub ignored_inputs: Vec<(u32, String)>,
     /// Keyboards kept out this session for typing the wrong code.
     inputs_kept_out: usize,
-    /// The boot import's sheet waits under the new-device sheet, or the
-    /// online app's start warning (F61), and comes up once every waiting
-    /// device is decided and the warning acknowledged.
+    /// The boot import's sheet waits under the new-device sheet, and
+    /// comes up once every waiting device is decided.
     import_under_input: bool,
     /// Files the boot import brought in with the stick still in, by name:
     /// the seeds they hold load once it is pulled (F60).
@@ -1643,11 +1639,6 @@ pub struct Faraday {
     /// What is attached that can capture the screen or the keys, as the
     /// stick shell read it (`devices`).
     pub devices: devices::DeviceCheck,
-    /// The online app's not-air-gapped warning has been acknowledged this
-    /// session: it comes before a test mode (F20) and at start (F61).
-    airgap_warned: bool,
-    /// The test mode asked for while that warning is on show.
-    test_asked: Option<Mode>,
     /// The mode a lock in progress ends in; cleared when it is not gone through.
     next_mode: Option<Mode>,
     /// The backup flows, at most one on screen (`docs/BACKUP-FLOW.md` §7).
@@ -1863,8 +1854,6 @@ impl Faraday {
             maker_family: String::new(),
             maker_model: String::new(),
             devices: devices::DeviceCheck::default(),
-            airgap_warned: false,
-            test_asked: None,
             next_mode: None,
             backup_flows: Vec::new(),
             flow_on: None,
@@ -1895,22 +1884,6 @@ impl Faraday {
     /// not Faraday Desktop, an app on someone's own system.
     pub fn offers_restart(&self) -> bool {
         !self.shell_sticks
-    }
-
-    /// Never shows the online app's not-air-gapped warning before a test
-    /// network: Faraday Desktop opens on testnet (owner, 2026-10-19).
-    pub fn without_airgap_warning(&mut self) {
-        self.airgap_warned = true;
-    }
-
-    /// Shows the online app's not-air-gapped warning at once, before any
-    /// seed can be loaded, until it is acknowledged; once acknowledged, it
-    /// is not shown again this session. A released Faraday Desktop, which
-    /// opens on testnet, starts with it (F61).
-    pub fn with_start_warning(&mut self) {
-        self.airgap_warned = false;
-        self.test_asked = None;
-        self.sheet = Some(Sheet::NotAirgapped);
     }
 
     /// Whether a storage request is waiting for the shell (a lookup).
@@ -3360,7 +3333,6 @@ impl Faraday {
                 self.seed_read = None;
                 self.delete_ask = None;
                 self.visit.taken.clear();
-                self.test_asked = None;
                 self.next_mode = None;
                 self.secret_cancel();
                 self.wordlist = None;
@@ -3701,7 +3673,6 @@ impl Faraday {
             | Action::InputIgnore(..)
             | Action::Mode(..)
             | Action::ModeSheet
-            | Action::AirgapUnderstood
             | Action::DevicesCheck
             | Action::DevicesContinue
             | Action::DevicesUnderstood) => self.devices_act(a),
