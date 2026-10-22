@@ -1,0 +1,32 @@
+[package]
+name = "faraday-samples"
+version = "0.1.5"
+description = "Faraday's samples: the public dummy keys, wallets and files Demo takes, as data (docs/MODES.md §5)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+# The shapes of the data (`faraday_core::samples`), and nothing else.
+faraday-core = { path = "../faraday-core" }
+
+[dev-dependencies]
+# The test wallets the samples are checked against, and the code that
+# derives what the data states. The data itself derives nothing.
+faraday-core = { path = "../faraday-core", features = ["testkit"] }
+faraday-keys = { path = "../faraday-keys" }
+faraday-bip = { path = "../../core/faraday-bip" }
+faraday-psbt = { path = "../../core/faraday-psbt" }
+faraday-backup = { path = "../../core/faraday-backup" }
+faraday-vault = { path = "../faraday-vault" }
+faraday-intake = { path = "../faraday-intake" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
+# Another implementation of BIP-39 and BIP-32, for the fingerprints.
+bip39.workspace = true
+serde_json.workspace = true
+unicode-normalization.workspace = true
+
+[lints]
+workspace = true

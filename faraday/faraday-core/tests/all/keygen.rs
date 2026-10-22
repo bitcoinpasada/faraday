@@ -360,13 +360,13 @@ fn device_key(answer: [u8; 32]) -> Faraday {
 /// not loaded in its place; without the demo, as on the device, the key
 /// made is the key added.
 #[test]
-fn the_demo_adds_the_next_public_seed_not_loaded() {
+fn the_demo_adds_the_next_sample_of_its_length_not_loaded() {
     let c = faraday_core::testkit::compute();
-    let words = faraday_core::demo::words;
+    let words = faraday_core::testkit::test_words;
     let handing = |answer: [u8; 32], loaded: &[&str]| {
         let mut app = faraday_core::testkit::started();
         faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
-        app.session.set_demo(&c);
+        app.session.set_demo(faraday_core::testkit::demo_samples());
         for w in loaded {
             app.session.keys.add_words(&c, &words(w), "", None).unwrap();
         }
@@ -750,20 +750,20 @@ fn unequal_passphrases_lock_nothing_in() {
 }
 
 /// The demo on a Create slot (F20): the passphrase fields stay, what is
-/// typed in them is ignored, and Lock in adds the next public seed with
+/// typed in them is ignored, and Lock in adds the next sample with
 /// no passphrase, saying so before and after.
 #[test]
-fn the_demo_locks_in_its_public_seed_whatever_passphrase_is_typed() {
-    let c = faraday_core::testkit::compute();
+fn the_demo_locks_in_its_sample_whatever_passphrase_is_typed() {
     use faraday_core::wallet::fp_text;
     let mut app = slot_flow(true);
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
-    app.session.set_demo(&c);
+    app.session.set_demo(faraday_core::testkit::demo_samples());
     flip_all(&mut app);
     app.press(Action::KNext);
-    let (word, fp) = app.session.keys.next_handout().unwrap();
+    let n = app.keygen.as_ref().unwrap().handout_words();
+    let (word, fp) = app.session.keys.next_handout(n).unwrap();
     assert!(texts(&mut app).contains(&format!(
-        "Lock in adds public seed {word} ({}) in place of these words",
+        "Lock in adds sample {word} ×{n} ({}) in place of these words",
         fp_text(fp)
     )));
     app.press(Action::KPassField(0));
@@ -776,7 +776,7 @@ fn the_demo_locks_in_its_public_seed_whatever_passphrase_is_typed() {
     assert_eq!(c.slots[0], faraday_core::create::Source::Here(fp.0));
     let shown = texts(&mut app);
     assert!(shown.contains(&format!(
-        "Added public seed {word} ({}) in place of the key made",
+        "Added sample {word} ×{n} ({}) in place of the key made",
         fp_text(fp)
     )));
     assert!(shown.contains("Not set"), "no passphrase went with it");

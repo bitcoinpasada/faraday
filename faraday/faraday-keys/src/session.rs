@@ -251,16 +251,39 @@ struct Entry {
     info: KeyInfo,
 }
 
+/// One sample New key hands out (`docs/MODES.md` §7): public data.
+#[derive(Debug, Clone, Copy)]
+pub struct Handout {
+    /// The word it is made of, which the Key card names.
+    pub name: &'static str,
+    /// How many words it has.
+    pub words: u8,
+    /// Its fingerprint with no passphrase.
+    pub plain: Fingerprint,
+    /// Its fingerprint with the passphrase `password`.
+    pub with_password: Fingerprint,
+}
+
+/// What the shell gave the demo (F81, `docs/MODES.md` §2.3): public data,
+/// kept as given, so nothing here is derived.
+struct Demo {
+    /// New key's handouts: a name, a word count, a fingerprint.
+    handouts: Vec<Handout>,
+    /// Every fingerprint the demo takes.
+    public: Vec<Fingerprint>,
+    /// The Lightning node ids the demo takes.
+    nodes: Vec<[u8; 33]>,
+}
+
 /// The session's keys, the network every one derives for, and the demo's
 /// public seeds when the shell set it (F20).
 pub struct Keys {
     entries: Vec<Entry>,
     /// The network every key derives for and every address is shown on.
     network: Network,
-    /// The demo's public seeds and their fingerprints, when the shell set
-    /// it ([`Keys::set_demo`]). Empty, as on the stick: the session takes
-    /// any key.
-    demo: Vec<(&'static str, Fingerprint)>,
+    /// The demo's public set, when the shell set it ([`Keys::set_demo`]).
+    /// `None`, as on the stick: the session takes any key.
+    demo: Option<Demo>,
     /// Set by a shell that must stay on the network it started on
     /// ([`Keys::fix_network`]): every other one is refused.
     network_fixed: bool,
@@ -278,7 +301,7 @@ impl Keys {
         Keys {
             entries: Vec::new(),
             network,
-            demo: Vec::new(),
+            demo: None,
             network_fixed: false,
         }
     }
@@ -373,47 +396,56 @@ impl Keys {
     /// Whether the demo is on: the shell set it up ([`Keys::set_demo`]).
     /// The network does not matter; the shell puts Demo on Testnet.
     pub fn demo(&self) -> bool {
-        !self.demo.is_empty()
+        self.demo.is_some()
     }
 
-    /// The public seed New key adds next while the demo is on, as its
-    /// name and fingerprint: the first one not loaded. `None` with the
-    /// demo off, as on the stick.
-    pub fn next_handout(&self) -> Option<(&'static str, Fingerprint)> {
-        if !self.demo() {
-            return None;
-        }
+    /// The sample New key adds next for a key of `words` words while the
+    /// demo is on, as its name and fingerprint: the first handout of that
+    /// length not loaded, with a passphrase or without. `None` with the
+    /// demo off, as on the stick, and when every handout of that length
+    /// is loaded.
+    pub fn next_handout(&self, words: u8) -> Option<(&'static str, Fingerprint)> {
         self.demo
+            .as_ref()?
+            .handouts
             .iter()
-            .find(|(_, fp)| self.position(*fp).is_none())
-            .copied()
+            .find(|h| {
+                h.words == words
+                    && self.position(h.plain).is_none()
+                    && self.position(h.with_password).is_none()
+            })
+            .map(|h| (h.name, h.plain))
     }
 
     /// Whether the demo would take this key: always, when the shell set
     /// no demo.
     pub fn is_public(&self, fp: Fingerprint) -> bool {
-        self.demo.is_empty() || self.demo.iter().any(|(_, f)| *f == fp)
+        self.demo.as_ref().is_none_or(|d| d.public.contains(&fp))
+    }
+
+    /// Whether the demo would take the Lightning node with this id:
+    /// always, when the shell set no demo.
+    pub fn is_public_node(&self, id: &[u8; 33]) -> bool {
+        self.demo.as_ref().is_none_or(|d| d.nodes.contains(id))
     }
 
     // ---- adding and forgetting ----
 
-    /// Costs what `set_demo`'s probes cost, an `add_words` each. Sets the
-    /// demo up (F20): `seeds` are the public seeds, each a name and its
-    /// words. While the demo is on the store takes only these.
-    pub fn set_demo(&mut self, c: &Compute, seeds: &[(&'static str, String)]) {
-        self.demo = seeds
-            .iter()
-            .filter_map(|(name, words)| {
-                let mut probe = Keys::on(self.network);
-                probe
-                    .add_words(c, words, "", None)
-                    .ok()
-                    .map(|fp| (*name, fp))
-            })
-            .collect();
+    /// Sets the demo up (F20, F81). A lookup: the fingerprints are
+    /// literals the samples crate's tests check. `handouts` are what New
+    /// key hands out, `public` every fingerprint the demo takes (a key
+    /// that takes a passphrase is there with none and with `password`),
+    /// `nodes` the Lightning node ids it takes. While the demo is on the
+    /// store takes only these.
+    pub fn set_demo(&mut self, handouts: &[Handout], public: &[Fingerprint], nodes: &[[u8; 33]]) {
+        self.demo = Some(Demo {
+            handouts: handouts.to_vec(),
+            public: public.to_vec(),
+            nodes: nodes.to_vec(),
+        });
     }
 
-    /// Refuses a key that is not a public seed while the demo is on.
+    /// Refuses a key that is not a sample while the demo is on.
     fn allowed(&self, fp: Fingerprint) -> Result<(), Refusal> {
         if self.demo() && !self.is_public(fp) {
             return Err(Refusal::NotAllowed(fp_text(fp)));

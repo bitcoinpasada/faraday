@@ -54,12 +54,11 @@ fn tall(app: &mut Faraday) {
 /// demo has it (online, on testnet, the public seeds set up), or as the
 /// stick has it.
 fn app_on(demo: bool) -> Faraday {
-    let c = testkit::compute();
     let mut app = crate::common::process(vec![vault_file()], Vec::new(), Vec::new());
     if demo {
         app.online = true;
         testkit::move_to(&mut app.session, Network::Testnet).unwrap();
-        app.session.set_demo(&c);
+        app.session.set_demo(faraday_core::testkit::demo_samples());
     }
     crate::common::keep_time(&mut app);
     tall(&mut app);
@@ -79,17 +78,22 @@ fn unlock(app: &mut Faraday) {
 /// A public seed typed into Add a key. Returns its fingerprint.
 fn add_public(app: &mut Faraday, word: &str) -> [u8; 4] {
     app.press(Action::Entry(None));
-    crate::common::type_text(app, &demo::words(word));
+    crate::common::type_text(app, &faraday_core::testkit::test_words(word));
     app.press(Action::EntryAdd);
     public_fp(word)
 }
 
-/// A public seed's fingerprint.
+/// A 24-word sample's fingerprint.
 fn public_fp(word: &str) -> [u8; 4] {
+    sample_fp(word, 24)
+}
+
+/// A sample's fingerprint: `word` repeated `count` times.
+fn sample_fp(word: &str, count: u8) -> [u8; 4] {
     let c = testkit::compute();
     let mut s = faraday_core::wallet::Session::default();
     s.keys
-        .add_words(&c, &demo::words(word), "", None)
+        .add_words(&c, &faraday_core::samples::repeated(word, count), "", None)
         .unwrap()
         .0
 }
@@ -328,7 +332,7 @@ fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished()
     app.press(Action::BReveal);
     app.storage(faraday_core::StorageEvent::Cameras(Vec::new()));
     app.press(Action::BCheck);
-    faraday_core::testkit::type_words(&mut app, &demo::words("bacon"));
+    faraday_core::testkit::type_words(&mut app, &faraday_core::testkit::test_words("bacon"));
     assert!(
         app.backup_item_done_now(&c, Item::Copy(0)),
         "the copy did not check"
@@ -704,7 +708,7 @@ fn finish(app: &mut Faraday) {
 }
 
 #[test]
-fn in_the_demo_new_key_from_every_source_adds_bacon_in_place_of_its_words() {
+fn in_the_demo_new_key_from_every_source_adds_a_sample_of_its_length_in_place_of_its_words() {
     let ways = [
         Way::DiceFlips,
         Way::Coins,
@@ -717,40 +721,83 @@ fn in_the_demo_new_key_from_every_source_adds_bacon_in_place_of_its_words() {
         Way::Mix,
         Way::Device,
     ];
-    for words in [12u8, 24] {
+    for (words, first) in [
+        (12u8, "twelve"),
+        (15, "lucky"),
+        (18, "glad"),
+        (21, "brave"),
+        (24, "bacon"),
+    ] {
         for way in ways {
             let mut app = app_on(true);
             let made = new_key(&mut app, way, words);
             assert_eq!(made.split(' ').count(), usize::from(words));
-            assert_ne!(made, demo::words("bacon"));
+            assert_ne!(made, faraday_core::samples::repeated(first, words));
+            let says = format!("Lock in adds sample {first} \u{d7}{words}");
             assert!(
-                crate::common::has_part(&mut app, "Lock in adds public seed bacon"),
+                crate::common::has_part(&mut app, &says),
                 "{way:?} at {words}: the Key card does not say so"
             );
             finish(&mut app);
             let have = loaded(&app);
-            assert_eq!(have, vec![public_fp("bacon")], "{way:?} at {words}");
+            assert_eq!(have, vec![sample_fp(first, words)], "{way:?} at {words}");
             assert!(!have.contains(&fingerprint(&made)), "the key made was kept");
         }
     }
 }
 
 #[test]
-fn in_the_demo_with_every_public_seed_loaded_lock_in_is_dimmed() {
+fn in_the_demo_with_every_sample_of_a_length_loaded_lock_in_is_dimmed_at_that_length_only() {
     let c = testkit::compute();
     let mut app = app_on(true);
-    for w in demo::SEEDS {
+    let twelve: Vec<_> = testkit::SAMPLE_WORDS
+        .iter()
+        .filter(|(_, n)| *n == 12)
+        .collect();
+    for (w, n) in &twelve {
         app.session
             .keys
-            .add_words(&c, &demo::words(w), "", None)
+            .add_words(&c, &faraday_core::samples::repeated(w, *n), "", None)
             .unwrap();
     }
     new_key(&mut app, Way::Device, 12);
     assert!(!offered(&mut app, Action::KLock), "Lock in is offered");
     app.press(Action::KLock);
     app.event(Event::Key(Key::Enter));
-    assert_eq!(app.session.keys.len(), demo::SEEDS.len(), "a key was added");
+    assert_eq!(app.session.keys.len(), twelve.len(), "a key was added");
     assert!(!app.keygen.as_ref().unwrap().locked);
+    // The 24-word samples are still there to hand out.
+    let mut app24 = app_on(true);
+    for (w, n) in &twelve {
+        app24
+            .session
+            .keys
+            .add_words(&c, &faraday_core::samples::repeated(w, *n), "", None)
+            .unwrap();
+    }
+    new_key(&mut app24, Way::Device, 24);
+    assert!(offered(&mut app24, Action::KLock), "Lock in is dimmed");
+}
+
+#[test]
+fn a_sample_loaded_with_the_passphrase_password_counts_as_loaded_for_new_key() {
+    let c = testkit::compute();
+    let mut app = app_on(true);
+    app.session
+        .keys
+        .add_words_with(
+            &c,
+            &faraday_core::samples::repeated("twelve", 12),
+            "password",
+            "",
+            None,
+        )
+        .unwrap();
+    new_key(&mut app, Way::Device, 12);
+    assert!(crate::common::has_part(
+        &mut app,
+        "Lock in adds sample ocean \u{d7}12"
+    ));
 }
 
 // ---------------------------------------------------------------------

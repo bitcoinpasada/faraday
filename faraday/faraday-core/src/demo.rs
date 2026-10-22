@@ -1,13 +1,6 @@
-//! The demo's public seeds (F20). A session set up for the demo
-//! ([`crate::wallet::Session::set_demo`], on Testnet: Demo, F81) takes
-//! only these.
-
-/// The public seeds, as their words: each of these words, twenty-four
-/// times, is a valid BIP-39 phrase.
-pub const SEEDS: [&str; 11] = [
-    "bacon", "flag", "gas", "great", "slice", "solution", "summer", "they", "trade", "trap",
-    "zebra",
-];
+//! What Demo refuses (F20, F81). A session set up for the demo
+//! ([`crate::wallet::Session::set_demo`], on Testnet) takes only the
+//! samples (`crate::samples`).
 
 /// The demo's public passphrase: six words of the EFF large list run
 /// together, as Faraday joins the words the dice make. Generate with dice
@@ -17,11 +10,6 @@ pub const PASSPHRASE: &str = "brightharborcalmbreezequietshelter";
 
 /// How many EFF large-list words [`PASSPHRASE`] is.
 pub const PASSPHRASE_WORDS: usize = 6;
-
-/// A public seed's phrase: its word twenty-four times.
-pub fn words(word: &str) -> String {
-    vec![word; 24].join(" ")
-}
 
 use crate::backup_flow::steps::FlowAction as F;
 use crate::grind::Dial;
@@ -58,15 +46,11 @@ impl Faraday {
                         Some(crate::keygen::kstep::SOURCE | crate::keygen::kstep::ENTER)
                     )
             }),
-            // With every public seed loaded none is left to stand in.
+            // With every sample of the length chosen loaded none is left to stand in.
             // A key typed is loaded as Add a key loads it.
-            Action::KLock => {
-                !self
-                    .keygen
-                    .as_ref()
-                    .is_some_and(crate::keygen::KeyGen::typed)
-                    && self.session.keys.next_handout().is_none()
-            }
+            Action::KLock => self.keygen.as_ref().is_some_and(|k| {
+                !k.typed() && self.session.keys.next_handout(k.handout_words()).is_none()
+            }),
             // Make the key, for a GPG key, Secure Boot keys or an APK key.
             Action::Flow(F::Make) => self
                 .flow_on

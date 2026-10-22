@@ -67,7 +67,6 @@ impl Faraday {
     /// Finds the node key for the source chosen.
     fn lightning_resolve(&mut self) {
         let c = self.compute();
-        let net = self.session.network();
         let Some(l) = self.lightning.as_ref() else {
             return;
         };
@@ -97,13 +96,11 @@ impl Faraday {
                     for (slot, w) in idx.iter_mut().zip(&words) {
                         *slot = Language::English.index_of(w).unwrap_or(0);
                     }
-                    let r = faraday_keys::lightning::node_from_aezeed(
-                        &c,
-                        &idx,
-                        l.passphrase.as_bytes(),
-                        net,
-                    )
-                    .map_err(|e| fill(EN.lightning_not_an_aezeed, &[&e]));
+                    let r = self
+                        .session
+                        .keys
+                        .node_from_aezeed(&c, &idx, l.passphrase.as_bytes())
+                        .map_err(|e| fill(EN.lightning_not_an_aezeed, &[&e]));
                     faraday_keys::lightning::wipe_words(&mut idx);
                     r
                 }

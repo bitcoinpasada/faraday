@@ -3016,10 +3016,15 @@ pub struct Strings {
     pub keygen_passphrase_again: &'static str,
     /// Text in `key_card`.
     pub keygen_lock_in: &'static str,
-    /// Line in `key_card`. `{}`: the public seed's word, its fingerprint.
+    /// Line in `key_card`. `{}`: the sample's name (`sample_words`), its
+    /// fingerprint.
     pub keygen_lock_in_adds: &'static str,
-    /// Line in `handed_line`. `{}`: the public seed's word, its fingerprint.
-    pub keygen_added_public_seed: &'static str,
+    /// Line in `handed_line`. `{}`: the sample's name (`sample_words`), its
+    /// fingerprint.
+    pub keygen_added_sample: &'static str,
+    /// Text in `key_card` and `handed_line`. `{}`: the word, how many times
+    /// it is repeated.
+    pub sample_words: &'static str,
     /// Line in `key_card`.
     pub keygen_enter_locks: &'static str,
     /// Label in `key_card`.
@@ -10345,8 +10350,9 @@ pub static EN: Strings = Strings {
     keygen_fair_no_cautions: "Fair: no cautions",
     keygen_passphrase_again: "Passphrase again",
     keygen_lock_in: "Lock in",
-    keygen_lock_in_adds: "Lock in adds public seed {} ({}) in place of these words",
-    keygen_added_public_seed: "Added public seed {} ({}) in place of the key made",
+    keygen_lock_in_adds: "Lock in adds sample {} ({}) in place of these words",
+    keygen_added_sample: "Added sample {} ({}) in place of the key made",
+    sample_words: "{} ×{}",
     keygen_enter_locks: "Enter locks in",
     keygen_passphrase: "Passphrase",
     keygen_set: "Set",
@@ -12654,7 +12660,7 @@ pub static EN: Strings = Strings {
     wallet_these_words: "These words give {}, not a key of {}",
     wallet_not_a_wallet: "Not a wallet: {}",
     wallet_is_not_the_network: "{} is not {}, the network of the loaded wallets",
-    wallet_is_not_a_key: "{} is not a public seed: on mainnet this app takes only those",
+    wallet_is_not_a_key: "{} is not a sample: Demo takes only samples",
     wallet_runs_on_only: "This app runs on {} only",
     wallet_from: "From {}",
     wallet_from_inline: "from {}",

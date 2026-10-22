@@ -485,18 +485,16 @@ impl Session {
         Ok(self.wallets.len() - 1)
     }
 
-    /// Costs what `add_words` costs. Sets the demo up (F20, F81): the
-    /// session takes only the public seeds ([`crate::demo::SEEDS`]), and
-    /// New key adds the next public seed in place of the key it made
-    /// ([`faraday_keys::Keys::next_handout`]). A shell that wants Demo
-    /// makes the session on Testnet first: its addresses are then real
-    /// testnet addresses, which no mainnet wallet pays.
-    pub fn set_demo(&mut self, c: &Compute) {
-        let seeds: Vec<(&'static str, String)> = crate::demo::SEEDS
-            .iter()
-            .map(|&w| (w, crate::demo::words(w)))
-            .collect();
-        self.keys.set_demo(c, &seeds);
+    /// Sets the demo up (F20, F81): the session takes only the public set
+    /// `samples` holds (every sample key, with and without `password`),
+    /// and New key hands out the next sample of the length chosen in
+    /// place of the key it made ([`faraday_keys::Keys::next_handout`]). A
+    /// lookup: derives nothing. A shell that wants Demo makes the session
+    /// on Testnet first: its addresses are then real testnet addresses,
+    /// which no mainnet wallet pays.
+    pub fn set_demo(&mut self, samples: &crate::samples::Samples) {
+        self.keys
+            .set_demo(&samples.handouts(), &samples.public(), &samples.nodes());
     }
 
     /// Drops every key and wallet.

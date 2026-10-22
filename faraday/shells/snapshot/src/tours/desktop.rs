@@ -3,7 +3,6 @@
 use crate::tour::{Tour, type_text};
 use faraday_core::testkit;
 use faraday_core::{Action, Screen, StickInfo, StorageEvent};
-use faraday_crypto::work::Compute;
 
 /// The desktop app's stick pills: the default two, then a wallet's backup
 /// with five vaults.
@@ -36,15 +35,16 @@ pub(crate) fn pills_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("pills-five-vaults")
 }
 
-/// Costs what `set_demo` costs. The demo's dimmed actions
-/// (`docs/DEMO.md` §7): BIP-85's Value card and the Lightning node key,
-/// on a public seed.
-pub(crate) fn demo_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
+/// The demo's dimmed actions (`docs/DEMO.md` §7): BIP-85's Value card
+/// and the Lightning node key, on a sample.
+pub(crate) fn demo_tour(t: &mut Tour) -> Result<(), String> {
     t.app.online = true;
     t.app.session = faraday_core::wallet::Session::on(testkit::NET);
-    t.app.session.set_demo(c);
+    t.app
+        .session
+        .set_demo(faraday_core::testkit::demo_samples());
     t.press(Action::Entry(None));
-    type_text(t, &faraday_core::demo::words("bacon"));
+    type_text(t, &faraday_core::testkit::test_words("bacon"));
     t.press(Action::EntryAdd);
     let fp = t
         .app
@@ -64,13 +64,15 @@ pub(crate) fn demo_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("demo-lightning")
 }
 
-/// Costs what `set_demo` costs. The mode pill and sheet (`docs/MODES.md`
+/// The mode pill and sheet (`docs/MODES.md`
 /// §3): Home and the sheet in Demo and on Testnet, then Settings' Mode
 /// row on Mainnet, where no pill shows.
-pub(crate) fn modes_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
+pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     t.app.online = true;
     t.app.session = faraday_core::wallet::Session::on(testkit::NET);
-    t.app.session.set_demo(c);
+    t.app
+        .session
+        .set_demo(faraday_core::testkit::demo_samples());
     t.app.set_modes(faraday_core::DESKTOP_MODES);
     t.press(Action::Nav(Screen::Home));
     t.shot("modes-demo-home")?;

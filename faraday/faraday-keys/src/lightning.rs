@@ -105,3 +105,24 @@ pub fn node_from_aezeed(
 pub fn wipe_words(words: &mut [u16; AEZEED_WORDS]) {
     words.zeroize();
 }
+
+impl crate::Keys {
+    /// Costs what [`node_from_aezeed`] costs. The node key an aezeed gives,
+    /// on the store's network; while the demo is on, refused unless the
+    /// node is a public one ([`crate::Keys::is_public_node`]), as a key
+    /// that is not a sample is: whatever else is typed would be someone's
+    /// real node.
+    pub fn node_from_aezeed(
+        &self,
+        c: &Compute,
+        words: &[u16; AEZEED_WORDS],
+        passphrase: &[u8],
+    ) -> Result<Node, String> {
+        let node = node_from_aezeed(c, words, passphrase, self.network())?;
+        if !self.is_public_node(node.public()) {
+            let id: String = node.public().iter().map(|b| format!("{b:02x}")).collect();
+            return Err(faraday_strings::EN.wallet_is_not_a_key.replace("{}", &id));
+        }
+        Ok(node)
+    }
+}

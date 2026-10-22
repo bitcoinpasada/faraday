@@ -16,6 +16,7 @@ members = [
     "tools/costs-lint",
     "faraday/faraday-core",
     "faraday/faraday-keys",
+    "faraday/faraday-samples",
     "faraday/faraday-starter",
     "faraday/faraday-ui",
     "faraday/faraday-storage",

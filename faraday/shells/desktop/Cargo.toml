@@ -17,6 +17,9 @@ faraday-core = { path = "../../faraday-core" }
 # The network the desktop app starts on.
 faraday-bip = { path = "../../../core/faraday-bip" }
 faraday-storage = { path = "../../faraday-storage" }
+# The public samples Demo takes (docs/MODES.md §5.4): public data only,
+# in no other shipped binary (tools/lint-keys-tests.sh).
+faraday-samples = { path = "../../faraday-samples" }
 faraday-shell-api = { path = "../../../core/faraday-shell-api" }
 # `pin-pages`: the `mlock` that keeps the loaded master keys out of swap.
 faraday-crypto = { path = "../../../core/faraday-crypto", features = ["pin-pages"] }

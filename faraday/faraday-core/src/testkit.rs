@@ -70,6 +70,80 @@ pub fn session() -> Session {
     Session::on(NET)
 }
 
+/// The words samples made of one word, with how many times it is
+/// repeated: the handouts of `docs/MODES.md` §5.1 (the same list as
+/// `faraday-samples`, whose tests check the two agree).
+pub const SAMPLE_WORDS: [(&str, u8); 21] = [
+    ("bacon", 24),
+    ("flag", 24),
+    ("gas", 24),
+    ("great", 24),
+    ("slice", 24),
+    ("solution", 24),
+    ("summer", 24),
+    ("they", 24),
+    ("trade", 24),
+    ("trap", 24),
+    ("zebra", 24),
+    ("twelve", 12),
+    ("ocean", 12),
+    ("piano", 12),
+    ("silver", 12),
+    ("lucky", 15),
+    ("olive", 15),
+    ("glad", 18),
+    ("school", 18),
+    ("brave", 21),
+    ("sunset", 21),
+];
+
+/// Costs a PBKDF2 and a master key for each of 42 fingerprints, once per
+/// process. The public set Demo takes in the core's tests: the handouts
+/// of [`SAMPLE_WORDS`] only, derived here so core's tests do not link
+/// the samples crate. The data a shell ships is `faraday-samples`'.
+pub fn demo_samples() -> &'static crate::samples::Samples {
+    use crate::samples::{SampleForm, SampleInputs, SampleKey, Samples};
+    static SAMPLES: std::sync::OnceLock<Samples> = std::sync::OnceLock::new();
+    SAMPLES.get_or_init(|| {
+        let c = compute();
+        let fp = |words: &str, passphrase: &str| {
+            faraday_keys::identity::fingerprint_of_words(&c, words, passphrase)
+                .expect("sample words")
+                .0
+        };
+        let keys: Vec<SampleKey> = SAMPLE_WORDS
+            .iter()
+            .map(|&(word, count)| {
+                let phrase: &'static str =
+                    Box::leak(crate::samples::repeated(word, count).into_boxed_str());
+                SampleKey {
+                    name: "sample_words",
+                    word,
+                    count,
+                    form: SampleForm::Words,
+                    listed: true,
+                    parts: Box::leak(vec![phrase].into_boxed_slice()),
+                    combined: "",
+                    file: &[],
+                    plain: Some(fp(phrase, "")),
+                    with_password: Some(fp(phrase, "password")),
+                    node: None,
+                }
+            })
+            .collect();
+        Samples {
+            keys: Box::leak(keys.into_boxed_slice()),
+            wallets: &[],
+            inputs: SampleInputs {
+                vault: &[],
+                signed_message: "",
+                address: "",
+                totp: "",
+            },
+        }
+    })
+}
+
 /// The Savings spend's txid.
 pub const SPEND_TXID: &str = "e65b496fcae9385082643e05b11fac9bd90461bf3c940a805052fb78a673561f";
 /// Where every spend pays 0.015 tBTC: the testnet address of BIP-84's

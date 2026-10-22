@@ -682,8 +682,7 @@ fn desktop_app_in(mode: faraday_core::Mode) -> Faraday {
     app.shell_sticks = true;
     app.session = faraday_core::wallet::Session::on(mode.network());
     if mode == faraday_core::Mode::Demo {
-        let c = app.compute();
-        app.session.set_demo(&c);
+        app.session.set_demo(&faraday_samples::SAMPLES);
     }
     app.set_modes(faraday_core::DESKTOP_MODES);
     app
@@ -985,10 +984,9 @@ mod tests {
         let mut app = desktop_app_in(faraday_core::Mode::Demo);
         assert_eq!(app.mode(), faraday_core::Mode::Demo);
         assert_eq!(app.session.network(), faraday_core::testkit::NET);
-        let other = "abandon abandon abandon abandon abandon abandon \
-                     abandon abandon abandon abandon abandon about";
+        let other = "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong";
         assert!(app.session.keys.add_words(&c, other, "", None).is_err());
-        let public = faraday_core::demo::words("zebra");
+        let public = faraday_core::testkit::test_words("zebra");
         assert!(app.session.keys.add_words(&c, &public, "", None).is_ok());
         app.press(faraday_core::Action::Mode(faraday_core::Mode::Signet));
         assert_eq!(app.mode_after_restart(), faraday_core::Mode::Signet);

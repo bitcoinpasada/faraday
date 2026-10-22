@@ -147,15 +147,18 @@ public values work; only the actions in the table are disabled.
 
 ### 5.1 New key in the demo
 
-Unchanged from F20 (owner, 2026-10-14). Every length and every source
-is open: the dice, coins, cards, hex, camera noise, the generator and a
-mix make words as on the device, and they are shown. At Lock in the demo
-adds the next public seed not loaded in place of the key made, with no
-passphrase, and the Key card says which ("Lock in adds public seed {}
-({}) in place of these words"). The key made is never added or kept.
-SLIP-39 shares are not New key: they stay disabled (§4), since no public
-seed stands in for a dealt set of shares. With all eleven public seeds
-loaded, Lock in is disabled.
+Every length and every source is open: the dice, coins, cards, hex,
+camera noise, the generator and a mix make words as on the device, and
+they are shown. At Lock in the demo adds the next sample of the length
+chosen that is not loaded, in place of the key made (F81,
+`docs/MODES.md` §7): four samples of 12 words, two each of 15, 18 and
+21, eleven of 24 (`faraday-samples`). The Key card says which ("Lock in
+adds sample {} ({}) in place of these words", with the sample named as
+"ocean ×12"). A sample loaded with the passphrase `password` counts as
+loaded. The key made is never added or kept. SLIP-39 shares are not New
+key: they stay disabled (§4), since no sample stands in for a dealt set
+of shares. With every sample of the length loaded, Lock in is disabled
+for that length only.
 
 ### 5.2 Generate with dice in the demo
 

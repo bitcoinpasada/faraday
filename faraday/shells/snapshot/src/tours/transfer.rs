@@ -3,11 +3,10 @@
 use crate::tour::Tour;
 use faraday_core::testkit;
 use faraday_core::{Action, Screen};
-use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event};
 
-/// Costs what `set_demo` costs.
-pub(crate) fn transfer_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
+/// The desktop as the device's QR link, in Demo.
+pub(crate) fn transfer_tour(t: &mut Tour) -> Result<(), String> {
     let downloads = t.out.join("downloads");
     std::fs::create_dir_all(&downloads).map_err(|e| e.to_string())?;
     let put = |name: &str, bytes: &[u8]| -> Result<(), String> {
@@ -31,7 +30,9 @@ pub(crate) fn transfer_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // The online app starts in Demo, on testnet.
     t.app.online = true;
     t.app.session = faraday_core::wallet::Session::on(testkit::NET);
-    t.app.session.set_demo(c);
+    t.app
+        .session
+        .set_demo(faraday_core::testkit::demo_samples());
     let host = faraday_storage::Host {
         print: t.out.clone(),
         downloads: downloads.clone(),

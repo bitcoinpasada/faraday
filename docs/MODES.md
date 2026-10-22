@@ -1,8 +1,8 @@
 # Modes, Demo and samples
 
 **Kind:** Spec
-**Status:** Partly built (F81): M1, M2 and M3
-**Open:** M4 to M8 of §10 here, and W1 in the website's repository.
+**Status:** Partly built (F81): M1, M2, M3 and M5
+**Open:** M4, M6, M7 and M8 of §10 here, and W1 in the website's repository.
 
 The owner's decisions are F81. This says how they are built. Where it
 and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
@@ -46,9 +46,12 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
    `public` twice, with none and with `password`, §6.2). It is a lookup now, no probe: the
    fingerprints are literals checked by a test (§5.4). `faraday-keys`
    stays the only code that decides a key is public (`Keys::allowed`,
-   `Keys::is_public`, and the new `Keys::is_public_node`). Until M5,
-   core's `Session::set_demo` still probes `demo::SEEDS` and passes the
-   result.
+   `Keys::is_public`, and the new `Keys::is_public_node`). Built in M5:
+   a handout is a `faraday_keys::Handout` (name, word count and two
+   fingerprints, with none and with `password`, so a handout loaded with
+   either counts as loaded, §7), and core's `Session::set_demo` takes a
+   `faraday_core::samples::Samples` and passes its handouts, public set
+   and node ids.
 4. **Demo is on Testnet.** A shell that wants Demo makes
    `Session::on(Network::Testnet)` and calls `Session::set_demo`. Every
    key derives at coin type 1 and every address is a real testnet
@@ -125,7 +128,8 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
 
 - `desktop_app_for(release)` becomes `desktop_app_in(mode, warned)`:
   `Session::on(mode.network())`, `set_demo` when the mode is Demo,
-  `app.modes = DESKTOP_MODES`, `app.samples = Some(&SAMPLES)` (from M5).
+  `app.modes = DESKTOP_MODES`, `app.samples = Some(&SAMPLES)` (from M6, with the pill; M5 passes
+  `SAMPLES` to `set_demo`).
   Every build starts in Demo, the developer's, the test's and the
   release's.
 - `restart` reads `app.mode_after_restart()` from the app before
@@ -646,6 +650,16 @@ wallet would notice.
 - **Done**: `cargo tree -i faraday-samples` names only faraday-desktop
   (and faraday-samples' own tests); the desktop's start no longer
   derives any key.
+- **As built**: `faraday_core::samples` holds `SampleKey`, `SampleWallet`,
+  `SampleInputs` and `Samples` (a key's `name` is the field of its string
+  in `en.rs`, which M6 adds; `parts` is what is typed or scanned;
+  `plain` and `with_password` are its fingerprints; `listed` is false for
+  the 3 of 5's five keys). The crate's `src/data.rs` and `data/` are
+  written by `cargo run -p faraday-samples --example regenerate`. Core's
+  tests do not link the crate: `testkit::demo_samples()` derives the 21
+  handouts (`testkit::SAMPLE_WORDS`) and the crate's tests check the two
+  agree. `Keys::node_from_aezeed` refuses a node not in the set while Demo
+  is on; the action stays dimmed until M7. `Faraday::samples` is M6's.
 
 ### M6. Load samples
 

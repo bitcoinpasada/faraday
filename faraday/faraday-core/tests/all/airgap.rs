@@ -9,8 +9,7 @@ use faraday_core::create::NewKind;
 use faraday_core::testkit::KindText;
 use faraday_core::wallet::Session;
 use faraday_core::{
-    Action, DESKTOP_MODES, Faraday, Mode, Sheet, StickInfo, StorageCommand, StorageEvent, demo,
-    testkit,
+    Action, DESKTOP_MODES, Faraday, Mode, Sheet, StickInfo, StorageCommand, StorageEvent, testkit,
 };
 use faraday_shell_api::App;
 
@@ -32,11 +31,10 @@ fn wallet_on(network: Network) -> String {
 /// The desktop's app: online, in Demo (the public seeds on testnet), a
 /// developer's build with no warning.
 fn desktop() -> Faraday {
-    let c = testkit::compute();
     let mut app = testkit::started();
     app.online = true;
     app.session = Session::on(Network::Testnet);
-    app.session.set_demo(&c);
+    app.session.set_demo(faraday_core::testkit::demo_samples());
     app.set_modes(DESKTOP_MODES);
     app
 }
@@ -79,7 +77,7 @@ fn demo_takes_only_public_seeds_and_a_test_mode_takes_any() {
     assert!(
         app.session
             .keys
-            .add_words(&c, &demo::words("trap"), "", None)
+            .add_words(&c, &faraday_core::testkit::test_words("trap"), "", None)
             .is_ok()
     );
     assert!(app.session.keys.add_words(&c, OTHER, "", None).is_err());
@@ -87,7 +85,13 @@ fn demo_takes_only_public_seeds_and_a_test_mode_takes_any() {
     assert!(
         app.session
             .keys
-            .add_words_with(&c, &demo::words("zebra"), "x", "", None)
+            .add_words_with(
+                &c,
+                &faraday_core::testkit::test_words("zebra"),
+                "x",
+                "",
+                None
+            )
             .is_err()
     );
     // A testnet session that is not Demo takes any seed.
@@ -174,7 +178,7 @@ fn the_desktop_opens_with_no_warning_and_takes_a_seed_at_once() {
     assert!(
         app.session
             .keys
-            .add_words(&c, &demo::words("zebra"), "", None)
+            .add_words(&c, &faraday_core::testkit::test_words("zebra"), "", None)
             .is_ok()
     );
 }

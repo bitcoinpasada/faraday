@@ -9,7 +9,7 @@ use faraday_core::seeds::SeedsAction as S;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::Session;
 use faraday_core::{
-    Action, DESKTOP_MODES, Faraday, Mode, STICK_MODES, Screen, Sheet, StorageEvent, demo, testkit,
+    Action, DESKTOP_MODES, Faraday, Mode, STICK_MODES, Screen, Sheet, StorageEvent, testkit,
 };
 use faraday_shell_api::{App, Event};
 
@@ -18,11 +18,10 @@ const ABANDON: &str = "abandon abandon abandon abandon abandon abandon abandon a
 
 /// The desktop's app: online, in Demo.
 fn demo_app() -> Faraday {
-    let c = testkit::compute();
     let mut app = testkit::started();
     app.online = true;
     app.session = Session::on(Network::Testnet);
-    app.session.set_demo(&c);
+    app.session.set_demo(faraday_core::testkit::demo_samples());
     app.set_modes(DESKTOP_MODES);
     app
 }
@@ -154,7 +153,7 @@ fn demo_addresses_are_testnet_addresses_a_testnet_wallet_sits_beside() {
     let c = testkit::compute();
     let mut app = demo_app();
     app.press(Action::Entry(None));
-    crate::common::type_text(&mut app, &demo::words("bacon"));
+    crate::common::type_text(&mut app, &faraday_core::testkit::test_words("bacon"));
     app.press(Action::EntryAdd);
     let fp = app.session.keys.first().unwrap().fingerprint.0;
     app.press(Action::KeyWallet(fp, 1));
@@ -185,14 +184,20 @@ fn demo_refuses_a_key_that_is_not_public_and_takes_a_public_one() {
     assert!(
         app.session
             .keys
-            .add_words(&c, &demo::words("gas"), "", None)
+            .add_words(&c, &faraday_core::testkit::test_words("gas"), "", None)
             .is_ok()
     );
     // A passphrase that does not make a public key: refused.
     assert!(
         app.session
             .keys
-            .add_words_with(&c, &demo::words("trap"), "not public", "", None)
+            .add_words_with(
+                &c,
+                &faraday_core::testkit::test_words("trap"),
+                "not public",
+                "",
+                None
+            )
             .is_err()
     );
 }
@@ -248,11 +253,11 @@ fn the_actions_the_demo_dims_are_live_on_testnet() {
 }
 
 #[test]
-fn demo_hands_out_a_public_seed_for_new_key_and_testnet_does_not() {
+fn demo_hands_out_a_sample_for_new_key_and_testnet_does_not() {
     let demo = demo_app();
-    assert!(demo.session.keys.next_handout().is_some());
+    assert!(demo.session.keys.next_handout(24).is_some());
     let testnet = testkit::started();
-    assert!(testnet.session.keys.next_handout().is_none());
+    assert!(testnet.session.keys.next_handout(24).is_none());
 }
 
 /// `app` shown on a window: wide (1366 x 768) or the Pi's compact panel

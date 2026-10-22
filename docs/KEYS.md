@@ -340,6 +340,18 @@ What was open after step 3:
   - 5 test files call `MasterKey::from_seed` or `to_seed`.
   - 22 build a `Mnemonic`.
   - `testkit` does the same behind a feature.
+- The samples (F81, `docs/MODES.md` §5): `faraday/faraday-samples` is the
+  public set Demo takes (keys in every form Faraday reads, the testkit's
+  wallets, a vault, a signed message), as data only: strings, bytes and
+  fingerprints in the shapes `faraday_core::samples` defines. It derives
+  nothing, so rule 4 has nothing to refuse there. The testkit and the
+  samples crate are the two bodies of dummy data, and neither is key
+  code: the testkit stays out of every shipped binary by
+  `lint-keys-tests.sh`'s first two checks, and the samples crate by its
+  third, which lets only the desktop app depend on it. Its tests check
+  every value against the testkit, the published vectors and another
+  implementation of BIP-39 and BIP-32. `Keys::set_demo` takes the
+  fingerprints as literals; nothing derives at the desktop's start.
 - `faraday-keys` gets its own `tests/`, one per operation group. Each says
   what a person or wallet would notice (a signature that verifies, a key
   that loads back from a vault) and checks against the vectors the

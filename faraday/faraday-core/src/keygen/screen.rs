@@ -494,11 +494,12 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
             );
             cy += never_real_seed(app, ui, x, cy, w);
         }
-        // The demo adds a public seed in place of words made here (F20).
+        // The demo adds a sample in place of words made here (F20).
         if !k.typed()
-            && let Some((word, fp)) = app.session.keys.next_handout()
+            && let Some((word, fp)) = app.session.keys.next_handout(k.handout_words())
         {
-            let line = fill(EN.keygen_lock_in_adds, &[word, &fp_text(fp)]);
+            let name = fill(EN.sample_words, &[word, &k.handout_words().to_string()]);
+            let line = fill(EN.keygen_lock_in_adds, &[&name, &fp_text(fp)]);
             cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 6.0;
         }
         if let Some(n) = &k.note {
@@ -1881,13 +1882,14 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
 
 /// One SLIP-39 share at a time, its words numbered, with the way to the
 /// next.
-/// The public seed the demo added in place of the key made, when it did
-/// (F20): a line under the fingerprint, which is the public seed's.
+/// The sample the demo added in place of the key made, when it did
+/// (F20): a line under the fingerprint, which is the sample's.
 fn handed_line(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     match (k.handed, k.fingerprint) {
-        (Some(word), Some(fp)) => {
+        (Some((word, n)), Some(fp)) => {
             let fp = fp_text(faraday_bip::keys::Fingerprint(fp));
-            let line = fill(EN.keygen_added_public_seed, &[word, &fp]);
+            let name = fill(EN.sample_words, &[word, &n.to_string()]);
+            let line = fill(EN.keygen_added_sample, &[&name, &fp]);
             ui.wrap(x, y, w, 13.0, W::S, WARN, &line) + 6.0
         }
         _ => 0.0,

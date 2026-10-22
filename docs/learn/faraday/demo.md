@@ -12,7 +12,7 @@ Demo takes only samples, on testnet. Any other key is refused by its fingerprint
 
 ## New key in the demo
 
-New key runs as on the device: the dice, the coins, the cards, hex digits, the camera or the computer's generator make the words, and the quiz checks them. At Lock in, the demo adds the next public seed not loaded in place of the key made, and the Key card says which. A passphrase typed there is ignored. The key made is not kept. With all eleven public seeds loaded, Lock in is dimmed.
+New key runs as on the device: the dice, the coins, the cards, hex digits, the camera or the computer's generator make the words, and the quiz checks them. At Lock in, the demo adds the next sample of the length chosen that is not loaded, in place of the key made, and the Key card says which. There are samples of 12, 15, 18, 21 and 24 words: four of 12, two each of 15, 18 and 21, and eleven of 24. A passphrase typed there is ignored. The key made is not kept. With every sample of that length loaded, Lock in is dimmed.
 
 Generate with dice on Create a vault runs the same way: the rolls make the words, and the demo puts its public passphrase, brightharborcalmbreezequietshelter, in place of them. The vault is made under the public passphrase; the rolled words are not kept. A passphrase typed by hand is kept as typed.
 

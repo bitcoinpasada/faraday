@@ -46,7 +46,7 @@ pub mod words;
 pub use identity::{Material, fingerprint, fp_text};
 pub use operations::{Dial, Paper, codex32_seed, slip39_seed};
 pub use session::{
-    CopyCheck, Held, Infos, KEY_TEXTS_KEPT, KeyId, KeyInfo, Keys, Part, Reveal, Revealed, WordsId,
-    compare_words, words_id,
+    CopyCheck, Handout, Held, Infos, KEY_TEXTS_KEPT, KeyId, KeyInfo, Keys, Part, Reveal, Revealed,
+    WordsId, compare_words, words_id,
 };
 pub use texts::Spec;

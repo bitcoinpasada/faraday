@@ -362,9 +362,9 @@ pub struct KeyGen {
     pub locked: bool,
     /// It was locked in with a passphrase.
     pub with_passphrase: bool,
-    /// The public seed the demo added in place of the key made, as its
-    /// word ([`crate::wallet::Session::next_handout`]).
-    pub handed: Option<&'static str>,
+    /// The sample the demo added in place of the key made, as its word
+    /// and its word count ([`faraday_keys::Keys::next_handout`]).
+    pub handed: Option<(&'static str, u8)>,
     /// The key as `[fingerprint/path]xpub` at the kind's path, once
     /// locked in: the Create kind's for a slot, native SegWit on its own.
     pub key_text: Option<String>,
@@ -1161,6 +1161,16 @@ impl KeyGen {
         }
     }
 
+    /// How many words the key has, which is the length of the sample the
+    /// demo hands out for it: the words made, else the count chosen.
+    pub fn handout_words(&self) -> u8 {
+        let n = self
+            .mnemonic
+            .as_ref()
+            .map_or(self.words, faraday_bip::bip39::Mnemonic::word_count);
+        u8::try_from(n).unwrap_or(24)
+    }
+
     /// The words, space-separated, for the session to load.
     pub fn phrase(&self) -> Option<zeroize::Zeroizing<String>> {
         let m = self.mnemonic.as_ref()?;
@@ -1702,13 +1712,17 @@ impl crate::Faraday {
         }
         let slot = k.slot;
         let label = fill(EN.keygen_new_key_n, &[&(self.new_keys + 1).to_string()]);
-        // The demo adds its next public seed in place of the key just
-        // made, which goes unused (`Session::next_handout`).
-        let handed = self.session.keys.next_handout().map(|(w, _)| w);
-        let added = if let Some(word) = handed {
+        // The demo adds its next sample of this length in place of the key
+        // just made, which goes unused (`Keys::next_handout`).
+        let handed = self
+            .session
+            .keys
+            .next_handout(k.handout_words())
+            .map(|(w, _)| (w, k.handout_words()));
+        let added = if let Some((word, n)) = handed {
             self.session
                 .keys
-                .add_words(&c, &crate::demo::words(word), &label, None)
+                .add_words(&c, &crate::samples::repeated(word, n), &label, None)
         } else {
             match k.secret.as_ref() {
                 Some(s) => {
@@ -1766,10 +1780,14 @@ impl crate::Faraday {
         let Some(words) = k.phrase() else {
             return;
         };
-        // The demo adds its next public seed in place of the key just
-        // made, which goes unused, and with no passphrase: a passphrase
-        // typed is ignored (`Session::next_handout`, F20).
-        let handed = self.session.keys.next_handout().map(|(w, _)| w);
+        // The demo adds its next sample of this length in place of the key
+        // just made, which goes unused, and with no passphrase: a
+        // passphrase typed is ignored (`Keys::next_handout`, F20).
+        let handed = self
+            .session
+            .keys
+            .next_handout(k.handout_words())
+            .map(|(w, _)| (w, k.handout_words()));
         if handed.is_none() && k.slot.is_some() && k.passphrase.as_str() != k.passphrase2.as_str() {
             k.note = Some(EN.keygen_the_two_passphrases.to_string());
             return;
@@ -1782,10 +1800,10 @@ impl crate::Faraday {
         }
         let slot = k.slot;
         let label = fill(EN.keygen_new_key_n, &[&(self.new_keys + 1).to_string()]);
-        let added = if let Some(word) = handed {
+        let added = if let Some((word, n)) = handed {
             self.session
                 .keys
-                .add_words(&c, &crate::demo::words(word), &label, None)
+                .add_words(&c, &crate::samples::repeated(word, n), &label, None)
         } else {
             self.session
                 .keys

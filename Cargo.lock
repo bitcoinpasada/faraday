@@ -835,6 +835,7 @@ dependencies = [
  "faraday-bip",
  "faraday-core",
  "faraday-crypto",
+ "faraday-samples",
  "faraday-shell-api",
  "faraday-storage",
  "faraday-window",
@@ -992,6 +993,23 @@ dependencies = [
  "faraday-crypto",
  "faraday-files",
  "miniz_oxide 0.8.9",
+]
+
+[[package]]
+name = "faraday-samples"
+version = "0.1.5"
+dependencies = [
+ "bip39",
+ "faraday-backup",
+ "faraday-bip",
+ "faraday-core",
+ "faraday-crypto",
+ "faraday-intake",
+ "faraday-keys",
+ "faraday-psbt",
+ "faraday-vault",
+ "serde_json",
+ "unicode-normalization",
 ]
 
 [[package]]

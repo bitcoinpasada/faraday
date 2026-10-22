@@ -2,12 +2,11 @@
 //! Outbox, and the stick rule (`docs/history/PLAN.md` §5).
 //!
 //! It is an [`faraday_shell_api::App`], so the shells drive it with events and
-//! read its frame. Removable storage is the one
-//! thing that interface has no event for, so this crate adds a
-//! second channel beside it: the shell reports the sticks it sees and the
-//! files read from them through [`Faraday::storage`], and takes the
-//! reads and writes this app asks for from
-//! [`Faraday::poll_storage`]. The app itself does no I/O.
+//! read its frame. Removable storage is the one thing that interface has
+//! no event for, so this crate adds a second channel beside it: the shell
+//! reports the sticks it sees and the files read from them through
+//! [`Faraday::storage`], and takes the reads and writes this app asks for
+//! from [`Faraday::poll_storage`]. The app itself does no I/O.
 //!
 //! Keys are typed, scanned or loaded from a vault for the session only;
 //! PSBTs and wallets move by stick or QR. Test wallets come in on a test
@@ -40,9 +39,9 @@
 //!   the screens with no area folder), `drawing`, each area's `screen.rs`
 //!   (`vault/screen.rs`, `keygen/screen.rs`), `glance` (a wallet at a
 //!   glance), `guide` (Guided mode's walk-through), `scan_key`, `pdf` (the
-//!   printed sheets), `picture` (a QR code to keep), `demo` (the demo's
-//!   public seeds), `devices` (what else can capture the screen or the
-//!   keys) and `edid` (what a screen says it is).
+//!   printed sheets), `picture` (a QR code to keep), `demo` (what Demo
+//!   refuses), `devices` (what else captures the screen or the keys) and
+//!   `edid` (what a screen says it is).
 //! - Flows around a key, seed, words or passphrase: `keygen`, `seeds`
 //!   (with `seeds/read.rs`), `wallet`, `inbox`, `create`, `create_from`,
 //!   `bip85`, `forms`, `fresh`, `gpg`, `apk`, `secure_boot`, `lightning`,
@@ -58,7 +57,7 @@
 //! - Sticks, boot and files: `upgrade`, `transfer` (the desktop as the
 //!   device's QR link), `names` (the Starter's install names),
 //!   `secure_boot/state.rs`.
-//! - Support: `wordlist`, `learn`, `modes` (F81, with `modes/screen.rs`), `tools`, `testkit`.
+//! - Support: `wordlist`, `learn`, `modes` (F81, with `modes/screen.rs`), `samples`, `tools`, `testkit`.
 //!
 //! `Faraday::act_inner` is the dispatch for presses: it runs the checks that
 //! come before any action, then sends each `Action` to its area's
@@ -200,6 +199,7 @@ pub mod upgrade;
 // Support: word lists, the Learn pages, the tools page, test data.
 pub mod learn;
 pub mod modes;
+pub mod samples;
 #[cfg(feature = "testkit")]
 pub mod testkit;
 pub mod tools;
