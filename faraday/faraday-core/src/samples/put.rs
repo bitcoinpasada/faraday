@@ -14,7 +14,6 @@ use super::{SampleForm, SampleKey, Samples};
 use crate::forms::{self, Form};
 use crate::strings::EN;
 use crate::ui::Style;
-use crate::ui::pal::{ACCENT, BG};
 use crate::ui::{Ui, W};
 use crate::wallet::{read_wallet, same_wallet};
 use crate::{Action, Faraday, ScanPurpose, Screen, Sheet};
@@ -71,16 +70,16 @@ pub(crate) fn chip(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), action: Acti
     ui.field_action(x, y, w, h, label, action);
 }
 
-/// Add a key's word grid on a wide display, empty: its first row a field
-/// with the chip in it, and a press anywhere in the grid focuses it.
-/// `boxes` cells are drawn under it.
+/// Add a key's word grid on a wide display, empty: the chip inside cell 1
+/// only, after its number, where the word would be; a press anywhere in
+/// the grid focuses it. `boxes` cells are drawn by the grid itself.
 pub(crate) fn grid_chip(ui: &mut Ui, (x, y, w): (f32, f32, f32), boxes: usize) {
     let rows = boxes.div_ceil(4) as f32 * tokens::ENTRY_ROW - tokens::FIELD_RADIUS;
     ui.hit(x, y, w, rows, Action::EntryField);
+    let cell = (w - tokens::ENTRY_CELL_GAP * 3_f32) / 4_f32;
+    let at = tokens::ENTRY_CELL_NUMBER;
     let h = tokens::ENTRY_CELL_HEIGHT;
-    ui.fill(x, y, w, h, tokens::FIELD_RADIUS, BG);
-    ui.stroke(x, y, w, h, tokens::FIELD_RADIUS, ACCENT.with_alpha(110));
-    chip(ui, (x, y, w, h), Action::UseSample);
+    chip(ui, (x + at, y, cell - at, h), Action::UseSample);
 }
 
 /// The chip in the word being typed on a small panel, in the place of its

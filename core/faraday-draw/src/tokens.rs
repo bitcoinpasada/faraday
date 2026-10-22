@@ -558,3 +558,10 @@ pub const SCAN_TILE_ROW: f32 = 52.0;
 
 /// The scanner sheet's side margin, inside the sheet.
 pub const SCAN_SIDE: f32 = 32.0;
+
+/// Add a key's word grid on a wide display: the gap between cells.
+pub const ENTRY_CELL_GAP: f32 = 10.0;
+
+/// Add a key's word cell on a wide display: the room its number takes at
+/// the left, before the word.
+pub const ENTRY_CELL_NUMBER: f32 = 24.0;
