@@ -11,7 +11,7 @@
 //! is kept across a lock, so a lock for a stick or for idleness comes
 //! back to the same page.
 //!
-//! Its third page, What do you have? (`docs/SCAN-TO-SIGN.md` §4), asks
+//! Its third page, What do you have? (`docs/history/SCAN-TO-SIGN.md` §4), asks
 //! for data, not a classification: whatever is scanned or typed comes in,
 //! and the wallet is worked out from it, with only the next question
 //! asked. A wallet worked out from seeds alone is a guess, and Check the
@@ -72,7 +72,7 @@ pub mod page {
     /// What do you have?: everything in the envelope comes in here.
     pub const HOLDING: u8 = 2;
     /// Open the wallet: one card with What do you have? since
-    /// `docs/SCAN-TO-SIGN.md` §4, no longer in the column. A page kept
+    /// `docs/history/SCAN-TO-SIGN.md` §4, no longer in the column. A page kept
     /// open across a lock from before maps to [`HOLDING`].
     pub const OPEN: u8 = 3;
     /// Check the money is really there.
@@ -175,7 +175,7 @@ pub enum Came {
 }
 
 /// A wallet worked out from seeds alone, and the kinds tried on Check
-/// the money (`docs/SCAN-TO-SIGN.md` §5).
+/// the money (`docs/history/SCAN-TO-SIGN.md` §5).
 #[derive(Debug, Clone, Default)]
 pub struct Guess {
     /// Several keys: the multisig kinds, else the single-key ways.
@@ -839,7 +839,7 @@ impl Faraday {
 
     /// A key typed or scanned from this tab: it fills the described
     /// wallet's slot; with no description it waits for the next
-    /// question (`docs/SCAN-TO-SIGN.md` §4.3).
+    /// question (`docs/history/SCAN-TO-SIGN.md` §4.3).
     pub(crate) fn family_key_added(&mut self) {
         self.refresh_spend();
         if self.family_described().is_some() {
@@ -1096,7 +1096,7 @@ impl Faraday {
     }
 
     /// The wallet just made from seeds alone is a guess: Check the money
-    /// tries the other kinds (`docs/SCAN-TO-SIGN.md` §5).
+    /// tries the other kinds (`docs/history/SCAN-TO-SIGN.md` §5).
     pub(crate) fn family_guess_start(&mut self, multi: bool) {
         let at = if multi {
             MULTI_ORDER

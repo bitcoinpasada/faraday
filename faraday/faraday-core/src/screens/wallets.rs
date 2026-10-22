@@ -254,7 +254,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         ui.fill(x, ly, listw, 54.0, 10.0, bg);
         ui.stroke(x, ly, listw, 54.0, 10.0, edge);
-        // Can spend at the right of its name (`docs/SCAN-TO-SIGN.md`
+        // Can spend at the right of its name (`docs/history/SCAN-TO-SIGN.md`
         // §2.4).
         let can = sign_readiness(app, wlt) == 2;
         let cw2 = if can {
@@ -334,7 +334,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ly += 48.0;
     }
     // With the wallet shown short of keys, its Scan a key
-    // (`docs/SCAN-TO-SIGN.md` §2.4).
+    // (`docs/history/SCAN-TO-SIGN.md` §2.4).
     let short = app
         .session
         .wallets
@@ -533,7 +533,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ),
     );
     // Short: one Scan a key for any missing key; enough: Can spend
-    // (`docs/SCAN-TO-SIGN.md` §2.2).
+    // (`docs/history/SCAN-TO-SIGN.md` §2.2).
     if app.can_spend(app.wallet) {
         let t = EN.wallets_can_spend;
         let chipw = ui.measure(12.0, W::R, t) + 34.0;

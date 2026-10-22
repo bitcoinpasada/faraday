@@ -833,14 +833,14 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         0.0
     };
     // A wallet's key scanner: a line per key it takes, and the way to
-    // type the words instead (`docs/SCAN-TO-SIGN.md` §2.1).
+    // type the words instead (`docs/history/SCAN-TO-SIGN.md` §2.1).
     let for_wallet = match sc.purpose {
         crate::ScanPurpose::WalletKey(wi) => app.session.wallets.get(wi).map(|wl| (wi, wl)),
         _ => None,
     };
     let keys = for_wallet.map_or_else(Vec::new, |(wi, _)| app.wallet_key_lines(wi));
     // The Spend tab's intake: the hint its next question gives, and Type
-    // the words instead while keys may load (`docs/SCAN-TO-SIGN.md`
+    // the words instead while keys may load (`docs/history/SCAN-TO-SIGN.md`
     // §4.2).
     let intake = sc.purpose == crate::ScanPurpose::Intake;
     let hint = if intake { app.family_hint() } else { None };

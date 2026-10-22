@@ -114,3 +114,162 @@ system (§1.3), about 36 MB; Home has no Try the desktop app (§3.1);
 Install is one press (§3.5); the Starter installs, lists, runs and
 removes no desktop app and keeps no cache (§5.2 to §5.4); C1's Starter
 parts and MAC batch D are superseded (§11, §12).
+
+Sections below moved out of `docs/STARTER.md` on 2026-10-22; the source keeps a
+one-line stub under each heading.
+
+## Header (from docs/STARTER.md)
+
+**Kind:** Spec
+**Status:** Built; the Mac parts (`docs/MAC.md`) are not
+
+Spec v0.2 · 2026-10-12 · decided by the owner in discussion
+(`docs/DECISIONS.md` F11 and F12); since F33 (2026-10-14) no BitLocker
+step, and since F49 (2026-10-19) BitLocker's suspension, Resume and the
+key on the sheet offered, never required, §6. v0.2 is v0.1 with the
+owner's answers to a review of it: §12 records each decision; what
+changed is in the build log. No decision stays open: D11 was taken on
+2026-10-19.
+
+## §0 Rules for the implementing agent (from docs/STARTER.md)
+
+- `CLAUDE.md` applies in full: every build and test on the build machine; every dimension a token; labels, not
+  prose, on working screens (explanations go in Learn pages); tests for
+  user-facing behaviour only; `just` once at the end of a batch; no
+  `rm`; no commits; no agents.
+- Batches in the order of `docs/history/STARTER-LOG.md` §11, except where it says a batch is independent;
+  one review and one completion report each. A batch that needs an
+  owner decision from §12 does not start until the owner has confirmed
+  it.
+- There is no BitLocker step (F33, §6): the step is turning Secure
+  Boot back on before Windows starts. Since F49 the Start page offers,
+  never requires, to suspend BitLocker for three times Windows starts,
+  to resume it, and to print its recovery key on the sheet; it shows no
+  key on screen and keeps none. Another encryption product
+  closes the firmware steps until its rescue is confirmed (§6.4).
+- The Windows builds are tried on a Windows computer the owner
+  provides. §6.6 says which of its runs may happen on an owner's
+  computer (the Home run, with the owner) and which never do (anything
+  that resets firmware keys or leaves Secure Boot off).
+- The implementing agent never runs a writer against a disk it has not
+  been given for the purpose.
+- Nothing in the Starter reaches a network. No HTTP client, no update
+  check, no telemetry, no crash reporting. The one link it shows (the
+  guides on the website, §7.4) is a QR code a phone opens.
+- Completion report: items done, each with its tests and whether they
+  pass; what was left out and why; docs changed; renders to look at. No
+  restating the spec.
+
+## §6.5 Batches (F33) (from docs/STARTER.md)
+
+Specified, not built. Each is one review and one completion report;
+F33a, F33b and F33d may land together and be built once. Every batch
+changes `faraday-strings` or the Learn pages, which `faraday-core`
+carries, so each counts for every app: Faraday (the desktop app, the
+stick and the Pi) and Faraday Starter.
+
+| Batch | What | Needs |
+|---|---|---|
+| F33a | Removal in the Starter (§6.6's Starter list), with no Resume kept (§6.3); Home and the Start page as §3.1 and §3.4 now say; *Use a device* only with Secure Boot reported off | none |
+| F33b | Dropped with the Companion (F34); `faraday_qr::bitlocker` is removed with the Starter's use of it | none |
+| F33c | The stick's power-off reminder (§7.5): the line, its tone and place, the unread state; the idle power-off unchanged | none |
+| F33d | The guides' new text (§6.7), `bitlocker.md` removed from `faraday-guides`; the website's `start/bitlocker` page goes at its next build, in its own repository | none |
+
+**Tests**, user-facing:
+
+- The stick's power-off sheet shows "Turn Secure Boot back on in the
+  BIOS before starting Windows." when the stick started with Secure
+  Boot off, and when the state was not read; not when it started with
+  Secure Boot on. The Pi's power-off sheet and Faraday Desktop's never
+  show it (`faraday-core/tests/all/secure_boot_reminder.rs`, whose
+  "unknown says nothing" test changes to the rule it now encodes).
+- Every guide's last numbered step begins "Turn Secure Boot back on"
+  (the Windows, Linux and maker pages) (`faraday-guides`).
+- Nothing in the Starter asks for or holds a recovery key unless
+  BitLocker reads on (F49 replaced F33's "on Windows with a protected
+  drive" here): with BitLocker not read, Home and the Start page show no
+  BitLocker item, row or key, and the only thing sent to the computer
+  is the Start page's reading of BitLocker; no marker or logon entry
+  ever.
+- On Windows, **Restart to choose a device** and the card's **Restart
+  from the stick** are shown with Secure Boot reported off, and hidden
+  with it reported on or unread (`UEFISecureBootEnabled` 1, or no
+  value), against recorded registry answers.
+- Another encryption product still closes the firmware steps until its
+  rescue is confirmed.
+
+**F49, built 2026-10-19** in one batch: `faraday-starter` (`api.rs`'s
+`BitLocker`, `Protection`, `RecoveryKey`, `BitLockerStep`, the events
+and commands; `lib.rs`, `draw.rs`, `notes.rs`, `examples/snap.rs`),
+the shell (`windows/bitlocker.rs`, `sys.rs`'s WMI and property store,
+`win.rs`'s elevated verbs, `pipe.rs`'s reasons, `platform.rs`,
+`main.rs`, `pdf.rs`'s key sheets), `faraday-strings`, the guides
+(§6.7). Tests, user-facing:
+
+- With BitLocker on, the Start page offers Temporarily suspend
+  BitLocker and the tick box, between Write down and the restart; the
+  restart is offered as without it (`faraday-starter/tests/all/bitlocker.rs`).
+- Suspend asks once ("Waiting for administrator permission"); after it
+  the row reads "Suspended · turns back on by itself after Windows
+  starts 3 times" with Resume BitLocker, and keeps the count when the
+  page is shown again; Resume returns to On; a refusal says why.
+- With BitLocker off, not read, or not on Windows, none of it shows and
+  the sheet has no key.
+- The sheet carries the key only when ticked: the drive and the 48
+  digits, nothing else; no document information, path, computer name
+  or key ID; no QR code (no filled squares); the key is never drawn.
+- The elevated copy's verbs against recorded WMI answers
+  (`shells/starter/tests/all/bitlocker.rs`, `tests/windows/*.wmi`, restored
+  from before F33 and adapted): the key read and nothing changed, no
+  recovery password added; Suspend with `DisableCount` 3 on operating-
+  system volumes only, read back with 3 left; a managed computer's
+  refusal leaves nothing half done; a drive already suspended is left as
+  it is; Resume read back; the pipe's lines round-trip and are wiped;
+  the real virtual-machine recordings read as on, suspended (no count)
+  and not encrypted.
+- The guides say the key may be asked for with Secure Boot back on and
+  that suspending first avoids it, and no longer say it is not needed
+  (`faraday-guides`).
+
+Only real Windows can show: the elevation prompt on an administrator's
+and a standard account, the shell property and WMI on Windows Home with
+Device encryption, a managed computer's refusal code, how Windows
+counts the starts (tracker #157), and whether the viewer holds the key
+sheet open when the Starter exits.
+
+## §6.6 What is removed (from docs/STARTER.md)
+
+- **Faraday Starter** (`faraday/faraday-starter`): the BitLocker page,
+  Home's BitLocker item, its note, states and "Key shown", the Start
+  page's BitLocker row, the guard's steps (show, type back, suspend,
+  done, resume) and the TV hold on Show the recovery key, in `lib.rs`,
+  `decide.rs`, `api.rs`, `draw.rs` and `examples/snap.rs`; the
+  dependency on `faraday-qr` for the key; `tests/all/bitlocker.rs`,
+  `tests/unreadable_bitlocker.rs`, and the BitLocker cases of
+  `tests/all/starter.rs` and `tests/all/concern_holds.rs`.
+- **The Starter's shell** (`faraday/shells/starter`):
+  `src/windows/bitlocker.rs`; the BitLocker reading and WMI calls in
+  `win.rs`, `sys.rs` and `mod.rs`; `--bitlocker` and `--remind` in
+  `main.rs` and `pipe.rs`; the logon Run entry in `install.rs`; the
+  key file Save; `platform.rs`'s BitLocker facts; `tests/all/bitlocker.rs`,
+  the BitLocker cases of `tests/all/windows.rs`, and the recorded WMI
+  answers in `tests/windows/` that serve only them. The VeraCrypt
+  driver check stays.
+- **Shared:** faraday/faraday-qr/src/bitlocker.rs, its `pub mod`, its
+  `zeroize` use where only it needs it, and `tests/bitlocker.rs`; the
+  BitLocker cases of `faraday-core/src/testkit.rs`.
+- **Strings:** every `starter_` string in
+  `faraday/faraday-strings/src/en.rs` used only by the above (about 70:
+  the guard, the page, the states, the key, **BitLocker first**).
+- **Learn:** docs/learn/faraday/boot/bitlocker.md and its entry in
+  `faraday-guides`; the lines §6.7 lists.
+- **Docs:** `docs/history/BITLOCKER-ACCEPTANCE.md` is superseded (its header
+  says what remains). `tools/winvm/` stays: it is how the Windows
+  Starter is tried, and a Windows with BitLocker on is the computer the
+  guide is checked on.
+
+## §7.5 The stick reminds: its old status line (from docs/STARTER.md)
+
+(owner, 2026-10-12, D8; made the step's backstop by F33, 2026-10-14.
+Built as a muted line in batch G; F33's changes are batch F33c,
+specified, not built.)

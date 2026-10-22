@@ -1,4 +1,4 @@
-//! Scan a key (`docs/SCAN-TO-SIGN.md` §2): one way in for any key a
+//! Scan a key (`docs/history/SCAN-TO-SIGN.md` §2): one way in for any key a
 //! loaded wallet is short of. The camera takes any of the wallet's
 //! missing keys and Faraday works out which; a seed whose key with no
 //! passphrase is one of them loads at once, since the match proves it

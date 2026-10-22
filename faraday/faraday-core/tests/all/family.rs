@@ -1,6 +1,6 @@
 //! The Spend tab (`docs/FAMILY.md`): someone spending for the first time
 //! goes from what is in the envelope to a signed transaction on one tab.
-//! What do you have? (`docs/SCAN-TO-SIGN.md` §4) takes whatever is in
+//! What do you have? (`docs/history/SCAN-TO-SIGN.md` §4) takes whatever is in
 //! the envelope, scanned or typed in any order (a vault, seeds, a
 //! description, split sheets, a transaction), works out the wallet and
 //! asks only the next question; a wallet worked out from seeds alone is

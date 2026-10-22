@@ -1,11 +1,8 @@
 # The Nostr key
 
 **Kind:** Spec
-**Status:** Not scheduled
-
-Spec v0.2 · 2026-10-14 · decided by the owner
-(`docs/DECISIONS.md` F27; §12 records the answers). Not built, and not
-scheduled: it is built only when the owner says so.
+**Status:** Not built, not scheduled (F27, amended by F34)
+**Open:** all of it, batch N1 (§11), built only when the owner says.
 
 The problem it solves: a Nostr identity is one secp256k1 key, and a
 person who loses it loses the identity. BIP-85 2.1.0 (2026-08-02) adds
@@ -19,24 +16,8 @@ Signing Nostr events is not part of this spec; it is a later item.
 
 ## 0. Rules for the implementing agent
 
-- `CLAUDE.md` applies in full: every dimension a
-  token; labels, not prose, on working screens (the explanations are
-  §9's Learn page); tests for user-facing behaviour only; `just` once at
-  the end of the batch; no `rm`; no commits; no agents.
-- Nothing in `core/` changes: the BIP-85 application list there stays
-  as it is.
-- On screen the nsec is handled as BIP-85's WIF and extended private
-  key are today (§4.4). Unlike them it has no **Out unprotected**: the
-  ncryptsec (§6) is the only form in which it leaves the device, apart
-  from the sealed vault file itself. A change that would need it
-  handled otherwise stops and asks the owner.
-- Nothing that can leave the device carries the key's fingerprint, or
-  an identity or account number: no file name, no label under a code,
-  no file's content. Files are named by the npub's first characters
-  (§2.5). The fingerprint stays inside the vault (§5).
-- Completion report: items done, each with its tests and whether they
-  pass; what was left out and why; docs changed; renders to look at. No
-  restating the spec.
+Moved to `docs/history/NOSTR-LOG.md`. The design rules it repeated are
+§1, §2.5, §4.4 and §12 items 12 and 14; `CLAUDE.md` holds the rest.
 
 ## 1. What is decided
 
@@ -68,7 +49,8 @@ Signing Nostr events is not part of this spec; it is a later item.
   derived again (§5.1).
 - A file holding an nsec is a secret kind with no code (§6.6). It is in
   N1.
-- The reading rules for `nsec`, `npub` and `ncryptsec` text are
+- *Placement superseded (F70, F72): see the note at the top of §2.3.*
+  The reading rules for `nsec`, `npub` and `ncryptsec` text are
   faraday/faraday-intake/src/nostr.rs, which the device reads
   (§2.4). The derivation and NIP-49 are
   faraday/faraday-core/src/nostr.rs, over `faraday-bip`'s public key
@@ -107,6 +89,16 @@ Identity and account are each 1 to 2³¹ − 1 (`faraday_bip::bip85::MAX_INDEX`)
   through the derived key's own context.
 
 ### 2.3 Where the code lives
+
+*Superseded placement.* This section predates F70 and F72. F70 puts
+every key and every operation on one in `faraday-keys` (a BIP-85 child
+is derived in `faraday/faraday-keys/src/bip85.rs`, and leaves only
+through a named reveal), and `tools/lint-secrets.sh` rule 4 refuses a
+key or a secret-taking primitive outside it: `NostrKey` and its
+derivation belong there, not in `faraday-core/src/nostr.rs`. "Not an
+edit to `core/`" was F65's soft-fork rule, which F72 replaced: `core/`
+is Faraday's own code, and a change there is fixed at its source. The
+text below is as specified; the placement is decided when N1 is built.
 
 `faraday-bip`'s BIP-85 derivation (`derive`, its 64-byte `Bytes`) is
 private, and its public functions are the six applications. Faraday
@@ -168,6 +160,10 @@ labels every Nostr code. It is public, as the npub is, and says nothing
 about the seed, the fingerprint, the identity or the account.
 
 ## 3. Where it starts
+
+*Note.* `bip85.rs` below is now `faraday/faraday-core/src/bip85/mod.rs`
+(state) and `bip85/screen.rs` (the screen); the derivation itself is
+`faraday/faraday-keys/src/bip85.rs` (§2.3's note).
 
 Nothing in this section exists while `Faraday::online` is set (Faraday
 Desktop, on every network) or the session is the demo
@@ -473,7 +469,7 @@ An export runs scrypt twice at LOG_N 16: once to encrypt, once for the
 check. Each holds 64 MiB, the same as a Light vault's unlock, freed and
 zeroized before the next. `faraday_crypto::scrypt` allocates with `vec!`,
 which ends the app if the allocation fails; `core/` is not changed for
-this (F65 allows it, and nothing here needs it), and a Pi 3's 1 GiB holds it, since a vault's own key-derivation
+this (nothing here needs it; F65, cited here before, is replaced by F72), and a Pi 3's 1 GiB holds it, since a vault's own key-derivation
 memory is freed once the vault is open. Time is an estimate, not a
 measurement: under a second on a desktop, several seconds on a Pi 3.
 The completion report gives the time measured on the build machine; the
@@ -703,12 +699,12 @@ before any other work.
 4. NIP-49 export is part of the batch.
 5. Find a pair; its rows stay text.
 6. Specified now, built when the owner says.
-7. Superseded by 13.
+7. Superseded: moved to `docs/history/NOSTR-LOG.md`.
 8. No QR or picture of the plain nsec anywhere (§4.4, §5.1, §6.6); the
    ncryptsec's QR moves the key to a phone under a password.
 9. QR codes wherever they help: Show as QR and PNG for the npub and the
    ncryptsec, in the tool and on a saved entry's page (§4.4, §5.1, §6.1).
-10. Superseded: the Companion is gone (F34).
+10. Superseded: moved to `docs/history/NOSTR-LOG.md`.
 11. A new ncryptsec's password is at least 12 characters.
 
 After the review of v0.1, the same day:

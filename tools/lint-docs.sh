@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Documentation lint (docs/README.md, docs/STRUCTURE-PASS.md phase 2).
 #
-# Two rules, so that a document says what kind it is and cites only what
-# exists.
+# Four rules, so that a document says what kind it is, cites only what
+# exists, and holds what is true now or still to be built, not how it was
+# built (CLAUDE.md, "Docs").
 #
 # 1. Header. Every tracked .md under docs/ (not docs/history/,
 #    docs/learn/ or docs/deps/) carries `**Kind:**` and `**Status:**`
 #    in its first 12 lines. The root README.md is the project's front
-#    page and has none. Each docs/history/*.md
+#    page and has none. Each .md under docs/history/
 #    carries `**Kind:** History` there.
 #
 # 2. Paths. Every backticked repository path in a .md file resolves: a
@@ -22,6 +23,18 @@
 #      - out/ paths and target directories (build outputs)
 #    A local/ path anywhere outside CLAUDE.md is an error: local/ is
 #    private and never cited.
+#
+# 3. Open work. A Spec carries `**Open:**` in its first 12 lines, saying
+#    what is not built; a Reference or Record carries none. A Spec with
+#    nothing open is Reference, and its plan goes to docs/history/.
+#
+# 4. No plan in a Reference. A Spec is a plan and may hold one; a
+#    Reference is what is built, so a heading of plan or build log in it
+#    (rules for the implementing agent, batches, order of work, how it
+#    gets built, what changes from today, estimates, questions for the
+#    owner, docs-and-tour task lists) fails. A section whose whole body is a stub naming where it
+#    moved ("Moved to `docs/history/X-LOG.md`.") passes, so a cited
+#    section number keeps resolving.
 #
 # Prints `file:line: message` for each failure and exits non-zero if
 # there is one. Run from the repository root; `just lint` does.
@@ -66,6 +79,38 @@ def fail(path, line, msg):
     failures.append(f"{path}:{line}: {msg}")
 
 
+# Rule 4: no plan in a Reference.
+PLAN = re.compile(
+    r"implementing agent|for the agent|order of work|how (this|it) gets built"
+    r"|building it|what changes from today|docs and (snapshots|tour)"
+    r"|\bbatch(es)?\b|estimate|questions for the owner|open questions", re.I)
+STUB = re.compile(r"^(.*: )?[Mm]oved to `docs/history/[^`]+`\.?$")
+
+
+def check_log(f, kind):
+    if kind != "Reference":
+        return
+    lines = open(f, encoding="utf-8").read().split("\n")
+    fenced = False
+    heads = []
+    for n, l in enumerate(lines):
+        if re.match(r"\s*(```|~~~)", l):
+            fenced = not fenced
+        m = None if fenced else re.match(r"(#+)\s+(.*)", l)
+        if m:
+            heads.append((n, len(m.group(1)), m.group(2)))
+    for i, (n, level, title) in enumerate(heads):
+        if not PLAN.search(title):
+            continue
+        end = next((m for m, lv, _ in heads[i + 1:] if lv <= level), len(lines))
+        body = [l.strip() for l in lines[n + 1:end] if l.strip()]
+        if len(body) == 1 and STUB.match(body[0]):
+            continue
+        fail(f, n + 1, f"heading `{title}` is plan or build log in a "
+                       "Reference; move the section to docs/history/ and "
+                       "leave a one-line stub")
+
+
 # Rule 1: headers.
 for f in files:
     if not f.endswith(".md"):
@@ -74,7 +119,7 @@ for f in files:
         f.startswith("docs/")
         and not f.startswith(("docs/history/", "docs/learn/", "docs/deps/"))
     )
-    history = f.startswith("docs/history/") and f.count("/") == 2
+    history = f.startswith("docs/history/")
     if not (covered or history):
         continue
     head = open(f, encoding="utf-8").read().split("\n")[:12]
@@ -91,6 +136,14 @@ for f in files:
         fail(f, 1, "Kind is not Reference, Spec or Record")
     if not any(l.startswith("**Status:**") and len(l) > 12 for l in head):
         fail(f, 1, "no `**Status:**` line in the first 12 lines")
+    kind = kinds[0].split()[-1] if kinds else ""
+    opens = [l for l in head if l.startswith("**Open:**")]
+    if kind == "Spec" and not any(len(l) > 10 for l in opens):
+        fail(f, 1, "a Spec with no `**Open:**` line; if nothing is open, "
+                   "it is Reference and its plan goes to docs/history/")
+    if kind in ("Reference", "Record") and opens:
+        fail(f, 1, f"an `**Open:**` line in a {kind}; open work makes it a Spec")
+    check_log(f, kind)
 
 
 # Rule 2: paths.

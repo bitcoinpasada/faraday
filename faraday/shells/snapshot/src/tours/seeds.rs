@@ -8,7 +8,7 @@ use faraday_shell_api::{App, Event, Key};
 /// A wallet from seed words alone: Restore on a 2-of-3 with no
 /// description, two seeds typed into their slots, the third cosigner's
 /// xpub in the last, and the Check card;
-/// then the Spend tab's What do you have? (`docs/SCAN-TO-SIGN.md` §4):
+/// then the Spend tab's What do you have? (`docs/history/SCAN-TO-SIGN.md` §4):
 /// empty, after one seed, after two, the intake scanner asking for the
 /// description, the shape made by hand, and Check the money guessed,
 /// after No money shows (§5).

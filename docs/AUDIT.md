@@ -1,10 +1,9 @@
 # What is cryptography, and where it lives
 
 **Kind:** Reference
-**Status:** Built; rewritten 2026-10-21 around the key boundary (F70)
+**Status:** Built (the key boundary, F70)
 
-Written 2026-10-06; rewritten 2026-10-21 when the key boundary (F70,
-`docs/KEYS.md`) was built. `core/` is Faraday's code. One row per crate
+`core/` is Faraday's code. One row per crate
 that touches a key, a seed, a signature, a cipher or a passphrase,
 saying what it computes, whether that is written in this tree or taken
 from a crate, and what it is checked against. For someone deciding what
@@ -39,8 +38,9 @@ Three tiers, used through the rest of this file:
 | Crate | What it computes | Written here, or from a crate | Checked against |
 |---|---|---|---|
 | `faraday-crypto` | The hash/KDF choke point every other crate calls through (`sha256`, `hmac_sha256`/`512`, `pbkdf2_hmac_sha256`/`512`, `blake2b`, `scrypt`); `Secret`, `Pinned` (mlock'd pages) and `Sealed`/`SessionKey` wrappers that hold or encrypt a secret in memory. No signing, no curve operations, no random number generator: entropy is handed in by the shell. | SHA-256, HMAC, PBKDF2: RustCrypto crates. **BLAKE2b and scrypt are written here** (one caller each, LND's `aezeed`) rather than taken as crates. | `core/faraday-crypto/tests/primitives.rs`; BLAKE2b against RFC 7693's own vectors, scrypt against RFC 7914's, inline in `blake2b.rs`/`scrypt.rs`. |
+| `faraday-selftest` | The start-up self-test, run before any key is accepted: BIP-39 words and seed (PBKDF2-HMAC-SHA512), BIP-32 derivation, a BIP-84 address, ECDSA (RFC 6979) and BIP-340 signing, scrypt and Argon2id, each through the function the product itself calls, with fixed vector keys only. A failure names the check and blocks the app. | Nothing computed here: it calls `faraday-bip`, `faraday-psbt`, `faraday-crypto` and `faraday-backup`. | Its expected values are copied from the vector files the integration tests use (`tools/vectors/bip39/`, `tools/vectors/psbt/rfc6979.txt`, `tools/vectors/kdf/`) and from libsecp256k1's copy of the BIP-340 vectors. |
 | `faraday-bip` | BIP-32 keys (wraps `bitcoin::bip32`, so private material never gains `Debug`/`Clone`/a text form), BIP-39 mnemonics, BIP-44/49/84/86 accounts, SLIP-132, BIP-380 descriptor checksums, BIP-85 child mnemonics, SLIP-39 Shamir backup, BIP-327 MuSig2, BIP 445 FROST (with the trusted-dealer split), BIP 93 codex32, aezeed. | Keys/addresses: `bitcoin`'s own `bip32` (external, vetted). **BIP-39, SLIP-39, MuSig2, FROST and codex32 are written here** — no vetted `no_std` crate exists for them on this tree's pin, or (BIP-39) the explorer screens need intermediate values a library hides. | `tools/vectors/{bip32,bip39,bip85,bip93,bip129,bip327,bip328,bip352,bip387,bip390,bip392,bip445}/`; BIP-39 and seed derivation additionally cross-checked against the `bip39` crate as a dev-dependency (`faraday-bip::crosscheck`). |
-| `faraday-psbt` | PSBT parse/serialise, inspection (amounts, fee, verified change, warnings) from non-secret data only, signing (key derived from the PSBT's own origin data, never a guessed path; deterministic nonces; verifies its own signature before writing it; signs twice to check determinism), BIP-137/BIP-322 message signing, finalisation, and verification of signatures already on a transaction. | Signing itself: `faraday-bip`'s keys, over `bitcoin`'s secp256k1. The PSBT format, inspection and verification logic: written here. | `tools/vectors/psbt/`, `tools/vectors/message/`; wallet fixtures built and checked in `core/faraday-psbt/examples/wallet.rs` / `tests/all/wallet_fixtures.rs`; `docs/WALLETS.md` §8 additionally reproduces agreement against the Coldcard Q simulator and SeedSigner's libraries for the flows that should match. |
+| `faraday-psbt` | PSBT parse/serialise, inspection (amounts, fee, verified change, warnings) from non-secret data only, signing (key derived from the PSBT's own origin data, never a guessed path; deterministic nonces; verifies its own signature before writing it; signs twice to check determinism), BIP-137/BIP-322 message signing, finalisation, and verification of signatures already on a transaction. | Signing itself: `faraday-bip`'s keys, over `bitcoin`'s secp256k1. The PSBT format, inspection and verification logic: written here. | `tools/vectors/psbt/`, `tools/vectors/message/`; wallet fixtures built and checked in `core/faraday-psbt/examples/wallet.rs` / `tests/all/wallet_fixtures.rs`. |
 | `faraday-entropy` | Turns user-supplied dice, coin flips, hex, playing cards or camera noise into `RawEntropy` of the right size for a BIP-39 key, with the mistakes real hands make checked for and warned on; mixes two or more sources by XOR over their SHA-256 commitments. | Written here (bit/face accumulation and packing; no external entropy crate fits a fixed-size, erase-on-drop buffer). | Its own unit tests (no published vectors exist for "pack these dice as entropy" — it is deterministic bit-packing, not a named standard); exercised end to end through `faraday-core/tests/all/keygen.rs`. |
 | `faraday-backup` | Two encrypted file formats: `.oskb` (a key's words, a master seed, a note or a recovery sheet) and KDBX 4. Both stretch the passphrase with Argon2id at a caller-chosen, file-carried `Cost`; neither draws its own randomness. | Argon2id, ChaCha20-Poly1305, the KDBX cipher stack: RustCrypto crates (`argon2`, `chacha20poly1305`, `chacha20`, `sha2`, `hmac`). The two file formats themselves: written here. | `tools/vectors/backup/`; `.oskb` additionally read by `tools/backup/decrypt.py` against two independent published libraries. |
 
@@ -142,6 +142,7 @@ or file format.
 | `faraday-qr` | BBQr, numbered text parts, the Faraday file envelope, the UR registry's key/wallet types. Calls `sha256` to check an envelope's declared hash against its data; computes no key material. |
 | `faraday-draw` | Layout engine and renderer. Takes `faraday-bip`/`faraday-codec` types (a fingerprint, an address, a QR code) to draw; never computes one. |
 | `faraday-shell-api` | The event/command contract between an app and its shell. No dependency on any crypto crate. |
+| `faraday-payload` | The Starter's payload: reads the `MANIFEST` of the release's `.xz` files, checks a payload file's SHA-256 against it before a byte is written, decompresses it as a stream (`lzma-rust2`'s xz decoder, which checks xz's own CRCs), and succeeds only if what was written has the manifest's size and SHA-256. The *Hashes* tier: no key, no signature. |
 | `faraday-intake` | Reads every scan, paste and file first: whether it is a seed (SeedQR, words, checked through `faraday-bip`) or another secret, and what a transfer becomes. Holds what it reads in `Zeroizing` buffers until it is handed on; computes no key. |
 
 ## 5. Crates with no cryptographic involvement
@@ -150,7 +151,13 @@ or file format.
 `faraday-grant` (the `CAP_CHOWN` helper), `faraday-files` (the Place
 trait, the pipe protocol), `faraday-storage` (Inbox/Outbox, PDFs),
 `faraday-scanner` (camera frames), `faraday-strings` (the words on
-screen), every shell (`faraday-desktop`, `faraday-stick`,
+screen), `faraday-boot` (the boot copier: copies a boot partition raw,
+identified by the running kernel's release string, which is not a
+signature), `faraday-ui` (the desktop app's and the Starter's drawing),
+`faraday-learn` and `faraday-guides` (Learn pages and the start-from-stick
+guides), `faraday-starter` (the Starter's state and screens; it writes
+images through `faraday-payload` and holds a `faraday-core` in online
+mode for Transfer and Learn), every shell (`faraday-desktop`, `faraday-stick`,
 `faraday-snapshot`, `faraday-window`, `faraday-mediafoundation`, the
 Starter's, `faraday-v4l2`, `faraday-avfoundation`), and the dev
 tools (`faraday-testkit`, `faraday-argon2-bench`, `faraday-fontbake`,

@@ -443,7 +443,7 @@ fn home_lead_rule_7_with_nothing_loaded_offers_to_make_a_wallet() {
     assert!(app.offers(Action::CreateWallet));
 }
 
-/// SCAN-TO-SIGN §1: Home's two tiles for making and restoring a wallet
+/// docs/history/SCAN-TO-SIGN.md §1: Home's two tiles for making and restoring a wallet
 /// read "Make a new wallet" and "Restore an existing wallet", and so
 /// does the empty Wallets tab.
 #[test]

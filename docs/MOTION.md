@@ -1,9 +1,7 @@
 # Scrolling, motion and appearance
 
 **Kind:** Reference
-**Status:** Built; waiting for the owner's check on hardware
-
-Approved by the owner 2026-10-06; built 2026-10-07.
+**Status:** Built
 
 The build log is `docs/history/MOTION-LOG.md`.
 
@@ -26,51 +24,7 @@ for that.
 
 ## 2. What was wrong (measured 2026-10-06)
 
-Measured with a harness outside the repo on an i7-7560U, release
-profile, driving `Faraday` through `App::event` and `App::frame`.
-
-| Per scroll frame | 1366×768 | 1920×1080 |
-|---|---|---|
-| Backup (a step column) render | 6 ms (max 10) | 11 ms (max 19) |
-| Files, Start render | 1–1.5 ms | 2–3 ms |
-| RGBA → panel format convert | 1.7 ms | 3.3 ms |
-
-Primitive costs on a 1920×1080 canvas, six 1130×120 shapes per frame:
-
-| Primitive | Unclipped | Inside a clip |
-|---|---|---|
-| `fill_rounded_rect` | 0.05 ms each | 1.6 ms each |
-| `stroke_rounded_rect` | 0.09 ms each | 0.19 ms each |
-| `fill_rect`, text | no difference | no difference |
-
-Causes, in order of how much they are felt:
-
-1. **The wheel jumps.** A notch is an instant 48 px move
-   (`faraday/shells/stick/src/cursor.rs`, `WHEEL_NOTCH_PX`). A hi-res
-   wheel is quantised to whole notches (`pointer.rs`, `HI_RES_PER_NOTCH`)
-   and a touchpad pan loses its rounding remainder each pass.
-2. **Frames are slow and unevenly paced.** A rounded rectangle drawn
-   inside a clip goes through a panel-sized tiny-skia `Mask`
-   (`core/faraday-draw/src/canvas.rs`, `fill_rounded_rect`), about 30 times
-   slower than without one, and every card, button and pill on a
-   scrolled page is drawn inside the scroll region's clip. The stick
-   shell draws whenever input arrives, so frames land at irregular
-   intervals with irregular steps, and it ticks every 50 ms when no
-   finger is down (`main.rs`, `TICK`), so an animation would run at
-   20 fps.
-3. **No momentum, no edge feedback, no touchscreen drag.** A two-finger
-   flick stops dead when the fingers lift; nothing shows the end of a
-   page; and a finger dragged on a touchscreen does not scroll Faraday
-   at all (`Faraday::touch`, `TouchPhase::Move` only drives the Visit
-   scrollbar).
-4. **Items jostle while scrolling.** Scroll offsets are fractional
-   design units and every rectangle and string rounds its own position
-   to pixels (`ui.rs`, `Ui::px`), so items move by a pixel at different
-   moments instead of as one sheet.
-5. **Tearing.** The firmware framebuffer has no vsync. It cannot be
-   removed without a GPU driver in the kernel, which the image does not
-   carry on purpose; small, even steps make a tear a few pixels instead
-   of 48, and writing less of the panel per frame narrows the window.
+Moved to `docs/history/MOTION-LOG.md`.
 
 ## 3. Design
 

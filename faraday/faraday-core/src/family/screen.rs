@@ -759,7 +759,7 @@ fn map(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy + (if drawn { 52.0 } else { 8.0 }) - y
 }
 
-/// What do you have? (`docs/SCAN-TO-SIGN.md` §4): a vault when one is
+/// What do you have? (`docs/history/SCAN-TO-SIGN.md` §4): a vault when one is
 /// found, the two ways in, what came in, the next question, and the
 /// wallet once it is worked out.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
@@ -1019,7 +1019,7 @@ fn came_rows(app: &View) -> Vec<String> {
     rows
 }
 
-/// The next question, by what came in (`docs/SCAN-TO-SIGN.md` §4.3).
+/// The next question, by what came in (`docs/history/SCAN-TO-SIGN.md` §4.3).
 fn question(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let may = app.may_load_keys();
@@ -1440,7 +1440,7 @@ fn loaded_in_sparrow(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 /// Check the money: the wallet as a QR code, and its addresses. For a
 /// wallet worked out from seeds alone, the ways tried, the way tried
-/// now, and No money shows for the next (`docs/SCAN-TO-SIGN.md` §5).
+/// now, and No money shows for the next (`docs/history/SCAN-TO-SIGN.md` §5).
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
@@ -1698,7 +1698,7 @@ fn first_step(app: &View) -> u8 {
 
 /// Who signs: each of the wallet's keys, here or not, how many sign
 /// here, and while that is short of what the spend needs, Scan a key,
-/// the vaults to unlock and Collect a signature (`docs/SCAN-TO-SIGN.md`
+/// the vaults to unlock and Collect a signature (`docs/history/SCAN-TO-SIGN.md`
 /// §3).
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {

@@ -1,4 +1,4 @@
-//! Scan a key (`docs/SCAN-TO-SIGN.md` §2): a wallet short of keys offers
+//! Scan a key (`docs/history/SCAN-TO-SIGN.md` §2): a wallet short of keys offers
 //! one Scan a key, which takes any of its missing keys and works out
 //! which; a match loads at once with no passphrase question, the camera
 //! staying on while more are needed; a seed of no key of the wallet asks

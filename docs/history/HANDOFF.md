@@ -1803,7 +1803,7 @@ as possible before the next build.
     URI). Committed 9a6f4a3 and 576123a.
 
 67. [x] 2026-10-11, owner: **Scan to sign, and the Spend tab's intake**,
-    specified in `docs/SCAN-TO-SIGN.md` (DECISIONS F8). Batch A: Home's
+    specified in `docs/history/SCAN-TO-SIGN.md` (DECISIONS F8). Batch A: Home's
     names, Scan a key (the wallet's key scanner, the card's bar, the
     chart's nodes, the Wallets list, Add a key leading with Scan), Can
     spend, Who signs, GPG batch signing. Batch B: the Spend tab's

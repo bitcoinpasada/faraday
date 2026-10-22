@@ -1072,7 +1072,7 @@ impl PlanPress {
     }
 }
 
-/// Costs what `of` costs. The cards of a plan after Start from, in
+/// Costs what `of` costs. The cards of a plan, in
 /// order (`docs/BACKUP-FLOW.md` §15.1, §17.1): the board, the software
 /// where the description goes into software or as files, and The plan.
 /// Back up's and a wallet flow's alike (§19.12 item 1).
@@ -7382,7 +7382,7 @@ impl Faraday {
             .back
             .or(matches!(self.screen, Screen::Family | Screen::Restore).then_some(self.screen));
         // Add a key for a wallet takes only a key the wallet is missing
-        // (`docs/SCAN-TO-SIGN.md` §2.1).
+        // (`docs/history/SCAN-TO-SIGN.md` §2.1).
         let mut label = label;
         let mut for_wallet = None;
         if let Some(w) = self.entry.wallet {
@@ -7451,7 +7451,7 @@ impl Faraday {
                 }
             }
             // A seed already loaded comes in on the Spend tab's What do
-            // you have? as it is (`docs/SCAN-TO-SIGN.md` §4).
+            // you have? as it is (`docs/history/SCAN-TO-SIGN.md` §4).
             Err(wallet::Refusal::Duplicate(_)) if back == Some(Screen::Family) => {
                 if let Ok(fp) =
                     faraday_keys::identity::fingerprint_of_mnemonic(&c, &m, &self.entry.passphrase)

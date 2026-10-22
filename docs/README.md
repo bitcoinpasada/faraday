@@ -3,11 +3,15 @@
 **Kind:** Reference
 **Status:** Built
 
-Where to look for what. Each document's header says what kind it is:
+Where to look for what. Open this first, then only the section you
+need. Each document's header says what kind it is:
 - **Reference** describes what is built and true now.
-- **Spec** is planned work, or work partly built.
-- **Record** is a log kept as written.
-- **History**, in `docs/history/`, describes the tree as it was.
+- **Spec** is planned work, or work partly built; its `**Open:**` line
+  says what is not built.
+- **Record** is kept as written: the decisions.
+- **History**, in `docs/history/`, describes how things were built and
+  the tree as it was. A section moved there leaves its heading and one
+  line naming where it went, so a cited section number still resolves.
 
 ## By question
 
@@ -15,9 +19,9 @@ Where to look for what. Each document's header says what kind it is:
 |---|---|
 | What runs on the device, as whom, and what can each part reach? | `docs/SECURITY-MODEL.md` |
 | Which code computes cryptography, and what checks it? | `docs/AUDIT.md`, then each crypto crate's README (`core/faraday-bip/README.md` and the others) |
-| Why is something the way it is? | `docs/DECISIONS.md`, indexed at the top |
+| Why is something the way it is? | `docs/DECISIONS.md`, the index; then the one decision, `docs/decisions/F<n>.md` |
 | What does a screen look like, and what is it made of? | `docs/DESIGN.md`; the Starter's screens, `docs/STARTER.md` §3 |
-| What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/FAMILY.md` and `docs/SCAN-TO-SIGN.md` |
+| What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/FAMILY.md` |
 | How is a vault stored? | `docs/VAULT.md` |
 | What is an `.oskb` backup, byte by byte? | `docs/BACKUP-FORMAT.md` |
 | How does data move by QR code, and how is a code scanned? | `docs/QR.md` |
@@ -32,23 +36,27 @@ Where to look for what. Each document's header says what kind it is:
 | Why is a dependency there? | `docs/deps/<crate>.md`; the policy is DECISIONS F71 |
 | Which tool or lint does what? | `tools/README.md` |
 | Where are keys held, and how do they leave? | `docs/KEYS.md`, then `docs/AUDIT.md` §2 |
-| What is planned and not built? | `docs/NOSTR.md`, `docs/LARGE-FILES.md`, `docs/MULTIVENDOR.md`, `docs/STRUCTURE-PASS.md`; the board holds the rest |
+| What is planned and not built? | each Spec's `**Open:**` line (the Specs are listed below); the board holds the rest |
 | How do I submit an audit? | `docs/AUDIT-SUBMISSIONS.md` |
 | How do I report a security problem? | `SECURITY.md` |
 | What are the rules for changing this repository? | `CLAUDE.md` |
-| What did an earlier plan or batch say? | `docs/history/` |
+| What did an earlier plan or batch say, or how was something built? | `docs/history/`: `<NAME>-LOG.md` beside each document's name, and the retired decisions in `docs/history/decisions/` |
 
 ## Every document
 
 **Reference**
 
-- `docs/AUDIT.md`: What is cryptography, and where it lives. Built; rewritten 2026-10-21 around the key boundary (F70).
+- `docs/APK-SIGNING.md`: The APK signing key. Built.
+- `docs/AUDIT-SUBMISSIONS.md`: Audits: the request, the submission and the record. Built (F19).
+- `docs/AUDIT.md`: What is cryptography, and where it lives. Built (the key boundary, F70).
 - `docs/BACKUP-FORMAT.md`: `.oskb`: the encrypted backup Faraday reads. Built.
-- `docs/COMPUTE.md`: Compute: costly work takes a token. Built.
-- `docs/DESIGN.md`: Design system. Built; §4 and §5 still describe some screens Faraday does not have.
+- `docs/COMPUTE.md`: Compute: costly work takes a token. Built (F69).
+- `docs/DEMO.md`: The demo, and Faraday Desktop for developers. Built (F30, F61).
+- `docs/DESIGN.md`: Design system. Built.
 - `docs/FAMILY.md`: The Spend tab. Built.
-- `docs/MOTION.md`: Scrolling, motion and appearance. Built; waiting for the owner's check on hardware.
-- `docs/SCAN-TO-SIGN.md`: Scan to sign, and the Spend tab's intake. Built.
+- `docs/KEYS.md`: The key boundary: faraday-keys. Built (steps 0 to 4).
+- `docs/MOTION.md`: Scrolling, motion and appearance. Built.
+- `docs/README.md`: Faraday's documents. Built.
 - `docs/SECURITY-MODEL.md`: Security model. Built.
 - `docs/TOTP.md`: TOTP codes and the time. Built.
 - `docs/VAULT.md`: The Faraday vault. Built.
@@ -56,26 +64,22 @@ Where to look for what. Each document's header says what kind it is:
 
 **Spec**
 
-- `docs/APK-SIGNING.md`: The APK signing key. Built; batch 2 as far as the key allows.
-- `docs/AUDIT-SUBMISSIONS.md`: Audits: the request, the submission and the record. Built; §8 lists what is not.
-- `docs/BACKUP-FLOW.md`: The backup flow. Built; the Nostr key's part is not.
-- `docs/DEMO.md`: The demo, and Faraday Desktop for developers. Built; DM4 is in the website's repository.
-- `docs/FLOWS.md`: Flows. Draft; the code is the record where it differs.
-- `docs/INTEROP.md`: Interoperability with other wallets. Tested; the batches that build §4 are in §5.
-- `docs/KEYS.md`: The key boundary: faraday-keys. Built 2026-10-21 (steps 0 to 4).
-- `docs/LARGE-FILES.md`: Large files on a stick visit. Not built.
-- `docs/MAC.md`: Faraday on Macs. Partly built; a Mac is needed for the rest.
-- `docs/MULTIVENDOR.md`: Two implementations of every cryptographic step. Proposal; not scheduled.
-- `docs/NOSTR.md`: The Nostr key. Not scheduled.
-- `docs/QR.md`: QR transfer and scanning. Partly built; §6 says what; §7 not scheduled.
-- `docs/SPEED.md`: Speed in long flows. In progress (batches C to E).
-- `docs/STARTER.md`: The Starter. Built; the Mac parts (`docs/MAC.md`) are not.
-- `docs/STRUCTURE-PASS.md`: The structure pass. In progress: Waves A and B, phase 5 and F74's layout lint built; phases 6 and 7 to come.
+- `docs/BACKUP-FLOW.md`: The backup flow. Partly built.
+- `docs/FLOWS.md`: Flows. Built but for the items under Open.
+- `docs/INTEROP.md`: Interoperability with other wallets. Tested.
+- `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
+- `docs/MAC.md`: Faraday on Macs. Partly built.
+- `docs/MULTIVENDOR.md`: Two implementations of every cryptographic step. Option A decided (F79), not built.
+- `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
+- `docs/QR.md`: QR transfer and scanning. Built, except §7.
+- `docs/SPEED.md`: Speed in long flows. Built but for the glyph cache (§3.8).
+- `docs/STARTER.md`: The Starter. Partly built.
+- `docs/STRUCTURE-PASS.md`: The structure pass. Partly built.
 
 **Record**
 
-- `docs/DECISIONS.md`: Decisions. Kept as written; indexed at the top.
+- `docs/DECISIONS.md`: Decisions. Kept as written.
 
-**History** (`docs/history/`): `BACKUP-FLOW-LOG.md`, `BITLOCKER-ACCEPTANCE.md`, `HANDOFF.md`, `MOTION-LOG.md`, `NEW-WALLET.md`, `PLAN.md`, `SIMPLIFY.md`, `STARTER-LOG.md`.
+**History** (`docs/history/`): `APK-SIGNING-LOG.md`, `AUDIT-LOG.md`, `AUDIT-SUBMISSIONS-LOG.md`, `BACKUP-FLOW-LOG.md`, `BITLOCKER-ACCEPTANCE.md`, `COMPUTE-LOG.md`, `DEMO-LOG.md`, `DESIGN-LOG.md`, `FAMILY-LOG.md`, `FLOWS-LOG.md`, `HANDOFF.md`, `INTEROP-LOG.md`, `KEYS-LOG.md`, `LARGE-FILES-LOG.md`, `MAC-LOG.md`, `MOTION-LOG.md`, `MULTIVENDOR-LOG.md`, `NEW-WALLET.md`, `NOSTR-LOG.md`, `PLAN.md`, `QR-LOG.md`, `SCAN-TO-SIGN.md`, `SIMPLIFY.md`, `SPEED-LOG.md`, `STARTER-LOG.md`, `STRUCTURE-PASS-LOG.md`, `TOTP-LOG.md`, `VAULT-LOG.md`, `WALLETS-LOG.md`; `decisions/` holds the decisions replaced, superseded or withdrawn.
 
-**Elsewhere:** `docs/learn/` holds the Learn pages, `docs/deps/` a page per dependency, `docs/screenshots/` the README's pictures.
+**Elsewhere:** `docs/decisions/` holds one file per decision, `docs/learn/` the Learn pages, `docs/deps/` a page per dependency, `docs/screenshots/` the README's pictures.

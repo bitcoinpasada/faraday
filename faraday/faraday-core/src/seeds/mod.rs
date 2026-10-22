@@ -364,7 +364,7 @@ impl Faraday {
         match back {
             Some(Screen::Restore) => self.restore_took(fp),
             // On What do you have? with no wallet open yet: the seeds
-            // the wallet is worked out from (`docs/SCAN-TO-SIGN.md` §4).
+            // the wallet is worked out from (`docs/history/SCAN-TO-SIGN.md` §4).
             // With a wallet open, a key fills its slot and no more.
             Some(Screen::Family) if !self.family_ready() => {
                 self.family_came(family::Came::Seed(fp.0));
@@ -739,7 +739,7 @@ impl Faraday {
                         self.family.wallet = Some(self.session.wallets[i].name.clone());
                         self.wallet = i;
                         // Made without its description: a guess, which Check
-                        // the money walks through (`docs/SCAN-TO-SIGN.md` §5).
+                        // the money walks through (`docs/history/SCAN-TO-SIGN.md` §5).
                         self.family_guess_start(n > 1);
                         self.refresh_spend();
                         self.family_opened();

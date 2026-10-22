@@ -1,9 +1,12 @@
 # The Faraday vault
 
 **Kind:** Reference
-**Status:** Built
+**Status:** Built; §3.1's Raspberry Pi timings are not measured yet
 
-V0.1 · 2026-10-04 · built 2026-10-05 in `faraday/faraday-vault` (format, create, open, seal, records), with the vectors in `tools/vectors/vault/` and the reference reader `tools/vault/open.py`, which opens both vectors. Not built yet: §3.1's Raspberry Pi timings, and the writer of record type 9 (`docs/history/HANDOFF.md` item 12 says why). Types 7 and 8 are written by `faraday-pgp` and `faraday-sb` through the app. Type 12 (`docs/APK-SIGNING.md`, F25) is written by `faraday-core/src/apk.rs` and read by `open.py`, with `--field TYPE.FIELD --out FILE`; the receipt of a write keeps the stick's FAT volume serial (§6).
+The format is built in `faraday/faraday-vault`, with the vectors in
+`tools/vectors/vault/` and the reference reader `tools/vault/open.py`,
+which opens both vectors and takes one field out of a record with
+`--field TYPE.FIELD --out FILE`.
 
 A vault is one file holding four equal slots. Each passphrase opens one
 slot. A slot no passphrase opens is indistinguishable from one that holds
@@ -14,9 +17,10 @@ what a second implementation is written against, and the vectors under
 
 The cryptography is the `.oskb` format (`docs/BACKUP-FORMAT.md`),
 whose crate `core/faraday-backup` also provides the Argon2id `Cost` type:
-Argon2id version 1.3 and XChaCha20-Poly1305. The slot structure follows the duress
-record of the kept-key blob, which was random bytes under a random
-key when no duress PIN was set.
+Argon2id version 1.3 and XChaCha20-Poly1305. An unused slot is random bytes
+the size of a used one (§8, step 4), as the duress record of upstream's
+kept-key blob was when no duress PIN was set; Faraday has no duress PIN,
+and that blob went with the upstream app (F68).
 
 ## 1. The file
 
@@ -438,7 +442,9 @@ computer's clock. The Backups screen lists a locked vault's wallets
 from it (`docs/history/SIMPLIFY.md` §5), and its vault line says a seed is kept
 in a locked vault only when the seed's master id, the session key's or
 the one the backup's record kept, is the summary's for that key: the
-fingerprint finds the candidate, the id says it is that seed (F65). A
+fingerprint finds the candidate, the id says it is that seed (refuse
+what cannot be verified rather than assume: F65's rule, which
+`CLAUDE.md` keeps since F72). A
 summary kept before the ids were verifies nothing, and the line reads
 "A vault is locked". The summaries are rebuilt on unlock, after every
 change made on a vault screen and as the session seals, and written

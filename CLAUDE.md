@@ -5,8 +5,25 @@ repository. They are versioned here so that when one changes, this file
 changes and nothing else has to be kept in step.
 
 - The design system is `docs/DESIGN.md`.
-- Faraday's decisions are `docs/DECISIONS.md`, numbered F1 onward.
-- A screen is one of DESIGN §5's sixteen screens, built from the §4
+- Faraday's decisions are numbered F1 onward, one file each
+  (`docs/decisions/F<n>.md`), indexed in `docs/DECISIONS.md`: read the
+  index, then only the decision you need. A new decision is a new file
+  and a row; one replaced, superseded or withdrawn moves to
+  `docs/history/decisions/` and keeps its row.
+- `docs/` holds what is true now or still to be built; how it was built
+  is history (`docs/history/`). `docs/README.md` says which document
+  answers which question: open it first, then read only the section you
+  need. A Reference describes what is built; a Spec is planned work and
+  carries an `**Open:**` line naming what is not built. The change that
+  builds the last of a Spec's open work also moves its plan (rules for
+  the implementing agent, batches, estimates, questions for the owner,
+  edit lists, the tree as it was before) to `docs/history/<NAME>-LOG.md`
+  and makes it a Reference. A moved section keeps its heading, with one
+  line under it, ``Moved to `docs/history/<NAME>-LOG.md`.``, so a cited
+  section number still resolves; sections are never renumbered.
+  `lint-docs` holds the headers, the Open line and no plan in a
+  Reference.
+- A screen is one of DESIGN §5's fourteen screens, built from the §4
   components. The Starter's screens are `docs/STARTER.md` §3, built from
   the same components, drawn with Faraday's own look (`faraday-ui`).
 - A new dimension is a name in `core/faraday-draw/src/tokens.rs`. The
@@ -87,8 +104,9 @@ changes and nothing else has to be kept in step.
     key out of shipped binaries.
   - Costly work takes the compute token (`costs-lint`), every string is
     in one file (`lint-strings`), numbers written in place in screens
-    only fall (`lint-tokens`), docs carry a status header and name only
-    paths that exist (`lint-docs`).
+    only fall (`lint-tokens`), docs carry a kind and status header,
+    name only paths that exist and keep plans out of a Reference
+    (`lint-docs`).
   - Areas reach each other only through what their functions are given;
     flows that span areas are explicit glue on `Faraday` (phase 7).
 - No hosted CI, no GitHub Actions, no metered external services.

@@ -1,11 +1,8 @@
 # Interoperability with other wallets
 
 **Kind:** Spec
-**Status:** Tested; the batches that build §4 are in §5
-
-V0.3 · 2026-10-20 · what was tested, what passed, what
-Faraday does not read or write yet, and the batches that build §4 (§5,
-F64).
+**Status:** Tested; §2 lists what works; §5 I1 to I6 built
+**Open:** §5 I7 to I11: Electrum seed words, Specter DIY `addwallet`, reading BIP-392 `sp()`, PSBT version 2, sweeping a WIF private key.
 
 Faraday is a signer. Other wallets hand it a wallet description, a
 cosigner's key or a PSBT, and take back a signed PSBT, a finished
@@ -74,57 +71,28 @@ reach Faraday as keys inside the wallet files above, which work.
 
 ## 3. Fixed while testing
 
-- **Coldcard's account export read with the wrong fingerprint.** Each
-  account object in the file carries an `xfp` that is the account key's
-  own fingerprint; the master's is the file's top-level `xfp`
-  (Coldcard's docs/generic-wallet-export.md). `faraday_bip::coldcard::parse`
-  roots the key at the inner one, so the wallet never matched the seed
-  that made it. Before that, Faraday's reader took the file's first
-  `desc`, which is BIP-44's, and loaded a legacy wallet. Faraday read the
-  file itself (`wallet::coldcard_export`): BIP-84 first, rooted at the
-  master, and refused if its first address is not the one the file
-  states. Since 2026-10-20 that reader is `faraday_bip::coldcard::read`
-  (`parse` uses it),
-  with `cosigner_keys` for Create's slots; `wallet::coldcard_export`
-  only words its refusals.
+Coldcard's account export is read by `faraday_bip::coldcard::read`
+(`parse` uses it; `cosigner_keys` for Create's slots): each account
+object's `xfp` is the account key's own fingerprint and the master's is
+the file's top-level `xfp` (Coldcard's docs/generic-wallet-export.md), so
+the wallet is rooted at the top-level one, BIP-84 first, and refused if
+its first address is not the one the file states. `wallet::coldcard_export`
+only words its refusals. The bug this fixed: moved to
+`docs/history/INTEROP-LOG.md`.
 
 ## 4. Not read or not written yet
 
-Built 2026-10-07 from the first list: Coldcard-style cosigner key files,
-and descriptors that are not multipath (§2's last four rows).
-
 In the order they would matter to a person bringing files from those
-wallets.
+wallets. Items 1 to 4, 6 and 7 are built (§2, §5 I1 to I6); what this
+list said of them: moved to `docs/history/INTEROP-LOG.md`.
 
-1. ~~**SLIP-132 keys**~~ Read since 2026-10-20 (§5 I1): in a
-   descriptor, on a key line and bare, each checked against its script
-   or path.
-2. ~~**Caravan and Unchained wallet configs**~~ Read and written since
-   2026-10-20 (§5 I5). A key whose `bip32Path` is `Unknown` or which has
-   no `xfp` is refused: `WalletPolicy` holds no multisig key
-   without an origin (BIP-388), so BlueWallet's Caravan file, whose third
-   key has no path, does not load as written.
-3. ~~**Electrum.**~~ Electrum wallet files read and written since
-   2026-10-20 (§5 I6). A PSBT Electrum builds from a bare account key
-   (no master fingerprint) is not signed: it names the account key's own
-   fingerprint, which matches no seed here; Faraday's own Electrum file
-   carries `root_fingerprint`, so Electrum's PSBTs from it are complete.
-4. ~~**Single-key JSON from Cobo/Keystone and Coldcard's Wasabi file**~~
-   Read since 2026-10-20, and the Wasabi file written (§5 I2).
 5. **Electrum's own seeds** (not BIP-39): an Electrum wallet's words do not
-   load.
-6. ~~**Bitcoin Core before 29**~~ Written since 2026-10-20 (§5 I4), as
-   a receive and a change request, under Public files' More options.
-7. ~~**BIP 129 records**~~ Read since 2026-10-20 (§5 I3), by Faraday
-   before `faraday_bip::bsms`, which still refuses them: records with an
-   upper-case address or "No path restrictions". Neither is in BIP 129's
-   own examples (its one "No path restrictions" example, Vector A, is
-   over plain public keys); both are Sparrow's test records
-   `multisig-4.bsms` and `multisig-6.bsms`, which Sparrow accepts.
-8. Not read or written: Specter DIY's `addwallet name&descriptor` code,
-   BIP-392 `sp()` silent payment descriptors (Sparrow, Keystone), BIP-329
-   label files, PSBT version 2 (BIP-370; the Sign tile names BIP-370,
-   which nothing here reads), and Coldcard's encrypted backup file.
+   load (§5 I7).
+8. Not read or written: Specter DIY's `addwallet name&descriptor` code
+   (§5 I8), BIP-392 `sp()` silent payment descriptors (Sparrow, Keystone;
+   §5 I9), BIP-329 label files, PSBT version 2 (BIP-370, §5 I10; the Sign
+   tile names BIP-370, which nothing here reads), and Coldcard's encrypted
+   backup file. A single WIF private key does not load (§5 I11).
 
 ## 5. The batches that build §4 (F64, owner 2026-10-20)
 
@@ -196,9 +164,7 @@ names no path: Wasabi assumes BIP-84 account 0, so it reads as
 `wpkh([fp/84h/{0h|1h}/0h]…)`, coin type from the key's network.
 
 Writes `{stem}-wasabi.json` under More options, only for a single-key
-`wpkh` at exactly `84h/0h/0h` or `84h/1h/0h`. Check against Wasabi's reader
-what `ColdCardFirmwareVersion` must hold; if it needs a real version,
-copy BlueWallet's vector. The Cobo/Keystone file is not written: it is a
+`wpkh` at exactly `84h/0h/0h` or `84h/1h/0h`. The Cobo/Keystone file is not written: it is a
 device's export of its own key, and no coordinator takes it from a third
 party. Wasabi's reader (`WalletWasabi/Helpers/ImportWalletHelper.cs`,
 `GetKeyManagerByColdcardJson`, checked 2026-10-20) takes a file of at
@@ -236,8 +202,7 @@ refused.
 (`Action::PublicMore(i)`), and the rest once pressed; the open state lives
 on the backup flow and the chart sheet and resets when the screen opens.
 Primary: Descriptor; Wallet file (Sparrow, Specter); Multisig config;
-Backup sheet; BSMS record; Bitcoin Core import, now "Bitcoin Core 29 or
-later"; the cosigners' keys. More options: Bitcoin Core before 29,
+Backup sheet; BSMS record; Bitcoin Core 29 or later; the cosigners' keys. More options: Bitcoin Core before 29,
 Electrum wallet file, Caravan config, Specter DIY, Wasabi file (numbers 9
 onward in `backup_public_for`/`public_out`).
 
@@ -249,20 +214,14 @@ or silent payments. Written by `faraday_bip::core_import::import_descriptors_pai
 (moved from `faraday-intake/src/core_before_29.rs` 2026-10-20). Tests: a fresh Public files list shows no row under
 More options until it is pressed; the file's two descriptors read back as
 the wallet; each checksum is Core's (shape of `faraday/faraday-core/tests/vectors/interop/core/listdescriptors.json`);
-`core-check.py` (not in `just`) gains a run against Core 28.x.
+`core-check.py` (not in `just`) is to gain a run against Core 28.x.
 
-Built 2026-10-20. The rows read **Core 29 or later** and **Core before
-29**, each "Bitcoin Core, watch-only" under it: "Bitcoin Core before 29"
-is cut short on the Pi's panel. The More options state is
-`BackupState::public_more`, set when the item opens (open when a file
-under it is already For the stick) and by the button; the chart sheet
-opens the item the same way. The two descriptors are the multipath one
-with `<0;1>` as `0` and `1`, which is what `into_single_descriptors()`
-gives, written as Faraday writes the descriptor so that a wallet read
-from Core's `listdescriptors` gives back Core's own strings. A
-`sortedmulti_a` pair is written but does not read back here as a pair
-(`miniscript` has no `sortedmulti_a`). `core-check.py` against Core 28.x
-is not done.
+The rows read **Core 29 or later** and **Core before 29**, each "Bitcoin
+Core, watch-only" under it. The More options state is
+`BackupState::public_more`, open when a file under it is already For the
+stick. A `sortedmulti_a` pair is written but does not read back here as a
+pair (`miniscript` has no `sortedmulti_a`). `core-check.py` against Core
+28.x is not done. The build's notes: moved to `docs/history/INTEROP-LOG.md`.
 
 ### I5. Caravan and Unchained configs (§4 item 2; #44)
 
@@ -289,10 +248,13 @@ key's version (I1): single key `xpub`→`pkh`, `ypub`→`sh(wpkh)`,
 `sortedmulti`, every key the same type. Fingerprint from `root_fingerprint`
 (hex) or `ckcc_xfp`, a decimal u32 read little-endian (1130956047 →
 `0f056943`). A keystore without fingerprint and derivation is read
-origin-less. `"use_encryption": true` or an encrypted blob is refused
+origin-less only for a single key, which the wallet policy holds; a
+multisig one is refused with a line naming the key, as Caravan's is (I5).
+`"use_encryption": true` or an encrypted blob is refused
 ("This Electrum file is encrypted"). A file holding `xprv` or `seed` is a
-secret: `classify` gives it the secret sheet and only its public keys are
-read.
+secret (`FileKind::SecretWallet`): `classify` gives it the secret sheet,
+Files and the Inbox offer to load it like a wallet, and only its public
+keys are read.
 
 Writes `{stem}-electrum.json` under More options as Sparrow writes for
 Electrum (`"seed_version": 17`, `"use_encryption": false`, keystores
@@ -311,16 +273,11 @@ is the same wallet; the bare-zpub PSBT is refused. Optional, not in
 `just`: faraday/tools/electrum-check.py compares addresses with
 `electrum --offline`.
 
-Built 2026-10-20 (`faraday-intake/src/electrum.rs`). A keystore without
-fingerprint and derivation is read origin-less only for one key, which
-the wallet policy holds; a multisig one is refused with a line naming the
-key, as Caravan's is (I5), so `fromsparrow-electrum.json` (no origins) is
-refused and its three keys are checked against `fromsparrow-specter.json`'s.
-A secret file is `FileKind::SecretWallet`: the secret sheet's kind, which
-Files and the Inbox offer to load like a wallet. Accepted keystore types
-are `bip32` and `hardware`; `wallet_type` `standard` or `NofM`; anything
-else is refused by name. The whole-file encryption recognised is the
-base64 of Electrum's `BIE1` envelope. Not done: `electrum-check.py`.
+Built in `faraday-intake/src/electrum.rs`. Accepted keystore types are
+`bip32` and `hardware`; `wallet_type` `standard` or `NofM`; anything else
+is refused by name. The whole-file encryption recognised is the base64 of
+Electrum's `BIE1` envelope. Not done: `electrum-check.py`. The build's
+notes: moved to `docs/history/INTEROP-LOG.md`.
 
 ### I7. Electrum seed words (§4 item 5; #47)
 

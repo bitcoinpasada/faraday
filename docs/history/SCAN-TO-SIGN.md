@@ -1,6 +1,6 @@
 # Scan to sign, and the Spend tab's intake
 
-**Kind:** Reference
+**Kind:** History
 **Status:** Built
 
 Built 2026-10-11: batch A `ceb06e4`, batch B in the commit after it; spec v0.1 · decided by the owner

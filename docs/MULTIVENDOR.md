@@ -1,12 +1,8 @@
 # Two implementations of every cryptographic step
 
 **Kind:** Spec
-**Status:** Decided in part, not built
-
-Proposal, 2026-10-06. Decided in part 2026-10-22 (owner,
-`docs/DECISIONS.md` F79): option A, the build-time cross-check, is
-specified in §10 and not yet built. Options B and C are deferred. Nothing
-here is built.
+**Status:** Option A decided (F79), not built; options B and C deferred
+**Open:** §10, the build-time cross-check (`just crosscheck` and its stamp in `just lint`); B and C wait for the owner (§9).
 
 ## 1. The idea
 

@@ -93,7 +93,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     }
     // Scan leads, above the words: primary until a word is typed, when
-    // Add key is (`docs/SCAN-TO-SIGN.md` §2.5).
+    // Add key is (`docs/history/SCAN-TO-SIGN.md` §2.5).
     ui.button(
         x,
         y,

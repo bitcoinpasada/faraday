@@ -44,10 +44,10 @@ pub enum ScanPurpose {
     /// never into the Inbox.
     Transfer,
     /// Any missing key of loaded wallet n, which Faraday works out from
-    /// the seed read (`docs/SCAN-TO-SIGN.md` §2.1).
+    /// the seed read (`docs/history/SCAN-TO-SIGN.md` §2.1).
     WalletKey(usize),
     /// The Spend tab's What do you have?: anything in the envelope, one
-    /// code after another, until Done (`docs/SCAN-TO-SIGN.md` §4.2).
+    /// code after another, until Done (`docs/history/SCAN-TO-SIGN.md` §4.2).
     Intake,
 }
 

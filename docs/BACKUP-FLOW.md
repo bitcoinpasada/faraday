@@ -1,12 +1,11 @@
 # The backup flow
 
 **Kind:** Spec
-**Status:** Built; the Nostr key's part is not
+**Status:** Partly built: the APK key, GPG keys, the Secure Boot keys and the Bitcoin wallet
+**Open:** the Nostr key's part (`docs/NOSTR.md`, not scheduled)
 
-Spec v0.3 · 2026-10-14 · decided by the owner (`docs/DECISIONS.md` F31),
-reworked the same day to the order "decide where the key will live, then
-make it". Built for the APK key, GPG keys, the Secure Boot keys and the
-Bitcoin wallet (§10, §11).
+Decided by the owner (`docs/DECISIONS.md` F31; the plan by place F35,
+the backup board F37).
 
 The build log is `docs/history/BACKUP-FLOW-LOG.md`.
 
@@ -28,11 +27,8 @@ checklist. The flow is written here once; `docs/history/NEW-WALLET.md` §14.8,
 
 ## 0. Rules for the implementing agent
 
-- `CLAUDE.md` applies in full: every build and test on the build machine; every dimension a token; labels, not
-  prose, on working screens; tests for user-facing behaviour only;
-  `just` once at the end of the batch; no `rm`; no commits; no agents.
-- Every string in `faraday/faraday-strings/src/en.rs` with the prefix
-  `backup_flow_` (§12), the one strings file (F68).
+Rules still in force:
+
 - A stick is handed only to a clean process (`docs/history/PLAN.md` §5.3 and §5.4).
   Nothing in this flow opens a secret in a process that holds a stick,
   or hands a stick to a process that holds a secret. A change that would
@@ -40,8 +36,10 @@ checklist. The flow is written here once; `docs/history/NEW-WALLET.md` §14.8,
 - The flow is driven by the plan and narrows nothing the plan can say
   (§2). A change that would make the flow refuse a plan the plan screens
   accept stops and asks the owner.
-- Completion report: items done, each with its tests and whether they
-  pass; what was left out and why; docs changed; renders to look at.
+- Every string has the prefix `backup_flow_` (§12), in
+  `faraday/faraday-strings/src/en.rs`.
+
+The agent's working rules: moved to `docs/history/BACKUP-FLOW-LOG.md`.
 
 ## 1. What is decided
 
@@ -352,27 +350,11 @@ inserted before step 2.
   step 6; one that fails offers **Use another stick**.
 - **A copy of a vault already in the plan**: no extra round; one more
   stick at step 6, with the second-copy rules.
-- **A stick holding an existing vault the key should go into**:
-  *Dropped (owner, 2026-10-20; tracker #161): an existing vault is
-  brought in only before the keys (§10.2, §17.21 item 5). The round
-  below is not built.* One
-  guided extra round, inside the flow, on its own card, **Add {vault}**:
-  1. **Lock**: the key's vaults are sealed and kept For the stick, as
-     the Outbox is kept; everything secret wiped;
-  2. **Insert** that stick, its checks, "Which vault?", the vault copied
-     in, the place confirmed (§4.2); pull it;
-  3. **Unlock** that vault and one vault holding the key; the key is
-     copied across (a wallet's seed by **Save into {vault}**, with its
-     passphrase where the plan puts it there; another kind's record as
-     it is);
-  4. **Lock**, and the flow goes on at step 6.
-- **A key kept only on paper** does not survive that lock. Before the
-  round the flow offers both, in this order: **Finish its paper copy
-  first** (the Copy item and F29's check, then the round, the key
-  typed back in from the copy at its unlock), and **Keep it in a vault
-  for the round** (a vault made in memory with its own passphrase,
-  sealed at the lock, unlocked in the round and dropped after it, never
-  written). The first is chosen.
+- **A stick holding an existing vault the key should go into**: not
+  offered. An existing vault is brought in only before the keys (§10.2,
+  §17.21 item 5; owner, 2026-10-20, tracker #161). The extra round
+  **Add {vault}** that was specified here, and its offer for a key kept
+  only on paper, are not built: moved to `docs/history/BACKUP-FLOW-LOG.md`.
 
 **Removing a place:**
 
@@ -540,35 +522,16 @@ and matched. A write made on the stick visit page does not count
 - **A stick's first copy deleted** (decision 54, a wipe): that stick's
   card opens again, "The stick for Vault 1 (Place 1) no longer has the
   vault".
-- **Changing the plan part way**: §4.8. A lock during the extra round
-  resumes on its card; a power-off ends it, the key's vaults sealed For
-  the stick lost with the rest of `/run/faraday`.
+- **Changing the plan part way**: §4.8 before the lock, §15.8 after it.
+  A lock during the round that fills a vault again (§15.8) resumes on
+  its Vaults card; a power-off ends it, the key's vaults sealed For the
+  stick lost with the rest of `/run/faraday`.
 
 ## 10. The Bitcoin wallet
 
 ### 10.1 What the code does today
 
-- **The checklist** (`plan::checklist`, `plan::Item`): Templates, a Copy
-  per paper seed, a Vault per vault made, SeedFiles, Sheets,
-  PublicFiles, ShowDescriptor, Envelopes, each only where the plan
-  needs it.
-- **Four end in For the stick**: Templates and Sheets (**Make it**,
-  `Action::BOut`), SeedFiles (`Action::BFile` through the secret
-  sheet), PublicFiles (`Action::BFilesMake`); `backup_item_done` counts
-  them done once the file is For the stick or on the last receipt.
-- **The vault items write nothing**: `item_action` gives **Make a
-  vault** or the way to one (`vault_way`), **Save into {vault}**
-  (`Action::BVaultSave`), **Lock it and make a new vault**
-  (`Action::BNewVault`, sealing that one vault with `vault_lock_one`),
-  then **Continue**; done by `backup_vault_fits`.
-- **The writes are left to the stick visit**: the done card's **Write
-  to {a stick}** and the chart's stick node (`chart_edit.rs`,
-  `glance/sheet.rs`) send `Action::WriteAsk`: with anything open the
-  Write out sheet, whose **Lock** sends the next stick to
-  `Screen::Visit`; clean, `Screen::Visit` at once.
-- **The plan comes after the keys** (decision 20): New key makes the
-  seed in memory; a vault item saves it later; F6's hold lifts when
-  every item is done, before anything is written.
+Moved to `docs/history/BACKUP-FLOW-LOG.md`.
 
 ### 10.2 The change
 
@@ -611,8 +574,8 @@ and matched. A write made on the stick visit page does not count
      lock, each stick by place. A plan that keeps a vault at more places
      than the one stick it was set up on writes the extra copies at the
      write step, to new sticks checked when they are inserted, as an
-     added copy is (§4.8). A plan that wants a vault that was not set up
-     takes the extra round of §4.8.
+     added copy is (§4.8). A vault the plan adds after the setup is a new
+     one, made in the checklist (§17.21 item 4).
   The stick read for a vault goes to the first place the plan gives that
   vault's stick; a stick the plan then gives no vault is not written.
   Restore asks the same question and count, sets the vaults up before
@@ -915,11 +878,7 @@ a new `faraday-core/tests/all/backup_flow.rs`; the wallet's in
 - **Changing the plan** (§4.8). After the key is made: adding a place
   with a new vault on an empty stick asks for no lock before step 6, and
   the stick is checked there; adding a copy of a vault in the plan adds
-  one stick to step 6; adding a stick holding an existing vault runs
-  **Add {vault}**: lock, the stick read and its vault picked, both
-  vaults unlocked, the key copied across, lock, step 6, with the screen
-  never `Screen::Visit`; a key kept only on paper is offered **Finish
-  its paper copy first** before that round. Removing a place before its
+  one stick to step 6. Removing a place before its
   write drops a new vault holding only this flow's keys; removing one
   after its write keeps it on the map until **I destroyed this copy**.
   An APK, GPG or Secure Boot plan cannot drop below two places.
@@ -953,8 +912,11 @@ The owner's answers (2026-10-14).
    read on an online computer with whatever else it holds: recommended,
    as the one place the person learns what that choice means, since no
    working screen explains it.
-7. **A key kept only on paper before an extra round** (§4.8): both
-   offered, **Finish its paper copy first** chosen.
+7. **A key kept only on paper** when a vault is filled again after the
+   lock (§15.8): it is typed back in from its copy, **Add the key from
+   its copy**. (The choice that stood here belonged to the extra round
+   for an existing vault, which is not built: tracker #161,
+   `docs/history/BACKUP-FLOW-LOG.md`.)
 8. **A stick holding vaults, at a place the plan gives a new vault**:
    **A new vault beside them** first and chosen.
 
@@ -975,65 +937,18 @@ they are the vaults the place cards offer.
 In this order, as step cards on `wide` and a page each on `small`
 (NEW-WALLET §14):
 
-1. **Start from**: the three presets, unchanged. Each fills every card
-   below; every answer stays changeable.
-2. *(Replaced by §17 in Back up, batch F2a, and in the wallet's guided
-   flow at any width, batch F2b.)* **Places**: "Number of places", the stepper (one or more, no upper
-   bound, §10.3), and with a vault open each place's name, as today. The
-   share question and the vault-stick sections leave this card.
-3. *(Replaced by §17 in Back up, batch F2a, and in the wallet's guided
-   flow at any width, batch F2b.)* **Place 1**,
-   **Place 2** … one card per place, titled with the
-   place's name where it has one. A multi-choice list (DESIGN §4.2) of
-   what the place keeps, a row each:
-   - **Seed words by hand**
-   - **SeedQR by hand**
-   - **Vault 1**, **Vault 2** …, a row per vault of the plan
-     (`Shape::vault_rows`), named as `backup_vault_title` names it today
-   - **Seed as a file, unprotected**
-   - **Passphrase**, drawn only when a seed here has one.
-   Ticking a row opens a sheet (a popup; full screen on `small`) titled
-   "{row} · {place}", whose body is a multi-choice of the seeds loaded
-   here, by fingerprint, and **Done**:
-   - for words, SeedQR and file: which seeds this place keeps in that
-     form; for words and SeedQR, a seed whose passphrase this place keeps
-     is dimmed and cannot be ticked, so nothing already planned is moved;
-   - for a vault: which seeds the vault holds, and under them, for each
-     ticked seed that has a passphrase, "{fingerprint} with its
-     passphrase". A vault is one vault wherever its stick is kept: the
-     sheet edits the vault itself, and where another place also keeps
-     its stick it reads "Also at {place}" above Done;
-   - for the passphrase: which seeds' passphrases this place keeps; a
-     seed whose words or SeedQR this place keeps is dimmed and cannot be
-     ticked (the rule `set_places` keeps today).
-   **Done** with no seed ticked leaves the row unticked, except a vault's
-   row: a vault may hold only the description or shares (the person's
-   choice, §15.6), so its stick stays at the place and the row reads that
-   it holds nothing yet; a vault still holding nothing holds The plan
-   card, with a line naming it, in place of Make the checklist. A ticked row
-   shows what it holds under its label ("9a6a2580, 8c7e2500"); a press on
-   the label opens its sheet again; a press on its box unticks it and
-   clears what it held at this place (for a vault, its stick at this
-   place; the vault keeps its seeds while another place keeps its stick).
-   Under the list, the place's own line of fact: what someone who finds
-   this place alone gets (`plan::alone` for `At::Place(p)`), as the map
-   panel words it. Then **Continue**.
-4. **The wallet description**, for a wallet whose description splits
-   (`Shape::splits`); not drawn otherwise. Two rows, one ticked:
-   **Whole** and **In shares**, with **What is a share?** beside In
-   shares (as today beside Its own share). With In shares, the slider
-   **Keys left off each share** (0 to `min(m−1, n−1)`) and the shares
-   table with the split's audit lines (`shares_card`, unchanged).
-5. *(Replaced by §17 in Back up, batch F2a, and in the wallet's guided
-   flow at any width, batch F2b.)* **Where the
-   description goes**: a section per place, its name as the
-   label, each a multi-choice of forms: **On paper**, **As a file**, and
-   **In {vault}** for each vault whose stick that place keeps. With
-   shares, a second list under each place's forms, **Shares here**: Share
-   1 … Share n; the forms ticked hold every share ticked there. Then a
-   last section, **Not a place**: **Into watch-only software**, and for
-   a plan saved before this change, what its stick of files
-   (`At::Files`) holds, a row each, which can be unticked.
+1. *(Replaced by §17.21 item 1: no Start from; the presets only build
+   plans.)* **Start from**: moved to `docs/history/BACKUP-FLOW-LOG.md`.
+2. *(Replaced by §17: the board.)* **Places**: moved to `docs/history/BACKUP-FLOW-LOG.md`.
+3. *(Replaced by §17: the board.)* **Place 1**, **Place 2** …: moved to
+   `docs/history/BACKUP-FLOW-LOG.md`. The place's line of fact is `plan::alone`, as §17.1 draws it.
+4. *(Replaced by §17.19: shares are added by one button and Faraday
+   picks the keys left off.)* **The wallet description**: moved to
+   `docs/history/BACKUP-FLOW-LOG.md`. The shares table, with its slider,
+   is drawn on the checklist's Shares card (`shares_card`).
+5. *(Replaced by §17: the board.)* **Where the description goes**: moved
+   to `docs/history/BACKUP-FLOW-LOG.md`. In {vault} with shares keeps the shares there (§15.6);
+   the old `At::Files` stick stays read-only (§17.3).
 6. **Software**: as today (the software and the form), asked when the
    description goes into watch-only software or as a file at any place.
 7. **The plan**: the map, every spot, with the check lines and §10.3's
@@ -1194,14 +1109,34 @@ the board list's stepper.
 ### 15.8 Changes after the lock
 
 (owner, 2026-10-15.) After **Lock and write** no wallet and no key is
-loaded, so the plan changes there only in what the vault round (§4.8)
-handles: **what goes into a vault and where a vault's sticks are kept.**
-That is a seed, its passphrase, the description or a share in a vault;
-a vault's stick added to or taken from a place; a place added, or the
-last place taken away while it keeps only vaults' sticks (a place before
-another is not taken away: the later places would be renumbered, sticks
-already named by place among them). Each such change sends the
-vaults it touches back to be filled, sealed and written (§10.2).
+loaded, so the plan changes there only in **what goes into a vault and
+where a vault's sticks are kept.** That is a seed, its passphrase, the
+description or a share in a vault; a vault's stick added to or taken
+from a place; a place added, or the last place taken away while it
+keeps only vaults' sticks (a place before another is not taken away:
+the later places would be renumbered, sticks already named by place
+among them). Each such change sends the vaults it touches back to be
+filled, sealed and written (§10.2), in a round of the flow
+(`made_plan_changed`, the flow's `adding`):
+
+- A vault whose contents changed (`sealed_marks` differ from what it
+  was sealed with) loses its sealing, and its sticks already written
+  count as not written. A vault the plan adds is made in the round,
+  with Create a vault's form.
+- The flow goes back to its Vaults card. The person unlocks that vault
+  and, of the vaults that hold the keys, those holding the seeds it
+  takes (`flow_needed_vaults`). **Copy the key** ("The new vault takes
+  the key from one that holds it") puts into it each seed, passphrase,
+  the description and each share the plan now gives it, and takes out
+  what the plan no longer does; every vault of the round takes its
+  part, or none does. A seed no open vault holds (kept only on paper,
+  wiped at the lock) is named, "{seed} is kept only on paper", with
+  **Add the key from its copy** to type it back in.
+- Then the flow goes on to its lock and writes those vaults' sticks
+  again. A lock during the round resumes on its Vaults card (§9).
+
+A vault already on a stick and not set up before the keys is never
+brought in here (§4.8, §17.21 item 5).
 
 **Files and paper stay as they were made.** After the lock, a change to
 words or a SeedQR by hand, a passphrase on paper, a seed's file, the
@@ -1668,170 +1603,7 @@ plans on the board, keeping what each checked; none is deleted.
 
 ### 17.11 Batches
 
-- **F1, the model**: `At::Stick`, the new `What`s and forms, reading old
-  plans, the write step's sticks and file names, the passphrase record
-  Restore reading every form, and the read back after the write (§17.3,
-  §17.4, §17.12 items 4–7, 10).
-  Tests on the map, the checklist and the round trips.
-- **F2, the board**: the cards, the list, drag and tap to place, forms
-  popup, warnings, both plan cards, place names, the narrow column, the
-  lock (§17.1, §17.2, §17.5, §17.6, §17.12 items 1–3, 8), DESIGN §4.17.
-- **F3, the vault's show and save** (§17.7). Independent of F1 and F2.
-- **F2d, + stick and a vault at no place** (§17.16), from the owner's
-  test of F2c. Before F3.
-
-F1 built 2026-10-16. F2d and F3 built 2026-10-19. F3's choices where
-the spec says nothing: the SeedQR row is shown for English words only;
-the save popup's warning is a line, and Save is the consent; a wallet
-record's popup lists every software file (the record says no software),
-the descriptor alone ticked.
-
-**F2a built** (2026-10-16): the board in Back up on `wide` (§17.1–§17.3,
-§17.5, §17.6, §17.12 items 2, 7, 8), DESIGN §4.17. Left for F2b: the
-board in the wallet's guided flow (§17.12 item 1), the narrow column with
-**Add** (item 3), and §15's strings no longer drawn. Choices made where
-the spec says nothing:
-
-- Back up opened on a wallet with no plan starts on Start from over an
-  empty board (one place, nothing kept, `Answers::empty`); a preset fills
-  it as before.
-- The board is one card, **Places**, between Start from and the
-  software; its Continue opens the next card.
-- A press on a placed chip both selects it (a press on another zone moves
-  it) and, where its zone has more than one form for it, opens its forms.
-  A chip with one form there has no popup. A press on any other control
-  lets the chip go.
-- The software place's stick is the stick of public files (`At::Files`):
-  it takes the whole description only, in the forms the Software card
-  answers. Its × takes the software and that stick off together.
-- A vault's last stick taken off a place leaves the vault on the plan,
-  holding what it holds, and the plan held on "Vault n's stick needs a
-  place"; a vault leaves the plan only by the × on its list chip.
-- **+ vault** adds a vault holding nothing and kept at no place; the list
-  shows the plan's vaults and the vaults set up before the keys, not one
-  per seed.
-- The description counts as in shares (`split`) while any share is kept
-  anywhere; with Whole and shares both on paper, the checklist's Sheets
-  item prints the shares (it makes one or the other).
-- After the lock only the last place has a ×; the **+** card stays (a
-  place may be added, §15.8).
-- The warning mark goes on a passphrase and its seed's words kept at one
-  place, and on a seed whose every copy is at one place when losing that
-  place loses the wallet. The checks that stand are lines under the
-  board: a seed or passphrase kept nowhere, `lost_why`, every secret at
-  one place, a place that alone can spend (with two places or more), a
-  vault with no stick, a vault holding nothing.
-- The holds of NEW-WALLET §14.2 and §14.4 (a vault with no stick, a vault
-  holding nothing) still hold The plan beside a seed kept nowhere; the
-  owner kept them (2026-10-16), so §17.5's "only a seed kept nowhere"
-  reads "a seed kept nowhere, or a vault with no stick or holding
-  nothing".
-- Timed per SPEED §7 (SPEED §6): the board's frames, a drag's move and
-  the forms popup 5–7 ms at 1366×768 and 14–15 ms at 2560×1600 scale
-  2; Back up's checklist as before.
-
-**F2b built** (2026-10-16): the board in the wallet's guided flow's plan
-card, on the flow's own plan, before and after the lock (§17.12 items 1
-and 8); the narrow column with **Add** (item 3); §15's cards, their
-`Action`s and handlers and their strings gone; §17.14's boxes, colours,
-list column and checks. Choices made where the spec says nothing:
-
-- Whose plan a board press edits follows the screen: the flow's on the
-  flow's screen, Back up's (or, past the lock, its flow's) on Back up.
-  The flow keeps its own board state (the chip held) with its screen
-  state; nothing of it is kept across a lock.
-- In the guided flow the board is the plan card's first card, then the
-  software where it is asked, then The plan; the flow has no Start from,
-  as before. After the lock, the board's paper and files act as in Back
-  up after the lock (§17.12 item 8); every change still goes through the
-  flow's own refusals (§15.8).
-- Place names on the flow's board are typed only where §15.7 typed them
-  (before the lock, a vault open, Back up open on the wallet); they are
-  Back up's names, and a place removed there takes its name with it.
-- **Add** is a button at the top of the board card's body in the narrow
-  column; the sheet is the list as on `wide` (with the keys left off and
-  **+ vault**), a head reading Add and a way out. A press on the
-  software's chip there places the software place at once, as on
-  `wide`. A placed chip's × and its forms work as on `wide`.
-- The narrow column takes no drag at all: a press on a chip is a tap,
-  and the page scrolls under the finger.
-- A stick box's × takes the stick off with all it carries (its vault's
-  stick and its files); after the lock only a stick that carries a vault
-  and no file shows it.
-- A chip is the card's surface edged in the border on every level, so it
-  stands on paper, a stick box, a vault box and the list alike; Paper and
-  the software's zones are the place box's surface edged in the border;
-  a stick box is the inner fill with a heavier border edge; a vault box
-  is the accent at low opacity with the accent's edge (DESIGN §4.17).
-  These are the palette's own colours, so every theme draws them.
-- The list column on the guided flow's screen is the side panel's width
-  (`side_panel_w`), as on Back up; the flow's column narrows by it while
-  the board is shown on `wide`.
-- The Pi draws what the PC stick draws at its size: the narrow column.
-  Nothing of §15's cards is kept for it (§17 left the Pi out; the Pi's
-  screens are a later question for the owner).
-- §15's model functions in `plan.rs` (`row_seeds`, the forms
-  of Where the description goes) stay: the presets, old plans and the
-  tests read plans through them.
-- Timed per SPEED §7: at 1366×768 the board's frames with the list
-  column, a drag's move and the forms popup 5–6.5 ms, at 2560×1600
-  scale 2 14–16 ms; the narrow column at 800×600 (`compact`) 2 ms a
-  frame, a scroll step and its frame 2 ms, the Add sheet 1.7 ms. The
-  guided flow's board is not reached by the harness (it needs sticks
-  served and a restart past the lock); it is the same view and drawing.
-
-**F2c built** (2026-10-16): the board in rows and its colours (§17.15),
-and one page colour across the app (`docs/DECISIONS.md` F39); DESIGN
-§4.17 and §5. Choices made where the spec says nothing:
-
-- A place's sticks and Paper share the row's width equally, **+ stick**
-  `BOARD_ADD_STICK` (72 dp) between them. "A chip's width" is
-  `BOARD_BOX_MIN`, 160 dp: a fingerprint's chip with its marks. Below it
-  Paper keeps that width and the sticks wrap, as many to a line as fit;
-  the last line of sticks takes what the row has over them.
-- The software place is drawn as a place: its band (no line of fact),
-  its one stick of public files as a stick box "Stick 1" with no × of
-  its own and no **+ stick** (it keeps one stick), and Scanned in in
-  Paper's colours.
-- The glyphs are the closed icon set's: house (place), drive (stick, as
-  a stick is drawn elsewhere), vault, and file for Paper (the set has no
-  pencil).
-- The line of fact is a tag on `SURFACE`, outlined and written in the
-  chart's tone for it. In Bitcoin Orange Light that tone for a sealed
-  place is the theme's own accent, 2.3:1 on its surface, as the chart
-  already draws it; the board's own colours all pass.
-- **+ place** is a dashed row in `MUTED`, label and edge, `BOARD_HEAD`
-  high, as the mockup's grey.
-- On a vault's band everything is in `VAULT_ON`: glyph, name, link and
-  warning marks, ×, and the ring of the vault held. The lock mark on a
-  sealed chip is `VAULT_EDGE`.
-- A chip's edge is the mockup's (#AEB9C3 in the light theme, 1.6:1
-  against the stick): a chip is not one of the table's boxes, and its
-  surface, edge and shadow set it apart. Its faint shadow is a fill
-  `BOARD_CHIP_DROP` below it, not a blur, which would cost a frame a
-  blur per chip.
-- On Back up the board takes its step's whole width, under the step's
-  number as well as its title; in the guided flow it stays inside the
-  plan card's own card, as F2b drew it.
-- The theme tables key a colour by its dark value, so `VAULT_EDGE` and
-  `VAULT_ON` are one step from `ACCENT` and `ON_ACCENT` in the dark
-  theme (#83D8EE, #0D121A).
-- F39 across the app: the page (wide, narrow and the held frame), a
-  sheet and the gap a stretched scroll shows are `SURFACE`; a step is a
-  section with a `LINE` rule above it and one under the last, on `wide`
-  and in a small panel's list of steps; a card or tile on the page
-  (`Ui::card`, Home's and Tools' tiles, the narrow menu, menu rows, the
-  codes' rows, the vault pickers, the pill, the guided flow's plan card
-  heads) keeps its fill and is edged in `BORDER` instead of `LINE`,
-  since the fill no longer sets it apart. Wells drawn in `BG` (fields,
-  the chart's nodes) are unchanged. The Starter, a program of its own
-  with its own drawing, is not changed.
-- Timed per SPEED §7: at 1366×768 the board's frames, a chip selected,
-  a drag's move and the forms popup 5.3–6.6 ms (median), at 2560×1600
-  scale 2 12.7–14 ms; the narrow column at 800×600 2.3 ms a frame and
-  a scroll step, the Add sheet 1.9 ms. The checklist's frames 3.5–8.6 ms
-  at 1366×768 (Vault 2's card 13 ms) and 8–14 ms at 2560×1600 (Vault
-  2's 21 ms), Create's Keys 3–4.6 ms and 11 ms.
+Moved to `docs/history/BACKUP-FLOW-LOG.md`.
 
 ### 17.13 Decided while building F1 (2026-10-16)
 
@@ -2184,7 +1956,7 @@ which share goes where.
    description saved again; that these copies are not checked by the
    plan; and that each is as sensitive as what it copies.
 
-**Built (2026-10-19), with what the building decided:**
+**As built** (2026-10-19):
 
 - At most N places: the board's **+ place** stops at N (`plan::max_places`)
   and every preset makes one place for a single key and one per seed for a
@@ -2241,7 +2013,7 @@ the visible way to place, move, copy and take off without dragging.
    column the Add sheet's ⋮ places an item; Escape closes the menu; the
    read-only board shows no ⋮.
 
-**Built (2026-10-19), with what the building decided:**
+**As built** (2026-10-19):
 
 - The menu is a sheet of its own (`Sheet::BoardMenu`), drawn on `wide`
   as a popup under the ⋮ with no backdrop, and on the small panel as
@@ -2341,9 +2113,7 @@ the board in Customize backup.
    to reach a plan build the same plan as a person now would: Customize
    backup, + new vault, and the ⋮ menu's Add to… (§17.20), through a
    shared helper; none is deleted.
-10. **Docs:** §17.6 (presets), §10.2 (the line under the question),
-    `docs/DECISIONS.md` F53, and the preset lists in `docs/WALLETS.md`,
-    `docs/FLOWS.md` and `docs/DESIGN.md`.
+10. **Docs:** applied; the list moved to `docs/history/BACKUP-FLOW-LOG.md`.
 11. **Change the plan opens the board** (owner, 2026-10-20). From the
     checklist, from its done state, and from a wallet flow's cards,
     **Change the plan** goes back to the plan with the board card open
@@ -2366,28 +2136,16 @@ the board in Customize backup.
     single key and a 2-of-3; Customize backup and the SeedQR toggled on
     adds it.
 
-**Built (2026-10-20), with what the building decided:**
+**As built** (2026-10-20; the block as written is in `docs/history/BACKUP-FLOW-LOG.md`):
 
-- `plan::Preset` keeps its four variants as plan builders only
-  (`Answers::preset`): nothing in the UI offers them, and they are what
-  a saved plan's `preset` line named and what the tests' plans by
-  presses aim at. Since item 12 Paper only builds the same plan as The
-  standard way. `Preset::name` and `Preset::index`, which only Start
-  from and the plan's text used, are gone, and so is `Answers::preset`'s
-  field: a `preset k` line read sets `custom` for any `k` but 0 and is
-  not kept.
-- The tests' shared helper is `testkit::backup_as(app, preset)`: from
-  the board on screen (Back up's board card opened where another card
-  is), it presses **Add watch-only software** (on the read-only board;
-  the software chip's **Add to…** once customised), **Customize
-  backup**, a seed chip's SeedQR toggle on paper, **+ new vault** for
-  each vault not set up before the keys, and the ⋮ menu's **Add to…**
-  for each vault's stick and for what each vault holds; then it asserts
-  that the plan reached is the one the preset builds. It presses
-  nothing where the board shows that plan already. The snapshot tool's
-  tours use it too (`Tour::backup_as`). Tests that set a plan over two
-  places for a single key (`preset_two_places`, plans saved before
-  §17.19) still set the answers directly: no press reaches them now.
+- `plan::Preset`'s four variants are plan builders only
+  (`Answers::preset`): nothing in the UI offers them. Since item 12
+  Paper only builds the same plan as The standard way. A saved plan's
+  `preset k` line sets `custom` for any `k` but 0 and is not kept.
+- The tests reach a preset's plan by presses through
+  `testkit::backup_as(app, preset)`, which the snapshot tool's tours use
+  too (`Tour::backup_as`); tests of a plan over two places for a single
+  key set the answers directly, since no press reaches them.
 - **Add watch-only software** is `BoardPress::Software`, taken while the
   board is read-only; it toggles the software place as the software
   chip does (`Answers::toggle_software`), refused after the lock as that
@@ -2404,10 +2162,7 @@ the board in Customize backup.
   vault opened, made or locked shows at the next frame.
 - Change the plan sets Back up's open card to the board with the column
   at its top (the board is the first card); a wallet flow's opens its
-  board card with the column following it. Tests that opened the board
-  by its card after Change the plan now find it open, and a test that
-  looks at The plan's card after the board's lets the cards' motion run
-  its course first.
+  board card with the column following it.
 
 ### 17.22 How near a place brings a spend (owner, 2026-10-20)
 

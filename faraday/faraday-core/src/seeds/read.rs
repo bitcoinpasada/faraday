@@ -14,7 +14,7 @@
 //! scanner reads (with **Not this one** where the seed is none of a
 //! described wallet's keys, back to the camera), and on a seed already
 //! in for its passphrase: when Check the money asks for one, or after
-//! every kind was tried (`docs/SCAN-TO-SIGN.md` §4, §5).
+//! every kind was tried (`docs/history/SCAN-TO-SIGN.md` §4, §5).
 //!
 //! The words wait in memory, never drawn, until a choice loads them or
 //! the sheet closes, which wipes them.

@@ -209,7 +209,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let slots = app.session.slots(wlt);
     let here = slots.iter().filter(|s| s.held_by.is_some()).count().min(m);
     // Short: Scan a key under the line; enough: Can spend
-    // (`docs/SCAN-TO-SIGN.md` §2.2).
+    // (`docs/history/SCAN-TO-SIGN.md` §2.2).
     let can = app.can_spend(app.wallet);
     let box_h = if can { 76.0 } else { 90.0 };
     ui.fill(x, cy, iw, box_h, 10.0, BG);
@@ -548,7 +548,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     }
     // Scan leads, above the word field: primary until a word is typed
-    // (`docs/SCAN-TO-SIGN.md` §2.5).
+    // (`docs/history/SCAN-TO-SIGN.md` §2.5).
     let typed = crate::screens::entry_typed(app);
     ui.button(
         x,

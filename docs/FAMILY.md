@@ -3,12 +3,10 @@
 **Kind:** Reference
 **Status:** Built
 
-V0.3 · 2026-10-11 (page 3 and the guessed Check,
-`docs/SCAN-TO-SIGN.md` §4 and §5) · built: `faraday-core/src/family/mod.rs`
-(state and logic), `family/screen.rs`, `family/text.rs`,
-`tests/all/family.rs`, and the snapshot tool's `spend` tour
-(`cargo run -p faraday-snapshot -- 1366x768 out/testkit OUT spend`).
-The code names it `family`; the tab is labelled **Spend**.
+Built in `faraday-core/src/family/mod.rs` (state and logic),
+`family/screen.rs` and `family/text.rs`, tested in `tests/all/family.rs`;
+to look at it, `just faraday-snap 480x640 spend`. The code names it
+`family`; the tab is labelled **Spend**.
 
 **The owner's answers (2026-10-06):** the tab is called **Spend**; page 6
 keeps the short Sparrow lines; the desktop app is for testing and keeps
@@ -44,7 +42,7 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
    transaction read before any words are typed. On the vault route the
    vault holds the wallet and its key together, so both arrive at unlock;
    nothing is signed before the transaction has been read.
-5. **Data, not a classification** (`docs/SCAN-TO-SIGN.md` §4,
+5. **Data, not a classification** (`docs/history/SCAN-TO-SIGN.md` §4,
    2026-10-11). *What do you have?* takes whatever is in the envelope,
    scanned or typed, and asks only the next question; the wallet is
    worked out from what came in. (It was *What are you holding?*, whose
@@ -93,7 +91,7 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
 | 11 | Put everything away | all | Lock; the stick visit for the Outbox; Power off |
 
 Pages 3 and 4 of the first build (*What are you holding?* and *Open the
-wallet*) are one page since `docs/SCAN-TO-SIGN.md` §4; the sections
+wallet*) are one page since `docs/history/SCAN-TO-SIGN.md` §4; the sections
 below keep their numbers. The route is not chosen: it is set from what
 came in. **Vault** when a vault was unlocked here, **Paper** when a
 wallet description came in (whole or rebuilt from split sheets),
@@ -161,7 +159,7 @@ for testing. For real money, start a computer from the Faraday stick.
   use it. Do not use a stick you are unsure about: the words are the money,
   and taking longer costs nothing.
 
-### 3 · What do you have? (`docs/SCAN-TO-SIGN.md` §4, 2026-10-11)
+### 3 · What do you have? (`docs/history/SCAN-TO-SIGN.md` §4, 2026-10-11)
 
 **Lead:** Scan or type everything in the envelope, one thing at a time,
 in any order. Faraday works out the wallet from it.
@@ -265,7 +263,7 @@ split sheets go in one at a time, in any order.
 
 ### 4 · Open the wallet
 
-One card with page 3 since `docs/SCAN-TO-SIGN.md` §4: the vault's
+One card with page 3 since `docs/history/SCAN-TO-SIGN.md` §4: the vault's
 Unlock and list, word entry, the seeds' shape and the description by
 camera all happen on *What do you have?*.
 
@@ -285,7 +283,7 @@ one. If it does not match, stop: something was typed or scanned wrongly.
 change addresses; Show more; **Yes, my money shows**, which marks the
 wallet checked this power-on.)*
 
-**When Faraday guessed** (`docs/SCAN-TO-SIGN.md` §5): a wallet worked
+**When Faraday guessed** (`docs/history/SCAN-TO-SIGN.md` §5): a wallet worked
 out from seeds alone (one seed and That's everything, the Loaded view's
 Spend as a single-key wallet, or seeds shaped without a description).
 The title is **Check the money is there, on the online computer**; the
@@ -444,33 +442,7 @@ writing it back is safe and optional.)*
 
 ## 5. Building it
 
-| Part | Where |
-|---|---|
-| `Screen::Family`, the sidebar row, `Action::Family(FamilyAction)` | `faraday-core/src/lib.rs`, `faraday-core/src/screens/mod.rs`, `faraday-core/src/screens/sidebar.rs` |
-| `FamilyState { route, open }`; which pages apply; each page's done line from app state | new `faraday-core/src/family/mod.rs` |
-| Drawing: the column, the map, the answer tiles, the More folds | new `faraday-core/src/family/screen.rs`, on `flow::column` |
-| The text of §4 | new `faraday-core/src/family/text.rs`, one file, like `guide.rs` |
-| Unlock's controls without its title and back link, called by Unlock and by page 3 | `vault/screen.rs`: `unlock()` split into `unlock_body()` |
-| Pages 8, 10, 11 call Wallets' `step_body` for the spend's own steps; while one is open the Family card follows `spend.open` | `faraday-core/src/screens/spend.rs` |
-| Word entry, Restore and the stick visit return to Family when opened from it (as `after_visit` does for Create) | `lib.rs` |
-| Route and page kept across a lock; after Unlock, Family opens if it was open | `memory.rs` `kept()` / `restore_kept()` |
-| The words route's single-key wallet from the loaded key | `wallet.rs`, the descriptor Create builds for a single key |
-
-No file in `core/` is edited; no new dependency.
-
-**Tests** (`tests/all/family.rs`, user-facing behaviour, on the test kit):
-- Vault route end to end: the test stick's `vault.ofv` and passphrase
-  `test vault` → the wallet opens → a spend from Files → signed → finished,
-  with the same signature bytes as Wallets › Sign.
-- Paper route: split sheets in any order → wallet → seeds → signed; a seed
-  from another wallet refused.
-- Words route: the test words give the test kit's first address.
-- A lock on page 7 (stick route) comes back on page 7 after Unlock, with
-  the PSBT copied in loaded.
-- On the desktop app, page 2 shows the stop.
-- The review's warnings are the same text in Family as in Wallets.
-
-The snapshot tour gains the Family pages at one size.
+Moved to `docs/history/FAMILY-LOG.md`.
 
 ## 6. As built, beyond the proposal
 
@@ -483,7 +455,7 @@ The snapshot tour gains the Family pages at one size.
   here** or **Not here**, and while short of signers **Scan a key**
   (any missing key, its words typed instead from its sheet) and
   **Unlock** for each other locked vault in Files
-  (`docs/SCAN-TO-SIGN.md` §3). A key from another wallet is refused.
+  (`docs/history/SCAN-TO-SIGN.md` §3). A key from another wallet is refused.
   A key held by someone else need not come at all: their signed copy is
   collected on *The other signatures*.
 - **A vault holding keys but no wallet**: its seeds come in on page 3
@@ -492,7 +464,7 @@ The snapshot tour gains the Family pages at one size.
 - **The wallet chooses itself** when there is only one, or when a PSBT
   in Files spends from one of those loaded.
 - **Seeds alone** open nothing until the next question is answered
-  (`docs/SCAN-TO-SIGN.md` §4.3); the single-key wallet is native SegWit,
+  (`docs/history/SCAN-TO-SIGN.md` §4.3); the single-key wallet is native SegWit,
   and Check the money walks through the other kinds (§5). A transaction
   that spends from another kind opens that kind on its own.
 - **A description** opens the wallet as it comes in, by camera on
@@ -522,7 +494,7 @@ are one page, **Write the payment in Sparrow**:
 Then the spend's steps as they are. **Who signs**, with fewer keys here
 than sign, offers **Scan a key**, its Unlock buttons and **Collect a
 signature**, which opens *The other signatures*; with enough, **Can
-spend** (`docs/SCAN-TO-SIGN.md` §3). A PSBT
+spend** (`docs/history/SCAN-TO-SIGN.md` §3). A PSBT
 for this wallet in Files starts the spend at once, on the transaction's
 review. Another wallet's spend gives way to this one, its PSBT staying
 in Files. **It is loaded** does not mark the wallet checked: it says

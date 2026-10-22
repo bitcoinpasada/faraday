@@ -3,12 +3,6 @@
 **Kind:** Reference
 **Status:** Built
 
-Built 2026-10-05: every flow in §4 and §5 is in
-`faraday/faraday-core`, for spending, creating, backing up, restoring,
-messages and the camera — every single-key, multisig, Taproot multisig,
-miniscript, tree, MuSig2 and FROST wallet with recovery paths
-(`docs/history/HANDOFF.md`, work queue).
-
 The Wallets tab does every piece of cryptography and
 every format with `core/`'s library crates (`faraday-psbt`, `faraday-bip`), and
 extends its flows to every wallet kind they can sign for.
@@ -108,7 +102,7 @@ SeedSigner and a Coldcard. The Wallets tab's central object is therefore a
 | **A transaction arriving first** | The Wallets tab reads its key origins and finds the wallet it belongs to among loaded wallets, then among vault keys. "This transaction spends from Savings; you can sign with 73c5da0a." With no wallet known, it can still sign from the PSBT's own key origins, but change cannot be verified, and the review says so and offers **Load the wallet**. |
 
 **Adding a key to a slot.** A wallet short of keys has one **Scan a key**
-(`docs/SCAN-TO-SIGN.md` §2), which takes any of its missing keys and
+(`docs/history/SCAN-TO-SIGN.md` §2), which takes any of its missing keys and
 works out which; its words can be typed instead, and a key an open vault
 holds loads from it. A key from no slot of this wallet is refused with
 its fingerprint. A
@@ -132,13 +126,12 @@ is a list of them.
 | **Slots** | One positional row per signer. Removing signer 2 leaves slot 2 empty rather than renumbering. Sources: a key in a vault, a new key (dice or entropy), typed words, a scanned SeedQR, an account key (watch only), or **someone else will add this later**. Each filled slot has **Show key QR**, as a `ur:crypto-account` byte-identical to SeedSigner's, or as the plain key expression. |
 | **Load** | A wallet in any form (§3.2). Builds the wallet card, routing itself to the right kind. |
 | **Signers** | The wallet card's slots, filled for signing (§2). |
-| **Check** | First addresses, receive and change; the wallet as a QR for the online wallet (one code or animated, by the plan in §3.2); **Is this address mine?**. |
+| **Check** | First addresses, receive and change; the wallet as a QR for the online wallet (one code or animated, by the plan in §3.2). An address is checked against every loaded wallet's first 100 receive and change addresses by **Check an address** (Tools, Transactions). |
 | **Transaction** | A PSBT by scan, a file in Files or typing. The review in sentences with the full table one choice away; every warning from one function, never softened for guided mode (§3.3). |
 | **Txid** | The transaction id before anyone signs, for native SegWit and Taproot spends; refused for legacy and P2SH-wrapped inputs, whose id changes on signing. |
 | **Sign** | Signs with every key held, producing one partly signed PSBT per key, the form separate devices would give. |
 | **Collect** | **Signatures for this transaction**: cosigners' PSBTs by scan, file or Files. Each signature is verified against its key and this transaction's sighash; a PSBT for another transaction is refused, never merged. The collection belongs to the transaction, so reviewing again keeps it. |
 | **Finish** | Two results: the **signed PSBT**, not finalised, for the wallet that wrote it (`ur:crypto-psbt`); and the **finished transaction** with its txid in a box of its own and **Decode this transaction**. Finalising may fail one signature short; the signed PSBT is shown anyway, labelled with what is still missing. |
-| **Agree** | Paste another device's signed PSBT; compare the signatures byte for byte: **identical** or **differs**, with both shown. |
 | **Backup** | The four steps of §5. |
 | **Save** | Wallet and keys to a vault: which vault, each key's "load at unlock" flag. |
 
@@ -587,14 +580,10 @@ opens Backups on that wallet.
 ## 6. Guided mode
 
 The same steps and the same engine serve someone inheriting bitcoin, so
-the same paper gives the same addresses and byte-identical signatures.
-What changes is wording, order and what is folded away:
-- a first page of large choices ("What are you holding?") whose answer is
-  the navigation;
-- the public half first and the seeds last: load the wallet, check the
-  money, add the transaction, then the seeds, then sign;
-- the review in sentences, with the full table one choice away;
-- warnings word for word as in full mode, from the same function.
+the same paper gives the same addresses and byte-identical signatures,
+and every warning is word for word the same, from the same function.
+That path is the **Spend** tab (`docs/FAMILY.md`): its first question is
+*What do you have?*, and its order, wording and folds are written there.
 
 A switch beside each flow's title chooses **Steps only** or **Guided** (called Full until 2026-10-06); a wallet in
 progress carries over between them. The choice is one setting for every
@@ -603,55 +592,44 @@ where a first start is, on a device that has never had a setting saved
 (`docs/history/SIMPLIFY.md` §6.1, 2026-10-10; reverses the 2026-10-07 default
 for a first start only).
 
-This is the **Spend** tab (`docs/FAMILY.md`, built
-2026-10-06): one column from what is in the envelope to a sent
-transaction, through the vault's unlock and load, on the same session and
-spend as the Wallets tab.
-
 ## 7. Tools
 
-**Read a transaction** (no wallet needed), **Is this address
-mine?**, the address table, exports (descriptor, BIP-388 policy, BSMS, Core
-`importdescriptors`, Sparrow `.json`), the nonce check, **Do these agree?**,
-BIP-85 (hidden until turned on: children of one seed are not
-independent signers, and none are offered as one), and **Just show me**
-(a 3-of-5 test wallet from five repeated-word seeds, marked as a
-test). Then, in §9's order: the key explorer, silent payments
-(receive and check), codex32, SLIP-39 and Seed XOR backups, the Lightning
-node key, Learn.
+Tools (`Screen::Catalog`, `faraday-core/src/catalog.rs`) is every flow
+on one page, by what it works on, each tile with its line and the
+standards it follows; **Find a tool** narrows the page to the tiles whose
+name, line, group or standards hold what is typed. A tile opens its
+flow, or names what it needs first ("Load a key first", "Make a vault
+first"). The groups and their tiles:
+
+| Group | Tiles |
+|---|---|
+| Keys and seeds | New key · Add a key · Scan a SeedQR · SLIP-39 shares · Restore from SLIP-39 · codex32 · Seed XOR · Explore a key · Child seeds and passwords (BIP-85) · Vanity address · Silent payments · Lightning node key |
+| Wallets | Single-key wallet · Multisig · Taproot multisig · MuSig2 · FROST threshold · Miniscript and inheritance · Restore an existing wallet · Back up a wallet |
+| Transactions | Sign a transaction · Nonce check · Decode a transaction · Check an address |
+| Messages | Sign a message · Check a signed message |
+| Vaults and other keys | Vaults · TOTP codes · Diceware passphrase · GPG key · Secure Boot keys · APK signing key (only with APK signing on, F59) · KeePass export · Open an .oskb backup |
+| Calculators | Hashes · Encodings · Descriptor checksum · Convert an xpub · Units · Miniscript compiler |
+| Word lists | BIP-39 words · EFF large list · EFF short list 1 · EFF short list 2 |
+| QR | Scan a QR code |
 
 ## 8. Tests
 
-- **The conformance corpus**: `qr-testing/` and
-  `qr-testing-testnet/` restore to the stated first addresses by every
-  route; the ten `bad-*` PSBTs are each refused for the reason
-  `bad-psbts.txt` states; the 3-of-5 split rebuilds byte-identically from
-  any three sheets; the five repeated-word seeds give the same descriptor
-  and first address.
+- **Published vectors**: BIP-174's valid and invalid PSBTs
+  (`tools/vectors/psbt/`), each invalid one refused, and the vectors of
+  every BIP the wallets use (`tools/vectors/`), in `core/`'s tests.
+- **Other wallets' files**: the exports of Coldcard, Sparrow, BlueWallet,
+  Nunchuk, Caravan and others, taken from Sparrow's and BlueWallet's
+  test suites (`faraday/faraday-core/tests/vectors/interop/`), read by
+  `faraday/faraday-core/tests/all/interop.rs` to their stated first
+  addresses or refused for the reason `docs/INTEROP.md` gives.
 - **Flow tests** drive each flow through its steps for every kind in the
   capability table, from every entry point of §2.
 - **`core/`'s own tests** run first, unchanged.
-- Agreement checks against the Coldcard Q simulator and SeedSigner's
-  libraries are reproduced for the flows that produce the same outputs.
 
 ## 9. Order of work
 
-1. The capability table; the wallet card and the
-   reassembly model (§2); Load and Signers.
-2. Spending for single-sig and multisig: Check, Transaction with every check
-   of §3.3, Txid, Sign, Collect, Finish, Agree. Run against the conformance
-   corpus.
-3. Creating and backing up single-sig and multisig, with the split plan.
-4. Guided mode.
-5. Taproot multisig, miniscript and Taproot tree, recovery.
-6. MuSig2 and FROST, with §4.2.
-7. Messages; the Wallets tab's tools; then the other tools.
+Moved to `docs/history/WALLETS-LOG.md`.
 
 ## 10. Decided 2026-10-04
 
-1. **The tab beside the Wallets tab** was deleted with its app (F68).
-2. **Shared logic in `core/`**: done for the file
-   formats, the kept-key blob, messages, addresses and transactions (§1,
-   rule 5).
-3. **Signed-amount memory** is sealed into the open vault by default, and
-   kept in `/run` across locks (§3.3).
+Moved to `docs/history/WALLETS-LOG.md`.

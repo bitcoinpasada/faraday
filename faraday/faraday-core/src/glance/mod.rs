@@ -548,7 +548,7 @@ fn build(
                 (false, true, true, _) => EN.glance_in_this_vault_passphrase,
                 (false, true, false, _) => EN.glance_in_this_vault,
                 // Short of keys, one not here says so: the one Scan a key
-                // is the signatures bar's (`docs/SCAN-TO-SIGN.md` §2.3).
+                // is the signatures bar's (`docs/history/SCAN-TO-SIGN.md` §2.3).
                 (false, false, _, _) if !quorum_here && matches!(press, Press::Loaded(_)) => {
                     EN.glance_not_here
                 }
