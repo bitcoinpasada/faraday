@@ -79,8 +79,10 @@ fn a_text_file_is_kept_and_offered_to_the_vault_as_a_note() {
     assert!(offered, "Files does not offer Add to vault");
     app.press(Action::Vault(V::AddFile(k)));
     let v = &app.vaults.open[0];
-    let note = v
-        .contents
+    let note = app
+        .vaults
+        .store
+        .vault_records(v.id)
         .of(kind::NOTE)
         .filter_map(|(_, r)| r.text(field::NOTE))
         .find(|t| t.contains("2345 6789"))
@@ -100,9 +102,21 @@ fn a_seed_words_file_goes_into_the_vault_as_a_key() {
         .find(|(n, _)| n.starts_with("seed-2") && n.ends_with("-words.txt"))
         .unwrap();
     let mut app = unlocked(vec![(name.clone(), bytes)]);
-    let keys = app.vaults.open[0].contents.of(kind::KEY).count();
+    let keys = app
+        .vaults
+        .store
+        .vault_records(app.vaults.open[0].id)
+        .of(kind::KEY)
+        .count();
     app.press(Action::Vault(V::AddFile(at(&app, &name))));
-    assert_eq!(app.vaults.open[0].contents.of(kind::KEY).count(), keys + 1);
+    assert_eq!(
+        app.vaults
+            .store
+            .vault_records(app.vaults.open[0].id)
+            .of(kind::KEY)
+            .count(),
+        keys + 1
+    );
 }
 
 /// Whether Files offers `action` anywhere down the page, moved down by

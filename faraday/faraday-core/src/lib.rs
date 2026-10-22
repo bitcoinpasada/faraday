@@ -4761,13 +4761,17 @@ impl Faraday {
             return false;
         };
         let fp = key.fingerprint.0;
-        open.contents.of(kind::PASSPHRASE).any(|(_, r)| {
-            r.field(field::PASSPHRASE_KEY) == Some(&fp[..])
-                && match r.text(field::PASSPHRASE) {
-                    Some(t) => self.session.keys.passphrase_is(k, t),
-                    None => !key.has_passphrase,
-                }
-        })
+        self.vaults
+            .store
+            .vault_records(open.id)
+            .of(kind::PASSPHRASE)
+            .any(|(_, r)| {
+                r.field(field::PASSPHRASE_KEY) == Some(&fp[..])
+                    && match r.text(field::PASSPHRASE) {
+                        Some(t) => self.session.keys.passphrase_is(k, t),
+                        None => !key.has_passphrase,
+                    }
+            })
     }
 
     /// Costs what `plan_mapped` costs. The shares the plan keeps in vault
@@ -4803,7 +4807,9 @@ impl Faraday {
     ) -> bool {
         use faraday_vault::records::field;
         self.vaults.open.get(o).is_some_and(|x| {
-            x.contents
+            self.vaults
+                .store
+                .vault_records(x.id)
                 .records
                 .iter()
                 .any(|r| share_record_is(c, r, cs, Some(j)) && r.text(field::SHARE) == Some(text))
@@ -4948,7 +4954,9 @@ impl Faraday {
         use faraday_vault::records::{field, kind};
         let want = wallet::same_wallet(wallet.policy());
         let o = self.vaults.open.get(v)?;
-        o.contents
+        self.vaults
+            .store
+            .vault_records(o.id)
             .described_of(c, kind::PLAN)
             .find_map(|(_, r, d)| {
                 if d.same != want {
@@ -5009,8 +5017,9 @@ impl Faraday {
         use faraday_vault::records::kind;
         let want = wallet::same_wallet(wallet.policy());
         (0..self.vaults.open.len()).find(|&v| {
-            self.vaults.open[v]
-                .contents
+            self.vaults
+                .store
+                .vault_records(self.vaults.open[v].id)
                 .described_of(c, kind::PLAN)
                 .any(|(_, _, d)| d.same == want)
         })
@@ -5081,8 +5090,10 @@ impl Faraday {
         }
         let want = wallet::same_wallet(w.policy());
         // This wallet's plan records, by place.
-        let ours: Vec<usize> = open
-            .contents
+        let ours: Vec<usize> = self
+            .vaults
+            .store
+            .vault_records(open.id)
             .described_of(&c, kind::PLAN)
             .filter(|(_, _, d)| d.same == want)
             .map(|(i, _, _)| i)
@@ -5091,8 +5102,10 @@ impl Faraday {
         // The notes on the map: those given, else those the record kept.
         let kept: Vec<String> = match notes {
             Some(n) => n.iter().map(plan::Note::to_text).collect(),
-            None => open
-                .contents
+            None => self
+                .vaults
+                .store
+                .vault_records(open.id)
                 .records
                 .iter()
                 .enumerate()
@@ -5110,20 +5123,29 @@ impl Faraday {
             record.push(field::PLAN_NOTE, n.as_bytes());
         }
         // Kept as it was: nothing to write back.
-        let unchanged = open.contents.records.iter().enumerate().any(|(i, r)| {
-            same(i)
-                && r.fields.len() == record.fields.len()
-                && r.fields
-                    .iter()
-                    .zip(&record.fields)
-                    .all(|(a, b)| a.number == b.number && *a.bytes == *b.bytes)
-        });
+        let unchanged = self
+            .vaults
+            .store
+            .vault_records(open.id)
+            .records
+            .iter()
+            .enumerate()
+            .any(|(i, r)| {
+                same(i)
+                    && r.fields.len() == record.fields.len()
+                    && r.fields
+                        .iter()
+                        .zip(&record.fields)
+                        .all(|(a, b)| a.number == b.number && *a.bytes == *b.bytes)
+            });
         if unchanged {
             return;
         }
         let name = open.name.clone();
-        let old: Vec<faraday_vault::records::Record> = open
-            .contents
+        let old: Vec<faraday_vault::records::Record> = self
+            .vaults
+            .store
+            .vault_records(open.id)
             .records
             .iter()
             .enumerate()
@@ -5134,10 +5156,14 @@ impl Faraday {
             && !ours.is_empty()
         {
             let mut at = 0;
-            open.contents.records.retain(|_| {
-                at += 1;
-                !same(at - 1)
-            });
+            self.vaults
+                .store
+                .vault_records_mut(open.id)
+                .records
+                .retain(|_| {
+                    at += 1;
+                    !same(at - 1)
+                });
         }
         if !self.vault_push_in(
             v,
@@ -5146,7 +5172,11 @@ impl Faraday {
         ) {
             // It did not fit: the record it kept stays.
             if let Some(open) = self.vaults.open.get_mut(v) {
-                open.contents.records.extend(old);
+                self.vaults
+                    .store
+                    .vault_records_mut(open.id)
+                    .records
+                    .extend(old);
             }
         } else if !old.is_empty()
             && let Some(open) = self.vaults.open.get_mut(v)
@@ -6074,7 +6104,7 @@ impl Faraday {
         let Some(open) = self.vaults.open.get(v) else {
             return;
         };
-        let Some(rec) = open.contents.records.get(r) else {
+        let Some(rec) = self.vaults.store.vault_records(open.id).records.get(r) else {
             return;
         };
         let (Some(text), name) = (
@@ -6103,8 +6133,10 @@ impl Faraday {
             .filter_map(|s| s.fingerprint.map(fp_text))
             .collect();
         let open = &self.vaults.open[v];
-        let keep: BTreeSet<usize> = open
-            .contents
+        let keep: BTreeSet<usize> = self
+            .vaults
+            .store
+            .vault_records(open.id)
             .of(kind::KEY)
             .filter(|(_, k)| {
                 vault::screen::key_fingerprint(&c, self, k).is_some_and(|fp| want.contains(&fp))
@@ -6112,7 +6144,8 @@ impl Faraday {
             .map(|(i, _)| i)
             .chain([r])
             .collect();
-        let all: BTreeSet<usize> = (0..open.contents.records.len()).collect();
+        let all: BTreeSet<usize> =
+            (0..self.vaults.store.vault_records(open.id).records.len()).collect();
         let saved = std::mem::replace(
             &mut self.vaults.open[v].skip,
             all.difference(&keep).copied().collect(),
@@ -6353,7 +6386,7 @@ impl Faraday {
         // that merges with what is in hand.
         let mut wallet: Option<String> = None;
         for o in &self.vaults.open {
-            for (_, rec) in o.contents.of(kind::WALLET_SHARE) {
+            for (_, rec) in self.vaults.store.vault_records(o.id).of(kind::WALLET_SHARE) {
                 let Some(t) = rec.text(field::SHARE) else {
                     continue;
                 };
@@ -8995,7 +9028,7 @@ impl Faraday {
     fn before_frame(&mut self) {
         let c = self.compute();
         for o in &self.vaults.open {
-            o.contents.warm(&c);
+            self.vaults.store.vault_records(o.id).warm(&c);
         }
     }
 

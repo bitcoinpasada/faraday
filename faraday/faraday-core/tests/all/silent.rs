@@ -328,7 +328,13 @@ fn a_silent_payments_wallet_saved_into_a_vault_reads_back_as_itself() {
     assert_eq!(Kind::of(app.session.wallets[w].policy()), Kind::Silent);
     app.press(Action::Vault(V::SaveWallet(w)));
     let open = &app.vaults.open[0];
-    let (_, saved) = open.contents.of(kind::WALLET).last().unwrap();
+    let (_, saved) = app
+        .vaults
+        .store
+        .vault_records(open.id)
+        .of(kind::WALLET)
+        .last()
+        .unwrap();
     let text = saved.text(field::WALLET).unwrap();
     let back = faraday_core::wallet::read_wallet(&c, text).expect("the saved wallet reads back");
     assert_eq!(back.silent(), app.session.wallets[w].policy().silent());

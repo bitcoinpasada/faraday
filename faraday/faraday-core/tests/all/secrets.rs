@@ -176,7 +176,9 @@ fn the_carry_goes_into_the_vault_and_the_next_device_signs_with_it() {
     let v = &b.vaults.open[0];
     assert!(v.changes > 0);
     assert!(
-        v.contents
+        b.vaults
+            .store
+            .vault_records(v.id)
             .of(faraday_vault::records::kind::ROUND)
             .next()
             .is_none()
@@ -328,7 +330,9 @@ fn a_round_signed_with_by_taps_leaves_the_vault_and_cannot_sign_again() {
     assert!(s.complete, "{:?}", s.error);
     let v = &b.vaults.open[0];
     assert!(
-        v.contents
+        b.vaults
+            .store
+            .vault_records(v.id)
             .of(faraday_vault::records::kind::ROUND)
             .next()
             .is_none(),

@@ -75,7 +75,7 @@ impl Faraday {
         let mut out = CreateVaults::default();
         for (v, open) in self.vaults.open.iter().enumerate() {
             let mut keys = Vec::new();
-            for (i, r) in open.contents.of(kind::KEY) {
+            for (i, r) in self.vaults.store.vault_records(open.id).of(kind::KEY) {
                 // The fingerprint the unlock worked out; the record's own
                 // label.
                 let Some(text) = crate::vault::screen::key_fingerprint(c, self, r) else {
@@ -133,7 +133,7 @@ impl Faraday {
             .vaults
             .open
             .get(v)
-            .and_then(|o| o.contents.records.get(r))
+            .and_then(|o| self.vaults.store.vault_records(o.id).records.get(r))
             .filter(|x| x.kind == kind::KEY)
         else {
             return;

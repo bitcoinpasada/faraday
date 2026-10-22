@@ -70,8 +70,11 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
         return Err("unlocking did not come back to Create".into());
     }
     t.shot("create-keys-vault-open")?;
-    let record = t.app.vaults.open[0]
-        .contents
+    let record = t
+        .app
+        .vaults
+        .store
+        .vault_records(t.app.vaults.open[0].id)
         .records
         .iter()
         .position(|r| r.kind == faraday_vault::records::kind::KEY)

@@ -77,8 +77,10 @@ fn on_key() -> Faraday {
 fn on_wallet(name: &str) -> Faraday {
     let mut app = opened();
     app.press(Action::Vault(V::Category(1)));
-    let k = app.vaults.open[0]
-        .contents
+    let k = app
+        .vaults
+        .store
+        .vault_records(app.vaults.open[0].id)
         .records
         .iter()
         .filter(|r| [kind::WALLET, kind::WALLET_SHARE].contains(&r.kind))
@@ -164,7 +166,10 @@ fn outbox_names(app: &Faraday) -> Vec<String> {
 /// The open vault's records and changes, to say nothing went in.
 fn vault_now(app: &Faraday) -> (usize, usize) {
     let v = &app.vaults.open[0];
-    (v.contents.records.len(), v.changes)
+    (
+        app.vaults.store.vault_records(v.id).records.len(),
+        v.changes,
+    )
 }
 
 #[test]

@@ -144,7 +144,7 @@ pub struct SeedRead {
     /// Why the sheet asks: the seed with no passphrase is no key of that
     /// wallet.
     reason: Option<String>,
-    /// Opened by the Spend tab, and what for.
+    /// Open by the Spend tab, and what for.
     pub family: Option<ForFamily>,
     /// The key the passphrase typed twice makes ([`SeedRead::with_key`]):
     /// worked out once typing that changes the fields has paused

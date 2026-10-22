@@ -46,7 +46,11 @@ fn open(app: &mut Faraday) -> usize {
         app.event(Event::Tick { now_ms: t * 1000 });
     }
     assert_eq!(app.vaults.open.len(), 1, "the vault did not open");
-    app.vaults.open[0].contents.of(kind::KEY).count()
+    app.vaults
+        .store
+        .vault_records(app.vaults.open[0].id)
+        .of(kind::KEY)
+        .count()
 }
 
 /// Opens the vault and saves test key 2 into it: the keys it held.

@@ -728,7 +728,7 @@ impl Faraday {
                 .as_deref()
                 .is_some_and(|id| self.flow_vault_holds_only(o, kind, id));
             if only_key && !vp.existing {
-                self.vaults.open.remove(o);
+                self.vaults.close(o);
                 self.vaults.current = 0;
                 let same = |it: &Item| {
                     it.kind == FileKind::Vault
@@ -773,22 +773,31 @@ impl Faraday {
     /// and the signed-amount memory are not entries.
     fn flow_vault_holds_only(&self, o: usize, kind_: Kind, id: &str) -> bool {
         self.vaults.open.get(o).is_some_and(|open| {
-            open.contents.records.iter().all(|r| {
-                r.kind == kind::SLOT_LABEL
-                    || r.kind == kind::AMOUNTS
-                    || (r.kind == kind_.record_kind()
-                        && subject_of(kind_, r).as_deref() == Some(id))
-            })
+            self.vaults
+                .store
+                .vault_records(open.id)
+                .records
+                .iter()
+                .all(|r| {
+                    r.kind == kind::SLOT_LABEL
+                        || r.kind == kind::AMOUNTS
+                        || (r.kind == kind_.record_kind()
+                            && subject_of(kind_, r).as_deref() == Some(id))
+                })
         })
     }
 
     fn flow_remove_subject(&mut self, o: usize, kind_: Kind, id: &str) {
         if let Some(open) = self.vaults.open.get_mut(o) {
-            let before = open.contents.records.len();
-            open.contents.records.retain(|r| {
-                !(r.kind == kind_.record_kind() && subject_of(kind_, r).as_deref() == Some(id))
-            });
-            if open.contents.records.len() != before {
+            let before = self.vaults.store.vault_records(open.id).records.len();
+            self.vaults
+                .store
+                .vault_records_mut(open.id)
+                .records
+                .retain(|r| {
+                    !(r.kind == kind_.record_kind() && subject_of(kind_, r).as_deref() == Some(id))
+                });
+            if self.vaults.store.vault_records(open.id).records.len() != before {
                 open.changes += 1;
             }
         }
@@ -1925,7 +1934,7 @@ impl Faraday {
         // Every vault takes it, or none does.
         for &o in &opens {
             let open = &self.vaults.open[o];
-            let mut trial = open.contents.clone();
+            let mut trial = self.vaults.store.vault_records(open.id).clone();
             trial.records.push(built.record.clone());
             if trial.used() > open.header().slot_len as usize {
                 return self.toast(FEN.vaults_that_does_not);
@@ -1933,7 +1942,11 @@ impl Faraday {
         }
         for &o in &opens {
             let open = &mut self.vaults.open[o];
-            open.contents.records.push(built.record.clone());
+            self.vaults
+                .store
+                .vault_records_mut(open.id)
+                .records
+                .push(built.record.clone());
             open.changes += 1;
         }
         // The public files made with the key go For the stick, and are
@@ -2013,7 +2026,7 @@ impl Faraday {
                 return self.toast(FEN.backup_flow_unlock_first);
             };
             let open = &self.vaults.open[o];
-            let mut trial = open.contents.clone();
+            let mut trial = self.vaults.store.vault_records(open.id).clone();
             trial.records.push(record.clone());
             if trial.used() > open.header().slot_len as usize {
                 return self.toast(FEN.vaults_that_does_not);
@@ -2022,7 +2035,11 @@ impl Faraday {
         for &v in &added {
             if let Some(o) = self.flow_open_index(i, v) {
                 let open = &mut self.vaults.open[o];
-                open.contents.records.push(record.clone());
+                self.vaults
+                    .store
+                    .vault_records_mut(open.id)
+                    .records
+                    .push(record.clone());
                 open.changes += 1;
             }
         }
@@ -2795,7 +2812,7 @@ impl Faraday {
         let kinds = crate::vault::CATEGORIES[cat].1;
         for (o, open) in self.vaults.open.iter().enumerate() {
             let mut n = 0;
-            for r in &open.contents.records {
+            for r in &self.vaults.store.vault_records(open.id).records {
                 if !kinds.contains(&r.kind) {
                     continue;
                 }
@@ -2849,9 +2866,8 @@ impl Faraday {
         let at = self.vault_selected_index()?;
         let r = self
             .vaults
-            .open
-            .get(self.vaults.current)?
-            .contents
+            .store
+            .vault_records(self.vaults.open.get(self.vaults.current)?.id)
             .records
             .get(at)?;
         let kind_ = match r.kind {

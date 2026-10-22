@@ -73,8 +73,10 @@ fn make_gpg_key(app: &mut Faraday) {
 /// seconds.
 fn gpg_created(app: &Faraday) -> u32 {
     let v = &app.vaults.open[app.vaults.current];
-    let r = v
-        .contents
+    let r = app
+        .vaults
+        .store
+        .vault_records(v.id)
         .records
         .iter()
         .rev()
@@ -84,8 +86,9 @@ fn gpg_created(app: &Faraday) -> u32 {
 }
 
 fn gpg_count(app: &Faraday) -> usize {
-    app.vaults.open[app.vaults.current]
-        .contents
+    app.vaults
+        .store
+        .vault_records(app.vaults.open[app.vaults.current].id)
         .of(kind::GPG)
         .count()
 }

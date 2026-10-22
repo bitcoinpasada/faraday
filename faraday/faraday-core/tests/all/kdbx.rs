@@ -67,8 +67,10 @@ fn an_entry_exported_for_keepass_is_sealed_under_its_passphrase() {
     app.press(Action::Vault(V::FocusField(2)));
     type_text(&mut app, "hunter22");
     app.press(Action::Vault(V::FormSave));
-    let entries = app.vaults.open[0]
-        .contents
+    let entries = app
+        .vaults
+        .store
+        .vault_records(app.vaults.open[0].id)
         .of(faraday_vault::records::kind::ENTRY)
         .count();
     app.press(Action::Vault(V::Item(entries - 1)));

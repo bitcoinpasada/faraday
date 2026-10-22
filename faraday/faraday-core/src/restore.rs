@@ -190,9 +190,9 @@ pub struct RestoreState {
     pub more_kinds: bool,
     /// The description's keys marked Not here, by place.
     pub absent: Vec<u8>,
-    /// Opened from a key on Wallets: Back goes to Wallets.
+    /// Open from a key on Wallets: Back goes to Wallets.
     pub from_key: bool,
-    /// Opened from Home: Back goes to Home.
+    /// Open from Home: Back goes to Home.
     pub from_home: bool,
     /// Whether vaults are part of the backup and how many; with yes, the
     /// sticks and the vaults come before the seeds are typed

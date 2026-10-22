@@ -551,7 +551,7 @@ pub fn paths_text(policy: &WalletPolicy) -> String {
 pub struct CreateState {
     /// The open card.
     pub open: Option<u8>,
-    /// Opened from Home: Back goes to Home, not Wallets.
+    /// Open from Home: Back goes to Home, not Wallets.
     pub from_home: bool,
     /// Cards closed as done.
     pub done: [bool; cstep::COUNT],

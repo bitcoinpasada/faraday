@@ -169,13 +169,17 @@ impl Faraday {
     /// ([`crate::vault::VaultRecords`]).
     pub(crate) fn vault_key_wallet(&self, c: &Compute, v: usize, r: usize) -> Option<String> {
         let open = self.vaults.open.get(v)?;
-        let rec = open
-            .contents
+        let rec = self
+            .vaults
+            .store
+            .vault_records(open.id)
             .records
             .get(r)
             .filter(|x| x.kind == kind::KEY)?;
         let fp = crate::vault::screen::key_fingerprint(c, self, rec)?;
-        open.contents
+        self.vaults
+            .store
+            .vault_records(open.id)
             .described_of(c, kind::WALLET)
             .find_map(|(_, w, d)| {
                 let p = &d.policy;
@@ -208,10 +212,15 @@ impl Faraday {
     fn vault_passphrase_seeds_uncached(&self, c: &Compute) -> Vec<PassSeed> {
         let mut out = Vec::new();
         for (v, open) in self.vaults.open.iter().enumerate() {
-            for (i, r) in open.contents.of(kind::KEY) {
+            for (i, r) in self.vaults.store.vault_records(open.id).of(kind::KEY) {
                 // Words, as the vault keeps them read: no parse here.
                 if r.field(field::KEY_PASSPHRASE).is_some()
-                    || open.contents.word_count(c, i).is_none()
+                    || self
+                        .vaults
+                        .store
+                        .vault_records(open.id)
+                        .word_count(c, i)
+                        .is_none()
                 {
                     continue;
                 }
@@ -230,7 +239,7 @@ impl Faraday {
                 out.push(PassSeed {
                     vault: v,
                     record: i,
-                    vault_name: open.label(),
+                    vault_name: open.label(&self.vaults.store),
                     line: fp_of(&fp).map_or_else(|| fp.clone(), |f| key_line(f, label)),
                 });
             }
@@ -320,7 +329,7 @@ impl Faraday {
             .vaults
             .open
             .get(v)
-            .and_then(|o| o.contents.records.get(r))
+            .and_then(|o| self.vaults.store.vault_records(o.id).records.get(r))
         else {
             return;
         };
@@ -406,8 +415,10 @@ impl Faraday {
                 .any(|k| fp_text(k.fingerprint) == fp)
         };
         // The vault's keys: record, fingerprint, label.
-        let keys: Vec<(usize, Option<String>, String)> = open
-            .contents
+        let keys: Vec<(usize, Option<String>, String)> = self
+            .vaults
+            .store
+            .vault_records(open.id)
             .of(kind::KEY)
             .map(|(i, r)| {
                 (
@@ -426,32 +437,46 @@ impl Faraday {
             fps: Vec<Option<String>>,
             loaded: bool,
         }
-        let wallets: Vec<W> = open
-            .contents
+        let wallets: Vec<W> = self
+            .vaults
+            .store
+            .vault_records(open.id)
             .of(kind::WALLET)
             .map(|(i, r)| {
                 let name = r
                     .text(field::WALLET_NAME)
                     .unwrap_or(EN.vaults_wallet)
                     .to_string();
-                let policy = open.contents.described(c, i).map(|d| &d.policy);
+                let policy = self
+                    .vaults
+                    .store
+                    .vault_records(open.id)
+                    .described(c, i)
+                    .map(|d| &d.policy);
                 let fps = policy.as_ref().map_or_else(Vec::new, |p| {
                     p.keys()
                         .iter()
                         .map(|k| k.fingerprint().map(fp_text))
                         .collect()
                 });
-                let loaded = open.contents.described(c, i).is_some_and(|d| {
-                    self.session
-                        .wallets
-                        .iter()
-                        .any(|w| same_wallet(w.policy()) == d.same)
-                });
+                let loaded = self
+                    .vaults
+                    .store
+                    .vault_records(open.id)
+                    .described(c, i)
+                    .is_some_and(|d| {
+                        self.session
+                            .wallets
+                            .iter()
+                            .any(|w| same_wallet(w.policy()) == d.same)
+                    });
                 W {
                     record: i,
                     name,
-                    kind: open
-                        .contents
+                    kind: self
+                        .vaults
+                        .store
+                        .vault_records(open.id)
                         .described(c, i)
                         .map(|d| d.shape.clone())
                         .unwrap_or_default(),
@@ -484,7 +509,7 @@ impl Faraday {
             }
         };
         let mut view = LoadView {
-            title: fill(EN.load_sheet_title, &[&open.label()]),
+            title: fill(EN.load_sheet_title, &[&open.label(&self.vaults.store)]),
             ..LoadView::default()
         };
         for w in &wallets {
@@ -566,8 +591,10 @@ impl Faraday {
         let Some(open) = self.vaults.open.get(v) else {
             return false;
         };
-        let records: BTreeSet<usize> = open
-            .contents
+        let records: BTreeSet<usize> = self
+            .vaults
+            .store
+            .vault_records(open.id)
             .records
             .iter()
             .enumerate()
@@ -582,7 +609,9 @@ impl Faraday {
         // anything loaded already.
         let ticked: BTreeSet<usize> = records
             .into_iter()
-            .filter(|&i| records::loads_at_unlock(&open.contents.records[i]))
+            .filter(|&i| {
+                records::loads_at_unlock(&self.vaults.store.vault_records(open.id).records[i])
+            })
             .collect();
         // Everything it holds is in the session already: nothing to ask.
         if !self.load_view_of(&c, v, &ticked).tickable() {

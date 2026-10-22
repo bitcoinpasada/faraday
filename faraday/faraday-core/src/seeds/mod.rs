@@ -647,7 +647,9 @@ impl Faraday {
             .open
             .get(v)
             .and_then(|o| {
-                o.contents
+                self.vaults
+                    .store
+                    .vault_records(o.id)
                     .of(faraday_vault::records::kind::KEY)
                     .find(|(i, _)| *i == record)
             })
@@ -808,7 +810,12 @@ impl Faraday {
 pub(crate) fn vault_seeds(c: &Compute, app: &Faraday) -> Vec<(usize, usize, String)> {
     let mut out = Vec::new();
     for (v, open) in app.vaults.open.iter().enumerate() {
-        for (i, r) in open.contents.of(faraday_vault::records::kind::KEY) {
+        for (i, r) in app
+            .vaults
+            .store
+            .vault_records(open.id)
+            .of(faraday_vault::records::kind::KEY)
+        {
             if let Some(fp) = crate::vault::screen::key_fingerprint(c, app, r)
                 && !app
                     .session

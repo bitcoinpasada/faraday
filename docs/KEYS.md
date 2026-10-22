@@ -1,7 +1,7 @@
 # The key boundary: faraday-keys
 
 **Kind:** Spec
-**Status:** Steps 0 to 2 done; the owner answered §9 on 2026-10-21 (the recommendation on all four)
+**Status:** Steps 0 to 2 and 3a done; the owner answered §9 on 2026-10-21 (the recommendation on all four)
 **Decisions:** F70
 
 F70 decided that one crate, `faraday-keys`, owns every secret in memory,
@@ -215,6 +215,38 @@ checks, and a timed late-flow session for steps 2 and 3 (SPEED §7).
   closure that returns public text. Tests reach it through
   `Keys::master_for_tests` (feature `master-for-tests`, which
   `tools/lint-keys-tests.sh` keeps out of every shipped binary).
+
+### Step 3a as built
+
+Step 3 is two commits. 3a moves where the open vault is kept and how it
+is opened and sealed; nothing else changes. 3b narrows what faraday-core
+can read.
+
+- **The store.** `faraday-keys::vault::OpenVaults<R>` holds, for each open
+  vault, its `Opened` (the slot key), the file the other slots are copied
+  from, and its records. faraday-core holds it as `Vaults::store`, beside
+  `Vaults::open`, which keeps what the screens say of each vault (name,
+  changes, skip, header) and its `VaultId`. They are made and closed
+  together (`Vaults::close`, `Vaults::close_all`).
+  - It is a sibling of `Keys`, not a field of it, because the records'
+    type is faraday-core's `VaultRecords`: the records with the wallet
+    descriptions read from them (`Described`), which need faraday-core's
+    wallet code. `OpenVaults` is generic over any type that reads as
+    `Contents` and is made from it. Held in `Vaults`, a record is read
+    through `self.vaults.store` while another field of `self` is in use.
+- **Functions of faraday-keys.**
+  - `OpenVaults::unlock` (Costs an Argon2id run; keeps the slot and
+    returns the `VaultId` and the public header), `sealed`, `close`,
+    `clear`.
+  - `load_from_vault` and `load_key_record`, which add key records to
+    `Keys`, and `passphrase_kept_for`, now theirs.
+  - `vault::create`, `vault::measure`, `vault::write_kdbx` (encrypted
+    bytes), `vault::open_backup` (a `.oskb` as a `Held` record) and
+    `Keys::add_backup` (a `.oskb` added to the keys), `seed_of` and
+    `sheet_parts`.
+- **Temporary.** `OpenVaults::vault_records` and `vault_records_mut` lend
+  the records to faraday-core's reads and edits. Step 3b removes them.
+- The slot key is private to `vault`, as before.
 
 ### 4.1 Left after step 2, closed by step 4
 

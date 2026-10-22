@@ -90,7 +90,7 @@ pub struct FileMenu {
     pub lines: Vec<(String, Action)>,
     /// The choice the arrows are on.
     pub at: usize,
-    /// Opened or moved by a key: the arrows' choice is drawn so.
+    /// Open or moved by a key: the arrows' choice is drawn so.
     pub keys: bool,
     /// Where the ⋮ was drawn, in pixels: the popup goes under it.
     pub anchor: Option<(i32, i32, i32, i32)>,

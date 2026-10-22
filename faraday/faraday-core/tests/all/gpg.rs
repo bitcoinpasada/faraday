@@ -163,16 +163,18 @@ fn make_key(app: &mut Faraday, name: &str) {
 }
 
 fn gpg_keys(app: &Faraday) -> usize {
-    app.vaults.open[app.vaults.current]
-        .contents
+    app.vaults
+        .store
+        .vault_records(app.vaults.open[app.vaults.current].id)
         .of(kind::GPG)
         .count()
 }
 
 /// The record of the GPG key last made.
 fn record(app: &Faraday) -> faraday_vault::Record {
-    app.vaults.open[app.vaults.current]
-        .contents
+    app.vaults
+        .store
+        .vault_records(app.vaults.open[app.vaults.current].id)
         .of(kind::GPG)
         .last()
         .expect("a GPG key")
@@ -432,13 +434,19 @@ fn a_key_with_no_kept_revocation_makes_one_when_its_page_is_opened() {
     let mut app = unlocked();
     keep_the_time(&mut app);
     make_key(&mut app, "Release");
-    let at = app.vaults.open[app.vaults.current]
-        .contents
+    let at = app
+        .vaults
+        .store
+        .vault_records(app.vaults.open[app.vaults.current].id)
         .of(kind::GPG)
         .last()
         .unwrap()
         .0;
-    app.vaults.open[app.vaults.current].contents.records[at].set(8, &[]);
+    app.vaults
+        .store
+        .vault_records_mut(app.vaults.open[app.vaults.current].id)
+        .records[at]
+        .set(8, &[]);
     assert!(record(&app).field(8).is_none());
     app.press(Action::Vault(V::Item(0)));
     assert!(record(&app).field(8).is_some());

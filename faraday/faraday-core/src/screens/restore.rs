@@ -629,7 +629,7 @@ fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         any = true;
     }
     for (v, open) in app.vaults.open.iter().enumerate() {
-        for (r, rec) in open.contents.of(kind::WALLET) {
+        for (r, rec) in app.vaults.store.vault_records(open.id).of(kind::WALLET) {
             let name = rec
                 .text(field::WALLET_NAME)
                 .unwrap_or(EN.restore_sources_wallet);
@@ -717,7 +717,7 @@ fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         })
         .collect();
     for (v, open) in app.vaults.open.iter().enumerate() {
-        for (r, rec) in open.contents.of(kind::WALLET) {
+        for (r, rec) in app.vaults.store.vault_records(open.id).of(kind::WALLET) {
             let name = rec
                 .text(field::WALLET_NAME)
                 .unwrap_or(EN.restore_sources_wallet);

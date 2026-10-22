@@ -2398,7 +2398,9 @@ impl Faraday {
     /// The record of `subject` in open vault `o`, to copy it across.
     pub(crate) fn flow_record_in(&self, o: usize, kind: Kind, subject: &str) -> Option<Record> {
         let open = self.vaults.open.get(o)?;
-        open.contents
+        self.vaults
+            .store
+            .vault_records(open.id)
             .records
             .iter()
             .find(|r| {

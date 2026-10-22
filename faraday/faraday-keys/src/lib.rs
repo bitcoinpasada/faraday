@@ -4,10 +4,10 @@
 //! master key, seed words, a passphrase, a record's bytes) and gives back
 //! a public result, or a secret wrapped in `Zeroizing` where the caller
 //! needs one. The flow around each (state, sheets, toasts, the Outbox,
-//! strings) stays in faraday-core. By the later steps of `docs/KEYS.md`
-//! the session's keys and the open vault's secrets are held here too,
-//! and nothing outside this crate touches the primitive crates' secret
-//! types.
+//! strings) stays in faraday-core. The session's keys and the open
+//! vaults' slot keys and records are held here too (`docs/KEYS.md` steps
+//! 2 and 3), and nothing outside this crate touches the primitive
+//! crates' secret types.
 //!
 //! This crate does not depend on faraday-core.
 
@@ -27,6 +27,7 @@ pub mod silent;
 pub mod texts;
 pub mod totp;
 pub mod vanity;
+pub mod vault;
 
 pub use identity::{Material, fingerprint, fp_text};
 pub use operations::{Dial, Paper, codex32_seed, slip39_seed};

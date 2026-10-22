@@ -286,9 +286,8 @@ impl Faraday {
         let at = self.vault_selected_index()?;
         let r = self
             .vaults
-            .open
-            .get(self.vaults.current)?
-            .contents
+            .store
+            .vault_records(self.vaults.open.get(self.vaults.current)?.id)
             .records
             .get(at)?;
         (r.kind == kind::GPG).then(|| key_of(r).map(|k| (at, k)))?
@@ -297,9 +296,8 @@ impl Faraday {
     /// The selected key's record.
     fn gpg_record(&self, at: usize) -> Option<&Record> {
         self.vaults
-            .open
-            .get(self.vaults.current)?
-            .contents
+            .store
+            .vault_records(self.vaults.open.get(self.vaults.current)?.id)
             .records
             .get(at)
     }
@@ -396,7 +394,7 @@ impl Faraday {
         };
         let rev = faraday_keys::gpg::revocation(&key, now, Reason::Unspecified, "");
         if let Some(v) = self.vaults.open.get_mut(self.vaults.current) {
-            v.contents.records[at].set(f::REVOCATION, &rev);
+            self.vaults.store.vault_records_mut(v.id).records[at].set(f::REVOCATION, &rev);
             v.changes += 1;
         }
     }
@@ -540,9 +538,12 @@ impl Faraday {
             Err(e) => return self.toast(&e),
         };
         if let Some(v) = self.vaults.open.get_mut(self.vaults.current)
-            && v.contents.records[at].field(f::REVOKED).is_none()
+            && self.vaults.store.vault_records(v.id).records[at]
+                .field(f::REVOKED)
+                .is_none()
         {
-            v.contents.records[at].set(f::REVOKED, &now.to_le_bytes());
+            self.vaults.store.vault_records_mut(v.id).records[at]
+                .set(f::REVOKED, &now.to_le_bytes());
             v.changes += 1;
         }
         self.toast(EN.gpg_marked_revoked);
@@ -589,7 +590,7 @@ impl Faraday {
         let cert = faraday_keys::gpg::certificate(&key, at_time);
         let name = format!("{}.asc", file_stem(&key));
         if let Some(v) = self.vaults.open.get_mut(self.vaults.current) {
-            let r = &mut v.contents.records[at];
+            let r = &mut self.vaults.store.vault_records_mut(v.id).records[at];
             r.set(f::EXPIRY, &key.expiry.to_le_bytes());
             r.set(f::CERTIFICATE, &cert);
             v.changes += 1;
@@ -720,9 +721,8 @@ impl Faraday {
         let at = self.vault_selected_index()?;
         let r = self
             .vaults
-            .open
-            .get(self.vaults.current)?
-            .contents
+            .store
+            .vault_records(self.vaults.open.get(self.vaults.current)?.id)
             .records
             .get(at)?;
         let id = r.fields.iter().find(|x| x.number == f::USER_ID)?;

@@ -886,7 +886,10 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
         TEXT,
         &fill(
             EN.vault_panel_open,
-            &[&open.name.to_string(), &open.label().to_string()],
+            &[
+                &open.name.to_string(),
+                &open.label(&app.vaults.store).to_string(),
+            ],
         ),
     );
     // Select all: every row not loaded yet, or none when all are chosen.
@@ -1354,7 +1357,10 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
         ui.icon(ix, ty, 20.0, Icon::Lock, 13.0, ACCENT);
         let title = fill(
             EN.vault_open,
-            &[&open.name.to_string(), &open.label().to_string()],
+            &[
+                &open.name.to_string(),
+                &open.label(&app.vaults.store).to_string(),
+            ],
         );
         let title = ui.fit(15.0, W::S, &title, iw - 28.0);
         ui.text_mid(ix + 28.0, ty - 4.0, 28.0, 15.0, W::S, TEXT, &title);

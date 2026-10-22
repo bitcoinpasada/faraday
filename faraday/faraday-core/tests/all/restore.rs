@@ -728,8 +728,9 @@ fn restored_from_vault_named(file: &str) -> Faraday {
     assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
     let record = {
         use faraday_vault::records::{field, kind};
-        app.vaults.open[0]
-            .contents
+        app.vaults
+            .store
+            .vault_records(app.vaults.open[0].id)
             .of(kind::WALLET)
             .find(|(_, r)| r.text(field::WALLET_NAME) == Some("Spending"))
             .map(|(i, _)| i)

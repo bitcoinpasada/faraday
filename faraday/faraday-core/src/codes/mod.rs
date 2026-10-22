@@ -54,8 +54,10 @@ pub fn codes_rows(app: &Faraday, now: u64) -> Vec<CodeRow> {
     let mut out = Vec::new();
     let many = app.vaults.open.len() > 1;
     for (v, ov) in app.vaults.open.iter().enumerate() {
-        for (item, r) in ov
-            .contents
+        for (item, r) in app
+            .vaults
+            .store
+            .vault_records(ov.id)
             .records
             .iter()
             .filter(|r| r.kind == kind::ENTRY)
@@ -84,7 +86,11 @@ pub fn codes_rows(app: &Faraday, now: u64) -> Vec<CodeRow> {
                 item,
                 title,
                 account,
-                vault_name: if many { ov.label() } else { String::new() },
+                vault_name: if many {
+                    ov.label(&app.vaults.store)
+                } else {
+                    String::new()
+                },
                 kind,
             });
         }

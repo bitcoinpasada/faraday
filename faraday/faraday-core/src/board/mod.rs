@@ -196,9 +196,9 @@ pub struct Menu {
     pub rows: Vec<MenuRow>,
     /// The choice the arrows are on, by its place among the choices.
     pub at: usize,
-    /// Opened by a key: the choice the arrows are on is drawn so.
+    /// Open by a key: the choice the arrows are on is drawn so.
     pub keys: bool,
-    /// Opened from the narrow column's Add sheet, which Escape returns to.
+    /// Open from the narrow column's Add sheet, which Escape returns to.
     pub from_list: bool,
     /// Where the ⋮ was drawn, in pixels (x, y, w, h): the popup goes
     /// under it.
@@ -725,7 +725,7 @@ pub(crate) struct BoardView {
     pub warnings: Vec<String>,
     /// After the lock: paper and files take nothing.
     pub locked: bool,
-    /// Opened for changes by **Customize backup**: until then the board
+    /// Open for changes by **Customize backup**: until then the board
     /// is the placement read-only, the list a button (§19.6).
     pub custom: bool,
     /// Place names are typed by a press on a card's name.

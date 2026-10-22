@@ -55,7 +55,9 @@ impl Faraday {
     fn vault_record_of(&self, k: u8) -> Option<(usize, &faraday_vault::Record)> {
         let at = self.vault_selected_index()?;
         let v = self.vaults.open.get(self.vaults.current)?;
-        v.contents
+        self.vaults
+            .store
+            .vault_records(v.id)
             .records
             .get(at)
             .filter(|r| r.kind == k)
@@ -259,7 +261,13 @@ impl Faraday {
             .vaults
             .open
             .get(self.vaults.current)
-            .and_then(|v| v.contents.records.get(save.record))
+            .and_then(|v| {
+                self.vaults
+                    .store
+                    .vault_records(v.id)
+                    .records
+                    .get(save.record)
+            })
             .filter(|r| r.kind == kind::KEY)
             .and_then(|r| {
                 let fp = crate::vault::screen::key_fingerprint(&c, self, r).unwrap_or_default();

@@ -394,8 +394,9 @@ fn fp_of_words(words: &str) -> [u8; 4] {
 /// Where open vault 0 keeps the key whose label is `label`.
 fn key_record(app: &Faraday, label: &str) -> usize {
     use faraday_vault::records::{field, kind};
-    app.vaults.open[0]
-        .contents
+    app.vaults
+        .store
+        .vault_records(app.vaults.open[0].id)
         .records
         .iter()
         .position(|r| r.kind == kind::KEY && r.text(field::KEY_LABEL) == Some(label))

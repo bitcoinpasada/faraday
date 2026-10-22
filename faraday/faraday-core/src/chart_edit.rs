@@ -90,7 +90,9 @@ impl Faraday {
             return Vec::new();
         };
         let want = crate::wallet::same_wallet(wallet.policy());
-        open.contents
+        self.vaults
+            .store
+            .vault_records(open.id)
             .described_of(c, kind::PLAN)
             .filter(|(_, _, d)| d.same == want)
             .flat_map(|(_, r, _)| {
@@ -160,7 +162,9 @@ impl Faraday {
         let want = crate::wallet::same_wallet(wallet.policy());
         // This wallet's plan records, by place.
         let ours: Vec<usize> = self.vaults.open.get(v).map_or_else(Vec::new, |o| {
-            o.contents
+            self.vaults
+                .store
+                .vault_records(o.id)
                 .described_of(&c, kind::PLAN)
                 .filter(|(_, _, d)| d.same == want)
                 .map(|(i, _, _)| i)
@@ -179,7 +183,7 @@ impl Faraday {
         let Some(open) = self.vaults.open.get_mut(v) else {
             return false;
         };
-        let mut trial = open.contents.clone();
+        let mut trial = self.vaults.store.vault_records(open.id).clone();
         for (_, r) in trial
             .records
             .iter_mut()
@@ -195,7 +199,7 @@ impl Faraday {
             self.toast(EN.chart_edit_that_does);
             return false;
         }
-        open.contents = trial;
+        *self.vaults.store.vault_records_mut(open.id) = trial;
         open.changes += 1;
         true
     }
@@ -440,7 +444,9 @@ impl Faraday {
         let Some(open) = self.vaults.open.get(v) else {
             return Vec::new();
         };
-        open.contents
+        self.vaults
+            .store
+            .vault_records(open.id)
             .described_of(c, kind::PLAN)
             .filter(|(_, _, d)| d.same == want)
             .flat_map(|(_, r, _)| {

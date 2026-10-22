@@ -116,9 +116,8 @@ impl Faraday {
         let at = self.vault_selected_index()?;
         let r = self
             .vaults
-            .open
-            .get(self.vaults.current)?
-            .contents
+            .store
+            .vault_records(self.vaults.open.get(self.vaults.current)?.id)
             .records
             .get(at)?;
         (r.kind == kind::SECURE_BOOT).then(|| keys_of(r))?

@@ -250,7 +250,7 @@ pub struct FamilyState {
     /// (`docs/history/NEW-WALLET.md` §11.2): the column starts at Load the
     /// wallet in Sparrow, and Write the payment brings the PSBT itself.
     pub from_card: bool,
-    /// Opened from Home or from Wallets: Back goes there.
+    /// Open from Home or from Wallets: Back goes there.
     pub from: Option<Screen>,
     /// What came in on What do you have?, newest last.
     pub came: Vec<Came>,

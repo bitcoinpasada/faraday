@@ -473,10 +473,10 @@ pub struct BackupState {
     pub paper: Option<paper::PaperForm>,
     /// The list of loaded wallets is open under the wallet chip.
     pub pick: bool,
-    /// Opened from Create's Back up card: the chip says the way on is
+    /// Open from Create's Back up card: the chip says the way on is
     /// the wallet card.
     pub from_create: bool,
-    /// Opened from a chart in an open vault's view: the way back is the
+    /// Open from a chart in an open vault's view: the way back is the
     /// vault.
     pub from_vault: bool,
     /// The board's chip held, by a tap or a drag

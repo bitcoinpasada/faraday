@@ -53,8 +53,11 @@ pub(crate) fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("vault-key-save")?;
     t.press(Action::Cancel);
     t.press(Action::Vault(V::Category(1)));
-    let k = t.app.vaults.open[0]
-        .contents
+    let k = t
+        .app
+        .vaults
+        .store
+        .vault_records(t.app.vaults.open[0].id)
         .records
         .iter()
         .filter(|r| {

@@ -402,7 +402,7 @@ pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let remembered = app.vault_summary(f).map(|s| s.name.as_str());
         let (title_text, state, state_color, icon_color, edge) = match open {
             Some(v) if v.changes > 0 => (
-                v.label(),
+                v.label(&app.vaults.store),
                 fill(
                     EN.vault_open_unsaved,
                     &[
@@ -418,7 +418,13 @@ pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 ACCENT,
                 LINE,
             ),
-            Some(v) => (v.label(), EN.vault_open_2.to_string(), OK, ACCENT, LINE),
+            Some(v) => (
+                v.label(&app.vaults.store),
+                EN.vault_open_2.to_string(),
+                OK,
+                ACCENT,
+                LINE,
+            ),
             None if !app.may_load_keys() => (
                 remembered
                     .unwrap_or(if fresh {
@@ -747,7 +753,7 @@ fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let remembered = app.vault_summary(f).map(|s| s.name.as_str());
         let (title_text, state, state_color, icon_color, edge) = match open {
             Some(v) if v.changes > 0 => (
-                v.label(),
+                v.label(&app.vaults.store),
                 fill(
                     EN.vault_open_unsaved,
                     &[
@@ -763,7 +769,13 @@ fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 ACCENT,
                 LINE,
             ),
-            Some(v) => (v.label(), EN.vault_open_2.to_string(), OK, ACCENT, LINE),
+            Some(v) => (
+                v.label(&app.vaults.store),
+                EN.vault_open_2.to_string(),
+                OK,
+                ACCENT,
+                LINE,
+            ),
             None if !app.may_load_keys() => (
                 remembered
                     .unwrap_or(if fresh {
@@ -2166,7 +2178,7 @@ fn item_heading(app: &View, r: &Record) -> (String, String, bool) {
             )
         }
         kind::SHEET => {
-            let (_, name, _) = sheet_parts(r);
+            let (_, name, _) = faraday_keys::vault::sheet_parts(r);
             (
                 if name.is_empty() {
                     EN.vault_recovery_sheet.into()
@@ -2227,20 +2239,6 @@ fn item_heading(app: &View, r: &Record) -> (String, String, bool) {
             None => (EN.vault_record.to_string(), String::new(), false),
         },
         _ => (EN.vault_record.to_string(), String::new(), false),
-    }
-}
-
-fn sheet_parts(r: &Record) -> (String, String, String) {
-    match r
-        .field(field::SHEET)
-        .and_then(|p| faraday_backup::oskb::payload_of(faraday_backup::oskb::KIND_SHEET, p))
-    {
-        Some(faraday_backup::oskb::Opened::Sheet(s)) => (
-            String::from_utf8_lossy(&s.descriptor).into_owned(),
-            String::from_utf8_lossy(&s.name).into_owned(),
-            String::from_utf8_lossy(&s.note).into_owned(),
-        ),
-        _ => Default::default(),
     }
 }
 
@@ -2307,7 +2305,7 @@ fn with_record_material<T>(
             r.text(field::KEY_PASSPHRASE).unwrap_or(""),
         ),
         None => {
-            let seed = vault::seed_of(r)?;
+            let seed = faraday_keys::vault::seed_of(r)?;
             f(faraday_keys::Material::Seed(&seed), "")
         }
     }
@@ -2429,8 +2427,8 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         return;
     };
-    title(ui, x, y, &v.label());
-    let lw = ui.measure(28.0, W::S, &v.label());
+    title(ui, x, y, &v.label(&app.vaults.store));
+    let lw = ui.measure(28.0, W::S, &v.label(&app.vaults.store));
     let state = if v.changes == 0 {
         EN.vault_open_2.to_string()
     } else {
@@ -2486,7 +2484,15 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             } else {
                 Style::Secondary
             };
-            vx += ui.button(vx, y - 8.0, None, 28.0, &o.label(), style, va(V::Show(i))) + 6.0;
+            vx += ui.button(
+                vx,
+                y - 8.0,
+                None,
+                28.0,
+                &o.label(&app.vaults.store),
+                style,
+                va(V::Show(i)),
+            ) + 6.0;
         }
     }
     y += 30.0;
@@ -2503,7 +2509,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // room the other two give up (`docs/history/NEW-WALLET.md` §7.2).
     let chart_shown = app
         .vault_selected_index()
-        .and_then(|i| v.contents.records.get(i))
+        .and_then(|i| app.vaults.store.vault_records(v.id).records.get(i))
         .is_some_and(|r| r.kind == kind::WALLET);
     let (kinds_w, items_w) = if chart_shown {
         (
@@ -2565,8 +2571,10 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     }
     let (cat_label, kinds) = CATEGORIES[app.vaults.category];
-    let items: Vec<&Record> = v
-        .contents
+    let items: Vec<&Record> = app
+        .vaults
+        .store
+        .vault_records(v.id)
         .records
         .iter()
         .filter(|r| kinds.contains(&r.kind))
@@ -2739,8 +2747,10 @@ fn listed_kinds(app: &View, v: &vault::OpenVault) -> Vec<(usize, &'static str, u
         .iter()
         .enumerate()
         .map(|(k, (label, kinds))| {
-            let n = v
-                .contents
+            let n = app
+                .vaults
+                .store
+                .vault_records(v.id)
                 .records
                 .iter()
                 .filter(|r| kinds.contains(&r.kind))
@@ -2754,9 +2764,14 @@ fn listed_kinds(app: &View, v: &vault::OpenVault) -> Vec<(usize, &'static str, u
 /// Whether the contents show an empty vault's next steps: nothing in it,
 /// and nothing chosen or under way.
 fn shows_empty(app: &View, v: &vault::OpenVault) -> bool {
-    let held = CATEGORIES
-        .iter()
-        .any(|(_, kinds)| v.contents.records.iter().any(|r| kinds.contains(&r.kind)));
+    let held = CATEGORIES.iter().any(|(_, kinds)| {
+        app.vaults
+            .store
+            .vault_records(v.id)
+            .records
+            .iter()
+            .any(|r| kinds.contains(&r.kind))
+    });
     !held && !app.vaults.category_chosen && !contents_detail(app)
 }
 
@@ -2859,8 +2874,10 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     };
     let (cat_label, kinds) = CATEGORIES[app.vaults.category];
-    let items: Vec<&Record> = v
-        .contents
+    let items: Vec<&Record> = app
+        .vaults
+        .store
+        .vault_records(v.id)
         .records
         .iter()
         .filter(|r| kinds.contains(&r.kind))
@@ -2871,7 +2888,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         finish(app, ui, x0, cw, h, y - top + 16.0);
         return;
     }
-    let label = ui.fit(18.0, W::S, &v.label(), w);
+    let label = ui.fit(18.0, W::S, &v.label(&app.vaults.store), w);
     ui.text(x, y, 18.0, W::S, TEXT, &label);
     y += 28.0;
     let state = if v.changes == 0 {
@@ -2923,7 +2940,12 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     y += 52.0;
     if app.vaults.open.len() > 1 {
-        let labels: Vec<String> = app.vaults.open.iter().map(|o| o.label()).collect();
+        let labels: Vec<String> = app
+            .vaults
+            .open
+            .iter()
+            .map(|o| o.label(&app.vaults.store))
+            .collect();
         let items: Vec<(&str, Style, Action)> = labels
             .iter()
             .enumerate()
@@ -3652,7 +3674,7 @@ fn detail(
             actions.push((EN.vault_edit, va(V::Edit)));
         }
         kind::SHEET => {
-            let (d, _, note) = sheet_parts(r);
+            let (d, _, note) = faraday_keys::vault::sheet_parts(r);
             field_row(ui, &mut dy, EN.vault_descriptor, &d, true);
             if !note.is_empty() {
                 field_row(ui, &mut dy, EN.vault_note, &note, false);
@@ -4145,8 +4167,10 @@ fn save_panel(app: &View, ui: &mut Ui, v: &vault::OpenVault, dx: f32, mut dy: f3
     dy += 40.0;
     let mut any = false;
     if keys {
-        let held: Vec<String> = v
-            .contents
+        let held: Vec<String> = app
+            .vaults
+            .store
+            .vault_records(v.id)
             .of(kind::KEY)
             .filter_map(|(_, r)| app.vault_key_fingerprint(r))
             .collect();
@@ -4217,7 +4241,7 @@ fn save_panel(app: &View, ui: &mut Ui, v: &vault::OpenVault, dx: f32, mut dy: f3
         }
     } else {
         let held: Vec<String> = app
-            .described_of(&v.contents, kind::WALLET)
+            .described_of(app.vaults.store.vault_records(v.id), kind::WALLET)
             .iter()
             .map(|(_, _, d)| d.policy.to_descriptor())
             .collect();
@@ -4296,7 +4320,7 @@ pub(crate) fn lock_ask(app: &View, ui: &mut Ui, w: f32, h: f32) {
         .open
         .iter()
         .filter(|v| v.changes > 0)
-        .map(|v| v.label())
+        .map(|v| v.label(&app.vaults.store))
         .collect();
     let rows: Vec<(&str, String)> = [
         (sealed_label, sealed.join(", ")),
@@ -4581,7 +4605,9 @@ fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
 pub(crate) fn vault_has_wallet(c: &Compute, app: &Faraday, v: usize, w: &Wallet) -> bool {
     let want = crate::wallet::same_wallet(w.policy());
     app.vaults.open.get(v).is_some_and(|o| {
-        o.contents
+        app.vaults
+            .store
+            .vault_records(o.id)
             .described_of(c, kind::WALLET)
             .any(|(_, _, d)| d.same == want)
     })
@@ -4609,7 +4635,9 @@ pub(crate) fn vault_key(
     key: &faraday_keys::KeyInfo,
 ) -> Option<bool> {
     let o = app.vaults.open.get(v)?;
-    o.contents
+    app.vaults
+        .store
+        .vault_records(o.id)
         .of(kind::KEY)
         .find(|(_, r)| record_is_key(c, app, r, key))
         .map(|(_, r)| r.field(field::KEY_PASSPHRASE).is_some())
@@ -4813,7 +4841,12 @@ fn apk_review(
         dy += apk_row(ui, dx, dy, dw, EN.apk_android, &android, false);
     }
     if let Some((v, at)) = app.apk_find(&review.key)
-        && let Some(rec) = app.vaults.open[v].contents.records.get(at)
+        && let Some(rec) = app
+            .vaults
+            .store
+            .vault_records(app.vaults.open[v].id)
+            .records
+            .get(at)
         && let Some(s) = crate::apk::shown(rec, app.tz_min)
     {
         let key = format!("{} · {}", s.name, &s.hex[..16]);

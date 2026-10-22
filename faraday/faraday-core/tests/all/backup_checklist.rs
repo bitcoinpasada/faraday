@@ -260,8 +260,10 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
     {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
-    let plans: Vec<_> = app.vaults.open[0]
-        .contents
+    let plans: Vec<_> = app
+        .vaults
+        .store
+        .vault_records(app.vaults.open[0].id)
         .of(kind::PLAN)
         .map(|(_, r)| r.clone())
         .collect();
@@ -294,7 +296,14 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
     {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
-    assert_eq!(app.vaults.open[0].contents.of(kind::PLAN).count(), 1);
+    assert_eq!(
+        app.vaults
+            .store
+            .vault_records(app.vaults.open[0].id)
+            .of(kind::PLAN)
+            .count(),
+        1
+    );
     // The next backup of the wallet starts from it.
     let answers = app.backup.as_ref().unwrap().answers.clone();
     app.press(Action::Nav(Screen::Wallets));

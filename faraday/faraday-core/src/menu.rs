@@ -34,7 +34,7 @@ pub(crate) struct View<'a> {
     pub lines: &'a [Line],
     /// The choice the arrows are on, by its place among the choices.
     pub at: usize,
-    /// Opened or moved by a key: the arrows' choice is drawn so.
+    /// Open or moved by a key: the arrows' choice is drawn so.
     pub keys: bool,
     /// Where the ⋮ was drawn, in pixels (x, y, w, h): the popup goes
     /// under it.

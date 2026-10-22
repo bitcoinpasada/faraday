@@ -368,9 +368,8 @@ impl Faraday {
         let at = self.vault_selected_index()?;
         let r = self
             .vaults
-            .open
-            .get(self.vaults.current)?
-            .contents
+            .store
+            .vault_records(self.vaults.open.get(self.vaults.current)?.id)
             .records
             .get(at)?;
         (r.kind == kind::APK_KEY).then(|| (at, r.clone()))
@@ -381,7 +380,14 @@ impl Faraday {
     pub fn apk_keys_for(&self, package: &str) -> Vec<(usize, usize, String, [u8; 32])> {
         let mut out = Vec::new();
         for (v, open) in self.vaults.open.iter().enumerate() {
-            for (at, r) in open.contents.records.iter().enumerate() {
+            for (at, r) in self
+                .vaults
+                .store
+                .vault_records(open.id)
+                .records
+                .iter()
+                .enumerate()
+            {
                 if r.kind != kind::APK_KEY || r.text(field::APK_PACKAGE) != Some(package) {
                     continue;
                 }
@@ -397,7 +403,14 @@ impl Faraday {
     /// vault and place.
     pub(crate) fn apk_find(&self, fp: &[u8; 32]) -> Option<(usize, usize)> {
         for (v, open) in self.vaults.open.iter().enumerate() {
-            for (at, r) in open.contents.records.iter().enumerate() {
+            for (at, r) in self
+                .vaults
+                .store
+                .vault_records(open.id)
+                .records
+                .iter()
+                .enumerate()
+            {
                 if r.kind == kind::APK_KEY && fingerprint_of(r).as_ref() == Some(fp) {
                     return Some((v, at));
                 }
@@ -469,7 +482,8 @@ impl Faraday {
         let Some(open) = self.vaults.open.get(v) else {
             return;
         };
-        let n = open.contents.records[..at.min(open.contents.records.len())]
+        let n = self.vaults.store.vault_records(open.id).records
+            [..at.min(self.vaults.store.vault_records(open.id).records.len())]
             .iter()
             .filter(|r| r.kind == kind::APK_KEY)
             .count();
@@ -525,7 +539,7 @@ impl Faraday {
             .vaults
             .open
             .get(v)
-            .and_then(|o| o.contents.records.get(at))
+            .and_then(|o| self.vaults.store.vault_records(o.id).records.get(at))
             .and_then(crate::apk::fingerprint_of)
         else {
             return;
@@ -659,7 +673,12 @@ impl Faraday {
         let Some((v, at)) = self.apk_find(&review.key) else {
             return;
         };
-        let record = self.vaults.open[v].contents.records[at].clone();
+        let record = self
+            .vaults
+            .store
+            .vault_records(self.vaults.open[v].id)
+            .records[at]
+            .clone();
         let (Some(pkcs8), Some(cert), Some(package)) = (
             record.field(field::APK_KEY),
             record.field(field::APK_CERT),

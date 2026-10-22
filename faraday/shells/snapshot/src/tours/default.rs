@@ -1075,8 +1075,10 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.shot("vault-entry-scanned")?;
     t.press(Action::Vault(V::FormSave));
     let entries = |t: &Tour| {
-        t.app.vaults.open[0]
-            .contents
+        t.app
+            .vaults
+            .store
+            .vault_records(t.app.vaults.open[0].id)
             .records
             .iter()
             .filter(|r| r.kind == 6)
@@ -1103,8 +1105,10 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::Vault(V::PromptGo));
     t.tick();
     let keys = |t: &Tour| {
-        t.app.vaults.open[0]
-            .contents
+        t.app
+            .vaults
+            .store
+            .vault_records(t.app.vaults.open[0].id)
             .records
             .iter()
             .filter(|r| r.kind == 2)
@@ -1135,8 +1139,11 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::Vault(V::Add));
     t.shot("vault-save-key")?;
     t.press(Action::Vault(V::SaveKeyWithPassphrase(with)));
-    if !t.app.vaults.open[0]
-        .contents
+    if !t
+        .app
+        .vaults
+        .store
+        .vault_records(t.app.vaults.open[0].id)
         .records
         .iter()
         .any(|r| r.kind == 2 && r.text(4) == Some("TREZOR"))
@@ -1246,8 +1253,11 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         return Err("TOTP codes did not open".into());
     }
     t.shot("totp-codes")?;
-    let totp_item = t.app.vaults.open[0]
-        .contents
+    let totp_item = t
+        .app
+        .vaults
+        .store
+        .vault_records(t.app.vaults.open[0].id)
         .records
         .iter()
         .filter(|r| r.kind == 6)
@@ -1261,8 +1271,11 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     flow_at_make(c, t, faraday_core::backup_flow::Kind::SecureBoot);
     type_text(t, "Test");
     flow_made(t, faraday_core::backup_flow::Kind::SecureBoot)?;
-    if !t.app.vaults.open[0]
-        .contents
+    if !t
+        .app
+        .vaults
+        .store
+        .vault_records(t.app.vaults.open[0].id)
         .records
         .iter()
         .any(|r| r.kind == 8)
@@ -1293,8 +1306,11 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .find(|i| i.name == "BOOTX64.EFI")
         .map(|i| i.bytes.clone())
         .ok_or("the signed image is not in the Outbox")?;
-    let keys = t.app.vaults.open[0]
-        .contents
+    let keys = t
+        .app
+        .vaults
+        .store
+        .vault_records(t.app.vaults.open[0].id)
         .records
         .iter()
         .find(|r| r.kind == 8)

@@ -118,8 +118,10 @@ fn a_password_goes_into_the_vault_as_an_entry() {
         faraday_bip::bip85::child_password_base64(&c, app.session.keys.master_for_tests(0), 21, 0)
             .unwrap();
     let v = &app.vaults.open[0];
-    let found = v
-        .contents
+    let found = app
+        .vaults
+        .store
+        .vault_records(v.id)
         .of(kind::ENTRY)
         .any(|(_, r)| r.field(field::PASSWORD) == Some(want.as_str().as_bytes()));
     assert!(found, "the password is not an entry in the vault");

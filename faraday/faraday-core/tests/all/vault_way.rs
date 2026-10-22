@@ -254,7 +254,14 @@ fn bip85_makes_a_vault_and_comes_back_to_save_the_value() {
     let _ = app.frame();
     assert!(app.offers(Action::PVault), "Save into the vault is live");
     app.press(Action::PVault);
-    assert_eq!(app.vaults.open[0].contents.of(kind::ENTRY).count(), 1);
+    assert_eq!(
+        app.vaults
+            .store
+            .vault_records(app.vaults.open[0].id)
+            .of(kind::ENTRY)
+            .count(),
+        1
+    );
 }
 
 #[test]
@@ -270,10 +277,19 @@ fn lightning_makes_a_vault_and_comes_back_to_save_the_node_key() {
     assert_eq!(app.screen, Screen::Lightning);
     let _ = app.frame();
     assert!(app.offers(Action::LVault), "Save into the vault is live");
-    let notes = app.vaults.open[0].contents.of(kind::NOTE).count();
+    let notes = app
+        .vaults
+        .store
+        .vault_records(app.vaults.open[0].id)
+        .of(kind::NOTE)
+        .count();
     app.press(Action::LVault);
     assert_eq!(
-        app.vaults.open[0].contents.of(kind::NOTE).count(),
+        app.vaults
+            .store
+            .vault_records(app.vaults.open[0].id)
+            .of(kind::NOTE)
+            .count(),
         notes + 1
     );
 }
@@ -293,10 +309,19 @@ fn silent_payments_makes_a_vault_and_comes_back_to_save_the_scan_key() {
         app.offers(Action::SScanVault),
         "Save into the vault is live"
     );
-    let notes = app.vaults.open[0].contents.of(kind::NOTE).count();
+    let notes = app
+        .vaults
+        .store
+        .vault_records(app.vaults.open[0].id)
+        .of(kind::NOTE)
+        .count();
     app.press(Action::SScanVault);
     assert_eq!(
-        app.vaults.open[0].contents.of(kind::NOTE).count(),
+        app.vaults
+            .store
+            .vault_records(app.vaults.open[0].id)
+            .of(kind::NOTE)
+            .count(),
         notes + 1
     );
 }
@@ -358,7 +383,14 @@ fn the_secret_sheet_waits_while_a_vault_is_made_and_saves_into_it() {
         "Save into the vault is live"
     );
     app.press(Action::SecretVault);
-    assert_eq!(app.vaults.open[0].contents.of(kind::KEY).count(), 1);
+    assert_eq!(
+        app.vaults
+            .store
+            .vault_records(app.vaults.open[0].id)
+            .of(kind::KEY)
+            .count(),
+        1
+    );
     assert!(app.secret_out.is_none());
     assert!(
         app.outbox.iter().all(|i| !i.secret),

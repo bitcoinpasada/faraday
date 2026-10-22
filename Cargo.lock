@@ -924,6 +924,7 @@ name = "faraday-keys"
 version = "0.1.5"
 dependencies = [
  "faraday-apk",
+ "faraday-backup",
  "faraday-bip",
  "faraday-codec",
  "faraday-crypto",

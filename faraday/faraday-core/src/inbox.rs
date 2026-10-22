@@ -1304,22 +1304,17 @@ impl Faraday {
             return;
         };
         let label = stem(&item.name);
-        use faraday_backup::oskb::{Error, Opened};
-        let opened = faraday_backup::oskb::open_payload(&c, &item.bytes, p.passphrase.as_bytes());
+        use faraday_backup::oskb::Error;
+        use faraday_keys::vault::Added;
+        let opened = self
+            .session
+            .keys
+            .add_backup(&c, &item.bytes, p.passphrase.as_bytes(), &label);
         let result: Result<String, String> = match opened {
-            Ok(Opened::Words(m)) => self
-                .session
-                .keys
-                .add_words(&c, &phrase(&m), &label, None)
+            Ok(Added::Key(added)) => added
                 .map(|fp| fill(EN.inbox_loaded_n, &[&fp_text(fp).to_string()]))
                 .map_err(|e| e.text()),
-            Ok(Opened::Seed(s)) => self
-                .session
-                .keys
-                .add_seed(&c, &s, &label)
-                .map(|fp| fill(EN.inbox_loaded_n, &[&fp_text(fp).to_string()]))
-                .map_err(|e| e.text()),
-            Ok(Opened::Sheet(sheet)) => {
+            Ok(Added::Sheet(sheet)) => {
                 let text = String::from_utf8_lossy(&sheet.descriptor).into_owned();
                 let name = String::from_utf8_lossy(&sheet.name).into_owned();
                 let name = if name.trim().is_empty() {
@@ -1338,7 +1333,7 @@ impl Faraday {
                     .map(|_| fill(EN.inbox_loaded_n, &[&name.to_string()]))
                     .map_err(|e| e.text())
             }
-            Ok(Opened::Note(_)) => Err(EN.inbox_this_backup_holds.to_string()),
+            Ok(Added::Note) => Err(EN.inbox_this_backup_holds.to_string()),
             Err(Error::Passphrase) => Err(EN.inbox_not_this_backup.to_string()),
             Err(e) => Err(format!("{e:?}")),
         };

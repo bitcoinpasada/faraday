@@ -493,7 +493,7 @@ impl Faraday {
     ) -> Option<faraday_psbt::threshold::CarrySection> {
         let tx = tx_hash(psbt);
         for v in &self.vaults.open {
-            for (_, r) in v.contents.of(kind::ROUND) {
+            for (_, r) in self.vaults.store.vault_records(v.id).of(kind::ROUND) {
                 if r.field(field::ROUND_TX) == Some(&tx[..])
                     && r.field(field::ROUND_USED).is_none()
                     && let Some(state) = r.field(field::ROUND_STATE)
@@ -510,11 +510,13 @@ impl Faraday {
     pub(crate) fn vault_round_used(&mut self, psbt: &faraday_psbt::Psbt) {
         let tx = tx_hash(psbt);
         for v in &mut self.vaults.open {
-            let before = v.contents.records.len();
-            v.contents
+            let before = self.vaults.store.vault_records(v.id).records.len();
+            self.vaults
+                .store
+                .vault_records_mut(v.id)
                 .records
                 .retain(|r| !(r.kind == kind::ROUND && r.field(field::ROUND_TX) == Some(&tx[..])));
-            if v.contents.records.len() != before {
+            if self.vaults.store.vault_records(v.id).records.len() != before {
                 v.changes += 1;
             }
         }

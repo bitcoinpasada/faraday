@@ -425,8 +425,10 @@ pub(crate) fn of_vault_on(reads: &impl Reads, v: usize, r: usize) -> Option<Glan
     use faraday_vault::records::{field, kind};
     let app = reads.app();
     let open = app.vaults.open.get(v)?;
-    let rec = open
-        .contents
+    let rec = app
+        .vaults
+        .store
+        .vault_records(open.id)
         .records
         .get(r)
         .filter(|x| x.kind == kind::WALLET)?;
@@ -434,14 +436,19 @@ pub(crate) fn of_vault_on(reads: &impl Reads, v: usize, r: usize) -> Option<Glan
         rec.text(field::WALLET_NAME)
             .unwrap_or(EN.glance_wallet)
             .to_string(),
-        reads.described(&open.contents, r)?.policy.clone(),
+        reads
+            .described(app.vaults.store.vault_records(open.id), r)?
+            .policy
+            .clone(),
         String::new(),
         crate::wallet::Origin::Named,
     );
     // The seeds this vault keeps: their fingerprints, and whether each
     // was kept with a passphrase.
-    let kept: Vec<(String, bool)> = open
-        .contents
+    let kept: Vec<(String, bool)> = app
+        .vaults
+        .store
+        .vault_records(open.id)
         .of(kind::KEY)
         .filter_map(|(_, k)| {
             let fp = reads.key_fingerprint(k)?;
