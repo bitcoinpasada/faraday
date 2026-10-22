@@ -148,14 +148,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     }
     // Making the checklist saved the plan into the vault already.
     use faraday_vault::records::kind;
-    let count = |t: &Tour, k: u8| {
-        t.app
-            .vaults
-            .store
-            .vault_records(t.app.vaults.open[0].id)
-            .of(k)
-            .count()
-    };
+    let count = |t: &Tour, k: u8| t.app.vaults.records(t.app.vaults.open[0].id).of(k).count();
     let before = t.app.vaults.open[0].changes;
     let plans = count(t, kind::PLAN);
     let keys = count(t, kind::KEY);

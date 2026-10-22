@@ -73,11 +73,9 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     let record = t
         .app
         .vaults
-        .store
-        .vault_records(t.app.vaults.open[0].id)
-        .records
+        .records(t.app.vaults.open[0].id)
         .iter()
-        .position(|r| r.kind == faraday_vault::records::kind::KEY)
+        .position(|(_, r)| r.kind() == faraday_vault::records::kind::KEY)
         .ok_or("no key in the test vault")?;
     down(
         t,

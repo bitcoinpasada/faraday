@@ -13,7 +13,7 @@ use faraday_bip::bitcoin::ScriptBuf;
 use faraday_bip::keys::{Fingerprint, Network};
 use faraday_bip::policy::WalletPolicy;
 use faraday_codec::qr::QrMatrix;
-use faraday_vault::Record;
+use faraday_keys::vault::{RecordView, VaultId};
 
 use super::View;
 use crate::WalletKey;
@@ -174,7 +174,7 @@ impl View<'_> {
     /// Costs a parse the first time.
     pub(crate) fn record_described(
         &self,
-        r: &Record,
+        r: RecordView<'_>,
     ) -> Option<std::borrow::Cow<'_, crate::vault::Described>> {
         self.kept(|c| self.app.record_described(c, r))
     }
@@ -194,16 +194,16 @@ impl View<'_> {
         self.kept(|c| self.app.wallet_sticks_done(c))
     }
 
-    /// Each record of kind `k` among open vault records `o` with the
-    /// wallet description it holds ([`crate::vault::VaultRecords::described_of`]),
-    /// as the vault keeps them read. Costs a parse of each description
-    /// the first time after a change.
-    pub(crate) fn described_of<'r>(
+    /// Each record of kind `k` of open vault `id` with the wallet
+    /// description it holds ([`crate::vault::Vaults::described_of`]), as
+    /// the vault keeps them read. Costs a parse of each description the
+    /// first time after a change.
+    pub(crate) fn described_of(
         &self,
-        o: &'r crate::vault::VaultRecords,
+        id: VaultId,
         k: u8,
-    ) -> Vec<(usize, &'r Record, &'r crate::vault::Described)> {
-        self.kept(|c| o.described_of(c, k).collect())
+    ) -> Vec<(usize, RecordView<'_>, &crate::vault::Described)> {
+        self.kept(|c| self.app.vaults.described_of(c, id, k).collect())
     }
 
     /// Whether open vault `v` holds a wallet with `w`'s descriptor
@@ -217,7 +217,7 @@ impl View<'_> {
     /// How many words key record `r`'s seed has
     /// ([`crate::Faraday::record_word_count`]), as its open vault keeps it
     /// read. Costs a parse of the words the first time.
-    pub(crate) fn record_word_count(&self, r: &Record) -> Option<usize> {
+    pub(crate) fn record_word_count(&self, r: RecordView<'_>) -> Option<usize> {
         self.kept(|c| self.app.record_word_count(c, r))
     }
 
@@ -455,7 +455,7 @@ impl View<'_> {
     /// A vault key record's fingerprint
     /// (`vault::screen::key_fingerprint`), kept by the key's id. Costs a
     /// PBKDF2 and two elliptic-curve multiplications the first time.
-    pub fn vault_key_fingerprint(&self, r: &Record) -> Option<String> {
+    pub fn vault_key_fingerprint(&self, r: RecordView<'_>) -> Option<String> {
         self.kept(|c| crate::vault::screen::key_fingerprint(c, self.app, r))
     }
 }
@@ -500,15 +500,11 @@ impl crate::glance::Reads for View<'_> {
     fn plan_notes(&self, wallet: &Wallet, v: Option<usize>) -> Vec<plan::Note> {
         self.kept(|c| self.app.plan_notes(c, wallet, v))
     }
-    fn key_fingerprint(&self, r: &Record) -> Option<String> {
+    fn key_fingerprint(&self, r: RecordView<'_>) -> Option<String> {
         View::vault_key_fingerprint(self, r)
     }
-    fn described<'o>(
-        &self,
-        o: &'o crate::vault::VaultRecords,
-        r: usize,
-    ) -> Option<&'o crate::vault::Described> {
-        self.kept(|c| o.described(c, r))
+    fn described(&self, id: VaultId, r: usize) -> Option<&crate::vault::Described> {
+        self.kept(|c| self.app.vaults.described(c, id, r))
     }
     fn plan_mapped(&self, shape: &plan::Shape, a: &plan::Answers) -> Rc<plan::Mapped> {
         View::plan_mapped(self, shape, a)

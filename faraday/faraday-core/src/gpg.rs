@@ -18,20 +18,7 @@ use zeroize::Zeroizing;
 use crate::backup_flow::steps::Built;
 use crate::{Faraday, Item};
 
-/// The fields of a type-7 record.
-mod f {
-    pub const PRIMARY: u8 = 1;
-    pub const CREATED: u8 = 2;
-    pub const SUBKEY: u8 = 3;
-    pub const SUBKEY_CREATED: u8 = 4;
-    pub const USER_ID: u8 = 5;
-    pub const EXPIRY: u8 = 6;
-    pub const CERTIFICATE: u8 = 7;
-    /// The revocation certificate made with the key, as packets.
-    pub const REVOCATION: u8 = 8;
-    /// When the key was marked revoked (`u32`).
-    pub const REVOKED: u8 = 9;
-}
+use faraday_keys::vault::{GpgFacts as Facts, RecordView, VaultId, gpg_facts, gpg_field as f};
 
 /// GnuPG's year: 365 days, as `--quick-set-expire 2y` counts it.
 pub const YEAR: u32 = 31_536_000;
@@ -49,29 +36,21 @@ const SKEW: u32 = 5;
 /// The longest text a signing page shows of a file.
 const TEXT_MAX: usize = 2048;
 
-fn u32_of(r: &Record, n: u8) -> Option<u32> {
-    Some(u32::from_le_bytes(r.field(n)?.try_into().ok()?))
+fn u32_of(r: RecordView<'_>, n: u8) -> Option<u32> {
+    Some(u32::from_le_bytes(r.public(n)?.try_into().ok()?))
 }
 
-/// The key a type-7 record holds, its seeds wiped when it drops. `None` for a record without a signing
-/// subkey (field 3 is optional in the format, `docs/VAULT.md` §7): it is
-/// kept and shown by its user ID alone, and signs nothing.
-pub fn key_of(r: &Record) -> Option<Key> {
-    let primary = r.field(f::PRIMARY)?;
-    let subkey = r.field(f::SUBKEY)?;
-    let created = u32_of(r, f::CREATED)?;
-    faraday_keys::gpg::key_of(
-        primary,
-        created,
-        subkey,
-        u32_of(r, f::SUBKEY_CREATED).unwrap_or(created),
-        r.fields
-            .iter()
-            .filter(|x| x.number == f::USER_ID)
-            .map(|x| String::from_utf8_lossy(&x.bytes).into_owned())
-            .collect(),
-        u32_of(r, f::EXPIRY).unwrap_or(0),
-    )
+/// A key made here from fresh seeds, as the facts a record of it would
+/// give.
+fn facts_of(key: &Key) -> Facts {
+    Facts {
+        fingerprint: key.fingerprint(),
+        subkey_fingerprint: key.subkey_fingerprint(),
+        created: key.created,
+        subkey_created: key.subkey_created,
+        user_ids: key.user_ids.clone(),
+        expiry: key.expiry,
+    }
 }
 
 /// A type-7 record for a key, the certificate last made from it and the
@@ -119,12 +98,12 @@ fn signature_time(packets: &[u8]) -> Option<u32> {
 
 /// When the certificate in a record was last signed: the time of its
 /// self-signatures.
-pub fn certified_at(r: &Record) -> Option<u32> {
-    signature_time(r.field(f::CERTIFICATE)?)
+pub fn certified_at(r: RecordView<'_>) -> Option<u32> {
+    signature_time(r.public(f::CERTIFICATE)?)
 }
 
 /// When a record's key was marked revoked.
-fn revoked_at(r: &Record) -> Option<u32> {
+fn revoked_at(r: RecordView<'_>) -> Option<u32> {
     u32_of(r, f::REVOKED)
 }
 
@@ -155,9 +134,9 @@ pub fn key_id(fp: &[u8; 20]) -> String {
 
 /// A short name for files: the user ID's name part, lower-case, and the
 /// fingerprint's last eight digits.
-fn file_stem(key: &Key) -> String {
+fn file_stem(key: &Facts) -> String {
     let name = name_part(key);
-    let fp = key.fingerprint();
+    let fp = key.fingerprint;
     let tail: String = fp[16..].iter().map(|b| format!("{b:02X}")).collect();
     if name.is_empty() {
         tail
@@ -168,7 +147,7 @@ fn file_stem(key: &Key) -> String {
 
 /// The user ID's name, as a file name part: lower-case letters and digits
 /// with dashes between.
-fn name_part(key: &Key) -> String {
+fn name_part(key: &Facts) -> String {
     let name = key
         .user_ids
         .first()
@@ -184,12 +163,8 @@ fn name_part(key: &Key) -> String {
 
 /// A revocation file's name, `{name}-{FPR}.rev`: the name GnuPG gives
 /// `openpgp-revocs.d/<FPR>.rev`, with the name before it.
-fn rev_name(key: &Key) -> String {
-    let fpr: String = key
-        .fingerprint()
-        .iter()
-        .map(|b| format!("{b:02X}"))
-        .collect();
+fn rev_name(key: &Facts) -> String {
+    let fpr: String = key.fingerprint.iter().map(|b| format!("{b:02X}")).collect();
     match name_part(key) {
         n if n.is_empty() => format!("{fpr}.rev"),
         n => format!("{n}-{fpr}.rev"),
@@ -209,7 +184,7 @@ fn span(secs: u32) -> String {
 /// Whether a key can sign at `now`: not revoked, not expired, and made
 /// before now. GnuPG's refusals: a key it cannot use is "Unusable secret
 /// key"; one made in the future says so, with its ID.
-fn usable(key: &Key, revoked: Option<u32>, now: u32) -> Result<(), String> {
+fn usable(key: &Facts, revoked: Option<u32>, now: u32) -> Result<(), String> {
     if let Some(t) = revoked {
         return Err(fill(EN.gpg_revoked, &[&date(u64::from(t))]));
     }
@@ -220,8 +195,8 @@ fn usable(key: &Key, revoked: Option<u32>, now: u32) -> Result<(), String> {
         }
     }
     for (created, fp) in [
-        (key.created, key.fingerprint()),
-        (key.subkey_created, key.subkey_fingerprint()),
+        (key.created, key.fingerprint),
+        (key.subkey_created, key.subkey_fingerprint),
     ] {
         if created > now {
             return Err(fill(EN.gpg_future, &[&key_id(&fp), &span(created - now)]));
@@ -281,25 +256,19 @@ impl Faraday {
             .ok_or_else(|| EN.gpg_this_computer_s.to_string())
     }
 
-    /// The GPG key selected in the open vault, with its record's place.
-    fn gpg_selected(&self) -> Option<(usize, Key)> {
+    /// The GPG key selected in the open vault: its vault, its record's
+    /// place and what it says of itself in public. Costs two Ed25519
+    /// public keys.
+    fn gpg_selected(&self) -> Option<(VaultId, usize, Facts)> {
         let at = self.vault_selected_index()?;
-        let r = self
-            .vaults
-            .store
-            .vault_records(self.vaults.open.get(self.vaults.current)?.id)
-            .records
-            .get(at)?;
-        (r.kind == kind::GPG).then(|| key_of(r).map(|k| (at, k)))?
+        let id = self.vaults.open.get(self.vaults.current)?.id;
+        let r = self.vaults.records(id).get(at)?;
+        (r.kind() == kind::GPG).then(|| gpg_facts(r).map(|k| (id, at, k)))?
     }
 
-    /// The selected key's record.
-    fn gpg_record(&self, at: usize) -> Option<&Record> {
-        self.vaults
-            .store
-            .vault_records(self.vaults.open.get(self.vaults.current)?.id)
-            .records
-            .get(at)
+    /// Record `at` of open vault `id`.
+    fn gpg_record(&self, id: VaultId, at: usize) -> Option<RecordView<'_>> {
+        self.vaults.records(id).get(at)
     }
 
     /// Puts a file in the Outbox unless a file of that name is there that
@@ -348,7 +317,7 @@ impl Faraday {
             self.vaults.gpg_years * YEAR,
         );
         let cert = faraday_keys::gpg::certificate(&key, now);
-        let stem = file_stem(&key);
+        let stem = file_stem(&facts_of(&key));
         let revocation = faraday_keys::gpg::revocation(&key, now, Reason::Unspecified, "");
         let record = record_of(&key, &cert, &revocation);
         Ok(Built {
@@ -379,33 +348,39 @@ impl Faraday {
     /// its page is first used. Nothing is made while the clock is not
     /// known or not checked.
     pub(crate) fn gpg_keep_revocation(&mut self) {
-        let Some((at, key)) = self.gpg_selected() else {
+        let Some((id, at, _)) = self.gpg_selected() else {
             return;
         };
-        if self
-            .gpg_record(at)
-            .is_none_or(|r| r.field(f::REVOCATION).is_some())
-            || !self.clock_checked()
-        {
+        if self.gpg_record(id, at).is_none_or(|r| r.has(f::REVOCATION)) || !self.clock_checked() {
             return;
         }
         let Ok(now) = self.clock() else {
             return;
         };
-        let rev = faraday_keys::gpg::revocation(&key, now, Reason::Unspecified, "");
-        if let Some(v) = self.vaults.open.get_mut(self.vaults.current) {
-            self.vaults.store.vault_records_mut(v.id).records[at].set(f::REVOCATION, &rev);
-            v.changes += 1;
-        }
+        let Some(rev) = self
+            .vaults
+            .store()
+            .gpg_revocation(id, at, now, Reason::Unspecified, "")
+        else {
+            return;
+        };
+        self.vaults
+            .edit(id, |s| s.set_public(id, at, f::REVOCATION, &rev));
+        self.vaults.changed(id);
     }
 
     /// The selected key's public certificate, armoured, with the key.
-    fn gpg_certificate(&self) -> Option<(Key, String)> {
-        let (at, key) = self.gpg_selected()?;
-        let r = self.gpg_record(at)?;
-        let cert = match r.field(f::CERTIFICATE) {
+    fn gpg_certificate(&self) -> Option<(Facts, String)> {
+        let (id, at, key) = self.gpg_selected()?;
+        let r = self.gpg_record(id, at)?;
+        let cert = match r.public(f::CERTIFICATE) {
             Some(c) => c.to_vec(),
-            None => faraday_keys::gpg::certificate(&key, certified_at(r).unwrap_or(key.created)),
+            None => self.vaults.store().gpg_certificate(
+                id,
+                at,
+                certified_at(r).unwrap_or(key.created),
+                None,
+            )?,
         };
         Some((key, armor(Armor::PublicKey, &cert)))
     }
@@ -430,11 +405,11 @@ impl Faraday {
     /// and label of its picture.
     pub(crate) fn gpg_code(&self, c: &Compute, code: crate::Code) -> Result<crate::QrView, String> {
         use crate::Code;
-        let (at, key) = self.gpg_selected().ok_or(EN.gpg_no_gpg_key_is_selected)?;
+        let (id, at, key) = self.gpg_selected().ok_or(EN.gpg_no_gpg_key_is_selected)?;
         let stem = file_stem(&key);
         let fp = fill(
             EN.gpg_fingerprint,
-            &[&faraday_pgp::fingerprint_text(&key.fingerprint()).to_string()],
+            &[&faraday_pgp::fingerprint_text(&key.fingerprint).to_string()],
         );
         let who = key.user_ids.first().cloned().unwrap_or_default();
         let (title, text, name, lines) = match code {
@@ -456,7 +431,7 @@ impl Faraday {
                     return Err(EN.backup_flow_first.to_string());
                 }
                 let now = self.clock()?;
-                usable(&key, self.gpg_record(at).and_then(revoked_at), now)?;
+                usable(&key, self.gpg_record(id, at).and_then(revoked_at), now)?;
                 let item = self
                     .gpg_files(c)
                     .into_iter()
@@ -465,7 +440,10 @@ impl Faraday {
                     .ok_or(EN.gpg_that_file_is_no)?;
                 (
                     fill(EN.gpg_gpg_signature, &[&item.name.to_string()]),
-                    faraday_keys::gpg::sign_armored(&key, &item.bytes, now),
+                    self.vaults
+                        .store()
+                        .gpg_sign_armored(id, at, &item.bytes, now)
+                        .ok_or(EN.gpg_no_gpg_key_is_selected)?,
                     format!("{}.asc.png", item.name),
                     vec![
                         fill(EN.gpg_signs, &[&item.name.to_string()]),
@@ -482,10 +460,17 @@ impl Faraday {
     /// Offers a revocation file through the secret sheet: whoever has it
     /// can revoke the key, so it is never a public file, a code or a
     /// picture.
-    fn gpg_offer_revocation(&mut self, key: &Key, revocation: &[u8]) {
+    fn gpg_offer_revocation(&mut self, at: (VaultId, usize), key: &Facts, revocation: &[u8]) {
+        let Some(file) = self
+            .vaults
+            .store()
+            .gpg_revocation_file(at.0, at.1, revocation)
+        else {
+            return;
+        };
         let mut out = crate::secrets::SecretOut::new(
             rev_name(key),
-            Zeroizing::new(faraday_keys::gpg::revocation_file(key, revocation).into_bytes()),
+            Zeroizing::new(file.as_bytes().to_vec()),
             EN.gpg_gpg_revocation,
             EN.gpg_whoever_has_it,
         );
@@ -498,53 +483,55 @@ impl Faraday {
     /// secret sheet as `{name}-{FPR}.rev`.
     pub(crate) fn gpg_export_revocation(&mut self) {
         self.gpg_keep_revocation();
-        let Some((at, key)) = self.gpg_selected() else {
+        let Some((id, at, key)) = self.gpg_selected() else {
             return;
         };
         let Some(rev) = self
-            .gpg_record(at)
-            .and_then(|r| r.field(f::REVOCATION))
+            .gpg_record(id, at)
+            .and_then(|r| r.public(f::REVOCATION))
             .map(<[u8]>::to_vec)
         else {
             return self.toast(EN.gpg_no_revocation_kept);
         };
-        self.gpg_offer_revocation(&key, &rev);
+        self.gpg_offer_revocation((id, at), &key, &rev);
     }
 
     /// A new revocation certificate for the selected key, with the reason
     /// chosen (`gpg --generate-revocation`), through the secret sheet.
     /// The kept one is not replaced.
     pub(crate) fn gpg_make_revocation(&mut self, reason: Reason, text: &str) {
-        let Some((_, key)) = self.gpg_selected() else {
+        let Some((id, at, key)) = self.gpg_selected() else {
             return;
         };
         let now = match self.clock() {
             Ok(t) => t,
             Err(e) => return self.toast(&e),
         };
-        let rev = faraday_keys::gpg::revocation(&key, now, reason, text.trim());
-        self.gpg_offer_revocation(&key, &rev);
+        let Some(rev) = self
+            .vaults
+            .store()
+            .gpg_revocation(id, at, now, reason, text.trim())
+        else {
+            return;
+        };
+        self.gpg_offer_revocation((id, at), &key, &rev);
     }
 
     /// The key is marked revoked, as importing its own revocation
     /// certificate marks it in GnuPG: it signs nothing and renews
     /// nothing after.
     pub(crate) fn gpg_mark_revoked(&mut self) {
-        let Some((at, _)) = self.gpg_selected() else {
+        let Some((id, at, _)) = self.gpg_selected() else {
             return;
         };
         let now = match self.clock() {
             Ok(t) => t,
             Err(e) => return self.toast(&e),
         };
-        if let Some(v) = self.vaults.open.get_mut(self.vaults.current)
-            && self.vaults.store.vault_records(v.id).records[at]
-                .field(f::REVOKED)
-                .is_none()
-        {
-            self.vaults.store.vault_records_mut(v.id).records[at]
-                .set(f::REVOKED, &now.to_le_bytes());
-            v.changes += 1;
+        if self.gpg_record(id, at).is_some_and(|r| !r.has(f::REVOKED)) {
+            self.vaults
+                .edit(id, |s| s.set_public(id, at, f::REVOKED, &now.to_le_bytes()));
+            self.vaults.changed(id);
         }
         self.toast(EN.gpg_marked_revoked);
     }
@@ -556,7 +543,7 @@ impl Faraday {
         if self.selected_waits().is_some() {
             return;
         }
-        let Some((at, mut key)) = self.gpg_selected() else {
+        let Some((id, at, key)) = self.gpg_selected() else {
             return;
         };
         let Some(years) = self.vaults.renew_years else {
@@ -566,35 +553,41 @@ impl Faraday {
             Ok(t) => t,
             Err(e) => return self.toast(&e),
         };
-        let Some(r) = self.gpg_record(at) else {
+        let Some(r) = self.gpg_record(id, at) else {
             return;
         };
-        if revoked_at(r).is_some() {
+        let (revoked, certified) = (revoked_at(r), certified_at(r));
+        if revoked.is_some() {
             return self.toast(&fill(
                 EN.gpg_revoked,
-                &[&date(u64::from(revoked_at(r).unwrap_or(0)))],
+                &[&date(u64::from(revoked.unwrap_or(0)))],
             ));
         }
         // GnuPG signs one second after the last signature when the clock
         // is within 4 seconds of it, and refuses a clock earlier than
         // that ("Time conflict"): an older signature would be ignored.
-        let last = certified_at(r).unwrap_or(key.created);
+        let last = certified.unwrap_or(key.created);
         if last > now && last - now >= SKEW {
             return self.toast(EN.gpg_time_conflict);
         }
         let at_time = now.max(last.saturating_add(1));
-        key.expiry = match years {
+        let expiry = match years {
             0 => 0,
             y => now.saturating_sub(key.created) + y * YEAR,
         };
-        let cert = faraday_keys::gpg::certificate(&key, at_time);
+        let Some(cert) = self
+            .vaults
+            .store()
+            .gpg_certificate(id, at, at_time, Some(expiry))
+        else {
+            return;
+        };
         let name = format!("{}.asc", file_stem(&key));
-        if let Some(v) = self.vaults.open.get_mut(self.vaults.current) {
-            let r = &mut self.vaults.store.vault_records_mut(v.id).records[at];
-            r.set(f::EXPIRY, &key.expiry.to_le_bytes());
-            r.set(f::CERTIFICATE, &cert);
-            v.changes += 1;
-        }
+        self.vaults.edit(id, |s| {
+            s.set_public(id, at, f::EXPIRY, &expiry.to_le_bytes());
+            s.set_public(id, at, f::CERTIFICATE, &cert);
+        });
+        self.vaults.changed(id);
         self.vaults.renew_years = None;
         if self.put_unless_taken(&name, armor(Armor::PublicKey, &cert).into_bytes(), |i| {
             faraday_pgp::read_public_armor(&i.bytes) == Some(Armor::PublicKey)
@@ -712,7 +705,7 @@ impl Faraday {
 
     /// The selected key's fingerprint.
     pub(crate) fn gpg_fingerprint(&self) -> Option<[u8; 20]> {
-        self.gpg_selected().map(|(_, k)| k.fingerprint())
+        self.gpg_selected().map(|(_, _, k)| k.fingerprint)
     }
 
     /// The selected key's first user ID, which Sign with {key} names it
@@ -721,12 +714,10 @@ impl Faraday {
         let at = self.vault_selected_index()?;
         let r = self
             .vaults
-            .store
-            .vault_records(self.vaults.open.get(self.vaults.current)?.id)
-            .records
+            .records(self.vaults.open.get(self.vaults.current)?.id)
             .get(at)?;
-        let id = r.fields.iter().find(|x| x.number == f::USER_ID)?;
-        Some(String::from_utf8_lossy(&id.bytes).into_owned())
+        let id = r.public_all(f::USER_ID).next()?;
+        Some(String::from_utf8_lossy(id).into_owned())
     }
 
     /// Costs a hash of a whole file (through `gpg_files`). The listed files
@@ -775,11 +766,11 @@ impl Faraday {
         if self.selected_waits().is_some() {
             return;
         }
-        let Some((at, key)) = self.gpg_selected() else {
+        let Some((id, at, key)) = self.gpg_selected() else {
             return;
         };
         // The page was opened for another key: nothing is signed.
-        if self.vaults.sign_key != Some(key.fingerprint()) {
+        if self.vaults.sign_key != Some(key.fingerprint) {
             self.gpg_page_reset();
             return;
         }
@@ -787,7 +778,7 @@ impl Faraday {
             Ok(t) => t,
             Err(e) => return self.toast(&e),
         };
-        if let Err(e) = usable(&key, self.gpg_record(at).and_then(revoked_at), now) {
+        if let Err(e) = usable(&key, self.gpg_record(id, at).and_then(revoked_at), now) {
             return self.toast(&e);
         }
         let ticked = std::mem::take(&mut self.vaults.sign_ticked);
@@ -808,7 +799,13 @@ impl Faraday {
                 failure.get_or_insert_with(|| fill(EN.gpg_exists, &[&out.to_string()]));
                 continue;
             }
-            let sig = faraday_keys::gpg::sign_armored(&key, &self.inbox[k].bytes, now);
+            let Some(sig) = self
+                .vaults
+                .store()
+                .gpg_sign_armored(id, at, &self.inbox[k].bytes, now)
+            else {
+                continue;
+            };
             self.put_outbox(&out, sig.into_bytes());
             written += 1;
         }
@@ -852,14 +849,14 @@ pub struct Shown {
 
 /// What a type-7 record shows. The dates are local (`docs/TOTP.md`
 /// §2.3); the key's own creation and expiry stay UTC (`key.created`).
-pub fn shown(r: &Record, tz_min: i16) -> Option<Shown> {
-    let key = key_of(r)?;
+pub fn shown(r: RecordView<'_>, tz_min: i16) -> Option<Shown> {
+    let key = gpg_facts(r)?;
     let local = |t: u64| date(crate::vault::local_secs(t, tz_min));
     Some(Shown {
-        fingerprint: faraday_pgp::fingerprint_text(&key.fingerprint()),
-        subkey: faraday_pgp::fingerprint_text(&key.subkey_fingerprint()),
-        subkey_id: key_id(&key.subkey_fingerprint()),
-        key_id: key_id(&key.fingerprint()),
+        fingerprint: faraday_pgp::fingerprint_text(&key.fingerprint),
+        subkey: faraday_pgp::fingerprint_text(&key.subkey_fingerprint),
+        subkey_id: key_id(&key.subkey_fingerprint),
+        key_id: key_id(&key.fingerprint),
         user_ids: key.user_ids.clone(),
         created: local(u64::from(key.created)),
         expires: if key.expiry == 0 {
@@ -868,17 +865,9 @@ pub fn shown(r: &Record, tz_min: i16) -> Option<Shown> {
             local(u64::from(key.created) + u64::from(key.expiry))
         },
         revocation_kept: r
-            .field(f::REVOCATION)
+            .public(f::REVOCATION)
             .and_then(signature_time)
             .map(|t| local(u64::from(t))),
         revoked: revoked_at(r).map(|t| local(u64::from(t))),
     })
-}
-
-/// The paperkey text of a type-7 record: secret, made only to be shown,
-/// wiped when dropped.
-pub fn paperkey(r: &Record) -> Option<Zeroizing<String>> {
-    // The key wipes its seeds when it drops.
-    let key = key_of(r)?;
-    Some(faraday_keys::gpg::paperkey(&key))
 }

@@ -29,6 +29,7 @@ use crate::ui::{Style, Ui, W};
 use crate::wallet::{Session, fp_text};
 use crate::wallet_backup::Tone;
 use crate::{Action, Faraday};
+use faraday_keys::vault::{RecordView, VaultId};
 
 /// What the chart, its sheet and the checklist's titles read of the app
 /// that a frame keeps: through [`View`]'s memo and kept accessors while a
@@ -67,14 +68,10 @@ pub(crate) trait Reads {
     fn plan_notes(&self, wallet: &crate::wallet::Wallet, v: Option<usize>) -> Vec<plan::Note>;
     /// A vault key record's fingerprint
     /// ([`crate::vault::screen::key_fingerprint`]).
-    fn key_fingerprint(&self, r: &faraday_vault::Record) -> Option<String>;
-    /// The wallet description record `r` of open vault records `o` holds
-    /// ([`crate::vault::VaultRecords::described`]).
-    fn described<'o>(
-        &self,
-        o: &'o crate::vault::VaultRecords,
-        r: usize,
-    ) -> Option<&'o crate::vault::Described>;
+    fn key_fingerprint(&self, r: RecordView<'_>) -> Option<String>;
+    /// The wallet description record `r` of open vault `id` holds
+    /// ([`crate::vault::Vaults::described`]).
+    fn described(&self, id: VaultId, r: usize) -> Option<&crate::vault::Described>;
     /// A plan's map ([`Faraday::plan_mapped`]).
     fn plan_mapped(&self, shape: &plan::Shape, a: &plan::Answers) -> std::rc::Rc<plan::Mapped>;
     /// A plan's check on its map ([`plan::Mapped::check`]).
@@ -147,15 +144,11 @@ impl Reads for Now<'_> {
     fn plan_notes(&self, wallet: &crate::wallet::Wallet, v: Option<usize>) -> Vec<plan::Note> {
         self.app.plan_notes(self.c, wallet, v)
     }
-    fn key_fingerprint(&self, r: &faraday_vault::Record) -> Option<String> {
+    fn key_fingerprint(&self, r: RecordView<'_>) -> Option<String> {
         crate::vault::screen::key_fingerprint(self.c, self.app, r)
     }
-    fn described<'o>(
-        &self,
-        o: &'o crate::vault::VaultRecords,
-        r: usize,
-    ) -> Option<&'o crate::vault::Described> {
-        o.described(self.c, r)
+    fn described(&self, id: VaultId, r: usize) -> Option<&crate::vault::Described> {
+        self.app.vaults.described(self.c, id, r)
     }
     fn plan_mapped(&self, shape: &plan::Shape, a: &plan::Answers) -> std::rc::Rc<plan::Mapped> {
         self.app.plan_mapped(self.c, shape, a)
@@ -427,19 +420,14 @@ pub(crate) fn of_vault_on(reads: &impl Reads, v: usize, r: usize) -> Option<Glan
     let open = app.vaults.open.get(v)?;
     let rec = app
         .vaults
-        .store
-        .vault_records(open.id)
-        .records
+        .records(open.id)
         .get(r)
-        .filter(|x| x.kind == kind::WALLET)?;
+        .filter(|x| x.kind() == kind::WALLET)?;
     let wallet = crate::wallet::Wallet::new(
-        rec.text(field::WALLET_NAME)
+        rec.public_text(field::WALLET_NAME)
             .unwrap_or(EN.glance_wallet)
             .to_string(),
-        reads
-            .described(app.vaults.store.vault_records(open.id), r)?
-            .policy
-            .clone(),
+        reads.described(open.id, r)?.policy.clone(),
         String::new(),
         crate::wallet::Origin::Named,
     );
@@ -447,12 +435,11 @@ pub(crate) fn of_vault_on(reads: &impl Reads, v: usize, r: usize) -> Option<Glan
     // was kept with a passphrase.
     let kept: Vec<(String, bool)> = app
         .vaults
-        .store
-        .vault_records(open.id)
+        .records(open.id)
         .of(kind::KEY)
         .filter_map(|(_, k)| {
             let fp = reads.key_fingerprint(k)?;
-            Some((fp, k.field(field::KEY_PASSPHRASE).is_some()))
+            Some((fp, k.has(field::KEY_PASSPHRASE)))
         })
         .collect();
     let in_vault: Vec<String> = kept.iter().map(|(f, _)| f.clone()).collect();

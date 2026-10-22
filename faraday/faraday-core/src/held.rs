@@ -11,6 +11,7 @@ use crate::strings::EN;
 use crate::strings::fill;
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
+use faraday_keys::vault::RecordView;
 use faraday_vault::records::{self, Record, field, kind};
 
 use crate::glance::{Now, Reads};
@@ -22,7 +23,7 @@ use crate::{Action, BStage, Faraday, Screen, bstep, plan};
 /// list: told by the SHA-256 of each one's entropy
 /// ([`wallet::WordsId`]), all 32 bytes, both kept once worked out, so
 /// nothing parses the words again and two seeds never pass for one.
-fn same_words(c: &Compute, app: &Faraday, r: &Record, key: usize) -> bool {
+fn same_words(c: &Compute, app: &Faraday, r: RecordView<'_>, key: usize) -> bool {
     app.session
         .keys
         .words_id(c, key)
@@ -30,13 +31,23 @@ fn same_words(c: &Compute, app: &Faraday, r: &Record, key: usize) -> bool {
 }
 
 /// Whether vault key record `r` says its key's backup is pending.
-fn pending(r: &Record) -> bool {
-    r.field(field::KEY_FLAGS)
+fn pending(r: RecordView<'_>) -> bool {
+    r.public(field::KEY_FLAGS)
         .and_then(|f| f.first())
         .is_some_and(|b| b & records::BACKUP_PENDING != 0)
 }
 
 impl Faraday {
+    /// Key record `i` of open vault `id`'s flags, 0 where it has none.
+    fn flags_of(&self, id: faraday_keys::vault::VaultId, i: usize) -> u8 {
+        self.vaults
+            .records(id)
+            .get(i)
+            .and_then(|r| r.public(field::KEY_FLAGS))
+            .and_then(|f| f.first().copied())
+            .unwrap_or(0)
+    }
+
     /// Costs what `same_words` costs. Whether open vault `o` holds session
     /// key `k`'s seed: a key record of its words, and with `with_pass`,
     /// with its passphrase too.
@@ -50,16 +61,14 @@ impl Faraday {
         let Some(open) = self.vaults.open.get(o) else {
             return false;
         };
-        self.vaults
-            .store
-            .vault_records(open.id)
-            .of(kind::KEY)
-            .any(|(_, r)| {
-                same_words(c, self, r, k)
-                    && (!with_pass
-                        || r.text(field::KEY_PASSPHRASE)
-                            .is_some_and(|p| self.session.keys.passphrase_is(k, p)))
-            })
+        self.vaults.records(open.id).of(kind::KEY).any(|(_, r)| {
+            same_words(c, self, r, k)
+                && (!with_pass
+                    || self
+                        .vaults
+                        .store()
+                        .stores_passphrase_of(r, &self.session.keys, k))
+        })
     }
 
     /// Marks key `fp` as made here: held until its backup is done.
@@ -131,8 +140,8 @@ impl Faraday {
             }
         };
         for open in &self.vaults.open {
-            for (_, r) in self.vaults.store.vault_records(open.id).of(kind::PLAN) {
-                let Some(text) = r.text(field::PLAN_ANSWERS) else {
+            for (_, r) in self.vaults.records(open.id).of(kind::PLAN) {
+                let Some(text) = r.public_text(field::PLAN_ANSWERS) else {
                     continue;
                 };
                 for held in plan::held_in(text) {
@@ -148,10 +157,9 @@ impl Faraday {
             }
             for (_, r) in self
                 .vaults
-                .store
-                .vault_records(open.id)
+                .records(open.id)
                 .of(kind::KEY)
-                .filter(|(_, r)| pending(r))
+                .filter(|(_, r)| pending(*r))
             {
                 for (i, k) in self.session.keys.all().enumerate() {
                     if !same_words(c, self, r, i) {
@@ -246,23 +254,17 @@ impl Faraday {
             for &k in &keys {
                 let marks: Vec<usize> = self
                     .vaults
-                    .store
-                    .vault_records(self.vaults.open[v].id)
+                    .records(self.vaults.open[v].id)
                     .of(kind::KEY)
-                    .filter(|(_, r)| same_words(&c, self, r, k) && !pending(r))
+                    .filter(|(_, r)| same_words(&c, self, *r, k) && !pending(*r))
                     .map(|(i, _)| i)
                     .collect();
+                let id = self.vaults.open[v].id;
                 for i in marks {
-                    let r = &mut self
-                        .vaults
-                        .store
-                        .vault_records_mut(self.vaults.open[v].id)
-                        .records[i];
-                    let flags = r
-                        .field(field::KEY_FLAGS)
-                        .and_then(|f| f.first().copied())
-                        .unwrap_or(0);
-                    r.set(field::KEY_FLAGS, &[flags | records::BACKUP_PENDING]);
+                    let flags = self.flags_of(id, i);
+                    self.vaults.edit(id, |s| {
+                        s.set_public(id, i, field::KEY_FLAGS, &[flags | records::BACKUP_PENDING])
+                    });
                     changed = true;
                 }
             }
@@ -344,33 +346,26 @@ impl Faraday {
             }
             let marks: Vec<usize> = self
                 .vaults
-                .store
-                .vault_records(self.vaults.open[v].id)
+                .records(self.vaults.open[v].id)
                 .of(kind::KEY)
-                .filter(|(_, r)| same_words(&c, self, r, k) && pending(r))
+                .filter(|(_, r)| same_words(&c, self, *r, k) && pending(*r))
                 .map(|(i, _)| i)
                 .collect();
+            let id = self.vaults.open[v].id;
             for i in marks {
-                let r = &mut self
-                    .vaults
-                    .store
-                    .vault_records_mut(self.vaults.open[v].id)
-                    .records[i];
-                let flags = r
-                    .field(field::KEY_FLAGS)
-                    .and_then(|f| f.first().copied())
-                    .unwrap_or(0);
-                r.set(field::KEY_FLAGS, &[flags & !records::BACKUP_PENDING]);
+                let flags = self.flags_of(id, i);
+                self.vaults.edit(id, |s| {
+                    s.set_public(id, i, field::KEY_FLAGS, &[flags & !records::BACKUP_PENDING])
+                });
                 changed = true;
             }
             // The plans that name the key held: only those change.
             let plans: Vec<usize> = self
                 .vaults
-                .store
-                .vault_records(self.vaults.open[v].id)
+                .records(self.vaults.open[v].id)
                 .of(kind::PLAN)
                 .filter(|(_, r)| {
-                    r.text(field::PLAN_ANSWERS).is_some_and(|a| {
+                    r.public_text(field::PLAN_ANSWERS).is_some_and(|a| {
                         plan::held_in(a)
                             .iter()
                             .any(|h| h.eq_ignore_ascii_case(&text))
@@ -379,16 +374,18 @@ impl Faraday {
                 .map(|(i, _)| i)
                 .collect();
             for i in plans {
-                let r = &mut self
+                let Some(answers) = self
                     .vaults
-                    .store
-                    .vault_records_mut(self.vaults.open[v].id)
-                    .records[i];
-                if r.kind == kind::PLAN
-                    && let Some(answers) = r.text(field::PLAN_ANSWERS)
-                    && plan::held_in(answers)
-                        .iter()
-                        .any(|h| h.eq_ignore_ascii_case(&text))
+                    .records(id)
+                    .get(i)
+                    .filter(|r| r.kind() == kind::PLAN)
+                    .and_then(|r| r.public_text(field::PLAN_ANSWERS))
+                else {
+                    continue;
+                };
+                if plan::held_in(answers)
+                    .iter()
+                    .any(|h| h.eq_ignore_ascii_case(&text))
                 {
                     let kept: String = answers
                         .lines()
@@ -398,7 +395,9 @@ impl Faraday {
                         })
                         .map(|l| format!("{l}\n"))
                         .collect();
-                    r.set(field::PLAN_ANSWERS, kept.as_bytes());
+                    self.vaults.edit(id, |s| {
+                        s.set_public(id, i, field::PLAN_ANSWERS, kept.as_bytes())
+                    });
                     changed = true;
                 }
             }
@@ -485,28 +484,22 @@ impl Faraday {
         if self.backup_vault_taken(&c, v, cur) {
             return;
         }
-        let Some(open) = self.vaults.open.get_mut(cur) else {
+        let Some(id) = self.vaults.open.get(cur).map(|o| o.id) else {
             return;
         };
         // This wallet's records whose mark is not as wanted yet.
         let to_set: Vec<usize> = self
             .vaults
-            .store
-            .vault_records(open.id)
-            .described_of(&c, kind::WALLET)
-            .filter(|(_, r, d)| {
-                d.same == want && faraday_vault::records::loads_at_unlock(r) != loads
-            })
+            .described_of(&c, id, kind::WALLET)
+            .filter(|(_, r, d)| d.same == want && r.loads_at_unlock() != loads)
             .map(|(i, _, _)| i)
             .collect();
         for &i in &to_set {
-            faraday_vault::records::set_loads_at_unlock(
-                &mut self.vaults.store.vault_records_mut(open.id).records[i],
-                loads,
-            );
+            self.vaults
+                .edit(id, |s| s.set_loads_at_unlock(id, i, loads));
         }
         if !to_set.is_empty() {
-            open.changes += 1;
+            self.vaults.changed(id);
         }
     }
 
@@ -587,15 +580,13 @@ impl Faraday {
                     )
                     .to_string(),
             );
-            if let Some(open) = self.vaults.open.get_mut(cur) {
-                self.vaults
-                    .store
-                    .vault_records_mut(open.id)
-                    .records
-                    .retain(|r| {
-                        !(r.kind == kind::PASSPHRASE
-                            && r.field(field::PASSPHRASE_KEY) == Some(&fp.0[..]))
-                    });
+            if let Some(id) = self.vaults.open.get(cur).map(|o| o.id) {
+                self.vaults.edit(id, |s| {
+                    s.remove_where(id, |r| {
+                        r.kind() == kind::PASSPHRASE
+                            && r.public(field::PASSPHRASE_KEY) == Some(&fp.0[..])
+                    })
+                });
             }
             let record = Record::new(kind::PASSPHRASE)
                 .with(field::PASSPHRASE_KEY, &fp.0)
@@ -619,12 +610,10 @@ impl Faraday {
             let number = u8::try_from(j + 1).unwrap_or(u8::MAX);
             // This wallet's share of that number, told by the wallet and
             // never by its name, is replaced.
-            if let Some(open) = self.vaults.open.get_mut(cur) {
-                self.vaults
-                    .store
-                    .vault_records_mut(open.id)
-                    .records
-                    .retain(|r| !crate::share_record_is(&c, r, &cs, Some(j)));
+            if let Some(id) = self.vaults.open.get(cur).map(|o| o.id) {
+                self.vaults.edit(id, |s| {
+                    s.remove_where(id, |r| crate::share_record_is(&c, r, &cs, Some(j)))
+                });
             }
             let record = Record::new(kind::WALLET_SHARE)
                 .with(field::SHARE, text.as_bytes())

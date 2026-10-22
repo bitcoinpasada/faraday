@@ -56,18 +56,18 @@ pub(crate) fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
     let k = t
         .app
         .vaults
-        .store
-        .vault_records(t.app.vaults.open[0].id)
-        .records
+        .records(t.app.vaults.open[0].id)
         .iter()
-        .filter(|r| {
+        .filter(|(_, r)| {
             [
                 faraday_vault::records::kind::WALLET,
                 faraday_vault::records::kind::WALLET_SHARE,
             ]
-            .contains(&r.kind)
+            .contains(&r.kind())
         })
-        .position(|r| r.text(faraday_vault::records::field::WALLET_NAME) == Some("Spending"))
+        .position(|(_, r)| {
+            r.public_text(faraday_vault::records::field::WALLET_NAME) == Some("Spending")
+        })
         .ok_or("no Spending in the test vault")?;
     t.press(Action::Vault(V::Item(k)));
     t.press(Action::Vault(V::SaveToStick));

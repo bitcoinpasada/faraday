@@ -99,8 +99,9 @@ pub enum Reveal {
     LightningKey,
     /// The key a GPG paperkey is made from.
     GpgPaperkey,
-    /// A secret put into a vault record: a key's words or passphrase (a
-    /// password or a TOTP code joins when the vault moves in).
+    /// A secret of a vault record put on screen, into a form or into a
+    /// record: a key's words or passphrase, an entry's password, TOTP
+    /// secret or notes, a note's text.
     VaultEntry(Part),
     /// An unprotected file to the Outbox.
     OutboxFile(Part),
@@ -118,16 +119,25 @@ pub enum Part {
     Passphrase,
     /// The seed's SeedQR picture (made by an operation, not lent).
     SeedQr,
+    /// An entry's password.
+    Password,
+    /// An entry's TOTP secret, and the code made from it.
+    Totp,
+    /// A note's text.
+    Note,
+    /// An entry's notes.
+    EntryNotes,
 }
 
 impl Reveal {
     /// Which text this reason gives.
-    fn part(self) -> Part {
+    pub(crate) fn part(self) -> Part {
         match self {
             Reveal::Passphrase
             | Reveal::VaultEntry(Part::Passphrase)
             | Reveal::OutboxFile(Part::Passphrase)
             | Reveal::BackupStick(Part::Passphrase) => Part::Passphrase,
+            Reveal::VaultEntry(p) | Reveal::OutboxFile(p) | Reveal::BackupStick(p) => p,
             _ => Part::Words,
         }
     }
@@ -164,13 +174,44 @@ impl<T> std::ops::Deref for Held<T> {
 /// store's own wiped text and makes no copy of it. Empty for a key that
 /// has no such text.
 pub struct Revealed<'a> {
-    text: &'a str,
+    text: Text<'a>,
+}
+
+/// A revealed text is the store's own (lent), or made for the guard (a
+/// vault record's words, written out from its payload) and wiped with it.
+enum Text<'a> {
+    Lent(&'a str),
+    Made(Zeroizing<String>),
+}
+
+impl<'a> Revealed<'a> {
+    /// No text: what a reveal of a field that is not there gives.
+    pub fn empty() -> Revealed<'a> {
+        Revealed::lent("")
+    }
+
+    /// A text lent from the store.
+    pub(crate) fn lent(text: &'a str) -> Revealed<'a> {
+        Revealed {
+            text: Text::Lent(text),
+        }
+    }
+
+    /// A text made for this guard.
+    pub(crate) fn made(text: Zeroizing<String>) -> Revealed<'a> {
+        Revealed {
+            text: Text::Made(text),
+        }
+    }
 }
 
 impl std::ops::Deref for Revealed<'_> {
     type Target = str;
     fn deref(&self) -> &str {
-        self.text
+        match &self.text {
+            Text::Lent(t) => t,
+            Text::Made(t) => t.as_str(),
+        }
     }
 }
 
@@ -634,10 +675,9 @@ impl Keys {
         let text = self.entries.get(i).and_then(|e| match why.part() {
             Part::Words | Part::SeedQr => e.key.words.as_deref(),
             Part::Passphrase => e.key.passphrase.as_deref(),
+            _ => None,
         });
-        Revealed {
-            text: text.map_or("", |t| t.as_str()),
-        }
+        Revealed::lent(text.map_or("", |t| t.as_str()))
     }
 
     // ---- operations on a key's secret ----

@@ -331,8 +331,8 @@ fn single_key_with(
     };
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::KEY)
             .count(),
         0,
@@ -389,8 +389,8 @@ fn single_key_with(
     save_vaults(&mut app);
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::KEY)
             .count(),
         1,
@@ -398,8 +398,8 @@ fn single_key_with(
     );
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::WALLET)
             .count(),
         usize::from(description_in_vault),
@@ -498,8 +498,8 @@ fn the_hold_on_the_key_stays_until_the_last_stick_is_written_and_a_lock_resumes_
     );
     let pending = app
         .vaults
-        .store
-        .vault_records(app.vaults.open[0].id)
+        .store()
+        .contents_for_tests(app.vaults.open[0].id)
         .of(kind::KEY)
         .any(|(_, r)| {
             r.field(faraday_vault::records::field::KEY_FLAGS)
@@ -705,7 +705,11 @@ fn two_of_three_ready(shell: &mut Shell, software: bool) -> Faraday {
     assert_eq!(app.vaults.open.len(), 3);
     for o in &app.vaults.open {
         assert_eq!(
-            app.vaults.store.vault_records(o.id).of(kind::KEY).count(),
+            app.vaults
+                .store()
+                .contents_for_tests(o.id)
+                .of(kind::KEY)
+                .count(),
             0
         );
     }
@@ -731,7 +735,11 @@ fn two_of_three_ready(shell: &mut Shell, software: bool) -> Faraday {
     save_vaults(&mut app);
     for o in &app.vaults.open {
         assert_eq!(
-            app.vaults.store.vault_records(o.id).of(kind::KEY).count(),
+            app.vaults
+                .store()
+                .contents_for_tests(o.id)
+                .of(kind::KEY)
+                .count(),
             1
         );
     }
@@ -928,7 +936,11 @@ fn a_two_of_three_with_key_3_on_paper_asks_for_two_sticks_and_holds_key_3_until_
     save_vaults(&mut app);
     for o in &app.vaults.open {
         assert_eq!(
-            app.vaults.store.vault_records(o.id).of(kind::KEY).count(),
+            app.vaults
+                .store()
+                .contents_for_tests(o.id)
+                .of(kind::KEY)
+                .count(),
             1
         );
     }
@@ -1135,8 +1147,8 @@ fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once() {
     // The seed typed is in no vault until the plan says so.
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::KEY)
             .count(),
         0
@@ -1148,16 +1160,16 @@ fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once() {
     save_vaults(&mut app);
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::KEY)
             .count(),
         1
     );
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::WALLET)
             .count(),
         1
@@ -1204,7 +1216,13 @@ fn changing_the_plan_after_the_lock_runs_the_round_and_writes_the_vault_again() 
         .vaults
         .open
         .iter()
-        .map(|o| app.vaults.store.vault_records(o.id).of(kind::KEY).count())
+        .map(|o| {
+            app.vaults
+                .store()
+                .contents_for_tests(o.id)
+                .of(kind::KEY)
+                .count()
+        })
         .max();
     assert_eq!(
         n,
@@ -1248,8 +1266,8 @@ fn changing_the_plan_after_the_lock_runs_the_round_and_writes_the_vault_again() 
     unlock(&mut next, PHRASE_2);
     assert_eq!(
         next.vaults
-            .store
-            .vault_records(next.vaults.open[0].id)
+            .store()
+            .contents_for_tests(next.vaults.open[0].id)
             .of(kind::KEY)
             .count(),
         2
@@ -1553,16 +1571,16 @@ fn a_wallet_left_with_its_vaults_open_does_not_take_the_next_wallets_keys() {
     assert!(app.create.as_ref().unwrap().built.is_some());
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::KEY)
             .count(),
         0
     );
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::WALLET)
             .count(),
         0
@@ -1788,31 +1806,36 @@ fn the_round_keeps_a_passphrase_apart_and_copies_only_this_wallets_records() {
     let foreign = Record::new(kind::WALLET)
         .with(field::WALLET, testkit::savings().as_bytes())
         .with(field::WALLET_NAME, b"Other");
-    app.vaults
-        .store
-        .vault_records_mut(app.vaults.open[0].id)
-        .records
-        .push(foreign);
+    {
+        let id = app.vaults.open[0].id;
+        app.vaults.edit(id, |s| s.insert(id, foreign));
+    }
     let foreign_plan = Record::new(kind::PLAN)
         .with(field::PLAN_WALLET, testkit::savings().as_bytes())
         .with(field::PLAN_ANSWERS, b"other");
-    app.vaults
-        .store
-        .vault_records_mut(app.vaults.open[0].id)
-        .records
-        .push(foreign_plan);
+    {
+        let id = app.vaults.open[0].id;
+        app.vaults.edit(id, |s| s.insert(id, foreign_plan));
+    }
     shell.flow(&mut app, F::CopyKey);
     let target = app
         .vaults
         .open
         .iter()
-        .find(|o| app.vaults.store.vault_records(o.id).of(kind::KEY).count() == 2)
+        .find(|o| {
+            app.vaults
+                .store()
+                .contents_for_tests(o.id)
+                .of(kind::KEY)
+                .count()
+                == 2
+        })
         .expect("the vault that took the seed");
     // The passphrase stays apart: no record of it in the vault.
     assert!(
         app.vaults
-            .store
-            .vault_records(target.id)
+            .store()
+            .contents_for_tests(target.id)
             .of(kind::KEY)
             .all(|(_, r)| r.field(field::KEY_PASSPHRASE).is_none()),
         "a passphrase kept apart is not put in the vault"
@@ -1820,8 +1843,8 @@ fn the_round_keeps_a_passphrase_apart_and_copies_only_this_wallets_records() {
     // Nothing of the other wallet went across.
     let has_foreign = app
         .vaults
-        .store
-        .vault_records(target.id)
+        .store()
+        .contents_for_tests(target.id)
         .of(kind::WALLET)
         .any(|(_, r)| {
             r.text(field::WALLET).is_some_and(|t| {
@@ -1831,8 +1854,8 @@ fn the_round_keeps_a_passphrase_apart_and_copies_only_this_wallets_records() {
     assert!(!has_foreign, "another wallet's description was copied");
     let has_foreign_plan = app
         .vaults
-        .store
-        .vault_records(target.id)
+        .store()
+        .contents_for_tests(target.id)
         .of(kind::PLAN)
         .any(|(_, r)| r.text(field::PLAN_WALLET) == Some(testkit::savings().as_str()));
     assert!(!has_foreign_plan, "another wallet's plan was copied");
@@ -1942,8 +1965,8 @@ fn passphrase_records(app: &Faraday, v: usize) -> Vec<(Vec<u8>, Vec<u8>)> {
         .find(|o| o.header().salt == salt)
         .expect("the vault is open");
     app.vaults
-        .store
-        .vault_records(open.id)
+        .store()
+        .contents_for_tests(open.id)
         .of(kind::PASSPHRASE)
         .map(|(_, r)| {
             (
@@ -1968,15 +1991,17 @@ fn the_round_copies_a_lone_passphrase_from_another_vaults_passphrase_record() {
             .iter()
             .position(|o| Some(o.header().salt) != salt)
             .expect("another open vault");
-        app.vaults
-            .store
-            .vault_records_mut(app.vaults.open[o].id)
-            .records
-            .push(
-                Record::new(kind::PASSPHRASE)
-                    .with(field::PASSPHRASE_KEY, &fp)
-                    .with(field::PASSPHRASE, b"kept apart"),
-            );
+        {
+            let id = app.vaults.open[o].id;
+            app.vaults.edit(id, |s| {
+                s.insert(
+                    id,
+                    Record::new(kind::PASSPHRASE)
+                        .with(field::PASSPHRASE_KEY, &fp)
+                        .with(field::PASSPHRASE, b"kept apart"),
+                )
+            });
+        }
     });
     assert_eq!(
         passphrase_records(&app, v),
@@ -2005,20 +2030,23 @@ fn the_round_copies_a_lone_passphrase_from_a_key_record_that_stores_it() {
             .enumerate()
             .find_map(|(o, open)| {
                 app.vaults
-                    .store
-                    .vault_records(open.id)
+                    .store()
+                    .contents_for_tests(open.id)
                     .records
                     .iter()
                     .position(|r| r.kind == kind::KEY && r.field(field::KEY) == Some(&payload[..]))
                     .map(|k| (o, k))
             })
             .expect("Key 1's record in an open vault");
-        let r = &mut app
-            .vaults
-            .store
-            .vault_records_mut(app.vaults.open[o].id)
-            .records[k];
-        r.push(field::KEY_PASSPHRASE, b"kept apart");
+        let id = app.vaults.open[o].id;
+        app.vaults.edit(id, |s| {
+            s.set_secret(
+                id,
+                k,
+                field::KEY_PASSPHRASE,
+                &zeroize::Zeroizing::new(b"kept apart".to_vec()),
+            )
+        });
     });
     assert_eq!(
         passphrase_records(&app, v),
@@ -2219,8 +2247,8 @@ fn a_key_in_a_slot_goes_into_no_vault_by_itself_and_a_passphrase_added_later_lea
     app.press(Action::CSlotHere(0, a));
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::KEY)
             .count(),
         0
@@ -2235,8 +2263,8 @@ fn a_key_in_a_slot_goes_into_no_vault_by_itself_and_a_passphrase_added_later_lea
     app.press(Action::CPassLock);
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::KEY)
             .count(),
         0,
@@ -2251,8 +2279,8 @@ fn a_key_in_a_slot_goes_into_no_vault_by_itself_and_a_passphrase_added_later_lea
     save_vaults(&mut app);
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::KEY)
             .count(),
         1,
@@ -2268,8 +2296,8 @@ fn a_key_in_a_slot_goes_into_no_vault_by_itself_and_a_passphrase_added_later_lea
     .unwrap();
     let (_, rec) = app
         .vaults
-        .store
-        .vault_records(app.vaults.open[0].id)
+        .store()
+        .contents_for_tests(app.vaults.open[0].id)
         .of(kind::KEY)
         .next()
         .unwrap();
@@ -2315,8 +2343,8 @@ fn a_description_added_to_an_existing_vault_after_the_lock_starts_a_round() {
     shell.flow(&mut app, F::CopyKey);
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::WALLET)
             .count(),
         1
@@ -2718,8 +2746,8 @@ fn a_record_the_vault_held_before_the_flow_is_neither_doubled_nor_taken_out() {
     assert_eq!(app.screen, Screen::Create, "{:?}", app.vaults.unlock_error);
     let keys = |app: &Faraday| {
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::KEY)
             .count()
     };
@@ -2740,8 +2768,8 @@ fn a_record_the_vault_held_before_the_flow_is_neither_doubled_nor_taken_out() {
     assert_eq!(keys(&app), 1, "saved into the vault, not doubled");
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::WALLET)
             .count(),
         1
@@ -2882,7 +2910,13 @@ fn two_wallets_in_vaults_keep_each_its_own_vaults_and_a_flow_with_no_owner_match
         .vaults
         .open
         .iter()
-        .map(|o| app.vaults.store.vault_records(o.id).of(kind::KEY).count())
+        .map(|o| {
+            app.vaults
+                .store()
+                .contents_for_tests(o.id)
+                .of(kind::KEY)
+                .count()
+        })
         .collect();
     assert_eq!(n, vec![0, 1], "B's key is in B's vault and in A's not");
 }
@@ -3677,8 +3711,8 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
     app.press(Action::BVaultSave(0));
     let shares = |app: &Faraday| -> Vec<(String, Vec<u8>)> {
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::WALLET_SHARE)
             .map(|(_, r)| {
                 (
@@ -3691,11 +3725,10 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
     assert_eq!(shares(&app), vec![(share(1), vec![2])]);
     assert!(app.backup_item_done_now(&c, Item::Vault(0)));
     // Done only while the vault holds it; saved again, kept once.
-    app.vaults
-        .store
-        .vault_records_mut(app.vaults.open[0].id)
-        .records
-        .retain(|r| r.kind != kind::WALLET_SHARE);
+    let id = app.vaults.open[0].id;
+    app.vaults.edit(id, |s| {
+        s.remove_where(id, |r| r.kind() == kind::WALLET_SHARE)
+    });
     assert!(
         !app.backup_item_done_now(&c, Item::Vault(0)),
         "the share is part of the item"
@@ -3807,8 +3840,8 @@ fn a_share_put_into_a_vault_after_the_lock_starts_the_round_and_is_sealed() {
     shell.flow(&mut app, F::CopyKey);
     let numbers: Vec<Vec<u8>> = app
         .vaults
-        .store
-        .vault_records(app.vaults.open[0].id)
+        .store()
+        .contents_for_tests(app.vaults.open[0].id)
         .of(kind::WALLET_SHARE)
         .map(|(_, r)| r.field(field::SHARE_NUMBER).unwrap_or(&[]).to_vec())
         .collect();
@@ -3982,8 +4015,8 @@ fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
     );
     let shares = |app: &Faraday| -> Vec<(String, Vec<u8>)> {
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::WALLET_SHARE)
             .map(|(_, r)| {
                 (
@@ -3999,16 +4032,15 @@ fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
     assert_ne!(both[0].0, both[1].0, "each told by its wallet");
     // A's share taken out: B's item is still done, A's is not.
     let a_sum = app.session.wallets[a].checksum();
-    app.vaults
-        .store
-        .vault_records_mut(app.vaults.open[0].id)
-        .records
-        .retain(|r| {
-            !(r.kind == kind::WALLET_SHARE
-                && r.text(field::SHARE_WALLET)
+    let id = app.vaults.open[0].id;
+    app.vaults.edit(id, |s| {
+        s.remove_where(id, |r| {
+            r.kind() == kind::WALLET_SHARE
+                && r.public_text(field::SHARE_WALLET)
                     .and_then(|t| faraday_core::wallet::read_wallet(&c, t).ok())
-                    .is_some_and(|p| p.checksum() == a_sum))
-        });
+                    .is_some_and(|p| p.checksum() == a_sum)
+        })
+    });
     assert!(
         app.backup_item_done_now(&c, Item::Vault(0)),
         "B sees its own share"
@@ -4218,8 +4250,8 @@ fn the_flows_slider_sets_its_keys_left_off_and_the_vault_takes_the_share_it_impl
     shell.flow(&mut app, F::CopyKey);
     let texts: Vec<String> = app
         .vaults
-        .store
-        .vault_records(app.vaults.open[0].id)
+        .store()
+        .contents_for_tests(app.vaults.open[0].id)
         .of(kind::WALLET_SHARE)
         .map(|(_, r)| r.text(field::SHARE).unwrap_or("").to_string())
         .collect();
@@ -4251,8 +4283,8 @@ fn names_typed_before_the_lock_are_in_each_vaults_plan_and_never_in_the_flow() {
     for o in 0..2 {
         let names: Vec<String> = app
             .vaults
-            .store
-            .vault_records(app.vaults.open[o].id)
+            .store()
+            .contents_for_tests(app.vaults.open[o].id)
             .of(kind::PLAN)
             .flat_map(|(_, r)| {
                 r.fields
@@ -4519,8 +4551,8 @@ fn a_key_an_existing_vault_held_before_the_flow_is_never_taken_out() {
     save_vaults(&mut app);
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::KEY)
             .count(),
         1
@@ -4585,8 +4617,8 @@ fn a_key_another_wallet_in_the_vault_uses_is_never_taken_out() {
     app.press(Action::BVaultSave(0));
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::WALLET)
             .count(),
         2
@@ -4689,15 +4721,17 @@ fn a_key_is_never_taken_out_of_a_vault_another_wallets_record_is_in() {
         .key_text(&c, app.session.keys.master_for_tests(k))
         .unwrap();
     let hidden = format!("wpkh({text}/<0;1>/*)");
-    app.vaults
-        .store
-        .vault_records_mut(app.vaults.open[0].id)
-        .records
-        .push(
-            Record::new(kind::WALLET)
-                .with(field::WALLET, hidden.as_bytes())
-                .with(field::WALLET_NAME, b"Hidden"),
-        );
+    {
+        let id = app.vaults.open[0].id;
+        app.vaults.edit(id, |s| {
+            s.insert(
+                id,
+                Record::new(kind::WALLET)
+                    .with(field::WALLET, hidden.as_bytes())
+                    .with(field::WALLET_NAME, b"Hidden"),
+            )
+        });
+    }
     shell.flow(&mut app, F::WalletLock);
     let mut app = restart(&mut shell, &mut app);
     shell.flow(&mut app, F::ChangePlan);
@@ -5162,8 +5196,8 @@ fn the_round_adds_a_planned_key_record_once_beside_another_of_its_words() {
     let keys = |app: &Faraday| -> (usize, usize) {
         let all: Vec<bool> = app
             .vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::KEY)
             .map(|(_, r)| r.field(field::KEY_PASSPHRASE).is_some())
             .collect();
@@ -5704,8 +5738,8 @@ fn a_passphrase_alone_in_a_vault_is_saved_as_a_passphrase_record() {
         app.vaults
             .open
             .iter()
-            .find(|o| app.vaults.store.vault_records(o.id).of(k).count() > 0)
-            .map(|o| app.vaults.store.vault_records(o.id).clone())
+            .find(|o| app.vaults.store().contents_for_tests(o.id).of(k).count() > 0)
+            .map(|o| app.vaults.store().contents_for_tests(o.id).clone())
             .expect("a vault with it")
     };
     let words = with(kind::KEY);

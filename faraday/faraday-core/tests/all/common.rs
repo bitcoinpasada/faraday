@@ -1238,3 +1238,22 @@ pub fn add_key(app: &mut Faraday, seed: &str) {
     }
     app.press(Action::EntryAdd);
 }
+
+/// The GPG key a type-7 record holds, read as the vault format writes it:
+/// the test side of the record's layout.
+pub fn gpg_key_of(r: &faraday_vault::Record) -> Option<faraday_pgp::Key> {
+    let u32_of = |n: u8| Some(u32::from_le_bytes(r.field(n)?.try_into().ok()?));
+    let created = u32_of(2)?;
+    faraday_keys::gpg::key_of(
+        r.field(1)?,
+        created,
+        r.field(3)?,
+        u32_of(4).unwrap_or(created),
+        r.fields
+            .iter()
+            .filter(|x| x.number == 5)
+            .map(|x| String::from_utf8_lossy(&x.bytes).into_owned())
+            .collect(),
+        u32_of(6).unwrap_or(0),
+    )
+}

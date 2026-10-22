@@ -33,11 +33,10 @@ fn a_wallet_record_changed_in_an_open_vault_shows_as_it_now_is() {
         .into_iter()
         .find(|k| shape_of(&c, &k.descriptor) != row.detail)
         .expect("a test wallet of another shape");
-    app.vaults
-        .store
-        .vault_records_mut(app.vaults.open[v].id)
-        .records[row.record]
-        .set(field::WALLET, other.descriptor.as_bytes());
+    let id = app.vaults.open[v].id;
+    app.vaults.edit(id, |s| {
+        s.set_public(id, row.record, field::WALLET, other.descriptor.as_bytes())
+    });
     let _ = app.frame();
     let now = app
         .vault_rows_now(&c, v)
@@ -191,8 +190,7 @@ fn a_seed_whose_fingerprint_finds_a_record_of_another_seed_is_not_kept_there() {
     // The vault's record of key 1 now looks up as key 2's fingerprint.
     let record_fp = app
         .vaults
-        .store
-        .vault_records(app.vaults.open[v].id)
+        .records(app.vaults.open[v].id)
         .of(kind::KEY)
         .find_map(|(_, r)| key_fingerprint(&c, &app, r))
         .expect("the vault's key record");
@@ -224,8 +222,7 @@ fn a_vault_seed_whose_fingerprint_matches_a_slot_but_not_its_key_is_not_offered(
     let v = app.vaults.current;
     let record_fp = app
         .vaults
-        .store
-        .vault_records(app.vaults.open[v].id)
+        .records(app.vaults.open[v].id)
         .of(kind::KEY)
         .find_map(|(_, r)| key_fingerprint(&c, &app, r))
         .expect("the vault's key record");

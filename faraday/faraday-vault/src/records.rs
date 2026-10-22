@@ -461,6 +461,12 @@ impl Record {
     fn encoded_len(&self) -> usize {
         1 + 4 + self.fields.iter().map(|f| 3 + f.bytes.len()).sum::<usize>()
     }
+
+    /// The bytes this record takes in a slot: its type, its length and its
+    /// fields. Public: it says how big the record is, not what it holds.
+    pub fn size(&self) -> usize {
+        self.encoded_len()
+    }
 }
 
 /// A slot's records.

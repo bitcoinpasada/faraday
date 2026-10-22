@@ -104,8 +104,7 @@ fn a_key(app: &mut Faraday) -> [u8; 4] {
 
 fn records(app: &Faraday, k: u8) -> usize {
     app.vaults
-        .store
-        .vault_records(app.vaults.open[app.vaults.current].id)
+        .records(app.vaults.open[app.vaults.current].id)
         .of(k)
         .count()
 }

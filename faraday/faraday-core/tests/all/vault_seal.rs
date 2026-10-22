@@ -47,8 +47,7 @@ fn open(app: &mut Faraday) -> usize {
     }
     assert_eq!(app.vaults.open.len(), 1, "the vault did not open");
     app.vaults
-        .store
-        .vault_records(app.vaults.open[0].id)
+        .records(app.vaults.open[0].id)
         .of(kind::KEY)
         .count()
 }

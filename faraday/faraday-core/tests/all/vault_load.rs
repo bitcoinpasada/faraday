@@ -243,14 +243,14 @@ fn a_wallet_set_not_to_load_ticked_on_the_sheet_loads_and_keeps_its_setting() {
     assert_eq!(key_labels(&app), ["Test key 1"]);
     let r = &app
         .vaults
-        .store
-        .vault_records(app.vaults.open[0].id)
+        .store()
+        .contents_for_tests(app.vaults.open[0].id)
         .records[spending];
     assert!(!records::loads_at_unlock(r), "the tick changed the setting");
     let r = &app
         .vaults
-        .store
-        .vault_records(app.vaults.open[0].id)
+        .store()
+        .contents_for_tests(app.vaults.open[0].id)
         .records[savings];
     assert!(records::loads_at_unlock(r));
     assert_eq!(app.vaults.open[0].changes, 0, "the sheet changed the vault");
@@ -494,8 +494,8 @@ fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
         let ours = |app: &Faraday| -> bool {
             let (_, r) = app
                 .vaults
-                .store
-                .vault_records(app.vaults.open[0].id)
+                .store()
+                .contents_for_tests(app.vaults.open[0].id)
                 .of(kind::WALLET)
                 .find(|(_, r)| r.text(field::WALLET_NAME) == Some(name.as_str()))
                 .expect("the wallet is in the vault");
@@ -673,8 +673,8 @@ fn a_wrong_passphrase_loads_nothing_and_says_what_it_gave() {
     // Never stored in the vault.
     let stored = app
         .vaults
-        .store
-        .vault_records(app.vaults.open[0].id)
+        .store()
+        .contents_for_tests(app.vaults.open[0].id)
         .of(kind::KEY)
         .any(|(_, r)| r.field(field::KEY_PASSPHRASE).is_some());
     assert!(!stored);

@@ -198,8 +198,8 @@ fn a_place_names_name_never_leaves_the_vault() {
     // The record kept in the vault holds the name in field 3 alone.
     let plan = app
         .vaults
-        .store
-        .vault_records(app.vaults.open[0].id)
+        .store()
+        .contents_for_tests(app.vaults.open[0].id)
         .of(kind::PLAN)
         .next()
         .expect("a plan record")
@@ -267,11 +267,10 @@ fn a_plan_written_the_old_way_is_read_with_its_place_named_by_number() {
         .with(field::PLAN_ANSWERS, b"places 1\n");
     record.push(field::PLAN_PLACE, NAME.as_bytes());
     record.push(field::PLAN_HOLDS, format!("{NAME}: 24 words").as_bytes());
-    app.vaults
-        .store
-        .vault_records_mut(app.vaults.open[0].id)
-        .records
-        .push(record);
+    {
+        let id = app.vaults.open[0].id;
+        app.vaults.edit(id, |s| s.insert(id, record));
+    }
 
     app.press(Action::Lock);
     let (_, outbox, kept) = saved(&mut app);

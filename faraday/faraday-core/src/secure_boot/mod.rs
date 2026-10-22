@@ -8,7 +8,8 @@ pub mod state;
 
 use crate::strings::EN;
 use crate::strings::fill;
-use faraday_sb::{Check, Keys, Pair, Policy};
+use faraday_keys::vault::{RecordView, VaultId};
+use faraday_sb::{Check, Keys, Policy};
 use faraday_vault::Record;
 use faraday_vault::records::kind;
 
@@ -16,35 +17,9 @@ use crate::Faraday;
 use crate::backup_flow::steps::Built;
 
 /// The owner GUID's field of a type-8 record.
-pub(crate) const OWNER_FIELD: u8 = 1;
+pub(crate) const OWNER_FIELD: u8 = f::OWNER;
 
-/// The fields of a type-8 record.
-mod f {
-    pub const OWNER: u8 = 1;
-    pub const PK_KEY: u8 = 2;
-    pub const PK_CERT: u8 = 3;
-    pub const KEK_KEY: u8 = 4;
-    pub const KEK_CERT: u8 = 5;
-    pub const DB_KEY: u8 = 6;
-    pub const DB_CERT: u8 = 7;
-}
-
-fn pair(r: &Record, key: u8, cert: u8) -> Option<Pair> {
-    Some(Pair {
-        key: zeroize::Zeroizing::new(r.field(key)?.to_vec()),
-        cert: r.field(cert)?.to_vec(),
-    })
-}
-
-/// The keys a type-8 record holds.
-pub fn keys_of(r: &Record) -> Option<Keys> {
-    faraday_keys::secure_boot::keys_of(
-        r.field(f::OWNER)?,
-        pair(r, f::PK_KEY, f::PK_CERT)?,
-        pair(r, f::KEK_KEY, f::KEK_CERT)?,
-        pair(r, f::DB_KEY, f::DB_CERT)?,
-    )
-}
+use faraday_keys::vault::sb_field as f;
 
 fn record_of(k: &Keys) -> Record {
     Record::new(kind::SECURE_BOOT)
@@ -85,14 +60,14 @@ pub struct Shown {
 }
 
 /// What a type-8 record shows.
-pub fn shown(r: &Record) -> Option<Shown> {
+pub fn shown(r: RecordView<'_>) -> Option<Shown> {
     let name = |n: u8| {
-        r.field(n)
+        r.public(n)
             .and_then(faraday_sb::common_name)
             .unwrap_or_default()
     };
     Some(Shown {
-        owner: guid_text(r.field(f::OWNER)?),
+        owner: guid_text(r.public(f::OWNER)?),
         names: [name(f::PK_CERT), name(f::KEK_CERT), name(f::DB_CERT)],
     })
 }
@@ -111,16 +86,13 @@ pub fn image_sha256(h: &[u8; 32]) -> String {
 }
 
 impl Faraday {
-    /// The Secure Boot keys selected in the open vault.
-    fn sb_selected(&self) -> Option<Keys> {
+    /// The Secure Boot keys selected in the open vault: the vault and the
+    /// record's place.
+    fn sb_selected(&self) -> Option<(VaultId, usize)> {
         let at = self.vault_selected_index()?;
-        let r = self
-            .vaults
-            .store
-            .vault_records(self.vaults.open.get(self.vaults.current)?.id)
-            .records
-            .get(at)?;
-        (r.kind == kind::SECURE_BOOT).then(|| keys_of(r))?
+        let id = self.vaults.open.get(self.vaults.current)?.id;
+        let r = self.vaults.records(id).get(at)?;
+        (r.kind() == kind::SECURE_BOOT).then_some((id, at))
     }
 
     /// Makes an owner's three keys for the backup flow: the record every
@@ -164,7 +136,7 @@ impl Faraday {
         if self.selected_waits().is_some() {
             return;
         }
-        let Some(keys) = self.sb_selected() else {
+        let Some((id, at)) = self.sb_selected() else {
             return;
         };
         let Some(now) = self.clock_now() else {
@@ -179,15 +151,16 @@ impl Faraday {
         let Some(seed) = self.fresh(b"secure boot enrolment") else {
             return self.toast(EN.secureboot_no_randomness);
         };
-        match faraday_keys::secure_boot::enrolment(&seed, &keys, policy, now) {
-            Ok(files) => {
+        match self.vaults.store().sb_enrolment(id, at, &seed, policy, now) {
+            Some(Ok(files)) => {
                 let n = files.len();
                 for (name, bytes) in files {
                     self.put_outbox(&name, bytes);
                 }
                 self.toast_out(&fill(EN.secureboot_enrolment, &[&n.to_string()]));
             }
-            Err(e) => self.toast(e.reason()),
+            Some(Err(e)) => self.toast(e.reason()),
+            None => {}
         }
     }
 
@@ -197,7 +170,7 @@ impl Faraday {
         if self.selected_waits().is_some() {
             return;
         }
-        let Some(keys) = self.sb_selected() else {
+        let Some((id, at)) = self.sb_selected() else {
             return;
         };
         if self.inbox.get(k).is_none() {
@@ -211,26 +184,39 @@ impl Faraday {
             return;
         };
         let name = item.name.clone();
-        match faraday_keys::secure_boot::sign_image(&seed, &item.bytes, &keys) {
-            Ok(signed) => {
+        match self
+            .vaults
+            .store()
+            .sb_sign_image(id, at, &seed, &item.bytes)
+        {
+            Some(Ok(signed)) => {
                 self.put_outbox(&name, signed);
                 self.vaults.sb_sign = None;
                 self.vaults.sb_images = false;
                 self.toast_out(&fill(EN.secureboot_signed, &[&name.to_string()]));
             }
-            Err(e) => self.toast(e.reason()),
+            Some(Err(e)) => self.toast(e.reason()),
+            None => {}
         }
     }
 
     /// What Inbox image `k`'s signature is, against the selected db key.
     pub(crate) fn sb_check(&mut self, k: usize) {
-        let Some(keys) = self.sb_selected() else {
+        let Some((id, at)) = self.sb_selected() else {
             return;
         };
         let Some(item) = self.inbox.get(k) else {
             return;
         };
-        let said = match faraday_sb::pe::check(&item.bytes, &keys.db.cert) {
+        let Some(db_cert) = self
+            .vaults
+            .records(id)
+            .get(at)
+            .and_then(|r| r.public(f::DB_CERT))
+        else {
+            return;
+        };
+        let said = match faraday_sb::pe::check(&item.bytes, db_cert) {
             Ok(Check::Valid) => EN.secureboot_signed_by_this,
             Ok(Check::OtherSigner) => EN.secureboot_signed_by,
             Ok(Check::Altered) => EN.secureboot_changed,

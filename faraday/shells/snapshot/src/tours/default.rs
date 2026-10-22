@@ -1074,16 +1074,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.pump();
     t.shot("vault-entry-scanned")?;
     t.press(Action::Vault(V::FormSave));
-    let entries = |t: &Tour| {
-        t.app
-            .vaults
-            .store
-            .vault_records(t.app.vaults.open[0].id)
-            .records
-            .iter()
-            .filter(|r| r.kind == 6)
-            .count()
-    };
+    let entries = |t: &Tour| t.app.vaults.records(t.app.vaults.open[0].id).of(6).count();
     if entries(t) != 5 {
         return Err(format!(
             "expected 5 entries after the imports, found {}",
@@ -1104,16 +1095,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.shot("vault-backup-prompt")?;
     t.press(Action::Vault(V::PromptGo));
     t.tick();
-    let keys = |t: &Tour| {
-        t.app
-            .vaults
-            .store
-            .vault_records(t.app.vaults.open[0].id)
-            .records
-            .iter()
-            .filter(|r| r.kind == 2)
-            .count()
-    };
+    let keys = |t: &Tour| t.app.vaults.records(t.app.vaults.open[0].id).of(2).count();
     if keys(t) != 2 {
         return Err(format!(
             "the backup's key is not in the vault: {:?}",
@@ -1139,15 +1121,16 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::Vault(V::Add));
     t.shot("vault-save-key")?;
     t.press(Action::Vault(V::SaveKeyWithPassphrase(with)));
-    if !t
-        .app
-        .vaults
-        .store
-        .vault_records(t.app.vaults.open[0].id)
-        .records
-        .iter()
-        .any(|r| r.kind == 2 && r.text(4) == Some("TREZOR"))
-    {
+    let id = t.app.vaults.open[0].id;
+    if !t.app.vaults.records(id).of(2).any(|(i, _)| {
+        &*t.app.vaults.store().reveal(
+            c,
+            id,
+            i,
+            faraday_vault::records::field::KEY_PASSPHRASE,
+            faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Passphrase),
+        ) == "TREZOR"
+    }) {
         return Err("the key was not saved with its passphrase".into());
     }
     t.shot("vault-keys-three")?;
@@ -1256,12 +1239,9 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     let totp_item = t
         .app
         .vaults
-        .store
-        .vault_records(t.app.vaults.open[0].id)
-        .records
-        .iter()
-        .filter(|r| r.kind == 6)
-        .position(|r| r.text(1) == Some("Example Git"))
+        .records(t.app.vaults.open[0].id)
+        .of(6)
+        .position(|(_, r)| r.public_text(1) == Some("Example Git"))
         .ok_or("the imported TOTP entry is not in the vault")?;
     t.press(Action::CodesOpen(0, totp_item));
     t.shot("vault-entry-code")?;
@@ -1271,14 +1251,12 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     flow_at_make(c, t, faraday_core::backup_flow::Kind::SecureBoot);
     type_text(t, "Test");
     flow_made(t, faraday_core::backup_flow::Kind::SecureBoot)?;
-    if !t
-        .app
+    if t.app
         .vaults
-        .store
-        .vault_records(t.app.vaults.open[0].id)
-        .records
-        .iter()
-        .any(|r| r.kind == 8)
+        .records(t.app.vaults.open[0].id)
+        .of(8)
+        .next()
+        .is_none()
     {
         return Err("no Secure Boot keys were made".into());
     }
@@ -1306,17 +1284,14 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .find(|i| i.name == "BOOTX64.EFI")
         .map(|i| i.bytes.clone())
         .ok_or("the signed image is not in the Outbox")?;
-    let keys = t
+    let db_cert = t
         .app
         .vaults
-        .store
-        .vault_records(t.app.vaults.open[0].id)
-        .records
-        .iter()
-        .find(|r| r.kind == 8)
-        .and_then(faraday_core::secure_boot::keys_of)
+        .records(t.app.vaults.open[0].id)
+        .of(8)
+        .find_map(|(_, r)| r.public(faraday_keys::vault::sb_field::DB_CERT))
         .ok_or("the keys do not read back")?;
-    if faraday_sb::pe::check(&signed, &keys.db.cert) != Ok(faraday_sb::Check::Valid) {
+    if faraday_sb::pe::check(&signed, db_cert) != Ok(faraday_sb::Check::Valid) {
         return Err("the signed image does not check against the db key".into());
     }
     println!("Secure Boot keys made, enrolment files written, an image signed");

@@ -52,15 +52,13 @@ pub struct StickSave {
 
 impl Faraday {
     /// The selected vault record, when it is of kind `k`.
-    fn vault_record_of(&self, k: u8) -> Option<(usize, &faraday_vault::Record)> {
+    fn vault_record_of(&self, k: u8) -> Option<(usize, faraday_keys::vault::RecordView<'_>)> {
         let at = self.vault_selected_index()?;
         let v = self.vaults.open.get(self.vaults.current)?;
         self.vaults
-            .store
-            .vault_records(v.id)
-            .records
+            .records(v.id)
             .get(at)
-            .filter(|r| r.kind == k)
+            .filter(|r| r.kind() == k)
             .map(|r| (at, r))
     }
 
@@ -76,7 +74,11 @@ impl Faraday {
         let Some((at, r)) = self.vault_record_of(kind::KEY) else {
             return;
         };
-        let Some(m) = crate::wallet::record_words(&c, r) else {
+        let Some(m) = self
+            .vaults
+            .store()
+            .words_of(&c, r, faraday_keys::Reveal::SeedQr)
+        else {
             return;
         };
         if m.language() != faraday_bip::bip39::Language::English {
@@ -94,9 +96,9 @@ impl Faraday {
     fn with_vault_wallet<T>(&mut self, f: impl FnOnce(&mut Self, usize) -> T) -> Option<T> {
         let c = self.compute();
         let (_, r) = self.vault_record_of(kind::WALLET)?;
-        let text = r.text(field::WALLET)?.to_string();
+        let text = r.public_text(field::WALLET)?.to_string();
         let name = r
-            .text(field::WALLET_NAME)
+            .public_text(field::WALLET_NAME)
             .unwrap_or(EN.vaults_wallet)
             .to_string();
         let policy = crate::wallet::read_wallet(&c, &text).ok()?;
@@ -145,7 +147,11 @@ impl Faraday {
             let Some((_, r)) = self.vault_record_of(kind::KEY) else {
                 return;
             };
-            let Some(m) = crate::wallet::record_words(&c, r) else {
+            let Some(m) = self.vaults.store().words_of(
+                &c,
+                r,
+                faraday_keys::Reveal::BackupStick(faraday_keys::Part::Words),
+            ) else {
                 return;
             };
             let fp = crate::vault::screen::key_fingerprint(&c, self, r).unwrap_or_default();
@@ -261,17 +267,18 @@ impl Faraday {
             .vaults
             .open
             .get(self.vaults.current)
-            .and_then(|v| {
-                self.vaults
-                    .store
-                    .vault_records(v.id)
-                    .records
-                    .get(save.record)
-            })
-            .filter(|r| r.kind == kind::KEY)
+            .and_then(|v| self.vaults.records(v.id).get(save.record))
+            .filter(|r| r.kind() == kind::KEY)
             .and_then(|r| {
                 let fp = crate::vault::screen::key_fingerprint(&c, self, r).unwrap_or_default();
-                crate::wallet::record_words(&c, r).map(|m| (m, fp))
+                self.vaults
+                    .store()
+                    .words_of(
+                        &c,
+                        r,
+                        faraday_keys::Reveal::OutboxFile(faraday_keys::Part::Words),
+                    )
+                    .map(|m| (m, fp))
             });
         for f in save.files.into_iter().filter(|f| f.ticked) {
             match f.what {

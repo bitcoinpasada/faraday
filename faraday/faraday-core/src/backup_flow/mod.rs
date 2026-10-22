@@ -19,7 +19,7 @@ pub(crate) mod wallet;
 pub(crate) mod wallet_screen;
 
 use faraday_crypto::work::Compute;
-use faraday_vault::Record;
+use faraday_keys::vault::RecordView;
 use faraday_vault::records::kind as rkind;
 
 use crate::Faraday;
@@ -2395,18 +2395,17 @@ impl Faraday {
             .position(|f| f.kind == kind && !f.made && f.step != Step::Done)
     }
 
-    /// The record of `subject` in open vault `o`, to copy it across.
-    pub(crate) fn flow_record_in(&self, o: usize, kind: Kind, subject: &str) -> Option<Record> {
+    /// The place of the record of `subject` in open vault `o`, to copy it
+    /// across.
+    pub(crate) fn flow_record_in(&self, o: usize, kind: Kind, subject: &str) -> Option<usize> {
         let open = self.vaults.open.get(o)?;
         self.vaults
-            .store
-            .vault_records(open.id)
-            .records
+            .records(open.id)
             .iter()
-            .find(|r| {
-                r.kind == kind.record_kind() && subject_of(kind, r).as_deref() == Some(subject)
+            .find(|(_, r)| {
+                r.kind() == kind.record_kind() && subject_of(kind, *r).as_deref() == Some(subject)
             })
-            .cloned()
+            .map(|(i, _)| i)
     }
 }
 
@@ -2416,11 +2415,11 @@ pub(crate) fn hex_text(b: &[u8]) -> String {
 }
 
 /// The public value a record of `kind` is known by, as hex.
-pub(crate) fn subject_of(kind: Kind, r: &Record) -> Option<String> {
+pub(crate) fn subject_of(kind: Kind, r: RecordView<'_>) -> Option<String> {
     Some(match kind {
         Kind::Apk => hex_text(&crate::apk::fingerprint_of(r)?),
-        Kind::Gpg => hex_text(&crate::gpg::key_of(r)?.fingerprint()),
-        Kind::SecureBoot => hex_text(r.field(crate::secure_boot::OWNER_FIELD)?),
+        Kind::Gpg => hex_text(&faraday_keys::vault::gpg_facts(r)?.fingerprint),
+        Kind::SecureBoot => hex_text(r.public(crate::secure_boot::OWNER_FIELD)?),
         // A wallet is known by its descriptor's checksum, not by a record.
         Kind::Wallet => return None,
     })

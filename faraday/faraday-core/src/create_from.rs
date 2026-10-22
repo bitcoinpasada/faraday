@@ -75,7 +75,7 @@ impl Faraday {
         let mut out = CreateVaults::default();
         for (v, open) in self.vaults.open.iter().enumerate() {
             let mut keys = Vec::new();
-            for (i, r) in self.vaults.store.vault_records(open.id).of(kind::KEY) {
+            for (i, r) in self.vaults.records(open.id).of(kind::KEY) {
                 // The fingerprint the unlock worked out; the record's own
                 // label.
                 let Some(text) = crate::vault::screen::key_fingerprint(c, self, r) else {
@@ -87,12 +87,14 @@ impl Faraday {
                 if self.session.keys.all().any(|k| k.fingerprint.0 == fp) {
                     continue;
                 }
-                let label = r.text(records::field::KEY_LABEL).unwrap_or(EN.vaults_seed);
+                let label = r
+                    .public_text(records::field::KEY_LABEL)
+                    .unwrap_or(EN.vaults_seed);
                 keys.push(VaultKey {
                     record: i,
                     fp,
                     line: key_line(Fingerprint(fp), label),
-                    share: crate::wallet::record_words(c, r).is_some_and(|m| m.word_count() == 24),
+                    share: self.vaults.record_word_count(c, r) == Some(24),
                 });
             }
             if !keys.is_empty() {
@@ -133,8 +135,8 @@ impl Faraday {
             .vaults
             .open
             .get(v)
-            .and_then(|o| self.vaults.store.vault_records(o.id).records.get(r))
-            .filter(|x| x.kind == kind::KEY)
+            .and_then(|o| self.vaults.records(o.id).get(r))
+            .filter(|x| x.kind() == kind::KEY)
         else {
             return;
         };

@@ -371,7 +371,12 @@ fn new_vaults_have_their_own_passphrases_and_the_key_is_in_every_one() {
         .open
         .iter()
         .map(|o| {
-            let keys: Vec<_> = app.vaults.store.vault_records(o.id).of(kind::GPG).collect();
+            let keys: Vec<_> = app
+                .vaults
+                .store()
+                .contents_for_tests(o.id)
+                .of(kind::GPG)
+                .collect();
             assert_eq!(keys.len(), 1);
             keys[0].1.field(1).unwrap_or(&[]).to_vec()
         })
@@ -944,7 +949,11 @@ fn adding_a_stick_with_an_existing_vault_runs_the_extra_round_inside_the_flow() 
     shell.flow(&mut app, F::CopyKey);
     for o in &app.vaults.open {
         assert_eq!(
-            app.vaults.store.vault_records(o.id).of(kind::GPG).count(),
+            app.vaults
+                .store()
+                .contents_for_tests(o.id)
+                .of(kind::GPG)
+                .count(),
             1
         );
     }
@@ -1167,7 +1176,13 @@ fn enter_in_the_make_form_makes_the_key_and_adds_no_stray_record() {
         .vaults
         .open
         .iter()
-        .map(|o| app.vaults.store.vault_records(o.id).of(kind::GPG).count())
+        .map(|o| {
+            app.vaults
+                .store()
+                .contents_for_tests(o.id)
+                .of(kind::GPG)
+                .count()
+        })
         .sum();
     assert_eq!(n, app.vaults.open.len(), "one key in each vault, no stray");
 }
@@ -1518,27 +1533,32 @@ fn a_new_vault_that_holds_other_entries_is_not_dropped_with_its_place() {
     create_vault(&mut shell, &mut app, 1, PHRASE_2);
     shell.flow(&mut app, F::CopyKey);
     // The person put something else in the new vault.
-    let o = &mut app.vaults.open[1];
+    let id = app.vaults.open[1].id;
     app.vaults
-        .store
-        .vault_records_mut(o.id)
-        .records
-        .push(faraday_vault::Record::new(kind::NOTE));
+        .edit(id, |s| s.insert(id, faraday_vault::Record::new(kind::NOTE)));
     shell.flow(&mut app, F::ChangePlan);
     shell.flow(&mut app, F::RemovePlace(2));
     assert_eq!(app.vaults.open.len(), 2, "the vault stays open");
     assert!(
-        app.vaults
-            .open
-            .iter()
-            .any(|o| app.vaults.store.vault_records(o.id).of(kind::NOTE).count() == 1),
+        app.vaults.open.iter().any(|o| app
+            .vaults
+            .store()
+            .contents_for_tests(o.id)
+            .of(kind::NOTE)
+            .count()
+            == 1),
         "with what it holds"
     );
     assert_eq!(
         app.vaults
             .open
             .iter()
-            .map(|o| app.vaults.store.vault_records(o.id).of(kind::GPG).count())
+            .map(|o| app
+                .vaults
+                .store()
+                .contents_for_tests(o.id)
+                .of(kind::GPG)
+                .count())
             .sum::<usize>(),
         1,
         "only this flow's key was taken out of it"
@@ -1565,7 +1585,13 @@ fn the_last_vault_holding_the_key_is_never_taken_out_of_the_plan() {
         .vaults
         .open
         .iter()
-        .map(|o| app.vaults.store.vault_records(o.id).of(kind::GPG).count())
+        .map(|o| {
+            app.vaults
+                .store()
+                .contents_for_tests(o.id)
+                .of(kind::GPG)
+                .count()
+        })
         .sum();
     assert_eq!(holding, 1, "the key is still in a vault");
 }
@@ -1591,13 +1617,11 @@ fn a_key_deleted_from_a_vault_before_the_lock_is_not_sealed_and_not_written() {
     let mut app = to_make(&mut shell, Kind::Gpg);
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     shell.flow(&mut app, F::MadeContinue);
-    for o in &mut app.vaults.open {
+    for k in 0..app.vaults.open.len() {
+        let id = app.vaults.open[k].id;
         app.vaults
-            .store
-            .vault_records_mut(o.id)
-            .records
-            .retain(|r| r.kind != kind::GPG);
-        o.changes += 1;
+            .edit(id, |s| s.remove_where(id, |r| r.kind() == kind::GPG));
+        app.vaults.changed(id);
     }
     let mut app = shell.lock(&mut app);
     assert!(app.flow().is_none_or(|f| f.sealing.is_empty()));

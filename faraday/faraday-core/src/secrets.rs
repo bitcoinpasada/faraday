@@ -336,12 +336,16 @@ impl Faraday {
             return;
         };
         let record = match &out.keep {
-            Keep::Round(r) => Record::new(kind::ROUND)
-                .with(field::ROUND_SCHEME, &[2])
-                .with(field::ROUND_TX, &r.tx)
-                .with(field::ROUND_KEY, &r.key)
-                .with(field::ROUND_STATE, &out.bytes),
-            Keep::Note => Record::new(kind::NOTE).with(field::NOTE, &out.bytes),
+            Keep::Round(r) => faraday_keys::vault::Staged::Made(
+                Record::new(kind::ROUND)
+                    .with(field::ROUND_SCHEME, &[2])
+                    .with(field::ROUND_TX, &r.tx)
+                    .with(field::ROUND_KEY, &r.key)
+                    .with(field::ROUND_STATE, &out.bytes),
+            ),
+            Keep::Note => faraday_keys::vault::Staged::Made(
+                Record::new(kind::NOTE).with(field::NOTE, &out.bytes),
+            ),
             Keep::Key { key, fp } => {
                 let same = self
                     .session
@@ -349,7 +353,7 @@ impl Faraday {
                     .info(*key)
                     .is_some_and(|k| k.fingerprint == *fp);
                 match same.then(|| self.key_record(*key, false)).flatten() {
-                    Some((r, _)) => r,
+                    Some((r, _)) => faraday_keys::vault::Staged::Held(r),
                     None => {
                         self.sheet = None;
                         return;
@@ -491,33 +495,27 @@ impl Faraday {
         &self,
         psbt: &faraday_psbt::Psbt,
     ) -> Option<faraday_psbt::threshold::CarrySection> {
-        let tx = tx_hash(psbt);
-        for v in &self.vaults.open {
-            for (_, r) in self.vaults.store.vault_records(v.id).of(kind::ROUND) {
-                if r.field(field::ROUND_TX) == Some(&tx[..])
-                    && r.field(field::ROUND_USED).is_none()
-                    && let Some(state) = r.field(field::ROUND_STATE)
-                    && let Some(section) = faraday_keys::carry::section_of(state)
-                {
-                    return Some(section);
-                }
-            }
-        }
-        None
+        // The round's state is read inside faraday-keys: the section it
+        // holds goes to the spend, which signs with its nonces.
+        self.vaults
+            .store()
+            .round_section(&tx_hash(psbt))
+            .map(faraday_keys::Held::release)
     }
 
     /// A round has signed: it leaves every open vault at the next seal.
     pub(crate) fn vault_round_used(&mut self, psbt: &faraday_psbt::Psbt) {
         let tx = tx_hash(psbt);
-        for v in &mut self.vaults.open {
-            let before = self.vaults.store.vault_records(v.id).records.len();
-            self.vaults
-                .store
-                .vault_records_mut(v.id)
-                .records
-                .retain(|r| !(r.kind == kind::ROUND && r.field(field::ROUND_TX) == Some(&tx[..])));
-            if self.vaults.store.vault_records(v.id).records.len() != before {
-                v.changes += 1;
+        let ids: Vec<faraday_keys::vault::VaultId> =
+            self.vaults.open.iter().map(|v| v.id).collect();
+        for id in ids {
+            let gone = self.vaults.edit(id, |s| {
+                s.remove_where(id, |r| {
+                    r.kind() == kind::ROUND && r.public(field::ROUND_TX) == Some(&tx[..])
+                })
+            });
+            if gone > 0 {
+                self.vaults.changed(id);
             }
         }
     }

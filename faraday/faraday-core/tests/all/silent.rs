@@ -330,8 +330,8 @@ fn a_silent_payments_wallet_saved_into_a_vault_reads_back_as_itself() {
     let open = &app.vaults.open[0];
     let (_, saved) = app
         .vaults
-        .store
-        .vault_records(open.id)
+        .store()
+        .contents_for_tests(open.id)
         .of(kind::WALLET)
         .last()
         .unwrap();

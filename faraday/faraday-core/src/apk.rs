@@ -14,6 +14,7 @@ use crate::strings::EN;
 use crate::strings::fill;
 use faraday_apk::{Apk, Info, Refusal, Slice, key, pem, sign};
 use faraday_crypto::work::Compute;
+use faraday_keys::vault::RecordView;
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
 
@@ -184,18 +185,18 @@ pub fn record_of(pair: &faraday_sb::Pair, package: &str) -> Record {
 }
 
 /// The certificate's SHA-256, from a type-12 record.
-pub fn fingerprint_of(r: &Record) -> Option<[u8; 32]> {
-    r.field(field::APK_CERT).map(key::fingerprint)
+pub fn fingerprint_of(r: RecordView<'_>) -> Option<[u8; 32]> {
+    r.public(field::APK_CERT).map(key::fingerprint)
 }
 
 /// What a type-12 record shows. The date is local (`docs/TOTP.md`
 /// §2.3).
-pub fn shown(r: &Record, tz_min: i16) -> Option<Shown> {
-    let cert = r.field(field::APK_CERT)?;
+pub fn shown(r: RecordView<'_>, tz_min: i16) -> Option<Shown> {
+    let cert = r.public(field::APK_CERT)?;
     let info = key::describe(cert)?;
     Some(Shown {
         name: info.name,
-        package: r.text(field::APK_PACKAGE)?.to_string(),
+        package: r.public_text(field::APK_PACKAGE)?.to_string(),
         fingerprint: key::grouped(&info.fingerprint),
         hex: faraday_apk::hex(&info.fingerprint),
         made: crate::gpg::date(crate::vault::local_secs(info.made, tz_min)),
@@ -364,15 +365,13 @@ impl Faraday {
     }
 
     /// The selected type-12 record, with its vault and place.
-    pub(crate) fn apk_selected(&self) -> Option<(usize, Record)> {
+    pub(crate) fn apk_selected(&self) -> Option<(usize, RecordView<'_>)> {
         let at = self.vault_selected_index()?;
         let r = self
             .vaults
-            .store
-            .vault_records(self.vaults.open.get(self.vaults.current)?.id)
-            .records
+            .records(self.vaults.open.get(self.vaults.current)?.id)
             .get(at)?;
-        (r.kind == kind::APK_KEY).then(|| (at, r.clone()))
+        (r.kind() == kind::APK_KEY).then_some((at, r))
     }
 
     /// Every APK signing key in the open vaults whose package is
@@ -380,15 +379,8 @@ impl Faraday {
     pub fn apk_keys_for(&self, package: &str) -> Vec<(usize, usize, String, [u8; 32])> {
         let mut out = Vec::new();
         for (v, open) in self.vaults.open.iter().enumerate() {
-            for (at, r) in self
-                .vaults
-                .store
-                .vault_records(open.id)
-                .records
-                .iter()
-                .enumerate()
-            {
-                if r.kind != kind::APK_KEY || r.text(field::APK_PACKAGE) != Some(package) {
+            for (at, r) in self.vaults.records(open.id).iter() {
+                if r.kind() != kind::APK_KEY || r.public_text(field::APK_PACKAGE) != Some(package) {
                     continue;
                 }
                 if let Some(s) = shown(r, self.tz_min) {
@@ -403,15 +395,8 @@ impl Faraday {
     /// vault and place.
     pub(crate) fn apk_find(&self, fp: &[u8; 32]) -> Option<(usize, usize)> {
         for (v, open) in self.vaults.open.iter().enumerate() {
-            for (at, r) in self
-                .vaults
-                .store
-                .vault_records(open.id)
-                .records
-                .iter()
-                .enumerate()
-            {
-                if r.kind == kind::APK_KEY && fingerprint_of(r).as_ref() == Some(fp) {
+            for (at, r) in self.vaults.records(open.id).iter() {
+                if r.kind() == kind::APK_KEY && fingerprint_of(r).as_ref() == Some(fp) {
                     return Some((v, at));
                 }
             }
@@ -482,10 +467,12 @@ impl Faraday {
         let Some(open) = self.vaults.open.get(v) else {
             return;
         };
-        let n = self.vaults.store.vault_records(open.id).records
-            [..at.min(self.vaults.store.vault_records(open.id).records.len())]
+        let n = self
+            .vaults
+            .records(open.id)
             .iter()
-            .filter(|r| r.kind == kind::APK_KEY)
+            .take(at)
+            .filter(|(_, r)| r.kind() == kind::APK_KEY)
             .count();
         self.vaults.current = v;
         self.vaults.category = 6;
@@ -539,7 +526,7 @@ impl Faraday {
             .vaults
             .open
             .get(v)
-            .and_then(|o| self.vaults.store.vault_records(o.id).records.get(at))
+            .and_then(|o| self.vaults.records(o.id).get(at))
             .and_then(crate::apk::fingerprint_of)
         else {
             return;
@@ -598,10 +585,10 @@ impl Faraday {
         let Some((_, r)) = self.apk_selected() else {
             return;
         };
-        let (Some(cert), Some(fp)) = (r.field(field::APK_CERT), fingerprint_of(&r)) else {
+        let (Some(cert), Some(fp)) = (r.public(field::APK_CERT), fingerprint_of(r)) else {
             return;
         };
-        let Some(s) = shown(&r, self.tz_min) else {
+        let Some(s) = shown(r, self.tz_min) else {
             return;
         };
         let name = format!("{}-certificate.pem", file_stem(&s.name, &fp));
@@ -616,10 +603,10 @@ impl Faraday {
             .apk_selected()
             .ok_or_else(|| EN.apk_no_key_is_selected.to_string())?;
         let cert = r
-            .field(field::APK_CERT)
+            .public(field::APK_CERT)
             .ok_or_else(|| EN.apk_no_key_is_selected.to_string())?;
-        let fp = fingerprint_of(&r).unwrap_or_default();
-        let s = shown(&r, self.tz_min).ok_or_else(|| EN.apk_no_key_is_selected.to_string())?;
+        let fp = fingerprint_of(r).unwrap_or_default();
+        let s = shown(r, self.tz_min).ok_or_else(|| EN.apk_no_key_is_selected.to_string())?;
         let stem = file_stem(&s.name, &fp);
         let lines = vec![
             s.name.clone(),
@@ -673,17 +660,14 @@ impl Faraday {
         let Some((v, at)) = self.apk_find(&review.key) else {
             return;
         };
-        let record = self
+        let id = self.vaults.open[v].id;
+        let Some(package) = self
             .vaults
-            .store
-            .vault_records(self.vaults.open[v].id)
-            .records[at]
-            .clone();
-        let (Some(pkcs8), Some(cert), Some(package)) = (
-            record.field(field::APK_KEY),
-            record.field(field::APK_CERT),
-            record.text(field::APK_PACKAGE),
-        ) else {
+            .records(id)
+            .get(at)
+            .and_then(|r| r.public_text(field::APK_PACKAGE))
+            .map(str::to_string)
+        else {
             return;
         };
         let Some(seed) = self.fresh(b"apk signing").map(zeroize::Zeroizing::new) else {
@@ -707,9 +691,10 @@ impl Faraday {
         if out_name.len() > NAME_MAX {
             return;
         }
-        let signed = match faraday_keys::apk::sign(&seed, &mut src, &apk, pkcs8, cert) {
-            Ok(bytes) => bytes,
-            Err(e) => return self.toast(e.reason()),
+        let signed = match self.vaults.store().apk_sign(id, at, &seed, &mut src, &apk) {
+            Some(Ok(bytes)) => bytes,
+            Some(Err(e)) => return self.toast(e.reason()),
+            None => return,
         };
         self.put_outbox(&out_name, signed);
         self.vaults.apk.review = None;

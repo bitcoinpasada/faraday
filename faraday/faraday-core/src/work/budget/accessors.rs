@@ -60,10 +60,7 @@ fn reads(app: &Faraday) -> Vec<Read> {
     let answers = Answers::preset(&shape, Preset::PaperVault);
     let seen = app.inbox.iter().find_map(|i| i.psbt().cloned());
     let psbt = app.spend.as_ref().map(|s| s.spend.psbt.clone());
-    let contents = &app
-        .vaults
-        .store
-        .vault_records(app.vaults.open[app.vaults.current].id);
+    let contents = &app.vaults.records(app.vaults.open[app.vaults.current].id);
     let key_record = contents
         .of(kind::KEY)
         .next()
@@ -87,11 +84,11 @@ fn reads(app: &Faraday) -> Vec<Read> {
     };
     // The record itself, as its open vault keeps it: a copy is no open
     // vault's own, and is read afresh.
-    fn record<'v>(v: &'v View<'_>, i: usize) -> &'v faraday_vault::Record {
-        &v.vaults
-            .store
-            .vault_records(v.vaults.open[v.vaults.current].id)
-            .records[i]
+    fn record<'v>(v: &'v View<'_>, i: usize) -> faraday_keys::vault::RecordView<'v> {
+        v.vaults
+            .records(v.vaults.open[v.vaults.current].id)
+            .get(i)
+            .expect("the record is there")
     }
     let o = app.vaults.current;
     let mut out: Vec<Read> = vec![
@@ -231,10 +228,7 @@ fn reads(app: &Faraday) -> Vec<Read> {
         (
             "described_of",
             Box::new(move |v| {
-                let _ = v.described_of(
-                    v.vaults.store.vault_records(v.vaults.open[o].id),
-                    kind::WALLET,
-                );
+                let _ = v.described_of(v.vaults.open[o].id, kind::WALLET);
             }),
         ),
         (

@@ -569,7 +569,7 @@ impl Faraday {
     /// Reads each open vault's wallet records as it keeps them read.
     ///
     /// Works out [`crate::drawing::View::backups`], from each open vault's wallet
-    /// records as it keeps them read ([`crate::vault::VaultRecords`]).
+    /// records as it keeps them read ([`crate::vault::Vaults::described`]).
     pub fn backups_now(&self, c: &Compute) -> Vec<Entry> {
         let mut out: Vec<Entry> = Vec::new();
         let seen = |out: &[Entry], sum: &str| out.iter().any(|e| e.sum == sum);
@@ -587,18 +587,13 @@ impl Faraday {
             });
         }
         for v in &self.vaults.open {
-            for (_, r, d) in self
-                .vaults
-                .store
-                .vault_records(v.id)
-                .described_of(c, kind::WALLET)
-            {
+            for (_, r, d) in self.vaults.described_of(c, v.id, kind::WALLET) {
                 let sum = d.checksum.clone();
                 if seen(&out, &sum) {
                     continue;
                 }
                 let w = Wallet::new(
-                    r.text(field::WALLET_NAME)
+                    r.public_text(field::WALLET_NAME)
                         .unwrap_or(EN.backups_wallet)
                         .to_string(),
                     d.policy.clone(),
@@ -784,31 +779,28 @@ impl Faraday {
     pub(crate) fn vault_state(&self, c: &Compute, r: &Record, seeds: &[[u8; 4]]) -> (String, Tone) {
         let sum = r.sum.as_str();
         let files = self.vault_files();
-        let holds =
-            |o: &crate::vault::OpenVault| {
-                if !seeds.is_empty() {
-                    // Each seed as the session holds it, and a record of that
-                    // very key: the fingerprint finds it, all 32 bytes of the
-                    // master key's id say it is the one (F65). A seed not held
-                    // here cannot be told apart, so it is not said kept.
-                    return seeds.iter().all(|f| {
-                        self.session
-                            .keys
-                            .all()
-                            .find(|k| k.fingerprint.0 == *f)
-                            .is_some_and(|k| {
-                                self.vaults.store.vault_records(o.id).of(kind::KEY).any(
-                                    |(_, rec)| crate::vault::screen::record_is_key(c, self, rec, k),
-                                )
+        let holds = |o: &crate::vault::OpenVault| {
+            if !seeds.is_empty() {
+                // Each seed as the session holds it, and a record of that
+                // very key: the fingerprint finds it, all 32 bytes of the
+                // master key's id say it is the one (F65). A seed not held
+                // here cannot be told apart, so it is not said kept.
+                return seeds.iter().all(|f| {
+                    self.session
+                        .keys
+                        .all()
+                        .find(|k| k.fingerprint.0 == *f)
+                        .is_some_and(|k| {
+                            self.vaults.records(o.id).of(kind::KEY).any(|(_, rec)| {
+                                crate::vault::screen::record_is_key(c, self, rec, k)
                             })
-                    });
-                }
-                self.vaults
-                    .store
-                    .vault_records(o.id)
-                    .described_of(c, kind::WALLET)
-                    .any(|(_, _, d)| d.checksum == sum)
-            };
+                        })
+                });
+            }
+            self.vaults
+                .described_of(c, o.id, kind::WALLET)
+                .any(|(_, _, d)| d.checksum == sum)
+        };
         let id_of = |f: [u8; 4]| self.seed_id(Some(r), f);
         // Whether locked vault summary `s` holds every seed: `Some(true)`
         // told by the ids, `Some(false)` not, `None` when a seed's

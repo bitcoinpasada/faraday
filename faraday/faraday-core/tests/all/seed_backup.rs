@@ -145,16 +145,14 @@ fn backing_up_as(app: &mut Faraday, with: bool, seedqr: bool) -> Fingerprint {
 
 fn keys_in_vault(app: &Faraday) -> usize {
     app.vaults
-        .store
-        .vault_records(app.vaults.open[0].id)
+        .records(app.vaults.open[0].id)
         .of(kind::KEY)
         .count()
 }
 
 fn notes_in_vault(app: &Faraday) -> usize {
     app.vaults
-        .store
-        .vault_records(app.vaults.open[0].id)
+        .records(app.vaults.open[0].id)
         .of(kind::NOTE)
         .count()
 }

@@ -305,7 +305,7 @@ fn every_slot_of_a_new_vault_goes_by_the_vaults_name() {
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 30);
     assert_eq!(app.vaults.open.len(), 1, "it unlocked");
-    assert_eq!(app.vaults.open[0].label(&app.vaults.store), "Savings");
+    assert_eq!(app.vaults.open[0].label(app.vaults.store()), "Savings");
 }
 
 #[test]

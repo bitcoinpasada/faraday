@@ -1,7 +1,7 @@
 # The key boundary: faraday-keys
 
 **Kind:** Spec
-**Status:** Steps 0 to 2 and 3a done; the owner answered §9 on 2026-10-21 (the recommendation on all four)
+**Status:** Steps 0 to 3 done (3b: faraday-core reads only a vault's public fields); the owner answered §9 on 2026-10-21 (the recommendation on all four)
 **Decisions:** F70
 
 F70 decided that one crate, `faraday-keys`, owns every secret in memory,
@@ -244,9 +244,66 @@ can read.
     bytes), `vault::open_backup` (a `.oskb` as a `Held` record) and
     `Keys::add_backup` (a `.oskb` added to the keys), `seed_of` and
     `sheet_parts`.
-- **Temporary.** `OpenVaults::vault_records` and `vault_records_mut` lend
-  the records to faraday-core's reads and edits. Step 3b removes them.
+- **Temporary.** `OpenVaults::vault_records` and `vault_records_mut` lent
+  the records to faraday-core's reads and edits. Step 3b removed them.
 - The slot key is private to `vault`, as before.
+
+### Step 3b as built
+
+faraday-core sees an open vault's public fields and nothing else.
+
+- **The table.** `vault::SECRET_FIELDS` lists the secret fields by record
+  type and number, and `vault::is_secret` reads it; everything it does
+  not list is public. Secret: a KEY's payload and passphrase, a
+  PASSPHRASE's passphrase, a NOTE's text, an ENTRY's password, TOTP
+  secret and notes, an APK_KEY's private key, a ROUND's state, a GPG
+  record's two seeds, a SECURE_BOOT record's three private keys. A GPG
+  record's revocation certificate is public (it is a signature, not a
+  key); faraday-core still offers it only through the secret sheet.
+- **Reading.** `OpenVaults::records(id)` gives `Records`, whose records are
+  `RecordView`s: `kind()`, `public`, `public_text`, `public_all`, `has`,
+  `len`, `loads_at_unlock`, `size`. `public` is `None` for a secret field.
+  `OpenVaults::version(id)` counts the edits of a vault.
+- **Revealing.** `OpenVaults::reveal(c, id, record, field, why)` lends a
+  secret field as a `Revealed`, for a `Reveal` whose `Part` names it
+  (`Password`, `Totp`, `Note`, `EntryNotes`, `Passphrase`, `Words`); a key
+  record's words are written out from its payload (it costs a parse).
+  `words_of` gives the words as a held `Mnemonic` for a SeedQR or a file,
+  `gpg_paperkey` the paperkey text, `totp` the code and account of an
+  entry, `kdbx_entry` a KeePass database of one.
+- **Operations by record.** `load_from_vault`, `load_key_record`,
+  `load_key_with_passphrase`, `same_words`, `stores_passphrase_of`,
+  `passphrase_record_is`, `holds_session_words`, `word_count` and
+  `words_id` (worked out once per change, inside the store),
+  `round_section`, `apk_sign`, `sb_enrolment`, `sb_sign_image`, the GPG
+  certificate, revocation, revocation file and signature, and the free
+  functions `key_record_id`, `key_identity`, `key_account` and
+  `gpg_facts`. faraday-core keeps the caches of those it already kept
+  (`Vaults::fingerprints`, `Vaults::accounts`) and asks for them by
+  `key_record_id`.
+- **Editing.** `insert`, `insert_at`, `replace`, `remove`, `remove_where`,
+  `set_public`, `set_public_all`, `set_public_all_in`, `set_secret`,
+  `set_fields` (a form), `set_loads_at_unlock`, `copy_record` and `stage`
+  (a copy of a record that waits to go into a vault as a `Staged`,
+  readable by `view()` and nothing else), `fits`. A secret field is
+  written only from input the caller holds, or copied inside the crate.
+- **The cache.** `OpenVaults` is no longer generic. faraday-core keeps the
+  wallet descriptions read from the public view in `OpenVault::read`, one
+  per open vault, with the version they were read at. `Vaults::store` is
+  private: `Vaults::store()` reads, and `Vaults::edit(id, change)` is the
+  one way the records change, and drops the cache. Every lookup checks the
+  version in a debug build;
+  `a_wallet_record_changed_in_an_open_vault_shows_as_it_now_is` changes
+  the records to test it. Word counts and words' ids are facts the store
+  works out and drops on every edit.
+- **Left in faraday-core.** A `Record` it builds from input it holds (a
+  typed password, a key made from fresh entropy, a wallet description);
+  the `CarrySection` a ROUND record holds, which `round_section` hands
+  to the spend as a held value; and a key record's words, handed as a
+  held `Mnemonic` to the SeedQR, the stick file and the screen.
+- **Tests.** Tests read records through the same views; those that need a
+  raw record read it through `contents_for_tests`, behind
+  `master-for-tests`.
 
 ### 4.1 Left after step 2, closed by step 4
 

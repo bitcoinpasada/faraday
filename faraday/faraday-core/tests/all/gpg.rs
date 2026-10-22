@@ -164,8 +164,8 @@ fn make_key(app: &mut Faraday, name: &str) {
 
 fn gpg_keys(app: &Faraday) -> usize {
     app.vaults
-        .store
-        .vault_records(app.vaults.open[app.vaults.current].id)
+        .store()
+        .contents_for_tests(app.vaults.open[app.vaults.current].id)
         .of(kind::GPG)
         .count()
 }
@@ -173,8 +173,8 @@ fn gpg_keys(app: &Faraday) -> usize {
 /// The record of the GPG key last made.
 fn record(app: &Faraday) -> faraday_vault::Record {
     app.vaults
-        .store
-        .vault_records(app.vaults.open[app.vaults.current].id)
+        .store()
+        .contents_for_tests(app.vaults.open[app.vaults.current].id)
         .of(kind::GPG)
         .last()
         .expect("a GPG key")
@@ -183,7 +183,7 @@ fn record(app: &Faraday) -> faraday_vault::Record {
 }
 
 fn key_of(app: &Faraday) -> faraday_pgp::Key {
-    gpg::key_of(&record(app)).expect("a readable key")
+    crate::common::gpg_key_of(&record(app)).expect("a readable key")
 }
 
 /// The app with the test vault unlocked, a GPG key made, and the Sign a
@@ -436,17 +436,14 @@ fn a_key_with_no_kept_revocation_makes_one_when_its_page_is_opened() {
     make_key(&mut app, "Release");
     let at = app
         .vaults
-        .store
-        .vault_records(app.vaults.open[app.vaults.current].id)
+        .store()
+        .contents_for_tests(app.vaults.open[app.vaults.current].id)
         .of(kind::GPG)
         .last()
         .unwrap()
         .0;
-    app.vaults
-        .store
-        .vault_records_mut(app.vaults.open[app.vaults.current].id)
-        .records[at]
-        .set(8, &[]);
+    let id = app.vaults.open[app.vaults.current].id;
+    app.vaults.edit(id, |s| s.set_public(id, at, 8, &[]));
     assert!(record(&app).field(8).is_none());
     app.press(Action::Vault(V::Item(0)));
     assert!(record(&app).field(8).is_some());
@@ -605,9 +602,8 @@ fn no_seed_and_no_paperkey_reaches_the_outbox() {
         unix_secs: CLOCK + 86_400,
     });
     app.press(Action::Vault(V::GpgRenew));
-    let r = record(&app);
     let key = key_of(&app);
-    let paper = gpg::paperkey(&r).unwrap();
+    let paper = faraday_keys::gpg::paperkey(&key);
     let first = paper.lines().next().unwrap().trim().to_string();
     assert!(app.outbox.len() >= 4, "{:?}", outbox_names(&app));
     for item in &app.outbox {
@@ -1098,7 +1094,7 @@ fn renewing_before_the_last_self_signature_is_refused() {
     let r = record(&app);
     assert_ne!(r.field(7), before.field(7));
     assert_eq!(
-        gpg::certified_at(&r),
+        gpg::certified_at(faraday_keys::vault::RecordView::of(&r)),
         Some(u32::try_from(signed_at).unwrap() + 1)
     );
 }

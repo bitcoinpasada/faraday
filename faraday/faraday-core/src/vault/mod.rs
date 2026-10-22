@@ -19,7 +19,7 @@ use crate::strings::EN;
 use crate::strings::fill;
 use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
 use faraday_crypto::work::Compute;
-use faraday_keys::vault::{OpenVaults, VaultId};
+use faraday_keys::vault::{IntoRecord, OpenVaults, RecordView, Records, VaultId};
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{self as fv, Contents, Cost, Header, Record};
 use std::collections::BTreeSet;
@@ -538,7 +538,7 @@ pub struct VaultRow {
 }
 
 /// A wallet description a vault record holds, read once
-/// ([`VaultRecords::described`]): a wallet record's wallet, a plan's, a
+/// ([`Vaults::described`]): a wallet record's wallet, a plan's, a
 /// wallet share's. Public data only.
 #[derive(Debug, Clone)]
 pub struct Described {
@@ -565,21 +565,6 @@ impl Described {
     }
 }
 
-/// An open vault's records, with the wallet descriptions they hold read
-/// once (`docs/SPEED.md` §2 rules 2 and 4, §3.3). Reads as the records
-/// ([`Contents`]) themselves.
-///
-/// Invariant: what [`VaultRecords::described`] answers is what the
-/// records hold as they are. Every change to the records goes through
-/// `DerefMut`, which drops what was read; the next ask reads them again,
-/// and every frame reads them before it draws ([`VaultRecords::warm`]
-/// from `render`), so drawing only looks them up.
-#[derive(Clone)]
-pub struct VaultRecords {
-    contents: Contents,
-    read: std::cell::OnceCell<Read>,
-}
-
 /// The most key records' fingerprints kept ([`Vaults::fingerprints`]),
 /// far more than open vaults hold; the next one drops the oldest.
 pub(crate) const FINGERPRINTS_KEPT: usize = 256;
@@ -587,230 +572,226 @@ pub(crate) const FINGERPRINTS_KEPT: usize = 256;
 /// next one drops the oldest.
 pub(crate) const ACCOUNTS_KEPT: usize = 256;
 
-/// What [`VaultRecords`] keeps read of its records, by record place.
-#[derive(Clone)]
+/// What an open vault keeps read of its public records
+/// (`docs/SPEED.md` §2 rules 2 and 4, §3.3): the wallet description each
+/// record holds, by record place, and the version of the records it was
+/// read from.
+///
+/// Invariant: a vault's `Read` is what its records hold as they are.
+/// Every change to the records goes through [`Vaults::edit`], which drops
+/// it; the next ask reads them again, and every frame reads them before it
+/// draws ([`Vaults::warm`] from `before_frame`), so drawing only looks
+/// them up. [`OpenVaults::version`] says whether a `Read` is the records'
+/// own: it is checked at every lookup in a debug build, and
+/// `a_wallet_record_changed_in_an_open_vault_shows_as_it_now_is` changes the records
+/// to test it.
 struct Read {
+    /// [`OpenVaults::version`] of the records when this was read.
+    version: u64,
     /// The wallet description each holds.
     described: Vec<Option<Described>>,
-    /// How many words each key record's seed has: public, and none for a
-    /// record that holds a seed rather than words.
-    words: Vec<Option<usize>>,
-    /// Each key record's words' [`crate::wallet::WordsId`]: a hash of
-    /// secret entropy, kept only while the vault is open and these
-    /// records unchanged, wiped when dropped.
-    words_ids: Vec<Option<crate::wallet::WordsId>>,
 }
 
-impl VaultRecords {
-    /// The records, nothing read yet.
-    pub fn new(contents: Contents) -> VaultRecords {
-        VaultRecords {
-            contents,
-            read: std::cell::OnceCell::new(),
+impl Vaults {
+    /// The open vaults' records, for reading. Every change goes through
+    /// [`Vaults::edit`].
+    pub fn store(&self) -> &OpenVaults {
+        &self.store
+    }
+
+    /// Open vault `id`'s records, for reading.
+    pub fn records(&self, id: VaultId) -> Records<'_> {
+        self.store.records(id)
+    }
+
+    /// Changes open vault `id`'s records with `change`, which has the
+    /// store to edit, and drops what was read of them ([`Read`]). The one
+    /// way the records of an open vault change.
+    pub fn edit<T>(&mut self, id: VaultId, change: impl FnOnce(&mut OpenVaults) -> T) -> T {
+        let out = change(&mut self.store);
+        if let Some(o) = self.open.iter_mut().find(|o| o.id == id) {
+            o.read = std::cell::OnceCell::new();
+        }
+        out
+    }
+
+    /// Counts one change not yet sealed in open vault `id`.
+    pub fn changed(&mut self, id: VaultId) {
+        if let Some(o) = self.open.iter_mut().find(|o| o.id == id) {
+            o.changes += 1;
         }
     }
 
-    /// Costs a parse of each description the first time after a change, a
-    /// lookup after. Reads the wallet descriptions the records hold, unless
-    /// they are read already.
-    pub fn warm(&self, c: &Compute) {
-        self.read.get_or_init(|| {
-            // Each key record's words, parsed once for both.
-            let (words, words_ids) = self
-                .contents
-                .records
-                .iter()
-                .map(|r| {
-                    let m = (r.kind == kind::KEY)
-                        .then(|| crate::wallet::record_words(c, r))
-                        .flatten();
-                    (
-                        m.as_ref().map(|m| m.word_count()),
-                        m.as_ref().map(|m| crate::wallet::words_id(c, m)),
-                    )
-                })
-                .unzip();
-            self.read_with(c, words, words_ids)
+    /// The open vault on the contents screen.
+    pub fn current_id(&self) -> Option<VaultId> {
+        self.open.get(self.current).map(|o| o.id)
+    }
+
+    /// Costs a parse of each wallet description and of each key record's
+    /// words the first time after a change, a lookup after. Reads open
+    /// vault `id`'s records, unless they are read already.
+    pub fn warm(&self, c: &Compute, id: VaultId) {
+        let _ = self.read(c, id);
+    }
+
+    /// Costs what `warm` costs. What is read of open vault `id`'s records.
+    fn read(&self, c: &Compute, id: VaultId) -> Option<&Read> {
+        let o = self.open.iter().find(|o| o.id == id)?;
+        let read = o.read.get_or_init(|| {
+            // The key records' words are read with the descriptions, once.
+            self.store.warm(c, id);
+            Read {
+                version: self.store.version(id),
+                described: self
+                    .store
+                    .records(id)
+                    .iter()
+                    .map(|(_, r)| {
+                        let f = match r.kind() {
+                            kind::WALLET => field::WALLET,
+                            kind::PLAN => field::PLAN_WALLET,
+                            kind::WALLET_SHARE => field::SHARE_WALLET,
+                            _ => return None,
+                        };
+                        let policy = crate::wallet::read_wallet(c, r.public_text(f)?).ok()?;
+                        Some(Described::of(policy))
+                    })
+                    .collect(),
+            }
         });
+        debug_assert_eq!(
+            read.version,
+            self.store.version(id),
+            "an edit of the records that did not go through Vaults::edit"
+        );
+        Some(read)
     }
 
-    /// Costs what `read_wallet` costs. What [`VaultRecords::warm`] keeps,
-    /// with the key records' words read.
-    fn read_with(
-        &self,
-        c: &Compute,
-        words: Vec<Option<usize>>,
-        words_ids: Vec<Option<crate::wallet::WordsId>>,
-    ) -> Read {
-        Read {
-            described: self
-                .contents
-                .records
-                .iter()
-                .map(|r| {
-                    let f = match r.kind {
-                        kind::WALLET => field::WALLET,
-                        kind::PLAN => field::PLAN_WALLET,
-                        kind::WALLET_SHARE => field::SHARE_WALLET,
-                        _ => return None,
-                    };
-                    let policy = crate::wallet::read_wallet(c, r.text(f)?).ok()?;
-                    Some(Described::of(policy))
-                })
-                .collect(),
-            words,
-            words_ids,
-        }
-    }
-
-    /// Costs what `warm` costs. Key record `i`'s words'
-    /// [`crate::wallet::WordsId`]; `None` for another record or one holding
-    /// a seed rather than words. A lookup once the records are read.
-    pub fn words_id(&self, c: &Compute, i: usize) -> Option<&[u8; 32]> {
-        self.warm(c);
-        self.read.get()?.words_ids.get(i)?.as_deref()
-    }
-
-    /// Costs what `warm` costs. How many words key record `i`'s seed has;
-    /// `None` for another record, or a key record holding a seed rather
-    /// than words. A lookup once the records are read.
-    pub fn word_count(&self, c: &Compute, i: usize) -> Option<usize> {
-        self.warm(c);
-        *self.read.get()?.words.get(i)?
-    }
-
-    /// Costs what `warm` costs. The wallet description record `i` holds,
-    /// read: a wallet record's wallet, a plan's, a wallet share's; `None`
-    /// for another record or one whose description does not read. A lookup
-    /// once the records are read ([`VaultRecords::warm`]); the first ask
-    /// after a change parses them.
-    pub fn described(&self, c: &Compute, i: usize) -> Option<&Described> {
-        self.warm(c);
-        self.read.get()?.described.get(i)?.as_ref()
+    /// Costs what `warm` costs. The wallet description record `i` of open
+    /// vault `id` holds, read: a wallet record's wallet, a plan's, a
+    /// wallet share's; `None` for another record or one whose description
+    /// does not read. A lookup once the records are read.
+    pub fn described(&self, c: &Compute, id: VaultId, i: usize) -> Option<&Described> {
+        self.read(c, id)?.described.get(i)?.as_ref()
     }
 
     /// Costs what `described` costs. The wallet description record `r`
-    /// holds, read, when `r` is one of these records itself (told by where
-    /// it is, not by what it says); `None` for a copy. A search of the
-    /// records' places.
-    pub fn described_rec(&self, c: &Compute, r: &Record) -> Option<&Described> {
-        self.described(c, self.place_of(r)?)
+    /// holds, read, when `r` is an open vault's own record (told by where
+    /// it is, not by what it says); `None` for a copy.
+    pub fn described_rec(&self, c: &Compute, r: RecordView<'_>) -> Option<&Described> {
+        let (id, i) = r.home()?;
+        self.described(c, id, i)
     }
 
-    /// Where record `r` is among these records, when it is one of them
-    /// itself (told by where it is, not by what it says).
-    pub fn place_of(&self, r: &Record) -> Option<usize> {
-        self.contents
-            .records
-            .iter()
-            .position(|x| std::ptr::eq(x, r))
-    }
-
-    /// Costs what `described` costs. Each record of kind `k` with the
-    /// wallet description it holds, read (see [`VaultRecords::described`]).
+    /// Costs what `described` costs. Each record of kind `k` of open vault
+    /// `id` with the wallet description it holds, read.
     pub fn described_of(
         &self,
         c: &Compute,
+        id: VaultId,
         k: u8,
-    ) -> impl Iterator<Item = (usize, &Record, &Described)> {
-        self.contents
+    ) -> impl Iterator<Item = (usize, RecordView<'_>, &Described)> {
+        self.store
+            .records(id)
             .of(k)
-            .filter_map(move |(i, r)| self.described(c, i).map(|d| (i, r, d)))
+            .filter_map(move |(i, r)| self.described(c, id, i).map(|d| (i, r, d)))
     }
-}
 
-impl std::ops::Deref for VaultRecords {
-    type Target = Contents;
-    fn deref(&self) -> &Contents {
-        &self.contents
+    /// Costs what `warm` costs. How many words key record `r`'s seed has,
+    /// as its open vault keeps it read; a record that is no open vault's
+    /// own (a copy) is read afresh, which costs a parse.
+    pub fn record_word_count(&self, c: &Compute, r: RecordView<'_>) -> Option<usize> {
+        if let Some((id, _)) = r.home() {
+            self.warm(c, id);
+        }
+        self.store.record_word_count(c, r)
     }
-}
 
-/// A change to the records drops what was read of them: the invariant
-/// of [`VaultRecords`].
-impl std::ops::DerefMut for VaultRecords {
-    fn deref_mut(&mut self) -> &mut Contents {
-        self.read = std::cell::OnceCell::new();
-        &mut self.contents
+    /// Costs what `warm` costs. Key record `r`'s words'
+    /// [`crate::wallet::WordsId`], as its open vault keeps it; a record
+    /// that is no open vault's own (a copy) is read afresh, which costs a
+    /// parse.
+    pub fn record_words_id(
+        &self,
+        c: &Compute,
+        r: RecordView<'_>,
+    ) -> Option<crate::wallet::WordsId> {
+        if let Some((id, _)) = r.home() {
+            self.warm(c, id);
+        }
+        self.store.record_words_id(c, r)
     }
-}
 
-impl From<Contents> for VaultRecords {
-    fn from(contents: Contents) -> VaultRecords {
-        VaultRecords::new(contents)
+    /// Costs what `warm` costs. Key record `i` of open vault `id`'s words'
+    /// [`crate::wallet::WordsId`]; a lookup once the records are read.
+    pub fn words_id(&self, c: &Compute, id: VaultId, i: usize) -> Option<&[u8; 32]> {
+        self.warm(c, id);
+        self.store.words_id(c, id, i)
+    }
+
+    /// Costs what `warm` costs. How many words key record `i` of open
+    /// vault `id` has; a lookup once the records are read.
+    pub fn word_count(&self, c: &Compute, id: VaultId, i: usize) -> Option<usize> {
+        self.warm(c, id);
+        self.store.word_count(c, id, i)
     }
 }
 
 impl Faraday {
     /// Costs what `word_count` costs. How many words key record `r`'s seed
-    /// has, as its open vault keeps it read ([`VaultRecords::word_count`]);
+    /// has, as its open vault keeps it read ([`Vaults::record_word_count`]);
     /// a record that is no open vault's own (a copy) is read afresh, which
     /// costs a parse.
-    pub(crate) fn record_word_count(&self, c: &Compute, r: &Record) -> Option<usize> {
-        if let Some((o, i)) = self.vaults.open.iter().find_map(|o| {
-            self.vaults
-                .store
-                .vault_records(o.id)
-                .place_of(r)
-                .map(|i| (o, i))
-        }) {
-            return self.vaults.store.vault_records(o.id).word_count(c, i);
-        }
-        crate::wallet::record_words(c, r).map(|m| m.word_count())
+    pub(crate) fn record_word_count(&self, c: &Compute, r: RecordView<'_>) -> Option<usize> {
+        self.vaults.record_word_count(c, r)
     }
 
     /// Costs what `words_id` costs. Key record `r`'s words'
     /// [`crate::wallet::WordsId`], as its open vault keeps it
-    /// ([`VaultRecords::words_id`]); a record that is no open vault's own
+    /// ([`Vaults::record_words_id`]); a record that is no open vault's own
     /// (a copy) is read afresh, which costs a parse.
     pub(crate) fn record_words_id(
         &self,
         c: &Compute,
-        r: &Record,
+        r: RecordView<'_>,
     ) -> Option<crate::wallet::WordsId> {
-        if let Some((o, i)) = self.vaults.open.iter().find_map(|o| {
-            self.vaults
-                .store
-                .vault_records(o.id)
-                .place_of(r)
-                .map(|i| (o, i))
-        }) {
-            return self
-                .vaults
-                .store
-                .vault_records(o.id)
-                .words_id(c, i)
-                .map(|id| zeroize::Zeroizing::new(*id));
-        }
-        crate::wallet::record_words(c, r).map(|m| crate::wallet::words_id(c, &m))
+        self.vaults.record_words_id(c, r)
     }
 
     /// Costs what `described_rec` and `read_kept` cost. The wallet
     /// description record `r` holds, as its open vault keeps it read
-    /// ([`VaultRecords`]); a record that is no open vault's own (a copy) is
-    /// read as a description no record keeps ([`Faraday::read_kept`]),
-    /// which costs a parse the first time.
+    /// ([`Vaults::described_rec`]); a record that is no open vault's own (a
+    /// copy) is read as a description no record keeps
+    /// ([`Faraday::read_kept`]), which costs a parse the first time.
     pub(crate) fn record_described(
         &self,
         c: &Compute,
-        r: &Record,
+        r: RecordView<'_>,
     ) -> Option<std::borrow::Cow<'_, Described>> {
-        if let Some(d) = self
-            .vaults
-            .open
-            .iter()
-            .find_map(|o| self.vaults.store.vault_records(o.id).described_rec(c, r))
-        {
+        if let Some(d) = self.vaults.described_rec(c, r) {
             return Some(std::borrow::Cow::Borrowed(d));
         }
-        let f = match r.kind {
+        let f = match r.kind() {
             kind::WALLET => field::WALLET,
             kind::PLAN => field::PLAN_WALLET,
             kind::WALLET_SHARE => field::SHARE_WALLET,
             _ => return None,
         };
-        let policy = self.read_kept(c, r.text(f)?)?;
+        let policy = self.read_kept(c, r.public_text(f)?)?;
         Some(std::borrow::Cow::Owned(Described::of(policy)))
+    }
+}
+
+/// What a form field of a record of type `kind` is, when it holds a
+/// secret: the part a reveal names.
+fn form_part(kind_: u8, number: u8) -> Option<faraday_keys::Part> {
+    use faraday_keys::Part;
+    match (kind_, number) {
+        (kind::ENTRY, field::PASSWORD) => Some(Part::Password),
+        (kind::ENTRY, field::NOTES) => Some(Part::EntryNotes),
+        (kind::ENTRY, field::TOTP) => Some(Part::Totp),
+        (kind::NOTE, field::NOTE) => Some(Part::Note),
+        _ => None,
     }
 }
 
@@ -841,17 +822,19 @@ pub struct OpenVault {
     /// Its seeds and wallets listed one by one on Files, under its
     /// wallets with their seeds.
     pub each_shown: bool,
+    /// What is read of its records ([`Read`]); dropped by every edit.
+    read: std::cell::OnceCell<Read>,
 }
 
 impl OpenVault {
     /// The slot's label, or "Vault". `store` is the [`Vaults::store`] it
     /// is in.
-    pub fn label(&self, store: &OpenVaults<VaultRecords>) -> String {
+    pub fn label(&self, store: &OpenVaults) -> String {
         store
-            .vault_records(self.id)
+            .records(self.id)
             .of(kind::SLOT_LABEL)
             .next()
-            .and_then(|(_, r)| r.text(field::LABEL))
+            .and_then(|(_, r)| r.public_text(field::LABEL))
             .unwrap_or(EN.vaults_vault)
             .to_string()
     }
@@ -974,8 +957,9 @@ pub struct Vaults {
     pub open: Vec<OpenVault>,
     /// The open slots' keys and records, held by faraday-keys: each of
     /// [`Vaults::open`] is a slot of it, by its `id`. They are made and
-    /// closed together ([`Vaults::close`], [`Vaults::close_all`]).
-    pub store: OpenVaults<VaultRecords>,
+    /// closed together ([`Vaults::close`], [`Vaults::close_all`]). Read
+    /// through [`Vaults::store`]; changed through [`Vaults::edit`].
+    store: OpenVaults,
     /// Create a vault, while it is on screen.
     pub create: Option<CreateForm>,
     /// The vault chosen to unlock, by its place in the list.
@@ -1261,27 +1245,13 @@ impl Faraday {
     ///
     /// Works out [`crate::drawing::View::unsaved`]. Costs a parse of each key's words.
     pub fn unsaved_now(&self, c: &Compute) -> (Vec<String>, Vec<String>) {
-        let held_keys: Vec<&[u8]> = self
-            .vaults
-            .open
-            .iter()
-            .flat_map(|v| {
-                self.vaults
-                    .store
-                    .vault_records(v.id)
-                    .of(kind::KEY)
-                    .filter_map(|(_, r)| r.field(field::KEY))
-            })
-            .collect();
         let held_wallets: Vec<String> = self
             .vaults
             .open
             .iter()
             .flat_map(|v| {
                 self.vaults
-                    .store
-                    .vault_records(v.id)
-                    .described_of(c, kind::WALLET)
+                    .described_of(c, v.id, kind::WALLET)
                     .map(|(_, _, d)| d.policy.to_descriptor())
             })
             .collect();
@@ -1290,7 +1260,12 @@ impl Faraday {
             .keys
             .all()
             .enumerate()
-            .filter(|(i, _)| !self.session.keys.words_payload_among(c, *i, &held_keys))
+            .filter(|(i, _)| {
+                !self
+                    .vaults
+                    .store()
+                    .holds_session_words(c, &self.session.keys, *i)
+            })
             .map(|(_, k)| k.label.clone())
             .collect();
         let wallets = self
@@ -1329,7 +1304,7 @@ impl Faraday {
         for f in self.vault_files() {
             let open = f.open.and_then(|o| self.vaults.open.get(o));
             let title = open
-                .map(|v| v.label(&self.vaults.store))
+                .map(|v| v.label(self.vaults.store()))
                 .or_else(|| self.vault_summary(&f).map(|s| s.name.clone()))
                 .unwrap_or_else(|| f.name.clone());
             let currency = self.currency(c, &f);
@@ -1370,25 +1345,22 @@ impl Faraday {
         // Where an open vault holds each seed and wallet.
         // A seed is in a vault when a key record there holds its words,
         // from any list: told by the hash of their entropy each keeps
-        // (`Key::words_id`, `VaultRecords::words_id`), not parsed here.
+        // (`Key::words_id`, `Vaults::words_id`), not parsed here.
         let in_vault_key = |id: &[u8; 32]| {
             self.vaults.open.iter().find_map(|v| {
                 self.vaults
-                    .store
-                    .vault_records(v.id)
+                    .records(v.id)
                     .of(kind::KEY)
-                    .any(|(i, _)| self.vaults.store.vault_records(v.id).words_id(c, i) == Some(id))
-                    .then(|| v.label(&self.vaults.store))
+                    .any(|(i, _)| self.vaults.words_id(c, v.id, i) == Some(id))
+                    .then(|| v.label(self.vaults.store()))
             })
         };
         let in_vault_wallet = |descriptor: &str| {
             self.vaults.open.iter().find_map(|v| {
                 self.vaults
-                    .store
-                    .vault_records(v.id)
-                    .described_of(c, kind::WALLET)
+                    .described_of(c, v.id, kind::WALLET)
                     .any(|(_, _, d)| d.policy.to_descriptor() == descriptor)
-                    .then(|| v.label(&self.vaults.store))
+                    .then(|| v.label(self.vaults.store()))
             })
         };
         for (i, k) in self.session.keys.all().enumerate() {
@@ -1999,18 +1971,17 @@ impl Faraday {
                 if self.vault_key_wallet(&c, self.vaults.current, at).is_some() {
                     return;
                 }
-                if let Some(v) = self.vaults.open.get_mut(self.vaults.current)
-                    && let Some(r) = self
+                if let Some(id) = self.vaults.current_id()
+                    && let Some(loads) = self
                         .vaults
-                        .store
-                        .vault_records_mut(v.id)
-                        .records
-                        .get_mut(at)
-                    && matches!(r.kind, kind::KEY | kind::WALLET)
+                        .records(id)
+                        .get(at)
+                        .filter(|r| matches!(r.kind(), kind::KEY | kind::WALLET))
+                        .map(|r| r.loads_at_unlock())
                 {
-                    let loads = records::loads_at_unlock(r);
-                    records::set_loads_at_unlock(r, !loads);
-                    v.changes += 1;
+                    self.vaults
+                        .edit(id, |s| s.set_loads_at_unlock(id, at, !loads));
+                    self.vaults.changed(id);
                 }
             }
             V::Load => self.vault_load_selected(),
@@ -2052,7 +2023,7 @@ impl Faraday {
                     .vaults
                     .open
                     .get(self.vaults.current)
-                    .map(|o| o.label(&self.vaults.store));
+                    .map(|o| o.label(self.vaults.store()));
                 if let Some(label) = label {
                     let mut name = TextBox::default();
                     name.set(&label);
@@ -2242,7 +2213,7 @@ impl Faraday {
             V::ApkExport => self.apk_export(),
             V::ApkSignOpen => {
                 if let Some((_, r)) = self.apk_selected()
-                    && let Some(fp) = crate::apk::fingerprint_of(&r)
+                    && let Some(fp) = crate::apk::fingerprint_of(r)
                     && self
                         .backup_waits(crate::backup_flow::Kind::Apk, &fp)
                         .is_none()
@@ -2254,7 +2225,7 @@ impl Faraday {
             }
             V::ApkPick(k) => {
                 if let Some((_, r)) = self.apk_selected()
-                    && let Some(fp) = crate::apk::fingerprint_of(&r)
+                    && let Some(fp) = crate::apk::fingerprint_of(r)
                     && self
                         .backup_waits(crate::backup_flow::Kind::Apk, &fp)
                         .is_none()
@@ -2286,11 +2257,9 @@ impl Faraday {
             || self.apk_signing
             || self.vaults.open.iter().any(|v| {
                 self.vaults
-                    .store
-                    .vault_records(v.id)
-                    .records
+                    .records(v.id)
                     .iter()
-                    .any(|r| CATEGORIES[APK_CATEGORY].1.contains(&r.kind))
+                    .any(|(_, r)| CATEGORIES[APK_CATEGORY].1.contains(&r.kind()))
             })
     }
 
@@ -2306,22 +2275,21 @@ impl Faraday {
             }
         }
         let n = records.len();
-        let Some(v) = self.vaults.open.get_mut(self.vaults.current) else {
+        let Some(id) = self.vaults.current_id() else {
             return;
         };
-        let mut trial = self.vaults.store.vault_records(v.id).clone();
-        trial.records.extend(records.iter().cloned());
-        if trial.used() > v.header().slot_len as usize {
+        let sizes: Vec<usize> = records.iter().map(|r| r.size()).collect();
+        if !self.vaults.store().fits(id, &[], &sizes) {
             self.toast(EN.vaults_those_entries);
             return;
         }
-        self.vaults
-            .store
-            .vault_records_mut(v.id)
-            .records
-            .extend(records);
+        self.vaults.edit(id, |s| {
+            for r in records {
+                s.insert(id, r);
+            }
+        });
         if n > 0 {
-            v.changes += 1;
+            self.vaults.changed(id);
         }
         self.vaults.category = 2;
         self.vaults.form = None;
@@ -2371,14 +2339,14 @@ impl Faraday {
         }
         if fv::entries::looks_like_entries(t) {
             let records = fv::entries::parse(t);
-            if let Some(v) = self.vaults.open.get_mut(self.vaults.current) {
+            if let Some(id) = self.vaults.current_id() {
                 let n = records.len();
-                self.vaults
-                    .store
-                    .vault_records_mut(v.id)
-                    .records
-                    .extend(records);
-                v.changes += 1;
+                self.vaults.edit(id, |s| {
+                    for r in records {
+                        s.insert(id, r);
+                    }
+                });
+                self.vaults.changed(id);
                 self.vaults.category = 2;
                 self.screen = back;
                 self.toast(&fill(
@@ -2426,24 +2394,21 @@ impl Faraday {
                 let Some(at) = self.vault_selected_index() else {
                     return;
                 };
-                let Some(r) = self
-                    .vaults
-                    .open
-                    .get(self.vaults.current)
-                    .and_then(|v| self.vaults.store.vault_records(v.id).records.get(at))
+                let Some(id) = self.vaults.current_id() else {
+                    return;
+                };
+                let Some(faraday_keys::vault::KeyLoad::Done(loaded)) =
+                    self.vaults.store().load_key_with_passphrase(
+                        &c,
+                        &mut self.session.keys,
+                        (id, at),
+                        &passphrase,
+                        None,
+                    )
                 else {
                     return;
                 };
-                let Some(m) = crate::wallet::record_words(&c, r) else {
-                    return;
-                };
-                let words = phrase_of(&m);
-                let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
-                match self
-                    .session
-                    .keys
-                    .add_words_with(&c, &words, &passphrase, &label, None)
-                {
+                match loaded {
                     Ok(fp) => {
                         self.vaults.prompt = None;
                         self.vaults.focus = None;
@@ -2647,6 +2612,7 @@ impl Faraday {
                     changes: 0,
                     skip: Default::default(),
                     each_shown: false,
+                    read: Default::default(),
                 });
                 self.vaults.current = self.vaults.open.len() - 1;
                 // Unlocked for a vault category from Tools: that category.
@@ -2654,11 +2620,9 @@ impl Faraday {
                 if self.vaults.back_to != Some(Screen::VaultContents) {
                     let held = |kinds: &[u8]| {
                         self.vaults
-                            .store
-                            .vault_records(self.vaults.open[self.vaults.open.len() - 1].id)
-                            .records
+                            .records(self.vaults.open[self.vaults.open.len() - 1].id)
                             .iter()
-                            .any(|r| kinds.contains(&r.kind))
+                            .any(|(_, r)| kinds.contains(&r.kind()))
                     };
                     // Its wallets first, each with its chart (§7.2).
                     self.vaults.category = if held(CATEGORIES[1].1) {
@@ -2679,24 +2643,15 @@ impl Faraday {
                 let v = self.vaults.current;
                 let skip = self
                     .vaults
-                    .store
-                    .vault_records(self.vaults.open[v].id)
-                    .records
+                    .records(self.vaults.open[v].id)
                     .iter()
-                    .enumerate()
                     .filter(|(_, r)| {
-                        matches!(r.kind, kind::KEY | kind::WALLET) && !records::loads_at_unlock(r)
+                        matches!(r.kind(), kind::KEY | kind::WALLET) && !r.loads_at_unlock()
                     })
                     .map(|(i, _)| i)
                     .collect();
                 self.vaults.open[v].skip = skip;
-                let records = self
-                    .vaults
-                    .store
-                    .vault_records(self.vaults.open[v].id)
-                    .records
-                    .clone();
-                self.amounts_from_vault(&records);
+                self.amounts_from_vault(self.vaults.open[v].id);
                 // The vault just made opens on its contents, empty, with
                 // what to do next.
                 let made = self.vaults.just_made.take() == Some(self.vaults.open[v].name.clone());
@@ -2815,17 +2770,17 @@ impl Faraday {
     /// wallets open vault `v` holds, each with whether the session has it
     /// already and whether it is chosen for the next load. Kept in the
     /// drawing memo while a frame is drawn (`docs/SPEED.md` §3.3). Reads
-    /// its wallet records as it keeps them read ([`VaultRecords`]).
+    /// its wallet records as it keeps them read ([`Vaults::described`]).
     ///
     /// Works out [`crate::drawing::View::vault_rows`] from the wallet records as the
-    /// vault keeps them read ([`VaultRecords`]).
+    /// vault keeps them read ([`Vaults::described`]).
     pub fn vault_rows_now(&self, c: &Compute, v: usize) -> Vec<VaultRow> {
         let Some(open) = self.vaults.open.get(v) else {
             return Vec::new();
         };
         let mut rows = Vec::new();
-        for (i, r) in self.vaults.store.vault_records(open.id).of(kind::WALLET) {
-            let described = self.vaults.store.vault_records(open.id).described(c, i);
+        for (i, r) in self.vaults.records(open.id).of(kind::WALLET) {
+            let described = self.vaults.described(c, open.id, i);
             let loaded = described.is_some_and(|d| {
                 self.session
                     .wallets
@@ -2835,7 +2790,7 @@ impl Faraday {
             rows.push(VaultRow {
                 record: i,
                 name: r
-                    .text(field::WALLET_NAME)
+                    .public_text(field::WALLET_NAME)
                     .unwrap_or(EN.vaults_wallet)
                     .to_string(),
                 detail: described.map(|d| d.shape.clone()).unwrap_or_default(),
@@ -2844,7 +2799,7 @@ impl Faraday {
                 chosen: !open.skip.contains(&i),
             });
         }
-        for (i, r) in self.vaults.store.vault_records(open.id).of(kind::KEY) {
+        for (i, r) in self.vaults.records(open.id).of(kind::KEY) {
             let fp = crate::vault::screen::key_fingerprint(c, self, r).unwrap_or_default();
             let loaded = self
                 .session
@@ -2854,7 +2809,7 @@ impl Faraday {
             rows.push(VaultRow {
                 record: i,
                 name: r
-                    .text(field::KEY_LABEL)
+                    .public_text(field::KEY_LABEL)
                     .unwrap_or(EN.vaults_seed)
                     .to_string(),
                 detail: fp,
@@ -2877,13 +2832,12 @@ impl Faraday {
         let want = crate::wallet::fp_text(slot.fingerprint?);
         self.vaults.open.iter().enumerate().find_map(|(v, open)| {
             self.vaults
-                .store
-                .vault_records(open.id)
+                .records(open.id)
                 .of(kind::KEY)
                 .find(|(_, r)| match &slot.key {
-                    Some(k) => crate::vault::screen::record_is_policy_key(c, self, r, k),
+                    Some(k) => crate::vault::screen::record_is_policy_key(c, self, *r, k),
                     None => {
-                        crate::vault::screen::key_fingerprint(c, self, r).as_deref() == Some(&want)
+                        crate::vault::screen::key_fingerprint(c, self, *r).as_deref() == Some(&want)
                     }
                 })
                 .map(|(i, _)| (v, i))
@@ -2906,11 +2860,7 @@ impl Faraday {
                 self.session.slots(wallet).into_iter().nth(k)?
             }
             SlotOf::Vault(v, r, k) => {
-                let d = self
-                    .vaults
-                    .store
-                    .vault_records(self.vaults.open.get(v)?.id)
-                    .described(c, r)?;
+                let d = self.vaults.described(c, self.vaults.open.get(v)?.id, r)?;
                 let wallet = crate::wallet::Wallet::new(
                     String::new(),
                     d.policy.clone(),
@@ -2933,23 +2883,17 @@ impl Faraday {
         };
         let seeds: Vec<(usize, String)> = self
             .vaults
-            .store
-            .vault_records(open.id)
+            .records(open.id)
             .of(kind::KEY)
             .filter_map(|(i, r)| crate::vault::screen::key_fingerprint(c, self, r).map(|f| (i, f)))
             .collect();
         let rows = self.vault_rows_now(c, v);
         let loaded = |i: usize| rows.iter().any(|r| r.record == i && r.loaded);
         let mut out = Vec::new();
-        for (i, r, d) in self
-            .vaults
-            .store
-            .vault_records(open.id)
-            .described_of(c, kind::WALLET)
-        {
+        for (i, r, d) in self.vaults.described_of(c, open.id, kind::WALLET) {
             let policy = d.policy.clone();
             let name = r
-                .text(field::WALLET_NAME)
+                .public_text(field::WALLET_NAME)
                 .unwrap_or(EN.vaults_wallet)
                 .to_string();
             let wallet = crate::wallet::Wallet::new(
@@ -2992,7 +2936,7 @@ impl Faraday {
         let Some(open) = self.vaults.open.get(v) else {
             return (0, 0);
         };
-        let set: BTreeSet<usize> = (0..self.vaults.store.vault_records(open.id).records.len())
+        let set: BTreeSet<usize> = (0..self.vaults.records(open.id).len())
             .filter(|i| all || !open.skip.contains(i))
             .collect();
         self.vault_load_set(v, &set)
@@ -3005,12 +2949,10 @@ impl Faraday {
         let c = self.compute();
         let open = self.vaults.open.get(v)?;
         self.vaults
-            .store
-            .vault_records(open.id)
-            .records
+            .records(open.id)
             .get(r)
-            .filter(|x| x.kind == kind::WALLET)?;
-        let described = self.vaults.store.vault_records(open.id).described(&c, r)?;
+            .filter(|x| x.kind() == kind::WALLET)?;
+        let described = self.vaults.described(&c, open.id, r)?;
         let policy = described.policy.clone();
         let want = described.same.clone();
         let mut set = BTreeSet::from([r]);
@@ -3023,8 +2965,7 @@ impl Faraday {
                 .collect();
             set.extend(
                 self.vaults
-                    .store
-                    .vault_records(open.id)
+                    .records(open.id)
                     .of(kind::KEY)
                     .filter_map(|(i, k)| {
                         crate::vault::screen::key_fingerprint(&c, self, k)
@@ -3062,17 +3003,17 @@ impl Faraday {
             return (0, 0);
         };
         let mut descs: Vec<(faraday_bip::policy::WalletPolicy, String)> = Vec::new();
-        let records = self.vaults.store.vault_records(open.id);
+        let records = self.vaults.records(open.id);
         for (i, r) in records.of(kind::WALLET) {
             if !set.contains(&i) {
                 continue;
             }
-            // Read once when the records changed (`VaultRecords`), not
-            // again here.
-            if let Some(d) = records.described(&c, i) {
+            // Read once when the records changed (`Vaults::described`),
+            // not again here.
+            if let Some(d) = self.vaults.described(&c, open.id, i) {
                 descs.push((
                     d.policy.clone(),
-                    r.text(field::WALLET_NAME)
+                    r.public_text(field::WALLET_NAME)
                         .unwrap_or(EN.vaults_wallet)
                         .to_string(),
                 ));
@@ -3080,7 +3021,7 @@ impl Faraday {
         }
         let keys = self
             .vaults
-            .store
+            .store()
             .load_from_vault(&c, &mut self.session.keys, open.id, set)
             .len();
         let before = self.session.wallets.len();
@@ -3104,13 +3045,19 @@ impl Faraday {
         let Some(at) = self.vault_selected_index() else {
             return;
         };
-        let Some(r) = self
+        let Some(id) = self.vaults.current_id() else {
+            return;
+        };
+        let Some(title) = self
             .vaults
-            .open
-            .get(self.vaults.current)
-            .and_then(|v| self.vaults.store.vault_records(v.id).records.get(at))
-            .filter(|r| r.kind == kind::ENTRY)
-            .cloned()
+            .records(id)
+            .get(at)
+            .filter(|r| r.kind() == kind::ENTRY)
+            .map(|r| {
+                r.public_text(field::TITLE)
+                    .unwrap_or(EN.vaults_entry)
+                    .to_string()
+            })
         else {
             return;
         };
@@ -3138,28 +3085,16 @@ impl Faraday {
             let h = sha256::Hash::from_engine(e).to_byte_array();
             chunk.copy_from_slice(&h[..chunk.len()]);
         }
-        let title = r.text(field::TITLE).unwrap_or(EN.vaults_entry).to_string();
-        let mut notes = String::new();
-        for (label, f) in [
-            (EN.vaults_username, field::USERNAME),
-            (EN.vaults_url, field::URL),
-        ] {
-            if let Some(v) = r.text(f) {
-                notes.push_str(&format!("{label}: {v}\n"));
-            }
-        }
-        if let Some(n) = r.text(field::NOTES) {
-            notes.push_str(n);
-        }
-        let notes = Zeroizing::new(notes);
-        match faraday_keys::vault::write_kdbx(
-            &c,
-            title.as_bytes(),
-            notes.as_bytes(),
-            r.field(field::PASSWORD).unwrap_or(&[]),
-            passphrase.as_bytes(),
-            &seed,
-        ) {
+        let words = faraday_keys::vault::KdbxWords {
+            title: EN.vaults_entry,
+            username: EN.vaults_username,
+            url: EN.vaults_url,
+        };
+        match self
+            .vaults
+            .store()
+            .kdbx_entry(&c, (id, at), &words, passphrase.as_bytes(), &seed)
+        {
             Some(file) => {
                 let stem: String = crate::file_stem(&title);
                 let name = format!("{stem}.kdbx");
@@ -3185,12 +3120,9 @@ impl Faraday {
         let kinds = CATEGORIES[self.vaults.category].1;
         let items: Vec<usize> = self
             .vaults
-            .store
-            .vault_records(v.id)
-            .records
+            .records(v.id)
             .iter()
-            .enumerate()
-            .filter(|(_, r)| kinds.contains(&r.kind))
+            .filter(|(_, r)| kinds.contains(&r.kind()))
             .map(|(i, _)| i)
             .collect();
         let k = self.vaults.item[self.vaults.category].min(items.len().saturating_sub(1));
@@ -3201,9 +3133,9 @@ impl Faraday {
         let Some(at) = self.vault_selected_index() else {
             return;
         };
-        if let Some(v) = self.vaults.open.get_mut(self.vaults.current) {
-            self.vaults.store.vault_records_mut(v.id).records.remove(at);
-            v.changes += 1;
+        if let Some(id) = self.vaults.current_id() {
+            self.vaults.edit(id, |s| s.remove(id, at));
+            self.vaults.changed(id);
             self.toast(EN.vaults_deleted_from);
         }
     }
@@ -3217,14 +3149,14 @@ impl Faraday {
             return;
         };
         let id = open.id;
-        let Some(r) = self.vaults.store.vault_records(id).records.get(at) else {
+        let Some(r) = self.vaults.records(id).get(at) else {
             return;
         };
-        match r.kind {
+        match r.kind() {
             kind::KEY => {
                 let Some(added) =
                     self.vaults
-                        .store
+                        .store()
                         .load_key_record(&c, &mut self.session.keys, id, at)
                 else {
                     return;
@@ -3238,9 +3170,9 @@ impl Faraday {
                 }
             }
             kind::WALLET => {
-                let text = r.text(field::WALLET).unwrap_or("").to_string();
+                let text = r.public_text(field::WALLET).unwrap_or("").to_string();
                 let name = r
-                    .text(field::WALLET_NAME)
+                    .public_text(field::WALLET_NAME)
                     .unwrap_or(EN.vaults_wallet)
                     .to_string();
                 match self.session.add_wallet(
@@ -3278,20 +3210,18 @@ impl Faraday {
     }
 
     fn vault_form(&mut self, edit: bool) {
+        let c = self.compute();
         let kinds = CATEGORIES[self.vaults.category].1;
         let at = if edit {
             self.vault_selected_index()
         } else {
             None
         };
-        let existing = at.and_then(|i| {
-            self.vaults
-                .store
-                .vault_records(self.vaults.open.get(self.vaults.current)?.id)
-                .records
-                .get(i)
-        });
-        let k = existing.map(|r| r.kind).unwrap_or(kinds[0]);
+        let id = self.vaults.current_id();
+        let existing = at
+            .zip(id)
+            .and_then(|(i, id)| self.vaults.records(id).get(i));
+        let k = existing.map(|r| r.kind()).unwrap_or(kinds[0]);
         let shape: &[(u8, &'static str, bool)] = match k {
             kind::ENTRY => &[
                 (field::TITLE, EN.vaults_title, false),
@@ -3308,8 +3238,27 @@ impl Faraday {
             .iter()
             .map(|(n, label, secret)| {
                 let mut b = TextBox::default();
-                if let Some(t) = existing.and_then(|r| r.text(*n)) {
-                    b.set(t);
+                if let (Some(r), Some(id), Some(i)) = (existing, id, at) {
+                    match form_part(r.kind(), *n) {
+                        // A secret goes into the form only to be edited.
+                        Some(part) => {
+                            let t = self.vaults.store().reveal(
+                                &c,
+                                id,
+                                i,
+                                *n,
+                                faraday_keys::Reveal::VaultEntry(part),
+                            );
+                            if !t.is_empty() {
+                                b.set(&t);
+                            }
+                        }
+                        None => {
+                            if let Some(t) = r.public_text(*n) {
+                                b.set(t);
+                            }
+                        }
+                    }
                 }
                 (*n, *label, b, *secret)
             })
@@ -3343,28 +3292,27 @@ impl Faraday {
             self.gpg_make_revocation(reason, &text);
             return;
         }
-        let Some(v) = self.vaults.open.get_mut(self.vaults.current) else {
+        let Some(id) = self.vaults.current_id() else {
             return;
         };
         if form.kind == kind::SLOT_LABEL {
             let name = form.fields[0].2.text.trim().to_string();
-            self.vaults
-                .store
-                .vault_records_mut(v.id)
-                .records
-                .retain(|r| r.kind != kind::SLOT_LABEL);
-            if !name.is_empty() {
-                let name: String = name.chars().take(64).collect();
-                let mut name = name;
-                while name.len() > 64 {
-                    name.pop();
+            self.vaults.edit(id, |s| {
+                s.remove_where(id, |r| r.kind() == kind::SLOT_LABEL);
+                if !name.is_empty() {
+                    let name: String = name.chars().take(64).collect();
+                    let mut name = name;
+                    while name.len() > 64 {
+                        name.pop();
+                    }
+                    s.insert_at(
+                        id,
+                        0,
+                        Record::new(kind::SLOT_LABEL).with(field::LABEL, name.as_bytes()),
+                    );
                 }
-                self.vaults.store.vault_records_mut(v.id).records.insert(
-                    0,
-                    Record::new(kind::SLOT_LABEL).with(field::LABEL, name.as_bytes()),
-                );
-            }
-            v.changes += 1;
+            });
+            self.vaults.changed(id);
             return;
         }
         if form.fields[0].2.text.trim().is_empty() {
@@ -3377,13 +3325,6 @@ impl Faraday {
             self.toast(what);
             return;
         }
-        let mut record = match form
-            .record
-            .and_then(|i| self.vaults.store.vault_records(v.id).records.get(i))
-        {
-            Some(r) => r.clone(),
-            None => Record::new(form.kind),
-        };
         // The TOTP secret field, if any, goes through `normalise` with
         // the form's own Title and Username (`docs/TOTP.md` §6); checked
         // before anything moves `form` away.
@@ -3411,51 +3352,41 @@ impl Faraday {
             self.toast(EN.vaults_not_a_totp_key);
             return;
         };
+        // The record takes each field as it was typed; one left empty is
+        // taken out.
+        let mut typed: Vec<(u8, &[u8])> = Vec::new();
         for (n, _, b, _) in &form.fields {
             if *n != field::TOTP {
-                record.set(*n, b.text.as_bytes());
+                typed.push((*n, b.text.as_bytes()));
             }
         }
         if totp_text.is_some() {
-            match totp_store {
-                Some(s) => record.set(field::TOTP, s.as_bytes()),
-                None => record.set(field::TOTP, b""),
-            }
+            typed.push((
+                field::TOTP,
+                totp_store.as_deref().map_or(&b""[..], str::as_bytes),
+            ));
         }
         // A new record must still fit in the slot.
-        let mut trial = self.vaults.store.vault_records(v.id).clone();
-        match form.record {
-            Some(i) if i < trial.records.len() => trial.records[i] = record.clone(),
-            _ => trial.records.push(record.clone()),
-        }
-        if trial.used() > v.header().slot_len as usize {
+        let kinds = CATEGORIES[self.vaults.category].1;
+        let was = form.record.filter(|&i| i < self.vaults.records(id).len());
+        let placed = self
+            .vaults
+            .edit(id, |s| s.set_fields(id, form.record, form.kind, &typed));
+        let Ok(_place) = placed else {
             self.vaults.form = Some(form);
             self.toast(EN.vaults_that_does_not);
             return;
+        };
+        if was.is_none() {
+            let n = self
+                .vaults
+                .records(id)
+                .iter()
+                .filter(|(_, r)| kinds.contains(&r.kind()))
+                .count();
+            self.vaults.item[self.vaults.category] = n.saturating_sub(1);
         }
-        let kinds = CATEGORIES[self.vaults.category].1;
-        match form.record {
-            Some(i) if i < self.vaults.store.vault_records(v.id).records.len() => {
-                self.vaults.store.vault_records_mut(v.id).records[i] = record
-            }
-            _ => {
-                self.vaults
-                    .store
-                    .vault_records_mut(v.id)
-                    .records
-                    .push(record);
-                let n = self
-                    .vaults
-                    .store
-                    .vault_records(v.id)
-                    .records
-                    .iter()
-                    .filter(|r| kinds.contains(&r.kind))
-                    .count();
-                self.vaults.item[self.vaults.category] = n.saturating_sub(1);
-            }
-        }
-        v.changes += 1;
+        self.vaults.changed(id);
     }
 
     /// Inbox file k into the open vault, as the record its kind is.
@@ -3530,7 +3461,7 @@ impl Faraday {
         &mut self,
         k: usize,
         with_passphrase: bool,
-    ) -> Option<(Record, String)> {
+    ) -> Option<(faraday_keys::Held<Record>, String)> {
         let c = self.compute();
         let key = self.session.keys.info(k)?;
         if !key.has_words() {
@@ -3546,17 +3477,13 @@ impl Faraday {
         let label = key.label.clone();
         // A BIP-39 passphrase is stored only when the person asks
         // (`docs/history/PLAN.md` §6.3).
-        let record = self
-            .session
-            .keys
-            .key_record(
-                &c,
-                k,
-                pending,
-                with_passphrase,
-                faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Words),
-            )?
-            .release();
+        let record = self.session.keys.key_record(
+            &c,
+            k,
+            pending,
+            with_passphrase,
+            faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Words),
+        )?;
         Some((record, label))
     }
 
@@ -3581,28 +3508,23 @@ impl Faraday {
         );
     }
 
-    pub(crate) fn vault_push(&mut self, record: Record, said: &str) {
+    pub(crate) fn vault_push(&mut self, record: impl IntoRecord, said: &str) {
         self.vault_push_in(self.vaults.current, record, said);
     }
 
     /// Adds `record` to open vault `v`, saying `said`. False when it does
     /// not fit in the vault's slot.
-    pub(crate) fn vault_push_in(&mut self, v: usize, record: Record, said: &str) -> bool {
-        let Some(open) = self.vaults.open.get_mut(v) else {
+    pub(crate) fn vault_push_in(&mut self, v: usize, record: impl IntoRecord, said: &str) -> bool {
+        let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
             return false;
         };
-        let mut trial = self.vaults.store.vault_records(open.id).clone();
-        trial.records.push(record.clone());
-        if trial.used() > open.header().slot_len as usize {
+        let record = record.into_record();
+        if !self.vaults.store().fits(id, &[], &[record.size()]) {
             self.toast(EN.vaults_that_does_not);
             return false;
         }
-        self.vaults
-            .store
-            .vault_records_mut(open.id)
-            .records
-            .push(record);
-        open.changes += 1;
+        self.vaults.edit(id, |s| s.insert(id, record));
+        self.vaults.changed(id);
         self.toast(said);
         true
     }
@@ -3786,12 +3708,11 @@ impl Faraday {
         // part of it, the oldest records leaving first when the slot is
         // full (`docs/VAULT.md` §7, type 10).
         if self.seal_amounts
-            && let Some(v) = self.vaults.open.get_mut(i)
+            && let Some(id) = self.vaults.open.get(i).map(|o| o.id)
         {
             let have: Vec<[u8; 32]> = self
                 .vaults
-                .store
-                .vault_records(v.id)
+                .records(id)
                 .of(kind::AMOUNTS)
                 .filter_map(|(_, r)| crate::memory::from_record(r).map(|e| e.0))
                 .collect();
@@ -3802,27 +3723,26 @@ impl Faraday {
                 .map(crate::memory::record_of)
                 .collect();
             if !new.is_empty() {
-                self.vaults
-                    .store
-                    .vault_records_mut(v.id)
-                    .records
-                    .extend(new);
-                while self.vaults.store.vault_records(v.id).used() > v.header().slot_len as usize {
-                    match self
-                        .vaults
-                        .store
-                        .vault_records(v.id)
-                        .records
-                        .iter()
-                        .position(|r| r.kind == kind::AMOUNTS)
-                    {
-                        Some(k) => {
-                            self.vaults.store.vault_records_mut(v.id).records.remove(k);
-                        }
-                        None => break,
+                let slot_len = self.vaults.open[i].header().slot_len as usize;
+                self.vaults.edit(id, |s| {
+                    for r in new {
+                        s.insert(id, r);
                     }
-                }
-                v.changes += 1;
+                    while s.records(id).used() > slot_len {
+                        let oldest = s
+                            .records(id)
+                            .iter()
+                            .find(|(_, r)| r.kind() == kind::AMOUNTS)
+                            .map(|(k, _)| k);
+                        match oldest {
+                            Some(k) => {
+                                s.remove(id, k);
+                            }
+                            None => break,
+                        }
+                    }
+                });
+                self.vaults.changed(id);
             }
         }
         if self.vaults.open.get(i)?.changes == 0 {
@@ -4085,19 +4005,6 @@ pub fn multiline(kind: u8, number: u8) -> bool {
         (kind, number),
         (kind::NOTE, field::NOTE) | (kind::ENTRY, field::NOTES)
     )
-}
-
-/// A mnemonic's words, space-separated, in wiped memory.
-pub(crate) fn phrase_of(m: &faraday_bip::bip39::Mnemonic) -> Zeroizing<String> {
-    let lang = m.language();
-    let mut out = crate::secret_text::room();
-    for (k, &i) in m.indices().iter().enumerate() {
-        if k > 0 {
-            out.push(' ');
-        }
-        out.push_str(lang.word(i));
-    }
-    out
 }
 
 /// What the lock, write-out and power-off sheets list (§4.5).
@@ -4453,18 +4360,15 @@ impl Faraday {
         for v in &self.vaults.open {
             let wallets = self
                 .vaults
-                .store
-                .vault_records(v.id)
+                .records(v.id)
                 .of(kind::WALLET)
                 .map(|(i, r)| {
                     (
-                        r.text(field::WALLET_NAME)
+                        r.public_text(field::WALLET_NAME)
                             .unwrap_or(EN.vaults_wallet)
                             .to_string(),
                         self.vaults
-                            .store
-                            .vault_records(v.id)
-                            .described(&c, i)
+                            .described(&c, v.id, i)
                             .map(|d| d.shape.clone())
                             .unwrap_or_default(),
                     )
@@ -4472,67 +4376,52 @@ impl Faraday {
                 .collect();
             let (keys, ids): (Vec<String>, Vec<Option<[u8; 32]>>) = self
                 .vaults
-                .store
-                .vault_records(v.id)
+                .records(v.id)
                 .of(kind::KEY)
                 .filter_map(|(_, r)| crate::vault::screen::key_identity(&c, self, r))
                 .map(|(fp, id)| (fp, Some(id)))
                 .unzip();
             let sum_of = |i: usize| {
                 self.vaults
-                    .store
-                    .vault_records(v.id)
-                    .described(&c, i)
+                    .described(&c, v.id, i)
                     .map(|d| d.checksum.clone())
             };
             let sums = self
                 .vaults
-                .store
-                .vault_records(v.id)
+                .records(v.id)
                 .of(kind::WALLET)
                 .map(|(i, _)| sum_of(i).unwrap_or_default())
                 .collect();
             let planned = self
                 .vaults
-                .store
-                .vault_records(v.id)
+                .records(v.id)
                 .of(kind::PLAN)
                 .filter_map(|(i, _)| sum_of(i))
                 .collect();
             let map = self
                 .vaults
-                .store
-                .vault_records(v.id)
+                .records(v.id)
                 .of(kind::PLAN)
                 .flat_map(|(_, r)| {
                     let names: Vec<String> = r
-                        .fields
-                        .iter()
-                        .filter(|f| f.number == field::PLAN_PLACE)
-                        .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
+                        .public_all(field::PLAN_PLACE)
+                        .map(|b| String::from_utf8_lossy(b).into_owned())
                         .collect();
-                    r.fields
-                        .iter()
-                        .filter(|f| f.number == field::PLAN_HOLDS)
-                        .map(|f| redact_place_name(&String::from_utf8_lossy(&f.bytes), &names))
+                    r.public_all(field::PLAN_HOLDS)
+                        .map(|b| redact_place_name(&String::from_utf8_lossy(b), &names))
                         .collect::<Vec<_>>()
                 })
                 .collect();
             fresh.push(VaultSummary {
                 file: v.name.clone(),
                 salt: v.header().salt,
-                name: v.label(&self.vaults.store),
+                name: v.label(self.vaults.store()),
                 wallets,
                 sums,
                 planned,
                 keys,
                 ids,
-                entries: self
-                    .vaults
-                    .store
-                    .vault_records(v.id)
-                    .of(kind::ENTRY)
-                    .count(),
+                entries: self.vaults.records(v.id).of(kind::ENTRY).count(),
                 map,
                 seen,
             });
@@ -4607,7 +4496,7 @@ impl Faraday {
             (self.currency(c, f) == Some(Currency::Changed)).then(|| {
                 f.open
                     .and_then(|o| self.vaults.open.get(o))
-                    .map(|v| v.label(&self.vaults.store))
+                    .map(|v| v.label(self.vaults.store()))
                     .or_else(|| self.vault_summary(f).map(|s| s.name.clone()))
                     .unwrap_or_else(|| f.name.clone())
             })

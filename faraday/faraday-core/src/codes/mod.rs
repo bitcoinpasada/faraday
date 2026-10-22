@@ -54,30 +54,36 @@ pub fn codes_rows(app: &Faraday, now: u64) -> Vec<CodeRow> {
     let mut out = Vec::new();
     let many = app.vaults.open.len() > 1;
     for (v, ov) in app.vaults.open.iter().enumerate() {
-        for (item, r) in app
+        for (item, (at, r)) in app
             .vaults
-            .store
-            .vault_records(ov.id)
-            .records
+            .records(ov.id)
             .iter()
-            .filter(|r| r.kind == kind::ENTRY)
+            .filter(|(_, r)| r.kind() == kind::ENTRY)
             .enumerate()
         {
-            let Some(t) = r.text(field::TOTP) else {
+            let Some(t) = app.vaults.store().totp(
+                ov.id,
+                at,
+                Some(now),
+                faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Totp),
+            ) else {
                 continue;
             };
-            let title = r.text(field::TITLE).unwrap_or(EN.codes_entry).to_string();
-            let account = faraday_vault::entries::otpauth_names(t)
-                .map(|(_, a)| a)
-                .filter(|a| !a.is_empty())
-                .or_else(|| r.text(field::USERNAME).map(str::to_string))
+            let title = r
+                .public_text(field::TITLE)
+                .unwrap_or(EN.codes_entry)
+                .to_string();
+            let account = t
+                .account
+                .or_else(|| r.public_text(field::USERNAME).map(str::to_string))
                 .unwrap_or_default();
-            let kind = match faraday_keys::totp::code_at(t, now) {
-                Ok(code) => CodeKind::Code {
+            let kind = match t.code {
+                Ok(Some(code)) => CodeKind::Code {
                     grouped: code.grouped,
                     left: code.left,
                     period: code.period,
                 },
+                Ok(None) => CodeKind::Unreadable,
                 Err(NotTotp::Hotp) => CodeKind::Hotp,
                 Err(NotTotp::Unreadable) => CodeKind::Unreadable,
             };
@@ -87,7 +93,7 @@ pub fn codes_rows(app: &Faraday, now: u64) -> Vec<CodeRow> {
                 title,
                 account,
                 vault_name: if many {
-                    ov.label(&app.vaults.store)
+                    ov.label(app.vaults.store())
                 } else {
                     String::new()
                 },

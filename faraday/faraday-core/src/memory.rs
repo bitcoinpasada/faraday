@@ -116,13 +116,11 @@ pub fn record_of(entry: &Signed) -> Record {
 }
 
 /// A signed transaction from a type-10 record.
-pub fn from_record(r: &Record) -> Option<Signed> {
-    let hash: [u8; 32] = r.field(1)?.try_into().ok()?;
+pub fn from_record(r: faraday_keys::vault::RecordView<'_>) -> Option<Signed> {
+    let hash: [u8; 32] = r.public(1)?.try_into().ok()?;
     let amounts = r
-        .fields
-        .iter()
-        .filter(|f| f.number == 2)
-        .filter_map(|f| <[u8; 8]>::try_from(f.bytes.as_slice()).ok())
+        .public_all(2)
+        .filter_map(|b| <[u8; 8]>::try_from(b).ok())
         .map(u64::from_le_bytes)
         .collect();
     Some((hash, amounts))
@@ -154,11 +152,15 @@ impl Faraday {
     }
 
     /// Takes in the signed amounts an open vault holds.
-    pub(crate) fn amounts_from_vault(&mut self, records: &[Record]) {
-        for r in records.iter().filter(|r| r.kind == kind::AMOUNTS) {
-            if let Some(e) = from_record(r)
-                && !self.signed_amounts.iter().any(|(h, _)| *h == e.0)
-            {
+    pub(crate) fn amounts_from_vault(&mut self, id: faraday_keys::vault::VaultId) {
+        let held: Vec<Signed> = self
+            .vaults
+            .records(id)
+            .of(kind::AMOUNTS)
+            .filter_map(|(_, r)| from_record(r))
+            .collect();
+        for e in held {
+            if !self.signed_amounts.iter().any(|(h, _)| *h == e.0) {
                 self.signed_amounts.push(e);
             }
         }

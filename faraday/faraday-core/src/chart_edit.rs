@@ -91,15 +91,11 @@ impl Faraday {
         };
         let want = crate::wallet::same_wallet(wallet.policy());
         self.vaults
-            .store
-            .vault_records(open.id)
-            .described_of(c, kind::PLAN)
+            .described_of(c, open.id, kind::PLAN)
             .filter(|(_, _, d)| d.same == want)
             .flat_map(|(_, r, _)| {
-                r.fields
-                    .iter()
-                    .filter(|f| f.number == field::PLAN_NOTE)
-                    .filter_map(|f| Note::from_text(&String::from_utf8_lossy(&f.bytes)))
+                r.public_all(field::PLAN_NOTE)
+                    .filter_map(|b| Note::from_text(&String::from_utf8_lossy(b)))
                     .collect::<Vec<_>>()
             })
             .collect()
@@ -163,9 +159,7 @@ impl Faraday {
         // This wallet's plan records, by place.
         let ours: Vec<usize> = self.vaults.open.get(v).map_or_else(Vec::new, |o| {
             self.vaults
-                .store
-                .vault_records(o.id)
-                .described_of(&c, kind::PLAN)
+                .described_of(&c, o.id, kind::PLAN)
                 .filter(|(_, _, d)| d.same == want)
                 .map(|(i, _, _)| i)
                 .collect()
@@ -180,27 +174,22 @@ impl Faraday {
             self.plan_store(v, w, &answers, &names, &[], Some(&notes));
             return true;
         }
-        let Some(open) = self.vaults.open.get_mut(v) else {
+        let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
             return false;
         };
-        let mut trial = self.vaults.store.vault_records(open.id).clone();
-        for (_, r) in trial
-            .records
-            .iter_mut()
-            .enumerate()
-            .filter(|(i, _)| ours.contains(i))
+        let texts: Vec<String> = notes.iter().map(Note::to_text).collect();
+        let values: Vec<&[u8]> = texts.iter().map(|t| t.as_bytes()).collect();
+        if self
+            .vaults
+            .edit(id, |s| {
+                s.set_public_all_in(id, &ours, field::PLAN_NOTE, &values)
+            })
+            .is_err()
         {
-            r.fields.retain(|f| f.number != field::PLAN_NOTE);
-            for n in &notes {
-                r.push(field::PLAN_NOTE, n.to_text().as_bytes());
-            }
-        }
-        if trial.used() > open.header().slot_len as usize {
             self.toast(EN.chart_edit_that_does);
             return false;
         }
-        *self.vaults.store.vault_records_mut(open.id) = trial;
-        open.changes += 1;
+        self.vaults.changed(id);
         true
     }
 
@@ -445,15 +434,11 @@ impl Faraday {
             return Vec::new();
         };
         self.vaults
-            .store
-            .vault_records(open.id)
-            .described_of(c, kind::PLAN)
+            .described_of(c, open.id, kind::PLAN)
             .filter(|(_, _, d)| d.same == want)
             .flat_map(|(_, r, _)| {
-                r.fields
-                    .iter()
-                    .filter(|f| f.number == field::PLAN_HOLDS)
-                    .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
+                r.public_all(field::PLAN_HOLDS)
+                    .map(|b| String::from_utf8_lossy(b).into_owned())
                     .filter(|l| l.contains(holds_seed) && !l.contains(": "))
                     .collect::<Vec<_>>()
             })

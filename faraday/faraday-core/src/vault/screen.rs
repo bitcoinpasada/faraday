@@ -17,8 +17,10 @@ use crate::vault::{
 };
 use crate::wallet::{Session, Wallet, fp_text};
 use crate::{Action, Code, Faraday, Screen, flow};
-use faraday_vault::records::{self, field, kind};
-use faraday_vault::{Record, SLOT_SIZES, file_len};
+use faraday_keys::vault::RecordView;
+use faraday_keys::{Part, Reveal};
+use faraday_vault::records::{field, kind};
+use faraday_vault::{SLOT_SIZES, file_len};
 
 fn va(a: V) -> Action {
     Action::Vault(a)
@@ -402,7 +404,7 @@ pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let remembered = app.vault_summary(f).map(|s| s.name.as_str());
         let (title_text, state, state_color, icon_color, edge) = match open {
             Some(v) if v.changes > 0 => (
-                v.label(&app.vaults.store),
+                v.label(app.vaults.store()),
                 fill(
                     EN.vault_open_unsaved,
                     &[
@@ -419,7 +421,7 @@ pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 LINE,
             ),
             Some(v) => (
-                v.label(&app.vaults.store),
+                v.label(app.vaults.store()),
                 EN.vault_open_2.to_string(),
                 OK,
                 ACCENT,
@@ -753,7 +755,7 @@ fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let remembered = app.vault_summary(f).map(|s| s.name.as_str());
         let (title_text, state, state_color, icon_color, edge) = match open {
             Some(v) if v.changes > 0 => (
-                v.label(&app.vaults.store),
+                v.label(app.vaults.store()),
                 fill(
                     EN.vault_open_unsaved,
                     &[
@@ -770,7 +772,7 @@ fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 LINE,
             ),
             Some(v) => (
-                v.label(&app.vaults.store),
+                v.label(app.vaults.store()),
                 EN.vault_open_2.to_string(),
                 OK,
                 ACCENT,
@@ -2112,8 +2114,8 @@ fn create_button(app: &View, ui: &mut Ui, x: f32, by: f32, w: f32) -> f32 {
 // ---------------------------------------------------------------------
 
 /// An item's title, its line, and whether the title is data.
-fn item_heading(app: &View, r: &Record) -> (String, String, bool) {
-    match r.kind {
+fn item_heading(app: &View, r: RecordView<'_>) -> (String, String, bool) {
+    match r.kind() {
         kind::KEY => {
             let fp = app
                 .vault_key_fingerprint(r)
@@ -2122,8 +2124,8 @@ fn item_heading(app: &View, r: &Record) -> (String, String, bool) {
                 .record_word_count(r)
                 .map(|n| fill(EN.vault_words_n, &[&n.to_string()]))
                 .unwrap_or_else(|| EN.vault_master_seed.into());
-            let loads = records::loads_at_unlock(r);
-            let label = r.text(field::KEY_LABEL).unwrap_or("");
+            let loads = r.loads_at_unlock();
+            let label = r.public_text(field::KEY_LABEL).unwrap_or("");
             let mut line = vec![words];
             if !label.is_empty() {
                 line.push(label.to_string());
@@ -2135,36 +2137,40 @@ fn item_heading(app: &View, r: &Record) -> (String, String, bool) {
         }
         kind::WALLET => {
             let name = r
-                .text(field::WALLET_NAME)
+                .public_text(field::WALLET_NAME)
                 .unwrap_or(EN.vault_wallet)
                 .to_string();
             let mut line = app
                 .record_described(r)
                 .map_or_else(|| EN.vault_wallet.into(), |d| d.shape.clone());
-            if !records::loads_at_unlock(r) {
+            if !r.loads_at_unlock() {
                 line = format!("{line} · {}", EN.vault_not_loaded_at_unlock_inline);
             }
             (name, line, false)
         }
         kind::ENTRY => {
             let mut parts = Vec::new();
-            if r.field(field::PASSWORD).is_some() {
+            if r.has(field::PASSWORD) {
                 parts.push(EN.vault_password);
             }
-            if r.field(field::TOTP).is_some() {
+            if r.has(field::TOTP) {
                 parts.push(EN.vault_totp);
             }
             if parts.is_empty() {
                 parts.push(EN.vault_entry);
             }
             (
-                r.text(field::TITLE).unwrap_or(EN.vault_entry).to_string(),
+                r.public_text(field::TITLE)
+                    .unwrap_or(EN.vault_entry)
+                    .to_string(),
                 parts.join(" · "),
                 false,
             )
         }
         kind::NOTE => {
-            let t = r.text(field::NOTE).unwrap_or("");
+            // The first line of a note is its title: a secret put on screen.
+            let note = app.reveal_record(r, field::NOTE, Reveal::VaultEntry(Part::Note));
+            let t: &str = &note;
             let first: String = t.lines().next().unwrap_or("").chars().take(40).collect();
             let first = if first.is_empty() {
                 EN.vault_note.to_string()
@@ -2196,7 +2202,9 @@ fn item_heading(app: &View, r: &Record) -> (String, String, bool) {
                 None => "Ed25519".to_string(),
             };
             (
-                r.text(5).unwrap_or(EN.vault_gpg_key).to_string(),
+                r.public_text(faraday_keys::vault::gpg_field::USER_ID)
+                    .unwrap_or(EN.vault_gpg_key)
+                    .to_string(),
                 line,
                 false,
             )
@@ -2208,7 +2216,7 @@ fn item_heading(app: &View, r: &Record) -> (String, String, bool) {
         ),
         kind::WALLET_SHARE => {
             let n = |f: u8| {
-                r.field(f)
+                r.public(f)
                     .and_then(|b| b.first())
                     .map_or(String::new(), |b| b.to_string())
             };
@@ -2216,7 +2224,8 @@ fn item_heading(app: &View, r: &Record) -> (String, String, bool) {
                 fill(
                     EN.backup_flow_vault_share,
                     &[
-                        r.text(field::SHARE_WALLET_NAME).unwrap_or(EN.vault_wallet),
+                        r.public_text(field::SHARE_WALLET_NAME)
+                            .unwrap_or(EN.vault_wallet),
                         &n(field::SHARE_NUMBER),
                         &n(field::SHARE_OF),
                     ],
@@ -2228,7 +2237,7 @@ fn item_heading(app: &View, r: &Record) -> (String, String, bool) {
         // A key's passphrase kept without its words: named by the key.
         kind::PASSPHRASE => {
             let fp = r
-                .field(field::PASSPHRASE_KEY)
+                .public(field::PASSPHRASE_KEY)
                 .and_then(|b| <[u8; 4]>::try_from(b).ok())
                 .map(|b| fp_text(faraday_bip::keys::Fingerprint(b)))
                 .unwrap_or_default();
@@ -2256,7 +2265,7 @@ pub(crate) fn policy_shape(policy: faraday_bip::policy::WalletPolicy) -> String 
 /// Costs what `key_identity` costs. A key record's fingerprint, worked
 /// out once per key and kept. Four bytes: it finds a candidate; whether
 /// the record is a given key is [`record_is_key`]'s to say.
-pub(crate) fn key_fingerprint(c: &Compute, app: &Faraday, r: &Record) -> Option<String> {
+pub(crate) fn key_fingerprint(c: &Compute, app: &Faraday, r: RecordView<'_>) -> Option<String> {
     key_identity(c, app, r).map(|(fp, _)| fp)
 }
 
@@ -2268,54 +2277,21 @@ pub(crate) fn key_fingerprint(c: &Compute, app: &Faraday, r: &Record) -> Option<
 pub(crate) fn record_is_key(
     c: &Compute,
     app: &Faraday,
-    r: &Record,
+    r: RecordView<'_>,
     key: &faraday_keys::KeyInfo,
 ) -> bool {
     key_identity(c, app, r).is_some_and(|(fp, id)| fp == fp_text(key.fingerprint) && id == key.id.0)
 }
 
-/// A key record's id: the SHA-256 of its payload and the passphrase
-/// stored with it, by which what is worked out of it is kept. `None` for
-/// a record with no key. Costs a hash.
-fn record_id(r: &Record) -> Option<[u8; 32]> {
-    use faraday_bip::bitcoin::hashes::{Hash, sha256};
-    // By the payload and the passphrase stored with it: the same words
-    // with a passphrase are another key.
-    let payload = r.field(field::KEY)?;
-    let mut engine = sha256::Hash::engine();
-    faraday_bip::bitcoin::hashes::HashEngine::input(&mut engine, payload);
-    if let Some(p) = r.field(field::KEY_PASSPHRASE) {
-        faraday_bip::bitcoin::hashes::HashEngine::input(&mut engine, &[0]);
-        faraday_bip::bitcoin::hashes::HashEngine::input(&mut engine, p);
-    }
-    Some(sha256::Hash::from_engine(engine).to_byte_array())
-}
-
-/// Costs a parse of the words for a record that holds them. Runs `f` on
-/// what a key record is made from, its words (with the passphrase stored
-/// beside them) or its master seed.
-fn with_record_material<T>(
-    c: &Compute,
-    r: &Record,
-    f: impl FnOnce(faraday_keys::Material<'_>, &str) -> Option<T>,
-) -> Option<T> {
-    match crate::wallet::record_words(c, r) {
-        Some(m) => f(
-            faraday_keys::Material::Words(&m),
-            r.text(field::KEY_PASSPHRASE).unwrap_or(""),
-        ),
-        None => {
-            let seed = faraday_keys::vault::seed_of(r)?;
-            f(faraday_keys::Material::Seed(&seed), "")
-        }
-    }
-}
-
 /// Costs a PBKDF2 and two elliptic-curve multiplications the first
 /// time. A key record's fingerprint and [`crate::wallet::master_id`],
 /// worked out once per key and kept.
-pub(crate) fn key_identity(c: &Compute, app: &Faraday, r: &Record) -> Option<(String, [u8; 32])> {
-    let id = record_id(r)?;
+pub(crate) fn key_identity(
+    c: &Compute,
+    app: &Faraday,
+    r: RecordView<'_>,
+) -> Option<(String, [u8; 32])> {
+    let id = faraday_keys::vault::key_record_id(r)?;
     if let Some((_, fp, mid)) = app
         .vaults
         .fingerprints
@@ -2326,10 +2302,7 @@ pub(crate) fn key_identity(c: &Compute, app: &Faraday, r: &Record) -> Option<(St
         return Some((fp.clone(), *mid));
     }
     // Kept by the key's id once worked out, by whoever asks first.
-    let network = app.session.network();
-    let (fingerprint, mid) = with_record_material(c, r, |material, passphrase| {
-        faraday_keys::identity::identity(c, material, passphrase, network)
-    })?;
+    let (fingerprint, mid) = faraday_keys::vault::key_identity(c, app.session.network(), r)?;
     let fp = fp_text(fingerprint);
     let mut kept = app.vaults.fingerprints.borrow_mut();
     if kept.len() >= vault::FINGERPRINTS_KEPT {
@@ -2350,7 +2323,7 @@ pub(crate) fn key_identity(c: &Compute, app: &Faraday, r: &Record) -> Option<(St
 pub(crate) fn record_is_policy_key(
     c: &Compute,
     app: &Faraday,
-    r: &Record,
+    r: RecordView<'_>,
     key: &faraday_bip::policy::PolicyKey,
 ) -> bool {
     let (Some(fp), Some(path)) = (key.fingerprint(), key.path()) else {
@@ -2359,10 +2332,10 @@ pub(crate) fn record_is_policy_key(
     if key_fingerprint(c, app, r).as_deref() != Some(fp_text(fp).as_str()) {
         return false;
     }
-    let Some(id) = record_id(r) else {
+    let Some(id) = faraday_keys::vault::key_record_id(r) else {
         return false;
     };
-    let want = account_bytes(key.xpub());
+    let want = faraday_keys::vault::account_bytes(key.xpub());
     let at = path.to_string();
     if let Some((.., kept)) = app
         .vaults
@@ -2374,26 +2347,13 @@ pub(crate) fn record_is_policy_key(
         return kept.is_some_and(|b| b == want);
     }
     // Kept by the record's id and the path once worked out.
-    let network = app.session.network();
-    let got = with_record_material(c, r, |material, passphrase| {
-        faraday_keys::identity::xpub_at(c, material, passphrase, network, path)
-    })
-    .map(|x| account_bytes(&x));
+    let got = faraday_keys::vault::key_account(c, app.session.network(), r, path);
     let mut kept = app.vaults.accounts.borrow_mut();
     if kept.len() >= vault::ACCOUNTS_KEPT {
         kept.remove(0);
     }
     kept.push((id, at, got));
     got.is_some_and(|b| b == want)
-}
-
-/// An extended public key's public key and chain code, which do not
-/// change with the network it is written for. A lookup.
-fn account_bytes(x: &faraday_bip::bitcoin::bip32::Xpub) -> [u8; 65] {
-    let mut out = [0u8; 65];
-    out[..33].copy_from_slice(&x.public_key.serialize());
-    out[33..].copy_from_slice(x.chain_code.as_bytes());
-    out
 }
 
 fn words_text(m: &faraday_bip::bip39::Mnemonic) -> zeroize::Zeroizing<String> {
@@ -2427,8 +2387,8 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         return;
     };
-    title(ui, x, y, &v.label(&app.vaults.store));
-    let lw = ui.measure(28.0, W::S, &v.label(&app.vaults.store));
+    title(ui, x, y, &v.label(app.vaults.store()));
+    let lw = ui.measure(28.0, W::S, &v.label(app.vaults.store()));
     let state = if v.changes == 0 {
         EN.vault_open_2.to_string()
     } else {
@@ -2489,7 +2449,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 y - 8.0,
                 None,
                 28.0,
-                &o.label(&app.vaults.store),
+                &o.label(app.vaults.store()),
                 style,
                 va(V::Show(i)),
             ) + 6.0;
@@ -2509,8 +2469,8 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // room the other two give up (`docs/history/NEW-WALLET.md` §7.2).
     let chart_shown = app
         .vault_selected_index()
-        .and_then(|i| app.vaults.store.vault_records(v.id).records.get(i))
-        .is_some_and(|r| r.kind == kind::WALLET);
+        .and_then(|i| app.vaults.records(v.id).get(i))
+        .is_some_and(|r| r.kind() == kind::WALLET);
     let (kinds_w, items_w) = if chart_shown {
         (
             faraday_draw::tokens::CHART_PANE_KINDS,
@@ -2571,13 +2531,12 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     }
     let (cat_label, kinds) = CATEGORIES[app.vaults.category];
-    let items: Vec<&Record> = app
+    let items: Vec<RecordView<'_>> = app
         .vaults
-        .store
-        .vault_records(v.id)
-        .records
+        .records(v.id)
         .iter()
-        .filter(|r| kinds.contains(&r.kind))
+        .filter(|(_, r)| kinds.contains(&r.kind()))
+        .map(|(_, r)| r)
         .collect();
     let add = add_label(app.vaults.category);
     ui.text_mid(ix, top, 34.0, 14.0, W::S, TEXT, cat_label);
@@ -2662,7 +2621,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let fit = ((list_bottom - iy) / row).floor().max(1.0) as usize;
     let first = sel.saturating_sub(fit.saturating_sub(1));
     for (k, r) in items.iter().enumerate().skip(first).take(fit) {
-        let (t, line, mono) = item_heading(app, r);
+        let (t, line, mono) = item_heading(app, *r);
         let on = k == sel && app.vaults.form.is_none() && !app.vaults.saving;
         ui.fill(
             ix,
@@ -2749,11 +2708,9 @@ fn listed_kinds(app: &View, v: &vault::OpenVault) -> Vec<(usize, &'static str, u
         .map(|(k, (label, kinds))| {
             let n = app
                 .vaults
-                .store
-                .vault_records(v.id)
-                .records
+                .records(v.id)
                 .iter()
-                .filter(|r| kinds.contains(&r.kind))
+                .filter(|(_, r)| kinds.contains(&r.kind()))
                 .count();
             (k, *label, n)
         })
@@ -2766,11 +2723,9 @@ fn listed_kinds(app: &View, v: &vault::OpenVault) -> Vec<(usize, &'static str, u
 fn shows_empty(app: &View, v: &vault::OpenVault) -> bool {
     let held = CATEGORIES.iter().any(|(_, kinds)| {
         app.vaults
-            .store
-            .vault_records(v.id)
-            .records
+            .records(v.id)
             .iter()
-            .any(|r| kinds.contains(&r.kind))
+            .any(|(_, r)| kinds.contains(&r.kind()))
     });
     !held && !app.vaults.category_chosen && !contents_detail(app)
 }
@@ -2874,13 +2829,12 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     };
     let (cat_label, kinds) = CATEGORIES[app.vaults.category];
-    let items: Vec<&Record> = app
+    let items: Vec<RecordView<'_>> = app
         .vaults
-        .store
-        .vault_records(v.id)
-        .records
+        .records(v.id)
         .iter()
-        .filter(|r| kinds.contains(&r.kind))
+        .filter(|(_, r)| kinds.contains(&r.kind()))
+        .map(|(_, r)| r)
         .collect();
     let sel = app.vaults.item[app.vaults.category].min(items.len().saturating_sub(1));
     if contents_detail(app) {
@@ -2888,7 +2842,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         finish(app, ui, x0, cw, h, y - top + 16.0);
         return;
     }
-    let label = ui.fit(18.0, W::S, &v.label(&app.vaults.store), w);
+    let label = ui.fit(18.0, W::S, &v.label(app.vaults.store()), w);
     ui.text(x, y, 18.0, W::S, TEXT, &label);
     y += 28.0;
     let state = if v.changes == 0 {
@@ -2944,7 +2898,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .vaults
             .open
             .iter()
-            .map(|o| o.label(&app.vaults.store))
+            .map(|o| o.label(app.vaults.store()))
             .collect();
         let items: Vec<(&str, Style, Action)> = labels
             .iter()
@@ -3054,7 +3008,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 44.0;
     }
     for (k, r) in items.iter().enumerate() {
-        let (t, line, _) = item_heading(app, r);
+        let (t, line, _) = item_heading(app, *r);
         y += row(ui, x, y, w, None, &t, &line, MUTED, Some(va(V::Item(k))));
     }
     if items.is_empty() {
@@ -3148,7 +3102,7 @@ fn detail(
     app: &View,
     ui: &mut Ui,
     v: &vault::OpenVault,
-    items: &[&Record],
+    items: &[RecordView<'_>],
     sel: usize,
     dx: f32,
     mut dy: f32,
@@ -3325,7 +3279,7 @@ fn detail(
         // ID, key IDs and creation date, and which subkey signs.
         if let Some(g) = items
             .get(sel)
-            .and_then(|r| crate::gpg::shown(r, app.tz_min))
+            .and_then(|r| crate::gpg::shown(*r, app.tz_min))
         {
             if let Some(uid) = g.user_ids.first() {
                 dy += ui.wrap(dx, dy, dw, 14.0, W::S, TEXT, &format!("\"{uid}\"")) + 4.0;
@@ -3456,7 +3410,7 @@ fn detail(
         );
         return dy + 48.0;
     }
-    let Some(r) = items.get(sel) else {
+    let Some(&r) = items.get(sel) else {
         return dy;
     };
     let (t, line, mono) = item_heading(app, r);
@@ -3487,7 +3441,7 @@ fn detail(
     let mut actions: Vec<(&str, Action)> = Vec::new();
     // Where a new row of them starts, whether or not the last is full.
     let mut breaks: Vec<usize> = Vec::new();
-    match r.kind {
+    match r.kind() {
         kind::KEY => {
             let fp = app.vault_key_fingerprint(r).unwrap_or_default();
             field_row(ui, &mut dy, EN.vault_fingerprint, &fp, true);
@@ -3501,7 +3455,7 @@ fn detail(
                     dy += seedqr_box(app, ui, dx, dy, dw) + 14.0;
                 }
             }
-            let loads = records::loads_at_unlock(r);
+            let loads = r.loads_at_unlock();
             // A seed of a wallet in this vault loads with it (F62).
             let with = app
                 .vault_selected_index()
@@ -3510,7 +3464,7 @@ fn detail(
                 ui,
                 &mut dy,
                 EN.vault_bip_39_passphrase,
-                if r.field(field::KEY_PASSPHRASE).is_some() {
+                if r.has(field::KEY_PASSPHRASE) {
                     EN.vault_stored
                 } else {
                     EN.vault_not_stored
@@ -3547,7 +3501,7 @@ fn detail(
             );
             if !here {
                 actions.push((EN.vault_load_into_session, va(V::Load)));
-                if m.is_some() && r.field(field::KEY_PASSPHRASE).is_none() {
+                if m.is_some() && !r.has(field::KEY_PASSPHRASE) {
                     actions.push((EN.vault_load_with_a_passphrase, va(V::LoadWithPassphrase)));
                 }
             }
@@ -3579,9 +3533,9 @@ fn detail(
                     crate::glance::draw(ui, &g, up, dx, dy, dw)
                 } + faraday_draw::tokens::PAD;
             }
-            let text = r.text(field::WALLET).unwrap_or("");
+            let text = r.public_text(field::WALLET).unwrap_or("");
             field_row(ui, &mut dy, EN.vault_descriptor, text, true);
-            let loads = records::loads_at_unlock(r);
+            let loads = r.loads_at_unlock();
             field_row(
                 ui,
                 &mut dy,
@@ -3602,23 +3556,24 @@ fn detail(
             actions.push((EN.vault_save_to_a_stick, va(V::SaveToStick)));
         }
         kind::ENTRY => {
-            if let Some(u) = r.text(field::USERNAME) {
+            if let Some(u) = r.public_text(field::USERNAME) {
                 field_row(ui, &mut dy, EN.vault_username, u, false);
             }
-            if let Some(p) = r.text(field::PASSWORD) {
-                hold_row(ui, &mut dy, EN.vault_password, p, true);
+            if r.has(field::PASSWORD) {
+                let p = app.reveal_record(r, field::PASSWORD, Reveal::VaultEntry(Part::Password));
+                hold_row(ui, &mut dy, EN.vault_password, &p, true);
             }
-            if let Some(u) = r.text(field::URL) {
+            if let Some(u) = r.public_text(field::URL) {
                 field_row(ui, &mut dy, EN.vault_url, u, true);
             }
-            if let Some(t) = r.text(field::TOTP) {
+            if r.has(field::TOTP) {
                 // A row before the secret: the code, live, or Set the
                 // time while the clock is not checked (`docs/TOTP.md`
                 // §6).
                 ui.text(dx, dy, 12.0, W::R, MUTED, EN.vault_code);
                 dy += 20.0;
                 let now = app.clock_checked().then(|| app.clock_now().unwrap_or(0));
-                match faraday_keys::totp::shown(t, now) {
+                match app.entry_code(r, now) {
                     Ok(Some(code)) => {
                         let (grouped, left) = (code.grouped, code.left);
                         let gw = ui.measure(18.0, W::M, &grouped);
@@ -3655,10 +3610,12 @@ fn detail(
                     }
                 }
                 dy += 10.0;
-                hold_row(ui, &mut dy, EN.vault_totp_secret, t, true);
+                let t = app.reveal_record(r, field::TOTP, Reveal::VaultEntry(Part::Totp));
+                hold_row(ui, &mut dy, EN.vault_totp_secret, &t, true);
             }
-            if let Some(n) = r.text(field::NOTES) {
-                field_row(ui, &mut dy, EN.vault_notes, n, false);
+            if r.has(field::NOTES) {
+                let n = app.reveal_record(r, field::NOTES, Reveal::VaultEntry(Part::EntryNotes));
+                field_row(ui, &mut dy, EN.vault_notes, &n, false);
             }
             actions.push((EN.vault_edit, va(V::Edit)));
             actions.push((EN.vault_export_for_keepass, va(V::ExportKdbx)));
@@ -3668,7 +3625,7 @@ fn detail(
                 ui,
                 &mut dy,
                 EN.vault_text,
-                r.text(field::NOTE).unwrap_or(""),
+                &app.reveal_record(r, field::NOTE, Reveal::VaultEntry(Part::Note)),
                 false,
             );
             actions.push((EN.vault_edit, va(V::Edit)));
@@ -3720,7 +3677,11 @@ fn detail(
                     dx,
                     dy,
                     dw,
-                    || crate::gpg::paperkey(r).unwrap_or_default(),
+                    || {
+                        app.paperkey_shown(r)
+                            .map(faraday_keys::Held::release)
+                            .unwrap_or_default()
+                    },
                     true,
                     0,
                 ) + 14.0;
@@ -3891,7 +3852,7 @@ fn detail(
     }
     dy += 48.0;
     let dw_hold = hold_delete(app, ui, dx, dy);
-    if r.kind == kind::GPG {
+    if r.kind() == kind::GPG {
         hold_button(
             app,
             ui,
@@ -3913,7 +3874,7 @@ fn backup_row(
     app: &View,
     ui: &mut Ui,
     kind_: crate::backup_flow::Kind,
-    r: &Record,
+    r: RecordView<'_>,
     dx: f32,
     dy: f32,
     dw: f32,
@@ -4169,8 +4130,7 @@ fn save_panel(app: &View, ui: &mut Ui, v: &vault::OpenVault, dx: f32, mut dy: f3
     if keys {
         let held: Vec<String> = app
             .vaults
-            .store
-            .vault_records(v.id)
+            .records(v.id)
             .of(kind::KEY)
             .filter_map(|(_, r)| app.vault_key_fingerprint(r))
             .collect();
@@ -4241,7 +4201,7 @@ fn save_panel(app: &View, ui: &mut Ui, v: &vault::OpenVault, dx: f32, mut dy: f3
         }
     } else {
         let held: Vec<String> = app
-            .described_of(app.vaults.store.vault_records(v.id), kind::WALLET)
+            .described_of(v.id, kind::WALLET)
             .iter()
             .map(|(_, _, d)| d.policy.to_descriptor())
             .collect();
@@ -4320,7 +4280,7 @@ pub(crate) fn lock_ask(app: &View, ui: &mut Ui, w: f32, h: f32) {
         .open
         .iter()
         .filter(|v| v.changes > 0)
-        .map(|v| v.label(&app.vaults.store))
+        .map(|v| v.label(app.vaults.store()))
         .collect();
     let rows: Vec<(&str, String)> = [
         (sealed_label, sealed.join(", ")),
@@ -4601,14 +4561,12 @@ fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
 /// Costs what `described_of` costs. Whether open vault `v` holds a
 /// wallet with the same descriptor, as [`crate::wallet::same_wallet`]
 /// compares them: from its wallet records as the vault keeps them read
-/// ([`crate::vault::VaultRecords`]).
+/// ([`crate::vault::Vaults::described`]).
 pub(crate) fn vault_has_wallet(c: &Compute, app: &Faraday, v: usize, w: &Wallet) -> bool {
     let want = crate::wallet::same_wallet(w.policy());
     app.vaults.open.get(v).is_some_and(|o| {
         app.vaults
-            .store
-            .vault_records(o.id)
-            .described_of(c, kind::WALLET)
+            .described_of(c, o.id, kind::WALLET)
             .any(|(_, _, d)| d.same == want)
     })
 }
@@ -4636,11 +4594,10 @@ pub(crate) fn vault_key(
 ) -> Option<bool> {
     let o = app.vaults.open.get(v)?;
     app.vaults
-        .store
-        .vault_records(o.id)
+        .records(o.id)
         .of(kind::KEY)
-        .find(|(_, r)| record_is_key(c, app, r, key))
-        .map(|(_, r)| r.field(field::KEY_PASSPHRASE).is_some())
+        .find(|(_, r)| record_is_key(c, app, *r, key))
+        .map(|(_, r)| r.has(field::KEY_PASSPHRASE))
 }
 
 // ---------------------------------------------------------------------
@@ -4670,19 +4627,19 @@ fn apk_row(ui: &mut Ui, dx: f32, dy: f32, dw: f32, label: &str, value: &str, mon
 fn apk_sign_panel(
     app: &View,
     ui: &mut Ui,
-    items: &[&Record],
+    items: &[RecordView<'_>],
     sel: usize,
     dx: f32,
     mut dy: f32,
     dw: f32,
 ) -> f32 {
-    let Some(r) = items.get(sel) else {
+    let Some(&r) = items.get(sel) else {
         return dy;
     };
     if let Some(review) = &app.vaults.apk.review {
         return apk_review(app, ui, review, dx, dy, dw);
     }
-    let package = r.text(field::APK_PACKAGE).unwrap_or("").to_string();
+    let package = r.public_text(field::APK_PACKAGE).unwrap_or("").to_string();
     if let Some(name) = &app.vaults.apk.which {
         ui.text(dx, dy, 18.0, W::S, TEXT, EN.apk_which_key);
         dy += 40.0;
@@ -4841,12 +4798,7 @@ fn apk_review(
         dy += apk_row(ui, dx, dy, dw, EN.apk_android, &android, false);
     }
     if let Some((v, at)) = app.apk_find(&review.key)
-        && let Some(rec) = app
-            .vaults
-            .store
-            .vault_records(app.vaults.open[v].id)
-            .records
-            .get(at)
+        && let Some(rec) = app.vaults.records(app.vaults.open[v].id).get(at)
         && let Some(s) = crate::apk::shown(rec, app.tz_min)
     {
         let key = format!("{} · {}", s.name, &s.hex[..16]);

@@ -305,7 +305,7 @@ impl Faraday {
                 }) else {
                     return name;
                 };
-                crate::vault::screen::key_fingerprint(c, self, &rec).unwrap_or(name)
+                crate::vault::screen::key_fingerprint(c, self, rec.view()).unwrap_or(name)
             })
             .collect()
     }
@@ -1231,13 +1231,11 @@ impl Faraday {
                     .iter()
                     .flat_map(|o| {
                         self.vaults
-                            .store
-                            .vault_records(o.id)
-                            .records
+                            .records(o.id)
                             .iter()
-                            .filter_map(|r| match r.kind {
-                                rkind::WALLET => r.text(field::WALLET),
-                                rkind::PLAN => r.text(field::PLAN_WALLET),
+                            .filter_map(|(_, r)| match r.kind() {
+                                rkind::WALLET => r.public_text(field::WALLET),
+                                rkind::PLAN => r.public_text(field::PLAN_WALLET),
                                 _ => None,
                             })
                             .map(str::to_string)
@@ -1278,6 +1276,7 @@ impl Faraday {
     pub(crate) fn flow_wallet_copy(&mut self, i: usize) {
         let c = self.compute();
         use crate::vault::screen::key_fingerprint;
+        use faraday_keys::vault::{RecordView, Staged};
         use faraday_vault::Record;
         use faraday_vault::records::{field, kind as rkind};
         let Some(wf) = self.backup_flows[i].wallet.clone() else {
@@ -1311,7 +1310,7 @@ impl Faraday {
         // needs, or none does.
         struct Work {
             o: usize,
-            add: Vec<Record>,
+            add: Vec<Staged>,
             typed: Vec<(usize, bool)>,
             out: Vec<usize>,
         }
@@ -1356,52 +1355,55 @@ impl Faraday {
                 // apart: the record is made so.
                 let want_pass = wf.shape.seeds.get(s).is_some_and(|x| x.passphrase)
                     && wf.answers.pass_in_vault(s);
-                let is_seed = |app: &Faraday, r: &Record| {
+                let is_seed = |app: &Faraday, r: RecordView<'_>| {
                     let fp = key_fingerprint(&c, app, r);
                     fp.as_deref() == Some(name.as_str()) || fp.as_deref() == Some(base.as_str())
                 };
-                let find = |app: &Faraday, h: usize| -> Vec<(usize, Record)> {
+                // Where this key's records are in open vault `h`.
+                let find = |app: &Faraday, h: usize| -> Vec<usize> {
                     app.vaults.open.get(h).map_or_else(Vec::new, |open| {
-                        self.vaults
-                            .store
-                            .vault_records(open.id)
-                            .records
+                        app.vaults
+                            .records(open.id)
                             .iter()
-                            .enumerate()
-                            .filter(|(_, r)| r.kind == rkind::KEY && is_seed(app, r))
-                            .map(|(k, r)| (k, r.clone()))
+                            .filter(|(_, r)| r.kind() == rkind::KEY && is_seed(app, *r))
+                            .map(|(k, _)| k)
                             .collect()
                     })
                 };
-                let has_pass = |r: &Record| r.field(field::KEY_PASSPHRASE).is_some();
+                let has_pass = |r: RecordView<'_>| r.has(field::KEY_PASSPHRASE);
                 let there = find(self, o);
+                let here_id = self.vaults.open[o].id;
                 // This flow's own record of the key not as the plan wants
                 // it goes; a record the vault held before stays.
-                w.out.extend(
-                    there
-                        .iter()
-                        .filter(|(_, r)| {
-                            has_pass(r) != want_pass
-                                && !self.record_tokens(&c, r).iter().any(|t| before.contains(t))
-                        })
-                        .map(|(k, _)| *k),
-                );
+                w.out.extend(there.iter().copied().filter(|&k| {
+                    self.vaults.records(here_id).get(k).is_some_and(|r| {
+                        has_pass(r) != want_pass
+                            && !self.record_tokens(&c, r).iter().any(|t| before.contains(t))
+                    })
+                }));
                 // A record as the plan wants it, among all of this key's:
                 // added once.
-                if there.iter().any(|(_, r)| has_pass(r) == want_pass) {
+                if there.iter().any(|&k| {
+                    self.vaults
+                        .records(here_id)
+                        .get(k)
+                        .is_some_and(|r| has_pass(r) == want_pass)
+                }) {
                     continue;
                 }
                 // The record as the plan wants it: from a holder, or this
                 // vault's own (the passphrase taken off where the plan
                 // keeps it apart), or from the key typed back.
                 let from_holder = holders.iter().chain(std::iter::once(&o)).find_map(|&h| {
-                    find(self, h).into_iter().find_map(|(_, r)| {
-                        if has_pass(&r) == want_pass {
-                            Some(r)
+                    let from = self.vaults.open.get(h)?.id;
+                    find(self, h).into_iter().find_map(|at| {
+                        let r = self.vaults.records(from).get(at)?;
+                        if has_pass(r) == want_pass {
+                            self.vaults.store().stage(from, at, None)
                         } else if !want_pass {
-                            let mut r = r;
-                            r.fields.retain(|f| f.number != field::KEY_PASSPHRASE);
-                            Some(r)
+                            self.vaults
+                                .store()
+                                .stage(from, at, Some(field::KEY_PASSPHRASE))
                         } else {
                             None
                         }
@@ -1422,35 +1424,37 @@ impl Faraday {
                         }
                     }
                 }
-                w.out.extend(there.iter().map(|(k, _)| *k));
+                w.out.extend(there.iter().copied());
             }
             if wf.answers.wallet_in_vault(v) {
                 let there: Vec<String> = self
                     .vaults
-                    .store
-                    .vault_records(self.vaults.open[o].id)
+                    .records(self.vaults.open[o].id)
                     .of(rkind::WALLET)
-                    .filter_map(|(_, r)| r.text(field::WALLET).map(str::to_string))
+                    .filter_map(|(_, r)| r.public_text(field::WALLET).map(str::to_string))
                     .collect();
                 for h in &holders {
                     for (_, r) in self
                         .vaults
-                        .store
-                        .vault_records(self.vaults.open[*h].id)
+                        .records(self.vaults.open[*h].id)
                         .of(rkind::WALLET)
                     {
-                        let t = r.text(field::WALLET).unwrap_or_default().to_string();
+                        let t = r.public_text(field::WALLET).unwrap_or_default().to_string();
                         if of_wallet(&t)
                             && !there.contains(&t)
-                            && !w.add.iter().any(|x| x.text(field::WALLET) == Some(&t))
+                            && !w
+                                .add
+                                .iter()
+                                .any(|x| x.view().public_text(field::WALLET) == Some(&t))
+                            && let Some(copy) = r.to_public()
                         {
-                            w.add.push(r.clone());
+                            w.add.push(Staged::Made(copy));
                         }
                     }
                 }
                 // No vault of the round has it: the description file the
                 // checklist wrote, kept in Files, is it.
-                if there.is_empty() && !w.add.iter().any(|x| x.kind == rkind::WALLET) {
+                if there.is_empty() && !w.add.iter().any(|x| x.view().kind() == rkind::WALLET) {
                     let found = self
                         .inbox
                         .iter()
@@ -1459,11 +1463,11 @@ impl Faraday {
                         .filter_map(|it| String::from_utf8(it.bytes.clone()).ok())
                         .find(|t| of_wallet(t));
                     match found {
-                        Some(t) => w.add.push(
+                        Some(t) => w.add.push(Staged::Made(
                             Record::new(rkind::WALLET)
                                 .with(field::WALLET, t.trim().as_bytes())
                                 .with(field::WALLET_NAME, wf.name.as_bytes()),
-                        ),
+                        )),
                         None => return self.toast(EN.backup_flow_no_description),
                     }
                 }
@@ -1476,15 +1480,8 @@ impl Faraday {
             // keeps it elsewhere. Another wallet's records are never
             // touched.
             let wanted = wf.answers.vault_seeds(&wf.shape, v);
-            for (k, r) in self
-                .vaults
-                .store
-                .vault_records(self.vaults.open[o].id)
-                .records
-                .iter()
-                .enumerate()
-            {
-                let gone = match r.kind {
+            for (k, r) in self.vaults.records(self.vaults.open[o].id).iter() {
+                let gone = match r.kind() {
                     rkind::KEY => {
                         let fp = key_fingerprint(&c, self, r);
                         (0..wf.shape.seeds.len()).any(|s| {
@@ -1497,7 +1494,7 @@ impl Faraday {
                     }
                     rkind::WALLET => {
                         !wf.answers.wallet_in_vault(v)
-                            && r.text(field::WALLET).is_some_and(&of_wallet)
+                            && r.public_text(field::WALLET).is_some_and(&of_wallet)
                     }
                     _ => false,
                 };
@@ -1510,14 +1507,7 @@ impl Faraday {
             // name), with the text the plan's split gives now; any other
             // share of this wallet goes.
             let kept = wf.answers.vault_shares(&c, &wf.shape, v);
-            for (k, r) in self
-                .vaults
-                .store
-                .vault_records(self.vaults.open[o].id)
-                .records
-                .iter()
-                .enumerate()
-            {
+            for (k, r) in self.vaults.records(self.vaults.open[o].id).iter() {
                 if crate::share_record_is(&c, r, &cs, None)
                     && !kept
                         .iter()
@@ -1527,32 +1517,26 @@ impl Faraday {
                 }
             }
             for j in kept {
-                let want = self.wallet_share_record(&c, &wf, &cs, j).or_else(|| {
-                    holders.iter().find_map(|&h| {
-                        self.vaults
-                            .store
-                            .vault_records(self.vaults.open[h].id)
-                            .records
-                            .iter()
-                            .find(|r| crate::share_record_is(&c, r, &cs, Some(j)))
-                            .cloned()
+                let want = self
+                    .wallet_share_record(&c, &wf, &cs, j)
+                    .or_else(|| {
+                        holders.iter().find_map(|&h| {
+                            self.vaults
+                                .records(self.vaults.open[h].id)
+                                .iter()
+                                .find(|(_, r)| crate::share_record_is(&c, *r, &cs, Some(j)))
+                                .and_then(|(_, r)| r.to_public())
+                        })
                     })
-                });
+                    .map(Staged::Made);
                 let Some(want) = want else {
                     return self.toast(EN.backup_flow_no_description);
                 };
-                let text = want.text(field::SHARE).map(str::to_string);
+                let text = want.view().public_text(field::SHARE).map(str::to_string);
                 let mut have = false;
-                for (k, r) in self
-                    .vaults
-                    .store
-                    .vault_records(self.vaults.open[o].id)
-                    .records
-                    .iter()
-                    .enumerate()
-                {
+                for (k, r) in self.vaults.records(self.vaults.open[o].id).iter() {
                     if crate::share_record_is(&c, r, &cs, Some(j)) {
-                        if !have && r.text(field::SHARE).map(str::to_string) == text {
+                        if !have && r.public_text(field::SHARE).map(str::to_string) == text {
                             have = true;
                         } else {
                             w.out.push(k);
@@ -1563,7 +1547,7 @@ impl Faraday {
                     && !w
                         .add
                         .iter()
-                        .any(|r| crate::share_record_is(&c, r, &cs, Some(j)))
+                        .any(|r| crate::share_record_is(&c, r.view(), &cs, Some(j)))
                 {
                     w.add.push(want);
                 }
@@ -1582,19 +1566,12 @@ impl Faraday {
                 }
                 Some(out)
             };
-            for (k, r) in self
-                .vaults
-                .store
-                .vault_records(self.vaults.open[o].id)
-                .records
-                .iter()
-                .enumerate()
-            {
-                if r.kind == rkind::PASSPHRASE
+            for (k, r) in self.vaults.records(self.vaults.open[o].id).iter() {
+                if r.kind() == rkind::PASSPHRASE
                     && (0..wf.shape.seeds.len()).any(|s| {
                         !alone.contains(&s)
                             && fp_of(s)
-                                .is_some_and(|f| r.field(field::PASSPHRASE_KEY) == Some(&f[..]))
+                                .is_some_and(|f| r.public(field::PASSPHRASE_KEY) == Some(&f[..]))
                     })
                 {
                     w.out.push(k);
@@ -1605,39 +1582,31 @@ impl Faraday {
                     continue;
                 };
                 let name = wf.shape.seeds[s].name.clone();
-                let here = |r: &Record| {
-                    r.kind == rkind::PASSPHRASE && r.field(field::PASSPHRASE_KEY) == Some(&f[..])
+                let here = |r: RecordView<'_>| {
+                    r.kind() == rkind::PASSPHRASE && r.public(field::PASSPHRASE_KEY) == Some(&f[..])
                 };
                 if self
                     .vaults
-                    .store
-                    .vault_records(self.vaults.open[o].id)
-                    .records
+                    .records(self.vaults.open[o].id)
                     .iter()
-                    .any(here)
-                    || w.add.iter().any(here)
+                    .any(|(_, r)| here(r))
+                    || w.add.iter().any(|a| here(a.view()))
                 {
                     continue;
                 }
                 let found = self.vaults.open.iter().find_map(|open| {
-                    self.vaults
-                        .store
-                        .vault_records(open.id)
-                        .records
-                        .iter()
-                        .find_map(|r| {
-                            if here(r) {
-                                return Some(r.clone());
-                            }
-                            let p = r.text(field::KEY_PASSPHRASE)?;
-                            (r.kind == rkind::KEY
-                                && key_fingerprint(&c, self, r).as_deref() == Some(name.as_str()))
-                            .then(|| {
-                                Record::new(rkind::PASSPHRASE)
-                                    .with(field::PASSPHRASE_KEY, &f)
-                                    .with(field::PASSPHRASE, p.as_bytes())
-                            })
-                        })
+                    self.vaults.records(open.id).iter().find_map(|(k, r)| {
+                        if here(r) {
+                            return self.vaults.store().stage(open.id, k, None);
+                        }
+                        if !r.has(field::KEY_PASSPHRASE) {
+                            return None;
+                        }
+                        (r.kind() == rkind::KEY
+                            && key_fingerprint(&c, self, r).as_deref() == Some(name.as_str()))
+                        .then(|| self.vaults.store().stage_passphrase(open.id, k, &f))
+                        .flatten()
+                    })
                 });
                 match found {
                     Some(r) => w.add.push(r),
@@ -1648,77 +1617,59 @@ impl Faraday {
             // this wallet's, and nothing else of the holder's.
             let has_plan = self
                 .vaults
-                .store
-                .vault_records(self.vaults.open[o].id)
+                .records(self.vaults.open[o].id)
                 .of(rkind::PLAN)
-                .any(|(_, r)| r.text(field::PLAN_WALLET).is_some_and(&of_wallet));
+                .any(|(_, r)| r.public_text(field::PLAN_WALLET).is_some_and(&of_wallet));
             if !has_plan
                 && let Some(r) = holders.iter().find_map(|&h| {
                     self.vaults
-                        .store
-                        .vault_records(self.vaults.open[h].id)
+                        .records(self.vaults.open[h].id)
                         .of(rkind::PLAN)
-                        .find(|(_, r)| r.text(field::PLAN_WALLET).is_some_and(&of_wallet))
-                        .map(|(_, r)| r.clone())
+                        .find(|(_, r)| r.public_text(field::PLAN_WALLET).is_some_and(&of_wallet))
+                        .and_then(|(_, r)| r.to_public())
                 })
             {
-                w.add.push(r);
+                w.add.push(Staged::Made(r));
             }
             // Only what this flow put into the vault is taken out: never a
             // record or a field it held before, never a key another
             // wallet's record names.
             w.out.retain(|&k| {
-                let Some(r) = self
-                    .vaults
-                    .store
-                    .vault_records(self.vaults.open[o].id)
-                    .records
-                    .get(k)
-                else {
+                let Some(r) = self.vaults.records(self.vaults.open[o].id).get(k) else {
                     return false;
                 };
                 let tokens = self.record_tokens(&c, r);
-                let key = r.kind == rkind::KEY;
+                let key = r.kind() == rkind::KEY;
                 !(tokens.iter().any(|t| before.contains(t)) || (key && !others.is_empty()))
             });
-            let open = &self.vaults.open[o];
-            let mut trial = self.vaults.store.vault_records(open.id).clone();
-            let mut gone = w.out.clone();
-            gone.sort_unstable();
-            gone.dedup();
-            for k in gone.into_iter().rev() {
-                if k < trial.records.len() {
-                    trial.records.remove(k);
-                }
-            }
-            trial.records.extend(w.add.iter().cloned());
-            if trial.used() > open.header().slot_len as usize {
+            let sizes: Vec<usize> = w.add.iter().map(Staged::size).collect();
+            if !self
+                .vaults
+                .store()
+                .fits(self.vaults.open[o].id, &w.out, &sizes)
+            {
                 return self.toast(EN.vaults_that_does_not);
             }
             work.push(w);
         }
         for w in work {
-            let open = &mut self.vaults.open[w.o];
+            let id = self.vaults.open[w.o].id;
             let mut gone = w.out.clone();
             gone.sort_unstable();
             gone.dedup();
             for k in gone.into_iter().rev() {
-                if k < self.vaults.store.vault_records(open.id).records.len() {
-                    self.vaults
-                        .store
-                        .vault_records_mut(open.id)
-                        .records
-                        .remove(k);
-                    open.changes += 1;
+                if k < self.vaults.records(id).len() {
+                    self.vaults.edit(id, |s| s.remove(id, k));
+                    self.vaults.changed(id);
                 }
             }
             if !w.add.is_empty() {
-                self.vaults
-                    .store
-                    .vault_records_mut(open.id)
-                    .records
-                    .extend(w.add);
-                open.changes += 1;
+                self.vaults.edit(id, |s| {
+                    for r in w.add {
+                        s.insert(id, r);
+                    }
+                });
+                self.vaults.changed(id);
             }
             self.vaults.current = w.o;
             for (k, with) in w.typed {
@@ -1736,25 +1687,24 @@ impl Faraday {
             let Some(o) = self.flow_open_index(i, v) else {
                 continue;
             };
-            let open = &mut self.vaults.open[o];
-            let mut changed = false;
-            for r in self
+            let id = self.vaults.open[o].id;
+            let stale: Vec<usize> = self
                 .vaults
-                .store
-                .vault_records_mut(open.id)
-                .records
-                .iter_mut()
-            {
-                if r.kind == rkind::PLAN
-                    && r.text(field::PLAN_WALLET).is_some_and(&of_wallet)
-                    && r.text(field::PLAN_ANSWERS) != Some(text.as_str())
-                {
-                    r.set(field::PLAN_ANSWERS, text.as_bytes());
-                    changed = true;
-                }
-            }
-            if changed {
-                open.changes += 1;
+                .records(id)
+                .of(rkind::PLAN)
+                .filter(|(_, r)| {
+                    r.public_text(field::PLAN_WALLET).is_some_and(&of_wallet)
+                        && r.public_text(field::PLAN_ANSWERS) != Some(text.as_str())
+                })
+                .map(|(k, _)| k)
+                .collect();
+            if !stale.is_empty() {
+                self.vaults.edit(id, |s| {
+                    for k in &stale {
+                        s.set_public(id, *k, field::PLAN_ANSWERS, text.as_bytes());
+                    }
+                });
+                self.vaults.changed(id);
             }
         }
         let f = &mut self.backup_flows[i];
@@ -1987,18 +1937,22 @@ impl Faraday {
     /// passphrase, `a{fp}` a key's passphrase kept alone (type 14),
     /// `w{sum}` a wallet's description, `s{sum}:{n}` a wallet's share
     /// (`docs/BACKUP-FLOW.md` §15). Never a secret.
-    pub(crate) fn record_tokens(&self, c: &Compute, r: &faraday_vault::Record) -> Vec<String> {
+    pub(crate) fn record_tokens(
+        &self,
+        c: &Compute,
+        r: faraday_keys::vault::RecordView<'_>,
+    ) -> Vec<String> {
         use faraday_vault::records::{field, kind as rkind};
         // As an open vault keeps it read; a copy is read now.
         let sum = || self.record_described(c, r).map(|d| d.checksum.clone());
-        match r.kind {
+        match r.kind() {
             rkind::KEY => {
                 let Some(fp) = crate::vault::screen::key_fingerprint(c, self, r) else {
                     return Vec::new();
                 };
                 // A record of the words alone, and one with a passphrase,
                 // are two records: told apart.
-                if r.field(field::KEY_PASSPHRASE).is_some() {
+                if r.has(field::KEY_PASSPHRASE) {
                     vec![format!("p{fp}")]
                 } else {
                     vec![format!("k{fp}")]
@@ -2006,13 +1960,13 @@ impl Faraday {
             }
             rkind::WALLET => sum().map(|s| vec![format!("w{s}")]).unwrap_or_default(),
             rkind::PASSPHRASE => r
-                .field(field::PASSPHRASE_KEY)
+                .public(field::PASSPHRASE_KEY)
                 .and_then(|b| <[u8; 4]>::try_from(b).ok())
                 .map(|b| vec![format!("a{}", fp_text(faraday_bip::keys::Fingerprint(b)))])
                 .unwrap_or_default(),
             rkind::WALLET_SHARE => {
                 let n = r
-                    .field(field::SHARE_NUMBER)
+                    .public(field::SHARE_NUMBER)
                     .and_then(|b| b.first())
                     .copied();
                 match (sum(), n) {
@@ -2033,11 +1987,9 @@ impl Faraday {
             .get(o)
             .map(|v| {
                 self.vaults
-                    .store
-                    .vault_records(v.id)
-                    .records
+                    .records(v.id)
                     .iter()
-                    .flat_map(|r| self.record_tokens(c, r))
+                    .flat_map(|(_, r)| self.record_tokens(c, r))
                     .collect()
             })
             .unwrap_or_default();
@@ -2056,8 +2008,8 @@ impl Faraday {
         };
         // A wallet's, a plan's or a share's description, as the vault
         // keeps it read.
-        for i in 0..self.vaults.store.vault_records(v.id).records.len() {
-            let Some(d) = self.vaults.store.vault_records(v.id).described(c, i) else {
+        for i in 0..self.vaults.records(v.id).len() {
+            let Some(d) = self.vaults.described(c, v.id, i) else {
                 continue;
             };
             let p = &d.policy;

@@ -262,8 +262,8 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
     }
     let plans: Vec<_> = app
         .vaults
-        .store
-        .vault_records(app.vaults.open[0].id)
+        .store()
+        .contents_for_tests(app.vaults.open[0].id)
         .of(kind::PLAN)
         .map(|(_, r)| r.clone())
         .collect();
@@ -298,8 +298,8 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
     }
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::PLAN)
             .count(),
         1

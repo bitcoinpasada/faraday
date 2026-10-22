@@ -5,7 +5,6 @@
 //! shown to a person is local.
 
 use crate::common::type_text;
-use faraday_core::gpg;
 use faraday_core::set_time::Focus;
 use faraday_core::stick::settings::FILE;
 use faraday_core::testkit;
@@ -75,20 +74,22 @@ fn gpg_created(app: &Faraday) -> u32 {
     let v = &app.vaults.open[app.vaults.current];
     let r = app
         .vaults
-        .store
-        .vault_records(v.id)
+        .store()
+        .contents_for_tests(v.id)
         .records
         .iter()
         .rev()
         .find(|r| r.kind == kind::GPG)
         .expect("a GPG record");
-    gpg::key_of(r).expect("a readable key").created
+    crate::common::gpg_key_of(r)
+        .expect("a readable key")
+        .created
 }
 
 fn gpg_count(app: &Faraday) -> usize {
     app.vaults
-        .store
-        .vault_records(app.vaults.open[app.vaults.current].id)
+        .store()
+        .contents_for_tests(app.vaults.open[app.vaults.current].id)
         .of(kind::GPG)
         .count()
 }

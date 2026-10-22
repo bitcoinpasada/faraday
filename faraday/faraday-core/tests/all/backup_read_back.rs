@@ -703,7 +703,7 @@ fn a_key_loads_with_its_passphrase_kept_in_another_open_vault() {
         .vaults
         .open
         .iter()
-        .position(|o| app.vaults.store.vault_records(o.id).of(kind::KEY).count() == 1)
+        .position(|o| app.vaults.records(o.id).of(kind::KEY).count() == 1)
         .unwrap();
     app.press(Action::Vault(V::LoadAll(v)));
     assert_eq!(app.session.keys.len(), 1);

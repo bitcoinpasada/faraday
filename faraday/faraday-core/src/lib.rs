@@ -1118,17 +1118,17 @@ pub(crate) fn plan_cards_on(m: &plan::Mapped) -> Vec<u8> {
 /// (`docs/BACKUP-FLOW.md` §15.6).
 pub(crate) fn share_record_is(
     c: &Compute,
-    r: &faraday_vault::Record,
+    r: faraday_keys::vault::RecordView<'_>,
     cs: &str,
     j: Option<usize>,
 ) -> bool {
     use faraday_vault::records::{field, kind};
-    r.kind == kind::WALLET_SHARE
-        && r.text(field::SHARE_WALLET)
+    r.kind() == kind::WALLET_SHARE
+        && r.public_text(field::SHARE_WALLET)
             .and_then(|t| wallet::read_wallet(c, t).ok())
             .is_some_and(|p| p.checksum() == cs)
         && j.is_none_or(|j| {
-            r.field(field::SHARE_NUMBER)
+            r.public(field::SHARE_NUMBER)
                 .and_then(|b| b.first())
                 .is_some_and(|&n| usize::from(n) == j + 1)
         })
@@ -4762,15 +4762,14 @@ impl Faraday {
         };
         let fp = key.fingerprint.0;
         self.vaults
-            .store
-            .vault_records(open.id)
+            .records(open.id)
             .of(kind::PASSPHRASE)
             .any(|(_, r)| {
-                r.field(field::PASSPHRASE_KEY) == Some(&fp[..])
-                    && match r.text(field::PASSPHRASE) {
-                        Some(t) => self.session.keys.passphrase_is(k, t),
-                        None => !key.has_passphrase,
-                    }
+                r.public(field::PASSPHRASE_KEY) == Some(&fp[..])
+                    && self
+                        .vaults
+                        .store()
+                        .passphrase_record_is(r, &self.session.keys, k)
             })
     }
 
@@ -4807,12 +4806,9 @@ impl Faraday {
     ) -> bool {
         use faraday_vault::records::field;
         self.vaults.open.get(o).is_some_and(|x| {
-            self.vaults
-                .store
-                .vault_records(x.id)
-                .records
-                .iter()
-                .any(|r| share_record_is(c, r, cs, Some(j)) && r.text(field::SHARE) == Some(text))
+            self.vaults.records(x.id).iter().any(|(_, r)| {
+                share_record_is(c, r, cs, Some(j)) && r.public_text(field::SHARE) == Some(text)
+            })
         })
     }
 
@@ -4955,19 +4951,15 @@ impl Faraday {
         let want = wallet::same_wallet(wallet.policy());
         let o = self.vaults.open.get(v)?;
         self.vaults
-            .store
-            .vault_records(o.id)
-            .described_of(c, kind::PLAN)
+            .described_of(c, o.id, kind::PLAN)
             .find_map(|(_, r, d)| {
                 if d.same != want {
                     return None;
                 }
-                let a = plan::Answers::from_text(shape, r.text(field::PLAN_ANSWERS)?)?;
+                let a = plan::Answers::from_text(shape, r.public_text(field::PLAN_ANSWERS)?)?;
                 let names = r
-                    .fields
-                    .iter()
-                    .filter(|f| f.number == field::PLAN_PLACE)
-                    .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
+                    .public_all(field::PLAN_PLACE)
+                    .map(|b| String::from_utf8_lossy(b).into_owned())
                     .collect();
                 Some((a, names))
             })
@@ -5018,9 +5010,7 @@ impl Faraday {
         let want = wallet::same_wallet(wallet.policy());
         (0..self.vaults.open.len()).find(|&v| {
             self.vaults
-                .store
-                .vault_records(self.vaults.open[v].id)
-                .described_of(c, kind::PLAN)
+                .described_of(c, self.vaults.open[v].id, kind::PLAN)
                 .any(|(_, _, d)| d.same == want)
         })
     }
@@ -5092,9 +5082,7 @@ impl Faraday {
         // This wallet's plan records, by place.
         let ours: Vec<usize> = self
             .vaults
-            .store
-            .vault_records(open.id)
-            .described_of(&c, kind::PLAN)
+            .described_of(&c, open.id, kind::PLAN)
             .filter(|(_, _, d)| d.same == want)
             .map(|(i, _, _)| i)
             .collect();
@@ -5104,17 +5092,12 @@ impl Faraday {
             Some(n) => n.iter().map(plan::Note::to_text).collect(),
             None => self
                 .vaults
-                .store
-                .vault_records(open.id)
-                .records
+                .records(open.id)
                 .iter()
-                .enumerate()
                 .filter(|(i, _)| same(*i))
                 .flat_map(|(_, r)| {
-                    r.fields
-                        .iter()
-                        .filter(|f| f.number == field::PLAN_NOTE)
-                        .map(|f| String::from_utf8_lossy(&f.bytes).into_owned())
+                    r.public_all(field::PLAN_NOTE)
+                        .map(|b| String::from_utf8_lossy(b).into_owned())
                         .collect::<Vec<_>>()
                 })
                 .collect(),
@@ -5125,45 +5108,25 @@ impl Faraday {
         // Kept as it was: nothing to write back.
         let unchanged = self
             .vaults
-            .store
-            .vault_records(open.id)
-            .records
+            .records(open.id)
             .iter()
-            .enumerate()
-            .any(|(i, r)| {
-                same(i)
-                    && r.fields.len() == record.fields.len()
-                    && r.fields
-                        .iter()
-                        .zip(&record.fields)
-                        .all(|(a, b)| a.number == b.number && *a.bytes == *b.bytes)
-            });
+            .any(|(i, r)| same(i) && r.same_fields(&record));
         if unchanged {
             return;
         }
         let name = open.name.clone();
+        let id = open.id;
         let old: Vec<faraday_vault::records::Record> = self
             .vaults
-            .store
-            .vault_records(open.id)
-            .records
+            .records(id)
             .iter()
-            .enumerate()
             .filter(|(i, _)| same(*i))
-            .map(|(_, r)| r.clone())
+            .filter_map(|(_, r)| r.to_public())
             .collect();
-        if let Some(open) = self.vaults.open.get_mut(v)
-            && !ours.is_empty()
-        {
-            let mut at = 0;
-            self.vaults
-                .store
-                .vault_records_mut(open.id)
-                .records
-                .retain(|_| {
-                    at += 1;
-                    !same(at - 1)
-                });
+        if !ours.is_empty() {
+            self.vaults.edit(id, |s| {
+                s.remove_where(id, |r| r.home().is_some_and(|(_, i)| same(i)))
+            });
         }
         if !self.vault_push_in(
             v,
@@ -5171,17 +5134,13 @@ impl Faraday {
             &fill(EN.plan_store_the_plan, &[&name.to_string()]),
         ) {
             // It did not fit: the record it kept stays.
-            if let Some(open) = self.vaults.open.get_mut(v) {
-                self.vaults
-                    .store
-                    .vault_records_mut(open.id)
-                    .records
-                    .extend(old);
-            }
-        } else if !old.is_empty()
-            && let Some(open) = self.vaults.open.get_mut(v)
-        {
-            open.changes += 1;
+            self.vaults.edit(id, |s| {
+                for r in old {
+                    s.insert(id, r);
+                }
+            });
+        } else if !old.is_empty() {
+            self.vaults.changed(id);
         }
     }
 
@@ -6104,12 +6063,12 @@ impl Faraday {
         let Some(open) = self.vaults.open.get(v) else {
             return;
         };
-        let Some(rec) = self.vaults.store.vault_records(open.id).records.get(r) else {
+        let Some(rec) = self.vaults.records(open.id).get(r) else {
             return;
         };
         let (Some(text), name) = (
-            rec.text(field::WALLET).map(str::to_string),
-            rec.text(field::WALLET_NAME)
+            rec.public_text(field::WALLET).map(str::to_string),
+            rec.public_text(field::WALLET_NAME)
                 .unwrap_or(EN.restore_from_vault_wallet)
                 .to_string(),
         ) else {
@@ -6135,17 +6094,15 @@ impl Faraday {
         let open = &self.vaults.open[v];
         let keep: BTreeSet<usize> = self
             .vaults
-            .store
-            .vault_records(open.id)
+            .records(open.id)
             .of(kind::KEY)
             .filter(|(_, k)| {
-                vault::screen::key_fingerprint(&c, self, k).is_some_and(|fp| want.contains(&fp))
+                vault::screen::key_fingerprint(&c, self, *k).is_some_and(|fp| want.contains(&fp))
             })
             .map(|(i, _)| i)
             .chain([r])
             .collect();
-        let all: BTreeSet<usize> =
-            (0..self.vaults.store.vault_records(open.id).records.len()).collect();
+        let all: BTreeSet<usize> = (0..self.vaults.records(open.id).len()).collect();
         let saved = std::mem::replace(
             &mut self.vaults.open[v].skip,
             all.difference(&keep).copied().collect(),
@@ -6386,12 +6343,12 @@ impl Faraday {
         // that merges with what is in hand.
         let mut wallet: Option<String> = None;
         for o in &self.vaults.open {
-            for (_, rec) in self.vaults.store.vault_records(o.id).of(kind::WALLET_SHARE) {
-                let Some(t) = rec.text(field::SHARE) else {
+            for (_, rec) in self.vaults.records(o.id).of(kind::WALLET_SHARE) {
+                let Some(t) = rec.public_text(field::SHARE) else {
                     continue;
                 };
                 let of = rec
-                    .text(field::SHARE_WALLET)
+                    .public_text(field::SHARE_WALLET)
                     .and_then(|d| self.read_kept(c, d))
                     .map(|p| p.checksum().to_string());
                 if wallet.is_some() && of != wallet {
@@ -9028,7 +8985,7 @@ impl Faraday {
     fn before_frame(&mut self) {
         let c = self.compute();
         for o in &self.vaults.open {
-            self.vaults.store.vault_records(o.id).warm(&c);
+            self.vaults.warm(&c, o.id);
         }
     }
 

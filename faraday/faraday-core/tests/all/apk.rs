@@ -132,16 +132,17 @@ fn make(app: &mut Faraday, name: &str, package: &str) {
     let name = name.trim();
     let pair = key::make(&seed, name, 1_791_482_652).unwrap();
     let cur = app.vaults.current;
-    app.vaults
-        .store
-        .vault_records_mut(app.vaults.open[cur].id)
-        .records
-        .push(faraday_core::apk::record_of(&pair, package));
+    {
+        let id = app.vaults.open[cur].id;
+        app.vaults.edit(id, |s| {
+            s.insert(id, faraday_core::apk::record_of(&pair, package))
+        });
+    }
     app.vaults.open[cur].changes += 1;
     let n = app
         .vaults
-        .store
-        .vault_records(app.vaults.open[cur].id)
+        .store()
+        .contents_for_tests(app.vaults.open[cur].id)
         .of(kind::APK_KEY)
         .count();
     app.press(Action::Vault(V::Category(6)));
@@ -150,8 +151,8 @@ fn make(app: &mut Faraday, name: &str, package: &str) {
 
 fn keys(app: &Faraday) -> Vec<faraday_vault::Record> {
     app.vaults
-        .store
-        .vault_records(app.vaults.open[app.vaults.current].id)
+        .store()
+        .contents_for_tests(app.vaults.open[app.vaults.current].id)
         .of(kind::APK_KEY)
         .map(|(_, r)| r.clone())
         .collect()
@@ -693,8 +694,8 @@ fn nothing_for_the_stick_ever_holds_the_private_key() {
     let check = |app: &Faraday, what: &str| {
         let Some((_, r)) = app.vaults.open.first().and_then(|v| {
             app.vaults
-                .store
-                .vault_records(v.id)
+                .store()
+                .contents_for_tests(v.id)
                 .of(kind::APK_KEY)
                 .next()
         }) else {
@@ -732,8 +733,8 @@ fn nothing_for_the_stick_ever_holds_the_private_key() {
     // The state a lock keeps holds none of it either.
     let secrets = secrets_of(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::APK_KEY)
             .next()
             .unwrap()

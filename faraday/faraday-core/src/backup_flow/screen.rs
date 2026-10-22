@@ -1134,7 +1134,10 @@ fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             let salt = f.plan.vaults.get(v)?.salt?;
             app.vaults.open.iter().position(|o| o.header().salt == salt)
         })
-        .find_map(|o| app.flow_record_in(o, f.kind, &sub.id));
+        .find_map(|o| {
+            let at = app.flow_record_in(o, f.kind, &sub.id)?;
+            app.vaults.records(app.vaults.open.get(o)?.id).get(at)
+        });
     let Some(r) = record else {
         cy += row(ui, x, cy, w, FEN.backup_flow_name, &sub.name, false);
         return cy - y;
@@ -1153,7 +1156,7 @@ fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
     };
     match f.kind {
         Kind::Apk => {
-            if let Some(s) = crate::apk::shown(&r, app.tz_min) {
+            if let Some(s) = crate::apk::shown(r, app.tz_min) {
                 cy += row(ui, x, cy, w, FEN.apk_name, &s.name, false);
                 cy += row(ui, x, cy, w, FEN.apk_package, &s.package, false);
                 cy += row(
@@ -1166,7 +1169,7 @@ fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
                     true,
                 );
                 cy += row(ui, x, cy, w, FEN.apk_key, FEN.apk_rsa_3072, false);
-                let file = crate::apk::fingerprint_of(&r)
+                let file = crate::apk::fingerprint_of(r)
                     .map(|fp| format!("{}-certificate.pem", crate::apk::file_stem(&s.name, &fp)))
                     .unwrap_or_default();
                 cy += row(ui, x, cy, w, FEN.apk_certificate, &file, false);
@@ -1174,7 +1177,7 @@ fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             }
         }
         Kind::Gpg => {
-            if let Some(g) = crate::gpg::shown(&r, app.tz_min) {
+            if let Some(g) = crate::gpg::shown(r, app.tz_min) {
                 for uid in &g.user_ids {
                     cy += row(ui, x, cy, w, FEN.vault_user_id, uid, false);
                 }
@@ -1194,7 +1197,7 @@ fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             }
         }
         Kind::SecureBoot => {
-            if let Some(sb) = crate::secure_boot::shown(&r) {
+            if let Some(sb) = crate::secure_boot::shown(r) {
                 cy += row(ui, x, cy, w, FEN.vault_owner_guid, &sb.owner, true);
                 for (label, name) in ["PK", "KEK", "db"].iter().zip(&sb.names) {
                     cy += row(ui, x, cy, w, label, name, false);

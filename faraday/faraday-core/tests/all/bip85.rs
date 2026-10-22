@@ -120,8 +120,8 @@ fn a_password_goes_into_the_vault_as_an_entry() {
     let v = &app.vaults.open[0];
     let found = app
         .vaults
-        .store
-        .vault_records(v.id)
+        .store()
+        .contents_for_tests(v.id)
         .of(kind::ENTRY)
         .any(|(_, r)| r.field(field::PASSWORD) == Some(want.as_str().as_bytes()));
     assert!(found, "the password is not an entry in the vault");

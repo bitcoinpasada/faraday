@@ -1512,7 +1512,7 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         .open
         .iter()
         .filter(|v| v.changes > 0)
-        .map(|v| v.label(&app.vaults.store))
+        .map(|v| v.label(app.vaults.store()))
         .collect();
     let mut rows: Vec<(&str, String)> = vec![(
         EN.idle_warn_wiped,

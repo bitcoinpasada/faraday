@@ -888,7 +888,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             EN.vault_panel_open,
             &[
                 &open.name.to_string(),
-                &open.label(&app.vaults.store).to_string(),
+                &open.label(app.vaults.store()).to_string(),
             ],
         ),
     );
@@ -1359,7 +1359,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
             EN.vault_open,
             &[
                 &open.name.to_string(),
-                &open.label(&app.vaults.store).to_string(),
+                &open.label(app.vaults.store()).to_string(),
             ],
         );
         let title = ui.fit(15.0, W::S, &title, iw - 28.0);

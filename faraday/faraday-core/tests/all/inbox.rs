@@ -81,8 +81,8 @@ fn a_text_file_is_kept_and_offered_to_the_vault_as_a_note() {
     let v = &app.vaults.open[0];
     let note = app
         .vaults
-        .store
-        .vault_records(v.id)
+        .store()
+        .contents_for_tests(v.id)
         .of(kind::NOTE)
         .filter_map(|(_, r)| r.text(field::NOTE))
         .find(|t| t.contains("2345 6789"))
@@ -104,15 +104,15 @@ fn a_seed_words_file_goes_into_the_vault_as_a_key() {
     let mut app = unlocked(vec![(name.clone(), bytes)]);
     let keys = app
         .vaults
-        .store
-        .vault_records(app.vaults.open[0].id)
+        .store()
+        .contents_for_tests(app.vaults.open[0].id)
         .of(kind::KEY)
         .count();
     app.press(Action::Vault(V::AddFile(at(&app, &name))));
     assert_eq!(
         app.vaults
-            .store
-            .vault_records(app.vaults.open[0].id)
+            .store()
+            .contents_for_tests(app.vaults.open[0].id)
             .of(kind::KEY)
             .count(),
         keys + 1

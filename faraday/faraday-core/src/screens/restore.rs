@@ -629,9 +629,9 @@ fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         any = true;
     }
     for (v, open) in app.vaults.open.iter().enumerate() {
-        for (r, rec) in app.vaults.store.vault_records(open.id).of(kind::WALLET) {
+        for (r, rec) in app.vaults.records(open.id).of(kind::WALLET) {
             let name = rec
-                .text(field::WALLET_NAME)
+                .public_text(field::WALLET_NAME)
                 .unwrap_or(EN.restore_sources_wallet);
             bx += ui.button(
                 bx,
@@ -717,9 +717,9 @@ fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         })
         .collect();
     for (v, open) in app.vaults.open.iter().enumerate() {
-        for (r, rec) in app.vaults.store.vault_records(open.id).of(kind::WALLET) {
+        for (r, rec) in app.vaults.records(open.id).of(kind::WALLET) {
             let name = rec
-                .text(field::WALLET_NAME)
+                .public_text(field::WALLET_NAME)
                 .unwrap_or(EN.restore_sources_wallet);
             labels.push((format!("{name} · {}", open.name), Action::RFromVault(v, r)));
         }
