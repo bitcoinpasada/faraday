@@ -127,6 +127,8 @@ pub enum Part {
     Note,
     /// An entry's notes.
     EntryNotes,
+    /// A GPG key's revocation certificate, as a `.rev` file.
+    Revocation,
 }
 
 impl Reveal {

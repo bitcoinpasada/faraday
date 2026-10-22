@@ -705,6 +705,32 @@ pub fn fingerprint_text(fp: &[u8; 20]) -> String {
     out
 }
 
+/// The time of the first signature packet in `packets`: the self-signatures
+/// of a certificate are all made at one time, and a revocation is one
+/// signature.
+pub fn signature_time(packets: &[u8]) -> Option<u32> {
+    let mut at = 0;
+    while at + 2 < packets.len() {
+        let packet = packets[at] & 0x3f;
+        let first = packets[at + 1] as usize;
+        let (len, head) = if first < 192 {
+            (first, 2)
+        } else if first < 224 {
+            (((first - 192) << 8) + packets[at + 2] as usize + 192, 3)
+        } else {
+            return None;
+        };
+        let body = packets.get(at + head..at + head + len)?;
+        if packet == tag::SIGNATURE {
+            // version, type, algorithm, hash, hashed length (2), then a
+            // subpacket: length 5, type 2, four bytes.
+            return Some(u32::from_be_bytes(body.get(8..12)?.try_into().ok()?));
+        }
+        at += head + len;
+    }
+    None
+}
+
 /// What one block of public armour holds, once it has read in full.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PublicArmor {

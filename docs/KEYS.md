@@ -257,9 +257,13 @@ faraday-core sees an open vault's public fields and nothing else.
   not list is public. Secret: a KEY's payload and passphrase, a
   PASSPHRASE's passphrase, a NOTE's text, an ENTRY's password, TOTP
   secret and notes, an APK_KEY's private key, a ROUND's state, a GPG
-  record's two seeds, a SECURE_BOOT record's three private keys. A GPG
-  record's revocation certificate is public (it is a signature, not a
-  key); faraday-core still offers it only through the secret sheet.
+  record's two seeds and its revocation certificate, a SECURE_BOOT
+  record's three private keys. The revocation certificate is secret
+  because whoever has it can revoke the key (F32; owner, 2026-10-21):
+  `gpg_keep_revocation` makes and keeps it inside the store,
+  `gpg_revocation_file` and `gpg_new_revocation_file` give the `.rev`
+  file only as a held value for `Reveal::OutboxFile(Part::Revocation)`,
+  and `gpg_revocation_kept_at` gives the date it was made.
 - **Reading.** `OpenVaults::records(id)` gives `Records`, whose records are
   `RecordView`s: `kind()`, `public`, `public_text`, `public_all`, `has`,
   `len`, `loads_at_unlock`, `size`. `public` is `None` for a secret field.
@@ -276,9 +280,9 @@ faraday-core sees an open vault's public fields and nothing else.
   `passphrase_record_is`, `holds_session_words`, `word_count` and
   `words_id` (worked out once per change, inside the store),
   `round_section`, `apk_sign`, `sb_enrolment`, `sb_sign_image`, the GPG
-  certificate, revocation, revocation file and signature, and the free
-  functions `key_record_id`, `key_identity`, `key_account` and
-  `gpg_facts`. faraday-core keeps the caches of those it already kept
+  certificate, kept revocation, revocation files and signature, and the
+  free functions `key_record_id`, `key_identity`, `key_account`,
+  `gpg_facts` and `gpg_revocation_kept_at`. faraday-core keeps the caches of those it already kept
   (`Vaults::fingerprints`, `Vaults::accounts`) and asks for them by
   `key_record_id`.
 - **Editing.** `insert`, `insert_at`, `replace`, `remove`, `remove_where`,

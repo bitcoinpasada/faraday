@@ -7,7 +7,7 @@ use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::keys::Network;
 use faraday_crypto::work::Compute;
 use faraday_keys::Keys;
-use faraday_keys::vault::{self, OpenVaults, is_secret};
+use faraday_keys::vault::{self, OpenVaults, gpg_field, is_secret};
 use faraday_keys::{Part, Reveal};
 use faraday_vault::records::{field, kind};
 use faraday_vault::{Contents, Cost, Record};
@@ -157,6 +157,67 @@ fn a_secret_leaves_a_record_only_through_a_reveal_that_names_it() {
         &*store.reveal(&c, id, 0, field::TITLE, Reveal::VaultEntry(Part::Password)),
         "",
         "a public field is read as public"
+    );
+}
+
+/// A GPG key made at 1,780,000,000 with no revocation kept yet, as a key
+/// made before revocations were kept.
+fn gpg_key() -> Record {
+    let at = 1_780_000_000u32.to_le_bytes();
+    Record::new(kind::GPG)
+        .with(gpg_field::PRIMARY, &[1; 32])
+        .with(gpg_field::CREATED, &at)
+        .with(gpg_field::SUBKEY, &[2; 32])
+        .with(gpg_field::SUBKEY_CREATED, &at)
+        .with(gpg_field::USER_ID, b"Faraday test")
+}
+
+/// Whoever has a key's revocation certificate can revoke it (F32): the
+/// kept one is read only as its date, and leaves only as a `.rev` file
+/// asked for by name.
+#[test]
+fn a_kept_revocation_leaves_only_as_a_rev_file_asked_for_by_name() {
+    let c = compute();
+    let file = made_with(&c, b"pass", vec![gpg_key()]);
+    let mut store = OpenVaults::default();
+    let (id, _) = store.unlock(&c, file, b"pass").expect("opens");
+    let rev = Reveal::OutboxFile(Part::Revocation);
+    assert!(
+        store.gpg_revocation_file(id, 0, rev).is_none(),
+        "none kept yet"
+    );
+    assert!(store.gpg_keep_revocation(id, 0, 1_780_000_100));
+    assert!(
+        !store.gpg_keep_revocation(id, 0, 1_780_000_200),
+        "one is kept"
+    );
+    let r = store.records(id).get(0).expect("the key");
+    assert!(r.has(gpg_field::REVOCATION));
+    assert_eq!(r.public(gpg_field::REVOCATION), None);
+    assert_eq!(vault::gpg_revocation_kept_at(r), Some(1_780_000_100));
+    assert!(
+        store
+            .gpg_revocation_file(id, 0, Reveal::OutboxFile(Part::Words))
+            .is_none(),
+        "another part is not the revocation"
+    );
+    let kept = store.gpg_revocation_file(id, 0, rev).expect("the kept one");
+    assert!(kept.starts_with("This is a revocation certificate for the OpenPGP key:"));
+    let new = store
+        .gpg_new_revocation_file(
+            id,
+            0,
+            1_780_000_300,
+            faraday_pgp::Reason::Superseded,
+            "",
+            rev,
+        )
+        .expect("a new one");
+    assert_ne!(**new, **kept);
+    assert_eq!(
+        vault::gpg_revocation_kept_at(store.records(id).get(0).expect("the key")),
+        Some(1_780_000_100),
+        "a new one does not replace the kept one"
     );
 }
 

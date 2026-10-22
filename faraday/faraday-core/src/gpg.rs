@@ -70,36 +70,10 @@ fn record_of(key: &Key, certificate: &[u8], revocation: &[u8]) -> Record {
     r
 }
 
-/// The time of the first signature packet in `packets`: the self-signatures
-/// of a certificate are all made at one time, and a revocation is one
-/// signature.
-fn signature_time(packets: &[u8]) -> Option<u32> {
-    let mut at = 0;
-    while at + 2 < packets.len() {
-        let tag = packets[at] & 0x3f;
-        let first = packets[at + 1] as usize;
-        let (len, head) = if first < 192 {
-            (first, 2)
-        } else if first < 224 {
-            (((first - 192) << 8) + packets[at + 2] as usize + 192, 3)
-        } else {
-            return None;
-        };
-        let body = packets.get(at + head..at + head + len)?;
-        if tag == 2 {
-            // version, type, algorithm, hash, hashed length (2), then a
-            // subpacket: length 5, type 2, four bytes.
-            return Some(u32::from_be_bytes(body.get(8..12)?.try_into().ok()?));
-        }
-        at += head + len;
-    }
-    None
-}
-
 /// When the certificate in a record was last signed: the time of its
 /// self-signatures.
 pub fn certified_at(r: RecordView<'_>) -> Option<u32> {
-    signature_time(r.public(f::CERTIFICATE)?)
+    faraday_pgp::signature_time(r.public(f::CERTIFICATE)?)
 }
 
 /// When a record's key was marked revoked.
@@ -318,7 +292,12 @@ impl Faraday {
         );
         let cert = faraday_keys::gpg::certificate(&key, now);
         let stem = file_stem(&facts_of(&key));
-        let revocation = faraday_keys::gpg::revocation(&key, now, Reason::Unspecified, "");
+        let revocation = Zeroizing::new(faraday_keys::gpg::revocation(
+            &key,
+            now,
+            Reason::Unspecified,
+            "",
+        ));
         let record = record_of(&key, &cert, &revocation);
         Ok(Built {
             record,
@@ -357,16 +336,9 @@ impl Faraday {
         let Ok(now) = self.clock() else {
             return;
         };
-        let Some(rev) = self
-            .vaults
-            .store()
-            .gpg_revocation(id, at, now, Reason::Unspecified, "")
-        else {
-            return;
-        };
-        self.vaults
-            .edit(id, |s| s.set_public(id, at, f::REVOCATION, &rev));
-        self.vaults.changed(id);
+        if self.vaults.edit(id, |s| s.gpg_keep_revocation(id, at, now)) {
+            self.vaults.changed(id);
+        }
     }
 
     /// The selected key's public certificate, armoured, with the key.
@@ -460,14 +432,7 @@ impl Faraday {
     /// Offers a revocation file through the secret sheet: whoever has it
     /// can revoke the key, so it is never a public file, a code or a
     /// picture.
-    fn gpg_offer_revocation(&mut self, at: (VaultId, usize), key: &Facts, revocation: &[u8]) {
-        let Some(file) = self
-            .vaults
-            .store()
-            .gpg_revocation_file(at.0, at.1, revocation)
-        else {
-            return;
-        };
+    fn gpg_offer_revocation(&mut self, key: &Facts, file: &str) {
         let mut out = crate::secrets::SecretOut::new(
             rev_name(key),
             Zeroizing::new(file.as_bytes().to_vec()),
@@ -486,14 +451,14 @@ impl Faraday {
         let Some((id, at, key)) = self.gpg_selected() else {
             return;
         };
-        let Some(rev) = self
-            .gpg_record(id, at)
-            .and_then(|r| r.public(f::REVOCATION))
-            .map(<[u8]>::to_vec)
-        else {
+        let Some(file) = self.vaults.store().gpg_revocation_file(
+            id,
+            at,
+            faraday_keys::Reveal::OutboxFile(faraday_keys::Part::Revocation),
+        ) else {
             return self.toast(EN.gpg_no_revocation_kept);
         };
-        self.gpg_offer_revocation((id, at), &key, &rev);
+        self.gpg_offer_revocation(&key, &file);
     }
 
     /// A new revocation certificate for the selected key, with the reason
@@ -507,14 +472,17 @@ impl Faraday {
             Ok(t) => t,
             Err(e) => return self.toast(&e),
         };
-        let Some(rev) = self
-            .vaults
-            .store()
-            .gpg_revocation(id, at, now, reason, text.trim())
-        else {
+        let Some(file) = self.vaults.store().gpg_new_revocation_file(
+            id,
+            at,
+            now,
+            reason,
+            text.trim(),
+            faraday_keys::Reveal::OutboxFile(faraday_keys::Part::Revocation),
+        ) else {
             return;
         };
-        self.gpg_offer_revocation((id, at), &key, &rev);
+        self.gpg_offer_revocation(&key, &file);
     }
 
     /// The key is marked revoked, as importing its own revocation
@@ -864,9 +832,7 @@ pub fn shown(r: RecordView<'_>, tz_min: i16) -> Option<Shown> {
         } else {
             local(u64::from(key.created) + u64::from(key.expiry))
         },
-        revocation_kept: r
-            .public(f::REVOCATION)
-            .and_then(signature_time)
+        revocation_kept: faraday_keys::vault::gpg_revocation_kept_at(r)
             .map(|t| local(u64::from(t))),
         revoked: revoked_at(r).map(|t| local(u64::from(t))),
     })

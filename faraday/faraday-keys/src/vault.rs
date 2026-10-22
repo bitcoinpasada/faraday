@@ -61,7 +61,8 @@ pub mod gpg_field {
     pub const EXPIRY: u8 = 6;
     /// The public certificate, as packets.
     pub const CERTIFICATE: u8 = 7;
-    /// The revocation certificate made with the key, as packets.
+    /// The revocation certificate made with the key, as packets. Secret:
+    /// whoever has it can revoke the key (F32).
     pub const REVOCATION: u8 = 8;
     /// When the key was marked revoked (`u32`).
     pub const REVOKED: u8 = 9;
@@ -95,16 +96,16 @@ pub mod sb_field {
 /// - ENTRY: the password, the TOTP secret and the notes;
 /// - APK_KEY: the private key;
 /// - ROUND: the round's state (secret nonces);
-/// - GPG: the primary key's and the subkey's seeds;
+/// - GPG: the primary key's and the subkey's seeds, and the revocation
+///   certificate kept with them;
 /// - SECURE_BOOT: the PK's, KEK's and db's private keys.
 ///
 /// Public, in full: the slot label, wallets, sheets, amounts, plans and
 /// wallet shares; a key's label and flags; a passphrase's key
 /// fingerprint; an entry's title, username and URL; an APK key's
 /// certificate and package; a round's scheme, transaction hash, key
-/// fingerprint and used flag; a GPG key's dates, user IDs, certificate,
-/// revocation certificate and revoked date; a Secure Boot record's owner
-/// and certificates.
+/// fingerprint and used flag; a GPG key's dates, user IDs, certificate
+/// and revoked date; a Secure Boot record's owner and certificates.
 pub const SECRET_FIELDS: &[(u8, u8)] = &[
     (kind::KEY, field::KEY),
     (kind::KEY, field::KEY_PASSPHRASE),
@@ -117,6 +118,7 @@ pub const SECRET_FIELDS: &[(u8, u8)] = &[
     (kind::ROUND, field::ROUND_STATE),
     (kind::GPG, gpg_field::PRIMARY),
     (kind::GPG, gpg_field::SUBKEY),
+    (kind::GPG, gpg_field::REVOCATION),
     (kind::SECURE_BOOT, sb_field::PK_KEY),
     (kind::SECURE_BOOT, sb_field::KEK_KEY),
     (kind::SECURE_BOOT, sb_field::DB_KEY),
@@ -1073,32 +1075,81 @@ impl OpenVaults {
         Some(crate::gpg::certificate(&key, at))
     }
 
-    /// Costs an Ed25519 signature. A revocation certificate (packets) for
-    /// GPG record `i` of open vault `id`.
-    pub fn gpg_revocation(
+    /// Costs an Ed25519 signature. Makes the revocation certificate GPG
+    /// record `i` of open vault `id` keeps, signed at `at` with no reason,
+    /// and keeps it in the record, as GnuPG keeps one at key generation.
+    /// `false` for a record that is no GPG key or keeps one already.
+    pub fn gpg_keep_revocation(&mut self, id: VaultId, i: usize, at: u32) -> bool {
+        let Some(r) = self.slot(id).and_then(|s| s.records.records.get(i)) else {
+            return false;
+        };
+        if r.field(gpg_field::REVOCATION).is_some() {
+            return false;
+        }
+        let Some(key) = gpg_key(r) else {
+            return false;
+        };
+        let rev = Zeroizing::new(crate::gpg::revocation(
+            &key,
+            at,
+            faraday_pgp::Reason::Unspecified,
+            "",
+        ));
+        let Some(s) = self.slot_mut(id) else {
+            return false;
+        };
+        let Some(r) = s.records.records.get_mut(i) else {
+            return false;
+        };
+        r.set(gpg_field::REVOCATION, &rev);
+        s.changed();
+        true
+    }
+
+    /// The revocation certificate GPG record `i` of open vault `id` keeps,
+    /// as the file GnuPG keeps it in, for `why` (`Reveal::OutboxFile` of
+    /// `Part::Revocation`). `None` for a record that keeps none, or a
+    /// reason that names another part.
+    pub fn gpg_revocation_file(
+        &self,
+        id: VaultId,
+        i: usize,
+        why: Reveal,
+    ) -> Option<Held<Zeroizing<String>>> {
+        if why.part() != Part::Revocation {
+            return None;
+        }
+        let r = self.slot(id)?.records.records.get(i)?;
+        let rev = r.field(gpg_field::REVOCATION)?;
+        let key = gpg_key(r)?;
+        Some(Held::of(Zeroizing::new(crate::gpg::revocation_file(
+            &key, rev,
+        ))))
+    }
+
+    /// Costs an Ed25519 signature. A new revocation certificate for GPG
+    /// record `i` of open vault `id`, signed at `at` for `reason` and
+    /// `text` (`gpg --generate-revocation`), as the file GnuPG writes, for
+    /// `why` (`Reveal::OutboxFile` of `Part::Revocation`). The kept one
+    /// is not replaced. `None` for a record that is no GPG key, or a
+    /// reason that names another part.
+    pub fn gpg_new_revocation_file(
         &self,
         id: VaultId,
         i: usize,
         at: u32,
         reason: faraday_pgp::Reason,
         text: &str,
-    ) -> Option<Vec<u8>> {
+        why: Reveal,
+    ) -> Option<Held<Zeroizing<String>>> {
+        if why.part() != Part::Revocation {
+            return None;
+        }
         let key = gpg_key(self.slot(id)?.records.records.get(i)?)?;
-        Some(crate::gpg::revocation(&key, at, reason, text))
-    }
-
-    /// A revocation certificate of GPG record `i` of open vault `id` as the
-    /// file GnuPG keeps it in. Secret: whoever has it can revoke the key.
-    pub fn gpg_revocation_file(
-        &self,
-        id: VaultId,
-        i: usize,
-        revocation: &[u8],
-    ) -> Option<Zeroizing<String>> {
-        let key = gpg_key(self.slot(id)?.records.records.get(i)?)?;
-        Some(Zeroizing::new(crate::gpg::revocation_file(
-            &key, revocation,
-        )))
+        let rev = Zeroizing::new(crate::gpg::revocation(&key, at, reason, text));
+        Some(Held::of(Zeroizing::new(crate::gpg::revocation_file(
+            &key, &rev,
+        ))))
     }
 
     /// Costs an Ed25519 signature. The signature over `data` by GPG record
@@ -1352,6 +1403,16 @@ pub fn gpg_facts(r: RecordView<'_>) -> Option<GpgFacts> {
         user_ids: key.user_ids.clone(),
         expiry: key.expiry,
     })
+}
+
+/// When the revocation certificate a GPG record keeps was made: a public
+/// date, read from its signature packet. `None` for a record that keeps
+/// none.
+pub fn gpg_revocation_kept_at(r: RecordView<'_>) -> Option<u32> {
+    if r.kind() != kind::GPG {
+        return None;
+    }
+    faraday_pgp::signature_time(r.raw().field(gpg_field::REVOCATION)?)
 }
 
 /// A GPG key's public facts ([`gpg_facts`]).

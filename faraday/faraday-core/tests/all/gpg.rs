@@ -443,7 +443,9 @@ fn a_key_with_no_kept_revocation_makes_one_when_its_page_is_opened() {
         .unwrap()
         .0;
     let id = app.vaults.open[app.vaults.current].id;
-    app.vaults.edit(id, |s| s.set_public(id, at, 8, &[]));
+    app.vaults.edit(id, |s| {
+        s.set_secret(id, at, 8, &zeroize::Zeroizing::new(Vec::new()))
+    });
     assert!(record(&app).field(8).is_none());
     app.press(Action::Vault(V::Item(0)));
     assert!(record(&app).field(8).is_some());
