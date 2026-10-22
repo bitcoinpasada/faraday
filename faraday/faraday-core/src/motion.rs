@@ -8,7 +8,10 @@
 //! page moves together, and the fractions are carried to the next move.
 //!
 //! Lengths are design units and times milliseconds, as everywhere in the
-//! app; `f` is pixels per design unit.
+//! app; `f` is pixels per design unit. Which offset each screen and
+//! sheet scrolls is here too (`Faraday::screen_slot`).
+
+use crate::{Faraday, Screen, Sheet};
 
 /// How long a glide takes to cover most of its way: each millisecond it
 /// covers 1/τ of what is left, so a notch settles in about 140 ms.
@@ -56,6 +59,10 @@ pub const FADE_GAPS_KEPT: usize = 9;
 /// How many gaps must be known before a machine is judged too slow to
 /// fade.
 pub const FADE_GAPS_KNOWN: usize = 5;
+/// How long a gap between a fade's steps is remembered: a machine that
+/// was busy for a moment fades again once its slow steps are this far
+/// past, and one that is slow every time tries a fade no more often.
+pub const FADE_GAPS_FRESH_MS: u64 = 30_000;
 /// The step the fade's first frame after the change is taken to be.
 pub const FADE_FIRST_STEP_MS: u64 = 16;
 
@@ -404,4 +411,76 @@ fn unrubber(stretch: f32, d: f32) -> f32 {
     let s = (stretch.abs() / d).min(0.999);
     let x = (1.0 / (1.0 - s) - 1.0) * d / RUBBER;
     if stretch < 0.0 { -x } else { x }
+}
+
+/// Which offset each screen and sheet scrolls.
+impl Faraday {
+    /// The open sheet's offset, or the screen's region's. A sheet starts
+    /// at its top each time it opens: with none open the sheet's offset
+    /// is cleared, and another kind of sheet starts afresh.
+    pub(crate) fn page_slot(&mut self) -> Option<&mut f32> {
+        match self.sheet {
+            Some(Sheet::Learn) => Some(&mut self.learn.scroll),
+            Some(Sheet::WordList) => self.wordlist.as_mut().map(|w| &mut w.scroll),
+            Some(s) => {
+                if self.sheet_scroll.1 != Some(s) {
+                    self.sheet_scroll = (0.0, Some(s));
+                }
+                Some(&mut self.sheet_scroll.0)
+            }
+            None => {
+                self.sheet_scroll = (0.0, None);
+                self.screen_slot()
+            }
+        }
+    }
+
+    /// The screen's region's offset, whatever sheet is over it.
+    pub(crate) fn screen_slot(&mut self) -> Option<&mut f32> {
+        Some(match self.screen {
+            Screen::Visit
+            | Screen::Files
+            | Screen::Wallets
+            | Screen::WalletsStart
+            | Screen::Decode
+            | Screen::Catalog
+            | Screen::Transfer
+            | Screen::Upgrade
+            | Screen::Backups
+            | Screen::Settings
+            | Screen::SetTime
+            | Screen::Codes
+            | Screen::Explore
+            // Entry scrolls on the wide layout too, not only compact: the
+            // word grid can run to 24 cells, taller than the window.
+            | Screen::Entry => &mut self.list_offset,
+            Screen::Home
+            | Screen::CheckMessage
+            | Screen::Vaults
+            | Screen::Unlock
+            | Screen::VaultContents
+            | Screen::Lightning
+            | Screen::Tools
+                if self.compact =>
+            {
+                &mut self.list_offset
+            }
+            Screen::Family => &mut self.family.scroll.y,
+            Screen::Vanity => &mut self.vanity.as_mut()?.scroll.y,
+            Screen::KeyGen => &mut self.keygen.as_mut()?.scroll.y,
+            Screen::Bip85 => &mut self.bip85.as_mut()?.scroll.y,
+            Screen::Silent => &mut self.silent.as_mut()?.scroll.y,
+            Screen::CreateVault => &mut self.vaults.create.as_mut()?.scroll.y,
+            Screen::BackupFlow => match self.vaults.create.as_mut() {
+                Some(c) => &mut c.scroll.y,
+                None => &mut self.backup_flows.get_mut(self.flow_on?)?.live.scroll.y,
+            },
+            Screen::Spend => &mut self.spend.as_mut()?.scroll,
+            Screen::Backup => &mut self.backup.as_mut()?.scroll.y,
+            Screen::Message => &mut self.message.as_mut()?.scroll.y,
+            Screen::Create => &mut self.create.as_mut()?.scroll.y,
+            Screen::Restore => &mut self.restore.as_mut()?.scroll.y,
+            _ => return None,
+        })
+    }
 }

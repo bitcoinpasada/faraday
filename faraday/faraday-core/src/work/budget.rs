@@ -11,6 +11,7 @@
 
 mod accessors;
 mod caches;
+mod fades;
 mod idle;
 mod keys;
 mod moments;

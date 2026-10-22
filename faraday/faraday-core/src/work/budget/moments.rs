@@ -154,8 +154,8 @@ const UNLOCK: Table = &[
     ),
     (
         Work::FullCanvas,
-        5,
-        "the change to Files fades from the Vaults tab (one copy, blended on the frames after), and the sheet keeps its frosted page and puts it back",
+        4,
+        "the change to Files fades from the Vaults tab (one copy, blended on the frames after), and the sheet keeps its frosted page and puts it back; a step of the fade after the sheet opens blends the two kept frames and draws nothing again",
     ),
 ];
 const LOAD: Table = &[

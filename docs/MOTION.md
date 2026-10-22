@@ -284,28 +284,58 @@ extent; a motion left from another screen or sheet is stopped.
   - a step card opens with its height growing over 180 ms (ease-out
     cubic), and the jump that brings the open card into view
     (`Scroll::follow`) is a glide;
-  - a change of screen or sheet cross-fades from the frame before it
-    over 200 ms, linear (`motion::FADE_MS`; 2026-10-12, phase 4.6; an
-    eased 150 ms was over in three frames and read as a flash): the
-    frame that shows the change is all the old one, and the fade's clock
-    starts at the tick after it, backdated one frame, so a slow first
-    frame does not use the fade up; each frame after, the new one is
-    drawn in full and blended over a copy of the old
-    (`Canvas::blend_from`); a frame part of the way asks for the next
-    itself, so the shell keeps drawing from the first one (the desktop
-    shell answers a frame's own asks after presenting it). At once with
-    reduce motion, and at once on a machine whose frames come too far
-    apart for a fade to read as one: the core keeps the last nine gaps
-    between the ticks that follow a tick that asked for a frame, and
-    fades while their median is 35 ms or under, 30 Hz or better
-    (`motion::FADE_GAP_MS`, `Faraday::fades`); with fewer than five gaps
-    known it fades. A fade under way runs to its end. The median, and
-    the late clock, are there because the frame a sheet opens on frosts
-    the page under it, the slowest frame the app draws (40 ms at 1080p,
-    about twice that in a window with twice 1080p's pixels): a smoothed mean counted it, judged
-    the machine too slow and cancelled the very fade the sheet had
-    started, which is why the owner saw none on the ? button (2026-10-12;
-    `tests/all/transitions.rs`). `Faraday::settle` ends a
+  - a change of screen or sheet, or of the Learn sheet's tab,
+    cross-fades from the frame before it over 200 ms, linear
+    (`motion::FADE_MS`; 2026-10-12, phase 4.6; an eased 150 ms was over
+    in three frames and read as a flash): the frame that shows the
+    change draws the new screen in full, keeps it aside
+    (`Canvas::swap_pixels`, no copy) and shows all the old one; the
+    fade's clock starts at the tick after it, backdated one frame, so a
+    slow first frame does not use the fade up. Each step after that
+    nothing else asks a frame for blends the two kept frames
+    (`Canvas::blend_between`, `Faraday::fade_step`) and draws nothing
+    again, so a screen slow to draw fades as smoothly as any other; a
+    frame something else asks for (a hover, a toast, a scroll) is drawn
+    in full and kept aside again. A step part of the way asks for the
+    next itself, so the shell keeps drawing from the first one (the
+    desktop shell answers a frame's own asks after presenting it). At
+    once with reduce motion, and at once on a machine whose fades come
+    in steps too far apart to read as one: the core times the gap
+    between each two steps of a fade that follow one another (not the
+    frame that shows the change, not a frame drawn in full, not any
+    other motion), keeps the last nine with when each was taken, and
+    fades while the median of those under 30 s old
+    (`motion::FADE_GAPS_FRESH_MS`) is 35 ms or under, 30 Hz or better
+    (`motion::FADE_GAP_MS`, `Faraday::fades`); with fewer than five
+    known it fades, and a new display size forgets them. A fade under
+    way runs to its end.
+
+    Why (2026-10-22, owner: fades on the sidebar's items, none on
+    opening Learn, and none on switching tabs after). Each frame of a
+    fade used to draw the new screen in full and blend it; the Learn
+    sheet's frame draws the page under it, puts back the frosted copy
+    and lays out a page of text, and its frosted page differs from the
+    page before at every pixel, so its fade's frames cost about 2.3
+    times a change of screen's (14 ms against 6 on the build machine
+    in a 2560 × 1600 window; on a slower machine past two refreshes,
+    three steps in 200 ms). The gate then timed every tick that asked
+    for a frame, so those gaps, a scroll of a page slow to draw, and the
+    gap from a motion's last frame to the 50 ms idle tick all counted
+    against the machine; five slow gaps of nine turned fades off, and
+    nothing timed a gap again until something else moved, so they
+    stayed off. The Learn sheet's tabs were not a change the fade knew.
+    Now a fade's step costs a blend alone (5 ms for Learn, under 3 for
+    a change of screen, same window), the blend runs a byte at a time so
+    the compiler takes many at once, only a fade's own steps are timed,
+    and old gaps are forgotten (`tests/all/transitions.rs`,
+    `faraday-core/src/work/budget/fades.rs`).
+
+    The median and the late clock are there because the frame a sheet
+    opens on frosts the page under it, the slowest frame the app draws
+    (40 ms at 1080p, about twice that in a window with twice 1080p's
+    pixels): a smoothed mean counted it, judged the machine too slow and
+    cancelled the very fade the sheet had started, which is why the
+    owner saw none on the ? button (2026-10-12). `Faraday::settle` ends a
     fade and the next frame is drawn at rest, so the snapshot tool and a
     test that reads pixels see the screen itself;
 
@@ -535,6 +565,11 @@ User-facing behaviour only (`CLAUDE.md`):
   first (the snapshot tool does), and draws a frame after a press before
   scrolling, as a shell does: a scroll stops where the last frame said
   the page ends.
+- A fade's steps blend the kept frames only while `dirty` is not set;
+  anything that changes what a frame shows sets `dirty`, as it always
+  has, and is drawn in full. A change that alters the screen without
+  setting `dirty` would be shown only when the fade ends. A tick asks
+  for the fade's next step through `fade_due`, not `dirty`.
 - Tests that read pixels after a change tick at 16 ms first, as a shell
   does (`tests/all/transitions.rs`, `tests/all/scroll.rs`).
 - Settings scrolls now: it outgrew 800 units with Appearance and Motion.

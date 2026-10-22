@@ -604,7 +604,8 @@ fn a_flow_on_its_first_card_ends_without_the_sheet() {
     assert_eq!(app.screen, Screen::Create);
     app.press(Action::CancelFlow);
     assert_eq!(app.sheet, None, "nothing past the first card: no sheet");
-    assert_eq!(app.screen, Screen::WalletsStart);
+    // Resumed from Settings: the Cancel lands there (F77).
+    assert_eq!(app.screen, Screen::Settings);
     assert!(!row_on_settings(&mut app, Going::Create));
     // Make a new wallet opens afresh, on Kind.
     app.press(Action::CreateWallet);
@@ -637,7 +638,11 @@ fn the_gpg_flows_cancel_removes_its_tools_row() {
             .any(|t| t == "Cancel making this key?")
     );
     app.press(Action::CancelFlowNow);
-    assert_eq!(app.screen, Screen::Catalog, "Tools shown");
+    assert_eq!(
+        app.screen,
+        Screen::Settings,
+        "Settings, where it was resumed from (F77)"
+    );
     assert!(!row_on_settings(&mut app, Going::Flow(0)), "no row");
     let names = sidebar_texts(&mut app);
     assert!(!names.iter().any(|t| t == "GPG key"), "{names:?}");
@@ -658,7 +663,8 @@ fn restores_cancel_ends_it_and_removes_its_row() {
     app.press(Action::CancelFlow);
     assert_eq!(app.sheet, Some(Sheet::CancelFlow(Going::Restore)));
     app.press(Action::CancelFlowNow);
-    assert_eq!(app.screen, Screen::WalletsStart);
+    // Resumed from Settings: the Cancel lands there (F77).
+    assert_eq!(app.screen, Screen::Settings);
     assert!(!row_on_settings(&mut app, Going::Restore));
 }
 
@@ -704,12 +710,13 @@ fn sign_a_messages_cancel_ends_it_and_removes_its_row() {
     app.press(Action::CancelFlow);
     assert_eq!(app.sheet, Some(Sheet::CancelFlow(Going::Message)));
     app.press(Action::CancelFlowNow);
-    assert_eq!(app.screen, Screen::WalletsStart);
+    // Resumed from Settings: the Cancel lands there (F77).
+    assert_eq!(app.screen, Screen::Settings);
     assert!(!row_on_settings(&mut app, Going::Message));
 }
 
 #[test]
-fn create_a_vaults_cancel_ends_it_on_vaults_and_removes_its_row() {
+fn create_a_vaults_cancel_ends_it_where_it_was_resumed_and_removes_its_row() {
     use faraday_core::vault::{VaultAction as V, vstep};
     let mut app = with(0, 0);
     app.storage(faraday_core::StorageEvent::Memory {
@@ -725,7 +732,8 @@ fn create_a_vaults_cancel_ends_it_on_vaults_and_removes_its_row() {
     app.press(Action::CancelFlow);
     assert_eq!(app.sheet, Some(Sheet::CancelFlow(Going::Vault)));
     app.press(Action::CancelFlowNow);
-    assert_eq!(app.screen, Screen::Vaults);
+    // Resumed from Settings: the Cancel lands there (F77).
+    assert_eq!(app.screen, Screen::Settings);
     assert!(!row_on_settings(&mut app, Going::Vault));
 }
 

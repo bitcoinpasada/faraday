@@ -1901,7 +1901,8 @@ sidebar row (a press on the row only returns to the flow).
 
 1. **Cancel** at the top of every flow that has a sidebar row, beside
    **Steps only · Guided**: it ends the flow, its row goes, and the
-   screen it was opened from is shown (Wallets, Vaults, Tools).
+   screen it was opened from is shown as it was seen (F77); the screen
+   in the table's last column only when that one is not known.
 2. **Asked first only when something would be lost** that the person
    would notice: a sheet naming it ("Cancel making this wallet? The plan
    and its places are lost."), **Cancel the flow** and **Keep going**.
@@ -1921,7 +1922,7 @@ Built 2026-10-19 (`faraday-core/src/in_progress.rs`: `flow_cancel`,
 `cancel_loses`, `flow_end`, `cancel_sheet`; `Action::CancelFlow`,
 `Sheet::CancelFlow`). What each Cancel ends, and what its sheet says:
 
-| Flow | Asks when | The line | Shown after |
+| Flow | Asks when | The line | Shown after, when where it was opened is not known |
 |---|---|---|---|
 | Make a new wallet | its Back up's plan begun; or its vaults' setup begun; or the wallet made, or a card done past the first | "The plan and its places are lost."; "Its answers and the setup of its vaults are lost."; "Its answers are lost." | Wallets, or Home when opened there |
 | Restore a wallet | its vaults' setup begun, or a card done past the first | as Make a new wallet's | Wallets, or Home |

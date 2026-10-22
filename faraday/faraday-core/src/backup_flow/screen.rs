@@ -65,7 +65,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             (cw - 72.0).min(820.0)
         },
         h,
-        back: Some((FEN.backup_flow_leave, fa(F::Back))),
+        back: Some(app.named_back((FEN.backup_flow_leave, fa(F::Back)))),
         heading: f.kind.name(),
         guided: false,
         switch: false,

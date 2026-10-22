@@ -1,9 +1,15 @@
 //! Explore: a loaded key's public side at any path. The path is read by
 //! the derivation-path parser and its purpose names the script; the
 //! extended public key, the public key and the address at the path are
-//! derived when drawn. Nothing private is shown or kept.
+//! derived when drawn. Nothing private is shown or kept. The path's
+//! account's addresses are listed, and searched for one typed, in
+//! [`addresses`] (F76).
 
+pub mod addresses;
+mod pages;
 pub(crate) mod screen;
+
+pub use addresses::{Page, XAction};
 
 use crate::strings::EN;
 use faraday_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
@@ -34,6 +40,23 @@ pub struct ExploreState {
     pub script: ScriptType,
     /// Where it returns to.
     pub back: Screen,
+    /// The page on screen.
+    pub page: Page,
+    /// The address list's chain: `false` receive, `true` change.
+    pub change: bool,
+    /// The address list's first index.
+    pub from: u32,
+    /// Find an address: the text looked for, as typed or pasted.
+    pub query: String,
+    /// Find an address: how many indices of each chain it looks at.
+    pub depth: u32,
+    /// Find an address: the search under way or done.
+    pub search: Option<addresses::Search>,
+    /// Find an address: what became of a paste that was not taken.
+    pub note: Option<&'static str>,
+    /// The account's addresses worked out, kept by the account they are
+    /// of ([`addresses::Kept`]). Public.
+    kept: std::cell::RefCell<addresses::Kept>,
     /// The last reading, with what it was worked out from: the key, the
     /// path, the script, the network and whether the key is loaded. Asked
     /// again with the same, it is a lookup ([`Faraday::explore_reading`]);
@@ -80,6 +103,14 @@ impl Faraday {
             script: ScriptType::NativeSegwit,
             back: self.screen,
             reading: Default::default(),
+            page: Page::Path,
+            change: false,
+            from: 0,
+            query: String::new(),
+            depth: addresses::DEPTHS[0],
+            search: None,
+            note: None,
+            kept: Default::default(),
         });
         self.screen = Screen::Explore;
     }
@@ -148,6 +179,9 @@ impl Faraday {
         if action == A::Explore {
             return self.explore_open();
         }
+        if let A::X(x) = action {
+            return self.explore_x(x);
+        }
         let coin = if self.session.network().is_mainnet() {
             "0"
         } else {
@@ -197,6 +231,11 @@ impl Faraday {
         use faraday_shell_api::Key as K;
         if self.screen != Screen::Explore {
             return false;
+        }
+        match self.explore.as_ref().map(|e| e.page) {
+            Some(Page::Path) => {}
+            Some(_) => return self.explore_page_key(key),
+            None => return false,
         }
         let Some(e) = self.explore.as_mut() else {
             return false;

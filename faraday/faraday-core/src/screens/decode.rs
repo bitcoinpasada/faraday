@@ -45,7 +45,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut y = top;
     if !compact {
         ui.icon(x - 4.0, y, 16.0, Icon::ChevronLeft, 10.0, MUTED);
-        let lw = ui.text(x + 14.0, y, 12.0, W::R, MUTED, decode_back(d.back));
+        let (label, _) = app.named_back((decode_back(d.back), Action::Nav(d.back)));
+        let lw = ui.text(x + 14.0, y, 12.0, W::R, MUTED, label);
         ui.hit(x - 4.0, y - 4.0, lw + 30.0, 24.0, Action::Nav(d.back));
         ui.back(Action::Nav(d.back));
         y += 22.0;

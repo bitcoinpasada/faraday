@@ -5,6 +5,7 @@ use crate::tour::{
     type_words, vault_place, vault_stick,
 };
 use faraday_core::board::{Thing, Zone};
+use faraday_core::explore::{Page, XAction};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent};
@@ -211,6 +212,26 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::Explore);
     t.press(Action::XPreset(1));
     t.shot("explore")?;
+    // Its account's addresses, and a search of them for a part (F76).
+    t.press(Action::X(XAction::Page(Page::Addresses)));
+    t.shot("explore-addresses")?;
+    t.press(Action::X(XAction::Page(Page::Find)));
+    type_text(t, "x9");
+    t.press(Action::X(XAction::Search));
+    let searching = |t: &Tour| {
+        t.app
+            .explore
+            .as_ref()
+            .and_then(|e| e.search.as_ref())
+            .is_some_and(|s| s.running())
+    };
+    for _ in 0..100 {
+        if !searching(t) {
+            break;
+        }
+        t.tick();
+    }
+    t.shot("explore-find")?;
     // Lightning: test key 1 as ldk-node reads it.
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::Lightning);

@@ -81,7 +81,7 @@ needs it and nothing here has it yet. `New` means neither does it as needed.
 | A seed scanned where a transaction is expected is never placed in the box | no | Have |
 | Camera constraints treated as wishes; a refused request retried with none | n/a | Port the rule to V4L2 |
 | QR from a photograph or image file, many at once, stopping when a transfer completes | PNG import | Port: PNG only, decoded in the disk process (§4) |
-| Typed or pasted text as a way in | paste | Have Type; Paste on the desktop (§8 item 5); no clipboard on the stick |
+| Typed or pasted text as a way in | paste | Have Type; Paste on the desktop (§8 item 5), a seed's included (F75); no clipboard on the stick |
 | Text files from a stick as a way in | yes | Have, from the Inbox |
 
 ## 2. Routing
@@ -554,15 +554,22 @@ shells'. DESIGN §4.9 Scanner is the design they meet. No torch (DESIGN
    `VIEWFINDER_BRACKET_INSET`, `VIEWFINDER_BAND_PAD` and `BAR_HEIGHT`.
 5. **Paste.** A Paste button beside the scanner's other ways in, where
    the scanner takes anything: Files, Transfer's Receive and What do you
-   have?. Seed scanners have none (a SeedQR, a key part, a wallet's key,
-   a copy check), and neither does the TOTP scanner. The button is dimmed
+   have?. The scanners that load a seed (a SeedQR, a key part, a
+   wallet's key) have it only where the shell has a clipboard (F75); the
+   copy check and the TOTP scanner have none. The button is dimmed
    where the shell has no clipboard. `Faraday::clipboard` is set by a shell
    that answers `RequestClipboard` with the clipboard's text (the desktop
    app); it is never set on the stick or the Pi. A press asks
    `RequestClipboard { kind: Text }`. Text holding a secret is refused
    and named: a seed's words (12 to 24 English words, checksum or not),
    a SeedQR's digits, an extended private key, a WIF private key, a
-   codex32 string or a SLIP-39 share. Other text goes where a QR read by
+   codex32 string or a SLIP-39 share. A scanner that loads a seed (the
+   three above and What do you have?), where the shell has a clipboard,
+   takes the seed's own forms instead (F75): words (in any case, any
+   spacing), a SeedQR's digits, and a codex32 string or SLIP-39 share
+   where the scanner takes one; they load as the same code scanned
+   would, through the same intake and `faraday-keys` path. A private key
+   is still refused there. Other text goes where a QR read by
    the camera goes (`scanned`), parts included, and is wiped once
    routed. Empty text or `ClipboardUnavailable` puts "Nothing to paste"
    on the state line for `NOTE_FLASH_MS` (2 s). The small panel has no
@@ -575,7 +582,12 @@ shells'. DESIGN §4.9 Scanner is the design they meet. No torch (DESIGN
    tile is dimmed or the scanner is closed.
 6. **Camera failures.** If no frame arrives `NO_PICTURE_MS` (6 s) after
    the sheet opens, the square says "The camera sends no picture". A
-   frame arriving later clears it. `faraday-shell-api` gains
+   frame arriving later clears it. A webcam's first stream after it
+   wakes must not leave the sheet without a picture: every Linux shell
+   skips a frame the driver marks damaged or writes short
+   (`faraday-v4l2`) rather than ending the capture, and the desktop
+   shell on Linux starts a capture again, once, when it ends or sends
+   nothing for 3 s before its first frame. `faraday-shell-api` gains
    `Event::CameraFailed(CameraFailure)`, which a shell that knows why
    sends in place of `CameraUnavailable`. Its kinds and lines are
    `Refused` "The camera was refused", `InUse` "The camera is in use by
@@ -611,6 +623,10 @@ Decided by the owner on 2026-10-21 (the list that was open here):
   holds Paste (desktop only) and Type.
 - **Paste is desktop only**, never on the small panel: there is no Paste
   and no dimmed tile there.
+- **A seed pastes into a scanner that loads one**, on the desktop
+  (owner, F75): its words, SeedQR digits and shares, as typed or
+  scanned. Every other scanner still refuses it, and a seed scanner has
+  no Paste on a shell without a clipboard.
 - **The waits stay**: 6 s for no picture, 4 s for a QR seen and not
   read.
 - **Paste's seed-word check stays English only.** Widening it to other

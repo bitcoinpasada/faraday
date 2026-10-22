@@ -394,11 +394,17 @@ impl Faraday {
         if self.landed != Some(before) {
             self.forward.clear();
         }
-        match (self.sheet, self.back_link) {
+        let link = self
+            .back_link
+            .filter(|(s, _)| *s == self.screen)
+            .map(|(_, a)| a);
+        match (self.sheet, link) {
             // A sheet's own way out, as Escape takes it.
             (Some(Sheet::Lock), _) => {}
             (Some(_), _) => self.act(Action::Cancel),
-            (None, Some(a)) => self.act(a),
+            // Out of the screen, where the link lands (F77); a step
+            // within it, as the link takes it.
+            (None, Some(a)) => self.act(self.as_back(a)),
             (None, None) => self.key(KeyIn::Escape),
         }
         if self.screen != before {
@@ -430,8 +436,8 @@ impl Faraday {
     }
 
     /// Whether screen `s` still has what it shows: a flow left keeps its
-    /// state only while it is not ended.
-    fn can_show(&self, s: Screen) -> bool {
+    /// state only while it is not ended. Only lookups.
+    pub(crate) fn can_show(&self, s: Screen) -> bool {
         match s {
             Screen::KeyGen => self.keygen.is_some(),
             Screen::Create => self.create.is_some(),
@@ -448,6 +454,10 @@ impl Faraday {
             Screen::Upgrade => self.upgrade.is_some(),
             Screen::CreateVault => self.vaults.create.is_some(),
             Screen::BackupFlow => self.flow().is_some(),
+            Screen::Decode => self.decode.is_some(),
+            Screen::CheckMessage => self.checking.is_some(),
+            Screen::Visit => !self.sticks.is_empty(),
+            Screen::Transfer => self.online,
             _ => true,
         }
     }

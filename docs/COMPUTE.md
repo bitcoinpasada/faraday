@@ -93,7 +93,7 @@ finds them.
 | Faraday's own | `plan::map`, `plan::check` (`PlanMap`); picture/pdf makers (`Picture`); `Wallet::script_at` (`WalletMatch`); `faraday_files::qr_in_png` (`PngDecode`); `Key` and `Wallet` kept accessors (`KeyDerive`, `Address`) |
 
 Not gated: `Canvas::frost`, `snapshot`, `snapshot_into`, `restore`,
-`blend_from` (pixel work, counted per frame by the budgets);
+`blend_between` (pixel work, counted per frame by the budgets);
 `MasterKey::fingerprint`, `for_network`, `WalletPolicy::checksum`
 (lookups after §5); `to_descriptor`, `to_text`, `Display` (text from parts
 already parsed); `faraday_crypto::hash::sha256` on small fixed inputs;

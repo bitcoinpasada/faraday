@@ -3617,7 +3617,7 @@ pub struct Strings {
     pub ur_feed_new_qr: &'static str,
     /// Note in `ur_feed`: a part no decoder reads.
     pub ur_feed_not_a_part: &'static str,
-    // ----- paste (faraday-core/src/lib.rs) -----
+    // ----- paste (faraday-core/src/scan_key.rs) -----
     /// Note in `pasted`: the clipboard held a seed's words.
     pub pasted_words: &'static str,
     /// Note in `pasted`: the clipboard held a SeedQR's digits.
@@ -8814,6 +8814,46 @@ pub struct Strings {
     pub explore_path_too_large: &'static str,
     /// More than ten levels.
     pub explore_path_too_deep: &'static str,
+    /// Button and title: the account's addresses, a page at a time.
+    pub explore_addresses: &'static str,
+    /// Button and title: look for an address among the account's.
+    pub explore_find: &'static str,
+    /// Label: the account the addresses are of.
+    pub explore_account: &'static str,
+    /// The account: `{}` its path without `m/`, `{}` its script.
+    pub explore_account_is: &'static str,
+    /// Button: the receive chain.
+    pub explore_receive: &'static str,
+    /// Button: the change chain.
+    pub explore_change: &'static str,
+    /// An address's name: `{}` its index on the receive chain.
+    pub explore_receive_n: &'static str,
+    /// An address's name: `{}` its index on the change chain.
+    pub explore_change_n: &'static str,
+    /// Label: the list's first index, typed.
+    pub explore_from: &'static str,
+    /// Button: the page before; `{}` how many addresses a page holds.
+    pub explore_previous_n: &'static str,
+    /// Button: the page after; `{}` how many addresses a page holds.
+    pub explore_next_n: &'static str,
+    /// Label: how many indices of each chain the search looks at.
+    pub explore_look_through: &'static str,
+    /// Button: a search's depth; `{}` the indices of each chain.
+    pub explore_first_n: &'static str,
+    /// Button: start the search.
+    pub explore_search: &'static str,
+    /// Button: stop the search where it is.
+    pub explore_stop: &'static str,
+    /// A search under way: `{}` the indices looked at, `{}` how many it looks at, on each chain.
+    pub explore_searched: &'static str,
+    /// A search that found nothing: `{}` the indices looked at on each chain.
+    pub explore_not_in_the_first: &'static str,
+    /// A search's matches: `{}` how many.
+    pub explore_found_n: &'static str,
+    /// Matches past the ones listed: `{}` how many.
+    pub explore_more_n: &'static str,
+    /// A paste with a character no address has, or too long for one.
+    pub explore_not_an_address: &'static str,
     /// Label: the self-test result.
     pub settings_selftest: &'static str,
     /// The self-test passed: `{}` is the check count.
@@ -10588,10 +10628,10 @@ pub static EN: Strings = Strings {
     read_code_ur_is_not: "ur:{} is not a kind this build reads",
     ur_feed_new_qr: "A new QR started; reading it from the start",
     ur_feed_not_a_part: "That QR is not a readable UR part",
-    pasted_words: "Those are a seed's words. A secret is never pasted",
-    pasted_seedqr: "That is a SeedQR. A secret is never pasted",
-    pasted_private_key: "That is a private key. A secret is never pasted",
-    pasted_share: "That is a share of a key. A secret is never pasted",
+    pasted_words: "Those are a seed's words. No seed is taken here",
+    pasted_seedqr: "That is a SeedQR. No seed is taken here",
+    pasted_private_key: "That is a private key. A private key is never pasted",
+    pasted_share: "That is a share of a key. No seed is taken here",
     pasted_nothing: "Nothing to paste",
     address_note_that_address_fails: "That address fails its checksum: a character in it is wrong",
     address_note_that_address_is_not: "That address is not on {}",
@@ -13067,6 +13107,26 @@ pub static EN: Strings = Strings {
     explore_path_not_a_number: "A level is a number, with h for hardened.",
     explore_path_too_large: "The largest index is 2147483647.",
     explore_path_too_deep: "At most ten levels.",
+    explore_addresses: "Addresses",
+    explore_find: "Find an address",
+    explore_account: "Account",
+    explore_account_is: "m/{} · {}",
+    explore_receive: "Receive",
+    explore_change: "Change",
+    explore_receive_n: "Receive {}",
+    explore_change_n: "Change {}",
+    explore_from: "From index",
+    explore_previous_n: "Previous {}",
+    explore_next_n: "Next {}",
+    explore_look_through: "Look through",
+    explore_first_n: "First {}",
+    explore_search: "Search",
+    explore_stop: "Stop",
+    explore_searched: "Searched {} of {} on each chain",
+    explore_not_in_the_first: "Not in the first {} receive and change addresses",
+    explore_found_n: "{} found",
+    explore_more_n: "{} more not listed",
+    explore_not_an_address: "Not an address",
     settings_selftest: "Self-test",
     settings_selftest_passed: "passed · {} checks",
     settings_selftest_failed: "failed · {}",

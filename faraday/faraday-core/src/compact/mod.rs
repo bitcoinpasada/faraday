@@ -80,7 +80,7 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
 pub(crate) fn bar(app: &View, ui: &mut Ui, w: f32, back: (&str, Action), name: &str) -> f32 {
     ui.fill(0.0, 0.0, w, BAR_H, 0.0, SIDEBAR);
     ui.fill(0.0, BAR_H - 1.0, w, 1.0, 0.0, LINE);
-    let (label, action) = back;
+    let (label, action) = app.named_back(back);
     if ui.is_pressed(action) {
         ui.fill(4.0, 4.0, BAR_H - 8.0, BAR_H - 8.0, 8.0, INNER);
     }
@@ -243,7 +243,14 @@ fn help(ui: &mut Ui, x: f32, y: f32) {
 /// A page that is not one of the step flows: its bar, then the page
 /// under it as the desktop draws it, in the panel's width.
 pub(crate) fn page(app: &View, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
+    let explore = app.explore.as_ref().map(|e| e.page);
     let name = match app.session.wallets.get(app.wallet) {
+        _ if app.screen == Screen::Explore && explore == Some(crate::explore::Page::Addresses) => {
+            EN.explore_addresses
+        }
+        _ if app.screen == Screen::Explore && explore == Some(crate::explore::Page::Find) => {
+            EN.explore_find
+        }
         Some(_) if app.screen == Screen::Wallets && app.glance => EN.compact_at_a_glance,
         Some(w) if app.screen == Screen::Wallets => w.name.as_str(),
         _ => screen_name(app.screen, app.medium),
@@ -256,6 +263,11 @@ pub(crate) fn page(app: &View, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
                 .get(app.wallet)
                 .map_or(EN.compact_wallets, |w| w.name.as_str()),
             Action::Glance(false),
+        ),
+        // Explore's address list and search go back to its path.
+        Screen::Explore if explore.is_some_and(|p| p != crate::explore::Page::Path) => (
+            EN.compact_explore_a_key,
+            Action::X(crate::explore::XAction::Page(crate::explore::Page::Path)),
         ),
         Screen::Wallets | Screen::Explore | Screen::Entry | Screen::CheckMessage => {
             (EN.compact_wallets, Action::Nav(Screen::WalletsStart))
@@ -732,6 +744,11 @@ impl Faraday {
                 .vanity
                 .as_ref()
                 .is_some_and(|v| v.open == Some(crate::vanity::vstep::PREFIX) && !v.running),
+            // Find an address's field.
+            Screen::Explore => self
+                .explore
+                .as_ref()
+                .is_some_and(|e| e.page == crate::explore::Page::Find),
             // The Key card's passphrase, and the Words card of a key typed
             // as Add a key's form docks it; the box of rolls has buttons
             // of its own on a small panel.
@@ -784,6 +801,15 @@ impl Faraday {
     fn osk_kind(&self) -> faraday_draw::widgets::keyboard::KeyboardKind {
         use faraday_draw::widgets::keyboard::KeyboardKind as K;
         match self.screen {
+            Screen::Explore
+                if self.sheet.is_none()
+                    && self
+                        .explore
+                        .as_ref()
+                        .is_some_and(|e| e.page == crate::explore::Page::Find) =>
+            {
+                K::Address
+            }
             Screen::Explore if self.sheet.is_none() => K::Path,
             _ => K::Passphrase,
         }
@@ -907,6 +933,13 @@ impl Faraday {
             OskPress::Hide => {
                 self.osk.manual = false;
                 self.osk.hidden = true;
+            }
+            // The address keyboard's shift is base58, not a capital: it
+            // stays on after a letter.
+            OskPress::Char(ch)
+                if self.osk_kind() == faraday_draw::widgets::keyboard::KeyboardKind::Address =>
+            {
+                self.key(K::Char(ch));
             }
             _ => match self.osk.keys.press(p) {
                 Some(Typed::Char(c)) => self.key(K::Char(c)),

@@ -284,6 +284,10 @@ impl Faraday {
             Going::Flow(i) if i < self.backup_flows.len() => self.flow_show(i),
             _ => {}
         }
+        // Opened again from where the person is now: Back goes there, not
+        // to where the flow was first opened from (F77).
+        let here = self.screen;
+        self.trail.retain(|s| s.screen() != here);
     }
 
     /// To a screen as the sidebar goes there.
@@ -415,6 +419,7 @@ impl Faraday {
     /// flow's key is made: its writes still wait, under a row of its own.
     pub(crate) fn flow_end(&mut self, g: Going) {
         use crate::Action;
+        let was = self.trail_shown();
         let to = match g {
             Going::Create => {
                 let Some(home) = self.create_drop() else {
@@ -487,6 +492,9 @@ impl Faraday {
             }
         };
         self.act_inner(to);
+        // Where it was opened from, as it was seen (F77); `to` when the
+        // trail does not hold it.
+        self.cancel_landing(&was);
     }
 
     /// [`Self::flow_drop`] of backup flow `i`, unless its key is made.

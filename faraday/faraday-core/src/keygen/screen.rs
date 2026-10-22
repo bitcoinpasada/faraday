@@ -66,7 +66,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x: x0 + 40.0,
         w: (cw - 80.0).min(900.0),
         h,
-        back: Some((back_label, Action::Nav(k.back))),
+        back: Some(app.named_back((back_label, Action::Nav(k.back)))),
         // Add a key wherever the flow opens on Start; New key for a Create
         // slot, and from Add a key's own Make a new key
         // (`docs/history/NEW-WALLET.md` §15.3).

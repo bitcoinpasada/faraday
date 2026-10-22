@@ -1,7 +1,8 @@
 //! What a person scanning codes into Files sees: a transfer in parts says
 //! which parts are still missing and lands in the Inbox whole; a file sent
 //! in Faraday's envelope keeps its name; an address is checked against the
-//! loaded wallets; and a seed's words are never filed.
+//! loaded wallets; and a seed's words are never filed, nor pasted here
+//! (a seed scanner takes them, `paste_a_seed`).
 
 use faraday_core::testkit;
 use faraday_core::wallet::FileKind;
@@ -397,7 +398,7 @@ fn paste_takes_ur_parts_as_the_camera_does() {
 }
 
 #[test]
-fn a_secret_is_never_pasted() {
+fn a_secret_pasted_where_it_is_not_taken_is_refused() {
     let words = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
     // Words with a bad checksum are words all the same.
     let unchecked = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon";
@@ -417,11 +418,7 @@ fn a_secret_is_never_pasted() {
         let mut app = scanning(Vec::new());
         app.clipboard = true;
         paste(&mut app, secret);
-        assert!(
-            note(&app).contains(said) && note(&app).contains("never pasted"),
-            "{secret}: {}",
-            note(&app)
-        );
+        assert!(note(&app).contains(said), "{secret}: {}", note(&app));
         assert!(app.inbox.is_empty(), "{secret} was filed");
         assert!(app.session.keys.is_empty(), "{secret} loaded a key");
         assert!(app.scan.is_some(), "{secret} closed the scanner");
@@ -439,14 +436,18 @@ fn paste_is_dimmed_where_the_shell_has_no_clipboard() {
 }
 
 #[test]
-fn a_seed_scanner_has_no_paste() {
-    let mut app = Faraday::new();
-    app.clipboard = true;
-    // No key loads before the self-test, which the display starts.
-    display(&mut app);
-    app.press(Action::ScanSeed);
-    assert!(app.scan.is_some(), "the seed scanner did not open");
-    assert!(!app.scan_pastes());
+fn a_seed_scanner_pastes_only_where_the_shell_has_a_clipboard() {
+    // No dimmed Paste on a seed scanner: the stick and the Pi have none
+    // (F75).
+    for clipboard in [false, true] {
+        let mut app = Faraday::new();
+        app.clipboard = clipboard;
+        // No key loads before the self-test, which the display starts.
+        display(&mut app);
+        app.press(Action::ScanSeed);
+        assert!(app.scan.is_some(), "the seed scanner did not open");
+        assert_eq!(app.scan_pastes(), clipboard);
+    }
 }
 
 #[test]
@@ -488,6 +489,47 @@ fn a_camera_that_sends_no_picture_is_said_to() {
     assert_eq!(state(&app), "The camera sends no picture");
     assert!(app.scan_pastes(), "the scanner closed");
     // A picture after all.
+    frame(&mut app);
+    assert_eq!(state(&app), "Hold the QR in front of the camera");
+}
+
+#[test]
+fn a_camera_slow_to_its_first_frame_reaches_the_picture() {
+    // A webcam whose first stream after it wakes sends nothing: the
+    // desktop shell starts it again after 3 s, and the second stream's
+    // first frame comes a second and a half later.
+    let mut app = scanning(Vec::new());
+    let mut now_ms = 0;
+    while now_ms < 4_500 {
+        now_ms += 250;
+        app.event(Event::Tick { now_ms });
+        assert_eq!(state(&app), "Starting the camera", "at {now_ms} ms");
+    }
+    frame(&mut app);
+    for _ in 0..40 {
+        now_ms += 250;
+        app.event(Event::Tick { now_ms });
+        frame(&mut app);
+        assert_eq!(
+            state(&app),
+            "Hold the QR in front of the camera",
+            "at {now_ms} ms"
+        );
+    }
+}
+
+#[test]
+fn a_scanner_opened_again_waits_afresh_for_the_camera() {
+    let mut app = scanning(Vec::new());
+    app.event(Event::Tick { now_ms: 1_000 });
+    app.event(Event::Tick { now_ms: 7_100 });
+    assert_eq!(state(&app), "The camera sends no picture");
+    // Cancel, and the scanner again: the camera has its full wait.
+    app.press(Action::Cancel);
+    app.press(Action::Scan);
+    app.event(Event::Tick { now_ms: 8_000 });
+    app.event(Event::Tick { now_ms: 13_000 });
+    assert_eq!(state(&app), "Starting the camera");
     frame(&mut app);
     assert_eq!(state(&app), "Hold the QR in front of the camera");
 }

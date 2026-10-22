@@ -101,6 +101,14 @@ impl View<'_> {
         self.kept(|c| self.app.explore_reading(c))
     }
 
+    /// Explore's address list as it stands
+    /// ([`crate::Faraday::explore_list`]), kept by the account it is of.
+    /// Costs a key derivation and an address derivation per address the
+    /// first time.
+    pub fn explore_list(&self) -> Vec<(u32, String)> {
+        self.kept(|c| self.app.explore_list(c))
+    }
+
     /// The QR code of public text `text` ([`crate::Faraday::public_qr`]),
     /// kept by its text. Costs a QR encoding the first time.
     pub fn public_qr(&self, text: &str) -> Option<Rc<QrMatrix>> {

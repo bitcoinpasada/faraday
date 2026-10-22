@@ -46,7 +46,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x: x0 + 40.0,
         w: (cw - 80.0).min(900.0),
         h,
-        back: Some((EN.vanity_wallets, Action::Nav(v.back))),
+        back: Some(app.named_back((EN.vanity_wallets, Action::Nav(v.back)))),
         heading: EN.vanity_vanity_address,
         guided: app.guided,
         switch: true,

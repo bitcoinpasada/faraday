@@ -409,6 +409,7 @@ impl Faraday {
             Action::UpgradePick(i) => self.upgrade_pick(i),
             Action::UpgradeWrite => self.upgrade_write(),
             Action::UpgradeAgain => self.upgrade_again(),
+            Action::UpgradeDone => self.return_back(crate::Screen::Settings),
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
         }

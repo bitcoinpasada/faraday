@@ -357,7 +357,11 @@ impl Camera {
 
     /// Waits up to `timeout` for a frame, converts it to luma and
     /// requeues the buffer. `None` when the timeout passed with nothing
-    /// to dequeue.
+    /// to dequeue, and for a frame the driver marked damaged or wrote
+    /// short of its size: that buffer is given back and the stream goes
+    /// on. A UVC webcam waking from USB autosuspend may hand back such a
+    /// frame first, and the kernel passes it on flagged rather than
+    /// dropping it; the error is only for the device itself failing.
     pub fn frame(&mut self, timeout: Duration) -> io::Result<Option<Frame>> {
         if !self.wait(timeout)? {
             return Ok(None);
@@ -375,21 +379,22 @@ impl Camera {
         }
 
         let index = buf.index as usize;
-        let frame = self
-            .buffers
-            .get(index)
-            .and_then(|mapped| {
-                let used = (buf.bytesused as usize).min(mapped.len);
-                self.convert(mapped.as_slice(used))
-            })
-            .ok_or_else(|| io::Error::other("the driver returned a frame this shell cannot read"));
+        let Some(mapped) = self.buffers.get(index) else {
+            return Err(io::Error::other(format!(
+                "the driver returned buffer {index}, which it never mapped"
+            )));
+        };
+        let frame = if buf.flags & abi::BUF_FLAG_ERROR == 0 {
+            let used = (buf.bytesused as usize).min(mapped.len);
+            self.convert(mapped.as_slice(used))
+        } else {
+            None
+        };
 
         // The buffer goes back whether or not the conversion worked; a
         // queue that leaks buffers stops after four frames.
-        let requeue = ioctl(self.file.as_raw_fd(), abi::VIDIOC_QBUF, &raw mut buf);
-        let frame = frame?;
-        requeue?;
-        Ok(Some(frame))
+        ioctl(self.file.as_raw_fd(), abi::VIDIOC_QBUF, &raw mut buf)?;
+        Ok(frame)
     }
 
     /// Luma and, where the format has it, chroma out of one dequeued

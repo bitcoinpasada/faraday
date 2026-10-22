@@ -1,8 +1,8 @@
 //! Everything a press can do.
 
 use crate::{
-    Code, Column, Screen, backup_flow, board, boot_import, compact, family, file_menu, glance,
-    in_progress, seeds, set_time, ui, vanity, vault, wordlist,
+    Code, Column, Screen, backup_flow, board, boot_import, compact, explore, family, file_menu,
+    glance, in_progress, seeds, set_time, ui, vanity, vault, wordlist,
 };
 
 /// Everything a press can do.
@@ -10,6 +10,9 @@ use crate::{
 pub enum Action {
     /// Go to a screen.
     Nav(Screen),
+    /// Back: the screen's own way back for what it lets go, then the
+    /// screen seen before this one, as it was seen (F77).
+    Back,
     /// Back to a flow in progress, as it was left: its row in the
     /// sidebar, its tile on the small Home (`docs/FLOWS.md`, Flows in
     /// progress).
@@ -287,6 +290,9 @@ pub enum Action {
     UpgradeWrite,
     /// The upgrade: another stick, from the same source.
     UpgradeAgain,
+    /// Upgrade's Done: back to the screen it was opened from, as it was
+    /// seen (F77).
+    UpgradeDone,
     /// The QR view as BBQr (`true`) or UR.
     QrFormat(u8),
     /// The QR view's bytes of data a frame.
@@ -476,6 +482,8 @@ pub enum Action {
     XScript(u8),
     /// The path's last index up or down.
     XIndex(i32),
+    /// A press on Explore's address list or its search (F76).
+    X(explore::XAction),
     /// Open or close a silent payments card.
     SStep(u8),
     /// The key, by fingerprint.

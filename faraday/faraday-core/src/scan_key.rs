@@ -4,6 +4,7 @@
 //! passphrase is one of them loads at once, since the match proves it
 //! has none, and one that matches nothing goes to the passphrase sheet
 //! (`seeds::read`), which takes it only for a missing key of the wallet.
+//! Here too: the scanner's Paste, and what it refuses (F75).
 
 use crate::strings::EN;
 use crate::strings::fill;
@@ -14,6 +15,7 @@ use faraday_shell_api::Command;
 use crate::plan::{At, What};
 use crate::wallet::fp_text;
 use crate::{Action, Faraday, ScanPurpose, ScanState, Sheet};
+use faraday_intake::seed_in_code;
 
 /// Costs what `add_words_with` costs. The key `words` make with `pass`,
 /// if they are BIP-39 words.
@@ -284,5 +286,129 @@ impl Faraday {
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
         }
+    }
+}
+
+/// Costs a mnemonic's checksum (through `secret_text`), a codex32 and a
+/// SLIP-39 parse and a WIF's checksum. Why pasted text is refused for
+/// holding a secret (`docs/DESIGN.md` §4.10): a seed's words, checksum or
+/// not, a SeedQR's digits, an extended private key, a WIF private key, a
+/// codex32 string or a SLIP-39 share. A scanner that loads a seed
+/// (`seeds`) takes the seed's own forms, as typing them would (F75): it
+/// refuses only a private key.
+pub(crate) fn pasted_secret(c: &Compute, text: &str, seeds: bool) -> Option<&'static str> {
+    let t = text.trim();
+    let english = faraday_bip::bip39::Language::English;
+    let words: Vec<&str> = t.split_whitespace().collect();
+    if !seeds
+        && matches!(words.len(), 12 | 15 | 18 | 21 | 24)
+        && words.iter().all(|w| {
+            english
+                .index_of(&zeroize::Zeroizing::new(w.to_lowercase()))
+                .is_some()
+        })
+    {
+        return Some(EN.pasted_words);
+    }
+    match faraday_intake::secret_text(c, t) {
+        Some(faraday_intake::TextSecret::Words) if !seeds => return Some(EN.pasted_words),
+        Some(faraday_intake::TextSecret::ExtendedPrivateKey) => {
+            return Some(EN.pasted_private_key);
+        }
+        _ => {}
+    }
+    if faraday_keys::identity::is_wif(t) {
+        return Some(EN.pasted_private_key);
+    }
+    if seeds {
+        return None;
+    }
+    if matches!(t.len(), 48 | 96) && t.bytes().all(|b| b.is_ascii_digit()) {
+        return Some(EN.pasted_seedqr);
+    }
+    let lower = zeroize::Zeroizing::new(t.to_lowercase());
+    if faraday_bip::codex32::Codex32::parse(&lower).is_ok()
+        || faraday_bip::slip39::Share::parse(&lower).is_ok()
+    {
+        return Some(EN.pasted_share);
+    }
+    None
+}
+
+impl Faraday {
+    /// Whether the scanner on screen offers Paste: one that takes
+    /// anything, and, where the shell has a clipboard (the desktop app),
+    /// one that loads a seed (F75). Not a TOTP code's, nor a copy
+    /// check's (`docs/QR.md` §8 item 5).
+    pub fn scan_pastes(&self) -> bool {
+        self.sheet == Some(Sheet::Scan)
+            && self.scan.as_ref().is_some_and(|s| match s.purpose {
+                ScanPurpose::Files | ScanPurpose::Transfer | ScanPurpose::Intake => true,
+                ScanPurpose::Seed | ScanPurpose::KeyPart | ScanPurpose::WalletKey(_) => {
+                    self.clipboard
+                }
+                ScanPurpose::VaultEntry | ScanPurpose::CheckCopy(_) => false,
+            })
+    }
+
+    /// Whether the scanner on screen loads a seed and takes one pasted
+    /// (F75): Add a key's, a part of a key's, a wallet's key's, and What
+    /// do you have?, on a shell with a clipboard.
+    fn scan_takes_pasted_seed(&self) -> bool {
+        self.clipboard
+            && self.scan.as_ref().is_some_and(|s| {
+                matches!(
+                    s.purpose,
+                    ScanPurpose::Seed
+                        | ScanPurpose::KeyPart
+                        | ScanPurpose::WalletKey(_)
+                        | ScanPurpose::Intake
+                )
+            })
+    }
+
+    /// Paste on the scanner: the shell is asked for the clipboard's text,
+    /// where it has a clipboard.
+    pub(crate) fn scan_paste(&mut self) {
+        if self.clipboard && self.scan_pastes() {
+            self.commands.push_back(Command::RequestClipboard {
+                kind: faraday_shell_api::FileKind::Text,
+            });
+        }
+    }
+
+    /// Costs what `pasted_secret` and `seed_in_code` cost, then what a
+    /// code read costs (through `scanned`). The clipboard's text, asked
+    /// for by Paste: a secret is refused and named, anything else goes
+    /// where a QR the camera read goes, and nothing at all says so for a
+    /// moment (`docs/QR.md` §8 item 5). A scanner that loads a seed takes
+    /// its words, SeedQR digits and shares as typed or scanned (F75); the
+    /// words go on as one space between each, in lower case.
+    pub(crate) fn pasted(&mut self, text: zeroize::Zeroizing<String>) {
+        if self.explore_pasted(&text) || !self.scan_pastes() {
+            return;
+        }
+        let c = self.compute();
+        let seeds = self.scan_takes_pasted_seed();
+        let until = self.now_ms + faraday_draw::tokens::NOTE_FLASH_MS;
+        let t = text.trim();
+        if let Some(scan) = self.scan.as_mut() {
+            if t.is_empty() {
+                scan.nothing_to_paste = Some(until);
+                return;
+            }
+            scan.nothing_to_paste = None;
+            if let Some(why) = pasted_secret(&c, t, seeds) {
+                scan.note = Some(why.to_string());
+                return;
+            }
+        }
+        if seeds && t.contains(char::is_whitespace) {
+            let lower = zeroize::Zeroizing::new(t.to_lowercase());
+            if let Some(words) = seed_in_code(&c, lower.as_bytes()) {
+                return self.scanned(words.as_bytes().to_vec());
+            }
+        }
+        self.scanned(t.as_bytes().to_vec());
     }
 }

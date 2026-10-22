@@ -90,13 +90,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         w: col_w,
         h,
         // Back where it was opened from.
-        back: Some(if r.from_home {
+        back: Some(app.named_back(if r.from_home {
             (EN.restore_home, Action::Nav(Screen::Home))
         } else if r.from_key {
             (EN.restore_wallets, Action::Nav(Screen::Wallets))
         } else {
             (EN.restore_wallets, Action::Nav(Screen::WalletsStart))
-        }),
+        })),
         heading: EN.restore_restore_an,
         guided: app.guided,
         switch: true,

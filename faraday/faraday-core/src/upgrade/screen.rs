@@ -9,7 +9,7 @@ use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::upgrade::{Fit, Step, UpgradeState, version};
-use crate::{Action, BootPart, Screen};
+use crate::{Action, BootPart};
 
 /// A row of the list of sticks to upgrade.
 const ROW: f32 = 44.0;
@@ -283,11 +283,7 @@ fn done(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32, 
     let again = fill(EN.upgrade_upgrade_another, &[app.medium.noun()]);
     let items = [
         (again.as_str(), Style::Secondary, Action::UpgradeAgain),
-        (
-            EN.upgrade_done,
-            Style::Primary,
-            Action::Nav(Screen::Settings),
-        ),
+        (EN.upgrade_done, Style::Primary, Action::UpgradeDone),
     ];
     if ui.compact {
         y += crate::compact::buttons(ui, ix, y, iw, &items);

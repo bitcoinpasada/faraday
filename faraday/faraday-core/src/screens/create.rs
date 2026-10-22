@@ -101,11 +101,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         w: col_w,
         h,
         // Back where it was opened from.
-        back: Some(if c.from_home {
+        back: Some(app.named_back(if c.from_home {
             (EN.create_home, Action::Nav(Screen::Home))
         } else {
             (EN.create_wallets, Action::Nav(Screen::WalletsStart))
-        }),
+        })),
         heading: EN.create_make_a_new_wallet,
         guided: app.guided,
         switch: true,

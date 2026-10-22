@@ -530,7 +530,7 @@ impl Canvas {
         self.damage = None;
     }
 
-    /// A copy of every pixel, for [`Canvas::blend_from`] to fade from.
+    /// A copy of every pixel, for [`Canvas::blend_between`] to fade from.
     pub fn snapshot(&self) -> Vec<u8> {
         (self.counter)(Work::FullCanvas);
         self.pixmap.data().to_vec()
@@ -543,34 +543,67 @@ impl Canvas {
         into.extend_from_slice(self.pixmap.data());
     }
 
-    /// Shows `t` (0 to 1) of the way from `before`, a [`Canvas::snapshot`]
-    /// of this canvas, to what is drawn now: a cross-fade. A snapshot of
-    /// another size leaves the canvas as it is.
-    pub fn blend_from(&mut self, before: &[u8], t: f32) {
+    /// Shows `t` (0 to 1) of the way from `before` to `after`, two
+    /// [`Canvas::snapshot`]s of this canvas, without drawing either
+    /// again: a step of a cross-fade whose new frame is kept aside
+    /// ([`Canvas::swap_pixels`]). Every pixel is written; snapshots of
+    /// another size leave the canvas as it is.
+    pub fn blend_between(&mut self, before: &[u8], after: &[u8], t: f32) {
         (self.counter)(Work::FullCanvas);
-        if before.len() != self.pixmap.data().len() {
+        let n = self.pixmap.data().len();
+        if before.len() != n || after.len() != n {
             return;
         }
-        let t = (t.clamp(0.0, 1.0) * 256.0) as u32;
-        if t >= 256 {
-            return;
-        }
+        // Each channel of a premultiplied pixel on its own, in 16 bits:
+        // 255 x 256 fits, and a loop over bytes is one the compiler runs
+        // many lanes at a time. A frosted page under a sheet differs
+        // from the page before it everywhere, so most pixels of such a
+        // fade are blended.
+        let t = (t.clamp(0.0, 1.0) * 256.0) as u16;
+        let u = 256 - t;
         self.damaged(self.bounds());
         let data = self.pixmap.data_mut();
-        // Where the two frames agree, the blend is what is there: most of
-        // a screen change (the sidebar, the page's ground) is passed over
-        // a run of pixels at a time, compared, not blended.
+        // Where the two frames agree the new one is copied, a run of
+        // pixels at a time: most of a change of screen (the sidebar, the
+        // page's ground).
         const RUN: usize = 4 * 16;
-        for (now, was) in data.chunks_mut(RUN).zip(before.chunks(RUN)) {
-            if now == was {
+        let runs = data
+            .chunks_mut(RUN)
+            .zip(before.chunks(RUN))
+            .zip(after.chunks(RUN));
+        for ((now, was), will) in runs {
+            if was == will || t == 256 {
+                now.copy_from_slice(will);
                 continue;
             }
-            for (now, was) in now.chunks_exact_mut(4).zip(was.chunks_exact(4)) {
-                let n = u32::from_le_bytes([now[0], now[1], now[2], now[3]]);
-                let w = u32::from_le_bytes([was[0], was[1], was[2], was[3]]);
-                now.copy_from_slice(&lerp(w, n, t).to_le_bytes());
+            for ((now, &w), &n) in now.iter_mut().zip(was).zip(will) {
+                *now = ((u16::from(w) * u + u16::from(n) * t) >> 8) as u8;
             }
         }
+    }
+
+    /// Exchanges the canvas's pixels with `pixels`, a
+    /// [`Canvas::snapshot`]'s worth or empty: the frame just drawn is
+    /// kept aside without a copy, and the canvas holds what `pixels`
+    /// held, or the page colour's zeros when it was empty, until it is
+    /// drawn over. Pixels of another size leave both as they are.
+    pub fn swap_pixels(&mut self, pixels: &mut Vec<u8>) {
+        let (w, h) = (self.pixmap.width(), self.pixmap.height());
+        let n = self.pixmap.data().len();
+        let given = if pixels.len() == n {
+            core::mem::take(pixels)
+        } else if pixels.is_empty() {
+            alloc::vec![0; n]
+        } else {
+            return;
+        };
+        let Some(next) = tiny_skia::IntSize::from_wh(w, h).and_then(|s| Pixmap::from_vec(given, s))
+        else {
+            return;
+        };
+        *pixels = core::mem::replace(&mut self.pixmap, next).take();
+        self.kept = None;
+        self.damaged(self.bounds());
     }
 
     /// Moves the pixels inside `rect` by `dy` rows, down for a positive
@@ -1365,11 +1398,32 @@ mod tests {
         c.clear(Color::rgb(10, 20, 30));
         let before = c.snapshot();
         c.fill_rect(Rect::new(20, 0, 10, 32), Color::rgb(210, 220, 230));
-        c.blend_from(&before, 0.25);
+        let mut after = Vec::new();
+        c.swap_pixels(&mut after);
+        c.blend_between(&before, &after, 0.25);
         // Unchanged where the frames agree; a quarter of the way where
         // they do not.
         assert_eq!(pixel(&c, 5, 5), [10, 20, 30, 255]);
         assert_eq!(pixel(&c, 25, 5), [60, 70, 80, 255]);
+    }
+
+    #[test]
+    fn a_fade_starts_on_the_old_frame_and_ends_on_the_new_one_as_drawn() {
+        let mut c = canvas();
+        c.clear(Color::rgb(10, 20, 30));
+        c.text(2, 2, "Ab", Font::regular(14.0), Color::WHITE);
+        let before = c.snapshot();
+        c.clear(Color::rgb(240, 240, 235));
+        c.fill_rounded_rect(Rect::new(20, 4, 30, 20), 6.0, Color::rgb(90, 160, 220));
+        c.text(2, 2, "Wg", Font::regular(14.0), Color::BLACK);
+        let drawn = c.snapshot();
+        let mut after = Vec::new();
+        c.swap_pixels(&mut after);
+        assert_eq!(after, drawn, "the drawn frame is kept aside as it was");
+        c.blend_between(&before, &after, 0.0);
+        assert_eq!(c.frame().rgba, &before[..]);
+        c.blend_between(&before, &after, 1.0);
+        assert_eq!(c.frame().rgba, &drawn[..]);
     }
 
     #[test]

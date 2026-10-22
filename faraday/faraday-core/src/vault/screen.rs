@@ -357,13 +357,12 @@ pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut y = 36.0;
     // Made from another flow: the way back to it, and no second vault
     // started in its place (that would drop the way back).
-    let back = app.vaults.back_to.map(|s| app.back_link_name(s));
-    if let Some(label) = back {
-        back_link(ui, x, 28.0, label, va(V::Back));
+    if let Some(s) = app.vaults.back_to {
+        back_link(app, ui, x, 28.0, (app.back_link_name(s), va(V::Back)));
         y = 54.0;
     }
     title(ui, x, y, EN.vault_vaults);
-    if back.is_none() {
+    if app.vaults.back_to.is_none() {
         let bw = ui.measure(15.0, W::S, EN.vault_create_a_vault) + 32.0;
         ui.button(
             x + w - bw,
@@ -521,9 +520,8 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let x = x0 + 48.0;
     let w = (cw - 96.0).min(760.0);
     let mut y = 28.0;
-    let (back, to) = unlock_back(app);
-    back_link(ui, x, y, back, to);
-    y += 26.0;
+    back_link(app, ui, x, y, unlock_back(app));
+    y += faraday_draw::tokens::BACK_LINK_ROW;
     title(ui, x, y, EN.vault_unlock);
     y += 56.0;
     if just_made_picked(app) {
@@ -1025,7 +1023,8 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     finish(app, ui, x0, cw, h, y - top + 16.0);
 }
 
-fn back_link(ui: &mut Ui, x: f32, y: f32, label: &str, action: Action) {
+pub(crate) fn back_link(app: &View, ui: &mut Ui, x: f32, y: f32, back: (&str, Action)) {
+    let (label, action) = app.named_back(back);
     ui.icon(x - 4.0, y, 18.0, Icon::ChevronLeft, 12.0, MUTED);
     ui.text_mid(x + 14.0, y, 18.0, 13.0, W::R, MUTED, label);
     let lw = ui.measure(13.0, W::R, label) + 20.0;
@@ -1085,11 +1084,11 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         w: (cw - panel_w - 72.0).min(820.0),
         h,
         // Made for another flow: back to it, and where it goes next.
-        back: Some(match app.vaults.back_to {
+        back: Some(app.named_back(match app.vaults.back_to {
             Some(s) => (app.back_link_name(s), va(V::Back)),
             None if app.vaults.from_home => (EN.vault_home, Action::Nav(Screen::Home)),
             None => (EN.vault_vaults, Action::Nav(Screen::Vaults)),
-        }),
+        })),
         heading: EN.vault_create_a_vault,
         guided: app.guided,
         switch: true,
@@ -2406,8 +2405,9 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let x = x0 + 40.0;
     let w = cw - 80.0;
     let mut y = 28.0;
-    back_link(ui, x, y, EN.vault_vaults, Action::Nav(Screen::Vaults));
-    y += 26.0;
+    let back = (EN.vault_vaults, Action::Nav(Screen::Vaults));
+    back_link(app, ui, x, y, back);
+    y += faraday_draw::tokens::BACK_LINK_ROW;
     let Some(v) = app.vaults.open.get(app.vaults.current) else {
         title(ui, x, y, EN.vault_vault_contents);
         ui.text(x, y + 56.0, 15.0, W::R, MUTED, EN.vault_no_vault_is_open);

@@ -1016,6 +1016,9 @@ pub struct Ui<'a, A> {
     /// What the screen's back link does, when it drew one: the mouse's
     /// back button does the same.
     pub back_link: Option<A>,
+    /// Where in `hits` the back link's own press is: a press there, and
+    /// not another of the same action, is the way back.
+    pub back_hit: Option<usize>,
     /// The regions this frame scrolls, as the screen or sheet that drew
     /// them last reported them: one a slot, the last report of a slot
     /// replacing an earlier one (a sheet's region over the screen's).
@@ -1162,6 +1165,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             edit: Edit::default(),
             fields: Vec::new(),
             back_link: None,
+            back_hit: None,
             scrolled: Vec::new(),
             active: Slot::Page,
             stretch: 0,
@@ -1488,6 +1492,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     pub fn back(&mut self, action: A) {
         if self.layer == 0 {
             self.back_link = Some(action);
+            self.back_hit = self.hits.len().checked_sub(1);
         }
     }
 

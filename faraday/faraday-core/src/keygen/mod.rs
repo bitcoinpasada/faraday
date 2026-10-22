@@ -1981,7 +1981,7 @@ impl crate::Faraday {
         let Some(k) = self.keygen_drop() else {
             return;
         };
-        self.screen = k.back;
+        self.return_back(k.back);
         if k.slot.is_some()
             && let Some(c) = self.create.as_mut()
             && c.built.is_none()
@@ -2013,7 +2013,7 @@ impl crate::Faraday {
     /// Leaves the flow, forgetting everything in it.
     pub(crate) fn keygen_leave(&mut self) {
         if let Some(k) = self.keygen_drop() {
-            self.screen = k.back;
+            self.return_back(k.back);
         }
     }
 

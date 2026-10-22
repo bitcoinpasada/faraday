@@ -34,11 +34,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         12.0,
         W::R,
         MUTED,
-        if app.entry_leave() == Screen::Family {
-            EN.entry_spend
-        } else {
-            EN.entry_wallets
-        },
+        app.named_back((
+            if app.entry_leave() == Screen::Family {
+                EN.entry_spend
+            } else {
+                EN.entry_wallets
+            },
+            back,
+        ))
+        .0,
     );
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, back);
     ui.back(back);

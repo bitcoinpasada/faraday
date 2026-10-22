@@ -82,6 +82,10 @@ about `core/` as about anything else, is written here.
 | [F72](#f72-faradays-code-is-its-own-a-hard-fork-2026-10-21) | Faraday's code is its own: a hard fork | 2026-10-21 | Amended by F73 | repository |
 | [F73](#f73-the-upstream-project-is-named-only-in-license-2026-10-21) | The upstream project is named only in LICENSE | 2026-10-21 | Active | repository |
 | [F74](#f74-the-structure-is-held-by-just-2026-10-21) | The structure is held by `just` | 2026-10-21 | Active | repository |
+| [F75](#f75-a-seed-can-be-pasted-on-the-desktop-2026-10-22) | A seed can be pasted on the desktop | 2026-10-22 | Active | keys |
+| [F76](#f76-the-key-explorer-lists-an-accounts-addresses-and-finds-one-2026-10-22) | The key explorer lists an account's addresses and finds one | 2026-10-22 | Active | wallets |
+| [F77](#f77-back-lands-on-the-screen-seen-before-as-it-was-seen-2026-10-22) | Back lands on the screen seen before, as it was seen | 2026-10-22 | Active | design |
+| [F78](#f78-a-windows-layout-does-not-follow-the-compositors-scale-above-15-2026-10-22) | A window's layout does not follow the compositor's scale above 1.5 | 2026-10-22 | Active | design |
 
 ### F1 The boot import, and one line of fact on its sheet (2026-10-08)
 
@@ -2723,3 +2727,149 @@ area reaching into another's state would pass every check `just` had.
   fields and the area's logic on it. Flows that span areas stay as
   explicit glue on `Faraday`. Areas exchanging only messages is not
   taken.
+
+### F75 A seed can be pasted on the desktop (2026-10-22)
+
+**Why.** Faraday Desktop opens on testnet, and real seeds are for testnet
+there (F61). Testing with it meant typing 12 or 24 words a word at a
+time, or showing a SeedQR to a webcam, because every scanner refused a
+pasted secret. The stick and the Pi have no clipboard, so the rule
+protected nothing on them; on the desktop a seed already in the
+clipboard is already on that computer.
+
+**Decision** (owner, 2026-10-22; partly reverses the "a secret is never
+pasted" rule of DESIGN §4.10 and §4.11 and `docs/QR.md` §8 item 5).
+
+- On a shell with a clipboard (the desktop app), every scanner that
+  loads a seed has Paste, and Ctrl+V does what it does: Add a key's
+  SeedQR scanner (from Add a key, New key's Scan, Restore's slots and
+  the catalog), the part-of-a-key scanner of Add a key's other forms, a
+  wallet's Scan a key, and the Spend tab's What do you have?.
+- What they take pasted is what they take scanned or typed: a seed's
+  words (12 to 24 English words, any case, any spacing, checksum
+  checked), a standard SeedQR's digits, and, where the scanner takes
+  one, a codex32 string or a SLIP-39 share. Shares paste because they
+  are a seed written as text as much as the words are, and the form
+  that takes them checks them exactly as it checks them typed; refusing
+  them would keep the gap with no reason the words do not have. A
+  CompactSeedQR is bytes, not text, and has nothing to paste.
+- A pasted seed loads through the same intake (`faraday-intake`) and
+  `faraday-keys` path as the code scanned would, held in `Zeroizing`
+  text as before. Nothing new crosses the key boundary (F70).
+- A private key (an extended private key, a WIF) is still refused on
+  every scanner, and every scanner that loads no seed (Files, Transfer's
+  Receive, the TOTP scanner, the copy check) still refuses a pasted seed
+  with the same lines as before.
+- Copying a secret stays forbidden: no screen with a secret panel has a
+  Copy row.
+- On a shell with no clipboard (the stick, the Pi) a seed scanner has
+  no Paste at all, not a dimmed one.
+
+### F76 The key explorer lists an account's addresses and finds one (2026-10-22)
+
+*Built 2026-10-22: `faraday/faraday-core/src/explore/addresses.rs` and
+`explore/pages.rs`, tested in
+`faraday/faraday-core/tests/all/explore_addresses.rs`.*
+
+**Why.** Explore showed one address, at the path typed. A person who
+wants to see a range of a key's addresses, or to know whether an address
+they hold is one of this key's, had to step the index by hand (owner,
+2026-10-22).
+
+**Decision** (owner's request, 2026-10-22; DESIGN §5's Addresses and
+Entry rows).
+
+- Explore's path page gains two rows under its values, **Addresses** and
+  **Find an address**, wherever the path is in an account of a loaded
+  key: the path without its chain and index (`…/0/i`, `…/1/i`), or the
+  path itself where every level is hardened. A BIP-45 or BIP-48 path has
+  none: a multisig account pays to no single key, and its single-key
+  addresses would be ones no wallet uses. The script is the one the
+  path's purpose names, or the one chosen on the path page.
+- **Addresses** lists the account's receive or change chain ten at a
+  time from any index, typed in digits or paged; each row is the name
+  ("Receive 12") over the address.
+- **Find an address** takes an address or any part of one, typed on the
+  address keyboard or pasted on the desktop (an address is not a secret;
+  a pasted secret is refused, as the scanner's Paste refuses one), and
+  looks through the first 100, 1,000 or 10,000 indices of both chains.
+  100 is the depth "Is this address mine?" already looks at for a loaded
+  wallet; 1,000 covers a wallet used for years; 10,000 is a shop's or a
+  service's: its 20,000 addresses took 1.9 s on the build machine
+  (release build), about twenty seconds on a Pi 3 at the tenth of that
+  speed `docs/SPEED.md` §9 takes it to have. A
+  part matches every address holding it (in either case for bech32),
+  listed index by index, receive first, the first fifty shown and the
+  rest counted; a whole address ends the search where it is found. A
+  miss says how far it looked.
+- The addresses come from the account's extended public key as a
+  single-key wallet over it, through `WalletPolicy`'s own derivation,
+  which takes the compute token and counts each address. They are kept
+  on Explore's state by the account they are of (key, account path,
+  script, network, key loaded): a change to any of those drops them
+  before anything is looked up. Each chain keeps its addresses from 0 up
+  to 10,000, so a second search, or a list page within them, is a
+  lookup; one page past them is kept beside.
+- A search runs a budget of indices on each tick, resized from how long
+  the last tick took (50 ms aimed at, as a vanity grind aims at 100), so
+  the screen keeps drawing and Stop lands at once. Drawing derives
+  nothing but the list's page, through `View`'s kept accessor, the first
+  time it is asked.
+
+### F77 Back lands on the screen seen before, as it was seen (2026-10-22)
+
+**Why.** Each screen's way back named a fixed place, or one of two: a
+flow opened from Tools went back to Wallets, Sign a message and Spend
+always to Wallets, a backup flow for a key to Home, Back up to the
+wallet's card even when opened from Tools, and a way back through
+navigation scrolled the list it landed on to the top. The owner: "it
+needs to always land us on exactly the screen we saw before leaving
+the flow."
+
+**Decision** (owner, 2026-10-22).
+
+- Every input that takes the person from one screen to another keeps
+  the screen it left, as it was seen: which wallet's card and whether
+  as its chart, how far each list was scrolled, which vault and kind,
+  and the Learn sheet open over it (`faraday-core/src/trail.rs`).
+- **Back** (the chevron, the mouse's back button, Escape where it is a
+  way back) runs the screen's own way back for what it lets go, then
+  lands on the last screen kept that can still be shown, put back as
+  it was. A step back within a screen (the chart to the card, a vault
+  item to its list) stays a step.
+- A flow's **Cancel**, and the Done of a flow that returns to where it
+  was opened from (New key, Set the time, Upgrade), land there too.
+  A Done that opens what the flow made (the new wallet's card) still
+  opens it.
+- A flow opened again from its sidebar row goes back to where the
+  person was when they pressed the row. A screen reached again by
+  another way is where the trail goes back from; Home empties it.
+- The way back is named after where it lands: the wallet's name, Tools,
+  Settings. Where nothing was kept (a fresh start), each screen's own
+  way back stands.
+- The menu or sheet a press chose from (a file's ⋮, a chart's rows,
+  the scanner) is closed by the choice and stays closed; only the
+  Learn sheet, which keeps its page, is opened again.
+
+### F78 A window's layout does not follow the compositor's scale above 1.5 (2026-10-22)
+
+**Why.** The desktop window took the one-column layout when the wide
+layout would have drawn below three quarters of the screen's density.
+Density came from the compositor's scale, so a half-screen window on a
+scale-2 panel took the one-column layout, while a half-screen window on
+a scale-1.5 screen, with about as many pixels, took the wide layout. The
+same window looked different depending on the screen it was on.
+
+**Decision** (owner, 2026-10-22).
+
+- The density that sets the wide layout's floor is counted up to 1.5
+  pixels per dp (`tokens::WIDE_FLOOR_DENSITY`). From that scale up, a
+  window's pixels decide: the wide layout needs a window 1440 × 900
+  pixels, and a window of the same shape lays out the same at any such
+  scale.
+- The cost: on a screen above scale 1.5, a window just over that floor
+  draws its text smaller than the compositor's scale asks for, down to
+  about 56 % of it at scale 2. A narrower window still takes the
+  one-column layout at the screen's own density.
+- Screens at scale 1.5 or below, the full-screen window, the stick and
+  the Pi are unchanged.

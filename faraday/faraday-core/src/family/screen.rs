@@ -72,6 +72,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x: col_x,
         w: col_w,
         h,
+        // Opened from anywhere else, the way back is where it was opened
+        // from, by the trail (F77).
         back: app
             .family_wallet()
             .filter(|_| app.family.from_card)
@@ -83,8 +85,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Some(crate::Screen::WalletsStart) => {
                     Some((EN.family_wallets, Action::Nav(crate::Screen::WalletsStart)))
                 }
-                _ => None,
-            }),
+                _ => app
+                    .trail_name()
+                    .map(|_| (EN.family_wallets, Action::Nav(crate::Screen::WalletsStart))),
+            })
+            .map(|b| app.named_back(b)),
         heading: from.as_deref().unwrap_or(EN.family_spend),
         guided: true,
         switch: false,
@@ -112,6 +117,12 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
     let w = (cw - 96.0).min(980.0);
     let scrolled = app.family.scroll.y;
     let mut y = 36.0 - scrolled;
+    // Opened from another screen: the way back to it, over the title, so
+    // the page is the same height either way (F77).
+    if let Some(name) = app.trail_name() {
+        let at = y - faraday_draw::tokens::BACK_LINK_ROW;
+        crate::vault::screen::back_link(app, ui, x, at, (name, Action::Back));
+    }
     crate::screens::title(ui, x, y, EN.family_spend);
     let lw = ui.measure(13.0, W::S, EN.family_walk_through) + 32.0;
     ui.button(

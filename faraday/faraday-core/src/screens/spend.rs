@@ -206,7 +206,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x: col_x,
         w: col_w,
         h: if compact { h - SPEND_BAR } else { h },
-        back: Some((EN.spend_wallets, Action::Nav(Screen::WalletsStart))),
+        back: Some(app.named_back((EN.spend_wallets, Action::Nav(Screen::WalletsStart)))),
         heading: EN.spend_sign_a_transaction,
         guided,
         switch: true,

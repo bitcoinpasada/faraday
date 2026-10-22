@@ -84,6 +84,9 @@ pub const TOUCH: f32 = 48.0;
 pub const ICON: f32 = 28.0;
 /// Icon size inside a list row or an app bar.
 pub const ICON_SMALL: f32 = 20.0;
+/// The room a page's way back takes above its title, on a wide
+/// display: the chevron and where it goes.
+pub const BACK_LINK_ROW: f32 = 26.0;
 
 // ---------------------------------------------------------------------
 // Rows
@@ -317,6 +320,12 @@ pub const VIEWFINDER_STATE_SIZE: f32 = CAPTION;
 // ---------------------------------------------------------------------
 // Hub and the wide template
 // ---------------------------------------------------------------------
+
+/// The highest screen density, in pixels per dp, that raises the
+/// window size the wide layout needs (`docs/DESIGN.md` §3, F78). Above
+/// it, a window's own pixels decide: a window of the same pixel size
+/// takes the same layout at any compositor scale from this one up.
+pub const WIDE_FLOOR_DENSITY: f32 = 1.5;
 
 // ---------------------------------------------------------------------
 // Structure chart

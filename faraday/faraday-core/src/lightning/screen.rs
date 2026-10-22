@@ -54,7 +54,8 @@ fn header(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32, guide: &str) 
         10.0,
         MUTED,
     );
-    ui.text(x + 14.0, y, 12.0, W::R, MUTED, EN.lightning_wallets);
+    let (label, _) = app.named_back((EN.lightning_wallets, Action::Nav(l.back)));
+    ui.text(x + 14.0, y, 12.0, W::R, MUTED, label);
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, Action::Nav(l.back));
     ui.back(Action::Nav(l.back));
     y += 22.0;

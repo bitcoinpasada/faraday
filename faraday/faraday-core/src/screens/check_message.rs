@@ -27,7 +27,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut y = top;
     if !compact {
         ui.icon(x - 4.0, y, 16.0, Icon::ChevronLeft, 10.0, MUTED);
-        ui.text(x + 14.0, y, 12.0, W::R, MUTED, EN.check_wallets);
+        let (label, _) = app.named_back((EN.check_wallets, Action::Nav(Screen::WalletsStart)));
+        ui.text(x + 14.0, y, 12.0, W::R, MUTED, label);
         ui.hit(
             x - 4.0,
             y - 4.0,

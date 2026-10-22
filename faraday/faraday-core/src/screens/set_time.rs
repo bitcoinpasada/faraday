@@ -26,7 +26,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         12.0,
         W::R,
         MUTED,
-        app.back_link_name(app.set_time.back_to),
+        app.named_back((app.back_link_name(app.set_time.back_to), back))
+            .0,
     );
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, back);
     ui.back(back);

@@ -638,6 +638,9 @@ impl Faraday {
                         self.entry.keys = Some(forms::word_typer(self.entry.language()));
                     }
                     self.screen = Screen::Entry;
+                    // Opened at its top, whatever the page it came from
+                    // was scrolled to; Back puts that back (F77).
+                    self.list_offset = 0.0;
                 }
             }
             Action::EntryWordCount(n) => {

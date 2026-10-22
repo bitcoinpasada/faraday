@@ -24,6 +24,9 @@ pub const BUF_TYPE_VIDEO_CAPTURE: u32 = 1;
 pub const FIELD_ANY: u32 = 0;
 /// `V4L2_MEMORY_MMAP`: buffers owned by the driver, mapped by us.
 pub const MEMORY_MMAP: u32 = 1;
+/// `V4L2_BUF_FLAG_ERROR`: the driver hands the buffer back with a damaged
+/// or incomplete frame in it.
+pub const BUF_FLAG_ERROR: u32 = 0x0000_0040;
 
 /// `V4L2_CAP_VIDEO_CAPTURE`: the node produces video frames.
 pub const CAP_VIDEO_CAPTURE: u32 = 0x0000_0001;

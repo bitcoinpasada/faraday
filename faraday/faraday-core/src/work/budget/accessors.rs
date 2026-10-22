@@ -148,6 +148,12 @@ fn reads(app: &Faraday) -> Vec<Read> {
             }),
         ),
         (
+            "explore_list",
+            Box::new(|v| {
+                let _ = v.explore_list();
+            }),
+        ),
+        (
             "public_qr",
             Box::new(|v| {
                 let _ = v.public_qr("bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq");

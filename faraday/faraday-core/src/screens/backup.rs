@@ -305,11 +305,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x: col_x,
         w: col_w,
         h,
-        back: Some(if b.from_vault {
+        back: Some(app.named_back(if b.from_vault {
             (EN.backup_vault_contents, Action::Nav(Screen::VaultContents))
         } else {
             (EN.backup_wallets, Action::OpenWallet(b.wallet))
-        }),
+        })),
         heading: &heading,
         guided: app.guided,
         switch: checklist,

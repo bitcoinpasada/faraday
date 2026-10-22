@@ -194,7 +194,7 @@ impl Faraday {
     /// Back to the screen and the sheet Set the time was opened from.
     /// Signs nothing and makes nothing there (F63).
     fn set_time_return(&mut self) {
-        self.screen = self.set_time.back_to;
+        self.return_back(self.set_time.back_to);
         let sheet = self.set_time.sheet.take();
         if self.sheet.is_none() {
             self.sheet = sheet;

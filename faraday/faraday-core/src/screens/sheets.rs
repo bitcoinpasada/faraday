@@ -915,7 +915,8 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     }
     viewfinder_over(ui, (px, py, side_w, side_h), sc, read_in_view);
     // Paste, beside Type and Cancel, where the scanner takes anything:
-    // dimmed where the shell has no clipboard (`docs/QR.md` §8 item 5).
+    // dimmed where the shell has no clipboard. A seed scanner has it only
+    // where the shell has one (F75, `docs/QR.md` §8 item 5).
     let paste = !ui.compact && app.scan_pastes();
     let paste_w = if paste {
         ui.measure(14.0, W::S, EN.scan_paste) + 32.0 + 12.0

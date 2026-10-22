@@ -28,12 +28,14 @@
 //!   re-exports them all, so a caller names `faraday_core::Action`.
 //! - State and actions: `work` (costly work counted), `compute` (where
 //!   event code gets its token), `flow`, `inputs`, `edit` (the caret and
-//!   the selection), `motion` (scrolling), `menu` (the ⋮ menus),
+//!   the selection), `motion` (scrolling), `fade` (a change fading
+//!   in), `menu` (the ⋮ menus),
 //!   `file_menu`, `in_progress`, `compact` (the small panel), `medium`
 //!   (what the removable medium is called), `memory` (what is kept across
 //!   a lock), `copy_check` (a copy by hand checked), `set_time`, `stick`
-//!   (`pills.rs`, `settings.rs`, `wipe.rs`), `visit_taken`, and `ui`
-//!   (drawing in design units).
+//!   (`pills.rs`, `settings.rs`, `wipe.rs`), `visit_taken`, `trail` (where
+//!   Back lands: the screens left, as they were seen), and `ui` (drawing
+//!   in design units).
 //! - Screens and drawing: `screens` (the frame, the sidebar, the sheets and
 //!   the screens with no area folder), `drawing`, each area's `screen.rs`
 //!   (`vault/screen.rs`, `keygen/screen.rs`), `glance` (a wallet at a
@@ -119,6 +121,7 @@ mod compact;
 mod compute;
 pub mod copy_check;
 mod edit;
+mod fade;
 pub mod file_menu;
 pub mod flow;
 pub mod in_progress;
@@ -129,6 +132,7 @@ mod menu;
 mod motion;
 pub mod set_time;
 pub mod stick;
+mod trail;
 pub mod ui;
 pub mod visit_taken;
 pub mod work;
@@ -813,46 +817,6 @@ fn secret_text(c: &Compute, text: &str) -> Option<&'static str> {
         faraday_intake::TextSecret::Words => EN.secret_text_those_are,
         faraday_intake::TextSecret::ExtendedPrivateKey => EN.secret_text_that_is,
     })
-}
-
-/// Costs a mnemonic's checksum (through `secret_text`), a codex32 and a
-/// SLIP-39 parse and a WIF's checksum. Why pasted text is refused for
-/// holding a secret (`docs/DESIGN.md` §4.10): a seed's words, checksum or
-/// not, a SeedQR's digits, an extended private key, a WIF private key, a
-/// codex32 string or a SLIP-39 share.
-fn pasted_secret(c: &Compute, text: &str) -> Option<&'static str> {
-    let t = text.trim();
-    let english = faraday_bip::bip39::Language::English;
-    let words: Vec<&str> = t.split_whitespace().collect();
-    if matches!(words.len(), 12 | 15 | 18 | 21 | 24)
-        && words.iter().all(|w| {
-            english
-                .index_of(&zeroize::Zeroizing::new(w.to_lowercase()))
-                .is_some()
-        })
-    {
-        return Some(EN.pasted_words);
-    }
-    match faraday_intake::secret_text(c, t) {
-        Some(faraday_intake::TextSecret::Words) => return Some(EN.pasted_words),
-        Some(faraday_intake::TextSecret::ExtendedPrivateKey) => {
-            return Some(EN.pasted_private_key);
-        }
-        None => {}
-    }
-    if matches!(t.len(), 48 | 96) && t.bytes().all(|b| b.is_ascii_digit()) {
-        return Some(EN.pasted_seedqr);
-    }
-    if faraday_keys::identity::is_wif(t) {
-        return Some(EN.pasted_private_key);
-    }
-    let lower = zeroize::Zeroizing::new(t.to_lowercase());
-    if faraday_bip::codex32::Codex32::parse(&lower).is_ok()
-        || faraday_bip::slip39::Share::parse(&lower).is_ok()
-    {
-        return Some(EN.pasted_share);
-    }
-    None
 }
 
 /// Costs what `read_psbt` and `read_wallet` cost. What a code is when a
@@ -1546,8 +1510,20 @@ pub struct Faraday {
     shift: bool,
     /// Where the last frame drew each line of typing's characters.
     fields: Vec<ui::FieldAt>,
-    /// The screen's back link, as the last frame drew it.
-    back_link: Option<Action>,
+    /// The screen's back link, as the last frame drew it, with the
+    /// screen it was drawn on: what [`Action::Back`] does first.
+    back_link: Option<(Screen, Action)>,
+    /// Where in `hits` the last frame drew the back link's press.
+    back_hit: Option<usize>,
+    /// The screens left for another, each as it was seen, the last left
+    /// last: where Back lands ([`trail`], F77).
+    pub(crate) trail: Vec<trail::Spot>,
+    /// The screen as the input being handled found it, until the input
+    /// is done ([`Faraday::trail_note`]).
+    entered: Option<trail::Spot>,
+    /// The input being handled went back: the screen it left is not
+    /// put on the trail.
+    backing: bool,
     /// Screens left by the mouse's back button, the last left last
     /// (`docs/history/NEW-WALLET.md` §13.1).
     forward: Vec<Screen>,
@@ -1614,17 +1590,31 @@ pub struct Faraday {
     /// page under a sheet is the slowest frame there is) is not taken
     /// out of the fade.
     fade: Option<(Vec<u8>, Option<u64>)>,
-    /// The screen and sheet the last frame drew, so that a change is
-    /// known at the next.
-    last_drawn: Option<ScreenKey>,
-    /// The last tick asked for a frame: the gap to the next tick is then
-    /// the shell's frame cadence.
-    tick_drew: bool,
-    /// The last few gaps between ticks while frames were asked for, in
-    /// milliseconds, oldest first: how fast this machine shows frames.
-    /// Their median is what counts, so one slow frame, such as the one
-    /// that frosts the page under a new sheet, does not count.
-    frame_gaps: Vec<u16>,
+    /// The new frame of the fade under way, as last drawn in full, kept
+    /// aside so that a step of the fade nothing else asked a frame for
+    /// blends the two kept frames instead of drawing the screen again
+    /// (`Faraday::fade_step`). Drawn again, and kept again, by every
+    /// frame drawn in full while the fade runs; empty with no fade.
+    fade_after: Vec<u8>,
+    /// The fade asked for its next step and nothing has asked for a
+    /// frame drawn in full since (`dirty` is not set).
+    fade_due: bool,
+    /// The tick of the last fade step, while the fade's steps follow one
+    /// another with no frame drawn in full between: the gap to the next
+    /// is how fast this machine shows a fade.
+    fade_step_at: Option<u64>,
+    /// The screen and sheet the last frame drew, and the Learn sheet's
+    /// page, so that a change is known at the next.
+    last_drawn: Option<(ScreenKey, usize)>,
+    /// The last few gaps between the steps of fades, in milliseconds,
+    /// each with the tick it was taken at, oldest first: how fast this
+    /// machine shows a fade. Only steps that blend the two kept frames
+    /// are timed, so what a screen costs to draw, and the frame a change
+    /// is drawn on, never count; their median is what counts, and gaps
+    /// older than `motion::FADE_GAPS_FRESH_MS` are forgotten, so a run
+    /// of slow ones, the machine busy for a moment, does not turn fades
+    /// off for good.
+    frame_gaps: Vec<(u64, u16)>,
     /// The Guided switch's pill sliding: where it started, 0 on Steps
     /// only and 1 on Guided, and the tick it started at.
     guided_moving: Option<(f32, Option<u64>)>,
@@ -1847,6 +1837,10 @@ impl Faraday {
             shift: false,
             fields: Vec::new(),
             back_link: None,
+            back_hit: None,
+            trail: Vec::new(),
+            entered: None,
+            backing: false,
             forward: Vec::new(),
             landed: None,
             fp_memo: Default::default(),
@@ -1872,8 +1866,10 @@ impl Faraday {
             disclosed: None,
             frost: None,
             fade: None,
+            fade_after: Vec::new(),
+            fade_due: false,
+            fade_step_at: None,
             last_drawn: None,
-            tick_drew: false,
             frame_gaps: Vec::new(),
             guided_moving: None,
             selftest: None,
@@ -1960,6 +1956,7 @@ impl Faraday {
     /// Delivers what the shell knows about storage.
     pub fn storage(&mut self, event: StorageEvent) {
         let screen = self.screen;
+        self.note_here();
         self.storage_event(event);
         self.backup_settle();
         if self.screen != screen {
@@ -1967,6 +1964,7 @@ impl Faraday {
             // this one as a press would.
             self.after_input();
         } else {
+            self.entered = None;
             // A device still waiting comes back up once no other sheet is.
             self.input_sheet();
             self.device_sheet();
@@ -3538,7 +3536,8 @@ impl Faraday {
             | Action::XKey(_)
             | Action::XPreset(_)
             | Action::XScript(_)
-            | Action::XIndex(_) => self.explore_act(action),
+            | Action::XIndex(_)
+            | Action::X(_) => self.explore_act(action),
             Action::Lightning
             | Action::LKey(_)
             | Action::LAezeed
@@ -3596,6 +3595,7 @@ impl Faraday {
             | Action::KShare(_)
             | Action::KeyGenSlip39 => self.keygen_act(action),
             Action::Nav(Screen::Transfer) => self.transfer_open(),
+            Action::Back => self.back(),
             Action::Resume(g) => self.flow_resume(g),
             Action::CancelFlow => self.flow_cancel(),
             Action::CancelFlowNow => self.flow_cancel_now(),
@@ -3617,7 +3617,8 @@ impl Faraday {
             a @ (Action::UpgradeOpen
             | Action::UpgradePick(..)
             | Action::UpgradeWrite
-            | Action::UpgradeAgain) => self.upgrade_act(a),
+            | Action::UpgradeAgain
+            | Action::UpgradeDone) => self.upgrade_act(a),
             a @ (Action::BackupsOf(..) | Action::BackupsPage(..)) => self.backups_act(a, &c),
             Action::Nav(s) => {
                 self.chart_focus = None;
@@ -6543,6 +6544,15 @@ impl Faraday {
             return;
         }
         if scan.purpose == ScanPurpose::Seed {
+            // A seed's words, pasted on the desktop (F75) or in a QR,
+            // load as the SeedQR's would.
+            if std::str::from_utf8(&bytes).is_ok_and(|t| t.contains(' '))
+                && let Some(words) = seed_in_code(&c, &bytes)
+            {
+                drop(bytes);
+                self.seed_scanned(&words);
+                return;
+            }
             let mut bytes = bytes;
             let lang = faraday_bip::bip39::Language::English;
             let digits = bytes.iter().all(u8::is_ascii_digit);
@@ -6881,54 +6891,6 @@ impl Faraday {
             s.waiting_since = None;
         }
         self.release_held_stick();
-    }
-
-    /// Whether the scanner on screen offers Paste: one that takes
-    /// anything, not a seed's or a TOTP code's (`docs/QR.md` §8 item 5).
-    pub fn scan_pastes(&self) -> bool {
-        self.sheet == Some(Sheet::Scan)
-            && self.scan.as_ref().is_some_and(|s| {
-                matches!(
-                    s.purpose,
-                    ScanPurpose::Files | ScanPurpose::Transfer | ScanPurpose::Intake
-                )
-            })
-    }
-
-    /// Paste on the scanner: the shell is asked for the clipboard's text,
-    /// where it has a clipboard.
-    fn scan_paste(&mut self) {
-        if self.clipboard && self.scan_pastes() {
-            self.commands.push_back(Command::RequestClipboard {
-                kind: faraday_shell_api::FileKind::Text,
-            });
-        }
-    }
-
-    /// Costs what `pasted_secret` costs, then what a code read costs
-    /// (through `scanned`). The clipboard's text, asked for by Paste: a
-    /// secret is refused and named, anything else goes where a QR the
-    /// camera read goes, and nothing at all says so for a moment
-    /// (`docs/QR.md` §8 item 5).
-    fn pasted(&mut self, text: zeroize::Zeroizing<String>) {
-        if !self.scan_pastes() {
-            return;
-        }
-        let c = self.compute();
-        let until = self.now_ms + faraday_draw::tokens::NOTE_FLASH_MS;
-        let t = text.trim();
-        if let Some(scan) = self.scan.as_mut() {
-            if t.is_empty() {
-                scan.nothing_to_paste = Some(until);
-                return;
-            }
-            scan.nothing_to_paste = None;
-            if let Some(why) = pasted_secret(&c, t) {
-                scan.note = Some(why.to_string());
-                return;
-            }
-        }
-        self.scanned(t.as_bytes().to_vec());
     }
 
     /// The scanner's clock, on each tick: the camera that sends no
@@ -8382,7 +8344,13 @@ impl Faraday {
                     }
                 }
                 KeyIn::Enter => self.form_add_part(),
-                KeyIn::Escape => self.screen = self.entry_leave(),
+                KeyIn::Escape => {
+                    let to = self.entry_leave();
+                    self.back();
+                    if self.screen == Screen::Entry {
+                        self.screen = to;
+                    }
+                }
                 _ => {}
             }
             return;
@@ -8615,75 +8583,6 @@ impl Faraday {
             .regions()
             .find(|e| e.view.contains(x, y))
             .map_or(ui::Slot::Page, |e| e.slot);
-    }
-
-    /// The open sheet's offset, or the screen's region's. A sheet starts
-    /// at its top each time it opens: with none open the sheet's offset
-    /// is cleared, and another kind of sheet starts afresh.
-    fn page_slot(&mut self) -> Option<&mut f32> {
-        match self.sheet {
-            Some(Sheet::Learn) => Some(&mut self.learn.scroll),
-            Some(Sheet::WordList) => self.wordlist.as_mut().map(|w| &mut w.scroll),
-            Some(s) => {
-                if self.sheet_scroll.1 != Some(s) {
-                    self.sheet_scroll = (0.0, Some(s));
-                }
-                Some(&mut self.sheet_scroll.0)
-            }
-            None => {
-                self.sheet_scroll = (0.0, None);
-                self.screen_slot()
-            }
-        }
-    }
-
-    /// The screen's region's offset, whatever sheet is over it.
-    fn screen_slot(&mut self) -> Option<&mut f32> {
-        Some(match self.screen {
-            Screen::Visit
-            | Screen::Files
-            | Screen::Wallets
-            | Screen::WalletsStart
-            | Screen::Decode
-            | Screen::Catalog
-            | Screen::Transfer
-            | Screen::Upgrade
-            | Screen::Backups
-            | Screen::Settings
-            | Screen::SetTime
-            | Screen::Codes
-            // Entry scrolls on the wide layout too, not only compact: the
-            // word grid can run to 24 cells, taller than the window.
-            | Screen::Entry => &mut self.list_offset,
-            Screen::Home
-            | Screen::CheckMessage
-            | Screen::Vaults
-            | Screen::Unlock
-            | Screen::VaultContents
-            | Screen::Explore
-            | Screen::Lightning
-            | Screen::Tools
-                if self.compact =>
-            {
-                &mut self.list_offset
-            }
-            Screen::Family => &mut self.family.scroll.y,
-            Screen::Vanity => &mut self.vanity.as_mut()?.scroll.y,
-            Screen::KeyGen => &mut self.keygen.as_mut()?.scroll.y,
-            Screen::Bip85 => &mut self.bip85.as_mut()?.scroll.y,
-            Screen::Silent => &mut self.silent.as_mut()?.scroll.y,
-            Screen::CreateVault => &mut self.vaults.create.as_mut()?.scroll.y,
-            Screen::BackupFlow => match self.vaults.create.as_mut() {
-                Some(c) => &mut c.scroll.y,
-                None => &mut self.backup_flows.get_mut(self.flow_on?)?.live.scroll.y,
-            },
-            Screen::Spend => &mut self.spend.as_mut()?.scroll,
-            Screen::Backup => &mut self.backup.as_mut()?.scroll.y,
-            Screen::Message => &mut self.message.as_mut()?.scroll.y,
-            Screen::Create => &mut self.create.as_mut()?.scroll.y,
-            Screen::Restore => &mut self.restore.as_mut()?.scroll.y,
-            _ => return None,
-        })
     }
 
     /// Which region scrolls now: the screen, or the sheet over it when
@@ -8940,6 +8839,8 @@ impl Faraday {
                         return;
                     }
                     self.last_tap = Some((a, self.now_ms));
+                    // A press on the screen's way out is Back (F77).
+                    let a = self.as_back_at(a, found.map(|f| f.1));
                     self.press_in(a);
                     if field_action(a) {
                         self.field_press(a, x, x, false);
@@ -9040,24 +8941,8 @@ impl Faraday {
         {
             self.sheet = Some(Sheet::NotAirgapped);
         }
-        // A change of screen or sheet fades in from the frame before it,
-        // which the canvas still holds. The first frame ever, and the
-        // first after a resize, have nothing to fade from.
-        let drawn_key = (self.screen, self.sheet);
-        if self.last_drawn != Some(drawn_key) {
-            // This frame is all the old one; the fade's clock starts at
-            // the next tick (`Event::Tick`), however long this frame
-            // takes.
-            self.fade = match (self.last_drawn.is_some() && self.fades(), self.fade.take()) {
-                (false, _) => None,
-                (true, Some((mut before, _))) => {
-                    canvas.snapshot_into(&mut before);
-                    Some((before, None))
-                }
-                (true, None) => Some((canvas.snapshot(), None)),
-            };
-            self.last_drawn = Some(drawn_key);
-        }
+        // A change of screen or sheet fades in from the frame before it.
+        self.fade_begin(&canvas);
         let mut hits = std::mem::take(&mut self.hits);
         hits.clear();
         // Offsets in whole pixels, whoever set them last, so a scrolled
@@ -9152,7 +9037,8 @@ impl Faraday {
                 caret = ui.caret_drawn.then_some(ui.caret_on);
                 self.osk_caret(ui.caret_foot);
                 self.fields = std::mem::take(&mut ui.fields);
-                self.back_link = ui.back_link;
+                self.back_link = ui.back_link.map(|a| (self.screen, a));
+                self.back_hit = ui.back_hit;
                 scrolled = std::mem::take(&mut ui.scrolled);
                 follow_to = follow_to.or(ui.follow_to);
                 self.frost = ui.frost.take().map(|page| (frost_key, page));
@@ -9177,21 +9063,7 @@ impl Faraday {
         self.vaults.drawn = true;
         self.later_drawn = true;
         self.hits = hits;
-        // The new screen or sheet shown part of the way from the old,
-        // until the fade's time is up. A frame part of the way asks for
-        // the next, so the shell keeps drawing from the first one.
-        if let Some((before, at)) = &self.fade {
-            let t = at.map_or(0.0, |at| {
-                motion::progress(Some(at), self.now_ms, motion::FADE_MS)
-            });
-            if t >= 1.0 {
-                self.fade = None;
-            } else {
-                canvas.blend_from(before, t);
-                self.dirty = true;
-                self.commands.push_back(Command::Draw);
-            }
-        }
+        self.fade_end(&mut canvas);
         self.canvas = Some(canvas);
         // The frame moved things under a still pointer: the next frame
         // shows what it is over now.
@@ -9199,22 +9071,6 @@ impl Faraday {
             self.dirty = true;
             self.commands.push_back(Command::Draw);
         }
-    }
-
-    /// Whether a change of screen or sheet fades in: not with reduce
-    /// motion, and not on a machine whose frames, while something moved,
-    /// came too far apart for a fade to read as one rather than as steps.
-    /// Until a few frames have been timed, it does.
-    fn fades(&self) -> bool {
-        if self.reduce_motion {
-            return false;
-        }
-        if self.frame_gaps.len() < motion::FADE_GAPS_KNOWN {
-            return true;
-        }
-        let mut gaps = self.frame_gaps.clone();
-        gaps.sort_unstable();
-        f32::from(gaps[gaps.len() / 2]) <= motion::FADE_GAP_MS
     }
 
     /// Whether the text caret shows now: it blinks, on for a half period
@@ -9312,6 +9168,7 @@ impl Faraday {
         // The next frame is the screen at rest, not part of the way from
         // the one before.
         self.fade = None;
+        self.fade_after = Vec::new();
         self.last_drawn = None;
         self.dirty = true;
     }
@@ -9331,6 +9188,7 @@ impl Faraday {
             self.typed_at = Some(self.now_ms);
         }
         self.note_secrets();
+        self.note_here();
         self.press_in(action);
         // A script does not wait for frames: what a person's press leaves
         // for the tick after its frame is done now.
@@ -9410,6 +9268,9 @@ impl Faraday {
             return;
         };
         let toast = self.toast.as_ref().map(|(t, _)| t.clone());
+        if let Later::Press(_) | Later::Key(_) = later {
+            self.note_here();
+        }
         match later {
             Later::Press(a) => self.act(a),
             Later::Key(k) => self.key(k),
@@ -9439,6 +9300,8 @@ impl Faraday {
     /// from its vault, and a sheet waiting comes up. Lookups, unless
     /// something is dropped.
     fn after_input(&mut self) {
+        // The screen the input left goes on the trail (F77).
+        self.trail_note();
         // A vault being made or unlocked for another flow: the way back
         // ends when the person leaves for anything else, and a secret
         // kept for it goes, wiped. While on the way, the flow keeps what
@@ -9779,6 +9642,9 @@ impl App for Faraday {
                 | Event::ClipboardUnavailable { .. }
                 | Event::Display(_)
         );
+        if settle {
+            self.note_here();
+        }
         match event {
             Event::Display(d) => self.display(d),
             Event::Touch { x, y, phase } => {
@@ -9882,16 +9748,6 @@ impl App for Faraday {
                 }
             }
             Event::Tick { now_ms } => {
-                // The gap from a tick that asked for a frame to the next
-                // is how fast this machine shows frames; a fade is drawn
-                // only while they come close enough to read as one.
-                if self.tick_drew {
-                    let gap = now_ms.saturating_sub(self.now_ms).min(1000) as u16;
-                    if self.frame_gaps.len() == motion::FADE_GAPS_KEPT {
-                        self.frame_gaps.remove(0);
-                    }
-                    self.frame_gaps.push(gap);
-                }
                 // A fade under way runs to its end whatever the gaps
                 // say. Its clock starts now if the frame that showed the
                 // change was the last one, a frame back, so this frame
@@ -9900,7 +9756,6 @@ impl App for Faraday {
                 if let Some((_, at @ None)) = self.fade.as_mut() {
                     *at = Some(now_ms.saturating_sub(motion::FADE_FIRST_STEP_MS));
                 }
-                let before = self.commands.len();
                 // The scrollbar was showing at the last tick: this one
                 // draws its next step of fading, the last one included.
                 let fading = motion::bar_alpha(self.bar_seen.2, self.now_ms) > 0;
@@ -9927,7 +9782,6 @@ impl App for Faraday {
                     self.toast_at = Some(now_ms);
                 }
                 let fading = fading
-                    || self.fade.is_some()
                     || self.caret_drawn.is_some_and(|on| on != self.caret_on())
                     || self.disclosed.is_some_and(|d| d.moving)
                     || self.guided_moving.is_some()
@@ -9949,25 +9803,28 @@ impl App for Faraday {
                     self.dirty = true;
                     self.commands.push_back(Command::Draw);
                 }
+                // A fade under way asks for its next step; unless
+                // something else asks for a frame too, the step blends
+                // the two kept frames (`Faraday::fade_step`).
+                if self.fade.is_some() {
+                    self.fade_due = true;
+                    self.commands.push_back(Command::Draw);
+                }
                 if self.idle_tick(now_ms) {
                     self.dirty = true;
                     self.commands.push_back(Command::Draw);
-                    self.tick_drew = true;
                     return;
                 }
                 if self.vault_tick(now_ms) {
                     self.dirty = true;
                     self.commands.push_back(Command::Draw);
                 }
-                if self.later_tick() {
-                    self.dirty = true;
-                    self.commands.push_back(Command::Draw);
-                }
-                if self.seed_tick() {
-                    self.dirty = true;
-                    self.commands.push_back(Command::Draw);
-                }
-                if self.typed_tick(now_ms) {
+                // Each runs whatever the others return.
+                if self.later_tick()
+                    | self.seed_tick()
+                    | self.typed_tick(now_ms)
+                    | self.explore_tick(now_ms)
+                {
                     self.dirty = true;
                     self.commands.push_back(Command::Draw);
                 }
@@ -9996,13 +9853,10 @@ impl App for Faraday {
                     self.dirty = true;
                     self.commands.push_back(Command::Draw);
                 }
-                // Everything a tick pushes is a frame asked for.
-                self.tick_drew = self.commands.len() > before;
                 if let Some((_, until)) = &self.toast
                     && now_ms > *until
                 {
                     self.toast = None;
-                    self.tick_drew = true;
                 } else {
                     return;
                 }
@@ -10082,6 +9936,8 @@ impl App for Faraday {
             self.dirty = false;
             self.before_frame();
             self.render();
+        } else if self.fade_due {
+            self.fade_step();
         }
         match self.canvas.as_ref() {
             Some(c) => c.frame(),
@@ -10145,7 +10001,11 @@ impl Faraday {
         }
         self.frost = None;
         self.fade = None;
+        self.fade_after = Vec::new();
         self.last_drawn = None;
+        // A fade's step costs a blend of the whole canvas: what it cost
+        // at another size says nothing of this one.
+        self.frame_gaps.clear();
         // Fill a small display; on a large one, stop at a quarter more
         // than its density asks for, so a 4K monitor shows the screens
         // at a sensible size rather than magnified. The person's own
@@ -10154,11 +10014,11 @@ impl Faraday {
         let density = f32::from(d.dpi.max(1)) / 160.0;
         // A panel under 600 dp wide (the Pi's 2.8" is 268) gets the
         // one-column layout at its own density, not the desktop shrunk.
-        // So does a window the wide layout would have to shrink below
-        // three quarters of its density, such as one sharing the screen
-        // with another: a 960 × 640 window at 160 dpi still takes the
-        // wide layout.
-        self.compact = f32::from(d.width) / density < 600.0 || fit < density * 0.75;
+        // So does a window the wide layout would draw below three quarters
+        // of its density, counted up to `WIDE_FLOOR_DENSITY` so that above
+        // it the window's pixels decide (F78): 960 × 640 at 160 dpi is wide.
+        let floor = density.min(faraday_draw::tokens::WIDE_FLOOR_DENSITY) * 0.75;
+        self.compact = f32::from(d.width) / density < 600.0 || fit < floor;
         // Held inside the Starter, the screens draw at the desktop's own
         // density, and take the one-column layout in any window narrower
         // than the wide layout's 1280 dp, rather than shrinking it.

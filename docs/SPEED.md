@@ -757,7 +757,7 @@ kinds:
 | `QrDecode` | `faraday_codec::decode::decode_luma` |
 | `Kdf` | `faraday_crypto`'s PBKDF2 and scrypt, `faraday_backup::argon2id`, `faraday-vault`'s Argon2id |
 | `Blur` | `faraday_draw::Canvas::frost` |
-| `FullCanvas` | `Canvas::snapshot`, `snapshot_into`, `restore`, `blend_from` |
+| `FullCanvas` | `Canvas::snapshot`, `snapshot_into`, `restore`, `blend_between` |
 
 The kinds Faraday had counted itself before COMPUTE C1 to C3 are now
 counted at their source in core, each by a function that takes the
@@ -972,7 +972,7 @@ about ten times slower.
      every drawing call writes); the same pixels as a whole copy, which
      a test checks.
    - A screen change's fade passes over runs of 16 pixels where the two
-     frames agree (`Canvas::blend_from`); the same pixels.
+     frames agree (`Canvas::blend_between`); the same pixels.
    - A shadow skips its covered middle instead of stepping through it
      (`Canvas::shadow`): 3.4 → 2.5 ms (2560), 5.4 → 3.6 (3840) for a
      sheet-sized one.
