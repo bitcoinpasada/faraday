@@ -1,7 +1,8 @@
 # Scrolling, motion and appearance
 
-**Kind:** Reference
-**Status:** Built
+**Kind:** Spec
+**Status:** Built; not yet checked by the owner on hardware
+**Open:** the owner's check on real hardware (the stick's panels and the desktop app's compositor-paced frames)
 
 The build log is `docs/history/MOTION-LOG.md`.
 
