@@ -35,6 +35,7 @@ impl Pointer {
     /// The events `event` makes, in the order they are sent. Events the
     /// window itself handles (closing, resizing, redrawing, a drop) make
     /// none.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn translate(&mut self, event: &WindowEvent) -> Vec<Event> {
         let mut out = Vec::new();
         let touch = |out: &mut Vec<Event>, cursor: (u16, u16), phase| {

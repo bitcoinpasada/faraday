@@ -108,6 +108,7 @@ pub type Foot<'a> = &'a mut dyn FnMut(&mut Ui, f32, f32, f32) -> f32;
 
 /// [`column`], with `foot` drawn under the last card at (x, y) in the
 /// column's width, returning its height: what comes after the flow.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn column_foot(
     ui: &mut Ui,
     col: &Column,
@@ -374,6 +375,7 @@ pub(crate) fn past_end(y: f32, max: f32) -> bool {
 /// back, the flow's name, a strip of the steps to go between them, then
 /// the step's controls; with no step open, the steps as a list, and the
 /// foot under them.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn paged(
     ui: &mut Ui,
     col: &Column,

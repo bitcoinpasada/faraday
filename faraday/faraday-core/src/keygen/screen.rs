@@ -431,6 +431,7 @@ fn word_grid(
 /// The Key card (`docs/history/NEW-WALLET.md` §3.3): the words, a passphrase
 /// for a Create slot, and Lock in; once locked in, the fingerprint and
 /// what the key makes, and Continue.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     // A key typed in a form other than words has no words to show: the
@@ -972,6 +973,7 @@ fn sources(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy + (if drawn { 48.0 } else { 8.0 }) - y
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn entries(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let (have, need) = k.progress();
@@ -1346,6 +1348,7 @@ fn typed_box(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// flips or rolls that name it, its number in the BIP-39 list and the
 /// word, with a link to it in the list. The last place shows no word
 /// until the words are made, because its last bits are the checksum.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if k.source == Some(Source::Dice) && !k.by_die {
         return rolled_words(k, ui, x, y, w);
@@ -1475,6 +1478,7 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// number in the list, and the word, with a link to it in the list. The
 /// last word's first bits are rolled the same way, and only those; its
 /// last bits are the checksum, shown as soon as the last of them is in.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y + 4.0;
     section_label(ui, x, cy, EN.keygen_words_so_far);
@@ -1757,6 +1761,7 @@ fn again_label(k: &KeyGen) -> &'static str {
 /// The randomness check's counts for source `src`: rolls, faces,
 /// chi-square and longest run, or the source's own. Returns where the
 /// next row starts.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     match src {
@@ -2041,6 +2046,7 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 /// The backup quiz: each word asked in a random order, picked
 /// from four.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::quiz::QuizState;
     let mut cy = y;

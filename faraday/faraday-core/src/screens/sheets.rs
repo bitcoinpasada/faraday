@@ -18,6 +18,7 @@ use faraday_ui::parts::{
 /// The potential sheet on a small panel: the same fields, one under
 /// another.
 #[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn potential_compact(
     app: &View,
     p: &crate::inbox::Potential,
@@ -171,6 +172,7 @@ fn potential_compact(
     });
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(p) = app.potential.as_ref() else {
         return;
@@ -814,6 +816,7 @@ pub(super) fn write_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(sc) = app.scan.as_ref() else { return };
     let pad = if ui.compact { 16.0 } else { 32.0 };
@@ -1094,6 +1097,7 @@ fn viewfinder_over(
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(q) = app.qr.as_ref() else { return };
     if ui.compact {
@@ -1245,6 +1249,7 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// for one code of public content. The format line gives way to the code
 /// (DESIGN §4.9): with it, a PSBT's frame is one pixel a module at
 /// 240x320, or its buttons go under Done.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) {
     let text = matches!(
         q.source,
@@ -1366,6 +1371,7 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
 
 /// A new input device (`docs/history/PLAN.md` §4.6): its name as it gives it, the
 /// code a keyboard must type, and the person's choice.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(d) = app.inputs.first() else { return };
     if ui.compact {
@@ -1501,6 +1507,7 @@ fn clock_text(ms: u64) -> String {
 
 /// The idle lock coming: how long without input, when it locks, what it
 /// wipes, seals and keeps, and when the machine powers off after it.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if app.idle_lock_at().is_none() {
         return;
@@ -1834,6 +1841,7 @@ pub(super) fn power_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 
 /// The Learn pages for the screen under the sheet: a tab for
 /// each, the page's sections, scrolled by the wheel or the arrow keys.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let compact = ui.compact;
     let (sw, sh, pad) = if compact {
@@ -1962,6 +1970,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 
 /// Where a secret goes: the open vault, or, once the person has said they
 /// understand what it gives away, the Outbox unprotected.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(out) = app.secret_out.as_ref() else {
         return;

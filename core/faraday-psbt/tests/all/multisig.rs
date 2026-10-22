@@ -25,6 +25,7 @@ use faraday_psbt::{
 const NET: Network = Network::Regtest;
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn two_of_three_sortedmulti() {
     let c = Compute::unchecked();
     let secp = Secp256k1::new();
@@ -263,6 +264,7 @@ fn multisig_participation_by_fingerprint_only() {
 /// signatures carries a 33-byte `r` — so they are the First setting's
 /// bytes.
 #[test]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn bip174_signer_finalizer_extractor() {
     let c = Compute::unchecked();
     let recs = records("tools/vectors/psbt/bip174-roles.txt");

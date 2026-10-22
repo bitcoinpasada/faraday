@@ -180,6 +180,7 @@ fn keys_card(ui: &mut Ui, x: f32, y: f32, w: f32, keys: &[LoadSeed]) -> f32 {
 /// **Seeds with no passphrase stored** (F62): the seeds the open vaults
 /// keep without a passphrase, each with its vault; a seed picked, its
 /// passphrase field, what the last try gave, and Load.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(p) = app.vaults.pass_seeds.as_ref() else {
         return;

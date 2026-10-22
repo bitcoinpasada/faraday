@@ -10,6 +10,7 @@ use crate::screens::{button_rows, guide_text, title};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(e) = app.explore.as_ref() else {
         return;

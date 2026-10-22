@@ -1079,6 +1079,7 @@ impl Starter {
 
     /// Reports what the shell read (§2): this computer, the disks, the
     /// payload, a write's progress.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn starter_event(&mut self, event: StarterEvent) {
         self.frost = None;
         match event {
@@ -1305,6 +1306,7 @@ impl Starter {
         pages
     }
 
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn act(&mut self, action: StarterAction) {
         self.frost = None;
         let c = self.held.compute();

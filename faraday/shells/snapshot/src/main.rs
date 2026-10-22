@@ -175,6 +175,7 @@ fn run(
     tours::default::default_tour(c, &mut t, medium)
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn main() -> ExitCode {
     let mut args: Vec<String> = std::env::args().collect();
     let medium = match args.iter().position(|a| a == "--sd-card") {

@@ -110,6 +110,7 @@ fn guide(s: u8, app: Bip85App) -> String {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     match s {

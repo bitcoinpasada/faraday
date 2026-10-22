@@ -1750,6 +1750,7 @@ impl SpendState {
 
 impl Faraday {
     /// Handles the open wallet's and spend's actions (`PickWallet`, `StartSpend`, `Step*`, `Sign*`, `Collect`, `Public*`, `WalletKey*`, `TOther` and the like).
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn wallet_act(&mut self, action: Action) {
         match action {
             Action::PickWallet(i) => {

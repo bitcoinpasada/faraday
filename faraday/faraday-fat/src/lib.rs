@@ -246,6 +246,7 @@ fn u32_at(b: &[u8], at: usize) -> u32 {
 
 impl<D: Disk> Volume<D> {
     /// Reads and checks the boot sector.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn open(mut disk: D) -> Result<Self, Error> {
         let mut bs = [0u8; 512];
         disk.read_at(0, &mut bs)?;

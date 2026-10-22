@@ -637,6 +637,7 @@ fn ensure_iosevka(fonts_dir: &Path) {
     assert!(status.success(), "unpack {}: {status}", path.display());
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn main() {
     let root = repo_root();
     let fonts_dir = root.join("tools/fonts");

@@ -71,6 +71,7 @@ const TIME_FOR: &str = EN.app_for_totp_codes;
 
 /// [`settings`] on a small panel: the same sections, one column, each
 /// row of choices wrapping to the panel.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, w) = (x0 + crate::compact::M, cw - 2.0 * crate::compact::M);
     let top = 12.0 - app.list_offset;
@@ -366,6 +367,7 @@ fn institute_note(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy + line_h - y
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         return settings_compact(app, ui, x0, cw, h);

@@ -401,6 +401,7 @@ impl Faraday {
 }
 
 /// The sheet: what to delete, what it does, and what it does not reach.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(d) = app.delete_ask.as_ref() else {
         return;

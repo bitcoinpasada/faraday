@@ -48,6 +48,7 @@ fn home_job(app: &View) -> Option<Lead> {
 
 /// Every lead §1.2's rules 1 to 6 give, in their order, each with the
 /// flow it opens or starts over, when it is one that can be in progress.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
     use crate::vault::VaultAction as V;
     let mut v = Vec::new();

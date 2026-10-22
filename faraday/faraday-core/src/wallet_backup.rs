@@ -506,6 +506,7 @@ pub struct BackupState {
 impl Faraday {
     /// Costs what the actions below cost, the keys' and wallets' work among
     /// it: handles the wallet backup flow's actions (`Backup*`, `BQ*`, `B*`).
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn backup_act(&mut self, action: Action, c: &Compute) {
         match action {
             Action::BackupChecklist(i) => {

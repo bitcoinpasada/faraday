@@ -871,6 +871,7 @@ fn new_key_at(app: &mut Faraday, slot: u8) -> [u8; 4] {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn a_two_of_three_with_key_3_on_paper_asks_for_two_sticks_and_holds_key_3_until_its_copy_is_checked()
  {
     let c = testkit::compute();
@@ -3655,6 +3656,7 @@ fn each_places_stick_of_files_takes_only_that_places_seed_file() {
 /// the sealed vault holds it after the lock, and Restore with that vault
 /// open and another share in the Inbox rebuilds the wallet.
 #[test]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
     let c = testkit::compute();
     use faraday_vault::records::field;
@@ -3948,6 +3950,7 @@ fn done_on_a_row_sheet_during_a_write_changes_nothing_and_the_write_counts_for_i
 /// Two wallets of one name, each with its Share 2 in one vault: both
 /// shares stay, and each wallet's vault item sees only its own.
 #[test]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
     let c = testkit::compute();
     use faraday_vault::records::field;

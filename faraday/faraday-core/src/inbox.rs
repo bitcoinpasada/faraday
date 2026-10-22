@@ -539,6 +539,7 @@ impl Faraday {
     /// cost. Everything `items` give, put together, with the session's own
     /// keys and wallets: the Inbox, or the files a boot import holds.
     /// Places in what it returns are places in `items`.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn found_in(&self, c: &Compute, items: &[Item]) -> Found {
         let mut found = Found::default();
 
@@ -1167,6 +1168,7 @@ impl Faraday {
     /// Makes the potential wallet a wallet: its seed loads with the
     /// passphrase typed, if any; a wallet in the Inbox that names the key
     /// so made loads with it; else a single-key wallet of the kind chosen.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn potential_make(&mut self) {
         let c = self.compute();
         // A watch-only wallet holds nothing secret: a stick may stay in.

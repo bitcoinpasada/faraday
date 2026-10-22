@@ -18,6 +18,7 @@ use faraday_shell_api::{App, Event, Key};
 /// backup's public files item for a 2-of-3 made here, the QR sheet with
 /// its PNG, the backup's public files item for Savings, and a GPG key
 /// made in the test vault.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn public_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::Code;
     t.load_kit()?;

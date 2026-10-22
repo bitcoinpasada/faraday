@@ -70,7 +70,7 @@ Where to look for what. Each document's header says what kind it is:
 - `docs/QR.md`: QR transfer and scanning. Partly built; §6 says what; §7 not scheduled.
 - `docs/SPEED.md`: Speed in long flows. In progress (batches C to E).
 - `docs/STARTER.md`: The Starter. Built; the Mac parts (`docs/MAC.md`) are not.
-- `docs/STRUCTURE-PASS.md`: The structure pass. In progress: Waves A and B and phase 5 built; F74's layout lint and phases 6 and 7 to come.
+- `docs/STRUCTURE-PASS.md`: The structure pass. In progress: Waves A and B, phase 5 and F74's layout lint built; phases 6 and 7 to come.
 
 **Record**
 

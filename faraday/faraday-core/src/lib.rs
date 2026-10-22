@@ -15,7 +15,8 @@
 //!
 //! # Code map
 //!
-//! The `mod` lines below are grouped by area:
+//! The `mod` lines below are grouped by area, and every module is named
+//! here (`tools/lint-layout.sh` fails when one is not):
 //!
 //! - The shell's protocol and the app's types: `storage_api` (sticks and
 //!   storage events), `version`, `action` (the `Action` enum), `qr_view`
@@ -25,23 +26,36 @@
 //!   `SpendState` in `wallet`, `BackupState` in `wallet_backup`,
 //!   `CreateState` in `create`, `RestoreState` in `restore`. `lib.rs`
 //!   re-exports them all, so a caller names `faraday_core::Action`.
-//! - State and actions: `work`, `flow`, `inputs`, `file_menu`, `in_progress`.
+//! - State and actions: `work` (costly work counted), `compute` (where
+//!   event code gets its token), `flow`, `inputs`, `edit` (the caret and
+//!   the selection), `motion` (scrolling), `menu` (the ⋮ menus),
+//!   `file_menu`, `in_progress`, `compact` (the small panel), `medium`
+//!   (what the removable medium is called), `memory` (what is kept across
+//!   a lock), `copy_check` (a copy by hand checked), `set_time`, `stick`
+//!   (`pills.rs`, `settings.rs`, `wipe.rs`), `visit_taken`, and `ui`
+//!   (drawing in design units).
 //! - Screens and drawing: `screens` (the frame, the sidebar, the sheets and
-//!   the screens with no area folder), `drawing`, and each area's `screen.rs`
-//!   (`vault/screen.rs`, `keygen/screen.rs`).
-//! - Secrets and keys: `keygen`, `seeds` (with `seeds/read.rs`), `wallet`,
-//!   `inbox`, `create`, `bip85`, `forms`, `fresh`, `gpg`, `apk`,
-//!   `secure_boot`, `lightning`, `silent`, `vanity`, `paper`, `quiz`,
-//!   `secrets`, `word_entry`, `vault/out.rs`, `chart_edit`, `boot_import`
-//!   and `backup_flow/wallet.rs`. These derive, hold or use a key, seed, words or
-//!   passphrase. A later step (F70, `faraday-keys`) moves key use out of
-//!   this crate.
+//!   the screens with no area folder), `drawing`, each area's `screen.rs`
+//!   (`vault/screen.rs`, `keygen/screen.rs`), `glance` (a wallet at a
+//!   glance), `guide` (Guided mode's walk-through), `scan_key`, `pdf` (the
+//!   printed sheets), `picture` (a QR code to keep), `demo` (the demo's
+//!   public seeds), `devices` (what else can capture the screen or the
+//!   keys) and `edid` (what a screen says it is).
+//! - Flows around a key, seed, words or passphrase: `keygen`, `seeds`
+//!   (with `seeds/read.rs`), `wallet`, `inbox`, `create`, `create_from`,
+//!   `bip85`, `forms`, `fresh`, `gpg`, `apk`, `secure_boot`, `lightning`,
+//!   `silent`, `vanity`, `grind`, `paper`, `quiz`, `secrets`,
+//!   `word_entry`, `vault` (with `vault/load.rs` and `vault/out.rs`),
+//!   `chart_edit`, `boot_import` and `backup_flow/wallet.rs`. They hold
+//!   handles and public results; key use is `faraday-keys` (F70,
+//!   `docs/KEYS.md`), and `tools/lint-secrets.sh` rule 4 holds it.
 //! - Wallets and PSBTs: `plan`, `decode`, `family`, `explore`, `catalog`.
-//! - Backups and the backup flow: `backup_flow`, `backups`, `board`, `restore`,
-//!   `wallet_backup`.
-//! - Vaults: `vault` (with `vault/load.rs`), `codes`.
-//! - Sticks, boot and files: `stick` (`pills.rs`, `settings.rs`, `wipe.rs`),
-//!   `upgrade`, `secure_boot/state.rs`, `names`.
+//! - Backups and the backup flow: `backup_flow`, `backups`, `board`,
+//!   `held` (the backup before spending), `restore`, `wallet_backup`.
+//! - Vaults: `codes` (TOTP codes); `vault` is listed with the flows above.
+//! - Sticks, boot and files: `upgrade`, `transfer` (the desktop as the
+//!   device's QR link), `names` (the Starter's install names),
+//!   `secure_boot/state.rs`.
 //! - Support: `wordlist`, `learn`, `tools`, `testkit`.
 //!
 //! `Faraday::act_inner` is the dispatch for presses: it runs the checks that
@@ -131,7 +145,7 @@ pub mod picture;
 mod scan_key;
 mod screens;
 
-// Secrets and keys: derive, hold or use a key, seed, words or passphrase (F70 moves these to faraday-keys).
+// Flows around a key, seed, words or passphrase; key use is faraday-keys (F70).
 pub mod apk;
 pub mod bip85;
 pub mod boot_import;
@@ -1684,6 +1698,7 @@ impl Default for Faraday {
 
 impl Faraday {
     /// A fresh app: no keys, empty boxes, Home.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn new() -> Self {
         Faraday {
             canvas: None,
@@ -1958,6 +1973,7 @@ impl Faraday {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn storage_event(&mut self, event: StorageEvent) {
         let c = self.compute();
         let event = match self
@@ -3408,6 +3424,7 @@ impl Faraday {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn act_inner(&mut self, action: Action) {
         let c = self.compute();
         // A build whose vectors do not reproduce does nothing but exit.
@@ -3913,6 +3930,7 @@ impl Faraday {
     /// kept, as the small panel's copy page lists them: in which open
     /// vault, whether the copy by hand was checked, whether a file of it is
     /// in the Outbox unprotected, or not here at all.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn backup_kept(&self, c: &Compute) -> Option<wallet_backup::Kept> {
         use crate::vault::screen::{vault_has_wallet, vault_key};
         use wallet_backup::{KeptSeed, Tone};
@@ -5020,6 +5038,7 @@ impl Faraday {
     /// `names`, what each spot holds, work a later plan dropped
     /// (`extras`), and the notes on its map (§9.5): `notes`, or those the
     /// record kept.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn plan_store(
         &mut self,
         v: usize,
@@ -5156,6 +5175,7 @@ impl Faraday {
     /// numbers them): for 8, the descriptor's code, in parts past one code;
     /// for 4, each split share's code, one beside each share's sheet and
     /// text. None for any other file.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn public_pictures(&self, c: &Compute, wallet: usize, what: u8) -> Vec<picture::Labelled> {
         let Some(w) = self.session.wallets.get(wallet) else {
             return Vec::new();
@@ -5414,6 +5434,7 @@ impl Faraday {
 
     /// [`Faraday::public_made`], its pictures and PDFs made only when
     /// `bytes`, else named with no bytes.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn public_files(&mut self, wallet: usize, what: u8, bytes: bool) -> Vec<(String, Vec<u8>)> {
         let c = self.compute();
         let Some(w) = self.session.wallets.get(wallet) else {
@@ -6438,6 +6459,7 @@ impl Faraday {
     }
 
     /// One code the camera read: a part of a UR, a PSBT, or text.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn scanned(&mut self, bytes: Vec<u8>) {
         let c = self.compute();
         let bytes = zeroize::Zeroizing::new(bytes);
@@ -7031,6 +7053,7 @@ impl Faraday {
     /// Costs what `text`, `wallet_file_text`, `create_key_text` and the
     /// rest it calls cost. The QR view of a public file a flow makes: its
     /// code, and the name and label of its picture.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn code_view(&self, c: &Compute, code: Code) -> Result<QrView, String> {
         let wallet = |i: usize| {
             self.session
@@ -7375,6 +7398,7 @@ impl Faraday {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn entry_add(&mut self) {
         let c = self.compute();
         if !self.may_load_keys() {
@@ -7806,6 +7830,7 @@ impl Faraday {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn sign_here(&mut self) {
         let c = self.compute();
         // A key made here signs nothing until its backup is done
@@ -8240,6 +8265,7 @@ impl Faraday {
         true
     }
 
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn key(&mut self, key: KeyIn) {
         if self.selftest_failed() {
             return;
@@ -8744,6 +8770,7 @@ impl Faraday {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn touch(&mut self, x: u16, y: u16, phase: TouchPhase) {
         let (x, y) = (i32::from(x), i32::from(y));
         let found = self
@@ -8998,6 +9025,7 @@ impl Faraday {
         self.drawing.clear();
     }
 
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn render_frame(&mut self) {
         let Some(mut canvas) = self.canvas.take() else {
             return;
@@ -9704,6 +9732,7 @@ pub(crate) fn stem(name: &str) -> String {
 }
 
 impl App for Faraday {
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn event(&mut self, event: Event) {
         // Any event but a pointer's motion, a scroll, a hover, a tick, a
         // camera frame or a modifier may change the words typed on Add a

@@ -969,6 +969,7 @@ impl Faraday {
 
     /// Costs what `plan_mapped`, `check` and `board_before` cost. Works out
     /// [`Faraday::board_view_now`] (see [`Faraday::board_view_now`]).
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn board_view_uncached(&self, c: &Compute) -> Option<BoardView> {
         let of = self.board_of()?;
         let state = self.board_state()?;
@@ -1423,6 +1424,7 @@ impl Faraday {
     /// held before this backup, as dimmed chips that take no press
     /// (`docs/BACKUP-FLOW.md` §17.12 item 7), less what the plan keeps
     /// there now.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn board_before(&self, c: &Compute, shape: &Shape, a: &Answers, v: usize) -> Vec<ChipView> {
         // The open vault set up for `v`, what it held before as this
         // backup or flow saw it first, and the wallet's checksum.
@@ -1592,6 +1594,7 @@ impl Faraday {
     }
 
     /// A press on the board (`docs/BACKUP-FLOW.md` §17.2, §17.3).
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn board_act(&mut self, press: BoardPress) {
         let c = self.compute();
         let Some(state) = self.board_state().cloned() else {

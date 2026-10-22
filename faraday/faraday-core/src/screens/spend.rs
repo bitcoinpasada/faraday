@@ -14,6 +14,7 @@ use faraday_ui::parts::{title, wrap_buttons};
 /// The nonce check: each signature against its key and this
 /// transaction, each one made here recomputed from its key, and any nonce
 /// used twice. Returns its height.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f32, w: f32) -> f32 {
     use faraday_psbt::verify::Verdict;
     let Some(check) = app.nonce_check(psbt) else {
@@ -471,6 +472,7 @@ pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usi
 
 /// Draws a step's body with its top-left at (x, y). Returns its height.
 #[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn step_body(
     app: &View,
     ui: &mut Ui,
@@ -1640,6 +1642,7 @@ type ReviewRow = (
 );
 
 #[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn spend_panel(
     app: &View,
     ui: &mut Ui,

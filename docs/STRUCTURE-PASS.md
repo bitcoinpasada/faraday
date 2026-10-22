@@ -1,7 +1,7 @@
 # The structure pass
 
 **Kind:** Spec
-**Status:** In progress: Waves A and B and phase 5 (the key boundary) built 2026-10-21; F74's layout lint, phase 6 and phase 7 to come. §9's questions answered by the owner (2026-10-21).
+**Status:** In progress: Waves A and B, phase 5 (the key boundary) and F74's layout lint built 2026-10-21; phases 6 and 7 to come, after other work (owner). §9's questions answered by the owner (2026-10-21).
 **Verified against:** 3bd25c2d (2026-10-21)
 **Decisions:** F70 (the key boundary), F71 (dependency policy), F72
 (the hard fork) and F74 (the structure enforced), in DECISIONS.md; their
@@ -480,7 +480,9 @@ Added as each phase lands:
 1. **After phase 5:**
    - `lint-secrets` refuses secret types and secret-taking functions
      outside faraday-keys (docs/KEYS.md, step 4b). Built 2026-10-21.
-   - tools/lint-layout.sh checks:
+   - tools/lint-layout.sh checks (built 2026-10-21; 209 long functions,
+     72 `too_many_arguments` allowances and 11 files over the limit
+     counted):
      - **The code map:** every module `lib.rs` declares appears in its
        `//!` code map. Every `Screen` variant appears in the map's table,
        and the file named there exists and draws it. A new top-level
@@ -490,7 +492,7 @@ Added as each phase lands:
      - **Function size:** clippy's `too_many_lines` is on. Each long
        function carries an `#[expect]`, and their number is in the counts
        file. The same holds for `#[allow(clippy::too_many_arguments)]`
-       (49 today).
+       (49 when this was written, 72 counted with tests and `core/`).
 2. **Phase 6:** `cargo vet --locked` in `just lint` (F71).
 3. **Phase 7:**
    - an `impl Faraday` ratchet: the files allowed one are listed, and

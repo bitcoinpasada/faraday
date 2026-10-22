@@ -68,6 +68,7 @@ const SIDEBAR_W: f32 = 240.0;
 const MAX_W: f32 = 1600.0;
 
 /// Draws the whole frame.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn draw(app: &View, ui: &mut Ui) {
     let (full_w, full_h) = app.size();
     // A small panel's keyboard, when it is up, takes the foot of the

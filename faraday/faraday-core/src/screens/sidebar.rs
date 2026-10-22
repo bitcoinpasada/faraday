@@ -61,6 +61,7 @@ fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
     ui.hit(x, y, w, FLOW_ROW, action);
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     ui.fill(0.0, 0.0, SIDEBAR_W, h, 0.0, SIDEBAR);
     ui.fill(SIDEBAR_W - 1.0, 0.0, 1.0, h, 0.0, LINE);

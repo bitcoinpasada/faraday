@@ -1,0 +1,21 @@
+# Counts held by tools/lint-layout.sh (F74). Each only falls; raising one
+# is the owner's decision, recorded in DECISIONS.
+#
+# Files over 2,500 lines, at their size: split them, and lower the line.
+file core/faraday-entropy/src/lib.rs 2549
+file core/faraday-psbt/src/inspect.rs 2687
+file faraday/faraday-core/src/backup_flow/steps.rs 3143
+file faraday/faraday-core/src/backup_flow/wallet.rs 2868
+file faraday/faraday-core/src/board/mod.rs 2688
+file faraday/faraday-core/src/lib.rs 10198
+file faraday/faraday-core/src/plan/mod.rs 4359
+file faraday/faraday-core/src/vault/mod.rs 4517
+file faraday/faraday-core/src/vault/screen.rs 4883
+file faraday/faraday-core/tests/all/backup_board.rs 2795
+file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5934
+
+# Functions over 100 lines (clippy's too_many_lines, each under an
+# `expect`), and functions with too many arguments (each under an
+# `allow`).
+expect too_many_lines 209
+allow too_many_arguments 72

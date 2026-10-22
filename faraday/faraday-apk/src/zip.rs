@@ -170,6 +170,7 @@ impl Apk {
     /// Reads and checks an APK. Every rule of `docs/APK-SIGNING.md` §5 is
     /// here; the refusals of §4.4 that need a key (another app's package,
     /// the output name, FAT32's size) are the caller's.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn read(src: &mut dyn Source) -> Result<Apk, Refusal> {
         let size = src.len();
         // The end record: the only one that ends the file with its comment.

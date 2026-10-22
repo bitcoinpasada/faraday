@@ -501,6 +501,7 @@ pub(crate) fn entry_stick(app: &View, ui: &mut Ui, x: f32, y: f32) {
 /// with `flow` its Continue (`docs/history/NEW-WALLET.md` §15.2): no passphrase
 /// (Key asks it), no way in from a stick, and Continue in place of Make
 /// the key, under what is above it.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn entry_form(
     app: &View,
     ui: &mut Ui,

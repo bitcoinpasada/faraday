@@ -307,6 +307,7 @@ impl Faraday {
     }
 
     /// One press inside the flow.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn silent_act(&mut self, action: crate::Action) {
         let c = self.compute();
         use crate::Action as A;

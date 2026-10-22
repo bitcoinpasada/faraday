@@ -76,9 +76,11 @@ changes and nothing else has to be kept in step.
   - An area's code is in its folder in faraday-core: its state and
     logic in `mod.rs`, its screen in `screen.rs`. Screens that belong to
     no area are `screens/<name>.rs`. `lib.rs`'s code map names every
-    module and every screen's file (tools/lint-layout.sh, once built).
-  - No new monolith: files over 2,500 lines and long functions are
-    counted and only fall (tools/lint-layout.counts, once built).
+    module and every screen's file (`lint-layout`).
+  - No new monolith: files over 2,500 lines and functions over 100
+    lines are counted and only fall (`lint-layout`,
+    `tools/lint-layout.counts`); a new long function is split, not
+    given an `expect`.
   - Key material lives in `faraday-keys` and leaves only through its
     eleven named reveals (F70, `docs/KEYS.md`); `lint-secrets` rule 4
     holds it, and `lint-keys-tests` keeps the test helpers that reach a

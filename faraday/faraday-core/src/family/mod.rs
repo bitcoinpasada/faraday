@@ -510,6 +510,7 @@ impl Faraday {
     }
 
     /// Runs one of the tab's actions.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn family_act(&mut self, a: FamilyAction) {
         let c = self.compute();
         use FamilyAction as F;

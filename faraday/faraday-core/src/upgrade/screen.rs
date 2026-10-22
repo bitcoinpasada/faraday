@@ -135,6 +135,7 @@ fn source(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
 
 /// Step 2: the stick to upgrade, its version and the one to be written,
 /// and Upgrade. Returns its height.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
     let label = fill(EN.upgrade_remove_it_insert, &[app.medium.noun()]);

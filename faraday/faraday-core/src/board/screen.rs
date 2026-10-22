@@ -317,6 +317,7 @@ fn toggles(ui: &mut Ui, cv: &ChipView, x: f32, y: f32, line_h: f32, hits: bool) 
 
 /// Draws a chip at (x, y), laid out as [`chip_size`] gave it. `hits`:
 /// it takes presses (not the copy that follows a drag).
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hits: bool) {
     let (w, h) = (fit.w, fit.h);
     let t = cv.chip.thing();

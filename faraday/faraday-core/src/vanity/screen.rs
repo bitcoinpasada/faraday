@@ -97,6 +97,7 @@ fn summary(app: &View, v: &VanityState, s: u8) -> String {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
     let net = app.session.network();
     let mut cy = y;

@@ -2700,6 +2700,8 @@ project.
 
 ### F74 The structure is held by `just` (2026-10-21)
 
+*Built in part 2026-10-21: the key boundary (`lint-secrets` rule 4) and the layout lint (tools/lint-layout.sh), counting 209 functions over 100 lines, 72 `too_many_arguments` allowances and 11 files over 2,500 lines, tests and `core/` included. The strings file and the published word lists are not size-counted: the strings rule makes `en.rs` grow, and a word list's size is its content. `cargo vet` comes with phase 6 and the `impl Faraday` ratchet with phase 7.*
+
 **Why.** The structure pass split the monoliths, gave each area a folder,
 mapped the code and confined secrets to one crate. Nothing but care would
 have kept them so: a new 3,000-line file, a function grown back, or an

@@ -6,6 +6,7 @@ use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent};
 use faraday_shell_api::{App, Event};
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::family::{FamilyAction as F, page};
     let fam = |a: F| Action::Family(a);

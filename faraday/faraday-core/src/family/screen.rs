@@ -106,6 +106,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// The tab with something loaded already: each wallet and what it needs
 /// next, seeds no wallet uses, and the walk-through one press away.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
     let x = x0 + 48.0;
     let w = (cw - 96.0).min(980.0);
@@ -311,6 +312,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
 
 /// [`loaded`] on a small panel: under the page's bar, one column, each
 /// card's button under what it says.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
     use crate::compact::screen::measured;
     use crate::compact::{BAR_H, M};
@@ -749,6 +751,7 @@ fn map(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// What do you have? (`docs/SCAN-TO-SIGN.md` §4): a vault when one is
 /// found, the two ways in, what came in, the next question, and the
 /// wallet once it is worked out.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     // A vault, only when one is found.
@@ -1069,6 +1072,7 @@ fn question(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// The vault route: the vaults, the stick, the passphrase, Unlock.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let files = app.vault_files();
@@ -1426,6 +1430,7 @@ fn loaded_in_sparrow(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// Check the money: the wallet as a QR code, and its addresses. For a
 /// wallet worked out from seeds alone, the ways tried, the way tried
 /// now, and No money shows for the next (`docs/SCAN-TO-SIGN.md` §5).
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let Some(i) = app.family_wallet() else {
@@ -1561,6 +1566,7 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// Bring the transaction: scan it, copy it in, or one already in Files.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     // From the wallet's card this is Write the payment's own: Scan the
@@ -1683,6 +1689,7 @@ fn first_step(app: &View) -> u8 {
 /// here, and while that is short of what the spend needs, Scan a key,
 /// the vaults to unlock and Collect a signature (`docs/SCAN-TO-SIGN.md`
 /// §3).
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let Some(s) = app.spend.as_ref() else {

@@ -20,6 +20,8 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/lint-strings.sh` | lint | `just lint` | user-facing-strings lint (below) |
 | `tools/lint-tokens.sh` | lint | `just lint` | design-token lint (below) |
 | `tools/lint-docs.sh` | lint | `just lint` | documentation lint (below) |
+| `tools/lint-layout.sh` | lint | `just lint` | layout lint: the code map, file sizes, long functions (below) |
+| `tools/lint-keys-tests.sh` | lint | `just lint` | no shipped binary carries the test helpers that reach a key (below) |
 | `tools/lint-unchecked.sh` | lint | `just lint` | no shipped binary compiles `Compute::unchecked` (below) |
 | `tools/check-macos.sh` | lint | `just lint` | clippy over the Starter's macOS code for both Mac targets, without a Mac |
 | `tools/costs-lint/` | lint | `just lint` (`cargo run -p costs-lint`) | who takes, mints and keeps the compute token (below) |
@@ -54,9 +56,11 @@ in `justfile` and `faraday/faraday.just`.
 - `python3 tools/clippy.py --workspace --all-targets`: clippy with `-D warnings`.
 - `cargo deny check`: advisories, licences, duplicates and sources, against `deny.toml`.
 - `cargo fmt --all --check`: formatting.
-- `lint-secrets.sh`: in `core/*/src` and a named list of secret-holding files, no printing or logging macros, no `Debug` derive on secret type names, and no heap text (`String`, `to_string`, `format!`) in the files that hold secrets. A new file that touches secrets is added to `SECRET_FILES`.
+- `lint-secrets.sh`: in `core/*/src` and `faraday-core/src`, no printing or logging macros and no `Debug` derive on secret type names; no heap text (`String`, `to_string`, `format!`) in the files that hold secrets (a new one is added to `SECRET_FILES`); and rule 4, the key boundary: under `faraday/` outside `faraday-keys`, no key or seed in hand, no seed words made into a `Mnemonic`, no primitive's secret-taking function, and no held secret taken out of its guard outside one named site (`docs/KEYS.md`).
 - `lint-strings.sh`: no wording literal in screen code; every user-facing string is in `faraday-strings/src/en.rs`, which is also checked for untidy strings. Learn pages and self-test names are outside it.
 - `lint-tokens.sh`: no layout number written in `core/faraday-draw/src/widgets/`; each is a name in `tokens.rs`. In `faraday-core` and `faraday-ui` the numbers written in place are counted against `lint-tokens.counts`: a count that rises fails, and so does one that falls until the file is lowered to match.
+- `lint-layout.sh`: every module faraday-core's `lib.rs` declares is named in its code map, every file at the top of its `src/` is declared, and every `Screen` has a row naming the file it is drawn in; no `.rs` file over 2,500 lines and no function over 100 lines (clippy's `too_many_lines`) beyond those counted in `lint-layout.counts`, with the `too_many_arguments` allowances; a count that rises fails, and so does one that falls until the file is lowered (F74).
+- `lint-keys-tests.sh`: no shipped binary turns on faraday-keys' `master-for-tests` or faraday-core's `testkit` feature.
 - `lint-docs.sh`: every document under `docs/` and the root `README.md` has a Kind and a Status in its first 12 lines; every backticked repository path in a tracked `.md` file exists; nothing outside `CLAUDE.md` cites the private folder.
 - `cargo run -p costs-lint`: a function taking `&Compute` has "Costs " first in its doc; `Compute::new` is minted only where listed; no `Compute` is stored except in `View`; drawing reaches the token only through `View`'s accessors (`docs/COMPUTE.md` §8).
 - `lint-unchecked.sh`: the `unchecked` feature of `faraday-crypto` is off in the dependency graph of every shipped binary (`docs/COMPUTE.md` §3).

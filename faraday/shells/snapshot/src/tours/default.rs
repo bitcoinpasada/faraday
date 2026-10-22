@@ -242,6 +242,7 @@ pub(crate) fn fp_hex(fp: [u8; 4]) -> String {
 
 /// Costs what `visit_tour`, `copy_tour`, `public_tour` and the rest it
 /// calls cost.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<(), String> {
     if medium == Medium::Stick {
         devices_tour(t)?;

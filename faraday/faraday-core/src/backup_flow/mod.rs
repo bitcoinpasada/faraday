@@ -1465,6 +1465,7 @@ const MAX_SLOTS: usize = 20_000;
 /// The flows as the kept state holds them: a version line, then a line
 /// each, split by tabs. Nothing in it is secret: names, sizes, salts,
 /// hashes, labels and public values.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
     let mut out = format!("version\t{VERSION}\n");
     for f in flows {
@@ -1733,6 +1734,7 @@ pub fn decode(c: &Compute, bytes: &[u8]) -> (Vec<BackupFlow>, usize) {
 
 /// One line of a flow. False when it does not read or names what is not
 /// there.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8; 32]>) -> bool {
     let slot = |fl: &mut BackupFlow, k: &str| -> Option<usize> {
         let k: usize = k.parse().ok()?;

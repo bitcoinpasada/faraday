@@ -18,9 +18,10 @@ test:
 # lint (who takes, mints and keeps the compute token, docs/COMPUTE.md
 # §8), the check that no shipped binary compiles the token that counts
 # nothing (docs/COMPUTE.md §3), and the Starter's macOS code checked for
-# both Mac targets without a Mac (tools/check-macos.sh), and the docs lint
+# both Mac targets without a Mac (tools/check-macos.sh), the docs lint
 # (a Kind and Status header on every document, every cited path real,
-# tools/lint-docs.sh).
+# tools/lint-docs.sh), and the layout lint (the code map, file sizes and
+# long functions, counts that only fall, tools/lint-layout.sh).
 [group('lint')]
 lint:
     python3 tools/clippy.py --workspace --all-targets
@@ -33,6 +34,7 @@ lint:
     tools/lint-strings.sh
     tools/lint-tokens.sh
     tools/lint-docs.sh
+    tools/lint-layout.sh
     cargo run -q -p costs-lint
     tools/lint-unchecked.sh
     tools/lint-keys-tests.sh

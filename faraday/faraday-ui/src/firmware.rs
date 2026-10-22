@@ -81,6 +81,7 @@ struct Ink {
 
 impl Ink {
     /// The firmware palettes, in one place.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     const fn of(p: Palette, size: f32) -> Ink {
         match p {
             Palette::Black => Ink {
@@ -211,6 +212,7 @@ impl Ink {
 /// line that says it is a mock-up. Returns the height drawn. The height
 /// follows the content; at a narrow width the tabs or the side list fold
 /// to the open one, and long words are cut.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn sketch<A: Copy + PartialEq>(ui: &mut Ui<A>, s: &Sketch, x: f32, y: f32, w: f32) -> f32 {
     let ink = Ink::of(s.palette, size_for(w));
     let rh = row_height(ui, ink);

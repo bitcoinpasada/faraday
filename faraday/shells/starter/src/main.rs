@@ -167,6 +167,7 @@ impl Shell {
     }
 
     /// What the Starter asks of the system.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn command(&mut self, c: StarterCommand) {
         match c {
             StarterCommand::Write(order) => self.write(order),
@@ -565,6 +566,7 @@ const HELP: &str = "faraday-starter [--image FILE] [--downloads DIR] [--size WxH
   --version: print this build's version and exit
   --uninstall: open on Installed, with Uninstall asked once (Windows' uninstall entry runs this)";
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn main() -> ExitCode {
     // The elevated writer on Windows, `--write`, runs before anything
     // else is initialised (docs/STARTER.md §2).

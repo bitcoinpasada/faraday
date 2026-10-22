@@ -67,6 +67,7 @@ impl Tour {
 
     /// Runs every command the app has queued, answering storage requests
     /// from the test kit's directory.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn pump(&mut self) {
         while let Some(c) = self.app.poll_command() {
             // Fixed bytes stand for the system's entropy, different for

@@ -15,3 +15,7 @@ publish = false
 # lint is repeated by hand.
 unsafe_code = "deny"
 missing_docs = "warn"
+
+[lints.clippy]
+# The workspace's: a long function carries an expect (tools/lint-layout.sh).
+too_many_lines = "warn"

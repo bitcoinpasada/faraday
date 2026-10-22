@@ -156,6 +156,7 @@ struct Attr {
 }
 
 /// The manifest's facts, or `None` when it does not read in one way.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn parse(data: &[u8]) -> Option<Manifest> {
     if u16_at(data, 0)? != XML || u16_at(data, 2)? != 8 || u32_at(data, 4)? as usize != data.len() {
         return None;

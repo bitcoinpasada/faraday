@@ -1255,6 +1255,7 @@ fn signers(input: &bitcoin::psbt::Input) -> Vec<String> {
 
 /// Every key-value pair that is not the transaction and not a
 /// signature, compared on what it decodes to.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn metadata_diff(x: &bitcoin::Psbt, y: &bitcoin::Psbt) -> Vec<FieldDiff> {
     let mut out = Vec::new();
     field(

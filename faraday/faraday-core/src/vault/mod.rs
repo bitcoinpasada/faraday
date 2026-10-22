@@ -1543,6 +1543,7 @@ impl Faraday {
     }
 
     /// Runs a vault action.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn vault_act(&mut self, a: VaultAction) {
         let c = self.compute();
         use VaultAction as V;
@@ -2584,6 +2585,7 @@ impl Faraday {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn vault_unlock_inner(&mut self) {
         let c = self.compute();
         let files = self.vault_files();
@@ -3272,6 +3274,7 @@ impl Faraday {
         self.vaults.focus = Some(Focus::Field(0));
     }
 
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn vault_form_save(&mut self) {
         // The backup flow's Make form is saved by Make the key.
         if self.screen == Screen::BackupFlow {
@@ -3784,6 +3787,7 @@ impl Faraday {
     }
 
     /// Typing on a vault screen. Returns whether the key was taken.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn vault_key(&mut self, key: faraday_shell_api::Key) -> bool {
         use faraday_shell_api::Key as K;
         // The boot import's sheet has a passphrase field of its own.

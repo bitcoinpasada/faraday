@@ -237,6 +237,7 @@ fn other_encryption_shots(s: &Snap) -> Result<(), String> {
 
 /// BitLocker on the Start page (§6, F49): on, the key's tick box ticked,
 /// suspended for three times Windows starts, a refusal, and off.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn bitlocker_shots(s: &Snap) -> Result<(), String> {
     let read = |protection, starts_left| {
         StarterEvent::BitLocker(Some(BitLocker {
@@ -401,6 +402,7 @@ fn concern_shots(s: &Snap) -> Result<(), String> {
     Ok(())
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn run(s: &Snap) -> Result<(), String> {
     // Home in each state.
     let mut h = s.starter();

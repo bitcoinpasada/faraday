@@ -197,6 +197,7 @@ pub fn signed(dir: &std::path::Path) -> (faraday_psbt::Psbt, faraday_psbt::SignR
 /// against: every public value of the session, plus share 1's secret
 /// share and secret nonce, which are this fixture group's and no one
 /// else's.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn transcript(dir: &std::path::Path) -> String {
     let c = Compute::unchecked();
     let secp = Secp256k1::new();

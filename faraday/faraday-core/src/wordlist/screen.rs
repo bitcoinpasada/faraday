@@ -15,6 +15,7 @@ use crate::wordlist::{LISTS, WordListAction as WL};
 /// A row's height, in design units.
 const ROW: f32 = 28.0;
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(st) = app.wordlist.as_ref() else {
         return;

@@ -507,6 +507,7 @@ impl Faraday {
     /// one press: each of its seeds, with its passphrase where the plan
     /// keeps it there, and the wallet where the plan puts it there; then
     /// the plan beside them.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn backup_vault_save(&mut self, v: usize) {
         let c = self.compute();
         use crate::vault::VaultAction as V;

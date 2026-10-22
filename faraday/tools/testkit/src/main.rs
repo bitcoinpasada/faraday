@@ -26,6 +26,7 @@ use faraday_psbt::Psbt;
 
 /// Costs what `add_words`, `add_wallet`, `inspect` and the rest it
 /// calls cost.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn run(c: &Compute, out: &Path) -> Result<(), String> {
     let (unsigned, cosigned) = testkit::spend()?;
     println!("spend txid {}", unsigned.unsigned_tx().compute_txid());

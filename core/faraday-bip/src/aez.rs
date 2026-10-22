@@ -283,6 +283,7 @@ impl State {
 
     /// AEZ-core, for a message of 32 bytes or more. `d` is 0 to
     /// encipher and 1 to decipher; the buffer is rewritten in place.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn core(&self, delta: &[u8; BLOCK], buf: &mut [u8], d: usize) {
         let sz = buf.len();
         let frag = sz % 32;

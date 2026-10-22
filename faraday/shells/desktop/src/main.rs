@@ -725,6 +725,7 @@ fn home() -> Option<PathBuf> {
     home.map(PathBuf::from)
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn main() -> ExitCode {
     // `--version` answers before anything else is initialised: the
     // Starter asks an installed copy this (docs/STARTER.md §5.2).

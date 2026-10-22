@@ -347,6 +347,7 @@ pub(crate) fn hold_button_in(
 // The list
 // ---------------------------------------------------------------------
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         return list_compact(app, ui, x0, cw, h);
@@ -512,6 +513,7 @@ pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 // Unlock
 // ---------------------------------------------------------------------
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         return unlock_compact(app, ui, x0, cw, h);
@@ -720,6 +722,7 @@ pub(crate) fn unlock_back(app: &View) -> (&'static str, Action) {
 /// [`list`] on a small panel: Create a vault, then each vault as a card
 /// with its buttons under what it says. The way back to a flow that made
 /// one is the bar's.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
     use crate::compact::screen::{about, finish};
@@ -876,6 +879,7 @@ fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// [`unlock`] on a small panel: the vaults, the passphrase, Unlock, each
 /// the panel's width.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
     use crate::compact::screen::{about, finish};
@@ -1192,6 +1196,7 @@ fn create_summaries(app: &View) -> [String; vstep::COUNT] {
     ]
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     let Some(c) = app.vaults.create.as_ref() else {
         return 0.0;
@@ -1732,6 +1737,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
 
 /// Rolling dice for a passphrase: the rolls typed, the words they make,
 /// and the strength so far. Returns its height.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn dice_panel(
     app: &View,
     ui: &mut Ui,
@@ -1958,6 +1964,7 @@ fn create_panel(
 /// What Create vault will make: warnings about its cost, the file, its
 /// size, memory and unlock time, and the passphrases' strength. Returns
 /// its height.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let Some(c) = app.vaults.create.as_ref() else {
         return 0.0;
@@ -2114,6 +2121,7 @@ fn create_button(app: &View, ui: &mut Ui, x: f32, by: f32, w: f32) -> f32 {
 // ---------------------------------------------------------------------
 
 /// An item's title, its line, and whether the title is data.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn item_heading(app: &View, r: RecordView<'_>) -> (String, String, bool) {
     match r.kind() {
         kind::KEY => {
@@ -2390,6 +2398,7 @@ fn words_text(m: &faraday_bip::bip39::Mnemonic) -> zeroize::Zeroizing<String> {
     text
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         return contents_compact(app, ui, x0, cw, h);
@@ -2833,6 +2842,7 @@ pub(crate) fn contents_detail(app: &Faraday) -> bool {
 /// [`contents`] on a small panel: the vault, its kinds and the items of
 /// the kind chosen, as a list; a chosen item, or what is being added or
 /// made, as a page of its own that the bar goes back from.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
     use crate::compact::screen::{about, finish, row};
@@ -3118,6 +3128,7 @@ pub(crate) fn codes_form(app: &View, ui: &mut Ui, dx: f32, dy: f32, dw: f32) -> 
 /// the session's keys or wallets to save, a GPG key's files to sign,
 /// Secure Boot's images, or the item. Returns where it ends.
 #[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn detail(
     app: &View,
     ui: &mut Ui,
@@ -3942,6 +3953,7 @@ fn backup_row(
 /// signatures will carry, with **Set the time**; then the hold that signs
 /// and Cancel. With the clock not known the time says so and the hold is
 /// disabled. Hashes a file the page has not hashed yet.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let chosen = app.gpg_chosen();
     let who = app.gpg_user_id().unwrap_or_default();
@@ -4131,6 +4143,7 @@ pub(crate) fn stick_save_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 
 /// The session's keys or wallets that are not yet in this vault, each
 /// with Save.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn save_panel(app: &View, ui: &mut Ui, v: &vault::OpenVault, dx: f32, mut dy: f32, dw: f32) -> f32 {
     let keys = app.vaults.category == 0;
     ui.text(
@@ -4275,6 +4288,7 @@ fn save_panel(app: &View, ui: &mut Ui, v: &vault::OpenVault, dx: f32, mut dy: f3
 /// Lock, asked for while a vault is open: what is sealed into the Outbox
 /// and what is in the session but in no open vault. With no seed to seal
 /// with, what is not sealed, and a lock that loses it.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn lock_ask(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let waits = app.seal_waits();
     let (icon, tone, sub, sealed_label, lock) = if waits {
@@ -4459,6 +4473,7 @@ fn reasons_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// The Inbox's EFI images, each to sign or check with the selected db key;
 /// or, once one is chosen to sign, its SHA-256 to compare with the build
 /// record before the hold that signs it (`docs/history/PLAN.md` §8).
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
     if let Some(k) = app.vaults.sb_sign
         && let Some(item) = app.inbox.get(k)
@@ -4737,6 +4752,7 @@ fn apk_sign_panel(
 
 /// "Sign this APK?": what the file is, the second build typed, and the
 /// hold, which does nothing until the second build matches.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn apk_review(
     app: &View,
     ui: &mut Ui,

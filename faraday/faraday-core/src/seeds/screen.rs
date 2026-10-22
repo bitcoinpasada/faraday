@@ -198,6 +198,7 @@ pub(crate) fn cosigner(
 /// the path, the first address, and Make the wallet. `back` adds Back
 /// to the seeds. Returns the height used.
 #[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn shape(
     app: &View,
     ui: &mut Ui,

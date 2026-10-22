@@ -411,6 +411,7 @@ pub fn spend() -> Result<(Psbt, Psbt), String> {
 }
 
 /// The files of the test stick, by name.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
     let c = compute();
     let mut out = Vec::new();
@@ -782,6 +783,7 @@ fn key_path_sighash(psbt: &Psbt) -> Result<[u8; 32], String> {
 /// key 1 adds when it signs last. Test key 1's own pass is deterministic,
 /// so the partials made here fit the app's.
 #[allow(clippy::type_complexity)]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>), String> {
     let c = compute();
     let unsigned = musig_unsigned()?;
@@ -1227,6 +1229,7 @@ pub fn pause(app: &mut crate::Faraday) {
 /// and the ⋮ menu's **Add to…** for each vault's stick and for what each
 /// vault holds. Works out the plan's map after each press. Panics where a
 /// press is not offered, or where the plan reached is not the preset's.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn backup_as(app: &mut crate::Faraday, preset: crate::plan::Preset) {
     let c = compute();
     use crate::board::{BoardPress as P, Chip, MenuRow, Thing, Zone, things_of};

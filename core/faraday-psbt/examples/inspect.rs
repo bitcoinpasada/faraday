@@ -116,6 +116,7 @@ fn btc(a: bitcoin::Amount) -> String {
     format!("{} sat ({:.8} BTC)", a.to_sat(), a.to_btc())
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn print_inspection(insp: &Inspection, ctx: &Context) {
     println!("== Summary ==");
     println!("network:          {}", ctx.network);
@@ -258,6 +259,7 @@ fn print_inspection(insp: &Inspection, ctx: &Context) {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn run(a: Args) -> Result<(), String> {
     let c = Compute::unchecked();
     if let Some(path) = &a.make {

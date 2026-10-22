@@ -305,6 +305,7 @@ impl Faraday {
     }
 
     /// Reads back what the previous process kept.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn restore_kept(&mut self, kept: &[(String, Vec<u8>)]) {
         // The flows first, then the keys that wait: each key's gate is
         // read against the flows whatever order the entries are listed in.

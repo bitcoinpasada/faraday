@@ -66,6 +66,7 @@ fn header(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32, guide: &str) 
 /// The sources, the aezeed's words, and the node. `vx`, `vw` are where
 /// values go; `below` is how far a value sits under its name. Returns
 /// where it ends.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn body(
     app: &View,
     ui: &mut Ui,

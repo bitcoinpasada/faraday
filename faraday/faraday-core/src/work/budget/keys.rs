@@ -81,6 +81,7 @@ fn on(app: &mut Faraday, screen: Screen) {
     app.press(Action::Nav(screen));
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn fields() -> Vec<Field> {
     let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
     let other = testkit::test_words(testkit::TEST_SEEDS[2].0);

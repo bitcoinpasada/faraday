@@ -604,6 +604,7 @@ impl CreateState {
 impl Faraday {
     /// Costs what the actions below cost, the keys' and wallets' work among
     /// it: handles the Create wallet flow's actions (`Action::C*`, `CreateWallet`, `CreateOver`, `PlanAddPass`, `NewWalletFrom`).
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn create_act(&mut self, action: Action, c: &Compute) {
         match action {
             Action::CreateWallet

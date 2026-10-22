@@ -500,6 +500,7 @@ impl Faraday {
 
 /// The sheet: the key the seed makes without a passphrase and with the
 /// one typed, and the way it loads.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(s) = app.seed_read.as_ref() else {
         return;

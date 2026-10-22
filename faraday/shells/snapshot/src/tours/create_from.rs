@@ -14,6 +14,7 @@ use faraday_crypto::work::Compute;
 /// 3's xpub, its card with New wallet from this one, and Create filled
 /// from it: Kind with the Account stepper, then Keys with key 3 waiting
 /// for its xpub at account 1.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
     use faraday_core::cstep;

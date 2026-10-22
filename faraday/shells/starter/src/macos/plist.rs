@@ -251,6 +251,7 @@ impl Reader<'_> {
     }
 
     /// One value.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn value(&mut self, depth: usize) -> Result<Value, String> {
         if depth > DEPTH {
             return Err(self.err("nested too deep"));

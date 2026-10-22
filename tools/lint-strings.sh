@@ -31,7 +31,9 @@ status=0
 # `#[cfg(test)]` line on) and comments are not read. Allowed, because
 # none of it is wording a translation would change:
 #   - developer messages: `expect`, `panic!`, `assert!`, `eprintln!` and
-#     the like, to the end of the call
+#     the like, to the end of the call; and attributes, whose only text
+#     is a lint's `reason` (`#[expect(…, reason = "…")]`, or its
+#     `reason = "…"` line when rustfmt splits one)
 #   - tokens read out of data or handed to the system: arguments of
 #     `starts_with`, `strip_prefix`, `contains`, `split_once` and their
 #     kin, of `join`, `PathBuf::from`, `Command::new`, `.arg`, environment
@@ -75,6 +77,7 @@ FNR == 1 { intest = 0; dev = 0 }
 /^#\[cfg\(test\)\]/ { intest = 1 }
 intest { next }
 /^[[:space:]]*\/\// { next }
+/^[[:space:]]*#!?\[|^[[:space:]]*reason = "/ { next }
 dev > 0 { dev += gsub(/\(/, "(") - gsub(/\)/, ")"); next }
 /\.expect\(|panic!\(|unreachable!\(|assert(_eq|_ne)?!\(|todo!\(|eprintln!\(|eprint!\(|println!\(|print!\(|debug_assert/ {
     dev = gsub(/\(/, "(") - gsub(/\)/, ")")

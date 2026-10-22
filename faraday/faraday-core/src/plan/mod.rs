@@ -1228,6 +1228,7 @@ impl Answers {
     /// for a wallet of this shape. A plan saved before vaults were one per
     /// seed, with one `sticks` line and no `vault` line, reads as one
     /// vault holding every seed here, its stick at the places ticked.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn from_text(shape: &Shape, text: &str) -> Option<Answers> {
         fn bits<const N: usize>(s: &str) -> Option<[bool; N]> {
             let v = flags(s)?;

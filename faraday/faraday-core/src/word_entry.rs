@@ -619,6 +619,7 @@ fn last_word_mask(first_words: &[u16]) -> [u64; 32] {
 
 impl Faraday {
     /// Handles seed-word entry's actions (`Action::Entry*`).
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn entry_act(&mut self, action: Action) {
         match action {
             Action::Entry(wanted) => {

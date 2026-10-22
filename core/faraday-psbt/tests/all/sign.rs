@@ -81,6 +81,7 @@ fn independent_sighash(psbt: &Psbt, script_type: ScriptType) -> Message {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn sign_verify_finalize_every_script_type() {
     let c = Compute::unchecked();
     let secp = Secp256k1::new();

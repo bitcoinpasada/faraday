@@ -1220,6 +1220,7 @@ fn boxes_kept(app: &mut Faraday) -> Option<StorageEvent> {
 /// lock the visit copies both in, the stick is pulled, the vault unlocked
 /// again, and the GPG key's Sign a file lists both.
 #[test]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     let c = faraday_core::testkit::compute();
     let mut app = Faraday::new();

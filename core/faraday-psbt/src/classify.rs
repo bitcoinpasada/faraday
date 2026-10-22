@@ -222,6 +222,7 @@ pub(crate) struct Classified {
 }
 
 /// Classifies input `index` of `psbt`.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn classify(psbt: &bitcoin::Psbt, index: usize) -> Classified {
     let input = &psbt.inputs[index];
     let prevout = psbt.unsigned_tx.input[index].previous_output;

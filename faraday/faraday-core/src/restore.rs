@@ -266,6 +266,7 @@ impl RestoreState {
 impl Faraday {
     /// Costs what the actions below cost, the keys' and wallets' work among
     /// it: handles the Restore wallet flow's actions (`Action::R*`, `RestoreWallet`, `RestoreShares`, `KeyWallet`).
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn restore_act(&mut self, action: Action, c: &Compute) {
         match action {
             Action::RFromVault(v, r) => self.restore_from_vault(v, r),

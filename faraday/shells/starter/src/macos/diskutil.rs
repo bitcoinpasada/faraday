@@ -239,6 +239,7 @@ impl Answers {
     /// The disk `id` as listed, or `None` when it is not offered at all
     /// (not a whole physical disk on USB or the SD reader, or an answer
     /// the rule needs is missing).
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn found(&self, id: &str) -> Option<Found> {
         let info = self.info.get(id)?;
         if !info.get("WholeDisk")?.as_bool()? {

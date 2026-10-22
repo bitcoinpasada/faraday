@@ -93,6 +93,7 @@ pub(crate) fn heading(ui: &mut Ui, x: f32, y: f32, s: &str) -> f32 {
 /// One wallet's card, as its own page: what it is, how many signatures
 /// can be made here, its keys and what each needs, its first address,
 /// and what can be done with it.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, iw) = (x0 + M, cw - 2.0 * M);
     let top = -app.list_offset;
@@ -776,6 +777,7 @@ pub(crate) fn keyed_taken(
 /// form draws it too, with `flow` its Continue (`docs/history/NEW-WALLET.md`
 /// §15.2): no passphrase (Key asks it), no way in from a stick, Continue
 /// in place of Make the key. Returns where the next row starts.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn entry_form(
     app: &View,
     ui: &mut Ui,

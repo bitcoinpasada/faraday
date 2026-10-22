@@ -230,6 +230,7 @@ fn body(app: &View, f: &BackupFlow, ui: &mut Ui, s: Step, x: f32, y: f32, w: f32
 
 // ---- 1: where it will be kept ----
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if f.kind.is_wallet() {
         return crate::backup_flow::wallet_screen::where_body(app, f, ui, x, y, w);
@@ -502,6 +503,7 @@ fn sticks_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
 }
 
 /// The card for the stick being asked for or read, at step 2 or 6.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let m = app.medium.noun();
@@ -713,6 +715,7 @@ fn files_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32, s
 }
 
 /// A stick read: which vault, which place.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn bind_card(
     app: &View,
     f: &BackupFlow,
@@ -863,6 +866,7 @@ fn bind_card(
 
 // ---- 3: the vaults ----
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     if !app.may_load_keys() {
@@ -1005,6 +1009,7 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
 
 // ---- 4: make the key ----
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if f.kind.is_wallet() {
         return crate::backup_flow::wallet_screen::make_body(app, f, ui, x, y, w);

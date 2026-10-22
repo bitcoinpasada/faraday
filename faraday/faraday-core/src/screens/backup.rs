@@ -37,6 +37,7 @@ pub(crate) fn item_title_now(c: &Compute, app: &Faraday, n: u8) -> (String, Stri
 }
 
 /// [`item_title`] through `reads`.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
     use crate::plan::Item;
     let app = reads.app();
@@ -184,6 +185,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::BStage;
     let panel_w = side_panel_w(cw);
@@ -677,6 +679,7 @@ pub(crate) fn shares_table(
     cy + 10.0 - y
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     use crate::bstep;
     let b = app.backup.as_ref().expect("backup");
@@ -1798,6 +1801,7 @@ type FileRow<'a, N> = (N, &'a str, String, Action, Vec<(&'a str, Action)>);
 /// has each: Bitcoin Core before 29, the Electrum wallet file, the
 /// Caravan config, the Wasabi file. Each has its own button, and Show as
 /// QR and PNG beside the ones a wallet or a person reads from a code.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn public_files(
     app: &View,
     i: usize,

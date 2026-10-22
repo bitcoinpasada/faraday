@@ -339,6 +339,7 @@ fn a_payload_lists_only_the_stick_and_pi_images() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn a_malformed_manifest_is_refused_with_its_line_and_reason() {
     let good = line(
         "a.img.xz",

@@ -27,6 +27,7 @@ pub(crate) fn words_off(c: &Compute, t: &mut Tour) {
 /// each vault's stick, opens or makes the vaults, makes the key; Back
 /// up's plan offers the vaults; the checklist ends in Write to sticks;
 /// one lock, each stick by place, done.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::backup_flow::steps::FlowAction as F;
     use faraday_core::cstep;

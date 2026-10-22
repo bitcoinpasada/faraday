@@ -526,6 +526,7 @@ fn warn(warnings: &mut Vec<Warning>, level: Level, kind: WarningKind, text: Stri
 
 /// Costs a script derivation for each wallet an input or output claims,
 /// and the checks: inspects `psbt` for the keys and network in `ctx`.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
     c.count(Work::PsbtInspect);
     let secp = Secp256k1::verification_only();
@@ -1572,6 +1573,7 @@ fn output_kind<C: Verification>(
 
 /// Costs what `musig_output` and `wallet_claim` cost. The body of
 /// [`output_kind`], with every warning its claims raise.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn output_claims<C: Verification>(
     c: &Compute,
     secp: &Secp256k1<C>,
@@ -2077,6 +2079,7 @@ fn musig_sub_path(path: &DerivationPath) -> Option<(bool, u32)> {
 /// A merkle root never reaches here: an input that states one is
 /// classified [`ScriptKind::P2trScript`], which this crate refuses to
 /// sign for a `musig()` wallet, since `tr(musig())` has no tree.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn musig_input<C: Verification>(
     c: &Compute,
     secp: &Secp256k1<C>,
@@ -2437,6 +2440,7 @@ fn is_threshold_input(ctx: &Context, input: &Input) -> bool {
 /// registered wallet, the internal and output keys, the script, the
 /// signer set the records name, the shares this device holds, and what
 /// this pass will do with each.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn threshold_input<C: Verification>(
     c: &Compute,
     secp: &Secp256k1<C>,

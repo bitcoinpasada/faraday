@@ -91,6 +91,7 @@ impl Elevated {
 
     /// Reads the arguments after the program's name, `--write` first,
     /// or says what is wrong with them.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn parse(args: &[String]) -> Result<Elevated, String> {
         let (first, rest) = args.split_first().ok_or("no arguments")?;
         if first != WRITE {

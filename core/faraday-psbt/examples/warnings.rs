@@ -83,6 +83,7 @@ fn paying(recipients: &[(ScriptBuf, u64)]) -> Psbt {
 }
 
 /// Every fixture, in the order the README lists them.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn fixtures() -> Vec<Fixture> {
     let mut out = Vec::new();
     let mut add = |name, note, psbt| out.push(Fixture { name, note, psbt });

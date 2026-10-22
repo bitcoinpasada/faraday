@@ -19,6 +19,7 @@ use faraday_shell_api::{App, Event};
 /// stays; Later leaves Home leading with the vault's Unlock; the right
 /// passphrase loads the vault's wallets and keys. Then a wallet made
 /// here is saved into the vault.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::Sheet;
     use faraday_core::boot_import::ImportAction as I;

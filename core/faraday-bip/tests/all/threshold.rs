@@ -73,6 +73,7 @@ fn the_record_round_trips_and_states_its_group() {
 
 /// Every way a record can be wrong, each refused with its own reason.
 #[test]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn a_record_that_states_something_untrue_is_refused() {
     let c = Compute::unchecked();
     const OTHER_KEY: &str = "0376c80f9704bbf33f96b9fcf464deec0548997110fc1e0fed81c9bea5e0ea8500";

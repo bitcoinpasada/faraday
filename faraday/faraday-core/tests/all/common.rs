@@ -197,6 +197,7 @@ impl Shell {
     }
 
     /// The shell answers every request the app has made.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn pump(&mut self, app: &mut Faraday) {
         for _ in 0..200 {
             let Some(c) = app.poll_storage() else {

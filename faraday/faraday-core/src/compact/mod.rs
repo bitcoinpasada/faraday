@@ -293,6 +293,7 @@ pub(crate) fn page(app: &View, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
 const FAB_ROOM: f32 = M + 40.0 + 8.0;
 
 /// Home: what is loaded, then a button for each place the sidebar goes.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // Scan floats over the foot in a strip of its own: the scrollable
     // list is clipped above it, so no tile's hit area ever falls under

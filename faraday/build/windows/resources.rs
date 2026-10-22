@@ -27,6 +27,7 @@ pub struct Program<'a> {
 /// as it is. The manifest asks for no elevation (`asInvoker`): the
 /// Starter's writer is elevated per write. Shared by the build scripts
 /// of `faraday-starter` and `faraday-desktop`, which `#[path]` it in.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn windows_resources(program: &Program) {
     let out = PathBuf::from(std::env::var_os("OUT_DIR").expect("cargo sets OUT_DIR"));
     let png_path = program.icon_png;

@@ -223,6 +223,7 @@ pub struct SignResult {
 /// derives one per signing press from its session key and a count of
 /// the draws.
 #[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn sign(
     c: &Compute,
     psbt: &mut Psbt,
@@ -806,6 +807,7 @@ struct MusigPass {
 /// signature of the output key, and written as `tap_key_sig`, which
 /// finalizes the input as any key-path spend.
 #[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn sign_musig(
     c: &Compute,
     psbt: &mut Psbt,
@@ -1237,6 +1239,7 @@ struct ThresholdPass {
 /// one, which is a later location. Every check the inspection made is
 /// made again here against the input as it stands.
 #[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn sign_threshold(
     psbt: &mut Psbt,
     cache: &mut SighashCache<&bitcoin::Transaction>,

@@ -92,6 +92,7 @@ fn guide(k: u8) -> String {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     match k {

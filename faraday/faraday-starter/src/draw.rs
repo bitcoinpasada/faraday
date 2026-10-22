@@ -719,6 +719,7 @@ fn secure_boot_text(on: Option<bool>) -> String {
     .to_string()
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn home(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
     // The title is the wordmark.
@@ -879,6 +880,7 @@ fn home(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 
 /// The This computer card: what it is, its Secure Boot,
 /// and the next step as its action. Returns its height.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn computer_card(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let c = &starter.computer;
     let pad = if starter.compact { 12.0 } else { 18.0 };
@@ -1419,6 +1421,7 @@ fn learn_title(id: LearnId) -> &'static str {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0 + title(starter, ui, x, y0);
     let c = &starter.computer;

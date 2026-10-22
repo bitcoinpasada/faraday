@@ -158,6 +158,11 @@ unicode-normalization = "0.1"
 unsafe_code = "forbid"
 missing_docs = "warn"
 
+# A function over 100 lines carries `#[expect(clippy::too_many_lines)]`,
+# and tools/lint-layout.sh holds their number so it only falls (F74).
+[workspace.lints.clippy]
+too_many_lines = "warn"
+
 # Build hardening for release binaries.
 # The dev profile keeps its defaults on purpose: `cargo test` needs
 # `panic = "unwind"` so that `#[should_panic]` tests and test isolation work.

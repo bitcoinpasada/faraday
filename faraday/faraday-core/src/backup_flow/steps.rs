@@ -340,6 +340,7 @@ impl Faraday {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn flow_act(&mut self, a: FlowAction) {
         use FlowAction as F;
         match a {

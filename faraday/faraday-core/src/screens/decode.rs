@@ -23,6 +23,7 @@ pub(crate) fn decode_back(back: Screen) -> &'static str {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::decode::btc;
     let Some(d) = app.decode.as_ref() else {

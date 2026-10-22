@@ -154,6 +154,7 @@ fn description_files<'a>(app: &'a View<'_>) -> Vec<(usize, &'a str)> {
         .collect()
 }
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     use crate::rstep;
     let r = app.restore.as_ref().expect("restore");
@@ -382,6 +383,7 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// scanned, from an open vault or already loaded, or a cosigner's xpub;
 /// a key of the description can be Not here. **Make the wallet** once
 /// every slot is filled.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::seeds::{Focus, SeedsAction as S};
     let r = app.restore.as_ref().expect("restore");

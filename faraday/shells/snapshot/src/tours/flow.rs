@@ -6,6 +6,7 @@ use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StickInfo, StorageEvent};
 use faraday_shell_api::{App, Event, Key};
 
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::backup_flow::Kind;
     use faraday_core::backup_flow::steps::FlowAction as F;

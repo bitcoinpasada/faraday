@@ -820,6 +820,7 @@ impl Faraday {
     /// done; the plan is saved, the flow takes the vaults and the files,
     /// the hold on the keys moves to its state, and the lock comes. The
     /// stick visit page is never shown.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn wallet_lock_write(&mut self) {
         let c = self.compute();
         let Some(b) = self.backup.as_ref() else {
@@ -1266,6 +1267,7 @@ impl Faraday {
     /// The copy of the keys a vault added after the keys were made takes
     /// from one that holds them (§4.8): each seed the plan puts in it, and
     /// the wallet description where the plan puts it.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn flow_wallet_copy(&mut self, i: usize) {
         let c = self.compute();
         use crate::vault::screen::key_fingerprint;
