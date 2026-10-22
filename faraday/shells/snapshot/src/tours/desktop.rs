@@ -1,6 +1,7 @@
 //! The desktop tours.
 
 use crate::tour::{Tour, type_text};
+use faraday_core::samples::Pick;
 use faraday_core::testkit;
 use faraday_core::{Action, Screen, StickInfo, StorageEvent};
 
@@ -70,9 +71,8 @@ pub(crate) fn demo_tour(t: &mut Tour) -> Result<(), String> {
 pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     t.app.online = true;
     t.app.session = faraday_core::wallet::Session::on(testkit::NET);
-    t.app
-        .session
-        .set_demo(faraday_core::testkit::demo_samples());
+    t.app.session.set_demo(&faraday_samples::SAMPLES);
+    t.app.samples = Some(&faraday_samples::SAMPLES);
     t.app.set_modes(faraday_core::DESKTOP_MODES);
     t.press(Action::Nav(Screen::Home));
     t.shot("modes-demo-home")?;
@@ -86,6 +86,20 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("modes-demo-add-key")?;
     crate::tour::scroll(t, 700);
     t.shot("modes-demo-add-key-foot")?;
+    // Load samples: the sheet, Savings ticked, loaded (its toast), and the
+    // sheet again with Savings and its three keys ticked and dimmed.
+    t.press(Action::Nav(Screen::Home));
+    t.press(Action::Samples);
+    t.shot("modes-demo-samples-sheet")?;
+    t.press(Action::SampleTick(Pick::Wallet(0)));
+    t.shot("modes-demo-samples-ticked")?;
+    t.press(Action::SamplesLoad);
+    t.shot("modes-demo-samples-loaded")?;
+    t.press(Action::Samples);
+    t.shot("modes-demo-samples-after")?;
+    crate::tour::scroll(t, 700);
+    t.shot("modes-demo-samples-after-foot")?;
+    t.press(Action::Cancel);
     t.app.session = faraday_core::wallet::Session::on(testkit::NET);
     t.app.set_modes(faraday_core::DESKTOP_MODES);
     t.press(Action::Nav(Screen::Home));

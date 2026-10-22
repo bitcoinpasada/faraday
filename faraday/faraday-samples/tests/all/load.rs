@@ -1,0 +1,337 @@
+//! Load samples (`docs/MODES.md` §3, §10 M6): in Demo the pill opens a
+//! sheet that lists every sample, and Load ticked puts what is ticked in
+//! the session the way a typed or scanned key and wallet go in. The tests
+//! drive a `Faraday` with the real samples set, as the desktop does.
+
+use crate::common::{PASSWORD, fingerprint_of_seed, json};
+use faraday_bip::keys::{Fingerprint, Network};
+use faraday_core::samples::{Pick, SampleKey};
+use faraday_core::testkit::{self, compute};
+use faraday_core::wallet::{Origin, Session};
+use faraday_core::{Action, DESKTOP_MODES, Faraday, Screen, Sheet};
+use faraday_intake::{Part, part_of};
+use faraday_samples::SAMPLES;
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+
+/// `app`'s display, `width` by `height` pixels at `dpi`.
+fn show(app: &mut Faraday, width: u16, height: u16, dpi: u16) {
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+}
+
+/// The desktop's app: online, in Demo, with the samples set, in a window
+/// tall enough to show every row of the sheet at once (a row out of view
+/// offers no press).
+fn demo_app() -> Faraday {
+    let mut app = testkit::started();
+    show(&mut app, 1280, 4000, 160);
+    app.online = true;
+    app.session = Session::on(Network::Testnet);
+    app.session.set_demo(&SAMPLES);
+    app.samples = Some(&SAMPLES);
+    app.set_modes(DESKTOP_MODES);
+    app
+}
+
+/// The keys the sheet lists, in its order: those that load a key and that
+/// the table lists.
+fn listed() -> Vec<&'static SampleKey> {
+    SAMPLES
+        .keys
+        .iter()
+        .filter(|k| k.listed && k.plain.is_some())
+        .collect()
+}
+
+fn wallet_pick(name: &str) -> Pick {
+    let at = SAMPLES.wallets.iter().position(|w| w.name == name);
+    Pick::Wallet(at.expect("a sample wallet") as u8)
+}
+
+fn key_pick(name: &str, word: &str) -> Pick {
+    let at = listed()
+        .iter()
+        .position(|k| k.name == name && k.word == word)
+        .expect("a sample key");
+    Pick::Key(at as u8)
+}
+
+/// The sheet open over Home, drawn.
+fn open(app: &mut Faraday) {
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    assert!(app.offers(Action::Samples), "the pill is on Home");
+    app.press(Action::Samples);
+    assert_eq!(app.sheet, Some(Sheet::Samples));
+    let _ = app.frame();
+}
+
+/// Ticks `picks` on the open sheet and presses Load ticked.
+fn load(app: &mut Faraday, picks: &[Pick]) {
+    for &p in picks {
+        app.press(Action::SampleTick(p));
+    }
+    let _ = app.frame();
+    app.press(Action::SamplesLoad);
+}
+
+fn held(app: &Faraday, fp: [u8; 4]) -> bool {
+    app.session.keys.position(Fingerprint(fp)).is_some()
+}
+
+fn plain_of(name: &str, word: &str) -> [u8; 4] {
+    SAMPLES
+        .keys
+        .iter()
+        .find(|k| k.name == name && k.word == word)
+        .and_then(|k| k.plain)
+        .expect("a sample key")
+}
+
+#[test]
+fn in_demo_the_pill_opens_a_sheet_that_lists_every_sample() {
+    let mut app = demo_app();
+    open(&mut app);
+    for i in 0..SAMPLES.wallets.len() {
+        assert!(app.offers(Action::SampleTick(Pick::Wallet(i as u8))), "{i}");
+    }
+    let keys = listed();
+    for i in 0..keys.len() {
+        assert!(app.offers(Action::SampleTick(Pick::Key(i as u8))), "{i}");
+    }
+    // One row each, and no more: not the cipher seed, which loads no key,
+    // and not the 3 of 5's keys, which load with their wallet.
+    assert!(!app.offers(Action::SampleTick(
+        Pick::Wallet(SAMPLES.wallets.len() as u8)
+    )));
+    assert!(!app.offers(Action::SampleTick(Pick::Key(keys.len() as u8))));
+    assert_eq!(keys.len(), SAMPLES.keys.len() - 1 - 5);
+    assert!(app.offers(Action::SamplesAll));
+    assert!(app.offers(Action::Cancel), "Not now");
+    // The compact panel has the pill too, and the sheet.
+    let mut small = demo_app();
+    show(&mut small, 480, 640, 286);
+    open(&mut small);
+    assert!(small.offers(Action::SampleTick(Pick::Wallet(0))));
+}
+
+#[test]
+fn ticking_savings_and_loading_it_loads_the_wallet_and_its_three_keys() {
+    let c = compute();
+    let mut app = demo_app();
+    open(&mut app);
+    load(&mut app, &[wallet_pick("sample_savings")]);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.toast_text(), Some("Loaded 1 wallet and 3 keys"));
+    assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(app.session.wallets[0].name, "Savings");
+    for word in ["bacon", "zebra", "summer"] {
+        assert!(held(&app, plain_of("sample_words", word)), "{word}");
+    }
+    assert_eq!(app.session.keys.len(), 3);
+    // Its first receive address is the testkit's Savings wallet's.
+    let mut kit = Session::on(Network::Testnet);
+    kit.add_wallet(&c, "Savings", &testkit::savings(), "t", Origin::Named)
+        .expect("the testkit's wallet");
+    let want = kit.wallets[0].address_on(&c, Network::Testnet, false, 0);
+    let got = app.session.wallets[0].address_on(&c, Network::Testnet, false, 0);
+    assert_eq!(got, want);
+    assert!(got.starts_with("tb1"), "{got}");
+}
+
+#[test]
+fn ticking_the_slip39_set_loads_its_key_with_the_vectors_fingerprint() {
+    let c = compute();
+    let mut app = demo_app();
+    open(&mut app);
+    load(&mut app, &[key_pick("sample_slip39_two_of_three", "")]);
+    assert_eq!(app.session.keys.len(), 1);
+    // The published shares of the vector's fourth case, recovered with no
+    // passphrase, by the code a typed share goes through.
+    let case = &json("slip39/vectors.json")[3];
+    let shares: Vec<_> = case[1]
+        .as_array()
+        .expect("mnemonics")
+        .iter()
+        .map(|m| match part_of(m.as_str().expect("text")) {
+            Some(Part::Slip39(s)) => s,
+            _ => panic!("a share"),
+        })
+        .collect();
+    let seed = faraday_keys::slip39_seed(&c, &shares, b"").expect("recovers");
+    assert!(held(&app, fingerprint_of_seed(&seed)));
+}
+
+#[test]
+fn ticking_the_backup_loads_the_key_of_its_32_byte_seed() {
+    let mut app = demo_app();
+    open(&mut app);
+    load(&mut app, &[key_pick("sample_backup", "")]);
+    assert_eq!(app.session.keys.len(), 1);
+    assert!(held(&app, fingerprint_of_seed(&[0x42; 32])));
+    // It opened under the one passphrase Demo has.
+    assert_eq!(PASSWORD, "password");
+}
+
+#[test]
+fn a_set_loads_as_one_key_and_a_vector_with_a_passphrase_loads_without_it() {
+    let mut app = demo_app();
+    open(&mut app);
+    let picks = [
+        key_pick("sample_codex32_shares", ""),
+        key_pick("sample_xor", ""),
+        key_pick("sample_abandon", ""),
+    ];
+    load(&mut app, &picks);
+    assert_eq!(app.session.keys.len(), 3);
+    for name in ["sample_codex32_shares", "sample_xor", "sample_abandon"] {
+        let k = SAMPLES.keys.iter().find(|k| k.name == name).expect(name);
+        assert!(held(&app, k.plain.expect("a key")), "{name}");
+    }
+}
+
+#[test]
+fn what_is_loaded_is_ticked_and_dimmed_when_the_sheet_comes_back() {
+    let mut app = demo_app();
+    open(&mut app);
+    let (savings, bacon) = (
+        wallet_pick("sample_savings"),
+        key_pick("sample_words", "bacon"),
+    );
+    load(&mut app, &[savings]);
+    open(&mut app);
+    // No press ticks it: it is done.
+    assert!(!app.offers(Action::SampleTick(savings)));
+    assert!(!app.offers(Action::SampleTick(bacon)));
+    assert!(app.offers(Action::SampleTick(key_pick("sample_words", "flag"))));
+    app.press(Action::SampleTick(savings));
+    app.press(Action::SamplesLoad);
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::Samples),
+        "nothing was ticked to load"
+    );
+    // A wallet loaded some other way shows the same.
+    let c = compute();
+    let mut other = demo_app();
+    other
+        .session
+        .add_wallet(&c, "Mine", &testkit::savings(), "t", Origin::Named)
+        .expect("the wallet");
+    open(&mut other);
+    assert!(!other.offers(Action::SampleTick(savings)));
+    assert!(other.offers(Action::SampleTick(wallet_pick("sample_spending"))));
+}
+
+#[test]
+fn a_key_already_loaded_is_skipped_without_an_error_and_the_rest_loads() {
+    let mut app = demo_app();
+    open(&mut app);
+    load(&mut app, &[key_pick("sample_words", "bacon")]);
+    assert_eq!(app.toast_text(), Some("Loaded 1 key"));
+    open(&mut app);
+    load(&mut app, &[wallet_pick("sample_savings")]);
+    // Savings brought zebra and summer; bacon was there.
+    assert_eq!(app.toast_text(), Some("Loaded 1 wallet and 2 keys"));
+    assert_eq!(app.session.keys.len(), 3);
+}
+
+#[test]
+fn select_all_ticks_every_sample_not_loaded_and_unselect_all_clears_them() {
+    let mut app = demo_app();
+    open(&mut app);
+    app.press(Action::SamplesAll);
+    app.press(Action::SamplesAll);
+    // Nothing is ticked: Load ticked does nothing, the sheet stays.
+    app.press(Action::SamplesLoad);
+    assert_eq!(app.sheet, Some(Sheet::Samples));
+    assert!(app.session.wallets.is_empty() && app.session.keys.is_empty());
+    // Not now closes it and loads nothing.
+    app.press(Action::SamplesAll);
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    assert!(app.session.wallets.is_empty() && app.session.keys.is_empty());
+}
+
+#[test]
+fn select_all_and_load_ticked_loads_every_wallet_and_every_key() {
+    let mut app = demo_app();
+    open(&mut app);
+    app.press(Action::SamplesAll);
+    app.press(Action::SamplesLoad);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.session.wallets.len(), SAMPLES.wallets.len());
+    // Every key the sheet lists, and the five the 3 of 5 uses.
+    assert_eq!(app.session.keys.len(), listed().len() + 5);
+    for k in listed() {
+        assert!(held(&app, k.plain.expect("a key")), "{}", k.name);
+    }
+    let toast = app.toast_text().expect("a toast").to_string();
+    assert!(toast.starts_with("Loaded 13 wallets and "), "{toast}");
+    // Everything is loaded: the sheet has nothing left to tick.
+    open(&mut app);
+    app.press(Action::SamplesAll);
+    app.press(Action::SamplesLoad);
+    assert_eq!(app.sheet, Some(Sheet::Samples));
+}
+
+#[test]
+fn new_keys_next_sample_skips_one_the_sheet_loaded() {
+    let mut app = demo_app();
+    let first = |app: &Faraday| app.session.keys.next_handout(24).map(|(w, _)| w);
+    assert_eq!(first(&app), Some("bacon"));
+    open(&mut app);
+    load(&mut app, &[key_pick("sample_words", "bacon")]);
+    assert_eq!(first(&app), Some("flag"));
+}
+
+#[test]
+fn on_testnet_and_on_the_stick_no_pill_shows_and_the_action_does_nothing() {
+    // Testnet: samples are set, Demo is not on.
+    let mut app = testkit::started();
+    testkit::move_to(&mut app.session, Network::Testnet).expect("testnet");
+    app.samples = Some(&SAMPLES);
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    assert!(!app.offers(Action::Samples));
+    app.press(Action::Samples);
+    assert_eq!(app.sheet, None);
+    // The stick: Mainnet, no samples.
+    let mut stick = testkit::started();
+    let _ = stick.frame();
+    assert!(!stick.offers(Action::Samples));
+    stick.press(Action::Samples);
+    assert_eq!(stick.sheet, None);
+    // Demo with no samples set has no pill either.
+    let mut bare = demo_app();
+    bare.samples = None;
+    let _ = bare.frame();
+    assert!(!bare.offers(Action::Samples));
+    bare.press(Action::Samples);
+    assert_eq!(bare.sheet, None);
+}
+
+#[test]
+fn every_sample_has_a_name_a_person_reads() {
+    use faraday_core::samples::label;
+    for k in SAMPLES.keys {
+        assert!(label(k.name, k.word, k.count).is_some(), "{}", k.name);
+    }
+    for w in SAMPLES.wallets {
+        assert!(label(w.name, "", 0).is_some(), "{}", w.name);
+    }
+    assert_eq!(
+        label("sample_words", "bacon", 24).as_deref(),
+        Some("bacon ×24")
+    );
+}

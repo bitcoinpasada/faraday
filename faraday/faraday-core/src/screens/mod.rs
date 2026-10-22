@@ -213,6 +213,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::PassphraseSeeds => crate::vault::load_screen::pass_seeds(app, ui, w, h),
             Sheet::GpgSign => crate::vault::screen::gpg_sign_sheet(app, ui, w, h),
             Sheet::Mode => crate::modes::screen::sheet(app, ui, w, h),
+            Sheet::Samples => crate::samples::screen::sheet(app, ui, w, h),
         }
         ui.oy = 0.0;
     }

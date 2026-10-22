@@ -1919,7 +1919,7 @@ fn public_files(
             ));
         }
     }
-    let more = crate::public_more_files(wl)
+    let more = crate::wallet_backup::public_more_files(wl)
         .into_iter()
         .map(|(what, file)| {
             let (name, detail) = match what {

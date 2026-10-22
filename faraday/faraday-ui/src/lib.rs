@@ -2295,11 +2295,13 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         rows.len() as f32 * rh
     }
 
-    /// A checkbox.
+    /// A checkbox. One ticked and not enabled shows its tick dimmed: it is
+    /// done, and a press does not undo it.
     pub fn checkbox(&mut self, x: f32, y: f32, on: bool, enabled: bool) {
-        if on && enabled {
-            self.fill(x, y, 18.0, 18.0, 4.0, ACCENT);
-            self.icon(x, y, 18.0, Icon::Done, 11.0, ON_ACCENT);
+        if on {
+            self.fill(x, y, 18.0, 18.0, 4.0, if enabled { ACCENT } else { INNER });
+            let tick = if enabled { ON_ACCENT } else { DIM };
+            self.icon(x, y, 18.0, Icon::Done, 11.0, tick);
         } else {
             self.stroke(x, y, 18.0, 18.0, 4.0, if enabled { MUTED } else { INNER });
         }

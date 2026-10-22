@@ -117,8 +117,10 @@ public values work; only the actions in the table are disabled.
 - **Keys**: typing, scanning or reading a public seed in any form (words,
   SeedQR, CompactSeedQR, SLIP-39 shares, Seed XOR parts, codex32, an
   encrypted backup), refused unless it is a
-  public seed (F20); a passphrase field, ignored (F20); Explore; Account
-  key; the key's page.
+  public seed (F20); a passphrase field, ignored (F20); **Load samples**,
+  the pill beside the Demo pill, which loads ticked sample wallets and
+  sample keys in every form, with the wallets' own keys (F81, `docs/MODES.md`
+  §3 and §10 M6); Explore; Account key; the key's page.
 - **New key**: every length and source (dice, coins, cards, hex,
   camera, the generator, a mix), its words and quiz; Lock in adds the
   next public seed in place of the key made (§5.1).

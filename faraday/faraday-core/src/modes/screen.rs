@@ -12,6 +12,7 @@ use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::network_name;
+use faraday_draw::Color;
 use faraday_draw::tokens::{
     CAPTION, GAP, LABEL, MODE_PILL_HEIGHT, MODE_PILL_PAD, MODE_ROW, MODE_SHEET_WIDTH, PAD, TITLE,
 };
@@ -30,29 +31,68 @@ fn pill_label(app: &View) -> &'static str {
     }
 }
 
-/// The pill's width, for a row that makes room for it.
-pub(crate) fn pill_width(app: &View, ui: &Ui) -> f32 {
+/// The mode pill's own width.
+fn mode_width(app: &View, ui: &Ui) -> f32 {
     ui.measure(CAPTION, W::S, pill_label(app)) + 2.0 * MODE_PILL_PAD
 }
 
-/// The caution pill at (`px`, `py`): the mode, pressed to open the sheet.
-/// Returns its width.
-pub(crate) fn pill(app: &View, ui: &mut Ui, px: f32, py: f32) -> f32 {
-    let pw = pill_width(app, ui);
+/// The Load samples pill's label: short on the compact bar and Home.
+fn samples_label(ui: &Ui) -> &'static str {
+    if ui.compact {
+        EN.samples_pill_short
+    } else {
+        EN.samples_pill
+    }
+}
+
+/// The Load samples pill's width, with the gap that sets it off the mode
+/// pill; none where the pill is not on (Demo with samples set).
+fn samples_width(app: &View, ui: &Ui) -> f32 {
+    if !app.samples_on() {
+        return 0.0;
+    }
+    ui.measure(CAPTION, W::S, samples_label(ui)) + 2.0 * MODE_PILL_PAD + GAP
+}
+
+/// The pills' width, for a row that makes room for them: the mode pill
+/// and, in Demo with samples set, the Load samples pill and its gap.
+pub(crate) fn pill_width(app: &View, ui: &Ui) -> f32 {
+    samples_width(app, ui) + mode_width(app, ui)
+}
+
+/// One pill at (`px`, `py`), `pw` wide, in `tone`, pressed for `action`.
+fn chip(ui: &mut Ui, (px, py, pw): (f32, f32, f32), label: &str, tone: Color, action: Action) {
     let h = MODE_PILL_HEIGHT;
-    ui.fill(px, py, pw, h, h / 2.0, WARN.with_alpha(30));
-    ui.stroke(px, py, pw, h, h / 2.0, WARN.with_alpha(110));
-    ui.text_mid(
-        px + MODE_PILL_PAD,
-        py,
-        h,
-        CAPTION,
-        W::S,
-        WARN,
+    ui.fill(px, py, pw, h, h / 2.0, tone.with_alpha(30));
+    ui.stroke(px, py, pw, h, h / 2.0, tone.with_alpha(110));
+    ui.text_mid(px + MODE_PILL_PAD, py, h, CAPTION, W::S, tone, label);
+    ui.hit(px, py, pw, h, action);
+}
+
+/// The pills at (`px`, `py`): in Demo with samples set, Load samples in
+/// the accent tone (an action) and the caution pill beside it, a gap
+/// between, same height and shape; else the caution pill alone. The
+/// caution pill names the mode and opens the sheet. Returns their width.
+pub(crate) fn pill(app: &View, ui: &mut Ui, px: f32, py: f32) -> f32 {
+    let sw = samples_width(app, ui);
+    if sw > 0.0 {
+        chip(
+            ui,
+            (px, py, sw - GAP),
+            samples_label(ui),
+            ACCENT,
+            Action::Samples,
+        );
+    }
+    let mw = mode_width(app, ui);
+    chip(
+        ui,
+        (px + sw, py, mw),
         pill_label(app),
+        WARN,
+        Action::ModeSheet,
     );
-    ui.hit(px, py, pw, h, Action::ModeSheet);
-    pw
+    sw + mw
 }
 
 /// Settings' Mode row: "Mode" and the mode's name, a chevron; it opens
@@ -86,28 +126,42 @@ pub(crate) fn settings_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
 /// now at the foot. Wide, centred at most the Load sheet's width; compact,
 /// as the Load sheet is.
 pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let place = if ui.compact {
-        ((GAP, w - 2.0 * GAP), GAP, PAD)
-    } else {
-        let sw = (w - 3.0 * PAD).min(MODE_SHEET_WIDTH);
-        (((w - sw) / 2.0, sw), 2.0 * PAD, 2.0 * PAD)
-    };
+    let place = place(ui, w);
     scroll_sheet(ui, place.0, h, place.1, place.2, &mut |ui, x, y, iw| {
         body(app, ui, x, y, iw)
     });
 }
 
+/// Where a sheet of this width sits: its left edge and width, its margin
+/// and its padding. Wide, centred at most the Load sheet's width; compact,
+/// as the Load sheet is.
+pub(crate) fn place(ui: &Ui, w: f32) -> ((f32, f32), f32, f32) {
+    if ui.compact {
+        ((GAP, w - 2.0 * GAP), GAP, PAD)
+    } else {
+        let sw = (w - 3.0 * PAD).min(MODE_SHEET_WIDTH);
+        (((w - sw) / 2.0, sw), 2.0 * PAD, 2.0 * PAD)
+    }
+}
+
+/// A sheet's title with its icon: the compact head, or the wide one, which
+/// is larger. Returns its height. Shared by the sheets of this area and of
+/// Load samples.
+pub(crate) fn head(ui: &mut Ui, (x, y, w): (f32, f32, f32), icon: Icon, title: &str) -> f32 {
+    if ui.compact {
+        sheet_head(ui, x, y, w, icon, ACCENT, title)
+    } else {
+        ui.icon(x, y, 30.0, icon, 18.0, ACCENT);
+        let t = ui.fit(TITLE, W::S, title, w - 42.0);
+        ui.text_mid(x + 42.0, y, 30.0, TITLE, W::S, TEXT, &t);
+        46.0
+    }
+}
+
 /// The title, the rows and Not now. Returns its height.
 fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    cy += if ui.compact {
-        sheet_head(ui, x, cy, w, Icon::Settings, ACCENT, EN.mode_sheet_title)
-    } else {
-        ui.icon(x, cy, 30.0, Icon::Settings, 18.0, ACCENT);
-        let t = ui.fit(TITLE, W::S, EN.mode_sheet_title, w - 42.0);
-        ui.text_mid(x + 42.0, cy, 30.0, TITLE, W::S, TEXT, &t);
-        46.0
-    };
+    cy += head(ui, (x, cy, w), Icon::Settings, EN.mode_sheet_title);
     let (now, fixed) = (app.mode(), app.session.keys.network_fixed());
     let modes = app.modes();
     for (i, &m) in modes.iter().enumerate() {

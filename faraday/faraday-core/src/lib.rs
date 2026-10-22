@@ -57,7 +57,7 @@
 //! - Sticks, boot and files: `upgrade`, `transfer` (the desktop as the
 //!   device's QR link), `names` (the Starter's install names),
 //!   `secure_boot/state.rs`.
-//! - Support: `wordlist`, `learn`, `modes` (F81, with `modes/screen.rs`), `samples`, `tools`, `testkit`.
+//! - Support: `wordlist`, `learn`, `modes` (F81, with `modes/screen.rs`), `samples` (with `samples/screen.rs`), `tools`, `testkit`.
 //!
 //! `Faraday::act_inner` is the dispatch for presses: it runs the checks that
 //! come before any action, then sends each `Action` to its area's
@@ -678,6 +678,8 @@ pub enum Sheet {
     /// **Mode**, from the pill or Settings' Mode row: the modes this app
     /// offers, the one in use marked (F81, `modes/screen.rs`).
     Mode,
+    /// **Load samples**, from the Demo pill's neighbour (`samples/screen.rs`).
+    Samples,
 }
 
 /// A description's first receive address on a network, or why there is
@@ -1641,6 +1643,10 @@ pub struct Faraday {
     pub devices: devices::DeviceCheck,
     /// The mode a lock in progress ends in; cleared when it is not gone through.
     next_mode: Option<Mode>,
+    /// The samples Demo offers, set by the desktop; none elsewhere.
+    pub samples: Option<&'static samples::Samples>,
+    /// The Load samples sheet's rows (`samples::SheetState`).
+    sample_sheet: samples::SheetState,
     /// The backup flows, at most one on screen (`docs/BACKUP-FLOW.md` §7).
     pub backup_flows: Vec<backup_flow::BackupFlow>,
     /// The flow on screen.
@@ -1855,6 +1861,8 @@ impl Faraday {
             maker_model: String::new(),
             devices: devices::DeviceCheck::default(),
             next_mode: None,
+            samples: None,
+            sample_sheet: samples::SheetState::default(),
             backup_flows: Vec::new(),
             flow_on: None,
             stick_problems: Vec::new(),
@@ -3676,6 +3684,10 @@ impl Faraday {
             | Action::DevicesCheck
             | Action::DevicesContinue
             | Action::DevicesUnderstood) => self.devices_act(a),
+            a @ (Action::Samples
+            | Action::SampleTick(..)
+            | Action::SamplesAll
+            | Action::SamplesLoad) => self.samples_act(a),
             a @ (Action::RFromVault(..)
             | Action::RestoreWallet
             | Action::RStep(..)
@@ -4295,7 +4307,7 @@ impl Faraday {
         let more = n == Some(bstep::PUBLIC)
             && self.backup.as_ref().is_some_and(|b| {
                 self.session.wallets.get(b.wallet).is_some_and(|w| {
-                    public_more_files(w)
+                    wallet_backup::public_more_files(w)
                         .iter()
                         .any(|(_, f)| self.outbox.iter().any(|i| i.name == *f))
                 })
@@ -5252,7 +5264,7 @@ impl Faraday {
     /// sheet, 4 the split shares, 5 the wallet .json, 6 the BIP 129
     /// descriptor record, 7 Bitcoin Core's `importdescriptors` file, 8 the
     /// descriptor's code as a labelled picture; under More options
-    /// ([`public_more_files`]), 9 Bitcoin Core's import for Core before
+    /// ([`wallet_backup::public_more_files`]), 9 Bitcoin Core's import for Core before
     /// 29, 10 the Electrum wallet file, 11 the Caravan config, 13 the
     /// Wasabi file (`docs/INTEROP.md` §5 I4; 12 is Specter DIY's, I8).
     pub(crate) fn public_out(&mut self, wallet: usize, what: u8) {
@@ -9386,30 +9398,6 @@ pub fn file_stem(name: &str) -> String {
         .collect()
 }
 
-/// The public files of wallet `w` that are under Public files' More
-/// options (F64, `docs/INTEROP.md` §5 I4), as [`Faraday::public_out`]
-/// numbers them, each with its file's name: Bitcoin Core before 29, the
-/// Electrum wallet file, the Caravan config and the Wasabi file, where
-/// the wallet has each.
-pub(crate) fn public_more_files(w: &wallet::Wallet) -> Vec<(u8, String)> {
-    let stem = file_stem(&w.name);
-    let p = w.policy();
-    [
-        (
-            9,
-            faraday_bip::core_import::writes_pair(p),
-            "bitcoin-core-before-29",
-        ),
-        (10, faraday_intake::electrum::writes(p), "electrum"),
-        (11, faraday_intake::caravan::writes(p), "caravan"),
-        (13, faraday_intake::single_key::wasabi_writes(p), "wasabi"),
-    ]
-    .into_iter()
-    .filter(|(_, writes, _)| *writes)
-    .map(|(what, _, file)| (what, format!("{stem}-{file}.json")))
-    .collect()
-}
-
 /// The name a result file takes from the PSBT it came from: the stem,
 /// without an `-unsigned` the coordinator put on it.
 pub fn result_stem(source: &str) -> String {
@@ -9421,8 +9409,6 @@ pub fn result_stem(source: &str) -> String {
         .unwrap_or(s)
 }
 
-/// Whether pressing `a` is pressing a text field, which a second press
-/// or a drag selects all of.
 /// What a press leaves for the tick after the frame that shows it
 /// (`docs/SPEED.md` §9).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -9463,6 +9449,7 @@ fn slow(a: Action) -> bool {
             | Action::LResolve
             | Action::LoadKey(_)
             | Action::Lock
+            | Action::SamplesLoad
             | Action::PLoad
             | Action::PotentialMake
             | Action::SecretUnprotected

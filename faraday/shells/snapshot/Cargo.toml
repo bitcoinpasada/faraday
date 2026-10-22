@@ -14,6 +14,8 @@ faraday-storage = { path = "../../faraday-storage" }
 faraday-qr = { path = "../../faraday-qr" }
 faraday-bip = { path = "../../../core/faraday-bip" }
 faraday-keys = { path = "../../faraday-keys" }
+# The real samples, for the modes tour (a tool, not a shipped binary).
+faraday-samples = { path = "../../faraday-samples" }
 faraday-crypto = { path = "../../../core/faraday-crypto" }
 faraday-vault = { path = "../../faraday-vault" }
 faraday-sb = { path = "../../faraday-sb" }

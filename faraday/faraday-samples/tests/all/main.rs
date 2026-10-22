@@ -6,5 +6,6 @@ mod common;
 mod files;
 mod handouts;
 mod keys;
+mod load;
 mod vectors;
 mod wallets;

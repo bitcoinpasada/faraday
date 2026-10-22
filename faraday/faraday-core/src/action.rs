@@ -214,6 +214,15 @@ pub enum Action {
     Mode(crate::modes::Mode),
     /// Open the mode sheet: the pill, or Settings' Mode row.
     ModeSheet,
+    /// Open Load samples: its pill, in Demo with samples set (F81).
+    Samples,
+    /// Tick or untick a row of the Load samples sheet.
+    SampleTick(crate::samples::Pick),
+    /// Untick every row while any is ticked, else tick every one not
+    /// loaded.
+    SamplesAll,
+    /// Load what the Load samples sheet has ticked.
+    SamplesLoad,
     /// Close a sheet.
     Cancel,
     /// Set the display scale, in percent.

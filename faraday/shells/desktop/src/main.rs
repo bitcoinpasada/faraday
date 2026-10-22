@@ -684,6 +684,7 @@ fn desktop_app_in(mode: faraday_core::Mode) -> Faraday {
     if mode == faraday_core::Mode::Demo {
         app.session.set_demo(&faraday_samples::SAMPLES);
     }
+    app.samples = Some(&faraday_samples::SAMPLES);
     app.set_modes(faraday_core::DESKTOP_MODES);
     app
 }

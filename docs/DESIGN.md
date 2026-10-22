@@ -295,6 +295,7 @@ whole where it is read.
 | Kind | Rendering |
 |---|---|
 | Network | A caution pill naming the mode, DEMO / TESTNET / SIGNET / REGTEST; absent on mainnet. Pressing it opens the mode sheet. On Home, on every page's top row, and on every Sign review screen. |
+| Load samples | In Demo only, when the app has samples (Faraday Desktop and the website), immediately left of the Demo pill, a gap between, the same height and shape, in the accent tone: it is an action, the mode pill is a state. "Load samples", and "Samples" on the compact bar and Home. Pressing it opens the Load samples sheet. |
 | Mine | On a transaction output that pays one of the loaded keys: "MINE" (success) when the change was verified, "MINE · NOT VERIFIED" (danger) when not. Outputs to others carry no badge; there is no "recipient" badge and no "kind" row. The review's change entry carries the same success badge under the amount when every change output was derived from a loaded key, so the state is read without walking the outputs; where one was not, the entry is the state value "not verified" in the danger tone instead of an amount. |
 | State value | Backup "not verified" in the caution tone as a row value; never a badge. |
 

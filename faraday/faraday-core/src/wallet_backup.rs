@@ -29,6 +29,30 @@ use crate::{
     board, bstep, copy_check, file_stem, flow, paper, plan, qrow, qstep, ui, vault,
 };
 
+/// The public files of wallet `w` that are under Public files' More
+/// options (F64, `docs/INTEROP.md` §5 I4), as [`Faraday::public_out`]
+/// numbers them, each with its file's name: Bitcoin Core before 29, the
+/// Electrum wallet file, the Caravan config and the Wasabi file, where
+/// the wallet has each.
+pub(crate) fn public_more_files(w: &Wallet) -> Vec<(u8, String)> {
+    let stem = file_stem(&w.name);
+    let p = w.policy();
+    [
+        (
+            9,
+            faraday_bip::core_import::writes_pair(p),
+            "bitcoin-core-before-29",
+        ),
+        (10, faraday_intake::electrum::writes(p), "electrum"),
+        (11, faraday_intake::caravan::writes(p), "caravan"),
+        (13, faraday_intake::single_key::wasabi_writes(p), "wasabi"),
+    ]
+    .into_iter()
+    .filter(|(_, writes, _)| *writes)
+    .map(|(what, _, file)| (what, format!("{stem}-{file}.json")))
+    .collect()
+}
+
 /// Which keys each sheet of a split backup carries: sheet `i` carries `d`
 /// keys starting at key `i`, wrapping, where `d` is `n` less the keys each
 /// sheet leaves off (at most `m − 1`). The split plan.

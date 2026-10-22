@@ -7845,6 +7845,87 @@ pub struct Strings {
     /// The line under every field where a seed or a secret is typed, on an
     /// online shell.
     pub never_real_seed: &'static str,
+    // ----- samples (faraday-core/src/samples/) -----
+    /// The Load samples pill, on the wide layout.
+    pub samples_pill: &'static str,
+    /// The Load samples pill, on the compact bar and Home.
+    pub samples_pill_short: &'static str,
+    /// Title of the Load samples sheet.
+    pub samples_title: &'static str,
+    /// Heading of the sample wallets in Load samples.
+    pub samples_wallets: &'static str,
+    /// Heading of the sample keys in Load samples.
+    pub samples_keys: &'static str,
+    /// Link in Load samples while none is ticked.
+    pub samples_select_all: &'static str,
+    /// Link in Load samples while any is ticked.
+    pub samples_unselect_all: &'static str,
+    /// Button in Load samples.
+    pub samples_not_now: &'static str,
+    /// Button in Load samples.
+    pub samples_load: &'static str,
+    /// Line in Load samples.
+    pub samples_password: &'static str,
+    /// Toast after Load ticked. `{}`: what loaded, made of `samples_n_*`.
+    pub samples_loaded: &'static str,
+    /// Text in `loaded_text`. `{}`: how many.
+    pub samples_n_wallet: &'static str,
+    /// Text in `loaded_text`. `{}`: how many.
+    pub samples_n_wallets: &'static str,
+    /// Text in `loaded_text`. `{}`: how many.
+    pub samples_n_key: &'static str,
+    /// Text in `loaded_text`. `{}`: how many.
+    pub samples_n_keys: &'static str,
+    /// Text in `loaded_text`. `{}`: the wallets, the keys.
+    pub samples_and: &'static str,
+    /// Where a sample wallet says it came from.
+    pub samples_source: &'static str,
+    /// Key row in Load samples.
+    pub sample_abandon: &'static str,
+    /// Key row in Load samples.
+    pub sample_japanese: &'static str,
+    /// Key row in Load samples.
+    pub sample_slip39_one: &'static str,
+    /// Key row in Load samples.
+    pub sample_slip39_two_of_three: &'static str,
+    /// Key row in Load samples.
+    pub sample_slip39_groups: &'static str,
+    /// Key row in Load samples.
+    pub sample_codex32_secret: &'static str,
+    /// Key row in Load samples.
+    pub sample_codex32_shares: &'static str,
+    /// Key row in Load samples.
+    pub sample_xor: &'static str,
+    /// Key row in Load samples.
+    pub sample_backup: &'static str,
+    /// Name of the LND cipher seed sample.
+    pub sample_aezeed: &'static str,
+    /// Wallet row in Load samples.
+    pub sample_savings: &'static str,
+    /// Wallet row in Load samples.
+    pub sample_spending: &'static str,
+    /// Wallet row in Load samples.
+    pub sample_taproot: &'static str,
+    /// Wallet row in Load samples.
+    pub sample_nested: &'static str,
+    /// Wallet row in Load samples.
+    pub sample_legacy: &'static str,
+    /// Wallet row in Load samples.
+    pub sample_nested_multisig: &'static str,
+    /// Wallet row in Load samples.
+    pub sample_legacy_multisig: &'static str,
+    /// Wallet row in Load samples.
+    pub sample_taproot_multisig: &'static str,
+    /// Wallet row in Load samples.
+    pub sample_inheritance: &'static str,
+    /// Wallet row in Load samples.
+    pub sample_tree: &'static str,
+    /// Wallet row in Load samples.
+    pub sample_musig: &'static str,
+    /// Wallet row in Load samples.
+    pub sample_frost: &'static str,
+    /// Wallet row in Load samples.
+    pub sample_three_of_five: &'static str,
     // ----- wallet (faraday-core/src/wallet.rs) -----
     /// Text in `network_name`.
     pub wallet_mainnet: &'static str,
@@ -12650,6 +12731,46 @@ pub static EN: Strings = Strings {
     mode_sheet_title: "Mode",
     mode_not_now: "Not now",
     never_real_seed: "Never type a seed that holds real bitcoin here.",
+    samples_pill: "Load samples",
+    samples_pill_short: "Samples",
+    samples_title: "Load samples",
+    samples_wallets: "Wallets",
+    samples_keys: "Keys",
+    samples_select_all: "Select all",
+    samples_unselect_all: "Unselect all",
+    samples_not_now: "Not now",
+    samples_load: "Load ticked",
+    samples_password: "In Demo, every passphrase is password.",
+    samples_loaded: "Loaded {}",
+    samples_n_wallet: "{} wallet",
+    samples_n_wallets: "{} wallets",
+    samples_n_key: "{} key",
+    samples_n_keys: "{} keys",
+    samples_and: "{} and {}",
+    samples_source: "Sample",
+    sample_abandon: "abandon … about",
+    sample_japanese: "Japanese words",
+    sample_slip39_one: "SLIP-39, one share",
+    sample_slip39_two_of_three: "SLIP-39, 2 of 3",
+    sample_slip39_groups: "SLIP-39, groups",
+    sample_codex32_secret: "codex32 secret",
+    sample_codex32_shares: "codex32, 2 shares",
+    sample_xor: "Seed XOR, 2 parts",
+    sample_backup: "Encrypted backup",
+    sample_aezeed: "LND cipher seed",
+    sample_savings: "Savings",
+    sample_spending: "Spending",
+    sample_taproot: "Taproot",
+    sample_nested: "Nested SegWit",
+    sample_legacy: "Legacy",
+    sample_nested_multisig: "Nested multisig",
+    sample_legacy_multisig: "Legacy multisig",
+    sample_taproot_multisig: "Taproot multisig",
+    sample_inheritance: "Inheritance",
+    sample_tree: "Taproot tree",
+    sample_musig: "MuSig2",
+    sample_frost: "FROST 2 of 3",
+    sample_three_of_five: "3 of 5",
     wallet_mainnet: "Mainnet",
     wallet_testnet: "Testnet",
     wallet_signet: "Signet",

@@ -329,16 +329,20 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // The pill takes the name's end where the two do not fit: the name
     // goes without "Desktop".
     let (nx, ny) = (M + 28.0, y + 6.0);
-    if pill
-        && nx
-            + crate::compact::screen::measured(ui, |ui| {
-                ui.wordmark_named(nx, ny, 11.0, TEXT, suffix)
-            })
-            > w - M - pw - faraday_draw::tokens::GAP
-    {
+    let room = w - M - pw - faraday_draw::tokens::GAP;
+    let fits = |ui: &mut Ui, suffix| {
+        nx + crate::compact::screen::measured(ui, |ui| {
+            ui.wordmark_named(nx, ny, 11.0, TEXT, suffix)
+        }) <= room
+    };
+    if pill && !fits(ui, suffix) {
         suffix = crate::ui::NameSuffix::None;
     }
-    ui.wordmark_named(nx, ny, 11.0, TEXT, suffix);
+    // With Load samples beside it the pair leaves no room for the name:
+    // the mark stands alone.
+    if fits(ui, suffix) {
+        ui.wordmark_named(nx, ny, 11.0, TEXT, suffix);
+    }
     if pill {
         crate::modes::screen::pill(app, ui, w - M - pw, y - 2.0);
     }
