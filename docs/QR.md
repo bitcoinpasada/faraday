@@ -582,12 +582,11 @@ shells'. DESIGN §4.9 Scanner is the design they meet. No torch (DESIGN
    tile is dimmed or the scanner is closed.
 6. **Camera failures.** If no frame arrives `NO_PICTURE_MS` (6 s) after
    the sheet opens, the square says "The camera sends no picture". A
-   frame arriving later clears it. A webcam's first stream after it
-   wakes must not leave the sheet without a picture: every Linux shell
-   skips a frame the driver marks damaged or writes short
-   (`faraday-v4l2`) rather than ending the capture, and the desktop
-   shell on Linux starts a capture again, once, when it ends or sends
-   nothing for 3 s before its first frame. `faraday-shell-api` gains
+   frame arriving later clears it. Every Linux shell skips a frame the
+   driver marks damaged or writes short (`faraday-v4l2`) rather than
+   ending the capture, and the desktop shell on Linux sends
+   `CameraUnavailable` when a capture ends on its own.
+   `faraday-shell-api` gains
    `Event::CameraFailed(CameraFailure)`, which a shell that knows why
    sends in place of `CameraUnavailable`. Its kinds and lines are
    `Refused` "The camera was refused", `InUse` "The camera is in use by

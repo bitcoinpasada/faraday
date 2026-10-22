@@ -19,12 +19,6 @@
 //! is why `on` returning `Ok` is not a promise of frames, on any
 //! platform.
 //!
-//! On Linux a webcam's first stream after it wakes may end, or stay
-//! silent, where a second one opened straight after streams. So a
-//! capture that ends or sends nothing for three seconds before its
-//! first frame is started again, once for each `CameraOn`; a capture
-//! that ends after that tells the app.
-//!
 //! Every platform presents the same three calls, so the command match in
 //! the shells (the desktop app's and the Starter's) has no `#[cfg]` in it.
 
@@ -164,12 +158,11 @@ use linux::Inner;
 
 #[cfg(target_os = "linux")]
 mod linux {
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::mpsc::{Receiver, TryRecvError, sync_channel};
     use std::thread::JoinHandle;
-    use std::time::{Duration, Instant};
 
     use faraday_shell_api::{CameraFailure, Event};
     use faraday_v4l2::{Camera as Device, Failure, Frame, MAX_FPS, Size};
@@ -190,92 +183,25 @@ mod linux {
     /// core reached it.
     const QUEUE: usize = 2;
 
-    /// How long a capture may stay silent after it starts before it is
-    /// started again, once. A webcam's first stream after it wakes can
-    /// end or stay silent where a second one, opened straight after,
-    /// streams. This is half the app's own wait before it says the
-    /// camera sends no picture (`NO_PICTURE_MS`, `docs/QR.md` §8 item
-    /// 6), so the second stream has time to show a frame before then.
-    const FIRST_FRAME: Duration = Duration::from_secs(3);
-
-    /// A running capture: the thread, its stop flag, the frames, when it
-    /// started and whether a frame has come from it yet.
+    /// A running capture: the thread, its stop flag, and the frames.
     struct Session {
         frames: Receiver<Frame>,
         stop: Arc<AtomicBool>,
         thread: JoinHandle<()>,
-        started: Instant,
-        seen: bool,
     }
-
-    impl Session {
-        /// A capture just started, on `thread`, posting to `frames`.
-        fn new(frames: Receiver<Frame>, stop: Arc<AtomicBool>, thread: JoinHandle<()>) -> Session {
-            Session {
-                frames,
-                stop,
-                thread,
-                started: Instant::now(),
-                seen: false,
-            }
-        }
-    }
-
-    /// What starts a capture: of the device given, or of the camera
-    /// found when that is `None`.
-    type Start = Box<dyn FnMut(Option<&Path>) -> Result<Session, Unavailable> + Send>;
 
     pub struct Inner {
         device: Option<PathBuf>,
         disabled: bool,
         session: Option<Session>,
-        /// Whether the capture for this `CameraOn` was started again.
-        retried: bool,
-        start: Start,
-    }
-
-    /// Costs opening a device (a format negotiated, buffers mapped, a
-    /// stream started) and a thread. V4L2 capture of `device`, or of the
-    /// camera `faraday_v4l2::find_or_failure` finds when that is `None`.
-    fn v4l2(device: Option<&Path>) -> Result<Session, Unavailable> {
-        let path = match device {
-            Some(p) => p.to_path_buf(),
-            None => faraday_v4l2::find_or_failure().map_err(|why| Unavailable {
-                reason: String::from("no /dev/video* is a streaming capture device"),
-                why: Some(reason(why)),
-            })?,
-        };
-        let device = Device::open(&path, Size::HD).map_err(|e| Unavailable {
-            reason: format!("cannot open {}: {e}", path.display()),
-            why: Failure::of_io(&e).map(reason),
-        })?;
-        let size = device.size();
-        eprintln!(
-            "camera {}: {} {}x{}, up to {MAX_FPS} frames a second",
-            path.display(),
-            device.format(),
-            size.width,
-            size.height
-        );
-        let (tx, frames) = sync_channel(QUEUE);
-        let stop = Arc::new(AtomicBool::new(false));
-        let thread = faraday_v4l2::spawn(device, tx, Arc::clone(&stop));
-        Ok(Session::new(frames, stop, thread))
     }
 
     impl Inner {
         pub fn new(device: Option<PathBuf>, disabled: bool) -> Inner {
-            Inner::with_start(device, disabled, Box::new(v4l2))
-        }
-
-        /// An `Inner` whose captures `start` starts.
-        fn with_start(device: Option<PathBuf>, disabled: bool, start: Start) -> Inner {
             Inner {
                 device,
                 disabled,
                 session: None,
-                retried: false,
-                start,
             }
         }
 
@@ -286,8 +212,33 @@ mod linux {
             if self.session.is_some() {
                 return Ok(());
             }
-            self.retried = false;
-            self.session = Some((self.start)(self.device.as_deref())?);
+            let path = match &self.device {
+                Some(p) => p.clone(),
+                None => faraday_v4l2::find_or_failure().map_err(|why| Unavailable {
+                    reason: String::from("no /dev/video* is a streaming capture device"),
+                    why: Some(reason(why)),
+                })?,
+            };
+            let device = Device::open(&path, Size::HD).map_err(|e| Unavailable {
+                reason: format!("cannot open {}: {e}", path.display()),
+                why: Failure::of_io(&e).map(reason),
+            })?;
+            let size = device.size();
+            eprintln!(
+                "camera {}: {} {}x{}, up to {MAX_FPS} frames a second",
+                path.display(),
+                device.format(),
+                size.width,
+                size.height
+            );
+            let (tx, frames) = sync_channel(QUEUE);
+            let stop = Arc::new(AtomicBool::new(false));
+            let thread = faraday_v4l2::spawn(device, tx, Arc::clone(&stop));
+            self.session = Some(Session {
+                frames,
+                stop,
+                thread,
+            });
             Ok(())
         }
 
@@ -312,188 +263,24 @@ mod linux {
         }
 
         pub fn poll(&mut self) -> Option<Event> {
-            self.poll_at(Instant::now())
-        }
-
-        /// [`Inner::poll`] at `now`. A capture that ends, or stays
-        /// silent for [`FIRST_FRAME`], before its first frame is started
-        /// again, once for each `CameraOn`; one that ends after that
-        /// tells the app, and turns off so a later `CameraOn` tries
-        /// again.
-        fn poll_at(&mut self, now: Instant) -> Option<Event> {
-            let session = self.session.as_mut()?;
-            let first = !session.seen && !self.retried;
+            let session = self.session.as_ref()?;
             match session.frames.try_recv() {
-                Ok(f) => {
-                    session.seen = true;
-                    Some(Event::CameraFrame {
-                        width: f.width,
-                        height: f.height,
-                        luma: f.luma,
-                        chroma: f.chroma,
-                    })
-                }
-                Err(TryRecvError::Empty) => {
-                    if first && now.saturating_duration_since(session.started) >= FIRST_FRAME {
-                        eprintln!("camera: no frame yet; starting the capture again");
-                        return self.again();
-                    }
-                    None
-                }
+                Ok(f) => Some(Event::CameraFrame {
+                    width: f.width,
+                    height: f.height,
+                    luma: f.luma,
+                    chroma: f.chroma,
+                }),
+                Err(TryRecvError::Empty) => None,
                 // The capture thread ended on its own: the device failed
-                // or is gone.
+                // or is gone. Tell the app, and tidy up so a later
+                // CameraOn tries again.
                 Err(TryRecvError::Disconnected) => {
-                    if first {
-                        eprintln!(
-                            "camera: the capture ended before its first frame; starting again"
-                        );
-                        return self.again();
-                    }
                     eprintln!("camera: the device stopped delivering frames");
                     self.off();
                     Some(Event::CameraUnavailable)
                 }
             }
-        }
-
-        /// Stops the capture and starts it again; the event to send the
-        /// app when it will not start.
-        fn again(&mut self) -> Option<Event> {
-            self.off();
-            self.retried = true;
-            match (self.start)(self.device.as_deref()) {
-                Ok(session) => {
-                    self.session = Some(session);
-                    None
-                }
-                Err(reason) => {
-                    eprintln!("faraday: camera unavailable: {reason}");
-                    Some(reason.event())
-                }
-            }
-        }
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use std::sync::atomic::AtomicUsize;
-        use std::sync::mpsc::SyncSender;
-
-        use super::*;
-
-        /// A frame as a camera would send it.
-        fn frame() -> Frame {
-            Frame {
-                width: 64,
-                height: 48,
-                luma: vec![120; 64 * 48],
-                chroma: None,
-            }
-        }
-
-        /// A fake camera: the `n`th capture started (from 0) runs
-        /// `stream` on its own thread until stopped. Counts the starts.
-        fn fake(stream: fn(usize, &SyncSender<Frame>, &AtomicBool)) -> (Inner, Arc<AtomicUsize>) {
-            let starts = Arc::new(AtomicUsize::new(0));
-            let counted = Arc::clone(&starts);
-            let start: Start = Box::new(move |_| {
-                let n = counted.fetch_add(1, Ordering::SeqCst);
-                let (tx, frames) = sync_channel(QUEUE);
-                let stop = Arc::new(AtomicBool::new(false));
-                let flag = Arc::clone(&stop);
-                let thread = std::thread::spawn(move || stream(n, &tx, &flag));
-                Ok(Session::new(frames, stop, thread))
-            });
-            (Inner::with_start(None, false, start), starts)
-        }
-
-        /// Sends a frame every few milliseconds until stopped.
-        fn streams(tx: &SyncSender<Frame>, stop: &AtomicBool) {
-            while !stop.load(Ordering::Relaxed) {
-                let _ = tx.try_send(frame());
-                std::thread::sleep(Duration::from_millis(5));
-            }
-        }
-
-        /// Sends nothing until stopped.
-        fn silent(stop: &AtomicBool) {
-            while !stop.load(Ordering::Relaxed) {
-                std::thread::sleep(Duration::from_millis(5));
-            }
-        }
-
-        /// Polls for up to two seconds, at `at` past now, for the first
-        /// event.
-        fn first_event(inner: &mut Inner, at: Duration) -> Option<Event> {
-            for _ in 0..400 {
-                if let Some(e) = inner.poll_at(Instant::now() + at) {
-                    return Some(e);
-                }
-                std::thread::sleep(Duration::from_millis(5));
-            }
-            None
-        }
-
-        #[test]
-        fn a_first_stream_that_ends_without_a_frame_is_started_again() {
-            let (mut inner, starts) = fake(|n, tx, stop| {
-                if n > 0 {
-                    streams(tx, stop);
-                }
-            });
-            assert!(inner.on().is_ok());
-            let e = first_event(&mut inner, Duration::ZERO);
-            assert!(
-                matches!(e, Some(Event::CameraFrame { .. })),
-                "no picture: {e:?}"
-            );
-            assert_eq!(starts.load(Ordering::SeqCst), 2);
-            inner.off();
-        }
-
-        #[test]
-        fn a_first_stream_that_stays_silent_is_started_again_once() {
-            let (mut inner, starts) = fake(|n, tx, stop| {
-                if n == 1 {
-                    streams(tx, stop);
-                } else {
-                    silent(stop);
-                }
-            });
-            assert!(inner.on().is_ok());
-            // Silent, but not for long yet: left alone.
-            assert!(inner.poll_at(Instant::now()).is_none());
-            assert_eq!(starts.load(Ordering::SeqCst), 1);
-            let e = first_event(&mut inner, FIRST_FRAME);
-            assert!(
-                matches!(e, Some(Event::CameraFrame { .. })),
-                "no picture: {e:?}"
-            );
-            assert_eq!(starts.load(Ordering::SeqCst), 2);
-            inner.off();
-
-            // A second request starts afresh, and a camera that stays
-            // silent then is started again once only: the app says it
-            // sends no picture.
-            assert!(inner.on().is_ok());
-            for _ in 0..5 {
-                assert!(inner.poll_at(Instant::now() + FIRST_FRAME * 4).is_none());
-            }
-            assert_eq!(starts.load(Ordering::SeqCst), 4);
-            inner.off();
-        }
-
-        #[test]
-        fn a_stream_that_ends_after_its_frames_tells_the_app() {
-            let (mut inner, starts) = fake(|_, tx, _| {
-                let _ = tx.try_send(frame());
-            });
-            assert!(inner.on().is_ok());
-            let e = first_event(&mut inner, Duration::ZERO);
-            assert!(matches!(e, Some(Event::CameraFrame { .. })));
-            let e = first_event(&mut inner, Duration::ZERO);
-            assert!(matches!(e, Some(Event::CameraUnavailable)), "{e:?}");
-            assert_eq!(starts.load(Ordering::SeqCst), 1);
         }
     }
 }

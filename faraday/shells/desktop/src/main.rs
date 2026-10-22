@@ -405,10 +405,20 @@ impl Shell {
             for line in serve_with(app, &mut self.boxes, Some(&self.host), &mut self.dirs) {
                 eprintln!("{line}");
             }
+            // A stick pulled lets what waited under the Pull sheet carry
+            // on, and a Scan turns the camera on here.
+            let mut events = Vec::new();
             while let Some(c) = app.poll_command() {
-                if c == Command::Exit && !app.restart_requested() {
-                    event_loop.exit();
+                match c {
+                    Command::CameraOn => events.extend(self.lens.on(app)),
+                    Command::CameraOff => self.lens.off(),
+                    Command::Exit if !app.restart_requested() => event_loop.exit(),
+                    _ => {}
                 }
+            }
+            self.lens.chosen(app);
+            for e in events {
+                self.send(event_loop, e);
             }
         }
         if let Some(w) = self.window() {

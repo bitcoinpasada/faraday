@@ -495,9 +495,8 @@ fn a_camera_that_sends_no_picture_is_said_to() {
 
 #[test]
 fn a_camera_slow_to_its_first_frame_reaches_the_picture() {
-    // A webcam whose first stream after it wakes sends nothing: the
-    // desktop shell starts it again after 3 s, and the second stream's
-    // first frame comes a second and a half later.
+    // A webcam whose first frame comes four and a half seconds after
+    // it is turned on.
     let mut app = scanning(Vec::new());
     let mut now_ms = 0;
     while now_ms < 4_500 {
