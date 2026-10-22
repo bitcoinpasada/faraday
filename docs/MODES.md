@@ -137,11 +137,21 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
   strings, the boot import's wait under it and `devices.rs`'s guard;
   `Action::Network` goes. A person can type a seed on an online computer
   in any mode, Demo included (Demo swaps it for a sample only after it
-  is typed), so a sheet on one path protects nothing. The fact is
-  stated where the app is downloaded instead: README's Faraday Desktop
-  section and the website's download page, one line, "Faraday Desktop
-  runs on an online computer: never type a seed that holds real bitcoin
-  into it. Real seeds go only into the Faraday stick."
+  is typed), so a sheet on one path protects nothing.
+- **Instead, one line at every place a secret is typed** (owner,
+  2026-10-22): on an online shell (`Faraday::online`, set by the desktop
+  and the web shells; never on the stick or the Pi), every step where a
+  seed or a secret can be typed or pasted draws one caution-tone line
+  under its field, `never_real_seed` "Never type a seed that holds real
+  bitcoin here.", in every mode, Demo included: words (BIP-39, every
+  length), a seed scanner's Type and Paste, a SLIP-39 share, a codex32
+  string, an LND cipher seed and its passphrase, hex entropy, an xprv or
+  a WIF, a BIP-39 passphrase, a vault's or a backup's passphrase where it
+  can be typed (not in Demo, where it is `password`, §6.2). A statement
+  of fact in the caution tone, as a key card's line is (DESIGN §4.11);
+  one string, one placement rule (under the field, above the keyboard,
+  on the wide and the compact layout). Not in README or on the website's
+  download page: the app says it where it matters.
 
 **Stick and Pi** (`faraday/shells/stick/src/main.rs`): a lock is a new
 process (exit code 75, the inittab's loop). Before exiting for a lock,
@@ -427,6 +437,7 @@ the file has them.
 | `mode_sheet_title` | Mode |
 | `mode_demo` | Demo |
 | `mode_demo_pill` | Demo · Testnet |
+| `never_real_seed` | Never type a seed that holds real bitcoin here. |
 | `mode_not_now` | Not now |
 | `settings_mode` | Mode |
 | `samples_pill` | Load samples |
@@ -580,13 +591,19 @@ wallet would notice.
   `airgap_warned` gone); `faraday/faraday-core/src/screens/sheets.rs`
   (`not_airgapped_sheet` gone) and screens/mod.rs's routing of it;
   `faraday/faraday-core/src/boot_import/mod.rs` (no wait under it);
-  `faraday/faraday-strings/src/en.rs` (`test_network_*` gone); README's
-  Faraday Desktop section (the one line of §4).
+  `faraday/faraday-strings/src/en.rs` (`test_network_*` gone,
+  `never_real_seed` added); `Faraday::online` (lib.rs), set in
+  `faraday/shells/desktop/src/main.rs`; the line drawn at every step §4
+  lists (seeds/, keygen/, scan_key.rs, the entry screens for passphrases,
+  xprv, WIF, hex, SLIP-39, codex32, aezeed — find each through the
+  functions that take typed secret input).
 - **Tests** (desktop's own; tests/all/airgap.rs rewritten as the rule
   "no warning"): every build opens in Demo with no sheet; a release
   build leaving Demo for Testnet goes straight to Testnet in a fresh
   session; a lock in Testnet comes back in Testnet; the boot import
-  offers its files at once on every build.
+  offers its files at once on every build; on an online app every
+  secret-typing step shows the line, in Demo and on Testnet, and on the
+  stick none does.
 - **Docs**: README's Faraday Desktop section (starts in Demo; Testnet,
   Signet, Regtest from the pill); DEMO §1.1 and §2; `docs/STARTER.md`
   §1.1's description of the desktop file; the Learn page's "Test
@@ -725,7 +742,8 @@ wallet would notice.
 ### W1. The website
 
 §9. In the website's repository; its HANDOFF.md is the contract. The
-download page's Faraday Desktop section gains §4's one line.
+web shell sets `Faraday::online`, so §4's line shows at every
+secret-typing step there too.
 
 ## 11. Settled with the owner (2026-10-22)
 
