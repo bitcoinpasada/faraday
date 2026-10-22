@@ -93,10 +93,6 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     for _ in 0..10 {
         t.tick();
     }
-    // Back on the checklist, the printed templates and the envelopes,
-    // which nothing else marks, are pressed again.
-    t.press(Action::BNext(bstep::BLANK));
-    t.press(Action::BNext(bstep::ENVELOPE));
     let done = t
         .app
         .backup_items_now(c)

@@ -11,6 +11,7 @@ mod backup_checklist;
 mod backup_first;
 mod backup_flow;
 mod backup_flow_wallet;
+mod backup_marks;
 mod backup_plan;
 mod backup_read_back;
 mod backup_spend_reach;

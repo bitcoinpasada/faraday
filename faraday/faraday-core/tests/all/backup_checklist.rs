@@ -192,6 +192,18 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
 }
 
 #[test]
+fn a_fresh_backup_starts_with_the_templates_and_envelopes_not_done() {
+    let c = testkit::compute();
+    let mut app = device(Vec::new());
+    let w = one_key(&mut app);
+    app.press(Action::Backup(w));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
+    app.press(Action::BChecklist);
+    assert!(!app.backup_item_done_now(&c, Item::Templates));
+    assert!(!app.backup_item_done_now(&c, Item::Envelopes));
+}
+
+#[test]
 fn making_the_checklist_with_sparrow_chosen_puts_the_wallet_file_for_the_stick() {
     let c = faraday_core::testkit::compute();
     let mut app = device(Vec::new());

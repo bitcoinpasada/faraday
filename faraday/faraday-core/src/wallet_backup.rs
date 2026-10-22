@@ -581,8 +581,11 @@ impl Faraday {
                     } else {
                         24
                     };
+                    let (printed, envelopes) = self.backups_marks(i);
                     self.backup = Some(BackupState {
                         wallet: i,
+                        printed,
+                        envelopes,
                         q,
                         answers,
                         names,
@@ -750,6 +753,7 @@ impl Faraday {
                 } else {
                     items.iter().skip_while(|&&i| i != n).nth(1).copied()
                 };
+                self.backups_marked();
                 self.backup_item_open(next);
             }
             Action::BKey(k) => {

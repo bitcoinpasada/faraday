@@ -36,6 +36,13 @@ pub struct Record {
     pub checks: Vec<([u8; 4], u32)>,
     /// The descriptor was shown to the watch-only software as a code.
     pub shown: bool,
+    /// The blank templates were marked printed in this wallet's backup.
+    /// Kept with the record, as the lock drops the backup and nothing else
+    /// marks the item; kept in step by [`Faraday::backups_marked`].
+    pub printed: bool,
+    /// The envelopes were marked closed in this wallet's backup. Kept
+    /// like [`Record::printed`].
+    pub envelopes: bool,
     /// The plan's answers, as [`plan::Answers::to_text`] writes them:
     /// what the wallet's card draws its chart from once the backup is
     /// left. Empty in a record kept before it was written.
@@ -228,6 +235,13 @@ pub(crate) fn encode(all: &[Record]) -> Vec<u8> {
                 list(&s.secret)
             ));
         }
+        if r.printed || r.envelopes {
+            out.push_str(&format!(
+                "marks\t{}\t{}\n",
+                u8::from(r.printed),
+                u8::from(r.envelopes)
+            ));
+        }
         for (fp, n) in &r.checks {
             out.push_str(&format!("check\t{}\t{n}\n", hex4(*fp)));
         }
@@ -276,6 +290,12 @@ pub(crate) fn decode(bytes: &[u8]) -> Vec<Record> {
                     files: list(files),
                     secret: list(secret),
                 });
+            }
+            ["marks", printed, envelopes] => {
+                if let Some(r) = out.last_mut() {
+                    r.printed = printed == "1";
+                    r.envelopes = envelopes == "1";
+                }
             }
             ["plan", answers] => {
                 if let Some(r) = out.last_mut() {
@@ -481,6 +501,8 @@ impl Faraday {
                 spots,
                 checks: Vec::new(),
                 shown,
+                printed: false,
+                envelopes: false,
                 answers,
                 ids,
             }),
@@ -541,6 +563,34 @@ impl Faraday {
         if let Some(r) = self.backup_records.iter_mut().find(|r| r.sum == sum) {
             r.shown = true;
         }
+    }
+
+    /// The templates or the envelopes of the backup under way were marked
+    /// done by their press: the record keeps it, for a backup opened again
+    /// after a lock. The record was made when the checklist was.
+    pub(crate) fn backups_marked(&mut self) {
+        let Some((sum, printed, envelopes)) = self.backup.as_ref().and_then(|b| {
+            let w = self.session.wallets.get(b.wallet)?;
+            Some((w.checksum().to_string(), b.printed, b.envelopes))
+        }) else {
+            return;
+        };
+        if let Some(r) = self.backup_records.iter_mut().find(|r| r.sum == sum) {
+            r.printed |= printed;
+            r.envelopes |= envelopes;
+        }
+    }
+
+    /// Whether the templates and the envelopes of loaded wallet `i`'s
+    /// backup were marked done, for a backup of it opened again.
+    pub(crate) fn backups_marks(&self, i: usize) -> (bool, bool) {
+        let Some(sum) = self.session.wallets.get(i).map(|w| w.checksum()) else {
+            return (false, false);
+        };
+        self.backup_records
+            .iter()
+            .find(|r| r.sum == sum)
+            .map_or((false, false), |r| (r.printed, r.envelopes))
     }
 
     /// The seeds of loaded wallet `i` whose copy was checked this
@@ -671,6 +721,8 @@ impl Faraday {
             spots,
             checks: Vec::new(),
             shown: false,
+            printed: false,
+            envelopes: false,
             answers: String::new(),
         };
         Some(self.record_lines(c, &r, &names))

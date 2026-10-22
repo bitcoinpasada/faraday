@@ -19,7 +19,7 @@ use faraday_core::{Action, BStage, Faraday, PlanPress, Screen, Sheet, bstep, cst
 use faraday_shell_api::{App, Event, Key};
 use faraday_vault::records::kind;
 
-const PHRASE: &str = "first vault phrase";
+pub(crate) const PHRASE: &str = "first vault phrase";
 const PHRASE_2: &str = "second vault phrase";
 const PHRASE_3: &str = "third vault phrase";
 
@@ -173,7 +173,7 @@ fn vault_place(app: &Faraday, v: usize) -> usize {
         .expect("the vault's stick has a place")
 }
 
-fn step(app: &Faraday) -> Step {
+pub(crate) fn step(app: &Faraday) -> Step {
     app.flow().expect("a flow").step
 }
 
@@ -248,7 +248,7 @@ fn save_vaults(app: &mut Faraday) {
     }
 }
 
-fn restart(shell: &mut Shell, app: &mut Faraday) -> Faraday {
+pub(crate) fn restart(shell: &mut Shell, app: &mut Faraday) -> Faraday {
     shell.pump(app);
     assert!(app.restart_requested(), "locked");
     shell.restart()
@@ -279,7 +279,7 @@ fn names(shell: &Shell, d: &str) -> Vec<String> {
 /// A single key whose Vault 1 is on two sticks (S1, S2) and the
 /// descriptor on a stick of files (S3): made in Create, stopped on the
 /// checklist's Write to sticks.
-fn single_key_ready(shell: &mut Shell) -> (Faraday, usize, [u8; 4]) {
+pub(crate) fn single_key_ready(shell: &mut Shell) -> (Faraday, usize, [u8; 4]) {
     single_key(shell, false)
 }
 
@@ -310,6 +310,49 @@ fn single_key_with(
     shell: &mut Shell,
     made_here: bool,
     description_in_vault: bool,
+) -> (Faraday, usize, [u8; 4]) {
+    single_key_plan(shell, made_here, description_in_vault, false)
+}
+
+/// The stick read for Vault 1 is at its first place; the second place
+/// waits for a stick.
+fn the_flow_follows_the_two_places(app: &Faraday) {
+    let f = app.backup_flows.last().unwrap();
+    assert_eq!(f.plan.places, vec![vec![0], vec![0]]);
+    assert_eq!(f.plan.place_files, vec![1], "Place 2's stick of files");
+    let targets: Vec<Target> = f.slots.iter().map(|s| s.target).collect();
+    assert_eq!(
+        targets,
+        vec![Target::Place(0), Target::Place(1), Target::PlaceFiles(1)]
+    );
+    assert!(f.slots[0].bound.is_some(), "the stick read in the setup");
+    assert!(
+        f.slots[1].bound.is_none(),
+        "a new stick for the second copy"
+    );
+}
+
+/// The checklist that opens with the blank templates and the seed's
+/// copy: the templates marked printed, the copy typed back.
+fn templates_and_copy(app: &mut Faraday, fp: [u8; 4]) {
+    let c = testkit::compute();
+    app.press(Action::BNext(bstep::BLANK));
+    let keys = &app.session.keys;
+    let key = keys.position(faraday_bip::keys::Fingerprint(fp)).unwrap();
+    let text = keys.reveal(key, faraday_keys::Reveal::Words).to_string();
+    app.press(Action::BCheck);
+    testkit::type_words(app, &text);
+    assert!(app.backup_item_done_now(&c, Item::Copy(0)));
+}
+
+/// [`single_key_with`], with the seed's words kept on paper too when
+/// `words`: the checklist then opens with the blank templates and the
+/// seed's copy.
+pub(crate) fn single_key_plan(
+    shell: &mut Shell,
+    made_here: bool,
+    description_in_vault: bool,
+    words: bool,
 ) -> (Faraday, usize, [u8; 4]) {
     let c = testkit::compute();
     sticks(shell, 3);
@@ -350,7 +393,9 @@ fn single_key_with(
     // The seed in Vault 1 only, its stick at both places, the wallet
     // description as files at Place 2.
     second_place(&mut app);
-    no_words(&mut app);
+    if !words {
+        no_words(&mut app);
+    }
     stick_also_at(&mut app, 0, 0);
     stick_also_at(&mut app, 1, 0);
     no_paper_description(&mut app);
@@ -365,27 +410,15 @@ fn single_key_with(
     // The description's files at Place 2 are made and written with that
     // place's stick: no item of their own (`docs/BACKUP-FLOW.md` §17.12
     // item 6).
-    assert_eq!(
-        app.backup_items_now(&c),
-        vec![bstep::VAULT, bstep::ENVELOPE, bstep::STICKS]
-    );
-    {
-        // The flow follows the plan: the stick read for Vault 1 is at its
-        // first place, the second place waits for a stick.
-        let f = app.backup_flows.last().unwrap();
-        assert_eq!(f.plan.places, vec![vec![0], vec![0]]);
-        assert_eq!(f.plan.place_files, vec![1], "Place 2's stick of files");
-        let targets: Vec<Target> = f.slots.iter().map(|s| s.target).collect();
+    if words {
+        templates_and_copy(&mut app, fp);
+    } else {
         assert_eq!(
-            targets,
-            vec![Target::Place(0), Target::Place(1), Target::PlaceFiles(1)]
-        );
-        assert!(f.slots[0].bound.is_some(), "the stick read in the setup");
-        assert!(
-            f.slots[1].bound.is_none(),
-            "a new stick for the second copy"
+            app.backup_items_now(&c),
+            vec![bstep::VAULT, bstep::ENVELOPE, bstep::STICKS]
         );
     }
+    the_flow_follows_the_two_places(&app);
     assert!(!app.backup_item_done_now(&c, Item::Vault(0)));
     save_vaults(&mut app);
     assert_eq!(
@@ -1356,43 +1389,6 @@ fn the_kept_state_of_a_wallet_flow_holds_nothing_secret_and_a_state_that_does_no
 }
 
 #[test]
-fn the_done_card_unlocks_to_the_checklist_done_and_the_files_read_written_to() {
-    let c = testkit::compute();
-    let mut shell = Shell::new();
-    let (mut app, _, _) = single_key_ready(&mut shell);
-    shell.flow(&mut app, F::WalletLock);
-    let mut app = restart(&mut shell, &mut app);
-    // While the flow is left, a stick visit lists its files In the backup.
-    shell.flow(&mut app, F::Back);
-    let wrote: Vec<String> = app
-        .backup_flows
-        .iter()
-        .flat_map(|f| f.slots.iter().flat_map(|s| s.files.clone()))
-        .collect();
-    assert!(!wrote.is_empty());
-    for n in &wrote {
-        assert!(app.in_the_backup(n), "{n} is in the backup");
-    }
-    shell.flow(&mut app, F::Show(0));
-    write_sticks(&mut shell, &mut app, &["S1", "S2", "S3"]);
-    assert_eq!(step(&app), Step::Done);
-    for n in &wrote {
-        assert!(!app.in_the_backup(n), "{n} is done");
-    }
-    // Unlock: the wallet's checklist, done, with nothing For the stick.
-    shell.flow(&mut app, F::UnlockDone(0));
-    app.vaults.ms_per_unit = Some(180);
-    unlock(&mut app, PHRASE);
-    assert_eq!(app.screen, Screen::Backup, "{:?}", app.toast_text());
-    assert!(app.backup_item_done_now(&c, Item::Sticks));
-    assert!(app.outbox.is_empty());
-    // The description's files went with their stick's write, the item
-    // that says so (`docs/BACKUP-FLOW.md` §17.12 item 6).
-    expect_part(&mut app, "3 of 3 written");
-    assert!(!offered(&mut app, Action::WriteAsk), "no Write to a stick");
-}
-
-#[test]
 fn a_seed_let_out_unprotected_is_written_to_the_stick_of_files_and_to_no_other() {
     let c = faraday_core::testkit::compute();
     let mut shell = Shell::new();
@@ -1485,7 +1481,7 @@ fn seed_txt(fp: [u8; 4]) -> String {
 // ---- the review's fixes ----
 
 /// The sticks of a flow written in order, each given what it asks for.
-fn write_sticks(shell: &mut Shell, app: &mut Faraday, disks: &[&str]) {
+pub(crate) fn write_sticks(shell: &mut Shell, app: &mut Faraday, disks: &[&str]) {
     for d in disks {
         shell.plug(app, d);
         for _ in 0..3 {
