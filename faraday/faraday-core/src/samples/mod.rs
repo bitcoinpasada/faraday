@@ -13,6 +13,7 @@
 //! them in the session through the paths a typed or scanned key and wallet
 //! take (`docs/MODES.md` §5, §10 M6).
 
+pub(crate) mod put;
 pub(crate) mod screen;
 
 use crate::inbox::{Part, Secret, part_of};
@@ -269,7 +270,7 @@ impl SampleKey {
 
     /// Whether the session holds it, with no passphrase or with
     /// `password`. A lookup.
-    fn held(&self, keys: &faraday_keys::Keys) -> bool {
+    pub(crate) fn held(&self, keys: &faraday_keys::Keys) -> bool {
         [self.plain, self.with_password]
             .into_iter()
             .flatten()
@@ -421,6 +422,8 @@ impl Faraday {
                 }
             }
             Action::SamplesLoad => self.samples_load(set),
+            Action::UseSample => self.entry_use_sample(),
+            Action::ScanSample => self.scan_use_sample(),
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
         }

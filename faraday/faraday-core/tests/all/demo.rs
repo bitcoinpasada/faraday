@@ -539,7 +539,8 @@ fn lightning(app: &mut Faraday) -> [bool; 3] {
 #[test]
 fn in_the_demo_a_lightning_node_key_stays_in_faraday() {
     let mut app = app_on(true);
-    assert_eq!(lightning(&mut app), [false; 3]);
+    // The cipher seed row is open: only LND's published seed is taken.
+    assert_eq!(lightning(&mut app), [true, false, false]);
     // Show is dimmed too, and pressing it puts no private key on screen.
     assert!(!offered(&mut app, Action::LShow), "Show is offered");
     let files = app.outbox.len();
@@ -567,10 +568,11 @@ fn in_the_demo_a_lightning_node_key_stays_in_faraday() {
     }
     assert_eq!(records(&app, kind::NOTE), notes, "saved into the vault");
     assert_eq!(app.sheet, None, "no secret sheet");
+    // The cipher seed row opens (LND's published seed is the one it takes).
     app.press(Action::LAezeed);
-    assert!(
-        app.lightning.as_ref().unwrap().node.is_some(),
-        "the loaded key's node stays"
+    assert_eq!(
+        app.lightning.as_ref().unwrap().source,
+        Some(faraday_core::lightning::NodeSource::Aezeed)
     );
 
     let mut app = app_on(false);

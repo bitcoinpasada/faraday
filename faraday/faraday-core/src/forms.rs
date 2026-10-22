@@ -194,6 +194,7 @@ impl Faraday {
         };
         match result {
             Ok(()) => {
+                self.entry.sample.emptied();
                 self.entry.typed.clear();
                 self.entry.error = None;
                 // A codex32 secret is the key already: Add a key adds it,
@@ -321,6 +322,17 @@ pub fn on_screen(lang: Language) -> bool {
 /// are taken when the key is added.
 pub fn word_typer(lang: Language) -> Box<crate::word_entry::WordEntry> {
     Box::new(crate::word_entry::WordEntry::new(lang, 24))
+}
+
+/// Types `text`, words of `lang`, into `w` as a person does on the
+/// keyboard: each word's letters, then the word taken.
+pub(crate) fn type_words(w: &mut crate::word_entry::WordEntry, lang: Language, text: &str) {
+    for word in text.split_whitespace() {
+        for c in word.chars() {
+            w.type_char(c);
+        }
+        take_typed(w, lang);
+    }
 }
 
 /// A list's name.
@@ -583,5 +595,40 @@ pub(crate) fn word_key(w: WordsMut<'_>, key: faraday_shell_api::Key) -> WordKey 
         Key::Enter => WordKey::Enter,
         Key::Escape => WordKey::Escape,
         _ => WordKey::Ignored,
+    }
+}
+
+impl Faraday {
+    /// The word just typed into `entry.typed`, the way Tab completes it:
+    /// the one word of the list this form's words come from that its
+    /// letters can still become, if only one. `Codex32` has none, since
+    /// it is typed as a string, not words.
+    pub(crate) fn entry_tab_word(&self) -> Option<String> {
+        match self.entry.form {
+            Form::Words => completion(self.entry.language(), &self.entry.typed),
+            Form::Xor => completion(faraday_bip::bip39::Language::English, &self.entry.typed),
+            Form::Slip39 => slip39_completion(&self.entry.typed),
+            Form::Codex32 => None,
+        }
+    }
+
+    /// Completes the word just typed into `entry.typed`, the way Tab
+    /// does for every form that types BIP-39 or SLIP-39 words one at a
+    /// time.
+    pub(crate) fn entry_complete_word(&mut self) {
+        if let Some(word) = self.entry_tab_word() {
+            let cut = self.entry.typed.rfind(' ').map(|i| i + 1).unwrap_or(0);
+            self.entry.typed.truncate(cut);
+            self.entry.typed.push_str(&word);
+            self.entry.typed.push(' ');
+        }
+    }
+
+    /// Whether the word just typed into `entry.typed` is already whole
+    /// and the only one it can be: the point at which it moves on by
+    /// itself, the same move Tab makes for you.
+    pub(crate) fn entry_word_whole(&self) -> bool {
+        let prefix = self.entry.typed.rsplit(' ').next().unwrap_or("");
+        !prefix.is_empty() && self.entry_tab_word().as_deref() == Some(prefix)
     }
 }

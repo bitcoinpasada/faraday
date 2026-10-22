@@ -1153,7 +1153,7 @@ fn word_check(
                 lang,
                 &label,
                 status,
-                (true, c.shift),
+                (true, c.shift, false),
             );
             cy += never_real_seed(app, ui, x, cy, w);
         }

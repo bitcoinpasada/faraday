@@ -503,3 +503,58 @@ pub const MODE_SHEET_WIDTH: f32 = 640.0;
 
 /// A row of the mode sheet, and of Settings' Mode row.
 pub const MODE_ROW: f32 = 48.0;
+
+/// The chip inside an empty entry field (Use a sample): its height.
+pub const FIELD_ACTION_HEIGHT: f32 = 26.0;
+
+/// The chip inside an empty entry field: the space between the field's
+/// edge and the chip, and between the chip's edge and its label.
+pub const FIELD_ACTION_INSET: f32 = 10.0;
+
+/// The chip inside an empty entry field: the size of its label.
+pub const FIELD_ACTION_TEXT: f32 = 13.0;
+
+/// A word cell of Add a key on a wide display: its height.
+pub const ENTRY_CELL_HEIGHT: f32 = 38.0;
+
+/// Add a key's word grid on a wide display: the distance from one row to
+/// the next.
+pub const ENTRY_ROW: f32 = 46.0;
+
+/// The field where one share or part is typed on a wide display: its
+/// height.
+pub const ENTRY_FIELD_HEIGHT: f32 = 44.0;
+
+/// Corner radius of an entry field and its word cells.
+pub const FIELD_RADIUS: f32 = 8.0;
+
+/// The word being typed on a small panel: how far its row stands above the
+/// line of its label's text, so a chip in it centres on the text.
+pub const KEYED_HEAD_LIFT: f32 = 4.0;
+
+/// A cosigner's key box in the seeds piece: its height.
+pub const SEED_FIELD_HEIGHT: f32 = 40.0;
+
+/// A cosigner's key box in the seeds piece: how far it stands in from the
+/// left of the row, behind the number of its place.
+pub const SEED_FIELD_INSET: f32 = 22.0;
+
+/// The scanner's Sample tile: its height.
+pub const SCAN_TILE_HEIGHT: f32 = 44.0;
+
+/// The scanner's Sample tile: the size of its label.
+pub const SCAN_TILE_TEXT: f32 = 14.0;
+
+/// The scanner's Sample tile: the room it takes beyond its label, the
+/// padding each side.
+pub const SCAN_TILE_PAD: f32 = 32.0;
+
+/// The scanner's foot: the gap between its buttons.
+pub const SCAN_TILE_GAP: f32 = 12.0;
+
+/// The scanner on a small panel: the room a full-width button above the
+/// foot takes.
+pub const SCAN_TILE_ROW: f32 = 52.0;
+
+/// The scanner sheet's side margin, inside the sheet.
+pub const SCAN_SIDE: f32 = 32.0;

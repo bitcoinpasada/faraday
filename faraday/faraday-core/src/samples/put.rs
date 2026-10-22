@@ -1,0 +1,571 @@
+//! Use a sample (`docs/MODES.md` §6, §10 M7): in Demo, with samples set,
+//! each step that takes a key draws a chip inside its empty field, or on
+//! the scanner a tile, and a press puts a sample into the step through
+//! the function the step's own input already calls, as if typed or
+//! scanned. Which sample: the next one not loaded, by a cursor on the
+//! step's state; a part of a set fills the next part of the set begun.
+//! Nowhere outside Demo, and nowhere on a shell that sets no samples.
+//!
+//! Whether a chip shows, and which sample is next, are lookups against
+//! the keys loaded and what the state keeps; a press that derives
+//! (a cosigner's account key) does it with the handler's `Compute`.
+
+use super::{SampleForm, SampleKey, Samples};
+use crate::forms::{self, Form};
+use crate::strings::EN;
+use crate::ui::Style;
+use crate::ui::pal::{ACCENT, BG};
+use crate::ui::{Ui, W};
+use crate::wallet::{read_wallet, same_wallet};
+use crate::{Action, Faraday, ScanPurpose, Screen, Sheet};
+use faraday_bip::bip39::Language;
+use faraday_crypto::work::Compute;
+use faraday_draw::tokens::{self, FIELD_ACTION_INSET, FIELD_ACTION_TEXT};
+
+/// What a step keeps of Use a sample: whether its chip is gone for this
+/// visit, and which sample comes next. Kept beside the field it is for
+/// and dropped with the step's state, so a step left and opened again
+/// starts with the chip.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Use {
+    /// The person pressed in the field or typed in it this visit.
+    dismissed: bool,
+    /// A press of the chip filled the field and the person has not yet
+    /// used what it holds.
+    filled: bool,
+    /// Where the next press looks first among the samples it can give: for
+    /// the words, one place for each word count; for a part, the first.
+    next: [u8; 5],
+    /// The sample key whose set the parts collected belong to.
+    begun: Option<u8>,
+}
+
+impl Use {
+    /// The field is pressed in or typed in: the chip is gone for the
+    /// visit, whatever the field holds after.
+    pub(crate) fn dismiss(&mut self) {
+        self.dismissed = true;
+    }
+
+    /// Whether the chip may show, the field being empty.
+    pub(crate) fn shown(&self) -> bool {
+        !self.dismissed && !self.filled
+    }
+
+    /// What the chip filled is used or cleared: the field takes the chip
+    /// again.
+    pub(crate) fn emptied(&mut self) {
+        self.filled = false;
+    }
+}
+
+/// The chip inside the empty field at (`x`, `y`, `w`, `h`), its label the
+/// shorter one where the field is narrower than the long one.
+pub(crate) fn chip(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), action: Action) {
+    let long = ui.measure(FIELD_ACTION_TEXT, W::S, EN.use_a_sample) + 2.0 * FIELD_ACTION_INSET;
+    let label = if long + 2.0 * FIELD_ACTION_INSET <= w {
+        EN.use_a_sample
+    } else {
+        EN.scan_sample
+    };
+    ui.field_action(x, y, w, h, label, action);
+}
+
+/// Add a key's word grid on a wide display, empty: its first row a field
+/// with the chip in it, and a press anywhere in the grid focuses it.
+/// `boxes` cells are drawn under it.
+pub(crate) fn grid_chip(ui: &mut Ui, (x, y, w): (f32, f32, f32), boxes: usize) {
+    let rows = boxes.div_ceil(4) as f32 * tokens::ENTRY_ROW - tokens::FIELD_RADIUS;
+    ui.hit(x, y, w, rows, Action::EntryField);
+    let h = tokens::ENTRY_CELL_HEIGHT;
+    ui.fill(x, y, w, h, tokens::FIELD_RADIUS, BG);
+    ui.stroke(x, y, w, h, tokens::FIELD_RADIUS, ACCENT.with_alpha(110));
+    chip(ui, (x, y, w, h), Action::UseSample);
+}
+
+/// The chip in the word being typed on a small panel, in the place of its
+/// keys: a press in it is not a press in the field, which has none.
+pub(crate) fn head_chip(ui: &mut Ui, (x, y, w): (f32, f32, f32)) {
+    chip(
+        ui,
+        (x, y, w, tokens::FIELD_ACTION_HEIGHT),
+        Action::UseSample,
+    );
+}
+
+/// The chip in a field of one share or part, of `h` high; a press in the
+/// field focuses it.
+pub(crate) fn field_chip(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
+    ui.hit(x, y, w, h, Action::EntryField);
+    chip(ui, (x, y, w, h), Action::UseSample);
+}
+
+/// The chip in a cosigner's key box of the row at `y`, `x` the row's left
+/// and `w` its width.
+pub(crate) fn box_chip(ui: &mut Ui, (x, y, w): (f32, f32, f32), action: Action) {
+    let inset = tokens::SEED_FIELD_INSET;
+    chip(
+        ui,
+        (x + inset, y, w - inset, tokens::SEED_FIELD_HEIGHT),
+        action,
+    );
+}
+
+/// The room the scanner's Sample tile takes in the foot on a wide
+/// display, with the gap after it.
+pub(crate) fn scan_tile_span(ui: &Ui) -> f32 {
+    let label = ui.measure(tokens::SCAN_TILE_TEXT, W::S, EN.scan_sample);
+    label + tokens::SCAN_TILE_PAD + tokens::SCAN_TILE_GAP
+}
+
+/// The scanner's Sample tile: on a wide display in the foot, ending at
+/// `left` (returned moved past it); on a small panel full width above
+/// the foot and `row` of buttons above it. `x` and `w` are the sheet's.
+pub(crate) fn scan_tile(
+    ui: &mut Ui,
+    (x, w, foot): (f32, f32, f32),
+    (row, left): (f32, f32),
+) -> f32 {
+    let (h, side) = (tokens::SCAN_TILE_HEIGHT, tokens::SCAN_SIDE);
+    let label = EN.scan_sample;
+    if ui.compact {
+        let above = foot - tokens::SCAN_TILE_ROW - row;
+        let wide = Some(w - 2.0 * side);
+        ui.button(
+            x + side,
+            above,
+            wide,
+            h,
+            label,
+            Style::Secondary,
+            Action::ScanSample,
+        );
+        return left;
+    }
+    let span = scan_tile_span(ui);
+    let bw = span - tokens::SCAN_TILE_GAP;
+    let at = left - bw;
+    ui.button(
+        at,
+        foot,
+        Some(bw),
+        h,
+        label,
+        Style::Secondary,
+        Action::ScanSample,
+    );
+    at - tokens::SCAN_TILE_GAP
+}
+
+/// The samples that are keys of BIP-39 words in the English list, with
+/// their places in [`Samples::keys`].
+fn english_keys(set: &Samples) -> impl Iterator<Item = (usize, &SampleKey)> {
+    set.keys.iter().enumerate().filter(|(_, k)| {
+        k.form == SampleForm::Words
+            && k.plain.is_some()
+            && k.parts
+                .first()
+                .and_then(|p| p.split_whitespace().next())
+                .is_some_and(|w| forms::typed_index(Language::English, w).is_some())
+    })
+}
+
+/// How many words a words sample has.
+fn word_count(k: &SampleKey) -> usize {
+    k.parts.first().map_or(0, |p| p.split_whitespace().count())
+}
+
+/// A words sample's Standard SeedQR: four digits for each word's place in
+/// the English list. `None` for a word that is not on it.
+fn seedqr_digits(words: &str) -> Option<Vec<u8>> {
+    let mut out = Vec::new();
+    for w in words.split_whitespace() {
+        let i = forms::typed_index(Language::English, w)?;
+        out.extend(format!("{i:04}").bytes());
+    }
+    Some(out)
+}
+
+/// The fingerprint a cosigner's key text names, as typed: the origin's
+/// first part.
+fn origin_of(text: &str) -> Option<[u8; 4]> {
+    let t: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+    let fp = t.strip_prefix('[')?.split(['/', ']']).next()?.to_string();
+    let b = (0..4)
+        .map(|i| u8::from_str_radix(fp.get(2 * i..2 * i + 2)?, 16).ok())
+        .collect::<Option<Vec<u8>>>()?;
+    b.try_into().ok()
+}
+
+impl Faraday {
+    /// The samples, where Use a sample is on at all: Demo with samples
+    /// set.
+    fn put_on(&self) -> Option<&'static Samples> {
+        self.samples.filter(|_| self.samples_on())
+    }
+
+    /// The sample out of `cands` (places in [`Samples::keys`]) a press
+    /// gives: the first not loaded from `cursor` on, wrapping; the one at
+    /// `cursor` when all are. With the cursor to leave afterwards. A
+    /// lookup against the keys loaded.
+    fn sample_choose(&self, set: &Samples, cands: &[usize], cursor: u8) -> Option<(usize, u8)> {
+        let n = cands.len();
+        if n == 0 {
+            return None;
+        }
+        let start = usize::from(cursor) % n;
+        let at = (0..n)
+            .map(|k| (start + k) % n)
+            .find(|&i| !set.keys[cands[i]].held(&self.session.keys))
+            .unwrap_or(start);
+        Some((cands[at], ((at + 1) % n) as u8))
+    }
+
+    /// Whether Add a key's field is empty: nothing typed, and on a list
+    /// typed on its own keyboard no word taken or begun.
+    fn entry_empty(&self) -> bool {
+        match self.entry.keys.as_deref() {
+            Some(w) if self.entry.form == Form::Words => {
+                w.committed() == 0 && w.prefix().is_empty()
+            }
+            _ => self.entry.typed.is_empty(),
+        }
+    }
+
+    /// Whether Add a key's field, or New key's typed one, draws Use a
+    /// sample now. A lookup.
+    pub fn entry_sample_shown(&self) -> bool {
+        self.put_on().is_some()
+            && self.may_load_keys()
+            && self.entry.sample.shown()
+            && self.entry_empty()
+    }
+
+    /// A key typed on Add a key, or New key's typed step: the field is
+    /// typed in, so the chip is gone for the visit. Returns whether the
+    /// keys go there (`entry_typing_here`).
+    pub(crate) fn entry_typing_key(&mut self) -> bool {
+        let here = self.entry_typing_here();
+        if here {
+            self.entry.sample.dismiss();
+        }
+        here
+    }
+
+    /// The fingerprints of the keys loaded wallet `w` still needs here.
+    fn wallet_missing(&self, w: usize) -> Vec<[u8; 4]> {
+        let Some(wl) = self.session.wallets.get(w) else {
+            return Vec::new();
+        };
+        self.session
+            .slots(wl)
+            .iter()
+            .filter(|s| s.held_by.is_none())
+            .filter_map(|s| s.fingerprint.map(|f| f.0))
+            .collect()
+    }
+
+    /// The words sample Add a key is for, when it is for one key: the
+    /// key `wanted`, else any key the wallet it is opened for is short of.
+    fn entry_wanted_sample(&self, set: &Samples) -> Option<usize> {
+        let missing = match (self.entry.wanted, self.entry.wallet) {
+            (Some(fp), _) => vec![fp],
+            (None, Some(w)) => self.wallet_missing(w),
+            (None, None) => return None,
+        };
+        english_keys(set)
+            .find(|(_, k)| k.plain.is_some_and(|p| missing.contains(&p)))
+            .map(|(i, _)| i)
+    }
+
+    /// The words Add a key's chip gives: the key it is for, else the next
+    /// words sample of the word count chosen that is not loaded.
+    fn entry_sample_words(&mut self, set: &'static Samples) -> Option<&'static str> {
+        let chosen = self.entry.words_chosen();
+        let at = crate::EntryState::COUNTS
+            .iter()
+            .position(|n| usize::from(*n) == chosen)
+            .unwrap_or(0);
+        let cursor = self.entry.sample.next[at];
+        let (i, next) = match self.entry_wanted_sample(set) {
+            Some(i) => (i, cursor),
+            None => {
+                let cands: Vec<usize> = english_keys(set)
+                    .filter(|(_, k)| word_count(k) == chosen)
+                    .map(|(i, _)| i)
+                    .collect();
+                self.sample_choose(set, &cands, cursor)?
+            }
+        };
+        let k = &set.keys[i];
+        self.entry.sample.next[at] = next;
+        self.entry.word_count = word_count(k) as u8;
+        k.parts.first().copied()
+    }
+
+    /// The part Add a key's chip gives on a form of parts: the next part
+    /// of the set begun, else part one of the first set not loaded.
+    fn entry_sample_part(&mut self, set: &'static Samples) -> Option<&'static str> {
+        let form = self.entry.form;
+        let want = match form {
+            Form::Slip39 => SampleForm::Slip39,
+            Form::Codex32 => SampleForm::Codex32,
+            Form::Xor => SampleForm::Xor,
+            Form::Words => return None,
+        };
+        let have = self.entry.parts.lines(form).len();
+        let begun = self
+            .entry
+            .sample
+            .begun
+            .filter(|_| have > 0)
+            .and_then(|i| set.keys.get(usize::from(i)))
+            .filter(|k| have < k.parts.len());
+        if let Some(k) = begun {
+            return Some(k.parts[have]);
+        }
+        let cands: Vec<usize> = set
+            .keys
+            .iter()
+            .enumerate()
+            .filter(|(_, k)| k.form == want && k.plain.is_some() && !k.parts.is_empty())
+            .map(|(i, _)| i)
+            .collect();
+        let (i, next) = self.sample_choose(set, &cands, self.entry.sample.next[0])?;
+        self.entry.sample.next[0] = next;
+        self.entry.sample.begun = u8::try_from(i).ok();
+        set.keys[i].parts.first().copied()
+    }
+
+    /// Handles `Action::UseSample`: the chip inside Add a key's field, or
+    /// New key's typed key. Puts the sample in as typed words or a typed
+    /// part; the flow goes on from there.
+    pub(crate) fn entry_use_sample(&mut self) {
+        let Some(set) = self.put_on() else { return };
+        if !self.entry_typing_here() || !self.may_load_keys() {
+            return;
+        }
+        let words = self.entry.form == Form::Words;
+        let Some(text) = (if words {
+            self.entry_sample_words(set)
+        } else {
+            self.entry_sample_part(set)
+        }) else {
+            return;
+        };
+        self.entry.on_passphrase = false;
+        if words {
+            // The samples' words are English, whatever list was chosen.
+            let english = forms::LANGUAGES
+                .iter()
+                .position(|l| *l == Language::English)
+                .unwrap_or(0) as u8;
+            if self.entry.language_at != english {
+                self.act(Action::EntryLanguage(english));
+            }
+            if self.entry.keys.is_some() {
+                let mut w = forms::word_typer(Language::English);
+                forms::type_words(&mut w, Language::English, text);
+                self.entry.keys = Some(w);
+            } else {
+                self.entry.typed.set(text);
+                self.entry.typed.push(' ');
+            }
+        } else {
+            self.entry.typed.set(text);
+        }
+        self.entry.error = None;
+        self.entry.sample.filled = true;
+        self.entry.forget_probe();
+    }
+
+    // The scanner.
+
+    /// Whether the scanner on screen draws the Sample tile: a lookup.
+    pub fn scan_sample_offered(&self) -> bool {
+        let Some(set) = self.put_on() else {
+            return false;
+        };
+        if self.sheet != Some(Sheet::Scan) {
+            return false;
+        }
+        let Some(scan) = self.scan.as_ref() else {
+            return false;
+        };
+        match scan.purpose {
+            ScanPurpose::Seed => self.may_load_keys(),
+            ScanPurpose::KeyPart => self.may_load_keys() && self.entry.form != Form::Words,
+            ScanPurpose::WalletKey(w) => {
+                let missing = self.wallet_missing(w);
+                self.may_load_keys()
+                    && english_keys(set).any(|(_, k)| k.plain.is_some_and(|p| missing.contains(&p)))
+            }
+            ScanPurpose::Intake | ScanPurpose::VaultEntry => true,
+            ScanPurpose::Files => matches!(
+                self.screen,
+                Screen::Restore | Screen::Spend | Screen::Decode
+            ),
+            ScanPurpose::CheckCopy(fp) => english_keys(set)
+                .any(|(_, k)| k.plain == Some(fp.0) || k.with_password == Some(fp.0)),
+            ScanPurpose::Transfer => false,
+        }
+    }
+
+    /// Costs a wallet read for each sample wallet, once a wallet is
+    /// loaded. The sample wallets the session holds: the sample's place
+    /// in [`Samples::wallets`] and the wallet's in the session.
+    fn loaded_sample_wallets(&self, c: &Compute, set: &Samples) -> Vec<(usize, usize)> {
+        let have: Vec<String> = self
+            .session
+            .wallets
+            .iter()
+            .map(|w| same_wallet(w.policy()))
+            .collect();
+        if have.is_empty() {
+            return Vec::new();
+        }
+        set.wallets
+            .iter()
+            .enumerate()
+            .filter_map(|(s, w)| {
+                let d = same_wallet(&read_wallet(c, w.text).ok()?);
+                have.iter().position(|h| *h == d).map(|i| (s, i))
+            })
+            .collect()
+    }
+
+    /// Costs a wallet read for each sample wallet. The unsigned spend of
+    /// the sample wallet in hand, else of the first sample wallet loaded
+    /// that has one, else of the first that has one.
+    fn sample_spend(&self, c: &Compute, set: &'static Samples) -> Option<&'static [u8]> {
+        let loaded = self.loaded_sample_wallets(c, set);
+        let has = |s: usize| !set.wallets[s].spend.is_empty();
+        let pick = loaded
+            .iter()
+            .find(|(s, w)| *w == self.wallet && has(*s))
+            .or_else(|| loaded.iter().find(|(s, _)| has(*s)))
+            .map(|(s, _)| *s)
+            .or_else(|| (0..set.wallets.len()).find(|&s| has(s)))?;
+        Some(set.wallets[pick].spend)
+    }
+
+    /// Costs a wallet read for each sample wallet. What the Sample tile
+    /// scans for the scanner on screen, and moves the tile's cursor.
+    fn scan_sample_bytes(&mut self, c: &Compute, set: &'static Samples) -> Option<Vec<u8>> {
+        let scan = self.scan.as_ref()?;
+        let (purpose, cursor) = (scan.purpose, scan.sample);
+        match purpose {
+            ScanPurpose::Seed => {
+                let cands: Vec<usize> = english_keys(set).map(|(i, _)| i).collect();
+                let (i, next) = self.sample_choose(set, &cands, cursor)?;
+                if let Some(s) = self.scan.as_mut() {
+                    s.sample = next;
+                }
+                seedqr_digits(set.keys[i].parts.first()?)
+            }
+            ScanPurpose::KeyPart => self.entry_sample_part(set).map(|t| t.as_bytes().to_vec()),
+            ScanPurpose::WalletKey(w) => {
+                let missing = self.wallet_missing(w);
+                let (_, k) = english_keys(set)
+                    .find(|(_, k)| k.plain.is_some_and(|p| missing.contains(&p)))?;
+                seedqr_digits(k.parts.first()?)
+            }
+            ScanPurpose::CheckCopy(fp) => {
+                let (_, k) = english_keys(set)
+                    .find(|(_, k)| k.plain == Some(fp.0) || k.with_password == Some(fp.0))?;
+                seedqr_digits(k.parts.first()?)
+            }
+            ScanPurpose::VaultEntry => Some(set.inputs.totp.as_bytes().to_vec()),
+            ScanPurpose::Intake => self.sample_spend(c, set).map(<[u8]>::to_vec),
+            ScanPurpose::Files if self.screen == Screen::Restore => {
+                let loaded = self.loaded_sample_wallets(c, set);
+                let open: Vec<usize> = (0..set.wallets.len())
+                    .filter(|s| !loaded.iter().any(|(l, _)| l == s))
+                    .collect();
+                let all: Vec<usize> = (0..set.wallets.len()).collect();
+                let list = if open.is_empty() { &all } else { &open };
+                let at = usize::from(cursor) % list.len().max(1);
+                if let Some(s) = self.scan.as_mut() {
+                    s.sample = ((at + 1) % list.len().max(1)) as u8;
+                }
+                list.get(at)
+                    .map(|s| set.wallets[*s].text.as_bytes().to_vec())
+            }
+            ScanPurpose::Files => self.sample_spend(c, set).map(<[u8]>::to_vec),
+            ScanPurpose::Transfer => None,
+        }
+    }
+
+    /// Handles `Action::ScanSample`: the scanner reads the sample as if
+    /// the camera had.
+    pub(crate) fn scan_use_sample(&mut self) {
+        let Some(set) = self.put_on() else { return };
+        if !self.scan_sample_offered() {
+            return;
+        }
+        let c = self.compute();
+        if let Some(bytes) = self.scan_sample_bytes(&c, set) {
+            self.scanned(bytes);
+        }
+    }
+
+    // A cosigner's account key.
+
+    /// Whether cosigner box `k` of the seeds piece draws Use a sample:
+    /// empty, not typed in, not pressed in. A lookup.
+    pub fn seeds_sample_shown(&self, s: &crate::seeds::SeedsState, k: usize) -> bool {
+        self.put_on().is_some()
+            && s.sample_off & (1 << k.min(15)) == 0
+            && s.cosigners.get(k).is_some_and(|t| t.trim().is_empty())
+    }
+
+    /// Costs a stretched key and a key derivation. Handles
+    /// `SeedsAction::Sample`: cosigner box `k` gets the account key, at
+    /// the path chosen, of the next sample seed that is not among the
+    /// wallet's and not a cosigner already.
+    pub(crate) fn seeds_use_sample(&mut self, k: usize) {
+        let Some(set) = self.put_on() else { return };
+        let net = self.session.network();
+        let Some(s) = self.seeds().cloned() else {
+            return;
+        };
+        if !self.seeds_sample_shown(&s, k) {
+            return;
+        }
+        let here = self.seeds_here(&s);
+        let used: Vec<[u8; 4]> = s.cosigners.iter().filter_map(|t| origin_of(t)).collect();
+        let cands: Vec<usize> = english_keys(set)
+            .filter(|(_, key)| {
+                key.plain
+                    .is_some_and(|p| !here.contains(&p) && !used.contains(&p))
+            })
+            .map(|(i, _)| i)
+            .collect();
+        let Some((i, next)) = self.sample_choose(set, &cands, s.sample_next) else {
+            return;
+        };
+        let c = self.compute();
+        let made = crate::create::path_spec(&s.path(net)).and_then(|spec| {
+            faraday_keys::identity::key_text_of_words(
+                &c,
+                set.keys[i].parts.first().copied().unwrap_or_default(),
+                "",
+                net,
+                &spec,
+            )
+        });
+        if let Some(st) = self.seeds_mut() {
+            match made {
+                Ok(text) => {
+                    if let Some(slot) = st.cosigners.get_mut(k) {
+                        *slot = text;
+                    }
+                    st.sample_next = next;
+                    st.focus = None;
+                    st.error = None;
+                }
+                Err(e) => st.error = Some(e),
+            }
+        }
+    }
+}

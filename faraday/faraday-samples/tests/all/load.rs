@@ -3,45 +3,15 @@
 //! the session the way a typed or scanned key and wallet go in. The tests
 //! drive a `Faraday` with the real samples set, as the desktop does.
 
-use crate::common::{PASSWORD, fingerprint_of_seed, json};
+use crate::common::{PASSWORD, demo_app, fingerprint_of_seed, json, show};
 use faraday_bip::keys::{Fingerprint, Network};
 use faraday_core::samples::{Pick, SampleKey};
 use faraday_core::testkit::{self, compute};
 use faraday_core::wallet::{Origin, Session};
-use faraday_core::{Action, DESKTOP_MODES, Faraday, Screen, Sheet};
+use faraday_core::{Action, Faraday, Screen, Sheet};
 use faraday_intake::{Part, part_of};
 use faraday_samples::SAMPLES;
-use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
-
-/// `app`'s display, `width` by `height` pixels at `dpi`.
-fn show(app: &mut Faraday, width: u16, height: u16, dpi: u16) {
-    app.event(Event::Display(DisplayInfo {
-        width,
-        height,
-        dpi,
-        inset_bottom: 0,
-        inset_top: 0,
-        buttons: 0,
-        camera_fixed: false,
-        secure: SecureHardware::None,
-        boot: BootState::Unknown,
-        memory_mib: None,
-    }));
-}
-
-/// The desktop's app: online, in Demo, with the samples set, in a window
-/// tall enough to show every row of the sheet at once (a row out of view
-/// offers no press).
-fn demo_app() -> Faraday {
-    let mut app = testkit::started();
-    show(&mut app, 1280, 4000, 160);
-    app.online = true;
-    app.session = Session::on(Network::Testnet);
-    app.session.set_demo(&SAMPLES);
-    app.samples = Some(&SAMPLES);
-    app.set_modes(DESKTOP_MODES);
-    app
-}
+use faraday_shell_api::App;
 
 /// The keys the sheet lists, in its order: those that load a key and that
 /// the table lists.

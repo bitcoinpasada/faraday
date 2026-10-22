@@ -752,6 +752,24 @@ Owner, 2026-10-22, after M6.
 - **Docs**: DESIGN §4.9's scanner band (a Sample tile, in Demo only);
   DESIGN §4.3 (Use a sample on an entry, in Demo only); DEMO §5.
 - **Done**: snapshots of Add a key and the scanner in Demo, both sizes.
+- **As built**: `faraday-core/src/samples/put.rs` holds the chip's state
+  (`Use`, on `EntryState` and `SeedsState`; a cursor each, one for each
+  word count), the choice of the next sample (`sample_choose`, a lookup
+  against the keys loaded), the chip's drawing helpers (tokens named in
+  `faraday-draw`) and the presses: `Action::UseSample` for Add a key, New
+  key's typed key and the Spend tab's words; `Action::ScanSample` for the
+  scanner, which hands the sample's bytes to `Faraday::scanned` as the
+  camera would; `SeedsAction::Sample(k)` for a cosigner's box, which
+  derives the account key at the path chosen of the next sample seed not
+  among the wallet's (`faraday_keys::identity::key_text_of_words`; the
+  press is slow). `Action::EntryField` is a press in Add a key's field;
+  `SeedsAction::Open` opens a cosigner's box from Its xpub without
+  counting as a press in it. Add a key's chip prefers the sample of the
+  key `wanted`, or one the wallet it is opened for is short of. On the
+  small panel the word entry's chip stands in the word being typed, the
+  grid being below its keyboard. The Lightning cipher seed action is no
+  longer dimmed in Demo. `EntryRecover` is a slow press. Not offered: a
+  passphrase field (M8).
 
 ### M8. Every passphrase is `faraday`; vaults, Lightning, checks
 

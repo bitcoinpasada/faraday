@@ -242,7 +242,6 @@ fn the_actions_the_demo_dims_are_live_on_testnet() {
         Action::BXor(2),
         Action::PShow,
         Action::LShow,
-        Action::LAezeed,
         Action::SScanVault,
     ] {
         assert!(demo.demo_refuses(a), "{a:?} is open in Demo");

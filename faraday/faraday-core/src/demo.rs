@@ -70,9 +70,10 @@ impl Faraday {
                         .as_ref()
                         .is_some_and(|c| c.kind.threshold() && c.built.is_none())
             }
-            // A node's private key and a scan key leaving Faraday; an LND
-            // cipher seed typed would be someone's real node.
-            Action::LShow | Action::LVault | Action::LOut | Action::LAezeed => true,
+            // A node's private key and a scan key leaving Faraday. An LND
+            // cipher seed is open: `node_from_aezeed` takes only the
+            // published one.
+            Action::LShow | Action::LVault | Action::LOut => true,
             Action::SScanVault | Action::SScanOut => true,
             // The way to a vault to keep one of those.
             Action::Vault(V::CreateFrom(s) | V::OpenFrom(_, s) | V::ListFrom(s)) => {
@@ -104,7 +105,6 @@ impl Faraday {
             Action::LShow,
             Action::LVault,
             Action::LOut,
-            Action::LAezeed,
             Action::SScanVault,
             Action::SScanOut,
         ];

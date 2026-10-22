@@ -480,7 +480,7 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 open_drawn = true;
                 let extra = multi.then_some((
                     EN.restore_seeds_its_xpub,
-                    Action::Seeds(S::Focus(Focus::Cosigner(k as u8))),
+                    Action::Seeds(S::Open(Focus::Cosigner(k as u8))),
                 ));
                 cy += restore_open_slot(app, ui, r, &here, extra, x, cy, w);
                 row(ui, cy, slot, "", EN.restore_seeds_empty, DIM);
@@ -497,7 +497,7 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                         36.0,
                         label,
                         Style::Ghost,
-                        Action::Seeds(S::Focus(Focus::Cosigner(k as u8))),
+                        Action::Seeds(S::Open(Focus::Cosigner(k as u8))),
                     );
                 }
                 cy += 42.0;

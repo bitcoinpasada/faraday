@@ -68,8 +68,11 @@ pub enum SeedsAction {
     Standard,
     /// A path typed in.
     Custom,
-    /// Typing goes to this box.
+    /// Typing goes to this box: a press in it.
     Focus(Focus),
+    /// Typing goes to this box, opened by a button beside it (Its xpub),
+    /// not pressed in.
+    Open(Focus),
     /// Empty a cosigner's box.
     Clear(u8),
     /// The account key in this Inbox file, for the first cosigner
@@ -79,6 +82,9 @@ pub enum SeedsAction {
     UseLoaded([u8; 4]),
     /// A seed held in an open vault: the vault, the record.
     FromVault(usize, usize),
+    /// Use a sample in this cosigner's box: the account key of the next
+    /// sample seed.
+    Sample(u8),
     /// Make the wallet.
     Make,
 }
@@ -112,6 +118,11 @@ pub struct SeedsState {
     /// keys stays within it, and each slot is a seed or a cosigner's
     /// box (`docs/history/NEW-WALLET.md` §12.1).
     pub fixed: bool,
+    /// Cosigner boxes whose Use a sample chip is gone this visit, one bit
+    /// each: pressed in or typed in.
+    pub sample_off: u16,
+    /// Where the chip looks first among the sample seeds.
+    pub sample_next: u8,
 }
 
 impl SeedsState {
@@ -331,7 +342,7 @@ impl Faraday {
         }
     }
 
-    fn seeds_mut(&mut self) -> Option<&mut SeedsState> {
+    pub(crate) fn seeds_mut(&mut self) -> Option<&mut SeedsState> {
         match self.screen {
             Screen::Restore => self.restore.as_mut()?.seeds.as_mut(),
             Screen::Family => Some(&mut self.family.seeds),
@@ -594,6 +605,10 @@ impl Faraday {
             self.seeds_from_vault(v, record);
             return;
         }
+        if let S::Sample(k) = a {
+            self.seeds_use_sample(usize::from(k));
+            return;
+        }
         if let S::UseFile(index) = a {
             self.seeds_take_file(index);
             return;
@@ -601,7 +616,7 @@ impl Faraday {
         let Some(s) = self.seeds_mut() else {
             return;
         };
-        if !matches!(a, S::Focus(_) | S::Custom) {
+        if !matches!(a, S::Focus(_) | S::Open(_) | S::Custom) {
             s.focus = None;
         }
         s.error = None;
@@ -628,14 +643,20 @@ impl Faraday {
                 }
                 s.focus = Some(Focus::Path);
             }
-            S::Focus(f) => s.focus = Some(f),
+            S::Focus(f) => {
+                if let Focus::Cosigner(k) = f {
+                    s.sample_off |= 1 << k.min(15);
+                }
+                s.focus = Some(f);
+            }
+            S::Open(f) => s.focus = Some(f),
             S::Clear(k) => {
                 if let Some(c) = s.cosigners.get_mut(usize::from(k)) {
                     c.clear();
                     s.focus = Some(Focus::Cosigner(k));
                 }
             }
-            S::Make | S::UseLoaded(_) | S::FromVault(..) | S::UseFile(_) => {}
+            S::Make | S::Sample(_) | S::UseLoaded(_) | S::FromVault(..) | S::UseFile(_) => {}
         }
     }
 
@@ -782,6 +803,9 @@ impl Faraday {
         let Some(focus) = s.focus else {
             return false;
         };
+        if let Focus::Cosigner(k) = focus {
+            s.sample_off |= 1 << k.min(15);
+        }
         let field = match focus {
             Focus::Cosigner(k) => s.cosigners.get_mut(usize::from(k)),
             Focus::Path => s.custom.as_mut(),

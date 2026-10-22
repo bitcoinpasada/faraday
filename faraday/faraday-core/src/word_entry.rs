@@ -649,6 +649,7 @@ impl Faraday {
                 }
             }
             Action::EntryClear => {
+                self.entry.sample.emptied();
                 self.entry.word_count = 0;
                 self.entry.typed.clear();
                 if self.entry.keys.is_some() {
@@ -674,6 +675,7 @@ impl Faraday {
                 }
             }
             Action::EntryKey(c) => {
+                self.entry.sample.dismiss();
                 let w = self.words_use();
                 let (lang, in_check) = (w.lang, w.in_check);
                 if let Some(k) = w.keys.as_mut() {
@@ -700,6 +702,7 @@ impl Faraday {
                 *w.shift = !*w.shift;
             }
             Action::EntryCandidate(n) => {
+                self.entry.sample.dismiss();
                 let w = self.words_use();
                 let in_check = w.in_check;
                 if let Some(k) = w.keys.as_mut() {
@@ -723,6 +726,10 @@ impl Faraday {
                 }
             }
             Action::EntryOtherForms => self.entry.other_forms = true,
+            Action::EntryField => {
+                self.entry.on_passphrase = false;
+                self.entry.sample.dismiss();
+            }
             Action::EntryPart => self.form_add_part(),
             Action::EntryRecover => self.form_recover(),
             Action::EntryPassphrase => self.entry.on_passphrase = !self.entry.on_passphrase,

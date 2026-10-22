@@ -7,5 +7,6 @@ mod files;
 mod handouts;
 mod keys;
 mod load;
+mod use_sample;
 mod vectors;
 mod wallets;

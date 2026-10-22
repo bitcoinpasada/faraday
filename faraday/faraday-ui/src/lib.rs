@@ -2165,6 +2165,46 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         width
     }
 
+    /// A chip inside the empty entry field at (`x`, `y`, `w`, `h`), at its
+    /// text inset, secondary-styled and vertically centred
+    /// (`docs/MODES.md` §6.1). Its hit target is the chip, at the touch
+    /// floor's height on a small panel and the field's on a wide one.
+    /// Returns the chip's width; the caller passes `label`, the shorter
+    /// one where the field is narrower than the chip.
+    pub fn field_action(&mut self, x: f32, y: f32, w: f32, h: f32, label: &str, action: A) -> f32 {
+        use faraday_draw::tokens::{
+            FIELD_ACTION_HEIGHT as CH, FIELD_ACTION_INSET as IN, FIELD_ACTION_TEXT as TX, TOUCH,
+        };
+        let width = (self.measure(TX, W::S, label) + 2.0 * IN).min(w - 2.0 * IN);
+        let (cx, cy) = (x + IN, y + (h - CH) / 2.0);
+        let pressed = self.is_pressed(action);
+        let hovered = self.is_hovered(action);
+        if pressed {
+            self.fill(cx, cy, width, CH, CH / 2.0, INNER);
+        } else if hovered {
+            self.fill(cx, cy, width, CH, CH / 2.0, INNER.with_alpha(150));
+        }
+        self.stroke(
+            cx,
+            cy,
+            width,
+            CH,
+            CH / 2.0,
+            if hovered { DIM } else { BORDER },
+        );
+        let tw = self.measure(TX, W::S, label);
+        self.text_mid(cx + (width - tw) / 2.0, cy, CH, TX, W::S, TEXT, label);
+        let hit_h = if self.compact {
+            TOUCH.max(CH)
+        } else {
+            h.max(CH)
+        };
+        self.quiet_hover = true;
+        self.hit(cx, y + (h - hit_h) / 2.0, width, hit_h, action);
+        self.quiet_hover = false;
+        width
+    }
+
     /// A floating action: a pill in the accent colour over the page, its
     /// icon and its word, its bottom-right corner at (`right`, `bottom`).
     /// Returns its width.

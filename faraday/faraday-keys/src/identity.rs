@@ -141,6 +141,25 @@ pub fn xpub_at(
     Some(master.derive(c, path).to_xpub(c))
 }
 
+/// Costs a PBKDF2 and a key derivation for each step of the path. The
+/// public key text `[fingerprint/path]xpub` that BIP-39 `words` (read in
+/// English) make with `passphrase`, at `spec`: the key a cosigner hands
+/// over, from words that stay with the caller. The text of the refusal when
+/// the words are no key.
+pub fn key_text_of_words(
+    c: &Compute,
+    words: &str,
+    passphrase: &str,
+    network: Network,
+    spec: &crate::texts::Spec,
+) -> Result<String, String> {
+    let normal = zeroize::Zeroizing::new(words.split_whitespace().collect::<Vec<_>>().join(" "));
+    let m = Mnemonic::parse(c, Language::English, &normal).map_err(|e| e.to_string())?;
+    let master = master_of(c, Material::Words(&m), passphrase, network)
+        .ok_or_else(|| "no key".to_string())?;
+    crate::texts::key_text(c, &master, spec)
+}
+
 /// A hash of secret material under a tag: what a memo of its fingerprint
 /// is kept by, so that the secret itself is kept nowhere. Costs a hash of
 /// the bytes.

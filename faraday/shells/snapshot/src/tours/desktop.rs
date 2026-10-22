@@ -82,6 +82,18 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     // Where a seed is typed, online, in Demo and on testnet: one line
     // under the field.
     t.press(Action::Entry(None));
+    // Use a sample: the chip in the empty grid, pressed, and the share step
+    // of a set with its chip for the second share.
+    t.shot("modes-demo-add-key-sample")?;
+    t.press(Action::UseSample);
+    t.shot("modes-demo-add-key-filled")?;
+    t.press(Action::EntryClear);
+    t.press(Action::EntryForm(1));
+    t.press(Action::UseSample);
+    t.press(Action::UseSample);
+    t.press(Action::EntryPart);
+    t.shot("modes-demo-add-key-share")?;
+    t.press(Action::Entry(None));
     type_text(t, "abandon abandon abandon");
     t.shot("modes-demo-add-key")?;
     crate::tour::scroll(t, 700);
@@ -89,6 +101,9 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     // Load samples: the sheet, Savings ticked, loaded (its toast), and the
     // sheet again with Savings and its three keys ticked and dimmed.
     t.press(Action::Nav(Screen::Home));
+    t.press(Action::ScanSeed);
+    t.shot("modes-demo-scan-sample")?;
+    t.press(Action::Cancel);
     t.press(Action::Samples);
     t.shot("modes-demo-samples-sheet")?;
     t.press(Action::SampleTick(Pick::Wallet(0)));

@@ -3,8 +3,13 @@
 use faraday_bip::bitcoin::bip32::Xpriv;
 use faraday_bip::bitcoin::secp256k1::Secp256k1;
 use faraday_bip::bitcoin::{Network, NetworkKind};
+use faraday_bip::keys::Network as KeyNetwork;
 use faraday_core::samples::SampleKey;
+use faraday_core::testkit;
+use faraday_core::wallet::Session;
+use faraday_core::{DESKTOP_MODES, Faraday};
 use faraday_samples::SAMPLES;
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 pub const PASSWORD: &str = "password";
 
@@ -74,4 +79,51 @@ pub fn reference_fingerprint(lang: bip39::Language, words: &str, passphrase: &st
 pub fn entropy_of(m: &bip39::Mnemonic) -> Vec<u8> {
     let (bytes, len) = m.to_entropy_array();
     bytes[..len].to_vec()
+}
+
+/// `app`'s display, `width` by `height` pixels at `dpi`.
+pub fn show(app: &mut Faraday, width: u16, height: u16, dpi: u16) {
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+}
+
+/// The desktop's app: online, in Demo, with the samples set, in a window
+/// tall enough to show every row of the sheet at once (a row out of view
+/// offers no press).
+pub fn demo_app() -> Faraday {
+    let mut app = testkit::started();
+    show(&mut app, 1280, 4000, 160);
+    app.online = true;
+    app.session = Session::on(KeyNetwork::Testnet);
+    app.session.set_demo(&SAMPLES);
+    app.samples = Some(&SAMPLES);
+    app.set_modes(DESKTOP_MODES);
+    app
+}
+
+/// `[fingerprint/path]tpub` of the BIP-39 `words` (no passphrase) at the
+/// hardened `path` (as `48h/1h/0h/2h`), by the `bip39` crate and the
+/// `bitcoin` crate alone, on a test network.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "another implementation's derivation, to check Faraday's against (docs/COMPUTE.md §7)"
+)]
+pub fn reference_key_text(words: &str, path: &str) -> String {
+    use faraday_bip::bitcoin::bip32::{DerivationPath, Xpriv, Xpub};
+    let m = bip39::Mnemonic::parse_in_normalized(bip39::Language::English, words).expect("words");
+    let secp = Secp256k1::new();
+    let master = Xpriv::new_master(NetworkKind::Test, &m.to_seed_normalized("")).expect("master");
+    let at: DerivationPath = format!("m/{path}").parse().expect("path");
+    let key = Xpub::from_priv(&secp, &master.derive_priv(&secp, &at).expect("derive"));
+    format!("[{}/{path}]{key}", master.fingerprint(&secp))
 }

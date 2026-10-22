@@ -7845,6 +7845,11 @@ pub struct Strings {
     /// The line under every field where a seed or a secret is typed, on an
     /// online shell.
     pub never_real_seed: &'static str,
+    /// The chip inside an empty field where a key is typed, in Demo.
+    pub use_a_sample: &'static str,
+    /// The same where the field is narrower than the chip, and the
+    /// scanner's tile that reads a sample.
+    pub scan_sample: &'static str,
     // ----- samples (faraday-core/src/samples/) -----
     /// The Load samples pill, on the wide layout.
     pub samples_pill: &'static str,
@@ -12731,6 +12736,8 @@ pub static EN: Strings = Strings {
     mode_sheet_title: "Mode",
     mode_not_now: "Not now",
     never_real_seed: "Never type a seed that holds real bitcoin here.",
+    use_a_sample: "Use a sample",
+    scan_sample: "Sample",
     samples_pill: "Load samples",
     samples_pill_short: "Samples",
     samples_title: "Load samples",

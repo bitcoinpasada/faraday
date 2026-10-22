@@ -662,7 +662,11 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
         lang,
         &fill(EN.compact_word, &[&(taken.len() + 1).to_string()]),
         Some((&status, tone)),
-        (!app.entry.on_passphrase, app.entry.shift),
+        (
+            !app.entry.on_passphrase,
+            app.entry.shift,
+            app.entry_sample_shown(),
+        ),
     );
     // The words taken, as many boxes as the count chosen.
     y += 6.0;
@@ -681,7 +685,8 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
 
 /// A list typed on its own keyboard, on a small panel: the word being
 /// typed under `label`, `status` under it, the words it can be as pills
-/// and the keyboard, with the on-screen keyboard's shift as `shift`. Add a
+/// and the keyboard, with the on-screen keyboard's shift as `shift`, and
+/// Use a sample (`docs/MODES.md` §6.1) in the word's place as `chip`. Add a
 /// key's word entry and Check my copy's both draw it. Returns where the
 /// next row starts.
 pub(crate) fn keyed_head(
@@ -691,7 +696,7 @@ pub(crate) fn keyed_head(
     lang: faraday_bip::bip39::Language,
     label: &str,
     status: Option<(&str, faraday_draw::Color)>,
-    (caret, shift): (bool, bool),
+    (caret, shift, chip): (bool, bool, bool),
 ) -> f32 {
     let mut y = y;
     let prefix: String = w.prefix().iter().collect();
@@ -704,7 +709,10 @@ pub(crate) fn keyed_head(
         prefix.clone()
     };
     let pw = ui.text(x + off, y - 4.0, 18.0, W::M, ACCENT, &shown);
-    if caret {
+    if chip {
+        let lift = faraday_draw::tokens::KEYED_HEAD_LIFT;
+        crate::samples::put::head_chip(ui, (x + off, y - lift, iw - off));
+    } else if caret {
         ui.caret(x + off + 2.0 + pw, y - 2.0, 20.0);
     }
     y += 26.0;
@@ -787,7 +795,11 @@ pub(crate) fn entry_form(
     let mut y = y;
     let on = !app.entry.on_passphrase;
     let empty = app.entry.typed.is_empty();
-    let typed = if empty {
+    // Use a sample stands where the hint would, in Demo.
+    let chip = app.entry_sample_shown();
+    let typed = if chip {
+        String::new()
+    } else if empty {
         match form {
             Form::Codex32 => "ms1…".to_string(),
             _ => EN.compact_words_of_one.to_string(),
@@ -800,7 +812,7 @@ pub(crate) fn entry_form(
         t
     };
     // The caret stands before the hint while nothing is typed.
-    if empty && on {
+    if empty && on && !chip {
         ui.caret(x + 10.0, y + 9.0, 18.0);
     }
     let th = ui.wrap(
@@ -816,6 +828,9 @@ pub(crate) fn entry_form(
     ui.stroke(x, y, iw, bh, 8.0, if on { ACCENT } else { BORDER });
     if !on {
         ui.hit(x, y, iw, bh, Action::EntryPassphrase);
+    }
+    if chip {
+        crate::samples::put::field_chip(ui, (x, y, iw, bh));
     }
     y += bh + 10.0 + crate::screens::never_below(app, ui, x, y + bh, iw);
     if let Some(e) = &app.entry.error {

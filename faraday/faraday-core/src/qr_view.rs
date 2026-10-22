@@ -72,6 +72,8 @@ pub struct ScanState {
     pub reads: usize,
     /// What the codes read are for.
     pub purpose: ScanPurpose,
+    /// Where the Sample tile looks first among the samples it can give.
+    pub sample: u8,
     /// BBQr and numbered parts being put together.
     pub assembler: faraday_qr::Assembler,
     /// When the sheet began waiting for the camera's first frame

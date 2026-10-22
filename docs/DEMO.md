@@ -120,7 +120,11 @@ public values work; only the actions in the table are disabled.
   public seed (F20); a passphrase field, ignored (F20); **Load samples**,
   the pill beside the Demo pill, which loads ticked sample wallets and
   sample keys in every form, with the wallets' own keys (F81, `docs/MODES.md`
-  §3 and §10 M6); Explore; Account key; the key's page.
+  §3 and §10 M6); **Use a sample**, a chip inside the empty field of every
+  step that takes a key (Add a key, New key's typed key, the Spend tab's
+  words, a cosigner's account key) and a **Sample** tile on the scanner,
+  which put the next public sample in as if typed or scanned (§6 of
+  `docs/MODES.md`, §10 M7); Explore; Account key; the key's page.
 - **New key**: every length and source (dice, coins, cards, hex,
   camera, the generator, a mix), its words and quiz; Lock in adds the
   next public seed in place of the key made (§5.1).
@@ -141,7 +145,8 @@ public values work; only the actions in the table are disabled.
   contents, entries, notes, TOTP codes, KeePass export, Open an
   .oskb backup, the stick visit and Files.
 - **Vanity address** on the account dial; **Lightning node key**'s node
-  id from a loaded public seed; **Silent payments**' address, labels,
+  id from a loaded public seed, and its LND cipher seed row, which takes
+  only LND's published seed; **Silent payments**' address, labels,
   record and Check a payment.
 - **Tools**: every calculator, word list and Find a tool; every tile
   opens its screen.
@@ -188,7 +193,7 @@ any copy made away from the device is.
 | Case | Decision | Why |
 |---|---|---|
 | Typing a password or TOTP secret into a vault Entry | Open | Typed, not generated, and the only way to try entries, TOTP codes and KeePass export. The demo cannot tell a real password from a made-up one, as it cannot tell a funded seed on a test network; the demo's Learn page says to type nothing real |
-| Typing an LND cipher seed (aezeed) on Lightning node key | Open in Demo, taking LND's published vector only (F81, from batch M7 of `docs/MODES.md`; until then the **An LND cipher seed** row of From? stays dimmed) | Whatever else is typed would be someone's real node seed, so Demo refuses it as it refuses a key that is not public. A loaded public seed is the other source and stays |
+| Typing an LND cipher seed (aezeed) on Lightning node key | Open in Demo, taking LND's published vector only (F81, `docs/MODES.md` §10 M7) | Whatever else is typed would be someone's real node seed, so Demo refuses it as it refuses a key that is not public. A loaded public seed is the other source and stays |
 | Making a vault | Open, with a typed passphrase; **Generate with dice** open, its words replaced by the demo's public passphrase (§5.2) | It encrypts what the demo holds: public seeds and what was typed. Its keys are internal to the file and never shown. The rolled words are dropped, as New key's are, so the passphrase the vault takes is public |
 | BIP-85 outputs | Disabled, as the owner said | Derived from a public seed, so anyone can derive them, but they look like a fresh password or seed and would be used as one |
 | Lightning node private key, silent payments scan key | Disabled | Derived private keys for use in another program, as BIP-85's are |

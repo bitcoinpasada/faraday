@@ -159,6 +159,9 @@ pub enum Action {
     CarryToOutbox,
     /// Type the BIP-39 passphrase in Add a key, or go back to the words.
     EntryPassphrase,
+    /// A press in Add a key's empty field: focuses it, and the Use a
+    /// sample chip is gone for the visit.
+    EntryField,
     /// Seal the signed-amount memory into an open vault on lock, or not.
     SealAmounts(bool),
     /// Lock: wipe the session and start a fresh process.
@@ -223,6 +226,11 @@ pub enum Action {
     SamplesAll,
     /// Load what the Load samples sheet has ticked.
     SamplesLoad,
+    /// Use a sample: the chip inside an empty field where a key is typed
+    /// (Demo, with samples set).
+    UseSample,
+    /// The scanner's Sample tile: reads a sample as the camera would.
+    ScanSample,
     /// Close a sheet.
     Cancel,
     /// Set the display scale, in percent.

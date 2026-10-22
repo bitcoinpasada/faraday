@@ -863,7 +863,14 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         keys.len() as f32 * 20.0 + if keys.is_empty() { 0.0 } else { 6.0 } + hint_h + never_h;
     let typing = for_wallet.is_some() || (intake && app.may_load_keys());
     let type_row = if typing && ui.compact { 52.0 } else { 0.0 };
-    let extra = rows + keys_h + type_row;
+    // The Sample tile, in Demo (`docs/MODES.md` §6): after Paste and Type.
+    let sample = app.scan_sample_offered();
+    let sample_row = if sample && ui.compact {
+        faraday_draw::tokens::SCAN_TILE_ROW
+    } else {
+        0.0
+    };
+    let extra = rows + keys_h + type_row + sample_row;
     // The title, then the picture: the state line is inside it.
     let top = 56.0;
     let side_h = side_h.min(h - 24.0 - top - 88.0 - extra).max(96.0);
@@ -975,11 +982,16 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             })
             .collect();
         let typing = if typing { 220.0 } else { 0.0 };
+        let sampling = if sample {
+            crate::samples::put::scan_tile_span(ui)
+        } else {
+            0.0
+        };
         button_rows(
             ui,
             x + 32.0,
             y - keys_h + sh - 32.0 - 44.0 + 6.0,
-            sw - 64.0 - 140.0 - typing - paste_w,
+            sw - 64.0 - 140.0 - typing - sampling - paste_w,
             &row,
         );
     }
@@ -991,6 +1003,9 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         None => None,
     };
     let mut left = x + sw - 32.0 - 120.0 - 12.0;
+    if sample {
+        left = crate::samples::put::scan_tile(ui, (x, sw, foot), (type_row, left));
+    }
     if let Some(action) = type_instead {
         let label = EN.scan_type_the_words;
         if ui.compact {

@@ -49,6 +49,8 @@ pub struct EntryState {
     pub other_forms: bool,
     /// How many words were chosen, 0 until one is: 12 boxes.
     pub word_count: u8,
+    /// Use a sample's chip and cursor for this visit (`docs/MODES.md` §6.1).
+    pub(crate) sample: crate::samples::put::Use,
     /// The status line's key: what the words typed make with the
     /// passphrase, the fingerprint or why there is none, public alone.
     /// Worked out by the first frame that asks for it and kept until the

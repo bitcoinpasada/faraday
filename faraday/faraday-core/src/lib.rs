@@ -3617,6 +3617,7 @@ impl Faraday {
             | Action::EntryPart
             | Action::EntryRecover
             | Action::EntryPassphrase
+            | Action::EntryField
             | Action::EntryWallet(..)) => self.entry_act(a),
             a @ (Action::PickWallet(..)
             | Action::PickKey(..)
@@ -3687,7 +3688,9 @@ impl Faraday {
             a @ (Action::Samples
             | Action::SampleTick(..)
             | Action::SamplesAll
-            | Action::SamplesLoad) => self.samples_act(a),
+            | Action::SamplesLoad
+            | Action::UseSample
+            | Action::ScanSample) => self.samples_act(a),
             a @ (Action::RFromVault(..)
             | Action::RestoreWallet
             | Action::RStep(..)
@@ -7225,41 +7228,6 @@ impl Faraday {
         }
     }
 
-    /// The word just typed into `entry.typed`, the way Tab completes it:
-    /// the one word of the list this form's words come from that its
-    /// letters can still become, if only one. `Codex32` has none, since
-    /// it is typed as a string, not words.
-    fn entry_tab_word(&self) -> Option<String> {
-        match self.entry.form {
-            forms::Form::Words => forms::completion(self.entry.language(), &self.entry.typed),
-            forms::Form::Xor => {
-                forms::completion(faraday_bip::bip39::Language::English, &self.entry.typed)
-            }
-            forms::Form::Slip39 => forms::slip39_completion(&self.entry.typed),
-            forms::Form::Codex32 => None,
-        }
-    }
-
-    /// Completes the word just typed into `entry.typed`, the way Tab
-    /// does for every form that types BIP-39 or SLIP-39 words one at a
-    /// time.
-    fn entry_complete_word(&mut self) {
-        if let Some(word) = self.entry_tab_word() {
-            let cut = self.entry.typed.rfind(' ').map(|i| i + 1).unwrap_or(0);
-            self.entry.typed.truncate(cut);
-            self.entry.typed.push_str(&word);
-            self.entry.typed.push(' ');
-        }
-    }
-
-    /// Whether the word just typed into `entry.typed` is already whole
-    /// and the only one it can be: the point at which it moves on by
-    /// itself, the same move Tab makes for you.
-    fn entry_word_whole(&self) -> bool {
-        let prefix = self.entry.typed.rsplit(' ').next().unwrap_or("");
-        !prefix.is_empty() && self.entry_tab_word().as_deref() == Some(prefix)
-    }
-
     /// The words typed on Add a key's words form, the word being typed
     /// on a list's own keyboard taken first, as a key's words: whole and
     /// with a checksum that holds, or what is wrong with them.
@@ -8277,7 +8245,7 @@ impl Faraday {
             self.entry.error = None;
             return;
         }
-        let here = self.entry_typing_here();
+        let here = self.entry_typing_key();
         if here && self.entry.form != forms::Form::Words {
             let codex32 = self.entry.form == forms::Form::Codex32;
             match key {
@@ -9440,6 +9408,7 @@ fn slow(a: Action) -> bool {
             | Action::CPassLock
             | Action::CSlotVault(..)
             | Action::EntryAdd
+            | Action::EntryRecover
             | Action::Flow(F::CopyKey | F::LockWrite | F::WalletLock)
             | Action::Import(boot_import::ImportAction::Go)
             | Action::InboxLoad
@@ -9450,11 +9419,12 @@ fn slow(a: Action) -> bool {
             | Action::LoadKey(_)
             | Action::Lock
             | Action::SamplesLoad
+            | Action::ScanSample
             | Action::PLoad
             | Action::PotentialMake
             | Action::SecretUnprotected
             | Action::SeedRead(seeds::read::Choice::Plain | seeds::read::Choice::WithPass)
-            | Action::Seeds(seeds::SeedsAction::Make)
+            | Action::Seeds(seeds::SeedsAction::Make | seeds::SeedsAction::Sample(_))
             | Action::SelfTestRun
             | Action::Vanity(vanity::VanityAction::Use)
             | Action::Chart(

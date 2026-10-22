@@ -176,18 +176,24 @@ pub(crate) fn entry_words(
 
     let words: Vec<&str> = app.entry.typed.split_whitespace().collect();
     y += word_count_row(app, ui, x, y, width, true);
+    // Use a sample stands in the empty grid, in Demo (`docs/MODES.md` §6.1).
+    let chip = app.entry_sample_shown();
+    let grid = (y, app.entry.word_boxes(words.len()));
     y = typed_cells(
         ui,
         (x, y, width),
         lang,
         &app.entry.typed,
         Cells {
-            boxes: app.entry.word_boxes(words.len()),
+            boxes: grid.1,
             masked: false,
-            caret: !app.entry.on_passphrase,
+            caret: !app.entry.on_passphrase && !chip,
             never: app.online,
         },
     );
+    if chip {
+        crate::samples::put::grid_chip(ui, (x, grid.0, width), grid.1);
+    }
     y += button_rows(ui, x, y, width, &langs);
 
     // Status.
@@ -542,7 +548,15 @@ pub(crate) fn entry_form(
     );
     let on = !app.entry.on_passphrase;
     let empty = app.entry.typed.is_empty();
-    let typed = if empty && on {
+    // Use a sample stands where the hint would, in Demo.
+    let chip = app.entry_sample_shown();
+    if chip {
+        let h = faraday_draw::tokens::ENTRY_FIELD_HEIGHT;
+        crate::samples::put::field_chip(ui, (x, y, width, h));
+    }
+    let typed = if chip {
+        crate::secret_text::SecretText::new()
+    } else if empty && on {
         // The caret stands before the hint while nothing is typed.
         ui.caret(x + 12.0, y + 13.0, 18.0);
         match form {
