@@ -1,10 +1,10 @@
 //! The vaultway tour.
 
+use crate::tour::{Tour, scroll_to, type_text};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent};
 use faraday_shell_api::{App, Event, Key};
-use crate::tour::{Tour, scroll_to, type_text};
 
 /// Tools' GPG key with no vault file, Create a vault made for it, and
 /// back; then with the test vault locked, the tile again, Unlock for it,

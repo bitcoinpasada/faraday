@@ -1,7 +1,7 @@
 //! The upgrade tour.
 
-use faraday_core::{Action, BootPart, Screen, StickInfo, StorageEvent};
 use crate::tour::Tour;
+use faraday_core::{Action, BootPart, Screen, StickInfo, StorageEvent};
 
 /// The Spend tab from a fresh start: the map, the envelope, the vault and
 /// the PSBT copied in from a stick, the unlock, the wallet chosen, the

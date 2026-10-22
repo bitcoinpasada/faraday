@@ -1,8 +1,8 @@
 //! The menu tour.
 
+use crate::tour::{Tour, bput, scroll_to};
 use faraday_core::Action;
 use faraday_shell_api::{App, Event, Key};
-use crate::tour::{Tour, bput, scroll_to};
 
 /// The ⋮ menu on the backup board (`docs/BACKUP-FLOW.md` §17.20) for
 /// Savings, its three keys typed in, on Paper and vault, customised: on

@@ -1,10 +1,10 @@
 //! The plan tour.
 
+use crate::tour::{Tour, bput, scroll_to, shares_on_paper, vault_stick};
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_core::testkit;
 use faraday_core::{Action, bstep, qstep};
 use faraday_crypto::work::Compute;
-use crate::tour::{Tour, bput, scroll_to, shares_on_paper, vault_stick};
 
 /// Costs what `shares_on_paper`, `add_wallet` and `vault_stick` cost.
 /// The backup's plan: for Spending (one key, test key 1 here), the

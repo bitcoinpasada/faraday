@@ -1,9 +1,9 @@
 //! The first tour.
 
+use crate::tour::{Tour, device_key, scroll, scroll_to, type_text, type_words, vault_place};
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent, bstep};
 use faraday_crypto::work::Compute;
-use crate::tour::{Tour, device_key, scroll, scroll_to, type_text, type_words, vault_place};
 
 /// Costs what `vault_place`, `backup_items_now` and
 /// `backup_item_done_now` cost. The backup before spending

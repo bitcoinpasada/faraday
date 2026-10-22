@@ -1,10 +1,10 @@
 //! The kept tour.
 
+use crate::tour::{Tour, scroll_to, seed_files_at, to_checklist, type_text, type_words};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent, bstep};
 use faraday_crypto::work::Compute;
-use crate::tour::{Tour, scroll_to, seed_files_at, to_checklist, type_text, type_words};
 
 /// Scrolls the checklist until the open item's Continue is on screen.
 pub(crate) fn scroll_to_open_next(t: &mut Tour) {

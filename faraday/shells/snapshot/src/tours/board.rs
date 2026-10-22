@@ -1,10 +1,10 @@
 //! The board tour.
 
+use crate::tour::{Tour, bput, scroll, scroll_to, type_text, vault_place, vault_stick};
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent, qstep};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event, Key};
-use crate::tour::{Tour, bput, scroll, scroll_to, type_text, vault_place, vault_stick};
 
 /// Costs a map of the plan (through `vault_place` and `vault_stick`).
 /// The backup board (`docs/BACKUP-FLOW.md` §17) for Savings, its three

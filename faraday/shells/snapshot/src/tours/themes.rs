@@ -1,7 +1,7 @@
 //! The themes tour.
 
-use faraday_core::{Action, Screen};
 use crate::tour::Tour;
+use faraday_core::{Action, Screen};
 
 pub(crate) fn themes_tour(t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;

@@ -1,9 +1,9 @@
 //! The compact tour.
 
-use faraday_core::{Action, Screen};
-use faraday_shell_api::{App, Event, Key};
 use super::seeds::seeds_tour;
 use crate::tour::{Tour, type_text};
+use faraday_core::{Action, Screen};
+use faraday_shell_api::{App, Event, Key};
 
 /// The small panel's Home, and Make a new wallet with a new key from dice,
 /// a step to a page.

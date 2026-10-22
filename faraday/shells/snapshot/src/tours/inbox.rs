@@ -1,8 +1,8 @@
 //! The inbox tour.
 
+use crate::tour::{Tour, scroll};
 use faraday_core::{Action, Screen};
 use faraday_shell_api::App;
-use crate::tour::{Tour, scroll};
 
 /// Stick visit with files copied in from another stick offered under
 /// "From the Inbox".

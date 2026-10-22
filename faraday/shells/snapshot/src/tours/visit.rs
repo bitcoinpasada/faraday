@@ -1,9 +1,9 @@
 //! The visit tour.
 
+use crate::tour::{Tour, scroll};
 use faraday_core::{Action, Screen};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event};
-use crate::tour::{Tour, scroll};
 
 /// Costs what `classify` costs. Stick visit with a wallet backup's 20
 /// files in the Outbox and an unprotected secret: the Outbox list at

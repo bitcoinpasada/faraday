@@ -1,8 +1,8 @@
 //! The restore tour.
 
-use faraday_core::testkit;
-use faraday_core::Action;
 use crate::tour::{Tour, type_text};
+use faraday_core::Action;
+use faraday_core::testkit;
 
 /// Restore a wallet made elsewhere (`docs/history/NEW-WALLET.md` §12): Kind with
 /// the description shortcut (Scan it, From Files), Quorum at 2 of 3,

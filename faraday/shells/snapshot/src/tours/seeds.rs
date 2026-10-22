@@ -1,9 +1,9 @@
 //! The seeds tour.
 
+use crate::tour::{Tour, scroll, type_text};
 use faraday_core::testkit;
 use faraday_core::{Action, Screen};
 use faraday_shell_api::{App, Event, Key};
-use crate::tour::{Tour, scroll, type_text};
 
 /// A wallet from seed words alone: Restore on a 2-of-3 with no
 /// description, two seeds typed into their slots, the third cosigner's

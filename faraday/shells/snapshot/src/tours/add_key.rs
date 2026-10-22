@@ -1,8 +1,8 @@
 //! The add_key tour.
 
+use crate::tour::{Tour, type_text};
 use faraday_core::testkit;
 use faraday_core::{Action, Screen};
-use crate::tour::{Tour, type_text};
 
 /// Add a key, which is New key opening on Start (`docs/history/NEW-WALLET.md`
 /// §15): the Start card, its Other forms, the Words card typed, the Key

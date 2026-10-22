@@ -1,9 +1,9 @@
 //! The devices tours.
 
+use crate::tour::{Tour, laptop, type_text};
 use faraday_core::testkit;
 use faraday_core::{Action, Screen};
 use faraday_shell_api::{App, Event, Key};
-use crate::tour::{Tour, laptop, type_text};
 
 /// A wireless receiver: Logitech's Unifying receiver, or with `bolt` its
 /// Bolt receiver.

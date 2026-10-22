@@ -1,9 +1,9 @@
 //! The copy tour.
 
+use crate::tour::{Tour, copy_digits, scroll_to, type_words};
 use faraday_core::{Action, StorageEvent, bstep};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event};
-use crate::tour::{Tour, copy_digits, scroll_to, type_words};
 
 /// Costs what `copy_digits` costs.
 pub(crate) fn copy_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
