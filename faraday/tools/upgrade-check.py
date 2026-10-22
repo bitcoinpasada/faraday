@@ -58,6 +58,23 @@ qemu = load("stick_qemu", os.path.join(ROOT, "faraday/tools/stick-qemu.py"))
 # The QMP helpers, which are upstream's, from faraday/tools/stick-qemu.py.
 st = qemu
 
+
+def kvm_works():
+    """Whether /dev/kvm can be opened: a machine whose virtualisation is
+    not offered to it (a WSL without nested virtualisation) has the node
+    but no driver behind it."""
+    try:
+        os.close(os.open("/dev/kvm", os.O_RDWR))
+        return True
+    except OSError:
+        return False
+
+
+# Without KVM QEMU emulates the CPU, which works but is several times
+# slower, so every wait on the guest is stretched by the same factor.
+KVM = kvm_works()
+SLOW = 1 if KVM else 8
+
 MTOOLS = os.path.join(ROOT, "out/pi/x86_64-uefi-efi-framebuffer/output/host/bin")
 PIPES = "/run/faraday-boot/requests /run/faraday-boot/responses"
 
@@ -130,6 +147,7 @@ class Console:
             self.log.flush()
 
     def wait_for(self, pattern, seconds):
+        seconds *= SLOW
         deadline = time.monotonic() + seconds
         while time.monotonic() < deadline:
             m = re.search(pattern, self.buf, re.S)
@@ -144,7 +162,7 @@ class Console:
 
     def login(self, seconds):
         """Root on the dev getty, which has no password."""
-        deadline = time.monotonic() + seconds
+        deadline = time.monotonic() + seconds * SLOW
         while time.monotonic() < deadline:
             self.send("")
             try:
@@ -180,7 +198,7 @@ def settle(monitor, scratch, seconds):
     """The screen once it has left the console's black and stopped
     changing, or as it is when the time is up."""
     last = None
-    deadline = time.monotonic() + seconds
+    deadline = time.monotonic() + seconds * SLOW
     while time.monotonic() < deadline:
         time.sleep(1.0)
         w, h, now = monitor.screendump(scratch)
@@ -212,13 +230,16 @@ def boot(image, work, name, usb=()):
     vars_dir = os.path.join(work, f"{name}-vars")
     argv = qemu.command(image, vars_fd=qemu.vars_copy(vars_dir),
                         serial=f"unix:{sock},server=on,wait=off", qmp=qmp,
-                        vnc=None, usb=usb)
+                        vnc=None, usb=usb, kvm=KVM)
     proc = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return proc, sock, qmp
 
 
 def main():
     new, old, out = sys.argv[1:4]
+    if not KVM:
+        print("no usable /dev/kvm: QEMU emulates the CPU, and every wait is "
+              f"{SLOW} times as long")
     os.makedirs(out, exist_ok=True)
     work = os.path.join(out, "work")
     os.makedirs(work, exist_ok=True)

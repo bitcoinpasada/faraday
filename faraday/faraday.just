@@ -264,7 +264,8 @@ faraday-sb-ovmf out="out/sb-ovmf-check":
 # the new release, its data partition byte for byte what it was. Root on
 # the dev console stands in for the app, which no input in QEMU can drive
 # (faraday/tools/upgrade-check.py says what is and is not exercised).
-# Needs QEMU, OVMF and mtools; console logs in out/upgrade-check/.
+# Needs QEMU, OVMF and mtools; uses KVM where /dev/kvm opens and emulates
+# the CPU, slower, where it does not; console logs in out/upgrade-check/
 [group('test')]
 faraday-upgrade-check old out="out/upgrade-check":
     python3 -B faraday/tools/upgrade-check.py out/stick/faraday-x86_64-uefi-dev.img "{{old}}" "{{out}}"
