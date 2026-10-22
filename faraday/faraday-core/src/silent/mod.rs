@@ -13,9 +13,9 @@ pub(crate) mod screen;
 
 use crate::strings::EN;
 use crate::strings::fill;
-use faraday_bip::silent::Receiver;
 use faraday_bip::silent_wallet::{MAX_LABELS, SilentWallet};
 use faraday_crypto::work::Compute;
+use faraday_keys::silent::Receiver;
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
 use zeroize::Zeroizing;
@@ -220,7 +220,7 @@ impl Faraday {
             return Some(w.address());
         }
         let (r, _) = self.silent_receiver(c)?;
-        faraday_keys::silent::address(&r, s.label)
+        r.address(s.label)
     }
 
     /// Costs what `silent_receiver` costs. The public record a coordinator
@@ -232,13 +232,12 @@ impl Faraday {
         }
         let s = self.silent.as_ref()?;
         let (r, fp) = self.silent_receiver(c)?;
-        let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::new();
         Some(
             SilentWallet {
                 network: r.network(),
                 fingerprint: faraday_bip::keys::Fingerprint(fp),
                 account: 0,
-                scan: r.scan_public_key(&secp),
+                scan: r.scan_public_key(),
                 spend: r.spend_public_key(),
                 labels: s.labels.max(s.label),
             }
@@ -247,10 +246,14 @@ impl Faraday {
     }
 
     /// Costs what `silent_receiver` costs. The scan key, BIP-392's
-    /// `spscan1q…`.
-    fn silent_scan_key(&self, c: &Compute) -> Option<Zeroizing<String>> {
-        let (r, _) = self.silent_receiver(c)?;
-        faraday_keys::silent::scan_key(&r)
+    /// `spscan1q…`, for `why`, and the key's fingerprint.
+    fn silent_scan_key(
+        &self,
+        c: &Compute,
+        why: faraday_keys::Reveal,
+    ) -> Option<(faraday_keys::Held<Zeroizing<String>>, [u8; 4])> {
+        let (r, fp) = self.silent_receiver(c)?;
+        Some((r.scan_key(why)?, fp))
     }
 
     /// Costs what `silent_address`, `silent_record` and `of` cost. The QR
@@ -330,9 +333,10 @@ impl Faraday {
                 if self.vaults.open.get(self.vaults.current).is_none() {
                     return self.toast(EN.silent_no_vault_is);
                 }
-                let (Some(key), Some((_, fp))) =
-                    (self.silent_scan_key(&c), self.silent_receiver(&c))
-                else {
+                let Some((key, fp)) = self.silent_scan_key(
+                    &c,
+                    faraday_keys::Reveal::VaultEntry(faraday_keys::Part::ScanKey),
+                ) else {
                     return;
                 };
                 let title = fill(
@@ -347,9 +351,10 @@ impl Faraday {
                 return;
             }
             A::SScanOut => {
-                let (Some(key), Some((_, fp))) =
-                    (self.silent_scan_key(&c), self.silent_receiver(&c))
-                else {
+                let Some((key, fp)) = self.silent_scan_key(
+                    &c,
+                    faraday_keys::Reveal::OutboxFile(faraday_keys::Part::ScanKey),
+                ) else {
                     return;
                 };
                 let name = format!("spscan-{}.txt", fp_text(faraday_bip::keys::Fingerprint(fp)));
@@ -503,7 +508,7 @@ impl Faraday {
             .max(self.silent.as_ref().map_or(0, |s| s.labels));
         let labels: Vec<u32> = (0..=labels_out).collect();
         let scripts: Vec<&[u8]> = prevouts.iter().map(|s| s.as_bytes()).collect();
-        match faraday_keys::silent::payments_in(&receiver, tx, &scripts, &labels) {
+        match receiver.payments_in(tx, &scripts, &labels) {
             Err(_) => Some(Checked::NoInputs),
             Ok(found) if found.is_empty() => Some(Checked::NotPaid),
             Ok(found) => Some(Checked::Paid(

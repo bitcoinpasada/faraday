@@ -40,8 +40,8 @@ fn an_lnd_cipher_seed_gives_lnds_node_id() {
     app.event(Event::Tick { now_ms: now });
     let l = app.lightning.as_ref().unwrap();
     let n = l.node.as_ref().unwrap_or_else(|| panic!("{:?}", l.error));
-    assert_eq!(hex(&n.public), NODE_KEY);
-    assert!(n.birthday.is_some());
+    assert_eq!(hex(n.public()), NODE_KEY);
+    assert!(n.birthday().is_some());
     // The private key goes out only through the secret sheet.
     app.press(Action::LOut);
     assert_eq!(app.sheet, Some(Sheet::SecretOut));
@@ -62,7 +62,7 @@ fn a_loaded_key_gives_ldk_nodes_node_id() {
     app.press(Action::LKey(fp));
     let n = app.lightning.as_ref().unwrap().node.as_ref().unwrap();
     assert_eq!(
-        hex(&n.public),
+        hex(n.public()),
         "027cf7c81dc777e46572ff964f17650a0f6f783319fcc140fb9a69425e2fbdc93c"
     );
 }

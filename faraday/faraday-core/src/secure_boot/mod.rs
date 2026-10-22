@@ -9,8 +9,7 @@ pub mod state;
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_keys::vault::{RecordView, VaultId};
-use faraday_sb::{Check, Keys, Policy};
-use faraday_vault::Record;
+use faraday_sb::{Check, Policy};
 use faraday_vault::records::kind;
 
 use crate::Faraday;
@@ -20,17 +19,6 @@ use crate::backup_flow::steps::Built;
 pub(crate) const OWNER_FIELD: u8 = f::OWNER;
 
 use faraday_keys::vault::sb_field as f;
-
-fn record_of(k: &Keys) -> Record {
-    Record::new(kind::SECURE_BOOT)
-        .with(f::OWNER, &k.owner)
-        .with(f::PK_KEY, &k.pk.key)
-        .with(f::PK_CERT, &k.pk.cert)
-        .with(f::KEK_KEY, &k.kek.key)
-        .with(f::KEK_CERT, &k.kek.cert)
-        .with(f::DB_KEY, &k.db.key)
-        .with(f::DB_CERT, &k.db.cert)
-}
 
 /// A GUID as text.
 pub fn guid_text(g: &[u8]) -> String {
@@ -105,8 +93,6 @@ impl Faraday {
             return Err(EN.secureboot_no_randomness.to_string());
         };
         let owner = owner.trim();
-        let keys = faraday_keys::secure_boot::make(&seed, owner, now)
-            .map_err(|e| e.reason().to_string())?;
         // The enrolment files are made with the keys, as the policy chosen
         // says, and written in the flow with the other public files.
         let policy = if self.vaults.sb_own_only {
@@ -117,17 +103,17 @@ impl Faraday {
         let blind_seed = self
             .fresh(b"secure boot enrolment")
             .ok_or_else(|| EN.secureboot_no_randomness.to_string())?;
-        let outbox = faraday_keys::secure_boot::enrolment(&blind_seed, &keys, policy, now)
+        let made = faraday_keys::secure_boot::create(&seed, &blind_seed, owner, policy, now)
             .map_err(|e| e.reason().to_string())?;
         Ok(Built {
-            record: record_of(&keys),
-            subject: keys.owner.to_vec(),
+            record: made.key,
+            subject: made.owner.to_vec(),
             name: if owner.is_empty() {
-                guid_text(&keys.owner)
+                guid_text(&made.owner)
             } else {
                 owner.to_string()
             },
-            outbox,
+            outbox: made.enrolment,
         })
     }
 

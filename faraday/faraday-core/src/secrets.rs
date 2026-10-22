@@ -494,13 +494,10 @@ impl Faraday {
     pub(crate) fn vault_round(
         &self,
         psbt: &faraday_psbt::Psbt,
-    ) -> Option<faraday_psbt::threshold::CarrySection> {
+    ) -> Option<faraday_keys::carry::Section> {
         // The round's state is read inside faraday-keys: the section it
         // holds goes to the spend, which signs with its nonces.
-        self.vaults
-            .store()
-            .round_section(&tx_hash(psbt))
-            .map(faraday_keys::Held::release)
+        self.vaults.store().round_section(&tx_hash(psbt))
     }
 
     /// A round has signed: it leaves every open vault at the next seal.

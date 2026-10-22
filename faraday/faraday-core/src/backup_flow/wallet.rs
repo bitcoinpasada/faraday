@@ -289,23 +289,16 @@ impl Faraday {
         }
     }
 
-    /// Costs what `parse_words` and `key_fingerprint` cost. Each seed of
-    /// wallet `w` as text, without its passphrase: the fingerprint of the
-    /// same words alone.
+    /// Costs a parse of the words per seed, and what `words_identity`
+    /// costs the first time. Each seed of wallet `w` as text, without its
+    /// passphrase: the fingerprint of the same words alone, kept as a
+    /// vault key record of them is ([`crate::vault::screen::words_identity`]).
     pub(crate) fn wallet_seed_bases(&self, c: &Compute, w: usize) -> Vec<String> {
         self.backup_seed_list_now(w)
             .into_iter()
             .map(|(name, k)| {
-                let Some(rec) = k.and_then(|k| {
-                    self.session.keys.words_record(
-                        c,
-                        k,
-                        faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Words),
-                    )
-                }) else {
-                    return name;
-                };
-                crate::vault::screen::key_fingerprint(c, self, rec.view()).unwrap_or(name)
+                k.and_then(|k| crate::vault::screen::words_identity(c, self, k))
+                    .map_or(name, |(fp, _)| fp)
             })
             .collect()
     }

@@ -46,7 +46,7 @@ pub(crate) fn with_secret_share(
 }
 
 /// A key to deal from: its words and their list.
-pub struct Dealer<'a> {
+pub(crate) struct Dealer<'a> {
     /// The BIP-39 list the words are from.
     pub language: Language,
     /// The words, when the key has them.
@@ -62,21 +62,30 @@ pub enum DealError {
     Refused(String),
 }
 
-/// What a deal made.
+/// What a deal made: the public record, and the new shares, which stay
+/// inside this crate until [`Keys::add_dealt`](crate::Keys::add_dealt)
+/// loads them as keys. Neither `Clone` nor `Debug`.
 pub struct Dealt {
     /// The threshold record, as text: the group key and every share's
     /// public part, for the network dealt on.
     pub record: String,
     /// The new shares, as 24 words each, by identifier (counting from 0):
     /// the ones past the chosen keys', which the person writes down.
-    pub words: Vec<(usize, Zeroizing<String>)>,
+    pub(crate) words: Vec<(usize, Zeroizing<String>)>,
+}
+
+impl Dealt {
+    /// The identifiers (counting from 0) of the new shares.
+    pub fn new_shares(&self) -> Vec<usize> {
+        self.words.iter().map(|(id, _)| *id).collect()
+    }
 }
 
 /// Costs a parse of the words per dealer, and the deal's elliptic-curve
 /// work. Deals an `m`-of-`n` threshold wallet from the shares `dealers`
 /// are, in order as identifiers 0, 1…: the other shares and the group
 /// key are computed.
-pub fn make_group(
+pub(crate) fn make_group(
     c: &Compute,
     dealers: &[Dealer<'_>],
     n: usize,

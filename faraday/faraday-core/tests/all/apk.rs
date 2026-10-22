@@ -130,13 +130,11 @@ fn make(app: &mut Faraday, name: &str, package: &str) {
     static SEED: AtomicU8 = AtomicU8::new(0x61);
     let seed = [SEED.fetch_add(1, Ordering::Relaxed); 32];
     let name = name.trim();
-    let pair = key::make(&seed, name, 1_791_482_652).unwrap();
+    let made = faraday_keys::apk::create(&seed, name, package, 1_791_482_652).unwrap();
     let cur = app.vaults.current;
     {
         let id = app.vaults.open[cur].id;
-        app.vaults.edit(id, |s| {
-            s.insert(id, faraday_core::apk::record_of(&pair, package))
-        });
+        app.vaults.edit(id, |s| s.insert(id, &made.key));
     }
     app.vaults.open[cur].changes += 1;
     let n = app

@@ -265,6 +265,36 @@ impl IntoRecord for Held<Record> {
     }
 }
 
+/// A key made here from fresh entropy (a GPG, APK or Secure Boot key), as
+/// the record every vault of a plan takes. Its secrets never leave: it is
+/// neither `Clone` nor `Debug`, shows its public fields through
+/// [`MadeKey::view`], and each vault takes a copy made inside this crate
+/// (`IntoRecord for &MadeKey`).
+pub struct MadeKey(Record);
+
+impl MadeKey {
+    /// Holds `record`.
+    pub(crate) fn of(record: Record) -> MadeKey {
+        MadeKey(record)
+    }
+
+    /// The record's public fields.
+    pub fn view(&self) -> RecordView<'_> {
+        RecordView::of(&self.0)
+    }
+
+    /// The bytes the record takes in a slot.
+    pub fn size(&self) -> usize {
+        self.view().size()
+    }
+}
+
+impl IntoRecord for &MadeKey {
+    fn into_record(self) -> Record {
+        self.0.clone()
+    }
+}
+
 /// A record waiting to go into a vault: built by the caller from public
 /// values, or copied out of an open vault by this crate and held here
 /// (its secrets are never the caller's to read).
@@ -1038,10 +1068,7 @@ impl OpenVaults {
     /// The carry section the first unused round of any open vault bound to
     /// transaction `tx` holds, when it reads. A round is kept across a
     /// lock; its state is the secret nonces of a signing.
-    pub fn round_section(
-        &self,
-        tx: &[u8; 32],
-    ) -> Option<Held<faraday_psbt::threshold::CarrySection>> {
+    pub fn round_section(&self, tx: &[u8; 32]) -> Option<crate::carry::Section> {
         for s in &self.slots {
             for (_, r) in s.records.of(kind::ROUND) {
                 if r.field(field::ROUND_TX) == Some(&tx[..])
@@ -1049,7 +1076,7 @@ impl OpenVaults {
                     && let Some(state) = r.field(field::ROUND_STATE)
                     && let Some(section) = crate::carry::section_of(state)
                 {
-                    return Some(Held::of(section));
+                    return Some(section);
                 }
             }
         }

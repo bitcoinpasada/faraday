@@ -9,9 +9,7 @@
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_crypto::work::Compute;
-use faraday_keys::gpg::Key;
 use faraday_pgp::{Armor, Reason, armor};
-use faraday_vault::Record;
 use faraday_vault::records::kind;
 use zeroize::Zeroizing;
 
@@ -38,36 +36,6 @@ const TEXT_MAX: usize = 2048;
 
 fn u32_of(r: RecordView<'_>, n: u8) -> Option<u32> {
     Some(u32::from_le_bytes(r.public(n)?.try_into().ok()?))
-}
-
-/// A key made here from fresh seeds, as the facts a record of it would
-/// give.
-fn facts_of(key: &Key) -> Facts {
-    Facts {
-        fingerprint: key.fingerprint(),
-        subkey_fingerprint: key.subkey_fingerprint(),
-        created: key.created,
-        subkey_created: key.subkey_created,
-        user_ids: key.user_ids.clone(),
-        expiry: key.expiry,
-    }
-}
-
-/// A type-7 record for a key, the certificate last made from it and the
-/// revocation certificate made with it.
-fn record_of(key: &Key, certificate: &[u8], revocation: &[u8]) -> Record {
-    let mut r = Record::new(kind::GPG)
-        .with(f::PRIMARY, &key.primary_seed)
-        .with(f::CREATED, &key.created.to_le_bytes())
-        .with(f::SUBKEY, &key.subkey_seed)
-        .with(f::SUBKEY_CREATED, &key.subkey_created.to_le_bytes());
-    for uid in &key.user_ids {
-        r.push(f::USER_ID, uid.as_bytes());
-    }
-    r.push(f::EXPIRY, &key.expiry.to_le_bytes());
-    r.push(f::CERTIFICATE, certificate);
-    r.push(f::REVOCATION, revocation);
-    r
 }
 
 /// When the certificate in a record was last signed: the time of its
@@ -283,25 +251,17 @@ impl Faraday {
         };
         let primary = Zeroizing::new(primary);
         let subkey = Zeroizing::new(subkey);
-        let key = faraday_keys::gpg::make(
+        let made = faraday_keys::gpg::create(
             &primary,
             &subkey,
             now,
             uid.clone(),
             self.vaults.gpg_years * YEAR,
         );
-        let cert = faraday_keys::gpg::certificate(&key, now);
-        let stem = file_stem(&facts_of(&key));
-        let revocation = Zeroizing::new(faraday_keys::gpg::revocation(
-            &key,
-            now,
-            Reason::Unspecified,
-            "",
-        ));
-        let record = record_of(&key, &cert, &revocation);
+        let stem = file_stem(&made.facts);
         Ok(Built {
-            record,
-            subject: key.fingerprint().to_vec(),
+            record: made.key,
+            subject: made.facts.fingerprint.to_vec(),
             name: if name.trim().is_empty() {
                 uid
             } else {
@@ -309,7 +269,7 @@ impl Faraday {
             },
             outbox: vec![(
                 format!("{stem}.asc"),
-                armor(Armor::PublicKey, &cert).into_bytes(),
+                armor(Armor::PublicKey, &made.certificate).into_bytes(),
             )],
         })
     }

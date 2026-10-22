@@ -15,7 +15,6 @@ use crate::strings::fill;
 use faraday_apk::{Apk, Info, Refusal, Slice, key, pem, sign};
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::RecordView;
-use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
 
 use crate::Faraday;
@@ -174,14 +173,6 @@ pub struct Shown {
     pub hex: String,
     /// The day it was made, local.
     pub made: String,
-}
-
-/// The record a made key is kept as.
-pub fn record_of(pair: &faraday_sb::Pair, package: &str) -> Record {
-    Record::new(kind::APK_KEY)
-        .with(field::APK_KEY, &pair.key)
-        .with(field::APK_CERT, &pair.cert)
-        .with(field::APK_PACKAGE, package.as_bytes())
 }
 
 /// The certificate's SHA-256, from a type-12 record.
@@ -551,17 +542,17 @@ impl Faraday {
             .fresh(b"apk key")
             .map(zeroize::Zeroizing::new)
             .ok_or_else(|| EN.apk_no_randomness.to_string())?;
-        let pair =
-            faraday_keys::apk::make(&seed, &name, now).map_err(|e| e.reason().to_string())?;
-        let fp = key::fingerprint(&pair.cert);
+        let made = faraday_keys::apk::create(&seed, &name, &package, now)
+            .map_err(|e| e.reason().to_string())?;
+        let fp = key::fingerprint(&made.cert);
         let stem = file_stem(&name, &fp);
         Ok(Built {
-            record: record_of(&pair, &package),
+            record: made.key,
             subject: fp.to_vec(),
             name,
             outbox: vec![(
                 format!("{stem}-certificate.pem"),
-                pem::encode(&pair.cert).into_bytes(),
+                pem::encode(&made.cert).into_bytes(),
             )],
         })
     }

@@ -108,7 +108,7 @@ pub struct Signed {
     pub by: Vec<Fingerprint>,
     /// The carry section a threshold pass leaves for the shares still to
     /// sign: the secret nonce that travels on the stick.
-    pub carry: Option<faraday_psbt::threshold::CarrySection>,
+    pub carry: Option<faraday_keys::carry::Section>,
 }
 
 /// A wallet described by its public keys.
@@ -704,15 +704,14 @@ impl Session {
         &self,
         c: &Compute,
         psbt: &Psbt,
-        carry: Option<&faraday_psbt::threshold::CarrySection>,
+        carry: Option<&faraday_keys::carry::Section>,
     ) -> Inspection {
         let refs = self.key_refs(c);
         let policies = self.policies();
         let shares = self.keys.share_refs();
         let mut ctx = context(self.network(), &refs, &policies);
         ctx.shares = &shares;
-        ctx.carry = carry;
-        faraday_psbt::inspect(c, psbt, &ctx)
+        faraday_keys::carry::inspect(c, psbt, ctx, carry)
     }
 
     /// The loaded keys that are shares of the threshold wallet `w`, by
@@ -759,7 +758,7 @@ impl Session {
         seed: [u8; 32],
         musig: &mut Option<faraday_psbt::MusigSession>,
         others: &[u32],
-        carry: Option<&faraday_psbt::threshold::CarrySection>,
+        carry: Option<&faraday_keys::carry::Section>,
         known: Option<&Inspection>,
     ) -> Result<Signed, String> {
         let refs = self.key_refs(c);
@@ -767,12 +766,11 @@ impl Session {
         let share_refs = self.keys.share_refs();
         let mut ctx = context(self.network(), &refs, &policies);
         ctx.shares = &share_refs;
-        ctx.carry = carry;
         let own;
         let inspection = match known {
             Some(i) => i,
             None => {
-                own = faraday_psbt::inspect(c, psbt, &ctx);
+                own = faraday_keys::carry::inspect(c, psbt, ctx, carry);
                 &own
             }
         };
@@ -789,16 +787,13 @@ impl Session {
         if selection.is_empty() && !shares_sign {
             return Err(EN.wallet_no_key_in_this.to_string());
         }
-        let result = self
+        let (result, left) = self
             .keys
-            .sign(c, psbt, &selection, &ctx, musig, seed, others)
+            .sign(c, psbt, &selection, ctx, carry, musig, seed, others)
             .map_err(|e| e.to_string())?;
         let mut by: Vec<Fingerprint> = result.signed_inputs.iter().map(|s| s.fingerprint).collect();
         by.dedup();
-        Ok(Signed {
-            by,
-            carry: result.threshold.and_then(|t| t.carry),
-        })
+        Ok(Signed { by, carry: left })
     }
 }
 
@@ -1738,7 +1733,7 @@ pub struct SpendState {
     pub others: Vec<u32>,
     /// The carry section a threshold spend arrived with: the secret nonce
     /// of a share held here. Wiped on drop.
-    pub carry: Option<faraday_psbt::threshold::CarrySection>,
+    pub carry: Option<faraday_keys::carry::Section>,
     /// The carry file this device's pass leaves for the next share, until
     /// it goes to the Outbox.
     pub carry_out: Option<zeroize::Zeroizing<Vec<u8>>>,

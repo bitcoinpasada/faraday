@@ -301,13 +301,55 @@ faraday-core sees an open vault's public fields and nothing else.
   the records to test it. Word counts and words' ids are facts the store
   works out and drops on every edit.
 - **Left in faraday-core.** A `Record` it builds from input it holds (a
-  typed password, a key made from fresh entropy, a wallet description);
-  the `CarrySection` a ROUND record holds, which `round_section` hands
-  to the spend as a held value; and a key record's words, handed as a
-  held `Mnemonic` to the SeedQR, the stick file and the screen.
+  typed password, a wallet description); and a key record's words,
+  handed as a held `Mnemonic` to the SeedQR, the stick file and the
+  screen. (A key made from fresh entropy and a ROUND record's
+  `CarrySection` were left here too; step 4a moved them in.)
 - **Tests.** Tests read records through the same views; those that need a
   raw record read it through `contents_for_tests`, behind
   `master-for-tests`.
+
+### Step 4a as built
+
+Step 4a closes §4.1's public types. Each type that holds a secret is
+now opaque: its secret is in a private field, it is neither `Clone` nor
+`Debug`, and the secret leaves only through a method that names a
+`Reveal` reason.
+
+- **Silent payments.** `silent::Receiver` wraps BIP-352's receiver.
+  Public: `network`, `scan_public_key`, `spend_public_key`, `address`,
+  `payments_in`. The scan key leaves through `scan_key(why)`, for
+  `VaultEntry` or `OutboxFile` of `Part::ScanKey`.
+- **Lightning.** `lightning::Node` gives `public` and `birthday`; the
+  private key leaves as hex through `private_hex(why)`, for
+  `LightningKey` (on screen), or `VaultEntry` or `OutboxFile` of
+  `Part::NodeKey`. `Keys::lightning_node` returns the node itself.
+- **FROST.** `Keys::deal` returns a `Dealt` whose `record` is public and
+  whose new shares' words are private; `Keys::add_dealt` loads them as
+  keys, labelled by the caller. `make_group` and `Dealer` are the
+  crate's own.
+- **Keys made from fresh entropy.** `gpg::create`, `apk::create` and
+  `secure_boot::create` make the key and the record every vault of the
+  plan takes, as a `vault::MadeKey`: its public fields through `view()`,
+  a copy into each vault made inside the crate (`IntoRecord for
+  &MadeKey`). They return the public parts beside it: the GPG facts and
+  certificate, the APK certificate, the owner GUID and the enrolment
+  files. `gpg::Key`, `secure_boot::Keys` and `Pair` are the crate's own,
+  with every function that takes them.
+- **The carry section.** `carry::Section` wraps a FROST spend's
+  `CarrySection` and tells only `is_empty`. `carry::parse` reads a carry
+  file into one, `round_section` returns one, and `carry::inspect` and
+  `Keys::sign` (which now takes it, and returns the one the pass leaves
+  beside the result) read its nonces inside the crate. faraday-psbt's
+  `CarrySection` keeps its public fields: its own tests forge sections
+  to check that a forged one is refused.
+- **`wallet_seed_bases`.** `Keys::words_record_id` (a hash) and
+  `Keys::words_identity` (a PBKDF2) give the id and identity a vault
+  record of a key's words alone would have, and faraday-core keeps the
+  identity in the vault's cache by that id, as it does a record's. No
+  record of the words leaves; `words_record` is gone.
+- **`MusigSession`** (faraday-psbt) was already opaque: its secret
+  nonces are private fields.
 
 ### 4.1 Left after step 2, closed by step 4
 
@@ -317,15 +359,15 @@ material take their `Reveal` reason and return `Held<T>`, which is not
 `Clone` or `Debug`, wipes on drop, and has `release()` for the point
 where the secret goes into a vault record.
 
-Still open, for step 4's lint to refuse:
+What was open after step 3:
 - **Public types from step 1 that hold a secret:** `silent_receiver`
-  returns a `Receiver` with the scan key in it, and `gpg::Key`, `Dealt`
-  (FROST) and `Node` (Lightning) are `pub`. Each becomes `Held`, or stays
-  inside the crate behind operations.
-- **`wallet_seed_bases`** builds a words record only to read its
-  fingerprint. It becomes a fingerprint operation, not a reveal.
+  returned a `Receiver` with the scan key in it, and `gpg::Key`, `Dealt`
+  (FROST) and `Node` (Lightning) were `pub`. Closed by step 4a.
+- **`wallet_seed_bases`** built a words record only to read its
+  fingerprint. Closed by step 4a.
 - **FROST shares** leave as `PaperForm`, the reason that fits them: words
-  the person writes down.
+  the person writes down. They are keys once dealt (step 4a), and leave
+  as any key's words do.
 - **`Keys::master_for_tests`**, behind the `master-for-tests` feature,
   stays for tests. `tools/lint-keys-tests.sh` keeps that feature out of
   every binary Faraday ships.

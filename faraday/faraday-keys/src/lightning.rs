@@ -8,17 +8,47 @@ use faraday_crypto::Secret;
 use faraday_crypto::work::Compute;
 use zeroize::{Zeroize, Zeroizing};
 
+use crate::{Part, Reveal};
+
 /// Words in an aezeed.
 pub const AEZEED_WORDS: usize = aezeed::NUM_WORDS;
 
-/// A node key.
+/// A node key. It holds the private key, so it is neither `Clone` nor
+/// `Debug` and gives out its public key and birthday; the private key
+/// leaves only through [`Node::private_hex`], for a reason that names it.
 pub struct Node {
     /// The node's public key, compressed: its node id.
-    pub public: [u8; 33],
+    public: [u8; 33],
     /// Its private key.
-    pub private: Zeroizing<[u8; 32]>,
+    private: Zeroizing<[u8; 32]>,
     /// The day an aezeed says it was made.
-    pub birthday: Option<(i32, u32, u32)>,
+    birthday: Option<(i32, u32, u32)>,
+}
+
+impl Node {
+    /// The node's public key, compressed: its node id.
+    pub fn public(&self) -> &[u8; 33] {
+        &self.public
+    }
+
+    /// The day an aezeed says it was made, as year, month and day.
+    pub fn birthday(&self) -> Option<(i32, u32, u32)> {
+        self.birthday
+    }
+
+    /// The private key as lower-case hex, for `why`: shown on screen
+    /// (`Reveal::LightningKey`), or into a vault record or a file to the
+    /// Outbox (`Reveal::VaultEntry` or `Reveal::OutboxFile` of
+    /// `Part::NodeKey`). `None` for another reason.
+    pub fn private_hex(&self, why: Reveal) -> Option<Zeroizing<String>> {
+        matches!(
+            why,
+            Reveal::LightningKey
+                | Reveal::VaultEntry(Part::NodeKey)
+                | Reveal::OutboxFile(Part::NodeKey)
+        )
+        .then(|| faraday_intake::secret_buf::hex(&self.private[..]))
+    }
 }
 
 /// Costs an elliptic-curve multiplication (through `to_xpub`): the node

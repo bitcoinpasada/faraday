@@ -60,24 +60,16 @@ impl Keys {
     /// elliptic-curve multiplication. The Lightning node key ldk-node
     /// derives from key `i`'s words and passphrase, on the store's
     /// network. `None` for a key with no words.
-    pub fn lightning_node(
-        &self,
-        c: &Compute,
-        i: usize,
-        _why: Reveal,
-    ) -> Option<Result<Held<lightning::Node>, String>> {
+    pub fn lightning_node(&self, c: &Compute, i: usize) -> Option<Result<lightning::Node, String>> {
         let s = self.secrets(i)?;
         let words = s.words?;
-        Some(
-            lightning::node_from_words(
-                c,
-                s.language,
-                words,
-                s.passphrase.unwrap_or(""),
-                self.network(),
-            )
-            .map(Held::of),
-        )
+        Some(lightning::node_from_words(
+            c,
+            s.language,
+            words,
+            s.passphrase.unwrap_or(""),
+            self.network(),
+        ))
     }
 
     /// Costs what `vanity::grind` costs. A budget of a vanity search on key
@@ -108,15 +100,15 @@ impl Keys {
 
     /// Costs what `make_group` costs. Deals a threshold wallet from the
     /// keys at `places`, in slot order: the other shares and the group key
-    /// (`n` shares, `m` needed), each key's words read as a share.
+    /// (`n` shares, `m` needed), each key's words read as a share. The new
+    /// shares stay in the [`frost::Dealt`] until [`Keys::add_dealt`].
     pub fn deal(
         &self,
         c: &Compute,
         places: &[usize],
         n: usize,
         m: usize,
-        _why: Reveal,
-    ) -> Result<Held<frost::Dealt>, frost::DealError> {
+    ) -> Result<frost::Dealt, frost::DealError> {
         let dealers: Vec<frost::Dealer<'_>> = places
             .iter()
             .map(|&i| match self.secrets(i) {
@@ -130,7 +122,17 @@ impl Keys {
                 },
             })
             .collect();
-        frost::make_group(c, &dealers, n, m, self.network()).map(Held::of)
+        frost::make_group(c, &dealers, n, m, self.network())
+    }
+
+    /// Costs what `add_words` costs per share. Loads the new shares of
+    /// `dealt` as keys, each labelled `label(id)` by its identifier
+    /// (counting from 0), so that their words can be written down in the
+    /// backup like any key's.
+    pub fn add_dealt(&mut self, c: &Compute, dealt: frost::Dealt, label: impl Fn(usize) -> String) {
+        for (id, words) in &dealt.words {
+            let _ = self.add_words(c, words, &label(*id), None);
+        }
     }
 
     /// Costs what `bip85::child` costs. The BIP-85 child of `app` at
@@ -159,7 +161,7 @@ impl Keys {
         c: &Compute,
         i: usize,
         account: u32,
-    ) -> Option<faraday_bip::silent::Receiver> {
+    ) -> Option<crate::silent::Receiver> {
         Some(crate::silent::receiver(c, self.secrets(i)?.master, account))
     }
 

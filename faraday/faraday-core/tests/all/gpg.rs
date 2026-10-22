@@ -605,7 +605,7 @@ fn no_seed_and_no_paperkey_reaches_the_outbox() {
     });
     app.press(Action::Vault(V::GpgRenew));
     let key = key_of(&app);
-    let paper = faraday_keys::gpg::paperkey(&key);
+    let paper = key.paperkey();
     let first = paper.lines().next().unwrap().trim().to_string();
     assert!(app.outbox.len() >= 4, "{:?}", outbox_names(&app));
     for item in &app.outbox {

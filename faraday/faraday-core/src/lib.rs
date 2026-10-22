@@ -3069,8 +3069,8 @@ impl Faraday {
         // signs next.
         let (psbt, carry) = if item.kind == FileKind::Carry {
             match faraday_keys::carry::parse(&item.bytes) {
-                Ok(carry) => match faraday_psbt::Psbt::parse_bytes(&c, &carry.psbt) {
-                    Ok(p) => (p, Some(carry.section)),
+                Ok((section, bytes)) => match faraday_psbt::Psbt::parse_bytes(&c, &bytes) {
+                    Ok(p) => (p, Some(section)),
                     Err(_) => {
                         self.toast(EN.start_spend_the_carry);
                         return;
@@ -5852,7 +5852,7 @@ impl Faraday {
         let dealt = self.create_shares().and_then(|keys| {
             self.session
                 .keys
-                .deal(&c, &keys, n, m, faraday_keys::Reveal::PaperForm)
+                .deal(&c, &keys, n, m)
                 .map_err(|e| match e {
                     faraday_keys::frost::DealError::NoShare => EN.create_deal_a_chosen.to_string(),
                     faraday_keys::frost::DealError::Refused(e) => e,
@@ -5886,13 +5886,12 @@ impl Faraday {
                 return;
             }
         };
-        for (id, words) in &dealt.words {
-            let label = fill(
+        self.session.keys.add_dealt(&c, dealt, |id| {
+            fill(
                 EN.create_deal_share_of,
                 &[&(id + 1).to_string(), &name.to_string()],
-            );
-            let _ = self.session.keys.add_words(&c, words, &label, None);
-        }
+            )
+        });
         self.chart_work.moved_to(&self.session, i);
         self.wallet = i;
         if let Some(c) = self.create.as_mut() {

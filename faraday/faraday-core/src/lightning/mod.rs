@@ -73,13 +73,14 @@ impl Faraday {
         };
         let found: Result<Node, String> = match l.source {
             Some(NodeSource::Key(fp)) => {
-                match self.session.keys.position_of(fp).and_then(|k| {
-                    self.session
-                        .keys
-                        .lightning_node(&c, k, faraday_keys::Reveal::LightningKey)
-                }) {
+                match self
+                    .session
+                    .keys
+                    .position_of(fp)
+                    .and_then(|k| self.session.keys.lightning_node(&c, k))
+                {
                     None => Err(EN.lightning_this_key.to_string()),
-                    Some(node) => node.map(faraday_keys::Held::release),
+                    Some(node) => node,
                 }
             }
             Some(NodeSource::Aezeed) => {
@@ -120,10 +121,14 @@ impl Faraday {
         }
     }
 
-    fn lightning_secret_text(&self) -> Option<(String, Zeroizing<String>)> {
+    /// The node id and the private key, for `why`.
+    fn lightning_secret_text(
+        &self,
+        why: faraday_keys::Reveal,
+    ) -> Option<(String, Zeroizing<String>)> {
         let n = self.lightning.as_ref()?.node.as_ref()?;
-        let id: String = n.public.iter().map(|b| format!("{b:02x}")).collect();
-        Some((id, crate::secret_text::hex(&n.private[..])))
+        let id: String = n.public().iter().map(|b| format!("{b:02x}")).collect();
+        Some((id, n.private_hex(why)?))
     }
 
     /// One press on the screen.
@@ -136,7 +141,9 @@ impl Faraday {
                 if self.vaults.open.get(self.vaults.current).is_none() {
                     return self.toast(EN.lightning_no_vault);
                 }
-                let Some((id, private)) = self.lightning_secret_text() else {
+                let Some((id, private)) = self.lightning_secret_text(
+                    faraday_keys::Reveal::VaultEntry(faraday_keys::Part::NodeKey),
+                ) else {
                     return;
                 };
                 let note = fill_secret(EN.lightning_lightning, &[&id, private.as_str()]);
@@ -147,7 +154,9 @@ impl Faraday {
                 return;
             }
             A::LOut => {
-                let Some((id, private)) = self.lightning_secret_text() else {
+                let Some((id, private)) = self.lightning_secret_text(
+                    faraday_keys::Reveal::OutboxFile(faraday_keys::Part::NodeKey),
+                ) else {
                     return;
                 };
                 self.offer_secret(crate::secrets::SecretOut::new(

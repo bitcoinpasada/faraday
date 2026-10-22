@@ -549,10 +549,9 @@ fn in_the_demo_a_lightning_node_key_stays_in_faraday() {
     );
     let private = {
         let n = app.lightning.as_ref().unwrap().node.as_ref().unwrap();
-        n.private
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect::<String>()
+        n.private_hex(faraday_keys::Reveal::LightningKey)
+            .unwrap()
+            .to_string()
     };
     assert!(
         !crate::common::texts(&mut app)

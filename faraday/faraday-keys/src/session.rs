@@ -129,6 +129,10 @@ pub enum Part {
     EntryNotes,
     /// A GPG key's revocation certificate, as a `.rev` file.
     Revocation,
+    /// A silent payments scan key, BIP-392's `spscan1q…`.
+    ScanKey,
+    /// A Lightning node's private key.
+    NodeKey,
 }
 
 impl Reveal {
@@ -832,20 +836,31 @@ impl Keys {
     }
 
     /// Costs a parse of the words. A vault key record of key `i`'s words
-    /// alone, with no label and no passphrase: what the same words without
-    /// their passphrase are in a vault.
-    pub fn words_record(
-        &self,
-        c: &Compute,
-        i: usize,
-        _why: Reveal,
-    ) -> Option<Held<faraday_vault::Record>> {
+    /// alone, with no label and no passphrase, kept in this crate.
+    fn words_alone(&self, c: &Compute, i: usize) -> Option<faraday_vault::Record> {
         use faraday_vault::records::{self, field, kind};
         let e = self.entries.get(i)?;
         let m = Mnemonic::parse(c, e.info.language, e.key.words.as_ref()?).ok()?;
-        Some(Held(
-            faraday_vault::Record::new(kind::KEY).with(field::KEY, &records::words_payload(&m)),
-        ))
+        Some(faraday_vault::Record::new(kind::KEY).with(field::KEY, &records::words_payload(&m)))
+    }
+
+    /// Costs a parse of the words and a hash. The id
+    /// ([`crate::vault::key_record_id`]) a vault key record of key `i`'s
+    /// words alone, with no passphrase, has: what is kept of such a record
+    /// is found by it. `None` for a key with no words.
+    pub fn words_record_id(&self, c: &Compute, i: usize) -> Option<[u8; 32]> {
+        let r = self.words_alone(c, i)?;
+        crate::vault::key_record_id(crate::vault::RecordView::of(&r))
+    }
+
+    /// Costs a parse of the words, a PBKDF2 and two elliptic-curve
+    /// multiplications. What [`crate::vault::key_identity`] gives for a
+    /// vault key record of key `i`'s words alone, without its passphrase:
+    /// the fingerprint and master id of the seed the words are when no
+    /// passphrase is added. `None` for a key with no words.
+    pub fn words_identity(&self, c: &Compute, i: usize) -> Option<(Fingerprint, [u8; 32])> {
+        let r = self.words_alone(c, i)?;
+        crate::vault::key_identity(c, self.network, crate::vault::RecordView::of(&r))
     }
 
     /// Key `i`'s master key, for tests (feature `master-for-tests`, which
@@ -982,19 +997,26 @@ impl Keys {
 
     /// Costs what `faraday_psbt::sign` costs. Signs `psbt` with the keys in
     /// `selection` and every share that signs; `others` are the shares
-    /// chosen to sign with this one. A share's scalar is rebuilt from its
-    /// words only inside the call the signer makes through its door.
+    /// chosen to sign with this one, and `carry` the section the spend
+    /// arrived with. A share's scalar is rebuilt from its words only inside
+    /// the call the signer makes through its door. The result, and the
+    /// carry section the pass leaves for the shares still to sign, taken
+    /// out of it.
     #[allow(clippy::too_many_arguments)]
     pub fn sign(
         &self,
         c: &Compute,
         psbt: &mut faraday_psbt::Psbt,
         selection: &[Fingerprint],
-        ctx: &faraday_psbt::Context<'_>,
+        ctx: faraday_psbt::Context<'_>,
+        carry: Option<&crate::carry::Section>,
         musig: &mut Option<faraday_psbt::MusigSession>,
         seed: [u8; 32],
         others: &[u32],
-    ) -> Result<faraday_psbt::SignResult, faraday_psbt::Error> {
+    ) -> Result<(faraday_psbt::SignResult, Option<crate::carry::Section>), faraday_psbt::Error>
+    {
+        let mut ctx = ctx;
+        ctx.carry = carry.map(|s| &s.0);
         let masters: Vec<&MasterKey> = self.entries.iter().map(|e| &e.key.master).collect();
         let holders: Vec<crate::psbt::ShareHolder<'_>> = self
             .entries
@@ -1007,9 +1029,15 @@ impl Keys {
                 })
             })
             .collect();
-        crate::psbt::sign(
-            c, psbt, &masters, selection, ctx, musig, seed, &holders, others,
-        )
+        let mut result = crate::psbt::sign(
+            c, psbt, &masters, selection, &ctx, musig, seed, &holders, others,
+        )?;
+        let left = result
+            .threshold
+            .as_mut()
+            .and_then(|t| t.carry.take())
+            .map(crate::carry::Section);
+        Ok((result, left))
     }
 }
 

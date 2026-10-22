@@ -11,7 +11,7 @@ use faraday_bip::bitcoin::{Address, Network as Chain};
 use faraday_bip::keys::{MasterKey, Network, ScriptType};
 use faraday_bip::silent::Receiver;
 use faraday_crypto::work::Compute;
-use faraday_keys::{Material, bip85, identity};
+use faraday_keys::{Keys, Material, Part, Reveal, bip85, identity};
 use serde_json::Value;
 
 const BIP85: &str = include_str!("../../../tools/vectors/bip85/vectors.json");
@@ -195,7 +195,7 @@ fn a_silent_payment_address_is_the_one_bip352_publishes() {
             );
             let published = test["expected"]["addresses"].as_array().unwrap();
             assert_eq!(
-                faraday_keys::silent::address(&receiver, 0).as_deref(),
+                receiver.address(&secp).ok().as_ref().map(|a| a.as_str()),
                 published[0].as_str()
             );
             // Label 0 is the change label, which no address is handed out
@@ -206,7 +206,11 @@ fn a_silent_payment_address_is_the_one_bip352_publishes() {
                     continue;
                 }
                 assert_eq!(
-                    faraday_keys::silent::address(&receiver, label).as_deref(),
+                    receiver
+                        .labelled_address(&secp, label)
+                        .ok()
+                        .as_ref()
+                        .map(|a| a.as_str()),
                     published[i + 1].as_str()
                 );
             }
@@ -221,14 +225,29 @@ fn a_silent_wallet_comes_from_the_paths_the_bip_names() {
     let c = compute();
     let m = words(ABANDON);
     let master = master(&c, &m);
-    let receiver = Receiver::derive(&c, &master, 0);
+    let mut keys = Keys::on(Network::Mainnet);
+    keys.add_words(&c, ABANDON, "abandon", None)
+        .expect("the words");
+    let receiver = keys.silent_receiver(&c, 0, 0).expect("a receiver");
     let secp = Secp256k1::new();
     let spend = master.derive(&c, &faraday_bip::silent::spend_path(Network::Mainnet, 0));
+    let scan = master.derive(&c, &faraday_bip::silent::scan_path(Network::Mainnet, 0));
     assert_eq!(
         receiver.spend_public_key(),
         spend.secret_key().public_key(&secp)
     );
-    assert!(faraday_keys::silent::address(&receiver, 0).is_some_and(|a| a.starts_with("sp1q")));
+    assert_eq!(
+        receiver.scan_public_key(),
+        scan.secret_key().public_key(&secp)
+    );
+    assert!(receiver.address(0).is_some_and(|a| a.starts_with("sp1q")));
+    // The scan key leaves only for a reason that names it.
+    assert!(receiver.scan_key(Reveal::Words).is_none());
+    assert!(
+        receiver
+            .scan_key(Reveal::OutboxFile(Part::ScanKey))
+            .is_some_and(|k| k.starts_with("spscan1q"))
+    );
 }
 
 #[test]
@@ -243,23 +262,23 @@ fn a_deal_gives_a_record_and_the_words_of_the_shares_left_to_write_down() {
             .join(" ")
     };
     let (a, b) = (share_words(7), share_words(9));
-    let dealers = [&a, &b].map(|w| faraday_keys::frost::Dealer {
-        language: Language::English,
-        words: Some(w.as_str()),
-    });
-    let dealt =
-        faraday_keys::frost::make_group(&c, &dealers, 3, 2, Network::Testnet).expect("a deal");
+    let mut keys = Keys::on(Network::Testnet);
+    keys.add_words(&c, &a, "a", None).expect("share a");
+    keys.add_words(&c, &b, "b", None).expect("share b");
+    keys.add_seed(&c, &[3; 64], "seed only").expect("a seed");
+    let dealt = keys.deal(&c, &[0, 1], 3, 2).expect("a deal");
     assert!(faraday_bip::threshold::ThresholdRecord::parse(&c, &dealt.record).is_ok());
-    assert_eq!(dealt.words.len(), 1);
-    assert_eq!(dealt.words[0].0, 2);
-    assert_eq!(dealt.words[0].1.split(' ').count(), 24);
+    assert_eq!(dealt.new_shares(), vec![2]);
+    // The new share is loaded as a key, whose 24 words are written down
+    // like any key's.
+    keys.add_dealt(&c, dealt, |id| format!("share {}", id + 1));
+    assert_eq!(keys.len(), 4);
+    let share = keys.info(3).expect("the new share");
+    assert_eq!(share.label, "share 3");
+    assert_eq!(share.word_count, Some(24));
     // A key with no words has no share to deal from.
-    let none = [faraday_keys::frost::Dealer {
-        language: Language::English,
-        words: None,
-    }];
     assert!(matches!(
-        faraday_keys::frost::make_group(&c, &none, 3, 2, Network::Testnet),
+        keys.deal(&c, &[2, 0], 3, 2),
         Err(faraday_keys::frost::DealError::NoShare)
     ));
 }
@@ -389,9 +408,14 @@ fn the_vault_record_of_a_key_holds_its_words_and_passphrase_when_asked() {
         .expect("a record");
     assert_eq!(with.field(field::KEY_PASSPHRASE), Some(&b"TREZOR"[..]));
     assert_eq!(with.field(field::KEY_FLAGS), Some(&[1u8][..]));
-    // The same words alone make the record the words are kept as.
-    let alone = keys
-        .words_record(&c, 0, Reveal::VaultEntry(Part::Words))
-        .expect("a record");
-    assert_eq!(alone.field(field::KEY), plain.field(field::KEY));
+    // The same words alone, without the passphrase, are the key BIP-32
+    // publishes for them.
+    assert_eq!(
+        keys.words_identity(&c, 0).map(|(f, _)| f.0),
+        Some([0x73, 0xc5, 0xda, 0x0a])
+    );
+    assert_ne!(
+        keys.info(0).map(|k| k.fingerprint.0),
+        Some([0x73, 0xc5, 0xda, 0x0a])
+    );
 }

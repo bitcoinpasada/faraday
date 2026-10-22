@@ -203,8 +203,8 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
     // FROST 2 of 3: test key 1 signed as share 1 and chose share 2; test
     // key 2, at the second location, reads the carry file and finishes.
     let file = testkit::threshold_carry()?;
-    let carry = faraday_psbt::threshold::Carry::parse(&file).map_err(|e| e.reason().to_string())?;
-    let psbt = faraday_psbt::Psbt::parse_bytes(c, &carry.psbt).map_err(|e| e.to_string())?;
+    let (section, bytes) = faraday_keys::carry::parse(&file).map_err(|e| e.reason().to_string())?;
+    let psbt = faraday_psbt::Psbt::parse_bytes(c, &bytes).map_err(|e| e.to_string())?;
     let mut second = testkit::session();
     let (word, label) = testkit::TEST_SEEDS[1];
     second
@@ -220,7 +220,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
             faraday_core::wallet::Origin::Named,
         )
         .map_err(|e| e.text())?;
-    let seen = second.inspect_with(c, &psbt, Some(&carry.section));
+    let seen = second.inspect_with(c, &psbt, Some(&section));
     if !seen.outputs.iter().any(|o| o.is_ours()) || seen.threshold.is_none() {
         return Err("the threshold spend's change or wallet was not recognised".into());
     }
@@ -231,7 +231,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
         [6; 32],
         &mut None,
         &[],
-        Some(&carry.section),
+        Some(&section),
         None,
     )?;
     flow.finish()

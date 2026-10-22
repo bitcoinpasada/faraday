@@ -903,15 +903,12 @@ pub fn threshold_record() -> Result<faraday_bip::threshold::ThresholdRecord, Str
         .take(2)
         .map(|(word, _)| test_words(word))
         .collect();
-    let dealers: Vec<faraday_keys::frost::Dealer<'_>> = words
-        .iter()
-        .map(|w| faraday_keys::frost::Dealer {
-            language: faraday_bip::bip39::Language::English,
-            words: Some(w),
-        })
-        .collect();
-    let dealt =
-        faraday_keys::frost::make_group(&c, &dealers, 3, 2, NET).map_err(|e| format!("{e:?}"))?;
+    let mut keys = faraday_keys::Keys::on(NET);
+    for (i, w) in words.iter().enumerate() {
+        keys.add_words(&c, w, &format!("dealer {i}"), None)
+            .map_err(|e| format!("{e:?}"))?;
+    }
+    let dealt = keys.deal(&c, &[0, 1], 3, 2).map_err(|e| format!("{e:?}"))?;
     faraday_bip::threshold::ThresholdRecord::parse(&c, &dealt.record).map_err(|e| format!("{e:?}"))
 }
 

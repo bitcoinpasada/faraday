@@ -2292,6 +2292,27 @@ pub(crate) fn key_identity(
     r: RecordView<'_>,
 ) -> Option<(String, [u8; 32])> {
     let id = faraday_keys::vault::key_record_id(r)?;
+    kept_identity(app, id, || {
+        faraday_keys::vault::key_identity(c, app.session.network(), r)
+    })
+}
+
+/// Costs a parse of the words, and a PBKDF2 and two elliptic-curve
+/// multiplications the first time. [`key_identity`] of a vault key record
+/// of session key `k`'s words alone, without its passphrase, kept with the
+/// records' by the same id.
+pub(crate) fn words_identity(c: &Compute, app: &Faraday, k: usize) -> Option<(String, [u8; 32])> {
+    let id = app.session.keys.words_record_id(c, k)?;
+    kept_identity(app, id, || app.session.keys.words_identity(c, k))
+}
+
+/// The identity kept for key record id `id`, or `work`'s, kept by the id
+/// once worked out, by whoever asks first.
+fn kept_identity(
+    app: &Faraday,
+    id: [u8; 32],
+    work: impl FnOnce() -> Option<(faraday_bip::keys::Fingerprint, [u8; 32])>,
+) -> Option<(String, [u8; 32])> {
     if let Some((_, fp, mid)) = app
         .vaults
         .fingerprints
@@ -2301,8 +2322,7 @@ pub(crate) fn key_identity(
     {
         return Some((fp.clone(), *mid));
     }
-    // Kept by the key's id once worked out, by whoever asks first.
-    let (fingerprint, mid) = faraday_keys::vault::key_identity(c, app.session.network(), r)?;
+    let (fingerprint, mid) = work()?;
     let fp = fp_text(fingerprint);
     let mut kept = app.vaults.fingerprints.borrow_mut();
     if kept.len() >= vault::FINGERPRINTS_KEPT {

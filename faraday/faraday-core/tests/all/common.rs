@@ -1244,16 +1244,17 @@ pub fn add_key(app: &mut Faraday, seed: &str) {
 pub fn gpg_key_of(r: &faraday_vault::Record) -> Option<faraday_pgp::Key> {
     let u32_of = |n: u8| Some(u32::from_le_bytes(r.field(n)?.try_into().ok()?));
     let created = u32_of(2)?;
-    faraday_keys::gpg::key_of(
-        r.field(1)?,
+    Some(faraday_pgp::Key {
+        primary_seed: r.field(1)?.try_into().ok()?,
         created,
-        r.field(3)?,
-        u32_of(4).unwrap_or(created),
-        r.fields
+        subkey_seed: r.field(3)?.try_into().ok()?,
+        subkey_created: u32_of(4).unwrap_or(created),
+        user_ids: r
+            .fields
             .iter()
             .filter(|x| x.number == 5)
             .map(|x| String::from_utf8_lossy(&x.bytes).into_owned())
             .collect(),
-        u32_of(6).unwrap_or(0),
-    )
+        expiry: u32_of(6).unwrap_or(0),
+    })
 }

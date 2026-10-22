@@ -6,7 +6,6 @@
 
 use faraday_crypto::work::Compute;
 use faraday_vault as fv;
-use faraday_vault::Record;
 use faraday_vault::records::kind;
 
 use crate::backup_flow::{
@@ -1932,8 +1931,7 @@ impl Faraday {
         }
         for &o in &opens {
             let vid = self.vaults.open[o].id;
-            self.vaults
-                .edit(vid, |s| s.insert(vid, built.record.clone()));
+            self.vaults.edit(vid, |s| s.insert(vid, &built.record));
             self.vaults.changed(vid);
         }
         // The public files made with the key go For the stick, and are
@@ -3110,8 +3108,8 @@ impl BackupFlow {
 
 /// What a kind's own build gives back (§4.4).
 pub struct Built {
-    /// The record the key is kept as.
-    pub record: Record,
+    /// The record the key is kept as, held: each vault takes a copy.
+    pub record: faraday_keys::vault::MadeKey,
     /// The public value it is known by.
     pub subject: Vec<u8>,
     /// The name it is shown under.

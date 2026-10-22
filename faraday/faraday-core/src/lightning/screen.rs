@@ -185,11 +185,11 @@ fn body(
     let Some(n) = &l.node else {
         return y;
     };
-    let id: String = n.public.iter().map(|b| format!("{b:02x}")).collect();
+    let id: String = n.public().iter().map(|b| format!("{b:02x}")).collect();
     ui.text(x, y, 13.0, W::R, MUTED, EN.lightning_node_id);
     y += below;
     y += ui.wrap(vx, y, vw, 14.0, W::M, TEXT, &id).max(20.0) + 10.0;
-    if let Some((yy, m, d)) = n.birthday {
+    if let Some((yy, m, d)) = n.birthday() {
         ui.text(x, y, 13.0, W::R, MUTED, EN.lightning_made);
         y += below;
         ui.text(vx, y, 14.0, W::M, TEXT, &format!("{yy}-{m:02}-{d:02}"));
@@ -198,7 +198,8 @@ fn body(
     ui.text(x, y, 13.0, W::R, MUTED, EN.lightning_private_key);
     y += below;
     let private: zeroize::Zeroizing<String> = if l.shown {
-        crate::secret_text::hex(&n.private[..])
+        n.private_hex(faraday_keys::Reveal::LightningKey)
+            .unwrap_or_default()
     } else {
         zeroize::Zeroizing::new("••••••••••••".to_string())
     };

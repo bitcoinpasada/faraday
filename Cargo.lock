@@ -1130,6 +1130,7 @@ dependencies = [
  "faraday-bip",
  "faraday-core",
  "faraday-crypto",
+ "faraday-keys",
  "faraday-psbt",
 ]
 
