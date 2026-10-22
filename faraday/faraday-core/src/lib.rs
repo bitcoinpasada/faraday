@@ -210,6 +210,7 @@ pub use create::CreateState;
 pub use decode::DecodeState;
 #[doc(hidden)]
 pub use drawing::View;
+pub use fade::FadeCounts;
 /// Text a person types that may be a secret (`faraday_intake`'s).
 pub use faraday_intake::secret_buf as secret_text;
 /// Faraday's wording, in its own crate.
@@ -1584,37 +1585,12 @@ pub struct Faraday {
     /// The frosted page under the open sheet, and the screen, sheet and
     /// theme it was made for.
     frost: Option<((ScreenKey, ui::Theme), Vec<u8>)>,
-    /// The frame before a change of screen or sheet, kept while the new
-    /// one fades in over it, and when the fade's clock started: `None`
-    /// for the frame that showed the change, whose cost (frosting the
-    /// page under a sheet is the slowest frame there is) is not taken
-    /// out of the fade.
-    fade: Option<(Vec<u8>, Option<u64>)>,
-    /// The new frame of the fade under way, as last drawn in full, kept
-    /// aside so that a step of the fade nothing else asked a frame for
-    /// blends the two kept frames instead of drawing the screen again
-    /// (`Faraday::fade_step`). Drawn again, and kept again, by every
-    /// frame drawn in full while the fade runs; empty with no fade.
-    fade_after: Vec<u8>,
-    /// The fade asked for its next step and nothing has asked for a
-    /// frame drawn in full since (`dirty` is not set).
-    fade_due: bool,
-    /// The tick of the last fade step, while the fade's steps follow one
-    /// another with no frame drawn in full between: the gap to the next
-    /// is how fast this machine shows a fade.
-    fade_step_at: Option<u64>,
+    /// A change of screen or sheet fading in, and how fast this
+    /// machine has lately shown a fade's steps (`fade.rs`).
+    fade: fade::Fade,
     /// The screen and sheet the last frame drew, and the Learn sheet's
     /// page, so that a change is known at the next.
     last_drawn: Option<(ScreenKey, usize)>,
-    /// The last few gaps between the steps of fades, in milliseconds,
-    /// each with the tick it was taken at, oldest first: how fast this
-    /// machine shows a fade. Only steps that blend the two kept frames
-    /// are timed, so what a screen costs to draw, and the frame a change
-    /// is drawn on, never count; their median is what counts, and gaps
-    /// older than `motion::FADE_GAPS_FRESH_MS` are forgotten, so a run
-    /// of slow ones, the machine busy for a moment, does not turn fades
-    /// off for good.
-    frame_gaps: Vec<(u64, u16)>,
     /// The Guided switch's pill sliding: where it started, 0 on Steps
     /// only and 1 on Guided, and the tick it started at.
     guided_moving: Option<(f32, Option<u64>)>,
@@ -1865,12 +1841,8 @@ impl Faraday {
             toast_at: None,
             disclosed: None,
             frost: None,
-            fade: None,
-            fade_after: Vec::new(),
-            fade_due: false,
-            fade_step_at: None,
+            fade: fade::Fade::default(),
             last_drawn: None,
-            frame_gaps: Vec::new(),
             guided_moving: None,
             selftest: None,
             hovered: None,
@@ -9167,8 +9139,7 @@ impl Faraday {
         }
         // The next frame is the screen at rest, not part of the way from
         // the one before.
-        self.fade = None;
-        self.fade_after = Vec::new();
+        self.fade.end();
         self.last_drawn = None;
         self.dirty = true;
     }
@@ -9753,7 +9724,7 @@ impl App for Faraday {
                 // change was the last one, a frame back, so this frame
                 // is the first step of it rather than the old screen
                 // again.
-                if let Some((_, at @ None)) = self.fade.as_mut() {
+                if let Some((_, at @ None)) = self.fade.from.as_mut() {
                     *at = Some(now_ms.saturating_sub(motion::FADE_FIRST_STEP_MS));
                 }
                 // The scrollbar was showing at the last tick: this one
@@ -9806,8 +9777,8 @@ impl App for Faraday {
                 // A fade under way asks for its next step; unless
                 // something else asks for a frame too, the step blends
                 // the two kept frames (`Faraday::fade_step`).
-                if self.fade.is_some() {
-                    self.fade_due = true;
+                if self.fade.from.is_some() {
+                    self.fade.due = true;
                     self.commands.push_back(Command::Draw);
                 }
                 if self.idle_tick(now_ms) {
@@ -9936,7 +9907,7 @@ impl App for Faraday {
             self.dirty = false;
             self.before_frame();
             self.render();
-        } else if self.fade_due {
+        } else if self.fade.due {
             self.fade_step();
         }
         match self.canvas.as_ref() {
@@ -10000,12 +9971,11 @@ impl Faraday {
             self.selftest = Some(faraday_selftest::run(&c));
         }
         self.frost = None;
-        self.fade = None;
-        self.fade_after = Vec::new();
+        self.fade.end();
         self.last_drawn = None;
         // A fade's step costs a blend of the whole canvas: what it cost
         // at another size says nothing of this one.
-        self.frame_gaps.clear();
+        self.fade.gaps.clear();
         // Fill a small display; on a large one, stop at a quarter more
         // than its density asks for, so a 4K monitor shows the screens
         // at a sensible size rather than magnified. The person's own

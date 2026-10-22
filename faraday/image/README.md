@@ -183,16 +183,27 @@ the serial port and the root password is empty; and the app is started with
 `--verbose --timings`, so it says what it found and records what its loop
 costs.
 
-`--timings` writes `faraday-timings.txt` onto the `FARADAYDATA` partition:
-one block every five seconds of the shell's clock, and one more at exit,
+`--timings` writes `faraday-timings.txt` onto the `FARADAYDATA` partition,
+through the disk process since the image mounts nothing: the whole file
+every 30 seconds and once at exit, which a pulled stick may miss, so wait
+half a minute after the last thing to measure. It holds one block for
+every five seconds of the shell's clock, and one more at exit,
 each holding the passes and touches of the interval and, per bucket, a
 count, a mean and a worst in milliseconds. The buckets are `touch` (one
 touch through the core, layout and paint included), `tick`, `camera` (one
 camera frame through the core, which is the preview and nothing else),
 `scanned` (routing a code the scanner's worker read), `convert` (the
-frame packed for the panel) and `write` (the `pwrite` to the
-framebuffer). The shell's README describes
-the format.
+frame packed for the panel), `write` (the `pwrite` to the
+framebuffer), `frame` (the core's frame drawn in full) and `blend` (the
+core's frame as a fade's step, two kept frames blended). After the
+buckets, a `grid` line counts the passes that drew at each step of the
+frame grid (16.7, 33.3, 50 and 66.7 ms) and gives the smoothed pass cost
+the step was chosen from, and a `fade` line says how many changes faded,
+were drawn at once because the last fades' steps came too far apart
+(`skipped`) or because reduce motion is on (`reduced`), how many fade
+steps were blended, how many recent step gaps are known and their median,
+and whether the next change would fade (`docs/MOTION.md` §3.5). The
+shell's README describes the format.
 
 To collect a run: boot the card, scroll the Settings list for ten seconds,
 open the scanner and point the camera at anything that is not a QR code for ten seconds (a code is decoded at once and the scanner stops),

@@ -137,7 +137,7 @@ use faraday_scanner::{ReadMode, Scanner};
 use faraday_shell_api::{
     App, BootState, Command, DisplayInfo, EntropyBytes, Event, Key, SecureHardware, TouchPhase,
 };
-use faraday_storage::{Boot, BootProcess, Boxes, Dirs, DiskProcess, serve_all, stick_info};
+use faraday_storage::{Boot, BootProcess, Boxes, Dirs, DiskProcess, Sticks, serve_all, stick_info};
 use fb::{Depth, Geometry};
 use files::Files;
 use pace::Pace;
@@ -856,7 +856,14 @@ impl Shell {
         // mutably here and anything to say waits until it is given back.
         let mut complaint = None;
         let mut result = None;
-        match self.app.as_mut().map(App::frame) {
+        let blends = self.app.as_ref().is_some_and(Faraday::next_frame_blends);
+        let start = self.timings.is_some().then(Instant::now);
+        let frame = self.app.as_mut().map(App::frame);
+        if let (Some(start), Some(t)) = (start, self.timings.as_mut()) {
+            let bucket = if blends { Bucket::Blend } else { Bucket::Frame };
+            t.add(bucket, start.elapsed());
+        }
+        match frame {
             Some(frame) if (frame.width, frame.height) != (g.width, g.height) => {
                 complaint = Some("frame does not match the panel; not drawing");
             }
@@ -926,19 +933,35 @@ impl Shell {
         let Some(t) = self.timings.as_mut() else {
             return;
         };
+        let app = &mut self.app;
         let block = if last {
-            Some(t.last(elapsed))
+            Some(t.last(elapsed, app.as_mut().map(Faraday::take_fade_counts)))
         } else {
-            t.due(elapsed)
+            t.due(elapsed, || app.as_mut().map(Faraday::take_fade_counts))
         };
-        if let Some(block) = block
-            && let Err(reason) = self.files.append_timings(&block)
+        let Some(block) = block else {
+            return;
+        };
+        let wrote = match self.disk.as_mut() {
+            // Faraday's image mounts no partition: the file goes onto the
+            // boot stick through the disk process, whole, over the copy
+            // before it, every `timings::WRITE_EVERY` and at exit.
+            Some(disk) => match t.keep(&block, elapsed, last) {
+                None => Ok(()),
+                Some(text) => match self.sticks.iter().find(|s| s.boot) {
+                    Some(boot) => disk
+                        .write(&boot.id, files::TIMINGS, text.as_bytes(), true, false)
+                        .map(drop),
+                    None => Err(String::from("no boot stick is listed")),
+                },
+            },
+            None => self.files.append_timings(&block).map(drop),
+        };
+        if let Err(reason) = wrote
+            && self.timings.take().is_some()
         {
-            // With no exchange partition mounted (Faraday mounts none)
-            // the timings have nowhere to go; that is said once.
-            if self.timings.take().is_some() {
-                self.say(&format!("timings off: {reason}"));
-            }
+            // The timings have nowhere to go; that is said once.
+            self.say(&format!("timings off: {reason}"));
         }
     }
 
@@ -1938,6 +1961,9 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         // when this pass ran past it.
         if shell.drawn != drawn {
             pace.drew(began.elapsed());
+            if let Some(timings) = shell.timings.as_mut() {
+                timings.stepped(pace.frames(), pace.cost());
+            }
         }
         next_frame = (contact || shell.drawn != drawn).then(|| {
             let now = Instant::now();

@@ -6,16 +6,24 @@
 //! take into a file there, and the owner reads it on a computer after
 //! using the device for a minute.
 //!
-//! Five buckets, all timed with `Instant` around calls the loop already
-//! makes, and a count of passes and touches. Every five seconds of the
+//! Eight buckets, all timed with `Instant` around calls the loop already
+//! makes, and a count of passes and touches; how often the frame grid
+//! stood at each step, and what the fades did (`docs/MOTION.md` §3.5). Every five seconds of the
 //! shell's clock the totals become one block of plain text and reset, so
 //! a long session is a short file: the card is slow to write and nothing
 //! here is worth a row per pass.
 
 use std::time::Duration;
 
+use faraday_core::FadeCounts;
+
 /// How much of the shell's clock one block covers.
 pub const INTERVAL: Duration = Duration::from_secs(5);
+
+/// How often the whole file goes to the boot stick through the disk
+/// process, which holds the loop while it writes: rarely enough that the
+/// blocks it lands in are not what it measures.
+pub const WRITE_EVERY: Duration = Duration::from_secs(30);
 
 /// The part of a loop pass a measurement belongs to.
 #[derive(Clone, Copy)]
@@ -32,10 +40,20 @@ pub enum Bucket {
     Convert,
     /// The `pwrite` of that frame to the framebuffer.
     Write,
+    /// The core's frame drawn in full.
+    Frame,
+    /// The core's frame as a fade's step: two kept frames blended.
+    Blend,
 }
 
 /// The bucket names, in the order the block prints them.
-const NAMES: [&str; 6] = ["touch", "tick", "camera", "scanned", "convert", "write"];
+const NAMES: [&str; 8] = [
+    "touch", "tick", "camera", "scanned", "convert", "write", "frame", "blend",
+];
+
+/// The frame grid's steps a block counts, in frames at 60 Hz: one to
+/// four (`pace.rs`).
+const STEPS: usize = 4;
 
 /// What one bucket has cost since the last block.
 #[derive(Clone, Copy, Default)]
@@ -50,12 +68,21 @@ pub struct Timings {
     tallies: [Tally; NAMES.len()],
     passes: u64,
     touches: u64,
+    /// Passes that drew, by the frame grid's step after them: one frame
+    /// to four.
+    steps: [u64; STEPS],
+    /// The frame grid's smoothed cost of a pass that drew, as last seen.
+    pace_cost: Duration,
     /// The shell's clock when the next block is due.
     next: Duration,
     /// The line that goes above the first block of this run.
     header: String,
     /// Whether that line has been written.
     headed: bool,
+    /// Every block so far, for a medium written whole each time.
+    kept: String,
+    /// The shell's clock when the whole file was last written.
+    wrote: Option<Duration>,
 }
 
 impl Timings {
@@ -65,13 +92,30 @@ impl Timings {
             tallies: [Tally::default(); NAMES.len()],
             passes: 0,
             touches: 0,
+            steps: [0; STEPS],
+            pace_cost: Duration::ZERO,
             next: INTERVAL,
             header: format!(
                 "faraday {version} panel {width}x{height} \
                  columns: bucket count mean_ms worst_ms"
             ),
             headed: false,
+            kept: String::new(),
+            wrote: None,
         }
+    }
+
+    /// Keeps `block` with the ones before it, and gives every block so
+    /// far when the whole file is due to be written again (`last`: at
+    /// exit, whenever it is).
+    pub fn keep(&mut self, block: &str, elapsed: Duration, last: bool) -> Option<&str> {
+        self.kept.push_str(block);
+        let due = last || self.wrote.is_none_or(|w| elapsed >= w + WRITE_EVERY);
+        if !due {
+            return None;
+        }
+        self.wrote = Some(elapsed);
+        Some(&self.kept)
     }
 
     /// Records one call.
@@ -89,30 +133,43 @@ impl Timings {
         self.passes += 1;
     }
 
+    /// Records a pass that drew, the frame grid's step after it in
+    /// frames, and the smoothed cost the step was chosen from.
+    pub fn stepped(&mut self, frames: u32, cost: Duration) {
+        let i = (frames.clamp(1, STEPS as u32) - 1) as usize;
+        self.steps[i] += 1;
+        self.pace_cost = cost;
+    }
+
     /// Records one touch delivered to the core.
     pub fn touch(&mut self) {
         self.touches += 1;
     }
 
     /// The block to append if five seconds have gone by, and nothing
-    /// otherwise. Taking it resets the buckets.
-    pub fn due(&mut self, elapsed: Duration) -> Option<String> {
+    /// otherwise; `fade` is asked only then. Taking it resets the
+    /// buckets.
+    pub fn due(
+        &mut self,
+        elapsed: Duration,
+        fade: impl FnOnce() -> Option<FadeCounts>,
+    ) -> Option<String> {
         if elapsed < self.next {
             return None;
         }
         while self.next <= elapsed {
             self.next += INTERVAL;
         }
-        Some(self.block(elapsed))
+        Some(self.block(elapsed, fade()))
     }
 
     /// The last block, however little of an interval it covers.
-    pub fn last(&mut self, elapsed: Duration) -> String {
-        self.block(elapsed)
+    pub fn last(&mut self, elapsed: Duration, fade: Option<FadeCounts>) -> String {
+        self.block(elapsed, fade)
     }
 
     /// One block, and the buckets emptied behind it.
-    fn block(&mut self, elapsed: Duration) -> String {
+    fn block(&mut self, elapsed: Duration, fade: Option<FadeCounts>) -> String {
         let mut out = String::new();
         if !self.headed {
             self.headed = true;
@@ -133,10 +190,30 @@ impl Timings {
                 ms(tally.worst),
             ));
         }
+        let [s1, s2, s3, s4] = self.steps;
+        out.push_str(&format!(
+            "grid     16.7ms {s1} 33.3ms {s2} 50.0ms {s3} 66.7ms {s4} cost {:.2}\n",
+            ms(self.pace_cost),
+        ));
+        if let Some(f) = fade {
+            let median = f
+                .median_gap_ms
+                .map_or_else(|| "-".to_owned(), |g| g.to_string());
+            out.push_str(&format!(
+                "fade     started {} skipped {} reduced {} steps {} gaps {} median_ms {median} {}\n",
+                f.started,
+                f.skipped,
+                f.reduced,
+                f.steps,
+                f.gaps_known,
+                if f.on { "on" } else { "off" },
+            ));
+        }
         out.push('\n');
         self.tallies = [Tally::default(); NAMES.len()];
         self.passes = 0;
         self.touches = 0;
+        self.steps = [0; STEPS];
         out
     }
 }

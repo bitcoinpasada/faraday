@@ -66,6 +66,16 @@ impl Pace {
     pub fn step(&self) -> Duration {
         FRAME * self.frames
     }
+
+    /// The step in whole frames, for `--timings`.
+    pub fn frames(&self) -> u32 {
+        self.frames
+    }
+
+    /// The smoothed cost the step was chosen from, for `--timings`.
+    pub fn cost(&self) -> Duration {
+        self.cost.unwrap_or_default()
+    }
 }
 
 #[cfg(test)]
