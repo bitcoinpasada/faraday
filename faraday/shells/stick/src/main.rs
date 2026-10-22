@@ -133,7 +133,9 @@ use std::time::{Duration, Instant};
 use camera::{Camera, Capture};
 use cursor::{Cursor, Pointed};
 use faraday_core::strings::{EN, fill};
-use faraday_core::{Faraday, Medium, SecureBootAtStart, StickInfo, StorageEvent};
+use faraday_core::{
+    Faraday, Medium, Mode, STICK_MODES, SecureBootAtStart, StickInfo, StorageEvent,
+};
 use faraday_scanner::{ReadMode, Scanner};
 use faraday_shell_api::{
     App, BootState, Command, DisplayInfo, EntropyBytes, Event, Key, SecureHardware, TouchPhase,
@@ -263,6 +265,55 @@ const DEFAULT_FILES: &str = "/mnt/microsd";
 /// Where the Inbox and Outbox wait between processes. The inittab makes
 /// it, owned by the app's user, in the RAM root filesystem.
 const BOXES: &str = "/run/faraday";
+
+/// The file in [`BOXES`] that carries the mode across a lock.
+const MODE_FILE: &str = "mode";
+
+/// The name a mode has in the `mode` file: `mainnet`, `testnet`,
+/// `signet` or `regtest`. None for a mode the stick does not offer.
+fn mode_token(mode: Mode) -> Option<&'static str> {
+    if !STICK_MODES.contains(&mode) {
+        return None;
+    }
+    Some(match mode {
+        Mode::Mainnet => "mainnet",
+        Mode::Testnet => "testnet",
+        Mode::Signet => "signet",
+        Mode::Regtest => "regtest",
+        Mode::Demo => return None,
+    })
+}
+
+/// Writes the mode the next process starts in, before a lock ends this
+/// one. Costs a file write. A mode that cannot be written leaves the
+/// next process on Mainnet.
+fn keep_mode(dir: &Path, mode: Mode) {
+    let path = dir.join(MODE_FILE);
+    let _ = std::fs::create_dir_all(dir);
+    match mode_token(mode) {
+        Some(token) => {
+            let _ = std::fs::write(&path, token);
+        }
+        None => {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+}
+
+/// The mode this process starts in: what the `mode` file in `dir` names
+/// exactly, one of [`STICK_MODES`]; Mainnet when there is no file, it
+/// cannot be read, or it says anything else. Costs a file read; the file
+/// is removed, so only a lock carries a mode, never a power-off.
+fn mode_at_start(dir: &Path) -> Mode {
+    let path = dir.join(MODE_FILE);
+    let text = std::fs::read(&path).unwrap_or_default();
+    let _ = std::fs::remove_file(&path);
+    STICK_MODES
+        .iter()
+        .copied()
+        .find(|m| mode_token(*m).is_some_and(|t| t.as_bytes() == text.as_slice()))
+        .unwrap_or(Mode::Mainnet)
+}
 
 /// Where init mounts every other FAT partition of a USB disk.
 const USB_MOUNTS: &str = "/mnt/usb";
@@ -1447,6 +1498,8 @@ fn run(args: Args) -> Result<Exit, String> {
         app: Some({
             let mut app = Faraday::new();
             app.medium = medium();
+            app.session =
+                faraday_core::wallet::Session::on(mode_at_start(Path::new(BOXES)).network());
             if app.medium == Medium::Stick {
                 let boot_params = std::fs::read(BOOT_PARAMS).unwrap_or_default();
                 app.secure_boot = SecureBootAtStart::from_boot_params(&boot_params);
@@ -1601,6 +1654,9 @@ fn run(args: Args) -> Result<Exit, String> {
         .app
         .as_ref()
         .is_some_and(Faraday::computer_restart_requested);
+    if restart && let Some(app) = shell.app.as_ref() {
+        keep_mode(Path::new(BOXES), app.mode_after_restart());
+    }
     shell.app = None;
     if exiting && !restart {
         // The last screen stays up long enough to be read, and then the
@@ -2066,6 +2122,62 @@ mod tests {
         assert_eq!(Exit::PowerOff.status(), 0);
         assert_eq!(Exit::Lock.status(), 75);
         assert_eq!(Exit::Restart.status(), 76);
+    }
+
+    fn scratch(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("faraday-mode-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_lock_in_signet_starts_the_next_process_in_signet() {
+        let dir = scratch("signet");
+        keep_mode(&dir, Mode::Signet);
+        assert_eq!(mode_at_start(&dir), Mode::Signet);
+        // Every mode the stick offers comes back as it went.
+        for mode in STICK_MODES {
+            keep_mode(&dir, *mode);
+            assert_eq!(mode_at_start(&dir), *mode);
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_mode_file_that_names_demo_or_anything_else_starts_on_mainnet() {
+        let dir = scratch("other");
+        for text in [
+            "demo",
+            "Signet",
+            "signet\n",
+            "",
+            "testnet4",
+            "regtest signet",
+        ] {
+            std::fs::write(dir.join(MODE_FILE), text).unwrap();
+            assert_eq!(mode_at_start(&dir), Mode::Mainnet, "{text:?}");
+        }
+        // A file that cannot be read as text, and no file at all.
+        std::fs::write(dir.join(MODE_FILE), [0xff, 0xfe]).unwrap();
+        assert_eq!(mode_at_start(&dir), Mode::Mainnet);
+        assert_eq!(mode_at_start(&dir), Mode::Mainnet);
+        assert_eq!(mode_at_start(&dir.join("missing")), Mode::Mainnet);
+        keep_mode(&dir, Mode::Demo);
+        assert_eq!(mode_at_start(&dir), Mode::Mainnet);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_mode_file_is_gone_after_the_start_that_read_it() {
+        let dir = scratch("gone");
+        keep_mode(&dir, Mode::Regtest);
+        assert!(dir.join(MODE_FILE).exists());
+        mode_at_start(&dir);
+        assert!(!dir.join(MODE_FILE).exists());
+        // A start with no lock before it is Mainnet again.
+        assert_eq!(mode_at_start(&dir), Mode::Mainnet);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

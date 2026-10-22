@@ -350,6 +350,14 @@ What that account can reach, and nothing else:
 the boot partition — `/dev/i2c-*` and `/dev/vchiq` are covered by the
 default and stay root's.
 
+The run directory `/run/faraday` is in RAM and the app's alone. It holds
+what a lock carries to the next process: the Inbox and Outbox, what the
+app keeps for itself, and a file `mode`. Before a lock the shell writes
+the mode in use there (`mainnet`, `testnet`, `signet` or `regtest`); the
+next process reads it, removes it, and starts in that mode. No file, an
+unreadable one, or any other text starts Mainnet, and a power-off leaves
+none.
+
 Powering the board off is init's: the app exits, and `::wait:/sbin/poweroff
 -f` is the next line the inittab runs.
 
