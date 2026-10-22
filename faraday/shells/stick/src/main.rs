@@ -1963,6 +1963,7 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
             pace.drew(began.elapsed());
             if let Some(timings) = shell.timings.as_mut() {
                 timings.stepped(pace.frames(), pace.cost());
+                timings.sample_clock();
             }
         }
         next_frame = (contact || shell.drawn != drawn).then(|| {

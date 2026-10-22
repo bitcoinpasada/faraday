@@ -46,6 +46,17 @@ pub enum Bucket {
     Blend,
 }
 
+/// Where the kernel says how the first CPU's clock is driven.
+const CPUFREQ: &str = "/sys/devices/system/cpu/cpu0/cpufreq";
+
+/// One of the first CPU's clock files, trimmed; `-` when there is none
+/// (a kernel without cpufreq, a machine with no driver for its CPU).
+fn cpufreq(name: &str) -> String {
+    std::fs::read_to_string(format!("{CPUFREQ}/{name}"))
+        .map(|s| s.trim().to_owned())
+        .unwrap_or_else(|_| "-".to_owned())
+}
+
 /// The bucket names, in the order the block prints them.
 const NAMES: [&str; 8] = [
     "touch", "tick", "camera", "scanned", "convert", "write", "frame", "blend",
@@ -79,6 +90,9 @@ pub struct Timings {
     header: String,
     /// Whether that line has been written.
     headed: bool,
+    /// The first CPU's clock in kHz as sampled at each pass that drew
+    /// since the last block: how many samples, their sum, the highest.
+    clock: (u64, u64, u64),
     /// Every block so far, for a medium written whole each time.
     kept: String,
     /// The shell's clock when the whole file was last written.
@@ -94,10 +108,16 @@ impl Timings {
             touches: 0,
             steps: [0; STEPS],
             pace_cost: Duration::ZERO,
+            clock: (0, 0, 0),
             next: INTERVAL,
             header: format!(
                 "faraday {version} panel {width}x{height} \
-                 columns: bucket count mean_ms worst_ms"
+                 columns: bucket count mean_ms worst_ms\n\
+                 cpu0 driver {} governor {} min_khz {} max_khz {}",
+                cpufreq("scaling_driver"),
+                cpufreq("scaling_governor"),
+                cpufreq("cpuinfo_min_freq"),
+                cpufreq("cpuinfo_max_freq"),
             ),
             headed: false,
             kept: String::new(),
@@ -139,6 +159,17 @@ impl Timings {
         let i = (frames.clamp(1, STEPS as u32) - 1) as usize;
         self.steps[i] += 1;
         self.pace_cost = cost;
+    }
+
+    /// Costs a read of a sysfs file: samples the first CPU's clock, at
+    /// a pass that drew.
+    pub fn sample_clock(&mut self) {
+        if let Ok(khz) = cpufreq("scaling_cur_freq").parse::<u64>() {
+            let (n, sum, top) = &mut self.clock;
+            *n += 1;
+            *sum += khz;
+            *top = (*top).max(khz);
+        }
     }
 
     /// Records one touch delivered to the core.
@@ -195,6 +226,12 @@ impl Timings {
             "grid     16.7ms {s1} 33.3ms {s2} 50.0ms {s3} 66.7ms {s4} cost {:.2}\n",
             ms(self.pace_cost),
         ));
+        let (n, sum, top) = self.clock;
+        out.push_str(&format!(
+            "clock    samples {n} mean_mhz {} max_mhz {}\n",
+            sum.checked_div(n).unwrap_or(0) / 1000,
+            top / 1000,
+        ));
         if let Some(f) = fade {
             let median = f
                 .median_gap_ms
@@ -214,6 +251,7 @@ impl Timings {
         self.passes = 0;
         self.touches = 0;
         self.steps = [0; STEPS];
+        self.clock = (0, 0, 0);
         out
     }
 }

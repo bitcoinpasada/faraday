@@ -222,8 +222,17 @@ debug = 0
 # layout, one paint and one framebuffer write, and the paint is where the
 # time goes: a scroll pass on the 2.8" panel measures 6.1 ms at
 # opt-level "s" and 2.4 ms at 3, and the Pi binary is 128 KB smaller for
-# it (measured on this workspace, 2026-09-09). `faraday-draw` at 3 changes
-# neither number, and the QR decoder at 3 is 1.4x at best, so both stay
-# with the rest of the release profile.
+# it (measured on this workspace, 2026-09-09). The QR decoder at 3 is 1.4x
+# at best, so it stays with the rest of the release profile.
 [profile.release.package.tiny-skia]
+opt-level = 3
+
+# A fade's step and the stick's frame for the panel, at speed rather than
+# size: both are loops over every byte of the frame, which opt-level "s"
+# does not vectorise. At 1366 × 768 on the build machine a blend is
+# 2.0 ms at "s" and 0.5 at 3, and the panel conversion 0.8 and 0.5
+# (2026-10-22).
+[profile.release.package.faraday-draw]
+opt-level = 3
+[profile.release.package.faraday-stick]
 opt-level = 3

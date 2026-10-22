@@ -281,6 +281,15 @@ CONFIG_IOMMU_DEFAULT_DMA_STRICT=y
 # with the screen on someone's desk. ACPI still powers it off, which is
 # init's `poweroff -f` after the app exits.
 # CONFIG_PM is not set
+# The CPU's clock follows the work. x86_64_defconfig's default governor
+# is userspace, which leaves a CPU on a passive driver (intel_cpufreq,
+# acpi-cpufreq) at the clock it booted at, often its lowest: on a slow
+# laptop every frame took three times as long. schedutil raises the
+# clock while frames are drawn and lowers it after. A CPU on an active
+# driver (intel_pstate with HWP, amd-pstate) keeps the driver's own
+# powersave, as before: performance here would run those flat out.
+CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
+# CONFIG_CPU_FREQ_DEFAULT_GOV_USERSPACE is not set
 
 # ---- what a PC has that this device does not want ----
 # CONFIG_MICROCODE cannot be turned off: it is `def_bool y` with no
