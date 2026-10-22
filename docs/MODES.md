@@ -119,7 +119,7 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
   `compact::scroll_sheet` with `sheet_head`, as the Load sheet.
 - Escape and Not now close it; Back lands where it was opened (F77).
 
-## 4. Starting, locking, warning
+## 4. Starting, locking, no warning
 
 **Desktop** (`faraday/shells/desktop/src/main.rs`):
 
@@ -128,21 +128,20 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
   `app.modes = DESKTOP_MODES`, `app.samples = Some(&SAMPLES)` (from M5).
   Every build starts in Demo, the developer's, the test's and the
   release's.
-- `restart` reads `app.mode_after_restart()` and `app.airgap_warned()`
-  from the app before replacing it, and builds `desktop_app_in` with
-  both: the mode carries across a lock; the warning, once given, is not
-  given again in that program start.
-- `with_start_warning` and its call go. **The online warning** (F61's
-  `Sheet::NotAirgapped`, text unchanged) moves to `Action::Mode(m)`: in a
-  release build (`faraday_core::is_release`), when the mode in use is
-  Demo, `m` is a test network and the warning has not been acknowledged
-  this program start, the sheet comes up with `test_asked = Some(m)`;
-  **I understand** goes on to the mode change (a lock). The guard in
-  `devices.rs` (`Action::Network` while on mainnet) is replaced by this
-  one; `Action::Network` goes. Developer and test builds show no
-  warning, as today.
-- The boot import and a new device no longer wait under a start
-  warning: there is none at start.
+- `restart` reads `app.mode_after_restart()` from the app before
+  replacing it, and builds `desktop_app_in` with it: the mode carries
+  across a lock.
+- **No online warning** (owner, 2026-10-22). F61's `Sheet::NotAirgapped`
+  goes, with `with_start_warning`, `without_airgap_warning`,
+  `airgap_warned`, `test_asked`'s use for it, the `test_network_*`
+  strings, the boot import's wait under it and `devices.rs`'s guard;
+  `Action::Network` goes. A person can type a seed on an online computer
+  in any mode, Demo included (Demo swaps it for a sample only after it
+  is typed), so a sheet on one path protects nothing. The fact is
+  stated where the app is downloaded instead: README's Faraday Desktop
+  section and the website's download page, one line, "Faraday Desktop
+  runs on an online computer: never type a seed that holds real bitcoin
+  into it. Real seeds go only into the Faraday stick."
 
 **Stick and Pi** (`faraday/shells/stick/src/main.rs`): a lock is a new
 process (exit code 75, the inittab's loop). Before exiting for a lock,
@@ -508,7 +507,6 @@ nothing of it.
 | Files | the Inbox and Outbox are folders on disk (Downloads) | sticks in memory, drawn round the laptop | a browser has no folder Faraday may watch |
 | Paste | the clipboard, a seed on a seed scanner (F75) | none | the web shell has no clipboard |
 | Camera | the computer's cameras | one webcam that sees the desk's props | the props are the page's way in |
-| Online warning | a release build, on leaving Demo | never | the website never leaves Demo |
 
 ## 10. Batches
 
@@ -524,8 +522,8 @@ wallet would notice.
   (`set_network` gone, `follow` per §2.8, `shown` and `broken_checksum`
   gone); modes/mod.rs (new: `Mode`, `modes`, `mode`, `next_mode`,
   `mode_after_restart`, `Action::Mode`); `faraday/faraday-core/src/demo.rs`;
-  `faraday/faraday-core/src/devices.rs` (`Action::Network` gone, the
-  warning guard per §4); `faraday/faraday-core/src/learn.rs`; lib.rs
+  `faraday/faraday-core/src/devices.rs` (`Action::Network` gone; no
+  warning on a mode change, §4); `faraday/faraday-core/src/learn.rs`; lib.rs
   (code map, `Action::Mode` routed, the lock reading `next_mode`).
 - **Tests** (rewrite `faraday/faraday-core/tests/all/network.rs` and
   `demo.rs`, `airgap.rs` to the new rule; new tests/all/modes.rs):
@@ -574,21 +572,26 @@ wallet would notice.
 - **Done**: snapshots of Home at 480x640 and 1280x800 in Demo and
   Testnet show the pill; the sheet renders on both.
 
-### M3. The desktop starts in Demo; the warning moves
+### M3. The desktop starts in Demo; the online warning goes
 
 - **Files**: `faraday/shells/desktop/src/main.rs` (`desktop_app_in`,
   `restart`, its tests); `faraday/faraday-core/src/lib.rs`
-  (`with_start_warning` gone, `airgap_warned()` read);
-  `faraday/faraday-core/src/devices.rs` (the guard on `Action::Mode`).
-- **Tests** (desktop's own and tests/all/airgap.rs): every build opens
-  in Demo; a release build leaving Demo for Testnet shows the online
-  warning, and I understand goes on to Testnet in a fresh session;
-  after that, Demo and back to Signet shows nothing; a lock in Testnet
-  comes back in Testnet; a developer build shows no warning.
+  (`Sheet::NotAirgapped`, `with_start_warning`, `without_airgap_warning`,
+  `airgap_warned` gone); `faraday/faraday-core/src/screens/sheets.rs`
+  (`not_airgapped_sheet` gone) and screens/mod.rs's routing of it;
+  `faraday/faraday-core/src/boot_import/mod.rs` (no wait under it);
+  `faraday/faraday-strings/src/en.rs` (`test_network_*` gone); README's
+  Faraday Desktop section (the one line of §4).
+- **Tests** (desktop's own; tests/all/airgap.rs rewritten as the rule
+  "no warning"): every build opens in Demo with no sheet; a release
+  build leaving Demo for Testnet goes straight to Testnet in a fresh
+  session; a lock in Testnet comes back in Testnet; the boot import
+  offers its files at once on every build.
 - **Docs**: README's Faraday Desktop section (starts in Demo; Testnet,
   Signet, Regtest from the pill); DEMO §1.1 and §2; `docs/STARTER.md`
   §1.1's description of the desktop file; the Learn page's "Test
-  networks" (the desktop starts in Demo; the warning on leaving it).
+  networks" (the desktop starts in Demo; never a seed that holds real
+  bitcoin, stated as fact).
 - **Done**: `just faraday-snap` of the desktop tour shows
   Demo on Home.
 
@@ -721,7 +724,8 @@ wallet would notice.
 
 ### W1. The website
 
-§9. In the website's repository; its HANDOFF.md is the contract.
+§9. In the website's repository; its HANDOFF.md is the contract. The
+download page's Faraday Desktop section gains §4's one line.
 
 ## 11. Settled with the owner (2026-10-22)
 
