@@ -173,6 +173,8 @@ offered and opens the Learn sheet.
 
 ### 1.5 The network pill only off mainnet; the chooser in Settings
 
+*Amended by F81 (2026-10-22): the pill opens the mode sheet; Settings' row opens the same sheet.*
+
 **What.** Home's network pill (`fn network_pill`, and the small Home's
 pill in `compact.rs` `fn home`) is drawn only when the network is not
 mainnet, as a badge that opens nothing. Settings gains a **Network**

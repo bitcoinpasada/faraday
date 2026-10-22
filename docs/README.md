@@ -32,6 +32,7 @@ need. Each document's header says what kind it is:
 | How are APKs signed? | `docs/APK-SIGNING.md` |
 | What are the demo and the developer builds? | `docs/DEMO.md` |
 | Why is a flow fast or slow, and how is costly work kept out of drawing? | `docs/SPEED.md`, `docs/COMPUTE.md` |
+| How do the modes, Demo and its samples work? | `docs/MODES.md` |
 | How do scrolling and motion work? | `docs/MOTION.md` |
 | Why is a dependency there? | `docs/deps/<crate>.md`; the policy is DECISIONS F71 |
 | Which tool or lint does what? | `tools/README.md` |
@@ -68,6 +69,7 @@ need. Each document's header says what kind it is:
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.
 - `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
 - `docs/MAC.md`: Faraday on Macs. Partly built.
+- `docs/MODES.md`: Modes, Demo and samples. Specified (F81), not built.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
 - `docs/MULTIVENDOR.md`: Two implementations of every cryptographic step. Option A decided (F79), not built.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
