@@ -81,11 +81,7 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
    `follow` takes the allowed modes as an argument (`Session` does not
    know `Faraday`).
 9. The website's mode is fixed (`Keys::fix_network` on Testnet with the
-   demo set): its pill draws with no hit target, as the badge does
-   today, and Settings shows no Mode row; nothing opens the sheet
-   (owner, 2026-10-22). `Faraday::mode_fixed()` (the session's network
-   is fixed, or `modes` has one entry) decides it, for the pill and the
-   row alike.
+   demo set): the sheet lists the other three dimmed.
 
 ## 3. The pill and the mode sheet
 
@@ -113,9 +109,9 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
   per mode in `self.modes`, in that order; the mode in use marked as a
   single choice is (DESIGN §4.2); the Demo row carries "Testnet" as its
   value, as a row with a value does (DESIGN §4.2); a press on another row is
-  `Action::Mode(m)`; **Not now** at the foot. The sheet lists only
-  modes that can be chosen: it never opens where the mode is fixed
-  (§2 item 9). No line says a
+  `Action::Mode(m)`; **Not now** at the foot. A row that cannot be
+  chosen (the website's three) is dimmed, its label alone: no reason
+  line (DESIGN §4.11, nothing on the device changes it). No line says a
   change locks: the Lock sheet or LockAsk, where the lock needs one,
   says what it keeps.
 - Wide: a sheet centred, at most the Load sheet's width (F62,
@@ -473,9 +469,9 @@ nothing of it.
   added.
 - `web/src/lib.rs` (`start`): `Session::on(Network::Testnet)`,
   `set_demo` with the samples, `fix_network`, `app.modes =
-  [Mode::Demo]`, `app.samples = Some(&SAMPLES)`. The pills show
-  "Demo · Testnet" and Load samples; pressing the Demo pill does
-  nothing, and Settings has no Mode row.
+  DESKTOP_MODES`, `app.samples = Some(&SAMPLES)`. The pills show Demo
+  and Load samples; the mode sheet lists Testnet, Signet and Regtest
+  dimmed.
 - **The stories use the samples** (`web/src/desk.rs`, `story.rs`,
   `stories.rs`, `walk.rs`):
   - **Bring in a wallet**: the wallet is sample Savings. Seed papers A,
@@ -566,9 +562,8 @@ wallet would notice.
 - **Tests**: off Mainnet, Home and every page offer the pill and it
   opens the sheet, on the wide and the compact layout; on Mainnet no
   pill shows and Settings' Mode row opens the sheet; the sheet offers
-  each mode of `modes` and marks the one in use; in a fixed session
-  (the website's) pressing the pill opens nothing and Settings has no
-  Mode row; Not now and Escape close it. The budget
+  each mode of `modes` and marks the one in use; a fixed session's
+  sheet offers no other mode; Not now and Escape close it. The budget
   tests (`faraday/faraday-core/src/work/budget/presses.rs`) name
   nothing costly for the pill's press or the sheet's frames.
 - **Docs**: DESIGN §4.8, Network row: "A caution pill naming the mode,
