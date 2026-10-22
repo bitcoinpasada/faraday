@@ -469,9 +469,9 @@ nothing of it.
   added.
 - `web/src/lib.rs` (`start`): `Session::on(Network::Testnet)`,
   `set_demo` with the samples, `fix_network`, `app.modes =
-  DESKTOP_MODES`, `app.samples = Some(&SAMPLES)`. The pills show Demo
-  and Load samples; the mode sheet lists Testnet, Signet and Regtest
-  dimmed.
+  DESKTOP_MODES`, `app.samples = Some(&SAMPLES)`. The pills show "Demo ·
+  Testnet" and Load samples; the pill and Settings' Mode row open the
+  mode sheet, where Testnet, Signet and Regtest are dimmed.
 - **The stories use the samples** (`web/src/desk.rs`, `story.rs`,
   `stories.rs`, `walk.rs`):
   - **Bring in a wallet**: the wallet is sample Savings. Seed papers A,
